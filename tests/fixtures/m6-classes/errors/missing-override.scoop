@@ -1,5 +1,5 @@
 open class A(val x: Int) {
-    fun f(): Int = 1
+    open fun f(): Int = 1
 }
 
 class B(val y: Int) : A(1) {

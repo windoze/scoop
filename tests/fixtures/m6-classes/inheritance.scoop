@@ -1,5 +1,5 @@
 open class Shape(val name: String) {
-    fun kind(): Int = 0
+    open fun kind(): Int = 0
     fun label(): String = name
 }
 

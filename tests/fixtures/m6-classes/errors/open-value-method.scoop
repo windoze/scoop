@@ -1,0 +1,5 @@
+struct S(val value: Int) {
+    open fun id(): Int = value
+}
+
+fun main() {}

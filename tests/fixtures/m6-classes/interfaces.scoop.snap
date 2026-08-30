@@ -175,18 +175,18 @@ Module
   class ClassCastException vtable=3 itables=0
   class ArithmeticException vtable=3 itables=0
   class IndexOutOfBoundsException vtable=3 itables=0
-  class Doc vtable=4 itables=1
+  class Doc vtable=3 itables=1
   class box$Tag vtable=3 itables=1
   class box$B vtable=3 itables=0
   interface Describable
   fun print @scoop.print(message: Any) -> Unit
     Call @scoop_rt_print direct
-      Call @scoop.Any.toString direct
+      Call @scoop.Any.toString virtual[2]
         Local message
     return
   fun println @scoop.println(message: Any) -> Unit
     Call @scoop_rt_print direct
-      Call @scoop.Any.toString direct
+      Call @scoop.Any.toString virtual[2]
         Local message
     Call @scoop_rt_print direct
       StringConst @scoop.str.0
@@ -200,7 +200,7 @@ Module
     val i: Describable
       Local d
     Call @scoop.println direct
-      Call @scoop.Describable.describe direct
+      Call @scoop.Describable.describe interface Describable[0]
         Local i
     val t: Tag
       StructInit Tag
@@ -209,7 +209,7 @@ Module
       Box
         Local t
     Call @scoop.println direct
-      Call @scoop.Describable.describe direct
+      Call @scoop.Describable.describe interface Describable[0]
         Local ti
     val a: Any
       Box
@@ -406,90 +406,88 @@ Module
   block entry
     t0 = call @scoop.ctor.Doc(global1) : ptr
     store t0 -> local0
-    t1 = extract local0, 0 : ptr
-    t2 = extract t1, 5 : ptr
-    t3 = call_indirect t2[3](local0) : ptr
-    call @scoop.println(t3)
-    t4 = aggregate () : {}
+    t1 = call @scoop.Doc.describe(local0) : ptr
+    call @scoop.println(t1)
+    t2 = aggregate () : {}
     store local0 -> local1
-    t5 = extract local1, 0 : ptr
-    t6 = call @scoop_rt_itable_lookup(t5, global7) : ptr
-    t7 = call_indirect t6[0](local1) : ptr
-    call @scoop.println(t7)
-    t8 = aggregate () : {}
-    t9 = aggregate (1) : {i64}
-    store t9 -> local2
-    t10 = call @scoop_rt_box(global8, local2, 8) : ptr
-    store t10 -> local3
-    t11 = extract local3, 0 : ptr
-    t12 = call @scoop_rt_itable_lookup(t11, global7) : ptr
-    t13 = call_indirect t12[0](local3) : ptr
-    call @scoop.println(t13)
-    t14 = aggregate () : {}
-    t15 = call @scoop_rt_box(global8, local2, 8) : ptr
-    store t15 -> local4
-    t16 = call @scoop_rt_is_instance(local4, global8) : i1
-    t17 = call @scoop_rt_box(global9, t16, 1) : ptr
-    call @scoop.println(t17)
-    t18 = aggregate () : {}
+    t3 = extract local1, 0 : ptr
+    t4 = call @scoop_rt_itable_lookup(t3, global7) : ptr
+    t5 = call_indirect t4[0](local1) : ptr
+    call @scoop.println(t5)
+    t6 = aggregate () : {}
+    t7 = aggregate (1) : {i64}
+    store t7 -> local2
+    t8 = call @scoop_rt_box(global8, local2, 8) : ptr
+    store t8 -> local3
+    t9 = extract local3, 0 : ptr
+    t10 = call @scoop_rt_itable_lookup(t9, global7) : ptr
+    t11 = call_indirect t10[0](local3) : ptr
+    call @scoop.println(t11)
+    t12 = aggregate () : {}
+    t13 = call @scoop_rt_box(global8, local2, 8) : ptr
+    store t13 -> local4
+    t14 = call @scoop_rt_is_instance(local4, global8) : i1
+    t15 = call @scoop_rt_box(global9, t14, 1) : ptr
+    call @scoop.println(t15)
+    t16 = aggregate () : {}
     store local4 -> local5
-    t19 = call @scoop_rt_is_instance(local5, global7) : i1
-    cbr t19 then @if.then.1 else @if.else.2
+    t17 = call @scoop_rt_is_instance(local5, global7) : i1
+    cbr t17 then @if.then.1 else @if.else.2
   block if.then.1
-    t20 = enum_wrap e1 v0 (local5) : enum1
-    store t20 -> local6
+    t18 = enum_wrap e1 v0 (local5) : enum1
+    store t18 -> local6
     br @if.merge.3
   block if.else.2
-    t21 = enum_wrap e1 v1 () : enum1
-    store t21 -> local6
+    t19 = enum_wrap e1 v1 () : enum1
+    store t19 -> local6
     br @if.merge.3
   block if.merge.3
     store local4 -> local7
-    t22 = call @scoop_rt_is_instance(local7, global7) : i1
-    cbr t22 then @if.then.4 else @if.else.5
+    t20 = call @scoop_rt_is_instance(local7, global7) : i1
+    cbr t20 then @if.then.4 else @if.else.5
   block if.then.4
-    t23 = enum_wrap e1 v0 (local7) : enum1
-    store t23 -> local8
+    t21 = enum_wrap e1 v0 (local7) : enum1
+    store t21 -> local8
     br @if.merge.6
   block if.else.5
-    t24 = enum_wrap e1 v1 () : enum1
-    store t24 -> local8
+    t22 = enum_wrap e1 v1 () : enum1
+    store t22 -> local8
     br @if.merge.6
   block if.merge.6
     store local4 -> local9
-    t25 = call @scoop_rt_is_instance(local9, global7) : i1
-    cbr t25 then @if.then.7 else @if.else.8
+    t23 = call @scoop_rt_is_instance(local9, global7) : i1
+    cbr t23 then @if.then.7 else @if.else.8
   block if.then.7
-    t26 = enum_wrap e1 v0 (local9) : enum1
-    store t26 -> local10
+    t24 = enum_wrap e1 v0 (local9) : enum1
+    store t24 -> local10
     br @if.merge.9
   block if.else.8
-    t27 = enum_wrap e1 v1 () : enum1
-    store t27 -> local10
+    t25 = enum_wrap e1 v1 () : enum1
+    store t25 -> local10
     br @if.merge.9
   block if.merge.9
-    t28 = enum_tag e1 local6 : i64
-    t29 = enum_wrap e1 v1 () : enum1
-    t30 = enum_tag e1 t29 : i64
-    t31 = Ne t28, t30 : i1
-    store t31 -> local11
-    cbr t31 then @sc.merge.11 else @sc.rhs.10
+    t26 = enum_tag e1 local6 : i64
+    t27 = enum_wrap e1 v1 () : enum1
+    t28 = enum_tag e1 t27 : i64
+    t29 = Ne t26, t28 : i1
+    store t29 -> local11
+    cbr t29 then @sc.merge.11 else @sc.rhs.10
   block sc.rhs.10
-    t32 = enum_tag e1 local8 : i64
-    t33 = Eq t32, 0 : i1
-    store t33 -> local12
-    cbr t33 then @sc.rhs.12 else @sc.merge.13
+    t30 = enum_tag e1 local8 : i64
+    t31 = Eq t30, 0 : i1
+    store t31 -> local12
+    cbr t31 then @sc.rhs.12 else @sc.merge.13
   block sc.merge.11
-    t38 = call @scoop_rt_box(global9, local11, 1) : ptr
-    call @scoop.println(t38)
-    t39 = aggregate () : {}
+    t36 = call @scoop_rt_box(global9, local11, 1) : ptr
+    call @scoop.println(t36)
+    t37 = aggregate () : {}
     ret
   block sc.rhs.12
-    t34 = enum_field e1 v0 f0 local10 : i64
-    t35 = enum_wrap e1 v1 () : enum1
-    t36 = enum_field e1 v0 f0 t35 : i64
-    t37 = Ne t34, t36 : i1
-    store t37 -> local12
+    t32 = enum_field e1 v0 f0 local10 : i64
+    t33 = enum_wrap e1 v1 () : enum1
+    t34 = enum_field e1 v0 f0 t33 : i64
+    t35 = Ne t32, t34 : i1
+    store t35 -> local12
     br @sc.merge.13
   block sc.merge.13
     store local12 -> local11
@@ -573,7 +571,7 @@ Module
     ret t1
   td Describable @scoop_td_Describable size=0 vtable=0 itables=0
   td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
-  td Doc @scoop_td_Doc size=24 vtable=4 itables=1
+  td Doc @scoop_td_Doc size=24 vtable=3 itables=1
   td box$Tag @scoop_td_box$Tag size=24 vtable=3 itables=1
   td box$B @scoop_td_box$B size=24 vtable=3 itables=0
   td Exception @scoop_td_Exception size=24 vtable=3 itables=0

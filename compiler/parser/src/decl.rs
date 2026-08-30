@@ -3,8 +3,8 @@
 
 use scoop_ast::{
     Annotation, ClassDecl, ClassModifier, ConstructorProp, Decl, Diagnostic, EnumDecl, Expr,
-    FieldDecl, FunctionBody, FunctionDecl, Ident, InterfaceDecl, Param, Span, StructDecl,
-    VariantDecl, VariantDeclKind, VariantFieldDecl,
+    FieldDecl, FunctionBody, FunctionDecl, Ident, InterfaceDecl, MethodModifier, Param, Span,
+    StructDecl, VariantDecl, VariantDeclKind, VariantFieldDecl,
 };
 
 use crate::lexer::TokenKind;
@@ -15,20 +15,22 @@ use crate::parser::Parser;
 pub(crate) enum FunctionContext {
     /// Top-level: no modifiers; a body is required (unless `@Intrinsic`).
     TopLevel,
-    /// Class / struct / enum body: `override` / `abstract` allowed;
-    /// `abstract` requires a bodyless declaration.
+    /// Class / struct / enum body: method modality and `override`
+    /// modifiers are parsed here; owner-specific legality is checked
+    /// by hir-lower. `abstract` requires a bodyless declaration.
     TypeBody,
     /// Interface body: method signatures only — bodies (default
     /// implementations) are outside the M6 subset.
     Interface,
 }
 
-/// The `override` / `abstract` modifiers in front of a member `fun`.
+/// The modality / `override` modifiers in front of a member `fun`.
 /// `start` is the byte offset of the first modifier keyword, for spans.
 #[derive(Debug, Default)]
 pub(crate) struct Modifiers {
     pub is_override: bool,
-    pub is_abstract: bool,
+    pub method_modifier: Option<MethodModifier>,
+    pub method_modifier_span: Option<Span>,
     pub start: Option<u32>,
 }
 
@@ -164,7 +166,7 @@ impl Parser {
         Ok((value, close.span.end))
     }
 
-    /// `(override|abstract)* fun <T, ...>? <name>(<param>, ...)?: <ret>? <body>?`
+    /// `(open|final|abstract|override)* fun <T, ...>? <name>(<param>, ...)?: <ret>? <body>?`
     /// — the type parameter list sits between `fun` and the name (a `<`
     /// right after `fun` is unambiguous here), parameters carry mandatory
     /// type annotations, and the return type defaults to `Unit` when
@@ -219,7 +221,9 @@ impl Parser {
                     "functions annotated with `@Intrinsic` must not have a body (spec 13.1)",
                 ));
             }
-            TokenKind::LBrace | TokenKind::Equal if modifiers.is_abstract => {
+            TokenKind::LBrace | TokenKind::Equal
+                if modifiers.method_modifier == Some(MethodModifier::Abstract) =>
+            {
                 return Err(Diagnostic::at(
                     self.peek().span,
                     "`abstract` functions must not have a body",
@@ -243,7 +247,7 @@ impl Parser {
                 (FunctionBody::Expr(Box::new(expr)), end)
             }
             _ if !annotations.is_empty()
-                || modifiers.is_abstract
+                || modifiers.method_modifier == Some(MethodModifier::Abstract)
                 || context == FunctionContext::Interface =>
             {
                 (FunctionBody::None, signature_end)
@@ -255,10 +259,21 @@ impl Parser {
             .map(|annotation| annotation.span.start)
             .or(modifiers.start)
             .unwrap_or(fun.span.start);
+        let modifier = modifiers.method_modifier.unwrap_or_else(|| {
+            if context == FunctionContext::Interface {
+                MethodModifier::Abstract
+            } else if modifiers.is_override {
+                // Kotlin-compatible rule (spec 9.1): overrides stay
+                // open unless explicitly closed with `final`.
+                MethodModifier::Open
+            } else {
+                MethodModifier::Final
+            }
+        });
         Ok(FunctionDecl {
             annotations,
             is_override: modifiers.is_override,
-            is_abstract: modifiers.is_abstract,
+            modifier,
             name,
             type_params,
             params,
@@ -513,30 +528,75 @@ impl Parser {
         Ok((methods, close.span.end))
     }
 
-    /// `(override|abstract)* fun ...` — a member function. Modifiers may
-    /// appear in any order, at most once each.
+    /// `(open|final|abstract|override)* fun ...` — a member function.
+    /// Modifiers may appear in any order; modality keywords are
+    /// mutually exclusive and every keyword may appear at most once.
     fn parse_member_function(
         &mut self,
         context: FunctionContext,
     ) -> Result<FunctionDecl, Diagnostic> {
         let mut modifiers = Modifiers::default();
         loop {
-            let is_modifier = match &self.peek().kind {
-                TokenKind::Ident(text) if text == "override" && !modifiers.is_override => {
-                    modifiers.is_override = true;
-                    true
-                }
-                TokenKind::Ident(text) if text == "abstract" && !modifiers.is_abstract => {
-                    modifiers.is_abstract = true;
-                    true
-                }
-                _ => false,
-            };
-            if !is_modifier {
+            let token = self.peek().clone();
+            let TokenKind::Ident(text) = &token.kind else {
                 break;
+            };
+            let modality = match text.as_str() {
+                "open" => Some(MethodModifier::Open),
+                "final" => Some(MethodModifier::Final),
+                "abstract" => Some(MethodModifier::Abstract),
+                "override" => None,
+                _ => break,
+            };
+            if text == "override" {
+                if modifiers.is_override {
+                    return Err(Diagnostic::at(
+                        token.span,
+                        "duplicate `override` modifier on member function",
+                    ));
+                }
+                modifiers.is_override = true;
+            } else if let Some(modality) = modality {
+                if let Some(existing) = modifiers.method_modifier {
+                    let existing = match existing {
+                        MethodModifier::Final => "final",
+                        MethodModifier::Open => "open",
+                        MethodModifier::Abstract => "abstract",
+                    };
+                    if existing == text {
+                        return Err(Diagnostic::at(
+                            token.span,
+                            format!("duplicate `{text}` modifier on member function"),
+                        ));
+                    }
+                    return Err(Diagnostic::at(
+                        token.span,
+                        format!(
+                            "`{existing}` and `{text}` cannot be combined on a member function"
+                        ),
+                    ));
+                }
+                modifiers.method_modifier = Some(modality);
+                modifiers.method_modifier_span = Some(token.span);
             }
             let keyword = self.bump();
             modifiers.start = modifiers.start.or(Some(keyword.span.start));
+        }
+        if context == FunctionContext::Interface
+            && matches!(
+                modifiers.method_modifier,
+                Some(MethodModifier::Final | MethodModifier::Open)
+            )
+        {
+            let modifier = match modifiers.method_modifier.expect("matched above") {
+                MethodModifier::Final => "final",
+                MethodModifier::Open => "open",
+                MethodModifier::Abstract => unreachable!(),
+            };
+            return Err(Diagnostic::at(
+                modifiers.method_modifier_span.expect("explicit modality"),
+                format!("`{modifier}` modifier is not allowed on interface methods"),
+            ));
         }
         self.parse_function(Vec::new(), modifiers, context)
     }

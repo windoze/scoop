@@ -126,17 +126,17 @@ Module
   class ClassCastException vtable=3 itables=0
   class ArithmeticException vtable=3 itables=0
   class IndexOutOfBoundsException vtable=3 itables=0
-  class A vtable=5 itables=0
-  class B vtable=5 itables=0
+  class A vtable=4 itables=0
+  class B vtable=4 itables=0
   class box$I vtable=3 itables=0
   fun print @scoop.print(message: Any) -> Unit
     Call @scoop_rt_print direct
-      Call @scoop.Any.toString direct
+      Call @scoop.Any.toString virtual[2]
         Local message
     return
   fun println @scoop.println(message: Any) -> Unit
     Call @scoop_rt_print direct
-      Call @scoop.Any.toString direct
+      Call @scoop.Any.toString virtual[2]
         Local message
     Call @scoop_rt_print direct
       StringConst @scoop.str.0
@@ -145,7 +145,7 @@ Module
       Call @scoop.ctor.B direct
     Call @scoop.println direct
       Box
-        Call @scoop.A.s.I direct
+        Call @scoop.A.s.I virtual[3]
           Local a
           IntLiteral 1
     Call @scoop.println direct
@@ -266,12 +266,10 @@ Module
     t4 = call @scoop_rt_box(global6, t3, 8) : ptr
     call @scoop.println(t4)
     t5 = aggregate () : {}
-    t6 = extract local0, 0 : ptr
-    t7 = extract t6, 5 : ptr
-    t8 = call_indirect t7[4](local0, global1) : i64
-    t9 = call @scoop_rt_box(global6, t8, 8) : ptr
-    call @scoop.println(t9)
-    t10 = aggregate () : {}
+    t6 = call @scoop.A.s.S(local0, global1) : i64
+    t7 = call @scoop_rt_box(global6, t6, 8) : ptr
+    call @scoop.println(t7)
+    t8 = aggregate () : {}
     ret
   fun @scoop.A.s.I(ptr, i64) -> i64
   block entry
@@ -339,10 +337,10 @@ Module
     t1 = call @scoop_rt_int_to_string(t0) : ptr
     ret t1
   td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
-  td A @scoop_td_A size=16 vtable=5 itables=0
+  td A @scoop_td_A size=16 vtable=4 itables=0
   td box$I @scoop_td_box$I size=24 vtable=3 itables=0
   td Exception @scoop_td_Exception size=24 vtable=3 itables=0
-  td B @scoop_td_B size=16 vtable=5 itables=0
+  td B @scoop_td_B size=16 vtable=4 itables=0
   td UnwrapException @scoop_td_UnwrapException size=24 vtable=3 itables=0
   td ClassCastException @scoop_td_ClassCastException size=24 vtable=3 itables=0
   td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=3 itables=0

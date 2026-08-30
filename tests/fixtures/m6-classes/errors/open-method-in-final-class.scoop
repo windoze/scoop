@@ -1,0 +1,5 @@
+class Closed {
+    open fun id(): Int = 1
+}
+
+fun main() {}

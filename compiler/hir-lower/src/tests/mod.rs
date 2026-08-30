@@ -490,7 +490,7 @@ pub(crate) fn fun_sig(
     Decl::Function(FunctionDecl {
         annotations: Vec::new(),
         is_override: false,
-        is_abstract: false,
+        modifier: ast::MethodModifier::Final,
         name: ident(name),
         type_params: type_params.into_iter().map(ident).collect(),
         params: params
@@ -518,7 +518,7 @@ pub(crate) fn fun_expr(
     Decl::Function(FunctionDecl {
         annotations: Vec::new(),
         is_override: false,
-        is_abstract: false,
+        modifier: ast::MethodModifier::Final,
         name: ident(name),
         type_params: type_params.into_iter().map(ident).collect(),
         params: params
@@ -561,7 +561,7 @@ pub(crate) fn intrinsic_generic_fun(
             span: sp(),
         }],
         is_override: false,
-        is_abstract: false,
+        modifier: ast::MethodModifier::Final,
         name: ident(name),
         type_params: type_params.into_iter().map(ident).collect(),
         params: params
@@ -647,7 +647,13 @@ pub(crate) fn method_full(
     FunctionDecl {
         annotations: Vec::new(),
         is_override,
-        is_abstract,
+        modifier: if is_abstract {
+            ast::MethodModifier::Abstract
+        } else if is_override {
+            ast::MethodModifier::Open
+        } else {
+            ast::MethodModifier::Final
+        },
         name: ident(name),
         type_params: Vec::new(),
         params: params
@@ -696,6 +702,16 @@ pub(crate) fn method_expr(
         return_ty,
         FunctionBody::Expr(Box::new(expr)),
     )
+}
+
+/// Set the effective modality of a member declaration built by the
+/// helpers above.
+pub(crate) fn with_method_modifier(
+    mut method: FunctionDecl,
+    modifier: ast::MethodModifier,
+) -> FunctionDecl {
+    method.modifier = modifier;
+    method
 }
 
 /// An `override` expression-bodied member function.

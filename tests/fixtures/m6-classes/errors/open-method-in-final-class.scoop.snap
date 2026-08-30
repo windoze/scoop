@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m6-classes/errors/open-method-in-final-class.scoop:2:14: error: open function `id` is only allowed in open or abstract classes

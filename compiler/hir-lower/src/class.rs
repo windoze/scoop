@@ -168,9 +168,6 @@ impl Lowerer {
         self.type_params_in_scope.clear();
 
         self.functions[id].return_ty = return_ty;
-        if decl.is_abstract && matches!(owner, Owner::Class(_)) {
-            self.abstract_methods.insert(id);
-        }
         self.signatures.insert(
             id,
             FnSig {
@@ -183,7 +180,7 @@ impl Lowerer {
         // Bodyless declarations get their parameter-only body here;
         // concrete methods are lowered in pass 3.
         let host_ty = self.owner_ty(owner);
-        if decl.is_abstract || matches!(owner, Owner::Interface(_)) {
+        if decl.modifier == ast::MethodModifier::Abstract || matches!(owner, Owner::Interface(_)) {
             let (body, declared) = self.build_params_only_body(id, host_ty);
             self.functions[id].kind = hir::FunctionKind::User(body);
             if let Owner::Interface(iface) = owner {
@@ -223,13 +220,24 @@ impl Lowerer {
             Owner::Class(class_id) => {
                 let abstract_class =
                     self.classes[class_id].modifier == hir::ClassModifier::Abstract;
-                if decl.is_abstract && !abstract_class {
+                if decl.modifier == ast::MethodModifier::Abstract && !abstract_class {
                     self.error(
                         decl.name.span,
                         format!("abstract function `{short}` is only allowed in abstract classes"),
                     );
                 }
-                match (&decl.body, decl.is_abstract) {
+                if decl.modifier == ast::MethodModifier::Open
+                    && !decl.is_override
+                    && self.classes[class_id].modifier == hir::ClassModifier::Final
+                {
+                    self.error(
+                        decl.name.span,
+                        format!(
+                            "open function `{short}` is only allowed in open or abstract classes"
+                        ),
+                    );
+                }
+                match (&decl.body, decl.modifier == ast::MethodModifier::Abstract) {
                     (ast::FunctionBody::None, false) => self.error(
                         decl.name.span,
                         format!("function `{short}` must have a body"),
@@ -242,10 +250,16 @@ impl Lowerer {
                 }
             }
             Owner::Struct(_) | Owner::Enum(_) => {
-                if decl.is_abstract {
+                if decl.modifier == ast::MethodModifier::Abstract {
                     self.error(
                         decl.name.span,
                         format!("abstract function `{short}` is only allowed in abstract classes"),
+                    );
+                }
+                if decl.modifier == ast::MethodModifier::Open && !decl.is_override {
+                    self.error(
+                        decl.name.span,
+                        format!("open function `{short}` is only allowed in class declarations"),
                     );
                 }
                 // `override` on a value-type method is checked in pass
@@ -415,6 +429,19 @@ impl Lowerer {
             .iter()
             .copied()
             .find(|&candidate| self.same_signature(candidate, &short, &sig));
+        if let Some(candidate) = overrides
+            && matches!(self.function_owner.get(&candidate), Some(Owner::Class(_)))
+            && self.functions[candidate]
+                .method
+                .is_some_and(|method| method.modifier == hir::MethodModifier::Final)
+        {
+            let owner = self.functions[candidate].name.clone();
+            self.error(
+                decl.name.span,
+                format!("`{short}` cannot override final method `{owner}`"),
+            );
+            return;
+        }
         match (overrides, decl.is_override) {
             (Some(candidate), false) => {
                 let owner = self.functions[candidate].name.clone();
@@ -516,7 +543,9 @@ impl Lowerer {
 
     /// Whether the method is `abstract` (bodyless class method).
     fn is_abstract_method(&self, id: FunctionId) -> bool {
-        self.abstract_methods.contains(&id)
+        self.functions[id]
+            .method
+            .is_some_and(|method| method.modifier == hir::MethodModifier::Abstract)
     }
 
     /// Signature equality for override / implementation matching:
@@ -725,11 +754,11 @@ impl Lowerer {
         self.find_class_field(*base, name)
     }
 
-    /// All methods named `name` on a receiver type (M7 overload
-    /// candidates): a class contributes its own methods plus its base
-    /// chain's (nearest first), interfaces / structs / enums their
-    /// own. The candidates of a method call (`x.m(...)` or a bare
-    /// `m(...)` meaning `this.m(...)`) come from this list.
+    /// All visible methods named `name` on a receiver type (M7 overload
+    /// candidates). A class contributes its own methods followed by
+    /// the base chain nearest-first; an overriding signature suppresses
+    /// the corresponding base declaration so one dynamic-dispatch slot
+    /// never appears as two ambiguous overload candidates.
     ///
     /// An `Any` receiver additionally resolves the three `Any`
     /// members (`equals` / `hashCode` / `toString`), synthesized by
@@ -742,22 +771,44 @@ impl Lowerer {
     /// receiver would come out as a direct call, an interface
     /// receiver has no matching itable slot).
     pub(crate) fn methods_by_name(&self, ty: TypeId, name: &str) -> Vec<FunctionId> {
-        let matches = |methods: &[FunctionId]| -> Vec<FunctionId> {
-            methods
+        let add_visible = |result: &mut Vec<FunctionId>, methods: &[FunctionId]| {
+            for method in methods
                 .iter()
                 .copied()
-                .filter(|&m| self.functions[m].name.rsplit('.').next() == Some(name))
-                .collect()
+                .filter(|&method| self.functions[method].name.rsplit('.').next() == Some(name))
+            {
+                let sig = &self.signatures[&method];
+                if !result
+                    .iter()
+                    .copied()
+                    .any(|visible| self.same_signature(visible, name, sig))
+                {
+                    result.push(method);
+                }
+            }
         };
         match self.types[ty] {
             Type::Class(id) => {
-                let mut result = matches(&self.class_methods[&id]);
-                result.extend(matches(&self.base_chain_methods(id)));
+                let mut result = Vec::new();
+                add_visible(&mut result, &self.class_methods[&id]);
+                add_visible(&mut result, &self.base_chain_methods(id));
                 result
             }
-            Type::Interface(id) => matches(&self.interface_methods[&id]),
-            Type::Struct(id) => matches(&self.struct_methods[&id]),
-            Type::Enum(id, _) => matches(&self.enum_methods[&id]),
+            Type::Interface(id) => {
+                let mut result = Vec::new();
+                add_visible(&mut result, &self.interface_methods[&id]);
+                result
+            }
+            Type::Struct(id) => {
+                let mut result = Vec::new();
+                add_visible(&mut result, &self.struct_methods[&id]);
+                result
+            }
+            Type::Enum(id, _) => {
+                let mut result = Vec::new();
+                add_visible(&mut result, &self.enum_methods[&id]);
+                result
+            }
             Type::Any => self.any_method(name).into_iter().collect(),
             _ => Vec::new(),
         }

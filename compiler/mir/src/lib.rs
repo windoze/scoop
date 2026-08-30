@@ -747,7 +747,14 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
                 Callee::User(id) => format!("@{}", module.functions[*id].symbol),
                 Callee::Runtime(function) => format!("@{}", function.symbol()),
             };
-            out.push_str(&format!("{pad}Call {callee} direct\n"));
+            let kind = match &call.target.kind {
+                CallKind::Direct => "direct".to_string(),
+                CallKind::Virtual { slot } => format!("virtual[{slot}]"),
+                CallKind::Interface { interface, slot } => {
+                    format!("interface {}[{slot}]", module.interfaces[*interface].name)
+                }
+            };
+            out.push_str(&format!("{pad}Call {callee} {kind}\n"));
             for arg in &call.args {
                 dump_expr(module, locals, arg, indent + 1, out);
             }

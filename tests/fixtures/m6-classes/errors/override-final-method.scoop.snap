@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m6-classes/errors/override-final-method.scoop:6:18: error: `id` cannot override final method `Base.id`

@@ -39,7 +39,7 @@
 //! inheritance with base-constructor delegation, interface lists),
 //! interface declarations (method signatures only), member functions
 //! on classes / interfaces / structs / enums (`this` is parameter 0,
-//! `Function::method_of` records the host type), override and
+//! `Function::method` records the host type and dispatch modality), override and
 //! implementation checks (value types implement interfaces too, spec
 //! 4.4.3), method calls resolved against the receiver's static type,
 //! class construction (`ExprKind::ClassInit`), class field reads and
@@ -164,7 +164,7 @@ pub(crate) enum VariantStyle {
 
 /// The type a member function belongs to (M6). Method `Function`s are
 /// registered per owner (`class_methods` and friends) and carry the
-/// owner's type in `Function::method_of`; the receiver is `params[0]`.
+/// owner's type and modality in `Function::method`; the receiver is `params[0]`.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Owner {
     Class(ClassId),
@@ -249,17 +249,13 @@ pub(crate) struct Lowerer {
     /// Interface namespace: name → (declaration, interface type).
     pub(crate) interfaces_by_name: HashMap<String, (InterfaceId, TypeId)>,
     /// Member functions per owner, in declaration order (this is also
-    /// the vtable layout order mir-lower relies on: methods of one
-    /// class are allocated contiguously).
+    /// declaration order used when building vtables.
     pub(crate) class_methods: HashMap<ClassId, Vec<FunctionId>>,
     pub(crate) interface_methods: HashMap<InterfaceId, Vec<FunctionId>>,
     pub(crate) struct_methods: HashMap<StructId, Vec<FunctionId>>,
     pub(crate) enum_methods: HashMap<EnumId, Vec<FunctionId>>,
     /// The owner of every member function.
     pub(crate) function_owner: HashMap<FunctionId, Owner>,
-    /// `abstract` class methods (bodyless; consulted by the interface
-    /// implementation check).
-    pub(crate) abstract_methods: HashSet<FunctionId>,
     /// Mutability of each class's own constructor properties
     /// (declaration order); `hir::Field` has no mutability slot.
     pub(crate) class_prop_mutability: HashMap<ClassId, Vec<bool>>,
@@ -363,7 +359,6 @@ impl Lowerer {
             struct_methods: HashMap::new(),
             enum_methods: HashMap::new(),
             function_owner: HashMap::new(),
-            abstract_methods: HashSet::new(),
             class_prop_mutability: HashMap::new(),
             option_candidates: Vec::new(),
             option_enum: None,
@@ -444,7 +439,10 @@ impl Lowerer {
                     locals,
                     statements: Vec::new(),
                 }),
-                method_of: Some(self.any),
+                method: Some(hir::Method {
+                    owner: self.any,
+                    modifier: hir::MethodModifier::Open,
+                }),
                 span,
             });
             self.signatures.insert(
@@ -598,7 +596,9 @@ impl Lowerer {
         for (id, decl, file_index, owner) in pending_methods {
             // Interface and abstract methods are bodyless; their
             // parameter-only body was built in pass 2.5.
-            if decl.is_abstract || matches!(owner, Owner::Interface(_)) {
+            if decl.modifier == ast::MethodModifier::Abstract
+                || matches!(owner, Owner::Interface(_))
+            {
                 continue;
             }
             self.current_file = file_index;
@@ -869,8 +869,8 @@ impl Lowerer {
     /// namespaces where one name may collect several overloads (M7;
     /// same-signature duplicates are diagnosed in pass 2.6, once
     /// parameter types are known) and are named `Owner.method` for
-    /// unambiguous symbols downstream; `Function::method_of` records
-    /// the host type. Signatures and bodies are filled in passes
+    /// unambiguous symbols downstream; `Function::method` records the
+    /// host type and effective modality. Signatures and bodies are filled in passes
     /// 2.5 / 3.
     fn declare_method<'a>(
         &mut self,
@@ -885,6 +885,24 @@ impl Lowerer {
             return;
         }
         let host_ty = self.owner_ty(owner);
+        let modifier = match owner {
+            Owner::Interface(_) => hir::MethodModifier::Abstract,
+            Owner::Struct(_) | Owner::Enum(_) => hir::MethodModifier::Final,
+            Owner::Class(class_id)
+                if self.classes[class_id].modifier == hir::ClassModifier::Final
+                    && decl.is_override
+                    && decl.modifier == ast::MethodModifier::Open =>
+            {
+                // An override is open by default, but a final owner
+                // makes it effectively final.
+                hir::MethodModifier::Final
+            }
+            Owner::Class(_) => match decl.modifier {
+                ast::MethodModifier::Final => hir::MethodModifier::Final,
+                ast::MethodModifier::Open => hir::MethodModifier::Open,
+                ast::MethodModifier::Abstract => hir::MethodModifier::Abstract,
+            },
+        };
         let id = self.functions.alloc(Function {
             name: format!("{}.{}", owner.describe_name(self), decl.name.text),
             // Filled in pass 2.5 (signature) and pass 3 (body and
@@ -896,7 +914,10 @@ impl Lowerer {
                 locals: Arena::new(),
                 statements: Vec::new(),
             }),
-            method_of: Some(host_ty),
+            method: Some(hir::Method {
+                owner: host_ty,
+                modifier,
+            }),
             span: decl.span,
         });
         self.function_owner.insert(id, owner);
@@ -937,7 +958,7 @@ impl Lowerer {
             params: Vec::new(),
             return_ty: self.unit,
             kind,
-            method_of: None,
+            method: None,
             span: decl.span,
         });
         self.top_level.push(id);
@@ -1322,7 +1343,7 @@ impl Lowerer {
     /// resolved signature like any other function's (M7).
     fn resolve_signature(&mut self, id: FunctionId, decl: &ast::FunctionDecl) {
         // Member-only flags on a top-level function (M6).
-        if decl.is_abstract {
+        if decl.modifier == ast::MethodModifier::Abstract {
             self.error(
                 decl.name.span,
                 format!(

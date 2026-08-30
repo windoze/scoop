@@ -1,0 +1,9 @@
+open class Base {
+    fun id(): Int = 1
+}
+
+class Derived : Base() {
+    override fun id(): Int = 2
+}
+
+fun main() {}

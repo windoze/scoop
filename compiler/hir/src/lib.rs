@@ -188,6 +188,23 @@ pub enum ClassModifier {
     Abstract,
 }
 
+/// Effective dispatch modality of a member function (spec 9.1).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MethodModifier {
+    Final,
+    Open,
+    Abstract,
+}
+
+/// Member-only function metadata. Keeping owner and modality together
+/// makes it impossible for a method to reach downstream stages without
+/// a dispatch modality.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Method {
+    pub owner: TypeId,
+    pub modifier: MethodModifier,
+}
+
 #[derive(Debug)]
 pub struct ClassDecl {
     pub modifier: ClassModifier,
@@ -241,10 +258,9 @@ pub struct Function {
     pub params: Vec<Param>,
     pub return_ty: TypeId,
     pub kind: FunctionKind,
-    /// `Some(ty)` when this function is a member of the class /
-    /// interface / struct / enum type `ty`; the receiver is the first
-    /// entry of `params` (named `this`).
-    pub method_of: Option<TypeId>,
+    /// Member metadata; the receiver of a method is the first entry of
+    /// `params` (named `this`). Top-level functions have `None`.
+    pub method: Option<Method>,
     pub span: Span,
 }
 
