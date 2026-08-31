@@ -249,6 +249,47 @@ fn expected_lambda_builds_a_typed_invoke_function_and_callable_call() {
 }
 
 #[test]
+fn unit_returning_lambda_discards_its_tail_value_explicitly() {
+    let signature = ty_function(false, vec![ty_named("Int")], ty_named("Unit"));
+    let operation = lambda(
+        Some(vec![ast::LambdaParam {
+            target: pat_bind("value"),
+            ty: None,
+            span: sp(),
+        }]),
+        binary(ast::BinOp::Add, var("value"), int_lit(1)),
+    );
+    let module = lower_user(file(vec![fun(
+        "main",
+        vec![val_ty("operation", Some(signature), operation)],
+    )]))
+    .expect("a Unit-returning lambda discards a non-Unit tail value");
+
+    let (_, lambda) = module.lambdas.iter().next().expect("lambda entity");
+    let invoke = &module.functions[lambda.function];
+    assert_eq!(invoke.return_ty, module.unit);
+    let hir::FunctionKind::User(body) = &invoke.kind else {
+        panic!("lambda body");
+    };
+    assert!(body.statements.iter().any(|statement| matches!(
+        statement.kind,
+        hir::StatementKind::Expr(hir::Expr {
+            kind: hir::ExprKind::Binary { .. },
+            ..
+        })
+    )));
+    assert!(
+        body.statements
+            .iter()
+            .any(|statement| matches!(statement.kind, hir::StatementKind::Return { value: None }))
+    );
+    assert!(!body.statements.iter().any(|statement| matches!(
+        statement.kind,
+        hir::StatementKind::Return { value: Some(_) }
+    )));
+}
+
+#[test]
 fn suspend_lambda_owns_a_suspend_body_and_is_callable_only_in_suspend_context() {
     let signature = ty_function(true, Vec::new(), ty_named("Int"));
     let module = lower_user(file(vec![

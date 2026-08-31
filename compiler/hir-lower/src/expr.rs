@@ -2233,6 +2233,7 @@ impl Lowerer {
                 .as_ref()
                 .map_or(expected_return.unwrap_or(self.unit), |value| value.ty);
             if let Some(expected_return) = expected_return
+                && !self.types_equal(expected_return, self.unit)
                 && !self.types_equal(return_ty, expected_return)
             {
                 let expected = self.type_name(expected_return);
@@ -2247,7 +2248,6 @@ impl Lowerer {
             self.current_return_ty = return_ty;
             prefix.append(&mut value_block.statements);
             if let Some(value) = value_block.value.take() {
-                let value = self.adapt_to(value, return_ty);
                 if self.types_equal(return_ty, self.unit) {
                     if !matches!(value.kind, ExprKind::UnitLiteral) {
                         prefix.push(hir::Statement {
@@ -2260,6 +2260,7 @@ impl Lowerer {
                         kind: hir::StatementKind::Return { value: None },
                     });
                 } else {
+                    let value = self.adapt_to(value, return_ty);
                     prefix.push(hir::Statement {
                         span: value.span,
                         kind: hir::StatementKind::Return { value: Some(value) },

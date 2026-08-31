@@ -9,6 +9,7 @@ fun main() {
     val standalone = { value: Int -> value + 3 }
     val implicit: (Int) -> Int = { it + 1 }
     val zero = { 42 }
+    val discard: (Int) -> Unit = { value -> value + 1 }
     gcCollect()
     println(lambda(40))
     println(reference.invoke(40))
@@ -18,4 +19,6 @@ fun main() {
     println(zero())
     println(({ value: Int -> value + 1 })(40))
     println(reference === secondReference)
+    discard(41)
+    println("discarded")
 }
