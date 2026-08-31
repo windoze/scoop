@@ -63,9 +63,9 @@ try / catch / finally / throw，landingpad 落地（runtime spec 第 5 章）。
 
 命名 `suspend` 函数/方法、完全类型化的 suspend 状态机变换、`Continuation` 与最小启动/挂起原语（spec 8.2、11.9；impl spec 2.3）。已完成 MIR CFG 化、先单态化后状态机变换、direct / virtual / interface 与型变 bridge 的 hidden ABI、真实挂起/同步完成/失败恢复、异常物化及跨挂起 `catch` / `finally`，并以强制 GC 验证嵌套 frame/adapter 链和递归扫描。高层协程构建器与调度器仍属标准库；M10 以 core 的 `SuspendTask` / `SuspendRegistration` 适配器打通无 lambda 前置依赖的端到端闭环。
 
-### M11 函数类型、函数值与 closure（设计见 `docs/milestone11/DESIGN.md`）
+### M11 函数类型、函数值与 closure ✅（2026-08-31 完成，设计见 `docs/milestone11/DESIGN.md`）
 
-正式落地 ordinary / suspend function type、lambda、匿名函数、局部函数、callable reference 与捕获 closure（spec 8.1；impl spec 2.2–2.4）。MIR 固定“单态化 → closure conversion → coroutine transform”顺序；M11 采用类似 Java lambda 的保守 capture边界，但以 Scoop 显式声明的不可变性为准，不推导 effectively final：只允许捕获 `val`、参数、`this` 等不可重新绑定的 binding。captured value type按 concrete layout内联于closure，不隐式生成shared cell或boxing。closure/adapter都有独立TypeDescriptor与完整GC扫描描述。core 在 M10 的 `SuspendTask` / `SuspendRegistration` 协议上增加函数值形态适配重载。
+已完成 ordinary / suspend function type、lambda、匿名函数、局部函数、callable reference 与捕获 closure 的全链路实现（spec 8.1；impl spec 2.2–2.4）。MIR 固定“单态化 → closure conversion → coroutine transform”顺序；generic callable value、静态/动态函数型变 adapter 与 suspend hidden ABI 均保持完全类型化。M11 采用类似 Java lambda 的保守 capture边界，但以 Scoop 显式声明的不可变性为准，不推导 effectively final：只允许捕获 `val`、参数、`this` 等不可重新绑定的 binding。captured value type按 concrete layout内联于closure，不隐式生成shared cell或boxing。closure/adapter都有独立TypeDescriptor与完整GC扫描描述，并已覆盖异常、真实挂起和强制 GC。core 已在 M10 的 `SuspendTask` / `SuspendRegistration` 协议上增加函数值形态适配重载。
 
 M11 同时补齐 M7 预留的局部函数候选层，并把 managed 函数值与 native `FunPtr` 明确分开：只有下一里程碑在 `FunPtr<F>` 期望位置处理合格的顶层 `::name`，lambda/closure 不自动变成 native callback。
 
@@ -194,7 +194,7 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 
 ### 来自 M10
 
-- suspend function type、函数引用与 lambda/closure → M11；core 当前以 `SuspendTask` / `SuspendRegistration` 作为无 lambda 的最小协议，M11 增加函数值形态适配 overload；
+- ~~suspend function type、函数引用与 lambda/closure~~（已由 M11 完成；core 保留 `SuspendTask` / `SuspendRegistration` 最小协议，并已增加函数值形态适配 overload）；
 - `launch` / `async`、dispatcher、事件循环、结构化并发与取消属于标准库设计，不进入编译器最小 core；
 - continuation 的跨线程恢复：当前单线程协议使用普通字段，需随 runtime 线程注册、STW 握手和调度器一起定义原子状态与线程切换规则；
 - ~~suspend FFI ABI（→ M12 实现既定禁令）~~（已决策：现阶段不支持；`@Extern` 与 `suspend` 互斥，挂起函数不能转换为 `FunPtr`，不得生成 wrapper 或暴露 M10 hidden continuation ABI）；

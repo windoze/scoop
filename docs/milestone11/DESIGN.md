@@ -1,6 +1,6 @@
 # M11 设计：函数类型、函数值与 closure
 
-版本：0.2（草案）
+版本：1.0（已实现，2026-08-31）
 
 对应 `docs/ROADMAP.md` 的 M11。目标：把 spec 8.1 的普通/挂起函数类型、lambda、匿名函数、局部函数与 callable reference 作为正式语言能力全链路落地，并在 MIR 完成可被 M9 GC 扫描、可与 M10 状态机组合的 closure conversion。M12 FFI 随后直接复用这里的函数类型与 `::name`，不再为 `FunPtr` 临时发明一套不可作为值使用的伪签名类型。
 
