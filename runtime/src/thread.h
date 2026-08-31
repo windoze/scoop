@@ -40,6 +40,8 @@ typedef struct ScoopThreadState {
     uint64_t callback_depth;
     ScoopThreadAttachmentKind attachment_kind;
     ScoopNativeRootFrame *native_roots;
+    ScoopCallerRootFrame *caller_roots;
+    ScoopThreadTransition *current_transition;
     struct ScoopThreadState *registry_prev;
     struct ScoopThreadState *registry_next;
 } ScoopThreadState;
@@ -55,6 +57,7 @@ ScoopThreadState *scoop_thread_current_required(void);
 void scoop_thread_require_managed(void);
 void scoop_thread_require_single_attachment_for_allocation(void);
 void scoop_thread_poll(void);
+void scoop_thread_runtime_entry(void);
 
 /* Collection coordinator. begin returns false when this request joined an
  * already active epoch; only the true-returning collector may enumerate the

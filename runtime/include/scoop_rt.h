@@ -228,9 +228,40 @@ typedef struct ScoopNativeRootFrame {
     uint64_t count;
 } ScoopNativeRootFrame;
 
+/* Compiler-published roots that stay live across one outbound native call.
+ * The shape is intentionally parallel to ScoopNativeRootFrame, but the two
+ * chains have different ownership and transition semantics. */
+typedef struct ScoopCallerRootFrame {
+    struct ScoopCallerRootFrame *previous;
+    void ***slots;
+    uint64_t count;
+} ScoopCallerRootFrame;
+
+/* Stack-owned outbound transition record. Its fields are runtime-managed;
+ * generated code allocates the record, passes it to enter/leave, and must not
+ * copy or inspect it while active. */
+typedef struct ScoopThreadTransition {
+    struct ScoopThreadTransition *previous;
+    ScoopCallerRootFrame *caller_roots;
+    uintptr_t managed_stack_low;
+    uintptr_t managed_stack_high;
+    uint32_t previous_mode;
+    uint32_t native_mode;
+} ScoopThreadTransition;
+
 void scoop_rt_push_native_roots(ScoopNativeRootFrame *frame, void ***slots,
                                 uint64_t count);
 void scoop_rt_pop_native_roots(ScoopNativeRootFrame *frame);
+
+void scoop_rt_push_caller_roots(ScoopCallerRootFrame *frame, void ***slots,
+                                uint64_t count);
+void scoop_rt_pop_caller_roots(ScoopCallerRootFrame *frame);
+void scoop_rt_enter_native_safe(ScoopThreadTransition *transition,
+                                uintptr_t managed_stack_pointer);
+void scoop_rt_leave_native_safe(ScoopThreadTransition *transition);
+void scoop_rt_enter_native_borrowed(ScoopThreadTransition *transition,
+                                    uintptr_t managed_stack_pointer);
+void scoop_rt_leave_native_borrowed(ScoopThreadTransition *transition);
 
 /* pin / unpin (runtime spec 3.4): O(1) object-header flag, no handle
  * table. Returns the object so the Scoop-level intrinsics can forward
@@ -283,6 +314,8 @@ void scoop_rt_thread_debug_leave_managed(void);
 uint64_t scoop_rt_thread_debug_gc_epoch(void);
 uint64_t scoop_rt_thread_debug_last_gc_parked_count(void);
 uint64_t scoop_rt_thread_debug_last_gc_native_safe_count(void);
+uint64_t scoop_rt_thread_debug_caller_root_count(void);
+uint64_t scoop_rt_thread_debug_transition_depth(void);
 
 /* M8 additions (milestone8 DESIGN section 4): exception support on top
  * of the Itanium C++ ABI (runtime spec 5). Scoop exceptions are thrown

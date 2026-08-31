@@ -2,8 +2,8 @@
 
 C runtime: Immix-core GC (`src/gc.c`, M9 — block/line heap, mark-region
 collection, pin/handle; see `docs/milestone9/DESIGN.md` section 2),
-M13 pthread registration, TLS thread state and cooperative STW epochs
-(`src/thread.c`),
+M13 pthread registration, TLS thread state, cooperative STW epochs and
+native-safe/native-borrowed transition roots (`src/thread.c`),
 runtime entry points and backing implementations of core types
 (`src/rt.c`). See `docs/specs/SCOOP-RUNTIME-SPEC.md`.
 

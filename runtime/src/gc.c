@@ -501,11 +501,10 @@ void scoop_rt_gc_remove_root_object(const void *obj) {
 void scoop_rt_push_native_roots(ScoopNativeRootFrame *frame, void ***slots,
                                 uint64_t count) {
     ScoopThreadState *thread = scoop_thread_current_required();
-    /* Until the full native transition chain is installed, root-chain
-     * mutation is a managed coordination point. A native-safe thread may
-     * carry an already published frozen chain, but cannot race the collector
-     * by editing it while the world is stopped. */
-    scoop_thread_require_managed();
+    ScoopThreadMode mode = atomic_load_explicit(&thread->mode, memory_order_acquire);
+    if (mode != SCOOP_THREAD_MANAGED && mode != SCOOP_THREAD_NATIVE_BORROWED) {
+        gc_fatal("native roots may only change in managed or native-borrowed mode");
+    }
     if (frame == NULL || (count != 0 && slots == NULL)) {
         gc_fatal("invalid native root frame");
     }
@@ -528,7 +527,10 @@ void scoop_rt_push_native_roots(ScoopNativeRootFrame *frame, void ***slots,
 
 void scoop_rt_pop_native_roots(ScoopNativeRootFrame *frame) {
     ScoopThreadState *thread = scoop_thread_current_required();
-    scoop_thread_require_managed();
+    ScoopThreadMode mode = atomic_load_explicit(&thread->mode, memory_order_acquire);
+    if (mode != SCOOP_THREAD_MANAGED && mode != SCOOP_THREAD_NATIVE_BORROWED) {
+        gc_fatal("native roots may only change in managed or native-borrowed mode");
+    }
     if (frame == NULL || thread->native_roots != frame) {
         gc_fatal("native root frames must be popped in LIFO order");
     }
@@ -772,30 +774,58 @@ static void gc_scan_native_roots(const ScoopThreadState *thread) {
     }
 }
 
+static void gc_scan_caller_roots(const ScoopThreadState *thread) {
+    for (ScoopCallerRootFrame *frame = thread->caller_roots; frame != NULL;
+         frame = frame->previous) {
+        for (uint64_t i = 0; i < frame->count; i++) {
+            gc_trace_slot((const void *const *)frame->slots[i]);
+        }
+    }
+}
+
+static void gc_scan_frozen_managed_segments(const ScoopThreadState *thread) {
+    for (ScoopThreadTransition *transition = thread->current_transition;
+         transition != NULL; transition = transition->previous) {
+        uintptr_t low = transition->managed_stack_low;
+        uintptr_t high = transition->managed_stack_high;
+        if (low < (uintptr_t)thread->stack_low || low >= high ||
+            high > (uintptr_t)thread->stack_high) {
+            gc_fatal("native transition contains an invalid managed stack segment");
+        }
+        gc_scan_range((const char *)low, (const char *)high);
+    }
+}
+
 /* M13 transition: each managed mutator publishes a stable SP and a setjmp
  * register spill before publishing parked/collector. The STW collector may
  * then conservatively scan those stable regions. Native-safe threads keep
- * running, so their active native stacks are deliberately skipped; later
- * transition-chain work adds their frozen outer managed segments. M15
+ * running, so their active native stacks are deliberately skipped while the
+ * LIFO transition chain contributes only frozen outer managed segments. M15
  * replaces these conservative ranges with precise stackmap locations. */
 static void gc_scan_thread(const ScoopThreadState *thread) {
     ScoopThreadMode mode = atomic_load_explicit(&thread->mode, memory_order_acquire);
     if (mode == SCOOP_THREAD_PARKED || mode == SCOOP_THREAD_COLLECTOR) {
-        uintptr_t stack_low = (uintptr_t)thread->stack_low;
-        uintptr_t stack_high = (uintptr_t)thread->stack_high;
-        uintptr_t parked_sp = (uintptr_t)thread->parked_sp;
-        uintptr_t managed_boundary = (uintptr_t)thread->managed_stack_boundary;
-        if (parked_sp == 0 || parked_sp < stack_low || managed_boundary == 0 ||
-            managed_boundary > stack_high || parked_sp >= managed_boundary) {
-            gc_fatal("parked thread published an invalid stack pointer");
+        if (thread->parked_from == SCOOP_THREAD_MANAGED) {
+            uintptr_t stack_low = (uintptr_t)thread->stack_low;
+            uintptr_t stack_high = (uintptr_t)thread->stack_high;
+            uintptr_t parked_sp = (uintptr_t)thread->parked_sp;
+            uintptr_t managed_boundary = (uintptr_t)thread->managed_stack_boundary;
+            if (parked_sp == 0 || parked_sp < stack_low || managed_boundary == 0 ||
+                managed_boundary > stack_high || parked_sp >= managed_boundary) {
+                gc_fatal("parked thread published an invalid stack pointer");
+            }
+            gc_scan_range((const char *)&thread->register_spill,
+                          (const char *)&thread->register_spill +
+                              sizeof thread->register_spill);
+            gc_scan_range(thread->parked_sp, thread->managed_stack_boundary);
+        } else if (thread->parked_from != SCOOP_THREAD_NATIVE_BORROWED) {
+            gc_fatal("parked thread has an invalid source mode");
         }
-        gc_scan_range((const char *)&thread->register_spill,
-                      (const char *)&thread->register_spill +
-                          sizeof thread->register_spill);
-        gc_scan_range(thread->parked_sp, thread->managed_stack_boundary);
     } else if (mode != SCOOP_THREAD_NATIVE_SAFE) {
         gc_fatal("collector observed a non-quiescent thread");
     }
+    gc_scan_frozen_managed_segments(thread);
+    gc_scan_caller_roots(thread);
     gc_scan_native_roots(thread);
 }
 
@@ -1000,7 +1030,7 @@ static void *gc_alloc_large(size_t size) {
 }
 
 void *scoop_rt_alloc(const ScoopTypeDescriptor *td, size_t size) {
-    scoop_thread_poll();
+    scoop_thread_runtime_entry();
     scoop_thread_require_single_attachment_for_allocation();
     if (size < sizeof(ScoopObjectHeader)) {
         size = sizeof(ScoopObjectHeader); /* defensive: callers include the header */

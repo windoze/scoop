@@ -296,6 +296,38 @@ static void *detach_twice(void *unused) {
     return NULL;
 }
 
+static void *caller_root_lifo_violation(void *unused) {
+    (void)unused;
+    volatile char managed_stack_boundary = 0;
+    (void)scoop_rt_attach_foreign_thread();
+    scoop_rt_thread_debug_enter_managed((uintptr_t)&managed_stack_boundary);
+    ScoopCallerRootFrame outer;
+    ScoopCallerRootFrame inner;
+    scoop_rt_push_caller_roots(&outer, NULL, 0);
+    scoop_rt_push_caller_roots(&inner, NULL, 0);
+    scoop_rt_pop_caller_roots(&outer);
+    return NULL;
+}
+
+static void leave_wrong_transition(void) {
+    ScoopCallerRootFrame caller_frame;
+    ScoopThreadTransition active = {0};
+    ScoopThreadTransition wrong = {0};
+    volatile char managed_stack_pointer = 0;
+    scoop_rt_push_caller_roots(&caller_frame, NULL, 0);
+    scoop_rt_enter_native_safe(&active, (uintptr_t)&managed_stack_pointer);
+    scoop_rt_leave_native_safe(&wrong);
+}
+
+static void *transition_lifo_violation(void *unused) {
+    (void)unused;
+    volatile char managed_stack_boundary = 0;
+    (void)scoop_rt_attach_foreign_thread();
+    scoop_rt_thread_debug_enter_managed((uintptr_t)&managed_stack_boundary);
+    leave_wrong_transition();
+    return NULL;
+}
+
 static bool thread_protocol_aborts(void *(*start)(void *)) {
     fflush(stdout);
     pid_t pid = fork();
@@ -343,13 +375,29 @@ static void *managed_collection_requester(void *raw_probe) {
     return NULL;
 }
 
-static void *native_safe_observer(void *raw_probe) {
-    StwProbe *probe = raw_probe;
-    probe->owns_attachment = scoop_rt_attach_foreign_thread();
+static void run_native_safe_observer(StwProbe *probe) {
+    void *caller_root_value = NULL;
+    void **caller_root_slots[] = {&caller_root_value};
+    ScoopCallerRootFrame caller_frame;
+    ScoopThreadTransition transition = {0};
+    volatile char managed_stack_pointer = 0;
+    scoop_rt_push_caller_roots(&caller_frame, caller_root_slots, 1);
+    scoop_rt_enter_native_safe(&transition, (uintptr_t)&managed_stack_pointer);
     atomic_store_explicit(&probe->ready, true, memory_order_release);
     while (!atomic_load_explicit(probe->stop, memory_order_acquire)) {
         sched_yield();
     }
+    scoop_rt_leave_native_safe(&transition);
+    scoop_rt_pop_caller_roots(&caller_frame);
+}
+
+static void *native_safe_observer(void *raw_probe) {
+    StwProbe *probe = raw_probe;
+    volatile char managed_stack_boundary = 0;
+    probe->owns_attachment = scoop_rt_attach_foreign_thread();
+    scoop_rt_thread_debug_enter_managed((uintptr_t)&managed_stack_boundary);
+    run_native_safe_observer(probe);
+    scoop_rt_thread_debug_leave_managed();
     if (probe->owns_attachment) {
         scoop_rt_detach_foreign_thread();
     }
@@ -387,6 +435,8 @@ void scoop_main(void) {
                              scoop_rt_thread_debug_count() == 1);
     scoop_rt_println_boolean(thread_protocol_aborts(detach_with_native_root));
     scoop_rt_println_boolean(thread_protocol_aborts(detach_twice));
+    scoop_rt_println_boolean(thread_protocol_aborts(caller_root_lifo_violation));
+    scoop_rt_println_boolean(thread_protocol_aborts(transition_lifo_violation));
 
     /* M13 cooperative STW: main and a foreign managed requester race to
      * request the same collection. The winner becomes the sole collector;
@@ -449,6 +499,47 @@ void scoop_main(void) {
                              managed_probe.owns_attachment &&
                              native_probe.owns_attachment &&
                              scoop_rt_thread_debug_count() == 1);
+
+    /* Native transition ABI: caller roots remain published while the active
+     * managed segment is frozen. native-safe returns without participating in
+     * GC; native-borrowed may explicitly enter the runtime, collect using its
+     * caller/native roots, and resume in borrowed mode before the LIFO leave. */
+    void *caller_root_value = NULL;
+    void **caller_root_slots[] = {&caller_root_value};
+    ScoopCallerRootFrame caller_frame;
+    ScoopThreadTransition safe_transition = {0};
+    volatile char safe_stack_pointer = 0;
+    scoop_rt_push_caller_roots(&caller_frame, caller_root_slots, 1);
+    scoop_rt_enter_native_safe(&safe_transition, (uintptr_t)&safe_stack_pointer);
+    bool native_safe_active = scoop_rt_thread_debug_transition_depth() == 1 &&
+                              scoop_rt_thread_debug_caller_root_count() == 1;
+    scoop_rt_leave_native_safe(&safe_transition);
+    scoop_rt_pop_caller_roots(&caller_frame);
+    scoop_rt_println_boolean(native_safe_active &&
+                             scoop_rt_thread_debug_transition_depth() == 0 &&
+                             scoop_rt_thread_debug_caller_root_count() == 0);
+
+    ScoopCallerRootFrame borrowed_caller_frame;
+    ScoopThreadTransition borrowed_transition = {0};
+    volatile char borrowed_stack_pointer = 0;
+    scoop_rt_push_caller_roots(&borrowed_caller_frame, caller_root_slots, 1);
+    scoop_rt_enter_native_borrowed(&borrowed_transition,
+                                    (uintptr_t)&borrowed_stack_pointer);
+    ScoopNativeRootFrame borrowed_native_frame;
+    scoop_rt_push_native_roots(&borrowed_native_frame, caller_root_slots, 1);
+    uint64_t borrowed_epoch = scoop_rt_thread_debug_gc_epoch();
+    scoop_rt_gc_collect();
+    bool borrowed_collected = scoop_rt_thread_debug_gc_epoch() == borrowed_epoch + 1 &&
+                              scoop_rt_thread_debug_transition_depth() == 1 &&
+                              scoop_rt_thread_debug_caller_root_count() == 1 &&
+                              scoop_rt_gc_debug_native_root_count() == 1;
+    scoop_rt_pop_native_roots(&borrowed_native_frame);
+    scoop_rt_leave_native_borrowed(&borrowed_transition);
+    scoop_rt_pop_caller_roots(&borrowed_caller_frame);
+    scoop_rt_println_boolean(borrowed_collected &&
+                             scoop_rt_thread_debug_transition_depth() == 0 &&
+                             scoop_rt_thread_debug_caller_root_count() == 0 &&
+                             scoop_rt_gc_debug_native_root_count() == 0);
 
     /* concat: "hello" + "world" -> "helloworld" */
     const ScoopString *concat = scoop_rt_string_concat(a, b);
