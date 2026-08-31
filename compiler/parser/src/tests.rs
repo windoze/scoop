@@ -257,15 +257,9 @@ fn spans_are_byte_offsets() {
 // --- diagnostics ----------------------------------------------------------
 
 #[test]
-fn annotation_in_statement_position() {
-    // M4: `@` lexes (annotations on function declarations); inside a body
-    // it gets a dedicated diagnostic.
-    let (span, message) = err("fun main() {\n    @\n}\n");
-    assert_eq!(span, Span::new(17, 18));
-    assert_eq!(
-        message,
-        "annotations are only allowed on function declarations (milestone M4)"
-    );
+fn incomplete_safety_annotation_in_statement_position() {
+    let (_, message) = err("fun main() {\n    @\n}\n");
+    assert_eq!(message, "expected annotation name, found `}`");
 }
 
 #[test]
@@ -313,7 +307,7 @@ fn top_level_must_be_a_declaration() {
     assert_eq!(span, Span::new(0, 4));
     assert_eq!(
         message,
-        "expected `fun`, `struct`, `enum`, `class` or `interface`, found `main`"
+        "expected `fun`, `val`, `var`, `struct`, `enum`, `class` or `interface`, found `main`"
     );
 }
 
@@ -333,7 +327,10 @@ fn missing_parameter_list() {
 #[test]
 fn missing_body() {
     let (_, message) = err("fun main() x");
-    assert_eq!(message, "expected `{` or `=`, found `x`");
+    assert_eq!(
+        message,
+        "expected `fun`, `val`, `var`, `struct`, `enum`, `class` or `interface`, found `x`"
+    );
 }
 
 #[test]

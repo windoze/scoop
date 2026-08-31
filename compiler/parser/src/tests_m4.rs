@@ -114,7 +114,7 @@ fn enum_generic_type_params() {
         panic!("expected an enum declaration");
     };
     assert_eq!(decl.type_params.len(), 1);
-    assert_eq!(decl.type_params[0].text, "T");
+    assert_eq!(decl.type_params[0].name.text, "T");
     assert_eq!(decl.type_params[0].span, Span::new(12, 13));
     assert_eq!(
         scoop_ast::dump(&file),
@@ -278,7 +278,13 @@ fn intrinsic_annotation_on_bodiless_function() {
     assert_eq!(function.annotations.len(), 1);
     let annotation = &function.annotations[0];
     assert_eq!(annotation.name.text, "Intrinsic");
-    assert_eq!(annotation.value.as_deref(), Some("rt_print"));
+    assert!(matches!(
+        annotation.args.as_slice(),
+        [scoop_ast::AnnotationArg {
+            value: scoop_ast::AnnotationLiteral::String(value),
+            ..
+        }] if value == "rt_print"
+    ));
     assert_eq!(annotation.span, Span::new(0, 22));
     assert_eq!(function.name.text, "print");
     assert_eq!(function.span, Span::new(0, 49));
@@ -308,78 +314,63 @@ fn intrinsic_function_with_return_type() {
 }
 
 #[test]
-fn unknown_annotation_is_an_error() {
-    let (span, message) = err("@Unknown fun f() {}");
-    assert_eq!(span, Span::new(0, 8));
-    assert_eq!(message, "annotations are not supported yet (milestone M4)");
+fn unknown_annotation_is_preserved_for_hir() {
+    let file = ok("@Unknown fun f() {}");
+    assert_eq!(only_function(&file).annotations[0].name.text, "Unknown");
 }
 
 #[test]
-fn intrinsic_without_argument_list_is_an_error() {
-    let (span, message) = err("@Intrinsic fun f() {}");
-    assert_eq!(span, Span::new(11, 14));
-    assert_eq!(message, "`@Intrinsic` requires exactly one string argument");
+fn marker_annotation_has_no_arguments() {
+    let file = ok("@Intrinsic fun f() {}");
+    assert!(only_function(&file).annotations[0].args.is_empty());
 }
 
 #[test]
-fn intrinsic_with_empty_argument_list_is_an_error() {
-    let (span, message) = err("@Intrinsic() fun f() {}");
-    assert_eq!(span, Span::new(11, 12));
-    assert_eq!(message, "`@Intrinsic` requires exactly one string argument");
+fn empty_annotation_argument_list_is_preserved() {
+    let file = ok("@Intrinsic() fun f() {}");
+    assert!(only_function(&file).annotations[0].args.is_empty());
 }
 
 #[test]
-fn intrinsic_with_non_string_argument_is_an_error() {
-    let (span, message) = err("@Intrinsic(42) fun f() {}");
-    assert_eq!(span, Span::new(11, 13));
-    assert_eq!(message, "`@Intrinsic` requires exactly one string argument");
+fn annotation_integer_argument_is_preserved() {
+    let file = ok("@Intrinsic(42) fun f() {}");
+    assert!(matches!(
+        only_function(&file).annotations[0].args[0].value,
+        scoop_ast::AnnotationLiteral::Int(42)
+    ));
 }
 
 #[test]
-fn intrinsic_with_two_arguments_is_an_error() {
-    let (span, message) = err("@Intrinsic(\"a\", \"b\") fun f() {}");
-    assert_eq!(span, Span::new(14, 15));
-    assert_eq!(message, "`@Intrinsic` requires exactly one string argument");
+fn multiple_annotation_arguments_are_preserved() {
+    let file = ok("@Intrinsic(\"a\", \"b\") fun f() {}");
+    assert_eq!(only_function(&file).annotations[0].args.len(), 2);
 }
 
 #[test]
-fn multiple_annotations_are_an_error() {
-    let (span, message) = err("@Intrinsic(\"a\")\n@Intrinsic(\"b\")\nfun f() {}\n");
-    assert_eq!(span, Span::new(16, 17));
-    assert_eq!(
-        message,
-        "only a single annotation is supported (milestone M4)"
-    );
+fn multiple_annotations_are_preserved() {
+    let file = ok("@Intrinsic(\"a\")\n@Intrinsic(\"b\")\nfun f() {}\n");
+    assert_eq!(only_function(&file).annotations.len(), 2);
 }
 
 #[test]
-fn intrinsic_function_must_not_have_a_block_body() {
-    let (span, message) = err("@Intrinsic(\"x\") fun f() {}");
-    assert_eq!(span, Span::new(24, 25));
-    assert_eq!(
-        message,
-        "functions annotated with `@Intrinsic` must not have a body (spec 13.1)"
-    );
+fn annotation_does_not_suppress_a_block_body() {
+    let file = ok("@Intrinsic(\"x\") fun f() {}");
+    assert!(matches!(only_function(&file).body, FunctionBody::Block(_)));
 }
 
 #[test]
-fn intrinsic_function_must_not_have_an_expression_body() {
-    let (span, message) = err("@Intrinsic(\"x\") fun f() = 1");
-    assert_eq!(span, Span::new(24, 25));
-    assert_eq!(
-        message,
-        "functions annotated with `@Intrinsic` must not have a body (spec 13.1)"
-    );
+fn annotation_does_not_suppress_an_expression_body() {
+    let file = ok("@Intrinsic(\"x\") fun f() = 1");
+    assert!(matches!(only_function(&file).body, FunctionBody::Expr(_)));
 }
 
 #[test]
-fn annotation_on_a_struct_is_an_error() {
-    let (span, message) = err("@Intrinsic(\"x\") struct S(val x: Int)");
-    assert_eq!(span, Span::new(16, 22));
-    assert_eq!(
-        message,
-        "annotations are only allowed on function declarations (milestone M4)"
-    );
+fn annotation_on_a_struct_is_preserved_for_hir() {
+    let file = ok("@Intrinsic(\"x\") struct S(val x: Int)");
+    let Decl::Struct(decl) = &file.declarations[0] else {
+        panic!("expected struct");
+    };
+    assert_eq!(decl.annotations[0].name.text, "Intrinsic");
 }
 
 // --- when statements ----------------------------------------------------------
@@ -907,6 +898,7 @@ fn qualified_variant_construction_is_a_method_call() {
         name,
         args,
         span,
+        ..
     } = crate::tests_m2::init_expr("Shape.Circle(5)")
     else {
         panic!("expected a method call");

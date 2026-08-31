@@ -41,16 +41,15 @@
 //!
 //! M9 (milestone9 DESIGN.md section 1): arithmetic and comparison
 //! operators accept `UInt` operands under the same rules as `Int`
-//! (both sides must share one type — no `Int`/`UInt` mixing), and
-//! calls to the GC intrinsics (`pin` / `unpin` / `getGcHandle` /
-//! `releaseGcHandle`) check that the inferred type argument is a
-//! reference type (`check_gc_ref_constraint`).
+//! (both sides must share one type — no `Int`/`UInt` mixing). M12
+//! generalizes the former GC-specific generic check into typed
+//! `value` / `ref` kind bounds on every generic declaration.
 
 use scoop_ast as ast;
 use scoop_hir as hir;
 
 use ast::Span;
-use hir::{ExprKind, FunctionKind, Type, TypeId};
+use hir::{ExprKind, Type, TypeId};
 
 use crate::patterns::PatternCtx;
 use crate::scope::Scopes;
@@ -64,6 +63,13 @@ struct InferredArguments {
     args: Vec<Option<hir::Expr>>,
     bindings: Vec<Option<TypeId>>,
     sinks: Vec<Vec<hir::Statement>>,
+}
+
+#[derive(Clone, Copy)]
+struct CallSite<'a> {
+    type_args: &'a [ast::TypeRef],
+    args: &'a [ast::Expr],
+    span: Span,
 }
 
 #[derive(Clone, Copy)]
@@ -294,7 +300,7 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
-        match expr {
+        let lowered = match expr {
             ast::Expr::StringLiteral { value, span } => Some(hir::Expr {
                 kind: ExprKind::StringLiteral(value.clone()),
                 ty: self.string,
@@ -322,11 +328,28 @@ impl Lowerer {
             // a type (struct or enum variant path).
             ast::Expr::StructInit { name, args, span } => match self.classify_constructor(name)? {
                 Constructor::Struct { struct_id, ty } => {
-                    self.lower_struct_init(struct_id, ty, args, *span, sink, expected)
+                    let call = CallSite {
+                        type_args: &[],
+                        args,
+                        span: *span,
+                    };
+                    if Some(struct_id) == self.ffi_ptr || Some(struct_id) == self.ffi_fun_ptr {
+                        self.lower_ffi_struct_init(struct_id, call, sink, expected)
+                    } else {
+                        self.lower_struct_init(struct_id, ty, call, sink, expected)
+                    }
                 }
-                Constructor::Variant { enum_id, variant } => {
-                    self.lower_variant_construct(enum_id, variant, args, *span, sink, expected)
-                }
+                Constructor::Variant { enum_id, variant } => self.lower_variant_construct(
+                    enum_id,
+                    variant,
+                    CallSite {
+                        type_args: &[],
+                        args,
+                        span: *span,
+                    },
+                    sink,
+                    expected,
+                ),
                 Constructor::Class { class_id } => {
                     self.lower_class_construct(class_id, args, *span, sink)
                 }
@@ -383,9 +406,20 @@ impl Lowerer {
             ast::Expr::MethodCall {
                 receiver,
                 name,
+                type_args,
                 args,
                 span,
-            } => self.lower_method_call(receiver, name, args, *span, sink, expected),
+            } => self.lower_method_call(
+                receiver,
+                name,
+                CallSite {
+                    type_args,
+                    args,
+                    span: *span,
+                },
+                sink,
+                expected,
+            ),
             ast::Expr::Is {
                 operand,
                 ty,
@@ -409,7 +443,13 @@ impl Lowerer {
             ast::Expr::If(if_) => self.lower_if_expression(if_, sink, expected),
             ast::Expr::When(when) => self.lower_when_expression(when, sink, expected),
             ast::Expr::Try(try_) => self.lower_try_expression(try_, sink, expected),
+        };
+        if let Some(value) = &lowered
+            && !self.require_unsafe_type_use(value.ty, value.span)
+        {
+            return None;
         }
+        lowered
     }
 
     /// `this` (M6): only inside member functions, where it is
@@ -450,8 +490,7 @@ impl Lowerer {
         &mut self,
         receiver: &ast::Expr,
         name: &ast::Ident,
-        args: &[ast::Expr],
-        span: Span,
+        call: CallSite<'_>,
         sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
@@ -468,12 +507,19 @@ impl Lowerer {
                     );
                     return None;
                 };
-                return self.lower_variant_construct(enum_id, variant, args, span, sink, expected);
+                return self.lower_variant_construct(enum_id, variant, call, sink, expected);
             }
         }
         let receiver = self.lower_expr(receiver, sink, None)?;
         if name.text == "invoke" && matches!(self.types[receiver.ty], Type::Function(_)) {
-            return self.lower_callable_call(receiver, args, span, sink);
+            if !call.type_args.is_empty() {
+                self.error(
+                    name.span,
+                    "function values do not accept explicit type arguments".to_string(),
+                );
+                return None;
+            }
+            return self.lower_callable_call(receiver, call.args, call.span, sink);
         }
         let array_conversion = match (&self.types[receiver.ty], name.text.as_str()) {
             (Type::MutableArray(element), "toArray") => Some((true, *element)),
@@ -481,11 +527,15 @@ impl Lowerer {
             _ => None,
         };
         if let Some((to_immutable, element)) = array_conversion {
+            if !call.type_args.is_empty() {
+                self.error(name.span, format!("method `{}` is not generic", name.text));
+                return None;
+            }
             return self.lower_array_method_conversion(
                 receiver,
                 name,
-                args,
-                span,
+                call.args,
+                call.span,
                 to_immutable,
                 element,
             );
@@ -501,7 +551,7 @@ impl Lowerer {
                 );
                 return None;
             }
-            return self.finish_extension_call(&extensions, &name.text, receiver, args, span, sink);
+            return self.finish_extension_call(&extensions, &name.text, receiver, call, sink);
         }
         if matches!(self.types[receiver.ty], Type::Interface(..)) {
             let before = candidates.len();
@@ -522,9 +572,9 @@ impl Lowerer {
             }
         }
         if candidates.len() == 1 {
-            return self.finish_method_call(candidates[0], receiver, args, span, sink);
+            return self.finish_method_call(candidates[0], receiver, call, sink);
         }
-        self.finish_overloaded_method_call(candidates, &name.text, receiver, args, span, sink)
+        self.finish_overloaded_method_call(candidates, &name.text, receiver, call, sink)
     }
 
     fn finish_extension_call(
@@ -532,20 +582,29 @@ impl Lowerer {
         candidates: &[hir::FunctionId],
         name: &str,
         receiver: hir::Expr,
-        args: &[ast::Expr],
-        span: Span,
+        call: CallSite<'_>,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
-        let resolved =
-            self.resolve_extension_overload(name, candidates, receiver, args, span, sink)?;
-        self.check_suspend_call(resolved.callee, span);
+        let explicit_type_args = self.resolve_call_type_args(call.type_args)?;
+        let resolved = self.resolve_extension_overload(
+            name,
+            candidates,
+            receiver,
+            crate::overload::OverloadCall {
+                explicit_type_args: &explicit_type_args,
+                arg_exprs: call.args,
+                span: call.span,
+            },
+            sink,
+        )?;
+        self.check_call_effects(resolved.callee, call.span);
         Some(hir::Expr {
             kind: ExprKind::Call {
                 callee: resolved.callee,
                 args: resolved.args,
             },
             ty: resolved.return_ty,
-            span,
+            span: call.span,
         })
     }
 
@@ -593,8 +652,7 @@ impl Lowerer {
         candidates: Vec<hir::FunctionId>,
         name: &str,
         receiver: hir::Expr,
-        args: &[ast::Expr],
-        span: Span,
+        call: CallSite<'_>,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
         // A generic host contributes the already-known prefix. Overload
@@ -604,12 +662,32 @@ impl Lowerer {
             Type::Enum(_, ref args) => args.clone(),
             Type::Struct(_, ref args) => args.clone(),
             Type::Interface(_, ref args) => args.clone(),
+            Type::Ptr(pointee) => vec![pointee],
             _ => Vec::new(),
         };
-        let resolved =
-            self.resolve_overload(name, &candidates, &owner_type_args, args, span, sink)?;
+        let explicit_type_args = self.resolve_call_type_args(call.type_args)?;
+        let resolved = self.resolve_overload(
+            name,
+            &candidates,
+            &owner_type_args,
+            crate::overload::OverloadCall {
+                explicit_type_args: &explicit_type_args,
+                arg_exprs: call.args,
+                span: call.span,
+            },
+            sink,
+        )?;
         let ty = resolved.return_ty;
-        self.check_suspend_call(resolved.callee, span);
+        self.check_call_effects(resolved.callee, call.span);
+        if let Some(expr) = self.normalize_pointer_method_call(
+            resolved.callee,
+            receiver.clone(),
+            resolved.args.clone(),
+            ty,
+            call.span,
+        ) {
+            return Some(expr);
+        }
         Some(hir::Expr {
             kind: ExprKind::MethodCall {
                 receiver: Box::new(receiver),
@@ -617,7 +695,7 @@ impl Lowerer {
                 args: resolved.args,
             },
             ty,
-            span,
+            span: call.span,
         })
     }
 
@@ -644,8 +722,7 @@ impl Lowerer {
         &mut self,
         function: hir::FunctionId,
         receiver: hir::Expr,
-        args: &[ast::Expr],
-        span: Span,
+        call: CallSite<'_>,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
         let name = self.functions[function].name.clone();
@@ -653,19 +730,20 @@ impl Lowerer {
             Type::Enum(_, ref args) => args.clone(),
             Type::Struct(_, ref args) => args.clone(),
             Type::Interface(_, ref args) => args.clone(),
+            Type::Ptr(pointee) => vec![pointee],
             _ => Vec::new(),
         };
         let sig = self.signatures[&function].clone();
-        if sig.params.len() != args.len() {
+        if sig.params.len() != call.args.len() {
             let expected = sig.params.len();
-            let supplied = args.len();
+            let supplied = call.args.len();
             let noun = if expected == 1 {
                 "argument"
             } else {
                 "arguments"
             };
             self.error(
-                span,
+                call.span,
                 format!(
                     "method `{name}` takes exactly {expected} {noun}, but {supplied} were supplied"
                 ),
@@ -677,20 +755,39 @@ impl Lowerer {
         for (binding, &ty) in bindings.iter_mut().zip(&owner_type_args) {
             *binding = Some(ty);
         }
+        let explicit_type_args = self.resolve_call_type_args(call.type_args)?;
+        if !self.bind_explicit_type_args(
+            &mut bindings,
+            sig.owner_type_param_count,
+            &explicit_type_args,
+            call.span,
+            &format!("method `{name}`"),
+        ) {
+            return None;
+        }
         let param_tys: Vec<_> = sig.params.iter().map(|param| param.ty).collect();
-        let inferred = self.lower_inference_args(args, &param_tys, bindings, &sig.type_params)?;
+        let inferred =
+            self.lower_inference_args(call.args, &param_tys, bindings, &sig.type_params)?;
         let mut type_args = Vec::with_capacity(sig.type_params.len());
-        for (binding, param_name) in inferred.bindings.iter().copied().zip(&sig.type_params) {
+        for (binding, param) in inferred.bindings.iter().copied().zip(&sig.type_params) {
             match binding {
                 Some(ty) => type_args.push(ty),
                 None => {
                     self.error(
-                        span,
-                        format!("cannot infer type argument `{param_name}` for `{name}`"),
+                        call.span,
+                        format!("cannot infer type argument `{}` for `{name}`", param.name),
                     );
                     return None;
                 }
             }
+        }
+        if !self.check_type_argument_kinds(
+            &sig.type_params,
+            &type_args,
+            call.span,
+            &format!("function `{}`", self.functions[function].name),
+        ) {
+            return None;
         }
         let lowered = inferred.finish(sink);
         let mut adapted = Vec::with_capacity(lowered.len());
@@ -716,13 +813,88 @@ impl Lowerer {
             hir::Callable::Generic(self.record_instantiation(function, type_args.clone()))
         };
         let ty = self.instantiate_ty(sig.return_ty, &type_args);
-        self.check_suspend_call(callee, span);
+        self.check_call_effects(callee, call.span);
+        if let Some(expr) = self.normalize_pointer_method_call(
+            callee,
+            receiver.clone(),
+            adapted.clone(),
+            ty,
+            call.span,
+        ) {
+            return Some(expr);
+        }
         Some(hir::Expr {
             kind: ExprKind::MethodCall {
                 receiver: Box::new(receiver),
                 callee,
                 args: adapted,
             },
+            ty,
+            span: call.span,
+        })
+    }
+
+    fn normalize_pointer_method_call(
+        &self,
+        callee: hir::Callable,
+        receiver: hir::Expr,
+        args: Vec<hir::Expr>,
+        ty: TypeId,
+        span: Span,
+    ) -> Option<hir::Expr> {
+        let core = self.ffi_core?;
+        let function = self.callable_function_id(callee);
+        let kind = if function == core.ptr_to_uint {
+            hir::PointerIntrinsic::ToUInt
+        } else if function == core.ptr_cast {
+            hir::PointerIntrinsic::Cast
+        } else if function == core.ptr_load {
+            hir::PointerIntrinsic::Load
+        } else if function == core.ptr_load_offset {
+            hir::PointerIntrinsic::LoadOffset
+        } else if function == core.ptr_store {
+            hir::PointerIntrinsic::Store
+        } else if function == core.ptr_store_offset {
+            hir::PointerIntrinsic::StoreOffset
+        } else if function == core.ptr_plus {
+            hir::PointerIntrinsic::Plus
+        } else if function == core.ptr_minus {
+            hir::PointerIntrinsic::Minus
+        } else {
+            return None;
+        };
+        let mut args = args.into_iter();
+        let pointer = Box::new(receiver);
+        let expr = match kind {
+            hir::PointerIntrinsic::ToUInt => ExprKind::PtrToUInt(pointer),
+            hir::PointerIntrinsic::Cast => ExprKind::PtrCast(pointer),
+            hir::PointerIntrinsic::Load => ExprKind::PtrLoad {
+                pointer,
+                offset: None,
+            },
+            hir::PointerIntrinsic::LoadOffset => ExprKind::PtrLoad {
+                pointer,
+                offset: Some(Box::new(args.next().expect("validated offset argument"))),
+            },
+            hir::PointerIntrinsic::Store => ExprKind::PtrStore {
+                pointer,
+                offset: None,
+                value: Box::new(args.next().expect("validated store value")),
+            },
+            hir::PointerIntrinsic::StoreOffset => ExprKind::PtrStore {
+                pointer,
+                offset: Some(Box::new(args.next().expect("validated offset argument"))),
+                value: Box::new(args.next().expect("validated store value")),
+            },
+            hir::PointerIntrinsic::Plus | hir::PointerIntrinsic::Minus => ExprKind::PtrOffset {
+                pointer,
+                offset: Box::new(args.next().expect("validated pointer offset")),
+                subtract: kind == hir::PointerIntrinsic::Minus,
+            },
+            _ => unreachable!("top-level pointer intrinsic is not a method"),
+        };
+        Some(hir::Expr {
+            kind: expr,
             ty,
             span,
         })
@@ -1041,6 +1213,19 @@ impl Lowerer {
             if let Some(expr) = self.bare_member_fallback(name) {
                 return Some(expr);
             }
+            if let Some(&global) = self.globals_by_name.get(&name.text) {
+                if matches!(
+                    self.globals[global].storage,
+                    hir::GlobalStorage::Extern { .. }
+                ) {
+                    self.require_unsafe_operation(name.span, "reading an extern global");
+                }
+                return Some(hir::Expr {
+                    kind: ExprKind::GlobalRead(global),
+                    ty: self.globals[global].ty,
+                    span: name.span,
+                });
+            }
             if !self.local_function_scopes.lookup(&name.text).is_empty()
                 || self.functions_by_name.contains_key(&name.text)
                 || self.extensions_by_name.contains_key(&name.text)
@@ -1351,6 +1536,13 @@ impl Lowerer {
                 .copied()
                 .unwrap_or(self.locals[local].ty);
             if matches!(self.types[ty], Type::Function(_)) {
+                if !call.type_args.is_empty() {
+                    self.error(
+                        call.callee.span,
+                        "function values do not accept explicit type arguments".to_string(),
+                    );
+                    return None;
+                }
                 let callee = hir::Expr {
                     kind: ExprKind::Local(local),
                     ty,
@@ -1362,6 +1554,13 @@ impl Lowerer {
         if let Some(capture) = self.available_capture(&call.callee.text)
             && matches!(self.types[capture.ty], Type::Function(_))
         {
+            if !call.type_args.is_empty() {
+                self.error(
+                    call.callee.span,
+                    "function values do not accept explicit type arguments".to_string(),
+                );
+                return None;
+            }
             let callee = self.lower_capture(&call.callee)?;
             return self.lower_callable_call(callee, &call.args, call.span, sink);
         }
@@ -1372,12 +1571,37 @@ impl Lowerer {
             return self.lower_array_conversion(call, sink);
         }
         match self.classify_constructor(&call.callee)? {
-            Constructor::Variant { enum_id, variant } => self
-                .lower_variant_construct(enum_id, variant, &call.args, call.span, sink, expected),
+            Constructor::Variant { enum_id, variant } => self.lower_variant_construct(
+                enum_id,
+                variant,
+                CallSite {
+                    type_args: &call.type_args,
+                    args: &call.args,
+                    span: call.span,
+                },
+                sink,
+                expected,
+            ),
             Constructor::Struct { struct_id, ty } => {
-                self.lower_struct_init(struct_id, ty, &call.args, call.span, sink, expected)
+                let site = CallSite {
+                    type_args: &call.type_args,
+                    args: &call.args,
+                    span: call.span,
+                };
+                if Some(struct_id) == self.ffi_ptr || Some(struct_id) == self.ffi_fun_ptr {
+                    self.lower_ffi_struct_init(struct_id, site, sink, expected)
+                } else {
+                    self.lower_struct_init(struct_id, ty, site, sink, expected)
+                }
             }
             Constructor::Class { class_id } => {
+                if !call.type_args.is_empty() {
+                    self.error(
+                        call.callee.span,
+                        format!("class `{}` is not generic", call.callee.text),
+                    );
+                    return None;
+                }
                 self.lower_class_construct(class_id, &call.args, call.span, sink)
             }
             Constructor::Unmatched => self.lower_function_call(call, sink),
@@ -1466,6 +1690,19 @@ impl Lowerer {
         expected: Option<TypeId>,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
+        if let Some(expected) = expected
+            && let Type::FunPtr(signature) = self.types[expected]
+        {
+            if receiver.is_some() {
+                self.error(
+                    span,
+                    "a native `FunPtr` address must reference an unbound top-level function"
+                        .to_string(),
+                );
+                return None;
+            }
+            return self.lower_native_function_reference(name, span, expected, signature);
+        }
         if let Some(receiver) = receiver {
             return self.lower_bound_callable_reference(receiver, name, span, expected, sink);
         }
@@ -1510,6 +1747,9 @@ impl Lowerer {
             span,
             ReferenceExtensionMode::IncludeUnbound,
         )?;
+        if !self.managed_reference_target_is_safe(callee, span) {
+            return None;
+        }
         let Type::Function(function_type) = self.types[ty] else {
             unreachable!("a callable reference has a function type")
         };
@@ -1527,6 +1767,81 @@ impl Lowerer {
         })
     }
 
+    fn lower_native_function_reference(
+        &mut self,
+        name: &ast::Ident,
+        span: Span,
+        expected: TypeId,
+        signature: hir::FunctionTypeId,
+    ) -> Option<hir::Expr> {
+        if self.scopes.lookup(&name.text).is_some()
+            || !self.local_function_scopes.lookup(&name.text).is_empty()
+        {
+            self.error(
+                span,
+                "a native `FunPtr` address cannot target a local function or function value"
+                    .to_string(),
+            );
+            return None;
+        }
+        let expected_signature = self.function_types[signature].clone();
+        let candidates = self.named_reference_candidate_layer(&name.text);
+        let mut matching = Vec::new();
+        for function in candidates {
+            let declaration = &self.functions[function];
+            let sig = &self.signatures[&function];
+            if declaration.method.is_some()
+                || self.extension_receivers.contains_key(&function)
+                || !sig.type_params.is_empty()
+                || sig.is_suspend
+                || declaration.attributes.gc_effect != hir::GcEffect::NoGc
+                || !matches!(declaration.kind, hir::FunctionKind::User(_))
+                || sig.params.len() != expected_signature.parameter_types.len()
+            {
+                continue;
+            }
+            let params_match = sig
+                .params
+                .iter()
+                .zip(&expected_signature.parameter_types)
+                .all(|(parameter, expected)| self.types_equal(parameter.ty, *expected));
+            if params_match && self.types_equal(sig.return_ty, expected_signature.return_type) {
+                matching.push(function);
+            }
+        }
+        let function = match matching.as_slice() {
+            [function] => *function,
+            [] => {
+                self.error(
+                    span,
+                    format!(
+                        "no eligible `@NoGC` top-level function `::{}` exactly matches the expected FunPtr signature",
+                        name.text
+                    ),
+                );
+                return None;
+            }
+            _ => {
+                self.error(
+                    span,
+                    format!(
+                        "native function reference `::{}` is ambiguous for the expected FunPtr signature",
+                        name.text
+                    ),
+                );
+                return None;
+            }
+        };
+        if self.functions[function].attributes.safety == hir::Safety::Unsafe {
+            self.require_unsafe_operation(span, "taking the address of an unsafe callback");
+        }
+        Some(hir::Expr {
+            kind: ExprKind::FunctionAddress(function),
+            ty: expected,
+            span,
+        })
+    }
+
     fn lower_bound_callable_reference(
         &mut self,
         receiver: &ast::Expr,
@@ -1539,7 +1854,10 @@ impl Lowerer {
             && self.scopes.lookup(&type_name.text).is_none()
             && !self.host_has_property(&type_name.text)
             && (self.is_declared_type_name(&type_name.text)
-                || self.type_params_in_scope.contains(&type_name.text))
+                || self
+                    .type_params_in_scope
+                    .iter()
+                    .any(|param| param.name == type_name.text))
         {
             self.error(
                 span,
@@ -1603,6 +1921,9 @@ impl Lowerer {
                 ReferenceExtensionMode::Exclude
             },
         )?;
+        if !self.managed_reference_target_is_safe(callee, span) {
+            return None;
+        }
         let Type::Function(function_type) = self.types[ty] else {
             unreachable!("a callable reference has a function type")
         };
@@ -1724,6 +2045,9 @@ impl Lowerer {
                 }
             }
             let type_args: Vec<_> = bindings.into_iter().flatten().collect();
+            if !self.type_arguments_satisfy_kinds(&sig.type_params, &type_args) {
+                continue;
+            }
             let parameter_types: Vec<_> = reference_params
                 .iter()
                 .map(|&parameter| self.instantiate_ty(parameter, &type_args))
@@ -1804,6 +2128,9 @@ impl Lowerer {
         } else {
             hir::Callable::Generic(self.record_instantiation(function, type_args))
         };
+        if !self.managed_reference_target_is_safe(callee, span) {
+            return None;
+        }
         Some((callee, ty))
     }
 
@@ -1845,6 +2172,9 @@ impl Lowerer {
                         continue;
                     }
                     let type_args: Vec<_> = bindings.into_iter().flatten().collect();
+                    if !self.type_arguments_satisfy_kinds(&sig.type_params, &type_args) {
+                        continue;
+                    }
                     let instantiated_params: Vec<_> = sig
                         .params
                         .iter()
@@ -1981,6 +2311,21 @@ impl Lowerer {
 
     fn top_level_candidate_layer(&self, name: &str) -> Vec<hir::FunctionId> {
         self.candidate_layer(self.functions_by_name.get(name))
+    }
+
+    fn managed_reference_target_is_safe(&mut self, callee: hir::Callable, span: Span) -> bool {
+        let function = self.callable_function_id(callee);
+        if self.functions[function].attributes.safety == hir::Safety::Safe {
+            return true;
+        }
+        self.error(
+            span,
+            format!(
+                "unsafe function `{}` cannot be stored in a managed function type because safety is not part of function-type identity",
+                self.functions[function].name
+            ),
+        );
+        false
     }
 
     fn extension_candidate_layer(&self, name: &str) -> Vec<hir::FunctionId> {
@@ -2125,6 +2470,7 @@ impl Lowerer {
         } else {
             SuspensionContext::Forbidden(ForbiddenSuspendContext::Function)
         });
+        self.push_safety_context(hir::Safety::Safe);
         self.push_scope();
 
         let lowered = (|| {
@@ -2288,6 +2634,7 @@ impl Lowerer {
                 type_params: type_params.clone(),
                 params,
                 return_ty,
+                attributes: hir::FunctionAttributes::default(),
                 kind: hir::FunctionKind::User(hir::Body {
                     locals: std::mem::take(&mut self.locals),
                     statements: prefix,
@@ -2314,6 +2661,7 @@ impl Lowerer {
         })();
 
         self.pop_scope();
+        self.pop_safety_context();
         self.pop_suspension_context();
         self.capture_contexts.pop();
         self.locals = outer_locals;
@@ -2425,6 +2773,7 @@ impl Lowerer {
         } else {
             SuspensionContext::Forbidden(ForbiddenSuspendContext::Function)
         });
+        self.push_safety_context(hir::Safety::Safe);
         self.push_scope();
 
         let lowered = (|| {
@@ -2512,6 +2861,7 @@ impl Lowerer {
                 type_params: type_params.clone(),
                 params: abi_params,
                 return_ty,
+                attributes: hir::FunctionAttributes::default(),
                 kind: hir::FunctionKind::User(hir::Body {
                     locals: std::mem::take(&mut self.locals),
                     statements,
@@ -2538,6 +2888,7 @@ impl Lowerer {
         })();
 
         self.pop_scope();
+        self.pop_safety_context();
         self.pop_suspension_context();
         self.capture_contexts.pop();
         self.locals = outer_locals;
@@ -2562,6 +2913,17 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
         let name = call.callee.text.clone();
+        let explicit_type_args = self.resolve_call_type_args(&call.type_args)?;
+        if explicit_type_args.len() > 1 {
+            self.error(
+                call.callee.span,
+                format!(
+                    "`{name}` takes exactly 1 type argument, but {} were supplied",
+                    explicit_type_args.len()
+                ),
+            );
+            return None;
+        }
         if call.args.len() != 1 {
             let supplied = call.args.len();
             self.error(
@@ -2596,6 +2958,17 @@ impl Lowerer {
                 return None;
             }
         };
+        if let Some(&explicit) = explicit_type_args.first()
+            && !self.types_equal(explicit, element_ty)
+        {
+            let expected = self.type_name(explicit);
+            let found = self.type_name(element_ty);
+            self.error(
+                call.callee.span,
+                format!("explicit element type is {expected}, but the argument contains {found}"),
+            );
+            return None;
+        }
         let ty = if to_immutable {
             self.intern_type(Type::Array(element_ty))
         } else {
@@ -2619,11 +2992,15 @@ impl Lowerer {
         &mut self,
         enum_id: hir::EnumId,
         variant: u32,
-        args: &[ast::Expr],
-        span: Span,
+        call: CallSite<'_>,
         sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
+        let CallSite {
+            type_args: type_arg_refs,
+            args,
+            span,
+        } = call;
         let enum_name = self.enums[enum_id].name.clone();
         let type_params = self.enums[enum_id].type_params.clone();
         let variant_name = self.enums[enum_id].variants[variant as usize].name.clone();
@@ -2658,12 +3035,24 @@ impl Lowerer {
             }
         }
 
+        let explicit_type_args = self.resolve_call_type_args(type_arg_refs)?;
         let mut bindings = vec![None; type_params.len()];
+        if !self.bind_explicit_type_args(
+            &mut bindings,
+            0,
+            &explicit_type_args,
+            span,
+            &format!("enum `{enum_name}`"),
+        ) {
+            return None;
+        }
         if let Some(expected) = expected {
             if let Type::Enum(id, expected_args) = self.types[expected].clone() {
                 if id == enum_id && expected_args.len() == type_params.len() {
                     for (binding, arg) in bindings.iter_mut().zip(expected_args) {
-                        *binding = Some(arg);
+                        if binding.is_none() {
+                            *binding = Some(arg);
+                        }
                     }
                 }
             }
@@ -2673,19 +3062,28 @@ impl Lowerer {
             self.lower_inference_args(args, &field_tys[..supplied], bindings, &type_params)?;
 
         let mut type_args = Vec::with_capacity(inferred.bindings.len());
-        for (binding, param_name) in inferred.bindings.iter().copied().zip(&type_params) {
+        for (binding, param) in inferred.bindings.iter().copied().zip(&type_params) {
             match binding {
                 Some(ty) => type_args.push(ty),
                 None => {
                     self.error(
                         span,
                         format!(
-                            "cannot infer type argument `{param_name}` for `{enum_name}.{variant_name}`"
+                            "cannot infer type argument `{}` for `{enum_name}.{variant_name}`",
+                            param.name
                         ),
                     );
                     return None;
                 }
             }
+        }
+        if !self.check_type_argument_kinds(
+            &type_params,
+            &type_args,
+            span,
+            &format!("enum `{enum_name}`"),
+        ) {
+            return None;
         }
         let mut lowered = inferred.finish(sink);
 
@@ -2764,18 +3162,22 @@ impl Lowerer {
                 .collect();
             let owner_count = self.local_functions[local_candidates[0]].owner_type_param_count;
             let owner_type_args = self.ambient_type_args(owner_count);
+            let explicit_type_args = self.resolve_call_type_args(&call.type_args)?;
             let resolved = self.resolve_overload(
                 &name,
                 &functions,
                 &owner_type_args,
-                &call.args,
-                call.span,
+                crate::overload::OverloadCall {
+                    explicit_type_args: &explicit_type_args,
+                    arg_exprs: &call.args,
+                    span: call.span,
+                },
                 sink,
             )?;
             let function = self.callable_function_id(resolved.callee);
             let local_function = self.local_function_by_function[&function];
             let captures = self.local_call_capture_args(local_function, call.span)?;
-            self.check_suspend_call(resolved.callee, call.span);
+            self.check_call_effects(resolved.callee, call.span);
             return Some(hir::Expr {
                 kind: ExprKind::LocalFunctionCall {
                     local_function,
@@ -2798,10 +3200,27 @@ impl Lowerer {
                 .lower_current_this(call.callee.span)
                 .expect("a member callable body always has a lexical `this`");
             if members.len() == 1 {
-                return self.finish_method_call(members[0], receiver, &call.args, call.span, sink);
+                return self.finish_method_call(
+                    members[0],
+                    receiver,
+                    CallSite {
+                        type_args: &call.type_args,
+                        args: &call.args,
+                        span: call.span,
+                    },
+                    sink,
+                );
             }
             return self.finish_overloaded_method_call(
-                members, &name, receiver, &call.args, call.span, sink,
+                members,
+                &name,
+                receiver,
+                CallSite {
+                    type_args: &call.type_args,
+                    args: &call.args,
+                    span: call.span,
+                },
+                sink,
             );
         }
 
@@ -2818,8 +3237,11 @@ impl Lowerer {
                     &extensions,
                     &name,
                     receiver,
-                    &call.args,
-                    call.span,
+                    CallSite {
+                        type_args: &call.type_args,
+                        args: &call.args,
+                        span: call.span,
+                    },
                     sink,
                 );
             }
@@ -2840,10 +3262,20 @@ impl Lowerer {
         if candidates.len() == 1 {
             return self.finish_single_function_call(candidates[0], call, sink);
         }
-        let resolved =
-            self.resolve_overload(&name, &candidates, &[], &call.args, call.span, sink)?;
+        let explicit_type_args = self.resolve_call_type_args(&call.type_args)?;
+        let resolved = self.resolve_overload(
+            &name,
+            &candidates,
+            &[],
+            crate::overload::OverloadCall {
+                explicit_type_args: &explicit_type_args,
+                arg_exprs: &call.args,
+                span: call.span,
+            },
+            sink,
+        )?;
         let ty = resolved.return_ty;
-        self.check_suspend_call(resolved.callee, call.span);
+        self.check_call_effects(resolved.callee, call.span);
         Some(hir::Expr {
             kind: ExprKind::Call {
                 callee: resolved.callee,
@@ -2868,6 +3300,45 @@ impl Lowerer {
         (0..count)
             .map(|index| self.intern_type(Type::Param(hir::TypeParamId::from_raw(index as u32))))
             .collect()
+    }
+
+    fn resolve_call_type_args(&mut self, refs: &[ast::TypeRef]) -> Option<Vec<TypeId>> {
+        refs.iter()
+            .map(|type_ref| self.resolve_type_ref(type_ref))
+            .collect()
+    }
+
+    /// Seed the call's own generic suffix. Receiver/lexical-owner type
+    /// parameters occupy the prefix and are never repeated at the call site.
+    /// Scoop requires either no explicit arguments (infer the whole suffix)
+    /// or the complete suffix; partial explicit lists are intentionally not
+    /// ambiguous with inference.
+    fn bind_explicit_type_args(
+        &mut self,
+        bindings: &mut [Option<TypeId>],
+        owner_type_param_count: usize,
+        explicit: &[TypeId],
+        span: Span,
+        target: &str,
+    ) -> bool {
+        if explicit.is_empty() {
+            return true;
+        }
+        let expected = bindings.len() - owner_type_param_count;
+        if explicit.len() != expected {
+            self.error(
+                span,
+                format!(
+                    "{target} takes exactly {expected} type argument(s), but {} were supplied",
+                    explicit.len()
+                ),
+            );
+            return false;
+        }
+        for (binding, &ty) in bindings[owner_type_param_count..].iter_mut().zip(explicit) {
+            *binding = Some(ty);
+        }
+        true
     }
 
     fn local_call_capture_args(
@@ -2929,22 +3400,40 @@ impl Lowerer {
         for (binding, ty) in bindings.iter_mut().zip(owner_type_args) {
             *binding = Some(ty);
         }
+        let explicit_type_args = self.resolve_call_type_args(&call.type_args)?;
+        if !self.bind_explicit_type_args(
+            &mut bindings,
+            sig.owner_type_param_count,
+            &explicit_type_args,
+            call.span,
+            &format!("local function `{}`", call.callee.text),
+        ) {
+            return None;
+        }
         let param_tys: Vec<_> = sig.params.iter().map(|param| param.ty).collect();
         let inferred =
             self.lower_inference_args(&call.args, &param_tys, bindings, &sig.type_params)?;
         let mut type_args = Vec::with_capacity(inferred.bindings.len());
-        for (binding, param_name) in inferred.bindings.iter().copied().zip(&sig.type_params) {
+        for (binding, param) in inferred.bindings.iter().copied().zip(&sig.type_params) {
             let Some(ty) = binding else {
                 self.error(
                     call.span,
                     format!(
-                        "cannot infer type argument `{param_name}` for local function `{}`",
-                        call.callee.text
+                        "cannot infer type argument `{}` for local function `{}`",
+                        param.name, call.callee.text
                     ),
                 );
                 return None;
             };
             type_args.push(ty);
+        }
+        if !self.check_type_argument_kinds(
+            &sig.type_params,
+            &type_args,
+            call.span,
+            &format!("local function `{}`", call.callee.text),
+        ) {
+            return None;
         }
         let args = inferred.finish(sink);
         let mut adapted = Vec::with_capacity(args.len());
@@ -2971,7 +3460,7 @@ impl Lowerer {
             hir::Callable::Generic(self.record_instantiation(function, type_args))
         };
         let captures = self.local_call_capture_args(local_function, call.span)?;
-        self.check_suspend_call(callee, call.span);
+        self.check_call_effects(callee, call.span);
         Some(hir::Expr {
             kind: ExprKind::LocalFunctionCall {
                 local_function,
@@ -2995,6 +3484,11 @@ impl Lowerer {
         call: &ast::CallExpr,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
+        if self.ffi_core.is_some_and(|core| {
+            function == core.address_of || function == core.size_of || function == core.align_of
+        }) {
+            return self.lower_pointer_top_level_intrinsic(function, call);
+        }
         let name = self.functions[function].name.clone();
 
         let sig = self.signatures[&function].clone();
@@ -3021,32 +3515,41 @@ impl Lowerer {
         // concatenated in source order after inference, preserving runtime
         // evaluation order even when typing happens in a different order.
         let param_tys: Vec<TypeId> = sig.params.iter().map(|param| param.ty).collect();
-        let inferred = self.lower_inference_args(
-            &call.args,
-            &param_tys,
-            vec![None; sig.type_params.len()],
-            &sig.type_params,
-        )?;
+        let mut bindings = vec![None; sig.type_params.len()];
+        let explicit_type_args = self.resolve_call_type_args(&call.type_args)?;
+        if !self.bind_explicit_type_args(
+            &mut bindings,
+            sig.owner_type_param_count,
+            &explicit_type_args,
+            call.span,
+            &format!("function `{name}`"),
+        ) {
+            return None;
+        }
+        let inferred =
+            self.lower_inference_args(&call.args, &param_tys, bindings, &sig.type_params)?;
         let mut type_args = Vec::with_capacity(inferred.bindings.len());
-        for (binding, param_name) in inferred.bindings.iter().copied().zip(&sig.type_params) {
+        for (binding, param) in inferred.bindings.iter().copied().zip(&sig.type_params) {
             match binding {
                 Some(ty) => type_args.push(ty),
                 None => {
                     self.error(
                         call.span,
-                        format!("cannot infer type argument `{param_name}` for `{name}`"),
+                        format!("cannot infer type argument `{}` for `{name}`", param.name),
                     );
                     return None;
                 }
             }
         }
-        let args = inferred.finish(sink);
-
-        // M9: the GC intrinsics constrain their type argument to
-        // reference types (spec 14.1's `T : ref` before M12 bounds).
-        if !self.check_gc_ref_constraint(function, &type_args, &args) {
+        if !self.check_type_argument_kinds(
+            &sig.type_params,
+            &type_args,
+            call.span,
+            &format!("function `{name}`"),
+        ) {
             return None;
         }
+        let args = inferred.finish(sink);
 
         // Argument types must be subtypes of the (instantiated)
         // parameter types; the adaptation boxes value types crossing
@@ -3080,7 +3583,7 @@ impl Lowerer {
             hir::Callable::Generic(self.record_instantiation(function, type_args))
         };
 
-        self.check_suspend_call(callee, call.span);
+        self.check_call_effects(callee, call.span);
 
         Some(hir::Expr {
             kind: ExprKind::Call {
@@ -3088,6 +3591,169 @@ impl Lowerer {
                 args: adapted_args,
             },
             ty,
+            span: call.span,
+        })
+    }
+
+    fn lower_pointer_top_level_intrinsic(
+        &mut self,
+        function: hir::FunctionId,
+        call: &ast::CallExpr,
+    ) -> Option<hir::Expr> {
+        let core = self
+            .ffi_core
+            .expect("pointer core is validated before bodies are lowered");
+        if function == core.address_of {
+            if call.args.len() != 1 {
+                self.error(
+                    call.span,
+                    format!(
+                        "function `addressOf` takes exactly 1 argument, but {} were supplied",
+                        call.args.len()
+                    ),
+                );
+                return None;
+            }
+            let place = match &call.args[0] {
+                ast::Expr::Var(name) => self
+                    .scopes
+                    .lookup(&name.text)
+                    .map(|local| (hir::Place::Local(local), self.locals[local].ty, name.span))
+                    .or_else(|| {
+                        self.globals_by_name.get(&name.text).copied().map(|global| {
+                            (
+                                hir::Place::Global(global),
+                                self.globals[global].ty,
+                                name.span,
+                            )
+                        })
+                    }),
+                ast::Expr::This { span } => self
+                    .current_this
+                    .map(|(local, ty)| (hir::Place::Local(local), ty, *span)),
+                expression => {
+                    self.error(
+                        expression.span(),
+                        "`addressOf` argument must be an addressable local, parameter, global, or value-type `this`"
+                            .to_string(),
+                    );
+                    return None;
+                }
+            };
+            let Some((place, place_ty, place_span)) = place else {
+                self.error(
+                    call.args[0].span(),
+                    "`addressOf` argument must be an addressable local, parameter, global, or value-type `this`"
+                        .to_string(),
+                );
+                return None;
+            };
+            if let hir::Place::Global(global) = place
+                && matches!(
+                    self.globals[global].storage,
+                    hir::GlobalStorage::Extern { .. }
+                )
+            {
+                self.require_unsafe_operation(place_span, "taking the address of an extern global");
+            }
+            let explicit = self.resolve_call_type_args(&call.type_args)?;
+            if explicit.len() > 1 {
+                self.error(
+                    call.span,
+                    format!(
+                        "function `addressOf` takes exactly 1 type argument, but {} were supplied",
+                        explicit.len()
+                    ),
+                );
+                return None;
+            }
+            if explicit
+                .first()
+                .is_some_and(|explicit| !self.types_equal(*explicit, place_ty))
+            {
+                self.error(
+                    place_span,
+                    format!(
+                        "`addressOf` type argument must match the place type {}, found {}",
+                        self.type_name(place_ty),
+                        self.type_name(explicit[0])
+                    ),
+                );
+                return None;
+            }
+            if !self.is_value_ty(place_ty)
+                || self.type_contains_param(place_ty)
+                || !self.is_gc_free(place_ty)
+            {
+                self.error(
+                    place_span,
+                    format!(
+                        "`addressOf` requires a concrete GC-free value type, found {}",
+                        self.type_name(place_ty)
+                    ),
+                );
+                return None;
+            }
+            self.check_call_effects(hir::Callable::Function(function), call.span);
+            let ty = self.intern_type(Type::Ptr(place_ty));
+            return Some(hir::Expr {
+                kind: ExprKind::AddressOf(place),
+                ty,
+                span: call.span,
+            });
+        }
+
+        if !call.args.is_empty() {
+            let name = if function == core.size_of {
+                "sizeOf"
+            } else {
+                "alignOf"
+            };
+            self.error(
+                call.span,
+                format!(
+                    "function `{name}` takes exactly 0 arguments, but {} were supplied",
+                    call.args.len()
+                ),
+            );
+            return None;
+        }
+        let explicit = self.resolve_call_type_args(&call.type_args)?;
+        if explicit.len() != 1 {
+            let name = if function == core.size_of {
+                "sizeOf"
+            } else {
+                "alignOf"
+            };
+            self.error(
+                call.span,
+                format!(
+                    "function `{name}` requires exactly 1 explicit type argument, but {} were supplied",
+                    explicit.len()
+                ),
+            );
+            return None;
+        }
+        let target = explicit[0];
+        if !self.is_value_ty(target) || self.type_contains_param(target) || !self.is_gc_free(target)
+        {
+            self.error(
+                call.span,
+                format!(
+                    "memory layout requires a concrete GC-free value type, found {}",
+                    self.type_name(target)
+                ),
+            );
+            return None;
+        }
+        let kind = if function == core.size_of {
+            ExprKind::SizeOf(target)
+        } else {
+            ExprKind::AlignOf(target)
+        };
+        Some(hir::Expr {
+            kind,
+            ty: self.uint,
             span: call.span,
         })
     }
@@ -3101,7 +3767,7 @@ impl Lowerer {
         arg_exprs: &[ast::Expr],
         param_tys: &[TypeId],
         mut bindings: Vec<Option<TypeId>>,
-        type_params: &[String],
+        type_params: &[hir::TypeParamDecl],
     ) -> Option<InferredArguments> {
         let mut args: Vec<Option<hir::Expr>> = (0..arg_exprs.len()).map(|_| None).collect();
         let mut sinks: Vec<Vec<hir::Statement>> =
@@ -3179,6 +3845,7 @@ impl Lowerer {
                         .iter()
                         .any(|element| self.expr_requires_expected_type(element))
             }
+            ast::Expr::Call(call) if !call.type_args.is_empty() => false,
             ast::Expr::Call(call) => self.constructor_requires_expected(&call.callee, &call.args),
             ast::Expr::StructInit { name, args, .. } => {
                 self.constructor_requires_expected(name, args)
@@ -3186,9 +3853,13 @@ impl Lowerer {
             ast::Expr::MethodCall {
                 receiver,
                 name,
+                type_args,
                 args,
                 ..
-            } => self.qualified_variant_requires_expected(receiver, name, args),
+            } => {
+                type_args.is_empty()
+                    && self.qualified_variant_requires_expected(receiver, name, args)
+            }
             // A lambda with an explicit, fully typed parameter header can
             // synthesize its own function type and therefore participate in
             // generic inference before an overload is selected. Untyped or
@@ -3339,6 +4010,14 @@ impl Lowerer {
                 }
                 self.mark_type_params(function.return_type, bound);
             }
+            Type::Ptr(pointee) => self.mark_type_params(*pointee, bound),
+            Type::FunPtr(id) => {
+                let function = &self.function_types[*id];
+                for parameter in &function.parameter_types {
+                    self.mark_type_params(*parameter, bound);
+                }
+                self.mark_type_params(function.return_type, bound);
+            }
             _ => {}
         }
     }
@@ -3363,51 +4042,11 @@ impl Lowerer {
         .then_some((enum_id, variant))
     }
 
-    /// The M9 form of spec 14.1's `T : ref` bound (milestone9 DESIGN.md
-    /// section 1): a call to one of the four GC intrinsics (`pin` /
-    /// `unpin` / `getGcHandle` / `releaseGcHandle`) is only legal when
-    /// the inferred type argument is a reference type — full
-    /// type-parameter bounds arrive with M12. `args` are the lowered
-    /// call arguments; the diagnostic points at the argument whose
-    /// type (or handle type parameter) is constrained. Returns `false`
-    /// after recording the diagnostic.
-    pub(crate) fn check_gc_ref_constraint(
-        &mut self,
-        function: hir::FunctionId,
-        type_args: &[TypeId],
-        args: &[hir::Expr],
-    ) -> bool {
-        let FunctionKind::Intrinsic(intrinsic) = &self.functions[function].kind else {
-            return true;
-        };
-        if !matches!(
-            intrinsic.as_str(),
-            "rt_pin" | "rt_unpin" | "rt_get_handle" | "rt_release_handle"
-        ) {
-            return true;
-        }
-        // All four declare exactly one type parameter and one value
-        // parameter (`gc.scoop`); inference bound the former.
-        let (Some(&t), Some(arg)) = (type_args.first(), args.first()) else {
-            return true;
-        };
-        if self.is_ref_ty(t) {
-            return true;
-        }
-        let name = self.functions[function].name.clone();
-        let found = self.type_name(t);
-        self.error(
-            arg.span,
-            format!("{name} requires a reference type argument, found {found}"),
-        );
-        false
-    }
-
     /// Bind type arguments by matching a parameter (or variant field)
     /// type against the argument type: `T` binds to the argument type,
     /// `Option<T>` vs `Option<Int>` recurses (so `T = Int`) — as do
     /// other enum applications — generic struct applications
-    /// (`PinHandle<T>`, M9) match by struct and recurse into their
+    /// (`PinnedPtr<T>`, M12) match by struct and recurse into their
     /// argument lists, and tuples match elementwise. Anything
     /// else is left to the argument type check. Returns `false` after
     /// recording a conflict diagnostic.
@@ -3416,7 +4055,7 @@ impl Lowerer {
         param_ty: TypeId,
         arg_ty: TypeId,
         bindings: &mut [Option<TypeId>],
-        type_params: &[String],
+        type_params: &[hir::TypeParamDecl],
         span: Span,
     ) -> bool {
         match (self.types[param_ty].clone(), self.types[arg_ty].clone()) {
@@ -3433,7 +4072,7 @@ impl Lowerer {
                                 span,
                                 format!(
                                     "conflicting types for `{}`: {first} and {second}",
-                                    type_params[index]
+                                    type_params[index].name
                                 ),
                             );
                             false
@@ -3490,6 +4129,9 @@ impl Lowerer {
             | (Type::MutableArray(param_element), Type::MutableArray(arg_element)) => {
                 self.bind_type_args(param_element, arg_element, bindings, type_params, span)
             }
+            (Type::Ptr(param), Type::Ptr(arg)) => {
+                self.bind_type_args(param, arg, bindings, type_params, span)
+            }
             (Type::Tuple(param_elements), Type::Tuple(arg_elements))
                 if param_elements.len() == arg_elements.len() =>
             {
@@ -3520,8 +4162,188 @@ impl Lowerer {
                 );
                 ok
             }
+            (Type::FunPtr(param_id), Type::FunPtr(arg_id)) => {
+                let param = self.function_types[param_id].clone();
+                let arg = self.function_types[arg_id].clone();
+                if param.is_suspend != arg.is_suspend
+                    || param.parameter_types.len() != arg.parameter_types.len()
+                {
+                    return true;
+                }
+                let mut ok = true;
+                for (param, arg) in param.parameter_types.iter().zip(arg.parameter_types.iter()) {
+                    ok &= self.bind_type_args(*param, *arg, bindings, type_params, span);
+                }
+                ok &= self.bind_type_args(
+                    param.return_type,
+                    arg.return_type,
+                    bindings,
+                    type_params,
+                    span,
+                );
+                ok
+            }
             _ => true,
         }
+    }
+
+    /// Normalize the two compiler-known FFI value constructors. Their source
+    /// structs exist to make the surface API explicit, but no aggregate value
+    /// or source field survives in typed HIR.
+    fn lower_ffi_struct_init(
+        &mut self,
+        struct_id: hir::StructId,
+        call: CallSite<'_>,
+        sink: &mut Vec<hir::Statement>,
+        expected: Option<TypeId>,
+    ) -> Option<hir::Expr> {
+        if Some(struct_id) == self.ffi_ptr {
+            if call.args.len() != 1 {
+                self.error(
+                    call.span,
+                    format!(
+                        "`Ptr` takes exactly 1 argument, but {} were supplied",
+                        call.args.len()
+                    ),
+                );
+                return None;
+            }
+            let explicit = self.resolve_call_type_args(call.type_args)?;
+            if explicit.len() > 1 {
+                self.error(
+                    call.span,
+                    format!(
+                        "`Ptr` takes exactly 1 type argument, but {} were supplied",
+                        explicit.len()
+                    ),
+                );
+                return None;
+            }
+            let expected_pointee = expected.and_then(|ty| match self.types[ty] {
+                Type::Ptr(pointee) => Some(pointee),
+                _ => None,
+            });
+            let pointee = explicit.first().copied().or(expected_pointee);
+            let Some(pointee) = pointee else {
+                self.error(
+                    call.span,
+                    "cannot infer `Ptr` pointee type; provide `Ptr<T>` or an expected `Ptr<T>` type"
+                        .to_string(),
+                );
+                return None;
+            };
+            if explicit.first().is_some_and(|explicit| {
+                expected_pointee.is_some_and(|expected| !self.types_equal(*explicit, expected))
+            }) {
+                self.error(
+                    call.span,
+                    format!(
+                        "`Ptr` constructor produces Ptr<{}>, which does not match the expected type",
+                        self.type_name(pointee)
+                    ),
+                );
+                return None;
+            }
+            if !self.is_value_ty(pointee)
+                || self.type_contains_param(pointee)
+                || !self.is_gc_free(pointee)
+            {
+                self.error(
+                    call.span,
+                    format!(
+                        "`Ptr` pointee must be a concrete GC-free value type, found {}",
+                        self.type_name(pointee)
+                    ),
+                );
+                return None;
+            }
+            self.require_unsafe_operation(call.span, "constructing `Ptr` from a raw integer");
+            let raw = self.lower_expr(&call.args[0], sink, Some(self.uint))?;
+            if raw.ty != self.uint {
+                self.error(
+                    raw.span,
+                    format!(
+                        "`Ptr` raw value must be of type UInt, found {}",
+                        self.type_name(raw.ty)
+                    ),
+                );
+                return None;
+            }
+            let ty = self.intern_type(Type::Ptr(pointee));
+            return Some(hir::Expr {
+                kind: ExprKind::PtrFromUInt(Box::new(raw)),
+                ty,
+                span: call.span,
+            });
+        }
+
+        debug_assert_eq!(Some(struct_id), self.ffi_fun_ptr);
+        if !call.args.is_empty() {
+            self.error(
+                call.span,
+                "`FunPtr` only supports the zero-argument null constructor".to_string(),
+            );
+            return None;
+        }
+        let explicit = self.resolve_call_type_args(call.type_args)?;
+        if explicit.len() > 1 {
+            self.error(
+                call.span,
+                format!(
+                    "`FunPtr` takes exactly 1 type argument, but {} were supplied",
+                    explicit.len()
+                ),
+            );
+            return None;
+        }
+        let expected_signature = expected.and_then(|ty| match self.types[ty] {
+            Type::FunPtr(signature) => Some(signature),
+            _ => None,
+        });
+        let explicit_signature = explicit.first().and_then(|ty| match self.types[*ty] {
+            Type::Function(signature) => Some(signature),
+            _ => None,
+        });
+        if !explicit.is_empty() && explicit_signature.is_none() {
+            self.error(
+                call.span,
+                "`FunPtr` type argument must be an ordinary concrete function type".to_string(),
+            );
+            return None;
+        }
+        let signature = explicit_signature.or(expected_signature);
+        let Some(signature) = signature else {
+            self.error(
+                call.span,
+                "cannot infer `FunPtr` signature; provide `FunPtr<F>` or an expected `FunPtr<F>` type"
+                    .to_string(),
+            );
+            return None;
+        };
+        if explicit_signature.is_some()
+            && expected_signature.is_some()
+            && explicit_signature != expected_signature
+        {
+            self.error(
+                call.span,
+                "explicit `FunPtr` signature does not match the expected type".to_string(),
+            );
+            return None;
+        }
+        if self.function_types[signature].is_suspend || self.function_type_contains_param(signature)
+        {
+            self.error(
+                call.span,
+                "`FunPtr` type argument must be an ordinary concrete function type".to_string(),
+            );
+            return None;
+        }
+        let ty = self.intern_type(Type::FunPtr(signature));
+        Some(hir::Expr {
+            kind: ExprKind::FunPtrNull,
+            ty,
+            span: call.span,
+        })
     }
 
     /// Struct construction with positional arguments: argument count
@@ -3531,11 +4353,15 @@ impl Lowerer {
         &mut self,
         struct_id: hir::StructId,
         definition_ty: TypeId,
-        args: &[ast::Expr],
-        span: Span,
+        call: CallSite<'_>,
         sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
+        let CallSite {
+            type_args: type_arg_refs,
+            args,
+            span,
+        } = call;
         let name = self.structs[struct_id].name.clone();
         let type_params = self.structs[struct_id].type_params.clone();
         let fields: Vec<(String, TypeId)> = self.structs[struct_id]
@@ -3559,12 +4385,24 @@ impl Lowerer {
             );
             return None;
         }
+        let explicit_type_args = self.resolve_call_type_args(type_arg_refs)?;
         let mut bindings = vec![None; type_params.len()];
+        if !self.bind_explicit_type_args(
+            &mut bindings,
+            0,
+            &explicit_type_args,
+            span,
+            &format!("struct `{name}`"),
+        ) {
+            return None;
+        }
         if let Some(expected) = expected {
             if let Type::Struct(id, expected_args) = self.types[expected].clone() {
                 if id == struct_id && expected_args.len() == type_params.len() {
                     for (binding, arg) in bindings.iter_mut().zip(expected_args) {
-                        *binding = Some(arg);
+                        if binding.is_none() {
+                            *binding = Some(arg);
+                        }
                     }
                 }
             }
@@ -3574,17 +4412,28 @@ impl Lowerer {
         let inferred = self.lower_inference_args(args, &field_tys, bindings, &type_params)?;
 
         let mut type_args = Vec::with_capacity(inferred.bindings.len());
-        for (binding, param_name) in inferred.bindings.iter().copied().zip(&type_params) {
+        for (binding, param) in inferred.bindings.iter().copied().zip(&type_params) {
             match binding {
                 Some(ty) => type_args.push(ty),
                 None => {
                     self.error(
                         span,
-                        format!("cannot infer type argument `{param_name}` for struct `{name}`"),
+                        format!(
+                            "cannot infer type argument `{}` for struct `{name}`",
+                            param.name
+                        ),
                     );
                     return None;
                 }
             }
+        }
+        if !self.check_type_argument_kinds(
+            &type_params,
+            &type_args,
+            span,
+            &format!("struct `{name}`"),
+        ) {
+            return None;
         }
         let lowered = inferred.finish(sink);
 
@@ -4067,6 +4916,31 @@ impl Lowerer {
             let rhs = self.lower_expr(rhs, sink, rhs_hint)?;
             (lhs, rhs)
         };
+        if matches!(op, hir::BinOp::Add | hir::BinOp::Sub)
+            && matches!(self.types[lhs.ty], Type::Ptr(_))
+        {
+            if rhs.ty != self.int {
+                self.error(
+                    span,
+                    format!(
+                        "pointer operator `{symbol}` requires an Int offset, found {}",
+                        self.type_name(rhs.ty)
+                    ),
+                );
+                return None;
+            }
+            self.require_unsafe_operation(span, "pointer arithmetic");
+            let ty = lhs.ty;
+            return Some(hir::Expr {
+                kind: ExprKind::PtrOffset {
+                    pointer: Box::new(lhs),
+                    offset: Box::new(rhs),
+                    subtract: op == hir::BinOp::Sub,
+                },
+                ty,
+                span,
+            });
+        }
         let ty = match op {
             hir::BinOp::Add => {
                 // `String + String` concatenates (docs/milestone2/
@@ -4329,7 +5203,9 @@ fn statement_contains_return(statement: &ast::Statement) -> bool {
         ast::StatementKind::While(while_) => {
             expr_contains_return(&while_.cond) || block_contains_return(&while_.body)
         }
-        ast::StatementKind::Block(block) => block_contains_return(block),
+        ast::StatementKind::Block(block) | ast::StatementKind::SafetyBlock { block, .. } => {
+            block_contains_return(block)
+        }
         ast::StatementKind::When(when) => {
             expr_contains_return(&when.subject)
                 || when.arms.iter().any(|arm| {

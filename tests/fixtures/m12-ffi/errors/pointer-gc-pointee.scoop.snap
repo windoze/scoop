@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m12-ffi/errors/pointer-gc-pointee.scoop:3:21: error: `Ptr` pointee must be GC-free, found TextBox

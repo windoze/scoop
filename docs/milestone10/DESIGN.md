@@ -333,10 +333,10 @@ MIR 是 M10 的主实现层：
 
 ## 8. 临时决策与明确不做
 
-1. **单线程 continuation 状态**：M10 用普通字段检查，无原子状态机。跨线程恢复随 runtime 的线程注册/握手及标准库 dispatcher 一起设计。
+1. **单线程 continuation 状态**：M10 用普通字段检查，无原子状态机。M13 随runtime线程注册/STW握手补齐跨线程完成/恢复的原子状态；标准库dispatcher与调度策略仍在后续。
 2. **无取消**：没有 cancellation exception、structured concurrency 或 abandoned-frame cleanup；永不恢复即普通不可达对象。
 3. **core adapter 代替 lambda builder**：`SuspendTask` / `SuspendRegistration` 是稳定的最小协议；普通/挂起函数类型、函数引用与捕获 lambda 由 M11 承接，`launch` / `async` 不在 M10。
-4. **无 FFI suspend ABI**：已在进入 M12 前明确，现阶段不支持 suspend FFI。`@Extern` 与 `suspend` 互斥，挂起函数不能转换为 `FunPtr`；HIR 必须直接诊断，不生成 wrapper，也不把 M10 hidden continuation ABI 暴露为外部符号 ABI。
+4. **无 FFI suspend ABI**：已在进入 M12 前明确，现阶段不支持 suspend FFI。`@Extern` 与 `suspend` 互斥，挂起函数的声明引用不能在 `FunPtr` 上下文中解析为原生地址；HIR 必须直接诊断，不生成 wrapper，也不把 M10 hidden continuation ABI 暴露为外部符号 ABI。
 5. **状态机不走 LLVM coroutine intrinsics**：变换固定在 MIR，便于跨后端复用并让 frame 布局/GC 扫描成为 Scoop 自己的显式契约。
 6. **无 frame 优化**：若静态证明整条路径不可能挂起，后续可做 stack fast path / frame elision；M10 先保证语义与 GC 正确。
 

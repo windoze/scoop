@@ -34,7 +34,7 @@
 //! M9 (milestone9 DESIGN.md section 1): the `UInt` well-known type
 //! (spec 11.2; distinct from `Int` — `types_equal` stays strict and
 //! there is no implicit conversion) and generic struct applications
-//! (`PinHandle<T>` / `GcHandle<T>` from the core GC facilities).
+//! (`PinnedPtr<T>` / `GcHandle<T>` from the core GC facilities).
 //! Struct applications carry their arguments directly in
 //! `Type::Struct`, matching generic enum representation.
 //!
@@ -66,13 +66,13 @@ impl Lowerer {
                 if let Some(index) = self
                     .type_params_in_scope
                     .iter()
-                    .position(|param| param == &name.text)
+                    .position(|param| param.name == name.text)
                 {
                     self.error(
                         name.span,
                         format!(
                             "type parameter `{}` takes no type arguments",
-                            self.type_params_in_scope[index]
+                            self.type_params_in_scope[index].name
                         ),
                     );
                     return None;
@@ -121,6 +121,54 @@ impl Lowerer {
                     for arg in args {
                         resolved.push(self.resolve_type_ref(arg)?);
                     }
+                    let params = self.structs[struct_id].type_params.clone();
+                    if !self.check_type_argument_kinds(
+                        &params,
+                        &resolved,
+                        name.span,
+                        &format!("struct `{}`", name.text),
+                    ) {
+                        return None;
+                    }
+                    if Some(struct_id) == self.ffi_ptr {
+                        let pointee = resolved[0];
+                        if self.type_contains_param(pointee)
+                            && self.current_file >= self.user_file_index
+                        {
+                            self.error(
+                                name.span,
+                                "`Ptr` pointee must be a concrete GC-free value type".to_string(),
+                            );
+                            return None;
+                        }
+                        let ty = self.intern_type(Type::Ptr(pointee));
+                        self.pointer_type_uses
+                            .push((ty, self.current_file, name.span));
+                        return Some(ty);
+                    }
+                    if Some(struct_id) == self.ffi_fun_ptr {
+                        let Type::Function(function_type) = self.types[resolved[0]] else {
+                            self.error(
+                                name.span,
+                                "`FunPtr` type argument must be an ordinary concrete function type"
+                                    .to_string(),
+                            );
+                            return None;
+                        };
+                        let function = &self.function_types[function_type];
+                        if function.is_suspend || self.function_type_contains_param(function_type) {
+                            self.error(
+                                name.span,
+                                "`FunPtr` type argument must be an ordinary concrete function type"
+                                    .to_string(),
+                            );
+                            return None;
+                        }
+                        let ty = self.intern_type(Type::FunPtr(function_type));
+                        self.fun_ptr_type_uses
+                            .push((ty, self.current_file, name.span));
+                        return Some(ty);
+                    }
                     return Some(self.struct_application(struct_id, resolved));
                 }
                 if let Some(&(interface_id, _)) = self.interfaces_by_name.get(&name.text) {
@@ -146,6 +194,15 @@ impl Lowerer {
                     let mut resolved = Vec::with_capacity(args.len());
                     for arg in args {
                         resolved.push(self.resolve_type_ref(arg)?);
+                    }
+                    let params = self.interfaces[interface_id].type_params.clone();
+                    if !self.check_type_argument_kinds(
+                        &params,
+                        &resolved,
+                        name.span,
+                        &format!("interface `{}`", name.text),
+                    ) {
+                        return None;
                     }
                     return Some(self.intern_type(Type::Interface(interface_id, resolved)));
                 }
@@ -176,13 +233,22 @@ impl Lowerer {
                 for arg in args {
                     resolved.push(self.resolve_type_ref(arg)?);
                 }
+                let params = self.enums[enum_id].type_params.clone();
+                if !self.check_type_argument_kinds(
+                    &params,
+                    &resolved,
+                    name.span,
+                    &format!("enum `{}`", self.enums[enum_id].name),
+                ) {
+                    return None;
+                }
                 Some(self.intern_type(Type::Enum(enum_id, resolved)))
             }
             ast::TypeRefKind::Named(name) => {
                 if let Some(index) = self
                     .type_params_in_scope
                     .iter()
-                    .position(|param| param == &name.text)
+                    .position(|param| param.name == name.text)
                 {
                     return Some(
                         self.intern_type(Type::Param(hir::TypeParamId::from_raw(index as u32))),
@@ -210,7 +276,7 @@ impl Lowerer {
                         }
                         if let Some(&(struct_id, ty)) = self.structs_by_name.get(&name.text) {
                             // A generic struct needs its type
-                            // arguments (`PinHandle<T>` goes through
+                            // arguments (`PinnedPtr<T>` goes through
                             // TypeRefKind::Generic), mirroring the
                             // generic enum rule below.
                             let arity = self.structs[struct_id].type_params.len();
@@ -360,9 +426,33 @@ impl Lowerer {
         Some(self.intern_function_type(function.is_suspend, parameter_types, return_type))
     }
 
-    /// Intern a generic struct application (`PinHandle<String>`, M9).
+    /// Intern a generic struct application (`PinnedPtr<String>`, M12).
     pub(crate) fn struct_application(&mut self, struct_id: StructId, args: Vec<TypeId>) -> TypeId {
         self.intern_type(Type::Struct(struct_id, args))
+    }
+
+    pub(crate) fn type_contains_param(&self, ty: TypeId) -> bool {
+        match &self.types[ty] {
+            Type::Param(_) => true,
+            Type::Array(element) | Type::MutableArray(element) | Type::Ptr(element) => {
+                self.type_contains_param(*element)
+            }
+            Type::Struct(_, args)
+            | Type::Interface(_, args)
+            | Type::Enum(_, args)
+            | Type::Tuple(args) => args.iter().any(|ty| self.type_contains_param(*ty)),
+            Type::Function(id) | Type::FunPtr(id) => self.function_type_contains_param(*id),
+            _ => false,
+        }
+    }
+
+    pub(crate) fn function_type_contains_param(&self, id: hir::FunctionTypeId) -> bool {
+        let function = &self.function_types[id];
+        function
+            .parameter_types
+            .iter()
+            .any(|ty| self.type_contains_param(*ty))
+            || self.type_contains_param(function.return_type)
     }
 
     /// Substitute bound type arguments for `Type::Param`, recursively.
@@ -413,6 +503,21 @@ impl Lowerer {
             Type::Function(id) => self
                 .instantiate_function_type(id, |this, ty| Some(this.instantiate_ty(ty, type_args)))
                 .expect("complete type argument substitution"),
+            Type::Ptr(pointee) => {
+                let pointee = self.instantiate_ty(pointee, type_args);
+                self.intern_type(Type::Ptr(pointee))
+            }
+            Type::FunPtr(id) => {
+                let function = self
+                    .instantiate_function_type(id, |this, ty| {
+                        Some(this.instantiate_ty(ty, type_args))
+                    })
+                    .expect("complete function pointer substitution");
+                let Type::Function(id) = self.types[function] else {
+                    unreachable!("function type instantiation stays a function type")
+                };
+                self.intern_type(Type::FunPtr(id))
+            }
             _ => ty,
         }
     }
@@ -524,6 +629,31 @@ impl Lowerer {
                     ))
                 })
                 .expect("complete owner substitution"),
+            Type::Ptr(pointee) => {
+                let pointee = self.instantiate_method_owner_ty(
+                    pointee,
+                    owner_args,
+                    source_owner_count,
+                    target_owner_count,
+                );
+                self.intern_type(Type::Ptr(pointee))
+            }
+            Type::FunPtr(id) => {
+                let function = self
+                    .instantiate_function_type(id, |this, ty| {
+                        Some(this.instantiate_method_owner_ty(
+                            ty,
+                            owner_args,
+                            source_owner_count,
+                            target_owner_count,
+                        ))
+                    })
+                    .expect("complete function pointer owner substitution");
+                let Type::Function(id) = self.types[function] else {
+                    unreachable!("function type instantiation stays a function type")
+                };
+                self.intern_type(Type::FunPtr(id))
+            }
             _ => ty,
         }
     }
@@ -576,6 +706,18 @@ impl Lowerer {
             Type::Function(id) => {
                 self.instantiate_function_type(id, |this, ty| this.try_substitute(ty, bindings))
             }
+            Type::Ptr(pointee) => {
+                let pointee = self.try_substitute(pointee, bindings)?;
+                Some(self.intern_type(Type::Ptr(pointee)))
+            }
+            Type::FunPtr(id) => {
+                let function = self
+                    .instantiate_function_type(id, |this, ty| this.try_substitute(ty, bindings))?;
+                let Type::Function(id) = self.types[function] else {
+                    unreachable!("function type substitution stays a function type")
+                };
+                Some(self.intern_type(Type::FunPtr(id)))
+            }
             _ => Some(ty),
         }
     }
@@ -590,7 +732,7 @@ impl Lowerer {
 
     /// Structural type equality (tuple and enum types compare
     /// elementwise; generic struct applications compare by struct and
-    /// argument list, so `PinHandle<Int>` and `PinHandle<String>` are
+    /// argument list, so `PinnedPtr<Int>` and `PinnedPtr<String>` are
     /// different types — just as `Int` and `UInt` are, spec 11.2).
     pub(crate) fn types_equal(&self, a: TypeId, b: TypeId) -> bool {
         type_value_equal(&self.types, a, b)
@@ -738,17 +880,22 @@ impl Lowerer {
     /// cross into reference types (`Any` / interfaces) only by boxing
     /// (spec 4.4.4).
     pub(crate) fn is_value_ty(&self, ty: TypeId) -> bool {
-        matches!(
-            self.types[ty],
+        match self.types[ty] {
             Type::Unit
-                | Type::Int
-                | Type::UInt
-                | Type::Boolean
-                | Type::Struct(..)
-                | Type::Enum(..)
-                | Type::Tuple(_)
-                | Type::Param(_)
-        )
+            | Type::Int
+            | Type::UInt
+            | Type::Boolean
+            | Type::Struct(..)
+            | Type::Enum(..)
+            | Type::Tuple(_)
+            | Type::Ptr(_)
+            | Type::FunPtr(_) => true,
+            Type::Param(index) => self
+                .type_params_in_scope
+                .get(index.into_raw() as usize)
+                .is_none_or(|param| param.kind != hir::TypeParamKind::Ref),
+            _ => false,
+        }
     }
 
     /// Reference types (spec 3): classes, interfaces, `Any`, strings
@@ -756,6 +903,66 @@ impl Lowerer {
     /// (spec 4.4.2).
     pub(crate) fn is_ref_ty(&self, ty: TypeId) -> bool {
         !self.is_value_ty(ty)
+    }
+
+    pub(crate) fn check_type_argument_kinds(
+        &mut self,
+        params: &[hir::TypeParamDecl],
+        args: &[TypeId],
+        span: ast::Span,
+        target: &str,
+    ) -> bool {
+        let mut valid = true;
+        for (param, &arg) in params.iter().zip(args) {
+            if self.type_satisfies_kind(arg, param.kind) {
+                continue;
+            }
+            let required = match param.kind {
+                hir::TypeParamKind::Any => continue,
+                hir::TypeParamKind::Value => "value",
+                hir::TypeParamKind::Ref => "ref",
+            };
+            let found = self.type_name(arg);
+            self.error(
+                span,
+                format!(
+                    "type argument `{found}` for `{}` of {target} must satisfy `{required}`",
+                    param.name
+                ),
+            );
+            valid = false;
+        }
+        valid
+    }
+
+    pub(crate) fn type_arguments_satisfy_kinds(
+        &self,
+        params: &[hir::TypeParamDecl],
+        args: &[TypeId],
+    ) -> bool {
+        params
+            .iter()
+            .zip(args)
+            .all(|(param, &arg)| self.type_satisfies_kind(arg, param.kind))
+    }
+
+    fn type_satisfies_kind(&self, ty: TypeId, required: hir::TypeParamKind) -> bool {
+        if required == hir::TypeParamKind::Any {
+            return true;
+        }
+        if let Type::Param(index) = self.types[ty] {
+            let actual = self
+                .type_params_in_scope
+                .get(index.into_raw() as usize)
+                .map(|param| param.kind)
+                .unwrap_or(hir::TypeParamKind::Any);
+            return actual == required;
+        }
+        match required {
+            hir::TypeParamKind::Any => true,
+            hir::TypeParamKind::Value => self.is_value_ty(ty),
+            hir::TypeParamKind::Ref => self.is_ref_ty(ty),
+        }
     }
 
     /// The least representable upper bound of a non-empty set of
@@ -905,6 +1112,8 @@ fn type_value_equal(types: &Arena<Type>, a: TypeId, b: TypeId) -> bool {
                     .all(|(&x, &y)| type_value_equal(types, x, y))
         }
         (Type::Function(x), Type::Function(y)) => x == y,
+        (Type::Ptr(x), Type::Ptr(y)) => type_value_equal(types, *x, *y),
+        (Type::FunPtr(x), Type::FunPtr(y)) => x == y,
         _ => false,
     }
 }
@@ -917,7 +1126,7 @@ fn type_name(
     enums: &Arena<EnumDecl>,
     classes: &Arena<ClassDecl>,
     interfaces: &Arena<InterfaceDecl>,
-    type_params: &[String],
+    type_params: &[hir::TypeParamDecl],
     ty: TypeId,
 ) -> String {
     match &types[ty] {
@@ -998,6 +1207,53 @@ fn type_name(
             );
             format!("MutableArray<{inner}>")
         }
+        Type::Ptr(pointee) => {
+            let inner = type_name(
+                types,
+                function_types,
+                structs,
+                enums,
+                classes,
+                interfaces,
+                type_params,
+                *pointee,
+            );
+            format!("Ptr<{inner}>")
+        }
+        Type::FunPtr(id) => {
+            let function = &function_types[*id];
+            let parameters: Vec<_> = function
+                .parameter_types
+                .iter()
+                .map(|ty| {
+                    type_name(
+                        types,
+                        function_types,
+                        structs,
+                        enums,
+                        classes,
+                        interfaces,
+                        type_params,
+                        *ty,
+                    )
+                })
+                .collect();
+            let return_type = type_name(
+                types,
+                function_types,
+                structs,
+                enums,
+                classes,
+                interfaces,
+                type_params,
+                function.return_type,
+            );
+            let suspend = if function.is_suspend { "suspend " } else { "" };
+            format!(
+                "FunPtr<{suspend}({}) -> {return_type}>",
+                parameters.join(", ")
+            )
+        }
         Type::Enum(id, args) => {
             let name = &enums[*id].name;
             if args.is_empty() {
@@ -1072,7 +1328,7 @@ fn type_name(
         }
         Type::Param(index) => type_params
             .get(index.into_raw() as usize)
-            .cloned()
+            .map(|param| param.name.clone())
             .unwrap_or_else(|| format!("T{}", index.into_raw())),
     }
 }

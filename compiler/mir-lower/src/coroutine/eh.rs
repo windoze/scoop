@@ -76,6 +76,7 @@ fn rewrite_statement(statement: &mut mir::StatementKind, managed: mir::LocalId) 
         mir::StatementKind::Expr(expr) => rewrite_expr(expr, managed),
         mir::StatementKind::ValDecl { init, .. } => rewrite_expr(init, managed),
         mir::StatementKind::Assign { value, .. } => rewrite_expr(value, managed),
+        mir::StatementKind::GlobalAssign { value, .. } => rewrite_expr(value, managed),
         mir::StatementKind::Call(effect) => match effect {
             mir::CallEffect::Unit(call) | mir::CallEffect::Value { call, .. } => {
                 for arg in &mut call.args {
@@ -159,6 +160,9 @@ fn rewrite_expr(expr: &mut mir::Expr, managed: mir::LocalId) {
         | mir::Expr::Cast { operand, .. }
         | mir::Expr::ArrayLen(operand)
         | mir::Expr::ArrayClone(operand)
+        | mir::Expr::PtrFromUInt { operand, .. }
+        | mir::Expr::PtrToUInt(operand)
+        | mir::Expr::PtrCast { operand, .. }
         | mir::Expr::Unary { operand, .. }
         | mir::Expr::EnumTag(operand)
         | mir::Expr::EnumField { operand, .. } => rewrite_expr(operand, managed),
@@ -171,10 +175,43 @@ fn rewrite_expr(expr: &mut mir::Expr, managed: mir::LocalId) {
             rewrite_expr(array, managed);
             rewrite_expr(index, managed);
         }
+        mir::Expr::PtrLoad {
+            pointer, offset, ..
+        } => {
+            rewrite_expr(pointer, managed);
+            if let Some(offset) = offset {
+                rewrite_expr(offset, managed);
+            }
+        }
+        mir::Expr::PtrStore {
+            pointer,
+            offset,
+            value,
+            ..
+        } => {
+            rewrite_expr(pointer, managed);
+            if let Some(offset) = offset {
+                rewrite_expr(offset, managed);
+            }
+            rewrite_expr(value, managed);
+        }
+        mir::Expr::PtrOffset {
+            pointer, offset, ..
+        } => {
+            rewrite_expr(pointer, managed);
+            rewrite_expr(offset, managed);
+        }
         mir::Expr::StringConst(_)
         | mir::Expr::IntLiteral(_)
         | mir::Expr::BoolLiteral(_)
         | mir::Expr::UnitLiteral
-        | mir::Expr::Local(_) => {}
+        | mir::Expr::Local(_)
+        | mir::Expr::GlobalRead(_)
+        | mir::Expr::AddressOf { .. }
+        | mir::Expr::GlobalAddress { .. }
+        | mir::Expr::SizeOf(_)
+        | mir::Expr::AlignOf(_)
+        | mir::Expr::FunPtrNull(_)
+        | mir::Expr::FunctionAddress { .. } => {}
     }
 }

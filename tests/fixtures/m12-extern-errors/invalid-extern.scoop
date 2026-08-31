@@ -1,0 +1,54 @@
+struct ManagedBox(val value: String)
+
+struct OrdinaryPair(val left: Int, val right: Int)
+
+enum NativeChoice {
+    First
+    Second(Int)
+}
+
+@Extern
+fun hasBody(): Int = 1
+
+@Extern
+suspend fun suspended()
+
+@Extern
+fun <T> generic(value: T)
+
+@Extern(name = "c_ref")
+fun cRef(value: String)
+
+@Extern(name = "c_struct")
+fun cStruct(value: OrdinaryPair)
+
+@Extern(name = "c_enum")
+fun cEnum(value: NativeChoice)
+
+@Extern(name = "c_tuple")
+fun cTuple(value: (Int, Int))
+
+@Extern(name = "scoop_aggregate", abi = "scoop")
+fun scoopAggregate(value: ManagedBox)
+
+@Safe
+@Extern(name = "pretend_safe")
+fun pretendSafe()
+
+@Extern(lib = "../bad", name = "not-a-symbol", abi = "unknown")
+fun malformed()
+
+@Extern(name = "native_call")
+fun nativeCall()
+
+struct ExternHost(val value: Int) {
+    @Extern(name = "member_extern")
+    fun memberExtern()
+}
+
+@Extern(name = "extension_extern")
+fun Int.extensionExtern()
+
+fun main() {
+    nativeCall()
+}

@@ -88,7 +88,7 @@ struct GcHandle<T>(val raw: UInt)
 
 ## 5. 临时决策（及退役里程碑）
 
-1. **单代、不移动、无 evacuation**：分代（nursery/晋升/remembered set 消费卡片表）、Immix 的 defrag evacuation、并行/并发回收协调 → 全部进 backlog（届时卡片表与 statepoint 通道已就位）。
+1. **单代、不移动、无 evacuation**：分代（nursery/晋升/remembered set 消费卡片表）与 Immix defrag evacuation继续留在backlog；多 mutator STW协调、线程注册/握手和线程安全分配/根表由M13完成，parallel/concurrent collector仍在其后。
 2. **`pin` 等四函数走 `@Intrinsic`**：M12 转 spec 14.1 的 `@Unsafe` 普通函数/FFI 形态；`gcCollect`/`gcStats` 是测试专用 intrinsic，不进 spec（标注为内部设施）。
 3. **回收触发阈值**：v1 固定值；自适应阈值随后续。
 4. **保守栈根是 v1 过渡方案**：精确消费 stackmap 在移动式回收前完成；当前不绑定单一 CPU 架构。
@@ -98,6 +98,6 @@ struct GcHandle<T>(val raw: UInt)
 
 - 分代（nursery、晋升、remembered set 消费卡片表、代间引用检查）；
 - evacuation / defragmentation（Immix 的碎片整理）；
-- 并行/并发回收与 STW 协调（线程注册/握手）；
+- 多 mutator STW协调、线程注册/握手与线程安全分配/根表（→ M13）；parallel/concurrent collector继续留在backlog；
 - runtime 精确解析 statepoint stackmap 并扫描栈根（含所需的平台寄存器/帧支持）；
 - `scoop.std` 的 GC 调优 API；

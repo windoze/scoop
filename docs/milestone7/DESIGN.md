@@ -48,7 +48,7 @@ fun main() {
 - 无显式接收者的调用 `f(...)`，按序：
   1. （预留）局部函数层——局部函数声明落地后插入；
   2. 成员层：当前宿主（`this`）的成员函数（方法体内的裸 `m()` 调用）；
-  3. 顶层函数层：用户文件（M15 前的"同包"层；显式/星号 import 分层随 import 机制落地细化）；
+  3. 顶层函数层：用户文件（M16 前的"同包"层；显式/星号 import 分层随 import 机制落地细化）；
   4. 隐式导入层：`scoop.core`（对照 Kotlin 的 implicitly imported callables——最低优先级）。
   **取第一个含有任何候选的层，其后层整层丢弃**（即使外层候选"更合适"——这是 Kotlin 的遮蔽语义）。
 - 有显式接收者的调用 `x.f(...)`：M7 只有成员层（接收者类型及其基类链的成员函数；扩展函数落地后在其后插入扩展层）。
@@ -66,7 +66,7 @@ fun main() {
 
 ## 2. print/println 迁移（core 库函数，`Any.toString()` 分发——过渡基线）
 
-> **后续设计变更（2026-08-28 定稿）**：spec 11.11 已改为接口化方案——`equals` 走 operator fun、`ToString` / `Hash` 为 opt-in 接口、`Any` 无任何成员。本节的 `Any.toString()` 分发形态作为**过渡基线**保留至 M13“泛型上界约束与接口化”，届时改造为 `fun <T : ToString> print(v: T)`（单态化静态分发）并拆除 vtable 前三槽。
+> **后续设计变更（2026-08-28 定稿）**：spec 11.11 已改为接口化方案——`equals` 走 operator fun、`ToString` / `Hash` 为 opt-in 接口、`Any` 无任何成员。本节的 `Any.toString()` 分发形态作为**过渡基线**保留至现 M14“泛型上界约束与接口化”，届时改造为 `fun <T : ToString> print(v: T)`（单态化静态分发）并拆除 vtable 前三槽。
 
 本节形态（当前实现）：**一个输出 intrinsic + `toString()` 分发**（与 Kotlin stdlib 及 spec 11.6 的 `add<T>` 语义一致），core 的 `io.scoop` 为：
 
@@ -134,5 +134,5 @@ fun println(message: Any) {
 
 - 候选集分层的完整层级：M7 只实现（成员 → 用户顶层 → core 隐式导入）三层；局部函数层、显式 import / 星号 import 分层随相应机制落地后插入；
 - 泛型候选的 MSC 比较用"推断后的类型实参参与比较"，是 Kotlin fresh-variable 约束系统的简化（单参数推断场景等价；复杂多泛型场景随用例扩展）；
-- `print`/`println` 的迁移完成后，`write`/`intToString`/`boolToString` 仍是 `@Intrinsic`——spec 11.6 时代起这些原始输出能力最终应经 `@Extern`（M12）由 core 用普通 FFI 实现，`@Intrinsic` 登记表届时退役这批条目；
+- `print`/`println` 的迁移完成后，`write`/`intToString`/`boolToString` 仍是 `@Intrinsic`。M12 将 `write(String)` 迁为直接接收 managed ref的 Scoop ABI `@Extern`，不经 C ABI、`PinnedPtr` 或 storage bridge；数值转换原语由后续对应里程碑迁移；
 - 歧义/无匹配诊断的候选列表展示（首版只报主消息，候选明细随用例补充）。

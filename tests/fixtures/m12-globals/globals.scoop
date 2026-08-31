@@ -1,0 +1,66 @@
+@CLayout
+struct NativePair(val left: Int, val right: Int)
+
+@Global
+var scoopCounter: Int = 1
+
+@ThreadLocal
+var scoopTlsCounter: Int = 2
+
+@Global
+var pair: NativePair = NativePair(3, 4)
+
+@Global
+var emptyPointer: Ptr<Int> = Ptr<Int>(0)
+
+@Global
+var emptyCallback: FunPtr<(Int) -> Int> = FunPtr<(Int) -> Int>()
+
+@Extern(lib = "fixture_native", name = "native_counter")
+@Global
+var nativeCounter: Int
+
+@Extern(lib = "fixture_native", name = "native_tls_counter")
+@ThreadLocal
+var nativeTlsCounter: Int
+
+@Extern(lib = "fixture_native", name = "native_limit")
+val nativeLimit: Int
+
+@Extern(lib = "fixture_native", name = "native_pair")
+@Global
+var nativePair: NativePair
+
+fun main() {
+    println(scoopCounter)
+    println(scoopTlsCounter)
+    println(pair.left)
+    println(pair.right)
+    @Unsafe {
+        println(nativeCounter)
+        println(nativeTlsCounter)
+        println(nativeLimit)
+        println(nativePair.left)
+        println(nativePair.right)
+
+        scoopCounter = 20
+        scoopTlsCounter = 21
+        addressOf(scoopCounter).store(22)
+        pair = NativePair(23, 24)
+
+        nativeCounter = 40
+        nativeTlsCounter = 41
+        addressOf(nativeCounter).store(42)
+        nativePair = NativePair(43, 44)
+    }
+    println(scoopCounter)
+    println(scoopTlsCounter)
+    println(pair.left)
+    println(pair.right)
+    @Unsafe {
+        println(nativeCounter)
+        println(nativeTlsCounter)
+        println(nativePair.left)
+        println(nativePair.right)
+    }
+}

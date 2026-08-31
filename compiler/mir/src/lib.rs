@@ -13,6 +13,9 @@ use la_arena::{Arena, Idx};
 use scoop_ast::Span;
 
 pub type FunctionId = Idx<Function>;
+pub type ExternFunctionId = Idx<ExternFunction>;
+pub type GlobalId = Idx<Global>;
+pub type CallbackBridgeId = Idx<CallbackBridge>;
 pub type FunctionTypeId = Idx<FunctionType>;
 pub type ClosureClassId = Idx<ClosureClass>;
 pub type ClosureInvokeFunctionId = Idx<ClosureInvokeFunction>;
@@ -42,6 +45,10 @@ pub fn mangle_function(name: &str, is_entry: bool) -> String {
     } else {
         format!("scoop.{name}")
     }
+}
+
+pub fn mangle_global(name: &str) -> String {
+    format!("scoop.global.{name}")
 }
 
 /// Mangle a monomorphized instance: `scoop.<name>$<encoded type args>`.
@@ -124,6 +131,20 @@ pub fn encode_type(module: &Module, ty: &Type) -> String {
                 encode_type(module, &function.return_type)
             )
         }
+        Type::Ptr(inner) => format!("P{}X", encode_type(module, inner)),
+        Type::FunPtr(id) => {
+            let function = &module.function_types[*id];
+            let parameters = function
+                .parameter_types
+                .iter()
+                .map(|ty| encode_type(module, ty))
+                .collect::<Vec<_>>()
+                .join("_");
+            format!(
+                "N{parameters}R{}X",
+                encode_type(module, &function.return_type)
+            )
+        }
         Type::Enum(id, args) => {
             let name = &module.enums[*id].name;
             if args.is_empty() {
@@ -159,6 +180,10 @@ pub enum Type {
     /// Concrete managed function signature. Function values have reference
     /// representation; closure classes are materialized by M11 conversion.
     Function(FunctionTypeId),
+    /// Typed raw data pointer; representation is one native pointer word.
+    Ptr(Box<Type>),
+    /// Typed C function pointer; identity includes its exact signature.
+    FunPtr(FunctionTypeId),
     /// An instantiated enum type (including `Option<T>` since M4).
     Enum(EnumId, Vec<Type>),
 }
@@ -214,7 +239,15 @@ pub struct DynamicClosureAdapter {
 #[derive(Debug)]
 pub struct StructDef {
     pub name: String,
+    pub c_layout: Option<CLayout>,
+    pub interior_mutable: bool,
     pub fields: Vec<Field>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CLayout {
+    pub aligned: u8,
+    pub packed: u8,
 }
 
 #[derive(Debug)]
@@ -294,6 +327,9 @@ pub struct Local {
 #[derive(Debug)]
 pub struct Module {
     pub functions: Arena<Function>,
+    pub extern_functions: Arena<ExternFunction>,
+    pub globals: Arena<Global>,
+    pub callback_bridges: Arena<CallbackBridge>,
     pub function_types: Arena<FunctionType>,
     pub closure_classes: Arena<ClosureClass>,
     pub closure_invoke_functions: Arena<ClosureInvokeFunction>,
@@ -306,6 +342,48 @@ pub struct Module {
     pub interfaces: Arena<InterfaceDef>,
     pub entry: FunctionId,
     pub meta: MirMeta,
+}
+
+#[derive(Debug)]
+pub struct CallbackBridge {
+    pub source: FunctionId,
+    pub signature: FunctionTypeId,
+    /// NoGC storage-ABI entry called by the generated C trampoline.
+    pub bridge_function: FunctionId,
+}
+
+#[derive(Debug, Clone)]
+pub struct Global {
+    pub name: String,
+    pub symbol: String,
+    pub ty: Type,
+    pub mutable: bool,
+    pub storage: GlobalStorage,
+}
+
+#[derive(Debug, Clone)]
+pub enum GlobalStorage {
+    Local {
+        thread_local: bool,
+        initializer: ConstantValue,
+    },
+    Extern {
+        library: String,
+        native_symbol: String,
+        thread_local: bool,
+    },
+}
+
+#[derive(Debug, Clone)]
+pub enum ConstantValue {
+    Int(i64),
+    Bool(bool),
+    NullPtr,
+    NullFunPtr,
+    Struct {
+        struct_id: StructId,
+        fields: Vec<ConstantValue>,
+    },
 }
 
 /// Per-Cone MIR metadata (impl spec 2.3).
@@ -402,6 +480,8 @@ pub struct StringConst {
 
 #[derive(Debug)]
 pub struct Function {
+    /// Whether this body participates in managed GC instrumentation.
+    pub gc_effect: GcEffect,
     pub name: String,
     /// Mangled symbol; `scoop.<name>`, `scoop.<name>$<args>` for
     /// monomorphized instances, or `scoop_main` for the entry.
@@ -409,6 +489,35 @@ pub struct Function {
     pub params: Vec<Param>,
     pub return_ty: Type,
     pub body: Body,
+}
+
+#[derive(Debug)]
+pub struct ExternFunction {
+    pub source_name: String,
+    pub native_symbol: String,
+    pub library: String,
+    pub abi: ExternAbi,
+    pub calling_convention: CallingConvention,
+    pub gc_effect: GcEffect,
+    pub params: Vec<Type>,
+    pub return_type: Type,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExternAbi {
+    C,
+    Scoop,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CallingConvention {
+    Cdecl,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GcEffect {
+    Managed,
+    NoGc,
 }
 
 #[derive(Debug)]
@@ -472,6 +581,10 @@ pub enum StatementKind {
     },
     Assign {
         local: LocalId,
+        value: Expr,
+    },
+    GlobalAssign {
+        global: GlobalId,
         value: Expr,
     },
     ArraySet {
@@ -566,6 +679,47 @@ pub enum Expr {
         index: u32,
     },
     Local(LocalId),
+    GlobalRead(GlobalId),
+    PtrFromUInt {
+        operand: Box<Expr>,
+        pointee: Box<Type>,
+    },
+    PtrToUInt(Box<Expr>),
+    PtrCast {
+        operand: Box<Expr>,
+        pointee: Box<Type>,
+    },
+    PtrLoad {
+        pointer: Box<Expr>,
+        pointee: Box<Type>,
+        offset: Option<Box<Expr>>,
+    },
+    PtrStore {
+        pointer: Box<Expr>,
+        pointee: Box<Type>,
+        offset: Option<Box<Expr>>,
+        value: Box<Expr>,
+    },
+    PtrOffset {
+        pointer: Box<Expr>,
+        pointee: Box<Type>,
+        offset: Box<Expr>,
+        subtract: bool,
+    },
+    AddressOf {
+        local: LocalId,
+        pointee: Box<Type>,
+    },
+    GlobalAddress {
+        global: GlobalId,
+        pointee: Box<Type>,
+    },
+    SizeOf(Box<Type>),
+    AlignOf(Box<Type>),
+    FunPtrNull(FunctionTypeId),
+    FunctionAddress {
+        callback: CallbackBridgeId,
+    },
     /// The managed exception pointer produced by the active `BeginCatch`.
     /// It is only valid in blocks dominated by that statement.
     CaughtException,
@@ -681,6 +835,8 @@ pub enum Callee {
     User(FunctionId),
     /// A monomorphized generic function defined in this Cone.
     Monomorphized(MonomorphizedFunctionId),
+    /// A bodyless native declaration in the independent extern arena.
+    Extern(ExternFunctionId),
     /// Typed marker used only between CFG construction and the coroutine
     /// state-machine pass. The final MIR handed to LIR contains no such
     /// callee; `register` identifies the concrete protocol method shell.
@@ -720,9 +876,7 @@ pub enum RuntimeFn {
     GcStats,
     /// ABI exception buffer -> ordinary managed object (runtime spec 5).
     MaterializeException,
-    /// Primitive output intrinsics backing core's `print`/`println`
-    /// overloads (M7, docs/milestone7/DESIGN.md section 2).
-    Write,
+    /// Primitive conversions temporarily backing core's `toString` paths.
     IntToString,
     BoolToString,
     StringConcat,
@@ -748,7 +902,6 @@ impl RuntimeFn {
             RuntimeFn::GcCollect => "scoop_rt_gc_collect",
             RuntimeFn::GcStats => "scoop_rt_gc_stats",
             RuntimeFn::MaterializeException => "scoop_rt_materialize_exception",
-            RuntimeFn::Write => "scoop_rt_print",
             RuntimeFn::IntToString => "scoop_rt_int_to_string",
             RuntimeFn::BoolToString => "scoop_rt_bool_to_string",
             RuntimeFn::StringConcat => "scoop_rt_string_concat",
@@ -785,13 +938,99 @@ pub enum UnOp {
 /// Indented text dump for golden tests (`scoopc build --emit=mir`).
 pub fn dump(module: &Module) -> String {
     let mut out = String::from("Module\n");
+    for (id, global) in module.globals.iter() {
+        let storage = match &global.storage {
+            GlobalStorage::Local {
+                thread_local: false,
+                ..
+            } => "global".to_string(),
+            GlobalStorage::Local {
+                thread_local: true, ..
+            } => "thread_local".to_string(),
+            GlobalStorage::Extern {
+                native_symbol,
+                thread_local,
+                ..
+            } => format!(
+                "extern {native_symbol}{}",
+                if *thread_local { " thread_local" } else { "" }
+            ),
+        };
+        out.push_str(&format!(
+            "  global{} @{} {}: {} {storage}\n",
+            id.into_raw().into_u32(),
+            global.symbol,
+            global.name,
+            type_name(module, &global.ty)
+        ));
+    }
+    for (id, extern_) in module.extern_functions.iter() {
+        let abi = match extern_.abi {
+            ExternAbi::C => "c",
+            ExternAbi::Scoop => "scoop",
+        };
+        let params = extern_
+            .params
+            .iter()
+            .map(|ty| type_name(module, ty))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let library = if extern_.library.is_empty() {
+            String::new()
+        } else {
+            format!(" lib={}", extern_.library)
+        };
+        out.push_str(&format!(
+            "  extern ef{} {} @{}({}) -> {} <abi={abi}{}{}>\n",
+            id.into_raw().into_u32(),
+            extern_.source_name,
+            extern_.native_symbol,
+            params,
+            type_name(module, &extern_.return_type),
+            if extern_.gc_effect == GcEffect::NoGc {
+                " no-gc"
+            } else {
+                " managed"
+            },
+            library
+        ));
+    }
+    for (id, callback) in module.callback_bridges.iter() {
+        out.push_str(&format!(
+            "  callback cb{} @{} -> @{} function_type{}\n",
+            id.into_raw().into_u32(),
+            module.functions[callback.source].symbol,
+            module.functions[callback.bridge_function].symbol,
+            callback.signature.into_raw().into_u32()
+        ));
+    }
     for (_, def) in module.structs.iter() {
         let fields: Vec<String> = def
             .fields
             .iter()
             .map(|f| format!("{}: {}", f.name, type_name(module, &f.ty)))
             .collect();
-        out.push_str(&format!("  struct {} ({})\n", def.name, fields.join(", ")));
+        let mut attributes = Vec::new();
+        if let Some(layout) = def.c_layout {
+            attributes.push(format!(
+                "c-layout aligned={} packed={}",
+                layout.aligned, layout.packed
+            ));
+        }
+        if def.interior_mutable {
+            attributes.push("interior-mutable".to_string());
+        }
+        let attributes = if attributes.is_empty() {
+            String::new()
+        } else {
+            format!(" <{}>", attributes.join(" "))
+        };
+        out.push_str(&format!(
+            "  struct {} ({}){}\n",
+            def.name,
+            fields.join(", "),
+            attributes
+        ));
     }
     for (_, def) in module.enums.iter() {
         out.push_str(&format!("  enum {}\n", def.name));
@@ -858,11 +1097,16 @@ pub fn dump(module: &Module) -> String {
             .map(|p| format!("{}: {}", p.name, type_name(module, &p.ty)))
             .collect();
         out.push_str(&format!(
-            "  fun {} @{}({}) -> {}\n",
+            "  fun {} @{}({}) -> {}{}\n",
             function.name,
             function.symbol,
             params.join(", "),
-            type_name(module, &function.return_ty)
+            type_name(module, &function.return_ty),
+            if function.gc_effect == GcEffect::NoGc {
+                " <no-gc>"
+            } else {
+                ""
+            }
         ));
         for (block_id, block) in function.body.blocks.iter() {
             let unwind = block
@@ -999,6 +1243,20 @@ pub fn type_name(module: &Module, ty: &Type) -> String {
                 type_name(module, &function.return_type)
             )
         }
+        Type::Ptr(inner) => format!("Ptr<{}>", type_name(module, inner)),
+        Type::FunPtr(id) => {
+            let function = &module.function_types[*id];
+            let parameters: Vec<_> = function
+                .parameter_types
+                .iter()
+                .map(|ty| type_name(module, ty))
+                .collect();
+            format!(
+                "FunPtr<({}) -> {}>",
+                parameters.join(", "),
+                type_name(module, &function.return_type)
+            )
+        }
         Type::Enum(id, args) => {
             let name = &module.enums[*id].name;
             if args.is_empty() {
@@ -1059,6 +1317,13 @@ fn dump_statements(
             }
             StatementKind::Assign { local, value } => {
                 out.push_str(&format!("{pad}assign {}\n", locals[*local].name));
+                dump_expr(module, locals, value, indent + 1, out);
+            }
+            StatementKind::GlobalAssign { global, value } => {
+                out.push_str(&format!(
+                    "{pad}global_assign {}\n",
+                    module.globals[*global].name
+                ));
                 dump_expr(module, locals, value, indent + 1, out);
             }
             StatementKind::Eh(eh) => match eh {
@@ -1185,6 +1450,86 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
             }
         }
         Expr::Local(local) => out.push_str(&format!("{pad}Local {}\n", locals[*local].name)),
+        Expr::GlobalRead(global) => out.push_str(&format!(
+            "{pad}GlobalRead {}\n",
+            module.globals[*global].name
+        )),
+        Expr::PtrFromUInt { operand, pointee } => {
+            out.push_str(&format!(
+                "{pad}PtrFromUInt {}\n",
+                type_name(module, pointee)
+            ));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        Expr::PtrToUInt(operand) => {
+            out.push_str(&format!("{pad}PtrToUInt\n"));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        Expr::PtrCast { operand, pointee } => {
+            out.push_str(&format!("{pad}PtrCast {}\n", type_name(module, pointee)));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        Expr::PtrLoad {
+            pointer,
+            pointee,
+            offset,
+        } => {
+            out.push_str(&format!("{pad}PtrLoad {}\n", type_name(module, pointee)));
+            dump_expr(module, locals, pointer, indent + 1, out);
+            if let Some(offset) = offset {
+                dump_expr(module, locals, offset, indent + 1, out);
+            }
+        }
+        Expr::PtrStore {
+            pointer,
+            pointee,
+            offset,
+            value,
+        } => {
+            out.push_str(&format!("{pad}PtrStore {}\n", type_name(module, pointee)));
+            dump_expr(module, locals, pointer, indent + 1, out);
+            if let Some(offset) = offset {
+                dump_expr(module, locals, offset, indent + 1, out);
+            }
+            dump_expr(module, locals, value, indent + 1, out);
+        }
+        Expr::PtrOffset {
+            pointer,
+            pointee,
+            offset,
+            subtract,
+        } => {
+            out.push_str(&format!(
+                "{pad}PtrOffset {} subtract={subtract}\n",
+                type_name(module, pointee)
+            ));
+            dump_expr(module, locals, pointer, indent + 1, out);
+            dump_expr(module, locals, offset, indent + 1, out);
+        }
+        Expr::AddressOf { local, pointee } => out.push_str(&format!(
+            "{pad}AddressOf {} : Ptr<{}>\n",
+            locals[*local].name,
+            type_name(module, pointee)
+        )),
+        Expr::GlobalAddress { global, pointee } => out.push_str(&format!(
+            "{pad}GlobalAddress {} {}\n",
+            module.globals[*global].name,
+            type_name(module, pointee)
+        )),
+        Expr::SizeOf(ty) => {
+            out.push_str(&format!("{pad}SizeOf {}\n", type_name(module, ty)));
+        }
+        Expr::AlignOf(ty) => {
+            out.push_str(&format!("{pad}AlignOf {}\n", type_name(module, ty)));
+        }
+        Expr::FunPtrNull(signature) => out.push_str(&format!(
+            "{pad}FunPtrNull function_type{}\n",
+            signature.into_raw().into_u32()
+        )),
+        Expr::FunctionAddress { callback } => out.push_str(&format!(
+            "{pad}FunctionAddress cb{}\n",
+            callback.into_raw().into_u32()
+        )),
         Expr::CaughtException => out.push_str(&format!("{pad}CaughtException\n")),
         Expr::Retype { operand, ty } => {
             out.push_str(&format!("{pad}Retype {}\n", type_name(module, ty)));
@@ -1282,6 +1627,11 @@ fn dump_call(
     let callee = match &call.target.callee {
         Callee::User(id) => format!("@{}", module.functions[*id].symbol),
         Callee::Monomorphized(id) => format!("@{}", module.meta.instances[*id].symbol),
+        Callee::Extern(id) => format!(
+            "extern{} @{}",
+            id.into_raw(),
+            module.extern_functions[*id].native_symbol
+        ),
         Callee::CoroutineSuspend { register } => format!(
             "@coroutine_suspend[register=@{}]",
             module.meta.instances[*register].symbol

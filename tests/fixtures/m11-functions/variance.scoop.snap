@@ -32,24 +32,74 @@ SourceFile
         Call FunctionSuspendRegistration
           Var registration
 SourceFile
-  struct PinHandle<T>
+  struct Ptr<T : value>
+    field _rawPointer: UInt
+    fun toUInt
+    fun cast
+    fun load
+    fun load
+    fun store
+    fun store
+    fun plus
+    fun minus
+  struct FunPtr<F>
+    field _rawPointer: UInt
+    @Unsafe
+    @Intrinsic("address_of")
+  fun addressOf<T : value>(value: T): Ptr<T>
+    @NoGC
+    @Intrinsic("size_of")
+  fun sizeOf<T : value>(): UInt
+    @NoGC
+    @Intrinsic("align_of")
+  fun alignOf<T : value>(): UInt
+SourceFile
+  struct PinnedPtr<T : ref>
     field raw: UInt
-  struct GcHandle<T>
+  struct GcHandle<T : ref>
     field raw: UInt
-    @Intrinsic("rt_pin")
-  fun pin<T>(v: T): PinHandle<T>
-    @Intrinsic("rt_unpin")
-  fun unpin<T>(h: PinHandle<T>): T
-    @Intrinsic("rt_get_handle")
-  fun getGcHandle<T>(v: T): GcHandle<T>
-    @Intrinsic("rt_release_handle")
-  fun releaseGcHandle<T>(h: GcHandle<T>): T
+    @Unsafe
+    @Intrinsic("gc_pin_raw")
+  fun _pin<T : ref>(v: T): UInt
+    @Unsafe
+    @Intrinsic("gc_unpin_raw")
+  fun _unpin<T : ref>(raw: UInt): T
+    @Unsafe
+    @Intrinsic("gc_get_handle_raw")
+  fun _getGcHandle<T : ref>(v: T): UInt
+    @Unsafe
+    @Intrinsic("gc_release_handle_raw")
+  fun _releaseGcHandle<T : ref>(raw: UInt): T
+    @Unsafe
+  fun pin<T : ref>(v: T): PinnedPtr<T>
+    =
+      Call PinnedPtr<T>
+        Call _pin
+          Var v
+    @Unsafe
+  fun unpin<T : ref>(p: PinnedPtr<T>): T
+    =
+      Call _unpin<T>
+        FieldAccess raw
+          Var p
+    @Unsafe
+  fun getGcHandle<T : ref>(v: T): GcHandle<T>
+    =
+      Call GcHandle<T>
+        Call _getGcHandle
+          Var v
+    @Unsafe
+  fun releaseGcHandle<T : ref>(h: GcHandle<T>): T
+    =
+      Call _releaseGcHandle<T>
+        FieldAccess raw
+          Var h
     @Intrinsic("rt_gc_collect")
   fun gcCollect()
     @Intrinsic("rt_gc_stats")
   fun gcStats(): UInt
 SourceFile
-    @Intrinsic("rt_write")
+    @Extern(name = "scoop_rt_write", abi = "scoop")
   fun write(message: String)
   fun print(message: Any)
     =
@@ -229,10 +279,6 @@ Module
     field task: suspend () -> T0
   struct FunctionSuspendRegistration<T> : SuspendRegistration<T0>
     field registration: (Continuation<T0>) -> Unit
-  struct PinHandle<T>
-    field raw: UInt
-  struct GcHandle<T>
-    field raw: UInt
   struct Label : Describable
     field text: String
   enum Option<T>
@@ -270,13 +316,29 @@ Module
         Box : SuspendRegistration<T0>
           StructInit FunctionSuspendRegistration : FunctionSuspendRegistration<T0>
             Local registration : (Continuation<T0>) -> Unit
-  fun pin<T>(): PinHandle<T0> <intrinsic rt_pin>
-  fun unpin<T>(): T0 <intrinsic rt_unpin>
-  fun getGcHandle<T>(): GcHandle<T0> <intrinsic rt_get_handle>
-  fun releaseGcHandle<T>(): T0 <intrinsic rt_release_handle>
+  fun pin<T : ref>(v: T0): PinnedPtr<T0> <unsafe>
+    return
+      StructInit PinnedPtr : PinnedPtr<T0>
+        Call _pin<T0> : UInt
+          Local v : T0
+  fun unpin<T : ref>(p: PinnedPtr<T0>): T0 <unsafe>
+    return
+      Call _unpin<T0> : T0
+        FieldAccess field 0 : UInt
+          Local p : PinnedPtr<T0>
+  fun getGcHandle<T : ref>(v: T0): GcHandle<T0> <unsafe>
+    return
+      StructInit GcHandle : GcHandle<T0>
+        Call _getGcHandle<T0> : UInt
+          Local v : T0
+  fun releaseGcHandle<T : ref>(h: GcHandle<T0>): T0 <unsafe>
+    return
+      Call _releaseGcHandle<T0> : T0
+        FieldAccess field 0 : UInt
+          Local h : GcHandle<T0>
   fun gcCollect(): Unit <intrinsic rt_gc_collect>
   fun gcStats(): UInt <intrinsic rt_gc_stats>
-  fun write(): Unit <intrinsic rt_write>
+  fun write(arg1: String): Unit <extern0 abi=scoop symbol=scoop_rt_write>
   fun print(message: Any): Unit
     Call write : Unit
       MethodCall Any.toString : String
@@ -462,6 +524,7 @@ Module
 
 == mir ==
 Module
+  extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
   struct Label (text: String)
   enum Option$S
     Some(_1: String)
@@ -539,16 +602,16 @@ Module
     bb0 entry
       call $call.1: String = @scoop.Any.toString virtual[2]
         Local message
-      call @scoop_rt_print direct
+      call extern0 @scoop_rt_write direct
         Local $call.1
       return
   fun println @scoop.println(message: Any) -> Unit
     bb0 entry
       call $call.1: String = @scoop.Any.toString virtual[2]
         Local message
-      call @scoop_rt_print direct
+      call extern0 @scoop_rt_write direct
         Local $call.1
-      call @scoop_rt_print direct
+      call extern0 @scoop_rt_write direct
         StringConst @scoop.str.0
       return
   fun acceptAny @scoop.acceptAny(value: Any) -> Int
@@ -1312,6 +1375,7 @@ Module
   enum Option$S niche(payload_variant=0)
   enum Option$FAnyRSX niche(payload_variant=0)
   enum Option$FIRAnyX niche(payload_variant=0)
+  extern ef0 write @scoop_rt_write(ptr) -> {} <scoop managed nounwind>
   fun @scoop.print(ptr) -> void
     local %0 $call.1: ptr
   block entry
@@ -1319,7 +1383,7 @@ Module
     t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
     store t2 -> local0
-    call @scoop_rt_print(local0)
+    native_call extern0(local0)
     t3 = aggregate () : {}
     ret
   fun @scoop.println(ptr) -> void
@@ -1329,9 +1393,9 @@ Module
     t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
     store t2 -> local0
-    call @scoop_rt_print(local0)
+    native_call extern0(local0)
     t3 = aggregate () : {}
-    call @scoop_rt_print(global0)
+    native_call extern0(global0)
     t4 = aggregate () : {}
     ret
   fun @scoop.acceptAny(ptr) -> i64
@@ -1340,9 +1404,9 @@ Module
   fun @scoop.acceptAnyString(ptr) -> ptr
   block entry
     ret global1
-  fun @scoop.acceptAnyLabel(ptr) -> {ptr}
+  fun @scoop.acceptAnyLabel(ptr) -> struct0
   block entry
-    t0 = aggregate (global2) : {ptr}
+    t0 = aggregate (global2) : struct0
     ret t0
   fun @scoop.acceptAnimal(ptr) -> ptr
     local %0 $call.1: ptr
@@ -1759,7 +1823,7 @@ Module
   block invoke.normal.4
     t126 = aggregate () : {}
     br @scope.38
-  fun @scoop.Label.describe({ptr}) -> ptr
+  fun @scoop.Label.describe(struct0) -> ptr
   block entry
     t0 = extract param0, 0 : ptr
     ret t0
@@ -1793,10 +1857,10 @@ Module
     t0 = call @scoop.acceptAnyString(param1) : ptr
     store t0 -> local0
     ret local0
-  fun @scoop.$reference.5(ptr, ptr) -> {ptr}
-    local %0 $call.1: {ptr}
+  fun @scoop.$reference.5(ptr, ptr) -> struct0
+    local %0 $call.1: struct0
   block entry
-    t0 = call @scoop.acceptAnyLabel(param1) : {ptr}
+    t0 = call @scoop.acceptAnyLabel(param1) : struct0
     store t0 -> local0
     ret local0
   fun @scoop.$reference.6(ptr, ptr) -> ptr
@@ -1883,11 +1947,11 @@ Module
     heap_store t0 +24 param0
     ret t0
   fun @scoop.$adapter.FAnyRLabelX.FIRDescribableX(ptr, i64) -> ptr
-    local %0 $call.1: {ptr}
+    local %0 $call.1: struct0
   block entry
     t0 = heap_load param0 +24 : ptr
     t1 = call @scoop_rt_box(global35, param1, 8) : ptr
-    t2 = call_indirect t0[2](t0, t1) : {ptr}
+    t2 = call_indirect t0[2](t0, t1) : struct0
     store t2 -> local0
     t3 = call @scoop_rt_box(global45, local0, 8) : ptr
     ret t3
@@ -1976,13 +2040,13 @@ Module
     store t1 -> local0
     ret local0
   fun @scoop.eq.Label(ptr, ptr) -> i1
-    local %0 $a: {ptr}
-    local %1 $b: {ptr}
+    local %0 $a: struct0
+    local %1 $b: struct0
     local %2 $call.1: i1
   block entry
-    t0 = heap_load param0 +16 : {ptr}
+    t0 = heap_load param0 +16 : struct0
     store t0 -> local0
-    t1 = heap_load param1 +16 : {ptr}
+    t1 = heap_load param1 +16 : struct0
     store t1 -> local1
     t2 = extract local0, 0 : ptr
     t3 = extract local1, 0 : ptr
@@ -1992,7 +2056,7 @@ Module
   fun @scoop.thunk.Label.Describable.describe(ptr) -> ptr
     local %0 $call.1: ptr
   block entry
-    t0 = heap_load param0 +16 : {ptr}
+    t0 = heap_load param0 +16 : struct0
     t1 = call @scoop.Label.describe(t0) : ptr
     store t1 -> local0
     ret local0
@@ -2045,18 +2109,18 @@ Module
     store t1 -> local0
     ret local0
   fun @scoop.function_bridge.$Closure$reference5.FIRAnyX(ptr, i64) -> ptr
-    local %0 $call.1: {ptr}
+    local %0 $call.1: struct0
   block entry
     t0 = call @scoop_rt_box(global35, param1, 8) : ptr
-    t1 = call_indirect param0[2](param0, t0) : {ptr}
+    t1 = call_indirect param0[2](param0, t0) : struct0
     store t1 -> local0
     t2 = call @scoop_rt_box(global45, local0, 8) : ptr
     ret t2
   fun @scoop.function_bridge.$Closure$reference5.FIRDescribableX(ptr, i64) -> ptr
-    local %0 $call.1: {ptr}
+    local %0 $call.1: struct0
   block entry
     t0 = call @scoop_rt_box(global35, param1, 8) : ptr
-    t1 = call_indirect param0[2](param0, t0) : {ptr}
+    t1 = call_indirect param0[2](param0, t0) : struct0
     store t1 -> local0
     t2 = call @scoop_rt_box(global45, local0, 8) : ptr
     ret t2

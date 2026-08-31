@@ -1,0 +1,10 @@
+struct Pair(val value: Int)
+
+fun main() {
+    val pair = Pair(1)
+    val values = [2]
+    @Unsafe {
+        val fieldPointer = addressOf(pair.value)
+        val elementPointer = addressOf(values[0])
+    }
+}

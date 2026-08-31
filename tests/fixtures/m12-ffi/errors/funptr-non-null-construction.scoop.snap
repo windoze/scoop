@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m12-ffi/errors/funptr-non-null-construction.scoop:2:20: error: `FunPtr` only supports the zero-argument null constructor

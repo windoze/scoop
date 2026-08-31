@@ -190,6 +190,28 @@ impl Lowerer {
             Type::Array(element) | Type::MutableArray(element) => {
                 self.check_variance_position(element, TypePosition::Invariant, params, method, span)
             }
+            Type::Ptr(pointee) => {
+                self.check_variance_position(pointee, TypePosition::Invariant, params, method, span)
+            }
+            Type::FunPtr(id) => {
+                let function = self.function_types[id].clone();
+                for parameter in function.parameter_types {
+                    self.check_variance_position(
+                        parameter,
+                        TypePosition::Invariant,
+                        params,
+                        method,
+                        span,
+                    );
+                }
+                self.check_variance_position(
+                    function.return_type,
+                    TypePosition::Invariant,
+                    params,
+                    method,
+                    span,
+                );
+            }
             Type::Function(id) => {
                 let function = self.function_types[id].clone();
                 for parameter in function.parameter_types {
@@ -326,19 +348,23 @@ impl Lowerer {
         }
         self.check_method_body_shape(id, decl, owner);
 
-        let mut type_params = self.owner_type_param_names(owner);
+        let mut type_params = self.owner_type_params(owner);
         let owner_type_param_count = type_params.len();
         let mut method_type_params = Vec::new();
         for param in &decl.type_params {
-            if type_params.contains(&param.text) {
+            if type_params
+                .iter()
+                .any(|existing| existing.name == param.name.text)
+            {
                 self.error(
                     param.span,
-                    format!("duplicate type parameter `{}`", param.text),
+                    format!("duplicate type parameter `{}`", param.name.text),
                 );
                 continue;
             }
-            type_params.push(param.text.clone());
-            method_type_params.push(param.text.clone());
+            let param = crate::lower_type_param_decl(param);
+            type_params.push(param.clone());
+            method_type_params.push(param);
         }
         if !type_params.is_empty() {
             self.register_generic(id);
@@ -365,6 +391,7 @@ impl Lowerer {
             id,
             FnSig {
                 is_suspend: decl.is_suspend,
+                attributes: self.functions[id].attributes,
                 owner_type_param_count,
                 type_params,
                 params,
@@ -382,6 +409,7 @@ impl Lowerer {
                 self.interfaces[iface].methods.push(hir::MethodSig {
                     name: short,
                     is_suspend: decl.is_suspend,
+                    attributes: self.functions[id].attributes,
                     type_params: method_type_params,
                     params: declared,
                     return_ty,
@@ -395,6 +423,9 @@ impl Lowerer {
     /// abstract classes, interface methods always bodyless, concrete
     /// methods always with a body.
     fn check_method_body_shape(&mut self, id: FunctionId, decl: &ast::FunctionDecl, owner: Owner) {
+        if matches!(self.functions[id].kind, hir::FunctionKind::Intrinsic(_)) {
+            return;
+        }
         let short = decl.name.text.clone();
         match owner {
             Owner::Interface(_) => {
@@ -732,7 +763,7 @@ impl Lowerer {
             // Only called for value types.
             Owner::Class(_) | Owner::Interface(_) => return,
         };
-        let target_owner_count = self.owner_type_param_names(owner).len();
+        let target_owner_count = self.owner_type_params(owner).len();
         for interface_ty in interfaces {
             let (iface, args) = self.interface_application(interface_ty);
             let methods: Vec<(String, FunctionId)> = self.interface_methods[&iface]
@@ -773,6 +804,7 @@ impl Lowerer {
     fn same_signature(&self, candidate: FunctionId, name: &str, sig: &FnSig) -> bool {
         self.same_signature_shape(candidate, name, sig)
             && self.functions[candidate].is_suspend == sig.is_suspend
+            && self.functions[candidate].attributes == sig.attributes
     }
 
     fn same_signature_shape(&self, candidate: FunctionId, name: &str, sig: &FnSig) -> bool {
@@ -804,10 +836,19 @@ impl Lowerer {
     ) -> FnSig {
         let sig = self.signatures[&method].clone();
         let own_type_params = sig.type_params[sig.owner_type_param_count..].to_vec();
-        let mut type_params = vec![String::new(); target_owner_count];
+        let mut type_params = vec![
+            hir::TypeParamDecl {
+                name: String::new(),
+                variance: hir::Variance::Invariant,
+                kind: hir::TypeParamKind::Any,
+                span: scoop_ast::Span::new(0, 0),
+            };
+            target_owner_count
+        ];
         type_params.extend(own_type_params);
         FnSig {
             is_suspend: sig.is_suspend,
+            attributes: sig.attributes,
             owner_type_param_count: target_owner_count,
             type_params,
             params: sig
@@ -1120,6 +1161,13 @@ impl Lowerer {
             Type::Struct(id, _) => {
                 let mut result = Vec::new();
                 add_visible(&mut result, &self.struct_methods[&id]);
+                result
+            }
+            Type::Ptr(_) => {
+                let mut result = Vec::new();
+                if let Some(id) = self.ffi_ptr {
+                    add_visible(&mut result, &self.struct_methods[&id]);
+                }
                 result
             }
             Type::Enum(id, _) => {

@@ -32,24 +32,74 @@ SourceFile
         Call FunctionSuspendRegistration
           Var registration
 SourceFile
-  struct PinHandle<T>
+  struct Ptr<T : value>
+    field _rawPointer: UInt
+    fun toUInt
+    fun cast
+    fun load
+    fun load
+    fun store
+    fun store
+    fun plus
+    fun minus
+  struct FunPtr<F>
+    field _rawPointer: UInt
+    @Unsafe
+    @Intrinsic("address_of")
+  fun addressOf<T : value>(value: T): Ptr<T>
+    @NoGC
+    @Intrinsic("size_of")
+  fun sizeOf<T : value>(): UInt
+    @NoGC
+    @Intrinsic("align_of")
+  fun alignOf<T : value>(): UInt
+SourceFile
+  struct PinnedPtr<T : ref>
     field raw: UInt
-  struct GcHandle<T>
+  struct GcHandle<T : ref>
     field raw: UInt
-    @Intrinsic("rt_pin")
-  fun pin<T>(v: T): PinHandle<T>
-    @Intrinsic("rt_unpin")
-  fun unpin<T>(h: PinHandle<T>): T
-    @Intrinsic("rt_get_handle")
-  fun getGcHandle<T>(v: T): GcHandle<T>
-    @Intrinsic("rt_release_handle")
-  fun releaseGcHandle<T>(h: GcHandle<T>): T
+    @Unsafe
+    @Intrinsic("gc_pin_raw")
+  fun _pin<T : ref>(v: T): UInt
+    @Unsafe
+    @Intrinsic("gc_unpin_raw")
+  fun _unpin<T : ref>(raw: UInt): T
+    @Unsafe
+    @Intrinsic("gc_get_handle_raw")
+  fun _getGcHandle<T : ref>(v: T): UInt
+    @Unsafe
+    @Intrinsic("gc_release_handle_raw")
+  fun _releaseGcHandle<T : ref>(raw: UInt): T
+    @Unsafe
+  fun pin<T : ref>(v: T): PinnedPtr<T>
+    =
+      Call PinnedPtr<T>
+        Call _pin
+          Var v
+    @Unsafe
+  fun unpin<T : ref>(p: PinnedPtr<T>): T
+    =
+      Call _unpin<T>
+        FieldAccess raw
+          Var p
+    @Unsafe
+  fun getGcHandle<T : ref>(v: T): GcHandle<T>
+    =
+      Call GcHandle<T>
+        Call _getGcHandle
+          Var v
+    @Unsafe
+  fun releaseGcHandle<T : ref>(h: GcHandle<T>): T
+    =
+      Call _releaseGcHandle<T>
+        FieldAccess raw
+          Var h
     @Intrinsic("rt_gc_collect")
   fun gcCollect()
     @Intrinsic("rt_gc_stats")
   fun gcStats(): UInt
 SourceFile
-    @Intrinsic("rt_write")
+    @Extern(name = "scoop_rt_write", abi = "scoop")
   fun write(message: String)
   fun print(message: Any)
     =
@@ -149,10 +199,6 @@ Module
     field task: suspend () -> T0
   struct FunctionSuspendRegistration<T> : SuspendRegistration<T0>
     field registration: (Continuation<T0>) -> Unit
-  struct PinHandle<T>
-    field raw: UInt
-  struct GcHandle<T>
-    field raw: UInt
   struct Point
     field x: Int
     field y: Int
@@ -190,13 +236,29 @@ Module
         Box : SuspendRegistration<T0>
           StructInit FunctionSuspendRegistration : FunctionSuspendRegistration<T0>
             Local registration : (Continuation<T0>) -> Unit
-  fun pin<T>(): PinHandle<T0> <intrinsic rt_pin>
-  fun unpin<T>(): T0 <intrinsic rt_unpin>
-  fun getGcHandle<T>(): GcHandle<T0> <intrinsic rt_get_handle>
-  fun releaseGcHandle<T>(): T0 <intrinsic rt_release_handle>
+  fun pin<T : ref>(v: T0): PinnedPtr<T0> <unsafe>
+    return
+      StructInit PinnedPtr : PinnedPtr<T0>
+        Call _pin<T0> : UInt
+          Local v : T0
+  fun unpin<T : ref>(p: PinnedPtr<T0>): T0 <unsafe>
+    return
+      Call _unpin<T0> : T0
+        FieldAccess field 0 : UInt
+          Local p : PinnedPtr<T0>
+  fun getGcHandle<T : ref>(v: T0): GcHandle<T0> <unsafe>
+    return
+      StructInit GcHandle : GcHandle<T0>
+        Call _getGcHandle<T0> : UInt
+          Local v : T0
+  fun releaseGcHandle<T : ref>(h: GcHandle<T0>): T0 <unsafe>
+    return
+      Call _releaseGcHandle<T0> : T0
+        FieldAccess field 0 : UInt
+          Local h : GcHandle<T0>
   fun gcCollect(): Unit <intrinsic rt_gc_collect>
   fun gcStats(): UInt <intrinsic rt_gc_stats>
-  fun write(): Unit <intrinsic rt_write>
+  fun write(arg1: String): Unit <extern0 abi=scoop symbol=scoop_rt_write>
   fun print(message: Any): Unit
     Call write : Unit
       MethodCall Any.toString : String
@@ -296,6 +358,7 @@ Module
 
 == mir ==
 Module
+  extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
   struct Point (x: Int, y: Int)
   enum Option$S
     Some(_1: String)
@@ -318,16 +381,16 @@ Module
     bb0 entry
       call $call.1: String = @scoop.Any.toString virtual[2]
         Local message
-      call @scoop_rt_print direct
+      call extern0 @scoop_rt_write direct
         Local $call.1
       return
   fun println @scoop.println(message: Any) -> Unit
     bb0 entry
       call $call.1: String = @scoop.Any.toString virtual[2]
         Local message
-      call @scoop_rt_print direct
+      call extern0 @scoop_rt_write direct
         Local $call.1
-      call @scoop_rt_print direct
+      call extern0 @scoop_rt_write direct
         StringConst @scoop.str.0
       return
   fun main @scoop_main() -> Unit
@@ -694,6 +757,7 @@ Module
   enum Option$S niche(payload_variant=0)
   enum E tagged size=8 align=8 variants=() (i64)
   enum Option$I tagged size=8 align=8 variants=(i64) ()
+  extern ef0 write @scoop_rt_write(ptr) -> {} <scoop managed nounwind>
   fun @scoop.print(ptr) -> void
     local %0 $call.1: ptr
   block entry
@@ -701,7 +765,7 @@ Module
     t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
     store t2 -> local0
-    call @scoop_rt_print(local0)
+    native_call extern0(local0)
     t3 = aggregate () : {}
     ret
   fun @scoop.println(ptr) -> void
@@ -711,13 +775,13 @@ Module
     t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
     store t2 -> local0
-    call @scoop_rt_print(local0)
+    native_call extern0(local0)
     t3 = aggregate () : {}
-    call @scoop_rt_print(global0)
+    native_call extern0(global0)
     t4 = aggregate () : {}
     ret
   fun @scoop_main() -> void
-    local %0 ps: [{i64, i64}]
+    local %0 ps: [struct0]
     local %1 nested: [[i64]]
     local %2 es: [enum1]
     local %3 v: i64
@@ -726,7 +790,7 @@ Module
     local %6 $res.1: i64
     local %7 $opt.2: enum2
     local %8 $res.3: i64
-    local %9 $arr.1: [{i64, i64}]
+    local %9 $arr.1: [struct0]
     local %10 $idx.2: i64
     local %11 $arr.3: [i64]
     local %12 $idx.4: i64
@@ -752,9 +816,9 @@ Module
     local %32 $logic.11: i1
     local %33 $call.12: ptr
   block entry
-    t0 = aggregate (1, 2) : {i64, i64}
-    t1 = aggregate (3, 4) : {i64, i64}
-    t2 = array_alloc (t0, t1) : [{i64, i64}]
+    t0 = aggregate (1, 2) : struct0
+    t1 = aggregate (3, 4) : struct0
+    t2 = array_alloc (t0, t1) : [struct0]
     store t2 -> local0
     store local0 -> local9
     store 1 -> local10
@@ -776,7 +840,7 @@ Module
     throw local23
     unreachable
   block if.merge.5
-    t7 = array_get local9 local10 : {i64, i64}
+    t7 = array_get local9 local10 : struct0
     t8 = extract t7, 0 : i64
     t9 = call @scoop_rt_box(global7, t8, 8) : ptr
     call @scoop.println(t9)

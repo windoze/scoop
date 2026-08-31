@@ -1,0 +1,823 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== ast ==
+SourceFile
+  interface Continuation<in T>
+    fun resume
+    fun resumeWithException
+  interface SuspendTask<out T>
+    suspend fun run
+  interface SuspendRegistration<out T>
+    fun register
+  struct FunctionSuspendTask<T> : SuspendTask<T>
+    field task: suspend () -> T
+    suspend fun run
+  struct FunctionSuspendRegistration<T> : SuspendRegistration<T>
+    field registration: (Continuation<T>) -> Unit
+    fun register
+    @Intrinsic("coroutine_start")
+  fun startCoroutine<T>(task: SuspendTask<T>, completion: Continuation<T>)
+    @Intrinsic("coroutine_suspend")
+  suspend fun suspendCoroutine<T>(registration: SuspendRegistration<T>): T
+  fun startCoroutine<T>(task: suspend () -> T, completion: Continuation<T>)
+    Call startCoroutine
+      Call FunctionSuspendTask
+        Var task
+      Var completion
+  suspend fun suspendCoroutine<T>(registration: (Continuation<T>) -> Unit): T
+    =
+      Call suspendCoroutine
+        Call FunctionSuspendRegistration
+          Var registration
+SourceFile
+  struct Ptr<T : value>
+    field _rawPointer: UInt
+    fun toUInt
+    fun cast
+    fun load
+    fun load
+    fun store
+    fun store
+    fun plus
+    fun minus
+  struct FunPtr<F>
+    field _rawPointer: UInt
+    @Unsafe
+    @Intrinsic("address_of")
+  fun addressOf<T : value>(value: T): Ptr<T>
+    @NoGC
+    @Intrinsic("size_of")
+  fun sizeOf<T : value>(): UInt
+    @NoGC
+    @Intrinsic("align_of")
+  fun alignOf<T : value>(): UInt
+SourceFile
+  struct PinnedPtr<T : ref>
+    field raw: UInt
+  struct GcHandle<T : ref>
+    field raw: UInt
+    @Unsafe
+    @Intrinsic("gc_pin_raw")
+  fun _pin<T : ref>(v: T): UInt
+    @Unsafe
+    @Intrinsic("gc_unpin_raw")
+  fun _unpin<T : ref>(raw: UInt): T
+    @Unsafe
+    @Intrinsic("gc_get_handle_raw")
+  fun _getGcHandle<T : ref>(v: T): UInt
+    @Unsafe
+    @Intrinsic("gc_release_handle_raw")
+  fun _releaseGcHandle<T : ref>(raw: UInt): T
+    @Unsafe
+  fun pin<T : ref>(v: T): PinnedPtr<T>
+    =
+      Call PinnedPtr<T>
+        Call _pin
+          Var v
+    @Unsafe
+  fun unpin<T : ref>(p: PinnedPtr<T>): T
+    =
+      Call _unpin<T>
+        FieldAccess raw
+          Var p
+    @Unsafe
+  fun getGcHandle<T : ref>(v: T): GcHandle<T>
+    =
+      Call GcHandle<T>
+        Call _getGcHandle
+          Var v
+    @Unsafe
+  fun releaseGcHandle<T : ref>(h: GcHandle<T>): T
+    =
+      Call _releaseGcHandle<T>
+        FieldAccess raw
+          Var h
+    @Intrinsic("rt_gc_collect")
+  fun gcCollect()
+    @Intrinsic("rt_gc_stats")
+  fun gcStats(): UInt
+SourceFile
+    @Extern(name = "scoop_rt_write", abi = "scoop")
+  fun write(message: String)
+  fun print(message: Any)
+    =
+      Call write
+        MethodCall toString
+          Var message
+  fun println(message: Any)
+    Call write
+      MethodCall toString
+        Var message
+    Call write
+      StringLiteral "\n"
+SourceFile
+  enum Option<T>
+    Some(T)
+    None
+SourceFile
+  open class Throwable()
+  open class Exception(val message: String?) : Throwable(<0 args>)
+  class UnwrapException() : Exception(<1 args>)
+  class ClassCastException() : Exception(<1 args>)
+  class ArithmeticException() : Exception(<1 args>)
+  class IndexOutOfBoundsException() : Exception(<1 args>)
+  class IllegalStateException() : Exception(<1 args>)
+SourceFile
+    @CLayout
+  struct NativePair
+    field left: Int
+    field right: Int
+    @Global
+  var scoopCounter: Int = <expr>
+    @ThreadLocal
+  var scoopTlsCounter: Int = <expr>
+    @Global
+  var pair: NativePair = <expr>
+    @Global
+  var emptyPointer: Ptr<Int> = <expr>
+    @Global
+  var emptyCallback: FunPtr<(Int) -> Int> = <expr>
+    @Extern(lib = "fixture_native", name = "native_counter")
+    @Global
+  var nativeCounter: Int
+    @Extern(lib = "fixture_native", name = "native_tls_counter")
+    @ThreadLocal
+  var nativeTlsCounter: Int
+    @Extern(lib = "fixture_native", name = "native_limit")
+  val nativeLimit: Int
+    @Extern(lib = "fixture_native", name = "native_pair")
+    @Global
+  var nativePair: NativePair
+  fun main()
+    Call println
+      Var scoopCounter
+    Call println
+      Var scoopTlsCounter
+    Call println
+      FieldAccess left
+        Var pair
+    Call println
+      FieldAccess right
+        Var pair
+    @Unsafe block
+      Call println
+        Var nativeCounter
+      Call println
+        Var nativeTlsCounter
+      Call println
+        Var nativeLimit
+      Call println
+        FieldAccess left
+          Var nativePair
+      Call println
+        FieldAccess right
+          Var nativePair
+      assign scoopCounter
+        IntLiteral 20
+      assign scoopTlsCounter
+        IntLiteral 21
+      MethodCall store
+        Call addressOf
+          Var scoopCounter
+        IntLiteral 22
+      assign pair
+        Call NativePair
+          IntLiteral 23
+          IntLiteral 24
+      assign nativeCounter
+        IntLiteral 40
+      assign nativeTlsCounter
+        IntLiteral 41
+      MethodCall store
+        Call addressOf
+          Var nativeCounter
+        IntLiteral 42
+      assign nativePair
+        Call NativePair
+          IntLiteral 43
+          IntLiteral 44
+    Call println
+      Var scoopCounter
+    Call println
+      Var scoopTlsCounter
+    Call println
+      FieldAccess left
+        Var pair
+    Call println
+      FieldAccess right
+        Var pair
+    @Unsafe block
+      Call println
+        Var nativeCounter
+      Call println
+        Var nativeTlsCounter
+      Call println
+        FieldAccess left
+          Var nativePair
+      Call println
+        FieldAccess right
+          Var nativePair
+
+== hir ==
+Module
+  struct FunctionSuspendTask<T> : SuspendTask<T0>
+    field task: suspend () -> T0
+  struct FunctionSuspendRegistration<T> : SuspendRegistration<T0>
+    field registration: (Continuation<T0>) -> Unit
+  struct NativePair <c-layout aligned=0 packed=0>
+    field left: Int
+    field right: Int
+  enum Option<T>
+    Some(_1: T0)
+    None()
+  open class Throwable()
+  open class Exception(message: Option<String>)
+  class UnwrapException()
+  class ClassCastException()
+  class ArithmeticException()
+  class IndexOutOfBoundsException()
+  class IllegalStateException()
+  interface Continuation<in T>
+    fun resume(value: T0): Unit
+    fun resumeWithException(exception: Throwable): Unit
+  interface SuspendTask<out T>
+    suspend fun run(): T0
+  interface SuspendRegistration<out T>
+    fun register(continuation: Continuation<T0>): Unit
+  var scoopCounter: Int <global0 global>
+  var scoopTlsCounter: Int <global1 thread_local>
+  var pair: NativePair <global2 global>
+  var emptyPointer: Ptr<Int> <global3 global>
+  var emptyCallback: FunPtr<(Int) -> Int> <global4 global>
+  var nativeCounter: Int <global5 extern symbol=native_counter lib=fixture_native>
+  var nativeTlsCounter: Int <global6 extern symbol=native_tls_counter lib=fixture_native thread_local>
+  val nativeLimit: Int <global7 extern symbol=native_limit lib=fixture_native>
+  var nativePair: NativePair <global8 extern symbol=native_pair lib=fixture_native>
+  fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
+  suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
+  fun startCoroutine<T>(task: suspend () -> T0, completion: Continuation<T0>): Unit
+    Call startCoroutine<T0> : Unit
+      Box : SuspendTask<T0>
+        StructInit FunctionSuspendTask : FunctionSuspendTask<T0>
+          Local task : suspend () -> T0
+      Local completion : Continuation<T0>
+  suspend fun suspendCoroutine<T>(registration: (Continuation<T0>) -> Unit): T0
+    return
+      Call suspendCoroutine<T0> : T0
+        Box : SuspendRegistration<T0>
+          StructInit FunctionSuspendRegistration : FunctionSuspendRegistration<T0>
+            Local registration : (Continuation<T0>) -> Unit
+  fun pin<T : ref>(v: T0): PinnedPtr<T0> <unsafe>
+    return
+      StructInit PinnedPtr : PinnedPtr<T0>
+        Call _pin<T0> : UInt
+          Local v : T0
+  fun unpin<T : ref>(p: PinnedPtr<T0>): T0 <unsafe>
+    return
+      Call _unpin<T0> : T0
+        FieldAccess field 0 : UInt
+          Local p : PinnedPtr<T0>
+  fun getGcHandle<T : ref>(v: T0): GcHandle<T0> <unsafe>
+    return
+      StructInit GcHandle : GcHandle<T0>
+        Call _getGcHandle<T0> : UInt
+          Local v : T0
+  fun releaseGcHandle<T : ref>(h: GcHandle<T0>): T0 <unsafe>
+    return
+      Call _releaseGcHandle<T0> : T0
+        FieldAccess field 0 : UInt
+          Local h : GcHandle<T0>
+  fun gcCollect(): Unit <intrinsic rt_gc_collect>
+  fun gcStats(): UInt <intrinsic rt_gc_stats>
+  fun write(arg1: String): Unit <extern0 abi=scoop symbol=scoop_rt_write>
+  fun print(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    return
+  fun println(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    Call write : Unit
+      StringLiteral "\n" : String
+  fun main(): Unit
+    Call println : Unit
+      Box : Any
+        GlobalRead scoopCounter : Int
+    Call println : Unit
+      Box : Any
+        GlobalRead scoopTlsCounter : Int
+    Call println : Unit
+      Box : Any
+        FieldAccess field 0 : Int
+          GlobalRead pair : NativePair
+    Call println : Unit
+      Box : Any
+        FieldAccess field 1 : Int
+          GlobalRead pair : NativePair
+    Call println : Unit
+      Box : Any
+        GlobalRead nativeCounter : Int
+    Call println : Unit
+      Box : Any
+        GlobalRead nativeTlsCounter : Int
+    Call println : Unit
+      Box : Any
+        GlobalRead nativeLimit : Int
+    Call println : Unit
+      Box : Any
+        FieldAccess field 0 : Int
+          GlobalRead nativePair : NativePair
+    Call println : Unit
+      Box : Any
+        FieldAccess field 1 : Int
+          GlobalRead nativePair : NativePair
+    assign global scoopCounter
+      IntLiteral 20 : Int
+    assign global scoopTlsCounter
+      IntLiteral 21 : Int
+    PtrStore : Unit
+      AddressOf global scoopCounter : Ptr<Int>
+      IntLiteral 22 : Int
+    assign global pair
+      StructInit NativePair : NativePair
+        IntLiteral 23 : Int
+        IntLiteral 24 : Int
+    assign global nativeCounter
+      IntLiteral 40 : Int
+    assign global nativeTlsCounter
+      IntLiteral 41 : Int
+    PtrStore : Unit
+      AddressOf global nativeCounter : Ptr<Int>
+      IntLiteral 42 : Int
+    assign global nativePair
+      StructInit NativePair : NativePair
+        IntLiteral 43 : Int
+        IntLiteral 44 : Int
+    Call println : Unit
+      Box : Any
+        GlobalRead scoopCounter : Int
+    Call println : Unit
+      Box : Any
+        GlobalRead scoopTlsCounter : Int
+    Call println : Unit
+      Box : Any
+        FieldAccess field 0 : Int
+          GlobalRead pair : NativePair
+    Call println : Unit
+      Box : Any
+        FieldAccess field 1 : Int
+          GlobalRead pair : NativePair
+    Call println : Unit
+      Box : Any
+        GlobalRead nativeCounter : Int
+    Call println : Unit
+      Box : Any
+        GlobalRead nativeTlsCounter : Int
+    Call println : Unit
+      Box : Any
+        FieldAccess field 0 : Int
+          GlobalRead nativePair : NativePair
+    Call println : Unit
+      Box : Any
+        FieldAccess field 1 : Int
+          GlobalRead nativePair : NativePair
+  entry main
+  instance startCoroutine<T0>
+  instance suspendCoroutine<T0>
+  instance Ptr.store<Int>
+
+== mir ==
+Module
+  global0 @scoop.global.scoopCounter scoopCounter: Int global
+  global1 @scoop.global.scoopTlsCounter scoopTlsCounter: Int thread_local
+  global2 @scoop.global.pair pair: NativePair global
+  global3 @scoop.global.emptyPointer emptyPointer: Ptr<Int> global
+  global4 @scoop.global.emptyCallback emptyCallback: FunPtr<(Int) -> Int> global
+  global5 @scoop.global.nativeCounter nativeCounter: Int extern native_counter
+  global6 @scoop.global.nativeTlsCounter nativeTlsCounter: Int extern native_tls_counter thread_local
+  global7 @scoop.global.nativeLimit nativeLimit: Int extern native_limit
+  global8 @scoop.global.nativePair nativePair: NativePair extern native_pair
+  extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
+  struct NativePair (left: Int, right: Int) <c-layout aligned=0 packed=0>
+  enum Option$S
+    Some(_1: String)
+    None()
+  class Throwable vtable=3 itables=0
+  class Exception vtable=3 itables=0
+  class UnwrapException vtable=3 itables=0
+  class ClassCastException vtable=3 itables=0
+  class ArithmeticException vtable=3 itables=0
+  class IndexOutOfBoundsException vtable=3 itables=0
+  class IllegalStateException vtable=3 itables=0
+  class box$I vtable=3 itables=0
+  fun print @scoop.print(message: Any) -> Unit
+    bb0 entry
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call extern0 @scoop_rt_write direct
+        Local $call.1
+      return
+  fun println @scoop.println(message: Any) -> Unit
+    bb0 entry
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call extern0 @scoop_rt_write direct
+        Local $call.1
+      call extern0 @scoop_rt_write direct
+        StringConst @scoop.str.0
+      return
+  fun main @scoop_main() -> Unit
+    bb0 entry
+      call @scoop.println direct
+        Box
+          GlobalRead scoopCounter
+      call @scoop.println direct
+        Box
+          GlobalRead scoopTlsCounter
+      call @scoop.println direct
+        Box
+          FieldAccess 0
+            GlobalRead pair
+      call @scoop.println direct
+        Box
+          FieldAccess 1
+            GlobalRead pair
+      call @scoop.println direct
+        Box
+          GlobalRead nativeCounter
+      call @scoop.println direct
+        Box
+          GlobalRead nativeTlsCounter
+      call @scoop.println direct
+        Box
+          GlobalRead nativeLimit
+      call @scoop.println direct
+        Box
+          FieldAccess 0
+            GlobalRead nativePair
+      call @scoop.println direct
+        Box
+          FieldAccess 1
+            GlobalRead nativePair
+      global_assign scoopCounter
+        IntLiteral 20
+      global_assign scoopTlsCounter
+        IntLiteral 21
+      PtrStore Int
+        GlobalAddress scoopCounter Int
+        IntLiteral 22
+      global_assign pair
+        StructInit NativePair
+          IntLiteral 23
+          IntLiteral 24
+      global_assign nativeCounter
+        IntLiteral 40
+      global_assign nativeTlsCounter
+        IntLiteral 41
+      PtrStore Int
+        GlobalAddress nativeCounter Int
+        IntLiteral 42
+      global_assign nativePair
+        StructInit NativePair
+          IntLiteral 43
+          IntLiteral 44
+      call @scoop.println direct
+        Box
+          GlobalRead scoopCounter
+      call @scoop.println direct
+        Box
+          GlobalRead scoopTlsCounter
+      call @scoop.println direct
+        Box
+          FieldAccess 0
+            GlobalRead pair
+      call @scoop.println direct
+        Box
+          FieldAccess 1
+            GlobalRead pair
+      call @scoop.println direct
+        Box
+          GlobalRead nativeCounter
+      call @scoop.println direct
+        Box
+          GlobalRead nativeTlsCounter
+      call @scoop.println direct
+        Box
+          FieldAccess 0
+            GlobalRead nativePair
+      call @scoop.println direct
+        Box
+          FieldAccess 1
+            GlobalRead nativePair
+      return
+  fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
+    bb0 entry
+      return
+        ClassInit Throwable
+  fun ctor.Exception @scoop.ctor.Exception(message: Option$S<String>) -> Exception
+    bb0 entry
+      return
+        ClassInit Exception
+          Local message
+  fun ctor.UnwrapException @scoop.ctor.UnwrapException() -> UnwrapException
+    bb0 entry
+      return
+        ClassInit UnwrapException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.1
+  fun ctor.ClassCastException @scoop.ctor.ClassCastException() -> ClassCastException
+    bb0 entry
+      return
+        ClassInit ClassCastException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.2
+  fun ctor.ArithmeticException @scoop.ctor.ArithmeticException() -> ArithmeticException
+    bb0 entry
+      return
+        ClassInit ArithmeticException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.3
+  fun ctor.IndexOutOfBoundsException @scoop.ctor.IndexOutOfBoundsException() -> IndexOutOfBoundsException
+    bb0 entry
+      return
+        ClassInit IndexOutOfBoundsException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.4
+  fun ctor.IllegalStateException @scoop.ctor.IllegalStateException() -> IllegalStateException
+    bb0 entry
+      return
+        ClassInit IllegalStateException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.5
+  fun eq.I @scoop.eq.I(this: Any, other: Any) -> Boolean
+    bb0 entry
+      val $a: Int
+        Unbox
+          Local this
+      val $b: Int
+        Unbox
+          Local other
+      return
+        Binary IntEq
+          Local $a
+          Local $b
+  fun tostring.I @scoop.tostring.I(this: Any) -> String
+    bb0 entry
+      call $call.1: String = @scoop_rt_int_to_string direct
+        Unbox
+          Local this
+      return
+        Local $call.1
+  str @scoop.str.0 "\n"
+  str @scoop.str.1 "unwrap on None"
+  str @scoop.str.2 "invalid cast"
+  str @scoop.str.3 "arithmetic error"
+  str @scoop.str.4 "array index out of bounds"
+  str @scoop.str.5 "illegal state"
+  entry @scoop_main
+
+== lir ==
+Module
+  global @scoop.str.0 = "\n"
+  global @scoop.str.1 = "unwrap on None"
+  global @scoop.str.2 = "invalid cast"
+  global @scoop.str.3 = "arithmetic error"
+  global @scoop.str.4 = "array index out of bounds"
+  global @scoop.str.5 = "illegal state"
+  global @scoop.global.scoopCounter : i64
+  thread_local @scoop.global.scoopTlsCounter : i64
+  global @scoop.global.pair : struct0
+  global @scoop.global.emptyPointer : ptr
+  global @scoop.global.emptyCallback : ptr
+  global @scoop_td_box$I = c""
+  global @scoop_td_Throwable = c""
+  global @scoop_td_Exception = c""
+  global @scoop_td_UnwrapException = c""
+  global @scoop_td_ClassCastException = c""
+  global @scoop_td_ArithmeticException = c""
+  global @scoop_td_IndexOutOfBoundsException = c""
+  global @scoop_td_IllegalStateException = c""
+  native_global0 nativeCounter @native_counter : i64
+  native_global1 nativeTlsCounter @native_tls_counter : i64 thread_local
+  native_global2 nativeLimit @native_limit : i64
+  native_global3 nativePair @native_pair : struct0
+  enum Option$S niche(payload_variant=0)
+  extern ef0 write @scoop_rt_write(ptr) -> {} <scoop managed nounwind>
+  fun @scoop.print(ptr) -> void
+    local %0 $call.1: ptr
+  block entry
+    t0 = heap_load param0 +0 : ptr
+    t1 = heap_load t0 +40 : ptr
+    t2 = call_indirect t1[2](param0) : ptr
+    store t2 -> local0
+    native_call extern0(local0)
+    t3 = aggregate () : {}
+    ret
+  fun @scoop.println(ptr) -> void
+    local %0 $call.1: ptr
+  block entry
+    t0 = heap_load param0 +0 : ptr
+    t1 = heap_load t0 +40 : ptr
+    t2 = call_indirect t1[2](param0) : ptr
+    store t2 -> local0
+    native_call extern0(local0)
+    t3 = aggregate () : {}
+    native_call extern0(global0)
+    t4 = aggregate () : {}
+    ret
+  fun @scoop_main() -> void
+  block entry
+    t0 = global_load global6 : i64
+    t1 = call @scoop_rt_box(global11, t0, 8) : ptr
+    call @scoop.println(t1)
+    t2 = aggregate () : {}
+    t3 = global_load global7 : i64
+    t4 = call @scoop_rt_box(global11, t3, 8) : ptr
+    call @scoop.println(t4)
+    t5 = aggregate () : {}
+    t6 = global_load global8 : struct0
+    t7 = extract t6, 0 : i64
+    t8 = call @scoop_rt_box(global11, t7, 8) : ptr
+    call @scoop.println(t8)
+    t9 = aggregate () : {}
+    t10 = global_load global8 : struct0
+    t11 = extract t10, 1 : i64
+    t12 = call @scoop_rt_box(global11, t11, 8) : ptr
+    call @scoop.println(t12)
+    t13 = aggregate () : {}
+    t14 = native_global_load ng0 : i64
+    t15 = call @scoop_rt_box(global11, t14, 8) : ptr
+    call @scoop.println(t15)
+    t16 = aggregate () : {}
+    t17 = native_global_load ng1 : i64
+    t18 = call @scoop_rt_box(global11, t17, 8) : ptr
+    call @scoop.println(t18)
+    t19 = aggregate () : {}
+    t20 = native_global_load ng2 : i64
+    t21 = call @scoop_rt_box(global11, t20, 8) : ptr
+    call @scoop.println(t21)
+    t22 = aggregate () : {}
+    t23 = native_global_load ng3 : struct0
+    t24 = extract t23, 0 : i64
+    t25 = call @scoop_rt_box(global11, t24, 8) : ptr
+    call @scoop.println(t25)
+    t26 = aggregate () : {}
+    t27 = native_global_load ng3 : struct0
+    t28 = extract t27, 1 : i64
+    t29 = call @scoop_rt_box(global11, t28, 8) : ptr
+    call @scoop.println(t29)
+    t30 = aggregate () : {}
+    global_store global6, 20
+    global_store global7, 21
+    t31 = global_address global6
+    raw_store t31 22 align 8
+    t32 = aggregate () : {}
+    t33 = aggregate (23, 24) : struct0
+    global_store global8, t33
+    native_global_store ng0, 40
+    native_global_store ng1, 41
+    t34 = native_global_address ng0
+    raw_store t34 42 align 8
+    t35 = aggregate () : {}
+    t36 = aggregate (43, 44) : struct0
+    native_global_store ng3, t36
+    t37 = global_load global6 : i64
+    t38 = call @scoop_rt_box(global11, t37, 8) : ptr
+    call @scoop.println(t38)
+    t39 = aggregate () : {}
+    t40 = global_load global7 : i64
+    t41 = call @scoop_rt_box(global11, t40, 8) : ptr
+    call @scoop.println(t41)
+    t42 = aggregate () : {}
+    t43 = global_load global8 : struct0
+    t44 = extract t43, 0 : i64
+    t45 = call @scoop_rt_box(global11, t44, 8) : ptr
+    call @scoop.println(t45)
+    t46 = aggregate () : {}
+    t47 = global_load global8 : struct0
+    t48 = extract t47, 1 : i64
+    t49 = call @scoop_rt_box(global11, t48, 8) : ptr
+    call @scoop.println(t49)
+    t50 = aggregate () : {}
+    t51 = native_global_load ng0 : i64
+    t52 = call @scoop_rt_box(global11, t51, 8) : ptr
+    call @scoop.println(t52)
+    t53 = aggregate () : {}
+    t54 = native_global_load ng1 : i64
+    t55 = call @scoop_rt_box(global11, t54, 8) : ptr
+    call @scoop.println(t55)
+    t56 = aggregate () : {}
+    t57 = native_global_load ng3 : struct0
+    t58 = extract t57, 0 : i64
+    t59 = call @scoop_rt_box(global11, t58, 8) : ptr
+    call @scoop.println(t59)
+    t60 = aggregate () : {}
+    t61 = native_global_load ng3 : struct0
+    t62 = extract t61, 1 : i64
+    t63 = call @scoop_rt_box(global11, t62, 8) : ptr
+    call @scoop.println(t63)
+    t64 = aggregate () : {}
+    ret
+  fun @scoop.ctor.Throwable() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global12, 16) : ptr
+    ret t0
+  fun @scoop.ctor.Exception(enum0) -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global13, 24) : ptr
+    heap_store t0 +16 param0
+    ret t0
+  fun @scoop.ctor.UnwrapException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global14, 24) : ptr
+    t1 = enum_wrap e0 v0 (global1) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.ClassCastException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global15, 24) : ptr
+    t1 = enum_wrap e0 v0 (global2) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.ArithmeticException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global16, 24) : ptr
+    t1 = enum_wrap e0 v0 (global3) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.IndexOutOfBoundsException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global17, 24) : ptr
+    t1 = enum_wrap e0 v0 (global4) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.IllegalStateException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global18, 24) : ptr
+    t1 = enum_wrap e0 v0 (global5) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.eq.I(ptr, ptr) -> i1
+    local %0 $a: i64
+    local %1 $b: i64
+  block entry
+    t0 = heap_load param0 +16 : i64
+    store t0 -> local0
+    t1 = heap_load param1 +16 : i64
+    store t1 -> local1
+    t2 = Eq local0, local1 : i1
+    ret t2
+  fun @scoop.tostring.I(ptr) -> ptr
+    local %0 $call.1: ptr
+  block entry
+    t0 = heap_load param0 +16 : i64
+    t1 = call @scoop_rt_int_to_string(t0) : ptr
+    store t1 -> local0
+    ret local0
+  td function$FIRIX @scoop_td_function$FIRIX size=0 vtable=0 itables=0
+  td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
+  td box$I @scoop_td_box$I size=24 vtable=3 itables=0
+  td Exception @scoop_td_Exception size=24 vtable=3 itables=0
+  td UnwrapException @scoop_td_UnwrapException size=24 vtable=3 itables=0
+  td ClassCastException @scoop_td_ClassCastException size=24 vtable=3 itables=0
+  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=3 itables=0
+  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=3 itables=0
+  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=3 itables=0
+  layout String size=24 align=8 refs=[]
+  layout Int size=8 align=8 refs=[]
+  layout Boolean size=1 align=1 refs=[]
+  layout NativePair size=16 align=8 refs=[]
+  layout-meta NativePair c-layout(aligned=0,packed=0) fields=[0@8,8@8] interior-mutable=false
+  layout Option$S size=8 align=8 enum-refs=[[0], []]
+  layout Throwable size=16 align=8 refs=[]
+  layout Exception size=24 align=8 refs=[16]
+  layout UnwrapException size=24 align=8 refs=[16]
+  layout ClassCastException size=24 align=8 refs=[16]
+  layout ArithmeticException size=24 align=8 refs=[16]
+  layout IndexOutOfBoundsException size=24 align=8 refs=[16]
+  layout IllegalStateException size=24 align=8 refs=[16]
+  layout box$I size=24 align=8 refs=[]
+  entry @scoop_main
+
+== run ==
+1
+2
+3
+4
+30
+31
+32
+33
+34
+22
+21
+23
+24
+42
+41
+43
+44

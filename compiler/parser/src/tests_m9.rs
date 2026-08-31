@@ -3,7 +3,7 @@
 //! name and the constructor parentheses, like `enum`), fields typed by
 //! type parameters, coexistence with generic enums, and the empty type
 //! parameter list diagnostic. Explicit type arguments at construction
-//! sites (`PinHandle<UInt>(1)`) stay unsupported, as for generic
+//! sites (`PinnedPtr<UInt>(1)`) stay unsupported, as for generic
 //! function calls since M3.
 
 use scoop_ast::{Decl, Span, TypeRefKind};
@@ -13,13 +13,13 @@ use crate::tests::{err, ok};
 #[test]
 fn generic_struct_single_type_param() {
     // The motivating case: `sysroot/lib/scoop.core/src/gc.scoop`.
-    let file = ok("struct PinHandle<T>(val raw: UInt)");
+    let file = ok("struct PinnedPtr<T>(val raw: UInt)");
     let Decl::Struct(decl) = &file.declarations[0] else {
         panic!("expected a struct declaration");
     };
-    assert_eq!(decl.name.text, "PinHandle");
+    assert_eq!(decl.name.text, "PinnedPtr");
     assert_eq!(decl.type_params.len(), 1);
-    assert_eq!(decl.type_params[0].text, "T");
+    assert_eq!(decl.type_params[0].name.text, "T");
     assert_eq!(decl.type_params[0].span, Span::new(17, 18));
     assert_eq!(decl.fields.len(), 1);
     let TypeRefKind::Named(ty) = &decl.fields[0].ty.kind else {
@@ -29,7 +29,7 @@ fn generic_struct_single_type_param() {
     assert_eq!(decl.span, Span::new(0, 34));
     assert_eq!(
         scoop_ast::dump(&file),
-        "SourceFile\n  struct PinHandle<T>\n    field raw: UInt\n"
+        "SourceFile\n  struct PinnedPtr<T>\n    field raw: UInt\n"
     );
 }
 
@@ -56,7 +56,11 @@ fn generic_struct_multiple_type_params() {
     let Decl::Struct(decl) = &file.declarations[0] else {
         panic!("expected a struct declaration");
     };
-    let names: Vec<&str> = decl.type_params.iter().map(|p| p.text.as_str()).collect();
+    let names: Vec<&str> = decl
+        .type_params
+        .iter()
+        .map(|p| p.name.text.as_str())
+        .collect();
     assert_eq!(names, ["T", "U"]);
     assert_eq!(decl.fields.len(), 2);
     let TypeRefKind::Named(first) = &decl.fields[0].ty.kind else {
@@ -90,7 +94,7 @@ fn generic_struct_with_interfaces_and_methods() {
 #[test]
 fn generic_structs_coexist_with_generic_enums_and_plain_structs() {
     let file = ok(
-        "enum Option<T> { Some(T), None }\nstruct PinHandle<T>(val raw: UInt)\nstruct Point(val x: Int)",
+        "enum Option<T> { Some(T), None }\nstruct PinnedPtr<T>(val raw: UInt)\nstruct Point(val x: Int)",
     );
     assert_eq!(file.declarations.len(), 3);
     let Decl::Enum(enum_) = &file.declarations[0] else {
@@ -101,7 +105,7 @@ fn generic_structs_coexist_with_generic_enums_and_plain_structs() {
         panic!("expected a struct declaration");
     };
     assert_eq!(generic.type_params.len(), 1);
-    assert_eq!(generic.type_params[0].text, "T");
+    assert_eq!(generic.type_params[0].name.text, "T");
     let Decl::Struct(plain) = &file.declarations[2] else {
         panic!("expected a struct declaration");
     };

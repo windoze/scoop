@@ -9,6 +9,7 @@
 
 mod m10;
 mod m11;
+mod m12;
 mod m2;
 mod m3;
 mod m4;
@@ -39,6 +40,15 @@ pub(crate) fn trailing_rest() -> Span {
 pub(crate) fn ident(text: &str) -> Ident {
     Ident {
         text: text.to_string(),
+        span: sp(),
+    }
+}
+
+pub(crate) fn type_param(name: &str) -> ast::TypeParamDecl {
+    ast::TypeParamDecl {
+        name: ident(name),
+        variance: ast::Variance::Invariant,
+        kind_bound: None,
         span: sp(),
     }
 }
@@ -141,6 +151,16 @@ pub(crate) fn struct_init(name: &str, args: Vec<Expr>) -> Expr {
 pub(crate) fn call(name: &str, args: Vec<Expr>) -> Expr {
     Expr::Call(CallExpr {
         callee: ident(name),
+        type_args: Vec::new(),
+        args,
+        span: sp(),
+    })
+}
+
+pub(crate) fn typed_call(name: &str, type_args: Vec<TypeRef>, args: Vec<Expr>) -> Expr {
+    Expr::Call(CallExpr {
+        callee: ident(name),
+        type_args,
         args,
         span: sp(),
     })
@@ -152,6 +172,7 @@ pub(crate) fn call_at(name: &str, args: Vec<Expr>, callee_span: Span) -> Expr {
             text: name.to_string(),
             span: callee_span,
         },
+        type_args: Vec::new(),
         args,
         span: sp(),
     })
@@ -481,6 +502,16 @@ pub(crate) fn block_stmt(statements: Vec<Statement>) -> Statement {
     }
 }
 
+pub(crate) fn unsafe_block(statements: Vec<Statement>) -> Statement {
+    Statement {
+        kind: StatementKind::SafetyBlock {
+            mode: ast::SafetyMode::Unsafe,
+            block: block(statements),
+        },
+        span: sp(),
+    }
+}
+
 pub(crate) fn block(statements: Vec<Statement>) -> Block {
     Block {
         statements,
@@ -524,7 +555,7 @@ pub(crate) fn fun_sig(
         modifier: ast::MethodModifier::Final,
         receiver_ty: None,
         name: ident(name),
-        type_params: type_params.into_iter().map(ident).collect(),
+        type_params: type_params.into_iter().map(type_param).collect(),
         params: params
             .into_iter()
             .map(|(name, ty)| Param {
@@ -570,7 +601,7 @@ pub(crate) fn fun_expr(
         modifier: ast::MethodModifier::Final,
         receiver_ty: None,
         name: ident(name),
-        type_params: type_params.into_iter().map(ident).collect(),
+        type_params: type_params.into_iter().map(type_param).collect(),
         params: params
             .into_iter()
             .map(|(name, ty)| Param {
@@ -622,7 +653,11 @@ pub(crate) fn intrinsic_generic_fun(
     Decl::Function(FunctionDecl {
         annotations: vec![ast::Annotation {
             name: ident("Intrinsic"),
-            value: Some(intrinsic.to_string()),
+            args: vec![ast::AnnotationArg {
+                name: None,
+                value: ast::AnnotationLiteral::String(intrinsic.to_string()),
+                span: sp(),
+            }],
             span: sp(),
         }],
         is_suspend: false,
@@ -630,7 +665,7 @@ pub(crate) fn intrinsic_generic_fun(
         modifier: ast::MethodModifier::Final,
         receiver_ty: None,
         name: ident(name),
-        type_params: type_params.into_iter().map(ident).collect(),
+        type_params: type_params.into_iter().map(type_param).collect(),
         params: params
             .into_iter()
             .map(|(name, ty)| Param {
@@ -640,9 +675,38 @@ pub(crate) fn intrinsic_generic_fun(
             })
             .collect(),
         return_ty,
-        body: FunctionBody::Block(block(vec![])),
+        body: FunctionBody::None,
         span: sp(),
     })
+}
+
+pub(crate) fn scoop_extern_fun(
+    name: &str,
+    native_symbol: &str,
+    params: Vec<(&str, TypeRef)>,
+    return_ty: Option<TypeRef>,
+) -> Decl {
+    let Decl::Function(mut function) = fun_sig(name, vec![], params, return_ty, vec![]) else {
+        unreachable!()
+    };
+    function.annotations = vec![ast::Annotation {
+        name: ident("Extern"),
+        args: vec![
+            ast::AnnotationArg {
+                name: Some(ident("name")),
+                value: ast::AnnotationLiteral::String(native_symbol.to_string()),
+                span: sp(),
+            },
+            ast::AnnotationArg {
+                name: Some(ident("abi")),
+                value: ast::AnnotationLiteral::String("scoop".to_string()),
+                span: sp(),
+            },
+        ],
+        span: sp(),
+    }];
+    function.body = FunctionBody::None;
+    Decl::Function(function)
 }
 
 pub(crate) fn struct_decl(name: &str, fields: Vec<(&str, TypeRef)>) -> Decl {
@@ -669,6 +733,7 @@ pub(crate) fn class_decl(
     methods: Vec<FunctionDecl>,
 ) -> Decl {
     Decl::Class(ast::ClassDecl {
+        annotations: vec![],
         modifier,
         name: ident(name),
         constructor: ctor
@@ -690,6 +755,7 @@ pub(crate) fn class_decl(
 /// `interface I { fun m(...): T ... }`.
 pub(crate) fn interface_decl(name: &str, methods: Vec<FunctionDecl>) -> Decl {
     Decl::Interface(ast::InterfaceDecl {
+        annotations: vec![],
         name: ident(name),
         type_params: Vec::new(),
         methods,
@@ -703,12 +769,14 @@ pub(crate) fn generic_interface_decl(
     methods: Vec<FunctionDecl>,
 ) -> Decl {
     Decl::Interface(ast::InterfaceDecl {
+        annotations: vec![],
         name: ident(name),
         type_params: type_params
             .into_iter()
             .map(|(variance, name)| ast::TypeParamDecl {
                 name: ident(name),
                 variance,
+                kind_bound: None,
                 span: sp(),
             })
             .collect(),
@@ -859,8 +927,9 @@ pub(crate) fn generic_struct_decl_full(
     methods: Vec<FunctionDecl>,
 ) -> Decl {
     Decl::Struct(AstStructDecl {
+        annotations: vec![],
         name: ident(name),
-        type_params: type_params.into_iter().map(ident).collect(),
+        type_params: type_params.into_iter().map(type_param).collect(),
         fields: fields
             .into_iter()
             .map(|(name, ty)| FieldDecl {
@@ -894,8 +963,9 @@ pub(crate) fn enum_decl_full(
     methods: Vec<FunctionDecl>,
 ) -> Decl {
     Decl::Enum(ast::EnumDecl {
+        annotations: vec![],
         name: ident(name),
-        type_params: type_params.into_iter().map(ident).collect(),
+        type_params: type_params.into_iter().map(type_param).collect(),
         variants,
         interfaces: interfaces.into_iter().map(ty_named).collect(),
         methods,
@@ -913,6 +983,22 @@ pub(crate) fn method_call(receiver: Expr, name: &str, args: Vec<Expr>) -> Expr {
     Expr::MethodCall {
         receiver: Box::new(receiver),
         name: ident(name),
+        type_args: Vec::new(),
+        args,
+        span: sp(),
+    }
+}
+
+pub(crate) fn typed_method_call(
+    receiver: Expr,
+    name: &str,
+    type_args: Vec<TypeRef>,
+    args: Vec<Expr>,
+) -> Expr {
+    Expr::MethodCall {
+        receiver: Box::new(receiver),
+        name: ident(name),
+        type_args,
         args,
         span: sp(),
     }
@@ -940,8 +1026,9 @@ pub(crate) fn cast_ty(operand: Expr, ty: TypeRef, optional: bool) -> Expr {
 
 pub(crate) fn enum_decl(name: &str, type_params: Vec<&str>, variants: Vec<VariantDecl>) -> Decl {
     Decl::Enum(ast::EnumDecl {
+        annotations: vec![],
         name: ident(name),
-        type_params: type_params.into_iter().map(ident).collect(),
+        type_params: type_params.into_iter().map(type_param).collect(),
         variants,
         interfaces: Vec::new(),
         methods: Vec::new(),
@@ -1015,7 +1102,7 @@ pub(crate) fn file(declarations: Vec<Decl>) -> SourceFile {
 /// the `Throwable` exception root (spec 11.7; most subclasses live in
 /// `throwable_core()`), the M10 coroutine protocol, plus the M7
 /// `io.scoop` final shape
-/// (docs/milestone7/DESIGN.md section 2) — the single `rt_write`
+/// (docs/milestone7/DESIGN.md section 2) — the managed `write` extern
 /// intrinsic and `print` / `println` as ordinary `Any`-parameter
 /// functions dispatching `toString()`.
 pub(crate) fn core_file() -> SourceFile {
@@ -1038,10 +1125,11 @@ pub(crate) fn core_file() -> SourceFile {
         ),
     ];
     declarations.extend(coroutine_core_declarations());
+    declarations.extend(ffi_core_declarations());
     declarations.extend([
-        intrinsic_fun(
+        scoop_extern_fun(
             "write",
-            "rt_write",
+            "scoop_rt_write",
             vec![("message", ty_named("String"))],
             None,
         ),
@@ -1070,6 +1158,251 @@ pub(crate) fn core_file() -> SourceFile {
         ),
     ]);
     file(declarations)
+}
+
+fn ffi_core_declarations() -> Vec<Decl> {
+    let marker = |name: &str| ast::Annotation {
+        name: ident(name),
+        args: Vec::new(),
+        span: sp(),
+    };
+    let intrinsic = |name: &str| ast::Annotation {
+        name: ident("Intrinsic"),
+        args: vec![ast::AnnotationArg {
+            name: None,
+            value: ast::AnnotationLiteral::String(name.to_string()),
+            span: sp(),
+        }],
+        span: sp(),
+    };
+    let pointer_method = |name: &str,
+                          intrinsic_name: &str,
+                          type_params: Vec<&str>,
+                          params: Vec<(&str, TypeRef)>,
+                          return_ty: Option<TypeRef>| {
+        let mut method = method_full(false, false, name, params, return_ty, FunctionBody::None);
+        method.annotations = vec![marker("NoGC"), marker("Unsafe"), intrinsic(intrinsic_name)];
+        method.type_params = type_params.into_iter().map(type_param).collect();
+        for param in &mut method.type_params {
+            param.kind_bound = Some(ast::TypeParamKindBound::Value);
+        }
+        method
+    };
+
+    let mut ptr = generic_struct_decl_full(
+        "Ptr",
+        vec!["T"],
+        vec![("_rawPointer", ty_named("UInt"))],
+        Vec::new(),
+        vec![
+            pointer_method(
+                "toUInt",
+                "ptr_to_uint",
+                vec![],
+                vec![],
+                Some(ty_named("UInt")),
+            ),
+            pointer_method(
+                "cast",
+                "ptr_cast",
+                vec!["U"],
+                vec![],
+                Some(ty_generic("Ptr", vec![ty_named("U")])),
+            ),
+            pointer_method("load", "ptr_load", vec![], vec![], Some(ty_named("T"))),
+            pointer_method(
+                "load",
+                "ptr_load_offset",
+                vec![],
+                vec![("offset", ty_named("Int"))],
+                Some(ty_named("T")),
+            ),
+            pointer_method(
+                "store",
+                "ptr_store",
+                vec![],
+                vec![("value", ty_named("T"))],
+                None,
+            ),
+            pointer_method(
+                "store",
+                "ptr_store_offset",
+                vec![],
+                vec![("offset", ty_named("Int")), ("value", ty_named("T"))],
+                None,
+            ),
+            pointer_method(
+                "plus",
+                "ptr_plus",
+                vec![],
+                vec![("offset", ty_named("Int"))],
+                Some(ty_generic("Ptr", vec![ty_named("T")])),
+            ),
+            pointer_method(
+                "minus",
+                "ptr_minus",
+                vec![],
+                vec![("offset", ty_named("Int"))],
+                Some(ty_generic("Ptr", vec![ty_named("T")])),
+            ),
+        ],
+    );
+    let Decl::Struct(ptr_decl) = &mut ptr else {
+        unreachable!()
+    };
+    ptr_decl.type_params[0].kind_bound = Some(ast::TypeParamKindBound::Value);
+
+    let fun_ptr = generic_struct_decl("FunPtr", vec!["F"], vec![("_rawPointer", ty_named("UInt"))]);
+
+    let ref_bound = |mut decl: Decl| {
+        let type_params = match &mut decl {
+            Decl::Struct(decl) => &mut decl.type_params,
+            Decl::Function(decl) => &mut decl.type_params,
+            _ => unreachable!("FFI core declarations are structs or functions"),
+        };
+        type_params[0].kind_bound = Some(ast::TypeParamKindBound::Ref);
+        decl
+    };
+    let gc_intrinsic =
+        |name: &str, intrinsic_name: &str, params: Vec<(&str, TypeRef)>, return_ty: TypeRef| {
+            let mut decl =
+                intrinsic_generic_fun(name, intrinsic_name, vec!["T"], params, Some(return_ty));
+            let Decl::Function(function) = &mut decl else {
+                unreachable!()
+            };
+            function.annotations = vec![marker("Unsafe"), intrinsic(intrinsic_name)];
+            ref_bound(decl)
+        };
+    let top_level = |name: &str,
+                     intrinsic_name: &str,
+                     params: Vec<(&str, TypeRef)>,
+                     return_ty: TypeRef,
+                     no_gc: bool,
+                     unsafe_: bool| {
+        let mut decl =
+            intrinsic_generic_fun(name, intrinsic_name, vec!["T"], params, Some(return_ty));
+        let Decl::Function(function) = &mut decl else {
+            unreachable!()
+        };
+        function.type_params[0].kind_bound = Some(ast::TypeParamKindBound::Value);
+        function.annotations.clear();
+        if no_gc {
+            function.annotations.push(marker("NoGC"));
+        }
+        if unsafe_ {
+            function.annotations.push(marker("Unsafe"));
+        }
+        function.annotations.push(intrinsic(intrinsic_name));
+        decl
+    };
+
+    vec![
+        ptr,
+        fun_ptr,
+        ref_bound(generic_struct_decl(
+            "PinnedPtr",
+            vec!["T"],
+            vec![("raw", ty_named("UInt"))],
+        )),
+        ref_bound(generic_struct_decl(
+            "GcHandle",
+            vec!["T"],
+            vec![("raw", ty_named("UInt"))],
+        )),
+        gc_intrinsic(
+            "_pin",
+            "gc_pin_raw",
+            vec![("v", ty_named("T"))],
+            ty_named("UInt"),
+        ),
+        gc_intrinsic(
+            "_unpin",
+            "gc_unpin_raw",
+            vec![("raw", ty_named("UInt"))],
+            ty_named("T"),
+        ),
+        gc_intrinsic(
+            "_getGcHandle",
+            "gc_get_handle_raw",
+            vec![("v", ty_named("T"))],
+            ty_named("UInt"),
+        ),
+        gc_intrinsic(
+            "_releaseGcHandle",
+            "gc_release_handle_raw",
+            vec![("raw", ty_named("UInt"))],
+            ty_named("T"),
+        ),
+        top_level(
+            "addressOf",
+            "address_of",
+            vec![("value", ty_named("T"))],
+            ty_generic("Ptr", vec![ty_named("T")]),
+            false,
+            true,
+        ),
+        top_level("sizeOf", "size_of", vec![], ty_named("UInt"), true, false),
+        top_level("alignOf", "align_of", vec![], ty_named("UInt"), true, false),
+    ]
+}
+
+fn gc_api_declarations() -> Vec<Decl> {
+    let unsafe_wrapper = |mut decl: Decl| {
+        let Decl::Function(function) = &mut decl else {
+            unreachable!()
+        };
+        function.annotations = vec![ast::Annotation {
+            name: ident("Unsafe"),
+            args: Vec::new(),
+            span: sp(),
+        }];
+        function.type_params[0].kind_bound = Some(ast::TypeParamKindBound::Ref);
+        decl
+    };
+    vec![
+        unsafe_wrapper(fun_expr(
+            "pin",
+            vec!["T"],
+            vec![("v", ty_named("T"))],
+            Some(ty_generic("PinnedPtr", vec![ty_named("T")])),
+            typed_call(
+                "PinnedPtr",
+                vec![ty_named("T")],
+                vec![call("_pin", vec![var("v")])],
+            ),
+        )),
+        unsafe_wrapper(fun_expr(
+            "unpin",
+            vec!["T"],
+            vec![("p", ty_generic("PinnedPtr", vec![ty_named("T")]))],
+            Some(ty_named("T")),
+            typed_call("_unpin", vec![ty_named("T")], vec![field(var("p"), "raw")]),
+        )),
+        unsafe_wrapper(fun_expr(
+            "getGcHandle",
+            vec!["T"],
+            vec![("v", ty_named("T"))],
+            Some(ty_generic("GcHandle", vec![ty_named("T")])),
+            typed_call(
+                "GcHandle",
+                vec![ty_named("T")],
+                vec![call("_getGcHandle", vec![var("v")])],
+            ),
+        )),
+        unsafe_wrapper(fun_expr(
+            "releaseGcHandle",
+            vec!["T"],
+            vec![("h", ty_generic("GcHandle", vec![ty_named("T")]))],
+            Some(ty_named("T")),
+            typed_call(
+                "_releaseGcHandle",
+                vec![ty_named("T")],
+                vec![field(var("h"), "raw")],
+            ),
+        )),
+        intrinsic_fun("gcCollect", "rt_gc_collect", vec![], None),
+        intrinsic_fun("gcStats", "rt_gc_stats", vec![], Some(ty_named("UInt"))),
+    ]
 }
 
 fn coroutine_core_declarations() -> Vec<Decl> {
@@ -1250,52 +1583,9 @@ pub(crate) fn lower_user_with_exceptions(user: SourceFile) -> Result<hir::Module
     lower(&[core_file(), throwable_core(), user])
 }
 
-/// The GC facilities of `scoop.core`
-/// (sysroot/lib/scoop.core/src/gc.scoop, M9) as another core file:
-/// the `PinHandle` / `GcHandle` structs, the four generic GC
-/// intrinsics and the test-only `gcCollect` / `gcStats` hooks. The
-/// surface declarations spell the handle types `PinHandle<T>`.
-pub(crate) fn gc_core_file() -> SourceFile {
-    let handle = |name: &str| ty_generic(name, vec![ty_named("T")]);
-    file(vec![
-        generic_struct_decl("PinHandle", vec!["T"], vec![("raw", ty_named("UInt"))]),
-        generic_struct_decl("GcHandle", vec!["T"], vec![("raw", ty_named("UInt"))]),
-        intrinsic_generic_fun(
-            "pin",
-            "rt_pin",
-            vec!["T"],
-            vec![("v", ty_named("T"))],
-            Some(handle("PinHandle")),
-        ),
-        intrinsic_generic_fun(
-            "unpin",
-            "rt_unpin",
-            vec!["T"],
-            vec![("h", handle("PinHandle"))],
-            Some(ty_named("T")),
-        ),
-        intrinsic_generic_fun(
-            "getGcHandle",
-            "rt_get_handle",
-            vec!["T"],
-            vec![("v", ty_named("T"))],
-            Some(handle("GcHandle")),
-        ),
-        intrinsic_generic_fun(
-            "releaseGcHandle",
-            "rt_release_handle",
-            vec!["T"],
-            vec![("h", handle("GcHandle"))],
-            Some(ty_named("T")),
-        ),
-        intrinsic_fun("gcCollect", "rt_gc_collect", vec![], None),
-        intrinsic_fun("gcStats", "rt_gc_stats", vec![], Some(ty_named("UInt"))),
-    ])
-}
-
 /// Lower a user file with the core GC facilities available (M9 tests).
 pub(crate) fn lower_user_with_gc(user: SourceFile) -> Result<hir::Module, Vec<Diagnostic>> {
-    lower(&[core_file(), gc_core_file(), user])
+    lower(&[core_file(), file(gc_api_declarations()), user])
 }
 
 /// `main` calls `println("hello, world")` then `helper()`, which
@@ -1346,7 +1636,7 @@ Module
     fun register(continuation: Continuation<T0>): Unit
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
-  fun write(): Unit <intrinsic rt_write>
+  fun write(arg1: String): Unit <extern0 abi=scoop symbol=scoop_rt_write>
   fun print(message: Any): Unit
     Call write : Unit
       MethodCall Any.toString : String

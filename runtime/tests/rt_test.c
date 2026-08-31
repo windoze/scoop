@@ -27,6 +27,7 @@
  */
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -268,7 +269,7 @@ void scoop_main(void) {
         uint64_t size;
         int64_t data[3];
     } original = {&array_td, 0, 3, {10, 20, 30}};
-    const ScoopArray *clone = scoop_rt_array_clone(&original, sizeof(int64_t));
+    const ScoopArray *clone = scoop_rt_array_clone(&original, sizeof(int64_t), 24);
     original.data[0] = 99;
     const int64_t *snapshot = (const int64_t *)clone->elements;
     scoop_rt_println_boolean(snapshot[0] == 10 && snapshot[1] == 20 && snapshot[2] == 30);
@@ -466,6 +467,30 @@ void scoop_main(void) {
     clobber_stack();
     scoop_rt_gc_collect();
     scoop_rt_println_boolean(global_rooted != NULL && global_rooted->value == 13);
+
+    /* Scoop ABI native-root frame: the only visible object pointer is in
+     * foreign heap storage, which the conservative C-stack scan cannot see.
+     * The frame keeps it alive across collection and exposes the same slot a
+     * future moving collector will rewrite. */
+    ScoopNode *native = new_node(15, NULL);
+    void **native_slot = malloc(sizeof *native_slot);
+    void ***native_slots = malloc(sizeof *native_slots);
+    *native_slot = native;
+    native_slots[0] = native_slot;
+    native = NULL;
+    ScoopNativeRootFrame native_frame;
+    scoop_rt_push_native_roots(&native_frame, native_slots, 1);
+    scoop_rt_println_boolean(scoop_rt_gc_debug_native_root_count() == 1);
+    clobber_stack();
+    scoop_rt_gc_collect();
+    const ScoopNode *native_back = *native_slot;
+    scoop_rt_println_boolean(native_back != NULL && native_back->value == 15);
+    native_back = NULL;
+    scoop_rt_pop_native_roots(&native_frame);
+    scoop_rt_println_boolean(scoop_rt_gc_debug_native_root_count() == 0);
+    *native_slot = NULL;
+    free(native_slots);
+    free(native_slot);
 
     /* Niche no-ops: null pin/unpin/handle round-trips. */
     scoop_rt_println_boolean(scoop_rt_get_handle(NULL) == 0 && scoop_rt_release_handle(0) == NULL &&

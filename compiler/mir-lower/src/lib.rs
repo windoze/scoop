@@ -53,8 +53,8 @@
 //! M7: print/println are ordinary core functions
 //! (docs/milestone7/DESIGN.md section 2) — their calls go through the
 //! normal function path. `@Intrinsic` calls map by intrinsic name onto
-//! the runtime functions: `rt_write` → `Write` (`scoop_rt_print`),
-//! `rt_int_to_string` → `IntToString`, `rt_bool_to_string` →
+//! the remaining runtime functions: `rt_int_to_string` → `IntToString`,
+//! `rt_bool_to_string` →
 //! `BoolToString` (the latter two back the generated `toString`
 //! bodies below). Mangling is overload-aware: a name shared by
 //! several plainly-mangled functions gets the parameter encoding
@@ -133,6 +133,12 @@ use structured as smir;
 pub fn lower(module: &hir::Module) -> mir::Module {
     Lowerer {
         functions: Arena::new(),
+        extern_functions: Arena::new(),
+        extern_map: HashMap::new(),
+        globals: Arena::new(),
+        global_map: HashMap::new(),
+        callback_bridges: Arena::new(),
+        callback_by_target: HashMap::new(),
         top_level: Vec::new(),
         strings: Arena::new(),
         structs: StructRegistry::default(),
@@ -177,6 +183,12 @@ pub fn lower(module: &hir::Module) -> mir::Module {
 
 struct Lowerer {
     functions: Arena<mir::Function>,
+    extern_functions: Arena<mir::ExternFunction>,
+    extern_map: HashMap<hir::ExternFunctionId, mir::ExternFunctionId>,
+    globals: Arena<mir::Global>,
+    global_map: HashMap<hir::GlobalId, mir::GlobalId>,
+    callback_bridges: Arena<mir::CallbackBridge>,
+    callback_by_target: HashMap<(mir::FunctionId, mir::FunctionTypeId), mir::CallbackBridgeId>,
     /// User functions in declaration order (intrinsics have no MIR body).
     top_level: Vec<mir::FunctionId>,
     strings: Arena<mir::StringConst>,
@@ -388,6 +400,7 @@ impl CoroutineRegistry {
             mutable: false,
         });
         let resume = functions.alloc(mir::Function {
+            gc_effect: mir::GcEffect::Managed,
             name: format!("Continuation.resume${encoded}"),
             symbol: format!("scoop.Continuation.resume${encoded}"),
             params: vec![
@@ -417,6 +430,7 @@ impl CoroutineRegistry {
             mutable: false,
         });
         let failure = functions.alloc(mir::Function {
+            gc_effect: mir::GcEffect::Managed,
             name: format!("Continuation.resumeWithException${encoded}"),
             symbol: format!("scoop.Continuation.resumeWithException${encoded}"),
             params: vec![
@@ -581,6 +595,7 @@ impl CoroutineRegistry {
         });
         let encoded = mir::encode_type(shell, result);
         let function = functions.alloc(mir::Function {
+            gc_effect: mir::GcEffect::Managed,
             name: format!("startCoroutine${encoded}"),
             symbol: format!("scoop.coroutine.start${encoded}"),
             params: vec![
@@ -620,11 +635,13 @@ impl Lowerer {
         self.shell = mangling_shell(&self.structs.defs, &self.classes, &self.interfaces.defs);
         self.fill_class_hierarchy(module);
         self.fill_struct_fields(module);
+        self.lower_globals(module);
         self.option_variants = option_variants(module);
         // Classes are processed base-before-derived: the object layout
         // and the vtable both keep the base's as a prefix.
         let class_order = topo_class_order(module);
         self.fill_class_fields(module, &class_order);
+        self.lower_extern_functions(module);
 
         // Declare non-generic user functions first, so calls resolve
         // regardless of declaration order. Intrinsics have no body;
@@ -842,6 +859,9 @@ impl Lowerer {
         let entry = self.function_map[&module.entry];
         mir::Module {
             functions: self.functions,
+            extern_functions: self.extern_functions,
+            globals: self.globals,
+            callback_bridges: self.callback_bridges,
             function_types: self.shell.function_types,
             closure_classes: self.closure_classes,
             closure_invoke_functions: self.closure_invokes,
@@ -863,6 +883,100 @@ impl Lowerer {
                 dynamic_closure_adapters: self.dynamic_closure_adapters,
                 ..mir::MirMeta::default()
             },
+        }
+    }
+
+    fn lower_extern_functions(&mut self, module: &hir::Module) {
+        for (hir_id, extern_) in module.extern_functions.iter() {
+            let types = Types {
+                module,
+                struct_map: &self.struct_map,
+                class_map: &self.class_map,
+                subst: None,
+            };
+            let params = extern_
+                .params
+                .iter()
+                .map(|&ty| {
+                    types.lower(
+                        ty,
+                        &mut self.enums,
+                        &mut self.structs,
+                        &mut self.interfaces,
+                        &mut self.shell,
+                    )
+                })
+                .collect();
+            let return_type = types.lower(
+                extern_.return_type,
+                &mut self.enums,
+                &mut self.structs,
+                &mut self.interfaces,
+                &mut self.shell,
+            );
+            let id = self.extern_functions.alloc(mir::ExternFunction {
+                source_name: extern_.source_name.clone(),
+                native_symbol: extern_.native_symbol.clone(),
+                library: extern_.library.clone(),
+                abi: match extern_.abi {
+                    hir::ExternAbi::C => mir::ExternAbi::C,
+                    hir::ExternAbi::Scoop => mir::ExternAbi::Scoop,
+                },
+                calling_convention: match extern_.calling_convention {
+                    hir::CallingConvention::Cdecl => mir::CallingConvention::Cdecl,
+                },
+                gc_effect: match extern_.gc_effect {
+                    hir::GcEffect::Managed => mir::GcEffect::Managed,
+                    hir::GcEffect::NoGc => mir::GcEffect::NoGc,
+                },
+                params,
+                return_type,
+            });
+            self.extern_map.insert(hir_id, id);
+        }
+    }
+
+    fn lower_globals(&mut self, module: &hir::Module) {
+        for (hir_id, global) in module.globals.iter() {
+            let types = Types {
+                module,
+                struct_map: &self.struct_map,
+                class_map: &self.class_map,
+                subst: None,
+            };
+            let ty = types.lower(
+                global.ty,
+                &mut self.enums,
+                &mut self.structs,
+                &mut self.interfaces,
+                &mut self.shell,
+            );
+            let storage = match &global.storage {
+                hir::GlobalStorage::Local {
+                    thread_local,
+                    initializer,
+                } => mir::GlobalStorage::Local {
+                    thread_local: *thread_local,
+                    initializer: lower_global_constant(initializer, &ty, &self.structs.defs),
+                },
+                hir::GlobalStorage::Extern {
+                    library,
+                    native_symbol,
+                    thread_local,
+                } => mir::GlobalStorage::Extern {
+                    library: library.clone(),
+                    native_symbol: native_symbol.clone(),
+                    thread_local: *thread_local,
+                },
+            };
+            let id = self.globals.alloc(mir::Global {
+                name: global.name.clone(),
+                symbol: mir::mangle_global(&global.name),
+                ty,
+                mutable: global.mutable,
+                storage,
+            });
+            self.global_map.insert(hir_id, id);
         }
     }
 
@@ -1093,6 +1207,7 @@ impl Lowerer {
             target_return.clone(),
         );
         let id = self.functions.alloc(mir::Function {
+            gc_effect: mir::GcEffect::Managed,
             symbol: format!("scoop.{name}"),
             name,
             params,
@@ -1156,6 +1271,7 @@ impl Lowerer {
         let source_name = mir::encode_type(&self.shell, &mir::Type::Function(source));
         let target_name = mir::encode_type(&self.shell, &mir::Type::Function(target));
         let function = self.functions.alloc(mir::Function {
+            gc_effect: mir::GcEffect::Managed,
             name: format!("$adapter.{source_name}.{target_name}"),
             symbol: format!("scoop.$adapter.{source_name}.{target_name}"),
             params: Vec::new(),
@@ -1456,6 +1572,7 @@ impl Lowerer {
             target_signature.return_type.clone(),
         );
         let function = self.functions.alloc(mir::Function {
+            gc_effect: mir::GcEffect::Managed,
             symbol: format!("scoop.{name}"),
             name,
             params,
@@ -1511,6 +1628,10 @@ impl Lowerer {
             structs: &mut self.structs,
             method_slots: &self.method_slots,
             function_map: &self.function_map,
+            extern_map: &self.extern_map,
+            global_map: &self.global_map,
+            callback_bridges: &mut self.callback_bridges,
+            callback_by_target: &mut self.callback_by_target,
             ctors: &self.ctors,
             strings: &mut self.strings,
             functions: &mut self.functions,
@@ -1559,6 +1680,11 @@ impl Lowerer {
             }
             let mir_id = self.structs.defs.alloc(mir::StructDef {
                 name: decl.name.clone(),
+                c_layout: decl.attributes.c_layout.map(|layout| mir::CLayout {
+                    aligned: layout.aligned,
+                    packed: layout.packed,
+                }),
+                interior_mutable: decl.attributes.interior_mutable,
                 fields: Vec::new(),
             });
             self.struct_map.insert(hir_id, mir_id);
@@ -1798,6 +1924,7 @@ impl Lowerer {
         let name = fn_name(function);
         let symbol = self.declare_symbol(module, hir_id);
         let id = self.functions.alloc(mir::Function {
+            gc_effect: lower_gc_effect(function.attributes.gc_effect),
             name,
             symbol,
             // Filled in when the body is lowered below.
@@ -2008,6 +2135,7 @@ impl Lowerer {
                 source_args.push(smir::Expr::Local(local));
             }
             let function = self.functions.alloc(mir::Function {
+                gc_effect: mir::GcEffect::Managed,
                 name: format!("$reference.{}", id.into_raw()),
                 symbol: format!("scoop.$reference.{}", id.into_raw()),
                 params: Vec::new(),
@@ -2251,6 +2379,7 @@ impl Lowerer {
         let name = fn_name(function);
         let symbol = self.declare_symbol(module, hir_id);
         let id = self.functions.alloc(mir::Function {
+            gc_effect: lower_gc_effect(function.attributes.gc_effect),
             symbol,
             name,
             params,
@@ -2405,6 +2534,7 @@ impl Lowerer {
         let decl = &module.classes[hir_id];
         let name = format!("ctor.{}", decl.name);
         let id = self.functions.alloc(mir::Function {
+            gc_effect: mir::GcEffect::Managed,
             symbol: format!("scoop.{name}"),
             name,
             params: Vec::new(),
@@ -2440,6 +2570,10 @@ impl Lowerer {
             structs: &mut self.structs,
             method_slots: &self.method_slots,
             function_map: &self.function_map,
+            extern_map: &self.extern_map,
+            global_map: &self.global_map,
+            callback_bridges: &mut self.callback_bridges,
+            callback_by_target: &mut self.callback_by_target,
             ctors: &self.ctors,
             strings: &mut self.strings,
             functions: &mut self.functions,
@@ -2638,6 +2772,10 @@ impl Lowerer {
             structs: &mut self.structs,
             method_slots: &self.method_slots,
             function_map: &self.function_map,
+            extern_map: &self.extern_map,
+            global_map: &self.global_map,
+            callback_bridges: &mut self.callback_bridges,
+            callback_by_target: &mut self.callback_by_target,
             ctors: &self.ctors,
             strings: &mut self.strings,
             functions: &mut self.functions,
@@ -2703,6 +2841,7 @@ impl Lowerer {
         let body = cfg::lower(body, mir::Type::Boolean);
         let name = format!("eq.{encoded}");
         let id = self.functions.alloc(mir::Function {
+            gc_effect: mir::GcEffect::Managed,
             symbol: format!("scoop.{name}"),
             name,
             params: vec![
@@ -2758,6 +2897,7 @@ impl Lowerer {
             mir::Type::String,
         );
         let id = self.functions.alloc(mir::Function {
+            gc_effect: mir::GcEffect::Managed,
             symbol: format!("scoop.{name}"),
             name,
             params: vec![mir::Param {
@@ -2911,6 +3051,7 @@ impl Lowerer {
             return_ty.clone(),
         );
         let id = self.functions.alloc(mir::Function {
+            gc_effect: mir::GcEffect::Managed,
             symbol: format!("scoop.{name}"),
             name,
             params,
@@ -3093,6 +3234,13 @@ fn fn_name(function: &hir::Function) -> String {
     }
 }
 
+fn lower_gc_effect(effect: hir::GcEffect) -> mir::GcEffect {
+    match effect {
+        hir::GcEffect::Managed => mir::GcEffect::Managed,
+        hir::GcEffect::NoGc => mir::GcEffect::NoGc,
+    }
+}
+
 /// The names shared by more than one plainly-mangled function (M7
 /// overloads), over the whole module including scoop.core. Only
 /// functions that get a plain `scoop.<name>` symbol count: non-generic
@@ -3242,6 +3390,8 @@ fn mangling_shell(
     for (_, def) in structs.iter() {
         shell_structs.alloc(mir::StructDef {
             name: def.name.clone(),
+            c_layout: def.c_layout,
+            interior_mutable: def.interior_mutable,
             fields: Vec::new(),
         });
     }
@@ -3266,6 +3416,7 @@ fn mangling_shell(
     }
     let mut functions = Arena::new();
     let entry = functions.alloc(mir::Function {
+        gc_effect: mir::GcEffect::Managed,
         name: String::new(),
         symbol: String::new(),
         params: Vec::new(),
@@ -3274,6 +3425,9 @@ fn mangling_shell(
     });
     mir::Module {
         functions,
+        extern_functions: Arena::new(),
+        globals: Arena::new(),
+        callback_bridges: Arena::new(),
         function_types: Arena::new(),
         closure_classes: Arena::new(),
         closure_invoke_functions: Arena::new(),
@@ -3300,6 +3454,40 @@ fn option_variants(module: &hir::Module) -> (u32, u32) {
             as u32
     };
     (find("Some"), find("None"))
+}
+
+fn lower_global_constant(
+    value: &hir::ConstantValue,
+    ty: &mir::Type,
+    structs: &Arena<mir::StructDef>,
+) -> mir::ConstantValue {
+    match (value, ty) {
+        (hir::ConstantValue::Int(value), mir::Type::Int | mir::Type::UInt) => {
+            mir::ConstantValue::Int(*value)
+        }
+        (hir::ConstantValue::Bool(value), mir::Type::Boolean) => mir::ConstantValue::Bool(*value),
+        (hir::ConstantValue::NullPtr, mir::Type::Ptr(_)) => mir::ConstantValue::NullPtr,
+        (hir::ConstantValue::NullFunPtr, mir::Type::FunPtr(_)) => mir::ConstantValue::NullFunPtr,
+        (hir::ConstantValue::Struct { fields, .. }, mir::Type::Struct(struct_id)) => {
+            let definition = &structs[*struct_id];
+            assert_eq!(
+                fields.len(),
+                definition.fields.len(),
+                "typed global struct constants preserve field arity"
+            );
+            mir::ConstantValue::Struct {
+                struct_id: *struct_id,
+                fields: fields
+                    .iter()
+                    .zip(&definition.fields)
+                    .map(|(field, definition)| {
+                        lower_global_constant(field, &definition.ty, structs)
+                    })
+                    .collect(),
+            }
+        }
+        _ => unreachable!("HIR global constants match their declared type"),
+    }
 }
 
 /// Whether a HIR type mentions no type parameters.
@@ -3475,6 +3663,33 @@ impl Types<'_> {
                 };
                 mir::Type::Function(id)
             }
+            hir::Type::Ptr(pointee) => mir::Type::Ptr(Box::new(
+                self.lower(*pointee, enums, structs, interfaces, shell),
+            )),
+            hir::Type::FunPtr(id) => {
+                let function = self.module.function_types[*id].clone();
+                let parameter_types: Vec<mir::Type> = function
+                    .parameter_types
+                    .into_iter()
+                    .map(|parameter| self.lower(parameter, enums, structs, interfaces, shell))
+                    .collect();
+                let return_type =
+                    self.lower(function.return_type, enums, structs, interfaces, shell);
+                let existing = shell.function_types.iter().find_map(|(id, candidate)| {
+                    (candidate.is_suspend == function.is_suspend
+                        && candidate.parameter_types == parameter_types
+                        && candidate.return_type == return_type)
+                        .then_some(id)
+                });
+                let id = existing.unwrap_or_else(|| {
+                    shell.function_types.alloc(mir::FunctionType {
+                        is_suspend: function.is_suspend,
+                        parameter_types,
+                        return_type,
+                    })
+                });
+                mir::Type::FunPtr(id)
+            }
             hir::Type::Enum(id, args) => {
                 let args: Vec<mir::Type> = args
                     .iter()
@@ -3572,11 +3787,11 @@ impl EnumRegistry {
 /// Instantiated generic struct definitions (M9, spec 3.2): one
 /// `mir::StructDef` per (generic struct, concrete type args),
 /// deduplicated by the mangled instance
-/// name (`PinHandle$V`, the same shape as enum instances).
+/// name (`PinnedPtr$V`, the same shape as enum instances).
 ///
 /// The substitution machinery is general: field types mentioning the
 /// struct's type parameters resolve through the argument list. The
-/// `PinHandle` / `GcHandle` use a phantom parameter while ordinary
+/// `PinnedPtr` / `GcHandle` use a phantom parameter while ordinary
 /// user structs may mention parameters in fields.
 #[derive(Default)]
 struct StructRegistry {
@@ -3606,12 +3821,22 @@ impl StructRegistry {
         }
         let id = self.defs.alloc(mir::StructDef {
             name: name.clone(),
+            c_layout: decl.attributes.c_layout.map(|layout| mir::CLayout {
+                aligned: layout.aligned,
+                packed: layout.packed,
+            }),
+            interior_mutable: decl.attributes.interior_mutable,
             fields: Vec::new(),
         });
         // Keep the mangling shell's struct arena in sync (same ids) so
         // `encode_type` can render this instance inside another one.
         shell.structs.alloc(mir::StructDef {
             name: name.clone(),
+            c_layout: decl.attributes.c_layout.map(|layout| mir::CLayout {
+                aligned: layout.aligned,
+                packed: layout.packed,
+            }),
+            interior_mutable: decl.attributes.interior_mutable,
             fields: Vec::new(),
         });
         self.by_name.insert(name, id);
@@ -3791,6 +4016,7 @@ impl InstanceRegistry {
             mir::mangle_instance(shell, &name, &type_args)
         };
         let function_id = functions.alloc(mir::Function {
+            gc_effect: lower_gc_effect(function.attributes.gc_effect),
             name: name.clone(),
             symbol: symbol.clone(),
             // Filled in when the instance body is lowered.
@@ -3824,6 +4050,11 @@ struct BodyLowerer<'a> {
     /// (`compute_dispatch`).
     method_slots: &'a HashMap<mir::ClassId, HashMap<String, u32>>,
     function_map: &'a HashMap<hir::FunctionId, mir::FunctionId>,
+    extern_map: &'a HashMap<hir::ExternFunctionId, mir::ExternFunctionId>,
+    global_map: &'a HashMap<hir::GlobalId, mir::GlobalId>,
+    callback_bridges: &'a mut Arena<mir::CallbackBridge>,
+    callback_by_target:
+        &'a mut HashMap<(mir::FunctionId, mir::FunctionTypeId), mir::CallbackBridgeId>,
     /// HIR class -> its constructor function (`ClassInit` calls).
     ctors: &'a HashMap<hir::ClassId, mir::FunctionId>,
     strings: &'a mut Arena<mir::StringConst>,
@@ -4217,6 +4448,7 @@ impl BodyLowerer<'_> {
         }
         let suffix = encoded.join("_");
         let function = self.functions.alloc(mir::Function {
+            gc_effect: mir::GcEffect::Managed,
             name: format!("$reference.{}${suffix}", id.into_raw()),
             symbol: format!("scoop.$reference.{}${suffix}", id.into_raw()),
             params: Vec::new(),
@@ -4374,6 +4606,7 @@ impl BodyLowerer<'_> {
         let name = format!("$Closure$adapter${source_name}${target_name}");
 
         let function = self.functions.alloc(mir::Function {
+            gc_effect: mir::GcEffect::Managed,
             name: format!("$adapter.{source_name}.{target_name}"),
             symbol: format!("scoop.$adapter.{source_name}.{target_name}"),
             params: Vec::new(),
@@ -4515,6 +4748,7 @@ impl BodyLowerer<'_> {
         let signature = self.shell.function_types[target].clone();
         let encoded = mir::encode_type(self.shell, &mir::Type::Function(target));
         let function = self.functions.alloc(mir::Function {
+            gc_effect: mir::GcEffect::Managed,
             name: format!("$dynamic_adapter.{encoded}"),
             symbol: format!("scoop.$dynamic_adapter.{encoded}"),
             params: Vec::new(),
@@ -4664,6 +4898,10 @@ impl BodyLowerer<'_> {
                         let value = self.lower_expr(value);
                         smir::StatementKind::Assign { local, value }
                     }
+                    hir::AssignTarget::Global(global) => smir::StatementKind::GlobalAssign {
+                        global: self.global_map[global],
+                        value: self.lower_expr(value),
+                    },
                     // `m[i] = v` (only `MutableArray`, checked at HIR).
                     // M8: the bounds check moved here from codegen —
                     // the array and the index are evaluated once into
@@ -5185,6 +5423,7 @@ impl BodyLowerer<'_> {
                     }
                 }
             }
+            hir::ExprKind::GlobalRead(global) => smir::Expr::GlobalRead(self.global_map[global]),
             hir::ExprKind::Capture(binding) => {
                 if let Some(local) = self.current_local_capture_params.get(binding) {
                     return smir::Expr::Local(self.local_map[local]);
@@ -5306,6 +5545,98 @@ impl BodyLowerer<'_> {
             }
             hir::ExprKind::ArrayClone(operand) => {
                 smir::Expr::ArrayClone(Box::new(self.lower_expr(operand)))
+            }
+            hir::ExprKind::PtrFromUInt(operand) => {
+                let mir::Type::Ptr(pointee) = self.lower_type(expr.ty) else {
+                    unreachable!("PtrFromUInt has a pointer type")
+                };
+                smir::Expr::PtrFromUInt {
+                    operand: Box::new(self.lower_expr(operand)),
+                    pointee,
+                }
+            }
+            hir::ExprKind::PtrToUInt(operand) => {
+                smir::Expr::PtrToUInt(Box::new(self.lower_expr(operand)))
+            }
+            hir::ExprKind::PtrCast(operand) => {
+                let mir::Type::Ptr(pointee) = self.lower_type(expr.ty) else {
+                    unreachable!("PtrCast has a pointer type")
+                };
+                smir::Expr::PtrCast {
+                    operand: Box::new(self.lower_expr(operand)),
+                    pointee,
+                }
+            }
+            hir::ExprKind::PtrLoad { pointer, offset } => {
+                let hir::Type::Ptr(pointee) = self.module.types[pointer.ty] else {
+                    unreachable!("PtrLoad has a pointer operand")
+                };
+                smir::Expr::PtrLoad {
+                    pointer: Box::new(self.lower_expr(pointer)),
+                    pointee: Box::new(self.lower_type(pointee)),
+                    offset: offset
+                        .as_ref()
+                        .map(|offset| Box::new(self.lower_expr(offset))),
+                }
+            }
+            hir::ExprKind::PtrStore {
+                pointer,
+                offset,
+                value,
+            } => {
+                let hir::Type::Ptr(pointee) = self.module.types[pointer.ty] else {
+                    unreachable!("PtrStore has a pointer operand")
+                };
+                smir::Expr::PtrStore {
+                    pointer: Box::new(self.lower_expr(pointer)),
+                    pointee: Box::new(self.lower_type(pointee)),
+                    offset: offset
+                        .as_ref()
+                        .map(|offset| Box::new(self.lower_expr(offset))),
+                    value: Box::new(self.lower_expr(value)),
+                }
+            }
+            hir::ExprKind::PtrOffset {
+                pointer,
+                offset,
+                subtract,
+            } => {
+                let hir::Type::Ptr(pointee) = self.module.types[pointer.ty] else {
+                    unreachable!("PtrOffset has a pointer operand")
+                };
+                smir::Expr::PtrOffset {
+                    pointer: Box::new(self.lower_expr(pointer)),
+                    pointee: Box::new(self.lower_type(pointee)),
+                    offset: Box::new(self.lower_expr(offset)),
+                    subtract: *subtract,
+                }
+            }
+            hir::ExprKind::AddressOf(hir::Place::Local(local)) => {
+                let local = self.local_map[local];
+                smir::Expr::AddressOf {
+                    local,
+                    pointee: Box::new(self.locals[local].ty.clone()),
+                }
+            }
+            hir::ExprKind::AddressOf(hir::Place::Global(global)) => smir::Expr::GlobalAddress {
+                global: self.global_map[global],
+                pointee: Box::new(self.lower_type(self.module.globals[*global].ty)),
+            },
+            hir::ExprKind::SizeOf(ty) => smir::Expr::SizeOf(Box::new(self.lower_type(*ty))),
+            hir::ExprKind::AlignOf(ty) => smir::Expr::AlignOf(Box::new(self.lower_type(*ty))),
+            hir::ExprKind::FunPtrNull => {
+                let mir::Type::FunPtr(signature) = self.lower_type(expr.ty) else {
+                    unreachable!("FunPtrNull has a FunPtr type")
+                };
+                smir::Expr::FunPtrNull(signature)
+            }
+            hir::ExprKind::FunctionAddress(function) => {
+                let mir::Type::FunPtr(signature) = self.lower_type(expr.ty) else {
+                    unreachable!("FunctionAddress has a FunPtr type")
+                };
+                let callback =
+                    self.ensure_callback_bridge(self.function_map[function], signature, expr.span);
+                smir::Expr::FunctionAddress { callback }
             }
             hir::ExprKind::FieldAccess { receiver, field } => {
                 // Struct fields, tuple elements and class constructor
@@ -5462,6 +5793,127 @@ impl BodyLowerer<'_> {
         }
     }
 
+    fn ensure_callback_bridge(
+        &mut self,
+        source: mir::FunctionId,
+        signature: mir::FunctionTypeId,
+        span: Span,
+    ) -> mir::CallbackBridgeId {
+        if let Some(callback) = self.callback_by_target.get(&(source, signature)) {
+            return *callback;
+        }
+
+        let callback_index = self.callback_bridges.len();
+        let signature_def = self.shell.function_types[signature].clone();
+        let source_name = self.functions[source].name.clone();
+        let mut locals = Arena::new();
+        let mut params = Vec::new();
+
+        let result_storage = if signature_def.return_type == mir::Type::Unit {
+            None
+        } else {
+            let ty = mir::Type::Ptr(Box::new(signature_def.return_type.clone()));
+            let local = locals.alloc(mir::Local {
+                name: "$result".to_string(),
+                ty: ty.clone(),
+                mutable: false,
+            });
+            params.push(mir::Param {
+                name: "$result".to_string(),
+                ty,
+                local,
+            });
+            Some(local)
+        };
+
+        let mut args = Vec::with_capacity(signature_def.parameter_types.len());
+        for (index, parameter_type) in signature_def.parameter_types.iter().enumerate() {
+            let name = format!("$arg{index}");
+            let pointer_type = mir::Type::Ptr(Box::new(parameter_type.clone()));
+            let local = locals.alloc(mir::Local {
+                name: name.clone(),
+                ty: pointer_type.clone(),
+                mutable: false,
+            });
+            params.push(mir::Param {
+                name,
+                ty: pointer_type,
+                local,
+            });
+            args.push(mir::Expr::PtrLoad {
+                pointer: Box::new(mir::Expr::Local(local)),
+                pointee: Box::new(parameter_type.clone()),
+                offset: None,
+            });
+        }
+
+        let call = mir::Call {
+            target: mir::CallTarget {
+                kind: mir::CallKind::Direct,
+                callee: mir::Callee::User(source),
+            },
+            args,
+        };
+        let mut statements = Vec::new();
+        if let Some(result_storage) = result_storage {
+            let result = locals.alloc(mir::Local {
+                name: "$value".to_string(),
+                ty: signature_def.return_type.clone(),
+                mutable: false,
+            });
+            statements.push(mir::Statement {
+                kind: mir::StatementKind::Call(mir::CallEffect::Value {
+                    destination: result,
+                    call,
+                }),
+                span,
+            });
+            statements.push(mir::Statement {
+                kind: mir::StatementKind::Expr(mir::Expr::PtrStore {
+                    pointer: Box::new(mir::Expr::Local(result_storage)),
+                    pointee: Box::new(signature_def.return_type.clone()),
+                    offset: None,
+                    value: Box::new(mir::Expr::Local(result)),
+                }),
+                span,
+            });
+        } else {
+            statements.push(mir::Statement {
+                kind: mir::StatementKind::Call(mir::CallEffect::Unit(call)),
+                span,
+            });
+        }
+
+        let mut blocks = Arena::new();
+        let entry = blocks.alloc(mir::BasicBlock {
+            name: "entry".to_string(),
+            statements,
+            terminator: mir::Terminator::Return { value: None },
+            unwind: None,
+        });
+        let bridge_function = self.functions.alloc(mir::Function {
+            gc_effect: mir::GcEffect::NoGc,
+            name: format!("callback bridge for {source_name}"),
+            symbol: format!("scoop_callback_bridge_{callback_index}"),
+            params,
+            return_ty: mir::Type::Unit,
+            body: mir::Body {
+                locals,
+                blocks,
+                entry,
+            },
+        });
+        self.top_level.push(bridge_function);
+        let callback = self.callback_bridges.alloc(mir::CallbackBridge {
+            source,
+            signature,
+            bridge_function,
+        });
+        self.callback_by_target
+            .insert((source, signature), callback);
+        callback
+    }
+
     /// `x!!`: the operand is evaluated once into a hidden local, then
     /// `if (tag == Some) { val $uw = <field 0> } else { throw UnwrapException() }`.
     /// The if/else is queued in `prelude` — it must precede the
@@ -5557,6 +6009,12 @@ impl BodyLowerer<'_> {
                     resolved,
                     type_args,
                 ))
+            }
+            (hir::FunctionKind::Extern(extern_id), hir::Callable::Function(_)) => {
+                mir::Callee::Extern(self.extern_map[extern_id])
+            }
+            (hir::FunctionKind::Extern(_), hir::Callable::Generic(_)) => {
+                unreachable!("extern functions cannot be generic")
             }
             (hir::FunctionKind::Intrinsic(_), _) => unreachable!("handled above"),
         }
@@ -5708,65 +6166,19 @@ impl BodyLowerer<'_> {
         result_ty: hir::TypeId,
     ) -> smir::Expr {
         let function = match name {
-            "rt_write" => mir::RuntimeFn::Write,
             "rt_int_to_string" => mir::RuntimeFn::IntToString,
             "rt_bool_to_string" => mir::RuntimeFn::BoolToString,
-            "rt_pin" => mir::RuntimeFn::Pin,
-            "rt_unpin" => mir::RuntimeFn::Unpin,
-            "rt_get_handle" => mir::RuntimeFn::GetHandle,
-            "rt_release_handle" => mir::RuntimeFn::ReleaseHandle,
+            "gc_pin_raw" => mir::RuntimeFn::Pin,
+            "gc_unpin_raw" => mir::RuntimeFn::Unpin,
+            "gc_get_handle_raw" => mir::RuntimeFn::GetHandle,
+            "gc_release_handle_raw" => mir::RuntimeFn::ReleaseHandle,
             "rt_gc_collect" => mir::RuntimeFn::GcCollect,
             "rt_gc_stats" => mir::RuntimeFn::GcStats,
             _ => unreachable!("hir-lower rejects unknown intrinsics"),
         };
         let callee = mir::Callee::Runtime(function);
-        match function {
-            // `pin(v)` / `getGcHandle(v)` → `Handle(scoop_rt_*(v))`:
-            // the runtime call yields the raw word, wrapped into the
-            // handle's single-field aggregate — the (instantiated)
-            // handle struct of the call's type.
-            mir::RuntimeFn::Pin | mir::RuntimeFn::GetHandle => {
-                let value = self.call(callee, &args.iter().collect::<Vec<_>>(), mir::Type::UInt);
-                let mir::Type::Struct(struct_id) = self.lower_type(result_ty) else {
-                    unreachable!("the pin / handle intrinsics return the handle struct")
-                };
-                smir::Expr::StructInit {
-                    struct_id,
-                    args: vec![value],
-                }
-            }
-            // `unpin(h)` / `releaseGcHandle(h)` → `scoop_rt_*(h.raw)`:
-            // the runtime call takes the handle's raw word and yields
-            // the reference again. LIR reconstructs expression types
-            // structurally and the result type T is context-dependent,
-            // so the call is bound to a typed hidden local (the same
-            // prelude mechanism smart casts use).
-            mir::RuntimeFn::Unpin | mir::RuntimeFn::ReleaseHandle => {
-                let ty = self.lower_type(result_ty);
-                let handle = self.lower_expr(&args[0]);
-                let raw = smir::Expr::FieldAccess {
-                    receiver: Box::new(handle),
-                    index: 0,
-                };
-                let slot = self.new_hidden("gc", ty, false);
-                self.prelude.push(smir::StatementKind::ValDecl {
-                    local: slot,
-                    init: smir::Expr::Call(smir::Call {
-                        target: mir::CallTarget {
-                            kind: mir::CallKind::Direct,
-                            callee,
-                        },
-                        args: vec![raw],
-                        return_ty: self.locals[slot].ty.clone(),
-                    }),
-                });
-                smir::Expr::Local(slot)
-            }
-            _ => {
-                let return_ty = self.lower_type(result_ty);
-                self.call(callee, &args.iter().collect::<Vec<_>>(), return_ty)
-            }
-        }
+        let return_ty = self.lower_type(result_ty);
+        self.call(callee, &args.iter().collect::<Vec<_>>(), return_ty)
     }
 
     fn call(
@@ -6304,7 +6716,7 @@ impl BodyLowerer<'_> {
         match ty {
             // UInt compares with the same integer equality as Int
             // (the same machine word, M9).
-            mir::Type::Int | mir::Type::UInt => {
+            mir::Type::Int | mir::Type::UInt | mir::Type::Ptr(_) | mir::Type::FunPtr(_) => {
                 let op = if negate {
                     mir::BinOp::IntNe
                 } else {
@@ -6582,6 +6994,15 @@ mod tests {
 
     const SPAN: Span = Span { start: 0, end: 0 };
 
+    fn type_param(name: impl Into<String>) -> hir::TypeParamDecl {
+        hir::TypeParamDecl {
+            name: name.into(),
+            variance: hir::Variance::Invariant,
+            kind: hir::TypeParamKind::Any,
+            span: SPAN,
+        }
+    }
+
     fn entry_statements(body: &mir::Body) -> &[mir::Statement] {
         &body.blocks[body.entry].statements
     }
@@ -6605,12 +7026,13 @@ mod tests {
     }
 
     /// HIR module shell as hir-lower produces it: well-known types,
-    /// core's three intrinsic output primitives and the ordinary
+    /// core's managed `write` extern, two conversion intrinsics, and the ordinary
     /// `print` / `println` overloads (M7), plus core's `Option` enum
     /// allocated first.
     struct Harness {
         types: Arena<hir::Type>,
         functions: Arena<hir::Function>,
+        extern_functions: Arena<hir::ExternFunction>,
         generic_functions: Arena<hir::GenericFunction>,
         structs: Arena<hir::StructDecl>,
         enums: Arena<hir::EnumDecl>,
@@ -6622,7 +7044,7 @@ mod tests {
         boolean: hir::TypeId,
         string: hir::TypeId,
         option_enum: hir::EnumId,
-        write: hir::FunctionId,
+        write: Option<hir::FunctionId>,
         int_to_string: hir::FunctionId,
         bool_to_string: hir::FunctionId,
         /// core's `print` / `println` overloads (ordinary functions,
@@ -6641,12 +7063,12 @@ mod tests {
     /// core's GC facilities (M9), as `Harness::gc_core` declares them.
     #[derive(Clone, Copy)]
     struct GcCore {
-        pin_handle: hir::StructId,
+        pinned_ptr: hir::StructId,
         gc_handle: hir::StructId,
-        pin: hir::FunctionId,
-        unpin: hir::FunctionId,
-        get_handle: hir::FunctionId,
-        release_handle: hir::FunctionId,
+        pin_raw: hir::FunctionId,
+        unpin_raw: hir::FunctionId,
+        get_handle_raw: hir::FunctionId,
+        release_handle_raw: hir::FunctionId,
         gc_collect: hir::FunctionId,
         gc_stats: hir::FunctionId,
     }
@@ -6659,26 +7081,18 @@ mod tests {
             let boolean = types.alloc(hir::Type::Boolean);
             let string = types.alloc(hir::Type::String);
             let mut functions = Arena::new();
-            // scoop.core's intrinsic output primitives (M7 DESIGN
-            // section 2): `@Intrinsic("rt_write") fun write(...)`,
+            // scoop.core's managed output extern and conversion intrinsics:
+            // `@Extern(name = "scoop_rt_write", abi = "scoop") fun write(...)`,
             // `@Intrinsic("rt_int_to_string") fun intToString(...)`,
             // `@Intrinsic("rt_bool_to_string") fun boolToString(...)`.
-            let write = functions.alloc(hir::Function {
-                name: "write".to_string(),
-                is_suspend: false,
-                type_params: Vec::new(),
-                params: Vec::new(),
-                return_ty: unit,
-                kind: hir::FunctionKind::Intrinsic("rt_write".to_string()),
-                method: None,
-                span: SPAN,
-            });
+            let extern_functions = Arena::new();
             let int_to_string = functions.alloc(hir::Function {
                 name: "intToString".to_string(),
                 is_suspend: false,
                 type_params: Vec::new(),
                 params: Vec::new(),
                 return_ty: string,
+                attributes: hir::FunctionAttributes::default(),
                 kind: hir::FunctionKind::Intrinsic("rt_int_to_string".to_string()),
                 method: None,
                 span: SPAN,
@@ -6689,6 +7103,7 @@ mod tests {
                 type_params: Vec::new(),
                 params: Vec::new(),
                 return_ty: string,
+                attributes: hir::FunctionAttributes::default(),
                 kind: hir::FunctionKind::Intrinsic("rt_bool_to_string".to_string()),
                 method: None,
                 span: SPAN,
@@ -6698,7 +7113,7 @@ mod tests {
             let mut enums = Arena::new();
             let option_enum = enums.alloc(hir::EnumDecl {
                 name: "Option".to_string(),
-                type_params: vec!["T".to_string()],
+                type_params: vec![type_param("T")],
                 variants: vec![
                     hir::Variant {
                         name: "Some".to_string(),
@@ -6720,18 +7135,19 @@ mod tests {
             Harness {
                 types,
                 functions,
+                extern_functions,
                 generic_functions: Arena::new(),
                 structs: Arena::new(),
                 enums,
                 classes: Arena::new(),
                 interfaces: Arena::new(),
-                top_level: vec![write, int_to_string, bool_to_string],
+                top_level: vec![int_to_string, bool_to_string],
                 unit,
                 int,
                 boolean,
                 string,
                 option_enum,
-                write,
+                write: None,
                 int_to_string,
                 bool_to_string,
                 print_string: None,
@@ -6746,6 +7162,39 @@ mod tests {
             }
         }
 
+        /// Adds core's managed `write` extern on first use so tests unrelated
+        /// to output keep their MIR dumps focused on the feature under test.
+        fn write(&mut self) -> hir::FunctionId {
+            if let Some(id) = self.write {
+                return id;
+            }
+            let extern_id = self.extern_functions.alloc(hir::ExternFunction {
+                source_name: "write".to_string(),
+                native_symbol: "scoop_rt_write".to_string(),
+                library: String::new(),
+                abi: hir::ExternAbi::Scoop,
+                calling_convention: hir::CallingConvention::Cdecl,
+                gc_effect: hir::GcEffect::Managed,
+                safety: hir::Safety::Safe,
+                params: vec![self.string],
+                return_type: self.unit,
+            });
+            let id = self.functions.alloc(hir::Function {
+                name: "write".to_string(),
+                is_suspend: false,
+                type_params: Vec::new(),
+                params: Vec::new(),
+                return_ty: self.unit,
+                attributes: hir::FunctionAttributes::default(),
+                kind: hir::FunctionKind::Extern(extern_id),
+                method: None,
+                span: SPAN,
+            });
+            self.top_level.push(id);
+            self.write = Some(id);
+            id
+        }
+
         /// core's `fun print(message: String) = write(message)`,
         /// created on first use (tests that never print keep core's
         /// overloads out of their MIR dumps).
@@ -6754,7 +7203,7 @@ mod tests {
                 return id;
             }
             let (unit, string) = (self.unit, self.string);
-            let write = self.write;
+            let write = self.write();
             let mut locals = Arena::new();
             let message = locals.alloc(local("message", string));
             let id = self.user_fn_full(
@@ -6781,7 +7230,7 @@ mod tests {
                 return id;
             }
             let (unit, int, string) = (self.unit, self.int, self.string);
-            let (write, int_to_string) = (self.write, self.int_to_string);
+            let (write, int_to_string) = (self.write(), self.int_to_string);
             let mut locals = Arena::new();
             let message = locals.alloc(local("message", int));
             let id = self.user_fn_full(
@@ -6812,7 +7261,7 @@ mod tests {
                 return id;
             }
             let (unit, boolean, string) = (self.unit, self.boolean, self.string);
-            let (write, bool_to_string) = (self.write, self.bool_to_string);
+            let (write, bool_to_string) = (self.write(), self.bool_to_string);
             let mut locals = Arena::new();
             let message = locals.alloc(local("message", boolean));
             let id = self.user_fn_full(
@@ -6843,7 +7292,7 @@ mod tests {
                 return id;
             }
             let (unit, string) = (self.unit, self.string);
-            let write = self.write;
+            let write = self.write();
             let mut locals = Arena::new();
             let message = locals.alloc(local("message", string));
             let id = self.user_fn_full(
@@ -6959,6 +7408,7 @@ mod tests {
                     .map(|name| hir::MethodSig {
                         name: name.to_string(),
                         is_suspend: false,
+                        attributes: hir::FunctionAttributes::default(),
                         type_params: Vec::new(),
                         params: Vec::new(),
                         return_ty: unit,
@@ -7025,6 +7475,7 @@ mod tests {
                 type_params: Vec::new(),
                 params,
                 return_ty,
+                attributes: hir::FunctionAttributes::default(),
                 kind: hir::FunctionKind::User(body),
                 method: Some(hir::Method {
                     owner: method_of,
@@ -7052,6 +7503,7 @@ mod tests {
             self.structs.alloc(hir::StructDecl {
                 name: name.to_string(),
                 type_params: Vec::new(),
+                attributes: hir::StructAttributes::default(),
                 fields: fields
                     .iter()
                     .map(|(name, ty)| hir::Field {
@@ -7078,28 +7530,27 @@ mod tests {
         /// Intern a generic struct application type.
         fn struct_app(&mut self, struct_id: hir::StructId, args: Vec<hir::TypeId>) -> hir::TypeId {
             if self.structs[struct_id].type_params.is_empty() {
-                self.structs[struct_id].type_params =
-                    (0..args.len()).map(|index| format!("T{index}")).collect();
+                self.structs[struct_id].type_params = (0..args.len())
+                    .map(|index| type_param(format!("T{index}")))
+                    .collect();
             }
             self.types.alloc(hir::Type::Struct(struct_id, args))
         }
 
-        /// core's GC facilities (M9): `PinHandle<T>` / `GcHandle<T>`
-        /// and the six GC intrinsics, created on first use.
+        /// core's GC facilities (M12): `PinnedPtr<T>` / `GcHandle<T>`
+        /// and the six low-level runtime intrinsics, created on first use.
         fn gc_core(&mut self) -> GcCore {
             if let Some(core) = self.gc_core {
                 return core;
             }
             let uint = self.uint();
-            let pin_handle = self.strukt("PinHandle", &[("raw", uint)]);
+            let pinned_ptr = self.strukt("PinnedPtr", &[("raw", uint)]);
             let gc_handle = self.strukt("GcHandle", &[("raw", uint)]);
-            self.structs[pin_handle].type_params = vec!["T".to_string()];
-            self.structs[gc_handle].type_params = vec!["T".to_string()];
+            self.structs[pinned_ptr].type_params = vec![type_param("T")];
+            self.structs[gc_handle].type_params = vec![type_param("T")];
             let t = self
                 .types
                 .alloc(hir::Type::Param(hir::TypeParamId::from_raw(0)));
-            let pin_handle_t = self.struct_app(pin_handle, vec![t]);
-            let gc_handle_t = self.struct_app(gc_handle, vec![t]);
             let mut dummy_locals = Arena::new();
             let mut intrinsic = |name: &str,
                                  intrinsic: &str,
@@ -7107,6 +7558,7 @@ mod tests {
                                  params: Vec<(&str, hir::TypeId)>,
                                  return_ty: hir::TypeId| {
                 let generic = !type_params.is_empty();
+                let type_params = type_params.into_iter().map(type_param).collect();
                 let id = self.functions.alloc(hir::Function {
                     name: name.to_string(),
                     is_suspend: false,
@@ -7125,55 +7577,58 @@ mod tests {
                         })
                         .collect(),
                     return_ty,
+                    attributes: hir::FunctionAttributes::default(),
                     kind: hir::FunctionKind::Intrinsic(intrinsic.to_string()),
                     method: None,
                     span: SPAN,
                 });
                 if generic {
-                    self.generic_functions
-                        .alloc(hir::GenericFunction { function: id });
+                    self.generic_functions.alloc(hir::GenericFunction {
+                        function: id,
+                        no_gc_type_params: Vec::new(),
+                    });
                 }
                 self.top_level.push(id);
                 id
             };
             let type_params = vec!["T".to_string()];
-            let pin = intrinsic(
-                "pin",
-                "rt_pin",
+            let pin_raw = intrinsic(
+                "_pin",
+                "gc_pin_raw",
                 type_params.clone(),
                 vec![("v", t)],
-                pin_handle_t,
+                uint,
             );
-            let unpin = intrinsic(
-                "unpin",
-                "rt_unpin",
+            let unpin_raw = intrinsic(
+                "_unpin",
+                "gc_unpin_raw",
                 type_params.clone(),
-                vec![("h", pin_handle_t)],
+                vec![("raw", uint)],
                 t,
             );
-            let get_handle = intrinsic(
-                "getGcHandle",
-                "rt_get_handle",
+            let get_handle_raw = intrinsic(
+                "_getGcHandle",
+                "gc_get_handle_raw",
                 type_params.clone(),
                 vec![("v", t)],
-                gc_handle_t,
+                uint,
             );
-            let release_handle = intrinsic(
-                "releaseGcHandle",
-                "rt_release_handle",
+            let release_handle_raw = intrinsic(
+                "_releaseGcHandle",
+                "gc_release_handle_raw",
                 type_params,
-                vec![("h", gc_handle_t)],
+                vec![("raw", uint)],
                 t,
             );
             let gc_collect = intrinsic("gcCollect", "rt_gc_collect", vec![], vec![], self.unit);
             let gc_stats = intrinsic("gcStats", "rt_gc_stats", vec![], vec![], uint);
             let core = GcCore {
-                pin_handle,
+                pinned_ptr,
                 gc_handle,
-                pin,
-                unpin,
-                get_handle,
-                release_handle,
+                pin_raw,
+                unpin_raw,
+                get_handle_raw,
+                release_handle_raw,
                 gc_collect,
                 gc_stats,
             };
@@ -7207,19 +7662,23 @@ mod tests {
             body: hir::Body,
         ) -> hir::FunctionId {
             let generic = !type_params.is_empty();
+            let type_params = type_params.into_iter().map(type_param).collect();
             let id = self.functions.alloc(hir::Function {
                 name: name.to_string(),
                 is_suspend: false,
                 type_params,
                 params,
                 return_ty,
+                attributes: hir::FunctionAttributes::default(),
                 kind: hir::FunctionKind::User(body),
                 method: None,
                 span: SPAN,
             });
             if generic {
-                self.generic_functions
-                    .alloc(hir::GenericFunction { function: id });
+                self.generic_functions.alloc(hir::GenericFunction {
+                    function: id,
+                    no_gc_type_params: Vec::new(),
+                });
             }
             self.top_level.push(id);
             id
@@ -7263,6 +7722,7 @@ mod tests {
             let type_param = || hir::TypeParamDecl {
                 name: "T".to_string(),
                 variance: hir::Variance::Invariant,
+                kind: hir::TypeParamKind::Any,
                 span: SPAN,
             };
             let continuation = self.interfaces.alloc(hir::InterfaceDecl {
@@ -7279,9 +7739,10 @@ mod tests {
             let continuation_resume = self.functions.alloc(hir::Function {
                 name: "Continuation.resume".to_string(),
                 is_suspend: false,
-                type_params: vec!["T".to_string()],
+                type_params: vec![type_param()],
                 params: vec![param("value", t, resume_value)],
                 return_ty: self.unit,
+                attributes: hir::FunctionAttributes::default(),
                 kind: hir::FunctionKind::User(hir::Body {
                     locals: resume_locals,
                     statements: Vec::new(),
@@ -7298,9 +7759,10 @@ mod tests {
             let continuation_resume_with_exception = self.functions.alloc(hir::Function {
                 name: "Continuation.resumeWithException".to_string(),
                 is_suspend: false,
-                type_params: vec!["T".to_string()],
+                type_params: vec![type_param()],
                 params: vec![param("exception", throwable_ty, failure)],
                 return_ty: self.unit,
+                attributes: hir::FunctionAttributes::default(),
                 kind: hir::FunctionKind::User(hir::Body {
                     locals: failure_locals,
                     statements: Vec::new(),
@@ -7316,6 +7778,7 @@ mod tests {
                 hir::MethodSig {
                     name: "resume".to_string(),
                     is_suspend: false,
+                    attributes: hir::FunctionAttributes::default(),
                     type_params: Vec::new(),
                     params: vec![param("value", t, resume_value)],
                     return_ty: self.unit,
@@ -7324,6 +7787,7 @@ mod tests {
                 hir::MethodSig {
                     name: "resumeWithException".to_string(),
                     is_suspend: false,
+                    attributes: hir::FunctionAttributes::default(),
                     type_params: Vec::new(),
                     params: vec![param("exception", throwable_ty, failure)],
                     return_ty: self.unit,
@@ -7337,6 +7801,7 @@ mod tests {
                 methods: vec![hir::MethodSig {
                     name: "run".to_string(),
                     is_suspend: true,
+                    attributes: hir::FunctionAttributes::default(),
                     type_params: Vec::new(),
                     params: Vec::new(),
                     return_ty: t,
@@ -7350,9 +7815,10 @@ mod tests {
             let suspend_task_run = self.functions.alloc(hir::Function {
                 name: "SuspendTask.run".to_string(),
                 is_suspend: true,
-                type_params: vec!["T".to_string()],
+                type_params: vec![type_param()],
                 params: Vec::new(),
                 return_ty: t,
+                attributes: hir::FunctionAttributes::default(),
                 kind: hir::FunctionKind::User(hir::Body {
                     locals: Arena::new(),
                     statements: Vec::new(),
@@ -7371,6 +7837,7 @@ mod tests {
                 methods: vec![hir::MethodSig {
                     name: "register".to_string(),
                     is_suspend: false,
+                    attributes: hir::FunctionAttributes::default(),
                     type_params: Vec::new(),
                     params: Vec::new(),
                     return_ty: self.unit,
@@ -7384,9 +7851,10 @@ mod tests {
             let suspend_registration_register = self.functions.alloc(hir::Function {
                 name: "SuspendRegistration.register".to_string(),
                 is_suspend: false,
-                type_params: vec!["T".to_string()],
+                type_params: vec![type_param()],
                 params: Vec::new(),
                 return_ty: self.unit,
+                attributes: hir::FunctionAttributes::default(),
                 kind: hir::FunctionKind::User(hir::Body {
                     locals: Arena::new(),
                     statements: Vec::new(),
@@ -7405,15 +7873,18 @@ mod tests {
                 suspend_task_run,
                 suspend_registration_register,
             ] {
-                self.generic_functions
-                    .alloc(hir::GenericFunction { function });
+                self.generic_functions.alloc(hir::GenericFunction {
+                    function,
+                    no_gc_type_params: Vec::new(),
+                });
             }
             let start_coroutine = self.functions.alloc(hir::Function {
                 name: "startCoroutine".to_string(),
                 is_suspend: false,
-                type_params: vec!["T".to_string()],
+                type_params: vec![type_param()],
                 params: Vec::new(),
                 return_ty: self.unit,
+                attributes: hir::FunctionAttributes::default(),
                 kind: hir::FunctionKind::Intrinsic("coroutine_start".to_string()),
                 method: None,
                 span: SPAN,
@@ -7421,16 +7892,19 @@ mod tests {
             let suspend_coroutine = self.functions.alloc(hir::Function {
                 name: "suspendCoroutine".to_string(),
                 is_suspend: true,
-                type_params: vec!["T".to_string()],
+                type_params: vec![type_param()],
                 params: Vec::new(),
                 return_ty: t,
+                attributes: hir::FunctionAttributes::default(),
                 kind: hir::FunctionKind::Intrinsic("coroutine_suspend".to_string()),
                 method: None,
                 span: SPAN,
             });
             for function in [start_coroutine, suspend_coroutine] {
-                self.generic_functions
-                    .alloc(hir::GenericFunction { function });
+                self.generic_functions.alloc(hir::GenericFunction {
+                    function,
+                    no_gc_type_params: Vec::new(),
+                });
                 self.top_level.push(function);
             }
             hir::CoroutineCore {
@@ -7462,6 +7936,59 @@ mod tests {
             include_exceptions: bool,
         ) -> hir::Module {
             let coroutine_core = self.test_coroutine_core(include_exceptions);
+            let ptr = self.structs.alloc(hir::StructDecl {
+                name: "Ptr".to_string(),
+                type_params: vec![type_param("T")],
+                attributes: hir::StructAttributes::default(),
+                fields: Vec::new(),
+                interfaces: Vec::new(),
+                span: SPAN,
+            });
+            let fun_ptr = self.structs.alloc(hir::StructDecl {
+                name: "FunPtr".to_string(),
+                type_params: vec![type_param("F")],
+                attributes: hir::StructAttributes::default(),
+                fields: Vec::new(),
+                interfaces: Vec::new(),
+                span: SPAN,
+            });
+            let pinned_ptr = self.structs.alloc(hir::StructDecl {
+                name: "PinnedPtr".to_string(),
+                type_params: vec![type_param("T")],
+                attributes: hir::StructAttributes::default(),
+                fields: Vec::new(),
+                interfaces: Vec::new(),
+                span: SPAN,
+            });
+            let gc_handle = self.structs.alloc(hir::StructDecl {
+                name: "GcHandle".to_string(),
+                type_params: vec![type_param("T")],
+                attributes: hir::StructAttributes::default(),
+                fields: Vec::new(),
+                interfaces: Vec::new(),
+                span: SPAN,
+            });
+            let ffi_core = hir::FfiCore {
+                ptr,
+                fun_ptr,
+                pinned_ptr,
+                gc_handle,
+                ptr_to_uint: entry,
+                ptr_cast: entry,
+                ptr_load: entry,
+                ptr_load_offset: entry,
+                ptr_store: entry,
+                ptr_store_offset: entry,
+                ptr_plus: entry,
+                ptr_minus: entry,
+                address_of: entry,
+                size_of: entry,
+                align_of: entry,
+                gc_pin_raw: entry,
+                gc_unpin_raw: entry,
+                gc_get_handle_raw: entry,
+                gc_release_handle_raw: entry,
+            };
             hir::Module {
                 types: self.types,
                 function_types: Arena::new(),
@@ -7471,6 +7998,8 @@ mod tests {
                 callable_references: Arena::new(),
                 function_coercions: Arena::new(),
                 functions: self.functions,
+                extern_functions: self.extern_functions,
+                globals: Arena::new(),
                 generic_functions: self.generic_functions,
                 structs: self.structs,
                 enums: self.enums,
@@ -7483,6 +8012,7 @@ mod tests {
                 string: self.string,
                 option_enum: self.option_enum,
                 coroutine_core,
+                ffi_core,
                 entry,
                 instantiations: self.instantiations,
             }
@@ -7794,6 +8324,7 @@ mod tests {
                 param("completion", completion_ty, completion),
             ],
             return_ty: hir_module.unit,
+            attributes: hir::FunctionAttributes::default(),
             kind: hir::FunctionKind::User(hir::Body {
                 locals,
                 statements: vec![expr_stmt(expr(
@@ -7937,16 +8468,17 @@ mod tests {
         // Golden dump locks the output structure.
         let expected = "\
 Module
+  extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
   fun print @scoop.print(message: String) -> Unit
     bb0 entry
-      call @scoop_rt_print direct
+      call extern0 @scoop_rt_write direct
         Local message
       return
   fun println @scoop.println(message: String) -> Unit
     bb0 entry
-      call @scoop_rt_print direct
+      call extern0 @scoop_rt_write direct
         Local message
-      call @scoop_rt_print direct
+      call extern0 @scoop_rt_write direct
         StringConst @scoop.str.0
       return
   fun helper @scoop.helper() -> Unit
@@ -8013,7 +8545,7 @@ Module
     fn intrinsic_names_map_to_runtime_functions() {
         // core's `print` / `println` overloads are ordinary user
         // functions (their forwarding is locked by the golden dumps);
-        // only the three intrinsic primitives map onto runtime
+        // only the two conversion intrinsics map onto runtime
         // functions, by intrinsic name.
         let mut h = Harness::new();
         let main = h.user_fn(
@@ -8021,7 +8553,6 @@ Module
             hir::Body {
                 locals: Arena::new(),
                 statements: vec![
-                    expr_stmt(call(&h, h.write, vec![str_lit(&h, "s")])),
                     expr_stmt(call_typed(h.int_to_string, vec![int_lit(&h, 1)], h.string)),
                     expr_stmt(call_typed(
                         h.bool_to_string,
@@ -8046,30 +8577,27 @@ Module
             .collect();
         assert_eq!(
             shims,
-            [
-                mir::RuntimeFn::Write,
-                mir::RuntimeFn::IntToString,
-                mir::RuntimeFn::BoolToString,
-            ]
+            [mir::RuntimeFn::IntToString, mir::RuntimeFn::BoolToString,]
         );
     }
 
     // ---- M9: GC intrinsics and generic structs ----
 
-    /// `val ph = pin(s); val r = unpin(ph); val gh = getGcHandle(s);
-    /// val r2 = releaseGcHandle(gh); gcCollect(); val n = gcStats()`
-    /// over `s: String` (the four handle intrinsics share the two
-    /// marshal shapes: wrap into the handle struct, unwrap field 0).
+    /// The source-level bodies of `pin` / `unpin` / handle operations after
+    /// inlining their ordinary wrappers: raw runtime call plus explicit
+    /// handle construction or field extraction.
     fn gc_shapes() -> (Harness, hir::FunctionId) {
         let mut h = Harness::new();
         let gc = h.gc_core();
         let (string, uint) = (h.string, h.uint());
-        let pin_handle_s = h.struct_app(gc.pin_handle, vec![string]);
+        let pinned_ptr_s = h.struct_app(gc.pinned_ptr, vec![string]);
         let gc_handle_s = h.struct_app(gc.gc_handle, vec![string]);
         let mut locals = Arena::new();
         let s = locals.alloc(local("s", string));
-        let ph = locals.alloc(local("ph", pin_handle_s));
+        let pin_word = locals.alloc(local("pinWord", uint));
+        let ph = locals.alloc(local("ph", pinned_ptr_s));
         let r = locals.alloc(local("r", string));
+        let handle_word = locals.alloc(local("handleWord", uint));
         let gh = locals.alloc(local("gh", gc_handle_s));
         let r2 = locals.alloc(local("r2", string));
         let n = locals.alloc(local("n", uint));
@@ -8079,20 +8607,58 @@ Module
                 locals,
                 statements: vec![
                     val_decl(
+                        pin_word,
+                        call_typed(gc.pin_raw, vec![local_ref(s, string)], uint),
+                    ),
+                    val_decl(
                         ph,
-                        call_typed(gc.pin, vec![local_ref(s, string)], pin_handle_s),
+                        struct_init(gc.pinned_ptr, pinned_ptr_s, vec![local_ref(pin_word, uint)]),
                     ),
                     val_decl(
                         r,
-                        call_typed(gc.unpin, vec![local_ref(ph, pin_handle_s)], string),
+                        call_typed(
+                            gc.unpin_raw,
+                            vec![expr(
+                                hir::ExprKind::FieldAccess {
+                                    receiver: Box::new(local_ref(ph, pinned_ptr_s)),
+                                    field: hir::FieldRef::StructField {
+                                        struct_id: gc.pinned_ptr,
+                                        index: 0,
+                                    },
+                                },
+                                uint,
+                            )],
+                            string,
+                        ),
+                    ),
+                    val_decl(
+                        handle_word,
+                        call_typed(gc.get_handle_raw, vec![local_ref(s, string)], uint),
                     ),
                     val_decl(
                         gh,
-                        call_typed(gc.get_handle, vec![local_ref(s, string)], gc_handle_s),
+                        struct_init(
+                            gc.gc_handle,
+                            gc_handle_s,
+                            vec![local_ref(handle_word, uint)],
+                        ),
                     ),
                     val_decl(
                         r2,
-                        call_typed(gc.release_handle, vec![local_ref(gh, gc_handle_s)], string),
+                        call_typed(
+                            gc.release_handle_raw,
+                            vec![expr(
+                                hir::ExprKind::FieldAccess {
+                                    receiver: Box::new(local_ref(gh, gc_handle_s)),
+                                    field: hir::FieldRef::StructField {
+                                        struct_id: gc.gc_handle,
+                                        index: 0,
+                                    },
+                                },
+                                uint,
+                            )],
+                            string,
+                        ),
                     ),
                     expr_stmt(call(&h, gc.gc_collect, vec![])),
                     val_decl(n, call_typed(gc.gc_stats, vec![], uint)),
@@ -8103,34 +8669,32 @@ Module
     }
 
     #[test]
-    fn pin_wraps_the_raw_word_into_the_handle_struct() {
+    fn gc_wrappers_use_explicit_raw_word_marshalling() {
         let (h, main) = gc_shapes();
         let module = lower(&h.finish(main));
         let body = &module.functions[module.entry].body;
 
-        // `pin(s)` is normalized before the handle construction.
+        // `_pin(s)` produces the raw word used by `PinnedPtr(raw)`.
         let (call, pin_result) = statement_call(&entry_statements(body)[0]);
         assert!(matches!(
             call.target.callee,
             mir::Callee::Runtime(mir::RuntimeFn::Pin)
         ));
         assert!(matches!(call.args.as_slice(), [mir::Expr::Local(_)]));
-        let pin_result = pin_result.expect("pin returns a raw word");
+        let pin_result = pin_result.expect("_pin returns a raw word");
         let mir::StatementKind::ValDecl { init, .. } = &entry_statements(body)[1].kind else {
-            panic!("pin's statement is a val decl")
+            panic!("PinnedPtr construction is a val decl")
         };
         let mir::Expr::StructInit { struct_id, args } = init else {
-            panic!("pin's result is wrapped into the handle struct")
+            panic!("the raw result is wrapped into PinnedPtr")
         };
-        assert_eq!(module.structs[*struct_id].name, "PinHandle$S");
+        assert_eq!(module.structs[*struct_id].name, "PinnedPtr$S");
         assert_eq!(module.structs[*struct_id].fields[0].ty, mir::Type::UInt);
         assert!(matches!(args.as_slice(), [mir::Expr::Local(local)] if *local == pin_result));
 
-        // `unpin(ph)` → a hidden local holding `scoop_rt_unpin(ph.0)`,
-        // bound ahead of the use (the prelude shape): the raw word is
-        // field 0 of the handle aggregate.
+        // `_unpin(ph.raw)` directly initializes the source result local.
         let (call, hidden) = statement_call(&entry_statements(body)[2]);
-        let hidden = hidden.expect("unpin produces the typed hidden local");
+        let hidden = hidden.expect("_unpin produces the typed result");
         assert!(matches!(
             call.target.callee,
             mir::Callee::Runtime(mir::RuntimeFn::Unpin)
@@ -8138,20 +8702,17 @@ Module
         let [mir::Expr::FieldAccess { index: 0, .. }] = call.args.as_slice() else {
             panic!("unpin's argument is the handle's raw field")
         };
-        let mir::StatementKind::ValDecl { init, .. } = &entry_statements(body)[3].kind else {
-            panic!("unpin's use is a val decl")
-        };
-        assert!(matches!(init, mir::Expr::Local(l) if *l == hidden));
+        assert_eq!(body.locals[hidden].name, "r");
 
         // `getGcHandle` / `releaseGcHandle` share the wrap / unwrap
         // shapes with their own runtime symbols and handle struct.
-        let (call, handle_result) = statement_call(&entry_statements(body)[4]);
+        let (call, handle_result) = statement_call(&entry_statements(body)[3]);
         assert!(matches!(
             call.target.callee,
             mir::Callee::Runtime(mir::RuntimeFn::GetHandle)
         ));
         let handle_result = handle_result.expect("getGcHandle returns a raw word");
-        let mir::StatementKind::ValDecl { init, .. } = &entry_statements(body)[5].kind else {
+        let mir::StatementKind::ValDecl { init, .. } = &entry_statements(body)[4].kind else {
             panic!("getGcHandle's statement is a val decl")
         };
         let mir::Expr::StructInit { struct_id, args } = init else {
@@ -8159,7 +8720,7 @@ Module
         };
         assert_eq!(module.structs[*struct_id].name, "GcHandle$S");
         assert!(matches!(args.as_slice(), [mir::Expr::Local(local)] if *local == handle_result));
-        let (call, _) = statement_call(&entry_statements(body)[6]);
+        let (call, _) = statement_call(&entry_statements(body)[5]);
         assert!(matches!(
             call.target.callee,
             mir::Callee::Runtime(mir::RuntimeFn::ReleaseHandle)
@@ -8170,13 +8731,13 @@ Module
 
         // `gcCollect()` is a plain void runtime call; `gcStats()`
         // yields the raw word (`UInt`).
-        let (call, destination) = statement_call(&entry_statements(body)[8]);
+        let (call, destination) = statement_call(&entry_statements(body)[6]);
         assert!(destination.is_none());
         assert!(matches!(
             call.target.callee,
             mir::Callee::Runtime(mir::RuntimeFn::GcCollect)
         ));
-        let (call, destination) = statement_call(&entry_statements(body)[9]);
+        let (call, destination) = statement_call(&entry_statements(body)[7]);
         assert!(matches!(
             call.target.callee,
             mir::Callee::Runtime(mir::RuntimeFn::GcStats)
@@ -8203,17 +8764,17 @@ Module
         // Two applications of one generic struct, one of them twice
         // (dedup), plus a struct whose field mentions its type
         // parameter (the general substitution path).
-        let pin_handle_v = h.struct_app(gc.pin_handle, vec![uint]);
-        let pin_handle_s = h.struct_app(gc.pin_handle, vec![string]);
+        let pinned_ptr_v = h.struct_app(gc.pinned_ptr, vec![uint]);
+        let pinned_ptr_s = h.struct_app(gc.pinned_ptr, vec![string]);
         let t = h
             .types
             .alloc(hir::Type::Param(hir::TypeParamId::from_raw(0)));
         let box2 = h.strukt("Box2", &[("x", t)]);
         let box2_s = h.struct_app(box2, vec![string]);
         let mut locals = Arena::new();
-        let a = locals.alloc(local("a", pin_handle_v));
-        let b = locals.alloc(local("b", pin_handle_s));
-        let c = locals.alloc(local("c", pin_handle_s));
+        let a = locals.alloc(local("a", pinned_ptr_v));
+        let b = locals.alloc(local("b", pinned_ptr_s));
+        let c = locals.alloc(local("c", pinned_ptr_s));
         let d = locals.alloc(local("d", box2_s));
         let main = h.user_fn(
             "main",
@@ -8222,15 +8783,15 @@ Module
                 statements: vec![
                     val_decl(
                         a,
-                        struct_init(gc.pin_handle, pin_handle_v, vec![int_lit(&h, 1)]),
+                        struct_init(gc.pinned_ptr, pinned_ptr_v, vec![int_lit(&h, 1)]),
                     ),
                     val_decl(
                         b,
-                        struct_init(gc.pin_handle, pin_handle_s, vec![int_lit(&h, 2)]),
+                        struct_init(gc.pinned_ptr, pinned_ptr_s, vec![int_lit(&h, 2)]),
                     ),
                     val_decl(
                         c,
-                        struct_init(gc.pin_handle, pin_handle_s, vec![int_lit(&h, 3)]),
+                        struct_init(gc.pinned_ptr, pinned_ptr_s, vec![int_lit(&h, 3)]),
                     ),
                     val_decl(d, struct_init(box2, box2_s, vec![str_lit(&h, "x")])),
                 ],
@@ -8238,8 +8799,8 @@ Module
         );
         let module = lower(&h.finish(main));
 
-        // One instance per (struct, args): `PinHandle$V` once,
-        // `PinHandle$S` once despite two uses, `Box2$S` once — named
+        // One instance per (struct, args): `PinnedPtr$V` once,
+        // `PinnedPtr$S` once despite two uses, `Box2$S` once — named
         // like the enum instances. Generic definitions themselves do
         // not survive into MIR: MIR contains no generic types.
         let defs = |name: &str| {
@@ -8250,11 +8811,11 @@ Module
                 .map(|(_, def)| def)
                 .collect::<Vec<_>>()
         };
-        assert!(defs("PinHandle").is_empty());
+        assert!(defs("PinnedPtr").is_empty());
         assert!(defs("Box2").is_empty());
-        assert_eq!(defs("PinHandle$V").len(), 1);
-        assert_eq!(defs("PinHandle$V")[0].fields[0].ty, mir::Type::UInt);
-        assert_eq!(defs("PinHandle$S").len(), 1);
+        assert_eq!(defs("PinnedPtr$V").len(), 1);
+        assert_eq!(defs("PinnedPtr$V")[0].fields[0].ty, mir::Type::UInt);
+        assert_eq!(defs("PinnedPtr$S").len(), 1);
         assert_eq!(defs("Box2$S").len(), 1);
         // Field substitution: `Box2<String>`'s `x` is `String`.
         assert_eq!(defs("Box2$S")[0].fields[0].ty, mir::Type::String);
@@ -8279,9 +8840,9 @@ Module
         let mir::StatementKind::ValDecl { local: ld, .. } = entry_statements(body)[3].kind else {
             panic!()
         };
-        assert_eq!(instance_of(la), "PinHandle$V");
-        assert_eq!(instance_of(lb), "PinHandle$S");
-        assert_eq!(instance_of(lc), "PinHandle$S");
+        assert_eq!(instance_of(la), "PinnedPtr$V");
+        assert_eq!(instance_of(lb), "PinnedPtr$S");
+        assert_eq!(instance_of(lc), "PinnedPtr$S");
         assert_eq!(instance_of(ld), "Box2$S");
         let mir::StatementKind::ValDecl { init, .. } = &entry_statements(body)[0].kind else {
             panic!()
@@ -8289,7 +8850,7 @@ Module
         let mir::Expr::StructInit { struct_id, .. } = init else {
             panic!("a struct construction")
         };
-        assert_eq!(module.structs[*struct_id].name, "PinHandle$V");
+        assert_eq!(module.structs[*struct_id].name, "PinnedPtr$V");
     }
 
     #[test]
@@ -8300,6 +8861,7 @@ Module
             type_params: vec![hir::TypeParamDecl {
                 name: "T".to_string(),
                 variance: hir::Variance::Out,
+                kind: hir::TypeParamKind::Any,
                 span: SPAN,
             }],
             methods: Vec::new(),
@@ -8703,6 +9265,7 @@ Module
                     hir::MethodSig {
                         name: name.to_string(),
                         is_suspend: false,
+                        attributes: hir::FunctionAttributes::default(),
                         type_params: Vec::new(),
                         params: vec![param("v", *ty, v)],
                         return_ty: unit,
@@ -10573,6 +11136,7 @@ Module
         // call the overloads, not runtime shims.)
         let expected = "\
 Module
+  extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
   enum Option$I
     Some(_1: Int)
     None()
@@ -10580,14 +11144,14 @@ Module
     bb0 entry
       call $call.1: String = @scoop_rt_int_to_string direct
         Local message
-      call @scoop_rt_print direct
+      call extern0 @scoop_rt_write direct
         Local $call.1
       return
   fun println @scoop.println(message: String) -> Unit
     bb0 entry
-      call @scoop_rt_print direct
+      call extern0 @scoop_rt_write direct
         Local message
-      call @scoop_rt_print direct
+      call extern0 @scoop_rt_write direct
         StringConst @scoop.str.0
       return
   fun main @scoop_main() -> Unit
@@ -10680,6 +11244,7 @@ Module
         // which is lowered once per fallthrough edge.
         let expected = "\
 Module
+  extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
   enum Option$I
     Some(_1: Int)
     None()
@@ -10687,14 +11252,14 @@ Module
     bb0 entry
       call $call.1: String = @scoop_rt_int_to_string direct
         Local message
-      call @scoop_rt_print direct
+      call extern0 @scoop_rt_write direct
         Local $call.1
       return
   fun println @scoop.println(message: String) -> Unit
     bb0 entry
-      call @scoop_rt_print direct
+      call extern0 @scoop_rt_write direct
         Local message
-      call @scoop_rt_print direct
+      call extern0 @scoop_rt_write direct
         StringConst @scoop.str.0
       return
   fun main @scoop_main() -> Unit
@@ -11133,6 +11698,19 @@ Module
                 statements: Vec::new(),
             },
         )
+    }
+
+    #[test]
+    fn no_gc_effect_is_preserved_in_mir() {
+        let mut h = Harness::new();
+        let main = empty_main(&mut h);
+        h.functions[main].attributes.gc_effect = hir::GcEffect::NoGc;
+        let module = lower(&h.finish(main));
+        assert_eq!(
+            module.functions[module.entry].gc_effect,
+            mir::GcEffect::NoGc
+        );
+        assert!(mir::dump(&module).contains("-> Unit <no-gc>"));
     }
 
     fn class_index(raw: u32) -> mir::ClassId {

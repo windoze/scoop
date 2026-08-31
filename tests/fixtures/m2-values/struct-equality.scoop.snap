@@ -32,24 +32,74 @@ SourceFile
         Call FunctionSuspendRegistration
           Var registration
 SourceFile
-  struct PinHandle<T>
+  struct Ptr<T : value>
+    field _rawPointer: UInt
+    fun toUInt
+    fun cast
+    fun load
+    fun load
+    fun store
+    fun store
+    fun plus
+    fun minus
+  struct FunPtr<F>
+    field _rawPointer: UInt
+    @Unsafe
+    @Intrinsic("address_of")
+  fun addressOf<T : value>(value: T): Ptr<T>
+    @NoGC
+    @Intrinsic("size_of")
+  fun sizeOf<T : value>(): UInt
+    @NoGC
+    @Intrinsic("align_of")
+  fun alignOf<T : value>(): UInt
+SourceFile
+  struct PinnedPtr<T : ref>
     field raw: UInt
-  struct GcHandle<T>
+  struct GcHandle<T : ref>
     field raw: UInt
-    @Intrinsic("rt_pin")
-  fun pin<T>(v: T): PinHandle<T>
-    @Intrinsic("rt_unpin")
-  fun unpin<T>(h: PinHandle<T>): T
-    @Intrinsic("rt_get_handle")
-  fun getGcHandle<T>(v: T): GcHandle<T>
-    @Intrinsic("rt_release_handle")
-  fun releaseGcHandle<T>(h: GcHandle<T>): T
+    @Unsafe
+    @Intrinsic("gc_pin_raw")
+  fun _pin<T : ref>(v: T): UInt
+    @Unsafe
+    @Intrinsic("gc_unpin_raw")
+  fun _unpin<T : ref>(raw: UInt): T
+    @Unsafe
+    @Intrinsic("gc_get_handle_raw")
+  fun _getGcHandle<T : ref>(v: T): UInt
+    @Unsafe
+    @Intrinsic("gc_release_handle_raw")
+  fun _releaseGcHandle<T : ref>(raw: UInt): T
+    @Unsafe
+  fun pin<T : ref>(v: T): PinnedPtr<T>
+    =
+      Call PinnedPtr<T>
+        Call _pin
+          Var v
+    @Unsafe
+  fun unpin<T : ref>(p: PinnedPtr<T>): T
+    =
+      Call _unpin<T>
+        FieldAccess raw
+          Var p
+    @Unsafe
+  fun getGcHandle<T : ref>(v: T): GcHandle<T>
+    =
+      Call GcHandle<T>
+        Call _getGcHandle
+          Var v
+    @Unsafe
+  fun releaseGcHandle<T : ref>(h: GcHandle<T>): T
+    =
+      Call _releaseGcHandle<T>
+        FieldAccess raw
+          Var h
     @Intrinsic("rt_gc_collect")
   fun gcCollect()
     @Intrinsic("rt_gc_stats")
   fun gcStats(): UInt
 SourceFile
-    @Intrinsic("rt_write")
+    @Extern(name = "scoop_rt_write", abi = "scoop")
   fun write(message: String)
   fun print(message: Any)
     =
@@ -153,10 +203,6 @@ Module
     field task: suspend () -> T0
   struct FunctionSuspendRegistration<T> : SuspendRegistration<T0>
     field registration: (Continuation<T0>) -> Unit
-  struct PinHandle<T>
-    field raw: UInt
-  struct GcHandle<T>
-    field raw: UInt
   struct Point
     field x: Int
     field y: Int
@@ -194,13 +240,29 @@ Module
         Box : SuspendRegistration<T0>
           StructInit FunctionSuspendRegistration : FunctionSuspendRegistration<T0>
             Local registration : (Continuation<T0>) -> Unit
-  fun pin<T>(): PinHandle<T0> <intrinsic rt_pin>
-  fun unpin<T>(): T0 <intrinsic rt_unpin>
-  fun getGcHandle<T>(): GcHandle<T0> <intrinsic rt_get_handle>
-  fun releaseGcHandle<T>(): T0 <intrinsic rt_release_handle>
+  fun pin<T : ref>(v: T0): PinnedPtr<T0> <unsafe>
+    return
+      StructInit PinnedPtr : PinnedPtr<T0>
+        Call _pin<T0> : UInt
+          Local v : T0
+  fun unpin<T : ref>(p: PinnedPtr<T0>): T0 <unsafe>
+    return
+      Call _unpin<T0> : T0
+        FieldAccess field 0 : UInt
+          Local p : PinnedPtr<T0>
+  fun getGcHandle<T : ref>(v: T0): GcHandle<T0> <unsafe>
+    return
+      StructInit GcHandle : GcHandle<T0>
+        Call _getGcHandle<T0> : UInt
+          Local v : T0
+  fun releaseGcHandle<T : ref>(h: GcHandle<T0>): T0 <unsafe>
+    return
+      Call _releaseGcHandle<T0> : T0
+        FieldAccess field 0 : UInt
+          Local h : GcHandle<T0>
   fun gcCollect(): Unit <intrinsic rt_gc_collect>
   fun gcStats(): UInt <intrinsic rt_gc_stats>
-  fun write(): Unit <intrinsic rt_write>
+  fun write(arg1: String): Unit <extern0 abi=scoop symbol=scoop_rt_write>
   fun print(message: Any): Unit
     Call write : Unit
       MethodCall Any.toString : String
@@ -290,6 +352,7 @@ Module
 
 == mir ==
 Module
+  extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
   struct Point (x: Int, y: Int)
   struct Line (a: Point, b: Point)
   enum Option$S
@@ -307,16 +370,16 @@ Module
     bb0 entry
       call $call.1: String = @scoop.Any.toString virtual[2]
         Local message
-      call @scoop_rt_print direct
+      call extern0 @scoop_rt_write direct
         Local $call.1
       return
   fun println @scoop.println(message: Any) -> Unit
     bb0 entry
       call $call.1: String = @scoop.Any.toString virtual[2]
         Local message
-      call @scoop_rt_print direct
+      call extern0 @scoop_rt_write direct
         Local $call.1
-      call @scoop_rt_print direct
+      call extern0 @scoop_rt_write direct
         StringConst @scoop.str.0
       return
   fun main @scoop_main() -> Unit
@@ -647,6 +710,7 @@ Module
   global @scoop_td_IndexOutOfBoundsException = c""
   global @scoop_td_IllegalStateException = c""
   enum Option$S niche(payload_variant=0)
+  extern ef0 write @scoop_rt_write(ptr) -> {} <scoop managed nounwind>
   fun @scoop.print(ptr) -> void
     local %0 $call.1: ptr
   block entry
@@ -654,7 +718,7 @@ Module
     t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
     store t2 -> local0
-    call @scoop_rt_print(local0)
+    native_call extern0(local0)
     t3 = aggregate () : {}
     ret
   fun @scoop.println(ptr) -> void
@@ -664,16 +728,16 @@ Module
     t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
     store t2 -> local0
-    call @scoop_rt_print(local0)
+    native_call extern0(local0)
     t3 = aggregate () : {}
-    call @scoop_rt_print(global0)
+    native_call extern0(global0)
     t4 = aggregate () : {}
     ret
   fun @scoop_main() -> void
-    local %0 p1: {i64, i64}
-    local %1 p3: {i64, i64}
-    local %2 l1: {{i64, i64}, {i64, i64}}
-    local %3 l2: {{i64, i64}, {i64, i64}}
+    local %0 p1: struct0
+    local %1 p3: struct0
+    local %2 l1: struct1
+    local %3 l2: struct1
     local %4 t1: {i64, ptr}
     local %5 $logic.1: i1
     local %6 $logic.2: i1
@@ -689,18 +753,18 @@ Module
     local %16 $call.12: ptr
     local %17 $call.13: i1
   block entry
-    t0 = aggregate (1, 2) : {i64, i64}
+    t0 = aggregate (1, 2) : struct0
     store t0 -> local0
-    t1 = aggregate (3, 4) : {i64, i64}
+    t1 = aggregate (3, 4) : struct0
     store t1 -> local1
     t2 = extract local0, 0 : i64
-    t3 = aggregate (1, 2) : {i64, i64}
+    t3 = aggregate (1, 2) : struct0
     t4 = extract t3, 0 : i64
     t5 = Eq t2, t4 : i1
     cbr t5 then @logic.rhs.1 else @logic.short.2
   block logic.rhs.1
     t6 = extract local0, 1 : i64
-    t7 = aggregate (1, 2) : {i64, i64}
+    t7 = aggregate (1, 2) : struct0
     t8 = extract t7, 1 : i64
     t9 = Eq t6, t8 : i1
     store t9 -> local5
@@ -746,22 +810,22 @@ Module
     t26 = call @scoop_rt_box(global16, local7, 1) : ptr
     call @scoop.println(t26)
     t27 = aggregate () : {}
-    t28 = aggregate (local0, local1) : {{i64, i64}, {i64, i64}}
+    t28 = aggregate (local0, local1) : struct1
     store t28 -> local2
-    t29 = aggregate (1, 2) : {i64, i64}
-    t30 = aggregate (3, 4) : {i64, i64}
-    t31 = aggregate (t29, t30) : {{i64, i64}, {i64, i64}}
+    t29 = aggregate (1, 2) : struct0
+    t30 = aggregate (3, 4) : struct0
+    t31 = aggregate (t29, t30) : struct1
     store t31 -> local3
-    t32 = extract local2, 0 : {i64, i64}
+    t32 = extract local2, 0 : struct0
     t33 = extract t32, 0 : i64
-    t34 = extract local3, 0 : {i64, i64}
+    t34 = extract local3, 0 : struct0
     t35 = extract t34, 0 : i64
     t36 = Eq t33, t35 : i1
     cbr t36 then @logic.rhs.10 else @logic.short.11
   block logic.rhs.10
-    t37 = extract local2, 0 : {i64, i64}
+    t37 = extract local2, 0 : struct0
     t38 = extract t37, 1 : i64
-    t39 = extract local3, 0 : {i64, i64}
+    t39 = extract local3, 0 : struct0
     t40 = extract t39, 1 : i64
     t41 = Eq t38, t40 : i1
     store t41 -> local8
@@ -772,9 +836,9 @@ Module
   block logic.merge.12
     cbr local8 then @logic.rhs.13 else @logic.short.14
   block logic.rhs.13
-    t42 = extract local2, 1 : {i64, i64}
+    t42 = extract local2, 1 : struct0
     t43 = extract t42, 0 : i64
-    t44 = extract local3, 1 : {i64, i64}
+    t44 = extract local3, 1 : struct0
     t45 = extract t44, 0 : i64
     t46 = Eq t43, t45 : i1
     cbr t46 then @logic.rhs.16 else @logic.short.17
@@ -793,9 +857,9 @@ Module
     t53 = Eq t50, t52 : i1
     cbr t53 then @logic.rhs.19 else @logic.short.20
   block logic.rhs.16
-    t54 = extract local2, 1 : {i64, i64}
+    t54 = extract local2, 1 : struct0
     t55 = extract t54, 1 : i64
-    t56 = extract local3, 1 : {i64, i64}
+    t56 = extract local3, 1 : struct0
     t57 = extract t56, 1 : i64
     t58 = Eq t55, t57 : i1
     store t58 -> local10

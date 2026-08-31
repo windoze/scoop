@@ -1,8 +1,8 @@
-// Output functions (docs/milestone7/DESIGN.md section 2).
-// `write` is the only output intrinsic; print/println go through
-// `Any.toString()` dispatch (vtable slot 2).
+// Output functions (spec 14.4, M12 DESIGN section 4.3). `write` borrows the
+// managed String directly through the Scoop ABI; print/println retain ordinary
+// Any.toString() dispatch (vtable slot 2).
 
-@Intrinsic("rt_write")
+@Extern(name = "scoop_rt_write", abi = "scoop")
 fun write(message: String)
 
 fun print(message: Any) = write(message.toString())

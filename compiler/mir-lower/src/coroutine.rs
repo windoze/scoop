@@ -152,6 +152,7 @@ fn transform_function(
     });
 
     let driver = lowerer.functions.alloc(mir::Function {
+        gc_effect: mir::GcEffect::Managed,
         name: format!("{source_name}$drive"),
         symbol: format!("{source_symbol}$drive"),
         params: Vec::new(),
@@ -758,6 +759,7 @@ fn generate_resume_method(
         waiting
     };
     let function = lowerer.functions.alloc(mir::Function {
+        gc_effect: mir::GcEffect::Managed,
         name: format!("CoroutineAdapter.resume${state}"),
         symbol: format!("{source_symbol}$resume${state}"),
         params: vec![
@@ -901,6 +903,7 @@ fn generate_failure_method(
         waiting
     };
     let function = lowerer.functions.alloc(mir::Function {
+        gc_effect: mir::GcEffect::Managed,
         name: format!("CoroutineAdapter.resumeWithException${state}"),
         symbol: format!("{source_symbol}$resume_exception${state}"),
         params: vec![
@@ -1312,6 +1315,9 @@ fn callee_return_type(lowerer: &Lowerer, callee: mir::Callee) -> mir::Type {
     let function = match callee {
         mir::Callee::User(function) => function,
         mir::Callee::Monomorphized(instance) => lowerer.instances.meta[instance].function,
+        mir::Callee::Extern(extern_id) => {
+            return lowerer.extern_functions[extern_id].return_type.clone();
+        }
         mir::Callee::Closure(function_type) | mir::Callee::FunctionBridge(function_type) => {
             let signature = &lowerer.shell.function_types[function_type];
             return if signature.is_suspend {
@@ -1758,7 +1764,9 @@ fn suspend_effect(
                 )
             });
         }
-        mir::Callee::CoroutineSuspend { .. } | mir::Callee::Runtime(_) => return None,
+        mir::Callee::CoroutineSuspend { .. } | mir::Callee::Extern(_) | mir::Callee::Runtime(_) => {
+            return None;
+        }
     };
     lowerer
         .coroutines
@@ -1794,6 +1802,9 @@ fn statement_use_def(statement: &mir::Statement) -> (HashSet<mir::LocalId>, Hash
         mir::StatementKind::Assign { local, value } => {
             expr_uses(value, &mut uses);
             defs.insert(*local);
+        }
+        mir::StatementKind::GlobalAssign { value, .. } => {
+            expr_uses(value, &mut uses);
         }
         mir::StatementKind::ArraySet {
             array,
@@ -1903,6 +1914,9 @@ fn expr_uses(expr: &mir::Expr, uses: &mut HashSet<mir::LocalId>) {
         | mir::Expr::Cast { operand, .. }
         | mir::Expr::ArrayLen(operand)
         | mir::Expr::ArrayClone(operand)
+        | mir::Expr::PtrFromUInt { operand, .. }
+        | mir::Expr::PtrToUInt(operand)
+        | mir::Expr::PtrCast { operand, .. }
         | mir::Expr::Unary { operand, .. }
         | mir::Expr::EnumTag(operand)
         | mir::Expr::EnumField { operand, .. } => expr_uses(operand, uses),
@@ -1915,11 +1929,46 @@ fn expr_uses(expr: &mir::Expr, uses: &mut HashSet<mir::LocalId>) {
             expr_uses(array, uses);
             expr_uses(index, uses);
         }
+        mir::Expr::PtrLoad {
+            pointer, offset, ..
+        } => {
+            expr_uses(pointer, uses);
+            if let Some(offset) = offset {
+                expr_uses(offset, uses);
+            }
+        }
+        mir::Expr::PtrStore {
+            pointer,
+            offset,
+            value,
+            ..
+        } => {
+            expr_uses(pointer, uses);
+            if let Some(offset) = offset {
+                expr_uses(offset, uses);
+            }
+            expr_uses(value, uses);
+        }
+        mir::Expr::PtrOffset {
+            pointer, offset, ..
+        } => {
+            expr_uses(pointer, uses);
+            expr_uses(offset, uses);
+        }
+        mir::Expr::AddressOf { local, .. } => {
+            uses.insert(*local);
+        }
         mir::Expr::StringConst(_)
         | mir::Expr::IntLiteral(_)
         | mir::Expr::BoolLiteral(_)
         | mir::Expr::UnitLiteral
-        | mir::Expr::CaughtException => {}
+        | mir::Expr::GlobalRead(_)
+        | mir::Expr::GlobalAddress { .. }
+        | mir::Expr::CaughtException
+        | mir::Expr::SizeOf(_)
+        | mir::Expr::AlignOf(_)
+        | mir::Expr::FunPtrNull(_)
+        | mir::Expr::FunctionAddress { .. } => {}
     }
 }
 

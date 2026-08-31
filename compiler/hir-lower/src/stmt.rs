@@ -52,14 +52,17 @@ impl Lowerer {
         let owner_type_param_count = outer_type_params.len();
         let mut type_params = outer_type_params.clone();
         for param in &decl.type_params {
-            if type_params.contains(&param.text) {
+            if type_params
+                .iter()
+                .any(|existing| existing.name == param.name.text)
+            {
                 self.error(
                     param.span,
-                    format!("duplicate type parameter `{}`", param.text),
+                    format!("duplicate type parameter `{}`", param.name.text),
                 );
                 continue;
             }
-            type_params.push(param.text.clone());
+            type_params.push(crate::lower_type_param_decl(param));
         }
         self.type_params_in_scope = type_params.clone();
         let mut sig_params = Vec::with_capacity(decl.params.len());
@@ -82,6 +85,9 @@ impl Lowerer {
         let Type::Function(function_type) = self.types[function_ty] else {
             unreachable!("interning a function type returns a function type")
         };
+        let attributes = self
+            .check_function_annotations(decl, false, crate::FunctionTarget::Local)
+            .attributes;
         let local_number = self.local_functions.len();
         let function = self.functions.alloc(hir::Function {
             name: format!("$local.{local_number}.{}", decl.name.text),
@@ -89,6 +95,7 @@ impl Lowerer {
             type_params: type_params.clone(),
             params: Vec::new(),
             return_ty,
+            attributes,
             kind: hir::FunctionKind::User(hir::Body {
                 locals: la_arena::Arena::new(),
                 statements: Vec::new(),
@@ -100,6 +107,7 @@ impl Lowerer {
             function,
             FnSig {
                 is_suspend: decl.is_suspend,
+                attributes,
                 owner_type_param_count,
                 type_params: type_params.clone(),
                 params: sig_params.clone(),
@@ -160,6 +168,7 @@ impl Lowerer {
         } else {
             SuspensionContext::Forbidden(ForbiddenSuspendContext::Function)
         });
+        self.push_safety_context(attributes.safety);
         self.push_scope();
 
         let lowered = {
@@ -247,6 +256,7 @@ impl Lowerer {
         };
 
         self.pop_scope();
+        self.pop_safety_context();
         self.pop_suspension_context();
         self.capture_contexts.pop();
         self.locals = outer_locals;
@@ -353,6 +363,7 @@ impl Lowerer {
         } else {
             SuspensionContext::Forbidden(ForbiddenSuspendContext::Function)
         });
+        self.push_safety_context(self.functions[id].attributes.safety);
 
         self.current_owner = owner;
         self.current_this = None;
@@ -453,6 +464,7 @@ impl Lowerer {
         self.type_params_in_scope.clear();
         self.current_this = None;
         self.current_owner = None;
+        self.pop_safety_context();
         self.pop_suspension_context();
 
         hir::Body {
@@ -753,7 +765,9 @@ impl Lowerer {
                     lowered.kind,
                     hir::ExprKind::Call { .. }
                         | hir::ExprKind::MethodCall { .. }
+                        | hir::ExprKind::LocalFunctionCall { .. }
                         | hir::ExprKind::CallableCall { .. }
+                        | hir::ExprKind::PtrStore { .. }
                 ) {
                     out.extend(sink);
                     hir::StatementKind::Expr(lowered)
@@ -925,6 +939,20 @@ impl Lowerer {
                     self.lower_statement(statement, out);
                 }
                 self.pop_scope();
+                return;
+            }
+            ast::StatementKind::SafetyBlock { mode, block } => {
+                let safety = match mode {
+                    ast::SafetyMode::Safe => hir::Safety::Safe,
+                    ast::SafetyMode::Unsafe => hir::Safety::Unsafe,
+                };
+                self.push_safety_context(safety);
+                self.push_scope();
+                for statement in &block.statements {
+                    self.lower_statement(statement, out);
+                }
+                self.pop_scope();
+                self.pop_safety_context();
                 return;
             }
         };
@@ -1616,6 +1644,42 @@ impl Lowerer {
                 }
                 _ => {}
             }
+            if let Some(&global) = self.globals_by_name.get(&name.text) {
+                if !self.globals[global].mutable {
+                    self.error(
+                        name.span,
+                        format!("cannot assign to immutable global `{}`", name.text),
+                    );
+                    return None;
+                }
+                if matches!(
+                    self.globals[global].storage,
+                    hir::GlobalStorage::Extern { .. }
+                ) {
+                    self.require_unsafe_operation(name.span, "writing an extern global");
+                }
+                let expected = self.globals[global].ty;
+                let mut sink = Vec::new();
+                let value = self.lower_expr(&assign.value, &mut sink, Some(expected))?;
+                if !self.is_subtype(value.ty, expected) {
+                    self.error(
+                        assign.value.span(),
+                        format!(
+                            "cannot assign value of type {} to global `{}` of type {}",
+                            self.type_name(value.ty),
+                            name.text,
+                            self.type_name(expected)
+                        ),
+                    );
+                    return None;
+                }
+                let value = self.adapt_to(value, expected);
+                out.extend(sink);
+                return Some(hir::StatementKind::Assign {
+                    target: hir::AssignTarget::Global(global),
+                    value,
+                });
+            }
             self.error(name.span, format!("unknown variable `{}`", name.text));
             return None;
         };
@@ -1814,7 +1878,7 @@ fn patch_local_function_calls(
                 value,
             } => {
                 match place {
-                    hir::AssignTarget::Local(_) => {}
+                    hir::AssignTarget::Local(_) | hir::AssignTarget::Global(_) => {}
                     hir::AssignTarget::Index { array, index } => {
                         patch_local_function_call_expr(array, target, captures);
                         patch_local_function_call_expr(index, target, captures);
@@ -1948,7 +2012,12 @@ fn patch_local_function_call_expr(
         | hir::ExprKind::IsSome(receiver)
         | hir::ExprKind::Unwrap {
             operand: receiver, ..
-        } => patch_local_function_call_expr(receiver, target, target_captures),
+        }
+        | hir::ExprKind::PtrFromUInt(receiver)
+        | hir::ExprKind::PtrToUInt(receiver)
+        | hir::ExprKind::PtrCast(receiver) => {
+            patch_local_function_call_expr(receiver, target, target_captures)
+        }
         hir::ExprKind::MethodCall { receiver, args, .. }
         | hir::ExprKind::CallableCall {
             callee: receiver,
@@ -1968,15 +2037,44 @@ fn patch_local_function_call_expr(
             patch_local_function_call_expr(lhs, target, target_captures);
             patch_local_function_call_expr(rhs, target, target_captures);
         }
+        hir::ExprKind::PtrLoad { pointer, offset } => {
+            patch_local_function_call_expr(pointer, target, target_captures);
+            if let Some(offset) = offset {
+                patch_local_function_call_expr(offset, target, target_captures);
+            }
+        }
+        hir::ExprKind::PtrOffset {
+            pointer, offset, ..
+        } => {
+            patch_local_function_call_expr(pointer, target, target_captures);
+            patch_local_function_call_expr(offset, target, target_captures);
+        }
+        hir::ExprKind::PtrStore {
+            pointer,
+            offset,
+            value,
+        } => {
+            patch_local_function_call_expr(pointer, target, target_captures);
+            if let Some(offset) = offset {
+                patch_local_function_call_expr(offset, target, target_captures);
+            }
+            patch_local_function_call_expr(value, target, target_captures);
+        }
         hir::ExprKind::StringLiteral(_)
         | hir::ExprKind::IntLiteral(_)
         | hir::ExprKind::BoolLiteral(_)
         | hir::ExprKind::UnitLiteral
         | hir::ExprKind::Local(_)
+        | hir::ExprKind::GlobalRead(_)
         | hir::ExprKind::Capture(_)
         | hir::ExprKind::Lambda(_)
         | hir::ExprKind::AnonymousFunction(_)
         | hir::ExprKind::CallableReference(_)
-        | hir::ExprKind::NoneLiteral => {}
+        | hir::ExprKind::NoneLiteral
+        | hir::ExprKind::AddressOf(_)
+        | hir::ExprKind::SizeOf(_)
+        | hir::ExprKind::AlignOf(_)
+        | hir::ExprKind::FunPtrNull
+        | hir::ExprKind::FunctionAddress(_) => {}
     }
 }

@@ -1,0 +1,4 @@
+@CLayout
+struct Bad(val text: String)
+
+fun main() {}

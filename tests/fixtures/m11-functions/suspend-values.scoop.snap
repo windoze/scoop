@@ -32,24 +32,74 @@ SourceFile
         Call FunctionSuspendRegistration
           Var registration
 SourceFile
-  struct PinHandle<T>
+  struct Ptr<T : value>
+    field _rawPointer: UInt
+    fun toUInt
+    fun cast
+    fun load
+    fun load
+    fun store
+    fun store
+    fun plus
+    fun minus
+  struct FunPtr<F>
+    field _rawPointer: UInt
+    @Unsafe
+    @Intrinsic("address_of")
+  fun addressOf<T : value>(value: T): Ptr<T>
+    @NoGC
+    @Intrinsic("size_of")
+  fun sizeOf<T : value>(): UInt
+    @NoGC
+    @Intrinsic("align_of")
+  fun alignOf<T : value>(): UInt
+SourceFile
+  struct PinnedPtr<T : ref>
     field raw: UInt
-  struct GcHandle<T>
+  struct GcHandle<T : ref>
     field raw: UInt
-    @Intrinsic("rt_pin")
-  fun pin<T>(v: T): PinHandle<T>
-    @Intrinsic("rt_unpin")
-  fun unpin<T>(h: PinHandle<T>): T
-    @Intrinsic("rt_get_handle")
-  fun getGcHandle<T>(v: T): GcHandle<T>
-    @Intrinsic("rt_release_handle")
-  fun releaseGcHandle<T>(h: GcHandle<T>): T
+    @Unsafe
+    @Intrinsic("gc_pin_raw")
+  fun _pin<T : ref>(v: T): UInt
+    @Unsafe
+    @Intrinsic("gc_unpin_raw")
+  fun _unpin<T : ref>(raw: UInt): T
+    @Unsafe
+    @Intrinsic("gc_get_handle_raw")
+  fun _getGcHandle<T : ref>(v: T): UInt
+    @Unsafe
+    @Intrinsic("gc_release_handle_raw")
+  fun _releaseGcHandle<T : ref>(raw: UInt): T
+    @Unsafe
+  fun pin<T : ref>(v: T): PinnedPtr<T>
+    =
+      Call PinnedPtr<T>
+        Call _pin
+          Var v
+    @Unsafe
+  fun unpin<T : ref>(p: PinnedPtr<T>): T
+    =
+      Call _unpin<T>
+        FieldAccess raw
+          Var p
+    @Unsafe
+  fun getGcHandle<T : ref>(v: T): GcHandle<T>
+    =
+      Call GcHandle<T>
+        Call _getGcHandle
+          Var v
+    @Unsafe
+  fun releaseGcHandle<T : ref>(h: GcHandle<T>): T
+    =
+      Call _releaseGcHandle<T>
+        FieldAccess raw
+          Var h
     @Intrinsic("rt_gc_collect")
   fun gcCollect()
     @Intrinsic("rt_gc_stats")
   fun gcStats(): UInt
 SourceFile
-    @Intrinsic("rt_write")
+    @Extern(name = "scoop_rt_write", abi = "scoop")
   fun write(message: String)
   fun print(message: Any)
     =
@@ -405,10 +455,6 @@ Module
     field task: suspend () -> T0
   struct FunctionSuspendRegistration<T> : SuspendRegistration<T0>
     field registration: (Continuation<T0>) -> Unit
-  struct PinHandle<T>
-    field raw: UInt
-  struct GcHandle<T>
-    field raw: UInt
   enum Option<T>
     Some(_1: T0)
     None()
@@ -447,13 +493,29 @@ Module
         Box : SuspendRegistration<T0>
           StructInit FunctionSuspendRegistration : FunctionSuspendRegistration<T0>
             Local registration : (Continuation<T0>) -> Unit
-  fun pin<T>(): PinHandle<T0> <intrinsic rt_pin>
-  fun unpin<T>(): T0 <intrinsic rt_unpin>
-  fun getGcHandle<T>(): GcHandle<T0> <intrinsic rt_get_handle>
-  fun releaseGcHandle<T>(): T0 <intrinsic rt_release_handle>
+  fun pin<T : ref>(v: T0): PinnedPtr<T0> <unsafe>
+    return
+      StructInit PinnedPtr : PinnedPtr<T0>
+        Call _pin<T0> : UInt
+          Local v : T0
+  fun unpin<T : ref>(p: PinnedPtr<T0>): T0 <unsafe>
+    return
+      Call _unpin<T0> : T0
+        FieldAccess field 0 : UInt
+          Local p : PinnedPtr<T0>
+  fun getGcHandle<T : ref>(v: T0): GcHandle<T0> <unsafe>
+    return
+      StructInit GcHandle : GcHandle<T0>
+        Call _getGcHandle<T0> : UInt
+          Local v : T0
+  fun releaseGcHandle<T : ref>(h: GcHandle<T0>): T0 <unsafe>
+    return
+      Call _releaseGcHandle<T0> : T0
+        FieldAccess field 0 : UInt
+          Local h : GcHandle<T0>
   fun gcCollect(): Unit <intrinsic rt_gc_collect>
   fun gcStats(): UInt <intrinsic rt_gc_stats>
-  fun write(): Unit <intrinsic rt_write>
+  fun write(arg1: String): Unit <extern0 abi=scoop symbol=scoop_rt_write>
   fun print(message: Any): Unit
     Call write : Unit
       MethodCall Any.toString : String
@@ -468,7 +530,7 @@ Module
   fun makeTask(gate: Gate): suspend () -> Int
     return
       Lambda lambda1 invoke=$lambda.0 captures=1 : suspend () -> Int
-        capture gate binding17 : Gate
+        capture gate binding21 : Gate
   suspend fun referenced(): Int
     return
       IntLiteral 43 : Int
@@ -487,7 +549,7 @@ Module
         Local exact : suspend (Any) -> Int
     return
       Lambda lambda3 invoke=$lambda.3 captures=1 : suspend () -> Int
-        capture widened binding30 : suspend (Int) -> Any
+        capture widened binding34 : suspend (Int) -> Any
   fun dynamicVarianceTask(): suspend () -> Int
     val local0
       CallableReference reference2 target=acceptAny captures=0 : suspend (Any) -> Int
@@ -498,15 +560,15 @@ Module
         Local erased : Any
     return
       Lambda lambda4 invoke=$lambda.4 captures=1 : suspend () -> Int
-        capture checked binding34 : suspend (Int) -> Any
+        capture checked binding38 : suspend (Int) -> Any
   fun constantTask<T>(value: T0): suspend () -> T0
     return
       Lambda lambda5 invoke=$lambda.5 captures=1 : suspend () -> T0
-        capture value binding36 : T0
+        capture value binding40 : T0
   fun failureTask(gate: Gate): suspend () -> Int
     return
       Lambda lambda7 invoke=$lambda.6 captures=1 : suspend () -> Int
-        capture gate binding38 : Gate
+        capture gate binding42 : Gate
   suspend fun synchronousValue(): Int
     return
       Call suspendCoroutine<Int> : Int
@@ -530,7 +592,7 @@ Module
   fun nestedTask(gate: Gate): suspend () -> Int
     return
       Lambda lambda15 invoke=$lambda.13 captures=1 : suspend () -> Int
-        capture gate binding54 : Gate
+        capture gate binding58 : Gate
   fun main(): Unit
     val local0
       Lambda lambda16 invoke=$lambda.16 captures=0 : suspend () -> Int
@@ -680,6 +742,7 @@ Module
 
 == mir ==
 Module
+  extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
   struct FunctionSuspendRegistration$I (registration: (Continuation$I) -> Unit)
   struct FunctionSuspendTask$I (task: suspend () -> Int)
   struct FunctionSuspendTask$U (task: suspend () -> Unit)
@@ -898,16 +961,16 @@ Module
     bb0 entry
       call $call.1: String = @scoop.Any.toString virtual[2]
         Local message
-      call @scoop_rt_print direct
+      call extern0 @scoop_rt_write direct
         Local $call.1
       return
   fun println @scoop.println(message: Any) -> Unit
     bb0 entry
       call $call.1: String = @scoop.Any.toString virtual[2]
         Local message
-      call @scoop_rt_print direct
+      call extern0 @scoop_rt_write direct
         Local $call.1
-      call @scoop_rt_print direct
+      call extern0 @scoop_rt_write direct
         StringConst @scoop.str.0
       return
   fun makeTask @scoop.makeTask(gate: Gate) -> suspend () -> Int
@@ -10310,8 +10373,9 @@ Module
   enum CoroutineSlot$S niche(payload_variant=1)
   enum CoroutineSlot$Gate niche(payload_variant=1)
   enum CoroutineSlot$FContinuation$IRUX niche(payload_variant=1)
-  enum CoroutineSlot$FunctionSuspendTask$I tagged size=8 align=8 variants=() ({ptr})
-  enum CoroutineSlot$FunctionSuspendTask$U tagged size=8 align=8 variants=() ({ptr})
+  enum CoroutineSlot$FunctionSuspendTask$I tagged size=8 align=8 variants=() (struct1)
+  enum CoroutineSlot$FunctionSuspendTask$U tagged size=8 align=8 variants=() (struct2)
+  extern ef0 write @scoop_rt_write(ptr) -> {} <scoop managed nounwind>
   fun @scoop.print(ptr) -> void
     local %0 $call.1: ptr
   block entry
@@ -10319,7 +10383,7 @@ Module
     t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
     store t2 -> local0
-    call @scoop_rt_print(local0)
+    native_call extern0(local0)
     t3 = aggregate () : {}
     ret
   fun @scoop.println(ptr) -> void
@@ -10329,9 +10393,9 @@ Module
     t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
     store t2 -> local0
-    call @scoop_rt_print(local0)
+    native_call extern0(local0)
     t3 = aggregate () : {}
-    call @scoop_rt_print(global0)
+    native_call extern0(global0)
     t4 = aggregate () : {}
     ret
   fun @scoop.makeTask(ptr) -> ptr
@@ -11398,7 +11462,7 @@ Module
     ret local1
   fun @scoop.startCoroutine$I(ptr, ptr) -> void
   block entry
-    t0 = aggregate (param0) : {ptr}
+    t0 = aggregate (param0) : struct1
     t1 = call @scoop_rt_box(global91, t0, 8) : ptr
     call @scoop.coroutine.start$I(t1, param1)
     t2 = aggregate () : {}
@@ -11422,7 +11486,7 @@ Module
     ret local1
   fun @scoop.startCoroutine$U(ptr, ptr) -> void
   block entry
-    t0 = aggregate (param0) : {ptr}
+    t0 = aggregate (param0) : struct2
     t1 = call @scoop_rt_box(global93, t0, 8) : ptr
     call @scoop.coroutine.start$U(t1, param1)
     t2 = aggregate () : {}
@@ -11598,18 +11662,18 @@ Module
     store t1 -> local0
     ret local0
   fun @scoop.eq.FunctionSuspendRegistration$I(ptr, ptr) -> i1
-    local %0 $a: {ptr}
-    local %1 $b: {ptr}
+    local %0 $a: struct0
+    local %1 $b: struct0
   block entry
-    t0 = heap_load param0 +16 : {ptr}
+    t0 = heap_load param0 +16 : struct0
     store t0 -> local0
-    t1 = heap_load param1 +16 : {ptr}
+    t1 = heap_load param1 +16 : struct0
     store t1 -> local1
     t2 = extract local0, 0 : i64
     t3 = extract local1, 0 : i64
     t4 = Eq t2, t3 : i1
     ret t4
-  fun @scoop.FunctionSuspendRegistration.register$I({ptr}, ptr) -> void
+  fun @scoop.FunctionSuspendRegistration.register$I(struct0, ptr) -> void
   block entry
     t0 = extract param0, 0 : ptr
     call_indirect t0[2](t0, param1)
@@ -11617,23 +11681,23 @@ Module
     ret
   fun @scoop.thunk.FunctionSuspendRegistration$I.SuspendRegistration$I.register(ptr, ptr) -> void
   block entry
-    t0 = heap_load param0 +16 : {ptr}
+    t0 = heap_load param0 +16 : struct0
     call @scoop.FunctionSuspendRegistration.register$I(t0, param1)
     t1 = aggregate () : {}
     ret
   fun @scoop.eq.FunctionSuspendTask$I(ptr, ptr) -> i1
-    local %0 $a: {ptr}
-    local %1 $b: {ptr}
+    local %0 $a: struct1
+    local %1 $b: struct1
   block entry
-    t0 = heap_load param0 +16 : {ptr}
+    t0 = heap_load param0 +16 : struct1
     store t0 -> local0
-    t1 = heap_load param1 +16 : {ptr}
+    t1 = heap_load param1 +16 : struct1
     store t1 -> local1
     t2 = extract local0, 0 : i64
     t3 = extract local1, 0 : i64
     t4 = Eq t2, t3 : i1
     ret t4
-  fun @scoop.FunctionSuspendTask.run$I$suspend({ptr}, ptr) -> enum2
+  fun @scoop.FunctionSuspendTask.run$I$suspend(struct1, ptr) -> enum2
     local %0 $frame: ptr
     local %1 $step: enum2
   block entry
@@ -11668,18 +11732,18 @@ Module
     store t4 -> local1
     ret local1
   fun @scoop.eq.FunctionSuspendTask$U(ptr, ptr) -> i1
-    local %0 $a: {ptr}
-    local %1 $b: {ptr}
+    local %0 $a: struct2
+    local %1 $b: struct2
   block entry
-    t0 = heap_load param0 +16 : {ptr}
+    t0 = heap_load param0 +16 : struct2
     store t0 -> local0
-    t1 = heap_load param1 +16 : {ptr}
+    t1 = heap_load param1 +16 : struct2
     store t1 -> local1
     t2 = extract local0, 0 : i64
     t3 = extract local1, 0 : i64
     t4 = Eq t2, t3 : i1
     ret t4
-  fun @scoop.FunctionSuspendTask.run$U$suspend({ptr}, ptr) -> enum3
+  fun @scoop.FunctionSuspendTask.run$U$suspend(struct2, ptr) -> enum3
     local %0 $frame: ptr
     local %1 $step: enum3
   block entry
@@ -17610,7 +17674,7 @@ Module
     t3 = enum_wrap e2 v0 (local1) : enum2
     ret t3
   block coroutine.register.1
-    t4 = aggregate (local0) : {ptr}
+    t4 = aggregate (local0) : struct0
     t5 = call @scoop_rt_box(global154, t4, 8) : ptr
     t6 = heap_load t5 +0 : ptr
     t7 = call @scoop_rt_itable_lookup(t6, global155) : ptr
@@ -17872,7 +17936,7 @@ Module
     heap_store t0 +16 param0
     heap_store t0 +24 1
     store t0 -> local3
-    t1 = heap_load local0 +16 : {ptr}
+    t1 = heap_load local0 +16 : struct1
     t2 = call @scoop.FunctionSuspendTask.run$I$suspend(t1, local3) : enum2
     store t2 -> local4
     t3 = enum_tag e2 local4 : i64
@@ -18072,7 +18136,7 @@ Module
     heap_store t0 +16 param0
     heap_store t0 +24 1
     store t0 -> local2
-    t1 = heap_load local0 +16 : {ptr}
+    t1 = heap_load local0 +16 : struct2
     t2 = call @scoop.FunctionSuspendTask.run$U$suspend(t1, local2) : enum3
     store t2 -> local3
     t3 = enum_tag e3 local3 : i64
@@ -18666,7 +18730,7 @@ Module
     t24 = Eq t23, 0 : i1
     cbr t24 then @completed else @suspended
   fun @scoop.FunctionSuspendTask.run$I$suspend$drive(ptr) -> enum2
-    local %0 this: {ptr}
+    local %0 this: struct1
     local %1 $call.1: i64
     local %2 $completion: ptr
     local %3 $adapter.1: ptr
@@ -18709,7 +18773,7 @@ Module
     unreachable
   block coroutine.initial
     t12 = heap_load param0 +32 : enum16
-    t13 = enum_field e16 v1 f0 t12 : {ptr}
+    t13 = enum_field e16 v1 f0 t12 : struct1
     store t13 -> local0
     heap_store param0 +16 -1
     br @entry
@@ -18867,7 +18931,7 @@ Module
     t24 = Eq t23, 0 : i1
     cbr t24 then @completed else @suspended
   fun @scoop.FunctionSuspendTask.run$U$suspend$drive(ptr) -> enum3
-    local %0 this: {ptr}
+    local %0 this: struct2
     local %1 $completion: ptr
     local %2 $adapter.1: ptr
     local %3 $step.1: enum3
@@ -18905,7 +18969,7 @@ Module
     unreachable
   block coroutine.initial
     t10 = heap_load param0 +32 : enum17
-    t11 = enum_field e17 v1 f0 t10 : {ptr}
+    t11 = enum_field e17 v1 f0 t10 : struct2
     store t11 -> local0
     heap_store param0 +16 -1
     br @entry

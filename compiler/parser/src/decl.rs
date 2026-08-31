@@ -2,9 +2,10 @@
 //! classes and interfaces.
 
 use scoop_ast::{
-    Annotation, ClassDecl, ClassModifier, ConstructorProp, Decl, Diagnostic, EnumDecl, Expr,
-    FieldDecl, FunctionBody, FunctionDecl, Ident, InterfaceDecl, MethodModifier, Param, Span,
-    StructDecl, TypeParamDecl, Variance, VariantDecl, VariantDeclKind, VariantFieldDecl,
+    Annotation, AnnotationArg, AnnotationLiteral, ClassDecl, ClassModifier, ConstructorProp, Decl,
+    Diagnostic, EnumDecl, Expr, FieldDecl, FunctionBody, FunctionDecl, GlobalDecl, Ident,
+    InterfaceDecl, MethodModifier, Param, Span, StructDecl, TypeParamDecl, TypeParamKindBound,
+    Variance, VariantDecl, VariantDeclKind, VariantFieldDecl,
 };
 
 use crate::lexer::TokenKind;
@@ -106,9 +107,14 @@ impl Parser {
                 Modifiers::default(),
                 FunctionContext::TopLevel,
             )?)),
-            TokenKind::Struct => Ok(Decl::Struct(self.parse_struct()?)),
-            TokenKind::Enum => Ok(Decl::Enum(self.parse_enum()?)),
-            TokenKind::Class => Ok(Decl::Class(self.parse_class(ClassModifier::Final, None)?)),
+            TokenKind::Val | TokenKind::Var => Ok(Decl::Global(self.parse_global(Vec::new())?)),
+            TokenKind::Struct => Ok(Decl::Struct(self.parse_struct(Vec::new())?)),
+            TokenKind::Enum => Ok(Decl::Enum(self.parse_enum(Vec::new())?)),
+            TokenKind::Class => Ok(Decl::Class(self.parse_class(
+                Vec::new(),
+                ClassModifier::Final,
+                None,
+            )?)),
             TokenKind::Ident(text) if text == "open" || text == "abstract" => {
                 let modifier = if text == "open" {
                     ClassModifier::Open
@@ -116,9 +122,13 @@ impl Parser {
                     ClassModifier::Abstract
                 };
                 let keyword = self.bump();
-                Ok(Decl::Class(self.parse_class(modifier, Some(keyword.span))?))
+                Ok(Decl::Class(self.parse_class(
+                    Vec::new(),
+                    modifier,
+                    Some(keyword.span),
+                )?))
             }
-            TokenKind::Interface => Ok(Decl::Interface(self.parse_interface()?)),
+            TokenKind::Interface => Ok(Decl::Interface(self.parse_interface(Vec::new())?)),
             TokenKind::At => {
                 let annotations = self.parse_annotations()?;
                 let mut modifiers = Modifiers::default();
@@ -134,17 +144,36 @@ impl Parser {
                         ));
                     }
                 }
-                if !matches!(self.peek().kind, TokenKind::Fun) {
-                    return Err(Diagnostic::at(
+                match self.peek().kind {
+                    TokenKind::Fun => Ok(Decl::Function(self.parse_function(
+                        annotations,
+                        modifiers,
+                        FunctionContext::TopLevel,
+                    )?)),
+                    TokenKind::Val | TokenKind::Var if !modifiers.is_suspend => {
+                        Ok(Decl::Global(self.parse_global(annotations)?))
+                    }
+                    TokenKind::Struct if !modifiers.is_suspend => {
+                        Ok(Decl::Struct(self.parse_struct(annotations)?))
+                    }
+                    TokenKind::Enum if !modifiers.is_suspend => {
+                        Ok(Decl::Enum(self.parse_enum(annotations)?))
+                    }
+                    TokenKind::Class if !modifiers.is_suspend => Ok(Decl::Class(
+                        self.parse_class(annotations, ClassModifier::Final, None)?,
+                    )),
+                    TokenKind::Interface if !modifiers.is_suspend => {
+                        Ok(Decl::Interface(self.parse_interface(annotations)?))
+                    }
+                    _ if modifiers.is_suspend => Err(Diagnostic::at(
+                        modifiers.suspend_span.expect("parsed suspend modifier"),
+                        "`suspend` modifier is only allowed on function declarations",
+                    )),
+                    _ => Err(Diagnostic::at(
                         self.peek().span,
-                        "annotations are only allowed on function declarations (milestone M4)",
-                    ));
+                        "annotations are only allowed on declarations or safety blocks",
+                    )),
                 }
-                Ok(Decl::Function(self.parse_function(
-                    annotations,
-                    modifiers,
-                    FunctionContext::TopLevel,
-                )?))
             }
             TokenKind::Ident(text) if text == "sealed" => Err(Diagnostic::at(
                 self.peek().span,
@@ -154,60 +183,109 @@ impl Parser {
                 self.peek().span,
                 "`object` declarations are not supported yet (milestone M6)",
             )),
-            _ => self.unexpected("`fun`, `struct`, `enum`, `class` or `interface`"),
+            _ => self.unexpected("`fun`, `val`, `var`, `struct`, `enum`, `class` or `interface`"),
         }
     }
 
-    /// M4 supports a single annotation per function, and only
-    /// `@Intrinsic("name")` (DESIGN.md 1.3).
-    fn parse_annotations(&mut self) -> Result<Vec<Annotation>, Diagnostic> {
+    fn parse_global(&mut self, annotations: Vec<Annotation>) -> Result<GlobalDecl, Diagnostic> {
+        let keyword = self.bump();
+        let mutable = matches!(keyword.kind, TokenKind::Var);
+        let name = self.expect_ident("global name")?;
+        self.expect("`:`", |kind| matches!(kind, TokenKind::Colon))?;
+        let ty = self.parse_type_ref()?;
+        let init = if matches!(self.peek().kind, TokenKind::Equal) {
+            self.bump();
+            Some(self.parse_expr()?)
+        } else {
+            None
+        };
+        let end = init.as_ref().map_or(ty.span.end, |expr| expr.span().end);
+        Ok(GlobalDecl {
+            annotations,
+            mutable,
+            name,
+            ty,
+            init,
+            span: Span::new(keyword.span.start, end),
+        })
+    }
+
+    /// Parse compiler annotations without assigning them language semantics.
+    /// Target, schema and coexistence checks belong to HIR (M12 design 1.2).
+    pub(crate) fn parse_annotations(&mut self) -> Result<Vec<Annotation>, Diagnostic> {
         let mut annotations = Vec::new();
         while matches!(self.peek().kind, TokenKind::At) {
             let at = self.bump();
-            if !annotations.is_empty() {
-                return Err(Diagnostic::at(
-                    at.span,
-                    "only a single annotation is supported (milestone M4)",
-                ));
-            }
             let name = self.expect_ident("annotation name")?;
-            if name.text != "Intrinsic" {
-                return Err(Diagnostic::at(
-                    Span::new(at.span.start, name.span.end),
-                    "annotations are not supported yet (milestone M4)",
-                ));
-            }
-            let (value, end) = self.parse_intrinsic_argument()?;
+            let (args, end) = self.parse_annotation_arguments(name.span.end)?;
             annotations.push(Annotation {
                 name,
-                value: Some(value),
+                args,
                 span: Span::new(at.span.start, end),
             });
         }
         Ok(annotations)
     }
 
-    /// The `("name")` argument list of `@Intrinsic`: exactly one string
-    /// literal.
-    fn parse_intrinsic_argument(&mut self) -> Result<(String, u32), Diagnostic> {
-        let error =
-            |span: Span| Diagnostic::at(span, "`@Intrinsic` requires exactly one string argument");
-        let open = self.peek().clone();
-        if !matches!(open.kind, TokenKind::LParen) {
-            return Err(error(open.span));
+    fn parse_annotation_arguments(
+        &mut self,
+        marker_end: u32,
+    ) -> Result<(Vec<AnnotationArg>, u32), Diagnostic> {
+        if !matches!(self.peek().kind, TokenKind::LParen) {
+            return Ok((Vec::new(), marker_end));
         }
-        self.pos += 1;
-        let arg = self.peek().clone();
-        let TokenKind::Str(value) = arg.kind else {
-            return Err(error(arg.span));
-        };
-        self.pos += 1;
-        let close = self.peek().clone();
-        if !matches!(close.kind, TokenKind::RParen) {
-            return Err(error(close.span));
+        self.bump();
+        let mut args = Vec::new();
+        let mut saw_named = false;
+        if !matches!(self.peek().kind, TokenKind::RParen) {
+            loop {
+                let start = self.peek().span.start;
+                let name = if matches!(self.peek().kind, TokenKind::Ident(_))
+                    && matches!(self.tokens[self.pos + 1].kind, TokenKind::Equal)
+                {
+                    let name = self.expect_ident("annotation argument name")?;
+                    self.bump();
+                    saw_named = true;
+                    Some(name)
+                } else {
+                    if saw_named {
+                        return Err(Diagnostic::at(
+                            self.peek().span,
+                            "positional annotation arguments must precede named arguments",
+                        ));
+                    }
+                    None
+                };
+                let token = self.bump();
+                let value = match token.kind {
+                    TokenKind::Str(value) => AnnotationLiteral::String(value),
+                    TokenKind::Int(value) => AnnotationLiteral::Int(value),
+                    TokenKind::True => AnnotationLiteral::Boolean(true),
+                    TokenKind::False => AnnotationLiteral::Boolean(false),
+                    _ => {
+                        return Err(Diagnostic::at(
+                            token.span,
+                            "annotation argument must be a string, integer or boolean literal",
+                        ));
+                    }
+                };
+                args.push(AnnotationArg {
+                    name,
+                    value,
+                    span: Span::new(start, token.span.end),
+                });
+                if matches!(self.peek().kind, TokenKind::Comma) {
+                    self.bump();
+                    if matches!(self.peek().kind, TokenKind::RParen) {
+                        break;
+                    }
+                } else {
+                    break;
+                }
+            }
         }
-        self.pos += 1;
-        Ok((value, close.span.end))
+        let close = self.expect("`)`", |kind| matches!(kind, TokenKind::RParen))?;
+        Ok((args, close.span.end))
     }
 
     /// `(open|final|abstract|override)* fun <T, ...>? (<receiver>.)?<name>(<param>, ...)?: <ret>? <body>?`
@@ -226,7 +304,7 @@ impl Parser {
         context: FunctionContext,
     ) -> Result<FunctionDecl, Diagnostic> {
         let fun = self.expect("`fun`", |k| matches!(k, TokenKind::Fun))?;
-        let type_params = self.parse_type_params()?;
+        let type_params = self.parse_type_params(false)?;
         let receiver_start = self.pos;
         let receiver_ty = match self.parse_type_ref() {
             Ok(ty) if matches!(self.peek().kind, TokenKind::Dot) => {
@@ -278,12 +356,6 @@ impl Parser {
             .map(|ty| ty.span.end)
             .unwrap_or(params_close.span.end);
         let (body, end) = match self.peek().kind {
-            TokenKind::LBrace | TokenKind::Equal if !annotations.is_empty() => {
-                return Err(Diagnostic::at(
-                    self.peek().span,
-                    "functions annotated with `@Intrinsic` must not have a body (spec 13.1)",
-                ));
-            }
             TokenKind::LBrace | TokenKind::Equal
                 if modifiers.method_modifier == Some(MethodModifier::Abstract) =>
             {
@@ -309,13 +381,12 @@ impl Parser {
                 let end = expr.span().end;
                 (FunctionBody::Expr(Box::new(expr)), end)
             }
-            _ if !annotations.is_empty()
-                || modifiers.method_modifier == Some(MethodModifier::Abstract)
+            _ if modifiers.method_modifier == Some(MethodModifier::Abstract)
                 || context == FunctionContext::Interface =>
             {
                 (FunctionBody::None, signature_end)
             }
-            _ => return self.unexpected("`{` or `=`"),
+            _ => (FunctionBody::None, signature_end),
         };
         let start = annotations
             .first()
@@ -354,10 +425,10 @@ impl Parser {
     /// unambiguous here). M6 adds an optional interface list (spec 4.4.3)
     /// and an optional member body holding member functions (value
     /// receiver).
-    fn parse_struct(&mut self) -> Result<StructDecl, Diagnostic> {
+    fn parse_struct(&mut self, annotations: Vec<Annotation>) -> Result<StructDecl, Diagnostic> {
         let keyword = self.expect("`struct`", |k| matches!(k, TokenKind::Struct))?;
         let name = self.expect_ident("struct name")?;
-        let type_params = self.parse_type_params()?;
+        let type_params = self.parse_type_params(false)?;
         self.expect("`(`", |k| matches!(k, TokenKind::LParen))?;
         let mut fields = Vec::new();
         if matches!(self.peek().kind, TokenKind::RParen) {
@@ -403,6 +474,7 @@ impl Parser {
             Vec::new()
         };
         Ok(StructDecl {
+            annotations,
             name,
             type_params,
             fields,
@@ -420,6 +492,7 @@ impl Parser {
     /// functions only in M6.
     fn parse_class(
         &mut self,
+        annotations: Vec<Annotation>,
         modifier: ClassModifier,
         modifier_span: Option<Span>,
     ) -> Result<ClassDecl, Diagnostic> {
@@ -476,6 +549,7 @@ impl Parser {
             .map(|span| span.start)
             .unwrap_or(keyword.span.start);
         Ok(ClassDecl {
+            annotations,
             modifier,
             name,
             constructor,
@@ -525,12 +599,16 @@ impl Parser {
 
     /// `interface <name> { <fun signature>, ... }` — method signatures
     /// only in M6 (no properties, no default implementations).
-    fn parse_interface(&mut self) -> Result<InterfaceDecl, Diagnostic> {
+    fn parse_interface(
+        &mut self,
+        annotations: Vec<Annotation>,
+    ) -> Result<InterfaceDecl, Diagnostic> {
         let keyword = self.expect("`interface`", |k| matches!(k, TokenKind::Interface))?;
         let name = self.expect_ident("interface name")?;
-        let type_params = self.parse_interface_type_params()?;
+        let type_params = self.parse_type_params(true)?;
         let (methods, end) = self.parse_member_body(FunctionContext::Interface)?;
         Ok(InterfaceDecl {
+            annotations,
             name,
             type_params,
             methods,
@@ -613,6 +691,11 @@ impl Parser {
         &mut self,
         context: FunctionContext,
     ) -> Result<FunctionDecl, Diagnostic> {
+        let annotations = if matches!(self.peek().kind, TokenKind::At) {
+            self.parse_annotations()?
+        } else {
+            Vec::new()
+        };
         let mut modifiers = Modifiers::default();
         loop {
             let token = self.peek().clone();
@@ -697,7 +780,7 @@ impl Parser {
                 "`suspend` modifier is only allowed on function declarations",
             ));
         }
-        self.parse_function(Vec::new(), modifiers, context)
+        self.parse_function(annotations, modifiers, context)
     }
 
     /// `enum <name><T, ...>? (: <interface>, ...)? { <variant>, ...
@@ -705,10 +788,10 @@ impl Parser {
     /// after the name / type parameters, before `{`. Variants separate
     /// like statements, with `,` in place of `;`; M6 adds member
     /// functions after the variants.
-    fn parse_enum(&mut self) -> Result<EnumDecl, Diagnostic> {
+    fn parse_enum(&mut self, annotations: Vec<Annotation>) -> Result<EnumDecl, Diagnostic> {
         let keyword = self.expect("`enum`", |k| matches!(k, TokenKind::Enum))?;
         let name = self.expect_ident("enum name")?;
-        let type_params = self.parse_type_params()?;
+        let type_params = self.parse_type_params(false)?;
         let mut end = name.span.end;
         let interfaces = interfaces_only(self.parse_supertypes(&mut end)?)?;
         self.expect("`{`", |k| matches!(k, TokenKind::LBrace))?;
@@ -724,7 +807,7 @@ impl Parser {
             }
             let start = self.pos;
             let parsed = match &self.peek().kind {
-                TokenKind::Fun | TokenKind::Suspend => self
+                TokenKind::Fun | TokenKind::Suspend | TokenKind::At => self
                     .parse_member_function(FunctionContext::TypeBody)
                     .map(|method| methods.push(method))
                     .and_then(|()| self.expect_statement_end()),
@@ -753,6 +836,7 @@ impl Parser {
             }
         };
         Ok(EnumDecl {
+            annotations,
             name,
             type_params,
             variants,
@@ -762,27 +846,12 @@ impl Parser {
         })
     }
 
-    /// `<T, ...>`; empty when the next token is not `<`.
-    fn parse_type_params(&mut self) -> Result<Vec<Ident>, Diagnostic> {
-        let mut type_params = Vec::new();
-        if matches!(self.peek().kind, TokenKind::Less) {
-            self.bump();
-            loop {
-                type_params.push(self.expect_ident("type parameter name")?);
-                if matches!(self.peek().kind, TokenKind::Comma) {
-                    self.bump();
-                } else {
-                    break;
-                }
-            }
-            self.expect("`>`", |k| matches!(k, TokenKind::Greater))?;
-        }
-        Ok(type_params)
-    }
-
-    /// Interface declaration parameters additionally accept declaration-site
-    /// `in` / `out` variance. They remain identifiers elsewhere in the grammar.
-    fn parse_interface_type_params(&mut self) -> Result<Vec<TypeParamDecl>, Diagnostic> {
+    /// `<T, U : value, ...>`; interfaces additionally accept declaration-site
+    /// `in` / `out` variance. `value` and `ref` are contextual keywords.
+    fn parse_type_params(
+        &mut self,
+        allow_variance: bool,
+    ) -> Result<Vec<TypeParamDecl>, Diagnostic> {
         let mut type_params = Vec::new();
         if !matches!(self.peek().kind, TokenKind::Less) {
             return Ok(type_params);
@@ -791,26 +860,50 @@ impl Parser {
         loop {
             let variance_token = self.peek().clone();
             let variance = match &variance_token.kind {
-                TokenKind::Ident(text) if text == "in" => {
+                TokenKind::Ident(text) if allow_variance && text == "in" => {
                     self.bump();
                     Variance::In
                 }
-                TokenKind::Ident(text) if text == "out" => {
+                TokenKind::Ident(text) if allow_variance && text == "out" => {
                     self.bump();
                     Variance::Out
                 }
                 _ => Variance::Invariant,
             };
             let name = self.expect_ident("type parameter name")?;
+            let kind_bound = if matches!(self.peek().kind, TokenKind::Colon) {
+                self.bump();
+                let bound = self.expect_ident("`value` or `ref` kind bound")?;
+                Some(match bound.text.as_str() {
+                    "value" => TypeParamKindBound::Value,
+                    "ref" => TypeParamKindBound::Ref,
+                    _ => {
+                        return Err(Diagnostic::at(
+                            bound.span,
+                            format!(
+                                "unsupported type parameter bound `{}`; M12 supports only `value` or `ref`",
+                                bound.text
+                            ),
+                        ));
+                    }
+                })
+            } else {
+                None
+            };
             let start = if variance == Variance::Invariant {
                 name.span.start
             } else {
                 variance_token.span.start
             };
+            let end = self.tokens[self.pos.saturating_sub(1)]
+                .span
+                .end
+                .max(name.span.end);
             type_params.push(TypeParamDecl {
-                span: Span::new(start, name.span.end),
+                span: Span::new(start, end),
                 name,
                 variance,
+                kind_bound,
             });
             if matches!(self.peek().kind, TokenKind::Comma) {
                 self.bump();

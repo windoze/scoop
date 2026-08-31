@@ -124,11 +124,25 @@ pub struct SourceFile {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Decl {
+    Global(GlobalDecl),
     Function(FunctionDecl),
     Struct(StructDecl),
     Enum(EnumDecl),
     Class(ClassDecl),
     Interface(InterfaceDecl),
+}
+
+/// A top-level storage declaration. Unlike block-local bindings, a global
+/// always has an explicit type and may omit its initializer only when it is
+/// imported with `@Extern`.
+#[derive(Debug, Clone, PartialEq)]
+pub struct GlobalDecl {
+    pub annotations: Vec<Annotation>,
+    pub mutable: bool,
+    pub name: Ident,
+    pub ty: TypeRef,
+    pub init: Option<Expr>,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -151,6 +165,7 @@ pub enum MethodModifier {
 /// `class Name(props) : Base(args), I1, I2 { members }` (spec 9.1).
 #[derive(Debug, Clone, PartialEq)]
 pub struct ClassDecl {
+    pub annotations: Vec<Annotation>,
     pub modifier: ClassModifier,
     pub name: Ident,
     /// Primary-constructor properties (`val` / `var`).
@@ -174,6 +189,7 @@ pub struct ConstructorProp {
 /// only in M6 (no properties, no default implementations).
 #[derive(Debug, Clone, PartialEq)]
 pub struct InterfaceDecl {
+    pub annotations: Vec<Annotation>,
     pub name: Ident,
     pub type_params: Vec<TypeParamDecl>,
     pub methods: Vec<FunctionDecl>,
@@ -191,14 +207,22 @@ pub enum Variance {
 pub struct TypeParamDecl {
     pub name: Ident,
     pub variance: Variance,
+    pub kind_bound: Option<TypeParamKindBound>,
     pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TypeParamKindBound {
+    Value,
+    Ref,
 }
 
 /// `enum E<T> { ... }` (spec 4.2).
 #[derive(Debug, Clone, PartialEq)]
 pub struct EnumDecl {
+    pub annotations: Vec<Annotation>,
     pub name: Ident,
-    pub type_params: Vec<Ident>,
+    pub type_params: Vec<TypeParamDecl>,
     pub variants: Vec<VariantDecl>,
     /// Implemented interfaces (spec 4.4.3).
     pub interfaces: Vec<TypeRef>,
@@ -239,10 +263,11 @@ pub struct VariantFieldDecl {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct StructDecl {
+    pub annotations: Vec<Annotation>,
     pub name: Ident,
     /// Generic type parameters (`struct Name<T, U>(...)`); empty for
     /// non-generic structs.
-    pub type_params: Vec<Ident>,
+    pub type_params: Vec<TypeParamDecl>,
     pub fields: Vec<FieldDecl>,
     /// Implemented interfaces (`struct S(...) : I1, I2`, spec 4.4.3).
     pub interfaces: Vec<TypeRef>,
@@ -260,7 +285,7 @@ pub struct FieldDecl {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct FunctionDecl {
-    /// M4: at most `@Intrinsic("name")`, sysroot only (DESIGN.md 1.3).
+    /// Compiler-recognized annotations in source order (spec 9.4 / M12).
     pub annotations: Vec<Annotation>,
     /// Whether this callable uses the coroutine calling convention.
     pub is_suspend: bool,
@@ -275,7 +300,7 @@ pub struct FunctionDecl {
     pub name: Ident,
     /// Generic type parameters (`fun <T> f(...)`); empty for
     /// non-generic functions.
-    pub type_params: Vec<Ident>,
+    pub type_params: Vec<TypeParamDecl>,
     pub params: Vec<Param>,
     /// Return type annotation; absent means `Unit`.
     pub return_ty: Option<TypeRef>,
@@ -286,9 +311,23 @@ pub struct FunctionDecl {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Annotation {
     pub name: Ident,
-    /// The single string argument of `@Intrinsic("name")`.
-    pub value: Option<String>,
+    pub args: Vec<AnnotationArg>,
     pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct AnnotationArg {
+    /// A named argument (`name = value`), or `None` for a positional one.
+    pub name: Option<Ident>,
+    pub value: AnnotationLiteral,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum AnnotationLiteral {
+    String(String),
+    Int(i64),
+    Boolean(bool),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -303,8 +342,8 @@ pub enum FunctionBody {
     Block(Block),
     /// `fun f(...) [: T] = expr`
     Expr(Box<Expr>),
-    /// Bodyless: `abstract fun`, interface method signatures, and
-    /// `@Intrinsic` functions (spec 13.1).
+    /// Bodyless declaration. HIR decides whether the declaration kind permits
+    /// the missing body (`abstract`, interface, intrinsic or extern).
     None,
 }
 
@@ -343,6 +382,18 @@ pub enum StatementKind {
     If(If),
     While(While),
     Block(Block),
+    /// A lexical safety override. Unlike annotations on declarations, this is
+    /// a dedicated syntax node and cannot be mistaken for a function call.
+    SafetyBlock {
+        mode: SafetyMode,
+        block: Block,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SafetyMode {
+    Safe,
+    Unsafe,
 }
 
 /// `when (subject) { arms... }` with an optional trailing `else`.
@@ -573,6 +624,8 @@ pub enum Expr {
     MethodCall {
         receiver: Box<Expr>,
         name: Ident,
+        /// Explicit call-site type arguments (`receiver.name<T>(...)`).
+        type_args: Vec<TypeRef>,
         args: Vec<Expr>,
         span: Span,
     },
@@ -672,6 +725,8 @@ pub enum FieldSelector {
 #[derive(Debug, Clone, PartialEq)]
 pub struct CallExpr {
     pub callee: Ident,
+    /// Explicit call-site type arguments (`callee<T>(...)`).
+    pub type_args: Vec<TypeRef>,
     pub args: Vec<Expr>,
     pub span: Span,
 }
@@ -707,12 +762,29 @@ pub fn dump(file: &SourceFile) -> String {
     let mut out = String::from("SourceFile\n");
     for decl in &file.declarations {
         match decl {
+            Decl::Global(g) => {
+                dump_annotations(&g.annotations, 2, &mut out);
+                out.push_str(&format!(
+                    "  {} {}: {}{}\n",
+                    if g.mutable { "var" } else { "val" },
+                    g.name.text,
+                    dump_type_ref(&g.ty),
+                    if g.init.is_some() { " = <expr>" } else { "" }
+                ));
+            }
             Decl::Enum(e) => {
+                dump_annotations(&e.annotations, 2, &mut out);
                 let type_params = if e.type_params.is_empty() {
                     String::new()
                 } else {
-                    let names: Vec<&str> = e.type_params.iter().map(|p| p.text.as_str()).collect();
-                    format!("<{}>", names.join(", "))
+                    format!(
+                        "<{}>",
+                        e.type_params
+                            .iter()
+                            .map(dump_type_param)
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    )
                 };
                 let interfaces = if e.interfaces.is_empty() {
                     String::new()
@@ -762,6 +834,7 @@ pub fn dump(file: &SourceFile) -> String {
                 }
             }
             Decl::Class(c) => {
+                dump_annotations(&c.annotations, 2, &mut out);
                 let modifier = match c.modifier {
                     ClassModifier::Final => "",
                     ClassModifier::Open => "open ",
@@ -803,21 +876,11 @@ pub fn dump(file: &SourceFile) -> String {
                 }
             }
             Decl::Interface(i) => {
+                dump_annotations(&i.annotations, 2, &mut out);
                 let params = if i.type_params.is_empty() {
                     String::new()
                 } else {
-                    let params: Vec<String> = i
-                        .type_params
-                        .iter()
-                        .map(|param| {
-                            let variance = match param.variance {
-                                Variance::Invariant => "",
-                                Variance::In => "in ",
-                                Variance::Out => "out ",
-                            };
-                            format!("{variance}{}", param.name.text)
-                        })
-                        .collect();
+                    let params: Vec<String> = i.type_params.iter().map(dump_type_param).collect();
                     format!("<{}>", params.join(", "))
                 };
                 out.push_str(&format!("  interface {}{}\n", i.name.text, params));
@@ -827,11 +890,18 @@ pub fn dump(file: &SourceFile) -> String {
                 }
             }
             Decl::Struct(s) => {
+                dump_annotations(&s.annotations, 2, &mut out);
                 let type_params = if s.type_params.is_empty() {
                     String::new()
                 } else {
-                    let names: Vec<&str> = s.type_params.iter().map(|p| p.text.as_str()).collect();
-                    format!("<{}>", names.join(", "))
+                    format!(
+                        "<{}>",
+                        s.type_params
+                            .iter()
+                            .map(dump_type_param)
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    )
                 };
                 let interfaces = if s.interfaces.is_empty() {
                     String::new()
@@ -856,19 +926,18 @@ pub fn dump(file: &SourceFile) -> String {
                 }
             }
             Decl::Function(f) => {
-                for annotation in &f.annotations {
-                    let value = annotation
-                        .value
-                        .as_ref()
-                        .map(|v| format!("({v:?})"))
-                        .unwrap_or_default();
-                    out.push_str(&format!("    @{}{}\n", annotation.name.text, value));
-                }
+                dump_annotations(&f.annotations, 2, &mut out);
                 let type_params = if f.type_params.is_empty() {
                     String::new()
                 } else {
-                    let names: Vec<&str> = f.type_params.iter().map(|p| p.text.as_str()).collect();
-                    format!("<{}>", names.join(", "))
+                    format!(
+                        "<{}>",
+                        f.type_params
+                            .iter()
+                            .map(dump_type_param)
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    )
                 };
                 let params: Vec<String> = f
                     .params
@@ -924,6 +993,35 @@ pub fn dump(file: &SourceFile) -> String {
     out
 }
 
+fn dump_annotations(annotations: &[Annotation], indent: usize, out: &mut String) {
+    let pad = "  ".repeat(indent);
+    for annotation in annotations {
+        let args = if annotation.args.is_empty() {
+            String::new()
+        } else {
+            let args: Vec<String> = annotation
+                .args
+                .iter()
+                .map(|arg| {
+                    let name = arg
+                        .name
+                        .as_ref()
+                        .map(|name| format!("{} = ", name.text))
+                        .unwrap_or_default();
+                    let value = match &arg.value {
+                        AnnotationLiteral::String(value) => format!("{value:?}"),
+                        AnnotationLiteral::Int(value) => value.to_string(),
+                        AnnotationLiteral::Boolean(value) => value.to_string(),
+                    };
+                    format!("{name}{value}")
+                })
+                .collect();
+            format!("({})", args.join(", "))
+        };
+        out.push_str(&format!("{pad}@{}{}\n", annotation.name.text, args));
+    }
+}
+
 fn dump_type_ref(ty: &TypeRef) -> String {
     match &ty.kind {
         TypeRefKind::Named(name) => name.text.clone(),
@@ -967,11 +1065,7 @@ fn dump_statement(statement: &Statement, indent: usize, out: &mut String) {
             let type_params = if function.type_params.is_empty() {
                 String::new()
             } else {
-                let names: Vec<_> = function
-                    .type_params
-                    .iter()
-                    .map(|param| param.text.as_str())
-                    .collect();
+                let names: Vec<_> = function.type_params.iter().map(dump_type_param).collect();
                 format!("<{}>", names.join(", "))
             };
             let params: Vec<_> = function
@@ -1093,7 +1187,29 @@ fn dump_statement(statement: &Statement, indent: usize, out: &mut String) {
             out.push_str(&format!("{pad}block\n"));
             dump_block(block, indent + 1, out);
         }
+        StatementKind::SafetyBlock { mode, block } => {
+            let name = match mode {
+                SafetyMode::Safe => "Safe",
+                SafetyMode::Unsafe => "Unsafe",
+            };
+            out.push_str(&format!("{pad}@{name} block\n"));
+            dump_block(block, indent + 1, out);
+        }
     }
+}
+
+fn dump_type_param(param: &TypeParamDecl) -> String {
+    let variance = match param.variance {
+        Variance::Invariant => "",
+        Variance::In => "in ",
+        Variance::Out => "out ",
+    };
+    let kind = match param.kind_bound {
+        None => "",
+        Some(TypeParamKindBound::Value) => " : value",
+        Some(TypeParamKindBound::Ref) => " : ref",
+    };
+    format!("{variance}{}{kind}", param.name.text)
 }
 
 /// Compact one-line pattern rendering for dumps.
@@ -1238,7 +1354,8 @@ fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
             dump_expr(&access.receiver, indent + 1, out);
         }
         Expr::Call(call) => {
-            out.push_str(&format!("{pad}Call {}\n", call.callee.text));
+            let type_args = dump_call_type_args(&call.type_args);
+            out.push_str(&format!("{pad}Call {}{type_args}\n", call.callee.text));
             for arg in &call.args {
                 dump_expr(arg, indent + 1, out);
             }
@@ -1272,10 +1389,12 @@ fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
         Expr::MethodCall {
             receiver,
             name,
+            type_args,
             args,
             ..
         } => {
-            out.push_str(&format!("{pad}MethodCall {}\n", name.text));
+            let type_args = dump_call_type_args(type_args);
+            out.push_str(&format!("{pad}MethodCall {}{type_args}\n", name.text));
             dump_expr(receiver, indent + 1, out);
             for arg in args {
                 dump_expr(arg, indent + 1, out);
@@ -1352,5 +1471,20 @@ fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
                 dump_block(finally_body, indent + 2, out);
             }
         }
+    }
+}
+
+fn dump_call_type_args(type_args: &[TypeRef]) -> String {
+    if type_args.is_empty() {
+        String::new()
+    } else {
+        format!(
+            "<{}>",
+            type_args
+                .iter()
+                .map(dump_type_ref)
+                .collect::<Vec<_>>()
+                .join(", ")
+        )
     }
 }

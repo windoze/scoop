@@ -82,7 +82,7 @@ Module
     fun register(continuation: Continuation<T0>): Unit
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
-  fun write(): Unit <intrinsic rt_write>
+  fun write(arg1: String): Unit <extern0 abi=scoop symbol=scoop_rt_write>
   fun print(message: Any): Unit
     Call write : Unit
       MethodCall Any.toString : String
@@ -134,7 +134,9 @@ fn generic_enum_instantiations_and_interning() {
     let module = lower_user(file).expect("generic enum program must lower");
     let body = match &module.functions[module.entry].kind {
         FunctionKind::User(body) => body,
-        FunctionKind::Intrinsic(_) => panic!("main is a user function"),
+        FunctionKind::Intrinsic(_) | FunctionKind::Extern(_) => {
+            panic!("main is a user function")
+        }
     };
     // `val a` and `val b` share the interned `Option<Int>` type.
     let locals: Vec<TypeId> = body.locals.iter().map(|(_, local)| local.ty).collect();
@@ -205,7 +207,7 @@ Module
     fun register(continuation: Continuation<T0>): Unit
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
-  fun write(): Unit <intrinsic rt_write>
+  fun write(arg1: String): Unit <extern0 abi=scoop symbol=scoop_rt_write>
   fun print(message: Any): Unit
     Call write : Unit
       MethodCall Any.toString : String
@@ -286,7 +288,7 @@ Module
     fun register(continuation: Continuation<T0>): Unit
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
-  fun write(): Unit <intrinsic rt_write>
+  fun write(arg1: String): Unit <extern0 abi=scoop symbol=scoop_rt_write>
   fun print(message: Any): Unit
     Call write : Unit
       MethodCall Any.toString : String
@@ -394,7 +396,7 @@ Module
     fun register(continuation: Continuation<T0>): Unit
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
-  fun write(): Unit <intrinsic rt_write>
+  fun write(arg1: String): Unit <extern0 abi=scoop symbol=scoop_rt_write>
   fun print(message: Any): Unit
     Call write : Unit
       MethodCall Any.toString : String
@@ -580,7 +582,7 @@ Module
     fun register(continuation: Continuation<T0>): Unit
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
-  fun write(): Unit <intrinsic rt_write>
+  fun write(arg1: String): Unit <extern0 abi=scoop symbol=scoop_rt_write>
   fun print(message: Any): Unit
     Call write : Unit
       MethodCall Any.toString : String
@@ -644,15 +646,15 @@ fn var_pat2(target: ast::Pattern, init: Expr) -> Statement {
 #[test]
 fn intrinsic_functions_are_marked() {
     let module = lower_user(file(vec![fun("main", vec![])])).expect("must lower");
-    let write = module
+    let start_coroutine = module
         .top_level
         .iter()
         .map(|id| &module.functions[*id])
-        .find(|f| f.name == "write")
-        .expect("core declares write");
+        .find(|f| f.name == "startCoroutine")
+        .expect("core declares startCoroutine");
     assert!(matches!(
-        write.kind,
-        FunctionKind::Intrinsic(ref name) if name == "rt_write"
+        start_coroutine.kind,
+        FunctionKind::Intrinsic(ref name) if name == "coroutine_start"
     ));
 }
 
@@ -842,6 +844,7 @@ fn named_variant_default_is_an_error() {
     // HIR rejects the shape too.
     let file = file(vec![
         Decl::Enum(ast::EnumDecl {
+            annotations: vec![],
             name: ident("Shape"),
             type_params: vec![],
             methods: vec![],
@@ -949,12 +952,7 @@ fn unknown_intrinsic_is_an_error() {
 
 #[test]
 fn intrinsic_in_user_file_is_an_error() {
-    let Decl::Function(mut wipe) = intrinsic_fun(
-        "wipe",
-        "rt_write",
-        vec![("message", ty_named("String"))],
-        None,
-    ) else {
+    let Decl::Function(mut wipe) = intrinsic_fun("wipe", "rt_gc_collect", vec![], None) else {
         unreachable!()
     };
     wipe.body = FunctionBody::None;
@@ -969,12 +967,12 @@ fn intrinsic_in_user_file_is_an_error() {
 }
 
 #[test]
-fn unsupported_annotation_is_an_error() {
+fn unknown_annotation_is_an_error() {
     let mut core = core_file();
     core.declarations.push(Decl::Function(FunctionDecl {
         annotations: vec![ast::Annotation {
-            name: ident("NoGC"),
-            value: None,
+            name: ident("Unknown"),
+            args: vec![],
             span: sp(),
         }],
         is_suspend: false,
@@ -988,10 +986,13 @@ fn unsupported_annotation_is_an_error() {
         body: FunctionBody::Block(block(vec![])),
         span: sp(),
     }));
-    let errors = lower(&[core, file(vec![fun("main", vec![])])])
-        .expect_err("unsupported annotation must fail");
+    let errors =
+        lower(&[core, file(vec![fun("main", vec![])])]).expect_err("unknown annotation must fail");
     assert_eq!(errors.len(), 1);
-    assert_eq!(errors[0].message, "unsupported annotation `@NoGC`");
+    assert_eq!(
+        errors[0].message,
+        "unsupported annotation `@Unknown` in milestone M12"
+    );
 }
 
 // --- negative: variant construction ---

@@ -1,9 +1,9 @@
 //! M9 tests: the `UInt` basic type and the core GC facilities
 //! (milestone9 DESIGN.md section 1) — `UInt` resolution, equality and
-//! arithmetic, the reference-type constraint of the `pin` / `unpin` /
-//! `getGcHandle` / `releaseGcHandle` intrinsics (spec 14.1's
-//! `T : ref` before M12 bounds), the `gcCollect` / `gcStats` hooks,
-//! and `PinHandle` / `GcHandle` construction and field access.
+//! arithmetic, the M12 `T : ref` reference-kind constraint of the
+//! `pin` / `unpin` / `getGcHandle` / `releaseGcHandle` intrinsics,
+//! the `gcCollect` / `gcStats` hooks,
+//! and `PinnedPtr` / `GcHandle` construction and field access.
 
 use super::*;
 
@@ -475,7 +475,7 @@ fn uint_boxes_into_any_for_print() {
 fn gc_intrinsics_golden() {
     let file = file(vec![fun(
         "main",
-        vec![
+        vec![unsafe_block(vec![
             val("s", str_lit("hello")),
             val("h", call("pin", vec![var("s")])),
             val("s2", call("unpin", vec![var("h")])),
@@ -483,7 +483,7 @@ fn gc_intrinsics_golden() {
             val("s3", call("releaseGcHandle", vec![var("g")])),
             stmt(call("gcCollect", vec![])),
             val_ty("n", Some(ty_named("UInt")), call("gcStats", vec![])),
-        ],
+        ])],
     )]);
     let module = lower_user_with_gc(file).expect("the GC program must lower");
     assert_eq!(local_ty(&module, "s2"), "String");
@@ -491,10 +491,6 @@ fn gc_intrinsics_golden() {
     assert_eq!(local_ty(&module, "n"), "UInt");
     let expected = "\
 Module
-  struct PinHandle<T>
-    field raw: UInt
-  struct GcHandle<T>
-    field raw: UInt
   enum Option<T>
     Some(_1: T0)
     None()
@@ -509,7 +505,7 @@ Module
     fun register(continuation: Continuation<T0>): Unit
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
-  fun write(): Unit <intrinsic rt_write>
+  fun write(arg1: String): Unit <extern0 abi=scoop symbol=scoop_rt_write>
   fun print(message: Any): Unit
     Call write : Unit
       MethodCall Any.toString : String
@@ -521,21 +517,37 @@ Module
         Local message : Any
     Call write : Unit
       StringLiteral \"\\n\" : String
-  fun pin<T>(): PinHandle<T0> <intrinsic rt_pin>
-  fun unpin<T>(): T0 <intrinsic rt_unpin>
-  fun getGcHandle<T>(): GcHandle<T0> <intrinsic rt_get_handle>
-  fun releaseGcHandle<T>(): T0 <intrinsic rt_release_handle>
+  fun pin<T : ref>(v: T0): PinnedPtr<T0> <unsafe>
+    return
+      StructInit PinnedPtr : PinnedPtr<T0>
+        Call _pin<T0> : UInt
+          Local v : T0
+  fun unpin<T : ref>(p: PinnedPtr<T0>): T0 <unsafe>
+    return
+      Call _unpin<T0> : T0
+        FieldAccess field 0 : UInt
+          Local p : PinnedPtr<T0>
+  fun getGcHandle<T : ref>(v: T0): GcHandle<T0> <unsafe>
+    return
+      StructInit GcHandle : GcHandle<T0>
+        Call _getGcHandle<T0> : UInt
+          Local v : T0
+  fun releaseGcHandle<T : ref>(h: GcHandle<T0>): T0 <unsafe>
+    return
+      Call _releaseGcHandle<T0> : T0
+        FieldAccess field 0 : UInt
+          Local h : GcHandle<T0>
   fun gcCollect(): Unit <intrinsic rt_gc_collect>
   fun gcStats(): UInt <intrinsic rt_gc_stats>
   fun main(): Unit
     val local0
       StringLiteral \"hello\" : String
     val local1
-      Call pin<String> : PinHandle<String>
+      Call pin<String> : PinnedPtr<String>
         Local s : String
     val local2
       Call unpin<String> : String
-        Local h : PinHandle<String>
+        Local h : PinnedPtr<String>
     val local3
       Call getGcHandle<String> : GcHandle<String>
         Local s : String
@@ -566,7 +578,7 @@ fn pin_rejects_an_int_argument() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "pin requires a reference type argument, found Int"
+        "type argument `Int` for `T` of function `pin` must satisfy `ref`"
     );
     // The user file is index 2 (core files are 0 and 1).
     assert_eq!(errors[0].file, 2);
@@ -588,7 +600,7 @@ fn pin_rejects_a_struct_argument() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "pin requires a reference type argument, found Point"
+        "type argument `Point` for `T` of function `pin` must satisfy `ref`"
     );
 }
 
@@ -602,7 +614,7 @@ fn get_gc_handle_rejects_a_value_argument() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "getGcHandle requires a reference type argument, found Int"
+        "type argument `Int` for `T` of function `getGcHandle` must satisfy `ref`"
     );
 }
 
@@ -612,18 +624,15 @@ fn unpin_rejects_a_value_type_parameter() {
         fun_sig(
             "bad",
             vec![],
-            vec![("h", ty_generic("PinHandle", vec![ty_named("Int")]))],
+            vec![("h", ty_generic("PinnedPtr", vec![ty_named("Int")]))],
             None,
             vec![stmt(call("unpin", vec![var("h")]))],
         ),
         fun("main", vec![]),
     ]);
-    let errors = lower_user_with_gc(file).expect_err("unpin of PinHandle<Int> must fail");
-    assert_eq!(errors.len(), 1);
-    assert_eq!(
-        errors[0].message,
-        "unpin requires a reference type argument, found Int"
-    );
+    let errors = lower_user_with_gc(file).expect_err("unpin of PinnedPtr<Int> must fail");
+    assert!(errors.iter().any(|error| error.message
+        == "type argument `Int` for `T` of struct `PinnedPtr` must satisfy `ref`"));
 }
 
 #[test]
@@ -639,18 +648,14 @@ fn release_gc_handle_rejects_a_value_type_parameter() {
         fun("main", vec![]),
     ]);
     let errors = lower_user_with_gc(file).expect_err("releaseGcHandle of GcHandle<Int> must fail");
-    assert_eq!(errors.len(), 1);
-    assert_eq!(
-        errors[0].message,
-        "releaseGcHandle requires a reference type argument, found Int"
-    );
+    assert!(errors.iter().any(|error| error.message
+        == "type argument `Int` for `T` of struct `GcHandle` must satisfy `ref`"));
 }
 
 #[test]
 fn pin_rejects_an_unconstrained_type_parameter() {
-    // Without M12 bounds a type parameter may be instantiated with a
-    // value type, so `pin(u)` cannot be proven sound at the
-    // definition site.
+    // An unconstrained parameter may still be instantiated with a value
+    // type, so it cannot satisfy the core API's M12 `T : ref` bound.
     let file = file(vec![
         fun_sig(
             "f",
@@ -665,7 +670,7 @@ fn pin_rejects_an_unconstrained_type_parameter() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "pin requires a reference type argument, found U"
+        "type argument `U` for `T` of function `pin` must satisfy `ref`"
     );
 }
 
@@ -673,50 +678,50 @@ fn pin_rejects_an_unconstrained_type_parameter() {
 fn pin_accepts_class_array_any_and_string_references() {
     let file = file(vec![fun(
         "main",
-        vec![
+        vec![unsafe_block(vec![
             val("a", call("pin", vec![call("Throwable", vec![])])),
             val("b", call("pin", vec![array_lit(vec![int_lit(1)])])),
             val("c", call("pin", vec![str_lit("x")])),
             val("d", call("unpin", vec![call("pin", vec![str_lit("y")])])),
-        ],
+        ])],
     )]);
     let module = lower_user_with_gc(file).expect("reference arguments must lower");
     // The nested `unpin(pin("y"))` binds T = String through the
-    // PinHandle<String> application produced by the inner call.
+    // PinnedPtr<String> application produced by the inner call.
     assert_eq!(local_ty(&module, "d"), "String");
 }
 
 // --- The handle types carry their (phantom) type argument ---
 
 #[test]
-fn pin_result_matches_a_pin_handle_annotation() {
+fn pin_result_matches_a_pinned_ptr_annotation() {
     let file = file(vec![fun(
         "main",
-        vec![val_ty(
+        vec![unsafe_block(vec![val_ty(
             "h",
-            Some(ty_generic("PinHandle", vec![ty_named("String")])),
+            Some(ty_generic("PinnedPtr", vec![ty_named("String")])),
             call("pin", vec![str_lit("x")]),
-        )],
+        )])],
     )]);
     lower_user_with_gc(file).expect("matching handle types must lower");
 }
 
 #[test]
-fn pin_handle_type_arguments_are_strict() {
+fn pinned_ptr_type_arguments_are_strict() {
     let file = file(vec![fun(
         "main",
         vec![val_ty(
             "h",
-            Some(ty_generic("PinHandle", vec![ty_named("Int")])),
+            Some(ty_generic("PinnedPtr", vec![ty_named("Int")])),
             call("pin", vec![str_lit("x")]),
         )],
     )]);
     let errors = lower_user_with_gc(file)
-        .expect_err("PinHandle<Int> and PinHandle<String> are different types");
+        .expect_err("PinnedPtr<Int> and PinnedPtr<String> are different types");
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "initializer of `h` must be of type PinHandle<Int>, found PinHandle<String>"
+        "type argument `Int` for `T` of struct `PinnedPtr` must satisfy `ref`"
     );
 }
 
@@ -726,64 +731,64 @@ fn bare_handle_type_requires_type_arguments() {
         fun_sig(
             "f",
             vec![],
-            vec![("h", ty_named("PinHandle"))],
+            vec![("h", ty_named("PinnedPtr"))],
             None,
             vec![],
         ),
         fun("main", vec![]),
     ]);
-    let errors = lower_user_with_gc(file).expect_err("a bare PinHandle must fail");
+    let errors = lower_user_with_gc(file).expect_err("a bare PinnedPtr must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "generic struct `PinHandle` requires 1 type argument(s)"
+        "generic struct `PinnedPtr` requires 1 type argument(s)"
     );
 }
 
-// --- PinHandle as a generic struct: construction and field access ---
+// --- PinnedPtr as a generic struct: construction and field access ---
 
 #[test]
-fn pin_handle_construction_and_field_access() {
+fn pinned_ptr_construction_and_field_access() {
     let file = file(vec![fun(
         "main",
-        vec![
+        vec![unsafe_block(vec![
             val("u", call("gcStats", vec![])),
             val_ty(
                 "h",
-                Some(ty_generic("PinHandle", vec![ty_named("String")])),
-                struct_init("PinHandle", vec![var("u")]),
+                Some(ty_generic("PinnedPtr", vec![ty_named("String")])),
+                struct_init("PinnedPtr", vec![var("u")]),
             ),
             val("r", field(var("h"), "raw")),
-            // Field access also works on a `PinHandle<T>` application
+            // Field access also works on a `PinnedPtr<T>` application
             // (the `raw` field is an ordinary struct field).
             val_ty(
                 "r2",
                 Some(ty_named("UInt")),
                 field(call("pin", vec![str_lit("x")]), "raw"),
             ),
-        ],
+        ])],
     )]);
     let module = lower_user_with_gc(file).expect("handle construction must lower");
-    assert_eq!(local_ty(&module, "h"), "PinHandle<String>");
+    assert_eq!(local_ty(&module, "h"), "PinnedPtr<String>");
     assert_eq!(local_ty(&module, "r"), "UInt");
     assert_eq!(local_ty(&module, "r2"), "UInt");
 }
 
 #[test]
-fn pin_handle_construction_checks_the_raw_field() {
+fn pinned_ptr_construction_checks_the_raw_field() {
     let file = file(vec![fun(
         "main",
         vec![val_ty(
             "h",
-            Some(ty_generic("PinHandle", vec![ty_named("String")])),
-            struct_init("PinHandle", vec![int_lit(1)]),
+            Some(ty_generic("PinnedPtr", vec![ty_named("String")])),
+            struct_init("PinnedPtr", vec![int_lit(1)]),
         )],
     )]);
     let errors = lower_user_with_gc(file).expect_err("an Int `raw` must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "argument for field `raw` of `PinHandle` must be of type UInt, found Int"
+        "argument for field `raw` of `PinnedPtr` must be of type UInt, found Int"
     );
 }
 

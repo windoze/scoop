@@ -15,6 +15,10 @@ pub type LocalId = Idx<Local>;
 pub type TempId = Idx<Temp>;
 pub type BlockId = Idx<BasicBlock>;
 pub type EnumDefId = Idx<EnumDef>;
+pub type StructDefId = Idx<StructDef>;
+pub type ExternFunctionId = Idx<ExternFunction>;
+pub type NativeGlobalId = Idx<NativeGlobal>;
+pub type CallbackBridgeId = Idx<CallbackBridge>;
 
 /// Symbol of the TypeDescriptor global for `String` (runtime spec 2.2).
 pub const STRING_TD_SYMBOL: &str = "scoop_td_String";
@@ -35,8 +39,12 @@ pub enum LirType {
     /// Opaque Itanium EH landing-pad record (`{ ptr, i32 }` in LLVM).
     /// It is produced by exception pads and may be consumed by `Resume`.
     ExceptionRecord,
-    /// struct / tuple values: an LLVM literal struct.
+    /// Tuple / Unit values: an LLVM literal struct.
     Aggregate(Vec<LirType>),
+    /// A named Scoop struct. Its exact physical layout is carried by the
+    /// module's `StructDef`, so packed and over-aligned layouts cannot be
+    /// erased into an anonymous natural aggregate.
+    Struct(StructDefId),
     /// An array object: pointer to `{ td, i64 size, inline elements }`
     /// (spec 10.1). The payload is the element layout.
     Array(Box<LirType>),
@@ -57,6 +65,7 @@ impl LirType {
                 let inner: Vec<String> = elements.iter().map(LirType::dump).collect();
                 format!("{{{}}}", inner.join(", "))
             }
+            LirType::Struct(id) => format!("struct{}", id.into_raw()),
             LirType::Enum(id) => format!("enum{}", id.into_raw()),
             LirType::Array(inner) => format!("[{}]", inner.dump()),
         }
@@ -66,13 +75,118 @@ impl LirType {
 #[derive(Debug)]
 pub struct Module {
     pub globals: Arena<Global>,
+    /// Struct definitions with complete physical layouts (indexed by
+    /// `StructDefId`; ids align with MIR struct ids).
+    pub structs: Arena<StructDef>,
     /// Enum definitions with fixed representations (indexed by
     /// `EnumDefId`).
     pub enums: Arena<EnumDef>,
     pub functions: Vec<Function>,
+    /// Native declarations and C-bridge descriptions, transposed from MIR.
+    pub extern_functions: Arena<ExternFunction>,
+    /// C data imports accessed only through generated get/set/address bridges.
+    pub native_globals: Arena<NativeGlobal>,
+    /// Inbound C trampolines that adapt a native signature to a NoGC
+    /// Scoop storage-ABI bridge.
+    pub callback_bridges: Arena<CallbackBridge>,
     /// Symbol of the entry function (`scoop_main`).
     pub entry_symbol: String,
     pub meta: LirMeta,
+}
+
+#[derive(Debug)]
+pub struct CallbackBridge {
+    pub source_name: String,
+    pub bridge_symbol: String,
+    pub trampoline_symbol: String,
+    pub params: Vec<CType>,
+    pub return_type: CType,
+}
+
+#[derive(Debug)]
+pub struct NativeGlobal {
+    pub source_name: String,
+    pub native_symbol: String,
+    pub library: String,
+    pub ty: LirType,
+    pub c_type: CType,
+    pub mutable: bool,
+    pub thread_local: bool,
+    pub get_bridge_symbol: String,
+    pub set_bridge_symbol: Option<String>,
+    pub address_bridge_symbol: String,
+}
+
+#[derive(Debug)]
+pub struct ExternFunction {
+    pub source_name: String,
+    pub native_symbol: String,
+    pub library: String,
+    pub calling_convention: CallingConvention,
+    pub params: Vec<LirType>,
+    pub return_type: LirType,
+    pub kind: ExternFunctionKind,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CallingConvention {
+    Cdecl,
+}
+
+#[derive(Debug)]
+pub enum ExternFunctionKind {
+    C {
+        bridge_symbol: String,
+        params: Vec<CType>,
+        return_type: CType,
+    },
+    Scoop {
+        gc_effect: GcEffect,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CType {
+    Unit,
+    Int,
+    UInt,
+    Boolean,
+    Pointer,
+    FunctionPointer {
+        params: Vec<CType>,
+        return_type: Box<CType>,
+    },
+    Struct(StructDefId),
+}
+
+#[derive(Debug)]
+pub struct StructDef {
+    pub name: String,
+    pub fields: Vec<StructField>,
+    pub size: u64,
+    pub align: u64,
+    pub c_layout: Option<CLayout>,
+    pub interior_mutable: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StructField {
+    pub ty: LirType,
+    pub layout: FieldLayout,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FieldLayout {
+    pub offset: u64,
+    /// Alignment that a load/store of this field may claim. Packed layouts
+    /// cap this independently of the field type's natural alignment.
+    pub access_align: u64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CLayout {
+    pub aligned: u8,
+    pub packed: u8,
 }
 
 /// Per-Cone LIR metadata (impl spec 2.4): type layouts.
@@ -121,6 +235,9 @@ pub struct Layout {
     pub name: String,
     pub size: u64,
     pub align: u64,
+    pub fields: Vec<FieldLayout>,
+    pub c_layout: Option<CLayout>,
+    pub interior_mutable: bool,
     pub kind: LayoutKind,
 }
 
@@ -200,8 +317,9 @@ pub struct EnumDef {
 #[derive(Debug)]
 pub enum EnumRepr {
     /// Niche optimization (spec 7.4): two variants, one without
-    /// payload, the other a single reference field — the value is a
-    /// bare pointer, `None`-style variant is 0.
+    /// payload, the other a single pointer-represented field — the value
+    /// is one pointer word and the `None`-style variant is 0. Whether that
+    /// word is a managed reference remains a property of the payload type.
     Niche {
         /// Index of the payload-carrying variant.
         payload_variant: u32,
@@ -221,6 +339,22 @@ pub enum GlobalInit {
     StringConst(String),
     /// A NUL-terminated C string (e.g. trap messages).
     CString(String),
+    Storage {
+        ty: LirType,
+        initializer: ConstantValue,
+        thread_local: bool,
+    },
+}
+
+#[derive(Debug)]
+pub enum ConstantValue {
+    Int(i64),
+    Bool(bool),
+    NullPtr,
+    Struct {
+        struct_id: StructDefId,
+        fields: Vec<ConstantValue>,
+    },
 }
 
 /// A local variable's stack slot.
@@ -238,6 +372,8 @@ pub struct Temp {
 
 #[derive(Debug)]
 pub struct Function {
+    /// Whether codegen must attach the GC strategy and safepoint polls.
+    pub gc_effect: GcEffect,
     pub symbol: String,
     /// Parameter types; arguments are SSA values (`Value::Param`).
     pub params: Vec<LirType>,
@@ -249,6 +385,12 @@ pub struct Function {
     pub entry: BlockId,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GcEffect {
+    Managed,
+    NoGc,
+}
+
 impl Function {
     /// The type of a value in this function.
     pub fn value_ty(&self, globals: &Arena<Global>, value: Value) -> LirType {
@@ -258,6 +400,7 @@ impl Function {
             Value::Param(index) => self.params[index as usize].clone(),
             Value::IntConst(_) => LirType::I64,
             Value::BoolConst(_) => LirType::I1,
+            Value::NullPtr => LirType::Ptr,
             Value::Global(id) => {
                 let _ = &globals[id];
                 LirType::Ptr
@@ -283,6 +426,7 @@ pub enum Value {
     Temp(TempId),
     IntConst(i64),
     BoolConst(bool),
+    NullPtr,
     /// Address of a global constant.
     Global(GlobalId),
 }
@@ -304,7 +448,10 @@ pub enum Instruction {
     },
     /// Build an aggregate value (struct / tuple construction, or the
     /// Unit value with zero elements).
-    MakeAggregate { out: TempId, elements: Vec<Value> },
+    MakeAggregate {
+        out: TempId,
+        elements: Vec<Value>,
+    },
     /// Extract field / element `index` from an aggregate value.
     ExtractValue {
         out: TempId,
@@ -321,7 +468,41 @@ pub enum Instruction {
         offset: u64,
     },
     /// `store value -> local`'s stack slot.
-    Store { local: LocalId, value: Value },
+    Store {
+        local: LocalId,
+        value: Value,
+    },
+    GlobalLoad {
+        out: TempId,
+        global: GlobalId,
+    },
+    GlobalStore {
+        global: GlobalId,
+        value: Value,
+    },
+    GlobalAddress {
+        out: TempId,
+        global: GlobalId,
+    },
+    NativeGlobalLoad {
+        out: TempId,
+        global: NativeGlobalId,
+    },
+    NativeGlobalStore {
+        global: NativeGlobalId,
+        value: Value,
+    },
+    NativeGlobalAddress {
+        out: TempId,
+        global: NativeGlobalId,
+    },
+    /// A nounwind native call. C ABI operands are storage pointers to the
+    /// generated bridge; Scoop ABI operands retain their ordinary typed ABI.
+    NativeCall {
+        out: Option<TempId>,
+        function: ExternFunctionId,
+        args: Vec<Value>,
+    },
     /// Store a typed value at the byte address `object + offset`.
     /// Class fields use their natural layout offsets, base-class fields
     /// first. `offset` must be at least 16 so the object header cannot
@@ -333,7 +514,38 @@ pub enum Instruction {
     },
     /// Materialize the address of a module function as an opaque code
     /// pointer. It is metadata, not a managed reference.
-    FunctionAddress { out: TempId, symbol: String },
+    FunctionAddress {
+        out: TempId,
+        symbol: String,
+    },
+    IntToPtr {
+        out: TempId,
+        value: Value,
+    },
+    PtrToInt {
+        out: TempId,
+        value: Value,
+    },
+    RawLoad {
+        out: TempId,
+        pointer: Value,
+        align: u64,
+    },
+    RawStore {
+        pointer: Value,
+        value: Value,
+        align: u64,
+    },
+    /// Byte-wise pointer displacement. `bytes` may be negative.
+    PtrOffset {
+        out: TempId,
+        pointer: Value,
+        bytes: Value,
+    },
+    LocalAddress {
+        out: TempId,
+        local: LocalId,
+    },
     /// Direct call. `out` is `None` exactly when the callee returns
     /// void; runtime functions with results produce a Temp of the
     /// result type.
@@ -378,18 +590,29 @@ pub enum Instruction {
     /// Catch-all landing pad. It captures the opaque unwind record and
     /// raw exception pointer but does not begin the catch; `BeginCatch`
     /// is explicit in the ordinary dispatch block.
-    LandingPad { record: TempId, raw: TempId },
+    LandingPad {
+        record: TempId,
+        raw: TempId,
+    },
     /// Cleanup-only landing pad (no catch clause). It captures the same
     /// record/raw pair for cleanup chaining or `Terminator::Resume`.
-    CleanupPad { record: TempId, raw: TempId },
+    CleanupPad {
+        record: TempId,
+        raw: TempId,
+    },
     /// Begin handling the raw exception and return its Scoop object.
-    BeginCatch { out: TempId, raw: Value },
+    BeginCatch {
+        out: TempId,
+        raw: Value,
+    },
     /// End the innermost active catch (`__cxa_end_catch()`).
     EndCatch,
     /// Throw an exception object (does not return). Terminator-like:
     /// must be the last instruction of its block, which ends
     /// `Unreachable` (the same shape as the M3 trap path).
-    Throw { exception: Value },
+    Throw {
+        exception: Value,
+    },
     /// Array operations. The element layout is the `Array(...)` type
     /// of the array operand (or of `out` for `ArrayAlloc`).
     /// Allocate an array object and store the elements in order.
@@ -400,7 +623,10 @@ pub enum Instruction {
         element_scan: RefScan,
     },
     /// `array.size` (result `I64`).
-    ArrayLen { out: TempId, operand: Value },
+    ArrayLen {
+        out: TempId,
+        operand: Value,
+    },
     /// Bounds-checked element read (traps out of range).
     ArrayGet {
         out: TempId,
@@ -414,7 +640,10 @@ pub enum Instruction {
         value: Value,
     },
     /// `Array(m)` / `MutableArray(a)` conversion (memcpy snapshot).
-    ArrayClone { out: TempId, operand: Value },
+    ArrayClone {
+        out: TempId,
+        operand: Value,
+    },
     /// Enum operations. The representation (niche pointer or tagged
     /// union) is fixed by `EnumDef::repr`, so codegen translates these
     /// mechanically.
@@ -493,7 +722,33 @@ pub fn dump(module: &Module) -> String {
             GlobalInit::CString(value) => {
                 out.push_str(&format!("  global @{} = c{:?}\n", global.symbol, value));
             }
+            GlobalInit::Storage {
+                ty, thread_local, ..
+            } => out.push_str(&format!(
+                "  {} @{} : {}\n",
+                if *thread_local {
+                    "thread_local"
+                } else {
+                    "global"
+                },
+                global.symbol,
+                ty.dump()
+            )),
         }
+    }
+    for (id, global) in module.native_globals.iter() {
+        out.push_str(&format!(
+            "  native_global{} {} @{} : {}{}\n",
+            id.into_raw(),
+            global.source_name,
+            global.native_symbol,
+            global.ty.dump(),
+            if global.thread_local {
+                " thread_local"
+            } else {
+                ""
+            }
+        ));
     }
     for (_, def) in module.enums.iter() {
         match &def.repr {
@@ -523,13 +778,63 @@ pub fn dump(module: &Module) -> String {
             }
         }
     }
+    for (id, extern_) in module.extern_functions.iter() {
+        let params = extern_
+            .params
+            .iter()
+            .map(LirType::dump)
+            .collect::<Vec<_>>()
+            .join(", ");
+        let kind = match &extern_.kind {
+            ExternFunctionKind::C { bridge_symbol, .. } => {
+                format!("c bridge=@{bridge_symbol} gc-leaf nounwind")
+            }
+            ExternFunctionKind::Scoop { gc_effect } => format!(
+                "scoop {} nounwind",
+                if *gc_effect == GcEffect::NoGc {
+                    "gc-leaf"
+                } else {
+                    "managed"
+                }
+            ),
+        };
+        let library = if extern_.library.is_empty() {
+            String::new()
+        } else {
+            format!(" lib={}", extern_.library)
+        };
+        out.push_str(&format!(
+            "  extern ef{} {} @{}({}) -> {} <{}{}>\n",
+            id.into_raw(),
+            extern_.source_name,
+            extern_.native_symbol,
+            params,
+            extern_.return_type.dump(),
+            kind,
+            library
+        ));
+    }
+    for (id, callback) in module.callback_bridges.iter() {
+        out.push_str(&format!(
+            "  callback cb{} {} @{} -> @{}\n",
+            id.into_raw(),
+            callback.source_name,
+            callback.bridge_symbol,
+            callback.trampoline_symbol
+        ));
+    }
     for function in &module.functions {
         let params: Vec<String> = function.params.iter().map(LirType::dump).collect();
         out.push_str(&format!(
-            "  fun @{}({}) -> {}\n",
+            "  fun @{}({}) -> {}{}\n",
             function.symbol,
             params.join(", "),
-            function.return_ty.dump()
+            function.return_ty.dump(),
+            if function.gc_effect == GcEffect::NoGc {
+                " <no-gc>"
+            } else {
+                ""
+            }
         ));
         for (id, local) in function.locals.iter() {
             out.push_str(&format!(
@@ -645,6 +950,23 @@ pub fn dump(module: &Module) -> String {
                 }
             }
         }
+        if let Some(c_layout) = layout.c_layout {
+            let fields = layout
+                .fields
+                .iter()
+                .map(|field| format!("{}@{}", field.offset, field.access_align))
+                .collect::<Vec<_>>()
+                .join(",");
+            out.push_str(&format!(
+                "  layout-meta {} c-layout(aligned={},packed={}) fields=[{}] interior-mutable={}\n",
+                layout.name, c_layout.aligned, c_layout.packed, fields, layout.interior_mutable
+            ));
+        } else if layout.interior_mutable {
+            out.push_str(&format!(
+                "  layout-meta {} interior-mutable=true\n",
+                layout.name
+            ));
+        }
     }
     out.push_str(&format!("  entry @{}\n", module.entry_symbol));
     out
@@ -661,6 +983,7 @@ fn value_name(value: Value) -> String {
         Value::Temp(id) => format!("t{}", id.into_raw()),
         Value::IntConst(value) => format!("{value}"),
         Value::BoolConst(value) => format!("{value}"),
+        Value::NullPtr => "null".to_string(),
         Value::Global(id) => format!("global{}", id.into_raw()),
     }
 }
@@ -713,6 +1036,38 @@ fn dump_instruction(function: &Function, instruction: &Instruction, buf: &mut St
             offset,
             function.temps[*out].ty.dump()
         )),
+        Instruction::GlobalLoad { out, global } => buf.push_str(&format!(
+            "    t{} = global_load global{} : {}\n",
+            out.into_raw(),
+            global.into_raw(),
+            function.temps[*out].ty.dump()
+        )),
+        Instruction::GlobalStore { global, value } => buf.push_str(&format!(
+            "    global_store global{}, {}\n",
+            global.into_raw(),
+            value_name(*value)
+        )),
+        Instruction::GlobalAddress { out, global } => buf.push_str(&format!(
+            "    t{} = global_address global{}\n",
+            out.into_raw(),
+            global.into_raw()
+        )),
+        Instruction::NativeGlobalLoad { out, global } => buf.push_str(&format!(
+            "    t{} = native_global_load ng{} : {}\n",
+            out.into_raw(),
+            global.into_raw(),
+            function.temps[*out].ty.dump()
+        )),
+        Instruction::NativeGlobalStore { global, value } => buf.push_str(&format!(
+            "    native_global_store ng{}, {}\n",
+            global.into_raw(),
+            value_name(*value)
+        )),
+        Instruction::NativeGlobalAddress { out, global } => buf.push_str(&format!(
+            "    t{} = native_global_address ng{}\n",
+            out.into_raw(),
+            global.into_raw()
+        )),
         Instruction::HeapStore {
             object,
             offset,
@@ -728,11 +1083,78 @@ fn dump_instruction(function: &Function, instruction: &Instruction, buf: &mut St
             out.into_raw(),
             symbol
         )),
+        Instruction::IntToPtr { out, value } => buf.push_str(&format!(
+            "    t{} = int_to_ptr {} : ptr\n",
+            out.into_raw(),
+            value_name(*value)
+        )),
+        Instruction::PtrToInt { out, value } => buf.push_str(&format!(
+            "    t{} = ptr_to_int {} : i64\n",
+            out.into_raw(),
+            value_name(*value)
+        )),
+        Instruction::RawLoad {
+            out,
+            pointer,
+            align,
+        } => buf.push_str(&format!(
+            "    t{} = raw_load {} align {} : {}\n",
+            out.into_raw(),
+            value_name(*pointer),
+            align,
+            function.temps[*out].ty.dump()
+        )),
+        Instruction::RawStore {
+            pointer,
+            value,
+            align,
+        } => buf.push_str(&format!(
+            "    raw_store {} {} align {}\n",
+            value_name(*pointer),
+            value_name(*value),
+            align
+        )),
+        Instruction::PtrOffset {
+            out,
+            pointer,
+            bytes,
+        } => buf.push_str(&format!(
+            "    t{} = ptr_offset {} {} : ptr\n",
+            out.into_raw(),
+            value_name(*pointer),
+            value_name(*bytes)
+        )),
+        Instruction::LocalAddress { out, local } => buf.push_str(&format!(
+            "    t{} = local_address local{} : ptr\n",
+            out.into_raw(),
+            local.into_raw()
+        )),
         Instruction::Store { local, value } => buf.push_str(&format!(
             "    store {} -> local{}\n",
             value_name(*value),
             local.into_raw()
         )),
+        Instruction::NativeCall {
+            out,
+            function: extern_id,
+            args,
+        } => {
+            let args = args.iter().map(|arg| value_name(*arg)).collect::<Vec<_>>();
+            match out {
+                Some(temp) => buf.push_str(&format!(
+                    "    t{} = native_call extern{}({}) : {}\n",
+                    temp.into_raw(),
+                    extern_id.into_raw(),
+                    args.join(", "),
+                    function.temps[*temp].ty.dump()
+                )),
+                None => buf.push_str(&format!(
+                    "    native_call extern{}({})\n",
+                    extern_id.into_raw(),
+                    args.join(", ")
+                )),
+            }
+        }
         Instruction::Call { out, symbol, args } => {
             let args: Vec<String> = args.iter().map(|a| value_name(*a)).collect();
             match out {

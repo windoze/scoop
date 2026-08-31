@@ -1,0 +1,6 @@
+struct Ordinary(val value: Int)
+
+@CLayout
+struct Bad(val nested: Ordinary)
+
+fun main() {}

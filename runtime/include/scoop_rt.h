@@ -41,8 +41,10 @@ typedef struct ScoopItableEntry {
  *   without reference fields, arrays of non-reference elements).
  * - SCOOP_REFS_ARRAY: array object. Word 1 is the element stride and
  *   word 2 is a pointer (stored as u64) to the recursive scan program
- *   for one element. The count is at object offset 16; elements start
- *   at offset 24. A no-reference element scan makes the whole array
+ *   for one element. The count is at object offset 16; scanned managed
+ *   element types have alignment at most 8 and therefore start at
+ *   offset 24. Over-aligned C-layout elements are GC-free and carry a
+ *   NULL descriptor. A no-reference element scan makes the whole array
  *   descriptor NULL.
  * - SCOOP_REFS_ENUM: tagged enum at an arbitrary inline offset. Word 1
  *   is the tag byte offset, word 2 is the variant count N, and words
@@ -94,8 +96,10 @@ typedef struct ScoopString {
 } ScoopString;
 
 /* Runtime spec 2.5 / spec 10.1. Array objects are variable-length:
- * header + element count + inline elements (stride = element layout
- * size, known to codegen; elements of value types are unboxed). */
+ * header + element count + padding to the element alignment + inline
+ * elements (stride = element layout size, known to codegen; elements
+ * of value types are unboxed). `elements` names the minimum-alignment
+ * offset; codegen computes the actual aligned data offset. */
 typedef struct ScoopArray {
     ScoopObjectHeader header;
     uint64_t size;
@@ -123,7 +127,7 @@ void *scoop_rt_alloc(const ScoopTypeDescriptor *td, size_t size);
 extern unsigned char *scoop_gc_card_table;
 void scoop_rt_safepoint(void);
 
-void scoop_rt_print(const ScoopString *s);
+void scoop_rt_write(const ScoopString *s);
 void scoop_rt_println(const ScoopString *s);
 
 const ScoopString *scoop_rt_string_identity(const ScoopString *s);
@@ -149,10 +153,11 @@ _Noreturn void scoop_rt_trap(const char *message);
 
 /* M5 addition (milestone5 DESIGN section 3.1): `Array(m)` /
  * `MutableArray(a)` conversion (spec 10.4). Copies the whole object
- * (header + size + size * elem_size bytes of inline elements) into a
- * fresh GC allocation — a shallow snapshot: elements that are
+ * (data_offset + size * elem_size bytes, including header/size/padding)
+ * into a fresh GC allocation — a shallow snapshot: elements that are
  * references are copied as pointers, not cloned. */
-const void *scoop_rt_array_clone(const void *obj, uint64_t elem_size);
+const void *scoop_rt_array_clone(const void *obj, uint64_t elem_size,
+                                 uint64_t data_offset);
 
 /* M6 additions (milestone6 DESIGN section 3): dispatch support. */
 
@@ -205,6 +210,21 @@ void scoop_rt_gc_add_root_object(const void *obj);
  * destructor when a thrown buffer's lifetime ends. */
 void scoop_rt_gc_remove_root_object(const void *obj);
 
+/* M12 Scoop-ABI native roots (runtime spec 4.2). A native function that
+ * keeps direct managed references across an allocation/collection stores
+ * them in caller-owned slots, pushes one frame, then reloads the slots after
+ * every such runtime entry. Frames are thread-local and strictly LIFO;
+ * push/pop themselves never allocate or trigger GC. */
+typedef struct ScoopNativeRootFrame {
+    struct ScoopNativeRootFrame *previous;
+    void ***slots; /* array of addresses of managed-reference slots */
+    uint64_t count;
+} ScoopNativeRootFrame;
+
+void scoop_rt_push_native_roots(ScoopNativeRootFrame *frame, void ***slots,
+                                uint64_t count);
+void scoop_rt_pop_native_roots(ScoopNativeRootFrame *frame);
+
 /* pin / unpin (runtime spec 3.4): O(1) object-header flag, no handle
  * table. Returns the object so the Scoop-level intrinsics can forward
  * it. null is a no-op returning null; a non-null pointer that is not a
@@ -241,6 +261,9 @@ uintptr_t scoop_rt_gc_debug_arena_base(void);
 
 /* Test hook: number of registered global/external roots. */
 uint64_t scoop_rt_gc_debug_root_count(void);
+
+/* Test hook: number of slots in the current thread's native-root chain. */
+uint64_t scoop_rt_gc_debug_native_root_count(void);
 
 /* M8 additions (milestone8 DESIGN section 4): exception support on top
  * of the Itanium C++ ABI (runtime spec 5). Scoop exceptions are thrown

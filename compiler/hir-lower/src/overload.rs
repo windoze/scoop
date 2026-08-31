@@ -44,6 +44,13 @@ pub(crate) struct ResolvedCallee {
     pub(crate) return_ty: TypeId,
 }
 
+#[derive(Clone, Copy)]
+pub(crate) struct OverloadCall<'a> {
+    pub(crate) explicit_type_args: &'a [TypeId],
+    pub(crate) arg_exprs: &'a [ast::Expr],
+    pub(crate) span: Span,
+}
+
 /// A candidate prepared for resolution: parameter and return types
 /// still use the function's combined type-parameter namespace. A generic
 /// receiver pre-binds the owner prefix; applicability infers the remaining
@@ -57,6 +64,7 @@ struct Candidate {
     /// MSC tie-breaking.
     own_type_param_count: usize,
     initial_bindings: Vec<Option<TypeId>>,
+    explicit_arity_match: bool,
     /// Whether the candidate's declared (pre-instantiation) parameter
     /// types mention type parameters — its own or its host's. Such
     /// candidates lose MSC ties against fully concrete ones
@@ -80,16 +88,14 @@ impl Lowerer {
         name: &str,
         candidates: &[FunctionId],
         receiver_type_args: &[TypeId],
-        arg_exprs: &[ast::Expr],
-        span: Span,
+        call: OverloadCall<'_>,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<ResolvedCallee> {
         self.resolve_overload_with_receiver(
             name,
             candidates,
             OverloadReceiver::Ordinary(receiver_type_args),
-            arg_exprs,
-            span,
+            call,
             sink,
         )
     }
@@ -102,16 +108,14 @@ impl Lowerer {
         name: &str,
         candidates: &[FunctionId],
         receiver: hir::Expr,
-        arg_exprs: &[ast::Expr],
-        span: Span,
+        call: OverloadCall<'_>,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<ResolvedCallee> {
         self.resolve_overload_with_receiver(
             name,
             candidates,
             OverloadReceiver::Extension(receiver),
-            arg_exprs,
-            span,
+            call,
             sink,
         )
     }
@@ -121,10 +125,14 @@ impl Lowerer {
         name: &str,
         candidates: &[FunctionId],
         receiver: OverloadReceiver<'_>,
-        arg_exprs: &[ast::Expr],
-        span: Span,
+        call: OverloadCall<'_>,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<ResolvedCallee> {
+        let OverloadCall {
+            explicit_type_args,
+            arg_exprs,
+            span,
+        } = call;
         // Context-independent arguments are shared by every candidate and
         // lowered once. `None`, empty arrays and context-dependent generic
         // constructors are postponed until inference provides a candidate
@@ -175,22 +183,64 @@ impl Lowerer {
                 for (binding, &ty) in initial_bindings.iter_mut().zip(receiver_type_args) {
                     *binding = Some(ty);
                 }
+                let own_type_param_count = sig.type_params.len() - sig.owner_type_param_count;
+                let explicit_arity_match = explicit_type_args.is_empty()
+                    || explicit_type_args.len() == own_type_param_count;
+                if explicit_arity_match && !explicit_type_args.is_empty() {
+                    for (binding, &ty) in initial_bindings[sig.owner_type_param_count..]
+                        .iter_mut()
+                        .zip(explicit_type_args)
+                    {
+                        *binding = Some(ty);
+                    }
+                }
                 Candidate {
                     function,
                     params,
                     return_ty: sig.return_ty,
-                    own_type_param_count: sig.type_params.len() - sig.owner_type_param_count,
+                    own_type_param_count,
                     initial_bindings,
+                    explicit_arity_match,
                     parameterized,
                 }
             })
             .collect();
 
+        if !explicit_type_args.is_empty()
+            && prepared
+                .iter()
+                .all(|candidate| !candidate.explicit_arity_match)
+        {
+            let supplied = explicit_type_args.len();
+            let expected = prepared[0].own_type_param_count;
+            if prepared
+                .iter()
+                .all(|candidate| candidate.own_type_param_count == expected)
+            {
+                self.error(
+                    span,
+                    format!(
+                        "`{name}` takes exactly {expected} type argument(s), but {supplied} were supplied"
+                    ),
+                );
+            } else {
+                self.error(
+                    span,
+                    format!("no overload of `{name}` accepts {supplied} explicit type argument(s)"),
+                );
+            }
+            return None;
+        }
+
         // Applicability (step 1): each entry pairs a prepared-candidate
         // index with its inferred call-level type arguments.
         let mut applicable: Vec<(usize, Vec<TypeId>)> = Vec::new();
+        let mut kind_failures: Vec<(usize, Vec<TypeId>)> = Vec::new();
         let mut contextual_failures: Vec<(usize, TypeId, String)> = Vec::new();
         for (index, candidate) in prepared.iter().enumerate() {
+            if !candidate.explicit_arity_match {
+                continue;
+            }
             if candidate.params.len() != receiver_offset + arg_exprs.len() {
                 continue;
             }
@@ -225,12 +275,29 @@ impl Lowerer {
                 }
             }
             if contextual_args_match {
-                applicable.push((index, type_args));
+                let type_params = &self.signatures[&candidate.function].type_params;
+                if self.type_arguments_satisfy_kinds(type_params, &type_args) {
+                    applicable.push((index, type_args));
+                } else {
+                    kind_failures.push((index, type_args));
+                }
             }
         }
 
         let (winner, type_args) = match applicable.len() {
             0 => {
+                if kind_failures.len() == 1 {
+                    let (index, type_args) = kind_failures.pop().expect("one kind failure");
+                    let function = prepared[index].function;
+                    let type_params = self.signatures[&function].type_params.clone();
+                    self.check_type_argument_kinds(
+                        &type_params,
+                        &type_args,
+                        span,
+                        &format!("function `{}`", self.functions[function].name),
+                    );
+                    return None;
+                }
                 if self.contextual_no_applicable_diagnostic(name, arg_exprs, &contextual_failures) {
                     return None;
                 }
@@ -281,11 +348,6 @@ impl Lowerer {
             sink.append(&mut arg_sink);
         }
         let return_ty = self.substitute_call_level(candidate.return_ty, &type_args);
-        // M9: the GC intrinsics constrain their type argument to
-        // reference types (see `check_gc_ref_constraint`).
-        if !self.check_gc_ref_constraint(function, &type_args, &args) {
-            return None;
-        }
         // The complete owner-prefix plus method-suffix vector identifies
         // the resolved generic entity stored on the HIR call.
         let callee = if !type_args.is_empty() {
@@ -469,6 +531,7 @@ impl Lowerer {
         match self.types[ty].clone() {
             Type::Param(_) => true,
             Type::Array(element) | Type::MutableArray(element) => self.mentions_type_param(element),
+            Type::Ptr(pointee) => self.mentions_type_param(pointee),
             Type::Enum(_, args) | Type::Struct(_, args) | Type::Interface(_, args) => {
                 args.iter().any(|&arg| self.mentions_type_param(arg))
             }
@@ -476,6 +539,14 @@ impl Lowerer {
                 .iter()
                 .any(|&element| self.mentions_type_param(element)),
             Type::Function(id) => {
+                let function = &self.function_types[id];
+                function
+                    .parameter_types
+                    .iter()
+                    .any(|&parameter| self.mentions_type_param(parameter))
+                    || self.mentions_type_param(function.return_type)
+            }
+            Type::FunPtr(id) => {
                 let function = &self.function_types[id];
                 function
                     .parameter_types
@@ -569,11 +640,24 @@ impl Lowerer {
             | (Type::MutableArray(param), Type::MutableArray(arg)) => {
                 self.try_bind(param, arg, bindings)
             }
+            (Type::Ptr(param), Type::Ptr(arg)) => self.try_bind(param, arg, bindings),
             (Type::Tuple(params), Type::Tuple(args)) if params.len() == args.len() => params
                 .iter()
                 .zip(args)
                 .all(|(param, arg)| self.try_bind(*param, arg, bindings)),
             (Type::Function(param_id), Type::Function(arg_id)) => {
+                let param = self.function_types[param_id].clone();
+                let arg = self.function_types[arg_id].clone();
+                param.is_suspend == arg.is_suspend
+                    && param.parameter_types.len() == arg.parameter_types.len()
+                    && param
+                        .parameter_types
+                        .iter()
+                        .zip(arg.parameter_types)
+                        .all(|(param, arg)| self.try_bind(*param, arg, bindings))
+                    && self.try_bind(param.return_type, arg.return_type, bindings)
+            }
+            (Type::FunPtr(param_id), Type::FunPtr(arg_id)) => {
                 let param = self.function_types[param_id].clone();
                 let arg = self.function_types[arg_id].clone();
                 param.is_suspend == arg.is_suspend

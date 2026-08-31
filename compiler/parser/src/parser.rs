@@ -13,8 +13,8 @@
 
 use scoop_ast::{
     Assign, AssignTarget, Block, CatchClause, Diagnostic, Expr, FieldSelector, Ident, If,
-    SourceFile, Span, Statement, StatementKind, Try, TypeRef, TypeRefKind, ValDecl, When, WhenArm,
-    While,
+    SafetyMode, SourceFile, Span, Statement, StatementKind, Try, TypeRef, TypeRefKind, ValDecl,
+    When, WhenArm, While,
 };
 
 use crate::lexer::{Token, TokenKind, lex};
@@ -431,10 +431,7 @@ impl Parser {
                     kind: StatementKind::Block(block),
                 })
             }
-            TokenKind::At => Err(Diagnostic::at(
-                self.peek().span,
-                "annotations are only allowed on function declarations (milestone M4)",
-            )),
+            TokenKind::At => self.parse_safety_block(),
             TokenKind::Ident(text) if text == "for" => Err(Diagnostic::at(
                 self.peek().span,
                 "`for` loops are not supported yet (milestone M5)",
@@ -515,6 +512,55 @@ impl Parser {
                 })
             }
         }
+    }
+
+    /// `@Unsafe { ... }` / `@Safe { ... }`. Declaration annotations remain
+    /// generic, but annotated blocks have a closed syntax and a dedicated AST
+    /// node so later stages never confuse them with calls.
+    fn parse_safety_block(&mut self) -> Result<Statement, Diagnostic> {
+        let annotations = self.parse_annotations()?;
+        if annotations.len() != 1 {
+            let span = Span::new(
+                annotations
+                    .first()
+                    .map_or(self.peek().span.start, |a| a.span.start),
+                annotations
+                    .last()
+                    .map_or(self.peek().span.end, |a| a.span.end),
+            );
+            return Err(Diagnostic::at(
+                span,
+                "a safety block requires exactly one of `@Unsafe` or `@Safe`",
+            ));
+        }
+        let annotation = &annotations[0];
+        if !annotation.args.is_empty() {
+            return Err(Diagnostic::at(
+                annotation.span,
+                "safety block annotations do not accept arguments",
+            ));
+        }
+        let mode = match annotation.name.text.as_str() {
+            "Unsafe" => SafetyMode::Unsafe,
+            "Safe" => SafetyMode::Safe,
+            _ => {
+                return Err(Diagnostic::at(
+                    annotation.span,
+                    "only `@Unsafe` or `@Safe` may annotate a block",
+                ));
+            }
+        };
+        if !matches!(self.peek().kind, TokenKind::LBrace) {
+            return Err(Diagnostic::at(
+                self.peek().span,
+                "safety annotation must be followed by a block",
+            ));
+        }
+        let block = self.parse_block()?;
+        Ok(Statement {
+            span: Span::new(annotation.span.start, block.span.end),
+            kind: StatementKind::SafetyBlock { mode, block },
+        })
     }
 
     /// `(val|var) <pattern> (: <type>)? = <expr>` — the initializer is

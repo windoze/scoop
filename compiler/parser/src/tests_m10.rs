@@ -10,7 +10,7 @@ fn parses_suspend_top_level_and_generic_functions() {
         panic!("expected a function");
     };
     assert!(await_fn.is_suspend);
-    assert_eq!(await_fn.type_params[0].text, "T");
+    assert_eq!(await_fn.type_params[0].name.text, "T");
     assert_eq!(await_fn.span, Span::new(0, 42));
     assert!(matches!(await_fn.body, FunctionBody::Expr(_)));
     assert!(scoop_ast::dump(&file).contains("suspend fun await<T>(value: T): T"));

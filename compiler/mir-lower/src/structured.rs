@@ -45,6 +45,10 @@ pub(crate) enum StatementKind {
         local: mir::LocalId,
         value: Expr,
     },
+    GlobalAssign {
+        global: mir::GlobalId,
+        value: Expr,
+    },
     ArraySet {
         array: Expr,
         index: Expr,
@@ -93,6 +97,47 @@ pub(crate) enum Expr {
         index: u32,
     },
     Local(mir::LocalId),
+    GlobalRead(mir::GlobalId),
+    PtrFromUInt {
+        operand: Box<Expr>,
+        pointee: Box<mir::Type>,
+    },
+    PtrToUInt(Box<Expr>),
+    PtrCast {
+        operand: Box<Expr>,
+        pointee: Box<mir::Type>,
+    },
+    PtrLoad {
+        pointer: Box<Expr>,
+        pointee: Box<mir::Type>,
+        offset: Option<Box<Expr>>,
+    },
+    PtrStore {
+        pointer: Box<Expr>,
+        pointee: Box<mir::Type>,
+        offset: Option<Box<Expr>>,
+        value: Box<Expr>,
+    },
+    PtrOffset {
+        pointer: Box<Expr>,
+        pointee: Box<mir::Type>,
+        offset: Box<Expr>,
+        subtract: bool,
+    },
+    AddressOf {
+        local: mir::LocalId,
+        pointee: Box<mir::Type>,
+    },
+    GlobalAddress {
+        global: mir::GlobalId,
+        pointee: Box<mir::Type>,
+    },
+    SizeOf(Box<mir::Type>),
+    AlignOf(Box<mir::Type>),
+    FunPtrNull(mir::FunctionTypeId),
+    FunctionAddress {
+        callback: mir::CallbackBridgeId,
+    },
     Retype {
         operand: Box<Expr>,
         ty: Box<mir::Type>,

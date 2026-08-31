@@ -1,0 +1,39 @@
+struct Managed(val text: String)
+
+var missingAnnotation: Int = 0
+
+@Global
+val localVal: Int = 1
+
+@Global
+@ThreadLocal
+var both: Int = 2
+
+@Global
+var managed: Managed = Managed("bad")
+
+@Global
+var dynamic: Int = helper()
+
+@Extern(name = "initialized")
+@Global
+var initialized: Int = 1
+
+@Extern(name = "missing_storage")
+var missingStorage: Int
+
+@Extern(name = "readonly")
+@Global
+val readonly: Int
+
+@Extern(name = "wrong_abi", abi = "scoop")
+val wrongAbi: Int
+
+@Extern(name = "unsafe_read")
+val unsafeRead: Int
+
+fun helper(): Int = 1
+
+fun main() {
+    println(unsafeRead)
+}

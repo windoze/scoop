@@ -20,6 +20,8 @@ pub type LocalFunctionId = Idx<LocalFunction>;
 pub type CallableReferenceId = Idx<CallableReference>;
 pub type FunctionCoercionId = Idx<FunctionCoercion>;
 pub type FunctionId = Idx<Function>;
+pub type ExternFunctionId = Idx<ExternFunction>;
+pub type GlobalId = Idx<Global>;
 pub type GenericFunctionId = Idx<GenericFunction>;
 pub type ResolvedGenericFunctionId = Idx<ResolvedGenericFunction>;
 pub type StructId = Idx<StructDecl>;
@@ -90,6 +92,12 @@ pub enum Type {
     /// A managed function value type. The referenced entry carries the
     /// complete structural signature and is canonical within the Cone.
     Function(FunctionTypeId),
+    /// A GC-free typed raw data pointer. The pointee remains explicit in all
+    /// IR stages; it is never recovered from an integer representation.
+    Ptr(TypeId),
+    /// A GC-free native C function pointer. Its signature reuses M11's
+    /// canonical function-type identity but is not a managed function value.
+    FunPtr(FunctionTypeId),
     /// An enum type with resolved type arguments (empty for
     /// non-generic enums). `Option<T>` is one of these since M4
     /// (defined in `scoop.core`).
@@ -148,6 +156,8 @@ pub fn types_equal(module: &Module, a: TypeId, b: TypeId) -> bool {
                     .all(|(x, y)| types_equal(module, *x, *y))
         }
         (Type::Function(x), Type::Function(y)) => x == y,
+        (Type::Ptr(x), Type::Ptr(y)) => types_equal(module, *x, *y),
+        (Type::FunPtr(x), Type::FunPtr(y)) => x == y,
         (Type::Enum(x, x_args), Type::Enum(y, y_args)) => {
             x == y
                 && x_args.len() == y_args.len()
@@ -218,6 +228,20 @@ pub fn type_name(module: &Module, ty: TypeId) -> String {
                 type_name(module, function.return_type)
             )
         }
+        Type::Ptr(pointee) => format!("Ptr<{}>", type_name(module, *pointee)),
+        Type::FunPtr(id) => {
+            let function = &module.function_types[*id];
+            let parameters = function
+                .parameter_types
+                .iter()
+                .map(|ty| type_name(module, *ty))
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!(
+                "FunPtr<({parameters}) -> {}>",
+                type_name(module, function.return_type)
+            )
+        }
         Type::Param(index) => format!("T{}", index.into_raw()),
     }
 }
@@ -237,6 +261,12 @@ pub struct Module {
     /// adaptation requested by HIR.
     pub function_coercions: Arena<FunctionCoercion>,
     pub functions: Arena<Function>,
+    /// Native functions imported by source declarations. They have no HIR
+    /// body and their identities never enter generic instantiation.
+    pub extern_functions: Arena<ExternFunction>,
+    /// Top-level storage declarations. Globals use an identity distinct from
+    /// functions and locals, and every entry carries a complete storage kind.
+    pub globals: Arena<Global>,
     /// Generic function definitions. Their ids are distinct from
     /// ordinary `FunctionId`s even though each entry points at the HIR
     /// function that owns the parameterized body.
@@ -261,12 +291,39 @@ pub struct Module {
     /// their exact declarations before constructing the module, so MIR never
     /// falls back to textual lookup for protocol types or methods.
     pub coroutine_core: CoroutineCore,
+    /// Compiler-known pointer/FFI core entities. HIR lowering validates the
+    /// unique source declarations and downstream stages use these typed ids,
+    /// never textual names.
+    pub ffi_core: FfiCore,
     /// Entry point: `fun main()`. Guaranteed present.
     pub entry: FunctionId,
     /// Resolved generic function applications, deduplicated in
     /// first-use order. The arena id is carried directly by call
     /// expressions and is the instantiation request consumed by MIR.
     pub instantiations: Arena<ResolvedGenericFunction>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct FfiCore {
+    pub ptr: StructId,
+    pub fun_ptr: StructId,
+    pub pinned_ptr: StructId,
+    pub gc_handle: StructId,
+    pub ptr_to_uint: FunctionId,
+    pub ptr_cast: FunctionId,
+    pub ptr_load: FunctionId,
+    pub ptr_load_offset: FunctionId,
+    pub ptr_store: FunctionId,
+    pub ptr_store_offset: FunctionId,
+    pub ptr_plus: FunctionId,
+    pub ptr_minus: FunctionId,
+    pub address_of: FunctionId,
+    pub size_of: FunctionId,
+    pub align_of: FunctionId,
+    pub gc_pin_raw: FunctionId,
+    pub gc_unpin_raw: FunctionId,
+    pub gc_get_handle_raw: FunctionId,
+    pub gc_release_handle_raw: FunctionId,
 }
 
 #[derive(Debug, Clone)]
@@ -387,6 +444,11 @@ impl Module {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GenericFunction {
     pub function: FunctionId,
+    /// Type parameters whose concrete arguments must be GC-free for this
+    /// generic definition to satisfy its `@NoGC` contract. The requirement
+    /// is inferred from the resolved signature/body and checked at every
+    /// instantiation; unused/representation-erased parameters are omitted.
+    pub no_gc_type_params: Vec<TypeParamId>,
 }
 
 /// A generic function with every call-site type argument resolved.
@@ -410,16 +472,31 @@ pub enum Callable {
 #[derive(Debug, Clone)]
 pub struct StructDecl {
     pub name: String,
-    pub type_params: Vec<String>,
+    pub type_params: Vec<TypeParamDecl>,
+    pub attributes: StructAttributes,
     pub fields: Vec<Field>,
     pub interfaces: Vec<TypeId>,
     pub span: Span,
 }
 
+/// Typed struct attributes. Raw annotation names and argument syntax never
+/// cross the AST/HIR boundary.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct StructAttributes {
+    pub c_layout: Option<CLayout>,
+    pub interior_mutable: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CLayout {
+    pub aligned: u8,
+    pub packed: u8,
+}
+
 #[derive(Debug, Clone)]
 pub struct EnumDecl {
     pub name: String,
-    pub type_params: Vec<String>,
+    pub type_params: Vec<TypeParamDecl>,
     pub variants: Vec<Variant>,
     pub interfaces: Vec<TypeId>,
     pub span: Span,
@@ -484,7 +561,15 @@ pub enum Variance {
 pub struct TypeParamDecl {
     pub name: String,
     pub variance: Variance,
+    pub kind: TypeParamKind,
     pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TypeParamKind {
+    Any,
+    Value,
+    Ref,
 }
 
 /// An interface method signature (M6: no body, no properties).
@@ -494,10 +579,11 @@ pub struct MethodSig {
     /// Suspend is part of the callable contract and must match exactly
     /// across interface implementation and overriding relationships.
     pub is_suspend: bool,
+    pub attributes: FunctionAttributes,
     /// Type parameters declared by this method (the owning interface's
     /// parameters are stored on `InterfaceDecl`). An empty list means the
     /// method occupies an itable slot; generic methods are static-only.
-    pub type_params: Vec<String>,
+    pub type_params: Vec<TypeParamDecl>,
     pub params: Vec<Param>,
     pub return_ty: TypeId,
     pub span: Span,
@@ -521,22 +607,112 @@ pub struct Field {
 }
 
 #[derive(Debug, Clone)]
+pub struct Global {
+    pub name: String,
+    pub ty: TypeId,
+    pub mutable: bool,
+    pub storage: GlobalStorage,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone)]
+pub enum GlobalStorage {
+    Local {
+        thread_local: bool,
+        initializer: ConstantValue,
+    },
+    Extern {
+        library: String,
+        native_symbol: String,
+        thread_local: bool,
+    },
+}
+
+/// A typed, GC-free initializer accepted for local global storage.
+#[derive(Debug, Clone)]
+pub enum ConstantValue {
+    Int(i64),
+    Bool(bool),
+    NullPtr,
+    NullFunPtr,
+    Struct {
+        struct_id: StructId,
+        fields: Vec<ConstantValue>,
+    },
+}
+
+#[derive(Debug, Clone)]
 pub struct Function {
     pub name: String,
     /// Whether calls use the coroutine ABI rather than the ordinary ABI.
     pub is_suspend: bool,
-    /// Generic type parameter names; empty for non-generic functions. For
+    /// Typed generic parameters; empty for non-generic functions. For
     /// methods this is one combined namespace: owner parameters first,
     /// method-declared parameters second (`Method::owner_type_param_count`
     /// separates the two groups).
-    pub type_params: Vec<String>,
+    pub type_params: Vec<TypeParamDecl>,
     pub params: Vec<Param>,
     pub return_ty: TypeId,
+    pub attributes: FunctionAttributes,
     pub kind: FunctionKind,
     /// Member metadata; the receiver of a method is the first entry of
     /// `params` (named `this`). Top-level functions have `None`.
     pub method: Option<Method>,
     pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FunctionAttributes {
+    pub safety: Safety,
+    pub gc_effect: GcEffect,
+    /// M12 currently supports only cdecl for native-addressable functions.
+    pub calling_convention: CallingConvention,
+}
+
+impl Default for FunctionAttributes {
+    fn default() -> Self {
+        Self {
+            safety: Safety::Safe,
+            gc_effect: GcEffect::Managed,
+            calling_convention: CallingConvention::Cdecl,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Safety {
+    Safe,
+    Unsafe,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GcEffect {
+    Managed,
+    NoGc,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CallingConvention {
+    Cdecl,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExternAbi {
+    C,
+    Scoop,
+}
+
+#[derive(Debug, Clone)]
+pub struct ExternFunction {
+    pub source_name: String,
+    pub native_symbol: String,
+    pub library: String,
+    pub abi: ExternAbi,
+    pub calling_convention: CallingConvention,
+    pub gc_effect: GcEffect,
+    pub safety: Safety,
+    pub params: Vec<TypeId>,
+    pub return_type: TypeId,
 }
 
 #[derive(Debug, Clone)]
@@ -553,6 +729,9 @@ pub enum FunctionKind {
     /// A `@Intrinsic("name")` function (spec 13.1); the name is
     /// guaranteed to be in the compiler's intrinsic registry.
     Intrinsic(String),
+    /// A bodyless native declaration. Complete ABI metadata lives in the
+    /// independent extern arena and is referenced by a typed id.
+    Extern(ExternFunctionId),
 }
 
 #[derive(Debug, Clone)]
@@ -629,6 +808,7 @@ pub struct CatchClause {
 #[derive(Debug, Clone)]
 pub enum AssignTarget {
     Local(LocalId),
+    Global(GlobalId),
     /// `array[index] = value` (only `MutableArray`, checked at HIR).
     Index {
         array: Expr,
@@ -717,6 +897,7 @@ pub enum ExprKind {
         args: Vec<Expr>,
     },
     Local(LocalId),
+    GlobalRead(GlobalId),
     /// Read one immutable binding from the current closure environment. The
     /// binding identity is resolved to a concrete field by closure conversion.
     Capture(BindingId),
@@ -731,6 +912,30 @@ pub enum ExprKind {
         coercion: FunctionCoercionId,
         target_type: FunctionTypeId,
     },
+    /// `Ptr<T>(raw)`; the source constructor is unsafe and normalized here.
+    PtrFromUInt(Box<Expr>),
+    PtrToUInt(Box<Expr>),
+    PtrCast(Box<Expr>),
+    PtrLoad {
+        pointer: Box<Expr>,
+        offset: Option<Box<Expr>>,
+    },
+    PtrStore {
+        pointer: Box<Expr>,
+        offset: Option<Box<Expr>>,
+        value: Box<Expr>,
+    },
+    PtrOffset {
+        pointer: Box<Expr>,
+        offset: Box<Expr>,
+        subtract: bool,
+    },
+    AddressOf(Place),
+    SizeOf(TypeId),
+    AlignOf(TypeId),
+    FunPtrNull,
+    /// Native C callback address selected contextually from `::name`.
+    FunctionAddress(FunctionId),
     FieldAccess {
         receiver: Box<Expr>,
         field: FieldRef,
@@ -820,6 +1025,12 @@ pub enum ExprKind {
     },
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Place {
+    Local(LocalId),
+    Global(GlobalId),
+}
+
 /// A fully resolved field access.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FieldRef {
@@ -862,49 +1073,137 @@ pub enum UnOp {
 /// valid names, expansion stage, and backend kind.
 pub const INTRINSIC_REGISTRY: &[IntrinsicSpec] = &[
     IntrinsicSpec {
-        name: "rt_write",
-        stage: IntrinsicStage::Mir,
-        kind: IntrinsicKind::Runtime("scoop_rt_print"),
-    },
-    IntrinsicSpec {
-        name: "rt_pin",
+        name: "gc_pin_raw",
         stage: IntrinsicStage::Mir,
         kind: IntrinsicKind::Runtime("scoop_rt_pin"),
+        target: IntrinsicTarget::TopLevel,
+        effects: IntrinsicEffects::UNSAFE,
     },
     IntrinsicSpec {
-        name: "rt_unpin",
+        name: "gc_unpin_raw",
         stage: IntrinsicStage::Mir,
         kind: IntrinsicKind::Runtime("scoop_rt_unpin"),
+        target: IntrinsicTarget::TopLevel,
+        effects: IntrinsicEffects::UNSAFE,
     },
     IntrinsicSpec {
-        name: "rt_get_handle",
+        name: "gc_get_handle_raw",
         stage: IntrinsicStage::Mir,
         kind: IntrinsicKind::Runtime("scoop_rt_get_handle"),
+        target: IntrinsicTarget::TopLevel,
+        effects: IntrinsicEffects::UNSAFE,
     },
     IntrinsicSpec {
-        name: "rt_release_handle",
+        name: "gc_release_handle_raw",
         stage: IntrinsicStage::Mir,
         kind: IntrinsicKind::Runtime("scoop_rt_release_handle"),
+        target: IntrinsicTarget::TopLevel,
+        effects: IntrinsicEffects::UNSAFE,
     },
     IntrinsicSpec {
         name: "rt_gc_collect",
         stage: IntrinsicStage::Mir,
         kind: IntrinsicKind::Runtime("scoop_rt_gc_collect"),
+        target: IntrinsicTarget::TopLevel,
+        effects: IntrinsicEffects::NONE,
     },
     IntrinsicSpec {
         name: "rt_gc_stats",
         stage: IntrinsicStage::Mir,
         kind: IntrinsicKind::Runtime("scoop_rt_gc_stats"),
+        target: IntrinsicTarget::TopLevel,
+        effects: IntrinsicEffects::NONE,
     },
     IntrinsicSpec {
         name: "coroutine_start",
         stage: IntrinsicStage::Mir,
         kind: IntrinsicKind::CoroutineStart,
+        target: IntrinsicTarget::TopLevel,
+        effects: IntrinsicEffects::NONE,
     },
     IntrinsicSpec {
         name: "coroutine_suspend",
         stage: IntrinsicStage::Mir,
         kind: IntrinsicKind::CoroutineSuspend,
+        target: IntrinsicTarget::TopLevel,
+        effects: IntrinsicEffects::NONE,
+    },
+    IntrinsicSpec {
+        name: "ptr_to_uint",
+        stage: IntrinsicStage::Hir,
+        kind: IntrinsicKind::Pointer(PointerIntrinsic::ToUInt),
+        target: IntrinsicTarget::Member,
+        effects: IntrinsicEffects::NO_GC_UNSAFE,
+    },
+    IntrinsicSpec {
+        name: "ptr_cast",
+        stage: IntrinsicStage::Hir,
+        kind: IntrinsicKind::Pointer(PointerIntrinsic::Cast),
+        target: IntrinsicTarget::Member,
+        effects: IntrinsicEffects::NO_GC_UNSAFE,
+    },
+    IntrinsicSpec {
+        name: "ptr_load",
+        stage: IntrinsicStage::Hir,
+        kind: IntrinsicKind::Pointer(PointerIntrinsic::Load),
+        target: IntrinsicTarget::Member,
+        effects: IntrinsicEffects::NO_GC_UNSAFE,
+    },
+    IntrinsicSpec {
+        name: "ptr_load_offset",
+        stage: IntrinsicStage::Hir,
+        kind: IntrinsicKind::Pointer(PointerIntrinsic::LoadOffset),
+        target: IntrinsicTarget::Member,
+        effects: IntrinsicEffects::NO_GC_UNSAFE,
+    },
+    IntrinsicSpec {
+        name: "ptr_store",
+        stage: IntrinsicStage::Hir,
+        kind: IntrinsicKind::Pointer(PointerIntrinsic::Store),
+        target: IntrinsicTarget::Member,
+        effects: IntrinsicEffects::NO_GC_UNSAFE,
+    },
+    IntrinsicSpec {
+        name: "ptr_store_offset",
+        stage: IntrinsicStage::Hir,
+        kind: IntrinsicKind::Pointer(PointerIntrinsic::StoreOffset),
+        target: IntrinsicTarget::Member,
+        effects: IntrinsicEffects::NO_GC_UNSAFE,
+    },
+    IntrinsicSpec {
+        name: "ptr_plus",
+        stage: IntrinsicStage::Hir,
+        kind: IntrinsicKind::Pointer(PointerIntrinsic::Plus),
+        target: IntrinsicTarget::Member,
+        effects: IntrinsicEffects::NO_GC_UNSAFE,
+    },
+    IntrinsicSpec {
+        name: "ptr_minus",
+        stage: IntrinsicStage::Hir,
+        kind: IntrinsicKind::Pointer(PointerIntrinsic::Minus),
+        target: IntrinsicTarget::Member,
+        effects: IntrinsicEffects::NO_GC_UNSAFE,
+    },
+    IntrinsicSpec {
+        name: "address_of",
+        stage: IntrinsicStage::Hir,
+        kind: IntrinsicKind::Pointer(PointerIntrinsic::AddressOf),
+        target: IntrinsicTarget::TopLevel,
+        effects: IntrinsicEffects::UNSAFE,
+    },
+    IntrinsicSpec {
+        name: "size_of",
+        stage: IntrinsicStage::Hir,
+        kind: IntrinsicKind::Pointer(PointerIntrinsic::SizeOf),
+        target: IntrinsicTarget::TopLevel,
+        effects: IntrinsicEffects::NO_GC,
+    },
+    IntrinsicSpec {
+        name: "align_of",
+        stage: IntrinsicStage::Hir,
+        kind: IntrinsicKind::Pointer(PointerIntrinsic::AlignOf),
+        target: IntrinsicTarget::TopLevel,
+        effects: IntrinsicEffects::NO_GC,
     },
 ];
 
@@ -913,10 +1212,13 @@ pub struct IntrinsicSpec {
     pub name: &'static str,
     pub stage: IntrinsicStage,
     pub kind: IntrinsicKind,
+    pub target: IntrinsicTarget,
+    pub effects: IntrinsicEffects,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum IntrinsicStage {
+    Hir,
     Mir,
 }
 
@@ -925,6 +1227,53 @@ pub enum IntrinsicKind {
     Runtime(&'static str),
     CoroutineStart,
     CoroutineSuspend,
+    Pointer(PointerIntrinsic),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PointerIntrinsic {
+    ToUInt,
+    Cast,
+    Load,
+    LoadOffset,
+    Store,
+    StoreOffset,
+    Plus,
+    Minus,
+    AddressOf,
+    SizeOf,
+    AlignOf,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IntrinsicTarget {
+    TopLevel,
+    Member,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct IntrinsicEffects {
+    pub no_gc: bool,
+    pub unsafe_: bool,
+}
+
+impl IntrinsicEffects {
+    pub const NONE: Self = Self {
+        no_gc: false,
+        unsafe_: false,
+    };
+    pub const NO_GC: Self = Self {
+        no_gc: true,
+        unsafe_: false,
+    };
+    pub const UNSAFE: Self = Self {
+        no_gc: false,
+        unsafe_: true,
+    };
+    pub const NO_GC_UNSAFE: Self = Self {
+        no_gc: true,
+        unsafe_: true,
+    };
 }
 
 pub fn intrinsic_spec(name: &str) -> Option<&'static IntrinsicSpec> {
@@ -934,16 +1283,24 @@ pub fn intrinsic_spec(name: &str) -> Option<&'static IntrinsicSpec> {
 /// Indented text dump for golden tests (`scoopc build --emit=hir`).
 pub fn dump(module: &Module) -> String {
     let mut out = String::from("Module\n");
-    for (_, decl) in module.structs.iter() {
+    for (id, decl) in module.structs.iter() {
+        if id == module.ffi_core.ptr
+            || id == module.ffi_core.fun_ptr
+            || id == module.ffi_core.pinned_ptr
+            || id == module.ffi_core.gc_handle
+        {
+            continue;
+        }
         let type_params = if decl.type_params.is_empty() {
             String::new()
         } else {
-            format!("<{}>", decl.type_params.join(", "))
+            dump_type_params(&decl.type_params)
         };
         let interfaces = dump_interface_list(module, &decl.interfaces);
+        let attributes = dump_struct_attributes(decl.attributes);
         out.push_str(&format!(
-            "  struct {}{}{}\n",
-            decl.name, type_params, interfaces
+            "  struct {}{}{}{}\n",
+            decl.name, type_params, interfaces, attributes
         ));
         for field in &decl.fields {
             out.push_str(&format!(
@@ -957,7 +1314,7 @@ pub fn dump(module: &Module) -> String {
         let type_params = if decl.type_params.is_empty() {
             String::new()
         } else {
-            format!("<{}>", decl.type_params.join(", "))
+            dump_type_params(&decl.type_params)
         };
         let interfaces = dump_interface_list(module, &decl.interfaces);
         out.push_str(&format!(
@@ -996,26 +1353,14 @@ pub fn dump(module: &Module) -> String {
         let type_params = if decl.type_params.is_empty() {
             String::new()
         } else {
-            let params: Vec<String> = decl
-                .type_params
-                .iter()
-                .map(|param| {
-                    let variance = match param.variance {
-                        Variance::Invariant => "",
-                        Variance::In => "in ",
-                        Variance::Out => "out ",
-                    };
-                    format!("{variance}{}", param.name)
-                })
-                .collect();
-            format!("<{}>", params.join(", "))
+            dump_type_params(&decl.type_params)
         };
         out.push_str(&format!("  interface {}{}\n", decl.name, type_params));
         for method in &decl.methods {
             let method_type_params = if method.type_params.is_empty() {
                 String::new()
             } else {
-                format!("<{}>", method.type_params.join(", "))
+                dump_type_params(&method.type_params)
             };
             let params: Vec<String> = method
                 .params
@@ -1023,27 +1368,80 @@ pub fn dump(module: &Module) -> String {
                 .map(|param| format!("{}: {}", param.name, type_name(module, param.ty)))
                 .collect();
             out.push_str(&format!(
-                "    {}fun {}{}({}): {}\n",
+                "    {}fun {}{}({}): {}{}\n",
                 if method.is_suspend { "suspend " } else { "" },
                 method.name,
                 method_type_params,
                 params.join(", "),
-                type_name(module, method.return_ty)
+                type_name(module, method.return_ty),
+                dump_function_attributes(method.attributes)
             ));
         }
     }
+    for (id, global) in module.globals.iter() {
+        let storage = match &global.storage {
+            GlobalStorage::Local {
+                thread_local: false,
+                ..
+            } => "global".to_string(),
+            GlobalStorage::Local {
+                thread_local: true, ..
+            } => "thread_local".to_string(),
+            GlobalStorage::Extern {
+                native_symbol,
+                library,
+                thread_local,
+            } => format!(
+                "extern symbol={native_symbol}{}{}",
+                if library.is_empty() {
+                    String::new()
+                } else {
+                    format!(" lib={library}")
+                },
+                if *thread_local { " thread_local" } else { "" }
+            ),
+        };
+        out.push_str(&format!(
+            "  {} {}: {} <global{} {storage}>\n",
+            if global.mutable { "var" } else { "val" },
+            global.name,
+            type_name(module, global.ty),
+            id.into_raw()
+        ));
+    }
     for &id in &module.top_level {
+        if [
+            module.ffi_core.address_of,
+            module.ffi_core.size_of,
+            module.ffi_core.align_of,
+            module.ffi_core.gc_pin_raw,
+            module.ffi_core.gc_unpin_raw,
+            module.ffi_core.gc_get_handle_raw,
+            module.ffi_core.gc_release_handle_raw,
+        ]
+        .contains(&id)
+        {
+            continue;
+        }
         let function = &module.functions[id];
         let type_params = if function.type_params.is_empty() {
             String::new()
         } else {
-            format!("<{}>", function.type_params.join(", "))
+            dump_type_params(&function.type_params)
         };
-        let params: Vec<String> = function
-            .params
-            .iter()
-            .map(|p| format!("{}: {}", p.name, type_name(module, p.ty)))
-            .collect();
+        let params: Vec<String> = match function.kind {
+            FunctionKind::Extern(id) => module.extern_functions[id]
+                .params
+                .iter()
+                .enumerate()
+                .map(|(index, &ty)| format!("arg{}: {}", index + 1, type_name(module, ty)))
+                .collect(),
+            _ => function
+                .params
+                .iter()
+                .map(|p| format!("{}: {}", p.name, type_name(module, p.ty)))
+                .collect(),
+        };
         let signature = format!(
             "{}{}({}): {}",
             function.name,
@@ -1052,13 +1450,54 @@ pub fn dump(module: &Module) -> String {
             type_name(module, function.return_ty)
         );
         let suspend = if function.is_suspend { "suspend " } else { "" };
+        let attributes = dump_function_attributes(function.attributes);
+        let no_gc_condition = module
+            .generic_functions
+            .iter()
+            .find(|(_, generic)| generic.function == id && !generic.no_gc_type_params.is_empty())
+            .map(|(_, generic)| {
+                let parameters = generic
+                    .no_gc_type_params
+                    .iter()
+                    .map(|parameter| {
+                        function.type_params[parameter.into_raw() as usize]
+                            .name
+                            .as_str()
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!(" <requires-gc-free {parameters}>")
+            })
+            .unwrap_or_default();
         match &function.kind {
             FunctionKind::Intrinsic(name) => {
-                out.push_str(&format!("  {suspend}fun {signature} <intrinsic {name}>\n"));
+                out.push_str(&format!(
+                    "  {suspend}fun {signature}{attributes}{no_gc_condition} <intrinsic {name}>\n"
+                ));
             }
             FunctionKind::User(body) => {
-                out.push_str(&format!("  {suspend}fun {signature}\n"));
+                out.push_str(&format!(
+                    "  {suspend}fun {signature}{attributes}{no_gc_condition}\n"
+                ));
                 dump_statements(module, &body.locals, &body.statements, 2, &mut out);
+            }
+            FunctionKind::Extern(id) => {
+                let extern_ = &module.extern_functions[*id];
+                let abi = match extern_.abi {
+                    ExternAbi::C => "c",
+                    ExternAbi::Scoop => "scoop",
+                };
+                let library = if extern_.library.is_empty() {
+                    String::new()
+                } else {
+                    format!(" lib={}", extern_.library)
+                };
+                out.push_str(&format!(
+                    "  fun {signature}{attributes}{no_gc_condition} <extern{} abi={abi} symbol={}{}>\n",
+                    id.into_raw(),
+                    extern_.native_symbol,
+                    library
+                ));
             }
         }
     }
@@ -1068,6 +1507,16 @@ pub fn dump(module: &Module) -> String {
     ));
     for (_, instantiation) in module.instantiations.iter() {
         let function = module.generic_functions[instantiation.generic].function;
+        if [
+            module.ffi_core.gc_pin_raw,
+            module.ffi_core.gc_unpin_raw,
+            module.ffi_core.gc_get_handle_raw,
+            module.ffi_core.gc_release_handle_raw,
+        ]
+        .contains(&function)
+        {
+            continue;
+        }
         let args: Vec<String> = instantiation
             .type_args
             .iter()
@@ -1080,6 +1529,62 @@ pub fn dump(module: &Module) -> String {
         ));
     }
     out
+}
+
+fn dump_type_params(params: &[TypeParamDecl]) -> String {
+    let params = params
+        .iter()
+        .map(|param| {
+            let variance = match param.variance {
+                Variance::Invariant => "",
+                Variance::In => "in ",
+                Variance::Out => "out ",
+            };
+            let kind = match param.kind {
+                TypeParamKind::Any => "",
+                TypeParamKind::Value => " : value",
+                TypeParamKind::Ref => " : ref",
+            };
+            format!("{variance}{}{kind}", param.name)
+        })
+        .collect::<Vec<_>>();
+    format!("<{}>", params.join(", "))
+}
+
+fn dump_function_attributes(attributes: FunctionAttributes) -> String {
+    let mut values = Vec::new();
+    if attributes.safety == Safety::Unsafe {
+        values.push("unsafe");
+    }
+    if attributes.gc_effect == GcEffect::NoGc {
+        values.push("no-gc");
+        values.push(match attributes.calling_convention {
+            CallingConvention::Cdecl => "cdecl",
+        });
+    }
+    if values.is_empty() {
+        String::new()
+    } else {
+        format!(" <{}>", values.join(" "))
+    }
+}
+
+fn dump_struct_attributes(attributes: StructAttributes) -> String {
+    let mut values = Vec::new();
+    if let Some(layout) = attributes.c_layout {
+        values.push(format!(
+            "c-layout aligned={} packed={}",
+            layout.aligned, layout.packed
+        ));
+    }
+    if attributes.interior_mutable {
+        values.push("interior-mutable".to_string());
+    }
+    if values.is_empty() {
+        String::new()
+    } else {
+        format!(" <{}>", values.join(" "))
+    }
 }
 
 fn dump_interface_list(module: &Module, interfaces: &[TypeId]) -> String {
@@ -1126,6 +1631,10 @@ fn dump_statements(
                     AssignTarget::Local(local) => {
                         out.push_str(&format!("{pad}assign {}\n", locals[*local].name))
                     }
+                    AssignTarget::Global(global) => out.push_str(&format!(
+                        "{pad}assign global {}\n",
+                        module.globals[*global].name
+                    )),
                     AssignTarget::Field { receiver, .. } => {
                         out.push_str(&format!("{pad}assign .field\n"));
                         dump_expr(module, locals, receiver, indent + 1, out);
@@ -1301,6 +1810,10 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
         ExprKind::Local(local) => {
             out.push_str(&format!("{pad}Local {} : {ty}\n", locals[*local].name));
         }
+        ExprKind::GlobalRead(global) => out.push_str(&format!(
+            "{pad}GlobalRead {} : {ty}\n",
+            module.globals[*global].name
+        )),
         ExprKind::Capture(binding) => {
             out.push_str(&format!(
                 "{pad}Capture binding{} : {ty}\n",
@@ -1401,6 +1914,66 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
             ));
             dump_expr(module, locals, source, indent + 1, out);
         }
+        ExprKind::PtrFromUInt(operand) => {
+            out.push_str(&format!("{pad}PtrFromUInt : {ty}\n"));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        ExprKind::PtrToUInt(operand) => {
+            out.push_str(&format!("{pad}PtrToUInt : {ty}\n"));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        ExprKind::PtrCast(operand) => {
+            out.push_str(&format!("{pad}PtrCast : {ty}\n"));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        ExprKind::PtrLoad { pointer, offset } => {
+            out.push_str(&format!("{pad}PtrLoad : {ty}\n"));
+            dump_expr(module, locals, pointer, indent + 1, out);
+            if let Some(offset) = offset {
+                dump_expr(module, locals, offset, indent + 1, out);
+            }
+        }
+        ExprKind::PtrStore {
+            pointer,
+            offset,
+            value,
+        } => {
+            out.push_str(&format!("{pad}PtrStore : {ty}\n"));
+            dump_expr(module, locals, pointer, indent + 1, out);
+            if let Some(offset) = offset {
+                dump_expr(module, locals, offset, indent + 1, out);
+            }
+            dump_expr(module, locals, value, indent + 1, out);
+        }
+        ExprKind::PtrOffset {
+            pointer,
+            offset,
+            subtract,
+        } => {
+            out.push_str(&format!("{pad}PtrOffset subtract={subtract} : {ty}\n"));
+            dump_expr(module, locals, pointer, indent + 1, out);
+            dump_expr(module, locals, offset, indent + 1, out);
+        }
+        ExprKind::AddressOf(Place::Local(local)) => {
+            out.push_str(&format!("{pad}AddressOf {} : {ty}\n", locals[*local].name));
+        }
+        ExprKind::AddressOf(Place::Global(global)) => out.push_str(&format!(
+            "{pad}AddressOf global {} : {ty}\n",
+            module.globals[*global].name
+        )),
+        ExprKind::SizeOf(value_ty) => out.push_str(&format!(
+            "{pad}SizeOf {} : {ty}\n",
+            type_name(module, *value_ty)
+        )),
+        ExprKind::AlignOf(value_ty) => out.push_str(&format!(
+            "{pad}AlignOf {} : {ty}\n",
+            type_name(module, *value_ty)
+        )),
+        ExprKind::FunPtrNull => out.push_str(&format!("{pad}FunPtrNull : {ty}\n")),
+        ExprKind::FunctionAddress(function) => out.push_str(&format!(
+            "{pad}FunctionAddress {} : {ty}\n",
+            module.functions[*function].name
+        )),
         ExprKind::FieldAccess { receiver, field } => {
             let field = match field {
                 FieldRef::StructField { index, .. } => format!("field {index}"),

@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m12-ffi/c-layout-generic-negative.scoop:2:1: error: concrete `@CLayout` type is not C-FFI-safe: CBox<String>.value: ref type `String` is managed

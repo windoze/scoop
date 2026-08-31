@@ -1,0 +1,27 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m12-ffi/errors/no-gc-operations.scoop:5:1: error: `@NoGC` function `allocatesClass` has local `instance` of non-GC-free type ManagedObject
+m12-ffi/errors/no-gc-operations.scoop:7:20: error: value of non-GC-free type ManagedObject is not allowed in `@NoGC` code
+m12-ffi/errors/no-gc-operations.scoop:7:20: error: class allocation is not allowed in `@NoGC` code
+m12-ffi/errors/no-gc-operations.scoop:11:1: error: `@NoGC` function `allocatesArray` has local `values` of non-GC-free type Array<Int>
+m12-ffi/errors/no-gc-operations.scoop:13:18: error: value of non-GC-free type Array<Int> is not allowed in `@NoGC` code
+m12-ffi/errors/no-gc-operations.scoop:13:18: error: array allocation is not allowed in `@NoGC` code
+m12-ffi/errors/no-gc-operations.scoop:14:12: error: array indexing is not allowed in `@NoGC` code
+m12-ffi/errors/no-gc-operations.scoop:14:12: error: value of non-GC-free type Array<Int> is not allowed in `@NoGC` code
+m12-ffi/errors/no-gc-operations.scoop:17:1: error: `@NoGC` function `createsString` has local `text` of non-GC-free type String
+m12-ffi/errors/no-gc-operations.scoop:19:16: error: value of non-GC-free type String is not allowed in `@NoGC` code
+m12-ffi/errors/no-gc-operations.scoop:19:16: error: string literals are not allowed in `@NoGC` code
+m12-ffi/errors/no-gc-operations.scoop:23:1: error: `@NoGC` function `boxesValue` has local `boxed` of non-GC-free type Any
+m12-ffi/errors/no-gc-operations.scoop:25:22: error: value of non-GC-free type Any is not allowed in `@NoGC` code
+m12-ffi/errors/no-gc-operations.scoop:25:22: error: boxing and unboxing are not allowed in `@NoGC` code
+m12-ffi/errors/no-gc-operations.scoop:30:37: error: `@NoGC` code may not call managed function `managed`
+m12-ffi/errors/no-gc-operations.scoop:33:33: error: `!!` is not allowed in `@NoGC` code because it may throw
+m12-ffi/errors/no-gc-operations.scoop:37:5: error: `throw` is not allowed in `@NoGC` code
+m12-ffi/errors/no-gc-operations.scoop:37:11: error: value of non-GC-free type ArithmeticException is not allowed in `@NoGC` code
+m12-ffi/errors/no-gc-operations.scoop:37:11: error: class allocation is not allowed in `@NoGC` code
+m12-ffi/errors/no-gc-operations.scoop:40:1: error: `@NoGC` function `catchesException` has local `exception` of non-GC-free type ArithmeticException
+m12-ffi/errors/no-gc-operations.scoop:42:5: error: `try`/`catch` is not allowed in `@NoGC` code
+m12-ffi/errors/no-gc-operations.scoop:50:39: error: runtime type checks are not allowed in `@NoGC` code

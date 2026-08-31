@@ -81,6 +81,7 @@ Scoop 的类型分为两大类：
 
 - 泛型在编译期**单态化**实例化：每个具体类型实参生成一份专门的代码。
 - 泛型调用与泛型值构造的类型实参由整组实参共同约束，推导结果不得依赖实参声明顺序。依赖期望类型的实参（如 `None`、空数组或嵌套泛型构造）可以由任意其他实参先绑定类型参数后再完成检查；运行期求值顺序仍严格保持源码顺序。
+- 调用点可以写出完整的显式类型实参：`f<Int>(value)`、`Box<String>(value)`、`Enum.Some<Int>(value)` 与 `receiver.convert<String>()`。显式列表必须覆盖 callee 自己声明的全部类型参数，不支持部分写出后继续推断；泛型宿主的方法调用只写方法自己的类型参数，宿主前缀仍由 receiver 静态类型确定。没有显式列表时继续使用上一条的整组推断规则。
 - 因此不存在类型擦除，也没有 `reified` 的运行期需求（见 8.4）。
 - 型变规则（`in` / `out` / 投影）与 Kotlin 一致，在编译期检查；`Array<T>` 例外（见 10.4）。
 - 声明点型变目前用于 interface 类型参数：不写修饰符表示不变，`out T` 表示协变，`in T` 表示逆变。对同一 interface 的两个应用，协变参数按同向子类型关系比较，逆变参数按反向子类型关系比较，不变参数必须相等；不同 interface 之间不存在由型变产生的子类型关系。
@@ -549,15 +550,21 @@ lambda 参与重载决议时，每个候选先提供自己的期望函数类型�
 
 本版本不提供隐式 reference capture、`move` capture 或 capture list。以后增加新的 capture mode 时必须使用显式语法，并单独规定 lifetime、identity、并发和成本模型；不得静默放宽本节的 `var` 禁令。
 
-#### 8.1.4 callable reference
+#### 8.1.4 函数声明引用表达式（callable reference）
 
-以下表达式创建 managed 函数值：
+`::` 引入**函数声明引用表达式**。这是中性的源码语法：`::name` 本身既不表示 managed closure，也不表示 native code pointer。parser 只保留引用形态与名称；语义分析根据上下文的期望类型类别一次性决定其结果：
+
+- 期望类型是普通/挂起函数类型时，表达式创建本节定义的 managed 函数值；
+- 没有期望类型时，只尝试推导 managed 函数类型，绝不自动推导为 `FunPtr`；
+- 期望类型是 `FunPtr<F>` 时，只有语法形态为无 receiver 的 `::name` 才进入 8.1.5、13.10 的 native-address contextual resolution；该路径不先创建 managed 函数值。
+
+在 managed 函数类型上下文或无期望类型的推导上下文中，支持以下形式：
 
 - `::name`：引用可见的顶层函数或局部函数；
 - `receiver::member`：创建绑定接收者的成员函数引用，`receiver` 在创建时求值且只求值一次；
 - `::extension`：创建未绑定扩展函数引用，其函数类型把扩展接收者作为第一个普通参数；`receiver::extension` 则创建绑定形式。
 
-若目标是 virtual / interface 成员，绑定引用在每次调用时仍按已保存接收者做动态分派，不能在创建时固定为当时的具体实现。重载目标由期望函数类型与普通重载规则共同确定；没有期望类型时，只有唯一的非 generic 候选才能自行确定函数类型。
+若目标是 virtual / interface 成员，绑定引用在每次调用时仍按已保存接收者做动态分派，不能在创建时固定为当时的具体实现。managed 分支中的重载目标由期望函数类型与普通重载规则共同确定；没有期望类型时，只有唯一的非 generic 候选才能自行确定函数类型，所得结果仍是 managed 函数值。
 
 `receiver::member` 的 receiver 是创建点的普通表达式；其中读取某个局部 `var` 会立即取得当前值，随后 closure 不可变地保存该 receiver。这是源码显式的创建时快照，不是 callable body 对该 `var` 的自由变量捕获。
 
@@ -567,7 +574,21 @@ Scoop 当前不提供 `Type::member` 的未绑定成员引用或构造函数引�
 
 managed 函数类型与 `FunPtr<F>`（13.10）是不同类别的值：前者是可捕获、可经 GC 移动的引用对象，后者是 GC-free 的原生代码指针值。二者没有一般性的子类型关系、转换或相同调用 ABI。
 
-唯一的互操作是 13.10 定义的**期望类型驱动转换**：在明确需要 `FunPtr<F>` 的位置，满足约束的顶层命名函数引用 `::name` 可以直接生成原生 callback 地址。该规则不先创建 managed closure，也不允许把任意 lambda、匿名函数、局部函数、绑定引用或已存在的函数值转换为 `FunPtr`。
+唯一共享的是 8.1.4 的 `::name` **源码语法**。在上下文期望类型明确为 `FunPtr<F>` 时，满足约束的顶层命名函数引用直接解析为原生 callback 地址；这是对函数声明引用表达式的 native-address contextual resolution，不是从 managed 函数值到 `FunPtr` 的值转换。该路径不创建 managed closure，也不允许把 lambda、匿名函数、局部函数、绑定引用或已存在的函数值转换为 `FunPtr`。
+
+需要让 native代码在稍后或 foreign thread中调用 managed closure时，必须使用 14.3 的 callback registration协议。该协议导出的是“静态 C trampoline + GC-free opaque context/token”的组合，closure本身仍是 managed函数值并由 runtime保活；它不是到 `FunPtr` 的隐式或显式值转换，也不放宽本节规则。
+
+```
+@NoGC
+fun increment(value: Int): Int = value + 1
+
+fun references() {
+    val managed: (Int) -> Int = ::increment
+    val native: FunPtr<(Int) -> Int> = ::increment
+    val inferred = ::increment                    // 无期望类型：managed (Int) -> Int
+    val invalid: FunPtr<(Int) -> Int> = inferred // 编译错误：不能事后拆出 native 地址
+}
+```
 
 ### 8.2 `suspend` 函数
 
@@ -581,7 +602,7 @@ managed 函数类型与 `FunPtr<F>`（13.10）是不同类别的值：前者是�
 - 调用点之前已经完成的实参和子表达式只求值一次；恢复后从调用点之后继续，源码从左到右求值顺序不变。跨挂起点仍存活的局部变量、参数及待执行的控制转移必须被保留。
 - `try` / `catch` / `finally` 的语义跨挂起点保持不变：恢复失败等价于在原挂起调用点 `throw`；仅仅挂起不会执行 `finally`；当计算随后正常返回、抛出或由 `finally` 覆盖退出时，`finally` 仍恰好执行一次。
 - `Continuation` 是单次完成协议：一个挂起点只能由 `resume` 或 `resumeWithException` 中的一个成功完成一次；编译器生成的 continuation 对重复完成抛出 `IllegalStateException`。本规范不定义协程取消；放弃且永不恢复一个 continuation 不会隐式执行 `finally`。
-- 现阶段不支持 suspend FFI：挂起函数不得带 `@Extern`，也不得转换为 `FunPtr`；M10 的 hidden continuation ABI 只用于编译器生成的 Scoop 托管调用，不是任何 FFI ABI。具体约束见 13.4、13.10 与 14.2。
+- 现阶段不支持 suspend FFI：挂起函数不得带 `@Extern`，其声明引用也不得在 `FunPtr` 上下文中解析为原生地址；M10 的 hidden continuation ABI 只用于编译器生成的 Scoop 托管调用，不是任何 FFI ABI。具体约束见 13.4、13.10 与 14.2。
 - 具体的协程构建器（`launch`、`async` 等）、调度器与取消策略属于标准库，不在最小核心库范围内。最小核心库只提供 11.9 的启动、挂起与恢复原语。
 
 ### 8.3 上下文参数（context parameters）
@@ -1012,12 +1033,20 @@ annotation class NoGC
 
 - 用于 function/method：指明该函数不会/不应与 GC 有任何交互——函数中不读写任何 ref value，也不创建任何 ref type 实例。
 - 编译期检查；不符合约束是编译错误。
+- generic `@NoGC` callable 可以在签名或 body 中使用类型参数；每个实际影响参数、返回值、receiver、局部值或表达式表示的类型参数，都会在 HIR 形成“实例化实参必须 GC-free”的类型化条件，并经 generic 调用链向外传播。每个具体调用点必须再次验证该条件；未参与运行时表示的 phantom type parameter 不产生条件。
+- `T : value` 只保证实参是 value type，不保证其递归表示中不含 managed ref，因此不能代替上述 GC-free 条件；`T : ref` 则不可能满足该条件。当前没有单独的源码 bound 语法来声明 GC-free，条件由 `@NoGC` body及其调用图推导。
 - 这样的函数可以安全地跨越 FFI boundary（例如作为 FFI 回调）。
 - 该约束也意味着 `@NoGC` 的成员函数只能属于 value type：class method 有隐含的 `this` 参数，而 `this` 是 ref value。
 
 ```
 @NoGC
 fun add42(n: Int) = n + 42
+
+@NoGC
+fun <T> identity(value: T): T = value
+
+val number = identity<Int>(42)          // 合法：Int 是 GC-free
+val text = identity<String>("managed") // 编译错误：String 是 ref type
 
 // 编译错误：String 是 ref type，违反 NoGC 约束
 @NoGC
@@ -1031,7 +1060,7 @@ annotation class Unsafe
 annotation class Safe
 ```
 
-- **unsafe function**：`@Extern` 函数、标注 `@Unsafe` 的函数。
+- **unsafe function**：C ABI `@Extern` 函数、标注 `@Unsafe` 的函数。Scoop ABI extern 默认是 safe callable，但声明可显式加 `@Unsafe` 收紧调用条件（13.4、14.2）。
 - **unsafe context**：标注 `@Unsafe` 的函数体，或标注 `@Unsafe` 的 block。只有在 unsafe context 中才能调用 unsafe function；在 unsafe context 之外调用是编译错误。
 - `@Safe` 用于 function 和 block，用于在 unsafe context 中重新引入 safe 约束（其中的代码回到普通检查规则）。
 
@@ -1044,8 +1073,8 @@ annotation class CallingConvention(val name: String)
 
 - `@Extern` 用于 function：指明该函数是位于 `lib` 所指库中的 FFI function，符号名由 `name` 指定，`abi` 指定 ABI（见 13.8）。函数体必须省略。缺省参数的解析规则由实现定义。
 - `@Extern` 与 `suspend` **互斥**：无论 `abi` 取值为何，`@Extern suspend fun` 都是编译错误。编译器不为这种声明生成 continuation 参数、`CoroutineStep` 返回值或同步/挂起 wrapper；M10 的 hidden continuation ABI 不得作为外部符号 ABI 暴露。
-- `@Extern` 也可用于**全局变量**（`val` / `var`），访问库中的全局符号；全局 `var` 的约束不变（仍须带 `@Global` / `@ThreadLocal` 且 GC-free，见 13.6），注解可以组合。
-- **FFI-safe 类型约束**：extern 函数的签名（参数与返回值）与 extern 变量的类型必须是 GC-free 的；出现 ref type 是编译错误。按值传递的 struct 应带 `@CLayout` 以获得确定的布局。
+- `@Extern` 也可用于**全局变量**（`val` / `var`），访问库中的全局符号；全局 `var` 的约束不变（仍须带 `@Global` / `@ThreadLocal` 且 GC-free，见 13.6），注解可以组合。extern 变量当前只支持 C data ABI，显式写 `abi = "scoop"` 是编译错误；Scoop ABI 只定义函数调用边界。
+- **按 ABI 分类的边界类型约束**：`abi = "c"` 的函数签名及 extern 变量必须满足 13.8 的 C-FFI-safe 约束，因而全部 GC-free；ref type 出现在这些边界上是编译错误。`abi = "scoop"` 的函数复用普通 Scoop typed ABI，可以按第 14 章直接传递 managed ref，不套用 C-FFI-safe classifier。
 - 不支持 C varargs（`printf` 式可变参数）；需要时用 wrapper 函数绕行。
 - `abi = "c"`（默认）的 extern 函数是 unsafe function，只能在 unsafe context 中调用（见 13.3）；`abi = "scoop"` 的 extern 函数例外，调用点不要求 unsafe context（见第 14 章）。
 - `@CallingConvention` 用于 function，标明 calling convention（如 `cdecl` / `stdcall` 等，具体含义由实现确定）；可与 `@Extern` 组合使用，指定 FFI function 的 calling convention。
@@ -1085,12 +1114,12 @@ annotation class InteriorMutable
 
 Scoop 的 FFI 函数有两种 ABI：
 
-- **C ABI**（`abi = "c"`，默认）：标准的 FFI function，由外部 lib / so / dylib / dll 提供。它对 Scoop 的类型系统和 GC 环境没有任何了解，也不能使用相关功能，用于直接引入外部库。
-- **Scoop ABI**：能识别 Scoop 的类型信息，并能与 GC 交互。一部分 runtime function 使用此 ABI。
+- **C ABI**（`abi = "c"`，默认）：标准的 FFI function，由外部 lib / so / dylib / dll 提供。它对 Scoop 的类型系统和 GC 环境没有任何了解，也不能使用相关功能，用于直接引入外部库。参数与返回值必须是 C-FFI-safe：GC-free 且具有本章规定的稳定 C 表示。
+- **Scoop ABI**：复用普通、非挂起 Scoop 函数的 typed machine ABI。ref 参数/返回值直接以 managed ref value 传递，value type按 Scoop 自身的 concrete ABI 传递；被调方能读取 TypeDescriptor，并可按第 14 章的 native-root 协议显式进入可能触发 GC 的 runtime 操作。它主要供 runtime 与 core 使用，不是通用 C library ABI。
 
-两种 ABI 的函数在进入和离开时可能需要不同的 enter/exit sequence，具体细节由实现定义。
+C ABI callee始终是 GC leaf；多线程runtime下 caller仍可按 runtime spec 3.5 发布roots并切换到native-safe状态。Scoop ABI调用按普通managed call生成，不切换到GC-free native-safe状态。具体机器级序列由实现决定，但不得改变上述类型与GC契约（第14章）。
 
-ref type（如 `String`、`Array`、普通 class）不能出现在 C ABI 的边界上（13.4 的 FFI-safe 约束）；它们与外部库的互操作涉及 GC，由 Scoop ABI 规定（见第 14 章）。
+ref type（如 `String`、`Array`、普通 class）不能出现在 C ABI 的边界上（13.4 的 C-FFI-safe 约束）；同一类型可以直接出现在 Scoop ABI extern 签名中。`PinnedPtr<T>` / `GcHandle<T>` 已是 GC-free 的显式边界值：它们适合 C ABI、跨调用保活或需要稳定裸地址的场景，不是 Scoop ABI direct-ref 调用的必经表示。
 
 ### 13.9 `value` / `ref` 类型约束
 
@@ -1120,7 +1149,8 @@ needValue("hello")    // 编译错误：String 不是值类型
 ```
 struct Ptr<T : value>(val _rawPointer: UInt) {
     @NoGC @Unsafe
-    fun toUInt(): UInt = _rawPointer
+    @Intrinsic("ptr_to_uint")
+    fun toUInt(): UInt
 
     @NoGC @Unsafe
     @Intrinsic("ptr_cast")
@@ -1131,20 +1161,24 @@ struct Ptr<T : value>(val _rawPointer: UInt) {
     fun load(): T
 
     @NoGC @Unsafe
-    @Intrinsic("ptr_save")
+    @Intrinsic("ptr_load_offset")
+    fun load(offset: Int): T
+
+    @NoGC @Unsafe
+    @Intrinsic("ptr_store")
     fun store(value: T)
 
     @NoGC @Unsafe
-    fun load(offset: Int): T            // 等价于 (this + offset).load()
+    @Intrinsic("ptr_store_offset")
+    fun store(offset: Int, value: T)
 
     @NoGC @Unsafe
-    fun store(offset: Int, value: T)    // 等价于 (this + offset).store(value)
+    @Intrinsic("ptr_plus")
+    fun plus(offset: Int): Ptr<T>
 
     @NoGC @Unsafe
-    operator fun plus(offset: Int): Ptr<T>
-
-    @NoGC @Unsafe
-    operator fun minus(offset: Int): Ptr<T>
+    @Intrinsic("ptr_minus")
+    fun minus(offset: Int): Ptr<T>
 }
 
 @Unsafe
@@ -1152,8 +1186,8 @@ struct Ptr<T : value>(val _rawPointer: UInt) {
 fun <T : value> addressOf(v: T): Ptr<T>
 ```
 
-- `load` / `store` / `cast` 是编译器 intrinsic，且都是 unsafe function（见 13.3）。按 13.1 的规则 `@Intrinsic` 通常不得与其他注解共存；此处是单独说明的例外：这些 intrinsic 允许与 `@NoGC` / `@Unsafe` 组合。
-- `plus` / `minus` 的 `offset` 以**元素个数**计（步进 `offset * sizeOf<T>()` 字节），与 C 的指针算术一致；带 `offset` 的 `load` / `store` 以其定义。
+- `Ptr` 的上述方法均为编译器 intrinsic，且都是 unsafe function（见 13.3）。按 13.1 的规则 `@Intrinsic` 通常不得与其他注解共存；此处是单独说明的例外：这些 intrinsic 允许与 `@NoGC` / `@Unsafe` 组合。
+- 源码中的 `pointer + offset` / `pointer - offset` 分别按 `ptr_plus` / `ptr_minus` 的契约处理；`offset` 以**元素个数**计（步进 `offset * sizeOf<T>()` 字节），与 C 的指针算术一致。带 `offset` 的 `load` / `store` 使用相同的元素偏移语义。
 - `addressOf` 是 intrinsic，且带 **lvalue 约束**：实参必须是参数、局部变量、全局变量，或值类型成员方法的 `this`，取的是该 place 实际存储的地址；对临时值、字面量、计算结果等非 lvalue 表达式调用是编译错误。对 `this` 取址时指向 3.3 规定的方法局部副本，不是调用方的 value 或 box payload。
 - `Ptr<T>` 自身是值类型，因此满足 `value` 约束，可以出现在要求 `T : value` 的位置（包括 `Ptr<Ptr<T>>`）。
 - **null 与可空指针**：`_rawPointer == 0u` 表示 null 指针；FFI 边界上的可空指针用 `Option<Ptr<T>>` 表示，布局由 niche 优化保证（见 7.4）。
@@ -1181,12 +1215,12 @@ fun <T : value> alignOf(): UInt
 struct FunPtr<F>(val _rawPointer: UInt = 0u)
 ```
 
-- `_rawPointer` 存放实际的函数指针值（与 `Ptr` 同样以 `UInt` 容纳 raw pointer）。缺省构造产生 null 指针（`0u`），因此 `FunPtr` 可以声明为 struct 字段、先以 null 填充；非 null 的 `FunPtr` 只能由编译器在 callable reference 转换时生成（见下）。
-- 除缺省构造（null）外，用户**不能直接构造** `FunPtr` 值；在期望 `FunPtr<F>` 的位置使用顶层函数引用 `::name`，由编译器完成上下文转换。该转换要求声明签名与 `F` **精确相同**，不应用 8.1.1 的函数类型型变。
-- `F` 的每个参数与返回类型必须满足对应 extern ABI 的 FFI-safe 约束；`Unit` 只允许作为返回类型。函数类型 `F` 在这里仅描述 native signature，本身不会作为 managed 引用穿越边界。
+- `_rawPointer` 存放实际的函数指针值（与 `Ptr` 同样以 `UInt` 容纳 raw pointer）。缺省构造产生 null 指针（`0u`），因此 `FunPtr` 可以声明为 struct 字段、先以 null 填充；非 null 的 `FunPtr` 只能由编译器对 `::name` 执行 native-address contextual resolution 时生成（见下）。
+- 除缺省构造（null）外，用户**不能直接构造** `FunPtr` 值；在期望类型明确为 `FunPtr<F>` 的位置使用顶层函数声明引用 `::name`，由编译器直接生成原生 callback 地址。`::name` 是 8.1.4 的中性源码语法，不具有固有的 `FunPtr` 类型；因此 `val callback = ::name` 仍推导为 managed 函数值，要保存原生地址必须由类型标注、参数类型、返回类型等上下文提供 `FunPtr<F>` 期望类型。目标声明签名必须与 `F` **精确相同**，不应用 8.1.1 的函数类型型变。
+- `F` 的每个参数与返回类型必须满足 C-FFI-safe 约束；`Unit` 只允许作为返回类型。`FunPtr` 描述的是 C ABI callback 地址，不是 Scoop ABI managed callable；函数类型 `F` 在这里仅描述 native signature，本身不会作为 managed 引用穿越边界。
 - 可空函数指针用 `Option<FunPtr<F>>` 表示（niche 优化见 7.4）。
-- 被转换的目标必须是带 `@NoGC` 的普通顶层命名函数，且**不能是 generic、挂起、extern、成员或扩展函数**。lambda、匿名函数、局部函数、任何绑定引用以及已存在的 managed 函数值都不能转换。违反这些约束是编译错误：FFI 回调不得与 GC 交互，generic 函数没有单一具体符号，挂起函数只有编译器内部的 hidden continuation ABI，而 closure 还需要原生 ABI 中不存在的 managed 环境参数。编译器不自动生成 closure 或挂起 callback wrapper。
-- `FunPtr` 不提供 Scoop 侧 `invoke`；它只用于传递/存储 native callback 地址。初版 callback 契约仅允许原生方在发起 extern 调用的同一已注册线程上同步调用；保存后异步、跨线程或在 Scoop 程序退出后调用需要 14.3 的 GC-aware 注册协议，不能由 `FunPtr` 隐式获得。
+- native-address resolution 的目标必须是带 `@NoGC` 的普通顶层命名函数，且**不能是 generic、挂起、extern、成员或扩展函数**。lambda、匿名函数、局部函数、任何绑定引用以及已存在的 managed 函数值都不能作为非 null `FunPtr` 的来源。违反这些约束是编译错误：FFI 回调不得与 GC 交互，generic 函数没有单一具体符号，挂起函数只有编译器内部的 hidden continuation ABI，而 closure 还需要原生 ABI 中不存在的 managed 环境参数。编译器不自动生成 closure 或挂起 callback wrapper。
+- `FunPtr` 不提供 Scoop 侧 `invoke`；它只用于传递/存储 native callback 地址。M12 callback 契约仅允许原生方在发起 extern 调用的同一已注册线程上同步调用；保存后异步、跨线程或在 Scoop 程序退出后调用需要 M13 实现的 14.3 GC-aware注册协议，不能由 `FunPtr` 隐式获得。
 
 ```
 // C 侧：int compare_int(int a, int b, int (*cmp)(int, int))
@@ -1227,83 +1261,59 @@ struct GcHandle<T : ref>(val raw: UInt64)
 - **`unpin`**：按地址清除 pin 标志并取回对象，O(1)；之后该对象可以正常参与 GC。
 - **`getGcHandle`**：获取对象的 GC handle。handle 被视为对象的引用：对象存在未释放的 handle 时不会被回收，但 GC 可能在堆上移动它。一个对象可同时存在多个 handle，全部释放后才可能被回收。
 - **`releaseGcHandle`**：释放 handle 并取回对象，不再阻止回收。
-- `PinnedPtr` 与 `GcHandle` 是不同的类型，混用（如 `unpin` 一个 `GcHandle`）是编译错误。二者都是只含一个 `UInt64` 字段的 GC-free 值类型，ABI 与 `UInt64` 一致，可以直接出现在 FFI 签名中（13.4 的 FFI-safe 约束）。
+- `PinnedPtr` 与 `GcHandle` 是不同的类型，混用（如 `unpin` 一个 `GcHandle`）是编译错误。二者都是只含一个 `UInt64` 字段的 GC-free 值类型，ABI 与 `UInt64` 一致，可以直接出现在 C ABI 签名中（13.4 的 C-FFI-safe 约束）。
 - 取舍：短期持有并需要裸指针时用 `pin`（O(1)，但阻碍 GC 移动）；长期保活且允许移动时用 `GcHandle`。
+- Scoop ABI extern 的同步调用期间若只借用 direct ref，调用方不需要显式 pin 或 handle；被调方需要跨 safepoint或调用结束保存引用时才使用 14.3 的 native root、pin 或 handle机制。
 - handle 取回对象时类型 `T` 来自 handle 的类型参数，编译器无法校验其真实性——这层正确性由 runtime 作者保证。
 
 ### 14.2 调用约定
 
 Scoop ABI FFI 的 caller side（Scoop 托管代码一侧）必须生成 ordinary managed call 框架：
 
-- conservative root spill；
+- 按普通 managed call 保持所有 live ref，并把 direct-ref 实参纳入调用点根集合；
 - ordinary call site，由 statepoint rewrite 处理 safepoint；
 - 不插 `enter_native` / `leave_native`；
-- callee 不标记为 `gc-leaf-function`；
+- callee 默认不标记为 `gc-leaf-function`；只有签名与实现都满足 13.2、并显式声明 `@NoGC` 的 Scoop ABI extern 才可按 GC leaf 降低；
 - machine callconv 初版使用 LLVM 默认 callconv `0`；
 - 调用点本身**不要求 unsafe context**（`abi = "scoop"` 的 extern 函数不是 unsafe function，见 13.4）。
+
+Scoop ABI extern 的参数与返回值使用普通 Scoop typed ABI，不经过 C ABI storage bridge：ref value 是直接 managed pointer；aggregate/value return沿用普通 Scoop 函数的 typed return storage规则。被调方必须按同一签名实现该 ABI，不能假设 C 编译器为同形 struct 选择的 ABI 与 Scoop value ABI 相同。
 
 这里的 Scoop ABI 仍是普通、单次进入并在返回前完成的 FFI 调用约定，不是 8.2 所述挂起函数的 hidden continuation ABI。`abi = "scoop"` 不放宽 `@Extern` 与 `suspend` 的互斥规则，也不提供自动 continuation / callback wrapper。
 
 注意：以上是**用 LLVM 实现时**需要的策略（LLVM GC / statepoint 体系的术语），描述的是参考实现的代码生成要求，不是语言语义本身。
 
-### 14.3 safepoint 与 GC 语义
+### 14.3 direct ref、native root 与 safepoint
 
-- Scoop ABI FFI 函数的机器码中**没有 safepoint poll**（它可能是用其他语言写的）：GC 不会在其指令流的任意位置隐式触发；GC 只能在它**显式调用 runtime**（分配对象、回调 Scoop 代码）时、在 runtime 内部发生。
-- 并行 GC 实现可能由其他 thread 触发 GC；FFI 函数自身需确保正确性：跨越任何可能触发 GC 的 runtime 调用时，用 handle 引用对象（或在 pin 之后使用裸指针），不得在可能触发 GC 的调用前后持有未 pin 的裸指针。
-- `abi = "scoop"` 的调用点安全的前提是**被调方遵守上述契约**。这类底层 extern 声明按约定仅由 runtime / 核心库作者使用；runtime 应校验 handle 的合法性，对非法 handle 的行为由实现定义。
-- GC-aware 回调：Scoop ABI FFI 通过单独的 runtime 提供 callback Scoop closure 的功能，在 closure 中 GC 重新生效；具体机制由 runtime 定义。注意 `@NoGC` 的 `FunPtr`（13.10）不能用于这类回调——它要求的恰恰是不与 GC 交互。
+- Scoop ABI FFI 函数的机器码中**没有 safepoint poll**（它可能是用其他语言写的）。传入的 direct ref 是调用期间的借用 managed value：在被调方尚未执行可能触发 GC 的 runtime 调用或回调 Scoop 代码前，可以直接读取，无需 pin；不得写入长期存储或在返回后继续使用。
+- 若被调方需要让某个 direct ref 跨越可能触发 GC 的操作，必须先把它写入可寻址的 **native root slot** 并把对应 root frame登记到当前线程。登记/移除 root frame本身不得分配或触发 GC；collector 必须扫描并在移动对象时更新这些 slot。操作返回后，被调方必须从 slot 重新读取引用，不能继续使用登记前保存的裸指针副本。
+- root frame 必须按栈严格嵌套，并在所有正常/错误出口移除。需要把引用保存到本次调用之后时，使用 `GcHandle`；需要把稳定裸地址交给 C ABI 或跨 safepoint保持同一地址时，使用 `PinnedPtr`。两者都不是普通 direct-ref 参数的默认表示。
+- GC 只在 managed safepoint或显式 runtime 入口协调线程；实现不得在 Scoop ABI native code的任意两条普通指令之间无握手地移动对象。未来的并行/并发 collector 必须把 native root frame 与线程握手纳入同一协议，不能通过要求所有 Scoop ABI 参数预先 pin 来回避该契约。
+- `abi = "scoop"` 的调用点安全的前提是**被调方遵守上述契约**。这类底层 extern 声明按约定仅由 runtime / 核心库作者使用；违反借用、root frame或保活规则是 runtime ABI 错误。
+- **GC-aware managed callback** 使用独立 registration协议：注册操作接收 ordinary、非挂起的 managed closure及与其 concrete函数类型匹配的 compiler-generated invoke adapter，返回 runtime-owned、GC-free的 opaque token。token内部以 `GcHandle` 保活 closure；native代码不得缓存 closure裸地址。
+- native侧通过静态 C ABI trampoline和显式 context/user-data槽携带该 token。trampoline进入 runtime后 attach尚未注册的 foreign thread、切换到 managed执行状态、从 handle重新取得 closure并调用 typed adapter；返回 native前恢复线程状态。参数与返回值必须满足 C-FFI-safe约束，closure body内 GC正常生效。
+- token具有显式 retain/release与 use-after-release错误边界；callback抛出的 Scoop异常必须在反向边界内捕获并转换为 status/受管异常handle，不得展开穿越 C frame。运行时终止后调用 token是 ABI错误。首版只支持原生API提供显式 context/user-data槽的形态；无此槽的任意 closure导出需要后续动态 trampoline或 slot registry。
+- 该协议不改变 `FunPtr`（13.10）：M12 的 `FunPtr` callback仍是静态、同步、同线程、`@NoGC`路径。M13 落地 registration、foreign-thread attach/detach和多 mutator STW协调；suspend closure与 suspend FFI仍不支持。
 
-### 14.4 示例
+### 14.4 示例：直接输出 managed `String`
 
-runtime 侧（C，示例而非真实代码；`scoop_runtime_*` 函数由 runtime 定义）：
+Scoop 侧直接声明 managed-ref 签名；不需要 wrapper、pin 或 unsafe block：
+
+```
+@Extern(name = "scoop_rt_write", abi = "scoop")
+fun write(message: String)
+```
+
+runtime 侧按 Scoop 的 `String` 对象布局直接接收引用：
 
 ```c
-// 参数与返回值都是 pinned object pointer：pin 标志在对象头，对象不移动、不回收
-ScoopObjectHeader *scoop_concat_string(ScoopObjectHeader *ps1, ScoopObjectHeader *ps2)
+void scoop_rt_write(const ScoopString *message)
 {
-    // 读取 s1 / s2 的长度与数据位置（对象已 pin，直接使用裸指针）
-    size_t s1_len = ...;
-    size_t s2_len = ...;
-    const char *s1_data = ...;
-    const char *s2_data = ...;
-
-    // 在 GC 堆上分配，分配即固定；可能触发 GC，但 ps1 / ps2 / ps_ret 均已 pin，保持有效
-    ScoopObjectHeader *ps_ret = scoop_runtime_alloc_pinned(ScoopString, s1_len + s2_len);
-    char *buf = ...;    // 分配完成后再计算数据位置
-
-    memcpy(buf, s1_data, s1_len);
-    memcpy(buf + s1_len, s2_data, s2_len);
-    // 设置返回字符串的长度等状态 ...
-
-    return ps_ret;    // 由 Scoop 侧 unpin
+    fwrite(message->data, 1, message->len, stdout);
 }
 ```
 
-Scoop 侧：
-
-```
-// abi = "scoop" 的 extern 不是 unsafe function（13.4）
-@Extern(name = "scoop_concat_string", abi = "scoop")
-fun _scoop_concat_string(s1: PinnedPtr<String>, s2: PinnedPtr<String>): PinnedPtr<String>
-
-fun scoopConcatString(s1: String, s2: String): String {
-    @Unsafe {
-        val ps1 = pin(s1)
-        val ps2 = pin(s2)
-        try {
-            val pr = _scoop_concat_string(ps1, ps2)
-            return unpin(pr)
-        } finally {
-            unpin(ps1)   // 防止异常路径泄漏 pin
-            unpin(ps2)
-        }
-    }
-}
-```
-
-- pin 与 unpin 之间必须用 `try` / `finally` 保护，否则异常路径会泄漏 pin（对象永远无法移动/回收）。
-- `unpin(pr)` 直接返回 `String`（`PinnedPtr` 带类型参数），无需强转。
-- 整条链路不经过 handle 表；`GcHandle` 留给需要长期保活且允许移动的场景。
+该函数只在调用期间读取 `message`，不分配、不调用可能触发 Scoop GC 的 runtime入口、不回调 Scoop代码，也不保存引用，因此无需 native root frame。若以后在写入前后增加任一可能触发 GC 的操作，必须先按 14.3 把 `message` 放入 native root slot，并在操作后重新读取更新后的值。
 
 ---
 

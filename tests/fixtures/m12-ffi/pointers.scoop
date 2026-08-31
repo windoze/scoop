@@ -1,0 +1,68 @@
+@NoGC
+fun increment(value: Int): Int = value + 1
+
+@Extern(name = "malloc")
+fun malloc(size: UInt): Ptr<Unit>
+
+@Extern(name = "free")
+fun free(pointer: Ptr<Unit>)
+
+@NoGC
+@Unsafe
+fun rewriteParameter(value: Int): Int {
+    val pointer = addressOf(value)
+    pointer.store(12)
+    return value
+}
+
+struct Slot(val value: Int) {
+    @NoGC
+    @Unsafe
+    fun rewriteThis(): Int {
+        val pointer = addressOf(this)
+        pointer.store(Slot(13))
+        return this.value
+    }
+}
+
+fun main() {
+    val intSize = sizeOf<Int>()
+    val intAlignment = alignOf<Int>()
+    val empty: FunPtr<(Int) -> Int> = FunPtr<(Int) -> Int>()
+    val callback: FunPtr<(Int) -> Int> = ::increment
+    val noCallback: FunPtr<(Int) -> Int>? = None
+    var value = 7
+
+    @Unsafe {
+        val pointer = addressOf(value)
+        pointer.store(9)
+        println(pointer.load())
+
+        val shifted = pointer + 0
+        val raw = shifted.toUInt()
+        val reconstructed = Ptr<Int>(raw)
+        println(reconstructed.load(0))
+
+        val retyped = reconstructed.cast<Boolean>().cast<Int>()
+        retyped.store(10)
+        println(value)
+
+        pointer.store(0, 11)
+        val previous = pointer - 0
+        println(previous.load())
+        println(value)
+        println(rewriteParameter(0))
+        println(Slot(0).rewriteThis())
+
+        val allocated = malloc(sizeOf<Int>()).cast<Int>()
+        allocated.store(14)
+        println(allocated.load())
+        free(allocated.cast<Unit>())
+
+        val optional: Ptr<Int>? = Some(pointer)
+        when (optional) {
+            Some(present) -> println(present.load())
+            None -> println(0)
+        }
+    }
+}

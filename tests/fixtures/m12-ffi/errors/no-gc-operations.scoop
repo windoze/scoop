@@ -1,0 +1,52 @@
+class ManagedObject()
+
+fun managed(value: Int): Int = value
+
+@NoGC
+fun allocatesClass(): Int {
+    val instance = ManagedObject()
+    return 1
+}
+
+@NoGC
+fun allocatesArray(): Int {
+    val values = [1]
+    return values[0]
+}
+
+@NoGC
+fun createsString(): Int {
+    val text = "managed"
+    return 1
+}
+
+@NoGC
+fun boxesValue(): Int {
+    val boxed: Any = 1
+    return 1
+}
+
+@NoGC
+fun callsManaged(value: Int): Int = managed(value)
+
+@NoGC
+fun unwraps(value: Int?): Int = value!!
+
+@NoGC
+fun throwsException(): Int {
+    throw ArithmeticException()
+}
+
+@NoGC
+fun catchesException(): Int {
+    try {
+        return 1
+    } catch (exception: ArithmeticException) {
+        return 2
+    }
+}
+
+@NoGC
+fun checksType(value: Int): Boolean = value is Int
+
+fun main() {}
