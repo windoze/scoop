@@ -1487,7 +1487,7 @@ fn final_generic_member_functions_are_resolved() {
         Some(ty_named("T")),
         var("value"),
     );
-    generic.type_params = vec![ident("T")];
+    generic.type_params = vec![type_param("T")];
     let file = file(vec![
         class_decl(Final, "C", vec![], None, vec![], vec![generic]),
         fun(
@@ -1501,7 +1501,7 @@ fn final_generic_member_functions_are_resolved() {
     ]);
     let module = lower_user(file).expect("a final generic method must lower");
     let method = find_fn(&module, "C.id");
-    assert_eq!(module.functions[method].type_params, ["T"]);
+    assert_eq!(module.functions[method].type_params[0].name, "T");
     let generic = module
         .generic_functions
         .iter()

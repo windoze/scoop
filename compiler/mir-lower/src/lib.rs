@@ -6607,6 +6607,15 @@ mod tests {
 
     const SPAN: Span = Span { start: 0, end: 0 };
 
+    fn type_param(name: impl Into<String>) -> hir::TypeParamDecl {
+        hir::TypeParamDecl {
+            name: name.into(),
+            variance: hir::Variance::Invariant,
+            kind: hir::TypeParamKind::Any,
+            span: SPAN,
+        }
+    }
+
     fn entry_statements(body: &mir::Body) -> &[mir::Statement] {
         &body.blocks[body.entry].statements
     }
@@ -6726,7 +6735,7 @@ mod tests {
             let mut enums = Arena::new();
             let option_enum = enums.alloc(hir::EnumDecl {
                 name: "Option".to_string(),
-                type_params: vec!["T".to_string()],
+                type_params: vec![type_param("T")],
                 variants: vec![
                     hir::Variant {
                         name: "Some".to_string(),
@@ -7109,8 +7118,9 @@ mod tests {
         /// Intern a generic struct application type.
         fn struct_app(&mut self, struct_id: hir::StructId, args: Vec<hir::TypeId>) -> hir::TypeId {
             if self.structs[struct_id].type_params.is_empty() {
-                self.structs[struct_id].type_params =
-                    (0..args.len()).map(|index| format!("T{index}")).collect();
+                self.structs[struct_id].type_params = (0..args.len())
+                    .map(|index| type_param(format!("T{index}")))
+                    .collect();
             }
             self.types.alloc(hir::Type::Struct(struct_id, args))
         }
@@ -7124,8 +7134,8 @@ mod tests {
             let uint = self.uint();
             let pin_handle = self.strukt("PinHandle", &[("raw", uint)]);
             let gc_handle = self.strukt("GcHandle", &[("raw", uint)]);
-            self.structs[pin_handle].type_params = vec!["T".to_string()];
-            self.structs[gc_handle].type_params = vec!["T".to_string()];
+            self.structs[pin_handle].type_params = vec![type_param("T")];
+            self.structs[gc_handle].type_params = vec![type_param("T")];
             let t = self
                 .types
                 .alloc(hir::Type::Param(hir::TypeParamId::from_raw(0)));
@@ -7138,6 +7148,7 @@ mod tests {
                                  params: Vec<(&str, hir::TypeId)>,
                                  return_ty: hir::TypeId| {
                 let generic = !type_params.is_empty();
+                let type_params = type_params.into_iter().map(type_param).collect();
                 let id = self.functions.alloc(hir::Function {
                     name: name.to_string(),
                     is_suspend: false,
@@ -7239,6 +7250,7 @@ mod tests {
             body: hir::Body,
         ) -> hir::FunctionId {
             let generic = !type_params.is_empty();
+            let type_params = type_params.into_iter().map(type_param).collect();
             let id = self.functions.alloc(hir::Function {
                 name: name.to_string(),
                 is_suspend: false,
@@ -7296,6 +7308,7 @@ mod tests {
             let type_param = || hir::TypeParamDecl {
                 name: "T".to_string(),
                 variance: hir::Variance::Invariant,
+                kind: hir::TypeParamKind::Any,
                 span: SPAN,
             };
             let continuation = self.interfaces.alloc(hir::InterfaceDecl {
@@ -7312,7 +7325,7 @@ mod tests {
             let continuation_resume = self.functions.alloc(hir::Function {
                 name: "Continuation.resume".to_string(),
                 is_suspend: false,
-                type_params: vec!["T".to_string()],
+                type_params: vec![type_param()],
                 params: vec![param("value", t, resume_value)],
                 return_ty: self.unit,
                 attributes: hir::FunctionAttributes::default(),
@@ -7332,7 +7345,7 @@ mod tests {
             let continuation_resume_with_exception = self.functions.alloc(hir::Function {
                 name: "Continuation.resumeWithException".to_string(),
                 is_suspend: false,
-                type_params: vec!["T".to_string()],
+                type_params: vec![type_param()],
                 params: vec![param("exception", throwable_ty, failure)],
                 return_ty: self.unit,
                 attributes: hir::FunctionAttributes::default(),
@@ -7388,7 +7401,7 @@ mod tests {
             let suspend_task_run = self.functions.alloc(hir::Function {
                 name: "SuspendTask.run".to_string(),
                 is_suspend: true,
-                type_params: vec!["T".to_string()],
+                type_params: vec![type_param()],
                 params: Vec::new(),
                 return_ty: t,
                 attributes: hir::FunctionAttributes::default(),
@@ -7424,7 +7437,7 @@ mod tests {
             let suspend_registration_register = self.functions.alloc(hir::Function {
                 name: "SuspendRegistration.register".to_string(),
                 is_suspend: false,
-                type_params: vec!["T".to_string()],
+                type_params: vec![type_param()],
                 params: Vec::new(),
                 return_ty: self.unit,
                 attributes: hir::FunctionAttributes::default(),
@@ -7452,7 +7465,7 @@ mod tests {
             let start_coroutine = self.functions.alloc(hir::Function {
                 name: "startCoroutine".to_string(),
                 is_suspend: false,
-                type_params: vec!["T".to_string()],
+                type_params: vec![type_param()],
                 params: Vec::new(),
                 return_ty: self.unit,
                 attributes: hir::FunctionAttributes::default(),
@@ -7463,7 +7476,7 @@ mod tests {
             let suspend_coroutine = self.functions.alloc(hir::Function {
                 name: "suspendCoroutine".to_string(),
                 is_suspend: true,
-                type_params: vec!["T".to_string()],
+                type_params: vec![type_param()],
                 params: Vec::new(),
                 return_ty: t,
                 attributes: hir::FunctionAttributes::default(),
@@ -8344,6 +8357,7 @@ Module
             type_params: vec![hir::TypeParamDecl {
                 name: "T".to_string(),
                 variance: hir::Variance::Out,
+                kind: hir::TypeParamKind::Any,
                 span: SPAN,
             }],
             methods: Vec::new(),

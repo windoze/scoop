@@ -44,6 +44,15 @@ pub(crate) fn ident(text: &str) -> Ident {
     }
 }
 
+pub(crate) fn type_param(name: &str) -> ast::TypeParamDecl {
+    ast::TypeParamDecl {
+        name: ident(name),
+        variance: ast::Variance::Invariant,
+        kind_bound: None,
+        span: sp(),
+    }
+}
+
 pub(crate) fn ident_at(text: &str, span: Span) -> Ident {
     Ident {
         text: text.to_string(),
@@ -525,7 +534,7 @@ pub(crate) fn fun_sig(
         modifier: ast::MethodModifier::Final,
         receiver_ty: None,
         name: ident(name),
-        type_params: type_params.into_iter().map(ident).collect(),
+        type_params: type_params.into_iter().map(type_param).collect(),
         params: params
             .into_iter()
             .map(|(name, ty)| Param {
@@ -571,7 +580,7 @@ pub(crate) fn fun_expr(
         modifier: ast::MethodModifier::Final,
         receiver_ty: None,
         name: ident(name),
-        type_params: type_params.into_iter().map(ident).collect(),
+        type_params: type_params.into_iter().map(type_param).collect(),
         params: params
             .into_iter()
             .map(|(name, ty)| Param {
@@ -635,7 +644,7 @@ pub(crate) fn intrinsic_generic_fun(
         modifier: ast::MethodModifier::Final,
         receiver_ty: None,
         name: ident(name),
-        type_params: type_params.into_iter().map(ident).collect(),
+        type_params: type_params.into_iter().map(type_param).collect(),
         params: params
             .into_iter()
             .map(|(name, ty)| Param {
@@ -717,6 +726,7 @@ pub(crate) fn generic_interface_decl(
             .map(|(variance, name)| ast::TypeParamDecl {
                 name: ident(name),
                 variance,
+                kind_bound: None,
                 span: sp(),
             })
             .collect(),
@@ -869,7 +879,7 @@ pub(crate) fn generic_struct_decl_full(
     Decl::Struct(AstStructDecl {
         annotations: vec![],
         name: ident(name),
-        type_params: type_params.into_iter().map(ident).collect(),
+        type_params: type_params.into_iter().map(type_param).collect(),
         fields: fields
             .into_iter()
             .map(|(name, ty)| FieldDecl {
@@ -905,7 +915,7 @@ pub(crate) fn enum_decl_full(
     Decl::Enum(ast::EnumDecl {
         annotations: vec![],
         name: ident(name),
-        type_params: type_params.into_iter().map(ident).collect(),
+        type_params: type_params.into_iter().map(type_param).collect(),
         variants,
         interfaces: interfaces.into_iter().map(ty_named).collect(),
         methods,
@@ -952,7 +962,7 @@ pub(crate) fn enum_decl(name: &str, type_params: Vec<&str>, variants: Vec<Varian
     Decl::Enum(ast::EnumDecl {
         annotations: vec![],
         name: ident(name),
-        type_params: type_params.into_iter().map(ident).collect(),
+        type_params: type_params.into_iter().map(type_param).collect(),
         variants,
         interfaces: Vec::new(),
         methods: Vec::new(),
@@ -1268,37 +1278,54 @@ pub(crate) fn lower_user_with_exceptions(user: SourceFile) -> Result<hir::Module
 /// surface declarations spell the handle types `PinHandle<T>`.
 pub(crate) fn gc_core_file() -> SourceFile {
     let handle = |name: &str| ty_generic(name, vec![ty_named("T")]);
+    let ref_bound = |mut decl: Decl| {
+        let type_params = match &mut decl {
+            Decl::Struct(decl) => &mut decl.type_params,
+            Decl::Function(decl) => &mut decl.type_params,
+            _ => unreachable!("GC core declarations are structs or functions"),
+        };
+        type_params[0].kind_bound = Some(ast::TypeParamKindBound::Ref);
+        decl
+    };
     file(vec![
-        generic_struct_decl("PinHandle", vec!["T"], vec![("raw", ty_named("UInt"))]),
-        generic_struct_decl("GcHandle", vec!["T"], vec![("raw", ty_named("UInt"))]),
-        intrinsic_generic_fun(
+        ref_bound(generic_struct_decl(
+            "PinHandle",
+            vec!["T"],
+            vec![("raw", ty_named("UInt"))],
+        )),
+        ref_bound(generic_struct_decl(
+            "GcHandle",
+            vec!["T"],
+            vec![("raw", ty_named("UInt"))],
+        )),
+        ref_bound(intrinsic_generic_fun(
             "pin",
             "rt_pin",
             vec!["T"],
             vec![("v", ty_named("T"))],
             Some(handle("PinHandle")),
-        ),
-        intrinsic_generic_fun(
+        )),
+        ref_bound(intrinsic_generic_fun(
             "unpin",
             "rt_unpin",
             vec!["T"],
             vec![("h", handle("PinHandle"))],
             Some(ty_named("T")),
-        ),
-        intrinsic_generic_fun(
+        )),
+        ref_bound(intrinsic_generic_fun(
             "getGcHandle",
             "rt_get_handle",
             vec!["T"],
             vec![("v", ty_named("T"))],
             Some(handle("GcHandle")),
-        ),
-        intrinsic_generic_fun(
+        )),
+        ref_bound(intrinsic_generic_fun(
             "releaseGcHandle",
             "rt_release_handle",
             vec!["T"],
             vec![("h", handle("GcHandle"))],
             Some(ty_named("T")),
-        ),
+        )),
         intrinsic_fun("gcCollect", "rt_gc_collect", vec![], None),
         intrinsic_fun("gcStats", "rt_gc_stats", vec![], Some(ty_named("UInt"))),
     ])

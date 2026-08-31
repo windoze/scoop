@@ -66,13 +66,13 @@ impl Lowerer {
                 if let Some(index) = self
                     .type_params_in_scope
                     .iter()
-                    .position(|param| param == &name.text)
+                    .position(|param| param.name == name.text)
                 {
                     self.error(
                         name.span,
                         format!(
                             "type parameter `{}` takes no type arguments",
-                            self.type_params_in_scope[index]
+                            self.type_params_in_scope[index].name
                         ),
                     );
                     return None;
@@ -121,6 +121,15 @@ impl Lowerer {
                     for arg in args {
                         resolved.push(self.resolve_type_ref(arg)?);
                     }
+                    let params = self.structs[struct_id].type_params.clone();
+                    if !self.check_type_argument_kinds(
+                        &params,
+                        &resolved,
+                        name.span,
+                        &format!("struct `{}`", name.text),
+                    ) {
+                        return None;
+                    }
                     return Some(self.struct_application(struct_id, resolved));
                 }
                 if let Some(&(interface_id, _)) = self.interfaces_by_name.get(&name.text) {
@@ -146,6 +155,15 @@ impl Lowerer {
                     let mut resolved = Vec::with_capacity(args.len());
                     for arg in args {
                         resolved.push(self.resolve_type_ref(arg)?);
+                    }
+                    let params = self.interfaces[interface_id].type_params.clone();
+                    if !self.check_type_argument_kinds(
+                        &params,
+                        &resolved,
+                        name.span,
+                        &format!("interface `{}`", name.text),
+                    ) {
+                        return None;
                     }
                     return Some(self.intern_type(Type::Interface(interface_id, resolved)));
                 }
@@ -176,13 +194,22 @@ impl Lowerer {
                 for arg in args {
                     resolved.push(self.resolve_type_ref(arg)?);
                 }
+                let params = self.enums[enum_id].type_params.clone();
+                if !self.check_type_argument_kinds(
+                    &params,
+                    &resolved,
+                    name.span,
+                    &format!("enum `{}`", self.enums[enum_id].name),
+                ) {
+                    return None;
+                }
                 Some(self.intern_type(Type::Enum(enum_id, resolved)))
             }
             ast::TypeRefKind::Named(name) => {
                 if let Some(index) = self
                     .type_params_in_scope
                     .iter()
-                    .position(|param| param == &name.text)
+                    .position(|param| param.name == name.text)
                 {
                     return Some(
                         self.intern_type(Type::Param(hir::TypeParamId::from_raw(index as u32))),
@@ -738,17 +765,20 @@ impl Lowerer {
     /// cross into reference types (`Any` / interfaces) only by boxing
     /// (spec 4.4.4).
     pub(crate) fn is_value_ty(&self, ty: TypeId) -> bool {
-        matches!(
-            self.types[ty],
+        match self.types[ty] {
             Type::Unit
-                | Type::Int
-                | Type::UInt
-                | Type::Boolean
-                | Type::Struct(..)
-                | Type::Enum(..)
-                | Type::Tuple(_)
-                | Type::Param(_)
-        )
+            | Type::Int
+            | Type::UInt
+            | Type::Boolean
+            | Type::Struct(..)
+            | Type::Enum(..)
+            | Type::Tuple(_) => true,
+            Type::Param(index) => self
+                .type_params_in_scope
+                .get(index.into_raw() as usize)
+                .is_none_or(|param| param.kind != hir::TypeParamKind::Ref),
+            _ => false,
+        }
     }
 
     /// Reference types (spec 3): classes, interfaces, `Any`, strings
@@ -756,6 +786,66 @@ impl Lowerer {
     /// (spec 4.4.2).
     pub(crate) fn is_ref_ty(&self, ty: TypeId) -> bool {
         !self.is_value_ty(ty)
+    }
+
+    pub(crate) fn check_type_argument_kinds(
+        &mut self,
+        params: &[hir::TypeParamDecl],
+        args: &[TypeId],
+        span: ast::Span,
+        target: &str,
+    ) -> bool {
+        let mut valid = true;
+        for (param, &arg) in params.iter().zip(args) {
+            if self.type_satisfies_kind(arg, param.kind) {
+                continue;
+            }
+            let required = match param.kind {
+                hir::TypeParamKind::Any => continue,
+                hir::TypeParamKind::Value => "value",
+                hir::TypeParamKind::Ref => "ref",
+            };
+            let found = self.type_name(arg);
+            self.error(
+                span,
+                format!(
+                    "type argument `{found}` for `{}` of {target} must satisfy `{required}`",
+                    param.name
+                ),
+            );
+            valid = false;
+        }
+        valid
+    }
+
+    pub(crate) fn type_arguments_satisfy_kinds(
+        &self,
+        params: &[hir::TypeParamDecl],
+        args: &[TypeId],
+    ) -> bool {
+        params
+            .iter()
+            .zip(args)
+            .all(|(param, &arg)| self.type_satisfies_kind(arg, param.kind))
+    }
+
+    fn type_satisfies_kind(&self, ty: TypeId, required: hir::TypeParamKind) -> bool {
+        if required == hir::TypeParamKind::Any {
+            return true;
+        }
+        if let Type::Param(index) = self.types[ty] {
+            let actual = self
+                .type_params_in_scope
+                .get(index.into_raw() as usize)
+                .map(|param| param.kind)
+                .unwrap_or(hir::TypeParamKind::Any);
+            return actual == required;
+        }
+        match required {
+            hir::TypeParamKind::Any => true,
+            hir::TypeParamKind::Value => self.is_value_ty(ty),
+            hir::TypeParamKind::Ref => self.is_ref_ty(ty),
+        }
     }
 
     /// The least representable upper bound of a non-empty set of
@@ -917,7 +1007,7 @@ fn type_name(
     enums: &Arena<EnumDecl>,
     classes: &Arena<ClassDecl>,
     interfaces: &Arena<InterfaceDecl>,
-    type_params: &[String],
+    type_params: &[hir::TypeParamDecl],
     ty: TypeId,
 ) -> String {
     match &types[ty] {
@@ -1072,7 +1162,7 @@ fn type_name(
         }
         Type::Param(index) => type_params
             .get(index.into_raw() as usize)
-            .cloned()
+            .map(|param| param.name.clone())
             .unwrap_or_else(|| format!("T{}", index.into_raw())),
     }
 }

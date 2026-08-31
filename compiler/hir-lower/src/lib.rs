@@ -89,9 +89,10 @@
 //! unsigned semantics risks deferred) and the core GC facilities:
 //! generic structs `PinHandle<T>` / `GcHandle<T>` and the `pin` /
 //! `unpin` / `getGcHandle`
-//! / `releaseGcHandle` intrinsics, whose inferred type argument must
-//! be a reference type — spec 14.1's `T : ref` in its pre-M12 form.
-//! `gcCollect` / `gcStats` are ordinary test-only intrinsics.
+//! / `releaseGcHandle` intrinsics. M12 now expresses their reference
+//! constraint through the ordinary typed `T : ref` kind bound rather
+//! than a call-site intrinsic-name special case. `gcCollect` / `gcStats`
+//! are ordinary test-only intrinsics.
 
 mod annotations;
 mod class;
@@ -144,7 +145,7 @@ pub(crate) struct FnSig {
     pub(crate) attributes: hir::FunctionAttributes,
     /// Number of owner parameters at the front of `type_params`.
     pub(crate) owner_type_param_count: usize,
-    pub(crate) type_params: Vec<String>,
+    pub(crate) type_params: Vec<hir::TypeParamDecl>,
     pub(crate) params: Vec<FnParam>,
     pub(crate) return_ty: TypeId,
 }
@@ -193,6 +194,23 @@ pub(crate) enum ForbiddenSuspendContext {
     TopLevel,
     Function,
     ConstructorDelegation,
+}
+
+fn lower_type_param_decl(param: &ast::TypeParamDecl) -> hir::TypeParamDecl {
+    hir::TypeParamDecl {
+        name: param.name.text.clone(),
+        variance: match param.variance {
+            ast::Variance::Invariant => hir::Variance::Invariant,
+            ast::Variance::In => hir::Variance::In,
+            ast::Variance::Out => hir::Variance::Out,
+        },
+        kind: match param.kind_bound {
+            None => hir::TypeParamKind::Any,
+            Some(ast::TypeParamKindBound::Value) => hir::TypeParamKind::Value,
+            Some(ast::TypeParamKindBound::Ref) => hir::TypeParamKind::Ref,
+        },
+        span: param.span,
+    }
 }
 
 impl Owner {
@@ -366,7 +384,7 @@ pub(crate) struct Lowerer {
     pub(crate) signatures: HashMap<FunctionId, FnSig>,
     /// Type parameter names of the function or enum whose signature,
     /// variants or body is currently being lowered; empty elsewhere.
-    pub(crate) type_params_in_scope: Vec<String>,
+    pub(crate) type_params_in_scope: Vec<hir::TypeParamDecl>,
     /// Return type of the function whose body is being lowered.
     pub(crate) current_return_ty: TypeId,
     /// Active only while an anonymous function with neither an explicit nor
@@ -890,14 +908,17 @@ impl Lowerer {
         }
         let mut type_params = Vec::new();
         for param in &decl.type_params {
-            if type_params.contains(&param.text) {
+            if type_params
+                .iter()
+                .any(|existing: &hir::TypeParamDecl| existing.name == param.name.text)
+            {
                 self.error(
                     param.span,
-                    format!("duplicate type parameter `{}`", param.text),
+                    format!("duplicate type parameter `{}`", param.name.text),
                 );
                 continue;
             }
-            type_params.push(param.text.clone());
+            type_params.push(lower_type_param_decl(param));
         }
         let id = self.structs.alloc(StructDecl {
             name: decl.name.text.clone(),
@@ -944,14 +965,17 @@ impl Lowerer {
         }
         let mut type_params = Vec::new();
         for param in &decl.type_params {
-            if type_params.contains(&param.text) {
+            if type_params
+                .iter()
+                .any(|existing: &hir::TypeParamDecl| existing.name == param.name.text)
+            {
                 self.error(
                     param.span,
-                    format!("duplicate type parameter `{}`", param.text),
+                    format!("duplicate type parameter `{}`", param.name.text),
                 );
                 continue;
             }
-            type_params.push(param.text.clone());
+            type_params.push(lower_type_param_decl(param));
         }
         let id = self.enums.alloc(EnumDecl {
             name: decl.name.text.clone(),
@@ -1055,16 +1079,7 @@ impl Lowerer {
                 );
                 continue;
             }
-            let variance = match param.variance {
-                ast::Variance::Invariant => hir::Variance::Invariant,
-                ast::Variance::In => hir::Variance::In,
-                ast::Variance::Out => hir::Variance::Out,
-            };
-            type_params.push(hir::TypeParamDecl {
-                name: param.name.text.clone(),
-                variance,
-                span: param.span,
-            });
+            type_params.push(lower_type_param_decl(param));
         }
         let id = self.interfaces.alloc(InterfaceDecl {
             name: decl.name.text.clone(),
@@ -1120,7 +1135,7 @@ impl Lowerer {
                 ast::MethodModifier::Abstract => hir::MethodModifier::Abstract,
             },
         };
-        let owner_type_param_count = self.owner_type_param_names(owner).len() as u32;
+        let owner_type_param_count = self.owner_type_params(owner).len() as u32;
         let id = self.functions.alloc(Function {
             name: format!("{}.{}", owner.describe_name(self), decl.name.text),
             is_suspend: decl.is_suspend,
@@ -1863,8 +1878,8 @@ impl Lowerer {
         None
     }
 
-    /// Resolve a function signature: type parameter names, parameter
-    /// types and the return type (absent means `Unit`). Parameter
+    /// Resolve a function signature: typed parameters, value parameters
+    /// and the return type (absent means `Unit`). Parameter
     /// locals are only allocated when the body is lowered (pass 3), so
     /// intrinsic functions — which have no body — keep an empty
     /// `params` list on the `hir::Function`; calls check against this
@@ -1900,14 +1915,17 @@ impl Lowerer {
         }
         let mut type_params = Vec::new();
         for param in &decl.type_params {
-            if type_params.contains(&param.text) {
+            if type_params
+                .iter()
+                .any(|existing: &hir::TypeParamDecl| existing.name == param.name.text)
+            {
                 self.error(
                     param.span,
-                    format!("duplicate type parameter `{}`", param.text),
+                    format!("duplicate type parameter `{}`", param.name.text),
                 );
                 continue;
             }
-            type_params.push(param.text.clone());
+            type_params.push(lower_type_param_decl(param));
         }
         if !type_params.is_empty() {
             self.register_generic(id);
@@ -2003,16 +2021,12 @@ impl Lowerer {
 
     /// Type parameters contributed by a member's owning declaration. They
     /// form the prefix of the member function's combined parameter space.
-    pub(crate) fn owner_type_param_names(&self, owner: Owner) -> Vec<String> {
+    pub(crate) fn owner_type_params(&self, owner: Owner) -> Vec<hir::TypeParamDecl> {
         match owner {
             Owner::Class(_) => Vec::new(),
             Owner::Struct(id) => self.structs[id].type_params.clone(),
             Owner::Enum(id) => self.enums[id].type_params.clone(),
-            Owner::Interface(id) => self.interfaces[id]
-                .type_params
-                .iter()
-                .map(|param| param.name.clone())
-                .collect(),
+            Owner::Interface(id) => self.interfaces[id].type_params.clone(),
         }
     }
 

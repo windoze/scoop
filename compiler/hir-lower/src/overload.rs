@@ -189,6 +189,7 @@ impl Lowerer {
         // Applicability (step 1): each entry pairs a prepared-candidate
         // index with its inferred call-level type arguments.
         let mut applicable: Vec<(usize, Vec<TypeId>)> = Vec::new();
+        let mut kind_failures: Vec<(usize, Vec<TypeId>)> = Vec::new();
         let mut contextual_failures: Vec<(usize, TypeId, String)> = Vec::new();
         for (index, candidate) in prepared.iter().enumerate() {
             if candidate.params.len() != receiver_offset + arg_exprs.len() {
@@ -225,12 +226,29 @@ impl Lowerer {
                 }
             }
             if contextual_args_match {
-                applicable.push((index, type_args));
+                let type_params = &self.signatures[&candidate.function].type_params;
+                if self.type_arguments_satisfy_kinds(type_params, &type_args) {
+                    applicable.push((index, type_args));
+                } else {
+                    kind_failures.push((index, type_args));
+                }
             }
         }
 
         let (winner, type_args) = match applicable.len() {
             0 => {
+                if kind_failures.len() == 1 {
+                    let (index, type_args) = kind_failures.pop().expect("one kind failure");
+                    let function = prepared[index].function;
+                    let type_params = self.signatures[&function].type_params.clone();
+                    self.check_type_argument_kinds(
+                        &type_params,
+                        &type_args,
+                        span,
+                        &format!("function `{}`", self.functions[function].name),
+                    );
+                    return None;
+                }
                 if self.contextual_no_applicable_diagnostic(name, arg_exprs, &contextual_failures) {
                     return None;
                 }
@@ -281,11 +299,6 @@ impl Lowerer {
             sink.append(&mut arg_sink);
         }
         let return_ty = self.substitute_call_level(candidate.return_ty, &type_args);
-        // M9: the GC intrinsics constrain their type argument to
-        // reference types (see `check_gc_ref_constraint`).
-        if !self.check_gc_ref_constraint(function, &type_args, &args) {
-            return None;
-        }
         // The complete owner-prefix plus method-suffix vector identifies
         // the resolved generic entity stored on the HIR call.
         let callee = if !type_args.is_empty() {

@@ -32,18 +32,18 @@ SourceFile
         Call FunctionSuspendRegistration
           Var registration
 SourceFile
-  struct PinHandle<T>
+  struct PinHandle<T : ref>
     field raw: UInt
-  struct GcHandle<T>
+  struct GcHandle<T : ref>
     field raw: UInt
     @Intrinsic("rt_pin")
-  fun pin<T>(v: T): PinHandle<T>
+  fun pin<T : ref>(v: T): PinHandle<T>
     @Intrinsic("rt_unpin")
-  fun unpin<T>(h: PinHandle<T>): T
+  fun unpin<T : ref>(h: PinHandle<T>): T
     @Intrinsic("rt_get_handle")
-  fun getGcHandle<T>(v: T): GcHandle<T>
+  fun getGcHandle<T : ref>(v: T): GcHandle<T>
     @Intrinsic("rt_release_handle")
-  fun releaseGcHandle<T>(h: GcHandle<T>): T
+  fun releaseGcHandle<T : ref>(h: GcHandle<T>): T
     @Intrinsic("rt_gc_collect")
   fun gcCollect()
     @Intrinsic("rt_gc_stats")
@@ -261,9 +261,9 @@ Module
     field task: suspend () -> T0
   struct FunctionSuspendRegistration<T> : SuspendRegistration<T0>
     field registration: (Continuation<T0>) -> Unit
-  struct PinHandle<T>
+  struct PinHandle<T : ref>
     field raw: UInt
-  struct GcHandle<T>
+  struct GcHandle<T : ref>
     field raw: UInt
   struct Offset
     field amount: Int
@@ -302,10 +302,10 @@ Module
         Box : SuspendRegistration<T0>
           StructInit FunctionSuspendRegistration : FunctionSuspendRegistration<T0>
             Local registration : (Continuation<T0>) -> Unit
-  fun pin<T>(): PinHandle<T0> <intrinsic rt_pin>
-  fun unpin<T>(): T0 <intrinsic rt_unpin>
-  fun getGcHandle<T>(): GcHandle<T0> <intrinsic rt_get_handle>
-  fun releaseGcHandle<T>(): T0 <intrinsic rt_release_handle>
+  fun pin<T : ref>(): PinHandle<T0> <intrinsic rt_pin>
+  fun unpin<T : ref>(): T0 <intrinsic rt_unpin>
+  fun getGcHandle<T : ref>(): GcHandle<T0> <intrinsic rt_get_handle>
+  fun releaseGcHandle<T : ref>(): T0 <intrinsic rt_release_handle>
   fun gcCollect(): Unit <intrinsic rt_gc_collect>
   fun gcStats(): UInt <intrinsic rt_gc_stats>
   fun write(): Unit <intrinsic rt_write>

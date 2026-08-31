@@ -1,6 +1,8 @@
 //! M12 annotation syntax and lexical safety-block tests.
 
-use scoop_ast::{AnnotationLiteral, Decl, FunctionBody, SafetyMode, StatementKind};
+use scoop_ast::{
+    AnnotationLiteral, Decl, FunctionBody, SafetyMode, StatementKind, TypeParamKindBound, Variance,
+};
 
 use crate::tests::{block_body, err, ok, only_function};
 
@@ -90,4 +92,57 @@ fn safety_blocks_require_one_marker_annotation() {
 
     let (_, message) = err("fun main() { @NoGC {} }");
     assert_eq!(message, "only `@Unsafe` or `@Safe` may annotate a block");
+}
+
+#[test]
+fn parses_kind_bounds_on_every_m12_generic_declaration() {
+    let file = ok("fun <T : value> identity(value: T): T = value\n\
+         struct Box<T : ref>(val value: T)\n\
+         enum Choice<T : value> { Some(T), None }\n\
+         interface Source<out T : ref> { fun get(): T }");
+
+    let Decl::Function(function) = &file.declarations[0] else {
+        panic!("expected function");
+    };
+    assert_eq!(
+        function.type_params[0].kind_bound,
+        Some(TypeParamKindBound::Value)
+    );
+    let Decl::Struct(decl) = &file.declarations[1] else {
+        panic!("expected struct");
+    };
+    assert_eq!(
+        decl.type_params[0].kind_bound,
+        Some(TypeParamKindBound::Ref)
+    );
+    let Decl::Enum(decl) = &file.declarations[2] else {
+        panic!("expected enum");
+    };
+    assert_eq!(
+        decl.type_params[0].kind_bound,
+        Some(TypeParamKindBound::Value)
+    );
+    let Decl::Interface(decl) = &file.declarations[3] else {
+        panic!("expected interface");
+    };
+    assert_eq!(decl.type_params[0].variance, Variance::Out);
+    assert_eq!(
+        decl.type_params[0].kind_bound,
+        Some(TypeParamKindBound::Ref)
+    );
+
+    let dump = scoop_ast::dump(&file);
+    assert!(dump.contains("fun identity<T : value>(value: T): T"));
+    assert!(dump.contains("struct Box<T : ref>"));
+    assert!(dump.contains("enum Choice<T : value>"));
+    assert!(dump.contains("interface Source<out T : ref>"));
+}
+
+#[test]
+fn rejects_bounds_outside_the_m12_kind_vocabulary() {
+    let (_, message) = err("fun <T : Comparable> compare(value: T) = value");
+    assert_eq!(
+        message,
+        "unsupported type parameter bound `Comparable`; M12 supports only `value` or `ref`"
+    );
 }

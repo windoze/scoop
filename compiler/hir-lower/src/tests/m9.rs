@@ -1,8 +1,8 @@
 //! M9 tests: the `UInt` basic type and the core GC facilities
 //! (milestone9 DESIGN.md section 1) — `UInt` resolution, equality and
-//! arithmetic, the reference-type constraint of the `pin` / `unpin` /
-//! `getGcHandle` / `releaseGcHandle` intrinsics (spec 14.1's
-//! `T : ref` before M12 bounds), the `gcCollect` / `gcStats` hooks,
+//! arithmetic, the M12 `T : ref` reference-kind constraint of the
+//! `pin` / `unpin` / `getGcHandle` / `releaseGcHandle` intrinsics,
+//! the `gcCollect` / `gcStats` hooks,
 //! and `PinHandle` / `GcHandle` construction and field access.
 
 use super::*;
@@ -491,9 +491,9 @@ fn gc_intrinsics_golden() {
     assert_eq!(local_ty(&module, "n"), "UInt");
     let expected = "\
 Module
-  struct PinHandle<T>
+  struct PinHandle<T : ref>
     field raw: UInt
-  struct GcHandle<T>
+  struct GcHandle<T : ref>
     field raw: UInt
   enum Option<T>
     Some(_1: T0)
@@ -521,10 +521,10 @@ Module
         Local message : Any
     Call write : Unit
       StringLiteral \"\\n\" : String
-  fun pin<T>(): PinHandle<T0> <intrinsic rt_pin>
-  fun unpin<T>(): T0 <intrinsic rt_unpin>
-  fun getGcHandle<T>(): GcHandle<T0> <intrinsic rt_get_handle>
-  fun releaseGcHandle<T>(): T0 <intrinsic rt_release_handle>
+  fun pin<T : ref>(): PinHandle<T0> <intrinsic rt_pin>
+  fun unpin<T : ref>(): T0 <intrinsic rt_unpin>
+  fun getGcHandle<T : ref>(): GcHandle<T0> <intrinsic rt_get_handle>
+  fun releaseGcHandle<T : ref>(): T0 <intrinsic rt_release_handle>
   fun gcCollect(): Unit <intrinsic rt_gc_collect>
   fun gcStats(): UInt <intrinsic rt_gc_stats>
   fun main(): Unit
@@ -566,7 +566,7 @@ fn pin_rejects_an_int_argument() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "pin requires a reference type argument, found Int"
+        "type argument `Int` for `T` of function `pin` must satisfy `ref`"
     );
     // The user file is index 2 (core files are 0 and 1).
     assert_eq!(errors[0].file, 2);
@@ -588,7 +588,7 @@ fn pin_rejects_a_struct_argument() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "pin requires a reference type argument, found Point"
+        "type argument `Point` for `T` of function `pin` must satisfy `ref`"
     );
 }
 
@@ -602,7 +602,7 @@ fn get_gc_handle_rejects_a_value_argument() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "getGcHandle requires a reference type argument, found Int"
+        "type argument `Int` for `T` of function `getGcHandle` must satisfy `ref`"
     );
 }
 
@@ -619,11 +619,8 @@ fn unpin_rejects_a_value_type_parameter() {
         fun("main", vec![]),
     ]);
     let errors = lower_user_with_gc(file).expect_err("unpin of PinHandle<Int> must fail");
-    assert_eq!(errors.len(), 1);
-    assert_eq!(
-        errors[0].message,
-        "unpin requires a reference type argument, found Int"
-    );
+    assert!(errors.iter().any(|error| error.message
+        == "type argument `Int` for `T` of struct `PinHandle` must satisfy `ref`"));
 }
 
 #[test]
@@ -639,18 +636,14 @@ fn release_gc_handle_rejects_a_value_type_parameter() {
         fun("main", vec![]),
     ]);
     let errors = lower_user_with_gc(file).expect_err("releaseGcHandle of GcHandle<Int> must fail");
-    assert_eq!(errors.len(), 1);
-    assert_eq!(
-        errors[0].message,
-        "releaseGcHandle requires a reference type argument, found Int"
-    );
+    assert!(errors.iter().any(|error| error.message
+        == "type argument `Int` for `T` of struct `GcHandle` must satisfy `ref`"));
 }
 
 #[test]
 fn pin_rejects_an_unconstrained_type_parameter() {
-    // Without M12 bounds a type parameter may be instantiated with a
-    // value type, so `pin(u)` cannot be proven sound at the
-    // definition site.
+    // An unconstrained parameter may still be instantiated with a value
+    // type, so it cannot satisfy the core API's M12 `T : ref` bound.
     let file = file(vec![
         fun_sig(
             "f",
@@ -665,7 +658,7 @@ fn pin_rejects_an_unconstrained_type_parameter() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "pin requires a reference type argument, found U"
+        "type argument `U` for `T` of function `pin` must satisfy `ref`"
     );
 }
 
@@ -716,7 +709,7 @@ fn pin_handle_type_arguments_are_strict() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "initializer of `h` must be of type PinHandle<Int>, found PinHandle<String>"
+        "type argument `Int` for `T` of struct `PinHandle` must satisfy `ref`"
     );
 }
 

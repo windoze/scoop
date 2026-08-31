@@ -52,14 +52,17 @@ impl Lowerer {
         let owner_type_param_count = outer_type_params.len();
         let mut type_params = outer_type_params.clone();
         for param in &decl.type_params {
-            if type_params.contains(&param.text) {
+            if type_params
+                .iter()
+                .any(|existing| existing.name == param.name.text)
+            {
                 self.error(
                     param.span,
-                    format!("duplicate type parameter `{}`", param.text),
+                    format!("duplicate type parameter `{}`", param.name.text),
                 );
                 continue;
             }
-            type_params.push(param.text.clone());
+            type_params.push(crate::lower_type_param_decl(param));
         }
         self.type_params_in_scope = type_params.clone();
         let mut sig_params = Vec::with_capacity(decl.params.len());

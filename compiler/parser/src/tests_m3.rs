@@ -38,7 +38,7 @@ fn generic_function_single_type_param() {
     let file = ok("fun <T> identity(x: T): T = x");
     let function = only_function(&file);
     assert_eq!(function.type_params.len(), 1);
-    assert_eq!(function.type_params[0].text, "T");
+    assert_eq!(function.type_params[0].name.text, "T");
     assert_eq!(function.type_params[0].span, Span::new(5, 6));
     assert_eq!(function.span, Span::new(0, 29));
     let FunctionBody::Expr(body) = &function.body else {
@@ -58,7 +58,7 @@ fn generic_function_multiple_type_params() {
     let names: Vec<&str> = function
         .type_params
         .iter()
-        .map(|param| param.text.as_str())
+        .map(|param| param.name.text.as_str())
         .collect();
     assert_eq!(names, ["T", "U"]);
     assert_eq!(

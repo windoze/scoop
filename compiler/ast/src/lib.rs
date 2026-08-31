@@ -193,7 +193,14 @@ pub enum Variance {
 pub struct TypeParamDecl {
     pub name: Ident,
     pub variance: Variance,
+    pub kind_bound: Option<TypeParamKindBound>,
     pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TypeParamKindBound {
+    Value,
+    Ref,
 }
 
 /// `enum E<T> { ... }` (spec 4.2).
@@ -201,7 +208,7 @@ pub struct TypeParamDecl {
 pub struct EnumDecl {
     pub annotations: Vec<Annotation>,
     pub name: Ident,
-    pub type_params: Vec<Ident>,
+    pub type_params: Vec<TypeParamDecl>,
     pub variants: Vec<VariantDecl>,
     /// Implemented interfaces (spec 4.4.3).
     pub interfaces: Vec<TypeRef>,
@@ -246,7 +253,7 @@ pub struct StructDecl {
     pub name: Ident,
     /// Generic type parameters (`struct Name<T, U>(...)`); empty for
     /// non-generic structs.
-    pub type_params: Vec<Ident>,
+    pub type_params: Vec<TypeParamDecl>,
     pub fields: Vec<FieldDecl>,
     /// Implemented interfaces (`struct S(...) : I1, I2`, spec 4.4.3).
     pub interfaces: Vec<TypeRef>,
@@ -279,7 +286,7 @@ pub struct FunctionDecl {
     pub name: Ident,
     /// Generic type parameters (`fun <T> f(...)`); empty for
     /// non-generic functions.
-    pub type_params: Vec<Ident>,
+    pub type_params: Vec<TypeParamDecl>,
     pub params: Vec<Param>,
     /// Return type annotation; absent means `Unit`.
     pub return_ty: Option<TypeRef>,
@@ -742,8 +749,14 @@ pub fn dump(file: &SourceFile) -> String {
                 let type_params = if e.type_params.is_empty() {
                     String::new()
                 } else {
-                    let names: Vec<&str> = e.type_params.iter().map(|p| p.text.as_str()).collect();
-                    format!("<{}>", names.join(", "))
+                    format!(
+                        "<{}>",
+                        e.type_params
+                            .iter()
+                            .map(dump_type_param)
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    )
                 };
                 let interfaces = if e.interfaces.is_empty() {
                     String::new()
@@ -839,18 +852,7 @@ pub fn dump(file: &SourceFile) -> String {
                 let params = if i.type_params.is_empty() {
                     String::new()
                 } else {
-                    let params: Vec<String> = i
-                        .type_params
-                        .iter()
-                        .map(|param| {
-                            let variance = match param.variance {
-                                Variance::Invariant => "",
-                                Variance::In => "in ",
-                                Variance::Out => "out ",
-                            };
-                            format!("{variance}{}", param.name.text)
-                        })
-                        .collect();
+                    let params: Vec<String> = i.type_params.iter().map(dump_type_param).collect();
                     format!("<{}>", params.join(", "))
                 };
                 out.push_str(&format!("  interface {}{}\n", i.name.text, params));
@@ -864,8 +866,14 @@ pub fn dump(file: &SourceFile) -> String {
                 let type_params = if s.type_params.is_empty() {
                     String::new()
                 } else {
-                    let names: Vec<&str> = s.type_params.iter().map(|p| p.text.as_str()).collect();
-                    format!("<{}>", names.join(", "))
+                    format!(
+                        "<{}>",
+                        s.type_params
+                            .iter()
+                            .map(dump_type_param)
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    )
                 };
                 let interfaces = if s.interfaces.is_empty() {
                     String::new()
@@ -894,8 +902,14 @@ pub fn dump(file: &SourceFile) -> String {
                 let type_params = if f.type_params.is_empty() {
                     String::new()
                 } else {
-                    let names: Vec<&str> = f.type_params.iter().map(|p| p.text.as_str()).collect();
-                    format!("<{}>", names.join(", "))
+                    format!(
+                        "<{}>",
+                        f.type_params
+                            .iter()
+                            .map(dump_type_param)
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    )
                 };
                 let params: Vec<String> = f
                     .params
@@ -1023,11 +1037,7 @@ fn dump_statement(statement: &Statement, indent: usize, out: &mut String) {
             let type_params = if function.type_params.is_empty() {
                 String::new()
             } else {
-                let names: Vec<_> = function
-                    .type_params
-                    .iter()
-                    .map(|param| param.text.as_str())
-                    .collect();
+                let names: Vec<_> = function.type_params.iter().map(dump_type_param).collect();
                 format!("<{}>", names.join(", "))
             };
             let params: Vec<_> = function
@@ -1158,6 +1168,20 @@ fn dump_statement(statement: &Statement, indent: usize, out: &mut String) {
             dump_block(block, indent + 1, out);
         }
     }
+}
+
+fn dump_type_param(param: &TypeParamDecl) -> String {
+    let variance = match param.variance {
+        Variance::Invariant => "",
+        Variance::In => "in ",
+        Variance::Out => "out ",
+    };
+    let kind = match param.kind_bound {
+        None => "",
+        Some(TypeParamKindBound::Value) => " : value",
+        Some(TypeParamKindBound::Ref) => " : ref",
+    };
+    format!("{variance}{}{kind}", param.name.text)
 }
 
 /// Compact one-line pattern rendering for dumps.

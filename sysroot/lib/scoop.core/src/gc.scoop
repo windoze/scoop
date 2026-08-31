@@ -1,22 +1,22 @@
 // GC facilities (spec 14.1, docs/milestone9/DESIGN.md section 1).
 // These are intrinsics in M9; the spec's `@Unsafe` plain-function
-// form arrives with the FFI annotation family in M11.
+// form arrives with the FFI annotation family in M12.
 
-struct PinHandle<T>(val raw: UInt)
+struct PinHandle<T : ref>(val raw: UInt)
 
-struct GcHandle<T>(val raw: UInt)
+struct GcHandle<T : ref>(val raw: UInt)
 
 @Intrinsic("rt_pin")
-fun <T> pin(v: T): PinHandle<T>
+fun <T : ref> pin(v: T): PinHandle<T>
 
 @Intrinsic("rt_unpin")
-fun <T> unpin(h: PinHandle<T>): T
+fun <T : ref> unpin(h: PinHandle<T>): T
 
 @Intrinsic("rt_get_handle")
-fun <T> getGcHandle(v: T): GcHandle<T>
+fun <T : ref> getGcHandle(v: T): GcHandle<T>
 
 @Intrinsic("rt_release_handle")
-fun <T> releaseGcHandle(h: GcHandle<T>): T
+fun <T : ref> releaseGcHandle(h: GcHandle<T>): T
 
 // Test-only hooks (not part of the spec): force a collection and
 // read the live object count.

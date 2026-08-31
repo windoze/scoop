@@ -41,16 +41,15 @@
 //!
 //! M9 (milestone9 DESIGN.md section 1): arithmetic and comparison
 //! operators accept `UInt` operands under the same rules as `Int`
-//! (both sides must share one type — no `Int`/`UInt` mixing), and
-//! calls to the GC intrinsics (`pin` / `unpin` / `getGcHandle` /
-//! `releaseGcHandle`) check that the inferred type argument is a
-//! reference type (`check_gc_ref_constraint`).
+//! (both sides must share one type — no `Int`/`UInt` mixing). M12
+//! generalizes the former GC-specific generic check into typed
+//! `value` / `ref` kind bounds on every generic declaration.
 
 use scoop_ast as ast;
 use scoop_hir as hir;
 
 use ast::Span;
-use hir::{ExprKind, FunctionKind, Type, TypeId};
+use hir::{ExprKind, Type, TypeId};
 
 use crate::patterns::PatternCtx;
 use crate::scope::Scopes;
@@ -686,17 +685,25 @@ impl Lowerer {
         let param_tys: Vec<_> = sig.params.iter().map(|param| param.ty).collect();
         let inferred = self.lower_inference_args(args, &param_tys, bindings, &sig.type_params)?;
         let mut type_args = Vec::with_capacity(sig.type_params.len());
-        for (binding, param_name) in inferred.bindings.iter().copied().zip(&sig.type_params) {
+        for (binding, param) in inferred.bindings.iter().copied().zip(&sig.type_params) {
             match binding {
                 Some(ty) => type_args.push(ty),
                 None => {
                     self.error(
                         span,
-                        format!("cannot infer type argument `{param_name}` for `{name}`"),
+                        format!("cannot infer type argument `{}` for `{name}`", param.name),
                     );
                     return None;
                 }
             }
+        }
+        if !self.check_type_argument_kinds(
+            &sig.type_params,
+            &type_args,
+            span,
+            &format!("function `{}`", self.functions[function].name),
+        ) {
+            return None;
         }
         let lowered = inferred.finish(sink);
         let mut adapted = Vec::with_capacity(lowered.len());
@@ -1548,7 +1555,10 @@ impl Lowerer {
             && self.scopes.lookup(&type_name.text).is_none()
             && !self.host_has_property(&type_name.text)
             && (self.is_declared_type_name(&type_name.text)
-                || self.type_params_in_scope.contains(&type_name.text))
+                || self
+                    .type_params_in_scope
+                    .iter()
+                    .any(|param| param.name == type_name.text))
         {
             self.error(
                 span,
@@ -1736,6 +1746,9 @@ impl Lowerer {
                 }
             }
             let type_args: Vec<_> = bindings.into_iter().flatten().collect();
+            if !self.type_arguments_satisfy_kinds(&sig.type_params, &type_args) {
+                continue;
+            }
             let parameter_types: Vec<_> = reference_params
                 .iter()
                 .map(|&parameter| self.instantiate_ty(parameter, &type_args))
@@ -1860,6 +1873,9 @@ impl Lowerer {
                         continue;
                     }
                     let type_args: Vec<_> = bindings.into_iter().flatten().collect();
+                    if !self.type_arguments_satisfy_kinds(&sig.type_params, &type_args) {
+                        continue;
+                    }
                     let instantiated_params: Vec<_> = sig
                         .params
                         .iter()
@@ -2709,19 +2725,28 @@ impl Lowerer {
             self.lower_inference_args(args, &field_tys[..supplied], bindings, &type_params)?;
 
         let mut type_args = Vec::with_capacity(inferred.bindings.len());
-        for (binding, param_name) in inferred.bindings.iter().copied().zip(&type_params) {
+        for (binding, param) in inferred.bindings.iter().copied().zip(&type_params) {
             match binding {
                 Some(ty) => type_args.push(ty),
                 None => {
                     self.error(
                         span,
                         format!(
-                            "cannot infer type argument `{param_name}` for `{enum_name}.{variant_name}`"
+                            "cannot infer type argument `{}` for `{enum_name}.{variant_name}`",
+                            param.name
                         ),
                     );
                     return None;
                 }
             }
+        }
+        if !self.check_type_argument_kinds(
+            &type_params,
+            &type_args,
+            span,
+            &format!("enum `{enum_name}`"),
+        ) {
+            return None;
         }
         let mut lowered = inferred.finish(sink);
 
@@ -2969,18 +2994,26 @@ impl Lowerer {
         let inferred =
             self.lower_inference_args(&call.args, &param_tys, bindings, &sig.type_params)?;
         let mut type_args = Vec::with_capacity(inferred.bindings.len());
-        for (binding, param_name) in inferred.bindings.iter().copied().zip(&sig.type_params) {
+        for (binding, param) in inferred.bindings.iter().copied().zip(&sig.type_params) {
             let Some(ty) = binding else {
                 self.error(
                     call.span,
                     format!(
-                        "cannot infer type argument `{param_name}` for local function `{}`",
-                        call.callee.text
+                        "cannot infer type argument `{}` for local function `{}`",
+                        param.name, call.callee.text
                     ),
                 );
                 return None;
             };
             type_args.push(ty);
+        }
+        if !self.check_type_argument_kinds(
+            &sig.type_params,
+            &type_args,
+            call.span,
+            &format!("local function `{}`", call.callee.text),
+        ) {
+            return None;
         }
         let args = inferred.finish(sink);
         let mut adapted = Vec::with_capacity(args.len());
@@ -3064,25 +3097,27 @@ impl Lowerer {
             &sig.type_params,
         )?;
         let mut type_args = Vec::with_capacity(inferred.bindings.len());
-        for (binding, param_name) in inferred.bindings.iter().copied().zip(&sig.type_params) {
+        for (binding, param) in inferred.bindings.iter().copied().zip(&sig.type_params) {
             match binding {
                 Some(ty) => type_args.push(ty),
                 None => {
                     self.error(
                         call.span,
-                        format!("cannot infer type argument `{param_name}` for `{name}`"),
+                        format!("cannot infer type argument `{}` for `{name}`", param.name),
                     );
                     return None;
                 }
             }
         }
-        let args = inferred.finish(sink);
-
-        // M9: the GC intrinsics constrain their type argument to
-        // reference types (spec 14.1's `T : ref` before M12 bounds).
-        if !self.check_gc_ref_constraint(function, &type_args, &args) {
+        if !self.check_type_argument_kinds(
+            &sig.type_params,
+            &type_args,
+            call.span,
+            &format!("function `{name}`"),
+        ) {
             return None;
         }
+        let args = inferred.finish(sink);
 
         // Argument types must be subtypes of the (instantiated)
         // parameter types; the adaptation boxes value types crossing
@@ -3137,7 +3172,7 @@ impl Lowerer {
         arg_exprs: &[ast::Expr],
         param_tys: &[TypeId],
         mut bindings: Vec<Option<TypeId>>,
-        type_params: &[String],
+        type_params: &[hir::TypeParamDecl],
     ) -> Option<InferredArguments> {
         let mut args: Vec<Option<hir::Expr>> = (0..arg_exprs.len()).map(|_| None).collect();
         let mut sinks: Vec<Vec<hir::Statement>> =
@@ -3399,46 +3434,6 @@ impl Lowerer {
         .then_some((enum_id, variant))
     }
 
-    /// The M9 form of spec 14.1's `T : ref` bound (milestone9 DESIGN.md
-    /// section 1): a call to one of the four GC intrinsics (`pin` /
-    /// `unpin` / `getGcHandle` / `releaseGcHandle`) is only legal when
-    /// the inferred type argument is a reference type — full
-    /// type-parameter bounds arrive with M12. `args` are the lowered
-    /// call arguments; the diagnostic points at the argument whose
-    /// type (or handle type parameter) is constrained. Returns `false`
-    /// after recording the diagnostic.
-    pub(crate) fn check_gc_ref_constraint(
-        &mut self,
-        function: hir::FunctionId,
-        type_args: &[TypeId],
-        args: &[hir::Expr],
-    ) -> bool {
-        let FunctionKind::Intrinsic(intrinsic) = &self.functions[function].kind else {
-            return true;
-        };
-        if !matches!(
-            intrinsic.as_str(),
-            "rt_pin" | "rt_unpin" | "rt_get_handle" | "rt_release_handle"
-        ) {
-            return true;
-        }
-        // All four declare exactly one type parameter and one value
-        // parameter (`gc.scoop`); inference bound the former.
-        let (Some(&t), Some(arg)) = (type_args.first(), args.first()) else {
-            return true;
-        };
-        if self.is_ref_ty(t) {
-            return true;
-        }
-        let name = self.functions[function].name.clone();
-        let found = self.type_name(t);
-        self.error(
-            arg.span,
-            format!("{name} requires a reference type argument, found {found}"),
-        );
-        false
-    }
-
     /// Bind type arguments by matching a parameter (or variant field)
     /// type against the argument type: `T` binds to the argument type,
     /// `Option<T>` vs `Option<Int>` recurses (so `T = Int`) — as do
@@ -3452,7 +3447,7 @@ impl Lowerer {
         param_ty: TypeId,
         arg_ty: TypeId,
         bindings: &mut [Option<TypeId>],
-        type_params: &[String],
+        type_params: &[hir::TypeParamDecl],
         span: Span,
     ) -> bool {
         match (self.types[param_ty].clone(), self.types[arg_ty].clone()) {
@@ -3469,7 +3464,7 @@ impl Lowerer {
                                 span,
                                 format!(
                                     "conflicting types for `{}`: {first} and {second}",
-                                    type_params[index]
+                                    type_params[index].name
                                 ),
                             );
                             false
@@ -3610,17 +3605,28 @@ impl Lowerer {
         let inferred = self.lower_inference_args(args, &field_tys, bindings, &type_params)?;
 
         let mut type_args = Vec::with_capacity(inferred.bindings.len());
-        for (binding, param_name) in inferred.bindings.iter().copied().zip(&type_params) {
+        for (binding, param) in inferred.bindings.iter().copied().zip(&type_params) {
             match binding {
                 Some(ty) => type_args.push(ty),
                 None => {
                     self.error(
                         span,
-                        format!("cannot infer type argument `{param_name}` for struct `{name}`"),
+                        format!(
+                            "cannot infer type argument `{}` for struct `{name}`",
+                            param.name
+                        ),
                     );
                     return None;
                 }
             }
+        }
+        if !self.check_type_argument_kinds(
+            &type_params,
+            &type_args,
+            span,
+            &format!("struct `{name}`"),
+        ) {
+            return None;
         }
         let lowered = inferred.finish(sink);
 

@@ -19,7 +19,7 @@ fn generic_struct_single_type_param() {
     };
     assert_eq!(decl.name.text, "PinHandle");
     assert_eq!(decl.type_params.len(), 1);
-    assert_eq!(decl.type_params[0].text, "T");
+    assert_eq!(decl.type_params[0].name.text, "T");
     assert_eq!(decl.type_params[0].span, Span::new(17, 18));
     assert_eq!(decl.fields.len(), 1);
     let TypeRefKind::Named(ty) = &decl.fields[0].ty.kind else {
@@ -56,7 +56,11 @@ fn generic_struct_multiple_type_params() {
     let Decl::Struct(decl) = &file.declarations[0] else {
         panic!("expected a struct declaration");
     };
-    let names: Vec<&str> = decl.type_params.iter().map(|p| p.text.as_str()).collect();
+    let names: Vec<&str> = decl
+        .type_params
+        .iter()
+        .map(|p| p.name.text.as_str())
+        .collect();
     assert_eq!(names, ["T", "U"]);
     assert_eq!(decl.fields.len(), 2);
     let TypeRefKind::Named(first) = &decl.fields[0].ty.kind else {
@@ -101,7 +105,7 @@ fn generic_structs_coexist_with_generic_enums_and_plain_structs() {
         panic!("expected a struct declaration");
     };
     assert_eq!(generic.type_params.len(), 1);
-    assert_eq!(generic.type_params[0].text, "T");
+    assert_eq!(generic.type_params[0].name.text, "T");
     let Decl::Struct(plain) = &file.declarations[2] else {
         panic!("expected a struct declaration");
     };

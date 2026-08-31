@@ -4,8 +4,8 @@
 use scoop_ast::{
     Annotation, AnnotationArg, AnnotationLiteral, ClassDecl, ClassModifier, ConstructorProp, Decl,
     Diagnostic, EnumDecl, Expr, FieldDecl, FunctionBody, FunctionDecl, Ident, InterfaceDecl,
-    MethodModifier, Param, Span, StructDecl, TypeParamDecl, Variance, VariantDecl, VariantDeclKind,
-    VariantFieldDecl,
+    MethodModifier, Param, Span, StructDecl, TypeParamDecl, TypeParamKindBound, Variance,
+    VariantDecl, VariantDeclKind, VariantFieldDecl,
 };
 
 use crate::lexer::TokenKind;
@@ -277,7 +277,7 @@ impl Parser {
         context: FunctionContext,
     ) -> Result<FunctionDecl, Diagnostic> {
         let fun = self.expect("`fun`", |k| matches!(k, TokenKind::Fun))?;
-        let type_params = self.parse_type_params()?;
+        let type_params = self.parse_type_params(false)?;
         let receiver_start = self.pos;
         let receiver_ty = match self.parse_type_ref() {
             Ok(ty) if matches!(self.peek().kind, TokenKind::Dot) => {
@@ -401,7 +401,7 @@ impl Parser {
     fn parse_struct(&mut self, annotations: Vec<Annotation>) -> Result<StructDecl, Diagnostic> {
         let keyword = self.expect("`struct`", |k| matches!(k, TokenKind::Struct))?;
         let name = self.expect_ident("struct name")?;
-        let type_params = self.parse_type_params()?;
+        let type_params = self.parse_type_params(false)?;
         self.expect("`(`", |k| matches!(k, TokenKind::LParen))?;
         let mut fields = Vec::new();
         if matches!(self.peek().kind, TokenKind::RParen) {
@@ -578,7 +578,7 @@ impl Parser {
     ) -> Result<InterfaceDecl, Diagnostic> {
         let keyword = self.expect("`interface`", |k| matches!(k, TokenKind::Interface))?;
         let name = self.expect_ident("interface name")?;
-        let type_params = self.parse_interface_type_params()?;
+        let type_params = self.parse_type_params(true)?;
         let (methods, end) = self.parse_member_body(FunctionContext::Interface)?;
         Ok(InterfaceDecl {
             annotations,
@@ -764,7 +764,7 @@ impl Parser {
     fn parse_enum(&mut self, annotations: Vec<Annotation>) -> Result<EnumDecl, Diagnostic> {
         let keyword = self.expect("`enum`", |k| matches!(k, TokenKind::Enum))?;
         let name = self.expect_ident("enum name")?;
-        let type_params = self.parse_type_params()?;
+        let type_params = self.parse_type_params(false)?;
         let mut end = name.span.end;
         let interfaces = interfaces_only(self.parse_supertypes(&mut end)?)?;
         self.expect("`{`", |k| matches!(k, TokenKind::LBrace))?;
@@ -819,27 +819,12 @@ impl Parser {
         })
     }
 
-    /// `<T, ...>`; empty when the next token is not `<`.
-    fn parse_type_params(&mut self) -> Result<Vec<Ident>, Diagnostic> {
-        let mut type_params = Vec::new();
-        if matches!(self.peek().kind, TokenKind::Less) {
-            self.bump();
-            loop {
-                type_params.push(self.expect_ident("type parameter name")?);
-                if matches!(self.peek().kind, TokenKind::Comma) {
-                    self.bump();
-                } else {
-                    break;
-                }
-            }
-            self.expect("`>`", |k| matches!(k, TokenKind::Greater))?;
-        }
-        Ok(type_params)
-    }
-
-    /// Interface declaration parameters additionally accept declaration-site
-    /// `in` / `out` variance. They remain identifiers elsewhere in the grammar.
-    fn parse_interface_type_params(&mut self) -> Result<Vec<TypeParamDecl>, Diagnostic> {
+    /// `<T, U : value, ...>`; interfaces additionally accept declaration-site
+    /// `in` / `out` variance. `value` and `ref` are contextual keywords.
+    fn parse_type_params(
+        &mut self,
+        allow_variance: bool,
+    ) -> Result<Vec<TypeParamDecl>, Diagnostic> {
         let mut type_params = Vec::new();
         if !matches!(self.peek().kind, TokenKind::Less) {
             return Ok(type_params);
@@ -848,26 +833,50 @@ impl Parser {
         loop {
             let variance_token = self.peek().clone();
             let variance = match &variance_token.kind {
-                TokenKind::Ident(text) if text == "in" => {
+                TokenKind::Ident(text) if allow_variance && text == "in" => {
                     self.bump();
                     Variance::In
                 }
-                TokenKind::Ident(text) if text == "out" => {
+                TokenKind::Ident(text) if allow_variance && text == "out" => {
                     self.bump();
                     Variance::Out
                 }
                 _ => Variance::Invariant,
             };
             let name = self.expect_ident("type parameter name")?;
+            let kind_bound = if matches!(self.peek().kind, TokenKind::Colon) {
+                self.bump();
+                let bound = self.expect_ident("`value` or `ref` kind bound")?;
+                Some(match bound.text.as_str() {
+                    "value" => TypeParamKindBound::Value,
+                    "ref" => TypeParamKindBound::Ref,
+                    _ => {
+                        return Err(Diagnostic::at(
+                            bound.span,
+                            format!(
+                                "unsupported type parameter bound `{}`; M12 supports only `value` or `ref`",
+                                bound.text
+                            ),
+                        ));
+                    }
+                })
+            } else {
+                None
+            };
             let start = if variance == Variance::Invariant {
                 name.span.start
             } else {
                 variance_token.span.start
             };
+            let end = self.tokens[self.pos.saturating_sub(1)]
+                .span
+                .end
+                .max(name.span.end);
             type_params.push(TypeParamDecl {
-                span: Span::new(start, name.span.end),
+                span: Span::new(start, end),
                 name,
                 variance,
+                kind_bound,
             });
             if matches!(self.peek().kind, TokenKind::Comma) {
                 self.bump();

@@ -114,7 +114,7 @@ fn enum_generic_type_params() {
         panic!("expected an enum declaration");
     };
     assert_eq!(decl.type_params.len(), 1);
-    assert_eq!(decl.type_params[0].text, "T");
+    assert_eq!(decl.type_params[0].name.text, "T");
     assert_eq!(decl.type_params[0].span, Span::new(12, 13));
     assert_eq!(
         scoop_ast::dump(&file),

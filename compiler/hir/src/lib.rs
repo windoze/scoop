@@ -410,7 +410,7 @@ pub enum Callable {
 #[derive(Debug, Clone)]
 pub struct StructDecl {
     pub name: String,
-    pub type_params: Vec<String>,
+    pub type_params: Vec<TypeParamDecl>,
     pub attributes: StructAttributes,
     pub fields: Vec<Field>,
     pub interfaces: Vec<TypeId>,
@@ -434,7 +434,7 @@ pub struct CLayout {
 #[derive(Debug, Clone)]
 pub struct EnumDecl {
     pub name: String,
-    pub type_params: Vec<String>,
+    pub type_params: Vec<TypeParamDecl>,
     pub variants: Vec<Variant>,
     pub interfaces: Vec<TypeId>,
     pub span: Span,
@@ -499,7 +499,15 @@ pub enum Variance {
 pub struct TypeParamDecl {
     pub name: String,
     pub variance: Variance,
+    pub kind: TypeParamKind,
     pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TypeParamKind {
+    Any,
+    Value,
+    Ref,
 }
 
 /// An interface method signature (M6: no body, no properties).
@@ -513,7 +521,7 @@ pub struct MethodSig {
     /// Type parameters declared by this method (the owning interface's
     /// parameters are stored on `InterfaceDecl`). An empty list means the
     /// method occupies an itable slot; generic methods are static-only.
-    pub type_params: Vec<String>,
+    pub type_params: Vec<TypeParamDecl>,
     pub params: Vec<Param>,
     pub return_ty: TypeId,
     pub span: Span,
@@ -541,11 +549,11 @@ pub struct Function {
     pub name: String,
     /// Whether calls use the coroutine ABI rather than the ordinary ABI.
     pub is_suspend: bool,
-    /// Generic type parameter names; empty for non-generic functions. For
+    /// Typed generic parameters; empty for non-generic functions. For
     /// methods this is one combined namespace: owner parameters first,
     /// method-declared parameters second (`Method::owner_type_param_count`
     /// separates the two groups).
-    pub type_params: Vec<String>,
+    pub type_params: Vec<TypeParamDecl>,
     pub params: Vec<Param>,
     pub return_ty: TypeId,
     pub attributes: FunctionAttributes,
@@ -990,7 +998,7 @@ pub fn dump(module: &Module) -> String {
         let type_params = if decl.type_params.is_empty() {
             String::new()
         } else {
-            format!("<{}>", decl.type_params.join(", "))
+            dump_type_params(&decl.type_params)
         };
         let interfaces = dump_interface_list(module, &decl.interfaces);
         let attributes = dump_struct_attributes(decl.attributes);
@@ -1010,7 +1018,7 @@ pub fn dump(module: &Module) -> String {
         let type_params = if decl.type_params.is_empty() {
             String::new()
         } else {
-            format!("<{}>", decl.type_params.join(", "))
+            dump_type_params(&decl.type_params)
         };
         let interfaces = dump_interface_list(module, &decl.interfaces);
         out.push_str(&format!(
@@ -1049,26 +1057,14 @@ pub fn dump(module: &Module) -> String {
         let type_params = if decl.type_params.is_empty() {
             String::new()
         } else {
-            let params: Vec<String> = decl
-                .type_params
-                .iter()
-                .map(|param| {
-                    let variance = match param.variance {
-                        Variance::Invariant => "",
-                        Variance::In => "in ",
-                        Variance::Out => "out ",
-                    };
-                    format!("{variance}{}", param.name)
-                })
-                .collect();
-            format!("<{}>", params.join(", "))
+            dump_type_params(&decl.type_params)
         };
         out.push_str(&format!("  interface {}{}\n", decl.name, type_params));
         for method in &decl.methods {
             let method_type_params = if method.type_params.is_empty() {
                 String::new()
             } else {
-                format!("<{}>", method.type_params.join(", "))
+                dump_type_params(&method.type_params)
             };
             let params: Vec<String> = method
                 .params
@@ -1091,7 +1087,7 @@ pub fn dump(module: &Module) -> String {
         let type_params = if function.type_params.is_empty() {
             String::new()
         } else {
-            format!("<{}>", function.type_params.join(", "))
+            dump_type_params(&function.type_params)
         };
         let params: Vec<String> = function
             .params
@@ -1137,6 +1133,26 @@ pub fn dump(module: &Module) -> String {
         ));
     }
     out
+}
+
+fn dump_type_params(params: &[TypeParamDecl]) -> String {
+    let params = params
+        .iter()
+        .map(|param| {
+            let variance = match param.variance {
+                Variance::Invariant => "",
+                Variance::In => "in ",
+                Variance::Out => "out ",
+            };
+            let kind = match param.kind {
+                TypeParamKind::Any => "",
+                TypeParamKind::Value => " : value",
+                TypeParamKind::Ref => " : ref",
+            };
+            format!("{variance}{}{kind}", param.name)
+        })
+        .collect::<Vec<_>>();
+    format!("<{}>", params.join(", "))
 }
 
 fn dump_function_attributes(attributes: FunctionAttributes) -> String {

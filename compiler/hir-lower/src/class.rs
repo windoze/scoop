@@ -326,19 +326,23 @@ impl Lowerer {
         }
         self.check_method_body_shape(id, decl, owner);
 
-        let mut type_params = self.owner_type_param_names(owner);
+        let mut type_params = self.owner_type_params(owner);
         let owner_type_param_count = type_params.len();
         let mut method_type_params = Vec::new();
         for param in &decl.type_params {
-            if type_params.contains(&param.text) {
+            if type_params
+                .iter()
+                .any(|existing| existing.name == param.name.text)
+            {
                 self.error(
                     param.span,
-                    format!("duplicate type parameter `{}`", param.text),
+                    format!("duplicate type parameter `{}`", param.name.text),
                 );
                 continue;
             }
-            type_params.push(param.text.clone());
-            method_type_params.push(param.text.clone());
+            let param = crate::lower_type_param_decl(param);
+            type_params.push(param.clone());
+            method_type_params.push(param);
         }
         if !type_params.is_empty() {
             self.register_generic(id);
@@ -734,7 +738,7 @@ impl Lowerer {
             // Only called for value types.
             Owner::Class(_) | Owner::Interface(_) => return,
         };
-        let target_owner_count = self.owner_type_param_names(owner).len();
+        let target_owner_count = self.owner_type_params(owner).len();
         for interface_ty in interfaces {
             let (iface, args) = self.interface_application(interface_ty);
             let methods: Vec<(String, FunctionId)> = self.interface_methods[&iface]
@@ -807,7 +811,15 @@ impl Lowerer {
     ) -> FnSig {
         let sig = self.signatures[&method].clone();
         let own_type_params = sig.type_params[sig.owner_type_param_count..].to_vec();
-        let mut type_params = vec![String::new(); target_owner_count];
+        let mut type_params = vec![
+            hir::TypeParamDecl {
+                name: String::new(),
+                variance: hir::Variance::Invariant,
+                kind: hir::TypeParamKind::Any,
+                span: scoop_ast::Span::new(0, 0),
+            };
+            target_owner_count
+        ];
         type_params.extend(own_type_params);
         FnSig {
             is_suspend: sig.is_suspend,
