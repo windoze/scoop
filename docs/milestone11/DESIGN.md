@@ -376,12 +376,12 @@ MIR 新增类型化节点/实体至少包括：`LiftedLocalFunction`、`ClosureA
 
 ## 7. core 迁移
 
-在 `scoop.core` 中以普通源码加入两个适配 class 和两个 overload：
+在 `scoop.core` 中以普通源码加入两个泛型适配 `struct` 和两个 overload：
 
-- `$FunctionSuspendTask<T>` 保存 `suspend () -> T`，其 `run` 调用该函数值；
-- `$FunctionSuspendRegistration<T>` 保存 `(Continuation<T>) -> Unit`，其 `register` 调用该函数值；
+- `FunctionSuspendTask<T>` 保存 `suspend () -> T`，其 `run` 调用该函数值；
+- `FunctionSuspendRegistration<T>` 保存 `(Continuation<T>) -> Unit`，其 `register` 调用该函数值；
 - lambda 形态 `startCoroutine` / `suspendCoroutine` 只构造适配器并调用 M10 已有 overload；
-- synthetic 名称不进入 public API；源码实现仍必须通过普通 HIR/MIR，不能由 intrinsic registry 特判；
+- 两个适配类型是当前 `scoop.core` 的普通源码声明；现行 `struct` 规则不支持隐藏字段或 synthetic-only 可见性，因此不虚构 private ABI。它们只承载 overload 间的协议适配，源码实现仍必须通过普通 HIR/MIR，不能由 intrinsic registry 特判；
 - 原 `SuspendTask` / `SuspendRegistration` 接口和 overload继续公开，供不需要 closure 或希望显式建模生命周期的代码使用。
 
 M10 的所有旧 fixture 必须原样通过；新增 lambda fixture必须同时覆盖立即完成、真实挂起、同步 resume、异步 resume、异常恢复与跨挂起 `finally`，证明两套入口共享同一个完成协议。
