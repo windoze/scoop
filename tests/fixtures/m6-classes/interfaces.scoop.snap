@@ -538,7 +538,7 @@ Module
   fun @scoop_main() -> void
     local %0 d: ptr
     local %1 i: ptr
-    local %2 t: {i64}
+    local %2 t: struct0
     local %3 ti: ptr
     local %4 a: ptr
     local %5 $cast.1: ptr
@@ -566,7 +566,7 @@ Module
     store t5 -> local12
     call @scoop.println(local12)
     t6 = aggregate () : {}
-    t7 = aggregate (1) : {i64}
+    t7 = aggregate (1) : struct0
     store t7 -> local2
     t8 = call @scoop_rt_box(global9, local2, 8) : ptr
     store t8 -> local3
@@ -652,7 +652,7 @@ Module
   block entry
     t0 = heap_load param0 +16 : ptr
     ret t0
-  fun @scoop.Tag.describe({i64}) -> ptr
+  fun @scoop.Tag.describe(struct0) -> ptr
   block entry
     ret global2
   fun @scoop.ctor.Throwable() -> ptr
@@ -700,12 +700,12 @@ Module
     heap_store t0 +16 param0
     ret t0
   fun @scoop.eq.Tag(ptr, ptr) -> i1
-    local %0 $a: {i64}
-    local %1 $b: {i64}
+    local %0 $a: struct0
+    local %1 $b: struct0
   block entry
-    t0 = heap_load param0 +16 : {i64}
+    t0 = heap_load param0 +16 : struct0
     store t0 -> local0
-    t1 = heap_load param1 +16 : {i64}
+    t1 = heap_load param1 +16 : struct0
     store t1 -> local1
     t2 = extract local0, 0 : i64
     t3 = extract local1, 0 : i64
@@ -714,7 +714,7 @@ Module
   fun @scoop.thunk.Tag.Describable.describe(ptr) -> ptr
     local %0 $call.1: ptr
   block entry
-    t0 = heap_load param0 +16 : {i64}
+    t0 = heap_load param0 +16 : struct0
     t1 = call @scoop.Tag.describe(t0) : ptr
     store t1 -> local0
     ret local0

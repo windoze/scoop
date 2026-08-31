@@ -675,10 +675,10 @@ Module
     t14 = call @scoop_rt_box(global12, local12, 8) : ptr
     call @scoop.println(t14)
     t15 = aggregate () : {}
-    t16 = aggregate (global2) : {ptr}
+    t16 = aggregate (global2) : struct0
     t17 = call @scoop_rt_box(global13, t16, 8) : ptr
     store t17 -> local3
-    t18 = aggregate (global3) : {ptr}
+    t18 = aggregate (global3) : struct0
     t19 = call @scoop_rt_box(global13, t18, 8) : ptr
     t20 = array_alloc (local3, t19) : [ptr]
     store t20 -> local4
@@ -693,7 +693,7 @@ Module
   fun @scoop.Dog.name(ptr) -> ptr
   block entry
     ret global5
-  fun @scoop.Tag.name({ptr}) -> ptr
+  fun @scoop.Tag.name(struct0) -> ptr
   block entry
     t0 = extract param0, 0 : ptr
     ret t0
@@ -774,13 +774,13 @@ Module
     store t1 -> local0
     ret local0
   fun @scoop.eq.Tag(ptr, ptr) -> i1
-    local %0 $a: {ptr}
-    local %1 $b: {ptr}
+    local %0 $a: struct0
+    local %1 $b: struct0
     local %2 $call.1: i1
   block entry
-    t0 = heap_load param0 +16 : {ptr}
+    t0 = heap_load param0 +16 : struct0
     store t0 -> local0
-    t1 = heap_load param1 +16 : {ptr}
+    t1 = heap_load param1 +16 : struct0
     store t1 -> local1
     t2 = extract local0, 0 : ptr
     t3 = extract local1, 0 : ptr
@@ -790,7 +790,7 @@ Module
   fun @scoop.thunk.Tag.Named.name(ptr) -> ptr
     local %0 $call.1: ptr
   block entry
-    t0 = heap_load param0 +16 : {ptr}
+    t0 = heap_load param0 +16 : struct0
     t1 = call @scoop.Tag.name(t0) : ptr
     store t1 -> local0
     ret local0

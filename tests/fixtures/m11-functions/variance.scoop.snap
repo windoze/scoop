@@ -1362,9 +1362,9 @@ Module
   fun @scoop.acceptAnyString(ptr) -> ptr
   block entry
     ret global1
-  fun @scoop.acceptAnyLabel(ptr) -> {ptr}
+  fun @scoop.acceptAnyLabel(ptr) -> struct0
   block entry
-    t0 = aggregate (global2) : {ptr}
+    t0 = aggregate (global2) : struct0
     ret t0
   fun @scoop.acceptAnimal(ptr) -> ptr
     local %0 $call.1: ptr
@@ -1781,7 +1781,7 @@ Module
   block invoke.normal.4
     t126 = aggregate () : {}
     br @scope.38
-  fun @scoop.Label.describe({ptr}) -> ptr
+  fun @scoop.Label.describe(struct0) -> ptr
   block entry
     t0 = extract param0, 0 : ptr
     ret t0
@@ -1815,10 +1815,10 @@ Module
     t0 = call @scoop.acceptAnyString(param1) : ptr
     store t0 -> local0
     ret local0
-  fun @scoop.$reference.5(ptr, ptr) -> {ptr}
-    local %0 $call.1: {ptr}
+  fun @scoop.$reference.5(ptr, ptr) -> struct0
+    local %0 $call.1: struct0
   block entry
-    t0 = call @scoop.acceptAnyLabel(param1) : {ptr}
+    t0 = call @scoop.acceptAnyLabel(param1) : struct0
     store t0 -> local0
     ret local0
   fun @scoop.$reference.6(ptr, ptr) -> ptr
@@ -1905,11 +1905,11 @@ Module
     heap_store t0 +24 param0
     ret t0
   fun @scoop.$adapter.FAnyRLabelX.FIRDescribableX(ptr, i64) -> ptr
-    local %0 $call.1: {ptr}
+    local %0 $call.1: struct0
   block entry
     t0 = heap_load param0 +24 : ptr
     t1 = call @scoop_rt_box(global35, param1, 8) : ptr
-    t2 = call_indirect t0[2](t0, t1) : {ptr}
+    t2 = call_indirect t0[2](t0, t1) : struct0
     store t2 -> local0
     t3 = call @scoop_rt_box(global45, local0, 8) : ptr
     ret t3
@@ -1998,13 +1998,13 @@ Module
     store t1 -> local0
     ret local0
   fun @scoop.eq.Label(ptr, ptr) -> i1
-    local %0 $a: {ptr}
-    local %1 $b: {ptr}
+    local %0 $a: struct0
+    local %1 $b: struct0
     local %2 $call.1: i1
   block entry
-    t0 = heap_load param0 +16 : {ptr}
+    t0 = heap_load param0 +16 : struct0
     store t0 -> local0
-    t1 = heap_load param1 +16 : {ptr}
+    t1 = heap_load param1 +16 : struct0
     store t1 -> local1
     t2 = extract local0, 0 : ptr
     t3 = extract local1, 0 : ptr
@@ -2014,7 +2014,7 @@ Module
   fun @scoop.thunk.Label.Describable.describe(ptr) -> ptr
     local %0 $call.1: ptr
   block entry
-    t0 = heap_load param0 +16 : {ptr}
+    t0 = heap_load param0 +16 : struct0
     t1 = call @scoop.Label.describe(t0) : ptr
     store t1 -> local0
     ret local0
@@ -2067,18 +2067,18 @@ Module
     store t1 -> local0
     ret local0
   fun @scoop.function_bridge.$Closure$reference5.FIRAnyX(ptr, i64) -> ptr
-    local %0 $call.1: {ptr}
+    local %0 $call.1: struct0
   block entry
     t0 = call @scoop_rt_box(global35, param1, 8) : ptr
-    t1 = call_indirect param0[2](param0, t0) : {ptr}
+    t1 = call_indirect param0[2](param0, t0) : struct0
     store t1 -> local0
     t2 = call @scoop_rt_box(global45, local0, 8) : ptr
     ret t2
   fun @scoop.function_bridge.$Closure$reference5.FIRDescribableX(ptr, i64) -> ptr
-    local %0 $call.1: {ptr}
+    local %0 $call.1: struct0
   block entry
     t0 = call @scoop_rt_box(global35, param1, 8) : ptr
-    t1 = call_indirect param0[2](param0, t0) : {ptr}
+    t1 = call_indirect param0[2](param0, t0) : struct0
     store t1 -> local0
     t2 = call @scoop_rt_box(global45, local0, 8) : ptr
     ret t2

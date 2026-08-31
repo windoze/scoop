@@ -51,7 +51,7 @@ Runtime 是编译产物的支撑层，职责包括：
 ### 2.4 `String` / `Array` 布局
 
 - `String`：对象头 + 长度 + 内联字节数据（UTF-8，spec 11.4）。
-- `Array<T>` / `MutableArray<T>`：对象头 + `size` + 内联元素区；`T` 为值类型时元素不装箱且连续布局（满足 pack/align 约束，spec 10.1）。数组 TypeDescriptor 的扫描描述以元素 stride 重复执行 `T` 的递归子扫描，因此 `T` 可以是含引用或 tagged enum 的 struct / tuple。
+- `Array<T>` / `MutableArray<T>`：对象头 + `size` + 对齐填充 + 内联元素区；元素区起点为 `alignUp(24, alignOf<T>())`。`T` 为值类型时元素不装箱且按 `sizeOf<T>()` stride 连续布局（满足 pack/align 约束，spec 10.1）。数组 TypeDescriptor 的扫描描述以元素 stride 重复执行 `T` 的递归子扫描，因此 `T` 可以是含引用或 tagged enum 的 struct / tuple。
 
 ### 2.5 `Option` 的 niche 表示
 

@@ -3277,12 +3277,12 @@ Module
   enum Option$Continuation$EChoice niche(payload_variant=0)
   enum Option$S niche(payload_variant=0)
   enum CoroutineStep$I tagged size=8 align=8 variants=(i64) ()
-  enum CoroutineStep$Pair tagged size=16 align=8 variants=({i64, ptr}) ()
+  enum CoroutineStep$Pair tagged size=16 align=8 variants=(struct0) ()
   enum CoroutineStep$B tagged size=1 align=1 variants=(i1) ()
   enum CoroutineStep$EChoice tagged size=16 align=8 variants=(enum0) ()
   enum CoroutineSlot$GenericTask niche(payload_variant=1)
   enum CoroutineSlot$I tagged size=8 align=8 variants=() (i64)
-  enum CoroutineSlot$Pair tagged size=16 align=8 variants=() ({i64, ptr})
+  enum CoroutineSlot$Pair tagged size=16 align=8 variants=() (struct0)
   enum CoroutineSlot$Awaiter niche(payload_variant=1)
   enum CoroutineSlot$B tagged size=1 align=1 variants=() (i1)
   enum CoroutineSlot$EChoice tagged size=16 align=8 variants=() (enum0)
@@ -3343,7 +3343,7 @@ Module
     t11 = aggregate () : {}
     call @scoop.IntGate.complete(local0, 10)
     t12 = aggregate () : {}
-    t13 = aggregate (20, global2) : {i64, ptr}
+    t13 = aggregate (20, global2) : struct0
     call @scoop.PairGate.complete(local1, t13)
     t14 = aggregate () : {}
     call @scoop.BooleanGate.complete(local2, true)
@@ -3381,7 +3381,7 @@ Module
     call_indirect t7[0](local0, param1)
     t8 = aggregate () : {}
     ret
-  fun @scoop.PairGate.complete(ptr, {i64, ptr}) -> void
+  fun @scoop.PairGate.complete(ptr, struct0) -> void
     local %0 continuation: ptr
     local %1 $opt.1: enum2
     local %2 $uw.2: ptr
@@ -3684,7 +3684,7 @@ Module
     t14 = enum_tag e6 local0 : i64
     t15 = Eq t14, 0 : i1
     cbr t15 then @completed else @suspended
-  fun @scoop.Continuation.resume$Pair(ptr, {i64, ptr}) -> void
+  fun @scoop.Continuation.resume$Pair(ptr, struct0) -> void
   block entry
     br @unwrap.trap.1
   block unwrap.trap.1
@@ -3818,7 +3818,7 @@ Module
   fun @scoop.GenericTask.run$suspend$drive(ptr) -> enum6
     local %0 this: ptr
     local %1 number: i64
-    local %2 pair: {i64, ptr}
+    local %2 pair: struct0
     local %3 awaiter: ptr
     local %4 accepted: i1
     local %5 choice: enum0
@@ -3913,7 +3913,7 @@ Module
     t23 = enum_field e11 v1 f0 t22 : i64
     store t23 -> local1
     t24 = heap_load param0 +56 : enum12
-    t25 = enum_field e12 v1 f0 t24 : {i64, ptr}
+    t25 = enum_field e12 v1 f0 t24 : struct0
     store t25 -> local2
     t26 = heap_load param0 +88 : enum14
     t27 = enum_field e14 v1 f0 t26 : i1
@@ -3931,7 +3931,7 @@ Module
     t33 = enum_field e11 v1 f0 t32 : i64
     store t33 -> local1
     t34 = heap_load param0 +56 : enum12
-    t35 = enum_field e12 v1 f0 t34 : {i64, ptr}
+    t35 = enum_field e12 v1 f0 t34 : struct0
     store t35 -> local2
     t36 = heap_load param0 +88 : enum14
     t37 = enum_field e14 v1 f0 t36 : i1
@@ -3982,7 +3982,7 @@ Module
     t57 = enum_field e11 v1 f0 t56 : i64
     store t57 -> local1
     t58 = heap_load param0 +56 : enum12
-    t59 = enum_field e12 v1 f0 t58 : {i64, ptr}
+    t59 = enum_field e12 v1 f0 t58 : struct0
     store t59 -> local2
     t60 = heap_load param0 +80 : enum13
     t61 = enum_field e13 v1 f0 t60 : ptr
@@ -4003,7 +4003,7 @@ Module
     t69 = enum_field e11 v1 f0 t68 : i64
     store t69 -> local1
     t70 = heap_load param0 +56 : enum12
-    t71 = enum_field e12 v1 f0 t70 : {i64, ptr}
+    t71 = enum_field e12 v1 f0 t70 : struct0
     store t71 -> local2
     t72 = heap_load param0 +80 : enum13
     t73 = enum_field e13 v1 f0 t72 : ptr
@@ -4043,7 +4043,7 @@ Module
     cbr t89 then @coroutine.completed.3 else @coroutine.suspended.3
   block coroutine.completed.2
     heap_store local21 +24 3
-    t90 = enum_field e7 v0 f0 local22 : {i64, ptr}
+    t90 = enum_field e7 v0 f0 local22 : struct0
     store t90 -> local2
     br @coroutine.post.2
   block coroutine.suspended.2
@@ -4061,7 +4061,7 @@ Module
     t97 = enum_field e11 v1 f0 t96 : i64
     store t97 -> local8
     t98 = heap_load param0 +56 : enum12
-    t99 = enum_field e12 v1 f0 t98 : {i64, ptr}
+    t99 = enum_field e12 v1 f0 t98 : struct0
     store t99 -> local2
     br @coroutine.post.2
   block coroutine.failure.2
@@ -4450,7 +4450,7 @@ Module
     t23 = enum_tag e6 local0 : i64
     t24 = Eq t23, 0 : i1
     cbr t24 then @completed else @suspended
-  fun @scoop.GenericTask.run$suspend$resume$2(ptr, {i64, ptr}) -> void
+  fun @scoop.GenericTask.run$suspend$resume$2(ptr, struct0) -> void
     local %0 $step: enum6
     local %1 $protocol_error: ptr
     local %2 $uncaught: ptr
@@ -4997,7 +4997,7 @@ Module
     cbr t24 then @completed else @suspended
   fun @scoop.awaitTop$Pair$suspend$drive(ptr) -> enum7
     local %0 registration: ptr
-    local %1 $call.1: {i64, ptr}
+    local %1 $call.1: struct0
     local %2 $completion: ptr
     local %3 $safe_adapter.1: ptr
     local %4 $resume_exception.1: ptr
@@ -5028,7 +5028,7 @@ Module
   block coroutine.registered_success.1
     heap_store local3 +24 3
     t9 = heap_load local3 +32 : enum12
-    t10 = enum_field e12 v1 f0 t9 : {i64, ptr}
+    t10 = enum_field e12 v1 f0 t9 : struct0
     store t10 -> local1
     br @coroutine.post.1
   block coroutine.registered_failure.1
@@ -5077,7 +5077,7 @@ Module
   block coroutine.resume.1
     heap_store param0 +16 -1
     t25 = heap_load param0 +40 : enum12
-    t26 = enum_field e12 v1 f0 t25 : {i64, ptr}
+    t26 = enum_field e12 v1 f0 t25 : struct0
     store t26 -> local1
     br @coroutine.post.1
   block coroutine.failure.1
@@ -5114,7 +5114,7 @@ Module
     t7 = heap_load local3 +24 : i64
     t8 = Eq t7, 2 : i1
     cbr t8 then @coroutine.registered_success.1 else @coroutine.registered_check_failure.1
-  fun @scoop.awaitTop$Pair$suspend$resume$1(ptr, {i64, ptr}) -> void
+  fun @scoop.awaitTop$Pair$suspend$resume$1(ptr, struct0) -> void
     local %0 $step: enum7
     local %1 $protocol_error: ptr
     local %2 $uncaught: ptr
@@ -5131,7 +5131,7 @@ Module
     heap_store t1 +16 -2
     t2 = heap_load param0 +16 : ptr
     t3 = heap_load t2 +24 : ptr
-    t4 = enum_field e7 v0 f0 local0 : {i64, ptr}
+    t4 = enum_field e7 v0 f0 local0 : struct0
     t5 = heap_load t3 +0 : ptr
     t6 = call @scoop_rt_itable_lookup(t5, global20) : ptr
     call_indirect t6[0](t3, t4)
@@ -5207,7 +5207,7 @@ Module
     heap_store t1 +16 -2
     t2 = heap_load param0 +16 : ptr
     t3 = heap_load t2 +24 : ptr
-    t4 = enum_field e7 v0 f0 local0 : {i64, ptr}
+    t4 = enum_field e7 v0 f0 local0 : struct0
     t5 = heap_load t3 +0 : ptr
     t6 = call @scoop_rt_itable_lookup(t5, global20) : ptr
     call_indirect t6[0](t3, t4)

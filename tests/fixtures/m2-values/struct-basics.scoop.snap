@@ -342,9 +342,9 @@ Module
     t4 = aggregate () : {}
     ret
   fun @scoop_main() -> void
-    local %0 p: {i64, i64}
+    local %0 p: struct0
   block entry
-    t0 = aggregate (1, 2) : {i64, i64}
+    t0 = aggregate (1, 2) : struct0
     store t0 -> local0
     t1 = extract local0, 0 : i64
     t2 = call @scoop_rt_box(global6, t1, 8) : ptr

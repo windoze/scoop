@@ -98,6 +98,7 @@ mod annotations;
 mod class;
 mod effects;
 mod expr;
+mod ffi;
 mod overload;
 mod patterns;
 mod scope;
@@ -813,6 +814,7 @@ impl Lowerer {
 
         // Effects consume fully resolved calls and types. Local functions and
         // callable literals lifted while lowering the bodies are visible now.
+        self.validate_c_ffi_types();
         self.check_no_gc_functions();
 
         // A module without `main` never reaches HIR (hir docs); it is a

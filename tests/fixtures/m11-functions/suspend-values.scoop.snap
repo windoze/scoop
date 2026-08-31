@@ -10332,8 +10332,8 @@ Module
   enum CoroutineSlot$S niche(payload_variant=1)
   enum CoroutineSlot$Gate niche(payload_variant=1)
   enum CoroutineSlot$FContinuation$IRUX niche(payload_variant=1)
-  enum CoroutineSlot$FunctionSuspendTask$I tagged size=8 align=8 variants=() ({ptr})
-  enum CoroutineSlot$FunctionSuspendTask$U tagged size=8 align=8 variants=() ({ptr})
+  enum CoroutineSlot$FunctionSuspendTask$I tagged size=8 align=8 variants=() (struct1)
+  enum CoroutineSlot$FunctionSuspendTask$U tagged size=8 align=8 variants=() (struct2)
   fun @scoop.print(ptr) -> void
     local %0 $call.1: ptr
   block entry
@@ -11420,7 +11420,7 @@ Module
     ret local1
   fun @scoop.startCoroutine$I(ptr, ptr) -> void
   block entry
-    t0 = aggregate (param0) : {ptr}
+    t0 = aggregate (param0) : struct1
     t1 = call @scoop_rt_box(global91, t0, 8) : ptr
     call @scoop.coroutine.start$I(t1, param1)
     t2 = aggregate () : {}
@@ -11444,7 +11444,7 @@ Module
     ret local1
   fun @scoop.startCoroutine$U(ptr, ptr) -> void
   block entry
-    t0 = aggregate (param0) : {ptr}
+    t0 = aggregate (param0) : struct2
     t1 = call @scoop_rt_box(global93, t0, 8) : ptr
     call @scoop.coroutine.start$U(t1, param1)
     t2 = aggregate () : {}
@@ -11620,18 +11620,18 @@ Module
     store t1 -> local0
     ret local0
   fun @scoop.eq.FunctionSuspendRegistration$I(ptr, ptr) -> i1
-    local %0 $a: {ptr}
-    local %1 $b: {ptr}
+    local %0 $a: struct0
+    local %1 $b: struct0
   block entry
-    t0 = heap_load param0 +16 : {ptr}
+    t0 = heap_load param0 +16 : struct0
     store t0 -> local0
-    t1 = heap_load param1 +16 : {ptr}
+    t1 = heap_load param1 +16 : struct0
     store t1 -> local1
     t2 = extract local0, 0 : i64
     t3 = extract local1, 0 : i64
     t4 = Eq t2, t3 : i1
     ret t4
-  fun @scoop.FunctionSuspendRegistration.register$I({ptr}, ptr) -> void
+  fun @scoop.FunctionSuspendRegistration.register$I(struct0, ptr) -> void
   block entry
     t0 = extract param0, 0 : ptr
     call_indirect t0[2](t0, param1)
@@ -11639,23 +11639,23 @@ Module
     ret
   fun @scoop.thunk.FunctionSuspendRegistration$I.SuspendRegistration$I.register(ptr, ptr) -> void
   block entry
-    t0 = heap_load param0 +16 : {ptr}
+    t0 = heap_load param0 +16 : struct0
     call @scoop.FunctionSuspendRegistration.register$I(t0, param1)
     t1 = aggregate () : {}
     ret
   fun @scoop.eq.FunctionSuspendTask$I(ptr, ptr) -> i1
-    local %0 $a: {ptr}
-    local %1 $b: {ptr}
+    local %0 $a: struct1
+    local %1 $b: struct1
   block entry
-    t0 = heap_load param0 +16 : {ptr}
+    t0 = heap_load param0 +16 : struct1
     store t0 -> local0
-    t1 = heap_load param1 +16 : {ptr}
+    t1 = heap_load param1 +16 : struct1
     store t1 -> local1
     t2 = extract local0, 0 : i64
     t3 = extract local1, 0 : i64
     t4 = Eq t2, t3 : i1
     ret t4
-  fun @scoop.FunctionSuspendTask.run$I$suspend({ptr}, ptr) -> enum2
+  fun @scoop.FunctionSuspendTask.run$I$suspend(struct1, ptr) -> enum2
     local %0 $frame: ptr
     local %1 $step: enum2
   block entry
@@ -11690,18 +11690,18 @@ Module
     store t4 -> local1
     ret local1
   fun @scoop.eq.FunctionSuspendTask$U(ptr, ptr) -> i1
-    local %0 $a: {ptr}
-    local %1 $b: {ptr}
+    local %0 $a: struct2
+    local %1 $b: struct2
   block entry
-    t0 = heap_load param0 +16 : {ptr}
+    t0 = heap_load param0 +16 : struct2
     store t0 -> local0
-    t1 = heap_load param1 +16 : {ptr}
+    t1 = heap_load param1 +16 : struct2
     store t1 -> local1
     t2 = extract local0, 0 : i64
     t3 = extract local1, 0 : i64
     t4 = Eq t2, t3 : i1
     ret t4
-  fun @scoop.FunctionSuspendTask.run$U$suspend({ptr}, ptr) -> enum3
+  fun @scoop.FunctionSuspendTask.run$U$suspend(struct2, ptr) -> enum3
     local %0 $frame: ptr
     local %1 $step: enum3
   block entry
@@ -17632,7 +17632,7 @@ Module
     t3 = enum_wrap e2 v0 (local1) : enum2
     ret t3
   block coroutine.register.1
-    t4 = aggregate (local0) : {ptr}
+    t4 = aggregate (local0) : struct0
     t5 = call @scoop_rt_box(global154, t4, 8) : ptr
     t6 = heap_load t5 +0 : ptr
     t7 = call @scoop_rt_itable_lookup(t6, global155) : ptr
@@ -17894,7 +17894,7 @@ Module
     heap_store t0 +16 param0
     heap_store t0 +24 1
     store t0 -> local3
-    t1 = heap_load local0 +16 : {ptr}
+    t1 = heap_load local0 +16 : struct1
     t2 = call @scoop.FunctionSuspendTask.run$I$suspend(t1, local3) : enum2
     store t2 -> local4
     t3 = enum_tag e2 local4 : i64
@@ -18094,7 +18094,7 @@ Module
     heap_store t0 +16 param0
     heap_store t0 +24 1
     store t0 -> local2
-    t1 = heap_load local0 +16 : {ptr}
+    t1 = heap_load local0 +16 : struct2
     t2 = call @scoop.FunctionSuspendTask.run$U$suspend(t1, local2) : enum3
     store t2 -> local3
     t3 = enum_tag e3 local3 : i64
@@ -18688,7 +18688,7 @@ Module
     t24 = Eq t23, 0 : i1
     cbr t24 then @completed else @suspended
   fun @scoop.FunctionSuspendTask.run$I$suspend$drive(ptr) -> enum2
-    local %0 this: {ptr}
+    local %0 this: struct1
     local %1 $call.1: i64
     local %2 $completion: ptr
     local %3 $adapter.1: ptr
@@ -18731,7 +18731,7 @@ Module
     unreachable
   block coroutine.initial
     t12 = heap_load param0 +32 : enum16
-    t13 = enum_field e16 v1 f0 t12 : {ptr}
+    t13 = enum_field e16 v1 f0 t12 : struct1
     store t13 -> local0
     heap_store param0 +16 -1
     br @entry
@@ -18889,7 +18889,7 @@ Module
     t24 = Eq t23, 0 : i1
     cbr t24 then @completed else @suspended
   fun @scoop.FunctionSuspendTask.run$U$suspend$drive(ptr) -> enum3
-    local %0 this: {ptr}
+    local %0 this: struct2
     local %1 $completion: ptr
     local %2 $adapter.1: ptr
     local %3 $step.1: enum3
@@ -18927,7 +18927,7 @@ Module
     unreachable
   block coroutine.initial
     t10 = heap_load param0 +32 : enum17
-    t11 = enum_field e17 v1 f0 t10 : {ptr}
+    t11 = enum_field e17 v1 f0 t10 : struct2
     store t11 -> local0
     heap_store param0 +16 -1
     br @entry

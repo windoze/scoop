@@ -739,7 +739,7 @@ Module
     t4 = aggregate () : {}
     ret
   fun @scoop_main() -> void
-    local %0 ps: [{i64, i64}]
+    local %0 ps: [struct0]
     local %1 nested: [[i64]]
     local %2 es: [enum1]
     local %3 v: i64
@@ -748,7 +748,7 @@ Module
     local %6 $res.1: i64
     local %7 $opt.2: enum2
     local %8 $res.3: i64
-    local %9 $arr.1: [{i64, i64}]
+    local %9 $arr.1: [struct0]
     local %10 $idx.2: i64
     local %11 $arr.3: [i64]
     local %12 $idx.4: i64
@@ -774,9 +774,9 @@ Module
     local %32 $logic.11: i1
     local %33 $call.12: ptr
   block entry
-    t0 = aggregate (1, 2) : {i64, i64}
-    t1 = aggregate (3, 4) : {i64, i64}
-    t2 = array_alloc (t0, t1) : [{i64, i64}]
+    t0 = aggregate (1, 2) : struct0
+    t1 = aggregate (3, 4) : struct0
+    t2 = array_alloc (t0, t1) : [struct0]
     store t2 -> local0
     store local0 -> local9
     store 1 -> local10
@@ -798,7 +798,7 @@ Module
     throw local23
     unreachable
   block if.merge.5
-    t7 = array_get local9 local10 : {i64, i64}
+    t7 = array_get local9 local10 : struct0
     t8 = extract t7, 0 : i64
     t9 = call @scoop_rt_box(global7, t8, 8) : ptr
     call @scoop.println(t9)

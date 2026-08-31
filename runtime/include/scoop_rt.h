@@ -41,8 +41,10 @@ typedef struct ScoopItableEntry {
  *   without reference fields, arrays of non-reference elements).
  * - SCOOP_REFS_ARRAY: array object. Word 1 is the element stride and
  *   word 2 is a pointer (stored as u64) to the recursive scan program
- *   for one element. The count is at object offset 16; elements start
- *   at offset 24. A no-reference element scan makes the whole array
+ *   for one element. The count is at object offset 16; scanned managed
+ *   element types have alignment at most 8 and therefore start at
+ *   offset 24. Over-aligned C-layout elements are GC-free and carry a
+ *   NULL descriptor. A no-reference element scan makes the whole array
  *   descriptor NULL.
  * - SCOOP_REFS_ENUM: tagged enum at an arbitrary inline offset. Word 1
  *   is the tag byte offset, word 2 is the variant count N, and words
@@ -94,8 +96,10 @@ typedef struct ScoopString {
 } ScoopString;
 
 /* Runtime spec 2.5 / spec 10.1. Array objects are variable-length:
- * header + element count + inline elements (stride = element layout
- * size, known to codegen; elements of value types are unboxed). */
+ * header + element count + padding to the element alignment + inline
+ * elements (stride = element layout size, known to codegen; elements
+ * of value types are unboxed). `elements` names the minimum-alignment
+ * offset; codegen computes the actual aligned data offset. */
 typedef struct ScoopArray {
     ScoopObjectHeader header;
     uint64_t size;
@@ -149,10 +153,11 @@ _Noreturn void scoop_rt_trap(const char *message);
 
 /* M5 addition (milestone5 DESIGN section 3.1): `Array(m)` /
  * `MutableArray(a)` conversion (spec 10.4). Copies the whole object
- * (header + size + size * elem_size bytes of inline elements) into a
- * fresh GC allocation — a shallow snapshot: elements that are
+ * (data_offset + size * elem_size bytes, including header/size/padding)
+ * into a fresh GC allocation — a shallow snapshot: elements that are
  * references are copied as pointers, not cloned. */
-const void *scoop_rt_array_clone(const void *obj, uint64_t elem_size);
+const void *scoop_rt_array_clone(const void *obj, uint64_t elem_size,
+                                 uint64_t data_offset);
 
 /* M6 additions (milestone6 DESIGN section 3): dispatch support. */
 

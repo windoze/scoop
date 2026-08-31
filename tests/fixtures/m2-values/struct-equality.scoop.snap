@@ -692,10 +692,10 @@ Module
     t4 = aggregate () : {}
     ret
   fun @scoop_main() -> void
-    local %0 p1: {i64, i64}
-    local %1 p3: {i64, i64}
-    local %2 l1: {{i64, i64}, {i64, i64}}
-    local %3 l2: {{i64, i64}, {i64, i64}}
+    local %0 p1: struct0
+    local %1 p3: struct0
+    local %2 l1: struct1
+    local %3 l2: struct1
     local %4 t1: {i64, ptr}
     local %5 $logic.1: i1
     local %6 $logic.2: i1
@@ -711,18 +711,18 @@ Module
     local %16 $call.12: ptr
     local %17 $call.13: i1
   block entry
-    t0 = aggregate (1, 2) : {i64, i64}
+    t0 = aggregate (1, 2) : struct0
     store t0 -> local0
-    t1 = aggregate (3, 4) : {i64, i64}
+    t1 = aggregate (3, 4) : struct0
     store t1 -> local1
     t2 = extract local0, 0 : i64
-    t3 = aggregate (1, 2) : {i64, i64}
+    t3 = aggregate (1, 2) : struct0
     t4 = extract t3, 0 : i64
     t5 = Eq t2, t4 : i1
     cbr t5 then @logic.rhs.1 else @logic.short.2
   block logic.rhs.1
     t6 = extract local0, 1 : i64
-    t7 = aggregate (1, 2) : {i64, i64}
+    t7 = aggregate (1, 2) : struct0
     t8 = extract t7, 1 : i64
     t9 = Eq t6, t8 : i1
     store t9 -> local5
@@ -768,22 +768,22 @@ Module
     t26 = call @scoop_rt_box(global16, local7, 1) : ptr
     call @scoop.println(t26)
     t27 = aggregate () : {}
-    t28 = aggregate (local0, local1) : {{i64, i64}, {i64, i64}}
+    t28 = aggregate (local0, local1) : struct1
     store t28 -> local2
-    t29 = aggregate (1, 2) : {i64, i64}
-    t30 = aggregate (3, 4) : {i64, i64}
-    t31 = aggregate (t29, t30) : {{i64, i64}, {i64, i64}}
+    t29 = aggregate (1, 2) : struct0
+    t30 = aggregate (3, 4) : struct0
+    t31 = aggregate (t29, t30) : struct1
     store t31 -> local3
-    t32 = extract local2, 0 : {i64, i64}
+    t32 = extract local2, 0 : struct0
     t33 = extract t32, 0 : i64
-    t34 = extract local3, 0 : {i64, i64}
+    t34 = extract local3, 0 : struct0
     t35 = extract t34, 0 : i64
     t36 = Eq t33, t35 : i1
     cbr t36 then @logic.rhs.10 else @logic.short.11
   block logic.rhs.10
-    t37 = extract local2, 0 : {i64, i64}
+    t37 = extract local2, 0 : struct0
     t38 = extract t37, 1 : i64
-    t39 = extract local3, 0 : {i64, i64}
+    t39 = extract local3, 0 : struct0
     t40 = extract t39, 1 : i64
     t41 = Eq t38, t40 : i1
     store t41 -> local8
@@ -794,9 +794,9 @@ Module
   block logic.merge.12
     cbr local8 then @logic.rhs.13 else @logic.short.14
   block logic.rhs.13
-    t42 = extract local2, 1 : {i64, i64}
+    t42 = extract local2, 1 : struct0
     t43 = extract t42, 0 : i64
-    t44 = extract local3, 1 : {i64, i64}
+    t44 = extract local3, 1 : struct0
     t45 = extract t44, 0 : i64
     t46 = Eq t43, t45 : i1
     cbr t46 then @logic.rhs.16 else @logic.short.17
@@ -815,9 +815,9 @@ Module
     t53 = Eq t50, t52 : i1
     cbr t53 then @logic.rhs.19 else @logic.short.20
   block logic.rhs.16
-    t54 = extract local2, 1 : {i64, i64}
+    t54 = extract local2, 1 : struct0
     t55 = extract t54, 1 : i64
-    t56 = extract local3, 1 : {i64, i64}
+    t56 = extract local3, 1 : struct0
     t57 = extract t56, 1 : i64
     t58 = Eq t55, t57 : i1
     store t58 -> local10

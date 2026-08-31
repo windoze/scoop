@@ -1565,6 +1565,11 @@ impl Lowerer {
             }
             let mir_id = self.structs.defs.alloc(mir::StructDef {
                 name: decl.name.clone(),
+                c_layout: decl.attributes.c_layout.map(|layout| mir::CLayout {
+                    aligned: layout.aligned,
+                    packed: layout.packed,
+                }),
+                interior_mutable: decl.attributes.interior_mutable,
                 fields: Vec::new(),
             });
             self.struct_map.insert(hir_id, mir_id);
@@ -3262,6 +3267,8 @@ fn mangling_shell(
     for (_, def) in structs.iter() {
         shell_structs.alloc(mir::StructDef {
             name: def.name.clone(),
+            c_layout: def.c_layout,
+            interior_mutable: def.interior_mutable,
             fields: Vec::new(),
         });
     }
@@ -3654,12 +3661,22 @@ impl StructRegistry {
         }
         let id = self.defs.alloc(mir::StructDef {
             name: name.clone(),
+            c_layout: decl.attributes.c_layout.map(|layout| mir::CLayout {
+                aligned: layout.aligned,
+                packed: layout.packed,
+            }),
+            interior_mutable: decl.attributes.interior_mutable,
             fields: Vec::new(),
         });
         // Keep the mangling shell's struct arena in sync (same ids) so
         // `encode_type` can render this instance inside another one.
         shell.structs.alloc(mir::StructDef {
             name: name.clone(),
+            c_layout: decl.attributes.c_layout.map(|layout| mir::CLayout {
+                aligned: layout.aligned,
+                packed: layout.packed,
+            }),
+            interior_mutable: decl.attributes.interior_mutable,
             fields: Vec::new(),
         });
         self.by_name.insert(name, id);

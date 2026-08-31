@@ -1147,7 +1147,7 @@ Module
     heap_store param0 +16 param1
     t0 = heap_load param0 +16 : ptr
     ret t0
-  fun @scoop.$extension.apply({i64}, i64) -> i64
+  fun @scoop.$extension.apply(struct0, i64) -> i64
   block entry
     t0 = extract param0, 0 : i64
     t1 = Add param1, t0 : i64
@@ -1175,7 +1175,7 @@ Module
     local %7 capturedReceiver: ptr
     local %8 factory: ptr
     local %9 once: ptr
-    local %10 offset: {i64}
+    local %10 offset: struct0
     local %11 snapshot: ptr
     local %12 throwing: ptr
     local %13 exception: ptr
@@ -1247,7 +1247,7 @@ Module
     store t21 -> local21
     call @scoop.println(local21)
     t22 = aggregate () : {}
-    t23 = aggregate (2) : {i64}
+    t23 = aggregate (2) : struct0
     t24 = call @scoop.$extension.apply(t23, 40) : i64
     store t24 -> local22
     t25 = call @scoop_rt_box(global29, local22, 8) : ptr
@@ -1286,14 +1286,14 @@ Module
     t41 = call @scoop_rt_box(global29, t40, 8) : ptr
     call @scoop.println(t41)
     t42 = aggregate () : {}
-    t43 = aggregate (2) : {i64}
+    t43 = aggregate (2) : struct0
     store t43 -> local10
     t44 = call @scoop_rt_alloc(global36, 32) : ptr
     t45 = function_address @scoop.$reference.6 : ptr
     heap_store t44 +16 t45
     heap_store t44 +24 local10
     store t44 -> local11
-    t46 = aggregate (100) : {i64}
+    t46 = aggregate (100) : struct0
     store t46 -> local10
     t47 = call @scoop.ctor.ThrowingExtension() : ptr
     store t47 -> local24
@@ -1463,7 +1463,7 @@ Module
   fun @scoop.$reference.6(ptr, i64) -> i64
     local %0 $call.1: i64
   block entry
-    t0 = heap_load param0 +24 : {i64}
+    t0 = heap_load param0 +24 : struct0
     t1 = call @scoop.$extension.apply(t0, param1) : i64
     store t1 -> local0
     ret local0

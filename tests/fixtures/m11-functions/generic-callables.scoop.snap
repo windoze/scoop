@@ -1206,9 +1206,9 @@ Module
     heap_store t0 +24 param0
     ret t0
   fun @scoop.makeBoxReader$I(i64) -> ptr
-    local %0 box: {i64}
+    local %0 box: struct0
   block entry
-    t0 = aggregate (param0) : {i64}
+    t0 = aggregate (param0) : struct0
     store t0 -> local0
     t1 = call @scoop_rt_alloc(global34, 32) : ptr
     t2 = function_address @scoop.$lambda.2$I : ptr
@@ -1216,9 +1216,9 @@ Module
     heap_store t1 +24 local0
     ret t1
   fun @scoop.makeBoxReader$S(ptr) -> ptr
-    local %0 box: {ptr}
+    local %0 box: struct1
   block entry
-    t0 = aggregate (param0) : {ptr}
+    t0 = aggregate (param0) : struct1
     store t0 -> local0
     t1 = call @scoop_rt_alloc(global35, 32) : ptr
     t2 = function_address @scoop.$lambda.2$S : ptr
@@ -1317,12 +1317,12 @@ Module
     ret t0
   fun @scoop.$lambda.2$I(ptr) -> i64
   block entry
-    t0 = heap_load param0 +24 : {i64}
+    t0 = heap_load param0 +24 : struct0
     t1 = extract t0, 0 : i64
     ret t1
   fun @scoop.$lambda.2$S(ptr) -> ptr
   block entry
-    t0 = heap_load param0 +24 : {ptr}
+    t0 = heap_load param0 +24 : struct1
     t1 = extract t0, 0 : ptr
     ret t1
   fun @scoop.$lambda.1$I(ptr) -> i64

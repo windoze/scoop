@@ -669,7 +669,7 @@ Module
     heap_store t0 +16 t1
     heap_store t0 +24 param0
     ret t0
-  fun @scoop.labelReader({ptr}) -> ptr
+  fun @scoop.labelReader(struct0) -> ptr
   block entry
     t0 = call @scoop_rt_alloc(global9, 32) : ptr
     t1 = function_address @scoop.$lambda.3 : ptr
@@ -695,7 +695,7 @@ Module
     local %1 outer: ptr
     local %2 inner: ptr
     local %3 reader: ptr
-    local %4 source: {i64}
+    local %4 source: struct1
     local %5 getter: ptr
     local %6 counter: ptr
     local %7 increment: ptr
@@ -713,14 +713,14 @@ Module
     store t1 -> local1
     t2 = call_indirect local1[2](local1) : ptr
     store t2 -> local2
-    t3 = aggregate (global1) : {ptr}
+    t3 = aggregate (global1) : struct0
     t4 = call @scoop.labelReader(t3) : ptr
     store t4 -> local3
-    t5 = aggregate (1) : {i64}
+    t5 = aggregate (1) : struct1
     store t5 -> local4
     t6 = call @scoop.Snapshot.getter(local4) : ptr
     store t6 -> local5
-    t7 = aggregate (2) : {i64}
+    t7 = aggregate (2) : struct1
     store t7 -> local4
     t8 = call @scoop.ctor.Counter(40) : ptr
     store t8 -> local6
@@ -768,7 +768,7 @@ Module
     call @scoop.println(t33)
     t34 = aggregate () : {}
     ret
-  fun @scoop.Snapshot.getter({i64}) -> ptr
+  fun @scoop.Snapshot.getter(struct1) -> ptr
   block entry
     t0 = call @scoop_rt_alloc(global12, 32) : ptr
     t1 = function_address @scoop.$lambda.5 : ptr
@@ -801,7 +801,7 @@ Module
     ret t0
   fun @scoop.$lambda.3(ptr) -> ptr
   block entry
-    t0 = heap_load param0 +24 : {ptr}
+    t0 = heap_load param0 +24 : struct0
     t1 = extract t0, 0 : ptr
     ret t1
   fun @scoop.$lambda.4(ptr) -> i64
@@ -811,7 +811,7 @@ Module
     ret t1
   fun @scoop.$lambda.5(ptr) -> i64
   block entry
-    t0 = heap_load param0 +24 : {i64}
+    t0 = heap_load param0 +24 : struct1
     t1 = extract t0, 0 : i64
     ret t1
   fun @scoop.$lambda.6(ptr) -> i64

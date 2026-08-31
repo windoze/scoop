@@ -370,7 +370,7 @@ Module
     local %3 $ub.2: i64
     local %4 $call.1: ptr
   block entry
-    t0 = aggregate (1) : {i64}
+    t0 = aggregate (1) : struct0
     t1 = call @scoop_rt_box(global6, t0, 8) : ptr
     store t1 -> local0
     store local0 -> local2
@@ -430,12 +430,12 @@ Module
     heap_store t0 +16 t1
     ret t0
   fun @scoop.eq.S(ptr, ptr) -> i1
-    local %0 $a: {i64}
-    local %1 $b: {i64}
+    local %0 $a: struct0
+    local %1 $b: struct0
   block entry
-    t0 = heap_load param0 +16 : {i64}
+    t0 = heap_load param0 +16 : struct0
     store t0 -> local0
-    t1 = heap_load param1 +16 : {i64}
+    t1 = heap_load param1 +16 : struct0
     store t1 -> local1
     t2 = extract local0, 0 : i64
     t3 = extract local1, 0 : i64

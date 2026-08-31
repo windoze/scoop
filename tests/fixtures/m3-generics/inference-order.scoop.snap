@@ -544,7 +544,7 @@ Module
   block entry
     ret param1
   fun @scoop_main() -> void
-    local %0 pair: {enum1, i64}
+    local %0 pair: struct0
     local %1 duo: enum2
     local %2 value: i64
     local %3 $when.1: enum2
@@ -561,7 +561,7 @@ Module
     call @scoop.println(t2)
     t3 = aggregate () : {}
     t4 = enum_wrap e1 v1 () : enum1
-    t5 = aggregate (t4, 8) : {enum1, i64}
+    t5 = aggregate (t4, 8) : struct0
     store t5 -> local0
     t6 = extract local0, 1 : i64
     t7 = call @scoop_rt_box(global6, t6, 8) : ptr

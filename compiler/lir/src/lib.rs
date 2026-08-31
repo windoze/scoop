@@ -15,6 +15,7 @@ pub type LocalId = Idx<Local>;
 pub type TempId = Idx<Temp>;
 pub type BlockId = Idx<BasicBlock>;
 pub type EnumDefId = Idx<EnumDef>;
+pub type StructDefId = Idx<StructDef>;
 
 /// Symbol of the TypeDescriptor global for `String` (runtime spec 2.2).
 pub const STRING_TD_SYMBOL: &str = "scoop_td_String";
@@ -35,8 +36,12 @@ pub enum LirType {
     /// Opaque Itanium EH landing-pad record (`{ ptr, i32 }` in LLVM).
     /// It is produced by exception pads and may be consumed by `Resume`.
     ExceptionRecord,
-    /// struct / tuple values: an LLVM literal struct.
+    /// Tuple / Unit values: an LLVM literal struct.
     Aggregate(Vec<LirType>),
+    /// A named Scoop struct. Its exact physical layout is carried by the
+    /// module's `StructDef`, so packed and over-aligned layouts cannot be
+    /// erased into an anonymous natural aggregate.
+    Struct(StructDefId),
     /// An array object: pointer to `{ td, i64 size, inline elements }`
     /// (spec 10.1). The payload is the element layout.
     Array(Box<LirType>),
@@ -57,6 +62,7 @@ impl LirType {
                 let inner: Vec<String> = elements.iter().map(LirType::dump).collect();
                 format!("{{{}}}", inner.join(", "))
             }
+            LirType::Struct(id) => format!("struct{}", id.into_raw()),
             LirType::Enum(id) => format!("enum{}", id.into_raw()),
             LirType::Array(inner) => format!("[{}]", inner.dump()),
         }
@@ -66,6 +72,9 @@ impl LirType {
 #[derive(Debug)]
 pub struct Module {
     pub globals: Arena<Global>,
+    /// Struct definitions with complete physical layouts (indexed by
+    /// `StructDefId`; ids align with MIR struct ids).
+    pub structs: Arena<StructDef>,
     /// Enum definitions with fixed representations (indexed by
     /// `EnumDefId`).
     pub enums: Arena<EnumDef>,
@@ -73,6 +82,36 @@ pub struct Module {
     /// Symbol of the entry function (`scoop_main`).
     pub entry_symbol: String,
     pub meta: LirMeta,
+}
+
+#[derive(Debug)]
+pub struct StructDef {
+    pub name: String,
+    pub fields: Vec<StructField>,
+    pub size: u64,
+    pub align: u64,
+    pub c_layout: Option<CLayout>,
+    pub interior_mutable: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StructField {
+    pub ty: LirType,
+    pub layout: FieldLayout,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FieldLayout {
+    pub offset: u64,
+    /// Alignment that a load/store of this field may claim. Packed layouts
+    /// cap this independently of the field type's natural alignment.
+    pub access_align: u64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CLayout {
+    pub aligned: u8,
+    pub packed: u8,
 }
 
 /// Per-Cone LIR metadata (impl spec 2.4): type layouts.
@@ -121,6 +160,9 @@ pub struct Layout {
     pub name: String,
     pub size: u64,
     pub align: u64,
+    pub fields: Vec<FieldLayout>,
+    pub c_layout: Option<CLayout>,
+    pub interior_mutable: bool,
     pub kind: LayoutKind,
 }
 
@@ -714,6 +756,23 @@ pub fn dump(module: &Module) -> String {
                     ));
                 }
             }
+        }
+        if let Some(c_layout) = layout.c_layout {
+            let fields = layout
+                .fields
+                .iter()
+                .map(|field| format!("{}@{}", field.offset, field.access_align))
+                .collect::<Vec<_>>()
+                .join(",");
+            out.push_str(&format!(
+                "  layout-meta {} c-layout(aligned={},packed={}) fields=[{}] interior-mutable={}\n",
+                layout.name, c_layout.aligned, c_layout.packed, fields, layout.interior_mutable
+            ));
+        } else if layout.interior_mutable {
+            out.push_str(&format!(
+                "  layout-meta {} interior-mutable=true\n",
+                layout.name
+            ));
         }
     }
     out.push_str(&format!("  entry @{}\n", module.entry_symbol));

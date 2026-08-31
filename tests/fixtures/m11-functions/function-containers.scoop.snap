@@ -616,7 +616,7 @@ Module
     local %1 operation: ptr
     local %2 optional: enum1
     local %3 operations: [ptr]
-    local %4 box: {ptr}
+    local %4 box: struct0
     local %5 sum: ptr
     local %6 selected: ptr
     local %7 $when.1: enum1
@@ -647,7 +647,7 @@ Module
     heap_store t3 +16 t4
     t5 = array_alloc (local1, t3) : [ptr]
     store t5 -> local3
-    t6 = aggregate (local1) : {ptr}
+    t6 = aggregate (local1) : struct0
     store t6 -> local4
     t7 = call @scoop_rt_alloc(global8, 24) : ptr
     t8 = function_address @scoop.$lambda.1 : ptr

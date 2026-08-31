@@ -268,7 +268,7 @@ void scoop_main(void) {
         uint64_t size;
         int64_t data[3];
     } original = {&array_td, 0, 3, {10, 20, 30}};
-    const ScoopArray *clone = scoop_rt_array_clone(&original, sizeof(int64_t));
+    const ScoopArray *clone = scoop_rt_array_clone(&original, sizeof(int64_t), 24);
     original.data[0] = 99;
     const int64_t *snapshot = (const int64_t *)clone->elements;
     scoop_rt_println_boolean(snapshot[0] == 10 && snapshot[1] == 20 && snapshot[2] == 30);

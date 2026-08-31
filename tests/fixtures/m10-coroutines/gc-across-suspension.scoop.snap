@@ -1691,7 +1691,7 @@ Module
   global @scoop_td_CoroutineAdapter$scoop_GcTask_run_suspend$1 = c""
   enum Option$Continuation$I niche(payload_variant=0)
   enum Option$S niche(payload_variant=0)
-  enum Payload tagged size=16 align=8 variants=({ptr, ptr}) ()
+  enum Payload tagged size=16 align=8 variants=(struct0) ()
   enum CoroutineStep$I tagged size=8 align=8 variants=(i64) ()
   enum CoroutineSlot$Gate niche(payload_variant=1)
   enum CoroutineSlot$I tagged size=8 align=8 variants=() (i64)
@@ -1700,7 +1700,7 @@ Module
   enum CoroutineSlot$S niche(payload_variant=1)
   enum CoroutineSlot$GcTask niche(payload_variant=1)
   enum CoroutineSlot$Node niche(payload_variant=1)
-  enum CoroutineSlot$Bundle tagged size=16 align=8 variants=() ({ptr, ptr})
+  enum CoroutineSlot$Bundle tagged size=16 align=8 variants=() (struct0)
   fun @scoop.print(ptr) -> void
     local %0 $call.1: ptr
   block entry
@@ -2305,7 +2305,7 @@ Module
     local %1 payload: enum2
     local %2 marker: ptr
     local %3 value: i64
-    local %4 bundle: {ptr, ptr}
+    local %4 bundle: struct0
     local %5 $when.1: enum2
     local %6 $completion: ptr
     local %7 $adapter.1: ptr
@@ -2329,7 +2329,7 @@ Module
     t6 = Eq t5, 0 : i1
     cbr t6 then @coroutine.completed.1 else @coroutine.suspended.1
   block if.then.1
-    t7 = enum_field e2 v0 f0 local5 : {ptr, ptr}
+    t7 = enum_field e2 v0 f0 local5 : struct0
     store t7 -> local4
     t8 = extract local4, 0 : ptr
     call @scoop.println(t8)
@@ -2558,10 +2558,10 @@ Module
     local %0 this: ptr
     local %1 taskText: ptr
     local %2 node: ptr
-    local %3 bundle: {ptr, ptr}
+    local %3 bundle: struct0
     local %4 payload: enum2
     local %5 value: i64
-    local %6 saved: {ptr, ptr}
+    local %6 saved: struct0
     local %7 $when.1: enum2
     local %8 $call.1: ptr
     local %9 $call.2: ptr
@@ -2578,7 +2578,7 @@ Module
     store t2 -> local2
     t3 = call @scoop_rt_string_concat(global12, global13) : ptr
     store t3 -> local9
-    t4 = aggregate (local9, local2) : {ptr, ptr}
+    t4 = aggregate (local9, local2) : struct0
     store t4 -> local3
     t5 = enum_wrap e2 v0 (local3) : enum2
     store t5 -> local4
@@ -2602,7 +2602,7 @@ Module
     t14 = Eq t13, 0 : i1
     cbr t14 then @coroutine.completed.1 else @coroutine.suspended.1
   block if.then.1
-    t15 = enum_field e2 v0 f0 local7 : {ptr, ptr}
+    t15 = enum_field e2 v0 f0 local7 : struct0
     store t15 -> local6
     t16 = extract local6, 0 : ptr
     call @scoop.println(t16)
@@ -2656,7 +2656,7 @@ Module
     t38 = enum_field e10 v1 f0 t37 : ptr
     store t38 -> local2
     t39 = heap_load param0 +56 : enum11
-    t40 = enum_field e11 v1 f0 t39 : {ptr, ptr}
+    t40 = enum_field e11 v1 f0 t39 : struct0
     store t40 -> local3
     t41 = heap_load param0 +80 : enum7
     t42 = enum_field e7 v1 f0 t41 : enum2
@@ -2674,7 +2674,7 @@ Module
     t48 = enum_field e10 v1 f0 t47 : ptr
     store t48 -> local2
     t49 = heap_load param0 +56 : enum11
-    t50 = enum_field e11 v1 f0 t49 : {ptr, ptr}
+    t50 = enum_field e11 v1 f0 t49 : struct0
     store t50 -> local3
     t51 = heap_load param0 +80 : enum7
     t52 = enum_field e7 v1 f0 t51 : enum2

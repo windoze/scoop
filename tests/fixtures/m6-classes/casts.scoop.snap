@@ -536,18 +536,18 @@ Module
     ret
   fun @scoop_main() -> void
     local %0 a: ptr
-    local %1 s: {i64}
+    local %1 s: struct0
     local %2 i: enum1
     local %3 b: ptr
     local %4 $cast.1: ptr
-    local %5 $ub.2: {i64}
+    local %5 $ub.2: struct0
     local %6 $cast.3: ptr
     local %7 $cast.4: enum1
     local %8 $call.1: ptr
     local %9 $logic.2: i1
     local %10 $logic.3: i1
   block entry
-    t0 = aggregate (1) : {i64}
+    t0 = aggregate (1) : struct0
     t1 = call @scoop_rt_box(global6, t0, 8) : ptr
     store t1 -> local0
     t2 = call @scoop_rt_is_instance(local0, global6) : i1
@@ -568,7 +568,7 @@ Module
     throw local8
     unreachable
   block if.merge.2
-    t11 = heap_load local4 +16 : {i64}
+    t11 = heap_load local4 +16 : struct0
     store t11 -> local5
     store local5 -> local1
     t12 = extract local1, 0 : i64
@@ -680,12 +680,12 @@ Module
     heap_store t0 +24 param0
     ret t0
   fun @scoop.eq.S(ptr, ptr) -> i1
-    local %0 $a: {i64}
-    local %1 $b: {i64}
+    local %0 $a: struct0
+    local %1 $b: struct0
   block entry
-    t0 = heap_load param0 +16 : {i64}
+    t0 = heap_load param0 +16 : struct0
     store t0 -> local0
-    t1 = heap_load param1 +16 : {i64}
+    t1 = heap_load param1 +16 : struct0
     store t1 -> local1
     t2 = extract local0, 0 : i64
     t3 = extract local1, 0 : i64

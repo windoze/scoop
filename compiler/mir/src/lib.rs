@@ -232,7 +232,15 @@ pub struct DynamicClosureAdapter {
 #[derive(Debug)]
 pub struct StructDef {
     pub name: String,
+    pub c_layout: Option<CLayout>,
+    pub interior_mutable: bool,
     pub fields: Vec<Field>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CLayout {
+    pub aligned: u8,
+    pub packed: u8,
 }
 
 #[derive(Debug)]
@@ -854,7 +862,27 @@ pub fn dump(module: &Module) -> String {
             .iter()
             .map(|f| format!("{}: {}", f.name, type_name(module, &f.ty)))
             .collect();
-        out.push_str(&format!("  struct {} ({})\n", def.name, fields.join(", ")));
+        let mut attributes = Vec::new();
+        if let Some(layout) = def.c_layout {
+            attributes.push(format!(
+                "c-layout aligned={} packed={}",
+                layout.aligned, layout.packed
+            ));
+        }
+        if def.interior_mutable {
+            attributes.push("interior-mutable".to_string());
+        }
+        let attributes = if attributes.is_empty() {
+            String::new()
+        } else {
+            format!(" <{}>", attributes.join(" "))
+        };
+        out.push_str(&format!(
+            "  struct {} ({}){}\n",
+            def.name,
+            fields.join(", "),
+            attributes
+        ));
     }
     for (_, def) in module.enums.iter() {
         out.push_str(&format!("  enum {}\n", def.name));

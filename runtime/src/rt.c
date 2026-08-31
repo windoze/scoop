@@ -102,9 +102,10 @@ _Noreturn void scoop_rt_trap(const char *message) {
     abort();
 }
 
-const void *scoop_rt_array_clone(const void *obj, uint64_t elem_size) {
+const void *scoop_rt_array_clone(const void *obj, uint64_t elem_size,
+                                 uint64_t data_offset) {
     const ScoopArray *src = obj;
-    size_t bytes = sizeof(ScoopObjectHeader) + sizeof(uint64_t) + (size_t)(src->size * elem_size);
+    size_t bytes = (size_t)data_offset + (size_t)(src->size * elem_size);
     /* GC allocation: the copy keeps the source's TypeDescriptor (the
      * conversion preserves the array type, spec 10.4). */
     void *copy = scoop_rt_alloc(src->header.td, bytes);

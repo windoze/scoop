@@ -119,7 +119,8 @@
 //! heap object is `{ ptr td, u64 gc_word, ... }` — the GC's mark / pin
 //! word sits between the TypeDescriptor pointer and the payload. Class
 //! fields start at naturally aligned byte offsets from 16; the boxed
-//! payload and array size are at byte 16 (elements start at 24), and
+//! payload and array size are at byte 16 (elements start at byte 24,
+//! rounded up when the element type is over-aligned), and
 //! the String length is at byte 16 (bytes at 24). The layout math below
 //! counts the header as 16 bytes; `scoop_rt_alloc` writes both header words (the TD from
 //! its argument, a zeroed GC word), so no lowering stores the header.
@@ -164,6 +165,9 @@ pub fn lower(module: &mir::Module) -> lir::Module {
     // Enum definitions with fixed representations, in the MIR arena's
     // order: `mir::EnumId` and `lir::EnumDefId` align.
     let enums = lower_enums(module);
+    // Struct ids also transpose 1:1. Their definitions retain the exact
+    // physical layout needed by codegen and C bridge generation.
+    let structs = lower_structs(module, &enums);
 
     // Tuple types encountered while mapping value types, in
     // first-appearance order; each one gets a meta layout.
@@ -194,6 +198,7 @@ pub fn lower(module: &mir::Module) -> lir::Module {
     let type_descriptors = type_descriptors(module, &enums);
     lir::Module {
         globals,
+        structs,
         enums,
         functions,
         entry_symbol: module.functions[module.entry].symbol.clone(),
@@ -207,6 +212,38 @@ pub fn lower(module: &mir::Module) -> lir::Module {
 /// The `lir::EnumDefId` of a MIR enum (the arenas are transposed 1:1).
 fn enum_def_id(id: mir::EnumId) -> lir::EnumDefId {
     lir::EnumDefId::from_raw(id.into_raw())
+}
+
+fn struct_def_id(id: mir::StructId) -> lir::StructDefId {
+    lir::StructDefId::from_raw(id.into_raw())
+}
+
+fn lower_structs(module: &mir::Module, enums: &Arena<lir::EnumDef>) -> Arena<lir::StructDef> {
+    let enum_shape = |id: mir::EnumId| repr_shape(&enums[enum_def_id(id)].repr);
+    let mut structs = Arena::new();
+    for (_, definition) in module.structs.iter() {
+        let (field_layouts, size, align) = struct_shape(module, &enum_shape, definition);
+        structs.alloc(lir::StructDef {
+            name: definition.name.clone(),
+            fields: definition
+                .fields
+                .iter()
+                .zip(field_layouts)
+                .map(|(field, layout)| lir::StructField {
+                    ty: lir_type(&field.ty),
+                    layout,
+                })
+                .collect(),
+            size,
+            align,
+            c_layout: definition.c_layout.map(|layout| lir::CLayout {
+                aligned: layout.aligned,
+                packed: layout.packed,
+            }),
+            interior_mutable: definition.interior_mutable,
+        });
+    }
+    structs
 }
 
 /// Fix the representation of every MIR enum definition (spec 7.4).
@@ -294,7 +331,7 @@ fn compute_repr(module: &mir::Module, reprs: &mut Vec<Option<lir::EnumRepr>>, id
             .find(|(_, v)| !v.fields.is_empty());
         if let (true, Some((payload_index, payload_variant))) = (has_unit, payload) {
             if payload_variant.fields.len() == 1
-                && lir_type(module, &payload_variant.fields[0].ty) == lir::LirType::Ptr
+                && lir_type(&payload_variant.fields[0].ty) == lir::LirType::Ptr
             {
                 reprs[index] = Some(lir::EnumRepr::Niche {
                     payload_variant: payload_index as u32,
@@ -320,7 +357,7 @@ fn compute_repr(module: &mir::Module, reprs: &mut Vec<Option<lir::EnumRepr>>, id
         let fields: Vec<lir::LirType> = variant
             .fields
             .iter()
-            .map(|field| lir_type(module, &field.ty))
+            .map(|field| lir_type(&field.ty))
             .collect();
         let field_types: Vec<mir::Type> = variant
             .fields
@@ -402,8 +439,7 @@ fn layouts(
         scalar_layout("Boolean", 1, 1),
     ];
     for (_, def) in module.structs.iter() {
-        let fields: Vec<mir::Type> = def.fields.iter().map(|field| field.ty.clone()).collect();
-        layouts.push(aggregate_layout(module, enums, def.name.clone(), &fields));
+        layouts.push(struct_layout(module, enums, def));
     }
     for (id, def) in module.enums.iter() {
         layouts.push(enum_layout(module, enums, id, def));
@@ -414,6 +450,21 @@ fn layouts(
             name: def.name.clone(),
             size,
             align,
+            fields: def
+                .fields
+                .iter()
+                .zip(class_shape(module, enums, def).0)
+                .map(|(field, offset)| {
+                    let enum_shape = |id: mir::EnumId| repr_shape(&enums[enum_def_id(id)].repr);
+                    let (_, access_align) = size_align(module, &enum_shape, &field.ty);
+                    lir::FieldLayout {
+                        offset,
+                        access_align,
+                    }
+                })
+                .collect(),
+            c_layout: None,
+            interior_mutable: false,
             kind: lir::LayoutKind::Plain { scan },
         });
     }
@@ -423,6 +474,9 @@ fn layouts(
             name: def.name.clone(),
             size,
             align,
+            fields: Vec::new(),
+            c_layout: None,
+            interior_mutable: false,
             kind: lir::LayoutKind::Plain { scan },
         });
     }
@@ -459,6 +513,9 @@ fn string_layout() -> lir::Layout {
         name: "String".to_string(),
         size: 24,
         align: 8,
+        fields: Vec::new(),
+        c_layout: None,
+        interior_mutable: false,
         kind: lir::LayoutKind::Plain {
             scan: lir::RefScan::None,
         },
@@ -470,6 +527,9 @@ fn scalar_layout(name: &str, size: u64, align: u64) -> lir::Layout {
         name: name.to_string(),
         size,
         align,
+        fields: Vec::new(),
+        c_layout: None,
+        interior_mutable: false,
         kind: lir::LayoutKind::Plain {
             scan: lir::RefScan::None,
         },
@@ -492,6 +552,47 @@ fn aggregate_layout(
         name,
         size,
         align,
+        fields: offsets
+            .iter()
+            .zip(fields)
+            .map(|(&offset, field)| {
+                let (_, access_align) = size_align(module, &enum_shape, field);
+                lir::FieldLayout {
+                    offset,
+                    access_align,
+                }
+            })
+            .collect(),
+        c_layout: None,
+        interior_mutable: false,
+        kind: lir::LayoutKind::Plain { scan },
+    }
+}
+
+fn struct_layout(
+    module: &mir::Module,
+    enums: &Arena<lir::EnumDef>,
+    definition: &mir::StructDef,
+) -> lir::Layout {
+    let enum_shape = |id: mir::EnumId| repr_shape(&enums[enum_def_id(id)].repr);
+    let (fields, size, align) = struct_shape(module, &enum_shape, definition);
+    let field_types: Vec<_> = definition
+        .fields
+        .iter()
+        .map(|field| field.ty.clone())
+        .collect();
+    let offsets: Vec<_> = fields.iter().map(|field| field.offset).collect();
+    let scan = scan_fields(module, enums, &field_types, &offsets, 0);
+    lir::Layout {
+        name: definition.name.clone(),
+        size,
+        align,
+        fields,
+        c_layout: definition.c_layout.map(|layout| lir::CLayout {
+            aligned: layout.aligned,
+            packed: layout.packed,
+        }),
+        interior_mutable: definition.interior_mutable,
         kind: lir::LayoutKind::Plain { scan },
     }
 }
@@ -509,6 +610,9 @@ fn enum_layout(
             name: def.name.clone(),
             size: 8,
             align: 8,
+            fields: Vec::new(),
+            c_layout: None,
+            interior_mutable: false,
             kind: lir::LayoutKind::Enum {
                 variants: def
                     .variants
@@ -548,6 +652,9 @@ fn enum_layout(
                 name: def.name.clone(),
                 size,
                 align,
+                fields: Vec::new(),
+                c_layout: None,
+                interior_mutable: false,
                 kind: lir::LayoutKind::Enum { variants },
             }
         }
@@ -572,6 +679,9 @@ fn array_layout(
         name: mir::type_name(module, ty),
         size: size.next_multiple_of(align),
         align,
+        fields: Vec::new(),
+        c_layout: None,
+        interior_mutable: false,
         kind: lir::LayoutKind::Array {
             element_scan: ref_scan(module, enums, element, 0),
         },
@@ -799,6 +909,43 @@ fn aggregate_shape(
     (offsets, size.next_multiple_of(align), align)
 }
 
+/// Exact layout of one named struct. Ordinary structs use natural field
+/// alignment. `@CLayout(packed = N)` caps each field's access alignment at
+/// `N`; `aligned = N` raises (but never lowers) the aggregate alignment.
+fn struct_shape(
+    module: &mir::Module,
+    enum_shape: &dyn Fn(mir::EnumId) -> (u64, u64),
+    definition: &mir::StructDef,
+) -> (Vec<lir::FieldLayout>, u64, u64) {
+    let packed = definition
+        .c_layout
+        .map(|layout| u64::from(layout.packed))
+        .unwrap_or(0);
+    let explicit_align = definition
+        .c_layout
+        .map(|layout| u64::from(layout.aligned))
+        .unwrap_or(0);
+    let mut layouts = Vec::with_capacity(definition.fields.len());
+    let mut size = 0u64;
+    let mut align = explicit_align.max(1);
+    for field in &definition.fields {
+        let (field_size, natural_align) = size_align(module, enum_shape, &field.ty);
+        let access_align = if packed == 0 {
+            natural_align
+        } else {
+            natural_align.min(packed)
+        };
+        let offset = size.next_multiple_of(access_align);
+        layouts.push(lir::FieldLayout {
+            offset,
+            access_align,
+        });
+        size = offset + field_size;
+        align = align.max(access_align);
+    }
+    (layouts, size.next_multiple_of(align), align)
+}
+
 /// Size and alignment of a value of type `ty`. `String` and the M6
 /// reference types are pointers (pointer-sized); aggregates recurse;
 /// enums take their representation's shape.
@@ -820,12 +967,7 @@ fn size_align(
         | mir::Type::FunPtr(_)
         | mir::Type::Any => (8, 8),
         mir::Type::Struct(id) => {
-            let fields: Vec<mir::Type> = module.structs[*id]
-                .fields
-                .iter()
-                .map(|field| field.ty.clone())
-                .collect();
-            let (_, size, align) = aggregate_shape(module, enum_shape, &fields);
+            let (_, size, align) = struct_shape(module, enum_shape, &module.structs[*id]);
             (size, align)
         }
         mir::Type::Tuple(elements) => {
@@ -914,7 +1056,8 @@ fn ref_scan(
                 .map(|field| field.ty.clone())
                 .collect();
             let enum_shape = |id: mir::EnumId| repr_shape(&enums[enum_def_id(id)].repr);
-            let (offsets, _, _) = aggregate_shape(module, &enum_shape, &fields);
+            let (field_layouts, _, _) = struct_shape(module, &enum_shape, &module.structs[*id]);
+            let offsets: Vec<_> = field_layouts.iter().map(|field| field.offset).collect();
             scan_fields(module, enums, &fields, &offsets, base)
         }
         mir::Type::Tuple(fields) => {
@@ -996,7 +1139,7 @@ fn record_layout_types(ty: &mir::Type, types: &mut Vec<mir::Type>) {
 /// `EnumDef`, so the mapping is the identity on enum ids. Both array
 /// kinds map onto `LirType::Array` (a pointer to the array object;
 /// the payload is the element layout).
-fn lir_type(module: &mir::Module, ty: &mir::Type) -> lir::LirType {
+fn lir_type(ty: &mir::Type) -> lir::LirType {
     match ty {
         mir::Type::Unit => lir::LirType::Aggregate(Vec::new()),
         // UInt shares Int's machine word (M9, spec 11.2): the same
@@ -1011,17 +1154,11 @@ fn lir_type(module: &mir::Module, ty: &mir::Type) -> lir::LirType {
         | mir::Type::FunPtr(_)
         | mir::Type::Any => lir::LirType::Ptr,
         mir::Type::Array(element) | mir::Type::MutableArray(element) => {
-            lir::LirType::Array(Box::new(lir_type(module, element)))
+            lir::LirType::Array(Box::new(lir_type(element)))
         }
-        mir::Type::Struct(id) => lir::LirType::Aggregate(
-            module.structs[*id]
-                .fields
-                .iter()
-                .map(|field| lir_type(module, &field.ty))
-                .collect(),
-        ),
+        mir::Type::Struct(id) => lir::LirType::Struct(struct_def_id(*id)),
         mir::Type::Tuple(elements) => {
-            lir::LirType::Aggregate(elements.iter().map(|e| lir_type(module, e)).collect())
+            lir::LirType::Aggregate(elements.iter().map(lir_type).collect())
         }
         mir::Type::Enum(id, _) => lir::LirType::Enum(enum_def_id(*id)),
     }
@@ -1209,7 +1346,7 @@ fn lower_function<'a>(
             if !address_taken.contains(&param.local) {
                 local_map.insert(param.local, LocalSlot::Param(index as u32));
             }
-            lir_type(module, &param.ty)
+            lir_type(&param.ty)
         })
         .collect();
 
@@ -1223,7 +1360,7 @@ fn lower_function<'a>(
         record_layout_types(&local.ty, layout_types);
         let lir_id = locals.alloc(lir::Local {
             name: local.name.clone(),
-            ty: lir_type(module, &local.ty),
+            ty: lir_type(&local.ty),
         });
         local_map.insert(mir_id, LocalSlot::Slot(lir_id));
     }
@@ -1234,7 +1371,7 @@ fn lower_function<'a>(
     let return_ty = if returns_void {
         lir::LirType::Void
     } else {
-        lir_type(module, &function.return_ty)
+        lir_type(&function.return_ty)
     };
 
     let mut blocks = Arena::new();
@@ -1475,7 +1612,7 @@ impl<'a> FunctionLowerer<'a> {
     /// the meta layouts on the way.
     fn value_type(&mut self, ty: &mir::Type) -> lir::LirType {
         record_layout_types(ty, self.layout_types);
-        lir_type(self.module, ty)
+        lir_type(ty)
     }
 
     /// The MIR type of an expression (MIR expressions don't carry
@@ -2853,6 +2990,30 @@ mod tests {
         fn strukt(&mut self, name: &str, fields: &[(&str, mir::Type)]) -> mir::StructId {
             self.structs.alloc(mir::StructDef {
                 name: name.to_string(),
+                c_layout: None,
+                interior_mutable: false,
+                fields: fields
+                    .iter()
+                    .map(|(name, ty)| mir::Field {
+                        name: name.to_string(),
+                        ty: ty.clone(),
+                    })
+                    .collect(),
+            })
+        }
+
+        fn c_strukt(
+            &mut self,
+            name: &str,
+            aligned: u8,
+            packed: u8,
+            interior_mutable: bool,
+            fields: &[(&str, mir::Type)],
+        ) -> mir::StructId {
+            self.structs.alloc(mir::StructDef {
+                name: name.to_string(),
+                c_layout: Some(mir::CLayout { aligned, packed }),
+                interior_mutable,
                 fields: fields
                     .iter()
                     .map(|(name, ty)| mir::Field {
@@ -3763,7 +3924,7 @@ Module
     }
 
     #[test]
-    fn struct_values_are_aggregates() {
+    fn struct_values_keep_named_lir_identity() {
         let mut b = Builder::new();
         let point = b.strukt("Point", &[("x", mir::Type::Int), ("y", mir::Type::Int)]);
         let mut locals = Arena::new();
@@ -3796,7 +3957,7 @@ Module
         assert_eq!(
             local_types,
             [
-                lir::LirType::Aggregate(vec![lir::LirType::I64, lir::LirType::I64]),
+                lir::LirType::Struct(struct_def_id(point)),
                 lir::LirType::I64,
             ]
         );
@@ -3808,7 +3969,7 @@ Module
         assert_eq!(elements.len(), 2);
         assert_eq!(
             function.temps[*out].ty,
-            lir::LirType::Aggregate(vec![lir::LirType::I64, lir::LirType::I64])
+            lir::LirType::Struct(struct_def_id(point))
         );
         assert!(matches!(instructions[1], lir::Instruction::Store { .. }));
         let lir::Instruction::ExtractValue { out, index, .. } = &instructions[2] else {
@@ -4560,6 +4721,153 @@ Module
         assert!(matches!(
             edef(&module, pair_or_none).repr,
             lir::EnumRepr::Tagged { .. }
+        ));
+    }
+
+    #[test]
+    fn c_layout_keeps_packing_alignment_offsets_and_identity() {
+        let mut b = Builder::new();
+        let inner = b.c_strukt(
+            "Inner",
+            8,
+            1,
+            false,
+            &[("flag", mir::Type::Boolean), ("value", mir::Type::Int)],
+        );
+        let outer = b.c_strukt(
+            "Outer",
+            16,
+            2,
+            true,
+            &[
+                ("tag", mir::Type::Boolean),
+                ("inner", mir::Type::Struct(inner)),
+                ("tail", mir::Type::Int),
+            ],
+        );
+        let wrapped = b.enums.alloc(mir::EnumDef {
+            name: "Wrapped".to_string(),
+            variants: vec![
+                mir::VariantDef {
+                    name: "Value".to_string(),
+                    fields: vec![mir::Field {
+                        name: "value".to_string(),
+                        ty: mir::Type::Struct(outer),
+                    }],
+                },
+                mir::VariantDef {
+                    name: "Empty".to_string(),
+                    fields: Vec::new(),
+                },
+                mir::VariantDef {
+                    name: "Number".to_string(),
+                    fields: vec![mir::Field {
+                        name: "value".to_string(),
+                        ty: mir::Type::Int,
+                    }],
+                },
+            ],
+        });
+        let mut locals = Arena::new();
+        locals.alloc(local(
+            "values",
+            mir::Type::Array(Box::new(mir::Type::Struct(outer))),
+        ));
+        locals.alloc(local(
+            "wrapped",
+            mir::Type::Array(Box::new(mir::Type::Enum(wrapped, Vec::new()))),
+        ));
+        let main = b.main(locals, vec![]);
+        let module = lower(&b.finish(main));
+
+        let inner_def = &module.structs[struct_def_id(inner)];
+        assert_eq!((inner_def.size, inner_def.align), (16, 8));
+        assert_eq!(
+            inner_def
+                .fields
+                .iter()
+                .map(|field| field.layout)
+                .collect::<Vec<_>>(),
+            [
+                lir::FieldLayout {
+                    offset: 0,
+                    access_align: 1,
+                },
+                lir::FieldLayout {
+                    offset: 1,
+                    access_align: 1,
+                },
+            ]
+        );
+
+        let outer_def = &module.structs[struct_def_id(outer)];
+        assert_eq!(
+            outer_def.fields[1].ty,
+            lir::LirType::Struct(struct_def_id(inner))
+        );
+        assert_eq!((outer_def.size, outer_def.align), (32, 16));
+        assert_eq!(
+            outer_def
+                .fields
+                .iter()
+                .map(|field| field.layout)
+                .collect::<Vec<_>>(),
+            [
+                lir::FieldLayout {
+                    offset: 0,
+                    access_align: 1,
+                },
+                lir::FieldLayout {
+                    offset: 2,
+                    access_align: 2,
+                },
+                lir::FieldLayout {
+                    offset: 18,
+                    access_align: 2,
+                },
+            ]
+        );
+        assert!(outer_def.interior_mutable);
+
+        let outer_layout = module
+            .meta
+            .layouts
+            .iter()
+            .find(|layout| layout.name == "Outer")
+            .expect("Outer layout");
+        assert_eq!((outer_layout.size, outer_layout.align), (32, 16));
+        assert_eq!(
+            outer_layout.fields,
+            outer_def
+                .fields
+                .iter()
+                .map(|field| field.layout)
+                .collect::<Vec<_>>()
+        );
+        assert!(outer_layout.interior_mutable);
+        let array_layout = module
+            .meta
+            .layouts
+            .iter()
+            .find(|layout| layout.name == "Array<Outer>")
+            .expect("array layout");
+        assert_eq!((array_layout.size, array_layout.align), (32, 16));
+        let wrapped_layout = module
+            .meta
+            .layouts
+            .iter()
+            .find(|layout| layout.name == "Wrapped")
+            .expect("enum layout");
+        assert_eq!((wrapped_layout.size, wrapped_layout.align), (48, 16));
+        let wrapped_array = module
+            .meta
+            .layouts
+            .iter()
+            .find(|layout| layout.name == "Array<Wrapped>")
+            .expect("enum array layout");
+        assert_eq!((wrapped_array.size, wrapped_array.align), (48, 16));
+        assert!(lir::dump(&module).contains(
+            "layout-meta Outer c-layout(aligned=16,packed=2) fields=[0@1,2@2,18@2] interior-mutable=true"
         ));
     }
 
@@ -5416,13 +5724,13 @@ Module
   global @scoop_td_box$S = c\"\"
   fun @scoop_main() -> void
     local %0 a: ptr
-    local %1 v: {i64}
+    local %1 v: struct0
     local %2 chk: i1
   block entry
-    t0 = aggregate (1) : {i64}
+    t0 = aggregate (1) : struct0
     t1 = call @scoop_rt_box(global0, t0, 8) : ptr
     store t1 -> local0
-    t2 = heap_load local0 +16 : {i64}
+    t2 = heap_load local0 +16 : struct0
     store t2 -> local1
     t3 = call @scoop_rt_is_instance(local0, global0) : i1
     store t3 -> local2
@@ -5517,18 +5825,18 @@ Module
   fun @scoop_main() -> void
     local %0 v: ptr
     local %1 $call.1: i64
-    local %2 h: {i64}
+    local %2 h: struct0
     local %3 $gc.1: ptr
     local %4 p: ptr
     local %5 $call.2: i64
-    local %6 gh: {i64}
+    local %6 gh: struct1
     local %7 $gc.2: ptr
     local %8 p2: ptr
     local %9 n: i64
   block entry
     t0 = call @scoop_rt_pin(local0) : i64
     store t0 -> local1
-    t1 = aggregate (local1) : {i64}
+    t1 = aggregate (local1) : struct0
     store t1 -> local2
     t2 = extract local2, 0 : i64
     t3 = call @scoop_rt_unpin(t2) : ptr
@@ -5536,7 +5844,7 @@ Module
     store local3 -> local4
     t4 = call @scoop_rt_get_handle(local0) : i64
     store t4 -> local5
-    t5 = aggregate (local5) : {i64}
+    t5 = aggregate (local5) : struct1
     store t5 -> local6
     t6 = extract local6, 0 : i64
     t7 = call @scoop_rt_release_handle(t6) : ptr
