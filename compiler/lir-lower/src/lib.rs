@@ -153,13 +153,13 @@ use scoop_mir as mir;
 pub fn lower(module: &mir::Module) -> lir::Module {
     // Every MIR string constant becomes a global with the same symbol.
     let mut globals = Arena::new();
-    let mut global_map: HashMap<mir::StringConstId, lir::GlobalId> = HashMap::new();
+    let mut string_global_map: HashMap<mir::StringConstId, lir::GlobalId> = HashMap::new();
     for (id, string) in module.strings.iter() {
         let global = globals.alloc(lir::Global {
             symbol: string.symbol.clone(),
             init: lir::GlobalInit::StringConst(string.value.clone()),
         });
-        global_map.insert(id, global);
+        string_global_map.insert(id, global);
     }
 
     // Enum definitions with fixed representations, in the MIR arena's
@@ -169,6 +169,7 @@ pub fn lower(module: &mir::Module) -> lir::Module {
     // physical layout needed by codegen and C bridge generation.
     let structs = lower_structs(module, &enums);
     let extern_functions = lower_extern_functions(module);
+    let (storage_globals, native_globals) = lower_globals(module, &mut globals);
 
     // Tuple types encountered while mapping value types, in
     // first-appearance order; each one gets a meta layout.
@@ -185,7 +186,8 @@ pub fn lower(module: &mir::Module) -> lir::Module {
             lower_function(
                 module,
                 &module.functions[id],
-                &global_map,
+                &string_global_map,
+                &storage_globals,
                 &mut globals,
                 &mut cstr_count,
                 &mut layout_types,
@@ -203,10 +205,80 @@ pub fn lower(module: &mir::Module) -> lir::Module {
         enums,
         functions,
         extern_functions,
+        native_globals,
         entry_symbol: module.functions[module.entry].symbol.clone(),
         meta: lir::LirMeta {
             layouts,
             type_descriptors,
+        },
+    }
+}
+
+#[derive(Clone, Copy)]
+enum StorageGlobal {
+    Local(lir::GlobalId),
+    Native(lir::NativeGlobalId),
+}
+
+fn lower_globals(
+    module: &mir::Module,
+    globals: &mut Arena<lir::Global>,
+) -> (
+    HashMap<mir::GlobalId, StorageGlobal>,
+    Arena<lir::NativeGlobal>,
+) {
+    let mut map = HashMap::new();
+    let mut native = Arena::new();
+    for (id, global) in module.globals.iter() {
+        let storage = match &global.storage {
+            mir::GlobalStorage::Local {
+                thread_local,
+                initializer,
+            } => {
+                let lir_id = globals.alloc(lir::Global {
+                    symbol: global.symbol.clone(),
+                    init: lir::GlobalInit::Storage {
+                        ty: lir_type(&global.ty),
+                        initializer: lower_constant(initializer),
+                        thread_local: *thread_local,
+                    },
+                });
+                StorageGlobal::Local(lir_id)
+            }
+            mir::GlobalStorage::Extern {
+                library,
+                native_symbol,
+                thread_local,
+            } => {
+                let raw = native.len() as u32;
+                let lir_id = native.alloc(lir::NativeGlobal {
+                    source_name: global.name.clone(),
+                    native_symbol: native_symbol.clone(),
+                    library: library.clone(),
+                    ty: lir_type(&global.ty),
+                    c_type: c_ffi_type(module, &global.ty),
+                    mutable: global.mutable,
+                    thread_local: *thread_local,
+                    get_bridge_symbol: format!("scoop_c_global_get_{raw}"),
+                    set_bridge_symbol: global.mutable.then(|| format!("scoop_c_global_set_{raw}")),
+                    address_bridge_symbol: format!("scoop_c_global_address_{raw}"),
+                });
+                StorageGlobal::Native(lir_id)
+            }
+        };
+        map.insert(id, storage);
+    }
+    (map, native)
+}
+
+fn lower_constant(value: &mir::ConstantValue) -> lir::ConstantValue {
+    match value {
+        mir::ConstantValue::Int(value) => lir::ConstantValue::Int(*value),
+        mir::ConstantValue::Bool(value) => lir::ConstantValue::Bool(*value),
+        mir::ConstantValue::NullPtr | mir::ConstantValue::NullFunPtr => lir::ConstantValue::NullPtr,
+        mir::ConstantValue::Struct { struct_id, fields } => lir::ConstantValue::Struct {
+            struct_id: struct_def_id(*struct_id),
+            fields: fields.iter().map(lower_constant).collect(),
         },
     }
 }
@@ -1332,6 +1404,8 @@ fn address_taken_locals(function: &mir::Function) -> HashSet<mir::LocalId> {
             | mir::Expr::BoolLiteral(_)
             | mir::Expr::UnitLiteral
             | mir::Expr::Local(_)
+            | mir::Expr::GlobalRead(_)
+            | mir::Expr::GlobalAddress { .. }
             | mir::Expr::CaughtException
             | mir::Expr::SizeOf(_)
             | mir::Expr::AlignOf(_)
@@ -1358,6 +1432,7 @@ fn address_taken_locals(function: &mir::Function) -> HashSet<mir::LocalId> {
                 },
                 mir::StatementKind::ValDecl { init, .. } => collect_expr(init, &mut out),
                 mir::StatementKind::Assign { value, .. } => collect_expr(value, &mut out),
+                mir::StatementKind::GlobalAssign { value, .. } => collect_expr(value, &mut out),
                 mir::StatementKind::ArraySet {
                     array,
                     index,
@@ -1397,6 +1472,7 @@ fn lower_function<'a>(
     module: &'a mir::Module,
     function: &'a mir::Function,
     global_map: &HashMap<mir::StringConstId, lir::GlobalId>,
+    storage_globals: &HashMap<mir::GlobalId, StorageGlobal>,
     globals: &mut Arena<lir::Global>,
     cstr_count: &mut usize,
     layout_types: &mut Vec<mir::Type>,
@@ -1459,6 +1535,7 @@ fn lower_function<'a>(
         module,
         mir_locals: &function.body.locals,
         global_map,
+        storage_globals,
         globals,
         cstr_count,
         layout_types,
@@ -1571,6 +1648,7 @@ struct FunctionLowerer<'a> {
     /// Locals of the MIR function being lowered (for `expr_ty`).
     mir_locals: &'a Arena<mir::Local>,
     global_map: &'a HashMap<mir::StringConstId, lir::GlobalId>,
+    storage_globals: &'a HashMap<mir::GlobalId, StorageGlobal>,
     /// Sink for trap message globals (`scoop.cstr.N`) and
     /// TypeDescriptor reference stubs (`scoop_td_*`).
     globals: &'a mut Arena<lir::Global>,
@@ -1722,10 +1800,12 @@ impl<'a> FunctionLowerer<'a> {
                 _ => unreachable!("an array conversion's operand is an array"),
             },
             mir::Expr::Local(local) => self.mir_locals[*local].ty.clone(),
+            mir::Expr::GlobalRead(global) => self.module.globals[*global].ty.clone(),
             mir::Expr::PtrFromUInt { pointee, .. }
             | mir::Expr::PtrCast { pointee, .. }
             | mir::Expr::PtrOffset { pointee, .. }
-            | mir::Expr::AddressOf { pointee, .. } => {
+            | mir::Expr::AddressOf { pointee, .. }
+            | mir::Expr::GlobalAddress { pointee, .. } => {
                 mir::Type::Ptr(Box::new(pointee.as_ref().clone()))
             }
             mir::Expr::PtrToUInt(_) | mir::Expr::SizeOf(_) | mir::Expr::AlignOf(_) => {
@@ -1847,6 +1927,18 @@ impl<'a> FunctionLowerer<'a> {
                     local: self.local_slot(*local),
                     value,
                 });
+            }
+            mir::StatementKind::GlobalAssign { global, value } => {
+                let ty = self.module.globals[*global].ty.clone();
+                let value = self.lower_expr(value, &ty);
+                match self.storage_globals[global] {
+                    StorageGlobal::Local(global) => {
+                        self.push(lir::Instruction::GlobalStore { global, value })
+                    }
+                    StorageGlobal::Native(global) => {
+                        self.push(lir::Instruction::NativeGlobalStore { global, value })
+                    }
+                }
             }
             // `m[i] = v`: bounds check and the element store are
             // codegen's job; the element layout comes from the array
@@ -2210,6 +2302,19 @@ impl<'a> FunctionLowerer<'a> {
                 lir::Value::Temp(out)
             }
             mir::Expr::Local(local) => self.local_value(*local),
+            mir::Expr::GlobalRead(global) => {
+                let out_ty = self.value_type(ty);
+                let out = self.new_temp(out_ty);
+                match self.storage_globals[global] {
+                    StorageGlobal::Local(global) => {
+                        self.push(lir::Instruction::GlobalLoad { out, global })
+                    }
+                    StorageGlobal::Native(global) => {
+                        self.push(lir::Instruction::NativeGlobalLoad { out, global })
+                    }
+                }
+                lir::Value::Temp(out)
+            }
             mir::Expr::PtrFromUInt { operand, .. } => {
                 let value = self.lower_expr(operand, &mir::Type::UInt);
                 let out = self.new_temp(lir::LirType::Ptr);
@@ -2290,6 +2395,18 @@ impl<'a> FunctionLowerer<'a> {
                 let local = self.local_slot(*local);
                 let out = self.new_temp(lir::LirType::Ptr);
                 self.push(lir::Instruction::LocalAddress { out, local });
+                lir::Value::Temp(out)
+            }
+            mir::Expr::GlobalAddress { global, .. } => {
+                let out = self.new_temp(lir::LirType::Ptr);
+                match self.storage_globals[global] {
+                    StorageGlobal::Local(global) => {
+                        self.push(lir::Instruction::GlobalAddress { out, global })
+                    }
+                    StorageGlobal::Native(global) => {
+                        self.push(lir::Instruction::NativeGlobalAddress { out, global })
+                    }
+                }
                 lir::Value::Temp(out)
             }
             mir::Expr::SizeOf(value_ty) => {
@@ -3302,6 +3419,7 @@ mod tests {
             mir::Module {
                 functions: self.functions,
                 extern_functions: Arena::new(),
+                globals: Arena::new(),
                 function_types: Arena::new(),
                 closure_classes: Arena::new(),
                 closure_invoke_functions: Arena::new(),
@@ -3449,6 +3567,7 @@ mod tests {
             .map(|(_, g)| match &g.init {
                 lir::GlobalInit::StringConst(value) => (g.symbol.as_str(), value.as_str()),
                 lir::GlobalInit::CString(value) => (g.symbol.as_str(), value.as_str()),
+                lir::GlobalInit::Storage { .. } => unreachable!("hello has no storage globals"),
             })
             .collect();
         assert_eq!(

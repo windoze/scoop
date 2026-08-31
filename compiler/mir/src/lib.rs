@@ -14,6 +14,7 @@ use scoop_ast::Span;
 
 pub type FunctionId = Idx<Function>;
 pub type ExternFunctionId = Idx<ExternFunction>;
+pub type GlobalId = Idx<Global>;
 pub type FunctionTypeId = Idx<FunctionType>;
 pub type ClosureClassId = Idx<ClosureClass>;
 pub type ClosureInvokeFunctionId = Idx<ClosureInvokeFunction>;
@@ -43,6 +44,10 @@ pub fn mangle_function(name: &str, is_entry: bool) -> String {
     } else {
         format!("scoop.{name}")
     }
+}
+
+pub fn mangle_global(name: &str) -> String {
+    format!("scoop.global.{name}")
 }
 
 /// Mangle a monomorphized instance: `scoop.<name>$<encoded type args>`.
@@ -322,6 +327,7 @@ pub struct Local {
 pub struct Module {
     pub functions: Arena<Function>,
     pub extern_functions: Arena<ExternFunction>,
+    pub globals: Arena<Global>,
     pub function_types: Arena<FunctionType>,
     pub closure_classes: Arena<ClosureClass>,
     pub closure_invoke_functions: Arena<ClosureInvokeFunction>,
@@ -334,6 +340,40 @@ pub struct Module {
     pub interfaces: Arena<InterfaceDef>,
     pub entry: FunctionId,
     pub meta: MirMeta,
+}
+
+#[derive(Debug, Clone)]
+pub struct Global {
+    pub name: String,
+    pub symbol: String,
+    pub ty: Type,
+    pub mutable: bool,
+    pub storage: GlobalStorage,
+}
+
+#[derive(Debug, Clone)]
+pub enum GlobalStorage {
+    Local {
+        thread_local: bool,
+        initializer: ConstantValue,
+    },
+    Extern {
+        library: String,
+        native_symbol: String,
+        thread_local: bool,
+    },
+}
+
+#[derive(Debug, Clone)]
+pub enum ConstantValue {
+    Int(i64),
+    Bool(bool),
+    NullPtr,
+    NullFunPtr,
+    Struct {
+        struct_id: StructId,
+        fields: Vec<ConstantValue>,
+    },
 }
 
 /// Per-Cone MIR metadata (impl spec 2.3).
@@ -533,6 +573,10 @@ pub enum StatementKind {
         local: LocalId,
         value: Expr,
     },
+    GlobalAssign {
+        global: GlobalId,
+        value: Expr,
+    },
     ArraySet {
         array: Expr,
         index: Expr,
@@ -625,6 +669,7 @@ pub enum Expr {
         index: u32,
     },
     Local(LocalId),
+    GlobalRead(GlobalId),
     PtrFromUInt {
         operand: Box<Expr>,
         pointee: Box<Type>,
@@ -653,6 +698,10 @@ pub enum Expr {
     },
     AddressOf {
         local: LocalId,
+        pointee: Box<Type>,
+    },
+    GlobalAddress {
+        global: GlobalId,
         pointee: Box<Type>,
     },
     SizeOf(Box<Type>),
@@ -883,6 +932,32 @@ pub enum UnOp {
 /// Indented text dump for golden tests (`scoopc build --emit=mir`).
 pub fn dump(module: &Module) -> String {
     let mut out = String::from("Module\n");
+    for (id, global) in module.globals.iter() {
+        let storage = match &global.storage {
+            GlobalStorage::Local {
+                thread_local: false,
+                ..
+            } => "global".to_string(),
+            GlobalStorage::Local {
+                thread_local: true, ..
+            } => "thread_local".to_string(),
+            GlobalStorage::Extern {
+                native_symbol,
+                thread_local,
+                ..
+            } => format!(
+                "extern {native_symbol}{}",
+                if *thread_local { " thread_local" } else { "" }
+            ),
+        };
+        out.push_str(&format!(
+            "  global{} @{} {}: {} {storage}\n",
+            id.into_raw().into_u32(),
+            global.symbol,
+            global.name,
+            type_name(module, &global.ty)
+        ));
+    }
     for (id, extern_) in module.extern_functions.iter() {
         let abi = match extern_.abi {
             ExternAbi::C => "c",
@@ -1229,6 +1304,13 @@ fn dump_statements(
                 out.push_str(&format!("{pad}assign {}\n", locals[*local].name));
                 dump_expr(module, locals, value, indent + 1, out);
             }
+            StatementKind::GlobalAssign { global, value } => {
+                out.push_str(&format!(
+                    "{pad}global_assign {}\n",
+                    module.globals[*global].name
+                ));
+                dump_expr(module, locals, value, indent + 1, out);
+            }
             StatementKind::Eh(eh) => match eh {
                 EhStatement::LandingPad { cleanup } => {
                     out.push_str(&format!("{pad}landing_pad cleanup={cleanup}\n"));
@@ -1353,6 +1435,10 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
             }
         }
         Expr::Local(local) => out.push_str(&format!("{pad}Local {}\n", locals[*local].name)),
+        Expr::GlobalRead(global) => out.push_str(&format!(
+            "{pad}GlobalRead {}\n",
+            module.globals[*global].name
+        )),
         Expr::PtrFromUInt { operand, pointee } => {
             out.push_str(&format!(
                 "{pad}PtrFromUInt {}\n",
@@ -1408,6 +1494,11 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
         Expr::AddressOf { local, pointee } => out.push_str(&format!(
             "{pad}AddressOf {} : Ptr<{}>\n",
             locals[*local].name,
+            type_name(module, pointee)
+        )),
+        Expr::GlobalAddress { global, pointee } => out.push_str(&format!(
+            "{pad}GlobalAddress {} {}\n",
+            module.globals[*global].name,
             type_name(module, pointee)
         )),
         Expr::SizeOf(ty) => {

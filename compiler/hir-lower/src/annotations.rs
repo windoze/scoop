@@ -20,13 +20,109 @@ pub(crate) struct CheckedFunctionAnnotations {
     pub(crate) extern_: Option<ExternAnnotation>,
 }
 
+#[derive(Clone)]
 pub(crate) struct ExternAnnotation {
     pub(crate) library: String,
     pub(crate) native_symbol: String,
     pub(crate) abi: hir::ExternAbi,
 }
 
+pub(crate) struct CheckedGlobalAnnotations {
+    pub(crate) extern_: Option<ExternAnnotation>,
+    /// `Some(false)` is `@Global`; `Some(true)` is `@ThreadLocal`.
+    pub(crate) storage: Option<bool>,
+}
+
 impl Lowerer {
+    pub(crate) fn check_global_annotations(
+        &mut self,
+        decl: &ast::GlobalDecl,
+    ) -> CheckedGlobalAnnotations {
+        let mut extern_ = None;
+        let mut storage = None;
+        let mut seen = HashSet::new();
+        for annotation in &decl.annotations {
+            let name = annotation.name.text.as_str();
+            if !seen.insert(name.to_string()) {
+                self.error(
+                    annotation.span,
+                    format!("annotation `@{name}` must not be repeated"),
+                );
+                continue;
+            }
+            match name {
+                "Extern" => extern_ = self.annotation_extern(annotation, &decl.name.text),
+                "Global" | "ThreadLocal" => {
+                    if self.annotation_marker(annotation) {
+                        if storage.is_some() {
+                            self.error(
+                                annotation.span,
+                                "`@Global` and `@ThreadLocal` cannot be combined".to_string(),
+                            );
+                        } else {
+                            storage = Some(name == "ThreadLocal");
+                        }
+                    }
+                }
+                _ => self.error(
+                    annotation.span,
+                    format!("`@{name}` is not allowed on a top-level storage declaration"),
+                ),
+            }
+        }
+
+        if let Some(extern_annotation) = &extern_ {
+            if extern_annotation.abi != hir::ExternAbi::C {
+                self.error(
+                    decl.span,
+                    "an extern global supports only the C data ABI".to_string(),
+                );
+            }
+            if decl.init.is_some() {
+                self.error(
+                    decl.span,
+                    "an `@Extern` global must not have an initializer".to_string(),
+                );
+            }
+            if decl.mutable && storage.is_none() {
+                self.error(
+                    decl.span,
+                    "an extern `var` requires exactly one of `@Global` or `@ThreadLocal`"
+                        .to_string(),
+                );
+            }
+            if !decl.mutable && storage.is_some() {
+                self.error(
+                    decl.span,
+                    "an extern `val` must not use `@Global` or `@ThreadLocal`".to_string(),
+                );
+            }
+        } else {
+            if !decl.mutable {
+                self.error(
+                    decl.span,
+                    "a local top-level `val` is not supported; use a local binding or `@Extern val`"
+                        .to_string(),
+                );
+            }
+            if storage.is_none() {
+                self.error(
+                    decl.span,
+                    "a local top-level `var` requires exactly one of `@Global` or `@ThreadLocal`"
+                        .to_string(),
+                );
+            }
+            if decl.init.is_none() {
+                self.error(
+                    decl.span,
+                    "a local global requires a compile-time constant initializer".to_string(),
+                );
+            }
+        }
+
+        CheckedGlobalAnnotations { extern_, storage }
+    }
+
     pub(crate) fn check_function_annotations(
         &mut self,
         decl: &ast::FunctionDecl,
@@ -436,7 +532,7 @@ impl Lowerer {
         })
     }
 
-    fn annotation_extern(
+    pub(crate) fn annotation_extern(
         &mut self,
         annotation: &ast::Annotation,
         source_name: &str,

@@ -1803,6 +1803,9 @@ fn statement_use_def(statement: &mir::Statement) -> (HashSet<mir::LocalId>, Hash
             expr_uses(value, &mut uses);
             defs.insert(*local);
         }
+        mir::StatementKind::GlobalAssign { value, .. } => {
+            expr_uses(value, &mut uses);
+        }
         mir::StatementKind::ArraySet {
             array,
             index,
@@ -1959,6 +1962,8 @@ fn expr_uses(expr: &mir::Expr, uses: &mut HashSet<mir::LocalId>) {
         | mir::Expr::IntLiteral(_)
         | mir::Expr::BoolLiteral(_)
         | mir::Expr::UnitLiteral
+        | mir::Expr::GlobalRead(_)
+        | mir::Expr::GlobalAddress { .. }
         | mir::Expr::CaughtException
         | mir::Expr::SizeOf(_)
         | mir::Expr::AlignOf(_)

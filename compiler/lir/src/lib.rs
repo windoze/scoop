@@ -17,6 +17,7 @@ pub type BlockId = Idx<BasicBlock>;
 pub type EnumDefId = Idx<EnumDef>;
 pub type StructDefId = Idx<StructDef>;
 pub type ExternFunctionId = Idx<ExternFunction>;
+pub type NativeGlobalId = Idx<NativeGlobal>;
 
 /// Symbol of the TypeDescriptor global for `String` (runtime spec 2.2).
 pub const STRING_TD_SYMBOL: &str = "scoop_td_String";
@@ -82,9 +83,25 @@ pub struct Module {
     pub functions: Vec<Function>,
     /// Native declarations and C-bridge descriptions, transposed from MIR.
     pub extern_functions: Arena<ExternFunction>,
+    /// C data imports accessed only through generated get/set/address bridges.
+    pub native_globals: Arena<NativeGlobal>,
     /// Symbol of the entry function (`scoop_main`).
     pub entry_symbol: String,
     pub meta: LirMeta,
+}
+
+#[derive(Debug)]
+pub struct NativeGlobal {
+    pub source_name: String,
+    pub native_symbol: String,
+    pub library: String,
+    pub ty: LirType,
+    pub c_type: CType,
+    pub mutable: bool,
+    pub thread_local: bool,
+    pub get_bridge_symbol: String,
+    pub set_bridge_symbol: Option<String>,
+    pub address_bridge_symbol: String,
 }
 
 #[derive(Debug)]
@@ -309,6 +326,22 @@ pub enum GlobalInit {
     StringConst(String),
     /// A NUL-terminated C string (e.g. trap messages).
     CString(String),
+    Storage {
+        ty: LirType,
+        initializer: ConstantValue,
+        thread_local: bool,
+    },
+}
+
+#[derive(Debug)]
+pub enum ConstantValue {
+    Int(i64),
+    Bool(bool),
+    NullPtr,
+    Struct {
+        struct_id: StructDefId,
+        fields: Vec<ConstantValue>,
+    },
 }
 
 /// A local variable's stack slot.
@@ -425,6 +458,30 @@ pub enum Instruction {
     Store {
         local: LocalId,
         value: Value,
+    },
+    GlobalLoad {
+        out: TempId,
+        global: GlobalId,
+    },
+    GlobalStore {
+        global: GlobalId,
+        value: Value,
+    },
+    GlobalAddress {
+        out: TempId,
+        global: GlobalId,
+    },
+    NativeGlobalLoad {
+        out: TempId,
+        global: NativeGlobalId,
+    },
+    NativeGlobalStore {
+        global: NativeGlobalId,
+        value: Value,
+    },
+    NativeGlobalAddress {
+        out: TempId,
+        global: NativeGlobalId,
     },
     /// A nounwind native call. C ABI operands are storage pointers to the
     /// generated bridge; Scoop ABI operands retain their ordinary typed ABI.
@@ -652,7 +709,33 @@ pub fn dump(module: &Module) -> String {
             GlobalInit::CString(value) => {
                 out.push_str(&format!("  global @{} = c{:?}\n", global.symbol, value));
             }
+            GlobalInit::Storage {
+                ty, thread_local, ..
+            } => out.push_str(&format!(
+                "  {} @{} : {}\n",
+                if *thread_local {
+                    "thread_local"
+                } else {
+                    "global"
+                },
+                global.symbol,
+                ty.dump()
+            )),
         }
+    }
+    for (id, global) in module.native_globals.iter() {
+        out.push_str(&format!(
+            "  native_global{} {} @{} : {}{}\n",
+            id.into_raw(),
+            global.source_name,
+            global.native_symbol,
+            global.ty.dump(),
+            if global.thread_local {
+                " thread_local"
+            } else {
+                ""
+            }
+        ));
     }
     for (_, def) in module.enums.iter() {
         match &def.repr {
@@ -930,6 +1013,38 @@ fn dump_instruction(function: &Function, instruction: &Instruction, buf: &mut St
             value_name(*object),
             offset,
             function.temps[*out].ty.dump()
+        )),
+        Instruction::GlobalLoad { out, global } => buf.push_str(&format!(
+            "    t{} = global_load global{} : {}\n",
+            out.into_raw(),
+            global.into_raw(),
+            function.temps[*out].ty.dump()
+        )),
+        Instruction::GlobalStore { global, value } => buf.push_str(&format!(
+            "    global_store global{}, {}\n",
+            global.into_raw(),
+            value_name(*value)
+        )),
+        Instruction::GlobalAddress { out, global } => buf.push_str(&format!(
+            "    t{} = global_address global{}\n",
+            out.into_raw(),
+            global.into_raw()
+        )),
+        Instruction::NativeGlobalLoad { out, global } => buf.push_str(&format!(
+            "    t{} = native_global_load ng{} : {}\n",
+            out.into_raw(),
+            global.into_raw(),
+            function.temps[*out].ty.dump()
+        )),
+        Instruction::NativeGlobalStore { global, value } => buf.push_str(&format!(
+            "    native_global_store ng{}, {}\n",
+            global.into_raw(),
+            value_name(*value)
+        )),
+        Instruction::NativeGlobalAddress { out, global } => buf.push_str(&format!(
+            "    t{} = native_global_address ng{}\n",
+            out.into_raw(),
+            global.into_raw()
         )),
         Instruction::HeapStore {
             object,

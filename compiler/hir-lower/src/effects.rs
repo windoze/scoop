@@ -322,7 +322,7 @@ impl Lowerer {
                 }
                 hir::StatementKind::Assign { target, value } => {
                     match target {
-                        hir::AssignTarget::Local(_) => {}
+                        hir::AssignTarget::Local(_) | hir::AssignTarget::Global(_) => {}
                         hir::AssignTarget::Index { array, index } => {
                             out.push((
                                 statement.span,
@@ -404,6 +404,7 @@ impl Lowerer {
             | ExprKind::BoolLiteral(_)
             | ExprKind::UnitLiteral
             | ExprKind::Local(_)
+            | ExprKind::GlobalRead(_)
             | ExprKind::Capture(_)
             | ExprKind::NoneLiteral => {}
             ExprKind::TupleLiteral(elements) | ExprKind::ArrayLiteral(elements) => {

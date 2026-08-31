@@ -21,6 +21,7 @@ pub type CallableReferenceId = Idx<CallableReference>;
 pub type FunctionCoercionId = Idx<FunctionCoercion>;
 pub type FunctionId = Idx<Function>;
 pub type ExternFunctionId = Idx<ExternFunction>;
+pub type GlobalId = Idx<Global>;
 pub type GenericFunctionId = Idx<GenericFunction>;
 pub type ResolvedGenericFunctionId = Idx<ResolvedGenericFunction>;
 pub type StructId = Idx<StructDecl>;
@@ -263,6 +264,9 @@ pub struct Module {
     /// Native functions imported by source declarations. They have no HIR
     /// body and their identities never enter generic instantiation.
     pub extern_functions: Arena<ExternFunction>,
+    /// Top-level storage declarations. Globals use an identity distinct from
+    /// functions and locals, and every entry carries a complete storage kind.
+    pub globals: Arena<Global>,
     /// Generic function definitions. Their ids are distinct from
     /// ordinary `FunctionId`s even though each entry points at the HIR
     /// function that owns the parameterized body.
@@ -592,6 +596,41 @@ pub struct Field {
 }
 
 #[derive(Debug, Clone)]
+pub struct Global {
+    pub name: String,
+    pub ty: TypeId,
+    pub mutable: bool,
+    pub storage: GlobalStorage,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone)]
+pub enum GlobalStorage {
+    Local {
+        thread_local: bool,
+        initializer: ConstantValue,
+    },
+    Extern {
+        library: String,
+        native_symbol: String,
+        thread_local: bool,
+    },
+}
+
+/// A typed, GC-free initializer accepted for local global storage.
+#[derive(Debug, Clone)]
+pub enum ConstantValue {
+    Int(i64),
+    Bool(bool),
+    NullPtr,
+    NullFunPtr,
+    Struct {
+        struct_id: StructId,
+        fields: Vec<ConstantValue>,
+    },
+}
+
+#[derive(Debug, Clone)]
 pub struct Function {
     pub name: String,
     /// Whether calls use the coroutine ABI rather than the ordinary ABI.
@@ -758,6 +797,7 @@ pub struct CatchClause {
 #[derive(Debug, Clone)]
 pub enum AssignTarget {
     Local(LocalId),
+    Global(GlobalId),
     /// `array[index] = value` (only `MutableArray`, checked at HIR).
     Index {
         array: Expr,
@@ -846,6 +886,7 @@ pub enum ExprKind {
         args: Vec<Expr>,
     },
     Local(LocalId),
+    GlobalRead(GlobalId),
     /// Read one immutable binding from the current closure environment. The
     /// binding identity is resolved to a concrete field by closure conversion.
     Capture(BindingId),
@@ -976,6 +1017,7 @@ pub enum ExprKind {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Place {
     Local(LocalId),
+    Global(GlobalId),
 }
 
 /// A fully resolved field access.
@@ -1328,6 +1370,37 @@ pub fn dump(module: &Module) -> String {
             ));
         }
     }
+    for (id, global) in module.globals.iter() {
+        let storage = match &global.storage {
+            GlobalStorage::Local {
+                thread_local: false,
+                ..
+            } => "global".to_string(),
+            GlobalStorage::Local {
+                thread_local: true, ..
+            } => "thread_local".to_string(),
+            GlobalStorage::Extern {
+                native_symbol,
+                library,
+                thread_local,
+            } => format!(
+                "extern symbol={native_symbol}{}{}",
+                if library.is_empty() {
+                    String::new()
+                } else {
+                    format!(" lib={library}")
+                },
+                if *thread_local { " thread_local" } else { "" }
+            ),
+        };
+        out.push_str(&format!(
+            "  {} {}: {} <global{} {storage}>\n",
+            if global.mutable { "var" } else { "val" },
+            global.name,
+            type_name(module, global.ty),
+            id.into_raw()
+        ));
+    }
     for &id in &module.top_level {
         if [
             module.ffi_core.address_of,
@@ -1516,6 +1589,10 @@ fn dump_statements(
                     AssignTarget::Local(local) => {
                         out.push_str(&format!("{pad}assign {}\n", locals[*local].name))
                     }
+                    AssignTarget::Global(global) => out.push_str(&format!(
+                        "{pad}assign global {}\n",
+                        module.globals[*global].name
+                    )),
                     AssignTarget::Field { receiver, .. } => {
                         out.push_str(&format!("{pad}assign .field\n"));
                         dump_expr(module, locals, receiver, indent + 1, out);
@@ -1691,6 +1768,10 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
         ExprKind::Local(local) => {
             out.push_str(&format!("{pad}Local {} : {ty}\n", locals[*local].name));
         }
+        ExprKind::GlobalRead(global) => out.push_str(&format!(
+            "{pad}GlobalRead {} : {ty}\n",
+            module.globals[*global].name
+        )),
         ExprKind::Capture(binding) => {
             out.push_str(&format!(
                 "{pad}Capture binding{} : {ty}\n",
@@ -1834,6 +1915,10 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
         ExprKind::AddressOf(Place::Local(local)) => {
             out.push_str(&format!("{pad}AddressOf {} : {ty}\n", locals[*local].name));
         }
+        ExprKind::AddressOf(Place::Global(global)) => out.push_str(&format!(
+            "{pad}AddressOf global {} : {ty}\n",
+            module.globals[*global].name
+        )),
         ExprKind::SizeOf(value_ty) => out.push_str(&format!(
             "{pad}SizeOf {} : {ty}\n",
             type_name(module, *value_ty)

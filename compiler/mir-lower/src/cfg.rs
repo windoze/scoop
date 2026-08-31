@@ -183,6 +183,16 @@ impl<'a> CfgLowerer<'a> {
                     span,
                 );
             }
+            smir::StatementKind::GlobalAssign { global, value } => {
+                let value = self.lower_expr(value, statement.span);
+                self.push(
+                    mir::StatementKind::GlobalAssign {
+                        global: *global,
+                        value,
+                    },
+                    statement.span,
+                );
+            }
             smir::StatementKind::ArraySet {
                 array,
                 index,
@@ -576,6 +586,7 @@ impl<'a> CfgLowerer<'a> {
                 index: *index,
             },
             smir::Expr::Local(local) => mir::Expr::Local(*local),
+            smir::Expr::GlobalRead(global) => mir::Expr::GlobalRead(*global),
             smir::Expr::PtrFromUInt { operand, pointee } => mir::Expr::PtrFromUInt {
                 operand: Box::new(self.lower_expr(operand, span)),
                 pointee: pointee.clone(),
@@ -624,6 +635,10 @@ impl<'a> CfgLowerer<'a> {
             },
             smir::Expr::AddressOf { local, pointee } => mir::Expr::AddressOf {
                 local: *local,
+                pointee: pointee.clone(),
+            },
+            smir::Expr::GlobalAddress { global, pointee } => mir::Expr::GlobalAddress {
+                global: *global,
                 pointee: pointee.clone(),
             },
             smir::Expr::SizeOf(ty) => mir::Expr::SizeOf(ty.clone()),

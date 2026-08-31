@@ -135,6 +135,8 @@ pub fn lower(module: &hir::Module) -> mir::Module {
         functions: Arena::new(),
         extern_functions: Arena::new(),
         extern_map: HashMap::new(),
+        globals: Arena::new(),
+        global_map: HashMap::new(),
         top_level: Vec::new(),
         strings: Arena::new(),
         structs: StructRegistry::default(),
@@ -181,6 +183,8 @@ struct Lowerer {
     functions: Arena<mir::Function>,
     extern_functions: Arena<mir::ExternFunction>,
     extern_map: HashMap<hir::ExternFunctionId, mir::ExternFunctionId>,
+    globals: Arena<mir::Global>,
+    global_map: HashMap<hir::GlobalId, mir::GlobalId>,
     /// User functions in declaration order (intrinsics have no MIR body).
     top_level: Vec<mir::FunctionId>,
     strings: Arena<mir::StringConst>,
@@ -627,6 +631,7 @@ impl Lowerer {
         self.shell = mangling_shell(&self.structs.defs, &self.classes, &self.interfaces.defs);
         self.fill_class_hierarchy(module);
         self.fill_struct_fields(module);
+        self.lower_globals(module);
         self.option_variants = option_variants(module);
         // Classes are processed base-before-derived: the object layout
         // and the vtable both keep the base's as a prefix.
@@ -851,6 +856,7 @@ impl Lowerer {
         mir::Module {
             functions: self.functions,
             extern_functions: self.extern_functions,
+            globals: self.globals,
             function_types: self.shell.function_types,
             closure_classes: self.closure_classes,
             closure_invoke_functions: self.closure_invokes,
@@ -922,6 +928,50 @@ impl Lowerer {
                 return_type,
             });
             self.extern_map.insert(hir_id, id);
+        }
+    }
+
+    fn lower_globals(&mut self, module: &hir::Module) {
+        for (hir_id, global) in module.globals.iter() {
+            let types = Types {
+                module,
+                struct_map: &self.struct_map,
+                class_map: &self.class_map,
+                subst: None,
+            };
+            let ty = types.lower(
+                global.ty,
+                &mut self.enums,
+                &mut self.structs,
+                &mut self.interfaces,
+                &mut self.shell,
+            );
+            let storage = match &global.storage {
+                hir::GlobalStorage::Local {
+                    thread_local,
+                    initializer,
+                } => mir::GlobalStorage::Local {
+                    thread_local: *thread_local,
+                    initializer: lower_global_constant(initializer, &ty, &self.structs.defs),
+                },
+                hir::GlobalStorage::Extern {
+                    library,
+                    native_symbol,
+                    thread_local,
+                } => mir::GlobalStorage::Extern {
+                    library: library.clone(),
+                    native_symbol: native_symbol.clone(),
+                    thread_local: *thread_local,
+                },
+            };
+            let id = self.globals.alloc(mir::Global {
+                name: global.name.clone(),
+                symbol: mir::mangle_global(&global.name),
+                ty,
+                mutable: global.mutable,
+                storage,
+            });
+            self.global_map.insert(hir_id, id);
         }
     }
 
@@ -1574,6 +1624,7 @@ impl Lowerer {
             method_slots: &self.method_slots,
             function_map: &self.function_map,
             extern_map: &self.extern_map,
+            global_map: &self.global_map,
             ctors: &self.ctors,
             strings: &mut self.strings,
             functions: &mut self.functions,
@@ -2513,6 +2564,7 @@ impl Lowerer {
             method_slots: &self.method_slots,
             function_map: &self.function_map,
             extern_map: &self.extern_map,
+            global_map: &self.global_map,
             ctors: &self.ctors,
             strings: &mut self.strings,
             functions: &mut self.functions,
@@ -2712,6 +2764,7 @@ impl Lowerer {
             method_slots: &self.method_slots,
             function_map: &self.function_map,
             extern_map: &self.extern_map,
+            global_map: &self.global_map,
             ctors: &self.ctors,
             strings: &mut self.strings,
             functions: &mut self.functions,
@@ -3362,6 +3415,7 @@ fn mangling_shell(
     mir::Module {
         functions,
         extern_functions: Arena::new(),
+        globals: Arena::new(),
         function_types: Arena::new(),
         closure_classes: Arena::new(),
         closure_invoke_functions: Arena::new(),
@@ -3388,6 +3442,40 @@ fn option_variants(module: &hir::Module) -> (u32, u32) {
             as u32
     };
     (find("Some"), find("None"))
+}
+
+fn lower_global_constant(
+    value: &hir::ConstantValue,
+    ty: &mir::Type,
+    structs: &Arena<mir::StructDef>,
+) -> mir::ConstantValue {
+    match (value, ty) {
+        (hir::ConstantValue::Int(value), mir::Type::Int | mir::Type::UInt) => {
+            mir::ConstantValue::Int(*value)
+        }
+        (hir::ConstantValue::Bool(value), mir::Type::Boolean) => mir::ConstantValue::Bool(*value),
+        (hir::ConstantValue::NullPtr, mir::Type::Ptr(_)) => mir::ConstantValue::NullPtr,
+        (hir::ConstantValue::NullFunPtr, mir::Type::FunPtr(_)) => mir::ConstantValue::NullFunPtr,
+        (hir::ConstantValue::Struct { fields, .. }, mir::Type::Struct(struct_id)) => {
+            let definition = &structs[*struct_id];
+            assert_eq!(
+                fields.len(),
+                definition.fields.len(),
+                "typed global struct constants preserve field arity"
+            );
+            mir::ConstantValue::Struct {
+                struct_id: *struct_id,
+                fields: fields
+                    .iter()
+                    .zip(&definition.fields)
+                    .map(|(field, definition)| {
+                        lower_global_constant(field, &definition.ty, structs)
+                    })
+                    .collect(),
+            }
+        }
+        _ => unreachable!("HIR global constants match their declared type"),
+    }
 }
 
 /// Whether a HIR type mentions no type parameters.
@@ -3951,6 +4039,7 @@ struct BodyLowerer<'a> {
     method_slots: &'a HashMap<mir::ClassId, HashMap<String, u32>>,
     function_map: &'a HashMap<hir::FunctionId, mir::FunctionId>,
     extern_map: &'a HashMap<hir::ExternFunctionId, mir::ExternFunctionId>,
+    global_map: &'a HashMap<hir::GlobalId, mir::GlobalId>,
     /// HIR class -> its constructor function (`ClassInit` calls).
     ctors: &'a HashMap<hir::ClassId, mir::FunctionId>,
     strings: &'a mut Arena<mir::StringConst>,
@@ -4794,6 +4883,10 @@ impl BodyLowerer<'_> {
                         let value = self.lower_expr(value);
                         smir::StatementKind::Assign { local, value }
                     }
+                    hir::AssignTarget::Global(global) => smir::StatementKind::GlobalAssign {
+                        global: self.global_map[global],
+                        value: self.lower_expr(value),
+                    },
                     // `m[i] = v` (only `MutableArray`, checked at HIR).
                     // M8: the bounds check moved here from codegen —
                     // the array and the index are evaluated once into
@@ -5315,6 +5408,7 @@ impl BodyLowerer<'_> {
                     }
                 }
             }
+            hir::ExprKind::GlobalRead(global) => smir::Expr::GlobalRead(self.global_map[global]),
             hir::ExprKind::Capture(binding) => {
                 if let Some(local) = self.current_local_capture_params.get(binding) {
                     return smir::Expr::Local(self.local_map[local]);
@@ -5509,6 +5603,10 @@ impl BodyLowerer<'_> {
                     pointee: Box::new(self.locals[local].ty.clone()),
                 }
             }
+            hir::ExprKind::AddressOf(hir::Place::Global(global)) => smir::Expr::GlobalAddress {
+                global: self.global_map[global],
+                pointee: Box::new(self.lower_type(self.module.globals[*global].ty)),
+            },
             hir::ExprKind::SizeOf(ty) => smir::Expr::SizeOf(Box::new(self.lower_type(*ty))),
             hir::ExprKind::AlignOf(ty) => smir::Expr::AlignOf(Box::new(self.lower_type(*ty))),
             hir::ExprKind::FunPtrNull => {
@@ -7759,6 +7857,7 @@ mod tests {
                 function_coercions: Arena::new(),
                 functions: self.functions,
                 extern_functions: Arena::new(),
+                globals: Arena::new(),
                 generic_functions: self.generic_functions,
                 structs: self.structs,
                 enums: self.enums,

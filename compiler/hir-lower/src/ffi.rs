@@ -31,6 +31,74 @@ impl CAbiError {
 }
 
 impl Lowerer {
+    pub(crate) fn validate_extern_global_symbols(&mut self) {
+        let extern_globals: Vec<_> = self
+            .globals
+            .iter()
+            .filter_map(|(id, global)| match &global.storage {
+                hir::GlobalStorage::Extern {
+                    library,
+                    native_symbol,
+                    thread_local,
+                } => Some((id, library.clone(), native_symbol.clone(), *thread_local)),
+                hir::GlobalStorage::Local { .. } => None,
+            })
+            .collect();
+        for (index, (id, library, symbol, thread_local)) in extern_globals.iter().enumerate() {
+            for (previous, previous_library, previous_symbol, previous_tls) in
+                extern_globals.iter().take(index)
+            {
+                if previous_symbol != symbol {
+                    continue;
+                }
+                let compatible = previous_library == library
+                    && previous_tls == thread_local
+                    && self.globals[*previous].mutable == self.globals[*id].mutable
+                    && self.types_equal(self.globals[*previous].ty, self.globals[*id].ty);
+                if !compatible {
+                    self.current_file = self.global_files[id];
+                    self.error(
+                        self.globals[*id].span,
+                        format!(
+                            "extern data symbol `{symbol}` conflicts with global `{}`",
+                            self.globals[*previous].name
+                        ),
+                    );
+                }
+                break;
+            }
+            let conflicting_function = self.functions.iter().find_map(|(_, function)| {
+                matches!(
+                    function.kind,
+                    hir::FunctionKind::Extern(extern_id)
+                        if self.extern_functions[extern_id].native_symbol == *symbol
+                )
+                .then(|| function.name.clone())
+            });
+            if let Some(function_name) = conflicting_function {
+                self.current_file = self.global_files[id];
+                self.error(
+                    self.globals[*id].span,
+                    format!(
+                        "extern data symbol `{symbol}` conflicts with function `{}`",
+                        function_name
+                    ),
+                );
+            }
+        }
+    }
+
+    pub(crate) fn validate_c_global_type(
+        &mut self,
+        ty: hir::TypeId,
+        name: &str,
+    ) -> Result<(), String> {
+        let mut visiting = HashSet::new();
+        self.classify_c_ffi_type(ty, &[], false, vec![name.to_string()], &mut visiting)
+            .map(|_| ())
+            .map_err(|error| error.render())
+    }
+
     /// Check complete extern signatures and native-symbol consistency after
     /// every declaration signature has been resolved.
     pub(crate) fn validate_extern_functions(&mut self) {

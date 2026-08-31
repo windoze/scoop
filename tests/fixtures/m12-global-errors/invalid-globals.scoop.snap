@@ -1,0 +1,16 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m12-global-errors/invalid-globals.scoop:3:1: error: a local top-level `var` requires exactly one of `@Global` or `@ThreadLocal`
+m12-global-errors/invalid-globals.scoop:6:1: error: a local top-level `val` is not supported; use a local binding or `@Extern val`
+m12-global-errors/invalid-globals.scoop:9:1: error: `@Global` and `@ThreadLocal` cannot be combined
+m12-global-errors/invalid-globals.scoop:20:1: error: an `@Extern` global must not have an initializer
+m12-global-errors/invalid-globals.scoop:23:1: error: an extern `var` requires exactly one of `@Global` or `@ThreadLocal`
+m12-global-errors/invalid-globals.scoop:27:1: error: an extern `val` must not use `@Global` or `@ThreadLocal`
+m12-global-errors/invalid-globals.scoop:30:1: error: an extern global supports only the C data ABI
+m12-global-errors/invalid-globals.scoop:13:14: error: global storage requires a concrete GC-free value type, found Managed
+m12-global-errors/invalid-globals.scoop:13:24: error: global initializer must be a GC-free compile-time constant and must not call functions or read another global
+m12-global-errors/invalid-globals.scoop:16:20: error: global initializer must be a GC-free compile-time constant and must not call functions or read another global
+m12-global-errors/invalid-globals.scoop:38:13: error: reading an extern global requires an unsafe context

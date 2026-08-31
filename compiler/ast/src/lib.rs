@@ -124,11 +124,25 @@ pub struct SourceFile {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Decl {
+    Global(GlobalDecl),
     Function(FunctionDecl),
     Struct(StructDecl),
     Enum(EnumDecl),
     Class(ClassDecl),
     Interface(InterfaceDecl),
+}
+
+/// A top-level storage declaration. Unlike block-local bindings, a global
+/// always has an explicit type and may omit its initializer only when it is
+/// imported with `@Extern`.
+#[derive(Debug, Clone, PartialEq)]
+pub struct GlobalDecl {
+    pub annotations: Vec<Annotation>,
+    pub mutable: bool,
+    pub name: Ident,
+    pub ty: TypeRef,
+    pub init: Option<Expr>,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -748,6 +762,16 @@ pub fn dump(file: &SourceFile) -> String {
     let mut out = String::from("SourceFile\n");
     for decl in &file.declarations {
         match decl {
+            Decl::Global(g) => {
+                dump_annotations(&g.annotations, 2, &mut out);
+                out.push_str(&format!(
+                    "  {} {}: {}{}\n",
+                    if g.mutable { "var" } else { "val" },
+                    g.name.text,
+                    dump_type_ref(&g.ty),
+                    if g.init.is_some() { " = <expr>" } else { "" }
+                ));
+            }
             Decl::Enum(e) => {
                 dump_annotations(&e.annotations, 2, &mut out);
                 let type_params = if e.type_params.is_empty() {

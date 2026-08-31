@@ -138,6 +138,11 @@ pub fn compile_file_with_options(
             libraries.push(extern_.library.clone());
         }
     }
+    for (_, global) in lir.native_globals.iter() {
+        if !global.library.is_empty() && !libraries.contains(&global.library) {
+            libraries.push(global.library.clone());
+        }
+    }
     link(
         &object,
         bridge_object.as_deref(),

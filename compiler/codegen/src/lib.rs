@@ -44,8 +44,9 @@ use inkwell::values::{BasicValue, BasicValueEnum, GlobalValue, IntValue, Pointer
 use inkwell::{AddressSpace, IntPredicate, OptimizationLevel};
 use la_arena::{Arena, Idx};
 use scoop_lir::{
-    BinOp, EnumDef, EnumRepr, ExternFunction, ExternFunctionKind, Function, GcEffect, Global,
-    GlobalInit, Instruction, LirType, Module, RefScan, StructDef, TempId, Terminator, UnOp, Value,
+    BinOp, ConstantValue, EnumDef, EnumRepr, ExternFunction, ExternFunctionKind, Function,
+    GcEffect, Global, GlobalInit, Instruction, LirType, Module, NativeGlobal, RefScan, StructDef,
+    TempId, Terminator, UnOp, Value,
 };
 
 const SCAN_ARRAY: u64 = u64::MAX;
@@ -207,7 +208,7 @@ pub fn c_bridge_source(module: &Module) -> Result<Option<String>, CodegenError> 
         .iter()
         .filter(|(_, function)| matches!(function.kind, ExternFunctionKind::C { .. }))
         .collect::<Vec<_>>();
-    if c_externs.is_empty() {
+    if c_externs.is_empty() && module.native_globals.is_empty() {
         return Ok(None);
     }
 
@@ -261,6 +262,9 @@ pub fn c_bridge_source(module: &Module) -> Result<Option<String>, CodegenError> 
             collect_function_pointers(parameter, &mut function_pointers);
         }
         collect_function_pointers(return_type, &mut function_pointers);
+    }
+    for (_, global) in module.native_globals.iter() {
+        collect_function_pointers(&global.c_type, &mut function_pointers);
     }
 
     let mut out = c_layout_assertions(module)?;
@@ -359,6 +363,34 @@ pub fn c_bridge_source(module: &Module) -> Result<Option<String>, CodegenError> 
         }
         out.push_str("}\n\n");
         let _ = id;
+    }
+    for (_, global) in module.native_globals.iter() {
+        let native_type = type_name(&global.c_type, &function_pointers);
+        let thread_local = if global.thread_local {
+            "_Thread_local "
+        } else {
+            ""
+        };
+        if declared_symbols.insert(global.native_symbol.clone()) {
+            out.push_str(&format!(
+                "extern {thread_local}{native_type} {};\n",
+                global.native_symbol
+            ));
+        }
+        out.push_str(&format!(
+            "void {}(void *result) {{\n  memcpy(result, &{}, sizeof({}));\n}}\n\n",
+            global.get_bridge_symbol, global.native_symbol, global.native_symbol
+        ));
+        if let Some(setter) = &global.set_bridge_symbol {
+            out.push_str(&format!(
+                "void {setter}(const void *value) {{\n  memcpy(&{}, value, sizeof({}));\n}}\n\n",
+                global.native_symbol, global.native_symbol
+            ));
+        }
+        out.push_str(&format!(
+            "void {}(void *result) {{\n  void *native_address = (void *)&{};\n  memcpy(result, &native_address, sizeof(native_address));\n}}\n\n",
+            global.address_bridge_symbol, global.native_symbol
+        ));
     }
     Ok(Some(out))
 }
@@ -643,6 +675,19 @@ fn emit_llvm_module<'ctx>(
                 llvm_global.set_initializer(&context.const_string(bytes, true));
                 globals.push(Some(llvm_global));
             }
+            GlobalInit::Storage {
+                ty,
+                initializer,
+                thread_local,
+            } => {
+                let ty = basic_ty(context, &module.structs, &module.enums, ty)?;
+                let value =
+                    llvm_constant(context, &module.structs, &module.enums, ty, initializer)?;
+                let llvm_global = llvm.add_global(ty, None, &global.symbol);
+                llvm_global.set_initializer(&value);
+                llvm_global.set_thread_local(*thread_local);
+                globals.push(Some(llvm_global));
+            }
         }
     }
 
@@ -654,6 +699,7 @@ fn emit_llvm_module<'ctx>(
         structs: &module.structs,
         enums: &module.enums,
         extern_functions: &module.extern_functions,
+        native_globals: &module.native_globals,
         globals_arena: &module.globals,
         globals: &globals,
         array_descriptors: &array_descriptors,
@@ -719,6 +765,69 @@ fn basic_ty<'ctx>(
                 ..
             } => tagged_ty(context, *payload_size, *payload_align)?.into(),
         },
+    })
+}
+
+fn llvm_constant<'ctx>(
+    context: &'ctx Context,
+    structs: &Arena<StructDef>,
+    enums: &Arena<EnumDef>,
+    ty: BasicTypeEnum<'ctx>,
+    value: &ConstantValue,
+) -> Result<BasicValueEnum<'ctx>, CodegenError> {
+    Ok(match value {
+        ConstantValue::Int(value) => context.i64_type().const_int(*value as u64, true).into(),
+        ConstantValue::Bool(value) => context
+            .bool_type()
+            .const_int(u64::from(*value), false)
+            .into(),
+        ConstantValue::NullPtr => ptr_ty(context).const_null().into(),
+        ConstantValue::Struct { struct_id, fields } => {
+            let definition = &structs[*struct_id];
+            if fields.len() != definition.fields.len() {
+                return Err(CodegenError(format!(
+                    "global constant for `{}` has the wrong field count",
+                    definition.name
+                )));
+            }
+            let struct_type = ty.into_struct_type();
+            if definition.c_layout.is_none() {
+                let values = fields
+                    .iter()
+                    .zip(&definition.fields)
+                    .map(|(value, field)| {
+                        let ty = basic_ty(context, structs, enums, &field.ty)?;
+                        llvm_constant(context, structs, enums, ty, value)
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+                struct_type.const_named_struct(&values).into()
+            } else {
+                let payload_types = c_payload_fields(context, structs, enums, definition)?;
+                let mut payload_values = Vec::with_capacity(payload_types.len());
+                let mut cursor = 0u64;
+                for (field, value) in definition.fields.iter().zip(fields) {
+                    if field.layout.offset > cursor {
+                        let ty = payload_types[payload_values.len()];
+                        payload_values.push(ty.const_zero());
+                    }
+                    let field_ty = basic_ty(context, structs, enums, &field.ty)?;
+                    payload_values.push(llvm_constant(context, structs, enums, field_ty, value)?);
+                    cursor = field.layout.offset + c_field_size(structs, enums, &field.ty)?;
+                }
+                if payload_values.len() < payload_types.len() {
+                    payload_values.push(payload_types[payload_values.len()].const_zero());
+                }
+                let payload_ty = context.struct_type(&payload_types, true);
+                let payload = payload_ty.const_named_struct(&payload_values);
+                let anchor = struct_type
+                    .get_field_type_at_index(0)
+                    .expect("C layout has an alignment anchor")
+                    .const_zero();
+                struct_type
+                    .const_named_struct(&[anchor, payload.into()])
+                    .into()
+            }
+        }
     })
 }
 
@@ -1202,6 +1311,7 @@ struct FnEmitter<'a, 'ctx> {
     structs: &'a Arena<StructDef>,
     enums: &'a Arena<EnumDef>,
     extern_functions: &'a Arena<ExternFunction>,
+    native_globals: &'a Arena<NativeGlobal>,
     globals_arena: &'a Arena<Global>,
     globals: &'a [Option<GlobalValue<'ctx>>],
     /// Distinct array allocation descriptors and their TypeDescriptor
@@ -1558,6 +1668,70 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             Instruction::LocalAddress { out, local } => {
                 self.temps
                     .insert(*out, self.allocas[arena_index(*local)].into());
+            }
+            Instruction::GlobalLoad { out, global } => {
+                let llvm_global =
+                    self.globals[arena_index(*global)].expect("storage globals are emitted");
+                let ty = basic_ty(context, self.structs, self.enums, &function.temps[*out].ty)?;
+                let value = builder
+                    .build_load(ty, llvm_global.as_pointer_value(), "global_load")
+                    .map_err(|error| CodegenError(format!("global load: {error}")))?;
+                self.temps.insert(*out, value);
+            }
+            Instruction::GlobalStore { global, value } => {
+                let llvm_global =
+                    self.globals[arena_index(*global)].expect("storage globals are emitted");
+                builder
+                    .build_store(llvm_global.as_pointer_value(), self.value(*value)?)
+                    .map_err(|error| CodegenError(format!("global store: {error}")))?;
+            }
+            Instruction::GlobalAddress { out, global } => {
+                let llvm_global =
+                    self.globals[arena_index(*global)].expect("storage globals are emitted");
+                self.temps
+                    .insert(*out, llvm_global.as_pointer_value().into());
+            }
+            Instruction::NativeGlobalLoad { out, global } => {
+                let native = &self.native_globals[*global];
+                let ty = basic_ty(context, self.structs, self.enums, &native.ty)?;
+                let slot = self.entry_alloca(ty, "native_global_result")?;
+                let callee = self.native_global_bridge(&native.get_bridge_symbol);
+                builder
+                    .build_call(callee, &[slot.into()], "native_global_get")
+                    .map_err(|error| CodegenError(format!("native global read: {error}")))?;
+                let value = builder
+                    .build_load(ty, slot, "native_global_value")
+                    .map_err(|error| CodegenError(format!("native global load: {error}")))?;
+                self.temps.insert(*out, value);
+            }
+            Instruction::NativeGlobalStore { global, value } => {
+                let native = &self.native_globals[*global];
+                let ty = basic_ty(context, self.structs, self.enums, &native.ty)?;
+                let slot = self.entry_alloca(ty, "native_global_argument")?;
+                builder
+                    .build_store(slot, self.value(*value)?)
+                    .map_err(|error| CodegenError(format!("native global spill: {error}")))?;
+                let symbol = native
+                    .set_bridge_symbol
+                    .as_deref()
+                    .expect("only mutable native globals are assigned");
+                let callee = self.native_global_bridge(symbol);
+                builder
+                    .build_call(callee, &[slot.into()], "native_global_set")
+                    .map_err(|error| CodegenError(format!("native global write: {error}")))?;
+            }
+            Instruction::NativeGlobalAddress { out, global } => {
+                let native = &self.native_globals[*global];
+                let ty: BasicTypeEnum = ptr_ty(context).into();
+                let slot = self.entry_alloca(ty, "native_global_address")?;
+                let callee = self.native_global_bridge(&native.address_bridge_symbol);
+                builder
+                    .build_call(callee, &[slot.into()], "native_global_address")
+                    .map_err(|error| CodegenError(format!("native global address: {error}")))?;
+                let value = builder
+                    .build_load(ty, slot, "native_global_pointer")
+                    .map_err(|error| CodegenError(format!("native global pointer: {error}")))?;
+                self.temps.insert(*out, value);
             }
             Instruction::Store { local, value: v } => {
                 let operand = self.value(*v)?;
@@ -2549,6 +2723,25 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .unwrap_or_else(|| self.llvm.add_function(symbol, ty, None))
     }
 
+    fn native_global_bridge(&self, symbol: &str) -> inkwell::values::FunctionValue<'ctx> {
+        let function = self.runtime_fn(
+            symbol,
+            self.context
+                .void_type()
+                .fn_type(&[ptr_ty(self.context).into()], false),
+        );
+        function.add_attribute(
+            AttributeLoc::Function,
+            self.context
+                .create_enum_attribute(Attribute::get_named_enum_kind_id("nounwind"), 0),
+        );
+        function.add_attribute(
+            AttributeLoc::Function,
+            self.context.create_string_attribute("gc-leaf-function", ""),
+        );
+        function
+    }
+
     /// `ptr scoop_rt_box(ptr td, ptr payload, i64 size)` (runtime spec
     /// 2.3). lir-lower passes the payload by value (an aggregate for a
     /// value type); it is materialized behind a stack pointer here
@@ -2998,6 +3191,7 @@ struct ModuleCtx<'a, 'ctx> {
     structs: &'a Arena<StructDef>,
     enums: &'a Arena<EnumDef>,
     extern_functions: &'a Arena<ExternFunction>,
+    native_globals: &'a Arena<NativeGlobal>,
     globals_arena: &'a Arena<Global>,
     globals: &'a [Option<GlobalValue<'ctx>>],
     array_descriptors: &'a [ArrayDescriptor],
@@ -3163,6 +3357,7 @@ fn emit_function<'ctx>(
         structs: module_ctx.structs,
         enums: module_ctx.enums,
         extern_functions: module_ctx.extern_functions,
+        native_globals: module_ctx.native_globals,
         globals_arena: module_ctx.globals_arena,
         globals: module_ctx.globals,
         array_descriptors: module_ctx.array_descriptors,
@@ -3507,6 +3702,7 @@ mod tests {
             structs: Arena::default(),
             enums: Arena::default(),
             extern_functions: Arena::default(),
+            native_globals: Arena::default(),
             functions: vec![Function {
                 gc_effect: GcEffect::Managed,
                 symbol: "scoop_main".to_string(),
@@ -3918,6 +4114,7 @@ mod tests {
             structs: Arena::default(),
             enums,
             extern_functions: Arena::default(),
+            native_globals: Arena::default(),
             functions: vec![
                 tagged,
                 niche,
@@ -4124,6 +4321,7 @@ mod tests {
             structs: Arena::default(),
             enums: Arena::default(),
             extern_functions: Arena::default(),
+            native_globals: Arena::default(),
             functions: vec![Function {
                 gc_effect: GcEffect::Managed,
                 symbol: "scoop_main".to_string(),
@@ -4268,6 +4466,7 @@ mod tests {
             structs: Arena::default(),
             enums: Arena::default(),
             extern_functions: Arena::default(),
+            native_globals: Arena::default(),
             functions: vec![describe("Shape.describe"), describe("Point.describe"), main],
             entry_symbol: "scoop_main".to_string(),
             meta: LirMeta {
@@ -4496,6 +4695,7 @@ mod tests {
             structs: Arena::default(),
             enums: Arena::default(),
             extern_functions: Arena::default(),
+            native_globals: Arena::default(),
             functions: vec![describe, main],
             entry_symbol: "scoop_main".to_string(),
             meta: LirMeta {
@@ -4687,6 +4887,7 @@ mod tests {
             structs: Arena::default(),
             enums: Arena::default(),
             extern_functions: Arena::default(),
+            native_globals: Arena::default(),
             functions: vec![thrower, eh_test],
             entry_symbol: "scoop.eh_test".to_string(),
             meta: LirMeta {
@@ -4787,6 +4988,7 @@ mod tests {
             structs: Arena::default(),
             enums: Arena::default(),
             extern_functions: Arena::default(),
+            native_globals: Arena::default(),
             functions: vec![Function {
                 gc_effect: GcEffect::Managed,
                 symbol: "scoop.closure_abi".to_string(),
@@ -4936,6 +5138,7 @@ mod tests {
             structs: Arena::default(),
             enums: Arena::default(),
             extern_functions: Arena::default(),
+            native_globals: Arena::default(),
             functions: vec![Function {
                 gc_effect: GcEffect::Managed,
                 symbol: "scoop_main".to_string(),
@@ -5120,6 +5323,7 @@ mod tests {
             structs: Arena::default(),
             enums: Arena::default(),
             extern_functions: Arena::default(),
+            native_globals: Arena::default(),
             functions: vec![Function {
                 gc_effect: GcEffect::Managed,
                 symbol: "scoop_main".to_string(),
@@ -5329,6 +5533,7 @@ mod tests {
             structs,
             enums,
             extern_functions: Arena::default(),
+            native_globals: Arena::default(),
             functions: vec![Function {
                 gc_effect: GcEffect::Managed,
                 symbol: "scoop_main".to_string(),

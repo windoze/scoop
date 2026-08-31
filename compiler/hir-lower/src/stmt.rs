@@ -1644,6 +1644,42 @@ impl Lowerer {
                 }
                 _ => {}
             }
+            if let Some(&global) = self.globals_by_name.get(&name.text) {
+                if !self.globals[global].mutable {
+                    self.error(
+                        name.span,
+                        format!("cannot assign to immutable global `{}`", name.text),
+                    );
+                    return None;
+                }
+                if matches!(
+                    self.globals[global].storage,
+                    hir::GlobalStorage::Extern { .. }
+                ) {
+                    self.require_unsafe_operation(name.span, "writing an extern global");
+                }
+                let expected = self.globals[global].ty;
+                let mut sink = Vec::new();
+                let value = self.lower_expr(&assign.value, &mut sink, Some(expected))?;
+                if !self.is_subtype(value.ty, expected) {
+                    self.error(
+                        assign.value.span(),
+                        format!(
+                            "cannot assign value of type {} to global `{}` of type {}",
+                            self.type_name(value.ty),
+                            name.text,
+                            self.type_name(expected)
+                        ),
+                    );
+                    return None;
+                }
+                let value = self.adapt_to(value, expected);
+                out.extend(sink);
+                return Some(hir::StatementKind::Assign {
+                    target: hir::AssignTarget::Global(global),
+                    value,
+                });
+            }
             self.error(name.span, format!("unknown variable `{}`", name.text));
             return None;
         };
@@ -1842,7 +1878,7 @@ fn patch_local_function_calls(
                 value,
             } => {
                 match place {
-                    hir::AssignTarget::Local(_) => {}
+                    hir::AssignTarget::Local(_) | hir::AssignTarget::Global(_) => {}
                     hir::AssignTarget::Index { array, index } => {
                         patch_local_function_call_expr(array, target, captures);
                         patch_local_function_call_expr(index, target, captures);
@@ -2029,6 +2065,7 @@ fn patch_local_function_call_expr(
         | hir::ExprKind::BoolLiteral(_)
         | hir::ExprKind::UnitLiteral
         | hir::ExprKind::Local(_)
+        | hir::ExprKind::GlobalRead(_)
         | hir::ExprKind::Capture(_)
         | hir::ExprKind::Lambda(_)
         | hir::ExprKind::AnonymousFunction(_)

@@ -1213,6 +1213,19 @@ impl Lowerer {
             if let Some(expr) = self.bare_member_fallback(name) {
                 return Some(expr);
             }
+            if let Some(&global) = self.globals_by_name.get(&name.text) {
+                if matches!(
+                    self.globals[global].storage,
+                    hir::GlobalStorage::Extern { .. }
+                ) {
+                    self.require_unsafe_operation(name.span, "reading an extern global");
+                }
+                return Some(hir::Expr {
+                    kind: ExprKind::GlobalRead(global),
+                    ty: self.globals[global].ty,
+                    span: name.span,
+                });
+            }
             if !self.local_function_scopes.lookup(&name.text).is_empty()
                 || self.functions_by_name.contains_key(&name.text)
                 || self.extensions_by_name.contains_key(&name.text)
@@ -3605,8 +3618,19 @@ impl Lowerer {
                 ast::Expr::Var(name) => self
                     .scopes
                     .lookup(&name.text)
-                    .map(|local| (local, self.locals[local].ty, name.span)),
-                ast::Expr::This { span } => self.current_this.map(|(local, ty)| (local, ty, *span)),
+                    .map(|local| (hir::Place::Local(local), self.locals[local].ty, name.span))
+                    .or_else(|| {
+                        self.globals_by_name.get(&name.text).copied().map(|global| {
+                            (
+                                hir::Place::Global(global),
+                                self.globals[global].ty,
+                                name.span,
+                            )
+                        })
+                    }),
+                ast::Expr::This { span } => self
+                    .current_this
+                    .map(|(local, ty)| (hir::Place::Local(local), ty, *span)),
                 expression => {
                     self.error(
                         expression.span(),
@@ -3616,7 +3640,7 @@ impl Lowerer {
                     return None;
                 }
             };
-            let Some((local, place_ty, place_span)) = place else {
+            let Some((place, place_ty, place_span)) = place else {
                 self.error(
                     call.args[0].span(),
                     "`addressOf` argument must be an addressable local, parameter, global, or value-type `this`"
@@ -3624,6 +3648,14 @@ impl Lowerer {
                 );
                 return None;
             };
+            if let hir::Place::Global(global) = place
+                && matches!(
+                    self.globals[global].storage,
+                    hir::GlobalStorage::Extern { .. }
+                )
+            {
+                self.require_unsafe_operation(place_span, "taking the address of an extern global");
+            }
             let explicit = self.resolve_call_type_args(&call.type_args)?;
             if explicit.len() > 1 {
                 self.error(
@@ -3665,7 +3697,7 @@ impl Lowerer {
             self.check_call_effects(hir::Callable::Function(function), call.span);
             let ty = self.intern_type(Type::Ptr(place_ty));
             return Some(hir::Expr {
-                kind: ExprKind::AddressOf(hir::Place::Local(local)),
+                kind: ExprKind::AddressOf(place),
                 ty,
                 span: call.span,
             });

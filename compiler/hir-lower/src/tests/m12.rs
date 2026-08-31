@@ -102,6 +102,7 @@ fn with_kind(mut decl: Decl, kind: ast::TypeParamKindBound) -> Decl {
         Decl::Enum(decl) => &mut decl.type_params,
         Decl::Interface(decl) => &mut decl.type_params,
         Decl::Class(_) => panic!("classes have no M12 type parameters"),
+        Decl::Global(_) => panic!("globals have no type parameters"),
     };
     type_params[0].kind_bound = Some(kind);
     decl

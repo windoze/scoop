@@ -99,6 +99,7 @@ mod class;
 mod effects;
 mod expr;
 mod ffi;
+mod globals;
 mod overload;
 mod patterns;
 mod scope;
@@ -300,6 +301,7 @@ pub(crate) struct Lowerer {
     pub(crate) interfaces: Arena<InterfaceDecl>,
     pub(crate) functions: Arena<Function>,
     pub(crate) extern_functions: Arena<hir::ExternFunction>,
+    pub(crate) globals: Arena<hir::Global>,
     /// Generic definitions are separate HIR entities. The reverse map
     /// is lowerer-only and lets call resolution turn a selected
     /// `FunctionId` into a typed generic identity.
@@ -334,6 +336,8 @@ pub(crate) struct Lowerer {
     /// layering of overload resolution (user file → core implicit
     /// imports, milestone7 DESIGN.md 1.2).
     pub(crate) function_files: HashMap<FunctionId, usize>,
+    pub(crate) globals_by_name: HashMap<String, hir::GlobalId>,
+    pub(crate) global_files: HashMap<hir::GlobalId, usize>,
     /// Index of the user compilation unit (`files.len() - 1`); every
     /// earlier file is implicitly imported `scoop.core`.
     pub(crate) user_file_index: usize,
@@ -496,6 +500,7 @@ impl Lowerer {
             interfaces: Arena::new(),
             functions: Arena::new(),
             extern_functions: Arena::new(),
+            globals: Arena::new(),
             generic_functions: Arena::new(),
             generic_by_function: HashMap::new(),
             top_level: Vec::new(),
@@ -511,6 +516,8 @@ impl Lowerer {
             extensions_by_name: HashMap::new(),
             extension_receivers: HashMap::new(),
             function_files: HashMap::new(),
+            globals_by_name: HashMap::new(),
+            global_files: HashMap::new(),
             user_file_index: 0,
             structs_by_name: HashMap::new(),
             enums_by_name: HashMap::new(),
@@ -668,12 +675,14 @@ impl Lowerer {
         let mut pending_enums = Vec::new();
         let mut pending_classes = Vec::new();
         let mut pending_functions = Vec::new();
+        let mut pending_globals = Vec::new();
         let mut pending_methods: Vec<(FunctionId, &ast::FunctionDecl, usize, Owner)> = Vec::new();
         for (file_index, file) in files.iter().enumerate() {
             self.current_file = file_index;
             let is_core = file_index < user_file_index;
             for decl in &file.declarations {
                 match decl {
+                    ast::Decl::Global(decl) => pending_globals.push((decl, file_index)),
                     ast::Decl::Struct(decl) => self.declare_struct(
                         decl,
                         &mut pending_structs,
@@ -765,7 +774,9 @@ impl Lowerer {
         let ffi_core = self.validate_ffi_core(files);
         self.ffi_core = ffi_core;
         self.validate_pointer_type_uses();
+        self.resolve_globals(&pending_globals);
         self.validate_extern_functions();
+        self.validate_extern_global_symbols();
 
         // Pass 2.6: overload declarations must be distinguishable —
         // within one name (top-level) or one host (members) no two
@@ -891,6 +902,7 @@ impl Lowerer {
             function_coercions: self.function_coercions,
             functions: self.functions,
             extern_functions: self.extern_functions,
+            globals: self.globals,
             generic_functions: self.generic_functions,
             structs: self.structs,
             enums: self.enums,

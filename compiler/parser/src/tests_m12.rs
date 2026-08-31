@@ -8,6 +8,24 @@ use scoop_ast::{
 use crate::tests::{block_body, err, ok, only_function};
 
 #[test]
+fn parses_typed_top_level_storage_declarations() {
+    let file = ok("@Global var counter: Int = 1\n\
+         @Extern(lib = \"native\", name = \"limit\") val limit: Int");
+    let Decl::Global(counter) = &file.declarations[0] else {
+        panic!("expected global");
+    };
+    assert!(counter.mutable);
+    assert!(counter.init.is_some());
+    assert_eq!(counter.annotations[0].name.text, "Global");
+    let Decl::Global(limit) = &file.declarations[1] else {
+        panic!("expected extern global");
+    };
+    assert!(!limit.mutable);
+    assert!(limit.init.is_none());
+    assert_eq!(limit.annotations[0].name.text, "Extern");
+}
+
+#[test]
 fn parses_marker_positional_named_and_multiple_annotations() {
     let file = ok(
         "@NoGC\n@Extern(\"native\", name = \"sum\", enabled = true, version = 12)\nfun sum(): Int = 0",

@@ -3,9 +3,9 @@
 
 use scoop_ast::{
     Annotation, AnnotationArg, AnnotationLiteral, ClassDecl, ClassModifier, ConstructorProp, Decl,
-    Diagnostic, EnumDecl, Expr, FieldDecl, FunctionBody, FunctionDecl, Ident, InterfaceDecl,
-    MethodModifier, Param, Span, StructDecl, TypeParamDecl, TypeParamKindBound, Variance,
-    VariantDecl, VariantDeclKind, VariantFieldDecl,
+    Diagnostic, EnumDecl, Expr, FieldDecl, FunctionBody, FunctionDecl, GlobalDecl, Ident,
+    InterfaceDecl, MethodModifier, Param, Span, StructDecl, TypeParamDecl, TypeParamKindBound,
+    Variance, VariantDecl, VariantDeclKind, VariantFieldDecl,
 };
 
 use crate::lexer::TokenKind;
@@ -107,6 +107,7 @@ impl Parser {
                 Modifiers::default(),
                 FunctionContext::TopLevel,
             )?)),
+            TokenKind::Val | TokenKind::Var => Ok(Decl::Global(self.parse_global(Vec::new())?)),
             TokenKind::Struct => Ok(Decl::Struct(self.parse_struct(Vec::new())?)),
             TokenKind::Enum => Ok(Decl::Enum(self.parse_enum(Vec::new())?)),
             TokenKind::Class => Ok(Decl::Class(self.parse_class(
@@ -149,6 +150,9 @@ impl Parser {
                         modifiers,
                         FunctionContext::TopLevel,
                     )?)),
+                    TokenKind::Val | TokenKind::Var if !modifiers.is_suspend => {
+                        Ok(Decl::Global(self.parse_global(annotations)?))
+                    }
                     TokenKind::Struct if !modifiers.is_suspend => {
                         Ok(Decl::Struct(self.parse_struct(annotations)?))
                     }
@@ -179,8 +183,31 @@ impl Parser {
                 self.peek().span,
                 "`object` declarations are not supported yet (milestone M6)",
             )),
-            _ => self.unexpected("`fun`, `struct`, `enum`, `class` or `interface`"),
+            _ => self.unexpected("`fun`, `val`, `var`, `struct`, `enum`, `class` or `interface`"),
         }
+    }
+
+    fn parse_global(&mut self, annotations: Vec<Annotation>) -> Result<GlobalDecl, Diagnostic> {
+        let keyword = self.bump();
+        let mutable = matches!(keyword.kind, TokenKind::Var);
+        let name = self.expect_ident("global name")?;
+        self.expect("`:`", |kind| matches!(kind, TokenKind::Colon))?;
+        let ty = self.parse_type_ref()?;
+        let init = if matches!(self.peek().kind, TokenKind::Equal) {
+            self.bump();
+            Some(self.parse_expr()?)
+        } else {
+            None
+        };
+        let end = init.as_ref().map_or(ty.span.end, |expr| expr.span().end);
+        Ok(GlobalDecl {
+            annotations,
+            mutable,
+            name,
+            ty,
+            init,
+            span: Span::new(keyword.span.start, end),
+        })
     }
 
     /// Parse compiler annotations without assigning them language semantics.
