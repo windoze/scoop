@@ -1,7 +1,8 @@
 //! M12 annotation syntax and lexical safety-block tests.
 
 use scoop_ast::{
-    AnnotationLiteral, Decl, FunctionBody, SafetyMode, StatementKind, TypeParamKindBound, Variance,
+    AnnotationLiteral, BinOp, Decl, Expr, FunctionBody, SafetyMode, StatementKind,
+    TypeParamKindBound, TypeRefKind, Variance,
 };
 
 use crate::tests::{block_body, err, ok, only_function};
@@ -145,4 +146,39 @@ fn rejects_bounds_outside_the_m12_kind_vocabulary() {
         message,
         "unsupported type parameter bound `Comparable`; M12 supports only `value` or `ref`"
     );
+}
+
+#[test]
+fn parses_explicit_type_arguments_on_functions_and_methods() {
+    let file = ok("fun main() {\n\
+             identity<Int>(1)\n\
+             pointer.cast<UInt>()\n\
+         }");
+    let statements = &block_body(only_function(&file)).statements;
+    let StatementKind::Expr(Expr::Call(call)) = &statements[0].kind else {
+        panic!("expected function call");
+    };
+    assert!(matches!(
+        &call.type_args[0].kind,
+        TypeRefKind::Named(name) if name.text == "Int"
+    ));
+    let StatementKind::Expr(Expr::MethodCall { type_args, .. }) = &statements[1].kind else {
+        panic!("expected method call");
+    };
+    assert!(matches!(
+        &type_args[0].kind,
+        TypeRefKind::Named(name) if name.text == "UInt"
+    ));
+    let dump = scoop_ast::dump(&file);
+    assert!(dump.contains("Call identity<Int>"));
+    assert!(dump.contains("MethodCall cast<UInt>"));
+}
+
+#[test]
+fn explicit_type_argument_probe_preserves_comparison_syntax() {
+    let file = ok("fun less(left: Int, right: Int): Boolean = left < right");
+    let FunctionBody::Expr(body) = &only_function(&file).body else {
+        panic!("expected expression body");
+    };
+    assert!(matches!(body.as_ref(), Expr::Binary { op: BinOp::Lt, .. }));
 }

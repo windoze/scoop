@@ -175,6 +175,8 @@ M12 的 Scoop ABI 至少接受 `Unit`、基本/GC-free边界值，以及所有�
 
 `Ptr` / `FunPtr` 在 core 中有源码声明，但 HIR 在验证唯一的 core contract 后将应用正规化为专用类型节点；下游不靠 FQN 或“单字段恰好是 UInt”猜测指针身份。
 
+M12 同时落地调用点显式类型实参语法，因为 `sizeOf<T>()` / `alignOf<T>()` 没有 value argument 可供推断，`Ptr<T>.cast<U>()` 也必须直接给出目标类型。语法统一适用于普通/局部/重载函数、generic 值构造和 generic member/extension 调用；列表要么省略并完整推断，要么完整写出 callee 自己声明的参数。generic receiver 已经确定的宿主参数不在 member call 处重复。
+
 - `Ptr<T>` 的具体 `T` 在 M12 必须是 GC-free value；`Ptr<Unit>` 表示 `void *`。这项 M12 限制保证 `@NoGC` 的 `load` / `store` 不会暗中搬运 managed ref；指向 managed 对象必须使用 pin 后得到的 opaque 地址，而不是 `Ptr<含 ref 的值类型>`；
 - `Ptr<T>(raw: UInt)` 允许从整数显式制造地址，但构造本身要求 unsafe context；`raw == 0u` 产生 null。通常应优先从 extern、`addressOf` 或其他 `Ptr` 转换取得地址；
 - `load` / `store` 按 `alignOf<T>()` 访问；用户构造未对齐指针时行为未定义。packed struct 字段由编译器自己的 field lowering 使用较低对齐，不通过普通 `Ptr<T>.load` 猜测；

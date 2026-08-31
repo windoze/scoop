@@ -227,6 +227,137 @@ fn kind_bounds_check_concrete_function_and_struct_instantiations() {
 }
 
 #[test]
+fn explicit_type_arguments_bind_functions_constructors_variants_and_method_suffixes() {
+    let identity = fun_expr(
+        "identity",
+        vec!["T"],
+        vec![("value", ty_named("T"))],
+        Some(ty_named("T")),
+        var("value"),
+    );
+    let box_decl = generic_struct_decl("Box", vec!["T"], vec![("value", ty_named("T"))]);
+    let choice = enum_decl(
+        "Choice",
+        vec!["T"],
+        vec![variant_positional("Some", vec![ty_named("T")])],
+    );
+    let mut convert = method_expr(
+        "convert",
+        vec![("value", ty_named("U"))],
+        Some(ty_named("U")),
+        var("value"),
+    );
+    convert.type_params = vec![type_param("U")];
+    let holder = generic_struct_decl_full(
+        "Holder",
+        vec!["T"],
+        vec![("value", ty_named("T"))],
+        vec![],
+        vec![convert],
+    );
+    let module = lower_user(file(vec![
+        identity,
+        box_decl,
+        choice,
+        holder,
+        fun(
+            "main",
+            vec![
+                val(
+                    "function",
+                    typed_call("identity", vec![ty_named("Int")], vec![int_lit(1)]),
+                ),
+                val(
+                    "constructor",
+                    typed_call("Box", vec![ty_named("String")], vec![str_lit("box")]),
+                ),
+                val(
+                    "variant",
+                    typed_method_call(
+                        var("Choice"),
+                        "Some",
+                        vec![ty_named("Int")],
+                        vec![int_lit(2)],
+                    ),
+                ),
+                val("holder", struct_init("Holder", vec![int_lit(3)])),
+                val(
+                    "method",
+                    typed_method_call(
+                        var("holder"),
+                        "convert",
+                        vec![ty_named("String")],
+                        vec![str_lit("method")],
+                    ),
+                ),
+            ],
+        ),
+    ]))
+    .expect("complete explicit type argument lists must lower");
+
+    let dump = hir::dump(&module);
+    assert!(dump.contains("Call identity<Int> : Int"), "{dump}");
+    assert!(dump.contains("StructInit Box : Box<String>"), "{dump}");
+    assert!(
+        dump.contains("VariantConstruct Choice.Some<Int> : Choice<Int>"),
+        "{dump}"
+    );
+    assert!(
+        dump.contains("MethodCall Holder.convert : String")
+            && dump.contains("instance Holder.convert<Int, String>"),
+        "{dump}"
+    );
+}
+
+#[test]
+fn explicit_type_arguments_filter_overloads_and_report_complete_list_errors() {
+    let generic = fun_expr(
+        "pick",
+        vec!["T"],
+        vec![("value", ty_named("T"))],
+        Some(ty_named("T")),
+        var("value"),
+    );
+    let concrete = fun_expr(
+        "pick",
+        vec![],
+        vec![("value", ty_named("Int"))],
+        Some(ty_named("Int")),
+        var("value"),
+    );
+    let module = lower_user(file(vec![
+        generic.clone(),
+        concrete.clone(),
+        fun(
+            "main",
+            vec![val(
+                "picked",
+                typed_call("pick", vec![ty_named("String")], vec![str_lit("value")]),
+            )],
+        ),
+    ]))
+    .expect("explicit arguments must exclude overloads with another generic arity");
+    assert!(hir::dump(&module).contains("Call pick<String> : String"));
+
+    let errors = messages(vec![
+        generic,
+        concrete,
+        fun(
+            "main",
+            vec![stmt(typed_call(
+                "pick",
+                vec![ty_named("Int"), ty_named("String")],
+                vec![int_lit(1)],
+            ))],
+        ),
+    ]);
+    assert_eq!(
+        errors,
+        ["no overload of `pick` accepts 2 explicit type argument(s)"]
+    );
+}
+
+#[test]
 fn unconstrained_type_parameters_do_not_satisfy_a_stronger_kind() {
     let ref_box = with_kind(
         generic_struct_decl("RefBox", vec!["T"], vec![("value", ty_named("T"))]),

@@ -898,6 +898,7 @@ fn qualified_variant_construction_is_a_method_call() {
         name,
         args,
         span,
+        ..
     } = crate::tests_m2::init_expr("Shape.Circle(5)")
     else {
         panic!("expected a method call");

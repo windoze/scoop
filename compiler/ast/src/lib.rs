@@ -610,6 +610,8 @@ pub enum Expr {
     MethodCall {
         receiver: Box<Expr>,
         name: Ident,
+        /// Explicit call-site type arguments (`receiver.name<T>(...)`).
+        type_args: Vec<TypeRef>,
         args: Vec<Expr>,
         span: Span,
     },
@@ -709,6 +711,8 @@ pub enum FieldSelector {
 #[derive(Debug, Clone, PartialEq)]
 pub struct CallExpr {
     pub callee: Ident,
+    /// Explicit call-site type arguments (`callee<T>(...)`).
+    pub type_args: Vec<TypeRef>,
     pub args: Vec<Expr>,
     pub span: Span,
 }
@@ -1326,7 +1330,8 @@ fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
             dump_expr(&access.receiver, indent + 1, out);
         }
         Expr::Call(call) => {
-            out.push_str(&format!("{pad}Call {}\n", call.callee.text));
+            let type_args = dump_call_type_args(&call.type_args);
+            out.push_str(&format!("{pad}Call {}{type_args}\n", call.callee.text));
             for arg in &call.args {
                 dump_expr(arg, indent + 1, out);
             }
@@ -1360,10 +1365,12 @@ fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
         Expr::MethodCall {
             receiver,
             name,
+            type_args,
             args,
             ..
         } => {
-            out.push_str(&format!("{pad}MethodCall {}\n", name.text));
+            let type_args = dump_call_type_args(type_args);
+            out.push_str(&format!("{pad}MethodCall {}{type_args}\n", name.text));
             dump_expr(receiver, indent + 1, out);
             for arg in args {
                 dump_expr(arg, indent + 1, out);
@@ -1440,5 +1447,20 @@ fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
                 dump_block(finally_body, indent + 2, out);
             }
         }
+    }
+}
+
+fn dump_call_type_args(type_args: &[TypeRef]) -> String {
+    if type_args.is_empty() {
+        String::new()
+    } else {
+        format!(
+            "<{}>",
+            type_args
+                .iter()
+                .map(dump_type_ref)
+                .collect::<Vec<_>>()
+                .join(", ")
+        )
     }
 }

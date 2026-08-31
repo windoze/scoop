@@ -558,6 +558,7 @@ fn method_call() {
         name,
         args,
         span,
+        ..
     } = &expr
     else {
         panic!("expected a method call");

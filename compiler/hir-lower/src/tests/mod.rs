@@ -151,6 +151,16 @@ pub(crate) fn struct_init(name: &str, args: Vec<Expr>) -> Expr {
 pub(crate) fn call(name: &str, args: Vec<Expr>) -> Expr {
     Expr::Call(CallExpr {
         callee: ident(name),
+        type_args: Vec::new(),
+        args,
+        span: sp(),
+    })
+}
+
+pub(crate) fn typed_call(name: &str, type_args: Vec<TypeRef>, args: Vec<Expr>) -> Expr {
+    Expr::Call(CallExpr {
+        callee: ident(name),
+        type_args,
         args,
         span: sp(),
     })
@@ -162,6 +172,7 @@ pub(crate) fn call_at(name: &str, args: Vec<Expr>, callee_span: Span) -> Expr {
             text: name.to_string(),
             span: callee_span,
         },
+        type_args: Vec::new(),
         args,
         span: sp(),
     })
@@ -933,6 +944,22 @@ pub(crate) fn method_call(receiver: Expr, name: &str, args: Vec<Expr>) -> Expr {
     Expr::MethodCall {
         receiver: Box::new(receiver),
         name: ident(name),
+        type_args: Vec::new(),
+        args,
+        span: sp(),
+    }
+}
+
+pub(crate) fn typed_method_call(
+    receiver: Expr,
+    name: &str,
+    type_args: Vec<TypeRef>,
+    args: Vec<Expr>,
+) -> Expr {
+    Expr::MethodCall {
+        receiver: Box::new(receiver),
+        name: ident(name),
+        type_args,
         args,
         span: sp(),
     }

@@ -292,6 +292,7 @@ impl Parser {
             text,
             span: token.span,
         };
+        let type_args = self.parse_explicit_call_type_args();
         if matches!(self.peek().kind, TokenKind::LParen) {
             if safe {
                 return Err(Diagnostic::at(
@@ -304,6 +305,7 @@ impl Parser {
                 span: Span::new(receiver.span().start, end),
                 receiver: Box::new(receiver),
                 name,
+                type_args,
                 args,
             });
         }
@@ -386,8 +388,9 @@ impl Parser {
                 // (`E.V(args)`, `p.m(args)`) is NOT collapsed here: the
                 // postfix loop turns it into a method call, and hir-lower
                 // resolves enum variant construction from that shape.
+                let type_args = self.parse_explicit_call_type_args();
                 if matches!(self.peek().kind, TokenKind::LParen) {
-                    return self.parse_call(ident);
+                    return self.parse_call(ident, type_args);
                 }
                 Ok(Expr::Var(ident))
             }
@@ -551,10 +554,53 @@ impl Parser {
     /// `callee(args...)` — `callee` is already consumed. Struct
     /// construction shares this syntax in M2 (`Point(1, 2)`); hir-lower
     /// tells function calls and struct constructions apart.
-    fn parse_call(&mut self, callee: Ident) -> Result<Expr, Diagnostic> {
+    fn parse_call(
+        &mut self,
+        callee: Ident,
+        type_args: Vec<scoop_ast::TypeRef>,
+    ) -> Result<Expr, Diagnostic> {
         let (args, end) = self.parse_args()?;
         let span = Span::new(callee.span.start, end);
-        Ok(Expr::Call(CallExpr { callee, args, span }))
+        Ok(Expr::Call(CallExpr {
+            callee,
+            type_args,
+            args,
+            span,
+        }))
+    }
+
+    /// Parse `<T, ...>` only when it is immediately followed by a call
+    /// argument list. The speculative reset keeps ordinary `<` / `>` binary
+    /// expressions unchanged.
+    fn parse_explicit_call_type_args(&mut self) -> Vec<scoop_ast::TypeRef> {
+        if !matches!(self.peek().kind, TokenKind::Less) {
+            return Vec::new();
+        }
+        let start = self.pos;
+        self.bump();
+        let mut type_args = Vec::new();
+        loop {
+            let Ok(ty) = self.parse_type_ref() else {
+                self.pos = start;
+                return Vec::new();
+            };
+            type_args.push(ty);
+            if matches!(self.peek().kind, TokenKind::Comma) {
+                self.bump();
+            } else {
+                break;
+            }
+        }
+        if !matches!(self.peek().kind, TokenKind::Greater) {
+            self.pos = start;
+            return Vec::new();
+        }
+        self.bump();
+        if !matches!(self.peek().kind, TokenKind::LParen) || self.peek().newline_before {
+            self.pos = start;
+            return Vec::new();
+        }
+        type_args
     }
 
     /// `(arg, ...)` — the `(` is the current token. Shared by calls,

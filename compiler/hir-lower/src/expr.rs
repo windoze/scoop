@@ -66,6 +66,13 @@ struct InferredArguments {
 }
 
 #[derive(Clone, Copy)]
+struct CallSite<'a> {
+    type_args: &'a [ast::TypeRef],
+    args: &'a [ast::Expr],
+    span: Span,
+}
+
+#[derive(Clone, Copy)]
 enum ReferenceExtensionMode {
     Exclude,
     IncludeUnbound,
@@ -320,12 +327,28 @@ impl Lowerer {
             // `Name(args...)` where the parser already knows `Name` is
             // a type (struct or enum variant path).
             ast::Expr::StructInit { name, args, span } => match self.classify_constructor(name)? {
-                Constructor::Struct { struct_id, ty } => {
-                    self.lower_struct_init(struct_id, ty, args, *span, sink, expected)
-                }
-                Constructor::Variant { enum_id, variant } => {
-                    self.lower_variant_construct(enum_id, variant, args, *span, sink, expected)
-                }
+                Constructor::Struct { struct_id, ty } => self.lower_struct_init(
+                    struct_id,
+                    ty,
+                    CallSite {
+                        type_args: &[],
+                        args,
+                        span: *span,
+                    },
+                    sink,
+                    expected,
+                ),
+                Constructor::Variant { enum_id, variant } => self.lower_variant_construct(
+                    enum_id,
+                    variant,
+                    CallSite {
+                        type_args: &[],
+                        args,
+                        span: *span,
+                    },
+                    sink,
+                    expected,
+                ),
                 Constructor::Class { class_id } => {
                     self.lower_class_construct(class_id, args, *span, sink)
                 }
@@ -382,9 +405,20 @@ impl Lowerer {
             ast::Expr::MethodCall {
                 receiver,
                 name,
+                type_args,
                 args,
                 span,
-            } => self.lower_method_call(receiver, name, args, *span, sink, expected),
+            } => self.lower_method_call(
+                receiver,
+                name,
+                CallSite {
+                    type_args,
+                    args,
+                    span: *span,
+                },
+                sink,
+                expected,
+            ),
             ast::Expr::Is {
                 operand,
                 ty,
@@ -455,8 +489,7 @@ impl Lowerer {
         &mut self,
         receiver: &ast::Expr,
         name: &ast::Ident,
-        args: &[ast::Expr],
-        span: Span,
+        call: CallSite<'_>,
         sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
@@ -473,12 +506,19 @@ impl Lowerer {
                     );
                     return None;
                 };
-                return self.lower_variant_construct(enum_id, variant, args, span, sink, expected);
+                return self.lower_variant_construct(enum_id, variant, call, sink, expected);
             }
         }
         let receiver = self.lower_expr(receiver, sink, None)?;
         if name.text == "invoke" && matches!(self.types[receiver.ty], Type::Function(_)) {
-            return self.lower_callable_call(receiver, args, span, sink);
+            if !call.type_args.is_empty() {
+                self.error(
+                    name.span,
+                    "function values do not accept explicit type arguments".to_string(),
+                );
+                return None;
+            }
+            return self.lower_callable_call(receiver, call.args, call.span, sink);
         }
         let array_conversion = match (&self.types[receiver.ty], name.text.as_str()) {
             (Type::MutableArray(element), "toArray") => Some((true, *element)),
@@ -486,11 +526,15 @@ impl Lowerer {
             _ => None,
         };
         if let Some((to_immutable, element)) = array_conversion {
+            if !call.type_args.is_empty() {
+                self.error(name.span, format!("method `{}` is not generic", name.text));
+                return None;
+            }
             return self.lower_array_method_conversion(
                 receiver,
                 name,
-                args,
-                span,
+                call.args,
+                call.span,
                 to_immutable,
                 element,
             );
@@ -506,7 +550,7 @@ impl Lowerer {
                 );
                 return None;
             }
-            return self.finish_extension_call(&extensions, &name.text, receiver, args, span, sink);
+            return self.finish_extension_call(&extensions, &name.text, receiver, call, sink);
         }
         if matches!(self.types[receiver.ty], Type::Interface(..)) {
             let before = candidates.len();
@@ -527,9 +571,9 @@ impl Lowerer {
             }
         }
         if candidates.len() == 1 {
-            return self.finish_method_call(candidates[0], receiver, args, span, sink);
+            return self.finish_method_call(candidates[0], receiver, call, sink);
         }
-        self.finish_overloaded_method_call(candidates, &name.text, receiver, args, span, sink)
+        self.finish_overloaded_method_call(candidates, &name.text, receiver, call, sink)
     }
 
     fn finish_extension_call(
@@ -537,20 +581,29 @@ impl Lowerer {
         candidates: &[hir::FunctionId],
         name: &str,
         receiver: hir::Expr,
-        args: &[ast::Expr],
-        span: Span,
+        call: CallSite<'_>,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
-        let resolved =
-            self.resolve_extension_overload(name, candidates, receiver, args, span, sink)?;
-        self.check_call_effects(resolved.callee, span);
+        let explicit_type_args = self.resolve_call_type_args(call.type_args)?;
+        let resolved = self.resolve_extension_overload(
+            name,
+            candidates,
+            receiver,
+            crate::overload::OverloadCall {
+                explicit_type_args: &explicit_type_args,
+                arg_exprs: call.args,
+                span: call.span,
+            },
+            sink,
+        )?;
+        self.check_call_effects(resolved.callee, call.span);
         Some(hir::Expr {
             kind: ExprKind::Call {
                 callee: resolved.callee,
                 args: resolved.args,
             },
             ty: resolved.return_ty,
-            span,
+            span: call.span,
         })
     }
 
@@ -598,8 +651,7 @@ impl Lowerer {
         candidates: Vec<hir::FunctionId>,
         name: &str,
         receiver: hir::Expr,
-        args: &[ast::Expr],
-        span: Span,
+        call: CallSite<'_>,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
         // A generic host contributes the already-known prefix. Overload
@@ -611,10 +663,20 @@ impl Lowerer {
             Type::Interface(_, ref args) => args.clone(),
             _ => Vec::new(),
         };
-        let resolved =
-            self.resolve_overload(name, &candidates, &owner_type_args, args, span, sink)?;
+        let explicit_type_args = self.resolve_call_type_args(call.type_args)?;
+        let resolved = self.resolve_overload(
+            name,
+            &candidates,
+            &owner_type_args,
+            crate::overload::OverloadCall {
+                explicit_type_args: &explicit_type_args,
+                arg_exprs: call.args,
+                span: call.span,
+            },
+            sink,
+        )?;
         let ty = resolved.return_ty;
-        self.check_call_effects(resolved.callee, span);
+        self.check_call_effects(resolved.callee, call.span);
         Some(hir::Expr {
             kind: ExprKind::MethodCall {
                 receiver: Box::new(receiver),
@@ -622,7 +684,7 @@ impl Lowerer {
                 args: resolved.args,
             },
             ty,
-            span,
+            span: call.span,
         })
     }
 
@@ -649,8 +711,7 @@ impl Lowerer {
         &mut self,
         function: hir::FunctionId,
         receiver: hir::Expr,
-        args: &[ast::Expr],
-        span: Span,
+        call: CallSite<'_>,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
         let name = self.functions[function].name.clone();
@@ -661,16 +722,16 @@ impl Lowerer {
             _ => Vec::new(),
         };
         let sig = self.signatures[&function].clone();
-        if sig.params.len() != args.len() {
+        if sig.params.len() != call.args.len() {
             let expected = sig.params.len();
-            let supplied = args.len();
+            let supplied = call.args.len();
             let noun = if expected == 1 {
                 "argument"
             } else {
                 "arguments"
             };
             self.error(
-                span,
+                call.span,
                 format!(
                     "method `{name}` takes exactly {expected} {noun}, but {supplied} were supplied"
                 ),
@@ -682,15 +743,26 @@ impl Lowerer {
         for (binding, &ty) in bindings.iter_mut().zip(&owner_type_args) {
             *binding = Some(ty);
         }
+        let explicit_type_args = self.resolve_call_type_args(call.type_args)?;
+        if !self.bind_explicit_type_args(
+            &mut bindings,
+            sig.owner_type_param_count,
+            &explicit_type_args,
+            call.span,
+            &format!("method `{name}`"),
+        ) {
+            return None;
+        }
         let param_tys: Vec<_> = sig.params.iter().map(|param| param.ty).collect();
-        let inferred = self.lower_inference_args(args, &param_tys, bindings, &sig.type_params)?;
+        let inferred =
+            self.lower_inference_args(call.args, &param_tys, bindings, &sig.type_params)?;
         let mut type_args = Vec::with_capacity(sig.type_params.len());
         for (binding, param) in inferred.bindings.iter().copied().zip(&sig.type_params) {
             match binding {
                 Some(ty) => type_args.push(ty),
                 None => {
                     self.error(
-                        span,
+                        call.span,
                         format!("cannot infer type argument `{}` for `{name}`", param.name),
                     );
                     return None;
@@ -700,7 +772,7 @@ impl Lowerer {
         if !self.check_type_argument_kinds(
             &sig.type_params,
             &type_args,
-            span,
+            call.span,
             &format!("function `{}`", self.functions[function].name),
         ) {
             return None;
@@ -729,7 +801,7 @@ impl Lowerer {
             hir::Callable::Generic(self.record_instantiation(function, type_args.clone()))
         };
         let ty = self.instantiate_ty(sig.return_ty, &type_args);
-        self.check_call_effects(callee, span);
+        self.check_call_effects(callee, call.span);
         Some(hir::Expr {
             kind: ExprKind::MethodCall {
                 receiver: Box::new(receiver),
@@ -737,7 +809,7 @@ impl Lowerer {
                 args: adapted,
             },
             ty,
-            span,
+            span: call.span,
         })
     }
 
@@ -1364,6 +1436,13 @@ impl Lowerer {
                 .copied()
                 .unwrap_or(self.locals[local].ty);
             if matches!(self.types[ty], Type::Function(_)) {
+                if !call.type_args.is_empty() {
+                    self.error(
+                        call.callee.span,
+                        "function values do not accept explicit type arguments".to_string(),
+                    );
+                    return None;
+                }
                 let callee = hir::Expr {
                     kind: ExprKind::Local(local),
                     ty,
@@ -1375,6 +1454,13 @@ impl Lowerer {
         if let Some(capture) = self.available_capture(&call.callee.text)
             && matches!(self.types[capture.ty], Type::Function(_))
         {
+            if !call.type_args.is_empty() {
+                self.error(
+                    call.callee.span,
+                    "function values do not accept explicit type arguments".to_string(),
+                );
+                return None;
+            }
             let callee = self.lower_capture(&call.callee)?;
             return self.lower_callable_call(callee, &call.args, call.span, sink);
         }
@@ -1385,12 +1471,36 @@ impl Lowerer {
             return self.lower_array_conversion(call, sink);
         }
         match self.classify_constructor(&call.callee)? {
-            Constructor::Variant { enum_id, variant } => self
-                .lower_variant_construct(enum_id, variant, &call.args, call.span, sink, expected),
-            Constructor::Struct { struct_id, ty } => {
-                self.lower_struct_init(struct_id, ty, &call.args, call.span, sink, expected)
-            }
+            Constructor::Variant { enum_id, variant } => self.lower_variant_construct(
+                enum_id,
+                variant,
+                CallSite {
+                    type_args: &call.type_args,
+                    args: &call.args,
+                    span: call.span,
+                },
+                sink,
+                expected,
+            ),
+            Constructor::Struct { struct_id, ty } => self.lower_struct_init(
+                struct_id,
+                ty,
+                CallSite {
+                    type_args: &call.type_args,
+                    args: &call.args,
+                    span: call.span,
+                },
+                sink,
+                expected,
+            ),
             Constructor::Class { class_id } => {
+                if !call.type_args.is_empty() {
+                    self.error(
+                        call.callee.span,
+                        format!("class `{}` is not generic", call.callee.text),
+                    );
+                    return None;
+                }
                 self.lower_class_construct(class_id, &call.args, call.span, sink)
             }
             Constructor::Unmatched => self.lower_function_call(call, sink),
@@ -2614,6 +2724,17 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
         let name = call.callee.text.clone();
+        let explicit_type_args = self.resolve_call_type_args(&call.type_args)?;
+        if explicit_type_args.len() > 1 {
+            self.error(
+                call.callee.span,
+                format!(
+                    "`{name}` takes exactly 1 type argument, but {} were supplied",
+                    explicit_type_args.len()
+                ),
+            );
+            return None;
+        }
         if call.args.len() != 1 {
             let supplied = call.args.len();
             self.error(
@@ -2648,6 +2769,17 @@ impl Lowerer {
                 return None;
             }
         };
+        if let Some(&explicit) = explicit_type_args.first()
+            && !self.types_equal(explicit, element_ty)
+        {
+            let expected = self.type_name(explicit);
+            let found = self.type_name(element_ty);
+            self.error(
+                call.callee.span,
+                format!("explicit element type is {expected}, but the argument contains {found}"),
+            );
+            return None;
+        }
         let ty = if to_immutable {
             self.intern_type(Type::Array(element_ty))
         } else {
@@ -2671,11 +2803,15 @@ impl Lowerer {
         &mut self,
         enum_id: hir::EnumId,
         variant: u32,
-        args: &[ast::Expr],
-        span: Span,
+        call: CallSite<'_>,
         sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
+        let CallSite {
+            type_args: type_arg_refs,
+            args,
+            span,
+        } = call;
         let enum_name = self.enums[enum_id].name.clone();
         let type_params = self.enums[enum_id].type_params.clone();
         let variant_name = self.enums[enum_id].variants[variant as usize].name.clone();
@@ -2710,12 +2846,24 @@ impl Lowerer {
             }
         }
 
+        let explicit_type_args = self.resolve_call_type_args(type_arg_refs)?;
         let mut bindings = vec![None; type_params.len()];
+        if !self.bind_explicit_type_args(
+            &mut bindings,
+            0,
+            &explicit_type_args,
+            span,
+            &format!("enum `{enum_name}`"),
+        ) {
+            return None;
+        }
         if let Some(expected) = expected {
             if let Type::Enum(id, expected_args) = self.types[expected].clone() {
                 if id == enum_id && expected_args.len() == type_params.len() {
                     for (binding, arg) in bindings.iter_mut().zip(expected_args) {
-                        *binding = Some(arg);
+                        if binding.is_none() {
+                            *binding = Some(arg);
+                        }
                     }
                 }
             }
@@ -2825,12 +2973,16 @@ impl Lowerer {
                 .collect();
             let owner_count = self.local_functions[local_candidates[0]].owner_type_param_count;
             let owner_type_args = self.ambient_type_args(owner_count);
+            let explicit_type_args = self.resolve_call_type_args(&call.type_args)?;
             let resolved = self.resolve_overload(
                 &name,
                 &functions,
                 &owner_type_args,
-                &call.args,
-                call.span,
+                crate::overload::OverloadCall {
+                    explicit_type_args: &explicit_type_args,
+                    arg_exprs: &call.args,
+                    span: call.span,
+                },
                 sink,
             )?;
             let function = self.callable_function_id(resolved.callee);
@@ -2859,10 +3011,27 @@ impl Lowerer {
                 .lower_current_this(call.callee.span)
                 .expect("a member callable body always has a lexical `this`");
             if members.len() == 1 {
-                return self.finish_method_call(members[0], receiver, &call.args, call.span, sink);
+                return self.finish_method_call(
+                    members[0],
+                    receiver,
+                    CallSite {
+                        type_args: &call.type_args,
+                        args: &call.args,
+                        span: call.span,
+                    },
+                    sink,
+                );
             }
             return self.finish_overloaded_method_call(
-                members, &name, receiver, &call.args, call.span, sink,
+                members,
+                &name,
+                receiver,
+                CallSite {
+                    type_args: &call.type_args,
+                    args: &call.args,
+                    span: call.span,
+                },
+                sink,
             );
         }
 
@@ -2879,8 +3048,11 @@ impl Lowerer {
                     &extensions,
                     &name,
                     receiver,
-                    &call.args,
-                    call.span,
+                    CallSite {
+                        type_args: &call.type_args,
+                        args: &call.args,
+                        span: call.span,
+                    },
                     sink,
                 );
             }
@@ -2901,8 +3073,18 @@ impl Lowerer {
         if candidates.len() == 1 {
             return self.finish_single_function_call(candidates[0], call, sink);
         }
-        let resolved =
-            self.resolve_overload(&name, &candidates, &[], &call.args, call.span, sink)?;
+        let explicit_type_args = self.resolve_call_type_args(&call.type_args)?;
+        let resolved = self.resolve_overload(
+            &name,
+            &candidates,
+            &[],
+            crate::overload::OverloadCall {
+                explicit_type_args: &explicit_type_args,
+                arg_exprs: &call.args,
+                span: call.span,
+            },
+            sink,
+        )?;
         let ty = resolved.return_ty;
         self.check_call_effects(resolved.callee, call.span);
         Some(hir::Expr {
@@ -2929,6 +3111,45 @@ impl Lowerer {
         (0..count)
             .map(|index| self.intern_type(Type::Param(hir::TypeParamId::from_raw(index as u32))))
             .collect()
+    }
+
+    fn resolve_call_type_args(&mut self, refs: &[ast::TypeRef]) -> Option<Vec<TypeId>> {
+        refs.iter()
+            .map(|type_ref| self.resolve_type_ref(type_ref))
+            .collect()
+    }
+
+    /// Seed the call's own generic suffix. Receiver/lexical-owner type
+    /// parameters occupy the prefix and are never repeated at the call site.
+    /// Scoop requires either no explicit arguments (infer the whole suffix)
+    /// or the complete suffix; partial explicit lists are intentionally not
+    /// ambiguous with inference.
+    fn bind_explicit_type_args(
+        &mut self,
+        bindings: &mut [Option<TypeId>],
+        owner_type_param_count: usize,
+        explicit: &[TypeId],
+        span: Span,
+        target: &str,
+    ) -> bool {
+        if explicit.is_empty() {
+            return true;
+        }
+        let expected = bindings.len() - owner_type_param_count;
+        if explicit.len() != expected {
+            self.error(
+                span,
+                format!(
+                    "{target} takes exactly {expected} type argument(s), but {} were supplied",
+                    explicit.len()
+                ),
+            );
+            return false;
+        }
+        for (binding, &ty) in bindings[owner_type_param_count..].iter_mut().zip(explicit) {
+            *binding = Some(ty);
+        }
+        true
     }
 
     fn local_call_capture_args(
@@ -2989,6 +3210,16 @@ impl Lowerer {
         let mut bindings = vec![None; sig.type_params.len()];
         for (binding, ty) in bindings.iter_mut().zip(owner_type_args) {
             *binding = Some(ty);
+        }
+        let explicit_type_args = self.resolve_call_type_args(&call.type_args)?;
+        if !self.bind_explicit_type_args(
+            &mut bindings,
+            sig.owner_type_param_count,
+            &explicit_type_args,
+            call.span,
+            &format!("local function `{}`", call.callee.text),
+        ) {
+            return None;
         }
         let param_tys: Vec<_> = sig.params.iter().map(|param| param.ty).collect();
         let inferred =
@@ -3090,12 +3321,19 @@ impl Lowerer {
         // concatenated in source order after inference, preserving runtime
         // evaluation order even when typing happens in a different order.
         let param_tys: Vec<TypeId> = sig.params.iter().map(|param| param.ty).collect();
-        let inferred = self.lower_inference_args(
-            &call.args,
-            &param_tys,
-            vec![None; sig.type_params.len()],
-            &sig.type_params,
-        )?;
+        let mut bindings = vec![None; sig.type_params.len()];
+        let explicit_type_args = self.resolve_call_type_args(&call.type_args)?;
+        if !self.bind_explicit_type_args(
+            &mut bindings,
+            sig.owner_type_param_count,
+            &explicit_type_args,
+            call.span,
+            &format!("function `{name}`"),
+        ) {
+            return None;
+        }
+        let inferred =
+            self.lower_inference_args(&call.args, &param_tys, bindings, &sig.type_params)?;
         let mut type_args = Vec::with_capacity(inferred.bindings.len());
         for (binding, param) in inferred.bindings.iter().copied().zip(&sig.type_params) {
             match binding {
@@ -3250,6 +3488,7 @@ impl Lowerer {
                         .iter()
                         .any(|element| self.expr_requires_expected_type(element))
             }
+            ast::Expr::Call(call) if !call.type_args.is_empty() => false,
             ast::Expr::Call(call) => self.constructor_requires_expected(&call.callee, &call.args),
             ast::Expr::StructInit { name, args, .. } => {
                 self.constructor_requires_expected(name, args)
@@ -3257,9 +3496,13 @@ impl Lowerer {
             ast::Expr::MethodCall {
                 receiver,
                 name,
+                type_args,
                 args,
                 ..
-            } => self.qualified_variant_requires_expected(receiver, name, args),
+            } => {
+                type_args.is_empty()
+                    && self.qualified_variant_requires_expected(receiver, name, args)
+            }
             // A lambda with an explicit, fully typed parameter header can
             // synthesize its own function type and therefore participate in
             // generic inference before an overload is selected. Untyped or
@@ -3562,11 +3805,15 @@ impl Lowerer {
         &mut self,
         struct_id: hir::StructId,
         definition_ty: TypeId,
-        args: &[ast::Expr],
-        span: Span,
+        call: CallSite<'_>,
         sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
+        let CallSite {
+            type_args: type_arg_refs,
+            args,
+            span,
+        } = call;
         let name = self.structs[struct_id].name.clone();
         let type_params = self.structs[struct_id].type_params.clone();
         let fields: Vec<(String, TypeId)> = self.structs[struct_id]
@@ -3590,12 +3837,24 @@ impl Lowerer {
             );
             return None;
         }
+        let explicit_type_args = self.resolve_call_type_args(type_arg_refs)?;
         let mut bindings = vec![None; type_params.len()];
+        if !self.bind_explicit_type_args(
+            &mut bindings,
+            0,
+            &explicit_type_args,
+            span,
+            &format!("struct `{name}`"),
+        ) {
+            return None;
+        }
         if let Some(expected) = expected {
             if let Type::Struct(id, expected_args) = self.types[expected].clone() {
                 if id == struct_id && expected_args.len() == type_params.len() {
                     for (binding, arg) in bindings.iter_mut().zip(expected_args) {
-                        *binding = Some(arg);
+                        if binding.is_none() {
+                            *binding = Some(arg);
+                        }
                     }
                 }
             }
