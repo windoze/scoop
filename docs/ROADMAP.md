@@ -73,20 +73,35 @@ M11 同时补齐 M7 预留的局部函数候选层，并把 managed 函数值与
 
 `@Extern` / `@NoGC` / `@Unsafe` / `@Safe` / `@CLayout` / `@CallingConvention` / `@Global` / `@ThreadLocal` / `@InteriorMutable`、`Ptr` / `FunPtr`（spec 第 13、14 章）。
 
-M12 只实现普通、非挂起的 FFI：`@Extern` 与 `suspend` 互斥，挂起函数也不能在 `FunPtr` 上下文中解析为原生地址。两种情况都由 HIR 直接诊断；不生成 wrapper，也不向外暴露 M10 hidden continuation ABI。`FunPtr<F>` 复用 M11 的正式函数类型与中性 `::name` 语法，但通过期望类型选择独立的 native ABI resolution。
+M12 只实现普通、非挂起的 FFI：`@Extern` 与 `suspend` 互斥，挂起函数也不能在 `FunPtr` 上下文中解析为原生地址。两种情况都由 HIR 直接诊断；不生成 wrapper，也不向外暴露 M10 hidden continuation ABI。`FunPtr<F>` 复用 M11 的正式函数类型与中性 `::name` 语法，但通过期望类型选择独立的 native ABI resolution。C ABI 只接受 GC-free C-FFI-safe值并经过 C bridge；Scoop ABI复用 typed managed ABI直接传 ref，跨 safepoint由 native root slot保活与更新。M12 callback只支持同步同线程的静态 `@NoGC` target；managed closure保活、异步调用和foreign-thread入口明确延后到M13。
 
-### M13 泛型上界约束与接口化（ToString / Hash / equals）
+### M13 多线程 GC 与 foreign-thread managed callback
+
+M13 将 M9 的单 mutator runtime升级为**多 mutator、stop-the-world、collector仍单线程且不移动**的基线，并补完 M12 明确延后的 GC-aware managed closure反向回调。目标不是引入语言级线程库，而是让 `pthread_create` 等带 opaque context的 C API 能安全地在 foreign thread上执行普通 Scoop closure。
+
+- runtime 建立显式 thread attach/detach、TLS thread state、栈边界、per-thread TLAB/native-root链和全局线程登记表；主线程、runtime创建的线程及 foreign thread使用同一套注册实体；
+- GC 请求通过入口/回边 safepoint poll、native/runtime入口和线程状态完成 STW handshake。C ABI outbound call在多线程模式下发布 caller roots并进入 native-safe状态；Scoop ABI direct-ref callee只有在登记 native roots的显式入口参与协调，collector不得在其普通 native指令区间移动或扫描未知裸指针；
+- 分配器、Immix block/free-line元数据、card table、handle/pin表、全局根与 native-root登记改为多线程安全。M13 只要求单线程 collector完成 STW tracing/sweep；parallel/concurrent marking、分代和 evacuation仍留 backlog；
+- 新增 managed callback registration协议：Scoop侧以 ordinary、非 suspend closure和编译器生成的 typed invoke adapter注册一个 runtime-owned opaque token；token内部用 `GcHandle` 保活 closure，C侧只持有静态 C ABI trampoline与 GC-free context pointer；
+- foreign callback入口执行 attach-if-needed → enter managed → invoke adapter → leave managed → detach-if-owned。参数/返回值必须是 C-FFI-safe，closure body可正常分配、触发 GC和调用 managed代码；这条路径独立于 M12 的静态 `FunPtr` / `@NoGC` target路径，不得通过放宽 `FunPtr` 来源规则实现；
+- callback token具有显式 retain/release和一次性 ownership transfer规则；异常在反向边界内捕获并转换为 status/受管异常handle，绝不穿越 C frame。首个端到端 fixture用 `pthread_create`：registration分别保留worker ownership与join-observer ownership；创建失败释放两者，成功后新线程调用捕获 closure、释放worker ownership并detach，`join`侧以仍存活的observer读取完成/异常、按约定重新抛出后执行最终release；
+- 任意 closure导出首版只支持具有显式 `void *user_data` / context槽的 C API；没有 context参数的 callback API仍只能使用 M12 静态 `FunPtr`，动态 executable trampoline/slot registry不在本里程碑；
+- continuation完成/恢复状态改为原子协议，使普通 managed callback在 foreign thread中恢复既有 continuation时不产生数据竞争；调度器、`launch` / `async`、结构化并发、取消和 suspend FFI仍不属于 M13；
+- 验收使用确定性barrier同时覆盖：多个mutator分配并强制GC、一个线程阻塞在native-safe C ABI调用、一个Scoop ABI direct-ref callee跨runtime入口使用native root、foreign thread反复attach/invoke/detach，以及callback token的retain/release、create失败和异常路径；
+- M13只保证runtime/GC与callback token本身的线程安全，不把未同步的普通managed可变状态竞争定义为安全行为；跨线程共享数据必须由native同步原语或后续标准库memory model约束。
+
+### M14 泛型上界约束与接口化（ToString / Hash / equals）
 
 - 泛型上界约束：`T : Interface` 与 `where` 子句（spec 2.1/3.2 的既有语法落地）、有界类型参数上的方法解析（bounded method resolution）；
 - `ToString` / `Hash` 接口落地（spec 11.11）：值类型派生实现，`print` / `println` 改造为 `fun <T : ToString> print(v: T)`（单态化静态分发，退役 M7 的 `Any.toString()` 分发形态）；
 - equals 的 operator fun 化（成员限定，spec 11.11）：class 的 `==` 走 `equals` 运算符，值类型的条件派生 `==`；vtable 前三槽（Any 方法）拆除；
-- 受益方：M14 字符串插值的 `add<T : ToString>`。
+- 受益方：M15 字符串插值的 `add<T : ToString>`。
 
-### M14 字符串插值
+### M15 字符串插值
 
-f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone14/DESIGN.md`）。低优先级语法糖；`add<T : ToString>` 由 M13 支撑。
+f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone15/DESIGN.md`）。低优先级语法糖；`add<T : ToString>` 由 M14 支撑。
 
-### M15 多 Cone 与 `.slib`
+### M16 多 Cone 与 `.slib`
 
 `Cone.toml`、依赖图、`.slib` 打包与 reader、三层 meta（impl spec 2.6）、re-export（`public import`）。
 
@@ -96,6 +111,7 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 - 里程碑顺序可按实现中发现的依赖调整，但 M0 不推迟、M3 不晚于任何依赖 `Option` 的特性。
 - 2026-08-28 顺序调整：字符串插值由 M6 后移至 M12（低优先级语法糖）；引用类型层级提前为 M6，新增 M7 函数重载；原 M8–M12 顺延为 M8–M13。其后（同日）再调整：新增 M12"泛型上界约束与接口化"（ToString/Hash/equals，spec 11.11 已定稿），字符串插值顺延为 M13、多 Cone 顺延为 M14。
 - 2026-08-31 顺序调整：在 FFI 前新增 M11“函数类型、函数值与 closure”，先完成 lambda/callable reference/closure conversion，使 FFI 直接复用正式函数类型；原 M11–M14 顺延为 M12–M15。
+- 2026-08-31 顺序调整：在 FFI 后新增 M13“多线程 GC 与 foreign-thread managed callback”，补完 managed closure反向回调和 foreign-thread runtime入口；原 M13–M15 顺延为 M14–M16。
 
 ## 4. 待补齐清单（backlog）
 
@@ -105,7 +121,7 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 
 - ~~always-leak GC → M9 替换~~（已完成）；
 - ~~parser 错误恢复~~（已完成：lexer 收集多个可恢复词法错误；parser 按顶层声明、类型成员和块内语句同步，存在诊断时丢弃残缺 AST）；
-- 单文件单 Cone 编译 → M15。
+- 单文件单 Cone 编译 → M16。
 
 ### 来自 M2
 
@@ -129,7 +145,7 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 
 ### 来自 M4
 
-- core 与用户代码同单元编译 → M15 的 `.slib` 与 Cone 隔离；
+- core 与用户代码同单元编译 → M16 的 `.slib` 与 Cone 隔离；
 - 注解仅 `@Intrinsic` 且仅 sysroot → M12 扩展为完整 FFI 注解族；
 - 构造函数式变体的默认值只支持常量表达式（完整 spec 8.5"定义处解析、调用处求值"随函数默认参数一起做）；
 - ~~`when` 的表达式形态（产生值）~~（已完成：模式绑定、守卫与穷尽检查沿用语句形态，正常分支尾值统一定型，支持嵌套控制表达式）；
@@ -153,11 +169,11 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 - 次构造函数、`init` 块、body 属性（非构造函数属性）、`super` 调用；这些声明自身拥有的初始化体固定为非挂起上下文（spec 8.2、9.1.1；M10 设计已锁定）；
 - interface 的属性与默认实现；
 - ~~泛型 interface 与声明点 `in` / `out` 变型~~（已完成：接口应用类型贯穿 AST/HIR/MIR，位置合法性与变型子类型关系在 HIR 检查；MIR 按具体实参生成独立接口 TypeDescriptor，并为引用/值 ABI 生成变型 itable bridge）；
-- `equals` / `hashCode` / `toString` 的用户覆写——已改道为接口化设计（spec 11.11）：`equals` 走 operator fun、`ToString` / `Hash` opt-in 接口、vtable 前三槽拆除（→ M13）；
+- `equals` / `hashCode` / `toString` 的用户覆写——已改道为接口化设计（spec 11.11）：`equals` 走 operator fun、`ToString` / `Hash` opt-in 接口、vtable 前三槽拆除（→ M14）；
 - companion object、`object` 声明、`sealed`、委托（`by`）；object/companion 的初始化与属性委托协议不得隐式挂起（spec 8.2、9.1.1）；
 - 顶层属性与 object/companion 的精确初始化时机、跨文件顺序及循环初始化诊断（M12 只设计 GC-free 常量初始化的显式 `@Global` / `@ThreadLocal` 存储与无 initializer 的 extern global；通用属性语义仍需按 spec 9.1.1 在实现前定稿）；
 - `const val`（仅顶层/object/companion，HIR 编译期常量求值与依赖环检查，不生成 runtime initializer；spec 9.1.2）；
-- 可见性修饰符（`internal` 语义 → M15 多 Cone 前）；
+- 可见性修饰符（`internal` 语义 → M16 多 Cone 前）；
 - `?.` 后随方法调用（`a?.foo()`）；
 - smart cast 完整 flow analysis（当前简化：仅不可变局部变量、仅 `is`/`!is` 与 `&&`）；
 - 基类构造委托实参不可引用构造函数属性（`class B(val x: Int) : A(x)` 中 `x` 暂不可用于委托实参——hir-lower 在空作用域降级）；
@@ -170,8 +186,8 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 - ~~两个泛型重载推导出相同类型实参时，单态化实例按符号错误合并~~（已修复：以 `GenericFunctionId + concrete type args` 为实体键，重载实例符号带定义 discriminator）；
 - 候选集分层的完整层级：局部函数层 → M11；显式 import / 星号 import 分层随 import 机制落地后插入（当前为“成员 → 调用点同侧顶层 → 对侧隐式导入”三层）；
 - 泛型候选的 MSC 比较改用 Kotlin 的 fresh-variable 约束系统（当前为"推断后类型实参参与比较"的简化，复杂多泛型场景随用例扩展）；
-- `write` 的 `@Intrinsic` 退役（→ M12 经 `@Extern` 由 core 普通 FFI 实现）；
-- `print` / `println` 的 `Any.toString()` 分发形态为过渡基线（→ M13 改造为 `fun <T : ToString> print(v: T)` 单态化分发，并拆除 vtable 前三槽）；
+- `write` 的 `@Intrinsic` 退役（→ M12 直接声明 `@Extern(abi = "scoop") fun write(String)`，作为 managed ABI direct-ref入口）；
+- `print` / `println` 的 `Any.toString()` 分发形态为过渡基线（→ M14 改造为 `fun <T : ToString> print(v: T)` 单态化分发，并拆除 vtable 前三槽）；
 - 歧义/无匹配诊断的候选明细展示（首版只报主消息）；
 - 默认参数/vararg 的决议规则、运算符重载（`operator fun`）、`context` 参数（spec 8.3）——随各自特性落地时补齐。
 
@@ -186,7 +202,7 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 
 - 分代（nursery、晋升、remembered set 消费卡片表、代间引用检查）；
 - evacuation / defragmentation（Immix 的碎片整理；arena 扩容与多段管理）；
-- 并行/并发回收与 STW 线程协调（线程注册/握手，safepoint poll 已是握手点形态）；
+- 多 mutator STW协调、线程注册/握手与线程安全分配/根表 → M13；parallel/concurrent collector仍待后续；
 - 精确消费 statepoint stackmap 的栈根扫描（v1 为架构无关的保守扫描；移动式回收前必须替换）；
 - ~~tagged enum 的 per-variant 扫描表发射~~（已完成：`SCOOP_REFS_ENUM` 与 `SCOOP_REFS_SEQUENCE` 可递归组合，数组复用同一元素扫描树）；
 - ~~hir-lower 的泛型 struct 字段类型形参作用域~~（已完成：移除 core GC struct 按名识别 stopgap，泛型定义本身不进入 MIR，仅发射具体实例）；
@@ -196,10 +212,15 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 
 - ~~suspend function type、函数引用与 lambda/closure~~（已由 M11 完成；core 保留 `SuspendTask` / `SuspendRegistration` 最小协议，并已增加函数值形态适配 overload）；
 - `launch` / `async`、dispatcher、事件循环、结构化并发与取消属于标准库设计，不进入编译器最小 core；
-- continuation 的跨线程恢复：当前单线程协议使用普通字段，需随 runtime 线程注册、STW 握手和调度器一起定义原子状态与线程切换规则；
+- continuation 的跨线程恢复：当前单线程协议使用普通字段；M13 随 runtime线程注册/STW握手补齐原子完成与恢复状态，调度器和线程切换策略仍由后续标准库定义；
 - ~~suspend FFI ABI（→ M12 实现既定禁令）~~（已决策：现阶段不支持；`@Extern` 与 `suspend` 互斥，挂起函数的声明引用不能在 `FunPtr` 上下文中解析为原生地址，不得生成 wrapper 或暴露 M10 hidden continuation ABI）；
 - frame elision、栈上 fast path、共享 adapter 代码等优化；当前优先保留完全类型化、可由 GC 扫描的显式 frame/adapter。
 
 ### 来自 M11（设计预留）
 
 - 显式 mutable/reference/move capture 或 capture list：当前只允许按值捕获 `val`、参数、`this` 等不可重新绑定的 binding，不做 effectively-final 推导，不为外层词法局部 `var` 隐式 boxing。未来方案必须以源码可见的新语法明确 lifetime、identity、并发与 ABI 成本，不能直接放宽 M11 的 `var` 诊断。
+
+### 来自 M12（设计预留）
+
+- managed closure导出、callback token、类型化 invoke adapter、foreign-thread attach/detach及 `pthread_create` 组合闭环 → M13；M12 的 `FunPtr` 继续只表示同步同线程的静态 `@NoGC` callback地址；
+- 无显式 context/user-data槽的 C callback API所需动态 trampoline或有限 slot registry仍待后续；M13 不通过泄漏 closure或把 managed ref伪装成裸指针支持它们。

@@ -16,7 +16,7 @@ M11 交付以下闭环：函数类型可以出现在变量、参数、返回值�
 - 函数声明引用使用显式 `::`。该语法节点本身不编码 managed/native 类别；M11 的可用期望类型只会把它解析为 managed callable reference，M12 再增加 `FunPtr<F>` 上下文分支。普通值位置的函数名不隐式变成函数值，避免命名调用、重载集合与函数值之间出现上下文不稳定的解析；
 - 先单态化，再 closure conversion，最后执行 M10 coroutine transform。suspend closure 的环境接收者因此会进入 hidden continuation ABI，而不是另造一套协程实现；
 - M11 同步为 core 增加接受 `suspend () -> T` 与 `(Continuation<T>) -> Unit` 的协程原语重载；已有 `SuspendTask` / `SuspendRegistration` 协议保留，lambda 重载用普通 Scoop 适配器实现，不新增 intrinsic；
-- M11 不实现 receiver function type、`Type::member` 未绑定成员引用、构造函数引用、lambda non-local return、closure 到原生 trampoline 或 GC-aware FFI callback registry。这些都是明确的语言/库边界，不以 TODO 分支留在 pipeline。
+- M11 不实现 receiver function type、`Type::member` 未绑定成员引用、构造函数引用、lambda non-local return或GC-aware managed callback registration。M13以“静态C trampoline + opaque token + typed adapter”单独实现最后一项，不把closure转换成`FunPtr`；其余仍是明确的后续语言/库边界，不以TODO分支留在pipeline。
 
 ## 1. 语言子集
 
@@ -458,5 +458,5 @@ M10 的所有旧 fixture 必须原样通过；新增 lambda fixture必须同时�
 - **spec 11.9**：增加函数值形态协程原语重载，保留 M10 adapter协议；
 - **spec 13.10**：`FunPtr<F>` 复用 8.1 的 ordinary concrete function type与中性 `::name` 语法，并明确 native-address resolution 与 managed closure隔离；
 - **impl spec 2.2–2.5**：补充 FunctionTypeId、capture analysis、单态化 → closure → coroutine顺序、typed indirect call与扫描描述；
-- **runtime spec 2.6 / 4.3**：managed closure内联保存value capture且不生成capture cell；native callback registry仍是独立后续能力；
+- **runtime spec 2.6 / 4.3**：managed closure内联保存value capture且不生成capture cell；native callback registration由M13作为独立能力实现；
 - **ROADMAP M7/M10 backlog**：局部函数候选层及函数类型/lambda项改由 M11承接；M12 FFI设计删除临时 function-signature-only补丁。

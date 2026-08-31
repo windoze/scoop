@@ -46,6 +46,8 @@ HIR 负责解析所有 type parameter：确定每个 generic 调用的具体类�
 - 函数值调用解析为独立的 callable-value call target；命名调用、函数声明引用表达式的 managed resolution 与 `FunPtr` native-address contextual resolution 是三个不同的决议入口。没有期望类型时只允许进入 managed 分支；只有 spec 13.10 允许的顶层 `@NoGC` 普通函数引用能在明确的 `FunPtr<F>` 期望类型下直接解析为 `FunctionAddress`，普通函数值之间的型变转换则保留为显式 typed coercion；
 - 在 callable 签名、调用目标与 override / interface 实现关系中保留 `suspend` 标志；以显式、可嵌套的上下文状态检查挂起调用只出现在挂起函数或已登记的协程构建器中，不能把“当前无函数”当作默认允许。进入顶层属性、object/companion、实例属性、delegate、`init`、构造函数/构造委托及普通属性访问器等声明自身拥有的初始化/访问体时，必须压入带原因的 forbidden context；离开后恢复调用者上下文，所以 suspend caller 的显式构造实参仍可挂起。MIR 不为这些初始化入口或属性访问器生成 frame / continuation ABI；
 - 完成 FFI 注解的目标与共存检查：`@Extern` 与 `suspend` 互斥，无论 `abi` 取值为何都在 HIR 报编译错误；函数声明引用表达式的 `FunPtr` contextual resolution 同样拒绝挂起函数及一切只能产生 managed closure 的形态。该检查必须发生在单态化、closure 转换、协程变换及 extern 符号发射之前；
+- FFI 类型检查必须按 ABI 分流：`classify_c_ffi_type` 只接受具有稳定 C 表示的 GC-free 类型；`classify_scoop_abi_type` 复用普通 Scoop typed ABI，并允许规范支持的 direct ref。`String` 等 ref出现在 C ABI 是诊断，出现在 Scoop ABI 不能被偷偷改写为 `PinnedPtr`、handle或 byte storage；两种 classifier及 `is_gc_free` 使用不同缓存/结果类型，不能合并成一个布尔值。extern global 只进入 C data ABI 分支，不能伪装成 Scoop ABI direct call；
+- M13 的 managed callback registration是独立的类型化决议入口，不复用 `FunPtr` native-address resolution：HIR同时固定 ordinary、非 suspend closure的 concrete `FunctionTypeId`、对应 C callback signature、context槽与 ownership模式，并验证全部 native参数/返回值 C-FFI-safe。输出使用独立 `ForeignCallbackRegistrationId`，不能把 closure改写成 `FunPtr`、`Ptr<Unit>`或无类型 runtime call；
 - `const val` 在 HIR 做常量表达式求值与依赖环检查；其值进入可供下游 Cone 使用的 HIR meta，不生成 runtime initializer。普通/挂起 call、构造、分配及普通属性读取均不能进入 const expression IR；
 - 对非 `Unit` 块体执行组合式控制流分析，证明所有可达路径均以有值 `return` 或 `throw` 结束；`finally` 的必退出路径覆盖 try/catch 的待执行结果（spec 第 8 章）；
 - 默认参数值的调用处实例化（spec 8.5）；`getCurrentSourceLocation` 在缺省参数中的常量化（spec 11.12）；
@@ -63,8 +65,10 @@ HIR 负责解析所有 type parameter：确定每个 generic 调用的具体类�
 - 把结构化 HIR 降为类型化 CFG：调用从嵌套表达式中按源码求值顺序正规化出来，控制边与异常 unwind 边显式化，`try` / `catch` / `finally` 的 cleanup 路径在 MIR 固定。LIR 只负责把这些边映射为目标相关的 landingpad 结构；
 - **单态化 → closure 转换 → 协程变换**：先得到所有 concrete callable 与 concrete function type；再把 lambda、匿名函数和 callable reference 转为显式 closure 类、invoke body与按值 capture字段，把函数类型型变转为 typed adapter closure；局部函数的 direct call可以使用带显式不可变 capture参数的 lifted function，取得 callable reference时才物化closure。每种 synthetic closure/adapter都有独立实体 id、TypeDescriptor与递归引用扫描描述；captured value type直接使用其 concrete layout，不得用 FQN、`Any`、identity-bearing box、opaque environment或统一函数指针回退；
 - closure 的首字段语义上是由编译器控制的 invoke entry，其余字段按确定顺序保存 capture。普通 closure invoke 使用 `(closure, source args...) -> R` 的 managed ABI；绑定 virtual/interface reference 的 invoke body 必须在调用时执行动态分派。已知不逃逸或立即调用的 closure 可以在后续优化中消除，但 MIR 的未优化基线必须先有完整、可扫描的结构；
+- 对每个实际使用的 `ForeignCallbackRegistrationId`，MIR在closure conversion之后生成独立的 typed storage adapter：输入为closure ref、C-FFI-safe args storage与result storage，内部按 concrete `FunctionTypeId` 调用closure。adapter、registration和M12静态NoGC callback bridge使用三类不同实体/id；前者是可分配、可GC、可抛异常的managed入口，不能误标为NoGC；
 - 对 closure 转换后的每个 concrete suspend callable，把 CFG 在挂起调用后切分为恢复状态，计算跨挂起点活跃的值并生成堆上 frame；每个挂起点生成与其结果类型精确匹配的 `Continuation<T>` 实际类型。frame、continuation adapter 与内部完成结果均有独立的类型化 id、TypeDescriptor 与递归引用扫描描述，不允许用 FQN 或 `Any` 作为实体/结果回退；
 - suspend callable 的内部 ABI 是 `(source args..., Continuation<R>) -> CoroutineStep<R>`，其中编译器内部值 enum `CoroutineStep<R>` 只有 `Completed(R)` / `Suspended` 两个变体。立即完成走 `Completed`；返回 `Suspended` 后只能由传入的 continuation 恢复。该 ABI 只用于编译器生成的 Scoop 托管调用，不用于 extern 声明或 `FunPtr`，MIR 不生成 FFI wrapper。变换完成后 MIR output 不再含源码级 suspend callable 或 suspend call；
+- extern call保留类型化的 ABI/effect：C ABI 进入独立 native bridge实体；Scoop ABI 直接保存普通 managed call目标签名及 direct-ref参数，不生成 C storage bridge。两类实体 id不能混用，也不能在 MIR 后续通过 symbol string重新猜 ABI；
 - 恢复失败在对应恢复状态入口重新注入为 `throw`，沿原调用点的 unwind / cleanup 边传播。挂起不是作用域退出，不能触发 `finally`；跨挂起的 pending return / exception / cleanup 动作必须作为有判别的 frame 字段保存，不能依赖未初始化槽或原生栈状态；
 - 把 `when` 模式匹配降级为 decision tree / 跳转序列；
 - 输出 MIR type/function list，其中不再包含任何 generic 和 suspend（诊断信息除外）。
@@ -77,6 +81,8 @@ HIR 负责解析所有 type parameter：确定每个 generic 调用的具体类�
 
 - 为每个 type 生成布局信息（struct/enum/tuple 布局、`@CLayout` 的 pack/align、`Option` 的 niche 编码——spec 7.4），并生成布局完备的递归引用扫描描述：普通引用偏移、同起点 sequence、按 tag 分派的 enum 子扫描、数组元素子扫描。需要上游布局的场景：本 Cone 的类继承上游类（继承字段的偏移）、跨 Cone 嵌套的值类型（上游 struct/enum/tuple 嵌入本地类型、作为数组元素、按值传参的 ABI）；
 - statepoint 的落地形态（M9 定稿）：LIR 保持 statepoint 无关的指令形态，由 codegen 给每个 function 设置 GC strategy（`statepoint-example`）并执行 `rewrite-statepoints-for-gc` pass，同时在函数入口与循环回边插入 safepoint poll（详见 codegen 的实现与注释；statepoint 的"插入职责在 LIR"是早期表述，以此为准）；
+- C ABI extern降为 GC-leaf storage bridge call；Scoop ABI extern降为使用普通 Scoop typed signature的 managed direct call，direct ref进入 statepoint root集合。只有 C ABI bridge拥有 C type tree/`@CLayout` static-assert描述；Scoop ABI不得经过 byte storage bridge，也不得插入隐式 pin/unpin；
+- M13 启用多 mutator时，LIR为outbound C ABI调用增加发布caller roots与native-safe transition，为持有direct ref的Scoop ABI native调用保留native-borrowed状态；两者必须是不同的call effect，不能只用一个`GcLeaf`布尔值表达。foreign callback adapter作为managed entry保留GC strategy/statepoint，C trampoline与args/result storage描述则作为独立反向bridge数据交给codegen；
 - 把 MIR 已显式化的 normal / unwind / cleanup CFG 机械映射为 landingpad + personality function；`throw` 接到 runtime 入口。对 suspend function 的 handler，进入可挂起的 Scoop catch/finally 代码前必须把 ABI 异常物化为 managed 对象并结束原生 catch，任何原生 EH 状态都不得跨挂起点；
 - 输出 LIR type/function list，不再包含任何 Scoop 特有的内容，可以机械翻译成目标 IR 或其他格式。
 
@@ -89,7 +95,8 @@ HIR 负责解析所有 type parameter：确定每个 generic 调用的具体类�
 - 将 LIR output 机械翻译成目标 IR（本阶段为 LLVM IR），然后用 LLVM 编译成 `.o`；
 - 生成每个具体类型的 `TypeDescriptor`（runtime spec 2.2：类型标识、实例大小、递归引用扫描描述、父类型表、`equals`/`hashCode`/`toString` 分发入口）；
 - 展开登记表中归属 codegen 的 `@Intrinsic`（见 2.10）；
-- 普通（非 suspend）extern 声明的符号发射与 calling convention 属性（spec 13.4）、`addressOf` 的 lvalue 语义（spec 13.10）；codegen 依赖 HIR 已排除 suspend extern，不识别或发射 hidden continuation FFI ABI。
+- 普通（非 suspend）extern 声明的符号发射与 calling convention 属性（spec 13.4）、`addressOf` 的 lvalue 语义（spec 13.10）；C ABI生成/编译 storage bridge，Scoop ABI直接发射 managed external call并接受 direct ref。codegen 依赖 HIR 已排除 suspend extern，不识别或发射 hidden continuation FFI ABI。
+- M13 为每个实际导出的 managed callback生成静态 C ABI trampoline：按真实C签名编组storage并调用runtime callback gateway；trampoline地址与runtime-owned opaque token配对使用，不生成每个closure实例的可执行代码。foreign-thread attach/detach、异常status及token retain/release由runtime实现，codegen只消费LIR中已定型的adapter/trampoline描述。
 
 codegen **不需要任何上游 meta**：上游信息已逐层吸收进本 Cone 的 LIR（布局经 LIR meta、符号经 MIR meta），对上游函数/TypeDescriptor 的引用一律发射为外部符号，链接期解析。两个链接层规则：
 

@@ -88,7 +88,7 @@ fun main() {
 
 C11，沿用 always-leak：
 
-- `const ScoopString *scoop_rt_string_concat(const ScoopString *a, const ScoopString *b)`：`scoop_rt_alloc` 分配 `header + len + a.len + b.len`，两次 `memcpy`（即 runtime spec 14.4 示例的 always-leak 版）；
+- `const ScoopString *scoop_rt_string_concat(const ScoopString *a, const ScoopString *b)`：`scoop_rt_alloc` 分配 `header + len + a.len + b.len`，两次 `memcpy`。这是早期直接 runtime call；M12 再把同类 direct managed-ref 入口规范化为 Scoop ABI `@Extern`；
 - `bool scoop_rt_string_eq(const ScoopString *a, const ScoopString *b)`：长度 + `memcmp`；
 - `void scoop_rt_print_int(int64_t)` / `scoop_rt_print_boolean(bool)`（及 println 变体）：支撑内建输出扩展。
 
