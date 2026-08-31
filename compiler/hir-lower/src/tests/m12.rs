@@ -1386,4 +1386,27 @@ fn duplicate_native_symbols_must_have_one_consistent_contract() {
             .iter()
             .any(|message| message.contains("extern symbol `same_symbol` conflicts"))
     );
+
+    let managed = extern_fun(
+        "managedAlias",
+        vec![("value", ty_named("Int"))],
+        Some(ty_named("Int")),
+        extern_annotation("runtime", "same_scoop_symbol", "scoop"),
+    );
+    let mut no_gc = extern_fun(
+        "noGcAlias",
+        vec![("value", ty_named("Int"))],
+        Some(ty_named("Int")),
+        extern_annotation("runtime", "same_scoop_symbol", "scoop"),
+    );
+    let Decl::Function(no_gc_function) = &mut no_gc else {
+        unreachable!()
+    };
+    no_gc_function.annotations.push(marker("NoGC"));
+    let errors = messages(vec![managed, no_gc, fun("main", vec![])]);
+    assert!(
+        errors
+            .iter()
+            .any(|message| message.contains("extern symbol `same_scoop_symbol` conflicts"))
+    );
 }

@@ -167,6 +167,8 @@ impl Lowerer {
                 if previous.library != current.library
                     || previous.abi != current.abi
                     || previous.calling_convention != current.calling_convention
+                    || previous.gc_effect != current.gc_effect
+                    || previous.safety != current.safety
                     || !same_signature
                 {
                     self.current_file = self.function_files[function_id];
