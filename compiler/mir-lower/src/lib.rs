@@ -7583,8 +7583,10 @@ mod tests {
                     span: SPAN,
                 });
                 if generic {
-                    self.generic_functions
-                        .alloc(hir::GenericFunction { function: id });
+                    self.generic_functions.alloc(hir::GenericFunction {
+                        function: id,
+                        no_gc_type_params: Vec::new(),
+                    });
                 }
                 self.top_level.push(id);
                 id
@@ -7673,8 +7675,10 @@ mod tests {
                 span: SPAN,
             });
             if generic {
-                self.generic_functions
-                    .alloc(hir::GenericFunction { function: id });
+                self.generic_functions.alloc(hir::GenericFunction {
+                    function: id,
+                    no_gc_type_params: Vec::new(),
+                });
             }
             self.top_level.push(id);
             id
@@ -7869,8 +7873,10 @@ mod tests {
                 suspend_task_run,
                 suspend_registration_register,
             ] {
-                self.generic_functions
-                    .alloc(hir::GenericFunction { function });
+                self.generic_functions.alloc(hir::GenericFunction {
+                    function,
+                    no_gc_type_params: Vec::new(),
+                });
             }
             let start_coroutine = self.functions.alloc(hir::Function {
                 name: "startCoroutine".to_string(),
@@ -7895,8 +7901,10 @@ mod tests {
                 span: SPAN,
             });
             for function in [start_coroutine, suspend_coroutine] {
-                self.generic_functions
-                    .alloc(hir::GenericFunction { function });
+                self.generic_functions.alloc(hir::GenericFunction {
+                    function,
+                    no_gc_type_params: Vec::new(),
+                });
                 self.top_level.push(function);
             }
             hir::CoroutineCore {

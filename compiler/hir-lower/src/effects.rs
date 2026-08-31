@@ -7,6 +7,16 @@ use scoop_hir as hir;
 
 use crate::Lowerer;
 
+mod no_gc_generics;
+
+/// Type arguments in a generic aggregate are expressed in the caller's
+/// parameter namespace. Chaining environments lets GC-freedom analysis
+/// substitute nested generic fields without interning synthetic HIR types.
+struct TypeEnvironment<'a> {
+    args: Vec<hir::TypeId>,
+    parent: Option<&'a TypeEnvironment<'a>>,
+}
+
 impl Lowerer {
     pub(crate) fn check_no_gc_functions(&mut self) {
         let functions: Vec<_> = self
@@ -31,6 +41,7 @@ impl Lowerer {
                 // the intrinsic registry before this whole-program pass.
                 continue;
             }
+            let mut requirements = HashSet::new();
             if let hir::FunctionKind::Extern(extern_id) = function.kind {
                 let extern_ = self.extern_functions[extern_id].clone();
                 if extern_.abi == hir::ExternAbi::C {
@@ -64,27 +75,33 @@ impl Lowerer {
                 continue;
             }
             for param in &function.params {
-                if !self.is_gc_free(param.ty) {
+                match self.gc_free_requirements(param.ty) {
+                    Some(required) => requirements.extend(required),
+                    None => {
+                        self.error(
+                            function.span,
+                            format!(
+                                "`@NoGC` function `{}` has non-GC-free parameter `{}` of type {}",
+                                function.name,
+                                param.name,
+                                self.type_name(param.ty)
+                            ),
+                        );
+                    }
+                }
+            }
+            match self.gc_free_requirements(function.return_ty) {
+                Some(required) => requirements.extend(required),
+                None => {
                     self.error(
                         function.span,
                         format!(
-                            "`@NoGC` function `{}` has non-GC-free parameter `{}` of type {}",
+                            "`@NoGC` function `{}` has non-GC-free return type {}",
                             function.name,
-                            param.name,
-                            self.type_name(param.ty)
+                            self.type_name(function.return_ty)
                         ),
                     );
                 }
-            }
-            if !self.is_gc_free(function.return_ty) {
-                self.error(
-                    function.span,
-                    format!(
-                        "`@NoGC` function `{}` has non-GC-free return type {}",
-                        function.name,
-                        self.type_name(function.return_ty)
-                    ),
-                );
             }
             let hir::FunctionKind::User(body) = function.kind else {
                 continue;
@@ -95,24 +112,38 @@ impl Lowerer {
                 if parameter_locals.contains(&local_id) {
                     continue;
                 }
-                if !self.is_gc_free(local.ty) {
-                    self.error(
-                        function.span,
-                        format!(
-                            "`@NoGC` function `{}` has local `{}` of non-GC-free type {}",
-                            function.name,
-                            local.name,
-                            self.type_name(local.ty)
-                        ),
-                    );
+                match self.gc_free_requirements(local.ty) {
+                    Some(required) => requirements.extend(required),
+                    None => {
+                        self.error(
+                            function.span,
+                            format!(
+                                "`@NoGC` function `{}` has local `{}` of non-GC-free type {}",
+                                function.name,
+                                local.name,
+                                self.type_name(local.ty)
+                            ),
+                        );
+                    }
                 }
             }
             let mut violations = Vec::new();
-            self.collect_no_gc_statement_violations(&body.statements, &mut violations);
+            self.collect_no_gc_statement_violations(
+                &body.statements,
+                &mut violations,
+                &mut requirements,
+            );
             for (span, message) in violations {
                 self.error(span, message);
             }
+            if let Some(&generic) = self.generic_by_function.get(&id) {
+                let mut requirements: Vec<_> = requirements.into_iter().collect();
+                requirements.sort_by_key(|parameter| parameter.into_raw());
+                self.generic_functions[generic].no_gc_type_params = requirements;
+            }
         }
+
+        self.validate_no_gc_instantiations();
 
         let safe_functions: Vec<_> = self
             .functions
@@ -177,58 +208,97 @@ impl Lowerer {
     }
 
     pub(crate) fn is_gc_free(&self, ty: hir::TypeId) -> bool {
-        self.is_gc_free_inner(ty, &[], &mut HashSet::new())
+        self.gc_free_requirements(ty)
+            .is_some_and(|requirements| requirements.is_empty())
     }
 
-    fn is_gc_free_inner(
+    fn gc_free_requirements(&self, ty: hir::TypeId) -> Option<HashSet<hir::TypeParamId>> {
+        self.gc_free_requirements_inner(ty, None, &mut HashSet::new())
+    }
+
+    fn gc_free_requirements_inner(
         &self,
         ty: hir::TypeId,
-        substitution: &[hir::TypeId],
+        environment: Option<&TypeEnvironment<'_>>,
         visiting: &mut HashSet<hir::TypeId>,
-    ) -> bool {
+    ) -> Option<HashSet<hir::TypeParamId>> {
         match &self.types[ty] {
             hir::Type::Unit
             | hir::Type::Int
             | hir::Type::UInt
             | hir::Type::Boolean
             | hir::Type::Ptr(_)
-            | hir::Type::FunPtr(_) => true,
+            | hir::Type::FunPtr(_) => Some(HashSet::new()),
             hir::Type::String
             | hir::Type::Class(_)
             | hir::Type::Interface(_, _)
             | hir::Type::Any
             | hir::Type::Array(_)
             | hir::Type::MutableArray(_)
-            | hir::Type::Function(_) => false,
-            hir::Type::Tuple(elements) => elements
-                .iter()
-                .all(|ty| self.is_gc_free_inner(*ty, substitution, visiting)),
-            hir::Type::Param(index) => substitution
-                .get(index.into_raw() as usize)
-                .is_some_and(|ty| self.is_gc_free_inner(*ty, &[], visiting)),
+            | hir::Type::Function(_) => None,
+            hir::Type::Tuple(elements) => {
+                let mut requirements = HashSet::new();
+                for element in elements {
+                    requirements.extend(self.gc_free_requirements_inner(
+                        *element,
+                        environment,
+                        visiting,
+                    )?);
+                }
+                Some(requirements)
+            }
+            hir::Type::Param(index) => match environment {
+                Some(environment) => {
+                    let argument = environment.args[index.into_raw() as usize];
+                    self.gc_free_requirements_inner(argument, environment.parent, visiting)
+                }
+                None => Some(HashSet::from([*index])),
+            },
             hir::Type::Struct(id, args) => {
                 if !visiting.insert(ty) {
-                    return false;
+                    return None;
                 }
-                let result = self.structs[*id]
-                    .fields
-                    .iter()
-                    .all(|field| self.is_gc_free_inner(field.ty, args, visiting));
+                let nested = TypeEnvironment {
+                    args: args.clone(),
+                    parent: environment,
+                };
+                let mut requirements = HashSet::new();
+                for field in &self.structs[*id].fields {
+                    let Some(required) =
+                        self.gc_free_requirements_inner(field.ty, Some(&nested), visiting)
+                    else {
+                        visiting.remove(&ty);
+                        return None;
+                    };
+                    requirements.extend(required);
+                }
                 visiting.remove(&ty);
-                result
+                Some(requirements)
             }
             hir::Type::Enum(id, args) => {
                 if !visiting.insert(ty) {
-                    return false;
+                    return None;
                 }
-                let result = self.enums[*id].variants.iter().all(|variant| {
-                    variant
-                        .fields
-                        .iter()
-                        .all(|field| self.is_gc_free_inner(field.ty, args, visiting))
-                });
+                let nested = TypeEnvironment {
+                    args: args.clone(),
+                    parent: environment,
+                };
+                let mut requirements = HashSet::new();
+                for field in self.enums[*id]
+                    .variants
+                    .iter()
+                    .flat_map(|variant| &variant.fields)
+                {
+                    let Some(required) =
+                        self.gc_free_requirements_inner(field.ty, Some(&nested), visiting)
+                    else {
+                        visiting.remove(&ty);
+                        return None;
+                    };
+                    requirements.extend(required);
+                }
                 visiting.remove(&ty);
-                result
+                Some(requirements)
             }
         }
     }
@@ -307,18 +377,21 @@ impl Lowerer {
         &self,
         statements: &[hir::Statement],
         out: &mut Vec<(Span, String)>,
+        requirements: &mut HashSet<hir::TypeParamId>,
     ) {
         for statement in statements {
             match &statement.kind {
-                hir::StatementKind::Expr(expr) => self.collect_no_gc_expr_violations(expr, out),
+                hir::StatementKind::Expr(expr) => {
+                    self.collect_no_gc_expr_violations(expr, out, requirements)
+                }
                 hir::StatementKind::LocalFunction(_) => {}
                 hir::StatementKind::Return { value } => {
                     if let Some(value) = value {
-                        self.collect_no_gc_expr_violations(value, out);
+                        self.collect_no_gc_expr_violations(value, out, requirements);
                     }
                 }
                 hir::StatementKind::ValDecl { init, .. } => {
-                    self.collect_no_gc_expr_violations(init, out)
+                    self.collect_no_gc_expr_violations(init, out, requirements)
                 }
                 hir::StatementKind::Assign { target, value } => {
                     match target {
@@ -328,8 +401,8 @@ impl Lowerer {
                                 statement.span,
                                 "array assignment is not allowed in `@NoGC` code".to_string(),
                             ));
-                            self.collect_no_gc_expr_violations(array, out);
-                            self.collect_no_gc_expr_violations(index, out);
+                            self.collect_no_gc_expr_violations(array, out, requirements);
+                            self.collect_no_gc_expr_violations(index, out, requirements);
                         }
                         hir::AssignTarget::Field { receiver, .. } => {
                             out.push((
@@ -337,36 +410,36 @@ impl Lowerer {
                                 "managed field assignment is not allowed in `@NoGC` code"
                                     .to_string(),
                             ));
-                            self.collect_no_gc_expr_violations(receiver, out);
+                            self.collect_no_gc_expr_violations(receiver, out, requirements);
                         }
                     }
-                    self.collect_no_gc_expr_violations(value, out);
+                    self.collect_no_gc_expr_violations(value, out, requirements);
                 }
                 hir::StatementKind::If {
                     cond,
                     then_body,
                     else_body,
                 } => {
-                    self.collect_no_gc_expr_violations(cond, out);
-                    self.collect_no_gc_statement_violations(then_body, out);
+                    self.collect_no_gc_expr_violations(cond, out, requirements);
+                    self.collect_no_gc_statement_violations(then_body, out, requirements);
                     if let Some(else_body) = else_body {
-                        self.collect_no_gc_statement_violations(else_body, out);
+                        self.collect_no_gc_statement_violations(else_body, out, requirements);
                     }
                 }
                 hir::StatementKind::While { cond, body } => {
-                    self.collect_no_gc_expr_violations(cond, out);
-                    self.collect_no_gc_statement_violations(body, out);
+                    self.collect_no_gc_expr_violations(cond, out, requirements);
+                    self.collect_no_gc_statement_violations(body, out, requirements);
                 }
                 hir::StatementKind::When(when) => {
-                    self.collect_no_gc_expr_violations(&when.subject, out);
+                    self.collect_no_gc_expr_violations(&when.subject, out, requirements);
                     for arm in &when.arms {
                         if let Some(guard) = &arm.guard {
-                            self.collect_no_gc_expr_violations(guard, out);
+                            self.collect_no_gc_expr_violations(guard, out, requirements);
                         }
-                        self.collect_no_gc_statement_violations(&arm.body, out);
+                        self.collect_no_gc_statement_violations(&arm.body, out, requirements);
                     }
                     if let Some(else_body) = &when.else_body {
-                        self.collect_no_gc_statement_violations(else_body, out);
+                        self.collect_no_gc_statement_violations(else_body, out, requirements);
                     }
                 }
                 hir::StatementKind::Try(_) => out.push((
@@ -378,22 +451,30 @@ impl Lowerer {
                         statement.span,
                         "`throw` is not allowed in `@NoGC` code".to_string(),
                     ));
-                    self.collect_no_gc_expr_violations(expr, out);
+                    self.collect_no_gc_expr_violations(expr, out, requirements);
                 }
             }
         }
     }
 
-    fn collect_no_gc_expr_violations(&self, expr: &hir::Expr, out: &mut Vec<(Span, String)>) {
+    fn collect_no_gc_expr_violations(
+        &self,
+        expr: &hir::Expr,
+        out: &mut Vec<(Span, String)>,
+        requirements: &mut HashSet<hir::TypeParamId>,
+    ) {
         use hir::ExprKind;
-        if !self.is_gc_free(expr.ty) {
-            out.push((
-                expr.span,
-                format!(
-                    "value of non-GC-free type {} is not allowed in `@NoGC` code",
-                    self.type_name(expr.ty)
-                ),
-            ));
+        match self.gc_free_requirements(expr.ty) {
+            Some(required) => requirements.extend(required),
+            None => {
+                out.push((
+                    expr.span,
+                    format!(
+                        "value of non-GC-free type {} is not allowed in `@NoGC` code",
+                        self.type_name(expr.ty)
+                    ),
+                ));
+            }
         }
         match &expr.kind {
             ExprKind::StringLiteral(_) => out.push((
@@ -415,12 +496,12 @@ impl Lowerer {
                     ));
                 }
                 for element in elements {
-                    self.collect_no_gc_expr_violations(element, out);
+                    self.collect_no_gc_expr_violations(element, out, requirements);
                 }
             }
             ExprKind::StructInit { args, .. } | ExprKind::VariantConstruct { args, .. } => {
                 for arg in args {
-                    self.collect_no_gc_expr_violations(arg, out);
+                    self.collect_no_gc_expr_violations(arg, out, requirements);
                 }
             }
             ExprKind::ClassInit { args, .. } => {
@@ -429,7 +510,7 @@ impl Lowerer {
                     "class allocation is not allowed in `@NoGC` code".to_string(),
                 ));
                 for arg in args {
-                    self.collect_no_gc_expr_violations(arg, out);
+                    self.collect_no_gc_expr_violations(arg, out, requirements);
                 }
             }
             ExprKind::Lambda(_)
@@ -446,7 +527,7 @@ impl Lowerer {
                         "managed field access is not allowed in `@NoGC` code".to_string(),
                     ));
                 }
-                self.collect_no_gc_expr_violations(receiver, out);
+                self.collect_no_gc_expr_violations(receiver, out, requirements);
             }
             ExprKind::MethodCall {
                 receiver,
@@ -454,9 +535,9 @@ impl Lowerer {
                 args,
             } => {
                 self.check_no_gc_callee(*callee, expr.span, out);
-                self.collect_no_gc_expr_violations(receiver, out);
+                self.collect_no_gc_expr_violations(receiver, out, requirements);
                 for arg in args {
-                    self.collect_no_gc_expr_violations(arg, out);
+                    self.collect_no_gc_expr_violations(arg, out, requirements);
                 }
             }
             ExprKind::Box(operand) | ExprKind::Unbox(operand) => {
@@ -464,34 +545,34 @@ impl Lowerer {
                     expr.span,
                     "boxing and unboxing are not allowed in `@NoGC` code".to_string(),
                 ));
-                self.collect_no_gc_expr_violations(operand, out);
+                self.collect_no_gc_expr_violations(operand, out, requirements);
             }
             ExprKind::IsInstance { operand, .. } | ExprKind::Cast { operand, .. } => {
                 out.push((
                     expr.span,
                     "runtime type checks are not allowed in `@NoGC` code".to_string(),
                 ));
-                self.collect_no_gc_expr_violations(operand, out);
+                self.collect_no_gc_expr_violations(operand, out, requirements);
             }
             ExprKind::Index { receiver, index } => {
                 out.push((
                     expr.span,
                     "array indexing is not allowed in `@NoGC` code".to_string(),
                 ));
-                self.collect_no_gc_expr_violations(receiver, out);
-                self.collect_no_gc_expr_violations(index, out);
+                self.collect_no_gc_expr_violations(receiver, out, requirements);
+                self.collect_no_gc_expr_violations(index, out, requirements);
             }
             ExprKind::ArrayLen(operand) | ExprKind::ArrayClone(operand) => {
                 out.push((
                     expr.span,
                     "array operations are not allowed in `@NoGC` code".to_string(),
                 ));
-                self.collect_no_gc_expr_violations(operand, out);
+                self.collect_no_gc_expr_violations(operand, out, requirements);
             }
             ExprKind::Call { callee, args } => {
                 self.check_no_gc_callee(*callee, expr.span, out);
                 for arg in args {
-                    self.collect_no_gc_expr_violations(arg, out);
+                    self.collect_no_gc_expr_violations(arg, out, requirements);
                 }
             }
             ExprKind::LocalFunctionCall {
@@ -502,7 +583,7 @@ impl Lowerer {
             } => {
                 self.check_no_gc_callee(*callee, expr.span, out);
                 for value in captures.iter().chain(args) {
-                    self.collect_no_gc_expr_violations(value, out);
+                    self.collect_no_gc_expr_violations(value, out, requirements);
                 }
             }
             ExprKind::CallableCall { callee, args, .. } => {
@@ -510,9 +591,9 @@ impl Lowerer {
                     expr.span,
                     "managed function-value calls are not allowed in `@NoGC` code".to_string(),
                 ));
-                self.collect_no_gc_expr_violations(callee, out);
+                self.collect_no_gc_expr_violations(callee, out, requirements);
                 for arg in args {
-                    self.collect_no_gc_expr_violations(arg, out);
+                    self.collect_no_gc_expr_violations(arg, out, requirements);
                 }
             }
             ExprKind::Binary { op, lhs, rhs } => {
@@ -523,37 +604,39 @@ impl Lowerer {
                             .to_string(),
                     ));
                 }
-                self.collect_no_gc_expr_violations(lhs, out);
-                self.collect_no_gc_expr_violations(rhs, out);
+                self.collect_no_gc_expr_violations(lhs, out, requirements);
+                self.collect_no_gc_expr_violations(rhs, out, requirements);
             }
             ExprKind::Unary { operand, .. }
             | ExprKind::SomeWrap(operand)
             | ExprKind::IsSome(operand)
             | ExprKind::PtrFromUInt(operand)
             | ExprKind::PtrToUInt(operand)
-            | ExprKind::PtrCast(operand) => self.collect_no_gc_expr_violations(operand, out),
+            | ExprKind::PtrCast(operand) => {
+                self.collect_no_gc_expr_violations(operand, out, requirements)
+            }
             ExprKind::PtrLoad { pointer, offset } => {
-                self.collect_no_gc_expr_violations(pointer, out);
+                self.collect_no_gc_expr_violations(pointer, out, requirements);
                 if let Some(offset) = offset {
-                    self.collect_no_gc_expr_violations(offset, out);
+                    self.collect_no_gc_expr_violations(offset, out, requirements);
                 }
             }
             ExprKind::PtrOffset {
                 pointer, offset, ..
             } => {
-                self.collect_no_gc_expr_violations(pointer, out);
-                self.collect_no_gc_expr_violations(offset, out);
+                self.collect_no_gc_expr_violations(pointer, out, requirements);
+                self.collect_no_gc_expr_violations(offset, out, requirements);
             }
             ExprKind::PtrStore {
                 pointer,
                 offset,
                 value,
             } => {
-                self.collect_no_gc_expr_violations(pointer, out);
+                self.collect_no_gc_expr_violations(pointer, out, requirements);
                 if let Some(offset) = offset {
-                    self.collect_no_gc_expr_violations(offset, out);
+                    self.collect_no_gc_expr_violations(offset, out, requirements);
                 }
-                self.collect_no_gc_expr_violations(value, out);
+                self.collect_no_gc_expr_violations(value, out, requirements);
             }
             // `addressOf` only materializes an already validated GC-free
             // place. It is unsafe, but does not allocate or enter the GC.
@@ -572,7 +655,7 @@ impl Lowerer {
                         "`!!` is not allowed in `@NoGC` code because it may throw".to_string(),
                     ));
                 }
-                self.collect_no_gc_expr_violations(operand, out);
+                self.collect_no_gc_expr_violations(operand, out, requirements);
             }
         }
     }

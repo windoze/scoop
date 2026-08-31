@@ -444,6 +444,11 @@ impl Module {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GenericFunction {
     pub function: FunctionId,
+    /// Type parameters whose concrete arguments must be GC-free for this
+    /// generic definition to satisfy its `@NoGC` contract. The requirement
+    /// is inferred from the resolved signature/body and checked at every
+    /// instantiation; unused/representation-erased parameters are omitted.
+    pub no_gc_type_params: Vec<TypeParamId>,
 }
 
 /// A generic function with every call-site type argument resolved.
@@ -1446,14 +1451,34 @@ pub fn dump(module: &Module) -> String {
         );
         let suspend = if function.is_suspend { "suspend " } else { "" };
         let attributes = dump_function_attributes(function.attributes);
+        let no_gc_condition = module
+            .generic_functions
+            .iter()
+            .find(|(_, generic)| generic.function == id && !generic.no_gc_type_params.is_empty())
+            .map(|(_, generic)| {
+                let parameters = generic
+                    .no_gc_type_params
+                    .iter()
+                    .map(|parameter| {
+                        function.type_params[parameter.into_raw() as usize]
+                            .name
+                            .as_str()
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!(" <requires-gc-free {parameters}>")
+            })
+            .unwrap_or_default();
         match &function.kind {
             FunctionKind::Intrinsic(name) => {
                 out.push_str(&format!(
-                    "  {suspend}fun {signature}{attributes} <intrinsic {name}>\n"
+                    "  {suspend}fun {signature}{attributes}{no_gc_condition} <intrinsic {name}>\n"
                 ));
             }
             FunctionKind::User(body) => {
-                out.push_str(&format!("  {suspend}fun {signature}{attributes}\n"));
+                out.push_str(&format!(
+                    "  {suspend}fun {signature}{attributes}{no_gc_condition}\n"
+                ));
                 dump_statements(module, &body.locals, &body.statements, 2, &mut out);
             }
             FunctionKind::Extern(id) => {
@@ -1468,7 +1493,7 @@ pub fn dump(module: &Module) -> String {
                     format!(" lib={}", extern_.library)
                 };
                 out.push_str(&format!(
-                    "  fun {signature}{attributes} <extern{} abi={abi} symbol={}{}>\n",
+                    "  fun {signature}{attributes}{no_gc_condition} <extern{} abi={abi} symbol={}{}>\n",
                     id.into_raw(),
                     extern_.native_symbol,
                     library

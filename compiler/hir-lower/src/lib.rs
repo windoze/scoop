@@ -2447,7 +2447,10 @@ impl Lowerer {
         if let Some(&generic) = self.generic_by_function.get(&function) {
             return generic;
         }
-        let generic = self.generic_functions.alloc(GenericFunction { function });
+        let generic = self.generic_functions.alloc(GenericFunction {
+            function,
+            no_gc_type_params: Vec::new(),
+        });
         self.generic_by_function.insert(function, generic);
         generic
     }

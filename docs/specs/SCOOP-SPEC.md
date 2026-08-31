@@ -1033,12 +1033,20 @@ annotation class NoGC
 
 - 用于 function/method：指明该函数不会/不应与 GC 有任何交互——函数中不读写任何 ref value，也不创建任何 ref type 实例。
 - 编译期检查；不符合约束是编译错误。
+- generic `@NoGC` callable 可以在签名或 body 中使用类型参数；每个实际影响参数、返回值、receiver、局部值或表达式表示的类型参数，都会在 HIR 形成“实例化实参必须 GC-free”的类型化条件，并经 generic 调用链向外传播。每个具体调用点必须再次验证该条件；未参与运行时表示的 phantom type parameter 不产生条件。
+- `T : value` 只保证实参是 value type，不保证其递归表示中不含 managed ref，因此不能代替上述 GC-free 条件；`T : ref` 则不可能满足该条件。当前没有单独的源码 bound 语法来声明 GC-free，条件由 `@NoGC` body及其调用图推导。
 - 这样的函数可以安全地跨越 FFI boundary（例如作为 FFI 回调）。
 - 该约束也意味着 `@NoGC` 的成员函数只能属于 value type：class method 有隐含的 `this` 参数，而 `this` 是 ref value。
 
 ```
 @NoGC
 fun add42(n: Int) = n + 42
+
+@NoGC
+fun <T> identity(value: T): T = value
+
+val number = identity<Int>(42)          // 合法：Int 是 GC-free
+val text = identity<String>("managed") // 编译错误：String 是 ref type
 
 // 编译错误：String 是 ref type，违反 NoGC 约束
 @NoGC
