@@ -402,6 +402,8 @@ pub struct StringConst {
 
 #[derive(Debug)]
 pub struct Function {
+    /// Whether this body participates in managed GC instrumentation.
+    pub gc_effect: GcEffect,
     pub name: String,
     /// Mangled symbol; `scoop.<name>`, `scoop.<name>$<args>` for
     /// monomorphized instances, or `scoop_main` for the entry.
@@ -409,6 +411,12 @@ pub struct Function {
     pub params: Vec<Param>,
     pub return_ty: Type,
     pub body: Body,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GcEffect {
+    Managed,
+    NoGc,
 }
 
 #[derive(Debug)]
@@ -858,11 +866,16 @@ pub fn dump(module: &Module) -> String {
             .map(|p| format!("{}: {}", p.name, type_name(module, &p.ty)))
             .collect();
         out.push_str(&format!(
-            "  fun {} @{}({}) -> {}\n",
+            "  fun {} @{}({}) -> {}{}\n",
             function.name,
             function.symbol,
             params.join(", "),
-            type_name(module, &function.return_ty)
+            type_name(module, &function.return_ty),
+            if function.gc_effect == GcEffect::NoGc {
+                " <no-gc>"
+            } else {
+                ""
+            }
         ));
         for (block_id, block) in function.body.blocks.iter() {
             let unwind = block

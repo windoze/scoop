@@ -152,6 +152,7 @@ fn transform_function(
     });
 
     let driver = lowerer.functions.alloc(mir::Function {
+        gc_effect: mir::GcEffect::Managed,
         name: format!("{source_name}$drive"),
         symbol: format!("{source_symbol}$drive"),
         params: Vec::new(),
@@ -758,6 +759,7 @@ fn generate_resume_method(
         waiting
     };
     let function = lowerer.functions.alloc(mir::Function {
+        gc_effect: mir::GcEffect::Managed,
         name: format!("CoroutineAdapter.resume${state}"),
         symbol: format!("{source_symbol}$resume${state}"),
         params: vec![
@@ -901,6 +903,7 @@ fn generate_failure_method(
         waiting
     };
     let function = lowerer.functions.alloc(mir::Function {
+        gc_effect: mir::GcEffect::Managed,
         name: format!("CoroutineAdapter.resumeWithException${state}"),
         symbol: format!("{source_symbol}$resume_exception${state}"),
         params: vec![

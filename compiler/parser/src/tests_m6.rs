@@ -283,9 +283,12 @@ fn open_must_be_followed_by_class() {
 }
 
 #[test]
-fn non_abstract_member_function_needs_a_body() {
-    let (_, message) = err("class C {\n    fun f()\n}\n");
-    assert_eq!(message, "expected `{` or `=`, found `}`");
+fn bodyless_member_is_preserved_for_hir_validation() {
+    let file = ok("class C {\n    fun f()\n}\n");
+    let Decl::Class(class) = &file.declarations[0] else {
+        panic!("expected class");
+    };
+    assert!(matches!(class.methods[0].body, FunctionBody::None));
 }
 
 #[test]

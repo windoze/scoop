@@ -151,6 +151,7 @@ pub enum MethodModifier {
 /// `class Name(props) : Base(args), I1, I2 { members }` (spec 9.1).
 #[derive(Debug, Clone, PartialEq)]
 pub struct ClassDecl {
+    pub annotations: Vec<Annotation>,
     pub modifier: ClassModifier,
     pub name: Ident,
     /// Primary-constructor properties (`val` / `var`).
@@ -174,6 +175,7 @@ pub struct ConstructorProp {
 /// only in M6 (no properties, no default implementations).
 #[derive(Debug, Clone, PartialEq)]
 pub struct InterfaceDecl {
+    pub annotations: Vec<Annotation>,
     pub name: Ident,
     pub type_params: Vec<TypeParamDecl>,
     pub methods: Vec<FunctionDecl>,
@@ -197,6 +199,7 @@ pub struct TypeParamDecl {
 /// `enum E<T> { ... }` (spec 4.2).
 #[derive(Debug, Clone, PartialEq)]
 pub struct EnumDecl {
+    pub annotations: Vec<Annotation>,
     pub name: Ident,
     pub type_params: Vec<Ident>,
     pub variants: Vec<VariantDecl>,
@@ -239,6 +242,7 @@ pub struct VariantFieldDecl {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct StructDecl {
+    pub annotations: Vec<Annotation>,
     pub name: Ident,
     /// Generic type parameters (`struct Name<T, U>(...)`); empty for
     /// non-generic structs.
@@ -260,7 +264,7 @@ pub struct FieldDecl {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct FunctionDecl {
-    /// M4: at most `@Intrinsic("name")`, sysroot only (DESIGN.md 1.3).
+    /// Compiler-recognized annotations in source order (spec 9.4 / M12).
     pub annotations: Vec<Annotation>,
     /// Whether this callable uses the coroutine calling convention.
     pub is_suspend: bool,
@@ -286,9 +290,23 @@ pub struct FunctionDecl {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Annotation {
     pub name: Ident,
-    /// The single string argument of `@Intrinsic("name")`.
-    pub value: Option<String>,
+    pub args: Vec<AnnotationArg>,
     pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct AnnotationArg {
+    /// A named argument (`name = value`), or `None` for a positional one.
+    pub name: Option<Ident>,
+    pub value: AnnotationLiteral,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum AnnotationLiteral {
+    String(String),
+    Int(i64),
+    Boolean(bool),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -303,8 +321,8 @@ pub enum FunctionBody {
     Block(Block),
     /// `fun f(...) [: T] = expr`
     Expr(Box<Expr>),
-    /// Bodyless: `abstract fun`, interface method signatures, and
-    /// `@Intrinsic` functions (spec 13.1).
+    /// Bodyless declaration. HIR decides whether the declaration kind permits
+    /// the missing body (`abstract`, interface, intrinsic or extern).
     None,
 }
 
@@ -343,6 +361,18 @@ pub enum StatementKind {
     If(If),
     While(While),
     Block(Block),
+    /// A lexical safety override. Unlike annotations on declarations, this is
+    /// a dedicated syntax node and cannot be mistaken for a function call.
+    SafetyBlock {
+        mode: SafetyMode,
+        block: Block,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SafetyMode {
+    Safe,
+    Unsafe,
 }
 
 /// `when (subject) { arms... }` with an optional trailing `else`.
@@ -708,6 +738,7 @@ pub fn dump(file: &SourceFile) -> String {
     for decl in &file.declarations {
         match decl {
             Decl::Enum(e) => {
+                dump_annotations(&e.annotations, 2, &mut out);
                 let type_params = if e.type_params.is_empty() {
                     String::new()
                 } else {
@@ -762,6 +793,7 @@ pub fn dump(file: &SourceFile) -> String {
                 }
             }
             Decl::Class(c) => {
+                dump_annotations(&c.annotations, 2, &mut out);
                 let modifier = match c.modifier {
                     ClassModifier::Final => "",
                     ClassModifier::Open => "open ",
@@ -803,6 +835,7 @@ pub fn dump(file: &SourceFile) -> String {
                 }
             }
             Decl::Interface(i) => {
+                dump_annotations(&i.annotations, 2, &mut out);
                 let params = if i.type_params.is_empty() {
                     String::new()
                 } else {
@@ -827,6 +860,7 @@ pub fn dump(file: &SourceFile) -> String {
                 }
             }
             Decl::Struct(s) => {
+                dump_annotations(&s.annotations, 2, &mut out);
                 let type_params = if s.type_params.is_empty() {
                     String::new()
                 } else {
@@ -856,14 +890,7 @@ pub fn dump(file: &SourceFile) -> String {
                 }
             }
             Decl::Function(f) => {
-                for annotation in &f.annotations {
-                    let value = annotation
-                        .value
-                        .as_ref()
-                        .map(|v| format!("({v:?})"))
-                        .unwrap_or_default();
-                    out.push_str(&format!("    @{}{}\n", annotation.name.text, value));
-                }
+                dump_annotations(&f.annotations, 2, &mut out);
                 let type_params = if f.type_params.is_empty() {
                     String::new()
                 } else {
@@ -922,6 +949,35 @@ pub fn dump(file: &SourceFile) -> String {
         }
     }
     out
+}
+
+fn dump_annotations(annotations: &[Annotation], indent: usize, out: &mut String) {
+    let pad = "  ".repeat(indent);
+    for annotation in annotations {
+        let args = if annotation.args.is_empty() {
+            String::new()
+        } else {
+            let args: Vec<String> = annotation
+                .args
+                .iter()
+                .map(|arg| {
+                    let name = arg
+                        .name
+                        .as_ref()
+                        .map(|name| format!("{} = ", name.text))
+                        .unwrap_or_default();
+                    let value = match &arg.value {
+                        AnnotationLiteral::String(value) => format!("{value:?}"),
+                        AnnotationLiteral::Int(value) => value.to_string(),
+                        AnnotationLiteral::Boolean(value) => value.to_string(),
+                    };
+                    format!("{name}{value}")
+                })
+                .collect();
+            format!("({})", args.join(", "))
+        };
+        out.push_str(&format!("{pad}@{}{}\n", annotation.name.text, args));
+    }
 }
 
 fn dump_type_ref(ty: &TypeRef) -> String {
@@ -1091,6 +1147,14 @@ fn dump_statement(statement: &Statement, indent: usize, out: &mut String) {
         }
         StatementKind::Block(block) => {
             out.push_str(&format!("{pad}block\n"));
+            dump_block(block, indent + 1, out);
+        }
+        StatementKind::SafetyBlock { mode, block } => {
+            let name = match mode {
+                SafetyMode::Safe => "Safe",
+                SafetyMode::Unsafe => "Unsafe",
+            };
+            out.push_str(&format!("{pad}@{name} block\n"));
             dump_block(block, indent + 1, out);
         }
     }

@@ -842,6 +842,7 @@ fn named_variant_default_is_an_error() {
     // HIR rejects the shape too.
     let file = file(vec![
         Decl::Enum(ast::EnumDecl {
+            annotations: vec![],
             name: ident("Shape"),
             type_params: vec![],
             methods: vec![],
@@ -969,12 +970,12 @@ fn intrinsic_in_user_file_is_an_error() {
 }
 
 #[test]
-fn unsupported_annotation_is_an_error() {
+fn unknown_annotation_is_an_error() {
     let mut core = core_file();
     core.declarations.push(Decl::Function(FunctionDecl {
         annotations: vec![ast::Annotation {
-            name: ident("NoGC"),
-            value: None,
+            name: ident("Unknown"),
+            args: vec![],
             span: sp(),
         }],
         is_suspend: false,
@@ -988,10 +989,13 @@ fn unsupported_annotation_is_an_error() {
         body: FunctionBody::Block(block(vec![])),
         span: sp(),
     }));
-    let errors = lower(&[core, file(vec![fun("main", vec![])])])
-        .expect_err("unsupported annotation must fail");
+    let errors =
+        lower(&[core, file(vec![fun("main", vec![])])]).expect_err("unknown annotation must fail");
     assert_eq!(errors.len(), 1);
-    assert_eq!(errors[0].message, "unsupported annotation `@NoGC`");
+    assert_eq!(
+        errors[0].message,
+        "unsupported annotation `@Unknown` in milestone M12"
+    );
 }
 
 // --- negative: variant construction ---

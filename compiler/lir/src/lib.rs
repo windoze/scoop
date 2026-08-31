@@ -238,6 +238,8 @@ pub struct Temp {
 
 #[derive(Debug)]
 pub struct Function {
+    /// Whether codegen must attach the GC strategy and safepoint polls.
+    pub gc_effect: GcEffect,
     pub symbol: String,
     /// Parameter types; arguments are SSA values (`Value::Param`).
     pub params: Vec<LirType>,
@@ -247,6 +249,12 @@ pub struct Function {
     pub blocks: Arena<BasicBlock>,
     /// Entry block; every function has exactly one.
     pub entry: BlockId,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GcEffect {
+    Managed,
+    NoGc,
 }
 
 impl Function {
@@ -526,10 +534,15 @@ pub fn dump(module: &Module) -> String {
     for function in &module.functions {
         let params: Vec<String> = function.params.iter().map(LirType::dump).collect();
         out.push_str(&format!(
-            "  fun @{}({}) -> {}\n",
+            "  fun @{}({}) -> {}{}\n",
             function.symbol,
             params.join(", "),
-            function.return_ty.dump()
+            function.return_ty.dump(),
+            if function.gc_effect == GcEffect::NoGc {
+                " <no-gc>"
+            } else {
+                ""
+            }
         ));
         for (id, local) in function.locals.iter() {
             out.push_str(&format!(

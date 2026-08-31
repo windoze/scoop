@@ -365,6 +365,7 @@ impl Lowerer {
             id,
             FnSig {
                 is_suspend: decl.is_suspend,
+                attributes: self.functions[id].attributes,
                 owner_type_param_count,
                 type_params,
                 params,
@@ -382,6 +383,7 @@ impl Lowerer {
                 self.interfaces[iface].methods.push(hir::MethodSig {
                     name: short,
                     is_suspend: decl.is_suspend,
+                    attributes: self.functions[id].attributes,
                     type_params: method_type_params,
                     params: declared,
                     return_ty,
@@ -773,6 +775,7 @@ impl Lowerer {
     fn same_signature(&self, candidate: FunctionId, name: &str, sig: &FnSig) -> bool {
         self.same_signature_shape(candidate, name, sig)
             && self.functions[candidate].is_suspend == sig.is_suspend
+            && self.functions[candidate].attributes == sig.attributes
     }
 
     fn same_signature_shape(&self, candidate: FunctionId, name: &str, sig: &FnSig) -> bool {
@@ -808,6 +811,7 @@ impl Lowerer {
         type_params.extend(own_type_params);
         FnSig {
             is_suspend: sig.is_suspend,
+            attributes: sig.attributes,
             owner_type_param_count: target_owner_count,
             type_params,
             params: sig

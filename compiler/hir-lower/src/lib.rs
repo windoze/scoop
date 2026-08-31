@@ -93,7 +93,9 @@
 //! be a reference type — spec 14.1's `T : ref` in its pre-M12 form.
 //! `gcCollect` / `gcStats` are ordinary test-only intrinsics.
 
+mod annotations;
 mod class;
+mod effects;
 mod expr;
 mod overload;
 mod patterns;
@@ -109,6 +111,7 @@ use la_arena::Arena;
 use scoop_ast as ast;
 use scoop_hir as hir;
 
+use annotations::FunctionTarget;
 use ast::{Diagnostic, Span};
 use hir::{
     ClassDecl, ClassId, EnumDecl, EnumId, Function, FunctionId, FunctionKind, GenericFunction,
@@ -138,6 +141,7 @@ pub fn lower(files: &[ast::SourceFile]) -> Result<hir::Module, Vec<Diagnostic>> 
 #[derive(Clone)]
 pub(crate) struct FnSig {
     pub(crate) is_suspend: bool,
+    pub(crate) attributes: hir::FunctionAttributes,
     /// Number of owner parameters at the front of `type_params`.
     pub(crate) owner_type_param_count: usize,
     pub(crate) type_params: Vec<String>,
@@ -372,6 +376,8 @@ pub(crate) struct Lowerer {
     pub(crate) current_fn_name: String,
     /// Explicit suspension-permission stack; it is never empty.
     pub(crate) suspension_contexts: Vec<SuspensionContext>,
+    /// Lexical permission for unsafe operations; independent of suspension.
+    pub(crate) safety_contexts: Vec<hir::Safety>,
     /// `this` of the member function whose body is being lowered:
     /// its local and the host type. `None` in top-level functions.
     pub(crate) current_this: Option<(hir::LocalId, TypeId)>,
@@ -501,6 +507,7 @@ impl Lowerer {
             suspension_contexts: vec![SuspensionContext::Forbidden(
                 ForbiddenSuspendContext::TopLevel,
             )],
+            safety_contexts: vec![hir::Safety::Safe],
             current_this: None,
             current_owner: None,
             smart_casts: HashMap::new(),
@@ -575,6 +582,7 @@ impl Lowerer {
                 type_params: Vec::new(),
                 params: fn_params,
                 return_ty,
+                attributes: hir::FunctionAttributes::default(),
                 kind: FunctionKind::User(hir::Body {
                     locals,
                     statements: Vec::new(),
@@ -590,6 +598,7 @@ impl Lowerer {
                 id,
                 FnSig {
                     is_suspend: false,
+                    attributes: hir::FunctionAttributes::default(),
                     owner_type_param_count: 0,
                     type_params: Vec::new(),
                     params: sig_params,
@@ -762,6 +771,10 @@ impl Lowerer {
             self.functions[id].kind = FunctionKind::User(body);
         }
 
+        // Effects consume fully resolved calls and types. Local functions and
+        // callable literals lifted while lowering the bodies are visible now.
+        self.check_no_gc_functions();
+
         // A module without `main` never reaches HIR (hir docs); it is a
         // diagnostic here, attributed to the user file. With overloads
         // (M7) several functions may be named `main`; the entry point
@@ -862,6 +875,7 @@ impl Lowerer {
         pending_methods: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
         file_index: usize,
     ) {
+        let attributes = self.check_struct_annotations(decl);
         if let Some(kind) = self.type_namespace_conflict(&decl.name.text) {
             let what = if kind == "a struct" {
                 format!("duplicate struct `{}`", decl.name.text)
@@ -888,6 +902,7 @@ impl Lowerer {
         let id = self.structs.alloc(StructDecl {
             name: decl.name.text.clone(),
             type_params: type_params.clone(),
+            attributes,
             fields: Vec::new(),
             // Filled in pass 2 together with the fields.
             interfaces: Vec::new(),
@@ -914,6 +929,7 @@ impl Lowerer {
         pending_methods: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
         file_index: usize,
     ) {
+        self.reject_type_annotations("an enum", &decl.annotations);
         if let Some(kind) = self.type_namespace_conflict(&decl.name.text) {
             let what = if kind == "an enum" {
                 format!("duplicate enum `{}`", decl.name.text)
@@ -966,6 +982,7 @@ impl Lowerer {
         pending_methods: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
         file_index: usize,
     ) {
+        self.reject_type_annotations("a class", &decl.annotations);
         if let Some(kind) = self.type_namespace_conflict(&decl.name.text) {
             let what = if kind == "a class" {
                 format!("duplicate class `{}`", decl.name.text)
@@ -1013,6 +1030,7 @@ impl Lowerer {
         pending_methods: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
         file_index: usize,
     ) {
+        self.reject_type_annotations("an interface", &decl.annotations);
         if let Some(kind) = self.type_namespace_conflict(&decl.name.text) {
             let what = if kind == "an interface" {
                 format!("duplicate interface `{}`", decl.name.text)
@@ -1082,11 +1100,7 @@ impl Lowerer {
         pending: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
         file_index: usize,
     ) {
-        if self.check_annotations(decl, false).is_some() {
-            // The diagnostic was already recorded (`@Intrinsic` is
-            // core-library top-level only); drop the method.
-            return;
-        }
+        let checked = self.check_function_annotations(decl, false, FunctionTarget::Member(owner));
         let host_ty = self.owner_ty(owner);
         let modifier = match owner {
             Owner::Interface(_) => hir::MethodModifier::Abstract,
@@ -1115,6 +1129,7 @@ impl Lowerer {
             type_params: Vec::new(),
             params: Vec::new(),
             return_ty: self.unit,
+            attributes: checked.attributes,
             kind: FunctionKind::User(hir::Body {
                 locals: Arena::new(),
                 statements: Vec::new(),
@@ -1149,7 +1164,8 @@ impl Lowerer {
         pending: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize)>,
         file_index: usize,
     ) {
-        let kind = match self.check_annotations(decl, is_core) {
+        let checked = self.check_function_annotations(decl, is_core, FunctionTarget::TopLevel);
+        let kind = match checked.intrinsic {
             Some(intrinsic) => FunctionKind::Intrinsic(intrinsic),
             None => FunctionKind::User(hir::Body {
                 locals: Arena::new(),
@@ -1165,6 +1181,7 @@ impl Lowerer {
             type_params: Vec::new(),
             params: Vec::new(),
             return_ty: self.unit,
+            attributes: checked.attributes,
             kind,
             method: None,
             span: decl.span,
@@ -1181,43 +1198,6 @@ impl Lowerer {
             .push(id);
         self.function_files.insert(id, file_index);
         pending.push((id, decl, file_index));
-    }
-
-    /// Check a function's annotations (M4: only `@Intrinsic("name")`,
-    /// spec 13.1 / milestone4 DESIGN.md 1.3) and return the intrinsic
-    /// name on success. Intrinsics are core-library only and the name
-    /// must be in the compiler's registry.
-    fn check_annotations(&mut self, decl: &ast::FunctionDecl, is_core: bool) -> Option<String> {
-        let mut intrinsic = None;
-        for annotation in &decl.annotations {
-            if annotation.name.text != "Intrinsic" {
-                self.error(
-                    annotation.span,
-                    format!("unsupported annotation `@{}`", annotation.name.text),
-                );
-                continue;
-            }
-            let Some(name) = &annotation.value else {
-                self.error(
-                    annotation.span,
-                    "`@Intrinsic` requires a name argument".to_string(),
-                );
-                continue;
-            };
-            if hir::intrinsic_spec(name).is_none() {
-                self.error(annotation.span, format!("unknown intrinsic `{name}`"));
-                continue;
-            }
-            if !is_core {
-                self.error(
-                    annotation.span,
-                    "`@Intrinsic` is only allowed in the core library".to_string(),
-                );
-                continue;
-            }
-            intrinsic = Some(name.clone());
-        }
-        intrinsic
     }
 
     fn validate_coroutine_core(&mut self, files: &[ast::SourceFile]) -> Option<hir::CoroutineCore> {
@@ -1963,6 +1943,7 @@ impl Lowerer {
             id,
             FnSig {
                 is_suspend: decl.is_suspend,
+                attributes: self.functions[id].attributes,
                 owner_type_param_count: 0,
                 type_params,
                 params,
@@ -2107,6 +2088,18 @@ impl Lowerer {
         self.suspension_contexts.pop();
     }
 
+    pub(crate) fn push_safety_context(&mut self, safety: hir::Safety) {
+        self.safety_contexts.push(safety);
+    }
+
+    pub(crate) fn pop_safety_context(&mut self) {
+        assert!(
+            self.safety_contexts.len() > 1,
+            "the root safety context must remain present"
+        );
+        self.safety_contexts.pop();
+    }
+
     /// Diagnose a suspend call made from a declaration body whose ABI has
     /// no continuation. The resolved callable, including a generic
     /// instantiation, always leads back to exactly one function entity.
@@ -2140,6 +2133,34 @@ impl Lowerer {
             span,
             format!("suspend function `{callee}` cannot be called from {location}"),
         );
+    }
+
+    pub(crate) fn check_call_effects(&mut self, callable: hir::Callable, span: Span) {
+        self.check_suspend_call(callable, span);
+        let function = match callable {
+            hir::Callable::Function(function) => function,
+            hir::Callable::Generic(instantiation) => {
+                let generic = self.instantiations[instantiation].generic;
+                self.generic_functions[generic].function
+            }
+        };
+        if self.functions[function].attributes.safety != hir::Safety::Unsafe {
+            return;
+        }
+        let context = self
+            .safety_contexts
+            .last()
+            .copied()
+            .expect("the safety context stack is initialized non-empty");
+        if context == hir::Safety::Safe {
+            self.error(
+                span,
+                format!(
+                    "unsafe function `{}` may only be called from an unsafe context",
+                    self.functions[function].name
+                ),
+            );
+        }
     }
 
     pub(crate) fn error(&mut self, span: Span, message: String) {

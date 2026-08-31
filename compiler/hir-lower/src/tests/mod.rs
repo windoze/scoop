@@ -9,6 +9,7 @@
 
 mod m10;
 mod m11;
+mod m12;
 mod m2;
 mod m3;
 mod m4;
@@ -622,7 +623,11 @@ pub(crate) fn intrinsic_generic_fun(
     Decl::Function(FunctionDecl {
         annotations: vec![ast::Annotation {
             name: ident("Intrinsic"),
-            value: Some(intrinsic.to_string()),
+            args: vec![ast::AnnotationArg {
+                name: None,
+                value: ast::AnnotationLiteral::String(intrinsic.to_string()),
+                span: sp(),
+            }],
             span: sp(),
         }],
         is_suspend: false,
@@ -640,7 +645,7 @@ pub(crate) fn intrinsic_generic_fun(
             })
             .collect(),
         return_ty,
-        body: FunctionBody::Block(block(vec![])),
+        body: FunctionBody::None,
         span: sp(),
     })
 }
@@ -669,6 +674,7 @@ pub(crate) fn class_decl(
     methods: Vec<FunctionDecl>,
 ) -> Decl {
     Decl::Class(ast::ClassDecl {
+        annotations: vec![],
         modifier,
         name: ident(name),
         constructor: ctor
@@ -690,6 +696,7 @@ pub(crate) fn class_decl(
 /// `interface I { fun m(...): T ... }`.
 pub(crate) fn interface_decl(name: &str, methods: Vec<FunctionDecl>) -> Decl {
     Decl::Interface(ast::InterfaceDecl {
+        annotations: vec![],
         name: ident(name),
         type_params: Vec::new(),
         methods,
@@ -703,6 +710,7 @@ pub(crate) fn generic_interface_decl(
     methods: Vec<FunctionDecl>,
 ) -> Decl {
     Decl::Interface(ast::InterfaceDecl {
+        annotations: vec![],
         name: ident(name),
         type_params: type_params
             .into_iter()
@@ -859,6 +867,7 @@ pub(crate) fn generic_struct_decl_full(
     methods: Vec<FunctionDecl>,
 ) -> Decl {
     Decl::Struct(AstStructDecl {
+        annotations: vec![],
         name: ident(name),
         type_params: type_params.into_iter().map(ident).collect(),
         fields: fields
@@ -894,6 +903,7 @@ pub(crate) fn enum_decl_full(
     methods: Vec<FunctionDecl>,
 ) -> Decl {
     Decl::Enum(ast::EnumDecl {
+        annotations: vec![],
         name: ident(name),
         type_params: type_params.into_iter().map(ident).collect(),
         variants,
@@ -940,6 +950,7 @@ pub(crate) fn cast_ty(operand: Expr, ty: TypeRef, optional: bool) -> Expr {
 
 pub(crate) fn enum_decl(name: &str, type_params: Vec<&str>, variants: Vec<VariantDecl>) -> Decl {
     Decl::Enum(ast::EnumDecl {
+        annotations: vec![],
         name: ident(name),
         type_params: type_params.into_iter().map(ident).collect(),
         variants,

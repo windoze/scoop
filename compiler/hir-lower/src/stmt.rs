@@ -82,6 +82,9 @@ impl Lowerer {
         let Type::Function(function_type) = self.types[function_ty] else {
             unreachable!("interning a function type returns a function type")
         };
+        let attributes = self
+            .check_function_annotations(decl, false, crate::FunctionTarget::Local)
+            .attributes;
         let local_number = self.local_functions.len();
         let function = self.functions.alloc(hir::Function {
             name: format!("$local.{local_number}.{}", decl.name.text),
@@ -89,6 +92,7 @@ impl Lowerer {
             type_params: type_params.clone(),
             params: Vec::new(),
             return_ty,
+            attributes,
             kind: hir::FunctionKind::User(hir::Body {
                 locals: la_arena::Arena::new(),
                 statements: Vec::new(),
@@ -100,6 +104,7 @@ impl Lowerer {
             function,
             FnSig {
                 is_suspend: decl.is_suspend,
+                attributes,
                 owner_type_param_count,
                 type_params: type_params.clone(),
                 params: sig_params.clone(),
@@ -160,6 +165,7 @@ impl Lowerer {
         } else {
             SuspensionContext::Forbidden(ForbiddenSuspendContext::Function)
         });
+        self.push_safety_context(attributes.safety);
         self.push_scope();
 
         let lowered = {
@@ -247,6 +253,7 @@ impl Lowerer {
         };
 
         self.pop_scope();
+        self.pop_safety_context();
         self.pop_suspension_context();
         self.capture_contexts.pop();
         self.locals = outer_locals;
@@ -353,6 +360,7 @@ impl Lowerer {
         } else {
             SuspensionContext::Forbidden(ForbiddenSuspendContext::Function)
         });
+        self.push_safety_context(self.functions[id].attributes.safety);
 
         self.current_owner = owner;
         self.current_this = None;
@@ -453,6 +461,7 @@ impl Lowerer {
         self.type_params_in_scope.clear();
         self.current_this = None;
         self.current_owner = None;
+        self.pop_safety_context();
         self.pop_suspension_context();
 
         hir::Body {
@@ -925,6 +934,20 @@ impl Lowerer {
                     self.lower_statement(statement, out);
                 }
                 self.pop_scope();
+                return;
+            }
+            ast::StatementKind::SafetyBlock { mode, block } => {
+                let safety = match mode {
+                    ast::SafetyMode::Safe => hir::Safety::Safe,
+                    ast::SafetyMode::Unsafe => hir::Safety::Unsafe,
+                };
+                self.push_safety_context(safety);
+                self.push_scope();
+                for statement in &block.statements {
+                    self.lower_statement(statement, out);
+                }
+                self.pop_scope();
+                self.pop_safety_context();
                 return;
             }
         };

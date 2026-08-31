@@ -15,15 +15,16 @@
 //! their natural byte offsets from 16, the boxed payload and array size
 //! live at offset 16, array elements at 24, and string constants get a zeroed GC word
 //! between the TD and the length. `scoop_rt_alloc` writes both header
-//! words, so no allocation site stores the header. Every function is
+//! words, so no allocation site stores the header. Every managed function is
 //! declared with the `statepoint-example` GC strategy and the whole
 //! module runs through `rewrite-statepoints-for-gc` before object
 //! emission, so the `.o` carries the `__llvm_stackmaps` section the
 //! runtime's stack scan reads (impl spec 2.4's statepoint insertion
 //! happens here rather than in LIR: it is an instrumentation of the
 //! emitted LLVM, and keeping it out of LIR keeps the LIR dumps
-//! stable). Safepoint polls — plain calls to the runtime's
-//! `scoop_rt_safepoint` — are emitted at every function entry and at
+//! stable). Verified `@NoGC` functions carry no strategy or polls.
+//! Safepoint polls — plain calls to the runtime's `scoop_rt_safepoint` —
+//! are emitted at every managed function entry and at
 //! the loop-header blocks `loop_headers` finds. Every `HeapStore` /
 //! `ArraySet` is followed by the write-barrier card mark
 //! (`scoop_gc_card_table[addr >> 9] = 1`, runtime spec 3.6).
@@ -43,8 +44,8 @@ use inkwell::values::{BasicValueEnum, GlobalValue, IntValue, PointerValue, Value
 use inkwell::{AddressSpace, IntPredicate, OptimizationLevel};
 use la_arena::{Arena, Idx};
 use scoop_lir::{
-    BinOp, EnumDef, EnumRepr, Function, Global, GlobalInit, Instruction, LirType, Module, RefScan,
-    TempId, Terminator, UnOp, Value,
+    BinOp, EnumDef, EnumRepr, Function, GcEffect, Global, GlobalInit, Instruction, LirType, Module,
+    RefScan, TempId, Terminator, UnOp, Value,
 };
 
 const SCAN_ARRAY: u64 = u64::MAX;
@@ -2281,8 +2282,8 @@ fn fn_type_of<'ctx>(
     })
 }
 
-/// Declare a function with its final symbol and signature. Every
-/// function carries the GC strategy (M9, milestone9 DESIGN 5.5):
+/// Declare a function with its final symbol and signature. Managed
+/// functions carry the GC strategy (M9, milestone9 DESIGN 5.5):
 /// `rewrite-statepoints-for-gc` rewrites the body's call sites into
 /// statepoints and LLVM emits their stackmaps. Only module functions
 /// get it — the runtime declarations created at call sites are not
@@ -2294,8 +2295,10 @@ fn declare_function<'ctx>(
     function: &Function,
 ) -> Result<(), CodegenError> {
     let fn_ty = fn_type_of(context, enums, function)?;
-    llvm.add_function(&function.symbol, fn_ty, None)
-        .set_gc(GC_STRATEGY);
+    let llvm_function = llvm.add_function(&function.symbol, fn_ty, None);
+    if function.gc_effect == GcEffect::Managed {
+        llvm_function.set_gc(GC_STRATEGY);
+    }
     Ok(())
 }
 
@@ -2491,9 +2494,12 @@ fn emit_function<'ctx>(
                 .map_err(|e| CodegenError(format!("alloca %{}: {e}", local.name)))?,
         );
     }
-    // M9 safepoint poll (milestone9 DESIGN 3.1): every function polls
-    // at entry, right after the allocas.
-    emitter.safepoint_poll()?;
+    // M9 safepoint poll (milestone9 DESIGN 3.1): every managed function
+    // polls at entry, right after the allocas. Verified `@NoGC` bodies
+    // deliberately carry neither statepoints nor polls.
+    if function.gc_effect == GcEffect::Managed {
+        emitter.safepoint_poll()?;
+    }
 
     let headers = loop_headers(function);
     for (block_id, block) in function.blocks.iter() {
@@ -2502,7 +2508,8 @@ fn emit_function<'ctx>(
         // provably never contains a landing pad (see `loop_headers`);
         // the LandingPad check only restates LLVM's landingpad-first
         // rule at the insertion site.
-        if headers[arena_index(block_id)]
+        if function.gc_effect == GcEffect::Managed
+            && headers[arena_index(block_id)]
             && !matches!(
                 block.instructions.first(),
                 Some(Instruction::LandingPad { .. } | Instruction::CleanupPad { .. })
@@ -2805,6 +2812,7 @@ mod tests {
             globals,
             enums: Arena::default(),
             functions: vec![Function {
+                gc_effect: GcEffect::Managed,
                 symbol: "scoop_main".to_string(),
                 params: vec![],
                 return_ty: LirType::Void,
@@ -2983,6 +2991,7 @@ mod tests {
             },
         });
         let tagged = Function {
+            gc_effect: GcEffect::Managed,
             symbol: "scoop.tagged".to_string(),
             params: vec![shape_ty.clone(), LirType::Ptr],
             return_ty: LirType::I64,
@@ -3072,6 +3081,7 @@ mod tests {
             },
         });
         let niche = Function {
+            gc_effect: GcEffect::Managed,
             symbol: "scoop.niche".to_string(),
             params: vec![option_ty.clone()],
             return_ty: LirType::I64,
@@ -3094,6 +3104,7 @@ mod tests {
             terminator: Terminator::Unreachable,
         });
         let trap_on_none = Function {
+            gc_effect: GcEffect::Managed,
             symbol: "scoop.trap_on_none".to_string(),
             params: vec![],
             return_ty: LirType::Void,
@@ -3124,6 +3135,7 @@ mod tests {
             },
         });
         let produce = Function {
+            gc_effect: GcEffect::Managed,
             symbol: "scoop.produce_shape".to_string(),
             params: vec![],
             return_ty: shape_ty.clone(),
@@ -3157,6 +3169,7 @@ mod tests {
             },
         });
         let consume = Function {
+            gc_effect: GcEffect::Managed,
             symbol: "scoop.consume_shape".to_string(),
             params: vec![],
             return_ty: LirType::I64,
@@ -3191,6 +3204,7 @@ mod tests {
             },
         });
         let consume_indirect = Function {
+            gc_effect: GcEffect::Managed,
             symbol: "scoop.consume_shape_indirect".to_string(),
             params: vec![LirType::Ptr],
             return_ty: LirType::I64,
@@ -3399,6 +3413,7 @@ mod tests {
             globals: Arena::default(),
             enums: Arena::default(),
             functions: vec![Function {
+                gc_effect: GcEffect::Managed,
                 symbol: "scoop_main".to_string(),
                 params: vec![],
                 return_ty: LirType::Void,
@@ -3471,6 +3486,7 @@ mod tests {
                 },
             });
             Function {
+                gc_effect: GcEffect::Managed,
                 symbol: symbol.to_string(),
                 params: vec![LirType::Ptr],
                 return_ty: LirType::Ptr,
@@ -3509,6 +3525,7 @@ mod tests {
             },
         });
         let main = Function {
+            gc_effect: GcEffect::Managed,
             symbol: "scoop_main".to_string(),
             params: vec![LirType::Ptr, LirType::Ptr],
             return_ty: LirType::Ptr,
@@ -3627,6 +3644,7 @@ mod tests {
             },
         });
         let describe = Function {
+            gc_effect: GcEffect::Managed,
             symbol: "Point.describe".to_string(),
             params: vec![LirType::Ptr],
             return_ty: LirType::Ptr,
@@ -3737,6 +3755,7 @@ mod tests {
             terminator: Terminator::Return { value: None },
         });
         let main = Function {
+            gc_effect: GcEffect::Managed,
             symbol: "scoop_main".to_string(),
             params: vec![],
             return_ty: LirType::Void,
@@ -3812,6 +3831,7 @@ mod tests {
             terminator: Terminator::Unreachable,
         });
         let thrower = Function {
+            gc_effect: GcEffect::Managed,
             symbol: "scoop.thrower".to_string(),
             params: vec![LirType::Ptr],
             return_ty: LirType::Void,
@@ -3921,6 +3941,7 @@ mod tests {
             },
         };
         let eh_test = Function {
+            gc_effect: GcEffect::Managed,
             symbol: "scoop.eh_test".to_string(),
             params: vec![LirType::Ptr],
             return_ty: LirType::I64,
@@ -4029,6 +4050,7 @@ mod tests {
             globals: Arena::default(),
             enums: Arena::default(),
             functions: vec![Function {
+                gc_effect: GcEffect::Managed,
                 symbol: "scoop.closure_abi".to_string(),
                 params: vec![LirType::Ptr, LirType::I64, LirType::Ptr],
                 return_ty: LirType::Void,
@@ -4172,6 +4194,7 @@ mod tests {
             globals: Arena::default(),
             enums: Arena::default(),
             functions: vec![Function {
+                gc_effect: GcEffect::Managed,
                 symbol: "scoop_main".to_string(),
                 params: vec![LirType::Ptr, LirType::Array(Box::new(LirType::I64))],
                 return_ty: LirType::Void,
@@ -4205,6 +4228,22 @@ mod tests {
         // One poll at the function entry, one at the loop header.
         let polls = ir.matches("call void @scoop_rt_safepoint()").count();
         assert_eq!(polls, 2, "entry + loop-header safepoint polls:\n{ir}");
+    }
+
+    #[test]
+    fn no_gc_functions_carry_neither_gc_strategy_nor_safepoint_polls() {
+        let mut module = barrier_module();
+        module.functions[0].gc_effect = GcEffect::NoGc;
+        let ir = ir_of(&module);
+        assert!(
+            !ir.contains("gc \"statepoint-example\""),
+            "NoGC function unexpectedly carries the GC strategy:\n{ir}"
+        );
+        assert_eq!(
+            ir.matches("call void @scoop_rt_safepoint()").count(),
+            0,
+            "NoGC function unexpectedly polls safepoints:\n{ir}"
+        );
     }
 
     #[test]
@@ -4334,6 +4373,7 @@ mod tests {
             globals: Arena::default(),
             enums: Arena::default(),
             functions: vec![Function {
+                gc_effect: GcEffect::Managed,
                 symbol: "scoop_main".to_string(),
                 params: vec![],
                 return_ty: LirType::Void,

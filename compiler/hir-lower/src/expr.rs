@@ -294,7 +294,7 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
-        match expr {
+        let lowered = match expr {
             ast::Expr::StringLiteral { value, span } => Some(hir::Expr {
                 kind: ExprKind::StringLiteral(value.clone()),
                 ty: self.string,
@@ -409,7 +409,13 @@ impl Lowerer {
             ast::Expr::If(if_) => self.lower_if_expression(if_, sink, expected),
             ast::Expr::When(when) => self.lower_when_expression(when, sink, expected),
             ast::Expr::Try(try_) => self.lower_try_expression(try_, sink, expected),
+        };
+        if let Some(value) = &lowered
+            && !self.require_unsafe_type_use(value.ty, value.span)
+        {
+            return None;
         }
+        lowered
     }
 
     /// `this` (M6): only inside member functions, where it is
@@ -538,7 +544,7 @@ impl Lowerer {
     ) -> Option<hir::Expr> {
         let resolved =
             self.resolve_extension_overload(name, candidates, receiver, args, span, sink)?;
-        self.check_suspend_call(resolved.callee, span);
+        self.check_call_effects(resolved.callee, span);
         Some(hir::Expr {
             kind: ExprKind::Call {
                 callee: resolved.callee,
@@ -609,7 +615,7 @@ impl Lowerer {
         let resolved =
             self.resolve_overload(name, &candidates, &owner_type_args, args, span, sink)?;
         let ty = resolved.return_ty;
-        self.check_suspend_call(resolved.callee, span);
+        self.check_call_effects(resolved.callee, span);
         Some(hir::Expr {
             kind: ExprKind::MethodCall {
                 receiver: Box::new(receiver),
@@ -716,7 +722,7 @@ impl Lowerer {
             hir::Callable::Generic(self.record_instantiation(function, type_args.clone()))
         };
         let ty = self.instantiate_ty(sig.return_ty, &type_args);
-        self.check_suspend_call(callee, span);
+        self.check_call_effects(callee, span);
         Some(hir::Expr {
             kind: ExprKind::MethodCall {
                 receiver: Box::new(receiver),
@@ -1510,6 +1516,9 @@ impl Lowerer {
             span,
             ReferenceExtensionMode::IncludeUnbound,
         )?;
+        if !self.managed_reference_target_is_safe(callee, span) {
+            return None;
+        }
         let Type::Function(function_type) = self.types[ty] else {
             unreachable!("a callable reference has a function type")
         };
@@ -1603,6 +1612,9 @@ impl Lowerer {
                 ReferenceExtensionMode::Exclude
             },
         )?;
+        if !self.managed_reference_target_is_safe(callee, span) {
+            return None;
+        }
         let Type::Function(function_type) = self.types[ty] else {
             unreachable!("a callable reference has a function type")
         };
@@ -1804,6 +1816,9 @@ impl Lowerer {
         } else {
             hir::Callable::Generic(self.record_instantiation(function, type_args))
         };
+        if !self.managed_reference_target_is_safe(callee, span) {
+            return None;
+        }
         Some((callee, ty))
     }
 
@@ -1983,6 +1998,21 @@ impl Lowerer {
         self.candidate_layer(self.functions_by_name.get(name))
     }
 
+    fn managed_reference_target_is_safe(&mut self, callee: hir::Callable, span: Span) -> bool {
+        let function = self.callable_function_id(callee);
+        if self.functions[function].attributes.safety == hir::Safety::Safe {
+            return true;
+        }
+        self.error(
+            span,
+            format!(
+                "unsafe function `{}` cannot be stored in a managed function type because safety is not part of function-type identity",
+                self.functions[function].name
+            ),
+        );
+        false
+    }
+
     fn extension_candidate_layer(&self, name: &str) -> Vec<hir::FunctionId> {
         self.candidate_layer(self.extensions_by_name.get(name))
     }
@@ -2125,6 +2155,7 @@ impl Lowerer {
         } else {
             SuspensionContext::Forbidden(ForbiddenSuspendContext::Function)
         });
+        self.push_safety_context(hir::Safety::Safe);
         self.push_scope();
 
         let lowered = (|| {
@@ -2288,6 +2319,7 @@ impl Lowerer {
                 type_params: type_params.clone(),
                 params,
                 return_ty,
+                attributes: hir::FunctionAttributes::default(),
                 kind: hir::FunctionKind::User(hir::Body {
                     locals: std::mem::take(&mut self.locals),
                     statements: prefix,
@@ -2314,6 +2346,7 @@ impl Lowerer {
         })();
 
         self.pop_scope();
+        self.pop_safety_context();
         self.pop_suspension_context();
         self.capture_contexts.pop();
         self.locals = outer_locals;
@@ -2425,6 +2458,7 @@ impl Lowerer {
         } else {
             SuspensionContext::Forbidden(ForbiddenSuspendContext::Function)
         });
+        self.push_safety_context(hir::Safety::Safe);
         self.push_scope();
 
         let lowered = (|| {
@@ -2512,6 +2546,7 @@ impl Lowerer {
                 type_params: type_params.clone(),
                 params: abi_params,
                 return_ty,
+                attributes: hir::FunctionAttributes::default(),
                 kind: hir::FunctionKind::User(hir::Body {
                     locals: std::mem::take(&mut self.locals),
                     statements,
@@ -2538,6 +2573,7 @@ impl Lowerer {
         })();
 
         self.pop_scope();
+        self.pop_safety_context();
         self.pop_suspension_context();
         self.capture_contexts.pop();
         self.locals = outer_locals;
@@ -2775,7 +2811,7 @@ impl Lowerer {
             let function = self.callable_function_id(resolved.callee);
             let local_function = self.local_function_by_function[&function];
             let captures = self.local_call_capture_args(local_function, call.span)?;
-            self.check_suspend_call(resolved.callee, call.span);
+            self.check_call_effects(resolved.callee, call.span);
             return Some(hir::Expr {
                 kind: ExprKind::LocalFunctionCall {
                     local_function,
@@ -2843,7 +2879,7 @@ impl Lowerer {
         let resolved =
             self.resolve_overload(&name, &candidates, &[], &call.args, call.span, sink)?;
         let ty = resolved.return_ty;
-        self.check_suspend_call(resolved.callee, call.span);
+        self.check_call_effects(resolved.callee, call.span);
         Some(hir::Expr {
             kind: ExprKind::Call {
                 callee: resolved.callee,
@@ -2971,7 +3007,7 @@ impl Lowerer {
             hir::Callable::Generic(self.record_instantiation(function, type_args))
         };
         let captures = self.local_call_capture_args(local_function, call.span)?;
-        self.check_suspend_call(callee, call.span);
+        self.check_call_effects(callee, call.span);
         Some(hir::Expr {
             kind: ExprKind::LocalFunctionCall {
                 local_function,
@@ -3080,7 +3116,7 @@ impl Lowerer {
             hir::Callable::Generic(self.record_instantiation(function, type_args))
         };
 
-        self.check_suspend_call(callee, call.span);
+        self.check_call_effects(callee, call.span);
 
         Some(hir::Expr {
             kind: ExprKind::Call {
@@ -4329,7 +4365,9 @@ fn statement_contains_return(statement: &ast::Statement) -> bool {
         ast::StatementKind::While(while_) => {
             expr_contains_return(&while_.cond) || block_contains_return(&while_.body)
         }
-        ast::StatementKind::Block(block) => block_contains_return(block),
+        ast::StatementKind::Block(block) | ast::StatementKind::SafetyBlock { block, .. } => {
+            block_contains_return(block)
+        }
         ast::StatementKind::When(when) => {
             expr_contains_return(&when.subject)
                 || when.arms.iter().any(|arm| {

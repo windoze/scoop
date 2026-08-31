@@ -388,6 +388,7 @@ impl CoroutineRegistry {
             mutable: false,
         });
         let resume = functions.alloc(mir::Function {
+            gc_effect: mir::GcEffect::Managed,
             name: format!("Continuation.resume${encoded}"),
             symbol: format!("scoop.Continuation.resume${encoded}"),
             params: vec![
@@ -417,6 +418,7 @@ impl CoroutineRegistry {
             mutable: false,
         });
         let failure = functions.alloc(mir::Function {
+            gc_effect: mir::GcEffect::Managed,
             name: format!("Continuation.resumeWithException${encoded}"),
             symbol: format!("scoop.Continuation.resumeWithException${encoded}"),
             params: vec![
@@ -581,6 +583,7 @@ impl CoroutineRegistry {
         });
         let encoded = mir::encode_type(shell, result);
         let function = functions.alloc(mir::Function {
+            gc_effect: mir::GcEffect::Managed,
             name: format!("startCoroutine${encoded}"),
             symbol: format!("scoop.coroutine.start${encoded}"),
             params: vec![
@@ -1093,6 +1096,7 @@ impl Lowerer {
             target_return.clone(),
         );
         let id = self.functions.alloc(mir::Function {
+            gc_effect: mir::GcEffect::Managed,
             symbol: format!("scoop.{name}"),
             name,
             params,
@@ -1156,6 +1160,7 @@ impl Lowerer {
         let source_name = mir::encode_type(&self.shell, &mir::Type::Function(source));
         let target_name = mir::encode_type(&self.shell, &mir::Type::Function(target));
         let function = self.functions.alloc(mir::Function {
+            gc_effect: mir::GcEffect::Managed,
             name: format!("$adapter.{source_name}.{target_name}"),
             symbol: format!("scoop.$adapter.{source_name}.{target_name}"),
             params: Vec::new(),
@@ -1456,6 +1461,7 @@ impl Lowerer {
             target_signature.return_type.clone(),
         );
         let function = self.functions.alloc(mir::Function {
+            gc_effect: mir::GcEffect::Managed,
             symbol: format!("scoop.{name}"),
             name,
             params,
@@ -1798,6 +1804,7 @@ impl Lowerer {
         let name = fn_name(function);
         let symbol = self.declare_symbol(module, hir_id);
         let id = self.functions.alloc(mir::Function {
+            gc_effect: lower_gc_effect(function.attributes.gc_effect),
             name,
             symbol,
             // Filled in when the body is lowered below.
@@ -2008,6 +2015,7 @@ impl Lowerer {
                 source_args.push(smir::Expr::Local(local));
             }
             let function = self.functions.alloc(mir::Function {
+                gc_effect: mir::GcEffect::Managed,
                 name: format!("$reference.{}", id.into_raw()),
                 symbol: format!("scoop.$reference.{}", id.into_raw()),
                 params: Vec::new(),
@@ -2251,6 +2259,7 @@ impl Lowerer {
         let name = fn_name(function);
         let symbol = self.declare_symbol(module, hir_id);
         let id = self.functions.alloc(mir::Function {
+            gc_effect: lower_gc_effect(function.attributes.gc_effect),
             symbol,
             name,
             params,
@@ -2405,6 +2414,7 @@ impl Lowerer {
         let decl = &module.classes[hir_id];
         let name = format!("ctor.{}", decl.name);
         let id = self.functions.alloc(mir::Function {
+            gc_effect: mir::GcEffect::Managed,
             symbol: format!("scoop.{name}"),
             name,
             params: Vec::new(),
@@ -2703,6 +2713,7 @@ impl Lowerer {
         let body = cfg::lower(body, mir::Type::Boolean);
         let name = format!("eq.{encoded}");
         let id = self.functions.alloc(mir::Function {
+            gc_effect: mir::GcEffect::Managed,
             symbol: format!("scoop.{name}"),
             name,
             params: vec![
@@ -2758,6 +2769,7 @@ impl Lowerer {
             mir::Type::String,
         );
         let id = self.functions.alloc(mir::Function {
+            gc_effect: mir::GcEffect::Managed,
             symbol: format!("scoop.{name}"),
             name,
             params: vec![mir::Param {
@@ -2911,6 +2923,7 @@ impl Lowerer {
             return_ty.clone(),
         );
         let id = self.functions.alloc(mir::Function {
+            gc_effect: mir::GcEffect::Managed,
             symbol: format!("scoop.{name}"),
             name,
             params,
@@ -3093,6 +3106,13 @@ fn fn_name(function: &hir::Function) -> String {
     }
 }
 
+fn lower_gc_effect(effect: hir::GcEffect) -> mir::GcEffect {
+    match effect {
+        hir::GcEffect::Managed => mir::GcEffect::Managed,
+        hir::GcEffect::NoGc => mir::GcEffect::NoGc,
+    }
+}
+
 /// The names shared by more than one plainly-mangled function (M7
 /// overloads), over the whole module including scoop.core. Only
 /// functions that get a plain `scoop.<name>` symbol count: non-generic
@@ -3266,6 +3286,7 @@ fn mangling_shell(
     }
     let mut functions = Arena::new();
     let entry = functions.alloc(mir::Function {
+        gc_effect: mir::GcEffect::Managed,
         name: String::new(),
         symbol: String::new(),
         params: Vec::new(),
@@ -3791,6 +3812,7 @@ impl InstanceRegistry {
             mir::mangle_instance(shell, &name, &type_args)
         };
         let function_id = functions.alloc(mir::Function {
+            gc_effect: lower_gc_effect(function.attributes.gc_effect),
             name: name.clone(),
             symbol: symbol.clone(),
             // Filled in when the instance body is lowered.
@@ -4217,6 +4239,7 @@ impl BodyLowerer<'_> {
         }
         let suffix = encoded.join("_");
         let function = self.functions.alloc(mir::Function {
+            gc_effect: mir::GcEffect::Managed,
             name: format!("$reference.{}${suffix}", id.into_raw()),
             symbol: format!("scoop.$reference.{}${suffix}", id.into_raw()),
             params: Vec::new(),
@@ -4374,6 +4397,7 @@ impl BodyLowerer<'_> {
         let name = format!("$Closure$adapter${source_name}${target_name}");
 
         let function = self.functions.alloc(mir::Function {
+            gc_effect: mir::GcEffect::Managed,
             name: format!("$adapter.{source_name}.{target_name}"),
             symbol: format!("scoop.$adapter.{source_name}.{target_name}"),
             params: Vec::new(),
@@ -4515,6 +4539,7 @@ impl BodyLowerer<'_> {
         let signature = self.shell.function_types[target].clone();
         let encoded = mir::encode_type(self.shell, &mir::Type::Function(target));
         let function = self.functions.alloc(mir::Function {
+            gc_effect: mir::GcEffect::Managed,
             name: format!("$dynamic_adapter.{encoded}"),
             symbol: format!("scoop.$dynamic_adapter.{encoded}"),
             params: Vec::new(),
@@ -6669,6 +6694,7 @@ mod tests {
                 type_params: Vec::new(),
                 params: Vec::new(),
                 return_ty: unit,
+                attributes: hir::FunctionAttributes::default(),
                 kind: hir::FunctionKind::Intrinsic("rt_write".to_string()),
                 method: None,
                 span: SPAN,
@@ -6679,6 +6705,7 @@ mod tests {
                 type_params: Vec::new(),
                 params: Vec::new(),
                 return_ty: string,
+                attributes: hir::FunctionAttributes::default(),
                 kind: hir::FunctionKind::Intrinsic("rt_int_to_string".to_string()),
                 method: None,
                 span: SPAN,
@@ -6689,6 +6716,7 @@ mod tests {
                 type_params: Vec::new(),
                 params: Vec::new(),
                 return_ty: string,
+                attributes: hir::FunctionAttributes::default(),
                 kind: hir::FunctionKind::Intrinsic("rt_bool_to_string".to_string()),
                 method: None,
                 span: SPAN,
@@ -6959,6 +6987,7 @@ mod tests {
                     .map(|name| hir::MethodSig {
                         name: name.to_string(),
                         is_suspend: false,
+                        attributes: hir::FunctionAttributes::default(),
                         type_params: Vec::new(),
                         params: Vec::new(),
                         return_ty: unit,
@@ -7025,6 +7054,7 @@ mod tests {
                 type_params: Vec::new(),
                 params,
                 return_ty,
+                attributes: hir::FunctionAttributes::default(),
                 kind: hir::FunctionKind::User(body),
                 method: Some(hir::Method {
                     owner: method_of,
@@ -7052,6 +7082,7 @@ mod tests {
             self.structs.alloc(hir::StructDecl {
                 name: name.to_string(),
                 type_params: Vec::new(),
+                attributes: hir::StructAttributes::default(),
                 fields: fields
                     .iter()
                     .map(|(name, ty)| hir::Field {
@@ -7125,6 +7156,7 @@ mod tests {
                         })
                         .collect(),
                     return_ty,
+                    attributes: hir::FunctionAttributes::default(),
                     kind: hir::FunctionKind::Intrinsic(intrinsic.to_string()),
                     method: None,
                     span: SPAN,
@@ -7213,6 +7245,7 @@ mod tests {
                 type_params,
                 params,
                 return_ty,
+                attributes: hir::FunctionAttributes::default(),
                 kind: hir::FunctionKind::User(body),
                 method: None,
                 span: SPAN,
@@ -7282,6 +7315,7 @@ mod tests {
                 type_params: vec!["T".to_string()],
                 params: vec![param("value", t, resume_value)],
                 return_ty: self.unit,
+                attributes: hir::FunctionAttributes::default(),
                 kind: hir::FunctionKind::User(hir::Body {
                     locals: resume_locals,
                     statements: Vec::new(),
@@ -7301,6 +7335,7 @@ mod tests {
                 type_params: vec!["T".to_string()],
                 params: vec![param("exception", throwable_ty, failure)],
                 return_ty: self.unit,
+                attributes: hir::FunctionAttributes::default(),
                 kind: hir::FunctionKind::User(hir::Body {
                     locals: failure_locals,
                     statements: Vec::new(),
@@ -7316,6 +7351,7 @@ mod tests {
                 hir::MethodSig {
                     name: "resume".to_string(),
                     is_suspend: false,
+                    attributes: hir::FunctionAttributes::default(),
                     type_params: Vec::new(),
                     params: vec![param("value", t, resume_value)],
                     return_ty: self.unit,
@@ -7324,6 +7360,7 @@ mod tests {
                 hir::MethodSig {
                     name: "resumeWithException".to_string(),
                     is_suspend: false,
+                    attributes: hir::FunctionAttributes::default(),
                     type_params: Vec::new(),
                     params: vec![param("exception", throwable_ty, failure)],
                     return_ty: self.unit,
@@ -7337,6 +7374,7 @@ mod tests {
                 methods: vec![hir::MethodSig {
                     name: "run".to_string(),
                     is_suspend: true,
+                    attributes: hir::FunctionAttributes::default(),
                     type_params: Vec::new(),
                     params: Vec::new(),
                     return_ty: t,
@@ -7353,6 +7391,7 @@ mod tests {
                 type_params: vec!["T".to_string()],
                 params: Vec::new(),
                 return_ty: t,
+                attributes: hir::FunctionAttributes::default(),
                 kind: hir::FunctionKind::User(hir::Body {
                     locals: Arena::new(),
                     statements: Vec::new(),
@@ -7371,6 +7410,7 @@ mod tests {
                 methods: vec![hir::MethodSig {
                     name: "register".to_string(),
                     is_suspend: false,
+                    attributes: hir::FunctionAttributes::default(),
                     type_params: Vec::new(),
                     params: Vec::new(),
                     return_ty: self.unit,
@@ -7387,6 +7427,7 @@ mod tests {
                 type_params: vec!["T".to_string()],
                 params: Vec::new(),
                 return_ty: self.unit,
+                attributes: hir::FunctionAttributes::default(),
                 kind: hir::FunctionKind::User(hir::Body {
                     locals: Arena::new(),
                     statements: Vec::new(),
@@ -7414,6 +7455,7 @@ mod tests {
                 type_params: vec!["T".to_string()],
                 params: Vec::new(),
                 return_ty: self.unit,
+                attributes: hir::FunctionAttributes::default(),
                 kind: hir::FunctionKind::Intrinsic("coroutine_start".to_string()),
                 method: None,
                 span: SPAN,
@@ -7424,6 +7466,7 @@ mod tests {
                 type_params: vec!["T".to_string()],
                 params: Vec::new(),
                 return_ty: t,
+                attributes: hir::FunctionAttributes::default(),
                 kind: hir::FunctionKind::Intrinsic("coroutine_suspend".to_string()),
                 method: None,
                 span: SPAN,
@@ -7794,6 +7837,7 @@ mod tests {
                 param("completion", completion_ty, completion),
             ],
             return_ty: hir_module.unit,
+            attributes: hir::FunctionAttributes::default(),
             kind: hir::FunctionKind::User(hir::Body {
                 locals,
                 statements: vec![expr_stmt(expr(
@@ -8703,6 +8747,7 @@ Module
                     hir::MethodSig {
                         name: name.to_string(),
                         is_suspend: false,
+                        attributes: hir::FunctionAttributes::default(),
                         type_params: Vec::new(),
                         params: vec![param("v", *ty, v)],
                         return_ty: unit,
@@ -11133,6 +11178,19 @@ Module
                 statements: Vec::new(),
             },
         )
+    }
+
+    #[test]
+    fn no_gc_effect_is_preserved_in_mir() {
+        let mut h = Harness::new();
+        let main = empty_main(&mut h);
+        h.functions[main].attributes.gc_effect = hir::GcEffect::NoGc;
+        let module = lower(&h.finish(main));
+        assert_eq!(
+            module.functions[module.entry].gc_effect,
+            mir::GcEffect::NoGc
+        );
+        assert!(mir::dump(&module).contains("-> Unit <no-gc>"));
     }
 
     fn class_index(raw: u32) -> mir::ClassId {

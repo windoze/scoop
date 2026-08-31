@@ -411,9 +411,24 @@ pub enum Callable {
 pub struct StructDecl {
     pub name: String,
     pub type_params: Vec<String>,
+    pub attributes: StructAttributes,
     pub fields: Vec<Field>,
     pub interfaces: Vec<TypeId>,
     pub span: Span,
+}
+
+/// Typed struct attributes. Raw annotation names and argument syntax never
+/// cross the AST/HIR boundary.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct StructAttributes {
+    pub c_layout: Option<CLayout>,
+    pub interior_mutable: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CLayout {
+    pub aligned: u8,
+    pub packed: u8,
 }
 
 #[derive(Debug, Clone)]
@@ -494,6 +509,7 @@ pub struct MethodSig {
     /// Suspend is part of the callable contract and must match exactly
     /// across interface implementation and overriding relationships.
     pub is_suspend: bool,
+    pub attributes: FunctionAttributes,
     /// Type parameters declared by this method (the owning interface's
     /// parameters are stored on `InterfaceDecl`). An empty list means the
     /// method occupies an itable slot; generic methods are static-only.
@@ -532,11 +548,47 @@ pub struct Function {
     pub type_params: Vec<String>,
     pub params: Vec<Param>,
     pub return_ty: TypeId,
+    pub attributes: FunctionAttributes,
     pub kind: FunctionKind,
     /// Member metadata; the receiver of a method is the first entry of
     /// `params` (named `this`). Top-level functions have `None`.
     pub method: Option<Method>,
     pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FunctionAttributes {
+    pub safety: Safety,
+    pub gc_effect: GcEffect,
+    /// M12 currently supports only cdecl for native-addressable functions.
+    pub calling_convention: CallingConvention,
+}
+
+impl Default for FunctionAttributes {
+    fn default() -> Self {
+        Self {
+            safety: Safety::Safe,
+            gc_effect: GcEffect::Managed,
+            calling_convention: CallingConvention::Cdecl,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Safety {
+    Safe,
+    Unsafe,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GcEffect {
+    Managed,
+    NoGc,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CallingConvention {
+    Cdecl,
 }
 
 #[derive(Debug, Clone)]
@@ -941,9 +993,10 @@ pub fn dump(module: &Module) -> String {
             format!("<{}>", decl.type_params.join(", "))
         };
         let interfaces = dump_interface_list(module, &decl.interfaces);
+        let attributes = dump_struct_attributes(decl.attributes);
         out.push_str(&format!(
-            "  struct {}{}{}\n",
-            decl.name, type_params, interfaces
+            "  struct {}{}{}{}\n",
+            decl.name, type_params, interfaces, attributes
         ));
         for field in &decl.fields {
             out.push_str(&format!(
@@ -1023,12 +1076,13 @@ pub fn dump(module: &Module) -> String {
                 .map(|param| format!("{}: {}", param.name, type_name(module, param.ty)))
                 .collect();
             out.push_str(&format!(
-                "    {}fun {}{}({}): {}\n",
+                "    {}fun {}{}({}): {}{}\n",
                 if method.is_suspend { "suspend " } else { "" },
                 method.name,
                 method_type_params,
                 params.join(", "),
-                type_name(module, method.return_ty)
+                type_name(module, method.return_ty),
+                dump_function_attributes(method.attributes)
             ));
         }
     }
@@ -1052,12 +1106,15 @@ pub fn dump(module: &Module) -> String {
             type_name(module, function.return_ty)
         );
         let suspend = if function.is_suspend { "suspend " } else { "" };
+        let attributes = dump_function_attributes(function.attributes);
         match &function.kind {
             FunctionKind::Intrinsic(name) => {
-                out.push_str(&format!("  {suspend}fun {signature} <intrinsic {name}>\n"));
+                out.push_str(&format!(
+                    "  {suspend}fun {signature}{attributes} <intrinsic {name}>\n"
+                ));
             }
             FunctionKind::User(body) => {
-                out.push_str(&format!("  {suspend}fun {signature}\n"));
+                out.push_str(&format!("  {suspend}fun {signature}{attributes}\n"));
                 dump_statements(module, &body.locals, &body.statements, 2, &mut out);
             }
         }
@@ -1080,6 +1137,42 @@ pub fn dump(module: &Module) -> String {
         ));
     }
     out
+}
+
+fn dump_function_attributes(attributes: FunctionAttributes) -> String {
+    let mut values = Vec::new();
+    if attributes.safety == Safety::Unsafe {
+        values.push("unsafe");
+    }
+    if attributes.gc_effect == GcEffect::NoGc {
+        values.push("no-gc");
+        values.push(match attributes.calling_convention {
+            CallingConvention::Cdecl => "cdecl",
+        });
+    }
+    if values.is_empty() {
+        String::new()
+    } else {
+        format!(" <{}>", values.join(" "))
+    }
+}
+
+fn dump_struct_attributes(attributes: StructAttributes) -> String {
+    let mut values = Vec::new();
+    if let Some(layout) = attributes.c_layout {
+        values.push(format!(
+            "c-layout aligned={} packed={}",
+            layout.aligned, layout.packed
+        ));
+    }
+    if attributes.interior_mutable {
+        values.push("interior-mutable".to_string());
+    }
+    if values.is_empty() {
+        String::new()
+    } else {
+        format!(" <{}>", values.join(" "))
+    }
 }
 
 fn dump_interface_list(module: &Module, interfaces: &[TypeId]) -> String {

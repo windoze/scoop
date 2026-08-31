@@ -1128,6 +1128,10 @@ fn lower_function<'a>(
         assert!(lowerer.current_sealed, "every MIR block has a terminator");
     }
     lir::Function {
+        gc_effect: match function.gc_effect {
+            mir::GcEffect::Managed => lir::GcEffect::Managed,
+            mir::GcEffect::NoGc => lir::GcEffect::NoGc,
+        },
         symbol: function.symbol.clone(),
         params,
         return_ty,
@@ -2577,6 +2581,7 @@ mod tests {
             return_ty: mir::Type,
         ) -> mir::FunctionId {
             self.functions.alloc(mir::Function {
+                gc_effect: mir::GcEffect::Managed,
                 name: name.to_string(),
                 symbol: symbol.to_string(),
                 params,
@@ -2624,6 +2629,7 @@ mod tests {
                 unwind: None,
             });
             let id = self.functions.alloc(mir::Function {
+                gc_effect: mir::GcEffect::Managed,
                 name: name.to_string(),
                 symbol: symbol.to_string(),
                 params,
@@ -2647,6 +2653,7 @@ mod tests {
             body: mir::Body,
         ) -> mir::FunctionId {
             let id = self.functions.alloc(mir::Function {
+                gc_effect: mir::GcEffect::Managed,
                 name: name.to_string(),
                 symbol: symbol.to_string(),
                 params,
@@ -2733,6 +2740,16 @@ mod tests {
             lhs: Box::new(lhs),
             rhs: Box::new(rhs),
         }
+    }
+
+    #[test]
+    fn no_gc_effect_is_preserved_in_lir() {
+        let mut builder = Builder::new();
+        let main = builder.main(Arena::new(), Vec::new());
+        builder.functions[main].gc_effect = mir::GcEffect::NoGc;
+        let module = lower(&builder.finish(main));
+        assert_eq!(module.functions[0].gc_effect, lir::GcEffect::NoGc);
+        assert!(lir::dump(&module).contains("-> void <no-gc>"));
     }
 
     fn runtime_call(function: mir::RuntimeFn, args: Vec<mir::Expr>) -> mir::Call {
