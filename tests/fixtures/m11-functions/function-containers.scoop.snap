@@ -1,0 +1,844 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== ast ==
+SourceFile
+  interface Continuation<in T>
+    fun resume
+    fun resumeWithException
+  interface SuspendTask<out T>
+    suspend fun run
+  interface SuspendRegistration<out T>
+    fun register
+  struct FunctionSuspendTask<T> : SuspendTask<T>
+    field task: suspend () -> T
+    suspend fun run
+  struct FunctionSuspendRegistration<T> : SuspendRegistration<T>
+    field registration: (Continuation<T>) -> Unit
+    fun register
+    @Intrinsic("coroutine_start")
+  fun startCoroutine<T>(task: SuspendTask<T>, completion: Continuation<T>)
+    @Intrinsic("coroutine_suspend")
+  suspend fun suspendCoroutine<T>(registration: SuspendRegistration<T>): T
+  fun startCoroutine<T>(task: suspend () -> T, completion: Continuation<T>)
+    Call startCoroutine
+      Call FunctionSuspendTask
+        Var task
+      Var completion
+  suspend fun suspendCoroutine<T>(registration: (Continuation<T>) -> Unit): T
+    =
+      Call suspendCoroutine
+        Call FunctionSuspendRegistration
+          Var registration
+SourceFile
+  struct PinHandle<T>
+    field raw: UInt
+  struct GcHandle<T>
+    field raw: UInt
+    @Intrinsic("rt_pin")
+  fun pin<T>(v: T): PinHandle<T>
+    @Intrinsic("rt_unpin")
+  fun unpin<T>(h: PinHandle<T>): T
+    @Intrinsic("rt_get_handle")
+  fun getGcHandle<T>(v: T): GcHandle<T>
+    @Intrinsic("rt_release_handle")
+  fun releaseGcHandle<T>(h: GcHandle<T>): T
+    @Intrinsic("rt_gc_collect")
+  fun gcCollect()
+    @Intrinsic("rt_gc_stats")
+  fun gcStats(): UInt
+SourceFile
+    @Intrinsic("rt_write")
+  fun write(message: String)
+  fun print(message: Any)
+    =
+      Call write
+        MethodCall toString
+          Var message
+  fun println(message: Any)
+    Call write
+      MethodCall toString
+        Var message
+    Call write
+      StringLiteral "\n"
+SourceFile
+  enum Option<T>
+    Some(T)
+    None
+SourceFile
+  open class Throwable()
+  open class Exception(val message: String?) : Throwable(<0 args>)
+  class UnwrapException() : Exception(<1 args>)
+  class ClassCastException() : Exception(<1 args>)
+  class ArithmeticException() : Exception(<1 args>)
+  class IndexOutOfBoundsException() : Exception(<1 args>)
+  class IllegalStateException() : Exception(<1 args>)
+SourceFile
+  struct FunctionBox<T>
+    field operation: (T) -> T
+  fun increment(value: Int): Int
+    =
+      Binary Add
+        Var value
+        IntLiteral 1
+  fun main()
+    val offset
+      IntLiteral 2
+    val operation: (Int) -> Int
+      Lambda 0 suspend=false
+        param value: _
+        Binary Add
+          Var value
+          Var offset
+    val optional: Option<(Int) -> Int>
+      Call Some
+        Var operation
+    val operations: Array<(Int) -> Int>
+      ArrayLiteral
+        Var operation
+        CallableReference 0 increment
+    val box
+      Call FunctionBox
+        Var operation
+    val sum: ((Int, Int)) -> Int
+      Lambda 1 suspend=false
+        param (left, right): _
+        Binary Add
+          Var left
+          Var right
+    Call gcCollect
+    when
+      Var optional
+      arm Some(selected)
+        Call println
+          MethodCall invoke
+            Var selected
+            IntLiteral 40
+      arm None
+        Call println
+          IntLiteral 0
+    Call println
+      MethodCall invoke
+        Index
+          Var operations
+          IntLiteral 0
+        IntLiteral 40
+    Call println
+      MethodCall invoke
+        Index
+          Var operations
+          IntLiteral 1
+        IntLiteral 40
+    Call println
+      MethodCall invoke
+        FieldAccess operation
+          Var box
+        IntLiteral 40
+    Call println
+      Call sum
+        TupleLiteral
+          IntLiteral 20
+          IntLiteral 22
+
+== hir ==
+Module
+  struct FunctionSuspendTask<T> : SuspendTask<T0>
+    field task: suspend () -> T0
+  struct FunctionSuspendRegistration<T> : SuspendRegistration<T0>
+    field registration: (Continuation<T0>) -> Unit
+  struct PinHandle<T>
+    field raw: UInt
+  struct GcHandle<T>
+    field raw: UInt
+  struct FunctionBox<T>
+    field operation: (T0) -> T0
+  enum Option<T>
+    Some(_1: T0)
+    None()
+  open class Throwable()
+  open class Exception(message: Option<String>)
+  class UnwrapException()
+  class ClassCastException()
+  class ArithmeticException()
+  class IndexOutOfBoundsException()
+  class IllegalStateException()
+  interface Continuation<in T>
+    fun resume(value: T0): Unit
+    fun resumeWithException(exception: Throwable): Unit
+  interface SuspendTask<out T>
+    suspend fun run(): T0
+  interface SuspendRegistration<out T>
+    fun register(continuation: Continuation<T0>): Unit
+  fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
+  suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
+  fun startCoroutine<T>(task: suspend () -> T0, completion: Continuation<T0>): Unit
+    Call startCoroutine<T0> : Unit
+      Box : SuspendTask<T0>
+        StructInit FunctionSuspendTask : FunctionSuspendTask<T0>
+          Local task : suspend () -> T0
+      Local completion : Continuation<T0>
+  suspend fun suspendCoroutine<T>(registration: (Continuation<T0>) -> Unit): T0
+    return
+      Call suspendCoroutine<T0> : T0
+        Box : SuspendRegistration<T0>
+          StructInit FunctionSuspendRegistration : FunctionSuspendRegistration<T0>
+            Local registration : (Continuation<T0>) -> Unit
+  fun pin<T>(): PinHandle<T0> <intrinsic rt_pin>
+  fun unpin<T>(): T0 <intrinsic rt_unpin>
+  fun getGcHandle<T>(): GcHandle<T0> <intrinsic rt_get_handle>
+  fun releaseGcHandle<T>(): T0 <intrinsic rt_release_handle>
+  fun gcCollect(): Unit <intrinsic rt_gc_collect>
+  fun gcStats(): UInt <intrinsic rt_gc_stats>
+  fun write(): Unit <intrinsic rt_write>
+  fun print(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    return
+  fun println(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    Call write : Unit
+      StringLiteral "\n" : String
+  fun increment(value: Int): Int
+    return
+      Binary Add : Int
+        Local value : Int
+        IntLiteral 1 : Int
+  fun main(): Unit
+    val local0
+      IntLiteral 2 : Int
+    val local1
+      Lambda lambda0 invoke=$lambda.0 captures=1 : (Int) -> Int
+        capture offset binding17 : Int
+    val local2
+      VariantConstruct Option.Some<(Int) -> Int> : Option<(Int) -> Int>
+        Local operation : (Int) -> Int
+    val local3
+      ArrayLiteral : Array<(Int) -> Int>
+        Local operation : (Int) -> Int
+        CallableReference reference0 target=increment captures=0 : (Int) -> Int
+    val local4
+      StructInit FunctionBox : FunctionBox<Int>
+        Local operation : (Int) -> Int
+    val local5
+      Lambda lambda1 invoke=$lambda.1 captures=0 : ((Int, Int)) -> Int
+    Call gcCollect : Unit
+    when
+      Local optional : Option<(Int) -> Int>
+      arm variant0(0: local6)
+        Call println : Unit
+          Box : Any
+            CallableCall function_type3 : Int
+              Local selected : (Int) -> Int
+              IntLiteral 40 : Int
+      arm variant1()
+        Call println : Unit
+          Box : Any
+            IntLiteral 0 : Int
+    Call println : Unit
+      Box : Any
+        CallableCall function_type3 : Int
+          Index : (Int) -> Int
+            Local operations : Array<(Int) -> Int>
+            IntLiteral 0 : Int
+          IntLiteral 40 : Int
+    Call println : Unit
+      Box : Any
+        CallableCall function_type3 : Int
+          Index : (Int) -> Int
+            Local operations : Array<(Int) -> Int>
+            IntLiteral 1 : Int
+          IntLiteral 40 : Int
+    Call println : Unit
+      Box : Any
+        CallableCall function_type3 : Int
+          FieldAccess field 0 : (Int) -> Int
+            Local box : FunctionBox<Int>
+          IntLiteral 40 : Int
+    Call println : Unit
+      Box : Any
+        CallableCall function_type4 : Int
+          Local sum : ((Int, Int)) -> Int
+          TupleLiteral : (Int, Int)
+            IntLiteral 20 : Int
+            IntLiteral 22 : Int
+  entry main
+  instance startCoroutine<T0>
+  instance suspendCoroutine<T0>
+
+== mir ==
+Module
+  struct FunctionBox$I (operation: (Int) -> Int)
+  enum Option$S
+    Some(_1: String)
+    None()
+  enum Option$FIRIX
+    Some(_1: (Int) -> Int)
+    None()
+  class Throwable vtable=3 itables=0
+  class Exception vtable=3 itables=0
+  class UnwrapException vtable=3 itables=0
+  class ClassCastException vtable=3 itables=0
+  class ArithmeticException vtable=3 itables=0
+  class IndexOutOfBoundsException vtable=3 itables=0
+  class IllegalStateException vtable=3 itables=0
+  class box$I vtable=3 itables=0
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@scoop.$lambda.0 captures=1
+  closure cc1 $Closure$lambda1 type=function_type1 invoke=@scoop.$lambda.1 captures=0
+  closure cc2 $Closure$reference0 type=function_type0 invoke=@scoop.$reference.0 captures=0
+  fun print @scoop.print(message: Any) -> Unit
+    bb0 entry
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call @scoop_rt_print direct
+        Local $call.1
+      return
+  fun println @scoop.println(message: Any) -> Unit
+    bb0 entry
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call @scoop_rt_print direct
+        Local $call.1
+      call @scoop_rt_print direct
+        StringConst @scoop.str.0
+      return
+  fun increment @scoop.increment(value: Int) -> Int
+    bb0 entry
+      return
+        Binary IntAdd
+          Local value
+          IntLiteral 1
+  fun main @scoop_main() -> Unit
+    bb0 entry
+      val offset: Int
+        IntLiteral 2
+      val operation: (Int) -> Int
+        ClosureAlloc cc0 $Closure$lambda0
+          Local offset
+      val optional: Option$FIRIX<(Int) -> Int>
+        VariantConstruct Option$FIRIX<(Int) -> Int> v0
+          Local operation
+      val operations: Array<(Int) -> Int>
+        ArrayLiteral
+          Local operation
+          ClosureAlloc cc2 $Closure$reference0
+      val box: FunctionBox$I
+        StructInit FunctionBox$I
+          Local operation
+      val sum: ((Int, Int)) -> Int
+        ClosureAlloc cc1 $Closure$lambda1
+      call @scoop_rt_gc_collect direct
+      val $when.1: Option$FIRIX<(Int) -> Int>
+        Local optional
+      branch bb1 bb2
+        Binary IntEq
+          EnumTag
+            Local $when.1
+          IntLiteral 0
+    bb1 if.then.1
+      val selected: (Int) -> Int
+        EnumField v0 f0
+          Local $when.1
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Local selected
+        IntLiteral 40
+      call @scoop.println direct
+        Box
+          Local $call.1
+      goto bb3
+    bb2 if.else.2
+      branch bb4 bb5
+        Binary IntEq
+          EnumTag
+            Local $when.1
+          IntLiteral 1
+    bb3 if.merge.3
+      val $arr.2: Array<(Int) -> Int>
+        Local operations
+      val $idx.3: Int
+        IntLiteral 0
+      branch bb7 bb6
+        Binary IntLt
+          Local $idx.3
+          IntLiteral 0
+    bb4 if.then.4
+      call @scoop.println direct
+        Box
+          IntLiteral 0
+      goto bb5
+    bb5 if.merge.5
+      goto bb3
+    bb6 logic.rhs.6
+      assign $logic.2
+        Binary IntGe
+          Local $idx.3
+          ArrayLen
+            Local $arr.2
+      goto bb8
+    bb7 logic.short.7
+      assign $logic.2
+        BoolLiteral true
+      goto bb8
+    bb8 logic.merge.8
+      branch bb9 bb10
+        Local $logic.2
+    bb9 if.then.9
+      call $call.3: IndexOutOfBoundsException = @scoop.ctor.IndexOutOfBoundsException direct
+      throw
+        Local $call.3
+    bb10 if.merge.10
+      call $call.4: Int = <closure:function_type0> closure[function_type0]
+        ArrayGet
+          Local $arr.2
+          Local $idx.3
+        IntLiteral 40
+      call @scoop.println direct
+        Box
+          Local $call.4
+      val $arr.4: Array<(Int) -> Int>
+        Local operations
+      val $idx.5: Int
+        IntLiteral 1
+      branch bb12 bb11
+        Binary IntLt
+          Local $idx.5
+          IntLiteral 0
+    bb11 logic.rhs.11
+      assign $logic.5
+        Binary IntGe
+          Local $idx.5
+          ArrayLen
+            Local $arr.4
+      goto bb13
+    bb12 logic.short.12
+      assign $logic.5
+        BoolLiteral true
+      goto bb13
+    bb13 logic.merge.13
+      branch bb14 bb15
+        Local $logic.5
+    bb14 if.then.14
+      call $call.6: IndexOutOfBoundsException = @scoop.ctor.IndexOutOfBoundsException direct
+      throw
+        Local $call.6
+    bb15 if.merge.15
+      call $call.7: Int = <closure:function_type0> closure[function_type0]
+        ArrayGet
+          Local $arr.4
+          Local $idx.5
+        IntLiteral 40
+      call @scoop.println direct
+        Box
+          Local $call.7
+      call $call.8: Int = <closure:function_type0> closure[function_type0]
+        FieldAccess 0
+          Local box
+        IntLiteral 40
+      call @scoop.println direct
+        Box
+          Local $call.8
+      call $call.9: Int = <closure:function_type1> closure[function_type1]
+        Local sum
+        TupleLiteral
+          IntLiteral 20
+          IntLiteral 22
+      call @scoop.println direct
+        Box
+          Local $call.9
+      return
+  fun $lambda.0 @scoop.$lambda.0($closure: (Int) -> Int, value: Int) -> Int
+    bb0 entry
+      return
+        Binary IntAdd
+          Local value
+          ClosureCapture cc0 0
+            Local $closure
+  fun $lambda.1 @scoop.$lambda.1($closure: ((Int, Int)) -> Int, $arg.0: (Int, Int)) -> Int
+    bb0 entry
+      val $bind.1: (Int, Int)
+        Local $arg.0
+      val left: Int
+        FieldAccess 0
+          Local $bind.1
+      val right: Int
+        FieldAccess 1
+          Local $bind.1
+      return
+        Binary IntAdd
+          Local left
+          Local right
+  fun $reference.0 @scoop.$reference.0($closure: (Int) -> Int, arg0: Int) -> Int
+    bb0 entry
+      call $call.1: Int = @scoop.increment direct
+        Local arg0
+      return
+        Local $call.1
+  fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
+    bb0 entry
+      return
+        ClassInit Throwable
+  fun ctor.Exception @scoop.ctor.Exception(message: Option$S<String>) -> Exception
+    bb0 entry
+      return
+        ClassInit Exception
+          Local message
+  fun ctor.UnwrapException @scoop.ctor.UnwrapException() -> UnwrapException
+    bb0 entry
+      return
+        ClassInit UnwrapException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.1
+  fun ctor.ClassCastException @scoop.ctor.ClassCastException() -> ClassCastException
+    bb0 entry
+      return
+        ClassInit ClassCastException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.2
+  fun ctor.ArithmeticException @scoop.ctor.ArithmeticException() -> ArithmeticException
+    bb0 entry
+      return
+        ClassInit ArithmeticException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.3
+  fun ctor.IndexOutOfBoundsException @scoop.ctor.IndexOutOfBoundsException() -> IndexOutOfBoundsException
+    bb0 entry
+      return
+        ClassInit IndexOutOfBoundsException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.4
+  fun ctor.IllegalStateException @scoop.ctor.IllegalStateException() -> IllegalStateException
+    bb0 entry
+      return
+        ClassInit IllegalStateException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.5
+  fun eq.I @scoop.eq.I(this: Any, other: Any) -> Boolean
+    bb0 entry
+      val $a: Int
+        Unbox
+          Local this
+      val $b: Int
+        Unbox
+          Local other
+      return
+        Binary IntEq
+          Local $a
+          Local $b
+  fun tostring.I @scoop.tostring.I(this: Any) -> String
+    bb0 entry
+      call $call.1: String = @scoop_rt_int_to_string direct
+        Unbox
+          Local this
+      return
+        Local $call.1
+  str @scoop.str.0 "\n"
+  str @scoop.str.1 "unwrap on None"
+  str @scoop.str.2 "invalid cast"
+  str @scoop.str.3 "arithmetic error"
+  str @scoop.str.4 "array index out of bounds"
+  str @scoop.str.5 "illegal state"
+  entry @scoop_main
+
+== lir ==
+Module
+  global @scoop.str.0 = "\n"
+  global @scoop.str.1 = "unwrap on None"
+  global @scoop.str.2 = "invalid cast"
+  global @scoop.str.3 = "arithmetic error"
+  global @scoop.str.4 = "array index out of bounds"
+  global @scoop.str.5 = "illegal state"
+  global @scoop_td_$Closure$lambda0 = c""
+  global @scoop_td_$Closure$reference0 = c""
+  global @scoop_td_$Closure$lambda1 = c""
+  global @scoop_td_box$I = c""
+  global @scoop_td_Throwable = c""
+  global @scoop_td_Exception = c""
+  global @scoop_td_UnwrapException = c""
+  global @scoop_td_ClassCastException = c""
+  global @scoop_td_ArithmeticException = c""
+  global @scoop_td_IndexOutOfBoundsException = c""
+  global @scoop_td_IllegalStateException = c""
+  enum Option$S niche(payload_variant=0)
+  enum Option$FIRIX niche(payload_variant=0)
+  fun @scoop.print(ptr) -> void
+    local %0 $call.1: ptr
+  block entry
+    t0 = heap_load param0 +0 : ptr
+    t1 = heap_load t0 +40 : ptr
+    t2 = call_indirect t1[2](param0) : ptr
+    store t2 -> local0
+    call @scoop_rt_print(local0)
+    t3 = aggregate () : {}
+    ret
+  fun @scoop.println(ptr) -> void
+    local %0 $call.1: ptr
+  block entry
+    t0 = heap_load param0 +0 : ptr
+    t1 = heap_load t0 +40 : ptr
+    t2 = call_indirect t1[2](param0) : ptr
+    store t2 -> local0
+    call @scoop_rt_print(local0)
+    t3 = aggregate () : {}
+    call @scoop_rt_print(global0)
+    t4 = aggregate () : {}
+    ret
+  fun @scoop.increment(i64) -> i64
+  block entry
+    t0 = Add param0, 1 : i64
+    ret t0
+  fun @scoop_main() -> void
+    local %0 offset: i64
+    local %1 operation: ptr
+    local %2 optional: enum1
+    local %3 operations: [ptr]
+    local %4 box: {ptr}
+    local %5 sum: ptr
+    local %6 selected: ptr
+    local %7 $when.1: enum1
+    local %8 $arr.2: [ptr]
+    local %9 $idx.3: i64
+    local %10 $arr.4: [ptr]
+    local %11 $idx.5: i64
+    local %12 $call.1: i64
+    local %13 $logic.2: i1
+    local %14 $call.3: ptr
+    local %15 $call.4: i64
+    local %16 $logic.5: i1
+    local %17 $call.6: ptr
+    local %18 $call.7: i64
+    local %19 $call.8: i64
+    local %20 $call.9: i64
+  block entry
+    store 2 -> local0
+    t0 = call @scoop_rt_alloc(global6, 32) : ptr
+    t1 = function_address @scoop.$lambda.0 : ptr
+    heap_store t0 +16 t1
+    heap_store t0 +24 local0
+    store t0 -> local1
+    t2 = enum_wrap e1 v0 (local1) : enum1
+    store t2 -> local2
+    t3 = call @scoop_rt_alloc(global7, 24) : ptr
+    t4 = function_address @scoop.$reference.0 : ptr
+    heap_store t3 +16 t4
+    t5 = array_alloc (local1, t3) : [ptr]
+    store t5 -> local3
+    t6 = aggregate (local1) : {ptr}
+    store t6 -> local4
+    t7 = call @scoop_rt_alloc(global8, 24) : ptr
+    t8 = function_address @scoop.$lambda.1 : ptr
+    heap_store t7 +16 t8
+    store t7 -> local5
+    call @scoop_rt_gc_collect()
+    t9 = aggregate () : {}
+    store local2 -> local7
+    t10 = enum_tag e1 local7 : i64
+    t11 = Eq t10, 0 : i1
+    cbr t11 then @if.then.1 else @if.else.2
+  block if.then.1
+    t12 = enum_field e1 v0 f0 local7 : ptr
+    store t12 -> local6
+    t13 = call_indirect local6[2](local6, 40) : i64
+    store t13 -> local12
+    t14 = call @scoop_rt_box(global9, local12, 8) : ptr
+    call @scoop.println(t14)
+    t15 = aggregate () : {}
+    br @if.merge.3
+  block if.else.2
+    t16 = enum_tag e1 local7 : i64
+    t17 = Eq t16, 1 : i1
+    cbr t17 then @if.then.4 else @if.merge.5
+  block if.merge.3
+    store local3 -> local8
+    store 0 -> local9
+    t18 = Lt local9, 0 : i1
+    cbr t18 then @logic.short.7 else @logic.rhs.6
+  block if.then.4
+    t19 = call @scoop_rt_box(global9, 0, 8) : ptr
+    call @scoop.println(t19)
+    t20 = aggregate () : {}
+    br @if.merge.5
+  block if.merge.5
+    br @if.merge.3
+  block logic.rhs.6
+    t21 = array_len local8 : i64
+    t22 = Ge local9, t21 : i1
+    store t22 -> local13
+    br @logic.merge.8
+  block logic.short.7
+    store true -> local13
+    br @logic.merge.8
+  block logic.merge.8
+    cbr local13 then @if.then.9 else @if.merge.10
+  block if.then.9
+    t23 = call @scoop.ctor.IndexOutOfBoundsException() : ptr
+    store t23 -> local14
+    throw local14
+    unreachable
+  block if.merge.10
+    t24 = array_get local8 local9 : ptr
+    t25 = call_indirect t24[2](t24, 40) : i64
+    store t25 -> local15
+    t26 = call @scoop_rt_box(global9, local15, 8) : ptr
+    call @scoop.println(t26)
+    t27 = aggregate () : {}
+    store local3 -> local10
+    store 1 -> local11
+    t28 = Lt local11, 0 : i1
+    cbr t28 then @logic.short.12 else @logic.rhs.11
+  block logic.rhs.11
+    t29 = array_len local10 : i64
+    t30 = Ge local11, t29 : i1
+    store t30 -> local16
+    br @logic.merge.13
+  block logic.short.12
+    store true -> local16
+    br @logic.merge.13
+  block logic.merge.13
+    cbr local16 then @if.then.14 else @if.merge.15
+  block if.then.14
+    t31 = call @scoop.ctor.IndexOutOfBoundsException() : ptr
+    store t31 -> local17
+    throw local17
+    unreachable
+  block if.merge.15
+    t32 = array_get local10 local11 : ptr
+    t33 = call_indirect t32[2](t32, 40) : i64
+    store t33 -> local18
+    t34 = call @scoop_rt_box(global9, local18, 8) : ptr
+    call @scoop.println(t34)
+    t35 = aggregate () : {}
+    t36 = extract local4, 0 : ptr
+    t37 = call_indirect t36[2](t36, 40) : i64
+    store t37 -> local19
+    t38 = call @scoop_rt_box(global9, local19, 8) : ptr
+    call @scoop.println(t38)
+    t39 = aggregate () : {}
+    t40 = aggregate (20, 22) : {i64, i64}
+    t41 = call_indirect local5[2](local5, t40) : i64
+    store t41 -> local20
+    t42 = call @scoop_rt_box(global9, local20, 8) : ptr
+    call @scoop.println(t42)
+    t43 = aggregate () : {}
+    ret
+  fun @scoop.$lambda.0(ptr, i64) -> i64
+  block entry
+    t0 = heap_load param0 +24 : i64
+    t1 = Add param1, t0 : i64
+    ret t1
+  fun @scoop.$lambda.1(ptr, {i64, i64}) -> i64
+    local %0 left: i64
+    local %1 right: i64
+    local %2 $bind.1: {i64, i64}
+  block entry
+    store param1 -> local2
+    t0 = extract local2, 0 : i64
+    store t0 -> local0
+    t1 = extract local2, 1 : i64
+    store t1 -> local1
+    t2 = Add local0, local1 : i64
+    ret t2
+  fun @scoop.$reference.0(ptr, i64) -> i64
+    local %0 $call.1: i64
+  block entry
+    t0 = call @scoop.increment(param1) : i64
+    store t0 -> local0
+    ret local0
+  fun @scoop.ctor.Throwable() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global10, 16) : ptr
+    ret t0
+  fun @scoop.ctor.Exception(enum0) -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global11, 24) : ptr
+    heap_store t0 +16 param0
+    ret t0
+  fun @scoop.ctor.UnwrapException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global12, 24) : ptr
+    t1 = enum_wrap e0 v0 (global1) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.ClassCastException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global13, 24) : ptr
+    t1 = enum_wrap e0 v0 (global2) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.ArithmeticException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global14, 24) : ptr
+    t1 = enum_wrap e0 v0 (global3) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.IndexOutOfBoundsException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global15, 24) : ptr
+    t1 = enum_wrap e0 v0 (global4) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.IllegalStateException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global16, 24) : ptr
+    t1 = enum_wrap e0 v0 (global5) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.eq.I(ptr, ptr) -> i1
+    local %0 $a: i64
+    local %1 $b: i64
+  block entry
+    t0 = heap_load param0 +16 : i64
+    store t0 -> local0
+    t1 = heap_load param1 +16 : i64
+    store t1 -> local1
+    t2 = Eq local0, local1 : i1
+    ret t2
+  fun @scoop.tostring.I(ptr) -> ptr
+    local %0 $call.1: ptr
+  block entry
+    t0 = heap_load param0 +16 : i64
+    t1 = call @scoop_rt_int_to_string(t0) : ptr
+    store t1 -> local0
+    ret local0
+  td function$FIRIX @scoop_td_function$FIRIX size=0 vtable=0 itables=0
+  td function$FTI_IXRIX @scoop_td_function$FTI_IXRIX size=0 vtable=0 itables=0
+  td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
+  td box$I @scoop_td_box$I size=24 vtable=3 itables=0
+  td Exception @scoop_td_Exception size=24 vtable=3 itables=0
+  td UnwrapException @scoop_td_UnwrapException size=24 vtable=3 itables=0
+  td ClassCastException @scoop_td_ClassCastException size=24 vtable=3 itables=0
+  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=3 itables=0
+  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=3 itables=0
+  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=3 itables=0
+  td $Closure$lambda0 @scoop_td_$Closure$lambda0 size=32 vtable=3 itables=0
+  td $Closure$lambda1 @scoop_td_$Closure$lambda1 size=24 vtable=3 itables=0
+  td $Closure$reference0 @scoop_td_$Closure$reference0 size=24 vtable=3 itables=0
+  layout String size=24 align=8 refs=[]
+  layout Int size=8 align=8 refs=[]
+  layout Boolean size=1 align=1 refs=[]
+  layout FunctionBox$I size=8 align=8 refs=[0]
+  layout Option$S size=8 align=8 enum-refs=[[0], []]
+  layout Option$FIRIX size=8 align=8 enum-refs=[[0], []]
+  layout Throwable size=16 align=8 refs=[]
+  layout Exception size=24 align=8 refs=[16]
+  layout UnwrapException size=24 align=8 refs=[16]
+  layout ClassCastException size=24 align=8 refs=[16]
+  layout ArithmeticException size=24 align=8 refs=[16]
+  layout IndexOutOfBoundsException size=24 align=8 refs=[16]
+  layout IllegalStateException size=24 align=8 refs=[16]
+  layout box$I size=24 align=8 refs=[]
+  layout $Closure$lambda0 size=32 align=8 refs=[]
+  layout $Closure$lambda1 size=24 align=8 refs=[]
+  layout $Closure$reference0 size=24 align=8 refs=[]
+  layout (Int, Int) size=16 align=8 refs=[]
+  layout Array<(Int) -> Int> size=8 align=8 array(element_is_ref=true)
+  entry @scoop_main
+
+== run ==
+42
+42
+41
+42
+42
