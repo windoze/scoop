@@ -1,8 +1,27 @@
 @CLayout
 struct NativePair(val left: Int, val right: Int)
 
+@CLayout(aligned = 8, packed = 1)
+struct NativePacked(val flag: Boolean, val value: Int)
+
+@CLayout(aligned = 16)
+struct NativeEnvelope(
+    val tag: Boolean,
+    val packed: NativePacked,
+    val tail: UInt
+)
+
 @Extern(lib = "fixture_native", name = "native_add")
 fun nativeAdd(left: Int, right: Int): Int
+
+@Extern(lib = "fixture_native", name = "native_add_unsigned")
+fun nativeAddUnsigned(left: UInt, right: UInt): UInt
+
+@Extern(lib = "fixture_native")
+fun nativeDefault(value: UInt): UInt
+
+@Extern(lib = "fixture_extra", name = "extra_delta")
+fun extraDelta(value: Int): Int
 
 @Extern(lib = "fixture_native", name = "native_not")
 fun nativeNot(value: Boolean): Boolean
@@ -22,24 +41,73 @@ fun nativeApplyPair(
     callback: FunPtr<(NativePair) -> NativePair>
 ): NativePair
 
-@NoGC
-fun increment(value: Int): Int = value + 1
+@Extern(lib = "fixture_native", name = "native_apply_optional")
+fun nativeApplyOptional(
+    value: Int,
+    callback: FunPtr<(Int) -> Int>?
+): Int
+
+@Extern(lib = "fixture_native", name = "native_round_trip_envelope")
+fun nativeRoundTripEnvelope(
+    value: NativeEnvelope,
+    callback: FunPtr<(NativeEnvelope) -> NativeEnvelope>
+): NativeEnvelope
 
 @NoGC
-fun shiftPair(value: NativePair): NativePair =
+fun transform(value: Int): Int = value + 1
+
+@NoGC
+fun transform(value: NativePair): NativePair =
     NativePair(value.left + 10, value.right + 20)
 
+@NoGC
+fun transform(value: NativeEnvelope): NativeEnvelope = NativeEnvelope(
+    !value.tag,
+    NativePacked(!value.packed.flag, value.packed.value + 10),
+    value.tail + sizeOf<Int>()
+)
+
+suspend fun nativeInsideSuspend(): Int {
+    @Unsafe {
+        return nativeAdd(20, 22)
+    }
+}
+
 fun main() {
+    val managed: (Int) -> Int = ::transform
+    val noCallback: FunPtr<(Int) -> Int>? = None
+    val someCallback: FunPtr<(Int) -> Int>? = Some(::transform)
+
+    println(managed(40))
     @Unsafe {
         println(nativeAdd(19, 23))
+        println(
+            nativeAddUnsigned(sizeOf<Int>(), alignOf<Int>()) ==
+                sizeOf<NativePair>()
+        )
+        println(nativeDefault(sizeOf<Int>()) == sizeOf<NativePair>())
+        println(extraDelta(47))
         println(nativeNot(false))
         val swapped = nativeSwap(NativePair(7, 11))
         println(swapped.left)
         println(swapped.right)
         nativeSink(1)
-        println(nativeApply(41, ::increment))
-        val shifted = nativeApplyPair(NativePair(3, 4), ::shiftPair)
+        println(nativeApply(41, ::transform))
+        println(nativeApplyOptional(7, noCallback))
+        println(nativeApplyOptional(8, someCallback))
+        val shifted = nativeApplyPair(NativePair(3, 4), ::transform)
         println(shifted.left)
         println(shifted.right)
+
+        val envelope = nativeRoundTripEnvelope(
+            NativeEnvelope(true, NativePacked(false, 7), sizeOf<NativeEnvelope>()),
+            ::transform
+        )
+        println(envelope.tag)
+        println(envelope.packed.flag)
+        println(envelope.packed.value)
+        println(
+            envelope.tail == sizeOf<NativeEnvelope>() + sizeOf<Int>()
+        )
     }
 }

@@ -31,6 +31,33 @@ fn collect_fixtures(dir: &Path, out: &mut Vec<PathBuf>) {
     }
 }
 
+fn native_sources(dir: &Path) -> Vec<(PathBuf, String)> {
+    let mut sources = Vec::new();
+    for entry in fs::read_dir(dir)
+        .unwrap_or_else(|e| panic!("cannot list {}: {e}", dir.display()))
+        .map(|entry| entry.expect("read native fixture directory entry").path())
+    {
+        if entry.extension().is_none_or(|extension| extension != "c") {
+            continue;
+        }
+        let stem = entry
+            .file_stem()
+            .expect("native source has a stem")
+            .to_string_lossy()
+            .into_owned();
+        let library = if stem == "native" {
+            Some("fixture_native")
+        } else {
+            stem.strip_prefix("native-")
+        };
+        if let Some(library) = library {
+            sources.push((entry, library.to_string()));
+        }
+    }
+    sources.sort_by(|left, right| left.1.cmp(&right.1));
+    sources
+}
+
 #[test]
 fn fixtures() {
     let root = fixture_root();
@@ -74,38 +101,37 @@ fn fixtures() {
             .is_some_and(|line| line.trim() == "// EXPECT-TRAP");
 
         let mut options = scoopc::CompileOptions::default();
-        let native_source = fixture
-            .parent()
-            .expect("fixture directory")
-            .join("native.c");
-        if native_source.exists() {
+        let native_sources = native_sources(fixture.parent().expect("fixture directory"));
+        if !native_sources.is_empty() {
             fs::create_dir_all(&out_dir).expect("create native fixture output directory");
-            let native_object = out_dir.join("native.o");
-            let native_archive = out_dir.join("libfixture_native.a");
-            let compile = Command::new("cc")
-                .arg("-std=c11")
-                .arg("-c")
-                .arg(&native_source)
-                .arg("-o")
-                .arg(&native_object)
-                .output()
-                .expect("run native fixture C compiler");
-            assert!(
-                compile.status.success(),
-                "{relative}: native fixture compilation failed: {}",
-                String::from_utf8_lossy(&compile.stderr)
-            );
-            let archive = Command::new("ar")
-                .arg("rcs")
-                .arg(&native_archive)
-                .arg(&native_object)
-                .output()
-                .expect("run native fixture archiver");
-            assert!(
-                archive.status.success(),
-                "{relative}: native fixture archive failed: {}",
-                String::from_utf8_lossy(&archive.stderr)
-            );
+            for (native_source, library) in native_sources {
+                let native_object = out_dir.join(format!("{library}.o"));
+                let native_archive = out_dir.join(format!("lib{library}.a"));
+                let compile = Command::new("cc")
+                    .arg("-std=c11")
+                    .arg("-c")
+                    .arg(&native_source)
+                    .arg("-o")
+                    .arg(&native_object)
+                    .output()
+                    .expect("run native fixture C compiler");
+                assert!(
+                    compile.status.success(),
+                    "{relative}: native fixture library `{library}` compilation failed: {}",
+                    String::from_utf8_lossy(&compile.stderr)
+                );
+                let archive = Command::new("ar")
+                    .arg("rcs")
+                    .arg(&native_archive)
+                    .arg(&native_object)
+                    .output()
+                    .expect("run native fixture archiver");
+                assert!(
+                    archive.status.success(),
+                    "{relative}: native fixture library `{library}` archive failed: {}",
+                    String::from_utf8_lossy(&archive.stderr)
+                );
+            }
             options.library_paths.push(out_dir.clone());
         }
 

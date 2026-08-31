@@ -1,6 +1,12 @@
 @NoGC
 fun increment(value: Int): Int = value + 1
 
+@Extern(name = "malloc")
+fun malloc(size: UInt): Ptr<Unit>
+
+@Extern(name = "free")
+fun free(pointer: Ptr<Unit>)
+
 @NoGC
 @Unsafe
 fun rewriteParameter(value: Int): Int {
@@ -47,6 +53,11 @@ fun main() {
         println(value)
         println(rewriteParameter(0))
         println(Slot(0).rewriteThis())
+
+        val allocated = malloc(sizeOf<Int>()).cast<Int>()
+        allocated.store(14)
+        println(allocated.load())
+        free(allocated.cast<Unit>())
 
         val optional: Ptr<Int>? = Some(pointer)
         when (optional) {
