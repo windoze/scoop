@@ -1,6 +1,7 @@
 @NoGC
 fun increment(value: Int): Int = value + 1
 
+@NoGC
 @Unsafe
 fun rewriteParameter(value: Int): Int {
     val pointer = addressOf(value)
@@ -9,6 +10,7 @@ fun rewriteParameter(value: Int): Int {
 }
 
 struct Slot(val value: Int) {
+    @NoGC
     @Unsafe
     fun rewriteThis(): Int {
         val pointer = addressOf(this)

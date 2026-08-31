@@ -131,6 +131,7 @@ SourceFile
       Binary Add
         Var value
         IntLiteral 1
+    @NoGC
     @Unsafe
   fun rewriteParameter(value: Int): Int
     val pointer
@@ -301,7 +302,7 @@ Module
       Binary Add : Int
         Local value : Int
         IntLiteral 1 : Int
-  fun rewriteParameter(value: Int): Int <unsafe>
+  fun rewriteParameter(value: Int): Int <unsafe no-gc cdecl>
     val local1
       AddressOf value : Ptr<Int>
     PtrStore : Unit
@@ -450,7 +451,7 @@ Module
         Binary IntAdd
           Local value
           IntLiteral 1
-  fun rewriteParameter @scoop.rewriteParameter(value: Int) -> Int
+  fun rewriteParameter @scoop.rewriteParameter(value: Int) -> Int <no-gc>
     bb0 entry
       val pointer: Ptr<Int>
         AddressOf value : Ptr<Int>
@@ -567,7 +568,7 @@ Module
       goto bb5
     bb5 if.merge.5
       goto bb3
-  fun Slot.rewriteThis @scoop.Slot.rewriteThis(this: Slot) -> Int
+  fun Slot.rewriteThis @scoop.Slot.rewriteThis(this: Slot) -> Int <no-gc>
     bb0 entry
       val pointer: Ptr<Slot>
         AddressOf this : Ptr<Slot>
@@ -700,7 +701,7 @@ Module
   block entry
     t0 = Add param0, 1 : i64
     ret t0
-  fun @scoop.rewriteParameter(i64) -> i64
+  fun @scoop.rewriteParameter(i64) -> i64 <no-gc>
     local %0 value: i64
     local %1 pointer: ptr
   block entry
@@ -817,7 +818,7 @@ Module
     br @if.merge.5
   block if.merge.5
     br @if.merge.3
-  fun @scoop.Slot.rewriteThis(struct0) -> i64
+  fun @scoop.Slot.rewriteThis(struct0) -> i64 <no-gc>
     local %0 this: struct0
     local %1 pointer: ptr
   block entry

@@ -1013,6 +1013,26 @@ fn no_gc_accepts_value_only_call_graphs_and_recursion() {
 }
 
 #[test]
+fn no_gc_unsafe_functions_can_use_stack_addresses_and_pointer_intrinsics() {
+    let function = annotate(
+        fun_sig(
+            "rewrite",
+            vec![],
+            vec![("value", ty_named("Int"))],
+            Some(ty_named("Int")),
+            vec![
+                val("pointer", call("addressOf", vec![var("value")])),
+                stmt(method_call(var("pointer"), "store", vec![int_lit(12)])),
+                ret(Some(method_call(var("pointer"), "load", vec![]))),
+            ],
+        ),
+        vec![marker("NoGC"), marker("Unsafe")],
+    );
+    lower_user(file(vec![function, fun("main", vec![])]))
+        .expect("stack addressing and raw pointer operations remain GC-free");
+}
+
+#[test]
 fn no_gc_rejects_managed_signatures_calls_and_implicit_exception_ops() {
     let string_param = annotate(
         fun_sig(

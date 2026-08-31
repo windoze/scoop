@@ -555,10 +555,9 @@ impl Lowerer {
                 }
                 self.collect_no_gc_expr_violations(value, out);
             }
-            ExprKind::AddressOf(_) => out.push((
-                expr.span,
-                "`addressOf` is not allowed in `@NoGC` code".to_string(),
-            )),
+            // `addressOf` only materializes an already validated GC-free
+            // place. It is unsafe, but does not allocate or enter the GC.
+            ExprKind::AddressOf(_) => {}
             ExprKind::SizeOf(_)
             | ExprKind::AlignOf(_)
             | ExprKind::FunPtrNull
