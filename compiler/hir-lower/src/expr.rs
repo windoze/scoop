@@ -2117,7 +2117,9 @@ impl Lowerer {
             captures: Vec::new(),
             by_binding: std::collections::HashMap::new(),
         });
-        self.current_fn_name = format!("$lambda.{}", self.lambdas.len());
+        let function_number = self.next_lambda_function;
+        self.next_lambda_function += 1;
+        self.current_fn_name = format!("$lambda.{function_number}");
         self.push_suspension_context(if is_suspend {
             SuspensionContext::SuspendFunction
         } else {
@@ -2413,7 +2415,9 @@ impl Lowerer {
             captures: Vec::new(),
             by_binding: std::collections::HashMap::new(),
         });
-        self.current_fn_name = format!("$anonymous.{}", self.anonymous_functions.len());
+        let function_number = self.next_anonymous_function;
+        self.next_anonymous_function += 1;
+        self.current_fn_name = format!("$anonymous.{function_number}");
         self.current_return_ty = known_return.unwrap_or(self.unit);
         self.return_inference = known_return.is_none().then(ReturnInference::default);
         self.push_suspension_context(if is_suspend {

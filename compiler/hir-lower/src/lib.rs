@@ -261,6 +261,10 @@ pub(crate) struct Lowerer {
     pub(crate) function_types: Arena<hir::FunctionType>,
     pub(crate) lambdas: Arena<hir::Lambda>,
     pub(crate) anonymous_functions: Arena<hir::AnonymousFunction>,
+    /// Generated callable body names are reserved before lowering their
+    /// bodies so nested literals with the same signature cannot collide.
+    pub(crate) next_lambda_function: u32,
+    pub(crate) next_anonymous_function: u32,
     pub(crate) local_functions: Arena<hir::LocalFunction>,
     pub(crate) local_function_by_function: HashMap<FunctionId, hir::LocalFunctionId>,
     pub(crate) callable_references: Arena<hir::CallableReference>,
@@ -444,6 +448,8 @@ impl Lowerer {
             function_types: Arena::new(),
             lambdas: Arena::new(),
             anonymous_functions: Arena::new(),
+            next_lambda_function: 0,
+            next_anonymous_function: 0,
             local_functions: Arena::new(),
             local_function_by_function: HashMap::new(),
             callable_references: Arena::new(),

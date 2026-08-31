@@ -100,6 +100,38 @@ fun failureTask(gate: Gate): suspend () -> Int = suspend {
     }
 }
 
+suspend fun synchronousValue(): Int = suspendCoroutine() { continuation: Continuation<Int> ->
+    continuation.resume(51)
+}
+
+suspend fun synchronousFailure(): Int = suspendCoroutine() { continuation: Continuation<Int> ->
+    continuation.resumeWithException(ArithmeticException())
+}
+
+suspend fun registrationFailure(): Int = suspendCoroutine() { continuation: Continuation<Int> ->
+    throw ArithmeticException()
+}
+
+suspend fun resumedThenThrows(): Int = suspendCoroutine() { continuation: Continuation<Int> ->
+    continuation.resume(52)
+    throw ArithmeticException()
+}
+
+suspend fun resumedTwice(): Int = suspendCoroutine() { continuation: Continuation<Int> ->
+    continuation.resume(52)
+    continuation.resume(53)
+}
+
+fun nestedTask(gate: Gate): suspend () -> Int = suspend {
+    val inner: suspend () -> Int = suspend {
+        suspendCoroutine() { continuation: Continuation<Int> ->
+            gate.waiter = Some(continuation)
+        }
+    }
+    val value = inner()
+    value + 1
+}
+
 fun main() {
     val task: suspend () -> Int = suspend { 42 }
     startCoroutine(task, Done())
@@ -149,6 +181,17 @@ fun main() {
     startCoroutine(varianceTask(), Done())
     startCoroutine(dynamicVarianceTask(), Done())
     startCoroutine(constantTask(48), Done())
+
+    startCoroutine(suspend { synchronousValue() }, Done())
+    startCoroutine(suspend { synchronousFailure() }, Done())
+    startCoroutine(suspend { registrationFailure() }, Done())
+    startCoroutine(suspend { resumedThenThrows() }, Done())
+    startCoroutine(suspend { resumedTwice() }, Done())
+
+    val nestedGate = Gate(None)
+    startCoroutine(nestedTask(nestedGate), Done())
+    gcCollect()
+    nestedGate.complete(53)
 
     val failureGate = Gate(None)
     startCoroutine(failureTask(failureGate), Done())

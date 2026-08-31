@@ -290,6 +290,73 @@ fn unit_returning_lambda_discards_its_tail_value_explicitly() {
 }
 
 #[test]
+fn nested_lambdas_reserve_distinct_body_names_before_lowering() {
+    let signature = ty_function(false, Vec::new(), ty_named("Int"));
+    let inner = lambda(Some(Vec::new()), int_lit(42));
+    let outer = ast::Expr::Lambda {
+        id: ast::LambdaId(1),
+        is_suspend: false,
+        parameters: Some(Vec::new()),
+        body: block(vec![
+            val_ty("inner", Some(signature.clone()), inner),
+            stmt(call("inner", Vec::new())),
+        ]),
+        span: sp(),
+    };
+    let module = lower_user(file(vec![fun(
+        "main",
+        vec![val_ty("outer", Some(signature), outer)],
+    )]))
+    .expect("nested lambdas with the same signature must have distinct bodies");
+
+    let names: std::collections::HashSet<_> = module
+        .lambdas
+        .iter()
+        .map(|(_, lambda)| module.functions[lambda.function].name.as_str())
+        .collect();
+    assert_eq!(module.lambdas.len(), 2);
+    assert_eq!(names.len(), 2);
+    assert!(names.contains("$lambda.0"));
+    assert!(names.contains("$lambda.1"));
+}
+
+#[test]
+fn nested_anonymous_functions_reserve_distinct_body_names_before_lowering() {
+    let signature = ty_function(false, Vec::new(), ty_named("Int"));
+    let inner = anonymous(
+        Vec::new(),
+        Some(ty_named("Int")),
+        vec![ret(Some(int_lit(42)))],
+    );
+    let outer = ast::Expr::AnonymousFunction {
+        id: ast::AnonymousFunctionId(1),
+        is_suspend: false,
+        params: Vec::new(),
+        return_ty: Some(ty_named("Int")),
+        body: block(vec![
+            val_ty("inner", Some(signature.clone()), inner),
+            ret(Some(call("inner", Vec::new()))),
+        ]),
+        span: sp(),
+    };
+    let module = lower_user(file(vec![fun(
+        "main",
+        vec![val_ty("outer", Some(signature), outer)],
+    )]))
+    .expect("nested anonymous functions with the same signature must have distinct bodies");
+
+    let names: std::collections::HashSet<_> = module
+        .anonymous_functions
+        .iter()
+        .map(|(_, function)| module.functions[function.function].name.as_str())
+        .collect();
+    assert_eq!(module.anonymous_functions.len(), 2);
+    assert_eq!(names.len(), 2);
+    assert!(names.contains("$anonymous.0"));
+    assert!(names.contains("$anonymous.1"));
+}
+
+#[test]
 fn suspend_lambda_owns_a_suspend_body_and_is_callable_only_in_suspend_context() {
     let signature = ty_function(true, Vec::new(), ty_named("Int"));
     let module = lower_user(file(vec![
