@@ -75,6 +75,36 @@ fn function_types_are_reference_types_for_gc_constraints() {
     assert!(!lowerer.is_value_ty(ty));
 }
 
+#[test]
+fn callable_literal_inherits_the_enclosing_generic_namespace() {
+    let result = ty_function(false, Vec::new(), ty_named("T"));
+    let module = lower_user(file(vec![
+        fun_expr(
+            "make",
+            vec!["T"],
+            vec![("value", ty_named("T"))],
+            Some(result),
+            lambda(Some(Vec::new()), var("value")),
+        ),
+        fun("main", vec![]),
+    ]))
+    .expect("a callable literal may retain the enclosing type parameter");
+
+    let (_, lambda) = module.lambdas.iter().next().expect("lambda entity");
+    assert_eq!(lambda.owner_type_param_count, 1);
+    assert_eq!(module.functions[lambda.function].type_params, vec!["T"]);
+    assert!(
+        module
+            .generic_functions
+            .iter()
+            .any(|(_, generic)| generic.function == lambda.function)
+    );
+    assert!(matches!(
+        module.types[lambda.captures[0].ty],
+        hir::Type::Param(_)
+    ));
+}
+
 fn lambda(parameters: Option<Vec<ast::LambdaParam>>, tail: ast::Expr) -> ast::Expr {
     ast::Expr::Lambda {
         id: ast::LambdaId(0),

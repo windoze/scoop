@@ -159,7 +159,11 @@ pub fn lower(module: &hir::Module) -> mir::Module {
         lambda_closures: HashMap::new(),
         anonymous_closures: HashMap::new(),
         reference_closures: HashMap::new(),
+        generic_lambda_closures: HashMap::new(),
+        generic_anonymous_closures: HashMap::new(),
+        generic_reference_closures: HashMap::new(),
         closure_by_function: HashMap::new(),
+        closure_by_instance: HashMap::new(),
         closure_capture_indices: HashMap::new(),
     }
     .run(module)
@@ -214,8 +218,17 @@ struct Lowerer {
     lambda_closures: HashMap<hir::LambdaId, mir::ClosureClassId>,
     anonymous_closures: HashMap<hir::AnonymousFunctionId, mir::ClosureClassId>,
     reference_closures: HashMap<hir::CallableReferenceId, mir::ClosureClassId>,
+    /// Generic callable entities are materialized once per concrete enclosing
+    /// substitution. The encoded MIR types make the key stable across bodies.
+    generic_lambda_closures: HashMap<(hir::LambdaId, Vec<String>), mir::ClosureClassId>,
+    generic_anonymous_closures:
+        HashMap<(hir::AnonymousFunctionId, Vec<String>), mir::ClosureClassId>,
+    generic_reference_closures:
+        HashMap<(hir::CallableReferenceId, Vec<String>), mir::ClosureClassId>,
     /// Generated HIR invoke body -> its concrete closure class.
     closure_by_function: HashMap<hir::FunctionId, mir::ClosureClassId>,
+    /// Monomorphized generated invoke body -> its concrete closure class.
+    closure_by_instance: HashMap<mir::MonomorphizedFunctionId, mir::ClosureClassId>,
     /// HIR lexical binding -> concrete inline field index for one closure.
     closure_capture_indices: HashMap<(mir::ClosureClassId, hir::BindingId), u32>,
 }
@@ -687,7 +700,7 @@ impl Lowerer {
         }
 
         for (hir_id, mir_id) in user_functions {
-            let (params, return_ty, body) = self.lower_user_function(module, hir_id, None);
+            let (params, return_ty, body) = self.lower_user_function(module, hir_id, None, None);
             let body = cfg::lower(body, return_ty.clone());
             if module.functions[hir_id].is_suspend {
                 self.suspend_sources.push(SuspendSource {
@@ -772,7 +785,7 @@ impl Lowerer {
                 let hir_id = module.generic_functions[generic].function;
                 let mir_id = self.instances.meta[instance].function;
                 let (params, return_ty, body) =
-                    self.lower_user_function(module, hir_id, Some(&type_args));
+                    self.lower_user_function(module, hir_id, Some(&type_args), Some(instance));
                 let body = cfg::lower(body, return_ty.clone());
                 if module.functions[hir_id].is_suspend {
                     self.suspend_sources.push(SuspendSource {
@@ -1162,6 +1175,7 @@ impl Lowerer {
         module: &hir::Module,
         hir_id: hir::FunctionId,
         subst: Option<&[mir::Type]>,
+        instance: Option<mir::MonomorphizedFunctionId>,
     ) -> (Vec<mir::Param>, mir::Type, smir::Body) {
         let function = &module.functions[hir_id];
         let hir::FunctionKind::User(body) = &function.kind else {
@@ -1180,6 +1194,9 @@ impl Lowerer {
                     .collect()
             })
             .unwrap_or_default();
+        let current_closure = instance
+            .and_then(|instance| self.closure_by_instance.get(&instance).copied())
+            .or_else(|| self.closure_by_function.get(&hir_id).copied());
         BodyLowerer {
             module,
             struct_map: &self.struct_map,
@@ -1207,8 +1224,14 @@ impl Lowerer {
             lambda_closures: &self.lambda_closures,
             anonymous_closures: &self.anonymous_closures,
             reference_closures: &self.reference_closures,
-            closure_capture_indices: &self.closure_capture_indices,
-            current_closure: self.closure_by_function.get(&hir_id).copied(),
+            generic_lambda_closures: &mut self.generic_lambda_closures,
+            generic_anonymous_closures: &mut self.generic_anonymous_closures,
+            generic_reference_closures: &mut self.generic_reference_closures,
+            closure_classes: &mut self.closure_classes,
+            closure_invokes: &mut self.closure_invokes,
+            closure_by_instance: &mut self.closure_by_instance,
+            closure_capture_indices: &mut self.closure_capture_indices,
+            current_closure,
             current_closure_local: None,
             current_local_capture_params,
         }
@@ -1510,6 +1533,9 @@ impl Lowerer {
     /// every creation expression resolves directly to a typed class id.
     fn declare_closures(&mut self, module: &hir::Module) {
         for (id, lambda) in module.lambdas.iter() {
+            if lambda.owner_type_param_count != 0 {
+                continue;
+            }
             let function_type = self.lower_function_type_id(module, lambda.function_type);
             let types = Types {
                 module,
@@ -1548,6 +1574,9 @@ impl Lowerer {
             self.lambda_closures.insert(id, class);
         }
         for (id, anonymous) in module.anonymous_functions.iter() {
+            if anonymous.owner_type_param_count != 0 {
+                continue;
+            }
             let function_type = self.lower_function_type_id(module, anonymous.function_type);
             let types = Types {
                 module,
@@ -1586,6 +1615,9 @@ impl Lowerer {
             self.anonymous_closures.insert(id, class);
         }
         for (id, reference) in module.callable_references.iter() {
+            if reference.owner_type_param_count != 0 {
+                continue;
+            }
             let function_type = self.lower_function_type_id(module, reference.function_type);
             let (callable, receiver) = match &reference.target {
                 hir::CallableReferenceTarget::Named(callable) => (*callable, None),
@@ -2107,7 +2139,13 @@ impl Lowerer {
             lambda_closures: &self.lambda_closures,
             anonymous_closures: &self.anonymous_closures,
             reference_closures: &self.reference_closures,
-            closure_capture_indices: &self.closure_capture_indices,
+            generic_lambda_closures: &mut self.generic_lambda_closures,
+            generic_anonymous_closures: &mut self.generic_anonymous_closures,
+            generic_reference_closures: &mut self.generic_reference_closures,
+            closure_classes: &mut self.closure_classes,
+            closure_invokes: &mut self.closure_invokes,
+            closure_by_instance: &mut self.closure_by_instance,
+            closure_capture_indices: &mut self.closure_capture_indices,
             current_closure: None,
             current_closure_local: None,
             current_local_capture_params: HashMap::new(),
@@ -2291,7 +2329,13 @@ impl Lowerer {
             lambda_closures: &self.lambda_closures,
             anonymous_closures: &self.anonymous_closures,
             reference_closures: &self.reference_closures,
-            closure_capture_indices: &self.closure_capture_indices,
+            generic_lambda_closures: &mut self.generic_lambda_closures,
+            generic_anonymous_closures: &mut self.generic_anonymous_closures,
+            generic_reference_closures: &mut self.generic_reference_closures,
+            closure_classes: &mut self.closure_classes,
+            closure_invokes: &mut self.closure_invokes,
+            closure_by_instance: &mut self.closure_by_instance,
+            closure_capture_indices: &mut self.closure_capture_indices,
             current_closure: None,
             current_closure_local: None,
             current_local_capture_params: HashMap::new(),
@@ -3471,7 +3515,15 @@ struct BodyLowerer<'a> {
     lambda_closures: &'a HashMap<hir::LambdaId, mir::ClosureClassId>,
     anonymous_closures: &'a HashMap<hir::AnonymousFunctionId, mir::ClosureClassId>,
     reference_closures: &'a HashMap<hir::CallableReferenceId, mir::ClosureClassId>,
-    closure_capture_indices: &'a HashMap<(mir::ClosureClassId, hir::BindingId), u32>,
+    generic_lambda_closures: &'a mut HashMap<(hir::LambdaId, Vec<String>), mir::ClosureClassId>,
+    generic_anonymous_closures:
+        &'a mut HashMap<(hir::AnonymousFunctionId, Vec<String>), mir::ClosureClassId>,
+    generic_reference_closures:
+        &'a mut HashMap<(hir::CallableReferenceId, Vec<String>), mir::ClosureClassId>,
+    closure_classes: &'a mut Arena<mir::ClosureClass>,
+    closure_invokes: &'a mut Arena<mir::ClosureInvokeFunction>,
+    closure_by_instance: &'a mut HashMap<mir::MonomorphizedFunctionId, mir::ClosureClassId>,
+    closure_capture_indices: &'a mut HashMap<(mir::ClosureClassId, hir::BindingId), u32>,
     current_closure: Option<mir::ClosureClassId>,
     current_closure_local: Option<mir::LocalId>,
     /// Hidden by-value parameters of a lifted local function, keyed by the
@@ -3566,6 +3618,326 @@ impl BodyLowerer<'_> {
             subst: self.subst,
         }
         .lower(ty, self.enums, self.structs, self.interfaces, self.shell)
+    }
+
+    fn lower_function_type_id(
+        &mut self,
+        function_type: hir::FunctionTypeId,
+    ) -> mir::FunctionTypeId {
+        let ty = self
+            .module
+            .types
+            .iter()
+            .find_map(|(ty, value)| {
+                matches!(value, hir::Type::Function(found) if *found == function_type).then_some(ty)
+            })
+            .expect("every function signature is referenced by a canonical HIR type");
+        let mir::Type::Function(function_type) = self.lower_type(ty) else {
+            unreachable!("lowering a function type preserves its category")
+        };
+        function_type
+    }
+
+    fn generic_closure_key(&self, owner_type_param_count: usize) -> Vec<String> {
+        let subst = self
+            .subst
+            .expect("a generic closure is created only in a concrete generic body");
+        assert_eq!(
+            subst.len(),
+            owner_type_param_count,
+            "a closure inherits the complete enclosing type-parameter namespace"
+        );
+        subst
+            .iter()
+            .map(|ty| mir::encode_type(self.shell, ty))
+            .collect()
+    }
+
+    fn materialize_generated_closure(
+        &mut self,
+        name: String,
+        function: hir::FunctionId,
+        function_type: hir::FunctionTypeId,
+        captures: &[hir::Capture],
+    ) -> mir::ClosureClassId {
+        let function_type = self.lower_function_type_id(function_type);
+        let mut fields = Vec::with_capacity(captures.len());
+        for capture in captures {
+            fields.push(mir::Field {
+                name: capture.name.clone(),
+                ty: self.lower_type(capture.ty),
+            });
+        }
+        let generic = generic_of(self.module, function)
+            .expect("a generated closure in a generic body is a generic function");
+        let type_args = self
+            .subst
+            .expect("a generic closure has a concrete substitution")
+            .to_vec();
+        let instance = self.instances.get_or_create_generic(
+            self.module,
+            self.functions,
+            self.top_level,
+            self.shell,
+            generic,
+            type_args,
+        );
+        let invoke = self.closure_invokes.alloc(mir::ClosureInvokeFunction {
+            function: self.instances.meta[instance].function,
+        });
+        let class = self.closure_classes.alloc(mir::ClosureClass {
+            name,
+            function_type,
+            invoke,
+            captures: fields,
+        });
+        self.closure_by_instance.insert(instance, class);
+        for (index, capture) in captures.iter().enumerate() {
+            self.closure_capture_indices
+                .insert((class, capture.binding), index as u32);
+        }
+        class
+    }
+
+    fn ensure_lambda_closure(&mut self, id: hir::LambdaId) -> mir::ClosureClassId {
+        if let Some(&class) = self.lambda_closures.get(&id) {
+            return class;
+        }
+        let lambda = self.module.lambdas[id].clone();
+        let encoded = self.generic_closure_key(lambda.owner_type_param_count);
+        let key = (id, encoded.clone());
+        if let Some(&class) = self.generic_lambda_closures.get(&key) {
+            return class;
+        }
+        let class = self.materialize_generated_closure(
+            format!("$Closure$lambda{}${}", id.into_raw(), encoded.join("_")),
+            lambda.function,
+            lambda.function_type,
+            &lambda.captures,
+        );
+        self.generic_lambda_closures.insert(key, class);
+        class
+    }
+
+    fn ensure_anonymous_closure(&mut self, id: hir::AnonymousFunctionId) -> mir::ClosureClassId {
+        if let Some(&class) = self.anonymous_closures.get(&id) {
+            return class;
+        }
+        let anonymous = self.module.anonymous_functions[id].clone();
+        let encoded = self.generic_closure_key(anonymous.owner_type_param_count);
+        let key = (id, encoded.clone());
+        if let Some(&class) = self.generic_anonymous_closures.get(&key) {
+            return class;
+        }
+        let class = self.materialize_generated_closure(
+            format!("$Closure$anonymous{}${}", id.into_raw(), encoded.join("_")),
+            anonymous.function,
+            anonymous.function_type,
+            &anonymous.captures,
+        );
+        self.generic_anonymous_closures.insert(key, class);
+        class
+    }
+
+    fn bound_reference_call_kind(
+        &mut self,
+        receiver_ty: hir::TypeId,
+        callable: hir::Callable,
+    ) -> mir::CallKind {
+        let function = self.module.callable_function(callable);
+        let declaration = self.module.functions[function].clone();
+        let receiver_source = self.module.types[receiver_ty].clone();
+        let generic_static_method = matches!(callable, hir::Callable::Generic(_))
+            && !matches!(receiver_source, hir::Type::Interface(..));
+        if generic_static_method {
+            return mir::CallKind::Direct;
+        }
+        match receiver_source {
+            hir::Type::Class(_)
+                if declaration
+                    .method
+                    .is_some_and(|method| method.modifier == hir::MethodModifier::Final) =>
+            {
+                mir::CallKind::Direct
+            }
+            hir::Type::Class(class) => {
+                let key = self.signature_key(&declaration);
+                self.method_slots[&self.class_map[&class]]
+                    .get(&key)
+                    .map_or(mir::CallKind::Direct, |&slot| mir::CallKind::Virtual {
+                        slot,
+                    })
+            }
+            hir::Type::Interface(..) => {
+                let mir::Type::Interface(interface) = self.lower_type(receiver_ty) else {
+                    unreachable!("an interface receiver lowers to an interface type")
+                };
+                let (source, interface_args) = self.interfaces.source(interface);
+                let interface_args = interface_args.to_vec();
+                let key = self.signature_key_with_subst(&declaration, &interface_args);
+                let slot = self.module.interfaces[source]
+                    .methods
+                    .iter()
+                    .filter(|method| method.type_params.is_empty())
+                    .enumerate()
+                    .find_map(|(index, signature)| {
+                        (self.sig_key_with_subst(signature, &interface_args) == key)
+                            .then_some(index as u32)
+                    })
+                    .expect("hir-lower resolves interface references to interface methods");
+                mir::CallKind::Interface { interface, slot }
+            }
+            hir::Type::Any => match short_name(&declaration.name) {
+                "equals" => mir::CallKind::Virtual { slot: 0 },
+                "hashCode" => mir::CallKind::Virtual { slot: 1 },
+                "toString" => mir::CallKind::Virtual { slot: 2 },
+                _ => mir::CallKind::Direct,
+            },
+            _ => mir::CallKind::Direct,
+        }
+    }
+
+    fn ensure_reference_closure(&mut self, id: hir::CallableReferenceId) -> mir::ClosureClassId {
+        if let Some(&class) = self.reference_closures.get(&id) {
+            return class;
+        }
+        let reference = self.module.callable_references[id].clone();
+        let encoded = self.generic_closure_key(reference.owner_type_param_count);
+        let key = (id, encoded.clone());
+        if let Some(&class) = self.generic_reference_closures.get(&key) {
+            return class;
+        }
+        let function_type = self.lower_function_type_id(reference.function_type);
+        let (callable, receiver_ty) = match &reference.target {
+            hir::CallableReferenceTarget::Named(callable) => (*callable, None),
+            hir::CallableReferenceTarget::Local { callee, .. } => (*callee, None),
+            hir::CallableReferenceTarget::BoundMember { receiver, callee }
+            | hir::CallableReferenceTarget::BoundExtension { receiver, callee } => {
+                (*callee, Some(receiver.ty))
+            }
+        };
+        let target = self.lower_user_callee(callable);
+        let call_kind = match &reference.target {
+            hir::CallableReferenceTarget::BoundMember { receiver, .. } => {
+                self.bound_reference_call_kind(receiver.ty, callable)
+            }
+            _ => mir::CallKind::Direct,
+        };
+        let signature = self.shell.function_types[function_type].clone();
+        let mut capture_fields =
+            Vec::with_capacity(reference.captures.len() + usize::from(receiver_ty.is_some()));
+        if let Some(receiver_ty) = receiver_ty {
+            capture_fields.push(mir::Field {
+                name: "$receiver".to_string(),
+                ty: self.lower_type(receiver_ty),
+            });
+        }
+        for capture in &reference.captures {
+            capture_fields.push(mir::Field {
+                name: capture.name.clone(),
+                ty: self.lower_type(capture.ty),
+            });
+        }
+
+        let closure_ty = mir::Type::Function(function_type);
+        let mut locals = Arena::new();
+        let closure = locals.alloc(mir::Local {
+            name: "$closure".to_string(),
+            ty: closure_ty.clone(),
+            mutable: false,
+        });
+        let mut params = vec![mir::Param {
+            name: "$closure".to_string(),
+            ty: closure_ty,
+            local: closure,
+        }];
+        let mut source_args = Vec::with_capacity(signature.parameter_types.len());
+        for (index, ty) in signature.parameter_types.iter().cloned().enumerate() {
+            let local = locals.alloc(mir::Local {
+                name: format!("arg{index}"),
+                ty: ty.clone(),
+                mutable: false,
+            });
+            params.push(mir::Param {
+                name: format!("arg{index}"),
+                ty,
+                local,
+            });
+            source_args.push(smir::Expr::Local(local));
+        }
+        let suffix = encoded.join("_");
+        let function = self.functions.alloc(mir::Function {
+            name: format!("$reference.{}${suffix}", id.into_raw()),
+            symbol: format!("scoop.$reference.{}${suffix}", id.into_raw()),
+            params: Vec::new(),
+            return_ty: signature.return_type.clone(),
+            body: mir::Body::unreachable(Arena::new()),
+        });
+        self.top_level.push(function);
+        let invoke = self
+            .closure_invokes
+            .alloc(mir::ClosureInvokeFunction { function });
+        let class = self.closure_classes.alloc(mir::ClosureClass {
+            name: format!("$Closure$reference{}${suffix}", id.into_raw()),
+            function_type,
+            invoke,
+            captures: capture_fields,
+        });
+        let capture_offset = u32::from(receiver_ty.is_some());
+        for (index, capture) in reference.captures.iter().enumerate() {
+            self.closure_capture_indices
+                .insert((class, capture.binding), capture_offset + index as u32);
+        }
+
+        let mut args = Vec::with_capacity(
+            usize::from(receiver_ty.is_some()) + reference.captures.len() + source_args.len(),
+        );
+        if receiver_ty.is_some() {
+            args.push(smir::Expr::ClosureCapture {
+                closure: Box::new(smir::Expr::Local(closure)),
+                class,
+                index: 0,
+            });
+        } else if matches!(reference.target, hir::CallableReferenceTarget::Local { .. }) {
+            for index in 0..reference.captures.len() {
+                args.push(smir::Expr::ClosureCapture {
+                    closure: Box::new(smir::Expr::Local(closure)),
+                    class,
+                    index: index as u32,
+                });
+            }
+        } else {
+            debug_assert!(reference.captures.is_empty());
+        }
+        args.extend(source_args);
+        let call = smir::Expr::Call(smir::Call {
+            target: mir::CallTarget {
+                kind: call_kind,
+                callee: target,
+            },
+            args,
+            return_ty: signature.return_type.clone(),
+        });
+        let statement = if signature.return_type == mir::Type::Unit {
+            smir::StatementKind::Expr(call)
+        } else {
+            smir::StatementKind::Return { value: Some(call) }
+        };
+        let mut statements = vec![smir::Statement {
+            kind: statement,
+            span: reference.span,
+        }];
+        if signature.return_type == mir::Type::Unit {
+            statements.push(smir::Statement {
+                kind: smir::StatementKind::Return { value: None },
+                span: reference.span,
+            });
+        }
+        self.functions[function].params = params;
+        self.functions[function].body =
+            cfg::lower(smir::Body { locals, statements }, signature.return_type);
+        self.generic_reference_closures.insert(key, class);
+        class
     }
 
     /// A fresh hidden local (`$<prefix>.<n>`), compiler-generated.
@@ -4153,23 +4525,38 @@ impl BodyLowerer<'_> {
                     index,
                 }
             }
-            hir::ExprKind::Lambda(id) => smir::Expr::ClosureAlloc {
-                class: self.lambda_closures[id],
-                captures: self.module.lambdas[*id]
+            hir::ExprKind::Lambda(id) => {
+                let class = self.ensure_lambda_closure(*id);
+                let sources: Vec<_> = self.module.lambdas[*id]
                     .captures
                     .iter()
-                    .map(|capture| self.lower_expr(&capture.source))
-                    .collect(),
-            },
-            hir::ExprKind::AnonymousFunction(id) => smir::Expr::ClosureAlloc {
-                class: self.anonymous_closures[id],
-                captures: self.module.anonymous_functions[*id]
+                    .map(|capture| capture.source.clone())
+                    .collect();
+                smir::Expr::ClosureAlloc {
+                    class,
+                    captures: sources
+                        .iter()
+                        .map(|source| self.lower_expr(source))
+                        .collect(),
+                }
+            }
+            hir::ExprKind::AnonymousFunction(id) => {
+                let class = self.ensure_anonymous_closure(*id);
+                let sources: Vec<_> = self.module.anonymous_functions[*id]
                     .captures
                     .iter()
-                    .map(|capture| self.lower_expr(&capture.source))
-                    .collect(),
-            },
+                    .map(|capture| capture.source.clone())
+                    .collect();
+                smir::Expr::ClosureAlloc {
+                    class,
+                    captures: sources
+                        .iter()
+                        .map(|source| self.lower_expr(source))
+                        .collect(),
+                }
+            }
             hir::ExprKind::CallableReference(id) => {
+                let class = self.ensure_reference_closure(*id);
                 let reference = &self.module.callable_references[*id];
                 let mut captures = Vec::with_capacity(
                     reference.captures.len()
@@ -4192,10 +4579,7 @@ impl BodyLowerer<'_> {
                         .iter()
                         .map(|capture| self.lower_expr(&capture.source)),
                 );
-                smir::Expr::ClosureAlloc {
-                    class: self.reference_closures[id],
-                    captures,
-                }
+                smir::Expr::ClosureAlloc { class, captures }
             }
             // The array nodes translate one-to-one (M5); the literal's
             // kind (Array vs MutableArray) is fixed by the producing

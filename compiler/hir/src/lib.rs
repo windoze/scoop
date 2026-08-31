@@ -269,6 +269,9 @@ pub struct Module {
 pub struct Lambda {
     pub function: FunctionId,
     pub function_type: FunctionTypeId,
+    /// Type parameters inherited from the enclosing generic callable. The
+    /// generated invoke body is instantiated with this complete prefix.
+    pub owner_type_param_count: usize,
     /// Structurally present even for no-capture lambdas; later M11 capture
     /// analysis fills this list rather than changing the entity shape.
     pub captures: Vec<Capture>,
@@ -279,6 +282,7 @@ pub struct Lambda {
 pub struct AnonymousFunction {
     pub function: FunctionId,
     pub function_type: FunctionTypeId,
+    pub owner_type_param_count: usize,
     pub captures: Vec<Capture>,
     pub span: Span,
 }
@@ -301,6 +305,9 @@ pub struct LocalFunction {
 pub struct CallableReference {
     pub target: CallableReferenceTarget,
     pub function_type: FunctionTypeId,
+    /// Type parameters of the callable containing this reference expression.
+    /// A non-zero value requires a concrete closure per enclosing instance.
+    pub owner_type_param_count: usize,
     pub captures: Vec<Capture>,
     pub span: Span,
 }

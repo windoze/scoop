@@ -1,0 +1,1367 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== ast ==
+SourceFile
+  interface Continuation<in T>
+    fun resume
+    fun resumeWithException
+  interface SuspendTask<out T>
+    suspend fun run
+  interface SuspendRegistration<out T>
+    fun register
+    @Intrinsic("coroutine_start")
+  fun startCoroutine<T>(task: SuspendTask<T>, completion: Continuation<T>)
+    @Intrinsic("coroutine_suspend")
+  suspend fun suspendCoroutine<T>(registration: SuspendRegistration<T>): T
+SourceFile
+  struct PinHandle<T>
+    field raw: UInt
+  struct GcHandle<T>
+    field raw: UInt
+    @Intrinsic("rt_pin")
+  fun pin<T>(v: T): PinHandle<T>
+    @Intrinsic("rt_unpin")
+  fun unpin<T>(h: PinHandle<T>): T
+    @Intrinsic("rt_get_handle")
+  fun getGcHandle<T>(v: T): GcHandle<T>
+    @Intrinsic("rt_release_handle")
+  fun releaseGcHandle<T>(h: GcHandle<T>): T
+    @Intrinsic("rt_gc_collect")
+  fun gcCollect()
+    @Intrinsic("rt_gc_stats")
+  fun gcStats(): UInt
+SourceFile
+    @Intrinsic("rt_write")
+  fun write(message: String)
+  fun print(message: Any)
+    =
+      Call write
+        MethodCall toString
+          Var message
+  fun println(message: Any)
+    Call write
+      MethodCall toString
+        Var message
+    Call write
+      StringLiteral "\n"
+SourceFile
+  enum Option<T>
+    Some(T)
+    None
+SourceFile
+  open class Throwable()
+  open class Exception(val message: String?) : Throwable(<0 args>)
+  class UnwrapException() : Exception(<1 args>)
+  class ClassCastException() : Exception(<1 args>)
+  class ArithmeticException() : Exception(<1 args>)
+  class IndexOutOfBoundsException() : Exception(<1 args>)
+  class IllegalStateException() : Exception(<1 args>)
+SourceFile
+  struct GenericBox<T>
+    field value: T
+  fun identity<T>(value: T): T
+    =
+      Var value
+  fun T.copyValue<T>(): T
+    =
+      This
+  fun makeLambda<T>(value: T): () -> T
+    =
+      Lambda 0 suspend=false
+        parameters omitted
+        Var value
+  fun makeAnonymous<T>(value: T): () -> T
+    =
+      AnonymousFunction 0 suspend=false return=T
+        return
+          Var value
+  fun makeLocalReference<T>(value: T): () -> T
+    fun read(): T
+      Var value
+    return
+      CallableReference 0 read
+  fun makeNamedReference<T>(seed: T): (T) -> T
+    val reference: (T) -> T
+      CallableReference 1 identity
+    return
+      Var reference
+  fun makeExtensionReference<T>(value: T): () -> T
+    =
+      CallableReference 2 copyValue
+        Var value
+  fun makeNested<T>(value: T): () -> () -> T
+    =
+      AnonymousFunction 1 suspend=false return=() -> T
+        return
+          Lambda 1 suspend=false
+            parameters omitted
+            Var value
+  fun makeBoxReader<T>(value: T): () -> T
+    val box
+      Call GenericBox
+        Var value
+    return
+      Lambda 2 suspend=false
+        parameters omitted
+        FieldAccess value
+          Var box
+  fun main()
+    val intLambda
+      Call makeLambda
+        IntLiteral 42
+    val stringLambda
+      Call makeLambda
+        StringLiteral "lambda"
+    val intAnonymous
+      Call makeAnonymous
+        IntLiteral 43
+    val stringAnonymous
+      Call makeAnonymous
+        StringLiteral "anonymous"
+    val intLocal
+      Call makeLocalReference
+        IntLiteral 44
+    val stringLocal
+      Call makeLocalReference
+        StringLiteral "local"
+    val intIdentity: (Int) -> Int
+      Call makeNamedReference
+        IntLiteral 0
+    val stringIdentity: (String) -> String
+      Call makeNamedReference
+        StringLiteral ""
+    val intExtension
+      Call makeExtensionReference
+        IntLiteral 45
+    val stringExtension
+      Call makeExtensionReference
+        StringLiteral "extension"
+    val intNested
+      Call makeNested
+        IntLiteral 46
+    val stringNested
+      Call makeNested
+        StringLiteral "nested"
+    val intBox
+      Call makeBoxReader
+        IntLiteral 47
+    val stringBox
+      Call makeBoxReader
+        StringLiteral "box"
+    Call gcCollect
+    Call println
+      Call intLambda
+    Call println
+      Call stringLambda
+    Call println
+      Call intAnonymous
+    Call println
+      Call stringAnonymous
+    Call println
+      Call intLocal
+    Call println
+      Call stringLocal
+    Call println
+      Call intIdentity
+        IntLiteral 48
+    Call println
+      Call stringIdentity
+        StringLiteral "identity"
+    Call println
+      Call intExtension
+    Call println
+      Call stringExtension
+    Call println
+      Invoke
+        Call intNested
+    Call println
+      Invoke
+        Call stringNested
+    Call println
+      Call intBox
+    Call println
+      Call stringBox
+
+== hir ==
+Module
+  struct PinHandle<T>
+    field raw: UInt
+  struct GcHandle<T>
+    field raw: UInt
+  struct GenericBox<T>
+    field value: T0
+  enum Option<T>
+    Some(_1: T0)
+    None()
+  open class Throwable()
+  open class Exception(message: Option<String>)
+  class UnwrapException()
+  class ClassCastException()
+  class ArithmeticException()
+  class IndexOutOfBoundsException()
+  class IllegalStateException()
+  interface Continuation<in T>
+    fun resume(value: T0): Unit
+    fun resumeWithException(exception: Throwable): Unit
+  interface SuspendTask<out T>
+    suspend fun run(): T0
+  interface SuspendRegistration<out T>
+    fun register(continuation: Continuation<T0>): Unit
+  fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
+  suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
+  fun pin<T>(): PinHandle<T0> <intrinsic rt_pin>
+  fun unpin<T>(): T0 <intrinsic rt_unpin>
+  fun getGcHandle<T>(): GcHandle<T0> <intrinsic rt_get_handle>
+  fun releaseGcHandle<T>(): T0 <intrinsic rt_release_handle>
+  fun gcCollect(): Unit <intrinsic rt_gc_collect>
+  fun gcStats(): UInt <intrinsic rt_gc_stats>
+  fun write(): Unit <intrinsic rt_write>
+  fun print(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    return
+  fun println(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    Call write : Unit
+      StringLiteral "\n" : String
+  fun identity<T>(value: T0): T0
+    return
+      Local value : T0
+  fun copyValue<T>(this: T0): T0
+    return
+      Local this : T0
+  fun makeLambda<T>(value: T0): () -> T0
+    return
+      Lambda lambda0 invoke=$lambda.0 captures=1 : () -> T0
+        capture value binding15 : T0
+  fun makeAnonymous<T>(value: T0): () -> T0
+    return
+      AnonymousFunction anonymous0 invoke=$anonymous.0 captures=1 : () -> T0
+        capture value binding17 : T0
+  fun makeLocalReference<T>(value: T0): () -> T0
+    LocalFunction local0 body=$local.0.read captures=1
+    return
+      CallableReference reference0 target=$local.0.read captures=1 : () -> T0
+  fun makeNamedReference<T>(seed: T0): (T0) -> T0
+    val local1
+      CallableReference reference1 target=identity captures=0 : (T0) -> T0
+    return
+      Local reference : (T0) -> T0
+  fun makeExtensionReference<T>(value: T0): () -> T0
+    return
+      CallableReference reference2 target=copyValue captures=0 : () -> T0
+        Local value : T0
+  fun makeNested<T>(value: T0): () -> () -> T0
+    return
+      AnonymousFunction anonymous1 invoke=$anonymous.1 captures=1 : () -> () -> T0
+        capture value binding24 : T0
+  fun makeBoxReader<T>(value: T0): () -> T0
+    val local1
+      StructInit GenericBox : GenericBox<T0>
+        Local value : T0
+    return
+      Lambda lambda2 invoke=$lambda.2 captures=1 : () -> T0
+        capture box binding28 : GenericBox<T0>
+  fun main(): Unit
+    val local0
+      Call makeLambda<Int> : () -> Int
+        IntLiteral 42 : Int
+    val local1
+      Call makeLambda<String> : () -> String
+        StringLiteral "lambda" : String
+    val local2
+      Call makeAnonymous<Int> : () -> Int
+        IntLiteral 43 : Int
+    val local3
+      Call makeAnonymous<String> : () -> String
+        StringLiteral "anonymous" : String
+    val local4
+      Call makeLocalReference<Int> : () -> Int
+        IntLiteral 44 : Int
+    val local5
+      Call makeLocalReference<String> : () -> String
+        StringLiteral "local" : String
+    val local6
+      Call makeNamedReference<Int> : (Int) -> Int
+        IntLiteral 0 : Int
+    val local7
+      Call makeNamedReference<String> : (String) -> String
+        StringLiteral "" : String
+    val local8
+      Call makeExtensionReference<Int> : () -> Int
+        IntLiteral 45 : Int
+    val local9
+      Call makeExtensionReference<String> : () -> String
+        StringLiteral "extension" : String
+    val local10
+      Call makeNested<Int> : () -> () -> Int
+        IntLiteral 46 : Int
+    val local11
+      Call makeNested<String> : () -> () -> String
+        StringLiteral "nested" : String
+    val local12
+      Call makeBoxReader<Int> : () -> Int
+        IntLiteral 47 : Int
+    val local13
+      Call makeBoxReader<String> : () -> String
+        StringLiteral "box" : String
+    Call gcCollect : Unit
+    Call println : Unit
+      Box : Any
+        CallableCall function_type3 : Int
+          Local intLambda : () -> Int
+    Call println : Unit
+      CallableCall function_type4 : Any
+        Local stringLambda : () -> String
+    Call println : Unit
+      Box : Any
+        CallableCall function_type3 : Int
+          Local intAnonymous : () -> Int
+    Call println : Unit
+      CallableCall function_type4 : Any
+        Local stringAnonymous : () -> String
+    Call println : Unit
+      Box : Any
+        CallableCall function_type3 : Int
+          Local intLocal : () -> Int
+    Call println : Unit
+      CallableCall function_type4 : Any
+        Local stringLocal : () -> String
+    Call println : Unit
+      Box : Any
+        CallableCall function_type5 : Int
+          Local intIdentity : (Int) -> Int
+          IntLiteral 48 : Int
+    Call println : Unit
+      CallableCall function_type6 : Any
+        Local stringIdentity : (String) -> String
+        StringLiteral "identity" : String
+    Call println : Unit
+      Box : Any
+        CallableCall function_type3 : Int
+          Local intExtension : () -> Int
+    Call println : Unit
+      CallableCall function_type4 : Any
+        Local stringExtension : () -> String
+    Call println : Unit
+      Box : Any
+        CallableCall function_type3 : Int
+          CallableCall function_type7 : () -> Int
+            Local intNested : () -> () -> Int
+    Call println : Unit
+      CallableCall function_type4 : Any
+        CallableCall function_type8 : () -> String
+          Local stringNested : () -> () -> String
+    Call println : Unit
+      Box : Any
+        CallableCall function_type3 : Int
+          Local intBox : () -> Int
+    Call println : Unit
+      CallableCall function_type4 : Any
+        Local stringBox : () -> String
+  entry main
+  instance $local.0.read<T0>
+  instance identity<T0>
+  instance copyValue<T0>
+  instance makeLambda<Int>
+  instance makeLambda<String>
+  instance makeAnonymous<Int>
+  instance makeAnonymous<String>
+  instance makeLocalReference<Int>
+  instance makeLocalReference<String>
+  instance makeNamedReference<Int>
+  instance makeNamedReference<String>
+  instance makeExtensionReference<Int>
+  instance makeExtensionReference<String>
+  instance makeNested<Int>
+  instance makeNested<String>
+  instance makeBoxReader<Int>
+  instance makeBoxReader<String>
+
+== mir ==
+Module
+  struct GenericBox$I (value: Int)
+  struct GenericBox$S (value: String)
+  enum Option$S
+    Some(_1: String)
+    None()
+  class Throwable vtable=3 itables=0
+  class Exception vtable=3 itables=0
+  class UnwrapException vtable=3 itables=0
+  class ClassCastException vtable=3 itables=0
+  class ArithmeticException vtable=3 itables=0
+  class IndexOutOfBoundsException vtable=3 itables=0
+  class IllegalStateException vtable=3 itables=0
+  class box$I vtable=3 itables=0
+  closure cc0 $Closure$lambda0$I type=function_type0 invoke=@scoop.$lambda.0$I captures=1
+  closure cc1 $Closure$lambda0$S type=function_type1 invoke=@scoop.$lambda.0$S captures=1
+  closure cc2 $Closure$anonymous0$I type=function_type0 invoke=@scoop.$anonymous.0$I captures=1
+  closure cc3 $Closure$anonymous0$S type=function_type1 invoke=@scoop.$anonymous.0$S captures=1
+  closure cc4 $Closure$reference0$I type=function_type0 invoke=@scoop.$reference.0$I captures=1
+  closure cc5 $Closure$reference0$S type=function_type1 invoke=@scoop.$reference.0$S captures=1
+  closure cc6 $Closure$reference1$I type=function_type2 invoke=@scoop.$reference.1$I captures=0
+  closure cc7 $Closure$reference1$S type=function_type3 invoke=@scoop.$reference.1$S captures=0
+  closure cc8 $Closure$reference2$I type=function_type0 invoke=@scoop.$reference.2$I captures=1
+  closure cc9 $Closure$reference2$S type=function_type1 invoke=@scoop.$reference.2$S captures=1
+  closure cc10 $Closure$anonymous1$I type=function_type4 invoke=@scoop.$anonymous.1$I captures=1
+  closure cc11 $Closure$anonymous1$S type=function_type5 invoke=@scoop.$anonymous.1$S captures=1
+  closure cc12 $Closure$lambda2$I type=function_type0 invoke=@scoop.$lambda.2$I captures=1
+  closure cc13 $Closure$lambda2$S type=function_type1 invoke=@scoop.$lambda.2$S captures=1
+  closure cc14 $Closure$lambda1$I type=function_type0 invoke=@scoop.$lambda.1$I captures=1
+  closure cc15 $Closure$lambda1$S type=function_type1 invoke=@scoop.$lambda.1$S captures=1
+  fun print @scoop.print(message: Any) -> Unit
+    bb0 entry
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call @scoop_rt_print direct
+        Local $call.1
+      return
+  fun println @scoop.println(message: Any) -> Unit
+    bb0 entry
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call @scoop_rt_print direct
+        Local $call.1
+      call @scoop_rt_print direct
+        StringConst @scoop.str.0
+      return
+  fun main @scoop_main() -> Unit
+    bb0 entry
+      call intLambda: () -> Int = @scoop.makeLambda$I direct
+        IntLiteral 42
+      call stringLambda: () -> String = @scoop.makeLambda$S direct
+        StringConst @scoop.str.1
+      call intAnonymous: () -> Int = @scoop.makeAnonymous$I direct
+        IntLiteral 43
+      call stringAnonymous: () -> String = @scoop.makeAnonymous$S direct
+        StringConst @scoop.str.2
+      call intLocal: () -> Int = @scoop.makeLocalReference$I direct
+        IntLiteral 44
+      call stringLocal: () -> String = @scoop.makeLocalReference$S direct
+        StringConst @scoop.str.3
+      call intIdentity: (Int) -> Int = @scoop.makeNamedReference$I direct
+        IntLiteral 0
+      call stringIdentity: (String) -> String = @scoop.makeNamedReference$S direct
+        StringConst @scoop.str.4
+      call intExtension: () -> Int = @scoop.makeExtensionReference$I direct
+        IntLiteral 45
+      call stringExtension: () -> String = @scoop.makeExtensionReference$S direct
+        StringConst @scoop.str.5
+      call intNested: () -> () -> Int = @scoop.makeNested$I direct
+        IntLiteral 46
+      call stringNested: () -> () -> String = @scoop.makeNested$S direct
+        StringConst @scoop.str.6
+      call intBox: () -> Int = @scoop.makeBoxReader$I direct
+        IntLiteral 47
+      call stringBox: () -> String = @scoop.makeBoxReader$S direct
+        StringConst @scoop.str.7
+      call @scoop_rt_gc_collect direct
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Local intLambda
+      call @scoop.println direct
+        Box
+          Local $call.1
+      call $call.2: Any = <closure:function_type1> closure[function_type1]
+        Local stringLambda
+      call @scoop.println direct
+        Local $call.2
+      call $call.3: Int = <closure:function_type0> closure[function_type0]
+        Local intAnonymous
+      call @scoop.println direct
+        Box
+          Local $call.3
+      call $call.4: Any = <closure:function_type1> closure[function_type1]
+        Local stringAnonymous
+      call @scoop.println direct
+        Local $call.4
+      call $call.5: Int = <closure:function_type0> closure[function_type0]
+        Local intLocal
+      call @scoop.println direct
+        Box
+          Local $call.5
+      call $call.6: Any = <closure:function_type1> closure[function_type1]
+        Local stringLocal
+      call @scoop.println direct
+        Local $call.6
+      call $call.7: Int = <closure:function_type2> closure[function_type2]
+        Local intIdentity
+        IntLiteral 48
+      call @scoop.println direct
+        Box
+          Local $call.7
+      call $call.8: Any = <closure:function_type3> closure[function_type3]
+        Local stringIdentity
+        StringConst @scoop.str.8
+      call @scoop.println direct
+        Local $call.8
+      call $call.9: Int = <closure:function_type0> closure[function_type0]
+        Local intExtension
+      call @scoop.println direct
+        Box
+          Local $call.9
+      call $call.10: Any = <closure:function_type1> closure[function_type1]
+        Local stringExtension
+      call @scoop.println direct
+        Local $call.10
+      call $call.11: () -> Int = <closure:function_type4> closure[function_type4]
+        Local intNested
+      call $call.12: Int = <closure:function_type0> closure[function_type0]
+        Local $call.11
+      call @scoop.println direct
+        Box
+          Local $call.12
+      call $call.13: () -> String = <closure:function_type5> closure[function_type5]
+        Local stringNested
+      call $call.14: Any = <closure:function_type1> closure[function_type1]
+        Local $call.13
+      call @scoop.println direct
+        Local $call.14
+      call $call.15: Int = <closure:function_type0> closure[function_type0]
+        Local intBox
+      call @scoop.println direct
+        Box
+          Local $call.15
+      call $call.16: Any = <closure:function_type1> closure[function_type1]
+        Local stringBox
+      call @scoop.println direct
+        Local $call.16
+      return
+  fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
+    bb0 entry
+      return
+        ClassInit Throwable
+  fun ctor.Exception @scoop.ctor.Exception(message: Option$S<String>) -> Exception
+    bb0 entry
+      return
+        ClassInit Exception
+          Local message
+  fun ctor.UnwrapException @scoop.ctor.UnwrapException() -> UnwrapException
+    bb0 entry
+      return
+        ClassInit UnwrapException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.9
+  fun ctor.ClassCastException @scoop.ctor.ClassCastException() -> ClassCastException
+    bb0 entry
+      return
+        ClassInit ClassCastException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.10
+  fun ctor.ArithmeticException @scoop.ctor.ArithmeticException() -> ArithmeticException
+    bb0 entry
+      return
+        ClassInit ArithmeticException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.11
+  fun ctor.IndexOutOfBoundsException @scoop.ctor.IndexOutOfBoundsException() -> IndexOutOfBoundsException
+    bb0 entry
+      return
+        ClassInit IndexOutOfBoundsException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.12
+  fun ctor.IllegalStateException @scoop.ctor.IllegalStateException() -> IllegalStateException
+    bb0 entry
+      return
+        ClassInit IllegalStateException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.13
+  fun makeLambda @scoop.makeLambda$I(value: Int) -> () -> Int
+    bb0 entry
+      return
+        ClosureAlloc cc0 $Closure$lambda0$I
+          Local value
+  fun makeLambda @scoop.makeLambda$S(value: String) -> () -> String
+    bb0 entry
+      return
+        ClosureAlloc cc1 $Closure$lambda0$S
+          Local value
+  fun makeAnonymous @scoop.makeAnonymous$I(value: Int) -> () -> Int
+    bb0 entry
+      return
+        ClosureAlloc cc2 $Closure$anonymous0$I
+          Local value
+  fun makeAnonymous @scoop.makeAnonymous$S(value: String) -> () -> String
+    bb0 entry
+      return
+        ClosureAlloc cc3 $Closure$anonymous0$S
+          Local value
+  fun makeLocalReference @scoop.makeLocalReference$I(value: Int) -> () -> Int
+    bb0 entry
+      return
+        ClosureAlloc cc4 $Closure$reference0$I
+          Local value
+  fun makeLocalReference @scoop.makeLocalReference$S(value: String) -> () -> String
+    bb0 entry
+      return
+        ClosureAlloc cc5 $Closure$reference0$S
+          Local value
+  fun makeNamedReference @scoop.makeNamedReference$I(seed: Int) -> (Int) -> Int
+    bb0 entry
+      val reference: (Int) -> Int
+        ClosureAlloc cc6 $Closure$reference1$I
+      return
+        Local reference
+  fun makeNamedReference @scoop.makeNamedReference$S(seed: String) -> (String) -> String
+    bb0 entry
+      val reference: (String) -> String
+        ClosureAlloc cc7 $Closure$reference1$S
+      return
+        Local reference
+  fun makeExtensionReference @scoop.makeExtensionReference$I(value: Int) -> () -> Int
+    bb0 entry
+      return
+        ClosureAlloc cc8 $Closure$reference2$I
+          Local value
+  fun makeExtensionReference @scoop.makeExtensionReference$S(value: String) -> () -> String
+    bb0 entry
+      return
+        ClosureAlloc cc9 $Closure$reference2$S
+          Local value
+  fun makeNested @scoop.makeNested$I(value: Int) -> () -> () -> Int
+    bb0 entry
+      return
+        ClosureAlloc cc10 $Closure$anonymous1$I
+          Local value
+  fun makeNested @scoop.makeNested$S(value: String) -> () -> () -> String
+    bb0 entry
+      return
+        ClosureAlloc cc11 $Closure$anonymous1$S
+          Local value
+  fun makeBoxReader @scoop.makeBoxReader$I(value: Int) -> () -> Int
+    bb0 entry
+      val box: GenericBox$I
+        StructInit GenericBox$I
+          Local value
+      return
+        ClosureAlloc cc12 $Closure$lambda2$I
+          Local box
+  fun makeBoxReader @scoop.makeBoxReader$S(value: String) -> () -> String
+    bb0 entry
+      val box: GenericBox$S
+        StructInit GenericBox$S
+          Local value
+      return
+        ClosureAlloc cc13 $Closure$lambda2$S
+          Local box
+  fun $lambda.0 @scoop.$lambda.0$I($closure: () -> Int) -> Int
+    bb0 entry
+      return
+        ClosureCapture cc0 0
+          Local $closure
+  fun $lambda.0 @scoop.$lambda.0$S($closure: () -> String) -> String
+    bb0 entry
+      return
+        ClosureCapture cc1 0
+          Local $closure
+  fun $anonymous.0 @scoop.$anonymous.0$I($closure: () -> Int) -> Int
+    bb0 entry
+      return
+        ClosureCapture cc2 0
+          Local $closure
+  fun $anonymous.0 @scoop.$anonymous.0$S($closure: () -> String) -> String
+    bb0 entry
+      return
+        ClosureCapture cc3 0
+          Local $closure
+  fun $local.0.read @scoop.$local.0.read$I($capture.value: Int) -> Int
+    bb0 entry
+      return
+        Local $capture.value
+  fun $reference.0$I @scoop.$reference.0$I($closure: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @scoop.$local.0.read$I direct
+        ClosureCapture cc4 0
+          Local $closure
+      return
+        Local $call.1
+  fun $local.0.read @scoop.$local.0.read$S($capture.value: String) -> String
+    bb0 entry
+      return
+        Local $capture.value
+  fun $reference.0$S @scoop.$reference.0$S($closure: () -> String) -> String
+    bb0 entry
+      call $call.1: String = @scoop.$local.0.read$S direct
+        ClosureCapture cc5 0
+          Local $closure
+      return
+        Local $call.1
+  fun identity @scoop.identity$I(value: Int) -> Int
+    bb0 entry
+      return
+        Local value
+  fun $reference.1$I @scoop.$reference.1$I($closure: (Int) -> Int, arg0: Int) -> Int
+    bb0 entry
+      call $call.1: Int = @scoop.identity$I direct
+        Local arg0
+      return
+        Local $call.1
+  fun identity @scoop.identity$S(value: String) -> String
+    bb0 entry
+      return
+        Local value
+  fun $reference.1$S @scoop.$reference.1$S($closure: (String) -> String, arg0: String) -> String
+    bb0 entry
+      call $call.1: String = @scoop.identity$S direct
+        Local arg0
+      return
+        Local $call.1
+  fun $extension.copyValue @scoop.$extension.copyValue$I(this: Int) -> Int
+    bb0 entry
+      return
+        Local this
+  fun $reference.2$I @scoop.$reference.2$I($closure: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @scoop.$extension.copyValue$I direct
+        ClosureCapture cc8 0
+          Local $closure
+      return
+        Local $call.1
+  fun $extension.copyValue @scoop.$extension.copyValue$S(this: String) -> String
+    bb0 entry
+      return
+        Local this
+  fun $reference.2$S @scoop.$reference.2$S($closure: () -> String) -> String
+    bb0 entry
+      call $call.1: String = @scoop.$extension.copyValue$S direct
+        ClosureCapture cc9 0
+          Local $closure
+      return
+        Local $call.1
+  fun $anonymous.1 @scoop.$anonymous.1$I($closure: () -> () -> Int) -> () -> Int
+    bb0 entry
+      return
+        ClosureAlloc cc14 $Closure$lambda1$I
+          ClosureCapture cc10 0
+            Local $closure
+  fun $anonymous.1 @scoop.$anonymous.1$S($closure: () -> () -> String) -> () -> String
+    bb0 entry
+      return
+        ClosureAlloc cc15 $Closure$lambda1$S
+          ClosureCapture cc11 0
+            Local $closure
+  fun $lambda.2 @scoop.$lambda.2$I($closure: () -> Int) -> Int
+    bb0 entry
+      return
+        FieldAccess 0
+          ClosureCapture cc12 0
+            Local $closure
+  fun $lambda.2 @scoop.$lambda.2$S($closure: () -> String) -> String
+    bb0 entry
+      return
+        FieldAccess 0
+          ClosureCapture cc13 0
+            Local $closure
+  fun $lambda.1 @scoop.$lambda.1$I($closure: () -> Int) -> Int
+    bb0 entry
+      return
+        ClosureCapture cc14 0
+          Local $closure
+  fun $lambda.1 @scoop.$lambda.1$S($closure: () -> String) -> String
+    bb0 entry
+      return
+        ClosureCapture cc15 0
+          Local $closure
+  fun eq.I @scoop.eq.I(this: Any, other: Any) -> Boolean
+    bb0 entry
+      val $a: Int
+        Unbox
+          Local this
+      val $b: Int
+        Unbox
+          Local other
+      return
+        Binary IntEq
+          Local $a
+          Local $b
+  fun tostring.I @scoop.tostring.I(this: Any) -> String
+    bb0 entry
+      call $call.1: String = @scoop_rt_int_to_string direct
+        Unbox
+          Local this
+      return
+        Local $call.1
+  instance @scoop.makeLambda$I <- makeLambda
+  instance @scoop.makeLambda$S <- makeLambda
+  instance @scoop.makeAnonymous$I <- makeAnonymous
+  instance @scoop.makeAnonymous$S <- makeAnonymous
+  instance @scoop.makeLocalReference$I <- makeLocalReference
+  instance @scoop.makeLocalReference$S <- makeLocalReference
+  instance @scoop.makeNamedReference$I <- makeNamedReference
+  instance @scoop.makeNamedReference$S <- makeNamedReference
+  instance @scoop.makeExtensionReference$I <- makeExtensionReference
+  instance @scoop.makeExtensionReference$S <- makeExtensionReference
+  instance @scoop.makeNested$I <- makeNested
+  instance @scoop.makeNested$S <- makeNested
+  instance @scoop.makeBoxReader$I <- makeBoxReader
+  instance @scoop.makeBoxReader$S <- makeBoxReader
+  instance @scoop.$lambda.0$I <- $lambda.0
+  instance @scoop.$lambda.0$S <- $lambda.0
+  instance @scoop.$anonymous.0$I <- $anonymous.0
+  instance @scoop.$anonymous.0$S <- $anonymous.0
+  instance @scoop.$local.0.read$I <- $local.0.read
+  instance @scoop.$local.0.read$S <- $local.0.read
+  instance @scoop.identity$I <- identity
+  instance @scoop.identity$S <- identity
+  instance @scoop.$extension.copyValue$I <- $extension.copyValue
+  instance @scoop.$extension.copyValue$S <- $extension.copyValue
+  instance @scoop.$anonymous.1$I <- $anonymous.1
+  instance @scoop.$anonymous.1$S <- $anonymous.1
+  instance @scoop.$lambda.2$I <- $lambda.2
+  instance @scoop.$lambda.2$S <- $lambda.2
+  instance @scoop.$lambda.1$I <- $lambda.1
+  instance @scoop.$lambda.1$S <- $lambda.1
+  str @scoop.str.0 "\n"
+  str @scoop.str.1 "lambda"
+  str @scoop.str.2 "anonymous"
+  str @scoop.str.3 "local"
+  str @scoop.str.4 ""
+  str @scoop.str.5 "extension"
+  str @scoop.str.6 "nested"
+  str @scoop.str.7 "box"
+  str @scoop.str.8 "identity"
+  str @scoop.str.9 "unwrap on None"
+  str @scoop.str.10 "invalid cast"
+  str @scoop.str.11 "arithmetic error"
+  str @scoop.str.12 "array index out of bounds"
+  str @scoop.str.13 "illegal state"
+  entry @scoop_main
+
+== lir ==
+Module
+  global @scoop.str.0 = "\n"
+  global @scoop.str.1 = "lambda"
+  global @scoop.str.2 = "anonymous"
+  global @scoop.str.3 = "local"
+  global @scoop.str.4 = ""
+  global @scoop.str.5 = "extension"
+  global @scoop.str.6 = "nested"
+  global @scoop.str.7 = "box"
+  global @scoop.str.8 = "identity"
+  global @scoop.str.9 = "unwrap on None"
+  global @scoop.str.10 = "invalid cast"
+  global @scoop.str.11 = "arithmetic error"
+  global @scoop.str.12 = "array index out of bounds"
+  global @scoop.str.13 = "illegal state"
+  global @scoop_td_box$I = c""
+  global @scoop_td_Throwable = c""
+  global @scoop_td_Exception = c""
+  global @scoop_td_UnwrapException = c""
+  global @scoop_td_ClassCastException = c""
+  global @scoop_td_ArithmeticException = c""
+  global @scoop_td_IndexOutOfBoundsException = c""
+  global @scoop_td_IllegalStateException = c""
+  global @scoop_td_$Closure$lambda0$I = c""
+  global @scoop_td_$Closure$lambda0$S = c""
+  global @scoop_td_$Closure$anonymous0$I = c""
+  global @scoop_td_$Closure$anonymous0$S = c""
+  global @scoop_td_$Closure$reference0$I = c""
+  global @scoop_td_$Closure$reference0$S = c""
+  global @scoop_td_$Closure$reference1$I = c""
+  global @scoop_td_$Closure$reference1$S = c""
+  global @scoop_td_$Closure$reference2$I = c""
+  global @scoop_td_$Closure$reference2$S = c""
+  global @scoop_td_$Closure$anonymous1$I = c""
+  global @scoop_td_$Closure$anonymous1$S = c""
+  global @scoop_td_$Closure$lambda2$I = c""
+  global @scoop_td_$Closure$lambda2$S = c""
+  global @scoop_td_$Closure$lambda1$I = c""
+  global @scoop_td_$Closure$lambda1$S = c""
+  enum Option$S niche(payload_variant=0)
+  fun @scoop.print(ptr) -> void
+    local %0 $call.1: ptr
+  block entry
+    t0 = heap_load param0 +0 : ptr
+    t1 = heap_load t0 +40 : ptr
+    t2 = call_indirect t1[2](param0) : ptr
+    store t2 -> local0
+    call @scoop_rt_print(local0)
+    t3 = aggregate () : {}
+    ret
+  fun @scoop.println(ptr) -> void
+    local %0 $call.1: ptr
+  block entry
+    t0 = heap_load param0 +0 : ptr
+    t1 = heap_load t0 +40 : ptr
+    t2 = call_indirect t1[2](param0) : ptr
+    store t2 -> local0
+    call @scoop_rt_print(local0)
+    t3 = aggregate () : {}
+    call @scoop_rt_print(global0)
+    t4 = aggregate () : {}
+    ret
+  fun @scoop_main() -> void
+    local %0 intLambda: ptr
+    local %1 stringLambda: ptr
+    local %2 intAnonymous: ptr
+    local %3 stringAnonymous: ptr
+    local %4 intLocal: ptr
+    local %5 stringLocal: ptr
+    local %6 intIdentity: ptr
+    local %7 stringIdentity: ptr
+    local %8 intExtension: ptr
+    local %9 stringExtension: ptr
+    local %10 intNested: ptr
+    local %11 stringNested: ptr
+    local %12 intBox: ptr
+    local %13 stringBox: ptr
+    local %14 $call.1: i64
+    local %15 $call.2: ptr
+    local %16 $call.3: i64
+    local %17 $call.4: ptr
+    local %18 $call.5: i64
+    local %19 $call.6: ptr
+    local %20 $call.7: i64
+    local %21 $call.8: ptr
+    local %22 $call.9: i64
+    local %23 $call.10: ptr
+    local %24 $call.11: ptr
+    local %25 $call.12: i64
+    local %26 $call.13: ptr
+    local %27 $call.14: ptr
+    local %28 $call.15: i64
+    local %29 $call.16: ptr
+  block entry
+    t0 = call @scoop.makeLambda$I(42) : ptr
+    store t0 -> local0
+    t1 = call @scoop.makeLambda$S(global1) : ptr
+    store t1 -> local1
+    t2 = call @scoop.makeAnonymous$I(43) : ptr
+    store t2 -> local2
+    t3 = call @scoop.makeAnonymous$S(global2) : ptr
+    store t3 -> local3
+    t4 = call @scoop.makeLocalReference$I(44) : ptr
+    store t4 -> local4
+    t5 = call @scoop.makeLocalReference$S(global3) : ptr
+    store t5 -> local5
+    t6 = call @scoop.makeNamedReference$I(0) : ptr
+    store t6 -> local6
+    t7 = call @scoop.makeNamedReference$S(global4) : ptr
+    store t7 -> local7
+    t8 = call @scoop.makeExtensionReference$I(45) : ptr
+    store t8 -> local8
+    t9 = call @scoop.makeExtensionReference$S(global5) : ptr
+    store t9 -> local9
+    t10 = call @scoop.makeNested$I(46) : ptr
+    store t10 -> local10
+    t11 = call @scoop.makeNested$S(global6) : ptr
+    store t11 -> local11
+    t12 = call @scoop.makeBoxReader$I(47) : ptr
+    store t12 -> local12
+    t13 = call @scoop.makeBoxReader$S(global7) : ptr
+    store t13 -> local13
+    call @scoop_rt_gc_collect()
+    t14 = aggregate () : {}
+    t15 = call_indirect local0[2](local0) : i64
+    store t15 -> local14
+    t16 = call @scoop_rt_box(global14, local14, 8) : ptr
+    call @scoop.println(t16)
+    t17 = aggregate () : {}
+    t18 = call_indirect local1[2](local1) : ptr
+    store t18 -> local15
+    call @scoop.println(local15)
+    t19 = aggregate () : {}
+    t20 = call_indirect local2[2](local2) : i64
+    store t20 -> local16
+    t21 = call @scoop_rt_box(global14, local16, 8) : ptr
+    call @scoop.println(t21)
+    t22 = aggregate () : {}
+    t23 = call_indirect local3[2](local3) : ptr
+    store t23 -> local17
+    call @scoop.println(local17)
+    t24 = aggregate () : {}
+    t25 = call_indirect local4[2](local4) : i64
+    store t25 -> local18
+    t26 = call @scoop_rt_box(global14, local18, 8) : ptr
+    call @scoop.println(t26)
+    t27 = aggregate () : {}
+    t28 = call_indirect local5[2](local5) : ptr
+    store t28 -> local19
+    call @scoop.println(local19)
+    t29 = aggregate () : {}
+    t30 = call_indirect local6[2](local6, 48) : i64
+    store t30 -> local20
+    t31 = call @scoop_rt_box(global14, local20, 8) : ptr
+    call @scoop.println(t31)
+    t32 = aggregate () : {}
+    t33 = call_indirect local7[2](local7, global8) : ptr
+    store t33 -> local21
+    call @scoop.println(local21)
+    t34 = aggregate () : {}
+    t35 = call_indirect local8[2](local8) : i64
+    store t35 -> local22
+    t36 = call @scoop_rt_box(global14, local22, 8) : ptr
+    call @scoop.println(t36)
+    t37 = aggregate () : {}
+    t38 = call_indirect local9[2](local9) : ptr
+    store t38 -> local23
+    call @scoop.println(local23)
+    t39 = aggregate () : {}
+    t40 = call_indirect local10[2](local10) : ptr
+    store t40 -> local24
+    t41 = call_indirect local24[2](local24) : i64
+    store t41 -> local25
+    t42 = call @scoop_rt_box(global14, local25, 8) : ptr
+    call @scoop.println(t42)
+    t43 = aggregate () : {}
+    t44 = call_indirect local11[2](local11) : ptr
+    store t44 -> local26
+    t45 = call_indirect local26[2](local26) : ptr
+    store t45 -> local27
+    call @scoop.println(local27)
+    t46 = aggregate () : {}
+    t47 = call_indirect local12[2](local12) : i64
+    store t47 -> local28
+    t48 = call @scoop_rt_box(global14, local28, 8) : ptr
+    call @scoop.println(t48)
+    t49 = aggregate () : {}
+    t50 = call_indirect local13[2](local13) : ptr
+    store t50 -> local29
+    call @scoop.println(local29)
+    t51 = aggregate () : {}
+    ret
+  fun @scoop.ctor.Throwable() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global15, 16) : ptr
+    ret t0
+  fun @scoop.ctor.Exception(enum0) -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global16, 24) : ptr
+    heap_store t0 +16 param0
+    ret t0
+  fun @scoop.ctor.UnwrapException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global17, 24) : ptr
+    t1 = enum_wrap e0 v0 (global9) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.ClassCastException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global18, 24) : ptr
+    t1 = enum_wrap e0 v0 (global10) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.ArithmeticException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global19, 24) : ptr
+    t1 = enum_wrap e0 v0 (global11) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.IndexOutOfBoundsException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global20, 24) : ptr
+    t1 = enum_wrap e0 v0 (global12) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.IllegalStateException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global21, 24) : ptr
+    t1 = enum_wrap e0 v0 (global13) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.makeLambda$I(i64) -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global22, 32) : ptr
+    t1 = function_address @scoop.$lambda.0$I : ptr
+    heap_store t0 +16 t1
+    heap_store t0 +24 param0
+    ret t0
+  fun @scoop.makeLambda$S(ptr) -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global23, 32) : ptr
+    t1 = function_address @scoop.$lambda.0$S : ptr
+    heap_store t0 +16 t1
+    heap_store t0 +24 param0
+    ret t0
+  fun @scoop.makeAnonymous$I(i64) -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global24, 32) : ptr
+    t1 = function_address @scoop.$anonymous.0$I : ptr
+    heap_store t0 +16 t1
+    heap_store t0 +24 param0
+    ret t0
+  fun @scoop.makeAnonymous$S(ptr) -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global25, 32) : ptr
+    t1 = function_address @scoop.$anonymous.0$S : ptr
+    heap_store t0 +16 t1
+    heap_store t0 +24 param0
+    ret t0
+  fun @scoop.makeLocalReference$I(i64) -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global26, 32) : ptr
+    t1 = function_address @scoop.$reference.0$I : ptr
+    heap_store t0 +16 t1
+    heap_store t0 +24 param0
+    ret t0
+  fun @scoop.makeLocalReference$S(ptr) -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global27, 32) : ptr
+    t1 = function_address @scoop.$reference.0$S : ptr
+    heap_store t0 +16 t1
+    heap_store t0 +24 param0
+    ret t0
+  fun @scoop.makeNamedReference$I(i64) -> ptr
+    local %0 reference: ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global28, 24) : ptr
+    t1 = function_address @scoop.$reference.1$I : ptr
+    heap_store t0 +16 t1
+    store t0 -> local0
+    ret local0
+  fun @scoop.makeNamedReference$S(ptr) -> ptr
+    local %0 reference: ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global29, 24) : ptr
+    t1 = function_address @scoop.$reference.1$S : ptr
+    heap_store t0 +16 t1
+    store t0 -> local0
+    ret local0
+  fun @scoop.makeExtensionReference$I(i64) -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global30, 32) : ptr
+    t1 = function_address @scoop.$reference.2$I : ptr
+    heap_store t0 +16 t1
+    heap_store t0 +24 param0
+    ret t0
+  fun @scoop.makeExtensionReference$S(ptr) -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global31, 32) : ptr
+    t1 = function_address @scoop.$reference.2$S : ptr
+    heap_store t0 +16 t1
+    heap_store t0 +24 param0
+    ret t0
+  fun @scoop.makeNested$I(i64) -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global32, 32) : ptr
+    t1 = function_address @scoop.$anonymous.1$I : ptr
+    heap_store t0 +16 t1
+    heap_store t0 +24 param0
+    ret t0
+  fun @scoop.makeNested$S(ptr) -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global33, 32) : ptr
+    t1 = function_address @scoop.$anonymous.1$S : ptr
+    heap_store t0 +16 t1
+    heap_store t0 +24 param0
+    ret t0
+  fun @scoop.makeBoxReader$I(i64) -> ptr
+    local %0 box: {i64}
+  block entry
+    t0 = aggregate (param0) : {i64}
+    store t0 -> local0
+    t1 = call @scoop_rt_alloc(global34, 32) : ptr
+    t2 = function_address @scoop.$lambda.2$I : ptr
+    heap_store t1 +16 t2
+    heap_store t1 +24 local0
+    ret t1
+  fun @scoop.makeBoxReader$S(ptr) -> ptr
+    local %0 box: {ptr}
+  block entry
+    t0 = aggregate (param0) : {ptr}
+    store t0 -> local0
+    t1 = call @scoop_rt_alloc(global35, 32) : ptr
+    t2 = function_address @scoop.$lambda.2$S : ptr
+    heap_store t1 +16 t2
+    heap_store t1 +24 local0
+    ret t1
+  fun @scoop.$lambda.0$I(ptr) -> i64
+  block entry
+    t0 = heap_load param0 +24 : i64
+    ret t0
+  fun @scoop.$lambda.0$S(ptr) -> ptr
+  block entry
+    t0 = heap_load param0 +24 : ptr
+    ret t0
+  fun @scoop.$anonymous.0$I(ptr) -> i64
+  block entry
+    t0 = heap_load param0 +24 : i64
+    ret t0
+  fun @scoop.$anonymous.0$S(ptr) -> ptr
+  block entry
+    t0 = heap_load param0 +24 : ptr
+    ret t0
+  fun @scoop.$local.0.read$I(i64) -> i64
+  block entry
+    ret param0
+  fun @scoop.$reference.0$I(ptr) -> i64
+    local %0 $call.1: i64
+  block entry
+    t0 = heap_load param0 +24 : i64
+    t1 = call @scoop.$local.0.read$I(t0) : i64
+    store t1 -> local0
+    ret local0
+  fun @scoop.$local.0.read$S(ptr) -> ptr
+  block entry
+    ret param0
+  fun @scoop.$reference.0$S(ptr) -> ptr
+    local %0 $call.1: ptr
+  block entry
+    t0 = heap_load param0 +24 : ptr
+    t1 = call @scoop.$local.0.read$S(t0) : ptr
+    store t1 -> local0
+    ret local0
+  fun @scoop.identity$I(i64) -> i64
+  block entry
+    ret param0
+  fun @scoop.$reference.1$I(ptr, i64) -> i64
+    local %0 $call.1: i64
+  block entry
+    t0 = call @scoop.identity$I(param1) : i64
+    store t0 -> local0
+    ret local0
+  fun @scoop.identity$S(ptr) -> ptr
+  block entry
+    ret param0
+  fun @scoop.$reference.1$S(ptr, ptr) -> ptr
+    local %0 $call.1: ptr
+  block entry
+    t0 = call @scoop.identity$S(param1) : ptr
+    store t0 -> local0
+    ret local0
+  fun @scoop.$extension.copyValue$I(i64) -> i64
+  block entry
+    ret param0
+  fun @scoop.$reference.2$I(ptr) -> i64
+    local %0 $call.1: i64
+  block entry
+    t0 = heap_load param0 +24 : i64
+    t1 = call @scoop.$extension.copyValue$I(t0) : i64
+    store t1 -> local0
+    ret local0
+  fun @scoop.$extension.copyValue$S(ptr) -> ptr
+  block entry
+    ret param0
+  fun @scoop.$reference.2$S(ptr) -> ptr
+    local %0 $call.1: ptr
+  block entry
+    t0 = heap_load param0 +24 : ptr
+    t1 = call @scoop.$extension.copyValue$S(t0) : ptr
+    store t1 -> local0
+    ret local0
+  fun @scoop.$anonymous.1$I(ptr) -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global36, 32) : ptr
+    t1 = function_address @scoop.$lambda.1$I : ptr
+    heap_store t0 +16 t1
+    t2 = heap_load param0 +24 : i64
+    heap_store t0 +24 t2
+    ret t0
+  fun @scoop.$anonymous.1$S(ptr) -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global37, 32) : ptr
+    t1 = function_address @scoop.$lambda.1$S : ptr
+    heap_store t0 +16 t1
+    t2 = heap_load param0 +24 : ptr
+    heap_store t0 +24 t2
+    ret t0
+  fun @scoop.$lambda.2$I(ptr) -> i64
+  block entry
+    t0 = heap_load param0 +24 : {i64}
+    t1 = extract t0, 0 : i64
+    ret t1
+  fun @scoop.$lambda.2$S(ptr) -> ptr
+  block entry
+    t0 = heap_load param0 +24 : {ptr}
+    t1 = extract t0, 0 : ptr
+    ret t1
+  fun @scoop.$lambda.1$I(ptr) -> i64
+  block entry
+    t0 = heap_load param0 +24 : i64
+    ret t0
+  fun @scoop.$lambda.1$S(ptr) -> ptr
+  block entry
+    t0 = heap_load param0 +24 : ptr
+    ret t0
+  fun @scoop.eq.I(ptr, ptr) -> i1
+    local %0 $a: i64
+    local %1 $b: i64
+  block entry
+    t0 = heap_load param0 +16 : i64
+    store t0 -> local0
+    t1 = heap_load param1 +16 : i64
+    store t1 -> local1
+    t2 = Eq local0, local1 : i1
+    ret t2
+  fun @scoop.tostring.I(ptr) -> ptr
+    local %0 $call.1: ptr
+  block entry
+    t0 = heap_load param0 +16 : i64
+    t1 = call @scoop_rt_int_to_string(t0) : ptr
+    store t1 -> local0
+    ret local0
+  td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
+  td box$I @scoop_td_box$I size=24 vtable=3 itables=0
+  td Exception @scoop_td_Exception size=24 vtable=3 itables=0
+  td UnwrapException @scoop_td_UnwrapException size=24 vtable=3 itables=0
+  td ClassCastException @scoop_td_ClassCastException size=24 vtable=3 itables=0
+  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=3 itables=0
+  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=3 itables=0
+  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=3 itables=0
+  td $Closure$lambda0$I @scoop_td_$Closure$lambda0$I size=32 vtable=0 itables=0
+  td $Closure$lambda0$S @scoop_td_$Closure$lambda0$S size=32 vtable=0 itables=0
+  td $Closure$anonymous0$I @scoop_td_$Closure$anonymous0$I size=32 vtable=0 itables=0
+  td $Closure$anonymous0$S @scoop_td_$Closure$anonymous0$S size=32 vtable=0 itables=0
+  td $Closure$reference0$I @scoop_td_$Closure$reference0$I size=32 vtable=0 itables=0
+  td $Closure$reference0$S @scoop_td_$Closure$reference0$S size=32 vtable=0 itables=0
+  td $Closure$reference1$I @scoop_td_$Closure$reference1$I size=24 vtable=0 itables=0
+  td $Closure$reference1$S @scoop_td_$Closure$reference1$S size=24 vtable=0 itables=0
+  td $Closure$reference2$I @scoop_td_$Closure$reference2$I size=32 vtable=0 itables=0
+  td $Closure$reference2$S @scoop_td_$Closure$reference2$S size=32 vtable=0 itables=0
+  td $Closure$anonymous1$I @scoop_td_$Closure$anonymous1$I size=32 vtable=0 itables=0
+  td $Closure$anonymous1$S @scoop_td_$Closure$anonymous1$S size=32 vtable=0 itables=0
+  td $Closure$lambda2$I @scoop_td_$Closure$lambda2$I size=32 vtable=0 itables=0
+  td $Closure$lambda2$S @scoop_td_$Closure$lambda2$S size=32 vtable=0 itables=0
+  td $Closure$lambda1$I @scoop_td_$Closure$lambda1$I size=32 vtable=0 itables=0
+  td $Closure$lambda1$S @scoop_td_$Closure$lambda1$S size=32 vtable=0 itables=0
+  layout String size=24 align=8 refs=[]
+  layout Int size=8 align=8 refs=[]
+  layout Boolean size=1 align=1 refs=[]
+  layout GenericBox$I size=8 align=8 refs=[]
+  layout GenericBox$S size=8 align=8 refs=[0]
+  layout Option$S size=8 align=8 enum-refs=[[0], []]
+  layout Throwable size=16 align=8 refs=[]
+  layout Exception size=24 align=8 refs=[16]
+  layout UnwrapException size=24 align=8 refs=[16]
+  layout ClassCastException size=24 align=8 refs=[16]
+  layout ArithmeticException size=24 align=8 refs=[16]
+  layout IndexOutOfBoundsException size=24 align=8 refs=[16]
+  layout IllegalStateException size=24 align=8 refs=[16]
+  layout box$I size=24 align=8 refs=[]
+  layout $Closure$lambda0$I size=32 align=8 refs=[]
+  layout $Closure$lambda0$S size=32 align=8 refs=[24]
+  layout $Closure$anonymous0$I size=32 align=8 refs=[]
+  layout $Closure$anonymous0$S size=32 align=8 refs=[24]
+  layout $Closure$reference0$I size=32 align=8 refs=[]
+  layout $Closure$reference0$S size=32 align=8 refs=[24]
+  layout $Closure$reference1$I size=24 align=8 refs=[]
+  layout $Closure$reference1$S size=24 align=8 refs=[]
+  layout $Closure$reference2$I size=32 align=8 refs=[]
+  layout $Closure$reference2$S size=32 align=8 refs=[24]
+  layout $Closure$anonymous1$I size=32 align=8 refs=[]
+  layout $Closure$anonymous1$S size=32 align=8 refs=[24]
+  layout $Closure$lambda2$I size=32 align=8 refs=[]
+  layout $Closure$lambda2$S size=32 align=8 refs=[24]
+  layout $Closure$lambda1$I size=32 align=8 refs=[]
+  layout $Closure$lambda1$S size=32 align=8 refs=[24]
+  entry @scoop_main
+
+== run ==
+42
+lambda
+43
+anonymous
+44
+local
+48
+identity
+45
+extension
+46
+nested
+47
+box

@@ -1516,6 +1516,7 @@ impl Lowerer {
         let id = self.callable_references.alloc(hir::CallableReference {
             target: hir::CallableReferenceTarget::Named(callee),
             function_type,
+            owner_type_param_count: self.type_params_in_scope.len(),
             captures: Vec::new(),
             span,
         });
@@ -1628,6 +1629,7 @@ impl Lowerer {
         let id = self.callable_references.alloc(hir::CallableReference {
             target,
             function_type,
+            owner_type_param_count: self.type_params_in_scope.len(),
             captures: Vec::new(),
             span,
         });
@@ -1983,6 +1985,7 @@ impl Lowerer {
                 callee,
             },
             function_type,
+            owner_type_param_count: self.type_params_in_scope.len(),
             captures,
             span,
         });
@@ -2297,10 +2300,11 @@ impl Lowerer {
                 local: closure_local,
             });
             params.extend(abi_params);
+            let type_params = self.type_params_in_scope.clone();
             let function = self.functions.alloc(hir::Function {
                 name: self.current_fn_name.clone(),
                 is_suspend,
-                type_params: Vec::new(),
+                type_params: type_params.clone(),
                 params,
                 return_ty,
                 kind: hir::FunctionKind::User(hir::Body {
@@ -2310,10 +2314,14 @@ impl Lowerer {
                 method: None,
                 span,
             });
+            if !type_params.is_empty() {
+                self.register_generic(function);
+            }
             let captures = self.finish_current_captures();
             let id = self.lambdas.alloc(hir::Lambda {
                 function,
                 function_type,
+                owner_type_param_count: type_params.len(),
                 captures,
                 span,
             });
@@ -2520,10 +2528,11 @@ impl Lowerer {
                 local: closure_local,
             });
             abi_params.extend(params);
+            let type_params = self.type_params_in_scope.clone();
             let function = self.functions.alloc(hir::Function {
                 name: self.current_fn_name.clone(),
                 is_suspend,
-                type_params: Vec::new(),
+                type_params: type_params.clone(),
                 params: abi_params,
                 return_ty,
                 kind: hir::FunctionKind::User(hir::Body {
@@ -2533,10 +2542,14 @@ impl Lowerer {
                 method: None,
                 span,
             });
+            if !type_params.is_empty() {
+                self.register_generic(function);
+            }
             let captures = self.finish_current_captures();
             let id = self.anonymous_functions.alloc(hir::AnonymousFunction {
                 function,
                 function_type,
+                owner_type_param_count: type_params.len(),
                 captures,
                 span,
             });
