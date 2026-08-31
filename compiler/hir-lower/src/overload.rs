@@ -64,6 +64,11 @@ struct Candidate {
     parameterized: bool,
 }
 
+enum OverloadReceiver<'a> {
+    Ordinary(&'a [TypeId]),
+    Extension(hir::Expr),
+}
+
 impl Lowerer {
     /// Resolve a call over one candidate layer. `receiver_type_args`
     /// are the receiver's enum type arguments for method calls (empty
@@ -79,19 +84,71 @@ impl Lowerer {
         span: Span,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<ResolvedCallee> {
+        self.resolve_overload_with_receiver(
+            name,
+            candidates,
+            OverloadReceiver::Ordinary(receiver_type_args),
+            arg_exprs,
+            span,
+            sink,
+        )
+    }
+
+    /// Resolve an extension candidate layer. The already-lowered receiver is
+    /// the first inference argument and, for the selected extension, the first
+    /// direct-call argument. It is not part of the source argument count.
+    pub(crate) fn resolve_extension_overload(
+        &mut self,
+        name: &str,
+        candidates: &[FunctionId],
+        receiver: hir::Expr,
+        arg_exprs: &[ast::Expr],
+        span: Span,
+        sink: &mut Vec<hir::Statement>,
+    ) -> Option<ResolvedCallee> {
+        self.resolve_overload_with_receiver(
+            name,
+            candidates,
+            OverloadReceiver::Extension(receiver),
+            arg_exprs,
+            span,
+            sink,
+        )
+    }
+
+    fn resolve_overload_with_receiver(
+        &mut self,
+        name: &str,
+        candidates: &[FunctionId],
+        receiver: OverloadReceiver<'_>,
+        arg_exprs: &[ast::Expr],
+        span: Span,
+        sink: &mut Vec<hir::Statement>,
+    ) -> Option<ResolvedCallee> {
         // Context-independent arguments are shared by every candidate and
         // lowered once. `None`, empty arrays and context-dependent generic
         // constructors are postponed until inference provides a candidate
         // parameter type. Per-argument sinks preserve source evaluation
         // order even when later arguments are typed first.
-        let mut lowered: Vec<Option<hir::Expr>> = (0..arg_exprs.len()).map(|_| None).collect();
+        let (receiver_type_args, receiver) = match receiver {
+            OverloadReceiver::Ordinary(type_args) => (type_args, None),
+            OverloadReceiver::Extension(receiver) => (&[][..], Some(receiver)),
+        };
+        let receiver_offset = usize::from(receiver.is_some());
+        let mut lowered: Vec<Option<hir::Expr>> =
+            Vec::with_capacity(receiver_offset + arg_exprs.len());
+        if let Some(receiver) = receiver {
+            lowered.push(Some(receiver));
+        }
+        lowered.extend((0..arg_exprs.len()).map(|_| None));
         let mut arg_sinks: Vec<Vec<hir::Statement>> =
             (0..arg_exprs.len()).map(|_| Vec::new()).collect();
         for (index, arg) in arg_exprs.iter().enumerate() {
             if self.expr_requires_expected_type(arg) {
                 continue;
             }
-            lowered[index] = Some(self.lower_expr(arg, &mut arg_sinks[index], None)?);
+            lowered[receiver_offset + index] =
+                Some(self.lower_expr(arg, &mut arg_sinks[index], None)?);
         }
         let arg_tys: Vec<Option<TypeId>> = lowered
             .iter()
@@ -102,10 +159,17 @@ impl Lowerer {
             .iter()
             .map(|&function| {
                 let sig = self.signatures[&function].clone();
-                let parameterized = sig
-                    .params
-                    .iter()
-                    .any(|param| self.mentions_type_param(param.ty));
+                let mut params: Vec<_> = sig.params.iter().map(|param| param.ty).collect();
+                if receiver_offset != 0 {
+                    params.insert(
+                        0,
+                        *self
+                            .extension_receivers
+                            .get(&function)
+                            .expect("extension candidate has a receiver type"),
+                    );
+                }
+                let parameterized = params.iter().any(|&ty| self.mentions_type_param(ty));
                 debug_assert_eq!(sig.owner_type_param_count, receiver_type_args.len());
                 let mut initial_bindings = vec![None; sig.type_params.len()];
                 for (binding, &ty) in initial_bindings.iter_mut().zip(receiver_type_args) {
@@ -113,7 +177,7 @@ impl Lowerer {
                 }
                 Candidate {
                     function,
-                    params: sig.params.iter().map(|param| param.ty).collect(),
+                    params,
                     return_ty: sig.return_ty,
                     own_type_param_count: sig.type_params.len() - sig.owner_type_param_count,
                     initial_bindings,
@@ -125,35 +189,57 @@ impl Lowerer {
         // Applicability (step 1): each entry pairs a prepared-candidate
         // index with its inferred call-level type arguments.
         let mut applicable: Vec<(usize, Vec<TypeId>)> = Vec::new();
+        let mut contextual_failures: Vec<(usize, TypeId, String)> = Vec::new();
         for (index, candidate) in prepared.iter().enumerate() {
-            if candidate.params.len() != arg_exprs.len() {
+            if candidate.params.len() != receiver_offset + arg_exprs.len() {
                 continue;
             }
             let Some(type_args) = self.try_infer_type_args(candidate, &arg_tys) else {
                 continue;
             };
-            let matches = candidate.params.iter().zip(&arg_tys).zip(arg_exprs).all(
-                |((&param, arg), arg_expr)| {
-                    let expected = self.substitute_call_level(param, &type_args);
-                    match arg {
-                        Some(arg) => self.is_subtype(*arg, expected),
-                        None => self.contextual_expr_accepts(arg_expr, expected),
-                    }
-                },
-            );
-            if matches {
+            let ordinary_args_match = candidate.params.iter().zip(&arg_tys).all(|(&param, arg)| {
+                let expected = self.substitute_call_level(param, &type_args);
+                match arg {
+                    Some(arg) => self.is_subtype(*arg, expected),
+                    None => true,
+                }
+            });
+            if !ordinary_args_match {
+                continue;
+            }
+            let mut contextual_args_match = true;
+            for (argument, (&param, arg)) in candidate.params.iter().zip(&arg_tys).enumerate() {
+                if argument < receiver_offset {
+                    continue;
+                }
+                if arg.is_some() {
+                    continue;
+                }
+                let expected = self.substitute_call_level(param, &type_args);
+                let source_argument = argument - receiver_offset;
+                if let Err(reason) =
+                    self.probe_contextual_expr(&arg_exprs[source_argument], expected)
+                {
+                    contextual_failures.push((source_argument, expected, reason));
+                    contextual_args_match = false;
+                }
+            }
+            if contextual_args_match {
                 applicable.push((index, type_args));
             }
         }
 
         let (winner, type_args) = match applicable.len() {
             0 => {
+                if self.contextual_no_applicable_diagnostic(name, arg_exprs, &contextual_failures) {
+                    return None;
+                }
                 self.no_applicable_diagnostic(
                     name,
                     &prepared,
-                    &arg_tys,
+                    &arg_tys[receiver_offset..],
                     arg_exprs,
-                    arg_exprs.len(),
+                    (receiver_offset != 0).then(|| arg_tys[0]).flatten(),
                     span,
                 );
                 return None;
@@ -170,16 +256,21 @@ impl Lowerer {
             let arg = match lowered[index].take() {
                 Some(arg) => arg,
                 None => {
-                    self.lower_expr(&arg_exprs[index], &mut arg_sinks[index], Some(expected))?
+                    let source_index = index - receiver_offset;
+                    self.lower_expr(
+                        &arg_exprs[source_index],
+                        &mut arg_sinks[source_index],
+                        Some(expected),
+                    )?
                 }
             };
             if !self.is_subtype(arg.ty, expected) {
                 self.no_applicable_diagnostic(
                     name,
                     &prepared,
-                    &arg_tys,
+                    &arg_tys[receiver_offset..],
                     arg_exprs,
-                    arg_exprs.len(),
+                    (receiver_offset != 0).then(|| arg_tys[0]).flatten(),
                     span,
                 );
                 return None;
@@ -207,6 +298,33 @@ impl Lowerer {
             args,
             return_ty,
         })
+    }
+
+    fn contextual_no_applicable_diagnostic(
+        &mut self,
+        name: &str,
+        arg_exprs: &[ast::Expr],
+        failures: &[(usize, TypeId, String)],
+    ) -> bool {
+        let Some(argument) = failures.iter().map(|failure| failure.0).min() else {
+            return false;
+        };
+        let mut details = Vec::new();
+        for (_, expected, reason) in failures.iter().filter(|failure| failure.0 == argument) {
+            let detail = format!("{}: {reason}", self.type_name(*expected));
+            if !details.contains(&detail) {
+                details.push(detail);
+            }
+        }
+        self.error(
+            arg_exprs[argument].span(),
+            format!(
+                "{} does not match any overload of `{name}`; candidate expectations: {}",
+                contextual_expr_name(&arg_exprs[argument]),
+                details.join("; ")
+            ),
+        );
+        true
     }
 
     /// MSC selection (step 2) over two or more applicable candidates.
@@ -286,13 +404,15 @@ impl Lowerer {
         prepared: &[Candidate],
         arg_tys: &[Option<TypeId>],
         arg_exprs: &[ast::Expr],
-        supplied: usize,
+        extension_receiver: Option<TypeId>,
         span: Span,
     ) {
-        let uniform_arity = prepared[0].params.len();
+        let hidden_argument_count = usize::from(extension_receiver.is_some());
+        let supplied = arg_exprs.len();
+        let uniform_arity = prepared[0].params.len() - hidden_argument_count;
         if prepared
             .iter()
-            .all(|candidate| candidate.params.len() == uniform_arity)
+            .all(|candidate| candidate.params.len() - hidden_argument_count == uniform_arity)
             && uniform_arity != supplied
         {
             let noun = if uniform_arity == 1 {
@@ -316,13 +436,18 @@ impl Lowerer {
                 None => contextual_expr_name(expr),
             })
             .collect();
-        self.error(
-            span,
-            format!(
+        let message = match extension_receiver {
+            Some(receiver) => format!(
+                "no overload of extension `{name}` matches receiver type {} and argument types ({})",
+                self.type_name(receiver),
+                found.join(", ")
+            ),
+            None => format!(
                 "no overload of `{name}` matches argument types ({})",
                 found.join(", ")
             ),
-        );
+        };
+        self.error(span, message);
     }
 
     /// Substitute inferred call-level type arguments into a prepared
@@ -350,6 +475,14 @@ impl Lowerer {
             Type::Tuple(elements) => elements
                 .iter()
                 .any(|&element| self.mentions_type_param(element)),
+            Type::Function(id) => {
+                let function = &self.function_types[id];
+                function
+                    .parameter_types
+                    .iter()
+                    .any(|&parameter| self.mentions_type_param(parameter))
+                    || self.mentions_type_param(function.return_type)
+            }
             _ => false,
         }
     }
@@ -380,7 +513,7 @@ impl Lowerer {
 
     /// One binding step of `try_infer_type_args` (see
     /// `bind_type_args` for the rules this mirrors).
-    fn try_bind(
+    pub(crate) fn try_bind(
         &mut self,
         param_ty: TypeId,
         arg_ty: TypeId,
@@ -440,6 +573,18 @@ impl Lowerer {
                 .iter()
                 .zip(args)
                 .all(|(param, arg)| self.try_bind(*param, arg, bindings)),
+            (Type::Function(param_id), Type::Function(arg_id)) => {
+                let param = self.function_types[param_id].clone();
+                let arg = self.function_types[arg_id].clone();
+                param.is_suspend == arg.is_suspend
+                    && param.parameter_types.len() == arg.parameter_types.len()
+                    && param
+                        .parameter_types
+                        .iter()
+                        .zip(arg.parameter_types)
+                        .all(|(param, arg)| self.try_bind(*param, arg, bindings))
+                    && self.try_bind(param.return_type, arg.return_type, bindings)
+            }
             _ => true,
         }
     }
@@ -449,6 +594,9 @@ fn contextual_expr_name(expr: &ast::Expr) -> String {
     match expr {
         ast::Expr::Var(name) if name.text == "None" => "None".to_string(),
         ast::Expr::ArrayLiteral { elements, .. } if elements.is_empty() => "[]".to_string(),
+        ast::Expr::Lambda { .. } => "lambda".to_string(),
+        ast::Expr::AnonymousFunction { .. } => "anonymous function".to_string(),
+        ast::Expr::CallableReference { .. } => "callable reference".to_string(),
         _ => "context-dependent expression".to_string(),
     }
 }

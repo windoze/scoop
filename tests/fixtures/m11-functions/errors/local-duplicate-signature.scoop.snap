@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m11-functions/errors/local-duplicate-signature.scoop:3:9: error: local function `convert` is already declared with the same signature

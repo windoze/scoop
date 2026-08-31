@@ -546,11 +546,7 @@ impl Lowerer {
             );
             return None;
         }
-        let local = self.locals.alloc(hir::Local {
-            name: name.text.clone(),
-            ty,
-            mutable,
-        });
+        let local = self.alloc_local(name.text.clone(), ty, mutable);
         self.scopes.declare(name.text.clone(), local);
         Some(local)
     }

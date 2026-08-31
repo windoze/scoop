@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m11-functions/errors/reference-to-function-value.scoop:5:21: error: `::operation` cannot reference an existing function value; use `operation` directly

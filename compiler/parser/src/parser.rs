@@ -29,6 +29,9 @@ pub(crate) fn parse_file(source: &str) -> Result<SourceFile, Vec<Diagnostic>> {
         tokens,
         pos: 0,
         diagnostics: Vec::new(),
+        next_lambda_id: 0,
+        next_anonymous_function_id: 0,
+        next_callable_reference_id: 0,
     };
     let mut declarations = Vec::new();
     while !parser.at_eof() {
@@ -56,9 +59,30 @@ pub(crate) struct Parser {
     pub(crate) tokens: Vec<Token>,
     pub(crate) pos: usize,
     pub(crate) diagnostics: Vec<Diagnostic>,
+    pub(crate) next_lambda_id: u32,
+    pub(crate) next_anonymous_function_id: u32,
+    pub(crate) next_callable_reference_id: u32,
 }
 
 impl Parser {
+    pub(crate) fn alloc_lambda_id(&mut self) -> scoop_ast::LambdaId {
+        let id = scoop_ast::LambdaId(self.next_lambda_id);
+        self.next_lambda_id += 1;
+        id
+    }
+
+    pub(crate) fn alloc_anonymous_function_id(&mut self) -> scoop_ast::AnonymousFunctionId {
+        let id = scoop_ast::AnonymousFunctionId(self.next_anonymous_function_id);
+        self.next_anonymous_function_id += 1;
+        id
+    }
+
+    pub(crate) fn alloc_callable_reference_id(&mut self) -> scoop_ast::CallableReferenceId {
+        let id = scoop_ast::CallableReferenceId(self.next_callable_reference_id);
+        self.next_callable_reference_id += 1;
+        id
+    }
+
     pub(crate) fn peek(&self) -> &Token {
         &self.tokens[self.pos]
     }
@@ -177,8 +201,9 @@ impl Parser {
         }
     }
 
-    /// A type annotation: a named type, `Unit` (also written `()`), or a
-    /// tuple type `(T1, T2, ...)`, each with any number of `?` suffixes
+    /// A type annotation: a named type, `Unit` (also written `()`), a
+    /// tuple type `(T1, T2, ...)`, or a function type `(P...) -> R` /
+    /// `suspend (P...) -> R`, each with any number of `?` suffixes
     /// (`T?` is `Option<T>`, and `T??` does not collapse — spec 7.1).
     /// Parenthesized disambiguation mirrors expressions (spec section
     /// 4.3): `(T)` is just `T` in parentheses, `(T,)` a 1-tuple type.
@@ -197,10 +222,10 @@ impl Parser {
     fn parse_type_atom(&mut self) -> Result<TypeRef, Diagnostic> {
         let token = self.peek().clone();
         match token.kind {
-            TokenKind::Suspend => Err(Diagnostic::at(
-                token.span,
-                "suspend function types are not supported in M10",
-            )),
+            TokenKind::Suspend => {
+                self.pos += 1;
+                self.parse_paren_type(true, token.span.start)
+            }
             TokenKind::Ident(text) => {
                 self.pos += 1;
                 self.parse_named_type_ref_tail(Ident {
@@ -208,39 +233,69 @@ impl Parser {
                     span: token.span,
                 })
             }
-            TokenKind::LParen => {
-                self.pos += 1;
-                if matches!(self.peek().kind, TokenKind::RParen) {
-                    let close = self.bump();
-                    return Ok(TypeRef {
-                        kind: TypeRefKind::Unit,
-                        span: Span::new(token.span.start, close.span.end),
-                    });
-                }
-                let first = self.parse_type_ref()?;
-                if !matches!(self.peek().kind, TokenKind::Comma) {
-                    let close = self.expect("`)`", |k| matches!(k, TokenKind::RParen))?;
-                    return Ok(TypeRef {
-                        kind: first.kind,
-                        span: Span::new(token.span.start, close.span.end),
-                    });
-                }
-                let mut elements = vec![first];
-                while matches!(self.peek().kind, TokenKind::Comma) {
-                    self.bump();
-                    if matches!(self.peek().kind, TokenKind::RParen) {
-                        break;
-                    }
-                    elements.push(self.parse_type_ref()?);
-                }
-                let close = self.expect("`)`", |k| matches!(k, TokenKind::RParen))?;
-                Ok(TypeRef {
-                    kind: TypeRefKind::Tuple(elements),
-                    span: Span::new(token.span.start, close.span.end),
-                })
-            }
+            TokenKind::LParen => self.parse_paren_type(false, token.span.start),
             _ => self.unexpected("type"),
         }
+    }
+
+    /// Parse a parenthesized/tuple type or a function type parameter list.
+    /// `suspend` has already been consumed when `is_suspend` is true.
+    fn parse_paren_type(&mut self, is_suspend: bool, start: u32) -> Result<TypeRef, Diagnostic> {
+        self.expect("`(`", |k| matches!(k, TokenKind::LParen))?;
+        let mut elements = Vec::new();
+        let mut had_comma = false;
+        if !matches!(self.peek().kind, TokenKind::RParen) {
+            elements.push(self.parse_type_ref()?);
+            while matches!(self.peek().kind, TokenKind::Comma) {
+                had_comma = true;
+                self.bump();
+                if matches!(self.peek().kind, TokenKind::RParen) {
+                    break;
+                }
+                elements.push(self.parse_type_ref()?);
+            }
+        }
+        let close = self.expect("`)`", |k| matches!(k, TokenKind::RParen))?;
+
+        if matches!(self.peek().kind, TokenKind::Arrow) {
+            self.bump();
+            let return_type = self.parse_type_ref()?;
+            return Ok(TypeRef {
+                span: Span::new(start, return_type.span.end),
+                kind: TypeRefKind::Function(scoop_ast::FunctionTypeRef {
+                    is_suspend,
+                    parameters: elements,
+                    return_type: Box::new(return_type),
+                }),
+            });
+        }
+
+        if is_suspend {
+            return Err(Diagnostic::at(
+                self.peek().span,
+                format!(
+                    "expected `->` in suspend function type, found {}",
+                    self.peek().describe()
+                ),
+            ));
+        }
+        if elements.is_empty() {
+            return Ok(TypeRef {
+                kind: TypeRefKind::Unit,
+                span: Span::new(start, close.span.end),
+            });
+        }
+        if elements.len() == 1 && !had_comma {
+            let first = elements.pop().expect("one parenthesized type");
+            return Ok(TypeRef {
+                kind: first.kind,
+                span: Span::new(start, close.span.end),
+            });
+        }
+        Ok(TypeRef {
+            kind: TypeRefKind::Tuple(elements),
+            span: Span::new(start, close.span.end),
+        })
     }
 
     /// Complete a named type after its identifier was consumed. Supertype
@@ -274,6 +329,12 @@ impl Parser {
 
     pub(crate) fn parse_block(&mut self) -> Result<Block, Diagnostic> {
         let open = self.expect("`{`", |k| matches!(k, TokenKind::LBrace))?;
+        self.parse_block_after_open(open)
+    }
+
+    /// Parse block items after the opening brace has already been consumed.
+    /// Lambda parsing uses this after its optional parameter header.
+    pub(crate) fn parse_block_after_open(&mut self, open: Token) -> Result<Block, Diagnostic> {
         let body_depth = self.brace_depth();
         let mut statements = Vec::new();
         loop {
@@ -327,6 +388,37 @@ impl Parser {
 
     fn parse_statement(&mut self) -> Result<Statement, Diagnostic> {
         match &self.peek().kind {
+            TokenKind::Fun if !matches!(self.tokens[self.pos + 1].kind, TokenKind::LParen) => {
+                let function = self.parse_function(
+                    Vec::new(),
+                    crate::decl::Modifiers::default(),
+                    crate::decl::FunctionContext::Local,
+                )?;
+                Ok(Statement {
+                    span: function.span,
+                    kind: StatementKind::LocalFunction(function),
+                })
+            }
+            TokenKind::Suspend
+                if matches!(self.tokens[self.pos + 1].kind, TokenKind::Fun)
+                    && !matches!(self.tokens[self.pos + 2].kind, TokenKind::LParen) =>
+            {
+                let suspend = self.bump();
+                let function = self.parse_function(
+                    Vec::new(),
+                    crate::decl::Modifiers {
+                        is_suspend: true,
+                        suspend_span: Some(suspend.span),
+                        start: Some(suspend.span.start),
+                        ..crate::decl::Modifiers::default()
+                    },
+                    crate::decl::FunctionContext::Local,
+                )?;
+                Ok(Statement {
+                    span: function.span,
+                    kind: StatementKind::LocalFunction(function),
+                })
+            }
             TokenKind::Val | TokenKind::Var => self.parse_val_decl(),
             TokenKind::If => self.parse_if(),
             TokenKind::When => self.parse_when(),

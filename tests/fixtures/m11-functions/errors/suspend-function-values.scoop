@@ -1,0 +1,9 @@
+suspend fun waitForValue(): Int = 42
+
+fun main() {
+    val ordinary: () -> Int = suspend { 1 }
+    val suspended: suspend () -> Int = { 2 }
+    val task: suspend () -> Int = ::waitForValue
+    task()
+    val nested: () -> Int = { waitForValue() }
+}

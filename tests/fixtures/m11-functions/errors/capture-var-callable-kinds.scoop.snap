@@ -1,0 +1,8 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m11-functions/errors/capture-var-callable-kinds.scoop:3:41: error: cannot capture mutable local `value`; bind its current value to a `val` snapshot or capture explicit reference state
+m11-functions/errors/capture-var-callable-kinds.scoop:9:9: error: cannot capture mutable local `value`; bind its current value to a `val` snapshot or capture explicit reference state
+m11-functions/errors/capture-var-callable-kinds.scoop:15:23: error: cannot capture mutable local `value`; bind its current value to a `val` snapshot or capture explicit reference state

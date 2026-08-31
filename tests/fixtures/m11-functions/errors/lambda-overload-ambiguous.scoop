@@ -1,0 +1,6 @@
+fun select(operation: (Int) -> String): String = operation(1)
+fun select(operation: (String) -> String): String = operation("x")
+
+fun main() {
+    println(select({ "ambiguous" }))
+}

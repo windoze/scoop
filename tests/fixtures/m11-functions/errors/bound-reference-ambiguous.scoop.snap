@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m11-functions/errors/bound-reference-ambiguous.scoop:7:21: error: bound callable reference `receiver::choose` is ambiguous; provide an expected function type

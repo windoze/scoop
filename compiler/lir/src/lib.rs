@@ -331,6 +331,9 @@ pub enum Instruction {
         offset: u64,
         value: Value,
     },
+    /// Materialize the address of a module function as an opaque code
+    /// pointer. It is metadata, not a managed reference.
+    FunctionAddress { out: TempId, symbol: String },
     /// Direct call. `out` is `None` exactly when the callee returns
     /// void; runtime functions with results produce a Temp of the
     /// result type.
@@ -719,6 +722,11 @@ fn dump_instruction(function: &Function, instruction: &Instruction, buf: &mut St
             value_name(*object),
             offset,
             value_name(*value)
+        )),
+        Instruction::FunctionAddress { out, symbol } => buf.push_str(&format!(
+            "    t{} = function_address @{} : ptr\n",
+            out.into_raw(),
+            symbol
         )),
         Instruction::Store { local, value } => buf.push_str(&format!(
             "    store {} -> local{}\n",

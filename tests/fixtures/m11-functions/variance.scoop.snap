@@ -1,0 +1,2198 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== ast ==
+SourceFile
+  interface Continuation<in T>
+    fun resume
+    fun resumeWithException
+  interface SuspendTask<out T>
+    suspend fun run
+  interface SuspendRegistration<out T>
+    fun register
+  struct FunctionSuspendTask<T> : SuspendTask<T>
+    field task: suspend () -> T
+    suspend fun run
+  struct FunctionSuspendRegistration<T> : SuspendRegistration<T>
+    field registration: (Continuation<T>) -> Unit
+    fun register
+    @Intrinsic("coroutine_start")
+  fun startCoroutine<T>(task: SuspendTask<T>, completion: Continuation<T>)
+    @Intrinsic("coroutine_suspend")
+  suspend fun suspendCoroutine<T>(registration: SuspendRegistration<T>): T
+  fun startCoroutine<T>(task: suspend () -> T, completion: Continuation<T>)
+    Call startCoroutine
+      Call FunctionSuspendTask
+        Var task
+      Var completion
+  suspend fun suspendCoroutine<T>(registration: (Continuation<T>) -> Unit): T
+    =
+      Call suspendCoroutine
+        Call FunctionSuspendRegistration
+          Var registration
+SourceFile
+  struct PinHandle<T>
+    field raw: UInt
+  struct GcHandle<T>
+    field raw: UInt
+    @Intrinsic("rt_pin")
+  fun pin<T>(v: T): PinHandle<T>
+    @Intrinsic("rt_unpin")
+  fun unpin<T>(h: PinHandle<T>): T
+    @Intrinsic("rt_get_handle")
+  fun getGcHandle<T>(v: T): GcHandle<T>
+    @Intrinsic("rt_release_handle")
+  fun releaseGcHandle<T>(h: GcHandle<T>): T
+    @Intrinsic("rt_gc_collect")
+  fun gcCollect()
+    @Intrinsic("rt_gc_stats")
+  fun gcStats(): UInt
+SourceFile
+    @Intrinsic("rt_write")
+  fun write(message: String)
+  fun print(message: Any)
+    =
+      Call write
+        MethodCall toString
+          Var message
+  fun println(message: Any)
+    Call write
+      MethodCall toString
+        Var message
+    Call write
+      StringLiteral "\n"
+SourceFile
+  enum Option<T>
+    Some(T)
+    None
+SourceFile
+  open class Throwable()
+  open class Exception(val message: String?) : Throwable(<0 args>)
+  class UnwrapException() : Exception(<1 args>)
+  class ClassCastException() : Exception(<1 args>)
+  class ArithmeticException() : Exception(<1 args>)
+  class IndexOutOfBoundsException() : Exception(<1 args>)
+  class IllegalStateException() : Exception(<1 args>)
+SourceFile
+  open class Animal()
+  class Dog() : Animal(<0 args>)
+  interface Describable
+    fun describe
+  struct Label : Describable
+    field text: String
+    fun describe
+  fun acceptAny(value: Any): Int
+    =
+      IntLiteral 42
+  fun acceptAnyString(value: Any): String
+    =
+      StringLiteral "generic"
+  fun acceptAnyLabel(value: Any): Label
+    =
+      Call Label
+        StringLiteral "value"
+  fun acceptAnimal(value: Animal): Dog
+    =
+      Call Dog
+  fun failAny(value: Any): Int
+    throw
+      Call ArithmeticException
+  fun widen<T>(op: (Any) -> T): (T) -> Any
+    =
+      Var op
+  fun returnNested(op: (Int) -> Any): (Any) -> Int
+    =
+      CallableReference 0 acceptAny
+  fun main()
+    val exactValue: (Any) -> Int
+      CallableReference 1 acceptAny
+    val widenedValue: (Int) -> Any
+      Var exactValue
+    val exactReference: (Animal) -> Dog
+      CallableReference 2 acceptAnimal
+    val widenedReference: (Dog) -> Animal
+      Var exactReference
+    val failing: (Any) -> Int
+      CallableReference 3 failAny
+    val widenedFailing: (Int) -> Any
+      Var failing
+    val genericInt
+      Call widen
+        Var exactValue
+    val genericString
+      Call widen
+        CallableReference 4 acceptAnyString
+    val boxedExact: (Any) -> Label
+      CallableReference 5 acceptAnyLabel
+    val boxedReturn: (Int) -> Describable
+      Var boxedExact
+    val nestedExact: ((Int) -> Any) -> (Any) -> Int
+      CallableReference 6 returnNested
+    val nestedWidened: ((Any) -> Int) -> (Int) -> Any
+      Var nestedExact
+    val nestedResult
+      Call nestedWidened
+        Var exactValue
+    val erased: Any
+      Var exactValue
+    val checked
+      Cast (Int) -> Any optional=false
+        Var erased
+    val exactChecked
+      Cast (Any) -> Int optional=false
+        Var erased
+    val optionalChecked
+      NullAssert
+        Cast (Int) -> Any optional=true
+          Var erased
+    val missing
+      Cast (Any) -> String optional=true
+        Var erased
+    val nestedErased: Any
+      Var nestedExact
+    val nestedChecked
+      Cast ((Any) -> Int) -> (Int) -> Any optional=false
+        Var nestedErased
+    val nestedDynamicResult
+      Call nestedChecked
+        Var exactValue
+    val boxedErased: Any
+      Var boxedExact
+    val boxedChecked
+      Cast (Int) -> Describable optional=false
+        Var boxedErased
+    Call gcCollect
+    Call println
+      Call widenedValue
+        IntLiteral 0
+    Call println
+      Is Dog false
+        Call widenedReference
+          Call Dog
+    Call println
+      Call genericInt
+        IntLiteral 0
+    Call println
+      Call genericString
+        StringLiteral "ignored"
+    Call println
+      MethodCall describe
+        Call boxedReturn
+          IntLiteral 0
+    Call println
+      Call nestedResult
+        IntLiteral 0
+    Call println
+      Is (Int) -> Any false
+        Var erased
+    Call println
+      Is (Any) -> String false
+        Var erased
+    Call println
+      Call checked
+        IntLiteral 0
+    Call println
+      Call exactChecked
+        StringLiteral "ignored"
+    Call println
+      Call optionalChecked
+        IntLiteral 0
+    Call println
+      Binary Eq
+        Var missing
+        Var None
+    Call println
+      Call nestedDynamicResult
+        IntLiteral 0
+    Call println
+      MethodCall describe
+        Call boxedChecked
+          IntLiteral 0
+    if
+      Is (Int) -> Any false
+        Var erased
+      Call println
+        Call erased
+          IntLiteral 0
+    try
+      Call println
+        Call widenedFailing
+          IntLiteral 0
+    catch exception: ArithmeticException
+      Call println
+        StringLiteral "caught"
+
+== hir ==
+Module
+  struct FunctionSuspendTask<T> : SuspendTask<T0>
+    field task: suspend () -> T0
+  struct FunctionSuspendRegistration<T> : SuspendRegistration<T0>
+    field registration: (Continuation<T0>) -> Unit
+  struct PinHandle<T>
+    field raw: UInt
+  struct GcHandle<T>
+    field raw: UInt
+  struct Label : Describable
+    field text: String
+  enum Option<T>
+    Some(_1: T0)
+    None()
+  open class Throwable()
+  open class Exception(message: Option<String>)
+  class UnwrapException()
+  class ClassCastException()
+  class ArithmeticException()
+  class IndexOutOfBoundsException()
+  class IllegalStateException()
+  open class Animal()
+  class Dog()
+  interface Continuation<in T>
+    fun resume(value: T0): Unit
+    fun resumeWithException(exception: Throwable): Unit
+  interface SuspendTask<out T>
+    suspend fun run(): T0
+  interface SuspendRegistration<out T>
+    fun register(continuation: Continuation<T0>): Unit
+  interface Describable
+    fun describe(): String
+  fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
+  suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
+  fun startCoroutine<T>(task: suspend () -> T0, completion: Continuation<T0>): Unit
+    Call startCoroutine<T0> : Unit
+      Box : SuspendTask<T0>
+        StructInit FunctionSuspendTask : FunctionSuspendTask<T0>
+          Local task : suspend () -> T0
+      Local completion : Continuation<T0>
+  suspend fun suspendCoroutine<T>(registration: (Continuation<T0>) -> Unit): T0
+    return
+      Call suspendCoroutine<T0> : T0
+        Box : SuspendRegistration<T0>
+          StructInit FunctionSuspendRegistration : FunctionSuspendRegistration<T0>
+            Local registration : (Continuation<T0>) -> Unit
+  fun pin<T>(): PinHandle<T0> <intrinsic rt_pin>
+  fun unpin<T>(): T0 <intrinsic rt_unpin>
+  fun getGcHandle<T>(): GcHandle<T0> <intrinsic rt_get_handle>
+  fun releaseGcHandle<T>(): T0 <intrinsic rt_release_handle>
+  fun gcCollect(): Unit <intrinsic rt_gc_collect>
+  fun gcStats(): UInt <intrinsic rt_gc_stats>
+  fun write(): Unit <intrinsic rt_write>
+  fun print(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    return
+  fun println(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    Call write : Unit
+      StringLiteral "\n" : String
+  fun acceptAny(value: Any): Int
+    return
+      IntLiteral 42 : Int
+  fun acceptAnyString(value: Any): String
+    return
+      StringLiteral "generic" : String
+  fun acceptAnyLabel(value: Any): Label
+    return
+      StructInit Label : Label
+        StringLiteral "value" : String
+  fun acceptAnimal(value: Animal): Dog
+    return
+      ClassInit Dog : Dog
+  fun failAny(value: Any): Int
+    throw
+      ClassInit ArithmeticException : ArithmeticException
+  fun widen<T>(op: (Any) -> T0): (T0) -> Any
+    return
+      FunctionCoercion coercion0 (Any) -> T0 -> (T0) -> Any : (T0) -> Any
+        Local op : (Any) -> T0
+  fun returnNested(op: (Int) -> Any): (Any) -> Int
+    return
+      CallableReference reference0 target=acceptAny captures=0 : (Any) -> Int
+  fun main(): Unit
+    val local0
+      CallableReference reference1 target=acceptAny captures=0 : (Any) -> Int
+    val local1
+      FunctionCoercion coercion1 (Any) -> Int -> (Int) -> Any : (Int) -> Any
+        Local exactValue : (Any) -> Int
+    val local2
+      CallableReference reference2 target=acceptAnimal captures=0 : (Animal) -> Dog
+    val local3
+      FunctionCoercion coercion2 (Animal) -> Dog -> (Dog) -> Animal : (Dog) -> Animal
+        Local exactReference : (Animal) -> Dog
+    val local4
+      CallableReference reference3 target=failAny captures=0 : (Any) -> Int
+    val local5
+      FunctionCoercion coercion1 (Any) -> Int -> (Int) -> Any : (Int) -> Any
+        Local failing : (Any) -> Int
+    val local6
+      Call widen<Int> : (Int) -> Any
+        Local exactValue : (Any) -> Int
+    val local7
+      Call widen<String> : (String) -> Any
+        CallableReference reference4 target=acceptAnyString captures=0 : (Any) -> String
+    val local8
+      CallableReference reference5 target=acceptAnyLabel captures=0 : (Any) -> Label
+    val local9
+      FunctionCoercion coercion3 (Any) -> Label -> (Int) -> Describable : (Int) -> Describable
+        Local boxedExact : (Any) -> Label
+    val local10
+      CallableReference reference6 target=returnNested captures=0 : ((Int) -> Any) -> (Any) -> Int
+    val local11
+      FunctionCoercion coercion4 ((Int) -> Any) -> (Any) -> Int -> ((Any) -> Int) -> (Int) -> Any : ((Any) -> Int) -> (Int) -> Any
+        Local nestedExact : ((Int) -> Any) -> (Any) -> Int
+    val local12
+      CallableCall function_type13 : (Int) -> Any
+        Local nestedWidened : ((Any) -> Int) -> (Int) -> Any
+        Local exactValue : (Any) -> Int
+    val local13
+      Local exactValue : Any
+    val local14
+      Cast optional=false : (Int) -> Any
+        Local erased : Any
+    val local15
+      Cast optional=false : (Any) -> Int
+        Local erased : Any
+    val local16
+      Unwrap trap=true : (Int) -> Any
+        Cast optional=true : Option<(Int) -> Any>
+          Local erased : Any
+    val local17
+      Cast optional=true : Option<(Any) -> String>
+        Local erased : Any
+    val local18
+      Local nestedExact : Any
+    val local19
+      Cast optional=false : ((Any) -> Int) -> (Int) -> Any
+        Local nestedErased : Any
+    val local20
+      CallableCall function_type13 : (Int) -> Any
+        Local nestedChecked : ((Any) -> Int) -> (Int) -> Any
+        Local exactValue : (Any) -> Int
+    val local21
+      Local boxedExact : Any
+    val local22
+      Cast optional=false : (Int) -> Describable
+        Local boxedErased : Any
+    Call gcCollect : Unit
+    Call println : Unit
+      CallableCall function_type4 : Any
+        Local widenedValue : (Int) -> Any
+        IntLiteral 0 : Int
+    Call println : Unit
+      Box : Any
+        IsInstance Dog : Boolean
+          CallableCall function_type7 : Animal
+            Local widenedReference : (Dog) -> Animal
+            ClassInit Dog : Dog
+    Call println : Unit
+      CallableCall function_type4 : Any
+        Local genericInt : (Int) -> Any
+        IntLiteral 0 : Int
+    Call println : Unit
+      CallableCall function_type9 : Any
+        Local genericString : (String) -> Any
+        StringLiteral "ignored" : String
+    Call println : Unit
+      MethodCall Describable.describe : Any
+        CallableCall function_type11 : Describable
+          Local boxedReturn : (Int) -> Describable
+          IntLiteral 0 : Int
+    Call println : Unit
+      CallableCall function_type4 : Any
+        Local nestedResult : (Int) -> Any
+        IntLiteral 0 : Int
+    Call println : Unit
+      Box : Any
+        IsInstance (Int) -> Any : Boolean
+          Local erased : Any
+    Call println : Unit
+      Box : Any
+        IsInstance (Any) -> String : Boolean
+          Local erased : Any
+    Call println : Unit
+      CallableCall function_type4 : Any
+        Local checked : (Int) -> Any
+        IntLiteral 0 : Int
+    Call println : Unit
+      Box : Any
+        CallableCall function_type5 : Int
+          Local exactChecked : (Any) -> Int
+          StringLiteral "ignored" : Any
+    Call println : Unit
+      CallableCall function_type4 : Any
+        Local optionalChecked : (Int) -> Any
+        IntLiteral 0 : Int
+    Call println : Unit
+      Box : Any
+        Binary Eq : Boolean
+          Local missing : Option<(Any) -> String>
+          VariantConstruct Option.None<(Any) -> String> : Option<(Any) -> String>
+    Call println : Unit
+      CallableCall function_type4 : Any
+        Local nestedDynamicResult : (Int) -> Any
+        IntLiteral 0 : Int
+    Call println : Unit
+      MethodCall Describable.describe : Any
+        CallableCall function_type11 : Describable
+          Local boxedChecked : (Int) -> Describable
+          IntLiteral 0 : Int
+    if
+      IsInstance (Int) -> Any : Boolean
+        Local erased : Any
+      Call println : Unit
+        CallableCall function_type4 : Any
+          Local erased : (Int) -> Any
+          IntLiteral 0 : Int
+    try
+      Call println : Unit
+        CallableCall function_type4 : Any
+          Local widenedFailing : (Int) -> Any
+          IntLiteral 0 : Int
+    catch exception: ArithmeticException
+      Call println : Unit
+        StringLiteral "caught" : Any
+  entry main
+  instance startCoroutine<T0>
+  instance suspendCoroutine<T0>
+  instance widen<Int>
+  instance widen<String>
+
+== mir ==
+Module
+  struct Label (text: String)
+  enum Option$S
+    Some(_1: String)
+    None()
+  enum Option$FAnyRSX
+    Some(_1: (Any) -> String)
+    None()
+  enum Option$FIRAnyX
+    Some(_1: (Int) -> Any)
+    None()
+  class Throwable vtable=3 itables=0
+  class Exception vtable=3 itables=0
+  class UnwrapException vtable=3 itables=0
+  class ClassCastException vtable=3 itables=0
+  class ArithmeticException vtable=3 itables=0
+  class IndexOutOfBoundsException vtable=3 itables=0
+  class IllegalStateException vtable=3 itables=0
+  class Animal vtable=3 itables=0
+  class Dog vtable=3 itables=0
+  class box$I vtable=3 itables=0
+  class box$Label vtable=3 itables=1
+  class box$B vtable=3 itables=0
+  interface Describable
+  closure cc0 $Closure$reference0 type=function_type0 invoke=@scoop.$reference.0 captures=0
+    bridge function_type4 -> @scoop.function_bridge.$Closure$reference0.FIRAnyX
+    bridge function_type0 -> @scoop.$reference.0
+  closure cc1 $Closure$reference1 type=function_type0 invoke=@scoop.$reference.1 captures=0
+    bridge function_type4 -> @scoop.function_bridge.$Closure$reference1.FIRAnyX
+    bridge function_type0 -> @scoop.$reference.1
+  closure cc2 $Closure$reference2 type=function_type1 invoke=@scoop.$reference.2 captures=0
+  closure cc3 $Closure$reference3 type=function_type0 invoke=@scoop.$reference.3 captures=0
+    bridge function_type4 -> @scoop.function_bridge.$Closure$reference3.FIRAnyX
+    bridge function_type0 -> @scoop.$reference.3
+  closure cc4 $Closure$reference4 type=function_type2 invoke=@scoop.$reference.4 captures=0
+    bridge function_type4 -> @scoop.function_bridge.$Closure$reference4.FIRAnyX
+    bridge function_type2 -> @scoop.$reference.4
+  closure cc5 $Closure$reference5 type=function_type3 invoke=@scoop.$reference.5 captures=0
+    bridge function_type4 -> @scoop.function_bridge.$Closure$reference5.FIRAnyX
+    bridge function_type8 -> @scoop.function_bridge.$Closure$reference5.FIRDescribableX
+  closure cc6 $Closure$reference6 type=function_type5 invoke=@scoop.$reference.6 captures=0
+    bridge function_type9 -> @scoop.function_bridge.$Closure$reference6.FFAnyRIXRFIRAnyXX
+  closure cc7 $Closure$adapter$FAnyRIX$FIRAnyX type=function_type4 invoke=@scoop.$adapter.FAnyRIX.FIRAnyX captures=1
+    bridge function_type4 -> @scoop.$adapter.FAnyRIX.FIRAnyX
+  closure cc8 $Closure$adapter$FAnimalRDogX$FDogRAnimalX type=function_type6 invoke=@scoop.$adapter.FAnimalRDogX.FDogRAnimalX captures=1
+  closure cc9 $Closure$adapter$FAnyRLabelX$FIRDescribableX type=function_type8 invoke=@scoop.$adapter.FAnyRLabelX.FIRDescribableX captures=1
+    bridge function_type4 -> @scoop.function_bridge.$Closure$adapter$FAnyRLabelX$FIRDescribableX.FIRAnyX
+    bridge function_type8 -> @scoop.$adapter.FAnyRLabelX.FIRDescribableX
+  closure cc10 $Closure$adapter$FFIRAnyXRFAnyRIXX$FFAnyRIXRFIRAnyXX type=function_type9 invoke=@scoop.$adapter.FFIRAnyXRFAnyRIXX.FFAnyRIXRFIRAnyXX captures=1
+    bridge function_type9 -> @scoop.$adapter.FFIRAnyXRFAnyRIXX.FFAnyRIXRFIRAnyXX
+  closure cc11 $Closure$dynamic_adapter$FIRAnyX type=function_type4 invoke=@scoop.$dynamic_adapter.FIRAnyX captures=1
+    bridge function_type4 -> @scoop.$dynamic_adapter.FIRAnyX
+  closure cc12 $Closure$dynamic_adapter$FAnyRIX type=function_type0 invoke=@scoop.$dynamic_adapter.FAnyRIX captures=1
+    bridge function_type4 -> @scoop.function_bridge.$Closure$dynamic_adapter$FAnyRIX.FIRAnyX
+    bridge function_type0 -> @scoop.$dynamic_adapter.FAnyRIX
+  closure cc13 $Closure$dynamic_adapter$FAnyRSX type=function_type2 invoke=@scoop.$dynamic_adapter.FAnyRSX captures=1
+    bridge function_type4 -> @scoop.function_bridge.$Closure$dynamic_adapter$FAnyRSX.FIRAnyX
+    bridge function_type2 -> @scoop.$dynamic_adapter.FAnyRSX
+  closure cc14 $Closure$dynamic_adapter$FFAnyRIXRFIRAnyXX type=function_type9 invoke=@scoop.$dynamic_adapter.FFAnyRIXRFIRAnyXX captures=1
+    bridge function_type9 -> @scoop.$dynamic_adapter.FFAnyRIXRFIRAnyXX
+  closure cc15 $Closure$dynamic_adapter$FIRDescribableX type=function_type8 invoke=@scoop.$dynamic_adapter.FIRDescribableX captures=1
+    bridge function_type4 -> @scoop.function_bridge.$Closure$dynamic_adapter$FIRDescribableX.FIRAnyX
+    bridge function_type8 -> @scoop.$dynamic_adapter.FIRDescribableX
+  closure cc16 $Closure$adapter$FAnyRSX$FSRAnyX type=function_type7 invoke=@scoop.$adapter.FAnyRSX.FSRAnyX captures=1
+  adapter ca0 class=cc7 source=function_type0 target=function_type4
+  adapter ca1 class=cc8 source=function_type1 target=function_type6
+  adapter ca2 class=cc9 source=function_type3 target=function_type8
+  adapter ca3 class=cc10 source=function_type5 target=function_type9
+  adapter ca4 class=cc16 source=function_type2 target=function_type7
+  dynamic_adapter da0 class=cc11 target=function_type4
+  dynamic_adapter da1 class=cc12 target=function_type0
+  dynamic_adapter da2 class=cc13 target=function_type2
+  dynamic_adapter da3 class=cc14 target=function_type9
+  dynamic_adapter da4 class=cc15 target=function_type8
+  fun print @scoop.print(message: Any) -> Unit
+    bb0 entry
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call @scoop_rt_print direct
+        Local $call.1
+      return
+  fun println @scoop.println(message: Any) -> Unit
+    bb0 entry
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call @scoop_rt_print direct
+        Local $call.1
+      call @scoop_rt_print direct
+        StringConst @scoop.str.0
+      return
+  fun acceptAny @scoop.acceptAny(value: Any) -> Int
+    bb0 entry
+      return
+        IntLiteral 42
+  fun acceptAnyString @scoop.acceptAnyString(value: Any) -> String
+    bb0 entry
+      return
+        StringConst @scoop.str.1
+  fun acceptAnyLabel @scoop.acceptAnyLabel(value: Any) -> Label
+    bb0 entry
+      return
+        StructInit Label
+          StringConst @scoop.str.2
+  fun acceptAnimal @scoop.acceptAnimal(value: Animal) -> Dog
+    bb0 entry
+      call $call.1: Dog = @scoop.ctor.Dog direct
+      return
+        Local $call.1
+  fun failAny @scoop.failAny(value: Any) -> Int
+    bb0 entry
+      call $call.1: ArithmeticException = @scoop.ctor.ArithmeticException direct
+      throw
+        Local $call.1
+  fun returnNested @scoop.returnNested(op: (Int) -> Any) -> (Any) -> Int
+    bb0 entry
+      return
+        ClosureAlloc cc0 $Closure$reference0
+  fun main @scoop_main() -> Unit
+    bb0 entry
+      val exactValue: (Any) -> Int
+        ClosureAlloc cc1 $Closure$reference1
+      val widenedValue: (Int) -> Any
+        ClosureAlloc cc7 $Closure$adapter$FAnyRIX$FIRAnyX
+          Local exactValue
+      val exactReference: (Animal) -> Dog
+        ClosureAlloc cc2 $Closure$reference2
+      val widenedReference: (Dog) -> Animal
+        ClosureAlloc cc8 $Closure$adapter$FAnimalRDogX$FDogRAnimalX
+          Local exactReference
+      val failing: (Any) -> Int
+        ClosureAlloc cc3 $Closure$reference3
+      val widenedFailing: (Int) -> Any
+        ClosureAlloc cc7 $Closure$adapter$FAnyRIX$FIRAnyX
+          Local failing
+      call genericInt: (Int) -> Any = @scoop.widen$I direct
+        Local exactValue
+      call genericString: (String) -> Any = @scoop.widen$S direct
+        ClosureAlloc cc4 $Closure$reference4
+      val boxedExact: (Any) -> Label
+        ClosureAlloc cc5 $Closure$reference5
+      val boxedReturn: (Int) -> Describable
+        ClosureAlloc cc9 $Closure$adapter$FAnyRLabelX$FIRDescribableX
+          Local boxedExact
+      val nestedExact: ((Int) -> Any) -> (Any) -> Int
+        ClosureAlloc cc6 $Closure$reference6
+      val nestedWidened: ((Any) -> Int) -> (Int) -> Any
+        ClosureAlloc cc10 $Closure$adapter$FFIRAnyXRFAnyRIXX$FFAnyRIXRFIRAnyXX
+          Local nestedExact
+      call nestedResult: (Int) -> Any = <closure:function_type9> closure[function_type9]
+        Local nestedWidened
+        Local exactValue
+      val erased: Any
+        Retype Any
+          Local exactValue
+      val $cast.1: Any
+        Local erased
+      branch bb1 bb2
+        Unary BoolNot
+          IsInstance (Int) -> Any
+            Local $cast.1
+    bb1 if.then.1
+      call $call.1: ClassCastException = @scoop.ctor.ClassCastException direct
+      throw
+        Local $call.1
+    bb2 if.merge.2
+      val checked: (Int) -> Any
+        ClosureAlloc cc11 $Closure$dynamic_adapter$FIRAnyX
+          Local $cast.1
+      val $cast.2: Any
+        Local erased
+      branch bb3 bb4
+        Unary BoolNot
+          IsInstance (Any) -> Int
+            Local $cast.2
+    bb3 if.then.3
+      call $call.2: ClassCastException = @scoop.ctor.ClassCastException direct
+      throw
+        Local $call.2
+    bb4 if.merge.4
+      val exactChecked: (Any) -> Int
+        ClosureAlloc cc12 $Closure$dynamic_adapter$FAnyRIX
+          Local $cast.2
+      val $cast.3: Any
+        Local erased
+      branch bb5 bb6
+        IsInstance (Int) -> Any
+          Local $cast.3
+    bb5 if.then.5
+      assign $cast.4
+        VariantConstruct Option$FIRAnyX<(Int) -> Any> v0
+          ClosureAlloc cc11 $Closure$dynamic_adapter$FIRAnyX
+            Local $cast.3
+      goto bb7
+    bb6 if.else.6
+      assign $cast.4
+        VariantConstruct Option$FIRAnyX<(Int) -> Any> v1
+      goto bb7
+    bb7 if.merge.7
+      val $opt.5: Option$FIRAnyX<(Int) -> Any>
+        Local $cast.4
+      branch bb8 bb9
+        Binary IntEq
+          EnumTag
+            Local $opt.5
+          IntLiteral 0
+    bb8 if.then.8
+      val $uw.6: (Int) -> Any
+        EnumField v0 f0
+          Local $opt.5
+      goto bb10
+    bb9 if.else.9
+      call $call.3: UnwrapException = @scoop.ctor.UnwrapException direct
+      throw
+        Local $call.3
+    bb10 if.merge.10
+      val optionalChecked: (Int) -> Any
+        Local $uw.6
+      val $cast.7: Any
+        Local erased
+      branch bb11 bb12
+        IsInstance (Any) -> String
+          Local $cast.7
+    bb11 if.then.11
+      assign $cast.8
+        VariantConstruct Option$FAnyRSX<(Any) -> String> v0
+          ClosureAlloc cc13 $Closure$dynamic_adapter$FAnyRSX
+            Local $cast.7
+      goto bb13
+    bb12 if.else.12
+      assign $cast.8
+        VariantConstruct Option$FAnyRSX<(Any) -> String> v1
+      goto bb13
+    bb13 if.merge.13
+      val missing: Option$FAnyRSX<(Any) -> String>
+        Local $cast.8
+      val nestedErased: Any
+        Retype Any
+          Local nestedExact
+      val $cast.9: Any
+        Local nestedErased
+      branch bb14 bb15
+        Unary BoolNot
+          IsInstance ((Any) -> Int) -> (Int) -> Any
+            Local $cast.9
+    bb14 if.then.14
+      call $call.4: ClassCastException = @scoop.ctor.ClassCastException direct
+      throw
+        Local $call.4
+    bb15 if.merge.15
+      val nestedChecked: ((Any) -> Int) -> (Int) -> Any
+        ClosureAlloc cc14 $Closure$dynamic_adapter$FFAnyRIXRFIRAnyXX
+          Local $cast.9
+      call nestedDynamicResult: (Int) -> Any = <closure:function_type9> closure[function_type9]
+        Local nestedChecked
+        Local exactValue
+      val boxedErased: Any
+        Retype Any
+          Local boxedExact
+      val $cast.10: Any
+        Local boxedErased
+      branch bb16 bb17
+        Unary BoolNot
+          IsInstance (Int) -> Describable
+            Local $cast.10
+    bb16 if.then.16
+      call $call.5: ClassCastException = @scoop.ctor.ClassCastException direct
+      throw
+        Local $call.5
+    bb17 if.merge.17
+      val boxedChecked: (Int) -> Describable
+        ClosureAlloc cc15 $Closure$dynamic_adapter$FIRDescribableX
+          Local $cast.10
+      call @scoop_rt_gc_collect direct
+      call $call.6: Any = <closure:function_type4> closure[function_type4]
+        Local widenedValue
+        IntLiteral 0
+      call @scoop.println direct
+        Local $call.6
+      call $call.7: Dog = @scoop.ctor.Dog direct
+      call $call.8: Animal = <closure:function_type6> closure[function_type6]
+        Local widenedReference
+        Local $call.7
+      call @scoop.println direct
+        Box
+          IsInstance Dog
+            Local $call.8
+      call $call.9: Any = <closure:function_type4> closure[function_type4]
+        Local genericInt
+        IntLiteral 0
+      call @scoop.println direct
+        Local $call.9
+      call $call.10: Any = <closure:function_type7> closure[function_type7]
+        Local genericString
+        StringConst @scoop.str.3
+      call @scoop.println direct
+        Local $call.10
+      call $call.11: Describable = <closure:function_type8> closure[function_type8]
+        Local boxedReturn
+        IntLiteral 0
+      call $call.12: Any = @scoop.Describable.describe interface Describable[0]
+        Local $call.11
+      call @scoop.println direct
+        Local $call.12
+      call $call.13: Any = <closure:function_type4> closure[function_type4]
+        Local nestedResult
+        IntLiteral 0
+      call @scoop.println direct
+        Local $call.13
+      call @scoop.println direct
+        Box
+          IsInstance (Int) -> Any
+            Local erased
+      call @scoop.println direct
+        Box
+          IsInstance (Any) -> String
+            Local erased
+      call $call.14: Any = <closure:function_type4> closure[function_type4]
+        Local checked
+        IntLiteral 0
+      call @scoop.println direct
+        Local $call.14
+      call $call.15: Int = <closure:function_type0> closure[function_type0]
+        Local exactChecked
+        StringConst @scoop.str.4
+      call @scoop.println direct
+        Box
+          Local $call.15
+      call $call.16: Any = <closure:function_type4> closure[function_type4]
+        Local optionalChecked
+        IntLiteral 0
+      call @scoop.println direct
+        Local $call.16
+      branch bb18 bb19
+        Binary IntEq
+          EnumTag
+            Local missing
+          EnumTag
+            VariantConstruct Option$FAnyRSX<(Any) -> String> v1
+    bb18 logic.rhs.18
+      branch bb22 bb21
+        Binary IntNe
+          EnumTag
+            Local missing
+          IntLiteral 0
+    bb19 logic.short.19
+      assign $logic.17
+        BoolLiteral false
+      goto bb20
+    bb20 logic.merge.20
+      call @scoop.println direct
+        Box
+          Local $logic.17
+      call $call.19: Any = <closure:function_type4> closure[function_type4]
+        Local nestedDynamicResult
+        IntLiteral 0
+      call @scoop.println direct
+        Local $call.19
+      call $call.20: Describable = <closure:function_type8> closure[function_type8]
+        Local boxedChecked
+        IntLiteral 0
+      call $call.21: Any = @scoop.Describable.describe interface Describable[0]
+        Local $call.20
+      call @scoop.println direct
+        Local $call.21
+      branch bb24 bb25
+        IsInstance (Int) -> Any
+          Local erased
+    bb21 logic.rhs.21
+      assign $logic.18
+        Binary IntEq
+          EnumField v0 f0
+            Local missing
+          EnumField v0 f0
+            VariantConstruct Option$FAnyRSX<(Any) -> String> v1
+      goto bb23
+    bb22 logic.short.22
+      assign $logic.18
+        BoolLiteral true
+      goto bb23
+    bb23 logic.merge.23
+      assign $logic.17
+        Local $logic.18
+      goto bb20
+    bb24 if.then.24
+      call $call.22: Any = <closure:function_type4> closure[function_type4]
+        ClosureAlloc cc11 $Closure$dynamic_adapter$FIRAnyX
+          Local erased
+        IntLiteral 0
+      call @scoop.println direct
+        Local $call.22
+      goto bb25
+    bb25 if.merge.25
+      goto bb33
+    bb26 try.unwind.26
+      landing_pad cleanup=false
+      goto bb27
+    bb27 try.dispatch.27
+      begin_catch
+      branch bb35 bb36
+        IsInstance ArithmeticException
+          CaughtException
+    bb28 try.handler_pad.28
+      landing_pad cleanup=true
+      goto bb29
+    bb29 try.handler_cleanup.29
+      end_catch
+      resume
+    bb30 try.exit_pad.30
+      landing_pad cleanup=true
+      goto bb31
+    bb31 try.exit_cleanup.31
+      end_catch
+      resume
+    bb32 try.end.32
+      return
+    bb33 try.body.33 unwind bb26
+      call $call.23: Any = <closure:function_type4> closure[function_type4]
+        Local widenedFailing
+        IntLiteral 0
+      call @scoop.println direct
+        Local $call.23
+      goto bb34
+    bb34 scope.34
+      goto bb32
+    bb35 try.catch.35
+      val exception: ArithmeticException
+        Retype ArithmeticException
+          CaughtException
+      goto bb37
+    bb36 try.next.36
+      rethrow unwind bb30
+    bb37 scope.37 unwind bb28
+      call @scoop.println direct
+        StringConst @scoop.str.5
+      goto bb38
+    bb38 scope.38
+      end_catch
+      goto bb32
+  fun Label.describe @scoop.Label.describe(this: Label) -> String
+    bb0 entry
+      return
+        FieldAccess 0
+          Local this
+  fun $reference.0 @scoop.$reference.0($closure: (Any) -> Int, arg0: Any) -> Int
+    bb0 entry
+      call $call.1: Int = @scoop.acceptAny direct
+        Local arg0
+      return
+        Local $call.1
+  fun $reference.1 @scoop.$reference.1($closure: (Any) -> Int, arg0: Any) -> Int
+    bb0 entry
+      call $call.1: Int = @scoop.acceptAny direct
+        Local arg0
+      return
+        Local $call.1
+  fun $reference.2 @scoop.$reference.2($closure: (Animal) -> Dog, arg0: Animal) -> Dog
+    bb0 entry
+      call $call.1: Dog = @scoop.acceptAnimal direct
+        Local arg0
+      return
+        Local $call.1
+  fun $reference.3 @scoop.$reference.3($closure: (Any) -> Int, arg0: Any) -> Int
+    bb0 entry
+      call $call.1: Int = @scoop.failAny direct
+        Local arg0
+      return
+        Local $call.1
+  fun $reference.4 @scoop.$reference.4($closure: (Any) -> String, arg0: Any) -> String
+    bb0 entry
+      call $call.1: String = @scoop.acceptAnyString direct
+        Local arg0
+      return
+        Local $call.1
+  fun $reference.5 @scoop.$reference.5($closure: (Any) -> Label, arg0: Any) -> Label
+    bb0 entry
+      call $call.1: Label = @scoop.acceptAnyLabel direct
+        Local arg0
+      return
+        Local $call.1
+  fun $reference.6 @scoop.$reference.6($closure: ((Int) -> Any) -> (Any) -> Int, arg0: (Int) -> Any) -> (Any) -> Int
+    bb0 entry
+      call $call.1: (Any) -> Int = @scoop.returnNested direct
+        Local arg0
+      return
+        Local $call.1
+  fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
+    bb0 entry
+      return
+        ClassInit Throwable
+  fun ctor.Exception @scoop.ctor.Exception(message: Option$S<String>) -> Exception
+    bb0 entry
+      return
+        ClassInit Exception
+          Local message
+  fun ctor.UnwrapException @scoop.ctor.UnwrapException() -> UnwrapException
+    bb0 entry
+      return
+        ClassInit UnwrapException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.6
+  fun ctor.ClassCastException @scoop.ctor.ClassCastException() -> ClassCastException
+    bb0 entry
+      return
+        ClassInit ClassCastException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.7
+  fun ctor.ArithmeticException @scoop.ctor.ArithmeticException() -> ArithmeticException
+    bb0 entry
+      return
+        ClassInit ArithmeticException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.8
+  fun ctor.IndexOutOfBoundsException @scoop.ctor.IndexOutOfBoundsException() -> IndexOutOfBoundsException
+    bb0 entry
+      return
+        ClassInit IndexOutOfBoundsException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.9
+  fun ctor.IllegalStateException @scoop.ctor.IllegalStateException() -> IllegalStateException
+    bb0 entry
+      return
+        ClassInit IllegalStateException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.10
+  fun ctor.Animal @scoop.ctor.Animal() -> Animal
+    bb0 entry
+      return
+        ClassInit Animal
+  fun ctor.Dog @scoop.ctor.Dog() -> Dog
+    bb0 entry
+      return
+        ClassInit Dog
+  fun $adapter.FAnyRIX.FIRAnyX @scoop.$adapter.FAnyRIX.FIRAnyX($closure: (Int) -> Any, arg0: Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        ClosureCapture cc7 0
+          Local $closure
+        Box
+          Local arg0
+      return
+        Box
+          Local $call.1
+  fun $adapter.FAnimalRDogX.FDogRAnimalX @scoop.$adapter.FAnimalRDogX.FDogRAnimalX($closure: (Dog) -> Animal, arg0: Dog) -> Animal
+    bb0 entry
+      call $call.1: Dog = <closure:function_type1> closure[function_type1]
+        ClosureCapture cc8 0
+          Local $closure
+        Retype Animal
+          Local arg0
+      return
+        Retype Animal
+          Local $call.1
+  fun widen @scoop.widen$I(op: (Any) -> Int) -> (Int) -> Any
+    bb0 entry
+      return
+        ClosureAlloc cc7 $Closure$adapter$FAnyRIX$FIRAnyX
+          Local op
+  fun widen @scoop.widen$S(op: (Any) -> String) -> (String) -> Any
+    bb0 entry
+      return
+        ClosureAlloc cc16 $Closure$adapter$FAnyRSX$FSRAnyX
+          Local op
+  fun $adapter.FAnyRLabelX.FIRDescribableX @scoop.$adapter.FAnyRLabelX.FIRDescribableX($closure: (Int) -> Describable, arg0: Int) -> Describable
+    bb0 entry
+      call $call.1: Label = <closure:function_type3> closure[function_type3]
+        ClosureCapture cc9 0
+          Local $closure
+        Box
+          Local arg0
+      return
+        Box
+          Local $call.1
+  fun $adapter.FFIRAnyXRFAnyRIXX.FFAnyRIXRFIRAnyXX @scoop.$adapter.FFIRAnyXRFAnyRIXX.FFAnyRIXRFIRAnyXX($closure: ((Any) -> Int) -> (Int) -> Any, arg0: (Any) -> Int) -> (Int) -> Any
+    bb0 entry
+      call $call.1: (Any) -> Int = <closure:function_type5> closure[function_type5]
+        ClosureCapture cc10 0
+          Local $closure
+        ClosureAlloc cc7 $Closure$adapter$FAnyRIX$FIRAnyX
+          Local arg0
+      return
+        ClosureAlloc cc7 $Closure$adapter$FAnyRIX$FIRAnyX
+          Local $call.1
+  fun $dynamic_adapter.FIRAnyX @scoop.$dynamic_adapter.FIRAnyX($closure: (Int) -> Any, arg0: Int) -> Any
+    bb0 entry
+      call $call.1: Any = <function_bridge:function_type4> function_bridge[function_type4]
+        ClosureCapture cc11 0
+          Local $closure
+        Local arg0
+      return
+        Local $call.1
+  fun $dynamic_adapter.FAnyRIX @scoop.$dynamic_adapter.FAnyRIX($closure: (Any) -> Int, arg0: Any) -> Int
+    bb0 entry
+      call $call.1: Int = <function_bridge:function_type0> function_bridge[function_type0]
+        ClosureCapture cc12 0
+          Local $closure
+        Local arg0
+      return
+        Local $call.1
+  fun $dynamic_adapter.FAnyRSX @scoop.$dynamic_adapter.FAnyRSX($closure: (Any) -> String, arg0: Any) -> String
+    bb0 entry
+      call $call.1: String = <function_bridge:function_type2> function_bridge[function_type2]
+        ClosureCapture cc13 0
+          Local $closure
+        Local arg0
+      return
+        Local $call.1
+  fun $dynamic_adapter.FFAnyRIXRFIRAnyXX @scoop.$dynamic_adapter.FFAnyRIXRFIRAnyXX($closure: ((Any) -> Int) -> (Int) -> Any, arg0: (Any) -> Int) -> (Int) -> Any
+    bb0 entry
+      call $call.1: (Int) -> Any = <function_bridge:function_type9> function_bridge[function_type9]
+        ClosureCapture cc14 0
+          Local $closure
+        Local arg0
+      return
+        Local $call.1
+  fun $dynamic_adapter.FIRDescribableX @scoop.$dynamic_adapter.FIRDescribableX($closure: (Int) -> Describable, arg0: Int) -> Describable
+    bb0 entry
+      call $call.1: Describable = <function_bridge:function_type8> function_bridge[function_type8]
+        ClosureCapture cc15 0
+          Local $closure
+        Local arg0
+      return
+        Local $call.1
+  fun $adapter.FAnyRSX.FSRAnyX @scoop.$adapter.FAnyRSX.FSRAnyX($closure: (String) -> Any, arg0: String) -> Any
+    bb0 entry
+      call $call.1: String = <closure:function_type2> closure[function_type2]
+        ClosureCapture cc16 0
+          Local $closure
+        Retype Any
+          Local arg0
+      return
+        Retype Any
+          Local $call.1
+  fun eq.I @scoop.eq.I(this: Any, other: Any) -> Boolean
+    bb0 entry
+      val $a: Int
+        Unbox
+          Local this
+      val $b: Int
+        Unbox
+          Local other
+      return
+        Binary IntEq
+          Local $a
+          Local $b
+  fun tostring.I @scoop.tostring.I(this: Any) -> String
+    bb0 entry
+      call $call.1: String = @scoop_rt_int_to_string direct
+        Unbox
+          Local this
+      return
+        Local $call.1
+  fun eq.Label @scoop.eq.Label(this: Any, other: Any) -> Boolean
+    bb0 entry
+      val $a: Label
+        Unbox
+          Local this
+      val $b: Label
+        Unbox
+          Local other
+      call $call.1: Boolean = @scoop_rt_string_eq direct
+        FieldAccess 0
+          Local $a
+        FieldAccess 0
+          Local $b
+      return
+        Local $call.1
+  fun thunk.Label.Describable.describe @scoop.thunk.Label.Describable.describe(this: Any) -> String
+    bb0 entry
+      call $call.1: String = @scoop.Label.describe direct
+        Unbox
+          Local this
+      return
+        Local $call.1
+  fun eq.B @scoop.eq.B(this: Any, other: Any) -> Boolean
+    bb0 entry
+      val $a: Boolean
+        Unbox
+          Local this
+      val $b: Boolean
+        Unbox
+          Local other
+      return
+        Binary BoolEq
+          Local $a
+          Local $b
+  fun tostring.B @scoop.tostring.B(this: Any) -> String
+    bb0 entry
+      call $call.1: String = @scoop_rt_bool_to_string direct
+        Unbox
+          Local this
+      return
+        Local $call.1
+  fun function_bridge.$Closure$reference0.FIRAnyX @scoop.function_bridge.$Closure$reference0.FIRAnyX($source: (Any) -> Int, arg0: Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Local $source
+        Box
+          Local arg0
+      return
+        Box
+          Local $call.1
+  fun function_bridge.$Closure$reference1.FIRAnyX @scoop.function_bridge.$Closure$reference1.FIRAnyX($source: (Any) -> Int, arg0: Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Local $source
+        Box
+          Local arg0
+      return
+        Box
+          Local $call.1
+  fun function_bridge.$Closure$reference3.FIRAnyX @scoop.function_bridge.$Closure$reference3.FIRAnyX($source: (Any) -> Int, arg0: Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Local $source
+        Box
+          Local arg0
+      return
+        Box
+          Local $call.1
+  fun function_bridge.$Closure$reference4.FIRAnyX @scoop.function_bridge.$Closure$reference4.FIRAnyX($source: (Any) -> String, arg0: Int) -> Any
+    bb0 entry
+      call $call.1: String = <closure:function_type2> closure[function_type2]
+        Local $source
+        Box
+          Local arg0
+      return
+        Local $call.1
+  fun function_bridge.$Closure$reference5.FIRAnyX @scoop.function_bridge.$Closure$reference5.FIRAnyX($source: (Any) -> Label, arg0: Int) -> Any
+    bb0 entry
+      call $call.1: Label = <closure:function_type3> closure[function_type3]
+        Local $source
+        Box
+          Local arg0
+      return
+        Box
+          Local $call.1
+  fun function_bridge.$Closure$reference5.FIRDescribableX @scoop.function_bridge.$Closure$reference5.FIRDescribableX($source: (Any) -> Label, arg0: Int) -> Describable
+    bb0 entry
+      call $call.1: Label = <closure:function_type3> closure[function_type3]
+        Local $source
+        Box
+          Local arg0
+      return
+        Box
+          Local $call.1
+  fun function_bridge.$Closure$reference6.FFAnyRIXRFIRAnyXX @scoop.function_bridge.$Closure$reference6.FFAnyRIXRFIRAnyXX($source: ((Int) -> Any) -> (Any) -> Int, arg0: (Any) -> Int) -> (Int) -> Any
+    bb0 entry
+      call $call.1: (Any) -> Int = <closure:function_type5> closure[function_type5]
+        Local $source
+        ClosureAlloc cc7 $Closure$adapter$FAnyRIX$FIRAnyX
+          Local arg0
+      return
+        ClosureAlloc cc7 $Closure$adapter$FAnyRIX$FIRAnyX
+          Local $call.1
+  fun function_bridge.$Closure$adapter$FAnyRLabelX$FIRDescribableX.FIRAnyX @scoop.function_bridge.$Closure$adapter$FAnyRLabelX$FIRDescribableX.FIRAnyX($source: (Int) -> Describable, arg0: Int) -> Any
+    bb0 entry
+      call $call.1: Describable = <closure:function_type8> closure[function_type8]
+        Local $source
+        Local arg0
+      return
+        Local $call.1
+  fun function_bridge.$Closure$dynamic_adapter$FAnyRIX.FIRAnyX @scoop.function_bridge.$Closure$dynamic_adapter$FAnyRIX.FIRAnyX($source: (Any) -> Int, arg0: Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Local $source
+        Box
+          Local arg0
+      return
+        Box
+          Local $call.1
+  fun function_bridge.$Closure$dynamic_adapter$FAnyRSX.FIRAnyX @scoop.function_bridge.$Closure$dynamic_adapter$FAnyRSX.FIRAnyX($source: (Any) -> String, arg0: Int) -> Any
+    bb0 entry
+      call $call.1: String = <closure:function_type2> closure[function_type2]
+        Local $source
+        Box
+          Local arg0
+      return
+        Local $call.1
+  fun function_bridge.$Closure$dynamic_adapter$FIRDescribableX.FIRAnyX @scoop.function_bridge.$Closure$dynamic_adapter$FIRDescribableX.FIRAnyX($source: (Int) -> Describable, arg0: Int) -> Any
+    bb0 entry
+      call $call.1: Describable = <closure:function_type8> closure[function_type8]
+        Local $source
+        Local arg0
+      return
+        Local $call.1
+  instance @scoop.widen$I <- widen
+  instance @scoop.widen$S <- widen
+  str @scoop.str.0 "\n"
+  str @scoop.str.1 "generic"
+  str @scoop.str.2 "value"
+  str @scoop.str.3 "ignored"
+  str @scoop.str.4 "ignored"
+  str @scoop.str.5 "caught"
+  str @scoop.str.6 "unwrap on None"
+  str @scoop.str.7 "invalid cast"
+  str @scoop.str.8 "arithmetic error"
+  str @scoop.str.9 "array index out of bounds"
+  str @scoop.str.10 "illegal state"
+  entry @scoop_main
+
+== lir ==
+Module
+  global @scoop.str.0 = "\n"
+  global @scoop.str.1 = "generic"
+  global @scoop.str.2 = "value"
+  global @scoop.str.3 = "ignored"
+  global @scoop.str.4 = "ignored"
+  global @scoop.str.5 = "caught"
+  global @scoop.str.6 = "unwrap on None"
+  global @scoop.str.7 = "invalid cast"
+  global @scoop.str.8 = "arithmetic error"
+  global @scoop.str.9 = "array index out of bounds"
+  global @scoop.str.10 = "illegal state"
+  global @scoop_td_$Closure$reference0 = c""
+  global @scoop_td_$Closure$reference1 = c""
+  global @scoop_td_$Closure$adapter$FAnyRIX$FIRAnyX = c""
+  global @scoop_td_$Closure$reference2 = c""
+  global @scoop_td_$Closure$adapter$FAnimalRDogX$FDogRAnimalX = c""
+  global @scoop_td_$Closure$reference3 = c""
+  global @scoop_td_$Closure$reference4 = c""
+  global @scoop_td_$Closure$reference5 = c""
+  global @scoop_td_$Closure$adapter$FAnyRLabelX$FIRDescribableX = c""
+  global @scoop_td_$Closure$reference6 = c""
+  global @scoop_td_$Closure$adapter$FFIRAnyXRFAnyRIXX$FFAnyRIXRFIRAnyXX = c""
+  global @scoop_td_function$FIRAnyX = c""
+  global @scoop_td_$Closure$dynamic_adapter$FIRAnyX = c""
+  global @scoop_td_function$FAnyRIX = c""
+  global @scoop_td_$Closure$dynamic_adapter$FAnyRIX = c""
+  global @scoop_td_function$FAnyRSX = c""
+  global @scoop_td_$Closure$dynamic_adapter$FAnyRSX = c""
+  global @scoop_td_function$FFAnyRIXRFIRAnyXX = c""
+  global @scoop_td_$Closure$dynamic_adapter$FFAnyRIXRFIRAnyXX = c""
+  global @scoop_td_function$FIRDescribableX = c""
+  global @scoop_td_$Closure$dynamic_adapter$FIRDescribableX = c""
+  global @scoop_td_Dog = c""
+  global @scoop_td_box$B = c""
+  global @scoop_td_Describable = c""
+  global @scoop_td_box$I = c""
+  global @scoop_td_ArithmeticException = c""
+  global @scoop_td_Throwable = c""
+  global @scoop_td_Exception = c""
+  global @scoop_td_UnwrapException = c""
+  global @scoop_td_ClassCastException = c""
+  global @scoop_td_IndexOutOfBoundsException = c""
+  global @scoop_td_IllegalStateException = c""
+  global @scoop_td_Animal = c""
+  global @scoop_td_$Closure$adapter$FAnyRSX$FSRAnyX = c""
+  global @scoop_td_box$Label = c""
+  enum Option$S niche(payload_variant=0)
+  enum Option$FAnyRSX niche(payload_variant=0)
+  enum Option$FIRAnyX niche(payload_variant=0)
+  fun @scoop.print(ptr) -> void
+    local %0 $call.1: ptr
+  block entry
+    t0 = heap_load param0 +0 : ptr
+    t1 = heap_load t0 +40 : ptr
+    t2 = call_indirect t1[2](param0) : ptr
+    store t2 -> local0
+    call @scoop_rt_print(local0)
+    t3 = aggregate () : {}
+    ret
+  fun @scoop.println(ptr) -> void
+    local %0 $call.1: ptr
+  block entry
+    t0 = heap_load param0 +0 : ptr
+    t1 = heap_load t0 +40 : ptr
+    t2 = call_indirect t1[2](param0) : ptr
+    store t2 -> local0
+    call @scoop_rt_print(local0)
+    t3 = aggregate () : {}
+    call @scoop_rt_print(global0)
+    t4 = aggregate () : {}
+    ret
+  fun @scoop.acceptAny(ptr) -> i64
+  block entry
+    ret 42
+  fun @scoop.acceptAnyString(ptr) -> ptr
+  block entry
+    ret global1
+  fun @scoop.acceptAnyLabel(ptr) -> {ptr}
+  block entry
+    t0 = aggregate (global2) : {ptr}
+    ret t0
+  fun @scoop.acceptAnimal(ptr) -> ptr
+    local %0 $call.1: ptr
+  block entry
+    t0 = call @scoop.ctor.Dog() : ptr
+    store t0 -> local0
+    ret local0
+  fun @scoop.failAny(ptr) -> i64
+    local %0 $call.1: ptr
+  block entry
+    t0 = call @scoop.ctor.ArithmeticException() : ptr
+    store t0 -> local0
+    throw local0
+    unreachable
+  fun @scoop.returnNested(ptr) -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global11, 24) : ptr
+    t1 = function_address @scoop.$reference.0 : ptr
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop_main() -> void
+    local %0 exactValue: ptr
+    local %1 widenedValue: ptr
+    local %2 exactReference: ptr
+    local %3 widenedReference: ptr
+    local %4 failing: ptr
+    local %5 widenedFailing: ptr
+    local %6 genericInt: ptr
+    local %7 genericString: ptr
+    local %8 boxedExact: ptr
+    local %9 boxedReturn: ptr
+    local %10 nestedExact: ptr
+    local %11 nestedWidened: ptr
+    local %12 nestedResult: ptr
+    local %13 erased: ptr
+    local %14 checked: ptr
+    local %15 exactChecked: ptr
+    local %16 optionalChecked: ptr
+    local %17 missing: enum1
+    local %18 nestedErased: ptr
+    local %19 nestedChecked: ptr
+    local %20 nestedDynamicResult: ptr
+    local %21 boxedErased: ptr
+    local %22 boxedChecked: ptr
+    local %23 exception: ptr
+    local %24 $cast.1: ptr
+    local %25 $cast.2: ptr
+    local %26 $cast.3: ptr
+    local %27 $cast.4: enum2
+    local %28 $opt.5: enum2
+    local %29 $uw.6: ptr
+    local %30 $cast.7: ptr
+    local %31 $cast.8: enum1
+    local %32 $cast.9: ptr
+    local %33 $cast.10: ptr
+    local %34 $call.1: ptr
+    local %35 $call.2: ptr
+    local %36 $call.3: ptr
+    local %37 $call.4: ptr
+    local %38 $call.5: ptr
+    local %39 $call.6: ptr
+    local %40 $call.7: ptr
+    local %41 $call.8: ptr
+    local %42 $call.9: ptr
+    local %43 $call.10: ptr
+    local %44 $call.11: ptr
+    local %45 $call.12: ptr
+    local %46 $call.13: ptr
+    local %47 $call.14: ptr
+    local %48 $call.15: i64
+    local %49 $call.16: ptr
+    local %50 $logic.17: i1
+    local %51 $logic.18: i1
+    local %52 $call.19: ptr
+    local %53 $call.20: ptr
+    local %54 $call.21: ptr
+    local %55 $call.22: ptr
+    local %56 $call.23: ptr
+    local %57 $sc.1: exception_record
+    local %58 $sc.2: ptr
+    local %59 $sc.3: ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global12, 24) : ptr
+    t1 = function_address @scoop.$reference.1 : ptr
+    heap_store t0 +16 t1
+    store t0 -> local0
+    t2 = call @scoop_rt_alloc(global13, 32) : ptr
+    t3 = function_address @scoop.$adapter.FAnyRIX.FIRAnyX : ptr
+    heap_store t2 +16 t3
+    heap_store t2 +24 local0
+    store t2 -> local1
+    t4 = call @scoop_rt_alloc(global14, 24) : ptr
+    t5 = function_address @scoop.$reference.2 : ptr
+    heap_store t4 +16 t5
+    store t4 -> local2
+    t6 = call @scoop_rt_alloc(global15, 32) : ptr
+    t7 = function_address @scoop.$adapter.FAnimalRDogX.FDogRAnimalX : ptr
+    heap_store t6 +16 t7
+    heap_store t6 +24 local2
+    store t6 -> local3
+    t8 = call @scoop_rt_alloc(global16, 24) : ptr
+    t9 = function_address @scoop.$reference.3 : ptr
+    heap_store t8 +16 t9
+    store t8 -> local4
+    t10 = call @scoop_rt_alloc(global13, 32) : ptr
+    t11 = function_address @scoop.$adapter.FAnyRIX.FIRAnyX : ptr
+    heap_store t10 +16 t11
+    heap_store t10 +24 local4
+    store t10 -> local5
+    t12 = call @scoop.widen$I(local0) : ptr
+    store t12 -> local6
+    t13 = call @scoop_rt_alloc(global17, 24) : ptr
+    t14 = function_address @scoop.$reference.4 : ptr
+    heap_store t13 +16 t14
+    t15 = call @scoop.widen$S(t13) : ptr
+    store t15 -> local7
+    t16 = call @scoop_rt_alloc(global18, 24) : ptr
+    t17 = function_address @scoop.$reference.5 : ptr
+    heap_store t16 +16 t17
+    store t16 -> local8
+    t18 = call @scoop_rt_alloc(global19, 32) : ptr
+    t19 = function_address @scoop.$adapter.FAnyRLabelX.FIRDescribableX : ptr
+    heap_store t18 +16 t19
+    heap_store t18 +24 local8
+    store t18 -> local9
+    t20 = call @scoop_rt_alloc(global20, 24) : ptr
+    t21 = function_address @scoop.$reference.6 : ptr
+    heap_store t20 +16 t21
+    store t20 -> local10
+    t22 = call @scoop_rt_alloc(global21, 32) : ptr
+    t23 = function_address @scoop.$adapter.FFIRAnyXRFAnyRIXX.FFAnyRIXRFIRAnyXX : ptr
+    heap_store t22 +16 t23
+    heap_store t22 +24 local10
+    store t22 -> local11
+    t24 = call_indirect local11[2](local11, local0) : ptr
+    store t24 -> local12
+    store local0 -> local13
+    store local13 -> local24
+    t25 = call @scoop_rt_is_instance(local24, global22) : i1
+    t26 = Not t25 : i1
+    cbr t26 then @if.then.1 else @if.merge.2
+  block if.then.1
+    t27 = call @scoop.ctor.ClassCastException() : ptr
+    store t27 -> local34
+    throw local34
+    unreachable
+  block if.merge.2
+    t28 = call @scoop_rt_alloc(global23, 32) : ptr
+    t29 = function_address @scoop.$dynamic_adapter.FIRAnyX : ptr
+    heap_store t28 +16 t29
+    heap_store t28 +24 local24
+    store t28 -> local14
+    store local13 -> local25
+    t30 = call @scoop_rt_is_instance(local25, global24) : i1
+    t31 = Not t30 : i1
+    cbr t31 then @if.then.3 else @if.merge.4
+  block if.then.3
+    t32 = call @scoop.ctor.ClassCastException() : ptr
+    store t32 -> local35
+    throw local35
+    unreachable
+  block if.merge.4
+    t33 = call @scoop_rt_alloc(global25, 32) : ptr
+    t34 = function_address @scoop.$dynamic_adapter.FAnyRIX : ptr
+    heap_store t33 +16 t34
+    heap_store t33 +24 local25
+    store t33 -> local15
+    store local13 -> local26
+    t35 = call @scoop_rt_is_instance(local26, global22) : i1
+    cbr t35 then @if.then.5 else @if.else.6
+  block if.then.5
+    t36 = call @scoop_rt_alloc(global23, 32) : ptr
+    t37 = function_address @scoop.$dynamic_adapter.FIRAnyX : ptr
+    heap_store t36 +16 t37
+    heap_store t36 +24 local26
+    t38 = enum_wrap e2 v0 (t36) : enum2
+    store t38 -> local27
+    br @if.merge.7
+  block if.else.6
+    t39 = enum_wrap e2 v1 () : enum2
+    store t39 -> local27
+    br @if.merge.7
+  block if.merge.7
+    store local27 -> local28
+    t40 = enum_tag e2 local28 : i64
+    t41 = Eq t40, 0 : i1
+    cbr t41 then @if.then.8 else @if.else.9
+  block if.then.8
+    t42 = enum_field e2 v0 f0 local28 : ptr
+    store t42 -> local29
+    br @if.merge.10
+  block if.else.9
+    t43 = call @scoop.ctor.UnwrapException() : ptr
+    store t43 -> local36
+    throw local36
+    unreachable
+  block if.merge.10
+    store local29 -> local16
+    store local13 -> local30
+    t44 = call @scoop_rt_is_instance(local30, global26) : i1
+    cbr t44 then @if.then.11 else @if.else.12
+  block if.then.11
+    t45 = call @scoop_rt_alloc(global27, 32) : ptr
+    t46 = function_address @scoop.$dynamic_adapter.FAnyRSX : ptr
+    heap_store t45 +16 t46
+    heap_store t45 +24 local30
+    t47 = enum_wrap e1 v0 (t45) : enum1
+    store t47 -> local31
+    br @if.merge.13
+  block if.else.12
+    t48 = enum_wrap e1 v1 () : enum1
+    store t48 -> local31
+    br @if.merge.13
+  block if.merge.13
+    store local31 -> local17
+    store local10 -> local18
+    store local18 -> local32
+    t49 = call @scoop_rt_is_instance(local32, global28) : i1
+    t50 = Not t49 : i1
+    cbr t50 then @if.then.14 else @if.merge.15
+  block if.then.14
+    t51 = call @scoop.ctor.ClassCastException() : ptr
+    store t51 -> local37
+    throw local37
+    unreachable
+  block if.merge.15
+    t52 = call @scoop_rt_alloc(global29, 32) : ptr
+    t53 = function_address @scoop.$dynamic_adapter.FFAnyRIXRFIRAnyXX : ptr
+    heap_store t52 +16 t53
+    heap_store t52 +24 local32
+    store t52 -> local19
+    t54 = call_indirect local19[2](local19, local0) : ptr
+    store t54 -> local20
+    store local8 -> local21
+    store local21 -> local33
+    t55 = call @scoop_rt_is_instance(local33, global30) : i1
+    t56 = Not t55 : i1
+    cbr t56 then @if.then.16 else @if.merge.17
+  block if.then.16
+    t57 = call @scoop.ctor.ClassCastException() : ptr
+    store t57 -> local38
+    throw local38
+    unreachable
+  block if.merge.17
+    t58 = call @scoop_rt_alloc(global31, 32) : ptr
+    t59 = function_address @scoop.$dynamic_adapter.FIRDescribableX : ptr
+    heap_store t58 +16 t59
+    heap_store t58 +24 local33
+    store t58 -> local22
+    call @scoop_rt_gc_collect()
+    t60 = aggregate () : {}
+    t61 = call_indirect local1[2](local1, 0) : ptr
+    store t61 -> local39
+    call @scoop.println(local39)
+    t62 = aggregate () : {}
+    t63 = call @scoop.ctor.Dog() : ptr
+    store t63 -> local40
+    t64 = call_indirect local3[2](local3, local40) : ptr
+    store t64 -> local41
+    t65 = call @scoop_rt_is_instance(local41, global32) : i1
+    t66 = call @scoop_rt_box(global33, t65, 1) : ptr
+    call @scoop.println(t66)
+    t67 = aggregate () : {}
+    t68 = call_indirect local6[2](local6, 0) : ptr
+    store t68 -> local42
+    call @scoop.println(local42)
+    t69 = aggregate () : {}
+    t70 = call_indirect local7[2](local7, global3) : ptr
+    store t70 -> local43
+    call @scoop.println(local43)
+    t71 = aggregate () : {}
+    t72 = call_indirect local9[2](local9, 0) : ptr
+    store t72 -> local44
+    t73 = heap_load local44 +0 : ptr
+    t74 = call @scoop_rt_itable_lookup(t73, global34) : ptr
+    t75 = call_indirect t74[0](local44) : ptr
+    store t75 -> local45
+    call @scoop.println(local45)
+    t76 = aggregate () : {}
+    t77 = call_indirect local12[2](local12, 0) : ptr
+    store t77 -> local46
+    call @scoop.println(local46)
+    t78 = aggregate () : {}
+    t79 = call @scoop_rt_is_instance(local13, global22) : i1
+    t80 = call @scoop_rt_box(global33, t79, 1) : ptr
+    call @scoop.println(t80)
+    t81 = aggregate () : {}
+    t82 = call @scoop_rt_is_instance(local13, global26) : i1
+    t83 = call @scoop_rt_box(global33, t82, 1) : ptr
+    call @scoop.println(t83)
+    t84 = aggregate () : {}
+    t85 = call_indirect local14[2](local14, 0) : ptr
+    store t85 -> local47
+    call @scoop.println(local47)
+    t86 = aggregate () : {}
+    t87 = call_indirect local15[2](local15, global4) : i64
+    store t87 -> local48
+    t88 = call @scoop_rt_box(global35, local48, 8) : ptr
+    call @scoop.println(t88)
+    t89 = aggregate () : {}
+    t90 = call_indirect local16[2](local16, 0) : ptr
+    store t90 -> local49
+    call @scoop.println(local49)
+    t91 = aggregate () : {}
+    t92 = enum_tag e1 local17 : i64
+    t93 = enum_wrap e1 v1 () : enum1
+    t94 = enum_tag e1 t93 : i64
+    t95 = Eq t92, t94 : i1
+    cbr t95 then @logic.rhs.18 else @logic.short.19
+  block logic.rhs.18
+    t96 = enum_tag e1 local17 : i64
+    t97 = Ne t96, 0 : i1
+    cbr t97 then @logic.short.22 else @logic.rhs.21
+  block logic.short.19
+    store false -> local50
+    br @logic.merge.20
+  block logic.merge.20
+    t98 = call @scoop_rt_box(global33, local50, 1) : ptr
+    call @scoop.println(t98)
+    t99 = aggregate () : {}
+    t100 = call_indirect local20[2](local20, 0) : ptr
+    store t100 -> local52
+    call @scoop.println(local52)
+    t101 = aggregate () : {}
+    t102 = call_indirect local22[2](local22, 0) : ptr
+    store t102 -> local53
+    t103 = heap_load local53 +0 : ptr
+    t104 = call @scoop_rt_itable_lookup(t103, global34) : ptr
+    t105 = call_indirect t104[0](local53) : ptr
+    store t105 -> local54
+    call @scoop.println(local54)
+    t106 = aggregate () : {}
+    t107 = call @scoop_rt_is_instance(local13, global22) : i1
+    cbr t107 then @if.then.24 else @if.merge.25
+  block logic.rhs.21
+    t108 = enum_field e1 v0 f0 local17 : i64
+    t109 = enum_wrap e1 v1 () : enum1
+    t110 = enum_field e1 v0 f0 t109 : i64
+    t111 = Eq t108, t110 : i1
+    store t111 -> local51
+    br @logic.merge.23
+  block logic.short.22
+    store true -> local51
+    br @logic.merge.23
+  block logic.merge.23
+    store local51 -> local50
+    br @logic.merge.20
+  block if.then.24
+    t112 = call @scoop_rt_alloc(global23, 32) : ptr
+    t113 = function_address @scoop.$dynamic_adapter.FIRAnyX : ptr
+    heap_store t112 +16 t113
+    heap_store t112 +24 local13
+    t114 = call_indirect t112[2](t112, 0) : ptr
+    store t114 -> local55
+    call @scoop.println(local55)
+    t115 = aggregate () : {}
+    br @if.merge.25
+  block if.merge.25
+    br @try.body.33
+  block try.unwind.26
+    (t116, t117) = landingpad : (exception_record, ptr)
+    store t116 -> local57
+    store t117 -> local58
+    br @try.dispatch.27
+  block try.dispatch.27
+    t118 = begin_catch local58 : ptr
+    store t118 -> local59
+    t119 = call @scoop_rt_is_instance(local59, global36) : i1
+    cbr t119 then @try.catch.35 else @try.next.36
+  block try.handler_pad.28
+    (t120, t121) = cleanup_pad : (exception_record, ptr)
+    store t120 -> local57
+    store t121 -> local58
+    br @try.handler_cleanup.29
+  block try.handler_cleanup.29
+    end_catch
+    resume local57
+  block try.exit_pad.30
+    (t122, t123) = cleanup_pad : (exception_record, ptr)
+    store t122 -> local57
+    store t123 -> local58
+    br @try.exit_cleanup.31
+  block try.exit_cleanup.31
+    end_catch
+    resume local57
+  block try.end.32
+    ret
+  block try.body.33
+    invoke_indirect local5[2](local5, 0) normal @invoke.normal.1 unwind @try.unwind.26
+    br @invoke.normal.1
+  block scope.34
+    br @try.end.32
+  block try.catch.35
+    store local59 -> local23
+    br @scope.37
+  block try.next.36
+    invoke @scoop_rt_rethrow() normal @rethrow.normal.3 unwind @try.exit_pad.30
+    br @rethrow.normal.3
+  block scope.37
+    invoke @scoop.println(global5) normal @invoke.normal.4 unwind @try.handler_pad.28
+    br @invoke.normal.4
+  block scope.38
+    end_catch
+    br @try.end.32
+  block invoke.normal.1
+    store t124 -> local56
+    invoke @scoop.println(local56) normal @invoke.normal.2 unwind @try.unwind.26
+    br @invoke.normal.2
+  block invoke.normal.2
+    t125 = aggregate () : {}
+    br @scope.34
+  block rethrow.normal.3
+    unreachable
+  block invoke.normal.4
+    t126 = aggregate () : {}
+    br @scope.38
+  fun @scoop.Label.describe({ptr}) -> ptr
+  block entry
+    t0 = extract param0, 0 : ptr
+    ret t0
+  fun @scoop.$reference.0(ptr, ptr) -> i64
+    local %0 $call.1: i64
+  block entry
+    t0 = call @scoop.acceptAny(param1) : i64
+    store t0 -> local0
+    ret local0
+  fun @scoop.$reference.1(ptr, ptr) -> i64
+    local %0 $call.1: i64
+  block entry
+    t0 = call @scoop.acceptAny(param1) : i64
+    store t0 -> local0
+    ret local0
+  fun @scoop.$reference.2(ptr, ptr) -> ptr
+    local %0 $call.1: ptr
+  block entry
+    t0 = call @scoop.acceptAnimal(param1) : ptr
+    store t0 -> local0
+    ret local0
+  fun @scoop.$reference.3(ptr, ptr) -> i64
+    local %0 $call.1: i64
+  block entry
+    t0 = call @scoop.failAny(param1) : i64
+    store t0 -> local0
+    ret local0
+  fun @scoop.$reference.4(ptr, ptr) -> ptr
+    local %0 $call.1: ptr
+  block entry
+    t0 = call @scoop.acceptAnyString(param1) : ptr
+    store t0 -> local0
+    ret local0
+  fun @scoop.$reference.5(ptr, ptr) -> {ptr}
+    local %0 $call.1: {ptr}
+  block entry
+    t0 = call @scoop.acceptAnyLabel(param1) : {ptr}
+    store t0 -> local0
+    ret local0
+  fun @scoop.$reference.6(ptr, ptr) -> ptr
+    local %0 $call.1: ptr
+  block entry
+    t0 = call @scoop.returnNested(param1) : ptr
+    store t0 -> local0
+    ret local0
+  fun @scoop.ctor.Throwable() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global37, 16) : ptr
+    ret t0
+  fun @scoop.ctor.Exception(enum0) -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global38, 24) : ptr
+    heap_store t0 +16 param0
+    ret t0
+  fun @scoop.ctor.UnwrapException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global39, 24) : ptr
+    t1 = enum_wrap e0 v0 (global6) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.ClassCastException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global40, 24) : ptr
+    t1 = enum_wrap e0 v0 (global7) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.ArithmeticException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global36, 24) : ptr
+    t1 = enum_wrap e0 v0 (global8) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.IndexOutOfBoundsException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global41, 24) : ptr
+    t1 = enum_wrap e0 v0 (global9) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.IllegalStateException() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global42, 24) : ptr
+    t1 = enum_wrap e0 v0 (global10) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.Animal() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global43, 16) : ptr
+    ret t0
+  fun @scoop.ctor.Dog() -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global32, 16) : ptr
+    ret t0
+  fun @scoop.$adapter.FAnyRIX.FIRAnyX(ptr, i64) -> ptr
+    local %0 $call.1: i64
+  block entry
+    t0 = heap_load param0 +24 : ptr
+    t1 = call @scoop_rt_box(global35, param1, 8) : ptr
+    t2 = call_indirect t0[2](t0, t1) : i64
+    store t2 -> local0
+    t3 = call @scoop_rt_box(global35, local0, 8) : ptr
+    ret t3
+  fun @scoop.$adapter.FAnimalRDogX.FDogRAnimalX(ptr, ptr) -> ptr
+    local %0 $call.1: ptr
+  block entry
+    t0 = heap_load param0 +24 : ptr
+    t1 = call_indirect t0[2](t0, param1) : ptr
+    store t1 -> local0
+    ret local0
+  fun @scoop.widen$I(ptr) -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global13, 32) : ptr
+    t1 = function_address @scoop.$adapter.FAnyRIX.FIRAnyX : ptr
+    heap_store t0 +16 t1
+    heap_store t0 +24 param0
+    ret t0
+  fun @scoop.widen$S(ptr) -> ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global44, 32) : ptr
+    t1 = function_address @scoop.$adapter.FAnyRSX.FSRAnyX : ptr
+    heap_store t0 +16 t1
+    heap_store t0 +24 param0
+    ret t0
+  fun @scoop.$adapter.FAnyRLabelX.FIRDescribableX(ptr, i64) -> ptr
+    local %0 $call.1: {ptr}
+  block entry
+    t0 = heap_load param0 +24 : ptr
+    t1 = call @scoop_rt_box(global35, param1, 8) : ptr
+    t2 = call_indirect t0[2](t0, t1) : {ptr}
+    store t2 -> local0
+    t3 = call @scoop_rt_box(global45, local0, 8) : ptr
+    ret t3
+  fun @scoop.$adapter.FFIRAnyXRFAnyRIXX.FFAnyRIXRFIRAnyXX(ptr, ptr) -> ptr
+    local %0 $call.1: ptr
+  block entry
+    t0 = heap_load param0 +24 : ptr
+    t1 = call @scoop_rt_alloc(global13, 32) : ptr
+    t2 = function_address @scoop.$adapter.FAnyRIX.FIRAnyX : ptr
+    heap_store t1 +16 t2
+    heap_store t1 +24 param1
+    t3 = call_indirect t0[2](t0, t1) : ptr
+    store t3 -> local0
+    t4 = call @scoop_rt_alloc(global13, 32) : ptr
+    t5 = function_address @scoop.$adapter.FAnyRIX.FIRAnyX : ptr
+    heap_store t4 +16 t5
+    heap_store t4 +24 local0
+    ret t4
+  fun @scoop.$dynamic_adapter.FIRAnyX(ptr, i64) -> ptr
+    local %0 $call.1: ptr
+  block entry
+    t0 = heap_load param0 +24 : ptr
+    t1 = heap_load t0 +0 : ptr
+    t2 = call @scoop_rt_itable_lookup(t1, global22) : ptr
+    t3 = call_indirect t2[0](t0, param1) : ptr
+    store t3 -> local0
+    ret local0
+  fun @scoop.$dynamic_adapter.FAnyRIX(ptr, ptr) -> i64
+    local %0 $call.1: i64
+  block entry
+    t0 = heap_load param0 +24 : ptr
+    t1 = heap_load t0 +0 : ptr
+    t2 = call @scoop_rt_itable_lookup(t1, global24) : ptr
+    t3 = call_indirect t2[0](t0, param1) : i64
+    store t3 -> local0
+    ret local0
+  fun @scoop.$dynamic_adapter.FAnyRSX(ptr, ptr) -> ptr
+    local %0 $call.1: ptr
+  block entry
+    t0 = heap_load param0 +24 : ptr
+    t1 = heap_load t0 +0 : ptr
+    t2 = call @scoop_rt_itable_lookup(t1, global26) : ptr
+    t3 = call_indirect t2[0](t0, param1) : ptr
+    store t3 -> local0
+    ret local0
+  fun @scoop.$dynamic_adapter.FFAnyRIXRFIRAnyXX(ptr, ptr) -> ptr
+    local %0 $call.1: ptr
+  block entry
+    t0 = heap_load param0 +24 : ptr
+    t1 = heap_load t0 +0 : ptr
+    t2 = call @scoop_rt_itable_lookup(t1, global28) : ptr
+    t3 = call_indirect t2[0](t0, param1) : ptr
+    store t3 -> local0
+    ret local0
+  fun @scoop.$dynamic_adapter.FIRDescribableX(ptr, i64) -> ptr
+    local %0 $call.1: ptr
+  block entry
+    t0 = heap_load param0 +24 : ptr
+    t1 = heap_load t0 +0 : ptr
+    t2 = call @scoop_rt_itable_lookup(t1, global30) : ptr
+    t3 = call_indirect t2[0](t0, param1) : ptr
+    store t3 -> local0
+    ret local0
+  fun @scoop.$adapter.FAnyRSX.FSRAnyX(ptr, ptr) -> ptr
+    local %0 $call.1: ptr
+  block entry
+    t0 = heap_load param0 +24 : ptr
+    t1 = call_indirect t0[2](t0, param1) : ptr
+    store t1 -> local0
+    ret local0
+  fun @scoop.eq.I(ptr, ptr) -> i1
+    local %0 $a: i64
+    local %1 $b: i64
+  block entry
+    t0 = heap_load param0 +16 : i64
+    store t0 -> local0
+    t1 = heap_load param1 +16 : i64
+    store t1 -> local1
+    t2 = Eq local0, local1 : i1
+    ret t2
+  fun @scoop.tostring.I(ptr) -> ptr
+    local %0 $call.1: ptr
+  block entry
+    t0 = heap_load param0 +16 : i64
+    t1 = call @scoop_rt_int_to_string(t0) : ptr
+    store t1 -> local0
+    ret local0
+  fun @scoop.eq.Label(ptr, ptr) -> i1
+    local %0 $a: {ptr}
+    local %1 $b: {ptr}
+    local %2 $call.1: i1
+  block entry
+    t0 = heap_load param0 +16 : {ptr}
+    store t0 -> local0
+    t1 = heap_load param1 +16 : {ptr}
+    store t1 -> local1
+    t2 = extract local0, 0 : ptr
+    t3 = extract local1, 0 : ptr
+    t4 = call @scoop_rt_string_eq(t2, t3) : i1
+    store t4 -> local2
+    ret local2
+  fun @scoop.thunk.Label.Describable.describe(ptr) -> ptr
+    local %0 $call.1: ptr
+  block entry
+    t0 = heap_load param0 +16 : {ptr}
+    t1 = call @scoop.Label.describe(t0) : ptr
+    store t1 -> local0
+    ret local0
+  fun @scoop.eq.B(ptr, ptr) -> i1
+    local %0 $a: i1
+    local %1 $b: i1
+  block entry
+    t0 = heap_load param0 +16 : i1
+    store t0 -> local0
+    t1 = heap_load param1 +16 : i1
+    store t1 -> local1
+    t2 = Eq local0, local1 : i1
+    ret t2
+  fun @scoop.tostring.B(ptr) -> ptr
+    local %0 $call.1: ptr
+  block entry
+    t0 = heap_load param0 +16 : i1
+    t1 = call @scoop_rt_bool_to_string(t0) : ptr
+    store t1 -> local0
+    ret local0
+  fun @scoop.function_bridge.$Closure$reference0.FIRAnyX(ptr, i64) -> ptr
+    local %0 $call.1: i64
+  block entry
+    t0 = call @scoop_rt_box(global35, param1, 8) : ptr
+    t1 = call_indirect param0[2](param0, t0) : i64
+    store t1 -> local0
+    t2 = call @scoop_rt_box(global35, local0, 8) : ptr
+    ret t2
+  fun @scoop.function_bridge.$Closure$reference1.FIRAnyX(ptr, i64) -> ptr
+    local %0 $call.1: i64
+  block entry
+    t0 = call @scoop_rt_box(global35, param1, 8) : ptr
+    t1 = call_indirect param0[2](param0, t0) : i64
+    store t1 -> local0
+    t2 = call @scoop_rt_box(global35, local0, 8) : ptr
+    ret t2
+  fun @scoop.function_bridge.$Closure$reference3.FIRAnyX(ptr, i64) -> ptr
+    local %0 $call.1: i64
+  block entry
+    t0 = call @scoop_rt_box(global35, param1, 8) : ptr
+    t1 = call_indirect param0[2](param0, t0) : i64
+    store t1 -> local0
+    t2 = call @scoop_rt_box(global35, local0, 8) : ptr
+    ret t2
+  fun @scoop.function_bridge.$Closure$reference4.FIRAnyX(ptr, i64) -> ptr
+    local %0 $call.1: ptr
+  block entry
+    t0 = call @scoop_rt_box(global35, param1, 8) : ptr
+    t1 = call_indirect param0[2](param0, t0) : ptr
+    store t1 -> local0
+    ret local0
+  fun @scoop.function_bridge.$Closure$reference5.FIRAnyX(ptr, i64) -> ptr
+    local %0 $call.1: {ptr}
+  block entry
+    t0 = call @scoop_rt_box(global35, param1, 8) : ptr
+    t1 = call_indirect param0[2](param0, t0) : {ptr}
+    store t1 -> local0
+    t2 = call @scoop_rt_box(global45, local0, 8) : ptr
+    ret t2
+  fun @scoop.function_bridge.$Closure$reference5.FIRDescribableX(ptr, i64) -> ptr
+    local %0 $call.1: {ptr}
+  block entry
+    t0 = call @scoop_rt_box(global35, param1, 8) : ptr
+    t1 = call_indirect param0[2](param0, t0) : {ptr}
+    store t1 -> local0
+    t2 = call @scoop_rt_box(global45, local0, 8) : ptr
+    ret t2
+  fun @scoop.function_bridge.$Closure$reference6.FFAnyRIXRFIRAnyXX(ptr, ptr) -> ptr
+    local %0 $call.1: ptr
+  block entry
+    t0 = call @scoop_rt_alloc(global13, 32) : ptr
+    t1 = function_address @scoop.$adapter.FAnyRIX.FIRAnyX : ptr
+    heap_store t0 +16 t1
+    heap_store t0 +24 param1
+    t2 = call_indirect param0[2](param0, t0) : ptr
+    store t2 -> local0
+    t3 = call @scoop_rt_alloc(global13, 32) : ptr
+    t4 = function_address @scoop.$adapter.FAnyRIX.FIRAnyX : ptr
+    heap_store t3 +16 t4
+    heap_store t3 +24 local0
+    ret t3
+  fun @scoop.function_bridge.$Closure$adapter$FAnyRLabelX$FIRDescribableX.FIRAnyX(ptr, i64) -> ptr
+    local %0 $call.1: ptr
+  block entry
+    t0 = call_indirect param0[2](param0, param1) : ptr
+    store t0 -> local0
+    ret local0
+  fun @scoop.function_bridge.$Closure$dynamic_adapter$FAnyRIX.FIRAnyX(ptr, i64) -> ptr
+    local %0 $call.1: i64
+  block entry
+    t0 = call @scoop_rt_box(global35, param1, 8) : ptr
+    t1 = call_indirect param0[2](param0, t0) : i64
+    store t1 -> local0
+    t2 = call @scoop_rt_box(global35, local0, 8) : ptr
+    ret t2
+  fun @scoop.function_bridge.$Closure$dynamic_adapter$FAnyRSX.FIRAnyX(ptr, i64) -> ptr
+    local %0 $call.1: ptr
+  block entry
+    t0 = call @scoop_rt_box(global35, param1, 8) : ptr
+    t1 = call_indirect param0[2](param0, t0) : ptr
+    store t1 -> local0
+    ret local0
+  fun @scoop.function_bridge.$Closure$dynamic_adapter$FIRDescribableX.FIRAnyX(ptr, i64) -> ptr
+    local %0 $call.1: ptr
+  block entry
+    t0 = call_indirect param0[2](param0, param1) : ptr
+    store t0 -> local0
+    ret local0
+  td Describable @scoop_td_Describable size=0 vtable=0 itables=0
+  td function$FAnyRIX @scoop_td_function$FAnyRIX size=0 vtable=0 itables=0
+  td function$FAnimalRDogX @scoop_td_function$FAnimalRDogX size=0 vtable=0 itables=0
+  td function$FAnyRSX @scoop_td_function$FAnyRSX size=0 vtable=0 itables=0
+  td function$FAnyRLabelX @scoop_td_function$FAnyRLabelX size=0 vtable=0 itables=0
+  td function$FIRAnyX @scoop_td_function$FIRAnyX size=0 vtable=0 itables=0
+  td function$FFIRAnyXRFAnyRIXX @scoop_td_function$FFIRAnyXRFAnyRIXX size=0 vtable=0 itables=0
+  td function$FDogRAnimalX @scoop_td_function$FDogRAnimalX size=0 vtable=0 itables=0
+  td function$FSRAnyX @scoop_td_function$FSRAnyX size=0 vtable=0 itables=0
+  td function$FIRDescribableX @scoop_td_function$FIRDescribableX size=0 vtable=0 itables=0
+  td function$FFAnyRIXRFIRAnyXX @scoop_td_function$FFAnyRIXRFIRAnyXX size=0 vtable=0 itables=0
+  td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
+  td Animal @scoop_td_Animal size=16 vtable=3 itables=0
+  td box$I @scoop_td_box$I size=24 vtable=3 itables=0
+  td box$Label @scoop_td_box$Label size=24 vtable=3 itables=1
+  td box$B @scoop_td_box$B size=24 vtable=3 itables=0
+  td Exception @scoop_td_Exception size=24 vtable=3 itables=0
+  td Dog @scoop_td_Dog size=16 vtable=3 itables=0
+  td UnwrapException @scoop_td_UnwrapException size=24 vtable=3 itables=0
+  td ClassCastException @scoop_td_ClassCastException size=24 vtable=3 itables=0
+  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=3 itables=0
+  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=3 itables=0
+  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=3 itables=0
+  td $Closure$reference0 @scoop_td_$Closure$reference0 size=24 vtable=3 itables=2
+  td $Closure$reference1 @scoop_td_$Closure$reference1 size=24 vtable=3 itables=2
+  td $Closure$reference2 @scoop_td_$Closure$reference2 size=24 vtable=3 itables=0
+  td $Closure$reference3 @scoop_td_$Closure$reference3 size=24 vtable=3 itables=2
+  td $Closure$reference4 @scoop_td_$Closure$reference4 size=24 vtable=3 itables=2
+  td $Closure$reference5 @scoop_td_$Closure$reference5 size=24 vtable=3 itables=2
+  td $Closure$reference6 @scoop_td_$Closure$reference6 size=24 vtable=3 itables=1
+  td $Closure$adapter$FAnyRIX$FIRAnyX @scoop_td_$Closure$adapter$FAnyRIX$FIRAnyX size=32 vtable=3 itables=1
+  td $Closure$adapter$FAnimalRDogX$FDogRAnimalX @scoop_td_$Closure$adapter$FAnimalRDogX$FDogRAnimalX size=32 vtable=3 itables=0
+  td $Closure$adapter$FAnyRLabelX$FIRDescribableX @scoop_td_$Closure$adapter$FAnyRLabelX$FIRDescribableX size=32 vtable=3 itables=2
+  td $Closure$adapter$FFIRAnyXRFAnyRIXX$FFAnyRIXRFIRAnyXX @scoop_td_$Closure$adapter$FFIRAnyXRFAnyRIXX$FFAnyRIXRFIRAnyXX size=32 vtable=3 itables=1
+  td $Closure$dynamic_adapter$FIRAnyX @scoop_td_$Closure$dynamic_adapter$FIRAnyX size=32 vtable=3 itables=1
+  td $Closure$dynamic_adapter$FAnyRIX @scoop_td_$Closure$dynamic_adapter$FAnyRIX size=32 vtable=3 itables=2
+  td $Closure$dynamic_adapter$FAnyRSX @scoop_td_$Closure$dynamic_adapter$FAnyRSX size=32 vtable=3 itables=2
+  td $Closure$dynamic_adapter$FFAnyRIXRFIRAnyXX @scoop_td_$Closure$dynamic_adapter$FFAnyRIXRFIRAnyXX size=32 vtable=3 itables=1
+  td $Closure$dynamic_adapter$FIRDescribableX @scoop_td_$Closure$dynamic_adapter$FIRDescribableX size=32 vtable=3 itables=2
+  td $Closure$adapter$FAnyRSX$FSRAnyX @scoop_td_$Closure$adapter$FAnyRSX$FSRAnyX size=32 vtable=3 itables=0
+  layout String size=24 align=8 refs=[]
+  layout Int size=8 align=8 refs=[]
+  layout Boolean size=1 align=1 refs=[]
+  layout Label size=8 align=8 refs=[0]
+  layout Option$S size=8 align=8 enum-refs=[[0], []]
+  layout Option$FAnyRSX size=8 align=8 enum-refs=[[0], []]
+  layout Option$FIRAnyX size=8 align=8 enum-refs=[[0], []]
+  layout Throwable size=16 align=8 refs=[]
+  layout Exception size=24 align=8 refs=[16]
+  layout UnwrapException size=24 align=8 refs=[16]
+  layout ClassCastException size=24 align=8 refs=[16]
+  layout ArithmeticException size=24 align=8 refs=[16]
+  layout IndexOutOfBoundsException size=24 align=8 refs=[16]
+  layout IllegalStateException size=24 align=8 refs=[16]
+  layout Animal size=16 align=8 refs=[]
+  layout Dog size=16 align=8 refs=[]
+  layout box$I size=24 align=8 refs=[]
+  layout box$Label size=24 align=8 refs=[16]
+  layout box$B size=24 align=8 refs=[]
+  layout $Closure$reference0 size=24 align=8 refs=[]
+  layout $Closure$reference1 size=24 align=8 refs=[]
+  layout $Closure$reference2 size=24 align=8 refs=[]
+  layout $Closure$reference3 size=24 align=8 refs=[]
+  layout $Closure$reference4 size=24 align=8 refs=[]
+  layout $Closure$reference5 size=24 align=8 refs=[]
+  layout $Closure$reference6 size=24 align=8 refs=[]
+  layout $Closure$adapter$FAnyRIX$FIRAnyX size=32 align=8 refs=[24]
+  layout $Closure$adapter$FAnimalRDogX$FDogRAnimalX size=32 align=8 refs=[24]
+  layout $Closure$adapter$FAnyRLabelX$FIRDescribableX size=32 align=8 refs=[24]
+  layout $Closure$adapter$FFIRAnyXRFAnyRIXX$FFAnyRIXRFIRAnyXX size=32 align=8 refs=[24]
+  layout $Closure$dynamic_adapter$FIRAnyX size=32 align=8 refs=[24]
+  layout $Closure$dynamic_adapter$FAnyRIX size=32 align=8 refs=[24]
+  layout $Closure$dynamic_adapter$FAnyRSX size=32 align=8 refs=[24]
+  layout $Closure$dynamic_adapter$FFAnyRIXRFIRAnyXX size=32 align=8 refs=[24]
+  layout $Closure$dynamic_adapter$FIRDescribableX size=32 align=8 refs=[24]
+  layout $Closure$adapter$FAnyRSX$FSRAnyX size=32 align=8 refs=[24]
+  entry @scoop_main
+
+== run ==
+42
+true
+42
+generic
+value
+42
+true
+false
+42
+42
+42
+true
+42
+value
+42
+caught

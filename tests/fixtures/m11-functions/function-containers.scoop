@@ -1,0 +1,23 @@
+struct FunctionBox<T>(val operation: (T) -> T)
+
+fun increment(value: Int): Int = value + 1
+
+fun main() {
+    val offset = 2
+    val operation: (Int) -> Int = { value -> value + offset }
+    val optional: Option<(Int) -> Int> = Some(operation)
+    val operations: Array<(Int) -> Int> = [operation, ::increment]
+    val box = FunctionBox(operation)
+    val sum: ((Int, Int)) -> Int = { (left, right) -> left + right }
+
+    gcCollect()
+
+    when (optional) {
+        Some(selected) -> println(selected.invoke(40))
+        None -> println(0)
+    }
+    println(operations[0].invoke(40))
+    println(operations[1].invoke(40))
+    println(box.operation.invoke(40))
+    println(sum((20, 22)))
+}

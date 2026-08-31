@@ -1,0 +1,78 @@
+open class Animal()
+class Dog() : Animal()
+
+interface Describable {
+    fun describe(): String
+}
+
+struct Label(val text: String) : Describable {
+    override fun describe(): String = text
+}
+
+fun acceptAny(value: Any): Int = 42
+
+fun acceptAnyString(value: Any): String = "generic"
+
+fun acceptAnyLabel(value: Any): Label = Label("value")
+
+fun acceptAnimal(value: Animal): Dog = Dog()
+
+fun failAny(value: Any): Int {
+    throw ArithmeticException()
+}
+
+fun <T> widen(op: (Any) -> T): (T) -> Any = op
+
+fun returnNested(op: (Int) -> Any): (Any) -> Int = ::acceptAny
+
+fun main() {
+    val exactValue: (Any) -> Int = ::acceptAny
+    val widenedValue: (Int) -> Any = exactValue
+    val exactReference: (Animal) -> Dog = ::acceptAnimal
+    val widenedReference: (Dog) -> Animal = exactReference
+    val failing: (Any) -> Int = ::failAny
+    val widenedFailing: (Int) -> Any = failing
+
+    val genericInt = widen(exactValue)
+    val genericString = widen(::acceptAnyString)
+    val boxedExact: (Any) -> Label = ::acceptAnyLabel
+    val boxedReturn: (Int) -> Describable = boxedExact
+
+    val nestedExact: ((Int) -> Any) -> ((Any) -> Int) = ::returnNested
+    val nestedWidened: ((Any) -> Int) -> ((Int) -> Any) = nestedExact
+    val nestedResult = nestedWidened(exactValue)
+    val erased: Any = exactValue
+    val checked = erased as (Int) -> Any
+    val exactChecked = erased as (Any) -> Int
+    val optionalChecked = (erased as? (Int) -> Any)!!
+    val missing = erased as? (Any) -> String
+    val nestedErased: Any = nestedExact
+    val nestedChecked = nestedErased as ((Any) -> Int) -> ((Int) -> Any)
+    val nestedDynamicResult = nestedChecked(exactValue)
+    val boxedErased: Any = boxedExact
+    val boxedChecked = boxedErased as (Int) -> Describable
+
+    gcCollect()
+    println(widenedValue(0))
+    println(widenedReference(Dog()) is Dog)
+    println(genericInt(0))
+    println(genericString("ignored"))
+    println(boxedReturn(0).describe())
+    println(nestedResult(0))
+    println(erased is (Int) -> Any)
+    println(erased is (Any) -> String)
+    println(checked(0))
+    println(exactChecked("ignored"))
+    println(optionalChecked(0))
+    println(missing == None)
+    println(nestedDynamicResult(0))
+    println(boxedChecked(0).describe())
+    if (erased is (Int) -> Any) {
+        println(erased(0))
+    }
+    try {
+        println(widenedFailing(0))
+    } catch (exception: ArithmeticException) {
+        println("caught")
+    }
+}

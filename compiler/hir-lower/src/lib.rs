@@ -114,7 +114,7 @@ use hir::{
     ClassDecl, ClassId, EnumDecl, EnumId, Function, FunctionId, FunctionKind, GenericFunction,
     GenericFunctionId, InterfaceDecl, InterfaceId, StructDecl, StructId, Type, TypeId,
 };
-use scope::Scopes;
+use scope::{LocalFunctionScopes, Scopes};
 
 /// Lower parsed source files to HIR.
 ///
@@ -215,8 +215,62 @@ impl Owner {
     }
 }
 
+#[derive(Clone, Copy)]
+pub(crate) enum CaptureSource {
+    /// A local in the immediately enclosing callable body.
+    Local(hir::LocalId),
+    /// A binding already supplied by the immediately enclosing closure.
+    Capture(hir::BindingId),
+}
+
+#[derive(Clone)]
+pub(crate) struct AvailableCapture {
+    pub(crate) binding: hir::BindingId,
+    pub(crate) ty: TypeId,
+    pub(crate) mutable: bool,
+    pub(crate) source: CaptureSource,
+    pub(crate) declaration_depth: usize,
+}
+
+#[derive(Clone)]
+pub(crate) struct PendingCapture {
+    pub(crate) binding: hir::BindingId,
+    pub(crate) name: String,
+    pub(crate) ty: TypeId,
+    pub(crate) first_use_span: Span,
+    pub(crate) source: CaptureSource,
+    pub(crate) declaration_depth: usize,
+}
+
+#[derive(Clone)]
+pub(crate) struct CaptureContext {
+    pub(crate) available: HashMap<String, AvailableCapture>,
+    pub(crate) captures: Vec<PendingCapture>,
+    pub(crate) by_binding: HashMap<hir::BindingId, usize>,
+}
+
+#[derive(Clone, Default)]
+pub(crate) struct ReturnInference {
+    pub(crate) value_types: Vec<TypeId>,
+    pub(crate) saw_bare: bool,
+}
+
+#[derive(Clone)]
 pub(crate) struct Lowerer {
     pub(crate) types: Arena<Type>,
+    pub(crate) function_types: Arena<hir::FunctionType>,
+    pub(crate) lambdas: Arena<hir::Lambda>,
+    pub(crate) anonymous_functions: Arena<hir::AnonymousFunction>,
+    /// Generated callable body names are reserved before lowering their
+    /// bodies so nested literals with the same signature cannot collide.
+    pub(crate) next_lambda_function: u32,
+    pub(crate) next_anonymous_function: u32,
+    pub(crate) local_functions: Arena<hir::LocalFunction>,
+    pub(crate) local_function_by_function: HashMap<FunctionId, hir::LocalFunctionId>,
+    pub(crate) callable_references: Arena<hir::CallableReference>,
+    pub(crate) function_coercions: Arena<hir::FunctionCoercion>,
+    pub(crate) function_coercion_by_types:
+        HashMap<(hir::FunctionTypeId, hir::FunctionTypeId), hir::FunctionCoercionId>,
     pub(crate) structs: Arena<StructDecl>,
     pub(crate) enums: Arena<EnumDecl>,
     pub(crate) classes: Arena<ClassDecl>,
@@ -245,6 +299,13 @@ pub(crate) struct Lowerer {
     /// order (M7). Struct and enum names live in separate namespaces:
     /// a struct and a function may share a name.
     pub(crate) functions_by_name: HashMap<String, Vec<FunctionId>>,
+    /// Top-level extension namespace. Extension declarations do not enter the
+    /// ordinary function layer: they are considered only with an explicit or
+    /// lexical receiver, except for `::name` callable references.
+    pub(crate) extensions_by_name: HashMap<String, Vec<FunctionId>>,
+    /// Resolved extension receiver type for each extension function. The HIR
+    /// body represents it structurally as the first immutable `this` param.
+    pub(crate) extension_receivers: HashMap<FunctionId, TypeId>,
     /// The file each top-level function was declared in, for the
     /// layering of overload resolution (user file → core implicit
     /// imports, milestone7 DESIGN.md 1.2).
@@ -304,6 +365,9 @@ pub(crate) struct Lowerer {
     pub(crate) type_params_in_scope: Vec<String>,
     /// Return type of the function whose body is being lowered.
     pub(crate) current_return_ty: TypeId,
+    /// Active only while an anonymous function with neither an explicit nor
+    /// expected return type is lowered.
+    pub(crate) return_inference: Option<ReturnInference>,
     /// Name of the function whose body is being lowered (diagnostics).
     pub(crate) current_fn_name: String,
     /// Explicit suspension-permission stack; it is never empty.
@@ -325,6 +389,13 @@ pub(crate) struct Lowerer {
     /// finished `hir::Body`).
     pub(crate) locals: Arena<hir::Local>,
     pub(crate) scopes: Scopes,
+    pub(crate) local_function_scopes: LocalFunctionScopes,
+    /// Active nested callable capture analyses. The outer callable remains
+    /// on the stack while an inner one is lowered so transitive captures can
+    /// be propagated without reading an exited native stack frame.
+    pub(crate) capture_contexts: Vec<CaptureContext>,
+    /// Monotonic Cone-wide lexical binding identity allocator.
+    pub(crate) next_binding_id: u32,
     /// Deduplicated monomorphization requests, in first-use order.
     pub(crate) instantiations: Arena<hir::ResolvedGenericFunction>,
     /// Counter for hidden `$opt.N` / `$res.N` desugaring temporaries.
@@ -333,6 +404,32 @@ pub(crate) struct Lowerer {
 }
 
 impl Lowerer {
+    pub(crate) fn fresh_binding(&mut self) -> hir::BindingId {
+        let binding = hir::BindingId::from_raw(self.next_binding_id);
+        self.next_binding_id += 1;
+        binding
+    }
+
+    pub(crate) fn alloc_local(&mut self, name: String, ty: TypeId, mutable: bool) -> hir::LocalId {
+        let binding = self.fresh_binding();
+        self.locals.alloc(hir::Local {
+            binding,
+            name,
+            ty,
+            mutable,
+        })
+    }
+
+    pub(crate) fn push_scope(&mut self) {
+        self.scopes.push();
+        self.local_function_scopes.push();
+    }
+
+    pub(crate) fn pop_scope(&mut self) {
+        self.scopes.pop();
+        self.local_function_scopes.pop();
+    }
+
     fn new() -> Self {
         // Well-known types are allocated first, in a fixed order
         // (impl spec 2.2): Unit, Int, UInt (M9), Boolean, String.
@@ -348,6 +445,16 @@ impl Lowerer {
 
         let mut lowerer = Lowerer {
             types,
+            function_types: Arena::new(),
+            lambdas: Arena::new(),
+            anonymous_functions: Arena::new(),
+            next_lambda_function: 0,
+            next_anonymous_function: 0,
+            local_functions: Arena::new(),
+            local_function_by_function: HashMap::new(),
+            callable_references: Arena::new(),
+            function_coercions: Arena::new(),
+            function_coercion_by_types: HashMap::new(),
             structs: Arena::new(),
             enums: Arena::new(),
             classes: Arena::new(),
@@ -365,6 +472,8 @@ impl Lowerer {
             // Filled by `synthesize_any_members` below.
             any_methods: [hir::FunctionId::from_raw(0.into()); 3],
             functions_by_name: HashMap::new(),
+            extensions_by_name: HashMap::new(),
+            extension_receivers: HashMap::new(),
             function_files: HashMap::new(),
             user_file_index: 0,
             structs_by_name: HashMap::new(),
@@ -387,6 +496,7 @@ impl Lowerer {
             signatures: HashMap::new(),
             type_params_in_scope: Vec::new(),
             current_return_ty: unit,
+            return_inference: None,
             current_fn_name: String::new(),
             suspension_contexts: vec![SuspensionContext::Forbidden(
                 ForbiddenSuspendContext::TopLevel,
@@ -397,6 +507,9 @@ impl Lowerer {
             current_file: 0,
             locals: Arena::new(),
             scopes: Scopes::new(),
+            local_function_scopes: LocalFunctionScopes::new(),
+            capture_contexts: Vec::new(),
+            next_binding_id: 0,
             instantiations: Arena::new(),
             hidden_count: 0,
             diagnostics: Vec::new(),
@@ -422,7 +535,9 @@ impl Lowerer {
             ("toString", Vec::new(), self.string),
         ] {
             let mut locals = Arena::new();
+            let this_binding = self.fresh_binding();
             let this = locals.alloc(hir::Local {
+                binding: this_binding,
                 name: "this".to_string(),
                 ty: self.any,
                 mutable: false,
@@ -434,7 +549,9 @@ impl Lowerer {
             }];
             let mut sig_params = Vec::new();
             for (param_name, param_ty) in params {
+                let binding = self.fresh_binding();
                 let local = locals.alloc(hir::Local {
+                    binding,
                     name: param_name.to_string(),
                     ty: param_ty,
                     mutable: false,
@@ -697,6 +814,12 @@ impl Lowerer {
             .expect("a missing or invalid coroutine core protocol is always diagnosed");
         Ok(hir::Module {
             types: self.types,
+            function_types: self.function_types,
+            lambdas: self.lambdas,
+            anonymous_functions: self.anonymous_functions,
+            local_functions: self.local_functions,
+            callable_references: self.callable_references,
+            function_coercions: self.function_coercions,
             functions: self.functions,
             generic_functions: self.generic_functions,
             structs: self.structs,
@@ -1047,7 +1170,12 @@ impl Lowerer {
             span: decl.span,
         });
         self.top_level.push(id);
-        self.functions_by_name
+        let namespace = if decl.receiver_ty.is_some() {
+            &mut self.extensions_by_name
+        } else {
+            &mut self.functions_by_name
+        };
+        namespace
             .entry(decl.name.text.clone())
             .or_default()
             .push(id);
@@ -1531,7 +1659,16 @@ impl Lowerer {
         let (Some(a_sig), Some(b_sig)) = (self.signatures.get(&a), self.signatures.get(&b)) else {
             return false;
         };
-        a_sig.params.len() == b_sig.params.len()
+        let receivers_match = match (
+            self.extension_receivers.get(&a),
+            self.extension_receivers.get(&b),
+        ) {
+            (Some(&a), Some(&b)) => self.types_equal(a, b),
+            (None, None) => true,
+            _ => false,
+        };
+        receivers_match
+            && a_sig.params.len() == b_sig.params.len()
             && a_sig
                 .params
                 .iter()
@@ -1797,6 +1934,12 @@ impl Lowerer {
         }
         self.type_params_in_scope = type_params.clone();
 
+        if let Some(receiver) = &decl.receiver_ty
+            && let Some(receiver_ty) = self.resolve_type_ref(receiver)
+        {
+            self.extension_receivers.insert(id, receiver_ty);
+        }
+
         let mut params = Vec::with_capacity(decl.params.len());
         for param in &decl.params {
             // On failure the diagnostic is already recorded and the
@@ -1899,11 +2042,7 @@ impl Lowerer {
     pub(crate) fn alloc_hidden(&mut self, prefix: &str, ty: TypeId) -> hir::LocalId {
         let name = format!("${prefix}.{}", self.hidden_count);
         self.hidden_count += 1;
-        self.locals.alloc(hir::Local {
-            name,
-            ty,
-            mutable: false,
-        })
+        self.alloc_local(name, ty, false)
     }
 
     /// Allocate the branch-result local used when a structured control
@@ -1912,11 +2051,7 @@ impl Lowerer {
     pub(crate) fn alloc_hidden_result(&mut self, ty: TypeId) -> hir::LocalId {
         let name = format!("$result.{}", self.hidden_count);
         self.hidden_count += 1;
-        self.locals.alloc(hir::Local {
-            name,
-            ty,
-            mutable: true,
-        })
+        self.alloc_local(name, ty, true)
     }
 
     /// The `Option<T>` enum of `scoop.core` and the variant index of

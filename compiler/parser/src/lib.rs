@@ -1,7 +1,7 @@
 //! Parser stage: source text -> AST.
 //!
-//! Hand-written lexer + recursive-descent parser for the M9 subset; see
-//! `docs/milestone9/DESIGN.md` (generic struct declarations) and
+//! Hand-written lexer + recursive-descent parser through the M11 subset; see
+//! `docs/milestone11/DESIGN.md` (function types and values) and
 //! `docs/specs/SCOOP-IMPL-SPEC.md` section 2.1. Depends only on
 //! `scoop-ast` (the output data channel).
 
@@ -14,6 +14,8 @@ mod pattern;
 mod tests;
 #[cfg(test)]
 mod tests_m10;
+#[cfg(test)]
+mod tests_m11;
 #[cfg(test)]
 mod tests_m2;
 #[cfg(test)]

@@ -1,0 +1,24 @@
+fun increment(value: Int): Int = value + 1
+
+fun apply(value: Int, operation: (Int) -> Int): Int = operation(value)
+
+fun main() {
+    val lambda: (Int) -> Int = { value -> value + 1 }
+    val reference: (Int) -> Int = ::increment
+    val secondReference: (Int) -> Int = ::increment
+    val standalone = { value: Int -> value + 3 }
+    val implicit: (Int) -> Int = { it + 1 }
+    val zero = { 42 }
+    val discard: (Int) -> Unit = { value -> value + 1 }
+    gcCollect()
+    println(lambda(40))
+    println(reference.invoke(40))
+    println(apply(40, { value: Int -> value + 2 }))
+    println(standalone(39))
+    println(implicit(40))
+    println(zero())
+    println(({ value: Int -> value + 1 })(40))
+    println(reference === secondReference)
+    discard(41)
+    println("discarded")
+}

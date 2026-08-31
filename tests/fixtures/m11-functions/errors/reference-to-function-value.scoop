@@ -1,0 +1,6 @@
+fun increment(value: Int): Int = value + 1
+
+fun main() {
+    val operation: (Int) -> Int = ::increment
+    val duplicate = ::operation
+}

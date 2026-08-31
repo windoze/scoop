@@ -1,3 +1,0 @@
-fun use(task: suspend (Int) -> Int) {}
-
-fun main() {}

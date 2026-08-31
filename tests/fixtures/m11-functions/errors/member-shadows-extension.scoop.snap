@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m11-functions/errors/member-shadows-extension.scoop:8:27: error: argument for parameter `value` of `Host.choose` must be of type Int, found String

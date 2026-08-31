@@ -15,8 +15,27 @@ interface SuspendRegistration<out T> {
     fun register(continuation: Continuation<T>)
 }
 
+struct FunctionSuspendTask<T>(val task: suspend () -> T) : SuspendTask<T> {
+    final override suspend fun run(): T = task.invoke()
+}
+
+struct FunctionSuspendRegistration<T>(
+    val registration: (Continuation<T>) -> Unit
+) : SuspendRegistration<T> {
+    final override fun register(continuation: Continuation<T>) {
+        registration.invoke(continuation)
+    }
+}
+
 @Intrinsic("coroutine_start")
 fun <T> startCoroutine(task: SuspendTask<T>, completion: Continuation<T>)
 
 @Intrinsic("coroutine_suspend")
 suspend fun <T> suspendCoroutine(registration: SuspendRegistration<T>): T
+
+fun <T> startCoroutine(task: suspend () -> T, completion: Continuation<T>) {
+    startCoroutine(FunctionSuspendTask(task), completion)
+}
+
+suspend fun <T> suspendCoroutine(registration: (Continuation<T>) -> Unit): T =
+    suspendCoroutine(FunctionSuspendRegistration(registration))

@@ -46,6 +46,8 @@ Runtime 是编译产物的支撑层，职责包括：
 
 值类型装箱为堆对象：对象头 + 按值存储的 payload（spec 4.4.4）。拆箱取回 payload。装箱对象的 `==` 仍为结构相等（经 TypeDescriptor 分发）。
 
+所有 Scoop 方法 receiver 都按值传递（spec 3.3）：ref-type receiver 复制 managed ref value，因而仍指向同一对象；value-type receiver 复制完整值。装箱值经 interface 分派调用值类型实现时，box 只是 payload 的存储来源；dispatch thunk 用 payload 的值初始化 value-type `this`。thunk 可以在不可观察时借用 payload 地址作为 ABI 优化；若 unsafe/interior-mutable 路径能观察或修改存储，必须先复制 payload，不得把 box 内部地址暴露为 `this`。
+
 ### 2.4 `String` / `Array` 布局
 
 - `String`：对象头 + 长度 + 内联字节数据（UTF-8，spec 11.4）。
@@ -54,6 +56,16 @@ Runtime 是编译产物的支撑层，职责包括：
 ### 2.5 `Option` 的 niche 表示
 
 引用类型的全 0 机器字表示 `None`；`Ptr` / `FunPtr` 以 `_rawPointer == 0u` 表示 `None`（spec 7.4）。GC 扫描时必须识别 niche 编码，不得把全 0 当作有效引用追踪。
+
+### 2.6 函数值与 closure
+
+managed 函数值是普通引用对象，不是原生函数指针。每个 concrete closure 实例包含编译器控制的 invoke entry 与零个或多个不可变捕获字段；语言只允许捕获不可重新绑定的 binding，不存在 compiler-generated shared cell。closure、函数类型型变 adapter 与 suspend closure frame 都必须有各自的 TypeDescriptor 和完备的递归引用扫描描述。
+
+- invoke entry、TypeDescriptor 及其他代码/metadata 指针不是 managed 引用，不进入 GC 扫描描述；captured value type按 concrete layout直接内联在 closure对象中，其中的引用必须按普通字段递归扫描；该内联存储没有独立对象头、identity或额外TypeDescriptor，不构成 boxing；
+- concrete closure 的 TypeDescriptor 记录其 exact function type descriptor；function type descriptor 保留挂起性、参数与返回类型 identity。编译器可以按实际使用登记型变 bridge，运行期 `is` / `as` 不得仅把不同签名按同一个“closure”根类型处理；
+- 无捕获 closure 可以由编译器放入静态只读对象或复用单例，但其对象头和 TypeDescriptor 仍须满足普通引用对象契约；
+- closure 的分配、调用与回收不需要新增 runtime API，走现有 managed 分配、statepoint 与动态分派设施；
+- 本节对象不得直接当作 `FunPtr` 交给原生代码。spec 13.10 的 `FunPtr` callback 是独立的 GC-free 原生地址；spec 14.3 的 GC-aware closure 回调则必须先通过 runtime 注册/保活协议。
 
 ---
 
@@ -162,6 +174,7 @@ TLAB 的有无、尺寸与 slow path 细节随 GC 方案确定；契约只要求
 
 - frame 与 continuation adapter 必须有普通 TypeDescriptor 和完备的递归引用扫描描述；frame 链由 GC 自然保活，不登记额外的 runtime root；
 - continuation 的完成状态与 frame 的当前恢复状态存于 managed 对象字段。M10 的最小实现是单线程协议，检查与转换无需 runtime 原子操作；跨线程恢复要等线程注册/握手与调度器落地后再定义；
+- hidden continuation ABI 仅存在于编译器生成的 Scoop 托管调用之间。runtime 不提供 suspend FFI 入口、extern trampoline 或 callback wrapper；`@Extern` 与 `suspend` 的互斥及挂起函数不能转换为 `FunPtr` 由 HIR 保证（spec 8.2、13.4、13.10）；
 - runtime 只提供第 5 章所述的 ABI 异常物化辅助，不参与状态分派、恢复、队列或线程切换；
 - 调度器、事件循环与取消属于标准库。永不恢复的 continuation 只会按普通不可达对象被 GC 回收，runtime 不替它执行 cleanup / `finally`。
 

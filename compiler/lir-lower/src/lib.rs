@@ -252,6 +252,7 @@ fn nested_enums(module: &mir::Module, ty: &mir::Type, out: &mut Vec<mir::EnumId>
         | mir::Type::String
         | mir::Type::Class(_)
         | mir::Type::Interface(_)
+        | mir::Type::Function(_)
         | mir::Type::Any => {}
     }
 }
@@ -384,6 +385,11 @@ fn layouts(
             record_layout_types(&field.ty, &mut types);
         }
     }
+    for (_, def) in module.closure_classes.iter() {
+        for field in &def.captures {
+            record_layout_types(&field.ty, &mut types);
+        }
+    }
     for ty in from_code {
         record_layout_types(ty, &mut types);
     }
@@ -402,6 +408,15 @@ fn layouts(
     }
     for (_, def) in module.classes.iter() {
         let (size, align, scan) = class_layout(module, enums, def);
+        layouts.push(lir::Layout {
+            name: def.name.clone(),
+            size,
+            align,
+            kind: lir::LayoutKind::Plain { scan },
+        });
+    }
+    for (_, def) in module.closure_classes.iter() {
+        let (_, size, align, scan) = closure_shape(module, enums, def);
         layouts.push(lir::Layout {
             name: def.name.clone(),
             size,
@@ -600,6 +615,33 @@ fn class_shape(
     (offsets, size.next_multiple_of(align), align)
 }
 
+/// Closure object layout: the 16-byte managed header, one non-scanned code
+/// pointer at offset 16, then naturally aligned inline capture fields.
+fn closure_shape(
+    module: &mir::Module,
+    enums: &Arena<lir::EnumDef>,
+    def: &mir::ClosureClass,
+) -> (Vec<u64>, u64, u64, lir::RefScan) {
+    let enum_shape = |id: mir::EnumId| repr_shape(&enums[enum_def_id(id)].repr);
+    let mut offsets = Vec::with_capacity(def.captures.len());
+    let mut size = 24u64;
+    let mut align = 8u64;
+    for capture in &def.captures {
+        let (capture_size, capture_align) = size_align(module, &enum_shape, &capture.ty);
+        let offset = size.next_multiple_of(capture_align);
+        offsets.push(offset);
+        size = offset + capture_size;
+        align = align.max(capture_align);
+    }
+    let fields: Vec<_> = def
+        .captures
+        .iter()
+        .map(|capture| capture.ty.clone())
+        .collect();
+    let scan = scan_fields(module, enums, &fields, &offsets, 0);
+    (offsets, size.next_multiple_of(align), align, scan)
+}
+
 /// Class ids ordered base-before-derived (single inheritance: depth
 /// in the base chain; ties keep declaration order).
 fn class_order(module: &mir::Module) -> Vec<mir::ClassId> {
@@ -649,6 +691,22 @@ fn type_descriptors(module: &mir::Module, enums: &Arena<lir::EnumDef>) -> Vec<li
             itables: Vec::new(),
         });
     }
+    for (id, _) in module.function_types.iter() {
+        let name = format!(
+            "function${}",
+            mir::encode_type(module, &mir::Type::Function(id))
+        );
+        tds.push(lir::TypeDescriptor {
+            symbol: td_symbol(&name),
+            name,
+            size: 0,
+            align: 0,
+            scan: lir::RefScan::None,
+            parent: None,
+            vtable: Vec::new(),
+            itables: Vec::new(),
+        });
+    }
     for id in class_order(module) {
         let def = &module.classes[id];
         let (size, align, scan) = class_layout(module, enums, def);
@@ -676,6 +734,36 @@ fn type_descriptors(module: &mir::Module, enums: &Arena<lir::EnumDef>) -> Vec<li
                         .iter()
                         .map(|slot| slot_symbol(module, slot))
                         .collect(),
+                })
+                .collect(),
+        });
+    }
+    for (_, def) in module.closure_classes.iter() {
+        let (_, size, align, scan) = closure_shape(module, enums, def);
+        tds.push(lir::TypeDescriptor {
+            name: def.name.clone(),
+            symbol: td_symbol(&def.name),
+            size,
+            align,
+            scan,
+            parent: Some(td_symbol(&format!(
+                "function${}",
+                mir::encode_type(module, &mir::Type::Function(def.function_type))
+            ))),
+            vtable: vec![
+                mir::RuntimeFn::AnyEquals.symbol().to_string(),
+                mir::RuntimeFn::AnyHashCode.symbol().to_string(),
+                mir::RuntimeFn::AnyToString.symbol().to_string(),
+            ],
+            itables: def
+                .bridges
+                .iter()
+                .map(|bridge| lir::ItableRecord {
+                    interface_symbol: td_symbol(&format!(
+                        "function${}",
+                        mir::encode_type(module, &mir::Type::Function(bridge.target))
+                    )),
+                    slots: vec![module.functions[bridge.function].symbol.clone()],
                 })
                 .collect(),
         });
@@ -720,9 +808,11 @@ fn size_align(
         // UInt shares Int's machine word (M9, spec 11.2).
         mir::Type::Int | mir::Type::UInt => (8, 8),
         mir::Type::Boolean => (1, 1),
-        mir::Type::String | mir::Type::Class(_) | mir::Type::Interface(_) | mir::Type::Any => {
-            (8, 8)
-        }
+        mir::Type::String
+        | mir::Type::Class(_)
+        | mir::Type::Interface(_)
+        | mir::Type::Function(_)
+        | mir::Type::Any => (8, 8),
         mir::Type::Struct(id) => {
             let fields: Vec<mir::Type> = module.structs[*id]
                 .fields
@@ -805,9 +895,11 @@ fn ref_scan(
     base: u64,
 ) -> lir::RefScan {
     match ty {
-        mir::Type::String | mir::Type::Class(_) | mir::Type::Interface(_) | mir::Type::Any => {
-            lir::RefScan::References(vec![base])
-        }
+        mir::Type::String
+        | mir::Type::Class(_)
+        | mir::Type::Interface(_)
+        | mir::Type::Function(_)
+        | mir::Type::Any => lir::RefScan::References(vec![base]),
         mir::Type::Array(_) | mir::Type::MutableArray(_) => lir::RefScan::References(vec![base]),
         mir::Type::Struct(id) => {
             let fields: Vec<mir::Type> = module.structs[*id]
@@ -896,9 +988,11 @@ fn lir_type(module: &mir::Module, ty: &mir::Type) -> lir::LirType {
         // `i64` at LIR, so codegen needs no UInt-specific handling.
         mir::Type::Int | mir::Type::UInt => lir::LirType::I64,
         mir::Type::Boolean => lir::LirType::I1,
-        mir::Type::String | mir::Type::Class(_) | mir::Type::Interface(_) | mir::Type::Any => {
-            lir::LirType::Ptr
-        }
+        mir::Type::String
+        | mir::Type::Class(_)
+        | mir::Type::Interface(_)
+        | mir::Type::Function(_)
+        | mir::Type::Any => lir::LirType::Ptr,
         mir::Type::Array(element) | mir::Type::MutableArray(element) => {
             lir::LirType::Array(Box::new(lir_type(module, element)))
         }
@@ -1079,6 +1173,7 @@ fn td_symbol_for(module: &mir::Module, ty: &mir::Type) -> String {
         | mir::Type::UInt
         | mir::Type::Boolean
         | mir::Type::Unit => td_symbol(&format!("box${}", mir::encode_type(module, ty))),
+        mir::Type::Function(_) => td_symbol(&format!("function${}", mir::encode_type(module, ty))),
         mir::Type::Any | mir::Type::Array(_) | mir::Type::MutableArray(_) => {
             unreachable!("no referenceable TypeDescriptor for {ty:?}")
         }
@@ -1258,6 +1353,13 @@ impl<'a> FunctionLowerer<'a> {
             },
             mir::Expr::VariantConstruct { ty, .. } => ty.clone(),
             mir::Expr::ClassInit { class_id, .. } => mir::Type::Class(*class_id),
+            mir::Expr::ClosureAlloc { class, .. } => {
+                mir::Type::Function(self.module.closure_classes[*class].function_type)
+            }
+            mir::Expr::ClosureCapture { class, index, .. } => self.module.closure_classes[*class]
+                .captures[*index as usize]
+                .ty
+                .clone(),
             mir::Expr::EnumTag(_) => mir::Type::Int,
             mir::Expr::EnumField {
                 operand,
@@ -1608,6 +1710,63 @@ impl<'a> FunctionLowerer<'a> {
                 }
                 lir::Value::Temp(out)
             }
+            mir::Expr::ClosureAlloc { class, captures } => {
+                let def = &self.module.closure_classes[*class];
+                let (capture_offsets, size, _, _) = closure_shape(self.module, self.enums, def);
+                let capture_types: Vec<_> = def
+                    .captures
+                    .iter()
+                    .map(|capture| capture.ty.clone())
+                    .collect();
+                assert_eq!(
+                    captures.len(),
+                    capture_types.len(),
+                    "ClosureAlloc initializes every capture field"
+                );
+                let td = lir::Value::Global(self.td_global(td_symbol(&def.name)));
+                let out = self.new_temp(lir::LirType::Ptr);
+                self.push(lir::Instruction::Call {
+                    out: Some(out),
+                    symbol: ALLOC_SYMBOL.to_string(),
+                    args: vec![td, lir::Value::IntConst(size as i64)],
+                });
+                let invoke_function = self.module.closure_invoke_functions[def.invoke].function;
+                let invoke_symbol = self.module.functions[invoke_function].symbol.clone();
+                let invoke = self.new_temp(lir::LirType::Ptr);
+                self.push(lir::Instruction::FunctionAddress {
+                    out: invoke,
+                    symbol: invoke_symbol,
+                });
+                self.push(lir::Instruction::HeapStore {
+                    object: lir::Value::Temp(out),
+                    offset: 16,
+                    value: lir::Value::Temp(invoke),
+                });
+                for ((capture, capture_ty), offset) in
+                    captures.iter().zip(&capture_types).zip(capture_offsets)
+                {
+                    let value = self.lower_expr(capture, capture_ty);
+                    self.push(lir::Instruction::HeapStore {
+                        object: lir::Value::Temp(out),
+                        offset,
+                        value,
+                    });
+                }
+                lir::Value::Temp(out)
+            }
+            mir::Expr::ClosureCapture {
+                closure,
+                class,
+                index,
+            } => {
+                let def = &self.module.closure_classes[*class];
+                let (capture_offsets, _, _, _) = closure_shape(self.module, self.enums, def);
+                let closure_ty = self.expr_ty(closure);
+                let closure = self.lower_expr(closure, &closure_ty);
+                let out_ty = self.value_type(ty);
+                let out = self.load_at_offset(closure, capture_offsets[*index as usize], out_ty);
+                lir::Value::Temp(out)
+            }
             // The array operations map onto the corresponding LIR
             // instructions (DESIGN 2.4); the element layout is the
             // `Array(...)` type of the array operand (or of `out` for
@@ -1893,6 +2052,67 @@ impl<'a> FunctionLowerer<'a> {
 
     fn lower_call(&mut self, call: &mir::Call, result_ty: &mir::Type) -> lir::Value {
         match call.target.callee {
+            mir::Callee::FunctionBridge(function_type) => {
+                let signature = self.module.function_types[function_type].clone();
+                let mut parameter_types = Vec::with_capacity(call.args.len());
+                parameter_types.push(mir::Type::Any);
+                parameter_types.extend(signature.parameter_types);
+                for arg in call.args.iter().skip(parameter_types.len()) {
+                    parameter_types.push(self.expr_ty(arg));
+                }
+                assert_eq!(
+                    call.args.len(),
+                    parameter_types.len(),
+                    "only suspend function bridges add a hidden continuation argument"
+                );
+                let args: Vec<lir::Value> = call
+                    .args
+                    .iter()
+                    .zip(&parameter_types)
+                    .map(|(arg, ty)| self.lower_expr(arg, ty))
+                    .collect();
+                let td = self.load_at_offset(args[0], 0, lir::LirType::Ptr);
+                let target_td = self.td_ref(&mir::Type::Function(function_type));
+                let table = self.new_temp(lir::LirType::Ptr);
+                self.push(lir::Instruction::Call {
+                    out: Some(table),
+                    symbol: mir::RuntimeFn::ITableLookup.symbol().to_string(),
+                    args: vec![lir::Value::Temp(td), target_td],
+                });
+                self.finish_indirect(
+                    table,
+                    0,
+                    args,
+                    !signature.is_suspend && signature.return_type == mir::Type::Unit,
+                    result_ty,
+                )
+            }
+            mir::Callee::Closure(function_type) => {
+                let signature = self.module.function_types[function_type].clone();
+                let mut parameter_types = Vec::with_capacity(call.args.len());
+                parameter_types.push(mir::Type::Function(function_type));
+                parameter_types.extend(signature.parameter_types);
+                for arg in call.args.iter().skip(parameter_types.len()) {
+                    parameter_types.push(self.expr_ty(arg));
+                }
+                assert_eq!(
+                    call.args.len(),
+                    parameter_types.len(),
+                    "only suspend closure calls add a hidden continuation argument"
+                );
+                let args: Vec<lir::Value> = call
+                    .args
+                    .iter()
+                    .zip(&parameter_types)
+                    .map(|(arg, ty)| self.lower_expr(arg, ty))
+                    .collect();
+                self.finish_closure(
+                    args[0],
+                    args,
+                    !signature.is_suspend && signature.return_type == mir::Type::Unit,
+                    result_ty,
+                )
+            }
             mir::Callee::User(_) | mir::Callee::Monomorphized(_) => {
                 let id = match call.target.callee {
                     mir::Callee::User(id) => id,
@@ -1901,6 +2121,9 @@ impl<'a> FunctionLowerer<'a> {
                     }
                     mir::Callee::CoroutineSuspend { .. } | mir::Callee::Runtime(_) => {
                         unreachable!("matched a local callee above")
+                    }
+                    mir::Callee::Closure(_) | mir::Callee::FunctionBridge(_) => {
+                        unreachable!("handled above")
                     }
                 };
                 let callee = &self.module.functions[id];
@@ -1941,6 +2164,12 @@ impl<'a> FunctionLowerer<'a> {
                             args: vec![lir::Value::Temp(td), iface_td],
                         });
                         self.finish_indirect(table, slot, args, returns_unit, result_ty)
+                    }
+                    mir::CallKind::Closure { .. } => {
+                        unreachable!("closure calls have no statically selected user callee")
+                    }
+                    mir::CallKind::FunctionBridge { .. } => {
+                        unreachable!("function bridge calls have no static user callee")
                     }
                 }
             }
@@ -2160,6 +2389,57 @@ impl<'a> FunctionLowerer<'a> {
                 out: Some(out),
                 table: lir::Value::Temp(table),
                 slot,
+                args,
+            });
+            lir::Value::Temp(out)
+        }
+    }
+
+    /// A managed closure call through the code pointer already loaded from
+    /// the closure object. Its unwind behavior is identical to direct and
+    /// table-indirect managed calls.
+    fn finish_closure(
+        &mut self,
+        closure: lir::Value,
+        args: Vec<lir::Value>,
+        returns_unit: bool,
+        result_ty: &mir::Type,
+    ) -> lir::Value {
+        if let Some(unwind) = self.current_unwind {
+            let normal = self.new_block("invoke.normal");
+            let out = if returns_unit {
+                None
+            } else {
+                let ty = self.value_type(result_ty);
+                Some(self.new_temp(ty))
+            };
+            self.push(lir::Instruction::InvokeIndirect {
+                out,
+                table: closure,
+                slot: 2,
+                args,
+                normal,
+                unwind,
+            });
+            self.seal(lir::Terminator::Br(normal));
+            self.enter(normal);
+            return out.map_or_else(|| self.unit_value(), lir::Value::Temp);
+        }
+        if returns_unit {
+            self.push(lir::Instruction::CallIndirect {
+                out: None,
+                table: closure,
+                slot: 2,
+                args,
+            });
+            self.unit_value()
+        } else {
+            let ty = self.value_type(result_ty);
+            let out = self.new_temp(ty);
+            self.push(lir::Instruction::CallIndirect {
+                out: Some(out),
+                table: closure,
+                slot: 2,
                 args,
             });
             lir::Value::Temp(out)
@@ -2388,6 +2668,9 @@ mod tests {
         fn finish(self, entry: mir::FunctionId) -> mir::Module {
             mir::Module {
                 functions: self.functions,
+                function_types: Arena::new(),
+                closure_classes: Arena::new(),
+                closure_invoke_functions: Arena::new(),
                 top_level: self.top_level,
                 strings: self.strings,
                 structs: self.structs,

@@ -102,7 +102,7 @@ C11，沿用 always-leak：
 ## 5. 临时决策（及退役里程碑）
 
 1. **Int = i64**：本开发目标平台为 64 位；spec 11.2 要求编译器明确 Int 与 Int32/Int64 的对应关系——M2 固定 i64，平台抽象在需要第二目标时引入。
-2. **内建 print/println 扩展为 String/Int/Boolean 重载（已退役）**：M7 已迁移为 core 普通重载；底层输出/转换 intrinsic 到 M11 再由 FFI 取代。
+2. **内建 print/println 扩展为 String/Int/Boolean 重载（已退役）**：M7 已迁移为 core 普通重载；底层输出/转换 intrinsic 到 M12 再由 FFI 取代。
 3. **局部变量全 alloca + mem2reg**：性能足够且最简单；如未来证明是瓶颈再手写 SSA 构造。
 4. **结构相等内联展开**：不生成 per-type equality 函数；递归深度失控或代码膨胀时再函数化。
 5. **无错误恢复**、**诊断 fail-fast 于 parser、收集于 HIR**：沿用 M1。

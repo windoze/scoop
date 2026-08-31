@@ -1,0 +1,7 @@
+class Mapper {
+    fun map(value: Int): Int = value
+}
+
+fun main() {
+    val operation = Mapper::map
+}

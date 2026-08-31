@@ -1,0 +1,4 @@
+fun main() {
+    println(answer())
+    fun answer(): Int = 42
+}

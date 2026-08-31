@@ -13,7 +13,7 @@ M10 交付以下闭环：普通 `main` 通过 `startCoroutine` 启动 task；tas
 - source type `R` 与内部完成协议分离：内部 ABI 使用 `CoroutineStep<R>`，不以 `Any` 搬运结果，不把值类型统一装箱；
 - frame 和每个恢复点的 continuation adapter 都是普通 managed 对象，由 TypeDescriptor 的递归扫描描述交给 M9 GC；runtime 不维护协程根表；
 - M10 不引入调度器、事件循环、线程切换或取消；continuation 只保证在同一已注册线程上恢复；
-- 通用函数类型、函数引用与 lambda/closure 仍不在本里程碑。core 以 `SuspendTask` / `SuspendRegistration` 两个普通 interface 提供无需这些前置特性的端到端入口；后续标准库可增加 lambda 形态的重载。
+- 通用函数类型、函数引用与 lambda/closure 仍不在本里程碑。core 以 `SuspendTask` / `SuspendRegistration` 两个普通 interface 提供无需这些前置特性的端到端入口；M11 在同一协议上增加函数值形态的普通源码适配重载。
 
 最后一项是有意的边界，不是把 lambda 偷藏成 intrinsic：M10 所有用户可实现的协议仍由普通 class/interface 和普通分派完成，只有“建立状态机边界”的两个 core 函数是 intrinsic。
 
@@ -259,6 +259,7 @@ MIR 是 M10 的主实现层：
 
 - `Body` 改为基本块 arena + entry；call/branch/return/throw/unwind 是显式 terminator 或 effect statement，嵌套 call 在进入 CFG 前完成 A-normalize；
 - 先复用现有单态化，得到完全具体的参数、返回值、局部与调用目标，再运行 coroutine transform；
+- 所有 suspend 成员方法在进入 coroutine transform 前，已按 spec 3.3 把 receiver 正规化为隐含的 method-local `this` value；若 `this` 跨挂起点活跃，frame 保存的是该参数值——value type 保存完整值，ref type 保存 managed ref value——而不是调用方 receiver binding place 的地址；
 - 引入 `CoroutineFrameId`、`CoroutineResumePointId`、`CoroutineAdapterId`、`CoroutineStepId` 等互不混用的 id；生成实体进入普通 type/function list，但保留 synthetic origin 供 dump 与诊断；
 - frame 字段由 liveness + pending cleanup 构成；所有字段类型完备。frame/adapter 构造是普通 class allocation，字段 store 走既有写屏障；
 - direct / virtual / interface suspend call 统一追加 continuation 参数并返回具体 `CoroutineStep<R>`；分派表槽指向 transformed symbol；
@@ -298,7 +299,7 @@ MIR 是 M10 的主实现层：
 - 真挂起：保存 continuation，`startCoroutine` 返回后再 resume；成功与失败各一条；
 - 同步恢复：`register` 内 resume，验证不重入且后续语句只执行一次；
 - 多挂起点：同类型与不同类型结果，验证 resume point 不按类型或符号错误合并；
-- 成员分派：final / virtual / interface suspend 方法；
+- 成员分派：final / virtual / interface suspend 方法；value/ref receiver 都按值把 method-local `this` 保留进跨挂起 frame；
 - 泛型：泛型 suspend 顶层函数与泛型成员函数在多个具体类型上的 frame/step 实例；
 - 控制流：挂起位于实参中间、if/when 分支、while 条件/体、短路表达式，验证前序副作用不重复；
 - 异常：首次调用立即抛、挂起后失败、catch 内再挂起、finally 内挂起、finally 覆盖 pending return/throw；
@@ -334,8 +335,8 @@ MIR 是 M10 的主实现层：
 
 1. **单线程 continuation 状态**：M10 用普通字段检查，无原子状态机。跨线程恢复随 runtime 的线程注册/握手及标准库 dispatcher 一起设计。
 2. **无取消**：没有 cancellation exception、structured concurrency 或 abandoned-frame cleanup；永不恢复即普通不可达对象。
-3. **core adapter 代替 lambda builder**：`SuspendTask` / `SuspendRegistration` 是稳定的最小协议；普通/挂起函数类型、函数引用、捕获 lambda、`launch` / `async` 不在 M10。
-4. **无 FFI suspend ABI**：M11 的 `@Extern` 不自动继承 M10 hidden ABI；FFI 是否允许 suspend callable 必须另行写入 spec 13/14，M10 一律诊断拒绝相关组合。
+3. **core adapter 代替 lambda builder**：`SuspendTask` / `SuspendRegistration` 是稳定的最小协议；普通/挂起函数类型、函数引用与捕获 lambda 由 M11 承接，`launch` / `async` 不在 M10。
+4. **无 FFI suspend ABI**：已在进入 M12 前明确，现阶段不支持 suspend FFI。`@Extern` 与 `suspend` 互斥，挂起函数不能转换为 `FunPtr`；HIR 必须直接诊断，不生成 wrapper，也不把 M10 hidden continuation ABI 暴露为外部符号 ABI。
 5. **状态机不走 LLVM coroutine intrinsics**：变换固定在 MIR，便于跨后端复用并让 frame 布局/GC 扫描成为 Scoop 自己的显式契约。
 6. **无 frame 优化**：若静态证明整条路径不可能挂起，后续可做 stack fast path / frame elision；M10 先保证语义与 GC 正确。
 

@@ -1,0 +1,7 @@
+fun keepInt(value: Int): Int = value
+
+fun main() {
+    val exact: (Int) -> Int = ::keepInt
+    val badParameter: (Any) -> Int = exact
+    val badReturn: (Int) -> String = exact
+}

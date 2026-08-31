@@ -5,7 +5,10 @@
 //! `- !` < postfix `.name` / `.name(args)` / `._n` / `?.name` / `!!` /
 //! `[index]` < atoms. All other binary operators are left-associative.
 
-use scoop_ast::{BinOp, CallExpr, Diagnostic, Expr, FieldAccess, FieldSelector, Ident, Span, UnOp};
+use scoop_ast::{
+    BinOp, CallExpr, Diagnostic, Expr, FieldAccess, FieldSelector, Ident, LambdaParam, Param, Span,
+    UnOp,
+};
 
 use crate::lexer::TokenKind;
 use crate::parser::Parser;
@@ -167,6 +170,39 @@ impl Parser {
                     self.bump();
                     receiver = self.parse_field_access(receiver, true)?;
                 }
+                TokenKind::DoubleColon => {
+                    receiver = self.parse_callable_reference(Some(receiver))?;
+                }
+                TokenKind::LParen if !self.peek().newline_before => {
+                    let start = receiver.span().start;
+                    let (args, end) = self.parse_args()?;
+                    receiver = Expr::Invoke {
+                        callee: Box::new(receiver),
+                        args,
+                        span: Span::new(start, end),
+                    };
+                }
+                TokenKind::LBrace
+                    if !self.peek().newline_before
+                        && matches!(
+                            &receiver,
+                            Expr::Call(_) | Expr::MethodCall { .. } | Expr::Invoke { .. }
+                        ) =>
+                {
+                    let lambda = self.parse_lambda(false, None)?;
+                    let end = lambda.span().end;
+                    match &mut receiver {
+                        Expr::Call(call) => {
+                            call.args.push(lambda);
+                            call.span.end = end;
+                        }
+                        Expr::MethodCall { args, span, .. } | Expr::Invoke { args, span, .. } => {
+                            args.push(lambda);
+                            span.end = end;
+                        }
+                        _ => unreachable!("the trailing-lambda guard accepts only calls"),
+                    }
+                }
                 // A `[` immediately after the receiver (their spans touch)
                 // is subscript postfix; otherwise it starts a new array
                 // literal expression — e.g. a `[...]` statement on the
@@ -282,10 +318,17 @@ impl Parser {
     fn parse_atom(&mut self) -> Result<Expr, Diagnostic> {
         let token = self.peek().clone();
         match token.kind {
-            TokenKind::Suspend => Err(Diagnostic::at(
-                token.span,
-                "suspend lambdas are not supported in M10",
-            )),
+            TokenKind::Suspend => {
+                self.pos += 1;
+                match self.peek().kind {
+                    TokenKind::Fun => self.parse_anonymous_function(true, Some(token.span.start)),
+                    TokenKind::LBrace => self.parse_lambda(true, Some(token.span.start)),
+                    _ => self.unexpected("`fun` or `{` after `suspend`"),
+                }
+            }
+            TokenKind::Fun => self.parse_anonymous_function(false, None),
+            TokenKind::DoubleColon => self.parse_callable_reference(None),
+            TokenKind::LBrace => self.parse_lambda(false, None),
             TokenKind::Str(value) => {
                 self.pos += 1;
                 Ok(Expr::StringLiteral {
@@ -351,6 +394,135 @@ impl Parser {
             TokenKind::LParen => self.parse_paren_expr(),
             TokenKind::LBracket => self.parse_array_literal(),
             _ => self.unexpected("expression"),
+        }
+    }
+
+    fn parse_callable_reference(&mut self, receiver: Option<Expr>) -> Result<Expr, Diagnostic> {
+        let start = receiver
+            .as_ref()
+            .map_or_else(|| self.peek().span.start, |expr| expr.span().start);
+        self.expect("`::`", |kind| matches!(kind, TokenKind::DoubleColon))?;
+        let name = self.expect_ident("callable name after `::`")?;
+        let span = Span::new(start, name.span.end);
+        Ok(Expr::CallableReference {
+            id: self.alloc_callable_reference_id(),
+            receiver: receiver.map(Box::new),
+            name,
+            span,
+        })
+    }
+
+    fn parse_anonymous_function(
+        &mut self,
+        is_suspend: bool,
+        expression_start: Option<u32>,
+    ) -> Result<Expr, Diagnostic> {
+        let keyword = self.expect("`fun`", |kind| matches!(kind, TokenKind::Fun))?;
+        self.expect("`(`", |kind| matches!(kind, TokenKind::LParen))?;
+        let mut params = Vec::new();
+        if !matches!(self.peek().kind, TokenKind::RParen) {
+            loop {
+                let name = self.expect_ident("parameter name")?;
+                self.expect("`:`", |kind| matches!(kind, TokenKind::Colon))?;
+                let ty = self.parse_type_ref()?;
+                params.push(Param {
+                    span: Span::new(name.span.start, ty.span.end),
+                    name,
+                    ty,
+                });
+                if matches!(self.peek().kind, TokenKind::Comma) {
+                    self.bump();
+                } else {
+                    break;
+                }
+            }
+        }
+        self.expect("`)`", |kind| matches!(kind, TokenKind::RParen))?;
+        let return_ty = if matches!(self.peek().kind, TokenKind::Colon) {
+            self.bump();
+            Some(self.parse_type_ref()?)
+        } else {
+            None
+        };
+        let body = self.parse_block()?;
+        Ok(Expr::AnonymousFunction {
+            id: self.alloc_anonymous_function_id(),
+            is_suspend,
+            params,
+            return_ty,
+            span: Span::new(
+                expression_start.unwrap_or(keyword.span.start),
+                body.span.end,
+            ),
+            body,
+        })
+    }
+
+    /// A lambda body. Parameter parsing is speculative only until a `->`
+    /// is found; without it the same tokens are parsed as the first body
+    /// statement, which preserves `{ value }` as a zero/implicit-parameter
+    /// lambda rather than treating `value` as a declaration.
+    fn parse_lambda(
+        &mut self,
+        is_suspend: bool,
+        expression_start: Option<u32>,
+    ) -> Result<Expr, Diagnostic> {
+        let open = self.expect("`{`", |kind| matches!(kind, TokenKind::LBrace))?;
+        let header_start = self.pos;
+        let diagnostics_start = self.diagnostics.len();
+        let parameters = if matches!(self.peek().kind, TokenKind::Arrow) {
+            self.bump();
+            Some(Vec::new())
+        } else {
+            let parsed = self.try_parse_lambda_parameters();
+            match parsed {
+                Some(parameters) => Some(parameters),
+                None => {
+                    self.pos = header_start;
+                    self.diagnostics.truncate(diagnostics_start);
+                    None
+                }
+            }
+        };
+        let body = self.parse_block_after_open(open.clone())?;
+        let span = Span::new(expression_start.unwrap_or(open.span.start), body.span.end);
+        Ok(Expr::Lambda {
+            id: self.alloc_lambda_id(),
+            is_suspend,
+            parameters,
+            body,
+            span,
+        })
+    }
+
+    fn try_parse_lambda_parameters(&mut self) -> Option<Vec<LambdaParam>> {
+        let start = self.pos;
+        let mut parameters = Vec::new();
+        loop {
+            let target = self.parse_pattern().ok()?;
+            let target_span = crate::pattern::pattern_span(&target);
+            let ty = if matches!(self.peek().kind, TokenKind::Colon) {
+                self.bump();
+                Some(self.parse_type_ref().ok()?)
+            } else {
+                None
+            };
+            let end = ty.as_ref().map_or(target_span.end, |ty| ty.span.end);
+            parameters.push(LambdaParam {
+                target,
+                ty,
+                span: Span::new(target_span.start, end),
+            });
+            if matches!(self.peek().kind, TokenKind::Comma) {
+                self.bump();
+                continue;
+            }
+            if matches!(self.peek().kind, TokenKind::Arrow) {
+                self.bump();
+                return Some(parameters);
+            }
+            self.pos = start;
+            return None;
         }
     }
 

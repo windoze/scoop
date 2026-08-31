@@ -37,6 +37,10 @@
 //! (`PinHandle<T>` / `GcHandle<T>` from the core GC facilities).
 //! Struct applications carry their arguments directly in
 //! `Type::Struct`, matching generic enum representation.
+//!
+//! M11 (milestone11 DESIGN.md section 2.1): ordinary and suspend function
+//! types are canonical structural signatures referenced through a distinct
+//! `FunctionTypeId`. They remain reference types through MIR/LIR.
 
 use la_arena::Arena;
 use scoop_ast as ast;
@@ -274,6 +278,14 @@ impl Lowerer {
                 }
                 Some(self.intern_type(Type::Tuple(resolved)))
             }
+            ast::TypeRefKind::Function(function) => {
+                let mut parameter_types = Vec::with_capacity(function.parameters.len());
+                for parameter in &function.parameters {
+                    parameter_types.push(self.resolve_type_ref(parameter)?);
+                }
+                let return_type = self.resolve_type_ref(&function.return_type)?;
+                Some(self.intern_function_type(function.is_suspend, parameter_types, return_type))
+            }
             // `T?` desugars to `Option<T>` (spec 7.1) — the core
             // library's generic enum since M4. `T??` is
             // `Option<Option<T>>` and deliberately does not collapse.
@@ -306,6 +318,46 @@ impl Lowerer {
             }
         }
         id
+    }
+
+    /// Intern one complete function signature and return its ordinary HIR
+    /// type. The signature arena and the surrounding `Type` arena are both
+    /// canonical, so equal source spellings share both ids.
+    pub(crate) fn intern_function_type(
+        &mut self,
+        is_suspend: bool,
+        parameter_types: Vec<TypeId>,
+        return_type: TypeId,
+    ) -> TypeId {
+        let existing = self.function_types.iter().find_map(|(id, candidate)| {
+            (candidate.is_suspend == is_suspend
+                && candidate.parameter_types == parameter_types
+                && candidate.return_type == return_type)
+                .then_some(id)
+        });
+        let function = match existing {
+            Some(id) => id,
+            None => self.function_types.alloc(hir::FunctionType {
+                is_suspend,
+                parameter_types,
+                return_type,
+            }),
+        };
+        self.intern_type(Type::Function(function))
+    }
+
+    fn instantiate_function_type(
+        &mut self,
+        id: hir::FunctionTypeId,
+        mut substitute: impl FnMut(&mut Self, TypeId) -> Option<TypeId>,
+    ) -> Option<TypeId> {
+        let function = self.function_types[id].clone();
+        let mut parameter_types = Vec::with_capacity(function.parameter_types.len());
+        for parameter in function.parameter_types {
+            parameter_types.push(substitute(self, parameter)?);
+        }
+        let return_type = substitute(self, function.return_type)?;
+        Some(self.intern_function_type(function.is_suspend, parameter_types, return_type))
     }
 
     /// Intern a generic struct application (`PinHandle<String>`, M9).
@@ -358,6 +410,9 @@ impl Lowerer {
                 }
                 self.intern_type(Type::Tuple(substituted))
             }
+            Type::Function(id) => self
+                .instantiate_function_type(id, |this, ty| Some(this.instantiate_ty(ty, type_args)))
+                .expect("complete type argument substitution"),
             _ => ty,
         }
     }
@@ -459,6 +514,16 @@ impl Lowerer {
                     .collect();
                 self.intern_type(Type::Tuple(elements))
             }
+            Type::Function(id) => self
+                .instantiate_function_type(id, |this, ty| {
+                    Some(this.instantiate_method_owner_ty(
+                        ty,
+                        owner_args,
+                        source_owner_count,
+                        target_owner_count,
+                    ))
+                })
+                .expect("complete owner substitution"),
             _ => ty,
         }
     }
@@ -508,6 +573,9 @@ impl Lowerer {
                 }
                 Some(self.intern_type(Type::Tuple(substituted)))
             }
+            Type::Function(id) => {
+                self.instantiate_function_type(id, |this, ty| this.try_substitute(ty, bindings))
+            }
             _ => Some(ty),
         }
     }
@@ -534,6 +602,7 @@ impl Lowerer {
     pub(crate) fn type_name(&self, ty: TypeId) -> String {
         type_name(
             &self.types,
+            &self.function_types,
             &self.structs,
             &self.enums,
             &self.classes,
@@ -574,6 +643,18 @@ impl Lowerer {
                         hir::Variance::Out => self.is_subtype(a, b),
                         hir::Variance::In => self.is_subtype(b, a),
                     })
+            }
+            (Type::Function(source), Type::Function(target)) => {
+                let source = self.function_types[source].clone();
+                let target = self.function_types[target].clone();
+                source.is_suspend == target.is_suspend
+                    && source.parameter_types.len() == target.parameter_types.len()
+                    && target
+                        .parameter_types
+                        .into_iter()
+                        .zip(source.parameter_types)
+                        .all(|(target, source)| self.is_subtype(target, source))
+                    && self.is_subtype(source.return_type, target.return_type)
             }
             (Type::Class(class), Type::Interface(..)) => self
                 .class_interfaces_all(class)
@@ -737,6 +818,32 @@ impl Lowerer {
             return expr;
         }
         let span = expr.span;
+        if let (Type::Function(source), Type::Function(target_type)) =
+            (self.types[expr.ty].clone(), self.types[target].clone())
+        {
+            let key = (source, target_type);
+            let coercion = self
+                .function_coercion_by_types
+                .get(&key)
+                .copied()
+                .unwrap_or_else(|| {
+                    let id = self.function_coercions.alloc(hir::FunctionCoercion {
+                        source,
+                        target: target_type,
+                    });
+                    self.function_coercion_by_types.insert(key, id);
+                    id
+                });
+            return hir::Expr {
+                kind: hir::ExprKind::FunctionCoercion {
+                    source: Box::new(expr),
+                    coercion,
+                    target_type,
+                },
+                ty: target,
+                span,
+            };
+        }
         if self.is_value_ty(expr.ty) {
             hir::Expr {
                 kind: hir::ExprKind::Box(Box::new(expr)),
@@ -797,6 +904,7 @@ fn type_value_equal(types: &Arena<Type>, a: TypeId, b: TypeId) -> bool {
                     .zip(ys.iter())
                     .all(|(&x, &y)| type_value_equal(types, x, y))
         }
+        (Type::Function(x), Type::Function(y)) => x == y,
         _ => false,
     }
 }
@@ -804,6 +912,7 @@ fn type_value_equal(types: &Arena<Type>, a: TypeId, b: TypeId) -> bool {
 #[allow(clippy::too_many_arguments)]
 fn type_name(
     types: &Arena<Type>,
+    function_types: &Arena<hir::FunctionType>,
     structs: &Arena<StructDecl>,
     enums: &Arena<EnumDecl>,
     classes: &Arena<ClassDecl>,
@@ -823,7 +932,18 @@ fn type_name(
             } else {
                 let inner: Vec<String> = args
                     .iter()
-                    .map(|t| type_name(types, structs, enums, classes, interfaces, type_params, *t))
+                    .map(|t| {
+                        type_name(
+                            types,
+                            function_types,
+                            structs,
+                            enums,
+                            classes,
+                            interfaces,
+                            type_params,
+                            *t,
+                        )
+                    })
                     .collect();
                 format!("{}<{}>", structs[*id].name, inner.join(", "))
             }
@@ -835,7 +955,18 @@ fn type_name(
             } else {
                 let inner: Vec<String> = args
                     .iter()
-                    .map(|t| type_name(types, structs, enums, classes, interfaces, type_params, *t))
+                    .map(|t| {
+                        type_name(
+                            types,
+                            function_types,
+                            structs,
+                            enums,
+                            classes,
+                            interfaces,
+                            type_params,
+                            *t,
+                        )
+                    })
                     .collect();
                 format!("{}<{}>", interfaces[*id].name, inner.join(", "))
             }
@@ -844,6 +975,7 @@ fn type_name(
         Type::Array(element) => {
             let inner = type_name(
                 types,
+                function_types,
                 structs,
                 enums,
                 classes,
@@ -856,6 +988,7 @@ fn type_name(
         Type::MutableArray(element) => {
             let inner = type_name(
                 types,
+                function_types,
                 structs,
                 enums,
                 classes,
@@ -872,7 +1005,18 @@ fn type_name(
             } else {
                 let inner: Vec<String> = args
                     .iter()
-                    .map(|t| type_name(types, structs, enums, classes, interfaces, type_params, *t))
+                    .map(|t| {
+                        type_name(
+                            types,
+                            function_types,
+                            structs,
+                            enums,
+                            classes,
+                            interfaces,
+                            type_params,
+                            *t,
+                        )
+                    })
                     .collect();
                 format!("{}<{}>", name, inner.join(", "))
             }
@@ -880,9 +1024,51 @@ fn type_name(
         Type::Tuple(elements) => {
             let inner: Vec<String> = elements
                 .iter()
-                .map(|t| type_name(types, structs, enums, classes, interfaces, type_params, *t))
+                .map(|t| {
+                    type_name(
+                        types,
+                        function_types,
+                        structs,
+                        enums,
+                        classes,
+                        interfaces,
+                        type_params,
+                        *t,
+                    )
+                })
                 .collect();
             format!("({})", inner.join(", "))
+        }
+        Type::Function(id) => {
+            let function = &function_types[*id];
+            let parameters: Vec<String> = function
+                .parameter_types
+                .iter()
+                .map(|ty| {
+                    type_name(
+                        types,
+                        function_types,
+                        structs,
+                        enums,
+                        classes,
+                        interfaces,
+                        type_params,
+                        *ty,
+                    )
+                })
+                .collect();
+            let return_type = type_name(
+                types,
+                function_types,
+                structs,
+                enums,
+                classes,
+                interfaces,
+                type_params,
+                function.return_type,
+            );
+            let suspend = if function.is_suspend { "suspend " } else { "" };
+            format!("{suspend}({}) -> {return_type}", parameters.join(", "))
         }
         Type::Param(index) => type_params
             .get(index.into_raw() as usize)

@@ -52,12 +52,25 @@ use scoop_hir as hir;
 use ast::Span;
 use hir::{ExprKind, FunctionKind, Type, TypeId};
 
-use crate::{Lowerer, Owner};
+use crate::patterns::PatternCtx;
+use crate::scope::Scopes;
+use crate::stmt::statements_can_fall_through;
+use crate::{
+    AvailableCapture, CaptureContext, CaptureSource, ForbiddenSuspendContext, Lowerer,
+    PendingCapture, ReturnInference, SuspensionContext,
+};
 
 struct InferredArguments {
     args: Vec<Option<hir::Expr>>,
     bindings: Vec<Option<TypeId>>,
     sinks: Vec<Vec<hir::Statement>>,
+}
+
+#[derive(Clone, Copy)]
+enum ReferenceExtensionMode {
+    Exclude,
+    IncludeUnbound,
+    Bound(TypeId),
 }
 
 impl InferredArguments {
@@ -72,6 +85,206 @@ impl InferredArguments {
 }
 
 impl Lowerer {
+    /// Snapshot the bindings visible at a nested callable creation point.
+    /// Bindings inherited from the enclosing callable are represented as
+    /// transitive capture reads; locals declared by that callable override
+    /// them according to ordinary lexical shadowing.
+    pub(crate) fn capture_environment(
+        &self,
+    ) -> std::collections::HashMap<String, AvailableCapture> {
+        let mut available: std::collections::HashMap<String, AvailableCapture> = self
+            .capture_contexts
+            .last()
+            .map(|context| {
+                context
+                    .available
+                    .iter()
+                    .map(|(name, capture)| {
+                        let mut capture = capture.clone();
+                        capture.source = CaptureSource::Capture(capture.binding);
+                        (name.clone(), capture)
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        let declaration_depth = self.capture_contexts.len();
+        for (name, local) in self.scopes.visible() {
+            let local_def = &self.locals[local];
+            available.insert(
+                name,
+                AvailableCapture {
+                    binding: local_def.binding,
+                    ty: local_def.ty,
+                    mutable: local_def.mutable,
+                    source: CaptureSource::Local(local),
+                    declaration_depth,
+                },
+            );
+        }
+        available
+    }
+
+    pub(crate) fn register_capture_at(
+        &mut self,
+        context_index: usize,
+        name: &str,
+        available: AvailableCapture,
+        first_use_span: Span,
+    ) {
+        if matches!(available.source, CaptureSource::Capture(_)) {
+            assert!(
+                context_index > 0,
+                "a transitive capture always has an enclosing closure"
+            );
+            let parent_index = context_index - 1;
+            let parent_available = self.capture_contexts[parent_index]
+                .available
+                .values()
+                .find(|candidate| candidate.binding == available.binding)
+                .cloned()
+                .expect("the enclosing closure can provide a transitive capture");
+            self.register_capture_at(parent_index, name, parent_available, first_use_span);
+        }
+        let context = &mut self.capture_contexts[context_index];
+        if context.by_binding.contains_key(&available.binding) {
+            return;
+        }
+        let index = context.captures.len();
+        context.by_binding.insert(available.binding, index);
+        context.captures.push(PendingCapture {
+            binding: available.binding,
+            name: name.to_string(),
+            ty: available.ty,
+            first_use_span,
+            source: available.source,
+            declaration_depth: available.declaration_depth,
+        });
+    }
+
+    fn lower_capture(&mut self, name: &ast::Ident) -> Option<hir::Expr> {
+        let context_index = self.capture_contexts.len().checked_sub(1)?;
+        let available = self.capture_contexts[context_index]
+            .available
+            .get(&name.text)?
+            .clone();
+        if available.mutable {
+            self.error(
+                name.span,
+                format!(
+                    "cannot capture mutable local `{}`; bind its current value to a `val` snapshot or capture explicit reference state",
+                    name.text
+                ),
+            );
+            return None;
+        }
+        self.register_capture_at(context_index, &name.text, available.clone(), name.span);
+        Some(hir::Expr {
+            kind: ExprKind::Capture(available.binding),
+            ty: available.ty,
+            span: name.span,
+        })
+    }
+
+    fn lower_capture_binding(
+        &mut self,
+        binding: hir::BindingId,
+        fallback_name: &str,
+        span: Span,
+    ) -> Option<hir::Expr> {
+        let context_index = self.capture_contexts.len().checked_sub(1)?;
+        let available = self.capture_contexts[context_index]
+            .available
+            .iter()
+            .find_map(|(name, candidate)| {
+                (candidate.binding == binding).then(|| (name.clone(), candidate.clone()))
+            })?;
+        let (name, available) = available;
+        if available.mutable {
+            self.error(
+                span,
+                format!(
+                    "cannot capture mutable local `{fallback_name}`; bind its current value to a `val` snapshot or capture explicit reference state"
+                ),
+            );
+            return None;
+        }
+        self.register_capture_at(context_index, &name, available.clone(), span);
+        Some(hir::Expr {
+            kind: ExprKind::Capture(available.binding),
+            ty: available.ty,
+            span,
+        })
+    }
+
+    pub(crate) fn available_capture(&self, name: &str) -> Option<AvailableCapture> {
+        self.capture_contexts
+            .last()
+            .and_then(|context| context.available.get(name))
+            .cloned()
+    }
+
+    pub(crate) fn finish_current_captures(&mut self) -> Vec<hir::Capture> {
+        let context = self
+            .capture_contexts
+            .last_mut()
+            .expect("a lambda capture context is active");
+        context.captures.sort_by_key(|capture| {
+            (
+                capture.declaration_depth,
+                capture.first_use_span.start,
+                capture.binding,
+            )
+        });
+        context
+            .captures
+            .drain(..)
+            .map(|capture| {
+                let source = match capture.source {
+                    CaptureSource::Local(local) => hir::Expr {
+                        kind: ExprKind::Local(local),
+                        ty: capture.ty,
+                        span: capture.first_use_span,
+                    },
+                    CaptureSource::Capture(binding) => hir::Expr {
+                        kind: ExprKind::Capture(binding),
+                        ty: capture.ty,
+                        span: capture.first_use_span,
+                    },
+                };
+                hir::Capture {
+                    binding: capture.binding,
+                    name: capture.name,
+                    ty: capture.ty,
+                    first_use_span: capture.first_use_span,
+                    source,
+                }
+            })
+            .collect()
+    }
+
+    pub(crate) fn lower_current_this(&mut self, span: Span) -> Option<hir::Expr> {
+        if let Some((local, ty)) = self.current_this {
+            return Some(hir::Expr {
+                kind: ExprKind::Local(local),
+                ty,
+                span,
+            });
+        }
+        if self.available_capture("this").is_some() {
+            return self.lower_capture(&ast::Ident {
+                text: "this".to_string(),
+                span,
+            });
+        }
+        None
+    }
+
+    pub(crate) fn current_this_ty(&self) -> Option<TypeId> {
+        self.current_this
+            .map(|(_, ty)| ty)
+            .or_else(|| self.available_capture("this").map(|capture| capture.ty))
+    }
+
     /// Lower an expression, recording a diagnostic and returning `None`
     /// on error. See the module docs for the `sink` / `expected`
     /// mechanisms.
@@ -123,11 +336,43 @@ impl Lowerer {
                 }
             },
             ast::Expr::Var(name) => self.lower_var(name, expected),
+            ast::Expr::Lambda {
+                is_suspend,
+                parameters,
+                body,
+                span,
+                ..
+            } => self.lower_lambda(*is_suspend, parameters.as_deref(), body, *span, expected),
+            ast::Expr::AnonymousFunction {
+                is_suspend,
+                params,
+                return_ty,
+                body,
+                span,
+                ..
+            } => self.lower_anonymous_function(
+                *is_suspend,
+                params,
+                return_ty.as_ref(),
+                body,
+                *span,
+                expected,
+            ),
+            ast::Expr::CallableReference {
+                receiver,
+                name,
+                span,
+                ..
+            } => self.lower_callable_reference(receiver.as_deref(), name, *span, expected, sink),
             ast::Expr::FieldAccess(access) if access.safe => {
                 self.lower_safe_field_access(access, sink)
             }
             ast::Expr::FieldAccess(access) => self.lower_field_access(access, sink, expected),
             ast::Expr::Call(call) => self.lower_call(call, sink, expected),
+            ast::Expr::Invoke { callee, args, span } => {
+                let callee = self.lower_expr(callee, sink, None)?;
+                self.lower_callable_call(callee, args, *span, sink)
+            }
             ast::Expr::Binary { op, lhs, rhs, span } => {
                 self.lower_binary(*op, lhs, rhs, *span, sink)
             }
@@ -170,18 +415,14 @@ impl Lowerer {
     /// `this` (M6): only inside member functions, where it is
     /// parameter 0 (`lower_body` registers it as a local).
     fn lower_this(&mut self, span: Span) -> Option<hir::Expr> {
-        let Some((local, ty)) = self.current_this else {
+        let Some(this) = self.lower_current_this(span) else {
             self.error(
                 span,
                 "`this` is only allowed inside member functions".to_string(),
             );
             return None;
         };
-        Some(hir::Expr {
-            kind: ExprKind::Local(local),
-            ty,
-            span,
-        })
+        Some(this)
     }
 
     /// `receiver.name(args)` (M6/M7): the method overloads are
@@ -231,6 +472,9 @@ impl Lowerer {
             }
         }
         let receiver = self.lower_expr(receiver, sink, None)?;
+        if name.text == "invoke" && matches!(self.types[receiver.ty], Type::Function(_)) {
+            return self.lower_callable_call(receiver, args, span, sink);
+        }
         let array_conversion = match (&self.types[receiver.ty], name.text.as_str()) {
             (Type::MutableArray(element), "toArray") => Some((true, *element)),
             (Type::Array(element), "toMutableArray") => Some((false, *element)),
@@ -248,12 +492,16 @@ impl Lowerer {
         }
         let mut candidates = self.methods_by_name(receiver.ty, &name.text);
         if candidates.is_empty() {
-            let found = self.type_name(receiver.ty);
-            self.error(
-                name.span,
-                format!("type `{found}` has no method `{}`", name.text),
-            );
-            return None;
+            let extensions = self.extension_candidate_layer(&name.text);
+            if extensions.is_empty() {
+                let found = self.type_name(receiver.ty);
+                self.error(
+                    name.span,
+                    format!("type `{found}` has no method `{}`", name.text),
+                );
+                return None;
+            }
+            return self.finish_extension_call(&extensions, &name.text, receiver, args, span, sink);
         }
         if matches!(self.types[receiver.ty], Type::Interface(..)) {
             let before = candidates.len();
@@ -277,6 +525,28 @@ impl Lowerer {
             return self.finish_method_call(candidates[0], receiver, args, span, sink);
         }
         self.finish_overloaded_method_call(candidates, &name.text, receiver, args, span, sink)
+    }
+
+    fn finish_extension_call(
+        &mut self,
+        candidates: &[hir::FunctionId],
+        name: &str,
+        receiver: hir::Expr,
+        args: &[ast::Expr],
+        span: Span,
+        sink: &mut Vec<hir::Statement>,
+    ) -> Option<hir::Expr> {
+        let resolved =
+            self.resolve_extension_overload(name, candidates, receiver, args, span, sink)?;
+        self.check_suspend_call(resolved.callee, span);
+        Some(hir::Expr {
+            kind: ExprKind::Call {
+                callee: resolved.callee,
+                args: resolved.args,
+            },
+            ty: resolved.return_ty,
+            span,
+        })
     }
 
     /// `m.toArray()` / `a.toMutableArray()` (spec 10.4). Arrays remain
@@ -356,9 +626,9 @@ impl Lowerer {
     /// `lower_method_call`: a bare receiver name that would resolve
     /// to `this.name` is a property access, not an enum path).
     fn host_has_property(&self, name: &str) -> bool {
-        match self.current_owner {
-            Some(Owner::Class(class_id)) => self.find_class_field(class_id, name).is_some(),
-            Some(Owner::Struct(struct_id)) => self.structs[struct_id]
+        match self.current_this_ty().map(|ty| self.types[ty].clone()) {
+            Some(Type::Class(class_id)) => self.find_class_field(class_id, name).is_some(),
+            Some(Type::Struct(struct_id, _)) => self.structs[struct_id]
                 .fields
                 .iter()
                 .any(|field| field.name == name),
@@ -765,8 +1035,24 @@ impl Lowerer {
             return None;
         }
         let Some(local) = self.scopes.lookup(&name.text) else {
+            if self.available_capture(&name.text).is_some() {
+                return self.lower_capture(name);
+            }
             if let Some(expr) = self.bare_member_fallback(name) {
                 return Some(expr);
+            }
+            if !self.local_function_scopes.lookup(&name.text).is_empty()
+                || self.functions_by_name.contains_key(&name.text)
+                || self.extensions_by_name.contains_key(&name.text)
+            {
+                self.error(
+                    name.span,
+                    format!(
+                        "function `{}` is not a value; use `::{}` to create a callable reference",
+                        name.text, name.text
+                    ),
+                );
+                return None;
             }
             self.error(name.span, format!("unknown variable `{}`", name.text));
             return None;
@@ -806,10 +1092,10 @@ impl Lowerer {
     /// of the host type (`this.x`; class properties include the base
     /// chain). Methods are not values in M6, so only fields resolve.
     fn bare_member_fallback(&mut self, name: &ast::Ident) -> Option<hir::Expr> {
-        let owner = self.current_owner?;
-        let (this_local, host_ty) = self.current_this?;
-        let (field, ty) = match owner {
-            Owner::Class(class_id) => {
+        let receiver_ty = self.current_this_ty()?;
+        let receiver = self.lower_current_this(name.span)?;
+        let (field, ty) = match self.types[receiver_ty].clone() {
+            Type::Class(class_id) => {
                 let (declaring, index, ty, _) = self.find_class_field(class_id, &name.text)?;
                 (
                     hir::FieldRef::ClassField {
@@ -819,7 +1105,7 @@ impl Lowerer {
                     ty,
                 )
             }
-            Owner::Struct(struct_id) => {
+            Type::Struct(struct_id, type_args) => {
                 let index = self.structs[struct_id]
                     .fields
                     .iter()
@@ -829,20 +1115,16 @@ impl Lowerer {
                         struct_id,
                         index: index as u32,
                     },
-                    self.structs[struct_id].fields[index].ty,
+                    self.instantiate_ty(self.structs[struct_id].fields[index].ty, &type_args),
                 )
             }
             // Interfaces have no properties; enum payloads are only
             // reachable through patterns.
-            Owner::Interface(_) | Owner::Enum(_) => return None,
+            _ => return None,
         };
         Some(hir::Expr {
             kind: ExprKind::FieldAccess {
-                receiver: Box::new(hir::Expr {
-                    kind: ExprKind::Local(this_local),
-                    ty: host_ty,
-                    span: name.span,
-                }),
+                receiver: Box::new(receiver),
                 field,
             },
             ty,
@@ -1062,6 +1344,27 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
+        if let Some(local) = self.scopes.lookup(&call.callee.text) {
+            let ty = self
+                .smart_casts
+                .get(&local)
+                .copied()
+                .unwrap_or(self.locals[local].ty);
+            if matches!(self.types[ty], Type::Function(_)) {
+                let callee = hir::Expr {
+                    kind: ExprKind::Local(local),
+                    ty,
+                    span: call.callee.span,
+                };
+                return self.lower_callable_call(callee, &call.args, call.span, sink);
+            }
+        }
+        if let Some(capture) = self.available_capture(&call.callee.text)
+            && matches!(self.types[capture.ty], Type::Function(_))
+        {
+            let callee = self.lower_capture(&call.callee)?;
+            return self.lower_callable_call(callee, &call.args, call.span, sink);
+        }
         // `Array(m)` / `MutableArray(a)`: the conversion constructors
         // (spec 10.4) resolve before structs, variants and functions
         // (milestone5 DESIGN.md 2.2).
@@ -1079,6 +1382,1173 @@ impl Lowerer {
             }
             Constructor::Unmatched => self.lower_function_call(call, sink),
         }
+    }
+
+    fn lower_callable_call(
+        &mut self,
+        callee: hir::Expr,
+        args: &[ast::Expr],
+        span: Span,
+        sink: &mut Vec<hir::Statement>,
+    ) -> Option<hir::Expr> {
+        let Type::Function(function_type) = self.types[callee.ty] else {
+            let found = self.type_name(callee.ty);
+            self.error(
+                callee.span,
+                format!("value of type {found} is not callable"),
+            );
+            return None;
+        };
+        let signature = self.function_types[function_type].clone();
+        if signature.parameter_types.len() != args.len() {
+            self.error(
+                span,
+                format!(
+                    "function value takes exactly {} argument(s), but {} were supplied",
+                    signature.parameter_types.len(),
+                    args.len()
+                ),
+            );
+            return None;
+        }
+        if signature.is_suspend {
+            let context = *self
+                .suspension_contexts
+                .last()
+                .expect("the suspension context stack is initialized");
+            if let SuspensionContext::Forbidden(reason) = context {
+                let location = match reason {
+                    ForbiddenSuspendContext::TopLevel => "a non-suspend declaration".to_string(),
+                    ForbiddenSuspendContext::Function => {
+                        format!("non-suspend function `{}`", self.current_fn_name)
+                    }
+                    ForbiddenSuspendContext::ConstructorDelegation => {
+                        "constructor delegation".to_string()
+                    }
+                };
+                self.error(
+                    span,
+                    format!("suspend function value cannot be called from {location}"),
+                );
+                return None;
+            }
+        }
+        let mut lowered = Vec::with_capacity(args.len());
+        for (arg, &parameter_ty) in args.iter().zip(&signature.parameter_types) {
+            let value = self.lower_expr(arg, sink, Some(parameter_ty))?;
+            if !self.is_subtype(value.ty, parameter_ty) {
+                let expected = self.type_name(parameter_ty);
+                let found = self.type_name(value.ty);
+                self.error(
+                    arg.span(),
+                    format!("function argument must be of type {expected}, found {found}"),
+                );
+                return None;
+            }
+            lowered.push(self.adapt_to(value, parameter_ty));
+        }
+        Some(hir::Expr {
+            kind: ExprKind::CallableCall {
+                callee: Box::new(callee),
+                function_type,
+                args: lowered,
+            },
+            ty: signature.return_type,
+            span,
+        })
+    }
+
+    fn lower_callable_reference(
+        &mut self,
+        receiver: Option<&ast::Expr>,
+        name: &ast::Ident,
+        span: Span,
+        expected: Option<TypeId>,
+        sink: &mut Vec<hir::Statement>,
+    ) -> Option<hir::Expr> {
+        if let Some(receiver) = receiver {
+            return self.lower_bound_callable_reference(receiver, name, span, expected, sink);
+        }
+        if let Some(local) = self.scopes.lookup(&name.text)
+            && matches!(self.types[self.locals[local].ty], Type::Function(_))
+        {
+            self.error(
+                span,
+                format!(
+                    "`::{}` cannot reference an existing function value; use `{}` directly",
+                    name.text, name.text
+                ),
+            );
+            return None;
+        }
+        let local_candidates = self.local_function_scopes.lookup(&name.text);
+        if !local_candidates.is_empty() {
+            return self.lower_local_callable_reference(local_candidates, name, span, expected);
+        }
+        let candidates = self.named_reference_candidate_layer(&name.text);
+        if candidates.is_empty() {
+            if self.is_declared_type_name(&name.text) {
+                self.error(
+                    span,
+                    format!(
+                        "constructor reference `::{}` is not supported; construct the value in a lambda",
+                        name.text
+                    ),
+                );
+                return None;
+            }
+            self.error(name.span, format!("unknown function `{}`", name.text));
+            return None;
+        }
+        let expected_signature = self.expected_function_signature(expected);
+        let display = format!("callable reference `::{}`", name.text);
+        let (callee, ty) = self.resolve_reference_candidates(
+            &candidates,
+            &[],
+            expected_signature.as_ref(),
+            &display,
+            span,
+            ReferenceExtensionMode::IncludeUnbound,
+        )?;
+        let Type::Function(function_type) = self.types[ty] else {
+            unreachable!("a callable reference has a function type")
+        };
+        let id = self.callable_references.alloc(hir::CallableReference {
+            target: hir::CallableReferenceTarget::Named(callee),
+            function_type,
+            owner_type_param_count: self.type_params_in_scope.len(),
+            captures: Vec::new(),
+            span,
+        });
+        Some(hir::Expr {
+            kind: ExprKind::CallableReference(id),
+            ty,
+            span,
+        })
+    }
+
+    fn lower_bound_callable_reference(
+        &mut self,
+        receiver: &ast::Expr,
+        name: &ast::Ident,
+        span: Span,
+        expected: Option<TypeId>,
+        sink: &mut Vec<hir::Statement>,
+    ) -> Option<hir::Expr> {
+        if let ast::Expr::Var(type_name) = receiver
+            && self.scopes.lookup(&type_name.text).is_none()
+            && !self.host_has_property(&type_name.text)
+            && (self.is_declared_type_name(&type_name.text)
+                || self.type_params_in_scope.contains(&type_name.text))
+        {
+            self.error(
+                span,
+                format!(
+                    "unbound member reference `{}::{}` is not supported; bind an expression receiver first",
+                    type_name.text, name.text
+                ),
+            );
+            return None;
+        }
+        // The source expression is retained on the reference entity and becomes
+        // the first closure field initializer in MIR. It is therefore evaluated
+        // once at reference creation, including when it reads a mutable local.
+        let receiver = self.lower_expr(receiver, sink, None)?;
+        let mut candidates = self.methods_by_name(receiver.ty, &name.text);
+        let is_extension = candidates.is_empty();
+        if is_extension {
+            candidates = self.extension_candidate_layer(&name.text);
+            if candidates.is_empty() {
+                let found = self.type_name(receiver.ty);
+                self.error(
+                    name.span,
+                    format!("type `{found}` has no method `{}`", name.text),
+                );
+                return None;
+            }
+        } else if matches!(self.types[receiver.ty], Type::Interface(..)) {
+            let before = candidates.len();
+            candidates.retain(|&function| {
+                let sig = &self.signatures[&function];
+                sig.type_params.len() == sig.owner_type_param_count
+            });
+            if candidates.is_empty() && before != 0 {
+                let found = self.type_name(receiver.ty);
+                self.error(
+                    name.span,
+                    format!(
+                        "generic member function `{}` cannot be referenced through interface type `{found}`",
+                        name.text
+                    ),
+                );
+                return None;
+            }
+        }
+        let owner_type_args = if is_extension {
+            Vec::new()
+        } else {
+            self.receiver_type_args(receiver.ty)
+        };
+        let expected_signature = self.expected_function_signature(expected);
+        let display = format!("bound callable reference `receiver::{}`", name.text);
+        let (callee, ty) = self.resolve_reference_candidates(
+            &candidates,
+            &owner_type_args,
+            expected_signature.as_ref(),
+            &display,
+            span,
+            if is_extension {
+                ReferenceExtensionMode::Bound(receiver.ty)
+            } else {
+                ReferenceExtensionMode::Exclude
+            },
+        )?;
+        let Type::Function(function_type) = self.types[ty] else {
+            unreachable!("a callable reference has a function type")
+        };
+        let target = if is_extension {
+            hir::CallableReferenceTarget::BoundExtension {
+                receiver: Box::new(receiver),
+                callee,
+            }
+        } else {
+            hir::CallableReferenceTarget::BoundMember {
+                receiver: Box::new(receiver),
+                callee,
+            }
+        };
+        let id = self.callable_references.alloc(hir::CallableReference {
+            target,
+            function_type,
+            owner_type_param_count: self.type_params_in_scope.len(),
+            captures: Vec::new(),
+            span,
+        });
+        Some(hir::Expr {
+            kind: ExprKind::CallableReference(id),
+            ty,
+            span,
+        })
+    }
+
+    fn is_declared_type_name(&self, name: &str) -> bool {
+        self.classes_by_name.contains_key(name)
+            || self.interfaces_by_name.contains_key(name)
+            || self.structs_by_name.contains_key(name)
+            || self.enums_by_name.contains_key(name)
+    }
+
+    fn expected_function_signature(
+        &self,
+        expected: Option<TypeId>,
+    ) -> Option<(TypeId, hir::FunctionType)> {
+        expected.and_then(|ty| match self.types[ty] {
+            Type::Function(id) => Some((ty, self.function_types[id].clone())),
+            _ => None,
+        })
+    }
+
+    fn receiver_type_args(&self, receiver: TypeId) -> Vec<TypeId> {
+        match &self.types[receiver] {
+            Type::Enum(_, args) | Type::Struct(_, args) | Type::Interface(_, args) => args.clone(),
+            _ => Vec::new(),
+        }
+    }
+
+    /// Resolve one top-level or member callable-reference candidate layer.
+    /// Expected function types bind generic parameters in both parameter and
+    /// return positions. Without one, only candidates with no declaration-owned
+    /// type parameters can produce a concrete function value.
+    fn resolve_reference_candidates(
+        &mut self,
+        candidates: &[hir::FunctionId],
+        owner_type_args: &[TypeId],
+        expected: Option<&(TypeId, hir::FunctionType)>,
+        display: &str,
+        span: Span,
+        extension_mode: ReferenceExtensionMode,
+    ) -> Option<(hir::Callable, TypeId)> {
+        let mut applicable = Vec::new();
+        for &function in candidates {
+            let sig = self.signatures[&function].clone();
+            if sig.owner_type_param_count != owner_type_args.len() {
+                continue;
+            }
+            let mut bindings = vec![None; sig.type_params.len()];
+            for (binding, &ty) in bindings.iter_mut().zip(owner_type_args) {
+                *binding = Some(ty);
+            }
+            let extension_receiver = self.extension_receivers.get(&function).copied();
+            let bound_extension_receiver = match extension_mode {
+                ReferenceExtensionMode::Exclude if extension_receiver.is_some() => continue,
+                ReferenceExtensionMode::Bound(_) if extension_receiver.is_none() => continue,
+                ReferenceExtensionMode::Bound(receiver) => Some(receiver),
+                ReferenceExtensionMode::Exclude | ReferenceExtensionMode::IncludeUnbound => None,
+            };
+            if let (Some(declared), Some(actual)) = (extension_receiver, bound_extension_receiver)
+                && !self.try_bind(declared, actual, &mut bindings)
+            {
+                continue;
+            }
+            let mut reference_params: Vec<_> =
+                sig.params.iter().map(|parameter| parameter.ty).collect();
+            if matches!(extension_mode, ReferenceExtensionMode::IncludeUnbound)
+                && let Some(receiver) = extension_receiver
+            {
+                reference_params.insert(0, receiver);
+            }
+            match expected {
+                Some((_, expected)) => {
+                    if sig.is_suspend != expected.is_suspend
+                        || reference_params.len() != expected.parameter_types.len()
+                    {
+                        continue;
+                    }
+                    let parameters_match = reference_params
+                        .iter()
+                        .zip(&expected.parameter_types)
+                        .all(|(&parameter, &expected)| {
+                            self.try_bind(parameter, expected, &mut bindings)
+                        });
+                    if !parameters_match
+                        || !self.try_bind(sig.return_ty, expected.return_type, &mut bindings)
+                        || bindings.iter().any(Option::is_none)
+                    {
+                        continue;
+                    }
+                }
+                None => {
+                    if sig.type_params.len() != sig.owner_type_param_count {
+                        continue;
+                    }
+                }
+            }
+            let type_args: Vec<_> = bindings.into_iter().flatten().collect();
+            let parameter_types: Vec<_> = reference_params
+                .iter()
+                .map(|&parameter| self.instantiate_ty(parameter, &type_args))
+                .collect();
+            let return_type = self.instantiate_ty(sig.return_ty, &type_args);
+            if let (Some(declared), Some(actual)) = (extension_receiver, bound_extension_receiver) {
+                let declared = self.instantiate_ty(declared, &type_args);
+                if !self.is_subtype(actual, declared) {
+                    continue;
+                }
+            }
+            if let Some((_, expected)) = expected {
+                let exact = parameter_types
+                    .iter()
+                    .zip(&expected.parameter_types)
+                    .all(|(&parameter, &expected)| self.types_equal(parameter, expected))
+                    && self.types_equal(return_type, expected.return_type);
+                if !exact {
+                    continue;
+                }
+            }
+            let own_type_param_count = sig.type_params.len() - sig.owner_type_param_count;
+            applicable.push((
+                function,
+                type_args,
+                parameter_types,
+                return_type,
+                sig.is_suspend,
+                own_type_param_count,
+            ));
+        }
+
+        let selected = match applicable.len() {
+            0 => {
+                let message = if expected.is_some() {
+                    format!("no overload of {display} matches the expected function type")
+                } else {
+                    format!(
+                        "cannot determine {display} without an expected function type; no unique non-generic candidate exists"
+                    )
+                };
+                self.error(span, message);
+                return None;
+            }
+            1 => 0,
+            _ if expected.is_some() => {
+                let concrete: Vec<_> = applicable
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(index, candidate)| (candidate.5 == 0).then_some(index))
+                    .collect();
+                if let [index] = concrete.as_slice() {
+                    *index
+                } else {
+                    self.error(
+                        span,
+                        format!("{display} is ambiguous for the expected function type"),
+                    );
+                    return None;
+                }
+            }
+            _ => {
+                self.error(
+                    span,
+                    format!("{display} is ambiguous; provide an expected function type"),
+                );
+                return None;
+            }
+        };
+        let (function, type_args, parameter_types, return_type, is_suspend, _) =
+            applicable.swap_remove(selected);
+        let ty = match expected {
+            Some((ty, _)) => *ty,
+            None => self.intern_function_type(is_suspend, parameter_types, return_type),
+        };
+        let callee = if type_args.is_empty() {
+            hir::Callable::Function(function)
+        } else {
+            hir::Callable::Generic(self.record_instantiation(function, type_args))
+        };
+        Some((callee, ty))
+    }
+
+    fn lower_local_callable_reference(
+        &mut self,
+        candidates: Vec<hir::LocalFunctionId>,
+        name: &ast::Ident,
+        span: Span,
+        expected: Option<TypeId>,
+    ) -> Option<hir::Expr> {
+        let expected_signature = expected.and_then(|ty| match self.types[ty] {
+            Type::Function(id) => Some((ty, self.function_types[id].clone())),
+            _ => None,
+        });
+        let mut applicable = Vec::new();
+        for local_function in candidates {
+            let function = self.local_functions[local_function].function;
+            let sig = self.signatures[&function].clone();
+            let mut bindings = vec![None; sig.type_params.len()];
+            for (binding, ty) in bindings
+                .iter_mut()
+                .zip(self.ambient_type_args(sig.owner_type_param_count))
+            {
+                *binding = Some(ty);
+            }
+            match &expected_signature {
+                Some((_, expected)) => {
+                    if sig.is_suspend != expected.is_suspend
+                        || sig.params.len() != expected.parameter_types.len()
+                    {
+                        continue;
+                    }
+                    let mut matches = true;
+                    for (parameter, expected) in sig.params.iter().zip(&expected.parameter_types) {
+                        matches &= self.try_bind(parameter.ty, *expected, &mut bindings);
+                    }
+                    matches &= self.try_bind(sig.return_ty, expected.return_type, &mut bindings);
+                    if !matches || bindings.iter().any(Option::is_none) {
+                        continue;
+                    }
+                    let type_args: Vec<_> = bindings.into_iter().flatten().collect();
+                    let instantiated_params: Vec<_> = sig
+                        .params
+                        .iter()
+                        .map(|parameter| self.instantiate_ty(parameter.ty, &type_args))
+                        .collect();
+                    let instantiated_return = self.instantiate_ty(sig.return_ty, &type_args);
+                    let exact = instantiated_params
+                        .iter()
+                        .zip(&expected.parameter_types)
+                        .all(|(parameter, expected)| self.types_equal(*parameter, *expected))
+                        && self.types_equal(instantiated_return, expected.return_type);
+                    if exact {
+                        let own_type_param_count =
+                            sig.type_params.len() - sig.owner_type_param_count;
+                        applicable.push((local_function, type_args, own_type_param_count));
+                    }
+                }
+                None => {
+                    if sig.type_params.len() != sig.owner_type_param_count {
+                        continue;
+                    }
+                    applicable.push((local_function, bindings.into_iter().flatten().collect(), 0));
+                }
+            }
+        }
+        let selected = match applicable.len() {
+            0 => {
+                self.error(
+                    span,
+                    format!(
+                        "no local overload of `::{}` matches the expected function type",
+                        name.text
+                    ),
+                );
+                return None;
+            }
+            1 => 0,
+            _ if expected_signature.is_some() => {
+                let concrete: Vec<_> = applicable
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(index, candidate)| (candidate.2 == 0).then_some(index))
+                    .collect();
+                if let [index] = concrete.as_slice() {
+                    *index
+                } else {
+                    self.error(
+                        span,
+                        format!(
+                            "local callable reference `::{}` is ambiguous for the expected function type",
+                            name.text
+                        ),
+                    );
+                    return None;
+                }
+            }
+            _ => {
+                self.error(
+                    span,
+                    format!(
+                        "local callable reference `::{}` is ambiguous; provide an expected function type",
+                        name.text
+                    ),
+                );
+                return None;
+            }
+        };
+        let (local_function, type_args, _) = applicable.swap_remove(selected);
+        let local = &self.local_functions[local_function];
+        let function = local.function;
+        let ty = expected_signature.map_or_else(
+            || {
+                let signature = self.signatures[&function].clone();
+                let parameters = signature
+                    .params
+                    .iter()
+                    .map(|parameter| self.instantiate_ty(parameter.ty, &type_args))
+                    .collect();
+                let return_ty = self.instantiate_ty(signature.return_ty, &type_args);
+                self.intern_function_type(signature.is_suspend, parameters, return_ty)
+            },
+            |(ty, _)| ty,
+        );
+        let Type::Function(function_type) = self.types[ty] else {
+            unreachable!("a callable reference has a function type")
+        };
+        let capture_sources = self.local_call_capture_args(local_function, span)?;
+        let capture_specs: Vec<_> = self.local_functions[local_function]
+            .captures
+            .iter()
+            .map(|capture| {
+                (
+                    capture.binding,
+                    capture.name.clone(),
+                    capture.ty,
+                    capture.first_use_span,
+                )
+            })
+            .collect();
+        let captures = capture_specs
+            .into_iter()
+            .zip(capture_sources)
+            .map(
+                |((binding, name, ty, first_use_span), source)| hir::Capture {
+                    binding,
+                    name,
+                    ty: self.instantiate_ty(ty, &type_args),
+                    first_use_span,
+                    source,
+                },
+            )
+            .collect();
+        let callee = if type_args.is_empty() {
+            hir::Callable::Function(function)
+        } else {
+            hir::Callable::Generic(self.record_instantiation(function, type_args))
+        };
+        let id = self.callable_references.alloc(hir::CallableReference {
+            target: hir::CallableReferenceTarget::Local {
+                local_function,
+                callee,
+            },
+            function_type,
+            owner_type_param_count: self.type_params_in_scope.len(),
+            captures,
+            span,
+        });
+        Some(hir::Expr {
+            kind: ExprKind::CallableReference(id),
+            ty,
+            span,
+        })
+    }
+
+    fn top_level_candidate_layer(&self, name: &str) -> Vec<hir::FunctionId> {
+        self.candidate_layer(self.functions_by_name.get(name))
+    }
+
+    fn extension_candidate_layer(&self, name: &str) -> Vec<hir::FunctionId> {
+        self.candidate_layer(self.extensions_by_name.get(name))
+    }
+
+    fn candidate_layer(&self, ids: Option<&Vec<hir::FunctionId>>) -> Vec<hir::FunctionId> {
+        let Some(ids) = ids else {
+            return Vec::new();
+        };
+        let call_site_is_core = self.current_file < self.user_file_index;
+        let same_side: Vec<_> = ids
+            .iter()
+            .copied()
+            .filter(|id| (self.function_files[id] < self.user_file_index) == call_site_is_core)
+            .collect();
+        if same_side.is_empty() {
+            ids.iter()
+                .copied()
+                .filter(|id| (self.function_files[id] < self.user_file_index) != call_site_is_core)
+                .collect()
+        } else {
+            same_side
+        }
+    }
+
+    /// The top-level callable-reference layer includes ordinary and extension
+    /// declarations. Package/core precedence is applied to the combined set,
+    /// then declaration order is restored by the globally unique function id.
+    fn named_reference_candidate_layer(&self, name: &str) -> Vec<hir::FunctionId> {
+        let mut ids = Vec::new();
+        ids.extend(
+            self.functions_by_name
+                .get(name)
+                .into_iter()
+                .flatten()
+                .copied(),
+        );
+        ids.extend(
+            self.extensions_by_name
+                .get(name)
+                .into_iter()
+                .flatten()
+                .copied(),
+        );
+        let call_site_is_core = self.current_file < self.user_file_index;
+        let same_side: Vec<_> = ids
+            .iter()
+            .copied()
+            .filter(|id| (self.function_files[id] < self.user_file_index) == call_site_is_core)
+            .collect();
+        let mut selected = if same_side.is_empty() {
+            ids.into_iter()
+                .filter(|id| (self.function_files[id] < self.user_file_index) != call_site_is_core)
+                .collect::<Vec<_>>()
+        } else {
+            same_side
+        };
+        selected.sort_by_key(|id| id.into_raw().into_u32());
+        selected
+    }
+
+    fn lower_lambda(
+        &mut self,
+        is_suspend: bool,
+        parameters: Option<&[ast::LambdaParam]>,
+        body: &ast::Block,
+        span: Span,
+        expected: Option<TypeId>,
+    ) -> Option<hir::Expr> {
+        if block_contains_return(body) {
+            self.error(
+                span,
+                "a lambda cannot use `return`; use an anonymous function for local returns"
+                    .to_string(),
+            );
+            return None;
+        }
+        let expected_signature = expected.and_then(|ty| match self.types[ty] {
+            Type::Function(id) => Some((ty, self.function_types[id].clone())),
+            _ => None,
+        });
+        if let Some((_, signature)) = &expected_signature
+            && signature.is_suspend != is_suspend
+        {
+            self.error(
+                span,
+                "ordinary and suspend function types are incompatible".to_string(),
+            );
+            return None;
+        }
+        let source_parameters: Vec<Option<&ast::LambdaParam>> = match parameters {
+            Some(parameters) => parameters.iter().map(Some).collect(),
+            None => match &expected_signature {
+                Some((_, signature)) if signature.parameter_types.len() == 1 => vec![None],
+                Some((_, signature)) if signature.parameter_types.is_empty() => Vec::new(),
+                Some((_, signature)) => {
+                    self.error(
+                        span,
+                        format!(
+                            "lambda omits its parameter list, but the expected type has {} parameters",
+                            signature.parameter_types.len()
+                        ),
+                    );
+                    return None;
+                }
+                None => Vec::new(),
+            },
+        };
+        if let Some((_, signature)) = &expected_signature
+            && source_parameters.len() != signature.parameter_types.len()
+        {
+            self.error(
+                span,
+                format!(
+                    "lambda has {} parameter(s), but the expected function type has {}",
+                    source_parameters.len(),
+                    signature.parameter_types.len()
+                ),
+            );
+            return None;
+        }
+
+        let capture_environment = self.capture_environment();
+        let outer_locals = std::mem::take(&mut self.locals);
+        let outer_scopes = std::mem::replace(&mut self.scopes, Scopes::new());
+        let outer_return_ty = self.current_return_ty;
+        let outer_fn_name = std::mem::take(&mut self.current_fn_name);
+        let outer_owner = self.current_owner;
+        let outer_this = self.current_this.take();
+        let outer_smart_casts = std::mem::take(&mut self.smart_casts);
+        self.capture_contexts.push(CaptureContext {
+            available: capture_environment,
+            captures: Vec::new(),
+            by_binding: std::collections::HashMap::new(),
+        });
+        let function_number = self.next_lambda_function;
+        self.next_lambda_function += 1;
+        self.current_fn_name = format!("$lambda.{function_number}");
+        self.push_suspension_context(if is_suspend {
+            SuspensionContext::SuspendFunction
+        } else {
+            SuspensionContext::Forbidden(ForbiddenSuspendContext::Function)
+        });
+        self.push_scope();
+
+        let lowered = (|| {
+            let mut abi_params = Vec::with_capacity(source_parameters.len());
+            let mut parameter_types = Vec::with_capacity(source_parameters.len());
+            let mut prefix = Vec::new();
+            for (index, parameter) in source_parameters.iter().enumerate() {
+                let expected_ty = expected_signature
+                    .as_ref()
+                    .map(|(_, signature)| signature.parameter_types[index]);
+                let explicit_ty = match parameter.and_then(|parameter| parameter.ty.as_ref()) {
+                    Some(ty) => Some(self.resolve_type_ref(ty)?),
+                    None => None,
+                };
+                let parameter_ty = match (explicit_ty, expected_ty) {
+                    (Some(explicit), Some(expected)) => {
+                        if !self.types_equal(explicit, expected) {
+                            let found = self.type_name(explicit);
+                            let expected = self.type_name(expected);
+                            let at = parameter
+                                .expect("an explicit type belongs to a parameter")
+                                .span;
+                            self.error(
+                                at,
+                                format!(
+                                    "lambda parameter type is {found}, but the expected type is {expected}"
+                                ),
+                            );
+                            return None;
+                        }
+                        explicit
+                    }
+                    (Some(explicit), None) => explicit,
+                    (None, Some(expected)) => expected,
+                    (None, None) => {
+                        let at = parameter.map_or(span, |parameter| parameter.span);
+                        self.error(
+                            at,
+                            "lambda parameter requires a type when there is no expected function type"
+                                .to_string(),
+                        );
+                        return None;
+                    }
+                };
+                parameter_types.push(parameter_ty);
+                let target = parameter.map(|parameter| &parameter.target);
+                let binding_name = match target {
+                    Some(ast::Pattern::Binding(name)) => Some(name.clone()),
+                    None => Some(ast::Ident {
+                        text: "it".to_string(),
+                        span,
+                    }),
+                    _ => None,
+                };
+                if let Some(name) = binding_name {
+                    let pattern = ast::Pattern::Binding(name.clone());
+                    let hir::Pattern::Binding { local } = self.lower_pattern(
+                        &pattern,
+                        parameter_ty,
+                        PatternCtx {
+                            mutable: false,
+                            in_when: false,
+                        },
+                    )?
+                    else {
+                        unreachable!("a binding parameter lowers to a binding")
+                    };
+                    abi_params.push(hir::Param {
+                        name: name.text,
+                        ty: parameter_ty,
+                        local,
+                    });
+                } else {
+                    let local = self.alloc_local(format!("$arg.{index}"), parameter_ty, false);
+                    let pattern = self.lower_pattern(
+                        target.expect("non-binding source parameter has a pattern"),
+                        parameter_ty,
+                        PatternCtx {
+                            mutable: false,
+                            in_when: false,
+                        },
+                    )?;
+                    prefix.push(hir::Statement {
+                        kind: hir::StatementKind::ValDecl {
+                            pattern,
+                            init: hir::Expr {
+                                kind: ExprKind::Local(local),
+                                ty: parameter_ty,
+                                span,
+                            },
+                        },
+                        span,
+                    });
+                    abi_params.push(hir::Param {
+                        name: format!("$arg.{index}"),
+                        ty: parameter_ty,
+                        local,
+                    });
+                }
+            }
+
+            let expected_return = expected_signature
+                .as_ref()
+                .map(|(_, signature)| signature.return_type);
+            let mut value_block = self.lower_value_block(body, expected_return)?;
+            let return_ty = value_block
+                .value
+                .as_ref()
+                .map_or(expected_return.unwrap_or(self.unit), |value| value.ty);
+            if let Some(expected_return) = expected_return
+                && !self.types_equal(expected_return, self.unit)
+                && !self.types_equal(return_ty, expected_return)
+            {
+                let expected = self.type_name(expected_return);
+                let found = self.type_name(return_ty);
+                self.error(
+                    body.span,
+                    format!("lambda result must be of type {expected}, found {found}"),
+                );
+                return None;
+            }
+            let return_ty = expected_return.unwrap_or(return_ty);
+            self.current_return_ty = return_ty;
+            prefix.append(&mut value_block.statements);
+            if let Some(value) = value_block.value.take() {
+                if self.types_equal(return_ty, self.unit) {
+                    if !matches!(value.kind, ExprKind::UnitLiteral) {
+                        prefix.push(hir::Statement {
+                            span: value.span,
+                            kind: hir::StatementKind::Expr(value),
+                        });
+                    }
+                    prefix.push(hir::Statement {
+                        span: body.span,
+                        kind: hir::StatementKind::Return { value: None },
+                    });
+                } else {
+                    let value = self.adapt_to(value, return_ty);
+                    prefix.push(hir::Statement {
+                        span: value.span,
+                        kind: hir::StatementKind::Return { value: Some(value) },
+                    });
+                }
+            }
+            let function_ty = self.intern_function_type(is_suspend, parameter_types, return_ty);
+            let Type::Function(function_type) = self.types[function_ty] else {
+                unreachable!()
+            };
+            let closure_local = self.alloc_local("$closure".to_string(), function_ty, false);
+            let mut params = Vec::with_capacity(abi_params.len() + 1);
+            params.push(hir::Param {
+                name: "$closure".to_string(),
+                ty: function_ty,
+                local: closure_local,
+            });
+            params.extend(abi_params);
+            let type_params = self.type_params_in_scope.clone();
+            let function = self.functions.alloc(hir::Function {
+                name: self.current_fn_name.clone(),
+                is_suspend,
+                type_params: type_params.clone(),
+                params,
+                return_ty,
+                kind: hir::FunctionKind::User(hir::Body {
+                    locals: std::mem::take(&mut self.locals),
+                    statements: prefix,
+                }),
+                method: None,
+                span,
+            });
+            if !type_params.is_empty() {
+                self.register_generic(function);
+            }
+            let captures = self.finish_current_captures();
+            let id = self.lambdas.alloc(hir::Lambda {
+                function,
+                function_type,
+                owner_type_param_count: type_params.len(),
+                captures,
+                span,
+            });
+            Some(hir::Expr {
+                kind: ExprKind::Lambda(id),
+                ty: function_ty,
+                span,
+            })
+        })();
+
+        self.pop_scope();
+        self.pop_suspension_context();
+        self.capture_contexts.pop();
+        self.locals = outer_locals;
+        self.scopes = outer_scopes;
+        self.current_return_ty = outer_return_ty;
+        self.current_fn_name = outer_fn_name;
+        self.current_owner = outer_owner;
+        self.current_this = outer_this;
+        self.smart_casts = outer_smart_casts;
+        lowered
+    }
+
+    fn lower_anonymous_function(
+        &mut self,
+        is_suspend: bool,
+        source_params: &[ast::Param],
+        source_return_ty: Option<&ast::TypeRef>,
+        body: &ast::Block,
+        span: Span,
+        expected: Option<TypeId>,
+    ) -> Option<hir::Expr> {
+        let expected_signature = expected.and_then(|ty| match self.types[ty] {
+            Type::Function(id) => Some((ty, self.function_types[id].clone())),
+            _ => None,
+        });
+        if let Some((_, signature)) = &expected_signature {
+            if signature.is_suspend != is_suspend {
+                self.error(
+                    span,
+                    "ordinary and suspend function types are incompatible".to_string(),
+                );
+                return None;
+            }
+            if source_params.len() != signature.parameter_types.len() {
+                self.error(
+                    span,
+                    format!(
+                        "anonymous function has {} parameter(s), but the expected function type has {}",
+                        source_params.len(),
+                        signature.parameter_types.len()
+                    ),
+                );
+                return None;
+            }
+        }
+
+        let mut parameter_types = Vec::with_capacity(source_params.len());
+        for (index, parameter) in source_params.iter().enumerate() {
+            let ty = self.resolve_type_ref(&parameter.ty)?;
+            if let Some((_, signature)) = &expected_signature {
+                let expected = signature.parameter_types[index];
+                if !self.types_equal(ty, expected) {
+                    let found = self.type_name(ty);
+                    let expected = self.type_name(expected);
+                    self.error(
+                        parameter.ty.span,
+                        format!(
+                            "anonymous-function parameter type is {found}, but the expected type is {expected}"
+                        ),
+                    );
+                    return None;
+                }
+            }
+            parameter_types.push(ty);
+        }
+        let explicit_return = match source_return_ty {
+            Some(return_ty) => Some(self.resolve_type_ref(return_ty)?),
+            None => None,
+        };
+        let expected_return = expected_signature
+            .as_ref()
+            .map(|(_, signature)| signature.return_type);
+        if let (Some(explicit), Some(expected)) = (explicit_return, expected_return)
+            && !self.types_equal(explicit, expected)
+        {
+            let found = self.type_name(explicit);
+            let expected = self.type_name(expected);
+            self.error(
+                source_return_ty.expect("explicit return type").span,
+                format!(
+                    "anonymous-function return type is {found}, but the expected type is {expected}"
+                ),
+            );
+            return None;
+        }
+        let known_return = explicit_return.or(expected_return);
+
+        let capture_environment = self.capture_environment();
+        let outer_locals = std::mem::take(&mut self.locals);
+        let outer_scopes = std::mem::replace(&mut self.scopes, Scopes::new());
+        let outer_return_ty = self.current_return_ty;
+        let outer_return_inference = self.return_inference.take();
+        let outer_fn_name = std::mem::take(&mut self.current_fn_name);
+        let outer_owner = self.current_owner;
+        let outer_this = self.current_this.take();
+        let outer_smart_casts = std::mem::take(&mut self.smart_casts);
+        self.capture_contexts.push(CaptureContext {
+            available: capture_environment,
+            captures: Vec::new(),
+            by_binding: std::collections::HashMap::new(),
+        });
+        let function_number = self.next_anonymous_function;
+        self.next_anonymous_function += 1;
+        self.current_fn_name = format!("$anonymous.{function_number}");
+        self.current_return_ty = known_return.unwrap_or(self.unit);
+        self.return_inference = known_return.is_none().then(ReturnInference::default);
+        self.push_suspension_context(if is_suspend {
+            SuspensionContext::SuspendFunction
+        } else {
+            SuspensionContext::Forbidden(ForbiddenSuspendContext::Function)
+        });
+        self.push_scope();
+
+        let lowered = (|| {
+            let mut params = Vec::with_capacity(source_params.len());
+            for (parameter, ty) in source_params.iter().zip(&parameter_types) {
+                if self.scopes.is_declared_here(&parameter.name.text) {
+                    self.error(
+                        parameter.name.span,
+                        format!("duplicate parameter `{}`", parameter.name.text),
+                    );
+                    return None;
+                }
+                let local = self.alloc_local(parameter.name.text.clone(), *ty, false);
+                self.scopes.declare(parameter.name.text.clone(), local);
+                params.push(hir::Param {
+                    name: parameter.name.text.clone(),
+                    ty: *ty,
+                    local,
+                });
+            }
+
+            let diagnostics_before = self.diagnostics.len();
+            let mut statements = self.lower_block(body);
+            let return_ty = if let Some(known) = known_return {
+                known
+            } else {
+                let inference = self
+                    .return_inference
+                    .take()
+                    .expect("return inference is active");
+                if inference.saw_bare && !inference.value_types.is_empty() {
+                    self.error(
+                        body.span,
+                        "anonymous function mixes bare and value returns".to_string(),
+                    );
+                    return None;
+                }
+                if inference.value_types.is_empty() {
+                    self.unit
+                } else {
+                    self.least_upper_bound(&inference.value_types)
+                }
+            };
+            self.current_return_ty = return_ty;
+            if self.diagnostics.len() == diagnostics_before
+                && !self.types_equal(return_ty, self.unit)
+                && statements_can_fall_through(&statements)
+            {
+                let found = self.type_name(return_ty);
+                self.error(
+                    body.span,
+                    format!(
+                        "anonymous function returning {found} may complete without returning a value"
+                    ),
+                );
+                return None;
+            }
+            if known_return.is_none() {
+                statements = self.adapt_inferred_returns(statements, return_ty);
+            }
+            if self.types_equal(return_ty, self.unit) && statements_can_fall_through(&statements) {
+                statements.push(hir::Statement {
+                    kind: hir::StatementKind::Return { value: None },
+                    span: body.span,
+                });
+            }
+
+            let function_ty =
+                self.intern_function_type(is_suspend, parameter_types.clone(), return_ty);
+            let Type::Function(function_type) = self.types[function_ty] else {
+                unreachable!()
+            };
+            let closure_local = self.alloc_local("$closure".to_string(), function_ty, false);
+            let mut abi_params = Vec::with_capacity(params.len() + 1);
+            abi_params.push(hir::Param {
+                name: "$closure".to_string(),
+                ty: function_ty,
+                local: closure_local,
+            });
+            abi_params.extend(params);
+            let type_params = self.type_params_in_scope.clone();
+            let function = self.functions.alloc(hir::Function {
+                name: self.current_fn_name.clone(),
+                is_suspend,
+                type_params: type_params.clone(),
+                params: abi_params,
+                return_ty,
+                kind: hir::FunctionKind::User(hir::Body {
+                    locals: std::mem::take(&mut self.locals),
+                    statements,
+                }),
+                method: None,
+                span,
+            });
+            if !type_params.is_empty() {
+                self.register_generic(function);
+            }
+            let captures = self.finish_current_captures();
+            let id = self.anonymous_functions.alloc(hir::AnonymousFunction {
+                function,
+                function_type,
+                owner_type_param_count: type_params.len(),
+                captures,
+                span,
+            });
+            Some(hir::Expr {
+                kind: ExprKind::AnonymousFunction(id),
+                ty: function_ty,
+                span,
+            })
+        })();
+
+        self.pop_scope();
+        self.pop_suspension_context();
+        self.capture_contexts.pop();
+        self.locals = outer_locals;
+        self.scopes = outer_scopes;
+        self.current_return_ty = outer_return_ty;
+        self.return_inference = outer_return_inference;
+        self.current_fn_name = outer_fn_name;
+        self.current_owner = outer_owner;
+        self.current_this = outer_this;
+        self.smart_casts = outer_smart_casts;
+        lowered
     }
 
     /// `Array(m)` / `MutableArray(a)`: the conversion between the two
@@ -1280,21 +2750,53 @@ impl Lowerer {
     ) -> Option<hir::Expr> {
         let name = call.callee.text.clone();
 
-        // Layer 1: members of the current host.
-        let members: Vec<hir::FunctionId> = match self.current_owner {
-            Some(owner) => {
-                let host_ty = self.owner_ty(owner);
-                self.methods_by_name(host_ty, &name)
+        // Layer 1: the nearest lexical block containing local functions of
+        // this name. The whole overload set shadows members and top-level
+        // functions, and declarations enter it only as they are encountered.
+        let local_candidates = self.local_function_scopes.lookup(&name);
+        if !local_candidates.is_empty() {
+            if local_candidates.len() == 1 {
+                return self.finish_local_function_call(local_candidates[0], call, sink);
             }
-            None => Vec::new(),
-        };
+            let functions: Vec<_> = local_candidates
+                .iter()
+                .map(|id| self.local_functions[*id].function)
+                .collect();
+            let owner_count = self.local_functions[local_candidates[0]].owner_type_param_count;
+            let owner_type_args = self.ambient_type_args(owner_count);
+            let resolved = self.resolve_overload(
+                &name,
+                &functions,
+                &owner_type_args,
+                &call.args,
+                call.span,
+                sink,
+            )?;
+            let function = self.callable_function_id(resolved.callee);
+            let local_function = self.local_function_by_function[&function];
+            let captures = self.local_call_capture_args(local_function, call.span)?;
+            self.check_suspend_call(resolved.callee, call.span);
+            return Some(hir::Expr {
+                kind: ExprKind::LocalFunctionCall {
+                    local_function,
+                    callee: resolved.callee,
+                    captures,
+                    args: resolved.args,
+                },
+                ty: resolved.return_ty,
+                span: call.span,
+            });
+        }
+
+        // Layer 2: members of the current host.
+        let members: Vec<hir::FunctionId> = self
+            .current_this_ty()
+            .map(|host_ty| self.methods_by_name(host_ty, &name))
+            .unwrap_or_default();
         if !members.is_empty() {
-            let (this_local, this_ty) = self.current_this.expect("a method body always has `this`");
-            let receiver = hir::Expr {
-                kind: ExprKind::Local(this_local),
-                ty: this_ty,
-                span: call.callee.span,
-            };
+            let receiver = self
+                .lower_current_this(call.callee.span)
+                .expect("a member callable body always has a lexical `this`");
             if members.len() == 1 {
                 return self.finish_method_call(members[0], receiver, &call.args, call.span, sink);
             }
@@ -1303,33 +2805,31 @@ impl Lowerer {
             );
         }
 
+        // An extension body has a lexical `this` just like a member body.
+        // If no real member wins, another visible extension may use it as
+        // the implicit receiver before ordinary top-level functions.
+        if self.current_this_ty().is_some() {
+            let extensions = self.extension_candidate_layer(&name);
+            if !extensions.is_empty() {
+                let receiver = self
+                    .lower_current_this(call.callee.span)
+                    .expect("a lexical receiver has a `this` value");
+                return self.finish_extension_call(
+                    &extensions,
+                    &name,
+                    receiver,
+                    &call.args,
+                    call.span,
+                    sink,
+                );
+            }
+        }
+
         // Layers 2 and 3, relative to the call site's file: the
         // declarations on the call site's own side of the core/user
         // boundary come first, the other side is the implicitly
         // imported layer.
-        let candidates: Vec<hir::FunctionId> = match self.functions_by_name.get(&name) {
-            Some(ids) => {
-                let call_site_is_core = self.current_file < self.user_file_index;
-                let same_side: Vec<hir::FunctionId> = ids
-                    .iter()
-                    .copied()
-                    .filter(|id| {
-                        (self.function_files[id] < self.user_file_index) == call_site_is_core
-                    })
-                    .collect();
-                if same_side.is_empty() {
-                    ids.iter()
-                        .copied()
-                        .filter(|id| {
-                            (self.function_files[id] < self.user_file_index) != call_site_is_core
-                        })
-                        .collect()
-                } else {
-                    same_side
-                }
-            }
-            None => Vec::new(),
-        };
+        let candidates = self.top_level_candidate_layer(&name);
         if candidates.is_empty() {
             self.error(
                 call.callee.span,
@@ -1350,6 +2850,136 @@ impl Lowerer {
                 args: resolved.args,
             },
             ty,
+            span: call.span,
+        })
+    }
+
+    fn callable_function_id(&self, callable: hir::Callable) -> hir::FunctionId {
+        match callable {
+            hir::Callable::Function(function) => function,
+            hir::Callable::Generic(instantiation) => {
+                let generic = self.instantiations[instantiation].generic;
+                self.generic_functions[generic].function
+            }
+        }
+    }
+
+    fn ambient_type_args(&mut self, count: usize) -> Vec<TypeId> {
+        (0..count)
+            .map(|index| self.intern_type(Type::Param(hir::TypeParamId::from_raw(index as u32))))
+            .collect()
+    }
+
+    fn local_call_capture_args(
+        &mut self,
+        local_function: hir::LocalFunctionId,
+        span: Span,
+    ) -> Option<Vec<hir::Expr>> {
+        let captures: Vec<_> = self.local_functions[local_function]
+            .captures
+            .iter()
+            .map(|capture| (capture.binding, capture.name.clone(), capture.ty))
+            .collect();
+        let mut args = Vec::with_capacity(captures.len());
+        for (binding, name, ty) in captures {
+            if let Some((local, _)) = self
+                .locals
+                .iter()
+                .find(|(_, candidate)| candidate.binding == binding)
+            {
+                args.push(hir::Expr {
+                    kind: ExprKind::Local(local),
+                    ty,
+                    span,
+                });
+                continue;
+            }
+            args.push(self.lower_capture_binding(binding, &name, span)?);
+        }
+        Some(args)
+    }
+
+    fn finish_local_function_call(
+        &mut self,
+        local_function: hir::LocalFunctionId,
+        call: &ast::CallExpr,
+        sink: &mut Vec<hir::Statement>,
+    ) -> Option<hir::Expr> {
+        let function = self.local_functions[local_function].function;
+        let sig = self.signatures[&function].clone();
+        if sig.params.len() != call.args.len() {
+            let expected = sig.params.len();
+            let supplied = call.args.len();
+            let noun = if expected == 1 {
+                "argument"
+            } else {
+                "arguments"
+            };
+            self.error(
+                call.span,
+                format!(
+                    "local function `{}` takes exactly {expected} {noun}, but {supplied} were supplied",
+                    call.callee.text
+                ),
+            );
+            return None;
+        }
+        let owner_type_args = self.ambient_type_args(sig.owner_type_param_count);
+        let mut bindings = vec![None; sig.type_params.len()];
+        for (binding, ty) in bindings.iter_mut().zip(owner_type_args) {
+            *binding = Some(ty);
+        }
+        let param_tys: Vec<_> = sig.params.iter().map(|param| param.ty).collect();
+        let inferred =
+            self.lower_inference_args(&call.args, &param_tys, bindings, &sig.type_params)?;
+        let mut type_args = Vec::with_capacity(inferred.bindings.len());
+        for (binding, param_name) in inferred.bindings.iter().copied().zip(&sig.type_params) {
+            let Some(ty) = binding else {
+                self.error(
+                    call.span,
+                    format!(
+                        "cannot infer type argument `{param_name}` for local function `{}`",
+                        call.callee.text
+                    ),
+                );
+                return None;
+            };
+            type_args.push(ty);
+        }
+        let args = inferred.finish(sink);
+        let mut adapted = Vec::with_capacity(args.len());
+        for (param, arg) in sig.params.iter().zip(args) {
+            let expected = self.instantiate_ty(param.ty, &type_args);
+            if !self.is_subtype(arg.ty, expected) {
+                let expected_name = self.type_name(expected);
+                let found = self.type_name(arg.ty);
+                self.error(
+                    arg.span,
+                    format!(
+                        "argument for parameter `{}` of local function `{}` must be of type {expected_name}, found {found}",
+                        param.name.text, call.callee.text
+                    ),
+                );
+                return None;
+            }
+            adapted.push(self.adapt_to(arg, expected));
+        }
+        let return_ty = self.instantiate_ty(sig.return_ty, &type_args);
+        let callee = if type_args.is_empty() {
+            hir::Callable::Function(function)
+        } else {
+            hir::Callable::Generic(self.record_instantiation(function, type_args))
+        };
+        let captures = self.local_call_capture_args(local_function, call.span)?;
+        self.check_suspend_call(callee, call.span);
+        Some(hir::Expr {
+            kind: ExprKind::LocalFunctionCall {
+                local_function,
+                callee,
+                captures,
+                args: adapted,
+            },
+            ty: return_ty,
             span: call.span,
         })
     }
@@ -1559,6 +3189,18 @@ impl Lowerer {
                 args,
                 ..
             } => self.qualified_variant_requires_expected(receiver, name, args),
+            // A lambda with an explicit, fully typed parameter header can
+            // synthesize its own function type and therefore participate in
+            // generic inference before an overload is selected. Untyped or
+            // omitted parameters remain contextual and are probed against
+            // each candidate transactionally.
+            ast::Expr::Lambda {
+                parameters: Some(parameters),
+                ..
+            } if parameters.iter().all(|parameter| parameter.ty.is_some()) => false,
+            ast::Expr::Lambda { .. }
+            | ast::Expr::AnonymousFunction { .. }
+            | ast::Expr::CallableReference { .. } => true,
             // Structured expressions perform their own branch-level fixed
             // point and therefore do not need to be postponed as a whole.
             ast::Expr::If(_) | ast::Expr::When(_) | ast::Expr::Try(_) => false,
@@ -1566,129 +3208,42 @@ impl Lowerer {
         }
     }
 
-    /// Quiet applicability check for an expression postponed by overload
-    /// resolution. It validates the expected-type-dependent shape only;
-    /// the selected candidate later performs ordinary lowering and emits
-    /// precise diagnostics for all other details.
-    pub(crate) fn contextual_expr_accepts(&mut self, expr: &ast::Expr, expected: TypeId) -> bool {
-        match expr {
-            ast::Expr::Var(name) if name.text == "None" => {
-                matches!(
-                    self.types[expected],
-                    Type::Enum(id, ref args)
-                        if Some(id) == self.option_enum && args.len() == 1
-                )
-            }
-            ast::Expr::FieldAccess(access) => {
-                let Some((enum_id, _)) = self.unit_variant_from_field(access) else {
-                    return true;
-                };
-                matches!(self.types[expected], Type::Enum(id, _) if id == enum_id)
-            }
-            ast::Expr::TupleLiteral { elements, .. } => {
-                let Type::Tuple(expected_elements) = self.types[expected].clone() else {
-                    return false;
-                };
-                elements.len() == expected_elements.len()
-                    && elements.iter().zip(expected_elements).all(|(element, ty)| {
-                        !self.expr_requires_expected_type(element)
-                            || self.contextual_expr_accepts(element, ty)
-                    })
-            }
-            ast::Expr::ArrayLiteral { elements, .. } => {
-                let element_ty = match self.types[expected] {
-                    Type::Array(element) | Type::MutableArray(element) => element,
-                    _ => return false,
-                };
-                elements.iter().all(|element| {
-                    !self.expr_requires_expected_type(element)
-                        || self.contextual_expr_accepts(element, element_ty)
-                })
-            }
-            ast::Expr::Call(call) => {
-                self.contextual_constructor_accepts(&call.callee.text, &call.args, expected)
-            }
-            ast::Expr::StructInit { name, args, .. } => {
-                self.contextual_constructor_accepts(&name.text, args, expected)
-            }
-            ast::Expr::MethodCall {
-                receiver,
-                name,
-                args,
-                ..
-            } => {
-                let ast::Expr::Var(enum_name) = receiver.as_ref() else {
-                    return true;
-                };
-                self.contextual_constructor_accepts(
-                    &format!("{}.{}", enum_name.text, name.text),
-                    args,
-                    expected,
-                )
-            }
-            _ => true,
-        }
-    }
-
-    fn contextual_constructor_accepts(
-        &mut self,
-        name: &str,
-        args: &[ast::Expr],
+    /// Type one context-dependent expression in a cloned semantic state. This is
+    /// the transactional probe used by overload applicability: generated
+    /// function/closure entities, inferred types, captures, and diagnostics are
+    /// all discarded with the clone. The selected candidate is lowered once in
+    /// the original state afterwards.
+    pub(crate) fn probe_contextual_expr(
+        &self,
+        expr: &ast::Expr,
         expected: TypeId,
-    ) -> bool {
-        let variant = if let Some((enum_name, variant_name)) = name.split_once('.') {
-            let Some(enum_id) = self.enums_by_name.get(enum_name).copied() else {
-                return true;
-            };
-            self.find_variant(enum_id, variant_name)
-                .map(|variant| (enum_id, variant))
-        } else {
-            self.option_variant(name)
-        };
-        let (fields, type_args) = if let Some((enum_id, variant)) = variant {
-            let Type::Enum(expected_id, type_args) = self.types[expected].clone() else {
-                return false;
-            };
-            if expected_id != enum_id {
-                return false;
-            }
-            (
-                self.enums[enum_id].variants[variant as usize]
-                    .fields
-                    .iter()
-                    .map(|field| field.ty)
-                    .collect::<Vec<_>>(),
-                type_args,
-            )
-        } else if let Some(&(struct_id, _)) = self.structs_by_name.get(name) {
-            let Type::Struct(expected_id, type_args) = self.types[expected].clone() else {
-                return false;
-            };
-            if expected_id != struct_id {
-                return false;
-            }
-            (
-                self.structs[struct_id]
-                    .fields
-                    .iter()
-                    .map(|field| field.ty)
-                    .collect::<Vec<_>>(),
-                type_args,
-            )
-        } else {
-            return true;
-        };
-        args.iter().zip(fields).all(|(arg, field)| {
-            if !self.expr_requires_expected_type(arg) {
-                return true;
-            }
-            let expected = if type_args.is_empty() {
-                field
+    ) -> Result<(), String> {
+        let mut probe = self.clone();
+        let diagnostics_before = probe.diagnostics.len();
+        let mut sink = Vec::new();
+        let value = probe.lower_expr(expr, &mut sink, Some(expected));
+        let diagnostics: Vec<_> = probe.diagnostics[diagnostics_before..]
+            .iter()
+            .map(|diagnostic| diagnostic.message.clone())
+            .collect();
+        let Some(value) = value else {
+            return Err(if diagnostics.is_empty() {
+                "contextual expression could not be typed".to_string()
             } else {
-                self.instantiate_ty(field, &type_args)
-            };
-            self.contextual_expr_accepts(arg, expected)
-        })
+                diagnostics.join(", ")
+            });
+        };
+        if !diagnostics.is_empty() {
+            return Err(diagnostics.join(", "));
+        }
+        if !probe.is_subtype(value.ty, expected) {
+            return Err(format!(
+                "expression has type {}, expected {}",
+                probe.type_name(value.ty),
+                probe.type_name(expected)
+            ));
+        }
+        Ok(())
     }
 
     fn constructor_requires_expected(&self, name: &ast::Ident, args: &[ast::Expr]) -> bool {
@@ -1776,6 +3331,13 @@ impl Lowerer {
                 for arg in args {
                     self.mark_type_params(*arg, bound);
                 }
+            }
+            Type::Function(id) => {
+                let function = &self.function_types[*id];
+                for parameter in &function.parameter_types {
+                    self.mark_type_params(*parameter, bound);
+                }
+                self.mark_type_params(function.return_type, bound);
             }
             _ => {}
         }
@@ -1935,6 +3497,27 @@ impl Lowerer {
                 for (param, arg) in param_elements.iter().zip(arg_elements.iter()) {
                     ok &= self.bind_type_args(*param, *arg, bindings, type_params, span);
                 }
+                ok
+            }
+            (Type::Function(param_id), Type::Function(arg_id)) => {
+                let param = self.function_types[param_id].clone();
+                let arg = self.function_types[arg_id].clone();
+                if param.is_suspend != arg.is_suspend
+                    || param.parameter_types.len() != arg.parameter_types.len()
+                {
+                    return true;
+                }
+                let mut ok = true;
+                for (param, arg) in param.parameter_types.iter().zip(arg.parameter_types.iter()) {
+                    ok &= self.bind_type_args(*param, *arg, bindings, type_params, span);
+                }
+                ok &= self.bind_type_args(
+                    param.return_type,
+                    arg.return_type,
+                    bindings,
+                    type_params,
+                    span,
+                );
                 ok
             }
             _ => true,
@@ -2722,6 +4305,111 @@ fn collect_smart_cast_candidates<'a>(
             collect_smart_cast_candidates(rhs, true, out);
         }
         _ => {}
+    }
+}
+
+fn block_contains_return(block: &ast::Block) -> bool {
+    block.statements.iter().any(statement_contains_return)
+}
+
+fn statement_contains_return(statement: &ast::Statement) -> bool {
+    match &statement.kind {
+        ast::StatementKind::Return { .. } => true,
+        ast::StatementKind::LocalFunction(_) => false,
+        ast::StatementKind::Expr(expr) | ast::StatementKind::Throw(expr) => {
+            expr_contains_return(expr)
+        }
+        ast::StatementKind::ValDecl(decl) => expr_contains_return(&decl.init),
+        ast::StatementKind::Assign(assign) => expr_contains_return(&assign.value),
+        ast::StatementKind::If(if_) => {
+            expr_contains_return(&if_.cond)
+                || block_contains_return(&if_.then_block)
+                || if_.else_block.as_ref().is_some_and(block_contains_return)
+        }
+        ast::StatementKind::While(while_) => {
+            expr_contains_return(&while_.cond) || block_contains_return(&while_.body)
+        }
+        ast::StatementKind::Block(block) => block_contains_return(block),
+        ast::StatementKind::When(when) => {
+            expr_contains_return(&when.subject)
+                || when.arms.iter().any(|arm| {
+                    arm.guard.as_ref().is_some_and(expr_contains_return)
+                        || block_contains_return(&arm.body)
+                })
+                || when.else_body.as_ref().is_some_and(block_contains_return)
+        }
+        ast::StatementKind::Try(try_) => {
+            block_contains_return(&try_.body)
+                || try_
+                    .catches
+                    .iter()
+                    .any(|catch| block_contains_return(&catch.body))
+                || try_
+                    .finally_body
+                    .as_ref()
+                    .is_some_and(block_contains_return)
+        }
+    }
+}
+
+fn expr_contains_return(expr: &ast::Expr) -> bool {
+    match expr {
+        // A nested callable owns its own return target.
+        ast::Expr::Lambda { .. }
+        | ast::Expr::AnonymousFunction { .. }
+        | ast::Expr::CallableReference { .. } => false,
+        ast::Expr::TupleLiteral { elements, .. } | ast::Expr::ArrayLiteral { elements, .. } => {
+            elements.iter().any(expr_contains_return)
+        }
+        ast::Expr::StructInit { args, .. } => args.iter().any(expr_contains_return),
+        ast::Expr::FieldAccess(access) => expr_contains_return(&access.receiver),
+        ast::Expr::Call(call) => call.args.iter().any(expr_contains_return),
+        ast::Expr::Invoke { callee, args, .. } => {
+            expr_contains_return(callee) || args.iter().any(expr_contains_return)
+        }
+        ast::Expr::Binary { lhs, rhs, .. } | ast::Expr::Elvis { lhs, rhs, .. } => {
+            expr_contains_return(lhs) || expr_contains_return(rhs)
+        }
+        ast::Expr::Unary { operand, .. }
+        | ast::Expr::NullAssert { operand, .. }
+        | ast::Expr::Is { operand, .. }
+        | ast::Expr::Cast { operand, .. } => expr_contains_return(operand),
+        ast::Expr::MethodCall { receiver, args, .. } => {
+            expr_contains_return(receiver) || args.iter().any(expr_contains_return)
+        }
+        ast::Expr::Index {
+            receiver, index, ..
+        } => expr_contains_return(receiver) || expr_contains_return(index),
+        ast::Expr::If(if_) => {
+            expr_contains_return(&if_.cond)
+                || block_contains_return(&if_.then_block)
+                || if_.else_block.as_ref().is_some_and(block_contains_return)
+        }
+        ast::Expr::When(when) => {
+            expr_contains_return(&when.subject)
+                || when.arms.iter().any(|arm| {
+                    arm.guard.as_ref().is_some_and(expr_contains_return)
+                        || block_contains_return(&arm.body)
+                })
+                || when.else_body.as_ref().is_some_and(block_contains_return)
+        }
+        ast::Expr::Try(try_) => {
+            block_contains_return(&try_.body)
+                || try_
+                    .catches
+                    .iter()
+                    .any(|catch| block_contains_return(&catch.body))
+                || try_
+                    .finally_body
+                    .as_ref()
+                    .is_some_and(block_contains_return)
+        }
+        ast::Expr::StringLiteral { .. }
+        | ast::Expr::IntLiteral { .. }
+        | ast::Expr::BoolLiteral { .. }
+        | ast::Expr::UnitLiteral { .. }
+        | ast::Expr::Var(_)
+        | ast::Expr::This { .. } => false,
     }
 }
 

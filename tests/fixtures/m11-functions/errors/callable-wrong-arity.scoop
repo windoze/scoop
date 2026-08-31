@@ -1,0 +1,4 @@
+fun main() {
+    val operation: (Int) -> Int = { value -> value }
+    operation()
+}

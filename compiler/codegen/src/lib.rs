@@ -978,6 +978,18 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 // M9 write barrier: mark the stored-to address's card.
                 self.card_mark(field_ptr)?;
             }
+            Instruction::FunctionAddress { out, symbol } => {
+                let function_value = self.llvm.get_function(symbol).ok_or_else(|| {
+                    CodegenError(format!(
+                        "function_address @{}: unknown function @{}",
+                        function.symbol, symbol
+                    ))
+                })?;
+                self.temps.insert(
+                    *out,
+                    function_value.as_global_value().as_pointer_value().into(),
+                );
+            }
             Instruction::Store { local, value: v } => {
                 let operand = self.value(*v)?;
                 builder
@@ -3977,6 +3989,120 @@ mod tests {
         let llvm = emit_llvm_module(&context, module, &machine).expect("emit module");
         llvm.verify().expect("valid LLVM module");
         llvm.print_to_string().to_string()
+    }
+
+    /// An M11-shaped module with both ordinary and suspend closure calls.
+    /// Both return aggregates so the machine ABI has a leading result slot;
+    /// the closure remains the first source-level argument and the suspend
+    /// call carries its continuation immediately after it.
+    fn closure_abi_module() -> Module {
+        let ordinary_result_ty = LirType::Aggregate(vec![LirType::I64, LirType::Ptr]);
+        let suspend_result_ty = LirType::Aggregate(vec![LirType::I64, LirType::I64]);
+        let mut temps = Arena::default();
+        let ordinary_result = temps.alloc(Temp {
+            ty: ordinary_result_ty,
+        });
+        let suspend_result = temps.alloc(Temp {
+            ty: suspend_result_ty,
+        });
+        let mut blocks = Arena::default();
+        let entry = blocks.alloc(BasicBlock {
+            name: "entry".to_string(),
+            instructions: vec![
+                Instruction::CallIndirect {
+                    out: Some(ordinary_result),
+                    table: Value::Param(0),
+                    slot: 2,
+                    args: vec![Value::Param(0), Value::Param(1)],
+                },
+                Instruction::CallIndirect {
+                    out: Some(suspend_result),
+                    table: Value::Param(0),
+                    slot: 2,
+                    args: vec![Value::Param(0), Value::Param(2)],
+                },
+            ],
+            terminator: Terminator::Return { value: None },
+        });
+
+        Module {
+            globals: Arena::default(),
+            enums: Arena::default(),
+            functions: vec![Function {
+                symbol: "scoop.closure_abi".to_string(),
+                params: vec![LirType::Ptr, LirType::I64, LirType::Ptr],
+                return_ty: LirType::Void,
+                locals: Arena::default(),
+                temps,
+                blocks,
+                entry,
+            }],
+            entry_symbol: "scoop.closure_abi".to_string(),
+            meta: LirMeta {
+                layouts: vec![Layout {
+                    name: "String".to_string(),
+                    size: 24,
+                    align: 8,
+                    kind: LayoutKind::Plain {
+                        scan: RefScan::None,
+                    },
+                }],
+                type_descriptors: vec![],
+            },
+        }
+    }
+
+    #[test]
+    fn closure_calls_preserve_hidden_abi_and_indirect_statepoints() {
+        let module = closure_abi_module();
+        let ir = ir_of(&module);
+        assert_eq!(
+            ir.matches("getelementptr ptr, ptr %0, i32 2").count(),
+            2,
+            "closure calls must load invoke from slot 2:\n{ir}"
+        );
+        assert!(
+            ir.lines().any(|line| {
+                line.contains("call void %fn_ptr")
+                    && line.contains("(ptr %indirect_result, ptr %0, i64 %1)")
+            }),
+            "ordinary closure ABI must be (result slot, closure, arguments):\n{ir}"
+        );
+        assert!(
+            ir.lines().any(|line| {
+                line.contains("call void %fn_ptr") && line.contains("ptr %0, ptr %2)")
+            }),
+            "suspend closure ABI must keep continuation after the closure:\n{ir}"
+        );
+        assert!(
+            ir.contains("load { i64, ptr }, ptr %indirect_result")
+                && ir.contains("load { i64, i64 }, ptr %indirect_result"),
+            "aggregate closure results must use typed return storage:\n{ir}"
+        );
+
+        let machine = host_target_machine().expect("target machine");
+        let context = Context::create();
+        let llvm = emit_llvm_module(&context, &module, &machine).expect("emit module");
+        llvm.verify().expect("valid LLVM module");
+        llvm.run_passes(
+            "rewrite-statepoints-for-gc",
+            &machine,
+            PassBuilderOptions::create(),
+        )
+        .expect("rewrite-statepoints-for-gc pass");
+        let rewritten = llvm.print_to_string().to_string();
+        assert_eq!(
+            rewritten
+                .lines()
+                .filter(|line| {
+                    line.contains("call token")
+                        && line.contains("gc.statepoint")
+                        && line.contains("%fn_ptr")
+                })
+                .count(),
+            2,
+            "both managed indirect closure calls must become statepoints:\n{rewritten}"
+        );
     }
 
     /// An M9-shaped module: a HeapStore and an ArraySet (both carry

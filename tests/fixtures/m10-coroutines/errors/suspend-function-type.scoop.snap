@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m10-coroutines/errors/suspend-function-type.scoop:1:15: error: suspend function types are not supported in M10

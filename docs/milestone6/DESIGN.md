@@ -58,7 +58,7 @@ fun main() {
 - **分派**：通过 class 引用调用可覆写方法走 vtable；通过 interface 引用调用走 itable；静态接收者上已知的 final 方法直接调用。类的 `open` 与方法的 `open` 相互独立：开放类中的普通方法仍默认 final。
 - **Any 与装箱**：`Any` 类型；值类型/类向上转型到 `Any` 或 interface（值类型在 O(1) 场景自动装箱，spec 4.4.4）；`is` / `!is` / `as` / `as?`（`as` 失败 trap，M8 改 `ClassCastException`）；`===` / `!==`（仅引用类型，对值类型是诊断，spec 4.4.2）。
 - **smart cast**：`if (x is T)` / `if (!x is T)` 与 `&&` 连接的 `is` 条件，true 分支内局部变量按 `T` 使用（M6 简化：只对不可变局部变量、不支持 `||`、不支持 when 分支内，见 5.4）。
-- **struct/enum 成员函数**：值类型的成员函数（`fun` in struct/enum body，`this` 是值）；struct 的方法可以读字段。
+- **struct/enum 成员函数**：值类型的成员函数（`fun` in struct/enum body）；与 class/interface 方法一样，`this` 由 receiver value 按值初始化，是隐含不可变参数而不是调用方 binding place 的别名（spec 3.3）。struct 的方法可以读字段。
 
 明确不在 M6（认领见第 6 章）：次构造函数、`init` 块、body 属性（非构造函数属性）、`super` 调用、interface 的属性与默认实现、`equals`/`hashCode`/`toString` 的用户覆写、companion object、`object` 声明、`sealed`、委托（`by`）、方法/函数重载（M7）、可见性修饰符。
 
@@ -72,7 +72,7 @@ fun main() {
 ### 2.2 HIR
 
 - **类型**：`Type::Class(ClassId)`、`Type::Interface(InterfaceId)`、`Type::Any`。`ClassId`/`InterfaceId` 为类型化 id（AGENTS.md 准则）。
-- **成员解析**：方法调用 `expr.name(args)`（新增 `Expr::MethodCall` 语法位）按接收者类型解析：class → 成员函数（含继承链）；interface → 接口方法；值类型 → 其成员函数；`this` 的类型为当前类/接口/值类型。类字段访问/赋值：构造函数属性按声明下标解析；`var` 才可写。
+- **成员解析**：方法调用 `expr.name(args)`（新增 `Expr::MethodCall` 语法位）按接收者类型解析：class → 成员函数（含继承链）；interface → 接口方法；值类型 → 其成员函数；`this` 的类型为当前类/接口/值类型。所有 `this` 都是类型完整的隐含按值参数：ref type 复制 ref value，value type 复制完整值；HIR 不保留调用方 receiver binding place。类字段访问/赋值：构造函数属性按声明下标解析；`var` 才可写。
 - **继承检查**：基类必须 `open`/`abstract`；`override` 必须对应基类/接口同签名且非 final 的方法；未标 `override` 的覆写、标记但未覆写、覆写 final 方法均为诊断。普通方法默认 final，`open fun` 才能首次被覆写；`abstract fun` 隐含 open；`override fun` 默认 open，`final override fun` 关闭后续覆写。open / abstract 方法必须由 open / abstract 类或 interface 承载；abstract 类不能实例化；derived 构造委托实参按基类构造函数检查。
 - **interface 检查**：interface 方法必须被实现（含继承来的实现）；值类型实现 interface 时方法不得修改字段（值类型字段本来就不可写，自然成立，spec 4.4.3）。
 - **装箱**：赋值/实参/返回位置从具体类型到 `Any`/interface 时插入 `ExprKind::Box`（值类型才需要；class 到 Any/interface 是零成本引用）；`Unbox` 由 `as`/`as?`/smart cast 产生。
@@ -84,8 +84,8 @@ fun main() {
 - **call kind 标注落地**（impl spec 2.9）：direct（final 方法、值类型方法、私有场景）/ virtual（可覆写 class 方法）/ interface（接口方法）。
 - **vtable 生成**：每 class 一份——槽 0/1/2 = `equals`/`hashCode`/`toString`（Any 固定三槽），其后按声明顺序加入 open / abstract 用户方法；继承时基类槽位布局前缀保持，override（包括 final override）原位替换，新 final 方法不占 vtable 槽；
 - **itable 生成**：每 class / 每装箱值类型一份——`(接口 TypeDescriptor 符号 → 方法表)` 键值对数组（impl spec 2.9 的指针键查找，无全局槽位协调）；
-- **装箱值类型的 adjust thunk**：值类型实现 interface 时，itable 表项指向 MIR 生成的 thunk（`this` 加对象头偏移后 tail-call 真正的值方法，impl spec 2.9）；
-- **方法体降级**：`this` = 参数 0（class 为引用、值类型方法为指向值的指针——装箱 thunk 依赖此约定）；
+- **装箱值类型的 adjust thunk**：值类型实现 interface 时，itable 表项指向 MIR 生成的 thunk；thunk 语义上复制 payload 以初始化真正值方法的 `this`。M6 可以在当时全部可观察值均 immutable 的前提下用 payload 指针消除该复制；M12 引入 `@InteriorMutable` / `addressOf(this)` 后对可观察场景必须物化私有副本（impl spec 2.9）；
+- **方法体降级**：`this` = 参数 0，与显式参数使用同一按值规则；class/interface 传入 ref value，值类型传入完整 value。LIR/codegen 可以用间接 storage 作为不可观察的 ABI 优化，但不得改变 spec 3.3 语义；
 - **TypeDescriptor 数据**：MIR meta 输出每种类型的 TD 记录（含 vtable/itable/parent/ref_offsets 引用），codegen 发射；
 - **Box/Unbox/is/cast 降级**：Box → `scoop_rt_box(td, payload_size)` + payload 拷贝；`is` → `scoop_rt_is_instance(obj, td)`；`as` → 检查 + trap（M8 改异常）；`as?` → 检查 + Option 包装。
 
@@ -111,7 +111,7 @@ fun main() {
 
 ## 4. 测试计划
 
-- **独立 fixture**：class 构造/字段读写/var 属性赋值（含连续 `Boolean` 后接 `Int` 的自然布局）；方法与 this；单继承与 override；abstract class；interface 实现与 itable 分派；值类型实现 interface + 装箱后分派；`is`/`as`/`as?`/`===`；smart cast；
+- **独立 fixture**：class 构造/字段读写/var 属性赋值（含连续 `Boolean` 后接 `Int` 的自然布局）；方法与 this；值类型 receiver 为局部 `var` 时 `this` 仍是按值副本；单继承与 override；abstract class；interface 实现与 itable 分派；值类型实现 interface + 装箱后分派；`is`/`as`/`as?`/`===`；smart cast；
 - **组合 fixture**：interface 数组（`Array<Describable>`——数组元素是引用，验证元素布局）；泛型函数接受 `T: 无约束`……（无 bound，用具体类型）；装箱值进数组再 `as?` 取回；enum 实现 interface；
 - **negative fixture**：对 final class 继承；覆写 final 方法；缺/多 `override`；在 final class 或值类型中声明 open / abstract 方法；abstract 类实例化；未实现接口方法；对值类型 `===`；对值类型字段赋值；接口方法的类型不匹配实现；`as` 到无关系类型（诊断）；
 - **trap fixture**：`as` 失败（EXPECT-TRAP）；
@@ -130,5 +130,5 @@ fun main() {
 - 次构造函数、`init` 块、body 属性、`super` 调用；
 - interface 的属性与默认实现；`equals`/`hashCode`/`toString` 用户覆写（见 5.1）；
 - companion object、`object` 声明、`sealed`、委托（`by`）；
-- 可见性修饰符（全部 public，M14 多 Cone 前不做 `internal` 语义）；
+- 可见性修饰符（全部 public，M15 多 Cone 前不做 `internal` 语义）；
 - 重载（M7）；`?.` 后随方法调用（spec 6.3 形态——`?.` 目前只支持字段，方法版随本里程碑的 `?.method` 自然表达式扩展时单独评估，可先只做字段）。

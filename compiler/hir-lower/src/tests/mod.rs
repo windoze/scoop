@@ -8,6 +8,7 @@
 //! sysroot convention — core files first, the user file last.
 
 mod m10;
+mod m11;
 mod m2;
 mod m3;
 mod m4;
@@ -61,6 +62,21 @@ pub(crate) fn ty_named(name: &str) -> TypeRef {
 pub(crate) fn ty_tuple(elements: Vec<TypeRef>) -> TypeRef {
     TypeRef {
         kind: TypeRefKind::Tuple(elements),
+        span: sp(),
+    }
+}
+
+pub(crate) fn ty_function(
+    is_suspend: bool,
+    parameters: Vec<TypeRef>,
+    return_type: TypeRef,
+) -> TypeRef {
+    TypeRef {
+        kind: TypeRefKind::Function(ast::FunctionTypeRef {
+            is_suspend,
+            parameters,
+            return_type: Box::new(return_type),
+        }),
         span: sp(),
     }
 }
@@ -506,6 +522,7 @@ pub(crate) fn fun_sig(
         is_suspend: false,
         is_override: false,
         modifier: ast::MethodModifier::Final,
+        receiver_ty: None,
         name: ident(name),
         type_params: type_params.into_iter().map(ident).collect(),
         params: params
@@ -522,6 +539,22 @@ pub(crate) fn fun_sig(
     })
 }
 
+pub(crate) fn local_fun_sig(
+    name: &str,
+    type_params: Vec<&str>,
+    params: Vec<(&str, TypeRef)>,
+    return_ty: Option<TypeRef>,
+    statements: Vec<Statement>,
+) -> Statement {
+    let Decl::Function(function) = fun_sig(name, type_params, params, return_ty, statements) else {
+        unreachable!("fun_sig always builds a function declaration")
+    };
+    Statement {
+        span: function.span,
+        kind: StatementKind::LocalFunction(function),
+    }
+}
+
 /// An expression-bodied function: `fun f(...) [: T] = expr`.
 pub(crate) fn fun_expr(
     name: &str,
@@ -535,6 +568,7 @@ pub(crate) fn fun_expr(
         is_suspend: false,
         is_override: false,
         modifier: ast::MethodModifier::Final,
+        receiver_ty: None,
         name: ident(name),
         type_params: type_params.into_iter().map(ident).collect(),
         params: params
@@ -549,6 +583,21 @@ pub(crate) fn fun_expr(
         body: FunctionBody::Expr(Box::new(expr)),
         span: sp(),
     })
+}
+
+pub(crate) fn extension_expr(
+    receiver_ty: TypeRef,
+    name: &str,
+    type_params: Vec<&str>,
+    params: Vec<(&str, TypeRef)>,
+    return_ty: Option<TypeRef>,
+    expr: Expr,
+) -> Decl {
+    let Decl::Function(mut function) = fun_expr(name, type_params, params, return_ty, expr) else {
+        unreachable!("fun_expr always builds a function declaration")
+    };
+    function.receiver_ty = Some(receiver_ty);
+    Decl::Function(function)
 }
 
 /// `@Intrinsic("...") fun name(params) [: T]` (core library only).
@@ -579,6 +628,7 @@ pub(crate) fn intrinsic_generic_fun(
         is_suspend: false,
         is_override: false,
         modifier: ast::MethodModifier::Final,
+        receiver_ty: None,
         name: ident(name),
         type_params: type_params.into_iter().map(ident).collect(),
         params: params
@@ -687,6 +737,7 @@ pub(crate) fn method_full(
         } else {
             ast::MethodModifier::Final
         },
+        receiver_ty: None,
         name: ident(name),
         type_params: Vec::new(),
         params: params

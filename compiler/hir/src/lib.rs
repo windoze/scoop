@@ -13,6 +13,12 @@ use la_arena::{Arena, Idx};
 use scoop_ast::Span;
 
 pub type TypeId = Idx<Type>;
+pub type FunctionTypeId = Idx<FunctionType>;
+pub type LambdaId = Idx<Lambda>;
+pub type AnonymousFunctionId = Idx<AnonymousFunction>;
+pub type LocalFunctionId = Idx<LocalFunction>;
+pub type CallableReferenceId = Idx<CallableReference>;
+pub type FunctionCoercionId = Idx<FunctionCoercion>;
 pub type FunctionId = Idx<Function>;
 pub type GenericFunctionId = Idx<GenericFunction>;
 pub type ResolvedGenericFunctionId = Idx<ResolvedGenericFunction>;
@@ -21,6 +27,23 @@ pub type EnumId = Idx<EnumDecl>;
 pub type ClassId = Idx<ClassDecl>;
 pub type InterfaceId = Idx<InterfaceDecl>;
 pub type LocalId = Idx<Local>;
+
+/// Cone-wide identity of a lexical value binding. Unlike `LocalId`, which is
+/// only meaningful inside one function body's local arena, this identity is
+/// stable across nested callable bodies and can therefore name a capture
+/// without falling back to a source name.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct BindingId(u32);
+
+impl BindingId {
+    pub const fn from_raw(raw: u32) -> Self {
+        Self(raw)
+    }
+
+    pub const fn into_raw(self) -> u32 {
+        self.0
+    }
+}
 
 /// A function- or generic-type-local type-parameter index. This is a
 /// distinct id type so it cannot be mixed with field, variant or
@@ -64,6 +87,9 @@ pub enum Type {
     Array(TypeId),
     MutableArray(TypeId),
     Tuple(Vec<TypeId>),
+    /// A managed function value type. The referenced entry carries the
+    /// complete structural signature and is canonical within the Cone.
+    Function(FunctionTypeId),
     /// An enum type with resolved type arguments (empty for
     /// non-generic enums). `Option<T>` is one of these since M4
     /// (defined in `scoop.core`).
@@ -72,6 +98,16 @@ pub enum Type {
     /// generic function/type definition; instantiated MIR never
     /// contains it.
     Param(TypeParamId),
+}
+
+/// Canonical structural identity of an ordinary or suspend function type.
+/// Declaration-only metadata such as parameter names/defaults is absent by
+/// construction (spec 8.1.1).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FunctionType {
+    pub is_suspend: bool,
+    pub parameter_types: Vec<TypeId>,
+    pub return_type: TypeId,
 }
 
 /// Structural type equality (tuple types are compared by elements,
@@ -111,6 +147,7 @@ pub fn types_equal(module: &Module, a: TypeId, b: TypeId) -> bool {
                     .zip(ys.iter())
                     .all(|(x, y)| types_equal(module, *x, *y))
         }
+        (Type::Function(x), Type::Function(y)) => x == y,
         (Type::Enum(x, x_args), Type::Enum(y, y_args)) => {
             x == y
                 && x_args.len() == y_args.len()
@@ -167,13 +204,38 @@ pub fn type_name(module: &Module, ty: TypeId) -> String {
             let inner: Vec<String> = elements.iter().map(|t| type_name(module, *t)).collect();
             format!("({})", inner.join(", "))
         }
+        Type::Function(id) => {
+            let function = &module.function_types[*id];
+            let parameters: Vec<String> = function
+                .parameter_types
+                .iter()
+                .map(|ty| type_name(module, *ty))
+                .collect();
+            let suspend = if function.is_suspend { "suspend " } else { "" };
+            format!(
+                "{suspend}({}) -> {}",
+                parameters.join(", "),
+                type_name(module, function.return_type)
+            )
+        }
         Type::Param(index) => format!("T{}", index.into_raw()),
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Module {
     pub types: Arena<Type>,
+    /// Canonical function signatures referenced by `Type::Function`.
+    pub function_types: Arena<FunctionType>,
+    /// Source callable-value entities. Their identities are intentionally
+    /// separate from the generated invoke functions they own.
+    pub lambdas: Arena<Lambda>,
+    pub anonymous_functions: Arena<AnonymousFunction>,
+    pub local_functions: Arena<LocalFunction>,
+    pub callable_references: Arena<CallableReference>,
+    /// Source/target signatures of every explicit function-value variance
+    /// adaptation requested by HIR.
+    pub function_coercions: Arena<FunctionCoercion>,
     pub functions: Arena<Function>,
     /// Generic function definitions. Their ids are distinct from
     /// ordinary `FunctionId`s even though each entry points at the HIR
@@ -205,6 +267,94 @@ pub struct Module {
     /// first-use order. The arena id is carried directly by call
     /// expressions and is the instantiation request consumed by MIR.
     pub instantiations: Arena<ResolvedGenericFunction>,
+}
+
+#[derive(Debug, Clone)]
+pub struct Lambda {
+    pub function: FunctionId,
+    pub function_type: FunctionTypeId,
+    /// Type parameters inherited from the enclosing generic callable. The
+    /// generated invoke body is instantiated with this complete prefix.
+    pub owner_type_param_count: usize,
+    /// Structurally present even for no-capture lambdas; later M11 capture
+    /// analysis fills this list rather than changing the entity shape.
+    pub captures: Vec<Capture>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone)]
+pub struct AnonymousFunction {
+    pub function: FunctionId,
+    pub function_type: FunctionTypeId,
+    pub owner_type_param_count: usize,
+    pub captures: Vec<Capture>,
+    pub span: Span,
+}
+
+/// A block-local named function. `function` is its lifted body; direct calls
+/// pass `captures` as hidden parameters, while taking `::name` materializes a
+/// closure over the same body.
+#[derive(Debug, Clone)]
+pub struct LocalFunction {
+    pub function: FunctionId,
+    pub function_type: FunctionTypeId,
+    pub captures: Vec<Capture>,
+    /// Type parameters inherited from enclosing generic callables form the
+    /// prefix of the lifted function's combined type-parameter namespace.
+    pub owner_type_param_count: usize,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone)]
+pub struct CallableReference {
+    pub target: CallableReferenceTarget,
+    pub function_type: FunctionTypeId,
+    /// Type parameters of the callable containing this reference expression.
+    /// A non-zero value requires a concrete closure per enclosing instance.
+    pub owner_type_param_count: usize,
+    pub captures: Vec<Capture>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone)]
+pub enum CallableReferenceTarget {
+    Named(Callable),
+    Local {
+        local_function: LocalFunctionId,
+        callee: Callable,
+    },
+    /// A member reference whose receiver expression is evaluated when the
+    /// closure is created. The receiver's static type remains attached to the
+    /// expression so MIR can preserve direct / virtual / interface dispatch.
+    BoundMember {
+        receiver: Box<Expr>,
+        callee: Callable,
+    },
+    /// A bound extension reference. Unlike a member reference its invoke
+    /// wrapper always direct-calls the extension body, prepending the saved
+    /// receiver to the ordinary source arguments.
+    BoundExtension {
+        receiver: Box<Expr>,
+        callee: Callable,
+    },
+}
+
+#[derive(Debug, Clone)]
+pub struct Capture {
+    pub binding: BindingId,
+    pub name: String,
+    pub ty: TypeId,
+    pub first_use_span: Span,
+    /// Expression evaluated in the immediately enclosing callable when the
+    /// closure object is created. It is either a local read or a transitive
+    /// capture read, and therefore preserves by-value creation-time semantics.
+    pub source: Expr,
+}
+
+#[derive(Debug, Clone)]
+pub struct FunctionCoercion {
+    pub source: FunctionTypeId,
+    pub target: FunctionTypeId,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -257,7 +407,7 @@ pub enum Callable {
     Generic(ResolvedGenericFunctionId),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct StructDecl {
     pub name: String,
     pub type_params: Vec<String>,
@@ -266,7 +416,7 @@ pub struct StructDecl {
     pub span: Span,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct EnumDecl {
     pub name: String,
     pub type_params: Vec<String>,
@@ -303,7 +453,7 @@ pub struct Method {
     pub owner_type_param_count: u32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ClassDecl {
     pub modifier: ClassModifier,
     pub name: String,
@@ -315,7 +465,7 @@ pub struct ClassDecl {
     pub span: Span,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct InterfaceDecl {
     pub name: String,
     pub type_params: Vec<TypeParamDecl>,
@@ -338,7 +488,7 @@ pub struct TypeParamDecl {
 }
 
 /// An interface method signature (M6: no body, no properties).
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MethodSig {
     pub name: String,
     /// Suspend is part of the callable contract and must match exactly
@@ -353,7 +503,7 @@ pub struct MethodSig {
     pub span: Span,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Variant {
     pub name: String,
     /// Fields in declaration order; unit variants have none. Named and
@@ -364,13 +514,13 @@ pub struct Variant {
     pub defaults: Vec<Option<Expr>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Field {
     pub name: String,
     pub ty: TypeId,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Function {
     pub name: String,
     /// Whether calls use the coroutine ABI rather than the ordinary ABI.
@@ -389,7 +539,7 @@ pub struct Function {
     pub span: Span,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Param {
     pub name: String,
     pub ty: TypeId,
@@ -397,7 +547,7 @@ pub struct Param {
     pub local: LocalId,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum FunctionKind {
     User(Body),
     /// A `@Intrinsic("name")` function (spec 13.1); the name is
@@ -405,28 +555,32 @@ pub enum FunctionKind {
     Intrinsic(String),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Body {
     pub locals: Arena<Local>,
     pub statements: Vec<Statement>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Local {
+    pub binding: BindingId,
     pub name: String,
     pub ty: TypeId,
     pub mutable: bool,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Statement {
     pub kind: StatementKind,
     pub span: Span,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum StatementKind {
     Expr(Expr),
+    /// Compile-time declaration marker. The lifted body lives in
+    /// `Module::local_functions`; executing this statement has no effect.
+    LocalFunction(LocalFunctionId),
     Return {
         /// Absent in `Unit` functions (bare `return`).
         value: Option<Expr>,
@@ -457,14 +611,14 @@ pub enum StatementKind {
     Throw(Expr),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Try {
     pub body: Vec<Statement>,
     pub catches: Vec<CatchClause>,
     pub finally_body: Option<Vec<Statement>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CatchClause {
     pub local: LocalId,
     pub ty: TypeId,
@@ -472,7 +626,7 @@ pub struct CatchClause {
     pub span: Span,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum AssignTarget {
     Local(LocalId),
     /// `array[index] = value` (only `MutableArray`, checked at HIR).
@@ -487,14 +641,14 @@ pub enum AssignTarget {
     },
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct When {
     pub subject: Expr,
     pub arms: Vec<WhenArm>,
     pub else_body: Option<Vec<Statement>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct WhenArm {
     pub pattern: Pattern,
     pub guard: Option<Expr>,
@@ -506,7 +660,7 @@ pub struct WhenArm {
 /// are declaration indices, bindings are locals. Named and positional
 /// forms are both normalized to `(field index, subpattern)` pairs in
 /// declaration order.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Pattern {
     Binding {
         local: LocalId,
@@ -528,14 +682,14 @@ pub enum Pattern {
     },
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Expr {
     pub kind: ExprKind,
     pub ty: TypeId,
     pub span: Span,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ExprKind {
     StringLiteral(String),
     IntLiteral(i64),
@@ -563,6 +717,20 @@ pub enum ExprKind {
         args: Vec<Expr>,
     },
     Local(LocalId),
+    /// Read one immutable binding from the current closure environment. The
+    /// binding identity is resolved to a concrete field by closure conversion.
+    Capture(BindingId),
+    Lambda(LambdaId),
+    AnonymousFunction(AnonymousFunctionId),
+    CallableReference(CallableReferenceId),
+    /// A variance-preserving function-value adaptation. `Expr::ty` is the
+    /// target type; the typed entity also records both concrete HIR
+    /// signatures so MIR cannot lower this as a pointer-only retype.
+    FunctionCoercion {
+        source: Box<Expr>,
+        coercion: FunctionCoercionId,
+        target_type: FunctionTypeId,
+    },
     FieldAccess {
         receiver: Box<Expr>,
         field: FieldRef,
@@ -609,6 +777,21 @@ pub enum ExprKind {
     ArrayClone(Box<Expr>),
     Call {
         callee: Callable,
+        args: Vec<Expr>,
+    },
+    /// Direct call of a lifted local function. Hidden capture arguments are
+    /// explicit and precede source arguments in the lowered ABI.
+    LocalFunctionCall {
+        local_function: LocalFunctionId,
+        callee: Callable,
+        captures: Vec<Expr>,
+        args: Vec<Expr>,
+    },
+    /// Calling a managed function value. The callee expression is kept
+    /// distinct from direct/virtual/interface named call targets.
+    CallableCall {
+        callee: Box<Expr>,
+        function_type: FunctionTypeId,
         args: Vec<Expr>,
     },
     Binary {
@@ -919,6 +1102,15 @@ fn dump_statements(
         let pad = "  ".repeat(indent);
         match &statement.kind {
             StatementKind::Expr(expr) => dump_expr(module, locals, expr, indent, out),
+            StatementKind::LocalFunction(id) => {
+                let local = &module.local_functions[*id];
+                out.push_str(&format!(
+                    "{pad}LocalFunction local{} body={} captures={}\n",
+                    id.into_raw(),
+                    module.functions[local.function].name,
+                    local.captures.len()
+                ));
+            }
             StatementKind::Return { value } => {
                 out.push_str(&format!("{pad}return\n"));
                 if let Some(value) = value {
@@ -1109,6 +1301,106 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
         ExprKind::Local(local) => {
             out.push_str(&format!("{pad}Local {} : {ty}\n", locals[*local].name));
         }
+        ExprKind::Capture(binding) => {
+            out.push_str(&format!(
+                "{pad}Capture binding{} : {ty}\n",
+                binding.into_raw()
+            ));
+        }
+        ExprKind::Lambda(id) => {
+            let lambda = &module.lambdas[*id];
+            out.push_str(&format!(
+                "{pad}Lambda lambda{} invoke={} captures={} : {ty}\n",
+                id.into_raw(),
+                module.functions[lambda.function].name,
+                lambda.captures.len()
+            ));
+            for capture in &lambda.captures {
+                out.push_str(&format!(
+                    "{}capture {} binding{} : {}\n",
+                    "  ".repeat(indent + 1),
+                    capture.name,
+                    capture.binding.into_raw(),
+                    type_name(module, capture.ty)
+                ));
+            }
+        }
+        ExprKind::AnonymousFunction(id) => {
+            let anonymous = &module.anonymous_functions[*id];
+            out.push_str(&format!(
+                "{pad}AnonymousFunction anonymous{} invoke={} captures={} : {ty}\n",
+                id.into_raw(),
+                module.functions[anonymous.function].name,
+                anonymous.captures.len()
+            ));
+            for capture in &anonymous.captures {
+                out.push_str(&format!(
+                    "{}capture {} binding{} : {}\n",
+                    "  ".repeat(indent + 1),
+                    capture.name,
+                    capture.binding.into_raw(),
+                    type_name(module, capture.ty)
+                ));
+            }
+        }
+        ExprKind::CallableReference(id) => {
+            let reference = &module.callable_references[*id];
+            let (callable, receiver) = match &reference.target {
+                CallableReferenceTarget::Named(callable) => (*callable, None),
+                CallableReferenceTarget::Local { callee, .. } => (*callee, None),
+                CallableReferenceTarget::BoundMember { receiver, callee } => {
+                    (*callee, Some(receiver.as_ref()))
+                }
+                CallableReferenceTarget::BoundExtension { receiver, callee } => {
+                    (*callee, Some(receiver.as_ref()))
+                }
+            };
+            let (function, _) = callable_parts(module, callable);
+            out.push_str(&format!(
+                "{pad}CallableReference reference{} target={} captures={} : {ty}\n",
+                id.into_raw(),
+                module.functions[function].name,
+                reference.captures.len()
+            ));
+            if let Some(receiver) = receiver {
+                dump_expr(module, locals, receiver, indent + 1, out);
+            }
+        }
+        ExprKind::FunctionCoercion {
+            source,
+            coercion,
+            target_type,
+        } => {
+            let conversion = &module.function_coercions[*coercion];
+            debug_assert_eq!(conversion.target, *target_type);
+            out.push_str(&format!(
+                "{pad}FunctionCoercion coercion{} {} -> {} : {ty}\n",
+                coercion.into_raw().into_u32(),
+                type_name(
+                    module,
+                    module
+                        .types
+                        .iter()
+                        .find_map(|(ty, value)| {
+                            matches!(value, Type::Function(id) if *id == conversion.source)
+                                .then_some(ty)
+                        })
+                        .expect("a function signature has a canonical type")
+                ),
+                type_name(
+                    module,
+                    module
+                        .types
+                        .iter()
+                        .find_map(|(ty, value)| {
+                            matches!(value, Type::Function(id) if *id == conversion.target)
+                                .then_some(ty)
+                        })
+                        .expect("a function signature has a canonical type")
+                )
+            ));
+            dump_expr(module, locals, source, indent + 1, out);
+        }
         ExprKind::FieldAccess { receiver, field } => {
             let field = match field {
                 FieldRef::StructField { index, .. } => format!("field {index}"),
@@ -1126,6 +1418,44 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
                 format!("<{}>", args.join(", "))
             });
             out.push_str(&format!("{pad}Call {}{type_args} : {ty}\n", callee.name));
+            for arg in args {
+                dump_expr(module, locals, arg, indent + 1, out);
+            }
+        }
+        ExprKind::LocalFunctionCall {
+            local_function,
+            callee,
+            captures,
+            args,
+        } => {
+            let (function, type_args) = callable_parts(module, *callee);
+            let type_args = type_args.map_or_else(String::new, |type_args| {
+                let args: Vec<String> = type_args.iter().map(|t| type_name(module, *t)).collect();
+                format!("<{}>", args.join(", "))
+            });
+            out.push_str(&format!(
+                "{pad}LocalFunctionCall local{} {}{type_args} captures={} : {ty}\n",
+                local_function.into_raw(),
+                module.functions[function].name,
+                captures.len()
+            ));
+            for capture in captures {
+                dump_expr(module, locals, capture, indent + 1, out);
+            }
+            for arg in args {
+                dump_expr(module, locals, arg, indent + 1, out);
+            }
+        }
+        ExprKind::CallableCall {
+            callee,
+            function_type,
+            args,
+        } => {
+            out.push_str(&format!(
+                "{pad}CallableCall function_type{} : {ty}\n",
+                function_type.into_raw()
+            ));
+            dump_expr(module, locals, callee, indent + 1, out);
             for arg in args {
                 dump_expr(module, locals, arg, indent + 1, out);
             }

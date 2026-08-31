@@ -1,0 +1,15 @@
+fun fail(value: Int): Int {
+    if (value == 0) {
+        throw ArithmeticException()
+    }
+    return value
+}
+
+fun main() {
+    val operation: (Int) -> Int = ::fail
+    try {
+        println(operation(0))
+    } catch (exception: ArithmeticException) {
+        println("caught")
+    }
+}

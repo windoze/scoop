@@ -86,9 +86,35 @@ pub enum TypeRefKind {
     Tuple(Vec<TypeRef>),
     /// The `Unit` type name (also written `()` in type position).
     Unit,
+    /// `(P1, P2, ...) -> R` / `suspend (P1, P2, ...) -> R`.
+    Function(FunctionTypeRef),
     /// `T?` — desugars to `Option<T>` in HIR (spec 7.1).
     Nullable(Box<TypeRef>),
 }
+
+/// The structural source form of a function type. Parameter names,
+/// defaults and `vararg` are deliberately absent from function type
+/// identity (spec 8.1.1).
+#[derive(Debug, Clone, PartialEq)]
+pub struct FunctionTypeRef {
+    pub is_suspend: bool,
+    pub parameters: Vec<TypeRef>,
+    pub return_type: Box<TypeRef>,
+}
+
+/// Parser-local identity of one lambda expression.  This is deliberately
+/// distinct from every named/anonymous callable identity; HIR remaps it into
+/// the Cone-wide lambda arena.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct LambdaId(pub u32);
+
+/// Parser-local identity of one anonymous-function expression.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct AnonymousFunctionId(pub u32);
+
+/// Parser-local identity of one callable-reference expression.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct CallableReferenceId(pub u32);
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SourceFile {
@@ -243,6 +269,9 @@ pub struct FunctionDecl {
     /// Effective member modality. It is `Final` for top-level
     /// functions, where member modality is not applicable.
     pub modifier: MethodModifier,
+    /// Receiver type of a top-level extension function (`fun T.name(...)`).
+    /// `None` for ordinary top-level functions, members, and local functions.
+    pub receiver_ty: Option<TypeRef>,
     pub name: Ident,
     /// Generic type parameters (`fun <T> f(...)`); empty for
     /// non-generic functions.
@@ -294,6 +323,9 @@ pub struct Statement {
 #[derive(Debug, Clone, PartialEq)]
 pub enum StatementKind {
     Expr(Expr),
+    /// A named function declared in a block. Its name is visible in its own
+    /// body and from this statement to the end of the lexical scope.
+    LocalFunction(FunctionDecl),
     /// `return` with an optional value (bare `return` in `Unit`
     /// functions).
     Return {
@@ -473,8 +505,43 @@ pub enum Expr {
         span: Span,
     },
     Var(Ident),
+    /// `{ p: T -> body }` / `{ body }`. `parameters = None` means the
+    /// parameter list was omitted; this is distinct from the explicit
+    /// zero-parameter form `{ -> body }` for expected-type `it` inference.
+    Lambda {
+        id: LambdaId,
+        is_suspend: bool,
+        parameters: Option<Vec<LambdaParam>>,
+        body: Block,
+        span: Span,
+    },
+    /// `fun(p: T): R { ... }` / `suspend fun(...) { ... }`.
+    AnonymousFunction {
+        id: AnonymousFunctionId,
+        is_suspend: bool,
+        params: Vec<Param>,
+        return_ty: Option<TypeRef>,
+        body: Block,
+        span: Span,
+    },
+    /// `::name` or `receiver::name`. Resolution is intentionally deferred
+    /// to HIR, where overloads and receiver dispatch are known.
+    CallableReference {
+        id: CallableReferenceId,
+        receiver: Option<Box<Expr>>,
+        name: Ident,
+        span: Span,
+    },
     FieldAccess(FieldAccess),
     Call(CallExpr),
+    /// General function-value invocation. Bare `name(args)` remains
+    /// `CallExpr` so HIR can apply the local-value shadowing rule before
+    /// falling back to named overload resolution.
+    Invoke {
+        callee: Box<Expr>,
+        args: Vec<Expr>,
+        span: Span,
+    },
     Binary {
         op: BinOp,
         lhs: Box<Expr>,
@@ -551,6 +618,10 @@ impl Expr {
             | Expr::UnitLiteral { span }
             | Expr::TupleLiteral { span, .. }
             | Expr::StructInit { span, .. }
+            | Expr::Lambda { span, .. }
+            | Expr::AnonymousFunction { span, .. }
+            | Expr::CallableReference { span, .. }
+            | Expr::Invoke { span, .. }
             | Expr::Binary { span, .. }
             | Expr::Unary { span, .. }
             | Expr::NullAssert { span, .. }
@@ -569,6 +640,15 @@ impl Expr {
             Expr::Call(call) => call.span,
         }
     }
+}
+
+/// One lambda parameter. Patterns are retained for the later capture/type
+/// pass; the type is optional only when an expected function type supplies it.
+#[derive(Debug, Clone, PartialEq)]
+pub struct LambdaParam {
+    pub target: Pattern,
+    pub ty: Option<TypeRef>,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -815,8 +895,13 @@ pub fn dump(file: &SourceFile) -> String {
                     if f.is_override { "override " } else { "" },
                     if f.is_suspend { "suspend " } else { "" }
                 );
+                let receiver = f
+                    .receiver_ty
+                    .as_ref()
+                    .map(|ty| format!("{}.", dump_type_ref(ty)))
+                    .unwrap_or_default();
                 out.push_str(&format!(
-                    "  {flags}fun {}{}({}){}\n",
+                    "  {flags}fun {receiver}{}{}({}){}\n",
                     f.name.text,
                     type_params,
                     params.join(", "),
@@ -851,7 +936,19 @@ fn dump_type_ref(ty: &TypeRef) -> String {
             let inner: Vec<String> = elements.iter().map(dump_type_ref).collect();
             format!("({})", inner.join(", "))
         }
-        TypeRefKind::Nullable(inner) => format!("{}?", dump_type_ref(inner)),
+        TypeRefKind::Function(function) => {
+            let parameters: Vec<String> = function.parameters.iter().map(dump_type_ref).collect();
+            let suspend = if function.is_suspend { "suspend " } else { "" };
+            format!(
+                "{suspend}({}) -> {}",
+                parameters.join(", "),
+                dump_type_ref(&function.return_type)
+            )
+        }
+        TypeRefKind::Nullable(inner) => match inner.kind {
+            TypeRefKind::Function(_) => format!("({})?", dump_type_ref(inner)),
+            _ => format!("{}?", dump_type_ref(inner)),
+        },
     }
 }
 
@@ -865,6 +962,40 @@ fn dump_statement(statement: &Statement, indent: usize, out: &mut String) {
     let pad = "  ".repeat(indent);
     match &statement.kind {
         StatementKind::Expr(expr) => dump_expr(expr, indent, out),
+        StatementKind::LocalFunction(function) => {
+            let suspend = if function.is_suspend { "suspend " } else { "" };
+            let type_params = if function.type_params.is_empty() {
+                String::new()
+            } else {
+                let names: Vec<_> = function
+                    .type_params
+                    .iter()
+                    .map(|param| param.text.as_str())
+                    .collect();
+                format!("<{}>", names.join(", "))
+            };
+            let params: Vec<_> = function
+                .params
+                .iter()
+                .map(|param| format!("{}: {}", param.name.text, dump_type_ref(&param.ty)))
+                .collect();
+            let return_ty = function
+                .return_ty
+                .as_ref()
+                .map(|ty| format!(": {}", dump_type_ref(ty)))
+                .unwrap_or_default();
+            out.push_str(&format!(
+                "{pad}{suspend}fun {}{}({}){return_ty}\n",
+                function.name.text,
+                type_params,
+                params.join(", ")
+            ));
+            match &function.body {
+                FunctionBody::Block(block) => dump_block(block, indent + 1, out),
+                FunctionBody::Expr(expr) => dump_expr(expr, indent + 1, out),
+                FunctionBody::None => {}
+            }
+        }
         StatementKind::Return { value } => {
             out.push_str(&format!("{pad}return\n"));
             if let Some(value) = value {
@@ -1040,6 +1171,63 @@ fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
             }
         }
         Expr::Var(ident) => out.push_str(&format!("{pad}Var {}\n", ident.text)),
+        Expr::Lambda {
+            id,
+            is_suspend,
+            parameters,
+            body,
+            ..
+        } => {
+            out.push_str(&format!("{pad}Lambda {} suspend={is_suspend}\n", id.0));
+            match parameters {
+                None => out.push_str(&format!("{pad}  parameters omitted\n")),
+                Some(parameters) => {
+                    for parameter in parameters {
+                        let ty = parameter
+                            .ty
+                            .as_ref()
+                            .map_or_else(|| "_".to_string(), dump_type_ref);
+                        out.push_str(&format!(
+                            "{pad}  param {}: {ty}\n",
+                            dump_pattern(&parameter.target)
+                        ));
+                    }
+                }
+            }
+            dump_block(body, indent + 1, out);
+        }
+        Expr::AnonymousFunction {
+            id,
+            is_suspend,
+            params,
+            return_ty,
+            body,
+            ..
+        } => {
+            let return_ty = return_ty
+                .as_ref()
+                .map_or_else(|| "_".to_string(), dump_type_ref);
+            out.push_str(&format!(
+                "{pad}AnonymousFunction {} suspend={is_suspend} return={return_ty}\n",
+                id.0
+            ));
+            for param in params {
+                out.push_str(&format!(
+                    "{pad}  param {}: {}\n",
+                    param.name.text,
+                    dump_type_ref(&param.ty)
+                ));
+            }
+            dump_block(body, indent + 1, out);
+        }
+        Expr::CallableReference {
+            id, receiver, name, ..
+        } => {
+            out.push_str(&format!("{pad}CallableReference {} {}\n", id.0, name.text));
+            if let Some(receiver) = receiver {
+                dump_expr(receiver, indent + 1, out);
+            }
+        }
         Expr::FieldAccess(access) => {
             let selector = match &access.selector {
                 FieldSelector::Name(name) => name.text.clone(),
@@ -1052,6 +1240,13 @@ fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
         Expr::Call(call) => {
             out.push_str(&format!("{pad}Call {}\n", call.callee.text));
             for arg in &call.args {
+                dump_expr(arg, indent + 1, out);
+            }
+        }
+        Expr::Invoke { callee, args, .. } => {
+            out.push_str(&format!("{pad}Invoke\n"));
+            dump_expr(callee, indent + 1, out);
+            for arg in args {
                 dump_expr(arg, indent + 1, out);
             }
         }

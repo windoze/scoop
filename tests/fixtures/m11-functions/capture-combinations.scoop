@@ -1,0 +1,49 @@
+enum CapturedChoice {
+    Text(String),
+    Empty
+}
+
+class SharedState(var value: Int)
+
+fun operation(value: Int): Int = 0
+
+fun makeComposite(): () -> String {
+    val tuple = (42, "tuple")
+    val choice = CapturedChoice.Text("enum")
+    return {
+        val prefix = when (choice) {
+            Text(value) -> value
+            Empty -> "empty"
+        }
+        prefix + "-" + tuple._2
+    }
+}
+
+fun makeIncrement(state: SharedState, amount: Int): () -> Int = {
+    state.value = state.value + amount
+    state.value
+}
+
+fun main() {
+    val operation: (Int) -> Int = { value -> value + 2 }
+    val composite = makeComposite()
+    val state = SharedState(39)
+    val first = makeIncrement(state, 1)
+    val second = makeIncrement(state, 2)
+
+    var latest: () -> Int = { 0 }
+    var index = 0
+    while (index < 3) {
+        val snapshot = index
+        latest = { snapshot }
+        index = index + 1
+    }
+
+    gcCollect()
+    println(operation(40))
+    println(composite())
+    println(first())
+    println(second())
+    println(state.value)
+    println(latest())
+}

@@ -7,7 +7,7 @@
 
 use scoop_ast::{Diagnostic, Span};
 
-/// Token kinds of the M10 subset. Reserved words are dedicated variants;
+/// Token kinds through the M11 subset. Reserved words are dedicated variants;
 /// `Unit` deliberately stays an [`TokenKind::Ident`] (spec section 4.3:
 /// it is not a reserved word). Words that only matter in specific
 /// positions (`open`, `abstract`, `override`, `super`, `object`,
@@ -46,6 +46,7 @@ pub(crate) enum TokenKind {
     Comma,
     Semicolon,
     Colon,
+    DoubleColon,
     At,
     Dot,
     DotDot,
@@ -117,6 +118,7 @@ impl Token {
             TokenKind::Comma => "`,`".to_string(),
             TokenKind::Semicolon => "`;`".to_string(),
             TokenKind::Colon => "`:`".to_string(),
+            TokenKind::DoubleColon => "`::`".to_string(),
             TokenKind::At => "`@`".to_string(),
             TokenKind::Dot => "`.`".to_string(),
             TokenKind::DotDot => "`..`".to_string(),
@@ -244,7 +246,12 @@ impl<'a> Lexer<'a> {
             }
             ':' => {
                 self.pos += 1;
-                TokenKind::Colon
+                if self.peek_char() == Some(':') {
+                    self.pos += 1;
+                    TokenKind::DoubleColon
+                } else {
+                    TokenKind::Colon
+                }
             }
             '@' => {
                 self.pos += 1;

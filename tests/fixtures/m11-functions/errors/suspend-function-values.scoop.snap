@@ -1,0 +1,9 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m11-functions/errors/suspend-function-values.scoop:4:31: error: ordinary and suspend function types are incompatible
+m11-functions/errors/suspend-function-values.scoop:5:40: error: ordinary and suspend function types are incompatible
+m11-functions/errors/suspend-function-values.scoop:7:5: error: suspend function value cannot be called from non-suspend function `main`
+m11-functions/errors/suspend-function-values.scoop:8:31: error: suspend function `waitForValue` cannot be called from non-suspend function `$lambda.0`

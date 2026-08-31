@@ -190,6 +190,25 @@ impl Lowerer {
             Type::Array(element) | Type::MutableArray(element) => {
                 self.check_variance_position(element, TypePosition::Invariant, params, method, span)
             }
+            Type::Function(id) => {
+                let function = self.function_types[id].clone();
+                for parameter in function.parameter_types {
+                    self.check_variance_position(
+                        parameter,
+                        position.through(hir::Variance::In),
+                        params,
+                        method,
+                        span,
+                    );
+                }
+                self.check_variance_position(
+                    function.return_type,
+                    position.through(hir::Variance::Out),
+                    params,
+                    method,
+                    span,
+                );
+            }
             Type::Unit
             | Type::Int
             | Type::UInt
@@ -465,11 +484,7 @@ impl Lowerer {
         host_ty: TypeId,
     ) -> (hir::Body, Vec<hir::Param>) {
         let sig = self.signatures[&id].clone();
-        let this = self.locals.alloc(hir::Local {
-            name: "this".to_string(),
-            ty: host_ty,
-            mutable: false,
-        });
+        let this = self.alloc_local("this".to_string(), host_ty, false);
         let mut params = vec![hir::Param {
             name: "this".to_string(),
             ty: host_ty,
@@ -477,11 +492,7 @@ impl Lowerer {
         }];
         let mut declared = Vec::with_capacity(sig.params.len());
         for param in &sig.params {
-            let local = self.locals.alloc(hir::Local {
-                name: param.name.text.clone(),
-                ty: param.ty,
-                mutable: false,
-            });
+            let local = self.alloc_local(param.name.text.clone(), param.ty, false);
             params.push(hir::Param {
                 name: param.name.text.clone(),
                 ty: param.ty,
@@ -915,7 +926,7 @@ impl Lowerer {
         }
         let mut lowered_args = Vec::with_capacity(args.len());
         let mut ok = true;
-        self.scopes.push();
+        self.push_scope();
         self.push_suspension_context(SuspensionContext::Forbidden(
             ForbiddenSuspendContext::ConstructorDelegation,
         ));
@@ -950,7 +961,7 @@ impl Lowerer {
             lowered_args.push(self.adapt_to(arg, *prop_ty));
         }
         self.pop_suspension_context();
-        self.scopes.pop();
+        self.pop_scope();
         if ok {
             self.classes[id].base_class = Some((base_id, lowered_args));
         }

@@ -1,0 +1,16 @@
+fun select(operation: (Int) -> Int): Int = operation(41)
+fun select(operation: (Int) -> String): String = operation(41)
+
+fun apply(operation: (Int) -> Int): Int = operation(41)
+fun apply(operation: (String) -> String): String = operation("kept")
+
+fun intIdentity(value: Int): Int = value
+
+fun main() {
+    val selected = select({ value -> "lambda" })
+    val anonymous = apply(fun(value: String): String { return value + "-anonymous" })
+    val referenced = apply(::intIdentity)
+    println(selected)
+    println(anonymous)
+    println(referenced)
+}

@@ -344,9 +344,9 @@ fn unclosed_body() {
 }
 
 #[test]
-fn keyword_in_expression_position() {
+fn local_function_missing_name() {
     let (_, message) = err("fun main() { fun }");
-    assert_eq!(message, "expected expression, found `fun`");
+    assert_eq!(message, "expected function name, found `}`");
 }
 
 #[test]
