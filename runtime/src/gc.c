@@ -459,6 +459,7 @@ typedef struct ScoopGcRoot {
 static ScoopGcRoot *gc_roots;
 static size_t gc_roots_len;
 static size_t gc_roots_cap;
+static _Thread_local ScoopNativeRootFrame *gc_native_roots;
 
 static void gc_root_push(const void *base, uint32_t is_external_object) {
     if (gc_roots_len == gc_roots_cap) {
@@ -493,6 +494,38 @@ void scoop_rt_gc_remove_root_object(const void *obj) {
         }
     }
     gc_fatal("attempted to remove an unknown external object root");
+}
+
+void scoop_rt_push_native_roots(ScoopNativeRootFrame *frame, void ***slots,
+                                uint64_t count) {
+    if (frame == NULL || (count != 0 && slots == NULL)) {
+        gc_fatal("invalid native root frame");
+    }
+    for (ScoopNativeRootFrame *active = gc_native_roots; active != NULL;
+         active = active->previous) {
+        if (active == frame) {
+            gc_fatal("native root frame is already active");
+        }
+    }
+    for (uint64_t i = 0; i < count; i++) {
+        if (slots[i] == NULL) {
+            gc_fatal("native root frame contains a null slot address");
+        }
+    }
+    frame->previous = gc_native_roots;
+    frame->slots = slots;
+    frame->count = count;
+    gc_native_roots = frame;
+}
+
+void scoop_rt_pop_native_roots(ScoopNativeRootFrame *frame) {
+    if (frame == NULL || gc_native_roots != frame) {
+        gc_fatal("native root frames must be popped in LIFO order");
+    }
+    gc_native_roots = frame->previous;
+    frame->previous = NULL;
+    frame->slots = NULL;
+    frame->count = 0;
 }
 
 /* --- handles (runtime spec 3.4 GcHandle) ------------------------------ */
@@ -835,6 +868,12 @@ void scoop_rt_gc_collect(void) {
             gc_trace_slot((const void *const *)gc_roots[i].base);
         }
     }
+    for (ScoopNativeRootFrame *frame = gc_native_roots; frame != NULL;
+         frame = frame->previous) {
+        for (uint64_t i = 0; i < frame->count; i++) {
+            gc_trace_slot((const void *const *)frame->slots[i]);
+        }
+    }
     for (size_t i = 0; i < gc_handles_len; i++) {
         if ((gc_handles[i] & 1) == 0) {
             const void *obj = (const void *)gc_handles[i];
@@ -873,6 +912,15 @@ uintptr_t scoop_rt_gc_debug_arena_base(void) {
 
 uint64_t scoop_rt_gc_debug_root_count(void) {
     return (uint64_t)gc_roots_len;
+}
+
+uint64_t scoop_rt_gc_debug_native_root_count(void) {
+    uint64_t count = 0;
+    for (ScoopNativeRootFrame *frame = gc_native_roots; frame != NULL;
+         frame = frame->previous) {
+        count += frame->count;
+    }
+    return count;
 }
 
 /* --- allocation (runtime spec 3.1 slow path; the managed fast path is

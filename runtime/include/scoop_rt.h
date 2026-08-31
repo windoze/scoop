@@ -210,6 +210,21 @@ void scoop_rt_gc_add_root_object(const void *obj);
  * destructor when a thrown buffer's lifetime ends. */
 void scoop_rt_gc_remove_root_object(const void *obj);
 
+/* M12 Scoop-ABI native roots (runtime spec 4.2). A native function that
+ * keeps direct managed references across an allocation/collection stores
+ * them in caller-owned slots, pushes one frame, then reloads the slots after
+ * every such runtime entry. Frames are thread-local and strictly LIFO;
+ * push/pop themselves never allocate or trigger GC. */
+typedef struct ScoopNativeRootFrame {
+    struct ScoopNativeRootFrame *previous;
+    void ***slots; /* array of addresses of managed-reference slots */
+    uint64_t count;
+} ScoopNativeRootFrame;
+
+void scoop_rt_push_native_roots(ScoopNativeRootFrame *frame, void ***slots,
+                                uint64_t count);
+void scoop_rt_pop_native_roots(ScoopNativeRootFrame *frame);
+
 /* pin / unpin (runtime spec 3.4): O(1) object-header flag, no handle
  * table. Returns the object so the Scoop-level intrinsics can forward
  * it. null is a no-op returning null; a non-null pointer that is not a
@@ -246,6 +261,9 @@ uintptr_t scoop_rt_gc_debug_arena_base(void);
 
 /* Test hook: number of registered global/external roots. */
 uint64_t scoop_rt_gc_debug_root_count(void);
+
+/* Test hook: number of slots in the current thread's native-root chain. */
+uint64_t scoop_rt_gc_debug_native_root_count(void);
 
 /* M8 additions (milestone8 DESIGN section 4): exception support on top
  * of the Itanium C++ ABI (runtime spec 5). Scoop exceptions are thrown
