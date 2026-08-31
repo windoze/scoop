@@ -2940,7 +2940,6 @@ impl<'a> FunctionLowerer<'a> {
             mir::Callee::Runtime(function) => {
                 let symbol = function.symbol().to_string();
                 let arg_types: Vec<mir::Type> = match function {
-                    mir::RuntimeFn::Write => vec![mir::Type::String],
                     mir::RuntimeFn::IntToString => vec![mir::Type::Int],
                     mir::RuntimeFn::BoolToString => vec![mir::Type::Boolean],
                     mir::RuntimeFn::StringConcat | mir::RuntimeFn::StringEq => {
@@ -2998,7 +2997,7 @@ impl<'a> FunctionLowerer<'a> {
                     | mir::RuntimeFn::MaterializeException => {
                         self.call_with_result(symbol, args, lir::LirType::Ptr)
                     }
-                    mir::RuntimeFn::Write | mir::RuntimeFn::GcCollect => {
+                    mir::RuntimeFn::GcCollect => {
                         self.push(lir::Instruction::Call {
                             out: None,
                             symbol,
@@ -3216,6 +3215,7 @@ mod tests {
     /// MIR module shell as mir-lower produces it.
     struct Builder {
         functions: Arena<mir::Function>,
+        extern_functions: Arena<mir::ExternFunction>,
         strings: Arena<mir::StringConst>,
         structs: Arena<mir::StructDef>,
         enums: Arena<mir::EnumDef>,
@@ -3228,6 +3228,7 @@ mod tests {
         fn new() -> Self {
             Builder {
                 functions: Arena::new(),
+                extern_functions: Arena::new(),
                 strings: Arena::new(),
                 structs: Arena::new(),
                 enums: Arena::new(),
@@ -3263,6 +3264,25 @@ mod tests {
             self.strings.alloc(mir::StringConst {
                 value: value.to_string(),
                 symbol,
+            })
+        }
+
+        fn managed_scoop_extern(
+            &mut self,
+            source_name: &str,
+            native_symbol: &str,
+            params: Vec<mir::Type>,
+            return_type: mir::Type,
+        ) -> mir::ExternFunctionId {
+            self.extern_functions.alloc(mir::ExternFunction {
+                source_name: source_name.to_string(),
+                native_symbol: native_symbol.to_string(),
+                library: String::new(),
+                abi: mir::ExternAbi::Scoop,
+                calling_convention: mir::CallingConvention::Cdecl,
+                gc_effect: mir::GcEffect::Managed,
+                params,
+                return_type,
             })
         }
 
@@ -3440,7 +3460,7 @@ mod tests {
         fn finish(self, entry: mir::FunctionId) -> mir::Module {
             mir::Module {
                 functions: self.functions,
-                extern_functions: Arena::new(),
+                extern_functions: self.extern_functions,
                 globals: Arena::new(),
                 callback_bridges: Arena::new(),
                 function_types: Arena::new(),
@@ -3530,6 +3550,16 @@ mod tests {
         }
     }
 
+    fn extern_call(function: mir::ExternFunctionId, args: Vec<mir::Expr>) -> mir::Call {
+        mir::Call {
+            target: mir::CallTarget {
+                kind: mir::CallKind::Direct,
+                callee: mir::Callee::Extern(function),
+            },
+            args,
+        }
+    }
+
     fn user_call(function: mir::FunctionId) -> mir::Call {
         mir::Call {
             target: mir::CallTarget {
@@ -3551,28 +3581,31 @@ mod tests {
         }))
     }
 
-    /// `main` writes `"hello, world"` (core's `write` primitive, M7)
+    /// `main` writes `"hello, world"` (core's managed `write` extern)
     /// then calls `helper()`, which writes `"!"`.
     fn hello_world() -> mir::Module {
         let mut b = Builder::new();
         let hello = b.string("hello, world");
         let bang = b.string("!");
+        let write = b.managed_scoop_extern(
+            "write",
+            "scoop_rt_write",
+            vec![mir::Type::String],
+            mir::Type::Unit,
+        );
         let helper = b.user_fn(
             "helper",
             "scoop.helper",
             Arena::new(),
-            vec![call_stmt(runtime_call(
-                mir::RuntimeFn::Write,
+            vec![call_stmt(extern_call(
+                write,
                 vec![mir::Expr::StringConst(bang)],
             ))],
         );
         let main = b.main(
             Arena::new(),
             vec![
-                call_stmt(runtime_call(
-                    mir::RuntimeFn::Write,
-                    vec![mir::Expr::StringConst(hello)],
-                )),
+                call_stmt(extern_call(write, vec![mir::Expr::StringConst(hello)])),
                 call_stmt(user_call(helper)),
             ],
         );
@@ -3609,14 +3642,15 @@ mod tests {
 Module
   global @scoop.str.0 = \"hello, world\"
   global @scoop.str.1 = \"!\"
+  extern ef0 write @scoop_rt_write(ptr) -> {} <scoop managed nounwind>
   fun @scoop.helper() -> void
   block entry
-    call @scoop_rt_print(global1)
+    native_call extern0(global1)
     t0 = aggregate () : {}
     ret
   fun @scoop_main() -> void
   block entry
-    call @scoop_rt_print(global0)
+    native_call extern0(global0)
     t0 = aggregate () : {}
     call @scoop.helper()
     t1 = aggregate () : {}
@@ -3634,6 +3668,12 @@ Module
         let mut b = Builder::new();
         let ok = b.string("ok");
         let ng = b.string("ng");
+        let write = b.managed_scoop_extern(
+            "write",
+            "scoop_rt_write",
+            vec![mir::Type::String],
+            mir::Type::Unit,
+        );
         let mut blocks = Arena::new();
         let entry = cfg_block(&mut blocks, "entry");
         let then_block = cfg_block(&mut blocks, "if.then.1");
@@ -3653,8 +3693,8 @@ Module
         set_cfg_block(
             &mut blocks,
             then_block,
-            vec![call_stmt(runtime_call(
-                mir::RuntimeFn::Write,
+            vec![call_stmt(extern_call(
+                write,
                 vec![mir::Expr::StringConst(ok)],
             ))],
             mir::Terminator::Goto(merge),
@@ -3663,8 +3703,8 @@ Module
         set_cfg_block(
             &mut blocks,
             else_block,
-            vec![call_stmt(runtime_call(
-                mir::RuntimeFn::Write,
+            vec![call_stmt(extern_call(
+                write,
                 vec![mir::Expr::StringConst(ng)],
             ))],
             mir::Terminator::Goto(merge),
@@ -3694,15 +3734,16 @@ Module
 Module
   global @scoop.str.0 = \"ok\"
   global @scoop.str.1 = \"ng\"
+  extern ef0 write @scoop_rt_write(ptr) -> {} <scoop managed nounwind>
   fun @scoop_main() -> void
   block entry
     cbr true then @if.then.1 else @if.else.2
   block if.then.1
-    call @scoop_rt_print(global0)
+    native_call extern0(global0)
     t0 = aggregate () : {}
     br @if.merge.3
   block if.else.2
-    call @scoop_rt_print(global1)
+    native_call extern0(global1)
     t1 = aggregate () : {}
     br @if.merge.3
   block if.merge.3
@@ -6031,18 +6072,18 @@ Module
 
     #[test]
     fn gc_intrinsics_exchange_words_with_the_runtime() {
-        // The MIR shapes mir-lower produces for the M9 GC intrinsics
-        // (milestone9 DESIGN section 1): `pin` / `getGcHandle` wrap
+        // The MIR shapes produced by M12's ordinary GC wrappers:
+        // `_pin` / `_getGcHandle` return
         // the runtime's raw word into the handle struct, `unpin` /
         // `releaseGcHandle` unwrap field 0 for the reverse call, and
         // the hooks are a void call / an i64 result.
         let mut b = Builder::new();
-        let pin_handle = b.strukt("PinHandle$S", &[("raw", mir::Type::UInt)]);
+        let pinned_ptr = b.strukt("PinnedPtr$S", &[("raw", mir::Type::UInt)]);
         let gc_handle = b.strukt("GcHandle$S", &[("raw", mir::Type::UInt)]);
         let mut locals = Arena::new();
         let v = locals.alloc(local("v", mir::Type::String));
         let raw_pin = locals.alloc(local("$call.1", mir::Type::UInt));
-        let h = locals.alloc(local("h", mir::Type::Struct(pin_handle)));
+        let h = locals.alloc(local("h", mir::Type::Struct(pinned_ptr)));
         let gc1 = locals.alloc(local("$gc.1", mir::Type::String));
         let p = locals.alloc(local("p", mir::Type::String));
         let raw_handle = locals.alloc(local("$call.2", mir::Type::UInt));
@@ -6060,7 +6101,7 @@ Module
                 val_decl(
                     h,
                     mir::Expr::StructInit {
-                        struct_id: pin_handle,
+                        struct_id: pinned_ptr,
                         args: vec![mir::Expr::Local(raw_pin)],
                     },
                 ),
@@ -6141,7 +6182,7 @@ Module
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
-  layout PinHandle$S size=8 align=8 refs=[]
+  layout PinnedPtr$S size=8 align=8 refs=[]
   layout GcHandle$S size=8 align=8 refs=[]
   entry @scoop_main
 ";

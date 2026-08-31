@@ -502,6 +502,16 @@ pub(crate) fn block_stmt(statements: Vec<Statement>) -> Statement {
     }
 }
 
+pub(crate) fn unsafe_block(statements: Vec<Statement>) -> Statement {
+    Statement {
+        kind: StatementKind::SafetyBlock {
+            mode: ast::SafetyMode::Unsafe,
+            block: block(statements),
+        },
+        span: sp(),
+    }
+}
+
 pub(crate) fn block(statements: Vec<Statement>) -> Block {
     Block {
         statements,
@@ -668,6 +678,35 @@ pub(crate) fn intrinsic_generic_fun(
         body: FunctionBody::None,
         span: sp(),
     })
+}
+
+pub(crate) fn scoop_extern_fun(
+    name: &str,
+    native_symbol: &str,
+    params: Vec<(&str, TypeRef)>,
+    return_ty: Option<TypeRef>,
+) -> Decl {
+    let Decl::Function(mut function) = fun_sig(name, vec![], params, return_ty, vec![]) else {
+        unreachable!()
+    };
+    function.annotations = vec![ast::Annotation {
+        name: ident("Extern"),
+        args: vec![
+            ast::AnnotationArg {
+                name: Some(ident("name")),
+                value: ast::AnnotationLiteral::String(native_symbol.to_string()),
+                span: sp(),
+            },
+            ast::AnnotationArg {
+                name: Some(ident("abi")),
+                value: ast::AnnotationLiteral::String("scoop".to_string()),
+                span: sp(),
+            },
+        ],
+        span: sp(),
+    }];
+    function.body = FunctionBody::None;
+    Decl::Function(function)
 }
 
 pub(crate) fn struct_decl(name: &str, fields: Vec<(&str, TypeRef)>) -> Decl {
@@ -1063,7 +1102,7 @@ pub(crate) fn file(declarations: Vec<Decl>) -> SourceFile {
 /// the `Throwable` exception root (spec 11.7; most subclasses live in
 /// `throwable_core()`), the M10 coroutine protocol, plus the M7
 /// `io.scoop` final shape
-/// (docs/milestone7/DESIGN.md section 2) — the single `rt_write`
+/// (docs/milestone7/DESIGN.md section 2) — the managed `write` extern
 /// intrinsic and `print` / `println` as ordinary `Any`-parameter
 /// functions dispatching `toString()`.
 pub(crate) fn core_file() -> SourceFile {
@@ -1088,9 +1127,9 @@ pub(crate) fn core_file() -> SourceFile {
     declarations.extend(coroutine_core_declarations());
     declarations.extend(ffi_core_declarations());
     declarations.extend([
-        intrinsic_fun(
+        scoop_extern_fun(
             "write",
-            "rt_write",
+            "scoop_rt_write",
             vec![("message", ty_named("String"))],
             None,
         ),
@@ -1215,6 +1254,25 @@ fn ffi_core_declarations() -> Vec<Decl> {
 
     let fun_ptr = generic_struct_decl("FunPtr", vec!["F"], vec![("_rawPointer", ty_named("UInt"))]);
 
+    let ref_bound = |mut decl: Decl| {
+        let type_params = match &mut decl {
+            Decl::Struct(decl) => &mut decl.type_params,
+            Decl::Function(decl) => &mut decl.type_params,
+            _ => unreachable!("FFI core declarations are structs or functions"),
+        };
+        type_params[0].kind_bound = Some(ast::TypeParamKindBound::Ref);
+        decl
+    };
+    let gc_intrinsic =
+        |name: &str, intrinsic_name: &str, params: Vec<(&str, TypeRef)>, return_ty: TypeRef| {
+            let mut decl =
+                intrinsic_generic_fun(name, intrinsic_name, vec!["T"], params, Some(return_ty));
+            let Decl::Function(function) = &mut decl else {
+                unreachable!()
+            };
+            function.annotations = vec![marker("Unsafe"), intrinsic(intrinsic_name)];
+            ref_bound(decl)
+        };
     let top_level = |name: &str,
                      intrinsic_name: &str,
                      params: Vec<(&str, TypeRef)>,
@@ -1241,6 +1299,40 @@ fn ffi_core_declarations() -> Vec<Decl> {
     vec![
         ptr,
         fun_ptr,
+        ref_bound(generic_struct_decl(
+            "PinnedPtr",
+            vec!["T"],
+            vec![("raw", ty_named("UInt"))],
+        )),
+        ref_bound(generic_struct_decl(
+            "GcHandle",
+            vec!["T"],
+            vec![("raw", ty_named("UInt"))],
+        )),
+        gc_intrinsic(
+            "_pin",
+            "gc_pin_raw",
+            vec![("v", ty_named("T"))],
+            ty_named("UInt"),
+        ),
+        gc_intrinsic(
+            "_unpin",
+            "gc_unpin_raw",
+            vec![("raw", ty_named("UInt"))],
+            ty_named("T"),
+        ),
+        gc_intrinsic(
+            "_getGcHandle",
+            "gc_get_handle_raw",
+            vec![("v", ty_named("T"))],
+            ty_named("UInt"),
+        ),
+        gc_intrinsic(
+            "_releaseGcHandle",
+            "gc_release_handle_raw",
+            vec![("raw", ty_named("UInt"))],
+            ty_named("T"),
+        ),
         top_level(
             "addressOf",
             "address_of",
@@ -1251,6 +1343,65 @@ fn ffi_core_declarations() -> Vec<Decl> {
         ),
         top_level("sizeOf", "size_of", vec![], ty_named("UInt"), true, false),
         top_level("alignOf", "align_of", vec![], ty_named("UInt"), true, false),
+    ]
+}
+
+fn gc_api_declarations() -> Vec<Decl> {
+    let unsafe_wrapper = |mut decl: Decl| {
+        let Decl::Function(function) = &mut decl else {
+            unreachable!()
+        };
+        function.annotations = vec![ast::Annotation {
+            name: ident("Unsafe"),
+            args: Vec::new(),
+            span: sp(),
+        }];
+        function.type_params[0].kind_bound = Some(ast::TypeParamKindBound::Ref);
+        decl
+    };
+    vec![
+        unsafe_wrapper(fun_expr(
+            "pin",
+            vec!["T"],
+            vec![("v", ty_named("T"))],
+            Some(ty_generic("PinnedPtr", vec![ty_named("T")])),
+            typed_call(
+                "PinnedPtr",
+                vec![ty_named("T")],
+                vec![call("_pin", vec![var("v")])],
+            ),
+        )),
+        unsafe_wrapper(fun_expr(
+            "unpin",
+            vec!["T"],
+            vec![("p", ty_generic("PinnedPtr", vec![ty_named("T")]))],
+            Some(ty_named("T")),
+            typed_call("_unpin", vec![ty_named("T")], vec![field(var("p"), "raw")]),
+        )),
+        unsafe_wrapper(fun_expr(
+            "getGcHandle",
+            vec!["T"],
+            vec![("v", ty_named("T"))],
+            Some(ty_generic("GcHandle", vec![ty_named("T")])),
+            typed_call(
+                "GcHandle",
+                vec![ty_named("T")],
+                vec![call("_getGcHandle", vec![var("v")])],
+            ),
+        )),
+        unsafe_wrapper(fun_expr(
+            "releaseGcHandle",
+            vec!["T"],
+            vec![("h", ty_generic("GcHandle", vec![ty_named("T")]))],
+            Some(ty_named("T")),
+            typed_call(
+                "_releaseGcHandle",
+                vec![ty_named("T")],
+                vec![field(var("h"), "raw")],
+            ),
+        )),
+        intrinsic_fun("gcCollect", "rt_gc_collect", vec![], None),
+        intrinsic_fun("gcStats", "rt_gc_stats", vec![], Some(ty_named("UInt"))),
     ]
 }
 
@@ -1432,69 +1583,9 @@ pub(crate) fn lower_user_with_exceptions(user: SourceFile) -> Result<hir::Module
     lower(&[core_file(), throwable_core(), user])
 }
 
-/// The GC facilities of `scoop.core`
-/// (sysroot/lib/scoop.core/src/gc.scoop, M9) as another core file:
-/// the `PinHandle` / `GcHandle` structs, the four generic GC
-/// intrinsics and the test-only `gcCollect` / `gcStats` hooks. The
-/// surface declarations spell the handle types `PinHandle<T>`.
-pub(crate) fn gc_core_file() -> SourceFile {
-    let handle = |name: &str| ty_generic(name, vec![ty_named("T")]);
-    let ref_bound = |mut decl: Decl| {
-        let type_params = match &mut decl {
-            Decl::Struct(decl) => &mut decl.type_params,
-            Decl::Function(decl) => &mut decl.type_params,
-            _ => unreachable!("GC core declarations are structs or functions"),
-        };
-        type_params[0].kind_bound = Some(ast::TypeParamKindBound::Ref);
-        decl
-    };
-    file(vec![
-        ref_bound(generic_struct_decl(
-            "PinHandle",
-            vec!["T"],
-            vec![("raw", ty_named("UInt"))],
-        )),
-        ref_bound(generic_struct_decl(
-            "GcHandle",
-            vec!["T"],
-            vec![("raw", ty_named("UInt"))],
-        )),
-        ref_bound(intrinsic_generic_fun(
-            "pin",
-            "rt_pin",
-            vec!["T"],
-            vec![("v", ty_named("T"))],
-            Some(handle("PinHandle")),
-        )),
-        ref_bound(intrinsic_generic_fun(
-            "unpin",
-            "rt_unpin",
-            vec!["T"],
-            vec![("h", handle("PinHandle"))],
-            Some(ty_named("T")),
-        )),
-        ref_bound(intrinsic_generic_fun(
-            "getGcHandle",
-            "rt_get_handle",
-            vec!["T"],
-            vec![("v", ty_named("T"))],
-            Some(handle("GcHandle")),
-        )),
-        ref_bound(intrinsic_generic_fun(
-            "releaseGcHandle",
-            "rt_release_handle",
-            vec!["T"],
-            vec![("h", handle("GcHandle"))],
-            Some(ty_named("T")),
-        )),
-        intrinsic_fun("gcCollect", "rt_gc_collect", vec![], None),
-        intrinsic_fun("gcStats", "rt_gc_stats", vec![], Some(ty_named("UInt"))),
-    ])
-}
-
 /// Lower a user file with the core GC facilities available (M9 tests).
 pub(crate) fn lower_user_with_gc(user: SourceFile) -> Result<hir::Module, Vec<Diagnostic>> {
-    lower(&[core_file(), gc_core_file(), user])
+    lower(&[core_file(), file(gc_api_declarations()), user])
 }
 
 /// `main` calls `println("hello, world")` then `helper()`, which
@@ -1545,7 +1636,7 @@ Module
     fun register(continuation: Continuation<T0>): Unit
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
-  fun write(): Unit <intrinsic rt_write>
+  fun write(arg1: String): Unit <extern0 abi=scoop symbol=scoop_rt_write>
   fun print(message: Any): Unit
     Call write : Unit
       MethodCall Any.toString : String

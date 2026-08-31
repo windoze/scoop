@@ -876,9 +876,7 @@ pub enum RuntimeFn {
     GcStats,
     /// ABI exception buffer -> ordinary managed object (runtime spec 5).
     MaterializeException,
-    /// Primitive output intrinsics backing core's `print`/`println`
-    /// overloads (M7, docs/milestone7/DESIGN.md section 2).
-    Write,
+    /// Primitive conversions temporarily backing core's `toString` paths.
     IntToString,
     BoolToString,
     StringConcat,
@@ -904,7 +902,6 @@ impl RuntimeFn {
             RuntimeFn::GcCollect => "scoop_rt_gc_collect",
             RuntimeFn::GcStats => "scoop_rt_gc_stats",
             RuntimeFn::MaterializeException => "scoop_rt_materialize_exception",
-            RuntimeFn::Write => "scoop_rt_print",
             RuntimeFn::IntToString => "scoop_rt_int_to_string",
             RuntimeFn::BoolToString => "scoop_rt_bool_to_string",
             RuntimeFn::StringConcat => "scoop_rt_string_concat",

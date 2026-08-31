@@ -82,7 +82,7 @@ Module
     fun register(continuation: Continuation<T0>): Unit
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
-  fun write(): Unit <intrinsic rt_write>
+  fun write(arg1: String): Unit <extern0 abi=scoop symbol=scoop_rt_write>
   fun print(message: Any): Unit
     Call write : Unit
       MethodCall Any.toString : String
@@ -207,7 +207,7 @@ Module
     fun register(continuation: Continuation<T0>): Unit
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
-  fun write(): Unit <intrinsic rt_write>
+  fun write(arg1: String): Unit <extern0 abi=scoop symbol=scoop_rt_write>
   fun print(message: Any): Unit
     Call write : Unit
       MethodCall Any.toString : String
@@ -288,7 +288,7 @@ Module
     fun register(continuation: Continuation<T0>): Unit
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
-  fun write(): Unit <intrinsic rt_write>
+  fun write(arg1: String): Unit <extern0 abi=scoop symbol=scoop_rt_write>
   fun print(message: Any): Unit
     Call write : Unit
       MethodCall Any.toString : String
@@ -396,7 +396,7 @@ Module
     fun register(continuation: Continuation<T0>): Unit
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
-  fun write(): Unit <intrinsic rt_write>
+  fun write(arg1: String): Unit <extern0 abi=scoop symbol=scoop_rt_write>
   fun print(message: Any): Unit
     Call write : Unit
       MethodCall Any.toString : String
@@ -582,7 +582,7 @@ Module
     fun register(continuation: Continuation<T0>): Unit
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
-  fun write(): Unit <intrinsic rt_write>
+  fun write(arg1: String): Unit <extern0 abi=scoop symbol=scoop_rt_write>
   fun print(message: Any): Unit
     Call write : Unit
       MethodCall Any.toString : String
@@ -646,15 +646,15 @@ fn var_pat2(target: ast::Pattern, init: Expr) -> Statement {
 #[test]
 fn intrinsic_functions_are_marked() {
     let module = lower_user(file(vec![fun("main", vec![])])).expect("must lower");
-    let write = module
+    let start_coroutine = module
         .top_level
         .iter()
         .map(|id| &module.functions[*id])
-        .find(|f| f.name == "write")
-        .expect("core declares write");
+        .find(|f| f.name == "startCoroutine")
+        .expect("core declares startCoroutine");
     assert!(matches!(
-        write.kind,
-        FunctionKind::Intrinsic(ref name) if name == "rt_write"
+        start_coroutine.kind,
+        FunctionKind::Intrinsic(ref name) if name == "coroutine_start"
     ));
 }
 
@@ -952,12 +952,7 @@ fn unknown_intrinsic_is_an_error() {
 
 #[test]
 fn intrinsic_in_user_file_is_an_error() {
-    let Decl::Function(mut wipe) = intrinsic_fun(
-        "wipe",
-        "rt_write",
-        vec![("message", ty_named("String"))],
-        None,
-    ) else {
+    let Decl::Function(mut wipe) = intrinsic_fun("wipe", "rt_gc_collect", vec![], None) else {
         unreachable!()
     };
     wipe.body = FunctionBody::None;

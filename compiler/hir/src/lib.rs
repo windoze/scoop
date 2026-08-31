@@ -307,6 +307,8 @@ pub struct Module {
 pub struct FfiCore {
     pub ptr: StructId,
     pub fun_ptr: StructId,
+    pub pinned_ptr: StructId,
+    pub gc_handle: StructId,
     pub ptr_to_uint: FunctionId,
     pub ptr_cast: FunctionId,
     pub ptr_load: FunctionId,
@@ -318,6 +320,10 @@ pub struct FfiCore {
     pub address_of: FunctionId,
     pub size_of: FunctionId,
     pub align_of: FunctionId,
+    pub gc_pin_raw: FunctionId,
+    pub gc_unpin_raw: FunctionId,
+    pub gc_get_handle_raw: FunctionId,
+    pub gc_release_handle_raw: FunctionId,
 }
 
 #[derive(Debug, Clone)]
@@ -1062,39 +1068,32 @@ pub enum UnOp {
 /// valid names, expansion stage, and backend kind.
 pub const INTRINSIC_REGISTRY: &[IntrinsicSpec] = &[
     IntrinsicSpec {
-        name: "rt_write",
-        stage: IntrinsicStage::Mir,
-        kind: IntrinsicKind::Runtime("scoop_rt_print"),
-        target: IntrinsicTarget::TopLevel,
-        effects: IntrinsicEffects::NONE,
-    },
-    IntrinsicSpec {
-        name: "rt_pin",
+        name: "gc_pin_raw",
         stage: IntrinsicStage::Mir,
         kind: IntrinsicKind::Runtime("scoop_rt_pin"),
         target: IntrinsicTarget::TopLevel,
-        effects: IntrinsicEffects::NONE,
+        effects: IntrinsicEffects::UNSAFE,
     },
     IntrinsicSpec {
-        name: "rt_unpin",
+        name: "gc_unpin_raw",
         stage: IntrinsicStage::Mir,
         kind: IntrinsicKind::Runtime("scoop_rt_unpin"),
         target: IntrinsicTarget::TopLevel,
-        effects: IntrinsicEffects::NONE,
+        effects: IntrinsicEffects::UNSAFE,
     },
     IntrinsicSpec {
-        name: "rt_get_handle",
+        name: "gc_get_handle_raw",
         stage: IntrinsicStage::Mir,
         kind: IntrinsicKind::Runtime("scoop_rt_get_handle"),
         target: IntrinsicTarget::TopLevel,
-        effects: IntrinsicEffects::NONE,
+        effects: IntrinsicEffects::UNSAFE,
     },
     IntrinsicSpec {
-        name: "rt_release_handle",
+        name: "gc_release_handle_raw",
         stage: IntrinsicStage::Mir,
         kind: IntrinsicKind::Runtime("scoop_rt_release_handle"),
         target: IntrinsicTarget::TopLevel,
-        effects: IntrinsicEffects::NONE,
+        effects: IntrinsicEffects::UNSAFE,
     },
     IntrinsicSpec {
         name: "rt_gc_collect",
@@ -1280,7 +1279,11 @@ pub fn intrinsic_spec(name: &str) -> Option<&'static IntrinsicSpec> {
 pub fn dump(module: &Module) -> String {
     let mut out = String::from("Module\n");
     for (id, decl) in module.structs.iter() {
-        if id == module.ffi_core.ptr || id == module.ffi_core.fun_ptr {
+        if id == module.ffi_core.ptr
+            || id == module.ffi_core.fun_ptr
+            || id == module.ffi_core.pinned_ptr
+            || id == module.ffi_core.gc_handle
+        {
             continue;
         }
         let type_params = if decl.type_params.is_empty() {
@@ -1406,6 +1409,10 @@ pub fn dump(module: &Module) -> String {
             module.ffi_core.address_of,
             module.ffi_core.size_of,
             module.ffi_core.align_of,
+            module.ffi_core.gc_pin_raw,
+            module.ffi_core.gc_unpin_raw,
+            module.ffi_core.gc_get_handle_raw,
+            module.ffi_core.gc_release_handle_raw,
         ]
         .contains(&id)
         {
@@ -1475,6 +1482,16 @@ pub fn dump(module: &Module) -> String {
     ));
     for (_, instantiation) in module.instantiations.iter() {
         let function = module.generic_functions[instantiation.generic].function;
+        if [
+            module.ffi_core.gc_pin_raw,
+            module.ffi_core.gc_unpin_raw,
+            module.ffi_core.gc_get_handle_raw,
+            module.ffi_core.gc_release_handle_raw,
+        ]
+        .contains(&function)
+        {
+            continue;
+        }
         let args: Vec<String> = instantiation
             .type_args
             .iter()

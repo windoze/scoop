@@ -4046,7 +4046,7 @@ impl Lowerer {
     /// type against the argument type: `T` binds to the argument type,
     /// `Option<T>` vs `Option<Int>` recurses (so `T = Int`) — as do
     /// other enum applications — generic struct applications
-    /// (`PinHandle<T>`, M9) match by struct and recurse into their
+    /// (`PinnedPtr<T>`, M12) match by struct and recurse into their
     /// argument lists, and tuples match elementwise. Anything
     /// else is left to the argument type check. Returns `false` after
     /// recording a conflict diagnostic.

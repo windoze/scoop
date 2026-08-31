@@ -53,8 +53,8 @@
 //! M7: print/println are ordinary core functions
 //! (docs/milestone7/DESIGN.md section 2) — their calls go through the
 //! normal function path. `@Intrinsic` calls map by intrinsic name onto
-//! the runtime functions: `rt_write` → `Write` (`scoop_rt_print`),
-//! `rt_int_to_string` → `IntToString`, `rt_bool_to_string` →
+//! the remaining runtime functions: `rt_int_to_string` → `IntToString`,
+//! `rt_bool_to_string` →
 //! `BoolToString` (the latter two back the generated `toString`
 //! bodies below). Mangling is overload-aware: a name shared by
 //! several plainly-mangled functions gets the parameter encoding
@@ -3787,11 +3787,11 @@ impl EnumRegistry {
 /// Instantiated generic struct definitions (M9, spec 3.2): one
 /// `mir::StructDef` per (generic struct, concrete type args),
 /// deduplicated by the mangled instance
-/// name (`PinHandle$V`, the same shape as enum instances).
+/// name (`PinnedPtr$V`, the same shape as enum instances).
 ///
 /// The substitution machinery is general: field types mentioning the
 /// struct's type parameters resolve through the argument list. The
-/// `PinHandle` / `GcHandle` use a phantom parameter while ordinary
+/// `PinnedPtr` / `GcHandle` use a phantom parameter while ordinary
 /// user structs may mention parameters in fields.
 #[derive(Default)]
 struct StructRegistry {
@@ -6166,65 +6166,19 @@ impl BodyLowerer<'_> {
         result_ty: hir::TypeId,
     ) -> smir::Expr {
         let function = match name {
-            "rt_write" => mir::RuntimeFn::Write,
             "rt_int_to_string" => mir::RuntimeFn::IntToString,
             "rt_bool_to_string" => mir::RuntimeFn::BoolToString,
-            "rt_pin" => mir::RuntimeFn::Pin,
-            "rt_unpin" => mir::RuntimeFn::Unpin,
-            "rt_get_handle" => mir::RuntimeFn::GetHandle,
-            "rt_release_handle" => mir::RuntimeFn::ReleaseHandle,
+            "gc_pin_raw" => mir::RuntimeFn::Pin,
+            "gc_unpin_raw" => mir::RuntimeFn::Unpin,
+            "gc_get_handle_raw" => mir::RuntimeFn::GetHandle,
+            "gc_release_handle_raw" => mir::RuntimeFn::ReleaseHandle,
             "rt_gc_collect" => mir::RuntimeFn::GcCollect,
             "rt_gc_stats" => mir::RuntimeFn::GcStats,
             _ => unreachable!("hir-lower rejects unknown intrinsics"),
         };
         let callee = mir::Callee::Runtime(function);
-        match function {
-            // `pin(v)` / `getGcHandle(v)` → `Handle(scoop_rt_*(v))`:
-            // the runtime call yields the raw word, wrapped into the
-            // handle's single-field aggregate — the (instantiated)
-            // handle struct of the call's type.
-            mir::RuntimeFn::Pin | mir::RuntimeFn::GetHandle => {
-                let value = self.call(callee, &args.iter().collect::<Vec<_>>(), mir::Type::UInt);
-                let mir::Type::Struct(struct_id) = self.lower_type(result_ty) else {
-                    unreachable!("the pin / handle intrinsics return the handle struct")
-                };
-                smir::Expr::StructInit {
-                    struct_id,
-                    args: vec![value],
-                }
-            }
-            // `unpin(h)` / `releaseGcHandle(h)` → `scoop_rt_*(h.raw)`:
-            // the runtime call takes the handle's raw word and yields
-            // the reference again. LIR reconstructs expression types
-            // structurally and the result type T is context-dependent,
-            // so the call is bound to a typed hidden local (the same
-            // prelude mechanism smart casts use).
-            mir::RuntimeFn::Unpin | mir::RuntimeFn::ReleaseHandle => {
-                let ty = self.lower_type(result_ty);
-                let handle = self.lower_expr(&args[0]);
-                let raw = smir::Expr::FieldAccess {
-                    receiver: Box::new(handle),
-                    index: 0,
-                };
-                let slot = self.new_hidden("gc", ty, false);
-                self.prelude.push(smir::StatementKind::ValDecl {
-                    local: slot,
-                    init: smir::Expr::Call(smir::Call {
-                        target: mir::CallTarget {
-                            kind: mir::CallKind::Direct,
-                            callee,
-                        },
-                        args: vec![raw],
-                        return_ty: self.locals[slot].ty.clone(),
-                    }),
-                });
-                smir::Expr::Local(slot)
-            }
-            _ => {
-                let return_ty = self.lower_type(result_ty);
-                self.call(callee, &args.iter().collect::<Vec<_>>(), return_ty)
-            }
-        }
+        let return_ty = self.lower_type(result_ty);
+        self.call(callee, &args.iter().collect::<Vec<_>>(), return_ty)
     }
 
     fn call(
@@ -7072,12 +7026,13 @@ mod tests {
     }
 
     /// HIR module shell as hir-lower produces it: well-known types,
-    /// core's three intrinsic output primitives and the ordinary
+    /// core's managed `write` extern, two conversion intrinsics, and the ordinary
     /// `print` / `println` overloads (M7), plus core's `Option` enum
     /// allocated first.
     struct Harness {
         types: Arena<hir::Type>,
         functions: Arena<hir::Function>,
+        extern_functions: Arena<hir::ExternFunction>,
         generic_functions: Arena<hir::GenericFunction>,
         structs: Arena<hir::StructDecl>,
         enums: Arena<hir::EnumDecl>,
@@ -7089,7 +7044,7 @@ mod tests {
         boolean: hir::TypeId,
         string: hir::TypeId,
         option_enum: hir::EnumId,
-        write: hir::FunctionId,
+        write: Option<hir::FunctionId>,
         int_to_string: hir::FunctionId,
         bool_to_string: hir::FunctionId,
         /// core's `print` / `println` overloads (ordinary functions,
@@ -7108,12 +7063,12 @@ mod tests {
     /// core's GC facilities (M9), as `Harness::gc_core` declares them.
     #[derive(Clone, Copy)]
     struct GcCore {
-        pin_handle: hir::StructId,
+        pinned_ptr: hir::StructId,
         gc_handle: hir::StructId,
-        pin: hir::FunctionId,
-        unpin: hir::FunctionId,
-        get_handle: hir::FunctionId,
-        release_handle: hir::FunctionId,
+        pin_raw: hir::FunctionId,
+        unpin_raw: hir::FunctionId,
+        get_handle_raw: hir::FunctionId,
+        release_handle_raw: hir::FunctionId,
         gc_collect: hir::FunctionId,
         gc_stats: hir::FunctionId,
     }
@@ -7126,21 +7081,11 @@ mod tests {
             let boolean = types.alloc(hir::Type::Boolean);
             let string = types.alloc(hir::Type::String);
             let mut functions = Arena::new();
-            // scoop.core's intrinsic output primitives (M7 DESIGN
-            // section 2): `@Intrinsic("rt_write") fun write(...)`,
+            // scoop.core's managed output extern and conversion intrinsics:
+            // `@Extern(name = "scoop_rt_write", abi = "scoop") fun write(...)`,
             // `@Intrinsic("rt_int_to_string") fun intToString(...)`,
             // `@Intrinsic("rt_bool_to_string") fun boolToString(...)`.
-            let write = functions.alloc(hir::Function {
-                name: "write".to_string(),
-                is_suspend: false,
-                type_params: Vec::new(),
-                params: Vec::new(),
-                return_ty: unit,
-                attributes: hir::FunctionAttributes::default(),
-                kind: hir::FunctionKind::Intrinsic("rt_write".to_string()),
-                method: None,
-                span: SPAN,
-            });
+            let extern_functions = Arena::new();
             let int_to_string = functions.alloc(hir::Function {
                 name: "intToString".to_string(),
                 is_suspend: false,
@@ -7190,18 +7135,19 @@ mod tests {
             Harness {
                 types,
                 functions,
+                extern_functions,
                 generic_functions: Arena::new(),
                 structs: Arena::new(),
                 enums,
                 classes: Arena::new(),
                 interfaces: Arena::new(),
-                top_level: vec![write, int_to_string, bool_to_string],
+                top_level: vec![int_to_string, bool_to_string],
                 unit,
                 int,
                 boolean,
                 string,
                 option_enum,
-                write,
+                write: None,
                 int_to_string,
                 bool_to_string,
                 print_string: None,
@@ -7216,6 +7162,39 @@ mod tests {
             }
         }
 
+        /// Adds core's managed `write` extern on first use so tests unrelated
+        /// to output keep their MIR dumps focused on the feature under test.
+        fn write(&mut self) -> hir::FunctionId {
+            if let Some(id) = self.write {
+                return id;
+            }
+            let extern_id = self.extern_functions.alloc(hir::ExternFunction {
+                source_name: "write".to_string(),
+                native_symbol: "scoop_rt_write".to_string(),
+                library: String::new(),
+                abi: hir::ExternAbi::Scoop,
+                calling_convention: hir::CallingConvention::Cdecl,
+                gc_effect: hir::GcEffect::Managed,
+                safety: hir::Safety::Safe,
+                params: vec![self.string],
+                return_type: self.unit,
+            });
+            let id = self.functions.alloc(hir::Function {
+                name: "write".to_string(),
+                is_suspend: false,
+                type_params: Vec::new(),
+                params: Vec::new(),
+                return_ty: self.unit,
+                attributes: hir::FunctionAttributes::default(),
+                kind: hir::FunctionKind::Extern(extern_id),
+                method: None,
+                span: SPAN,
+            });
+            self.top_level.push(id);
+            self.write = Some(id);
+            id
+        }
+
         /// core's `fun print(message: String) = write(message)`,
         /// created on first use (tests that never print keep core's
         /// overloads out of their MIR dumps).
@@ -7224,7 +7203,7 @@ mod tests {
                 return id;
             }
             let (unit, string) = (self.unit, self.string);
-            let write = self.write;
+            let write = self.write();
             let mut locals = Arena::new();
             let message = locals.alloc(local("message", string));
             let id = self.user_fn_full(
@@ -7251,7 +7230,7 @@ mod tests {
                 return id;
             }
             let (unit, int, string) = (self.unit, self.int, self.string);
-            let (write, int_to_string) = (self.write, self.int_to_string);
+            let (write, int_to_string) = (self.write(), self.int_to_string);
             let mut locals = Arena::new();
             let message = locals.alloc(local("message", int));
             let id = self.user_fn_full(
@@ -7282,7 +7261,7 @@ mod tests {
                 return id;
             }
             let (unit, boolean, string) = (self.unit, self.boolean, self.string);
-            let (write, bool_to_string) = (self.write, self.bool_to_string);
+            let (write, bool_to_string) = (self.write(), self.bool_to_string);
             let mut locals = Arena::new();
             let message = locals.alloc(local("message", boolean));
             let id = self.user_fn_full(
@@ -7313,7 +7292,7 @@ mod tests {
                 return id;
             }
             let (unit, string) = (self.unit, self.string);
-            let write = self.write;
+            let write = self.write();
             let mut locals = Arena::new();
             let message = locals.alloc(local("message", string));
             let id = self.user_fn_full(
@@ -7558,22 +7537,20 @@ mod tests {
             self.types.alloc(hir::Type::Struct(struct_id, args))
         }
 
-        /// core's GC facilities (M9): `PinHandle<T>` / `GcHandle<T>`
-        /// and the six GC intrinsics, created on first use.
+        /// core's GC facilities (M12): `PinnedPtr<T>` / `GcHandle<T>`
+        /// and the six low-level runtime intrinsics, created on first use.
         fn gc_core(&mut self) -> GcCore {
             if let Some(core) = self.gc_core {
                 return core;
             }
             let uint = self.uint();
-            let pin_handle = self.strukt("PinHandle", &[("raw", uint)]);
+            let pinned_ptr = self.strukt("PinnedPtr", &[("raw", uint)]);
             let gc_handle = self.strukt("GcHandle", &[("raw", uint)]);
-            self.structs[pin_handle].type_params = vec![type_param("T")];
+            self.structs[pinned_ptr].type_params = vec![type_param("T")];
             self.structs[gc_handle].type_params = vec![type_param("T")];
             let t = self
                 .types
                 .alloc(hir::Type::Param(hir::TypeParamId::from_raw(0)));
-            let pin_handle_t = self.struct_app(pin_handle, vec![t]);
-            let gc_handle_t = self.struct_app(gc_handle, vec![t]);
             let mut dummy_locals = Arena::new();
             let mut intrinsic = |name: &str,
                                  intrinsic: &str,
@@ -7613,43 +7590,43 @@ mod tests {
                 id
             };
             let type_params = vec!["T".to_string()];
-            let pin = intrinsic(
-                "pin",
-                "rt_pin",
+            let pin_raw = intrinsic(
+                "_pin",
+                "gc_pin_raw",
                 type_params.clone(),
                 vec![("v", t)],
-                pin_handle_t,
+                uint,
             );
-            let unpin = intrinsic(
-                "unpin",
-                "rt_unpin",
+            let unpin_raw = intrinsic(
+                "_unpin",
+                "gc_unpin_raw",
                 type_params.clone(),
-                vec![("h", pin_handle_t)],
+                vec![("raw", uint)],
                 t,
             );
-            let get_handle = intrinsic(
-                "getGcHandle",
-                "rt_get_handle",
+            let get_handle_raw = intrinsic(
+                "_getGcHandle",
+                "gc_get_handle_raw",
                 type_params.clone(),
                 vec![("v", t)],
-                gc_handle_t,
+                uint,
             );
-            let release_handle = intrinsic(
-                "releaseGcHandle",
-                "rt_release_handle",
+            let release_handle_raw = intrinsic(
+                "_releaseGcHandle",
+                "gc_release_handle_raw",
                 type_params,
-                vec![("h", gc_handle_t)],
+                vec![("raw", uint)],
                 t,
             );
             let gc_collect = intrinsic("gcCollect", "rt_gc_collect", vec![], vec![], self.unit);
             let gc_stats = intrinsic("gcStats", "rt_gc_stats", vec![], vec![], uint);
             let core = GcCore {
-                pin_handle,
+                pinned_ptr,
                 gc_handle,
-                pin,
-                unpin,
-                get_handle,
-                release_handle,
+                pin_raw,
+                unpin_raw,
+                get_handle_raw,
+                release_handle_raw,
                 gc_collect,
                 gc_stats,
             };
@@ -7967,9 +7944,27 @@ mod tests {
                 interfaces: Vec::new(),
                 span: SPAN,
             });
+            let pinned_ptr = self.structs.alloc(hir::StructDecl {
+                name: "PinnedPtr".to_string(),
+                type_params: vec![type_param("T")],
+                attributes: hir::StructAttributes::default(),
+                fields: Vec::new(),
+                interfaces: Vec::new(),
+                span: SPAN,
+            });
+            let gc_handle = self.structs.alloc(hir::StructDecl {
+                name: "GcHandle".to_string(),
+                type_params: vec![type_param("T")],
+                attributes: hir::StructAttributes::default(),
+                fields: Vec::new(),
+                interfaces: Vec::new(),
+                span: SPAN,
+            });
             let ffi_core = hir::FfiCore {
                 ptr,
                 fun_ptr,
+                pinned_ptr,
+                gc_handle,
                 ptr_to_uint: entry,
                 ptr_cast: entry,
                 ptr_load: entry,
@@ -7981,6 +7976,10 @@ mod tests {
                 address_of: entry,
                 size_of: entry,
                 align_of: entry,
+                gc_pin_raw: entry,
+                gc_unpin_raw: entry,
+                gc_get_handle_raw: entry,
+                gc_release_handle_raw: entry,
             };
             hir::Module {
                 types: self.types,
@@ -7991,7 +7990,7 @@ mod tests {
                 callable_references: Arena::new(),
                 function_coercions: Arena::new(),
                 functions: self.functions,
-                extern_functions: Arena::new(),
+                extern_functions: self.extern_functions,
                 globals: Arena::new(),
                 generic_functions: self.generic_functions,
                 structs: self.structs,
@@ -8461,16 +8460,17 @@ mod tests {
         // Golden dump locks the output structure.
         let expected = "\
 Module
+  extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
   fun print @scoop.print(message: String) -> Unit
     bb0 entry
-      call @scoop_rt_print direct
+      call extern0 @scoop_rt_write direct
         Local message
       return
   fun println @scoop.println(message: String) -> Unit
     bb0 entry
-      call @scoop_rt_print direct
+      call extern0 @scoop_rt_write direct
         Local message
-      call @scoop_rt_print direct
+      call extern0 @scoop_rt_write direct
         StringConst @scoop.str.0
       return
   fun helper @scoop.helper() -> Unit
@@ -8537,7 +8537,7 @@ Module
     fn intrinsic_names_map_to_runtime_functions() {
         // core's `print` / `println` overloads are ordinary user
         // functions (their forwarding is locked by the golden dumps);
-        // only the three intrinsic primitives map onto runtime
+        // only the two conversion intrinsics map onto runtime
         // functions, by intrinsic name.
         let mut h = Harness::new();
         let main = h.user_fn(
@@ -8545,7 +8545,6 @@ Module
             hir::Body {
                 locals: Arena::new(),
                 statements: vec![
-                    expr_stmt(call(&h, h.write, vec![str_lit(&h, "s")])),
                     expr_stmt(call_typed(h.int_to_string, vec![int_lit(&h, 1)], h.string)),
                     expr_stmt(call_typed(
                         h.bool_to_string,
@@ -8570,30 +8569,27 @@ Module
             .collect();
         assert_eq!(
             shims,
-            [
-                mir::RuntimeFn::Write,
-                mir::RuntimeFn::IntToString,
-                mir::RuntimeFn::BoolToString,
-            ]
+            [mir::RuntimeFn::IntToString, mir::RuntimeFn::BoolToString,]
         );
     }
 
     // ---- M9: GC intrinsics and generic structs ----
 
-    /// `val ph = pin(s); val r = unpin(ph); val gh = getGcHandle(s);
-    /// val r2 = releaseGcHandle(gh); gcCollect(); val n = gcStats()`
-    /// over `s: String` (the four handle intrinsics share the two
-    /// marshal shapes: wrap into the handle struct, unwrap field 0).
+    /// The source-level bodies of `pin` / `unpin` / handle operations after
+    /// inlining their ordinary wrappers: raw runtime call plus explicit
+    /// handle construction or field extraction.
     fn gc_shapes() -> (Harness, hir::FunctionId) {
         let mut h = Harness::new();
         let gc = h.gc_core();
         let (string, uint) = (h.string, h.uint());
-        let pin_handle_s = h.struct_app(gc.pin_handle, vec![string]);
+        let pinned_ptr_s = h.struct_app(gc.pinned_ptr, vec![string]);
         let gc_handle_s = h.struct_app(gc.gc_handle, vec![string]);
         let mut locals = Arena::new();
         let s = locals.alloc(local("s", string));
-        let ph = locals.alloc(local("ph", pin_handle_s));
+        let pin_word = locals.alloc(local("pinWord", uint));
+        let ph = locals.alloc(local("ph", pinned_ptr_s));
         let r = locals.alloc(local("r", string));
+        let handle_word = locals.alloc(local("handleWord", uint));
         let gh = locals.alloc(local("gh", gc_handle_s));
         let r2 = locals.alloc(local("r2", string));
         let n = locals.alloc(local("n", uint));
@@ -8603,20 +8599,58 @@ Module
                 locals,
                 statements: vec![
                     val_decl(
+                        pin_word,
+                        call_typed(gc.pin_raw, vec![local_ref(s, string)], uint),
+                    ),
+                    val_decl(
                         ph,
-                        call_typed(gc.pin, vec![local_ref(s, string)], pin_handle_s),
+                        struct_init(gc.pinned_ptr, pinned_ptr_s, vec![local_ref(pin_word, uint)]),
                     ),
                     val_decl(
                         r,
-                        call_typed(gc.unpin, vec![local_ref(ph, pin_handle_s)], string),
+                        call_typed(
+                            gc.unpin_raw,
+                            vec![expr(
+                                hir::ExprKind::FieldAccess {
+                                    receiver: Box::new(local_ref(ph, pinned_ptr_s)),
+                                    field: hir::FieldRef::StructField {
+                                        struct_id: gc.pinned_ptr,
+                                        index: 0,
+                                    },
+                                },
+                                uint,
+                            )],
+                            string,
+                        ),
+                    ),
+                    val_decl(
+                        handle_word,
+                        call_typed(gc.get_handle_raw, vec![local_ref(s, string)], uint),
                     ),
                     val_decl(
                         gh,
-                        call_typed(gc.get_handle, vec![local_ref(s, string)], gc_handle_s),
+                        struct_init(
+                            gc.gc_handle,
+                            gc_handle_s,
+                            vec![local_ref(handle_word, uint)],
+                        ),
                     ),
                     val_decl(
                         r2,
-                        call_typed(gc.release_handle, vec![local_ref(gh, gc_handle_s)], string),
+                        call_typed(
+                            gc.release_handle_raw,
+                            vec![expr(
+                                hir::ExprKind::FieldAccess {
+                                    receiver: Box::new(local_ref(gh, gc_handle_s)),
+                                    field: hir::FieldRef::StructField {
+                                        struct_id: gc.gc_handle,
+                                        index: 0,
+                                    },
+                                },
+                                uint,
+                            )],
+                            string,
+                        ),
                     ),
                     expr_stmt(call(&h, gc.gc_collect, vec![])),
                     val_decl(n, call_typed(gc.gc_stats, vec![], uint)),
@@ -8627,34 +8661,32 @@ Module
     }
 
     #[test]
-    fn pin_wraps_the_raw_word_into_the_handle_struct() {
+    fn gc_wrappers_use_explicit_raw_word_marshalling() {
         let (h, main) = gc_shapes();
         let module = lower(&h.finish(main));
         let body = &module.functions[module.entry].body;
 
-        // `pin(s)` is normalized before the handle construction.
+        // `_pin(s)` produces the raw word used by `PinnedPtr(raw)`.
         let (call, pin_result) = statement_call(&entry_statements(body)[0]);
         assert!(matches!(
             call.target.callee,
             mir::Callee::Runtime(mir::RuntimeFn::Pin)
         ));
         assert!(matches!(call.args.as_slice(), [mir::Expr::Local(_)]));
-        let pin_result = pin_result.expect("pin returns a raw word");
+        let pin_result = pin_result.expect("_pin returns a raw word");
         let mir::StatementKind::ValDecl { init, .. } = &entry_statements(body)[1].kind else {
-            panic!("pin's statement is a val decl")
+            panic!("PinnedPtr construction is a val decl")
         };
         let mir::Expr::StructInit { struct_id, args } = init else {
-            panic!("pin's result is wrapped into the handle struct")
+            panic!("the raw result is wrapped into PinnedPtr")
         };
-        assert_eq!(module.structs[*struct_id].name, "PinHandle$S");
+        assert_eq!(module.structs[*struct_id].name, "PinnedPtr$S");
         assert_eq!(module.structs[*struct_id].fields[0].ty, mir::Type::UInt);
         assert!(matches!(args.as_slice(), [mir::Expr::Local(local)] if *local == pin_result));
 
-        // `unpin(ph)` → a hidden local holding `scoop_rt_unpin(ph.0)`,
-        // bound ahead of the use (the prelude shape): the raw word is
-        // field 0 of the handle aggregate.
+        // `_unpin(ph.raw)` directly initializes the source result local.
         let (call, hidden) = statement_call(&entry_statements(body)[2]);
-        let hidden = hidden.expect("unpin produces the typed hidden local");
+        let hidden = hidden.expect("_unpin produces the typed result");
         assert!(matches!(
             call.target.callee,
             mir::Callee::Runtime(mir::RuntimeFn::Unpin)
@@ -8662,20 +8694,17 @@ Module
         let [mir::Expr::FieldAccess { index: 0, .. }] = call.args.as_slice() else {
             panic!("unpin's argument is the handle's raw field")
         };
-        let mir::StatementKind::ValDecl { init, .. } = &entry_statements(body)[3].kind else {
-            panic!("unpin's use is a val decl")
-        };
-        assert!(matches!(init, mir::Expr::Local(l) if *l == hidden));
+        assert_eq!(body.locals[hidden].name, "r");
 
         // `getGcHandle` / `releaseGcHandle` share the wrap / unwrap
         // shapes with their own runtime symbols and handle struct.
-        let (call, handle_result) = statement_call(&entry_statements(body)[4]);
+        let (call, handle_result) = statement_call(&entry_statements(body)[3]);
         assert!(matches!(
             call.target.callee,
             mir::Callee::Runtime(mir::RuntimeFn::GetHandle)
         ));
         let handle_result = handle_result.expect("getGcHandle returns a raw word");
-        let mir::StatementKind::ValDecl { init, .. } = &entry_statements(body)[5].kind else {
+        let mir::StatementKind::ValDecl { init, .. } = &entry_statements(body)[4].kind else {
             panic!("getGcHandle's statement is a val decl")
         };
         let mir::Expr::StructInit { struct_id, args } = init else {
@@ -8683,7 +8712,7 @@ Module
         };
         assert_eq!(module.structs[*struct_id].name, "GcHandle$S");
         assert!(matches!(args.as_slice(), [mir::Expr::Local(local)] if *local == handle_result));
-        let (call, _) = statement_call(&entry_statements(body)[6]);
+        let (call, _) = statement_call(&entry_statements(body)[5]);
         assert!(matches!(
             call.target.callee,
             mir::Callee::Runtime(mir::RuntimeFn::ReleaseHandle)
@@ -8694,13 +8723,13 @@ Module
 
         // `gcCollect()` is a plain void runtime call; `gcStats()`
         // yields the raw word (`UInt`).
-        let (call, destination) = statement_call(&entry_statements(body)[8]);
+        let (call, destination) = statement_call(&entry_statements(body)[6]);
         assert!(destination.is_none());
         assert!(matches!(
             call.target.callee,
             mir::Callee::Runtime(mir::RuntimeFn::GcCollect)
         ));
-        let (call, destination) = statement_call(&entry_statements(body)[9]);
+        let (call, destination) = statement_call(&entry_statements(body)[7]);
         assert!(matches!(
             call.target.callee,
             mir::Callee::Runtime(mir::RuntimeFn::GcStats)
@@ -8727,17 +8756,17 @@ Module
         // Two applications of one generic struct, one of them twice
         // (dedup), plus a struct whose field mentions its type
         // parameter (the general substitution path).
-        let pin_handle_v = h.struct_app(gc.pin_handle, vec![uint]);
-        let pin_handle_s = h.struct_app(gc.pin_handle, vec![string]);
+        let pinned_ptr_v = h.struct_app(gc.pinned_ptr, vec![uint]);
+        let pinned_ptr_s = h.struct_app(gc.pinned_ptr, vec![string]);
         let t = h
             .types
             .alloc(hir::Type::Param(hir::TypeParamId::from_raw(0)));
         let box2 = h.strukt("Box2", &[("x", t)]);
         let box2_s = h.struct_app(box2, vec![string]);
         let mut locals = Arena::new();
-        let a = locals.alloc(local("a", pin_handle_v));
-        let b = locals.alloc(local("b", pin_handle_s));
-        let c = locals.alloc(local("c", pin_handle_s));
+        let a = locals.alloc(local("a", pinned_ptr_v));
+        let b = locals.alloc(local("b", pinned_ptr_s));
+        let c = locals.alloc(local("c", pinned_ptr_s));
         let d = locals.alloc(local("d", box2_s));
         let main = h.user_fn(
             "main",
@@ -8746,15 +8775,15 @@ Module
                 statements: vec![
                     val_decl(
                         a,
-                        struct_init(gc.pin_handle, pin_handle_v, vec![int_lit(&h, 1)]),
+                        struct_init(gc.pinned_ptr, pinned_ptr_v, vec![int_lit(&h, 1)]),
                     ),
                     val_decl(
                         b,
-                        struct_init(gc.pin_handle, pin_handle_s, vec![int_lit(&h, 2)]),
+                        struct_init(gc.pinned_ptr, pinned_ptr_s, vec![int_lit(&h, 2)]),
                     ),
                     val_decl(
                         c,
-                        struct_init(gc.pin_handle, pin_handle_s, vec![int_lit(&h, 3)]),
+                        struct_init(gc.pinned_ptr, pinned_ptr_s, vec![int_lit(&h, 3)]),
                     ),
                     val_decl(d, struct_init(box2, box2_s, vec![str_lit(&h, "x")])),
                 ],
@@ -8762,8 +8791,8 @@ Module
         );
         let module = lower(&h.finish(main));
 
-        // One instance per (struct, args): `PinHandle$V` once,
-        // `PinHandle$S` once despite two uses, `Box2$S` once — named
+        // One instance per (struct, args): `PinnedPtr$V` once,
+        // `PinnedPtr$S` once despite two uses, `Box2$S` once — named
         // like the enum instances. Generic definitions themselves do
         // not survive into MIR: MIR contains no generic types.
         let defs = |name: &str| {
@@ -8774,11 +8803,11 @@ Module
                 .map(|(_, def)| def)
                 .collect::<Vec<_>>()
         };
-        assert!(defs("PinHandle").is_empty());
+        assert!(defs("PinnedPtr").is_empty());
         assert!(defs("Box2").is_empty());
-        assert_eq!(defs("PinHandle$V").len(), 1);
-        assert_eq!(defs("PinHandle$V")[0].fields[0].ty, mir::Type::UInt);
-        assert_eq!(defs("PinHandle$S").len(), 1);
+        assert_eq!(defs("PinnedPtr$V").len(), 1);
+        assert_eq!(defs("PinnedPtr$V")[0].fields[0].ty, mir::Type::UInt);
+        assert_eq!(defs("PinnedPtr$S").len(), 1);
         assert_eq!(defs("Box2$S").len(), 1);
         // Field substitution: `Box2<String>`'s `x` is `String`.
         assert_eq!(defs("Box2$S")[0].fields[0].ty, mir::Type::String);
@@ -8803,9 +8832,9 @@ Module
         let mir::StatementKind::ValDecl { local: ld, .. } = entry_statements(body)[3].kind else {
             panic!()
         };
-        assert_eq!(instance_of(la), "PinHandle$V");
-        assert_eq!(instance_of(lb), "PinHandle$S");
-        assert_eq!(instance_of(lc), "PinHandle$S");
+        assert_eq!(instance_of(la), "PinnedPtr$V");
+        assert_eq!(instance_of(lb), "PinnedPtr$S");
+        assert_eq!(instance_of(lc), "PinnedPtr$S");
         assert_eq!(instance_of(ld), "Box2$S");
         let mir::StatementKind::ValDecl { init, .. } = &entry_statements(body)[0].kind else {
             panic!()
@@ -8813,7 +8842,7 @@ Module
         let mir::Expr::StructInit { struct_id, .. } = init else {
             panic!("a struct construction")
         };
-        assert_eq!(module.structs[*struct_id].name, "PinHandle$V");
+        assert_eq!(module.structs[*struct_id].name, "PinnedPtr$V");
     }
 
     #[test]
@@ -11099,6 +11128,7 @@ Module
         // call the overloads, not runtime shims.)
         let expected = "\
 Module
+  extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
   enum Option$I
     Some(_1: Int)
     None()
@@ -11106,14 +11136,14 @@ Module
     bb0 entry
       call $call.1: String = @scoop_rt_int_to_string direct
         Local message
-      call @scoop_rt_print direct
+      call extern0 @scoop_rt_write direct
         Local $call.1
       return
   fun println @scoop.println(message: String) -> Unit
     bb0 entry
-      call @scoop_rt_print direct
+      call extern0 @scoop_rt_write direct
         Local message
-      call @scoop_rt_print direct
+      call extern0 @scoop_rt_write direct
         StringConst @scoop.str.0
       return
   fun main @scoop_main() -> Unit
@@ -11206,6 +11236,7 @@ Module
         // which is lowered once per fallthrough edge.
         let expected = "\
 Module
+  extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
   enum Option$I
     Some(_1: Int)
     None()
@@ -11213,14 +11244,14 @@ Module
     bb0 entry
       call $call.1: String = @scoop_rt_int_to_string direct
         Local message
-      call @scoop_rt_print direct
+      call extern0 @scoop_rt_write direct
         Local $call.1
       return
   fun println @scoop.println(message: String) -> Unit
     bb0 entry
-      call @scoop_rt_print direct
+      call extern0 @scoop_rt_write direct
         Local message
-      call @scoop_rt_print direct
+      call extern0 @scoop_rt_write direct
         StringConst @scoop.str.0
       return
   fun main @scoop_main() -> Unit

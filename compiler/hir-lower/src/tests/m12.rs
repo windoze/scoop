@@ -916,7 +916,7 @@ fn intrinsic_body_rule_is_owned_by_hir() {
     let mut core = core_file();
     core.declarations.push(annotate(
         fun("badIntrinsic", vec![]),
-        vec![string_annotation("Intrinsic", "rt_write")],
+        vec![string_annotation("Intrinsic", "rt_gc_collect")],
     ));
     let errors =
         lower(&[core, file(vec![fun("main", vec![])])]).expect_err("intrinsic body must fail");
@@ -1148,22 +1148,22 @@ fn extern_functions_have_typed_identity_and_abi_specific_effects() {
         "nativeWrite",
         vec![("message", ty_named("String"))],
         None,
-        extern_annotation("", "scoop_rt_print", "scoop"),
+        extern_annotation("", "scoop_rt_write", "scoop"),
     );
     let module = lower_user(file(vec![c, scoop, fun("main", vec![])]))
         .expect("both extern ABI categories must lower");
-    assert_eq!(module.extern_functions.len(), 2);
-    let (_, c) = module.extern_functions.iter().next().unwrap();
+    assert_eq!(module.extern_functions.len(), 3);
+    let (_, c) = module.extern_functions.iter().nth(1).unwrap();
     assert_eq!(c.abi, hir::ExternAbi::C);
     assert_eq!(c.safety, hir::Safety::Unsafe);
     assert_eq!(c.gc_effect, hir::GcEffect::NoGc);
-    let (_, scoop) = module.extern_functions.iter().nth(1).unwrap();
+    let (_, scoop) = module.extern_functions.iter().nth(2).unwrap();
     assert_eq!(scoop.abi, hir::ExternAbi::Scoop);
     assert_eq!(scoop.safety, hir::Safety::Safe);
     assert_eq!(scoop.gc_effect, hir::GcEffect::Managed);
     let dump = hir::dump(&module);
-    assert!(dump.contains("<extern0 abi=c symbol=native_add lib=numbers>"));
-    assert!(dump.contains("<extern1 abi=scoop symbol=scoop_rt_print>"));
+    assert!(dump.contains("<extern1 abi=c symbol=native_add lib=numbers>"));
+    assert!(dump.contains("<extern2 abi=scoop symbol=scoop_rt_write>"));
 }
 
 #[test]

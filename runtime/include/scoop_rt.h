@@ -127,7 +127,7 @@ void *scoop_rt_alloc(const ScoopTypeDescriptor *td, size_t size);
 extern unsigned char *scoop_gc_card_table;
 void scoop_rt_safepoint(void);
 
-void scoop_rt_print(const ScoopString *s);
+void scoop_rt_write(const ScoopString *s);
 void scoop_rt_println(const ScoopString *s);
 
 const ScoopString *scoop_rt_string_identity(const ScoopString *s);

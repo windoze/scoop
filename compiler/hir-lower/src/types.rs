@@ -34,7 +34,7 @@
 //! M9 (milestone9 DESIGN.md section 1): the `UInt` well-known type
 //! (spec 11.2; distinct from `Int` — `types_equal` stays strict and
 //! there is no implicit conversion) and generic struct applications
-//! (`PinHandle<T>` / `GcHandle<T>` from the core GC facilities).
+//! (`PinnedPtr<T>` / `GcHandle<T>` from the core GC facilities).
 //! Struct applications carry their arguments directly in
 //! `Type::Struct`, matching generic enum representation.
 //!
@@ -276,7 +276,7 @@ impl Lowerer {
                         }
                         if let Some(&(struct_id, ty)) = self.structs_by_name.get(&name.text) {
                             // A generic struct needs its type
-                            // arguments (`PinHandle<T>` goes through
+                            // arguments (`PinnedPtr<T>` goes through
                             // TypeRefKind::Generic), mirroring the
                             // generic enum rule below.
                             let arity = self.structs[struct_id].type_params.len();
@@ -426,7 +426,7 @@ impl Lowerer {
         Some(self.intern_function_type(function.is_suspend, parameter_types, return_type))
     }
 
-    /// Intern a generic struct application (`PinHandle<String>`, M9).
+    /// Intern a generic struct application (`PinnedPtr<String>`, M12).
     pub(crate) fn struct_application(&mut self, struct_id: StructId, args: Vec<TypeId>) -> TypeId {
         self.intern_type(Type::Struct(struct_id, args))
     }
@@ -732,7 +732,7 @@ impl Lowerer {
 
     /// Structural type equality (tuple and enum types compare
     /// elementwise; generic struct applications compare by struct and
-    /// argument list, so `PinHandle<Int>` and `PinHandle<String>` are
+    /// argument list, so `PinnedPtr<Int>` and `PinnedPtr<String>` are
     /// different types — just as `Int` and `UInt` are, spec 11.2).
     pub(crate) fn types_equal(&self, a: TypeId, b: TypeId) -> bool {
         type_value_equal(&self.types, a, b)

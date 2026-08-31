@@ -29,12 +29,12 @@ extern const ScoopTypeDescriptor scoop_td_String;
 /* scoop_rt_alloc lives in gc.c (M9): it allocates from the GC heap and
  * may trigger a collection. */
 
-void scoop_rt_print(const ScoopString *s) {
+void scoop_rt_write(const ScoopString *s) {
     fwrite(s->data, 1, s->len, stdout);
 }
 
 void scoop_rt_println(const ScoopString *s) {
-    scoop_rt_print(s);
+    scoop_rt_write(s);
     fputc('\n', stdout);
 }
 

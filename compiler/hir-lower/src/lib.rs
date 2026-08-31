@@ -70,7 +70,7 @@
 //! preferred on ties). `print` / `println` are ordinary core-library
 //! functions taking `Any` and dispatching `message.toString()` through
 //! the synthesized `Any` members (vtable slots 0..2); the `@Intrinsic`
-//! registry only backs the single `rt_write` primitive and no
+//! registry only backs compiler primitives and no
 //! call-site special rules remain.
 //!
 //! M8 (milestone8 DESIGN.md 3.2): exceptions. `scoop.core` must define
@@ -87,7 +87,7 @@
 //! 11.2 — a distinct type from `Int` with no implicit conversion;
 //! arithmetic and comparisons follow the same rules as `Int`, with the
 //! unsigned semantics risks deferred) and the core GC facilities:
-//! generic structs `PinHandle<T>` / `GcHandle<T>` and the `pin` /
+//! generic structs `PinnedPtr<T>` / `GcHandle<T>` and the `pin` /
 //! `unpin` / `getGcHandle`
 //! / `releaseGcHandle` intrinsics. M12 now expresses their reference
 //! constraint through the ordinary typed `T : ref` kind bound rather
@@ -357,6 +357,8 @@ pub(crate) struct Lowerer {
     /// then normalize while pass 2/2.5 resolves fields and signatures.
     pub(crate) ffi_ptr: Option<StructId>,
     pub(crate) ffi_fun_ptr: Option<StructId>,
+    pub(crate) ffi_pinned_ptr: Option<StructId>,
+    pub(crate) ffi_gc_handle: Option<StructId>,
     /// Fully validated pointer core, available while lowering user bodies.
     pub(crate) ffi_core: Option<hir::FfiCore>,
     pub(crate) pointer_type_uses: Vec<(TypeId, usize, Span)>,
@@ -440,6 +442,25 @@ pub(crate) struct Lowerer {
     /// Counter for hidden `$opt.N` / `$res.N` desugaring temporaries.
     pub(crate) hidden_count: u32,
     pub(crate) diagnostics: Vec<Diagnostic>,
+}
+
+#[derive(Clone, Copy)]
+enum GcIntrinsic {
+    Pin,
+    Unpin,
+    GetHandle,
+    ReleaseHandle,
+}
+
+impl GcIntrinsic {
+    fn name(self) -> &'static str {
+        match self {
+            Self::Pin => "gc_pin_raw",
+            Self::Unpin => "gc_unpin_raw",
+            Self::GetHandle => "gc_get_handle_raw",
+            Self::ReleaseHandle => "gc_release_handle_raw",
+        }
+    }
 }
 
 impl Lowerer {
@@ -528,6 +549,8 @@ impl Lowerer {
             interface_files: HashMap::new(),
             ffi_ptr: None,
             ffi_fun_ptr: None,
+            ffi_pinned_ptr: None,
+            ffi_gc_handle: None,
             ffi_core: None,
             pointer_type_uses: Vec::new(),
             fun_ptr_type_uses: Vec::new(),
@@ -715,6 +738,8 @@ impl Lowerer {
 
         self.ffi_ptr = self.require_core_struct("Ptr", files);
         self.ffi_fun_ptr = self.require_core_struct("FunPtr", files);
+        self.ffi_pinned_ptr = self.require_core_struct("PinnedPtr", files);
+        self.ffi_gc_handle = self.require_core_struct("GcHandle", files);
 
         // The core library's `Option<T>` must be validated before any
         // type annotation is resolved: `T?` desugars to it (spec 7.1).
@@ -1396,11 +1421,19 @@ impl Lowerer {
     fn validate_ffi_core(&mut self, files: &[ast::SourceFile]) -> Option<hir::FfiCore> {
         let ptr = self.ffi_ptr;
         let fun_ptr = self.ffi_fun_ptr;
+        let pinned_ptr = self.ffi_pinned_ptr;
+        let gc_handle = self.ffi_gc_handle;
         if let Some(id) = ptr {
             self.validate_ptr_struct(id);
         }
         if let Some(id) = fun_ptr {
             self.validate_fun_ptr_struct(id);
+        }
+        if let Some(id) = pinned_ptr {
+            self.validate_ffi_handle_struct(id, "PinnedPtr");
+        }
+        if let Some(id) = gc_handle {
+            self.validate_ffi_handle_struct(id, "GcHandle");
         }
 
         let ptr_to_uint = self.require_intrinsic("ptr_to_uint", files);
@@ -1414,6 +1447,21 @@ impl Lowerer {
         let address_of = self.require_intrinsic("address_of", files);
         let size_of = self.require_intrinsic("size_of", files);
         let align_of = self.require_intrinsic("align_of", files);
+        let gc_pin_raw = self.require_intrinsic("gc_pin_raw", files);
+        let gc_unpin_raw = self.require_intrinsic("gc_unpin_raw", files);
+        let gc_get_handle_raw = self.require_intrinsic("gc_get_handle_raw", files);
+        let gc_release_handle_raw = self.require_intrinsic("gc_release_handle_raw", files);
+
+        for (id, kind) in [
+            (gc_pin_raw, GcIntrinsic::Pin),
+            (gc_unpin_raw, GcIntrinsic::Unpin),
+            (gc_get_handle_raw, GcIntrinsic::GetHandle),
+            (gc_release_handle_raw, GcIntrinsic::ReleaseHandle),
+        ] {
+            if let Some(id) = id {
+                self.validate_gc_intrinsic(id, kind);
+            }
+        }
 
         if let Some(ptr) = ptr {
             for (id, kind) in [
@@ -1444,6 +1492,8 @@ impl Lowerer {
         Some(hir::FfiCore {
             ptr: ptr?,
             fun_ptr: fun_ptr?,
+            pinned_ptr: pinned_ptr?,
+            gc_handle: gc_handle?,
             ptr_to_uint: ptr_to_uint?,
             ptr_cast: ptr_cast?,
             ptr_load: ptr_load?,
@@ -1455,7 +1505,60 @@ impl Lowerer {
             address_of: address_of?,
             size_of: size_of?,
             align_of: align_of?,
+            gc_pin_raw: gc_pin_raw?,
+            gc_unpin_raw: gc_unpin_raw?,
+            gc_get_handle_raw: gc_get_handle_raw?,
+            gc_release_handle_raw: gc_release_handle_raw?,
         })
+    }
+
+    fn validate_ffi_handle_struct(&mut self, id: StructId, name: &str) {
+        self.current_file = self.struct_files[&id];
+        let declaration = &self.structs[id];
+        let valid = declaration.type_params.len() == 1
+            && declaration.type_params[0].kind == hir::TypeParamKind::Ref
+            && matches!(declaration.fields.as_slice(), [field] if field.name == "raw" && field.ty == self.uint)
+            && declaration.interfaces.is_empty()
+            && !declaration.attributes.interior_mutable
+            && declaration.attributes.c_layout.is_none();
+        if !valid {
+            self.error(
+                declaration.span,
+                format!("core `{name}` must be `struct {name}<T : ref>(val raw: UInt)`"),
+            );
+        }
+    }
+
+    fn validate_gc_intrinsic(&mut self, id: FunctionId, kind: GcIntrinsic) {
+        self.current_file = self.function_files[&id];
+        let function = &self.functions[id];
+        let signature = &self.signatures[&id];
+        let parameter_matches = match kind {
+            GcIntrinsic::Pin | GcIntrinsic::GetHandle => {
+                matches!(signature.params.as_slice(), [param] if self.is_type_param(param.ty, 0))
+                    && signature.return_ty == self.uint
+            }
+            GcIntrinsic::Unpin | GcIntrinsic::ReleaseHandle => {
+                matches!(signature.params.as_slice(), [param] if param.ty == self.uint)
+                    && self.is_type_param(signature.return_ty, 0)
+            }
+        };
+        let valid = !signature.is_suspend
+            && signature.type_params.len() == 1
+            && signature.type_params[0].kind == hir::TypeParamKind::Ref
+            && signature.attributes.safety == hir::Safety::Unsafe
+            && signature.attributes.gc_effect == hir::GcEffect::Managed
+            && function.method.is_none()
+            && parameter_matches;
+        if !valid {
+            self.error(
+                function.span,
+                format!(
+                    "intrinsic `{}` has an invalid core GC primitive signature",
+                    kind.name()
+                ),
+            );
+        }
     }
 
     fn validate_ptr_struct(&mut self, id: StructId) {

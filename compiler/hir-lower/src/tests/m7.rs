@@ -785,8 +785,8 @@ fn layering_is_relative_to_the_call_site_file() {
     let (target, _) = call_in_main(&module, 0, true);
     assert_eq!(target, top_level_fn(&module, "write", &["Int"]));
 
-    // Core's `print(Any)` body still calls the core `write`
-    // primitive (the `@Intrinsic("rt_write")` function) — the user
+    // Core's `print(Any)` body still calls the core managed `write`
+    // extern — the user
     // overload does not leak into core's own layer.
     let core_write = module
         .top_level
@@ -794,9 +794,9 @@ fn layering_is_relative_to_the_call_site_file() {
         .copied()
         .find(|&id| {
             let f = &module.functions[id];
-            f.name == "write" && matches!(f.kind, hir::FunctionKind::Intrinsic(_))
+            f.name == "write" && matches!(f.kind, hir::FunctionKind::Extern(_))
         })
-        .expect("core declares the write intrinsic");
+        .expect("core declares the write extern");
     let core_print = top_level_fn(&module, "print", &["Any"]);
     let body = body_of(&module, core_print);
     let hir::StatementKind::Expr(value) = &body.statements[0].kind else {
@@ -808,7 +808,7 @@ fn layering_is_relative_to_the_call_site_file() {
     assert_eq!(module.callable_function(*callee), core_write);
 
     // Core's `println` body is likewise unaffected: both of its
-    // `write` calls target the core primitive.
+    // `write` calls target the core extern.
     let core_println = top_level_fn(&module, "println", &["Any"]);
     let body = body_of(&module, core_println);
     for statement in &body.statements {
@@ -824,7 +824,7 @@ fn layering_is_relative_to_the_call_site_file() {
 
 // --- core `print` / `println` (DESIGN section 2, final form) ---
 
-/// The core `write` intrinsic (`@Intrinsic("rt_write")`).
+/// The core managed `write` extern.
 fn core_write(module: &hir::Module) -> hir::FunctionId {
     module
         .top_level
@@ -832,9 +832,9 @@ fn core_write(module: &hir::Module) -> hir::FunctionId {
         .copied()
         .find(|&id| {
             let f = &module.functions[id];
-            f.name == "write" && matches!(f.kind, hir::FunctionKind::Intrinsic(_))
+            f.name == "write" && matches!(f.kind, hir::FunctionKind::Extern(_))
         })
-        .expect("core declares the write intrinsic")
+        .expect("core declares the write extern")
 }
 
 /// The synthesized `Any` member by (qualified) name.
@@ -894,7 +894,7 @@ fn print_and_println_take_any_and_dispatch_to_string() {
     assert!(matches!(module.types[args[0].ty], Type::Any));
 
     // Core's `print` body is `write(message.toString())`: the write
-    // call targets the `rt_write` intrinsic, its argument a method
+    // call targets the managed `write` extern, its argument a method
     // call to the synthesized `Any.toString` on the `Any` parameter.
     let write = core_write(&module);
     let to_string = any_member(&module, "toString");

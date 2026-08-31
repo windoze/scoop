@@ -1,4 +1,4 @@
-@Extern(name = "scoop_rt_print", abi = "scoop")
+@Extern(name = "scoop_rt_write", abi = "scoop")
 fun nativeWrite(message: String)
 
 fun main() {

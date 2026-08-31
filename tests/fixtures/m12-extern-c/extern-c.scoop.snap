@@ -54,24 +54,52 @@ SourceFile
     @Intrinsic("align_of")
   fun alignOf<T : value>(): UInt
 SourceFile
-  struct PinHandle<T : ref>
+  struct PinnedPtr<T : ref>
     field raw: UInt
   struct GcHandle<T : ref>
     field raw: UInt
-    @Intrinsic("rt_pin")
-  fun pin<T : ref>(v: T): PinHandle<T>
-    @Intrinsic("rt_unpin")
-  fun unpin<T : ref>(h: PinHandle<T>): T
-    @Intrinsic("rt_get_handle")
+    @Unsafe
+    @Intrinsic("gc_pin_raw")
+  fun _pin<T : ref>(v: T): UInt
+    @Unsafe
+    @Intrinsic("gc_unpin_raw")
+  fun _unpin<T : ref>(raw: UInt): T
+    @Unsafe
+    @Intrinsic("gc_get_handle_raw")
+  fun _getGcHandle<T : ref>(v: T): UInt
+    @Unsafe
+    @Intrinsic("gc_release_handle_raw")
+  fun _releaseGcHandle<T : ref>(raw: UInt): T
+    @Unsafe
+  fun pin<T : ref>(v: T): PinnedPtr<T>
+    =
+      Call PinnedPtr<T>
+        Call _pin
+          Var v
+    @Unsafe
+  fun unpin<T : ref>(p: PinnedPtr<T>): T
+    =
+      Call _unpin<T>
+        FieldAccess raw
+          Var p
+    @Unsafe
   fun getGcHandle<T : ref>(v: T): GcHandle<T>
-    @Intrinsic("rt_release_handle")
+    =
+      Call GcHandle<T>
+        Call _getGcHandle
+          Var v
+    @Unsafe
   fun releaseGcHandle<T : ref>(h: GcHandle<T>): T
+    =
+      Call _releaseGcHandle<T>
+        FieldAccess raw
+          Var h
     @Intrinsic("rt_gc_collect")
   fun gcCollect()
     @Intrinsic("rt_gc_stats")
   fun gcStats(): UInt
 SourceFile
-    @Intrinsic("rt_write")
+    @Extern(name = "scoop_rt_write", abi = "scoop")
   fun write(message: String)
   fun print(message: Any)
     =
@@ -176,10 +204,6 @@ Module
     field task: suspend () -> T0
   struct FunctionSuspendRegistration<T> : SuspendRegistration<T0>
     field registration: (Continuation<T0>) -> Unit
-  struct PinHandle<T : ref>
-    field raw: UInt
-  struct GcHandle<T : ref>
-    field raw: UInt
   struct NativePair <c-layout aligned=0 packed=0>
     field left: Int
     field right: Int
@@ -214,13 +238,29 @@ Module
         Box : SuspendRegistration<T0>
           StructInit FunctionSuspendRegistration : FunctionSuspendRegistration<T0>
             Local registration : (Continuation<T0>) -> Unit
-  fun pin<T : ref>(): PinHandle<T0> <intrinsic rt_pin>
-  fun unpin<T : ref>(): T0 <intrinsic rt_unpin>
-  fun getGcHandle<T : ref>(): GcHandle<T0> <intrinsic rt_get_handle>
-  fun releaseGcHandle<T : ref>(): T0 <intrinsic rt_release_handle>
+  fun pin<T : ref>(v: T0): PinnedPtr<T0> <unsafe>
+    return
+      StructInit PinnedPtr : PinnedPtr<T0>
+        Call _pin<T0> : UInt
+          Local v : T0
+  fun unpin<T : ref>(p: PinnedPtr<T0>): T0 <unsafe>
+    return
+      Call _unpin<T0> : T0
+        FieldAccess field 0 : UInt
+          Local p : PinnedPtr<T0>
+  fun getGcHandle<T : ref>(v: T0): GcHandle<T0> <unsafe>
+    return
+      StructInit GcHandle : GcHandle<T0>
+        Call _getGcHandle<T0> : UInt
+          Local v : T0
+  fun releaseGcHandle<T : ref>(h: GcHandle<T0>): T0 <unsafe>
+    return
+      Call _releaseGcHandle<T0> : T0
+        FieldAccess field 0 : UInt
+          Local h : GcHandle<T0>
   fun gcCollect(): Unit <intrinsic rt_gc_collect>
   fun gcStats(): UInt <intrinsic rt_gc_stats>
-  fun write(): Unit <intrinsic rt_write>
+  fun write(arg1: String): Unit <extern0 abi=scoop symbol=scoop_rt_write>
   fun print(message: Any): Unit
     Call write : Unit
       MethodCall Any.toString : String
@@ -232,12 +272,12 @@ Module
         Local message : Any
     Call write : Unit
       StringLiteral "\n" : String
-  fun nativeAdd(arg1: Int, arg2: Int): Int <unsafe no-gc cdecl> <extern0 abi=c symbol=native_add lib=fixture_native>
-  fun nativeNot(arg1: Boolean): Boolean <unsafe no-gc cdecl> <extern1 abi=c symbol=native_not lib=fixture_native>
-  fun nativeSwap(arg1: NativePair): NativePair <unsafe no-gc cdecl> <extern2 abi=c symbol=native_swap lib=fixture_native>
-  fun nativeSink(arg1: Int): Unit <unsafe no-gc cdecl> <extern3 abi=c symbol=native_sink lib=fixture_native>
-  fun nativeApply(arg1: Int, arg2: FunPtr<(Int) -> Int>): Int <unsafe no-gc cdecl> <extern4 abi=c symbol=native_apply lib=fixture_native>
-  fun nativeApplyPair(arg1: NativePair, arg2: FunPtr<(NativePair) -> NativePair>): NativePair <unsafe no-gc cdecl> <extern5 abi=c symbol=native_apply_pair lib=fixture_native>
+  fun nativeAdd(arg1: Int, arg2: Int): Int <unsafe no-gc cdecl> <extern1 abi=c symbol=native_add lib=fixture_native>
+  fun nativeNot(arg1: Boolean): Boolean <unsafe no-gc cdecl> <extern2 abi=c symbol=native_not lib=fixture_native>
+  fun nativeSwap(arg1: NativePair): NativePair <unsafe no-gc cdecl> <extern3 abi=c symbol=native_swap lib=fixture_native>
+  fun nativeSink(arg1: Int): Unit <unsafe no-gc cdecl> <extern4 abi=c symbol=native_sink lib=fixture_native>
+  fun nativeApply(arg1: Int, arg2: FunPtr<(Int) -> Int>): Int <unsafe no-gc cdecl> <extern5 abi=c symbol=native_apply lib=fixture_native>
+  fun nativeApplyPair(arg1: NativePair, arg2: FunPtr<(NativePair) -> NativePair>): NativePair <unsafe no-gc cdecl> <extern6 abi=c symbol=native_apply_pair lib=fixture_native>
   fun increment(value: Int): Int <no-gc cdecl>
     return
       Binary Add : Int
@@ -304,12 +344,13 @@ Module
 
 == mir ==
 Module
-  extern ef0 nativeAdd @native_add(Int, Int) -> Int <abi=c no-gc lib=fixture_native>
-  extern ef1 nativeNot @native_not(Boolean) -> Boolean <abi=c no-gc lib=fixture_native>
-  extern ef2 nativeSwap @native_swap(NativePair) -> NativePair <abi=c no-gc lib=fixture_native>
-  extern ef3 nativeSink @native_sink(Int) -> Unit <abi=c no-gc lib=fixture_native>
-  extern ef4 nativeApply @native_apply(Int, FunPtr<(Int) -> Int>) -> Int <abi=c no-gc lib=fixture_native>
-  extern ef5 nativeApplyPair @native_apply_pair(NativePair, FunPtr<(NativePair) -> NativePair>) -> NativePair <abi=c no-gc lib=fixture_native>
+  extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
+  extern ef1 nativeAdd @native_add(Int, Int) -> Int <abi=c no-gc lib=fixture_native>
+  extern ef2 nativeNot @native_not(Boolean) -> Boolean <abi=c no-gc lib=fixture_native>
+  extern ef3 nativeSwap @native_swap(NativePair) -> NativePair <abi=c no-gc lib=fixture_native>
+  extern ef4 nativeSink @native_sink(Int) -> Unit <abi=c no-gc lib=fixture_native>
+  extern ef5 nativeApply @native_apply(Int, FunPtr<(Int) -> Int>) -> Int <abi=c no-gc lib=fixture_native>
+  extern ef6 nativeApplyPair @native_apply_pair(NativePair, FunPtr<(NativePair) -> NativePair>) -> NativePair <abi=c no-gc lib=fixture_native>
   callback cb0 @scoop.increment -> @scoop_callback_bridge_0 function_type0
   callback cb1 @scoop.shiftPair -> @scoop_callback_bridge_1 function_type1
   struct NativePair (left: Int, right: Int) <c-layout aligned=0 packed=0>
@@ -329,16 +370,16 @@ Module
     bb0 entry
       call $call.1: String = @scoop.Any.toString virtual[2]
         Local message
-      call @scoop_rt_print direct
+      call extern0 @scoop_rt_write direct
         Local $call.1
       return
   fun println @scoop.println(message: Any) -> Unit
     bb0 entry
       call $call.1: String = @scoop.Any.toString virtual[2]
         Local message
-      call @scoop_rt_print direct
+      call extern0 @scoop_rt_write direct
         Local $call.1
-      call @scoop_rt_print direct
+      call extern0 @scoop_rt_write direct
         StringConst @scoop.str.0
       return
   fun increment @scoop.increment(value: Int) -> Int <no-gc>
@@ -361,18 +402,18 @@ Module
             IntLiteral 20
   fun main @scoop_main() -> Unit
     bb0 entry
-      call $call.1: Int = extern0 @native_add direct
+      call $call.1: Int = extern1 @native_add direct
         IntLiteral 19
         IntLiteral 23
       call @scoop.println direct
         Box
           Local $call.1
-      call $call.2: Boolean = extern1 @native_not direct
+      call $call.2: Boolean = extern2 @native_not direct
         BoolLiteral false
       call @scoop.println direct
         Box
           Local $call.2
-      call swapped: NativePair = extern2 @native_swap direct
+      call swapped: NativePair = extern3 @native_swap direct
         StructInit NativePair
           IntLiteral 7
           IntLiteral 11
@@ -384,15 +425,15 @@ Module
         Box
           FieldAccess 1
             Local swapped
-      call extern3 @native_sink direct
+      call extern4 @native_sink direct
         IntLiteral 1
-      call $call.3: Int = extern4 @native_apply direct
+      call $call.3: Int = extern5 @native_apply direct
         IntLiteral 41
         FunctionAddress cb0
       call @scoop.println direct
         Box
           Local $call.3
-      call shifted: NativePair = extern5 @native_apply_pair direct
+      call shifted: NativePair = extern6 @native_apply_pair direct
         StructInit NativePair
           IntLiteral 3
           IntLiteral 4
@@ -527,12 +568,13 @@ Module
   global @scoop_td_IndexOutOfBoundsException = c""
   global @scoop_td_IllegalStateException = c""
   enum Option$S niche(payload_variant=0)
-  extern ef0 nativeAdd @native_add(i64, i64) -> i64 <c bridge=@scoop_c_bridge_0 gc-leaf nounwind lib=fixture_native>
-  extern ef1 nativeNot @native_not(i1) -> i1 <c bridge=@scoop_c_bridge_1 gc-leaf nounwind lib=fixture_native>
-  extern ef2 nativeSwap @native_swap(struct0) -> struct0 <c bridge=@scoop_c_bridge_2 gc-leaf nounwind lib=fixture_native>
-  extern ef3 nativeSink @native_sink(i64) -> {} <c bridge=@scoop_c_bridge_3 gc-leaf nounwind lib=fixture_native>
-  extern ef4 nativeApply @native_apply(i64, ptr) -> i64 <c bridge=@scoop_c_bridge_4 gc-leaf nounwind lib=fixture_native>
-  extern ef5 nativeApplyPair @native_apply_pair(struct0, ptr) -> struct0 <c bridge=@scoop_c_bridge_5 gc-leaf nounwind lib=fixture_native>
+  extern ef0 write @scoop_rt_write(ptr) -> {} <scoop managed nounwind>
+  extern ef1 nativeAdd @native_add(i64, i64) -> i64 <c bridge=@scoop_c_bridge_1 gc-leaf nounwind lib=fixture_native>
+  extern ef2 nativeNot @native_not(i1) -> i1 <c bridge=@scoop_c_bridge_2 gc-leaf nounwind lib=fixture_native>
+  extern ef3 nativeSwap @native_swap(struct0) -> struct0 <c bridge=@scoop_c_bridge_3 gc-leaf nounwind lib=fixture_native>
+  extern ef4 nativeSink @native_sink(i64) -> {} <c bridge=@scoop_c_bridge_4 gc-leaf nounwind lib=fixture_native>
+  extern ef5 nativeApply @native_apply(i64, ptr) -> i64 <c bridge=@scoop_c_bridge_5 gc-leaf nounwind lib=fixture_native>
+  extern ef6 nativeApplyPair @native_apply_pair(struct0, ptr) -> struct0 <c bridge=@scoop_c_bridge_6 gc-leaf nounwind lib=fixture_native>
   callback cb0 increment @scoop_callback_bridge_0 -> @scoop_c_callback_0
   callback cb1 shiftPair @scoop_callback_bridge_1 -> @scoop_c_callback_1
   fun @scoop.print(ptr) -> void
@@ -542,7 +584,7 @@ Module
     t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
     store t2 -> local0
-    call @scoop_rt_print(local0)
+    native_call extern0(local0)
     t3 = aggregate () : {}
     ret
   fun @scoop.println(ptr) -> void
@@ -552,9 +594,9 @@ Module
     t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
     store t2 -> local0
-    call @scoop_rt_print(local0)
+    native_call extern0(local0)
     t3 = aggregate () : {}
-    call @scoop_rt_print(global0)
+    native_call extern0(global0)
     t4 = aggregate () : {}
     ret
   fun @scoop.increment(i64) -> i64 <no-gc>
@@ -595,7 +637,7 @@ Module
     t1 = local_address local6 : ptr
     store 23 -> local7
     t2 = local_address local7 : ptr
-    native_call extern0(t0, t1, t2)
+    native_call extern1(t0, t1, t2)
     store local5 -> local2
     t3 = call @scoop_rt_box(global6, local2, 8) : ptr
     call @scoop.println(t3)
@@ -603,7 +645,7 @@ Module
     t5 = local_address local8 : ptr
     store false -> local9
     t6 = local_address local9 : ptr
-    native_call extern1(t5, t6)
+    native_call extern2(t5, t6)
     store local8 -> local3
     t7 = call @scoop_rt_box(global7, local3, 1) : ptr
     call @scoop.println(t7)
@@ -612,7 +654,7 @@ Module
     t10 = local_address local10 : ptr
     store t9 -> local11
     t11 = local_address local11 : ptr
-    native_call extern2(t10, t11)
+    native_call extern3(t10, t11)
     store local10 -> local0
     t12 = extract local0, 0 : i64
     t13 = call @scoop_rt_box(global6, t12, 8) : ptr
@@ -624,7 +666,7 @@ Module
     t17 = aggregate () : {}
     store 1 -> local12
     t18 = local_address local12 : ptr
-    native_call extern3(t18)
+    native_call extern4(t18)
     t19 = aggregate () : {}
     t20 = function_address @scoop_c_callback_0 : ptr
     t21 = local_address local13 : ptr
@@ -632,7 +674,7 @@ Module
     t22 = local_address local14 : ptr
     store t20 -> local15
     t23 = local_address local15 : ptr
-    native_call extern4(t21, t22, t23)
+    native_call extern5(t21, t22, t23)
     store local13 -> local4
     t24 = call @scoop_rt_box(global6, local4, 8) : ptr
     call @scoop.println(t24)
@@ -644,7 +686,7 @@ Module
     t29 = local_address local17 : ptr
     store t27 -> local18
     t30 = local_address local18 : ptr
-    native_call extern5(t28, t29, t30)
+    native_call extern6(t28, t29, t30)
     store local16 -> local1
     t31 = extract local1, 0 : i64
     t32 = call @scoop_rt_box(global6, t31, 8) : ptr
