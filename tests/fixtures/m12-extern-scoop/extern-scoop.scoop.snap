@@ -127,9 +127,19 @@ SourceFile
 SourceFile
     @Extern(name = "scoop_rt_write", abi = "scoop")
   fun nativeWrite(message: String)
+    @Extern(lib = "fixture_native", name = "native_root_round_trip", abi = "scoop")
+  fun nativeRootRoundTrip(message: String): String
+  fun stringify(value: Any): String
+    =
+      MethodCall toString
+        Var value
   fun main()
     Call nativeWrite
       StringLiteral "direct managed ref"
+    Call println
+      Call nativeRootRoundTrip
+        Call stringify
+          IntLiteral 42
 
 == hir ==
 Module
@@ -203,9 +213,19 @@ Module
     Call write : Unit
       StringLiteral "\n" : String
   fun nativeWrite(arg1: String): Unit <extern1 abi=scoop symbol=scoop_rt_write>
+  fun nativeRootRoundTrip(arg1: String): String <extern2 abi=scoop symbol=native_root_round_trip lib=fixture_native>
+  fun stringify(value: Any): String
+    return
+      MethodCall Any.toString : String
+        Local value : Any
   fun main(): Unit
     Call nativeWrite : Unit
       StringLiteral "direct managed ref" : String
+    Call println : Unit
+      Call nativeRootRoundTrip : Any
+        Call stringify : String
+          Box : Any
+            IntLiteral 42 : Int
   entry main
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>
@@ -214,6 +234,7 @@ Module
 Module
   extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
   extern ef1 nativeWrite @scoop_rt_write(String) -> Unit <abi=scoop managed>
+  extern ef2 nativeRootRoundTrip @native_root_round_trip(String) -> String <abi=scoop managed lib=fixture_native>
   enum Option$S
     Some(_1: String)
     None()
@@ -224,6 +245,7 @@ Module
   class ArithmeticException vtable=3 itables=0
   class IndexOutOfBoundsException vtable=3 itables=0
   class IllegalStateException vtable=3 itables=0
+  class box$I vtable=3 itables=0
   fun print @scoop.print(message: Any) -> Unit
     bb0 entry
       call $call.1: String = @scoop.Any.toString virtual[2]
@@ -240,10 +262,23 @@ Module
       call extern0 @scoop_rt_write direct
         StringConst @scoop.str.0
       return
+  fun stringify @scoop.stringify(value: Any) -> String
+    bb0 entry
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local value
+      return
+        Local $call.1
   fun main @scoop_main() -> Unit
     bb0 entry
       call extern1 @scoop_rt_write direct
         StringConst @scoop.str.1
+      call $call.1: String = @scoop.stringify direct
+        Box
+          IntLiteral 42
+      call $call.2: Any = extern2 @native_root_round_trip direct
+        Local $call.1
+      call @scoop.println direct
+        Local $call.2
       return
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
     bb0 entry
@@ -284,6 +319,25 @@ Module
         ClassInit IllegalStateException
           VariantConstruct Option$S<String> v0
             StringConst @scoop.str.6
+  fun eq.I @scoop.eq.I(this: Any, other: Any) -> Boolean
+    bb0 entry
+      val $a: Int
+        Unbox
+          Local this
+      val $b: Int
+        Unbox
+          Local other
+      return
+        Binary IntEq
+          Local $a
+          Local $b
+  fun tostring.I @scoop.tostring.I(this: Any) -> String
+    bb0 entry
+      call $call.1: String = @scoop_rt_int_to_string direct
+        Unbox
+          Local this
+      return
+        Local $call.1
   str @scoop.str.0 "\n"
   str @scoop.str.1 "direct managed ref"
   str @scoop.str.2 "unwrap on None"
@@ -302,6 +356,7 @@ Module
   global @scoop.str.4 = "arithmetic error"
   global @scoop.str.5 = "array index out of bounds"
   global @scoop.str.6 = "illegal state"
+  global @scoop_td_box$I = c""
   global @scoop_td_Throwable = c""
   global @scoop_td_Exception = c""
   global @scoop_td_UnwrapException = c""
@@ -312,6 +367,7 @@ Module
   enum Option$S niche(payload_variant=0)
   extern ef0 write @scoop_rt_write(ptr) -> {} <scoop managed nounwind>
   extern ef1 nativeWrite @scoop_rt_write(ptr) -> {} <scoop managed nounwind>
+  extern ef2 nativeRootRoundTrip @native_root_round_trip(ptr) -> ptr <scoop managed nounwind lib=fixture_native>
   fun @scoop.print(ptr) -> void
     local %0 $call.1: ptr
   block entry
@@ -334,51 +390,86 @@ Module
     native_call extern0(global0)
     t4 = aggregate () : {}
     ret
+  fun @scoop.stringify(ptr) -> ptr
+    local %0 $call.1: ptr
+  block entry
+    t0 = heap_load param0 +0 : ptr
+    t1 = heap_load t0 +40 : ptr
+    t2 = call_indirect t1[2](param0) : ptr
+    store t2 -> local0
+    ret local0
   fun @scoop_main() -> void
+    local %0 $call.1: ptr
+    local %1 $call.2: ptr
   block entry
     native_call extern1(global1)
     t0 = aggregate () : {}
+    t1 = call @scoop_rt_box(global7, 42, 8) : ptr
+    t2 = call @scoop.stringify(t1) : ptr
+    store t2 -> local0
+    t3 = native_call extern2(local0) : ptr
+    store t3 -> local1
+    call @scoop.println(local1)
+    t4 = aggregate () : {}
     ret
   fun @scoop.ctor.Throwable() -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global7, 16) : ptr
+    t0 = call @scoop_rt_alloc(global8, 16) : ptr
     ret t0
   fun @scoop.ctor.Exception(enum0) -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global8, 24) : ptr
+    t0 = call @scoop_rt_alloc(global9, 24) : ptr
     heap_store t0 +16 param0
     ret t0
   fun @scoop.ctor.UnwrapException() -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global9, 24) : ptr
+    t0 = call @scoop_rt_alloc(global10, 24) : ptr
     t1 = enum_wrap e0 v0 (global2) : enum0
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.ClassCastException() -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global10, 24) : ptr
+    t0 = call @scoop_rt_alloc(global11, 24) : ptr
     t1 = enum_wrap e0 v0 (global3) : enum0
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.ArithmeticException() -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global11, 24) : ptr
+    t0 = call @scoop_rt_alloc(global12, 24) : ptr
     t1 = enum_wrap e0 v0 (global4) : enum0
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.IndexOutOfBoundsException() -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global12, 24) : ptr
+    t0 = call @scoop_rt_alloc(global13, 24) : ptr
     t1 = enum_wrap e0 v0 (global5) : enum0
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.IllegalStateException() -> ptr
   block entry
-    t0 = call @scoop_rt_alloc(global13, 24) : ptr
+    t0 = call @scoop_rt_alloc(global14, 24) : ptr
     t1 = enum_wrap e0 v0 (global6) : enum0
     heap_store t0 +16 t1
     ret t0
+  fun @scoop.eq.I(ptr, ptr) -> i1
+    local %0 $a: i64
+    local %1 $b: i64
+  block entry
+    t0 = heap_load param0 +16 : i64
+    store t0 -> local0
+    t1 = heap_load param1 +16 : i64
+    store t1 -> local1
+    t2 = Eq local0, local1 : i1
+    ret t2
+  fun @scoop.tostring.I(ptr) -> ptr
+    local %0 $call.1: ptr
+  block entry
+    t0 = heap_load param0 +16 : i64
+    t1 = call @scoop_rt_int_to_string(t0) : ptr
+    store t1 -> local0
+    ret local0
   td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
+  td box$I @scoop_td_box$I size=24 vtable=3 itables=0
   td Exception @scoop_td_Exception size=24 vtable=3 itables=0
   td UnwrapException @scoop_td_UnwrapException size=24 vtable=3 itables=0
   td ClassCastException @scoop_td_ClassCastException size=24 vtable=3 itables=0
@@ -396,7 +487,8 @@ Module
   layout ArithmeticException size=24 align=8 refs=[16]
   layout IndexOutOfBoundsException size=24 align=8 refs=[16]
   layout IllegalStateException size=24 align=8 refs=[16]
+  layout box$I size=24 align=8 refs=[]
   entry @scoop_main
 
 == run ==
-direct managed ref
+direct managed ref42

@@ -1,6 +1,12 @@
 @Extern(name = "scoop_rt_write", abi = "scoop")
 fun nativeWrite(message: String)
 
+@Extern(lib = "fixture_native", name = "native_root_round_trip", abi = "scoop")
+fun nativeRootRoundTrip(message: String): String
+
+fun stringify(value: Any): String = value.toString()
+
 fun main() {
     nativeWrite("direct managed ref")
+    println(nativeRootRoundTrip(stringify(42)))
 }
