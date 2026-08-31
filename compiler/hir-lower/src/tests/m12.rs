@@ -1204,6 +1204,48 @@ fn generic_no_gc_tracks_nested_aggregate_representations() {
 }
 
 #[test]
+fn generic_no_gc_checks_value_type_receiver_instantiations() {
+    let getter = annotate_method(
+        method_expr("get", vec![], Some(ty_named("T")), var("value")),
+        vec![marker("NoGC")],
+    );
+    let cell = generic_struct_decl_full(
+        "Cell",
+        vec!["T"],
+        vec![("value", ty_named("T"))],
+        vec![],
+        vec![getter],
+    );
+    lower_user(file(vec![
+        cell.clone(),
+        fun(
+            "main",
+            vec![stmt(method_call(
+                struct_init("Cell", vec![int_lit(1)]),
+                "get",
+                vec![],
+            ))],
+        ),
+    ]))
+    .expect("a GC-free value receiver satisfies its NoGC method condition");
+
+    let errors = messages(vec![
+        cell,
+        fun(
+            "main",
+            vec![stmt(method_call(
+                struct_init("Cell", vec![str_lit("managed")]),
+                "get",
+                vec![],
+            ))],
+        ),
+    ]);
+    assert!(errors.iter().any(|message| {
+        message == "generic function `Cell.get` requires type argument String for `T` to be GC-free"
+    }));
+}
+
+#[test]
 fn no_gc_unsafe_functions_can_use_stack_addresses_and_pointer_intrinsics() {
     let function = annotate(
         fun_sig(
