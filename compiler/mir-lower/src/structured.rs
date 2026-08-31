@@ -136,8 +136,7 @@ pub(crate) enum Expr {
     AlignOf(Box<mir::Type>),
     FunPtrNull(mir::FunctionTypeId),
     FunctionAddress {
-        function: mir::FunctionId,
-        signature: mir::FunctionTypeId,
+        callback: mir::CallbackBridgeId,
     },
     Retype {
         operand: Box<Expr>,

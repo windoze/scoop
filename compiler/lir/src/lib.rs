@@ -18,6 +18,7 @@ pub type EnumDefId = Idx<EnumDef>;
 pub type StructDefId = Idx<StructDef>;
 pub type ExternFunctionId = Idx<ExternFunction>;
 pub type NativeGlobalId = Idx<NativeGlobal>;
+pub type CallbackBridgeId = Idx<CallbackBridge>;
 
 /// Symbol of the TypeDescriptor global for `String` (runtime spec 2.2).
 pub const STRING_TD_SYMBOL: &str = "scoop_td_String";
@@ -85,9 +86,21 @@ pub struct Module {
     pub extern_functions: Arena<ExternFunction>,
     /// C data imports accessed only through generated get/set/address bridges.
     pub native_globals: Arena<NativeGlobal>,
+    /// Inbound C trampolines that adapt a native signature to a NoGC
+    /// Scoop storage-ABI bridge.
+    pub callback_bridges: Arena<CallbackBridge>,
     /// Symbol of the entry function (`scoop_main`).
     pub entry_symbol: String,
     pub meta: LirMeta,
+}
+
+#[derive(Debug)]
+pub struct CallbackBridge {
+    pub source_name: String,
+    pub bridge_symbol: String,
+    pub trampoline_symbol: String,
+    pub params: Vec<CType>,
+    pub return_type: CType,
 }
 
 #[derive(Debug)]
@@ -799,6 +812,15 @@ pub fn dump(module: &Module) -> String {
             extern_.return_type.dump(),
             kind,
             library
+        ));
+    }
+    for (id, callback) in module.callback_bridges.iter() {
+        out.push_str(&format!(
+            "  callback cb{} {} @{} -> @{}\n",
+            id.into_raw(),
+            callback.source_name,
+            callback.bridge_symbol,
+            callback.trampoline_symbol
         ));
     }
     for function in &module.functions {

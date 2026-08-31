@@ -137,6 +137,8 @@ pub fn lower(module: &hir::Module) -> mir::Module {
         extern_map: HashMap::new(),
         globals: Arena::new(),
         global_map: HashMap::new(),
+        callback_bridges: Arena::new(),
+        callback_by_target: HashMap::new(),
         top_level: Vec::new(),
         strings: Arena::new(),
         structs: StructRegistry::default(),
@@ -185,6 +187,8 @@ struct Lowerer {
     extern_map: HashMap<hir::ExternFunctionId, mir::ExternFunctionId>,
     globals: Arena<mir::Global>,
     global_map: HashMap<hir::GlobalId, mir::GlobalId>,
+    callback_bridges: Arena<mir::CallbackBridge>,
+    callback_by_target: HashMap<(mir::FunctionId, mir::FunctionTypeId), mir::CallbackBridgeId>,
     /// User functions in declaration order (intrinsics have no MIR body).
     top_level: Vec<mir::FunctionId>,
     strings: Arena<mir::StringConst>,
@@ -857,6 +861,7 @@ impl Lowerer {
             functions: self.functions,
             extern_functions: self.extern_functions,
             globals: self.globals,
+            callback_bridges: self.callback_bridges,
             function_types: self.shell.function_types,
             closure_classes: self.closure_classes,
             closure_invoke_functions: self.closure_invokes,
@@ -1625,6 +1630,8 @@ impl Lowerer {
             function_map: &self.function_map,
             extern_map: &self.extern_map,
             global_map: &self.global_map,
+            callback_bridges: &mut self.callback_bridges,
+            callback_by_target: &mut self.callback_by_target,
             ctors: &self.ctors,
             strings: &mut self.strings,
             functions: &mut self.functions,
@@ -2565,6 +2572,8 @@ impl Lowerer {
             function_map: &self.function_map,
             extern_map: &self.extern_map,
             global_map: &self.global_map,
+            callback_bridges: &mut self.callback_bridges,
+            callback_by_target: &mut self.callback_by_target,
             ctors: &self.ctors,
             strings: &mut self.strings,
             functions: &mut self.functions,
@@ -2765,6 +2774,8 @@ impl Lowerer {
             function_map: &self.function_map,
             extern_map: &self.extern_map,
             global_map: &self.global_map,
+            callback_bridges: &mut self.callback_bridges,
+            callback_by_target: &mut self.callback_by_target,
             ctors: &self.ctors,
             strings: &mut self.strings,
             functions: &mut self.functions,
@@ -3416,6 +3427,7 @@ fn mangling_shell(
         functions,
         extern_functions: Arena::new(),
         globals: Arena::new(),
+        callback_bridges: Arena::new(),
         function_types: Arena::new(),
         closure_classes: Arena::new(),
         closure_invoke_functions: Arena::new(),
@@ -4040,6 +4052,9 @@ struct BodyLowerer<'a> {
     function_map: &'a HashMap<hir::FunctionId, mir::FunctionId>,
     extern_map: &'a HashMap<hir::ExternFunctionId, mir::ExternFunctionId>,
     global_map: &'a HashMap<hir::GlobalId, mir::GlobalId>,
+    callback_bridges: &'a mut Arena<mir::CallbackBridge>,
+    callback_by_target:
+        &'a mut HashMap<(mir::FunctionId, mir::FunctionTypeId), mir::CallbackBridgeId>,
     /// HIR class -> its constructor function (`ClassInit` calls).
     ctors: &'a HashMap<hir::ClassId, mir::FunctionId>,
     strings: &'a mut Arena<mir::StringConst>,
@@ -5619,10 +5634,9 @@ impl BodyLowerer<'_> {
                 let mir::Type::FunPtr(signature) = self.lower_type(expr.ty) else {
                     unreachable!("FunctionAddress has a FunPtr type")
                 };
-                smir::Expr::FunctionAddress {
-                    function: self.function_map[function],
-                    signature,
-                }
+                let callback =
+                    self.ensure_callback_bridge(self.function_map[function], signature, expr.span);
+                smir::Expr::FunctionAddress { callback }
             }
             hir::ExprKind::FieldAccess { receiver, field } => {
                 // Struct fields, tuple elements and class constructor
@@ -5777,6 +5791,127 @@ impl BodyLowerer<'_> {
                 }
             }
         }
+    }
+
+    fn ensure_callback_bridge(
+        &mut self,
+        source: mir::FunctionId,
+        signature: mir::FunctionTypeId,
+        span: Span,
+    ) -> mir::CallbackBridgeId {
+        if let Some(callback) = self.callback_by_target.get(&(source, signature)) {
+            return *callback;
+        }
+
+        let callback_index = self.callback_bridges.len();
+        let signature_def = self.shell.function_types[signature].clone();
+        let source_name = self.functions[source].name.clone();
+        let mut locals = Arena::new();
+        let mut params = Vec::new();
+
+        let result_storage = if signature_def.return_type == mir::Type::Unit {
+            None
+        } else {
+            let ty = mir::Type::Ptr(Box::new(signature_def.return_type.clone()));
+            let local = locals.alloc(mir::Local {
+                name: "$result".to_string(),
+                ty: ty.clone(),
+                mutable: false,
+            });
+            params.push(mir::Param {
+                name: "$result".to_string(),
+                ty,
+                local,
+            });
+            Some(local)
+        };
+
+        let mut args = Vec::with_capacity(signature_def.parameter_types.len());
+        for (index, parameter_type) in signature_def.parameter_types.iter().enumerate() {
+            let name = format!("$arg{index}");
+            let pointer_type = mir::Type::Ptr(Box::new(parameter_type.clone()));
+            let local = locals.alloc(mir::Local {
+                name: name.clone(),
+                ty: pointer_type.clone(),
+                mutable: false,
+            });
+            params.push(mir::Param {
+                name,
+                ty: pointer_type,
+                local,
+            });
+            args.push(mir::Expr::PtrLoad {
+                pointer: Box::new(mir::Expr::Local(local)),
+                pointee: Box::new(parameter_type.clone()),
+                offset: None,
+            });
+        }
+
+        let call = mir::Call {
+            target: mir::CallTarget {
+                kind: mir::CallKind::Direct,
+                callee: mir::Callee::User(source),
+            },
+            args,
+        };
+        let mut statements = Vec::new();
+        if let Some(result_storage) = result_storage {
+            let result = locals.alloc(mir::Local {
+                name: "$value".to_string(),
+                ty: signature_def.return_type.clone(),
+                mutable: false,
+            });
+            statements.push(mir::Statement {
+                kind: mir::StatementKind::Call(mir::CallEffect::Value {
+                    destination: result,
+                    call,
+                }),
+                span,
+            });
+            statements.push(mir::Statement {
+                kind: mir::StatementKind::Expr(mir::Expr::PtrStore {
+                    pointer: Box::new(mir::Expr::Local(result_storage)),
+                    pointee: Box::new(signature_def.return_type.clone()),
+                    offset: None,
+                    value: Box::new(mir::Expr::Local(result)),
+                }),
+                span,
+            });
+        } else {
+            statements.push(mir::Statement {
+                kind: mir::StatementKind::Call(mir::CallEffect::Unit(call)),
+                span,
+            });
+        }
+
+        let mut blocks = Arena::new();
+        let entry = blocks.alloc(mir::BasicBlock {
+            name: "entry".to_string(),
+            statements,
+            terminator: mir::Terminator::Return { value: None },
+            unwind: None,
+        });
+        let bridge_function = self.functions.alloc(mir::Function {
+            gc_effect: mir::GcEffect::NoGc,
+            name: format!("callback bridge for {source_name}"),
+            symbol: format!("scoop_callback_bridge_{callback_index}"),
+            params,
+            return_ty: mir::Type::Unit,
+            body: mir::Body {
+                locals,
+                blocks,
+                entry,
+            },
+        });
+        self.top_level.push(bridge_function);
+        let callback = self.callback_bridges.alloc(mir::CallbackBridge {
+            source,
+            signature,
+            bridge_function,
+        });
+        self.callback_by_target
+            .insert((source, signature), callback);
+        callback
     }
 
     /// `x!!`: the operand is evaluated once into a hidden local, then

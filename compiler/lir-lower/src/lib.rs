@@ -170,6 +170,7 @@ pub fn lower(module: &mir::Module) -> lir::Module {
     let structs = lower_structs(module, &enums);
     let extern_functions = lower_extern_functions(module);
     let (storage_globals, native_globals) = lower_globals(module, &mut globals);
+    let callback_bridges = lower_callback_bridges(module);
 
     // Tuple types encountered while mapping value types, in
     // first-appearance order; each one gets a meta layout.
@@ -206,12 +207,32 @@ pub fn lower(module: &mir::Module) -> lir::Module {
         functions,
         extern_functions,
         native_globals,
+        callback_bridges,
         entry_symbol: module.functions[module.entry].symbol.clone(),
         meta: lir::LirMeta {
             layouts,
             type_descriptors,
         },
     }
+}
+
+fn lower_callback_bridges(module: &mir::Module) -> Arena<lir::CallbackBridge> {
+    let mut callbacks = Arena::new();
+    for (id, callback) in module.callback_bridges.iter() {
+        let signature = &module.function_types[callback.signature];
+        callbacks.alloc(lir::CallbackBridge {
+            source_name: module.functions[callback.source].name.clone(),
+            bridge_symbol: module.functions[callback.bridge_function].symbol.clone(),
+            trampoline_symbol: format!("scoop_c_callback_{}", id.into_raw().into_u32()),
+            params: signature
+                .parameter_types
+                .iter()
+                .map(|ty| c_ffi_type(module, ty))
+                .collect(),
+            return_type: c_ffi_type(module, &signature.return_type),
+        });
+    }
+    callbacks
 }
 
 #[derive(Clone, Copy)]
@@ -1813,8 +1834,9 @@ impl<'a> FunctionLowerer<'a> {
             }
             mir::Expr::PtrLoad { pointee, .. } => pointee.as_ref().clone(),
             mir::Expr::PtrStore { .. } => mir::Type::Unit,
-            mir::Expr::FunPtrNull(signature) | mir::Expr::FunctionAddress { signature, .. } => {
-                mir::Type::FunPtr(*signature)
+            mir::Expr::FunPtrNull(signature) => mir::Type::FunPtr(*signature),
+            mir::Expr::FunctionAddress { callback } => {
+                mir::Type::FunPtr(self.module.callback_bridges[*callback].signature)
             }
             mir::Expr::Retype { ty, .. } => ty.as_ref().clone(),
             mir::Expr::FieldAccess { receiver, index } => match self.expr_ty(receiver) {
@@ -2420,11 +2442,11 @@ impl<'a> FunctionLowerer<'a> {
                 lir::Value::IntConst(align as i64)
             }
             mir::Expr::FunPtrNull(_) => lir::Value::NullPtr,
-            mir::Expr::FunctionAddress { function, .. } => {
+            mir::Expr::FunctionAddress { callback } => {
                 let out = self.new_temp(lir::LirType::Ptr);
                 self.push(lir::Instruction::FunctionAddress {
                     out,
-                    symbol: self.module.functions[*function].symbol.clone(),
+                    symbol: format!("scoop_c_callback_{}", callback.into_raw().into_u32()),
                 });
                 lir::Value::Temp(out)
             }
@@ -3420,6 +3442,7 @@ mod tests {
                 functions: self.functions,
                 extern_functions: Arena::new(),
                 globals: Arena::new(),
+                callback_bridges: Arena::new(),
                 function_types: Arena::new(),
                 closure_classes: Arena::new(),
                 closure_invoke_functions: Arena::new(),

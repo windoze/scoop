@@ -199,8 +199,8 @@ pub fn c_layout_assertions(module: &Module) -> Result<String, CodegenError> {
     Ok(out)
 }
 
-/// Generate the host-C translation unit that owns every outbound C ABI
-/// wrapper. `None` means the module has no C ABI extern and needs no second
+/// Generate the host-C translation unit that owns outbound C ABI wrappers
+/// and inbound callback trampolines. `None` means the module needs no second
 /// object file.
 pub fn c_bridge_source(module: &Module) -> Result<Option<String>, CodegenError> {
     let c_externs = module
@@ -208,7 +208,10 @@ pub fn c_bridge_source(module: &Module) -> Result<Option<String>, CodegenError> 
         .iter()
         .filter(|(_, function)| matches!(function.kind, ExternFunctionKind::C { .. }))
         .collect::<Vec<_>>();
-    if c_externs.is_empty() && module.native_globals.is_empty() {
+    if c_externs.is_empty()
+        && module.native_globals.is_empty()
+        && module.callback_bridges.is_empty()
+    {
         return Ok(None);
     }
 
@@ -265,6 +268,12 @@ pub fn c_bridge_source(module: &Module) -> Result<Option<String>, CodegenError> 
     }
     for (_, global) in module.native_globals.iter() {
         collect_function_pointers(&global.c_type, &mut function_pointers);
+    }
+    for (_, callback) in module.callback_bridges.iter() {
+        for parameter in &callback.params {
+            collect_function_pointers(parameter, &mut function_pointers);
+        }
+        collect_function_pointers(&callback.return_type, &mut function_pointers);
     }
 
     let mut out = c_layout_assertions(module)?;
@@ -391,6 +400,67 @@ pub fn c_bridge_source(module: &Module) -> Result<Option<String>, CodegenError> 
             "void {}(void *result) {{\n  void *native_address = (void *)&{};\n  memcpy(result, &native_address, sizeof(native_address));\n}}\n\n",
             global.address_bridge_symbol, global.native_symbol
         ));
+    }
+    for (_, callback) in module.callback_bridges.iter() {
+        let has_result = callback.return_type != scoop_lir::CType::Unit;
+        let mut storage_params = Vec::new();
+        if has_result {
+            storage_params.push("void *result".to_string());
+        }
+        storage_params.extend(
+            callback
+                .params
+                .iter()
+                .enumerate()
+                .map(|(index, _)| format!("const void *arg{index}")),
+        );
+        if storage_params.is_empty() {
+            storage_params.push("void".to_string());
+        }
+        out.push_str(&format!(
+            "extern void {}({});\n",
+            callback.bridge_symbol,
+            storage_params.join(", ")
+        ));
+
+        let callback_params = if callback.params.is_empty() {
+            "void".to_string()
+        } else {
+            callback
+                .params
+                .iter()
+                .enumerate()
+                .map(|(index, parameter)| {
+                    format!("{} arg{index}", type_name(parameter, &function_pointers))
+                })
+                .collect::<Vec<_>>()
+                .join(", ")
+        };
+        out.push_str(&format!(
+            "{} {}({callback_params}) {{\n",
+            type_name(&callback.return_type, &function_pointers),
+            callback.trampoline_symbol
+        ));
+        if has_result {
+            out.push_str(&format!(
+                "  {} result;\n",
+                type_name(&callback.return_type, &function_pointers)
+            ));
+        }
+        let mut storage_args = Vec::new();
+        if has_result {
+            storage_args.push("&result".to_string());
+        }
+        storage_args.extend((0..callback.params.len()).map(|index| format!("&arg{index}")));
+        out.push_str(&format!(
+            "  {}({});\n",
+            callback.bridge_symbol,
+            storage_args.join(", ")
+        ));
+        if has_result {
+            out.push_str("  return result;\n");
+        }
+        out.push_str("}\n\n");
     }
     Ok(Some(out))
 }
@@ -709,6 +779,9 @@ fn emit_llvm_module<'ctx>(
     };
     for function in &module.functions {
         declare_function(context, &llvm, &module.structs, &module.enums, function)?;
+    }
+    for (_, callback) in module.callback_bridges.iter() {
+        declare_callback_trampoline(context, &llvm, &module.structs, &module.enums, callback)?;
     }
     // Meta TypeDescriptors reference module functions (vtable / itable
     // slots), so they are emitted after the declare pass.
@@ -3185,6 +3258,48 @@ fn declare_function<'ctx>(
     Ok(())
 }
 
+fn c_basic_ty<'ctx>(
+    context: &'ctx Context,
+    structs: &Arena<StructDef>,
+    enums: &Arena<EnumDef>,
+    ty: &scoop_lir::CType,
+) -> Result<BasicTypeEnum<'ctx>, CodegenError> {
+    Ok(match ty {
+        scoop_lir::CType::Int | scoop_lir::CType::UInt => context.i64_type().into(),
+        scoop_lir::CType::Boolean => context.bool_type().into(),
+        scoop_lir::CType::Pointer | scoop_lir::CType::FunctionPointer { .. } => {
+            ptr_ty(context).into()
+        }
+        scoop_lir::CType::Struct(id) => struct_ty(context, structs, enums, *id)?.into(),
+        scoop_lir::CType::Unit => {
+            return Err(CodegenError(
+                "Unit cannot be a C callback parameter type".to_string(),
+            ));
+        }
+    })
+}
+
+fn declare_callback_trampoline<'ctx>(
+    context: &'ctx Context,
+    llvm: &LlvmModule<'ctx>,
+    structs: &Arena<StructDef>,
+    enums: &Arena<EnumDef>,
+    callback: &scoop_lir::CallbackBridge,
+) -> Result<(), CodegenError> {
+    let params = callback
+        .params
+        .iter()
+        .map(|ty| c_basic_ty(context, structs, enums, ty).map(Into::into))
+        .collect::<Result<Vec<BasicMetadataTypeEnum<'ctx>>, _>>()?;
+    let fn_ty = if callback.return_type == scoop_lir::CType::Unit {
+        context.void_type().fn_type(&params, false)
+    } else {
+        c_basic_ty(context, structs, enums, &callback.return_type)?.fn_type(&params, false)
+    };
+    llvm.add_function(&callback.trampoline_symbol, fn_ty, None);
+    Ok(())
+}
+
 /// Module-level data function emission needs, bundled to keep
 /// signatures small.
 struct ModuleCtx<'a, 'ctx> {
@@ -3703,6 +3818,7 @@ mod tests {
             enums: Arena::default(),
             extern_functions: Arena::default(),
             native_globals: Arena::default(),
+            callback_bridges: Arena::default(),
             functions: vec![Function {
                 gc_effect: GcEffect::Managed,
                 symbol: "scoop_main".to_string(),
@@ -4115,6 +4231,7 @@ mod tests {
             enums,
             extern_functions: Arena::default(),
             native_globals: Arena::default(),
+            callback_bridges: Arena::default(),
             functions: vec![
                 tagged,
                 niche,
@@ -4322,6 +4439,7 @@ mod tests {
             enums: Arena::default(),
             extern_functions: Arena::default(),
             native_globals: Arena::default(),
+            callback_bridges: Arena::default(),
             functions: vec![Function {
                 gc_effect: GcEffect::Managed,
                 symbol: "scoop_main".to_string(),
@@ -4467,6 +4585,7 @@ mod tests {
             enums: Arena::default(),
             extern_functions: Arena::default(),
             native_globals: Arena::default(),
+            callback_bridges: Arena::default(),
             functions: vec![describe("Shape.describe"), describe("Point.describe"), main],
             entry_symbol: "scoop_main".to_string(),
             meta: LirMeta {
@@ -4696,6 +4815,7 @@ mod tests {
             enums: Arena::default(),
             extern_functions: Arena::default(),
             native_globals: Arena::default(),
+            callback_bridges: Arena::default(),
             functions: vec![describe, main],
             entry_symbol: "scoop_main".to_string(),
             meta: LirMeta {
@@ -4888,6 +5008,7 @@ mod tests {
             enums: Arena::default(),
             extern_functions: Arena::default(),
             native_globals: Arena::default(),
+            callback_bridges: Arena::default(),
             functions: vec![thrower, eh_test],
             entry_symbol: "scoop.eh_test".to_string(),
             meta: LirMeta {
@@ -4989,6 +5110,7 @@ mod tests {
             enums: Arena::default(),
             extern_functions: Arena::default(),
             native_globals: Arena::default(),
+            callback_bridges: Arena::default(),
             functions: vec![Function {
                 gc_effect: GcEffect::Managed,
                 symbol: "scoop.closure_abi".to_string(),
@@ -5139,6 +5261,7 @@ mod tests {
             enums: Arena::default(),
             extern_functions: Arena::default(),
             native_globals: Arena::default(),
+            callback_bridges: Arena::default(),
             functions: vec![Function {
                 gc_effect: GcEffect::Managed,
                 symbol: "scoop_main".to_string(),
@@ -5324,6 +5447,7 @@ mod tests {
             enums: Arena::default(),
             extern_functions: Arena::default(),
             native_globals: Arena::default(),
+            callback_bridges: Arena::default(),
             functions: vec![Function {
                 gc_effect: GcEffect::Managed,
                 symbol: "scoop_main".to_string(),
@@ -5534,6 +5658,7 @@ mod tests {
             enums,
             extern_functions: Arena::default(),
             native_globals: Arena::default(),
+            callback_bridges: Arena::default(),
             functions: vec![Function {
                 gc_effect: GcEffect::Managed,
                 symbol: "scoop_main".to_string(),
@@ -5617,12 +5742,24 @@ mod tests {
                 return_type: scoop_lir::CType::Struct(outer),
             },
         });
+        module.callback_bridges.alloc(scoop_lir::CallbackBridge {
+            source_name: "swapCallback".to_string(),
+            bridge_symbol: "scoop_callback_bridge_0".to_string(),
+            trampoline_symbol: "scoop_c_callback_0".to_string(),
+            params: vec![scoop_lir::CType::Struct(outer)],
+            return_type: scoop_lir::CType::Struct(outer),
+        });
         let bridge = c_bridge_source(&module)
             .expect("C bridge")
             .expect("C extern needs a bridge");
         assert!(bridge.contains("extern scoop_c_layout_1 native_swap(scoop_c_layout_1);"));
         assert!(bridge.contains("void scoop_c_bridge_0(void *result, const void *arg0)"));
         assert!(bridge.contains("memcpy(result, &native_result, sizeof(native_result));"));
+        assert!(
+            bridge.contains("extern void scoop_callback_bridge_0(void *result, const void *arg0);")
+        );
+        assert!(bridge.contains("scoop_c_layout_1 scoop_c_callback_0(scoop_c_layout_1 arg0)"));
+        assert!(bridge.contains("scoop_callback_bridge_0(&result, &arg0);"));
 
         let ir = ir_of(&module);
         assert!(

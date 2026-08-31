@@ -13,6 +13,22 @@ fun nativeSwap(value: NativePair): NativePair
 @Extern(lib = "fixture_native", name = "native_sink")
 fun nativeSink(value: Int)
 
+@Extern(lib = "fixture_native", name = "native_apply")
+fun nativeApply(value: Int, callback: FunPtr<(Int) -> Int>): Int
+
+@Extern(lib = "fixture_native", name = "native_apply_pair")
+fun nativeApplyPair(
+    value: NativePair,
+    callback: FunPtr<(NativePair) -> NativePair>
+): NativePair
+
+@NoGC
+fun increment(value: Int): Int = value + 1
+
+@NoGC
+fun shiftPair(value: NativePair): NativePair =
+    NativePair(value.left + 10, value.right + 20)
+
 fun main() {
     @Unsafe {
         println(nativeAdd(19, 23))
@@ -21,5 +37,9 @@ fun main() {
         println(swapped.left)
         println(swapped.right)
         nativeSink(1)
+        println(nativeApply(41, ::increment))
+        val shifted = nativeApplyPair(NativePair(3, 4), ::shiftPair)
+        println(shifted.left)
+        println(shifted.right)
     }
 }

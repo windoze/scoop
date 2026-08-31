@@ -15,6 +15,7 @@ use scoop_ast::Span;
 pub type FunctionId = Idx<Function>;
 pub type ExternFunctionId = Idx<ExternFunction>;
 pub type GlobalId = Idx<Global>;
+pub type CallbackBridgeId = Idx<CallbackBridge>;
 pub type FunctionTypeId = Idx<FunctionType>;
 pub type ClosureClassId = Idx<ClosureClass>;
 pub type ClosureInvokeFunctionId = Idx<ClosureInvokeFunction>;
@@ -328,6 +329,7 @@ pub struct Module {
     pub functions: Arena<Function>,
     pub extern_functions: Arena<ExternFunction>,
     pub globals: Arena<Global>,
+    pub callback_bridges: Arena<CallbackBridge>,
     pub function_types: Arena<FunctionType>,
     pub closure_classes: Arena<ClosureClass>,
     pub closure_invoke_functions: Arena<ClosureInvokeFunction>,
@@ -340,6 +342,14 @@ pub struct Module {
     pub interfaces: Arena<InterfaceDef>,
     pub entry: FunctionId,
     pub meta: MirMeta,
+}
+
+#[derive(Debug)]
+pub struct CallbackBridge {
+    pub source: FunctionId,
+    pub signature: FunctionTypeId,
+    /// NoGC storage-ABI entry called by the generated C trampoline.
+    pub bridge_function: FunctionId,
 }
 
 #[derive(Debug, Clone)]
@@ -708,8 +718,7 @@ pub enum Expr {
     AlignOf(Box<Type>),
     FunPtrNull(FunctionTypeId),
     FunctionAddress {
-        function: FunctionId,
-        signature: FunctionTypeId,
+        callback: CallbackBridgeId,
     },
     /// The managed exception pointer produced by the active `BeginCatch`.
     /// It is only valid in blocks dominated by that statement.
@@ -987,6 +996,15 @@ pub fn dump(module: &Module) -> String {
                 " managed"
             },
             library
+        ));
+    }
+    for (id, callback) in module.callback_bridges.iter() {
+        out.push_str(&format!(
+            "  callback cb{} @{} -> @{} function_type{}\n",
+            id.into_raw().into_u32(),
+            module.functions[callback.source].symbol,
+            module.functions[callback.bridge_function].symbol,
+            callback.signature.into_raw().into_u32()
         ));
     }
     for (_, def) in module.structs.iter() {
@@ -1511,9 +1529,9 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
             "{pad}FunPtrNull function_type{}\n",
             signature.into_raw().into_u32()
         )),
-        Expr::FunctionAddress { function, .. } => out.push_str(&format!(
-            "{pad}FunctionAddress @{}\n",
-            module.functions[*function].symbol
+        Expr::FunctionAddress { callback } => out.push_str(&format!(
+            "{pad}FunctionAddress cb{}\n",
+            callback.into_raw().into_u32()
         )),
         Expr::CaughtException => out.push_str(&format!("{pad}CaughtException\n")),
         Expr::Retype { operand, ty } => {

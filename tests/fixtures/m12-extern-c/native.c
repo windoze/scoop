@@ -22,3 +22,14 @@ NativePair native_swap(NativePair value) {
 void native_sink(int64_t value) {
     (void)value;
 }
+
+int64_t native_apply(int64_t value, int64_t (*callback)(int64_t)) {
+    return callback(value);
+}
+
+NativePair native_apply_pair(
+    NativePair value,
+    NativePair (*callback)(NativePair)
+) {
+    return callback(value);
+}

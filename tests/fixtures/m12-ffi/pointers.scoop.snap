@@ -368,6 +368,7 @@ Module
 
 == mir ==
 Module
+  callback cb0 @scoop.increment -> @scoop_callback_bridge_0 function_type0
   struct Slot (value: Int)
   enum Option$S
     Some(_1: String)
@@ -426,7 +427,7 @@ Module
       val empty: FunPtr<(Int) -> Int>
         FunPtrNull function_type0
       val callback: FunPtr<(Int) -> Int>
-        FunctionAddress @scoop.increment
+        FunctionAddress cb0
       val noCallback: Option$NIRIX<FunPtr<(Int) -> Int>>
         VariantConstruct Option$NIRIX<FunPtr<(Int) -> Int>> v1
       var value: Int
@@ -575,6 +576,15 @@ Module
         ClassInit IllegalStateException
           VariantConstruct Option$S<String> v0
             StringConst @scoop.str.5
+  fun callback bridge for increment @scoop_callback_bridge_0($result: Ptr<Int>, $arg0: Ptr<Int>) -> Unit <no-gc>
+    bb0 entry
+      call $value: Int = @scoop.increment direct
+        PtrLoad Int
+          Local $arg0
+      PtrStore Int
+        Local $result
+        Local $value
+      return
   fun eq.I @scoop.eq.I(this: Any, other: Any) -> Boolean
     bb0 entry
       val $a: Int
@@ -621,6 +631,7 @@ Module
   enum Option$S niche(payload_variant=0)
   enum Option$NIRIX niche(payload_variant=0)
   enum Option$PIX niche(payload_variant=0)
+  callback cb0 increment @scoop_callback_bridge_0 -> @scoop_c_callback_0
   fun @scoop.print(ptr) -> void
     local %0 $call.1: ptr
   block entry
@@ -679,7 +690,7 @@ Module
     store 8 -> local0
     store 8 -> local1
     store null -> local2
-    t0 = function_address @scoop.increment : ptr
+    t0 = function_address @scoop_c_callback_0 : ptr
     store t0 -> local3
     t1 = enum_wrap e1 v1 () : enum1
     store t1 -> local4
@@ -815,6 +826,15 @@ Module
     t1 = enum_wrap e0 v0 (global5) : enum0
     heap_store t0 +16 t1
     ret t0
+  fun @scoop_callback_bridge_0(ptr, ptr) -> void <no-gc>
+    local %0 $value: i64
+  block entry
+    t0 = raw_load param1 align 8 : i64
+    t1 = call @scoop.increment(t0) : i64
+    store t1 -> local0
+    raw_store param0 local0 align 8
+    t2 = aggregate () : {}
+    ret
   fun @scoop.eq.I(ptr, ptr) -> i1
     local %0 $a: i64
     local %1 $b: i64

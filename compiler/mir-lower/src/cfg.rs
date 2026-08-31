@@ -644,12 +644,8 @@ impl<'a> CfgLowerer<'a> {
             smir::Expr::SizeOf(ty) => mir::Expr::SizeOf(ty.clone()),
             smir::Expr::AlignOf(ty) => mir::Expr::AlignOf(ty.clone()),
             smir::Expr::FunPtrNull(signature) => mir::Expr::FunPtrNull(*signature),
-            smir::Expr::FunctionAddress {
-                function,
-                signature,
-            } => mir::Expr::FunctionAddress {
-                function: *function,
-                signature: *signature,
+            smir::Expr::FunctionAddress { callback } => mir::Expr::FunctionAddress {
+                callback: *callback,
             },
             smir::Expr::Retype { operand, ty } => mir::Expr::Retype {
                 operand: Box::new(self.lower_expr(operand, span)),
