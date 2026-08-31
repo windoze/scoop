@@ -375,6 +375,11 @@ impl Lowerer {
                 continue;
             }
             match name {
+                "NoGC" => {
+                    if self.annotation_marker(annotation) {
+                        attributes.no_gc = true;
+                    }
+                }
                 "CLayout" => {
                     if let Some(layout) = self.annotation_c_layout(annotation) {
                         attributes.c_layout = Some(layout);
@@ -385,8 +390,8 @@ impl Lowerer {
                         attributes.interior_mutable = true;
                     }
                 }
-                "Extern" | "NoGC" | "Unsafe" | "Safe" | "CallingConvention" | "Global"
-                | "ThreadLocal" | "Intrinsic" => self.error(
+                "Extern" | "Unsafe" | "Safe" | "CallingConvention" | "Global" | "ThreadLocal"
+                | "Intrinsic" => self.error(
                     annotation.span,
                     format!("`@{name}` is not allowed on a struct"),
                 ),
@@ -397,6 +402,33 @@ impl Lowerer {
             }
         }
         attributes
+    }
+
+    pub(crate) fn check_enum_annotations(&mut self, decl: &ast::EnumDecl) -> bool {
+        let mut no_gc = false;
+        let mut seen = HashSet::new();
+        for annotation in &decl.annotations {
+            let name = annotation.name.text.as_str();
+            if !seen.insert(name.to_string()) {
+                self.error(
+                    annotation.span,
+                    format!("annotation `@{name}` must not be repeated"),
+                );
+                continue;
+            }
+            match name {
+                "NoGC" => no_gc = self.annotation_marker(annotation),
+                _ if is_core_annotation(name) => self.error(
+                    annotation.span,
+                    format!("`@{name}` is not allowed on an enum"),
+                ),
+                _ => self.error(
+                    annotation.span,
+                    format!("unsupported annotation `@{name}` in milestone M13"),
+                ),
+            }
+        }
+        no_gc
     }
 
     pub(crate) fn reject_type_annotations(&mut self, kind: &str, annotations: &[ast::Annotation]) {

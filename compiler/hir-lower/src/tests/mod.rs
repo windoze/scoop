@@ -1490,6 +1490,10 @@ fn coroutine_core_declarations() -> Vec<Decl> {
 /// Lower a user file together with the minimal `scoop.core`, mirroring
 /// the driver's sysroot convention (core files first, user file last).
 pub(crate) fn lower_user(user: SourceFile) -> Result<hir::Module, Vec<Diagnostic>> {
+    lower(&[core_file(), user]).map(|output| output.export)
+}
+
+pub(crate) fn lower_user_output(user: SourceFile) -> Result<hir::Output, Vec<Diagnostic>> {
     lower(&[core_file(), user])
 }
 
@@ -1580,12 +1584,12 @@ pub(crate) fn throwable_core() -> SourceFile {
 /// Lower a user file with the full core exception hierarchy available
 /// (M8 tests).
 pub(crate) fn lower_user_with_exceptions(user: SourceFile) -> Result<hir::Module, Vec<Diagnostic>> {
-    lower(&[core_file(), throwable_core(), user])
+    lower(&[core_file(), throwable_core(), user]).map(|output| output.export)
 }
 
 /// Lower a user file with the core GC facilities available (M9 tests).
 pub(crate) fn lower_user_with_gc(user: SourceFile) -> Result<hir::Module, Vec<Diagnostic>> {
-    lower(&[core_file(), file(gc_api_declarations()), user])
+    lower(&[core_file(), file(gc_api_declarations()), user]).map(|output| output.export)
 }
 
 /// `main` calls `println("hello, world")` then `helper()`, which

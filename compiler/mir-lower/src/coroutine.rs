@@ -4,7 +4,7 @@ use std::collections::{HashMap, HashSet};
 
 use la_arena::Arena;
 use scoop_ast::Span;
-use scoop_hir as hir;
+use scoop_hir::concrete as hir;
 use scoop_mir as mir;
 
 use super::Lowerer;
@@ -43,7 +43,7 @@ pub(super) fn transform(lowerer: &mut Lowerer, module: &hir::Module) {
         if sites.is_empty() {
             continue;
         }
-        let throwable = mir::Type::Class(lowerer.class_map[&module.coroutine_core.throwable]);
+        let throwable = mir::Type::Class(lowerer.class_map[&module.exception_core.throwable]);
         eh::materialize_exceptions(&mut lowerer.functions[function].body, throwable);
         sites = analyze_sites(lowerer, &lowerer.functions[function].body);
         for (index, site) in sites.iter_mut().enumerate() {
@@ -78,7 +78,7 @@ fn transform_function(
     let completion_old = completion.local;
     let completion_ty = completion.ty.clone();
     let source_params = &old_params[..old_params.len() - 1];
-    let throwable_ty = mir::Type::Class(lowerer.class_map[&module.coroutine_core.throwable]);
+    let throwable_ty = mir::Type::Class(lowerer.class_map[&module.exception_core.throwable]);
 
     let mut saved = HashSet::new();
     saved.extend(source_params.iter().map(|param| param.local));
@@ -109,10 +109,12 @@ fn transform_function(
     let mut frame_slots = HashMap::new();
     for local in &saved {
         let value_ty = body.locals[*local].ty.clone();
-        let (_, slot_ty) =
-            lowerer
-                .coroutines
-                .slot_for(&value_ty, &mut lowerer.enums, &mut lowerer.shell);
+        let (_, slot_ty) = lowerer.coroutines.slot_for(
+            &value_ty,
+            &lowerer.structs,
+            &mut lowerer.enums,
+            &mut lowerer.shell,
+        );
         let mir::Type::Enum(slot_enum, _) = slot_ty.clone() else {
             unreachable!("CoroutineSlot is an enum")
         };
@@ -129,10 +131,12 @@ fn transform_function(
             },
         );
     }
-    let (_, failure_slot_ty) =
-        lowerer
-            .coroutines
-            .slot_for(&throwable_ty, &mut lowerer.enums, &mut lowerer.shell);
+    let (_, failure_slot_ty) = lowerer.coroutines.slot_for(
+        &throwable_ty,
+        &lowerer.structs,
+        &mut lowerer.enums,
+        &mut lowerer.shell,
+    );
     let mir::Type::Enum(failure_slot_enum, _) = failure_slot_ty.clone() else {
         unreachable!("CoroutineSlot is an enum")
     };
@@ -559,12 +563,8 @@ fn generate_adapter(
     result: &mir::Type,
     safe_latches: Option<(FrameSlot, FrameSlot)>,
 ) -> GeneratedAdapter {
-    let continuation = lowerer.interfaces.get_or_create(
-        module,
-        &mut lowerer.shell,
-        module.coroutine_core.continuation,
-        vec![result.clone()],
-    );
+    let protocol = lowerer.coroutine_protocol(module, result);
+    let continuation = lowerer.interfaces.mir_id(protocol.continuation);
     let name = format!("CoroutineAdapter${}${state}", sanitize(source_symbol));
     let mut fields = vec![
         mir::Field {
@@ -801,7 +801,7 @@ fn generate_failure_method(
     failure_state: i64,
     latch: Option<FrameSlot>,
 ) -> mir::FunctionId {
-    let throwable = mir::Type::Class(lowerer.class_map[&module.coroutine_core.throwable]);
+    let throwable = mir::Type::Class(lowerer.class_map[&module.exception_core.throwable]);
     let mut locals = Arena::new();
     let this = locals.alloc(local("this", mir::Type::Class(adapter)));
     let exception = locals.alloc(local("exception", throwable.clone()));
@@ -947,7 +947,7 @@ fn drive_exit_blocks(
     outer_resume: mir::FunctionId,
     outer_failure: mir::FunctionId,
 ) -> DriveExitBlocks {
-    let throwable = mir::Type::Class(lowerer.class_map[&module.coroutine_core.throwable]);
+    let throwable = mir::Type::Class(lowerer.class_map[&module.exception_core.throwable]);
     let exception = locals.alloc(local("$uncaught", throwable));
     let completed = blocks.alloc(mir::BasicBlock {
         name: "completed".to_string(),
@@ -1192,7 +1192,7 @@ fn protocol_error_block(
     blocks: &mut Arena<mir::BasicBlock>,
     unwind: Option<mir::BlockId>,
 ) -> mir::BlockId {
-    let class = module.coroutine_core.illegal_state_exception;
+    let class = module.exception_core.illegal_state_exception;
     let mir_class = lowerer.class_map[&class];
     let exception = locals.alloc(local("$protocol_error", mir::Type::Class(mir_class)));
     blocks.alloc(mir::BasicBlock {
@@ -1367,15 +1367,19 @@ fn rewrite_intrinsic_site(
     let SuspendKind::Intrinsic { register } = site.kind else {
         unreachable!("intrinsic site carries its concrete register method")
     };
-    let throwable = mir::Type::Class(lowerer.class_map[&module.coroutine_core.throwable]);
-    let (_, result_latch_ty) =
-        lowerer
-            .coroutines
-            .slot_for(&site.result, &mut lowerer.enums, &mut lowerer.shell);
-    let (_, failure_latch_ty) =
-        lowerer
-            .coroutines
-            .slot_for(&throwable, &mut lowerer.enums, &mut lowerer.shell);
+    let throwable = mir::Type::Class(lowerer.class_map[&module.exception_core.throwable]);
+    let (_, result_latch_ty) = lowerer.coroutines.slot_for(
+        &site.result,
+        &lowerer.structs,
+        &mut lowerer.enums,
+        &mut lowerer.shell,
+    );
+    let (_, failure_latch_ty) = lowerer.coroutines.slot_for(
+        &throwable,
+        &lowerer.structs,
+        &mut lowerer.enums,
+        &mut lowerer.shell,
+    );
     let mir::Type::Enum(result_latch_enum, _) = result_latch_ty else {
         unreachable!("CoroutineSlot is an enum")
     };

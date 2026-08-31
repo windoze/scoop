@@ -96,6 +96,7 @@
 
 mod annotations;
 mod class;
+mod concretize;
 mod effects;
 mod expr;
 mod ffi;
@@ -133,8 +134,17 @@ use scope::{LocalFunctionScopes, Scopes};
 ///
 /// All semantic errors of the M5 subset are diagnosed here with spans;
 /// downstream stages (MIR, LIR) never fail.
-pub fn lower(files: &[ast::SourceFile]) -> Result<hir::Module, Vec<Diagnostic>> {
-    Lowerer::new().run(files)
+pub fn lower(files: &[ast::SourceFile]) -> Result<hir::Output, Vec<Diagnostic>> {
+    let export = Lowerer::new().run(files)?;
+    let local = concretize::lower(&export);
+    Ok(hir::Output { export, local })
+}
+
+/// Convert an already checked export-side graph into the local concrete graph.
+/// Kept public so stage-boundary tests can feed handcrafted checked HIR through
+/// the same fixed-point pass as the production pipeline.
+pub fn concretize_export(export: &hir::ExportHir) -> hir::LocalConcreteHir {
+    concretize::lower(export)
 }
 
 /// A resolved function signature. Kept separate from `hir::Function`
@@ -857,6 +867,7 @@ impl Lowerer {
         // Effects consume fully resolved calls and types. Local functions and
         // callable literals lifted while lowering the bodies are visible now.
         self.validate_c_ffi_types();
+        self.check_no_gc_types();
         self.check_no_gc_functions();
 
         // A module without `main` never reaches HIR (hir docs); it is a
@@ -1050,7 +1061,7 @@ impl Lowerer {
         pending_methods: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
         file_index: usize,
     ) {
-        self.reject_type_annotations("an enum", &decl.annotations);
+        let no_gc = self.check_enum_annotations(decl);
         if let Some(kind) = self.type_namespace_conflict(&decl.name.text) {
             let what = if kind == "an enum" {
                 format!("duplicate enum `{}`", decl.name.text)
@@ -1080,6 +1091,7 @@ impl Lowerer {
         let id = self.enums.alloc(EnumDecl {
             name: decl.name.text.clone(),
             type_params,
+            no_gc,
             // Filled in pass 2; a resolution failure is diagnosed, so
             // empty variants never reach the output.
             variants: Vec::new(),

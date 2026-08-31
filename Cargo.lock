@@ -407,6 +407,7 @@ dependencies = [
  "la-arena",
  "scoop-ast",
  "scoop-hir",
+ "scoop-hir-lower",
  "scoop-mir",
 ]
 

@@ -12,6 +12,24 @@
 use la_arena::{Arena, Idx};
 use scoop_ast::Span;
 
+pub mod concrete;
+
+/// Cross-Cone semantic interface and generic-template graph.  This name makes
+/// the consumer boundary explicit without changing the export-side data model.
+pub type ExportHir = Module;
+
+/// Fully instantiated graph consumed only by the current Cone's MIR stage.
+pub type LocalConcreteHir = concrete::Module;
+
+/// HIR has two structurally isolated products for two different consumers.
+/// Export ids and local-concrete ids belong to separate Rust type families and
+/// therefore cannot cross the boundary accidentally.
+#[derive(Debug, Clone)]
+pub struct Output {
+    pub export: ExportHir,
+    pub local: LocalConcreteHir,
+}
+
 pub type TypeId = Idx<Type>;
 pub type FunctionTypeId = Idx<FunctionType>;
 pub type LambdaId = Idx<Lambda>;
@@ -483,6 +501,7 @@ pub struct StructDecl {
 /// cross the AST/HIR boundary.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct StructAttributes {
+    pub no_gc: bool,
     pub c_layout: Option<CLayout>,
     pub interior_mutable: bool,
 }
@@ -497,6 +516,7 @@ pub struct CLayout {
 pub struct EnumDecl {
     pub name: String,
     pub type_params: Vec<TypeParamDecl>,
+    pub no_gc: bool,
     pub variants: Vec<Variant>,
     pub interfaces: Vec<TypeId>,
     pub span: Span,
@@ -1317,9 +1337,10 @@ pub fn dump(module: &Module) -> String {
             dump_type_params(&decl.type_params)
         };
         let interfaces = dump_interface_list(module, &decl.interfaces);
+        let attributes = if decl.no_gc { " <no-gc>" } else { "" };
         out.push_str(&format!(
-            "  enum {}{}{}\n",
-            decl.name, type_params, interfaces
+            "  enum {}{}{}{}\n",
+            decl.name, type_params, interfaces, attributes
         ));
         for variant in &decl.variants {
             let fields: Vec<String> = variant
@@ -1571,6 +1592,9 @@ fn dump_function_attributes(attributes: FunctionAttributes) -> String {
 
 fn dump_struct_attributes(attributes: StructAttributes) -> String {
     let mut values = Vec::new();
+    if attributes.no_gc {
+        values.push("no-gc".to_string());
+    }
     if let Some(layout) = attributes.c_layout {
         values.push(format!(
             "c-layout aligned={} packed={}",

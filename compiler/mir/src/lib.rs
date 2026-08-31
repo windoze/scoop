@@ -239,6 +239,9 @@ pub struct DynamicClosureAdapter {
 #[derive(Debug)]
 pub struct StructDef {
     pub name: String,
+    /// Fixed after all type parameters have been resolved and this MIR
+    /// type entity has a complete concrete field list.
+    pub gc_free: bool,
     pub c_layout: Option<CLayout>,
     pub interior_mutable: bool,
     pub fields: Vec<Field>,
@@ -261,12 +264,16 @@ pub struct Field {
 #[derive(Debug)]
 pub struct EnumDef {
     pub name: String,
+    /// True exactly when every fully specialized variant is GC-free.
+    pub gc_free: bool,
     pub variants: Vec<VariantDef>,
 }
 
 #[derive(Debug)]
 pub struct VariantDef {
     pub name: String,
+    /// GC-free classification of this fully specialized variant.
+    pub gc_free: bool,
     /// Fields in declaration order (named and positional forms both
     /// normalized; positional fields carry `_1`-style names).
     pub fields: Vec<Field>,

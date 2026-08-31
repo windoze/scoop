@@ -86,9 +86,9 @@ pub fn compile_file_with_options(
     // HIR lowering consumes the whole compilation unit at once; its
     // diagnostics already carry the file index into `files`.
     let hir = scoop_hir_lower::lower(&files)?;
-    let hir_dump = scoop_hir::dump(&hir);
+    let hir_dump = scoop_hir::dump(&hir.export);
 
-    let mir = scoop_mir_lower::lower(&hir);
+    let mir = scoop_mir_lower::lower(&hir.local);
     let mir_dump = scoop_mir::dump(&mir);
 
     let lir = scoop_lir_lower::lower(&mir);

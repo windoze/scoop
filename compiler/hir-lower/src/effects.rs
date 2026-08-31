@@ -18,6 +18,69 @@ struct TypeEnvironment<'a> {
 }
 
 impl Lowerer {
+    pub(crate) fn check_no_gc_types(&mut self) {
+        let mut seen = HashSet::new();
+        let concrete_enums = self
+            .enums
+            .iter()
+            .filter(|(_, declaration)| declaration.no_gc && declaration.type_params.is_empty())
+            .map(|(_, declaration)| {
+                (
+                    declaration.name.clone(),
+                    declaration.span,
+                    declaration.variants.iter().all(|variant| {
+                        variant.fields.iter().all(|field| self.is_gc_free(field.ty))
+                    }),
+                )
+            })
+            .collect::<Vec<_>>();
+        for (name, span, gc_free) in concrete_enums {
+            if !gc_free {
+                self.error(
+                    span,
+                    format!(
+                        "`@NoGC` enum specialization `{name}` is not GC-free because it directly or indirectly contains a ref type"
+                    ),
+                );
+            }
+        }
+        let types = self
+            .types
+            .iter()
+            .filter_map(|(ty, kind)| match kind {
+                hir::Type::Struct(id, _) if self.structs[*id].attributes.no_gc => Some((
+                    ty,
+                    "struct",
+                    id.into_raw().into_u32(),
+                    self.structs[*id].span,
+                )),
+                hir::Type::Enum(id, _)
+                    if self.enums[*id].no_gc && !self.enums[*id].type_params.is_empty() =>
+                {
+                    Some((ty, "enum", id.into_raw().into_u32(), self.enums[*id].span))
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        for (ty, kind, raw_id, span) in types {
+            if self.type_contains_param(ty) {
+                continue;
+            }
+            let name = self.type_name(ty);
+            if !seen.insert((kind, raw_id, name.clone())) {
+                continue;
+            }
+            if !self.is_gc_free(ty) {
+                self.error(
+                    span,
+                    format!(
+                        "`@NoGC` {kind} specialization `{name}` is not GC-free because it directly or indirectly contains a ref type"
+                    ),
+                );
+            }
+        }
+    }
+
     pub(crate) fn check_no_gc_functions(&mut self) {
         let functions: Vec<_> = self
             .functions
