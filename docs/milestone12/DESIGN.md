@@ -287,8 +287,8 @@ Scoop ABI extern 不进入这条 bridge链。编译器按普通 direct managed c
 ### 3.4 库解析与 driver
 
 - driver 收集 LIR 中去重且保持首次出现顺序的非空 library 名，最终以独立参数 `-l<name>` 交给系统 linker；参数不经 shell；
-- CLI 临时增加可重复的 `-L` / `--library-path`，供 M12 单 Cone 构建与 fixture 使用。M16 落地 `Cone.toml` / `.slib` 后，库依赖进入 Cone metadata，此临时入口可保留为命令行覆盖；
-- M12 不支持 `dlopen` / `dlsym`、版本化符号、framework、任意 link args 或由 `lib` 注入路径。需要这些能力时由 M16 的结构化 native dependency 配置设计；
+- CLI 临时增加可重复的 `-L` / `--library-path`，供 M12 单 Cone 构建与 fixture 使用。M17 落地 `Cone.toml` / `.slib` 后，库依赖进入 Cone metadata，此临时入口可保留为命令行覆盖；
+- M12 不支持 `dlopen` / `dlsym`、版本化符号、framework、任意 link args 或由 `lib` 注入路径。需要这些能力时由 M17 的结构化 native dependency 配置设计；
 - 链接顺序固定为 Scoop object、FFI bridge object、runtime archive、extern libraries、C++ ABI 支持库，保证静态库符号按声明顺序可解析。
 
 ### 3.5 M12 的全局存储子集

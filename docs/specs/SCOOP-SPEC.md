@@ -1117,7 +1117,7 @@ Scoop 的 FFI 函数有两种 ABI：
 - **C ABI**（`abi = "c"`，默认）：标准的 FFI function，由外部 lib / so / dylib / dll 提供。它对 Scoop 的类型系统和 GC 环境没有任何了解，也不能使用相关功能，用于直接引入外部库。参数与返回值必须是 C-FFI-safe：GC-free 且具有本章规定的稳定 C 表示。
 - **Scoop ABI**：复用普通、非挂起 Scoop 函数的 typed machine ABI。ref 参数/返回值直接以 managed ref value 传递，value type按 Scoop 自身的 concrete ABI 传递；被调方能读取 TypeDescriptor，并可按第 14 章的 native-root 协议显式进入可能触发 GC 的 runtime 操作。它主要供 runtime 与 core 使用，不是通用 C library ABI。
 
-C ABI callee始终是 GC leaf；多线程runtime下 caller仍可按 runtime spec 3.5 发布roots并切换到native-safe状态。Scoop ABI调用按普通managed call生成，不切换到GC-free native-safe状态。具体机器级序列由实现决定，但不得改变上述类型与GC契约（第14章）。
+C ABI callee本身始终是 GC leaf，不能直接接收managed ref或调用Scoop GC；多线程runtime下 caller仍须按 runtime spec 3.5 发布roots并切换到native-safe状态。C代码只有在持有14.3注册得到的静态trampoline与cookie时，才能经独立的反向边界进入managed callback；这不改变该C函数自身的参数ABI或赋予它Scoop ABI能力。Scoop ABI调用按普通managed call生成，不切换到GC-free native-safe状态。具体机器级序列由实现决定，但不得改变上述类型与GC契约（第14章）。
 
 ref type（如 `String`、`Array`、普通 class）不能出现在 C ABI 的边界上（13.4 的 C-FFI-safe 约束）；同一类型可以直接出现在 Scoop ABI extern 签名中。`PinnedPtr<T>` / `GcHandle<T>` 已是 GC-free 的显式边界值：它们适合 C ABI、跨调用保活或需要稳定裸地址的场景，不是 Scoop ABI direct-ref 调用的必经表示。
 
@@ -1215,12 +1215,12 @@ fun <T : value> alignOf(): UInt
 struct FunPtr<F>(val _rawPointer: UInt = 0u)
 ```
 
-- `_rawPointer` 存放实际的函数指针值（与 `Ptr` 同样以 `UInt` 容纳 raw pointer）。缺省构造产生 null 指针（`0u`），因此 `FunPtr` 可以声明为 struct 字段、先以 null 填充；非 null 的 `FunPtr` 只能由编译器对 `::name` 执行 native-address contextual resolution 时生成（见下）。
-- 除缺省构造（null）外，用户**不能直接构造** `FunPtr` 值；在期望类型明确为 `FunPtr<F>` 的位置使用顶层函数声明引用 `::name`，由编译器直接生成原生 callback 地址。`::name` 是 8.1.4 的中性源码语法，不具有固有的 `FunPtr` 类型；因此 `val callback = ::name` 仍推导为 managed 函数值，要保存原生地址必须由类型标注、参数类型、返回类型等上下文提供 `FunPtr<F>` 期望类型。目标声明签名必须与 `F` **精确相同**，不应用 8.1.1 的函数类型型变。
+- `_rawPointer` 存放实际的函数指针值（与 `Ptr` 同样以 `UInt` 容纳 raw pointer）。缺省构造产生 null 指针（`0u`），因此 `FunPtr` 可以声明为 struct 字段、先以 null 填充。用户源码中独立的静态非null地址只能由编译器对`::name`执行native-address contextual resolution生成（见下）；14.3 的`ForeignCallback.function`是编译器生成的另一种非null值，指向必须与opaque context cookie配对使用的managed-callback trampoline，不是静态目标地址。
+- 除缺省构造（null）外，用户**不能直接构造** `FunPtr` 值；在期望类型明确为 `FunPtr<F>` 的位置使用顶层函数声明引用 `::name`，由编译器直接生成原生 callback 地址。`::name` 是 8.1.4 的中性源码语法，不具有固有的 `FunPtr` 类型；因此 `val callback = ::name` 仍推导为 managed 函数值，要保存原生地址必须由类型标注、参数类型、返回类型等上下文提供 `FunPtr<F>` 期望类型。目标声明签名必须与 `F` **精确相同**，不应用 8.1.1 的函数类型型变。`ForeignCallback.function`只能从已注册值读取，不能用构造器仿造。
 - `F` 的每个参数与返回类型必须满足 C-FFI-safe 约束；`Unit` 只允许作为返回类型。`FunPtr` 描述的是 C ABI callback 地址，不是 Scoop ABI managed callable；函数类型 `F` 在这里仅描述 native signature，本身不会作为 managed 引用穿越边界。
 - 可空函数指针用 `Option<FunPtr<F>>` 表示（niche 优化见 7.4）。
 - native-address resolution 的目标必须是带 `@NoGC` 的普通顶层命名函数，且**不能是 generic、挂起、extern、成员或扩展函数**。lambda、匿名函数、局部函数、任何绑定引用以及已存在的 managed 函数值都不能作为非 null `FunPtr` 的来源。违反这些约束是编译错误：FFI 回调不得与 GC 交互，generic 函数没有单一具体符号，挂起函数只有编译器内部的 hidden continuation ABI，而 closure 还需要原生 ABI 中不存在的 managed 环境参数。编译器不自动生成 closure 或挂起 callback wrapper。
-- `FunPtr` 不提供 Scoop 侧 `invoke`；它只用于传递/存储 native callback 地址。M12 callback 契约仅允许原生方在发起 extern 调用的同一已注册线程上同步调用；保存后异步、跨线程或在 Scoop 程序退出后调用需要 M13 实现的 14.3 GC-aware注册协议，不能由 `FunPtr` 隐式获得。
+- `FunPtr` 不提供 Scoop 侧 `invoke`；它只用于传递/存储 native callback 地址。由`::name`得到的M12静态callback仅允许原生方在发起extern调用的同一已注册线程上同步调用；保存后异步、跨线程或在Scoop程序退出后调用不隐式获得安全性。M13只有14.3 registration返回的`ForeignCallback.function + context`配对具备对应token/attach协议，单独保存或调用其中的function而不携带仍存活的配对context同样非法。
 
 ```
 // C 侧：int compare_int(int a, int b, int (*cmp)(int, int))
@@ -1272,7 +1272,7 @@ Scoop ABI FFI 的 caller side（Scoop 托管代码一侧）必须生成 ordinary
 
 - 按普通 managed call 保持所有 live ref，并把 direct-ref 实参纳入调用点根集合；
 - ordinary call site，由 statepoint rewrite 处理 safepoint；
-- 不插 `enter_native` / `leave_native`；
+- M12 单mutator实现不插线程状态转换；M13多mutator实现发布live caller roots并在调用期间进入`native-borrowed`，返回managed前检查GC epoch。它不得进入C ABI使用的`native-safe`，也不得省略direct-ref callee在显式runtime入口所需的native-root协议；
 - callee 默认不标记为 `gc-leaf-function`；只有签名与实现都满足 13.2、并显式声明 `@NoGC` 的 Scoop ABI extern 才可按 GC leaf 降低；
 - machine callconv 初版使用 LLVM 默认 callconv `0`；
 - 调用点本身**不要求 unsafe context**（`abi = "scoop"` 的 extern 函数不是 unsafe function，见 13.4）。
@@ -1294,6 +1294,50 @@ Scoop ABI extern 的参数与返回值使用普通 Scoop typed ABI，不经过 C
 - native侧通过静态 C ABI trampoline和显式 context/user-data槽携带该 token。trampoline进入 runtime后 attach尚未注册的 foreign thread、切换到 managed执行状态、从 handle重新取得 closure并调用 typed adapter；返回 native前恢复线程状态。参数与返回值必须满足 C-FFI-safe约束，closure body内 GC正常生效。
 - token具有显式 retain/release与 use-after-release错误边界；callback抛出的 Scoop异常必须在反向边界内捕获并转换为 status/受管异常handle，不得展开穿越 C frame。运行时终止后调用 token是 ABI错误。首版只支持原生API提供显式 context/user-data槽的形态；无此槽的任意 closure导出需要后续动态 trampoline或 slot registry。
 - 该协议不改变 `FunPtr`（13.10）：M12 的 `FunPtr` callback仍是静态、同步、同线程、`@NoGC`路径。M13 落地 registration、foreign-thread attach/detach和多 mutator STW协调；suspend closure与 suspend FFI仍不支持。
+
+M13 的 core 源码形态为：
+
+```
+enum ForeignCallbackMode { Reusable, OneShot }
+enum ForeignCallbackState { Registered, Active, Completed, Failed }
+
+struct ForeignCallback<F>(
+    val function: FunPtr<F>,
+    val context: Ptr<Unit>
+)
+
+@Unsafe
+@Intrinsic("foreign_callback_register")
+fun <F> foreignCallback(
+    callback: Any,
+    contextIndex: Int,
+    mode: ForeignCallbackMode
+): ForeignCallback<F>
+
+@Unsafe
+@Intrinsic("foreign_callback_retain")
+fun <F> retainForeignCallback(callback: ForeignCallback<F>): ForeignCallback<F>
+
+@Unsafe
+@Intrinsic("foreign_callback_release")
+fun <F> releaseForeignCallback(callback: ForeignCallback<F>)
+
+@Unsafe
+@Intrinsic("foreign_callback_state")
+fun <F> foreignCallbackState(callback: ForeignCallback<F>): ForeignCallbackState
+
+@Unsafe
+@Intrinsic("foreign_callback_failure")
+fun <F> foreignCallbackFailure(callback: ForeignCallback<F>): Throwable?
+```
+
+- `F` 必须在registration调用处显式给出，是ordinary、非挂起、完全具体化且逐项C-FFI-safe的native callback函数类型。`contextIndex`和`mode`必须为编译期常量；被选参数必须精确为`Ptr<Unit>`；
+- `callback: Any`只是core声明无法表达“从`F`删除context参数”的占位，不执行装箱。HIR删除`F`中`contextIndex`对应的参数，以所得ordinary concrete函数类型检查managed closure；context cookie不作为实参传给closure，返回类型保持不变；
+- `ForeignCallback<F>`是GC-free值，但不是单个C ABI聚合。调用native API时分别传`function`与`context`；有效值只能由`foreignCallback`产生，用户不能直接构造；
+- `ForeignCallback`是compiler-validated core类型，其`F`可在core声明内作为deferred callback signature用于`FunPtr<F>`；每个实际应用仍必须具体化为合法函数类型。这不引入一般性的`function` kind bound，用户generic类型不能据此用未约束参数绕过`FunPtr`检查；
+- `foreignCallback`与`retainForeignCallback`各产生一份逻辑ownership。普通值复制只是借用别名，不增加计数；每份ownership恰好release一次。`Reusable`由调用者在native API完成unregister并确认不再回调后释放；`OneShot`在native创建成功后把worker ownership转移给callback入口，创建失败则仍由调用者释放。join侧若需观察结果，必须在转移前另retain observer ownership；
+- callback抛出时，trampoline按C签名返回全零值，token保存首个managed异常。完成同步后，observer用`foreignCallbackState` / `foreignCallbackFailure`读取并可在Scoop侧重新抛出；最终release通常置于`finally`。stale token、signature不匹配、one-shot重复调用或runtime终止后调用均为runtime ABI错误；
+- `foreignCallback`只接受普通closure，不接受`suspend`函数值。普通callback可以捕获并调用`Continuation<T>.resume`；这仍不是suspend callback或suspend FFI。
 
 ### 14.4 示例：直接输出 managed `String`
 

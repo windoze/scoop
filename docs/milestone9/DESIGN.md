@@ -6,7 +6,7 @@
 
 ## 0. 范围说明（分阶段的理由）
 
-完整"Immix 分代式"包含三件大事：精确栈根、Immix 堆组织与回收、分代+写屏障+晋升。本里程碑交付 Immix 回收闭环与 statepoint / stackmap 产出通道；runtime 精确消费 stackmap、分代、evacuation / defrag 与并行协调转入 backlog（第 6 章）。关键约束（ROADMAP）：M1–M8 的全部 fixture 必须在真 GC 下原样通过。
+完整"Immix 分代式"包含三件大事：精确栈根、Immix 堆组织与回收、分代+写屏障+晋升。本里程碑交付 Immix 回收闭环与 statepoint / stackmap 产出通道；runtime精确消费stackmap与evacuation/defrag进入M15，分代和并行/并发协调继续留在backlog（第6章）。关键约束（ROADMAP）：M1–M8 的全部 fixture 必须在真 GC 下原样通过。
 
 - **不移动对象**（v1 无 evacuation/copying）→ 栈根不需要更新。codegen 已产出 statepoint / stackmap；runtime 当前使用经过堆对象起点校验的保守栈扫描，精确消费 stackmap 是明确的替换点（见 3.2）；
 - **对象头从 8B 扩为 16B**（`td` + `gc_word`）：GC 标记位与 pin 标志的载体（runtime spec 2.1"对象头其余字段由 GC 实现决定"的落地）。这是本里程碑最大的结构性涟漪（所有堆布局偏移 +8，见 3.1）。
@@ -70,7 +70,7 @@ struct GcHandle<T>(val raw: UInt)
 
 - codegen 给函数设置 `statepoint-example` GC strategy、执行 `rewrite-statepoints-for-gc`，目标文件已含 `__llvm_stackmaps`；
 - runtime v1 在单线程回收时用 `setjmp` 溢出寄存器，并保守扫描当前帧到启动时记录的栈顶；每个候选值必须通过 arena、block 与对象起点三级校验后才会标记，保证内存安全但可能短暂过度保活；
-- 后续精确实现解析 stackmap，并以返回地址定位各帧的指针槽；移动式回收前必须完成该替换。
+- M15精确解析stackmap，并以返回地址定位和更新各帧的指针槽；移动式回收前必须完成该替换。
 
 ### 3.3 driver / 链接
 
@@ -88,16 +88,16 @@ struct GcHandle<T>(val raw: UInt)
 
 ## 5. 临时决策（及退役里程碑）
 
-1. **单代、不移动、无 evacuation**：分代（nursery/晋升/remembered set 消费卡片表）与 Immix defrag evacuation继续留在backlog；多 mutator STW协调、线程注册/握手和线程安全分配/根表由M13完成，parallel/concurrent collector仍在其后。
+1. **单代、不移动、无 evacuation**：精确stackmap消费、root relocation与Immix defrag evacuation进入M15；多 mutator STW协调、线程注册/握手和线程安全分配/根表由M13完成。分代（nursery/晋升/remembered set）与parallel/concurrent collector仍在其后。
 2. **`pin` 等四函数走 `@Intrinsic`**：M12 转 spec 14.1 的 `@Unsafe` 普通函数/FFI 形态；`gcCollect`/`gcStats` 是测试专用 intrinsic，不进 spec（标注为内部设施）。
 3. **回收触发阈值**：v1 固定值；自适应阈值随后续。
-4. **保守栈根是 v1 过渡方案**：精确消费 stackmap 在移动式回收前完成；当前不绑定单一 CPU 架构。
+4. **保守栈根是 v1 过渡方案**：M15在移动式回收前完成精确stackmap消费；M9当前不绑定单一CPU架构。
 5. **statepoint GC strategy 用 `statepoint-example`**：这是我们自己的 GC 策略注册名（LLVM 内置名，M0 已验证）；若后续需要自定义策略名（`scoop`）需向 LLVM 注册，当前不需要。
 
 ## 6. 明确不做（进 backlog）
 
 - 分代（nursery、晋升、remembered set 消费卡片表、代间引用检查）；
-- evacuation / defragmentation（Immix 的碎片整理）；
+- evacuation / defragmentation（Immix 的碎片整理）→ M15；
 - 多 mutator STW协调、线程注册/握手与线程安全分配/根表（→ M13）；parallel/concurrent collector继续留在backlog；
-- runtime 精确解析 statepoint stackmap 并扫描栈根（含所需的平台寄存器/帧支持）；
+- runtime 精确解析 statepoint stackmap并更新栈根（含所需的平台寄存器/帧支持）→ M15；
 - `scoop.std` 的 GC 调优 API；
