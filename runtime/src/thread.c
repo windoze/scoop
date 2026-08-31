@@ -18,10 +18,22 @@ typedef enum ScoopRuntimeLifecycle {
     SCOOP_RUNTIME_STOPPED,
 } ScoopRuntimeLifecycle;
 
-static pthread_mutex_t thread_registry_lock = PTHREAD_MUTEX_INITIALIZER;
+typedef enum ScoopWorldPhase {
+    SCOOP_WORLD_RUNNING,
+    SCOOP_WORLD_STOPPING,
+    SCOOP_WORLD_COLLECTING,
+} ScoopWorldPhase;
+
+static pthread_mutex_t world_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t world_changed = PTHREAD_COND_INITIALIZER;
+static pthread_mutex_t collector_lock = PTHREAD_MUTEX_INITIALIZER;
 static ScoopThreadState *thread_registry_head;
 static uint64_t thread_registry_count;
 static ScoopRuntimeLifecycle runtime_lifecycle = SCOOP_RUNTIME_UNINITIALIZED;
+static _Atomic(ScoopWorldPhase) world_phase = SCOOP_WORLD_RUNNING;
+static _Atomic(uint64_t) gc_epoch;
+static _Atomic(uint64_t) last_gc_parked_count;
+static _Atomic(uint64_t) last_gc_native_safe_count;
 static _Thread_local ScoopThreadState *current_thread;
 
 static _Noreturn void thread_fatal(const char *message) {
@@ -30,14 +42,33 @@ static _Noreturn void thread_fatal(const char *message) {
 }
 
 static void registry_lock(void) {
-    if (pthread_mutex_lock(&thread_registry_lock) != 0) {
-        thread_fatal("failed to lock the thread registry");
+    if (pthread_mutex_lock(&world_lock) != 0) {
+        thread_fatal("failed to lock the world");
     }
 }
 
 static void registry_unlock(void) {
-    if (pthread_mutex_unlock(&thread_registry_lock) != 0) {
-        thread_fatal("failed to unlock the thread registry");
+    if (pthread_mutex_unlock(&world_lock) != 0) {
+        thread_fatal("failed to unlock the world");
+    }
+}
+
+static void world_wait(void) {
+    if (pthread_cond_wait(&world_changed, &world_lock) != 0) {
+        thread_fatal("failed to wait for a world-state change");
+    }
+}
+
+static void world_broadcast(void) {
+    if (pthread_cond_broadcast(&world_changed) != 0) {
+        thread_fatal("failed to broadcast a world-state change");
+    }
+}
+
+static void wait_for_running_world(void) {
+    while (atomic_load_explicit(&world_phase, memory_order_acquire) !=
+           SCOOP_WORLD_RUNNING) {
+        world_wait();
     }
 }
 
@@ -80,6 +111,9 @@ static ScoopThreadState *new_thread_state(ScoopThreadAttachmentKind kind,
     state->os_thread = pthread_self();
     read_stack_bounds(&state->stack_low, &state->stack_high);
     atomic_init(&state->mode, mode);
+    atomic_init(&state->observed_gc_epoch,
+                atomic_load_explicit(&gc_epoch, memory_order_acquire));
+    state->parked_from = mode;
     state->managed_depth = managed_depth;
     state->attachment_kind = kind;
     return state;
@@ -135,9 +169,10 @@ static void detach_current(ScoopThreadAttachmentKind expected_kind) {
     if (state == NULL) {
         thread_fatal("attempted to detach an unattached thread");
     }
-    require_detachable(state, expected_kind);
 
     registry_lock();
+    wait_for_running_world();
+    require_detachable(state, expected_kind);
     atomic_store_explicit(&state->mode, SCOOP_THREAD_DETACHING, memory_order_release);
     registry_remove(state);
     current_thread = NULL;
@@ -152,18 +187,28 @@ void scoop_thread_runtime_init(void) {
         registry_unlock();
         thread_fatal("runtime thread registry initialized more than once");
     }
+    atomic_store_explicit(&world_phase, SCOOP_WORLD_RUNNING, memory_order_release);
+    atomic_store_explicit(&gc_epoch, 0, memory_order_release);
+    atomic_store_explicit(&last_gc_parked_count, 0, memory_order_release);
+    atomic_store_explicit(&last_gc_native_safe_count, 0, memory_order_release);
     runtime_lifecycle = SCOOP_RUNTIME_RUNNING;
     registry_unlock();
 }
 
-void scoop_thread_attach_main(void) {
+void scoop_thread_attach_main(const void *managed_stack_boundary) {
     if (current_thread != NULL) {
         thread_fatal("main thread is already attached");
     }
     ScoopThreadState *state =
         new_thread_state(SCOOP_THREAD_MAIN, SCOOP_THREAD_MANAGED, 1);
+    uintptr_t boundary = (uintptr_t)managed_stack_boundary;
+    if (boundary < (uintptr_t)state->stack_low || boundary > (uintptr_t)state->stack_high) {
+        thread_fatal("main thread published an invalid managed stack boundary");
+    }
+    state->managed_stack_boundary = managed_stack_boundary;
 
     registry_lock();
+    wait_for_running_world();
     if (runtime_lifecycle != SCOOP_RUNTIME_RUNNING || thread_registry_count != 0) {
         registry_unlock();
         free(state);
@@ -182,6 +227,7 @@ bool scoop_rt_attach_foreign_thread(void) {
         new_thread_state(SCOOP_THREAD_FOREIGN, SCOOP_THREAD_NATIVE_SAFE, 0);
 
     registry_lock();
+    wait_for_running_world();
     if (runtime_lifecycle != SCOOP_RUNTIME_RUNNING) {
         registry_unlock();
         free(state);
@@ -204,6 +250,7 @@ void scoop_thread_prepare_shutdown(void) {
     }
 
     registry_lock();
+    wait_for_running_world();
     if (runtime_lifecycle != SCOOP_RUNTIME_RUNNING) {
         registry_unlock();
         thread_fatal("runtime shutdown entered from an invalid lifecycle state");
@@ -255,14 +302,217 @@ void scoop_thread_require_managed(void) {
     }
 }
 
-void scoop_thread_require_single_managed_mutator(void) {
+void scoop_thread_require_single_attachment_for_allocation(void) {
     scoop_thread_require_managed();
     registry_lock();
     bool single = thread_registry_count == 1;
     registry_unlock();
     if (!single) {
-        thread_fatal("GC entered before multi-mutator coordination is enabled");
+        thread_fatal("allocation entered before multi-mutator allocation is enabled");
     }
+}
+
+static void spill_and_park_current_locked(ScoopThreadState *state,
+                                          const char *stack_pointer) {
+    ScoopThreadMode from = atomic_load_explicit(&state->mode, memory_order_acquire);
+    if (from != SCOOP_THREAD_MANAGED && from != SCOOP_THREAD_NATIVE_BORROWED) {
+        thread_fatal("only managed or native-borrowed threads may park");
+    }
+
+    while (atomic_load_explicit(&world_phase, memory_order_acquire) !=
+           SCOOP_WORLD_RUNNING) {
+        uint64_t epoch = atomic_load_explicit(&gc_epoch, memory_order_acquire);
+        state->parked_from = from;
+        state->parked_sp = stack_pointer;
+        atomic_store_explicit(&state->observed_gc_epoch, epoch, memory_order_release);
+        atomic_store_explicit(&state->mode, SCOOP_THREAD_PARKED, memory_order_release);
+        world_broadcast();
+        /* Wait once rather than hiding phase changes in wait_for_running_world:
+         * a new collector may win the world lock before an old-epoch parker
+         * wakes. The outer loop must then acknowledge the new epoch while the
+         * same spill/SP are still valid. */
+        world_wait();
+    }
+
+    state->parked_sp = NULL;
+    atomic_store_explicit(&state->observed_gc_epoch,
+                          atomic_load_explicit(&gc_epoch, memory_order_acquire),
+                          memory_order_release);
+    atomic_store_explicit(&state->mode, from, memory_order_release);
+}
+
+void scoop_thread_poll(void) {
+    ScoopThreadState *state = scoop_thread_current_required();
+    scoop_thread_require_managed();
+    uint64_t epoch = atomic_load_explicit(&gc_epoch, memory_order_acquire);
+    if (atomic_load_explicit(&world_phase, memory_order_acquire) ==
+            SCOOP_WORLD_RUNNING &&
+        atomic_load_explicit(&state->observed_gc_epoch, memory_order_acquire) == epoch) {
+        return;
+    }
+
+    volatile char stack_marker = 0;
+    (void)setjmp(state->register_spill);
+    registry_lock();
+    if (atomic_load_explicit(&world_phase, memory_order_acquire) !=
+        SCOOP_WORLD_RUNNING) {
+        spill_and_park_current_locked(state, (const char *)&stack_marker);
+    } else {
+        atomic_store_explicit(&state->observed_gc_epoch,
+                              atomic_load_explicit(&gc_epoch, memory_order_acquire),
+                              memory_order_release);
+    }
+    registry_unlock();
+}
+
+static bool all_collection_targets_quiescent(ScoopThreadState *collector,
+                                             uint64_t epoch,
+                                             uint64_t *parked_count,
+                                             uint64_t *native_safe_count) {
+    uint64_t parked = 0;
+    uint64_t native_safe = 0;
+    for (ScoopThreadState *state = thread_registry_head; state != NULL;
+         state = state->registry_next) {
+        if (state == collector) {
+            continue;
+        }
+        ScoopThreadMode mode = atomic_load_explicit(&state->mode, memory_order_acquire);
+        if (mode == SCOOP_THREAD_NATIVE_SAFE) {
+            native_safe++;
+            continue;
+        }
+        if (mode == SCOOP_THREAD_PARKED &&
+            atomic_load_explicit(&state->observed_gc_epoch, memory_order_acquire) ==
+                epoch) {
+            parked++;
+            continue;
+        }
+        if (mode == SCOOP_THREAD_MANAGED || mode == SCOOP_THREAD_NATIVE_BORROWED ||
+            mode == SCOOP_THREAD_PARKED) {
+            return false;
+        }
+        thread_fatal("invalid thread mode while stopping the world");
+    }
+    *parked_count = parked;
+    *native_safe_count = native_safe;
+    return true;
+}
+
+bool scoop_thread_begin_collection(void) {
+    ScoopThreadState *state = scoop_thread_current_required();
+    scoop_thread_require_managed();
+    volatile char stack_marker = 0;
+    (void)setjmp(state->register_spill);
+
+    registry_lock();
+    if (atomic_load_explicit(&world_phase, memory_order_acquire) !=
+        SCOOP_WORLD_RUNNING) {
+        spill_and_park_current_locked(state, (const char *)&stack_marker);
+        registry_unlock();
+        return false;
+    }
+    if (pthread_mutex_lock(&collector_lock) != 0) {
+        registry_unlock();
+        thread_fatal("failed to lock the collector");
+    }
+
+    uint64_t epoch =
+        atomic_fetch_add_explicit(&gc_epoch, 1, memory_order_acq_rel) + 1;
+    atomic_store_explicit(&world_phase, SCOOP_WORLD_STOPPING, memory_order_release);
+    state->parked_from = SCOOP_THREAD_MANAGED;
+    state->parked_sp = (const char *)&stack_marker;
+    atomic_store_explicit(&state->observed_gc_epoch, epoch, memory_order_release);
+    atomic_store_explicit(&state->mode, SCOOP_THREAD_COLLECTOR, memory_order_release);
+    world_broadcast();
+
+    uint64_t parked_count = 0;
+    uint64_t native_safe_count = 0;
+    while (!all_collection_targets_quiescent(state, epoch, &parked_count,
+                                              &native_safe_count)) {
+        world_wait();
+    }
+    atomic_store_explicit(&last_gc_parked_count, parked_count, memory_order_release);
+    atomic_store_explicit(&last_gc_native_safe_count, native_safe_count,
+                          memory_order_release);
+    atomic_store_explicit(&world_phase, SCOOP_WORLD_COLLECTING, memory_order_release);
+    registry_unlock();
+    return true;
+}
+
+void scoop_thread_end_collection(void) {
+    ScoopThreadState *state = scoop_thread_current_required();
+    if (atomic_load_explicit(&state->mode, memory_order_acquire) !=
+        SCOOP_THREAD_COLLECTOR) {
+        thread_fatal("collection ended by a non-collector thread");
+    }
+
+    registry_lock();
+    if (atomic_load_explicit(&world_phase, memory_order_acquire) !=
+        SCOOP_WORLD_COLLECTING) {
+        registry_unlock();
+        thread_fatal("collection ended outside the collecting phase");
+    }
+    state->parked_sp = NULL;
+    atomic_store_explicit(&state->mode, SCOOP_THREAD_MANAGED, memory_order_release);
+    if (pthread_mutex_unlock(&collector_lock) != 0) {
+        registry_unlock();
+        thread_fatal("failed to unlock the collector");
+    }
+    atomic_store_explicit(&world_phase, SCOOP_WORLD_RUNNING, memory_order_release);
+    world_broadcast();
+    registry_unlock();
+}
+
+ScoopThreadState *scoop_thread_collection_registry_head(void) {
+    ScoopThreadState *state = scoop_thread_current_required();
+    if (atomic_load_explicit(&state->mode, memory_order_acquire) !=
+            SCOOP_THREAD_COLLECTOR ||
+        atomic_load_explicit(&world_phase, memory_order_acquire) !=
+            SCOOP_WORLD_COLLECTING) {
+        thread_fatal("thread registry enumerated outside STW collection");
+    }
+    return thread_registry_head;
+}
+
+void scoop_thread_enter_managed(const void *managed_stack_boundary) {
+    ScoopThreadState *state = scoop_thread_current_required();
+    if (atomic_load_explicit(&state->mode, memory_order_acquire) !=
+            SCOOP_THREAD_NATIVE_SAFE ||
+        state->managed_depth != 0) {
+        thread_fatal("invalid managed entry transition");
+    }
+    uintptr_t boundary = (uintptr_t)managed_stack_boundary;
+    if (boundary < (uintptr_t)state->stack_low || boundary > (uintptr_t)state->stack_high) {
+        thread_fatal("managed entry published an invalid stack boundary");
+    }
+    registry_lock();
+    wait_for_running_world();
+    state->managed_depth = 1;
+    state->managed_stack_boundary = managed_stack_boundary;
+    atomic_store_explicit(&state->observed_gc_epoch,
+                          atomic_load_explicit(&gc_epoch, memory_order_acquire),
+                          memory_order_release);
+    atomic_store_explicit(&state->mode, SCOOP_THREAD_MANAGED, memory_order_release);
+    registry_unlock();
+}
+
+void scoop_thread_leave_managed(void) {
+    ScoopThreadState *state = scoop_thread_current_required();
+    scoop_thread_require_managed();
+    if (state->managed_depth != 1) {
+        thread_fatal("invalid managed exit transition");
+    }
+    volatile char stack_marker = 0;
+    (void)setjmp(state->register_spill);
+    registry_lock();
+    if (atomic_load_explicit(&world_phase, memory_order_acquire) !=
+        SCOOP_WORLD_RUNNING) {
+        spill_and_park_current_locked(state, (const char *)&stack_marker);
+    }
+    state->managed_depth = 0;
+    state->managed_stack_boundary = NULL;
+    atomic_store_explicit(&state->mode, SCOOP_THREAD_NATIVE_SAFE, memory_order_release);
+    registry_unlock();
 }
 
 bool scoop_rt_thread_debug_is_attached(void) {
@@ -284,4 +534,24 @@ uintptr_t scoop_rt_thread_debug_stack_low(void) {
 uintptr_t scoop_rt_thread_debug_stack_high(void) {
     ScoopThreadState *state = scoop_thread_current_required();
     return (uintptr_t)state->stack_high;
+}
+
+void scoop_rt_thread_debug_enter_managed(uintptr_t managed_stack_boundary) {
+    scoop_thread_enter_managed((const void *)managed_stack_boundary);
+}
+
+void scoop_rt_thread_debug_leave_managed(void) {
+    scoop_thread_leave_managed();
+}
+
+uint64_t scoop_rt_thread_debug_gc_epoch(void) {
+    return atomic_load_explicit(&gc_epoch, memory_order_acquire);
+}
+
+uint64_t scoop_rt_thread_debug_last_gc_parked_count(void) {
+    return atomic_load_explicit(&last_gc_parked_count, memory_order_acquire);
+}
+
+uint64_t scoop_rt_thread_debug_last_gc_native_safe_count(void) {
+    return atomic_load_explicit(&last_gc_native_safe_count, memory_order_acquire);
 }

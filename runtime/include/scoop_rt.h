@@ -278,6 +278,11 @@ bool scoop_rt_thread_debug_is_attached(void);
 uint64_t scoop_rt_thread_debug_count(void);
 uintptr_t scoop_rt_thread_debug_stack_low(void);
 uintptr_t scoop_rt_thread_debug_stack_high(void);
+void scoop_rt_thread_debug_enter_managed(uintptr_t managed_stack_boundary);
+void scoop_rt_thread_debug_leave_managed(void);
+uint64_t scoop_rt_thread_debug_gc_epoch(void);
+uint64_t scoop_rt_thread_debug_last_gc_parked_count(void);
+uint64_t scoop_rt_thread_debug_last_gc_native_safe_count(void);
 
 /* M8 additions (milestone8 DESIGN section 4): exception support on top
  * of the Itanium C++ ABI (runtime spec 5). Scoop exceptions are thrown

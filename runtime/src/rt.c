@@ -245,10 +245,11 @@ void scoop_rt_init_eh(void) {
 }
 
 int main(void) {
+    volatile char managed_stack_boundary = 0;
     scoop_rt_init_eh();
     scoop_thread_runtime_init();
     scoop_rt_gc_init();
-    scoop_thread_attach_main();
+    scoop_thread_attach_main((const void *)&managed_stack_boundary);
     scoop_main();
     scoop_thread_prepare_shutdown();
     scoop_thread_detach_main();

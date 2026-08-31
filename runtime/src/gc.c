@@ -47,12 +47,12 @@
  * still valid and the pointers it yields are containment-checked in
  * turn. At worst, garbage is retained one extra cycle.
  *
- * M13 gate 1 registers every OS thread in a TLS ScoopThreadState and
- * moves stack/native-root ownership there. Heap metadata is still
- * single-mutator until the later STW/TLAB gates, so allocation and
- * collection explicitly reject entry while another thread is attached.
+ * M13 registers every OS thread in a TLS ScoopThreadState, moves
+ * stack/native-root ownership there, and coordinates collection with a
+ * cooperative epoch handshake. Heap allocation metadata remains
+ * single-mutator until the TLAB gate, so allocation still rejects entry
+ * while another thread is attached.
  */
-#include <setjmp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -501,6 +501,11 @@ void scoop_rt_gc_remove_root_object(const void *obj) {
 void scoop_rt_push_native_roots(ScoopNativeRootFrame *frame, void ***slots,
                                 uint64_t count) {
     ScoopThreadState *thread = scoop_thread_current_required();
+    /* Until the full native transition chain is installed, root-chain
+     * mutation is a managed coordination point. A native-safe thread may
+     * carry an already published frozen chain, but cannot race the collector
+     * by editing it while the world is stopped. */
+    scoop_thread_require_managed();
     if (frame == NULL || (count != 0 && slots == NULL)) {
         gc_fatal("invalid native root frame");
     }
@@ -523,6 +528,7 @@ void scoop_rt_push_native_roots(ScoopNativeRootFrame *frame, void ***slots,
 
 void scoop_rt_pop_native_roots(ScoopNativeRootFrame *frame) {
     ScoopThreadState *thread = scoop_thread_current_required();
+    scoop_thread_require_managed();
     if (frame == NULL || thread->native_roots != frame) {
         gc_fatal("native root frames must be popped in LIFO order");
     }
@@ -757,23 +763,40 @@ static void gc_scan_range(const char *lo, const char *hi) {
     }
 }
 
-/* TRANSITION (v1): conservative stack roots. Every aligned word between
- * the current frame and the recorded stack base that validates as a
- * heap object start is treated as a root. Memory-safe because
- * is_heap_start gates every dereference; imprecise because stale words
- * keep garbage alive (one cycle of over-retention at worst — the
- * mutator overwrites its frames as it runs). Non-moving by luck: v1
- * never moves objects, so conservative roots need no updating. This is
- * replaced by precise statepoint stackmap scanning (milestone9 DESIGN
- * 3.2) once codegen emits __llvm_stackmaps; the rest of the collector
- * only ever calls this function for stack roots. */
-static void gc_scan_stack(void) {
-    ScoopThreadState *thread = scoop_thread_current_required();
-    /* Spill callee-saved registers into this frame so roots living only
-     * in registers land in the scanned range. */
-    jmp_buf registers;
-    (void)setjmp(registers);
-    gc_scan_range((const char *)&registers, thread->stack_high);
+static void gc_scan_native_roots(const ScoopThreadState *thread) {
+    for (ScoopNativeRootFrame *frame = thread->native_roots; frame != NULL;
+         frame = frame->previous) {
+        for (uint64_t i = 0; i < frame->count; i++) {
+            gc_trace_slot((const void *const *)frame->slots[i]);
+        }
+    }
+}
+
+/* M13 transition: each managed mutator publishes a stable SP and a setjmp
+ * register spill before publishing parked/collector. The STW collector may
+ * then conservatively scan those stable regions. Native-safe threads keep
+ * running, so their active native stacks are deliberately skipped; later
+ * transition-chain work adds their frozen outer managed segments. M15
+ * replaces these conservative ranges with precise stackmap locations. */
+static void gc_scan_thread(const ScoopThreadState *thread) {
+    ScoopThreadMode mode = atomic_load_explicit(&thread->mode, memory_order_acquire);
+    if (mode == SCOOP_THREAD_PARKED || mode == SCOOP_THREAD_COLLECTOR) {
+        uintptr_t stack_low = (uintptr_t)thread->stack_low;
+        uintptr_t stack_high = (uintptr_t)thread->stack_high;
+        uintptr_t parked_sp = (uintptr_t)thread->parked_sp;
+        uintptr_t managed_boundary = (uintptr_t)thread->managed_stack_boundary;
+        if (parked_sp == 0 || parked_sp < stack_low || managed_boundary == 0 ||
+            managed_boundary > stack_high || parked_sp >= managed_boundary) {
+            gc_fatal("parked thread published an invalid stack pointer");
+        }
+        gc_scan_range((const char *)&thread->register_spill,
+                      (const char *)&thread->register_spill +
+                          sizeof thread->register_spill);
+        gc_scan_range(thread->parked_sp, thread->managed_stack_boundary);
+    } else if (mode != SCOOP_THREAD_NATIVE_SAFE) {
+        gc_fatal("collector observed a non-quiescent thread");
+    }
+    gc_scan_native_roots(thread);
 }
 
 /* --- sweep ---------------------------------------------------------------- */
@@ -846,8 +869,9 @@ static void gc_sweep(void) {
 /* --- collection entry points ---------------------------------------------- */
 
 void scoop_rt_gc_collect(void) {
-    scoop_thread_require_single_managed_mutator();
-    ScoopThreadState *thread = scoop_thread_current_required();
+    if (!scoop_thread_begin_collection()) {
+        return;
+    }
     /* New cycle: with the parity flipped, every object starts unmarked
      * (allocations set the bit to the *previous* color). */
     gc_mark_color ^= 1;
@@ -867,12 +891,6 @@ void scoop_rt_gc_collect(void) {
             gc_trace_slot((const void *const *)gc_roots[i].base);
         }
     }
-    for (ScoopNativeRootFrame *frame = thread->native_roots; frame != NULL;
-         frame = frame->previous) {
-        for (uint64_t i = 0; i < frame->count; i++) {
-            gc_trace_slot((const void *const *)frame->slots[i]);
-        }
-    }
     for (size_t i = 0; i < gc_handles_len; i++) {
         if ((gc_handles[i] & 1) == 0) {
             const void *obj = (const void *)gc_handles[i];
@@ -884,7 +902,10 @@ void scoop_rt_gc_collect(void) {
     for (size_t i = 0; i < gc_pinned_len; i++) {
         gc_mark(gc_pinned[i]);
     }
-    gc_scan_stack();
+    for (ScoopThreadState *thread = scoop_thread_collection_registry_head();
+         thread != NULL; thread = thread->registry_next) {
+        gc_scan_thread(thread);
+    }
 
     /* Trace. */
     while (gc_work_len > 0) {
@@ -895,6 +916,7 @@ void scoop_rt_gc_collect(void) {
     gc_live_objects = gc_marked_count;
     gc_threshold = gc_committed * 2 > GC_INITIAL_THRESHOLD ? gc_committed * 2
                                                            : GC_INITIAL_THRESHOLD;
+    scoop_thread_end_collection();
 }
 
 uint64_t scoop_rt_gc_stats(void) {
@@ -978,7 +1000,8 @@ static void *gc_alloc_large(size_t size) {
 }
 
 void *scoop_rt_alloc(const ScoopTypeDescriptor *td, size_t size) {
-    scoop_thread_require_single_managed_mutator();
+    scoop_thread_poll();
+    scoop_thread_require_single_attachment_for_allocation();
     if (size < sizeof(ScoopObjectHeader)) {
         size = sizeof(ScoopObjectHeader); /* defensive: callers include the header */
     }
@@ -999,9 +1022,9 @@ void *scoop_rt_alloc(const ScoopTypeDescriptor *td, size_t size) {
  * in the arena section above: a pointer variable pre-biased by
  * arena_base >> 9. */
 
-/* Safepoint poll: M13 gate 1 verifies that generated managed code runs
- * only on an attached managed thread. The epoch/park handshake arrives
- * in the next gate; collection remains synchronous for now. */
+/* Safepoint poll: the fast path compares the current thread's observed
+ * epoch with the global epoch. The slow path spills registers, publishes
+ * its SP, parks, and waits for the single STW collector. */
 void scoop_rt_safepoint(void) {
-    scoop_thread_require_managed();
+    scoop_thread_poll();
 }
