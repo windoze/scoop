@@ -644,6 +644,18 @@ impl Lowerer {
                         hir::Variance::In => self.is_subtype(b, a),
                     })
             }
+            (Type::Function(source), Type::Function(target)) => {
+                let source = self.function_types[source].clone();
+                let target = self.function_types[target].clone();
+                source.is_suspend == target.is_suspend
+                    && source.parameter_types.len() == target.parameter_types.len()
+                    && target
+                        .parameter_types
+                        .into_iter()
+                        .zip(source.parameter_types)
+                        .all(|(target, source)| self.is_subtype(target, source))
+                    && self.is_subtype(source.return_type, target.return_type)
+            }
             (Type::Class(class), Type::Interface(..)) => self
                 .class_interfaces_all(class)
                 .into_iter()
@@ -806,6 +818,32 @@ impl Lowerer {
             return expr;
         }
         let span = expr.span;
+        if let (Type::Function(source), Type::Function(target_type)) =
+            (self.types[expr.ty].clone(), self.types[target].clone())
+        {
+            let key = (source, target_type);
+            let coercion = self
+                .function_coercion_by_types
+                .get(&key)
+                .copied()
+                .unwrap_or_else(|| {
+                    let id = self.function_coercions.alloc(hir::FunctionCoercion {
+                        source,
+                        target: target_type,
+                    });
+                    self.function_coercion_by_types.insert(key, id);
+                    id
+                });
+            return hir::Expr {
+                kind: hir::ExprKind::FunctionCoercion {
+                    source: Box::new(expr),
+                    coercion,
+                    target_type,
+                },
+                ty: target,
+                span,
+            };
+        }
         if self.is_value_ty(expr.ty) {
             hir::Expr {
                 kind: hir::ExprKind::Box(Box::new(expr)),

@@ -1345,7 +1345,11 @@ impl Lowerer {
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
         if let Some(local) = self.scopes.lookup(&call.callee.text) {
-            let ty = self.locals[local].ty;
+            let ty = self
+                .smart_casts
+                .get(&local)
+                .copied()
+                .unwrap_or(self.locals[local].ty);
             if matches!(self.types[ty], Type::Function(_)) {
                 let callee = hir::Expr {
                     kind: ExprKind::Local(local),

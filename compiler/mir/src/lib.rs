@@ -17,6 +17,7 @@ pub type FunctionTypeId = Idx<FunctionType>;
 pub type ClosureClassId = Idx<ClosureClass>;
 pub type ClosureInvokeFunctionId = Idx<ClosureInvokeFunction>;
 pub type ClosureAdapterId = Idx<ClosureAdapter>;
+pub type DynamicClosureAdapterId = Idx<DynamicClosureAdapter>;
 pub type MonomorphizedFunctionId = Idx<MonomorphizedFunction>;
 pub type StringConstId = Idx<StringConst>;
 pub type StructId = Idx<StructDef>;
@@ -175,6 +176,15 @@ pub struct ClosureClass {
     pub function_type: FunctionTypeId,
     pub invoke: ClosureInvokeFunctionId,
     pub captures: Vec<Field>,
+    /// Function-type views supported by this exact closure class. Each slot
+    /// is a typed forwarding entry whose ABI is `target`.
+    pub bridges: Vec<FunctionBridge>,
+}
+
+#[derive(Debug)]
+pub struct FunctionBridge {
+    pub target: FunctionTypeId,
+    pub function: FunctionId,
 }
 
 #[derive(Debug)]
@@ -189,6 +199,15 @@ pub struct ClosureInvokeFunction {
 pub struct ClosureAdapter {
     pub class: ClosureClassId,
     pub source: FunctionTypeId,
+    pub target: FunctionTypeId,
+}
+
+/// Adapter used after a runtime `Any`/interface-to-function check. Its source
+/// signature is discovered from the captured closure's TypeDescriptor bridge
+/// table, while its exposed invoke ABI is exactly `target`.
+#[derive(Debug)]
+pub struct DynamicClosureAdapter {
+    pub class: ClosureClassId,
     pub target: FunctionTypeId,
 }
 
@@ -309,6 +328,7 @@ pub struct MirMeta {
     /// Per-call-site continuation adapters and their typed resume state.
     pub coroutine_resume_points: Arena<CoroutineResumePoint>,
     pub closure_adapters: Arena<ClosureAdapter>,
+    pub dynamic_closure_adapters: Arena<DynamicClosureAdapter>,
 }
 
 #[derive(Debug)]
@@ -648,6 +668,11 @@ pub enum CallKind {
     Closure {
         function_type: FunctionTypeId,
     },
+    /// Runtime-selected function-type bridge from the source closure's
+    /// TypeDescriptor table. Argument 0 is the source closure reference.
+    FunctionBridge {
+        function_type: FunctionTypeId,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -663,6 +688,9 @@ pub enum Callee {
     /// There is no statically selected function; the exact signature is the
     /// complete typed call target carried through CFG construction.
     Closure(FunctionTypeId),
+    /// No source signature is statically known (an `Any`/interface cast).
+    /// The target signature selects one bridge-table entry at runtime.
+    FunctionBridge(FunctionTypeId),
     /// A runtime function (see `RuntimeFn::symbol`).
     Runtime(RuntimeFn),
 }
@@ -796,6 +824,30 @@ pub fn dump(module: &Module) -> String {
             def.function_type.into_raw().into_u32(),
             module.functions[invoke].symbol,
             def.captures.len()
+        ));
+        for bridge in &def.bridges {
+            out.push_str(&format!(
+                "    bridge function_type{} -> @{}\n",
+                bridge.target.into_raw().into_u32(),
+                module.functions[bridge.function].symbol
+            ));
+        }
+    }
+    for (id, adapter) in module.meta.closure_adapters.iter() {
+        out.push_str(&format!(
+            "  adapter ca{} class=cc{} source=function_type{} target=function_type{}\n",
+            id.into_raw().into_u32(),
+            adapter.class.into_raw().into_u32(),
+            adapter.source.into_raw().into_u32(),
+            adapter.target.into_raw().into_u32()
+        ));
+    }
+    for (id, adapter) in module.meta.dynamic_closure_adapters.iter() {
+        out.push_str(&format!(
+            "  dynamic_adapter da{} class=cc{} target=function_type{}\n",
+            id.into_raw().into_u32(),
+            adapter.class.into_raw().into_u32(),
+            adapter.target.into_raw().into_u32()
         ));
     }
     for &id in &module.top_level {
@@ -1240,6 +1292,10 @@ fn dump_call(
                 function_type.into_raw().into_u32()
             )
         }
+        Callee::FunctionBridge(function_type) => format!(
+            "<function_bridge:function_type{}>",
+            function_type.into_raw().into_u32()
+        ),
         Callee::Runtime(function) => format!("@{}", function.symbol()),
     };
     let kind = match &call.target.kind {
@@ -1254,6 +1310,10 @@ fn dump_call(
                 function_type.into_raw().into_u32()
             )
         }
+        CallKind::FunctionBridge { function_type } => format!(
+            "function_bridge[function_type{}]",
+            function_type.into_raw().into_u32()
+        ),
     };
     match destination {
         Some(local) => out.push_str(&format!(

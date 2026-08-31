@@ -105,6 +105,54 @@ fn callable_literal_inherits_the_enclosing_generic_namespace() {
     ));
 }
 
+#[test]
+fn function_variance_builds_an_explicit_typed_coercion() {
+    let source_type = ty_function(false, vec![ty_named("Any")], ty_named("Int"));
+    let target_type = ty_function(false, vec![ty_named("Int")], ty_named("Any"));
+    let reference = ast::Expr::CallableReference {
+        id: ast::CallableReferenceId(0),
+        receiver: None,
+        name: ident("source"),
+        span: sp(),
+    };
+    let module = lower_user(file(vec![
+        fun_expr(
+            "source",
+            Vec::new(),
+            vec![("value", ty_named("Any"))],
+            Some(ty_named("Int")),
+            int_lit(42),
+        ),
+        fun(
+            "main",
+            vec![
+                val_ty("exact", Some(source_type), reference),
+                val_ty("widened", Some(target_type), var("exact")),
+            ],
+        ),
+    ]))
+    .expect("function parameters are contravariant and returns are covariant");
+
+    let hir::FunctionKind::User(body) = &module.functions[module.entry].kind else {
+        panic!("main body");
+    };
+    let hir::StatementKind::ValDecl { init, .. } = &body.statements[1].kind else {
+        panic!("widened declaration");
+    };
+    let hir::ExprKind::FunctionCoercion {
+        source,
+        coercion,
+        target_type,
+    } = &init.kind
+    else {
+        panic!("variance must not be a pointer-only retype");
+    };
+    let conversion = &module.function_coercions[*coercion];
+    assert_eq!(conversion.target, *target_type);
+    assert!(matches!(source.kind, hir::ExprKind::Local(_)));
+    assert_eq!(module.function_coercions.len(), 1);
+}
+
 fn lambda(parameters: Option<Vec<ast::LambdaParam>>, tail: ast::Expr) -> ast::Expr {
     ast::Expr::Lambda {
         id: ast::LambdaId(0),

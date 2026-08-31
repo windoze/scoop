@@ -1928,6 +1928,9 @@ fn patch_local_function_call_expr(
             }
         }
         hir::ExprKind::FieldAccess { receiver, .. }
+        | hir::ExprKind::FunctionCoercion {
+            source: receiver, ..
+        }
         | hir::ExprKind::Box(receiver)
         | hir::ExprKind::Unbox(receiver)
         | hir::ExprKind::IsInstance {

@@ -18,6 +18,7 @@ pub type LambdaId = Idx<Lambda>;
 pub type AnonymousFunctionId = Idx<AnonymousFunction>;
 pub type LocalFunctionId = Idx<LocalFunction>;
 pub type CallableReferenceId = Idx<CallableReference>;
+pub type FunctionCoercionId = Idx<FunctionCoercion>;
 pub type FunctionId = Idx<Function>;
 pub type GenericFunctionId = Idx<GenericFunction>;
 pub type ResolvedGenericFunctionId = Idx<ResolvedGenericFunction>;
@@ -232,6 +233,9 @@ pub struct Module {
     pub anonymous_functions: Arena<AnonymousFunction>,
     pub local_functions: Arena<LocalFunction>,
     pub callable_references: Arena<CallableReference>,
+    /// Source/target signatures of every explicit function-value variance
+    /// adaptation requested by HIR.
+    pub function_coercions: Arena<FunctionCoercion>,
     pub functions: Arena<Function>,
     /// Generic function definitions. Their ids are distinct from
     /// ordinary `FunctionId`s even though each entry points at the HIR
@@ -345,6 +349,12 @@ pub struct Capture {
     /// closure object is created. It is either a local read or a transitive
     /// capture read, and therefore preserves by-value creation-time semantics.
     pub source: Expr,
+}
+
+#[derive(Debug, Clone)]
+pub struct FunctionCoercion {
+    pub source: FunctionTypeId,
+    pub target: FunctionTypeId,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -713,6 +723,14 @@ pub enum ExprKind {
     Lambda(LambdaId),
     AnonymousFunction(AnonymousFunctionId),
     CallableReference(CallableReferenceId),
+    /// A variance-preserving function-value adaptation. `Expr::ty` is the
+    /// target type; the typed entity also records both concrete HIR
+    /// signatures so MIR cannot lower this as a pointer-only retype.
+    FunctionCoercion {
+        source: Box<Expr>,
+        coercion: FunctionCoercionId,
+        target_type: FunctionTypeId,
+    },
     FieldAccess {
         receiver: Box<Expr>,
         field: FieldRef,
@@ -1347,6 +1365,41 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
             if let Some(receiver) = receiver {
                 dump_expr(module, locals, receiver, indent + 1, out);
             }
+        }
+        ExprKind::FunctionCoercion {
+            source,
+            coercion,
+            target_type,
+        } => {
+            let conversion = &module.function_coercions[*coercion];
+            debug_assert_eq!(conversion.target, *target_type);
+            out.push_str(&format!(
+                "{pad}FunctionCoercion coercion{} {} -> {} : {ty}\n",
+                coercion.into_raw().into_u32(),
+                type_name(
+                    module,
+                    module
+                        .types
+                        .iter()
+                        .find_map(|(ty, value)| {
+                            matches!(value, Type::Function(id) if *id == conversion.source)
+                                .then_some(ty)
+                        })
+                        .expect("a function signature has a canonical type")
+                ),
+                type_name(
+                    module,
+                    module
+                        .types
+                        .iter()
+                        .find_map(|(ty, value)| {
+                            matches!(value, Type::Function(id) if *id == conversion.target)
+                                .then_some(ty)
+                        })
+                        .expect("a function signature has a canonical type")
+                )
+            ));
+            dump_expr(module, locals, source, indent + 1, out);
         }
         ExprKind::FieldAccess { receiver, field } => {
             let field = match field {

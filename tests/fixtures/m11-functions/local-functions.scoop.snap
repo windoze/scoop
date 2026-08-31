@@ -1049,6 +1049,8 @@ Module
     t1 = call @scoop_rt_int_to_string(t0) : ptr
     store t1 -> local0
     ret local0
+  td function$FIRIX @scoop_td_function$FIRIX size=0 vtable=0 itables=0
+  td function$FRSX @scoop_td_function$FRSX size=0 vtable=0 itables=0
   td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
   td box$I @scoop_td_box$I size=24 vtable=3 itables=0
   td Exception @scoop_td_Exception size=24 vtable=3 itables=0
@@ -1057,9 +1059,9 @@ Module
   td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=3 itables=0
   td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=3 itables=0
   td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=3 itables=0
-  td $Closure$reference0 @scoop_td_$Closure$reference0 size=32 vtable=0 itables=0
-  td $Closure$reference1 @scoop_td_$Closure$reference1 size=24 vtable=0 itables=0
-  td $Closure$reference2 @scoop_td_$Closure$reference2 size=32 vtable=0 itables=0
+  td $Closure$reference0 @scoop_td_$Closure$reference0 size=32 vtable=3 itables=0
+  td $Closure$reference1 @scoop_td_$Closure$reference1 size=24 vtable=3 itables=0
+  td $Closure$reference2 @scoop_td_$Closure$reference2 size=32 vtable=3 itables=0
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]

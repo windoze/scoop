@@ -829,6 +829,10 @@ Module
     t1 = call @scoop_rt_int_to_string(t0) : ptr
     store t1 -> local0
     ret local0
+  td function$FRIX @scoop_td_function$FRIX size=0 vtable=0 itables=0
+  td function$FRFRIXX @scoop_td_function$FRFRIXX size=0 vtable=0 itables=0
+  td function$FIRIX @scoop_td_function$FIRIX size=0 vtable=0 itables=0
+  td function$FRSX @scoop_td_function$FRSX size=0 vtable=0 itables=0
   td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
   td Counter @scoop_td_Counter size=24 vtable=3 itables=0
   td box$I @scoop_td_box$I size=24 vtable=3 itables=0
@@ -838,13 +842,13 @@ Module
   td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=3 itables=0
   td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=3 itables=0
   td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=3 itables=0
-  td $Closure$lambda0 @scoop_td_$Closure$lambda0 size=32 vtable=0 itables=0
-  td $Closure$lambda1 @scoop_td_$Closure$lambda1 size=32 vtable=0 itables=0
-  td $Closure$lambda2 @scoop_td_$Closure$lambda2 size=32 vtable=0 itables=0
-  td $Closure$lambda3 @scoop_td_$Closure$lambda3 size=32 vtable=0 itables=0
-  td $Closure$lambda4 @scoop_td_$Closure$lambda4 size=32 vtable=0 itables=0
-  td $Closure$lambda5 @scoop_td_$Closure$lambda5 size=32 vtable=0 itables=0
-  td $Closure$lambda6 @scoop_td_$Closure$lambda6 size=32 vtable=0 itables=0
+  td $Closure$lambda0 @scoop_td_$Closure$lambda0 size=32 vtable=3 itables=0
+  td $Closure$lambda1 @scoop_td_$Closure$lambda1 size=32 vtable=3 itables=0
+  td $Closure$lambda2 @scoop_td_$Closure$lambda2 size=32 vtable=3 itables=0
+  td $Closure$lambda3 @scoop_td_$Closure$lambda3 size=32 vtable=3 itables=0
+  td $Closure$lambda4 @scoop_td_$Closure$lambda4 size=32 vtable=3 itables=0
+  td $Closure$lambda5 @scoop_td_$Closure$lambda5 size=32 vtable=3 itables=0
+  td $Closure$lambda6 @scoop_td_$Closure$lambda6 size=32 vtable=3 itables=0
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]

@@ -691,6 +691,22 @@ fn type_descriptors(module: &mir::Module, enums: &Arena<lir::EnumDef>) -> Vec<li
             itables: Vec::new(),
         });
     }
+    for (id, _) in module.function_types.iter() {
+        let name = format!(
+            "function${}",
+            mir::encode_type(module, &mir::Type::Function(id))
+        );
+        tds.push(lir::TypeDescriptor {
+            symbol: td_symbol(&name),
+            name,
+            size: 0,
+            align: 0,
+            scan: lir::RefScan::None,
+            parent: None,
+            vtable: Vec::new(),
+            itables: Vec::new(),
+        });
+    }
     for id in class_order(module) {
         let def = &module.classes[id];
         let (size, align, scan) = class_layout(module, enums, def);
@@ -730,9 +746,26 @@ fn type_descriptors(module: &mir::Module, enums: &Arena<lir::EnumDef>) -> Vec<li
             size,
             align,
             scan,
-            parent: None,
-            vtable: Vec::new(),
-            itables: Vec::new(),
+            parent: Some(td_symbol(&format!(
+                "function${}",
+                mir::encode_type(module, &mir::Type::Function(def.function_type))
+            ))),
+            vtable: vec![
+                mir::RuntimeFn::AnyEquals.symbol().to_string(),
+                mir::RuntimeFn::AnyHashCode.symbol().to_string(),
+                mir::RuntimeFn::AnyToString.symbol().to_string(),
+            ],
+            itables: def
+                .bridges
+                .iter()
+                .map(|bridge| lir::ItableRecord {
+                    interface_symbol: td_symbol(&format!(
+                        "function${}",
+                        mir::encode_type(module, &mir::Type::Function(bridge.target))
+                    )),
+                    slots: vec![module.functions[bridge.function].symbol.clone()],
+                })
+                .collect(),
         });
     }
     tds
@@ -2019,6 +2052,33 @@ impl<'a> FunctionLowerer<'a> {
 
     fn lower_call(&mut self, call: &mir::Call, result_ty: &mir::Type) -> lir::Value {
         match call.target.callee {
+            mir::Callee::FunctionBridge(function_type) => {
+                let signature = self.module.function_types[function_type].clone();
+                let mut parameter_types = Vec::with_capacity(signature.parameter_types.len() + 1);
+                parameter_types.push(mir::Type::Any);
+                parameter_types.extend(signature.parameter_types);
+                let args: Vec<lir::Value> = call
+                    .args
+                    .iter()
+                    .zip(&parameter_types)
+                    .map(|(arg, ty)| self.lower_expr(arg, ty))
+                    .collect();
+                let td = self.load_at_offset(args[0], 0, lir::LirType::Ptr);
+                let target_td = self.td_ref(&mir::Type::Function(function_type));
+                let table = self.new_temp(lir::LirType::Ptr);
+                self.push(lir::Instruction::Call {
+                    out: Some(table),
+                    symbol: mir::RuntimeFn::ITableLookup.symbol().to_string(),
+                    args: vec![lir::Value::Temp(td), target_td],
+                });
+                self.finish_indirect(
+                    table,
+                    0,
+                    args,
+                    signature.return_type == mir::Type::Unit,
+                    result_ty,
+                )
+            }
             mir::Callee::Closure(function_type) => {
                 let signature = self.module.function_types[function_type].clone();
                 let mut parameter_types = Vec::with_capacity(signature.parameter_types.len() + 1);
@@ -2046,7 +2106,9 @@ impl<'a> FunctionLowerer<'a> {
                     mir::Callee::CoroutineSuspend { .. } | mir::Callee::Runtime(_) => {
                         unreachable!("matched a local callee above")
                     }
-                    mir::Callee::Closure(_) => unreachable!("handled above"),
+                    mir::Callee::Closure(_) | mir::Callee::FunctionBridge(_) => {
+                        unreachable!("handled above")
+                    }
                 };
                 let callee = &self.module.functions[id];
                 let param_types: Vec<mir::Type> =
@@ -2089,6 +2151,9 @@ impl<'a> FunctionLowerer<'a> {
                     }
                     mir::CallKind::Closure { .. } => {
                         unreachable!("closure calls have no statically selected user callee")
+                    }
+                    mir::CallKind::FunctionBridge { .. } => {
+                        unreachable!("function bridge calls have no static user callee")
                     }
                 }
             }

@@ -294,6 +294,8 @@ Module
     t1 = enum_wrap e0 v0 (global6) : enum0
     heap_store t0 +16 t1
     ret t0
+  td function$FIRIX @scoop_td_function$FIRIX size=0 vtable=0 itables=0
+  td function$SRSX @scoop_td_function$SRSX size=0 vtable=0 itables=0
   td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
   td Exception @scoop_td_Exception size=24 vtable=3 itables=0
   td UnwrapException @scoop_td_UnwrapException size=24 vtable=3 itables=0

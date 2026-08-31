@@ -165,6 +165,12 @@ pub fn lower(module: &hir::Module) -> mir::Module {
         closure_by_function: HashMap::new(),
         closure_by_instance: HashMap::new(),
         closure_capture_indices: HashMap::new(),
+        closure_adapters: Arena::new(),
+        closure_adapter_by_types: HashMap::new(),
+        dynamic_closure_adapters: Arena::new(),
+        dynamic_adapter_by_target: HashMap::new(),
+        function_bridge_targets: Vec::new(),
+        finalized_function_bridges: HashSet::new(),
     }
     .run(module)
 }
@@ -231,6 +237,13 @@ struct Lowerer {
     closure_by_instance: HashMap<mir::MonomorphizedFunctionId, mir::ClosureClassId>,
     /// HIR lexical binding -> concrete inline field index for one closure.
     closure_capture_indices: HashMap<(mir::ClosureClassId, hir::BindingId), u32>,
+    closure_adapters: Arena<mir::ClosureAdapter>,
+    closure_adapter_by_types:
+        HashMap<(mir::FunctionTypeId, mir::FunctionTypeId), mir::ClosureAdapterId>,
+    dynamic_closure_adapters: Arena<mir::DynamicClosureAdapter>,
+    dynamic_adapter_by_target: HashMap<mir::FunctionTypeId, mir::DynamicClosureAdapterId>,
+    function_bridge_targets: Vec<mir::FunctionTypeId>,
+    finalized_function_bridges: HashSet<(mir::ClosureClassId, mir::FunctionTypeId)>,
 }
 
 #[derive(Clone)]
@@ -804,9 +817,11 @@ impl Lowerer {
                 next_boxed += 1;
             }
             let added_variance = self.finalize_variance_itables(module);
+            let added_function_bridges = self.finalize_function_bridges(module);
             if next_instance == self.instances.pending.len()
                 && next_boxed == self.boxed.order.len()
                 && !added_variance
+                && !added_function_bridges
             {
                 break;
             }
@@ -837,6 +852,8 @@ impl Lowerer {
                 coroutine_slots: self.coroutines.slots,
                 coroutine_frames: self.coroutines.frames,
                 coroutine_resume_points: self.coroutines.resume_points,
+                closure_adapters: self.closure_adapters,
+                dynamic_closure_adapters: self.dynamic_closure_adapters,
                 ..mir::MirMeta::default()
             },
         }
@@ -1092,7 +1109,17 @@ impl Lowerer {
         source: &mir::Type,
         target: &mir::Type,
     ) -> smir::Expr {
-        if source == target || (is_reference_mir(source) && is_reference_mir(target)) {
+        if source == target {
+            return value;
+        }
+        if let (mir::Type::Function(source), mir::Type::Function(target)) = (source, target) {
+            let adapter = self.ensure_function_adapter(*source, *target);
+            return smir::Expr::ClosureAlloc {
+                class: self.closure_adapters[adapter].class,
+                captures: vec![value],
+            };
+        }
+        if is_reference_mir(source) && is_reference_mir(target) {
             return value;
         }
         if is_boxable(source) && is_reference_mir(target) {
@@ -1109,8 +1136,132 @@ impl Lowerer {
         unreachable!("variance bridge adaptations always follow a subtype conversion")
     }
 
+    fn ensure_function_adapter(
+        &mut self,
+        source: mir::FunctionTypeId,
+        target: mir::FunctionTypeId,
+    ) -> mir::ClosureAdapterId {
+        if let Some(&adapter) = self.closure_adapter_by_types.get(&(source, target)) {
+            return adapter;
+        }
+        let source_signature = self.shell.function_types[source].clone();
+        let target_signature = self.shell.function_types[target].clone();
+        let source_name = mir::encode_type(&self.shell, &mir::Type::Function(source));
+        let target_name = mir::encode_type(&self.shell, &mir::Type::Function(target));
+        let function = self.functions.alloc(mir::Function {
+            name: format!("$adapter.{source_name}.{target_name}"),
+            symbol: format!("scoop.$adapter.{source_name}.{target_name}"),
+            params: Vec::new(),
+            return_ty: target_signature.return_type.clone(),
+            body: mir::Body::unreachable(Arena::new()),
+        });
+        self.top_level.push(function);
+        let invoke = self
+            .closure_invokes
+            .alloc(mir::ClosureInvokeFunction { function });
+        let class = self.closure_classes.alloc(mir::ClosureClass {
+            name: format!("$Closure$adapter${source_name}${target_name}"),
+            function_type: target,
+            invoke,
+            captures: vec![mir::Field {
+                name: "$source".to_string(),
+                ty: mir::Type::Function(source),
+            }],
+            bridges: Vec::new(),
+        });
+        let adapter = self.closure_adapters.alloc(mir::ClosureAdapter {
+            class,
+            source,
+            target,
+        });
+        self.closure_adapter_by_types
+            .insert((source, target), adapter);
+
+        let span = Span::new(0, 0);
+        let mut locals = Arena::new();
+        let closure = locals.alloc(mir::Local {
+            name: "$closure".to_string(),
+            ty: mir::Type::Function(target),
+            mutable: false,
+        });
+        let mut params = vec![mir::Param {
+            name: "$closure".to_string(),
+            ty: mir::Type::Function(target),
+            local: closure,
+        }];
+        let mut args = vec![smir::Expr::ClosureCapture {
+            closure: Box::new(smir::Expr::Local(closure)),
+            class,
+            index: 0,
+        }];
+        for (index, (target_ty, source_ty)) in target_signature
+            .parameter_types
+            .iter()
+            .zip(&source_signature.parameter_types)
+            .enumerate()
+        {
+            let local = locals.alloc(mir::Local {
+                name: format!("arg{index}"),
+                ty: target_ty.clone(),
+                mutable: false,
+            });
+            params.push(mir::Param {
+                name: format!("arg{index}"),
+                ty: target_ty.clone(),
+                local,
+            });
+            args.push(self.adapt_variance_bridge(smir::Expr::Local(local), target_ty, source_ty));
+        }
+        let call = smir::Expr::Call(smir::Call {
+            target: mir::CallTarget {
+                kind: mir::CallKind::Closure {
+                    function_type: source,
+                },
+                callee: mir::Callee::Closure(source),
+            },
+            args,
+            return_ty: source_signature.return_type.clone(),
+        });
+        let statements = if target_signature.return_type == mir::Type::Unit {
+            vec![
+                smir::Statement {
+                    kind: smir::StatementKind::Expr(call),
+                    span,
+                },
+                smir::Statement {
+                    kind: smir::StatementKind::Return { value: None },
+                    span,
+                },
+            ]
+        } else {
+            vec![smir::Statement {
+                kind: smir::StatementKind::Return {
+                    value: Some(self.adapt_variance_bridge(
+                        call,
+                        &source_signature.return_type,
+                        &target_signature.return_type,
+                    )),
+                },
+                span,
+            }]
+        };
+        self.functions[function].params = params;
+        self.functions[function].body = cfg::lower(
+            smir::Body { locals, statements },
+            target_signature.return_type.clone(),
+        );
+        if target_signature.is_suspend {
+            self.suspend_sources.push(SuspendSource {
+                function,
+                source_return: target_signature.return_type,
+                instance: None,
+            });
+        }
+        adapter
+    }
+
     fn interface_is_subtype(
-        &self,
+        &mut self,
         module: &hir::Module,
         source: mir::InterfaceId,
         target: mir::InterfaceId,
@@ -1119,7 +1270,9 @@ impl Lowerer {
             return true;
         }
         let (source_id, source_args) = self.interfaces.source(source);
+        let source_args = source_args.to_vec();
         let (target_id, target_args) = self.interfaces.source(target);
+        let target_args = target_args.to_vec();
         if source_id != target_id || source_args.len() != target_args.len() {
             return false;
         }
@@ -1127,8 +1280,8 @@ impl Lowerer {
             .type_params
             .iter()
             .map(|param| param.variance)
-            .zip(source_args)
-            .zip(target_args)
+            .zip(&source_args)
+            .zip(&target_args)
             .all(|((variance, source), target)| match variance {
                 hir::Variance::Invariant => source == target,
                 hir::Variance::Out => self.mir_type_is_subtype(module, source, target),
@@ -1137,7 +1290,7 @@ impl Lowerer {
     }
 
     fn mir_type_is_subtype(
-        &self,
+        &mut self,
         module: &hir::Module,
         source: &mir::Type,
         target: &mir::Type,
@@ -1159,12 +1312,158 @@ impl Lowerer {
             (mir::Type::Interface(source), mir::Type::Interface(target)) => {
                 self.interface_is_subtype(module, *source, *target)
             }
-            (mir::Type::Class(source), mir::Type::Interface(target)) => self.classes[*source]
-                .interfaces
-                .iter()
-                .any(|interface| self.interface_is_subtype(module, *interface, *target)),
+            (mir::Type::Class(source), mir::Type::Interface(target)) => {
+                let interfaces = self.classes[*source].interfaces.clone();
+                interfaces
+                    .into_iter()
+                    .any(|interface| self.interface_is_subtype(module, interface, *target))
+            }
+            (mir::Type::Struct(_) | mir::Type::Enum(_, _), mir::Type::Interface(target)) => self
+                .value_interfaces(module, source)
+                .into_iter()
+                .any(|interface| self.interface_is_subtype(module, interface, *target)),
+            (mir::Type::Function(source), mir::Type::Function(target)) => {
+                let source = self.shell.function_types[*source].clone();
+                let target = self.shell.function_types[*target].clone();
+                source.is_suspend == target.is_suspend
+                    && source.parameter_types.len() == target.parameter_types.len()
+                    && target
+                        .parameter_types
+                        .iter()
+                        .zip(&source.parameter_types)
+                        .all(|(target, source)| self.mir_type_is_subtype(module, target, source))
+                    && self.mir_type_is_subtype(module, &source.return_type, &target.return_type)
+            }
             _ => false,
         }
+    }
+
+    fn finalize_function_bridges(&mut self, module: &hir::Module) -> bool {
+        let classes: Vec<_> = self.closure_classes.iter().map(|(id, _)| id).collect();
+        let targets = self.function_bridge_targets.clone();
+        let mut added = false;
+        for class in classes {
+            let source = self.closure_classes[class].function_type;
+            for &target in &targets {
+                if self.finalized_function_bridges.contains(&(class, target))
+                    || !self.mir_type_is_subtype(
+                        module,
+                        &mir::Type::Function(source),
+                        &mir::Type::Function(target),
+                    )
+                {
+                    continue;
+                }
+                let function = if source == target {
+                    let invoke = self.closure_classes[class].invoke;
+                    self.closure_invokes[invoke].function
+                } else {
+                    self.build_function_bridge(class, source, target)
+                };
+                self.closure_classes[class]
+                    .bridges
+                    .push(mir::FunctionBridge { target, function });
+                self.finalized_function_bridges.insert((class, target));
+                added = true;
+            }
+        }
+        added
+    }
+
+    fn build_function_bridge(
+        &mut self,
+        class: mir::ClosureClassId,
+        source: mir::FunctionTypeId,
+        target: mir::FunctionTypeId,
+    ) -> mir::FunctionId {
+        let source_signature = self.shell.function_types[source].clone();
+        let target_signature = self.shell.function_types[target].clone();
+        let mut locals = Arena::new();
+        let closure = locals.alloc(mir::Local {
+            name: "$source".to_string(),
+            ty: mir::Type::Function(source),
+            mutable: false,
+        });
+        let mut params = vec![mir::Param {
+            name: "$source".to_string(),
+            ty: mir::Type::Function(source),
+            local: closure,
+        }];
+        let mut args = vec![smir::Expr::Local(closure)];
+        for (index, (target_ty, source_ty)) in target_signature
+            .parameter_types
+            .iter()
+            .zip(&source_signature.parameter_types)
+            .enumerate()
+        {
+            let local = locals.alloc(mir::Local {
+                name: format!("arg{index}"),
+                ty: target_ty.clone(),
+                mutable: false,
+            });
+            params.push(mir::Param {
+                name: format!("arg{index}"),
+                ty: target_ty.clone(),
+                local,
+            });
+            args.push(self.adapt_variance_bridge(smir::Expr::Local(local), target_ty, source_ty));
+        }
+        let call = smir::Expr::Call(smir::Call {
+            target: mir::CallTarget {
+                kind: mir::CallKind::Closure {
+                    function_type: source,
+                },
+                callee: mir::Callee::Closure(source),
+            },
+            args,
+            return_ty: source_signature.return_type.clone(),
+        });
+        let statements = if target_signature.return_type == mir::Type::Unit {
+            vec![
+                smir::Statement {
+                    kind: smir::StatementKind::Expr(call),
+                    span: Span { start: 0, end: 0 },
+                },
+                smir::Statement {
+                    kind: smir::StatementKind::Return { value: None },
+                    span: Span { start: 0, end: 0 },
+                },
+            ]
+        } else {
+            vec![smir::Statement {
+                kind: smir::StatementKind::Return {
+                    value: Some(self.adapt_variance_bridge(
+                        call,
+                        &source_signature.return_type,
+                        &target_signature.return_type,
+                    )),
+                },
+                span: Span { start: 0, end: 0 },
+            }]
+        };
+        let source_name = &self.closure_classes[class].name;
+        let target_name = mir::encode_type(&self.shell, &mir::Type::Function(target));
+        let name = format!("function_bridge.{source_name}.{target_name}");
+        let body = cfg::lower(
+            smir::Body { locals, statements },
+            target_signature.return_type.clone(),
+        );
+        let function = self.functions.alloc(mir::Function {
+            symbol: format!("scoop.{name}"),
+            name,
+            params,
+            return_ty: target_signature.return_type.clone(),
+            body,
+        });
+        self.top_level.push(function);
+        if target_signature.is_suspend {
+            self.suspend_sources.push(SuspendSource {
+                function,
+                source_return: target_signature.return_type,
+                instance: None,
+            });
+        }
+        function
     }
 
     /// Lower one user function; `subst` is the concrete type argument
@@ -1231,6 +1530,11 @@ impl Lowerer {
             closure_invokes: &mut self.closure_invokes,
             closure_by_instance: &mut self.closure_by_instance,
             closure_capture_indices: &mut self.closure_capture_indices,
+            closure_adapters: &mut self.closure_adapters,
+            closure_adapter_by_types: &mut self.closure_adapter_by_types,
+            dynamic_closure_adapters: &mut self.dynamic_closure_adapters,
+            dynamic_adapter_by_target: &mut self.dynamic_adapter_by_target,
+            function_bridge_targets: &mut self.function_bridge_targets,
             current_closure,
             current_closure_local: None,
             current_local_capture_params,
@@ -1565,6 +1869,7 @@ impl Lowerer {
                 function_type,
                 invoke,
                 captures,
+                bridges: Vec::new(),
             });
             self.closure_by_function.insert(lambda.function, class);
             for (index, capture) in lambda.captures.iter().enumerate() {
@@ -1606,6 +1911,7 @@ impl Lowerer {
                 function_type,
                 invoke,
                 captures,
+                bridges: Vec::new(),
             });
             self.closure_by_function.insert(anonymous.function, class);
             for (index, capture) in anonymous.captures.iter().enumerate() {
@@ -1709,6 +2015,7 @@ impl Lowerer {
                 function_type,
                 invoke,
                 captures: capture_fields,
+                bridges: Vec::new(),
             });
             let capture_offset = u32::from(receiver.is_some());
             for (index, capture) in reference.captures.iter().enumerate() {
@@ -2146,6 +2453,11 @@ impl Lowerer {
             closure_invokes: &mut self.closure_invokes,
             closure_by_instance: &mut self.closure_by_instance,
             closure_capture_indices: &mut self.closure_capture_indices,
+            closure_adapters: &mut self.closure_adapters,
+            closure_adapter_by_types: &mut self.closure_adapter_by_types,
+            dynamic_closure_adapters: &mut self.dynamic_closure_adapters,
+            dynamic_adapter_by_target: &mut self.dynamic_adapter_by_target,
+            function_bridge_targets: &mut self.function_bridge_targets,
             current_closure: None,
             current_closure_local: None,
             current_local_capture_params: HashMap::new(),
@@ -2336,6 +2648,11 @@ impl Lowerer {
             closure_invokes: &mut self.closure_invokes,
             closure_by_instance: &mut self.closure_by_instance,
             closure_capture_indices: &mut self.closure_capture_indices,
+            closure_adapters: &mut self.closure_adapters,
+            closure_adapter_by_types: &mut self.closure_adapter_by_types,
+            dynamic_closure_adapters: &mut self.dynamic_closure_adapters,
+            dynamic_adapter_by_target: &mut self.dynamic_adapter_by_target,
+            function_bridge_targets: &mut self.function_bridge_targets,
             current_closure: None,
             current_closure_local: None,
             current_local_capture_params: HashMap::new(),
@@ -3370,6 +3687,7 @@ fn is_reference_mir(ty: &mir::Type) -> bool {
         mir::Type::String
             | mir::Type::Class(_)
             | mir::Type::Interface(_)
+            | mir::Type::Function(_)
             | mir::Type::Any
             | mir::Type::Array(_)
             | mir::Type::MutableArray(_)
@@ -3524,6 +3842,12 @@ struct BodyLowerer<'a> {
     closure_invokes: &'a mut Arena<mir::ClosureInvokeFunction>,
     closure_by_instance: &'a mut HashMap<mir::MonomorphizedFunctionId, mir::ClosureClassId>,
     closure_capture_indices: &'a mut HashMap<(mir::ClosureClassId, hir::BindingId), u32>,
+    closure_adapters: &'a mut Arena<mir::ClosureAdapter>,
+    closure_adapter_by_types:
+        &'a mut HashMap<(mir::FunctionTypeId, mir::FunctionTypeId), mir::ClosureAdapterId>,
+    dynamic_closure_adapters: &'a mut Arena<mir::DynamicClosureAdapter>,
+    dynamic_adapter_by_target: &'a mut HashMap<mir::FunctionTypeId, mir::DynamicClosureAdapterId>,
+    function_bridge_targets: &'a mut Vec<mir::FunctionTypeId>,
     current_closure: Option<mir::ClosureClassId>,
     current_closure_local: Option<mir::LocalId>,
     /// Hidden by-value parameters of a lifted local function, keyed by the
@@ -3690,6 +4014,7 @@ impl BodyLowerer<'_> {
             function_type,
             invoke,
             captures: fields,
+            bridges: Vec::new(),
         });
         self.closure_by_instance.insert(instance, class);
         for (index, capture) in captures.iter().enumerate() {
@@ -3882,6 +4207,7 @@ impl BodyLowerer<'_> {
             function_type,
             invoke,
             captures: capture_fields,
+            bridges: Vec::new(),
         });
         let capture_offset = u32::from(receiver_ty.is_some());
         for (index, capture) in reference.captures.iter().enumerate() {
@@ -3938,6 +4264,301 @@ impl BodyLowerer<'_> {
             cfg::lower(smir::Body { locals, statements }, signature.return_type);
         self.generic_reference_closures.insert(key, class);
         class
+    }
+
+    fn adapt_function_value(
+        &mut self,
+        value: smir::Expr,
+        source: mir::FunctionTypeId,
+        target: mir::FunctionTypeId,
+        span: Span,
+    ) -> smir::Expr {
+        if source == target {
+            return value;
+        }
+        let adapter = self.ensure_function_adapter(source, target, span);
+        smir::Expr::ClosureAlloc {
+            class: self.closure_adapters[adapter].class,
+            captures: vec![value],
+        }
+    }
+
+    fn adapt_mir_subtype(
+        &mut self,
+        value: smir::Expr,
+        source: &mir::Type,
+        target: &mir::Type,
+        span: Span,
+    ) -> smir::Expr {
+        if source == target {
+            return value;
+        }
+        if let (mir::Type::Function(source), mir::Type::Function(target)) = (source, target) {
+            return self.adapt_function_value(value, *source, *target, span);
+        }
+        if is_boxable(source) && is_reference_mir(target) {
+            self.register_boxed(source, None);
+            if let mir::Type::Interface(interface) = target {
+                let boxed = self.boxed.get_or_create(self.classes, self.shell, source);
+                if !self.classes[boxed].interfaces.contains(interface) {
+                    self.classes[boxed].interfaces.push(*interface);
+                }
+            }
+            return smir::Expr::Box(Box::new(value));
+        }
+        if is_reference_mir(source) && is_reference_mir(target) {
+            return smir::Expr::Retype {
+                operand: Box::new(value),
+                ty: Box::new(target.clone()),
+            };
+        }
+        unreachable!("function adapter conversions follow the HIR subtype relation")
+    }
+
+    fn ensure_function_adapter(
+        &mut self,
+        source: mir::FunctionTypeId,
+        target: mir::FunctionTypeId,
+        span: Span,
+    ) -> mir::ClosureAdapterId {
+        if let Some(&adapter) = self.closure_adapter_by_types.get(&(source, target)) {
+            return adapter;
+        }
+        let source_signature = self.shell.function_types[source].clone();
+        let target_signature = self.shell.function_types[target].clone();
+        assert_eq!(
+            source_signature.is_suspend, target_signature.is_suspend,
+            "ordinary and suspend function types never coerce"
+        );
+        assert_eq!(
+            source_signature.parameter_types.len(),
+            target_signature.parameter_types.len(),
+            "function variance preserves arity"
+        );
+        let source_name = mir::encode_type(self.shell, &mir::Type::Function(source));
+        let target_name = mir::encode_type(self.shell, &mir::Type::Function(target));
+        let name = format!("$Closure$adapter${source_name}${target_name}");
+
+        let function = self.functions.alloc(mir::Function {
+            name: format!("$adapter.{source_name}.{target_name}"),
+            symbol: format!("scoop.$adapter.{source_name}.{target_name}"),
+            params: Vec::new(),
+            return_ty: target_signature.return_type.clone(),
+            body: mir::Body::unreachable(Arena::new()),
+        });
+        self.top_level.push(function);
+        let invoke = self
+            .closure_invokes
+            .alloc(mir::ClosureInvokeFunction { function });
+        let class = self.closure_classes.alloc(mir::ClosureClass {
+            name,
+            function_type: target,
+            invoke,
+            captures: vec![mir::Field {
+                name: "$source".to_string(),
+                ty: mir::Type::Function(source),
+            }],
+            bridges: Vec::new(),
+        });
+        let adapter = self.closure_adapters.alloc(mir::ClosureAdapter {
+            class,
+            source,
+            target,
+        });
+        self.closure_adapter_by_types
+            .insert((source, target), adapter);
+
+        let mut locals = Arena::new();
+        let closure = locals.alloc(mir::Local {
+            name: "$closure".to_string(),
+            ty: mir::Type::Function(target),
+            mutable: false,
+        });
+        let mut params = vec![mir::Param {
+            name: "$closure".to_string(),
+            ty: mir::Type::Function(target),
+            local: closure,
+        }];
+        let mut args = vec![smir::Expr::ClosureCapture {
+            closure: Box::new(smir::Expr::Local(closure)),
+            class,
+            index: 0,
+        }];
+        for (index, (target_ty, source_ty)) in target_signature
+            .parameter_types
+            .iter()
+            .zip(&source_signature.parameter_types)
+            .enumerate()
+        {
+            let local = locals.alloc(mir::Local {
+                name: format!("arg{index}"),
+                ty: target_ty.clone(),
+                mutable: false,
+            });
+            params.push(mir::Param {
+                name: format!("arg{index}"),
+                ty: target_ty.clone(),
+                local,
+            });
+            args.push(self.adapt_mir_subtype(smir::Expr::Local(local), target_ty, source_ty, span));
+        }
+        let call = smir::Expr::Call(smir::Call {
+            target: mir::CallTarget {
+                kind: mir::CallKind::Closure {
+                    function_type: source,
+                },
+                callee: mir::Callee::Closure(source),
+            },
+            args,
+            return_ty: source_signature.return_type.clone(),
+        });
+        let mut statements = if target_signature.return_type == mir::Type::Unit {
+            vec![
+                smir::Statement {
+                    kind: smir::StatementKind::Expr(call),
+                    span,
+                },
+                smir::Statement {
+                    kind: smir::StatementKind::Return { value: None },
+                    span,
+                },
+            ]
+        } else {
+            vec![smir::Statement {
+                kind: smir::StatementKind::Return {
+                    value: Some(self.adapt_mir_subtype(
+                        call,
+                        &source_signature.return_type,
+                        &target_signature.return_type,
+                        span,
+                    )),
+                },
+                span,
+            }]
+        };
+        self.functions[function].params = params;
+        self.functions[function].body = cfg::lower(
+            smir::Body {
+                locals,
+                statements: std::mem::take(&mut statements),
+            },
+            target_signature.return_type,
+        );
+        adapter
+    }
+
+    fn adapt_checked_function_value(
+        &mut self,
+        value: smir::Expr,
+        target: mir::FunctionTypeId,
+        span: Span,
+    ) -> smir::Expr {
+        let adapter = self.ensure_dynamic_function_adapter(target, span);
+        smir::Expr::ClosureAlloc {
+            class: self.dynamic_closure_adapters[adapter].class,
+            captures: vec![value],
+        }
+    }
+
+    fn ensure_dynamic_function_adapter(
+        &mut self,
+        target: mir::FunctionTypeId,
+        span: Span,
+    ) -> mir::DynamicClosureAdapterId {
+        if let Some(&adapter) = self.dynamic_adapter_by_target.get(&target) {
+            return adapter;
+        }
+        if !self.function_bridge_targets.contains(&target) {
+            self.function_bridge_targets.push(target);
+        }
+        let signature = self.shell.function_types[target].clone();
+        let encoded = mir::encode_type(self.shell, &mir::Type::Function(target));
+        let function = self.functions.alloc(mir::Function {
+            name: format!("$dynamic_adapter.{encoded}"),
+            symbol: format!("scoop.$dynamic_adapter.{encoded}"),
+            params: Vec::new(),
+            return_ty: signature.return_type.clone(),
+            body: mir::Body::unreachable(Arena::new()),
+        });
+        self.top_level.push(function);
+        let invoke = self
+            .closure_invokes
+            .alloc(mir::ClosureInvokeFunction { function });
+        let class = self.closure_classes.alloc(mir::ClosureClass {
+            name: format!("$Closure$dynamic_adapter${encoded}"),
+            function_type: target,
+            invoke,
+            captures: vec![mir::Field {
+                name: "$source".to_string(),
+                ty: mir::Type::Any,
+            }],
+            bridges: Vec::new(),
+        });
+        let adapter = self
+            .dynamic_closure_adapters
+            .alloc(mir::DynamicClosureAdapter { class, target });
+        self.dynamic_adapter_by_target.insert(target, adapter);
+
+        let mut locals = Arena::new();
+        let closure = locals.alloc(mir::Local {
+            name: "$closure".to_string(),
+            ty: mir::Type::Function(target),
+            mutable: false,
+        });
+        let mut params = vec![mir::Param {
+            name: "$closure".to_string(),
+            ty: mir::Type::Function(target),
+            local: closure,
+        }];
+        let mut args = vec![smir::Expr::ClosureCapture {
+            closure: Box::new(smir::Expr::Local(closure)),
+            class,
+            index: 0,
+        }];
+        for (index, ty) in signature.parameter_types.iter().cloned().enumerate() {
+            let local = locals.alloc(mir::Local {
+                name: format!("arg{index}"),
+                ty: ty.clone(),
+                mutable: false,
+            });
+            params.push(mir::Param {
+                name: format!("arg{index}"),
+                ty,
+                local,
+            });
+            args.push(smir::Expr::Local(local));
+        }
+        let call = smir::Expr::Call(smir::Call {
+            target: mir::CallTarget {
+                kind: mir::CallKind::FunctionBridge {
+                    function_type: target,
+                },
+                callee: mir::Callee::FunctionBridge(target),
+            },
+            args,
+            return_ty: signature.return_type.clone(),
+        });
+        let statements = if signature.return_type == mir::Type::Unit {
+            vec![
+                smir::Statement {
+                    kind: smir::StatementKind::Expr(call),
+                    span,
+                },
+                smir::Statement {
+                    kind: smir::StatementKind::Return { value: None },
+                    span,
+                },
+            ]
+        } else {
+            vec![smir::Statement {
+                kind: smir::StatementKind::Return { value: Some(call) },
+                span,
+            }]
+        };
+        self.functions[function].params = params;
+        self.functions[function].body =
+            cfg::lower(smir::Body { locals, statements }, signature.return_type);
+        adapter
     }
 
     /// A fresh hidden local (`$<prefix>.<n>`), compiler-generated.
@@ -4501,6 +5122,12 @@ impl BodyLowerer<'_> {
                 let narrowed = self.lower_type(expr.ty);
                 if self.locals[local].ty == narrowed {
                     smir::Expr::Local(local)
+                } else if let mir::Type::Function(function_type) = narrowed {
+                    self.adapt_checked_function_value(
+                        smir::Expr::Local(local),
+                        function_type,
+                        expr.span,
+                    )
                 } else {
                     smir::Expr::Retype {
                         operand: Box::new(smir::Expr::Local(local)),
@@ -4580,6 +5207,18 @@ impl BodyLowerer<'_> {
                         .map(|capture| self.lower_expr(&capture.source)),
                 );
                 smir::Expr::ClosureAlloc { class, captures }
+            }
+            hir::ExprKind::FunctionCoercion {
+                source,
+                coercion,
+                target_type,
+            } => {
+                let conversion = &self.module.function_coercions[*coercion];
+                debug_assert_eq!(conversion.target, *target_type);
+                let source_type = self.lower_function_type_id(conversion.source);
+                let target_type = self.lower_function_type_id(*target_type);
+                let value = self.lower_expr(source);
+                self.adapt_function_value(value, source_type, target_type, expr.span)
             }
             // The array nodes translate one-to-one (M5); the literal's
             // kind (Array vs MutableArray) is fixed by the producing
@@ -5358,6 +5997,10 @@ impl BodyLowerer<'_> {
         if is_boxable(check_ty) {
             let check_ty = check_ty.clone();
             self.register_boxed(&check_ty, None);
+        } else if let mir::Type::Function(function_type) = check_ty
+            && !self.function_bridge_targets.contains(function_type)
+        {
+            self.function_bridge_targets.push(*function_type);
         }
     }
 
@@ -5403,17 +6046,6 @@ impl BodyLowerer<'_> {
                 check_ty: Box::new(target.clone()),
             },
         };
-        let unboxed = match &target {
-            mir::Type::Class(_)
-            | mir::Type::Interface(_)
-            | mir::Type::Function(_)
-            | mir::Type::Any => smir::Expr::Local(slot),
-            // Only `as?` unwraps here: hir-lower wraps a value-typed
-            // `as` in a hir-level `Unbox(Cast)` node, so the payload
-            // extraction for `as` happens when that outer `Unbox` is
-            // lowered — adding another one here would double-unwrap.
-            _ => smir::Expr::Unbox(Box::new(smir::Expr::Local(slot))),
-        };
         if !optional {
             let throw = self.throw_builtin("ClassCastException", span);
             self.prelude.push(smir::StatementKind::If {
@@ -5424,11 +6056,29 @@ impl BodyLowerer<'_> {
                 then_body: vec![throw],
                 else_body: None,
             });
-            // The hir-level `Unbox` around this `Cast` (value targets
-            // only) performs the payload extraction; class / interface
-            // targets just use the reference.
-            return smir::Expr::Local(slot);
+            // A checked function view needs an exact target-ABI closure;
+            // its invoke dispatches through the source closure's bridge
+            // table. Value targets are unboxed by the outer HIR node.
+            return match target {
+                mir::Type::Function(function_type) => {
+                    self.adapt_checked_function_value(smir::Expr::Local(slot), function_type, span)
+                }
+                _ => smir::Expr::Local(slot),
+            };
         }
+        let unboxed = match &target {
+            mir::Type::Function(function_type) => {
+                self.adapt_checked_function_value(smir::Expr::Local(slot), *function_type, span)
+            }
+            mir::Type::Class(_) | mir::Type::Interface(_) | mir::Type::Any => {
+                smir::Expr::Local(slot)
+            }
+            // Only `as?` unwraps here: hir-lower wraps a value-typed
+            // `as` in a hir-level `Unbox(Cast)` node, so the payload
+            // extraction for `as` happens when that outer `Unbox` is
+            // lowered — adding another one here would double-unwrap.
+            _ => smir::Expr::Unbox(Box::new(smir::Expr::Local(slot))),
+        };
         let option_ty = self.lower_type(expr_ty);
         let (some, none) = self.option_variants;
         let result = self.new_hidden("cast", option_ty.clone(), true);
@@ -6769,6 +7419,7 @@ mod tests {
                 anonymous_functions: Arena::new(),
                 local_functions: Arena::new(),
                 callable_references: Arena::new(),
+                function_coercions: Arena::new(),
                 functions: self.functions,
                 generic_functions: self.generic_functions,
                 structs: self.structs,

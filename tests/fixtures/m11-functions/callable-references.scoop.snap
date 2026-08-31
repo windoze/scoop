@@ -1361,6 +1361,8 @@ Module
     store t1 -> local0
     ret local0
   td TextMapper @scoop_td_TextMapper size=0 vtable=0 itables=0
+  td function$FIRIX @scoop_td_function$FIRIX size=0 vtable=0 itables=0
+  td function$FSRSX @scoop_td_function$FSRSX size=0 vtable=0 itables=0
   td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
   td BaseMapper @scoop_td_BaseMapper size=16 vtable=4 itables=0
   td MapperFactory @scoop_td_MapperFactory size=24 vtable=3 itables=0
@@ -1377,16 +1379,16 @@ Module
   td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=3 itables=0
   td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=3 itables=0
   td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=3 itables=0
-  td $Closure$reference0 @scoop_td_$Closure$reference0 size=24 vtable=0 itables=0
-  td $Closure$reference1 @scoop_td_$Closure$reference1 size=24 vtable=0 itables=0
-  td $Closure$reference2 @scoop_td_$Closure$reference2 size=24 vtable=0 itables=0
-  td $Closure$reference3 @scoop_td_$Closure$reference3 size=32 vtable=0 itables=0
-  td $Closure$reference4 @scoop_td_$Closure$reference4 size=32 vtable=0 itables=0
-  td $Closure$reference5 @scoop_td_$Closure$reference5 size=32 vtable=0 itables=0
-  td $Closure$reference6 @scoop_td_$Closure$reference6 size=32 vtable=0 itables=0
-  td $Closure$reference7 @scoop_td_$Closure$reference7 size=32 vtable=0 itables=0
-  td $Closure$reference8 @scoop_td_$Closure$reference8 size=32 vtable=0 itables=0
-  td $Closure$reference9 @scoop_td_$Closure$reference9 size=32 vtable=0 itables=0
+  td $Closure$reference0 @scoop_td_$Closure$reference0 size=24 vtable=3 itables=0
+  td $Closure$reference1 @scoop_td_$Closure$reference1 size=24 vtable=3 itables=0
+  td $Closure$reference2 @scoop_td_$Closure$reference2 size=24 vtable=3 itables=0
+  td $Closure$reference3 @scoop_td_$Closure$reference3 size=32 vtable=3 itables=0
+  td $Closure$reference4 @scoop_td_$Closure$reference4 size=32 vtable=3 itables=0
+  td $Closure$reference5 @scoop_td_$Closure$reference5 size=32 vtable=3 itables=0
+  td $Closure$reference6 @scoop_td_$Closure$reference6 size=32 vtable=3 itables=0
+  td $Closure$reference7 @scoop_td_$Closure$reference7 size=32 vtable=3 itables=0
+  td $Closure$reference8 @scoop_td_$Closure$reference8 size=32 vtable=3 itables=0
+  td $Closure$reference9 @scoop_td_$Closure$reference9 size=32 vtable=3 itables=0
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
