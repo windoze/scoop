@@ -641,23 +641,23 @@ Module
   global @scoop_td_IndexOutOfBoundsException = c""
   global @scoop_td_IllegalStateException = c""
   enum Option$S niche(payload_variant=0)
-  extern ef0 write @scoop_rt_write(ptr) -> {} <scoop managed nounwind>
-  fun @scoop.print(ptr) -> void
-    local %0 $call.1: ptr
+  extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
+  fun @scoop.print(ptr<managed>) -> void
+    local %0 $call.1: ptr<managed>
   block entry
-    t0 = heap_load param0 +0 : ptr
-    t1 = heap_load t0 +40 : ptr
-    t2 = call_indirect t1[2](param0) : ptr
+    t0 = heap_load param0 +0 : ptr<metadata>
+    t1 = heap_load t0 +40 : ptr<metadata>
+    t2 = call_indirect t1[2](param0) : ptr<managed>
     store t2 -> local0
     native_call[native-borrowed] extern0(local0)
     t3 = aggregate () : {}
     ret
-  fun @scoop.println(ptr) -> void
-    local %0 $call.1: ptr
+  fun @scoop.println(ptr<managed>) -> void
+    local %0 $call.1: ptr<managed>
   block entry
-    t0 = heap_load param0 +0 : ptr
-    t1 = heap_load t0 +40 : ptr
-    t2 = call_indirect t1[2](param0) : ptr
+    t0 = heap_load param0 +0 : ptr<metadata>
+    t1 = heap_load t0 +40 : ptr<metadata>
+    t2 = call_indirect t1[2](param0) : ptr<managed>
     store t2 -> local0
     native_call[native-borrowed] extern0(local0)
     t3 = aggregate () : {}
@@ -668,20 +668,20 @@ Module
   block entry
     t0 = Add param0, 1 : i64
     ret t0
-  fun @scoop.apply(i64, ptr) -> i64
+  fun @scoop.apply(i64, ptr<managed>) -> i64
     local %0 $call.1: i64
   block entry
     t0 = call_indirect param1[2](param1, param0) : i64
     store t0 -> local0
     ret local0
   fun @scoop_main() -> void
-    local %0 lambda: ptr
-    local %1 reference: ptr
-    local %2 secondReference: ptr
-    local %3 standalone: ptr
-    local %4 implicit: ptr
-    local %5 zero: ptr
-    local %6 discard: ptr
+    local %0 lambda: ptr<managed>
+    local %1 reference: ptr<managed>
+    local %2 secondReference: ptr<managed>
+    local %3 standalone: ptr<managed>
+    local %4 implicit: ptr<managed>
+    local %5 zero: ptr<managed>
+    local %6 discard: ptr<managed>
     local %7 $call.1: i64
     local %8 $call.2: i64
     local %9 $call.3: i64
@@ -690,31 +690,31 @@ Module
     local %12 $call.6: i64
     local %13 $call.7: i64
   block entry
-    t0 = call @scoop_rt_alloc(global7, 24) : ptr
+    t0 = call @scoop_rt_alloc(global7, 24) : ptr<managed>
     t1 = function_address @scoop.$lambda.0 : ptr
     heap_store t0 +16 t1
     store t0 -> local0
-    t2 = call @scoop_rt_alloc(global8, 24) : ptr
+    t2 = call @scoop_rt_alloc(global8, 24) : ptr<managed>
     t3 = function_address @scoop.$reference.0 : ptr
     heap_store t2 +16 t3
     store t2 -> local1
-    t4 = call @scoop_rt_alloc(global9, 24) : ptr
+    t4 = call @scoop_rt_alloc(global9, 24) : ptr<managed>
     t5 = function_address @scoop.$reference.1 : ptr
     heap_store t4 +16 t5
     store t4 -> local2
-    t6 = call @scoop_rt_alloc(global10, 24) : ptr
+    t6 = call @scoop_rt_alloc(global10, 24) : ptr<managed>
     t7 = function_address @scoop.$lambda.1 : ptr
     heap_store t6 +16 t7
     store t6 -> local3
-    t8 = call @scoop_rt_alloc(global11, 24) : ptr
+    t8 = call @scoop_rt_alloc(global11, 24) : ptr<managed>
     t9 = function_address @scoop.$lambda.2 : ptr
     heap_store t8 +16 t9
     store t8 -> local4
-    t10 = call @scoop_rt_alloc(global12, 24) : ptr
+    t10 = call @scoop_rt_alloc(global12, 24) : ptr<managed>
     t11 = function_address @scoop.$lambda.3 : ptr
     heap_store t10 +16 t11
     store t10 -> local5
-    t12 = call @scoop_rt_alloc(global13, 24) : ptr
+    t12 = call @scoop_rt_alloc(global13, 24) : ptr<managed>
     t13 = function_address @scoop.$lambda.4 : ptr
     heap_store t12 +16 t13
     store t12 -> local6
@@ -722,47 +722,47 @@ Module
     t14 = aggregate () : {}
     t15 = call_indirect local0[2](local0, 40) : i64
     store t15 -> local7
-    t16 = call @scoop_rt_box(global14, local7, 8) : ptr
+    t16 = call @scoop_rt_box(global14, local7, 8) : ptr<managed>
     call @scoop.println(t16)
     t17 = aggregate () : {}
     t18 = call_indirect local1[2](local1, 40) : i64
     store t18 -> local8
-    t19 = call @scoop_rt_box(global14, local8, 8) : ptr
+    t19 = call @scoop_rt_box(global14, local8, 8) : ptr<managed>
     call @scoop.println(t19)
     t20 = aggregate () : {}
-    t21 = call @scoop_rt_alloc(global15, 24) : ptr
+    t21 = call @scoop_rt_alloc(global15, 24) : ptr<managed>
     t22 = function_address @scoop.$lambda.5 : ptr
     heap_store t21 +16 t22
     t23 = call @scoop.apply(40, t21) : i64
     store t23 -> local9
-    t24 = call @scoop_rt_box(global14, local9, 8) : ptr
+    t24 = call @scoop_rt_box(global14, local9, 8) : ptr<managed>
     call @scoop.println(t24)
     t25 = aggregate () : {}
     t26 = call_indirect local3[2](local3, 39) : i64
     store t26 -> local10
-    t27 = call @scoop_rt_box(global14, local10, 8) : ptr
+    t27 = call @scoop_rt_box(global14, local10, 8) : ptr<managed>
     call @scoop.println(t27)
     t28 = aggregate () : {}
     t29 = call_indirect local4[2](local4, 40) : i64
     store t29 -> local11
-    t30 = call @scoop_rt_box(global14, local11, 8) : ptr
+    t30 = call @scoop_rt_box(global14, local11, 8) : ptr<managed>
     call @scoop.println(t30)
     t31 = aggregate () : {}
     t32 = call_indirect local5[2](local5) : i64
     store t32 -> local12
-    t33 = call @scoop_rt_box(global14, local12, 8) : ptr
+    t33 = call @scoop_rt_box(global14, local12, 8) : ptr<managed>
     call @scoop.println(t33)
     t34 = aggregate () : {}
-    t35 = call @scoop_rt_alloc(global16, 24) : ptr
+    t35 = call @scoop_rt_alloc(global16, 24) : ptr<managed>
     t36 = function_address @scoop.$lambda.6 : ptr
     heap_store t35 +16 t36
     t37 = call_indirect t35[2](t35, 40) : i64
     store t37 -> local13
-    t38 = call @scoop_rt_box(global14, local13, 8) : ptr
+    t38 = call @scoop_rt_box(global14, local13, 8) : ptr<managed>
     call @scoop.println(t38)
     t39 = aggregate () : {}
     t40 = Eq local1, local2 : i1
-    t41 = call @scoop_rt_box(global17, t40, 1) : ptr
+    t41 = call @scoop_rt_box(global17, t40, 1) : ptr<managed>
     call @scoop.println(t41)
     t42 = aggregate () : {}
     call_indirect local6[2](local6, 41)
@@ -770,85 +770,85 @@ Module
     call @scoop.println(global1)
     t44 = aggregate () : {}
     ret
-  fun @scoop.$lambda.0(ptr, i64) -> i64
+  fun @scoop.$lambda.0(ptr<managed>, i64) -> i64
   block entry
     t0 = Add param1, 1 : i64
     ret t0
-  fun @scoop.$lambda.1(ptr, i64) -> i64
+  fun @scoop.$lambda.1(ptr<managed>, i64) -> i64
   block entry
     t0 = Add param1, 3 : i64
     ret t0
-  fun @scoop.$lambda.2(ptr, i64) -> i64
+  fun @scoop.$lambda.2(ptr<managed>, i64) -> i64
   block entry
     t0 = Add param1, 1 : i64
     ret t0
-  fun @scoop.$lambda.3(ptr) -> i64
+  fun @scoop.$lambda.3(ptr<managed>) -> i64
   block entry
     ret 42
-  fun @scoop.$lambda.4(ptr, i64) -> void
+  fun @scoop.$lambda.4(ptr<managed>, i64) -> void
   block entry
     t0 = Add param1, 1 : i64
     ret
-  fun @scoop.$lambda.5(ptr, i64) -> i64
+  fun @scoop.$lambda.5(ptr<managed>, i64) -> i64
   block entry
     t0 = Add param1, 2 : i64
     ret t0
-  fun @scoop.$lambda.6(ptr, i64) -> i64
+  fun @scoop.$lambda.6(ptr<managed>, i64) -> i64
   block entry
     t0 = Add param1, 1 : i64
     ret t0
-  fun @scoop.$reference.0(ptr, i64) -> i64
+  fun @scoop.$reference.0(ptr<managed>, i64) -> i64
     local %0 $call.1: i64
   block entry
     t0 = call @scoop.increment(param1) : i64
     store t0 -> local0
     ret local0
-  fun @scoop.$reference.1(ptr, i64) -> i64
+  fun @scoop.$reference.1(ptr<managed>, i64) -> i64
     local %0 $call.1: i64
   block entry
     t0 = call @scoop.increment(param1) : i64
     store t0 -> local0
     ret local0
-  fun @scoop.ctor.Throwable() -> ptr
+  fun @scoop.ctor.Throwable() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global18, 16) : ptr
+    t0 = call @scoop_rt_alloc(global18, 16) : ptr<managed>
     ret t0
-  fun @scoop.ctor.Exception(enum0) -> ptr
+  fun @scoop.ctor.Exception(enum0) -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global19, 24) : ptr
+    t0 = call @scoop_rt_alloc(global19, 24) : ptr<managed>
     heap_store t0 +16 param0
     ret t0
-  fun @scoop.ctor.UnwrapException() -> ptr
+  fun @scoop.ctor.UnwrapException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global20, 24) : ptr
+    t0 = call @scoop_rt_alloc(global20, 24) : ptr<managed>
     t1 = enum_wrap e0 v0 (global2) : enum0
     heap_store t0 +16 t1
     ret t0
-  fun @scoop.ctor.ClassCastException() -> ptr
+  fun @scoop.ctor.ClassCastException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global21, 24) : ptr
+    t0 = call @scoop_rt_alloc(global21, 24) : ptr<managed>
     t1 = enum_wrap e0 v0 (global3) : enum0
     heap_store t0 +16 t1
     ret t0
-  fun @scoop.ctor.ArithmeticException() -> ptr
+  fun @scoop.ctor.ArithmeticException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global22, 24) : ptr
+    t0 = call @scoop_rt_alloc(global22, 24) : ptr<managed>
     t1 = enum_wrap e0 v0 (global4) : enum0
     heap_store t0 +16 t1
     ret t0
-  fun @scoop.ctor.IndexOutOfBoundsException() -> ptr
+  fun @scoop.ctor.IndexOutOfBoundsException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global23, 24) : ptr
+    t0 = call @scoop_rt_alloc(global23, 24) : ptr<managed>
     t1 = enum_wrap e0 v0 (global5) : enum0
     heap_store t0 +16 t1
     ret t0
-  fun @scoop.ctor.IllegalStateException() -> ptr
+  fun @scoop.ctor.IllegalStateException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global24, 24) : ptr
+    t0 = call @scoop_rt_alloc(global24, 24) : ptr<managed>
     t1 = enum_wrap e0 v0 (global6) : enum0
     heap_store t0 +16 t1
     ret t0
-  fun @scoop.eq.I(ptr, ptr) -> i1
+  fun @scoop.eq.I(ptr<managed>, ptr<managed>) -> i1
     local %0 $a: i64
     local %1 $b: i64
   block entry
@@ -858,14 +858,14 @@ Module
     store t1 -> local1
     t2 = Eq local0, local1 : i1
     ret t2
-  fun @scoop.tostring.I(ptr) -> ptr
-    local %0 $call.1: ptr
+  fun @scoop.tostring.I(ptr<managed>) -> ptr<managed>
+    local %0 $call.1: ptr<managed>
   block entry
     t0 = heap_load param0 +16 : i64
-    t1 = call @scoop_rt_int_to_string(t0) : ptr
+    t1 = call @scoop_rt_int_to_string(t0) : ptr<managed>
     store t1 -> local0
     ret local0
-  fun @scoop.eq.B(ptr, ptr) -> i1
+  fun @scoop.eq.B(ptr<managed>, ptr<managed>) -> i1
     local %0 $a: i1
     local %1 $b: i1
   block entry
@@ -875,11 +875,11 @@ Module
     store t1 -> local1
     t2 = Eq local0, local1 : i1
     ret t2
-  fun @scoop.tostring.B(ptr) -> ptr
-    local %0 $call.1: ptr
+  fun @scoop.tostring.B(ptr<managed>) -> ptr<managed>
+    local %0 $call.1: ptr<managed>
   block entry
     t0 = heap_load param0 +16 : i1
-    t1 = call @scoop_rt_bool_to_string(t0) : ptr
+    t1 = call @scoop_rt_bool_to_string(t0) : ptr<managed>
     store t1 -> local0
     ret local0
   td function$FIRIX @scoop_td_function$FIRIX size=0 vtable=0 itables=0

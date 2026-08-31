@@ -1375,173 +1375,173 @@ Module
   enum Option$S niche(payload_variant=0)
   enum Option$FAnyRSX niche(payload_variant=0)
   enum Option$FIRAnyX niche(payload_variant=0)
-  extern ef0 write @scoop_rt_write(ptr) -> {} <scoop managed nounwind>
-  fun @scoop.print(ptr) -> void
-    local %0 $call.1: ptr
+  extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
+  fun @scoop.print(ptr<managed>) -> void
+    local %0 $call.1: ptr<managed>
   block entry
-    t0 = heap_load param0 +0 : ptr
-    t1 = heap_load t0 +40 : ptr
-    t2 = call_indirect t1[2](param0) : ptr
+    t0 = heap_load param0 +0 : ptr<metadata>
+    t1 = heap_load t0 +40 : ptr<metadata>
+    t2 = call_indirect t1[2](param0) : ptr<managed>
     store t2 -> local0
     native_call[native-borrowed] extern0(local0)
     t3 = aggregate () : {}
     ret
-  fun @scoop.println(ptr) -> void
-    local %0 $call.1: ptr
+  fun @scoop.println(ptr<managed>) -> void
+    local %0 $call.1: ptr<managed>
   block entry
-    t0 = heap_load param0 +0 : ptr
-    t1 = heap_load t0 +40 : ptr
-    t2 = call_indirect t1[2](param0) : ptr
+    t0 = heap_load param0 +0 : ptr<metadata>
+    t1 = heap_load t0 +40 : ptr<metadata>
+    t2 = call_indirect t1[2](param0) : ptr<managed>
     store t2 -> local0
     native_call[native-borrowed] extern0(local0)
     t3 = aggregate () : {}
     native_call[native-borrowed] extern0(global0)
     t4 = aggregate () : {}
     ret
-  fun @scoop.acceptAny(ptr) -> i64
+  fun @scoop.acceptAny(ptr<managed>) -> i64
   block entry
     ret 42
-  fun @scoop.acceptAnyString(ptr) -> ptr
+  fun @scoop.acceptAnyString(ptr<managed>) -> ptr<managed>
   block entry
     ret global1
-  fun @scoop.acceptAnyLabel(ptr) -> struct0
+  fun @scoop.acceptAnyLabel(ptr<managed>) -> struct0
   block entry
     t0 = aggregate (global2) : struct0
     ret t0
-  fun @scoop.acceptAnimal(ptr) -> ptr
-    local %0 $call.1: ptr
+  fun @scoop.acceptAnimal(ptr<managed>) -> ptr<managed>
+    local %0 $call.1: ptr<managed>
   block entry
-    t0 = call @scoop.ctor.Dog() : ptr
+    t0 = call @scoop.ctor.Dog() : ptr<managed>
     store t0 -> local0
     ret local0
-  fun @scoop.failAny(ptr) -> i64
-    local %0 $call.1: ptr
+  fun @scoop.failAny(ptr<managed>) -> i64
+    local %0 $call.1: ptr<managed>
   block entry
-    t0 = call @scoop.ctor.ArithmeticException() : ptr
+    t0 = call @scoop.ctor.ArithmeticException() : ptr<managed>
     store t0 -> local0
     throw local0
     unreachable
-  fun @scoop.returnNested(ptr) -> ptr
+  fun @scoop.returnNested(ptr<managed>) -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global11, 24) : ptr
+    t0 = call @scoop_rt_alloc(global11, 24) : ptr<managed>
     t1 = function_address @scoop.$reference.0 : ptr
     heap_store t0 +16 t1
     ret t0
   fun @scoop_main() -> void
-    local %0 exactValue: ptr
-    local %1 widenedValue: ptr
-    local %2 exactReference: ptr
-    local %3 widenedReference: ptr
-    local %4 failing: ptr
-    local %5 widenedFailing: ptr
-    local %6 genericInt: ptr
-    local %7 genericString: ptr
-    local %8 boxedExact: ptr
-    local %9 boxedReturn: ptr
-    local %10 nestedExact: ptr
-    local %11 nestedWidened: ptr
-    local %12 nestedResult: ptr
-    local %13 erased: ptr
-    local %14 checked: ptr
-    local %15 exactChecked: ptr
-    local %16 optionalChecked: ptr
+    local %0 exactValue: ptr<managed>
+    local %1 widenedValue: ptr<managed>
+    local %2 exactReference: ptr<managed>
+    local %3 widenedReference: ptr<managed>
+    local %4 failing: ptr<managed>
+    local %5 widenedFailing: ptr<managed>
+    local %6 genericInt: ptr<managed>
+    local %7 genericString: ptr<managed>
+    local %8 boxedExact: ptr<managed>
+    local %9 boxedReturn: ptr<managed>
+    local %10 nestedExact: ptr<managed>
+    local %11 nestedWidened: ptr<managed>
+    local %12 nestedResult: ptr<managed>
+    local %13 erased: ptr<managed>
+    local %14 checked: ptr<managed>
+    local %15 exactChecked: ptr<managed>
+    local %16 optionalChecked: ptr<managed>
     local %17 missing: enum1
-    local %18 nestedErased: ptr
-    local %19 nestedChecked: ptr
-    local %20 nestedDynamicResult: ptr
-    local %21 boxedErased: ptr
-    local %22 boxedChecked: ptr
-    local %23 exception: ptr
-    local %24 $cast.1: ptr
-    local %25 $cast.2: ptr
-    local %26 $cast.3: ptr
+    local %18 nestedErased: ptr<managed>
+    local %19 nestedChecked: ptr<managed>
+    local %20 nestedDynamicResult: ptr<managed>
+    local %21 boxedErased: ptr<managed>
+    local %22 boxedChecked: ptr<managed>
+    local %23 exception: ptr<managed>
+    local %24 $cast.1: ptr<managed>
+    local %25 $cast.2: ptr<managed>
+    local %26 $cast.3: ptr<managed>
     local %27 $cast.4: enum2
     local %28 $opt.5: enum2
-    local %29 $uw.6: ptr
-    local %30 $cast.7: ptr
+    local %29 $uw.6: ptr<managed>
+    local %30 $cast.7: ptr<managed>
     local %31 $cast.8: enum1
-    local %32 $cast.9: ptr
-    local %33 $cast.10: ptr
-    local %34 $call.1: ptr
-    local %35 $call.2: ptr
-    local %36 $call.3: ptr
-    local %37 $call.4: ptr
-    local %38 $call.5: ptr
-    local %39 $call.6: ptr
-    local %40 $call.7: ptr
-    local %41 $call.8: ptr
-    local %42 $call.9: ptr
-    local %43 $call.10: ptr
-    local %44 $call.11: ptr
-    local %45 $call.12: ptr
-    local %46 $call.13: ptr
-    local %47 $call.14: ptr
+    local %32 $cast.9: ptr<managed>
+    local %33 $cast.10: ptr<managed>
+    local %34 $call.1: ptr<managed>
+    local %35 $call.2: ptr<managed>
+    local %36 $call.3: ptr<managed>
+    local %37 $call.4: ptr<managed>
+    local %38 $call.5: ptr<managed>
+    local %39 $call.6: ptr<managed>
+    local %40 $call.7: ptr<managed>
+    local %41 $call.8: ptr<managed>
+    local %42 $call.9: ptr<managed>
+    local %43 $call.10: ptr<managed>
+    local %44 $call.11: ptr<managed>
+    local %45 $call.12: ptr<managed>
+    local %46 $call.13: ptr<managed>
+    local %47 $call.14: ptr<managed>
     local %48 $call.15: i64
-    local %49 $call.16: ptr
+    local %49 $call.16: ptr<managed>
     local %50 $logic.17: i1
     local %51 $logic.18: i1
-    local %52 $call.19: ptr
-    local %53 $call.20: ptr
-    local %54 $call.21: ptr
-    local %55 $call.22: ptr
-    local %56 $call.23: ptr
+    local %52 $call.19: ptr<managed>
+    local %53 $call.20: ptr<managed>
+    local %54 $call.21: ptr<managed>
+    local %55 $call.22: ptr<managed>
+    local %56 $call.23: ptr<managed>
     local %57 $sc.1: exception_record
-    local %58 $sc.2: ptr
-    local %59 $sc.3: ptr
+    local %58 $sc.2: ptr<raw>
+    local %59 $sc.3: ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global12, 24) : ptr
+    t0 = call @scoop_rt_alloc(global12, 24) : ptr<managed>
     t1 = function_address @scoop.$reference.1 : ptr
     heap_store t0 +16 t1
     store t0 -> local0
-    t2 = call @scoop_rt_alloc(global13, 32) : ptr
+    t2 = call @scoop_rt_alloc(global13, 32) : ptr<managed>
     t3 = function_address @scoop.$adapter.FAnyRIX.FIRAnyX : ptr
     heap_store t2 +16 t3
     heap_store t2 +24 local0
     store t2 -> local1
-    t4 = call @scoop_rt_alloc(global14, 24) : ptr
+    t4 = call @scoop_rt_alloc(global14, 24) : ptr<managed>
     t5 = function_address @scoop.$reference.2 : ptr
     heap_store t4 +16 t5
     store t4 -> local2
-    t6 = call @scoop_rt_alloc(global15, 32) : ptr
+    t6 = call @scoop_rt_alloc(global15, 32) : ptr<managed>
     t7 = function_address @scoop.$adapter.FAnimalRDogX.FDogRAnimalX : ptr
     heap_store t6 +16 t7
     heap_store t6 +24 local2
     store t6 -> local3
-    t8 = call @scoop_rt_alloc(global16, 24) : ptr
+    t8 = call @scoop_rt_alloc(global16, 24) : ptr<managed>
     t9 = function_address @scoop.$reference.3 : ptr
     heap_store t8 +16 t9
     store t8 -> local4
-    t10 = call @scoop_rt_alloc(global13, 32) : ptr
+    t10 = call @scoop_rt_alloc(global13, 32) : ptr<managed>
     t11 = function_address @scoop.$adapter.FAnyRIX.FIRAnyX : ptr
     heap_store t10 +16 t11
     heap_store t10 +24 local4
     store t10 -> local5
-    t12 = call @scoop.widen$I(local0) : ptr
+    t12 = call @scoop.widen$I(local0) : ptr<managed>
     store t12 -> local6
-    t13 = call @scoop_rt_alloc(global17, 24) : ptr
+    t13 = call @scoop_rt_alloc(global17, 24) : ptr<managed>
     t14 = function_address @scoop.$reference.4 : ptr
     heap_store t13 +16 t14
-    t15 = call @scoop.widen$S(t13) : ptr
+    t15 = call @scoop.widen$S(t13) : ptr<managed>
     store t15 -> local7
-    t16 = call @scoop_rt_alloc(global18, 24) : ptr
+    t16 = call @scoop_rt_alloc(global18, 24) : ptr<managed>
     t17 = function_address @scoop.$reference.5 : ptr
     heap_store t16 +16 t17
     store t16 -> local8
-    t18 = call @scoop_rt_alloc(global19, 32) : ptr
+    t18 = call @scoop_rt_alloc(global19, 32) : ptr<managed>
     t19 = function_address @scoop.$adapter.FAnyRLabelX.FIRDescribableX : ptr
     heap_store t18 +16 t19
     heap_store t18 +24 local8
     store t18 -> local9
-    t20 = call @scoop_rt_alloc(global20, 24) : ptr
+    t20 = call @scoop_rt_alloc(global20, 24) : ptr<managed>
     t21 = function_address @scoop.$reference.6 : ptr
     heap_store t20 +16 t21
     store t20 -> local10
-    t22 = call @scoop_rt_alloc(global21, 32) : ptr
+    t22 = call @scoop_rt_alloc(global21, 32) : ptr<managed>
     t23 = function_address @scoop.$adapter.FFIRAnyXRFAnyRIXX.FFAnyRIXRFIRAnyXX : ptr
     heap_store t22 +16 t23
     heap_store t22 +24 local10
     store t22 -> local11
-    t24 = call_indirect local11[2](local11, local0) : ptr
+    t24 = call_indirect local11[2](local11, local0) : ptr<managed>
     store t24 -> local12
     store local0 -> local13
     store local13 -> local24
@@ -1549,12 +1549,12 @@ Module
     t26 = Not t25 : i1
     cbr t26 then @if.then.1 else @if.merge.2
   block if.then.1
-    t27 = call @scoop.ctor.ClassCastException() : ptr
+    t27 = call @scoop.ctor.ClassCastException() : ptr<managed>
     store t27 -> local34
     throw local34
     unreachable
   block if.merge.2
-    t28 = call @scoop_rt_alloc(global23, 32) : ptr
+    t28 = call @scoop_rt_alloc(global23, 32) : ptr<managed>
     t29 = function_address @scoop.$dynamic_adapter.FIRAnyX : ptr
     heap_store t28 +16 t29
     heap_store t28 +24 local24
@@ -1564,12 +1564,12 @@ Module
     t31 = Not t30 : i1
     cbr t31 then @if.then.3 else @if.merge.4
   block if.then.3
-    t32 = call @scoop.ctor.ClassCastException() : ptr
+    t32 = call @scoop.ctor.ClassCastException() : ptr<managed>
     store t32 -> local35
     throw local35
     unreachable
   block if.merge.4
-    t33 = call @scoop_rt_alloc(global25, 32) : ptr
+    t33 = call @scoop_rt_alloc(global25, 32) : ptr<managed>
     t34 = function_address @scoop.$dynamic_adapter.FAnyRIX : ptr
     heap_store t33 +16 t34
     heap_store t33 +24 local25
@@ -1578,7 +1578,7 @@ Module
     t35 = call @scoop_rt_is_instance(local26, global22) : i1
     cbr t35 then @if.then.5 else @if.else.6
   block if.then.5
-    t36 = call @scoop_rt_alloc(global23, 32) : ptr
+    t36 = call @scoop_rt_alloc(global23, 32) : ptr<managed>
     t37 = function_address @scoop.$dynamic_adapter.FIRAnyX : ptr
     heap_store t36 +16 t37
     heap_store t36 +24 local26
@@ -1595,11 +1595,11 @@ Module
     t41 = Eq t40, 0 : i1
     cbr t41 then @if.then.8 else @if.else.9
   block if.then.8
-    t42 = enum_field e2 v0 f0 local28 : ptr
+    t42 = enum_field e2 v0 f0 local28 : ptr<managed>
     store t42 -> local29
     br @if.merge.10
   block if.else.9
-    t43 = call @scoop.ctor.UnwrapException() : ptr
+    t43 = call @scoop.ctor.UnwrapException() : ptr<managed>
     store t43 -> local36
     throw local36
     unreachable
@@ -1609,7 +1609,7 @@ Module
     t44 = call @scoop_rt_is_instance(local30, global26) : i1
     cbr t44 then @if.then.11 else @if.else.12
   block if.then.11
-    t45 = call @scoop_rt_alloc(global27, 32) : ptr
+    t45 = call @scoop_rt_alloc(global27, 32) : ptr<managed>
     t46 = function_address @scoop.$dynamic_adapter.FAnyRSX : ptr
     heap_store t45 +16 t46
     heap_store t45 +24 local30
@@ -1628,17 +1628,17 @@ Module
     t50 = Not t49 : i1
     cbr t50 then @if.then.14 else @if.merge.15
   block if.then.14
-    t51 = call @scoop.ctor.ClassCastException() : ptr
+    t51 = call @scoop.ctor.ClassCastException() : ptr<managed>
     store t51 -> local37
     throw local37
     unreachable
   block if.merge.15
-    t52 = call @scoop_rt_alloc(global29, 32) : ptr
+    t52 = call @scoop_rt_alloc(global29, 32) : ptr<managed>
     t53 = function_address @scoop.$dynamic_adapter.FFAnyRIXRFIRAnyXX : ptr
     heap_store t52 +16 t53
     heap_store t52 +24 local32
     store t52 -> local19
-    t54 = call_indirect local19[2](local19, local0) : ptr
+    t54 = call_indirect local19[2](local19, local0) : ptr<managed>
     store t54 -> local20
     store local8 -> local21
     store local21 -> local33
@@ -1646,68 +1646,68 @@ Module
     t56 = Not t55 : i1
     cbr t56 then @if.then.16 else @if.merge.17
   block if.then.16
-    t57 = call @scoop.ctor.ClassCastException() : ptr
+    t57 = call @scoop.ctor.ClassCastException() : ptr<managed>
     store t57 -> local38
     throw local38
     unreachable
   block if.merge.17
-    t58 = call @scoop_rt_alloc(global31, 32) : ptr
+    t58 = call @scoop_rt_alloc(global31, 32) : ptr<managed>
     t59 = function_address @scoop.$dynamic_adapter.FIRDescribableX : ptr
     heap_store t58 +16 t59
     heap_store t58 +24 local33
     store t58 -> local22
     call @scoop_rt_gc_collect()
     t60 = aggregate () : {}
-    t61 = call_indirect local1[2](local1, 0) : ptr
+    t61 = call_indirect local1[2](local1, 0) : ptr<managed>
     store t61 -> local39
     call @scoop.println(local39)
     t62 = aggregate () : {}
-    t63 = call @scoop.ctor.Dog() : ptr
+    t63 = call @scoop.ctor.Dog() : ptr<managed>
     store t63 -> local40
-    t64 = call_indirect local3[2](local3, local40) : ptr
+    t64 = call_indirect local3[2](local3, local40) : ptr<managed>
     store t64 -> local41
     t65 = call @scoop_rt_is_instance(local41, global32) : i1
-    t66 = call @scoop_rt_box(global33, t65, 1) : ptr
+    t66 = call @scoop_rt_box(global33, t65, 1) : ptr<managed>
     call @scoop.println(t66)
     t67 = aggregate () : {}
-    t68 = call_indirect local6[2](local6, 0) : ptr
+    t68 = call_indirect local6[2](local6, 0) : ptr<managed>
     store t68 -> local42
     call @scoop.println(local42)
     t69 = aggregate () : {}
-    t70 = call_indirect local7[2](local7, global3) : ptr
+    t70 = call_indirect local7[2](local7, global3) : ptr<managed>
     store t70 -> local43
     call @scoop.println(local43)
     t71 = aggregate () : {}
-    t72 = call_indirect local9[2](local9, 0) : ptr
+    t72 = call_indirect local9[2](local9, 0) : ptr<managed>
     store t72 -> local44
-    t73 = heap_load local44 +0 : ptr
-    t74 = call @scoop_rt_itable_lookup(t73, global34) : ptr
-    t75 = call_indirect t74[0](local44) : ptr
+    t73 = heap_load local44 +0 : ptr<metadata>
+    t74 = call @scoop_rt_itable_lookup(t73, global34) : ptr<metadata>
+    t75 = call_indirect t74[0](local44) : ptr<managed>
     store t75 -> local45
     call @scoop.println(local45)
     t76 = aggregate () : {}
-    t77 = call_indirect local12[2](local12, 0) : ptr
+    t77 = call_indirect local12[2](local12, 0) : ptr<managed>
     store t77 -> local46
     call @scoop.println(local46)
     t78 = aggregate () : {}
     t79 = call @scoop_rt_is_instance(local13, global22) : i1
-    t80 = call @scoop_rt_box(global33, t79, 1) : ptr
+    t80 = call @scoop_rt_box(global33, t79, 1) : ptr<managed>
     call @scoop.println(t80)
     t81 = aggregate () : {}
     t82 = call @scoop_rt_is_instance(local13, global26) : i1
-    t83 = call @scoop_rt_box(global33, t82, 1) : ptr
+    t83 = call @scoop_rt_box(global33, t82, 1) : ptr<managed>
     call @scoop.println(t83)
     t84 = aggregate () : {}
-    t85 = call_indirect local14[2](local14, 0) : ptr
+    t85 = call_indirect local14[2](local14, 0) : ptr<managed>
     store t85 -> local47
     call @scoop.println(local47)
     t86 = aggregate () : {}
     t87 = call_indirect local15[2](local15, global4) : i64
     store t87 -> local48
-    t88 = call @scoop_rt_box(global35, local48, 8) : ptr
+    t88 = call @scoop_rt_box(global35, local48, 8) : ptr<managed>
     call @scoop.println(t88)
     t89 = aggregate () : {}
-    t90 = call_indirect local16[2](local16, 0) : ptr
+    t90 = call_indirect local16[2](local16, 0) : ptr<managed>
     store t90 -> local49
     call @scoop.println(local49)
     t91 = aggregate () : {}
@@ -1724,18 +1724,18 @@ Module
     store false -> local50
     br @logic.merge.20
   block logic.merge.20
-    t98 = call @scoop_rt_box(global33, local50, 1) : ptr
+    t98 = call @scoop_rt_box(global33, local50, 1) : ptr<managed>
     call @scoop.println(t98)
     t99 = aggregate () : {}
-    t100 = call_indirect local20[2](local20, 0) : ptr
+    t100 = call_indirect local20[2](local20, 0) : ptr<managed>
     store t100 -> local52
     call @scoop.println(local52)
     t101 = aggregate () : {}
-    t102 = call_indirect local22[2](local22, 0) : ptr
+    t102 = call_indirect local22[2](local22, 0) : ptr<managed>
     store t102 -> local53
-    t103 = heap_load local53 +0 : ptr
-    t104 = call @scoop_rt_itable_lookup(t103, global34) : ptr
-    t105 = call_indirect t104[0](local53) : ptr
+    t103 = heap_load local53 +0 : ptr<metadata>
+    t104 = call @scoop_rt_itable_lookup(t103, global34) : ptr<metadata>
+    t105 = call_indirect t104[0](local53) : ptr<managed>
     store t105 -> local54
     call @scoop.println(local54)
     t106 = aggregate () : {}
@@ -1755,11 +1755,11 @@ Module
     store local51 -> local50
     br @logic.merge.20
   block if.then.24
-    t112 = call @scoop_rt_alloc(global23, 32) : ptr
+    t112 = call @scoop_rt_alloc(global23, 32) : ptr<managed>
     t113 = function_address @scoop.$dynamic_adapter.FIRAnyX : ptr
     heap_store t112 +16 t113
     heap_store t112 +24 local13
-    t114 = call_indirect t112[2](t112, 0) : ptr
+    t114 = call_indirect t112[2](t112, 0) : ptr<managed>
     store t114 -> local55
     call @scoop.println(local55)
     t115 = aggregate () : {}
@@ -1767,17 +1767,17 @@ Module
   block if.merge.25
     br @try.body.33
   block try.unwind.26
-    (t116, t117) = landingpad : (exception_record, ptr)
+    (t116, t117) = landingpad : (exception_record, ptr<raw>)
     store t116 -> local57
     store t117 -> local58
     br @try.dispatch.27
   block try.dispatch.27
-    t118 = begin_catch local58 : ptr
+    t118 = begin_catch local58 : ptr<managed>
     store t118 -> local59
     t119 = call @scoop_rt_is_instance(local59, global36) : i1
     cbr t119 then @try.catch.35 else @try.next.36
   block try.handler_pad.28
-    (t120, t121) = cleanup_pad : (exception_record, ptr)
+    (t120, t121) = cleanup_pad : (exception_record, ptr<raw>)
     store t120 -> local57
     store t121 -> local58
     br @try.handler_cleanup.29
@@ -1785,7 +1785,7 @@ Module
     end_catch
     resume local57
   block try.exit_pad.30
-    (t122, t123) = cleanup_pad : (exception_record, ptr)
+    (t122, t123) = cleanup_pad : (exception_record, ptr<raw>)
     store t122 -> local57
     store t123 -> local58
     br @try.exit_cleanup.31
@@ -1823,206 +1823,206 @@ Module
   block invoke.normal.4
     t126 = aggregate () : {}
     br @scope.38
-  fun @scoop.Label.describe(struct0) -> ptr
+  fun @scoop.Label.describe(struct0) -> ptr<managed>
   block entry
-    t0 = extract param0, 0 : ptr
+    t0 = extract param0, 0 : ptr<managed>
     ret t0
-  fun @scoop.$reference.0(ptr, ptr) -> i64
+  fun @scoop.$reference.0(ptr<managed>, ptr<managed>) -> i64
     local %0 $call.1: i64
   block entry
     t0 = call @scoop.acceptAny(param1) : i64
     store t0 -> local0
     ret local0
-  fun @scoop.$reference.1(ptr, ptr) -> i64
+  fun @scoop.$reference.1(ptr<managed>, ptr<managed>) -> i64
     local %0 $call.1: i64
   block entry
     t0 = call @scoop.acceptAny(param1) : i64
     store t0 -> local0
     ret local0
-  fun @scoop.$reference.2(ptr, ptr) -> ptr
-    local %0 $call.1: ptr
+  fun @scoop.$reference.2(ptr<managed>, ptr<managed>) -> ptr<managed>
+    local %0 $call.1: ptr<managed>
   block entry
-    t0 = call @scoop.acceptAnimal(param1) : ptr
+    t0 = call @scoop.acceptAnimal(param1) : ptr<managed>
     store t0 -> local0
     ret local0
-  fun @scoop.$reference.3(ptr, ptr) -> i64
+  fun @scoop.$reference.3(ptr<managed>, ptr<managed>) -> i64
     local %0 $call.1: i64
   block entry
     t0 = call @scoop.failAny(param1) : i64
     store t0 -> local0
     ret local0
-  fun @scoop.$reference.4(ptr, ptr) -> ptr
-    local %0 $call.1: ptr
+  fun @scoop.$reference.4(ptr<managed>, ptr<managed>) -> ptr<managed>
+    local %0 $call.1: ptr<managed>
   block entry
-    t0 = call @scoop.acceptAnyString(param1) : ptr
+    t0 = call @scoop.acceptAnyString(param1) : ptr<managed>
     store t0 -> local0
     ret local0
-  fun @scoop.$reference.5(ptr, ptr) -> struct0
+  fun @scoop.$reference.5(ptr<managed>, ptr<managed>) -> struct0
     local %0 $call.1: struct0
   block entry
     t0 = call @scoop.acceptAnyLabel(param1) : struct0
     store t0 -> local0
     ret local0
-  fun @scoop.$reference.6(ptr, ptr) -> ptr
-    local %0 $call.1: ptr
+  fun @scoop.$reference.6(ptr<managed>, ptr<managed>) -> ptr<managed>
+    local %0 $call.1: ptr<managed>
   block entry
-    t0 = call @scoop.returnNested(param1) : ptr
+    t0 = call @scoop.returnNested(param1) : ptr<managed>
     store t0 -> local0
     ret local0
-  fun @scoop.ctor.Throwable() -> ptr
+  fun @scoop.ctor.Throwable() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global37, 16) : ptr
+    t0 = call @scoop_rt_alloc(global37, 16) : ptr<managed>
     ret t0
-  fun @scoop.ctor.Exception(enum0) -> ptr
+  fun @scoop.ctor.Exception(enum0) -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global38, 24) : ptr
+    t0 = call @scoop_rt_alloc(global38, 24) : ptr<managed>
     heap_store t0 +16 param0
     ret t0
-  fun @scoop.ctor.UnwrapException() -> ptr
+  fun @scoop.ctor.UnwrapException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global39, 24) : ptr
+    t0 = call @scoop_rt_alloc(global39, 24) : ptr<managed>
     t1 = enum_wrap e0 v0 (global6) : enum0
     heap_store t0 +16 t1
     ret t0
-  fun @scoop.ctor.ClassCastException() -> ptr
+  fun @scoop.ctor.ClassCastException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global40, 24) : ptr
+    t0 = call @scoop_rt_alloc(global40, 24) : ptr<managed>
     t1 = enum_wrap e0 v0 (global7) : enum0
     heap_store t0 +16 t1
     ret t0
-  fun @scoop.ctor.ArithmeticException() -> ptr
+  fun @scoop.ctor.ArithmeticException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global36, 24) : ptr
+    t0 = call @scoop_rt_alloc(global36, 24) : ptr<managed>
     t1 = enum_wrap e0 v0 (global8) : enum0
     heap_store t0 +16 t1
     ret t0
-  fun @scoop.ctor.IndexOutOfBoundsException() -> ptr
+  fun @scoop.ctor.IndexOutOfBoundsException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global41, 24) : ptr
+    t0 = call @scoop_rt_alloc(global41, 24) : ptr<managed>
     t1 = enum_wrap e0 v0 (global9) : enum0
     heap_store t0 +16 t1
     ret t0
-  fun @scoop.ctor.IllegalStateException() -> ptr
+  fun @scoop.ctor.IllegalStateException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global42, 24) : ptr
+    t0 = call @scoop_rt_alloc(global42, 24) : ptr<managed>
     t1 = enum_wrap e0 v0 (global10) : enum0
     heap_store t0 +16 t1
     ret t0
-  fun @scoop.ctor.Animal() -> ptr
+  fun @scoop.ctor.Animal() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global43, 16) : ptr
+    t0 = call @scoop_rt_alloc(global43, 16) : ptr<managed>
     ret t0
-  fun @scoop.ctor.Dog() -> ptr
+  fun @scoop.ctor.Dog() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global32, 16) : ptr
+    t0 = call @scoop_rt_alloc(global32, 16) : ptr<managed>
     ret t0
-  fun @scoop.$adapter.FAnyRIX.FIRAnyX(ptr, i64) -> ptr
+  fun @scoop.$adapter.FAnyRIX.FIRAnyX(ptr<managed>, i64) -> ptr<managed>
     local %0 $call.1: i64
   block entry
-    t0 = heap_load param0 +24 : ptr
-    t1 = call @scoop_rt_box(global35, param1, 8) : ptr
+    t0 = heap_load param0 +24 : ptr<managed>
+    t1 = call @scoop_rt_box(global35, param1, 8) : ptr<managed>
     t2 = call_indirect t0[2](t0, t1) : i64
     store t2 -> local0
-    t3 = call @scoop_rt_box(global35, local0, 8) : ptr
+    t3 = call @scoop_rt_box(global35, local0, 8) : ptr<managed>
     ret t3
-  fun @scoop.$adapter.FAnimalRDogX.FDogRAnimalX(ptr, ptr) -> ptr
-    local %0 $call.1: ptr
+  fun @scoop.$adapter.FAnimalRDogX.FDogRAnimalX(ptr<managed>, ptr<managed>) -> ptr<managed>
+    local %0 $call.1: ptr<managed>
   block entry
-    t0 = heap_load param0 +24 : ptr
-    t1 = call_indirect t0[2](t0, param1) : ptr
+    t0 = heap_load param0 +24 : ptr<managed>
+    t1 = call_indirect t0[2](t0, param1) : ptr<managed>
     store t1 -> local0
     ret local0
-  fun @scoop.widen$I(ptr) -> ptr
+  fun @scoop.widen$I(ptr<managed>) -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global13, 32) : ptr
+    t0 = call @scoop_rt_alloc(global13, 32) : ptr<managed>
     t1 = function_address @scoop.$adapter.FAnyRIX.FIRAnyX : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 param0
     ret t0
-  fun @scoop.widen$S(ptr) -> ptr
+  fun @scoop.widen$S(ptr<managed>) -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global44, 32) : ptr
+    t0 = call @scoop_rt_alloc(global44, 32) : ptr<managed>
     t1 = function_address @scoop.$adapter.FAnyRSX.FSRAnyX : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 param0
     ret t0
-  fun @scoop.$adapter.FAnyRLabelX.FIRDescribableX(ptr, i64) -> ptr
+  fun @scoop.$adapter.FAnyRLabelX.FIRDescribableX(ptr<managed>, i64) -> ptr<managed>
     local %0 $call.1: struct0
   block entry
-    t0 = heap_load param0 +24 : ptr
-    t1 = call @scoop_rt_box(global35, param1, 8) : ptr
+    t0 = heap_load param0 +24 : ptr<managed>
+    t1 = call @scoop_rt_box(global35, param1, 8) : ptr<managed>
     t2 = call_indirect t0[2](t0, t1) : struct0
     store t2 -> local0
-    t3 = call @scoop_rt_box(global45, local0, 8) : ptr
+    t3 = call @scoop_rt_box(global45, local0, 8) : ptr<managed>
     ret t3
-  fun @scoop.$adapter.FFIRAnyXRFAnyRIXX.FFAnyRIXRFIRAnyXX(ptr, ptr) -> ptr
-    local %0 $call.1: ptr
+  fun @scoop.$adapter.FFIRAnyXRFAnyRIXX.FFAnyRIXRFIRAnyXX(ptr<managed>, ptr<managed>) -> ptr<managed>
+    local %0 $call.1: ptr<managed>
   block entry
-    t0 = heap_load param0 +24 : ptr
-    t1 = call @scoop_rt_alloc(global13, 32) : ptr
+    t0 = heap_load param0 +24 : ptr<managed>
+    t1 = call @scoop_rt_alloc(global13, 32) : ptr<managed>
     t2 = function_address @scoop.$adapter.FAnyRIX.FIRAnyX : ptr
     heap_store t1 +16 t2
     heap_store t1 +24 param1
-    t3 = call_indirect t0[2](t0, t1) : ptr
+    t3 = call_indirect t0[2](t0, t1) : ptr<managed>
     store t3 -> local0
-    t4 = call @scoop_rt_alloc(global13, 32) : ptr
+    t4 = call @scoop_rt_alloc(global13, 32) : ptr<managed>
     t5 = function_address @scoop.$adapter.FAnyRIX.FIRAnyX : ptr
     heap_store t4 +16 t5
     heap_store t4 +24 local0
     ret t4
-  fun @scoop.$dynamic_adapter.FIRAnyX(ptr, i64) -> ptr
-    local %0 $call.1: ptr
+  fun @scoop.$dynamic_adapter.FIRAnyX(ptr<managed>, i64) -> ptr<managed>
+    local %0 $call.1: ptr<managed>
   block entry
-    t0 = heap_load param0 +24 : ptr
-    t1 = heap_load t0 +0 : ptr
-    t2 = call @scoop_rt_itable_lookup(t1, global22) : ptr
-    t3 = call_indirect t2[0](t0, param1) : ptr
+    t0 = heap_load param0 +24 : ptr<managed>
+    t1 = heap_load t0 +0 : ptr<metadata>
+    t2 = call @scoop_rt_itable_lookup(t1, global22) : ptr<metadata>
+    t3 = call_indirect t2[0](t0, param1) : ptr<managed>
     store t3 -> local0
     ret local0
-  fun @scoop.$dynamic_adapter.FAnyRIX(ptr, ptr) -> i64
+  fun @scoop.$dynamic_adapter.FAnyRIX(ptr<managed>, ptr<managed>) -> i64
     local %0 $call.1: i64
   block entry
-    t0 = heap_load param0 +24 : ptr
-    t1 = heap_load t0 +0 : ptr
-    t2 = call @scoop_rt_itable_lookup(t1, global24) : ptr
+    t0 = heap_load param0 +24 : ptr<managed>
+    t1 = heap_load t0 +0 : ptr<metadata>
+    t2 = call @scoop_rt_itable_lookup(t1, global24) : ptr<metadata>
     t3 = call_indirect t2[0](t0, param1) : i64
     store t3 -> local0
     ret local0
-  fun @scoop.$dynamic_adapter.FAnyRSX(ptr, ptr) -> ptr
-    local %0 $call.1: ptr
+  fun @scoop.$dynamic_adapter.FAnyRSX(ptr<managed>, ptr<managed>) -> ptr<managed>
+    local %0 $call.1: ptr<managed>
   block entry
-    t0 = heap_load param0 +24 : ptr
-    t1 = heap_load t0 +0 : ptr
-    t2 = call @scoop_rt_itable_lookup(t1, global26) : ptr
-    t3 = call_indirect t2[0](t0, param1) : ptr
+    t0 = heap_load param0 +24 : ptr<managed>
+    t1 = heap_load t0 +0 : ptr<metadata>
+    t2 = call @scoop_rt_itable_lookup(t1, global26) : ptr<metadata>
+    t3 = call_indirect t2[0](t0, param1) : ptr<managed>
     store t3 -> local0
     ret local0
-  fun @scoop.$dynamic_adapter.FFAnyRIXRFIRAnyXX(ptr, ptr) -> ptr
-    local %0 $call.1: ptr
+  fun @scoop.$dynamic_adapter.FFAnyRIXRFIRAnyXX(ptr<managed>, ptr<managed>) -> ptr<managed>
+    local %0 $call.1: ptr<managed>
   block entry
-    t0 = heap_load param0 +24 : ptr
-    t1 = heap_load t0 +0 : ptr
-    t2 = call @scoop_rt_itable_lookup(t1, global28) : ptr
-    t3 = call_indirect t2[0](t0, param1) : ptr
+    t0 = heap_load param0 +24 : ptr<managed>
+    t1 = heap_load t0 +0 : ptr<metadata>
+    t2 = call @scoop_rt_itable_lookup(t1, global28) : ptr<metadata>
+    t3 = call_indirect t2[0](t0, param1) : ptr<managed>
     store t3 -> local0
     ret local0
-  fun @scoop.$dynamic_adapter.FIRDescribableX(ptr, i64) -> ptr
-    local %0 $call.1: ptr
+  fun @scoop.$dynamic_adapter.FIRDescribableX(ptr<managed>, i64) -> ptr<managed>
+    local %0 $call.1: ptr<managed>
   block entry
-    t0 = heap_load param0 +24 : ptr
-    t1 = heap_load t0 +0 : ptr
-    t2 = call @scoop_rt_itable_lookup(t1, global30) : ptr
-    t3 = call_indirect t2[0](t0, param1) : ptr
+    t0 = heap_load param0 +24 : ptr<managed>
+    t1 = heap_load t0 +0 : ptr<metadata>
+    t2 = call @scoop_rt_itable_lookup(t1, global30) : ptr<metadata>
+    t3 = call_indirect t2[0](t0, param1) : ptr<managed>
     store t3 -> local0
     ret local0
-  fun @scoop.$adapter.FAnyRSX.FSRAnyX(ptr, ptr) -> ptr
-    local %0 $call.1: ptr
+  fun @scoop.$adapter.FAnyRSX.FSRAnyX(ptr<managed>, ptr<managed>) -> ptr<managed>
+    local %0 $call.1: ptr<managed>
   block entry
-    t0 = heap_load param0 +24 : ptr
-    t1 = call_indirect t0[2](t0, param1) : ptr
+    t0 = heap_load param0 +24 : ptr<managed>
+    t1 = call_indirect t0[2](t0, param1) : ptr<managed>
     store t1 -> local0
     ret local0
-  fun @scoop.eq.I(ptr, ptr) -> i1
+  fun @scoop.eq.I(ptr<managed>, ptr<managed>) -> i1
     local %0 $a: i64
     local %1 $b: i64
   block entry
@@ -2032,14 +2032,14 @@ Module
     store t1 -> local1
     t2 = Eq local0, local1 : i1
     ret t2
-  fun @scoop.tostring.I(ptr) -> ptr
-    local %0 $call.1: ptr
+  fun @scoop.tostring.I(ptr<managed>) -> ptr<managed>
+    local %0 $call.1: ptr<managed>
   block entry
     t0 = heap_load param0 +16 : i64
-    t1 = call @scoop_rt_int_to_string(t0) : ptr
+    t1 = call @scoop_rt_int_to_string(t0) : ptr<managed>
     store t1 -> local0
     ret local0
-  fun @scoop.eq.Label(ptr, ptr) -> i1
+  fun @scoop.eq.Label(ptr<managed>, ptr<managed>) -> i1
     local %0 $a: struct0
     local %1 $b: struct0
     local %2 $call.1: i1
@@ -2048,19 +2048,19 @@ Module
     store t0 -> local0
     t1 = heap_load param1 +16 : struct0
     store t1 -> local1
-    t2 = extract local0, 0 : ptr
-    t3 = extract local1, 0 : ptr
+    t2 = extract local0, 0 : ptr<managed>
+    t3 = extract local1, 0 : ptr<managed>
     t4 = call @scoop_rt_string_eq(t2, t3) : i1
     store t4 -> local2
     ret local2
-  fun @scoop.thunk.Label.Describable.describe(ptr) -> ptr
-    local %0 $call.1: ptr
+  fun @scoop.thunk.Label.Describable.describe(ptr<managed>) -> ptr<managed>
+    local %0 $call.1: ptr<managed>
   block entry
     t0 = heap_load param0 +16 : struct0
-    t1 = call @scoop.Label.describe(t0) : ptr
+    t1 = call @scoop.Label.describe(t0) : ptr<managed>
     store t1 -> local0
     ret local0
-  fun @scoop.eq.B(ptr, ptr) -> i1
+  fun @scoop.eq.B(ptr<managed>, ptr<managed>) -> i1
     local %0 $a: i1
     local %1 $b: i1
   block entry
@@ -2070,99 +2070,99 @@ Module
     store t1 -> local1
     t2 = Eq local0, local1 : i1
     ret t2
-  fun @scoop.tostring.B(ptr) -> ptr
-    local %0 $call.1: ptr
+  fun @scoop.tostring.B(ptr<managed>) -> ptr<managed>
+    local %0 $call.1: ptr<managed>
   block entry
     t0 = heap_load param0 +16 : i1
-    t1 = call @scoop_rt_bool_to_string(t0) : ptr
+    t1 = call @scoop_rt_bool_to_string(t0) : ptr<managed>
     store t1 -> local0
     ret local0
-  fun @scoop.function_bridge.$Closure$reference0.FIRAnyX(ptr, i64) -> ptr
+  fun @scoop.function_bridge.$Closure$reference0.FIRAnyX(ptr<managed>, i64) -> ptr<managed>
     local %0 $call.1: i64
   block entry
-    t0 = call @scoop_rt_box(global35, param1, 8) : ptr
+    t0 = call @scoop_rt_box(global35, param1, 8) : ptr<managed>
     t1 = call_indirect param0[2](param0, t0) : i64
     store t1 -> local0
-    t2 = call @scoop_rt_box(global35, local0, 8) : ptr
+    t2 = call @scoop_rt_box(global35, local0, 8) : ptr<managed>
     ret t2
-  fun @scoop.function_bridge.$Closure$reference1.FIRAnyX(ptr, i64) -> ptr
+  fun @scoop.function_bridge.$Closure$reference1.FIRAnyX(ptr<managed>, i64) -> ptr<managed>
     local %0 $call.1: i64
   block entry
-    t0 = call @scoop_rt_box(global35, param1, 8) : ptr
+    t0 = call @scoop_rt_box(global35, param1, 8) : ptr<managed>
     t1 = call_indirect param0[2](param0, t0) : i64
     store t1 -> local0
-    t2 = call @scoop_rt_box(global35, local0, 8) : ptr
+    t2 = call @scoop_rt_box(global35, local0, 8) : ptr<managed>
     ret t2
-  fun @scoop.function_bridge.$Closure$reference3.FIRAnyX(ptr, i64) -> ptr
+  fun @scoop.function_bridge.$Closure$reference3.FIRAnyX(ptr<managed>, i64) -> ptr<managed>
     local %0 $call.1: i64
   block entry
-    t0 = call @scoop_rt_box(global35, param1, 8) : ptr
+    t0 = call @scoop_rt_box(global35, param1, 8) : ptr<managed>
     t1 = call_indirect param0[2](param0, t0) : i64
     store t1 -> local0
-    t2 = call @scoop_rt_box(global35, local0, 8) : ptr
+    t2 = call @scoop_rt_box(global35, local0, 8) : ptr<managed>
     ret t2
-  fun @scoop.function_bridge.$Closure$reference4.FIRAnyX(ptr, i64) -> ptr
-    local %0 $call.1: ptr
+  fun @scoop.function_bridge.$Closure$reference4.FIRAnyX(ptr<managed>, i64) -> ptr<managed>
+    local %0 $call.1: ptr<managed>
   block entry
-    t0 = call @scoop_rt_box(global35, param1, 8) : ptr
-    t1 = call_indirect param0[2](param0, t0) : ptr
+    t0 = call @scoop_rt_box(global35, param1, 8) : ptr<managed>
+    t1 = call_indirect param0[2](param0, t0) : ptr<managed>
     store t1 -> local0
     ret local0
-  fun @scoop.function_bridge.$Closure$reference5.FIRAnyX(ptr, i64) -> ptr
+  fun @scoop.function_bridge.$Closure$reference5.FIRAnyX(ptr<managed>, i64) -> ptr<managed>
     local %0 $call.1: struct0
   block entry
-    t0 = call @scoop_rt_box(global35, param1, 8) : ptr
+    t0 = call @scoop_rt_box(global35, param1, 8) : ptr<managed>
     t1 = call_indirect param0[2](param0, t0) : struct0
     store t1 -> local0
-    t2 = call @scoop_rt_box(global45, local0, 8) : ptr
+    t2 = call @scoop_rt_box(global45, local0, 8) : ptr<managed>
     ret t2
-  fun @scoop.function_bridge.$Closure$reference5.FIRDescribableX(ptr, i64) -> ptr
+  fun @scoop.function_bridge.$Closure$reference5.FIRDescribableX(ptr<managed>, i64) -> ptr<managed>
     local %0 $call.1: struct0
   block entry
-    t0 = call @scoop_rt_box(global35, param1, 8) : ptr
+    t0 = call @scoop_rt_box(global35, param1, 8) : ptr<managed>
     t1 = call_indirect param0[2](param0, t0) : struct0
     store t1 -> local0
-    t2 = call @scoop_rt_box(global45, local0, 8) : ptr
+    t2 = call @scoop_rt_box(global45, local0, 8) : ptr<managed>
     ret t2
-  fun @scoop.function_bridge.$Closure$reference6.FFAnyRIXRFIRAnyXX(ptr, ptr) -> ptr
-    local %0 $call.1: ptr
+  fun @scoop.function_bridge.$Closure$reference6.FFAnyRIXRFIRAnyXX(ptr<managed>, ptr<managed>) -> ptr<managed>
+    local %0 $call.1: ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global13, 32) : ptr
+    t0 = call @scoop_rt_alloc(global13, 32) : ptr<managed>
     t1 = function_address @scoop.$adapter.FAnyRIX.FIRAnyX : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 param1
-    t2 = call_indirect param0[2](param0, t0) : ptr
+    t2 = call_indirect param0[2](param0, t0) : ptr<managed>
     store t2 -> local0
-    t3 = call @scoop_rt_alloc(global13, 32) : ptr
+    t3 = call @scoop_rt_alloc(global13, 32) : ptr<managed>
     t4 = function_address @scoop.$adapter.FAnyRIX.FIRAnyX : ptr
     heap_store t3 +16 t4
     heap_store t3 +24 local0
     ret t3
-  fun @scoop.function_bridge.$Closure$adapter$FAnyRLabelX$FIRDescribableX.FIRAnyX(ptr, i64) -> ptr
-    local %0 $call.1: ptr
+  fun @scoop.function_bridge.$Closure$adapter$FAnyRLabelX$FIRDescribableX.FIRAnyX(ptr<managed>, i64) -> ptr<managed>
+    local %0 $call.1: ptr<managed>
   block entry
-    t0 = call_indirect param0[2](param0, param1) : ptr
+    t0 = call_indirect param0[2](param0, param1) : ptr<managed>
     store t0 -> local0
     ret local0
-  fun @scoop.function_bridge.$Closure$dynamic_adapter$FAnyRIX.FIRAnyX(ptr, i64) -> ptr
+  fun @scoop.function_bridge.$Closure$dynamic_adapter$FAnyRIX.FIRAnyX(ptr<managed>, i64) -> ptr<managed>
     local %0 $call.1: i64
   block entry
-    t0 = call @scoop_rt_box(global35, param1, 8) : ptr
+    t0 = call @scoop_rt_box(global35, param1, 8) : ptr<managed>
     t1 = call_indirect param0[2](param0, t0) : i64
     store t1 -> local0
-    t2 = call @scoop_rt_box(global35, local0, 8) : ptr
+    t2 = call @scoop_rt_box(global35, local0, 8) : ptr<managed>
     ret t2
-  fun @scoop.function_bridge.$Closure$dynamic_adapter$FAnyRSX.FIRAnyX(ptr, i64) -> ptr
-    local %0 $call.1: ptr
+  fun @scoop.function_bridge.$Closure$dynamic_adapter$FAnyRSX.FIRAnyX(ptr<managed>, i64) -> ptr<managed>
+    local %0 $call.1: ptr<managed>
   block entry
-    t0 = call @scoop_rt_box(global35, param1, 8) : ptr
-    t1 = call_indirect param0[2](param0, t0) : ptr
+    t0 = call @scoop_rt_box(global35, param1, 8) : ptr<managed>
+    t1 = call_indirect param0[2](param0, t0) : ptr<managed>
     store t1 -> local0
     ret local0
-  fun @scoop.function_bridge.$Closure$dynamic_adapter$FIRDescribableX.FIRAnyX(ptr, i64) -> ptr
-    local %0 $call.1: ptr
+  fun @scoop.function_bridge.$Closure$dynamic_adapter$FIRDescribableX.FIRAnyX(ptr<managed>, i64) -> ptr<managed>
+    local %0 $call.1: ptr<managed>
   block entry
-    t0 = call_indirect param0[2](param0, param1) : ptr
+    t0 = call_indirect param0[2](param0, param1) : ptr<managed>
     store t0 -> local0
     ret local0
   td Describable @scoop_td_Describable size=0 vtable=0 itables=0

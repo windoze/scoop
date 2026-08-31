@@ -815,23 +815,23 @@ Module
   global @scoop_td_IndexOutOfBoundsException = c""
   global @scoop_td_IllegalStateException = c""
   enum Option$S niche(payload_variant=0)
-  extern ef0 write @scoop_rt_write(ptr) -> {} <scoop managed nounwind>
-  fun @scoop.print(ptr) -> void
-    local %0 $call.1: ptr
+  extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
+  fun @scoop.print(ptr<managed>) -> void
+    local %0 $call.1: ptr<managed>
   block entry
-    t0 = heap_load param0 +0 : ptr
-    t1 = heap_load t0 +40 : ptr
-    t2 = call_indirect t1[2](param0) : ptr
+    t0 = heap_load param0 +0 : ptr<metadata>
+    t1 = heap_load t0 +40 : ptr<metadata>
+    t2 = call_indirect t1[2](param0) : ptr<managed>
     store t2 -> local0
     native_call[native-borrowed] extern0(local0)
     t3 = aggregate () : {}
     ret
-  fun @scoop.println(ptr) -> void
-    local %0 $call.1: ptr
+  fun @scoop.println(ptr<managed>) -> void
+    local %0 $call.1: ptr<managed>
   block entry
-    t0 = heap_load param0 +0 : ptr
-    t1 = heap_load t0 +40 : ptr
-    t2 = call_indirect t1[2](param0) : ptr
+    t0 = heap_load param0 +0 : ptr<metadata>
+    t1 = heap_load t0 +40 : ptr<metadata>
+    t2 = call_indirect t1[2](param0) : ptr<managed>
     store t2 -> local0
     native_call[native-borrowed] extern0(local0)
     t3 = aggregate () : {}
@@ -839,26 +839,26 @@ Module
     t4 = aggregate () : {}
     ret
   fun @scoop.returnFromCatch() -> i64
-    local %0 e: ptr
-    local %1 $call.1: ptr
+    local %0 e: ptr<managed>
+    local %1 $call.1: ptr<managed>
     local %2 $return.2: i64
     local %3 $sc.1: exception_record
-    local %4 $sc.2: ptr
-    local %5 $sc.3: ptr
+    local %4 $sc.2: ptr<raw>
+    local %5 $sc.3: ptr<managed>
   block entry
     br @try.body.8
   block try.unwind.1
-    (t0, t1) = landingpad : (exception_record, ptr)
+    (t0, t1) = landingpad : (exception_record, ptr<raw>)
     store t0 -> local3
     store t1 -> local4
     br @try.dispatch.2
   block try.dispatch.2
-    t2 = begin_catch local4 : ptr
+    t2 = begin_catch local4 : ptr<managed>
     store t2 -> local5
     t3 = call @scoop_rt_is_instance(local5, global15) : i1
     cbr t3 then @try.catch.9 else @try.next.10
   block try.handler_pad.3
-    (t4, t5) = cleanup_pad : (exception_record, ptr)
+    (t4, t5) = cleanup_pad : (exception_record, ptr<raw>)
     store t4 -> local3
     store t5 -> local4
     br @try.handler_cleanup.4
@@ -868,7 +868,7 @@ Module
     t6 = aggregate () : {}
     resume local3
   block try.exit_pad.5
-    (t7, t8) = cleanup_pad : (exception_record, ptr)
+    (t7, t8) = cleanup_pad : (exception_record, ptr<raw>)
     store t7 -> local3
     store t8 -> local4
     br @try.exit_cleanup.6
@@ -907,27 +907,27 @@ Module
   block rethrow.normal.4
     unreachable
   fun @scoop.replaceInCatch() -> void
-    local %0 e: ptr
-    local %1 e: ptr
-    local %2 $call.1: ptr
-    local %3 $call.2: ptr
+    local %0 e: ptr<managed>
+    local %1 e: ptr<managed>
+    local %2 $call.1: ptr<managed>
+    local %3 $call.2: ptr<managed>
     local %4 $sc.1: exception_record
-    local %5 $sc.2: ptr
-    local %6 $sc.3: ptr
+    local %5 $sc.2: ptr<raw>
+    local %6 $sc.3: ptr<managed>
   block entry
     br @try.body.8
   block try.unwind.1
-    (t0, t1) = landingpad : (exception_record, ptr)
+    (t0, t1) = landingpad : (exception_record, ptr<raw>)
     store t0 -> local4
     store t1 -> local5
     br @try.dispatch.2
   block try.dispatch.2
-    t2 = begin_catch local5 : ptr
+    t2 = begin_catch local5 : ptr<managed>
     store t2 -> local6
     t3 = call @scoop_rt_is_instance(local6, global16) : i1
     cbr t3 then @try.catch.20 else @try.next.21
   block try.handler_pad.3
-    (t4, t5) = cleanup_pad : (exception_record, ptr)
+    (t4, t5) = cleanup_pad : (exception_record, ptr<raw>)
     store t4 -> local4
     store t5 -> local5
     br @try.handler_cleanup.4
@@ -935,7 +935,7 @@ Module
     end_catch
     resume local4
   block try.exit_pad.5
-    (t6, t7) = cleanup_pad : (exception_record, ptr)
+    (t6, t7) = cleanup_pad : (exception_record, ptr<raw>)
     store t6 -> local4
     store t7 -> local5
     br @try.exit_cleanup.6
@@ -947,17 +947,17 @@ Module
   block try.body.8
     br @try.body.16
   block try.unwind.9
-    (t8, t9) = landingpad : (exception_record, ptr)
+    (t8, t9) = landingpad : (exception_record, ptr<raw>)
     store t8 -> local4
     store t9 -> local5
     br @try.dispatch.10
   block try.dispatch.10
-    t10 = begin_catch local5 : ptr
+    t10 = begin_catch local5 : ptr<managed>
     store t10 -> local6
     t11 = call @scoop_rt_is_instance(local6, global15) : i1
     cbr t11 then @try.catch.17 else @try.next.18
   block try.handler_pad.11
-    (t12, t13) = landingpad : (exception_record, ptr)
+    (t12, t13) = landingpad : (exception_record, ptr<raw>)
     store t12 -> local4
     store t13 -> local5
     br @try.handler_cleanup.12
@@ -966,7 +966,7 @@ Module
     invoke @scoop.println(global2) normal @invoke.normal.1 unwind @try.unwind.1
     br @invoke.normal.1
   block try.exit_pad.13
-    (t15, t16) = landingpad : (exception_record, ptr)
+    (t15, t16) = landingpad : (exception_record, ptr<raw>)
     store t15 -> local4
     store t16 -> local5
     br @try.exit_cleanup.14
@@ -1026,26 +1026,26 @@ Module
     t20 = aggregate () : {}
     br @scope.23
   fun @scoop.noMatchRethrow() -> void
-    local %0 e: ptr
-    local %1 e: ptr
-    local %2 $call.1: ptr
+    local %0 e: ptr<managed>
+    local %1 e: ptr<managed>
+    local %2 $call.1: ptr<managed>
     local %3 $sc.1: exception_record
-    local %4 $sc.2: ptr
-    local %5 $sc.3: ptr
+    local %4 $sc.2: ptr<raw>
+    local %5 $sc.3: ptr<managed>
   block entry
     br @try.body.8
   block try.unwind.1
-    (t0, t1) = landingpad : (exception_record, ptr)
+    (t0, t1) = landingpad : (exception_record, ptr<raw>)
     store t0 -> local3
     store t1 -> local4
     br @try.dispatch.2
   block try.dispatch.2
-    t2 = begin_catch local4 : ptr
+    t2 = begin_catch local4 : ptr<managed>
     store t2 -> local5
     t3 = call @scoop_rt_is_instance(local5, global17) : i1
     cbr t3 then @try.catch.21 else @try.next.22
   block try.handler_pad.3
-    (t4, t5) = cleanup_pad : (exception_record, ptr)
+    (t4, t5) = cleanup_pad : (exception_record, ptr<raw>)
     store t4 -> local3
     store t5 -> local4
     br @try.handler_cleanup.4
@@ -1053,7 +1053,7 @@ Module
     end_catch
     resume local3
   block try.exit_pad.5
-    (t6, t7) = cleanup_pad : (exception_record, ptr)
+    (t6, t7) = cleanup_pad : (exception_record, ptr<raw>)
     store t6 -> local3
     store t7 -> local4
     br @try.exit_cleanup.6
@@ -1065,17 +1065,17 @@ Module
   block try.body.8
     br @try.body.16
   block try.unwind.9
-    (t8, t9) = landingpad : (exception_record, ptr)
+    (t8, t9) = landingpad : (exception_record, ptr<raw>)
     store t8 -> local3
     store t9 -> local4
     br @try.dispatch.10
   block try.dispatch.10
-    t10 = begin_catch local4 : ptr
+    t10 = begin_catch local4 : ptr<managed>
     store t10 -> local5
     t11 = call @scoop_rt_is_instance(local5, global16) : i1
     cbr t11 then @try.catch.17 else @try.next.18
   block try.handler_pad.11
-    (t12, t13) = landingpad : (exception_record, ptr)
+    (t12, t13) = landingpad : (exception_record, ptr<raw>)
     store t12 -> local3
     store t13 -> local4
     br @try.handler_cleanup.12
@@ -1084,7 +1084,7 @@ Module
     invoke @scoop.println(global5) normal @invoke.normal.1 unwind @try.unwind.1
     br @invoke.normal.1
   block try.exit_pad.13
-    (t15, t16) = landingpad : (exception_record, ptr)
+    (t15, t16) = landingpad : (exception_record, ptr<raw>)
     store t15 -> local3
     store t16 -> local4
     br @try.exit_cleanup.14
@@ -1148,28 +1148,28 @@ Module
     t21 = aggregate () : {}
     br @scope.24
   fun @scoop.nestedTryInHandler() -> void
-    local %0 e: ptr
-    local %1 e: ptr
-    local %2 $call.1: ptr
-    local %3 $call.2: ptr
-    local %4 $call.3: ptr
+    local %0 e: ptr<managed>
+    local %1 e: ptr<managed>
+    local %2 $call.1: ptr<managed>
+    local %3 $call.2: ptr<managed>
+    local %4 $call.3: ptr<managed>
     local %5 $sc.1: exception_record
-    local %6 $sc.2: ptr
-    local %7 $sc.3: ptr
+    local %6 $sc.2: ptr<raw>
+    local %7 $sc.3: ptr<managed>
   block entry
     br @try.body.8
   block try.unwind.1
-    (t0, t1) = landingpad : (exception_record, ptr)
+    (t0, t1) = landingpad : (exception_record, ptr<raw>)
     store t0 -> local5
     store t1 -> local6
     br @try.dispatch.2
   block try.dispatch.2
-    t2 = begin_catch local6 : ptr
+    t2 = begin_catch local6 : ptr<managed>
     store t2 -> local7
     t3 = call @scoop_rt_is_instance(local7, global15) : i1
     cbr t3 then @try.catch.9 else @try.next.10
   block try.handler_pad.3
-    (t4, t5) = cleanup_pad : (exception_record, ptr)
+    (t4, t5) = cleanup_pad : (exception_record, ptr<raw>)
     store t4 -> local5
     store t5 -> local6
     br @try.handler_cleanup.4
@@ -1179,7 +1179,7 @@ Module
     t6 = aggregate () : {}
     resume local5
   block try.exit_pad.5
-    (t7, t8) = cleanup_pad : (exception_record, ptr)
+    (t7, t8) = cleanup_pad : (exception_record, ptr<raw>)
     store t7 -> local5
     store t8 -> local6
     br @try.exit_cleanup.6
@@ -1200,17 +1200,17 @@ Module
   block scope.11
     br @try.body.19
   block try.unwind.12
-    (t11, t12) = landingpad : (exception_record, ptr)
+    (t11, t12) = landingpad : (exception_record, ptr<raw>)
     store t11 -> local5
     store t12 -> local6
     br @try.dispatch.13
   block try.dispatch.13
-    t13 = begin_catch local6 : ptr
+    t13 = begin_catch local6 : ptr<managed>
     store t13 -> local7
     t14 = call @scoop_rt_is_instance(local7, global17) : i1
     cbr t14 then @try.catch.20 else @try.next.21
   block try.handler_pad.14
-    (t15, t16) = cleanup_pad : (exception_record, ptr)
+    (t15, t16) = cleanup_pad : (exception_record, ptr<raw>)
     store t15 -> local5
     store t16 -> local6
     br @try.handler_cleanup.15
@@ -1219,7 +1219,7 @@ Module
     invoke @scoop.println(global7) normal @invoke.normal.5 unwind @try.handler_pad.3
     br @invoke.normal.5
   block try.exit_pad.16
-    (t18, t19) = cleanup_pad : (exception_record, ptr)
+    (t18, t19) = cleanup_pad : (exception_record, ptr<raw>)
     store t18 -> local5
     store t19 -> local6
     br @try.exit_cleanup.17
@@ -1274,15 +1274,15 @@ Module
   block throw.normal.11
     unreachable
   fun @scoop_main() -> void
-    local %0 e: ptr
+    local %0 e: ptr<managed>
     local %1 $call.1: i64
     local %2 $sc.1: exception_record
-    local %3 $sc.2: ptr
-    local %4 $sc.3: ptr
+    local %3 $sc.2: ptr<raw>
+    local %4 $sc.3: ptr<managed>
   block entry
     t0 = call @scoop.returnFromCatch() : i64
     store t0 -> local1
-    t1 = call @scoop_rt_box(global18, local1, 8) : ptr
+    t1 = call @scoop_rt_box(global18, local1, 8) : ptr<managed>
     call @scoop.println(t1)
     t2 = aggregate () : {}
     call @scoop.replaceInCatch()
@@ -1291,17 +1291,17 @@ Module
     t4 = aggregate () : {}
     br @try.body.8
   block try.unwind.1
-    (t5, t6) = landingpad : (exception_record, ptr)
+    (t5, t6) = landingpad : (exception_record, ptr<raw>)
     store t5 -> local2
     store t6 -> local3
     br @try.dispatch.2
   block try.dispatch.2
-    t7 = begin_catch local3 : ptr
+    t7 = begin_catch local3 : ptr<managed>
     store t7 -> local4
     t8 = call @scoop_rt_is_instance(local4, global16) : i1
     cbr t8 then @try.catch.10 else @try.next.11
   block try.handler_pad.3
-    (t9, t10) = cleanup_pad : (exception_record, ptr)
+    (t9, t10) = cleanup_pad : (exception_record, ptr<raw>)
     store t9 -> local2
     store t10 -> local3
     br @try.handler_cleanup.4
@@ -1309,7 +1309,7 @@ Module
     end_catch
     resume local2
   block try.exit_pad.5
-    (t11, t12) = cleanup_pad : (exception_record, ptr)
+    (t11, t12) = cleanup_pad : (exception_record, ptr<raw>)
     store t11 -> local2
     store t12 -> local3
     br @try.exit_cleanup.6
@@ -1343,46 +1343,46 @@ Module
   block invoke.normal.3
     t14 = aggregate () : {}
     br @scope.13
-  fun @scoop.ctor.Throwable() -> ptr
+  fun @scoop.ctor.Throwable() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global19, 16) : ptr
+    t0 = call @scoop_rt_alloc(global19, 16) : ptr<managed>
     ret t0
-  fun @scoop.ctor.Exception(enum0) -> ptr
+  fun @scoop.ctor.Exception(enum0) -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global20, 24) : ptr
+    t0 = call @scoop_rt_alloc(global20, 24) : ptr<managed>
     heap_store t0 +16 param0
     ret t0
-  fun @scoop.ctor.UnwrapException() -> ptr
+  fun @scoop.ctor.UnwrapException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global15, 24) : ptr
+    t0 = call @scoop_rt_alloc(global15, 24) : ptr<managed>
     t1 = enum_wrap e0 v0 (global10) : enum0
     heap_store t0 +16 t1
     ret t0
-  fun @scoop.ctor.ClassCastException() -> ptr
+  fun @scoop.ctor.ClassCastException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global17, 24) : ptr
+    t0 = call @scoop_rt_alloc(global17, 24) : ptr<managed>
     t1 = enum_wrap e0 v0 (global11) : enum0
     heap_store t0 +16 t1
     ret t0
-  fun @scoop.ctor.ArithmeticException() -> ptr
+  fun @scoop.ctor.ArithmeticException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global16, 24) : ptr
+    t0 = call @scoop_rt_alloc(global16, 24) : ptr<managed>
     t1 = enum_wrap e0 v0 (global12) : enum0
     heap_store t0 +16 t1
     ret t0
-  fun @scoop.ctor.IndexOutOfBoundsException() -> ptr
+  fun @scoop.ctor.IndexOutOfBoundsException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global21, 24) : ptr
+    t0 = call @scoop_rt_alloc(global21, 24) : ptr<managed>
     t1 = enum_wrap e0 v0 (global13) : enum0
     heap_store t0 +16 t1
     ret t0
-  fun @scoop.ctor.IllegalStateException() -> ptr
+  fun @scoop.ctor.IllegalStateException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global22, 24) : ptr
+    t0 = call @scoop_rt_alloc(global22, 24) : ptr<managed>
     t1 = enum_wrap e0 v0 (global14) : enum0
     heap_store t0 +16 t1
     ret t0
-  fun @scoop.eq.I(ptr, ptr) -> i1
+  fun @scoop.eq.I(ptr<managed>, ptr<managed>) -> i1
     local %0 $a: i64
     local %1 $b: i64
   block entry
@@ -1392,11 +1392,11 @@ Module
     store t1 -> local1
     t2 = Eq local0, local1 : i1
     ret t2
-  fun @scoop.tostring.I(ptr) -> ptr
-    local %0 $call.1: ptr
+  fun @scoop.tostring.I(ptr<managed>) -> ptr<managed>
+    local %0 $call.1: ptr<managed>
   block entry
     t0 = heap_load param0 +16 : i64
-    t1 = call @scoop_rt_int_to_string(t0) : ptr
+    t1 = call @scoop_rt_int_to_string(t0) : ptr<managed>
     store t1 -> local0
     ret local0
   td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0

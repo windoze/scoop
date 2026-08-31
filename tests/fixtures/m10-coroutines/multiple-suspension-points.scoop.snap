@@ -2086,34 +2086,34 @@ Module
   enum CoroutineSlot$BooleanGate niche(payload_variant=1)
   enum CoroutineSlot$B tagged size=1 align=1 variants=() (i1)
   enum CoroutineSlot$MultipleTask niche(payload_variant=1)
-  extern ef0 write @scoop_rt_write(ptr) -> {} <scoop managed nounwind>
-  fun @scoop.print(ptr) -> void
-    local %0 $call.1: ptr
+  extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
+  fun @scoop.print(ptr<managed>) -> void
+    local %0 $call.1: ptr<managed>
   block entry
-    t0 = heap_load param0 +0 : ptr
-    t1 = heap_load t0 +40 : ptr
-    t2 = call_indirect t1[2](param0) : ptr
+    t0 = heap_load param0 +0 : ptr<metadata>
+    t1 = heap_load t0 +40 : ptr<metadata>
+    t2 = call_indirect t1[2](param0) : ptr<managed>
     store t2 -> local0
     native_call[native-borrowed] extern0(local0)
     t3 = aggregate () : {}
     ret
-  fun @scoop.println(ptr) -> void
-    local %0 $call.1: ptr
+  fun @scoop.println(ptr<managed>) -> void
+    local %0 $call.1: ptr<managed>
   block entry
-    t0 = heap_load param0 +0 : ptr
-    t1 = heap_load t0 +40 : ptr
-    t2 = call_indirect t1[2](param0) : ptr
+    t0 = heap_load param0 +0 : ptr<metadata>
+    t1 = heap_load t0 +40 : ptr<metadata>
+    t2 = call_indirect t1[2](param0) : ptr<managed>
     store t2 -> local0
     native_call[native-borrowed] extern0(local0)
     t3 = aggregate () : {}
     native_call[native-borrowed] extern0(global0)
     t4 = aggregate () : {}
     ret
-  fun @scoop.waitForInt$suspend(ptr, ptr) -> enum3
-    local %0 $frame: ptr
+  fun @scoop.waitForInt$suspend(ptr<managed>, ptr<managed>) -> enum3
+    local %0 $frame: ptr<managed>
     local %1 $step: enum3
   block entry
-    t0 = call @scoop_rt_alloc(global16, 64) : ptr
+    t0 = call @scoop_rt_alloc(global16, 64) : ptr<managed>
     heap_store t0 +16 0
     heap_store t0 +24 param1
     t1 = enum_wrap e5 v1 (param0) : enum5
@@ -2126,11 +2126,11 @@ Module
     t4 = call @scoop.waitForInt$suspend$drive(local0) : enum3
     store t4 -> local1
     ret local1
-  fun @scoop.waitForBoolean$suspend(ptr, ptr) -> enum4
-    local %0 $frame: ptr
+  fun @scoop.waitForBoolean$suspend(ptr<managed>, ptr<managed>) -> enum4
+    local %0 $frame: ptr<managed>
     local %1 $step: enum4
   block entry
-    t0 = call @scoop_rt_alloc(global17, 64) : ptr
+    t0 = call @scoop_rt_alloc(global17, 64) : ptr<managed>
     heap_store t0 +16 0
     heap_store t0 +24 param1
     t1 = enum_wrap e8 v1 (param0) : enum8
@@ -2144,24 +2144,24 @@ Module
     store t4 -> local1
     ret local1
   fun @scoop_main() -> void
-    local %0 first: ptr
-    local %1 second: ptr
-    local %2 accepted: ptr
-    local %3 $call.1: ptr
-    local %4 $call.2: ptr
+    local %0 first: ptr<managed>
+    local %1 second: ptr<managed>
+    local %2 accepted: ptr<managed>
+    local %3 $call.1: ptr<managed>
+    local %4 $call.2: ptr<managed>
   block entry
     t0 = enum_wrap e0 v1 () : enum0
-    t1 = call @scoop.ctor.IntGate(t0) : ptr
+    t1 = call @scoop.ctor.IntGate(t0) : ptr<managed>
     store t1 -> local0
     t2 = enum_wrap e0 v1 () : enum0
-    t3 = call @scoop.ctor.IntGate(t2) : ptr
+    t3 = call @scoop.ctor.IntGate(t2) : ptr<managed>
     store t3 -> local1
     t4 = enum_wrap e1 v1 () : enum1
-    t5 = call @scoop.ctor.BooleanGate(t4) : ptr
+    t5 = call @scoop.ctor.BooleanGate(t4) : ptr<managed>
     store t5 -> local2
-    t6 = call @scoop.ctor.MultipleTask(local0, local1, local2) : ptr
+    t6 = call @scoop.ctor.MultipleTask(local0, local1, local2) : ptr<managed>
     store t6 -> local3
-    t7 = call @scoop.ctor.RecordingCompletion() : ptr
+    t7 = call @scoop.ctor.RecordingCompletion() : ptr<managed>
     store t7 -> local4
     call @scoop.coroutine.start$I(local3, local4)
     t8 = aggregate () : {}
@@ -2178,11 +2178,11 @@ Module
     call @scoop.BooleanGate.complete(local2, true)
     t14 = aggregate () : {}
     ret
-  fun @scoop.IntGate.complete(ptr, i64) -> void
-    local %0 continuation: ptr
+  fun @scoop.IntGate.complete(ptr<managed>, i64) -> void
+    local %0 continuation: ptr<managed>
     local %1 $opt.1: enum0
-    local %2 $uw.2: ptr
-    local %3 $call.1: ptr
+    local %2 $uw.2: ptr<managed>
+    local %3 $call.1: ptr<managed>
   block entry
     t0 = heap_load param0 +16 : enum0
     store t0 -> local1
@@ -2190,11 +2190,11 @@ Module
     t2 = Eq t1, 0 : i1
     cbr t2 then @if.then.1 else @if.else.2
   block if.then.1
-    t3 = enum_field e0 v0 f0 local1 : ptr
+    t3 = enum_field e0 v0 f0 local1 : ptr<managed>
     store t3 -> local2
     br @if.merge.3
   block if.else.2
-    t4 = call @scoop.ctor.UnwrapException() : ptr
+    t4 = call @scoop.ctor.UnwrapException() : ptr<managed>
     store t4 -> local3
     throw local3
     unreachable
@@ -2202,16 +2202,16 @@ Module
     store local2 -> local0
     t5 = enum_wrap e0 v1 () : enum0
     heap_store param0 +16 t5
-    t6 = heap_load local0 +0 : ptr
-    t7 = call @scoop_rt_itable_lookup(t6, global18) : ptr
+    t6 = heap_load local0 +0 : ptr<metadata>
+    t7 = call @scoop_rt_itable_lookup(t6, global18) : ptr<metadata>
     call_indirect t7[0](local0, param1)
     t8 = aggregate () : {}
     ret
-  fun @scoop.BooleanGate.complete(ptr, i1) -> void
-    local %0 continuation: ptr
+  fun @scoop.BooleanGate.complete(ptr<managed>, i1) -> void
+    local %0 continuation: ptr<managed>
     local %1 $opt.1: enum1
-    local %2 $uw.2: ptr
-    local %3 $call.1: ptr
+    local %2 $uw.2: ptr<managed>
+    local %3 $call.1: ptr<managed>
   block entry
     t0 = heap_load param0 +16 : enum1
     store t0 -> local1
@@ -2219,11 +2219,11 @@ Module
     t2 = Eq t1, 0 : i1
     cbr t2 then @if.then.1 else @if.else.2
   block if.then.1
-    t3 = enum_field e1 v0 f0 local1 : ptr
+    t3 = enum_field e1 v0 f0 local1 : ptr<managed>
     store t3 -> local2
     br @if.merge.3
   block if.else.2
-    t4 = call @scoop.ctor.UnwrapException() : ptr
+    t4 = call @scoop.ctor.UnwrapException() : ptr<managed>
     store t4 -> local3
     throw local3
     unreachable
@@ -2231,28 +2231,28 @@ Module
     store local2 -> local0
     t5 = enum_wrap e1 v1 () : enum1
     heap_store param0 +16 t5
-    t6 = heap_load local0 +0 : ptr
-    t7 = call @scoop_rt_itable_lookup(t6, global19) : ptr
+    t6 = heap_load local0 +0 : ptr<metadata>
+    t7 = call @scoop_rt_itable_lookup(t6, global19) : ptr<metadata>
     call_indirect t7[0](local0, param1)
     t8 = aggregate () : {}
     ret
-  fun @scoop.IntRegistration.register(ptr, ptr) -> void
+  fun @scoop.IntRegistration.register(ptr<managed>, ptr<managed>) -> void
   block entry
-    t0 = heap_load param0 +16 : ptr
+    t0 = heap_load param0 +16 : ptr<managed>
     t1 = enum_wrap e0 v0 (param1) : enum0
     heap_store t0 +16 t1
     ret
-  fun @scoop.BooleanRegistration.register(ptr, ptr) -> void
+  fun @scoop.BooleanRegistration.register(ptr<managed>, ptr<managed>) -> void
   block entry
-    t0 = heap_load param0 +16 : ptr
+    t0 = heap_load param0 +16 : ptr<managed>
     t1 = enum_wrap e1 v0 (param1) : enum1
     heap_store t0 +16 t1
     ret
-  fun @scoop.MultipleTask.run$suspend(ptr, ptr) -> enum3
-    local %0 $frame: ptr
+  fun @scoop.MultipleTask.run$suspend(ptr<managed>, ptr<managed>) -> enum3
+    local %0 $frame: ptr<managed>
     local %1 $step: enum3
   block entry
-    t0 = call @scoop_rt_alloc(global20, 96) : ptr
+    t0 = call @scoop_rt_alloc(global20, 96) : ptr<managed>
     heap_store t0 +16 0
     heap_store t0 +24 param1
     t1 = enum_wrap e10 v1 (param0) : enum10
@@ -2269,151 +2269,151 @@ Module
     t6 = call @scoop.MultipleTask.run$suspend$drive(local0) : enum3
     store t6 -> local1
     ret local1
-  fun @scoop.RecordingCompletion.resume(ptr, i64) -> void
+  fun @scoop.RecordingCompletion.resume(ptr<managed>, i64) -> void
   block entry
-    t0 = call @scoop_rt_box(global21, param1, 8) : ptr
+    t0 = call @scoop_rt_box(global21, param1, 8) : ptr<managed>
     call @scoop.println(t0)
     t1 = aggregate () : {}
     ret
-  fun @scoop.RecordingCompletion.resumeWithException(ptr, ptr) -> void
+  fun @scoop.RecordingCompletion.resumeWithException(ptr<managed>, ptr<managed>) -> void
   block entry
     call @scoop.println(global4)
     t0 = aggregate () : {}
     ret
-  fun @scoop.ctor.Throwable() -> ptr
+  fun @scoop.ctor.Throwable() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global22, 16) : ptr
+    t0 = call @scoop_rt_alloc(global22, 16) : ptr<managed>
     ret t0
-  fun @scoop.ctor.Exception(enum2) -> ptr
+  fun @scoop.ctor.Exception(enum2) -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global23, 24) : ptr
+    t0 = call @scoop_rt_alloc(global23, 24) : ptr<managed>
     heap_store t0 +16 param0
     ret t0
-  fun @scoop.ctor.UnwrapException() -> ptr
+  fun @scoop.ctor.UnwrapException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global24, 24) : ptr
+    t0 = call @scoop_rt_alloc(global24, 24) : ptr<managed>
     t1 = enum_wrap e2 v0 (global5) : enum2
     heap_store t0 +16 t1
     ret t0
-  fun @scoop.ctor.ClassCastException() -> ptr
+  fun @scoop.ctor.ClassCastException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global25, 24) : ptr
+    t0 = call @scoop_rt_alloc(global25, 24) : ptr<managed>
     t1 = enum_wrap e2 v0 (global6) : enum2
     heap_store t0 +16 t1
     ret t0
-  fun @scoop.ctor.ArithmeticException() -> ptr
+  fun @scoop.ctor.ArithmeticException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global26, 24) : ptr
+    t0 = call @scoop_rt_alloc(global26, 24) : ptr<managed>
     t1 = enum_wrap e2 v0 (global7) : enum2
     heap_store t0 +16 t1
     ret t0
-  fun @scoop.ctor.IndexOutOfBoundsException() -> ptr
+  fun @scoop.ctor.IndexOutOfBoundsException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global27, 24) : ptr
+    t0 = call @scoop_rt_alloc(global27, 24) : ptr<managed>
     t1 = enum_wrap e2 v0 (global8) : enum2
     heap_store t0 +16 t1
     ret t0
-  fun @scoop.ctor.IllegalStateException() -> ptr
+  fun @scoop.ctor.IllegalStateException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global28, 24) : ptr
+    t0 = call @scoop_rt_alloc(global28, 24) : ptr<managed>
     t1 = enum_wrap e2 v0 (global9) : enum2
     heap_store t0 +16 t1
     ret t0
-  fun @scoop.ctor.IntGate(enum0) -> ptr
+  fun @scoop.ctor.IntGate(enum0) -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global29, 24) : ptr
+    t0 = call @scoop_rt_alloc(global29, 24) : ptr<managed>
     heap_store t0 +16 param0
     ret t0
-  fun @scoop.ctor.BooleanGate(enum1) -> ptr
+  fun @scoop.ctor.BooleanGate(enum1) -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global30, 24) : ptr
+    t0 = call @scoop_rt_alloc(global30, 24) : ptr<managed>
     heap_store t0 +16 param0
     ret t0
-  fun @scoop.ctor.IntRegistration(ptr) -> ptr
+  fun @scoop.ctor.IntRegistration(ptr<managed>) -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global31, 24) : ptr
+    t0 = call @scoop_rt_alloc(global31, 24) : ptr<managed>
     heap_store t0 +16 param0
     ret t0
-  fun @scoop.ctor.BooleanRegistration(ptr) -> ptr
+  fun @scoop.ctor.BooleanRegistration(ptr<managed>) -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global32, 24) : ptr
+    t0 = call @scoop_rt_alloc(global32, 24) : ptr<managed>
     heap_store t0 +16 param0
     ret t0
-  fun @scoop.ctor.MultipleTask(ptr, ptr, ptr) -> ptr
+  fun @scoop.ctor.MultipleTask(ptr<managed>, ptr<managed>, ptr<managed>) -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global33, 40) : ptr
+    t0 = call @scoop_rt_alloc(global33, 40) : ptr<managed>
     heap_store t0 +16 param0
     heap_store t0 +24 param1
     heap_store t0 +32 param2
     ret t0
-  fun @scoop.ctor.RecordingCompletion() -> ptr
+  fun @scoop.ctor.RecordingCompletion() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global34, 16) : ptr
+    t0 = call @scoop_rt_alloc(global34, 16) : ptr<managed>
     ret t0
-  fun @scoop.SuspendRegistration.register$I(ptr, ptr) -> void
+  fun @scoop.SuspendRegistration.register$I(ptr<managed>, ptr<managed>) -> void
   block entry
     br @unwrap.trap.1
   block unwrap.trap.1
     call @scoop_rt_trap(global35)
     unreachable
-  fun @scoop.SuspendRegistration.register$B(ptr, ptr) -> void
+  fun @scoop.SuspendRegistration.register$B(ptr<managed>, ptr<managed>) -> void
   block entry
     br @unwrap.trap.1
   block unwrap.trap.1
     call @scoop_rt_trap(global36)
     unreachable
-  fun @scoop.SuspendTask.run$I$suspend(ptr, ptr) -> enum3
+  fun @scoop.SuspendTask.run$I$suspend(ptr<managed>, ptr<managed>) -> enum3
   block entry
     br @unwrap.trap.1
   block unwrap.trap.1
     call @scoop_rt_trap(global37)
     unreachable
-  fun @scoop.Continuation.resume$I(ptr, i64) -> void
+  fun @scoop.Continuation.resume$I(ptr<managed>, i64) -> void
   block entry
     br @unwrap.trap.1
   block unwrap.trap.1
     call @scoop_rt_trap(global38)
     unreachable
-  fun @scoop.Continuation.resumeWithException$I(ptr, ptr) -> void
+  fun @scoop.Continuation.resumeWithException$I(ptr<managed>, ptr<managed>) -> void
   block entry
     br @unwrap.trap.1
   block unwrap.trap.1
     call @scoop_rt_trap(global39)
     unreachable
-  fun @scoop.coroutine.start$I(ptr, ptr) -> void
+  fun @scoop.coroutine.start$I(ptr<managed>, ptr<managed>) -> void
     local %0 $step: enum3
-    local %1 $exception: ptr
+    local %1 $exception: ptr<managed>
     local %2 $sc.1: exception_record
-    local %3 $sc.2: ptr
-    local %4 $sc.3: ptr
+    local %3 $sc.2: ptr<raw>
+    local %4 $sc.3: ptr<managed>
   block suspended
     ret
   block completed
     t0 = enum_field e3 v0 f0 local0 : i64
-    t1 = heap_load param1 +0 : ptr
-    t2 = call @scoop_rt_itable_lookup(t1, global18) : ptr
+    t1 = heap_load param1 +0 : ptr<metadata>
+    t2 = call @scoop_rt_itable_lookup(t1, global18) : ptr<metadata>
     call_indirect t2[0](param1, t0)
     t3 = aggregate () : {}
     ret
   block failed
-    t4 = heap_load param1 +0 : ptr
-    t5 = call @scoop_rt_itable_lookup(t4, global18) : ptr
+    t4 = heap_load param1 +0 : ptr<metadata>
+    t5 = call @scoop_rt_itable_lookup(t4, global18) : ptr<metadata>
     call_indirect t5[1](param1, local1)
     t6 = aggregate () : {}
     ret
   block body_failure
-    (t7, t8) = landingpad : (exception_record, ptr)
+    (t7, t8) = landingpad : (exception_record, ptr<raw>)
     store t7 -> local2
     store t8 -> local3
-    t9 = begin_catch local3 : ptr
+    t9 = begin_catch local3 : ptr<managed>
     store t9 -> local4
-    t10 = call @scoop_rt_materialize_exception(local4) : ptr
+    t10 = call @scoop_rt_materialize_exception(local4) : ptr<managed>
     store t10 -> local1
     end_catch
     br @failed
   block entry
-    t11 = heap_load param0 +0 : ptr
-    t12 = call @scoop_rt_itable_lookup(t11, global40) : ptr
+    t11 = heap_load param0 +0 : ptr<metadata>
+    t12 = call @scoop_rt_itable_lookup(t11, global40) : ptr<metadata>
     invoke_indirect t12[0](param0, param1) normal @invoke.normal.1 unwind @body_failure
     br @invoke.normal.1
   block invoke.normal.1
@@ -2421,13 +2421,13 @@ Module
     t14 = enum_tag e3 local0 : i64
     t15 = Eq t14, 0 : i1
     cbr t15 then @completed else @suspended
-  fun @scoop.Continuation.resume$B(ptr, i1) -> void
+  fun @scoop.Continuation.resume$B(ptr<managed>, i1) -> void
   block entry
     br @unwrap.trap.1
   block unwrap.trap.1
     call @scoop_rt_trap(global41)
     unreachable
-  fun @scoop.eq.I(ptr, ptr) -> i1
+  fun @scoop.eq.I(ptr<managed>, ptr<managed>) -> i1
     local %0 $a: i64
     local %1 $b: i64
   block entry
@@ -2437,30 +2437,30 @@ Module
     store t1 -> local1
     t2 = Eq local0, local1 : i1
     ret t2
-  fun @scoop.tostring.I(ptr) -> ptr
-    local %0 $call.1: ptr
+  fun @scoop.tostring.I(ptr<managed>) -> ptr<managed>
+    local %0 $call.1: ptr<managed>
   block entry
     t0 = heap_load param0 +16 : i64
-    t1 = call @scoop_rt_int_to_string(t0) : ptr
+    t1 = call @scoop_rt_int_to_string(t0) : ptr<managed>
     store t1 -> local0
     ret local0
-  fun @scoop.waitForInt$suspend$drive(ptr) -> enum3
-    local %0 gate: ptr
-    local %1 $call.1: ptr
+  fun @scoop.waitForInt$suspend$drive(ptr<managed>) -> enum3
+    local %0 gate: ptr<managed>
+    local %1 $call.1: ptr<managed>
     local %2 $call.2: i64
-    local %3 $completion: ptr
-    local %4 $safe_adapter.1: ptr
-    local %5 $resume_exception.1: ptr
-    local %6 $protocol_error: ptr
-    local %7 $protocol_error: ptr
+    local %3 $completion: ptr<managed>
+    local %4 $safe_adapter.1: ptr<managed>
+    local %5 $resume_exception.1: ptr<managed>
+    local %6 $protocol_error: ptr<managed>
+    local %7 $protocol_error: ptr<managed>
     local %8 $sc.1: exception_record
-    local %9 $sc.2: ptr
-    local %10 $sc.3: ptr
+    local %9 $sc.2: ptr<raw>
+    local %10 $sc.3: ptr<managed>
   block entry
-    t0 = call @scoop.ctor.IntRegistration(local0) : ptr
+    t0 = call @scoop.ctor.IntRegistration(local0) : ptr<managed>
     store t0 -> local1
     heap_store param0 +16 1
-    t1 = call @scoop_rt_alloc(global42, 56) : ptr
+    t1 = call @scoop_rt_alloc(global42, 56) : ptr<managed>
     heap_store t1 +16 param0
     heap_store t1 +24 0
     t2 = enum_wrap e6 v0 () : enum6
@@ -2473,8 +2473,8 @@ Module
     t4 = enum_wrap e3 v0 (local2) : enum3
     ret t4
   block coroutine.register.1
-    t5 = heap_load local1 +0 : ptr
-    t6 = call @scoop_rt_itable_lookup(t5, global43) : ptr
+    t5 = heap_load local1 +0 : ptr<metadata>
+    t6 = call @scoop_rt_itable_lookup(t5, global43) : ptr<metadata>
     invoke_indirect t6[0](local1, local4) normal @invoke.normal.1 unwind @coroutine.registration_failure.1
     br @invoke.normal.1
   block coroutine.registered_success.1
@@ -2486,7 +2486,7 @@ Module
   block coroutine.registered_failure.1
     heap_store local4 +24 3
     t12 = heap_load local4 +48 : enum7
-    t13 = enum_field e7 v1 f0 t12 : ptr
+    t13 = enum_field e7 v1 f0 t12 : ptr<managed>
     store t13 -> local5
     throw local5
     unreachable
@@ -2495,7 +2495,7 @@ Module
     t14 = enum_wrap e3 v1 () : enum3
     ret t14
   block coroutine.protocol_error
-    t15 = call @scoop.ctor.IllegalStateException() : ptr
+    t15 = call @scoop.ctor.IllegalStateException() : ptr<managed>
     store t15 -> local6
     throw local6
     unreachable
@@ -2515,12 +2515,12 @@ Module
     heap_store local4 +24 3
     br @coroutine.protocol_error
   block coroutine.registration_failure.1
-    (t20, t21) = landingpad : (exception_record, ptr)
+    (t20, t21) = landingpad : (exception_record, ptr<raw>)
     store t20 -> local8
     store t21 -> local9
-    t22 = begin_catch local9 : ptr
+    t22 = begin_catch local9 : ptr<managed>
     store t22 -> local10
-    t23 = call @scoop_rt_materialize_exception(local10) : ptr
+    t23 = call @scoop_rt_materialize_exception(local10) : ptr<managed>
     store t23 -> local5
     end_catch
     t24 = heap_load local4 +24 : i64
@@ -2535,17 +2535,17 @@ Module
   block coroutine.failure.1
     heap_store param0 +16 -1
     t28 = heap_load param0 +56 : enum7
-    t29 = enum_field e7 v1 f0 t28 : ptr
+    t29 = enum_field e7 v1 f0 t28 : ptr<managed>
     throw t29
     unreachable
   block coroutine.initial
     t30 = heap_load param0 +32 : enum5
-    t31 = enum_field e5 v1 f0 t30 : ptr
+    t31 = enum_field e5 v1 f0 t30 : ptr<managed>
     store t31 -> local0
     heap_store param0 +16 -1
     br @entry
   block coroutine.protocol_error
-    t32 = call @scoop.ctor.IllegalStateException() : ptr
+    t32 = call @scoop.ctor.IllegalStateException() : ptr<managed>
     store t32 -> local7
     throw local7
     unreachable
@@ -2566,61 +2566,61 @@ Module
     t8 = heap_load local4 +24 : i64
     t9 = Eq t8, 2 : i1
     cbr t9 then @coroutine.registered_success.1 else @coroutine.registered_check_failure.1
-  fun @scoop.waitForInt$suspend$resume$1(ptr, i64) -> void
+  fun @scoop.waitForInt$suspend$resume$1(ptr<managed>, i64) -> void
     local %0 $step: enum3
-    local %1 $protocol_error: ptr
-    local %2 $uncaught: ptr
+    local %1 $protocol_error: ptr<managed>
+    local %2 $uncaught: ptr<managed>
     local %3 $sc.1: exception_record
-    local %4 $sc.2: ptr
-    local %5 $sc.3: ptr
+    local %4 $sc.2: ptr<raw>
+    local %5 $sc.3: ptr<managed>
   block coroutine.protocol_error
-    t0 = call @scoop.ctor.IllegalStateException() : ptr
+    t0 = call @scoop.ctor.IllegalStateException() : ptr<managed>
     store t0 -> local1
     throw local1
     unreachable
   block completed
-    t1 = heap_load param0 +16 : ptr
+    t1 = heap_load param0 +16 : ptr<managed>
     heap_store t1 +16 -2
-    t2 = heap_load param0 +16 : ptr
-    t3 = heap_load t2 +24 : ptr
+    t2 = heap_load param0 +16 : ptr<managed>
+    t3 = heap_load t2 +24 : ptr<managed>
     t4 = enum_field e3 v0 f0 local0 : i64
-    t5 = heap_load t3 +0 : ptr
-    t6 = call @scoop_rt_itable_lookup(t5, global18) : ptr
+    t5 = heap_load t3 +0 : ptr<metadata>
+    t6 = call @scoop_rt_itable_lookup(t5, global18) : ptr<metadata>
     call_indirect t6[0](t3, t4)
     t7 = aggregate () : {}
     ret
   block suspended
     ret
   block failed
-    t8 = heap_load param0 +16 : ptr
+    t8 = heap_load param0 +16 : ptr<managed>
     heap_store t8 +16 -2
-    t9 = heap_load param0 +16 : ptr
-    t10 = heap_load t9 +24 : ptr
-    t11 = heap_load t10 +0 : ptr
-    t12 = call @scoop_rt_itable_lookup(t11, global18) : ptr
+    t9 = heap_load param0 +16 : ptr<managed>
+    t10 = heap_load t9 +24 : ptr<managed>
+    t11 = heap_load t10 +0 : ptr<metadata>
+    t12 = call @scoop_rt_itable_lookup(t11, global18) : ptr<metadata>
     call_indirect t12[1](t10, local2)
     t13 = aggregate () : {}
     ret
   block body_failure
-    (t14, t15) = landingpad : (exception_record, ptr)
+    (t14, t15) = landingpad : (exception_record, ptr<raw>)
     store t14 -> local3
     store t15 -> local4
-    t16 = begin_catch local4 : ptr
+    t16 = begin_catch local4 : ptr<managed>
     store t16 -> local5
-    t17 = call @scoop_rt_materialize_exception(local5) : ptr
+    t17 = call @scoop_rt_materialize_exception(local5) : ptr<managed>
     store t17 -> local2
     end_catch
     br @failed
   block valid
     heap_store param0 +24 3
-    t18 = heap_load param0 +16 : ptr
+    t18 = heap_load param0 +16 : ptr<managed>
     t19 = enum_wrap e6 v1 (param1) : enum6
     heap_store t18 +40 t19
-    t20 = heap_load param0 +16 : ptr
+    t20 = heap_load param0 +16 : ptr<managed>
     invoke @scoop.waitForInt$suspend$drive(t20) normal @invoke.normal.1 unwind @body_failure
     br @invoke.normal.1
   block valid_state
-    t24 = heap_load param0 +16 : ptr
+    t24 = heap_load param0 +16 : ptr<managed>
     t25 = heap_load t24 +16 : i64
     t26 = Eq t25, 1 : i1
     cbr t26 then @valid else @coroutine.protocol_error
@@ -2642,63 +2642,63 @@ Module
     t22 = enum_tag e3 local0 : i64
     t23 = Eq t22, 0 : i1
     cbr t23 then @completed else @suspended
-  fun @scoop.waitForInt$suspend$resume_exception$1(ptr, ptr) -> void
+  fun @scoop.waitForInt$suspend$resume_exception$1(ptr<managed>, ptr<managed>) -> void
     local %0 $step: enum3
-    local %1 $protocol_error: ptr
-    local %2 $uncaught: ptr
+    local %1 $protocol_error: ptr<managed>
+    local %2 $uncaught: ptr<managed>
     local %3 $sc.1: exception_record
-    local %4 $sc.2: ptr
-    local %5 $sc.3: ptr
+    local %4 $sc.2: ptr<raw>
+    local %5 $sc.3: ptr<managed>
   block coroutine.protocol_error
-    t0 = call @scoop.ctor.IllegalStateException() : ptr
+    t0 = call @scoop.ctor.IllegalStateException() : ptr<managed>
     store t0 -> local1
     throw local1
     unreachable
   block completed
-    t1 = heap_load param0 +16 : ptr
+    t1 = heap_load param0 +16 : ptr<managed>
     heap_store t1 +16 -2
-    t2 = heap_load param0 +16 : ptr
-    t3 = heap_load t2 +24 : ptr
+    t2 = heap_load param0 +16 : ptr<managed>
+    t3 = heap_load t2 +24 : ptr<managed>
     t4 = enum_field e3 v0 f0 local0 : i64
-    t5 = heap_load t3 +0 : ptr
-    t6 = call @scoop_rt_itable_lookup(t5, global18) : ptr
+    t5 = heap_load t3 +0 : ptr<metadata>
+    t6 = call @scoop_rt_itable_lookup(t5, global18) : ptr<metadata>
     call_indirect t6[0](t3, t4)
     t7 = aggregate () : {}
     ret
   block suspended
     ret
   block failed
-    t8 = heap_load param0 +16 : ptr
+    t8 = heap_load param0 +16 : ptr<managed>
     heap_store t8 +16 -2
-    t9 = heap_load param0 +16 : ptr
-    t10 = heap_load t9 +24 : ptr
-    t11 = heap_load t10 +0 : ptr
-    t12 = call @scoop_rt_itable_lookup(t11, global18) : ptr
+    t9 = heap_load param0 +16 : ptr<managed>
+    t10 = heap_load t9 +24 : ptr<managed>
+    t11 = heap_load t10 +0 : ptr<metadata>
+    t12 = call @scoop_rt_itable_lookup(t11, global18) : ptr<metadata>
     call_indirect t12[1](t10, local2)
     t13 = aggregate () : {}
     ret
   block body_failure
-    (t14, t15) = landingpad : (exception_record, ptr)
+    (t14, t15) = landingpad : (exception_record, ptr<raw>)
     store t14 -> local3
     store t15 -> local4
-    t16 = begin_catch local4 : ptr
+    t16 = begin_catch local4 : ptr<managed>
     store t16 -> local5
-    t17 = call @scoop_rt_materialize_exception(local5) : ptr
+    t17 = call @scoop_rt_materialize_exception(local5) : ptr<managed>
     store t17 -> local2
     end_catch
     br @failed
   block valid
     heap_store param0 +24 3
-    t18 = heap_load param0 +16 : ptr
+    t18 = heap_load param0 +16 : ptr<managed>
     t19 = enum_wrap e7 v1 (param1) : enum7
     heap_store t18 +56 t19
-    t20 = heap_load param0 +16 : ptr
+    t20 = heap_load param0 +16 : ptr<managed>
     heap_store t20 +16 -3
-    t21 = heap_load param0 +16 : ptr
+    t21 = heap_load param0 +16 : ptr<managed>
     invoke @scoop.waitForInt$suspend$drive(t21) normal @invoke.normal.1 unwind @body_failure
     br @invoke.normal.1
   block valid_state
-    t25 = heap_load param0 +16 : ptr
+    t25 = heap_load param0 +16 : ptr<managed>
     t26 = heap_load t25 +16 : i64
     t27 = Eq t26, 1 : i1
     cbr t27 then @valid else @coroutine.protocol_error
@@ -2720,23 +2720,23 @@ Module
     t23 = enum_tag e3 local0 : i64
     t24 = Eq t23, 0 : i1
     cbr t24 then @completed else @suspended
-  fun @scoop.waitForBoolean$suspend$drive(ptr) -> enum4
-    local %0 gate: ptr
-    local %1 $call.1: ptr
+  fun @scoop.waitForBoolean$suspend$drive(ptr<managed>) -> enum4
+    local %0 gate: ptr<managed>
+    local %1 $call.1: ptr<managed>
     local %2 $call.2: i1
-    local %3 $completion: ptr
-    local %4 $safe_adapter.1: ptr
-    local %5 $resume_exception.1: ptr
-    local %6 $protocol_error: ptr
-    local %7 $protocol_error: ptr
+    local %3 $completion: ptr<managed>
+    local %4 $safe_adapter.1: ptr<managed>
+    local %5 $resume_exception.1: ptr<managed>
+    local %6 $protocol_error: ptr<managed>
+    local %7 $protocol_error: ptr<managed>
     local %8 $sc.1: exception_record
-    local %9 $sc.2: ptr
-    local %10 $sc.3: ptr
+    local %9 $sc.2: ptr<raw>
+    local %10 $sc.3: ptr<managed>
   block entry
-    t0 = call @scoop.ctor.BooleanRegistration(local0) : ptr
+    t0 = call @scoop.ctor.BooleanRegistration(local0) : ptr<managed>
     store t0 -> local1
     heap_store param0 +16 1
-    t1 = call @scoop_rt_alloc(global44, 56) : ptr
+    t1 = call @scoop_rt_alloc(global44, 56) : ptr<managed>
     heap_store t1 +16 param0
     heap_store t1 +24 0
     t2 = enum_wrap e9 v0 () : enum9
@@ -2749,8 +2749,8 @@ Module
     t4 = enum_wrap e4 v0 (local2) : enum4
     ret t4
   block coroutine.register.1
-    t5 = heap_load local1 +0 : ptr
-    t6 = call @scoop_rt_itable_lookup(t5, global45) : ptr
+    t5 = heap_load local1 +0 : ptr<metadata>
+    t6 = call @scoop_rt_itable_lookup(t5, global45) : ptr<metadata>
     invoke_indirect t6[0](local1, local4) normal @invoke.normal.1 unwind @coroutine.registration_failure.1
     br @invoke.normal.1
   block coroutine.registered_success.1
@@ -2762,7 +2762,7 @@ Module
   block coroutine.registered_failure.1
     heap_store local4 +24 3
     t12 = heap_load local4 +48 : enum7
-    t13 = enum_field e7 v1 f0 t12 : ptr
+    t13 = enum_field e7 v1 f0 t12 : ptr<managed>
     store t13 -> local5
     throw local5
     unreachable
@@ -2771,7 +2771,7 @@ Module
     t14 = enum_wrap e4 v1 () : enum4
     ret t14
   block coroutine.protocol_error
-    t15 = call @scoop.ctor.IllegalStateException() : ptr
+    t15 = call @scoop.ctor.IllegalStateException() : ptr<managed>
     store t15 -> local6
     throw local6
     unreachable
@@ -2791,12 +2791,12 @@ Module
     heap_store local4 +24 3
     br @coroutine.protocol_error
   block coroutine.registration_failure.1
-    (t20, t21) = landingpad : (exception_record, ptr)
+    (t20, t21) = landingpad : (exception_record, ptr<raw>)
     store t20 -> local8
     store t21 -> local9
-    t22 = begin_catch local9 : ptr
+    t22 = begin_catch local9 : ptr<managed>
     store t22 -> local10
-    t23 = call @scoop_rt_materialize_exception(local10) : ptr
+    t23 = call @scoop_rt_materialize_exception(local10) : ptr<managed>
     store t23 -> local5
     end_catch
     t24 = heap_load local4 +24 : i64
@@ -2811,17 +2811,17 @@ Module
   block coroutine.failure.1
     heap_store param0 +16 -1
     t28 = heap_load param0 +56 : enum7
-    t29 = enum_field e7 v1 f0 t28 : ptr
+    t29 = enum_field e7 v1 f0 t28 : ptr<managed>
     throw t29
     unreachable
   block coroutine.initial
     t30 = heap_load param0 +32 : enum8
-    t31 = enum_field e8 v1 f0 t30 : ptr
+    t31 = enum_field e8 v1 f0 t30 : ptr<managed>
     store t31 -> local0
     heap_store param0 +16 -1
     br @entry
   block coroutine.protocol_error
-    t32 = call @scoop.ctor.IllegalStateException() : ptr
+    t32 = call @scoop.ctor.IllegalStateException() : ptr<managed>
     store t32 -> local7
     throw local7
     unreachable
@@ -2842,61 +2842,61 @@ Module
     t8 = heap_load local4 +24 : i64
     t9 = Eq t8, 2 : i1
     cbr t9 then @coroutine.registered_success.1 else @coroutine.registered_check_failure.1
-  fun @scoop.waitForBoolean$suspend$resume$1(ptr, i1) -> void
+  fun @scoop.waitForBoolean$suspend$resume$1(ptr<managed>, i1) -> void
     local %0 $step: enum4
-    local %1 $protocol_error: ptr
-    local %2 $uncaught: ptr
+    local %1 $protocol_error: ptr<managed>
+    local %2 $uncaught: ptr<managed>
     local %3 $sc.1: exception_record
-    local %4 $sc.2: ptr
-    local %5 $sc.3: ptr
+    local %4 $sc.2: ptr<raw>
+    local %5 $sc.3: ptr<managed>
   block coroutine.protocol_error
-    t0 = call @scoop.ctor.IllegalStateException() : ptr
+    t0 = call @scoop.ctor.IllegalStateException() : ptr<managed>
     store t0 -> local1
     throw local1
     unreachable
   block completed
-    t1 = heap_load param0 +16 : ptr
+    t1 = heap_load param0 +16 : ptr<managed>
     heap_store t1 +16 -2
-    t2 = heap_load param0 +16 : ptr
-    t3 = heap_load t2 +24 : ptr
+    t2 = heap_load param0 +16 : ptr<managed>
+    t3 = heap_load t2 +24 : ptr<managed>
     t4 = enum_field e4 v0 f0 local0 : i1
-    t5 = heap_load t3 +0 : ptr
-    t6 = call @scoop_rt_itable_lookup(t5, global19) : ptr
+    t5 = heap_load t3 +0 : ptr<metadata>
+    t6 = call @scoop_rt_itable_lookup(t5, global19) : ptr<metadata>
     call_indirect t6[0](t3, t4)
     t7 = aggregate () : {}
     ret
   block suspended
     ret
   block failed
-    t8 = heap_load param0 +16 : ptr
+    t8 = heap_load param0 +16 : ptr<managed>
     heap_store t8 +16 -2
-    t9 = heap_load param0 +16 : ptr
-    t10 = heap_load t9 +24 : ptr
-    t11 = heap_load t10 +0 : ptr
-    t12 = call @scoop_rt_itable_lookup(t11, global19) : ptr
+    t9 = heap_load param0 +16 : ptr<managed>
+    t10 = heap_load t9 +24 : ptr<managed>
+    t11 = heap_load t10 +0 : ptr<metadata>
+    t12 = call @scoop_rt_itable_lookup(t11, global19) : ptr<metadata>
     call_indirect t12[1](t10, local2)
     t13 = aggregate () : {}
     ret
   block body_failure
-    (t14, t15) = landingpad : (exception_record, ptr)
+    (t14, t15) = landingpad : (exception_record, ptr<raw>)
     store t14 -> local3
     store t15 -> local4
-    t16 = begin_catch local4 : ptr
+    t16 = begin_catch local4 : ptr<managed>
     store t16 -> local5
-    t17 = call @scoop_rt_materialize_exception(local5) : ptr
+    t17 = call @scoop_rt_materialize_exception(local5) : ptr<managed>
     store t17 -> local2
     end_catch
     br @failed
   block valid
     heap_store param0 +24 3
-    t18 = heap_load param0 +16 : ptr
+    t18 = heap_load param0 +16 : ptr<managed>
     t19 = enum_wrap e9 v1 (param1) : enum9
     heap_store t18 +40 t19
-    t20 = heap_load param0 +16 : ptr
+    t20 = heap_load param0 +16 : ptr<managed>
     invoke @scoop.waitForBoolean$suspend$drive(t20) normal @invoke.normal.1 unwind @body_failure
     br @invoke.normal.1
   block valid_state
-    t24 = heap_load param0 +16 : ptr
+    t24 = heap_load param0 +16 : ptr<managed>
     t25 = heap_load t24 +16 : i64
     t26 = Eq t25, 1 : i1
     cbr t26 then @valid else @coroutine.protocol_error
@@ -2918,63 +2918,63 @@ Module
     t22 = enum_tag e4 local0 : i64
     t23 = Eq t22, 0 : i1
     cbr t23 then @completed else @suspended
-  fun @scoop.waitForBoolean$suspend$resume_exception$1(ptr, ptr) -> void
+  fun @scoop.waitForBoolean$suspend$resume_exception$1(ptr<managed>, ptr<managed>) -> void
     local %0 $step: enum4
-    local %1 $protocol_error: ptr
-    local %2 $uncaught: ptr
+    local %1 $protocol_error: ptr<managed>
+    local %2 $uncaught: ptr<managed>
     local %3 $sc.1: exception_record
-    local %4 $sc.2: ptr
-    local %5 $sc.3: ptr
+    local %4 $sc.2: ptr<raw>
+    local %5 $sc.3: ptr<managed>
   block coroutine.protocol_error
-    t0 = call @scoop.ctor.IllegalStateException() : ptr
+    t0 = call @scoop.ctor.IllegalStateException() : ptr<managed>
     store t0 -> local1
     throw local1
     unreachable
   block completed
-    t1 = heap_load param0 +16 : ptr
+    t1 = heap_load param0 +16 : ptr<managed>
     heap_store t1 +16 -2
-    t2 = heap_load param0 +16 : ptr
-    t3 = heap_load t2 +24 : ptr
+    t2 = heap_load param0 +16 : ptr<managed>
+    t3 = heap_load t2 +24 : ptr<managed>
     t4 = enum_field e4 v0 f0 local0 : i1
-    t5 = heap_load t3 +0 : ptr
-    t6 = call @scoop_rt_itable_lookup(t5, global19) : ptr
+    t5 = heap_load t3 +0 : ptr<metadata>
+    t6 = call @scoop_rt_itable_lookup(t5, global19) : ptr<metadata>
     call_indirect t6[0](t3, t4)
     t7 = aggregate () : {}
     ret
   block suspended
     ret
   block failed
-    t8 = heap_load param0 +16 : ptr
+    t8 = heap_load param0 +16 : ptr<managed>
     heap_store t8 +16 -2
-    t9 = heap_load param0 +16 : ptr
-    t10 = heap_load t9 +24 : ptr
-    t11 = heap_load t10 +0 : ptr
-    t12 = call @scoop_rt_itable_lookup(t11, global19) : ptr
+    t9 = heap_load param0 +16 : ptr<managed>
+    t10 = heap_load t9 +24 : ptr<managed>
+    t11 = heap_load t10 +0 : ptr<metadata>
+    t12 = call @scoop_rt_itable_lookup(t11, global19) : ptr<metadata>
     call_indirect t12[1](t10, local2)
     t13 = aggregate () : {}
     ret
   block body_failure
-    (t14, t15) = landingpad : (exception_record, ptr)
+    (t14, t15) = landingpad : (exception_record, ptr<raw>)
     store t14 -> local3
     store t15 -> local4
-    t16 = begin_catch local4 : ptr
+    t16 = begin_catch local4 : ptr<managed>
     store t16 -> local5
-    t17 = call @scoop_rt_materialize_exception(local5) : ptr
+    t17 = call @scoop_rt_materialize_exception(local5) : ptr<managed>
     store t17 -> local2
     end_catch
     br @failed
   block valid
     heap_store param0 +24 3
-    t18 = heap_load param0 +16 : ptr
+    t18 = heap_load param0 +16 : ptr<managed>
     t19 = enum_wrap e7 v1 (param1) : enum7
     heap_store t18 +56 t19
-    t20 = heap_load param0 +16 : ptr
+    t20 = heap_load param0 +16 : ptr<managed>
     heap_store t20 +16 -3
-    t21 = heap_load param0 +16 : ptr
+    t21 = heap_load param0 +16 : ptr<managed>
     invoke @scoop.waitForBoolean$suspend$drive(t21) normal @invoke.normal.1 unwind @body_failure
     br @invoke.normal.1
   block valid_state
-    t25 = heap_load param0 +16 : ptr
+    t25 = heap_load param0 +16 : ptr<managed>
     t26 = heap_load t25 +16 : i64
     t27 = Eq t26, 1 : i1
     cbr t27 then @valid else @coroutine.protocol_error
@@ -2996,29 +2996,29 @@ Module
     t23 = enum_tag e4 local0 : i64
     t24 = Eq t23, 0 : i1
     cbr t24 then @completed else @suspended
-  fun @scoop.MultipleTask.run$suspend$drive(ptr) -> enum3
-    local %0 this: ptr
+  fun @scoop.MultipleTask.run$suspend$drive(ptr<managed>) -> enum3
+    local %0 this: ptr<managed>
     local %1 first: i64
     local %2 second: i64
     local %3 accepted: i1
     local %4 $result.0: i64
-    local %5 $completion: ptr
-    local %6 $adapter.3: ptr
+    local %5 $completion: ptr<managed>
+    local %6 $adapter.3: ptr<managed>
     local %7 $step.3: enum4
-    local %8 $adapter.2: ptr
+    local %8 $adapter.2: ptr<managed>
     local %9 $step.2: enum3
-    local %10 $adapter.1: ptr
+    local %10 $adapter.1: ptr<managed>
     local %11 $step.1: enum3
-    local %12 $protocol_error: ptr
+    local %12 $protocol_error: ptr<managed>
   block entry
     t0 = enum_wrap e10 v1 (local0) : enum10
     heap_store param0 +32 t0
     heap_store param0 +16 1
-    t1 = call @scoop_rt_alloc(global46, 32) : ptr
+    t1 = call @scoop_rt_alloc(global46, 32) : ptr<managed>
     heap_store t1 +16 param0
     heap_store t1 +24 1
     store t1 -> local10
-    t2 = heap_load local0 +16 : ptr
+    t2 = heap_load local0 +16 : ptr<managed>
     t3 = call @scoop.waitForInt$suspend(t2, local10) : enum3
     store t3 -> local11
     t4 = enum_tag e3 local11 : i64
@@ -3066,7 +3066,7 @@ Module
     t20 = enum_field e6 v1 f0 t19 : i64
     store t20 -> local2
     t21 = heap_load param0 +88 : enum7
-    t22 = enum_field e7 v1 f0 t21 : ptr
+    t22 = enum_field e7 v1 f0 t21 : ptr<managed>
     throw t22
     unreachable
   block coroutine.post.2
@@ -3075,11 +3075,11 @@ Module
     t24 = enum_wrap e6 v1 (local2) : enum6
     heap_store param0 +56 t24
     heap_store param0 +16 3
-    t25 = call @scoop_rt_alloc(global47, 32) : ptr
+    t25 = call @scoop_rt_alloc(global47, 32) : ptr<managed>
     heap_store t25 +16 param0
     heap_store t25 +24 1
     store t25 -> local6
-    t26 = heap_load local0 +32 : ptr
+    t26 = heap_load local0 +32 : ptr<managed>
     t27 = call @scoop.waitForBoolean$suspend(t26, local6) : enum4
     store t27 -> local7
     t28 = enum_tag e4 local7 : i64
@@ -3096,7 +3096,7 @@ Module
   block coroutine.resume.2
     heap_store param0 +16 -1
     t32 = heap_load param0 +32 : enum10
-    t33 = enum_field e10 v1 f0 t32 : ptr
+    t33 = enum_field e10 v1 f0 t32 : ptr<managed>
     store t33 -> local0
     t34 = heap_load param0 +40 : enum6
     t35 = enum_field e6 v1 f0 t34 : i64
@@ -3108,13 +3108,13 @@ Module
   block coroutine.failure.2
     heap_store param0 +16 -1
     t38 = heap_load param0 +32 : enum10
-    t39 = enum_field e10 v1 f0 t38 : ptr
+    t39 = enum_field e10 v1 f0 t38 : ptr<managed>
     store t39 -> local0
     t40 = heap_load param0 +40 : enum6
     t41 = enum_field e6 v1 f0 t40 : i64
     store t41 -> local1
     t42 = heap_load param0 +88 : enum7
-    t43 = enum_field e7 v1 f0 t42 : ptr
+    t43 = enum_field e7 v1 f0 t42 : ptr<managed>
     throw t43
     unreachable
   block coroutine.post.1
@@ -3123,11 +3123,11 @@ Module
     t45 = enum_wrap e6 v1 (local1) : enum6
     heap_store param0 +40 t45
     heap_store param0 +16 2
-    t46 = call @scoop_rt_alloc(global48, 32) : ptr
+    t46 = call @scoop_rt_alloc(global48, 32) : ptr<managed>
     heap_store t46 +16 param0
     heap_store t46 +24 1
     store t46 -> local8
-    t47 = heap_load local0 +24 : ptr
+    t47 = heap_load local0 +24 : ptr<managed>
     t48 = call @scoop.waitForInt$suspend(t47, local8) : enum3
     store t48 -> local9
     t49 = enum_tag e3 local9 : i64
@@ -3144,7 +3144,7 @@ Module
   block coroutine.resume.1
     heap_store param0 +16 -1
     t53 = heap_load param0 +32 : enum10
-    t54 = enum_field e10 v1 f0 t53 : ptr
+    t54 = enum_field e10 v1 f0 t53 : ptr<managed>
     store t54 -> local0
     t55 = heap_load param0 +40 : enum6
     t56 = enum_field e6 v1 f0 t55 : i64
@@ -3153,20 +3153,20 @@ Module
   block coroutine.failure.1
     heap_store param0 +16 -1
     t57 = heap_load param0 +32 : enum10
-    t58 = enum_field e10 v1 f0 t57 : ptr
+    t58 = enum_field e10 v1 f0 t57 : ptr<managed>
     store t58 -> local0
     t59 = heap_load param0 +88 : enum7
-    t60 = enum_field e7 v1 f0 t59 : ptr
+    t60 = enum_field e7 v1 f0 t59 : ptr<managed>
     throw t60
     unreachable
   block coroutine.initial
     t61 = heap_load param0 +32 : enum10
-    t62 = enum_field e10 v1 f0 t61 : ptr
+    t62 = enum_field e10 v1 f0 t61 : ptr<managed>
     store t62 -> local0
     heap_store param0 +16 -1
     br @entry
   block coroutine.protocol_error
-    t63 = call @scoop.ctor.IllegalStateException() : ptr
+    t63 = call @scoop.ctor.IllegalStateException() : ptr<managed>
     store t63 -> local12
     throw local12
     unreachable
@@ -3198,61 +3198,61 @@ Module
     t76 = heap_load param0 +16 : i64
     t77 = Eq t76, 0 : i1
     cbr t77 then @coroutine.initial else @coroutine.dispatch.-5
-  fun @scoop.MultipleTask.run$suspend$resume$3(ptr, i1) -> void
+  fun @scoop.MultipleTask.run$suspend$resume$3(ptr<managed>, i1) -> void
     local %0 $step: enum3
-    local %1 $protocol_error: ptr
-    local %2 $uncaught: ptr
+    local %1 $protocol_error: ptr<managed>
+    local %2 $uncaught: ptr<managed>
     local %3 $sc.1: exception_record
-    local %4 $sc.2: ptr
-    local %5 $sc.3: ptr
+    local %4 $sc.2: ptr<raw>
+    local %5 $sc.3: ptr<managed>
   block coroutine.protocol_error
-    t0 = call @scoop.ctor.IllegalStateException() : ptr
+    t0 = call @scoop.ctor.IllegalStateException() : ptr<managed>
     store t0 -> local1
     throw local1
     unreachable
   block completed
-    t1 = heap_load param0 +16 : ptr
+    t1 = heap_load param0 +16 : ptr<managed>
     heap_store t1 +16 -2
-    t2 = heap_load param0 +16 : ptr
-    t3 = heap_load t2 +24 : ptr
+    t2 = heap_load param0 +16 : ptr<managed>
+    t3 = heap_load t2 +24 : ptr<managed>
     t4 = enum_field e3 v0 f0 local0 : i64
-    t5 = heap_load t3 +0 : ptr
-    t6 = call @scoop_rt_itable_lookup(t5, global18) : ptr
+    t5 = heap_load t3 +0 : ptr<metadata>
+    t6 = call @scoop_rt_itable_lookup(t5, global18) : ptr<metadata>
     call_indirect t6[0](t3, t4)
     t7 = aggregate () : {}
     ret
   block suspended
     ret
   block failed
-    t8 = heap_load param0 +16 : ptr
+    t8 = heap_load param0 +16 : ptr<managed>
     heap_store t8 +16 -2
-    t9 = heap_load param0 +16 : ptr
-    t10 = heap_load t9 +24 : ptr
-    t11 = heap_load t10 +0 : ptr
-    t12 = call @scoop_rt_itable_lookup(t11, global18) : ptr
+    t9 = heap_load param0 +16 : ptr<managed>
+    t10 = heap_load t9 +24 : ptr<managed>
+    t11 = heap_load t10 +0 : ptr<metadata>
+    t12 = call @scoop_rt_itable_lookup(t11, global18) : ptr<metadata>
     call_indirect t12[1](t10, local2)
     t13 = aggregate () : {}
     ret
   block body_failure
-    (t14, t15) = landingpad : (exception_record, ptr)
+    (t14, t15) = landingpad : (exception_record, ptr<raw>)
     store t14 -> local3
     store t15 -> local4
-    t16 = begin_catch local4 : ptr
+    t16 = begin_catch local4 : ptr<managed>
     store t16 -> local5
-    t17 = call @scoop_rt_materialize_exception(local5) : ptr
+    t17 = call @scoop_rt_materialize_exception(local5) : ptr<managed>
     store t17 -> local2
     end_catch
     br @failed
   block valid
     heap_store param0 +24 3
-    t18 = heap_load param0 +16 : ptr
+    t18 = heap_load param0 +16 : ptr<managed>
     t19 = enum_wrap e9 v1 (param1) : enum9
     heap_store t18 +72 t19
-    t20 = heap_load param0 +16 : ptr
+    t20 = heap_load param0 +16 : ptr<managed>
     invoke @scoop.MultipleTask.run$suspend$drive(t20) normal @invoke.normal.1 unwind @body_failure
     br @invoke.normal.1
   block valid_state
-    t24 = heap_load param0 +16 : ptr
+    t24 = heap_load param0 +16 : ptr<managed>
     t25 = heap_load t24 +16 : i64
     t26 = Eq t25, 3 : i1
     cbr t26 then @valid else @coroutine.protocol_error
@@ -3265,63 +3265,63 @@ Module
     t22 = enum_tag e3 local0 : i64
     t23 = Eq t22, 0 : i1
     cbr t23 then @completed else @suspended
-  fun @scoop.MultipleTask.run$suspend$resume_exception$3(ptr, ptr) -> void
+  fun @scoop.MultipleTask.run$suspend$resume_exception$3(ptr<managed>, ptr<managed>) -> void
     local %0 $step: enum3
-    local %1 $protocol_error: ptr
-    local %2 $uncaught: ptr
+    local %1 $protocol_error: ptr<managed>
+    local %2 $uncaught: ptr<managed>
     local %3 $sc.1: exception_record
-    local %4 $sc.2: ptr
-    local %5 $sc.3: ptr
+    local %4 $sc.2: ptr<raw>
+    local %5 $sc.3: ptr<managed>
   block coroutine.protocol_error
-    t0 = call @scoop.ctor.IllegalStateException() : ptr
+    t0 = call @scoop.ctor.IllegalStateException() : ptr<managed>
     store t0 -> local1
     throw local1
     unreachable
   block completed
-    t1 = heap_load param0 +16 : ptr
+    t1 = heap_load param0 +16 : ptr<managed>
     heap_store t1 +16 -2
-    t2 = heap_load param0 +16 : ptr
-    t3 = heap_load t2 +24 : ptr
+    t2 = heap_load param0 +16 : ptr<managed>
+    t3 = heap_load t2 +24 : ptr<managed>
     t4 = enum_field e3 v0 f0 local0 : i64
-    t5 = heap_load t3 +0 : ptr
-    t6 = call @scoop_rt_itable_lookup(t5, global18) : ptr
+    t5 = heap_load t3 +0 : ptr<metadata>
+    t6 = call @scoop_rt_itable_lookup(t5, global18) : ptr<metadata>
     call_indirect t6[0](t3, t4)
     t7 = aggregate () : {}
     ret
   block suspended
     ret
   block failed
-    t8 = heap_load param0 +16 : ptr
+    t8 = heap_load param0 +16 : ptr<managed>
     heap_store t8 +16 -2
-    t9 = heap_load param0 +16 : ptr
-    t10 = heap_load t9 +24 : ptr
-    t11 = heap_load t10 +0 : ptr
-    t12 = call @scoop_rt_itable_lookup(t11, global18) : ptr
+    t9 = heap_load param0 +16 : ptr<managed>
+    t10 = heap_load t9 +24 : ptr<managed>
+    t11 = heap_load t10 +0 : ptr<metadata>
+    t12 = call @scoop_rt_itable_lookup(t11, global18) : ptr<metadata>
     call_indirect t12[1](t10, local2)
     t13 = aggregate () : {}
     ret
   block body_failure
-    (t14, t15) = landingpad : (exception_record, ptr)
+    (t14, t15) = landingpad : (exception_record, ptr<raw>)
     store t14 -> local3
     store t15 -> local4
-    t16 = begin_catch local4 : ptr
+    t16 = begin_catch local4 : ptr<managed>
     store t16 -> local5
-    t17 = call @scoop_rt_materialize_exception(local5) : ptr
+    t17 = call @scoop_rt_materialize_exception(local5) : ptr<managed>
     store t17 -> local2
     end_catch
     br @failed
   block valid
     heap_store param0 +24 3
-    t18 = heap_load param0 +16 : ptr
+    t18 = heap_load param0 +16 : ptr<managed>
     t19 = enum_wrap e7 v1 (param1) : enum7
     heap_store t18 +88 t19
-    t20 = heap_load param0 +16 : ptr
+    t20 = heap_load param0 +16 : ptr<managed>
     heap_store t20 +16 -5
-    t21 = heap_load param0 +16 : ptr
+    t21 = heap_load param0 +16 : ptr<managed>
     invoke @scoop.MultipleTask.run$suspend$drive(t21) normal @invoke.normal.1 unwind @body_failure
     br @invoke.normal.1
   block valid_state
-    t25 = heap_load param0 +16 : ptr
+    t25 = heap_load param0 +16 : ptr<managed>
     t26 = heap_load t25 +16 : i64
     t27 = Eq t26, 3 : i1
     cbr t27 then @valid else @coroutine.protocol_error
@@ -3334,61 +3334,61 @@ Module
     t23 = enum_tag e3 local0 : i64
     t24 = Eq t23, 0 : i1
     cbr t24 then @completed else @suspended
-  fun @scoop.MultipleTask.run$suspend$resume$2(ptr, i64) -> void
+  fun @scoop.MultipleTask.run$suspend$resume$2(ptr<managed>, i64) -> void
     local %0 $step: enum3
-    local %1 $protocol_error: ptr
-    local %2 $uncaught: ptr
+    local %1 $protocol_error: ptr<managed>
+    local %2 $uncaught: ptr<managed>
     local %3 $sc.1: exception_record
-    local %4 $sc.2: ptr
-    local %5 $sc.3: ptr
+    local %4 $sc.2: ptr<raw>
+    local %5 $sc.3: ptr<managed>
   block coroutine.protocol_error
-    t0 = call @scoop.ctor.IllegalStateException() : ptr
+    t0 = call @scoop.ctor.IllegalStateException() : ptr<managed>
     store t0 -> local1
     throw local1
     unreachable
   block completed
-    t1 = heap_load param0 +16 : ptr
+    t1 = heap_load param0 +16 : ptr<managed>
     heap_store t1 +16 -2
-    t2 = heap_load param0 +16 : ptr
-    t3 = heap_load t2 +24 : ptr
+    t2 = heap_load param0 +16 : ptr<managed>
+    t3 = heap_load t2 +24 : ptr<managed>
     t4 = enum_field e3 v0 f0 local0 : i64
-    t5 = heap_load t3 +0 : ptr
-    t6 = call @scoop_rt_itable_lookup(t5, global18) : ptr
+    t5 = heap_load t3 +0 : ptr<metadata>
+    t6 = call @scoop_rt_itable_lookup(t5, global18) : ptr<metadata>
     call_indirect t6[0](t3, t4)
     t7 = aggregate () : {}
     ret
   block suspended
     ret
   block failed
-    t8 = heap_load param0 +16 : ptr
+    t8 = heap_load param0 +16 : ptr<managed>
     heap_store t8 +16 -2
-    t9 = heap_load param0 +16 : ptr
-    t10 = heap_load t9 +24 : ptr
-    t11 = heap_load t10 +0 : ptr
-    t12 = call @scoop_rt_itable_lookup(t11, global18) : ptr
+    t9 = heap_load param0 +16 : ptr<managed>
+    t10 = heap_load t9 +24 : ptr<managed>
+    t11 = heap_load t10 +0 : ptr<metadata>
+    t12 = call @scoop_rt_itable_lookup(t11, global18) : ptr<metadata>
     call_indirect t12[1](t10, local2)
     t13 = aggregate () : {}
     ret
   block body_failure
-    (t14, t15) = landingpad : (exception_record, ptr)
+    (t14, t15) = landingpad : (exception_record, ptr<raw>)
     store t14 -> local3
     store t15 -> local4
-    t16 = begin_catch local4 : ptr
+    t16 = begin_catch local4 : ptr<managed>
     store t16 -> local5
-    t17 = call @scoop_rt_materialize_exception(local5) : ptr
+    t17 = call @scoop_rt_materialize_exception(local5) : ptr<managed>
     store t17 -> local2
     end_catch
     br @failed
   block valid
     heap_store param0 +24 3
-    t18 = heap_load param0 +16 : ptr
+    t18 = heap_load param0 +16 : ptr<managed>
     t19 = enum_wrap e6 v1 (param1) : enum6
     heap_store t18 +56 t19
-    t20 = heap_load param0 +16 : ptr
+    t20 = heap_load param0 +16 : ptr<managed>
     invoke @scoop.MultipleTask.run$suspend$drive(t20) normal @invoke.normal.1 unwind @body_failure
     br @invoke.normal.1
   block valid_state
-    t24 = heap_load param0 +16 : ptr
+    t24 = heap_load param0 +16 : ptr<managed>
     t25 = heap_load t24 +16 : i64
     t26 = Eq t25, 2 : i1
     cbr t26 then @valid else @coroutine.protocol_error
@@ -3401,63 +3401,63 @@ Module
     t22 = enum_tag e3 local0 : i64
     t23 = Eq t22, 0 : i1
     cbr t23 then @completed else @suspended
-  fun @scoop.MultipleTask.run$suspend$resume_exception$2(ptr, ptr) -> void
+  fun @scoop.MultipleTask.run$suspend$resume_exception$2(ptr<managed>, ptr<managed>) -> void
     local %0 $step: enum3
-    local %1 $protocol_error: ptr
-    local %2 $uncaught: ptr
+    local %1 $protocol_error: ptr<managed>
+    local %2 $uncaught: ptr<managed>
     local %3 $sc.1: exception_record
-    local %4 $sc.2: ptr
-    local %5 $sc.3: ptr
+    local %4 $sc.2: ptr<raw>
+    local %5 $sc.3: ptr<managed>
   block coroutine.protocol_error
-    t0 = call @scoop.ctor.IllegalStateException() : ptr
+    t0 = call @scoop.ctor.IllegalStateException() : ptr<managed>
     store t0 -> local1
     throw local1
     unreachable
   block completed
-    t1 = heap_load param0 +16 : ptr
+    t1 = heap_load param0 +16 : ptr<managed>
     heap_store t1 +16 -2
-    t2 = heap_load param0 +16 : ptr
-    t3 = heap_load t2 +24 : ptr
+    t2 = heap_load param0 +16 : ptr<managed>
+    t3 = heap_load t2 +24 : ptr<managed>
     t4 = enum_field e3 v0 f0 local0 : i64
-    t5 = heap_load t3 +0 : ptr
-    t6 = call @scoop_rt_itable_lookup(t5, global18) : ptr
+    t5 = heap_load t3 +0 : ptr<metadata>
+    t6 = call @scoop_rt_itable_lookup(t5, global18) : ptr<metadata>
     call_indirect t6[0](t3, t4)
     t7 = aggregate () : {}
     ret
   block suspended
     ret
   block failed
-    t8 = heap_load param0 +16 : ptr
+    t8 = heap_load param0 +16 : ptr<managed>
     heap_store t8 +16 -2
-    t9 = heap_load param0 +16 : ptr
-    t10 = heap_load t9 +24 : ptr
-    t11 = heap_load t10 +0 : ptr
-    t12 = call @scoop_rt_itable_lookup(t11, global18) : ptr
+    t9 = heap_load param0 +16 : ptr<managed>
+    t10 = heap_load t9 +24 : ptr<managed>
+    t11 = heap_load t10 +0 : ptr<metadata>
+    t12 = call @scoop_rt_itable_lookup(t11, global18) : ptr<metadata>
     call_indirect t12[1](t10, local2)
     t13 = aggregate () : {}
     ret
   block body_failure
-    (t14, t15) = landingpad : (exception_record, ptr)
+    (t14, t15) = landingpad : (exception_record, ptr<raw>)
     store t14 -> local3
     store t15 -> local4
-    t16 = begin_catch local4 : ptr
+    t16 = begin_catch local4 : ptr<managed>
     store t16 -> local5
-    t17 = call @scoop_rt_materialize_exception(local5) : ptr
+    t17 = call @scoop_rt_materialize_exception(local5) : ptr<managed>
     store t17 -> local2
     end_catch
     br @failed
   block valid
     heap_store param0 +24 3
-    t18 = heap_load param0 +16 : ptr
+    t18 = heap_load param0 +16 : ptr<managed>
     t19 = enum_wrap e7 v1 (param1) : enum7
     heap_store t18 +88 t19
-    t20 = heap_load param0 +16 : ptr
+    t20 = heap_load param0 +16 : ptr<managed>
     heap_store t20 +16 -4
-    t21 = heap_load param0 +16 : ptr
+    t21 = heap_load param0 +16 : ptr<managed>
     invoke @scoop.MultipleTask.run$suspend$drive(t21) normal @invoke.normal.1 unwind @body_failure
     br @invoke.normal.1
   block valid_state
-    t25 = heap_load param0 +16 : ptr
+    t25 = heap_load param0 +16 : ptr<managed>
     t26 = heap_load t25 +16 : i64
     t27 = Eq t26, 2 : i1
     cbr t27 then @valid else @coroutine.protocol_error
@@ -3470,61 +3470,61 @@ Module
     t23 = enum_tag e3 local0 : i64
     t24 = Eq t23, 0 : i1
     cbr t24 then @completed else @suspended
-  fun @scoop.MultipleTask.run$suspend$resume$1(ptr, i64) -> void
+  fun @scoop.MultipleTask.run$suspend$resume$1(ptr<managed>, i64) -> void
     local %0 $step: enum3
-    local %1 $protocol_error: ptr
-    local %2 $uncaught: ptr
+    local %1 $protocol_error: ptr<managed>
+    local %2 $uncaught: ptr<managed>
     local %3 $sc.1: exception_record
-    local %4 $sc.2: ptr
-    local %5 $sc.3: ptr
+    local %4 $sc.2: ptr<raw>
+    local %5 $sc.3: ptr<managed>
   block coroutine.protocol_error
-    t0 = call @scoop.ctor.IllegalStateException() : ptr
+    t0 = call @scoop.ctor.IllegalStateException() : ptr<managed>
     store t0 -> local1
     throw local1
     unreachable
   block completed
-    t1 = heap_load param0 +16 : ptr
+    t1 = heap_load param0 +16 : ptr<managed>
     heap_store t1 +16 -2
-    t2 = heap_load param0 +16 : ptr
-    t3 = heap_load t2 +24 : ptr
+    t2 = heap_load param0 +16 : ptr<managed>
+    t3 = heap_load t2 +24 : ptr<managed>
     t4 = enum_field e3 v0 f0 local0 : i64
-    t5 = heap_load t3 +0 : ptr
-    t6 = call @scoop_rt_itable_lookup(t5, global18) : ptr
+    t5 = heap_load t3 +0 : ptr<metadata>
+    t6 = call @scoop_rt_itable_lookup(t5, global18) : ptr<metadata>
     call_indirect t6[0](t3, t4)
     t7 = aggregate () : {}
     ret
   block suspended
     ret
   block failed
-    t8 = heap_load param0 +16 : ptr
+    t8 = heap_load param0 +16 : ptr<managed>
     heap_store t8 +16 -2
-    t9 = heap_load param0 +16 : ptr
-    t10 = heap_load t9 +24 : ptr
-    t11 = heap_load t10 +0 : ptr
-    t12 = call @scoop_rt_itable_lookup(t11, global18) : ptr
+    t9 = heap_load param0 +16 : ptr<managed>
+    t10 = heap_load t9 +24 : ptr<managed>
+    t11 = heap_load t10 +0 : ptr<metadata>
+    t12 = call @scoop_rt_itable_lookup(t11, global18) : ptr<metadata>
     call_indirect t12[1](t10, local2)
     t13 = aggregate () : {}
     ret
   block body_failure
-    (t14, t15) = landingpad : (exception_record, ptr)
+    (t14, t15) = landingpad : (exception_record, ptr<raw>)
     store t14 -> local3
     store t15 -> local4
-    t16 = begin_catch local4 : ptr
+    t16 = begin_catch local4 : ptr<managed>
     store t16 -> local5
-    t17 = call @scoop_rt_materialize_exception(local5) : ptr
+    t17 = call @scoop_rt_materialize_exception(local5) : ptr<managed>
     store t17 -> local2
     end_catch
     br @failed
   block valid
     heap_store param0 +24 3
-    t18 = heap_load param0 +16 : ptr
+    t18 = heap_load param0 +16 : ptr<managed>
     t19 = enum_wrap e6 v1 (param1) : enum6
     heap_store t18 +40 t19
-    t20 = heap_load param0 +16 : ptr
+    t20 = heap_load param0 +16 : ptr<managed>
     invoke @scoop.MultipleTask.run$suspend$drive(t20) normal @invoke.normal.1 unwind @body_failure
     br @invoke.normal.1
   block valid_state
-    t24 = heap_load param0 +16 : ptr
+    t24 = heap_load param0 +16 : ptr<managed>
     t25 = heap_load t24 +16 : i64
     t26 = Eq t25, 1 : i1
     cbr t26 then @valid else @coroutine.protocol_error
@@ -3537,63 +3537,63 @@ Module
     t22 = enum_tag e3 local0 : i64
     t23 = Eq t22, 0 : i1
     cbr t23 then @completed else @suspended
-  fun @scoop.MultipleTask.run$suspend$resume_exception$1(ptr, ptr) -> void
+  fun @scoop.MultipleTask.run$suspend$resume_exception$1(ptr<managed>, ptr<managed>) -> void
     local %0 $step: enum3
-    local %1 $protocol_error: ptr
-    local %2 $uncaught: ptr
+    local %1 $protocol_error: ptr<managed>
+    local %2 $uncaught: ptr<managed>
     local %3 $sc.1: exception_record
-    local %4 $sc.2: ptr
-    local %5 $sc.3: ptr
+    local %4 $sc.2: ptr<raw>
+    local %5 $sc.3: ptr<managed>
   block coroutine.protocol_error
-    t0 = call @scoop.ctor.IllegalStateException() : ptr
+    t0 = call @scoop.ctor.IllegalStateException() : ptr<managed>
     store t0 -> local1
     throw local1
     unreachable
   block completed
-    t1 = heap_load param0 +16 : ptr
+    t1 = heap_load param0 +16 : ptr<managed>
     heap_store t1 +16 -2
-    t2 = heap_load param0 +16 : ptr
-    t3 = heap_load t2 +24 : ptr
+    t2 = heap_load param0 +16 : ptr<managed>
+    t3 = heap_load t2 +24 : ptr<managed>
     t4 = enum_field e3 v0 f0 local0 : i64
-    t5 = heap_load t3 +0 : ptr
-    t6 = call @scoop_rt_itable_lookup(t5, global18) : ptr
+    t5 = heap_load t3 +0 : ptr<metadata>
+    t6 = call @scoop_rt_itable_lookup(t5, global18) : ptr<metadata>
     call_indirect t6[0](t3, t4)
     t7 = aggregate () : {}
     ret
   block suspended
     ret
   block failed
-    t8 = heap_load param0 +16 : ptr
+    t8 = heap_load param0 +16 : ptr<managed>
     heap_store t8 +16 -2
-    t9 = heap_load param0 +16 : ptr
-    t10 = heap_load t9 +24 : ptr
-    t11 = heap_load t10 +0 : ptr
-    t12 = call @scoop_rt_itable_lookup(t11, global18) : ptr
+    t9 = heap_load param0 +16 : ptr<managed>
+    t10 = heap_load t9 +24 : ptr<managed>
+    t11 = heap_load t10 +0 : ptr<metadata>
+    t12 = call @scoop_rt_itable_lookup(t11, global18) : ptr<metadata>
     call_indirect t12[1](t10, local2)
     t13 = aggregate () : {}
     ret
   block body_failure
-    (t14, t15) = landingpad : (exception_record, ptr)
+    (t14, t15) = landingpad : (exception_record, ptr<raw>)
     store t14 -> local3
     store t15 -> local4
-    t16 = begin_catch local4 : ptr
+    t16 = begin_catch local4 : ptr<managed>
     store t16 -> local5
-    t17 = call @scoop_rt_materialize_exception(local5) : ptr
+    t17 = call @scoop_rt_materialize_exception(local5) : ptr<managed>
     store t17 -> local2
     end_catch
     br @failed
   block valid
     heap_store param0 +24 3
-    t18 = heap_load param0 +16 : ptr
+    t18 = heap_load param0 +16 : ptr<managed>
     t19 = enum_wrap e7 v1 (param1) : enum7
     heap_store t18 +88 t19
-    t20 = heap_load param0 +16 : ptr
+    t20 = heap_load param0 +16 : ptr<managed>
     heap_store t20 +16 -3
-    t21 = heap_load param0 +16 : ptr
+    t21 = heap_load param0 +16 : ptr<managed>
     invoke @scoop.MultipleTask.run$suspend$drive(t21) normal @invoke.normal.1 unwind @body_failure
     br @invoke.normal.1
   block valid_state
-    t25 = heap_load param0 +16 : ptr
+    t25 = heap_load param0 +16 : ptr<managed>
     t26 = heap_load t25 +16 : i64
     t27 = Eq t26, 1 : i1
     cbr t27 then @valid else @coroutine.protocol_error

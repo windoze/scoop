@@ -725,26 +725,26 @@ Module
   enum Option$S niche(payload_variant=0)
   enum Option$NIRIX niche(payload_variant=0)
   enum Option$PIX niche(payload_variant=0)
-  extern ef0 write @scoop_rt_write(ptr) -> {} <scoop managed nounwind>
-  extern ef1 malloc @malloc(i64) -> ptr <c bridge=@scoop_c_bridge_1 gc-leaf nounwind>
-  extern ef2 free @free(ptr) -> {} <c bridge=@scoop_c_bridge_2 gc-leaf nounwind>
+  extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
+  extern ef1 malloc @malloc(i64) -> ptr<raw> <c bridge=@scoop_c_bridge_1 gc-leaf nounwind>
+  extern ef2 free @free(ptr<raw>) -> {} <c bridge=@scoop_c_bridge_2 gc-leaf nounwind>
   callback cb0 increment @scoop_callback_bridge_0 -> @scoop_c_callback_0
-  fun @scoop.print(ptr) -> void
-    local %0 $call.1: ptr
+  fun @scoop.print(ptr<managed>) -> void
+    local %0 $call.1: ptr<managed>
   block entry
-    t0 = heap_load param0 +0 : ptr
-    t1 = heap_load t0 +40 : ptr
-    t2 = call_indirect t1[2](param0) : ptr
+    t0 = heap_load param0 +0 : ptr<metadata>
+    t1 = heap_load t0 +40 : ptr<metadata>
+    t2 = call_indirect t1[2](param0) : ptr<managed>
     store t2 -> local0
     native_call[native-borrowed] extern0(local0)
     t3 = aggregate () : {}
     ret
-  fun @scoop.println(ptr) -> void
-    local %0 $call.1: ptr
+  fun @scoop.println(ptr<managed>) -> void
+    local %0 $call.1: ptr<managed>
   block entry
-    t0 = heap_load param0 +0 : ptr
-    t1 = heap_load t0 +40 : ptr
-    t2 = call_indirect t1[2](param0) : ptr
+    t0 = heap_load param0 +0 : ptr<metadata>
+    t1 = heap_load t0 +40 : ptr<metadata>
+    t2 = call_indirect t1[2](param0) : ptr<managed>
     store t2 -> local0
     native_call[native-borrowed] extern0(local0)
     t3 = aggregate () : {}
@@ -757,7 +757,7 @@ Module
     ret t0
   fun @scoop.rewriteParameter(i64) -> i64 <no-gc>
     local %0 value: i64
-    local %1 pointer: ptr
+    local %1 pointer: ptr<raw>
   block entry
     store param0 -> local0
     t0 = local_address local0 : ptr
@@ -768,26 +768,26 @@ Module
   fun @scoop_main() -> void
     local %0 intSize: i64
     local %1 intAlignment: i64
-    local %2 empty: ptr
-    local %3 callback: ptr
+    local %2 empty: ptr<code>
+    local %3 callback: ptr<code>
     local %4 noCallback: enum1
     local %5 value: i64
-    local %6 pointer: ptr
-    local %7 shifted: ptr
+    local %6 pointer: ptr<raw>
+    local %7 shifted: ptr<raw>
     local %8 raw: i64
-    local %9 reconstructed: ptr
-    local %10 retyped: ptr
-    local %11 previous: ptr
-    local %12 allocated: ptr
+    local %9 reconstructed: ptr<raw>
+    local %10 retyped: ptr<raw>
+    local %11 previous: ptr<raw>
+    local %12 allocated: ptr<raw>
     local %13 optional: enum2
-    local %14 present: ptr
+    local %14 present: ptr<raw>
     local %15 $when.1: enum2
     local %16 $call.1: i64
     local %17 $call.2: i64
-    local %18 $call.3: ptr
-    local %19 $sc.1: ptr
+    local %18 $call.3: ptr<raw>
+    local %19 $sc.1: ptr<raw>
     local %20 $sc.2: i64
-    local %21 $sc.3: ptr
+    local %21 $sc.3: ptr<raw>
   block entry
     store 8 -> local0
     store 8 -> local1
@@ -802,7 +802,7 @@ Module
     raw_store local6 9 align 8
     t3 = aggregate () : {}
     t4 = raw_load local6 align 8 : i64
-    t5 = call @scoop_rt_box(global6, t4, 8) : ptr
+    t5 = call @scoop_rt_box(global6, t4, 8) : ptr<managed>
     call @scoop.println(t5)
     t6 = aggregate () : {}
     t7 = Mul 0, 8 : i64
@@ -815,13 +815,13 @@ Module
     t11 = Mul 0, 8 : i64
     t12 = ptr_offset local9 t11 : ptr
     t13 = raw_load t12 align 8 : i64
-    t14 = call @scoop_rt_box(global6, t13, 8) : ptr
+    t14 = call @scoop_rt_box(global6, t13, 8) : ptr<managed>
     call @scoop.println(t14)
     t15 = aggregate () : {}
     store local9 -> local10
     raw_store local10 10 align 8
     t16 = aggregate () : {}
-    t17 = call @scoop_rt_box(global6, local5, 8) : ptr
+    t17 = call @scoop_rt_box(global6, local5, 8) : ptr<managed>
     call @scoop.println(t17)
     t18 = aggregate () : {}
     t19 = Mul 0, 8 : i64
@@ -833,21 +833,21 @@ Module
     t24 = ptr_offset local6 t23 : ptr
     store t24 -> local11
     t25 = raw_load local11 align 8 : i64
-    t26 = call @scoop_rt_box(global6, t25, 8) : ptr
+    t26 = call @scoop_rt_box(global6, t25, 8) : ptr<managed>
     call @scoop.println(t26)
     t27 = aggregate () : {}
-    t28 = call @scoop_rt_box(global6, local5, 8) : ptr
+    t28 = call @scoop_rt_box(global6, local5, 8) : ptr<managed>
     call @scoop.println(t28)
     t29 = aggregate () : {}
     t30 = call @scoop.rewriteParameter(0) : i64
     store t30 -> local16
-    t31 = call @scoop_rt_box(global6, local16, 8) : ptr
+    t31 = call @scoop_rt_box(global6, local16, 8) : ptr<managed>
     call @scoop.println(t31)
     t32 = aggregate () : {}
     t33 = aggregate (0) : struct0
     t34 = call @scoop.Slot.rewriteThis(t33) : i64
     store t34 -> local17
-    t35 = call @scoop_rt_box(global6, local17, 8) : ptr
+    t35 = call @scoop_rt_box(global6, local17, 8) : ptr<managed>
     call @scoop.println(t35)
     t36 = aggregate () : {}
     t37 = local_address local19 : ptr
@@ -859,7 +859,7 @@ Module
     raw_store local12 14 align 8
     t39 = aggregate () : {}
     t40 = raw_load local12 align 8 : i64
-    t41 = call @scoop_rt_box(global6, t40, 8) : ptr
+    t41 = call @scoop_rt_box(global6, t40, 8) : ptr<managed>
     call @scoop.println(t41)
     t42 = aggregate () : {}
     store local12 -> local21
@@ -873,10 +873,10 @@ Module
     t47 = Eq t46, 0 : i1
     cbr t47 then @if.then.1 else @if.else.2
   block if.then.1
-    t48 = enum_field e2 v0 f0 local15 : ptr
+    t48 = enum_field e2 v0 f0 local15 : ptr<raw>
     store t48 -> local14
     t49 = raw_load local14 align 8 : i64
-    t50 = call @scoop_rt_box(global6, t49, 8) : ptr
+    t50 = call @scoop_rt_box(global6, t49, 8) : ptr<managed>
     call @scoop.println(t50)
     t51 = aggregate () : {}
     br @if.merge.3
@@ -887,7 +887,7 @@ Module
   block if.merge.3
     ret
   block if.then.4
-    t54 = call @scoop_rt_box(global6, 0, 8) : ptr
+    t54 = call @scoop_rt_box(global6, 0, 8) : ptr<managed>
     call @scoop.println(t54)
     t55 = aggregate () : {}
     br @if.merge.5
@@ -895,7 +895,7 @@ Module
     br @if.merge.3
   fun @scoop.Slot.rewriteThis(struct0) -> i64 <no-gc>
     local %0 this: struct0
-    local %1 pointer: ptr
+    local %1 pointer: ptr<raw>
   block entry
     store param0 -> local0
     t0 = local_address local0 : ptr
@@ -905,46 +905,46 @@ Module
     t2 = aggregate () : {}
     t3 = extract local0, 0 : i64
     ret t3
-  fun @scoop.ctor.Throwable() -> ptr
+  fun @scoop.ctor.Throwable() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global7, 16) : ptr
+    t0 = call @scoop_rt_alloc(global7, 16) : ptr<managed>
     ret t0
-  fun @scoop.ctor.Exception(enum0) -> ptr
+  fun @scoop.ctor.Exception(enum0) -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global8, 24) : ptr
+    t0 = call @scoop_rt_alloc(global8, 24) : ptr<managed>
     heap_store t0 +16 param0
     ret t0
-  fun @scoop.ctor.UnwrapException() -> ptr
+  fun @scoop.ctor.UnwrapException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global9, 24) : ptr
+    t0 = call @scoop_rt_alloc(global9, 24) : ptr<managed>
     t1 = enum_wrap e0 v0 (global1) : enum0
     heap_store t0 +16 t1
     ret t0
-  fun @scoop.ctor.ClassCastException() -> ptr
+  fun @scoop.ctor.ClassCastException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global10, 24) : ptr
+    t0 = call @scoop_rt_alloc(global10, 24) : ptr<managed>
     t1 = enum_wrap e0 v0 (global2) : enum0
     heap_store t0 +16 t1
     ret t0
-  fun @scoop.ctor.ArithmeticException() -> ptr
+  fun @scoop.ctor.ArithmeticException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global11, 24) : ptr
+    t0 = call @scoop_rt_alloc(global11, 24) : ptr<managed>
     t1 = enum_wrap e0 v0 (global3) : enum0
     heap_store t0 +16 t1
     ret t0
-  fun @scoop.ctor.IndexOutOfBoundsException() -> ptr
+  fun @scoop.ctor.IndexOutOfBoundsException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global12, 24) : ptr
+    t0 = call @scoop_rt_alloc(global12, 24) : ptr<managed>
     t1 = enum_wrap e0 v0 (global4) : enum0
     heap_store t0 +16 t1
     ret t0
-  fun @scoop.ctor.IllegalStateException() -> ptr
+  fun @scoop.ctor.IllegalStateException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global13, 24) : ptr
+    t0 = call @scoop_rt_alloc(global13, 24) : ptr<managed>
     t1 = enum_wrap e0 v0 (global5) : enum0
     heap_store t0 +16 t1
     ret t0
-  fun @scoop_callback_bridge_0(ptr, ptr) -> void <no-gc>
+  fun @scoop_callback_bridge_0(ptr<raw>, ptr<raw>) -> void <no-gc>
     local %0 $value: i64
   block entry
     t0 = raw_load param1 align 8 : i64
@@ -953,7 +953,7 @@ Module
     raw_store param0 local0 align 8
     t2 = aggregate () : {}
     ret
-  fun @scoop.eq.I(ptr, ptr) -> i1
+  fun @scoop.eq.I(ptr<managed>, ptr<managed>) -> i1
     local %0 $a: i64
     local %1 $b: i64
   block entry
@@ -963,11 +963,11 @@ Module
     store t1 -> local1
     t2 = Eq local0, local1 : i1
     ret t2
-  fun @scoop.tostring.I(ptr) -> ptr
-    local %0 $call.1: ptr
+  fun @scoop.tostring.I(ptr<managed>) -> ptr<managed>
+    local %0 $call.1: ptr<managed>
   block entry
     t0 = heap_load param0 +16 : i64
-    t1 = call @scoop_rt_int_to_string(t0) : ptr
+    t1 = call @scoop_rt_int_to_string(t0) : ptr<managed>
     store t1 -> local0
     ret local0
   td function$FIRIX @scoop_td_function$FIRIX size=0 vtable=0 itables=0

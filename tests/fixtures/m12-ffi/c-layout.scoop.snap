@@ -595,23 +595,23 @@ Module
   global @scoop_td_IndexOutOfBoundsException = c""
   global @scoop_td_IllegalStateException = c""
   enum Option$S niche(payload_variant=0)
-  extern ef0 write @scoop_rt_write(ptr) -> {} <scoop managed nounwind>
-  fun @scoop.print(ptr) -> void
-    local %0 $call.1: ptr
+  extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
+  fun @scoop.print(ptr<managed>) -> void
+    local %0 $call.1: ptr<managed>
   block entry
-    t0 = heap_load param0 +0 : ptr
-    t1 = heap_load t0 +40 : ptr
-    t2 = call_indirect t1[2](param0) : ptr
+    t0 = heap_load param0 +0 : ptr<metadata>
+    t1 = heap_load t0 +40 : ptr<metadata>
+    t2 = call_indirect t1[2](param0) : ptr<managed>
     store t2 -> local0
     native_call[native-borrowed] extern0(local0)
     t3 = aggregate () : {}
     ret
-  fun @scoop.println(ptr) -> void
-    local %0 $call.1: ptr
+  fun @scoop.println(ptr<managed>) -> void
+    local %0 $call.1: ptr<managed>
   block entry
-    t0 = heap_load param0 +0 : ptr
-    t1 = heap_load t0 +40 : ptr
-    t2 = call_indirect t1[2](param0) : ptr
+    t0 = heap_load param0 +0 : ptr<metadata>
+    t1 = heap_load t0 +40 : ptr<metadata>
+    t2 = call_indirect t1[2](param0) : ptr<managed>
     store t2 -> local0
     native_call[native-borrowed] extern0(local0)
     t3 = aggregate () : {}
@@ -620,7 +620,7 @@ Module
     ret
   fun @scoop_main() -> void
     local %0 packed: struct0
-    local %1 pointer: ptr
+    local %1 pointer: ptr<raw>
     local %2 loaded: struct0
     local %3 values: [struct1]
     local %4 $arr.1: [struct1]
@@ -628,18 +628,18 @@ Module
     local %6 $arr.3: [struct1]
     local %7 $idx.4: i64
     local %8 $logic.1: i1
-    local %9 $call.2: ptr
+    local %9 $call.2: ptr<managed>
     local %10 $logic.3: i1
-    local %11 $call.4: ptr
+    local %11 $call.4: ptr<managed>
   block entry
     t0 = aggregate (true, 7) : struct0
     store t0 -> local0
     t1 = extract local0, 0 : i1
-    t2 = call @scoop_rt_box(global6, t1, 1) : ptr
+    t2 = call @scoop_rt_box(global6, t1, 1) : ptr<managed>
     call @scoop.println(t2)
     t3 = aggregate () : {}
     t4 = extract local0, 1 : i64
-    t5 = call @scoop_rt_box(global7, t4, 8) : ptr
+    t5 = call @scoop_rt_box(global7, t4, 8) : ptr<managed>
     call @scoop.println(t5)
     t6 = aggregate () : {}
     t7 = local_address local0 : ptr
@@ -650,11 +650,11 @@ Module
     t10 = raw_load local1 align 8 : struct0
     store t10 -> local2
     t11 = extract local2, 0 : i1
-    t12 = call @scoop_rt_box(global6, t11, 1) : ptr
+    t12 = call @scoop_rt_box(global6, t11, 1) : ptr<managed>
     call @scoop.println(t12)
     t13 = aggregate () : {}
     t14 = extract local2, 1 : i64
-    t15 = call @scoop_rt_box(global7, t14, 8) : ptr
+    t15 = call @scoop_rt_box(global7, t14, 8) : ptr<managed>
     call @scoop.println(t15)
     t16 = aggregate () : {}
     t17 = aggregate (true, local0, 11) : struct1
@@ -677,7 +677,7 @@ Module
   block logic.merge.3
     cbr local8 then @if.then.4 else @if.merge.5
   block if.then.4
-    t24 = call @scoop.ctor.IndexOutOfBoundsException() : ptr
+    t24 = call @scoop.ctor.IndexOutOfBoundsException() : ptr<managed>
     store t24 -> local9
     throw local9
     unreachable
@@ -685,7 +685,7 @@ Module
     t25 = array_get local4 local5 : struct1
     t26 = extract t25, 1 : struct0
     t27 = extract t26, 1 : i64
-    t28 = call @scoop_rt_box(global7, t27, 8) : ptr
+    t28 = call @scoop_rt_box(global7, t27, 8) : ptr<managed>
     call @scoop.println(t28)
     t29 = aggregate () : {}
     store local3 -> local6
@@ -703,62 +703,62 @@ Module
   block logic.merge.8
     cbr local10 then @if.then.9 else @if.merge.10
   block if.then.9
-    t33 = call @scoop.ctor.IndexOutOfBoundsException() : ptr
+    t33 = call @scoop.ctor.IndexOutOfBoundsException() : ptr<managed>
     store t33 -> local11
     throw local11
     unreachable
   block if.merge.10
     t34 = array_get local6 local7 : struct1
     t35 = extract t34, 2 : i64
-    t36 = call @scoop_rt_box(global7, t35, 8) : ptr
+    t36 = call @scoop_rt_box(global7, t35, 8) : ptr<managed>
     call @scoop.println(t36)
     t37 = aggregate () : {}
     t38 = aggregate (17) : struct2
     t39 = extract t38, 0 : i64
-    t40 = call @scoop_rt_box(global7, t39, 8) : ptr
+    t40 = call @scoop_rt_box(global7, t39, 8) : ptr<managed>
     call @scoop.println(t40)
     t41 = aggregate () : {}
     ret
-  fun @scoop.ctor.Throwable() -> ptr
+  fun @scoop.ctor.Throwable() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global8, 16) : ptr
+    t0 = call @scoop_rt_alloc(global8, 16) : ptr<managed>
     ret t0
-  fun @scoop.ctor.Exception(enum0) -> ptr
+  fun @scoop.ctor.Exception(enum0) -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global9, 24) : ptr
+    t0 = call @scoop_rt_alloc(global9, 24) : ptr<managed>
     heap_store t0 +16 param0
     ret t0
-  fun @scoop.ctor.UnwrapException() -> ptr
+  fun @scoop.ctor.UnwrapException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global10, 24) : ptr
+    t0 = call @scoop_rt_alloc(global10, 24) : ptr<managed>
     t1 = enum_wrap e0 v0 (global1) : enum0
     heap_store t0 +16 t1
     ret t0
-  fun @scoop.ctor.ClassCastException() -> ptr
+  fun @scoop.ctor.ClassCastException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global11, 24) : ptr
+    t0 = call @scoop_rt_alloc(global11, 24) : ptr<managed>
     t1 = enum_wrap e0 v0 (global2) : enum0
     heap_store t0 +16 t1
     ret t0
-  fun @scoop.ctor.ArithmeticException() -> ptr
+  fun @scoop.ctor.ArithmeticException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global12, 24) : ptr
+    t0 = call @scoop_rt_alloc(global12, 24) : ptr<managed>
     t1 = enum_wrap e0 v0 (global3) : enum0
     heap_store t0 +16 t1
     ret t0
-  fun @scoop.ctor.IndexOutOfBoundsException() -> ptr
+  fun @scoop.ctor.IndexOutOfBoundsException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global13, 24) : ptr
+    t0 = call @scoop_rt_alloc(global13, 24) : ptr<managed>
     t1 = enum_wrap e0 v0 (global4) : enum0
     heap_store t0 +16 t1
     ret t0
-  fun @scoop.ctor.IllegalStateException() -> ptr
+  fun @scoop.ctor.IllegalStateException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global14, 24) : ptr
+    t0 = call @scoop_rt_alloc(global14, 24) : ptr<managed>
     t1 = enum_wrap e0 v0 (global5) : enum0
     heap_store t0 +16 t1
     ret t0
-  fun @scoop.eq.B(ptr, ptr) -> i1
+  fun @scoop.eq.B(ptr<managed>, ptr<managed>) -> i1
     local %0 $a: i1
     local %1 $b: i1
   block entry
@@ -768,14 +768,14 @@ Module
     store t1 -> local1
     t2 = Eq local0, local1 : i1
     ret t2
-  fun @scoop.tostring.B(ptr) -> ptr
-    local %0 $call.1: ptr
+  fun @scoop.tostring.B(ptr<managed>) -> ptr<managed>
+    local %0 $call.1: ptr<managed>
   block entry
     t0 = heap_load param0 +16 : i1
-    t1 = call @scoop_rt_bool_to_string(t0) : ptr
+    t1 = call @scoop_rt_bool_to_string(t0) : ptr<managed>
     store t1 -> local0
     ret local0
-  fun @scoop.eq.I(ptr, ptr) -> i1
+  fun @scoop.eq.I(ptr<managed>, ptr<managed>) -> i1
     local %0 $a: i64
     local %1 $b: i64
   block entry
@@ -785,11 +785,11 @@ Module
     store t1 -> local1
     t2 = Eq local0, local1 : i1
     ret t2
-  fun @scoop.tostring.I(ptr) -> ptr
-    local %0 $call.1: ptr
+  fun @scoop.tostring.I(ptr<managed>) -> ptr<managed>
+    local %0 $call.1: ptr<managed>
   block entry
     t0 = heap_load param0 +16 : i64
-    t1 = call @scoop_rt_int_to_string(t0) : ptr
+    t1 = call @scoop_rt_int_to_string(t0) : ptr<managed>
     store t1 -> local0
     ret local0
   td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0

@@ -157,6 +157,7 @@ pub fn lower(module: &mir::Module) -> lir::Module {
     for (id, string) in module.strings.iter() {
         let global = globals.alloc(lir::Global {
             symbol: string.symbol.clone(),
+            address_kind: lir::PointerKind::Managed,
             init: lir::GlobalInit::StringConst(string.value.clone()),
         });
         string_global_map.insert(id, global);
@@ -258,6 +259,7 @@ fn lower_globals(
             } => {
                 let lir_id = globals.alloc(lir::Global {
                     symbol: global.symbol.clone(),
+                    address_kind: lir::PointerKind::Raw,
                     init: lir::GlobalInit::Storage {
                         ty: lir_type(&global.ty),
                         initializer: lower_constant(initializer),
@@ -494,7 +496,10 @@ fn compute_repr(module: &mir::Module, reprs: &mut Vec<Option<lir::EnumRepr>>, id
             .find(|(_, v)| !v.fields.is_empty());
         if let (true, Some((payload_index, payload_variant))) = (has_unit, payload) {
             if payload_variant.fields.len() == 1
-                && lir_type(&payload_variant.fields[0].ty) == lir::LirType::Ptr
+                && matches!(
+                    lir_type(&payload_variant.fields[0].ty),
+                    lir::LirType::Ptr(_)
+                )
             {
                 reprs[index] = Some(lir::EnumRepr::Niche {
                     payload_variant: payload_index as u32,
@@ -1313,9 +1318,9 @@ fn lir_type(ty: &mir::Type) -> lir::LirType {
         | mir::Type::Class(_)
         | mir::Type::Interface(_)
         | mir::Type::Function(_)
-        | mir::Type::Ptr(_)
-        | mir::Type::FunPtr(_)
-        | mir::Type::Any => lir::LirType::Ptr,
+        | mir::Type::Any => lir::LirType::Ptr(lir::PointerKind::Managed),
+        mir::Type::Ptr(_) => lir::LirType::Ptr(lir::PointerKind::Raw),
+        mir::Type::FunPtr(_) => lir::LirType::Ptr(lir::PointerKind::Code),
         mir::Type::Array(element) | mir::Type::MutableArray(element) => {
             lir::LirType::Array(Box::new(lir_type(element)))
         }
@@ -1751,7 +1756,7 @@ impl<'a> FunctionLowerer<'a> {
             return slots;
         }
         let record = self.new_hidden_local(lir::LirType::ExceptionRecord);
-        let raw = self.new_hidden_local(lir::LirType::Ptr);
+        let raw = self.new_hidden_local(lir::RAW_PTR);
         let slots = (record, raw);
         self.exception_slots = Some(slots);
         slots
@@ -2016,7 +2021,7 @@ impl<'a> FunctionLowerer<'a> {
             mir::EhStatement::LandingPad { cleanup } => {
                 let (record_slot, raw_slot) = self.exception_slots();
                 let record = self.new_temp(lir::LirType::ExceptionRecord);
-                let raw = self.new_temp(lir::LirType::Ptr);
+                let raw = self.new_temp(lir::RAW_PTR);
                 if *cleanup {
                     self.push(lir::Instruction::CleanupPad { record, raw });
                 } else {
@@ -2033,7 +2038,7 @@ impl<'a> FunctionLowerer<'a> {
             }
             mir::EhStatement::BeginCatch => {
                 let (_, raw_slot) = self.exception_slots();
-                let exception = self.new_temp(lir::LirType::Ptr);
+                let exception = self.new_temp(lir::MANAGED_PTR);
                 self.push(lir::Instruction::BeginCatch {
                     out: exception,
                     raw: lir::Value::Local(raw_slot),
@@ -2041,7 +2046,7 @@ impl<'a> FunctionLowerer<'a> {
                 let slot = match self.caught_exception {
                     Some(slot) => slot,
                     None => {
-                        let slot = self.new_hidden_local(lir::LirType::Ptr);
+                        let slot = self.new_hidden_local(lir::MANAGED_PTR);
                         self.caught_exception = Some(slot);
                         slot
                     }
@@ -2202,7 +2207,7 @@ impl<'a> FunctionLowerer<'a> {
                     "a ClassInit initializes every flattened field"
                 );
                 let td = self.td_ref(&mir::Type::Class(*class_id));
-                let out = self.new_temp(lir::LirType::Ptr);
+                let out = self.new_temp(lir::MANAGED_PTR);
                 self.push(lir::Instruction::Call {
                     out: Some(out),
                     symbol: ALLOC_SYMBOL.to_string(),
@@ -2232,7 +2237,7 @@ impl<'a> FunctionLowerer<'a> {
                     "ClosureAlloc initializes every capture field"
                 );
                 let td = lir::Value::Global(self.td_global(td_symbol(&def.name)));
-                let out = self.new_temp(lir::LirType::Ptr);
+                let out = self.new_temp(lir::MANAGED_PTR);
                 self.push(lir::Instruction::Call {
                     out: Some(out),
                     symbol: ALLOC_SYMBOL.to_string(),
@@ -2240,7 +2245,7 @@ impl<'a> FunctionLowerer<'a> {
                 });
                 let invoke_function = self.module.closure_invoke_functions[def.invoke].function;
                 let invoke_symbol = self.module.functions[invoke_function].symbol.clone();
-                let invoke = self.new_temp(lir::LirType::Ptr);
+                let invoke = self.new_temp(lir::CODE_PTR);
                 self.push(lir::Instruction::FunctionAddress {
                     out: invoke,
                     symbol: invoke_symbol,
@@ -2339,7 +2344,7 @@ impl<'a> FunctionLowerer<'a> {
             }
             mir::Expr::PtrFromUInt { operand, .. } => {
                 let value = self.lower_expr(operand, &mir::Type::UInt);
-                let out = self.new_temp(lir::LirType::Ptr);
+                let out = self.new_temp(lir::RAW_PTR);
                 self.push(lir::Instruction::IntToPtr { out, value });
                 lir::Value::Temp(out)
             }
@@ -2415,12 +2420,12 @@ impl<'a> FunctionLowerer<'a> {
             }
             mir::Expr::AddressOf { local, .. } => {
                 let local = self.local_slot(*local);
-                let out = self.new_temp(lir::LirType::Ptr);
+                let out = self.new_temp(lir::RAW_PTR);
                 self.push(lir::Instruction::LocalAddress { out, local });
                 lir::Value::Temp(out)
             }
             mir::Expr::GlobalAddress { global, .. } => {
-                let out = self.new_temp(lir::LirType::Ptr);
+                let out = self.new_temp(lir::RAW_PTR);
                 match self.storage_globals[global] {
                     StorageGlobal::Local(global) => {
                         self.push(lir::Instruction::GlobalAddress { out, global })
@@ -2443,7 +2448,7 @@ impl<'a> FunctionLowerer<'a> {
             }
             mir::Expr::FunPtrNull(_) => lir::Value::NullPtr,
             mir::Expr::FunctionAddress { callback } => {
-                let out = self.new_temp(lir::LirType::Ptr);
+                let out = self.new_temp(lir::CODE_PTR);
                 self.push(lir::Instruction::FunctionAddress {
                     out,
                     symbol: format!("scoop_c_callback_{}", callback.into_raw().into_u32()),
@@ -2481,7 +2486,7 @@ impl<'a> FunctionLowerer<'a> {
                 let td = self.td_ref(&payload_ty);
                 let enum_shape = |id: mir::EnumId| repr_shape(&self.enums[enum_def_id(id)].repr);
                 let (size, _) = size_align(self.module, &enum_shape, &payload_ty);
-                let out = self.new_temp(lir::LirType::Ptr);
+                let out = self.new_temp(lir::MANAGED_PTR);
                 self.push(lir::Instruction::Call {
                     out: Some(out),
                     symbol: mir::RuntimeFn::Box.symbol().to_string(),
@@ -2644,7 +2649,7 @@ impl<'a> FunctionLowerer<'a> {
         } else {
             bytes
         };
-        let out = self.new_temp(lir::LirType::Ptr);
+        let out = self.new_temp(lir::RAW_PTR);
         self.push(lir::Instruction::PtrOffset {
             out,
             pointer,
@@ -2665,6 +2670,7 @@ impl<'a> FunctionLowerer<'a> {
         *self.cstr_count += 1;
         let global = self.globals.alloc(lir::Global {
             symbol,
+            address_kind: lir::PointerKind::Raw,
             init: lir::GlobalInit::CString(message.to_string()),
         });
         let block = self.new_block("unwrap.trap");
@@ -2699,6 +2705,7 @@ impl<'a> FunctionLowerer<'a> {
         }
         let id = self.globals.alloc(lir::Global {
             symbol: symbol.clone(),
+            address_kind: lir::PointerKind::Metadata,
             init: lir::GlobalInit::CString(String::new()),
         });
         self.td_map.insert(symbol, id);
@@ -2750,7 +2757,7 @@ impl<'a> FunctionLowerer<'a> {
                         let mut bridge_args =
                             Vec::with_capacity(args.len() + usize::from(result.is_some()));
                         if let Some(local) = result {
-                            let address = self.new_temp(lir::LirType::Ptr);
+                            let address = self.new_temp(lir::RAW_PTR);
                             self.push(lir::Instruction::LocalAddress {
                                 out: address,
                                 local,
@@ -2761,7 +2768,7 @@ impl<'a> FunctionLowerer<'a> {
                             let ty = self.value_type(&ty);
                             let local = self.new_hidden_local(ty);
                             self.push(lir::Instruction::Store { local, value });
-                            let address = self.new_temp(lir::LirType::Ptr);
+                            let address = self.new_temp(lir::RAW_PTR);
                             self.push(lir::Instruction::LocalAddress {
                                 out: address,
                                 local,
@@ -2818,9 +2825,9 @@ impl<'a> FunctionLowerer<'a> {
                     .zip(&parameter_types)
                     .map(|(arg, ty)| self.lower_expr(arg, ty))
                     .collect();
-                let td = self.load_at_offset(args[0], 0, lir::LirType::Ptr);
+                let td = self.load_at_offset(args[0], 0, lir::METADATA_PTR);
                 let target_td = self.td_ref(&mir::Type::Function(function_type));
-                let table = self.new_temp(lir::LirType::Ptr);
+                let table = self.new_temp(lir::METADATA_PTR);
                 self.push(lir::Instruction::Call {
                     out: Some(table),
                     symbol: mir::RuntimeFn::ITableLookup.symbol().to_string(),
@@ -2894,18 +2901,18 @@ impl<'a> FunctionLowerer<'a> {
                     // object header holds the TypeDescriptor, whose
                     // vtable pointer is `ScoopTypeDescriptor` field 5.
                     mir::CallKind::Virtual { slot } => {
-                        let td = self.load_at_offset(args[0], 0, lir::LirType::Ptr);
+                        let td = self.load_at_offset(args[0], 0, lir::METADATA_PTR);
                         let vtable =
-                            self.load_at_offset(lir::Value::Temp(td), 5 * 8, lir::LirType::Ptr);
+                            self.load_at_offset(lir::Value::Temp(td), 5 * 8, lir::METADATA_PTR);
                         self.finish_indirect(vtable, slot, args, returns_unit, result_ty)
                     }
                     // itable dispatch: `scoop_rt_itable_lookup(td,
                     // iface_td)` finds the interface's table by its
                     // TypeDescriptor key.
                     mir::CallKind::Interface { interface, slot } => {
-                        let td = self.load_at_offset(args[0], 0, lir::LirType::Ptr);
+                        let td = self.load_at_offset(args[0], 0, lir::METADATA_PTR);
                         let iface_td = self.td_ref(&mir::Type::Interface(interface));
-                        let table = self.new_temp(lir::LirType::Ptr);
+                        let table = self.new_temp(lir::METADATA_PTR);
                         self.push(lir::Instruction::Call {
                             out: Some(table),
                             symbol: mir::RuntimeFn::ITableLookup.symbol().to_string(),
@@ -2983,7 +2990,7 @@ impl<'a> FunctionLowerer<'a> {
                     mir::RuntimeFn::StringConcat
                     | mir::RuntimeFn::IntToString
                     | mir::RuntimeFn::BoolToString => {
-                        self.call_with_result(symbol, args, lir::LirType::Ptr)
+                        self.call_with_result(symbol, args, lir::MANAGED_PTR)
                     }
                     mir::RuntimeFn::StringEq => {
                         self.call_with_result(symbol, args, lir::LirType::I1)
@@ -2998,7 +3005,7 @@ impl<'a> FunctionLowerer<'a> {
                     mir::RuntimeFn::Unpin
                     | mir::RuntimeFn::ReleaseHandle
                     | mir::RuntimeFn::MaterializeException => {
-                        self.call_with_result(symbol, args, lir::LirType::Ptr)
+                        self.call_with_result(symbol, args, lir::MANAGED_PTR)
                     }
                     mir::RuntimeFn::GcCollect => {
                         self.push(lir::Instruction::Call {
@@ -3645,7 +3652,7 @@ mod tests {
 Module
   global @scoop.str.0 = \"hello, world\"
   global @scoop.str.1 = \"!\"
-  extern ef0 write @scoop_rt_write(ptr) -> {} <scoop managed nounwind>
+  extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
   fun @scoop.helper() -> void
   block entry
     native_call[native-borrowed] extern0(global1)
@@ -3737,7 +3744,7 @@ Module
 Module
   global @scoop.str.0 = \"ok\"
   global @scoop.str.1 = \"ng\"
-  extern ef0 write @scoop_rt_write(ptr) -> {} <scoop managed nounwind>
+  extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
   fun @scoop_main() -> void
   block entry
     cbr true then @if.then.1 else @if.else.2
@@ -4098,7 +4105,7 @@ Module
             panic!("string concat must produce a value")
         };
         assert_eq!(symbol, "scoop_rt_string_concat");
-        assert_eq!(function.temps[*concat_out].ty, lir::LirType::Ptr);
+        assert_eq!(function.temps[*concat_out].ty, lir::MANAGED_PTR);
         assert!(matches!(instructions[1], lir::Instruction::Store { .. }));
 
         let lir::Instruction::Call {
@@ -4123,7 +4130,7 @@ Module
             panic!("intToString must produce a value")
         };
         assert_eq!(symbol, "scoop_rt_int_to_string");
-        assert_eq!(function.temps[*its_out].ty, lir::LirType::Ptr);
+        assert_eq!(function.temps[*its_out].ty, lir::MANAGED_PTR);
         assert!(matches!(instructions[5], lir::Instruction::Store { .. }));
 
         let lir::Instruction::Call {
@@ -4135,7 +4142,7 @@ Module
             panic!("boolToString must produce a value")
         };
         assert_eq!(symbol, "scoop_rt_bool_to_string");
-        assert_eq!(function.temps[*bts_out].ty, lir::LirType::Ptr);
+        assert_eq!(function.temps[*bts_out].ty, lir::MANAGED_PTR);
         assert!(matches!(instructions[7], lir::Instruction::Store { .. }));
 
         // User calls return void; the Unit value is a fresh empty
@@ -4740,11 +4747,11 @@ Module
 
         let expected = "\
 Module
-  fun @scoop.tostring.I(ptr) -> ptr
-    local %0 $call.1: ptr
+  fun @scoop.tostring.I(ptr<managed>) -> ptr<managed>
+    local %0 $call.1: ptr<managed>
   block entry
     t0 = heap_load param0 +16 : i64
-    t1 = call @scoop_rt_int_to_string(t0) : ptr
+    t1 = call @scoop_rt_int_to_string(t0) : ptr<managed>
     store t1 -> local0
     ret local0
   fun @scoop_main() -> void
@@ -4897,14 +4904,14 @@ Module
   fun @scoop_main() -> void
     local %0 o: enum0
     local %1 t: i64
-    local %2 p: ptr
+    local %2 p: ptr<managed>
     local %3 o2: enum0
   block entry
     t0 = enum_wrap e0 v1 () : enum0
     store t0 -> local0
     t1 = enum_tag e0 local0 : i64
     store t1 -> local1
-    t2 = enum_field e0 v0 f0 local0 : ptr
+    t2 = enum_field e0 v0 f0 local0 : ptr<managed>
     store t2 -> local2
     t3 = enum_wrap e0 v0 (local2) : enum0
     store t3 -> local3
@@ -5747,15 +5754,15 @@ Module
         // vtable[3].
         let expected = "\
 Module
-  fun @scoop.C.m(ptr) -> i64
+  fun @scoop.C.m(ptr<managed>) -> i64
   block entry
     ret 1
   fun @scoop_main() -> void
-    local %0 p: ptr
+    local %0 p: ptr<managed>
     local %1 r: i64
   block entry
-    t0 = heap_load local0 +0 : ptr
-    t1 = heap_load t0 +40 : ptr
+    t0 = heap_load local0 +0 : ptr<metadata>
+    t1 = heap_load t0 +40 : ptr<metadata>
     t2 = call_indirect t1[3](local0) : i64
     store t2 -> local1
     ret
@@ -5811,11 +5818,11 @@ Module
 Module
   global @scoop_td_Describable = c\"\"
   fun @scoop_main() -> void
-    local %0 i: ptr
+    local %0 i: ptr<managed>
     local %1 r: i64
   block entry
-    t0 = heap_load local0 +0 : ptr
-    t1 = call @scoop_rt_itable_lookup(t0, global0) : ptr
+    t0 = heap_load local0 +0 : ptr<metadata>
+    t1 = call @scoop_rt_itable_lookup(t0, global0) : ptr<metadata>
     t2 = call_indirect t1[1](local0) : i64
     store t2 -> local1
     ret
@@ -6050,12 +6057,12 @@ Module
 Module
   global @scoop_td_box$S = c\"\"
   fun @scoop_main() -> void
-    local %0 a: ptr
+    local %0 a: ptr<managed>
     local %1 v: struct0
     local %2 chk: i1
   block entry
     t0 = aggregate (1) : struct0
-    t1 = call @scoop_rt_box(global0, t0, 8) : ptr
+    t1 = call @scoop_rt_box(global0, t0, 8) : ptr<managed>
     store t1 -> local0
     t2 = heap_load local0 +16 : struct0
     store t2 -> local1
@@ -6150,15 +6157,15 @@ Module
         let expected = "\
 Module
   fun @scoop_main() -> void
-    local %0 v: ptr
+    local %0 v: ptr<managed>
     local %1 $call.1: i64
     local %2 h: struct0
-    local %3 $gc.1: ptr
-    local %4 p: ptr
+    local %3 $gc.1: ptr<managed>
+    local %4 p: ptr<managed>
     local %5 $call.2: i64
     local %6 gh: struct1
-    local %7 $gc.2: ptr
-    local %8 p2: ptr
+    local %7 $gc.2: ptr<managed>
+    local %8 p2: ptr<managed>
     local %9 n: i64
   block entry
     t0 = call @scoop_rt_pin(local0) : i64
@@ -6166,7 +6173,7 @@ Module
     t1 = aggregate (local1) : struct0
     store t1 -> local2
     t2 = extract local2, 0 : i64
-    t3 = call @scoop_rt_unpin(t2) : ptr
+    t3 = call @scoop_rt_unpin(t2) : ptr<managed>
     store t3 -> local3
     store local3 -> local4
     t4 = call @scoop_rt_get_handle(local0) : i64
@@ -6174,7 +6181,7 @@ Module
     t5 = aggregate (local5) : struct1
     store t5 -> local6
     t6 = extract local6, 0 : i64
-    t7 = call @scoop_rt_release_handle(t6) : ptr
+    t7 = call @scoop_rt_release_handle(t6) : ptr<managed>
     store t7 -> local7
     store local7 -> local8
     call @scoop_rt_gc_collect()
@@ -6225,7 +6232,7 @@ Module
             panic!("a class field read must be a heap object load")
         };
         assert_eq!(*offset, 24);
-        assert_eq!(function.temps[*out].ty, lir::LirType::Ptr);
+        assert_eq!(function.temps[*out].ty, lir::MANAGED_PTR);
     }
 
     #[test]
@@ -6286,16 +6293,16 @@ Module
 Module
   global @scoop.str.0 = \"x\"
   global @scoop_td_Point = c\"\"
-  fun @scoop.ctor.Point(i64, ptr) -> ptr
+  fun @scoop.ctor.Point(i64, ptr<managed>) -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global1, 32) : ptr
+    t0 = call @scoop_rt_alloc(global1, 32) : ptr<managed>
     heap_store t0 +16 param0
     heap_store t0 +24 param1
     ret t0
   fun @scoop_main() -> void
-    local %0 p: ptr
+    local %0 p: ptr<managed>
   block entry
-    t0 = call @scoop.ctor.Point(1, global0) : ptr
+    t0 = call @scoop.ctor.Point(1, global0) : ptr<managed>
     store t0 -> local0
     ret
   td Point @scoop_td_Point size=32 vtable=3 itables=0
@@ -6429,24 +6436,24 @@ Module
   block entry
     ret
   fun @scoop_main() -> void
-    local %0 e: ptr
+    local %0 e: ptr<managed>
     local %1 $sc.1: exception_record
-    local %2 $sc.2: ptr
-    local %3 $sc.3: ptr
+    local %2 $sc.2: ptr<raw>
+    local %3 $sc.3: ptr<managed>
   block entry
     br @try.body.8
   block try.unwind.1
-    (t0, t1) = landingpad : (exception_record, ptr)
+    (t0, t1) = landingpad : (exception_record, ptr<raw>)
     store t0 -> local1
     store t1 -> local2
     br @try.dispatch.2
   block try.dispatch.2
-    t2 = begin_catch local2 : ptr
+    t2 = begin_catch local2 : ptr<managed>
     store t2 -> local3
     t3 = call @scoop_rt_is_instance(local3, global0) : i1
     cbr t3 then @try.catch.9 else @try.next.10
   block try.handler_pad.3
-    (t4, t5) = cleanup_pad : (exception_record, ptr)
+    (t4, t5) = cleanup_pad : (exception_record, ptr<raw>)
     store t4 -> local1
     store t5 -> local2
     br @try.handler_cleanup.4
@@ -6454,7 +6461,7 @@ Module
     end_catch
     resume local1
   block try.exit_pad.5
-    (t6, t7) = cleanup_pad : (exception_record, ptr)
+    (t6, t7) = cleanup_pad : (exception_record, ptr<raw>)
     store t6 -> local1
     store t7 -> local2
     br @try.exit_cleanup.6
@@ -6691,21 +6698,21 @@ Module
   fun @scoop.f() -> i64
     local %0 $return.1: i64
     local %1 $sc.1: exception_record
-    local %2 $sc.2: ptr
-    local %3 $sc.3: ptr
+    local %2 $sc.2: ptr<raw>
+    local %3 $sc.3: ptr<managed>
   block entry
     br @try.body.6
   block try.unwind.1
-    (t0, t1) = landingpad : (exception_record, ptr)
+    (t0, t1) = landingpad : (exception_record, ptr<raw>)
     store t0 -> local1
     store t1 -> local2
     br @try.dispatch.2
   block try.dispatch.2
-    t2 = begin_catch local2 : ptr
+    t2 = begin_catch local2 : ptr<managed>
     store t2 -> local3
     br @scope.8
   block try.exit_pad.3
-    (t3, t4) = cleanup_pad : (exception_record, ptr)
+    (t3, t4) = cleanup_pad : (exception_record, ptr<raw>)
     store t3 -> local1
     store t4 -> local2
     br @try.exit_cleanup.4
@@ -6793,14 +6800,14 @@ Module
         let expected = "\
 Module
   global @scoop_td_MyError = c\"\"
-  fun @scoop.makeError() -> ptr
+  fun @scoop.makeError() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global0, 16) : ptr
+    t0 = call @scoop_rt_alloc(global0, 16) : ptr<managed>
     ret t0
   fun @scoop_main() -> void
-    local %0 $call.1: ptr
+    local %0 $call.1: ptr<managed>
   block entry
-    t0 = call @scoop.makeError() : ptr
+    t0 = call @scoop.makeError() : ptr<managed>
     store t0 -> local0
     throw local0
     unreachable

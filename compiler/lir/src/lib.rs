@@ -35,7 +35,7 @@ pub enum LirType {
     Void,
     I1,
     I64,
-    Ptr,
+    Ptr(PointerKind),
     /// Opaque Itanium EH landing-pad record (`{ ptr, i32 }` in LLVM).
     /// It is produced by exception pads and may be consumed by `Resume`.
     ExceptionRecord,
@@ -53,13 +53,41 @@ pub enum LirType {
     Enum(EnumDefId),
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum PointerKind {
+    /// A GC-traced reference to a managed heap object.
+    Managed,
+    /// A native address that the GC must neither trace nor relocate.
+    Raw,
+    /// An executable function address.
+    Code,
+    /// An immortal runtime descriptor or dispatch-table address.
+    Metadata,
+}
+
+pub const MANAGED_PTR: LirType = LirType::Ptr(PointerKind::Managed);
+pub const RAW_PTR: LirType = LirType::Ptr(PointerKind::Raw);
+pub const CODE_PTR: LirType = LirType::Ptr(PointerKind::Code);
+pub const METADATA_PTR: LirType = LirType::Ptr(PointerKind::Metadata);
+
+impl PointerKind {
+    pub fn dump(self) -> &'static str {
+        match self {
+            Self::Managed => "managed",
+            Self::Raw => "raw",
+            Self::Code => "code",
+            Self::Metadata => "metadata",
+        }
+    }
+}
+
 impl LirType {
     pub fn dump(&self) -> String {
         match self {
             LirType::Void => "void".to_string(),
             LirType::I1 => "i1".to_string(),
             LirType::I64 => "i64".to_string(),
-            LirType::Ptr => "ptr".to_string(),
+            LirType::Ptr(kind) => format!("ptr<{}>", kind.dump()),
             LirType::ExceptionRecord => "exception_record".to_string(),
             LirType::Aggregate(elements) => {
                 let inner: Vec<String> = elements.iter().map(LirType::dump).collect();
@@ -304,6 +332,8 @@ impl RefScan {
 #[derive(Debug)]
 pub struct Global {
     pub symbol: String,
+    /// Provenance of the address produced by `Value::Global`.
+    pub address_kind: PointerKind,
     pub init: GlobalInit,
 }
 
@@ -415,11 +445,8 @@ impl Function {
             Value::Param(index) => self.params[index as usize].clone(),
             Value::IntConst(_) => LirType::I64,
             Value::BoolConst(_) => LirType::I1,
-            Value::NullPtr => LirType::Ptr,
-            Value::Global(id) => {
-                let _ = &globals[id];
-                LirType::Ptr
-            }
+            Value::NullPtr => LirType::Ptr(PointerKind::Raw),
+            Value::Global(id) => LirType::Ptr(globals[id].address_kind),
         }
     }
 }

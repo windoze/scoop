@@ -113,7 +113,7 @@ pub fn c_layout_assertions(module: &Module) -> Result<String, CodegenError> {
         Ok(match ty {
             LirType::I1 => "_Bool".to_string(),
             LirType::I64 => "uint64_t".to_string(),
-            LirType::Ptr => "void *".to_string(),
+            LirType::Ptr(_) => "void *".to_string(),
             LirType::Struct(id) if module.structs[*id].c_layout.is_some() => {
                 format!("scoop_c_layout_{}", arena_index(*id))
             }
@@ -809,7 +809,7 @@ fn basic_ty<'ctx>(
         }
         LirType::I1 => context.bool_type().into(),
         LirType::I64 => context.i64_type().into(),
-        LirType::Ptr => context.ptr_type(AddressSpace::default()).into(),
+        LirType::Ptr(_) => context.ptr_type(AddressSpace::default()).into(),
         LirType::ExceptionRecord => context
             .struct_type(
                 &[
@@ -930,7 +930,7 @@ fn c_field_size(
 ) -> Result<u64, CodegenError> {
     Ok(match ty {
         LirType::I1 => 1,
-        LirType::I64 | LirType::Ptr => 8,
+        LirType::I64 | LirType::Ptr(_) => 8,
         LirType::Struct(id) => structs[*id].size,
         LirType::Enum(id) if matches!(enums[*id].repr, EnumRepr::Niche { .. }) => 8,
         other => {
@@ -1031,7 +1031,7 @@ fn uses_return_slot(enums: &Arena<EnumDef>, ty: &LirType) -> bool {
     match ty {
         LirType::Aggregate(_) | LirType::Struct(_) | LirType::ExceptionRecord => true,
         LirType::Enum(id) => matches!(enums[*id].repr, EnumRepr::Tagged { .. }),
-        LirType::Void | LirType::I1 | LirType::I64 | LirType::Ptr | LirType::Array(_) => false,
+        LirType::Void | LirType::I1 | LirType::I64 | LirType::Ptr(_) | LirType::Array(_) => false,
     }
 }
 
@@ -3652,7 +3652,8 @@ mod tests {
     use la_arena::Arena;
     use scoop_lir::{
         BasicBlock, EnumDef, EnumRepr, Global, GlobalInit, ItableRecord, Layout, LayoutKind,
-        LirMeta, Local, Temp, TypeDescriptor, VariantLayout,
+        LirMeta, Local, MANAGED_PTR, METADATA_PTR, PointerKind, RAW_PTR, Temp, TypeDescriptor,
+        VariantLayout,
     };
 
     use super::*;
@@ -3664,10 +3665,12 @@ mod tests {
         let mut globals = Arena::default();
         let hello = globals.alloc(Global {
             symbol: "scoop.string.0".to_string(),
+            address_kind: PointerKind::Managed,
             init: GlobalInit::StringConst("hello, ".to_string()),
         });
         let world = globals.alloc(Global {
             symbol: "scoop.string.1".to_string(),
+            address_kind: PointerKind::Managed,
             init: GlobalInit::StringConst("world".to_string()),
         });
 
@@ -3703,7 +3706,7 @@ mod tests {
         // t5 = !true
         let t5 = temp(&mut temps, LirType::I1);
         // t6 = concat(hello, world)
-        let t6 = temp(&mut temps, LirType::Ptr);
+        let t6 = temp(&mut temps, MANAGED_PTR);
         // t7 = ()
         let t7 = temp(&mut temps, LirType::Aggregate(vec![]));
 
@@ -3879,6 +3882,7 @@ mod tests {
         let mut globals = Arena::default();
         let trap_message = globals.alloc(Global {
             symbol: "scoop.trap.0".to_string(),
+            address_kind: PointerKind::Raw,
             init: GlobalInit::CString("unwrap on None".to_string()),
         });
         let mut enums = Arena::default();
@@ -3887,7 +3891,7 @@ mod tests {
         let shape = enums.alloc(EnumDef {
             name: "Shape".to_string(),
             repr: EnumRepr::Tagged {
-                variants: vec![vec![], vec![LirType::I64], vec![LirType::I64, LirType::Ptr]],
+                variants: vec![vec![], vec![LirType::I64], vec![LirType::I64, MANAGED_PTR]],
                 payload_size: 16,
                 payload_align: 8,
             },
@@ -3921,7 +3925,7 @@ mod tests {
             ty: shape_ty.clone(),
         }); // enum_wrap v2 (t3, p)
         let t5 = tagged_temps.alloc(Temp { ty: LirType::I64 }); // enum_tag s (param)
-        let t6 = tagged_temps.alloc(Temp { ty: LirType::Ptr }); // enum_field v2 f1 s2 (local)
+        let t6 = tagged_temps.alloc(Temp { ty: MANAGED_PTR }); // enum_field v2 f1 s2 (local)
         let t7 = tagged_temps.alloc(Temp { ty: LirType::I64 }); // enum_field v2 f0 t4
         let t8 = tagged_temps.alloc(Temp { ty: LirType::I64 }); // t1 + t3
         let t9 = tagged_temps.alloc(Temp { ty: LirType::I64 }); // t5 + t7
@@ -4015,7 +4019,7 @@ mod tests {
         let tagged = Function {
             gc_effect: GcEffect::Managed,
             symbol: "scoop.tagged".to_string(),
-            params: vec![shape_ty.clone(), LirType::Ptr],
+            params: vec![shape_ty.clone(), MANAGED_PTR],
             return_ty: LirType::I64,
             locals: tagged_locals,
             temps: tagged_temps,
@@ -4032,7 +4036,7 @@ mod tests {
         });
         let mut niche_temps = Arena::default();
         let n0 = niche_temps.alloc(Temp { ty: LirType::I64 }); // enum_tag o (param)
-        let n1 = niche_temps.alloc(Temp { ty: LirType::Ptr }); // enum_field v1 f0 o
+        let n1 = niche_temps.alloc(Temp { ty: MANAGED_PTR }); // enum_field v1 f0 o
         let n2 = niche_temps.alloc(Temp {
             ty: option_ty.clone(),
         }); // enum_wrap v1 (n1)
@@ -4228,7 +4232,7 @@ mod tests {
         let consume_indirect = Function {
             gc_effect: GcEffect::Managed,
             symbol: "scoop.consume_shape_indirect".to_string(),
-            params: vec![LirType::Ptr],
+            params: vec![METADATA_PTR],
             return_ty: LirType::I64,
             locals: Arena::default(),
             temps: indirect_temps,
@@ -4536,8 +4540,8 @@ mod tests {
             Function {
                 gc_effect: GcEffect::Managed,
                 symbol: symbol.to_string(),
-                params: vec![LirType::Ptr],
-                return_ty: LirType::Ptr,
+                params: vec![MANAGED_PTR],
+                return_ty: MANAGED_PTR,
                 locals: Arena::default(),
                 temps: Arena::default(),
                 blocks,
@@ -4550,7 +4554,7 @@ mod tests {
         //   call_indirect table[1](obj)              (void)
         //   ret t0
         let mut temps = Arena::default();
-        let t0 = temps.alloc(Temp { ty: LirType::Ptr });
+        let t0 = temps.alloc(Temp { ty: MANAGED_PTR });
         let mut blocks = Arena::default();
         let entry = blocks.alloc(BasicBlock {
             name: "entry".to_string(),
@@ -4575,8 +4579,8 @@ mod tests {
         let main = Function {
             gc_effect: GcEffect::Managed,
             symbol: "scoop_main".to_string(),
-            params: vec![LirType::Ptr, LirType::Ptr],
-            return_ty: LirType::Ptr,
+            params: vec![METADATA_PTR, MANAGED_PTR],
+            return_ty: MANAGED_PTR,
             locals: Arena::default(),
             temps,
             blocks,
@@ -4685,6 +4689,7 @@ mod tests {
         // the real TD comes from the meta below.
         let point_td_stub = globals.alloc(Global {
             symbol: "scoop_td_Point".to_string(),
+            address_kind: PointerKind::Metadata,
             init: GlobalInit::CString(String::new()),
         });
 
@@ -4701,8 +4706,8 @@ mod tests {
         let describe = Function {
             gc_effect: GcEffect::Managed,
             symbol: "Point.describe".to_string(),
-            params: vec![LirType::Ptr],
-            return_ty: LirType::Ptr,
+            params: vec![MANAGED_PTR],
+            return_ty: MANAGED_PTR,
             locals: Arena::default(),
             temps: Arena::default(),
             blocks: describe_blocks,
@@ -4723,15 +4728,15 @@ mod tests {
         //   t7 = scoop_rt_is_instance(t6, @scoop_td_Point) : i1
         //   call_indirect t4[3](t3); println_int t2; println_boolean t7
         let mut temps = Arena::default();
-        let t0 = temps.alloc(Temp { ty: LirType::Ptr });
-        let t1 = temps.alloc(Temp { ty: LirType::Ptr });
+        let t0 = temps.alloc(Temp { ty: MANAGED_PTR });
+        let t1 = temps.alloc(Temp { ty: METADATA_PTR });
         let t2 = temps.alloc(Temp { ty: LirType::I64 });
-        let t3 = temps.alloc(Temp { ty: LirType::Ptr });
-        let t4 = temps.alloc(Temp { ty: LirType::Ptr });
+        let t3 = temps.alloc(Temp { ty: MANAGED_PTR });
+        let t4 = temps.alloc(Temp { ty: METADATA_PTR });
         let t5 = temps.alloc(Temp {
             ty: LirType::Aggregate(vec![LirType::I64]),
         });
-        let t6 = temps.alloc(Temp { ty: LirType::Ptr });
+        let t6 = temps.alloc(Temp { ty: MANAGED_PTR });
         let t7 = temps.alloc(Temp { ty: LirType::I1 });
         let mut blocks = Arena::default();
         let entry = blocks.alloc(BasicBlock {
@@ -4895,7 +4900,7 @@ mod tests {
         let thrower = Function {
             gc_effect: GcEffect::Managed,
             symbol: "scoop.thrower".to_string(),
-            params: vec![LirType::Ptr],
+            params: vec![MANAGED_PTR],
             return_ty: LirType::Void,
             locals: Arena::default(),
             temps: Arena::default(),
@@ -4918,12 +4923,12 @@ mod tests {
         let t3 = temps.alloc(Temp {
             ty: LirType::ExceptionRecord,
         });
-        let t4 = temps.alloc(Temp { ty: LirType::Ptr });
-        let t5 = temps.alloc(Temp { ty: LirType::Ptr });
+        let t4 = temps.alloc(Temp { ty: RAW_PTR });
+        let t5 = temps.alloc(Temp { ty: MANAGED_PTR });
         let t6 = temps.alloc(Temp {
             ty: LirType::ExceptionRecord,
         });
-        let t7 = temps.alloc(Temp { ty: LirType::Ptr });
+        let t7 = temps.alloc(Temp { ty: RAW_PTR });
         let mut blocks = Arena::default();
         let placeholder = |blocks: &mut Arena<BasicBlock>, name: &str| {
             blocks.alloc(BasicBlock {
@@ -5005,7 +5010,7 @@ mod tests {
         let eh_test = Function {
             gc_effect: GcEffect::Managed,
             symbol: "scoop.eh_test".to_string(),
-            params: vec![LirType::Ptr],
+            params: vec![METADATA_PTR],
             return_ty: LirType::I64,
             locals: Arena::default(),
             temps,
@@ -5086,7 +5091,7 @@ mod tests {
     /// the closure remains the first source-level argument and the suspend
     /// call carries its continuation immediately after it.
     fn closure_abi_module() -> Module {
-        let ordinary_result_ty = LirType::Aggregate(vec![LirType::I64, LirType::Ptr]);
+        let ordinary_result_ty = LirType::Aggregate(vec![LirType::I64, MANAGED_PTR]);
         let suspend_result_ty = LirType::Aggregate(vec![LirType::I64, LirType::I64]);
         let mut temps = Arena::default();
         let ordinary_result = temps.alloc(Temp {
@@ -5125,7 +5130,7 @@ mod tests {
             functions: vec![Function {
                 gc_effect: GcEffect::Managed,
                 symbol: "scoop.closure_abi".to_string(),
-                params: vec![LirType::Ptr, LirType::I64, LirType::Ptr],
+                params: vec![MANAGED_PTR, LirType::I64, MANAGED_PTR],
                 return_ty: LirType::Void,
                 locals: Arena::default(),
                 temps,
@@ -5209,7 +5214,7 @@ mod tests {
     /// safepoint poll.
     fn barrier_module() -> Module {
         let mut temps = Arena::default();
-        let t0 = temps.alloc(Temp { ty: LirType::Ptr }); // alloc result
+        let t0 = temps.alloc(Temp { ty: MANAGED_PTR }); // alloc result
         let mut blocks = Arena::default();
         let entry = blocks.alloc(BasicBlock {
             name: "entry".to_string(),
@@ -5276,7 +5281,7 @@ mod tests {
             functions: vec![Function {
                 gc_effect: GcEffect::Managed,
                 symbol: "scoop_main".to_string(),
-                params: vec![LirType::Ptr, LirType::Array(Box::new(LirType::I64))],
+                params: vec![METADATA_PTR, LirType::Array(Box::new(LirType::I64))],
                 return_ty: LirType::Void,
                 locals: Arena::default(),
                 temps,
@@ -5419,13 +5424,13 @@ mod tests {
         // to the recursive scan for one inline element.
         let mut temps = Arena::default();
         let array = temps.alloc(Temp {
-            ty: LirType::Array(Box::new(LirType::Ptr)),
+            ty: LirType::Array(Box::new(MANAGED_PTR)),
         });
         let nested_array = temps.alloc(Temp {
             ty: LirType::Array(Box::new(LirType::Aggregate(vec![
                 LirType::I64,
-                LirType::Ptr,
-                LirType::Ptr,
+                MANAGED_PTR,
+                MANAGED_PTR,
             ]))),
         });
         let nested_element_scan = RefScan::Sequence(vec![
