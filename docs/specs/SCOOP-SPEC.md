@@ -488,7 +488,7 @@ enum Option<T> {
 - `null` 字面量不存在；表示"无值"使用 `None`。
 - 取值的常规方式是 `when` 解构：`when (s) { Some(v) -> ...; None -> ... }`。**对 `Option<T>` 不提供智能转换**：`isSome()` 之类的判断不会收窄类型（此类收窄的语义存在隐蔽问题，暂不提供；后续如引入会单独修订本节）。
 
-### 7.4 `Option` 的布局保证（niche 优化）
+### 7.4 enum 布局与 `Option` niche 保证
 
 对具有**天然空位（niche）**的类型 `T`，编译器必须保证 `Option<T>` 不增加额外存储：`None` 编码为该空位，`Some(v)` 与 `v` 的表示相同。这是语言的固定特性，而非可选优化。适用类型：
 
@@ -496,6 +496,10 @@ enum Option<T> {
 - **`Ptr<U>` 与 `FunPtr<F>`**：空位是 `_rawPointer == 0u`（null 指针）。
 
 因此 `Option<Ptr<T>>` / `Option<FunPtr<F>>` 可以直接出现在 C ABI 边界上表示可空指针（见 13.10），`Option` 包裹的引用类型与裸引用布局相同。对其他类型 `Option<T>` 带 tag，具体布局不保证。
+
+niche表示的适用范围严格限于与上述`Option<T>`同构的enum：恰有两个variant，其中一个无字段，另一个恰有一个字段，且该字段的具体类型为引用类型、`Ptr<U>`或`FunPtr<F>`；variant名称、顺序以及字段采用位置或命名形式不影响判断。除此之外的enum一律使用tagged表示，不能从其他位模式、整数范围或用户不变量推导niche。
+
+tagged enum的表示由tag、一个可选的**pure-value共享payload区**以及若干**ref-bearing独占连续slot**组成。递归检查后完全不含managed ref的多个variant可以复用同一块共享payload空间；每个直接或间接包含managed ref的variant则必须拥有自己的连续slot，不能与其他variant重叠。共享区或独占slot都按对应variant字段的正常值布局保存其全部字段。构造tagged enum时必须先把整个值（包括共享区、所有inactive ref-bearing slot和padding）清零，再写入tag及当前variant所用的payload；复制按完整值复制。GC只需无条件检查所有ref-bearing独占slot中的固定ref位置，全0 inactive slot不形成引用，扫描不读取tag、不选择variant。`Ptr` / `FunPtr`不是managed ref；在未采用niche的tagged enum中，包含它们但不含managed ref的variant仍属于pure-value共享区。
 
 ---
 
@@ -990,7 +994,10 @@ public import org.foo.bar.SomeType     // SomeType 成为 A 的导出表面的�
 泛型是单态化的（见 3.2），泛型定义必须能导出给下游 Cone、在下游完成实例化，因此 Cone 的编译输出不是纯 `.o` / `.a`，而是 **`.slib`**（类似 Rust 的 `.rlib`），包含：
 
 - 二进制编译结果（`.o`）：已编译的非泛型代码，以及在编译本 Cone 时已产生的单态化实例；
-- 导出泛型所需的 metadata：导出的类型与函数声明、泛型体的中间表示（供下游单态化）、符号表，以及各导出类型的分派表结构（vtable / itable）、TypeDescriptor 符号与类型布局（供下游建表、继承与嵌套布局）等。
+- 下游HIR所需的export metadata：导出的非泛型声明语义接口、泛型声明与template body、`const val`值、调用处实例化的默认表达式，以及这些template引用的类型化依赖闭包；
+- 后续stage所需的MIR/LIR metadata：符号表、各导出类型的分派表结构（vtable / itable）、TypeDescriptor符号与类型布局（供下游建表、继承与嵌套布局）等。
+
+本Cone为了生成`.o`而建立的fully concrete HIR函数体和类型实例只供本Cone的MIR消费，不属于`.slib` export metadata。下游HIR需要的“concrete信息”是导出的非泛型语义接口，而不是上游本地实例体；两者必须具有不同的实体身份，不能共享Cone内arena id。
 
 下游 Cone 编译时读取上游 `.slib` 的 metadata 完成导入解析、类型检查与泛型实例化；最终链接时合并各 Cone 的 `.o`。因此：
 
@@ -1007,7 +1014,7 @@ public import org.foo.bar.SomeType     // SomeType 成为 A 的导出表面的�
 
 以下注解类定义于 `scoop.core`，随默认导入可用。它们修饰的约束大多在编译期检查，违反即为编译错误。
 
-本章多处使用 **GC-free** 的概念：一个类型是 GC-free 的，当且仅当其类型定义中不直接或间接包含任何 ref type（基本类型、`Ptr`、`FunPtr`、`@CLayout` struct 等都是 GC-free 的值类型）；一个函数是 GC-free 的，当且仅当其不读写、不创建任何 ref value（见 13.2）。
+本章多处使用 **GC-free** 的概念：一个类型是 GC-free 的，当且仅当其完全确定的表示中不直接或间接包含任何 ref type（基本类型、`Ptr`、`FunPtr`、不含ref的`@CLayout` struct等都是 GC-free 的值类型）；一个函数是 GC-free 的，当且仅当其不读写、不创建任何 ref value（见 13.2）。GC-free布尔属性只属于不含未解析type parameter的concrete type或fully specialized generic type；每个这样的type实体都必须具有非可选的`gc_free: bool`，不存在“未知”或缺失状态。尚未完全特化的generic declaration不是concrete type，没有GC-free真假flag；编译器可以保存“哪些实参必须GC-free”的符号条件，但该条件不是flag。每个fully specialized enum的每个variant都必须具有非可选`gc_free: bool`，enum自身的flag恒等于所有variant flag的逻辑AND。
 
 ### 13.1 `@Intrinsic`
 
@@ -1031,9 +1038,10 @@ operator fun add(lhs: Int, rhs: Int): Int
 annotation class NoGC
 ```
 
-- 用于 function/method：指明该函数不会/不应与 GC 有任何交互——函数中不读写任何 ref value，也不创建任何 ref type 实例。
+- 用于function/method：指明该函数不会/不应与GC有任何交互——函数中不读写任何ref value，也不创建任何ref type实例。
+- 也可用于`struct`或`enum`，作为“该concrete value type必须GC-free”的静态契约。非generic声明在字段类型解析后立即验证；generic声明本身没有GC-free真假值，每个type parameter全部resolve后的实际类型分别验证。对fully specialized enum，契约同时要求enum整体及每个variant均为GC-free。`@NoGC`不能用于class/interface，因为它们是ref type。
 - 编译期检查；不符合约束是编译错误。
-- generic `@NoGC` callable 可以在签名或 body 中使用类型参数；每个实际影响参数、返回值、receiver、局部值或表达式表示的类型参数，都会在 HIR 形成“实例化实参必须 GC-free”的类型化条件，并经 generic 调用链向外传播。每个具体调用点必须再次验证该条件；未参与运行时表示的 phantom type parameter 不产生条件。
+- generic `@NoGC` callable 可以在签名或 body 中使用类型参数；未特化的generic本身不被判为GC-free或非GC-free。每个实际影响参数、返回值、receiver、局部值或表达式表示的类型参数，都会形成“实例化实参必须GC-free”的类型化条件，并经generic调用链向外传播；只有type parameter全部解析后的具体实例才能用concrete type的GC-free flag验证并成为`@NoGC`实例。未参与运行时表示的phantom type parameter不产生条件。
 - `T : value` 只保证实参是 value type，不保证其递归表示中不含 managed ref，因此不能代替上述 GC-free 条件；`T : ref` 则不可能满足该条件。当前没有单独的源码 bound 语法来声明 GC-free，条件由 `@NoGC` body及其调用图推导。
 - 这样的函数可以安全地跨越 FFI boundary（例如作为 FFI 回调）。
 - 该约束也意味着 `@NoGC` 的成员函数只能属于 value type：class method 有隐含的 `this` 参数，而 `this` 是 ref value。
@@ -1044,6 +1052,13 @@ fun add42(n: Int) = n + 42
 
 @NoGC
 fun <T> identity(value: T): T = value
+
+@NoGC
+struct NativePair(val x: Int, val y: UInt)
+
+// 编译错误：字段直接包含ref
+@NoGC
+struct BadNativeValue(val text: String)
 
 val number = identity<Int>(42)          // 合法：Int 是 GC-free
 val text = identity<String>("managed") // 编译错误：String 是 ref type

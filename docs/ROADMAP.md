@@ -33,11 +33,11 @@ struct / tuple、字段访问、`val` / `var`、if / while、结构相等。
 
 ### M3 泛型与 Option ✅（2026-08-22 完成，设计见 `docs/milestone3/DESIGN.md`）
 
-单态化、`Option<T>`、`T?` 脱糖与 `?.` / `?:` / `!!`（spec 第 7 章）。M3 首版将 Option 作为编译器内建，M4 已迁移为 `scoop.core` 的真正泛型 enum；泛型定义、HIR 解析后实例与 MIR 单态化实例使用三类独立的类型化 id。
+单态化、`Option<T>`、`T?`脱糖与`?.` / `?:` / `!!`（spec第7章）。M3首版将Option作为编译器内建，M4已迁移为`scoop.core`的真正泛型enum；M13边界修订后，export generic template、HIR生成的local concrete实例与MIR实体使用三类独立typed id，MIR不再直接读取template完成单态化。
 
 ### M4 enum 与模式匹配 ✅（2026-08-22 完成，设计见 `docs/milestone4/DESIGN.md`）
 
-enum 变体、when 扩展模式、守卫、穷尽性、解构声明与 `..`（spec 第 4、5 章）。同时建立了 sysroot 框架（`sysroot/lib/scoop.core`），`Option` 与 `print`/`println` 的硬编码定义正式迁移入 core 库；tagged enum 的 per-variant GC 扫描可递归嵌入 struct / tuple / class。
+enum变体、when扩展模式、守卫、穷尽性、解构声明与`..`（spec第4、5章）。同时建立了sysroot框架（`sysroot/lib/scoop.core`），`Option`与`print`/`println`的硬编码定义正式迁移入core库；M13将tagged enum的扫描表示修订为pure-value共享payload、ref-bearing独占slot及不读取tag的固定ref偏移，可递归嵌入struct / tuple / class。
 
 ### M5 数组 ✅（2026-08-27 完成，设计见 `docs/milestone5/DESIGN.md`）
 
@@ -61,11 +61,11 @@ try / catch / finally / throw，landingpad 落地（runtime spec 第 5 章）。
 
 ### M10 协程 ✅（2026-08-31 完成，设计见 `docs/milestone10/DESIGN.md`）
 
-命名 `suspend` 函数/方法、完全类型化的 suspend 状态机变换、`Continuation` 与最小启动/挂起原语（spec 8.2、11.9；impl spec 2.3）。已完成 MIR CFG 化、先单态化后状态机变换、direct / virtual / interface 与型变 bridge 的 hidden ABI、真实挂起/同步完成/失败恢复、异常物化及跨挂起 `catch` / `finally`，并以强制 GC 验证嵌套 frame/adapter 链和递归扫描。高层协程构建器与调度器仍属标准库；M10 以 core 的 `SuspendTask` / `SuspendRegistration` 适配器打通无 lambda 前置依赖的端到端闭环。
+命名`suspend`函数/方法、完全类型化的suspend状态机变换、`Continuation`与最小启动/挂起原语（spec 8.2、11.9；impl spec 2.3）。已完成MIR CFG化、HIR concrete化后再做MIR状态机变换、direct / virtual / interface与型变bridge的hidden ABI、真实挂起/同步完成/失败恢复、异常物化及跨挂起`catch` / `finally`，并以强制GC验证嵌套frame/adapter链和递归扫描。高层协程构建器与调度器仍属标准库；M10以core的`SuspendTask` / `SuspendRegistration`适配器打通无lambda前置依赖的端到端闭环。
 
 ### M11 函数类型、函数值与 closure ✅（2026-08-31 完成，设计见 `docs/milestone11/DESIGN.md`）
 
-已完成 ordinary / suspend function type、lambda、匿名函数、局部函数、callable reference 与捕获 closure 的全链路实现（spec 8.1；impl spec 2.2–2.4）。MIR 固定“单态化 → closure conversion → coroutine transform”顺序；generic callable value、静态/动态函数型变 adapter 与 suspend hidden ABI 均保持完全类型化。M11 采用类似 Java lambda 的保守 capture边界，但以 Scoop 显式声明的不可变性为准，不推导 effectively final：只允许捕获 `val`、参数、`this` 等不可重新绑定的 binding。captured value type按 concrete layout内联于closure，不隐式生成shared cell或boxing。closure/adapter都有独立TypeDescriptor与完整GC扫描描述，并已覆盖异常、真实挂起和强制 GC。core 已在 M10 的 `SuspendTask` / `SuspendRegistration` 协议上增加函数值形态适配重载。
+已完成ordinary / suspend function type、lambda、匿名函数、局部函数、callable reference与捕获closure的全链路实现（spec 8.1；impl spec 2.2–2.4）。跨stage固定“HIR concrete化 → MIR closure conversion → coroutine transform”顺序；generic callable value、静态/动态函数型变adapter与suspend hidden ABI均保持完全类型化。M11采用类似Java lambda的保守capture边界，但以Scoop显式声明的不可变性为准，不推导effectively final：只允许捕获`val`、参数、`this`等不可重新绑定的binding。captured value type按concrete layout内联于closure，不隐式生成shared cell或boxing。closure/adapter都有独立TypeDescriptor与完整GC扫描描述，并已覆盖异常、真实挂起和强制GC。core已在M10的`SuspendTask` / `SuspendRegistration`协议上增加函数值形态适配重载。
 
 M11 同时补齐 M7 预留的局部函数候选层，并把 managed 函数值与 native `FunPtr` 明确分开：只有下一里程碑在 `FunPtr<F>` 期望位置处理合格的顶层 `::name`，lambda/closure 不自动变成 native callback。
 
@@ -115,7 +115,7 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 
 ### M17 多 Cone 与 `.slib`
 
-`Cone.toml`、依赖图、`.slib` 打包与 reader、三层 meta（impl spec 2.6）、re-export（`public import`）。
+`Cone.toml`、依赖图、`.slib` 打包与reader、三层meta（impl spec 2.6）、re-export（`public import`）。在接入多Cone之前先落实HIR消费者边界：`ExportHir`供下游HIR，包含导出的concrete语义接口与generic template；`LocalConcreteHir`只供本Cone MIR，包含完全特化的类型与函数体。两侧使用不同的typed id，`.slib`不得打包或暴露`LocalConcreteHir`。
 
 ## 3. 备注
 
@@ -154,7 +154,7 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 - ~~`value` / `ref` 类型约束（spec 13.9）~~（M12 已完成：所有 generic声明保留类型化 kind bound，定义点与具体实例化点均检查）；
 - ~~非 Unit 函数返回的分支穷尽分析~~（已完成：按顺序块、`if`、穷尽 `when`、`try/catch/finally` 组合分析可落空路径）；
 - ~~`if` 作为表达式~~（已完成：分支尾表达式定型并写入隐藏结果 local；无期望类型时计算可表达 LUB，无 `else` 的值位置诊断拒绝）；
-- ~~泛型 **struct** 声明~~（已完成：类型实参直接进入 HIR `Type::Struct`，字段/方法类型形参作用域、构造推断、嵌套应用与 MIR 单态化全链路落地）。
+- ~~泛型 **struct** 声明~~（已完成：字段/方法类型形参作用域、构造推断与嵌套应用全链路落地；M13边界修订要求HIR生成独立的fully specialized local-concrete struct实体后再交给MIR）。
 
 ### 来自 M4
 
@@ -165,7 +165,7 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 - 命名字段模式的子模式（`S { f1: 0, .. }` 字面量匹配——ast::FieldPattern 需扩展）；
 - 表达式位的裸变体名解析推广到所有 enum（当前仅 `Option` 的 `Some`/`None`；spec 4.2/5.1 的"上下文可确定类型时可省略前缀"在表达式位只对 Option 生效）；
 - tuple/struct 的穷尽性按"穷尽模式组合"判定（当前要求 catch-all 或 `else`；spec 5.2/5.3 的组合判定是保守简化）；
-- ~~tagged enum 嵌入 struct/tuple/class 字段时保留按 tag 扫描~~（已完成：LIR `RefScan` 递归组合 tag 偏移、per-variant 子扫描与普通引用）；
+- ~~tagged enum嵌入struct/tuple/class字段时精确扫描~~（M13修订：pure-value variant共享payload，含ref variant使用独占slot及固定ref偏移，扫描不读取tag）；
 - `for` 循环变量与 lambda 参数的解构（随 `for`/lambda）。
 
 ### 来自 M5
@@ -217,7 +217,7 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 - 精确消费statepoint stackmap、root relocation与Immix evacuation/defragmentation → M15；
 - arena扩容、多段arena与普通模式下的长期碎片率/compaction启发式调优仍待后续；
 - 多 mutator STW协调、线程注册/握手与线程安全分配/根表 → M13；parallel/concurrent collector仍待后续；
-- ~~tagged enum 的 per-variant 扫描表发射~~（已完成：`SCOOP_REFS_ENUM` 与 `SCOOP_REFS_SEQUENCE` 可递归组合，数组复用同一元素扫描树）；
+- ~~tagged enum的精确扫描描述发射~~（M13修订：移除`SCOOP_REFS_ENUM`按tag分派，独占ref-bearing slot的固定偏移可与`SCOOP_REFS_SEQUENCE`及数组元素扫描组合）；
 - ~~hir-lower 的泛型 struct 字段类型形参作用域~~（已完成：移除 core GC struct 按名识别 stopgap，泛型定义本身不进入 MIR，仅发射具体实例）；
 - 其余定宽整数族（Int8/16/32、UInt8/16/32，spec 11.2；UInt/UInt64 已落地）。
 

@@ -270,7 +270,7 @@ MIR 是 M10 的主实现层：
 
 ### 4.4 LIR
 
-- 接收 MIR CFG，计算 synthetic enum/class 的普通布局与 RefScan；frame 中值类型字段递归展开扫描，pending tagged enum 按 tag 扫描；
+- 接收MIR CFG，计算synthetic enum/class的普通布局与RefScan；frame中值类型字段递归展开扫描；M13修订后的tagged enum使用逐variant GC-free flag分配独占ref-bearing slot，并合并为不读取tag的固定ref偏移；
 - frame load/store 降为现有 `HeapLoad` / `HeapStore` 字节偏移；adapter 与 safe continuation 分派使用普通 itable；
 - MIR 的 unwind/cleanup edge 映射为现有 `Invoke` / `LandingPad` / `CleanupPad` / `BeginCatch` / `EndCatch` / `Resume` 结构；
 - 对 suspend handler 插入异常物化调用并在进入可挂起 CFG 前结束 catch；任何返回 `CoroutineStep.Suspended` 的块都不得带未配对的 BeginCatch；

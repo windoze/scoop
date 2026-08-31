@@ -44,7 +44,7 @@ struct GcHandle<T>(val raw: UInt)
 ### 2.2 回收（标记-区域，单代，不移动）
 
 - **根**：(a) 栈根——v1 保守扫描并用堆对象起点校验，精确 stackmap 通道已由 codegen 产出（见 3.2）；(b) runtime 侧注册的全局引用与在途 ABI 异常缓冲（见 3.4）；(c) handle 表（GcHandle）；(d) pinned 对象（header pin 位）。
-- **标记**：从根出发按 TD 的递归描述精确扫描对象内部——普通节点按相对偏移追踪，sequence 组合多个子扫描，tagged enum 按 tag 选择变体子扫描，数组按 stride 对每个内联元素执行元素子扫描。该结构覆盖 tagged enum 嵌入 class / struct / tuple 与含引用的聚合数组元素。mark 位写在 `gc_word`（block/line 侧表亦可，v1 用对象头）。
+- **标记**（M13按spec 7.4修订）：从根出发按TD的递归描述精确扫描对象内部——普通节点按相对偏移追踪，sequence组合多个子扫描，数组按stride对每个内联元素执行元素子扫描。tagged enum的pure-value variant可共享payload，每个ref-bearing variant有独占slot且inactive slot清零，全部ref leaf是可无条件扫描的固定偏移，不读取tag。该结构覆盖tagged enum嵌入class / struct / tuple与含引用的聚合数组元素。mark位写在`gc_word`（block/line侧表亦可，v1用对象头）。
 - **区域回收**：逐 block 检查——无存活对象的 block 归还 OS；有存活但含空闲 line 的 block 把空闲 line 入 free-line list。**不移动对象**（v1 不做 evacuation）。
 - **终结行为**：always-leak 的语义改变是用户可观察的——fixture 不依赖泄漏语义（M1–M8 全部通过即可验证）。
 
@@ -59,7 +59,7 @@ struct GcHandle<T>(val raw: UInt)
 ### 3.1 LIR / codegen
 
 - **对象头 16B 化**（最大的机械变更）：`HeapLoad` / `HeapStore`、class 构造、装箱 payload、数组对象（`{td, size, elems}` → `{td, gc_word, size, elems}`）、`scoop_rt_box`、`scoop_rt_alloc` 的写头代码、全部布局表——统一改为 `{td, gc_word, ...}`，字段区从偏移 16 起；TD 的 `size` 与递归扫描描述由 lir-lower 集中计算；
-- **扫描描述发射**：LIR `RefScan` 保留普通引用、sequence、tagged enum 与数组元素扫描；codegen 递归发射常量描述树，runtime 用同一解释器扫描对象、装箱 payload 与数组元素；
+- **扫描描述发射**（M13修订）：LIR `RefScan`保留普通引用、sequence与数组元素扫描；tagged enum在布局阶段已变为固定ref偏移，codegen/runtime不再发射或解释按tag分派节点；
 - **statepoint 打开**（spec 14.2 的 managed 部分）：
   - codegen 给每个函数设置 GC strategy（inkwell `set_gc("statepoint-example")`，M0 spike 已验证），发射前跑 `rewrite-statepoints-for-gc` pass（调用点自动 statepoint 化）；
   - safepoint poll：函数入口与回边（while/for 循环头）插入 `gc.safepoint` poll（M0 spike 验证过的另一形态；poll 做成 runtime 的空操作符号 `scoop_rt_safepoint`，回收请求时经它握手）；

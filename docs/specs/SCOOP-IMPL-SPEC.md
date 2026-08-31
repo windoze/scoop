@@ -25,14 +25,20 @@ lexer 对坏字符及可恢复的字面量错误继续扫描；parser 分别以�
 
 ### 2.2 HIR
 
-负责 desugaring、type check 和 overload resolution；综合上游 Cone 的 generic HIR representation；解析每个表达式/子表达式的 type，解析每个 callable 的 target。输出：
+负责 desugaring、type check 和 overload resolution；综合上游 Cone 的 HIR export representation；解析每个表达式/子表达式的 type，解析每个 callable 的 target。输出不是一个同时容纳parameterized与concrete节点的`Module`，而是按消费者严格隔离的两个IR：
 
-- **generic HIR function/type list**：包含 generic 信息的 IR，供下游 Cone 的 HIR 阶段使用，支持 export generic（spec 12.5）；
-- **instantiated function/type list**：涵盖所有 non-generic / instantiated type/function，其中所有 type 已完全解析、所有 generic type parameter 已完全填好。
+- **`ExportHir`**：只供下游Cone的HIR阶段消费。它包含源码可见的导出语义表面（包括非generic concrete声明的签名/成员/属性）、generic声明与template body、导出的`const val`、调用处实例化的默认表达式，以及这些template所引用但不一定源码可见的类型化依赖闭包。它不包含本Cone局部产生的concrete实例体；
+- **`LocalConcreteHir`**：只供本Cone的MIR阶段消费。它包含本Cone需要发射的全部non-generic及fully instantiated type/function/body；其中不允许出现type parameter、parameterized type/body或待完成的实例化请求。
+
+二者必须是不同的Rust输出类型，并使用互不兼容的实体id家族，例如`ExportTypeId`/`ExportFunctionId`与`ConcreteTypeId`/`ConcreteFunctionId`。禁止用同一个arena index、type alias、共享`TypeId`或运行期tag区分两侧实体。一个源码声明同时需要导出语义接口和本地实现时，HIR显式生成两个实体并保存类型化映射；不能让两个消费者读取同一节点的不同字段。
+
+`ExportHir`中的param-free导出声明不等于`LocalConcreteHir`实体：前者是跨Cone语义接口，后者是本地可执行实例。下游HIR确实需要前者来完成非generic调用、继承/接口检查、构造、重载、默认参数和const求值，但绝不能读取本Cone的concrete实例body。反之，本Cone MIR不得读取generic template；HIR必须先对实例化需求做固定点闭包、完成类型替换并生成结构完备的`LocalConcreteHir`实例体。
 
 **所有编译期错误都在 HIR 层报告**，之后的 stage 不再做源代码错误处理。
 
-HIR 负责解析所有 type parameter：确定每个 generic 调用的具体类型实参（含对上游 Cone generic HIR 的实例化请求），输出完整的实例化需求清单，但**不生成实例体**——实例体由 MIR 生成（见 2.3）。
+HIR 负责解析所有type parameter：确定每个generic调用的具体类型实参（含对上游Cone `ExportHir` template的实例化请求），对调用图和类型依赖做固定点闭包，并在`LocalConcreteHir`中生成完成替换的concrete实例体。MIR不接收实例化需求清单，也不读取template后自行替换`TypeParam`。
+
+每个`ConcreteTypeId`索引的实体都必须携带非可选的`gc_free: bool`。concrete enum实体还必须为声明顺序中的每个concrete variant携带非可选的`gc_free: bool`，enum自身的flag恒等于全部variant flag的逻辑AND。不存在“未知”的concrete类型，也不得使用`Option<bool>`、默认false、延迟回填或MIR/LIR递归字段来补齐该属性。尚未特化的generic template不是concrete type，可以在`ExportHir`中携带类型化GC-free条件，但该条件不是flag。导出的param-free concrete语义类型可在`ExportHir`中复制同样完备的属性供下游类型检查；它使用export侧id，不与本Cone的`ConcreteTypeId`共享身份。
 
 调用与值构造的泛型推导对整组实参执行固定点约束求解，不得按从左到右的一次遍历决定成败。依赖期望类型的实参可延迟到其他实参完成绑定后再检查；为每个实参产生的 desugaring 语句必须分开缓存并最终按源码实参顺序拼接，类型检查顺序不得改变运行期求值顺序。
 
@@ -56,14 +62,15 @@ HIR 负责解析所有 type parameter：确定每个 generic 调用的具体类�
 
 ### 2.3 MIR
 
-接收**本 Cone** 的 HIR output 中的 instantiated function/type list 部分，以及**上游 Cone 的 MIR meta**（见下），负责：
+只接收**本Cone**的`LocalConcreteHir`以及**上游Cone的MIR meta**（见下）。其输入类型签名不得接受`ExportHir`，负责：
 
-- 为每一个（generic 定义 + 已确定 type param 组合）生成特定的单态化实例体，并为 function/type 做 name mangling；
+- 为HIR已经生成的每个concrete function/type建立MIR实体并做name mangling；MIR不执行generic type substitution，不接受`TypeParam`，也不从template生成实例体；
+- 原样传播`LocalConcreteHir`中每个concrete type及enum variant的非可选`gc_free` flag。MIR自身创建closure/frame/adapter等synthetic concrete type时，创建该实体的同一操作必须同时生成完整flag；不能先留下缺失值再由全模块扫描补齐。后续enum布局、NoGC边界与FFI classifier消费这些已定稿flag，不得分别重做一套“是否间接含ref”的递归判断；
 - 为每个 call 标注 virtual / interface / direct call 类型；
 - 方法/扩展调用必须先以 receiver value 初始化完整类型的隐含 receiver 参数；MIR 不得让方法体持有调用方 binding place。该规则对 value/ref receiver 相同，只是参数值的类型与 layout 不同。后续可以做 copy elision，但若 value receiver 的 `@InteriorMutable`、`addressOf(this)` 或其他 unsafe 操作可观察存储，则必须保留独立的 method-local storage；
 - 为每个具体类型建立 vtable / itable（见 2.9）。本 Cone 的类型实现上游接口或继承上游类时，表结构、槽位布局与 TypeDescriptor 符号取自上游的 MIR meta；
 - 把结构化 HIR 降为类型化 CFG：调用从嵌套表达式中按源码求值顺序正规化出来，控制边与异常 unwind 边显式化，`try` / `catch` / `finally` 的 cleanup 路径在 MIR 固定。LIR 只负责把这些边映射为目标相关的 landingpad 结构；
-- **单态化 → closure 转换 → foreign callback adapter → 协程变换**：先得到所有 concrete callable 与 concrete function type；再把 lambda、匿名函数和 callable reference 转为显式 closure 类、invoke body与按值 capture字段，把函数类型型变转为 typed adapter closure；局部函数的 direct call可以使用带显式不可变 capture参数的 lifted function，取得 callable reference时才物化closure。每种 synthetic closure/adapter都有独立实体 id、TypeDescriptor与递归引用扫描描述；captured value type直接使用其 concrete layout，不得用 FQN、`Any`、identity-bearing box、opaque environment或统一函数指针回退；
+- **concrete HIR输入 → closure转换 → foreign callback adapter → 协程变换**：输入中的所有callable与function type已经concrete；MIR再把lambda、匿名函数和callable reference转为显式closure类、invoke body与按值capture字段，把函数类型型变转为typed adapter closure；局部函数的direct call可以使用带显式不可变capture参数的lifted function，取得callable reference时才物化closure。每种synthetic closure/adapter都有独立实体id、TypeDescriptor、完整`gc_free`属性与递归引用扫描描述；captured value type直接使用其concrete layout，不得用FQN、`Any`、identity-bearing box、opaque environment或统一函数指针回退；
 - closure 的首字段语义上是由编译器控制的 invoke entry，其余字段按确定顺序保存 capture。普通 closure invoke 使用 `(closure, source args...) -> R` 的 managed ABI；绑定 virtual/interface reference 的 invoke body 必须在调用时执行动态分派。已知不逃逸或立即调用的 closure 可以在后续优化中消除，但 MIR 的未优化基线必须先有完整、可扫描的结构；
 - 对每个实际使用的 `ForeignCallbackRegistrationId`，MIR在closure conversion之后生成独立的 typed storage adapter：输入为closure ref、删除context后的C-FFI-safe args storage、result storage与exception root slot，内部按 concrete `FunctionTypeId` 调用closure。adapter在返回C前catch-all、物化managed异常并返回typed status；adapter、registration和M12静态NoGC callback bridge使用三类不同实体/id；前者是可分配、可GC、内部可抛但对C nounwind的managed入口，不能误标为NoGC；
 - 对 closure 转换后的每个 concrete suspend callable，把 CFG 在挂起调用后切分为恢复状态，计算跨挂起点活跃的值并生成堆上 frame；每个挂起点生成与其结果类型精确匹配的 `Continuation<T>` 实际类型。frame、continuation adapter 与内部完成结果均有独立的类型化 id、TypeDescriptor 与递归引用扫描描述，不允许用 FQN 或 `Any` 作为实体/结果回退；
@@ -74,16 +81,16 @@ HIR 负责解析所有 type parameter：确定每个 generic 调用的具体类�
 - 把 `when` 模式匹配降级为 decision tree / 跳转序列；
 - 输出 MIR type/function list，其中不再包含任何 generic 和 suspend（诊断信息除外）。
 
-**MIR meta**：每个 Cone 的 MIR 同时输出一份 metadata，随 `.slib` 导出（见 2.6），内容包括：各单态化实例的符号、泛型来源与具体类型实参，各导出类型的 vtable / itable 结构、TypeDescriptor 符号与 name mangling 结果。类型布局不在其中——布局由 LIR 生产、经 LIR meta 导出（见 2.4）。HIR 的 generic function、已解析类型实参的 generic function 与 MIR 的单态化实例是三类实体，分别使用不同的类型化 id。
+**MIR meta**：每个 Cone 的 MIR 同时输出一份 metadata，随 `.slib` 导出（见 2.6），内容包括：各单态化实例的符号、generic来源与具体类型实参，各导出类型的 vtable / itable 结构、TypeDescriptor 符号与 name mangling 结果。类型布局不在其中——布局由 LIR 生产、经 LIR meta 导出（见 2.4）。`ExportHir` generic template、`LocalConcreteHir` concrete实例与MIR实体是三类实体，分别使用不同的类型化id；跨层关系只能通过显式typed mapping表达。
 
 ### 2.4 LIR
 
 接收**本 Cone** 的 MIR output，以及**上游 Cone 的 LIR meta**（见下），负责：
 
-- 为每个 type 生成布局信息（struct/enum/tuple 布局、`@CLayout` 的 pack/align、`Option` 的 niche 编码——spec 7.4），并生成布局完备的递归引用扫描描述：普通引用偏移、同起点 sequence、按 tag 分派的 enum 子扫描、数组元素子扫描。需要上游布局的场景：本 Cone 的类继承上游类（继承字段的偏移）、跨 Cone 嵌套的值类型（上游 struct/enum/tuple 嵌入本地类型、作为数组元素、按值传参的 ABI）；
+- 为每个 type 生成布局信息（struct/enum/tuple 布局、`@CLayout` 的 pack/align、`Option` 同构形态的 niche 编码——spec 7.4），并生成布局完备的递归引用扫描描述：普通引用偏移、同起点 sequence、数组元素子扫描。tagged enum直接消费MIR已定稿的逐variant `gc_free` flag：pure-value variant复用一个payload区，每个非GC-free variant分配独立连续slot；LIR不得重新递归判定“是否含ref”。完整值的构造先清零再写active payload，所有独占slot中的ref leaf可直接合并为固定偏移，LIR/runtime不得保留按tag分派的扫描路径。需要上游布局的场景：本 Cone 的类继承上游类（继承字段的偏移）、跨 Cone 嵌套的值类型（上游 struct/enum/tuple 嵌入本地类型、作为数组元素、按值传参的 ABI）；
 - statepoint 的落地形态（M9 定稿）：LIR 保持 statepoint 无关的指令形态，由 codegen 给每个 function 设置 GC strategy（`statepoint-example`）并执行 `rewrite-statepoints-for-gc` pass，同时在函数入口与循环回边插入 safepoint poll（详见 codegen 的实现与注释；statepoint 的"插入职责在 LIR"是早期表述，以此为准）；
 - C ABI extern降为 GC-leaf storage bridge call；Scoop ABI extern降为使用普通 Scoop typed signature的 managed direct call，direct ref进入 statepoint root集合。只有 C ABI bridge拥有 C type tree/`@CLayout` static-assert描述；Scoop ABI不得经过 byte storage bridge，也不得插入隐式 pin/unpin；
-- M13 启用多 mutator时，LIR必须把managed ref、raw data pointer、code pointer与metadata pointer保留为不同pointer provenance，直到root liveness/codegen完成；不能因LLVM最终都使用opaque `ptr`而提前合并。outbound C ABI及可能无界执行的NoGC区间发布live caller-root leaves并进入native-safe，持有direct ref的Scoop ABI native调用进入native-borrowed；`ManagedSafepoint`、`NoGc`、`NativeSafe`、`NativeBorrowed`必须是不同call effect，不能只用一个`GcLeaf`布尔值表达。caller-root frame需递归展开含ref aggregate并spill live SSA temp，未初始化slot/raw pointer不得混入；
+- M13 启用多 mutator时，LIR必须把managed ref、raw data pointer、code pointer与metadata pointer保留为不同pointer provenance，直到root liveness/codegen完成；不能因LLVM最终都使用opaque `ptr`而提前合并。outbound C ABI及可能无界执行的NoGC区间发布live caller-root leaves并进入native-safe，持有direct ref的Scoop ABI native调用进入native-borrowed；`ManagedSafepoint`、`NoGc`、`NativeSafe`、`NativeBorrowed`必须是不同call effect，不能只用一个`GcLeaf`布尔值表达。caller-root frame以可寻址value storage加递归scan descriptor表达含ref aggregate并spill live SSA temp；tagged enum使用spec 7.4的固定ref偏移，不读取tag。Scoop ABI含ref返回槽在push前清零并一并发布，native返回后在leave可能park之前写入、恢复managed后reload。未初始化slot/raw pointer不得混入；
 - foreign callback adapter作为managed entry保留GC strategy/statepoint，C trampoline、signature descriptor与删除context后的args/result storage描述作为独立反向bridge数据交给codegen。continuation原子状态降为显式`AtomicLoad/Store/CompareExchange`或等价LIR指令并携带内存序；
 - 把 MIR 已显式化的 normal / unwind / cleanup CFG 机械映射为 landingpad + personality function；`throw` 接到 runtime 入口。对 suspend function 的 handler，进入可挂起的 Scoop catch/finally 代码前必须把 ABI 异常物化为 managed 对象并结束原生 catch，任何原生 EH 状态都不得跨挂起点；
 - 输出 LIR type/function list，不再包含任何 Scoop 特有的内容，可以机械翻译成目标 IR 或其他格式。
@@ -107,7 +114,7 @@ codegen **不需要任何上游 meta**：上游信息已逐层吸收进本 Cone 
 
 ### 2.6 `.slib` 打包
 
-把 codegen 产出的 `.o` 与 metadata 打包成 `.slib`（spec 12.5）。metadata 包括三层：HIR 的 generic 输出（供下游 HIR）、MIR meta（供下游 MIR，见 2.3）、LIR meta（供下游 LIR，见 2.4）。包含一个 `.slib` reader，作为下游 Cone 各阶段的输入。
+把 codegen 产出的 `.o` 与 metadata 打包成 `.slib`（spec 12.5）。metadata 包括三层：`ExportHir`（供下游HIR，既含导出的concrete语义接口，也含generic template及其依赖闭包）、MIR meta（供下游MIR，见2.3）、LIR meta（供下游LIR，见2.4）。`LocalConcreteHir`是本Cone内的瞬时stage输出，绝不写入`.slib`，下游也不能反序列化它。reader对三层metadata分别返回不同的输入类型，不提供把export id直接转换成本地concrete id的无检查接口。
 
 ### 2.7 build driver
 
@@ -127,7 +134,7 @@ codegen **不需要任何上游 meta**：上游信息已逐层吸收进本 Cone 
 - 表的内容由 MIR 定义，由 codegen 以数据形式发射，并从 `TypeDescriptor` 引用：TypeDescriptor 内嵌 vtable 指针与 itable 数组（见 runtime spec 2.2）。`Any` 的 `equals` / `hashCode` / `toString` 即 vtable 的固定前三个槽位。
 - **装箱值类型的 this 调整**：值类型装箱后对象为 header + payload。vtable / itable 中对应装箱值类型的表项指向 MIR 生成的 **adjust thunk**；thunk 语义上从 payload 读取值，并用它初始化真正成员函数的按值 `this`。只有在不可观察的情况下，codegen 才可把它优化成对 payload 地址做 header 偏移后直接传递；需要取址或存在 interior mutability 时必须先复制到私有临时存储。
 - **跨 Cone 的槽位识别**：初版 itable 采用（接口 TypeDescriptor 指针 → 方法表）的键值查找，调用点按接口 TypeDescriptor 地址查找，不需要跨 Cone 的全局槽位编号；槽位编号等优化留待后续。
-- **泛型成员函数不参与虚分派**：带自身类型参数的成员函数不进入 vtable / itable（单态化实例无法枚举）；interface 可保留这类方法的声明与实现约束，但分派表布局必须跳过它，经 interface 静态类型调用由 HIR 拒绝。class 上的泛型成员必须为 final，值类型成员本来即为 final，因此合法调用一律标为 direct。泛型宿主的参数与方法自身参数使用同一类型参数编号空间，前缀为宿主参数、后缀为方法参数；`ResolvedGenericFunction` 与 MIR 单态化键携带同序的完整实参向量。把 interface 签名代入某个实现宿主时，必须在替换 interface 参数后把方法参数重基化到实现宿主参数前缀之后，避免两组 `TypeParamId` 碰撞。
+- **泛型成员函数不参与虚分派**：带自身类型参数的成员函数不进入 vtable / itable（单态化实例无法枚举）；interface 可保留这类方法的声明与实现约束，但分派表布局必须跳过它，经 interface 静态类型调用由 HIR 拒绝。class 上的泛型成员必须为 final，值类型成员本来即为 final，因此合法调用一律标为 direct。泛型宿主的参数与方法自身参数使用export侧同一类型参数编号空间，前缀为宿主参数、后缀为方法参数；HIR实例化键携带同序完整实参，并生成不再含该参数空间的`ConcreteFunctionId`。把interface签名代入某个实现宿主时，必须在替换interface参数后把方法参数重基化到实现宿主参数前缀之后，避免两组export-side type-param id碰撞。
 - **结构化表达式降级**：AST 在表达式位置直接表示 `if` / `when` / `try`。HIR lower 先确定所有正常分支的共同结果类型，再分配一个类型完备的隐藏结果 local，在每个可正常结束的分支尾写入该 local，并把原有 HIR 结构化语句追加到表达式的 desugaring sink；表达式本身成为该 local 的读取。结果为 `Unit` 时无需结果 local，但仍须保留分支尾表达式的求值。HIR 保留这些结构化控制语句；MIR lower 在内部完成结构化控制降级后，统一输出基本块 CFG，不新增内嵌 CFG 的表达式节点；LIR 只接收该 CFG。
 
 ### 2.10 intrinsic 的分阶段处理
@@ -136,7 +143,7 @@ codegen **不需要任何上游 meta**：上游信息已逐层吸收进本 Cone 
 
 - 编译器内置一张 **intrinsic 登记表**：`name → （展开 stage、种类、签名约束）`。`@Intrinsic("name")` 声明只携带 name；name 必须在表中，否则 HIR 报编译错误——用户不能用自定义 name 声明 intrinsic。
 - **检查与展开分离**：无论在哪一阶段展开，类型检查、`value` / `ref` 约束检查、注解共存检查一律在 HIR 完成（与"所有编译期错误在 HIR 报告"一致）。
-- 晚于 HIR 展开的 intrinsic 在中间 IR 中以"完全实例化的已知符号调用"形式存在；各 IR 的不变量（如 MIR 输出"不含 generic"）对这类调用设例外——其 type argument 已全部确定，只是调用节点留待后续 stage。
+- 晚于HIR展开的intrinsic在`LocalConcreteHir`及后续IR中以“完全实例化的已知符号调用”形式存在；其type argument已全部确定，因此不构成generic节点，也不对MIR输入“不含generic”的不变量设例外。
 - 每个 intrinsic 恰好展开一次；其后的 stage 只看到普通 IR。
 
 初始分类：

@@ -37,8 +37,8 @@ Runtime 是编译产物的支撑层，职责包括：
 - 类型标识（`is` / `as` 检查用）；
 - 稳定的 UTF-8 类型名（与 TypeDescriptor 同生命周期，用于未捕获异常等运行时诊断）；
 - 实例大小与对齐；
-- **递归引用扫描描述**（GC 扫描对象内部引用用）：普通节点记录相对当前值起点的引用字节偏移；sequence 节点把多个扫描作用于同一起点；tagged-enum 节点记录 tag 的相对偏移及每个变体的子扫描；array 节点记录元素 stride 与单个内联元素的子扫描。扫描描述可任意组合，因此 struct / tuple / class / 装箱 payload 中嵌套的 tagged enum，以及含引用的聚合数组元素，均不会被压平成无条件引用偏移；
-- **enum 的引用扫描按 tag 分派**：扫描 tagged enum 值时先按节点记录的偏移读 tag，再执行对应变体的递归子扫描。niche 表示的 enum（spec 7.4）整体就是一个引用，使用普通引用节点；没有出站引用的节点可用空指针表示。LIR meta 的 `RefScan` / `LayoutKind::Enum` 提供该信息（见 impl spec 2.4）；
+- **递归引用扫描描述**（GC 扫描对象内部引用用）：普通节点记录相对当前值起点的引用字节偏移；sequence 节点把多个扫描作用于同一起点；array 节点记录元素 stride 与单个内联元素的子扫描。tagged enum允许完全不含managed ref的variant复用pure-value payload区；每个直接或间接含managed ref的variant拥有互不重叠的连续slot，构造时把inactive slot清零，因此所有ref-bearing variant中的ref leaf直接合并为固定偏移，不存在按tag分派的扫描节点。该描述可任意组合，覆盖struct / tuple / class / 装箱payload及含引用聚合数组元素；
+- **enum 扫描不读取 tag**：tagged enum的所有潜在ref位置都位于ref-bearing variant的独占slot，按普通固定偏移检查；inactive独占slot必须为全0，pure-value共享区不进入扫描。niche表示的managed-ref enum整体是一个普通引用位置，`Ptr` / `FunPtr` niche不是managed root。没有出站引用的节点可用空指针表示。LIR meta 的`RefScan`提供该信息（见 impl spec 2.4）；
 - 父类型信息（接口、父类）；
 - 虚分派结构：内嵌 **vtable 指针**与 **itable 数组**（itable 以接口 TypeDescriptor 指针为键）。`Any` 的 `equals` / `hashCode` / `toString` 是 vtable 的固定前三个槽位；装箱值类型的表项指向 this 调整 thunk（impl spec 2.9）。
 
@@ -51,7 +51,7 @@ Runtime 是编译产物的支撑层，职责包括：
 ### 2.4 `String` / `Array` 布局
 
 - `String`：对象头 + 长度 + 内联字节数据（UTF-8，spec 11.4）。
-- `Array<T>` / `MutableArray<T>`：对象头 + `size` + 对齐填充 + 内联元素区；元素区起点为 `alignUp(24, alignOf<T>())`。`T` 为值类型时元素不装箱且按 `sizeOf<T>()` stride 连续布局（满足 pack/align 约束，spec 10.1）。数组 TypeDescriptor 的扫描描述以元素 stride 重复执行 `T` 的递归子扫描，因此 `T` 可以是含引用或 tagged enum 的 struct / tuple。
+- `Array<T>` / `MutableArray<T>`：对象头 + `size` + 对齐填充 + 内联元素区；元素区起点为 `alignUp(24, alignOf<T>())`。`T` 为值类型时元素不装箱且按 `sizeOf<T>()` stride 连续布局（满足 pack/align 约束，spec 10.1）。数组 TypeDescriptor 的扫描描述以元素 stride 重复执行 `T` 的递归子扫描，因此 `T` 可以是含引用或 tagged enum 的 struct / tuple；tagged enum元素的inactive variant slot同样保持全0。
 
 ### 2.5 `Option` 的 niche 表示
 
@@ -103,7 +103,7 @@ M13 起每个已attach线程持有独立TLAB；slow path在同步的heap元数�
 
 ### 3.5 线程
 
-线程创建/销毁时向 GC 注册/注销。M13 的多 mutator基线使用带单调GC epoch的合作式 stop-the-world handshake，并至少区分 managed、native-safe、native-borrowed、parked与collector状态：managed线程在入口/回边 poll或runtime入口保存SP/寄存器后停顿；C ABI outbound call发布 caller roots并冻结当前managed栈段后进入 native-safe，collector扫描已发布roots且无需等待其返回；持有 direct ref的 Scoop ABI native code属于 native-borrowed，只在登记 native roots的显式 runtime/managed入口或返回边界参与协调。每次managed/native重入都在LIFO transition链中划分managed栈段，使collector扫描当前及已冻结managed段而跳过夹在其间的native栈。collector 不得在未握手的普通 native-borrowed指令之间移动对象或扫描仍在变化的native栈。进入协调点时，当前线程的managed栈段链、compiler caller-root frame与native root slot链必须可扫描、可更新。
+线程创建/销毁时向 GC 注册/注销。M13 的多 mutator基线使用带单调GC epoch的合作式 stop-the-world handshake，并至少区分 managed、native-safe、native-borrowed、parked与collector状态：managed线程在入口/回边 poll或runtime入口保存SP/寄存器后停顿；C ABI outbound call发布 caller roots并冻结当前managed栈段后进入 native-safe，collector扫描已发布roots且无需等待其返回；持有 direct ref的 Scoop ABI native code属于 native-borrowed，只在登记 native roots的显式 runtime/managed入口或返回边界参与协调。每次managed/native重入都在LIFO transition链中划分managed栈段，使collector扫描当前及已冻结managed段而跳过夹在其间的native栈。collector 不得在未握手的普通 native-borrowed指令之间移动对象或扫描仍在变化的native栈。进入协调点时，当前线程的managed栈段链、compiler caller-root frame与native root slot链必须可扫描、可更新。compiler caller-root entry由value storage地址和递归scan descriptor组成；tagged enum的固定ref偏移可直接扫描，因为inactive variant slot按spec 7.4恒为全0。含ref的Scoop ABI返回storage从push前的全零值开始登记，在native返回后、leave可能park前写入结果，并在恢复managed后reload。
 
 进入managed、离开native-safe或离开native-borrowed必须与epoch发布形成无丢失握手：转换方发布mode后复查phase/epoch，观察到`Stopping`或epoch变化时在执行第一条managed指令前park；collector先release发布`Stopping`再以acquire读取线程mode。不得把线程按native-safe计为quiescent后又允许它未经复查进入managed。
 

@@ -141,7 +141,7 @@ runtime API 名称与对象内偏移只存在于 compiler/runtime 的 typed cont
 
 ## 5. MIR / LIR / codegen
 
-- MIR 只接收普通构造、generic实例和 call；`add<T>` 单态化 body按具体 `T` 调用其 bounded `toString` target，再调 `add(String)`；
+- MIR只接收`LocalConcreteHir`中的普通构造、fully instantiated body和call；HIR生成的`add<T>` concrete body按具体`T`调用其bounded `toString` target，再调`add(String)`；
 - hidden builder/hole locals参与现有 CFG、异常 unwind与 coroutine liveness，不设置特殊 cleanup；不可达 builder由 GC自然回收；
 - LIR/codegen复用普通 managed对象、TypeDescriptor、HeapLoad/HeapStore、statepoint和runtime call路径；
 - builder与byte buffer布局/扫描描述进入 LIR golden；grow 后的 buffer store必须保留写屏障；

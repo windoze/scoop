@@ -100,7 +100,7 @@ driver 用 `cc` crate 编译 runtime 的 C 源并缓存，随后调用系统链�
 1. **always-leak GC**：M9 由 Immix 替换；分配入口签名不变。
 2. **内建 `print` / `println`（已退役）**：M7 已迁移为 core 中的普通重载；其依赖的 `write` / 数值转字符串原语暂保留 `@Intrinsic`。M12 将 `write(String)` 改为直接传 managed ref的 Scoop ABI `@Extern`；其余转换原语按各自里程碑迁移。
 3. **不插 statepoint**：M9 打开；LIR 的 call 标注结构已为此预留。
-4. **单文件、单 Cone**：M17 引入 `Cone.toml` 与 `.slib`；M1 的实体 id arena 构造已把多 Cone 扩展点收敛在一处。
+4. **单文件、单 Cone**：M17 引入 `Cone.toml` 与 `.slib`。M1时期的单一实体id arena只是过渡实现；最终HIR按消费者拆为`ExportHir`与`LocalConcreteHir`，两侧实体使用不同typed id，不能把同一arena index加Cone前缀后同时交给下游HIR和本ConeMIR。
 5. **name mangling 仅 `scoop.<fn>`**：M3 泛型落地时扩展参数编码，编码规则集中在 MIR 的一个模块内。
 
 ## 6. 明确不做

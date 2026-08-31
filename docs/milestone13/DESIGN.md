@@ -19,6 +19,18 @@ M13 交付以下闭环：主线程注册普通、非挂起 closure，runtime 用
 - callback异常在managed adapter内全部捕获并物化为managed异常对象，再由token中的异常`GcHandle`保活。C trampoline按签名返回全零值，异常绝不展开穿越C frame；
 - M13保证runtime、GC元数据、callback token和编译器生成的continuation状态机无数据竞争。普通managed对象字段的并发读写不因此自动安全；没有native同步或未来memory model约束的冲突访问仍不受支持。
 
+### 0.1 HIR消费者边界前置修正
+
+M13新增的enum GC布局与callback concrete signature使早期单一`hir::Module`同时容纳generic template和concrete实例的问题不可继续保留。按impl spec 2.2，HIR输出必须先按消费者拆为互不兼容的`ExportHir`与`LocalConcreteHir`：
+
+- `ExportHir`供下游Cone的HIR使用，包含导出的非generic语义接口、generic template、const/default metadata及template依赖闭包；
+- `LocalConcreteHir`只供本Cone MIR使用，所有type parameter均已替换，所有non-generic/instantiated body与type均为concrete；
+- 两侧的type/function/callable/variant id使用不同Rust类型。MIR API不能接收`ExportHir`，`.slib`也不打包`LocalConcreteHir`；
+- 每个`ConcreteTypeId`必有`gc_free: bool`。concrete enum的每个variant也必有`gc_free: bool`，enum自身flag为逐variant AND。禁止`Option<bool>`、默认值、后续全模块扫描或LIR字段递归补齐；
+- MIR创建closure、coroutine frame、adapter等synthetic concrete type时，创建实体的同一操作必须生成完整flag。这是MIR自有新实体的完备构造，不是对HIR缺失信息的补丁。
+
+本节是enum fixed-slot布局、caller-root scan和foreign callback signature lowering的输入前提；未完成该隔离前不得把generic节点直接送入MIR以推进M13。
+
 ## 1. 线程与 mutator 模型
 
 ### 1.1 `ScoopThreadState`
@@ -100,6 +112,8 @@ managed
 ### 1.4 native-safe 与 native-borrowed
 
 进入两种native状态前，codegen都记录当前managed栈边界，并把当前函数内所有**跨该调用仍活跃**的managed reference leaf发布到编译器生成的root frame。含引用的struct/enum/tuple按LIR递归扫描描述枚举leaf；SSA临时值先spill到隐藏slot。未初始化local、raw `Ptr`、`FunPtr`、TypeDescriptor和其他metadata pointer不得混入root列表。
+
+compiler caller-root frame中的每个entry由“可寻址value storage + 静态递归scan descriptor”组成；普通managed ref使用`refs[0]`，aggregate复用与heap field相同的`References / Sequence`扫描程序。tagged enum按spec 7.4让pure-value variant复用共享payload区，并只为每个直接或间接含managed ref的variant保留独立slot；构造时清零inactive ref-bearing slot，因此caller-root与heap扫描都直接使用所有ref-bearing variant ref leaf的固定偏移，不读取tag。Scoop ABI调用若返回含ref的值，codegen还要在push前把对应result storage清零并作为entry发布；native call写入结果后、`leave_native_borrowed`可能park之前，该storage已经是有效root。返回managed后从storage reload结果。这样caller frame从发布起没有未初始化扫描字节，并覆盖“callee已返回、caller尚未恢复managed”的窗口。
 
 - C ABI call以及从managed代码进入可能无界执行的`@NoGC` callable：push caller-root frame → enter native-safe → call → leave native-safe（先检查GC epoch）→ pop frame并reload roots；
 - Scoop ABI managed extern：push caller-root frame → enter native-borrowed → direct typed call → leave native-borrowed（先检查GC epoch）→ pop/reload；
@@ -342,7 +356,7 @@ ForeignCallbackRegistration {
 
 它不复用M12 `FunctionAddress` / `CallbackBridgeId`，也不把closure先转成`Any`、`Ptr<Unit>`或`FunPtr`。同一源码closure在普通managed上下文和foreign callback注册上下文中仍是同一个concrete函数类型，但registration identity、adapter identity和native trampoline identity各自类型化。
 
-MIR顺序保持“单态化 → closure conversion → callback adapter生成 → coroutine transform”。对每个实际registration，在closure conversion完成后生成typed storage adapter：
+跨HIR/MIR顺序保持“HIR生成`LocalConcreteHir` → MIR closure conversion → callback adapter生成 → coroutine transform”。对每个实际registration，在closure conversion完成后生成typed storage adapter：
 
 ```
 status adapter(
@@ -387,7 +401,7 @@ M13补充分离GC含义所需的LIR结构：
 
 - raw pointer/code pointer/managed reference不能继续全部只靠同一个无provenance `Ptr`猜测；至少以`PointerKind::{Managed, Raw, Code, Metadata}`或等价类型信息保留到root liveness和codegen完成；
 - native call effect至少区分`ManagedSafepoint`、`NoGc`、`NativeSafe`、`NativeBorrowed`，不能把它们压成`GcLeaf: bool`；
-- 增加compiler root-frame描述：live managed leaf slot、冻结managed栈边界、进入/离开transition；
+- 增加compiler root-frame描述：live value storage及其递归scan、零初始化的含ref native result storage、冻结managed栈边界、进入/离开transition；
 - foreign adapter是普通managed function加明确的`ForeignManagedEntry` origin；trampoline、C args/result storage和signature descriptor进入独立`ForeignCallbackBridge` arena；
 - continuation原子状态操作降为类型化`AtomicLoad/Store/CompareExchange`，MIR之后不靠函数名识别。
 
