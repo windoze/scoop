@@ -41,11 +41,11 @@ HIR 负责解析所有 type parameter：确定每个 generic 调用的具体类�
 此外归属 HIR 的语义工作：
 
 - 字符串插值脱糖（spec 6.2）、`?.` / `?:` 脱糖（spec 7.3）、`for` 脱糖（spec 11.8）等；
-- 把普通/挂起函数类型正规化为全局唯一的类型化 `FunctionTypeId`，完整保留挂起性、参数与返回类型；每个 lambda、匿名函数、局部函数及 callable reference 都有独立的类型化实体 id。HIR 完成双向类型检查、局部函数可见性、重载目标选择与捕获分析；capture 列表只允许不可重新绑定的 binding，对外层词法局部 `var` 的任何引用直接诊断。captured value type保持 concrete layout并内联进入 closure environment，不生成 hidden box/shared cell，也不把 closure 擦除为 `Any`、裸函数符号或无类型代码指针；
+- 把普通/挂起函数类型正规化为全局唯一的类型化 `FunctionTypeId`，完整保留挂起性、参数与返回类型；每个 lambda、匿名函数、局部函数及 managed callable reference 都有独立的类型化实体 id。AST 的 `::name` / `receiver::name` 保持中性的函数声明引用表达式，不提前编码 managed/native 运行时类别；HIR 完成双向类型检查、局部函数可见性、重载目标选择与捕获分析，再由期望类型类别直接构造 managed callable reference 或 `FunctionAddress`，不能先构造前者再转换为后者。capture 列表只允许不可重新绑定的 binding，对外层词法局部 `var` 的任何引用直接诊断。captured value type保持 concrete layout并内联进入 closure environment，不生成 hidden box/shared cell，也不把 closure 擦除为 `Any`、裸函数符号或无类型代码指针；
 - 所有成员方法/计算属性 getter 的 `this` 及扩展函数的 extension receiver，在 HIR 中都是隐含的、不可重新绑定的按值参数（spec 3.3），不得用指向调用方 binding 的 place 表示其语义。value receiver 复制完整值，ref receiver 复制 ref value；后者的 HIR 类型仍是完整 ref type，不降级成 raw pointer。捕获 `this` 时捕获的就是该参数值；对 value-type `this` 执行 `addressOf(this)` 则对该 method activation 内物化的私有副本取址；
-- 函数值调用解析为独立的 callable-value call target；命名调用、managed callable reference 与 `FunPtr` 期望类型转换是三个不同的决议入口。只有 spec 13.10 允许的顶层 `@NoGC` 普通函数引用能直接解析为 `FunPtr` 地址，普通函数值之间的型变转换则保留为显式 typed coercion；
+- 函数值调用解析为独立的 callable-value call target；命名调用、函数声明引用表达式的 managed resolution 与 `FunPtr` native-address contextual resolution 是三个不同的决议入口。没有期望类型时只允许进入 managed 分支；只有 spec 13.10 允许的顶层 `@NoGC` 普通函数引用能在明确的 `FunPtr<F>` 期望类型下直接解析为 `FunctionAddress`，普通函数值之间的型变转换则保留为显式 typed coercion；
 - 在 callable 签名、调用目标与 override / interface 实现关系中保留 `suspend` 标志；以显式、可嵌套的上下文状态检查挂起调用只出现在挂起函数或已登记的协程构建器中，不能把“当前无函数”当作默认允许。进入顶层属性、object/companion、实例属性、delegate、`init`、构造函数/构造委托及普通属性访问器等声明自身拥有的初始化/访问体时，必须压入带原因的 forbidden context；离开后恢复调用者上下文，所以 suspend caller 的显式构造实参仍可挂起。MIR 不为这些初始化入口或属性访问器生成 frame / continuation ABI；
-- 完成 FFI 注解的目标与共存检查：`@Extern` 与 `suspend` 互斥，无论 `abi` 取值为何都在 HIR 报编译错误；callable reference 向 `FunPtr` 转换时同样拒绝挂起函数及一切 managed closure 形态。该检查必须发生在单态化、closure 转换、协程变换及 extern 符号发射之前；
+- 完成 FFI 注解的目标与共存检查：`@Extern` 与 `suspend` 互斥，无论 `abi` 取值为何都在 HIR 报编译错误；函数声明引用表达式的 `FunPtr` contextual resolution 同样拒绝挂起函数及一切只能产生 managed closure 的形态。该检查必须发生在单态化、closure 转换、协程变换及 extern 符号发射之前；
 - `const val` 在 HIR 做常量表达式求值与依赖环检查；其值进入可供下游 Cone 使用的 HIR meta，不生成 runtime initializer。普通/挂起 call、构造、分配及普通属性读取均不能进入 const expression IR；
 - 对非 `Unit` 块体执行组合式控制流分析，证明所有可达路径均以有值 `return` 或 `throw` 结束；`finally` 的必退出路径覆盖 try/catch 的待执行结果（spec 第 8 章）；
 - 默认参数值的调用处实例化（spec 8.5）；`getCurrentSourceLocation` 在缺省参数中的常量化（spec 11.12）；

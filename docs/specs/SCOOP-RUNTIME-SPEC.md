@@ -174,7 +174,7 @@ TLAB 的有无、尺寸与 slow path 细节随 GC 方案确定；契约只要求
 
 - frame 与 continuation adapter 必须有普通 TypeDescriptor 和完备的递归引用扫描描述；frame 链由 GC 自然保活，不登记额外的 runtime root；
 - continuation 的完成状态与 frame 的当前恢复状态存于 managed 对象字段。M10 的最小实现是单线程协议，检查与转换无需 runtime 原子操作；跨线程恢复要等线程注册/握手与调度器落地后再定义；
-- hidden continuation ABI 仅存在于编译器生成的 Scoop 托管调用之间。runtime 不提供 suspend FFI 入口、extern trampoline 或 callback wrapper；`@Extern` 与 `suspend` 的互斥及挂起函数不能转换为 `FunPtr` 由 HIR 保证（spec 8.2、13.4、13.10）；
+- hidden continuation ABI 仅存在于编译器生成的 Scoop 托管调用之间。runtime 不提供 suspend FFI 入口、extern trampoline 或 callback wrapper；`@Extern` 与 `suspend` 的互斥，以及挂起函数声明引用不能在 `FunPtr` 上下文中解析为原生地址，由 HIR 保证（spec 8.2、13.4、13.10）；
 - runtime 只提供第 5 章所述的 ABI 异常物化辅助，不参与状态分派、恢复、队列或线程切换；
 - 调度器、事件循环与取消属于标准库。永不恢复的 continuation 只会按普通不可达对象被 GC 回收，runtime 不替它执行 cleanup / `finally`。
 

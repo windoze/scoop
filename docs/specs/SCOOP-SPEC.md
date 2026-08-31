@@ -549,15 +549,21 @@ lambda 参与重载决议时，每个候选先提供自己的期望函数类型�
 
 本版本不提供隐式 reference capture、`move` capture 或 capture list。以后增加新的 capture mode 时必须使用显式语法，并单独规定 lifetime、identity、并发和成本模型；不得静默放宽本节的 `var` 禁令。
 
-#### 8.1.4 callable reference
+#### 8.1.4 函数声明引用表达式（callable reference）
 
-以下表达式创建 managed 函数值：
+`::` 引入**函数声明引用表达式**。这是中性的源码语法：`::name` 本身既不表示 managed closure，也不表示 native code pointer。parser 只保留引用形态与名称；语义分析根据上下文的期望类型类别一次性决定其结果：
+
+- 期望类型是普通/挂起函数类型时，表达式创建本节定义的 managed 函数值；
+- 没有期望类型时，只尝试推导 managed 函数类型，绝不自动推导为 `FunPtr`；
+- 期望类型是 `FunPtr<F>` 时，只有语法形态为无 receiver 的 `::name` 才进入 8.1.5、13.10 的 native-address contextual resolution；该路径不先创建 managed 函数值。
+
+在 managed 函数类型上下文或无期望类型的推导上下文中，支持以下形式：
 
 - `::name`：引用可见的顶层函数或局部函数；
 - `receiver::member`：创建绑定接收者的成员函数引用，`receiver` 在创建时求值且只求值一次；
 - `::extension`：创建未绑定扩展函数引用，其函数类型把扩展接收者作为第一个普通参数；`receiver::extension` 则创建绑定形式。
 
-若目标是 virtual / interface 成员，绑定引用在每次调用时仍按已保存接收者做动态分派，不能在创建时固定为当时的具体实现。重载目标由期望函数类型与普通重载规则共同确定；没有期望类型时，只有唯一的非 generic 候选才能自行确定函数类型。
+若目标是 virtual / interface 成员，绑定引用在每次调用时仍按已保存接收者做动态分派，不能在创建时固定为当时的具体实现。managed 分支中的重载目标由期望函数类型与普通重载规则共同确定；没有期望类型时，只有唯一的非 generic 候选才能自行确定函数类型，所得结果仍是 managed 函数值。
 
 `receiver::member` 的 receiver 是创建点的普通表达式；其中读取某个局部 `var` 会立即取得当前值，随后 closure 不可变地保存该 receiver。这是源码显式的创建时快照，不是 callable body 对该 `var` 的自由变量捕获。
 
@@ -567,7 +573,19 @@ Scoop 当前不提供 `Type::member` 的未绑定成员引用或构造函数引�
 
 managed 函数类型与 `FunPtr<F>`（13.10）是不同类别的值：前者是可捕获、可经 GC 移动的引用对象，后者是 GC-free 的原生代码指针值。二者没有一般性的子类型关系、转换或相同调用 ABI。
 
-唯一的互操作是 13.10 定义的**期望类型驱动转换**：在明确需要 `FunPtr<F>` 的位置，满足约束的顶层命名函数引用 `::name` 可以直接生成原生 callback 地址。该规则不先创建 managed closure，也不允许把任意 lambda、匿名函数、局部函数、绑定引用或已存在的函数值转换为 `FunPtr`。
+唯一共享的是 8.1.4 的 `::name` **源码语法**。在上下文期望类型明确为 `FunPtr<F>` 时，满足约束的顶层命名函数引用直接解析为原生 callback 地址；这是对函数声明引用表达式的 native-address contextual resolution，不是从 managed 函数值到 `FunPtr` 的值转换。该路径不创建 managed closure，也不允许把 lambda、匿名函数、局部函数、绑定引用或已存在的函数值转换为 `FunPtr`。
+
+```
+@NoGC
+fun increment(value: Int): Int = value + 1
+
+fun references() {
+    val managed: (Int) -> Int = ::increment
+    val native: FunPtr<(Int) -> Int> = ::increment
+    val inferred = ::increment                    // 无期望类型：managed (Int) -> Int
+    val invalid: FunPtr<(Int) -> Int> = inferred // 编译错误：不能事后拆出 native 地址
+}
+```
 
 ### 8.2 `suspend` 函数
 
@@ -581,7 +599,7 @@ managed 函数类型与 `FunPtr<F>`（13.10）是不同类别的值：前者是�
 - 调用点之前已经完成的实参和子表达式只求值一次；恢复后从调用点之后继续，源码从左到右求值顺序不变。跨挂起点仍存活的局部变量、参数及待执行的控制转移必须被保留。
 - `try` / `catch` / `finally` 的语义跨挂起点保持不变：恢复失败等价于在原挂起调用点 `throw`；仅仅挂起不会执行 `finally`；当计算随后正常返回、抛出或由 `finally` 覆盖退出时，`finally` 仍恰好执行一次。
 - `Continuation` 是单次完成协议：一个挂起点只能由 `resume` 或 `resumeWithException` 中的一个成功完成一次；编译器生成的 continuation 对重复完成抛出 `IllegalStateException`。本规范不定义协程取消；放弃且永不恢复一个 continuation 不会隐式执行 `finally`。
-- 现阶段不支持 suspend FFI：挂起函数不得带 `@Extern`，也不得转换为 `FunPtr`；M10 的 hidden continuation ABI 只用于编译器生成的 Scoop 托管调用，不是任何 FFI ABI。具体约束见 13.4、13.10 与 14.2。
+- 现阶段不支持 suspend FFI：挂起函数不得带 `@Extern`，其声明引用也不得在 `FunPtr` 上下文中解析为原生地址；M10 的 hidden continuation ABI 只用于编译器生成的 Scoop 托管调用，不是任何 FFI ABI。具体约束见 13.4、13.10 与 14.2。
 - 具体的协程构建器（`launch`、`async` 等）、调度器与取消策略属于标准库，不在最小核心库范围内。最小核心库只提供 11.9 的启动、挂起与恢复原语。
 
 ### 8.3 上下文参数（context parameters）
@@ -1181,11 +1199,11 @@ fun <T : value> alignOf(): UInt
 struct FunPtr<F>(val _rawPointer: UInt = 0u)
 ```
 
-- `_rawPointer` 存放实际的函数指针值（与 `Ptr` 同样以 `UInt` 容纳 raw pointer）。缺省构造产生 null 指针（`0u`），因此 `FunPtr` 可以声明为 struct 字段、先以 null 填充；非 null 的 `FunPtr` 只能由编译器在 callable reference 转换时生成（见下）。
-- 除缺省构造（null）外，用户**不能直接构造** `FunPtr` 值；在期望 `FunPtr<F>` 的位置使用顶层函数引用 `::name`，由编译器完成上下文转换。该转换要求声明签名与 `F` **精确相同**，不应用 8.1.1 的函数类型型变。
+- `_rawPointer` 存放实际的函数指针值（与 `Ptr` 同样以 `UInt` 容纳 raw pointer）。缺省构造产生 null 指针（`0u`），因此 `FunPtr` 可以声明为 struct 字段、先以 null 填充；非 null 的 `FunPtr` 只能由编译器对 `::name` 执行 native-address contextual resolution 时生成（见下）。
+- 除缺省构造（null）外，用户**不能直接构造** `FunPtr` 值；在期望类型明确为 `FunPtr<F>` 的位置使用顶层函数声明引用 `::name`，由编译器直接生成原生 callback 地址。`::name` 是 8.1.4 的中性源码语法，不具有固有的 `FunPtr` 类型；因此 `val callback = ::name` 仍推导为 managed 函数值，要保存原生地址必须由类型标注、参数类型、返回类型等上下文提供 `FunPtr<F>` 期望类型。目标声明签名必须与 `F` **精确相同**，不应用 8.1.1 的函数类型型变。
 - `F` 的每个参数与返回类型必须满足对应 extern ABI 的 FFI-safe 约束；`Unit` 只允许作为返回类型。函数类型 `F` 在这里仅描述 native signature，本身不会作为 managed 引用穿越边界。
 - 可空函数指针用 `Option<FunPtr<F>>` 表示（niche 优化见 7.4）。
-- 被转换的目标必须是带 `@NoGC` 的普通顶层命名函数，且**不能是 generic、挂起、extern、成员或扩展函数**。lambda、匿名函数、局部函数、任何绑定引用以及已存在的 managed 函数值都不能转换。违反这些约束是编译错误：FFI 回调不得与 GC 交互，generic 函数没有单一具体符号，挂起函数只有编译器内部的 hidden continuation ABI，而 closure 还需要原生 ABI 中不存在的 managed 环境参数。编译器不自动生成 closure 或挂起 callback wrapper。
+- native-address resolution 的目标必须是带 `@NoGC` 的普通顶层命名函数，且**不能是 generic、挂起、extern、成员或扩展函数**。lambda、匿名函数、局部函数、任何绑定引用以及已存在的 managed 函数值都不能作为非 null `FunPtr` 的来源。违反这些约束是编译错误：FFI 回调不得与 GC 交互，generic 函数没有单一具体符号，挂起函数只有编译器内部的 hidden continuation ABI，而 closure 还需要原生 ABI 中不存在的 managed 环境参数。编译器不自动生成 closure 或挂起 callback wrapper。
 - `FunPtr` 不提供 Scoop 侧 `invoke`；它只用于传递/存储 native callback 地址。初版 callback 契约仅允许原生方在发起 extern 调用的同一已注册线程上同步调用；保存后异步、跨线程或在 Scoop 程序退出后调用需要 14.3 的 GC-aware 注册协议，不能由 `FunPtr` 隐式获得。
 
 ```

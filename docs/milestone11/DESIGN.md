@@ -2,7 +2,7 @@
 
 版本：1.0（已实现，2026-08-31）
 
-对应 `docs/ROADMAP.md` 的 M11。目标：把 spec 8.1 的普通/挂起函数类型、lambda、匿名函数、局部函数与 callable reference 作为正式语言能力全链路落地，并在 MIR 完成可被 M9 GC 扫描、可与 M10 状态机组合的 closure conversion。M12 FFI 随后直接复用这里的函数类型与 `::name`，不再为 `FunPtr` 临时发明一套不可作为值使用的伪签名类型。
+对应 `docs/ROADMAP.md` 的 M11。目标：把 spec 8.1 的普通/挂起函数类型、lambda、匿名函数、局部函数与 callable reference 作为正式语言能力全链路落地，并在 MIR 完成可被 M9 GC 扫描、可与 M10 状态机组合的 closure conversion。M12 FFI 随后直接复用这里的函数类型与中性的 `::name` 源码语法；同一表达式在明确的 `FunPtr<F>` 期望类型下直接解析为 native address，不再为 `FunPtr` 发明另一套引用语法或不可作为值使用的伪签名类型。
 
 ## 0. 范围与关键决策
 
@@ -13,7 +13,7 @@ M11 交付以下闭环：函数类型可以出现在变量、参数、返回值�
 - lambda 与匿名函数都支持普通/挂起形态。lambda 使用尾表达式返回且拒绝裸 `return`；匿名函数支持局部 `return`；
 - 局部函数名只从声明处开始可见，但在自身 body 内可见，因而支持直接递归而不引入块级前向声明；
 - M11 不允许捕获外层 `var`，无论 body 只读还是写入都在 HIR 诊断。需要快照时先显式绑定为 `val`；需要共享可变状态时显式捕获用户声明的引用对象。新的 reference/move capture 等找到合适模型后再以显式语法加入。`this` 不需要独立规则；它是 spec 3.3 的隐含不可变参数，捕获时与显式参数一样复制其值；
-- callable reference 使用显式 `::`。普通值位置的函数名不隐式变成函数值，避免命名调用、重载集合与函数值之间出现上下文不稳定的解析；
+- 函数声明引用使用显式 `::`。该语法节点本身不编码 managed/native 类别；M11 的可用期望类型只会把它解析为 managed callable reference，M12 再增加 `FunPtr<F>` 上下文分支。普通值位置的函数名不隐式变成函数值，避免命名调用、重载集合与函数值之间出现上下文不稳定的解析；
 - 先单态化，再 closure conversion，最后执行 M10 coroutine transform。suspend closure 的环境接收者因此会进入 hidden continuation ABI，而不是另造一套协程实现；
 - M11 同步为 core 增加接受 `suspend () -> T` 与 `(Continuation<T>) -> Unit` 的协程原语重载；已有 `SuspendTask` / `SuspendRegistration` 协议保留，lambda 重载用普通 Scoop 适配器实现，不新增 intrinsic；
 - M11 不实现 receiver function type、`Type::member` 未绑定成员引用、构造函数引用、lambda non-local return、closure 到原生 trampoline 或 GC-aware FFI callback registry。这些都是明确的语言/库边界，不以 TODO 分支留在 pipeline。
@@ -125,7 +125,7 @@ fun choose(negative: Boolean): (Int) -> Int {
 
 局部 generic 函数可直接调用并按既有规则单态化；只有期望函数类型能唯一确定全部类型实参时才可取得其 callable reference。每个 concrete reference closure直接保存其不可变 capture，不建立额外的 generic environment object。lambda 与匿名函数本身不声明类型参数。
 
-### 1.4 callable reference 与动态分派
+### 1.4 函数声明引用与 managed callable reference
 
 ```
 fun inc(value: Int): Int = value + 1
@@ -150,7 +150,7 @@ fun main() {
 - `receiver::member` 在创建时从左到右求值 receiver 一次并保存；调用时按保存 receiver 的动态类型执行 virtual / interface 分派；
 - receiver 是创建点的普通表达式；它可以读取局部 `var` 并立即复制当前值。该源码可见的创建时快照不是 callable body 的自由变量 capture，后续重新绑定原 `var` 不改变已创建的 bound reference；
 - `::extension` 的未绑定类型把扩展 receiver 放在第一个参数，`receiver::extension` 保存 receiver 并移除该参数；
-- 无期望类型时，只有唯一非 generic 候选可决定引用类型；有重载或 generic 候选时必须由期望函数类型唯一选中；
+- 无期望类型时，只有唯一非 generic 候选可决定引用类型，所得结果固定为 managed 函数值，不预判未来的 `FunPtr` 分支；有重载或 generic 候选时必须由期望函数类型唯一选中；
 - 函数声明名出现在普通值位置时诊断并提示使用 `::name`。直接 `name(args...)` 保持 M7 的命名调用与重载语义。
 
 ### 1.5 suspend 函数值
@@ -269,7 +269,7 @@ capture 字段按“外层词法层级 → 首次使用源码位置 → BindingI
 - 需要捕获某个`var`的当前快照时，用户先写`val snapshot = value`；需要共享可变状态时，用户显式声明class或未来标准库的`MutableCell<T>`并捕获其`val`引用；
 - 后续若引入`move`、reference capture或capture list，必须使用源代码可见的显式语法，并先定义ownership/lifetime、closure kind、并发及ABI成本；不得仅删除当前诊断后恢复隐式boxing。
 
-### 2.5 callable reference closure
+### 2.5 managed callable reference closure
 
 - 顶层函数引用：无 capture，invoke body direct-call 已选中的 `FunctionId`；
 - 非 generic 局部函数：direct call调用lifted body并传入不可变capture；每次求值`::local`时创建closure并按值保存同一组capture，重复求值不保证相同identity；
@@ -295,7 +295,7 @@ lambda 实参使用候选提供的 expected function type 做双向检查。每�
 - `TypeRefKind::Function { parameters, return_type, is_suspend }` 作为通用 type ref，可递归出现在 nullable、generic、array、字段与返回类型中；正确区分 `Unit`、`() -> R`、tuple 和带括号的普通类型；
 - `Expr::Lambda { id, is_suspend, parameters, body, span }`，参数保存可选类型与解构 pattern；
 - `Expr::AnonymousFunction { id, is_suspend, parameters, return_type, body, span }`；
-- `Expr::CallableReference { id, receiver, name, span }`，`receiver = None` 对应 `::name`，有值对应 `expr::name`；parser 不尝试区分成员、扩展或局部目标；
+- `Expr::CallableReference { id, receiver, name, span }`，`receiver = None` 对应 `::name`，有值对应 `expr::name`；这是中性的函数声明引用语法节点，parser 不尝试区分成员、扩展、局部目标或 managed/native 结果类别；
 - block item 增加局部 `FunctionDecl`，复用顶层/成员函数参数与 body 语法，但拒绝可见性、virtual/override、`@Extern` 等不适用于局部函数的 modifier/annotation；
 - lexer/parser 接受 `suspend { ... }` 与 `suspend fun(...)`，并保证孤立 `suspend`、缺失 `->`、空参数槽、非法 callable reference 有精确 span；
 - 尾随 lambda 仍是普通实参语法糖，AST 保存实际实参顺序。`f(a) { ... }` 与 `f(a, { ... })` 进入同一 HIR 调用路径；
@@ -340,12 +340,12 @@ CallTarget = Direct | Virtual | Interface | CallableValue(FunctionTypeId)
 
 ### 4.4 为 M12 预留的正式接口
 
-M11 HIR 的 callable reference 是完整表达式，不知道 `FunPtr`。M12 增加 `FunPtr<F>` expected type 后，只允许把语法形态和 resolved target 都满足 spec 13.10 的 `::topLevel` 改写为独立 `ExprKind::FunctionAddress`：
+M11 parser 已把 callable reference 保存为中性的完整表达式；由于 M11 尚无 `FunPtr` expected type，HIR 只会为其选择 managed resolution。M12 增加 `FunPtr<F>` expected type 后，HIR 必须在创建 managed callable entity 之前按期望类型类别分支：只有语法形态和 resolved target 都满足 spec 13.10 的 `::topLevel` 才直接产生独立 `ExprKind::FunctionAddress`：
 
 - 该路径不生成 closure，不分配对象；
 - 目标签名与 `F` 精确匹配，不走 managed function variance adapter；
 - lambda、匿名/局部函数、绑定引用与已有函数值已经具有 managed 语义，不能“脱壳”成 native code pointer；
-- 在 `@NoGC` body 中，普通 managed callable reference 仍是分配/引用操作；只有成功走 `FunctionAddress` 的 M12 contextual conversion 才不违反 NoGC。
+- 在 `@NoGC` body 中，普通 managed callable reference 仍是分配/引用操作；只有成功走 `FunctionAddress` 的 M12 native-address contextual resolution 才不违反 NoGC。
 
 ## 5. MIR 与变换顺序
 
@@ -456,7 +456,7 @@ M10 的所有旧 fixture 必须原样通过；新增 lambda fixture必须同时�
 
 - **spec 3 / 8.1 / 8.2**：函数类型的引用类别、型变、lambda/匿名函数、capture、局部函数、reference、suspend规则已正式化；
 - **spec 11.9**：增加函数值形态协程原语重载，保留 M10 adapter协议；
-- **spec 13.10**：`FunPtr<F>` 复用 8.1 的 ordinary concrete function type，转换语法改为 `::name` 并明确与 managed closure隔离；
+- **spec 13.10**：`FunPtr<F>` 复用 8.1 的 ordinary concrete function type与中性 `::name` 语法，并明确 native-address resolution 与 managed closure隔离；
 - **impl spec 2.2–2.5**：补充 FunctionTypeId、capture analysis、单态化 → closure → coroutine顺序、typed indirect call与扫描描述；
 - **runtime spec 2.6 / 4.3**：managed closure内联保存value capture且不生成capture cell；native callback registry仍是独立后续能力；
 - **ROADMAP M7/M10 backlog**：局部函数候选层及函数类型/lambda项改由 M11承接；M12 FFI设计删除临时 function-signature-only补丁。
