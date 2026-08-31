@@ -1313,9 +1313,15 @@ fn callee_return_type(lowerer: &Lowerer, callee: mir::Callee) -> mir::Type {
         mir::Callee::User(function) => function,
         mir::Callee::Monomorphized(instance) => lowerer.instances.meta[instance].function,
         mir::Callee::Closure(function_type) | mir::Callee::FunctionBridge(function_type) => {
-            return lowerer.shell.function_types[function_type]
-                .return_type
-                .clone();
+            let signature = &lowerer.shell.function_types[function_type];
+            return if signature.is_suspend {
+                lowerer
+                    .coroutines
+                    .step_type_for(&signature.return_type)
+                    .expect("every suspend function result has a CoroutineStep type")
+            } else {
+                signature.return_type.clone()
+            };
         }
         mir::Callee::CoroutineSuspend { .. } | mir::Callee::Runtime(_) => {
             unreachable!("a source suspend call resolves to a hidden-ABI function")
@@ -1742,7 +1748,16 @@ fn suspend_effect(
     let function = match call.target.callee {
         mir::Callee::User(function) => function,
         mir::Callee::Monomorphized(instance) => lowerer.instances.meta[instance].function,
-        mir::Callee::Closure(_) | mir::Callee::FunctionBridge(_) => return None,
+        mir::Callee::Closure(function_type) | mir::Callee::FunctionBridge(function_type) => {
+            let signature = &lowerer.shell.function_types[function_type];
+            return signature.is_suspend.then(|| {
+                (
+                    destination,
+                    signature.return_type.clone(),
+                    SuspendKind::Call,
+                )
+            });
+        }
         mir::Callee::CoroutineSuspend { .. } | mir::Callee::Runtime(_) => return None,
     };
     lowerer

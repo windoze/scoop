@@ -312,6 +312,13 @@ impl CoroutineRegistry {
         (id, mir::Type::Enum(enum_id, Vec::new()))
     }
 
+    fn step_type_for(&self, result: &mir::Type) -> Option<mir::Type> {
+        self.steps_by_result
+            .iter()
+            .find(|(found, _)| found == result)
+            .map(|(_, id)| mir::Type::Enum(self.steps[*id].enum_id, Vec::new()))
+    }
+
     fn slot_for(
         &mut self,
         value: &mir::Type,
@@ -1535,6 +1542,7 @@ impl Lowerer {
             dynamic_closure_adapters: &mut self.dynamic_closure_adapters,
             dynamic_adapter_by_target: &mut self.dynamic_adapter_by_target,
             function_bridge_targets: &mut self.function_bridge_targets,
+            suspend_sources: &mut self.suspend_sources,
             current_closure,
             current_closure_local: None,
             current_local_capture_params,
@@ -2075,6 +2083,13 @@ impl Lowerer {
             );
             self.functions[function].params = params;
             self.functions[function].body = body;
+            if signature.is_suspend {
+                self.suspend_sources.push(SuspendSource {
+                    function,
+                    source_return: signature.return_type,
+                    instance: None,
+                });
+            }
             self.reference_closures.insert(id, class);
         }
     }
@@ -2458,6 +2473,7 @@ impl Lowerer {
             dynamic_closure_adapters: &mut self.dynamic_closure_adapters,
             dynamic_adapter_by_target: &mut self.dynamic_adapter_by_target,
             function_bridge_targets: &mut self.function_bridge_targets,
+            suspend_sources: &mut self.suspend_sources,
             current_closure: None,
             current_closure_local: None,
             current_local_capture_params: HashMap::new(),
@@ -2653,6 +2669,7 @@ impl Lowerer {
             dynamic_closure_adapters: &mut self.dynamic_closure_adapters,
             dynamic_adapter_by_target: &mut self.dynamic_adapter_by_target,
             function_bridge_targets: &mut self.function_bridge_targets,
+            suspend_sources: &mut self.suspend_sources,
             current_closure: None,
             current_closure_local: None,
             current_local_capture_params: HashMap::new(),
@@ -2897,10 +2914,17 @@ impl Lowerer {
             symbol: format!("scoop.{name}"),
             name,
             params,
-            return_ty,
+            return_ty: return_ty.clone(),
             body,
         });
         self.top_level.push(id);
+        if signature.is_suspend {
+            self.suspend_sources.push(SuspendSource {
+                function: id,
+                source_return: return_ty,
+                instance: None,
+            });
+        }
         id
     }
 
@@ -3848,6 +3872,7 @@ struct BodyLowerer<'a> {
     dynamic_closure_adapters: &'a mut Arena<mir::DynamicClosureAdapter>,
     dynamic_adapter_by_target: &'a mut HashMap<mir::FunctionTypeId, mir::DynamicClosureAdapterId>,
     function_bridge_targets: &'a mut Vec<mir::FunctionTypeId>,
+    suspend_sources: &'a mut Vec<SuspendSource>,
     current_closure: Option<mir::ClosureClassId>,
     current_closure_local: Option<mir::LocalId>,
     /// Hidden by-value parameters of a lifted local function, keyed by the
@@ -4260,8 +4285,17 @@ impl BodyLowerer<'_> {
             });
         }
         self.functions[function].params = params;
-        self.functions[function].body =
-            cfg::lower(smir::Body { locals, statements }, signature.return_type);
+        self.functions[function].body = cfg::lower(
+            smir::Body { locals, statements },
+            signature.return_type.clone(),
+        );
+        if signature.is_suspend {
+            self.suspend_sources.push(SuspendSource {
+                function,
+                source_return: signature.return_type,
+                instance: None,
+            });
+        }
         self.generic_reference_closures.insert(key, class);
         class
     }
@@ -4444,6 +4478,13 @@ impl BodyLowerer<'_> {
             },
             target_signature.return_type,
         );
+        if target_signature.is_suspend {
+            self.suspend_sources.push(SuspendSource {
+                function,
+                source_return: self.shell.function_types[target].return_type.clone(),
+                instance: None,
+            });
+        }
         adapter
     }
 
@@ -4556,8 +4597,17 @@ impl BodyLowerer<'_> {
             }]
         };
         self.functions[function].params = params;
-        self.functions[function].body =
-            cfg::lower(smir::Body { locals, statements }, signature.return_type);
+        self.functions[function].body = cfg::lower(
+            smir::Body { locals, statements },
+            signature.return_type.clone(),
+        );
+        if signature.is_suspend {
+            self.suspend_sources.push(SuspendSource {
+                function,
+                source_return: signature.return_type,
+                instance: None,
+            });
+        }
         adapter
     }
 

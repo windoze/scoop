@@ -2054,9 +2054,17 @@ impl<'a> FunctionLowerer<'a> {
         match call.target.callee {
             mir::Callee::FunctionBridge(function_type) => {
                 let signature = self.module.function_types[function_type].clone();
-                let mut parameter_types = Vec::with_capacity(signature.parameter_types.len() + 1);
+                let mut parameter_types = Vec::with_capacity(call.args.len());
                 parameter_types.push(mir::Type::Any);
                 parameter_types.extend(signature.parameter_types);
+                for arg in call.args.iter().skip(parameter_types.len()) {
+                    parameter_types.push(self.expr_ty(arg));
+                }
+                assert_eq!(
+                    call.args.len(),
+                    parameter_types.len(),
+                    "only suspend function bridges add a hidden continuation argument"
+                );
                 let args: Vec<lir::Value> = call
                     .args
                     .iter()
@@ -2075,15 +2083,23 @@ impl<'a> FunctionLowerer<'a> {
                     table,
                     0,
                     args,
-                    signature.return_type == mir::Type::Unit,
+                    !signature.is_suspend && signature.return_type == mir::Type::Unit,
                     result_ty,
                 )
             }
             mir::Callee::Closure(function_type) => {
                 let signature = self.module.function_types[function_type].clone();
-                let mut parameter_types = Vec::with_capacity(signature.parameter_types.len() + 1);
+                let mut parameter_types = Vec::with_capacity(call.args.len());
                 parameter_types.push(mir::Type::Function(function_type));
                 parameter_types.extend(signature.parameter_types);
+                for arg in call.args.iter().skip(parameter_types.len()) {
+                    parameter_types.push(self.expr_ty(arg));
+                }
+                assert_eq!(
+                    call.args.len(),
+                    parameter_types.len(),
+                    "only suspend closure calls add a hidden continuation argument"
+                );
                 let args: Vec<lir::Value> = call
                     .args
                     .iter()
@@ -2093,7 +2109,7 @@ impl<'a> FunctionLowerer<'a> {
                 self.finish_closure(
                     args[0],
                     args,
-                    signature.return_type == mir::Type::Unit,
+                    !signature.is_suspend && signature.return_type == mir::Type::Unit,
                     result_ty,
                 )
             }

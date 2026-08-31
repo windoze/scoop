@@ -11,10 +11,26 @@ SourceFile
     suspend fun run
   interface SuspendRegistration<out T>
     fun register
+  struct FunctionSuspendTask<T> : SuspendTask<T>
+    field task: suspend () -> T
+    suspend fun run
+  struct FunctionSuspendRegistration<T> : SuspendRegistration<T>
+    field registration: (Continuation<T>) -> Unit
+    fun register
     @Intrinsic("coroutine_start")
   fun startCoroutine<T>(task: SuspendTask<T>, completion: Continuation<T>)
     @Intrinsic("coroutine_suspend")
   suspend fun suspendCoroutine<T>(registration: SuspendRegistration<T>): T
+  fun startCoroutine<T>(task: suspend () -> T, completion: Continuation<T>)
+    Call startCoroutine
+      Call FunctionSuspendTask
+        Var task
+      Var completion
+  suspend fun suspendCoroutine<T>(registration: (Continuation<T>) -> Unit): T
+    =
+      Call suspendCoroutine
+        Call FunctionSuspendRegistration
+          Var registration
 SourceFile
   struct PinHandle<T>
     field raw: UInt
@@ -186,6 +202,10 @@ SourceFile
 
 == hir ==
 Module
+  struct FunctionSuspendTask<T> : SuspendTask<T0>
+    field task: suspend () -> T0
+  struct FunctionSuspendRegistration<T> : SuspendRegistration<T0>
+    field registration: (Continuation<T0>) -> Unit
   struct PinHandle<T>
     field raw: UInt
   struct GcHandle<T>
@@ -211,6 +231,18 @@ Module
     fun register(continuation: Continuation<T0>): Unit
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
+  fun startCoroutine<T>(task: suspend () -> T0, completion: Continuation<T0>): Unit
+    Call startCoroutine<T0> : Unit
+      Box : SuspendTask<T0>
+        StructInit FunctionSuspendTask : FunctionSuspendTask<T0>
+          Local task : suspend () -> T0
+      Local completion : Continuation<T0>
+  suspend fun suspendCoroutine<T>(registration: (Continuation<T0>) -> Unit): T0
+    return
+      Call suspendCoroutine<T0> : T0
+        Box : SuspendRegistration<T0>
+          StructInit FunctionSuspendRegistration : FunctionSuspendRegistration<T0>
+            Local registration : (Continuation<T0>) -> Unit
   fun pin<T>(): PinHandle<T0> <intrinsic rt_pin>
   fun unpin<T>(): T0 <intrinsic rt_unpin>
   fun getGcHandle<T>(): GcHandle<T0> <intrinsic rt_get_handle>
@@ -238,11 +270,11 @@ Module
   fun makeLambda<T>(value: T0): () -> T0
     return
       Lambda lambda0 invoke=$lambda.0 captures=1 : () -> T0
-        capture value binding15 : T0
+        capture value binding18 : T0
   fun makeAnonymous<T>(value: T0): () -> T0
     return
       AnonymousFunction anonymous0 invoke=$anonymous.0 captures=1 : () -> T0
-        capture value binding17 : T0
+        capture value binding20 : T0
   fun makeLocalReference<T>(value: T0): () -> T0
     LocalFunction local0 body=$local.0.read captures=1
     return
@@ -259,14 +291,14 @@ Module
   fun makeNested<T>(value: T0): () -> () -> T0
     return
       AnonymousFunction anonymous1 invoke=$anonymous.1 captures=1 : () -> () -> T0
-        capture value binding24 : T0
+        capture value binding27 : T0
   fun makeBoxReader<T>(value: T0): () -> T0
     val local1
       StructInit GenericBox : GenericBox<T0>
         Local value : T0
     return
       Lambda lambda2 invoke=$lambda.2 captures=1 : () -> T0
-        capture box binding28 : GenericBox<T0>
+        capture box binding31 : GenericBox<T0>
   fun main(): Unit
     val local0
       Call makeLambda<Int> : () -> Int
@@ -313,58 +345,60 @@ Module
     Call gcCollect : Unit
     Call println : Unit
       Box : Any
-        CallableCall function_type3 : Int
+        CallableCall function_type5 : Int
           Local intLambda : () -> Int
     Call println : Unit
-      CallableCall function_type4 : Any
+      CallableCall function_type6 : Any
         Local stringLambda : () -> String
     Call println : Unit
       Box : Any
-        CallableCall function_type3 : Int
+        CallableCall function_type5 : Int
           Local intAnonymous : () -> Int
     Call println : Unit
-      CallableCall function_type4 : Any
+      CallableCall function_type6 : Any
         Local stringAnonymous : () -> String
     Call println : Unit
       Box : Any
-        CallableCall function_type3 : Int
+        CallableCall function_type5 : Int
           Local intLocal : () -> Int
     Call println : Unit
-      CallableCall function_type4 : Any
+      CallableCall function_type6 : Any
         Local stringLocal : () -> String
     Call println : Unit
       Box : Any
-        CallableCall function_type5 : Int
+        CallableCall function_type7 : Int
           Local intIdentity : (Int) -> Int
           IntLiteral 48 : Int
     Call println : Unit
-      CallableCall function_type6 : Any
+      CallableCall function_type8 : Any
         Local stringIdentity : (String) -> String
         StringLiteral "identity" : String
     Call println : Unit
       Box : Any
-        CallableCall function_type3 : Int
+        CallableCall function_type5 : Int
           Local intExtension : () -> Int
     Call println : Unit
-      CallableCall function_type4 : Any
+      CallableCall function_type6 : Any
         Local stringExtension : () -> String
     Call println : Unit
       Box : Any
-        CallableCall function_type3 : Int
-          CallableCall function_type7 : () -> Int
+        CallableCall function_type5 : Int
+          CallableCall function_type9 : () -> Int
             Local intNested : () -> () -> Int
     Call println : Unit
-      CallableCall function_type4 : Any
-        CallableCall function_type8 : () -> String
+      CallableCall function_type6 : Any
+        CallableCall function_type10 : () -> String
           Local stringNested : () -> () -> String
     Call println : Unit
       Box : Any
-        CallableCall function_type3 : Int
+        CallableCall function_type5 : Int
           Local intBox : () -> Int
     Call println : Unit
-      CallableCall function_type4 : Any
+      CallableCall function_type6 : Any
         Local stringBox : () -> String
   entry main
+  instance startCoroutine<T0>
+  instance suspendCoroutine<T0>
   instance $local.0.read<T0>
   instance identity<T0>
   instance copyValue<T0>

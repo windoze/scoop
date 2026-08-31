@@ -1,0 +1,156 @@
+class Done() : Continuation<Int> {
+    final override fun resume(value: Int) {
+        println(value)
+    }
+
+    final override fun resumeWithException(exception: Throwable) {
+        println("failed")
+    }
+}
+
+class UnitDone() : Continuation<Unit> {
+    final override fun resume(value: Unit) {
+        println("unit-done")
+    }
+
+    final override fun resumeWithException(exception: Throwable) {
+        println("unit-failed")
+    }
+}
+
+class Gate(var waiter: Continuation<Int>?) {
+    fun complete(value: Int) {
+        val continuation = waiter!!
+        waiter = None
+        continuation.resume(value)
+    }
+
+    fun fail(exception: Throwable) {
+        val continuation = waiter!!
+        waiter = None
+        continuation.resumeWithException(exception)
+    }
+}
+
+fun makeTask(gate: Gate): suspend () -> Int = suspend {
+    val marker = "alive-" + "capture"
+    try {
+        val value = suspendCoroutine() { continuation: Continuation<Int> ->
+            gate.waiter = Some(continuation)
+        }
+        gcCollect()
+        println(marker)
+        value + 1
+    } finally {
+        println("finally")
+    }
+}
+
+suspend fun referenced(): Int = 43
+
+suspend fun acceptAny(value: Any): Int = 44
+
+class Worker(val gate: Gate) {
+    final suspend fun await(): Int = suspendCoroutine({ continuation: Continuation<Int> ->
+        gate.waiter = Some(continuation)
+    })
+}
+
+interface AsyncValue {
+    suspend fun read(): Int
+}
+
+class AsyncWorker(val gate: Gate) : AsyncValue {
+    final override suspend fun read(): Int = suspendCoroutine({ continuation: Continuation<Int> ->
+        gate.waiter = Some(continuation)
+    })
+}
+
+fun localTask(gate: Gate): suspend () -> Int {
+    suspend fun local(): Int = suspendCoroutine({ continuation: Continuation<Int> ->
+        gate.waiter = Some(continuation)
+    })
+    return ::local
+}
+
+fun varianceTask(): suspend () -> Int {
+    val exact: suspend (Any) -> Int = ::acceptAny
+    val widened: suspend (Int) -> Any = exact
+    return suspend { widened(0) as Int }
+}
+
+fun dynamicVarianceTask(): suspend () -> Int {
+    val exact: suspend (Any) -> Int = ::acceptAny
+    val erased: Any = exact
+    val checked = erased as suspend (Int) -> Any
+    return suspend { checked(0) as Int }
+}
+
+fun <T> constantTask(value: T): suspend () -> T = suspend { value }
+
+fun failureTask(gate: Gate): suspend () -> Int = suspend {
+    try {
+        suspendCoroutine({ continuation: Continuation<Int> ->
+            gate.waiter = Some(continuation)
+        })
+    } catch (exception: ArithmeticException) {
+        49
+    } finally {
+        println("failure-finally")
+    }
+}
+
+fun main() {
+    val task: suspend () -> Int = suspend { 42 }
+    startCoroutine(task, Done())
+    println("returned")
+
+    val gate = Gate(None)
+    startCoroutine(makeTask(gate), Done())
+    println("suspended")
+    gcCollect()
+    gate.complete(41)
+
+    val top: suspend () -> Int = ::referenced
+    startCoroutine(top, Done())
+    val erased: Any = top
+    println(erased is suspend () -> Int)
+    val checked = erased as suspend () -> Int
+    startCoroutine(checked, Done())
+
+    val anonymous: suspend () -> Int = suspend fun(): Int { return 45 }
+    startCoroutine(anonymous, Done())
+
+    val unitTask: suspend () -> Unit = suspend {
+        println("unit-body")
+    }
+    startCoroutine(unitTask, UnitDone())
+
+    val failing: suspend () -> Int = suspend fun(): Int {
+        throw ArithmeticException()
+    }
+    startCoroutine(failing, Done())
+
+    val boundGate = Gate(None)
+    val bound: suspend () -> Int = Worker(boundGate)::await
+    startCoroutine(bound, Done())
+    boundGate.complete(46)
+
+    val interfaceGate = Gate(None)
+    val interfaceValue: AsyncValue = AsyncWorker(interfaceGate)
+    val interfaceBound: suspend () -> Int = interfaceValue::read
+    startCoroutine(interfaceBound, Done())
+    interfaceGate.complete(50)
+
+    val localGate = Gate(None)
+    startCoroutine(localTask(localGate), Done())
+    localGate.complete(47)
+
+    startCoroutine(varianceTask(), Done())
+    startCoroutine(dynamicVarianceTask(), Done())
+    startCoroutine(constantTask(48), Done())
+
+    val failureGate = Gate(None)
+    startCoroutine(failureTask(failureGate), Done())
+    failureGate.fail(ArithmeticException())
+}

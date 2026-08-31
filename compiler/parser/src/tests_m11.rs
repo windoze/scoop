@@ -249,6 +249,70 @@ fn parses_anonymous_function_with_local_return() {
 }
 
 #[test]
+fn parses_suspend_lambda_and_anonymous_function_values() {
+    let source = "fun main() {\n\
+           val lambda: suspend () -> Int = suspend { 42 }\n\
+           val anonymous = suspend fun(value: Int): Int { return value }\n\
+         }";
+    let file = parse(source).expect("suspend function-value expressions should parse");
+    let Decl::Function(main) = &file.declarations[0] else {
+        panic!("expected main");
+    };
+    let scoop_ast::FunctionBody::Block(body) = &main.body else {
+        panic!("expected block");
+    };
+    let StatementKind::ValDecl(lambda) = &body.statements[0].kind else {
+        panic!("expected lambda declaration");
+    };
+    assert!(matches!(
+        lambda.init,
+        Expr::Lambda {
+            is_suspend: true,
+            span,
+            ..
+        } if span.start == source.find("suspend { 42 }").unwrap() as u32
+    ));
+    let StatementKind::ValDecl(anonymous) = &body.statements[1].kind else {
+        panic!("expected anonymous-function declaration");
+    };
+    assert!(matches!(
+        anonymous.init,
+        Expr::AnonymousFunction {
+            is_suspend: true,
+            span,
+            ..
+        } if span.start == source.find("suspend fun(value").unwrap() as u32
+    ));
+}
+
+#[test]
+fn trailing_lambda_is_the_last_positional_argument() {
+    let file = parse(
+        "fun main() {\n\
+           consume(1) { value: Int -> value + 1 }\n\
+           receiver.consume() { -> 42 }\n\
+         }",
+    )
+    .expect("a trailing lambda should parse as an ordinary argument");
+    let Decl::Function(main) = &file.declarations[0] else {
+        panic!("expected main");
+    };
+    let scoop_ast::FunctionBody::Block(body) = &main.body else {
+        panic!("expected block");
+    };
+    let StatementKind::Expr(Expr::Call(call)) = &body.statements[0].kind else {
+        panic!("expected named call");
+    };
+    assert_eq!(call.args.len(), 2);
+    assert!(matches!(call.args[1], Expr::Lambda { .. }));
+    let StatementKind::Expr(Expr::MethodCall { args, .. }) = &body.statements[1].kind else {
+        panic!("expected method call");
+    };
+    assert_eq!(args.len(), 1);
+    assert!(matches!(args[0], Expr::Lambda { .. }));
+}
+
+#[test]
 fn parses_local_functions_as_block_declarations() {
     let file = parse(
         "fun main() {\n  fun <T> identity(value: T): T = value\n  suspend fun task(): Int { return 1 }\n  identity(42)\n}",

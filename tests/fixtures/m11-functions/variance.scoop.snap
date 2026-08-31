@@ -11,10 +11,26 @@ SourceFile
     suspend fun run
   interface SuspendRegistration<out T>
     fun register
+  struct FunctionSuspendTask<T> : SuspendTask<T>
+    field task: suspend () -> T
+    suspend fun run
+  struct FunctionSuspendRegistration<T> : SuspendRegistration<T>
+    field registration: (Continuation<T>) -> Unit
+    fun register
     @Intrinsic("coroutine_start")
   fun startCoroutine<T>(task: SuspendTask<T>, completion: Continuation<T>)
     @Intrinsic("coroutine_suspend")
   suspend fun suspendCoroutine<T>(registration: SuspendRegistration<T>): T
+  fun startCoroutine<T>(task: suspend () -> T, completion: Continuation<T>)
+    Call startCoroutine
+      Call FunctionSuspendTask
+        Var task
+      Var completion
+  suspend fun suspendCoroutine<T>(registration: (Continuation<T>) -> Unit): T
+    =
+      Call suspendCoroutine
+        Call FunctionSuspendRegistration
+          Var registration
 SourceFile
   struct PinHandle<T>
     field raw: UInt
@@ -209,6 +225,10 @@ SourceFile
 
 == hir ==
 Module
+  struct FunctionSuspendTask<T> : SuspendTask<T0>
+    field task: suspend () -> T0
+  struct FunctionSuspendRegistration<T> : SuspendRegistration<T0>
+    field registration: (Continuation<T0>) -> Unit
   struct PinHandle<T>
     field raw: UInt
   struct GcHandle<T>
@@ -238,6 +258,18 @@ Module
     fun describe(): String
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
+  fun startCoroutine<T>(task: suspend () -> T0, completion: Continuation<T0>): Unit
+    Call startCoroutine<T0> : Unit
+      Box : SuspendTask<T0>
+        StructInit FunctionSuspendTask : FunctionSuspendTask<T0>
+          Local task : suspend () -> T0
+      Local completion : Continuation<T0>
+  suspend fun suspendCoroutine<T>(registration: (Continuation<T0>) -> Unit): T0
+    return
+      Call suspendCoroutine<T0> : T0
+        Box : SuspendRegistration<T0>
+          StructInit FunctionSuspendRegistration : FunctionSuspendRegistration<T0>
+            Local registration : (Continuation<T0>) -> Unit
   fun pin<T>(): PinHandle<T0> <intrinsic rt_pin>
   fun unpin<T>(): T0 <intrinsic rt_unpin>
   fun getGcHandle<T>(): GcHandle<T0> <intrinsic rt_get_handle>
@@ -312,7 +344,7 @@ Module
       FunctionCoercion coercion4 ((Int) -> Any) -> (Any) -> Int -> ((Any) -> Int) -> (Int) -> Any : ((Any) -> Int) -> (Int) -> Any
         Local nestedExact : ((Int) -> Any) -> (Any) -> Int
     val local12
-      CallableCall function_type11 : (Int) -> Any
+      CallableCall function_type13 : (Int) -> Any
         Local nestedWidened : ((Any) -> Int) -> (Int) -> Any
         Local exactValue : (Any) -> Int
     val local13
@@ -336,7 +368,7 @@ Module
       Cast optional=false : ((Any) -> Int) -> (Int) -> Any
         Local nestedErased : Any
     val local20
-      CallableCall function_type11 : (Int) -> Any
+      CallableCall function_type13 : (Int) -> Any
         Local nestedChecked : ((Any) -> Int) -> (Int) -> Any
         Local exactValue : (Any) -> Int
     val local21
@@ -346,30 +378,30 @@ Module
         Local boxedErased : Any
     Call gcCollect : Unit
     Call println : Unit
-      CallableCall function_type2 : Any
+      CallableCall function_type4 : Any
         Local widenedValue : (Int) -> Any
         IntLiteral 0 : Int
     Call println : Unit
       Box : Any
         IsInstance Dog : Boolean
-          CallableCall function_type5 : Animal
+          CallableCall function_type7 : Animal
             Local widenedReference : (Dog) -> Animal
             ClassInit Dog : Dog
     Call println : Unit
-      CallableCall function_type2 : Any
+      CallableCall function_type4 : Any
         Local genericInt : (Int) -> Any
         IntLiteral 0 : Int
     Call println : Unit
-      CallableCall function_type7 : Any
+      CallableCall function_type9 : Any
         Local genericString : (String) -> Any
         StringLiteral "ignored" : String
     Call println : Unit
       MethodCall Describable.describe : Any
-        CallableCall function_type9 : Describable
+        CallableCall function_type11 : Describable
           Local boxedReturn : (Int) -> Describable
           IntLiteral 0 : Int
     Call println : Unit
-      CallableCall function_type2 : Any
+      CallableCall function_type4 : Any
         Local nestedResult : (Int) -> Any
         IntLiteral 0 : Int
     Call println : Unit
@@ -381,16 +413,16 @@ Module
         IsInstance (Any) -> String : Boolean
           Local erased : Any
     Call println : Unit
-      CallableCall function_type2 : Any
+      CallableCall function_type4 : Any
         Local checked : (Int) -> Any
         IntLiteral 0 : Int
     Call println : Unit
       Box : Any
-        CallableCall function_type3 : Int
+        CallableCall function_type5 : Int
           Local exactChecked : (Any) -> Int
           StringLiteral "ignored" : Any
     Call println : Unit
-      CallableCall function_type2 : Any
+      CallableCall function_type4 : Any
         Local optionalChecked : (Int) -> Any
         IntLiteral 0 : Int
     Call println : Unit
@@ -399,30 +431,32 @@ Module
           Local missing : Option<(Any) -> String>
           VariantConstruct Option.None<(Any) -> String> : Option<(Any) -> String>
     Call println : Unit
-      CallableCall function_type2 : Any
+      CallableCall function_type4 : Any
         Local nestedDynamicResult : (Int) -> Any
         IntLiteral 0 : Int
     Call println : Unit
       MethodCall Describable.describe : Any
-        CallableCall function_type9 : Describable
+        CallableCall function_type11 : Describable
           Local boxedChecked : (Int) -> Describable
           IntLiteral 0 : Int
     if
       IsInstance (Int) -> Any : Boolean
         Local erased : Any
       Call println : Unit
-        CallableCall function_type2 : Any
+        CallableCall function_type4 : Any
           Local erased : (Int) -> Any
           IntLiteral 0 : Int
     try
       Call println : Unit
-        CallableCall function_type2 : Any
+        CallableCall function_type4 : Any
           Local widenedFailing : (Int) -> Any
           IntLiteral 0 : Int
     catch exception: ArithmeticException
       Call println : Unit
         StringLiteral "caught" : Any
   entry main
+  instance startCoroutine<T0>
+  instance suspendCoroutine<T0>
   instance widen<Int>
   instance widen<String>
 

@@ -163,6 +163,26 @@ fn lambda(parameters: Option<Vec<ast::LambdaParam>>, tail: ast::Expr) -> ast::Ex
     }
 }
 
+fn suspend_lambda(parameters: Option<Vec<ast::LambdaParam>>, tail: ast::Expr) -> ast::Expr {
+    let ast::Expr::Lambda {
+        id,
+        parameters,
+        body,
+        span,
+        ..
+    } = lambda(parameters, tail)
+    else {
+        unreachable!("lambda helper returns a lambda")
+    };
+    ast::Expr::Lambda {
+        id,
+        is_suspend: true,
+        parameters,
+        body,
+        span,
+    }
+}
+
 fn anonymous(
     params: Vec<(&str, ast::TypeRef)>,
     return_ty: Option<ast::TypeRef>,
@@ -226,6 +246,91 @@ fn expected_lambda_builds_a_typed_invoke_function_and_callable_call() {
             ..
         })
     ));
+}
+
+#[test]
+fn suspend_lambda_owns_a_suspend_body_and_is_callable_only_in_suspend_context() {
+    let signature = ty_function(true, Vec::new(), ty_named("Int"));
+    let module = lower_user(file(vec![
+        suspend_fun(
+            "run",
+            vec![
+                val_ty(
+                    "task",
+                    Some(signature),
+                    suspend_lambda(Some(Vec::new()), int_lit(42)),
+                ),
+                stmt(call("task", Vec::new())),
+            ],
+        ),
+        fun("main", Vec::new()),
+    ]))
+    .expect("a suspend function may invoke a suspend lambda value");
+
+    let (_, lambda) = module.lambdas.iter().next().expect("suspend lambda");
+    assert!(module.function_types[lambda.function_type].is_suspend);
+    assert!(module.functions[lambda.function].is_suspend);
+    let run = module
+        .functions
+        .iter()
+        .find_map(|(_, function)| (function.name == "run").then_some(function))
+        .expect("run function");
+    let hir::FunctionKind::User(body) = &run.kind else {
+        panic!("run body");
+    };
+    assert!(matches!(
+        body.statements[1].kind,
+        hir::StatementKind::Expr(hir::Expr {
+            kind: hir::ExprKind::CallableCall { .. },
+            ..
+        })
+    ));
+
+    let errors = lower_user(file(vec![fun(
+        "main",
+        vec![
+            val_ty(
+                "task",
+                Some(ty_function(true, Vec::new(), ty_named("Int"))),
+                suspend_lambda(Some(Vec::new()), int_lit(42)),
+            ),
+            stmt(call("task", Vec::new())),
+        ],
+    )]))
+    .expect_err("ordinary code must not invoke a suspend function value");
+    assert!(errors.iter().any(|error| {
+        error
+            .message
+            .contains("suspend function value cannot be called from non-suspend function `main`")
+    }));
+}
+
+#[test]
+fn suspend_callable_reference_preserves_suspend_identity() {
+    let reference = ast::Expr::CallableReference {
+        id: ast::CallableReferenceId(0),
+        receiver: None,
+        name: ident("waitForValue"),
+        span: sp(),
+    };
+    let module = lower_user(file(vec![
+        suspend_fun("waitForValue", Vec::new()),
+        fun(
+            "main",
+            vec![val_ty(
+                "task",
+                Some(ty_function(true, Vec::new(), ty_named("Unit"))),
+                reference,
+            )],
+        ),
+    ]))
+    .expect("creating a suspend callable reference is synchronous");
+    let (_, reference) = module
+        .callable_references
+        .iter()
+        .next()
+        .expect("callable reference");
+    assert!(module.function_types[reference.function_type].is_suspend);
 }
 
 #[test]

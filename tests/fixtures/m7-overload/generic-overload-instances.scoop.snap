@@ -11,10 +11,26 @@ SourceFile
     suspend fun run
   interface SuspendRegistration<out T>
     fun register
+  struct FunctionSuspendTask<T> : SuspendTask<T>
+    field task: suspend () -> T
+    suspend fun run
+  struct FunctionSuspendRegistration<T> : SuspendRegistration<T>
+    field registration: (Continuation<T>) -> Unit
+    fun register
     @Intrinsic("coroutine_start")
   fun startCoroutine<T>(task: SuspendTask<T>, completion: Continuation<T>)
     @Intrinsic("coroutine_suspend")
   suspend fun suspendCoroutine<T>(registration: SuspendRegistration<T>): T
+  fun startCoroutine<T>(task: suspend () -> T, completion: Continuation<T>)
+    Call startCoroutine
+      Call FunctionSuspendTask
+        Var task
+      Var completion
+  suspend fun suspendCoroutine<T>(registration: (Continuation<T>) -> Unit): T
+    =
+      Call suspendCoroutine
+        Call FunctionSuspendRegistration
+          Var registration
 SourceFile
   struct PinHandle<T>
     field raw: UInt
@@ -77,6 +93,10 @@ SourceFile
 
 == hir ==
 Module
+  struct FunctionSuspendTask<T> : SuspendTask<T0>
+    field task: suspend () -> T0
+  struct FunctionSuspendRegistration<T> : SuspendRegistration<T0>
+    field registration: (Continuation<T0>) -> Unit
   struct PinHandle<T>
     field raw: UInt
   struct GcHandle<T>
@@ -100,6 +120,18 @@ Module
     fun register(continuation: Continuation<T0>): Unit
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
+  fun startCoroutine<T>(task: suspend () -> T0, completion: Continuation<T0>): Unit
+    Call startCoroutine<T0> : Unit
+      Box : SuspendTask<T0>
+        StructInit FunctionSuspendTask : FunctionSuspendTask<T0>
+          Local task : suspend () -> T0
+      Local completion : Continuation<T0>
+  suspend fun suspendCoroutine<T>(registration: (Continuation<T0>) -> Unit): T0
+    return
+      Call suspendCoroutine<T0> : T0
+        Box : SuspendRegistration<T0>
+          StructInit FunctionSuspendRegistration : FunctionSuspendRegistration<T0>
+            Local registration : (Continuation<T0>) -> Unit
   fun pin<T>(): PinHandle<T0> <intrinsic rt_pin>
   fun unpin<T>(): T0 <intrinsic rt_unpin>
   fun getGcHandle<T>(): GcHandle<T0> <intrinsic rt_get_handle>
@@ -136,6 +168,8 @@ Module
           IntLiteral 22 : Int
           StringLiteral "string marker" : String
   entry main
+  instance startCoroutine<T0>
+  instance suspendCoroutine<T0>
   instance choose<Int>
   instance choose<Int>
 
@@ -170,13 +204,13 @@ Module
       return
   fun main @scoop_main() -> Unit
     bb0 entry
-      call $call.1: Int = @scoop.choose$I.g6 direct
+      call $call.1: Int = @scoop.choose$I.g8 direct
         IntLiteral 11
         IntLiteral 0
       call @scoop.println direct
         Box
           Local $call.1
-      call $call.2: Int = @scoop.choose$I.g7 direct
+      call $call.2: Int = @scoop.choose$I.g9 direct
         IntLiteral 22
         StringConst @scoop.str.1
       call @scoop.println direct
@@ -222,11 +256,11 @@ Module
         ClassInit IllegalStateException
           VariantConstruct Option$S<String> v0
             StringConst @scoop.str.6
-  fun choose @scoop.choose$I.g6(value: Int, marker: Int) -> Int
+  fun choose @scoop.choose$I.g8(value: Int, marker: Int) -> Int
     bb0 entry
       return
         Local value
-  fun choose @scoop.choose$I.g7(value: Int, marker: String) -> Int
+  fun choose @scoop.choose$I.g9(value: Int, marker: String) -> Int
     bb0 entry
       return
         Local value
@@ -249,8 +283,8 @@ Module
           Local this
       return
         Local $call.1
-  instance @scoop.choose$I.g6 <- choose
-  instance @scoop.choose$I.g7 <- choose
+  instance @scoop.choose$I.g8 <- choose
+  instance @scoop.choose$I.g9 <- choose
   str @scoop.str.0 "\n"
   str @scoop.str.1 "string marker"
   str @scoop.str.2 "unwrap on None"
@@ -304,12 +338,12 @@ Module
     local %0 $call.1: i64
     local %1 $call.2: i64
   block entry
-    t0 = call @scoop.choose$I.g6(11, 0) : i64
+    t0 = call @scoop.choose$I.g8(11, 0) : i64
     store t0 -> local0
     t1 = call @scoop_rt_box(global7, local0, 8) : ptr
     call @scoop.println(t1)
     t2 = aggregate () : {}
-    t3 = call @scoop.choose$I.g7(22, global1) : i64
+    t3 = call @scoop.choose$I.g9(22, global1) : i64
     store t3 -> local1
     t4 = call @scoop_rt_box(global7, local1, 8) : ptr
     call @scoop.println(t4)
@@ -354,10 +388,10 @@ Module
     t1 = enum_wrap e0 v0 (global6) : enum0
     heap_store t0 +16 t1
     ret t0
-  fun @scoop.choose$I.g6(i64, i64) -> i64
+  fun @scoop.choose$I.g8(i64, i64) -> i64
   block entry
     ret param0
-  fun @scoop.choose$I.g7(i64, ptr) -> i64
+  fun @scoop.choose$I.g9(i64, ptr) -> i64
   block entry
     ret param0
   fun @scoop.eq.I(ptr, ptr) -> i1

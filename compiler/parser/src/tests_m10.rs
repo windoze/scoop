@@ -118,15 +118,3 @@ fn rejects_suspend_on_non_function_members() {
         "`suspend` modifier is only allowed on function declarations"
     );
 }
-
-#[test]
-fn rejects_suspend_lambdas_with_a_dedicated_diagnostic() {
-    let diagnostics = parse("fun main() {\n    val task = suspend { Unit }\n}")
-        .expect_err("M10 has no suspend lambdas");
-    assert_eq!(diagnostics.len(), 1);
-    assert_eq!(diagnostics[0].span, Some(Span::new(28, 35)));
-    assert_eq!(
-        diagnostics[0].message,
-        "suspend lambdas are not supported in M10"
-    );
-}

@@ -11,10 +11,26 @@ SourceFile
     suspend fun run
   interface SuspendRegistration<out T>
     fun register
+  struct FunctionSuspendTask<T> : SuspendTask<T>
+    field task: suspend () -> T
+    suspend fun run
+  struct FunctionSuspendRegistration<T> : SuspendRegistration<T>
+    field registration: (Continuation<T>) -> Unit
+    fun register
     @Intrinsic("coroutine_start")
   fun startCoroutine<T>(task: SuspendTask<T>, completion: Continuation<T>)
     @Intrinsic("coroutine_suspend")
   suspend fun suspendCoroutine<T>(registration: SuspendRegistration<T>): T
+  fun startCoroutine<T>(task: suspend () -> T, completion: Continuation<T>)
+    Call startCoroutine
+      Call FunctionSuspendTask
+        Var task
+      Var completion
+  suspend fun suspendCoroutine<T>(registration: (Continuation<T>) -> Unit): T
+    =
+      Call suspendCoroutine
+        Call FunctionSuspendRegistration
+          Var registration
 SourceFile
   struct PinHandle<T>
     field raw: UInt
@@ -153,6 +169,10 @@ SourceFile
 
 == hir ==
 Module
+  struct FunctionSuspendTask<T> : SuspendTask<T0>
+    field task: suspend () -> T0
+  struct FunctionSuspendRegistration<T> : SuspendRegistration<T0>
+    field registration: (Continuation<T0>) -> Unit
   struct PinHandle<T>
     field raw: UInt
   struct GcHandle<T>
@@ -181,6 +201,18 @@ Module
     fun register(continuation: Continuation<T0>): Unit
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
+  fun startCoroutine<T>(task: suspend () -> T0, completion: Continuation<T0>): Unit
+    Call startCoroutine<T0> : Unit
+      Box : SuspendTask<T0>
+        StructInit FunctionSuspendTask : FunctionSuspendTask<T0>
+          Local task : suspend () -> T0
+      Local completion : Continuation<T0>
+  suspend fun suspendCoroutine<T>(registration: (Continuation<T0>) -> Unit): T0
+    return
+      Call suspendCoroutine<T0> : T0
+        Box : SuspendRegistration<T0>
+          StructInit FunctionSuspendRegistration : FunctionSuspendRegistration<T0>
+            Local registration : (Continuation<T0>) -> Unit
   fun pin<T>(): PinHandle<T0> <intrinsic rt_pin>
   fun unpin<T>(): T0 <intrinsic rt_unpin>
   fun getGcHandle<T>(): GcHandle<T0> <intrinsic rt_get_handle>
@@ -202,15 +234,15 @@ Module
   fun makeAdder(base: Int): (Int) -> Int
     return
       Lambda lambda0 invoke=$lambda.0 captures=1 : (Int) -> Int
-        capture base binding13 : Int
+        capture base binding16 : Int
   fun makeNested(base: Int): () -> () -> Int
     return
       Lambda lambda2 invoke=$lambda.1 captures=1 : () -> () -> Int
-        capture base binding16 : Int
+        capture base binding19 : Int
   fun labelReader(label: Label): () -> String
     return
       Lambda lambda3 invoke=$lambda.3 captures=1 : () -> String
-        capture label binding19 : Label
+        capture label binding22 : Label
   fun snapshot(): () -> Int
     val local0
       IntLiteral 41 : Int
@@ -218,7 +250,7 @@ Module
       Local value : Int
     val local2
       Lambda lambda4 invoke=$lambda.4 captures=1 : () -> Int
-        capture captured binding22 : Int
+        capture captured binding25 : Int
     assign value
       IntLiteral 0 : Int
     return
@@ -231,7 +263,7 @@ Module
       Call makeNested : () -> () -> Int
         IntLiteral 41 : Int
     val local2
-      CallableCall function_type2 : () -> Int
+      CallableCall function_type4 : () -> Int
         Local outer : () -> () -> Int
     val local3
       Call labelReader : () -> String
@@ -255,19 +287,19 @@ Module
     Call gcCollect : Unit
     Call println : Unit
       Box : Any
-        CallableCall function_type0 : Int
+        CallableCall function_type2 : Int
           Local adder : (Int) -> Int
           IntLiteral 40 : Int
     Call println : Unit
       Box : Any
-        CallableCall function_type1 : Int
+        CallableCall function_type3 : Int
           Local inner : () -> Int
     Call println : Unit
-      CallableCall function_type3 : Any
+      CallableCall function_type5 : Any
         Local reader : () -> String
     Call println : Unit
       Box : Any
-        CallableCall function_type1 : Int
+        CallableCall function_type3 : Int
           Local getter : () -> Int
     Call println : Unit
       Box : Any
@@ -275,7 +307,7 @@ Module
           Local source : Snapshot
     Call println : Unit
       Box : Any
-        CallableCall function_type1 : Int
+        CallableCall function_type3 : Int
           Local increment : () -> Int
     Call println : Unit
       Box : Any
@@ -283,9 +315,11 @@ Module
           Local counter : Counter
     Call println : Unit
       Box : Any
-        CallableCall function_type1 : Int
+        CallableCall function_type3 : Int
           Call snapshot : () -> Int
   entry main
+  instance startCoroutine<T0>
+  instance suspendCoroutine<T0>
 
 == mir ==
 Module

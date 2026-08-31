@@ -1359,6 +1359,12 @@ impl Lowerer {
                 return self.lower_callable_call(callee, &call.args, call.span, sink);
             }
         }
+        if let Some(capture) = self.available_capture(&call.callee.text)
+            && matches!(self.types[capture.ty], Type::Function(_))
+        {
+            let callee = self.lower_capture(&call.callee)?;
+            return self.lower_callable_call(callee, &call.args, call.span, sink);
+        }
         // `Array(m)` / `MutableArray(a)`: the conversion constructors
         // (spec 10.4) resolve before structs, variants and functions
         // (milestone5 DESIGN.md 2.2).
@@ -1504,16 +1510,6 @@ impl Lowerer {
             span,
             ReferenceExtensionMode::IncludeUnbound,
         )?;
-        let function = self.callable_function_id(callee);
-        let signature = self.signatures[&function].clone();
-        if signature.is_suspend {
-            self.error(
-                span,
-                "suspend callable references are introduced by the M11 suspend-integration gate"
-                    .to_string(),
-            );
-            return None;
-        }
         let Type::Function(function_type) = self.types[ty] else {
             unreachable!("a callable reference has a function type")
         };
@@ -1607,15 +1603,6 @@ impl Lowerer {
                 ReferenceExtensionMode::Exclude
             },
         )?;
-        let function = self.callable_function_id(callee);
-        if self.functions[function].is_suspend {
-            self.error(
-                span,
-                "suspend callable references are introduced by the M11 suspend-integration gate"
-                    .to_string(),
-            );
-            return None;
-        }
         let Type::Function(function_type) = self.types[ty] else {
             unreachable!("a callable reference has a function type")
         };
@@ -1928,14 +1915,6 @@ impl Lowerer {
         let (local_function, type_args, _) = applicable.swap_remove(selected);
         let local = &self.local_functions[local_function];
         let function = local.function;
-        if self.functions[function].is_suspend {
-            self.error(
-                span,
-                "suspend callable references are introduced by the M11 suspend-integration gate"
-                    .to_string(),
-            );
-            return None;
-        }
         let ty = expected_signature.map_or_else(
             || {
                 let signature = self.signatures[&function].clone();
@@ -2072,13 +2051,6 @@ impl Lowerer {
         span: Span,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
-        if is_suspend {
-            self.error(
-                span,
-                "suspend lambdas are introduced by the M11 suspend-integration gate".to_string(),
-            );
-            return None;
-        }
         if block_contains_return(body) {
             self.error(
                 span,
@@ -2146,9 +2118,11 @@ impl Lowerer {
             by_binding: std::collections::HashMap::new(),
         });
         self.current_fn_name = format!("$lambda.{}", self.lambdas.len());
-        self.push_suspension_context(SuspensionContext::Forbidden(
-            ForbiddenSuspendContext::Function,
-        ));
+        self.push_suspension_context(if is_suspend {
+            SuspensionContext::SuspendFunction
+        } else {
+            SuspensionContext::Forbidden(ForbiddenSuspendContext::Function)
+        });
         self.push_scope();
 
         let lowered = (|| {
@@ -2358,14 +2332,6 @@ impl Lowerer {
         span: Span,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
-        if is_suspend {
-            self.error(
-                span,
-                "suspend anonymous functions are introduced by the M11 suspend-integration gate"
-                    .to_string(),
-            );
-            return None;
-        }
         let expected_signature = expected.and_then(|ty| match self.types[ty] {
             Type::Function(id) => Some((ty, self.function_types[id].clone())),
             _ => None,
@@ -2449,9 +2415,11 @@ impl Lowerer {
         self.current_fn_name = format!("$anonymous.{}", self.anonymous_functions.len());
         self.current_return_ty = known_return.unwrap_or(self.unit);
         self.return_inference = known_return.is_none().then(ReturnInference::default);
-        self.push_suspension_context(SuspensionContext::Forbidden(
-            ForbiddenSuspendContext::Function,
-        ));
+        self.push_suspension_context(if is_suspend {
+            SuspensionContext::SuspendFunction
+        } else {
+            SuspensionContext::Forbidden(ForbiddenSuspendContext::Function)
+        });
         self.push_scope();
 
         let lowered = (|| {
@@ -3216,9 +3184,15 @@ impl Lowerer {
                 args,
                 ..
             } => self.qualified_variant_requires_expected(receiver, name, args),
-            // Callable literals and references may be independently typed
-            // against every overload candidate. Their candidate probe must not
-            // commit generated entities, captures, or diagnostics.
+            // A lambda with an explicit, fully typed parameter header can
+            // synthesize its own function type and therefore participate in
+            // generic inference before an overload is selected. Untyped or
+            // omitted parameters remain contextual and are probed against
+            // each candidate transactionally.
+            ast::Expr::Lambda {
+                parameters: Some(parameters),
+                ..
+            } if parameters.iter().all(|parameter| parameter.ty.is_some()) => false,
             ast::Expr::Lambda { .. }
             | ast::Expr::AnonymousFunction { .. }
             | ast::Expr::CallableReference { .. } => true,
