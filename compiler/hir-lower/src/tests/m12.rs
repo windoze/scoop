@@ -1390,6 +1390,51 @@ fn interior_mutable_values_require_unsafe_use_and_unsafe_signatures() {
 }
 
 #[test]
+fn interior_mutable_classification_substitutes_nested_generic_fields() {
+    let mut cell = struct_decl("Cell", vec![("value", ty_named("Int"))]);
+    let Decl::Struct(cell_decl) = &mut cell else {
+        unreachable!()
+    };
+    cell_decl.annotations = vec![marker("InteriorMutable")];
+    let wrapper = generic_struct_decl("Wrapper", vec!["T"], vec![("value", ty_named("T"))]);
+    let outer = generic_struct_decl(
+        "Outer",
+        vec!["T"],
+        vec![("wrapper", ty_generic("Wrapper", vec![ty_named("T")]))],
+    );
+    let nested = ty_generic("Outer", vec![ty_named("Cell")]);
+    let errors = messages(vec![
+        cell.clone(),
+        wrapper.clone(),
+        outer.clone(),
+        fun_sig(
+            "exposes",
+            vec![],
+            vec![("nested", nested.clone())],
+            None,
+            vec![],
+        ),
+        fun("main", vec![]),
+    ]);
+    assert!(errors.iter().any(|message| {
+        message.contains("safe function `exposes` exposes `@InteriorMutable` parameter `nested`")
+    }));
+
+    let unsafe_function = annotate(
+        fun_sig("accepts", vec![], vec![("nested", nested)], None, vec![]),
+        vec![marker("Unsafe")],
+    );
+    lower_user(file(vec![
+        cell,
+        wrapper,
+        outer,
+        unsafe_function,
+        fun("main", vec![]),
+    ]))
+    .expect("an unsafe signature may expose recursively interior-mutable state");
+}
+
+#[test]
 fn extern_functions_have_typed_identity_and_abi_specific_effects() {
     let c = extern_fun(
         "nativeAdd",

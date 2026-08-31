@@ -304,13 +304,13 @@ impl Lowerer {
     }
 
     pub(crate) fn requires_unsafe_use(&self, ty: hir::TypeId) -> bool {
-        self.requires_unsafe_use_inner(ty, &[], &mut HashSet::new())
+        self.requires_unsafe_use_inner(ty, None, &mut HashSet::new())
     }
 
     fn requires_unsafe_use_inner(
         &self,
         ty: hir::TypeId,
-        substitution: &[hir::TypeId],
+        environment: Option<&TypeEnvironment<'_>>,
         visiting: &mut HashSet<hir::TypeId>,
     ) -> bool {
         match &self.types[ty] {
@@ -321,10 +321,14 @@ impl Lowerer {
                 if !visiting.insert(ty) {
                     return false;
                 }
+                let nested = TypeEnvironment {
+                    args: args.clone(),
+                    parent: environment,
+                };
                 let result = self.structs[*id]
                     .fields
                     .iter()
-                    .any(|field| self.requires_unsafe_use_inner(field.ty, args, visiting));
+                    .any(|field| self.requires_unsafe_use_inner(field.ty, Some(&nested), visiting));
                 visiting.remove(&ty);
                 result
             }
@@ -332,21 +336,25 @@ impl Lowerer {
                 if !visiting.insert(ty) {
                     return false;
                 }
+                let nested = TypeEnvironment {
+                    args: args.clone(),
+                    parent: environment,
+                };
                 let result = self.enums[*id].variants.iter().any(|variant| {
-                    variant
-                        .fields
-                        .iter()
-                        .any(|field| self.requires_unsafe_use_inner(field.ty, args, visiting))
+                    variant.fields.iter().any(|field| {
+                        self.requires_unsafe_use_inner(field.ty, Some(&nested), visiting)
+                    })
                 });
                 visiting.remove(&ty);
                 result
             }
             hir::Type::Tuple(elements) => elements
                 .iter()
-                .any(|ty| self.requires_unsafe_use_inner(*ty, substitution, visiting)),
-            hir::Type::Param(index) => substitution
-                .get(index.into_raw() as usize)
-                .is_some_and(|ty| self.requires_unsafe_use_inner(*ty, &[], visiting)),
+                .any(|ty| self.requires_unsafe_use_inner(*ty, environment, visiting)),
+            hir::Type::Param(index) => environment.is_some_and(|environment| {
+                let argument = environment.args[index.into_raw() as usize];
+                self.requires_unsafe_use_inner(argument, environment.parent, visiting)
+            }),
             _ => false,
         }
     }
