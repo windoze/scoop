@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m12-ffi/errors/callback-requires-nogc.scoop:4:42: error: no eligible `@NoGC` top-level function `::increment` exactly matches the expected FunPtr signature

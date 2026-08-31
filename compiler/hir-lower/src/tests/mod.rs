@@ -1086,6 +1086,7 @@ pub(crate) fn core_file() -> SourceFile {
         ),
     ];
     declarations.extend(coroutine_core_declarations());
+    declarations.extend(ffi_core_declarations());
     declarations.extend([
         intrinsic_fun(
             "write",
@@ -1118,6 +1119,139 @@ pub(crate) fn core_file() -> SourceFile {
         ),
     ]);
     file(declarations)
+}
+
+fn ffi_core_declarations() -> Vec<Decl> {
+    let marker = |name: &str| ast::Annotation {
+        name: ident(name),
+        args: Vec::new(),
+        span: sp(),
+    };
+    let intrinsic = |name: &str| ast::Annotation {
+        name: ident("Intrinsic"),
+        args: vec![ast::AnnotationArg {
+            name: None,
+            value: ast::AnnotationLiteral::String(name.to_string()),
+            span: sp(),
+        }],
+        span: sp(),
+    };
+    let pointer_method = |name: &str,
+                          intrinsic_name: &str,
+                          type_params: Vec<&str>,
+                          params: Vec<(&str, TypeRef)>,
+                          return_ty: Option<TypeRef>| {
+        let mut method = method_full(false, false, name, params, return_ty, FunctionBody::None);
+        method.annotations = vec![marker("NoGC"), marker("Unsafe"), intrinsic(intrinsic_name)];
+        method.type_params = type_params.into_iter().map(type_param).collect();
+        for param in &mut method.type_params {
+            param.kind_bound = Some(ast::TypeParamKindBound::Value);
+        }
+        method
+    };
+
+    let mut ptr = generic_struct_decl_full(
+        "Ptr",
+        vec!["T"],
+        vec![("_rawPointer", ty_named("UInt"))],
+        Vec::new(),
+        vec![
+            pointer_method(
+                "toUInt",
+                "ptr_to_uint",
+                vec![],
+                vec![],
+                Some(ty_named("UInt")),
+            ),
+            pointer_method(
+                "cast",
+                "ptr_cast",
+                vec!["U"],
+                vec![],
+                Some(ty_generic("Ptr", vec![ty_named("U")])),
+            ),
+            pointer_method("load", "ptr_load", vec![], vec![], Some(ty_named("T"))),
+            pointer_method(
+                "load",
+                "ptr_load_offset",
+                vec![],
+                vec![("offset", ty_named("Int"))],
+                Some(ty_named("T")),
+            ),
+            pointer_method(
+                "store",
+                "ptr_store",
+                vec![],
+                vec![("value", ty_named("T"))],
+                None,
+            ),
+            pointer_method(
+                "store",
+                "ptr_store_offset",
+                vec![],
+                vec![("offset", ty_named("Int")), ("value", ty_named("T"))],
+                None,
+            ),
+            pointer_method(
+                "plus",
+                "ptr_plus",
+                vec![],
+                vec![("offset", ty_named("Int"))],
+                Some(ty_generic("Ptr", vec![ty_named("T")])),
+            ),
+            pointer_method(
+                "minus",
+                "ptr_minus",
+                vec![],
+                vec![("offset", ty_named("Int"))],
+                Some(ty_generic("Ptr", vec![ty_named("T")])),
+            ),
+        ],
+    );
+    let Decl::Struct(ptr_decl) = &mut ptr else {
+        unreachable!()
+    };
+    ptr_decl.type_params[0].kind_bound = Some(ast::TypeParamKindBound::Value);
+
+    let fun_ptr = generic_struct_decl("FunPtr", vec!["F"], vec![("_rawPointer", ty_named("UInt"))]);
+
+    let top_level = |name: &str,
+                     intrinsic_name: &str,
+                     params: Vec<(&str, TypeRef)>,
+                     return_ty: TypeRef,
+                     no_gc: bool,
+                     unsafe_: bool| {
+        let mut decl =
+            intrinsic_generic_fun(name, intrinsic_name, vec!["T"], params, Some(return_ty));
+        let Decl::Function(function) = &mut decl else {
+            unreachable!()
+        };
+        function.type_params[0].kind_bound = Some(ast::TypeParamKindBound::Value);
+        function.annotations.clear();
+        if no_gc {
+            function.annotations.push(marker("NoGC"));
+        }
+        if unsafe_ {
+            function.annotations.push(marker("Unsafe"));
+        }
+        function.annotations.push(intrinsic(intrinsic_name));
+        decl
+    };
+
+    vec![
+        ptr,
+        fun_ptr,
+        top_level(
+            "addressOf",
+            "address_of",
+            vec![("value", ty_named("T"))],
+            ty_generic("Ptr", vec![ty_named("T")]),
+            false,
+            true,
+        ),
+        top_level("sizeOf", "size_of", vec![], ty_named("UInt"), true, false),
+        top_level("alignOf", "align_of", vec![], ty_named("UInt"), true, false),
+    ]
 }
 
 fn coroutine_core_declarations() -> Vec<Decl> {

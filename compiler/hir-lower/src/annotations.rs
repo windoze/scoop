@@ -48,7 +48,16 @@ impl Lowerer {
                     let Some(value) = self.annotation_string(annotation, "name") else {
                         continue;
                     };
-                    if !matches!(target, FunctionTarget::TopLevel) {
+                    let Some(spec) = hir::intrinsic_spec(&value) else {
+                        self.error(annotation.span, format!("unknown intrinsic `{value}`"));
+                        continue;
+                    };
+                    let target_matches = matches!(
+                        (spec.target, target),
+                        (hir::IntrinsicTarget::TopLevel, FunctionTarget::TopLevel)
+                            | (hir::IntrinsicTarget::Member, FunctionTarget::Member(_))
+                    );
+                    if !target_matches {
                         self.error(
                             annotation.span,
                             "`@Intrinsic` is not allowed on this function target".to_string(),
@@ -58,8 +67,6 @@ impl Lowerer {
                             annotation.span,
                             "`@Intrinsic` is only allowed in the core library".to_string(),
                         );
-                    } else if hir::intrinsic_spec(&value).is_none() {
-                        self.error(annotation.span, format!("unknown intrinsic `{value}`"));
                     } else {
                         intrinsic = Some(value);
                     }
@@ -150,11 +157,39 @@ impl Lowerer {
                 );
             }
         }
-        if intrinsic.is_some() && decl.annotations.len() != 1 {
-            self.error(
-                decl.span,
-                "this intrinsic does not allow effect annotations".to_string(),
-            );
+        if let Some(name) = &intrinsic {
+            let spec = hir::intrinsic_spec(name).expect("validated intrinsic name");
+            if spec.effects == hir::IntrinsicEffects::NONE
+                && (saw_safe || saw_unsafe || saw_no_gc || saw_calling_convention)
+            {
+                self.error(
+                    decl.span,
+                    "this intrinsic does not allow effect annotations".to_string(),
+                );
+            } else if spec.effects.no_gc != saw_no_gc
+                || spec.effects.unsafe_ != saw_unsafe
+                || saw_safe
+                || saw_calling_convention
+            {
+                let mut required = Vec::new();
+                if spec.effects.no_gc {
+                    required.push("`@NoGC`");
+                }
+                if spec.effects.unsafe_ {
+                    required.push("`@Unsafe`");
+                }
+                self.error(
+                    decl.span,
+                    format!(
+                        "intrinsic `{name}` requires exactly {} effect annotation(s)",
+                        if required.is_empty() {
+                            "no".to_string()
+                        } else {
+                            required.join(" and ")
+                        }
+                    ),
+                );
+            }
         }
         if intrinsic.is_some() && !matches!(decl.body, ast::FunctionBody::None) {
             self.error(

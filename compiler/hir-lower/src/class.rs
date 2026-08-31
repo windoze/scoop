@@ -190,6 +190,28 @@ impl Lowerer {
             Type::Array(element) | Type::MutableArray(element) => {
                 self.check_variance_position(element, TypePosition::Invariant, params, method, span)
             }
+            Type::Ptr(pointee) => {
+                self.check_variance_position(pointee, TypePosition::Invariant, params, method, span)
+            }
+            Type::FunPtr(id) => {
+                let function = self.function_types[id].clone();
+                for parameter in function.parameter_types {
+                    self.check_variance_position(
+                        parameter,
+                        TypePosition::Invariant,
+                        params,
+                        method,
+                        span,
+                    );
+                }
+                self.check_variance_position(
+                    function.return_type,
+                    TypePosition::Invariant,
+                    params,
+                    method,
+                    span,
+                );
+            }
             Type::Function(id) => {
                 let function = self.function_types[id].clone();
                 for parameter in function.parameter_types {
@@ -401,6 +423,9 @@ impl Lowerer {
     /// abstract classes, interface methods always bodyless, concrete
     /// methods always with a body.
     fn check_method_body_shape(&mut self, id: FunctionId, decl: &ast::FunctionDecl, owner: Owner) {
+        if matches!(self.functions[id].kind, hir::FunctionKind::Intrinsic(_)) {
+            return;
+        }
         let short = decl.name.text.clone();
         match owner {
             Owner::Interface(_) => {
@@ -1136,6 +1161,13 @@ impl Lowerer {
             Type::Struct(id, _) => {
                 let mut result = Vec::new();
                 add_visible(&mut result, &self.struct_methods[&id]);
+                result
+            }
+            Type::Ptr(_) => {
+                let mut result = Vec::new();
+                if let Some(id) = self.ffi_ptr {
+                    add_visible(&mut result, &self.struct_methods[&id]);
+                }
                 result
             }
             Type::Enum(id, _) => {

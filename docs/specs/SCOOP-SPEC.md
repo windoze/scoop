@@ -1141,7 +1141,8 @@ needValue("hello")    // 编译错误：String 不是值类型
 ```
 struct Ptr<T : value>(val _rawPointer: UInt) {
     @NoGC @Unsafe
-    fun toUInt(): UInt = _rawPointer
+    @Intrinsic("ptr_to_uint")
+    fun toUInt(): UInt
 
     @NoGC @Unsafe
     @Intrinsic("ptr_cast")
@@ -1152,20 +1153,24 @@ struct Ptr<T : value>(val _rawPointer: UInt) {
     fun load(): T
 
     @NoGC @Unsafe
-    @Intrinsic("ptr_save")
+    @Intrinsic("ptr_load_offset")
+    fun load(offset: Int): T
+
+    @NoGC @Unsafe
+    @Intrinsic("ptr_store")
     fun store(value: T)
 
     @NoGC @Unsafe
-    fun load(offset: Int): T            // 等价于 (this + offset).load()
+    @Intrinsic("ptr_store_offset")
+    fun store(offset: Int, value: T)
 
     @NoGC @Unsafe
-    fun store(offset: Int, value: T)    // 等价于 (this + offset).store(value)
+    @Intrinsic("ptr_plus")
+    fun plus(offset: Int): Ptr<T>
 
     @NoGC @Unsafe
-    operator fun plus(offset: Int): Ptr<T>
-
-    @NoGC @Unsafe
-    operator fun minus(offset: Int): Ptr<T>
+    @Intrinsic("ptr_minus")
+    fun minus(offset: Int): Ptr<T>
 }
 
 @Unsafe
@@ -1173,8 +1178,8 @@ struct Ptr<T : value>(val _rawPointer: UInt) {
 fun <T : value> addressOf(v: T): Ptr<T>
 ```
 
-- `load` / `store` / `cast` 是编译器 intrinsic，且都是 unsafe function（见 13.3）。按 13.1 的规则 `@Intrinsic` 通常不得与其他注解共存；此处是单独说明的例外：这些 intrinsic 允许与 `@NoGC` / `@Unsafe` 组合。
-- `plus` / `minus` 的 `offset` 以**元素个数**计（步进 `offset * sizeOf<T>()` 字节），与 C 的指针算术一致；带 `offset` 的 `load` / `store` 以其定义。
+- `Ptr` 的上述方法均为编译器 intrinsic，且都是 unsafe function（见 13.3）。按 13.1 的规则 `@Intrinsic` 通常不得与其他注解共存；此处是单独说明的例外：这些 intrinsic 允许与 `@NoGC` / `@Unsafe` 组合。
+- 源码中的 `pointer + offset` / `pointer - offset` 分别按 `ptr_plus` / `ptr_minus` 的契约处理；`offset` 以**元素个数**计（步进 `offset * sizeOf<T>()` 字节），与 C 的指针算术一致。带 `offset` 的 `load` / `store` 使用相同的元素偏移语义。
 - `addressOf` 是 intrinsic，且带 **lvalue 约束**：实参必须是参数、局部变量、全局变量，或值类型成员方法的 `this`，取的是该 place 实际存储的地址；对临时值、字面量、计算结果等非 lvalue 表达式调用是编译错误。对 `this` 取址时指向 3.3 规定的方法局部副本，不是调用方的 value 或 box payload。
 - `Ptr<T>` 自身是值类型，因此满足 `value` 约束，可以出现在要求 `T : value` 的位置（包括 `Ptr<Ptr<T>>`）。
 - **null 与可空指针**：`_rawPointer == 0u` 表示 null 指针；FFI 边界上的可空指针用 `Option<Ptr<T>>` 表示，布局由 niche 优化保证（见 7.4）。

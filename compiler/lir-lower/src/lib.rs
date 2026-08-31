@@ -128,7 +128,7 @@
 //! applied in codegen — it is an instrumentation of the emitted LLVM,
 //! and keeping it out of LIR keeps these dumps stable.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use la_arena::Arena;
 use scoop_lir as lir;
@@ -253,6 +253,8 @@ fn nested_enums(module: &mir::Module, ty: &mir::Type, out: &mut Vec<mir::EnumId>
         | mir::Type::Class(_)
         | mir::Type::Interface(_)
         | mir::Type::Function(_)
+        | mir::Type::Ptr(_)
+        | mir::Type::FunPtr(_)
         | mir::Type::Any => {}
     }
 }
@@ -512,10 +514,12 @@ fn enum_layout(
                     .variants
                     .iter()
                     .map(|variant| lir::VariantLayout {
-                        scan: if variant.fields.is_empty() {
-                            lir::RefScan::None
-                        } else {
-                            lir::RefScan::References(vec![0])
+                        scan: match variant.fields.as_slice() {
+                            [] => lir::RefScan::None,
+                            [field] => ref_scan(module, enums, &field.ty, 0),
+                            _ => unreachable!(
+                                "a niche payload variant has exactly one pointer-like field"
+                            ),
                         },
                     })
                     .collect(),
@@ -812,6 +816,8 @@ fn size_align(
         | mir::Type::Class(_)
         | mir::Type::Interface(_)
         | mir::Type::Function(_)
+        | mir::Type::Ptr(_)
+        | mir::Type::FunPtr(_)
         | mir::Type::Any => (8, 8),
         mir::Type::Struct(id) => {
             let fields: Vec<mir::Type> = module.structs[*id]
@@ -917,7 +923,13 @@ fn ref_scan(
             scan_fields(module, enums, fields, &offsets, base)
         }
         mir::Type::Enum(id, _) => match &enums[enum_def_id(*id)].repr {
-            lir::EnumRepr::Niche { .. } => lir::RefScan::References(vec![base]),
+            lir::EnumRepr::Niche { payload_variant } => {
+                let variant = &module.enums[*id].variants[*payload_variant as usize];
+                let [field] = variant.fields.as_slice() else {
+                    unreachable!("a niche payload variant has exactly one pointer-like field")
+                };
+                ref_scan(module, enums, &field.ty, base)
+            }
             repr @ lir::EnumRepr::Tagged { .. } => {
                 let payload_base = base + enum_payload_offset(repr);
                 let enum_shape = |id: mir::EnumId| repr_shape(&enums[enum_def_id(id)].repr);
@@ -944,9 +956,12 @@ fn ref_scan(
                 }
             }
         },
-        mir::Type::Unit | mir::Type::Int | mir::Type::UInt | mir::Type::Boolean => {
-            lir::RefScan::None
-        }
+        mir::Type::Unit
+        | mir::Type::Int
+        | mir::Type::UInt
+        | mir::Type::Boolean
+        | mir::Type::Ptr(_)
+        | mir::Type::FunPtr(_) => lir::RefScan::None,
     }
 }
 
@@ -992,6 +1007,8 @@ fn lir_type(module: &mir::Module, ty: &mir::Type) -> lir::LirType {
         | mir::Type::Class(_)
         | mir::Type::Interface(_)
         | mir::Type::Function(_)
+        | mir::Type::Ptr(_)
+        | mir::Type::FunPtr(_)
         | mir::Type::Any => lir::LirType::Ptr,
         mir::Type::Array(element) | mir::Type::MutableArray(element) => {
             lir::LirType::Array(Box::new(lir_type(module, element)))
@@ -1032,6 +1049,142 @@ fn binary_op(op: mir::BinOp) -> (lir::BinOp, lir::LirType, mir::Type) {
     }
 }
 
+fn address_taken_locals(function: &mir::Function) -> HashSet<mir::LocalId> {
+    fn collect_expr(value: &mir::Expr, out: &mut HashSet<mir::LocalId>) {
+        match value {
+            mir::Expr::AddressOf { local, .. } => {
+                out.insert(*local);
+            }
+            mir::Expr::TupleLiteral(values)
+            | mir::Expr::ArrayLiteral(values)
+            | mir::Expr::StructInit { args: values, .. }
+            | mir::Expr::ClassInit { args: values, .. }
+            | mir::Expr::ClosureAlloc {
+                captures: values, ..
+            }
+            | mir::Expr::VariantConstruct { fields: values, .. } => {
+                for value in values {
+                    collect_expr(value, out);
+                }
+            }
+            mir::Expr::Retype { operand, .. }
+            | mir::Expr::ClosureCapture {
+                closure: operand, ..
+            }
+            | mir::Expr::FieldAccess {
+                receiver: operand, ..
+            }
+            | mir::Expr::Box(operand)
+            | mir::Expr::Unbox(operand)
+            | mir::Expr::IsInstance { operand, .. }
+            | mir::Expr::Cast { operand, .. }
+            | mir::Expr::ArrayLen(operand)
+            | mir::Expr::ArrayClone(operand)
+            | mir::Expr::Unary { operand, .. }
+            | mir::Expr::EnumTag(operand)
+            | mir::Expr::EnumField { operand, .. }
+            | mir::Expr::PtrFromUInt { operand, .. }
+            | mir::Expr::PtrToUInt(operand)
+            | mir::Expr::PtrCast { operand, .. } => collect_expr(operand, out),
+            mir::Expr::ArrayGet { array, index }
+            | mir::Expr::Binary {
+                lhs: array,
+                rhs: index,
+                ..
+            }
+            | mir::Expr::PtrOffset {
+                pointer: array,
+                offset: index,
+                ..
+            } => {
+                collect_expr(array, out);
+                collect_expr(index, out);
+            }
+            mir::Expr::PtrLoad {
+                pointer, offset, ..
+            } => {
+                collect_expr(pointer, out);
+                if let Some(offset) = offset {
+                    collect_expr(offset, out);
+                }
+            }
+            mir::Expr::PtrStore {
+                pointer,
+                offset,
+                value,
+                ..
+            } => {
+                collect_expr(pointer, out);
+                if let Some(offset) = offset {
+                    collect_expr(offset, out);
+                }
+                collect_expr(value, out);
+            }
+            mir::Expr::StringConst(_)
+            | mir::Expr::IntLiteral(_)
+            | mir::Expr::BoolLiteral(_)
+            | mir::Expr::UnitLiteral
+            | mir::Expr::Local(_)
+            | mir::Expr::CaughtException
+            | mir::Expr::SizeOf(_)
+            | mir::Expr::AlignOf(_)
+            | mir::Expr::FunPtrNull(_)
+            | mir::Expr::FunctionAddress { .. } => {}
+        }
+    }
+
+    fn collect_call(call: &mir::Call, out: &mut HashSet<mir::LocalId>) {
+        for arg in &call.args {
+            collect_expr(arg, out);
+        }
+    }
+
+    let mut out = HashSet::new();
+    for (_, block) in function.body.blocks.iter() {
+        for statement in &block.statements {
+            match &statement.kind {
+                mir::StatementKind::Expr(value) => collect_expr(value, &mut out),
+                mir::StatementKind::Call(effect) => match effect {
+                    mir::CallEffect::Unit(call) | mir::CallEffect::Value { call, .. } => {
+                        collect_call(call, &mut out)
+                    }
+                },
+                mir::StatementKind::ValDecl { init, .. } => collect_expr(init, &mut out),
+                mir::StatementKind::Assign { value, .. } => collect_expr(value, &mut out),
+                mir::StatementKind::ArraySet {
+                    array,
+                    index,
+                    value,
+                } => {
+                    collect_expr(array, &mut out);
+                    collect_expr(index, &mut out);
+                    collect_expr(value, &mut out);
+                }
+                mir::StatementKind::FieldSet { object, value, .. } => {
+                    collect_expr(object, &mut out);
+                    collect_expr(value, &mut out);
+                }
+                mir::StatementKind::Eh(_) => {}
+            }
+        }
+        match &block.terminator {
+            mir::Terminator::Branch { cond, .. } => collect_expr(cond, &mut out),
+            mir::Terminator::Return { value } => {
+                if let Some(value) = value {
+                    collect_expr(value, &mut out);
+                }
+            }
+            mir::Terminator::Throw { exception, .. } => collect_expr(exception, &mut out),
+            mir::Terminator::Goto(_)
+            | mir::Terminator::Rethrow { .. }
+            | mir::Terminator::Resume
+            | mir::Terminator::Trap { .. }
+            | mir::Terminator::Unreachable => {}
+        }
+    }
+    out
+}
+
 #[allow(clippy::too_many_arguments)]
 fn lower_function<'a>(
     module: &'a mir::Module,
@@ -1043,8 +1196,9 @@ fn lower_function<'a>(
     enums: &Arena<lir::EnumDef>,
     td_map: &mut HashMap<String, lir::GlobalId>,
 ) -> lir::Function {
-    // Parameters are SSA values (`Value::Param`), not stack slots;
-    // they are immutable (M3), so no store ever targets them.
+    // Parameters stay SSA values unless `addressOf` requires stable storage.
+    // Address-taken parameters are copied once into a method-local slot.
+    let address_taken = address_taken_locals(function);
     let mut local_map = HashMap::new();
     let params: Vec<lir::LirType> = function
         .params
@@ -1052,7 +1206,9 @@ fn lower_function<'a>(
         .enumerate()
         .map(|(index, param)| {
             record_layout_types(&param.ty, layout_types);
-            local_map.insert(param.local, LocalSlot::Param(index as u32));
+            if !address_taken.contains(&param.local) {
+                local_map.insert(param.local, LocalSlot::Param(index as u32));
+            }
             lir_type(module, &param.ty)
         })
         .collect();
@@ -1117,6 +1273,17 @@ fn lower_function<'a>(
         exception_slots: None,
         caught_exception: None,
     };
+    for (index, param) in function.params.iter().enumerate() {
+        if address_taken.contains(&param.local) {
+            let local = lowerer.local_slot(param.local);
+            lowerer.blocks[entry]
+                .instructions
+                .push(lir::Instruction::Store {
+                    local,
+                    value: lir::Value::Param(index as u32),
+                });
+        }
+    }
     for (mir_id, block) in function.body.blocks.iter() {
         let lir_id = lowerer.block_map[&mir_id];
         lowerer.enter(lir_id);
@@ -1176,7 +1343,9 @@ fn td_symbol_for(module: &mir::Module, ty: &mir::Type) -> String {
         | mir::Type::Int
         | mir::Type::UInt
         | mir::Type::Boolean
-        | mir::Type::Unit => td_symbol(&format!("box${}", mir::encode_type(module, ty))),
+        | mir::Type::Unit
+        | mir::Type::Ptr(_)
+        | mir::Type::FunPtr(_) => td_symbol(&format!("box${}", mir::encode_type(module, ty))),
         mir::Type::Function(_) => td_symbol(&format!("function${}", mir::encode_type(module, ty))),
         mir::Type::Any | mir::Type::Array(_) | mir::Type::MutableArray(_) => {
             unreachable!("no referenceable TypeDescriptor for {ty:?}")
@@ -1346,6 +1515,20 @@ impl<'a> FunctionLowerer<'a> {
                 _ => unreachable!("an array conversion's operand is an array"),
             },
             mir::Expr::Local(local) => self.mir_locals[*local].ty.clone(),
+            mir::Expr::PtrFromUInt { pointee, .. }
+            | mir::Expr::PtrCast { pointee, .. }
+            | mir::Expr::PtrOffset { pointee, .. }
+            | mir::Expr::AddressOf { pointee, .. } => {
+                mir::Type::Ptr(Box::new(pointee.as_ref().clone()))
+            }
+            mir::Expr::PtrToUInt(_) | mir::Expr::SizeOf(_) | mir::Expr::AlignOf(_) => {
+                mir::Type::UInt
+            }
+            mir::Expr::PtrLoad { pointee, .. } => pointee.as_ref().clone(),
+            mir::Expr::PtrStore { .. } => mir::Type::Unit,
+            mir::Expr::FunPtrNull(signature) | mir::Expr::FunctionAddress { signature, .. } => {
+                mir::Type::FunPtr(*signature)
+            }
             mir::Expr::Retype { ty, .. } => ty.as_ref().clone(),
             mir::Expr::FieldAccess { receiver, index } => match self.expr_ty(receiver) {
                 mir::Type::Struct(id) => self.module.structs[id].fields[*index as usize].ty.clone(),
@@ -1820,6 +2003,107 @@ impl<'a> FunctionLowerer<'a> {
                 lir::Value::Temp(out)
             }
             mir::Expr::Local(local) => self.local_value(*local),
+            mir::Expr::PtrFromUInt { operand, .. } => {
+                let value = self.lower_expr(operand, &mir::Type::UInt);
+                let out = self.new_temp(lir::LirType::Ptr);
+                self.push(lir::Instruction::IntToPtr { out, value });
+                lir::Value::Temp(out)
+            }
+            mir::Expr::PtrToUInt(operand) => {
+                let pointer_ty = self.expr_ty(operand);
+                let value = self.lower_expr(operand, &pointer_ty);
+                let out = self.new_temp(lir::LirType::I64);
+                self.push(lir::Instruction::PtrToInt { out, value });
+                lir::Value::Temp(out)
+            }
+            mir::Expr::PtrCast { operand, .. } => {
+                let source_ty = self.expr_ty(operand);
+                self.lower_expr(operand, &source_ty)
+            }
+            mir::Expr::PtrLoad {
+                pointer,
+                pointee,
+                offset,
+            } => {
+                let pointer_ty = self.expr_ty(pointer);
+                let pointer = self.lower_expr(pointer, &pointer_ty);
+                let pointer = if let Some(offset) = offset {
+                    let offset = self.lower_expr(offset, &mir::Type::Int);
+                    self.offset_pointer(pointer, pointee, offset, false)
+                } else {
+                    pointer
+                };
+                let enum_shape = |id: mir::EnumId| repr_shape(&self.enums[enum_def_id(id)].repr);
+                let (_, align) = size_align(self.module, &enum_shape, pointee);
+                let out_ty = self.value_type(pointee);
+                let out = self.new_temp(out_ty);
+                self.push(lir::Instruction::RawLoad {
+                    out,
+                    pointer,
+                    align,
+                });
+                lir::Value::Temp(out)
+            }
+            mir::Expr::PtrStore {
+                pointer,
+                pointee,
+                offset,
+                value,
+            } => {
+                let pointer_ty = self.expr_ty(pointer);
+                let pointer = self.lower_expr(pointer, &pointer_ty);
+                let pointer = if let Some(offset) = offset {
+                    let offset = self.lower_expr(offset, &mir::Type::Int);
+                    self.offset_pointer(pointer, pointee, offset, false)
+                } else {
+                    pointer
+                };
+                let value = self.lower_expr(value, pointee);
+                let enum_shape = |id: mir::EnumId| repr_shape(&self.enums[enum_def_id(id)].repr);
+                let (_, align) = size_align(self.module, &enum_shape, pointee);
+                self.push(lir::Instruction::RawStore {
+                    pointer,
+                    value,
+                    align,
+                });
+                self.unit_value()
+            }
+            mir::Expr::PtrOffset {
+                pointer,
+                pointee,
+                offset,
+                subtract,
+            } => {
+                let pointer_ty = self.expr_ty(pointer);
+                let pointer = self.lower_expr(pointer, &pointer_ty);
+                let offset = self.lower_expr(offset, &mir::Type::Int);
+                self.offset_pointer(pointer, pointee, offset, *subtract)
+            }
+            mir::Expr::AddressOf { local, .. } => {
+                let local = self.local_slot(*local);
+                let out = self.new_temp(lir::LirType::Ptr);
+                self.push(lir::Instruction::LocalAddress { out, local });
+                lir::Value::Temp(out)
+            }
+            mir::Expr::SizeOf(value_ty) => {
+                let enum_shape = |id: mir::EnumId| repr_shape(&self.enums[enum_def_id(id)].repr);
+                let (size, _) = size_align(self.module, &enum_shape, value_ty);
+                lir::Value::IntConst(size as i64)
+            }
+            mir::Expr::AlignOf(value_ty) => {
+                let enum_shape = |id: mir::EnumId| repr_shape(&self.enums[enum_def_id(id)].repr);
+                let (_, align) = size_align(self.module, &enum_shape, value_ty);
+                lir::Value::IntConst(align as i64)
+            }
+            mir::Expr::FunPtrNull(_) => lir::Value::NullPtr,
+            mir::Expr::FunctionAddress { function, .. } => {
+                let out = self.new_temp(lir::LirType::Ptr);
+                self.push(lir::Instruction::FunctionAddress {
+                    out,
+                    symbol: self.module.functions[*function].symbol.clone(),
+                });
+                lir::Value::Temp(out)
+            }
             mir::Expr::Retype { operand, ty } => self.lower_expr(operand, ty),
             mir::Expr::FieldAccess { receiver, index } => {
                 let receiver_ty = self.expr_ty(receiver);
@@ -1980,6 +2264,47 @@ impl<'a> FunctionLowerer<'a> {
                 lir::Value::Temp(out)
             }
         }
+    }
+
+    fn offset_pointer(
+        &mut self,
+        pointer: lir::Value,
+        pointee: &mir::Type,
+        offset: lir::Value,
+        subtract: bool,
+    ) -> lir::Value {
+        let enum_shape = |id: mir::EnumId| repr_shape(&self.enums[enum_def_id(id)].repr);
+        let (size, _) = size_align(self.module, &enum_shape, pointee);
+        let bytes = if size == 1 {
+            offset
+        } else {
+            let out = self.new_temp(lir::LirType::I64);
+            self.push(lir::Instruction::BinOp {
+                out,
+                op: lir::BinOp::Mul,
+                lhs: offset,
+                rhs: lir::Value::IntConst(size as i64),
+            });
+            lir::Value::Temp(out)
+        };
+        let bytes = if subtract {
+            let out = self.new_temp(lir::LirType::I64);
+            self.push(lir::Instruction::UnaryOp {
+                out,
+                op: lir::UnOp::Neg,
+                operand: bytes,
+            });
+            lir::Value::Temp(out)
+        } else {
+            bytes
+        };
+        let out = self.new_temp(lir::LirType::Ptr);
+        self.push(lir::Instruction::PtrOffset {
+            out,
+            pointer,
+            bytes,
+        });
+        lir::Value::Temp(out)
     }
 
     /// The shared trap block for `message` in this function (one per
@@ -4103,6 +4428,34 @@ Module
   entry @scoop_main
 ";
         assert_eq!(lir::dump(&module), expected);
+    }
+
+    #[test]
+    fn option_of_raw_pointer_uses_a_niche_without_gc_scanning() {
+        let mut builder = Builder::new();
+        let option = builder.option_enum("Option$P", mir::Type::Ptr(Box::new(mir::Type::Int)));
+        let main = builder.main(Arena::new(), Vec::new());
+        let module = lower(&builder.finish(main));
+
+        assert!(matches!(
+            edef(&module, option).repr,
+            lir::EnumRepr::Niche { payload_variant: 0 }
+        ));
+        let layout = module
+            .meta
+            .layouts
+            .iter()
+            .find(|layout| layout.name == "Option$P")
+            .expect("raw pointer option layout");
+        let lir::LayoutKind::Enum { variants } = &layout.kind else {
+            panic!("Option<Ptr<Int>> must retain its enum layout identity")
+        };
+        assert_eq!(variants.len(), 2);
+        assert!(
+            variants
+                .iter()
+                .all(|variant| variant.scan == lir::RefScan::None)
+        );
     }
 
     #[test]

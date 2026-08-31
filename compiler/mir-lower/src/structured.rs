@@ -93,6 +93,43 @@ pub(crate) enum Expr {
         index: u32,
     },
     Local(mir::LocalId),
+    PtrFromUInt {
+        operand: Box<Expr>,
+        pointee: Box<mir::Type>,
+    },
+    PtrToUInt(Box<Expr>),
+    PtrCast {
+        operand: Box<Expr>,
+        pointee: Box<mir::Type>,
+    },
+    PtrLoad {
+        pointer: Box<Expr>,
+        pointee: Box<mir::Type>,
+        offset: Option<Box<Expr>>,
+    },
+    PtrStore {
+        pointer: Box<Expr>,
+        pointee: Box<mir::Type>,
+        offset: Option<Box<Expr>>,
+        value: Box<Expr>,
+    },
+    PtrOffset {
+        pointer: Box<Expr>,
+        pointee: Box<mir::Type>,
+        offset: Box<Expr>,
+        subtract: bool,
+    },
+    AddressOf {
+        local: mir::LocalId,
+        pointee: Box<mir::Type>,
+    },
+    SizeOf(Box<mir::Type>),
+    AlignOf(Box<mir::Type>),
+    FunPtrNull(mir::FunctionTypeId),
+    FunctionAddress {
+        function: mir::FunctionId,
+        signature: mir::FunctionTypeId,
+    },
     Retype {
         operand: Box<Expr>,
         ty: Box<mir::Type>,

@@ -3496,6 +3496,33 @@ impl Types<'_> {
                 };
                 mir::Type::Function(id)
             }
+            hir::Type::Ptr(pointee) => mir::Type::Ptr(Box::new(
+                self.lower(*pointee, enums, structs, interfaces, shell),
+            )),
+            hir::Type::FunPtr(id) => {
+                let function = self.module.function_types[*id].clone();
+                let parameter_types: Vec<mir::Type> = function
+                    .parameter_types
+                    .into_iter()
+                    .map(|parameter| self.lower(parameter, enums, structs, interfaces, shell))
+                    .collect();
+                let return_type =
+                    self.lower(function.return_type, enums, structs, interfaces, shell);
+                let existing = shell.function_types.iter().find_map(|(id, candidate)| {
+                    (candidate.is_suspend == function.is_suspend
+                        && candidate.parameter_types == parameter_types
+                        && candidate.return_type == return_type)
+                        .then_some(id)
+                });
+                let id = existing.unwrap_or_else(|| {
+                    shell.function_types.alloc(mir::FunctionType {
+                        is_suspend: function.is_suspend,
+                        parameter_types,
+                        return_type,
+                    })
+                });
+                mir::Type::FunPtr(id)
+            }
             hir::Type::Enum(id, args) => {
                 let args: Vec<mir::Type> = args
                     .iter()
@@ -5332,6 +5359,95 @@ impl BodyLowerer<'_> {
             hir::ExprKind::ArrayClone(operand) => {
                 smir::Expr::ArrayClone(Box::new(self.lower_expr(operand)))
             }
+            hir::ExprKind::PtrFromUInt(operand) => {
+                let mir::Type::Ptr(pointee) = self.lower_type(expr.ty) else {
+                    unreachable!("PtrFromUInt has a pointer type")
+                };
+                smir::Expr::PtrFromUInt {
+                    operand: Box::new(self.lower_expr(operand)),
+                    pointee,
+                }
+            }
+            hir::ExprKind::PtrToUInt(operand) => {
+                smir::Expr::PtrToUInt(Box::new(self.lower_expr(operand)))
+            }
+            hir::ExprKind::PtrCast(operand) => {
+                let mir::Type::Ptr(pointee) = self.lower_type(expr.ty) else {
+                    unreachable!("PtrCast has a pointer type")
+                };
+                smir::Expr::PtrCast {
+                    operand: Box::new(self.lower_expr(operand)),
+                    pointee,
+                }
+            }
+            hir::ExprKind::PtrLoad { pointer, offset } => {
+                let hir::Type::Ptr(pointee) = self.module.types[pointer.ty] else {
+                    unreachable!("PtrLoad has a pointer operand")
+                };
+                smir::Expr::PtrLoad {
+                    pointer: Box::new(self.lower_expr(pointer)),
+                    pointee: Box::new(self.lower_type(pointee)),
+                    offset: offset
+                        .as_ref()
+                        .map(|offset| Box::new(self.lower_expr(offset))),
+                }
+            }
+            hir::ExprKind::PtrStore {
+                pointer,
+                offset,
+                value,
+            } => {
+                let hir::Type::Ptr(pointee) = self.module.types[pointer.ty] else {
+                    unreachable!("PtrStore has a pointer operand")
+                };
+                smir::Expr::PtrStore {
+                    pointer: Box::new(self.lower_expr(pointer)),
+                    pointee: Box::new(self.lower_type(pointee)),
+                    offset: offset
+                        .as_ref()
+                        .map(|offset| Box::new(self.lower_expr(offset))),
+                    value: Box::new(self.lower_expr(value)),
+                }
+            }
+            hir::ExprKind::PtrOffset {
+                pointer,
+                offset,
+                subtract,
+            } => {
+                let hir::Type::Ptr(pointee) = self.module.types[pointer.ty] else {
+                    unreachable!("PtrOffset has a pointer operand")
+                };
+                smir::Expr::PtrOffset {
+                    pointer: Box::new(self.lower_expr(pointer)),
+                    pointee: Box::new(self.lower_type(pointee)),
+                    offset: Box::new(self.lower_expr(offset)),
+                    subtract: *subtract,
+                }
+            }
+            hir::ExprKind::AddressOf(hir::Place::Local(local)) => {
+                let local = self.local_map[local];
+                smir::Expr::AddressOf {
+                    local,
+                    pointee: Box::new(self.locals[local].ty.clone()),
+                }
+            }
+            hir::ExprKind::SizeOf(ty) => smir::Expr::SizeOf(Box::new(self.lower_type(*ty))),
+            hir::ExprKind::AlignOf(ty) => smir::Expr::AlignOf(Box::new(self.lower_type(*ty))),
+            hir::ExprKind::FunPtrNull => {
+                let mir::Type::FunPtr(signature) = self.lower_type(expr.ty) else {
+                    unreachable!("FunPtrNull has a FunPtr type")
+                };
+                smir::Expr::FunPtrNull(signature)
+            }
+            hir::ExprKind::FunctionAddress(function) => {
+                let mir::Type::FunPtr(signature) = self.lower_type(expr.ty) else {
+                    unreachable!("FunctionAddress has a FunPtr type")
+                };
+                smir::Expr::FunctionAddress {
+                    function: self.function_map[function],
+                    signature,
+                }
+            }
             hir::ExprKind::FieldAccess { receiver, field } => {
                 // Struct fields, tuple elements and class constructor
                 // properties are all 0-based here (the class index
@@ -6329,7 +6445,7 @@ impl BodyLowerer<'_> {
         match ty {
             // UInt compares with the same integer equality as Int
             // (the same machine word, M9).
-            mir::Type::Int | mir::Type::UInt => {
+            mir::Type::Int | mir::Type::UInt | mir::Type::Ptr(_) | mir::Type::FunPtr(_) => {
                 let op = if negate {
                     mir::BinOp::IntNe
                 } else {
@@ -7518,6 +7634,37 @@ mod tests {
             include_exceptions: bool,
         ) -> hir::Module {
             let coroutine_core = self.test_coroutine_core(include_exceptions);
+            let ptr = self.structs.alloc(hir::StructDecl {
+                name: "Ptr".to_string(),
+                type_params: vec![type_param("T")],
+                attributes: hir::StructAttributes::default(),
+                fields: Vec::new(),
+                interfaces: Vec::new(),
+                span: SPAN,
+            });
+            let fun_ptr = self.structs.alloc(hir::StructDecl {
+                name: "FunPtr".to_string(),
+                type_params: vec![type_param("F")],
+                attributes: hir::StructAttributes::default(),
+                fields: Vec::new(),
+                interfaces: Vec::new(),
+                span: SPAN,
+            });
+            let ffi_core = hir::FfiCore {
+                ptr,
+                fun_ptr,
+                ptr_to_uint: entry,
+                ptr_cast: entry,
+                ptr_load: entry,
+                ptr_load_offset: entry,
+                ptr_store: entry,
+                ptr_store_offset: entry,
+                ptr_plus: entry,
+                ptr_minus: entry,
+                address_of: entry,
+                size_of: entry,
+                align_of: entry,
+            };
             hir::Module {
                 types: self.types,
                 function_types: Arena::new(),
@@ -7539,6 +7686,7 @@ mod tests {
                 string: self.string,
                 option_enum: self.option_enum,
                 coroutine_core,
+                ffi_core,
                 entry,
                 instantiations: self.instantiations,
             }

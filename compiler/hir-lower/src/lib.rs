@@ -344,8 +344,17 @@ pub(crate) struct Lowerer {
     /// Interface namespace: name → (declaration, interface type).
     pub(crate) interfaces_by_name: HashMap<String, (InterfaceId, TypeId)>,
     /// Source-file ownership for validating compiler-known core contracts.
+    pub(crate) struct_files: HashMap<StructId, usize>,
     pub(crate) class_files: HashMap<ClassId, usize>,
     pub(crate) interface_files: HashMap<InterfaceId, usize>,
+    /// Core pointer declarations discovered after pass 1. Applications can
+    /// then normalize while pass 2/2.5 resolves fields and signatures.
+    pub(crate) ffi_ptr: Option<StructId>,
+    pub(crate) ffi_fun_ptr: Option<StructId>,
+    /// Fully validated pointer core, available while lowering user bodies.
+    pub(crate) ffi_core: Option<hir::FfiCore>,
+    pub(crate) pointer_type_uses: Vec<(TypeId, usize, Span)>,
+    pub(crate) fun_ptr_type_uses: Vec<(TypeId, usize, Span)>,
     /// Member functions per owner, in declaration order (this is also
     /// declaration order used when building vtables.
     pub(crate) class_methods: HashMap<ClassId, Vec<FunctionId>>,
@@ -504,8 +513,14 @@ impl Lowerer {
             enums_by_name: HashMap::new(),
             classes_by_name: HashMap::new(),
             interfaces_by_name: HashMap::new(),
+            struct_files: HashMap::new(),
             class_files: HashMap::new(),
             interface_files: HashMap::new(),
+            ffi_ptr: None,
+            ffi_fun_ptr: None,
+            ffi_core: None,
+            pointer_type_uses: Vec::new(),
+            fun_ptr_type_uses: Vec::new(),
             class_methods: HashMap::new(),
             interface_methods: HashMap::new(),
             struct_methods: HashMap::new(),
@@ -686,6 +701,9 @@ impl Lowerer {
             }
         }
 
+        self.ffi_ptr = self.require_core_struct("Ptr", files);
+        self.ffi_fun_ptr = self.require_core_struct("FunPtr", files);
+
         // The core library's `Option<T>` must be validated before any
         // type annotation is resolved: `T?` desugars to it (spec 7.1).
         self.validate_option_enum(files);
@@ -741,6 +759,9 @@ impl Lowerer {
         // these exact generic interfaces and intrinsic signatures rather than
         // guessing entities from names after HIR.
         let coroutine_core = self.validate_coroutine_core(files);
+        let ffi_core = self.validate_ffi_core(files);
+        self.ffi_core = ffi_core;
+        self.validate_pointer_type_uses();
 
         // Pass 2.6: overload declarations must be distinguishable —
         // within one name (top-level) or one host (members) no two
@@ -779,7 +800,8 @@ impl Lowerer {
         for (id, decl, file_index, owner) in pending_methods {
             // Interface and abstract methods are bodyless; their
             // parameter-only body was built in pass 2.5.
-            if decl.modifier == ast::MethodModifier::Abstract
+            if matches!(self.functions[id].kind, FunctionKind::Intrinsic(_))
+                || decl.modifier == ast::MethodModifier::Abstract
                 || matches!(owner, Owner::Interface(_))
             {
                 continue;
@@ -843,6 +865,8 @@ impl Lowerer {
             .expect("a missing or invalid core `Option` is always diagnosed");
         let coroutine_core = coroutine_core
             .expect("a missing or invalid coroutine core protocol is always diagnosed");
+        let ffi_core =
+            ffi_core.expect("a missing or invalid FFI core protocol is always diagnosed");
         Ok(hir::Module {
             types: self.types,
             function_types: self.function_types,
@@ -864,9 +888,32 @@ impl Lowerer {
             string: self.string,
             option_enum,
             coroutine_core,
+            ffi_core,
             entry,
             instantiations: self.instantiations,
         })
+    }
+
+    fn require_core_struct(&mut self, name: &str, files: &[ast::SourceFile]) -> Option<StructId> {
+        let candidate = self.structs_by_name.get(name).map(|(id, _)| *id);
+        if let Some(id) = candidate
+            && self
+                .struct_files
+                .get(&id)
+                .copied()
+                .unwrap_or(self.user_file_index)
+                < self.user_file_index
+        {
+            return Some(id);
+        }
+        self.current_file = candidate
+            .and_then(|id| self.struct_files.get(&id).copied())
+            .unwrap_or(0);
+        self.error(
+            files[0].span,
+            format!("scoop.core must define exactly one `{name}` struct"),
+        );
+        None
     }
 
     /// Whether a type name is already taken in the shared type
@@ -935,6 +982,7 @@ impl Lowerer {
         let ty = self.intern_type(Type::Struct(id, type_args));
         self.structs_by_name
             .insert(decl.name.text.clone(), (id, ty));
+        self.struct_files.insert(id, file_index);
         self.struct_methods.insert(id, Vec::new());
         for method in &decl.methods {
             self.declare_method(method, Owner::Struct(id), pending_methods, file_index);
@@ -1115,7 +1163,11 @@ impl Lowerer {
         pending: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
         file_index: usize,
     ) {
-        let checked = self.check_function_annotations(decl, false, FunctionTarget::Member(owner));
+        let checked = self.check_function_annotations(
+            decl,
+            file_index < self.user_file_index,
+            FunctionTarget::Member(owner),
+        );
         let host_ty = self.owner_ty(owner);
         let modifier = match owner {
             Owner::Interface(_) => hir::MethodModifier::Abstract,
@@ -1136,6 +1188,13 @@ impl Lowerer {
             },
         };
         let owner_type_param_count = self.owner_type_params(owner).len() as u32;
+        let kind = match checked.intrinsic {
+            Some(intrinsic) => FunctionKind::Intrinsic(intrinsic),
+            None => FunctionKind::User(hir::Body {
+                locals: Arena::new(),
+                statements: Vec::new(),
+            }),
+        };
         let id = self.functions.alloc(Function {
             name: format!("{}.{}", owner.describe_name(self), decl.name.text),
             is_suspend: decl.is_suspend,
@@ -1145,10 +1204,7 @@ impl Lowerer {
             params: Vec::new(),
             return_ty: self.unit,
             attributes: checked.attributes,
-            kind: FunctionKind::User(hir::Body {
-                locals: Arena::new(),
-                statements: Vec::new(),
-            }),
+            kind,
             method: Some(hir::Method {
                 owner: host_ty,
                 modifier,
@@ -1294,6 +1350,260 @@ impl Lowerer {
             start_coroutine,
             suspend_coroutine,
         })
+    }
+
+    fn validate_ffi_core(&mut self, files: &[ast::SourceFile]) -> Option<hir::FfiCore> {
+        let ptr = self.ffi_ptr;
+        let fun_ptr = self.ffi_fun_ptr;
+        if let Some(id) = ptr {
+            self.validate_ptr_struct(id);
+        }
+        if let Some(id) = fun_ptr {
+            self.validate_fun_ptr_struct(id);
+        }
+
+        let ptr_to_uint = self.require_intrinsic("ptr_to_uint", files);
+        let ptr_cast = self.require_intrinsic("ptr_cast", files);
+        let ptr_load = self.require_intrinsic("ptr_load", files);
+        let ptr_load_offset = self.require_intrinsic("ptr_load_offset", files);
+        let ptr_store = self.require_intrinsic("ptr_store", files);
+        let ptr_store_offset = self.require_intrinsic("ptr_store_offset", files);
+        let ptr_plus = self.require_intrinsic("ptr_plus", files);
+        let ptr_minus = self.require_intrinsic("ptr_minus", files);
+        let address_of = self.require_intrinsic("address_of", files);
+        let size_of = self.require_intrinsic("size_of", files);
+        let align_of = self.require_intrinsic("align_of", files);
+
+        if let Some(ptr) = ptr {
+            for (id, kind) in [
+                (ptr_to_uint, hir::PointerIntrinsic::ToUInt),
+                (ptr_cast, hir::PointerIntrinsic::Cast),
+                (ptr_load, hir::PointerIntrinsic::Load),
+                (ptr_load_offset, hir::PointerIntrinsic::LoadOffset),
+                (ptr_store, hir::PointerIntrinsic::Store),
+                (ptr_store_offset, hir::PointerIntrinsic::StoreOffset),
+                (ptr_plus, hir::PointerIntrinsic::Plus),
+                (ptr_minus, hir::PointerIntrinsic::Minus),
+            ] {
+                if let Some(id) = id {
+                    self.validate_ptr_method_intrinsic(id, ptr, kind);
+                }
+            }
+        }
+        if let Some(id) = address_of {
+            self.validate_pointer_top_level_intrinsic(id, hir::PointerIntrinsic::AddressOf);
+        }
+        if let Some(id) = size_of {
+            self.validate_pointer_top_level_intrinsic(id, hir::PointerIntrinsic::SizeOf);
+        }
+        if let Some(id) = align_of {
+            self.validate_pointer_top_level_intrinsic(id, hir::PointerIntrinsic::AlignOf);
+        }
+
+        Some(hir::FfiCore {
+            ptr: ptr?,
+            fun_ptr: fun_ptr?,
+            ptr_to_uint: ptr_to_uint?,
+            ptr_cast: ptr_cast?,
+            ptr_load: ptr_load?,
+            ptr_load_offset: ptr_load_offset?,
+            ptr_store: ptr_store?,
+            ptr_store_offset: ptr_store_offset?,
+            ptr_plus: ptr_plus?,
+            ptr_minus: ptr_minus?,
+            address_of: address_of?,
+            size_of: size_of?,
+            align_of: align_of?,
+        })
+    }
+
+    fn validate_ptr_struct(&mut self, id: StructId) {
+        self.current_file = self.struct_files[&id];
+        let declaration = &self.structs[id];
+        let valid = declaration.type_params.len() == 1
+            && declaration.type_params[0].kind == hir::TypeParamKind::Value
+            && matches!(declaration.fields.as_slice(), [field] if field.name == "_rawPointer" && field.ty == self.uint)
+            && declaration.interfaces.is_empty()
+            && !declaration.attributes.interior_mutable
+            && declaration.attributes.c_layout.is_none();
+        if !valid {
+            self.error(
+                declaration.span,
+                "core `Ptr` must be `struct Ptr<T : value>(val _rawPointer: UInt)`".to_string(),
+            );
+        }
+    }
+
+    fn validate_fun_ptr_struct(&mut self, id: StructId) {
+        self.current_file = self.struct_files[&id];
+        let declaration = &self.structs[id];
+        let valid = declaration.type_params.len() == 1
+            && declaration.type_params[0].kind == hir::TypeParamKind::Any
+            && matches!(declaration.fields.as_slice(), [field] if field.name == "_rawPointer" && field.ty == self.uint)
+            && declaration.interfaces.is_empty()
+            && self.struct_methods[&id].is_empty()
+            && !declaration.attributes.interior_mutable
+            && declaration.attributes.c_layout.is_none();
+        if !valid {
+            self.error(
+                declaration.span,
+                "core `FunPtr` must be `struct FunPtr<F>(val _rawPointer: UInt)`".to_string(),
+            );
+        }
+    }
+
+    fn validate_ptr_method_intrinsic(
+        &mut self,
+        id: FunctionId,
+        ptr: StructId,
+        kind: hir::PointerIntrinsic,
+    ) {
+        self.current_file = self.function_files[&id];
+        let function = &self.functions[id];
+        let sig = &self.signatures[&id];
+        let owner_matches = self.function_owner.get(&id) == Some(&Owner::Struct(ptr));
+        let base = owner_matches
+            && !sig.is_suspend
+            && sig.owner_type_param_count == 1
+            && sig
+                .type_params
+                .first()
+                .is_some_and(|param| param.kind == hir::TypeParamKind::Value && param.name == "T")
+            && function.attributes.safety == hir::Safety::Unsafe
+            && function.attributes.gc_effect == hir::GcEffect::NoGc;
+        let valid = base
+            && match kind {
+                hir::PointerIntrinsic::ToUInt => {
+                    function.name.ends_with(".toUInt")
+                        && sig.type_params.len() == 1
+                        && sig.params.is_empty()
+                        && sig.return_ty == self.uint
+                }
+                hir::PointerIntrinsic::Cast => {
+                    function.name.ends_with(".cast")
+                        && sig.type_params.len() == 2
+                        && sig.type_params[1].kind == hir::TypeParamKind::Value
+                        && sig.params.is_empty()
+                        && self.is_ptr_param(sig.return_ty, 1)
+                }
+                hir::PointerIntrinsic::Load => {
+                    function.name.ends_with(".load")
+                        && sig.type_params.len() == 1
+                        && sig.params.is_empty()
+                        && self.is_type_param(sig.return_ty, 0)
+                }
+                hir::PointerIntrinsic::LoadOffset => {
+                    function.name.ends_with(".load")
+                        && sig.type_params.len() == 1
+                        && matches!(sig.params.as_slice(), [param] if param.ty == self.int)
+                        && self.is_type_param(sig.return_ty, 0)
+                }
+                hir::PointerIntrinsic::Store => {
+                    function.name.ends_with(".store")
+                        && sig.type_params.len() == 1
+                        && matches!(sig.params.as_slice(), [param] if self.is_type_param(param.ty, 0))
+                        && sig.return_ty == self.unit
+                }
+                hir::PointerIntrinsic::StoreOffset => {
+                    function.name.ends_with(".store")
+                        && sig.type_params.len() == 1
+                        && matches!(sig.params.as_slice(), [offset, value] if offset.ty == self.int && self.is_type_param(value.ty, 0))
+                        && sig.return_ty == self.unit
+                }
+                hir::PointerIntrinsic::Plus | hir::PointerIntrinsic::Minus => {
+                    function
+                        .name
+                        .ends_with(if kind == hir::PointerIntrinsic::Plus {
+                            ".plus"
+                        } else {
+                            ".minus"
+                        })
+                        && sig.type_params.len() == 1
+                        && matches!(sig.params.as_slice(), [param] if param.ty == self.int)
+                        && self.is_ptr_param(sig.return_ty, 0)
+                }
+                _ => false,
+            };
+        if !valid {
+            let intrinsic = match &function.kind {
+                FunctionKind::Intrinsic(name) => name.as_str(),
+                FunctionKind::User(_) => "pointer",
+            };
+            self.error(
+                function.span,
+                format!("malformed core pointer intrinsic `{intrinsic}`"),
+            );
+        }
+    }
+
+    fn validate_pointer_top_level_intrinsic(
+        &mut self,
+        id: FunctionId,
+        kind: hir::PointerIntrinsic,
+    ) {
+        self.current_file = self.function_files[&id];
+        let function = &self.functions[id];
+        let sig = &self.signatures[&id];
+        let one_value_param = sig.type_params.len() == 1
+            && sig.type_params[0].kind == hir::TypeParamKind::Value
+            && sig.owner_type_param_count == 0;
+        let valid = function.method.is_none()
+            && !sig.is_suspend
+            && one_value_param
+            && match kind {
+                hir::PointerIntrinsic::AddressOf => {
+                    function.name == "addressOf"
+                        && function.attributes.safety == hir::Safety::Unsafe
+                        && function.attributes.gc_effect == hir::GcEffect::Managed
+                        && matches!(sig.params.as_slice(), [param] if self.is_type_param(param.ty, 0))
+                        && self.is_ptr_param(sig.return_ty, 0)
+                }
+                hir::PointerIntrinsic::SizeOf | hir::PointerIntrinsic::AlignOf => {
+                    function.name
+                        == if kind == hir::PointerIntrinsic::SizeOf {
+                            "sizeOf"
+                        } else {
+                            "alignOf"
+                        }
+                        && function.attributes.safety == hir::Safety::Safe
+                        && function.attributes.gc_effect == hir::GcEffect::NoGc
+                        && sig.params.is_empty()
+                        && sig.return_ty == self.uint
+                }
+                _ => false,
+            };
+        if !valid {
+            let intrinsic = match &function.kind {
+                FunctionKind::Intrinsic(name) => name.as_str(),
+                FunctionKind::User(_) => "pointer",
+            };
+            self.error(
+                function.span,
+                format!("malformed core pointer intrinsic `{intrinsic}`"),
+            );
+        }
+    }
+
+    fn validate_pointer_type_uses(&mut self) {
+        let uses = self.pointer_type_uses.clone();
+        for (ty, file, span) in uses {
+            let Type::Ptr(pointee) = self.types[ty] else {
+                continue;
+            };
+            if self.type_contains_param(pointee) {
+                continue;
+            }
+            if !self.is_gc_free(pointee) {
+                self.current_file = file;
+                self.error(
+                    span,
+                    format!(
+                        "`Ptr` pointee must be GC-free, found {}",
+                        self.type_name(pointee)
+                    ),
+                );
+            }
+        }
     }
 
     fn require_core_interface(
@@ -1512,6 +1822,13 @@ impl Lowerer {
         matches!(
             self.types[ty],
             Type::Param(param) if param == hir::TypeParamId::from_raw(index)
+        )
+    }
+
+    fn is_ptr_param(&self, ty: TypeId, index: u32) -> bool {
+        matches!(
+            self.types[ty],
+            Type::Ptr(pointee) if self.is_type_param(pointee, index)
         )
     }
 
@@ -2175,6 +2492,19 @@ impl Lowerer {
                 ),
             );
         }
+    }
+
+    pub(crate) fn require_unsafe_operation(&mut self, span: Span, operation: &str) -> bool {
+        let context = self
+            .safety_contexts
+            .last()
+            .copied()
+            .expect("the safety context stack is initialized non-empty");
+        if context == hir::Safety::Unsafe {
+            return true;
+        }
+        self.error(span, format!("{operation} requires an unsafe context"));
+        false
     }
 
     pub(crate) fn error(&mut self, span: Span, message: String) {

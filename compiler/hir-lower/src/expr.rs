@@ -327,17 +327,18 @@ impl Lowerer {
             // `Name(args...)` where the parser already knows `Name` is
             // a type (struct or enum variant path).
             ast::Expr::StructInit { name, args, span } => match self.classify_constructor(name)? {
-                Constructor::Struct { struct_id, ty } => self.lower_struct_init(
-                    struct_id,
-                    ty,
-                    CallSite {
+                Constructor::Struct { struct_id, ty } => {
+                    let call = CallSite {
                         type_args: &[],
                         args,
                         span: *span,
-                    },
-                    sink,
-                    expected,
-                ),
+                    };
+                    if Some(struct_id) == self.ffi_ptr || Some(struct_id) == self.ffi_fun_ptr {
+                        self.lower_ffi_struct_init(struct_id, call, sink, expected)
+                    } else {
+                        self.lower_struct_init(struct_id, ty, call, sink, expected)
+                    }
+                }
                 Constructor::Variant { enum_id, variant } => self.lower_variant_construct(
                     enum_id,
                     variant,
@@ -661,6 +662,7 @@ impl Lowerer {
             Type::Enum(_, ref args) => args.clone(),
             Type::Struct(_, ref args) => args.clone(),
             Type::Interface(_, ref args) => args.clone(),
+            Type::Ptr(pointee) => vec![pointee],
             _ => Vec::new(),
         };
         let explicit_type_args = self.resolve_call_type_args(call.type_args)?;
@@ -677,6 +679,15 @@ impl Lowerer {
         )?;
         let ty = resolved.return_ty;
         self.check_call_effects(resolved.callee, call.span);
+        if let Some(expr) = self.normalize_pointer_method_call(
+            resolved.callee,
+            receiver.clone(),
+            resolved.args.clone(),
+            ty,
+            call.span,
+        ) {
+            return Some(expr);
+        }
         Some(hir::Expr {
             kind: ExprKind::MethodCall {
                 receiver: Box::new(receiver),
@@ -719,6 +730,7 @@ impl Lowerer {
             Type::Enum(_, ref args) => args.clone(),
             Type::Struct(_, ref args) => args.clone(),
             Type::Interface(_, ref args) => args.clone(),
+            Type::Ptr(pointee) => vec![pointee],
             _ => Vec::new(),
         };
         let sig = self.signatures[&function].clone();
@@ -802,6 +814,15 @@ impl Lowerer {
         };
         let ty = self.instantiate_ty(sig.return_ty, &type_args);
         self.check_call_effects(callee, call.span);
+        if let Some(expr) = self.normalize_pointer_method_call(
+            callee,
+            receiver.clone(),
+            adapted.clone(),
+            ty,
+            call.span,
+        ) {
+            return Some(expr);
+        }
         Some(hir::Expr {
             kind: ExprKind::MethodCall {
                 receiver: Box::new(receiver),
@@ -810,6 +831,72 @@ impl Lowerer {
             },
             ty,
             span: call.span,
+        })
+    }
+
+    fn normalize_pointer_method_call(
+        &self,
+        callee: hir::Callable,
+        receiver: hir::Expr,
+        args: Vec<hir::Expr>,
+        ty: TypeId,
+        span: Span,
+    ) -> Option<hir::Expr> {
+        let core = self.ffi_core?;
+        let function = self.callable_function_id(callee);
+        let kind = if function == core.ptr_to_uint {
+            hir::PointerIntrinsic::ToUInt
+        } else if function == core.ptr_cast {
+            hir::PointerIntrinsic::Cast
+        } else if function == core.ptr_load {
+            hir::PointerIntrinsic::Load
+        } else if function == core.ptr_load_offset {
+            hir::PointerIntrinsic::LoadOffset
+        } else if function == core.ptr_store {
+            hir::PointerIntrinsic::Store
+        } else if function == core.ptr_store_offset {
+            hir::PointerIntrinsic::StoreOffset
+        } else if function == core.ptr_plus {
+            hir::PointerIntrinsic::Plus
+        } else if function == core.ptr_minus {
+            hir::PointerIntrinsic::Minus
+        } else {
+            return None;
+        };
+        let mut args = args.into_iter();
+        let pointer = Box::new(receiver);
+        let expr = match kind {
+            hir::PointerIntrinsic::ToUInt => ExprKind::PtrToUInt(pointer),
+            hir::PointerIntrinsic::Cast => ExprKind::PtrCast(pointer),
+            hir::PointerIntrinsic::Load => ExprKind::PtrLoad {
+                pointer,
+                offset: None,
+            },
+            hir::PointerIntrinsic::LoadOffset => ExprKind::PtrLoad {
+                pointer,
+                offset: Some(Box::new(args.next().expect("validated offset argument"))),
+            },
+            hir::PointerIntrinsic::Store => ExprKind::PtrStore {
+                pointer,
+                offset: None,
+                value: Box::new(args.next().expect("validated store value")),
+            },
+            hir::PointerIntrinsic::StoreOffset => ExprKind::PtrStore {
+                pointer,
+                offset: Some(Box::new(args.next().expect("validated offset argument"))),
+                value: Box::new(args.next().expect("validated store value")),
+            },
+            hir::PointerIntrinsic::Plus | hir::PointerIntrinsic::Minus => ExprKind::PtrOffset {
+                pointer,
+                offset: Box::new(args.next().expect("validated pointer offset")),
+                subtract: kind == hir::PointerIntrinsic::Minus,
+            },
+            _ => unreachable!("top-level pointer intrinsic is not a method"),
+        };
+        Some(hir::Expr {
+            kind: expr,
+            ty,
+            span,
         })
     }
 
@@ -1482,17 +1569,18 @@ impl Lowerer {
                 sink,
                 expected,
             ),
-            Constructor::Struct { struct_id, ty } => self.lower_struct_init(
-                struct_id,
-                ty,
-                CallSite {
+            Constructor::Struct { struct_id, ty } => {
+                let site = CallSite {
                     type_args: &call.type_args,
                     args: &call.args,
                     span: call.span,
-                },
-                sink,
-                expected,
-            ),
+                };
+                if Some(struct_id) == self.ffi_ptr || Some(struct_id) == self.ffi_fun_ptr {
+                    self.lower_ffi_struct_init(struct_id, site, sink, expected)
+                } else {
+                    self.lower_struct_init(struct_id, ty, site, sink, expected)
+                }
+            }
             Constructor::Class { class_id } => {
                 if !call.type_args.is_empty() {
                     self.error(
@@ -1589,6 +1677,19 @@ impl Lowerer {
         expected: Option<TypeId>,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
+        if let Some(expected) = expected
+            && let Type::FunPtr(signature) = self.types[expected]
+        {
+            if receiver.is_some() {
+                self.error(
+                    span,
+                    "a native `FunPtr` address must reference an unbound top-level function"
+                        .to_string(),
+                );
+                return None;
+            }
+            return self.lower_native_function_reference(name, span, expected, signature);
+        }
         if let Some(receiver) = receiver {
             return self.lower_bound_callable_reference(receiver, name, span, expected, sink);
         }
@@ -1649,6 +1750,81 @@ impl Lowerer {
         Some(hir::Expr {
             kind: ExprKind::CallableReference(id),
             ty,
+            span,
+        })
+    }
+
+    fn lower_native_function_reference(
+        &mut self,
+        name: &ast::Ident,
+        span: Span,
+        expected: TypeId,
+        signature: hir::FunctionTypeId,
+    ) -> Option<hir::Expr> {
+        if self.scopes.lookup(&name.text).is_some()
+            || !self.local_function_scopes.lookup(&name.text).is_empty()
+        {
+            self.error(
+                span,
+                "a native `FunPtr` address cannot target a local function or function value"
+                    .to_string(),
+            );
+            return None;
+        }
+        let expected_signature = self.function_types[signature].clone();
+        let candidates = self.named_reference_candidate_layer(&name.text);
+        let mut matching = Vec::new();
+        for function in candidates {
+            let declaration = &self.functions[function];
+            let sig = &self.signatures[&function];
+            if declaration.method.is_some()
+                || self.extension_receivers.contains_key(&function)
+                || !sig.type_params.is_empty()
+                || sig.is_suspend
+                || declaration.attributes.gc_effect != hir::GcEffect::NoGc
+                || !matches!(declaration.kind, hir::FunctionKind::User(_))
+                || sig.params.len() != expected_signature.parameter_types.len()
+            {
+                continue;
+            }
+            let params_match = sig
+                .params
+                .iter()
+                .zip(&expected_signature.parameter_types)
+                .all(|(parameter, expected)| self.types_equal(parameter.ty, *expected));
+            if params_match && self.types_equal(sig.return_ty, expected_signature.return_type) {
+                matching.push(function);
+            }
+        }
+        let function = match matching.as_slice() {
+            [function] => *function,
+            [] => {
+                self.error(
+                    span,
+                    format!(
+                        "no eligible `@NoGC` top-level function `::{}` exactly matches the expected FunPtr signature",
+                        name.text
+                    ),
+                );
+                return None;
+            }
+            _ => {
+                self.error(
+                    span,
+                    format!(
+                        "native function reference `::{}` is ambiguous for the expected FunPtr signature",
+                        name.text
+                    ),
+                );
+                return None;
+            }
+        };
+        if self.functions[function].attributes.safety == hir::Safety::Unsafe {
+            self.require_unsafe_operation(span, "taking the address of an unsafe callback");
+        }
+        Some(hir::Expr {
+            kind: ExprKind::FunctionAddress(function),
+            ty: expected,
             span,
         })
     }
@@ -3295,6 +3471,11 @@ impl Lowerer {
         call: &ast::CallExpr,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
+        if self.ffi_core.is_some_and(|core| {
+            function == core.address_of || function == core.size_of || function == core.align_of
+        }) {
+            return self.lower_pointer_top_level_intrinsic(function, call);
+        }
         let name = self.functions[function].name.clone();
 
         let sig = self.signatures[&function].clone();
@@ -3397,6 +3578,150 @@ impl Lowerer {
                 args: adapted_args,
             },
             ty,
+            span: call.span,
+        })
+    }
+
+    fn lower_pointer_top_level_intrinsic(
+        &mut self,
+        function: hir::FunctionId,
+        call: &ast::CallExpr,
+    ) -> Option<hir::Expr> {
+        let core = self
+            .ffi_core
+            .expect("pointer core is validated before bodies are lowered");
+        if function == core.address_of {
+            if call.args.len() != 1 {
+                self.error(
+                    call.span,
+                    format!(
+                        "function `addressOf` takes exactly 1 argument, but {} were supplied",
+                        call.args.len()
+                    ),
+                );
+                return None;
+            }
+            let place = match &call.args[0] {
+                ast::Expr::Var(name) => self
+                    .scopes
+                    .lookup(&name.text)
+                    .map(|local| (local, self.locals[local].ty, name.span)),
+                ast::Expr::This { span } => self.current_this.map(|(local, ty)| (local, ty, *span)),
+                expression => {
+                    self.error(
+                        expression.span(),
+                        "`addressOf` argument must be an addressable local, parameter, global, or value-type `this`"
+                            .to_string(),
+                    );
+                    return None;
+                }
+            };
+            let Some((local, place_ty, place_span)) = place else {
+                self.error(
+                    call.args[0].span(),
+                    "`addressOf` argument must be an addressable local, parameter, global, or value-type `this`"
+                        .to_string(),
+                );
+                return None;
+            };
+            let explicit = self.resolve_call_type_args(&call.type_args)?;
+            if explicit.len() > 1 {
+                self.error(
+                    call.span,
+                    format!(
+                        "function `addressOf` takes exactly 1 type argument, but {} were supplied",
+                        explicit.len()
+                    ),
+                );
+                return None;
+            }
+            if explicit
+                .first()
+                .is_some_and(|explicit| !self.types_equal(*explicit, place_ty))
+            {
+                self.error(
+                    place_span,
+                    format!(
+                        "`addressOf` type argument must match the place type {}, found {}",
+                        self.type_name(place_ty),
+                        self.type_name(explicit[0])
+                    ),
+                );
+                return None;
+            }
+            if !self.is_value_ty(place_ty)
+                || self.type_contains_param(place_ty)
+                || !self.is_gc_free(place_ty)
+            {
+                self.error(
+                    place_span,
+                    format!(
+                        "`addressOf` requires a concrete GC-free value type, found {}",
+                        self.type_name(place_ty)
+                    ),
+                );
+                return None;
+            }
+            self.check_call_effects(hir::Callable::Function(function), call.span);
+            let ty = self.intern_type(Type::Ptr(place_ty));
+            return Some(hir::Expr {
+                kind: ExprKind::AddressOf(hir::Place::Local(local)),
+                ty,
+                span: call.span,
+            });
+        }
+
+        if !call.args.is_empty() {
+            let name = if function == core.size_of {
+                "sizeOf"
+            } else {
+                "alignOf"
+            };
+            self.error(
+                call.span,
+                format!(
+                    "function `{name}` takes exactly 0 arguments, but {} were supplied",
+                    call.args.len()
+                ),
+            );
+            return None;
+        }
+        let explicit = self.resolve_call_type_args(&call.type_args)?;
+        if explicit.len() != 1 {
+            let name = if function == core.size_of {
+                "sizeOf"
+            } else {
+                "alignOf"
+            };
+            self.error(
+                call.span,
+                format!(
+                    "function `{name}` requires exactly 1 explicit type argument, but {} were supplied",
+                    explicit.len()
+                ),
+            );
+            return None;
+        }
+        let target = explicit[0];
+        if !self.is_value_ty(target) || self.type_contains_param(target) || !self.is_gc_free(target)
+        {
+            self.error(
+                call.span,
+                format!(
+                    "memory layout requires a concrete GC-free value type, found {}",
+                    self.type_name(target)
+                ),
+            );
+            return None;
+        }
+        let kind = if function == core.size_of {
+            ExprKind::SizeOf(target)
+        } else {
+            ExprKind::AlignOf(target)
+        };
+        Some(hir::Expr {
+            kind,
+            ty: self.uint,
             span: call.span,
         })
     }
@@ -3653,6 +3978,14 @@ impl Lowerer {
                 }
                 self.mark_type_params(function.return_type, bound);
             }
+            Type::Ptr(pointee) => self.mark_type_params(*pointee, bound),
+            Type::FunPtr(id) => {
+                let function = &self.function_types[*id];
+                for parameter in &function.parameter_types {
+                    self.mark_type_params(*parameter, bound);
+                }
+                self.mark_type_params(function.return_type, bound);
+            }
             _ => {}
         }
     }
@@ -3764,6 +4097,9 @@ impl Lowerer {
             | (Type::MutableArray(param_element), Type::MutableArray(arg_element)) => {
                 self.bind_type_args(param_element, arg_element, bindings, type_params, span)
             }
+            (Type::Ptr(param), Type::Ptr(arg)) => {
+                self.bind_type_args(param, arg, bindings, type_params, span)
+            }
             (Type::Tuple(param_elements), Type::Tuple(arg_elements))
                 if param_elements.len() == arg_elements.len() =>
             {
@@ -3794,8 +4130,188 @@ impl Lowerer {
                 );
                 ok
             }
+            (Type::FunPtr(param_id), Type::FunPtr(arg_id)) => {
+                let param = self.function_types[param_id].clone();
+                let arg = self.function_types[arg_id].clone();
+                if param.is_suspend != arg.is_suspend
+                    || param.parameter_types.len() != arg.parameter_types.len()
+                {
+                    return true;
+                }
+                let mut ok = true;
+                for (param, arg) in param.parameter_types.iter().zip(arg.parameter_types.iter()) {
+                    ok &= self.bind_type_args(*param, *arg, bindings, type_params, span);
+                }
+                ok &= self.bind_type_args(
+                    param.return_type,
+                    arg.return_type,
+                    bindings,
+                    type_params,
+                    span,
+                );
+                ok
+            }
             _ => true,
         }
+    }
+
+    /// Normalize the two compiler-known FFI value constructors. Their source
+    /// structs exist to make the surface API explicit, but no aggregate value
+    /// or source field survives in typed HIR.
+    fn lower_ffi_struct_init(
+        &mut self,
+        struct_id: hir::StructId,
+        call: CallSite<'_>,
+        sink: &mut Vec<hir::Statement>,
+        expected: Option<TypeId>,
+    ) -> Option<hir::Expr> {
+        if Some(struct_id) == self.ffi_ptr {
+            if call.args.len() != 1 {
+                self.error(
+                    call.span,
+                    format!(
+                        "`Ptr` takes exactly 1 argument, but {} were supplied",
+                        call.args.len()
+                    ),
+                );
+                return None;
+            }
+            let explicit = self.resolve_call_type_args(call.type_args)?;
+            if explicit.len() > 1 {
+                self.error(
+                    call.span,
+                    format!(
+                        "`Ptr` takes exactly 1 type argument, but {} were supplied",
+                        explicit.len()
+                    ),
+                );
+                return None;
+            }
+            let expected_pointee = expected.and_then(|ty| match self.types[ty] {
+                Type::Ptr(pointee) => Some(pointee),
+                _ => None,
+            });
+            let pointee = explicit.first().copied().or(expected_pointee);
+            let Some(pointee) = pointee else {
+                self.error(
+                    call.span,
+                    "cannot infer `Ptr` pointee type; provide `Ptr<T>` or an expected `Ptr<T>` type"
+                        .to_string(),
+                );
+                return None;
+            };
+            if explicit.first().is_some_and(|explicit| {
+                expected_pointee.is_some_and(|expected| !self.types_equal(*explicit, expected))
+            }) {
+                self.error(
+                    call.span,
+                    format!(
+                        "`Ptr` constructor produces Ptr<{}>, which does not match the expected type",
+                        self.type_name(pointee)
+                    ),
+                );
+                return None;
+            }
+            if !self.is_value_ty(pointee)
+                || self.type_contains_param(pointee)
+                || !self.is_gc_free(pointee)
+            {
+                self.error(
+                    call.span,
+                    format!(
+                        "`Ptr` pointee must be a concrete GC-free value type, found {}",
+                        self.type_name(pointee)
+                    ),
+                );
+                return None;
+            }
+            self.require_unsafe_operation(call.span, "constructing `Ptr` from a raw integer");
+            let raw = self.lower_expr(&call.args[0], sink, Some(self.uint))?;
+            if raw.ty != self.uint {
+                self.error(
+                    raw.span,
+                    format!(
+                        "`Ptr` raw value must be of type UInt, found {}",
+                        self.type_name(raw.ty)
+                    ),
+                );
+                return None;
+            }
+            let ty = self.intern_type(Type::Ptr(pointee));
+            return Some(hir::Expr {
+                kind: ExprKind::PtrFromUInt(Box::new(raw)),
+                ty,
+                span: call.span,
+            });
+        }
+
+        debug_assert_eq!(Some(struct_id), self.ffi_fun_ptr);
+        if !call.args.is_empty() {
+            self.error(
+                call.span,
+                "`FunPtr` only supports the zero-argument null constructor".to_string(),
+            );
+            return None;
+        }
+        let explicit = self.resolve_call_type_args(call.type_args)?;
+        if explicit.len() > 1 {
+            self.error(
+                call.span,
+                format!(
+                    "`FunPtr` takes exactly 1 type argument, but {} were supplied",
+                    explicit.len()
+                ),
+            );
+            return None;
+        }
+        let expected_signature = expected.and_then(|ty| match self.types[ty] {
+            Type::FunPtr(signature) => Some(signature),
+            _ => None,
+        });
+        let explicit_signature = explicit.first().and_then(|ty| match self.types[*ty] {
+            Type::Function(signature) => Some(signature),
+            _ => None,
+        });
+        if !explicit.is_empty() && explicit_signature.is_none() {
+            self.error(
+                call.span,
+                "`FunPtr` type argument must be an ordinary concrete function type".to_string(),
+            );
+            return None;
+        }
+        let signature = explicit_signature.or(expected_signature);
+        let Some(signature) = signature else {
+            self.error(
+                call.span,
+                "cannot infer `FunPtr` signature; provide `FunPtr<F>` or an expected `FunPtr<F>` type"
+                    .to_string(),
+            );
+            return None;
+        };
+        if explicit_signature.is_some()
+            && expected_signature.is_some()
+            && explicit_signature != expected_signature
+        {
+            self.error(
+                call.span,
+                "explicit `FunPtr` signature does not match the expected type".to_string(),
+            );
+            return None;
+        }
+        if self.function_types[signature].is_suspend || self.function_type_contains_param(signature)
+        {
+            self.error(
+                call.span,
+                "`FunPtr` type argument must be an ordinary concrete function type".to_string(),
+            );
+            return None;
+        }
+        let ty = self.intern_type(Type::FunPtr(signature));
+        Some(hir::Expr {
+            kind: ExprKind::FunPtrNull,
+            ty,
+            span: call.span,
+        })
     }
 
     /// Struct construction with positional arguments: argument count
@@ -4368,6 +4884,31 @@ impl Lowerer {
             let rhs = self.lower_expr(rhs, sink, rhs_hint)?;
             (lhs, rhs)
         };
+        if matches!(op, hir::BinOp::Add | hir::BinOp::Sub)
+            && matches!(self.types[lhs.ty], Type::Ptr(_))
+        {
+            if rhs.ty != self.int {
+                self.error(
+                    span,
+                    format!(
+                        "pointer operator `{symbol}` requires an Int offset, found {}",
+                        self.type_name(rhs.ty)
+                    ),
+                );
+                return None;
+            }
+            self.require_unsafe_operation(span, "pointer arithmetic");
+            let ty = lhs.ty;
+            return Some(hir::Expr {
+                kind: ExprKind::PtrOffset {
+                    pointer: Box::new(lhs),
+                    offset: Box::new(rhs),
+                    subtract: op == hir::BinOp::Sub,
+                },
+                ty,
+                span,
+            });
+        }
         let ty = match op {
             hir::BinOp::Add => {
                 // `String + String` concatenates (docs/milestone2/

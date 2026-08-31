@@ -26,6 +26,11 @@ impl Lowerer {
             if function.is_suspend {
                 continue; // The annotation combination already owns this error.
             }
+            if matches!(function.kind, hir::FunctionKind::Intrinsic(_)) {
+                // Core intrinsic signatures and effects are validated against
+                // the intrinsic registry before this whole-program pass.
+                continue;
+            }
             for param in &function.params {
                 if !self.is_gc_free(param.ty) {
                     self.error(
@@ -125,7 +130,12 @@ impl Lowerer {
         visiting: &mut HashSet<hir::TypeId>,
     ) -> bool {
         match &self.types[ty] {
-            hir::Type::Unit | hir::Type::Int | hir::Type::UInt | hir::Type::Boolean => true,
+            hir::Type::Unit
+            | hir::Type::Int
+            | hir::Type::UInt
+            | hir::Type::Boolean
+            | hir::Type::Ptr(_)
+            | hir::Type::FunPtr(_) => true,
             hir::Type::String
             | hir::Type::Class(_)
             | hir::Type::Interface(_, _)
@@ -460,7 +470,41 @@ impl Lowerer {
             }
             ExprKind::Unary { operand, .. }
             | ExprKind::SomeWrap(operand)
-            | ExprKind::IsSome(operand) => self.collect_no_gc_expr_violations(operand, out),
+            | ExprKind::IsSome(operand)
+            | ExprKind::PtrFromUInt(operand)
+            | ExprKind::PtrToUInt(operand)
+            | ExprKind::PtrCast(operand) => self.collect_no_gc_expr_violations(operand, out),
+            ExprKind::PtrLoad { pointer, offset } => {
+                self.collect_no_gc_expr_violations(pointer, out);
+                if let Some(offset) = offset {
+                    self.collect_no_gc_expr_violations(offset, out);
+                }
+            }
+            ExprKind::PtrOffset {
+                pointer, offset, ..
+            } => {
+                self.collect_no_gc_expr_violations(pointer, out);
+                self.collect_no_gc_expr_violations(offset, out);
+            }
+            ExprKind::PtrStore {
+                pointer,
+                offset,
+                value,
+            } => {
+                self.collect_no_gc_expr_violations(pointer, out);
+                if let Some(offset) = offset {
+                    self.collect_no_gc_expr_violations(offset, out);
+                }
+                self.collect_no_gc_expr_violations(value, out);
+            }
+            ExprKind::AddressOf(_) => out.push((
+                expr.span,
+                "`addressOf` is not allowed in `@NoGC` code".to_string(),
+            )),
+            ExprKind::SizeOf(_)
+            | ExprKind::AlignOf(_)
+            | ExprKind::FunPtrNull
+            | ExprKind::FunctionAddress(_) => {}
             ExprKind::Unwrap {
                 operand,
                 trap_on_none,

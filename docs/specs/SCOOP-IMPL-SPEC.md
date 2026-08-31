@@ -142,9 +142,9 @@ codegen **不需要任何上游 meta**：上游信息已逐层吸收进本 Cone 
 | 展开 stage | intrinsic | 理由 |
 |---|---|---|
 | HIR | `current_source_location` | 编译期常量，直接折叠为 `SourceLocation` 值实例（spec 11.12） |
-| LIR | `size_of` / `align_of` | 依赖 2.4 计算的布局信息 |
-| codegen | 算术/位运算（`int_add` 等）、`ptr_load` / `ptr_save` / `ptr_cast` | 直接映射到目标 IR 指令 |
-| codegen | `address_of` | 需要后端的寻址模型与 lvalue 物化 |
+| HIR | `Ptr` / `FunPtr` 构造、`ptr_*` / `address_of` / `size_of` / `align_of` 的源码调用 | 在 core contract 验证、重载决议和 unsafe / lvalue / 类型约束检查后正规化为类型化专用节点，不把 intrinsic 函数名传给下游 |
+| LIR | `size_of` / `align_of`、`ptr_load` / `ptr_store` / 指针算术、`address_of` | 依赖 2.4 的具体布局以及 address-taken local / parameter 的稳定存储；降为布局常量、带对齐的 raw memory 指令和局部地址 |
+| codegen | 算术/位运算（`int_add` 等）及 LIR raw pointer 指令 | 直接映射到目标 IR 指令；此时不再按 intrinsic 名称分派 |
 
 ## 3. 待明确事项
 

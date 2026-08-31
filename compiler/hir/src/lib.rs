@@ -90,6 +90,12 @@ pub enum Type {
     /// A managed function value type. The referenced entry carries the
     /// complete structural signature and is canonical within the Cone.
     Function(FunctionTypeId),
+    /// A GC-free typed raw data pointer. The pointee remains explicit in all
+    /// IR stages; it is never recovered from an integer representation.
+    Ptr(TypeId),
+    /// A GC-free native C function pointer. Its signature reuses M11's
+    /// canonical function-type identity but is not a managed function value.
+    FunPtr(FunctionTypeId),
     /// An enum type with resolved type arguments (empty for
     /// non-generic enums). `Option<T>` is one of these since M4
     /// (defined in `scoop.core`).
@@ -148,6 +154,8 @@ pub fn types_equal(module: &Module, a: TypeId, b: TypeId) -> bool {
                     .all(|(x, y)| types_equal(module, *x, *y))
         }
         (Type::Function(x), Type::Function(y)) => x == y,
+        (Type::Ptr(x), Type::Ptr(y)) => types_equal(module, *x, *y),
+        (Type::FunPtr(x), Type::FunPtr(y)) => x == y,
         (Type::Enum(x, x_args), Type::Enum(y, y_args)) => {
             x == y
                 && x_args.len() == y_args.len()
@@ -218,6 +226,20 @@ pub fn type_name(module: &Module, ty: TypeId) -> String {
                 type_name(module, function.return_type)
             )
         }
+        Type::Ptr(pointee) => format!("Ptr<{}>", type_name(module, *pointee)),
+        Type::FunPtr(id) => {
+            let function = &module.function_types[*id];
+            let parameters = function
+                .parameter_types
+                .iter()
+                .map(|ty| type_name(module, *ty))
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!(
+                "FunPtr<({parameters}) -> {}>",
+                type_name(module, function.return_type)
+            )
+        }
         Type::Param(index) => format!("T{}", index.into_raw()),
     }
 }
@@ -261,12 +283,33 @@ pub struct Module {
     /// their exact declarations before constructing the module, so MIR never
     /// falls back to textual lookup for protocol types or methods.
     pub coroutine_core: CoroutineCore,
+    /// Compiler-known pointer/FFI core entities. HIR lowering validates the
+    /// unique source declarations and downstream stages use these typed ids,
+    /// never textual names.
+    pub ffi_core: FfiCore,
     /// Entry point: `fun main()`. Guaranteed present.
     pub entry: FunctionId,
     /// Resolved generic function applications, deduplicated in
     /// first-use order. The arena id is carried directly by call
     /// expressions and is the instantiation request consumed by MIR.
     pub instantiations: Arena<ResolvedGenericFunction>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct FfiCore {
+    pub ptr: StructId,
+    pub fun_ptr: StructId,
+    pub ptr_to_uint: FunctionId,
+    pub ptr_cast: FunctionId,
+    pub ptr_load: FunctionId,
+    pub ptr_load_offset: FunctionId,
+    pub ptr_store: FunctionId,
+    pub ptr_store_offset: FunctionId,
+    pub ptr_plus: FunctionId,
+    pub ptr_minus: FunctionId,
+    pub address_of: FunctionId,
+    pub size_of: FunctionId,
+    pub align_of: FunctionId,
 }
 
 #[derive(Debug, Clone)]
@@ -791,6 +834,30 @@ pub enum ExprKind {
         coercion: FunctionCoercionId,
         target_type: FunctionTypeId,
     },
+    /// `Ptr<T>(raw)`; the source constructor is unsafe and normalized here.
+    PtrFromUInt(Box<Expr>),
+    PtrToUInt(Box<Expr>),
+    PtrCast(Box<Expr>),
+    PtrLoad {
+        pointer: Box<Expr>,
+        offset: Option<Box<Expr>>,
+    },
+    PtrStore {
+        pointer: Box<Expr>,
+        offset: Option<Box<Expr>>,
+        value: Box<Expr>,
+    },
+    PtrOffset {
+        pointer: Box<Expr>,
+        offset: Box<Expr>,
+        subtract: bool,
+    },
+    AddressOf(Place),
+    SizeOf(TypeId),
+    AlignOf(TypeId),
+    FunPtrNull,
+    /// Native C callback address selected contextually from `::name`.
+    FunctionAddress(FunctionId),
     FieldAccess {
         receiver: Box<Expr>,
         field: FieldRef,
@@ -880,6 +947,11 @@ pub enum ExprKind {
     },
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Place {
+    Local(LocalId),
+}
+
 /// A fully resolved field access.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FieldRef {
@@ -925,46 +997,141 @@ pub const INTRINSIC_REGISTRY: &[IntrinsicSpec] = &[
         name: "rt_write",
         stage: IntrinsicStage::Mir,
         kind: IntrinsicKind::Runtime("scoop_rt_print"),
+        target: IntrinsicTarget::TopLevel,
+        effects: IntrinsicEffects::NONE,
     },
     IntrinsicSpec {
         name: "rt_pin",
         stage: IntrinsicStage::Mir,
         kind: IntrinsicKind::Runtime("scoop_rt_pin"),
+        target: IntrinsicTarget::TopLevel,
+        effects: IntrinsicEffects::NONE,
     },
     IntrinsicSpec {
         name: "rt_unpin",
         stage: IntrinsicStage::Mir,
         kind: IntrinsicKind::Runtime("scoop_rt_unpin"),
+        target: IntrinsicTarget::TopLevel,
+        effects: IntrinsicEffects::NONE,
     },
     IntrinsicSpec {
         name: "rt_get_handle",
         stage: IntrinsicStage::Mir,
         kind: IntrinsicKind::Runtime("scoop_rt_get_handle"),
+        target: IntrinsicTarget::TopLevel,
+        effects: IntrinsicEffects::NONE,
     },
     IntrinsicSpec {
         name: "rt_release_handle",
         stage: IntrinsicStage::Mir,
         kind: IntrinsicKind::Runtime("scoop_rt_release_handle"),
+        target: IntrinsicTarget::TopLevel,
+        effects: IntrinsicEffects::NONE,
     },
     IntrinsicSpec {
         name: "rt_gc_collect",
         stage: IntrinsicStage::Mir,
         kind: IntrinsicKind::Runtime("scoop_rt_gc_collect"),
+        target: IntrinsicTarget::TopLevel,
+        effects: IntrinsicEffects::NONE,
     },
     IntrinsicSpec {
         name: "rt_gc_stats",
         stage: IntrinsicStage::Mir,
         kind: IntrinsicKind::Runtime("scoop_rt_gc_stats"),
+        target: IntrinsicTarget::TopLevel,
+        effects: IntrinsicEffects::NONE,
     },
     IntrinsicSpec {
         name: "coroutine_start",
         stage: IntrinsicStage::Mir,
         kind: IntrinsicKind::CoroutineStart,
+        target: IntrinsicTarget::TopLevel,
+        effects: IntrinsicEffects::NONE,
     },
     IntrinsicSpec {
         name: "coroutine_suspend",
         stage: IntrinsicStage::Mir,
         kind: IntrinsicKind::CoroutineSuspend,
+        target: IntrinsicTarget::TopLevel,
+        effects: IntrinsicEffects::NONE,
+    },
+    IntrinsicSpec {
+        name: "ptr_to_uint",
+        stage: IntrinsicStage::Hir,
+        kind: IntrinsicKind::Pointer(PointerIntrinsic::ToUInt),
+        target: IntrinsicTarget::Member,
+        effects: IntrinsicEffects::NO_GC_UNSAFE,
+    },
+    IntrinsicSpec {
+        name: "ptr_cast",
+        stage: IntrinsicStage::Hir,
+        kind: IntrinsicKind::Pointer(PointerIntrinsic::Cast),
+        target: IntrinsicTarget::Member,
+        effects: IntrinsicEffects::NO_GC_UNSAFE,
+    },
+    IntrinsicSpec {
+        name: "ptr_load",
+        stage: IntrinsicStage::Hir,
+        kind: IntrinsicKind::Pointer(PointerIntrinsic::Load),
+        target: IntrinsicTarget::Member,
+        effects: IntrinsicEffects::NO_GC_UNSAFE,
+    },
+    IntrinsicSpec {
+        name: "ptr_load_offset",
+        stage: IntrinsicStage::Hir,
+        kind: IntrinsicKind::Pointer(PointerIntrinsic::LoadOffset),
+        target: IntrinsicTarget::Member,
+        effects: IntrinsicEffects::NO_GC_UNSAFE,
+    },
+    IntrinsicSpec {
+        name: "ptr_store",
+        stage: IntrinsicStage::Hir,
+        kind: IntrinsicKind::Pointer(PointerIntrinsic::Store),
+        target: IntrinsicTarget::Member,
+        effects: IntrinsicEffects::NO_GC_UNSAFE,
+    },
+    IntrinsicSpec {
+        name: "ptr_store_offset",
+        stage: IntrinsicStage::Hir,
+        kind: IntrinsicKind::Pointer(PointerIntrinsic::StoreOffset),
+        target: IntrinsicTarget::Member,
+        effects: IntrinsicEffects::NO_GC_UNSAFE,
+    },
+    IntrinsicSpec {
+        name: "ptr_plus",
+        stage: IntrinsicStage::Hir,
+        kind: IntrinsicKind::Pointer(PointerIntrinsic::Plus),
+        target: IntrinsicTarget::Member,
+        effects: IntrinsicEffects::NO_GC_UNSAFE,
+    },
+    IntrinsicSpec {
+        name: "ptr_minus",
+        stage: IntrinsicStage::Hir,
+        kind: IntrinsicKind::Pointer(PointerIntrinsic::Minus),
+        target: IntrinsicTarget::Member,
+        effects: IntrinsicEffects::NO_GC_UNSAFE,
+    },
+    IntrinsicSpec {
+        name: "address_of",
+        stage: IntrinsicStage::Hir,
+        kind: IntrinsicKind::Pointer(PointerIntrinsic::AddressOf),
+        target: IntrinsicTarget::TopLevel,
+        effects: IntrinsicEffects::UNSAFE,
+    },
+    IntrinsicSpec {
+        name: "size_of",
+        stage: IntrinsicStage::Hir,
+        kind: IntrinsicKind::Pointer(PointerIntrinsic::SizeOf),
+        target: IntrinsicTarget::TopLevel,
+        effects: IntrinsicEffects::NO_GC,
+    },
+    IntrinsicSpec {
+        name: "align_of",
+        stage: IntrinsicStage::Hir,
+        kind: IntrinsicKind::Pointer(PointerIntrinsic::AlignOf),
+        target: IntrinsicTarget::TopLevel,
+        effects: IntrinsicEffects::NO_GC,
     },
 ];
 
@@ -973,10 +1140,13 @@ pub struct IntrinsicSpec {
     pub name: &'static str,
     pub stage: IntrinsicStage,
     pub kind: IntrinsicKind,
+    pub target: IntrinsicTarget,
+    pub effects: IntrinsicEffects,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum IntrinsicStage {
+    Hir,
     Mir,
 }
 
@@ -985,6 +1155,53 @@ pub enum IntrinsicKind {
     Runtime(&'static str),
     CoroutineStart,
     CoroutineSuspend,
+    Pointer(PointerIntrinsic),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PointerIntrinsic {
+    ToUInt,
+    Cast,
+    Load,
+    LoadOffset,
+    Store,
+    StoreOffset,
+    Plus,
+    Minus,
+    AddressOf,
+    SizeOf,
+    AlignOf,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IntrinsicTarget {
+    TopLevel,
+    Member,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct IntrinsicEffects {
+    pub no_gc: bool,
+    pub unsafe_: bool,
+}
+
+impl IntrinsicEffects {
+    pub const NONE: Self = Self {
+        no_gc: false,
+        unsafe_: false,
+    };
+    pub const NO_GC: Self = Self {
+        no_gc: true,
+        unsafe_: false,
+    };
+    pub const UNSAFE: Self = Self {
+        no_gc: false,
+        unsafe_: true,
+    };
+    pub const NO_GC_UNSAFE: Self = Self {
+        no_gc: true,
+        unsafe_: true,
+    };
 }
 
 pub fn intrinsic_spec(name: &str) -> Option<&'static IntrinsicSpec> {
@@ -994,7 +1211,10 @@ pub fn intrinsic_spec(name: &str) -> Option<&'static IntrinsicSpec> {
 /// Indented text dump for golden tests (`scoopc build --emit=hir`).
 pub fn dump(module: &Module) -> String {
     let mut out = String::from("Module\n");
-    for (_, decl) in module.structs.iter() {
+    for (id, decl) in module.structs.iter() {
+        if id == module.ffi_core.ptr || id == module.ffi_core.fun_ptr {
+            continue;
+        }
         let type_params = if decl.type_params.is_empty() {
             String::new()
         } else {
@@ -1083,6 +1303,15 @@ pub fn dump(module: &Module) -> String {
         }
     }
     for &id in &module.top_level {
+        if [
+            module.ffi_core.address_of,
+            module.ffi_core.size_of,
+            module.ffi_core.align_of,
+        ]
+        .contains(&id)
+        {
+            continue;
+        }
         let function = &module.functions[id];
         let type_params = if function.type_params.is_empty() {
             String::new()
@@ -1510,6 +1739,62 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
             ));
             dump_expr(module, locals, source, indent + 1, out);
         }
+        ExprKind::PtrFromUInt(operand) => {
+            out.push_str(&format!("{pad}PtrFromUInt : {ty}\n"));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        ExprKind::PtrToUInt(operand) => {
+            out.push_str(&format!("{pad}PtrToUInt : {ty}\n"));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        ExprKind::PtrCast(operand) => {
+            out.push_str(&format!("{pad}PtrCast : {ty}\n"));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        ExprKind::PtrLoad { pointer, offset } => {
+            out.push_str(&format!("{pad}PtrLoad : {ty}\n"));
+            dump_expr(module, locals, pointer, indent + 1, out);
+            if let Some(offset) = offset {
+                dump_expr(module, locals, offset, indent + 1, out);
+            }
+        }
+        ExprKind::PtrStore {
+            pointer,
+            offset,
+            value,
+        } => {
+            out.push_str(&format!("{pad}PtrStore : {ty}\n"));
+            dump_expr(module, locals, pointer, indent + 1, out);
+            if let Some(offset) = offset {
+                dump_expr(module, locals, offset, indent + 1, out);
+            }
+            dump_expr(module, locals, value, indent + 1, out);
+        }
+        ExprKind::PtrOffset {
+            pointer,
+            offset,
+            subtract,
+        } => {
+            out.push_str(&format!("{pad}PtrOffset subtract={subtract} : {ty}\n"));
+            dump_expr(module, locals, pointer, indent + 1, out);
+            dump_expr(module, locals, offset, indent + 1, out);
+        }
+        ExprKind::AddressOf(Place::Local(local)) => {
+            out.push_str(&format!("{pad}AddressOf {} : {ty}\n", locals[*local].name));
+        }
+        ExprKind::SizeOf(value_ty) => out.push_str(&format!(
+            "{pad}SizeOf {} : {ty}\n",
+            type_name(module, *value_ty)
+        )),
+        ExprKind::AlignOf(value_ty) => out.push_str(&format!(
+            "{pad}AlignOf {} : {ty}\n",
+            type_name(module, *value_ty)
+        )),
+        ExprKind::FunPtrNull => out.push_str(&format!("{pad}FunPtrNull : {ty}\n")),
+        ExprKind::FunctionAddress(function) => out.push_str(&format!(
+            "{pad}FunctionAddress {} : {ty}\n",
+            module.functions[*function].name
+        )),
         ExprKind::FieldAccess { receiver, field } => {
             let field = match field {
                 FieldRef::StructField { index, .. } => format!("field {index}"),

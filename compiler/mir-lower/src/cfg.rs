@@ -576,6 +576,66 @@ impl<'a> CfgLowerer<'a> {
                 index: *index,
             },
             smir::Expr::Local(local) => mir::Expr::Local(*local),
+            smir::Expr::PtrFromUInt { operand, pointee } => mir::Expr::PtrFromUInt {
+                operand: Box::new(self.lower_expr(operand, span)),
+                pointee: pointee.clone(),
+            },
+            smir::Expr::PtrToUInt(operand) => {
+                mir::Expr::PtrToUInt(Box::new(self.lower_expr(operand, span)))
+            }
+            smir::Expr::PtrCast { operand, pointee } => mir::Expr::PtrCast {
+                operand: Box::new(self.lower_expr(operand, span)),
+                pointee: pointee.clone(),
+            },
+            smir::Expr::PtrLoad {
+                pointer,
+                pointee,
+                offset,
+            } => mir::Expr::PtrLoad {
+                pointer: Box::new(self.lower_expr(pointer, span)),
+                pointee: pointee.clone(),
+                offset: offset
+                    .as_ref()
+                    .map(|offset| Box::new(self.lower_expr(offset, span))),
+            },
+            smir::Expr::PtrStore {
+                pointer,
+                pointee,
+                offset,
+                value,
+            } => mir::Expr::PtrStore {
+                pointer: Box::new(self.lower_expr(pointer, span)),
+                pointee: pointee.clone(),
+                offset: offset
+                    .as_ref()
+                    .map(|offset| Box::new(self.lower_expr(offset, span))),
+                value: Box::new(self.lower_expr(value, span)),
+            },
+            smir::Expr::PtrOffset {
+                pointer,
+                pointee,
+                offset,
+                subtract,
+            } => mir::Expr::PtrOffset {
+                pointer: Box::new(self.lower_expr(pointer, span)),
+                pointee: pointee.clone(),
+                offset: Box::new(self.lower_expr(offset, span)),
+                subtract: *subtract,
+            },
+            smir::Expr::AddressOf { local, pointee } => mir::Expr::AddressOf {
+                local: *local,
+                pointee: pointee.clone(),
+            },
+            smir::Expr::SizeOf(ty) => mir::Expr::SizeOf(ty.clone()),
+            smir::Expr::AlignOf(ty) => mir::Expr::AlignOf(ty.clone()),
+            smir::Expr::FunPtrNull(signature) => mir::Expr::FunPtrNull(*signature),
+            smir::Expr::FunctionAddress {
+                function,
+                signature,
+            } => mir::Expr::FunctionAddress {
+                function: *function,
+                signature: *signature,
+            },
             smir::Expr::Retype { operand, ty } => mir::Expr::Retype {
                 operand: Box::new(self.lower_expr(operand, span)),
                 ty: ty.clone(),

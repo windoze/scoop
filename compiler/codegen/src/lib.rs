@@ -40,7 +40,7 @@ use inkwell::targets::{
     CodeModel, FileType, InitializationConfig, RelocMode, Target, TargetMachine,
 };
 use inkwell::types::{BasicMetadataTypeEnum, BasicType, BasicTypeEnum, StructType};
-use inkwell::values::{BasicValueEnum, GlobalValue, IntValue, PointerValue, ValueKind};
+use inkwell::values::{BasicValue, BasicValueEnum, GlobalValue, IntValue, PointerValue, ValueKind};
 use inkwell::{AddressSpace, IntPredicate, OptimizationLevel};
 use la_arena::{Arena, Idx};
 use scoop_lir::{
@@ -820,6 +820,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             })?,
             Value::IntConst(value) => context.i64_type().const_int(value as u64, true).into(),
             Value::BoolConst(value) => context.bool_type().const_int(value as u64, false).into(),
+            Value::NullPtr => ptr_ty(context).const_null().into(),
             Value::Global(id) => match &self.globals[arena_index(id)] {
                 Some(global) => global.as_pointer_value().into(),
                 // A TypeDescriptor stub: the TD global (emitted from the
@@ -990,6 +991,71 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     *out,
                     function_value.as_global_value().as_pointer_value().into(),
                 );
+            }
+            Instruction::IntToPtr { out, value } => {
+                let value = self.value(*value)?.into_int_value();
+                let result = builder
+                    .build_int_to_ptr(value, ptr_ty(context), "raw_ptr")
+                    .map_err(|e| CodegenError(format!("inttoptr @{}: {e}", function.symbol)))?;
+                self.temps.insert(*out, result.into());
+            }
+            Instruction::PtrToInt { out, value } => {
+                let value = self.value(*value)?.into_pointer_value();
+                let result = builder
+                    .build_ptr_to_int(value, context.i64_type(), "raw_uint")
+                    .map_err(|e| CodegenError(format!("ptrtoint @{}: {e}", function.symbol)))?;
+                self.temps.insert(*out, result.into());
+            }
+            Instruction::RawLoad {
+                out,
+                pointer,
+                align,
+            } => {
+                let pointer = self.value(*pointer)?.into_pointer_value();
+                let ty = basic_ty(context, self.enums, &function.temps[*out].ty)?;
+                let value = builder
+                    .build_load(ty, pointer, "raw_load")
+                    .map_err(|e| CodegenError(format!("raw load @{}: {e}", function.symbol)))?;
+                value
+                    .as_instruction_value()
+                    .expect("a non-constant load is an instruction")
+                    .set_alignment(*align as u32)
+                    .map_err(|e| {
+                        CodegenError(format!("raw load alignment @{}: {e}", function.symbol))
+                    })?;
+                self.temps.insert(*out, value);
+            }
+            Instruction::RawStore {
+                pointer,
+                value,
+                align,
+            } => {
+                let pointer = self.value(*pointer)?.into_pointer_value();
+                let store = builder
+                    .build_store(pointer, self.value(*value)?)
+                    .map_err(|e| CodegenError(format!("raw store @{}: {e}", function.symbol)))?;
+                store.set_alignment(*align as u32).map_err(|e| {
+                    CodegenError(format!("raw store alignment @{}: {e}", function.symbol))
+                })?;
+            }
+            Instruction::PtrOffset {
+                out,
+                pointer,
+                bytes,
+            } => {
+                let pointer = self.value(*pointer)?.into_pointer_value();
+                let bytes = self.value(*bytes)?.into_int_value();
+                // SAFETY: source semantics make raw pointer arithmetic unsafe;
+                // validity of the resulting address remains the caller's duty.
+                let result = unsafe {
+                    builder.build_gep(context.i8_type(), pointer, &[bytes], "raw_offset")
+                }
+                .map_err(|e| CodegenError(format!("raw gep @{}: {e}", function.symbol)))?;
+                self.temps.insert(*out, result.into());
+            }
+            Instruction::LocalAddress { out, local } => {
+                self.temps
+                    .insert(*out, self.allocas[arena_index(*local)].into());
             }
             Instruction::Store { local, value: v } => {
                 let operand = self.value(*v)?;

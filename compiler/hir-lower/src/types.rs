@@ -130,6 +130,45 @@ impl Lowerer {
                     ) {
                         return None;
                     }
+                    if Some(struct_id) == self.ffi_ptr {
+                        let pointee = resolved[0];
+                        if self.type_contains_param(pointee)
+                            && self.current_file >= self.user_file_index
+                        {
+                            self.error(
+                                name.span,
+                                "`Ptr` pointee must be a concrete GC-free value type".to_string(),
+                            );
+                            return None;
+                        }
+                        let ty = self.intern_type(Type::Ptr(pointee));
+                        self.pointer_type_uses
+                            .push((ty, self.current_file, name.span));
+                        return Some(ty);
+                    }
+                    if Some(struct_id) == self.ffi_fun_ptr {
+                        let Type::Function(function_type) = self.types[resolved[0]] else {
+                            self.error(
+                                name.span,
+                                "`FunPtr` type argument must be an ordinary concrete function type"
+                                    .to_string(),
+                            );
+                            return None;
+                        };
+                        let function = &self.function_types[function_type];
+                        if function.is_suspend || self.function_type_contains_param(function_type) {
+                            self.error(
+                                name.span,
+                                "`FunPtr` type argument must be an ordinary concrete function type"
+                                    .to_string(),
+                            );
+                            return None;
+                        }
+                        let ty = self.intern_type(Type::FunPtr(function_type));
+                        self.fun_ptr_type_uses
+                            .push((ty, self.current_file, name.span));
+                        return Some(ty);
+                    }
                     return Some(self.struct_application(struct_id, resolved));
                 }
                 if let Some(&(interface_id, _)) = self.interfaces_by_name.get(&name.text) {
@@ -392,6 +431,30 @@ impl Lowerer {
         self.intern_type(Type::Struct(struct_id, args))
     }
 
+    pub(crate) fn type_contains_param(&self, ty: TypeId) -> bool {
+        match &self.types[ty] {
+            Type::Param(_) => true,
+            Type::Array(element) | Type::MutableArray(element) | Type::Ptr(element) => {
+                self.type_contains_param(*element)
+            }
+            Type::Struct(_, args)
+            | Type::Interface(_, args)
+            | Type::Enum(_, args)
+            | Type::Tuple(args) => args.iter().any(|ty| self.type_contains_param(*ty)),
+            Type::Function(id) | Type::FunPtr(id) => self.function_type_contains_param(*id),
+            _ => false,
+        }
+    }
+
+    pub(crate) fn function_type_contains_param(&self, id: hir::FunctionTypeId) -> bool {
+        let function = &self.function_types[id];
+        function
+            .parameter_types
+            .iter()
+            .any(|ty| self.type_contains_param(*ty))
+            || self.type_contains_param(function.return_type)
+    }
+
     /// Substitute bound type arguments for `Type::Param`, recursively.
     /// Used both for generic function instantiation (parameters index
     /// `Function::type_params`) and for enum variant field types
@@ -440,6 +503,21 @@ impl Lowerer {
             Type::Function(id) => self
                 .instantiate_function_type(id, |this, ty| Some(this.instantiate_ty(ty, type_args)))
                 .expect("complete type argument substitution"),
+            Type::Ptr(pointee) => {
+                let pointee = self.instantiate_ty(pointee, type_args);
+                self.intern_type(Type::Ptr(pointee))
+            }
+            Type::FunPtr(id) => {
+                let function = self
+                    .instantiate_function_type(id, |this, ty| {
+                        Some(this.instantiate_ty(ty, type_args))
+                    })
+                    .expect("complete function pointer substitution");
+                let Type::Function(id) = self.types[function] else {
+                    unreachable!("function type instantiation stays a function type")
+                };
+                self.intern_type(Type::FunPtr(id))
+            }
             _ => ty,
         }
     }
@@ -551,6 +629,31 @@ impl Lowerer {
                     ))
                 })
                 .expect("complete owner substitution"),
+            Type::Ptr(pointee) => {
+                let pointee = self.instantiate_method_owner_ty(
+                    pointee,
+                    owner_args,
+                    source_owner_count,
+                    target_owner_count,
+                );
+                self.intern_type(Type::Ptr(pointee))
+            }
+            Type::FunPtr(id) => {
+                let function = self
+                    .instantiate_function_type(id, |this, ty| {
+                        Some(this.instantiate_method_owner_ty(
+                            ty,
+                            owner_args,
+                            source_owner_count,
+                            target_owner_count,
+                        ))
+                    })
+                    .expect("complete function pointer owner substitution");
+                let Type::Function(id) = self.types[function] else {
+                    unreachable!("function type instantiation stays a function type")
+                };
+                self.intern_type(Type::FunPtr(id))
+            }
             _ => ty,
         }
     }
@@ -602,6 +705,18 @@ impl Lowerer {
             }
             Type::Function(id) => {
                 self.instantiate_function_type(id, |this, ty| this.try_substitute(ty, bindings))
+            }
+            Type::Ptr(pointee) => {
+                let pointee = self.try_substitute(pointee, bindings)?;
+                Some(self.intern_type(Type::Ptr(pointee)))
+            }
+            Type::FunPtr(id) => {
+                let function = self
+                    .instantiate_function_type(id, |this, ty| this.try_substitute(ty, bindings))?;
+                let Type::Function(id) = self.types[function] else {
+                    unreachable!("function type substitution stays a function type")
+                };
+                Some(self.intern_type(Type::FunPtr(id)))
             }
             _ => Some(ty),
         }
@@ -772,7 +887,9 @@ impl Lowerer {
             | Type::Boolean
             | Type::Struct(..)
             | Type::Enum(..)
-            | Type::Tuple(_) => true,
+            | Type::Tuple(_)
+            | Type::Ptr(_)
+            | Type::FunPtr(_) => true,
             Type::Param(index) => self
                 .type_params_in_scope
                 .get(index.into_raw() as usize)
@@ -995,6 +1112,8 @@ fn type_value_equal(types: &Arena<Type>, a: TypeId, b: TypeId) -> bool {
                     .all(|(&x, &y)| type_value_equal(types, x, y))
         }
         (Type::Function(x), Type::Function(y)) => x == y,
+        (Type::Ptr(x), Type::Ptr(y)) => type_value_equal(types, *x, *y),
+        (Type::FunPtr(x), Type::FunPtr(y)) => x == y,
         _ => false,
     }
 }
@@ -1087,6 +1206,53 @@ fn type_name(
                 *element,
             );
             format!("MutableArray<{inner}>")
+        }
+        Type::Ptr(pointee) => {
+            let inner = type_name(
+                types,
+                function_types,
+                structs,
+                enums,
+                classes,
+                interfaces,
+                type_params,
+                *pointee,
+            );
+            format!("Ptr<{inner}>")
+        }
+        Type::FunPtr(id) => {
+            let function = &function_types[*id];
+            let parameters: Vec<_> = function
+                .parameter_types
+                .iter()
+                .map(|ty| {
+                    type_name(
+                        types,
+                        function_types,
+                        structs,
+                        enums,
+                        classes,
+                        interfaces,
+                        type_params,
+                        *ty,
+                    )
+                })
+                .collect();
+            let return_type = type_name(
+                types,
+                function_types,
+                structs,
+                enums,
+                classes,
+                interfaces,
+                type_params,
+                function.return_type,
+            );
+            let suspend = if function.is_suspend { "suspend " } else { "" };
+            format!(
+                "FunPtr<{suspend}({}) -> {return_type}>",
+                parameters.join(", ")
+            )
         }
         Type::Enum(id, args) => {
             let name = &enums[*id].name;

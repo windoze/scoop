@@ -124,6 +124,20 @@ pub fn encode_type(module: &Module, ty: &Type) -> String {
                 encode_type(module, &function.return_type)
             )
         }
+        Type::Ptr(inner) => format!("P{}X", encode_type(module, inner)),
+        Type::FunPtr(id) => {
+            let function = &module.function_types[*id];
+            let parameters = function
+                .parameter_types
+                .iter()
+                .map(|ty| encode_type(module, ty))
+                .collect::<Vec<_>>()
+                .join("_");
+            format!(
+                "N{parameters}R{}X",
+                encode_type(module, &function.return_type)
+            )
+        }
         Type::Enum(id, args) => {
             let name = &module.enums[*id].name;
             if args.is_empty() {
@@ -159,6 +173,10 @@ pub enum Type {
     /// Concrete managed function signature. Function values have reference
     /// representation; closure classes are materialized by M11 conversion.
     Function(FunctionTypeId),
+    /// Typed raw data pointer; representation is one native pointer word.
+    Ptr(Box<Type>),
+    /// Typed C function pointer; identity includes its exact signature.
+    FunPtr(FunctionTypeId),
     /// An instantiated enum type (including `Option<T>` since M4).
     Enum(EnumId, Vec<Type>),
 }
@@ -574,6 +592,43 @@ pub enum Expr {
         index: u32,
     },
     Local(LocalId),
+    PtrFromUInt {
+        operand: Box<Expr>,
+        pointee: Box<Type>,
+    },
+    PtrToUInt(Box<Expr>),
+    PtrCast {
+        operand: Box<Expr>,
+        pointee: Box<Type>,
+    },
+    PtrLoad {
+        pointer: Box<Expr>,
+        pointee: Box<Type>,
+        offset: Option<Box<Expr>>,
+    },
+    PtrStore {
+        pointer: Box<Expr>,
+        pointee: Box<Type>,
+        offset: Option<Box<Expr>>,
+        value: Box<Expr>,
+    },
+    PtrOffset {
+        pointer: Box<Expr>,
+        pointee: Box<Type>,
+        offset: Box<Expr>,
+        subtract: bool,
+    },
+    AddressOf {
+        local: LocalId,
+        pointee: Box<Type>,
+    },
+    SizeOf(Box<Type>),
+    AlignOf(Box<Type>),
+    FunPtrNull(FunctionTypeId),
+    FunctionAddress {
+        function: FunctionId,
+        signature: FunctionTypeId,
+    },
     /// The managed exception pointer produced by the active `BeginCatch`.
     /// It is only valid in blocks dominated by that statement.
     CaughtException,
@@ -1012,6 +1067,20 @@ pub fn type_name(module: &Module, ty: &Type) -> String {
                 type_name(module, &function.return_type)
             )
         }
+        Type::Ptr(inner) => format!("Ptr<{}>", type_name(module, inner)),
+        Type::FunPtr(id) => {
+            let function = &module.function_types[*id];
+            let parameters: Vec<_> = function
+                .parameter_types
+                .iter()
+                .map(|ty| type_name(module, ty))
+                .collect();
+            format!(
+                "FunPtr<({}) -> {}>",
+                parameters.join(", "),
+                type_name(module, &function.return_type)
+            )
+        }
         Type::Enum(id, args) => {
             let name = &module.enums[*id].name;
             if args.is_empty() {
@@ -1198,6 +1267,77 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
             }
         }
         Expr::Local(local) => out.push_str(&format!("{pad}Local {}\n", locals[*local].name)),
+        Expr::PtrFromUInt { operand, pointee } => {
+            out.push_str(&format!(
+                "{pad}PtrFromUInt {}\n",
+                type_name(module, pointee)
+            ));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        Expr::PtrToUInt(operand) => {
+            out.push_str(&format!("{pad}PtrToUInt\n"));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        Expr::PtrCast { operand, pointee } => {
+            out.push_str(&format!("{pad}PtrCast {}\n", type_name(module, pointee)));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        Expr::PtrLoad {
+            pointer,
+            pointee,
+            offset,
+        } => {
+            out.push_str(&format!("{pad}PtrLoad {}\n", type_name(module, pointee)));
+            dump_expr(module, locals, pointer, indent + 1, out);
+            if let Some(offset) = offset {
+                dump_expr(module, locals, offset, indent + 1, out);
+            }
+        }
+        Expr::PtrStore {
+            pointer,
+            pointee,
+            offset,
+            value,
+        } => {
+            out.push_str(&format!("{pad}PtrStore {}\n", type_name(module, pointee)));
+            dump_expr(module, locals, pointer, indent + 1, out);
+            if let Some(offset) = offset {
+                dump_expr(module, locals, offset, indent + 1, out);
+            }
+            dump_expr(module, locals, value, indent + 1, out);
+        }
+        Expr::PtrOffset {
+            pointer,
+            pointee,
+            offset,
+            subtract,
+        } => {
+            out.push_str(&format!(
+                "{pad}PtrOffset {} subtract={subtract}\n",
+                type_name(module, pointee)
+            ));
+            dump_expr(module, locals, pointer, indent + 1, out);
+            dump_expr(module, locals, offset, indent + 1, out);
+        }
+        Expr::AddressOf { local, pointee } => out.push_str(&format!(
+            "{pad}AddressOf {} : Ptr<{}>\n",
+            locals[*local].name,
+            type_name(module, pointee)
+        )),
+        Expr::SizeOf(ty) => {
+            out.push_str(&format!("{pad}SizeOf {}\n", type_name(module, ty)));
+        }
+        Expr::AlignOf(ty) => {
+            out.push_str(&format!("{pad}AlignOf {}\n", type_name(module, ty)));
+        }
+        Expr::FunPtrNull(signature) => out.push_str(&format!(
+            "{pad}FunPtrNull function_type{}\n",
+            signature.into_raw().into_u32()
+        )),
+        Expr::FunctionAddress { function, .. } => out.push_str(&format!(
+            "{pad}FunctionAddress @{}\n",
+            module.functions[*function].symbol
+        )),
         Expr::CaughtException => out.push_str(&format!("{pad}CaughtException\n")),
         Expr::Retype { operand, ty } => {
             out.push_str(&format!("{pad}Retype {}\n", type_name(module, ty)));

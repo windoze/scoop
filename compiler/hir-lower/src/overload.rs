@@ -531,6 +531,7 @@ impl Lowerer {
         match self.types[ty].clone() {
             Type::Param(_) => true,
             Type::Array(element) | Type::MutableArray(element) => self.mentions_type_param(element),
+            Type::Ptr(pointee) => self.mentions_type_param(pointee),
             Type::Enum(_, args) | Type::Struct(_, args) | Type::Interface(_, args) => {
                 args.iter().any(|&arg| self.mentions_type_param(arg))
             }
@@ -538,6 +539,14 @@ impl Lowerer {
                 .iter()
                 .any(|&element| self.mentions_type_param(element)),
             Type::Function(id) => {
+                let function = &self.function_types[id];
+                function
+                    .parameter_types
+                    .iter()
+                    .any(|&parameter| self.mentions_type_param(parameter))
+                    || self.mentions_type_param(function.return_type)
+            }
+            Type::FunPtr(id) => {
                 let function = &self.function_types[id];
                 function
                     .parameter_types
@@ -631,11 +640,24 @@ impl Lowerer {
             | (Type::MutableArray(param), Type::MutableArray(arg)) => {
                 self.try_bind(param, arg, bindings)
             }
+            (Type::Ptr(param), Type::Ptr(arg)) => self.try_bind(param, arg, bindings),
             (Type::Tuple(params), Type::Tuple(args)) if params.len() == args.len() => params
                 .iter()
                 .zip(args)
                 .all(|(param, arg)| self.try_bind(*param, arg, bindings)),
             (Type::Function(param_id), Type::Function(arg_id)) => {
+                let param = self.function_types[param_id].clone();
+                let arg = self.function_types[arg_id].clone();
+                param.is_suspend == arg.is_suspend
+                    && param.parameter_types.len() == arg.parameter_types.len()
+                    && param
+                        .parameter_types
+                        .iter()
+                        .zip(arg.parameter_types)
+                        .all(|(param, arg)| self.try_bind(*param, arg, bindings))
+                    && self.try_bind(param.return_type, arg.return_type, bindings)
+            }
+            (Type::FunPtr(param_id), Type::FunPtr(arg_id)) => {
                 let param = self.function_types[param_id].clone();
                 let arg = self.function_types[arg_id].clone();
                 param.is_suspend == arg.is_suspend

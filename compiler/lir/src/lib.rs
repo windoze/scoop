@@ -200,8 +200,9 @@ pub struct EnumDef {
 #[derive(Debug)]
 pub enum EnumRepr {
     /// Niche optimization (spec 7.4): two variants, one without
-    /// payload, the other a single reference field — the value is a
-    /// bare pointer, `None`-style variant is 0.
+    /// payload, the other a single pointer-represented field — the value
+    /// is one pointer word and the `None`-style variant is 0. Whether that
+    /// word is a managed reference remains a property of the payload type.
     Niche {
         /// Index of the payload-carrying variant.
         payload_variant: u32,
@@ -266,6 +267,7 @@ impl Function {
             Value::Param(index) => self.params[index as usize].clone(),
             Value::IntConst(_) => LirType::I64,
             Value::BoolConst(_) => LirType::I1,
+            Value::NullPtr => LirType::Ptr,
             Value::Global(id) => {
                 let _ = &globals[id];
                 LirType::Ptr
@@ -291,6 +293,7 @@ pub enum Value {
     Temp(TempId),
     IntConst(i64),
     BoolConst(bool),
+    NullPtr,
     /// Address of a global constant.
     Global(GlobalId),
 }
@@ -312,7 +315,10 @@ pub enum Instruction {
     },
     /// Build an aggregate value (struct / tuple construction, or the
     /// Unit value with zero elements).
-    MakeAggregate { out: TempId, elements: Vec<Value> },
+    MakeAggregate {
+        out: TempId,
+        elements: Vec<Value>,
+    },
     /// Extract field / element `index` from an aggregate value.
     ExtractValue {
         out: TempId,
@@ -329,7 +335,10 @@ pub enum Instruction {
         offset: u64,
     },
     /// `store value -> local`'s stack slot.
-    Store { local: LocalId, value: Value },
+    Store {
+        local: LocalId,
+        value: Value,
+    },
     /// Store a typed value at the byte address `object + offset`.
     /// Class fields use their natural layout offsets, base-class fields
     /// first. `offset` must be at least 16 so the object header cannot
@@ -341,7 +350,38 @@ pub enum Instruction {
     },
     /// Materialize the address of a module function as an opaque code
     /// pointer. It is metadata, not a managed reference.
-    FunctionAddress { out: TempId, symbol: String },
+    FunctionAddress {
+        out: TempId,
+        symbol: String,
+    },
+    IntToPtr {
+        out: TempId,
+        value: Value,
+    },
+    PtrToInt {
+        out: TempId,
+        value: Value,
+    },
+    RawLoad {
+        out: TempId,
+        pointer: Value,
+        align: u64,
+    },
+    RawStore {
+        pointer: Value,
+        value: Value,
+        align: u64,
+    },
+    /// Byte-wise pointer displacement. `bytes` may be negative.
+    PtrOffset {
+        out: TempId,
+        pointer: Value,
+        bytes: Value,
+    },
+    LocalAddress {
+        out: TempId,
+        local: LocalId,
+    },
     /// Direct call. `out` is `None` exactly when the callee returns
     /// void; runtime functions with results produce a Temp of the
     /// result type.
@@ -386,18 +426,29 @@ pub enum Instruction {
     /// Catch-all landing pad. It captures the opaque unwind record and
     /// raw exception pointer but does not begin the catch; `BeginCatch`
     /// is explicit in the ordinary dispatch block.
-    LandingPad { record: TempId, raw: TempId },
+    LandingPad {
+        record: TempId,
+        raw: TempId,
+    },
     /// Cleanup-only landing pad (no catch clause). It captures the same
     /// record/raw pair for cleanup chaining or `Terminator::Resume`.
-    CleanupPad { record: TempId, raw: TempId },
+    CleanupPad {
+        record: TempId,
+        raw: TempId,
+    },
     /// Begin handling the raw exception and return its Scoop object.
-    BeginCatch { out: TempId, raw: Value },
+    BeginCatch {
+        out: TempId,
+        raw: Value,
+    },
     /// End the innermost active catch (`__cxa_end_catch()`).
     EndCatch,
     /// Throw an exception object (does not return). Terminator-like:
     /// must be the last instruction of its block, which ends
     /// `Unreachable` (the same shape as the M3 trap path).
-    Throw { exception: Value },
+    Throw {
+        exception: Value,
+    },
     /// Array operations. The element layout is the `Array(...)` type
     /// of the array operand (or of `out` for `ArrayAlloc`).
     /// Allocate an array object and store the elements in order.
@@ -408,7 +459,10 @@ pub enum Instruction {
         element_scan: RefScan,
     },
     /// `array.size` (result `I64`).
-    ArrayLen { out: TempId, operand: Value },
+    ArrayLen {
+        out: TempId,
+        operand: Value,
+    },
     /// Bounds-checked element read (traps out of range).
     ArrayGet {
         out: TempId,
@@ -422,7 +476,10 @@ pub enum Instruction {
         value: Value,
     },
     /// `Array(m)` / `MutableArray(a)` conversion (memcpy snapshot).
-    ArrayClone { out: TempId, operand: Value },
+    ArrayClone {
+        out: TempId,
+        operand: Value,
+    },
     /// Enum operations. The representation (niche pointer or tagged
     /// union) is fixed by `EnumDef::repr`, so codegen translates these
     /// mechanically.
@@ -674,6 +731,7 @@ fn value_name(value: Value) -> String {
         Value::Temp(id) => format!("t{}", id.into_raw()),
         Value::IntConst(value) => format!("{value}"),
         Value::BoolConst(value) => format!("{value}"),
+        Value::NullPtr => "null".to_string(),
         Value::Global(id) => format!("global{}", id.into_raw()),
     }
 }
@@ -740,6 +798,52 @@ fn dump_instruction(function: &Function, instruction: &Instruction, buf: &mut St
             "    t{} = function_address @{} : ptr\n",
             out.into_raw(),
             symbol
+        )),
+        Instruction::IntToPtr { out, value } => buf.push_str(&format!(
+            "    t{} = int_to_ptr {} : ptr\n",
+            out.into_raw(),
+            value_name(*value)
+        )),
+        Instruction::PtrToInt { out, value } => buf.push_str(&format!(
+            "    t{} = ptr_to_int {} : i64\n",
+            out.into_raw(),
+            value_name(*value)
+        )),
+        Instruction::RawLoad {
+            out,
+            pointer,
+            align,
+        } => buf.push_str(&format!(
+            "    t{} = raw_load {} align {} : {}\n",
+            out.into_raw(),
+            value_name(*pointer),
+            align,
+            function.temps[*out].ty.dump()
+        )),
+        Instruction::RawStore {
+            pointer,
+            value,
+            align,
+        } => buf.push_str(&format!(
+            "    raw_store {} {} align {}\n",
+            value_name(*pointer),
+            value_name(*value),
+            align
+        )),
+        Instruction::PtrOffset {
+            out,
+            pointer,
+            bytes,
+        } => buf.push_str(&format!(
+            "    t{} = ptr_offset {} {} : ptr\n",
+            out.into_raw(),
+            value_name(*pointer),
+            value_name(*bytes)
+        )),
+        Instruction::LocalAddress { out, local } => buf.push_str(&format!(
+            "    t{} = local_address local{} : ptr\n",
+            out.into_raw(),
+            local.into_raw()
         )),
         Instruction::Store { local, value } => buf.push_str(&format!(
             "    store {} -> local{}\n",

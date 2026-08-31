@@ -1906,6 +1906,9 @@ fn expr_uses(expr: &mir::Expr, uses: &mut HashSet<mir::LocalId>) {
         | mir::Expr::Cast { operand, .. }
         | mir::Expr::ArrayLen(operand)
         | mir::Expr::ArrayClone(operand)
+        | mir::Expr::PtrFromUInt { operand, .. }
+        | mir::Expr::PtrToUInt(operand)
+        | mir::Expr::PtrCast { operand, .. }
         | mir::Expr::Unary { operand, .. }
         | mir::Expr::EnumTag(operand)
         | mir::Expr::EnumField { operand, .. } => expr_uses(operand, uses),
@@ -1918,11 +1921,44 @@ fn expr_uses(expr: &mir::Expr, uses: &mut HashSet<mir::LocalId>) {
             expr_uses(array, uses);
             expr_uses(index, uses);
         }
+        mir::Expr::PtrLoad {
+            pointer, offset, ..
+        } => {
+            expr_uses(pointer, uses);
+            if let Some(offset) = offset {
+                expr_uses(offset, uses);
+            }
+        }
+        mir::Expr::PtrStore {
+            pointer,
+            offset,
+            value,
+            ..
+        } => {
+            expr_uses(pointer, uses);
+            if let Some(offset) = offset {
+                expr_uses(offset, uses);
+            }
+            expr_uses(value, uses);
+        }
+        mir::Expr::PtrOffset {
+            pointer, offset, ..
+        } => {
+            expr_uses(pointer, uses);
+            expr_uses(offset, uses);
+        }
+        mir::Expr::AddressOf { local, .. } => {
+            uses.insert(*local);
+        }
         mir::Expr::StringConst(_)
         | mir::Expr::IntLiteral(_)
         | mir::Expr::BoolLiteral(_)
         | mir::Expr::UnitLiteral
-        | mir::Expr::CaughtException => {}
+        | mir::Expr::CaughtException
+        | mir::Expr::SizeOf(_)
+        | mir::Expr::AlignOf(_)
+        | mir::Expr::FunPtrNull(_)
+        | mir::Expr::FunctionAddress { .. } => {}
     }
 }
 

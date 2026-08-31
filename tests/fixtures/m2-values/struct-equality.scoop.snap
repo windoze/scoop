@@ -32,6 +32,28 @@ SourceFile
         Call FunctionSuspendRegistration
           Var registration
 SourceFile
+  struct Ptr<T : value>
+    field _rawPointer: UInt
+    fun toUInt
+    fun cast
+    fun load
+    fun load
+    fun store
+    fun store
+    fun plus
+    fun minus
+  struct FunPtr<F>
+    field _rawPointer: UInt
+    @Unsafe
+    @Intrinsic("address_of")
+  fun addressOf<T : value>(value: T): Ptr<T>
+    @NoGC
+    @Intrinsic("size_of")
+  fun sizeOf<T : value>(): UInt
+    @NoGC
+    @Intrinsic("align_of")
+  fun alignOf<T : value>(): UInt
+SourceFile
   struct PinHandle<T : ref>
     field raw: UInt
   struct GcHandle<T : ref>

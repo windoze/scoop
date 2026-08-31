@@ -765,7 +765,9 @@ impl Lowerer {
                     lowered.kind,
                     hir::ExprKind::Call { .. }
                         | hir::ExprKind::MethodCall { .. }
+                        | hir::ExprKind::LocalFunctionCall { .. }
                         | hir::ExprKind::CallableCall { .. }
+                        | hir::ExprKind::PtrStore { .. }
                 ) {
                     out.extend(sink);
                     hir::StatementKind::Expr(lowered)
@@ -1974,7 +1976,12 @@ fn patch_local_function_call_expr(
         | hir::ExprKind::IsSome(receiver)
         | hir::ExprKind::Unwrap {
             operand: receiver, ..
-        } => patch_local_function_call_expr(receiver, target, target_captures),
+        }
+        | hir::ExprKind::PtrFromUInt(receiver)
+        | hir::ExprKind::PtrToUInt(receiver)
+        | hir::ExprKind::PtrCast(receiver) => {
+            patch_local_function_call_expr(receiver, target, target_captures)
+        }
         hir::ExprKind::MethodCall { receiver, args, .. }
         | hir::ExprKind::CallableCall {
             callee: receiver,
@@ -1994,6 +2001,29 @@ fn patch_local_function_call_expr(
             patch_local_function_call_expr(lhs, target, target_captures);
             patch_local_function_call_expr(rhs, target, target_captures);
         }
+        hir::ExprKind::PtrLoad { pointer, offset } => {
+            patch_local_function_call_expr(pointer, target, target_captures);
+            if let Some(offset) = offset {
+                patch_local_function_call_expr(offset, target, target_captures);
+            }
+        }
+        hir::ExprKind::PtrOffset {
+            pointer, offset, ..
+        } => {
+            patch_local_function_call_expr(pointer, target, target_captures);
+            patch_local_function_call_expr(offset, target, target_captures);
+        }
+        hir::ExprKind::PtrStore {
+            pointer,
+            offset,
+            value,
+        } => {
+            patch_local_function_call_expr(pointer, target, target_captures);
+            if let Some(offset) = offset {
+                patch_local_function_call_expr(offset, target, target_captures);
+            }
+            patch_local_function_call_expr(value, target, target_captures);
+        }
         hir::ExprKind::StringLiteral(_)
         | hir::ExprKind::IntLiteral(_)
         | hir::ExprKind::BoolLiteral(_)
@@ -2003,6 +2033,11 @@ fn patch_local_function_call_expr(
         | hir::ExprKind::Lambda(_)
         | hir::ExprKind::AnonymousFunction(_)
         | hir::ExprKind::CallableReference(_)
-        | hir::ExprKind::NoneLiteral => {}
+        | hir::ExprKind::NoneLiteral
+        | hir::ExprKind::AddressOf(_)
+        | hir::ExprKind::SizeOf(_)
+        | hir::ExprKind::AlignOf(_)
+        | hir::ExprKind::FunPtrNull
+        | hir::ExprKind::FunctionAddress(_) => {}
     }
 }
