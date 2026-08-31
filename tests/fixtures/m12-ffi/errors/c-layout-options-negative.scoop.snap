@@ -1,0 +1,7 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m12-ffi/errors/c-layout-options-negative.scoop:1:10: error: `@CLayout` alignment values must be one of 0, 1, 2, 4, 8 or 16
+m12-ffi/errors/c-layout-options-negative.scoop:1:23: error: `@CLayout` alignment values must be one of 0, 1, 2, 4, 8 or 16

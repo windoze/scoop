@@ -1,0 +1,12 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m12-ffi/errors/annotation-contracts.scoop:1:1: error: `@NoGC` does not accept arguments
+m12-ffi/errors/annotation-contracts.scoop:5:1: error: annotation `@NoGC` must not be repeated
+m12-ffi/errors/annotation-contracts.scoop:8:1: error: `@Safe` and `@Unsafe` cannot be combined
+m12-ffi/errors/annotation-contracts.scoop:12:9: error: unknown argument `unknown` for `@Extern`
+m12-ffi/errors/annotation-contracts.scoop:15:9: error: argument `lib` of `@Extern` must be a string
+m12-ffi/errors/annotation-contracts.scoop:18:10: error: `@CLayout` arguments must be integers
+m12-ffi/errors/annotation-contracts.scoop:21:1: error: `@InteriorMutable` is not allowed on a function
