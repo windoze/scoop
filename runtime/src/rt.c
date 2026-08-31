@@ -6,6 +6,7 @@
 #include <unwind.h>
 
 #include "scoop_rt.h"
+#include "thread.h"
 
 /* M8 (milestone8 DESIGN section 4): exception support on top of the
  * Itanium C++ ABI (runtime spec 5). The __cxa_* entry points and the
@@ -245,10 +246,12 @@ void scoop_rt_init_eh(void) {
 
 int main(void) {
     scoop_rt_init_eh();
-    /* Record the mutator stack base for the v1 conservative stack
-     * scan (gc.c); replaced by statepoint stackmaps once codegen
-     * emits them (milestone9 DESIGN 3.2). */
-    scoop_rt_gc_init(__builtin_frame_address(0));
+    scoop_thread_runtime_init();
+    scoop_rt_gc_init();
+    scoop_thread_attach_main();
     scoop_main();
+    scoop_thread_prepare_shutdown();
+    scoop_thread_detach_main();
+    scoop_thread_runtime_finish_shutdown();
     return 0;
 }

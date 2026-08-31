@@ -47,8 +47,10 @@
  * still valid and the pointers it yields are containment-checked in
  * turn. At worst, garbage is retained one extra cycle.
  *
- * Threading: v1 assumes a single mutator thread (DESIGN 5.1); there is
- * no synchronization and no stop-the-world coordination.
+ * M13 gate 1 registers every OS thread in a TLS ScoopThreadState and
+ * moves stack/native-root ownership there. Heap metadata is still
+ * single-mutator until the later STW/TLAB gates, so allocation and
+ * collection explicitly reject entry while another thread is attached.
  */
 #include <setjmp.h>
 #include <stdio.h>
@@ -57,6 +59,7 @@
 #include <sys/mman.h>
 
 #include "scoop_rt.h"
+#include "thread.h"
 
 #ifndef MAP_ANON
 #define MAP_ANON MAP_ANONYMOUS /* POSIX name; macOS/BSD use MAP_ANON */
@@ -459,7 +462,6 @@ typedef struct ScoopGcRoot {
 static ScoopGcRoot *gc_roots;
 static size_t gc_roots_len;
 static size_t gc_roots_cap;
-static _Thread_local ScoopNativeRootFrame *gc_native_roots;
 
 static void gc_root_push(const void *base, uint32_t is_external_object) {
     if (gc_roots_len == gc_roots_cap) {
@@ -498,10 +500,11 @@ void scoop_rt_gc_remove_root_object(const void *obj) {
 
 void scoop_rt_push_native_roots(ScoopNativeRootFrame *frame, void ***slots,
                                 uint64_t count) {
+    ScoopThreadState *thread = scoop_thread_current_required();
     if (frame == NULL || (count != 0 && slots == NULL)) {
         gc_fatal("invalid native root frame");
     }
-    for (ScoopNativeRootFrame *active = gc_native_roots; active != NULL;
+    for (ScoopNativeRootFrame *active = thread->native_roots; active != NULL;
          active = active->previous) {
         if (active == frame) {
             gc_fatal("native root frame is already active");
@@ -512,17 +515,18 @@ void scoop_rt_push_native_roots(ScoopNativeRootFrame *frame, void ***slots,
             gc_fatal("native root frame contains a null slot address");
         }
     }
-    frame->previous = gc_native_roots;
+    frame->previous = thread->native_roots;
     frame->slots = slots;
     frame->count = count;
-    gc_native_roots = frame;
+    thread->native_roots = frame;
 }
 
 void scoop_rt_pop_native_roots(ScoopNativeRootFrame *frame) {
-    if (frame == NULL || gc_native_roots != frame) {
+    ScoopThreadState *thread = scoop_thread_current_required();
+    if (frame == NULL || thread->native_roots != frame) {
         gc_fatal("native root frames must be popped in LIFO order");
     }
-    gc_native_roots = frame->previous;
+    thread->native_roots = frame->previous;
     frame->previous = NULL;
     frame->slots = NULL;
     frame->count = 0;
@@ -735,12 +739,7 @@ static void gc_trace_object(const void *obj) {
 
 /* --- conservative stack scan (v1 transition) ---------------------------- */
 
-/* Highest address of the mutator stack, recorded by scoop_rt_gc_init
- * from main's frame. NULL until then; collections skip the scan. */
-static const char *gc_stack_base;
-
-void scoop_rt_gc_init(void *stack_base) {
-    gc_stack_base = stack_base;
+void scoop_rt_gc_init(void) {
     /* Reserve the heap arena and set up the card table at startup. */
     gc_arena_ensure();
 }
@@ -769,14 +768,12 @@ static void gc_scan_range(const char *lo, const char *hi) {
  * 3.2) once codegen emits __llvm_stackmaps; the rest of the collector
  * only ever calls this function for stack roots. */
 static void gc_scan_stack(void) {
-    if (gc_stack_base == NULL) {
-        return;
-    }
+    ScoopThreadState *thread = scoop_thread_current_required();
     /* Spill callee-saved registers into this frame so roots living only
      * in registers land in the scanned range. */
     jmp_buf registers;
     (void)setjmp(registers);
-    gc_scan_range((const char *)&registers, gc_stack_base);
+    gc_scan_range((const char *)&registers, thread->stack_high);
 }
 
 /* --- sweep ---------------------------------------------------------------- */
@@ -849,6 +846,8 @@ static void gc_sweep(void) {
 /* --- collection entry points ---------------------------------------------- */
 
 void scoop_rt_gc_collect(void) {
+    scoop_thread_require_single_managed_mutator();
+    ScoopThreadState *thread = scoop_thread_current_required();
     /* New cycle: with the parity flipped, every object starts unmarked
      * (allocations set the bit to the *previous* color). */
     gc_mark_color ^= 1;
@@ -868,7 +867,7 @@ void scoop_rt_gc_collect(void) {
             gc_trace_slot((const void *const *)gc_roots[i].base);
         }
     }
-    for (ScoopNativeRootFrame *frame = gc_native_roots; frame != NULL;
+    for (ScoopNativeRootFrame *frame = thread->native_roots; frame != NULL;
          frame = frame->previous) {
         for (uint64_t i = 0; i < frame->count; i++) {
             gc_trace_slot((const void *const *)frame->slots[i]);
@@ -915,8 +914,12 @@ uint64_t scoop_rt_gc_debug_root_count(void) {
 }
 
 uint64_t scoop_rt_gc_debug_native_root_count(void) {
+    ScoopThreadState *thread = scoop_thread_current();
+    if (thread == NULL) {
+        return 0;
+    }
     uint64_t count = 0;
-    for (ScoopNativeRootFrame *frame = gc_native_roots; frame != NULL;
+    for (ScoopNativeRootFrame *frame = thread->native_roots; frame != NULL;
          frame = frame->previous) {
         count += frame->count;
     }
@@ -975,6 +978,7 @@ static void *gc_alloc_large(size_t size) {
 }
 
 void *scoop_rt_alloc(const ScoopTypeDescriptor *td, size_t size) {
+    scoop_thread_require_single_managed_mutator();
     if (size < sizeof(ScoopObjectHeader)) {
         size = sizeof(ScoopObjectHeader); /* defensive: callers include the header */
     }
@@ -995,11 +999,9 @@ void *scoop_rt_alloc(const ScoopTypeDescriptor *td, size_t size) {
  * in the arena section above: a pointer variable pre-biased by
  * arena_base >> 9. */
 
-/* Safepoint poll: the compiler emits `call void @scoop_rt_safepoint()`
- * at function entries and loop back edges (spec 14.2). v1 is
- * single-threaded and collects synchronously, so the poll is a no-op;
- * it becomes the thread handshake point for stop-the-world or
- * incremental collection later. */
+/* Safepoint poll: M13 gate 1 verifies that generated managed code runs
+ * only on an attached managed thread. The epoch/park handshake arrives
+ * in the next gate; collection remains synchronous for now. */
 void scoop_rt_safepoint(void) {
-    /* v1: no-op by design */
+    scoop_thread_require_managed();
 }

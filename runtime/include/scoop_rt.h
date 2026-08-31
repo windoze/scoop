@@ -185,12 +185,19 @@ const ScoopString *scoop_rt_any_tostring(const void *a);
  * runtime/src/gc.c for the implementation and docs/specs/
  * SCOOP-RUNTIME-SPEC.md sections 3-4 for the contract. */
 
-/* Record the base (highest address) of the mutator stack; called once
- * from the runtime's main before scoop_main. `stack_base` should be a
- * frame address of main's caller frame. Required only by the v1
- * conservative stack scan (see gc.c); collections before this call
- * simply skip stack scanning. */
-void scoop_rt_gc_init(void *stack_base);
+/* Initialize the GC heap before the main thread enters Scoop code. Stack
+ * bounds and per-thread roots belong to M13's attached thread state rather
+ * than to a process-global main-thread variable. */
+void scoop_rt_gc_init(void);
+
+/* M13 thread registration baseline (runtime spec 3.5 / 7). A foreign
+ * thread must attach before any later managed callback entry. The return
+ * value is true only when this call created the attachment; nested users
+ * must detach only when they own that true result. A newly attached foreign
+ * thread starts in native-safe mode and cannot execute managed code until a
+ * callback gateway performs the managed transition. */
+bool scoop_rt_attach_foreign_thread(void);
+void scoop_rt_detach_foreign_thread(void);
 
 /* Register a global root (runtime spec 3.3): `slot` is the address of
  * a variable holding an object pointer (or null); it is re-read at
@@ -264,6 +271,13 @@ uint64_t scoop_rt_gc_debug_root_count(void);
 
 /* Test hook: number of slots in the current thread's native-root chain. */
 uint64_t scoop_rt_gc_debug_native_root_count(void);
+
+/* M13 thread-registry test hooks. Stack bounds are the current attached
+ * pthread's inclusive-low/exclusive-high reserved stack range. */
+bool scoop_rt_thread_debug_is_attached(void);
+uint64_t scoop_rt_thread_debug_count(void);
+uintptr_t scoop_rt_thread_debug_stack_low(void);
+uintptr_t scoop_rt_thread_debug_stack_high(void);
 
 /* M8 additions (milestone8 DESIGN section 4): exception support on top
  * of the Itanium C++ ABI (runtime spec 5). Scoop exceptions are thrown
