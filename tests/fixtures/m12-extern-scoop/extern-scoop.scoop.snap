@@ -375,7 +375,7 @@ Module
     t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
     store t2 -> local0
-    native_call extern0(local0)
+    native_call[native-borrowed] extern0(local0)
     t3 = aggregate () : {}
     ret
   fun @scoop.println(ptr) -> void
@@ -385,9 +385,9 @@ Module
     t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
     store t2 -> local0
-    native_call extern0(local0)
+    native_call[native-borrowed] extern0(local0)
     t3 = aggregate () : {}
-    native_call extern0(global0)
+    native_call[native-borrowed] extern0(global0)
     t4 = aggregate () : {}
     ret
   fun @scoop.stringify(ptr) -> ptr
@@ -402,12 +402,12 @@ Module
     local %0 $call.1: ptr
     local %1 $call.2: ptr
   block entry
-    native_call extern1(global1)
+    native_call[native-borrowed] extern1(global1)
     t0 = aggregate () : {}
     t1 = call @scoop_rt_box(global7, 42, 8) : ptr
     t2 = call @scoop.stringify(t1) : ptr
     store t2 -> local0
-    t3 = native_call extern2(local0) : ptr
+    t3 = native_call[native-borrowed] extern2(local0) : ptr
     store t3 -> local1
     call @scoop.println(local1)
     t4 = aggregate () : {}

@@ -736,7 +736,7 @@ Module
     t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
     store t2 -> local0
-    native_call extern0(local0)
+    native_call[native-borrowed] extern0(local0)
     t3 = aggregate () : {}
     ret
   fun @scoop.println(ptr) -> void
@@ -746,9 +746,9 @@ Module
     t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
     store t2 -> local0
-    native_call extern0(local0)
+    native_call[native-borrowed] extern0(local0)
     t3 = aggregate () : {}
-    native_call extern0(global0)
+    native_call[native-borrowed] extern0(global0)
     t4 = aggregate () : {}
     ret
   fun @scoop.increment(i64) -> i64 <no-gc>
@@ -853,7 +853,7 @@ Module
     t37 = local_address local19 : ptr
     store 8 -> local20
     t38 = local_address local20 : ptr
-    native_call extern1(t37, t38)
+    native_call[native-safe] extern1(t37, t38)
     store local19 -> local18
     store local18 -> local12
     raw_store local12 14 align 8
@@ -864,7 +864,7 @@ Module
     t42 = aggregate () : {}
     store local12 -> local21
     t43 = local_address local21 : ptr
-    native_call extern2(t43)
+    native_call[native-safe] extern2(t43)
     t44 = aggregate () : {}
     t45 = enum_wrap e2 v0 (local6) : enum2
     store t45 -> local13

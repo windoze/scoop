@@ -942,7 +942,7 @@ Module
     t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
     store t2 -> local0
-    native_call extern0(local0)
+    native_call[native-borrowed] extern0(local0)
     t3 = aggregate () : {}
     ret
   fun @scoop.println(ptr) -> void
@@ -952,9 +952,9 @@ Module
     t1 = heap_load t0 +40 : ptr
     t2 = call_indirect t1[2](param0) : ptr
     store t2 -> local0
-    native_call extern0(local0)
+    native_call[native-borrowed] extern0(local0)
     t3 = aggregate () : {}
-    native_call extern0(global0)
+    native_call[native-borrowed] extern0(global0)
     t4 = aggregate () : {}
     ret
   fun @scoop.transform.I(i64) -> i64 <no-gc>
@@ -995,7 +995,7 @@ Module
     t1 = local_address local2 : ptr
     store 22 -> local3
     t2 = local_address local3 : ptr
-    native_call extern1(t0, t1, t2)
+    native_call[native-safe] extern1(t0, t1, t2)
     store local1 -> local0
     t3 = enum_wrap e2 v0 (local0) : enum2
     ret t3
@@ -1065,7 +1065,7 @@ Module
     t9 = local_address local16 : ptr
     store 23 -> local17
     t10 = local_address local17 : ptr
-    native_call extern1(t8, t9, t10)
+    native_call[native-safe] extern1(t8, t9, t10)
     store local15 -> local7
     t11 = call @scoop_rt_box(global7, local7, 8) : ptr
     call @scoop.println(t11)
@@ -1075,7 +1075,7 @@ Module
     t14 = local_address local19 : ptr
     store 8 -> local20
     t15 = local_address local20 : ptr
-    native_call extern2(t13, t14, t15)
+    native_call[native-safe] extern2(t13, t14, t15)
     store local18 -> local8
     t16 = Eq local8, 16 : i1
     t17 = call @scoop_rt_box(global8, t16, 1) : ptr
@@ -1084,7 +1084,7 @@ Module
     t19 = local_address local21 : ptr
     store 8 -> local22
     t20 = local_address local22 : ptr
-    native_call extern3(t19, t20)
+    native_call[native-safe] extern3(t19, t20)
     store local21 -> local9
     t21 = Eq local9, 16 : i1
     t22 = call @scoop_rt_box(global8, t21, 1) : ptr
@@ -1093,7 +1093,7 @@ Module
     t24 = local_address local23 : ptr
     store 47 -> local24
     t25 = local_address local24 : ptr
-    native_call extern4(t24, t25)
+    native_call[native-safe] extern4(t24, t25)
     store local23 -> local10
     t26 = call @scoop_rt_box(global7, local10, 8) : ptr
     call @scoop.println(t26)
@@ -1101,7 +1101,7 @@ Module
     t28 = local_address local25 : ptr
     store false -> local26
     t29 = local_address local26 : ptr
-    native_call extern5(t28, t29)
+    native_call[native-safe] extern5(t28, t29)
     store local25 -> local11
     t30 = call @scoop_rt_box(global8, local11, 1) : ptr
     call @scoop.println(t30)
@@ -1110,7 +1110,7 @@ Module
     t33 = local_address local27 : ptr
     store t32 -> local28
     t34 = local_address local28 : ptr
-    native_call extern6(t33, t34)
+    native_call[native-safe] extern6(t33, t34)
     store local27 -> local3
     t35 = extract local3, 0 : i64
     t36 = call @scoop_rt_box(global7, t35, 8) : ptr
@@ -1122,7 +1122,7 @@ Module
     t40 = aggregate () : {}
     store 1 -> local29
     t41 = local_address local29 : ptr
-    native_call extern7(t41)
+    native_call[native-safe] extern7(t41)
     t42 = aggregate () : {}
     t43 = function_address @scoop_c_callback_0 : ptr
     t44 = local_address local30 : ptr
@@ -1130,7 +1130,7 @@ Module
     t45 = local_address local31 : ptr
     store t43 -> local32
     t46 = local_address local32 : ptr
-    native_call extern8(t44, t45, t46)
+    native_call[native-safe] extern8(t44, t45, t46)
     store local30 -> local12
     t47 = call @scoop_rt_box(global7, local12, 8) : ptr
     call @scoop.println(t47)
@@ -1140,7 +1140,7 @@ Module
     t50 = local_address local34 : ptr
     store local1 -> local35
     t51 = local_address local35 : ptr
-    native_call extern10(t49, t50, t51)
+    native_call[native-safe] extern10(t49, t50, t51)
     store local33 -> local13
     t52 = call @scoop_rt_box(global7, local13, 8) : ptr
     call @scoop.println(t52)
@@ -1150,7 +1150,7 @@ Module
     t55 = local_address local37 : ptr
     store local2 -> local38
     t56 = local_address local38 : ptr
-    native_call extern10(t54, t55, t56)
+    native_call[native-safe] extern10(t54, t55, t56)
     store local36 -> local14
     t57 = call @scoop_rt_box(global7, local14, 8) : ptr
     call @scoop.println(t57)
@@ -1162,7 +1162,7 @@ Module
     t62 = local_address local40 : ptr
     store t60 -> local41
     t63 = local_address local41 : ptr
-    native_call extern9(t61, t62, t63)
+    native_call[native-safe] extern9(t61, t62, t63)
     store local39 -> local4
     t64 = extract local4, 0 : i64
     t65 = call @scoop_rt_box(global7, t64, 8) : ptr
@@ -1180,7 +1180,7 @@ Module
     t74 = local_address local43 : ptr
     store t72 -> local44
     t75 = local_address local44 : ptr
-    native_call extern11(t73, t74, t75)
+    native_call[native-safe] extern11(t73, t74, t75)
     store local42 -> local5
     t76 = extract local5, 0 : i1
     t77 = call @scoop_rt_box(global8, t76, 1) : ptr

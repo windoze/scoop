@@ -1817,9 +1817,20 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             Instruction::NativeCall {
                 out,
                 function: extern_id,
+                effect,
                 args,
             } => {
                 let extern_ = &self.extern_functions[*extern_id];
+                let expected_effect = match &extern_.kind {
+                    ExternFunctionKind::C { .. } => scoop_lir::NativeCallEffect::NativeSafe,
+                    ExternFunctionKind::Scoop { .. } => scoop_lir::NativeCallEffect::NativeBorrowed,
+                };
+                if *effect != expected_effect {
+                    return Err(CodegenError(format!(
+                        "native call effect does not match extern{} ABI",
+                        extern_id.into_raw().into_u32()
+                    )));
+                }
                 let (symbol, gc_effect, c_bridge) = match &extern_.kind {
                     ExternFunctionKind::C { bridge_symbol, .. } => {
                         (bridge_symbol.as_str(), GcEffect::NoGc, true)

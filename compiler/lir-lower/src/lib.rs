@@ -2771,6 +2771,7 @@ impl<'a> FunctionLowerer<'a> {
                         self.push(lir::Instruction::NativeCall {
                             out: None,
                             function,
+                            effect: lir::NativeCallEffect::NativeSafe,
                             args: bridge_args,
                         });
                         result.map_or_else(|| self.unit_value(), lir::Value::Local)
@@ -2780,6 +2781,7 @@ impl<'a> FunctionLowerer<'a> {
                             self.push(lir::Instruction::NativeCall {
                                 out: None,
                                 function,
+                                effect: lir::NativeCallEffect::NativeBorrowed,
                                 args,
                             });
                             self.unit_value()
@@ -2789,6 +2791,7 @@ impl<'a> FunctionLowerer<'a> {
                             self.push(lir::Instruction::NativeCall {
                                 out: Some(out),
                                 function,
+                                effect: lir::NativeCallEffect::NativeBorrowed,
                                 args,
                             });
                             lir::Value::Temp(out)
@@ -3645,12 +3648,12 @@ Module
   extern ef0 write @scoop_rt_write(ptr) -> {} <scoop managed nounwind>
   fun @scoop.helper() -> void
   block entry
-    native_call extern0(global1)
+    native_call[native-borrowed] extern0(global1)
     t0 = aggregate () : {}
     ret
   fun @scoop_main() -> void
   block entry
-    native_call extern0(global0)
+    native_call[native-borrowed] extern0(global0)
     t0 = aggregate () : {}
     call @scoop.helper()
     t1 = aggregate () : {}
@@ -3739,11 +3742,11 @@ Module
   block entry
     cbr true then @if.then.1 else @if.else.2
   block if.then.1
-    native_call extern0(global0)
+    native_call[native-borrowed] extern0(global0)
     t0 = aggregate () : {}
     br @if.merge.3
   block if.else.2
-    native_call extern0(global1)
+    native_call[native-borrowed] extern0(global1)
     t1 = aggregate () : {}
     br @if.merge.3
   block if.merge.3

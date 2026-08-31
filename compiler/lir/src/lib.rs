@@ -391,6 +391,21 @@ pub enum GcEffect {
     NoGc,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NativeCallEffect {
+    NativeSafe,
+    NativeBorrowed,
+}
+
+impl NativeCallEffect {
+    fn dump(self) -> &'static str {
+        match self {
+            Self::NativeSafe => "native-safe",
+            Self::NativeBorrowed => "native-borrowed",
+        }
+    }
+}
+
 impl Function {
     /// The type of a value in this function.
     pub fn value_ty(&self, globals: &Arena<Global>, value: Value) -> LirType {
@@ -501,6 +516,7 @@ pub enum Instruction {
     NativeCall {
         out: Option<TempId>,
         function: ExternFunctionId,
+        effect: NativeCallEffect,
         args: Vec<Value>,
     },
     /// Store a typed value at the byte address `object + offset`.
@@ -1137,19 +1153,22 @@ fn dump_instruction(function: &Function, instruction: &Instruction, buf: &mut St
         Instruction::NativeCall {
             out,
             function: extern_id,
+            effect,
             args,
         } => {
             let args = args.iter().map(|arg| value_name(*arg)).collect::<Vec<_>>();
             match out {
                 Some(temp) => buf.push_str(&format!(
-                    "    t{} = native_call extern{}({}) : {}\n",
+                    "    t{} = native_call[{}] extern{}({}) : {}\n",
                     temp.into_raw(),
+                    effect.dump(),
                     extern_id.into_raw(),
                     args.join(", "),
                     function.temps[*temp].ty.dump()
                 )),
                 None => buf.push_str(&format!(
-                    "    native_call extern{}({})\n",
+                    "    native_call[{}] extern{}({})\n",
+                    effect.dump(),
                     extern_id.into_raw(),
                     args.join(", ")
                 )),
