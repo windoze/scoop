@@ -1,0 +1,25 @@
+@CLayout
+struct NativePair(val left: Int, val right: Int)
+
+@Extern(lib = "fixture_native", name = "native_add")
+fun nativeAdd(left: Int, right: Int): Int
+
+@Extern(lib = "fixture_native", name = "native_not")
+fun nativeNot(value: Boolean): Boolean
+
+@Extern(lib = "fixture_native", name = "native_swap")
+fun nativeSwap(value: NativePair): NativePair
+
+@Extern(lib = "fixture_native", name = "native_sink")
+fun nativeSink(value: Int)
+
+fun main() {
+    @Unsafe {
+        println(nativeAdd(19, 23))
+        println(nativeNot(false))
+        val swapped = nativeSwap(NativePair(7, 11))
+        println(swapped.left)
+        println(swapped.right)
+        nativeSink(1)
+    }
+}

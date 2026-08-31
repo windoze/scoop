@@ -1315,6 +1315,9 @@ fn callee_return_type(lowerer: &Lowerer, callee: mir::Callee) -> mir::Type {
     let function = match callee {
         mir::Callee::User(function) => function,
         mir::Callee::Monomorphized(instance) => lowerer.instances.meta[instance].function,
+        mir::Callee::Extern(extern_id) => {
+            return lowerer.extern_functions[extern_id].return_type.clone();
+        }
         mir::Callee::Closure(function_type) | mir::Callee::FunctionBridge(function_type) => {
             let signature = &lowerer.shell.function_types[function_type];
             return if signature.is_suspend {
@@ -1761,7 +1764,9 @@ fn suspend_effect(
                 )
             });
         }
-        mir::Callee::CoroutineSuspend { .. } | mir::Callee::Runtime(_) => return None,
+        mir::Callee::CoroutineSuspend { .. } | mir::Callee::Extern(_) | mir::Callee::Runtime(_) => {
+            return None;
+        }
     };
     lowerer
         .coroutines

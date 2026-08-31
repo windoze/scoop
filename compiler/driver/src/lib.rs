@@ -26,6 +26,11 @@ pub struct CompileSuccess {
     pub binary: PathBuf,
 }
 
+#[derive(Debug, Default)]
+pub struct CompileOptions {
+    pub library_paths: Vec<PathBuf>,
+}
+
 /// One input file of the compilation unit: a display name (for
 /// diagnostics) plus the source text.
 pub struct SourceFileInput {
@@ -47,6 +52,14 @@ pub struct SourceFileInput {
 /// carry the index of their input file (core files first, the user file
 /// last). Render them via [`render_diagnostics`] with [`load_inputs`].
 pub fn compile_file(path: &Path, out_dir: &Path) -> Result<CompileSuccess, Vec<Diagnostic>> {
+    compile_file_with_options(path, out_dir, &CompileOptions::default())
+}
+
+pub fn compile_file_with_options(
+    path: &Path,
+    out_dir: &Path,
+    options: &CompileOptions,
+) -> Result<CompileSuccess, Vec<Diagnostic>> {
     let inputs = load_inputs(path)?;
     let user_index = inputs.len() - 1;
 
@@ -97,8 +110,43 @@ pub fn compile_file(path: &Path, out_dir: &Path) -> Result<CompileSuccess, Vec<D
     scoop_codegen::emit_object(&lir, &object)
         .map_err(|e| vec![no_span(user_index, format!("codegen failed: {e}"))])?;
 
+    let bridge_object = match scoop_codegen::c_bridge_source(&lir).map_err(|e| {
+        vec![no_span(
+            user_index,
+            format!("C bridge generation failed: {e}"),
+        )]
+    })? {
+        Some(source) => {
+            let source_path = out_dir.join(format!("{stem}.ffi.c"));
+            let object_path = out_dir.join(format!("{stem}.ffi.o"));
+            std::fs::write(&source_path, source).map_err(|error| {
+                vec![no_span(
+                    user_index,
+                    format!("cannot write C bridge {}: {error}", source_path.display()),
+                )]
+            })?;
+            compile_c_bridge(&source_path, &object_path, user_index)?;
+            Some(object_path)
+        }
+        None => None,
+    };
+
     let runtime_lib = build_runtime(user_index)?;
-    link(&object, &runtime_lib, &binary, user_index)?;
+    let mut libraries = Vec::new();
+    for (_, extern_) in lir.extern_functions.iter() {
+        if !extern_.library.is_empty() && !libraries.contains(&extern_.library) {
+            libraries.push(extern_.library.clone());
+        }
+    }
+    link(
+        &object,
+        bridge_object.as_deref(),
+        &runtime_lib,
+        &libraries,
+        &options.library_paths,
+        &binary,
+        user_index,
+    )?;
 
     Ok(CompileSuccess {
         dumps: StageDumps {
@@ -109,6 +157,33 @@ pub fn compile_file(path: &Path, out_dir: &Path) -> Result<CompileSuccess, Vec<D
         },
         binary,
     })
+}
+
+fn compile_c_bridge(source: &Path, object: &Path, file: usize) -> Result<(), Vec<Diagnostic>> {
+    let output = Command::new("cc")
+        .arg("-std=c11")
+        .arg("-c")
+        .arg(source)
+        .arg("-o")
+        .arg(object)
+        .output()
+        .map_err(|error| {
+            vec![no_span(
+                file,
+                format!("failed to run C bridge compiler `cc`: {error}"),
+            )]
+        })?;
+    if !output.status.success() {
+        return Err(vec![no_span(
+            file,
+            format!(
+                "C bridge compilation failed (status {}): {}",
+                output.status,
+                String::from_utf8_lossy(&output.stderr).trim()
+            ),
+        )]);
+    }
+    Ok(())
 }
 
 /// Load the compilation unit: every `src/*.scoop` of the sysroot's
@@ -314,13 +389,26 @@ fn host_triple() -> String {
 /// using the system `cc` driver.
 fn link(
     object: &Path,
+    bridge_object: Option<&Path>,
     runtime_lib: &Path,
+    libraries: &[String],
+    library_paths: &[PathBuf],
     binary: &Path,
     file: usize,
 ) -> Result<(), Vec<Diagnostic>> {
-    let output = Command::new("cc")
-        .arg(object)
-        .arg(runtime_lib)
+    let mut command = Command::new("cc");
+    command.arg(object);
+    if let Some(bridge_object) = bridge_object {
+        command.arg(bridge_object);
+    }
+    command.arg(runtime_lib);
+    for path in library_paths {
+        command.arg("-L").arg(path);
+    }
+    for library in libraries {
+        command.arg(format!("-l{library}"));
+    }
+    let output = command
         // M8 exceptions: the runtime and generated landing pads call
         // the Itanium C++ ABI (`__cxa_*`, personality; runtime spec 5).
         .arg("-lc++abi")

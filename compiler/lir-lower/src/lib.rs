@@ -168,6 +168,7 @@ pub fn lower(module: &mir::Module) -> lir::Module {
     // Struct ids also transpose 1:1. Their definitions retain the exact
     // physical layout needed by codegen and C bridge generation.
     let structs = lower_structs(module, &enums);
+    let extern_functions = lower_extern_functions(module);
 
     // Tuple types encountered while mapping value types, in
     // first-appearance order; each one gets a meta layout.
@@ -201,11 +202,80 @@ pub fn lower(module: &mir::Module) -> lir::Module {
         structs,
         enums,
         functions,
+        extern_functions,
         entry_symbol: module.functions[module.entry].symbol.clone(),
         meta: lir::LirMeta {
             layouts,
             type_descriptors,
         },
+    }
+}
+
+fn lower_extern_functions(module: &mir::Module) -> Arena<lir::ExternFunction> {
+    let mut functions = Arena::new();
+    for (id, extern_) in module.extern_functions.iter() {
+        let params = extern_.params.iter().map(lir_type).collect::<Vec<_>>();
+        let return_type = lir_type(&extern_.return_type);
+        let kind = match extern_.abi {
+            mir::ExternAbi::C => lir::ExternFunctionKind::C {
+                bridge_symbol: format!("scoop_c_bridge_{}", id.into_raw().into_u32()),
+                params: extern_
+                    .params
+                    .iter()
+                    .map(|ty| c_ffi_type(module, ty))
+                    .collect(),
+                return_type: c_ffi_type(module, &extern_.return_type),
+            },
+            mir::ExternAbi::Scoop => lir::ExternFunctionKind::Scoop {
+                gc_effect: match extern_.gc_effect {
+                    mir::GcEffect::Managed => lir::GcEffect::Managed,
+                    mir::GcEffect::NoGc => lir::GcEffect::NoGc,
+                },
+            },
+        };
+        functions.alloc(lir::ExternFunction {
+            source_name: extern_.source_name.clone(),
+            native_symbol: extern_.native_symbol.clone(),
+            library: extern_.library.clone(),
+            calling_convention: match extern_.calling_convention {
+                mir::CallingConvention::Cdecl => lir::CallingConvention::Cdecl,
+            },
+            params,
+            return_type,
+            kind,
+        });
+    }
+    functions
+}
+
+fn c_ffi_type(module: &mir::Module, ty: &mir::Type) -> lir::CType {
+    match ty {
+        mir::Type::Unit => lir::CType::Unit,
+        mir::Type::Int => lir::CType::Int,
+        mir::Type::UInt => lir::CType::UInt,
+        mir::Type::Boolean => lir::CType::Boolean,
+        mir::Type::Ptr(_) => lir::CType::Pointer,
+        mir::Type::FunPtr(signature) => {
+            let signature = &module.function_types[*signature];
+            lir::CType::FunctionPointer {
+                params: signature
+                    .parameter_types
+                    .iter()
+                    .map(|ty| c_ffi_type(module, ty))
+                    .collect(),
+                return_type: Box::new(c_ffi_type(module, &signature.return_type)),
+            }
+        }
+        mir::Type::Struct(id) => lir::CType::Struct(struct_def_id(*id)),
+        mir::Type::Enum(_, args)
+            if matches!(args.as_slice(), [mir::Type::Ptr(_) | mir::Type::FunPtr(_)]) =>
+        {
+            c_ffi_type(module, &args[0])
+        }
+        other => unreachable!(
+            "HIR C-FFI classification rejects {} before MIR",
+            mir::type_name(module, other)
+        ),
     }
 }
 
@@ -2518,6 +2588,75 @@ impl<'a> FunctionLowerer<'a> {
 
     fn lower_call(&mut self, call: &mir::Call, result_ty: &mir::Type) -> lir::Value {
         match call.target.callee {
+            mir::Callee::Extern(id) => {
+                assert!(matches!(call.target.kind, mir::CallKind::Direct));
+                let extern_ = &self.module.extern_functions[id];
+                let parameter_types = extern_.params.clone();
+                let returns_unit = extern_.return_type == mir::Type::Unit;
+                let args = call
+                    .args
+                    .iter()
+                    .zip(&parameter_types)
+                    .map(|(arg, ty)| self.lower_expr(arg, ty))
+                    .collect::<Vec<_>>();
+                let function = lir::ExternFunctionId::from_raw(id.into_raw());
+                match extern_.abi {
+                    mir::ExternAbi::C => {
+                        let result = if returns_unit {
+                            None
+                        } else {
+                            let ty = self.value_type(result_ty);
+                            Some(self.new_hidden_local(ty))
+                        };
+                        let mut bridge_args =
+                            Vec::with_capacity(args.len() + usize::from(result.is_some()));
+                        if let Some(local) = result {
+                            let address = self.new_temp(lir::LirType::Ptr);
+                            self.push(lir::Instruction::LocalAddress {
+                                out: address,
+                                local,
+                            });
+                            bridge_args.push(lir::Value::Temp(address));
+                        }
+                        for (value, ty) in args.into_iter().zip(parameter_types) {
+                            let ty = self.value_type(&ty);
+                            let local = self.new_hidden_local(ty);
+                            self.push(lir::Instruction::Store { local, value });
+                            let address = self.new_temp(lir::LirType::Ptr);
+                            self.push(lir::Instruction::LocalAddress {
+                                out: address,
+                                local,
+                            });
+                            bridge_args.push(lir::Value::Temp(address));
+                        }
+                        self.push(lir::Instruction::NativeCall {
+                            out: None,
+                            function,
+                            args: bridge_args,
+                        });
+                        result.map_or_else(|| self.unit_value(), lir::Value::Local)
+                    }
+                    mir::ExternAbi::Scoop => {
+                        if returns_unit {
+                            self.push(lir::Instruction::NativeCall {
+                                out: None,
+                                function,
+                                args,
+                            });
+                            self.unit_value()
+                        } else {
+                            let ty = self.value_type(result_ty);
+                            let out = self.new_temp(ty);
+                            self.push(lir::Instruction::NativeCall {
+                                out: Some(out),
+                                function,
+                                args,
+                            });
+                            lir::Value::Temp(out)
+                        }
+                    }
+                }
+            }
             mir::Callee::FunctionBridge(function_type) => {
                 let signature = self.module.function_types[function_type].clone();
                 let mut parameter_types = Vec::with_capacity(call.args.len());
@@ -2591,6 +2730,7 @@ impl<'a> FunctionLowerer<'a> {
                     mir::Callee::Closure(_) | mir::Callee::FunctionBridge(_) => {
                         unreachable!("handled above")
                     }
+                    mir::Callee::Extern(_) => unreachable!("handled above"),
                 };
                 let callee = &self.module.functions[id];
                 let param_types: Vec<mir::Type> =
@@ -3161,6 +3301,7 @@ mod tests {
         fn finish(self, entry: mir::FunctionId) -> mir::Module {
             mir::Module {
                 functions: self.functions,
+                extern_functions: Arena::new(),
                 function_types: Arena::new(),
                 closure_classes: Arena::new(),
                 closure_invoke_functions: Arena::new(),

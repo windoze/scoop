@@ -31,6 +31,38 @@ impl Lowerer {
                 // the intrinsic registry before this whole-program pass.
                 continue;
             }
+            if let hir::FunctionKind::Extern(extern_id) = function.kind {
+                let extern_ = self.extern_functions[extern_id].clone();
+                if extern_.abi == hir::ExternAbi::C {
+                    // The C-FFI-safe classifier is the stronger signature
+                    // check and already proves every boundary value GC-free.
+                    continue;
+                }
+                for (index, ty) in extern_.params.into_iter().enumerate() {
+                    if !self.is_gc_free(ty) {
+                        self.error(
+                            function.span,
+                            format!(
+                                "`@NoGC` extern function `{}` has non-GC-free parameter {} of type {}",
+                                function.name,
+                                index + 1,
+                                self.type_name(ty)
+                            ),
+                        );
+                    }
+                }
+                if !self.is_gc_free(extern_.return_type) {
+                    self.error(
+                        function.span,
+                        format!(
+                            "`@NoGC` extern function `{}` has non-GC-free return type {}",
+                            function.name,
+                            self.type_name(extern_.return_type)
+                        ),
+                    );
+                }
+                continue;
+            }
             for param in &function.params {
                 if !self.is_gc_free(param.ty) {
                     self.error(
@@ -96,6 +128,31 @@ impl Lowerer {
                 .copied()
                 .unwrap_or(self.user_file_index);
             let function = self.functions[id].clone();
+            if let hir::FunctionKind::Extern(extern_id) = function.kind {
+                let extern_ = self.extern_functions[extern_id].clone();
+                for (index, ty) in extern_.params.into_iter().enumerate() {
+                    if self.requires_unsafe_use(ty) {
+                        self.error(
+                            function.span,
+                            format!(
+                                "safe extern function `{}` exposes `@InteriorMutable` parameter {}",
+                                function.name,
+                                index + 1
+                            ),
+                        );
+                    }
+                }
+                if self.requires_unsafe_use(extern_.return_type) {
+                    self.error(
+                        function.span,
+                        format!(
+                            "safe extern function `{}` exposes an `@InteriorMutable` return type",
+                            function.name
+                        ),
+                    );
+                }
+                continue;
+            }
             for param in &function.params {
                 if self.requires_unsafe_use(param.ty) {
                     self.error(

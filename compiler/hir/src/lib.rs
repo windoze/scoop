@@ -20,6 +20,7 @@ pub type LocalFunctionId = Idx<LocalFunction>;
 pub type CallableReferenceId = Idx<CallableReference>;
 pub type FunctionCoercionId = Idx<FunctionCoercion>;
 pub type FunctionId = Idx<Function>;
+pub type ExternFunctionId = Idx<ExternFunction>;
 pub type GenericFunctionId = Idx<GenericFunction>;
 pub type ResolvedGenericFunctionId = Idx<ResolvedGenericFunction>;
 pub type StructId = Idx<StructDecl>;
@@ -259,6 +260,9 @@ pub struct Module {
     /// adaptation requested by HIR.
     pub function_coercions: Arena<FunctionCoercion>,
     pub functions: Arena<Function>,
+    /// Native functions imported by source declarations. They have no HIR
+    /// body and their identities never enter generic instantiation.
+    pub extern_functions: Arena<ExternFunction>,
     /// Generic function definitions. Their ids are distinct from
     /// ordinary `FunctionId`s even though each entry points at the HIR
     /// function that owns the parameterized body.
@@ -642,6 +646,25 @@ pub enum CallingConvention {
     Cdecl,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExternAbi {
+    C,
+    Scoop,
+}
+
+#[derive(Debug, Clone)]
+pub struct ExternFunction {
+    pub source_name: String,
+    pub native_symbol: String,
+    pub library: String,
+    pub abi: ExternAbi,
+    pub calling_convention: CallingConvention,
+    pub gc_effect: GcEffect,
+    pub safety: Safety,
+    pub params: Vec<TypeId>,
+    pub return_type: TypeId,
+}
+
 #[derive(Debug, Clone)]
 pub struct Param {
     pub name: String,
@@ -656,6 +679,9 @@ pub enum FunctionKind {
     /// A `@Intrinsic("name")` function (spec 13.1); the name is
     /// guaranteed to be in the compiler's intrinsic registry.
     Intrinsic(String),
+    /// A bodyless native declaration. Complete ABI metadata lives in the
+    /// independent extern arena and is referenced by a typed id.
+    Extern(ExternFunctionId),
 }
 
 #[derive(Debug, Clone)]
@@ -1318,11 +1344,19 @@ pub fn dump(module: &Module) -> String {
         } else {
             dump_type_params(&function.type_params)
         };
-        let params: Vec<String> = function
-            .params
-            .iter()
-            .map(|p| format!("{}: {}", p.name, type_name(module, p.ty)))
-            .collect();
+        let params: Vec<String> = match function.kind {
+            FunctionKind::Extern(id) => module.extern_functions[id]
+                .params
+                .iter()
+                .enumerate()
+                .map(|(index, &ty)| format!("arg{}: {}", index + 1, type_name(module, ty)))
+                .collect(),
+            _ => function
+                .params
+                .iter()
+                .map(|p| format!("{}: {}", p.name, type_name(module, p.ty)))
+                .collect(),
+        };
         let signature = format!(
             "{}{}({}): {}",
             function.name,
@@ -1341,6 +1375,24 @@ pub fn dump(module: &Module) -> String {
             FunctionKind::User(body) => {
                 out.push_str(&format!("  {suspend}fun {signature}{attributes}\n"));
                 dump_statements(module, &body.locals, &body.statements, 2, &mut out);
+            }
+            FunctionKind::Extern(id) => {
+                let extern_ = &module.extern_functions[*id];
+                let abi = match extern_.abi {
+                    ExternAbi::C => "c",
+                    ExternAbi::Scoop => "scoop",
+                };
+                let library = if extern_.library.is_empty() {
+                    String::new()
+                } else {
+                    format!(" lib={}", extern_.library)
+                };
+                out.push_str(&format!(
+                    "  fun {signature}{attributes} <extern{} abi={abi} symbol={}{}>\n",
+                    id.into_raw(),
+                    extern_.native_symbol,
+                    library
+                ));
             }
         }
     }

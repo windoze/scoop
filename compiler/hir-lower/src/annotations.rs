@@ -17,6 +17,13 @@ pub(crate) enum FunctionTarget {
 pub(crate) struct CheckedFunctionAnnotations {
     pub(crate) attributes: hir::FunctionAttributes,
     pub(crate) intrinsic: Option<String>,
+    pub(crate) extern_: Option<ExternAnnotation>,
+}
+
+pub(crate) struct ExternAnnotation {
+    pub(crate) library: String,
+    pub(crate) native_symbol: String,
+    pub(crate) abi: hir::ExternAbi,
 }
 
 impl Lowerer {
@@ -28,6 +35,7 @@ impl Lowerer {
     ) -> CheckedFunctionAnnotations {
         let mut attributes = hir::FunctionAttributes::default();
         let mut intrinsic = None;
+        let mut extern_ = None;
         let mut saw_safe = false;
         let mut saw_unsafe = false;
         let mut saw_no_gc = false;
@@ -104,15 +112,7 @@ impl Lowerer {
                     }
                 }
                 "Extern" => {
-                    // Extern entities and their ABI are introduced by M12's
-                    // dedicated extern-function implementation step. Keep the
-                    // name out of the custom-annotation diagnostic while the
-                    // effect baseline is independently usable.
-                    self.error(
-                        annotation.span,
-                        "`@Extern` is not valid until an extern function entity can be produced"
-                            .to_string(),
-                    );
+                    extern_ = self.annotation_extern(annotation, &decl.name.text);
                 }
                 "CLayout" | "Global" | "ThreadLocal" | "InteriorMutable" => self.error(
                     annotation.span,
@@ -137,6 +137,58 @@ impl Lowerer {
                 "`@NoGC` cannot be used on a suspend function".to_string(),
             );
         }
+        if let Some(extern_annotation) = &extern_ {
+            if !matches!(target, FunctionTarget::TopLevel) {
+                self.error(
+                    decl.span,
+                    "`@Extern` is only allowed on a top-level function".to_string(),
+                );
+            }
+            if decl.receiver_ty.is_some() {
+                self.error(
+                    decl.span,
+                    "an `@Extern` function must not have an extension receiver".to_string(),
+                );
+            }
+            if decl.is_suspend {
+                self.error(
+                    decl.span,
+                    "`@Extern` cannot be used on a suspend function".to_string(),
+                );
+            }
+            if !decl.type_params.is_empty() {
+                self.error(
+                    decl.span,
+                    "an `@Extern` function must not be generic".to_string(),
+                );
+            }
+            if !matches!(decl.body, ast::FunctionBody::None) {
+                self.error(
+                    decl.span,
+                    "an `@Extern` function must not have a body".to_string(),
+                );
+            }
+            match extern_annotation.abi {
+                hir::ExternAbi::C => {
+                    if saw_safe {
+                        self.error(
+                            decl.span,
+                            "a C ABI `@Extern` function cannot be marked `@Safe`".to_string(),
+                        );
+                    }
+                    attributes.safety = hir::Safety::Unsafe;
+                    // The generated storage bridge is a verified GC leaf.
+                    attributes.gc_effect = hir::GcEffect::NoGc;
+                }
+                hir::ExternAbi::Scoop => {
+                    attributes.safety = if saw_unsafe {
+                        hir::Safety::Unsafe
+                    } else {
+                        hir::Safety::Safe
+                    };
+                }
+            }
+        }
         if saw_calling_convention {
             if !matches!(target, FunctionTarget::TopLevel) {
                 self.error(
@@ -144,7 +196,7 @@ impl Lowerer {
                     "`@CallingConvention` is only allowed on a top-level function".to_string(),
                 );
             }
-            if !saw_no_gc {
+            if !saw_no_gc && extern_.is_none() {
                 self.error(
                     decl.span,
                     "`@CallingConvention` requires `@NoGC` on a non-extern function".to_string(),
@@ -191,6 +243,12 @@ impl Lowerer {
                 );
             }
         }
+        if intrinsic.is_some() && extern_.is_some() {
+            self.error(
+                decl.span,
+                "`@Intrinsic` and `@Extern` cannot be combined".to_string(),
+            );
+        }
         if intrinsic.is_some() && !matches!(decl.body, ast::FunctionBody::None) {
             self.error(
                 decl.span,
@@ -201,6 +259,7 @@ impl Lowerer {
         CheckedFunctionAnnotations {
             attributes,
             intrinsic,
+            extern_,
         }
     }
 
@@ -376,6 +435,107 @@ impl Lowerer {
             packed: packed.unwrap_or(0),
         })
     }
+
+    fn annotation_extern(
+        &mut self,
+        annotation: &ast::Annotation,
+        source_name: &str,
+    ) -> Option<ExternAnnotation> {
+        let mut library = None;
+        let mut native_symbol = None;
+        let mut abi = None;
+        let mut positional = 0;
+        for arg in &annotation.args {
+            let (slot, expected) = match arg.name.as_ref().map(|name| name.text.as_str()) {
+                Some("lib") => (&mut library, "lib"),
+                Some("name") => (&mut native_symbol, "name"),
+                Some("abi") => (&mut abi, "abi"),
+                Some(name) => {
+                    self.error(arg.span, format!("unknown argument `{name}` for `@Extern`"));
+                    continue;
+                }
+                None if positional == 0 => {
+                    positional += 1;
+                    (&mut library, "lib")
+                }
+                None if positional == 1 => {
+                    positional += 1;
+                    (&mut native_symbol, "name")
+                }
+                None if positional == 2 => {
+                    positional += 1;
+                    (&mut abi, "abi")
+                }
+                None => {
+                    self.error(
+                        arg.span,
+                        "`@Extern` accepts at most three arguments".to_string(),
+                    );
+                    continue;
+                }
+            };
+            if slot.is_some() {
+                self.error(
+                    arg.span,
+                    format!("duplicate `@Extern` argument `{expected}`"),
+                );
+                continue;
+            }
+            let ast::AnnotationLiteral::String(value) = &arg.value else {
+                self.error(
+                    arg.span,
+                    format!("argument `{expected}` of `@Extern` must be a string"),
+                );
+                continue;
+            };
+            *slot = Some(value.clone());
+        }
+
+        let library = library.unwrap_or_default();
+        if !library.is_empty()
+            && (!library
+                .chars()
+                .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '_' | '-' | '+' | '.'))
+                || library.starts_with('-'))
+        {
+            self.error(
+                annotation.span,
+                "`@Extern` library must be a logical library name, not a path or linker flag"
+                    .to_string(),
+            );
+        }
+        let native_symbol = native_symbol
+            .filter(|symbol| !symbol.is_empty())
+            .unwrap_or_else(|| source_name.to_string());
+        if !is_c_identifier(&native_symbol) {
+            self.error(
+                annotation.span,
+                format!("extern symbol `{native_symbol}` is not a portable C identifier"),
+            );
+        }
+        let abi = match abi.as_deref().unwrap_or("c") {
+            "c" => hir::ExternAbi::C,
+            "scoop" => hir::ExternAbi::Scoop,
+            value => {
+                self.error(
+                    annotation.span,
+                    format!("extern ABI `{value}` is not supported; expected `c` or `scoop`"),
+                );
+                return None;
+            }
+        };
+        Some(ExternAnnotation {
+            library,
+            native_symbol,
+            abi,
+        })
+    }
+}
+
+fn is_c_identifier(value: &str) -> bool {
+    let mut chars = value.chars();
+    matches!(chars.next(), Some('_' | 'a'..='z' | 'A'..='Z'))
+        && chars.all(|ch| ch == '_' || ch.is_ascii_alphanumeric())
 }
 
 fn is_core_annotation(name: &str) -> bool {

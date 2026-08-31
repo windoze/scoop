@@ -65,6 +65,36 @@ fn c_layout(aligned: i64, packed: i64) -> ast::Annotation {
     }
 }
 
+fn extern_annotation(lib: &str, name: &str, abi: &str) -> ast::Annotation {
+    ast::Annotation {
+        name: ident("Extern"),
+        args: [("lib", lib), ("name", name), ("abi", abi)]
+            .into_iter()
+            .map(|(parameter, value)| ast::AnnotationArg {
+                name: Some(ident(parameter)),
+                value: ast::AnnotationLiteral::String(value.to_string()),
+                span: sp(),
+            })
+            .collect(),
+        span: sp(),
+    }
+}
+
+fn extern_fun(
+    name: &str,
+    params: Vec<(&str, ast::TypeRef)>,
+    return_ty: Option<ast::TypeRef>,
+    annotation: ast::Annotation,
+) -> Decl {
+    let mut declaration = fun_sig(name, vec![], params, return_ty, vec![]);
+    let Decl::Function(function) = &mut declaration else {
+        unreachable!()
+    };
+    function.annotations = vec![annotation];
+    function.body = ast::FunctionBody::None;
+    declaration
+}
+
 fn with_kind(mut decl: Decl, kind: ast::TypeParamKindBound) -> Decl {
     let type_params = match &mut decl {
         Decl::Function(decl) => &mut decl.type_params,
@@ -1103,4 +1133,102 @@ fn interior_mutable_values_require_unsafe_use_and_unsafe_signatures() {
     assert!(errors.iter().any(|message| {
         message.contains("safe function `exposes` exposes `@InteriorMutable` parameter")
     }));
+}
+
+#[test]
+fn extern_functions_have_typed_identity_and_abi_specific_effects() {
+    let c = extern_fun(
+        "nativeAdd",
+        vec![("left", ty_named("Int")), ("right", ty_named("Int"))],
+        Some(ty_named("Int")),
+        extern_annotation("numbers", "native_add", "c"),
+    );
+    let scoop = extern_fun(
+        "nativeWrite",
+        vec![("message", ty_named("String"))],
+        None,
+        extern_annotation("", "scoop_rt_print", "scoop"),
+    );
+    let module = lower_user(file(vec![c, scoop, fun("main", vec![])]))
+        .expect("both extern ABI categories must lower");
+    assert_eq!(module.extern_functions.len(), 2);
+    let (_, c) = module.extern_functions.iter().next().unwrap();
+    assert_eq!(c.abi, hir::ExternAbi::C);
+    assert_eq!(c.safety, hir::Safety::Unsafe);
+    assert_eq!(c.gc_effect, hir::GcEffect::NoGc);
+    let (_, scoop) = module.extern_functions.iter().nth(1).unwrap();
+    assert_eq!(scoop.abi, hir::ExternAbi::Scoop);
+    assert_eq!(scoop.safety, hir::Safety::Safe);
+    assert_eq!(scoop.gc_effect, hir::GcEffect::Managed);
+    let dump = hir::dump(&module);
+    assert!(dump.contains("<extern0 abi=c symbol=native_add lib=numbers>"));
+    assert!(dump.contains("<extern1 abi=scoop symbol=scoop_rt_print>"));
+}
+
+#[test]
+fn extern_functions_reject_invalid_declarations_and_boundary_types() {
+    let c_string = extern_fun(
+        "cString",
+        vec![("value", ty_named("String"))],
+        None,
+        extern_annotation("", "c_string", "c"),
+    );
+    let mut generic = extern_fun(
+        "generic",
+        vec![("value", ty_named("T"))],
+        None,
+        extern_annotation("", "generic", "c"),
+    );
+    let Decl::Function(generic_function) = &mut generic else {
+        unreachable!()
+    };
+    generic_function.type_params = vec![type_param("T")];
+    let mut suspend = extern_fun(
+        "waitNative",
+        vec![],
+        None,
+        extern_annotation("", "wait_native", "scoop"),
+    );
+    let Decl::Function(suspend_function) = &mut suspend else {
+        unreachable!()
+    };
+    suspend_function.is_suspend = true;
+    let errors = messages(vec![c_string, generic, suspend, fun("main", vec![])]);
+    assert!(
+        errors
+            .iter()
+            .any(|message| message.contains("ref type `String` is managed"))
+    );
+    assert!(
+        errors
+            .iter()
+            .any(|message| message.contains("must not be generic"))
+    );
+    assert!(
+        errors
+            .iter()
+            .any(|message| message.contains("cannot be used on a suspend"))
+    );
+}
+
+#[test]
+fn duplicate_native_symbols_must_have_one_consistent_contract() {
+    let first = extern_fun(
+        "first",
+        vec![("value", ty_named("Int"))],
+        Some(ty_named("Int")),
+        extern_annotation("one", "same_symbol", "c"),
+    );
+    let second = extern_fun(
+        "second",
+        vec![("value", ty_named("UInt"))],
+        Some(ty_named("UInt")),
+        extern_annotation("two", "same_symbol", "c"),
+    );
+    let errors = messages(vec![first, second, fun("main", vec![])]);
+    assert!(
+        errors
+            .iter()
+            .any(|message| message.contains("extern symbol `same_symbol` conflicts"))
+    );
 }

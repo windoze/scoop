@@ -134,7 +134,9 @@ fn generic_enum_instantiations_and_interning() {
     let module = lower_user(file).expect("generic enum program must lower");
     let body = match &module.functions[module.entry].kind {
         FunctionKind::User(body) => body,
-        FunctionKind::Intrinsic(_) => panic!("main is a user function"),
+        FunctionKind::Intrinsic(_) | FunctionKind::Extern(_) => {
+            panic!("main is a user function")
+        }
     };
     // `val a` and `val b` share the interned `Option<Int>` type.
     let locals: Vec<TypeId> = body.locals.iter().map(|(_, local)| local.ty).collect();

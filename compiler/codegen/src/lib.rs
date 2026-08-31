@@ -44,8 +44,8 @@ use inkwell::values::{BasicValue, BasicValueEnum, GlobalValue, IntValue, Pointer
 use inkwell::{AddressSpace, IntPredicate, OptimizationLevel};
 use la_arena::{Arena, Idx};
 use scoop_lir::{
-    BinOp, EnumDef, EnumRepr, Function, GcEffect, Global, GlobalInit, Instruction, LirType, Module,
-    RefScan, StructDef, TempId, Terminator, UnOp, Value,
+    BinOp, EnumDef, EnumRepr, ExternFunction, ExternFunctionKind, Function, GcEffect, Global,
+    GlobalInit, Instruction, LirType, Module, RefScan, StructDef, TempId, Terminator, UnOp, Value,
 };
 
 const SCAN_ARRAY: u64 = u64::MAX;
@@ -196,6 +196,171 @@ pub fn c_layout_assertions(module: &Module) -> Result<String, CodegenError> {
         out.push('\n');
     }
     Ok(out)
+}
+
+/// Generate the host-C translation unit that owns every outbound C ABI
+/// wrapper. `None` means the module has no C ABI extern and needs no second
+/// object file.
+pub fn c_bridge_source(module: &Module) -> Result<Option<String>, CodegenError> {
+    let c_externs = module
+        .extern_functions
+        .iter()
+        .filter(|(_, function)| matches!(function.kind, ExternFunctionKind::C { .. }))
+        .collect::<Vec<_>>();
+    if c_externs.is_empty() {
+        return Ok(None);
+    }
+
+    fn collect_function_pointers(ty: &scoop_lir::CType, found: &mut Vec<scoop_lir::CType>) {
+        if let scoop_lir::CType::FunctionPointer {
+            params,
+            return_type,
+        } = ty
+        {
+            for parameter in params {
+                collect_function_pointers(parameter, found);
+            }
+            collect_function_pointers(return_type, found);
+            if !found.contains(ty) {
+                found.push(ty.clone());
+            }
+        }
+    }
+
+    fn type_name(ty: &scoop_lir::CType, function_pointers: &[scoop_lir::CType]) -> String {
+        match ty {
+            scoop_lir::CType::Unit => "void".to_string(),
+            scoop_lir::CType::Int => "int64_t".to_string(),
+            scoop_lir::CType::UInt => "uint64_t".to_string(),
+            scoop_lir::CType::Boolean => "_Bool".to_string(),
+            scoop_lir::CType::Pointer => "void *".to_string(),
+            scoop_lir::CType::Struct(id) => {
+                format!("scoop_c_layout_{}", arena_index(*id))
+            }
+            scoop_lir::CType::FunctionPointer { .. } => {
+                let index = function_pointers
+                    .iter()
+                    .position(|candidate| candidate == ty)
+                    .expect("function pointer type was collected");
+                format!("scoop_c_funptr_{index}")
+            }
+        }
+    }
+
+    let mut function_pointers = Vec::new();
+    for (_, function) in &c_externs {
+        let ExternFunctionKind::C {
+            params,
+            return_type,
+            ..
+        } = &function.kind
+        else {
+            unreachable!()
+        };
+        for parameter in params {
+            collect_function_pointers(parameter, &mut function_pointers);
+        }
+        collect_function_pointers(return_type, &mut function_pointers);
+    }
+
+    let mut out = c_layout_assertions(module)?;
+    out.push_str("#include <string.h>\n\n");
+    for (index, ty) in function_pointers.iter().enumerate() {
+        let scoop_lir::CType::FunctionPointer {
+            params,
+            return_type,
+        } = ty
+        else {
+            unreachable!()
+        };
+        let params = if params.is_empty() {
+            "void".to_string()
+        } else {
+            params
+                .iter()
+                .map(|parameter| type_name(parameter, &function_pointers))
+                .collect::<Vec<_>>()
+                .join(", ")
+        };
+        out.push_str(&format!(
+            "typedef {} (*scoop_c_funptr_{index})({params});\n",
+            type_name(return_type, &function_pointers)
+        ));
+    }
+    if !function_pointers.is_empty() {
+        out.push('\n');
+    }
+
+    let mut declared_symbols = HashSet::new();
+    for (id, function) in c_externs {
+        let ExternFunctionKind::C {
+            bridge_symbol,
+            params,
+            return_type,
+        } = &function.kind
+        else {
+            unreachable!()
+        };
+        let parameter_names = params
+            .iter()
+            .map(|parameter| type_name(parameter, &function_pointers))
+            .collect::<Vec<_>>();
+        if declared_symbols.insert(function.native_symbol.clone()) {
+            let prototype_params = if parameter_names.is_empty() {
+                "void".to_string()
+            } else {
+                parameter_names.join(", ")
+            };
+            out.push_str(&format!(
+                "extern {} {}({});\n",
+                type_name(return_type, &function_pointers),
+                function.native_symbol,
+                prototype_params
+            ));
+        }
+
+        let has_result = *return_type != scoop_lir::CType::Unit;
+        let mut wrapper_params = Vec::new();
+        if has_result {
+            wrapper_params.push("void *result".to_string());
+        }
+        wrapper_params.extend(
+            params
+                .iter()
+                .enumerate()
+                .map(|(index, _)| format!("const void *arg{index}")),
+        );
+        if wrapper_params.is_empty() {
+            wrapper_params.push("void".to_string());
+        }
+        out.push_str(&format!(
+            "void {}({}) {{\n",
+            bridge_symbol,
+            wrapper_params.join(", ")
+        ));
+        for (index, parameter) in params.iter().enumerate() {
+            let name = type_name(parameter, &function_pointers);
+            out.push_str(&format!(
+                "  {name} value{index};\n  memcpy(&value{index}, arg{index}, sizeof(value{index}));\n"
+            ));
+        }
+        let arguments = (0..params.len())
+            .map(|index| format!("value{index}"))
+            .collect::<Vec<_>>()
+            .join(", ");
+        if has_result {
+            let result_name = type_name(return_type, &function_pointers);
+            out.push_str(&format!(
+                "  {result_name} native_result = {}({arguments});\n  memcpy(result, &native_result, sizeof(native_result));\n",
+                function.native_symbol
+            ));
+        } else {
+            out.push_str(&format!("  {}({arguments});\n", function.native_symbol));
+        }
+        out.push_str("}\n\n");
+        let _ = id;
+    }
+    Ok(Some(out))
 }
 
 /// The GC strategy set on every generated function (M9, milestone9
@@ -488,6 +653,7 @@ fn emit_llvm_module<'ctx>(
     let module_ctx = ModuleCtx {
         structs: &module.structs,
         enums: &module.enums,
+        extern_functions: &module.extern_functions,
         globals_arena: &module.globals,
         globals: &globals,
         array_descriptors: &array_descriptors,
@@ -1035,6 +1201,7 @@ struct FnEmitter<'a, 'ctx> {
     llvm_blocks: &'a [inkwell::basic_block::BasicBlock<'ctx>],
     structs: &'a Arena<StructDef>,
     enums: &'a Arena<EnumDef>,
+    extern_functions: &'a Arena<ExternFunction>,
     globals_arena: &'a Arena<Global>,
     globals: &'a [Option<GlobalValue<'ctx>>],
     /// Distinct array allocation descriptors and their TypeDescriptor
@@ -1399,6 +1566,95 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     .map_err(|e| {
                         CodegenError(format!("store %{}: {e}", function.locals[*local].name))
                     })?;
+            }
+            Instruction::NativeCall {
+                out,
+                function: extern_id,
+                args,
+            } => {
+                let extern_ = &self.extern_functions[*extern_id];
+                let (symbol, gc_effect, c_bridge) = match &extern_.kind {
+                    ExternFunctionKind::C { bridge_symbol, .. } => {
+                        (bridge_symbol.as_str(), GcEffect::NoGc, true)
+                    }
+                    ExternFunctionKind::Scoop { gc_effect } => {
+                        (extern_.native_symbol.as_str(), *gc_effect, false)
+                    }
+                };
+                let result_slot = if c_bridge {
+                    None
+                } else {
+                    self.result_slot(*out, "native_result")?
+                };
+                let mut param_tys: Vec<BasicMetadataTypeEnum> = if c_bridge {
+                    vec![ptr_ty(context).into(); args.len()]
+                } else {
+                    args.iter()
+                        .map(|arg| {
+                            basic_ty(
+                                context,
+                                self.structs,
+                                self.enums,
+                                &function.value_ty(self.globals_arena, *arg),
+                            )
+                            .map(Into::into)
+                        })
+                        .collect::<Result<_, _>>()?
+                };
+                if result_slot.is_some() {
+                    param_tys.insert(0, ptr_ty(context).into());
+                }
+                let fn_ty = match (out, &result_slot, c_bridge) {
+                    (_, _, true) | (_, Some(_), false) => {
+                        context.void_type().fn_type(&param_tys, false)
+                    }
+                    (Some(temp), None, false) => {
+                        basic_ty(context, self.structs, self.enums, &function.temps[*temp].ty)?
+                            .fn_type(&param_tys, false)
+                    }
+                    (None, None, false) => context.void_type().fn_type(&param_tys, false),
+                };
+                let callee = self
+                    .llvm
+                    .get_function(symbol)
+                    .unwrap_or_else(|| self.llvm.add_function(symbol, fn_ty, None));
+                callee.add_attribute(
+                    AttributeLoc::Function,
+                    context.create_enum_attribute(Attribute::get_named_enum_kind_id("nounwind"), 0),
+                );
+                if gc_effect == GcEffect::NoGc {
+                    callee.add_attribute(
+                        AttributeLoc::Function,
+                        context.create_string_attribute("gc-leaf-function", ""),
+                    );
+                }
+                let mut call_args =
+                    args.iter()
+                        .map(|arg| self.value(*arg).map(Into::into))
+                        .collect::<Result<Vec<inkwell::values::BasicMetadataValueEnum>, _>>()?;
+                if let Some((_, slot, _)) = result_slot {
+                    call_args.insert(0, slot.into());
+                }
+                let call = builder
+                    .build_call(callee, &call_args, "native_call")
+                    .map_err(|error| CodegenError(format!("native call @{symbol}: {error}")))?;
+                if let Some((temp, slot, ty)) = result_slot {
+                    let result =
+                        builder
+                            .build_load(ty, slot, "native_result")
+                            .map_err(|error| {
+                                CodegenError(format!("load native result @{symbol}: {error}"))
+                            })?;
+                    self.temps.insert(temp, result);
+                } else if let Some(temp) = out {
+                    let ValueKind::Basic(result) = call.try_as_basic_value() else {
+                        return Err(CodegenError(format!(
+                            "native call @{symbol} produced no value for t{}",
+                            temp.into_raw().into_u32()
+                        )));
+                    };
+                    self.temps.insert(*temp, result);
+                }
             }
             Instruction::Call { out, symbol, args } => {
                 // `scoop_rt_box` has a fixed runtime contract and a
@@ -2741,6 +2997,7 @@ fn declare_function<'ctx>(
 struct ModuleCtx<'a, 'ctx> {
     structs: &'a Arena<StructDef>,
     enums: &'a Arena<EnumDef>,
+    extern_functions: &'a Arena<ExternFunction>,
     globals_arena: &'a Arena<Global>,
     globals: &'a [Option<GlobalValue<'ctx>>],
     array_descriptors: &'a [ArrayDescriptor],
@@ -2905,6 +3162,7 @@ fn emit_function<'ctx>(
         llvm_blocks: &blocks,
         structs: module_ctx.structs,
         enums: module_ctx.enums,
+        extern_functions: module_ctx.extern_functions,
         globals_arena: module_ctx.globals_arena,
         globals: module_ctx.globals,
         array_descriptors: module_ctx.array_descriptors,
@@ -3248,6 +3506,7 @@ mod tests {
             globals,
             structs: Arena::default(),
             enums: Arena::default(),
+            extern_functions: Arena::default(),
             functions: vec![Function {
                 gc_effect: GcEffect::Managed,
                 symbol: "scoop_main".to_string(),
@@ -3658,6 +3917,7 @@ mod tests {
             globals,
             structs: Arena::default(),
             enums,
+            extern_functions: Arena::default(),
             functions: vec![
                 tagged,
                 niche,
@@ -3863,6 +4123,7 @@ mod tests {
             globals: Arena::default(),
             structs: Arena::default(),
             enums: Arena::default(),
+            extern_functions: Arena::default(),
             functions: vec![Function {
                 gc_effect: GcEffect::Managed,
                 symbol: "scoop_main".to_string(),
@@ -4006,6 +4267,7 @@ mod tests {
             globals: Arena::default(),
             structs: Arena::default(),
             enums: Arena::default(),
+            extern_functions: Arena::default(),
             functions: vec![describe("Shape.describe"), describe("Point.describe"), main],
             entry_symbol: "scoop_main".to_string(),
             meta: LirMeta {
@@ -4233,6 +4495,7 @@ mod tests {
             globals,
             structs: Arena::default(),
             enums: Arena::default(),
+            extern_functions: Arena::default(),
             functions: vec![describe, main],
             entry_symbol: "scoop_main".to_string(),
             meta: LirMeta {
@@ -4423,6 +4686,7 @@ mod tests {
             globals: Arena::default(),
             structs: Arena::default(),
             enums: Arena::default(),
+            extern_functions: Arena::default(),
             functions: vec![thrower, eh_test],
             entry_symbol: "scoop.eh_test".to_string(),
             meta: LirMeta {
@@ -4522,6 +4786,7 @@ mod tests {
             globals: Arena::default(),
             structs: Arena::default(),
             enums: Arena::default(),
+            extern_functions: Arena::default(),
             functions: vec![Function {
                 gc_effect: GcEffect::Managed,
                 symbol: "scoop.closure_abi".to_string(),
@@ -4670,6 +4935,7 @@ mod tests {
             globals: Arena::default(),
             structs: Arena::default(),
             enums: Arena::default(),
+            extern_functions: Arena::default(),
             functions: vec![Function {
                 gc_effect: GcEffect::Managed,
                 symbol: "scoop_main".to_string(),
@@ -4853,6 +5119,7 @@ mod tests {
             globals: Arena::default(),
             structs: Arena::default(),
             enums: Arena::default(),
+            extern_functions: Arena::default(),
             functions: vec![Function {
                 gc_effect: GcEffect::Managed,
                 symbol: "scoop_main".to_string(),
@@ -5057,10 +5324,11 @@ mod tests {
             ],
             terminator: Terminator::Return { value: None },
         });
-        let module = Module {
+        let mut module = Module {
             globals: Arena::default(),
             structs,
             enums,
+            extern_functions: Arena::default(),
             functions: vec![Function {
                 gc_effect: GcEffect::Managed,
                 symbol: "scoop_main".to_string(),
@@ -5130,6 +5398,26 @@ mod tests {
             .expect("run C compiler");
         std::fs::remove_file(&source).ok();
         assert!(status.success(), "generated C assertions must compile");
+
+        module.extern_functions.alloc(ExternFunction {
+            source_name: "swap".to_string(),
+            native_symbol: "native_swap".to_string(),
+            library: "fixture".to_string(),
+            calling_convention: scoop_lir::CallingConvention::Cdecl,
+            params: vec![LirType::Struct(outer)],
+            return_type: LirType::Struct(outer),
+            kind: ExternFunctionKind::C {
+                bridge_symbol: "scoop_c_bridge_0".to_string(),
+                params: vec![scoop_lir::CType::Struct(outer)],
+                return_type: scoop_lir::CType::Struct(outer),
+            },
+        });
+        let bridge = c_bridge_source(&module)
+            .expect("C bridge")
+            .expect("C extern needs a bridge");
+        assert!(bridge.contains("extern scoop_c_layout_1 native_swap(scoop_c_layout_1);"));
+        assert!(bridge.contains("void scoop_c_bridge_0(void *result, const void *arg0)"));
+        assert!(bridge.contains("memcpy(result, &native_result, sizeof(native_result));"));
 
         let ir = ir_of(&module);
         assert!(

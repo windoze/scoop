@@ -26,6 +26,9 @@ enum Command {
         /// Print the text dump of one pipeline stage to stdout.
         #[arg(long, value_enum)]
         emit: Option<Emit>,
+        /// Native library search path; may be repeated.
+        #[arg(short = 'L', long = "library-path")]
+        library_paths: Vec<PathBuf>,
     },
 }
 
@@ -44,7 +47,12 @@ fn main() -> ExitCode {
             file,
             out_dir,
             emit,
-        } => match scoopc::compile_file(&file, &out_dir) {
+            library_paths,
+        } => match scoopc::compile_file_with_options(
+            &file,
+            &out_dir,
+            &scoopc::CompileOptions { library_paths },
+        ) {
             Ok(success) => {
                 if let Some(emit) = emit {
                     let dump = match emit {

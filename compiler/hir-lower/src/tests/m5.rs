@@ -228,7 +228,9 @@ fn literal_inference_in_argument_and_return_positions() {
     // one.
     let main_body = match &module.functions[module.entry].kind {
         FunctionKind::User(body) => body,
-        FunctionKind::Intrinsic(_) => panic!("main is a user function"),
+        FunctionKind::Intrinsic(_) | FunctionKind::Extern(_) => {
+            panic!("main is a user function")
+        }
     };
     for statement in &main_body.statements[..2] {
         let hir::StatementKind::Expr(expr) = &statement.kind else {
@@ -250,7 +252,9 @@ fn literal_inference_in_argument_and_return_positions() {
         .expect("make is declared");
     let make_body = match &module.functions[make].kind {
         FunctionKind::User(body) => body,
-        FunctionKind::Intrinsic(_) => panic!("make is a user function"),
+        FunctionKind::Intrinsic(_) | FunctionKind::Extern(_) => {
+            panic!("make is a user function")
+        }
     };
     let hir::StatementKind::Return { value: Some(value) } = &make_body.statements[0].kind else {
         panic!("expected a return with a value");
@@ -285,7 +289,9 @@ fn struct_elements_and_field_through_subscript() {
     let module = lower_user(file).expect("struct element program must lower");
     let body = match &module.functions[module.entry].kind {
         FunctionKind::User(body) => body,
-        FunctionKind::Intrinsic(_) => panic!("main is a user function"),
+        FunctionKind::Intrinsic(_) | FunctionKind::Extern(_) => {
+            panic!("main is a user function")
+        }
     };
     let locals: Vec<String> = body
         .locals
@@ -311,7 +317,9 @@ fn array_types_are_interned() {
     let module = lower_user(file).expect("interning program must lower");
     let body = match &module.functions[module.entry].kind {
         FunctionKind::User(body) => body,
-        FunctionKind::Intrinsic(_) => panic!("main is a user function"),
+        FunctionKind::Intrinsic(_) | FunctionKind::Extern(_) => {
+            panic!("main is a user function")
+        }
     };
     let locals: Vec<TypeId> = body.locals.iter().map(|(_, local)| local.ty).collect();
     assert_eq!(locals[0], locals[1], "Array<Int> must be interned");
@@ -351,7 +359,9 @@ fn conversion_resolves_before_user_functions() {
     let module = lower_user(file).expect("conversion precedence program must lower");
     let body = match &module.functions[module.entry].kind {
         FunctionKind::User(body) => body,
-        FunctionKind::Intrinsic(_) => panic!("main is a user function"),
+        FunctionKind::Intrinsic(_) | FunctionKind::Extern(_) => {
+            panic!("main is a user function")
+        }
     };
     let hir::StatementKind::ValDecl { init, .. } = &body.statements[1].kind else {
         panic!("expected a val declaration");
@@ -381,7 +391,9 @@ fn conversion_method_forms_clone_to_the_opposite_kind() {
     let module = lower_user(file).expect("array conversion methods must lower");
     let body = match &module.functions[module.entry].kind {
         FunctionKind::User(body) => body,
-        FunctionKind::Intrinsic(_) => panic!("main is a user function"),
+        FunctionKind::Intrinsic(_) | FunctionKind::Extern(_) => {
+            panic!("main is a user function")
+        }
     };
     for (index, expected) in [(2, "Array<Int>"), (3, "MutableArray<Int>")] {
         let hir::StatementKind::ValDecl { init, .. } = &body.statements[index].kind else {
@@ -471,7 +483,9 @@ fn reference_elements_infer_their_representable_lob() {
     let module = lower_user(file).expect("reference LOB inference must lower");
     let body = match &module.functions[module.entry].kind {
         hir::FunctionKind::User(body) => body,
-        hir::FunctionKind::Intrinsic(_) => panic!("main is a user function"),
+        hir::FunctionKind::Intrinsic(_) | hir::FunctionKind::Extern(_) => {
+            panic!("main is a user function")
+        }
     };
 
     for (statement, expected) in

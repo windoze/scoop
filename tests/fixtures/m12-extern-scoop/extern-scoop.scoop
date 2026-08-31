@@ -1,0 +1,6 @@
+@Extern(name = "scoop_rt_print", abi = "scoop")
+fun nativeWrite(message: String)
+
+fun main() {
+    nativeWrite("direct managed ref")
+}

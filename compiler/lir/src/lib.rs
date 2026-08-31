@@ -16,6 +16,7 @@ pub type TempId = Idx<Temp>;
 pub type BlockId = Idx<BasicBlock>;
 pub type EnumDefId = Idx<EnumDef>;
 pub type StructDefId = Idx<StructDef>;
+pub type ExternFunctionId = Idx<ExternFunction>;
 
 /// Symbol of the TypeDescriptor global for `String` (runtime spec 2.2).
 pub const STRING_TD_SYMBOL: &str = "scoop_td_String";
@@ -79,9 +80,53 @@ pub struct Module {
     /// `EnumDefId`).
     pub enums: Arena<EnumDef>,
     pub functions: Vec<Function>,
+    /// Native declarations and C-bridge descriptions, transposed from MIR.
+    pub extern_functions: Arena<ExternFunction>,
     /// Symbol of the entry function (`scoop_main`).
     pub entry_symbol: String,
     pub meta: LirMeta,
+}
+
+#[derive(Debug)]
+pub struct ExternFunction {
+    pub source_name: String,
+    pub native_symbol: String,
+    pub library: String,
+    pub calling_convention: CallingConvention,
+    pub params: Vec<LirType>,
+    pub return_type: LirType,
+    pub kind: ExternFunctionKind,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CallingConvention {
+    Cdecl,
+}
+
+#[derive(Debug)]
+pub enum ExternFunctionKind {
+    C {
+        bridge_symbol: String,
+        params: Vec<CType>,
+        return_type: CType,
+    },
+    Scoop {
+        gc_effect: GcEffect,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CType {
+    Unit,
+    Int,
+    UInt,
+    Boolean,
+    Pointer,
+    FunctionPointer {
+        params: Vec<CType>,
+        return_type: Box<CType>,
+    },
+    Struct(StructDefId),
 }
 
 #[derive(Debug)]
@@ -381,6 +426,13 @@ pub enum Instruction {
         local: LocalId,
         value: Value,
     },
+    /// A nounwind native call. C ABI operands are storage pointers to the
+    /// generated bridge; Scoop ABI operands retain their ordinary typed ABI.
+    NativeCall {
+        out: Option<TempId>,
+        function: ExternFunctionId,
+        args: Vec<Value>,
+    },
     /// Store a typed value at the byte address `object + offset`.
     /// Class fields use their natural layout offsets, base-class fields
     /// first. `offset` must be at least 16 so the object header cannot
@@ -629,6 +681,42 @@ pub fn dump(module: &Module) -> String {
                 ));
             }
         }
+    }
+    for (id, extern_) in module.extern_functions.iter() {
+        let params = extern_
+            .params
+            .iter()
+            .map(LirType::dump)
+            .collect::<Vec<_>>()
+            .join(", ");
+        let kind = match &extern_.kind {
+            ExternFunctionKind::C { bridge_symbol, .. } => {
+                format!("c bridge=@{bridge_symbol} gc-leaf nounwind")
+            }
+            ExternFunctionKind::Scoop { gc_effect } => format!(
+                "scoop {} nounwind",
+                if *gc_effect == GcEffect::NoGc {
+                    "gc-leaf"
+                } else {
+                    "managed"
+                }
+            ),
+        };
+        let library = if extern_.library.is_empty() {
+            String::new()
+        } else {
+            format!(" lib={}", extern_.library)
+        };
+        out.push_str(&format!(
+            "  extern ef{} {} @{}({}) -> {} <{}{}>\n",
+            id.into_raw(),
+            extern_.source_name,
+            extern_.native_symbol,
+            params,
+            extern_.return_type.dump(),
+            kind,
+            library
+        ));
     }
     for function in &module.functions {
         let params: Vec<String> = function.params.iter().map(LirType::dump).collect();
@@ -909,6 +997,27 @@ fn dump_instruction(function: &Function, instruction: &Instruction, buf: &mut St
             value_name(*value),
             local.into_raw()
         )),
+        Instruction::NativeCall {
+            out,
+            function: extern_id,
+            args,
+        } => {
+            let args = args.iter().map(|arg| value_name(*arg)).collect::<Vec<_>>();
+            match out {
+                Some(temp) => buf.push_str(&format!(
+                    "    t{} = native_call extern{}({}) : {}\n",
+                    temp.into_raw(),
+                    extern_id.into_raw(),
+                    args.join(", "),
+                    function.temps[*temp].ty.dump()
+                )),
+                None => buf.push_str(&format!(
+                    "    native_call extern{}({})\n",
+                    extern_id.into_raw(),
+                    args.join(", ")
+                )),
+            }
+        }
         Instruction::Call { out, symbol, args } => {
             let args: Vec<String> = args.iter().map(|a| value_name(*a)).collect();
             match out {

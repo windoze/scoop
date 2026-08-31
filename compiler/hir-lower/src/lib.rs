@@ -299,6 +299,7 @@ pub(crate) struct Lowerer {
     pub(crate) classes: Arena<ClassDecl>,
     pub(crate) interfaces: Arena<InterfaceDecl>,
     pub(crate) functions: Arena<Function>,
+    pub(crate) extern_functions: Arena<hir::ExternFunction>,
     /// Generic definitions are separate HIR entities. The reverse map
     /// is lowerer-only and lets call resolution turn a selected
     /// `FunctionId` into a typed generic identity.
@@ -494,6 +495,7 @@ impl Lowerer {
             classes: Arena::new(),
             interfaces: Arena::new(),
             functions: Arena::new(),
+            extern_functions: Arena::new(),
             generic_functions: Arena::new(),
             generic_by_function: HashMap::new(),
             top_level: Vec::new(),
@@ -763,6 +765,7 @@ impl Lowerer {
         let ffi_core = self.validate_ffi_core(files);
         self.ffi_core = ffi_core;
         self.validate_pointer_type_uses();
+        self.validate_extern_functions();
 
         // Pass 2.6: overload declarations must be distinguishable —
         // within one name (top-level) or one host (members) no two
@@ -791,7 +794,10 @@ impl Lowerer {
             self.lower_base_args(id, decl);
         }
         for (id, decl, file_index) in pending_functions {
-            if matches!(self.functions[id].kind, FunctionKind::Intrinsic(_)) {
+            if matches!(
+                self.functions[id].kind,
+                FunctionKind::Intrinsic(_) | FunctionKind::Extern(_)
+            ) {
                 continue;
             }
             self.current_file = file_index;
@@ -845,6 +851,12 @@ impl Lowerer {
                         "`main` must not be suspend".to_string(),
                     );
                 }
+                if matches!(self.functions[id].kind, FunctionKind::Extern(_)) {
+                    self.error(
+                        self.functions[id].span,
+                        "`main` must be a Scoop-defined function".to_string(),
+                    );
+                }
                 Some(id)
             }
             None => {
@@ -878,6 +890,7 @@ impl Lowerer {
             callable_references: self.callable_references,
             function_coercions: self.function_coercions,
             functions: self.functions,
+            extern_functions: self.extern_functions,
             generic_functions: self.generic_functions,
             structs: self.structs,
             enums: self.enums,
@@ -1238,9 +1251,23 @@ impl Lowerer {
         file_index: usize,
     ) {
         let checked = self.check_function_annotations(decl, is_core, FunctionTarget::TopLevel);
-        let kind = match checked.intrinsic {
-            Some(intrinsic) => FunctionKind::Intrinsic(intrinsic),
-            None => FunctionKind::User(hir::Body {
+        let kind = match (checked.intrinsic, checked.extern_) {
+            (Some(intrinsic), _) => FunctionKind::Intrinsic(intrinsic),
+            (None, Some(extern_)) => {
+                let id = self.extern_functions.alloc(hir::ExternFunction {
+                    source_name: decl.name.text.clone(),
+                    native_symbol: extern_.native_symbol,
+                    library: extern_.library,
+                    abi: extern_.abi,
+                    calling_convention: checked.attributes.calling_convention,
+                    gc_effect: checked.attributes.gc_effect,
+                    safety: checked.attributes.safety,
+                    params: Vec::new(),
+                    return_type: self.unit,
+                });
+                FunctionKind::Extern(id)
+            }
+            (None, None) => FunctionKind::User(hir::Body {
                 locals: Arena::new(),
                 statements: Vec::new(),
             }),
@@ -1530,6 +1557,7 @@ impl Lowerer {
             let intrinsic = match &function.kind {
                 FunctionKind::Intrinsic(name) => name.as_str(),
                 FunctionKind::User(_) => "pointer",
+                FunctionKind::Extern(_) => "extern",
             };
             self.error(
                 function.span,
@@ -1578,6 +1606,7 @@ impl Lowerer {
             let intrinsic = match &function.kind {
                 FunctionKind::Intrinsic(name) => name.as_str(),
                 FunctionKind::User(_) => "pointer",
+                FunctionKind::Extern(_) => "extern",
             };
             self.error(
                 function.span,
@@ -2224,8 +2253,11 @@ impl Lowerer {
             );
         }
         if matches!(decl.body, ast::FunctionBody::None)
-            && !matches!(self.functions[id].kind, FunctionKind::Intrinsic(_))
-            && decl.annotations.is_empty()
+            && matches!(self.functions[id].kind, FunctionKind::User(_))
+            && !decl
+                .annotations
+                .iter()
+                .any(|annotation| matches!(annotation.name.text.as_str(), "Intrinsic" | "Extern"))
         {
             self.error(
                 decl.name.span,
@@ -2287,6 +2319,12 @@ impl Lowerer {
                 return_ty,
             },
         );
+        if let FunctionKind::Extern(extern_id) = self.functions[id].kind {
+            let signature = &self.signatures[&id];
+            self.extern_functions[extern_id].params =
+                signature.params.iter().map(|param| param.ty).collect();
+            self.extern_functions[extern_id].return_type = return_ty;
+        }
     }
 
     /// Register a generic definition once and return its typed id.

@@ -13,6 +13,7 @@ use la_arena::{Arena, Idx};
 use scoop_ast::Span;
 
 pub type FunctionId = Idx<Function>;
+pub type ExternFunctionId = Idx<ExternFunction>;
 pub type FunctionTypeId = Idx<FunctionType>;
 pub type ClosureClassId = Idx<ClosureClass>;
 pub type ClosureInvokeFunctionId = Idx<ClosureInvokeFunction>;
@@ -320,6 +321,7 @@ pub struct Local {
 #[derive(Debug)]
 pub struct Module {
     pub functions: Arena<Function>,
+    pub extern_functions: Arena<ExternFunction>,
     pub function_types: Arena<FunctionType>,
     pub closure_classes: Arena<ClosureClass>,
     pub closure_invoke_functions: Arena<ClosureInvokeFunction>,
@@ -437,6 +439,29 @@ pub struct Function {
     pub params: Vec<Param>,
     pub return_ty: Type,
     pub body: Body,
+}
+
+#[derive(Debug)]
+pub struct ExternFunction {
+    pub source_name: String,
+    pub native_symbol: String,
+    pub library: String,
+    pub abi: ExternAbi,
+    pub calling_convention: CallingConvention,
+    pub gc_effect: GcEffect,
+    pub params: Vec<Type>,
+    pub return_type: Type,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExternAbi {
+    C,
+    Scoop,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CallingConvention {
+    Cdecl,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -752,6 +777,8 @@ pub enum Callee {
     User(FunctionId),
     /// A monomorphized generic function defined in this Cone.
     Monomorphized(MonomorphizedFunctionId),
+    /// A bodyless native declaration in the independent extern arena.
+    Extern(ExternFunctionId),
     /// Typed marker used only between CFG construction and the coroutine
     /// state-machine pass. The final MIR handed to LIR contains no such
     /// callee; `register` identifies the concrete protocol method shell.
@@ -856,6 +883,37 @@ pub enum UnOp {
 /// Indented text dump for golden tests (`scoopc build --emit=mir`).
 pub fn dump(module: &Module) -> String {
     let mut out = String::from("Module\n");
+    for (id, extern_) in module.extern_functions.iter() {
+        let abi = match extern_.abi {
+            ExternAbi::C => "c",
+            ExternAbi::Scoop => "scoop",
+        };
+        let params = extern_
+            .params
+            .iter()
+            .map(|ty| type_name(module, ty))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let library = if extern_.library.is_empty() {
+            String::new()
+        } else {
+            format!(" lib={}", extern_.library)
+        };
+        out.push_str(&format!(
+            "  extern ef{} {} @{}({}) -> {} <abi={abi}{}{}>\n",
+            id.into_raw().into_u32(),
+            extern_.source_name,
+            extern_.native_symbol,
+            params,
+            type_name(module, &extern_.return_type),
+            if extern_.gc_effect == GcEffect::NoGc {
+                " no-gc"
+            } else {
+                " managed"
+            },
+            library
+        ));
+    }
     for (_, def) in module.structs.iter() {
         let fields: Vec<String> = def
             .fields
@@ -1463,6 +1521,11 @@ fn dump_call(
     let callee = match &call.target.callee {
         Callee::User(id) => format!("@{}", module.functions[*id].symbol),
         Callee::Monomorphized(id) => format!("@{}", module.meta.instances[*id].symbol),
+        Callee::Extern(id) => format!(
+            "extern{} @{}",
+            id.into_raw(),
+            module.extern_functions[*id].native_symbol
+        ),
         Callee::CoroutineSuspend { register } => format!(
             "@coroutine_suspend[register=@{}]",
             module.meta.instances[*register].symbol

@@ -1,0 +1,25 @@
+struct ManagedBox(val value: String)
+
+@Extern
+fun hasBody(): Int = 1
+
+@Extern
+suspend fun suspended()
+
+@Extern
+fun <T> generic(value: T)
+
+@Extern(name = "c_ref")
+fun cRef(value: String)
+
+@Extern(name = "scoop_aggregate", abi = "scoop")
+fun scoopAggregate(value: ManagedBox)
+
+@Safe
+@Extern(name = "pretend_safe")
+fun pretendSafe()
+
+@Extern(lib = "../bad", name = "not-a-symbol", abi = "unknown")
+fun malformed()
+
+fun main() {}

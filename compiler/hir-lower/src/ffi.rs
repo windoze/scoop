@@ -31,6 +31,90 @@ impl CAbiError {
 }
 
 impl Lowerer {
+    /// Check complete extern signatures and native-symbol consistency after
+    /// every declaration signature has been resolved.
+    pub(crate) fn validate_extern_functions(&mut self) {
+        let externs: Vec<_> = self
+            .functions
+            .iter()
+            .filter_map(|(function, declaration)| match declaration.kind {
+                hir::FunctionKind::Extern(id) => Some((function, id)),
+                _ => None,
+            })
+            .collect();
+        for (function_id, extern_id) in &externs {
+            self.current_file = self.function_files[function_id];
+            let function = self.functions[*function_id].clone();
+            let extern_ = self.extern_functions[*extern_id].clone();
+            for (index, parameter) in extern_.params.iter().copied().enumerate() {
+                let path = vec![function.name.clone(), format!("parameter{}", index + 1)];
+                let result = match extern_.abi {
+                    hir::ExternAbi::C => {
+                        let mut visiting = HashSet::new();
+                        self.classify_c_ffi_type(parameter, &[], false, path, &mut visiting)
+                            .map(|_| ())
+                    }
+                    hir::ExternAbi::Scoop => self.classify_scoop_abi_type(parameter, false, path),
+                };
+                if let Err(error) = result {
+                    self.error(
+                        function.span,
+                        format!("extern parameter is not ABI-safe: {}", error.render()),
+                    );
+                }
+            }
+            let path = vec![function.name.clone(), "return".to_string()];
+            let result = match extern_.abi {
+                hir::ExternAbi::C => {
+                    let mut visiting = HashSet::new();
+                    self.classify_c_ffi_type(extern_.return_type, &[], true, path, &mut visiting)
+                        .map(|_| ())
+                }
+                hir::ExternAbi::Scoop => {
+                    self.classify_scoop_abi_type(extern_.return_type, true, path)
+                }
+            };
+            if let Err(error) = result {
+                self.error(
+                    function.span,
+                    format!("extern return type is not ABI-safe: {}", error.render()),
+                );
+            }
+        }
+
+        for (index, (function_id, extern_id)) in externs.iter().enumerate() {
+            let current = &self.extern_functions[*extern_id];
+            for (other_function, other_id) in externs.iter().take(index) {
+                let previous = &self.extern_functions[*other_id];
+                if previous.native_symbol != current.native_symbol {
+                    continue;
+                }
+                let same_signature = previous.params.len() == current.params.len()
+                    && previous
+                        .params
+                        .iter()
+                        .zip(&current.params)
+                        .all(|(&left, &right)| self.types_equal(left, right))
+                    && self.types_equal(previous.return_type, current.return_type);
+                if previous.library != current.library
+                    || previous.abi != current.abi
+                    || previous.calling_convention != current.calling_convention
+                    || !same_signature
+                {
+                    self.current_file = self.function_files[function_id];
+                    self.error(
+                        self.functions[*function_id].span,
+                        format!(
+                            "extern symbol `{}` conflicts with declaration `{}`",
+                            current.native_symbol, self.functions[*other_function].name
+                        ),
+                    );
+                }
+                break;
+            }
+        }
+    }
+
     /// Validate every `@CLayout` definition, every concrete generic
     /// `@CLayout` application materialized while lowering, and every source
     /// `FunPtr` use. This runs after bodies so inferred generic constructor
@@ -243,6 +327,40 @@ impl Lowerer {
             hir::Type::Enum(_, _) => Err(CAbiError {
                 path,
                 reason: "enum types have no M12 C ABI representation".to_string(),
+            }),
+        }
+    }
+
+    fn classify_scoop_abi_type(
+        &mut self,
+        ty: hir::TypeId,
+        allow_unit: bool,
+        path: Vec<String>,
+    ) -> Result<(), CAbiError> {
+        match self.types[ty].clone() {
+            hir::Type::Unit if allow_unit => Ok(()),
+            hir::Type::Unit => Err(CAbiError {
+                path,
+                reason: "`Unit` is only allowed as a Scoop ABI return type".to_string(),
+            }),
+            hir::Type::String
+            | hir::Type::Class(_)
+            | hir::Type::Interface(_, _)
+            | hir::Type::Any
+            | hir::Type::Array(_)
+            | hir::Type::MutableArray(_)
+            | hir::Type::Function(_) => Ok(()),
+            hir::Type::Param(_) => Err(CAbiError {
+                path,
+                reason: "an extern signature must be fully concrete".to_string(),
+            }),
+            _ if self.is_gc_free(ty) => Ok(()),
+            _ => Err(CAbiError {
+                path,
+                reason: format!(
+                    "value aggregate `{}` contains a managed reference and has no M12 native-root layout",
+                    self.type_name(ty)
+                ),
             }),
         }
     }

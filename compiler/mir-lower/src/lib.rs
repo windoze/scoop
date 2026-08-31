@@ -133,6 +133,8 @@ use structured as smir;
 pub fn lower(module: &hir::Module) -> mir::Module {
     Lowerer {
         functions: Arena::new(),
+        extern_functions: Arena::new(),
+        extern_map: HashMap::new(),
         top_level: Vec::new(),
         strings: Arena::new(),
         structs: StructRegistry::default(),
@@ -177,6 +179,8 @@ pub fn lower(module: &hir::Module) -> mir::Module {
 
 struct Lowerer {
     functions: Arena<mir::Function>,
+    extern_functions: Arena<mir::ExternFunction>,
+    extern_map: HashMap<hir::ExternFunctionId, mir::ExternFunctionId>,
     /// User functions in declaration order (intrinsics have no MIR body).
     top_level: Vec<mir::FunctionId>,
     strings: Arena<mir::StringConst>,
@@ -628,6 +632,7 @@ impl Lowerer {
         // and the vtable both keep the base's as a prefix.
         let class_order = topo_class_order(module);
         self.fill_class_fields(module, &class_order);
+        self.lower_extern_functions(module);
 
         // Declare non-generic user functions first, so calls resolve
         // regardless of declaration order. Intrinsics have no body;
@@ -845,6 +850,7 @@ impl Lowerer {
         let entry = self.function_map[&module.entry];
         mir::Module {
             functions: self.functions,
+            extern_functions: self.extern_functions,
             function_types: self.shell.function_types,
             closure_classes: self.closure_classes,
             closure_invoke_functions: self.closure_invokes,
@@ -866,6 +872,56 @@ impl Lowerer {
                 dynamic_closure_adapters: self.dynamic_closure_adapters,
                 ..mir::MirMeta::default()
             },
+        }
+    }
+
+    fn lower_extern_functions(&mut self, module: &hir::Module) {
+        for (hir_id, extern_) in module.extern_functions.iter() {
+            let types = Types {
+                module,
+                struct_map: &self.struct_map,
+                class_map: &self.class_map,
+                subst: None,
+            };
+            let params = extern_
+                .params
+                .iter()
+                .map(|&ty| {
+                    types.lower(
+                        ty,
+                        &mut self.enums,
+                        &mut self.structs,
+                        &mut self.interfaces,
+                        &mut self.shell,
+                    )
+                })
+                .collect();
+            let return_type = types.lower(
+                extern_.return_type,
+                &mut self.enums,
+                &mut self.structs,
+                &mut self.interfaces,
+                &mut self.shell,
+            );
+            let id = self.extern_functions.alloc(mir::ExternFunction {
+                source_name: extern_.source_name.clone(),
+                native_symbol: extern_.native_symbol.clone(),
+                library: extern_.library.clone(),
+                abi: match extern_.abi {
+                    hir::ExternAbi::C => mir::ExternAbi::C,
+                    hir::ExternAbi::Scoop => mir::ExternAbi::Scoop,
+                },
+                calling_convention: match extern_.calling_convention {
+                    hir::CallingConvention::Cdecl => mir::CallingConvention::Cdecl,
+                },
+                gc_effect: match extern_.gc_effect {
+                    hir::GcEffect::Managed => mir::GcEffect::Managed,
+                    hir::GcEffect::NoGc => mir::GcEffect::NoGc,
+                },
+                params,
+                return_type,
+            });
+            self.extern_map.insert(hir_id, id);
         }
     }
 
@@ -1517,6 +1573,7 @@ impl Lowerer {
             structs: &mut self.structs,
             method_slots: &self.method_slots,
             function_map: &self.function_map,
+            extern_map: &self.extern_map,
             ctors: &self.ctors,
             strings: &mut self.strings,
             functions: &mut self.functions,
@@ -2455,6 +2512,7 @@ impl Lowerer {
             structs: &mut self.structs,
             method_slots: &self.method_slots,
             function_map: &self.function_map,
+            extern_map: &self.extern_map,
             ctors: &self.ctors,
             strings: &mut self.strings,
             functions: &mut self.functions,
@@ -2653,6 +2711,7 @@ impl Lowerer {
             structs: &mut self.structs,
             method_slots: &self.method_slots,
             function_map: &self.function_map,
+            extern_map: &self.extern_map,
             ctors: &self.ctors,
             strings: &mut self.strings,
             functions: &mut self.functions,
@@ -3302,6 +3361,7 @@ fn mangling_shell(
     });
     mir::Module {
         functions,
+        extern_functions: Arena::new(),
         function_types: Arena::new(),
         closure_classes: Arena::new(),
         closure_invoke_functions: Arena::new(),
@@ -3890,6 +3950,7 @@ struct BodyLowerer<'a> {
     /// (`compute_dispatch`).
     method_slots: &'a HashMap<mir::ClassId, HashMap<String, u32>>,
     function_map: &'a HashMap<hir::FunctionId, mir::FunctionId>,
+    extern_map: &'a HashMap<hir::ExternFunctionId, mir::ExternFunctionId>,
     /// HIR class -> its constructor function (`ClassInit` calls).
     ctors: &'a HashMap<hir::ClassId, mir::FunctionId>,
     strings: &'a mut Arena<mir::StringConst>,
@@ -5715,6 +5776,12 @@ impl BodyLowerer<'_> {
                     resolved,
                     type_args,
                 ))
+            }
+            (hir::FunctionKind::Extern(extern_id), hir::Callable::Function(_)) => {
+                mir::Callee::Extern(self.extern_map[extern_id])
+            }
+            (hir::FunctionKind::Extern(_), hir::Callable::Generic(_)) => {
+                unreachable!("extern functions cannot be generic")
             }
             (hir::FunctionKind::Intrinsic(_), _) => unreachable!("handled above"),
         }
@@ -7691,6 +7758,7 @@ mod tests {
                 callable_references: Arena::new(),
                 function_coercions: Arena::new(),
                 functions: self.functions,
+                extern_functions: Arena::new(),
                 generic_functions: self.generic_functions,
                 structs: self.structs,
                 enums: self.enums,

@@ -73,7 +73,43 @@ fn fixtures() {
             .next()
             .is_some_and(|line| line.trim() == "// EXPECT-TRAP");
 
-        let snapshot = match scoopc::compile_file(&fixture, &out_dir) {
+        let mut options = scoopc::CompileOptions::default();
+        let native_source = fixture
+            .parent()
+            .expect("fixture directory")
+            .join("native.c");
+        if native_source.exists() {
+            fs::create_dir_all(&out_dir).expect("create native fixture output directory");
+            let native_object = out_dir.join("native.o");
+            let native_archive = out_dir.join("libfixture_native.a");
+            let compile = Command::new("cc")
+                .arg("-std=c11")
+                .arg("-c")
+                .arg(&native_source)
+                .arg("-o")
+                .arg(&native_object)
+                .output()
+                .expect("run native fixture C compiler");
+            assert!(
+                compile.status.success(),
+                "{relative}: native fixture compilation failed: {}",
+                String::from_utf8_lossy(&compile.stderr)
+            );
+            let archive = Command::new("ar")
+                .arg("rcs")
+                .arg(&native_archive)
+                .arg(&native_object)
+                .output()
+                .expect("run native fixture archiver");
+            assert!(
+                archive.status.success(),
+                "{relative}: native fixture archive failed: {}",
+                String::from_utf8_lossy(&archive.stderr)
+            );
+            options.library_paths.push(out_dir.clone());
+        }
+
+        let snapshot = match scoopc::compile_file_with_options(&fixture, &out_dir, &options) {
             Ok(success) => {
                 let run = Command::new(&success.binary)
                     .output()
