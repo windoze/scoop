@@ -452,10 +452,7 @@ fn lower_runtime_function(function: mir::RuntimeFn) -> lir::RuntimeFunction {
         mir::RuntimeFn::GcCollect => lir::RuntimeFunction::GcCollect,
         mir::RuntimeFn::GcStats => lir::RuntimeFunction::GcStats,
         mir::RuntimeFn::MaterializeException => lir::RuntimeFunction::MaterializeException,
-        mir::RuntimeFn::IntToString => lir::RuntimeFunction::IntToString,
-        mir::RuntimeFn::BoolToString => lir::RuntimeFunction::BoolToString,
         mir::RuntimeFn::StringConcat => lir::RuntimeFunction::StringConcat,
-        mir::RuntimeFn::StringEq => lir::RuntimeFunction::StringEq,
         mir::RuntimeFn::Trap => lir::RuntimeFunction::Trap,
     }
 }
@@ -466,8 +463,6 @@ fn runtime_call_effect(function: lir::RuntimeFunction) -> lir::CallEffect {
         | lir::RuntimeFunction::Box
         | lir::RuntimeFunction::GcCollect
         | lir::RuntimeFunction::MaterializeException
-        | lir::RuntimeFunction::IntToString
-        | lir::RuntimeFunction::BoolToString
         | lir::RuntimeFunction::StringConcat => lir::CallEffect::ManagedSafepoint,
         lir::RuntimeFunction::IsInstance
         | lir::RuntimeFunction::ITableLookup
@@ -476,7 +471,6 @@ fn runtime_call_effect(function: lir::RuntimeFunction) -> lir::CallEffect {
         | lir::RuntimeFunction::GetHandle
         | lir::RuntimeFunction::ReleaseHandle
         | lir::RuntimeFunction::GcStats
-        | lir::RuntimeFunction::StringEq
         | lir::RuntimeFunction::Trap
         | lir::RuntimeFunction::Throw
         | lir::RuntimeFunction::Rethrow => lir::CallEffect::NoGc,
@@ -2758,8 +2752,7 @@ impl<'a> FunctionLowerer<'a> {
             }
             mir::Callee::Runtime(function) => {
                 let expected_arg_count = match function {
-                    mir::RuntimeFn::IntToString | mir::RuntimeFn::BoolToString => 1,
-                    mir::RuntimeFn::StringConcat | mir::RuntimeFn::StringEq => 2,
+                    mir::RuntimeFn::StringConcat => 2,
                     // The GC intrinsics (M9, runtime spec 3.4): the
                     // pin / handle operations speak raw machine words
                     // — the object reference in, the word out (or the
@@ -2787,11 +2780,6 @@ impl<'a> FunctionLowerer<'a> {
                 let (parameter_types, result_type) = match function {
                     mir::RuntimeFn::StringConcat => {
                         (vec![lir::MANAGED_PTR, lir::MANAGED_PTR], lir::MANAGED_PTR)
-                    }
-                    mir::RuntimeFn::IntToString => (vec![lir::LirType::I64], lir::MANAGED_PTR),
-                    mir::RuntimeFn::BoolToString => (vec![lir::LirType::I1], lir::MANAGED_PTR),
-                    mir::RuntimeFn::StringEq => {
-                        (vec![lir::MANAGED_PTR, lir::MANAGED_PTR], lir::LirType::I1)
                     }
                     // The pin / handle intrinsics exchange a word with
                     // the runtime: `pin` / `getGcHandle` yield the raw

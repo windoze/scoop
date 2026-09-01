@@ -2125,8 +2125,6 @@ impl BodyLowerer<'_> {
         result_ty: hir::TypeId,
     ) -> smir::Expr {
         let function = match kind {
-            hir::IntrinsicFunctionKind::IntToString => mir::RuntimeFn::IntToString,
-            hir::IntrinsicFunctionKind::BoolToString => mir::RuntimeFn::BoolToString,
             hir::IntrinsicFunctionKind::GcPinRaw => mir::RuntimeFn::Pin,
             hir::IntrinsicFunctionKind::GcUnpinRaw => mir::RuntimeFn::Unpin,
             hir::IntrinsicFunctionKind::GcGetHandleRaw => mir::RuntimeFn::GetHandle,

@@ -1103,8 +1103,9 @@ pub enum Callee {
     Runtime(RuntimeFn),
 }
 
-/// Runtime functions callable from generated code. The output shims
-/// are temporary until M11 (docs/milestone1/DESIGN.md 5.2).
+/// Runtime functions called directly by compiler-generated operations.
+/// Source-level core capabilities use ordinary declarations and extern calls;
+/// they do not acquire entries in this enum.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RuntimeFn {
     /// `scoop_rt_box(td, payload, size)`
@@ -1124,11 +1125,7 @@ pub enum RuntimeFn {
     GcStats,
     /// ABI exception buffer -> ordinary managed object (runtime spec 5).
     MaterializeException,
-    /// Primitive conversions temporarily backing core's `toString` paths.
-    IntToString,
-    BoolToString,
     StringConcat,
-    StringEq,
     /// Noreturn runtime trap, called with a message string constant
     /// (M4: `!!` on `None`; M8: real exceptions).
     Trap,
@@ -1147,10 +1144,7 @@ impl RuntimeFn {
             RuntimeFn::GcCollect => "scoop_rt_gc_collect",
             RuntimeFn::GcStats => "scoop_rt_gc_stats",
             RuntimeFn::MaterializeException => "scoop_rt_materialize_exception",
-            RuntimeFn::IntToString => "scoop_rt_int_to_string",
-            RuntimeFn::BoolToString => "scoop_rt_bool_to_string",
             RuntimeFn::StringConcat => "scoop_rt_string_concat",
-            RuntimeFn::StringEq => "scoop_rt_string_eq",
             RuntimeFn::Trap => "scoop_rt_trap",
         }
     }

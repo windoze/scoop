@@ -1025,10 +1025,10 @@ fn emits_m5_arrays() {
     std::fs::remove_file(&output).ok();
 }
 
-/// An M6-shaped module: class TypeDescriptors (parent chain, vtable
-/// with the three Any default slots plus a user method, one itable)
-/// and indirect calls through a table pointer (vtable / itable
-/// dispatch shape, impl spec 2.9).
+/// An M6-shaped module: class TypeDescriptors (parent chain, ordinary
+/// user-method vtables with no compiler-owned `Any` slots, one itable) and
+/// indirect calls through a table pointer (vtable / itable dispatch shape,
+/// impl spec 2.9).
 fn classes_module() -> Module {
     // `fn describe(this: ptr) -> ptr` shared shape: returns `this`.
     let describe = |symbol: &str| {

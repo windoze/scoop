@@ -2150,10 +2150,6 @@ pub enum IntrinsicStage {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum IntrinsicFunctionKind {
-    /// Transitional concrete formatting helpers. They remain typed while M14
-    /// migrates their callers to nominal `ToString` implementations.
-    IntToString,
-    BoolToString,
     GcPinRaw,
     GcUnpinRaw,
     GcGetHandleRaw,
@@ -2173,8 +2169,6 @@ pub enum IntrinsicFunctionKind {
 impl IntrinsicFunctionKind {
     pub const fn name(self) -> &'static str {
         match self {
-            Self::IntToString => "rt_int_to_string",
-            Self::BoolToString => "rt_bool_to_string",
             Self::GcPinRaw => "gc_pin_raw",
             Self::GcUnpinRaw => "gc_unpin_raw",
             Self::GcGetHandleRaw => "gc_get_handle_raw",

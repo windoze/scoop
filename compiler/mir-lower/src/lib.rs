@@ -46,13 +46,10 @@
 //! `RuntimeFn::Trap` keeps exactly one generation path: the
 //! abstract-method stub (a cannot-happen pure-virtual trap).
 //!
-//! M7: print/println are ordinary core functions
-//! (docs/milestone7/DESIGN.md section 2) — their calls go through the
-//! normal function path. Validated `@Intrinsic` calls map by typed kind onto
-//! the remaining runtime functions: `rt_int_to_string` → `IntToString`,
-//! `rt_bool_to_string` →
-//! `BoolToString`. These runtime primitives are reached only through
-//! ordinary source declarations in `scoop.core`. Mangling is overload-aware: a name shared by
+//! M7/M14: print/println and primitive formatting/equality are ordinary core
+//! functions. Their representation-level helpers are ordinary Scoop-ABI
+//! extern declarations, so no formatting/equality runtime kind exists in the
+//! compiler. Mangling is overload-aware: a name shared by
 //! several plainly-mangled functions gets the parameter encoding
 //! appended (`scoop.show.I`, `scoop.println.S`; the receiver is not
 //! part of a method's overload signature), while unique names keep the

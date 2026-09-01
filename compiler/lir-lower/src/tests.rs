@@ -820,19 +820,20 @@ Module
 
 #[test]
 fn and_short_circuits_through_blocks() {
-    // val b = (s0 == s1) && (s2 == s3): the second comparison call
+    // val b = eq(s0, s1) && eq(s2, s3): the second comparison call
     // sits in its own block, executed only when the first is true.
     let mut b = Builder::new();
     let s0 = b.string("a");
     let s1 = b.string("b");
     let s2 = b.string("c");
     let s3 = b.string("d");
-    let string_eq = |l, r| {
-        runtime_call(
-            mir::RuntimeFn::StringEq,
-            vec![string_expr(l), string_expr(r)],
-        )
-    };
+    let string_eq = b.managed_scoop_extern(
+        "coreStringEquals",
+        "scoop_rt_string_eq",
+        vec![mir::Type::String, mir::Type::String],
+        mir::Type::Boolean,
+    );
+    let string_eq = |l, r| extern_call(string_eq, vec![string_expr(l), string_expr(r)]);
     let mut locals = Arena::new();
     let lhs = locals.alloc(local("$call.1", mir::Type::Boolean));
     let rhs = locals.alloc(local("$call.2", mir::Type::Boolean));
@@ -896,16 +897,17 @@ Module
   global @scoop.str.1 = \"b\"
   global @scoop.str.2 = \"c\"
   global @scoop.str.3 = \"d\"
+  extern ef0 coreStringEquals @scoop_rt_string_eq(ptr<managed>, ptr<managed>) -> i1 <scoop managed nounwind>
   fun @scoop_main() -> void
     local %0 $call.1: i1
     local %1 $call.2: i1
     local %2 b: i1
   block entry
-    call t0 = direct-target0 sig=direct0 (ptr<managed>, ptr<managed>) -> i1 effect=no-gc runtime @scoop_rt_string_eq(global0, global1)
+    native_call t0 = direct-target0 sig=direct0 (ptr<managed>, ptr<managed>) -> i1 effect=native-borrowed extern0(global0, global1)
     store t0 -> local0
     cbr local0 then @logic.rhs.1 else @logic.short.2
   block logic.rhs.1
-    call t1 = direct-target1 sig=direct1 (ptr<managed>, ptr<managed>) -> i1 effect=no-gc runtime @scoop_rt_string_eq(global2, global3)
+    native_call t1 = direct-target1 sig=direct1 (ptr<managed>, ptr<managed>) -> i1 effect=native-borrowed extern0(global2, global3)
     store t1 -> local1
     store local1 -> local2
     br @logic.merge.3
@@ -1010,16 +1012,13 @@ Module
 }
 
 #[test]
-fn runtime_calls_with_results_produce_typed_temps() {
+fn compiler_runtime_calls_with_results_produce_typed_temps() {
     let mut b = Builder::new();
     let s0 = b.string("a");
     let s1 = b.string("b");
     let helper = b.user_fn("helper", "scoop.helper", Arena::new(), vec![]);
     let mut locals = Arena::new();
     let s = locals.alloc(local("s", mir::Type::String));
-    let e = locals.alloc(local("e", mir::Type::Boolean));
-    let i = locals.alloc(local("i", mir::Type::String));
-    let o = locals.alloc(local("o", mir::Type::String));
     let main = b.main(
         locals,
         vec![
@@ -1029,21 +1028,6 @@ fn runtime_calls_with_results_produce_typed_temps() {
                     mir::RuntimeFn::StringConcat,
                     vec![string_expr(s0), string_expr(s1)],
                 ),
-            ),
-            call_value(
-                e,
-                runtime_call(
-                    mir::RuntimeFn::StringEq,
-                    vec![string_expr(s0), string_expr(s1)],
-                ),
-            ),
-            call_value(
-                i,
-                runtime_call(mir::RuntimeFn::IntToString, vec![mir::Expr::int(42)]),
-            ),
-            call_value(
-                o,
-                runtime_call(mir::RuntimeFn::BoolToString, vec![mir::Expr::bool(true)]),
             ),
             call_stmt(user_call(helper)),
         ],
@@ -1065,45 +1049,14 @@ fn runtime_calls_with_results_produce_typed_temps() {
     assert_eq!(function.temps[concat_out].ty, lir::MANAGED_PTR);
     assert!(matches!(instructions[1], lir::Instruction::Store { .. }));
 
-    let lir::Instruction::Call { site } = &instructions[2] else {
-        panic!("string eq must produce a value")
-    };
-    let eq_out = site.direct_out().expect("string equality result");
-    assert_eq!(call_symbol(&module, function, site), "scoop_rt_string_eq");
-    assert_eq!(function.temps[eq_out].ty, lir::LirType::I1);
-    assert!(matches!(instructions[3], lir::Instruction::Store { .. }));
-
-    // The M7 conversion intrinsics (`ptr(i64)` / `ptr(i1)`).
-    let lir::Instruction::Call { site } = &instructions[4] else {
-        panic!("intToString must produce a value")
-    };
-    let its_out = site.direct_out().expect("Int.toString result");
-    assert_eq!(
-        call_symbol(&module, function, site),
-        "scoop_rt_int_to_string"
-    );
-    assert_eq!(function.temps[its_out].ty, lir::MANAGED_PTR);
-    assert!(matches!(instructions[5], lir::Instruction::Store { .. }));
-
-    let lir::Instruction::Call { site } = &instructions[6] else {
-        panic!("boolToString must produce a value")
-    };
-    let bts_out = site.direct_out().expect("Boolean.toString result");
-    assert_eq!(
-        call_symbol(&module, function, site),
-        "scoop_rt_bool_to_string"
-    );
-    assert_eq!(function.temps[bts_out].ty, lir::MANAGED_PTR);
-    assert!(matches!(instructions[7], lir::Instruction::Store { .. }));
-
     // User calls return void; the Unit value is a fresh empty
     // aggregate.
-    let lir::Instruction::Call { site } = &instructions[8] else {
+    let lir::Instruction::Call { site } = &instructions[2] else {
         panic!("user calls must return void")
     };
     assert!(matches!(site, lir::CallSite::Void { .. }));
     assert_eq!(call_symbol(&module, function, site), "scoop.helper");
-    let lir::Instruction::MakeAggregate { out, elements } = &instructions[9] else {
+    let lir::Instruction::MakeAggregate { out, elements } = &instructions[3] else {
         panic!("a void call's Unit value must be an empty aggregate")
     };
     assert!(elements.is_empty());
@@ -1720,60 +1673,6 @@ Module
   block entry
     call t0 = direct-target0 sig=direct0 (i64, i64) -> i64 effect=managed-safepoint local-fn0(40, 2)
     store t0 -> local0
-    ret
-  layout String size=24 align=8 refs=[]
-  layout Int size=8 align=8 refs=[]
-  layout Boolean size=1 align=1 refs=[]
-  entry @scoop_main
-";
-    assert_eq!(lir::dump(&module), expected);
-}
-
-#[test]
-fn boxed_primitive_tostring_unboxes_and_converts() {
-    // mir-lower's generated `scoop.tostring.I` (M7, the boxed
-    // Int's vtable slot 2): unbox the payload and convert it
-    // through the runtime.
-    let mut b = Builder::new();
-    let mut locals = Arena::new();
-    let this = locals.alloc(local("this", mir::Type::Any));
-    let result = locals.alloc(local("$call.1", mir::Type::String));
-    b.user_fn_body(
-        "tostring.I",
-        "scoop.tostring.I",
-        vec![param("this", mir::Type::Any, this)],
-        mir::Type::String,
-        body_with_terminator(
-            locals,
-            vec![call_value(
-                result,
-                runtime_call(
-                    mir::RuntimeFn::IntToString,
-                    vec![expr(
-                        mir::Type::Int,
-                        mir::ExprKind::Unbox(Box::new(local_expr(this, mir::Type::Any))),
-                    )],
-                ),
-            )],
-            mir::Terminator::Return {
-                value: Some(local_expr(result, mir::Type::String)),
-            },
-        ),
-    );
-    let main = b.main(Arena::new(), vec![]);
-    let module = lower(&b.finish(main));
-
-    let expected = "\
-Module
-  fun @scoop.tostring.I(ptr<managed>) -> ptr<managed>
-    local %0 $call.1: ptr<managed>
-  block entry
-    t0 = heap_load param0 +16 : i64
-    call t1 = direct-target0 sig=direct0 (i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_int_to_string(t0)
-    store t1 -> local0
-    ret local0
-  fun @scoop_main() -> void
-  block entry
     ret
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]

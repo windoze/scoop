@@ -81,10 +81,10 @@ fn block_named<'a>(body: &'a mir::Body, prefix: &str) -> &'a mir::BasicBlock {
         .unwrap_or_else(|| panic!("missing MIR block `{prefix}`"))
 }
 
-/// HIR module shell as hir-lower produces it: well-known types,
-/// core's managed `write` extern, two conversion intrinsics, and the ordinary
-/// `print` / `println` overloads (M7), plus core's `Option` enum
-/// allocated first.
+/// HIR module shell as hir-lower produces it: well-known types, core's
+/// managed output/formatting externs and ordinary `print` / `println`
+/// declarations (all created on demand), plus core's `Option` enum allocated
+/// first.
 enum CanonicalTypePlan {
     Existing(hir::TypeId),
     Allocate,
@@ -122,8 +122,8 @@ struct Harness {
     string: hir::TypeId,
     option_enum: hir::EnumId,
     write: Option<hir::FunctionId>,
-    int_to_string: hir::FunctionId,
-    bool_to_string: hir::FunctionId,
+    int_to_string: Option<hir::FunctionId>,
+    bool_to_string: Option<hir::FunctionId>,
     /// core's `print` / `println` overloads (ordinary functions,
     /// M7), created on first use.
     print_string: Option<hir::FunctionId>,
@@ -159,40 +159,8 @@ impl Harness {
         let int = types.alloc(hir::Type::Int);
         let boolean = types.alloc(hir::Type::Boolean);
         let string = types.alloc(hir::Type::String);
-        let mut functions = Arena::new();
-        // scoop.core's managed output extern and conversion intrinsics:
-        // `@Extern(name = "scoop_rt_write", abi = "scoop") fun write(...)`,
-        // `@Intrinsic("rt_int_to_string") fun intToString(...)`,
-        // `@Intrinsic("rt_bool_to_string") fun boolToString(...)`.
+        let functions = Arena::new();
         let extern_functions = Arena::new();
-        let int_to_string = functions.alloc(hir::Function {
-            name: "intToString".to_string(),
-            genericity: hir::FunctionGenericity::Plain,
-            is_suspend: false,
-            params: Vec::new(),
-            return_ty: string,
-            attributes: hir::FunctionAttributes::default(),
-            kind: hir::FunctionKind::Intrinsic(hir::IntrinsicFunction {
-                kind: hir::IntrinsicFunctionKind::IntToString,
-                provider: hir::IntrinsicProviderId::from_raw(0),
-            }),
-            method: None,
-            span: SPAN,
-        });
-        let bool_to_string = functions.alloc(hir::Function {
-            name: "boolToString".to_string(),
-            genericity: hir::FunctionGenericity::Plain,
-            is_suspend: false,
-            params: Vec::new(),
-            return_ty: string,
-            attributes: hir::FunctionAttributes::default(),
-            kind: hir::FunctionKind::Intrinsic(hir::IntrinsicFunction {
-                kind: hir::IntrinsicFunctionKind::BoolToString,
-                provider: hir::IntrinsicProviderId::from_raw(0),
-            }),
-            method: None,
-            span: SPAN,
-        });
         // scoop.core's `enum Option<T> { Some(T), None }`.
         let t = types.alloc(hir::Type::Param(hir::TypeParamId::from_raw(0)));
         let mut enums = Arena::new();
@@ -257,15 +225,15 @@ impl Harness {
             interface_applications: Arena::new(),
             interface_methods: Arena::new(),
             interface_applications_by_key: HashMap::new(),
-            top_level: vec![int_to_string, bool_to_string],
+            top_level: Vec::new(),
             unit,
             int,
             boolean,
             string,
             option_enum,
             write: None,
-            int_to_string,
-            bool_to_string,
+            int_to_string: None,
+            bool_to_string: None,
             print_string: None,
             print_int: None,
             print_boolean: None,
@@ -313,6 +281,73 @@ impl Harness {
         id
     }
 
+    /// scoop.core's representation-level integer formatter. This is an
+    /// ordinary Scoop-ABI extern declaration, never an intrinsic/runtime
+    /// function kind.
+    fn int_to_string(&mut self) -> hir::FunctionId {
+        if let Some(id) = self.int_to_string {
+            return id;
+        }
+        let extern_id = self.extern_functions.alloc(hir::ExternFunction {
+            source_name: "coreIntToString".to_string(),
+            native_symbol: "scoop_rt_int_to_string".to_string(),
+            library: String::new(),
+            abi: hir::ExternAbi::Scoop,
+            calling_convention: hir::CallingConvention::Cdecl,
+            gc_effect: hir::GcEffect::Managed,
+            safety: hir::Safety::Safe,
+            params: vec![self.int],
+            return_type: self.string,
+        });
+        let id = self.functions.alloc(hir::Function {
+            name: "coreIntToString".to_string(),
+            genericity: hir::FunctionGenericity::Plain,
+            is_suspend: false,
+            params: Vec::new(),
+            return_ty: self.string,
+            attributes: hir::FunctionAttributes::default(),
+            kind: hir::FunctionKind::Extern(extern_id),
+            method: None,
+            span: SPAN,
+        });
+        self.top_level.push(id);
+        self.int_to_string = Some(id);
+        id
+    }
+
+    /// scoop.core's representation-level Boolean formatter. Like the integer
+    /// formatter, this is an ordinary Scoop-ABI extern declaration.
+    fn bool_to_string(&mut self) -> hir::FunctionId {
+        if let Some(id) = self.bool_to_string {
+            return id;
+        }
+        let extern_id = self.extern_functions.alloc(hir::ExternFunction {
+            source_name: "coreBooleanToString".to_string(),
+            native_symbol: "scoop_rt_bool_to_string".to_string(),
+            library: String::new(),
+            abi: hir::ExternAbi::Scoop,
+            calling_convention: hir::CallingConvention::Cdecl,
+            gc_effect: hir::GcEffect::Managed,
+            safety: hir::Safety::Safe,
+            params: vec![self.boolean],
+            return_type: self.string,
+        });
+        let id = self.functions.alloc(hir::Function {
+            name: "coreBooleanToString".to_string(),
+            genericity: hir::FunctionGenericity::Plain,
+            is_suspend: false,
+            params: Vec::new(),
+            return_ty: self.string,
+            attributes: hir::FunctionAttributes::default(),
+            kind: hir::FunctionKind::Extern(extern_id),
+            method: None,
+            span: SPAN,
+        });
+        self.top_level.push(id);
+        self.bool_to_string = Some(id);
+        id
+    }
+
     /// core's `fun print(message: String) = write(message)`,
     /// created on first use (tests that never print keep core's
     /// overloads out of their MIR dumps).
@@ -348,7 +383,8 @@ impl Harness {
             return id;
         }
         let (unit, int, string) = (self.unit, self.int, self.string);
-        let (write, int_to_string) = (self.write(), self.int_to_string);
+        let write = self.write();
+        let int_to_string = self.int_to_string();
         let mut locals = Arena::new();
         let message = locals.alloc(local("message", int));
         let id = self.user_fn_full(
@@ -379,7 +415,8 @@ impl Harness {
             return id;
         }
         let (unit, boolean, string) = (self.unit, self.boolean, self.string);
-        let (write, bool_to_string) = (self.write(), self.bool_to_string);
+        let write = self.write();
+        let bool_to_string = self.bool_to_string();
         let mut locals = Arena::new();
         let message = locals.alloc(local("message", boolean));
         let id = self.user_fn_full(
@@ -441,7 +478,7 @@ impl Harness {
         }
         let println_string = self.println_string();
         let (unit, int, string) = (self.unit, self.int, self.string);
-        let int_to_string = self.int_to_string;
+        let int_to_string = self.int_to_string();
         let mut locals = Arena::new();
         let message = locals.alloc(local("message", int));
         let id = self.user_fn_full(
@@ -473,7 +510,7 @@ impl Harness {
         }
         let println_string = self.println_string();
         let (unit, boolean, string) = (self.unit, self.boolean, self.string);
-        let bool_to_string = self.bool_to_string;
+        let bool_to_string = self.bool_to_string();
         let mut locals = Arena::new();
         let message = locals.alloc(local("message", boolean));
         let id = self.user_fn_full(
@@ -2015,8 +2052,8 @@ fn call(h: &Harness, function: hir::FunctionId, args: Vec<hir::Expr>) -> hir::Ex
 }
 
 /// A call expression with an explicit result type (hir-lower
-/// annotates every expression; core's overloads call the
-/// String-returning conversion intrinsics).
+/// annotates every expression; core's functions call String-returning
+/// formatting externs).
 fn call_typed(function: hir::FunctionId, args: Vec<hir::Expr>, ty: hir::TypeId) -> hir::Expr {
     expr(
         hir::ExprKind::Call {
@@ -2198,20 +2235,18 @@ fn repeated_literals_get_separate_constants_deterministically() {
 }
 
 #[test]
-fn typed_intrinsic_kinds_map_to_runtime_functions() {
-    // core's `print` / `println` overloads are ordinary user
-    // functions (their forwarding is locked by the golden dumps);
-    // only the two conversion intrinsics map onto runtime
-    // functions, by validated intrinsic kind.
+fn formatting_helpers_are_ordinary_extern_calls() {
     let mut h = Harness::new();
+    let int_to_string = h.int_to_string();
+    let bool_to_string = h.bool_to_string();
     let main = h.user_fn(
         "main",
         hir::Body {
             locals: Arena::new(),
             statements: vec![
-                expr_stmt(call_typed(h.int_to_string, vec![int_lit(&h, 1)], h.string)),
+                expr_stmt(call_typed(int_to_string, vec![int_lit(&h, 1)], h.string)),
                 expr_stmt(call_typed(
-                    h.bool_to_string,
+                    bool_to_string,
                     vec![bool_lit(&h, true)],
                     h.string,
                 )),
@@ -2221,19 +2256,19 @@ fn typed_intrinsic_kinds_map_to_runtime_functions() {
     let module = lower(&h.finish(main));
 
     let body = &module.functions[module.entry].body;
-    let shims: Vec<mir::RuntimeFn> = entry_statements(body)
+    let symbols: Vec<&str> = entry_statements(body)
         .iter()
         .map(|statement| {
             let (call, _) = statement_call(statement);
-            let mir::Callee::Runtime(function) = call.target.callee else {
-                panic!("expected a runtime callee")
+            let mir::Callee::Extern(function) = call.target.callee else {
+                panic!("formatting helpers must remain ordinary extern callees")
             };
-            function
+            module.extern_functions[function].native_symbol.as_str()
         })
         .collect();
     assert_eq!(
-        shims,
-        [mir::RuntimeFn::IntToString, mir::RuntimeFn::BoolToString,]
+        symbols,
+        ["scoop_rt_int_to_string", "scoop_rt_bool_to_string"]
     );
 }
 

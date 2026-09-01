@@ -628,12 +628,13 @@ fn when_lowers_to_a_decision_sequence() {
     let expected = "\
 Module
   extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
+  extern ef1 coreIntToString @scoop_rt_int_to_string(Int) -> String <abi=scoop managed>
   enum Option$I
     Some(_1: Int)
     None()
   fun print @scoop.print(message: Int) -> Unit
     bb0 entry
-      call $call.1: String = @scoop_rt_int_to_string direct
+      call $call.1: String = extern1 @scoop_rt_int_to_string direct
         Type Int
         Local message
       call extern0 @scoop_rt_write direct
@@ -755,12 +756,13 @@ fn a_failed_guard_falls_through_to_the_next_arm() {
     let expected = "\
 Module
   extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
+  extern ef1 coreIntToString @scoop_rt_int_to_string(Int) -> String <abi=scoop managed>
   enum Option$I
     Some(_1: Int)
     None()
   fun print @scoop.print(message: Int) -> Unit
     bb0 entry
-      call $call.1: String = @scoop_rt_int_to_string direct
+      call $call.1: String = extern1 @scoop_rt_int_to_string direct
         Type Int
         Local message
       call extern0 @scoop_rt_write direct
