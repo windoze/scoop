@@ -602,257 +602,376 @@ Module
   fun Int.equals @scoop.Int.equals(this: Int, other: Int) -> Boolean
     bb0 entry
       call $call.1: Boolean = extern1 @scoop_rt_int_equals direct
+        Type Int
         Local this
+        Type Int
         Local other
       return
+        Type Boolean
         Local $call.1
   fun Int.toString @scoop.Int.toString(this: Int) -> String
     bb0 entry
       call $call.1: String = extern5 @scoop_rt_int_to_string direct
+        Type Int
         Local this
       return
+        Type String
         Local $call.1
   fun Int.hash @scoop.Int.hash(this: Int) -> Int
     bb0 entry
       call $call.1: Int = extern8 @scoop_rt_int_hash direct
+        Type Int
         Local this
       return
+        Type Int
         Local $call.1
   fun UInt.equals @scoop.UInt.equals(this: UInt, other: UInt) -> Boolean
     bb0 entry
       call $call.1: Boolean = extern2 @scoop_rt_uint_equals direct
+        Type UInt
         Local this
+        Type UInt
         Local other
       return
+        Type Boolean
         Local $call.1
   fun UInt.toString @scoop.UInt.toString(this: UInt) -> String
     bb0 entry
       call $call.1: String = extern6 @scoop_rt_uint_to_string direct
+        Type UInt
         Local this
       return
+        Type String
         Local $call.1
   fun UInt.hash @scoop.UInt.hash(this: UInt) -> Int
     bb0 entry
       call $call.1: Int = extern9 @scoop_rt_uint_hash direct
+        Type UInt
         Local this
       return
+        Type Int
         Local $call.1
   fun Boolean.equals @scoop.Boolean.equals(this: Boolean, other: Boolean) -> Boolean
     bb0 entry
       call $call.1: Boolean = extern3 @scoop_rt_bool_equals direct
+        Type Boolean
         Local this
+        Type Boolean
         Local other
       return
+        Type Boolean
         Local $call.1
   fun Boolean.toString @scoop.Boolean.toString(this: Boolean) -> String
     bb0 entry
       call $call.1: String = extern7 @scoop_rt_bool_to_string direct
+        Type Boolean
         Local this
       return
+        Type String
         Local $call.1
   fun Boolean.hash @scoop.Boolean.hash(this: Boolean) -> Int
     bb0 entry
       call $call.1: Int = extern10 @scoop_rt_bool_hash direct
+        Type Boolean
         Local this
       return
+        Type Int
         Local $call.1
   fun ValueMapper.map @scoop.ValueMapper.map(this: ValueMapper, value: Int) -> Int
     bb0 entry
       return
+        Type Int
         Binary IntAdd
+          Type Int
           Local value
+          Type Int
           FieldAccess 0
+            Type ValueMapper
             Local this
   fun String.equals @scoop.String.equals(this: String, other: String) -> Boolean
     bb0 entry
       call $call.1: Boolean = extern4 @scoop_rt_string_eq direct
+        Type String
         Local this
+        Type String
         Local other
       return
+        Type Boolean
         Local $call.1
   fun String.toString @scoop.String.toString(this: String) -> String
     bb0 entry
       return
+        Type String
         Local this
   fun String.hash @scoop.String.hash(this: String) -> Int
     bb0 entry
       call $call.1: Int = extern11 @scoop_rt_string_hash direct
+        Type String
         Local this
       return
+        Type Int
         Local $call.1
   fun BaseMapper.map @scoop.BaseMapper.map(this: BaseMapper, value: Int) -> Int
     bb0 entry
       return
+        Type Int
         Local value
   fun TimesTwo.map @scoop.TimesTwo.map(this: TimesTwo, value: Int) -> Int
     bb0 entry
       return
+        Type Int
         Binary IntAdd
+          Type Int
           Local value
+          Type Int
           Local value
   fun PlusHundred.map @scoop.PlusHundred.map(this: PlusHundred, value: Int) -> Int
     bb0 entry
       return
+        Type Int
         Binary IntAdd
+          Type Int
           Local value
+          Type Int
           IntLiteral 100
   fun MapperFactory.make @scoop.MapperFactory.make(this: MapperFactory) -> BaseMapper
     bb0 entry
       field_set 0
+        Type MapperFactory
         Local this
+        Type Int
         Binary IntAdd
+          Type Int
           FieldAccess 0
+            Type MapperFactory
             Local this
+          Type Int
           IntLiteral 1
       call $call.1: BaseMapper = @scoop.ctor.TimesTwo direct
       return
+        Type BaseMapper
         Local $call.1
   fun PrefixMapper.map @scoop.PrefixMapper.map(this: PrefixMapper, value: String) -> String
     bb0 entry
       call $call.1: String = @scoop_rt_string_concat direct
+        Type String
         FieldAccess 0
+          Type PrefixMapper
           Local this
+        Type String
         Local value
       return
+        Type String
         Local $call.1
   fun OverloadedMapper.choose @scoop.OverloadedMapper.choose(this: OverloadedMapper, value: Int) -> Int
     bb0 entry
       return
+        Type Int
         IntLiteral 100
   fun ThrowingMapper.map @scoop.ThrowingMapper.map(this: ThrowingMapper, value: Int) -> Int
     bb0 entry
       call $call.1: Boolean = @scoop.Int.equals direct
+        Type Int
         Local value
+        Type Int
         IntLiteral 0
       branch bb1 bb2
+        Type Boolean
         Local $call.1
     bb1 if.then.1
       call $call.2: ArithmeticException = @scoop.ctor.ArithmeticException direct
       throw
+        Type ArithmeticException
         Local $call.2
     bb2 if.merge.2
       return
+        Type Int
         Local value
   fun increment @scoop.increment(value: Int) -> Int
     bb0 entry
       return
+        Type Int
         Binary IntAdd
+          Type Int
           Local value
+          Type Int
           IntLiteral 1
   fun describe @scoop.describe.I(value: Int) -> String
     bb0 entry
       return
+        Type String
         StringConst @scoop.str.0
   fun describe @scoop.describe.S(value: String) -> String
     bb0 entry
       return
+        Type String
         Local value
   fun main @scoop_main() -> Unit
     bb0 entry
       val inferred: (Int) -> Int
+        Type (Int) -> Int
         ClosureAlloc cc0 $Closure$reference0
       val generic: (Int) -> Int
+        Type (Int) -> Int
         ClosureAlloc cc1 $Closure$reference1
       val overloaded: (String) -> String
+        Type (String) -> String
         ClosureAlloc cc2 $Closure$reference2
       call factory: MapperFactory = @scoop.ctor.MapperFactory direct
+        Type Int
         IntLiteral 0
       call $call.1: BaseMapper = @scoop.MapperFactory.make direct
+        Type MapperFactory
         Local factory
       val once: (Int) -> Int
+        Type (Int) -> Int
         ClosureAlloc cc3 $Closure$reference3
+          Type BaseMapper
           Local $call.1
       call @scoop.println$I direct
+        Type Int
         FieldAccess 0
+          Type MapperFactory
           Local factory
       call selected: BaseMapper = @scoop.ctor.TimesTwo direct
       val virtual: (Int) -> Int
+        Type (Int) -> Int
         ClosureAlloc cc4 $Closure$reference4
+          Type BaseMapper
           Local selected
       call $call.2: BaseMapper = @scoop.ctor.PlusHundred direct
       assign selected
+        Type BaseMapper
         Local $call.2
       call mapper: TextMapper = @scoop.ctor.PrefixMapper direct
+        Type String
         StringConst @scoop.str.1
       val interfaceReference: (String) -> String
+        Type (String) -> String
         ClosureAlloc cc5 $Closure$reference5
+          Type TextMapper
           Local mapper
       var valueMapper: ValueMapper
+        Type ValueMapper
         StructInit ValueMapper
+          Type Int
           IntLiteral 2
       val valueReference: (Int) -> Int
+        Type (Int) -> Int
         ClosureAlloc cc6 $Closure$reference6
+          Type ValueMapper
           Local valueMapper
       assign valueMapper
+        Type ValueMapper
         StructInit ValueMapper
+          Type Int
           IntLiteral 100
       call $call.3: GenericMapper = @scoop.ctor.GenericMapper direct
       val genericMember: (String) -> String
+        Type (String) -> String
         ClosureAlloc cc7 $Closure$reference7
+          Type GenericMapper
           Local $call.3
       call $call.4: OverloadedMapper = @scoop.ctor.OverloadedMapper direct
       val concreteWins: (Int) -> Int
+        Type (Int) -> Int
         ClosureAlloc cc8 $Closure$reference8
+          Type OverloadedMapper
           Local $call.4
       call $call.5: ThrowingMapper = @scoop.ctor.ThrowingMapper direct
       val throwing: (Int) -> Int
+        Type (Int) -> Int
         ClosureAlloc cc9 $Closure$reference9
+          Type ThrowingMapper
           Local $call.5
       call @scoop_rt_gc_collect direct
       call $call.6: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
         Local inferred
+        Type Int
         IntLiteral 41
       call @scoop.println$I direct
+        Type Int
         Local $call.6
       call $call.7: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
         Local generic
+        Type Int
         IntLiteral 42
       call @scoop.println$I direct
+        Type Int
         Local $call.7
       call $call.8: String = <closure:function_type1> closure[function_type1]
+        Type (String) -> String
         Local overloaded
+        Type String
         StringConst @scoop.str.2
       call @scoop.println$S direct
+        Type String
         Local $call.8
       call $call.9: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
         Local once
+        Type Int
         IntLiteral 21
       call @scoop.println$I direct
+        Type Int
         Local $call.9
       call $call.10: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
         Local virtual
+        Type Int
         IntLiteral 21
       call @scoop.println$I direct
+        Type Int
         Local $call.10
       call $call.11: Int = @scoop.BaseMapper.map virtual[0]
+        Type BaseMapper
         Local selected
+        Type Int
         IntLiteral 21
       call @scoop.println$I direct
+        Type Int
         Local $call.11
       call $call.12: String = <closure:function_type1> closure[function_type1]
+        Type (String) -> String
         Local interfaceReference
+        Type String
         StringConst @scoop.str.3
       call @scoop.println$S direct
+        Type String
         Local $call.12
       call $call.13: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
         Local valueReference
+        Type Int
         IntLiteral 40
       call @scoop.println$I direct
+        Type Int
         Local $call.13
       call $call.14: Int = @scoop.ValueMapper.map direct
+        Type ValueMapper
         Local valueMapper
+        Type Int
         IntLiteral 40
       call @scoop.println$I direct
+        Type Int
         Local $call.14
       call $call.15: String = <closure:function_type1> closure[function_type1]
+        Type (String) -> String
         Local genericMember
+        Type String
         StringConst @scoop.str.4
       call @scoop.println$S direct
+        Type String
         Local $call.15
       call $call.16: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
         Local concreteWins
+        Type Int
         IntLiteral 1
       call @scoop.println$I direct
+        Type Int
         Local $call.16
       goto bb8
     bb1 try.unwind.1
@@ -861,7 +980,9 @@ Module
     bb2 try.dispatch.2
       begin_catch
       branch bb10 bb11
+        Type Boolean
         IsInstance ArithmeticException
+          Type Any
           CaughtException
     bb3 try.handler_pad.3
       landing_pad cleanup=true
@@ -879,22 +1000,28 @@ Module
       return
     bb8 try.body.8 unwind bb1
       call $call.17: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
         Local throwing
+        Type Int
         IntLiteral 0
       call @scoop.println$I direct
+        Type Int
         Local $call.17
       goto bb9
     bb9 scope.9
       goto bb7
     bb10 try.catch.10
       val exception: ArithmeticException
+        Type ArithmeticException
         Retype ArithmeticException
+          Type Any
           CaughtException
       goto bb12
     bb11 try.next.11
       rethrow unwind bb5
     bb12 scope.12 unwind bb3
       call @scoop.println$S direct
+        Type String
         StringConst @scoop.str.5
       goto bb13
     bb13 scope.13
@@ -903,175 +1030,245 @@ Module
   fun identity @scoop.identity$I(value: Int) -> Int
     bb0 entry
       return
+        Type Int
         Local value
   fun println @scoop.println$I(value: Int) -> Unit
     bb0 entry
       call $call.1: String = @scoop.Int.toString direct
+        Type Int
         Local value
       call extern0 @scoop_rt_write direct
+        Type String
         Local $call.1
       call extern0 @scoop_rt_write direct
+        Type String
         StringConst @scoop.str.6
       return
   fun println @scoop.println$S(value: String) -> Unit
     bb0 entry
       call $call.1: String = @scoop.String.toString direct
+        Type String
         Local value
       call extern0 @scoop_rt_write direct
+        Type String
         Local $call.1
       call extern0 @scoop_rt_write direct
+        Type String
         StringConst @scoop.str.7
       return
   fun GenericMapper.choose @scoop.GenericMapper.choose$S(this: GenericMapper, value: String) -> String
     bb0 entry
       return
+        Type String
         Local value
   fun $reference.0 @scoop.$reference.0($closure: (Int) -> Int, arg0: Int) -> Int
     bb0 entry
       call $call.1: Int = @scoop.increment direct
+        Type Int
         Local arg0
       return
+        Type Int
         Local $call.1
   fun $reference.1 @scoop.$reference.1($closure: (Int) -> Int, arg0: Int) -> Int
     bb0 entry
       call $call.1: Int = @scoop.identity$I direct
+        Type Int
         Local arg0
       return
+        Type Int
         Local $call.1
   fun $reference.2 @scoop.$reference.2($closure: (String) -> String, arg0: String) -> String
     bb0 entry
       call $call.1: String = @scoop.describe.S direct
+        Type String
         Local arg0
       return
+        Type String
         Local $call.1
   fun $reference.3 @scoop.$reference.3($closure: (Int) -> Int, arg0: Int) -> Int
     bb0 entry
       call $call.1: Int = @scoop.BaseMapper.map virtual[0]
+        Type BaseMapper
         ClosureCapture cc3 0
+          Type (Int) -> Int
           Local $closure
+        Type Int
         Local arg0
       return
+        Type Int
         Local $call.1
   fun $reference.4 @scoop.$reference.4($closure: (Int) -> Int, arg0: Int) -> Int
     bb0 entry
       call $call.1: Int = @scoop.BaseMapper.map virtual[0]
+        Type BaseMapper
         ClosureCapture cc4 0
+          Type (Int) -> Int
           Local $closure
+        Type Int
         Local arg0
       return
+        Type Int
         Local $call.1
   fun $reference.5 @scoop.$reference.5($closure: (String) -> String, arg0: String) -> String
     bb0 entry
       call $call.1: String = @scoop.TextMapper.map interface TextMapper[0]
+        Type TextMapper
         ClosureCapture cc5 0
+          Type (String) -> String
           Local $closure
+        Type String
         Local arg0
       return
+        Type String
         Local $call.1
   fun $reference.6 @scoop.$reference.6($closure: (Int) -> Int, arg0: Int) -> Int
     bb0 entry
       call $call.1: Int = @scoop.ValueMapper.map direct
+        Type ValueMapper
         ClosureCapture cc6 0
+          Type (Int) -> Int
           Local $closure
+        Type Int
         Local arg0
       return
+        Type Int
         Local $call.1
   fun $reference.7 @scoop.$reference.7($closure: (String) -> String, arg0: String) -> String
     bb0 entry
       call $call.1: String = @scoop.GenericMapper.choose$S direct
+        Type GenericMapper
         ClosureCapture cc7 0
+          Type (String) -> String
           Local $closure
+        Type String
         Local arg0
       return
+        Type String
         Local $call.1
   fun $reference.8 @scoop.$reference.8($closure: (Int) -> Int, arg0: Int) -> Int
     bb0 entry
       call $call.1: Int = @scoop.OverloadedMapper.choose direct
+        Type OverloadedMapper
         ClosureCapture cc8 0
+          Type (Int) -> Int
           Local $closure
+        Type Int
         Local arg0
       return
+        Type Int
         Local $call.1
   fun $reference.9 @scoop.$reference.9($closure: (Int) -> Int, arg0: Int) -> Int
     bb0 entry
       call $call.1: Int = @scoop.ThrowingMapper.map direct
+        Type ThrowingMapper
         ClosureCapture cc9 0
+          Type (Int) -> Int
           Local $closure
+        Type Int
         Local arg0
       return
+        Type Int
         Local $call.1
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
     bb0 entry
       return
+        Type Throwable
         ClassInit Throwable
   fun ctor.Exception @scoop.ctor.Exception(message: Option$S<String>) -> Exception
     bb0 entry
       return
+        Type Exception
         ClassInit Exception
+          Type Option$S<String>
           Local message
   fun ctor.UnwrapException @scoop.ctor.UnwrapException() -> UnwrapException
     bb0 entry
       return
+        Type UnwrapException
         ClassInit UnwrapException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.8
   fun ctor.ClassCastException @scoop.ctor.ClassCastException() -> ClassCastException
     bb0 entry
       return
+        Type ClassCastException
         ClassInit ClassCastException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.9
   fun ctor.ArithmeticException @scoop.ctor.ArithmeticException() -> ArithmeticException
     bb0 entry
       return
+        Type ArithmeticException
         ClassInit ArithmeticException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.10
   fun ctor.IndexOutOfBoundsException @scoop.ctor.IndexOutOfBoundsException() -> IndexOutOfBoundsException
     bb0 entry
       return
+        Type IndexOutOfBoundsException
         ClassInit IndexOutOfBoundsException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.11
   fun ctor.IllegalStateException @scoop.ctor.IllegalStateException() -> IllegalStateException
     bb0 entry
       return
+        Type IllegalStateException
         ClassInit IllegalStateException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.12
   fun ctor.BaseMapper @scoop.ctor.BaseMapper() -> BaseMapper
     bb0 entry
       return
+        Type BaseMapper
         ClassInit BaseMapper
   fun ctor.TimesTwo @scoop.ctor.TimesTwo() -> TimesTwo
     bb0 entry
       return
+        Type TimesTwo
         ClassInit TimesTwo
   fun ctor.PlusHundred @scoop.ctor.PlusHundred() -> PlusHundred
     bb0 entry
       return
+        Type PlusHundred
         ClassInit PlusHundred
   fun ctor.MapperFactory @scoop.ctor.MapperFactory(calls: Int) -> MapperFactory
     bb0 entry
       return
+        Type MapperFactory
         ClassInit MapperFactory
+          Type Int
           Local calls
   fun ctor.PrefixMapper @scoop.ctor.PrefixMapper(prefix: String) -> PrefixMapper
     bb0 entry
       return
+        Type PrefixMapper
         ClassInit PrefixMapper
+          Type String
           Local prefix
   fun ctor.GenericMapper @scoop.ctor.GenericMapper() -> GenericMapper
     bb0 entry
       return
+        Type GenericMapper
         ClassInit GenericMapper
   fun ctor.OverloadedMapper @scoop.ctor.OverloadedMapper() -> OverloadedMapper
     bb0 entry
       return
+        Type OverloadedMapper
         ClassInit OverloadedMapper
   fun ctor.ThrowingMapper @scoop.ctor.ThrowingMapper() -> ThrowingMapper
     bb0 entry
       return
+        Type ThrowingMapper
         ClassInit ThrowingMapper
   instance @scoop.identity$I <- identity
   instance @scoop.println$I <- println

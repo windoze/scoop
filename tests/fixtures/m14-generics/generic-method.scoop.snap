@@ -401,215 +401,301 @@ Module
   fun Int.equals @scoop.Int.equals(this: Int, other: Int) -> Boolean
     bb0 entry
       call $call.1: Boolean = extern1 @scoop_rt_int_equals direct
+        Type Int
         Local this
+        Type Int
         Local other
       return
+        Type Boolean
         Local $call.1
   fun Int.toString @scoop.Int.toString(this: Int) -> String
     bb0 entry
       call $call.1: String = extern5 @scoop_rt_int_to_string direct
+        Type Int
         Local this
       return
+        Type String
         Local $call.1
   fun Int.hash @scoop.Int.hash(this: Int) -> Int
     bb0 entry
       call $call.1: Int = extern8 @scoop_rt_int_hash direct
+        Type Int
         Local this
       return
+        Type Int
         Local $call.1
   fun UInt.equals @scoop.UInt.equals(this: UInt, other: UInt) -> Boolean
     bb0 entry
       call $call.1: Boolean = extern2 @scoop_rt_uint_equals direct
+        Type UInt
         Local this
+        Type UInt
         Local other
       return
+        Type Boolean
         Local $call.1
   fun UInt.toString @scoop.UInt.toString(this: UInt) -> String
     bb0 entry
       call $call.1: String = extern6 @scoop_rt_uint_to_string direct
+        Type UInt
         Local this
       return
+        Type String
         Local $call.1
   fun UInt.hash @scoop.UInt.hash(this: UInt) -> Int
     bb0 entry
       call $call.1: Int = extern9 @scoop_rt_uint_hash direct
+        Type UInt
         Local this
       return
+        Type Int
         Local $call.1
   fun Boolean.equals @scoop.Boolean.equals(this: Boolean, other: Boolean) -> Boolean
     bb0 entry
       call $call.1: Boolean = extern3 @scoop_rt_bool_equals direct
+        Type Boolean
         Local this
+        Type Boolean
         Local other
       return
+        Type Boolean
         Local $call.1
   fun Boolean.toString @scoop.Boolean.toString(this: Boolean) -> String
     bb0 entry
       call $call.1: String = extern7 @scoop_rt_bool_to_string direct
+        Type Boolean
         Local this
       return
+        Type String
         Local $call.1
   fun Boolean.hash @scoop.Boolean.hash(this: Boolean) -> Int
     bb0 entry
       call $call.1: Int = extern10 @scoop_rt_bool_hash direct
+        Type Boolean
         Local this
       return
+        Type Int
         Local $call.1
   fun Shown.show @scoop.Shown.show(this: Shown) -> Int
     bb0 entry
       return
+        Type Int
         FieldAccess 0
+          Type Shown
           Local this
   fun String.equals @scoop.String.equals(this: String, other: String) -> Boolean
     bb0 entry
       call $call.1: Boolean = extern4 @scoop_rt_string_eq direct
+        Type String
         Local this
+        Type String
         Local other
       return
+        Type Boolean
         Local $call.1
   fun String.toString @scoop.String.toString(this: String) -> String
     bb0 entry
       return
+        Type String
         Local this
   fun String.hash @scoop.String.hash(this: String) -> Int
     bb0 entry
       call $call.1: Int = extern11 @scoop_rt_string_hash direct
+        Type String
         Local this
       return
+        Type Int
         Local $call.1
   fun main @scoop_main() -> Unit
     bb0 entry
       call box: Box$S = @scoop.ctor.Box$S direct
+        Type String
         StringConst @scoop.str.0
-      call $call.1: Int = @scoop.Box.combine$S_Shown direct
+      call $call.1: Int = @scoop.Box.combine$S_D5_ShownX direct
+        Type Box$S
         Local box
+        Type Shown
         StructInit Shown
+          Type Int
           IntLiteral 40
       call @scoop.println$I direct
+        Type Int
         Local $call.1
       call $call.2: String = @scoop.Box.choose$S_S direct
+        Type Box$S
         Local box
+        Type String
         StringConst @scoop.str.1
       call @scoop.println$S direct
+        Type String
         Local $call.2
       call $call.3: Derived = @scoop.ctor.Derived direct
-      call $call.4: Int = @scoop.Box.combine$I_Shown direct
+      call $call.4: Int = @scoop.Box.combine$I_D5_ShownX direct
+        Type Derived
         Local $call.3
+        Type Shown
         StructInit Shown
+          Type Int
           IntLiteral 41
       call @scoop.println$I direct
+        Type Int
         Local $call.4
       val bound: (Shown) -> Int
+        Type (Shown) -> Int
         ClosureAlloc cc0 $Closure$reference0
+          Type Box$S
           Local box
       call $call.5: Int = <closure:function_type0> closure[function_type0]
+        Type (Shown) -> Int
         Local bound
+        Type Shown
         StructInit Shown
+          Type Int
           IntLiteral 42
       call @scoop.println$I direct
+        Type Int
         Local $call.5
       return
   fun println @scoop.println$I(value: Int) -> Unit
     bb0 entry
       call $call.1: String = @scoop.Int.toString direct
+        Type Int
         Local value
       call extern0 @scoop_rt_write direct
+        Type String
         Local $call.1
       call extern0 @scoop_rt_write direct
+        Type String
         StringConst @scoop.str.2
       return
   fun println @scoop.println$S(value: String) -> Unit
     bb0 entry
       call $call.1: String = @scoop.String.toString direct
+        Type String
         Local value
       call extern0 @scoop_rt_write direct
+        Type String
         Local $call.1
       call extern0 @scoop_rt_write direct
+        Type String
         StringConst @scoop.str.3
       return
-  fun Box.combine @scoop.Box.combine$S_Shown(this: Box$S, other: Shown) -> Int
+  fun Box.combine @scoop.Box.combine$S_D5_ShownX(this: Box$S, other: Shown) -> Int
     bb0 entry
       call $call.1: Int = @scoop.Shown.show direct
+        Type Shown
         Local other
       return
+        Type Int
         Local $call.1
   fun Box.choose @scoop.Box.choose$S_S(this: Box$S, other: String) -> String
     bb0 entry
       return
+        Type String
         Local other
-  fun Box.combine @scoop.Box.combine$I_Shown(this: Box$I, other: Shown) -> Int
+  fun Box.combine @scoop.Box.combine$I_D5_ShownX(this: Box$I, other: Shown) -> Int
     bb0 entry
       call $call.1: Int = @scoop.Shown.show direct
+        Type Shown
         Local other
       return
+        Type Int
         Local $call.1
   fun $reference.0 @scoop.$reference.0($closure: (Shown) -> Int, arg0: Shown) -> Int
     bb0 entry
-      call $call.1: Int = @scoop.Box.combine$S_Shown direct
+      call $call.1: Int = @scoop.Box.combine$S_D5_ShownX direct
+        Type Box$S
         ClosureCapture cc0 0
+          Type (Shown) -> Int
           Local $closure
+        Type Shown
         Local arg0
       return
+        Type Int
         Local $call.1
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
     bb0 entry
       return
+        Type Throwable
         ClassInit Throwable
   fun ctor.Exception @scoop.ctor.Exception(message: Option$S<String>) -> Exception
     bb0 entry
       return
+        Type Exception
         ClassInit Exception
+          Type Option$S<String>
           Local message
   fun ctor.UnwrapException @scoop.ctor.UnwrapException() -> UnwrapException
     bb0 entry
       return
+        Type UnwrapException
         ClassInit UnwrapException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.4
   fun ctor.ClassCastException @scoop.ctor.ClassCastException() -> ClassCastException
     bb0 entry
       return
+        Type ClassCastException
         ClassInit ClassCastException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.5
   fun ctor.ArithmeticException @scoop.ctor.ArithmeticException() -> ArithmeticException
     bb0 entry
       return
+        Type ArithmeticException
         ClassInit ArithmeticException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.6
   fun ctor.IndexOutOfBoundsException @scoop.ctor.IndexOutOfBoundsException() -> IndexOutOfBoundsException
     bb0 entry
       return
+        Type IndexOutOfBoundsException
         ClassInit IndexOutOfBoundsException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.7
   fun ctor.IllegalStateException @scoop.ctor.IllegalStateException() -> IllegalStateException
     bb0 entry
       return
+        Type IllegalStateException
         ClassInit IllegalStateException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.8
   fun ctor.Derived @scoop.ctor.Derived() -> Derived
     bb0 entry
       return
+        Type Derived
         ClassInit Derived
+          Type Int
           IntLiteral 1
   fun ctor.Box$I @scoop.ctor.Box$I(value: Int) -> Box$I
     bb0 entry
       return
+        Type Box$I
         ClassInit Box$I
+          Type Int
           Local value
   fun ctor.Box$S @scoop.ctor.Box$S(value: String) -> Box$S
     bb0 entry
       return
+        Type Box$S
         ClassInit Box$S
+          Type String
           Local value
   instance @scoop.println$I <- println
   instance @scoop.println$S <- println
-  instance @scoop.Box.combine$S_Shown <- Box.combine
+  instance @scoop.Box.combine$S_D5_ShownX <- Box.combine
   instance @scoop.Box.choose$S_S <- Box.choose
-  instance @scoop.Box.combine$I_Shown <- Box.combine
+  instance @scoop.Box.combine$I_D5_ShownX <- Box.combine
   str @scoop.str.0 "owner"
   str @scoop.str.1 "explicit"
   str @scoop.str.2 "\n"
@@ -741,7 +827,7 @@ Module
     t0 = call @scoop.ctor.Box$S(global0) : ptr<managed>
     store t0 -> local0
     t1 = aggregate (40) : struct3
-    t2 = call @scoop.Box.combine$S_Shown(local0, t1) : i64
+    t2 = call @scoop.Box.combine$S_D5_ShownX(local0, t1) : i64
     store t2 -> local2
     call @scoop.println$I(local2)
     t3 = aggregate () : {}
@@ -752,7 +838,7 @@ Module
     t6 = call @scoop.ctor.Derived() : ptr<managed>
     store t6 -> local4
     t7 = aggregate (41) : struct3
-    t8 = call @scoop.Box.combine$I_Shown(local4, t7) : i64
+    t8 = call @scoop.Box.combine$I_D5_ShownX(local4, t7) : i64
     store t8 -> local5
     call @scoop.println$I(local5)
     t9 = aggregate () : {}
@@ -787,7 +873,7 @@ Module
     native_call[native-borrowed] extern0(global3)
     t2 = aggregate () : {}
     ret
-  fun @scoop.Box.combine$S_Shown(ptr<managed>, struct3) -> i64
+  fun @scoop.Box.combine$S_D5_ShownX(ptr<managed>, struct3) -> i64
     local %0 $call.1: i64
   block entry
     t0 = call @scoop.Shown.show(param1) : i64
@@ -796,7 +882,7 @@ Module
   fun @scoop.Box.choose$S_S(ptr<managed>, ptr<managed>) -> ptr<managed>
   block entry
     ret param1
-  fun @scoop.Box.combine$I_Shown(ptr<managed>, struct3) -> i64
+  fun @scoop.Box.combine$I_D5_ShownX(ptr<managed>, struct3) -> i64
     local %0 $call.1: i64
   block entry
     t0 = call @scoop.Shown.show(param1) : i64
@@ -806,7 +892,7 @@ Module
     local %0 $call.1: i64
   block entry
     t0 = heap_load param0 +24 : ptr<managed>
-    t1 = call @scoop.Box.combine$S_Shown(t0, param1) : i64
+    t1 = call @scoop.Box.combine$S_D5_ShownX(t0, param1) : i64
     store t1 -> local0
     ret local0
   fun @scoop.ctor.Throwable() -> ptr<managed>
@@ -866,7 +952,7 @@ Module
   td ToString @scoop_td_ToString size=0 vtable=0 itables=0
   td Hash @scoop_td_Hash size=0 vtable=0 itables=0
   td Show @scoop_td_Show size=0 vtable=0 itables=0
-  td function$FShownRIX @scoop_td_function$FShownRIX size=0 vtable=0 itables=0
+  td function$FD5_ShownXRIX @scoop_td_function$FD5_ShownXRIX size=0 vtable=0 itables=0
   td Throwable @scoop_td_Throwable size=16 vtable=0 itables=0
   td Box$I @scoop_td_Box$I size=24 vtable=0 itables=0
   td Box$S @scoop_td_Box$S size=24 vtable=0 itables=0

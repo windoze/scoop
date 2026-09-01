@@ -1108,7 +1108,10 @@ impl<'a> Concretizer<'a> {
             concrete::TypeKind::UInt => "V".to_string(),
             concrete::TypeKind::Boolean => "B".to_string(),
             concrete::TypeKind::String => "S".to_string(),
-            concrete::TypeKind::Struct(id) => self.structs[*id].name.clone(),
+            concrete::TypeKind::Struct(id) => {
+                let name = &self.structs[*id].name;
+                format!("D{}_{}X", name.len(), name)
+            }
             concrete::TypeKind::Class(id) => match &self.classes[*id].representation {
                 concrete::ClassRepresentation::Intrinsic {
                     application: concrete::IntrinsicTypeRepresentation::Array { element },
@@ -1122,12 +1125,18 @@ impl<'a> Concretizer<'a> {
                 | concrete::ClassRepresentation::Intrinsic {
                     application: concrete::IntrinsicTypeRepresentation::String,
                     ..
-                } => self.classes[*id].name.clone(),
+                } => {
+                    let name = &self.classes[*id].name;
+                    format!("C{}_{}X", name.len(), name)
+                }
                 concrete::ClassRepresentation::Intrinsic { .. } => {
                     unreachable!("the intrinsic registry fixes declaration targets")
                 }
             },
-            concrete::TypeKind::Interface(id) => self.interfaces[*id].name.clone(),
+            concrete::TypeKind::Interface(id) => {
+                let name = &self.interfaces[*id].name;
+                format!("J{}_{}X", name.len(), name)
+            }
             concrete::TypeKind::Any => "Any".to_string(),
             concrete::TypeKind::Tuple(elements) => format!(
                 "T{}X",
@@ -1162,7 +1171,10 @@ impl<'a> Concretizer<'a> {
                     .join("_");
                 format!("N{parameters}R{}X", self.encode_type(function.return_type))
             }
-            concrete::TypeKind::Enum(id) => format!("E{}", self.enums[*id].name),
+            concrete::TypeKind::Enum(id) => {
+                let name = &self.enums[*id].name;
+                format!("E{}_{}X", name.len(), name)
+            }
         }
     }
 

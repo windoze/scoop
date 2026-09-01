@@ -17,7 +17,7 @@ pub(super) fn materialize_exceptions(body: &mut mir::Body, throwable: mir::Type)
 
     let managed = body.locals.alloc(mir::Local {
         name: "$coroutine_exception".to_string(),
-        ty: throwable,
+        ty: throwable.clone(),
         mutable: false,
     });
 
@@ -43,7 +43,10 @@ pub(super) fn materialize_exceptions(body: &mut mir::Body, throwable: mir::Type)
                                         mir::RuntimeFn::MaterializeException,
                                     ),
                                 },
-                                args: vec![mir::Expr::CaughtException],
+                                args: vec![mir::Expr::new(
+                                    mir::Type::Any,
+                                    mir::ExprKind::CaughtException,
+                                )],
                             },
                         }),
                         span,
@@ -54,13 +57,13 @@ pub(super) fn materialize_exceptions(body: &mut mir::Body, throwable: mir::Type)
                     mir::EhStatement::BeginCatch | mir::EhStatement::EndCatch,
                 ) => {}
                 _ => {
-                    rewrite_statement(&mut statement.kind, managed);
+                    rewrite_statement(&mut statement.kind, managed, &throwable);
                     block.statements.push(statement);
                 }
             }
         }
 
-        rewrite_terminator(&mut block.terminator, managed, block.unwind);
+        rewrite_terminator(&mut block.terminator, managed, &throwable, block.unwind);
     }
 }
 
@@ -71,16 +74,20 @@ fn eh(kind: mir::EhStatement, span: Span) -> mir::Statement {
     }
 }
 
-fn rewrite_statement(statement: &mut mir::StatementKind, managed: mir::LocalId) {
+fn rewrite_statement(
+    statement: &mut mir::StatementKind,
+    managed: mir::LocalId,
+    managed_ty: &mir::Type,
+) {
     match statement {
-        mir::StatementKind::Expr(expr) => rewrite_expr(expr, managed),
-        mir::StatementKind::ValDecl { init, .. } => rewrite_expr(init, managed),
-        mir::StatementKind::Assign { value, .. } => rewrite_expr(value, managed),
-        mir::StatementKind::GlobalAssign { value, .. } => rewrite_expr(value, managed),
+        mir::StatementKind::Expr(expr) => rewrite_expr(expr, managed, managed_ty),
+        mir::StatementKind::ValDecl { init, .. } => rewrite_expr(init, managed, managed_ty),
+        mir::StatementKind::Assign { value, .. } => rewrite_expr(value, managed, managed_ty),
+        mir::StatementKind::GlobalAssign { value, .. } => rewrite_expr(value, managed, managed_ty),
         mir::StatementKind::Call(effect) => match effect {
             mir::CallEffect::Unit(call) | mir::CallEffect::Value { call, .. } => {
                 for arg in &mut call.args {
-                    rewrite_expr(arg, managed);
+                    rewrite_expr(arg, managed, managed_ty);
                 }
             }
         },
@@ -90,14 +97,14 @@ fn rewrite_statement(statement: &mut mir::StatementKind, managed: mir::LocalId) 
             value,
             ..
         } => {
-            rewrite_expr(array, managed);
-            rewrite_expr(index, managed);
-            rewrite_expr(value, managed);
+            rewrite_expr(array, managed, managed_ty);
+            rewrite_expr(index, managed, managed_ty);
+            rewrite_expr(value, managed, managed_ty);
         }
         mir::StatementKind::FieldSet { object, value, .. }
         | mir::StatementKind::AtomicFieldStore { object, value, .. } => {
-            rewrite_expr(object, managed);
-            rewrite_expr(value, managed);
+            rewrite_expr(object, managed, managed_ty);
+            rewrite_expr(value, managed, managed_ty);
         }
         mir::StatementKind::Eh(_) => {}
     }
@@ -106,25 +113,26 @@ fn rewrite_statement(statement: &mut mir::StatementKind, managed: mir::LocalId) 
 fn rewrite_terminator(
     terminator: &mut mir::Terminator,
     managed: mir::LocalId,
+    managed_ty: &mir::Type,
     block_unwind: Option<mir::BlockId>,
 ) {
     match terminator {
-        mir::Terminator::Branch { cond, .. } => rewrite_expr(cond, managed),
+        mir::Terminator::Branch { cond, .. } => rewrite_expr(cond, managed, managed_ty),
         mir::Terminator::Return { value } => {
             if let Some(value) = value {
-                rewrite_expr(value, managed);
+                rewrite_expr(value, managed, managed_ty);
             }
         }
-        mir::Terminator::Throw { exception, .. } => rewrite_expr(exception, managed),
+        mir::Terminator::Throw { exception, .. } => rewrite_expr(exception, managed, managed_ty),
         mir::Terminator::Rethrow { unwind } => {
             *terminator = mir::Terminator::Throw {
-                exception: mir::Expr::Local(managed),
+                exception: mir::Expr::new(managed_ty.clone(), mir::ExprKind::Local(managed)),
                 unwind: *unwind,
             };
         }
         mir::Terminator::Resume => {
             *terminator = mir::Terminator::Throw {
-                exception: mir::Expr::Local(managed),
+                exception: mir::Expr::new(managed_ty.clone(), mir::ExprKind::Local(managed)),
                 unwind: block_unwind,
             };
         }
@@ -132,107 +140,109 @@ fn rewrite_terminator(
     }
 }
 
-fn rewrite_expr(expr: &mut mir::Expr, managed: mir::LocalId) {
-    match expr {
-        mir::Expr::CaughtException => *expr = mir::Expr::Local(managed),
-        mir::Expr::TupleLiteral(elements)
-        | mir::Expr::ArrayLiteral { elements, .. }
-        | mir::Expr::StructInit { args: elements, .. }
-        | mir::Expr::ClassInit { args: elements, .. }
-        | mir::Expr::ClosureAlloc {
+fn rewrite_expr(expr: &mut mir::Expr, managed: mir::LocalId, managed_ty: &mir::Type) {
+    match &mut expr.kind {
+        mir::ExprKind::CaughtException => {
+            *expr = mir::Expr::new(managed_ty.clone(), mir::ExprKind::Local(managed));
+        }
+        mir::ExprKind::TupleLiteral(elements)
+        | mir::ExprKind::ArrayLiteral { elements, .. }
+        | mir::ExprKind::StructInit { args: elements, .. }
+        | mir::ExprKind::ClassInit { args: elements, .. }
+        | mir::ExprKind::ClosureAlloc {
             captures: elements, ..
         }
-        | mir::Expr::VariantConstruct {
+        | mir::ExprKind::VariantConstruct {
             fields: elements, ..
         } => {
             for element in elements {
-                rewrite_expr(element, managed);
+                rewrite_expr(element, managed, managed_ty);
             }
         }
-        mir::Expr::Retype { operand, .. }
-        | mir::Expr::ClosureCapture {
+        mir::ExprKind::Retype { operand, .. }
+        | mir::ExprKind::ClosureCapture {
             closure: operand, ..
         }
-        | mir::Expr::ForeignCallbackRegister {
+        | mir::ExprKind::ForeignCallbackRegister {
             closure: operand, ..
         }
-        | mir::Expr::ForeignCallbackOperation {
+        | mir::ExprKind::ForeignCallbackOperation {
             callback: operand, ..
         }
-        | mir::Expr::FieldAccess {
+        | mir::ExprKind::FieldAccess {
             receiver: operand, ..
         }
-        | mir::Expr::AtomicFieldLoad {
+        | mir::ExprKind::AtomicFieldLoad {
             object: operand, ..
         }
-        | mir::Expr::Box(operand)
-        | mir::Expr::Unbox(operand)
-        | mir::Expr::IsInstance { operand, .. }
-        | mir::Expr::Cast { operand, .. }
-        | mir::Expr::ArrayLen { operand, .. }
-        | mir::Expr::ArrayClone { operand, .. }
-        | mir::Expr::PtrFromUInt { operand, .. }
-        | mir::Expr::PtrToUInt(operand)
-        | mir::Expr::PtrCast { operand, .. }
-        | mir::Expr::Unary { operand, .. }
-        | mir::Expr::EnumTag(operand)
-        | mir::Expr::EnumField { operand, .. } => rewrite_expr(operand, managed),
-        mir::Expr::AtomicFieldCompareExchange {
+        | mir::ExprKind::Box(operand)
+        | mir::ExprKind::Unbox(operand)
+        | mir::ExprKind::IsInstance { operand, .. }
+        | mir::ExprKind::Cast { operand, .. }
+        | mir::ExprKind::ArrayLen { operand, .. }
+        | mir::ExprKind::ArrayClone { operand, .. }
+        | mir::ExprKind::PtrFromUInt { operand, .. }
+        | mir::ExprKind::PtrToUInt(operand)
+        | mir::ExprKind::PtrCast { operand, .. }
+        | mir::ExprKind::Unary { operand, .. }
+        | mir::ExprKind::EnumTag(operand)
+        | mir::ExprKind::EnumField { operand, .. } => rewrite_expr(operand, managed, managed_ty),
+        mir::ExprKind::AtomicFieldCompareExchange {
             object,
             expected,
             replacement,
             ..
         } => {
-            rewrite_expr(object, managed);
-            rewrite_expr(expected, managed);
-            rewrite_expr(replacement, managed);
+            rewrite_expr(object, managed, managed_ty);
+            rewrite_expr(expected, managed, managed_ty);
+            rewrite_expr(replacement, managed, managed_ty);
         }
-        mir::Expr::ArrayGet { array, index, .. }
-        | mir::Expr::Binary {
+        mir::ExprKind::ArrayGet { array, index, .. }
+        | mir::ExprKind::Binary {
             lhs: array,
             rhs: index,
             ..
         } => {
-            rewrite_expr(array, managed);
-            rewrite_expr(index, managed);
+            rewrite_expr(array, managed, managed_ty);
+            rewrite_expr(index, managed, managed_ty);
         }
-        mir::Expr::PtrLoad {
+        mir::ExprKind::PtrLoad {
             pointer, offset, ..
         } => {
-            rewrite_expr(pointer, managed);
+            rewrite_expr(pointer, managed, managed_ty);
             if let Some(offset) = offset {
-                rewrite_expr(offset, managed);
+                rewrite_expr(offset, managed, managed_ty);
             }
         }
-        mir::Expr::PtrStore {
+        mir::ExprKind::PtrStore {
             pointer,
             offset,
             value,
             ..
         } => {
-            rewrite_expr(pointer, managed);
+            rewrite_expr(pointer, managed, managed_ty);
             if let Some(offset) = offset {
-                rewrite_expr(offset, managed);
+                rewrite_expr(offset, managed, managed_ty);
             }
-            rewrite_expr(value, managed);
+            rewrite_expr(value, managed, managed_ty);
         }
-        mir::Expr::PtrOffset {
+        mir::ExprKind::PtrOffset {
             pointer, offset, ..
         } => {
-            rewrite_expr(pointer, managed);
-            rewrite_expr(offset, managed);
+            rewrite_expr(pointer, managed, managed_ty);
+            rewrite_expr(offset, managed, managed_ty);
         }
-        mir::Expr::StringConst(_)
-        | mir::Expr::IntLiteral(_)
-        | mir::Expr::BoolLiteral(_)
-        | mir::Expr::UnitLiteral
-        | mir::Expr::Local(_)
-        | mir::Expr::GlobalRead(_)
-        | mir::Expr::AddressOf { .. }
-        | mir::Expr::GlobalAddress { .. }
-        | mir::Expr::SizeOf(_)
-        | mir::Expr::AlignOf(_)
-        | mir::Expr::FunPtrNull(_)
-        | mir::Expr::FunctionAddress { .. } => {}
+        mir::ExprKind::StringConst(_)
+        | mir::ExprKind::IntLiteral(_)
+        | mir::ExprKind::BoolLiteral(_)
+        | mir::ExprKind::UnitLiteral
+        | mir::ExprKind::Local(_)
+        | mir::ExprKind::GlobalRead(_)
+        | mir::ExprKind::AddressOf { .. }
+        | mir::ExprKind::GlobalAddress { .. }
+        | mir::ExprKind::SizeOf(_)
+        | mir::ExprKind::AlignOf(_)
+        | mir::ExprKind::FunPtrNull(_)
+        | mir::ExprKind::FunctionAddress { .. } => {}
     }
 }

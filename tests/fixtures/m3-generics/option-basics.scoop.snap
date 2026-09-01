@@ -455,7 +455,7 @@ Module
   enum Option$I
     Some(_1: Int)
     None()
-  enum Option$Point
+  enum Option$D5_PointX
     Some(_1: Point)
     None()
   class Throwable vtable=0 itables=0
@@ -470,274 +470,397 @@ Module
   fun Int.equals @scoop.Int.equals(this: Int, other: Int) -> Boolean
     bb0 entry
       call $call.1: Boolean = extern1 @scoop_rt_int_equals direct
+        Type Int
         Local this
+        Type Int
         Local other
       return
+        Type Boolean
         Local $call.1
   fun Int.toString @scoop.Int.toString(this: Int) -> String
     bb0 entry
       call $call.1: String = extern5 @scoop_rt_int_to_string direct
+        Type Int
         Local this
       return
+        Type String
         Local $call.1
   fun Int.hash @scoop.Int.hash(this: Int) -> Int
     bb0 entry
       call $call.1: Int = extern8 @scoop_rt_int_hash direct
+        Type Int
         Local this
       return
+        Type Int
         Local $call.1
   fun UInt.equals @scoop.UInt.equals(this: UInt, other: UInt) -> Boolean
     bb0 entry
       call $call.1: Boolean = extern2 @scoop_rt_uint_equals direct
+        Type UInt
         Local this
+        Type UInt
         Local other
       return
+        Type Boolean
         Local $call.1
   fun UInt.toString @scoop.UInt.toString(this: UInt) -> String
     bb0 entry
       call $call.1: String = extern6 @scoop_rt_uint_to_string direct
+        Type UInt
         Local this
       return
+        Type String
         Local $call.1
   fun UInt.hash @scoop.UInt.hash(this: UInt) -> Int
     bb0 entry
       call $call.1: Int = extern9 @scoop_rt_uint_hash direct
+        Type UInt
         Local this
       return
+        Type Int
         Local $call.1
   fun Boolean.equals @scoop.Boolean.equals(this: Boolean, other: Boolean) -> Boolean
     bb0 entry
       call $call.1: Boolean = extern3 @scoop_rt_bool_equals direct
+        Type Boolean
         Local this
+        Type Boolean
         Local other
       return
+        Type Boolean
         Local $call.1
   fun Boolean.toString @scoop.Boolean.toString(this: Boolean) -> String
     bb0 entry
       call $call.1: String = extern7 @scoop_rt_bool_to_string direct
+        Type Boolean
         Local this
       return
+        Type String
         Local $call.1
   fun Boolean.hash @scoop.Boolean.hash(this: Boolean) -> Int
     bb0 entry
       call $call.1: Int = extern10 @scoop_rt_bool_hash direct
+        Type Boolean
         Local this
       return
+        Type Int
         Local $call.1
   fun String.equals @scoop.String.equals(this: String, other: String) -> Boolean
     bb0 entry
       call $call.1: Boolean = extern4 @scoop_rt_string_eq direct
+        Type String
         Local this
+        Type String
         Local other
       return
+        Type Boolean
         Local $call.1
   fun String.toString @scoop.String.toString(this: String) -> String
     bb0 entry
       return
+        Type String
         Local this
   fun String.hash @scoop.String.hash(this: String) -> Int
     bb0 entry
       call $call.1: Int = extern11 @scoop_rt_string_hash direct
+        Type String
         Local this
       return
+        Type Int
         Local $call.1
   fun main @scoop_main() -> Unit
     bb0 entry
       val a: Option$I<Int>
+        Type Option$I<Int>
         VariantConstruct Option$I<Int> v0
+          Type Int
           IntLiteral 41
       val $opt.0: Option$I<Int>
+        Type Option$I<Int>
         Local a
       branch bb1 bb2
+        Type Boolean
         Binary IntEq
+          Type Int
           EnumTag
+            Type Option$I<Int>
             Local $opt.0
+          Type Int
           IntLiteral 0
     bb1 if.then.1
       val $res.1: Int
+        Type Int
         EnumField v0 f0
+          Type Option$I<Int>
           Local $opt.0
       goto bb3
     bb2 if.else.2
       val $res.1: Int
+        Type Int
         IntLiteral 0
       goto bb3
     bb3 if.merge.3
       call @scoop.println$I direct
+        Type Int
         Local $res.1
       val b: Option$I<Int>
+        Type Option$I<Int>
         VariantConstruct Option$I<Int> v1
       val $opt.2: Option$I<Int>
+        Type Option$I<Int>
         Local b
       branch bb4 bb5
+        Type Boolean
         Binary IntEq
+          Type Int
           EnumTag
+            Type Option$I<Int>
             Local $opt.2
+          Type Int
           IntLiteral 0
     bb4 if.then.4
       val $res.3: Int
+        Type Int
         EnumField v0 f0
+          Type Option$I<Int>
           Local $opt.2
       goto bb6
     bb5 if.else.5
       val $res.3: Int
+        Type Int
         IntLiteral 99
       goto bb6
     bb6 if.merge.6
       call @scoop.println$I direct
+        Type Int
         Local $res.3
-      val p: Option$Point<Point>
-        VariantConstruct Option$Point<Point> v0
+      val p: Option$D5_PointX<Point>
+        Type Option$D5_PointX<Point>
+        VariantConstruct Option$D5_PointX<Point> v0
+          Type Point
           StructInit Point
+            Type Int
             IntLiteral 10
+            Type Int
             IntLiteral 20
-      val $opt.4: Option$Point<Point>
+      val $opt.4: Option$D5_PointX<Point>
+        Type Option$D5_PointX<Point>
         Local p
       branch bb7 bb8
+        Type Boolean
         Binary IntEq
+          Type Int
           EnumTag
+            Type Option$D5_PointX<Point>
             Local $opt.4
+          Type Int
           IntLiteral 0
     bb7 if.then.7
       val $res.5: Option$I<Int>
+        Type Option$I<Int>
         VariantConstruct Option$I<Int> v0
+          Type Int
           FieldAccess 0
+            Type Point
             EnumField v0 f0
+              Type Option$D5_PointX<Point>
               Local $opt.4
       goto bb9
     bb8 if.else.8
       val $res.5: Option$I<Int>
+        Type Option$I<Int>
         VariantConstruct Option$I<Int> v1
       goto bb9
     bb9 if.merge.9
       val $opt.6: Option$I<Int>
+        Type Option$I<Int>
         Local $res.5
       branch bb10 bb11
+        Type Boolean
         Binary IntEq
+          Type Int
           EnumTag
+            Type Option$I<Int>
             Local $opt.6
+          Type Int
           IntLiteral 0
     bb10 if.then.10
       val $res.7: Int
+        Type Int
         EnumField v0 f0
+          Type Option$I<Int>
           Local $opt.6
       goto bb12
     bb11 if.else.11
       val $res.7: Int
+        Type Int
         IntLiteral 0
       goto bb12
     bb12 if.merge.12
       call @scoop.println$I direct
+        Type Int
         Local $res.7
-      val q: Option$Point<Point>
-        VariantConstruct Option$Point<Point> v1
-      val $opt.8: Option$Point<Point>
+      val q: Option$D5_PointX<Point>
+        Type Option$D5_PointX<Point>
+        VariantConstruct Option$D5_PointX<Point> v1
+      val $opt.8: Option$D5_PointX<Point>
+        Type Option$D5_PointX<Point>
         Local q
       branch bb13 bb14
+        Type Boolean
         Binary IntEq
+          Type Int
           EnumTag
+            Type Option$D5_PointX<Point>
             Local $opt.8
+          Type Int
           IntLiteral 0
     bb13 if.then.13
       val $res.9: Option$I<Int>
+        Type Option$I<Int>
         VariantConstruct Option$I<Int> v0
+          Type Int
           FieldAccess 0
+            Type Point
             EnumField v0 f0
+              Type Option$D5_PointX<Point>
               Local $opt.8
       goto bb15
     bb14 if.else.14
       val $res.9: Option$I<Int>
+        Type Option$I<Int>
         VariantConstruct Option$I<Int> v1
       goto bb15
     bb15 if.merge.15
       val $opt.10: Option$I<Int>
+        Type Option$I<Int>
         Local $res.9
       branch bb16 bb17
+        Type Boolean
         Binary IntEq
+          Type Int
           EnumTag
+            Type Option$I<Int>
             Local $opt.10
+          Type Int
           IntLiteral 0
     bb16 if.then.16
       val $res.11: Int
+        Type Int
         EnumField v0 f0
+          Type Option$I<Int>
           Local $opt.10
       goto bb18
     bb17 if.else.17
       val $res.11: Int
+        Type Int
         IntLiteral 0
       goto bb18
     bb18 if.merge.18
       call @scoop.println$I direct
+        Type Int
         Local $res.11
       val $opt.1: Option$I<Int>
+        Type Option$I<Int>
         Local a
       branch bb19 bb20
+        Type Boolean
         Binary IntEq
+          Type Int
           EnumTag
+            Type Option$I<Int>
             Local $opt.1
+          Type Int
           IntLiteral 0
     bb19 if.then.19
       val $uw.2: Int
+        Type Int
         EnumField v0 f0
+          Type Option$I<Int>
           Local $opt.1
       goto bb21
     bb20 if.else.20
       call $call.1: UnwrapException = @scoop.ctor.UnwrapException direct
       throw
+        Type UnwrapException
         Local $call.1
     bb21 if.merge.21
       call @scoop.println$I direct
+        Type Int
         Binary IntAdd
+          Type Int
           Local $uw.2
+          Type Int
           IntLiteral 1
       return
   fun println @scoop.println$I(value: Int) -> Unit
     bb0 entry
       call $call.1: String = @scoop.Int.toString direct
+        Type Int
         Local value
       call extern0 @scoop_rt_write direct
+        Type String
         Local $call.1
       call extern0 @scoop_rt_write direct
+        Type String
         StringConst @scoop.str.0
       return
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
     bb0 entry
       return
+        Type Throwable
         ClassInit Throwable
   fun ctor.Exception @scoop.ctor.Exception(message: Option$S<String>) -> Exception
     bb0 entry
       return
+        Type Exception
         ClassInit Exception
+          Type Option$S<String>
           Local message
   fun ctor.UnwrapException @scoop.ctor.UnwrapException() -> UnwrapException
     bb0 entry
       return
+        Type UnwrapException
         ClassInit UnwrapException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.1
   fun ctor.ClassCastException @scoop.ctor.ClassCastException() -> ClassCastException
     bb0 entry
       return
+        Type ClassCastException
         ClassInit ClassCastException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.2
   fun ctor.ArithmeticException @scoop.ctor.ArithmeticException() -> ArithmeticException
     bb0 entry
       return
+        Type ArithmeticException
         ClassInit ArithmeticException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.3
   fun ctor.IndexOutOfBoundsException @scoop.ctor.IndexOutOfBoundsException() -> IndexOutOfBoundsException
     bb0 entry
       return
+        Type IndexOutOfBoundsException
         ClassInit IndexOutOfBoundsException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.4
   fun ctor.IllegalStateException @scoop.ctor.IllegalStateException() -> IllegalStateException
     bb0 entry
       return
+        Type IllegalStateException
         ClassInit IllegalStateException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.5
   instance @scoop.println$I <- println
   str @scoop.str.0 "\n"
@@ -765,7 +888,7 @@ Module
   global @scoop_td_IllegalStateException = c""
   enum Option$S niche(payload_variant=0)
   enum Option$I tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
-  enum Option$Point tagged size=24 align=8 variants=(struct3)@8+16 ()@8+0
+  enum Option$D5_PointX tagged size=24 align=8 variants=(struct3)@8+16 ()@8+0
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
   extern ef1 coreIntEquals @scoop_rt_int_equals(i64, i64) -> i1 <scoop managed nounwind>
   extern ef2 coreUIntEquals @scoop_rt_uint_equals(i64, i64) -> i1 <scoop managed nounwind>
@@ -1045,7 +1168,7 @@ Module
   layout Point size=16 align=8 refs=[]
   layout Option$S size=8 align=8 enum-scan=refs[0]
   layout Option$I size=16 align=8 enum-scan=none
-  layout Option$Point size=24 align=8 enum-scan=none
+  layout Option$D5_PointX size=24 align=8 enum-scan=none
   layout Throwable size=16 align=8 refs=[]
   layout Exception size=24 align=8 refs=[16]
   layout UnwrapException size=24 align=8 refs=[16]

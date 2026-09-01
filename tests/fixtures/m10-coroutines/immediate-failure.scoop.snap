@@ -362,96 +362,128 @@ Module
   fun Int.equals @scoop.Int.equals(this: Int, other: Int) -> Boolean
     bb0 entry
       call $call.1: Boolean = extern1 @scoop_rt_int_equals direct
+        Type Int
         Local this
+        Type Int
         Local other
       return
+        Type Boolean
         Local $call.1
   fun Int.toString @scoop.Int.toString(this: Int) -> String
     bb0 entry
       call $call.1: String = extern5 @scoop_rt_int_to_string direct
+        Type Int
         Local this
       return
+        Type String
         Local $call.1
   fun Int.hash @scoop.Int.hash(this: Int) -> Int
     bb0 entry
       call $call.1: Int = extern8 @scoop_rt_int_hash direct
+        Type Int
         Local this
       return
+        Type Int
         Local $call.1
   fun UInt.equals @scoop.UInt.equals(this: UInt, other: UInt) -> Boolean
     bb0 entry
       call $call.1: Boolean = extern2 @scoop_rt_uint_equals direct
+        Type UInt
         Local this
+        Type UInt
         Local other
       return
+        Type Boolean
         Local $call.1
   fun UInt.toString @scoop.UInt.toString(this: UInt) -> String
     bb0 entry
       call $call.1: String = extern6 @scoop_rt_uint_to_string direct
+        Type UInt
         Local this
       return
+        Type String
         Local $call.1
   fun UInt.hash @scoop.UInt.hash(this: UInt) -> Int
     bb0 entry
       call $call.1: Int = extern9 @scoop_rt_uint_hash direct
+        Type UInt
         Local this
       return
+        Type Int
         Local $call.1
   fun Boolean.equals @scoop.Boolean.equals(this: Boolean, other: Boolean) -> Boolean
     bb0 entry
       call $call.1: Boolean = extern3 @scoop_rt_bool_equals direct
+        Type Boolean
         Local this
+        Type Boolean
         Local other
       return
+        Type Boolean
         Local $call.1
   fun Boolean.toString @scoop.Boolean.toString(this: Boolean) -> String
     bb0 entry
       call $call.1: String = extern7 @scoop_rt_bool_to_string direct
+        Type Boolean
         Local this
       return
+        Type String
         Local $call.1
   fun Boolean.hash @scoop.Boolean.hash(this: Boolean) -> Int
     bb0 entry
       call $call.1: Int = extern10 @scoop_rt_bool_hash direct
+        Type Boolean
         Local this
       return
+        Type Int
         Local $call.1
   fun String.equals @scoop.String.equals(this: String, other: String) -> Boolean
     bb0 entry
       call $call.1: Boolean = extern4 @scoop_rt_string_eq direct
+        Type String
         Local this
+        Type String
         Local other
       return
+        Type Boolean
         Local $call.1
   fun String.toString @scoop.String.toString(this: String) -> String
     bb0 entry
       return
+        Type String
         Local this
   fun String.hash @scoop.String.hash(this: String) -> Int
     bb0 entry
       call $call.1: Int = extern11 @scoop_rt_string_hash direct
+        Type String
         Local this
       return
+        Type Int
         Local $call.1
   fun FailingTask.run @scoop.FailingTask.run$suspend(this: FailingTask, $completion: Continuation$I) -> CoroutineStep$I
     bb0 entry
       call $call.1: UnwrapException = @scoop.ctor.UnwrapException direct
       throw
+        Type UnwrapException
         Local $call.1
   fun RecordingCompletion.resume @scoop.RecordingCompletion.resume(this: RecordingCompletion, value: Int) -> Unit
     bb0 entry
       call @scoop.println$I direct
+        Type Int
         Local value
       return
   fun RecordingCompletion.resumeWithException @scoop.RecordingCompletion.resumeWithException(this: RecordingCompletion, exception: Throwable) -> Unit
     bb0 entry
       call @scoop.println$S direct
+        Type String
         StringConst @scoop.str.0
       return
   fun launch @scoop.launch(task: SuspendTask$I, completion: Continuation$I) -> Unit
     bb0 entry
       call @scoop.coroutine.start$I direct
+        Type SuspendTask$I
         Local task
+        Type Continuation$I
         Local completion
       return
   fun main @scoop_main() -> Unit
@@ -459,105 +491,146 @@ Module
       call $call.1: SuspendTask$I = @scoop.ctor.FailingTask direct
       call $call.2: Continuation$I = @scoop.ctor.RecordingCompletion direct
       call @scoop.launch direct
+        Type SuspendTask$I
         Local $call.1
+        Type Continuation$I
         Local $call.2
       call @scoop.println$S direct
+        Type String
         StringConst @scoop.str.1
       return
   fun println @scoop.println$S(value: String) -> Unit
     bb0 entry
       call $call.1: String = @scoop.String.toString direct
+        Type String
         Local value
       call extern0 @scoop_rt_write direct
+        Type String
         Local $call.1
       call extern0 @scoop_rt_write direct
+        Type String
         StringConst @scoop.str.2
       return
   fun println @scoop.println$I(value: Int) -> Unit
     bb0 entry
       call $call.1: String = @scoop.Int.toString direct
+        Type Int
         Local value
       call extern0 @scoop_rt_write direct
+        Type String
         Local $call.1
       call extern0 @scoop_rt_write direct
+        Type String
         StringConst @scoop.str.3
       return
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
     bb0 entry
       return
+        Type Throwable
         ClassInit Throwable
   fun ctor.Exception @scoop.ctor.Exception(message: Option$S<String>) -> Exception
     bb0 entry
       return
+        Type Exception
         ClassInit Exception
+          Type Option$S<String>
           Local message
   fun ctor.UnwrapException @scoop.ctor.UnwrapException() -> UnwrapException
     bb0 entry
       return
+        Type UnwrapException
         ClassInit UnwrapException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.4
   fun ctor.ClassCastException @scoop.ctor.ClassCastException() -> ClassCastException
     bb0 entry
       return
+        Type ClassCastException
         ClassInit ClassCastException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.5
   fun ctor.ArithmeticException @scoop.ctor.ArithmeticException() -> ArithmeticException
     bb0 entry
       return
+        Type ArithmeticException
         ClassInit ArithmeticException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.6
   fun ctor.IndexOutOfBoundsException @scoop.ctor.IndexOutOfBoundsException() -> IndexOutOfBoundsException
     bb0 entry
       return
+        Type IndexOutOfBoundsException
         ClassInit IndexOutOfBoundsException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.7
   fun ctor.IllegalStateException @scoop.ctor.IllegalStateException() -> IllegalStateException
     bb0 entry
       return
+        Type IllegalStateException
         ClassInit IllegalStateException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.8
   fun ctor.FailingTask @scoop.ctor.FailingTask() -> FailingTask
     bb0 entry
       return
+        Type FailingTask
         ClassInit FailingTask
   fun ctor.RecordingCompletion @scoop.ctor.RecordingCompletion() -> RecordingCompletion
     bb0 entry
       return
+        Type RecordingCompletion
         ClassInit RecordingCompletion
   fun startCoroutine$I @scoop.coroutine.start$I(task: SuspendTask$I, completion: Continuation$I) -> Unit
     bb0 suspended
       return
     bb1 completed
       call @scoop.Continuation.resume$I interface Continuation$I[0]
+        Type Continuation$I
         Local completion
+        Type Int
         EnumField v0 f0
+          Type CoroutineStep$I
           Local $step
       return
     bb2 failed
       call @scoop.Continuation.resumeWithException$I interface Continuation$I[1]
+        Type Continuation$I
         Local completion
+        Type Throwable
         Local $exception
       return
     bb3 body_failure
       landing_pad cleanup=false
       begin_catch
       call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
         CaughtException
       end_catch
       goto bb2
     bb4 entry unwind bb3
       call $step: CoroutineStep$I = @scoop.SuspendTask.run$I$suspend interface SuspendTask$I[0]
+        Type SuspendTask$I
         Local task
+        Type Continuation$I
         Local completion
       branch bb1 bb0
+        Type Boolean
         Binary IntEq
+          Type Int
           EnumTag
+            Type CoroutineStep$I
             Local $step
+          Type Int
           IntLiteral 0
   coroutine_step cs0 CoroutineStep$I result=Int
   coroutine_fn cf0 @scoop.FailingTask.run$suspend source_return=Int step=cs0 immediate

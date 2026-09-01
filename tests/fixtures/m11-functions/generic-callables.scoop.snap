@@ -615,423 +615,598 @@ Module
   fun Int.equals @scoop.Int.equals(this: Int, other: Int) -> Boolean
     bb0 entry
       call $call.1: Boolean = extern1 @scoop_rt_int_equals direct
+        Type Int
         Local this
+        Type Int
         Local other
       return
+        Type Boolean
         Local $call.1
   fun Int.toString @scoop.Int.toString(this: Int) -> String
     bb0 entry
       call $call.1: String = extern5 @scoop_rt_int_to_string direct
+        Type Int
         Local this
       return
+        Type String
         Local $call.1
   fun Int.hash @scoop.Int.hash(this: Int) -> Int
     bb0 entry
       call $call.1: Int = extern8 @scoop_rt_int_hash direct
+        Type Int
         Local this
       return
+        Type Int
         Local $call.1
   fun UInt.equals @scoop.UInt.equals(this: UInt, other: UInt) -> Boolean
     bb0 entry
       call $call.1: Boolean = extern2 @scoop_rt_uint_equals direct
+        Type UInt
         Local this
+        Type UInt
         Local other
       return
+        Type Boolean
         Local $call.1
   fun UInt.toString @scoop.UInt.toString(this: UInt) -> String
     bb0 entry
       call $call.1: String = extern6 @scoop_rt_uint_to_string direct
+        Type UInt
         Local this
       return
+        Type String
         Local $call.1
   fun UInt.hash @scoop.UInt.hash(this: UInt) -> Int
     bb0 entry
       call $call.1: Int = extern9 @scoop_rt_uint_hash direct
+        Type UInt
         Local this
       return
+        Type Int
         Local $call.1
   fun Boolean.equals @scoop.Boolean.equals(this: Boolean, other: Boolean) -> Boolean
     bb0 entry
       call $call.1: Boolean = extern3 @scoop_rt_bool_equals direct
+        Type Boolean
         Local this
+        Type Boolean
         Local other
       return
+        Type Boolean
         Local $call.1
   fun Boolean.toString @scoop.Boolean.toString(this: Boolean) -> String
     bb0 entry
       call $call.1: String = extern7 @scoop_rt_bool_to_string direct
+        Type Boolean
         Local this
       return
+        Type String
         Local $call.1
   fun Boolean.hash @scoop.Boolean.hash(this: Boolean) -> Int
     bb0 entry
       call $call.1: Int = extern10 @scoop_rt_bool_hash direct
+        Type Boolean
         Local this
       return
+        Type Int
         Local $call.1
   fun String.equals @scoop.String.equals(this: String, other: String) -> Boolean
     bb0 entry
       call $call.1: Boolean = extern4 @scoop_rt_string_eq direct
+        Type String
         Local this
+        Type String
         Local other
       return
+        Type Boolean
         Local $call.1
   fun String.toString @scoop.String.toString(this: String) -> String
     bb0 entry
       return
+        Type String
         Local this
   fun String.hash @scoop.String.hash(this: String) -> Int
     bb0 entry
       call $call.1: Int = extern11 @scoop_rt_string_hash direct
+        Type String
         Local this
       return
+        Type Int
         Local $call.1
   fun main @scoop_main() -> Unit
     bb0 entry
       call intLambda: () -> Int = @scoop.makeLambda$I direct
+        Type Int
         IntLiteral 42
       call stringLambda: () -> String = @scoop.makeLambda$S direct
+        Type String
         StringConst @scoop.str.0
       call intAnonymous: () -> Int = @scoop.makeAnonymous$I direct
+        Type Int
         IntLiteral 43
       call stringAnonymous: () -> String = @scoop.makeAnonymous$S direct
+        Type String
         StringConst @scoop.str.1
       call intLocal: () -> Int = @scoop.makeLocalReference$I direct
+        Type Int
         IntLiteral 44
       call stringLocal: () -> String = @scoop.makeLocalReference$S direct
+        Type String
         StringConst @scoop.str.2
       call intIdentity: (Int) -> Int = @scoop.makeNamedReference$I direct
+        Type Int
         IntLiteral 0
       call stringIdentity: (String) -> String = @scoop.makeNamedReference$S direct
+        Type String
         StringConst @scoop.str.3
       call intExtension: () -> Int = @scoop.makeExtensionReference$I direct
+        Type Int
         IntLiteral 45
       call stringExtension: () -> String = @scoop.makeExtensionReference$S direct
+        Type String
         StringConst @scoop.str.4
       call intNested: () -> () -> Int = @scoop.makeNested$I direct
+        Type Int
         IntLiteral 46
       call stringNested: () -> () -> String = @scoop.makeNested$S direct
+        Type String
         StringConst @scoop.str.5
       call intBox: () -> Int = @scoop.makeBoxReader$I direct
+        Type Int
         IntLiteral 47
       call stringBox: () -> String = @scoop.makeBoxReader$S direct
+        Type String
         StringConst @scoop.str.6
       call @scoop_rt_gc_collect direct
       call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
         Local intLambda
       call @scoop.println$I direct
+        Type Int
         Local $call.1
       call $call.2: String = <closure:function_type1> closure[function_type1]
+        Type () -> String
         Local stringLambda
       call @scoop.println$S direct
+        Type String
         Local $call.2
       call $call.3: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
         Local intAnonymous
       call @scoop.println$I direct
+        Type Int
         Local $call.3
       call $call.4: String = <closure:function_type1> closure[function_type1]
+        Type () -> String
         Local stringAnonymous
       call @scoop.println$S direct
+        Type String
         Local $call.4
       call $call.5: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
         Local intLocal
       call @scoop.println$I direct
+        Type Int
         Local $call.5
       call $call.6: String = <closure:function_type1> closure[function_type1]
+        Type () -> String
         Local stringLocal
       call @scoop.println$S direct
+        Type String
         Local $call.6
       call $call.7: Int = <closure:function_type4> closure[function_type4]
+        Type (Int) -> Int
         Local intIdentity
+        Type Int
         IntLiteral 48
       call @scoop.println$I direct
+        Type Int
         Local $call.7
       call $call.8: String = <closure:function_type5> closure[function_type5]
+        Type (String) -> String
         Local stringIdentity
+        Type String
         StringConst @scoop.str.7
       call @scoop.println$S direct
+        Type String
         Local $call.8
       call $call.9: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
         Local intExtension
       call @scoop.println$I direct
+        Type Int
         Local $call.9
       call $call.10: String = <closure:function_type1> closure[function_type1]
+        Type () -> String
         Local stringExtension
       call @scoop.println$S direct
+        Type String
         Local $call.10
       call $call.11: () -> Int = <closure:function_type2> closure[function_type2]
+        Type () -> () -> Int
         Local intNested
       call $call.12: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
         Local $call.11
       call @scoop.println$I direct
+        Type Int
         Local $call.12
       call $call.13: () -> String = <closure:function_type3> closure[function_type3]
+        Type () -> () -> String
         Local stringNested
       call $call.14: String = <closure:function_type1> closure[function_type1]
+        Type () -> String
         Local $call.13
       call @scoop.println$S direct
+        Type String
         Local $call.14
       call $call.15: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
         Local intBox
       call @scoop.println$I direct
+        Type Int
         Local $call.15
       call $call.16: String = <closure:function_type1> closure[function_type1]
+        Type () -> String
         Local stringBox
       call @scoop.println$S direct
+        Type String
         Local $call.16
       return
   fun makeLambda @scoop.makeLambda$I(value: Int) -> () -> Int
     bb0 entry
       return
+        Type () -> Int
         ClosureAlloc cc0 $Closure$lambda0
+          Type Int
           Local value
   fun makeLambda @scoop.makeLambda$S(value: String) -> () -> String
     bb0 entry
       return
+        Type () -> String
         ClosureAlloc cc1 $Closure$lambda1
+          Type String
           Local value
   fun makeAnonymous @scoop.makeAnonymous$I(value: Int) -> () -> Int
     bb0 entry
       return
+        Type () -> Int
         ClosureAlloc cc6 $Closure$anonymous0
+          Type Int
           Local value
   fun makeAnonymous @scoop.makeAnonymous$S(value: String) -> () -> String
     bb0 entry
       return
+        Type () -> String
         ClosureAlloc cc7 $Closure$anonymous1
+          Type String
           Local value
   fun makeLocalReference @scoop.makeLocalReference$I(value: Int) -> () -> Int
     bb0 entry
       return
+        Type () -> Int
         ClosureAlloc cc10 $Closure$reference0
+          Type Int
           Local value
   fun makeLocalReference @scoop.makeLocalReference$S(value: String) -> () -> String
     bb0 entry
       return
+        Type () -> String
         ClosureAlloc cc11 $Closure$reference1
+          Type String
           Local value
   fun makeNamedReference @scoop.makeNamedReference$I(seed: Int) -> (Int) -> Int
     bb0 entry
       val reference: (Int) -> Int
+        Type (Int) -> Int
         ClosureAlloc cc12 $Closure$reference2
       return
+        Type (Int) -> Int
         Local reference
   fun makeNamedReference @scoop.makeNamedReference$S(seed: String) -> (String) -> String
     bb0 entry
       val reference: (String) -> String
+        Type (String) -> String
         ClosureAlloc cc13 $Closure$reference3
       return
+        Type (String) -> String
         Local reference
   fun makeExtensionReference @scoop.makeExtensionReference$I(value: Int) -> () -> Int
     bb0 entry
       return
+        Type () -> Int
         ClosureAlloc cc14 $Closure$reference4
+          Type Int
           Local value
   fun makeExtensionReference @scoop.makeExtensionReference$S(value: String) -> () -> String
     bb0 entry
       return
+        Type () -> String
         ClosureAlloc cc15 $Closure$reference5
+          Type String
           Local value
   fun makeNested @scoop.makeNested$I(value: Int) -> () -> () -> Int
     bb0 entry
       return
+        Type () -> () -> Int
         ClosureAlloc cc8 $Closure$anonymous2
+          Type Int
           Local value
   fun makeNested @scoop.makeNested$S(value: String) -> () -> () -> String
     bb0 entry
       return
+        Type () -> () -> String
         ClosureAlloc cc9 $Closure$anonymous3
+          Type String
           Local value
   fun makeBoxReader @scoop.makeBoxReader$I(value: Int) -> () -> Int
     bb0 entry
       val box: GenericBox$I
+        Type GenericBox$I
         StructInit GenericBox$I
+          Type Int
           Local value
       return
+        Type () -> Int
         ClosureAlloc cc2 $Closure$lambda2
+          Type GenericBox$I
           Local box
   fun makeBoxReader @scoop.makeBoxReader$S(value: String) -> () -> String
     bb0 entry
       val box: GenericBox$S
+        Type GenericBox$S
         StructInit GenericBox$S
+          Type String
           Local value
       return
+        Type () -> String
         ClosureAlloc cc3 $Closure$lambda3
+          Type GenericBox$S
           Local box
   fun println @scoop.println$I(value: Int) -> Unit
     bb0 entry
       call $call.1: String = @scoop.Int.toString direct
+        Type Int
         Local value
       call extern0 @scoop_rt_write direct
+        Type String
         Local $call.1
       call extern0 @scoop_rt_write direct
+        Type String
         StringConst @scoop.str.8
       return
   fun println @scoop.println$S(value: String) -> Unit
     bb0 entry
       call $call.1: String = @scoop.String.toString direct
+        Type String
         Local value
       call extern0 @scoop_rt_write direct
+        Type String
         Local $call.1
       call extern0 @scoop_rt_write direct
+        Type String
         StringConst @scoop.str.9
       return
   fun $lambda.0 @scoop.$lambda.0$I($closure: () -> Int) -> Int
     bb0 entry
       return
+        Type Int
         ClosureCapture cc0 0
+          Type () -> Int
           Local $closure
   fun $lambda.0 @scoop.$lambda.0$S($closure: () -> String) -> String
     bb0 entry
       return
+        Type String
         ClosureCapture cc1 0
+          Type () -> String
           Local $closure
   fun $anonymous.0 @scoop.$anonymous.0$I($closure: () -> Int) -> Int
     bb0 entry
       return
+        Type Int
         ClosureCapture cc6 0
+          Type () -> Int
           Local $closure
   fun $anonymous.0 @scoop.$anonymous.0$S($closure: () -> String) -> String
     bb0 entry
       return
+        Type String
         ClosureCapture cc7 0
+          Type () -> String
           Local $closure
   fun $local.0.read @scoop.$local.0.read$I($capture.value: Int) -> Int
     bb0 entry
       return
+        Type Int
         Local $capture.value
   fun $local.0.read @scoop.$local.0.read$S($capture.value: String) -> String
     bb0 entry
       return
+        Type String
         Local $capture.value
   fun identity @scoop.identity$I(value: Int) -> Int
     bb0 entry
       return
+        Type Int
         Local value
   fun identity @scoop.identity$S(value: String) -> String
     bb0 entry
       return
+        Type String
         Local value
   fun $extension.copyValue @scoop.$extension.copyValue$I(this: Int) -> Int
     bb0 entry
       return
+        Type Int
         Local this
   fun $extension.copyValue @scoop.$extension.copyValue$S(this: String) -> String
     bb0 entry
       return
+        Type String
         Local this
   fun $anonymous.1 @scoop.$anonymous.1$I($closure: () -> () -> Int) -> () -> Int
     bb0 entry
       return
+        Type () -> Int
         ClosureAlloc cc4 $Closure$lambda4
+          Type Int
           ClosureCapture cc8 0
+            Type () -> () -> Int
             Local $closure
   fun $anonymous.1 @scoop.$anonymous.1$S($closure: () -> () -> String) -> () -> String
     bb0 entry
       return
+        Type () -> String
         ClosureAlloc cc5 $Closure$lambda5
+          Type String
           ClosureCapture cc9 0
+            Type () -> () -> String
             Local $closure
   fun $lambda.2 @scoop.$lambda.2$I($closure: () -> Int) -> Int
     bb0 entry
       return
+        Type Int
         FieldAccess 0
+          Type GenericBox$I
           ClosureCapture cc2 0
+            Type () -> Int
             Local $closure
   fun $lambda.2 @scoop.$lambda.2$S($closure: () -> String) -> String
     bb0 entry
       return
+        Type String
         FieldAccess 0
+          Type GenericBox$S
           ClosureCapture cc3 0
+            Type () -> String
             Local $closure
   fun $lambda.1 @scoop.$lambda.1$I($closure: () -> Int) -> Int
     bb0 entry
       return
+        Type Int
         ClosureCapture cc4 0
+          Type () -> Int
           Local $closure
   fun $lambda.1 @scoop.$lambda.1$S($closure: () -> String) -> String
     bb0 entry
       return
+        Type String
         ClosureCapture cc5 0
+          Type () -> String
           Local $closure
   fun $reference.0 @scoop.$reference.0($closure: () -> Int) -> Int
     bb0 entry
       call $call.1: Int = @scoop.$local.0.read$I direct
+        Type Int
         ClosureCapture cc10 0
+          Type () -> Int
           Local $closure
       return
+        Type Int
         Local $call.1
   fun $reference.1 @scoop.$reference.1($closure: () -> String) -> String
     bb0 entry
       call $call.1: String = @scoop.$local.0.read$S direct
+        Type String
         ClosureCapture cc11 0
+          Type () -> String
           Local $closure
       return
+        Type String
         Local $call.1
   fun $reference.2 @scoop.$reference.2($closure: (Int) -> Int, arg0: Int) -> Int
     bb0 entry
       call $call.1: Int = @scoop.identity$I direct
+        Type Int
         Local arg0
       return
+        Type Int
         Local $call.1
   fun $reference.3 @scoop.$reference.3($closure: (String) -> String, arg0: String) -> String
     bb0 entry
       call $call.1: String = @scoop.identity$S direct
+        Type String
         Local arg0
       return
+        Type String
         Local $call.1
   fun $reference.4 @scoop.$reference.4($closure: () -> Int) -> Int
     bb0 entry
       call $call.1: Int = @scoop.$extension.copyValue$I direct
+        Type Int
         ClosureCapture cc14 0
+          Type () -> Int
           Local $closure
       return
+        Type Int
         Local $call.1
   fun $reference.5 @scoop.$reference.5($closure: () -> String) -> String
     bb0 entry
       call $call.1: String = @scoop.$extension.copyValue$S direct
+        Type String
         ClosureCapture cc15 0
+          Type () -> String
           Local $closure
       return
+        Type String
         Local $call.1
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
     bb0 entry
       return
+        Type Throwable
         ClassInit Throwable
   fun ctor.Exception @scoop.ctor.Exception(message: Option$S<String>) -> Exception
     bb0 entry
       return
+        Type Exception
         ClassInit Exception
+          Type Option$S<String>
           Local message
   fun ctor.UnwrapException @scoop.ctor.UnwrapException() -> UnwrapException
     bb0 entry
       return
+        Type UnwrapException
         ClassInit UnwrapException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.10
   fun ctor.ClassCastException @scoop.ctor.ClassCastException() -> ClassCastException
     bb0 entry
       return
+        Type ClassCastException
         ClassInit ClassCastException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.11
   fun ctor.ArithmeticException @scoop.ctor.ArithmeticException() -> ArithmeticException
     bb0 entry
       return
+        Type ArithmeticException
         ClassInit ArithmeticException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.12
   fun ctor.IndexOutOfBoundsException @scoop.ctor.IndexOutOfBoundsException() -> IndexOutOfBoundsException
     bb0 entry
       return
+        Type IndexOutOfBoundsException
         ClassInit IndexOutOfBoundsException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.13
   fun ctor.IllegalStateException @scoop.ctor.IllegalStateException() -> IllegalStateException
     bb0 entry
       return
+        Type IllegalStateException
         ClassInit IllegalStateException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.14
   instance @scoop.makeLambda$I <- makeLambda
   instance @scoop.makeLambda$S <- makeLambda

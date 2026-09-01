@@ -681,90 +681,121 @@ Module
   fun Int.equals @scoop.Int.equals(this: Int, other: Int) -> Boolean
     bb0 entry
       call $call.1: Boolean = extern1 @scoop_rt_int_equals direct
+        Type Int
         Local this
+        Type Int
         Local other
       return
+        Type Boolean
         Local $call.1
   fun Int.toString @scoop.Int.toString(this: Int) -> String
     bb0 entry
       call $call.1: String = extern5 @scoop_rt_int_to_string direct
+        Type Int
         Local this
       return
+        Type String
         Local $call.1
   fun Int.hash @scoop.Int.hash(this: Int) -> Int
     bb0 entry
       call $call.1: Int = extern8 @scoop_rt_int_hash direct
+        Type Int
         Local this
       return
+        Type Int
         Local $call.1
   fun UInt.equals @scoop.UInt.equals(this: UInt, other: UInt) -> Boolean
     bb0 entry
       call $call.1: Boolean = extern2 @scoop_rt_uint_equals direct
+        Type UInt
         Local this
+        Type UInt
         Local other
       return
+        Type Boolean
         Local $call.1
   fun UInt.toString @scoop.UInt.toString(this: UInt) -> String
     bb0 entry
       call $call.1: String = extern6 @scoop_rt_uint_to_string direct
+        Type UInt
         Local this
       return
+        Type String
         Local $call.1
   fun UInt.hash @scoop.UInt.hash(this: UInt) -> Int
     bb0 entry
       call $call.1: Int = extern9 @scoop_rt_uint_hash direct
+        Type UInt
         Local this
       return
+        Type Int
         Local $call.1
   fun Boolean.equals @scoop.Boolean.equals(this: Boolean, other: Boolean) -> Boolean
     bb0 entry
       call $call.1: Boolean = extern3 @scoop_rt_bool_equals direct
+        Type Boolean
         Local this
+        Type Boolean
         Local other
       return
+        Type Boolean
         Local $call.1
   fun Boolean.toString @scoop.Boolean.toString(this: Boolean) -> String
     bb0 entry
       call $call.1: String = extern7 @scoop_rt_bool_to_string direct
+        Type Boolean
         Local this
       return
+        Type String
         Local $call.1
   fun Boolean.hash @scoop.Boolean.hash(this: Boolean) -> Int
     bb0 entry
       call $call.1: Int = extern10 @scoop_rt_bool_hash direct
+        Type Boolean
         Local this
       return
+        Type Int
         Local $call.1
   fun String.equals @scoop.String.equals(this: String, other: String) -> Boolean
     bb0 entry
       call $call.1: Boolean = extern4 @scoop_rt_string_eq direct
+        Type String
         Local this
+        Type String
         Local other
       return
+        Type Boolean
         Local $call.1
   fun String.toString @scoop.String.toString(this: String) -> String
     bb0 entry
       return
+        Type String
         Local this
   fun String.hash @scoop.String.hash(this: String) -> Int
     bb0 entry
       call $call.1: Int = extern11 @scoop_rt_string_hash direct
+        Type String
         Local this
       return
+        Type Int
         Local $call.1
   fun branchReturn @scoop.branchReturn(flag: Boolean) -> Int
     bb0 entry
       branch bb1 bb2
+        Type Boolean
         Local flag
     bb1 if.then.1
       return
+        Type Int
         IntLiteral 11
     bb2 if.else.2
       assign $result.0
+        Type Int
         IntLiteral 12
       goto bb3
     bb3 if.merge.3
       return
+        Type Int
         Local $result.0
   fun finallyReturn @scoop.finallyReturn() -> Int
     bb0 entry
@@ -785,249 +816,353 @@ Module
       unreachable
     bb6 try.body.6 unwind bb1
       assign $result.1
+        Type Int
         IntLiteral 1
       goto bb7
     bb7 scope.7
       return
+        Type Int
         IntLiteral 13
     bb8 scope.8 unwind bb3
       val $return.1: Int
+        Type Int
         IntLiteral 13
       end_catch
       return
+        Type Int
         Local $return.1
   fun main @scoop_main() -> Unit
     bb0 entry
       branch bb1 bb2
+        Type Boolean
         BoolLiteral true
     bb1 if.then.1
       val base: Int
+        Type Int
         IntLiteral 40
       assign $result.2
+        Type Int
         Binary IntAdd
+          Type Int
           Local base
+          Type Int
           IntLiteral 2
       goto bb3
     bb2 if.else.2
       assign $result.2
+        Type Int
         IntLiteral 0
       goto bb3
     bb3 if.merge.3
       val branch: Int
+        Type Int
         Local $result.2
       call @scoop.println$I direct
+        Type Int
         Local branch
       branch bb4 bb5
+        Type Boolean
         BoolLiteral true
     bb4 if.then.4
       branch bb7 bb8
+        Type Boolean
         BoolLiteral false
     bb5 if.else.5
       assign $result.4
+        Type Int
         IntLiteral 3
       goto bb6
     bb6 if.merge.6
       val nested: Int
+        Type Int
         Local $result.4
       call @scoop.println$I direct
+        Type Int
         Local nested
       branch bb10 bb11
+        Type Boolean
         BoolLiteral true
     bb7 if.then.7
       assign $result.3
+        Type Int
         IntLiteral 1
       goto bb9
     bb8 if.else.8
       assign $result.3
+        Type Int
         IntLiteral 2
       goto bb9
     bb9 if.merge.9
       assign $result.4
+        Type Int
         Local $result.3
       goto bb6
     bb10 if.then.10
       assign $result.5
+        Type Any
         Box
+          Type Int
           IntLiteral 5
       goto bb12
     bb11 if.else.11
       assign $result.5
+        Type Any
         StringConst @scoop.str.0
       goto bb12
     bb12 if.merge.12
       val mixed: Any
+        Type Any
         Local $result.5
       call @scoop.println$B direct
+        Type Boolean
         IsInstance Int
+          Type Any
           Local mixed
       branch bb13 bb14
+        Type Boolean
         BoolLiteral false
     bb13 if.then.13
       assign $result.6
+        Type Option$I<Int>
         VariantConstruct Option$I<Int> v1
       goto bb15
     bb14 if.else.14
       assign $result.6
+        Type Option$I<Int>
         VariantConstruct Option$I<Int> v0
+          Type Int
           IntLiteral 4
       goto bb15
     bb15 if.merge.15
       val inferred: Option$I<Int>
+        Type Option$I<Int>
         Local $result.6
       val $opt.1: Option$I<Int>
+        Type Option$I<Int>
         Local inferred
       branch bb16 bb17
+        Type Boolean
         Binary IntEq
+          Type Int
           EnumTag
+            Type Option$I<Int>
             Local $opt.1
+          Type Int
           IntLiteral 0
     bb16 if.then.16
       val $uw.2: Int
+        Type Int
         EnumField v0 f0
+          Type Option$I<Int>
           Local $opt.1
       goto bb18
     bb17 if.else.17
       call $call.1: UnwrapException = @scoop.ctor.UnwrapException direct
       throw
+        Type UnwrapException
         Local $call.1
     bb18 if.merge.18
       call @scoop.println$I direct
+        Type Int
         Local $uw.2
       branch bb19 bb20
+        Type Boolean
         BoolLiteral true
     bb19 if.then.19
       call $call.2: Animal = @scoop.ctor.Dog direct
       assign $result.7
+        Type Animal
         Local $call.2
       goto bb21
     bb20 if.else.20
       call $call.3: Animal = @scoop.ctor.Animal direct
+        Type String
         StringConst @scoop.str.1
       assign $result.7
+        Type Animal
         Local $call.3
       goto bb21
     bb21 if.merge.21
       val animal: Animal
+        Type Animal
         Local $result.7
       call @scoop.println$S direct
+        Type String
         FieldAccess 0
+          Type Animal
           Local animal
       val erased: Any
+        Type Any
         Retype Any
+          Type Animal
           Local animal
       branch bb22 bb23
+        Type Boolean
         IsInstance Dog
+          Type Any
           Local erased
     bb22 if.then.22
       assign $result.8
+        Type String
         FieldAccess 0
+          Type Dog
           Retype Dog
+            Type Any
             Local erased
       goto bb24
     bb23 if.else.23
       assign $result.8
+        Type String
         StringConst @scoop.str.2
       goto bb24
     bb24 if.merge.24
       val smartName: String
+        Type String
         Local $result.8
       call @scoop.println$S direct
+        Type String
         Local smartName
       val input: Input
+        Type Input
         VariantConstruct Input v0
+          Type Int
           IntLiteral 7
       val $when.3: Input
+        Type Input
         Local input
       branch bb25 bb26
+        Type Boolean
         Binary IntEq
+          Type Int
           EnumTag
+            Type Input
             Local $when.3
+          Type Int
           IntLiteral 0
     bb25 if.then.25
       val value: Int
+        Type Int
         EnumField v0 f0
+          Type Input
           Local $when.3
       branch bb28 bb29
+        Type Boolean
         Binary IntGt
+          Type Int
           Local value
+          Type Int
           IntLiteral 0
     bb26 if.else.26
       branch bb31 bb32
+        Type Boolean
         Binary IntEq
+          Type Int
           EnumTag
+            Type Input
             Local $when.3
+          Type Int
           IntLiteral 1
     bb27 if.merge.27
       val text: String
+        Type String
         Local $result.10
       call @scoop.println$S direct
+        Type String
         Local text
       val $when.4: Input
+        Type Input
         Local input
       branch bb33 bb34
+        Type Boolean
         Binary IntEq
+          Type Int
           EnumTag
+            Type Input
             Local $when.4
+          Type Int
           IntLiteral 1
     bb28 if.then.28
       assign $result.9
+        Type String
         StringConst @scoop.str.3
       goto bb30
     bb29 if.else.29
       assign $result.9
+        Type String
         StringConst @scoop.str.4
       goto bb30
     bb30 if.merge.30
       assign $result.10
+        Type String
         Local $result.9
       goto bb27
     bb31 if.then.31
       assign $result.10
+        Type String
         StringConst @scoop.str.5
       goto bb32
     bb32 if.merge.32
       goto bb27
     bb33 if.then.33
       assign $result.11
+        Type Option$I<Int>
         VariantConstruct Option$I<Int> v1
       goto bb35
     bb34 if.else.34
       branch bb36 bb37
+        Type Boolean
         Binary IntEq
+          Type Int
           EnumTag
+            Type Input
             Local $when.4
+          Type Int
           IntLiteral 0
     bb35 if.merge.35
       val maybeWhen: Option$I<Int>
+        Type Option$I<Int>
         Local $result.11
       val $opt.5: Option$I<Int>
+        Type Option$I<Int>
         Local maybeWhen
       branch bb38 bb39
+        Type Boolean
         Binary IntEq
+          Type Int
           EnumTag
+            Type Option$I<Int>
             Local $opt.5
+          Type Int
           IntLiteral 0
     bb36 if.then.36
       val value: Int
+        Type Int
         EnumField v0 f0
+          Type Input
           Local $when.4
       assign $result.11
+        Type Option$I<Int>
         VariantConstruct Option$I<Int> v0
+          Type Int
           Local value
       goto bb37
     bb37 if.merge.37
       goto bb35
     bb38 if.then.38
       val $uw.6: Int
+        Type Int
         EnumField v0 f0
+          Type Option$I<Int>
           Local $opt.5
       goto bb40
     bb39 if.else.39
       call $call.4: UnwrapException = @scoop.ctor.UnwrapException direct
       throw
+        Type UnwrapException
         Local $call.4
     bb40 if.merge.40
       call @scoop.println$I direct
+        Type Int
         Local $uw.6
       goto bb46
     bb41 try.unwind.41
@@ -1044,20 +1179,25 @@ Module
       resume
     bb45 try.end.45
       val normal: String
+        Type String
         Local $result.12
       call @scoop.println$S direct
+        Type String
         Local normal
       goto bb56
     bb46 try.body.46 unwind bb41
       assign $result.12
+        Type String
         StringConst @scoop.str.6
       goto bb47
     bb47 scope.47
       call @scoop.println$S direct
+        Type String
         StringConst @scoop.str.7
       goto bb45
     bb48 scope.48 unwind bb43
       call @scoop.println$S direct
+        Type String
         StringConst @scoop.str.7
       rethrow unwind bb43
     bb49 try.unwind.49
@@ -1066,7 +1206,9 @@ Module
     bb50 try.dispatch.50
       begin_catch
       branch bb57 bb58
+        Type Boolean
         IsInstance UnwrapException
+          Type Any
           CaughtException
     bb51 try.handler_pad.51
       landing_pad cleanup=true
@@ -1074,6 +1216,7 @@ Module
     bb52 try.handler_cleanup.52
       end_catch
       call @scoop.println$S direct
+        Type String
         StringConst @scoop.str.9
       resume
     bb53 try.exit_pad.53
@@ -1084,30 +1227,38 @@ Module
       resume
     bb55 try.end.55
       val recovered: String
+        Type String
         Local $result.13
       call @scoop.println$S direct
+        Type String
         Local recovered
       goto bb68
     bb56 try.body.56 unwind bb49
       call $call.5: UnwrapException = @scoop.ctor.UnwrapException direct
       throw unwind bb49
+        Type UnwrapException
         Local $call.5
     bb57 try.catch.57
       val e: UnwrapException
+        Type UnwrapException
         Retype UnwrapException
+          Type Any
           CaughtException
       goto bb59
     bb58 try.next.58 unwind bb53
       call @scoop.println$S direct
+        Type String
         StringConst @scoop.str.9
       rethrow unwind bb53
     bb59 scope.59 unwind bb51
       assign $result.13
+        Type String
         StringConst @scoop.str.8
       goto bb60
     bb60 scope.60
       end_catch
       call @scoop.println$S direct
+        Type String
         StringConst @scoop.str.9
       goto bb55
     bb61 try.unwind.61
@@ -1116,7 +1267,9 @@ Module
     bb62 try.dispatch.62
       begin_catch
       branch bb70 bb71
+        Type Boolean
         IsInstance UnwrapException
+          Type Any
           CaughtException
     bb63 try.handler_pad.63
       landing_pad cleanup=true
@@ -1132,30 +1285,41 @@ Module
       resume
     bb67 try.end.67
       val maybeTry: Option$I<Int>
+        Type Option$I<Int>
         Local $result.14
       val $opt.7: Option$I<Int>
+        Type Option$I<Int>
         Local maybeTry
       branch bb74 bb75
+        Type Boolean
         Binary IntEq
+          Type Int
           EnumTag
+            Type Option$I<Int>
             Local $opt.7
+          Type Int
           IntLiteral 0
     bb68 try.body.68 unwind bb61
       assign $result.14
+        Type Option$I<Int>
         VariantConstruct Option$I<Int> v0
+          Type Int
           IntLiteral 9
       goto bb69
     bb69 scope.69
       goto bb67
     bb70 try.catch.70
       val e: UnwrapException
+        Type UnwrapException
         Retype UnwrapException
+          Type Any
           CaughtException
       goto bb72
     bb71 try.next.71
       rethrow unwind bb65
     bb72 scope.72 unwind bb63
       assign $result.14
+        Type Option$I<Int>
         VariantConstruct Option$I<Int> v1
       goto bb73
     bb73 scope.73
@@ -1163,103 +1327,143 @@ Module
       goto bb67
     bb74 if.then.74
       val $uw.8: Int
+        Type Int
         EnumField v0 f0
+          Type Option$I<Int>
           Local $opt.7
       goto bb76
     bb75 if.else.75
       call $call.6: UnwrapException = @scoop.ctor.UnwrapException direct
       throw
+        Type UnwrapException
         Local $call.6
     bb76 if.merge.76
       call @scoop.println$I direct
+        Type Int
         Local $uw.8
       call $call.7: Int = @scoop.branchReturn direct
+        Type Boolean
         BoolLiteral true
       call @scoop.println$I direct
+        Type Int
         Local $call.7
       call $call.8: Int = @scoop.branchReturn direct
+        Type Boolean
         BoolLiteral false
       call @scoop.println$I direct
+        Type Int
         Local $call.8
       call $call.9: Int = @scoop.finallyReturn direct
       call @scoop.println$I direct
+        Type Int
         Local $call.9
       return
   fun println @scoop.println$I(value: Int) -> Unit
     bb0 entry
       call $call.1: String = @scoop.Int.toString direct
+        Type Int
         Local value
       call extern0 @scoop_rt_write direct
+        Type String
         Local $call.1
       call extern0 @scoop_rt_write direct
+        Type String
         StringConst @scoop.str.10
       return
   fun println @scoop.println$B(value: Boolean) -> Unit
     bb0 entry
       call $call.1: String = @scoop.Boolean.toString direct
+        Type Boolean
         Local value
       call extern0 @scoop_rt_write direct
+        Type String
         Local $call.1
       call extern0 @scoop_rt_write direct
+        Type String
         StringConst @scoop.str.11
       return
   fun println @scoop.println$S(value: String) -> Unit
     bb0 entry
       call $call.1: String = @scoop.String.toString direct
+        Type String
         Local value
       call extern0 @scoop_rt_write direct
+        Type String
         Local $call.1
       call extern0 @scoop_rt_write direct
+        Type String
         StringConst @scoop.str.12
       return
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
     bb0 entry
       return
+        Type Throwable
         ClassInit Throwable
   fun ctor.Exception @scoop.ctor.Exception(message: Option$S<String>) -> Exception
     bb0 entry
       return
+        Type Exception
         ClassInit Exception
+          Type Option$S<String>
           Local message
   fun ctor.UnwrapException @scoop.ctor.UnwrapException() -> UnwrapException
     bb0 entry
       return
+        Type UnwrapException
         ClassInit UnwrapException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.13
   fun ctor.ClassCastException @scoop.ctor.ClassCastException() -> ClassCastException
     bb0 entry
       return
+        Type ClassCastException
         ClassInit ClassCastException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.14
   fun ctor.ArithmeticException @scoop.ctor.ArithmeticException() -> ArithmeticException
     bb0 entry
       return
+        Type ArithmeticException
         ClassInit ArithmeticException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.15
   fun ctor.IndexOutOfBoundsException @scoop.ctor.IndexOutOfBoundsException() -> IndexOutOfBoundsException
     bb0 entry
       return
+        Type IndexOutOfBoundsException
         ClassInit IndexOutOfBoundsException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.16
   fun ctor.IllegalStateException @scoop.ctor.IllegalStateException() -> IllegalStateException
     bb0 entry
       return
+        Type IllegalStateException
         ClassInit IllegalStateException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.17
   fun ctor.Animal @scoop.ctor.Animal(name: String) -> Animal
     bb0 entry
       return
+        Type Animal
         ClassInit Animal
+          Type String
           Local name
   fun ctor.Dog @scoop.ctor.Dog() -> Dog
     bb0 entry
       return
+        Type Dog
         ClassInit Dog
+          Type String
           StringConst @scoop.str.18
   instance @scoop.println$I <- println
   instance @scoop.println$B <- println

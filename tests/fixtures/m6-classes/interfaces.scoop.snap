@@ -407,7 +407,7 @@ Module
   enum Option$S
     Some(_1: String)
     None()
-  enum Option$Describable
+  enum Option$J11_DescribableX
     Some(_1: Describable)
     None()
   class Throwable vtable=0 itables=0
@@ -418,186 +418,261 @@ Module
   class IndexOutOfBoundsException vtable=0 itables=0
   class IllegalStateException vtable=0 itables=0
   class Doc vtable=0 itables=1
-  class box$Tag vtable=0 itables=1
+  class box$D3_TagX vtable=0 itables=1
   interface ToString
   interface Hash
   interface Describable
   fun Int.equals @scoop.Int.equals(this: Int, other: Int) -> Boolean
     bb0 entry
       call $call.1: Boolean = extern1 @scoop_rt_int_equals direct
+        Type Int
         Local this
+        Type Int
         Local other
       return
+        Type Boolean
         Local $call.1
   fun Int.toString @scoop.Int.toString(this: Int) -> String
     bb0 entry
       call $call.1: String = extern5 @scoop_rt_int_to_string direct
+        Type Int
         Local this
       return
+        Type String
         Local $call.1
   fun Int.hash @scoop.Int.hash(this: Int) -> Int
     bb0 entry
       call $call.1: Int = extern8 @scoop_rt_int_hash direct
+        Type Int
         Local this
       return
+        Type Int
         Local $call.1
   fun UInt.equals @scoop.UInt.equals(this: UInt, other: UInt) -> Boolean
     bb0 entry
       call $call.1: Boolean = extern2 @scoop_rt_uint_equals direct
+        Type UInt
         Local this
+        Type UInt
         Local other
       return
+        Type Boolean
         Local $call.1
   fun UInt.toString @scoop.UInt.toString(this: UInt) -> String
     bb0 entry
       call $call.1: String = extern6 @scoop_rt_uint_to_string direct
+        Type UInt
         Local this
       return
+        Type String
         Local $call.1
   fun UInt.hash @scoop.UInt.hash(this: UInt) -> Int
     bb0 entry
       call $call.1: Int = extern9 @scoop_rt_uint_hash direct
+        Type UInt
         Local this
       return
+        Type Int
         Local $call.1
   fun Boolean.equals @scoop.Boolean.equals(this: Boolean, other: Boolean) -> Boolean
     bb0 entry
       call $call.1: Boolean = extern3 @scoop_rt_bool_equals direct
+        Type Boolean
         Local this
+        Type Boolean
         Local other
       return
+        Type Boolean
         Local $call.1
   fun Boolean.toString @scoop.Boolean.toString(this: Boolean) -> String
     bb0 entry
       call $call.1: String = extern7 @scoop_rt_bool_to_string direct
+        Type Boolean
         Local this
       return
+        Type String
         Local $call.1
   fun Boolean.hash @scoop.Boolean.hash(this: Boolean) -> Int
     bb0 entry
       call $call.1: Int = extern10 @scoop_rt_bool_hash direct
+        Type Boolean
         Local this
       return
+        Type Int
         Local $call.1
   fun Tag.describe @scoop.Tag.describe(this: Tag) -> String
     bb0 entry
       return
+        Type String
         StringConst @scoop.str.0
   fun String.equals @scoop.String.equals(this: String, other: String) -> Boolean
     bb0 entry
       call $call.1: Boolean = extern4 @scoop_rt_string_eq direct
+        Type String
         Local this
+        Type String
         Local other
       return
+        Type Boolean
         Local $call.1
   fun String.toString @scoop.String.toString(this: String) -> String
     bb0 entry
       return
+        Type String
         Local this
   fun String.hash @scoop.String.hash(this: String) -> Int
     bb0 entry
       call $call.1: Int = extern11 @scoop_rt_string_hash direct
+        Type String
         Local this
       return
+        Type Int
         Local $call.1
   fun Doc.describe @scoop.Doc.describe(this: Doc) -> String
     bb0 entry
       return
+        Type String
         FieldAccess 0
+          Type Doc
           Local this
   fun main @scoop_main() -> Unit
     bb0 entry
       call d: Doc = @scoop.ctor.Doc direct
+        Type String
         StringConst @scoop.str.1
       call $call.1: String = @scoop.Doc.describe direct
+        Type Doc
         Local d
       call @scoop.println$S direct
+        Type String
         Local $call.1
       val i: Describable
+        Type Describable
         Retype Describable
+          Type Doc
           Local d
       call $call.2: String = @scoop.Describable.describe interface Describable[0]
+        Type Describable
         Local i
       call @scoop.println$S direct
+        Type String
         Local $call.2
       val t: Tag
+        Type Tag
         StructInit Tag
+          Type Int
           IntLiteral 1
       val ti: Describable
+        Type Describable
         Box
+          Type Tag
           Local t
       call $call.3: String = @scoop.Describable.describe interface Describable[0]
+        Type Describable
         Local ti
       call @scoop.println$S direct
+        Type String
         Local $call.3
       val a: Any
+        Type Any
         Box
+          Type Tag
           Local t
       call @scoop.println$B direct
+        Type Boolean
         IsInstance Tag
+          Type Any
           Local a
       val $cast.1: Any
+        Type Any
         Local a
       branch bb1 bb2
+        Type Boolean
         IsInstance Describable
+          Type Any
           Local $cast.1
     bb1 if.then.1
       assign $cast.2
-        VariantConstruct Option$Describable<Describable> v0
-          Local $cast.1
+        Type Option$J11_DescribableX<Describable>
+        VariantConstruct Option$J11_DescribableX<Describable> v0
+          Type Describable
+          Retype Describable
+            Type Any
+            Local $cast.1
       goto bb3
     bb2 if.else.2
       assign $cast.2
-        VariantConstruct Option$Describable<Describable> v1
+        Type Option$J11_DescribableX<Describable>
+        VariantConstruct Option$J11_DescribableX<Describable> v1
       goto bb3
     bb3 if.merge.3
-      call $call.4: Boolean = @scoop.isPresent$Describable direct
+      call $call.4: Boolean = @scoop.isPresent$J11_DescribableX direct
+        Type Option$J11_DescribableX<Describable>
         Local $cast.2
       call @scoop.println$B direct
+        Type Boolean
         Local $call.4
       return
   fun println @scoop.println$S(value: String) -> Unit
     bb0 entry
       call $call.1: String = @scoop.String.toString direct
+        Type String
         Local value
       call extern0 @scoop_rt_write direct
+        Type String
         Local $call.1
       call extern0 @scoop_rt_write direct
+        Type String
         StringConst @scoop.str.2
       return
   fun println @scoop.println$B(value: Boolean) -> Unit
     bb0 entry
       call $call.1: String = @scoop.Boolean.toString direct
+        Type Boolean
         Local value
       call extern0 @scoop_rt_write direct
+        Type String
         Local $call.1
       call extern0 @scoop_rt_write direct
+        Type String
         StringConst @scoop.str.3
       return
-  fun isPresent @scoop.isPresent$Describable(value: Option$Describable<Describable>) -> Boolean
+  fun isPresent @scoop.isPresent$J11_DescribableX(value: Option$J11_DescribableX<Describable>) -> Boolean
     bb0 entry
-      val $when.1: Option$Describable<Describable>
+      val $when.1: Option$J11_DescribableX<Describable>
+        Type Option$J11_DescribableX<Describable>
         Local value
       branch bb1 bb2
+        Type Boolean
         Binary IntEq
+          Type Int
           EnumTag
+            Type Option$J11_DescribableX<Describable>
             Local $when.1
+          Type Int
           IntLiteral 0
     bb1 if.then.1
       assign $result.0
+        Type Boolean
         BoolLiteral true
       goto bb3
     bb2 if.else.2
       branch bb4 bb5
+        Type Boolean
         Binary IntEq
+          Type Int
           EnumTag
+            Type Option$J11_DescribableX<Describable>
             Local $when.1
+          Type Int
           IntLiteral 1
     bb3 if.merge.3
       return
+        Type Boolean
         Local $result.0
     bb4 if.then.4
       assign $result.0
+        Type Boolean
         BoolLiteral false
       goto bb5
     bb5 if.merge.5
@@ -605,57 +680,80 @@ Module
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
     bb0 entry
       return
+        Type Throwable
         ClassInit Throwable
   fun ctor.Exception @scoop.ctor.Exception(message: Option$S<String>) -> Exception
     bb0 entry
       return
+        Type Exception
         ClassInit Exception
+          Type Option$S<String>
           Local message
   fun ctor.UnwrapException @scoop.ctor.UnwrapException() -> UnwrapException
     bb0 entry
       return
+        Type UnwrapException
         ClassInit UnwrapException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.4
   fun ctor.ClassCastException @scoop.ctor.ClassCastException() -> ClassCastException
     bb0 entry
       return
+        Type ClassCastException
         ClassInit ClassCastException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.5
   fun ctor.ArithmeticException @scoop.ctor.ArithmeticException() -> ArithmeticException
     bb0 entry
       return
+        Type ArithmeticException
         ClassInit ArithmeticException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.6
   fun ctor.IndexOutOfBoundsException @scoop.ctor.IndexOutOfBoundsException() -> IndexOutOfBoundsException
     bb0 entry
       return
+        Type IndexOutOfBoundsException
         ClassInit IndexOutOfBoundsException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.7
   fun ctor.IllegalStateException @scoop.ctor.IllegalStateException() -> IllegalStateException
     bb0 entry
       return
+        Type IllegalStateException
         ClassInit IllegalStateException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.8
   fun ctor.Doc @scoop.ctor.Doc(title: String) -> Doc
     bb0 entry
       return
+        Type Doc
         ClassInit Doc
+          Type String
           Local title
-  fun thunk.Tag.Describable.describe @scoop.thunk.Tag.Describable.describe(this: Any) -> String
+  fun thunk.D3_TagX.Describable.describe @scoop.thunk.D3_TagX.Describable.describe(this: Any) -> String
     bb0 entry
       call $call.1: String = @scoop.Tag.describe direct
+        Type Tag
         Unbox
+          Type Any
           Local this
       return
+        Type String
         Local $call.1
   instance @scoop.println$S <- println
   instance @scoop.println$B <- println
-  instance @scoop.isPresent$Describable <- isPresent
+  instance @scoop.isPresent$J11_DescribableX <- isPresent
   str @scoop.str.0 "tag"
   str @scoop.str.1 "report"
   str @scoop.str.2 "\n"
@@ -679,7 +777,7 @@ Module
   global @scoop.str.7 = "array index out of bounds"
   global @scoop.str.8 = "illegal state"
   global @scoop_td_Describable = c""
-  global @scoop_td_box$Tag = c""
+  global @scoop_td_box$D3_TagX = c""
   global @scoop_td_Throwable = c""
   global @scoop_td_Exception = c""
   global @scoop_td_UnwrapException = c""
@@ -689,7 +787,7 @@ Module
   global @scoop_td_IllegalStateException = c""
   global @scoop_td_Doc = c""
   enum Option$S niche(payload_variant=0)
-  enum Option$Describable niche(payload_variant=0)
+  enum Option$J11_DescribableX niche(payload_variant=0)
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
   extern ef1 coreIntEquals @scoop_rt_int_equals(i64, i64) -> i1 <scoop managed nounwind>
   extern ef2 coreUIntEquals @scoop_rt_uint_equals(i64, i64) -> i1 <scoop managed nounwind>
@@ -831,7 +929,7 @@ Module
     store t18 -> local6
     br @if.merge.3
   block if.merge.3
-    t19 = call @scoop.isPresent$Describable(local6) : i1
+    t19 = call @scoop.isPresent$J11_DescribableX(local6) : i1
     store t19 -> local10
     call @scoop.println$B(local10)
     t20 = aggregate () : {}
@@ -856,7 +954,7 @@ Module
     native_call[native-borrowed] extern0(global3)
     t2 = aggregate () : {}
     ret
-  fun @scoop.isPresent$Describable(enum1) -> i1
+  fun @scoop.isPresent$J11_DescribableX(enum1) -> i1
     local %0 $result.0: i1
     local %1 $when.1: enum1
   block entry
@@ -922,7 +1020,7 @@ Module
     t0 = call @scoop_rt_alloc(global18, 24) : ptr<managed>
     heap_store t0 +16 param0
     ret t0
-  fun @scoop.thunk.Tag.Describable.describe(ptr<managed>) -> ptr<managed>
+  fun @scoop.thunk.D3_TagX.Describable.describe(ptr<managed>) -> ptr<managed>
     local %0 $call.1: ptr<managed>
   block entry
     t0 = heap_load param0 +16 : struct3
@@ -934,7 +1032,7 @@ Module
   td Describable @scoop_td_Describable size=0 vtable=0 itables=0
   td Throwable @scoop_td_Throwable size=16 vtable=0 itables=0
   td Doc @scoop_td_Doc size=24 vtable=0 itables=1
-  td box$Tag @scoop_td_box$Tag size=24 vtable=0 itables=1
+  td box$D3_TagX @scoop_td_box$D3_TagX size=24 vtable=0 itables=1
   td Exception @scoop_td_Exception size=24 vtable=0 itables=0
   td UnwrapException @scoop_td_UnwrapException size=24 vtable=0 itables=0
   td ClassCastException @scoop_td_ClassCastException size=24 vtable=0 itables=0
@@ -946,7 +1044,7 @@ Module
   layout Boolean size=1 align=1 refs=[]
   layout Tag size=8 align=8 refs=[]
   layout Option$S size=8 align=8 enum-scan=refs[0]
-  layout Option$Describable size=8 align=8 enum-scan=refs[0]
+  layout Option$J11_DescribableX size=8 align=8 enum-scan=refs[0]
   layout Throwable size=16 align=8 refs=[]
   layout Exception size=24 align=8 refs=[16]
   layout UnwrapException size=24 align=8 refs=[16]
@@ -955,7 +1053,7 @@ Module
   layout IndexOutOfBoundsException size=24 align=8 refs=[16]
   layout IllegalStateException size=24 align=8 refs=[16]
   layout Doc size=24 align=8 refs=[16]
-  layout box$Tag size=24 align=8 refs=[]
+  layout box$D3_TagX size=24 align=8 refs=[]
   entry @scoop_main
 
 == run ==

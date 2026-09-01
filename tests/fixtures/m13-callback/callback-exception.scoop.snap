@@ -418,7 +418,7 @@ Module
     Active()
     Completed()
     Failed()
-  enum Option$Throwable
+  enum Option$C9_ThrowableX
     Some(_1: Throwable)
     None()
   class Throwable vtable=0 itables=0
@@ -435,123 +435,177 @@ Module
   fun Int.equals @scoop.Int.equals(this: Int, other: Int) -> Boolean
     bb0 entry
       call $call.1: Boolean = extern1 @scoop_rt_int_equals direct
+        Type Int
         Local this
+        Type Int
         Local other
       return
+        Type Boolean
         Local $call.1
   fun Int.toString @scoop.Int.toString(this: Int) -> String
     bb0 entry
       call $call.1: String = extern5 @scoop_rt_int_to_string direct
+        Type Int
         Local this
       return
+        Type String
         Local $call.1
   fun Int.hash @scoop.Int.hash(this: Int) -> Int
     bb0 entry
       call $call.1: Int = extern8 @scoop_rt_int_hash direct
+        Type Int
         Local this
       return
+        Type Int
         Local $call.1
   fun UInt.equals @scoop.UInt.equals(this: UInt, other: UInt) -> Boolean
     bb0 entry
       call $call.1: Boolean = extern2 @scoop_rt_uint_equals direct
+        Type UInt
         Local this
+        Type UInt
         Local other
       return
+        Type Boolean
         Local $call.1
   fun UInt.toString @scoop.UInt.toString(this: UInt) -> String
     bb0 entry
       call $call.1: String = extern6 @scoop_rt_uint_to_string direct
+        Type UInt
         Local this
       return
+        Type String
         Local $call.1
   fun UInt.hash @scoop.UInt.hash(this: UInt) -> Int
     bb0 entry
       call $call.1: Int = extern9 @scoop_rt_uint_hash direct
+        Type UInt
         Local this
       return
+        Type Int
         Local $call.1
   fun Boolean.equals @scoop.Boolean.equals(this: Boolean, other: Boolean) -> Boolean
     bb0 entry
       call $call.1: Boolean = extern3 @scoop_rt_bool_equals direct
+        Type Boolean
         Local this
+        Type Boolean
         Local other
       return
+        Type Boolean
         Local $call.1
   fun Boolean.toString @scoop.Boolean.toString(this: Boolean) -> String
     bb0 entry
       call $call.1: String = extern7 @scoop_rt_bool_to_string direct
+        Type Boolean
         Local this
       return
+        Type String
         Local $call.1
   fun Boolean.hash @scoop.Boolean.hash(this: Boolean) -> Int
     bb0 entry
       call $call.1: Int = extern10 @scoop_rt_bool_hash direct
+        Type Boolean
         Local this
       return
+        Type Int
         Local $call.1
   fun String.equals @scoop.String.equals(this: String, other: String) -> Boolean
     bb0 entry
       call $call.1: Boolean = extern4 @scoop_rt_string_eq direct
+        Type String
         Local this
+        Type String
         Local other
       return
+        Type Boolean
         Local $call.1
   fun String.toString @scoop.String.toString(this: String) -> String
     bb0 entry
       return
+        Type String
         Local this
   fun String.hash @scoop.String.hash(this: String) -> Int
     bb0 entry
       call $call.1: Int = extern11 @scoop_rt_string_hash direct
+        Type String
         Local this
       return
+        Type Int
         Local $call.1
   fun main @scoop_main() -> Unit
     bb0 entry
       val worker: ForeignCallback$FI_PUXRIX
+        Type ForeignCallback$FI_PUXRIX
         ForeignCallbackRegister fcb0 native=function_type0 managed=function_type1 context=1 mode=OneShot adapter=@scoop_foreign_callback_adapter_0
+          Type (Int) -> Int
           ClosureAlloc cc0 $Closure$lambda0
       val observer: ForeignCallback$FI_PUXRIX
+        Type ForeignCallback$FI_PUXRIX
         ForeignCallbackRetain
+          Type ForeignCallback$FI_PUXRIX
           Local worker
       call job: Ptr<Unit> = extern12 @m13_start_one direct
+        Type FunPtr<(Int, Ptr<Unit>) -> Int>
         FieldAccess 0
+          Type ForeignCallback$FI_PUXRIX
           Local worker
+        Type Ptr<Unit>
         FieldAccess 1
+          Type ForeignCallback$FI_PUXRIX
           Local worker
+        Type Int
         IntLiteral 7
       call $call.1: Int = extern13 @m13_join_one direct
+        Type Ptr<Unit>
         Local job
       call @scoop.println$I direct
+        Type Int
         Local $call.1
       call $call.2: Boolean = @scoop.ForeignCallbackState.equals direct
+        Type ForeignCallbackState
         ForeignCallbackState
+          Type ForeignCallback$FI_PUXRIX
           Local observer
+        Type ForeignCallbackState
         VariantConstruct ForeignCallbackState v3
       call @scoop.println$B direct
+        Type Boolean
         Local $call.2
-      val $opt.1: Option$Throwable<Throwable>
+      val $opt.1: Option$C9_ThrowableX<Throwable>
+        Type Option$C9_ThrowableX<Throwable>
         ForeignCallbackFailure
+          Type ForeignCallback$FI_PUXRIX
           Local observer
       branch bb1 bb2
+        Type Boolean
         Binary IntEq
+          Type Int
           EnumTag
+            Type Option$C9_ThrowableX<Throwable>
             Local $opt.1
+          Type Int
           IntLiteral 0
     bb1 if.then.1
       val $uw.2: Throwable
+        Type Throwable
         EnumField v0 f0
+          Type Option$C9_ThrowableX<Throwable>
           Local $opt.1
       goto bb3
     bb2 if.else.2
       call $call.3: UnwrapException = @scoop.ctor.UnwrapException direct
       throw
+        Type UnwrapException
         Local $call.3
     bb3 if.merge.3
       val failure: Throwable
+        Type Throwable
         Local $uw.2
       call @scoop.println$B direct
+        Type Boolean
         IsInstance CallbackError
+          Type Throwable
           Local failure
       goto bb11
     bb4 try.unwind.4
@@ -560,14 +614,18 @@ Module
     bb5 try.dispatch.5
       begin_catch
       branch bb12 bb13
+        Type Boolean
         IsInstance CallbackError
+          Type Any
           CaughtException
     bb6 try.handler_pad.6
       landing_pad cleanup=true
       goto bb7
     bb7 try.handler_cleanup.7
       end_catch
+      Type Unit
       ForeignCallbackRelease
+        Type ForeignCallback$FI_PUXRIX
         Local observer
       resume
     bb8 try.exit_pad.8
@@ -580,228 +638,330 @@ Module
       return
     bb11 try.body.11 unwind bb4
       throw unwind bb4
+        Type Throwable
         Local failure
     bb12 try.catch.12
       val exception: CallbackError
+        Type CallbackError
         Retype CallbackError
+          Type Any
           CaughtException
       goto bb14
     bb13 try.next.13 unwind bb8
+      Type Unit
       ForeignCallbackRelease
+        Type ForeignCallback$FI_PUXRIX
         Local observer
       rethrow unwind bb8
     bb14 scope.14 unwind bb6
       call @scoop.println$S direct
+        Type String
         FieldAccess 1
+          Type CallbackError
           Local exception
       goto bb15
     bb15 scope.15
       end_catch
+      Type Unit
       ForeignCallbackRelease
+        Type ForeignCallback$FI_PUXRIX
         Local observer
       goto bb10
   fun $lambda.0 @scoop.$lambda.0($closure: (Int) -> Int, value: Int) -> Int
     bb0 entry
       call $call.1: CallbackError = @scoop.ctor.CallbackError direct
+        Type String
         StringConst @scoop.str.0
       throw
+        Type CallbackError
         Local $call.1
   fun println @scoop.println$I(value: Int) -> Unit
     bb0 entry
       call $call.1: String = @scoop.Int.toString direct
+        Type Int
         Local value
       call extern0 @scoop_rt_write direct
+        Type String
         Local $call.1
       call extern0 @scoop_rt_write direct
+        Type String
         StringConst @scoop.str.1
       return
   fun println @scoop.println$B(value: Boolean) -> Unit
     bb0 entry
       call $call.1: String = @scoop.Boolean.toString direct
+        Type Boolean
         Local value
       call extern0 @scoop_rt_write direct
+        Type String
         Local $call.1
       call extern0 @scoop_rt_write direct
+        Type String
         StringConst @scoop.str.2
       return
   fun println @scoop.println$S(value: String) -> Unit
     bb0 entry
       call $call.1: String = @scoop.String.toString direct
+        Type String
         Local value
       call extern0 @scoop_rt_write direct
+        Type String
         Local $call.1
       call extern0 @scoop_rt_write direct
+        Type String
         StringConst @scoop.str.3
       return
   fun ForeignCallbackState.equals @scoop.ForeignCallbackState.equals(this: ForeignCallbackState, other: ForeignCallbackState) -> Boolean
     bb0 entry
       val $when.1: ForeignCallbackState
+        Type ForeignCallbackState
         Local this
       branch bb1 bb2
+        Type Boolean
         Binary IntEq
+          Type Int
           EnumTag
+            Type ForeignCallbackState
             Local $when.1
+          Type Int
           IntLiteral 0
     bb1 if.then.1
       val $when.2: ForeignCallbackState
+        Type ForeignCallbackState
         Local other
       branch bb4 bb5
+        Type Boolean
         Binary IntEq
+          Type Int
           EnumTag
+            Type ForeignCallbackState
             Local $when.2
+          Type Int
           IntLiteral 0
     bb2 if.else.2
       branch bb7 bb8
+        Type Boolean
         Binary IntEq
+          Type Int
           EnumTag
+            Type ForeignCallbackState
             Local $when.1
+          Type Int
           IntLiteral 1
     bb3 if.merge.3
       unreachable
     bb4 if.then.4
       return
+        Type Boolean
         BoolLiteral true
     bb5 if.else.5
       return
+        Type Boolean
         BoolLiteral false
     bb6 if.merge.6
       goto bb3
     bb7 if.then.7
       val $when.3: ForeignCallbackState
+        Type ForeignCallbackState
         Local other
       branch bb10 bb11
+        Type Boolean
         Binary IntEq
+          Type Int
           EnumTag
+            Type ForeignCallbackState
             Local $when.3
+          Type Int
           IntLiteral 1
     bb8 if.else.8
       branch bb13 bb14
+        Type Boolean
         Binary IntEq
+          Type Int
           EnumTag
+            Type ForeignCallbackState
             Local $when.1
+          Type Int
           IntLiteral 2
     bb9 if.merge.9
       goto bb3
     bb10 if.then.10
       return
+        Type Boolean
         BoolLiteral true
     bb11 if.else.11
       return
+        Type Boolean
         BoolLiteral false
     bb12 if.merge.12
       goto bb9
     bb13 if.then.13
       val $when.4: ForeignCallbackState
+        Type ForeignCallbackState
         Local other
       branch bb16 bb17
+        Type Boolean
         Binary IntEq
+          Type Int
           EnumTag
+            Type ForeignCallbackState
             Local $when.4
+          Type Int
           IntLiteral 2
     bb14 if.else.14
       branch bb19 bb20
+        Type Boolean
         Binary IntEq
+          Type Int
           EnumTag
+            Type ForeignCallbackState
             Local $when.1
+          Type Int
           IntLiteral 3
     bb15 if.merge.15
       goto bb9
     bb16 if.then.16
       return
+        Type Boolean
         BoolLiteral true
     bb17 if.else.17
       return
+        Type Boolean
         BoolLiteral false
     bb18 if.merge.18
       goto bb15
     bb19 if.then.19
       val $when.5: ForeignCallbackState
+        Type ForeignCallbackState
         Local other
       branch bb21 bb22
+        Type Boolean
         Binary IntEq
+          Type Int
           EnumTag
+            Type ForeignCallbackState
             Local $when.5
+          Type Int
           IntLiteral 3
     bb20 if.merge.20
       goto bb15
     bb21 if.then.21
       return
+        Type Boolean
         BoolLiteral true
     bb22 if.else.22
       return
+        Type Boolean
         BoolLiteral false
     bb23 if.merge.23
       goto bb20
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
     bb0 entry
       return
+        Type Throwable
         ClassInit Throwable
   fun ctor.Exception @scoop.ctor.Exception(message: Option$S<String>) -> Exception
     bb0 entry
       return
+        Type Exception
         ClassInit Exception
+          Type Option$S<String>
           Local message
   fun ctor.UnwrapException @scoop.ctor.UnwrapException() -> UnwrapException
     bb0 entry
       return
+        Type UnwrapException
         ClassInit UnwrapException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.4
   fun ctor.ClassCastException @scoop.ctor.ClassCastException() -> ClassCastException
     bb0 entry
       return
+        Type ClassCastException
         ClassInit ClassCastException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.5
   fun ctor.ArithmeticException @scoop.ctor.ArithmeticException() -> ArithmeticException
     bb0 entry
       return
+        Type ArithmeticException
         ClassInit ArithmeticException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.6
   fun ctor.IndexOutOfBoundsException @scoop.ctor.IndexOutOfBoundsException() -> IndexOutOfBoundsException
     bb0 entry
       return
+        Type IndexOutOfBoundsException
         ClassInit IndexOutOfBoundsException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.7
   fun ctor.IllegalStateException @scoop.ctor.IllegalStateException() -> IllegalStateException
     bb0 entry
       return
+        Type IllegalStateException
         ClassInit IllegalStateException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.8
   fun ctor.CallbackError @scoop.ctor.CallbackError(payload: String) -> CallbackError
     bb0 entry
       return
+        Type CallbackError
         ClassInit CallbackError
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.9
+          Type String
           Local payload
   fun foreign callback adapter 0 @scoop_foreign_callback_adapter_0($closure: (Int) -> Int, $result: Ptr<Int>, $arguments: Ptr<Ptr<Unit>>, $exception: Ptr<Throwable>) -> UInt
     bb0 callback.failure
       landing_pad cleanup=false
       begin_catch
       call $caught: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
         CaughtException
       end_catch
+      Type Unit
       PtrStore Throwable
+        Type Ptr<Throwable>
         Local $exception
+        Type Throwable
         Local $caught
       return
+        Type UInt
         IntLiteral 1
     bb1 entry unwind bb0
       call $value: Int = <closure:function_type1> closure[function_type1]
+        Type (Int) -> Int
         Local $closure
+        Type Int
         PtrLoad Int
+          Type Ptr<Int>
           PtrCast Int
+            Type Ptr<Unit>
             PtrLoad Ptr<Unit>
+              Type Ptr<Ptr<Unit>>
               Local $arguments
+              Type Int
               IntLiteral 0
+      Type Unit
       PtrStore Int
+        Type Ptr<Int>
         Local $result
+        Type Int
         Local $value
       return
+        Type UInt
         IntLiteral 0
   instance @scoop.println$I <- println
   instance @scoop.println$B <- println
@@ -841,7 +1001,7 @@ Module
   global @scoop_td_IllegalStateException = c""
   enum Option$S niche(payload_variant=0)
   enum ForeignCallbackState tagged size=8 align=8 variants=()@8+0 ()@8+0 ()@8+0 ()@8+0
-  enum Option$Throwable niche(payload_variant=0)
+  enum Option$C9_ThrowableX niche(payload_variant=0)
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
   extern ef1 coreIntEquals @scoop_rt_int_equals(i64, i64) -> i1 <scoop managed nounwind>
   extern ef2 coreUIntEquals @scoop_rt_uint_equals(i64, i64) -> i1 <scoop managed nounwind>
@@ -1257,7 +1417,7 @@ Module
   layout ForeignCallback$FI_PUXRIX size=16 align=8 refs=[]
   layout Option$S size=8 align=8 enum-scan=refs[0]
   layout ForeignCallbackState size=8 align=8 enum-scan=none
-  layout Option$Throwable size=8 align=8 enum-scan=refs[0]
+  layout Option$C9_ThrowableX size=8 align=8 enum-scan=refs[0]
   layout Throwable size=16 align=8 refs=[]
   layout Exception size=24 align=8 refs=[16]
   layout UnwrapException size=24 align=8 refs=[16]

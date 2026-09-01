@@ -95,7 +95,7 @@
 //! pointer comparison. Class construction is function-ized: every
 //! non-abstract class gets a `scoop.ctor.<Class>` function whose
 //! parameters are the constructor properties and whose body returns a
-//! raw `smir::Expr::ClassInit` over the flattened field values (the
+//! raw `smir::ExprKind::ClassInit` over the flattened field values (the
 //! base delegation arguments are evaluated in the ctor context —
 //! hir-lower M6 lowers them in an empty scope — and expanded
 //! recursively down the base chain; base ctors are never called, so
@@ -476,7 +476,7 @@ impl CoroutineRegistry {
         });
         let exception = locals.alloc(mir::Local {
             name: "$exception".to_string(),
-            ty: throwable,
+            ty: throwable.clone(),
             mutable: false,
         });
         let span = Span { start: 0, end: 0 };
@@ -500,12 +500,15 @@ impl CoroutineRegistry {
                         callee: mir::Callee::Monomorphized(resume),
                     },
                     args: vec![
-                        mir::Expr::Local(completion),
-                        mir::Expr::EnumField {
-                            operand: Box::new(mir::Expr::Local(step)),
-                            variant: 0,
-                            index: 0,
-                        },
+                        mir::Expr::local(completion, mir::Type::Interface(continuation_interface)),
+                        mir::Expr::new(
+                            result.clone(),
+                            mir::ExprKind::EnumField {
+                                operand: Box::new(mir::Expr::local(step, step_ty.clone())),
+                                variant: 0,
+                                index: 0,
+                            },
+                        ),
                     ],
                 },
             )))],
@@ -523,7 +526,10 @@ impl CoroutineRegistry {
                         },
                         callee: mir::Callee::Monomorphized(resume_with_exception),
                     },
-                    args: vec![mir::Expr::Local(completion), mir::Expr::Local(exception)],
+                    args: vec![
+                        mir::Expr::local(completion, mir::Type::Interface(continuation_interface)),
+                        mir::Expr::local(exception, throwable.clone()),
+                    ],
                 },
             )))],
             terminator: mir::Terminator::Return { value: None },
@@ -543,7 +549,7 @@ impl CoroutineRegistry {
                             kind: mir::CallKind::Direct,
                             callee: mir::Callee::Runtime(mir::RuntimeFn::MaterializeException),
                         },
-                        args: vec![mir::Expr::CaughtException],
+                        args: vec![mir::Expr::caught_exception()],
                     },
                 })),
                 statement(mir::StatementKind::Eh(mir::EhStatement::EndCatch)),
@@ -564,16 +570,25 @@ impl CoroutineRegistry {
                             },
                             callee: mir::Callee::Monomorphized(run),
                         },
-                        args: vec![mir::Expr::Local(task), mir::Expr::Local(completion)],
+                        args: vec![
+                            mir::Expr::local(task, mir::Type::Interface(task_interface)),
+                            mir::Expr::local(
+                                completion,
+                                mir::Type::Interface(continuation_interface),
+                            ),
+                        ],
                     },
                 },
             ))],
             terminator: mir::Terminator::Branch {
-                cond: mir::Expr::Binary {
-                    op: mir::BinOp::IntEq,
-                    lhs: Box::new(mir::Expr::EnumTag(Box::new(mir::Expr::Local(step)))),
-                    rhs: Box::new(mir::Expr::IntLiteral(0)),
-                },
+                cond: mir::Expr::new(
+                    mir::Type::Boolean,
+                    mir::ExprKind::Binary {
+                        op: mir::BinOp::IntEq,
+                        lhs: Box::new(mir::Expr::enum_tag(mir::Expr::local(step, step_ty.clone()))),
+                        rhs: Box::new(mir::Expr::int(0)),
+                    },
+                ),
                 then_block: completed,
                 else_block: suspended,
             },
@@ -892,12 +907,14 @@ impl Lowerer {
             });
             for (_, block) in function.body.blocks.iter_mut() {
                 if let mir::Terminator::Return { value } = &mut block.terminator {
-                    let completed = value.take().unwrap_or(mir::Expr::UnitLiteral);
-                    *value = Some(mir::Expr::VariantConstruct {
-                        ty: step_ty.clone(),
-                        variant: 0,
-                        fields: vec![completed],
-                    });
+                    let completed = value.take().unwrap_or_else(mir::Expr::unit);
+                    *value = Some(mir::Expr::new(
+                        step_ty.clone(),
+                        mir::ExprKind::VariantConstruct {
+                            variant: 0,
+                            fields: vec![completed],
+                        },
+                    ));
                 }
             }
             function.return_ty = step_ty;
@@ -1068,7 +1085,7 @@ impl Lowerer {
             ty: mir::Type::Any,
             local: this,
         }];
-        let mut args = vec![smir::Expr::Local(this)];
+        let mut args = vec![smir::Expr::local(this, mir::Type::Any)];
         for ((param, target_ty), source_ty) in target_signature
             .params
             .iter()
@@ -1085,20 +1102,27 @@ impl Lowerer {
                 ty: target_ty.clone(),
                 local,
             });
-            args.push(self.adapt_variance_bridge(smir::Expr::Local(local), &target_ty, &source_ty));
+            args.push(self.adapt_variance_bridge(
+                smir::Expr::local(local, target_ty.clone()),
+                &target_ty,
+                &source_ty,
+            ));
         }
         let callee = match source_slot {
             mir::TableSlot::Function(function) => mir::Callee::User(*function),
             mir::TableSlot::Runtime(function) => mir::Callee::Runtime(*function),
         };
-        let call = smir::Expr::Call(smir::Call {
-            target: mir::CallTarget {
-                kind: mir::CallKind::Direct,
-                callee,
-            },
-            args,
-            return_ty: source_return.clone(),
-        });
+        let call = smir::Expr::new(
+            source_return.clone(),
+            smir::ExprKind::Call(smir::Call {
+                target: mir::CallTarget {
+                    kind: mir::CallKind::Direct,
+                    callee,
+                },
+                args,
+                return_ty: source_return.clone(),
+            }),
+        );
         let kind = if target_return == mir::Type::Unit {
             smir::StatementKind::Expr(call)
         } else {
@@ -1149,12 +1173,15 @@ impl Lowerer {
         if source == target {
             return value;
         }
-        if let (mir::Type::Function(source), mir::Type::Function(target)) = (source, target) {
-            let adapter = self.ensure_function_adapter(*source, *target);
-            return smir::Expr::ClosureAlloc {
-                class: self.closure_adapters[adapter].class,
-                captures: vec![value],
-            };
+        if let (mir::Type::Function(source), mir::Type::Function(target_type)) = (source, target) {
+            let adapter = self.ensure_function_adapter(*source, *target_type);
+            return smir::Expr::new(
+                mir::Type::Function(*target_type),
+                smir::ExprKind::ClosureAlloc {
+                    class: self.closure_adapters[adapter].class,
+                    captures: vec![value],
+                },
+            );
         }
         if is_reference_mir(source) && is_reference_mir(target) {
             return value;
@@ -1168,7 +1195,7 @@ impl Lowerer {
                     self.classes[boxed].interfaces.push(*interface);
                 }
             }
-            return smir::Expr::Box(Box::new(value));
+            return smir::Expr::new(target.clone(), smir::ExprKind::Box(Box::new(value)));
         }
         unreachable!("variance bridge adaptations always follow a subtype conversion")
     }
@@ -1227,11 +1254,14 @@ impl Lowerer {
             ty: mir::Type::Function(target),
             local: closure,
         }];
-        let mut args = vec![smir::Expr::ClosureCapture {
-            closure: Box::new(smir::Expr::Local(closure)),
-            class,
-            index: 0,
-        }];
+        let mut args = vec![smir::Expr::new(
+            mir::Type::Function(source),
+            smir::ExprKind::ClosureCapture {
+                closure: Box::new(smir::Expr::local(closure, mir::Type::Function(target))),
+                class,
+                index: 0,
+            },
+        )];
         for (index, (target_ty, source_ty)) in target_signature
             .parameter_types
             .iter()
@@ -1248,18 +1278,25 @@ impl Lowerer {
                 ty: target_ty.clone(),
                 local,
             });
-            args.push(self.adapt_variance_bridge(smir::Expr::Local(local), target_ty, source_ty));
+            args.push(self.adapt_variance_bridge(
+                smir::Expr::local(local, target_ty.clone()),
+                target_ty,
+                source_ty,
+            ));
         }
-        let call = smir::Expr::Call(smir::Call {
-            target: mir::CallTarget {
-                kind: mir::CallKind::Closure {
-                    function_type: source,
+        let call = smir::Expr::new(
+            source_signature.return_type.clone(),
+            smir::ExprKind::Call(smir::Call {
+                target: mir::CallTarget {
+                    kind: mir::CallKind::Closure {
+                        function_type: source,
+                    },
+                    callee: mir::Callee::Closure(source),
                 },
-                callee: mir::Callee::Closure(source),
-            },
-            args,
-            return_ty: source_signature.return_type.clone(),
-        });
+                args,
+                return_ty: source_signature.return_type.clone(),
+            }),
+        );
         let statements = if target_signature.return_type == mir::Type::Unit {
             vec![
                 smir::Statement {
@@ -1429,7 +1466,7 @@ impl Lowerer {
             ty: mir::Type::Function(source),
             local: closure,
         }];
-        let mut args = vec![smir::Expr::Local(closure)];
+        let mut args = vec![smir::Expr::local(closure, mir::Type::Function(source))];
         for (index, (target_ty, source_ty)) in target_signature
             .parameter_types
             .iter()
@@ -1446,18 +1483,25 @@ impl Lowerer {
                 ty: target_ty.clone(),
                 local,
             });
-            args.push(self.adapt_variance_bridge(smir::Expr::Local(local), target_ty, source_ty));
+            args.push(self.adapt_variance_bridge(
+                smir::Expr::local(local, target_ty.clone()),
+                target_ty,
+                source_ty,
+            ));
         }
-        let call = smir::Expr::Call(smir::Call {
-            target: mir::CallTarget {
-                kind: mir::CallKind::Closure {
-                    function_type: source,
+        let call = smir::Expr::new(
+            source_signature.return_type.clone(),
+            smir::ExprKind::Call(smir::Call {
+                target: mir::CallTarget {
+                    kind: mir::CallKind::Closure {
+                        function_type: source,
+                    },
+                    callee: mir::Callee::Closure(source),
                 },
-                callee: mir::Callee::Closure(source),
-            },
-            args,
-            return_ty: source_signature.return_type.clone(),
-        });
+                args,
+                return_ty: source_signature.return_type.clone(),
+            }),
+        );
         let statements = if target_signature.return_type == mir::Type::Unit {
             vec![
                 smir::Statement {
@@ -2167,10 +2211,10 @@ impl Lowerer {
                 });
                 params.push(mir::Param {
                     name: format!("arg{index}"),
-                    ty,
+                    ty: ty.clone(),
                     local,
                 });
-                source_args.push(smir::Expr::Local(local));
+                source_args.push(smir::Expr::local(local, ty));
             }
             let function = self.functions.alloc(mir::Function {
                 gc_effect: mir::GcEffect::Managed,
@@ -2200,34 +2244,49 @@ impl Lowerer {
                 usize::from(receiver.is_some()) + reference.captures.len() + source_args.len(),
             );
             if receiver.is_some() {
-                args.push(smir::Expr::ClosureCapture {
-                    closure: Box::new(smir::Expr::Local(closure)),
-                    class,
-                    index: 0,
-                });
+                args.push(smir::Expr::new(
+                    self.closure_classes[class].captures[0].ty.clone(),
+                    smir::ExprKind::ClosureCapture {
+                        closure: Box::new(smir::Expr::local(
+                            closure,
+                            mir::Type::Function(function_type),
+                        )),
+                        class,
+                        index: 0,
+                    },
+                ));
             } else if matches!(
                 &reference.target,
                 hir::CallableReferenceTarget::Local { .. }
             ) {
                 for index in 0..reference.captures.len() {
-                    args.push(smir::Expr::ClosureCapture {
-                        closure: Box::new(smir::Expr::Local(closure)),
-                        class,
-                        index: index as u32,
-                    });
+                    args.push(smir::Expr::new(
+                        self.closure_classes[class].captures[index].ty.clone(),
+                        smir::ExprKind::ClosureCapture {
+                            closure: Box::new(smir::Expr::local(
+                                closure,
+                                mir::Type::Function(function_type),
+                            )),
+                            class,
+                            index: index as u32,
+                        },
+                    ));
                 }
             } else {
                 debug_assert!(reference.captures.is_empty());
             }
             args.extend(source_args);
-            let call = smir::Expr::Call(smir::Call {
-                target: mir::CallTarget {
-                    kind: call_kind,
-                    callee: target,
-                },
-                args,
-                return_ty: signature.return_type.clone(),
-            });
+            let call = smir::Expr::new(
+                signature.return_type.clone(),
+                smir::ExprKind::Call(smir::Call {
+                    target: mir::CallTarget {
+                        kind: call_kind,
+                        callee: target,
+                    },
+                    args,
+                    return_ty: signature.return_type.clone(),
+                }),
+            );
             let statement = if signature.return_type == mir::Type::Unit {
                 smir::StatementKind::Expr(call)
             } else {
@@ -2560,7 +2619,7 @@ impl Lowerer {
     }
 
     /// Lower the constructor function's body: a single raw
-    /// `smir::Expr::ClassInit` over the flattened field values — the
+    /// `smir::ExprKind::ClassInit` over the flattened field values — the
     /// base delegation arguments (evaluated here in the ctor context;
     /// hir-lower M6 lowers them in an empty scope, so they are closed
     /// expressions) expanded recursively down the base chain, then
@@ -2635,11 +2694,11 @@ impl Lowerer {
             });
             params.push(mir::Param {
                 name: field.name.clone(),
-                ty,
+                ty: ty.clone(),
                 local,
             });
             lowerer.constructor_param_map.insert(field.parameter, local);
-            own.push(smir::Expr::Local(local));
+            own.push(smir::Expr::local(local, ty));
         }
         let args = flattened_ctor_args(&mut lowerer, module, hir_id, own);
         assert_eq!(
@@ -2651,10 +2710,13 @@ impl Lowerer {
             locals: lowerer.locals,
             statements: vec![smir::Statement {
                 kind: smir::StatementKind::Return {
-                    value: Some(smir::Expr::ClassInit {
-                        class_id: mir_id,
-                        args,
-                    }),
+                    value: Some(smir::Expr::new(
+                        mir::Type::Class(mir_id),
+                        smir::ExprKind::ClassInit {
+                            class_id: mir_id,
+                            args,
+                        },
+                    )),
                 },
                 span: decl.span,
             }],
@@ -2754,7 +2816,10 @@ impl Lowerer {
             ty: mir::Type::Any,
             local: this,
         }];
-        let mut args = vec![smir::Expr::Unbox(Box::new(smir::Expr::Local(this)))];
+        let mut args = vec![smir::Expr::new(
+            payload.clone(),
+            smir::ExprKind::Unbox(Box::new(smir::Expr::local(this, mir::Type::Any))),
+        )];
         let mut target_params = Vec::new();
         let mut argument_locals = Vec::new();
         for param in &signature.params {
@@ -2813,16 +2878,23 @@ impl Lowerer {
             .zip(&target_params)
             .zip(&implementation.1)
         {
-            args.push(self.adapt_variance_bridge(smir::Expr::Local(local), target_ty, source_ty));
+            args.push(self.adapt_variance_bridge(
+                smir::Expr::local(local, target_ty.clone()),
+                target_ty,
+                source_ty,
+            ));
         }
-        let call = smir::Expr::Call(smir::Call {
-            target: mir::CallTarget {
-                kind: mir::CallKind::Direct,
-                callee: mir::Callee::User(implementation.0),
-            },
-            args,
-            return_ty: implementation.2.clone(),
-        });
+        let call = smir::Expr::new(
+            implementation.2.clone(),
+            smir::ExprKind::Call(smir::Call {
+                target: mir::CallTarget {
+                    kind: mir::CallKind::Direct,
+                    callee: mir::Callee::User(implementation.0),
+                },
+                args,
+                return_ty: implementation.2.clone(),
+            }),
+        );
         let kind = if return_ty == mir::Type::Unit {
             smir::StatementKind::Expr(call)
         } else {
@@ -3355,7 +3427,6 @@ fn lower_global_constant(
 #[derive(Default)]
 struct InterfaceRegistry {
     defs: Arena<mir::InterfaceDef>,
-    by_name: HashMap<String, mir::InterfaceId>,
     instances: HashMap<mir::InterfaceId, (hir::InterfaceId, Vec<mir::Type>)>,
     by_hir: HashMap<hir::InterfaceId, mir::InterfaceId>,
 }
@@ -3368,11 +3439,11 @@ impl InterfaceRegistry {
         hir_id: hir::InterfaceId,
         args: Vec<mir::Type>,
     ) -> mir::InterfaceId {
-        let decl = &module.interfaces[hir_id];
-        let name = decl.name.clone();
-        if let Some(&id) = self.by_name.get(&name) {
+        if let Some(&id) = self.by_hir.get(&hir_id) {
             return id;
         }
+        let decl = &module.interfaces[hir_id];
+        let name = decl.name.clone();
         let methods = decl
             .methods
             .iter()
@@ -3386,7 +3457,6 @@ impl InterfaceRegistry {
             name: name.clone(),
             methods: Vec::new(),
         });
-        self.by_name.insert(name, id);
         self.instances.insert(id, (hir_id, args));
         self.by_hir.insert(hir_id, id);
         id
@@ -3520,8 +3590,8 @@ impl Types<'_> {
 #[derive(Default)]
 struct EnumRegistry {
     defs: Arena<mir::EnumDef>,
-    /// Concrete name -> MIR enum, used to preserve one transposition.
-    by_name: HashMap<String, mir::EnumId>,
+    /// Local-concrete HIR enum identity -> MIR enum identity.
+    by_hir: HashMap<hir::EnumId, mir::EnumId>,
     /// MIR enum -> its local-concrete HIR source (boxed value types read the
     /// declared interfaces from that complete definition).
     hir_ids: HashMap<mir::EnumId, hir::EnumId>,
@@ -3536,11 +3606,11 @@ impl EnumRegistry {
         shell: &mut mir::Module,
         hir_id: hir::EnumId,
     ) -> mir::EnumId {
-        let decl = &types.module.enums[hir_id];
-        let name = decl.name.clone();
-        if let Some(&id) = self.by_name.get(&name) {
+        if let Some(&id) = self.by_hir.get(&hir_id) {
             return id;
         }
+        let decl = &types.module.enums[hir_id];
+        let name = decl.name.clone();
         let id = self.defs.alloc(mir::EnumDef {
             name: name.clone(),
             gc_free: decl.gc_free,
@@ -3553,7 +3623,7 @@ impl EnumRegistry {
             gc_free: decl.gc_free,
             variants: Vec::new(),
         });
-        self.by_name.insert(name, id);
+        self.by_hir.insert(hir_id, id);
         self.hir_ids.insert(id, hir_id);
         let variants = decl
             .variants
@@ -3611,13 +3681,14 @@ fn mir_type_gc_free(ty: &mir::Type, structs: &StructRegistry, enums: &EnumRegist
 }
 
 /// Boxed value types (DESIGN 2.3): one `mir::ClassDef` per boxed
-/// value type (`box$<encoded>`), deduplicated by the encoded payload
-/// name. The vtable / itables are filled by `finalize_boxed` once
+/// value type (`box$<encoded>`), deduplicated by typed payload identity. The
+/// vtable / itables are filled by `finalize_boxed` once
 /// every body has been lowered (all `Box` / `is` / `as` sites seen).
 #[derive(Default)]
 struct BoxedRegistry {
-    /// `box$<encoded payload>` -> boxed class.
-    by_name: HashMap<String, mir::ClassId>,
+    /// Typed payload -> boxed class. The vector is small and avoids making the
+    /// emitted link name part of semantic identity.
+    by_type: Vec<(mir::Type, mir::ClassId)>,
     /// Boxed classes in creation order.
     order: Vec<mir::ClassId>,
 }
@@ -3629,10 +3700,10 @@ impl BoxedRegistry {
         shell: &mut mir::Module,
         payload: &mir::Type,
     ) -> mir::ClassId {
-        let name = format!("box${}", mir::encode_type(shell, payload));
-        if let Some(&id) = self.by_name.get(&name) {
-            return id;
+        if let Some((_, id)) = self.by_type.iter().find(|(found, _)| found == payload) {
+            return *id;
         }
+        let name = format!("box${}", mir::encode_type(shell, payload));
         let id = classes.alloc(mir::ClassDef {
             modifier: mir::ClassModifier::Final,
             name: name.clone(),
@@ -3661,7 +3732,7 @@ impl BoxedRegistry {
             vtable: Vec::new(),
             itables: Vec::new(),
         });
-        self.by_name.insert(name, id);
+        self.by_type.push((payload.clone(), id));
         self.order.push(id);
         id
     }
@@ -3843,14 +3914,20 @@ impl BodyLowerer<'_> {
             let message =
                 self.trap_message(format!("call to abstract method `{}`", fn_name(function)));
             vec![smir::Statement {
-                kind: smir::StatementKind::Expr(smir::Expr::Call(smir::Call {
-                    target: mir::CallTarget {
-                        kind: mir::CallKind::Direct,
-                        callee: mir::Callee::Runtime(mir::RuntimeFn::Trap),
-                    },
-                    args: vec![smir::Expr::StringConst(message)],
-                    return_ty: mir::Type::Unit,
-                })),
+                kind: smir::StatementKind::Expr(smir::Expr::new(
+                    mir::Type::Unit,
+                    smir::ExprKind::Call(smir::Call {
+                        target: mir::CallTarget {
+                            kind: mir::CallKind::Direct,
+                            callee: mir::Callee::Runtime(mir::RuntimeFn::Trap),
+                        },
+                        args: vec![smir::Expr::new(
+                            mir::Type::String,
+                            smir::ExprKind::StringConst(message),
+                        )],
+                        return_ty: mir::Type::Unit,
+                    }),
+                )),
                 span: function.span,
             }]
         } else {
@@ -3917,10 +3994,13 @@ impl BodyLowerer<'_> {
             return value;
         }
         let adapter = self.ensure_function_adapter(source, target, span);
-        smir::Expr::ClosureAlloc {
-            class: self.closure_adapters[adapter].class,
-            captures: vec![value],
-        }
+        smir::Expr::new(
+            mir::Type::Function(target),
+            smir::ExprKind::ClosureAlloc {
+                class: self.closure_adapters[adapter].class,
+                captures: vec![value],
+            },
+        )
     }
 
     fn adapt_mir_subtype(
@@ -3944,13 +4024,16 @@ impl BodyLowerer<'_> {
                     self.classes[boxed].interfaces.push(*interface);
                 }
             }
-            return smir::Expr::Box(Box::new(value));
+            return smir::Expr::new(target.clone(), smir::ExprKind::Box(Box::new(value)));
         }
         if is_reference_mir(source) && is_reference_mir(target) {
-            return smir::Expr::Retype {
-                operand: Box::new(value),
-                ty: Box::new(target.clone()),
-            };
+            return smir::Expr::new(
+                target.clone(),
+                smir::ExprKind::Retype {
+                    operand: Box::new(value),
+                    ty: Box::new(target.clone()),
+                },
+            );
         }
         unreachable!("function adapter conversions follow the HIR subtype relation")
     }
@@ -4020,11 +4103,14 @@ impl BodyLowerer<'_> {
             ty: mir::Type::Function(target),
             local: closure,
         }];
-        let mut args = vec![smir::Expr::ClosureCapture {
-            closure: Box::new(smir::Expr::Local(closure)),
-            class,
-            index: 0,
-        }];
+        let mut args = vec![smir::Expr::new(
+            mir::Type::Function(source),
+            smir::ExprKind::ClosureCapture {
+                closure: Box::new(smir::Expr::local(closure, mir::Type::Function(target))),
+                class,
+                index: 0,
+            },
+        )];
         for (index, (target_ty, source_ty)) in target_signature
             .parameter_types
             .iter()
@@ -4041,18 +4127,26 @@ impl BodyLowerer<'_> {
                 ty: target_ty.clone(),
                 local,
             });
-            args.push(self.adapt_mir_subtype(smir::Expr::Local(local), target_ty, source_ty, span));
+            args.push(self.adapt_mir_subtype(
+                smir::Expr::local(local, target_ty.clone()),
+                target_ty,
+                source_ty,
+                span,
+            ));
         }
-        let call = smir::Expr::Call(smir::Call {
-            target: mir::CallTarget {
-                kind: mir::CallKind::Closure {
-                    function_type: source,
+        let call = smir::Expr::new(
+            source_signature.return_type.clone(),
+            smir::ExprKind::Call(smir::Call {
+                target: mir::CallTarget {
+                    kind: mir::CallKind::Closure {
+                        function_type: source,
+                    },
+                    callee: mir::Callee::Closure(source),
                 },
-                callee: mir::Callee::Closure(source),
-            },
-            args,
-            return_ty: source_signature.return_type.clone(),
-        });
+                args,
+                return_ty: source_signature.return_type.clone(),
+            }),
+        );
         let mut statements = if target_signature.return_type == mir::Type::Unit {
             vec![
                 smir::Statement {
@@ -4102,10 +4196,13 @@ impl BodyLowerer<'_> {
         span: Span,
     ) -> smir::Expr {
         let adapter = self.ensure_dynamic_function_adapter(target, span);
-        smir::Expr::ClosureAlloc {
-            class: self.dynamic_closure_adapters[adapter].class,
-            captures: vec![value],
-        }
+        smir::Expr::new(
+            mir::Type::Function(target),
+            smir::ExprKind::ClosureAlloc {
+                class: self.dynamic_closure_adapters[adapter].class,
+                captures: vec![value],
+            },
+        )
     }
 
     fn ensure_dynamic_function_adapter(
@@ -4159,11 +4256,14 @@ impl BodyLowerer<'_> {
             ty: mir::Type::Function(target),
             local: closure,
         }];
-        let mut args = vec![smir::Expr::ClosureCapture {
-            closure: Box::new(smir::Expr::Local(closure)),
-            class,
-            index: 0,
-        }];
+        let mut args = vec![smir::Expr::new(
+            mir::Type::Any,
+            smir::ExprKind::ClosureCapture {
+                closure: Box::new(smir::Expr::local(closure, mir::Type::Function(target))),
+                class,
+                index: 0,
+            },
+        )];
         for (index, ty) in signature.parameter_types.iter().cloned().enumerate() {
             let local = locals.alloc(mir::Local {
                 name: format!("arg{index}"),
@@ -4172,21 +4272,24 @@ impl BodyLowerer<'_> {
             });
             params.push(mir::Param {
                 name: format!("arg{index}"),
-                ty,
+                ty: ty.clone(),
                 local,
             });
-            args.push(smir::Expr::Local(local));
+            args.push(smir::Expr::local(local, ty));
         }
-        let call = smir::Expr::Call(smir::Call {
-            target: mir::CallTarget {
-                kind: mir::CallKind::FunctionBridge {
-                    function_type: target,
+        let call = smir::Expr::new(
+            signature.return_type.clone(),
+            smir::ExprKind::Call(smir::Call {
+                target: mir::CallTarget {
+                    kind: mir::CallKind::FunctionBridge {
+                        function_type: target,
+                    },
+                    callee: mir::Callee::FunctionBridge(target),
                 },
-                callee: mir::Callee::FunctionBridge(target),
-            },
-            args,
-            return_ty: signature.return_type.clone(),
-        });
+                args,
+                return_ty: signature.return_type.clone(),
+            }),
+        );
         let statements = if signature.return_type == mir::Type::Unit {
             vec![
                 smir::Statement {
@@ -4304,8 +4407,8 @@ impl BodyLowerer<'_> {
                         let value = self.lower_expr(value);
                         smir::StatementKind::ArraySet {
                             array_type,
-                            array: smir::Expr::Local(array_slot),
-                            index: smir::Expr::Local(index_slot),
+                            array: smir::Expr::local(array_slot, mir::Type::Class(array_type)),
+                            index: smir::Expr::local(index_slot, mir::Type::Int),
                             value,
                         }
                     }
@@ -4406,15 +4509,19 @@ impl BodyLowerer<'_> {
             .map(|(id, _)| id)
             .unwrap_or_else(|| panic!("core must declare `{name}` (throwable.scoop)"));
         let ctor = self.ctors[&class];
+        let exception_ty = mir::Type::Class(self.class_map[&class]);
         smir::Statement {
-            kind: smir::StatementKind::Throw(smir::Expr::Call(smir::Call {
-                target: mir::CallTarget {
-                    kind: mir::CallKind::Direct,
-                    callee: mir::Callee::User(ctor),
-                },
-                args: Vec::new(),
-                return_ty: mir::Type::Class(self.class_map[&class]),
-            })),
+            kind: smir::StatementKind::Throw(smir::Expr::new(
+                exception_ty.clone(),
+                smir::ExprKind::Call(smir::Call {
+                    target: mir::CallTarget {
+                        kind: mir::CallKind::Direct,
+                        callee: mir::Callee::User(ctor),
+                    },
+                    args: Vec::new(),
+                    return_ty: exception_ty,
+                }),
+            )),
             span,
         }
     }
@@ -4432,19 +4539,31 @@ impl BodyLowerer<'_> {
     ) {
         let out_of_bounds = logic(
             smir::LogicOp::Or,
-            smir::Expr::Binary {
-                op: mir::BinOp::IntLt,
-                lhs: Box::new(smir::Expr::Local(index)),
-                rhs: Box::new(smir::Expr::IntLiteral(0)),
-            },
-            smir::Expr::Binary {
-                op: mir::BinOp::IntGe,
-                lhs: Box::new(smir::Expr::Local(index)),
-                rhs: Box::new(smir::Expr::ArrayLen {
-                    array_type,
-                    operand: Box::new(smir::Expr::Local(array)),
-                }),
-            },
+            smir::Expr::new(
+                mir::Type::Boolean,
+                smir::ExprKind::Binary {
+                    op: mir::BinOp::IntLt,
+                    lhs: Box::new(smir::Expr::local(index, mir::Type::Int)),
+                    rhs: Box::new(smir::Expr::int(0)),
+                },
+            ),
+            smir::Expr::new(
+                mir::Type::Boolean,
+                smir::ExprKind::Binary {
+                    op: mir::BinOp::IntGe,
+                    lhs: Box::new(smir::Expr::local(index, mir::Type::Int)),
+                    rhs: Box::new(smir::Expr::new(
+                        mir::Type::Int,
+                        smir::ExprKind::ArrayLen {
+                            array_type,
+                            operand: Box::new(smir::Expr::local(
+                                array,
+                                mir::Type::Class(array_type),
+                            )),
+                        },
+                    )),
+                },
+            ),
         );
         let throw = self.throw_builtin("IndexOutOfBoundsException", span);
         self.prelude.push(smir::StatementKind::If {
@@ -4548,7 +4667,7 @@ impl BodyLowerer<'_> {
         });
         out.push(smir::Statement {
             kind: smir::StatementKind::While {
-                cond: smir::Expr::Local(cond_local),
+                cond: smir::Expr::local(cond_local, mir::Type::Boolean),
                 body,
             },
             span,
@@ -4672,14 +4791,17 @@ impl BodyLowerer<'_> {
                     || mir::Callee::User(self.function_map[&function]),
                     mir::Callee::Monomorphized,
                 );
-                Some(smir::Expr::Call(smir::Call {
-                    target: mir::CallTarget {
-                        kind: mir::CallKind::Direct,
-                        callee,
-                    },
-                    args: vec![self.accessed(root, path), self.lower_expr(value)],
-                    return_ty: mir::Type::Boolean,
-                }))
+                Some(smir::Expr::new(
+                    mir::Type::Boolean,
+                    smir::ExprKind::Call(smir::Call {
+                        target: mir::CallTarget {
+                            kind: mir::CallKind::Direct,
+                            callee,
+                        },
+                        args: vec![self.accessed(root, path), self.lower_expr(value)],
+                        return_ty: mir::Type::Boolean,
+                    }),
+                ))
             }
             hir::Pattern::Variant {
                 variant, fields, ..
@@ -4689,12 +4811,18 @@ impl BodyLowerer<'_> {
                 };
                 let enum_id = *enum_id;
                 let variant = variant.into_raw();
-                let tag = smir::Expr::EnumTag(Box::new(self.accessed(root, path)));
-                let mut cond = smir::Expr::Binary {
-                    op: mir::BinOp::IntEq,
-                    lhs: Box::new(tag),
-                    rhs: Box::new(smir::Expr::IntLiteral(i64::from(variant))),
-                };
+                let tag = smir::Expr::new(
+                    mir::Type::Int,
+                    smir::ExprKind::EnumTag(Box::new(self.accessed(root, path))),
+                );
+                let mut cond = smir::Expr::new(
+                    mir::Type::Boolean,
+                    smir::ExprKind::Binary {
+                        op: mir::BinOp::IntEq,
+                        lhs: Box::new(tag),
+                        rhs: Box::new(smir::Expr::int(i64::from(variant))),
+                    },
+                );
                 for (index, sub) in fields {
                     let field_ty = self.enums.defs[enum_id].variants[variant as usize].fields
                         [*index as usize]
@@ -4760,7 +4888,8 @@ impl BodyLowerer<'_> {
     }
 
     fn lower_expr(&mut self, expr: &hir::Expr) -> smir::Expr {
-        match &expr.kind {
+        let ty = self.lower_type(expr.ty);
+        let kind = match &expr.kind {
             hir::ExprKind::StringLiteral(value) => {
                 // One global constant per literal occurrence, numbered
                 // in order of appearance (deterministic).
@@ -4769,13 +4898,13 @@ impl BodyLowerer<'_> {
                     value: value.clone(),
                     symbol,
                 });
-                smir::Expr::StringConst(id)
+                smir::ExprKind::StringConst(id)
             }
-            hir::ExprKind::IntLiteral(value) => smir::Expr::IntLiteral(*value),
-            hir::ExprKind::BoolLiteral(value) => smir::Expr::BoolLiteral(*value),
-            hir::ExprKind::UnitLiteral => smir::Expr::UnitLiteral,
+            hir::ExprKind::IntLiteral(value) => smir::ExprKind::IntLiteral(*value),
+            hir::ExprKind::BoolLiteral(value) => smir::ExprKind::BoolLiteral(*value),
+            hir::ExprKind::UnitLiteral => smir::ExprKind::UnitLiteral,
             hir::ExprKind::TupleLiteral(elements) => {
-                smir::Expr::TupleLiteral(elements.iter().map(|e| self.lower_expr(e)).collect())
+                smir::ExprKind::TupleLiteral(elements.iter().map(|e| self.lower_expr(e)).collect())
             }
             hir::ExprKind::StructInit { args, .. } => {
                 // The (possibly instantiated) struct def comes from
@@ -4785,7 +4914,7 @@ impl BodyLowerer<'_> {
                 let mir::Type::Struct(struct_id) = self.lower_type(expr.ty) else {
                     unreachable!("a struct construction has a struct type")
                 };
-                smir::Expr::StructInit {
+                smir::ExprKind::StructInit {
                     struct_id,
                     args: args.iter().map(|arg| self.lower_expr(arg)).collect(),
                 }
@@ -4795,7 +4924,7 @@ impl BodyLowerer<'_> {
             // field initialization live inside it (see `lower_ctor`).
             hir::ExprKind::ClassInit { class_id, args } => {
                 let ctor = self.ctors[class_id];
-                smir::Expr::Call(smir::Call {
+                smir::ExprKind::Call(smir::Call {
                     target: mir::CallTarget {
                         kind: mir::CallKind::Direct,
                         callee: mir::Callee::User(ctor),
@@ -4804,36 +4933,39 @@ impl BodyLowerer<'_> {
                     return_ty: self.lower_type(expr.ty),
                 })
             }
-            hir::ExprKind::VariantConstruct { variant, args, .. } => smir::Expr::VariantConstruct {
-                ty: self.lower_type(expr.ty),
-                variant: variant.into_raw(),
-                fields: args.iter().map(|arg| self.lower_expr(arg)).collect(),
-            },
+            hir::ExprKind::VariantConstruct { variant, args, .. } => {
+                smir::ExprKind::VariantConstruct {
+                    variant: variant.into_raw(),
+                    fields: args.iter().map(|arg| self.lower_expr(arg)).collect(),
+                }
+            }
             hir::ExprKind::Local(local) => {
                 let local = self.local_map[local];
                 let narrowed = self.lower_type(expr.ty);
                 if self.locals[local].ty == narrowed {
-                    smir::Expr::Local(local)
+                    smir::ExprKind::Local(local)
                 } else if let mir::Type::Function(function_type) = narrowed {
-                    self.adapt_checked_function_value(
-                        smir::Expr::Local(local),
+                    return self.adapt_checked_function_value(
+                        smir::Expr::local(local, self.locals[local].ty.clone()),
                         function_type,
                         expr.span,
-                    )
+                    );
                 } else {
-                    smir::Expr::Retype {
-                        operand: Box::new(smir::Expr::Local(local)),
+                    smir::ExprKind::Retype {
+                        operand: Box::new(smir::Expr::local(local, self.locals[local].ty.clone())),
                         ty: Box::new(narrowed),
                     }
                 }
             }
             hir::ExprKind::ConstructorParam(parameter) => {
-                smir::Expr::Local(self.constructor_param_map[parameter])
+                smir::ExprKind::Local(self.constructor_param_map[parameter])
             }
-            hir::ExprKind::GlobalRead(global) => smir::Expr::GlobalRead(self.global_map[global]),
+            hir::ExprKind::GlobalRead(global) => {
+                smir::ExprKind::GlobalRead(self.global_map[global])
+            }
             hir::ExprKind::Capture(binding) => {
                 if let Some(local) = self.current_local_capture_params.get(binding) {
-                    return smir::Expr::Local(self.local_map[local]);
+                    return smir::Expr::new(ty, smir::ExprKind::Local(self.local_map[local]));
                 }
                 let class = self
                     .current_closure
@@ -4842,8 +4974,8 @@ impl BodyLowerer<'_> {
                 let closure = self
                     .current_closure_local
                     .expect("a closure invoke body has its hidden receiver local");
-                smir::Expr::ClosureCapture {
-                    closure: Box::new(smir::Expr::Local(closure)),
+                smir::ExprKind::ClosureCapture {
+                    closure: Box::new(smir::Expr::local(closure, self.locals[closure].ty.clone())),
                     class,
                     index,
                 }
@@ -4855,7 +4987,7 @@ impl BodyLowerer<'_> {
                     .iter()
                     .map(|capture| capture.source.clone())
                     .collect();
-                smir::Expr::ClosureAlloc {
+                smir::ExprKind::ClosureAlloc {
                     class,
                     captures: sources
                         .iter()
@@ -4870,7 +5002,7 @@ impl BodyLowerer<'_> {
                     .iter()
                     .map(|capture| capture.source.clone())
                     .collect();
-                smir::Expr::ClosureAlloc {
+                smir::ExprKind::ClosureAlloc {
                     class,
                     captures: sources
                         .iter()
@@ -4902,7 +5034,7 @@ impl BodyLowerer<'_> {
                         .iter()
                         .map(|capture| self.lower_expr(&capture.source)),
                 );
-                smir::Expr::ClosureAlloc { class, captures }
+                smir::ExprKind::ClosureAlloc { class, captures }
             }
             hir::ExprKind::FunctionCoercion {
                 source,
@@ -4914,7 +5046,7 @@ impl BodyLowerer<'_> {
                 let source_type = self.lower_function_type_id(conversion.source);
                 let target_type = self.lower_function_type_id(*target_type);
                 let value = self.lower_expr(source);
-                self.adapt_function_value(value, source_type, target_type, expr.span)
+                return self.adapt_function_value(value, source_type, target_type, expr.span);
             }
             // Array nodes carry the exact concrete intrinsic class identity;
             // LIR never reconstructs it from an element layout or context.
@@ -4922,7 +5054,7 @@ impl BodyLowerer<'_> {
                 let mir::Type::Class(array_type) = self.lower_type(expr.ty) else {
                     unreachable!("an array literal has an intrinsic class type")
                 };
-                smir::Expr::ArrayLiteral {
+                smir::ExprKind::ArrayLiteral {
                     array_type,
                     elements: elements.iter().map(|e| self.lower_expr(e)).collect(),
                 }
@@ -4950,17 +5082,17 @@ impl BodyLowerer<'_> {
                     init: index,
                 });
                 self.bounds_check(array_type, array_slot, index_slot, expr.span);
-                smir::Expr::ArrayGet {
+                smir::ExprKind::ArrayGet {
                     array_type,
-                    array: Box::new(smir::Expr::Local(array_slot)),
-                    index: Box::new(smir::Expr::Local(index_slot)),
+                    array: Box::new(smir::Expr::local(array_slot, mir::Type::Class(array_type))),
+                    index: Box::new(smir::Expr::local(index_slot, mir::Type::Int)),
                 }
             }
             hir::ExprKind::ArrayLen(operand) => {
                 let mir::Type::Class(array_type) = self.lower_type(operand.ty) else {
                     unreachable!("array.size has an intrinsic class receiver")
                 };
-                smir::Expr::ArrayLen {
+                smir::ExprKind::ArrayLen {
                     array_type,
                     operand: Box::new(self.lower_expr(operand)),
                 }
@@ -4972,7 +5104,7 @@ impl BodyLowerer<'_> {
                 let mir::Type::Class(target_type) = self.lower_type(expr.ty) else {
                     unreachable!("an array conversion has an intrinsic class target")
                 };
-                smir::Expr::ArrayClone {
+                smir::ExprKind::ArrayClone {
                     source_type,
                     target_type,
                     operand: Box::new(self.lower_expr(operand)),
@@ -4982,19 +5114,19 @@ impl BodyLowerer<'_> {
                 let mir::Type::Ptr(pointee) = self.lower_type(expr.ty) else {
                     unreachable!("PtrFromUInt has a pointer type")
                 };
-                smir::Expr::PtrFromUInt {
+                smir::ExprKind::PtrFromUInt {
                     operand: Box::new(self.lower_expr(operand)),
                     pointee,
                 }
             }
             hir::ExprKind::PtrToUInt(operand) => {
-                smir::Expr::PtrToUInt(Box::new(self.lower_expr(operand)))
+                smir::ExprKind::PtrToUInt(Box::new(self.lower_expr(operand)))
             }
             hir::ExprKind::PtrCast(operand) => {
                 let mir::Type::Ptr(pointee) = self.lower_type(expr.ty) else {
                     unreachable!("PtrCast has a pointer type")
                 };
-                smir::Expr::PtrCast {
+                smir::ExprKind::PtrCast {
                     operand: Box::new(self.lower_expr(operand)),
                     pointee,
                 }
@@ -5003,7 +5135,7 @@ impl BodyLowerer<'_> {
                 let hir::TypeKind::Ptr(pointee) = self.module.types[pointer.ty].kind else {
                     unreachable!("PtrLoad has a pointer operand")
                 };
-                smir::Expr::PtrLoad {
+                smir::ExprKind::PtrLoad {
                     pointer: Box::new(self.lower_expr(pointer)),
                     pointee: Box::new(self.lower_type(pointee)),
                     offset: offset
@@ -5019,7 +5151,7 @@ impl BodyLowerer<'_> {
                 let hir::TypeKind::Ptr(pointee) = self.module.types[pointer.ty].kind else {
                     unreachable!("PtrStore has a pointer operand")
                 };
-                smir::Expr::PtrStore {
+                smir::ExprKind::PtrStore {
                     pointer: Box::new(self.lower_expr(pointer)),
                     pointee: Box::new(self.lower_type(pointee)),
                     offset: offset
@@ -5036,7 +5168,7 @@ impl BodyLowerer<'_> {
                 let hir::TypeKind::Ptr(pointee) = self.module.types[pointer.ty].kind else {
                     unreachable!("PtrOffset has a pointer operand")
                 };
-                smir::Expr::PtrOffset {
+                smir::ExprKind::PtrOffset {
                     pointer: Box::new(self.lower_expr(pointer)),
                     pointee: Box::new(self.lower_type(pointee)),
                     offset: Box::new(self.lower_expr(offset)),
@@ -5045,22 +5177,22 @@ impl BodyLowerer<'_> {
             }
             hir::ExprKind::AddressOf(hir::Place::Local(local)) => {
                 let local = self.local_map[local];
-                smir::Expr::AddressOf {
+                smir::ExprKind::AddressOf {
                     local,
                     pointee: Box::new(self.locals[local].ty.clone()),
                 }
             }
-            hir::ExprKind::AddressOf(hir::Place::Global(global)) => smir::Expr::GlobalAddress {
+            hir::ExprKind::AddressOf(hir::Place::Global(global)) => smir::ExprKind::GlobalAddress {
                 global: self.global_map[global],
                 pointee: Box::new(self.lower_type(self.module.globals[*global].ty)),
             },
-            hir::ExprKind::SizeOf(ty) => smir::Expr::SizeOf(Box::new(self.lower_type(*ty))),
-            hir::ExprKind::AlignOf(ty) => smir::Expr::AlignOf(Box::new(self.lower_type(*ty))),
+            hir::ExprKind::SizeOf(ty) => smir::ExprKind::SizeOf(Box::new(self.lower_type(*ty))),
+            hir::ExprKind::AlignOf(ty) => smir::ExprKind::AlignOf(Box::new(self.lower_type(*ty))),
             hir::ExprKind::FunPtrNull => {
                 let mir::Type::FunPtr(signature) = self.lower_type(expr.ty) else {
                     unreachable!("FunPtrNull has a FunPtr type")
                 };
-                smir::Expr::FunPtrNull(signature)
+                smir::ExprKind::FunPtrNull(signature)
             }
             hir::ExprKind::FunctionAddress(function) => {
                 let mir::Type::FunPtr(signature) = self.lower_type(expr.ty) else {
@@ -5068,14 +5200,14 @@ impl BodyLowerer<'_> {
                 };
                 let callback =
                     self.ensure_callback_bridge(self.function_map[function], signature, expr.span);
-                smir::Expr::FunctionAddress { callback }
+                smir::ExprKind::FunctionAddress { callback }
             }
             hir::ExprKind::ForeignCallbackRegister {
                 registration,
                 closure,
             } => {
                 let bridge = self.ensure_foreign_callback_bridge(*registration, expr.span);
-                smir::Expr::ForeignCallbackRegister {
+                smir::ExprKind::ForeignCallbackRegister {
                     bridge,
                     closure: Box::new(self.lower_expr(closure)),
                 }
@@ -5083,7 +5215,7 @@ impl BodyLowerer<'_> {
             hir::ExprKind::ForeignCallbackOperation {
                 operation,
                 callback,
-            } => smir::Expr::ForeignCallbackOperation {
+            } => smir::ExprKind::ForeignCallbackOperation {
                 operation: match operation {
                     hir::ForeignCallbackOperation::Retain => mir::ForeignCallbackOperation::Retain,
                     hir::ForeignCallbackOperation::Release => {
@@ -5107,7 +5239,7 @@ impl BodyLowerer<'_> {
                     | hir::FieldRef::ClassField { index, .. }
                     | hir::FieldRef::TupleIndex(index) => *index,
                 };
-                smir::Expr::FieldAccess {
+                smir::ExprKind::FieldAccess {
                     receiver: Box::new(self.lower_expr(receiver)),
                     index,
                 }
@@ -5116,7 +5248,7 @@ impl BodyLowerer<'_> {
                 receiver,
                 callee,
                 args,
-            } => self.lower_method_call(receiver, *callee, args, expr.ty),
+            } => return self.lower_method_call(receiver, *callee, args, expr.ty),
             // `Box` / `Unbox` / `is` stay dedicated MIR nodes; LIR
             // lowers them (the runtime box call, the payload load,
             // the `scoop_rt_is_instance` call). Boxing registers the
@@ -5124,36 +5256,36 @@ impl BodyLowerer<'_> {
             hir::ExprKind::Box(operand) => {
                 let payload = self.lower_type(operand.ty);
                 self.register_boxed(&payload, Some(expr.ty));
-                smir::Expr::Box(Box::new(self.lower_expr(operand)))
+                smir::ExprKind::Box(Box::new(self.lower_expr(operand)))
             }
-            // Smart casts unbox inline wherever the narrowed local is
-            // read (e.g. as a field-access receiver). LIR reconstructs
-            // expression types structurally, and an `Any` operand does
-            // not determine the payload type, so every unbox is bound
-            // to a typed hidden local (the same prelude mechanism `!!`
-            // uses).
+            // Smart casts unbox inline wherever the narrowed local is read
+            // (e.g. as a field-access receiver). Every unbox is bound to a
+            // typed hidden local so the synthetic expression and its result
+            // local carry the same complete type.
             hir::ExprKind::Unbox(operand) => {
                 let ty = self.lower_type(expr.ty);
                 let operand = self.lower_expr(operand);
-                let slot = self.new_hidden("ub", ty, false);
+                let slot = self.new_hidden("ub", ty.clone(), false);
                 self.prelude.push(smir::StatementKind::ValDecl {
                     local: slot,
-                    init: smir::Expr::Unbox(Box::new(operand)),
+                    init: smir::Expr::new(ty, smir::ExprKind::Unbox(Box::new(operand))),
                 });
-                smir::Expr::Local(slot)
+                smir::ExprKind::Local(slot)
             }
             hir::ExprKind::IsInstance { operand, check_ty } => {
                 let check_ty = self.lower_type(*check_ty);
                 self.register_check(&check_ty);
-                smir::Expr::IsInstance {
+                smir::ExprKind::IsInstance {
                     operand: Box::new(self.lower_expr(operand)),
                     check_ty: Box::new(check_ty),
                 }
             }
             hir::ExprKind::Cast { operand, optional } => {
-                self.lower_cast(operand, *optional, expr.ty, expr.span)
+                return self.lower_cast(operand, *optional, expr.ty, expr.span);
             }
-            hir::ExprKind::Call { callee, args } => self.lower_call(*callee, args, expr.ty),
+            hir::ExprKind::Call { callee, args } => {
+                return self.lower_call(*callee, args, expr.ty);
+            }
             hir::ExprKind::LocalFunctionCall {
                 callee,
                 captures,
@@ -5163,7 +5295,7 @@ impl BodyLowerer<'_> {
                 let callee = self.lower_user_callee(*callee);
                 let call_args: Vec<_> = captures.iter().chain(args).collect();
                 let return_ty = self.lower_type(expr.ty);
-                self.call(callee, &call_args, return_ty)
+                return self.call(callee, &call_args, return_ty);
             }
             hir::ExprKind::CallableCall {
                 callee,
@@ -5185,7 +5317,7 @@ impl BodyLowerer<'_> {
                 let mut call_args = Vec::with_capacity(args.len() + 1);
                 call_args.push(self.lower_expr(callee));
                 call_args.extend(args.iter().map(|arg| self.lower_expr(arg)));
-                smir::Expr::Call(smir::Call {
+                smir::ExprKind::Call(smir::Call {
                     target: mir::CallTarget {
                         kind: mir::CallKind::Closure { function_type },
                         callee: mir::Callee::Closure(function_type),
@@ -5194,30 +5326,30 @@ impl BodyLowerer<'_> {
                     return_ty: self.lower_type(expr.ty),
                 })
             }
-            hir::ExprKind::Binary { op, lhs, rhs } => self.lower_binary(*op, lhs, rhs, expr.span),
+            hir::ExprKind::Binary { op, lhs, rhs } => {
+                return self.lower_binary(*op, lhs, rhs, expr.span);
+            }
             hir::ExprKind::Unary { op, operand } => {
                 let operand = Box::new(self.lower_expr(operand));
                 let op = match op {
                     hir::UnOp::Neg => mir::UnOp::IntNeg,
                     hir::UnOp::Not => mir::UnOp::BoolNot,
                 };
-                smir::Expr::Unary { op, operand }
+                smir::ExprKind::Unary { op, operand }
             }
             // The Option nodes (hir-lower's `?.` / `?:` / `!!`
             // desugars) become generic enum operations on core's
             // `Option` enum (DESIGN 3.3).
             hir::ExprKind::SomeWrap(operand) => {
                 let (some, _) = self.option_variants;
-                smir::Expr::VariantConstruct {
-                    ty: self.lower_type(expr.ty),
+                smir::ExprKind::VariantConstruct {
                     variant: some,
                     fields: vec![self.lower_expr(operand)],
                 }
             }
             hir::ExprKind::NoneLiteral => {
                 let (_, none) = self.option_variants;
-                smir::Expr::VariantConstruct {
-                    ty: self.lower_type(expr.ty),
+                smir::ExprKind::VariantConstruct {
                     variant: none,
                     fields: Vec::new(),
                 }
@@ -5225,10 +5357,13 @@ impl BodyLowerer<'_> {
             hir::ExprKind::IsSome(operand) => {
                 let (some, _) = self.option_variants;
                 let operand = self.lower_expr(operand);
-                smir::Expr::Binary {
+                smir::ExprKind::Binary {
                     op: mir::BinOp::IntEq,
-                    lhs: Box::new(smir::Expr::EnumTag(Box::new(operand))),
-                    rhs: Box::new(smir::Expr::IntLiteral(i64::from(some))),
+                    lhs: Box::new(smir::Expr::new(
+                        mir::Type::Int,
+                        smir::ExprKind::EnumTag(Box::new(operand)),
+                    )),
+                    rhs: Box::new(smir::Expr::int(i64::from(some))),
                 }
             }
             hir::ExprKind::Unwrap {
@@ -5237,19 +5372,20 @@ impl BodyLowerer<'_> {
             } => {
                 let (some, _) = self.option_variants;
                 if *trap_on_none {
-                    self.trapping_unwrap(operand, expr.ty, expr.span, some)
+                    return self.trapping_unwrap(operand, expr.ty, expr.span, some);
                 } else {
                     // The surrounding control flow already guarantees
                     // `Some` (`?.` / `?:` desugars, the equality
                     // expansion).
-                    smir::Expr::EnumField {
+                    smir::ExprKind::EnumField {
                         operand: Box::new(self.lower_expr(operand)),
                         variant: some,
                         index: 0,
                     }
                 }
             }
-        }
+        };
+        smir::Expr::new(ty, kind)
     }
 
     fn ensure_callback_bridge(
@@ -5296,14 +5432,17 @@ impl BodyLowerer<'_> {
             });
             params.push(mir::Param {
                 name,
-                ty: pointer_type,
+                ty: pointer_type.clone(),
                 local,
             });
-            args.push(mir::Expr::PtrLoad {
-                pointer: Box::new(mir::Expr::Local(local)),
-                pointee: Box::new(parameter_type.clone()),
-                offset: None,
-            });
+            args.push(mir::Expr::new(
+                parameter_type.clone(),
+                mir::ExprKind::PtrLoad {
+                    pointer: Box::new(mir::Expr::local(local, pointer_type)),
+                    pointee: Box::new(parameter_type.clone()),
+                    offset: None,
+                },
+            ));
         }
 
         let call = mir::Call {
@@ -5328,12 +5467,21 @@ impl BodyLowerer<'_> {
                 span,
             });
             statements.push(mir::Statement {
-                kind: mir::StatementKind::Expr(mir::Expr::PtrStore {
-                    pointer: Box::new(mir::Expr::Local(result_storage)),
-                    pointee: Box::new(signature_def.return_type.clone()),
-                    offset: None,
-                    value: Box::new(mir::Expr::Local(result)),
-                }),
+                kind: mir::StatementKind::Expr(mir::Expr::new(
+                    mir::Type::Unit,
+                    mir::ExprKind::PtrStore {
+                        pointer: Box::new(mir::Expr::local(
+                            result_storage,
+                            mir::Type::Ptr(Box::new(signature_def.return_type.clone())),
+                        )),
+                        pointee: Box::new(signature_def.return_type.clone()),
+                        offset: None,
+                        value: Box::new(mir::Expr::local(
+                            result,
+                            signature_def.return_type.clone(),
+                        )),
+                    },
+                )),
                 span,
             });
         } else {
@@ -5420,41 +5568,54 @@ impl BodyLowerer<'_> {
         let params = vec![
             mir::Param {
                 name: "$closure".to_string(),
-                ty: closure_ty,
+                ty: closure_ty.clone(),
                 local: closure,
             },
             mir::Param {
                 name: "$result".to_string(),
-                ty: result_pointer_ty,
+                ty: result_pointer_ty.clone(),
                 local: result_storage,
             },
             mir::Param {
                 name: "$arguments".to_string(),
-                ty: arguments_pointer_ty,
+                ty: arguments_pointer_ty.clone(),
                 local: argument_storage,
             },
             mir::Param {
                 name: "$exception".to_string(),
-                ty: exception_pointer_ty,
+                ty: exception_pointer_ty.clone(),
                 local: exception_out,
             },
         ];
 
-        let mut call_args = vec![mir::Expr::Local(closure)];
+        let mut call_args = vec![mir::Expr::local(closure, closure_ty.clone())];
         for (index, parameter_ty) in signature.parameter_types.iter().enumerate() {
-            let raw = mir::Expr::PtrLoad {
-                pointer: Box::new(mir::Expr::Local(argument_storage)),
-                pointee: Box::new(opaque_pointer.clone()),
-                offset: Some(Box::new(mir::Expr::IntLiteral(index as i64))),
-            };
-            call_args.push(mir::Expr::PtrLoad {
-                pointer: Box::new(mir::Expr::PtrCast {
-                    operand: Box::new(raw),
+            let raw = mir::Expr::new(
+                opaque_pointer.clone(),
+                mir::ExprKind::PtrLoad {
+                    pointer: Box::new(mir::Expr::local(
+                        argument_storage,
+                        arguments_pointer_ty.clone(),
+                    )),
+                    pointee: Box::new(opaque_pointer.clone()),
+                    offset: Some(Box::new(mir::Expr::int(index as i64))),
+                },
+            );
+            let parameter_pointer = mir::Type::Ptr(Box::new(parameter_ty.clone()));
+            call_args.push(mir::Expr::new(
+                parameter_ty.clone(),
+                mir::ExprKind::PtrLoad {
+                    pointer: Box::new(mir::Expr::new(
+                        parameter_pointer,
+                        mir::ExprKind::PtrCast {
+                            operand: Box::new(raw),
+                            pointee: Box::new(parameter_ty.clone()),
+                        },
+                    )),
                     pointee: Box::new(parameter_ty.clone()),
-                }),
-                pointee: Box::new(parameter_ty.clone()),
-                offset: None,
-            });
+                    offset: None,
+                },
+            ));
         }
         let call = mir::Call {
             target: mir::CallTarget {
@@ -5487,19 +5648,28 @@ impl BodyLowerer<'_> {
                             kind: mir::CallKind::Direct,
                             callee: mir::Callee::Runtime(mir::RuntimeFn::MaterializeException),
                         },
-                        args: vec![mir::Expr::CaughtException],
+                        args: vec![mir::Expr::caught_exception()],
                     },
                 })),
                 statement(mir::StatementKind::Eh(mir::EhStatement::EndCatch)),
-                statement(mir::StatementKind::Expr(mir::Expr::PtrStore {
-                    pointer: Box::new(mir::Expr::Local(exception_out)),
-                    pointee: Box::new(throwable),
-                    offset: None,
-                    value: Box::new(mir::Expr::Local(exception)),
-                })),
+                statement(mir::StatementKind::Expr(mir::Expr::new(
+                    mir::Type::Unit,
+                    mir::ExprKind::PtrStore {
+                        pointer: Box::new(mir::Expr::local(
+                            exception_out,
+                            exception_pointer_ty.clone(),
+                        )),
+                        pointee: Box::new(throwable.clone()),
+                        offset: None,
+                        value: Box::new(mir::Expr::local(exception, throwable.clone())),
+                    },
+                ))),
             ],
             terminator: mir::Terminator::Return {
-                value: Some(mir::Expr::IntLiteral(1)),
+                value: Some(mir::Expr::new(
+                    mir::Type::UInt,
+                    mir::ExprKind::IntLiteral(1),
+                )),
             },
             unwind: None,
         });
@@ -5521,18 +5691,24 @@ impl BodyLowerer<'_> {
                     call,
                 },
             )));
-            success_statements.push(statement(mir::StatementKind::Expr(mir::Expr::PtrStore {
-                pointer: Box::new(mir::Expr::Local(result_storage)),
-                pointee: Box::new(signature.return_type),
-                offset: None,
-                value: Box::new(mir::Expr::Local(value)),
-            })));
+            success_statements.push(statement(mir::StatementKind::Expr(mir::Expr::new(
+                mir::Type::Unit,
+                mir::ExprKind::PtrStore {
+                    pointer: Box::new(mir::Expr::local(result_storage, result_pointer_ty.clone())),
+                    pointee: Box::new(signature.return_type.clone()),
+                    offset: None,
+                    value: Box::new(mir::Expr::local(value, signature.return_type.clone())),
+                },
+            ))));
         }
         let entry = blocks.alloc(mir::BasicBlock {
             name: "entry".to_string(),
             statements: success_statements,
             terminator: mir::Terminator::Return {
-                value: Some(mir::Expr::IntLiteral(0)),
+                value: Some(mir::Expr::new(
+                    mir::Type::UInt,
+                    mir::ExprKind::IntLiteral(0),
+                )),
             },
             unwind: Some(catch),
         });
@@ -5589,33 +5765,45 @@ impl BodyLowerer<'_> {
         let option_ty = self.lower_type(operand.ty);
         let payload_ty = self.lower_type(result_ty);
         let value = self.lower_expr(operand);
-        let slot = self.new_hidden("opt", option_ty, false);
-        let result = self.new_hidden("uw", payload_ty, false);
+        let slot = self.new_hidden("opt", option_ty.clone(), false);
+        let result = self.new_hidden("uw", payload_ty.clone(), false);
         let throw = self.throw_builtin("UnwrapException", span);
         self.prelude.push(smir::StatementKind::ValDecl {
             local: slot,
             init: value,
         });
         self.prelude.push(smir::StatementKind::If {
-            cond: smir::Expr::Binary {
-                op: mir::BinOp::IntEq,
-                lhs: Box::new(smir::Expr::EnumTag(Box::new(smir::Expr::Local(slot)))),
-                rhs: Box::new(smir::Expr::IntLiteral(i64::from(some))),
-            },
+            cond: smir::Expr::new(
+                mir::Type::Boolean,
+                smir::ExprKind::Binary {
+                    op: mir::BinOp::IntEq,
+                    lhs: Box::new(smir::Expr::new(
+                        mir::Type::Int,
+                        smir::ExprKind::EnumTag(Box::new(smir::Expr::local(
+                            slot,
+                            option_ty.clone(),
+                        ))),
+                    )),
+                    rhs: Box::new(smir::Expr::int(i64::from(some))),
+                },
+            ),
             then_body: vec![smir::Statement {
                 kind: smir::StatementKind::ValDecl {
                     local: result,
-                    init: smir::Expr::EnumField {
-                        operand: Box::new(smir::Expr::Local(slot)),
-                        variant: some,
-                        index: 0,
-                    },
+                    init: smir::Expr::new(
+                        payload_ty.clone(),
+                        smir::ExprKind::EnumField {
+                            operand: Box::new(smir::Expr::local(slot, option_ty)),
+                            variant: some,
+                            index: 0,
+                        },
+                    ),
                 },
                 span,
             }],
             else_body: Some(vec![throw]),
         });
-        smir::Expr::Local(result)
+        smir::Expr::local(result, payload_ty)
     }
 
     fn lower_call(
@@ -5695,16 +5883,18 @@ impl BodyLowerer<'_> {
             self.top_level,
             self.shell,
         );
-        self.prelude
-            .push(smir::StatementKind::Expr(smir::Expr::Call(smir::Call {
+        self.prelude.push(smir::StatementKind::Expr(smir::Expr::new(
+            mir::Type::Unit,
+            smir::ExprKind::Call(smir::Call {
                 target: mir::CallTarget {
                     kind: mir::CallKind::Direct,
                     callee: mir::Callee::User(helper),
                 },
                 args: vec![task, completion],
                 return_ty: mir::Type::Unit,
-            })));
-        smir::Expr::UnitLiteral
+            }),
+        )));
+        smir::Expr::unit()
     }
 
     fn lower_coroutine_suspend(
@@ -5721,17 +5911,20 @@ impl BodyLowerer<'_> {
             .instances
             .get(protocol.suspend_registration_register)
             .unwrap();
-        smir::Expr::Call(smir::Call {
-            target: mir::CallTarget {
-                kind: mir::CallKind::Interface {
-                    interface: registration_interface,
-                    slot: 0,
+        smir::Expr::new(
+            result.clone(),
+            smir::ExprKind::Call(smir::Call {
+                target: mir::CallTarget {
+                    kind: mir::CallKind::Interface {
+                        interface: registration_interface,
+                        slot: 0,
+                    },
+                    callee: mir::Callee::CoroutineSuspend { register },
                 },
-                callee: mir::Callee::CoroutineSuspend { register },
-            },
-            args: vec![self.lower_expr(registration)],
-            return_ty: result,
-        })
+                args: vec![self.lower_expr(registration)],
+                return_ty: result,
+            }),
+        )
     }
 
     /// An `@Intrinsic` call: the typed intrinsic kind maps directly onto the
@@ -5783,14 +5976,17 @@ impl BodyLowerer<'_> {
         args: &[&hir::Expr],
         return_ty: mir::Type,
     ) -> smir::Expr {
-        smir::Expr::Call(smir::Call {
-            target: mir::CallTarget {
-                kind: mir::CallKind::Direct,
-                callee,
-            },
-            args: args.iter().map(|arg| self.lower_expr(arg)).collect(),
-            return_ty,
-        })
+        smir::Expr::new(
+            return_ty.clone(),
+            smir::ExprKind::Call(smir::Call {
+                target: mir::CallTarget {
+                    kind: mir::CallKind::Direct,
+                    callee,
+                },
+                args: args.iter().map(|arg| self.lower_expr(arg)).collect(),
+                return_ty,
+            }),
+        )
     }
 
     /// A resolved method call (impl spec 2.9): the receiver becomes
@@ -5877,11 +6073,15 @@ impl BodyLowerer<'_> {
         let mut call_args = Vec::with_capacity(args.len() + 1);
         call_args.push(self.lower_expr(receiver));
         call_args.extend(args.iter().map(|arg| self.lower_expr(arg)));
-        smir::Expr::Call(smir::Call {
-            target: mir::CallTarget { kind, callee },
-            args: call_args,
-            return_ty: self.lower_type(result_ty),
-        })
+        let return_ty = self.lower_type(result_ty);
+        smir::Expr::new(
+            return_ty.clone(),
+            smir::ExprKind::Call(smir::Call {
+                target: mir::CallTarget { kind, callee },
+                args: call_args,
+                return_ty,
+            }),
+        )
     }
 
     /// The callee's dispatch signature key (`name(<param encoding>)`,
@@ -6017,25 +6217,31 @@ impl BodyLowerer<'_> {
         self.register_check(&target);
         let operand_ty = self.lower_type(operand.ty);
         let value = self.lower_expr(operand);
-        let slot = self.new_hidden("cast", operand_ty, false);
+        let slot = self.new_hidden("cast", operand_ty.clone(), false);
         self.prelude.push(smir::StatementKind::ValDecl {
             local: slot,
             init: value,
         });
         let cond = match &target {
-            mir::Type::Any => smir::Expr::BoolLiteral(true),
-            _ => smir::Expr::IsInstance {
-                operand: Box::new(smir::Expr::Local(slot)),
-                check_ty: Box::new(target.clone()),
-            },
+            mir::Type::Any => smir::Expr::bool(true),
+            _ => smir::Expr::new(
+                mir::Type::Boolean,
+                smir::ExprKind::IsInstance {
+                    operand: Box::new(smir::Expr::local(slot, operand_ty.clone())),
+                    check_ty: Box::new(target.clone()),
+                },
+            ),
         };
         if !optional {
             let throw = self.throw_builtin("ClassCastException", span);
             self.prelude.push(smir::StatementKind::If {
-                cond: smir::Expr::Unary {
-                    op: mir::UnOp::BoolNot,
-                    operand: Box::new(cond),
-                },
+                cond: smir::Expr::new(
+                    mir::Type::Boolean,
+                    smir::ExprKind::Unary {
+                        op: mir::UnOp::BoolNot,
+                        operand: Box::new(cond),
+                    },
+                ),
                 then_body: vec![throw],
                 else_body: None,
             });
@@ -6043,38 +6249,67 @@ impl BodyLowerer<'_> {
             // its invoke dispatches through the source closure's bridge
             // table. Value targets are unboxed by the outer HIR node.
             return match target {
-                mir::Type::Function(function_type) => {
-                    self.adapt_checked_function_value(smir::Expr::Local(slot), function_type, span)
-                }
-                _ => smir::Expr::Local(slot),
+                mir::Type::Function(function_type) => self.adapt_checked_function_value(
+                    smir::Expr::local(slot, operand_ty),
+                    function_type,
+                    span,
+                ),
+                target @ (mir::Type::String
+                | mir::Type::Class(_)
+                | mir::Type::Interface(_)
+                | mir::Type::Any) => smir::Expr::new(
+                    target.clone(),
+                    smir::ExprKind::Retype {
+                        operand: Box::new(smir::Expr::local(slot, operand_ty)),
+                        ty: Box::new(target),
+                    },
+                ),
+                // hir-lower wraps a checked value-type cast in an outer
+                // `Unbox`. Preserve the checked boxed/reference operand here;
+                // the outer node is the sole operation that produces the
+                // target value type.
+                _ => smir::Expr::local(slot, operand_ty),
             };
         }
         let unboxed = match &target {
-            mir::Type::Function(function_type) => {
-                self.adapt_checked_function_value(smir::Expr::Local(slot), *function_type, span)
-            }
-            mir::Type::Class(_) | mir::Type::Interface(_) | mir::Type::Any => {
-                smir::Expr::Local(slot)
-            }
+            mir::Type::Function(function_type) => self.adapt_checked_function_value(
+                smir::Expr::local(slot, operand_ty.clone()),
+                *function_type,
+                span,
+            ),
+            mir::Type::Class(_) | mir::Type::Interface(_) | mir::Type::Any => smir::Expr::new(
+                target.clone(),
+                smir::ExprKind::Retype {
+                    operand: Box::new(smir::Expr::local(slot, operand_ty.clone())),
+                    ty: Box::new(target.clone()),
+                },
+            ),
             // Only `as?` unwraps here: hir-lower wraps a value-typed
             // `as` in a hir-level `Unbox(Cast)` node, so the payload
             // extraction for `as` happens when that outer `Unbox` is
             // lowered — adding another one here would double-unwrap.
-            _ => smir::Expr::Unbox(Box::new(smir::Expr::Local(slot))),
+            _ => smir::Expr::new(
+                target.clone(),
+                smir::ExprKind::Unbox(Box::new(smir::Expr::local(slot, operand_ty))),
+            ),
         };
         let option_ty = self.lower_type(expr_ty);
         let (some, none) = self.option_variants;
         let result = self.new_hidden("cast", option_ty.clone(), true);
-        let some_value = smir::Expr::VariantConstruct {
-            ty: option_ty.clone(),
-            variant: some,
-            fields: vec![unboxed],
-        };
-        let none_value = smir::Expr::VariantConstruct {
-            ty: option_ty,
-            variant: none,
-            fields: Vec::new(),
-        };
+        let some_value = smir::Expr::new(
+            option_ty.clone(),
+            smir::ExprKind::VariantConstruct {
+                variant: some,
+                fields: vec![unboxed],
+            },
+        );
+        let none_value = smir::Expr::new(
+            option_ty.clone(),
+            smir::ExprKind::VariantConstruct {
+                variant: none,
+                fields: Vec::new(),
+            },
+        );
         self.prelude.push(smir::StatementKind::If {
             cond,
             then_body: vec![smir::Statement {
@@ -6092,7 +6327,7 @@ impl BodyLowerer<'_> {
                 span,
             }]),
         });
-        smir::Expr::Local(result)
+        smir::Expr::local(result, option_ty)
     }
 
     /// A trap message string constant (`scoop.str.N`, numbered in
@@ -6146,19 +6381,25 @@ impl BodyLowerer<'_> {
                 });
                 let throw = self.throw_builtin("ArithmeticException", span);
                 self.prelude.push(smir::StatementKind::If {
-                    cond: smir::Expr::Binary {
-                        op: mir::BinOp::IntEq,
-                        lhs: Box::new(smir::Expr::Local(rhs_slot)),
-                        rhs: Box::new(smir::Expr::IntLiteral(0)),
-                    },
+                    cond: smir::Expr::new(
+                        mir::Type::Boolean,
+                        smir::ExprKind::Binary {
+                            op: mir::BinOp::IntEq,
+                            lhs: Box::new(smir::Expr::local(rhs_slot, mir::Type::Int)),
+                            rhs: Box::new(smir::Expr::int(0)),
+                        },
+                    ),
                     then_body: vec![throw],
                     else_body: None,
                 });
-                smir::Expr::Binary {
-                    op: IntDiv,
-                    lhs: Box::new(smir::Expr::Local(lhs_slot)),
-                    rhs: Box::new(smir::Expr::Local(rhs_slot)),
-                }
+                smir::Expr::new(
+                    mir::Type::Int,
+                    smir::ExprKind::Binary {
+                        op: IntDiv,
+                        lhs: Box::new(smir::Expr::local(lhs_slot, mir::Type::Int)),
+                        rhs: Box::new(smir::Expr::local(rhs_slot, mir::Type::Int)),
+                    },
+                )
             }
             hir::BinOp::Lt => self.primitive(IntLt, lhs, rhs),
             hir::BinOp::Le => self.primitive(IntLe, lhs, rhs),
@@ -6179,9 +6420,22 @@ impl BodyLowerer<'_> {
     }
 
     fn primitive(&mut self, op: mir::BinOp, lhs: &hir::Expr, rhs: &hir::Expr) -> smir::Expr {
+        let ty = match op {
+            mir::BinOp::IntLt
+            | mir::BinOp::IntLe
+            | mir::BinOp::IntGt
+            | mir::BinOp::IntGe
+            | mir::BinOp::IntEq
+            | mir::BinOp::IntNe
+            | mir::BinOp::BoolEq
+            | mir::BinOp::BoolNe => mir::Type::Boolean,
+            mir::BinOp::IntAdd | mir::BinOp::IntSub | mir::BinOp::IntMul | mir::BinOp::IntDiv => {
+                self.lower_type(lhs.ty)
+            }
+        };
         let lhs = Box::new(self.lower_expr(lhs));
         let rhs = Box::new(self.lower_expr(rhs));
-        smir::Expr::Binary { op, lhs, rhs }
+        smir::Expr::new(ty, smir::ExprKind::Binary { op, lhs, rhs })
     }
 
     fn short_circuit(&mut self, op: smir::LogicOp, lhs: &hir::Expr, rhs: &hir::Expr) -> smir::Expr {
@@ -6193,19 +6447,43 @@ impl BodyLowerer<'_> {
     /// Produce a pattern subject's nested value. Variant field extractions are
     /// guarded by the decision sequence that proved the active tag.
     fn accessed(&mut self, root: mir::LocalId, path: &[Access]) -> smir::Expr {
-        let mut lowered = smir::Expr::Local(root);
+        let mut current_ty = self.locals[root].ty.clone();
+        let mut lowered = smir::Expr::local(root, current_ty.clone());
         for access in path {
-            lowered = match access {
-                Access::Field(index) => smir::Expr::FieldAccess {
-                    receiver: Box::new(lowered),
-                    index: *index,
-                },
-                Access::EnumField { variant, index } => smir::Expr::EnumField {
-                    operand: Box::new(lowered),
-                    variant: *variant,
-                    index: *index,
-                },
+            let (next_ty, kind) = match access {
+                Access::Field(index) => {
+                    let next_ty = match &current_ty {
+                        mir::Type::Tuple(elements) => elements[*index as usize].clone(),
+                        mir::Type::Struct(struct_id) => self.structs.defs[*struct_id]
+                            .declared_fields()[*index as usize]
+                            .ty
+                            .clone(),
+                        _ => unreachable!("tuple/struct patterns only access aggregate fields"),
+                    };
+                    let kind = smir::ExprKind::FieldAccess {
+                        receiver: Box::new(lowered),
+                        index: *index,
+                    };
+                    (next_ty, kind)
+                }
+                Access::EnumField { variant, index } => {
+                    let mir::Type::Enum(enum_id, _) = current_ty else {
+                        unreachable!("variant pattern field access has an enum receiver")
+                    };
+                    let next_ty = self.enums.defs[enum_id].variants[*variant as usize].fields
+                        [*index as usize]
+                        .ty
+                        .clone();
+                    let kind = smir::ExprKind::EnumField {
+                        operand: Box::new(lowered),
+                        variant: *variant,
+                        index: *index,
+                    };
+                    (next_ty, kind)
+                }
             };
+            current_ty = next_ty.clone();
+            lowered = smir::Expr::new(next_ty, kind);
         }
         lowered
     }
@@ -6217,11 +6495,14 @@ fn and(lhs: smir::Expr, rhs: smir::Expr) -> smir::Expr {
 }
 
 fn logic(op: smir::LogicOp, lhs: smir::Expr, rhs: smir::Expr) -> smir::Expr {
-    smir::Expr::ShortCircuit {
-        op,
-        lhs: Box::new(lhs),
-        rhs: Box::new(rhs),
-    }
+    smir::Expr::new(
+        mir::Type::Boolean,
+        smir::ExprKind::ShortCircuit {
+            op,
+            lhs: Box::new(lhs),
+            rhs: Box::new(rhs),
+        },
+    )
 }
 
 /// `Some(statements)` unless empty (an absent else branch).
@@ -8181,12 +8462,12 @@ mod tests {
             panic!("leaf returns a completed step")
         };
         assert!(matches!(
-            value,
-            mir::Expr::VariantConstruct {
+            &value.kind,
+            mir::ExprKind::VariantConstruct {
                 variant: 0,
                 fields,
                 ..
-            } if matches!(fields.as_slice(), [mir::Expr::IntLiteral(42)])
+            } if matches!(fields.as_slice(), [field] if matches!(field.kind, mir::ExprKind::IntLiteral(42)))
         ));
     }
 
@@ -8413,17 +8694,13 @@ mod tests {
             module.interfaces[continuation_interface].name,
             "Continuation$I"
         );
-        assert!(matches!(
-            resume.args.as_slice(),
-            [
-                mir::Expr::Local(_),
-                mir::Expr::EnumField {
+        assert!(matches!(resume.args.as_slice(), [completion, field]
+            if matches!(completion.kind, mir::ExprKind::Local(_))
+                && matches!(&field.kind, mir::ExprKind::EnumField {
                     operand,
                     variant: 0,
                     index: 0
-                }
-            ] if matches!(operand.as_ref(), mir::Expr::Local(local) if *local == step_local)
-        ));
+                } if matches!(operand.kind, mir::ExprKind::Local(local) if local == step_local))));
 
         let suspended = &helper.body.blocks[suspended];
         assert!(suspended.statements.is_empty());
@@ -8494,23 +8771,28 @@ Module
   fun print @scoop.print(message: String) -> Unit
     bb0 entry
       call extern0 @scoop_rt_write direct
+        Type String
         Local message
       return
   fun println @scoop.println(message: String) -> Unit
     bb0 entry
       call extern0 @scoop_rt_write direct
+        Type String
         Local message
       call extern0 @scoop_rt_write direct
+        Type String
         StringConst @scoop.str.0
       return
   fun helper @scoop.helper() -> Unit
     bb0 entry
       call @scoop.print direct
+        Type String
         StringConst @scoop.str.1
       return
   fun main @scoop_main() -> Unit
     bb0 entry
       call @scoop.println direct
+        Type String
         StringConst @scoop.str.2
       call @scoop.helper direct
       return
@@ -8704,12 +8986,14 @@ Module
             call.target.callee,
             mir::Callee::Runtime(mir::RuntimeFn::Pin)
         ));
-        assert!(matches!(call.args.as_slice(), [mir::Expr::Local(_)]));
+        assert!(
+            matches!(call.args.as_slice(), [arg] if matches!(arg.kind, mir::ExprKind::Local(_)))
+        );
         let pin_result = pin_result.expect("_pin returns a raw word");
         let mir::StatementKind::ValDecl { init, .. } = &entry_statements(body)[1].kind else {
             panic!("PinnedPtr construction is a val decl")
         };
-        let mir::Expr::StructInit { struct_id, args } = init else {
+        let mir::ExprKind::StructInit { struct_id, args } = &init.kind else {
             panic!("the raw result is wrapped into PinnedPtr")
         };
         assert_eq!(module.structs[*struct_id].name, "PinnedPtr$S");
@@ -8717,7 +9001,8 @@ Module
             module.structs[*struct_id].declared_fields()[0].ty,
             mir::Type::UInt
         );
-        assert!(matches!(args.as_slice(), [mir::Expr::Local(local)] if *local == pin_result));
+        assert!(matches!(args.as_slice(), [arg]
+            if matches!(arg.kind, mir::ExprKind::Local(local) if local == pin_result)));
 
         // `_unpin(ph.raw)` directly initializes the source result local.
         let (call, hidden) = statement_call(&entry_statements(body)[2]);
@@ -8726,7 +9011,10 @@ Module
             call.target.callee,
             mir::Callee::Runtime(mir::RuntimeFn::Unpin)
         ));
-        let [mir::Expr::FieldAccess { index: 0, .. }] = call.args.as_slice() else {
+        let [arg] = call.args.as_slice() else {
+            panic!("unpin takes one argument")
+        };
+        let mir::ExprKind::FieldAccess { index: 0, .. } = arg.kind else {
             panic!("unpin's argument is the handle's raw field")
         };
         assert_eq!(body.locals[hidden].name, "r");
@@ -8742,17 +9030,21 @@ Module
         let mir::StatementKind::ValDecl { init, .. } = &entry_statements(body)[4].kind else {
             panic!("getGcHandle's statement is a val decl")
         };
-        let mir::Expr::StructInit { struct_id, args } = init else {
+        let mir::ExprKind::StructInit { struct_id, args } = &init.kind else {
             panic!("getGcHandle's result is wrapped into the handle struct")
         };
         assert_eq!(module.structs[*struct_id].name, "GcHandle$S");
-        assert!(matches!(args.as_slice(), [mir::Expr::Local(local)] if *local == handle_result));
+        assert!(matches!(args.as_slice(), [arg]
+            if matches!(arg.kind, mir::ExprKind::Local(local) if local == handle_result)));
         let (call, _) = statement_call(&entry_statements(body)[5]);
         assert!(matches!(
             call.target.callee,
             mir::Callee::Runtime(mir::RuntimeFn::ReleaseHandle)
         ));
-        let [mir::Expr::FieldAccess { index: 0, .. }] = call.args.as_slice() else {
+        let [arg] = call.args.as_slice() else {
+            panic!("releaseGcHandle takes one argument")
+        };
+        let mir::ExprKind::FieldAccess { index: 0, .. } = arg.kind else {
             panic!("releaseGcHandle's argument is the handle's raw field")
         };
 
@@ -8871,10 +9163,10 @@ Module
         let mir::StatementKind::ValDecl { init, .. } = &entry_statements(body)[0].kind else {
             panic!()
         };
-        let mir::Expr::StructInit { struct_id, .. } = init else {
+        let mir::ExprKind::StructInit { struct_id, .. } = init.kind else {
             panic!("a struct construction")
         };
-        assert_eq!(module.structs[*struct_id].name, "PinnedPtr$V");
+        assert_eq!(module.structs[struct_id].name, "PinnedPtr$V");
     }
 
     #[test]
@@ -9420,17 +9712,17 @@ Module
         );
         let module = lower(&h.finish(main));
 
-        let boxed = boxed_class(&module, "box$S");
+        let boxed = boxed_class(&module, "box$D1_SX");
         assert_eq!(boxed.itables.len(), 1);
         let record = &boxed.itables[0];
         assert_eq!(record.slots.len(), 2);
         assert_eq!(
             slot_fn(&module, &record.slots[0]),
-            "scoop.thunk.S.Multi.m.I"
+            "scoop.thunk.D1_SX.Multi.m.I"
         );
         assert_eq!(
             slot_fn(&module, &record.slots[1]),
-            "scoop.thunk.S.Multi.m.S"
+            "scoop.thunk.D1_SX.Multi.m.S"
         );
         // Each thunk tail-calls its own overload.
         let thunk_target = |slot: &mir::TableSlot| {
@@ -9481,10 +9773,9 @@ Module
         );
         let destination = destination.expect("String concatenation returns String");
         assert_eq!(body.locals[destination].name, "s");
-        assert!(matches!(
-            call.args.as_slice(),
-            [mir::Expr::StringConst(_), mir::Expr::StringConst(_)]
-        ));
+        assert!(matches!(call.args.as_slice(), [left, right]
+            if matches!(left.kind, mir::ExprKind::StringConst(_))
+                && matches!(right.kind, mir::ExprKind::StringConst(_))));
     }
 
     #[test]
@@ -9530,7 +9821,10 @@ Module
         let ops: Vec<mir::BinOp> = entry_statements(body)
             .iter()
             .map(|statement| {
-                let mir::StatementKind::Expr(mir::Expr::Binary { op, .. }) = &statement.kind else {
+                let mir::StatementKind::Expr(expr) = &statement.kind else {
+                    panic!("expected an expression statement")
+                };
+                let mir::ExprKind::Binary { op, .. } = &expr.kind else {
                     panic!("expected a binary expression")
                 };
                 *op
@@ -9705,11 +9999,9 @@ Module
             outer_call.target.callee,
             mir::Callee::User(module.top_level[2])
         );
-        assert!(matches!(
-            outer_call.args.as_slice(),
-            [mir::Expr::Local(first), mir::Expr::Local(second)]
-                if *first == first_destination && *second == second_destination
-        ));
+        assert!(matches!(outer_call.args.as_slice(), [first, second]
+            if matches!(first.kind, mir::ExprKind::Local(local) if local == first_destination)
+                && matches!(second.kind, mir::ExprKind::Local(local) if local == second_destination)));
         let outer_destination = outer_destination.expect("outer returns Int");
         assert_eq!(body.locals[outer_destination].name, "result");
     }
@@ -9742,26 +10034,36 @@ Module
   fun main @scoop_main() -> Unit
     bb0 entry
       val $div.1: Int
+        Type Int
         IntLiteral 10
       val $div.2: Int
+        Type Int
         IntLiteral 2
       branch bb1 bb2
+        Type Boolean
         Binary IntEq
+          Type Int
           Local $div.2
+          Type Int
           IntLiteral 0
     bb1 if.then.1
       call $call.1: ArithmeticException = @scoop.ctor.ArithmeticException direct
       throw
+        Type ArithmeticException
         Local $call.1
     bb2 if.merge.2
       val q: Int
+        Type Int
         Binary IntDiv
+          Type Int
           Local $div.1
+          Type Int
           Local $div.2
       return
   fun ctor.ArithmeticException @scoop.ctor.ArithmeticException() -> ArithmeticException
     bb0 entry
       return
+        Type ArithmeticException
         ClassInit ArithmeticException
   entry @scoop_main
 ";
@@ -9815,13 +10117,16 @@ Module
     bb2 try.dispatch.2
       begin_catch
       branch bb9 bb10
+        Type Boolean
         IsInstance MyError
+          Type Any
           CaughtException
     bb3 try.handler_pad.3
       landing_pad cleanup=true
       goto bb4
     bb4 try.handler_cleanup.4
       end_catch
+      Type Int
       IntLiteral 2
       resume
     bb5 try.exit_pad.5
@@ -9835,25 +10140,32 @@ Module
     bb8 try.body.8 unwind bb1
       call $call.1: MyError = @scoop.ctor.MyError direct
       throw unwind bb1
+        Type MyError
         Local $call.1
     bb9 try.catch.9
       val e: MyError
+        Type MyError
         Retype MyError
+          Type Any
           CaughtException
       goto bb11
     bb10 try.next.10 unwind bb5
+      Type Int
       IntLiteral 2
       rethrow unwind bb5
     bb11 scope.11 unwind bb3
+      Type Int
       IntLiteral 1
       goto bb12
     bb12 scope.12
       end_catch
+      Type Int
       IntLiteral 2
       goto bb7
   fun ctor.MyError @scoop.ctor.MyError() -> MyError
     bb0 entry
       return
+        Type MyError
         ClassInit MyError
   entry @scoop_main
 ";
@@ -9891,7 +10203,10 @@ Module
         let ops: Vec<mir::UnOp> = entry_statements(body)
             .iter()
             .map(|statement| {
-                let mir::StatementKind::Expr(mir::Expr::Unary { op, .. }) = &statement.kind else {
+                let mir::StatementKind::Expr(expr) = &statement.kind else {
+                    panic!("expected an expression statement")
+                };
+                let mir::ExprKind::Unary { op, .. } = &expr.kind else {
                     panic!("expected a unary expression")
                 };
                 *op
@@ -9952,7 +10267,10 @@ Module
             let mir::StatementKind::ValDecl { init, .. } = &statement.kind else {
                 panic!("expected a val declaration")
             };
-            assert!(matches!(init, mir::Expr::FieldAccess { index: 1, .. }));
+            assert!(matches!(
+                init.kind,
+                mir::ExprKind::FieldAccess { index: 1, .. }
+            ));
         }
     }
 
@@ -10086,11 +10404,8 @@ Module
         assert!(matches!(
             &add_fn.body.blocks[add_fn.body.entry].terminator,
             mir::Terminator::Return {
-                value: Some(mir::Expr::Binary {
-                    op: mir::BinOp::IntAdd,
-                    ..
-                })
-            }
+                value: Some(value)
+            } if matches!(value.kind, mir::ExprKind::Binary { op: mir::BinOp::IntAdd, .. })
         ));
     }
 
@@ -10135,8 +10450,8 @@ Module
         assert!(matches!(
             &int_instance.body.blocks[int_instance.body.entry].terminator,
             mir::Terminator::Return {
-                value: Some(mir::Expr::Local(local))
-            } if *local == x
+                value: Some(value)
+            } if matches!(value.kind, mir::ExprKind::Local(local) if local == x)
         ));
         assert_eq!(string_instance.params[0].ty, mir::Type::String);
         assert_eq!(string_instance.return_ty, mir::Type::String);
@@ -10252,8 +10567,8 @@ Module
         assert!(matches!(
             &forward_i.body.blocks[forward_i.body.entry].terminator,
             mir::Terminator::Return {
-                value: Some(mir::Expr::Local(local))
-            } if *local == destination
+                value: Some(value)
+            } if matches!(value.kind, mir::ExprKind::Local(local) if local == destination)
         ));
         assert_eq!(inner_i.params[0].ty, mir::Type::Int);
         assert_eq!(inner_i.return_ty, mir::Type::Int);
@@ -10281,10 +10596,9 @@ Module
             .iter()
             .map(|&id| module.functions[id].symbol.as_str())
             .collect();
-        // An enum argument encodes as `E<instance name>_<args>X`
-        // (`mir::encode_type`); the instance name itself already
-        // embeds the encoded arguments.
-        assert_eq!(symbols, ["scoop.f$EOption$I_IX", "scoop.f$TI_SX"]);
+        // An enum argument encodes the category, length-delimited
+        // instance name, and complete argument list (`mir::encode_type`).
+        assert_eq!(symbols, ["scoop.f$E8_Option$IAIX", "scoop.f$TI_SX"]);
         // Substitution recurses into enum / tuple types.
         let option_instance = &module.functions[module.top_level[1]];
         let mir::Type::Enum(enum_id, args) = &option_instance.params[0].ty else {
@@ -10314,8 +10628,11 @@ Module
             .collect();
         let color = h.declare_enum("Color", Vec::new(), Vec::new(), color_variants);
         let color_ty = h.enum_ty(color);
+        let s = h.strukt("S", &[("x", int)]);
+        let s_ty = h.struct_ty(s);
         let option_int = h.option(int);
         let option_string = h.option(string);
+        let option_s = h.option(s_ty);
         // f1 holds Option<Int> and Color; f2 holds Option<Int> again
         // (a duplicate request) and Option<String>.
         let mut locals1 = Arena::new();
@@ -10338,6 +10655,15 @@ Module
                 statements: Vec::new(),
             },
         );
+        let mut locals3 = Arena::new();
+        locals3.alloc(local("s", option_s));
+        let _f3 = h.user_fn(
+            "f3",
+            hir::Body {
+                locals: locals3,
+                statements: Vec::new(),
+            },
+        );
         let main = h.user_fn(
             "main",
             hir::Body {
@@ -10348,13 +10674,13 @@ Module
         let module = lower(&h.finish(main));
 
         // One definition per (enum, type args), in creation order; the
-        // duplicate Option<Int> request was deduplicated by name.
+        // duplicate Option<Int> request was deduplicated by enum identity.
         let names: Vec<&str> = module
             .enums
             .iter()
             .map(|(_, def)| def.name.as_str())
             .collect();
-        assert_eq!(names, ["Option$I", "Color", "Option$S"]);
+        assert_eq!(names, ["Option$I", "Color", "Option$S", "Option$D1_SX"]);
 
         // The variant field types are substituted with the instance's
         // type arguments.
@@ -10373,6 +10699,12 @@ Module
             option_string_def.variants[0].fields[0].ty,
             mir::Type::String
         );
+        let option_s_def = &module.enums[la_arena::Idx::from_raw(3.into())];
+        assert_eq!(
+            option_s_def.variants[0].fields[0].ty,
+            mir::Type::Struct(la_arena::Idx::from_raw(0.into()))
+        );
+        assert_ne!(option_string_def.name, option_s_def.name);
         assert!(!option_string_def.gc_free);
         assert!(!option_string_def.variants[0].gc_free);
         assert!(option_string_def.variants[1].gc_free);
@@ -10441,17 +10773,26 @@ Module
   fun main @scoop_main() -> Unit
     bb0 entry
       val o: Option$I<Int>
+        Type Option$I<Int>
         VariantConstruct Option$I<Int> v0
+          Type Int
           IntLiteral 41
       val n: Option$I<Int>
+        Type Option$I<Int>
         VariantConstruct Option$I<Int> v1
       val b: Boolean
+        Type Boolean
         Binary IntEq
+          Type Int
           EnumTag
+            Type Option$I<Int>
             Local o
+          Type Int
           IntLiteral 0
       val y: Int
+        Type Int
         EnumField v0 f0
+          Type Option$I<Int>
           Local o
       return
   entry @scoop_main
@@ -10508,31 +10849,43 @@ Module
   fun main @scoop_main() -> Unit
     bb0 entry
       val o: Option$I<Int>
+        Type Option$I<Int>
         VariantConstruct Option$I<Int> v0
+          Type Int
           IntLiteral 1
       val $opt.1: Option$I<Int>
+        Type Option$I<Int>
         Local o
       branch bb1 bb2
+        Type Boolean
         Binary IntEq
+          Type Int
           EnumTag
+            Type Option$I<Int>
             Local $opt.1
+          Type Int
           IntLiteral 0
     bb1 if.then.1
       val $uw.2: Int
+        Type Int
         EnumField v0 f0
+          Type Option$I<Int>
           Local $opt.1
       goto bb3
     bb2 if.else.2
       call $call.1: UnwrapException = @scoop.ctor.UnwrapException direct
       throw
+        Type UnwrapException
         Local $call.1
     bb3 if.merge.3
       val y: Int
+        Type Int
         Local $uw.2
       return
   fun ctor.UnwrapException @scoop.ctor.UnwrapException() -> UnwrapException
     bb0 entry
       return
+        Type UnwrapException
         ClassInit UnwrapException
   entry @scoop_main
 ";
@@ -10637,46 +10990,65 @@ Module
   fun print @scoop.print(message: Int) -> Unit
     bb0 entry
       call $call.1: String = @scoop_rt_int_to_string direct
+        Type Int
         Local message
       call extern0 @scoop_rt_write direct
+        Type String
         Local $call.1
       return
   fun println @scoop.println(message: String) -> Unit
     bb0 entry
       call extern0 @scoop_rt_write direct
+        Type String
         Local message
       call extern0 @scoop_rt_write direct
+        Type String
         StringConst @scoop.str.0
       return
   fun main @scoop_main() -> Unit
     bb0 entry
       val o: Option$I<Int>
+        Type Option$I<Int>
         VariantConstruct Option$I<Int> v0
+          Type Int
           IntLiteral 1
       val $when.1: Option$I<Int>
+        Type Option$I<Int>
         Local o
       branch bb1 bb2
+        Type Boolean
         Binary IntEq
+          Type Int
           EnumTag
+            Type Option$I<Int>
             Local $when.1
+          Type Int
           IntLiteral 0
     bb1 if.then.1
       val x: Int
+        Type Int
         EnumField v0 f0
+          Type Option$I<Int>
           Local $when.1
       call @scoop.print direct
+        Type Int
         Local x
       goto bb3
     bb2 if.else.2
       branch bb4 bb5
+        Type Boolean
         Binary IntEq
+          Type Int
           EnumTag
+            Type Option$I<Int>
             Local $when.1
+          Type Int
           IntLiteral 1
     bb3 if.merge.3
       return
     bb4 if.then.4
       call @scoop.println direct
+        Type String
         StringConst @scoop.str.1
       goto bb5
     bb5 if.merge.5
@@ -10745,46 +11117,63 @@ Module
   fun print @scoop.print(message: Int) -> Unit
     bb0 entry
       call $call.1: String = @scoop_rt_int_to_string direct
+        Type Int
         Local message
       call extern0 @scoop_rt_write direct
+        Type String
         Local $call.1
       return
   fun println @scoop.println(message: String) -> Unit
     bb0 entry
       call extern0 @scoop_rt_write direct
+        Type String
         Local message
       call extern0 @scoop_rt_write direct
+        Type String
         StringConst @scoop.str.0
       return
   fun main @scoop_main() -> Unit
     bb0 entry
       val $when.1: Option$I<Int>
+        Type Option$I<Int>
         Local o
       branch bb1 bb2
+        Type Boolean
         Binary IntEq
+          Type Int
           EnumTag
+            Type Option$I<Int>
             Local $when.1
+          Type Int
           IntLiteral 0
     bb1 if.then.1
       val x: Int
+        Type Int
         EnumField v0 f0
+          Type Option$I<Int>
           Local $when.1
       branch bb4 bb5
+        Type Boolean
         Binary IntGt
+          Type Int
           Local x
+          Type Int
           IntLiteral 0
     bb2 if.else.2
       call @scoop.println direct
+        Type String
         StringConst @scoop.str.2
       goto bb3
     bb3 if.merge.3
       return
     bb4 if.then.4
       call @scoop.print direct
+        Type Int
         Local x
       goto bb6
     bb5 if.else.5
       call @scoop.println direct
+        Type String
         StringConst @scoop.str.1
       goto bb6
     bb6 if.merge.6
@@ -10858,15 +11247,14 @@ Module
             })
             .expect("literal pattern calls its HIR-selected equality target");
         assert!(matches!(call.target.kind, mir::CallKind::Direct));
-        assert!(matches!(
-            call.args.as_slice(),
-            [mir::Expr::Local(_), mir::Expr::IntLiteral(1)]
-        ));
+        assert!(matches!(call.args.as_slice(), [scrutinee, literal]
+            if matches!(scrutinee.kind, mir::ExprKind::Local(_))
+                && matches!(literal.kind, mir::ExprKind::IntLiteral(1))));
         let result = result.expect("equals returns Boolean");
         let mir::Terminator::Branch { cond, .. } = &body.blocks[body.entry].terminator else {
             panic!("literal equality result controls the pattern branch")
         };
-        assert!(matches!(cond, mir::Expr::Local(local) if *local == result));
+        assert!(matches!(cond.kind, mir::ExprKind::Local(local) if local == result));
     }
 
     #[test]
@@ -10922,23 +11310,36 @@ Module
   fun main @scoop_main() -> Unit
     bb0 entry
       val $bind.1: (Int, String)
+        Type (Int, String)
         TupleLiteral
+          Type Int
           IntLiteral 1
+          Type String
           StringConst @scoop.str.0
       val a: Int
+        Type Int
         FieldAccess 0
+          Type (Int, String)
           Local $bind.1
       val b: String
+        Type String
         FieldAccess 1
+          Type (Int, String)
           Local $bind.1
       val p: Point
+        Type Point
         StructInit Point
+          Type Int
           IntLiteral 3
+          Type Int
           IntLiteral 4
       val $bind.2: Point
+        Type Point
         Local p
       val x: Int
+        Type Int
         FieldAccess 0
+          Type Point
           Local $bind.2
       return
   str @scoop.str.0 \"x\"
@@ -11022,82 +11423,121 @@ Module
   fun main @scoop_main() -> Unit
     bb0 entry
       val a: Array<Int>
+        Type Array<Int>
         ArrayLiteral Array$I
+          Type Int
           IntLiteral 1
+          Type Int
           IntLiteral 2
+          Type Int
           IntLiteral 3
       val $arr.1: Array<Int>
+        Type Array<Int>
         Local a
       val $idx.2: Int
+        Type Int
         IntLiteral 0
       branch bb2 bb1
+        Type Boolean
         Binary IntLt
+          Type Int
           Local $idx.2
+          Type Int
           IntLiteral 0
     bb1 logic.rhs.1
       assign $logic.1
+        Type Boolean
         Binary IntGe
+          Type Int
           Local $idx.2
+          Type Int
           ArrayLen Array$I
+            Type Array<Int>
             Local $arr.1
       goto bb3
     bb2 logic.short.2
       assign $logic.1
+        Type Boolean
         BoolLiteral true
       goto bb3
     bb3 logic.merge.3
       branch bb4 bb5
+        Type Boolean
         Local $logic.1
     bb4 if.then.4
       call $call.2: IndexOutOfBoundsException = @scoop.ctor.IndexOutOfBoundsException direct
       throw
+        Type IndexOutOfBoundsException
         Local $call.2
     bb5 if.merge.5
       val x: Int
+        Type Int
         ArrayGet Array$I
+          Type Array<Int>
           Local $arr.1
+          Type Int
           Local $idx.2
       val n: Int
+        Type Int
         ArrayLen Array$I
+          Type Array<Int>
           Local a
       val m: MutableArray<Int>
+        Type MutableArray<Int>
         ArrayClone Array$I -> MutableArray$I
+          Type Array<Int>
           Local a
       val $arr.3: MutableArray<Int>
+        Type MutableArray<Int>
         Local m
       val $idx.4: Int
+        Type Int
         IntLiteral 0
       branch bb7 bb6
+        Type Boolean
         Binary IntLt
+          Type Int
           Local $idx.4
+          Type Int
           IntLiteral 0
     bb6 logic.rhs.6
       assign $logic.3
+        Type Boolean
         Binary IntGe
+          Type Int
           Local $idx.4
+          Type Int
           ArrayLen MutableArray$I
+            Type MutableArray<Int>
             Local $arr.3
       goto bb8
     bb7 logic.short.7
       assign $logic.3
+        Type Boolean
         BoolLiteral true
       goto bb8
     bb8 logic.merge.8
       branch bb9 bb10
+        Type Boolean
         Local $logic.3
     bb9 if.then.9
       call $call.4: IndexOutOfBoundsException = @scoop.ctor.IndexOutOfBoundsException direct
       throw
+        Type IndexOutOfBoundsException
         Local $call.4
     bb10 if.merge.10
       array_set MutableArray$I
+        Type MutableArray<Int>
         Local $arr.3
+        Type Int
         Local $idx.4
+        Type Int
         IntLiteral 40
       return
   fun ctor.IndexOutOfBoundsException @scoop.ctor.IndexOutOfBoundsException() -> IndexOutOfBoundsException
     bb0 entry
       return
+        Type IndexOutOfBoundsException
         ClassInit IndexOutOfBoundsException
   entry @scoop_main
 ";
@@ -11264,7 +11704,10 @@ Module
         let mir::StatementKind::ValDecl { init, .. } = &entry_statements(body)[0].kind else {
             panic!("expected a val declaration")
         };
-        assert!(matches!(init, mir::Expr::FieldAccess { index: 1, .. }));
+        assert!(matches!(
+            init.kind,
+            mir::ExprKind::FieldAccess { index: 1, .. }
+        ));
     }
 
     #[test]
@@ -11527,7 +11970,7 @@ Module
         );
         let module = lower(&h.finish(main));
 
-        let boxed = boxed_class(&module, "box$S");
+        let boxed = boxed_class(&module, "box$D1_SX");
         assert_eq!(boxed.declared_fields().len(), 1);
         assert_eq!(boxed.declared_fields()[0].name, "value");
         assert_eq!(
@@ -11570,14 +12013,14 @@ Module
         );
         let module = lower(&h.finish(main));
 
-        let boxed = boxed_class(&module, "box$S");
+        let boxed = boxed_class(&module, "box$D1_SX");
         assert_eq!(boxed.interfaces.len(), 1);
         assert_eq!(boxed.itables.len(), 1);
         let record = &boxed.itables[0];
         assert_eq!(record.interface, boxed.interfaces[0]);
         assert_eq!(record.slots.len(), 1);
         let thunk_symbol = slot_fn(&module, &record.slots[0]);
-        assert_eq!(thunk_symbol, "scoop.thunk.S.Describable.describe");
+        assert_eq!(thunk_symbol, "scoop.thunk.D1_SX.Describable.describe");
 
         // The thunk takes the boxed object as `this`, unboxes it and
         // tail-calls the value method.
@@ -11597,9 +12040,8 @@ Module
         };
         assert_eq!(module.functions[impl_id].symbol, "scoop.S.describe");
         assert_eq!(call.args.len(), 1);
-        assert!(
-            matches!(&call.args[0], mir::Expr::Unbox(operand) if matches!(operand.as_ref(), mir::Expr::Local(local) if *local == thunk.params[0].local))
-        );
+        assert!(matches!(&call.args[0].kind, mir::ExprKind::Unbox(operand)
+            if matches!(operand.kind, mir::ExprKind::Local(local) if local == thunk.params[0].local)));
     }
 
     #[test]
@@ -11669,54 +12111,73 @@ Module
         let expected = "\
 Module
   struct S (x: Int)
-  enum Option$S
+  enum Option$D1_SX
     Some(_1: S)
     None()
   class ClassCastException vtable=0 itables=0
-  class box$S vtable=0 itables=0
+  class box$D1_SX vtable=0 itables=0
   fun main @scoop_main() -> Unit
     bb0 entry
       val is_s: Boolean
+        Type Boolean
         IsInstance S
+          Type Any
           Local a
       val $cast.1: Any
+        Type Any
         Local a
       branch bb1 bb2
+        Type Boolean
         Unary BoolNot
+          Type Boolean
           IsInstance S
+            Type Any
             Local $cast.1
     bb1 if.then.1
       call $call.1: ClassCastException = @scoop.ctor.ClassCastException direct
       throw
+        Type ClassCastException
         Local $call.1
     bb2 if.merge.2
       val $ub.2: S
+        Type S
         Unbox
+          Type Any
           Local $cast.1
       val s2: S
+        Type S
         Local $ub.2
       val $cast.3: Any
+        Type Any
         Local a
       branch bb3 bb4
+        Type Boolean
         IsInstance S
+          Type Any
           Local $cast.3
     bb3 if.then.3
       assign $cast.4
-        VariantConstruct Option$S<S> v0
+        Type Option$D1_SX<S>
+        VariantConstruct Option$D1_SX<S> v0
+          Type S
           Unbox
+            Type Any
             Local $cast.3
       goto bb5
     bb4 if.else.4
       assign $cast.4
-        VariantConstruct Option$S<S> v1
+        Type Option$D1_SX<S>
+        VariantConstruct Option$D1_SX<S> v1
       goto bb5
     bb5 if.merge.5
-      val maybe: Option$S<S>
+      val maybe: Option$D1_SX<S>
+        Type Option$D1_SX<S>
         Local $cast.4
       return
   fun ctor.ClassCastException @scoop.ctor.ClassCastException() -> ClassCastException
     bb0 entry
       return
+        Type ClassCastException
         ClassInit ClassCastException
   entry @scoop_main
 ";
@@ -11786,25 +12247,35 @@ Module
   fun main @scoop_main() -> Unit
     bb0 entry
       call p: Point = @scoop.ctor.Point direct
+        Type Int
         IntLiteral 1
       return
   fun ctor.Root @scoop.ctor.Root(label: String) -> Root
     bb0 entry
       return
+        Type Root
         ClassInit Root
+          Type String
           Local label
   fun ctor.Base @scoop.ctor.Base(name: String) -> Base
     bb0 entry
       return
+        Type Base
         ClassInit Base
+          Type String
           StringConst @scoop.str.0
+          Type String
           Local name
   fun ctor.Point @scoop.ctor.Point(x: Int) -> Point
     bb0 entry
       return
+        Type Point
         ClassInit Point
+          Type String
           StringConst @scoop.str.2
+          Type String
           StringConst @scoop.str.1
+          Type Int
           Local x
   str @scoop.str.0 \"root\"
   str @scoop.str.1 \"point\"
@@ -11873,8 +12344,8 @@ Module
         else {
             panic!("a class property assignment must lower to FieldSet")
         };
-        assert!(matches!(object, mir::Expr::Local(_)));
-        assert!(matches!(value, mir::Expr::IntLiteral(3)));
+        assert!(matches!(object.kind, mir::ExprKind::Local(_)));
+        assert!(matches!(value.kind, mir::ExprKind::IntLiteral(3)));
     }
 
     #[test]
@@ -11906,14 +12377,14 @@ Module
         );
         let module = lower(&h.finish(main));
 
-        let boxed = boxed_class(&module, "box$S");
+        let boxed = boxed_class(&module, "box$D1_SX");
         assert_eq!(boxed.interfaces.len(), 1);
         assert_eq!(boxed.itables.len(), 1);
         let record = &boxed.itables[0];
         assert_eq!(record.interface, boxed.interfaces[0]);
         assert_eq!(
             slot_fn(&module, &record.slots[0]),
-            "scoop.thunk.S.Describable.describe"
+            "scoop.thunk.D1_SX.Describable.describe"
         );
     }
 
@@ -11960,11 +12431,11 @@ Module
 
         let body = &module.functions[module.entry].body;
         let op_of = |index: usize| {
-            let mir::StatementKind::ValDecl {
-                init: mir::Expr::Binary { op, .. },
-                ..
-            } = &entry_statements(body)[index].kind
+            let mir::StatementKind::ValDecl { init, .. } = &entry_statements(body)[index].kind
             else {
+                panic!("expected a val declaration")
+            };
+            let mir::ExprKind::Binary { op, .. } = &init.kind else {
                 panic!("expected a binary expression")
             };
             *op
@@ -12108,11 +12579,10 @@ Module
             panic!("expected a conditional branch")
         };
         let then_body = &body.blocks[then_block].statements;
-        let mir::StatementKind::ValDecl {
-            local: ub,
-            init: mir::Expr::Unbox(_),
-        } = &then_body[0].kind
-        else {
+        let mir::StatementKind::ValDecl { local: ub, init } = &then_body[0].kind else {
+            panic!("the unbox must be a val declaration")
+        };
+        let mir::ExprKind::Unbox(_) = init.kind else {
             panic!("the unbox must be bound to a typed hidden local")
         };
         assert_eq!(
@@ -12121,7 +12591,8 @@ Module
         );
         let (call, _) = statement_call(&then_body[1]);
         assert!(
-            matches!(&call.args[0], mir::Expr::FieldAccess { receiver, .. } if matches!(receiver.as_ref(), mir::Expr::Local(local) if local == ub))
+            matches!(&call.args[0].kind, mir::ExprKind::FieldAccess { receiver, .. }
+            if matches!(receiver.kind, mir::ExprKind::Local(local) if local == *ub))
         );
     }
 }

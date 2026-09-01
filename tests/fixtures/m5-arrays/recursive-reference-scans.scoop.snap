@@ -447,294 +447,426 @@ Module
   fun Int.equals @scoop.Int.equals(this: Int, other: Int) -> Boolean
     bb0 entry
       call $call.1: Boolean = extern1 @scoop_rt_int_equals direct
+        Type Int
         Local this
+        Type Int
         Local other
       return
+        Type Boolean
         Local $call.1
   fun Int.toString @scoop.Int.toString(this: Int) -> String
     bb0 entry
       call $call.1: String = extern5 @scoop_rt_int_to_string direct
+        Type Int
         Local this
       return
+        Type String
         Local $call.1
   fun Int.hash @scoop.Int.hash(this: Int) -> Int
     bb0 entry
       call $call.1: Int = extern8 @scoop_rt_int_hash direct
+        Type Int
         Local this
       return
+        Type Int
         Local $call.1
   fun UInt.equals @scoop.UInt.equals(this: UInt, other: UInt) -> Boolean
     bb0 entry
       call $call.1: Boolean = extern2 @scoop_rt_uint_equals direct
+        Type UInt
         Local this
+        Type UInt
         Local other
       return
+        Type Boolean
         Local $call.1
   fun UInt.toString @scoop.UInt.toString(this: UInt) -> String
     bb0 entry
       call $call.1: String = extern6 @scoop_rt_uint_to_string direct
+        Type UInt
         Local this
       return
+        Type String
         Local $call.1
   fun UInt.hash @scoop.UInt.hash(this: UInt) -> Int
     bb0 entry
       call $call.1: Int = extern9 @scoop_rt_uint_hash direct
+        Type UInt
         Local this
       return
+        Type Int
         Local $call.1
   fun Boolean.equals @scoop.Boolean.equals(this: Boolean, other: Boolean) -> Boolean
     bb0 entry
       call $call.1: Boolean = extern3 @scoop_rt_bool_equals direct
+        Type Boolean
         Local this
+        Type Boolean
         Local other
       return
+        Type Boolean
         Local $call.1
   fun Boolean.toString @scoop.Boolean.toString(this: Boolean) -> String
     bb0 entry
       call $call.1: String = extern7 @scoop_rt_bool_to_string direct
+        Type Boolean
         Local this
       return
+        Type String
         Local $call.1
   fun Boolean.hash @scoop.Boolean.hash(this: Boolean) -> Int
     bb0 entry
       call $call.1: Int = extern10 @scoop_rt_bool_hash direct
+        Type Boolean
         Local this
       return
+        Type Int
         Local $call.1
   fun String.equals @scoop.String.equals(this: String, other: String) -> Boolean
     bb0 entry
       call $call.1: Boolean = extern4 @scoop_rt_string_eq direct
+        Type String
         Local this
+        Type String
         Local other
       return
+        Type Boolean
         Local $call.1
   fun String.toString @scoop.String.toString(this: String) -> String
     bb0 entry
       return
+        Type String
         Local this
   fun String.hash @scoop.String.hash(this: String) -> Int
     bb0 entry
       call $call.1: Int = extern11 @scoop_rt_string_hash direct
+        Type String
         Local this
       return
+        Type Int
         Local $call.1
   fun makeItems @scoop.makeItems() -> Array<Item>
     bb0 entry
       call payload: String = @scoop_rt_string_concat direct
+        Type String
         StringConst @scoop.str.0
+        Type String
         StringConst @scoop.str.1
       call firstTail: String = @scoop_rt_string_concat direct
+        Type String
         StringConst @scoop.str.2
+        Type String
         StringConst @scoop.str.3
       call secondTail: String = @scoop_rt_string_concat direct
+        Type String
         StringConst @scoop.str.4
+        Type String
         StringConst @scoop.str.5
       return
-        ArrayLiteral Array$Item
+        Type Array<Item>
+        ArrayLiteral Array$D4_ItemX
+          Type Item
           StructInit Item
+            Type Payload
             VariantConstruct Payload v0
+              Type String
               Local payload
+            Type String
             Local firstTail
+          Type Item
           StructInit Item
+            Type Payload
             VariantConstruct Payload v2
+            Type String
             Local secondTail
   fun main @scoop_main() -> Unit
     bb0 entry
       call items: Array<Item> = @scoop.makeItems direct
       call @scoop_rt_gc_collect direct
       val $arr.1: Array<Item>
+        Type Array<Item>
         Local items
       val $idx.2: Int
+        Type Int
         IntLiteral 0
       branch bb2 bb1
+        Type Boolean
         Binary IntLt
+          Type Int
           Local $idx.2
+          Type Int
           IntLiteral 0
     bb1 logic.rhs.1
       assign $logic.1
+        Type Boolean
         Binary IntGe
+          Type Int
           Local $idx.2
-          ArrayLen Array$Item
+          Type Int
+          ArrayLen Array$D4_ItemX
+            Type Array<Item>
             Local $arr.1
       goto bb3
     bb2 logic.short.2
       assign $logic.1
+        Type Boolean
         BoolLiteral true
       goto bb3
     bb3 logic.merge.3
       branch bb4 bb5
+        Type Boolean
         Local $logic.1
     bb4 if.then.4
       call $call.2: IndexOutOfBoundsException = @scoop.ctor.IndexOutOfBoundsException direct
       throw
+        Type IndexOutOfBoundsException
         Local $call.2
     bb5 if.merge.5
       val $when.3: Payload
+        Type Payload
         FieldAccess 0
-          ArrayGet Array$Item
+          Type Item
+          ArrayGet Array$D4_ItemX
+            Type Array<Item>
             Local $arr.1
+            Type Int
             Local $idx.2
       branch bb6 bb7
+        Type Boolean
         Binary IntEq
+          Type Int
           EnumTag
+            Type Payload
             Local $when.3
+          Type Int
           IntLiteral 0
     bb6 if.then.6
       val value: String
+        Type String
         EnumField v0 f0
+          Type Payload
           Local $when.3
       call @scoop.println$S direct
+        Type String
         Local value
       goto bb8
     bb7 if.else.7
       branch bb9 bb10
+        Type Boolean
         Binary IntEq
+          Type Int
           EnumTag
+            Type Payload
             Local $when.3
+          Type Int
           IntLiteral 1
     bb8 if.merge.8
       val $arr.4: Array<Item>
+        Type Array<Item>
         Local items
       val $idx.5: Int
+        Type Int
         IntLiteral 0
       branch bb15 bb14
+        Type Boolean
         Binary IntLt
+          Type Int
           Local $idx.5
+          Type Int
           IntLiteral 0
     bb9 if.then.9
       val value: Int
+        Type Int
         EnumField v1 f0
+          Type Payload
           Local $when.3
       call @scoop.println$I direct
+        Type Int
         Local value
       goto bb11
     bb10 if.else.10
       branch bb12 bb13
+        Type Boolean
         Binary IntEq
+          Type Int
           EnumTag
+            Type Payload
             Local $when.3
+          Type Int
           IntLiteral 2
     bb11 if.merge.11
       goto bb8
     bb12 if.then.12
       call @scoop.println$S direct
+        Type String
         StringConst @scoop.str.6
       goto bb13
     bb13 if.merge.13
       goto bb11
     bb14 logic.rhs.14
       assign $logic.3
+        Type Boolean
         Binary IntGe
+          Type Int
           Local $idx.5
-          ArrayLen Array$Item
+          Type Int
+          ArrayLen Array$D4_ItemX
+            Type Array<Item>
             Local $arr.4
       goto bb16
     bb15 logic.short.15
       assign $logic.3
+        Type Boolean
         BoolLiteral true
       goto bb16
     bb16 logic.merge.16
       branch bb17 bb18
+        Type Boolean
         Local $logic.3
     bb17 if.then.17
       call $call.4: IndexOutOfBoundsException = @scoop.ctor.IndexOutOfBoundsException direct
       throw
+        Type IndexOutOfBoundsException
         Local $call.4
     bb18 if.merge.18
       call @scoop.println$S direct
+        Type String
         FieldAccess 1
-          ArrayGet Array$Item
+          Type Item
+          ArrayGet Array$D4_ItemX
+            Type Array<Item>
             Local $arr.4
+            Type Int
             Local $idx.5
       val $arr.6: Array<Item>
+        Type Array<Item>
         Local items
       val $idx.7: Int
+        Type Int
         IntLiteral 1
       branch bb20 bb19
+        Type Boolean
         Binary IntLt
+          Type Int
           Local $idx.7
+          Type Int
           IntLiteral 0
     bb19 logic.rhs.19
       assign $logic.5
+        Type Boolean
         Binary IntGe
+          Type Int
           Local $idx.7
-          ArrayLen Array$Item
+          Type Int
+          ArrayLen Array$D4_ItemX
+            Type Array<Item>
             Local $arr.6
       goto bb21
     bb20 logic.short.20
       assign $logic.5
+        Type Boolean
         BoolLiteral true
       goto bb21
     bb21 logic.merge.21
       branch bb22 bb23
+        Type Boolean
         Local $logic.5
     bb22 if.then.22
       call $call.6: IndexOutOfBoundsException = @scoop.ctor.IndexOutOfBoundsException direct
       throw
+        Type IndexOutOfBoundsException
         Local $call.6
     bb23 if.merge.23
       call @scoop.println$S direct
+        Type String
         FieldAccess 1
-          ArrayGet Array$Item
+          Type Item
+          ArrayGet Array$D4_ItemX
+            Type Array<Item>
             Local $arr.6
+            Type Int
             Local $idx.7
       return
   fun println @scoop.println$S(value: String) -> Unit
     bb0 entry
       call $call.1: String = @scoop.String.toString direct
+        Type String
         Local value
       call extern0 @scoop_rt_write direct
+        Type String
         Local $call.1
       call extern0 @scoop_rt_write direct
+        Type String
         StringConst @scoop.str.7
       return
   fun println @scoop.println$I(value: Int) -> Unit
     bb0 entry
       call $call.1: String = @scoop.Int.toString direct
+        Type Int
         Local value
       call extern0 @scoop_rt_write direct
+        Type String
         Local $call.1
       call extern0 @scoop_rt_write direct
+        Type String
         StringConst @scoop.str.8
       return
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
     bb0 entry
       return
+        Type Throwable
         ClassInit Throwable
   fun ctor.Exception @scoop.ctor.Exception(message: Option$S<String>) -> Exception
     bb0 entry
       return
+        Type Exception
         ClassInit Exception
+          Type Option$S<String>
           Local message
   fun ctor.UnwrapException @scoop.ctor.UnwrapException() -> UnwrapException
     bb0 entry
       return
+        Type UnwrapException
         ClassInit UnwrapException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.9
   fun ctor.ClassCastException @scoop.ctor.ClassCastException() -> ClassCastException
     bb0 entry
       return
+        Type ClassCastException
         ClassInit ClassCastException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.10
   fun ctor.ArithmeticException @scoop.ctor.ArithmeticException() -> ArithmeticException
     bb0 entry
       return
+        Type ArithmeticException
         ClassInit ArithmeticException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.11
   fun ctor.IndexOutOfBoundsException @scoop.ctor.IndexOutOfBoundsException() -> IndexOutOfBoundsException
     bb0 entry
       return
+        Type IndexOutOfBoundsException
         ClassInit IndexOutOfBoundsException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.12
   fun ctor.IllegalStateException @scoop.ctor.IllegalStateException() -> IllegalStateException
     bb0 entry
       return
+        Type IllegalStateException
         ClassInit IllegalStateException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.13
   instance @scoop.println$S <- println
   instance @scoop.println$I <- println
@@ -1071,7 +1203,7 @@ Module
   td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=0 itables=0
   td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=0 itables=0
   td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=0 itables=0
-  array-type array0 Array$Item kind=immutable element=struct3 size=32 align=8 scan=refs[16, 24] td=@scoop_td_Array$Item
+  array-type array0 Array$D4_ItemX kind=immutable element=struct3 size=32 align=8 scan=refs[16, 24] td=@scoop_td_Array$D4_ItemX
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]

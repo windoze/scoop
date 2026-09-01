@@ -424,7 +424,7 @@ Module
   extern ef9 coreUIntHash @scoop_rt_uint_hash(UInt) -> Int <abi=scoop managed>
   extern ef10 coreBooleanHash @scoop_rt_bool_hash(Boolean) -> Int <abi=scoop managed>
   extern ef11 coreStringHash @scoop_rt_string_hash(String) -> Int <abi=scoop managed>
-  enum Option$Continuation$I
+  enum Option$J14_Continuation$IX
     Some(_1: Continuation$I)
     None()
   enum Option$S
@@ -433,13 +433,13 @@ Module
   enum CoroutineStep$I
     Completed(value: Int)
     Suspended()
-  enum CoroutineSlot$WaitingTask
+  enum CoroutineSlot$C11_WaitingTaskX
     Empty()
     Value(value: WaitingTask)
   enum CoroutineSlot$I
     Empty()
     Value(value: Int)
-  enum CoroutineSlot$Throwable
+  enum CoroutineSlot$C9_ThrowableX
     Empty()
     Value(value: Throwable)
   class Throwable vtable=0 itables=0
@@ -465,183 +465,259 @@ Module
   fun Int.equals @scoop.Int.equals(this: Int, other: Int) -> Boolean
     bb0 entry
       call $call.1: Boolean = extern1 @scoop_rt_int_equals direct
+        Type Int
         Local this
+        Type Int
         Local other
       return
+        Type Boolean
         Local $call.1
   fun Int.toString @scoop.Int.toString(this: Int) -> String
     bb0 entry
       call $call.1: String = extern5 @scoop_rt_int_to_string direct
+        Type Int
         Local this
       return
+        Type String
         Local $call.1
   fun Int.hash @scoop.Int.hash(this: Int) -> Int
     bb0 entry
       call $call.1: Int = extern8 @scoop_rt_int_hash direct
+        Type Int
         Local this
       return
+        Type Int
         Local $call.1
   fun UInt.equals @scoop.UInt.equals(this: UInt, other: UInt) -> Boolean
     bb0 entry
       call $call.1: Boolean = extern2 @scoop_rt_uint_equals direct
+        Type UInt
         Local this
+        Type UInt
         Local other
       return
+        Type Boolean
         Local $call.1
   fun UInt.toString @scoop.UInt.toString(this: UInt) -> String
     bb0 entry
       call $call.1: String = extern6 @scoop_rt_uint_to_string direct
+        Type UInt
         Local this
       return
+        Type String
         Local $call.1
   fun UInt.hash @scoop.UInt.hash(this: UInt) -> Int
     bb0 entry
       call $call.1: Int = extern9 @scoop_rt_uint_hash direct
+        Type UInt
         Local this
       return
+        Type Int
         Local $call.1
   fun Boolean.equals @scoop.Boolean.equals(this: Boolean, other: Boolean) -> Boolean
     bb0 entry
       call $call.1: Boolean = extern3 @scoop_rt_bool_equals direct
+        Type Boolean
         Local this
+        Type Boolean
         Local other
       return
+        Type Boolean
         Local $call.1
   fun Boolean.toString @scoop.Boolean.toString(this: Boolean) -> String
     bb0 entry
       call $call.1: String = extern7 @scoop_rt_bool_to_string direct
+        Type Boolean
         Local this
       return
+        Type String
         Local $call.1
   fun Boolean.hash @scoop.Boolean.hash(this: Boolean) -> Int
     bb0 entry
       call $call.1: Int = extern10 @scoop_rt_bool_hash direct
+        Type Boolean
         Local this
       return
+        Type Int
         Local $call.1
   fun String.equals @scoop.String.equals(this: String, other: String) -> Boolean
     bb0 entry
       call $call.1: Boolean = extern4 @scoop_rt_string_eq direct
+        Type String
         Local this
+        Type String
         Local other
       return
+        Type Boolean
         Local $call.1
   fun String.toString @scoop.String.toString(this: String) -> String
     bb0 entry
       return
+        Type String
         Local this
   fun String.hash @scoop.String.hash(this: String) -> Int
     bb0 entry
       call $call.1: Int = extern11 @scoop_rt_string_hash direct
+        Type String
         Local this
       return
+        Type Int
         Local $call.1
   fun Gate.complete @scoop.Gate.complete(this: Gate, value: Int) -> Unit
     bb0 entry
-      val $opt.1: Option$Continuation$I<Continuation$I>
+      val $opt.1: Option$J14_Continuation$IX<Continuation$I>
+        Type Option$J14_Continuation$IX<Continuation$I>
         FieldAccess 0
+          Type Gate
           Local this
       branch bb1 bb2
+        Type Boolean
         Binary IntEq
+          Type Int
           EnumTag
+            Type Option$J14_Continuation$IX<Continuation$I>
             Local $opt.1
+          Type Int
           IntLiteral 0
     bb1 if.then.1
       val $uw.2: Continuation$I
+        Type Continuation$I
         EnumField v0 f0
+          Type Option$J14_Continuation$IX<Continuation$I>
           Local $opt.1
       goto bb3
     bb2 if.else.2
       call $call.1: UnwrapException = @scoop.ctor.UnwrapException direct
       throw
+        Type UnwrapException
         Local $call.1
     bb3 if.merge.3
       val continuation: Continuation$I
+        Type Continuation$I
         Local $uw.2
       field_set 0
+        Type Gate
         Local this
-        VariantConstruct Option$Continuation$I<Continuation$I> v1
+        Type Option$J14_Continuation$IX<Continuation$I>
+        VariantConstruct Option$J14_Continuation$IX<Continuation$I> v1
       call @scoop.Continuation.resume$I interface Continuation$I[0]
+        Type Continuation$I
         Local continuation
+        Type Int
         Local value
       return
   fun Gate.fail @scoop.Gate.fail(this: Gate) -> Unit
     bb0 entry
-      val $opt.1: Option$Continuation$I<Continuation$I>
+      val $opt.1: Option$J14_Continuation$IX<Continuation$I>
+        Type Option$J14_Continuation$IX<Continuation$I>
         FieldAccess 0
+          Type Gate
           Local this
       branch bb1 bb2
+        Type Boolean
         Binary IntEq
+          Type Int
           EnumTag
+            Type Option$J14_Continuation$IX<Continuation$I>
             Local $opt.1
+          Type Int
           IntLiteral 0
     bb1 if.then.1
       val $uw.2: Continuation$I
+        Type Continuation$I
         EnumField v0 f0
+          Type Option$J14_Continuation$IX<Continuation$I>
           Local $opt.1
       goto bb3
     bb2 if.else.2
       call $call.1: UnwrapException = @scoop.ctor.UnwrapException direct
       throw
+        Type UnwrapException
         Local $call.1
     bb3 if.merge.3
       val continuation: Continuation$I
+        Type Continuation$I
         Local $uw.2
       field_set 0
+        Type Gate
         Local this
-        VariantConstruct Option$Continuation$I<Continuation$I> v1
+        Type Option$J14_Continuation$IX<Continuation$I>
+        VariantConstruct Option$J14_Continuation$IX<Continuation$I> v1
       call $call.2: Throwable = @scoop.ctor.UnwrapException direct
       call @scoop.Continuation.resumeWithException$I interface Continuation$I[1]
+        Type Continuation$I
         Local continuation
+        Type Throwable
         Local $call.2
       return
   fun Registration.register @scoop.Registration.register(this: Registration, continuation: Continuation$I) -> Unit
     bb0 entry
       field_set 0
+        Type Gate
         FieldAccess 0
+          Type Registration
           Local this
-        VariantConstruct Option$Continuation$I<Continuation$I> v0
+        Type Option$J14_Continuation$IX<Continuation$I>
+        VariantConstruct Option$J14_Continuation$IX<Continuation$I> v0
+          Type Continuation$I
           Local continuation
       return
   fun ImmediateTask.run @scoop.ImmediateTask.run$suspend(this: ImmediateTask, $completion: Continuation$I) -> CoroutineStep$I
     bb0 entry
       return
+        Type CoroutineStep$I
         VariantConstruct CoroutineStep$I v0
+          Type Int
           IntLiteral 1
   fun ImmediateFailureTask.run @scoop.ImmediateFailureTask.run$suspend(this: ImmediateFailureTask, $completion: Continuation$I) -> CoroutineStep$I
     bb0 entry
       call $call.1: UnwrapException = @scoop.ctor.UnwrapException direct
       throw
+        Type UnwrapException
         Local $call.1
   fun WaitingTask.run @scoop.WaitingTask.run$suspend(this: WaitingTask, $completion: Continuation$I) -> CoroutineStep$I
     bb0 entry
       val $frame: CoroutineFrame$scoop_WaitingTask_run_suspend
+        Type CoroutineFrame$scoop_WaitingTask_run_suspend
         ClassInit CoroutineFrame$scoop_WaitingTask_run_suspend
+          Type Int
           IntLiteral 0
+          Type Continuation$I
           Local $completion
-          VariantConstruct CoroutineSlot$WaitingTask v1
+          Type CoroutineSlot$C11_WaitingTaskX
+          VariantConstruct CoroutineSlot$C11_WaitingTaskX v1
+            Type WaitingTask
             Local this
+          Type CoroutineSlot$I
           VariantConstruct CoroutineSlot$I v0
-          VariantConstruct CoroutineSlot$Throwable v0
+          Type CoroutineSlot$C9_ThrowableX
+          VariantConstruct CoroutineSlot$C9_ThrowableX v0
       call $step: CoroutineStep$I = @scoop.WaitingTask.run$suspend$drive direct
+        Type CoroutineFrame$scoop_WaitingTask_run_suspend
         Local $frame
+        Type Int
         IntLiteral 0
       return
+        Type CoroutineStep$I
         Local $step
   fun ThrowingCompletion.resume @scoop.ThrowingCompletion.resume(this: ThrowingCompletion, value: Int) -> Unit
     bb0 entry
       call $call.1: IllegalStateException = @scoop.ctor.IllegalStateException direct
       throw
+        Type IllegalStateException
         Local $call.1
   fun ThrowingCompletion.resumeWithException @scoop.ThrowingCompletion.resumeWithException(this: ThrowingCompletion, exception: Throwable) -> Unit
     bb0 entry
       call $call.1: IllegalStateException = @scoop.ctor.IllegalStateException direct
       throw
+        Type IllegalStateException
         Local $call.1
   fun launch @scoop.launch(task: SuspendTask$I, completion: Continuation$I) -> Unit
     bb0 entry
       call @scoop.coroutine.start$I direct
+        Type SuspendTask$I
         Local task
+        Type Continuation$I
         Local completion
       return
   fun main @scoop_main() -> Unit
@@ -653,7 +729,9 @@ Module
     bb2 try.dispatch.2
       begin_catch
       branch bb10 bb11
+        Type Boolean
         IsInstance IllegalStateException
+          Type Any
           CaughtException
     bb3 try.handler_pad.3
       landing_pad cleanup=true
@@ -673,20 +751,25 @@ Module
       call $call.1: SuspendTask$I = @scoop.ctor.ImmediateTask direct
       call $call.2: Continuation$I = @scoop.ctor.ThrowingCompletion direct
       call @scoop.launch direct
+        Type SuspendTask$I
         Local $call.1
+        Type Continuation$I
         Local $call.2
       goto bb9
     bb9 scope.9
       goto bb7
     bb10 try.catch.10
       val exception: IllegalStateException
+        Type IllegalStateException
         Retype IllegalStateException
+          Type Any
           CaughtException
       goto bb12
     bb11 try.next.11
       rethrow unwind bb5
     bb12 scope.12 unwind bb3
       call @scoop.println$S direct
+        Type String
         StringConst @scoop.str.0
       goto bb13
     bb13 scope.13
@@ -698,7 +781,9 @@ Module
     bb15 try.dispatch.15
       begin_catch
       branch bb23 bb24
+        Type Boolean
         IsInstance IllegalStateException
+          Type Any
           CaughtException
     bb16 try.handler_pad.16
       landing_pad cleanup=true
@@ -714,32 +799,41 @@ Module
       resume
     bb20 try.end.20
       call success: Gate = @scoop.ctor.Gate direct
-        VariantConstruct Option$Continuation$I<Continuation$I> v1
+        Type Option$J14_Continuation$IX<Continuation$I>
+        VariantConstruct Option$J14_Continuation$IX<Continuation$I> v1
       call $call.5: SuspendTask$I = @scoop.ctor.WaitingTask direct
+        Type Gate
         Local success
       call $call.6: Continuation$I = @scoop.ctor.ThrowingCompletion direct
       call @scoop.launch direct
+        Type SuspendTask$I
         Local $call.5
+        Type Continuation$I
         Local $call.6
       goto bb34
     bb21 try.body.21 unwind bb14
       call $call.3: SuspendTask$I = @scoop.ctor.ImmediateFailureTask direct
       call $call.4: Continuation$I = @scoop.ctor.ThrowingCompletion direct
       call @scoop.launch direct
+        Type SuspendTask$I
         Local $call.3
+        Type Continuation$I
         Local $call.4
       goto bb22
     bb22 scope.22
       goto bb20
     bb23 try.catch.23
       val exception: IllegalStateException
+        Type IllegalStateException
         Retype IllegalStateException
+          Type Any
           CaughtException
       goto bb25
     bb24 try.next.24
       rethrow unwind bb18
     bb25 scope.25 unwind bb16
       call @scoop.println$S direct
+        Type String
         StringConst @scoop.str.1
       goto bb26
     bb26 scope.26
@@ -751,7 +845,9 @@ Module
     bb28 try.dispatch.28
       begin_catch
       branch bb36 bb37
+        Type Boolean
         IsInstance IllegalStateException
+          Type Any
           CaughtException
     bb29 try.handler_pad.29
       landing_pad cleanup=true
@@ -767,30 +863,39 @@ Module
       resume
     bb33 try.end.33
       call failure: Gate = @scoop.ctor.Gate direct
-        VariantConstruct Option$Continuation$I<Continuation$I> v1
+        Type Option$J14_Continuation$IX<Continuation$I>
+        VariantConstruct Option$J14_Continuation$IX<Continuation$I> v1
       call $call.7: SuspendTask$I = @scoop.ctor.WaitingTask direct
+        Type Gate
         Local failure
       call $call.8: Continuation$I = @scoop.ctor.ThrowingCompletion direct
       call @scoop.launch direct
+        Type SuspendTask$I
         Local $call.7
+        Type Continuation$I
         Local $call.8
       goto bb47
     bb34 try.body.34 unwind bb27
       call @scoop.Gate.complete direct
+        Type Gate
         Local success
+        Type Int
         IntLiteral 1
       goto bb35
     bb35 scope.35
       goto bb33
     bb36 try.catch.36
       val exception: IllegalStateException
+        Type IllegalStateException
         Retype IllegalStateException
+          Type Any
           CaughtException
       goto bb38
     bb37 try.next.37
       rethrow unwind bb31
     bb38 scope.38 unwind bb29
       call @scoop.println$S direct
+        Type String
         StringConst @scoop.str.2
       goto bb39
     bb39 scope.39
@@ -802,7 +907,9 @@ Module
     bb41 try.dispatch.41
       begin_catch
       branch bb49 bb50
+        Type Boolean
         IsInstance IllegalStateException
+          Type Any
           CaughtException
     bb42 try.handler_pad.42
       landing_pad cleanup=true
@@ -820,19 +927,23 @@ Module
       return
     bb47 try.body.47 unwind bb40
       call @scoop.Gate.fail direct
+        Type Gate
         Local failure
       goto bb48
     bb48 scope.48
       goto bb46
     bb49 try.catch.49
       val exception: IllegalStateException
+        Type IllegalStateException
         Retype IllegalStateException
+          Type Any
           CaughtException
       goto bb51
     bb50 try.next.50
       rethrow unwind bb44
     bb51 scope.51 unwind bb42
       call @scoop.println$S direct
+        Type String
         StringConst @scoop.str.3
       goto bb52
     bb52 scope.52
@@ -841,514 +952,791 @@ Module
   fun println @scoop.println$S(value: String) -> Unit
     bb0 entry
       call $call.1: String = @scoop.String.toString direct
+        Type String
         Local value
       call extern0 @scoop_rt_write direct
+        Type String
         Local $call.1
       call extern0 @scoop_rt_write direct
+        Type String
         StringConst @scoop.str.4
       return
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
     bb0 entry
       return
+        Type Throwable
         ClassInit Throwable
   fun ctor.Exception @scoop.ctor.Exception(message: Option$S<String>) -> Exception
     bb0 entry
       return
+        Type Exception
         ClassInit Exception
+          Type Option$S<String>
           Local message
   fun ctor.UnwrapException @scoop.ctor.UnwrapException() -> UnwrapException
     bb0 entry
       return
+        Type UnwrapException
         ClassInit UnwrapException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.5
   fun ctor.ClassCastException @scoop.ctor.ClassCastException() -> ClassCastException
     bb0 entry
       return
+        Type ClassCastException
         ClassInit ClassCastException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.6
   fun ctor.ArithmeticException @scoop.ctor.ArithmeticException() -> ArithmeticException
     bb0 entry
       return
+        Type ArithmeticException
         ClassInit ArithmeticException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.7
   fun ctor.IndexOutOfBoundsException @scoop.ctor.IndexOutOfBoundsException() -> IndexOutOfBoundsException
     bb0 entry
       return
+        Type IndexOutOfBoundsException
         ClassInit IndexOutOfBoundsException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.8
   fun ctor.IllegalStateException @scoop.ctor.IllegalStateException() -> IllegalStateException
     bb0 entry
       return
+        Type IllegalStateException
         ClassInit IllegalStateException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.9
-  fun ctor.Gate @scoop.ctor.Gate(waiter: Option$Continuation$I<Continuation$I>) -> Gate
+  fun ctor.Gate @scoop.ctor.Gate(waiter: Option$J14_Continuation$IX<Continuation$I>) -> Gate
     bb0 entry
       return
+        Type Gate
         ClassInit Gate
+          Type Option$J14_Continuation$IX<Continuation$I>
           Local waiter
   fun ctor.Registration @scoop.ctor.Registration(gate: Gate) -> Registration
     bb0 entry
       return
+        Type Registration
         ClassInit Registration
+          Type Gate
           Local gate
   fun ctor.ImmediateTask @scoop.ctor.ImmediateTask() -> ImmediateTask
     bb0 entry
       return
+        Type ImmediateTask
         ClassInit ImmediateTask
   fun ctor.ImmediateFailureTask @scoop.ctor.ImmediateFailureTask() -> ImmediateFailureTask
     bb0 entry
       return
+        Type ImmediateFailureTask
         ClassInit ImmediateFailureTask
   fun ctor.WaitingTask @scoop.ctor.WaitingTask(gate: Gate) -> WaitingTask
     bb0 entry
       return
+        Type WaitingTask
         ClassInit WaitingTask
+          Type Gate
           Local gate
   fun ctor.ThrowingCompletion @scoop.ctor.ThrowingCompletion() -> ThrowingCompletion
     bb0 entry
       return
+        Type ThrowingCompletion
         ClassInit ThrowingCompletion
   fun startCoroutine$I @scoop.coroutine.start$I(task: SuspendTask$I, completion: Continuation$I) -> Unit
     bb0 suspended
       return
     bb1 completed
       call @scoop.Continuation.resume$I interface Continuation$I[0]
+        Type Continuation$I
         Local completion
+        Type Int
         EnumField v0 f0
+          Type CoroutineStep$I
           Local $step
       return
     bb2 failed
       call @scoop.Continuation.resumeWithException$I interface Continuation$I[1]
+        Type Continuation$I
         Local completion
+        Type Throwable
         Local $exception
       return
     bb3 body_failure
       landing_pad cleanup=false
       begin_catch
       call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
         CaughtException
       end_catch
       goto bb2
     bb4 entry unwind bb3
       call $step: CoroutineStep$I = @scoop.SuspendTask.run$I$suspend interface SuspendTask$I[0]
+        Type SuspendTask$I
         Local task
+        Type Continuation$I
         Local completion
       branch bb1 bb0
+        Type Boolean
         Binary IntEq
+          Type Int
           EnumTag
+            Type CoroutineStep$I
             Local $step
+          Type Int
           IntLiteral 0
   fun WaitingTask.run$drive @scoop.WaitingTask.run$suspend$drive($frame: CoroutineFrame$scoop_WaitingTask_run_suspend, $dispatch_state: Int) -> CoroutineStep$I
     bb0 entry
       call registration: SuspendRegistration$I = @scoop.ctor.Registration direct
+        Type Gate
         FieldAccess 0
+          Type WaitingTask
           Local this
       atomic_store_release field=0
+        Type CoroutineFrame$scoop_WaitingTask_run_suspend
         Local $frame
+        Type Int
         IntLiteral 1
       val $safe_adapter.1: CoroutineAdapter$scoop_WaitingTask_run_suspend$1
+        Type CoroutineAdapter$scoop_WaitingTask_run_suspend$1
         ClassInit CoroutineAdapter$scoop_WaitingTask_run_suspend$1
+          Type CoroutineFrame$scoop_WaitingTask_run_suspend
           Local $frame
+          Type Int
           IntLiteral 0
+          Type CoroutineSlot$I
           VariantConstruct CoroutineSlot$I v0
-          VariantConstruct CoroutineSlot$Throwable v0
+          Type CoroutineSlot$C9_ThrowableX
+          VariantConstruct CoroutineSlot$C9_ThrowableX v0
       goto bb2
     bb1 coroutine.post.1
       return
+        Type CoroutineStep$I
         VariantConstruct CoroutineStep$I v0
+          Type Int
           Local $call.1
     bb2 coroutine.register.1 unwind bb22
       call @scoop.SuspendRegistration.register$I interface SuspendRegistration$I[0]
+        Type SuspendRegistration$I
         Local registration
+        Type CoroutineAdapter$scoop_WaitingTask_run_suspend$1
         Local $safe_adapter.1
       goto bb14
     bb3 coroutine.registered_success.1
       atomic_store_release field=1
+        Type CoroutineAdapter$scoop_WaitingTask_run_suspend$1
         Local $safe_adapter.1
+        Type Int
         IntLiteral 6
       val $call.1: Int
+        Type Int
         EnumField v1 f0
+          Type CoroutineSlot$I
           FieldAccess 2
+            Type CoroutineAdapter$scoop_WaitingTask_run_suspend$1
             Local $safe_adapter.1
       goto bb1
     bb4 coroutine.registered_failure.1
       atomic_store_release field=1
+        Type CoroutineAdapter$scoop_WaitingTask_run_suspend$1
         Local $safe_adapter.1
+        Type Int
         IntLiteral 6
       val $resume_exception.1: Throwable
+        Type Throwable
         EnumField v1 f0
+          Type CoroutineSlot$C9_ThrowableX
           FieldAccess 3
+            Type CoroutineAdapter$scoop_WaitingTask_run_suspend$1
             Local $safe_adapter.1
       throw
+        Type Throwable
         Local $resume_exception.1
     bb5 coroutine.registered_suspend.1
       return
+        Type CoroutineStep$I
         VariantConstruct CoroutineStep$I v1
     bb6 coroutine.protocol_error
       call $protocol_error: IllegalStateException = @scoop.ctor.IllegalStateException direct
       throw
+        Type IllegalStateException
         Local $protocol_error
     bb7 coroutine.claim_success_frame.1
       val $registration_frame_claim.1: Int
+        Type Int
         AtomicCompareExchange field=0 success=acq_rel failure=acquire
+          Type CoroutineFrame$scoop_WaitingTask_run_suspend
           Local $frame
+          Type Int
           IntLiteral 1
+          Type Int
           IntLiteral -1
       branch bb3 bb6
+        Type Boolean
         Binary IntEq
+          Type Int
           Local $registration_frame_claim.1
+          Type Int
           IntLiteral 1
     bb8 coroutine.claim_failure_frame.1
       val $registration_frame_claim.1: Int
+        Type Int
         AtomicCompareExchange field=0 success=acq_rel failure=acquire
+          Type CoroutineFrame$scoop_WaitingTask_run_suspend
           Local $frame
+          Type Int
           IntLiteral 1
+          Type Int
           IntLiteral -1
       branch bb4 bb6
+        Type Boolean
         Binary IntEq
+          Type Int
           Local $registration_frame_claim.1
+          Type Int
           IntLiteral 1
     bb9 coroutine.check_latched_failure.1
       branch bb8 bb6
+        Type Boolean
         Binary IntEq
+          Type Int
           AtomicLoadAcquire field=1
+            Type CoroutineAdapter$scoop_WaitingTask_run_suspend$1
             Local $safe_adapter.1
+          Type Int
           IntLiteral 5
     bb10 coroutine.check_latched_success.1
       branch bb7 bb9
+        Type Boolean
         Binary IntEq
+          Type Int
           AtomicLoadAcquire field=1
+            Type CoroutineAdapter$scoop_WaitingTask_run_suspend$1
             Local $safe_adapter.1
+          Type Int
           IntLiteral 4
     bb11 coroutine.completion_backoff.1
       goto bb13
     bb12 coroutine.check_completing_failure.1
       branch bb11 bb10
+        Type Boolean
         Binary IntEq
+          Type Int
           AtomicLoadAcquire field=1
+            Type CoroutineAdapter$scoop_WaitingTask_run_suspend$1
             Local $safe_adapter.1
+          Type Int
           IntLiteral 3
     bb13 coroutine.completion_wait.1
       branch bb11 bb12
+        Type Boolean
         Binary IntEq
+          Type Int
           AtomicLoadAcquire field=1
+            Type CoroutineAdapter$scoop_WaitingTask_run_suspend$1
             Local $safe_adapter.1
+          Type Int
           IntLiteral 2
     bb14 coroutine.register_return.1
       val $registration_claim.1: Int
+        Type Int
         AtomicCompareExchange field=1 success=acq_rel failure=acquire
+          Type CoroutineAdapter$scoop_WaitingTask_run_suspend$1
           Local $safe_adapter.1
+          Type Int
           IntLiteral 0
+          Type Int
           IntLiteral 1
       branch bb5 bb13
+        Type Boolean
         Binary IntEq
+          Type Int
           Local $registration_claim.1
+          Type Int
           IntLiteral 0
     bb15 coroutine.registration_propagate.1
       throw
+        Type Throwable
         Local $resume_exception.1
     bb16 coroutine.registration_claim_frame.1
       val $registration_frame_claim.1: Int
+        Type Int
         AtomicCompareExchange field=0 success=acq_rel failure=acquire
+          Type CoroutineFrame$scoop_WaitingTask_run_suspend
           Local $frame
+          Type Int
           IntLiteral 1
+          Type Int
           IntLiteral -1
       branch bb15 bb6
+        Type Boolean
         Binary IntEq
+          Type Int
           Local $registration_frame_claim.1
+          Type Int
           IntLiteral 1
     bb17 coroutine.registration_protocol.1
       atomic_store_release field=1
+        Type CoroutineAdapter$scoop_WaitingTask_run_suspend$1
         Local $safe_adapter.1
+        Type Int
         IntLiteral 6
       goto bb6
     bb18 coroutine.registration_protocol_claim_frame.1
       val $registration_frame_claim.1: Int
+        Type Int
         AtomicCompareExchange field=0 success=acq_rel failure=acquire
+          Type CoroutineFrame$scoop_WaitingTask_run_suspend
           Local $frame
+          Type Int
           IntLiteral 1
+          Type Int
           IntLiteral -1
       branch bb17 bb6
+        Type Boolean
         Binary IntEq
+          Type Int
           Local $registration_frame_claim.1
+          Type Int
           IntLiteral 1
     bb19 coroutine.registration_backoff.1
       goto bb21
     bb20 coroutine.registration_check_completing_failure.1
       branch bb19 bb18
+        Type Boolean
         Binary IntEq
+          Type Int
           AtomicLoadAcquire field=1
+            Type CoroutineAdapter$scoop_WaitingTask_run_suspend$1
             Local $safe_adapter.1
+          Type Int
           IntLiteral 3
     bb21 coroutine.registration_wait.1
       branch bb19 bb20
+        Type Boolean
         Binary IntEq
+          Type Int
           AtomicLoadAcquire field=1
+            Type CoroutineAdapter$scoop_WaitingTask_run_suspend$1
             Local $safe_adapter.1
+          Type Int
           IntLiteral 2
     bb22 coroutine.registration_failure.1
       landing_pad cleanup=false
       begin_catch
       call $resume_exception.1: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
         CaughtException
       end_catch
       val $registration_claim.1: Int
+        Type Int
         AtomicCompareExchange field=1 success=acq_rel failure=acquire
+          Type CoroutineAdapter$scoop_WaitingTask_run_suspend$1
           Local $safe_adapter.1
+          Type Int
           IntLiteral 0
+          Type Int
           IntLiteral 6
       branch bb16 bb21
+        Type Boolean
         Binary IntEq
+          Type Int
           Local $registration_claim.1
+          Type Int
           IntLiteral 0
     bb23 coroutine.resume.1
       assign $call.1
+        Type Int
         EnumField v1 f0
+          Type CoroutineSlot$I
           FieldAccess 3
+            Type CoroutineFrame$scoop_WaitingTask_run_suspend
             Local $frame
       goto bb1
     bb24 coroutine.failure.1
       throw
+        Type Throwable
         EnumField v1 f0
+          Type CoroutineSlot$C9_ThrowableX
           FieldAccess 4
+            Type CoroutineFrame$scoop_WaitingTask_run_suspend
             Local $frame
     bb25 coroutine.initial
       assign this
+        Type WaitingTask
         EnumField v1 f0
+          Type CoroutineSlot$C11_WaitingTaskX
           FieldAccess 2
+            Type CoroutineFrame$scoop_WaitingTask_run_suspend
             Local $frame
       atomic_store_release field=0
+        Type CoroutineFrame$scoop_WaitingTask_run_suspend
         Local $frame
+        Type Int
         IntLiteral -1
       goto bb0
     bb26 coroutine.protocol_error
       call $protocol_error: IllegalStateException = @scoop.ctor.IllegalStateException direct
       throw
+        Type IllegalStateException
         Local $protocol_error
     bb27 coroutine.dispatch.1
       branch bb23 bb26
+        Type Boolean
         Binary IntEq
+          Type Int
           Local $dispatch_state
+          Type Int
           IntLiteral 1
     bb28 coroutine.dispatch.-3
       branch bb24 bb27
+        Type Boolean
         Binary IntEq
+          Type Int
           Local $dispatch_state
+          Type Int
           IntLiteral -3
     bb29 coroutine.dispatch.0
       branch bb25 bb28
+        Type Boolean
         Binary IntEq
+          Type Int
           Local $dispatch_state
+          Type Int
           IntLiteral 0
   fun CoroutineAdapter.resume$1 @scoop.WaitingTask.run$suspend$resume$1(this: CoroutineAdapter$scoop_WaitingTask_run_suspend$1, value: Int) -> Unit
     bb0 coroutine.protocol_error
       call $protocol_error: IllegalStateException = @scoop.ctor.IllegalStateException direct
       throw
+        Type IllegalStateException
         Local $protocol_error
     bb1 completed
       atomic_store_release field=0
+        Type CoroutineFrame$scoop_WaitingTask_run_suspend
         FieldAccess 0
+          Type CoroutineAdapter$scoop_WaitingTask_run_suspend$1
           Local this
+        Type Int
         IntLiteral -2
       call @scoop.Continuation.resume$I interface Continuation$I[0]
+        Type Continuation$I
         FieldAccess 1
+          Type CoroutineFrame$scoop_WaitingTask_run_suspend
           FieldAccess 0
+            Type CoroutineAdapter$scoop_WaitingTask_run_suspend$1
             Local this
+        Type Int
         EnumField v0 f0
+          Type CoroutineStep$I
           Local $step
       return
     bb2 suspended
       return
     bb3 failed
       atomic_store_release field=0
+        Type CoroutineFrame$scoop_WaitingTask_run_suspend
         FieldAccess 0
+          Type CoroutineAdapter$scoop_WaitingTask_run_suspend$1
           Local this
+        Type Int
         IntLiteral -2
       call @scoop.Continuation.resumeWithException$I interface Continuation$I[1]
+        Type Continuation$I
         FieldAccess 1
+          Type CoroutineFrame$scoop_WaitingTask_run_suspend
           FieldAccess 0
+            Type CoroutineAdapter$scoop_WaitingTask_run_suspend$1
             Local this
+        Type Throwable
         Local $uncaught
       return
     bb4 body_failure
       landing_pad cleanup=false
       begin_catch
       call $uncaught: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
         CaughtException
       end_catch
       goto bb3
     bb5 valid unwind bb4
       field_set 3
+        Type CoroutineFrame$scoop_WaitingTask_run_suspend
         FieldAccess 0
+          Type CoroutineAdapter$scoop_WaitingTask_run_suspend$1
           Local this
+        Type CoroutineSlot$I
         VariantConstruct CoroutineSlot$I v1
+          Type Int
           Local value
       atomic_store_release field=1
+        Type CoroutineAdapter$scoop_WaitingTask_run_suspend$1
         Local this
+        Type Int
         IntLiteral 6
       call $step: CoroutineStep$I = @scoop.WaitingTask.run$suspend$drive direct
+        Type CoroutineFrame$scoop_WaitingTask_run_suspend
         FieldAccess 0
+          Type CoroutineAdapter$scoop_WaitingTask_run_suspend$1
           Local this
+        Type Int
         IntLiteral 1
       branch bb1 bb2
+        Type Boolean
         Binary IntEq
+          Type Int
           EnumTag
+            Type CoroutineStep$I
             Local $step
+          Type Int
           IntLiteral 0
     bb6 invalid_frame
       atomic_store_release field=1
+        Type CoroutineAdapter$scoop_WaitingTask_run_suspend$1
         Local this
+        Type Int
         IntLiteral 6
       goto bb0
     bb7 claim_frame
       val $frame_claim: Int
+        Type Int
         AtomicCompareExchange field=0 success=acq_rel failure=acquire
+          Type CoroutineFrame$scoop_WaitingTask_run_suspend
           FieldAccess 0
+            Type CoroutineAdapter$scoop_WaitingTask_run_suspend$1
             Local this
+          Type Int
           IntLiteral 1
+          Type Int
           IntLiteral -1
       branch bb5 bb6
+        Type Boolean
         Binary IntEq
+          Type Int
           Local $frame_claim
+          Type Int
           IntLiteral 1
     bb8 claim_waiting
       val $adapter_claim: Int
+        Type Int
         AtomicCompareExchange field=1 success=acq_rel failure=acquire
+          Type CoroutineAdapter$scoop_WaitingTask_run_suspend$1
           Local this
+          Type Int
           IntLiteral 1
+          Type Int
           IntLiteral 2
       branch bb7 bb0
+        Type Boolean
         Binary IntEq
+          Type Int
           Local $adapter_claim
+          Type Int
           IntLiteral 1
     bb9 latched
       field_set 2
+        Type CoroutineAdapter$scoop_WaitingTask_run_suspend$1
         Local this
+        Type CoroutineSlot$I
         VariantConstruct CoroutineSlot$I v1
+          Type Int
           Local value
       atomic_store_release field=1
+        Type CoroutineAdapter$scoop_WaitingTask_run_suspend$1
         Local this
+        Type Int
         IntLiteral 4
       return
     bb10 entry
       val $adapter_claim: Int
+        Type Int
         AtomicCompareExchange field=1 success=acq_rel failure=acquire
+          Type CoroutineAdapter$scoop_WaitingTask_run_suspend$1
           Local this
+          Type Int
           IntLiteral 0
+          Type Int
           IntLiteral 2
       branch bb9 bb8
+        Type Boolean
         Binary IntEq
+          Type Int
           Local $adapter_claim
+          Type Int
           IntLiteral 0
   fun CoroutineAdapter.resumeWithException$1 @scoop.WaitingTask.run$suspend$resume_exception$1(this: CoroutineAdapter$scoop_WaitingTask_run_suspend$1, exception: Throwable) -> Unit
     bb0 coroutine.protocol_error
       call $protocol_error: IllegalStateException = @scoop.ctor.IllegalStateException direct
       throw
+        Type IllegalStateException
         Local $protocol_error
     bb1 completed
       atomic_store_release field=0
+        Type CoroutineFrame$scoop_WaitingTask_run_suspend
         FieldAccess 0
+          Type CoroutineAdapter$scoop_WaitingTask_run_suspend$1
           Local this
+        Type Int
         IntLiteral -2
       call @scoop.Continuation.resume$I interface Continuation$I[0]
+        Type Continuation$I
         FieldAccess 1
+          Type CoroutineFrame$scoop_WaitingTask_run_suspend
           FieldAccess 0
+            Type CoroutineAdapter$scoop_WaitingTask_run_suspend$1
             Local this
+        Type Int
         EnumField v0 f0
+          Type CoroutineStep$I
           Local $step
       return
     bb2 suspended
       return
     bb3 failed
       atomic_store_release field=0
+        Type CoroutineFrame$scoop_WaitingTask_run_suspend
         FieldAccess 0
+          Type CoroutineAdapter$scoop_WaitingTask_run_suspend$1
           Local this
+        Type Int
         IntLiteral -2
       call @scoop.Continuation.resumeWithException$I interface Continuation$I[1]
+        Type Continuation$I
         FieldAccess 1
+          Type CoroutineFrame$scoop_WaitingTask_run_suspend
           FieldAccess 0
+            Type CoroutineAdapter$scoop_WaitingTask_run_suspend$1
             Local this
+        Type Throwable
         Local $uncaught
       return
     bb4 body_failure
       landing_pad cleanup=false
       begin_catch
       call $uncaught: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
         CaughtException
       end_catch
       goto bb3
     bb5 valid unwind bb4
       field_set 4
+        Type CoroutineFrame$scoop_WaitingTask_run_suspend
         FieldAccess 0
+          Type CoroutineAdapter$scoop_WaitingTask_run_suspend$1
           Local this
-        VariantConstruct CoroutineSlot$Throwable v1
+        Type CoroutineSlot$C9_ThrowableX
+        VariantConstruct CoroutineSlot$C9_ThrowableX v1
+          Type Throwable
           Local exception
       atomic_store_release field=1
+        Type CoroutineAdapter$scoop_WaitingTask_run_suspend$1
         Local this
+        Type Int
         IntLiteral 6
       call $step: CoroutineStep$I = @scoop.WaitingTask.run$suspend$drive direct
+        Type CoroutineFrame$scoop_WaitingTask_run_suspend
         FieldAccess 0
+          Type CoroutineAdapter$scoop_WaitingTask_run_suspend$1
           Local this
+        Type Int
         IntLiteral -3
       branch bb1 bb2
+        Type Boolean
         Binary IntEq
+          Type Int
           EnumTag
+            Type CoroutineStep$I
             Local $step
+          Type Int
           IntLiteral 0
     bb6 invalid_frame
       atomic_store_release field=1
+        Type CoroutineAdapter$scoop_WaitingTask_run_suspend$1
         Local this
+        Type Int
         IntLiteral 6
       goto bb0
     bb7 claim_frame
       val $frame_claim: Int
+        Type Int
         AtomicCompareExchange field=0 success=acq_rel failure=acquire
+          Type CoroutineFrame$scoop_WaitingTask_run_suspend
           FieldAccess 0
+            Type CoroutineAdapter$scoop_WaitingTask_run_suspend$1
             Local this
+          Type Int
           IntLiteral 1
+          Type Int
           IntLiteral -1
       branch bb5 bb6
+        Type Boolean
         Binary IntEq
+          Type Int
           Local $frame_claim
+          Type Int
           IntLiteral 1
     bb8 claim_waiting
       val $adapter_claim: Int
+        Type Int
         AtomicCompareExchange field=1 success=acq_rel failure=acquire
+          Type CoroutineAdapter$scoop_WaitingTask_run_suspend$1
           Local this
+          Type Int
           IntLiteral 1
+          Type Int
           IntLiteral 3
       branch bb7 bb0
+        Type Boolean
         Binary IntEq
+          Type Int
           Local $adapter_claim
+          Type Int
           IntLiteral 1
     bb9 latched
       field_set 3
+        Type CoroutineAdapter$scoop_WaitingTask_run_suspend$1
         Local this
-        VariantConstruct CoroutineSlot$Throwable v1
+        Type CoroutineSlot$C9_ThrowableX
+        VariantConstruct CoroutineSlot$C9_ThrowableX v1
+          Type Throwable
           Local exception
       atomic_store_release field=1
+        Type CoroutineAdapter$scoop_WaitingTask_run_suspend$1
         Local this
+        Type Int
         IntLiteral 5
       return
     bb10 entry
       val $adapter_claim: Int
+        Type Int
         AtomicCompareExchange field=1 success=acq_rel failure=acquire
+          Type CoroutineAdapter$scoop_WaitingTask_run_suspend$1
           Local this
+          Type Int
           IntLiteral 0
+          Type Int
           IntLiteral 3
       branch bb9 bb8
+        Type Boolean
         Binary IntEq
+          Type Int
           Local $adapter_claim
+          Type Int
           IntLiteral 0
   coroutine_step cs0 CoroutineStep$I result=Int
-  coroutine_slot cl0 CoroutineSlot$WaitingTask value=WaitingTask
+  coroutine_slot cl0 CoroutineSlot$C11_WaitingTaskX value=WaitingTask
   coroutine_slot cl1 CoroutineSlot$I value=Int
-  coroutine_slot cl2 CoroutineSlot$Throwable value=Throwable
+  coroutine_slot cl2 CoroutineSlot$C9_ThrowableX value=Throwable
   coroutine_frame cr0 CoroutineFrame$scoop_WaitingTask_run_suspend owner=cf2
   coroutine_resume cp0 state=1 result=Int frame=cr0 adapter=CoroutineAdapter$scoop_WaitingTask_run_suspend$1 resume=@scoop.WaitingTask.run$suspend$resume$1 failure=@scoop.WaitingTask.run$suspend$resume_exception$1
   coroutine_fn cf0 @scoop.ImmediateTask.run$suspend source_return=Int step=cs0 immediate
@@ -1402,12 +1790,12 @@ Module
   global @scoop_td_SuspendTask$I = c""
   global @scoop_td_CoroutineAdapter$scoop_WaitingTask_run_suspend$1 = c""
   global @scoop_td_SuspendRegistration$I = c""
-  enum Option$Continuation$I niche(payload_variant=0)
+  enum Option$J14_Continuation$IX niche(payload_variant=0)
   enum Option$S niche(payload_variant=0)
   enum CoroutineStep$I tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
-  enum CoroutineSlot$WaitingTask niche(payload_variant=1)
+  enum CoroutineSlot$C11_WaitingTaskX niche(payload_variant=1)
   enum CoroutineSlot$I tagged size=16 align=8 variants=()@8+0 (i64)@8+8
-  enum CoroutineSlot$Throwable niche(payload_variant=1)
+  enum CoroutineSlot$C9_ThrowableX niche(payload_variant=1)
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
   extern ef1 coreIntEquals @scoop_rt_int_equals(i64, i64) -> i1 <scoop managed nounwind>
   extern ef2 coreUIntEquals @scoop_rt_uint_equals(i64, i64) -> i1 <scoop managed nounwind>
@@ -2339,12 +2727,12 @@ Module
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
-  layout Option$Continuation$I size=8 align=8 enum-scan=refs[0]
+  layout Option$J14_Continuation$IX size=8 align=8 enum-scan=refs[0]
   layout Option$S size=8 align=8 enum-scan=refs[0]
   layout CoroutineStep$I size=16 align=8 enum-scan=none
-  layout CoroutineSlot$WaitingTask size=8 align=8 enum-scan=refs[0]
+  layout CoroutineSlot$C11_WaitingTaskX size=8 align=8 enum-scan=refs[0]
   layout CoroutineSlot$I size=16 align=8 enum-scan=none
-  layout CoroutineSlot$Throwable size=8 align=8 enum-scan=refs[0]
+  layout CoroutineSlot$C9_ThrowableX size=8 align=8 enum-scan=refs[0]
   layout Throwable size=16 align=8 refs=[]
   layout Exception size=24 align=8 refs=[16]
   layout UnwrapException size=24 align=8 refs=[16]

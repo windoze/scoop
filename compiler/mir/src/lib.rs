@@ -109,7 +109,10 @@ pub fn encode_type(module: &Module, ty: &Type) -> String {
         Type::UInt => "V".to_string(),
         Type::Boolean => "B".to_string(),
         Type::String => "S".to_string(),
-        Type::Struct(id) => module.structs[*id].name.clone(),
+        Type::Struct(id) => {
+            let name = &module.structs[*id].name;
+            format!("D{}_{}X", name.len(), name)
+        }
         Type::Class(id) => match &module.classes[*id].representation {
             ClassRepresentation::Intrinsic(IntrinsicTypeRepresentation::Array { element }) => {
                 format!("A{}X", encode_type(module, element))
@@ -119,13 +122,17 @@ pub fn encode_type(module: &Module, ty: &Type) -> String {
             }) => format!("M{}X", encode_type(module, element)),
             ClassRepresentation::Declared { .. }
             | ClassRepresentation::Intrinsic(IntrinsicTypeRepresentation::String) => {
-                module.classes[*id].name.clone()
+                let name = &module.classes[*id].name;
+                format!("C{}_{}X", name.len(), name)
             }
             ClassRepresentation::Intrinsic(_) => {
                 unreachable!("the intrinsic registry fixes declaration targets")
             }
         },
-        Type::Interface(id) => module.interfaces[*id].name.clone(),
+        Type::Interface(id) => {
+            let name = &module.interfaces[*id].name;
+            format!("J{}_{}X", name.len(), name)
+        }
         Type::Any => "Any".to_string(),
         Type::Tuple(elements) => {
             let inner: Vec<String> = elements.iter().map(|t| encode_type(module, t)).collect();
@@ -162,10 +169,10 @@ pub fn encode_type(module: &Module, ty: &Type) -> String {
         Type::Enum(id, args) => {
             let name = &module.enums[*id].name;
             if args.is_empty() {
-                format!("E{name}")
+                format!("E{}_{}X", name.len(), name)
             } else {
                 let inner: Vec<String> = args.iter().map(|t| encode_type(module, t)).collect();
-                format!("E{}_{}X", name, inner.join("_"))
+                format!("E{}_{}A{}X", name.len(), name, inner.join("_"))
             }
         }
     }
@@ -814,8 +821,47 @@ pub enum Terminator {
     Unreachable,
 }
 
+/// A MIR expression whose semantic result type is complete by construction.
+/// Consumers must use `ty` directly; reconstructing it from the expression
+/// shape, surrounding local or expected context is forbidden.
 #[derive(Debug, Clone)]
-pub enum Expr {
+pub struct Expr {
+    pub ty: Type,
+    pub kind: ExprKind,
+}
+
+impl Expr {
+    pub fn new(ty: Type, kind: ExprKind) -> Self {
+        Self { ty, kind }
+    }
+
+    pub fn local(local: LocalId, ty: Type) -> Self {
+        Self::new(ty, ExprKind::Local(local))
+    }
+
+    pub fn int(value: i64) -> Self {
+        Self::new(Type::Int, ExprKind::IntLiteral(value))
+    }
+
+    pub fn bool(value: bool) -> Self {
+        Self::new(Type::Boolean, ExprKind::BoolLiteral(value))
+    }
+
+    pub fn unit() -> Self {
+        Self::new(Type::Unit, ExprKind::UnitLiteral)
+    }
+
+    pub fn caught_exception() -> Self {
+        Self::new(Type::Any, ExprKind::CaughtException)
+    }
+
+    pub fn enum_tag(operand: Expr) -> Self {
+        Self::new(Type::Int, ExprKind::EnumTag(Box::new(operand)))
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum ExprKind {
     StringConst(StringConstId),
     IntLiteral(i64),
     BoolLiteral(bool),
@@ -970,10 +1016,9 @@ pub enum Expr {
         op: UnOp,
         operand: Box<Expr>,
     },
-    /// Variant construction; `ty` is the instantiated enum type.
-    /// `fields` are the variant's field values in declaration order.
+    /// Variant construction. The enclosing `Expr::ty` is the instantiated
+    /// enum type; `fields` are the variant's values in declaration order.
     VariantConstruct {
-        ty: Type,
         variant: u32,
         fields: Vec<Expr>,
     },
@@ -1620,23 +1665,24 @@ fn dump_terminator(
 
 fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize, out: &mut String) {
     let pad = "  ".repeat(indent);
-    match expr {
-        Expr::StringConst(id) => {
+    out.push_str(&format!("{pad}Type {}\n", type_name(module, &expr.ty)));
+    match &expr.kind {
+        ExprKind::StringConst(id) => {
             out.push_str(&format!(
                 "{pad}StringConst @{}\n",
                 module.strings[*id].symbol
             ));
         }
-        Expr::IntLiteral(value) => out.push_str(&format!("{pad}IntLiteral {value}\n")),
-        Expr::BoolLiteral(value) => out.push_str(&format!("{pad}BoolLiteral {value}\n")),
-        Expr::UnitLiteral => out.push_str(&format!("{pad}UnitLiteral\n")),
-        Expr::TupleLiteral(elements) => {
+        ExprKind::IntLiteral(value) => out.push_str(&format!("{pad}IntLiteral {value}\n")),
+        ExprKind::BoolLiteral(value) => out.push_str(&format!("{pad}BoolLiteral {value}\n")),
+        ExprKind::UnitLiteral => out.push_str(&format!("{pad}UnitLiteral\n")),
+        ExprKind::TupleLiteral(elements) => {
             out.push_str(&format!("{pad}TupleLiteral\n"));
             for element in elements {
                 dump_expr(module, locals, element, indent + 1, out);
             }
         }
-        Expr::ClassInit { class_id, args } => {
+        ExprKind::ClassInit { class_id, args } => {
             out.push_str(&format!(
                 "{pad}ClassInit {}\n",
                 module.classes[*class_id].name
@@ -1645,7 +1691,7 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
                 dump_expr(module, locals, arg, indent + 1, out);
             }
         }
-        Expr::ClosureAlloc { class, captures } => {
+        ExprKind::ClosureAlloc { class, captures } => {
             out.push_str(&format!(
                 "{pad}ClosureAlloc cc{} {}\n",
                 class.into_raw().into_u32(),
@@ -1655,7 +1701,7 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
                 dump_expr(module, locals, capture, indent + 1, out);
             }
         }
-        Expr::ClosureCapture {
+        ExprKind::ClosureCapture {
             closure,
             class,
             index,
@@ -1666,7 +1712,7 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
             ));
             dump_expr(module, locals, closure, indent + 1, out);
         }
-        Expr::StructInit { struct_id, args } => {
+        ExprKind::StructInit { struct_id, args } => {
             out.push_str(&format!(
                 "{pad}StructInit {}\n",
                 module.structs[*struct_id].name
@@ -1675,27 +1721,27 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
                 dump_expr(module, locals, arg, indent + 1, out);
             }
         }
-        Expr::Local(local) => out.push_str(&format!("{pad}Local {}\n", locals[*local].name)),
-        Expr::GlobalRead(global) => out.push_str(&format!(
+        ExprKind::Local(local) => out.push_str(&format!("{pad}Local {}\n", locals[*local].name)),
+        ExprKind::GlobalRead(global) => out.push_str(&format!(
             "{pad}GlobalRead {}\n",
             module.globals[*global].name
         )),
-        Expr::PtrFromUInt { operand, pointee } => {
+        ExprKind::PtrFromUInt { operand, pointee } => {
             out.push_str(&format!(
                 "{pad}PtrFromUInt {}\n",
                 type_name(module, pointee)
             ));
             dump_expr(module, locals, operand, indent + 1, out);
         }
-        Expr::PtrToUInt(operand) => {
+        ExprKind::PtrToUInt(operand) => {
             out.push_str(&format!("{pad}PtrToUInt\n"));
             dump_expr(module, locals, operand, indent + 1, out);
         }
-        Expr::PtrCast { operand, pointee } => {
+        ExprKind::PtrCast { operand, pointee } => {
             out.push_str(&format!("{pad}PtrCast {}\n", type_name(module, pointee)));
             dump_expr(module, locals, operand, indent + 1, out);
         }
-        Expr::PtrLoad {
+        ExprKind::PtrLoad {
             pointer,
             pointee,
             offset,
@@ -1706,7 +1752,7 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
                 dump_expr(module, locals, offset, indent + 1, out);
             }
         }
-        Expr::PtrStore {
+        ExprKind::PtrStore {
             pointer,
             pointee,
             offset,
@@ -1719,7 +1765,7 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
             }
             dump_expr(module, locals, value, indent + 1, out);
         }
-        Expr::PtrOffset {
+        ExprKind::PtrOffset {
             pointer,
             pointee,
             offset,
@@ -1732,31 +1778,31 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
             dump_expr(module, locals, pointer, indent + 1, out);
             dump_expr(module, locals, offset, indent + 1, out);
         }
-        Expr::AddressOf { local, pointee } => out.push_str(&format!(
+        ExprKind::AddressOf { local, pointee } => out.push_str(&format!(
             "{pad}AddressOf {} : Ptr<{}>\n",
             locals[*local].name,
             type_name(module, pointee)
         )),
-        Expr::GlobalAddress { global, pointee } => out.push_str(&format!(
+        ExprKind::GlobalAddress { global, pointee } => out.push_str(&format!(
             "{pad}GlobalAddress {} {}\n",
             module.globals[*global].name,
             type_name(module, pointee)
         )),
-        Expr::SizeOf(ty) => {
+        ExprKind::SizeOf(ty) => {
             out.push_str(&format!("{pad}SizeOf {}\n", type_name(module, ty)));
         }
-        Expr::AlignOf(ty) => {
+        ExprKind::AlignOf(ty) => {
             out.push_str(&format!("{pad}AlignOf {}\n", type_name(module, ty)));
         }
-        Expr::FunPtrNull(signature) => out.push_str(&format!(
+        ExprKind::FunPtrNull(signature) => out.push_str(&format!(
             "{pad}FunPtrNull function_type{}\n",
             signature.into_raw().into_u32()
         )),
-        Expr::FunctionAddress { callback } => out.push_str(&format!(
+        ExprKind::FunctionAddress { callback } => out.push_str(&format!(
             "{pad}FunctionAddress cb{}\n",
             callback.into_raw().into_u32()
         )),
-        Expr::ForeignCallbackRegister { bridge, closure } => {
+        ExprKind::ForeignCallbackRegister { bridge, closure } => {
             let bridge_id = *bridge;
             let bridge = &module.foreign_callback_bridges[bridge_id];
             let adapter = &module.foreign_callback_adapters[bridge.adapter];
@@ -1771,7 +1817,7 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
             ));
             dump_expr(module, locals, closure, indent + 1, out);
         }
-        Expr::ForeignCallbackOperation {
+        ExprKind::ForeignCallbackOperation {
             operation,
             callback,
             ..
@@ -1779,20 +1825,20 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
             out.push_str(&format!("{pad}ForeignCallback{operation:?}\n"));
             dump_expr(module, locals, callback, indent + 1, out);
         }
-        Expr::CaughtException => out.push_str(&format!("{pad}CaughtException\n")),
-        Expr::Retype { operand, ty } => {
+        ExprKind::CaughtException => out.push_str(&format!("{pad}CaughtException\n")),
+        ExprKind::Retype { operand, ty } => {
             out.push_str(&format!("{pad}Retype {}\n", type_name(module, ty)));
             dump_expr(module, locals, operand, indent + 1, out);
         }
-        Expr::FieldAccess { receiver, index } => {
+        ExprKind::FieldAccess { receiver, index } => {
             out.push_str(&format!("{pad}FieldAccess {index}\n"));
             dump_expr(module, locals, receiver, indent + 1, out);
         }
-        Expr::AtomicFieldLoad { object, index } => {
+        ExprKind::AtomicFieldLoad { object, index } => {
             out.push_str(&format!("{pad}AtomicLoadAcquire field={index}\n"));
             dump_expr(module, locals, object, indent + 1, out);
         }
-        Expr::AtomicFieldCompareExchange {
+        ExprKind::AtomicFieldCompareExchange {
             object,
             index,
             expected,
@@ -1805,26 +1851,26 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
             dump_expr(module, locals, expected, indent + 1, out);
             dump_expr(module, locals, replacement, indent + 1, out);
         }
-        Expr::Box(operand) => {
+        ExprKind::Box(operand) => {
             out.push_str(&format!("{pad}Box\n"));
             dump_expr(module, locals, operand, indent + 1, out);
         }
-        Expr::Unbox(operand) => {
+        ExprKind::Unbox(operand) => {
             out.push_str(&format!("{pad}Unbox\n"));
             dump_expr(module, locals, operand, indent + 1, out);
         }
-        Expr::IsInstance { operand, check_ty } => {
+        ExprKind::IsInstance { operand, check_ty } => {
             out.push_str(&format!(
                 "{pad}IsInstance {}\n",
                 type_name(module, check_ty)
             ));
             dump_expr(module, locals, operand, indent + 1, out);
         }
-        Expr::Cast { operand, optional } => {
+        ExprKind::Cast { operand, optional } => {
             out.push_str(&format!("{pad}Cast optional={optional}\n"));
             dump_expr(module, locals, operand, indent + 1, out);
         }
-        Expr::ArrayLiteral {
+        ExprKind::ArrayLiteral {
             array_type,
             elements,
         } => {
@@ -1836,7 +1882,7 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
                 dump_expr(module, locals, element, indent + 1, out);
             }
         }
-        Expr::ArrayGet {
+        ExprKind::ArrayGet {
             array_type,
             array,
             index,
@@ -1848,7 +1894,7 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
             dump_expr(module, locals, array, indent + 1, out);
             dump_expr(module, locals, index, indent + 1, out);
         }
-        Expr::ArrayLen {
+        ExprKind::ArrayLen {
             array_type,
             operand,
         } => {
@@ -1858,7 +1904,7 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
             ));
             dump_expr(module, locals, operand, indent + 1, out);
         }
-        Expr::ArrayClone {
+        ExprKind::ArrayClone {
             source_type,
             target_type,
             operand,
@@ -1869,34 +1915,30 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
             ));
             dump_expr(module, locals, operand, indent + 1, out);
         }
-        Expr::Binary { op, lhs, rhs } => {
+        ExprKind::Binary { op, lhs, rhs } => {
             out.push_str(&format!("{pad}Binary {op:?}\n"));
             dump_expr(module, locals, lhs, indent + 1, out);
             dump_expr(module, locals, rhs, indent + 1, out);
         }
-        Expr::Unary { op, operand } => {
+        ExprKind::Unary { op, operand } => {
             out.push_str(&format!("{pad}Unary {op:?}\n"));
             dump_expr(module, locals, operand, indent + 1, out);
         }
-        Expr::VariantConstruct {
-            ty,
-            variant,
-            fields,
-        } => {
+        ExprKind::VariantConstruct { variant, fields } => {
             out.push_str(&format!(
                 "{pad}VariantConstruct {} v{}\n",
-                type_name(module, ty),
+                type_name(module, &expr.ty),
                 variant
             ));
             for field in fields {
                 dump_expr(module, locals, field, indent + 1, out);
             }
         }
-        Expr::EnumTag(operand) => {
+        ExprKind::EnumTag(operand) => {
             out.push_str(&format!("{pad}EnumTag\n"));
             dump_expr(module, locals, operand, indent + 1, out);
         }
-        Expr::EnumField {
+        ExprKind::EnumField {
             operand,
             variant,
             index,

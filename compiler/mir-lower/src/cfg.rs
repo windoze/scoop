@@ -150,15 +150,15 @@ impl<'a> CfgLowerer<'a> {
                 if let Some(message) = trap_message(expr) {
                     self.seal(mir::Terminator::Trap { message });
                 } else {
-                    let is_call = matches!(expr, smir::Expr::Call(_));
+                    let is_call = matches!(expr.kind, smir::ExprKind::Call(_));
                     let expr = self.lower_expr(expr, span);
-                    if !is_call && !matches!(expr, mir::Expr::UnitLiteral) {
+                    if !is_call && !matches!(expr.kind, mir::ExprKind::UnitLiteral) {
                         self.push(mir::StatementKind::Expr(expr), span);
                     }
                 }
             }
             smir::StatementKind::ValDecl { local, init } => {
-                if let smir::Expr::Call(call) = init
+                if let smir::ExprKind::Call(call) = &init.kind
                     && call.return_ty != mir::Type::Unit
                 {
                     self.lower_call(call, Some(*local), span);
@@ -262,7 +262,10 @@ impl<'a> CfgLowerer<'a> {
                     },
                     span,
                 );
-                result = Some(mir::Expr::Local(local));
+                result = Some(mir::Expr::new(
+                    self.return_ty.clone(),
+                    mir::ExprKind::Local(local),
+                ));
             }
             self.emit_return_cleanups();
             if self.current_sealed {
@@ -396,10 +399,16 @@ impl<'a> CfgLowerer<'a> {
             let catch_block = self.new_block_with("try.catch", Some(handler_target.pad));
             let next = self.new_block_with("try.next", None);
             self.seal(mir::Terminator::Branch {
-                cond: mir::Expr::IsInstance {
-                    operand: Box::new(mir::Expr::CaughtException),
-                    check_ty: catch.ty.clone(),
-                },
+                cond: mir::Expr::new(
+                    mir::Type::Boolean,
+                    mir::ExprKind::IsInstance {
+                        operand: Box::new(mir::Expr::new(
+                            mir::Type::Any,
+                            mir::ExprKind::CaughtException,
+                        )),
+                        check_ty: catch.ty.clone(),
+                    },
+                ),
                 then_block: catch_block,
                 else_block: next,
             });
@@ -407,10 +416,16 @@ impl<'a> CfgLowerer<'a> {
             self.push(
                 mir::StatementKind::ValDecl {
                     local: catch.local,
-                    init: mir::Expr::Retype {
-                        operand: Box::new(mir::Expr::CaughtException),
-                        ty: catch.ty.clone(),
-                    },
+                    init: mir::Expr::new(
+                        catch.ty.as_ref().clone(),
+                        mir::ExprKind::Retype {
+                            operand: Box::new(mir::Expr::new(
+                                mir::Type::Any,
+                                mir::ExprKind::CaughtException,
+                            )),
+                            ty: catch.ty.clone(),
+                        },
+                    ),
                 },
                 catch.span,
             );
@@ -552,71 +567,71 @@ impl<'a> CfgLowerer<'a> {
     /// Normalize an expression into a call-free MIR expression, emitting
     /// calls in source evaluation order as explicit effect statements.
     fn lower_expr(&mut self, expr: &smir::Expr, span: Span) -> mir::Expr {
-        match expr {
-            smir::Expr::StringConst(id) => mir::Expr::StringConst(*id),
-            smir::Expr::IntLiteral(value) => mir::Expr::IntLiteral(*value),
-            smir::Expr::BoolLiteral(value) => mir::Expr::BoolLiteral(*value),
-            smir::Expr::UnitLiteral => mir::Expr::UnitLiteral,
-            smir::Expr::TupleLiteral(elements) => mir::Expr::TupleLiteral(
+        let kind = match &expr.kind {
+            smir::ExprKind::StringConst(id) => mir::ExprKind::StringConst(*id),
+            smir::ExprKind::IntLiteral(value) => mir::ExprKind::IntLiteral(*value),
+            smir::ExprKind::BoolLiteral(value) => mir::ExprKind::BoolLiteral(*value),
+            smir::ExprKind::UnitLiteral => mir::ExprKind::UnitLiteral,
+            smir::ExprKind::TupleLiteral(elements) => mir::ExprKind::TupleLiteral(
                 elements
                     .iter()
                     .map(|element| self.lower_expr(element, span))
                     .collect(),
             ),
-            smir::Expr::StructInit { struct_id, args } => mir::Expr::StructInit {
+            smir::ExprKind::StructInit { struct_id, args } => mir::ExprKind::StructInit {
                 struct_id: *struct_id,
                 args: args.iter().map(|arg| self.lower_expr(arg, span)).collect(),
             },
-            smir::Expr::ClassInit { class_id, args } => mir::Expr::ClassInit {
+            smir::ExprKind::ClassInit { class_id, args } => mir::ExprKind::ClassInit {
                 class_id: *class_id,
                 args: args.iter().map(|arg| self.lower_expr(arg, span)).collect(),
             },
-            smir::Expr::ClosureAlloc { class, captures } => mir::Expr::ClosureAlloc {
+            smir::ExprKind::ClosureAlloc { class, captures } => mir::ExprKind::ClosureAlloc {
                 class: *class,
                 captures: captures
                     .iter()
                     .map(|capture| self.lower_expr(capture, span))
                     .collect(),
             },
-            smir::Expr::ClosureCapture {
+            smir::ExprKind::ClosureCapture {
                 closure,
                 class,
                 index,
-            } => mir::Expr::ClosureCapture {
+            } => mir::ExprKind::ClosureCapture {
                 closure: Box::new(self.lower_expr(closure, span)),
                 class: *class,
                 index: *index,
             },
-            smir::Expr::Local(local) => mir::Expr::Local(*local),
-            smir::Expr::GlobalRead(global) => mir::Expr::GlobalRead(*global),
-            smir::Expr::PtrFromUInt { operand, pointee } => mir::Expr::PtrFromUInt {
+            smir::ExprKind::Local(local) => mir::ExprKind::Local(*local),
+            smir::ExprKind::GlobalRead(global) => mir::ExprKind::GlobalRead(*global),
+            smir::ExprKind::PtrFromUInt { operand, pointee } => mir::ExprKind::PtrFromUInt {
                 operand: Box::new(self.lower_expr(operand, span)),
                 pointee: pointee.clone(),
             },
-            smir::Expr::PtrToUInt(operand) => {
-                mir::Expr::PtrToUInt(Box::new(self.lower_expr(operand, span)))
+            smir::ExprKind::PtrToUInt(operand) => {
+                mir::ExprKind::PtrToUInt(Box::new(self.lower_expr(operand, span)))
             }
-            smir::Expr::PtrCast { operand, pointee } => mir::Expr::PtrCast {
+            smir::ExprKind::PtrCast { operand, pointee } => mir::ExprKind::PtrCast {
                 operand: Box::new(self.lower_expr(operand, span)),
                 pointee: pointee.clone(),
             },
-            smir::Expr::PtrLoad {
+            smir::ExprKind::PtrLoad {
                 pointer,
                 pointee,
                 offset,
-            } => mir::Expr::PtrLoad {
+            } => mir::ExprKind::PtrLoad {
                 pointer: Box::new(self.lower_expr(pointer, span)),
                 pointee: pointee.clone(),
                 offset: offset
                     .as_ref()
                     .map(|offset| Box::new(self.lower_expr(offset, span))),
             },
-            smir::Expr::PtrStore {
+            smir::ExprKind::PtrStore {
                 pointer,
                 pointee,
                 offset,
                 value,
-            } => mir::Expr::PtrStore {
+            } => mir::ExprKind::PtrStore {
                 pointer: Box::new(self.lower_expr(pointer, span)),
                 pointee: pointee.clone(),
                 offset: offset
@@ -624,146 +639,146 @@ impl<'a> CfgLowerer<'a> {
                     .map(|offset| Box::new(self.lower_expr(offset, span))),
                 value: Box::new(self.lower_expr(value, span)),
             },
-            smir::Expr::PtrOffset {
+            smir::ExprKind::PtrOffset {
                 pointer,
                 pointee,
                 offset,
                 subtract,
-            } => mir::Expr::PtrOffset {
+            } => mir::ExprKind::PtrOffset {
                 pointer: Box::new(self.lower_expr(pointer, span)),
                 pointee: pointee.clone(),
                 offset: Box::new(self.lower_expr(offset, span)),
                 subtract: *subtract,
             },
-            smir::Expr::AddressOf { local, pointee } => mir::Expr::AddressOf {
+            smir::ExprKind::AddressOf { local, pointee } => mir::ExprKind::AddressOf {
                 local: *local,
                 pointee: pointee.clone(),
             },
-            smir::Expr::GlobalAddress { global, pointee } => mir::Expr::GlobalAddress {
+            smir::ExprKind::GlobalAddress { global, pointee } => mir::ExprKind::GlobalAddress {
                 global: *global,
                 pointee: pointee.clone(),
             },
-            smir::Expr::SizeOf(ty) => mir::Expr::SizeOf(ty.clone()),
-            smir::Expr::AlignOf(ty) => mir::Expr::AlignOf(ty.clone()),
-            smir::Expr::FunPtrNull(signature) => mir::Expr::FunPtrNull(*signature),
-            smir::Expr::FunctionAddress { callback } => mir::Expr::FunctionAddress {
+            smir::ExprKind::SizeOf(ty) => mir::ExprKind::SizeOf(ty.clone()),
+            smir::ExprKind::AlignOf(ty) => mir::ExprKind::AlignOf(ty.clone()),
+            smir::ExprKind::FunPtrNull(signature) => mir::ExprKind::FunPtrNull(*signature),
+            smir::ExprKind::FunctionAddress { callback } => mir::ExprKind::FunctionAddress {
                 callback: *callback,
             },
-            smir::Expr::ForeignCallbackRegister { bridge, closure } => {
-                mir::Expr::ForeignCallbackRegister {
+            smir::ExprKind::ForeignCallbackRegister { bridge, closure } => {
+                mir::ExprKind::ForeignCallbackRegister {
                     bridge: *bridge,
                     closure: Box::new(self.lower_expr(closure, span)),
                 }
             }
-            smir::Expr::ForeignCallbackOperation {
+            smir::ExprKind::ForeignCallbackOperation {
                 operation,
                 callback,
                 result_ty,
-            } => mir::Expr::ForeignCallbackOperation {
+            } => mir::ExprKind::ForeignCallbackOperation {
                 operation: *operation,
                 callback: Box::new(self.lower_expr(callback, span)),
                 result_ty: result_ty.clone(),
             },
-            smir::Expr::Retype { operand, ty } => mir::Expr::Retype {
+            smir::ExprKind::Retype { operand, ty } => mir::ExprKind::Retype {
                 operand: Box::new(self.lower_expr(operand, span)),
                 ty: ty.clone(),
             },
-            smir::Expr::FieldAccess { receiver, index } => mir::Expr::FieldAccess {
+            smir::ExprKind::FieldAccess { receiver, index } => mir::ExprKind::FieldAccess {
                 receiver: Box::new(self.lower_expr(receiver, span)),
                 index: *index,
             },
-            smir::Expr::Call(call) => self.lower_call(call, None, span),
-            smir::Expr::Box(operand) => mir::Expr::Box(Box::new(self.lower_expr(operand, span))),
-            smir::Expr::Unbox(operand) => {
-                mir::Expr::Unbox(Box::new(self.lower_expr(operand, span)))
+            smir::ExprKind::Call(call) => return self.lower_call(call, None, span),
+            smir::ExprKind::Box(operand) => {
+                mir::ExprKind::Box(Box::new(self.lower_expr(operand, span)))
             }
-            smir::Expr::IsInstance { operand, check_ty } => mir::Expr::IsInstance {
+            smir::ExprKind::Unbox(operand) => {
+                mir::ExprKind::Unbox(Box::new(self.lower_expr(operand, span)))
+            }
+            smir::ExprKind::IsInstance { operand, check_ty } => mir::ExprKind::IsInstance {
                 operand: Box::new(self.lower_expr(operand, span)),
                 check_ty: check_ty.clone(),
             },
-            smir::Expr::ArrayLiteral {
+            smir::ExprKind::ArrayLiteral {
                 array_type,
                 elements,
-            } => mir::Expr::ArrayLiteral {
+            } => mir::ExprKind::ArrayLiteral {
                 array_type: *array_type,
                 elements: elements
                     .iter()
                     .map(|element| self.lower_expr(element, span))
                     .collect(),
             },
-            smir::Expr::ArrayGet {
+            smir::ExprKind::ArrayGet {
                 array_type,
                 array,
                 index,
-            } => mir::Expr::ArrayGet {
+            } => mir::ExprKind::ArrayGet {
                 array_type: *array_type,
                 array: Box::new(self.lower_expr(array, span)),
                 index: Box::new(self.lower_expr(index, span)),
             },
-            smir::Expr::ArrayLen {
+            smir::ExprKind::ArrayLen {
                 array_type,
                 operand,
-            } => mir::Expr::ArrayLen {
+            } => mir::ExprKind::ArrayLen {
                 array_type: *array_type,
                 operand: Box::new(self.lower_expr(operand, span)),
             },
-            smir::Expr::ArrayClone {
+            smir::ExprKind::ArrayClone {
                 source_type,
                 target_type,
                 operand,
-            } => mir::Expr::ArrayClone {
+            } => mir::ExprKind::ArrayClone {
                 source_type: *source_type,
                 target_type: *target_type,
                 operand: Box::new(self.lower_expr(operand, span)),
             },
-            smir::Expr::ShortCircuit {
+            smir::ExprKind::ShortCircuit {
                 op: smir::LogicOp::And,
                 lhs,
                 rhs,
-            } => self.lower_short_circuit(lhs, rhs, false, span),
-            smir::Expr::ShortCircuit {
+            } => return self.lower_short_circuit(lhs, rhs, false, span),
+            smir::ExprKind::ShortCircuit {
                 op: smir::LogicOp::Or,
                 lhs,
                 rhs,
-            } => self.lower_short_circuit(lhs, rhs, true, span),
-            smir::Expr::Binary { op, lhs, rhs } => {
+            } => return self.lower_short_circuit(lhs, rhs, true, span),
+            smir::ExprKind::Binary { op, lhs, rhs } => {
                 let lhs = self.lower_expr(lhs, span);
                 let rhs = self.lower_expr(rhs, span);
-                mir::Expr::Binary {
+                mir::ExprKind::Binary {
                     op: *op,
                     lhs: Box::new(lhs),
                     rhs: Box::new(rhs),
                 }
             }
-            smir::Expr::Unary { op, operand } => mir::Expr::Unary {
+            smir::ExprKind::Unary { op, operand } => mir::ExprKind::Unary {
                 op: *op,
                 operand: Box::new(self.lower_expr(operand, span)),
             },
-            smir::Expr::VariantConstruct {
-                ty,
-                variant,
-                fields,
-            } => mir::Expr::VariantConstruct {
-                ty: ty.clone(),
-                variant: *variant,
-                fields: fields
-                    .iter()
-                    .map(|field| self.lower_expr(field, span))
-                    .collect(),
-            },
-            smir::Expr::EnumTag(operand) => {
-                mir::Expr::EnumTag(Box::new(self.lower_expr(operand, span)))
+            smir::ExprKind::VariantConstruct { variant, fields } => {
+                mir::ExprKind::VariantConstruct {
+                    variant: *variant,
+                    fields: fields
+                        .iter()
+                        .map(|field| self.lower_expr(field, span))
+                        .collect(),
+                }
             }
-            smir::Expr::EnumField {
+            smir::ExprKind::EnumTag(operand) => {
+                mir::ExprKind::EnumTag(Box::new(self.lower_expr(operand, span)))
+            }
+            smir::ExprKind::EnumField {
                 operand,
                 variant,
                 index,
-            } => mir::Expr::EnumField {
+            } => mir::ExprKind::EnumField {
                 operand: Box::new(self.lower_expr(operand, span)),
                 variant: *variant,
                 index: *index,
             },
-        }
+        };
+        mir::Expr::new(expr.ty.clone(), kind)
     }
 
     fn lower_short_circuit(
@@ -793,7 +808,7 @@ impl<'a> CfgLowerer<'a> {
         self.push(
             mir::StatementKind::Assign {
                 local: result,
-                value: mir::Expr::BoolLiteral(short_value),
+                value: mir::Expr::new(mir::Type::Boolean, mir::ExprKind::BoolLiteral(short_value)),
             },
             span,
         );
@@ -811,7 +826,7 @@ impl<'a> CfgLowerer<'a> {
         self.seal(mir::Terminator::Goto(merge));
 
         self.enter(merge);
-        mir::Expr::Local(result)
+        mir::Expr::new(mir::Type::Boolean, mir::ExprKind::Local(result))
     }
 
     fn lower_call(
@@ -838,7 +853,7 @@ impl<'a> CfgLowerer<'a> {
                 mir::StatementKind::Call(mir::CallEffect::Unit(normalized)),
                 span,
             );
-            mir::Expr::UnitLiteral
+            mir::Expr::new(mir::Type::Unit, mir::ExprKind::UnitLiteral)
         } else {
             let destination =
                 destination.unwrap_or_else(|| self.new_hidden("call", call.return_ty.clone()));
@@ -849,7 +864,7 @@ impl<'a> CfgLowerer<'a> {
                 }),
                 span,
             );
-            mir::Expr::Local(destination)
+            mir::Expr::new(call.return_ty.clone(), mir::ExprKind::Local(destination))
         }
     }
 
@@ -864,16 +879,19 @@ impl<'a> CfgLowerer<'a> {
 }
 
 fn trap_message(expr: &smir::Expr) -> Option<mir::StringConstId> {
-    let smir::Expr::Call(call) = expr else {
+    let smir::ExprKind::Call(call) = &expr.kind else {
         return None;
     };
     if call.target.callee != mir::Callee::Runtime(mir::RuntimeFn::Trap) {
         return None;
     }
-    let [smir::Expr::StringConst(message)] = call.args.as_slice() else {
+    let [argument] = call.args.as_slice() else {
         panic!("the trap intrinsic always carries one string constant")
     };
-    Some(*message)
+    let smir::ExprKind::StringConst(message) = argument.kind else {
+        panic!("the trap intrinsic always carries one string constant")
+    };
+    Some(message)
 }
 
 fn synthetic_span() -> Span {

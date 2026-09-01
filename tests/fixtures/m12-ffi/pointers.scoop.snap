@@ -560,212 +560,324 @@ Module
   fun Int.equals @scoop.Int.equals(this: Int, other: Int) -> Boolean
     bb0 entry
       call $call.1: Boolean = extern1 @scoop_rt_int_equals direct
+        Type Int
         Local this
+        Type Int
         Local other
       return
+        Type Boolean
         Local $call.1
   fun Int.toString @scoop.Int.toString(this: Int) -> String
     bb0 entry
       call $call.1: String = extern5 @scoop_rt_int_to_string direct
+        Type Int
         Local this
       return
+        Type String
         Local $call.1
   fun Int.hash @scoop.Int.hash(this: Int) -> Int
     bb0 entry
       call $call.1: Int = extern8 @scoop_rt_int_hash direct
+        Type Int
         Local this
       return
+        Type Int
         Local $call.1
   fun UInt.equals @scoop.UInt.equals(this: UInt, other: UInt) -> Boolean
     bb0 entry
       call $call.1: Boolean = extern2 @scoop_rt_uint_equals direct
+        Type UInt
         Local this
+        Type UInt
         Local other
       return
+        Type Boolean
         Local $call.1
   fun UInt.toString @scoop.UInt.toString(this: UInt) -> String
     bb0 entry
       call $call.1: String = extern6 @scoop_rt_uint_to_string direct
+        Type UInt
         Local this
       return
+        Type String
         Local $call.1
   fun UInt.hash @scoop.UInt.hash(this: UInt) -> Int
     bb0 entry
       call $call.1: Int = extern9 @scoop_rt_uint_hash direct
+        Type UInt
         Local this
       return
+        Type Int
         Local $call.1
   fun Boolean.equals @scoop.Boolean.equals(this: Boolean, other: Boolean) -> Boolean
     bb0 entry
       call $call.1: Boolean = extern3 @scoop_rt_bool_equals direct
+        Type Boolean
         Local this
+        Type Boolean
         Local other
       return
+        Type Boolean
         Local $call.1
   fun Boolean.toString @scoop.Boolean.toString(this: Boolean) -> String
     bb0 entry
       call $call.1: String = extern7 @scoop_rt_bool_to_string direct
+        Type Boolean
         Local this
       return
+        Type String
         Local $call.1
   fun Boolean.hash @scoop.Boolean.hash(this: Boolean) -> Int
     bb0 entry
       call $call.1: Int = extern10 @scoop_rt_bool_hash direct
+        Type Boolean
         Local this
       return
+        Type Int
         Local $call.1
   fun Slot.rewriteThis @scoop.Slot.rewriteThis(this: Slot) -> Int <no-gc>
     bb0 entry
       val pointer: Ptr<Slot>
+        Type Ptr<Slot>
         AddressOf this : Ptr<Slot>
+      Type Unit
       PtrStore Slot
+        Type Ptr<Slot>
         Local pointer
+        Type Slot
         StructInit Slot
+          Type Int
           IntLiteral 13
       return
+        Type Int
         FieldAccess 0
+          Type Slot
           Local this
   fun String.equals @scoop.String.equals(this: String, other: String) -> Boolean
     bb0 entry
       call $call.1: Boolean = extern4 @scoop_rt_string_eq direct
+        Type String
         Local this
+        Type String
         Local other
       return
+        Type Boolean
         Local $call.1
   fun String.toString @scoop.String.toString(this: String) -> String
     bb0 entry
       return
+        Type String
         Local this
   fun String.hash @scoop.String.hash(this: String) -> Int
     bb0 entry
       call $call.1: Int = extern11 @scoop_rt_string_hash direct
+        Type String
         Local this
       return
+        Type Int
         Local $call.1
   fun increment @scoop.increment(value: Int) -> Int <no-gc>
     bb0 entry
       return
+        Type Int
         Binary IntAdd
+          Type Int
           Local value
+          Type Int
           IntLiteral 1
   fun rewriteParameter @scoop.rewriteParameter(value: Int) -> Int <no-gc>
     bb0 entry
       val pointer: Ptr<Int>
+        Type Ptr<Int>
         AddressOf value : Ptr<Int>
+      Type Unit
       PtrStore Int
+        Type Ptr<Int>
         Local pointer
+        Type Int
         IntLiteral 12
       return
+        Type Int
         Local value
   fun main @scoop_main() -> Unit
     bb0 entry
       val intSize: UInt
+        Type UInt
         SizeOf Int
       val intAlignment: UInt
+        Type UInt
         AlignOf Int
       val empty: FunPtr<(Int) -> Int>
+        Type FunPtr<(Int) -> Int>
         FunPtrNull function_type0
       val callback: FunPtr<(Int) -> Int>
+        Type FunPtr<(Int) -> Int>
         FunctionAddress cb0
       val noCallback: Option$NIRIX<FunPtr<(Int) -> Int>>
+        Type Option$NIRIX<FunPtr<(Int) -> Int>>
         VariantConstruct Option$NIRIX<FunPtr<(Int) -> Int>> v1
       var value: Int
+        Type Int
         IntLiteral 7
       val pointer: Ptr<Int>
+        Type Ptr<Int>
         AddressOf value : Ptr<Int>
+      Type Unit
       PtrStore Int
+        Type Ptr<Int>
         Local pointer
+        Type Int
         IntLiteral 9
       call @scoop.println$I direct
+        Type Int
         PtrLoad Int
+          Type Ptr<Int>
           Local pointer
       val shifted: Ptr<Int>
+        Type Ptr<Int>
         PtrOffset Int subtract=false
+          Type Ptr<Int>
           Local pointer
+          Type Int
           IntLiteral 0
       val raw: UInt
+        Type UInt
         PtrToUInt
+          Type Ptr<Int>
           Local shifted
       val reconstructed: Ptr<Int>
+        Type Ptr<Int>
         PtrFromUInt Int
+          Type UInt
           Local raw
       call @scoop.println$I direct
+        Type Int
         PtrLoad Int
+          Type Ptr<Int>
           Local reconstructed
+          Type Int
           IntLiteral 0
       val retyped: Ptr<Int>
+        Type Ptr<Int>
         PtrCast Int
+          Type Ptr<Boolean>
           PtrCast Boolean
+            Type Ptr<Int>
             Local reconstructed
+      Type Unit
       PtrStore Int
+        Type Ptr<Int>
         Local retyped
+        Type Int
         IntLiteral 10
       call @scoop.println$I direct
+        Type Int
         Local value
+      Type Unit
       PtrStore Int
+        Type Ptr<Int>
         Local pointer
+        Type Int
         IntLiteral 0
+        Type Int
         IntLiteral 11
       val previous: Ptr<Int>
+        Type Ptr<Int>
         PtrOffset Int subtract=true
+          Type Ptr<Int>
           Local pointer
+          Type Int
           IntLiteral 0
       call @scoop.println$I direct
+        Type Int
         PtrLoad Int
+          Type Ptr<Int>
           Local previous
       call @scoop.println$I direct
+        Type Int
         Local value
       call $call.1: Int = @scoop.rewriteParameter direct
+        Type Int
         IntLiteral 0
       call @scoop.println$I direct
+        Type Int
         Local $call.1
       call $call.2: Int = @scoop.Slot.rewriteThis direct
+        Type Slot
         StructInit Slot
+          Type Int
           IntLiteral 0
       call @scoop.println$I direct
+        Type Int
         Local $call.2
       call $call.3: Ptr<Unit> = extern12 @malloc direct
+        Type UInt
         SizeOf Int
       val allocated: Ptr<Int>
+        Type Ptr<Int>
         PtrCast Int
+          Type Ptr<Unit>
           Local $call.3
+      Type Unit
       PtrStore Int
+        Type Ptr<Int>
         Local allocated
+        Type Int
         IntLiteral 14
       call @scoop.println$I direct
+        Type Int
         PtrLoad Int
+          Type Ptr<Int>
           Local allocated
       call extern13 @free direct
+        Type Ptr<Unit>
         PtrCast Unit
+          Type Ptr<Int>
           Local allocated
       val optional: Option$PIX<Ptr<Int>>
+        Type Option$PIX<Ptr<Int>>
         VariantConstruct Option$PIX<Ptr<Int>> v0
+          Type Ptr<Int>
           Local pointer
       val $when.1: Option$PIX<Ptr<Int>>
+        Type Option$PIX<Ptr<Int>>
         Local optional
       branch bb1 bb2
+        Type Boolean
         Binary IntEq
+          Type Int
           EnumTag
+            Type Option$PIX<Ptr<Int>>
             Local $when.1
+          Type Int
           IntLiteral 0
     bb1 if.then.1
       val present: Ptr<Int>
+        Type Ptr<Int>
         EnumField v0 f0
+          Type Option$PIX<Ptr<Int>>
           Local $when.1
       call @scoop.println$I direct
+        Type Int
         PtrLoad Int
+          Type Ptr<Int>
           Local present
       goto bb3
     bb2 if.else.2
       branch bb4 bb5
+        Type Boolean
         Binary IntEq
+          Type Int
           EnumTag
+            Type Option$PIX<Ptr<Int>>
             Local $when.1
+          Type Int
           IntLiteral 1
     bb3 if.merge.3
       return
     bb4 if.then.4
       call @scoop.println$I direct
+        Type Int
         IntLiteral 0
       goto bb5
     bb5 if.merge.5
@@ -773,58 +885,84 @@ Module
   fun println @scoop.println$I(value: Int) -> Unit
     bb0 entry
       call $call.1: String = @scoop.Int.toString direct
+        Type Int
         Local value
       call extern0 @scoop_rt_write direct
+        Type String
         Local $call.1
       call extern0 @scoop_rt_write direct
+        Type String
         StringConst @scoop.str.0
       return
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
     bb0 entry
       return
+        Type Throwable
         ClassInit Throwable
   fun ctor.Exception @scoop.ctor.Exception(message: Option$S<String>) -> Exception
     bb0 entry
       return
+        Type Exception
         ClassInit Exception
+          Type Option$S<String>
           Local message
   fun ctor.UnwrapException @scoop.ctor.UnwrapException() -> UnwrapException
     bb0 entry
       return
+        Type UnwrapException
         ClassInit UnwrapException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.1
   fun ctor.ClassCastException @scoop.ctor.ClassCastException() -> ClassCastException
     bb0 entry
       return
+        Type ClassCastException
         ClassInit ClassCastException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.2
   fun ctor.ArithmeticException @scoop.ctor.ArithmeticException() -> ArithmeticException
     bb0 entry
       return
+        Type ArithmeticException
         ClassInit ArithmeticException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.3
   fun ctor.IndexOutOfBoundsException @scoop.ctor.IndexOutOfBoundsException() -> IndexOutOfBoundsException
     bb0 entry
       return
+        Type IndexOutOfBoundsException
         ClassInit IndexOutOfBoundsException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.4
   fun ctor.IllegalStateException @scoop.ctor.IllegalStateException() -> IllegalStateException
     bb0 entry
       return
+        Type IllegalStateException
         ClassInit IllegalStateException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.5
   fun callback bridge for increment @scoop_callback_bridge_0($result: Ptr<Int>, $arg0: Ptr<Int>) -> Unit <no-gc>
     bb0 entry
       call $value: Int = @scoop.increment direct
+        Type Int
         PtrLoad Int
+          Type Ptr<Int>
           Local $arg0
+      Type Unit
       PtrStore Int
+        Type Ptr<Int>
         Local $result
+        Type Int
         Local $value
       return
   instance @scoop.println$I <- println
