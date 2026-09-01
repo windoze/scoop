@@ -371,7 +371,17 @@ uint64_t scoop_rt_gc_debug_native_root_count(void);
 
 /* M13 thread-registry test hooks. Stack bounds are the current attached
  * pthread's inclusive-low/exclusive-high reserved stack range. */
+enum {
+    SCOOP_THREAD_DEBUG_NATIVE_SAFE = 0,
+    SCOOP_THREAD_DEBUG_MANAGED = 1,
+    SCOOP_THREAD_DEBUG_NATIVE_BORROWED = 2,
+    SCOOP_THREAD_DEBUG_PARKED = 3,
+    SCOOP_THREAD_DEBUG_COLLECTOR = 4,
+    SCOOP_THREAD_DEBUG_DETACHING = 5,
+};
+
 bool scoop_rt_thread_debug_is_attached(void);
+uint32_t scoop_rt_thread_debug_mode(void);
 uint64_t scoop_rt_thread_debug_count(void);
 uintptr_t scoop_rt_thread_debug_stack_low(void);
 uintptr_t scoop_rt_thread_debug_stack_high(void);

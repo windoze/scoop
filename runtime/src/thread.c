@@ -782,6 +782,11 @@ bool scoop_rt_thread_debug_is_attached(void) {
     return current_thread != NULL;
 }
 
+uint32_t scoop_rt_thread_debug_mode(void) {
+    ScoopThreadState *state = scoop_thread_current_required();
+    return (uint32_t)atomic_load_explicit(&state->mode, memory_order_acquire);
+}
+
 uint64_t scoop_rt_thread_debug_count(void) {
     registry_lock();
     uint64_t count = thread_registry_count;

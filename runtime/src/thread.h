@@ -18,6 +18,20 @@ typedef enum ScoopThreadMode {
     SCOOP_THREAD_DETACHING,
 } ScoopThreadMode;
 
+_Static_assert(SCOOP_THREAD_NATIVE_SAFE == SCOOP_THREAD_DEBUG_NATIVE_SAFE,
+               "public native-safe debug value drifted");
+_Static_assert(SCOOP_THREAD_MANAGED == SCOOP_THREAD_DEBUG_MANAGED,
+               "public managed debug value drifted");
+_Static_assert(SCOOP_THREAD_NATIVE_BORROWED ==
+                   SCOOP_THREAD_DEBUG_NATIVE_BORROWED,
+               "public native-borrowed debug value drifted");
+_Static_assert(SCOOP_THREAD_PARKED == SCOOP_THREAD_DEBUG_PARKED,
+               "public parked debug value drifted");
+_Static_assert(SCOOP_THREAD_COLLECTOR == SCOOP_THREAD_DEBUG_COLLECTOR,
+               "public collector debug value drifted");
+_Static_assert(SCOOP_THREAD_DETACHING == SCOOP_THREAD_DEBUG_DETACHING,
+               "public detaching debug value drifted");
+
 typedef enum ScoopThreadAttachmentKind {
     SCOOP_THREAD_MAIN,
     SCOOP_THREAD_FOREIGN,

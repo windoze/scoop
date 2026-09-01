@@ -229,6 +229,7 @@ typedef struct ThreadProbe {
     bool stack_bounds_contain_local;
     bool registry_has_main_and_worker;
     bool native_roots_are_thread_local;
+    bool mode_transitions_are_exact;
     bool detached_after;
 } ThreadProbe;
 
@@ -239,6 +240,8 @@ static void *probe_foreign_thread(void *raw_probe) {
     probe->detached_before = !scoop_rt_thread_debug_is_attached();
     probe->owns_attachment = scoop_rt_attach_foreign_thread();
     probe->nested_is_borrowed = !scoop_rt_attach_foreign_thread();
+    probe->mode_transitions_are_exact =
+        scoop_rt_thread_debug_mode() == SCOOP_THREAD_DEBUG_NATIVE_SAFE;
     uintptr_t stack_low = scoop_rt_thread_debug_stack_low();
     uintptr_t stack_high = scoop_rt_thread_debug_stack_high();
     uintptr_t local_address = (uintptr_t)&stack_local;
@@ -250,12 +253,18 @@ static void *probe_foreign_thread(void *raw_probe) {
     void **root_slots[] = {&root_value};
     ScoopNativeRootFrame frame;
     scoop_rt_thread_debug_enter_managed((uintptr_t)&managed_stack_boundary);
+    probe->mode_transitions_are_exact =
+        probe->mode_transitions_are_exact &&
+        scoop_rt_thread_debug_mode() == SCOOP_THREAD_DEBUG_MANAGED;
     scoop_rt_push_native_roots(&frame, root_slots, 1);
     probe->native_roots_are_thread_local = scoop_rt_gc_debug_native_root_count() == 1;
     scoop_rt_pop_native_roots(&frame);
     probe->native_roots_are_thread_local =
         probe->native_roots_are_thread_local && scoop_rt_gc_debug_native_root_count() == 0;
     scoop_rt_thread_debug_leave_managed();
+    probe->mode_transitions_are_exact =
+        probe->mode_transitions_are_exact &&
+        scoop_rt_thread_debug_mode() == SCOOP_THREAD_DEBUG_NATIVE_SAFE;
 
     if (probe->owns_attachment) {
         scoop_rt_detach_foreign_thread();
@@ -341,6 +350,7 @@ typedef struct StwProbe {
     _Atomic bool collection_returned;
     bool owns_attachment;
     bool root_survived;
+    bool mode_transitions_are_exact;
 } StwProbe;
 
 typedef struct BorrowedProbe {
@@ -348,6 +358,7 @@ typedef struct BorrowedProbe {
     _Atomic bool enter_runtime;
     bool owns_attachment;
     bool root_survived;
+    bool mode_transitions_are_exact;
 } BorrowedProbe;
 
 enum { MULTI_ALLOC_THREADS = 4, MULTI_ALLOC_BATCH = 512 };
@@ -485,12 +496,17 @@ static void *managed_collection_requester(void *raw_probe) {
     volatile char managed_stack_boundary = 0;
     probe->owns_attachment = scoop_rt_attach_foreign_thread();
     scoop_rt_thread_debug_enter_managed((uintptr_t)&managed_stack_boundary);
+    probe->mode_transitions_are_exact =
+        scoop_rt_thread_debug_mode() == SCOOP_THREAD_DEBUG_MANAGED;
     atomic_store_explicit(&probe->ready, true, memory_order_release);
     while (!atomic_load_explicit(probe->collect_now, memory_order_acquire)) {
         scoop_rt_safepoint();
         sched_yield();
     }
     scoop_rt_gc_collect();
+    probe->mode_transitions_are_exact =
+        probe->mode_transitions_are_exact &&
+        scoop_rt_thread_debug_mode() == SCOOP_THREAD_DEBUG_MANAGED;
     atomic_store_explicit(&probe->collection_returned, true, memory_order_release);
     while (!atomic_load_explicit(probe->stop, memory_order_acquire)) {
         scoop_rt_safepoint();
@@ -518,11 +534,16 @@ static void run_native_safe_observer(StwProbe *probe) {
     volatile char managed_stack_pointer = 0;
     scoop_rt_push_caller_roots(&caller_frame, caller_root_entries, 1);
     scoop_rt_enter_native_safe(&transition, (uintptr_t)&managed_stack_pointer);
+    probe->mode_transitions_are_exact =
+        scoop_rt_thread_debug_mode() == SCOOP_THREAD_DEBUG_NATIVE_SAFE;
     atomic_store_explicit(&probe->ready, true, memory_order_release);
     while (!atomic_load_explicit(probe->stop, memory_order_acquire)) {
         sched_yield();
     }
     scoop_rt_leave_native_safe(&transition);
+    probe->mode_transitions_are_exact =
+        probe->mode_transitions_are_exact &&
+        scoop_rt_thread_debug_mode() == SCOOP_THREAD_DEBUG_MANAGED;
     probe->root_survived =
         scoop_rt_gc_debug_is_allocated(*caller_root_value) &&
         (*caller_root_value)->header.td == &node_td &&
@@ -558,6 +579,8 @@ static void run_native_borrowed_observer(BorrowedProbe *probe) {
     scoop_rt_push_caller_roots(&caller_frame, NULL, 0);
     scoop_rt_enter_native_borrowed(&transition,
                                     (uintptr_t)&managed_stack_pointer);
+    probe->mode_transitions_are_exact =
+        scoop_rt_thread_debug_mode() == SCOOP_THREAD_DEBUG_NATIVE_BORROWED;
     scoop_rt_push_native_roots(&native_frame, native_root_slots, 1);
     atomic_store_explicit(&probe->ready, true, memory_order_release);
     while (!atomic_load_explicit(&probe->enter_runtime,
@@ -572,8 +595,14 @@ static void run_native_borrowed_observer(BorrowedProbe *probe) {
         scoop_rt_gc_debug_is_allocated(*native_root_value) &&
         (*native_root_value)->header.td == &node_td &&
         (*native_root_value)->value == 27182;
+    probe->mode_transitions_are_exact =
+        probe->mode_transitions_are_exact &&
+        scoop_rt_thread_debug_mode() == SCOOP_THREAD_DEBUG_NATIVE_BORROWED;
     scoop_rt_pop_native_roots(&native_frame);
     scoop_rt_leave_native_borrowed(&transition);
+    probe->mode_transitions_are_exact =
+        probe->mode_transitions_are_exact &&
+        scoop_rt_thread_debug_mode() == SCOOP_THREAD_DEBUG_MANAGED;
     scoop_rt_pop_caller_roots(&caller_frame);
     free(native_root_value);
 }
@@ -605,6 +634,8 @@ void scoop_main(void) {
     uintptr_t main_stack_high = scoop_rt_thread_debug_stack_high();
     uintptr_t main_local_address = (uintptr_t)&main_stack_local;
     scoop_rt_println_boolean(scoop_rt_thread_debug_is_attached() &&
+                             scoop_rt_thread_debug_mode() ==
+                                 SCOOP_THREAD_DEBUG_MANAGED &&
                              scoop_rt_thread_debug_count() == 1 &&
                              main_stack_low <= main_local_address &&
                              main_local_address < main_stack_high);
@@ -616,7 +647,8 @@ void scoop_main(void) {
     scoop_rt_println_boolean(probe_joined && thread_probe.detached_before &&
                              thread_probe.owns_attachment && thread_probe.nested_is_borrowed &&
                              thread_probe.stack_bounds_contain_local &&
-                             thread_probe.registry_has_main_and_worker);
+                             thread_probe.registry_has_main_and_worker &&
+                             thread_probe.mode_transitions_are_exact);
     scoop_rt_println_boolean(probe_joined && thread_probe.native_roots_are_thread_local);
     scoop_rt_println_boolean(probe_joined && thread_probe.detached_after &&
                              scoop_rt_thread_debug_count() == 1);
@@ -686,6 +718,8 @@ void scoop_main(void) {
                              managed_probe.owns_attachment &&
                              native_probe.owns_attachment &&
                              native_probe.root_survived &&
+                             managed_probe.mode_transitions_are_exact &&
+                             native_probe.mode_transitions_are_exact &&
                              scoop_rt_thread_debug_count() == 1);
 
     /* Per-thread TLABs, heap/root synchronization and generation handles:
@@ -849,7 +883,9 @@ void scoop_main(void) {
         borrowed_thread_joined && borrowed_collector_joined &&
         borrowed_wait_counts && borrowed_probe.owns_attachment &&
         borrowed_probe.root_survived &&
+        borrowed_probe.mode_transitions_are_exact &&
         borrowed_collector_probe.owns_attachment &&
+        borrowed_collector_probe.mode_transitions_are_exact &&
         scoop_rt_thread_debug_count() == 1);
 
     /* Managed callback gateway: a one-shot token transfers its worker owner,
