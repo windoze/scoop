@@ -16,7 +16,7 @@ pub(crate) enum FunctionTarget {
 
 pub(crate) struct CheckedFunctionAnnotations {
     pub(crate) attributes: hir::FunctionAttributes,
-    pub(crate) intrinsic: Option<String>,
+    pub(crate) intrinsic: Option<hir::IntrinsicFunction>,
     pub(crate) extern_: Option<ExternAnnotation>,
 }
 
@@ -126,11 +126,11 @@ impl Lowerer {
     pub(crate) fn check_function_annotations(
         &mut self,
         decl: &ast::FunctionDecl,
-        is_core: bool,
         target: FunctionTarget,
     ) -> CheckedFunctionAnnotations {
         let mut attributes = hir::FunctionAttributes::default();
         let mut intrinsic = None;
+        let mut intrinsic_spec = None;
         let mut extern_ = None;
         let mut saw_safe = false;
         let mut saw_unsafe = false;
@@ -166,13 +166,17 @@ impl Lowerer {
                             annotation.span,
                             "`@Intrinsic` is not allowed on this function target".to_string(),
                         );
-                    } else if !is_core {
+                    } else if !self.current_provider_may_declare_intrinsics() {
                         self.error(
                             annotation.span,
                             "`@Intrinsic` is only allowed in the core library".to_string(),
                         );
                     } else {
-                        intrinsic = Some(value);
+                        intrinsic = Some(hir::IntrinsicFunction {
+                            kind: spec.kind,
+                            provider: self.current_intrinsic_provider(),
+                        });
+                        intrinsic_spec = Some(spec);
                     }
                 }
                 "NoGC" => {
@@ -305,8 +309,7 @@ impl Lowerer {
                 );
             }
         }
-        if let Some(name) = &intrinsic {
-            let spec = hir::intrinsic_spec(name).expect("validated intrinsic name");
+        if let (Some(intrinsic), Some(spec)) = (intrinsic, intrinsic_spec) {
             if spec.effects == hir::IntrinsicEffects::NONE
                 && (saw_safe || saw_unsafe || saw_no_gc || saw_calling_convention)
             {
@@ -329,7 +332,8 @@ impl Lowerer {
                 self.error(
                     decl.span,
                     format!(
-                        "intrinsic `{name}` requires exactly {} effect annotation(s)",
+                        "intrinsic `{}` requires exactly {} effect annotation(s)",
+                        intrinsic.kind.name(),
                         if required.is_empty() {
                             "no".to_string()
                         } else {

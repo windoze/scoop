@@ -135,9 +135,86 @@ use scope::{LocalFunctionScopes, Scopes};
 /// All semantic errors of the M5 subset are diagnosed here with spans;
 /// downstream stages (MIR, LIR) never fail.
 pub fn lower(files: &[ast::SourceFile]) -> Result<hir::Output, Vec<Diagnostic>> {
-    let export = Lowerer::new().run(files)?;
+    if files.is_empty() {
+        return Lowerer::new().run(files).map(|export| hir::Output {
+            local: concretize::lower(&export),
+            export,
+        });
+    }
+    let core_provider = hir::IntrinsicProviderId::from_raw(0);
+    let user_provider = hir::IntrinsicProviderId::from_raw(1);
+    let unit = CompilationUnit {
+        core: files[..files.len() - 1]
+            .iter()
+            .map(|source| ProviderSource {
+                source,
+                provider: core_provider,
+            })
+            .collect(),
+        user: ProviderSource {
+            source: &files[files.len() - 1],
+            provider: user_provider,
+        },
+    };
+    lower_compilation_unit(&unit, IntrinsicDeclarationPolicy::CoreOnly)
+}
+
+/// One parsed source and the non-source identity of its provider. Multiple
+/// files of one Cone carry the same provider id.
+#[derive(Clone, Copy)]
+pub struct ProviderSource<'a> {
+    pub source: &'a ast::SourceFile,
+    pub provider: hir::IntrinsicProviderId,
+}
+
+/// Structurally complete single-Cone compilation input. Core and user sources
+/// cannot be confused by file position inside HIR lowering.
+pub struct CompilationUnit<'a> {
+    pub core: Vec<ProviderSource<'a>>,
+    pub user: ProviderSource<'a>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub enum IntrinsicDeclarationPolicy {
+    #[default]
+    CoreOnly,
+    AllowListedForTesting {
+        providers: HashSet<hir::IntrinsicProviderId>,
+    },
+}
+
+/// Lower a provider-typed compilation unit. The testing policy only grants
+/// source authority; registry target, signature, shape, uniqueness, and effect
+/// checks remain unchanged.
+pub fn lower_compilation_unit(
+    unit: &CompilationUnit<'_>,
+    policy: IntrinsicDeclarationPolicy,
+) -> Result<hir::Output, Vec<Diagnostic>> {
+    let mut files = Vec::with_capacity(unit.core.len() + 1);
+    let mut sources = Vec::with_capacity(unit.core.len() + 1);
+    for input in &unit.core {
+        files.push(input.source.clone());
+        sources.push(SourceProvider {
+            provider: input.provider,
+            core: true,
+        });
+    }
+    files.push(unit.user.source.clone());
+    sources.push(SourceProvider {
+        provider: unit.user.provider,
+        core: false,
+    });
+    let export = Lowerer::new()
+        .with_intrinsic_sources(sources, policy)
+        .run(&files)?;
     let local = concretize::lower(&export);
     Ok(hir::Output { export, local })
+}
+
+#[derive(Debug, Clone, Copy)]
+struct SourceProvider {
+    provider: hir::IntrinsicProviderId,
+    core: bool,
 }
 
 /// Convert an already checked export-side graph into the local concrete graph.
@@ -369,6 +446,11 @@ pub(crate) struct Lowerer {
     pub(crate) interface_application_by_key:
         HashMap<(InterfaceId, Vec<TypeId>), hir::InterfaceApplicationId>,
     pub(crate) functions: Arena<Function>,
+    /// Complete source relation for every validated intrinsic kind. Duplicate
+    /// declarations are diagnosed at insertion; core contract validation reads
+    /// this map directly and never scans functions or compares names.
+    pub(crate) intrinsic_functions:
+        HashMap<hir::IntrinsicFunctionKind, (FunctionId, hir::IntrinsicProviderId)>,
     pub(crate) extern_functions: Arena<hir::ExternFunction>,
     pub(crate) globals: Arena<hir::Global>,
     /// Generic definitions are separate HIR entities. Every function carries
@@ -512,6 +594,8 @@ pub(crate) struct Lowerer {
     pub(crate) smart_casts: HashMap<hir::LocalId, TypeId>,
     /// Index of the file currently being processed (diagnostics).
     pub(crate) current_file: usize,
+    intrinsic_sources: Vec<SourceProvider>,
+    intrinsic_policy: IntrinsicDeclarationPolicy,
     /// Locals of the body currently being lowered (taken into the
     /// finished `hir::Body`).
     pub(crate) locals: Arena<hir::Local>,
@@ -626,6 +710,7 @@ impl Lowerer {
             interface_applications: Arena::new(),
             interface_application_by_key: HashMap::new(),
             functions: Arena::new(),
+            intrinsic_functions: HashMap::new(),
             extern_functions: Arena::new(),
             globals: Arena::new(),
             generic_functions: Arena::new(),
@@ -690,6 +775,8 @@ impl Lowerer {
             constructor_params_in_scope: HashMap::new(),
             smart_casts: HashMap::new(),
             current_file: 0,
+            intrinsic_sources: Vec::new(),
+            intrinsic_policy: IntrinsicDeclarationPolicy::CoreOnly,
             locals: Arena::new(),
             scopes: Scopes::new(),
             local_function_scopes: LocalFunctionScopes::new(),
@@ -701,6 +788,30 @@ impl Lowerer {
         };
         lowerer.synthesize_any_members();
         lowerer
+    }
+
+    fn with_intrinsic_sources(
+        mut self,
+        sources: Vec<SourceProvider>,
+        policy: IntrinsicDeclarationPolicy,
+    ) -> Self {
+        self.intrinsic_sources = sources;
+        self.intrinsic_policy = policy;
+        self
+    }
+
+    pub(crate) fn current_intrinsic_provider(&self) -> hir::IntrinsicProviderId {
+        self.intrinsic_sources[self.current_file].provider
+    }
+
+    pub(crate) fn current_provider_may_declare_intrinsics(&self) -> bool {
+        let source = self.intrinsic_sources[self.current_file];
+        source.core
+            || matches!(
+                &self.intrinsic_policy,
+                IntrinsicDeclarationPolicy::AllowListedForTesting { providers }
+                    if providers.contains(&source.provider)
+            )
     }
 
     /// The three `Any` members — `equals(other: Any): Boolean`,
@@ -814,7 +925,7 @@ impl Lowerer {
         let mut pending_methods: Vec<(FunctionId, &ast::FunctionDecl, usize, Owner)> = Vec::new();
         for (file_index, file) in files.iter().enumerate() {
             self.current_file = file_index;
-            let is_core = file_index < user_file_index;
+            let is_core = self.intrinsic_sources[file_index].core;
             for decl in &file.declarations {
                 match decl {
                     ast::Decl::Global(decl) => pending_globals.push((decl, file_index)),
@@ -845,7 +956,7 @@ impl Lowerer {
                         file_index,
                     ),
                     ast::Decl::Function(decl) => {
-                        self.declare_function(decl, is_core, &mut pending_functions, file_index)
+                        self.declare_function(decl, &mut pending_functions, file_index)
                     }
                 }
             }
@@ -1490,11 +1601,7 @@ impl Lowerer {
         file_index: usize,
     ) {
         self.reject_unlowered_function_surface(decl);
-        let checked = self.check_function_annotations(
-            decl,
-            file_index < self.user_file_index,
-            FunctionTarget::Member(owner),
-        );
+        let checked = self.check_function_annotations(decl, FunctionTarget::Member(owner));
         let host_ty = self.owner_ty(owner);
         let modifier = match owner {
             Owner::Interface(_) => hir::MethodModifier::Abstract,
@@ -1537,6 +1644,9 @@ impl Lowerer {
             }),
             span: decl.span,
         });
+        if let Some(intrinsic) = checked.intrinsic {
+            self.register_intrinsic_function(id, intrinsic, decl.span);
+        }
         self.function_owner.insert(id, owner);
         self.function_files.insert(id, file_index);
         match owner {
@@ -1564,12 +1674,11 @@ impl Lowerer {
     fn declare_function<'a>(
         &mut self,
         decl: &'a ast::FunctionDecl,
-        is_core: bool,
         pending: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize)>,
         file_index: usize,
     ) {
         self.reject_unlowered_function_surface(decl);
-        let checked = self.check_function_annotations(decl, is_core, FunctionTarget::TopLevel);
+        let checked = self.check_function_annotations(decl, FunctionTarget::TopLevel);
         let kind = match (checked.intrinsic, checked.extern_) {
             (Some(intrinsic), _) => FunctionKind::Intrinsic(intrinsic),
             (None, Some(extern_)) => {
@@ -1605,6 +1714,9 @@ impl Lowerer {
             method: None,
             span: decl.span,
         });
+        if let Some(intrinsic) = checked.intrinsic {
+            self.register_intrinsic_function(id, intrinsic, decl.span);
+        }
         self.top_level.push(id);
         let namespace = if decl.receiver_ty.is_some() {
             &mut self.extensions_by_name
@@ -1617,6 +1729,30 @@ impl Lowerer {
             .push(id);
         self.function_files.insert(id, file_index);
         pending.push((id, decl, file_index));
+    }
+
+    fn register_intrinsic_function(
+        &mut self,
+        function: FunctionId,
+        intrinsic: hir::IntrinsicFunction,
+        span: Span,
+    ) {
+        if let Some(&(previous, previous_provider)) = self.intrinsic_functions.get(&intrinsic.kind)
+        {
+            let previous_name = self.functions[previous].name.clone();
+            self.error(
+                span,
+                format!(
+                    "intrinsic `{}` is already defined by provider {} as `{previous_name}`; provider {} cannot define it again",
+                    intrinsic.kind.name(),
+                    previous_provider.into_raw(),
+                    intrinsic.provider.into_raw(),
+                ),
+            );
+            return;
+        }
+        self.intrinsic_functions
+            .insert(intrinsic.kind, (function, intrinsic.provider));
     }
 
     fn validate_coroutine_core(&mut self, files: &[ast::SourceFile]) -> Option<hir::CoroutineCore> {
@@ -1635,8 +1771,10 @@ impl Lowerer {
             self.validate_suspend_registration_contract(id, continuation);
         }
         let illegal_state_exception = self.validate_illegal_state_exception(files);
-        let start_coroutine = self.require_intrinsic("coroutine_start", files);
-        let suspend_coroutine = self.require_intrinsic("coroutine_suspend", files);
+        let start_coroutine =
+            self.require_intrinsic(hir::IntrinsicFunctionKind::CoroutineStart, files);
+        let suspend_coroutine =
+            self.require_intrinsic(hir::IntrinsicFunctionKind::CoroutineSuspend, files);
 
         if let (Some(id), Some(continuation), Some(suspend_task)) =
             (start_coroutine, continuation, suspend_task)
@@ -1718,21 +1856,56 @@ impl Lowerer {
             self.validate_ffi_handle_struct(id, "GcHandle");
         }
 
-        let ptr_to_uint = self.require_intrinsic("ptr_to_uint", files);
-        let ptr_cast = self.require_intrinsic("ptr_cast", files);
-        let ptr_load = self.require_intrinsic("ptr_load", files);
-        let ptr_load_offset = self.require_intrinsic("ptr_load_offset", files);
-        let ptr_store = self.require_intrinsic("ptr_store", files);
-        let ptr_store_offset = self.require_intrinsic("ptr_store_offset", files);
-        let ptr_plus = self.require_intrinsic("ptr_plus", files);
-        let ptr_minus = self.require_intrinsic("ptr_minus", files);
-        let address_of = self.require_intrinsic("address_of", files);
-        let size_of = self.require_intrinsic("size_of", files);
-        let align_of = self.require_intrinsic("align_of", files);
-        let gc_pin_raw = self.require_intrinsic("gc_pin_raw", files);
-        let gc_unpin_raw = self.require_intrinsic("gc_unpin_raw", files);
-        let gc_get_handle_raw = self.require_intrinsic("gc_get_handle_raw", files);
-        let gc_release_handle_raw = self.require_intrinsic("gc_release_handle_raw", files);
+        let ptr_to_uint = self.require_intrinsic(
+            hir::IntrinsicFunctionKind::Pointer(hir::PointerIntrinsic::ToUInt),
+            files,
+        );
+        let ptr_cast = self.require_intrinsic(
+            hir::IntrinsicFunctionKind::Pointer(hir::PointerIntrinsic::Cast),
+            files,
+        );
+        let ptr_load = self.require_intrinsic(
+            hir::IntrinsicFunctionKind::Pointer(hir::PointerIntrinsic::Load),
+            files,
+        );
+        let ptr_load_offset = self.require_intrinsic(
+            hir::IntrinsicFunctionKind::Pointer(hir::PointerIntrinsic::LoadOffset),
+            files,
+        );
+        let ptr_store = self.require_intrinsic(
+            hir::IntrinsicFunctionKind::Pointer(hir::PointerIntrinsic::Store),
+            files,
+        );
+        let ptr_store_offset = self.require_intrinsic(
+            hir::IntrinsicFunctionKind::Pointer(hir::PointerIntrinsic::StoreOffset),
+            files,
+        );
+        let ptr_plus = self.require_intrinsic(
+            hir::IntrinsicFunctionKind::Pointer(hir::PointerIntrinsic::Plus),
+            files,
+        );
+        let ptr_minus = self.require_intrinsic(
+            hir::IntrinsicFunctionKind::Pointer(hir::PointerIntrinsic::Minus),
+            files,
+        );
+        let address_of = self.require_intrinsic(
+            hir::IntrinsicFunctionKind::Pointer(hir::PointerIntrinsic::AddressOf),
+            files,
+        );
+        let size_of = self.require_intrinsic(
+            hir::IntrinsicFunctionKind::Pointer(hir::PointerIntrinsic::SizeOf),
+            files,
+        );
+        let align_of = self.require_intrinsic(
+            hir::IntrinsicFunctionKind::Pointer(hir::PointerIntrinsic::AlignOf),
+            files,
+        );
+        let gc_pin_raw = self.require_intrinsic(hir::IntrinsicFunctionKind::GcPinRaw, files);
+        let gc_unpin_raw = self.require_intrinsic(hir::IntrinsicFunctionKind::GcUnpinRaw, files);
+        let gc_get_handle_raw =
+            self.require_intrinsic(hir::IntrinsicFunctionKind::GcGetHandleRaw, files);
+        let gc_release_handle_raw =
+            self.require_intrinsic(hir::IntrinsicFunctionKind::GcReleaseHandleRaw, files);
 
         for (id, kind) in [
             (gc_pin_raw, GcIntrinsic::Pin),
@@ -1806,11 +1979,16 @@ impl Lowerer {
         let callback = self.ffi_foreign_callback?;
         let mode = self.require_core_enum("ForeignCallbackMode", files)?;
         let state = self.require_core_enum("ForeignCallbackState", files)?;
-        let register = self.require_intrinsic("foreign_callback_register", files);
-        let retain = self.require_intrinsic("foreign_callback_retain", files);
-        let release = self.require_intrinsic("foreign_callback_release", files);
-        let query_state = self.require_intrinsic("foreign_callback_state", files);
-        let failure = self.require_intrinsic("foreign_callback_failure", files);
+        let register =
+            self.require_intrinsic(hir::IntrinsicFunctionKind::ForeignCallbackRegister, files);
+        let retain =
+            self.require_intrinsic(hir::IntrinsicFunctionKind::ForeignCallbackRetain, files);
+        let release =
+            self.require_intrinsic(hir::IntrinsicFunctionKind::ForeignCallbackRelease, files);
+        let query_state =
+            self.require_intrinsic(hir::IntrinsicFunctionKind::ForeignCallbackState, files);
+        let failure =
+            self.require_intrinsic(hir::IntrinsicFunctionKind::ForeignCallbackFailure, files);
 
         self.current_file = self.struct_files[&callback];
         let callback_decl = &self.structs[callback];
@@ -2112,7 +2290,7 @@ impl Lowerer {
             };
         if !valid {
             let intrinsic = match &function.kind {
-                FunctionKind::Intrinsic(name) => name.as_str(),
+                FunctionKind::Intrinsic(intrinsic) => intrinsic.kind.name(),
                 FunctionKind::User(_) => "pointer",
                 FunctionKind::Extern(_) => "extern",
             };
@@ -2161,7 +2339,7 @@ impl Lowerer {
             };
         if !valid {
             let intrinsic = match &function.kind {
-                FunctionKind::Intrinsic(name) => name.as_str(),
+                FunctionKind::Intrinsic(intrinsic) => intrinsic.kind.name(),
                 FunctionKind::User(_) => "pointer",
                 FunctionKind::Extern(_) => "extern",
             };
@@ -2386,22 +2564,21 @@ impl Lowerer {
         }
     }
 
-    fn require_intrinsic(&mut self, name: &str, files: &[ast::SourceFile]) -> Option<FunctionId> {
-        let candidates: Vec<_> = self
-            .functions
-            .iter()
-            .filter_map(|(id, function)| {
-                matches!(&function.kind, FunctionKind::Intrinsic(found) if found == name)
-                    .then_some(id)
-            })
-            .collect();
-        if let [id] = candidates.as_slice() {
-            return Some(*id);
+    fn require_intrinsic(
+        &mut self,
+        kind: hir::IntrinsicFunctionKind,
+        files: &[ast::SourceFile],
+    ) -> Option<FunctionId> {
+        if let Some(&(function, _provider)) = self.intrinsic_functions.get(&kind) {
+            return Some(function);
         }
-        self.current_file = candidates.first().map_or(0, |id| self.function_files[id]);
+        self.current_file = 0;
         self.error(
             files[0].span,
-            format!("scoop.core must define exactly one `{name}` intrinsic"),
+            format!(
+                "scoop.core must define exactly one `{}` intrinsic",
+                kind.name()
+            ),
         );
         None
     }

@@ -145,6 +145,23 @@ pub struct TypeParamId {
     substitution_slot: u32,
 }
 
+/// Driver-assigned identity of the source provider that defines a compiler
+/// intrinsic. Source text cannot construct this identity; it is carried on the
+/// validated intrinsic entity so later stages never reconstruct provenance
+/// from a path, package name, or declaration position.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct IntrinsicProviderId(u32);
+
+impl IntrinsicProviderId {
+    pub const fn from_raw(raw: u32) -> Self {
+        Self(raw)
+    }
+
+    pub const fn into_raw(self) -> u32 {
+        self.0
+    }
+}
+
 impl TypeParamId {
     /// Construct a self-contained identity for handcrafted IR. Production
     /// HIR uses `with_substitution_slot` with a Cone-wide unique identity.
@@ -1238,12 +1255,19 @@ pub struct Param {
 #[derive(Debug, Clone)]
 pub enum FunctionKind {
     User(Body),
-    /// A `@Intrinsic("name")` function (spec 13.1); the name is
-    /// guaranteed to be in the compiler's intrinsic registry.
-    Intrinsic(String),
+    /// A validated compiler intrinsic. Raw annotation text does not cross the
+    /// AST/HIR boundary: kind and defining provider are both typed and
+    /// mandatory.
+    Intrinsic(IntrinsicFunction),
     /// A bodyless native declaration. Complete ABI metadata lives in the
     /// independent extern arena and is referenced by a typed id.
     Extern(ExternFunctionId),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct IntrinsicFunction {
+    pub kind: IntrinsicFunctionKind,
+    pub provider: IntrinsicProviderId,
 }
 
 #[derive(Debug, Clone)]
@@ -1621,168 +1645,168 @@ pub const INTRINSIC_REGISTRY: &[IntrinsicSpec] = &[
     IntrinsicSpec {
         name: "gc_pin_raw",
         stage: IntrinsicStage::Mir,
-        kind: IntrinsicKind::Runtime("scoop_rt_pin"),
+        kind: IntrinsicFunctionKind::GcPinRaw,
         target: IntrinsicTarget::TopLevel,
         effects: IntrinsicEffects::UNSAFE,
     },
     IntrinsicSpec {
         name: "gc_unpin_raw",
         stage: IntrinsicStage::Mir,
-        kind: IntrinsicKind::Runtime("scoop_rt_unpin"),
+        kind: IntrinsicFunctionKind::GcUnpinRaw,
         target: IntrinsicTarget::TopLevel,
         effects: IntrinsicEffects::UNSAFE,
     },
     IntrinsicSpec {
         name: "gc_get_handle_raw",
         stage: IntrinsicStage::Mir,
-        kind: IntrinsicKind::Runtime("scoop_rt_get_handle"),
+        kind: IntrinsicFunctionKind::GcGetHandleRaw,
         target: IntrinsicTarget::TopLevel,
         effects: IntrinsicEffects::UNSAFE,
     },
     IntrinsicSpec {
         name: "gc_release_handle_raw",
         stage: IntrinsicStage::Mir,
-        kind: IntrinsicKind::Runtime("scoop_rt_release_handle"),
+        kind: IntrinsicFunctionKind::GcReleaseHandleRaw,
         target: IntrinsicTarget::TopLevel,
         effects: IntrinsicEffects::UNSAFE,
     },
     IntrinsicSpec {
         name: "rt_gc_collect",
         stage: IntrinsicStage::Mir,
-        kind: IntrinsicKind::Runtime("scoop_rt_gc_collect"),
+        kind: IntrinsicFunctionKind::GcCollect,
         target: IntrinsicTarget::TopLevel,
         effects: IntrinsicEffects::NONE,
     },
     IntrinsicSpec {
         name: "rt_gc_stats",
         stage: IntrinsicStage::Mir,
-        kind: IntrinsicKind::Runtime("scoop_rt_gc_stats"),
+        kind: IntrinsicFunctionKind::GcStats,
         target: IntrinsicTarget::TopLevel,
         effects: IntrinsicEffects::NONE,
     },
     IntrinsicSpec {
         name: "coroutine_start",
         stage: IntrinsicStage::Mir,
-        kind: IntrinsicKind::CoroutineStart,
+        kind: IntrinsicFunctionKind::CoroutineStart,
         target: IntrinsicTarget::TopLevel,
         effects: IntrinsicEffects::NONE,
     },
     IntrinsicSpec {
         name: "coroutine_suspend",
         stage: IntrinsicStage::Mir,
-        kind: IntrinsicKind::CoroutineSuspend,
+        kind: IntrinsicFunctionKind::CoroutineSuspend,
         target: IntrinsicTarget::TopLevel,
         effects: IntrinsicEffects::NONE,
     },
     IntrinsicSpec {
         name: "ptr_to_uint",
         stage: IntrinsicStage::Hir,
-        kind: IntrinsicKind::Pointer(PointerIntrinsic::ToUInt),
+        kind: IntrinsicFunctionKind::Pointer(PointerIntrinsic::ToUInt),
         target: IntrinsicTarget::Member,
         effects: IntrinsicEffects::NO_GC_UNSAFE,
     },
     IntrinsicSpec {
         name: "ptr_cast",
         stage: IntrinsicStage::Hir,
-        kind: IntrinsicKind::Pointer(PointerIntrinsic::Cast),
+        kind: IntrinsicFunctionKind::Pointer(PointerIntrinsic::Cast),
         target: IntrinsicTarget::Member,
         effects: IntrinsicEffects::NO_GC_UNSAFE,
     },
     IntrinsicSpec {
         name: "ptr_load",
         stage: IntrinsicStage::Hir,
-        kind: IntrinsicKind::Pointer(PointerIntrinsic::Load),
+        kind: IntrinsicFunctionKind::Pointer(PointerIntrinsic::Load),
         target: IntrinsicTarget::Member,
         effects: IntrinsicEffects::NO_GC_UNSAFE,
     },
     IntrinsicSpec {
         name: "ptr_load_offset",
         stage: IntrinsicStage::Hir,
-        kind: IntrinsicKind::Pointer(PointerIntrinsic::LoadOffset),
+        kind: IntrinsicFunctionKind::Pointer(PointerIntrinsic::LoadOffset),
         target: IntrinsicTarget::Member,
         effects: IntrinsicEffects::NO_GC_UNSAFE,
     },
     IntrinsicSpec {
         name: "ptr_store",
         stage: IntrinsicStage::Hir,
-        kind: IntrinsicKind::Pointer(PointerIntrinsic::Store),
+        kind: IntrinsicFunctionKind::Pointer(PointerIntrinsic::Store),
         target: IntrinsicTarget::Member,
         effects: IntrinsicEffects::NO_GC_UNSAFE,
     },
     IntrinsicSpec {
         name: "ptr_store_offset",
         stage: IntrinsicStage::Hir,
-        kind: IntrinsicKind::Pointer(PointerIntrinsic::StoreOffset),
+        kind: IntrinsicFunctionKind::Pointer(PointerIntrinsic::StoreOffset),
         target: IntrinsicTarget::Member,
         effects: IntrinsicEffects::NO_GC_UNSAFE,
     },
     IntrinsicSpec {
         name: "ptr_plus",
         stage: IntrinsicStage::Hir,
-        kind: IntrinsicKind::Pointer(PointerIntrinsic::Plus),
+        kind: IntrinsicFunctionKind::Pointer(PointerIntrinsic::Plus),
         target: IntrinsicTarget::Member,
         effects: IntrinsicEffects::NO_GC_UNSAFE,
     },
     IntrinsicSpec {
         name: "ptr_minus",
         stage: IntrinsicStage::Hir,
-        kind: IntrinsicKind::Pointer(PointerIntrinsic::Minus),
+        kind: IntrinsicFunctionKind::Pointer(PointerIntrinsic::Minus),
         target: IntrinsicTarget::Member,
         effects: IntrinsicEffects::NO_GC_UNSAFE,
     },
     IntrinsicSpec {
         name: "address_of",
         stage: IntrinsicStage::Hir,
-        kind: IntrinsicKind::Pointer(PointerIntrinsic::AddressOf),
+        kind: IntrinsicFunctionKind::Pointer(PointerIntrinsic::AddressOf),
         target: IntrinsicTarget::TopLevel,
         effects: IntrinsicEffects::UNSAFE,
     },
     IntrinsicSpec {
         name: "size_of",
         stage: IntrinsicStage::Hir,
-        kind: IntrinsicKind::Pointer(PointerIntrinsic::SizeOf),
+        kind: IntrinsicFunctionKind::Pointer(PointerIntrinsic::SizeOf),
         target: IntrinsicTarget::TopLevel,
         effects: IntrinsicEffects::NO_GC,
     },
     IntrinsicSpec {
         name: "align_of",
         stage: IntrinsicStage::Hir,
-        kind: IntrinsicKind::Pointer(PointerIntrinsic::AlignOf),
+        kind: IntrinsicFunctionKind::Pointer(PointerIntrinsic::AlignOf),
         target: IntrinsicTarget::TopLevel,
         effects: IntrinsicEffects::NO_GC,
     },
     IntrinsicSpec {
         name: "foreign_callback_register",
         stage: IntrinsicStage::Hir,
-        kind: IntrinsicKind::ForeignCallback,
+        kind: IntrinsicFunctionKind::ForeignCallbackRegister,
         target: IntrinsicTarget::TopLevel,
         effects: IntrinsicEffects::UNSAFE,
     },
     IntrinsicSpec {
         name: "foreign_callback_retain",
         stage: IntrinsicStage::Hir,
-        kind: IntrinsicKind::ForeignCallback,
+        kind: IntrinsicFunctionKind::ForeignCallbackRetain,
         target: IntrinsicTarget::TopLevel,
         effects: IntrinsicEffects::UNSAFE,
     },
     IntrinsicSpec {
         name: "foreign_callback_release",
         stage: IntrinsicStage::Hir,
-        kind: IntrinsicKind::ForeignCallback,
+        kind: IntrinsicFunctionKind::ForeignCallbackRelease,
         target: IntrinsicTarget::TopLevel,
         effects: IntrinsicEffects::UNSAFE,
     },
     IntrinsicSpec {
         name: "foreign_callback_state",
         stage: IntrinsicStage::Hir,
-        kind: IntrinsicKind::ForeignCallback,
+        kind: IntrinsicFunctionKind::ForeignCallbackState,
         target: IntrinsicTarget::TopLevel,
         effects: IntrinsicEffects::UNSAFE,
     },
     IntrinsicSpec {
         name: "foreign_callback_failure",
         stage: IntrinsicStage::Hir,
-        kind: IntrinsicKind::ForeignCallback,
+        kind: IntrinsicFunctionKind::ForeignCallbackFailure,
         target: IntrinsicTarget::TopLevel,
         effects: IntrinsicEffects::UNSAFE,
     },
@@ -1792,7 +1816,7 @@ pub const INTRINSIC_REGISTRY: &[IntrinsicSpec] = &[
 pub struct IntrinsicSpec {
     pub name: &'static str,
     pub stage: IntrinsicStage,
-    pub kind: IntrinsicKind,
+    pub kind: IntrinsicFunctionKind,
     pub target: IntrinsicTarget,
     pub effects: IntrinsicEffects,
 }
@@ -1803,16 +1827,52 @@ pub enum IntrinsicStage {
     Mir,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum IntrinsicKind {
-    Runtime(&'static str),
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum IntrinsicFunctionKind {
+    /// Transitional concrete formatting helpers. They remain typed while M14
+    /// migrates their callers to nominal `ToString` implementations.
+    IntToString,
+    BoolToString,
+    GcPinRaw,
+    GcUnpinRaw,
+    GcGetHandleRaw,
+    GcReleaseHandleRaw,
+    GcCollect,
+    GcStats,
     CoroutineStart,
     CoroutineSuspend,
-    ForeignCallback,
+    ForeignCallbackRegister,
+    ForeignCallbackRetain,
+    ForeignCallbackRelease,
+    ForeignCallbackState,
+    ForeignCallbackFailure,
     Pointer(PointerIntrinsic),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+impl IntrinsicFunctionKind {
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::IntToString => "rt_int_to_string",
+            Self::BoolToString => "rt_bool_to_string",
+            Self::GcPinRaw => "gc_pin_raw",
+            Self::GcUnpinRaw => "gc_unpin_raw",
+            Self::GcGetHandleRaw => "gc_get_handle_raw",
+            Self::GcReleaseHandleRaw => "gc_release_handle_raw",
+            Self::GcCollect => "rt_gc_collect",
+            Self::GcStats => "rt_gc_stats",
+            Self::CoroutineStart => "coroutine_start",
+            Self::CoroutineSuspend => "coroutine_suspend",
+            Self::ForeignCallbackRegister => "foreign_callback_register",
+            Self::ForeignCallbackRetain => "foreign_callback_retain",
+            Self::ForeignCallbackRelease => "foreign_callback_release",
+            Self::ForeignCallbackState => "foreign_callback_state",
+            Self::ForeignCallbackFailure => "foreign_callback_failure",
+            Self::Pointer(kind) => kind.name(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PointerIntrinsic {
     ToUInt,
     Cast,
@@ -1825,6 +1885,24 @@ pub enum PointerIntrinsic {
     AddressOf,
     SizeOf,
     AlignOf,
+}
+
+impl PointerIntrinsic {
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::ToUInt => "ptr_to_uint",
+            Self::Cast => "ptr_cast",
+            Self::Load => "ptr_load",
+            Self::LoadOffset => "ptr_load_offset",
+            Self::Store => "ptr_store",
+            Self::StoreOffset => "ptr_store_offset",
+            Self::Plus => "ptr_plus",
+            Self::Minus => "ptr_minus",
+            Self::AddressOf => "address_of",
+            Self::SizeOf => "size_of",
+            Self::AlignOf => "align_of",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -2087,9 +2165,10 @@ pub fn dump(module: &Module) -> String {
             format!(" <requires-gc-free {parameters}>")
         };
         match &function.kind {
-            FunctionKind::Intrinsic(name) => {
+            FunctionKind::Intrinsic(intrinsic) => {
                 out.push_str(&format!(
-                    "  {suspend}fun {signature}{attributes}{no_gc_condition} <intrinsic {name}>\n"
+                    "  {suspend}fun {signature}{attributes}{no_gc_condition} <intrinsic {}>\n",
+                    intrinsic.kind.name(),
                 ));
             }
             FunctionKind::User(body) => {

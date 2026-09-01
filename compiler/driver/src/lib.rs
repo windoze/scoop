@@ -29,6 +29,9 @@ pub struct CompileSuccess {
 #[derive(Debug, Default)]
 pub struct CompileOptions {
     pub library_paths: Vec<PathBuf>,
+    /// Internal compiler/test authority switch. It is deliberately absent
+    /// from the stable CLI, environment, manifest, and source language.
+    pub intrinsic_declaration_policy: scoop_hir_lower::IntrinsicDeclarationPolicy,
 }
 
 /// One input file of the compilation unit: a display name (for
@@ -85,7 +88,25 @@ pub fn compile_file_with_options(
 
     // HIR lowering consumes the whole compilation unit at once; its
     // diagnostics already carry the file index into `files`.
-    let hir = scoop_hir_lower::lower(&files)?;
+    let core_provider = scoop_hir::IntrinsicProviderId::from_raw(0);
+    let user_provider = scoop_hir::IntrinsicProviderId::from_raw(1);
+    let hir_unit = scoop_hir_lower::CompilationUnit {
+        core: files[..user_index]
+            .iter()
+            .map(|source| scoop_hir_lower::ProviderSource {
+                source,
+                provider: core_provider,
+            })
+            .collect(),
+        user: scoop_hir_lower::ProviderSource {
+            source: &files[user_index],
+            provider: user_provider,
+        },
+    };
+    let hir = scoop_hir_lower::lower_compilation_unit(
+        &hir_unit,
+        options.intrinsic_declaration_policy.clone(),
+    )?;
     let hir_dump = scoop_hir::dump(&hir.export);
 
     let mir = scoop_mir_lower::lower(&hir.local);

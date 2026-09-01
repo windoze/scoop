@@ -95,7 +95,7 @@ impl Lowerer {
             unreachable!("interning a function type returns a function type")
         };
         let attributes = self
-            .check_function_annotations(decl, false, crate::FunctionTarget::Local)
+            .check_function_annotations(decl, crate::FunctionTarget::Local)
             .attributes;
         let local_number = self.local_functions.len();
         let function = self.functions.alloc(hir::Function {

@@ -49,7 +49,7 @@
 //!
 //! M7: print/println are ordinary core functions
 //! (docs/milestone7/DESIGN.md section 2) — their calls go through the
-//! normal function path. `@Intrinsic` calls map by intrinsic name onto
+//! normal function path. Validated `@Intrinsic` calls map by typed kind onto
 //! the remaining runtime functions: `rt_int_to_string` → `IntToString`,
 //! `rt_bool_to_string` →
 //! `BoolToString` (the latter two back the generated `toString`
@@ -5688,9 +5688,8 @@ impl BodyLowerer<'_> {
         // section 2): handled up front — generic intrinsics (the M9
         // GC facilities) take this path too, before the generic-callee
         // arm below would reject their missing function-map entry.
-        if let hir::FunctionKind::Intrinsic(name) = &self.module.functions[function].kind {
-            let name = name.clone();
-            return self.lower_intrinsic_call(&name, args, result_ty);
+        if let hir::FunctionKind::Intrinsic(intrinsic) = &self.module.functions[function].kind {
+            return self.lower_intrinsic_call(intrinsic.kind, args, result_ty);
         }
         let callee = self.lower_user_callee(callable);
         let return_ty = self.lower_type(result_ty);
@@ -5784,10 +5783,10 @@ impl BodyLowerer<'_> {
         })
     }
 
-    /// An `@Intrinsic` call: the intrinsic name maps directly onto the
+    /// An `@Intrinsic` call: the typed intrinsic kind maps directly onto the
     /// runtime function (`print` / `println` themselves are ordinary
     /// overloaded core functions and take the `User` path in
-    /// `lower_call`). hir-lower rejects unknown intrinsic names.
+    /// `lower_call`). Raw intrinsic names do not reach this stage.
     ///
     /// The M9 GC facilities (milestone9 DESIGN section 1, runtime spec
     /// 3.4) marshal between the raw machine word the runtime functions
@@ -5796,20 +5795,31 @@ impl BodyLowerer<'_> {
     /// handle struct, `unpin` / `releaseGcHandle` unwrap it.
     fn lower_intrinsic_call(
         &mut self,
-        name: &str,
+        kind: hir::IntrinsicFunctionKind,
         args: &[hir::Expr],
         result_ty: hir::TypeId,
     ) -> smir::Expr {
-        let function = match name {
-            "rt_int_to_string" => mir::RuntimeFn::IntToString,
-            "rt_bool_to_string" => mir::RuntimeFn::BoolToString,
-            "gc_pin_raw" => mir::RuntimeFn::Pin,
-            "gc_unpin_raw" => mir::RuntimeFn::Unpin,
-            "gc_get_handle_raw" => mir::RuntimeFn::GetHandle,
-            "gc_release_handle_raw" => mir::RuntimeFn::ReleaseHandle,
-            "rt_gc_collect" => mir::RuntimeFn::GcCollect,
-            "rt_gc_stats" => mir::RuntimeFn::GcStats,
-            _ => unreachable!("hir-lower rejects unknown intrinsics"),
+        let function = match kind {
+            hir::IntrinsicFunctionKind::IntToString => mir::RuntimeFn::IntToString,
+            hir::IntrinsicFunctionKind::BoolToString => mir::RuntimeFn::BoolToString,
+            hir::IntrinsicFunctionKind::GcPinRaw => mir::RuntimeFn::Pin,
+            hir::IntrinsicFunctionKind::GcUnpinRaw => mir::RuntimeFn::Unpin,
+            hir::IntrinsicFunctionKind::GcGetHandleRaw => mir::RuntimeFn::GetHandle,
+            hir::IntrinsicFunctionKind::GcReleaseHandleRaw => mir::RuntimeFn::ReleaseHandle,
+            hir::IntrinsicFunctionKind::GcCollect => mir::RuntimeFn::GcCollect,
+            hir::IntrinsicFunctionKind::GcStats => mir::RuntimeFn::GcStats,
+            hir::IntrinsicFunctionKind::CoroutineStart
+            | hir::IntrinsicFunctionKind::CoroutineSuspend => {
+                unreachable!("coroutine intrinsics are lowered through the typed protocol")
+            }
+            hir::IntrinsicFunctionKind::Pointer(_)
+            | hir::IntrinsicFunctionKind::ForeignCallbackRegister
+            | hir::IntrinsicFunctionKind::ForeignCallbackRetain
+            | hir::IntrinsicFunctionKind::ForeignCallbackRelease
+            | hir::IntrinsicFunctionKind::ForeignCallbackState
+            | hir::IntrinsicFunctionKind::ForeignCallbackFailure => {
+                unreachable!("HIR expands this intrinsic before MIR")
+            }
         };
         let callee = mir::Callee::Runtime(function);
         let return_ty = self.lower_type(result_ty);
@@ -6717,7 +6727,10 @@ mod tests {
                 params: Vec::new(),
                 return_ty: string,
                 attributes: hir::FunctionAttributes::default(),
-                kind: hir::FunctionKind::Intrinsic("rt_int_to_string".to_string()),
+                kind: hir::FunctionKind::Intrinsic(hir::IntrinsicFunction {
+                    kind: hir::IntrinsicFunctionKind::IntToString,
+                    provider: hir::IntrinsicProviderId::from_raw(0),
+                }),
                 method: None,
                 span: SPAN,
             });
@@ -6728,7 +6741,10 @@ mod tests {
                 params: Vec::new(),
                 return_ty: string,
                 attributes: hir::FunctionAttributes::default(),
-                kind: hir::FunctionKind::Intrinsic("rt_bool_to_string".to_string()),
+                kind: hir::FunctionKind::Intrinsic(hir::IntrinsicFunction {
+                    kind: hir::IntrinsicFunctionKind::BoolToString,
+                    provider: hir::IntrinsicProviderId::from_raw(0),
+                }),
                 method: None,
                 span: SPAN,
             });
@@ -7635,7 +7651,12 @@ mod tests {
                         .collect(),
                     return_ty,
                     attributes: hir::FunctionAttributes::default(),
-                    kind: hir::FunctionKind::Intrinsic(intrinsic.to_string()),
+                    kind: hir::FunctionKind::Intrinsic(hir::IntrinsicFunction {
+                        kind: hir::intrinsic_spec(intrinsic)
+                            .expect("test intrinsic is registered")
+                            .kind,
+                        provider: hir::IntrinsicProviderId::from_raw(0),
+                    }),
                     method: None,
                     span: SPAN,
                 });
@@ -7966,7 +7987,10 @@ mod tests {
                 params: Vec::new(),
                 return_ty: self.unit,
                 attributes: hir::FunctionAttributes::default(),
-                kind: hir::FunctionKind::Intrinsic("coroutine_start".to_string()),
+                kind: hir::FunctionKind::Intrinsic(hir::IntrinsicFunction {
+                    kind: hir::IntrinsicFunctionKind::CoroutineStart,
+                    provider: hir::IntrinsicProviderId::from_raw(0),
+                }),
                 method: None,
                 span: SPAN,
             });
@@ -7977,7 +8001,10 @@ mod tests {
                 params: Vec::new(),
                 return_ty: t,
                 attributes: hir::FunctionAttributes::default(),
-                kind: hir::FunctionKind::Intrinsic("coroutine_suspend".to_string()),
+                kind: hir::FunctionKind::Intrinsic(hir::IntrinsicFunction {
+                    kind: hir::IntrinsicFunctionKind::CoroutineSuspend,
+                    provider: hir::IntrinsicProviderId::from_raw(0),
+                }),
                 method: None,
                 span: SPAN,
             });
@@ -8687,11 +8714,11 @@ Module
     }
 
     #[test]
-    fn intrinsic_names_map_to_runtime_functions() {
+    fn typed_intrinsic_kinds_map_to_runtime_functions() {
         // core's `print` / `println` overloads are ordinary user
         // functions (their forwarding is locked by the golden dumps);
         // only the two conversion intrinsics map onto runtime
-        // functions, by intrinsic name.
+        // functions, by validated intrinsic kind.
         let mut h = Harness::new();
         let main = h.user_fn(
             "main",

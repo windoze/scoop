@@ -9,7 +9,8 @@ use scoop_ast::Span;
 
 pub use super::{
     BinOp, CLayout, CallingConvention, ClassModifier, ExternAbi, FunctionAttributes, GcEffect,
-    MethodModifier, Safety, StructAttributes, UnOp, Variance,
+    IntrinsicFunction, IntrinsicFunctionKind, IntrinsicProviderId, MethodModifier, Safety,
+    StructAttributes, UnOp, Variance,
 };
 
 pub type TypeId = Idx<Type>;
@@ -489,7 +490,7 @@ pub struct Param {
 #[derive(Debug, Clone)]
 pub enum FunctionKind {
     User(Body),
-    Intrinsic(String),
+    Intrinsic(IntrinsicFunction),
     Extern(ExternFunctionId),
 }
 

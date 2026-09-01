@@ -66,14 +66,16 @@ fn validates_and_preserves_coroutine_core_contract() {
     assert_eq!(module.coroutine_core.start_coroutine, start);
     assert!(matches!(
         &module.functions[start].kind,
-        hir::FunctionKind::Intrinsic(name) if name == "coroutine_start"
+        hir::FunctionKind::Intrinsic(intrinsic)
+            if intrinsic.kind == hir::IntrinsicFunctionKind::CoroutineStart
     ));
     let suspend = function_id(&module, "suspendCoroutine");
     assert_eq!(module.coroutine_core.suspend_coroutine, suspend);
     assert!(module.functions[suspend].is_suspend);
     assert!(matches!(
         &module.functions[suspend].kind,
-        hir::FunctionKind::Intrinsic(name) if name == "coroutine_suspend"
+        hir::FunctionKind::Intrinsic(intrinsic)
+            if intrinsic.kind == hir::IntrinsicFunctionKind::CoroutineSuspend
     ));
 }
 

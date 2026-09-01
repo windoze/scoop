@@ -282,8 +282,15 @@ impl<'a> Concretizer<'a> {
                 if function.is_suspend && matches!(function.kind, concrete::FunctionKind::User(_)) {
                     results.push(function.return_ty);
                 }
-                if matches!(function.kind, concrete::FunctionKind::Intrinsic(ref name) if name == "coroutine_start" || name == "coroutine_suspend")
-                {
+                if matches!(
+                    function.kind,
+                    concrete::FunctionKind::Intrinsic(intrinsic)
+                        if matches!(
+                            intrinsic.kind,
+                            concrete::IntrinsicFunctionKind::CoroutineStart
+                                | concrete::IntrinsicFunctionKind::CoroutineSuspend
+                        )
+                ) {
                     results.extend(self.concrete_function_arguments(function));
                 }
             }
@@ -1072,8 +1079,8 @@ impl<'a> Concretizer<'a> {
                 let (body, local_map) = self.lower_body(body, &arguments);
                 (concrete::FunctionKind::User(body), local_map)
             }
-            export::FunctionKind::Intrinsic(name) => {
-                (concrete::FunctionKind::Intrinsic(name.clone()), Vec::new())
+            export::FunctionKind::Intrinsic(intrinsic) => {
+                (concrete::FunctionKind::Intrinsic(*intrinsic), Vec::new())
             }
             export::FunctionKind::Extern(id) => (
                 concrete::FunctionKind::Extern(self.extern_map[id]),

@@ -654,7 +654,8 @@ fn intrinsic_functions_are_marked() {
         .expect("core declares startCoroutine");
     assert!(matches!(
         start_coroutine.kind,
-        FunctionKind::Intrinsic(ref name) if name == "coroutine_start"
+        FunctionKind::Intrinsic(intrinsic)
+            if intrinsic.kind == hir::IntrinsicFunctionKind::CoroutineStart
     ));
 }
 
@@ -965,6 +966,98 @@ fn intrinsic_in_user_file_is_an_error() {
         "`@Intrinsic` is only allowed in the core library"
     );
     assert_eq!(errors[0].file, 1);
+}
+
+#[test]
+fn allowlisted_test_provider_carries_typed_intrinsic_provenance() {
+    let mut core = core_file();
+    core.declarations.retain(
+        |decl| !matches!(decl, Decl::Function(function) if function.name.text == "gcCollect"),
+    );
+    let user = file(vec![
+        intrinsic_fun("gcCollect", "rt_gc_collect", vec![], None),
+        fun("main", vec![stmt(call("gcCollect", vec![]))]),
+    ]);
+    let core_provider = hir::IntrinsicProviderId::from_raw(3);
+    let test_provider = hir::IntrinsicProviderId::from_raw(7);
+    let unit = CompilationUnit {
+        core: vec![ProviderSource {
+            source: &core,
+            provider: core_provider,
+        }],
+        user: ProviderSource {
+            source: &user,
+            provider: test_provider,
+        },
+    };
+    let output = lower_compilation_unit(
+        &unit,
+        IntrinsicDeclarationPolicy::AllowListedForTesting {
+            providers: std::collections::HashSet::from([test_provider]),
+        },
+    )
+    .expect("an explicitly allowlisted test provider may define an intrinsic");
+    let function = output
+        .export
+        .functions
+        .iter()
+        .map(|(_, function)| function)
+        .find(|function| function.name == "gcCollect")
+        .expect("the user declaration is present");
+    assert!(matches!(
+        function.kind,
+        hir::FunctionKind::Intrinsic(hir::IntrinsicFunction {
+            kind: hir::IntrinsicFunctionKind::GcCollect,
+            provider,
+        }) if provider == test_provider
+    ));
+    let concrete = output
+        .local
+        .functions
+        .iter()
+        .map(|(_, function)| function)
+        .find(|function| function.name == "gcCollect")
+        .expect("the concrete declaration is present");
+    assert!(matches!(
+        concrete.kind,
+        hir::concrete::FunctionKind::Intrinsic(hir::IntrinsicFunction {
+            kind: hir::IntrinsicFunctionKind::GcCollect,
+            provider,
+        }) if provider == test_provider
+    ));
+}
+
+#[test]
+fn a_typed_intrinsic_kind_has_one_defining_provider() {
+    let core = core_file();
+    let user = file(vec![
+        intrinsic_generic_fun("anotherStart", "coroutine_start", vec!["T"], vec![], None),
+        fun("main", vec![]),
+    ]);
+    let core_provider = hir::IntrinsicProviderId::from_raw(3);
+    let test_provider = hir::IntrinsicProviderId::from_raw(7);
+    let unit = CompilationUnit {
+        core: vec![ProviderSource {
+            source: &core,
+            provider: core_provider,
+        }],
+        user: ProviderSource {
+            source: &user,
+            provider: test_provider,
+        },
+    };
+    let errors = lower_compilation_unit(
+        &unit,
+        IntrinsicDeclarationPolicy::AllowListedForTesting {
+            providers: std::collections::HashSet::from([test_provider]),
+        },
+    )
+    .expect_err("one typed intrinsic kind cannot have two declarations");
+    assert!(errors.iter().any(|error| {
+        error.file == 1
+            && error.message
+                == "intrinsic `coroutine_start` is already defined by provider 3 as `startCoroutine`; provider 7 cannot define it again"
+    }));
 }
 
 #[test]
