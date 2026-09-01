@@ -176,9 +176,13 @@ pub(super) fn compute_repr(
                 .expect("nested enum representations are computed first"),
         )
     };
+    struct PendingField {
+        ty: lir::LirType,
+        relative_offset: u64,
+    }
+
     struct PendingVariant {
-        fields: Vec<lir::LirType>,
-        field_offsets: Vec<u64>,
+        fields: Vec<PendingField>,
         size: u64,
         align: u64,
         gc_free: bool,
@@ -197,9 +201,20 @@ pub(super) fn compute_repr(
             .map(|field| field.ty.clone())
             .collect();
         let (field_offsets, size, align) = aggregate_shape(module, &enum_shape, &field_types);
+        assert_eq!(
+            fields.len(),
+            field_offsets.len(),
+            "aggregate layout returns one offset per enum field"
+        );
         pending.push(PendingVariant {
-            fields,
-            field_offsets,
+            fields: fields
+                .into_iter()
+                .zip(field_offsets)
+                .map(|(ty, relative_offset)| PendingField {
+                    ty,
+                    relative_offset,
+                })
+                .collect(),
             size,
             align,
             gc_free: variant.gc_free,
@@ -238,10 +253,9 @@ pub(super) fn compute_repr(
             fields: variant
                 .fields
                 .into_iter()
-                .zip(variant.field_offsets)
-                .map(|(ty, offset)| lir::EnumFieldRepr {
-                    ty,
-                    offset: slot_offset + offset,
+                .map(|field| lir::EnumFieldRepr {
+                    ty: field.ty,
+                    offset: slot_offset + field.relative_offset,
                 })
                 .collect(),
             slot_offset,
