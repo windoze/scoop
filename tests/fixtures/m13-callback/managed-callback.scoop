@@ -22,6 +22,24 @@ fun failStart(
     context: Ptr<Unit>
 ): Int
 
+@Extern(lib = "fixture_native", name = "m13_callback_barrier")
+fun callbackBarrier()
+
+@Extern(lib = "fixture_native", name = "m13_attached_thread_count")
+fun attachedThreadCount(): Int
+
+@Extern(lib = "fixture_native", name = "m13_borrowed_round_trip", abi = "scoop")
+fun borrowedRoundTrip(
+    message: String,
+    callback: FunPtr<(Ptr<Unit>) -> Unit>,
+    context: Ptr<Unit>
+): String
+
+enum ManagedPayload {
+    Text(String),
+    Empty
+}
+
 fun main() {
     val offset = 40
     @Unsafe {
@@ -34,8 +52,10 @@ fun main() {
             ForeignCallbackMode.OneShot
         )
         val observer = retainForeignCallback(oneShot)
+        val callerRoot = "caller-" + "alive"
         val job = startOne(oneShot.function, oneShot.context, 2)
         println(joinOne(job))
+        println(callerRoot)
         println(foreignCallbackState(observer) == ForeignCallbackState.Completed)
         println(foreignCallbackFailure(observer) == None)
         releaseForeignCallback(observer)
@@ -58,15 +78,50 @@ fun main() {
                     text = text + " callback"
                     index = index + 1
                 }
+                val payloads: Array<ManagedPayload> = [
+                    ManagedPayload.Text(text),
+                    ManagedPayload.Empty
+                ]
+                @Unsafe {
+                    callbackBarrier()
+                }
                 gcCollect()
-                value
+                when (payloads[0]) {
+                    Text(saved) -> if (saved == text) { value } else { -100 }
+                    Empty -> -200
+                }
             },
             1,
             ForeignCallbackMode.Reusable
         )
         println(runMany(reusable.function, reusable.context, 10, 4))
+        println(runMany(reusable.function, reusable.context, 10, 4))
+        println(attachedThreadCount() == 1)
         println(foreignCallbackState(reusable) == ForeignCallbackState.Registered)
         println(foreignCallbackFailure(reusable) == None)
         releaseForeignCallback(reusable)
+
+        val collector = foreignCallback<(Ptr<Unit>) -> Unit>(
+            {
+                gcCollect()
+            },
+            0,
+            ForeignCallbackMode.OneShot
+        )
+        val collectorObserver = retainForeignCallback(collector)
+        val borrowedMessage = "borrowed-" + "alive"
+        println(
+            borrowedRoundTrip(
+                borrowedMessage,
+                collector.function,
+                collector.context
+            ) == borrowedMessage
+        )
+        println(
+            foreignCallbackState(collectorObserver) ==
+                ForeignCallbackState.Completed
+        )
+        println(foreignCallbackFailure(collectorObserver) == None)
+        releaseForeignCallback(collectorObserver)
     }
 }
