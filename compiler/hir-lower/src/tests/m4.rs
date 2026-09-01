@@ -667,9 +667,9 @@ fn multiple_core_files_share_scope() {
         "main",
         vec![val("c", field(var("Color"), "Green"))],
     )]);
-    let module =
+    let output =
         lower(&[core_file(), core_extra, user]).expect("multi-core-file program must lower");
-    let dump = hir::dump(&module);
+    let dump = hir::dump(&output.export);
     assert!(
         dump.contains("VariantConstruct Color.Green : Color"),
         "{dump}"

@@ -10,3 +10,4 @@ scoop-hir.workspace = true
 scoop-mir.workspace = true
 
 [dev-dependencies]
+scoop-hir-lower.workspace = true

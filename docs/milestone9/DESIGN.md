@@ -6,7 +6,7 @@
 
 ## 0. 范围说明（分阶段的理由）
 
-完整"Immix 分代式"包含三件大事：精确栈根、Immix 堆组织与回收、分代+写屏障+晋升。本里程碑交付 Immix 回收闭环与 statepoint / stackmap 产出通道；runtime 精确消费 stackmap、分代、evacuation / defrag 与并行协调转入 backlog（第 6 章）。关键约束（ROADMAP）：M1–M8 的全部 fixture 必须在真 GC 下原样通过。
+完整"Immix 分代式"包含三件大事：精确栈根、Immix 堆组织与回收、分代+写屏障+晋升。本里程碑交付 Immix 回收闭环与 statepoint / stackmap 产出通道；runtime精确消费stackmap与evacuation/defrag进入M15，分代和并行/并发协调继续留在backlog（第6章）。关键约束（ROADMAP）：M1–M8 的全部 fixture 必须在真 GC 下原样通过。
 
 - **不移动对象**（v1 无 evacuation/copying）→ 栈根不需要更新。codegen 已产出 statepoint / stackmap；runtime 当前使用经过堆对象起点校验的保守栈扫描，精确消费 stackmap 是明确的替换点（见 3.2）；
 - **对象头从 8B 扩为 16B**（`td` + `gc_word`）：GC 标记位与 pin 标志的载体（runtime spec 2.1"对象头其余字段由 GC 实现决定"的落地）。这是本里程碑最大的结构性涟漪（所有堆布局偏移 +8，见 3.1）。
@@ -44,7 +44,7 @@ struct GcHandle<T>(val raw: UInt)
 ### 2.2 回收（标记-区域，单代，不移动）
 
 - **根**：(a) 栈根——v1 保守扫描并用堆对象起点校验，精确 stackmap 通道已由 codegen 产出（见 3.2）；(b) runtime 侧注册的全局引用与在途 ABI 异常缓冲（见 3.4）；(c) handle 表（GcHandle）；(d) pinned 对象（header pin 位）。
-- **标记**：从根出发按 TD 的递归描述精确扫描对象内部——普通节点按相对偏移追踪，sequence 组合多个子扫描，tagged enum 按 tag 选择变体子扫描，数组按 stride 对每个内联元素执行元素子扫描。该结构覆盖 tagged enum 嵌入 class / struct / tuple 与含引用的聚合数组元素。mark 位写在 `gc_word`（block/line 侧表亦可，v1 用对象头）。
+- **标记**（M13按spec 7.4修订）：从根出发按TD的递归描述精确扫描对象内部——普通节点按相对偏移追踪，sequence组合多个子扫描，数组按stride对每个内联元素执行元素子扫描。tagged enum的pure-value variant可共享payload，每个ref-bearing variant有独占slot且inactive slot清零，全部ref leaf是可无条件扫描的固定偏移，不读取tag。该结构覆盖tagged enum嵌入class / struct / tuple与含引用的聚合数组元素。mark位写在`gc_word`（block/line侧表亦可，v1用对象头）。
 - **区域回收**：逐 block 检查——无存活对象的 block 归还 OS；有存活但含空闲 line 的 block 把空闲 line 入 free-line list。**不移动对象**（v1 不做 evacuation）。
 - **终结行为**：always-leak 的语义改变是用户可观察的——fixture 不依赖泄漏语义（M1–M8 全部通过即可验证）。
 
@@ -59,7 +59,7 @@ struct GcHandle<T>(val raw: UInt)
 ### 3.1 LIR / codegen
 
 - **对象头 16B 化**（最大的机械变更）：`HeapLoad` / `HeapStore`、class 构造、装箱 payload、数组对象（`{td, size, elems}` → `{td, gc_word, size, elems}`）、`scoop_rt_box`、`scoop_rt_alloc` 的写头代码、全部布局表——统一改为 `{td, gc_word, ...}`，字段区从偏移 16 起；TD 的 `size` 与递归扫描描述由 lir-lower 集中计算；
-- **扫描描述发射**：LIR `RefScan` 保留普通引用、sequence、tagged enum 与数组元素扫描；codegen 递归发射常量描述树，runtime 用同一解释器扫描对象、装箱 payload 与数组元素；
+- **扫描描述发射**（M13修订）：LIR `RefScan`保留普通引用、sequence与数组元素扫描；tagged enum在布局阶段已变为固定ref偏移，codegen/runtime不再发射或解释按tag分派节点；
 - **statepoint 打开**（spec 14.2 的 managed 部分）：
   - codegen 给每个函数设置 GC strategy（inkwell `set_gc("statepoint-example")`，M0 spike 已验证），发射前跑 `rewrite-statepoints-for-gc` pass（调用点自动 statepoint 化）；
   - safepoint poll：函数入口与回边（while/for 循环头）插入 `gc.safepoint` poll（M0 spike 验证过的另一形态；poll 做成 runtime 的空操作符号 `scoop_rt_safepoint`，回收请求时经它握手）；
@@ -70,7 +70,7 @@ struct GcHandle<T>(val raw: UInt)
 
 - codegen 给函数设置 `statepoint-example` GC strategy、执行 `rewrite-statepoints-for-gc`，目标文件已含 `__llvm_stackmaps`；
 - runtime v1 在单线程回收时用 `setjmp` 溢出寄存器，并保守扫描当前帧到启动时记录的栈顶；每个候选值必须通过 arena、block 与对象起点三级校验后才会标记，保证内存安全但可能短暂过度保活；
-- 后续精确实现解析 stackmap，并以返回地址定位各帧的指针槽；移动式回收前必须完成该替换。
+- M15精确解析stackmap，并以返回地址定位和更新各帧的指针槽；移动式回收前必须完成该替换。
 
 ### 3.3 driver / 链接
 
@@ -88,16 +88,16 @@ struct GcHandle<T>(val raw: UInt)
 
 ## 5. 临时决策（及退役里程碑）
 
-1. **单代、不移动、无 evacuation**：分代（nursery/晋升/remembered set 消费卡片表）与 Immix defrag evacuation继续留在backlog；多 mutator STW协调、线程注册/握手和线程安全分配/根表由M13完成，parallel/concurrent collector仍在其后。
+1. **单代、不移动、无 evacuation**：精确stackmap消费、root relocation与Immix defrag evacuation进入M15；多 mutator STW协调、线程注册/握手和线程安全分配/根表由M13完成。分代（nursery/晋升/remembered set）与parallel/concurrent collector仍在其后。
 2. **`pin` 等四函数走 `@Intrinsic`**：M12 转 spec 14.1 的 `@Unsafe` 普通函数/FFI 形态；`gcCollect`/`gcStats` 是测试专用 intrinsic，不进 spec（标注为内部设施）。
 3. **回收触发阈值**：v1 固定值；自适应阈值随后续。
-4. **保守栈根是 v1 过渡方案**：精确消费 stackmap 在移动式回收前完成；当前不绑定单一 CPU 架构。
+4. **保守栈根是 v1 过渡方案**：M15在移动式回收前完成精确stackmap消费；M9当前不绑定单一CPU架构。
 5. **statepoint GC strategy 用 `statepoint-example`**：这是我们自己的 GC 策略注册名（LLVM 内置名，M0 已验证）；若后续需要自定义策略名（`scoop`）需向 LLVM 注册，当前不需要。
 
 ## 6. 明确不做（进 backlog）
 
 - 分代（nursery、晋升、remembered set 消费卡片表、代间引用检查）；
-- evacuation / defragmentation（Immix 的碎片整理）；
+- evacuation / defragmentation（Immix 的碎片整理）→ M15；
 - 多 mutator STW协调、线程注册/握手与线程安全分配/根表（→ M13）；parallel/concurrent collector继续留在backlog；
-- runtime 精确解析 statepoint stackmap 并扫描栈根（含所需的平台寄存器/帧支持）；
+- runtime 精确解析 statepoint stackmap并更新栈根（含所需的平台寄存器/帧支持）→ M15；
 - `scoop.std` 的 GC 调优 API；

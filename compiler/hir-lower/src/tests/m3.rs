@@ -287,8 +287,8 @@ fn generic_equality_is_allowed() {
 
 /// A generic call inside a generic body records an instantiation
 /// request whose type arguments may still mention `Type::Param`;
-/// mir-lower concretizes them when the requesting instance is
-/// materialized.
+/// local-concrete HIR resolves them when the requesting instance is
+/// materialized, before MIR receives the graph.
 #[test]
 fn nested_generic_calls_record_param_instantiations() {
     let file = file(vec![

@@ -86,9 +86,9 @@ pub fn compile_file_with_options(
     // HIR lowering consumes the whole compilation unit at once; its
     // diagnostics already carry the file index into `files`.
     let hir = scoop_hir_lower::lower(&files)?;
-    let hir_dump = scoop_hir::dump(&hir);
+    let hir_dump = scoop_hir::dump(&hir.export);
 
-    let mir = scoop_mir_lower::lower(&hir);
+    let mir = scoop_mir_lower::lower(&hir.local);
     let mir_dump = scoop_mir::dump(&mir);
 
     let lir = scoop_lir_lower::lower(&mir);
@@ -338,8 +338,8 @@ fn validate_core_manifest(manifest: &str, path: &Path) -> Result<(), Vec<Diagnos
 }
 
 /// Compile the C runtime into a static library cached under
-/// `target/scoop-rt/`. The runtime is two C files since M9 (`rt.c` +
-/// `gc.c`), so rebuilding every time is still cheap enough (see
+/// `target/scoop-rt/`. M13 adds `thread.c` and `callback.c` beside
+/// `rt.c` + `gc.c`; rebuilding the four files is still cheap enough (see
 /// `docs/milestone1/DESIGN.md` section 2.7).
 fn build_runtime(file: usize) -> Result<PathBuf, Vec<Diagnostic>> {
     let root = workspace_root();
@@ -357,7 +357,10 @@ fn build_runtime(file: usize) -> Result<PathBuf, Vec<Diagnostic>> {
     cc::Build::new()
         .file(root.join("runtime/src/rt.c"))
         .file(root.join("runtime/src/gc.c"))
+        .file(root.join("runtime/src/thread.c"))
+        .file(root.join("runtime/src/callback.c"))
         .include(root.join("runtime/include"))
+        .flag_if_supported("-pthread")
         .out_dir(&out_dir)
         // The driver is not a build script: cargo does not provide
         // TARGET/HOST here, so set them explicitly and silence cargo
@@ -414,6 +417,9 @@ fn link(
         command.arg(format!("-l{library}"));
     }
     let output = command
+        // M13 thread registration, STW coordination and foreign callbacks use
+        // the host POSIX pthread runtime.
+        .arg("-pthread")
         // M8 exceptions: the runtime and generated landing pads call
         // the Itanium C++ ABI (`__cxa_*`, personality; runtime spec 5).
         .arg("-lc++abi")

@@ -1,4 +1,4 @@
-//! MIR stage: monomorphization, name mangling, call-kind annotation,
+//! MIR stage: concrete-HIR lowering, name mangling, call-kind annotation,
 //! vtable/itable construction, suspend-to-state-machine lowering.
 //!
 //! See `docs/specs/SCOOP-IMPL-SPEC.md` section 2.3 and
@@ -14,17 +14,14 @@
 //! become branch edges before this stage returns. This stage never fails:
 //! all errors were already reported by hir-lower.
 //!
-//! M3: monomorphization. Generic functions have no MIR body of their
-//! own; each instantiation request `(generic fn, concrete type args)`
-//! produces one instance whose body is the generic body with `Param(i)`
-//! substituted by `type_args[i]`. Requests discovered while lowering an
-//! instance body extend a worklist that is drained to a fixed point;
-//! identical requests are deduplicated by mangled symbol.
+//! M3: generic templates are monomorphized by HIR lowering. MIR receives
+//! only local-concrete functions and records their source type arguments
+//! for metadata and stable symbol mangling; no generic template or
+//! unresolved type parameter can enter this stage.
 //!
-//! M4: enums and pattern matching. Enum types are instantiated like
-//! generic functions — one `mir::EnumDef` per `(enum, concrete type
-//! args)`, named by the mangled instance name (`Option$I`) and
-//! deduplicated on it; `when` becomes a structured decision sequence
+//! M4: enums and pattern matching. Every concrete enum application has
+//! already acquired its own HIR identity and complete GC classification;
+//! MIR transposes it one-to-one. `when` becomes a structured decision sequence
 //! (the subject is evaluated once into a hidden local; each arm is a
 //! tag comparison, then the field bindings, then the guard nested so a
 //! failed guard falls through to the next arm). The HIR Option nodes
@@ -120,7 +117,7 @@ use std::collections::{HashMap, HashSet};
 
 use la_arena::Arena;
 use scoop_ast::Span;
-use scoop_hir as hir;
+use scoop_hir::concrete as hir;
 use scoop_mir as mir;
 
 mod cfg;
@@ -139,6 +136,9 @@ pub fn lower(module: &hir::Module) -> mir::Module {
         global_map: HashMap::new(),
         callback_bridges: Arena::new(),
         callback_by_target: HashMap::new(),
+        foreign_callback_adapters: Arena::new(),
+        foreign_callback_bridges: Arena::new(),
+        foreign_callback_by_registration: HashMap::new(),
         top_level: Vec::new(),
         strings: Arena::new(),
         structs: StructRegistry::default(),
@@ -148,14 +148,11 @@ pub fn lower(module: &hir::Module) -> mir::Module {
         interfaces: InterfaceRegistry::default(),
         method_slots: HashMap::new(),
         function_map: HashMap::new(),
-        instances: InstanceRegistry {
-            overloaded_names: generic_overloaded_names(module),
-            ..InstanceRegistry::default()
-        },
+        instances: InstanceRegistry::default(),
         enums: EnumRegistry::default(),
         boxed: BoxedRegistry::default(),
         ctors: HashMap::new(),
-        shell: mangling_shell(&Arena::new(), &Arena::new(), &Arena::new()),
+        shell: mangling_shell(&Arena::new(), &Arena::new(), &Arena::new(), &Arena::new()),
         overloaded: overloaded_names(module),
         option_variants: (0, 0),
         coroutines: CoroutineRegistry::default(),
@@ -165,11 +162,7 @@ pub fn lower(module: &hir::Module) -> mir::Module {
         lambda_closures: HashMap::new(),
         anonymous_closures: HashMap::new(),
         reference_closures: HashMap::new(),
-        generic_lambda_closures: HashMap::new(),
-        generic_anonymous_closures: HashMap::new(),
-        generic_reference_closures: HashMap::new(),
         closure_by_function: HashMap::new(),
-        closure_by_instance: HashMap::new(),
         closure_capture_indices: HashMap::new(),
         closure_adapters: Arena::new(),
         closure_adapter_by_types: HashMap::new(),
@@ -189,28 +182,28 @@ struct Lowerer {
     global_map: HashMap<hir::GlobalId, mir::GlobalId>,
     callback_bridges: Arena<mir::CallbackBridge>,
     callback_by_target: HashMap<(mir::FunctionId, mir::FunctionTypeId), mir::CallbackBridgeId>,
+    foreign_callback_adapters: Arena<mir::ForeignCallbackAdapter>,
+    foreign_callback_bridges: Arena<mir::ForeignCallbackBridge>,
+    foreign_callback_by_registration:
+        HashMap<hir::ForeignCallbackRegistrationId, mir::ForeignCallbackBridgeId>,
     /// User functions in declaration order (intrinsics have no MIR body).
     top_level: Vec<mir::FunctionId>,
     strings: Arena<mir::StringConst>,
-    /// MIR struct definitions: transposed non-generic HIR declarations
-    /// plus one instance per (generic struct, concrete type args) —
-    /// see `StructRegistry`.
+    /// MIR struct definitions transposed from local-concrete HIR.
     structs: StructRegistry,
-    /// Non-generic HIR struct -> MIR struct. Generic structs only get
-    /// concrete instances on demand.
+    /// Local-concrete HIR struct -> MIR struct.
     struct_map: HashMap<hir::StructId, mir::StructId>,
     classes: Arena<mir::ClassDef>,
     /// HIR class -> MIR class (arena transposed in declaration order).
     class_map: HashMap<hir::ClassId, mir::ClassId>,
-    /// Concrete MIR interface applications, created on demand. Generic
-    /// interface declarations themselves never reach MIR.
+    /// Concrete MIR interface applications, created on demand from their
+    /// already-specialized HIR definitions.
     interfaces: InterfaceRegistry,
     /// Method signature key (`fn_signature_key`) -> vtable slot, per
     /// class (computed by `compute_dispatch`; `BodyLowerer` reads it
     /// for call-kind annotation).
     method_slots: HashMap<mir::ClassId, HashMap<String, u32>>,
-    /// HIR user function -> MIR function (non-generic functions only;
-    /// generic functions resolve through `instances`).
+    /// Local-concrete HIR user function -> MIR function.
     function_map: HashMap<hir::FunctionId, mir::FunctionId>,
     instances: InstanceRegistry,
     enums: EnumRegistry,
@@ -236,17 +229,8 @@ struct Lowerer {
     lambda_closures: HashMap<hir::LambdaId, mir::ClosureClassId>,
     anonymous_closures: HashMap<hir::AnonymousFunctionId, mir::ClosureClassId>,
     reference_closures: HashMap<hir::CallableReferenceId, mir::ClosureClassId>,
-    /// Generic callable entities are materialized once per concrete enclosing
-    /// substitution. The encoded MIR types make the key stable across bodies.
-    generic_lambda_closures: HashMap<(hir::LambdaId, Vec<String>), mir::ClosureClassId>,
-    generic_anonymous_closures:
-        HashMap<(hir::AnonymousFunctionId, Vec<String>), mir::ClosureClassId>,
-    generic_reference_closures:
-        HashMap<(hir::CallableReferenceId, Vec<String>), mir::ClosureClassId>,
     /// Generated HIR invoke body -> its concrete closure class.
     closure_by_function: HashMap<hir::FunctionId, mir::ClosureClassId>,
-    /// Monomorphized generated invoke body -> its concrete closure class.
-    closure_by_instance: HashMap<mir::MonomorphizedFunctionId, mir::ClosureClassId>,
     /// HIR lexical binding -> concrete inline field index for one closure.
     closure_capture_indices: HashMap<(mir::ClosureClassId, hir::BindingId), u32>,
     closure_adapters: Arena<mir::ClosureAdapter>,
@@ -282,6 +266,7 @@ impl CoroutineRegistry {
     fn step_for(
         &mut self,
         result: &mir::Type,
+        structs: &StructRegistry,
         enums: &mut EnumRegistry,
         shell: &mut mir::Module,
     ) -> (mir::CoroutineStepId, mir::Type) {
@@ -294,9 +279,11 @@ impl CoroutineRegistry {
             return (*id, mir::Type::Enum(step.enum_id, Vec::new()));
         }
         let name = format!("CoroutineStep${}", mir::encode_type(shell, result));
+        let result_gc_free = mir_type_gc_free(result, structs, enums);
         let variants = vec![
             mir::VariantDef {
                 name: "Completed".to_string(),
+                gc_free: result_gc_free,
                 fields: vec![mir::Field {
                     name: "value".to_string(),
                     ty: result.clone(),
@@ -304,15 +291,18 @@ impl CoroutineRegistry {
             },
             mir::VariantDef {
                 name: "Suspended".to_string(),
+                gc_free: true,
                 fields: Vec::new(),
             },
         ];
         let enum_id = enums.defs.alloc(mir::EnumDef {
             name: name.clone(),
+            gc_free: result_gc_free,
             variants,
         });
         let shell_id = shell.enums.alloc(mir::EnumDef {
             name,
+            gc_free: result_gc_free,
             variants: Vec::new(),
         });
         assert_eq!(enum_id, shell_id, "the mangling shell mirrors enum ids");
@@ -334,6 +324,7 @@ impl CoroutineRegistry {
     fn slot_for(
         &mut self,
         value: &mir::Type,
+        structs: &StructRegistry,
         enums: &mut EnumRegistry,
         shell: &mut mir::Module,
     ) -> (mir::CoroutineSlotId, mir::Type) {
@@ -342,13 +333,16 @@ impl CoroutineRegistry {
             return (*id, mir::Type::Enum(slot.enum_id, Vec::new()));
         }
         let name = format!("CoroutineSlot${}", mir::encode_type(shell, value));
+        let value_gc_free = mir_type_gc_free(value, structs, enums);
         let variants = vec![
             mir::VariantDef {
                 name: "Empty".to_string(),
+                gc_free: true,
                 fields: Vec::new(),
             },
             mir::VariantDef {
                 name: "Value".to_string(),
+                gc_free: value_gc_free,
                 fields: vec![mir::Field {
                     name: "value".to_string(),
                     ty: value.clone(),
@@ -357,10 +351,12 @@ impl CoroutineRegistry {
         ];
         let enum_id = enums.defs.alloc(mir::EnumDef {
             name: name.clone(),
+            gc_free: value_gc_free,
             variants,
         });
         let shell_id = shell.enums.alloc(mir::EnumDef {
             name,
+            gc_free: value_gc_free,
             variants: Vec::new(),
         });
         assert_eq!(enum_id, shell_id, "the mangling shell mirrors enum ids");
@@ -625,14 +621,21 @@ impl CoroutineRegistry {
 
 impl Lowerer {
     fn run(mut self, module: &hir::Module) -> mir::Module {
-        // Struct / interface / class ids first (types can reference
+        // Struct / class / interface ids first (types can reference
         // any of them regardless of declaration order), then the
         // mangling shell (their names for `encode_type`), then the
         // field types themselves — which can instantiate enums.
         self.lower_structs(module);
-        self.lower_interfaces(module);
         self.declare_classes(module);
-        self.shell = mangling_shell(&self.structs.defs, &self.classes, &self.interfaces.defs);
+        // Concrete interface type arguments may name classes, so every class
+        // id must exist before interface applications are transposed.
+        self.lower_interfaces(module);
+        self.shell = mangling_shell(
+            &self.structs.defs,
+            &self.enums.defs,
+            &self.classes,
+            &self.interfaces.defs,
+        );
         self.fill_class_hierarchy(module);
         self.fill_struct_fields(module);
         self.lower_globals(module);
@@ -643,11 +646,11 @@ impl Lowerer {
         self.fill_class_fields(module, &class_order);
         self.lower_extern_functions(module);
 
-        // Declare non-generic user functions first, so calls resolve
+        // Declare every fully concrete user function first, so calls resolve
         // regardless of declaration order. Intrinsics have no body;
         // their callsites map to `Callee::Runtime` shims (see
-        // `BodyLowerer::lower_call`). Generic functions have no MIR
-        // body of their own — only their monomorphized instances do.
+        // `BodyLowerer::lower_call`). HIR has already closed and instantiated
+        // every generic dependency before this stage starts.
         // Member functions are declared too (hir-lower keeps them out
         // of `top_level`); interface methods become signature-only
         // shells (M6 interfaces have no default implementations).
@@ -657,54 +660,10 @@ impl Lowerer {
             if !matches!(function.kind, hir::FunctionKind::User(_)) {
                 continue;
             }
-            if generic_of(module, hir_id).is_some() {
-                continue;
-            }
             let id = self.declare_function(module, hir_id);
             user_functions.push((hir_id, id));
         }
         for (hir_id, function) in module.functions.iter() {
-            if self.function_map.contains_key(&hir_id)
-                || !matches!(function.kind, hir::FunctionKind::User(_))
-                || generic_of(module, hir_id).is_some()
-            {
-                continue;
-            }
-            match function.method {
-                Some(method)
-                    if matches!(
-                        module.types[method.owner],
-                        hir::Type::Interface(..) | hir::Type::Any
-                    ) => {}
-                Some(_) => {
-                    let id = self.declare_function(module, hir_id);
-                    user_functions.push((hir_id, id));
-                }
-                // Callable-literal invoke bodies are free generated functions and
-                // deliberately stay outside the source top-level list.
-                None if module
-                    .lambdas
-                    .iter()
-                    .any(|(_, lambda)| lambda.function == hir_id)
-                    || module
-                        .anonymous_functions
-                        .iter()
-                        .any(|(_, anonymous)| anonymous.function == hir_id)
-                    || module
-                        .local_functions
-                        .iter()
-                        .any(|(_, local)| local.function == hir_id) =>
-                {
-                    let id = self.declare_function(module, hir_id);
-                    user_functions.push((hir_id, id));
-                }
-                None => {}
-            }
-        }
-        for (hir_id, function) in module.functions.iter() {
-            if generic_of(module, hir_id).is_some() {
-                continue;
-            }
             let Some(method) = function.method else {
                 continue;
             };
@@ -715,7 +674,10 @@ impl Lowerer {
             // so the functions themselves are never emitted — their
             // declarations only give LIR the parameter / return types
             // for the indirect call.
-            if matches!(module.types[ty], hir::Type::Interface(..) | hir::Type::Any) {
+            if matches!(
+                module.types[ty].kind,
+                hir::TypeKind::Interface(..) | hir::TypeKind::Any
+            ) {
                 self.declare_interface_method(module, hir_id);
             }
         }
@@ -737,13 +699,13 @@ impl Lowerer {
         }
 
         for (hir_id, mir_id) in user_functions {
-            let (params, return_ty, body) = self.lower_user_function(module, hir_id, None, None);
+            let (params, return_ty, body) = self.lower_user_function(module, hir_id);
             let body = cfg::lower(body, return_ty.clone());
             if module.functions[hir_id].is_suspend {
                 self.suspend_sources.push(SuspendSource {
                     function: mir_id,
                     source_return: return_ty.clone(),
-                    instance: None,
+                    instance: self.instances.get(hir_id),
                 });
             }
             let function = &mut self.functions[mir_id];
@@ -759,94 +721,31 @@ impl Lowerer {
             function.return_ty = return_ty;
             function.body = body;
         }
-
-        // Seed the instance worklist from HIR's instantiation requests.
-        // Requests whose type arguments still mention `Param` come from
-        // generic bodies calling generic functions; they are
-        // rediscovered in concrete form when the enclosing instance
-        // body is lowered, so only concrete requests are seeded here.
-        for (resolved_id, instantiation) in module.instantiations.iter() {
-            let generic = &module.generic_functions[instantiation.generic];
-            // Generic intrinsics (M9's `pin` & co.) have no MIR body:
-            // their call sites are runtime shims
-            // (`lower_intrinsic_call`), never instance functions.
-            if !matches!(
-                module.functions[generic.function].kind,
-                hir::FunctionKind::User(_)
-            ) || !instantiation
-                .type_args
-                .iter()
-                .all(|&ty| is_concrete(module, ty))
+        for (hir_id, function) in module.functions.iter() {
+            if function.is_suspend
+                && !module.top_level.contains(&hir_id)
+                && self.function_map.contains_key(&hir_id)
             {
-                continue;
+                let return_ty = self.functions[self.function_map[&hir_id]].return_ty.clone();
+                self.suspend_sources.push(SuspendSource {
+                    function: self.function_map[&hir_id],
+                    source_return: return_ty,
+                    instance: self.instances.get(hir_id),
+                });
             }
-            let types = Types {
-                module,
-                struct_map: &self.struct_map,
-                class_map: &self.class_map,
-                subst: None,
-            };
-            let type_args: Vec<mir::Type> = instantiation
-                .type_args
-                .iter()
-                .map(|&ty| {
-                    types.lower(
-                        ty,
-                        &mut self.enums,
-                        &mut self.structs,
-                        &mut self.interfaces,
-                        &mut self.shell,
-                    )
-                })
-                .collect();
-            self.instances.get_or_create(
-                module,
-                &mut self.functions,
-                &mut self.top_level,
-                &self.shell,
-                resolved_id,
-                type_args,
-            );
         }
 
-        // Drain generic instances and finalize boxed value types to a
-        // fixed point. A boxed generic struct may request its concrete
-        // method instance for an interface thunk; lowering that method
-        // may in turn discover more instances or boxed payloads.
-        let mut next_instance = 0;
+        // Finalize boxed value types to a fixed point. Variance and function
+        // bridges can discover additional boxed payloads.
         let mut next_boxed = 0;
         loop {
-            while next_instance < self.instances.pending.len() {
-                let (generic, type_args, instance) = self.instances.pending[next_instance].clone();
-                next_instance += 1;
-                let hir_id = module.generic_functions[generic].function;
-                let mir_id = self.instances.meta[instance].function;
-                let (params, return_ty, body) =
-                    self.lower_user_function(module, hir_id, Some(&type_args), Some(instance));
-                let body = cfg::lower(body, return_ty.clone());
-                if module.functions[hir_id].is_suspend {
-                    self.suspend_sources.push(SuspendSource {
-                        function: mir_id,
-                        source_return: return_ty.clone(),
-                        instance: Some(instance),
-                    });
-                }
-                let function = &mut self.functions[mir_id];
-                function.params = params;
-                function.return_ty = return_ty;
-                function.body = body;
-            }
             while next_boxed < self.boxed.order.len() {
                 self.finalize_boxed(module, next_boxed);
                 next_boxed += 1;
             }
             let added_variance = self.finalize_variance_itables(module);
             let added_function_bridges = self.finalize_function_bridges(module);
-            if next_instance == self.instances.pending.len()
-                && next_boxed == self.boxed.order.len()
-                && !added_variance
-                && !added_function_bridges
-            {
+            if next_boxed == self.boxed.order.len() && !added_variance && !added_function_bridges {
                 break;
             }
         }
@@ -862,6 +761,8 @@ impl Lowerer {
             extern_functions: self.extern_functions,
             globals: self.globals,
             callback_bridges: self.callback_bridges,
+            foreign_callback_adapters: self.foreign_callback_adapters,
+            foreign_callback_bridges: self.foreign_callback_bridges,
             function_types: self.shell.function_types,
             closure_classes: self.closure_classes,
             closure_invoke_functions: self.closure_invokes,
@@ -892,7 +793,6 @@ impl Lowerer {
                 module,
                 struct_map: &self.struct_map,
                 class_map: &self.class_map,
-                subst: None,
             };
             let params = extern_
                 .params
@@ -942,7 +842,6 @@ impl Lowerer {
                 module,
                 struct_map: &self.struct_map,
                 class_map: &self.class_map,
-                subst: None,
             };
             let ty = types.lower(
                 global.ty,
@@ -982,15 +881,14 @@ impl Lowerer {
 
     fn transform_suspend_abis(&mut self, module: &hir::Module) {
         for source in std::mem::take(&mut self.suspend_sources) {
-            let (step, step_ty) =
-                self.coroutines
-                    .step_for(&source.source_return, &mut self.enums, &mut self.shell);
-            let continuation = self.interfaces.get_or_create(
-                module,
+            let (step, step_ty) = self.coroutines.step_for(
+                &source.source_return,
+                &self.structs,
+                &mut self.enums,
                 &mut self.shell,
-                module.coroutine_core.continuation,
-                vec![source.source_return.clone()],
             );
+            let protocol = self.coroutine_protocol(module, &source.source_return);
+            let continuation = self.interfaces.mir_id(protocol.continuation);
             let continuation_ty = mir::Type::Interface(continuation);
             let function = &mut self.functions[source.function];
             let completion = function.body.locals.alloc(mir::Local {
@@ -1027,6 +925,38 @@ impl Lowerer {
         }
     }
 
+    fn coroutine_protocol(
+        &mut self,
+        module: &hir::Module,
+        result: &mir::Type,
+    ) -> hir::CoroutineProtocol {
+        for protocol in module.coroutine_protocols.iter().copied() {
+            let lowered = Types {
+                module,
+                struct_map: &self.struct_map,
+                class_map: &self.class_map,
+            }
+            .lower(
+                protocol.result_type,
+                &mut self.enums,
+                &mut self.structs,
+                &mut self.interfaces,
+                &mut self.shell,
+            );
+            if &lowered == result {
+                return protocol;
+            }
+        }
+        let protocols = module
+            .coroutine_protocols
+            .iter()
+            .map(|protocol| format!("{:?}", module.types[protocol.result_type].kind))
+            .collect::<Vec<_>>();
+        panic!(
+            "local-concrete HIR provides a protocol for every suspend result type; missing {result:?}, available {protocols:?}"
+        )
+    }
+
     fn finalize_variance_itables(&mut self, module: &hir::Module) -> bool {
         let targets: Vec<mir::InterfaceId> =
             self.interfaces.defs.iter().map(|(id, _)| id).collect();
@@ -1057,7 +987,7 @@ impl Lowerer {
                     .methods
                     .iter()
                     .enumerate()
-                    .filter_map(|(index, method)| method.type_params.is_empty().then_some(index))
+                    .map(|(index, _)| index)
                     .collect();
                 let bridge_slots = slots
                     .iter()
@@ -1093,34 +1023,30 @@ impl Lowerer {
         method_index: usize,
         source_slot: &mir::TableSlot,
     ) -> mir::FunctionId {
-        let (source_id, source_args) = self.interfaces.source(source);
-        let source_args = source_args.to_vec();
-        let (target_id, target_args) = self.interfaces.source(target);
-        let target_args = target_args.to_vec();
-        debug_assert_eq!(source_id, target_id);
-        let signature = &module.interfaces[source_id].methods[method_index];
+        let (source_id, _) = self.interfaces.source(source);
+        let (target_id, _) = self.interfaces.source(target);
+        let source_signature = &module.interfaces[source_id].methods[method_index];
+        let target_signature = &module.interfaces[target_id].methods[method_index];
         let source_types = Types {
             module,
             struct_map: &self.struct_map,
             class_map: &self.class_map,
-            subst: (!source_args.is_empty()).then_some(source_args.as_slice()),
         };
-        let target_types = Types {
-            subst: (!target_args.is_empty()).then_some(target_args.as_slice()),
-            ..source_types
-        };
+        let target_types = Types { ..source_types };
         let mut source_params = Vec::new();
         let mut target_params = Vec::new();
-        for param in &signature.params {
+        for (source_param, target_param) in
+            source_signature.params.iter().zip(&target_signature.params)
+        {
             source_params.push(source_types.lower(
-                param.ty,
+                source_param.ty,
                 &mut self.enums,
                 &mut self.structs,
                 &mut self.interfaces,
                 &mut self.shell,
             ));
             target_params.push(target_types.lower(
-                param.ty,
+                target_param.ty,
                 &mut self.enums,
                 &mut self.structs,
                 &mut self.interfaces,
@@ -1128,14 +1054,14 @@ impl Lowerer {
             ));
         }
         let source_return = source_types.lower(
-            signature.return_ty,
+            source_signature.return_ty,
             &mut self.enums,
             &mut self.structs,
             &mut self.interfaces,
             &mut self.shell,
         );
         let target_return = target_types.lower(
-            signature.return_ty,
+            target_signature.return_ty,
             &mut self.enums,
             &mut self.structs,
             &mut self.interfaces,
@@ -1154,7 +1080,7 @@ impl Lowerer {
             local: this,
         }];
         let mut args = vec![smir::Expr::Local(this)];
-        for ((param, target_ty), source_ty) in signature
+        for ((param, target_ty), source_ty) in target_signature
             .params
             .iter()
             .zip(target_params)
@@ -1194,14 +1120,14 @@ impl Lowerer {
         let target_name = &self.interfaces.defs[target].name;
         let name = format!(
             "variance.{class_name}.{target_name}.{}.{}",
-            signature.name, method_index
+            target_signature.name, method_index
         );
         let body = cfg::lower(
             smir::Body {
                 locals,
                 statements: vec![smir::Statement {
                     kind,
-                    span: signature.span,
+                    span: target_signature.span,
                 }],
             },
             target_return.clone(),
@@ -1215,7 +1141,7 @@ impl Lowerer {
             body,
         });
         self.top_level.push(id);
-        if signature.is_suspend {
+        if target_signature.is_suspend {
             self.suspend_sources.push(SuspendSource {
                 function: id,
                 source_return: target_return,
@@ -1396,13 +1322,15 @@ impl Lowerer {
         let source_args = source_args.to_vec();
         let (target_id, target_args) = self.interfaces.source(target);
         let target_args = target_args.to_vec();
-        if source_id != target_id || source_args.len() != target_args.len() {
+        if module.interfaces[source_id].family != module.interfaces[target_id].family
+            || source_args.len() != target_args.len()
+        {
             return false;
         }
         module.interfaces[source_id]
-            .type_params
+            .variances
             .iter()
-            .map(|param| param.variance)
+            .copied()
             .zip(&source_args)
             .zip(&target_args)
             .all(|((variance, source), target)| match variance {
@@ -1590,15 +1518,11 @@ impl Lowerer {
         function
     }
 
-    /// Lower one user function; `subst` is the concrete type argument
-    /// list when lowering a monomorphized instance (`None` for
-    /// non-generic functions).
+    /// Lower one fully concrete user function.
     fn lower_user_function(
         &mut self,
         module: &hir::Module,
         hir_id: hir::FunctionId,
-        subst: Option<&[mir::Type]>,
-        instance: Option<mir::MonomorphizedFunctionId>,
     ) -> (Vec<mir::Param>, mir::Type, smir::Body) {
         let function = &module.functions[hir_id];
         let hir::FunctionKind::User(body) = &function.kind else {
@@ -1617,9 +1541,7 @@ impl Lowerer {
                     .collect()
             })
             .unwrap_or_default();
-        let current_closure = instance
-            .and_then(|instance| self.closure_by_instance.get(&instance).copied())
-            .or_else(|| self.closure_by_function.get(&hir_id).copied());
+        let current_closure = self.closure_by_function.get(&hir_id).copied();
         BodyLowerer {
             module,
             struct_map: &self.struct_map,
@@ -1632,6 +1554,9 @@ impl Lowerer {
             global_map: &self.global_map,
             callback_bridges: &mut self.callback_bridges,
             callback_by_target: &mut self.callback_by_target,
+            foreign_callback_adapters: &mut self.foreign_callback_adapters,
+            foreign_callback_bridges: &mut self.foreign_callback_bridges,
+            foreign_callback_by_registration: &mut self.foreign_callback_by_registration,
             ctors: &self.ctors,
             strings: &mut self.strings,
             functions: &mut self.functions,
@@ -1641,7 +1566,6 @@ impl Lowerer {
             boxed: &mut self.boxed,
             classes: &mut self.classes,
             shell: &mut self.shell,
-            subst,
             local_map: HashMap::new(),
             locals: Arena::new(),
             hidden_count: 0,
@@ -1651,12 +1575,8 @@ impl Lowerer {
             lambda_closures: &self.lambda_closures,
             anonymous_closures: &self.anonymous_closures,
             reference_closures: &self.reference_closures,
-            generic_lambda_closures: &mut self.generic_lambda_closures,
-            generic_anonymous_closures: &mut self.generic_anonymous_closures,
-            generic_reference_closures: &mut self.generic_reference_closures,
             closure_classes: &mut self.closure_classes,
             closure_invokes: &mut self.closure_invokes,
-            closure_by_instance: &mut self.closure_by_instance,
             closure_capture_indices: &mut self.closure_capture_indices,
             closure_adapters: &mut self.closure_adapters,
             closure_adapter_by_types: &mut self.closure_adapter_by_types,
@@ -1671,15 +1591,13 @@ impl Lowerer {
         .lower_function(function, body)
     }
 
-    /// Transpose non-generic HIR structs into MIR in declaration order
+    /// Transpose local-concrete HIR structs into MIR in declaration order
     /// (ids only; field types are filled by `fill_struct_fields`).
     fn lower_structs(&mut self, module: &hir::Module) {
         for (hir_id, decl) in module.structs.iter() {
-            if !decl.type_params.is_empty() {
-                continue;
-            }
             let mir_id = self.structs.defs.alloc(mir::StructDef {
                 name: decl.name.clone(),
+                gc_free: decl.gc_free,
                 c_layout: decl.attributes.c_layout.map(|layout| mir::CLayout {
                     aligned: layout.aligned,
                     packed: layout.packed,
@@ -1688,22 +1606,18 @@ impl Lowerer {
                 fields: Vec::new(),
             });
             self.struct_map.insert(hir_id, mir_id);
+            self.structs.instances.insert(mir_id, (hir_id, Vec::new()));
         }
     }
 
-    /// Fill the MIR struct field types. This runs after the mangling
-    /// shell exists, because field types can instantiate enums.
-    /// Generic structs are instantiated separately by `StructRegistry`.
+    /// Fill the MIR struct field types. This runs after the mangling shell
+    /// exists because field types can reference concrete enums.
     fn fill_struct_fields(&mut self, module: &hir::Module) {
         for (hir_id, decl) in module.structs.iter() {
-            if !decl.type_params.is_empty() {
-                continue;
-            }
             let types = Types {
                 module,
                 struct_map: &self.struct_map,
                 class_map: &self.class_map,
-                subst: None,
             };
             let fields = decl
                 .fields
@@ -1719,18 +1633,48 @@ impl Lowerer {
                     ),
                 })
                 .collect();
-            self.structs.defs[self.struct_map[&hir_id]].fields = fields;
+            let mir_id = self.struct_map[&hir_id];
+            let arguments = decl
+                .type_arguments
+                .iter()
+                .map(|argument| {
+                    types.lower(
+                        *argument,
+                        &mut self.enums,
+                        &mut self.structs,
+                        &mut self.interfaces,
+                        &mut self.shell,
+                    )
+                })
+                .collect();
+            self.structs.defs[mir_id].fields = fields;
+            self.structs.instances.insert(mir_id, (hir_id, arguments));
         }
     }
 
-    /// Materialize non-generic interfaces eagerly. Generic declarations
-    /// are templates and acquire concrete MIR identities on demand.
+    /// Materialize every local-concrete interface eagerly.
     fn lower_interfaces(&mut self, module: &hir::Module) {
         for (hir_id, decl) in module.interfaces.iter() {
-            if decl.type_params.is_empty() {
-                self.interfaces
-                    .get_or_create(module, &mut self.shell, hir_id, Vec::new());
-            }
+            let types = Types {
+                module,
+                struct_map: &self.struct_map,
+                class_map: &self.class_map,
+            };
+            let arguments = decl
+                .type_arguments
+                .iter()
+                .map(|argument| {
+                    types.lower(
+                        *argument,
+                        &mut self.enums,
+                        &mut self.structs,
+                        &mut self.interfaces,
+                        &mut self.shell,
+                    )
+                })
+                .collect();
+            self.interfaces
+                .get_or_create(module, &mut self.shell, hir_id, arguments);
         }
     }
 
@@ -1771,7 +1715,6 @@ impl Lowerer {
                 module,
                 struct_map: &self.struct_map,
                 class_map: &self.class_map,
-                subst: None,
             };
             let interfaces = decl
                 .interfaces
@@ -1807,6 +1750,32 @@ impl Lowerer {
     fn declare_symbol(&mut self, module: &hir::Module, hir_id: hir::FunctionId) -> String {
         let function = &module.functions[hir_id];
         let name = fn_name(function);
+        if !function.type_arguments.is_empty() {
+            let types = Types {
+                module,
+                struct_map: &self.struct_map,
+                class_map: &self.class_map,
+            };
+            let arguments = function
+                .type_arguments
+                .iter()
+                .map(|argument| {
+                    types.lower(
+                        *argument,
+                        &mut self.enums,
+                        &mut self.structs,
+                        &mut self.interfaces,
+                        &mut self.shell,
+                    )
+                })
+                .collect::<Vec<_>>();
+            return function.generic_discriminator.map_or_else(
+                || mir::mangle_instance(&self.shell, &name, &arguments),
+                |discriminator| {
+                    mir::mangle_generic_overload(&self.shell, &name, &arguments, discriminator)
+                },
+            );
+        }
         if hir_id == module.entry || !self.overloaded.contains(&name) {
             return mir::mangle_function(&name, hir_id == module.entry);
         }
@@ -1818,14 +1787,13 @@ impl Lowerer {
         mir::mangle_overload(&self.shell, &name, &params)
     }
 
-    /// Lower a parameter list to MIR types (enum instantiations
-    /// register on demand).
+    /// Lower a parameter list to MIR types (concrete enum definitions are
+    /// transposed lazily on first reference).
     fn lower_params(&mut self, module: &hir::Module, params: &[hir::Param]) -> Vec<mir::Type> {
         let types = Types {
             module,
             struct_map: &self.struct_map,
             class_map: &self.class_map,
-            subst: None,
         };
         params
             .iter()
@@ -1848,21 +1816,11 @@ impl Lowerer {
     /// so keying vtable slots by it replaces the base slot in place,
     /// while overloads get distinct keys and thus distinct slots.
     fn fn_signature_key(&mut self, module: &hir::Module, function: &hir::Function) -> String {
-        self.fn_signature_key_with_subst(module, function, &[])
-    }
-
-    fn fn_signature_key_with_subst(
-        &mut self,
-        module: &hir::Module,
-        function: &hir::Function,
-        subst: &[mir::Type],
-    ) -> String {
         let skip = usize::from(function.method.is_some());
         let types = Types {
             module,
             struct_map: &self.struct_map,
             class_map: &self.class_map,
-            subst: (!subst.is_empty()).then_some(subst),
         };
         let params: Vec<_> = function.params[skip..]
             .iter()
@@ -1881,17 +1839,11 @@ impl Lowerer {
     }
 
     /// The dispatch signature key of an interface method signature.
-    fn sig_signature_key(
-        &mut self,
-        module: &hir::Module,
-        sig: &hir::MethodSig,
-        subst: &[mir::Type],
-    ) -> String {
+    fn sig_signature_key(&mut self, module: &hir::Module, sig: &hir::MethodSig) -> String {
         let types = Types {
             module,
             struct_map: &self.struct_map,
             class_map: &self.class_map,
-            subst: (!subst.is_empty()).then_some(subst),
         };
         let params: Vec<_> = sig
             .params
@@ -1910,10 +1862,11 @@ impl Lowerer {
         format!("{}({encoding})", sig.name)
     }
 
-    /// Declare one non-generic user function (body filled later):
+    /// Declare one local-concrete user function (body filled later):
     /// `scoop.<name>`, `scoop.<Type>.<name>` for members, or the fixed
     /// entry symbol `scoop_main` that the C runtime calls (`main` is
-    /// never generic, hir-lower guarantees it); overloads get the
+    /// never instantiated from a generic template, hir-lower guarantees it);
+    /// overloads get the
     /// parameter encoding appended (`declare_symbol`).
     fn declare_function(
         &mut self,
@@ -1934,6 +1887,33 @@ impl Lowerer {
         });
         self.top_level.push(id);
         self.function_map.insert(hir_id, id);
+        if !function.type_arguments.is_empty() {
+            let type_args = function
+                .type_arguments
+                .iter()
+                .map(|argument| {
+                    Types {
+                        module,
+                        struct_map: &self.struct_map,
+                        class_map: &self.class_map,
+                    }
+                    .lower(
+                        *argument,
+                        &mut self.enums,
+                        &mut self.structs,
+                        &mut self.interfaces,
+                        &mut self.shell,
+                    )
+                })
+                .collect();
+            self.instances.record(
+                hir_id,
+                id,
+                self.functions[id].symbol.clone(),
+                self.functions[id].name.clone(),
+                type_args,
+            );
+        }
         id
     }
 
@@ -1946,14 +1926,13 @@ impl Lowerer {
             .types
             .iter()
             .find_map(|(ty, value)| {
-                matches!(value, hir::Type::Function(found) if *found == id).then_some(ty)
+                matches!(value.kind, hir::TypeKind::Function(found) if found == id).then_some(ty)
             })
             .expect("every function signature is referenced by a canonical HIR type");
         let lowered = Types {
             module,
             struct_map: &self.struct_map,
             class_map: &self.class_map,
-            subst: None,
         }
         .lower(
             ty,
@@ -1972,15 +1951,11 @@ impl Lowerer {
     /// every creation expression resolves directly to a typed class id.
     fn declare_closures(&mut self, module: &hir::Module) {
         for (id, lambda) in module.lambdas.iter() {
-            if lambda.owner_type_param_count != 0 {
-                continue;
-            }
             let function_type = self.lower_function_type_id(module, lambda.function_type);
             let types = Types {
                 module,
                 struct_map: &self.struct_map,
                 class_map: &self.class_map,
-                subst: None,
             };
             let captures: Vec<_> = lambda
                 .captures
@@ -2014,15 +1989,11 @@ impl Lowerer {
             self.lambda_closures.insert(id, class);
         }
         for (id, anonymous) in module.anonymous_functions.iter() {
-            if anonymous.owner_type_param_count != 0 {
-                continue;
-            }
             let function_type = self.lower_function_type_id(module, anonymous.function_type);
             let types = Types {
                 module,
                 struct_map: &self.struct_map,
                 class_map: &self.class_map,
-                subst: None,
             };
             let captures: Vec<_> = anonymous
                 .captures
@@ -2056,9 +2027,6 @@ impl Lowerer {
             self.anonymous_closures.insert(id, class);
         }
         for (id, reference) in module.callable_references.iter() {
-            if reference.owner_type_param_count != 0 {
-                continue;
-            }
             let function_type = self.lower_function_type_id(module, reference.function_type);
             let (callable, receiver) = match &reference.target {
                 hir::CallableReferenceTarget::Named(callable) => (*callable, None),
@@ -2082,7 +2050,6 @@ impl Lowerer {
                 module,
                 struct_map: &self.struct_map,
                 class_map: &self.class_map,
-                subst: None,
             };
             let mut capture_fields =
                 Vec::with_capacity(reference.captures.len() + usize::from(receiver.is_some()));
@@ -2224,41 +2191,14 @@ impl Lowerer {
 
     fn lower_reference_callee(
         &mut self,
-        module: &hir::Module,
+        _module: &hir::Module,
         callable: hir::Callable,
     ) -> mir::Callee {
-        match callable {
-            hir::Callable::Function(function) => mir::Callee::User(self.function_map[&function]),
-            hir::Callable::Generic(resolved) => {
-                let types = Types {
-                    module,
-                    struct_map: &self.struct_map,
-                    class_map: &self.class_map,
-                    subst: None,
-                };
-                let type_args = module.instantiations[resolved]
-                    .type_args
-                    .iter()
-                    .map(|ty| {
-                        types.lower(
-                            *ty,
-                            &mut self.enums,
-                            &mut self.structs,
-                            &mut self.interfaces,
-                            &mut self.shell,
-                        )
-                    })
-                    .collect();
-                mir::Callee::Monomorphized(self.instances.get_or_create(
-                    module,
-                    &mut self.functions,
-                    &mut self.top_level,
-                    &self.shell,
-                    resolved,
-                    type_args,
-                ))
-            }
-        }
+        let hir::Callable::Function(function) = callable;
+        self.instances.get(function).map_or_else(
+            || mir::Callee::User(self.function_map[&function]),
+            mir::Callee::Monomorphized,
+        )
     }
 
     fn bound_reference_call_kind(
@@ -2269,20 +2209,15 @@ impl Lowerer {
     ) -> mir::CallKind {
         let function = module.callable_function(callable);
         let declaration = &module.functions[function];
-        let generic_static_method = matches!(callable, hir::Callable::Generic(_))
-            && !matches!(module.types[receiver_ty], hir::Type::Interface(..));
-        if generic_static_method {
-            return mir::CallKind::Direct;
-        }
-        match module.types[receiver_ty] {
-            hir::Type::Class(_)
+        match module.types[receiver_ty].kind {
+            hir::TypeKind::Class(_)
                 if declaration
                     .method
                     .is_some_and(|method| method.modifier == hir::MethodModifier::Final) =>
             {
                 mir::CallKind::Direct
             }
-            hir::Type::Class(class) => {
+            hir::TypeKind::Class(class) => {
                 let key = self.fn_signature_key(module, declaration);
                 self.method_slots[&self.class_map[&class]]
                     .get(&key)
@@ -2290,12 +2225,11 @@ impl Lowerer {
                         slot,
                     })
             }
-            hir::Type::Interface(..) => {
+            hir::TypeKind::Interface(..) => {
                 let types = Types {
                     module,
                     struct_map: &self.struct_map,
                     class_map: &self.class_map,
-                    subst: None,
                 };
                 let lowered = types.lower(
                     receiver_ty,
@@ -2307,22 +2241,19 @@ impl Lowerer {
                 let mir::Type::Interface(interface) = lowered else {
                     unreachable!("an interface receiver lowers to an interface type")
                 };
-                let (source, interface_args) = self.interfaces.source(interface);
-                let interface_args = interface_args.to_vec();
-                let key = self.fn_signature_key_with_subst(module, declaration, &interface_args);
+                let (source, _) = self.interfaces.source(interface);
+                let key = self.fn_signature_key(module, declaration);
                 let slot = module.interfaces[source]
                     .methods
                     .iter()
-                    .filter(|method| method.type_params.is_empty())
                     .enumerate()
                     .find_map(|(index, signature)| {
-                        (self.sig_signature_key(module, signature, &interface_args) == key)
-                            .then_some(index as u32)
+                        (self.sig_signature_key(module, signature) == key).then_some(index as u32)
                     })
                     .expect("hir-lower resolves interface references to interface methods");
                 mir::CallKind::Interface { interface, slot }
             }
-            hir::Type::Any => match short_name(&declaration.name) {
+            hir::TypeKind::Any => match short_name(&declaration.name) {
                 "equals" => mir::CallKind::Virtual { slot: 0 },
                 "hashCode" => mir::CallKind::Virtual { slot: 1 },
                 "toString" => mir::CallKind::Virtual { slot: 2 },
@@ -2343,7 +2274,6 @@ impl Lowerer {
             module,
             struct_map: &self.struct_map,
             class_map: &self.class_map,
-            subst: None,
         };
         let mut locals = Arena::new();
         let params = function
@@ -2387,12 +2317,32 @@ impl Lowerer {
             body: mir::Body::unreachable(locals),
         });
         self.function_map.insert(hir_id, id);
-        if function.is_suspend {
-            self.suspend_sources.push(SuspendSource {
-                function: id,
-                source_return: return_ty,
-                instance: None,
-            });
+        if !function.type_arguments.is_empty() {
+            let type_args = function
+                .type_arguments
+                .iter()
+                .map(|argument| {
+                    Types {
+                        module,
+                        struct_map: &self.struct_map,
+                        class_map: &self.class_map,
+                    }
+                    .lower(
+                        *argument,
+                        &mut self.enums,
+                        &mut self.structs,
+                        &mut self.interfaces,
+                        &mut self.shell,
+                    )
+                })
+                .collect();
+            self.instances.record(
+                hir_id,
+                id,
+                self.functions[id].symbol.clone(),
+                self.functions[id].name.clone(),
+                type_args,
+            );
         }
     }
 
@@ -2412,7 +2362,6 @@ impl Lowerer {
                 module,
                 struct_map: &self.struct_map,
                 class_map: &self.class_map,
-                subst: None,
             };
             for field in &decl.constructor {
                 fields.push(mir::Field {
@@ -2467,7 +2416,7 @@ impl Lowerer {
             };
             for (fn_id, function) in module.functions.iter() {
                 if method_class(module, function) != Some(hir_id)
-                    || generic_of(module, fn_id).is_some()
+                    || !function.type_arguments.is_empty()
                 {
                     continue;
                 }
@@ -2502,15 +2451,10 @@ impl Lowerer {
             }
             let mut itables = Vec::new();
             for mir_iface in covered {
-                let (hir_iface, interface_args) = self.interfaces.source(mir_iface);
-                let interface_args = interface_args.to_vec();
+                let (hir_iface, _) = self.interfaces.source(mir_iface);
                 let mut slots_for = Vec::new();
-                for method in module.interfaces[hir_iface]
-                    .methods
-                    .iter()
-                    .filter(|method| method.type_params.is_empty())
-                {
-                    let key = self.sig_signature_key(module, method, &interface_args);
+                for method in module.interfaces[hir_iface].methods.iter() {
+                    let key = self.sig_signature_key(module, method);
                     slots_for.push(mir::TableSlot::Function(
                         self.find_impl(module, hir_id, &key),
                     ));
@@ -2574,6 +2518,9 @@ impl Lowerer {
             global_map: &self.global_map,
             callback_bridges: &mut self.callback_bridges,
             callback_by_target: &mut self.callback_by_target,
+            foreign_callback_adapters: &mut self.foreign_callback_adapters,
+            foreign_callback_bridges: &mut self.foreign_callback_bridges,
+            foreign_callback_by_registration: &mut self.foreign_callback_by_registration,
             ctors: &self.ctors,
             strings: &mut self.strings,
             functions: &mut self.functions,
@@ -2583,7 +2530,6 @@ impl Lowerer {
             boxed: &mut self.boxed,
             classes: &mut self.classes,
             shell: &mut self.shell,
-            subst: None,
             // Delegation arguments are closed (hir-lower M6 lowers
             // them in an empty scope), so no locals are visible.
             local_map: HashMap::new(),
@@ -2595,12 +2541,8 @@ impl Lowerer {
             lambda_closures: &self.lambda_closures,
             anonymous_closures: &self.anonymous_closures,
             reference_closures: &self.reference_closures,
-            generic_lambda_closures: &mut self.generic_lambda_closures,
-            generic_anonymous_closures: &mut self.generic_anonymous_closures,
-            generic_reference_closures: &mut self.generic_reference_closures,
             closure_classes: &mut self.closure_classes,
             closure_invokes: &mut self.closure_invokes,
-            closure_by_instance: &mut self.closure_by_instance,
             closure_capture_indices: &mut self.closure_capture_indices,
             closure_adapters: &mut self.closure_adapters,
             closure_adapter_by_types: &mut self.closure_adapter_by_types,
@@ -2663,7 +2605,7 @@ impl Lowerer {
         while let Some(class) = current {
             for (fn_id, function) in module.functions.iter() {
                 if method_class(module, function) != Some(class)
-                    || generic_of(module, fn_id).is_some()
+                    || !function.type_arguments.is_empty()
                 {
                     continue;
                 }
@@ -2718,7 +2660,7 @@ impl Lowerer {
                 .methods
                 .iter()
                 .enumerate()
-                .filter_map(|(index, method)| method.type_params.is_empty().then_some(index))
+                .map(|(index, _)| index)
                 .collect();
             let mut slots = Vec::new();
             for index in method_indices {
@@ -2776,6 +2718,9 @@ impl Lowerer {
             global_map: &self.global_map,
             callback_bridges: &mut self.callback_bridges,
             callback_by_target: &mut self.callback_by_target,
+            foreign_callback_adapters: &mut self.foreign_callback_adapters,
+            foreign_callback_bridges: &mut self.foreign_callback_bridges,
+            foreign_callback_by_registration: &mut self.foreign_callback_by_registration,
             ctors: &self.ctors,
             strings: &mut self.strings,
             functions: &mut self.functions,
@@ -2785,7 +2730,6 @@ impl Lowerer {
             boxed: &mut self.boxed,
             classes: &mut self.classes,
             shell: &mut self.shell,
-            subst: None,
             local_map: HashMap::new(),
             locals,
             hidden_count: 0,
@@ -2795,12 +2739,8 @@ impl Lowerer {
             lambda_closures: &self.lambda_closures,
             anonymous_closures: &self.anonymous_closures,
             reference_closures: &self.reference_closures,
-            generic_lambda_closures: &mut self.generic_lambda_closures,
-            generic_anonymous_closures: &mut self.generic_anonymous_closures,
-            generic_reference_closures: &mut self.generic_reference_closures,
             closure_classes: &mut self.closure_classes,
             closure_invokes: &mut self.closure_invokes,
-            closure_by_instance: &mut self.closure_by_instance,
             closure_capture_indices: &mut self.closure_capture_indices,
             closure_adapters: &mut self.closure_adapters,
             closure_adapter_by_types: &mut self.closure_adapter_by_types,
@@ -2928,14 +2868,12 @@ impl Lowerer {
         iface: mir::InterfaceId,
         method_index: usize,
     ) -> mir::FunctionId {
-        let (hir_iface, interface_args) = self.interfaces.source(iface);
-        let interface_args = interface_args.to_vec();
+        let (hir_iface, _) = self.interfaces.source(iface);
         let signature = &module.interfaces[hir_iface].methods[method_index];
         let types = Types {
             module,
             struct_map: &self.struct_map,
             class_map: &self.class_map,
-            subst: (!interface_args.is_empty()).then_some(interface_args.as_slice()),
         };
         let mut locals = Arena::new();
         let this = locals.alloc(mir::Local {
@@ -2984,16 +2922,15 @@ impl Lowerer {
             .into_iter()
             .find(|source| self.interface_is_subtype(module, *source, iface))
             .expect("HIR guarantees the boxed value implements the target interface");
-        let (_, source_args) = self.interfaces.source(source_interface);
-        let source_args = source_args.to_vec();
+        let (source_hir_interface, _) = self.interfaces.source(source_interface);
+        let source_signature = &module.interfaces[source_hir_interface].methods[method_index];
         let source_types = Types {
             module,
             struct_map: &self.struct_map,
             class_map: &self.class_map,
-            subst: (!source_args.is_empty()).then_some(source_args.as_slice()),
         };
         let mut source_params = Vec::new();
-        for param in &signature.params {
+        for param in &source_signature.params {
             source_params.push(source_types.lower(
                 param.ty,
                 &mut self.enums,
@@ -3078,7 +3015,7 @@ impl Lowerer {
         module: &hir::Module,
         payload: &mir::Type,
     ) -> Vec<mir::InterfaceId> {
-        let (declared, args) = match payload {
+        let declared = match payload {
             mir::Type::Struct(mir_id) => {
                 let hir_id = self
                     .structs
@@ -3091,17 +3028,11 @@ impl Lowerer {
                             .find_map(|(hir, mir)| (*mir == *mir_id).then_some(*hir))
                     })
                     .expect("every MIR struct comes from HIR");
-                let args = self
-                    .structs
-                    .instances
-                    .get(mir_id)
-                    .map(|(_, args)| args.clone())
-                    .unwrap_or_default();
-                (module.structs[hir_id].interfaces.clone(), args)
+                module.structs[hir_id].interfaces.clone()
             }
-            mir::Type::Enum(mir_id, args) => {
+            mir::Type::Enum(mir_id, _) => {
                 let hir_id = self.enums.hir_ids[mir_id];
-                (module.enums[hir_id].interfaces.clone(), args.clone())
+                module.enums[hir_id].interfaces.clone()
             }
             _ => return Vec::new(),
         };
@@ -3109,7 +3040,6 @@ impl Lowerer {
             module,
             struct_map: &self.struct_map,
             class_map: &self.class_map,
-            subst: (!args.is_empty()).then_some(args.as_slice()),
         };
         declared
             .into_iter()
@@ -3136,30 +3066,26 @@ impl Lowerer {
         name: &str,
         expected_params: &[mir::Type],
     ) -> (mir::FunctionId, Vec<mir::Type>, mir::Type) {
+        let mut candidates = Vec::new();
+        let mut owner_methods = Vec::new();
         for (fn_id, function) in module.functions.iter() {
             let Some(method) = function.method else {
                 continue;
             };
             let ty = method.owner;
-            let type_args = match (&module.types[ty], payload) {
-                (hir::Type::Struct(hir_id, _), mir::Type::Struct(mir_id)) => self
-                    .structs
-                    .instances
-                    .get(mir_id)
-                    .filter(|(source, _)| source == hir_id)
-                    .map(|(_, args)| args.clone())
-                    .or_else(|| (self.struct_map.get(hir_id) == Some(mir_id)).then(Vec::new)),
-                (hir::Type::Enum(hir_id, _), mir::Type::Enum(mir_id, args)) => self
-                    .enums
-                    .hir_ids
-                    .get(mir_id)
-                    .filter(|source| *source == hir_id)
-                    .map(|_| args.clone()),
-                _ => None,
+            let owner_matches = match (&module.types[ty].kind, payload) {
+                (hir::TypeKind::Struct(hir_id), mir::Type::Struct(mir_id)) => {
+                    self.struct_map.get(hir_id) == Some(mir_id)
+                }
+                (hir::TypeKind::Enum(hir_id), mir::Type::Enum(mir_id, _)) => {
+                    self.enums.hir_ids.get(mir_id) == Some(hir_id)
+                }
+                _ => false,
             };
-            let Some(type_args) = type_args else {
+            if !owner_matches {
                 continue;
-            };
+            }
+            owner_methods.push(function.name.clone());
             if short_name(&function.name) != name {
                 continue;
             }
@@ -3167,7 +3093,6 @@ impl Lowerer {
                 module,
                 struct_map: &self.struct_map,
                 class_map: &self.class_map,
-                subst: (!type_args.is_empty()).then_some(type_args.as_slice()),
             };
             let params: Vec<_> = function.params[1..]
                 .iter()
@@ -3181,6 +3106,7 @@ impl Lowerer {
                     )
                 })
                 .collect();
+            candidates.push((function.name.clone(), params.clone()));
             if params != expected_params {
                 continue;
             }
@@ -3191,22 +3117,17 @@ impl Lowerer {
                 &mut self.interfaces,
                 &mut self.shell,
             );
-            let function = if let Some(generic) = generic_of(module, fn_id) {
-                let instance = self.instances.get_or_create_generic(
-                    module,
-                    &mut self.functions,
-                    &mut self.top_level,
-                    &self.shell,
-                    generic,
-                    type_args,
-                );
-                self.instances.meta[instance].function
-            } else {
-                self.function_map[&fn_id]
-            };
+            let function = self.function_map[&fn_id];
             return (function, params, return_ty);
         }
-        unreachable!("hir-lower guarantees `{name}` is implemented by the boxed value type")
+        let payload_name = match payload {
+            mir::Type::Struct(id) => self.structs.defs[*id].name.clone(),
+            mir::Type::Enum(id, _) => self.enums.defs[*id].name.clone(),
+            _ => format!("{payload:?}"),
+        };
+        panic!(
+            "concrete HIR guarantees `{name}` is implemented by boxed value type {payload_name} ({payload:?}) with parameters {expected_params:?}; owner methods: {owner_methods:?}; matching-name candidates: {candidates:?}"
+        )
     }
 }
 
@@ -3243,45 +3164,20 @@ fn lower_gc_effect(effect: hir::GcEffect) -> mir::GcEffect {
 
 /// The names shared by more than one plainly-mangled function (M7
 /// overloads), over the whole module including scoop.core. Only
-/// functions that get a plain `scoop.<name>` symbol count: non-generic
-/// `User` functions (free functions, class members, interface method
-/// shells). Intrinsics have no MIR symbol; generic functions only
-/// exist as `$`-mangled instances, which cannot collide with the
+/// functions that get a plain `scoop.<name>` symbol count: `User` functions
+/// with no source type arguments (free functions, class members, interface
+/// method shells). Intrinsics have no MIR symbol; instantiated functions use
+/// `$`-mangled symbols, which cannot collide with the
 /// overload encoding (`.`).
-fn generic_of(module: &hir::Module, function: hir::FunctionId) -> Option<hir::GenericFunctionId> {
-    module
-        .generic_functions
-        .iter()
-        .find_map(|(id, generic)| (generic.function == function).then_some(id))
-}
-
 fn overloaded_names(module: &hir::Module) -> HashSet<String> {
     let mut counts: HashMap<String, usize> = HashMap::new();
-    for (id, function) in module.functions.iter() {
-        if !matches!(function.kind, hir::FunctionKind::User(_)) || generic_of(module, id).is_some()
+    for (_, function) in module.functions.iter() {
+        if !matches!(function.kind, hir::FunctionKind::User(_))
+            || !function.type_arguments.is_empty()
         {
             continue;
         }
         *counts.entry(fn_name(function)).or_default() += 1;
-    }
-    counts
-        .into_iter()
-        .filter(|(_, count)| *count > 1)
-        .map(|(name, _)| name)
-        .collect()
-}
-
-/// Qualified names shared by multiple generic definitions. Their
-/// concrete type arguments alone do not identify an instance: two
-/// overloads can infer the same arguments from different parameter
-/// positions or shapes.
-fn generic_overloaded_names(module: &hir::Module) -> HashSet<String> {
-    let mut counts: HashMap<String, usize> = HashMap::new();
-    for (_, generic) in module.generic_functions.iter() {
-        let function = &module.functions[generic.function];
-        if matches!(function.kind, hir::FunctionKind::User(_)) {
-            *counts.entry(fn_name(function)).or_default() += 1;
-        }
     }
     counts
         .into_iter()
@@ -3308,8 +3204,8 @@ fn is_abstract_bodiless(function: &hir::Function) -> bool {
 /// The class a function is a method of, if any.
 fn method_class(module: &hir::Module, function: &hir::Function) -> Option<hir::ClassId> {
     match function.method {
-        Some(method) => match module.types[method.owner] {
-            hir::Type::Class(id) => Some(id),
+        Some(method) => match module.types[method.owner].kind {
+            hir::TypeKind::Class(id) => Some(id),
             _ => None,
         },
         None => None,
@@ -3383,6 +3279,7 @@ fn clone_fields(fields: &[mir::Field]) -> Vec<mir::Field> {
 /// allocation order, so ids align.
 fn mangling_shell(
     structs: &Arena<mir::StructDef>,
+    enums: &Arena<mir::EnumDef>,
     classes: &Arena<mir::ClassDef>,
     interfaces: &Arena<mir::InterfaceDef>,
 ) -> mir::Module {
@@ -3390,9 +3287,18 @@ fn mangling_shell(
     for (_, def) in structs.iter() {
         shell_structs.alloc(mir::StructDef {
             name: def.name.clone(),
+            gc_free: def.gc_free,
             c_layout: def.c_layout,
             interior_mutable: def.interior_mutable,
             fields: Vec::new(),
+        });
+    }
+    let mut shell_enums = Arena::new();
+    for (_, def) in enums.iter() {
+        shell_enums.alloc(mir::EnumDef {
+            name: def.name.clone(),
+            gc_free: def.gc_free,
+            variants: Vec::new(),
         });
     }
     let mut shell_classes = Arena::new();
@@ -3428,13 +3334,15 @@ fn mangling_shell(
         extern_functions: Arena::new(),
         globals: Arena::new(),
         callback_bridges: Arena::new(),
+        foreign_callback_adapters: Arena::new(),
+        foreign_callback_bridges: Arena::new(),
         function_types: Arena::new(),
         closure_classes: Arena::new(),
         closure_invoke_functions: Arena::new(),
         top_level: Vec::new(),
         strings: Arena::new(),
         structs: shell_structs,
-        enums: Arena::new(),
+        enums: shell_enums,
         classes: shell_classes,
         interfaces: shell_interfaces,
         entry,
@@ -3445,15 +3353,8 @@ fn mangling_shell(
 /// The declaration indices of `Option`'s `Some` / `None` variants.
 /// hir-lower guarantees scoop.core defines a suitable `Option`.
 fn option_variants(module: &hir::Module) -> (u32, u32) {
-    let decl = &module.enums[module.option_enum];
-    let find = |name: &str| {
-        decl.variants
-            .iter()
-            .position(|variant| variant.name == name)
-            .unwrap_or_else(|| panic!("scoop.core's Option must have a `{name}` variant"))
-            as u32
-    };
-    (find("Some"), find("None"))
+    let (some, none) = module.option_variants;
+    (some.into_raw(), none.into_raw())
 }
 
 fn lower_global_constant(
@@ -3490,29 +3391,6 @@ fn lower_global_constant(
     }
 }
 
-/// Whether a HIR type mentions no type parameters.
-fn is_concrete(module: &hir::Module, ty: hir::TypeId) -> bool {
-    match &module.types[ty] {
-        hir::Type::Param(_) => false,
-        hir::Type::Array(element) | hir::Type::MutableArray(element) => {
-            is_concrete(module, *element)
-        }
-        hir::Type::Tuple(elements) => elements.iter().all(|&e| is_concrete(module, e)),
-        hir::Type::Function(id) => {
-            let function = &module.function_types[*id];
-            function
-                .parameter_types
-                .iter()
-                .all(|&parameter| is_concrete(module, parameter))
-                && is_concrete(module, function.return_type)
-        }
-        hir::Type::Struct(_, args) => args.iter().all(|&arg| is_concrete(module, arg)),
-        hir::Type::Interface(_, args) => args.iter().all(|&arg| is_concrete(module, arg)),
-        hir::Type::Enum(_, args) => args.iter().all(|&arg| is_concrete(module, arg)),
-        _ => true,
-    }
-}
-
 /// Concrete interface applications. The MIR identity includes every type
 /// argument because it is also the runtime TypeDescriptor / itable lookup key.
 #[derive(Default)]
@@ -3520,6 +3398,7 @@ struct InterfaceRegistry {
     defs: Arena<mir::InterfaceDef>,
     by_name: HashMap<String, mir::InterfaceId>,
     instances: HashMap<mir::InterfaceId, (hir::InterfaceId, Vec<mir::Type>)>,
+    by_hir: HashMap<hir::InterfaceId, mir::InterfaceId>,
 }
 
 impl InterfaceRegistry {
@@ -3531,22 +3410,13 @@ impl InterfaceRegistry {
         args: Vec<mir::Type>,
     ) -> mir::InterfaceId {
         let decl = &module.interfaces[hir_id];
-        let name = if args.is_empty() {
-            decl.name.clone()
-        } else {
-            let encoded: Vec<String> = args
-                .iter()
-                .map(|arg| mir::encode_type(shell, arg))
-                .collect();
-            format!("{}${}", decl.name, encoded.join("_"))
-        };
+        let name = decl.name.clone();
         if let Some(&id) = self.by_name.get(&name) {
             return id;
         }
         let methods = decl
             .methods
             .iter()
-            .filter(|method| method.type_params.is_empty())
             .map(|method| method.name.clone())
             .collect();
         let id = self.defs.alloc(mir::InterfaceDef {
@@ -3559,6 +3429,7 @@ impl InterfaceRegistry {
         });
         self.by_name.insert(name, id);
         self.instances.insert(id, (hir_id, args));
+        self.by_hir.insert(hir_id, id);
         id
     }
 
@@ -3566,28 +3437,27 @@ impl InterfaceRegistry {
         let (hir, args) = &self.instances[&id];
         (*hir, args)
     }
+
+    fn mir_id(&self, id: hir::InterfaceId) -> mir::InterfaceId {
+        self.by_hir[&id]
+    }
 }
 
 /// Shared type-lowering context: the HIR type arena, the struct /
-/// class / interface maps, and the active substitution (`Param(i)`
-/// resolves through `subst`, the concrete type arguments of the
-/// instance / enum being lowered; non-generic bodies never contain
-/// it).
+/// class / interface maps. Local-concrete HIR has no type parameters and no
+/// substitution state.
 #[derive(Clone, Copy)]
 struct Types<'a> {
     module: &'a hir::Module,
     struct_map: &'a HashMap<hir::StructId, mir::StructId>,
     class_map: &'a HashMap<hir::ClassId, mir::ClassId>,
-    subst: Option<&'a [mir::Type]>,
 }
 
 impl Types<'_> {
     /// Map a HIR type onto its MIR type. Aggregate shapes are
-    /// preserved: structs keep their (remapped) id — or, for a generic
-    /// struct application (M9), the id of the instance created on
-    /// demand — tuples their mapped element types; enum types
-    /// instantiate their definition on demand. Reference types map
-    /// onto their (remapped) ids.
+    /// preserved: structs keep their remapped concrete id, tuples keep their
+    /// mapped element types, and concrete enum definitions are transposed on
+    /// first reference. Reference types map onto their remapped ids.
     fn lower(
         &self,
         ty: hir::TypeId,
@@ -3596,49 +3466,38 @@ impl Types<'_> {
         interfaces: &mut InterfaceRegistry,
         shell: &mut mir::Module,
     ) -> mir::Type {
-        match &self.module.types[ty] {
-            hir::Type::Unit => mir::Type::Unit,
-            hir::Type::Int => mir::Type::Int,
+        match &self.module.types[ty].kind {
+            hir::TypeKind::Unit => mir::Type::Unit,
+            hir::TypeKind::Int => mir::Type::Int,
             // UInt shares Int's machine word (M9, spec 11.2); the MIR
             // type stays distinct so checks can tell them apart.
-            hir::Type::UInt => mir::Type::UInt,
-            hir::Type::Boolean => mir::Type::Boolean,
-            hir::Type::String => mir::Type::String,
-            hir::Type::Struct(id, args) => {
-                if args.is_empty() {
-                    mir::Type::Struct(self.struct_map[id])
-                } else {
-                    let args: Vec<mir::Type> = args
-                        .iter()
-                        .map(|&arg| self.lower(arg, enums, structs, interfaces, shell))
-                        .collect();
-                    mir::Type::Struct(
-                        structs.get_or_create(self, enums, interfaces, shell, *id, args),
-                    )
-                }
-            }
-            hir::Type::Class(id) => mir::Type::Class(self.class_map[id]),
-            hir::Type::Interface(id, args) => {
-                let args = args
+            hir::TypeKind::UInt => mir::Type::UInt,
+            hir::TypeKind::Boolean => mir::Type::Boolean,
+            hir::TypeKind::String => mir::Type::String,
+            hir::TypeKind::Struct(id) => mir::Type::Struct(self.struct_map[id]),
+            hir::TypeKind::Class(id) => mir::Type::Class(self.class_map[id]),
+            hir::TypeKind::Interface(id) => {
+                let args = self.module.interfaces[*id]
+                    .type_arguments
                     .iter()
                     .map(|&arg| self.lower(arg, enums, structs, interfaces, shell))
                     .collect();
                 mir::Type::Interface(interfaces.get_or_create(self.module, shell, *id, args))
             }
-            hir::Type::Any => mir::Type::Any,
-            hir::Type::Array(element) => mir::Type::Array(Box::new(
+            hir::TypeKind::Any => mir::Type::Any,
+            hir::TypeKind::Array(element) => mir::Type::Array(Box::new(
                 self.lower(*element, enums, structs, interfaces, shell),
             )),
-            hir::Type::MutableArray(element) => mir::Type::MutableArray(Box::new(
+            hir::TypeKind::MutableArray(element) => mir::Type::MutableArray(Box::new(
                 self.lower(*element, enums, structs, interfaces, shell),
             )),
-            hir::Type::Tuple(elements) => mir::Type::Tuple(
+            hir::TypeKind::Tuple(elements) => mir::Type::Tuple(
                 elements
                     .iter()
                     .map(|&element| self.lower(element, enums, structs, interfaces, shell))
                     .collect(),
             ),
-            hir::Type::Function(id) => {
+            hir::TypeKind::Function(id) => {
                 let function = self.module.function_types[*id].clone();
                 let parameter_types: Vec<mir::Type> = function
                     .parameter_types
@@ -3663,10 +3522,10 @@ impl Types<'_> {
                 };
                 mir::Type::Function(id)
             }
-            hir::Type::Ptr(pointee) => mir::Type::Ptr(Box::new(
+            hir::TypeKind::Ptr(pointee) => mir::Type::Ptr(Box::new(
                 self.lower(*pointee, enums, structs, interfaces, shell),
             )),
-            hir::Type::FunPtr(id) => {
+            hir::TypeKind::FunPtr(id) => {
                 let function = self.module.function_types[*id].clone();
                 let parameter_types: Vec<mir::Type> = function
                     .parameter_types
@@ -3690,35 +3549,28 @@ impl Types<'_> {
                 });
                 mir::Type::FunPtr(id)
             }
-            hir::Type::Enum(id, args) => {
-                let args: Vec<mir::Type> = args
+            hir::TypeKind::Enum(id) => {
+                let args = self.module.enums[*id]
+                    .type_arguments
                     .iter()
-                    .map(|&arg| self.lower(arg, enums, structs, interfaces, shell))
-                    .collect();
-                let enum_id =
-                    enums.get_or_create(self, structs, interfaces, shell, *id, args.clone());
+                    .map(|argument| self.lower(*argument, enums, structs, interfaces, shell))
+                    .collect::<Vec<_>>();
+                let enum_id = enums.get_or_create(self, structs, interfaces, shell, *id);
                 mir::Type::Enum(enum_id, args)
             }
-            hir::Type::Param(index) => self
-                .subst
-                .expect("hir::Type::Param only appears with a substitution")
-                [index.into_raw() as usize]
-                .clone(),
         }
     }
 }
 
-/// Instantiated enum definitions (DESIGN 3.3): one `mir::EnumDef` per
-/// `(enum, concrete type args)`, deduplicated by mangled instance name
-/// (`Option$I`, or the plain name for non-generic enums).
+/// Concrete enum definitions (DESIGN 3.3), transposed once from distinct
+/// local-concrete HIR identities (`Option$I`, or a plain non-generic name).
 #[derive(Default)]
 struct EnumRegistry {
     defs: Arena<mir::EnumDef>,
-    /// Mangled instance name -> enum. The name encodes the enum and
-    /// its type arguments, so it is the deduplication key.
+    /// Concrete name -> MIR enum, used to preserve one transposition.
     by_name: HashMap<String, mir::EnumId>,
-    /// MIR enum -> the HIR enum it instantiates (boxed value types
-    /// read the declared interfaces from the declaration).
+    /// MIR enum -> its local-concrete HIR source (boxed value types read the
+    /// declared interfaces from that complete definition).
     hir_ids: HashMap<mir::EnumId, hir::EnumId>,
 }
 
@@ -3730,51 +3582,38 @@ impl EnumRegistry {
         interfaces: &mut InterfaceRegistry,
         shell: &mut mir::Module,
         hir_id: hir::EnumId,
-        args: Vec<mir::Type>,
     ) -> mir::EnumId {
         let decl = &types.module.enums[hir_id];
-        // Nested arguments are instantiated first (their shell entries
-        // exist), so `encode_type` can render them here.
-        let name = if args.is_empty() {
-            decl.name.clone()
-        } else {
-            let encoded: Vec<String> = args.iter().map(|ty| mir::encode_type(shell, ty)).collect();
-            format!("{}${}", decl.name, encoded.join("_"))
-        };
+        let name = decl.name.clone();
         if let Some(&id) = self.by_name.get(&name) {
             return id;
         }
         let id = self.defs.alloc(mir::EnumDef {
             name: name.clone(),
+            gc_free: decl.gc_free,
             variants: Vec::new(),
         });
         // Keep the mangling shell's enum arena in sync (same ids) so
         // `encode_type` can render this instance inside another one.
         shell.enums.alloc(mir::EnumDef {
             name: name.clone(),
+            gc_free: decl.gc_free,
             variants: Vec::new(),
         });
         self.by_name.insert(name, id);
         self.hir_ids.insert(id, hir_id);
-        // Fill the definition eagerly: the id is already registered, so
-        // variant fields mentioning this same enum terminate. Variant
-        // field types mention the enum's own type parameters, which the
-        // instance's type arguments replace.
-        let variant_types = Types {
-            subst: Some(&args),
-            ..*types
-        };
         let variants = decl
             .variants
             .iter()
             .map(|variant| mir::VariantDef {
                 name: variant.name.clone(),
+                gc_free: variant.gc_free,
                 fields: variant
                     .fields
                     .iter()
                     .map(|field| mir::Field {
                         name: field.name.clone(),
-                        ty: variant_types.lower(field.ty, self, structs, interfaces, shell),
+                        ty: types.lower(field.ty, self, structs, interfaces, shell),
                     })
                     .collect(),
             })
@@ -3784,81 +3623,39 @@ impl EnumRegistry {
     }
 }
 
-/// Instantiated generic struct definitions (M9, spec 3.2): one
-/// `mir::StructDef` per (generic struct, concrete type args),
-/// deduplicated by the mangled instance
-/// name (`PinnedPtr$V`, the same shape as enum instances).
-///
-/// The substitution machinery is general: field types mentioning the
-/// struct's type parameters resolve through the argument list. The
-/// `PinnedPtr` / `GcHandle` use a phantom parameter while ordinary
-/// user structs may mention parameters in fields.
+/// Concrete struct definitions and source-instance metadata. Each HIR struct
+/// is already specialized; the retained type arguments are only for boxing,
+/// interface lookup, and MIR metadata.
 #[derive(Default)]
 struct StructRegistry {
     defs: Arena<mir::StructDef>,
-    /// Mangled instance name -> struct. The name encodes the struct
-    /// and its type arguments, so it is the deduplication key.
-    by_name: HashMap<String, mir::StructId>,
     /// Concrete generic instance -> source declaration and arguments.
     instances: HashMap<mir::StructId, (hir::StructId, Vec<mir::Type>)>,
 }
 
-impl StructRegistry {
-    fn get_or_create(
-        &mut self,
-        types: &Types,
-        enums: &mut EnumRegistry,
-        interfaces: &mut InterfaceRegistry,
-        shell: &mut mir::Module,
-        hir_id: hir::StructId,
-        args: Vec<mir::Type>,
-    ) -> mir::StructId {
-        let decl = &types.module.structs[hir_id];
-        let encoded: Vec<String> = args.iter().map(|ty| mir::encode_type(shell, ty)).collect();
-        let name = format!("{}${}", decl.name, encoded.join("_"));
-        if let Some(&id) = self.by_name.get(&name) {
-            return id;
-        }
-        let id = self.defs.alloc(mir::StructDef {
-            name: name.clone(),
-            c_layout: decl.attributes.c_layout.map(|layout| mir::CLayout {
-                aligned: layout.aligned,
-                packed: layout.packed,
-            }),
-            interior_mutable: decl.attributes.interior_mutable,
-            fields: Vec::new(),
-        });
-        // Keep the mangling shell's struct arena in sync (same ids) so
-        // `encode_type` can render this instance inside another one.
-        shell.structs.alloc(mir::StructDef {
-            name: name.clone(),
-            c_layout: decl.attributes.c_layout.map(|layout| mir::CLayout {
-                aligned: layout.aligned,
-                packed: layout.packed,
-            }),
-            interior_mutable: decl.attributes.interior_mutable,
-            fields: Vec::new(),
-        });
-        self.by_name.insert(name, id);
-        self.instances.insert(id, (hir_id, args.clone()));
-        // Fill the definition eagerly: the id is already registered, so
-        // a field mentioning this same instance terminates. Field types
-        // mention the struct's type parameters, which the instance's
-        // type arguments replace.
-        let field_types = Types {
-            subst: Some(&args),
-            ..*types
-        };
-        let fields = decl
-            .fields
+/// Classify a MIR type while constructing compiler-synthesized concrete
+/// aggregates. Source aggregates copy this mandatory bit from concrete HIR;
+/// synthesized aggregates must derive it atomically with their definition.
+fn mir_type_gc_free(ty: &mir::Type, structs: &StructRegistry, enums: &EnumRegistry) -> bool {
+    match ty {
+        mir::Type::Unit
+        | mir::Type::Int
+        | mir::Type::UInt
+        | mir::Type::Boolean
+        | mir::Type::Ptr(_)
+        | mir::Type::FunPtr(_) => true,
+        mir::Type::Struct(id) => structs.defs[*id].gc_free,
+        mir::Type::Enum(id, _) => enums.defs[*id].gc_free,
+        mir::Type::Tuple(elements) => elements
             .iter()
-            .map(|field| mir::Field {
-                name: field.name.clone(),
-                ty: field_types.lower(field.ty, enums, self, interfaces, shell),
-            })
-            .collect();
-        self.defs[id].fields = fields;
-        id
+            .all(|element| mir_type_gc_free(element, structs, enums)),
+        mir::Type::String
+        | mir::Type::Class(_)
+        | mir::Type::Interface(_)
+        | mir::Type::Any
+        | mir::Type::Array(_)
+        | mir::Type::MutableArray(_)
+        | mir::Type::Function(_) => false,
     }
 }
 
@@ -3943,97 +3740,35 @@ fn is_reference_mir(ty: &mir::Type) -> bool {
     )
 }
 
-/// Monomorphized instances: creation, deduplication, and the body
-/// worklist (DESIGN 2.3).
+/// Metadata for functions that HIR has already fully instantiated. MIR never
+/// owns an instantiation worklist; it only records the concrete source mapping.
 #[derive(Default)]
 struct InstanceRegistry {
-    /// Typed generic definition plus encoded concrete type arguments
-    /// -> instance. The typed identity is essential for generic
-    /// overloads whose inferred type arguments happen to be equal.
-    by_key: HashMap<(hir::GenericFunctionId, Vec<String>), mir::MonomorphizedFunctionId>,
-    /// Qualified names shared by more than one generic definition.
-    /// Only these instances need a definition discriminator in their
-    /// externally visible symbol.
-    overloaded_names: HashSet<String>,
-    /// MIR metadata entries, indexed by the typed identity carried by
-    /// monomorphized call sites.
+    by_function: HashMap<hir::FunctionId, mir::MonomorphizedFunctionId>,
     meta: Arena<mir::MonomorphizedFunction>,
-    /// Instances whose bodies still have to be lowered: (source
-    /// generic definition, concrete type arguments, instance id).
-    pending: Vec<(
-        hir::GenericFunctionId,
-        Vec<mir::Type>,
-        mir::MonomorphizedFunctionId,
-    )>,
 }
 
 impl InstanceRegistry {
-    fn get_or_create(
+    fn record(
         &mut self,
-        module: &hir::Module,
-        functions: &mut Arena<mir::Function>,
-        top_level: &mut Vec<mir::FunctionId>,
-        shell: &mir::Module,
-        resolved_id: hir::ResolvedGenericFunctionId,
+        source: hir::FunctionId,
+        function: mir::FunctionId,
+        symbol: String,
+        name: String,
         type_args: Vec<mir::Type>,
     ) -> mir::MonomorphizedFunctionId {
-        let resolved = &module.instantiations[resolved_id];
-        self.get_or_create_generic(
-            module,
-            functions,
-            top_level,
-            shell,
-            resolved.generic,
+        let id = self.meta.alloc(mir::MonomorphizedFunction {
+            function,
+            symbol,
+            source: name,
             type_args,
-        )
+        });
+        assert!(self.by_function.insert(source, id).is_none());
+        id
     }
 
-    fn get_or_create_generic(
-        &mut self,
-        module: &hir::Module,
-        functions: &mut Arena<mir::Function>,
-        top_level: &mut Vec<mir::FunctionId>,
-        shell: &mir::Module,
-        generic: hir::GenericFunctionId,
-        type_args: Vec<mir::Type>,
-    ) -> mir::MonomorphizedFunctionId {
-        let hir_id = module.generic_functions[generic].function;
-        let function = &module.functions[hir_id];
-        let name = fn_name(function);
-        let key = (
-            generic,
-            type_args
-                .iter()
-                .map(|ty| mir::encode_type(shell, ty))
-                .collect(),
-        );
-        if let Some(&id) = self.by_key.get(&key) {
-            return id;
-        }
-        let symbol = if self.overloaded_names.contains(&name) {
-            mir::mangle_generic_overload(shell, &name, &type_args, generic.into_raw().into_u32())
-        } else {
-            mir::mangle_instance(shell, &name, &type_args)
-        };
-        let function_id = functions.alloc(mir::Function {
-            gc_effect: lower_gc_effect(function.attributes.gc_effect),
-            name: name.clone(),
-            symbol: symbol.clone(),
-            // Filled in when the instance body is lowered.
-            params: Vec::new(),
-            return_ty: mir::Type::Unit,
-            body: mir::Body::unreachable(Arena::new()),
-        });
-        top_level.push(function_id);
-        let id = self.meta.alloc(mir::MonomorphizedFunction {
-            function: function_id,
-            symbol: symbol.clone(),
-            source: name,
-            type_args: type_args.clone(),
-        });
-        self.by_key.insert(key, id);
-        self.pending.push((generic, type_args, id));
-        id
+    fn get(&self, source: hir::FunctionId) -> Option<mir::MonomorphizedFunctionId> {
+        self.by_function.get(&source).copied()
     }
 }
 
@@ -4043,8 +3778,8 @@ struct BodyLowerer<'a> {
     struct_map: &'a HashMap<hir::StructId, mir::StructId>,
     class_map: &'a HashMap<hir::ClassId, mir::ClassId>,
     interfaces: &'a mut InterfaceRegistry,
-    /// MIR struct definitions (field types for the equality
-    /// expansion; generic struct instances are appended on demand).
+    /// MIR struct definitions (field types for equality expansion and GC
+    /// classification of compiler-synthesized aggregates).
     structs: &'a mut StructRegistry,
     /// Method signature key -> vtable slot per class
     /// (`compute_dispatch`).
@@ -4055,6 +3790,10 @@ struct BodyLowerer<'a> {
     callback_bridges: &'a mut Arena<mir::CallbackBridge>,
     callback_by_target:
         &'a mut HashMap<(mir::FunctionId, mir::FunctionTypeId), mir::CallbackBridgeId>,
+    foreign_callback_adapters: &'a mut Arena<mir::ForeignCallbackAdapter>,
+    foreign_callback_bridges: &'a mut Arena<mir::ForeignCallbackBridge>,
+    foreign_callback_by_registration:
+        &'a mut HashMap<hir::ForeignCallbackRegistrationId, mir::ForeignCallbackBridgeId>,
     /// HIR class -> its constructor function (`ClassInit` calls).
     ctors: &'a HashMap<hir::ClassId, mir::FunctionId>,
     strings: &'a mut Arena<mir::StringConst>,
@@ -4070,9 +3809,6 @@ struct BodyLowerer<'a> {
     classes: &'a mut Arena<mir::ClassDef>,
     /// Mangling shell (enum / struct names for `encode_type`).
     shell: &'a mut mir::Module,
-    /// Concrete type arguments of the instance being lowered; `None`
-    /// for non-generic bodies (which never mention `Param`).
-    subst: Option<&'a [mir::Type]>,
     /// HIR local -> MIR local (same declaration order per body).
     local_map: HashMap<hir::LocalId, mir::LocalId>,
     /// MIR locals, including the hidden ones created during lowering
@@ -4088,14 +3824,8 @@ struct BodyLowerer<'a> {
     lambda_closures: &'a HashMap<hir::LambdaId, mir::ClosureClassId>,
     anonymous_closures: &'a HashMap<hir::AnonymousFunctionId, mir::ClosureClassId>,
     reference_closures: &'a HashMap<hir::CallableReferenceId, mir::ClosureClassId>,
-    generic_lambda_closures: &'a mut HashMap<(hir::LambdaId, Vec<String>), mir::ClosureClassId>,
-    generic_anonymous_closures:
-        &'a mut HashMap<(hir::AnonymousFunctionId, Vec<String>), mir::ClosureClassId>,
-    generic_reference_closures:
-        &'a mut HashMap<(hir::CallableReferenceId, Vec<String>), mir::ClosureClassId>,
     closure_classes: &'a mut Arena<mir::ClosureClass>,
     closure_invokes: &'a mut Arena<mir::ClosureInvokeFunction>,
-    closure_by_instance: &'a mut HashMap<mir::MonomorphizedFunctionId, mir::ClosureClassId>,
     closure_capture_indices: &'a mut HashMap<(mir::ClosureClassId, hir::BindingId), u32>,
     closure_adapters: &'a mut Arena<mir::ClosureAdapter>,
     closure_adapter_by_types:
@@ -4195,7 +3925,6 @@ impl BodyLowerer<'_> {
             module: self.module,
             struct_map: self.struct_map,
             class_map: self.class_map,
-            subst: self.subst,
         }
         .lower(ty, self.enums, self.structs, self.interfaces, self.shell)
     }
@@ -4209,7 +3938,8 @@ impl BodyLowerer<'_> {
             .types
             .iter()
             .find_map(|(ty, value)| {
-                matches!(value, hir::Type::Function(found) if *found == function_type).then_some(ty)
+                matches!(value.kind, hir::TypeKind::Function(found) if found == function_type)
+                    .then_some(ty)
             })
             .expect("every function signature is referenced by a canonical HIR type");
         let mir::Type::Function(function_type) = self.lower_type(ty) else {
@@ -4218,318 +3948,16 @@ impl BodyLowerer<'_> {
         function_type
     }
 
-    fn generic_closure_key(&self, owner_type_param_count: usize) -> Vec<String> {
-        let subst = self
-            .subst
-            .expect("a generic closure is created only in a concrete generic body");
-        assert_eq!(
-            subst.len(),
-            owner_type_param_count,
-            "a closure inherits the complete enclosing type-parameter namespace"
-        );
-        subst
-            .iter()
-            .map(|ty| mir::encode_type(self.shell, ty))
-            .collect()
-    }
-
-    fn materialize_generated_closure(
-        &mut self,
-        name: String,
-        function: hir::FunctionId,
-        function_type: hir::FunctionTypeId,
-        captures: &[hir::Capture],
-    ) -> mir::ClosureClassId {
-        let function_type = self.lower_function_type_id(function_type);
-        let mut fields = Vec::with_capacity(captures.len());
-        for capture in captures {
-            fields.push(mir::Field {
-                name: capture.name.clone(),
-                ty: self.lower_type(capture.ty),
-            });
-        }
-        let generic = generic_of(self.module, function)
-            .expect("a generated closure in a generic body is a generic function");
-        let type_args = self
-            .subst
-            .expect("a generic closure has a concrete substitution")
-            .to_vec();
-        let instance = self.instances.get_or_create_generic(
-            self.module,
-            self.functions,
-            self.top_level,
-            self.shell,
-            generic,
-            type_args,
-        );
-        let invoke = self.closure_invokes.alloc(mir::ClosureInvokeFunction {
-            function: self.instances.meta[instance].function,
-        });
-        let class = self.closure_classes.alloc(mir::ClosureClass {
-            name,
-            function_type,
-            invoke,
-            captures: fields,
-            bridges: Vec::new(),
-        });
-        self.closure_by_instance.insert(instance, class);
-        for (index, capture) in captures.iter().enumerate() {
-            self.closure_capture_indices
-                .insert((class, capture.binding), index as u32);
-        }
-        class
-    }
-
     fn ensure_lambda_closure(&mut self, id: hir::LambdaId) -> mir::ClosureClassId {
-        if let Some(&class) = self.lambda_closures.get(&id) {
-            return class;
-        }
-        let lambda = self.module.lambdas[id].clone();
-        let encoded = self.generic_closure_key(lambda.owner_type_param_count);
-        let key = (id, encoded.clone());
-        if let Some(&class) = self.generic_lambda_closures.get(&key) {
-            return class;
-        }
-        let class = self.materialize_generated_closure(
-            format!("$Closure$lambda{}${}", id.into_raw(), encoded.join("_")),
-            lambda.function,
-            lambda.function_type,
-            &lambda.captures,
-        );
-        self.generic_lambda_closures.insert(key, class);
-        class
+        self.lambda_closures[&id]
     }
 
     fn ensure_anonymous_closure(&mut self, id: hir::AnonymousFunctionId) -> mir::ClosureClassId {
-        if let Some(&class) = self.anonymous_closures.get(&id) {
-            return class;
-        }
-        let anonymous = self.module.anonymous_functions[id].clone();
-        let encoded = self.generic_closure_key(anonymous.owner_type_param_count);
-        let key = (id, encoded.clone());
-        if let Some(&class) = self.generic_anonymous_closures.get(&key) {
-            return class;
-        }
-        let class = self.materialize_generated_closure(
-            format!("$Closure$anonymous{}${}", id.into_raw(), encoded.join("_")),
-            anonymous.function,
-            anonymous.function_type,
-            &anonymous.captures,
-        );
-        self.generic_anonymous_closures.insert(key, class);
-        class
-    }
-
-    fn bound_reference_call_kind(
-        &mut self,
-        receiver_ty: hir::TypeId,
-        callable: hir::Callable,
-    ) -> mir::CallKind {
-        let function = self.module.callable_function(callable);
-        let declaration = self.module.functions[function].clone();
-        let receiver_source = self.module.types[receiver_ty].clone();
-        let generic_static_method = matches!(callable, hir::Callable::Generic(_))
-            && !matches!(receiver_source, hir::Type::Interface(..));
-        if generic_static_method {
-            return mir::CallKind::Direct;
-        }
-        match receiver_source {
-            hir::Type::Class(_)
-                if declaration
-                    .method
-                    .is_some_and(|method| method.modifier == hir::MethodModifier::Final) =>
-            {
-                mir::CallKind::Direct
-            }
-            hir::Type::Class(class) => {
-                let key = self.signature_key(&declaration);
-                self.method_slots[&self.class_map[&class]]
-                    .get(&key)
-                    .map_or(mir::CallKind::Direct, |&slot| mir::CallKind::Virtual {
-                        slot,
-                    })
-            }
-            hir::Type::Interface(..) => {
-                let mir::Type::Interface(interface) = self.lower_type(receiver_ty) else {
-                    unreachable!("an interface receiver lowers to an interface type")
-                };
-                let (source, interface_args) = self.interfaces.source(interface);
-                let interface_args = interface_args.to_vec();
-                let key = self.signature_key_with_subst(&declaration, &interface_args);
-                let slot = self.module.interfaces[source]
-                    .methods
-                    .iter()
-                    .filter(|method| method.type_params.is_empty())
-                    .enumerate()
-                    .find_map(|(index, signature)| {
-                        (self.sig_key_with_subst(signature, &interface_args) == key)
-                            .then_some(index as u32)
-                    })
-                    .expect("hir-lower resolves interface references to interface methods");
-                mir::CallKind::Interface { interface, slot }
-            }
-            hir::Type::Any => match short_name(&declaration.name) {
-                "equals" => mir::CallKind::Virtual { slot: 0 },
-                "hashCode" => mir::CallKind::Virtual { slot: 1 },
-                "toString" => mir::CallKind::Virtual { slot: 2 },
-                _ => mir::CallKind::Direct,
-            },
-            _ => mir::CallKind::Direct,
-        }
+        self.anonymous_closures[&id]
     }
 
     fn ensure_reference_closure(&mut self, id: hir::CallableReferenceId) -> mir::ClosureClassId {
-        if let Some(&class) = self.reference_closures.get(&id) {
-            return class;
-        }
-        let reference = self.module.callable_references[id].clone();
-        let encoded = self.generic_closure_key(reference.owner_type_param_count);
-        let key = (id, encoded.clone());
-        if let Some(&class) = self.generic_reference_closures.get(&key) {
-            return class;
-        }
-        let function_type = self.lower_function_type_id(reference.function_type);
-        let (callable, receiver_ty) = match &reference.target {
-            hir::CallableReferenceTarget::Named(callable) => (*callable, None),
-            hir::CallableReferenceTarget::Local { callee, .. } => (*callee, None),
-            hir::CallableReferenceTarget::BoundMember { receiver, callee }
-            | hir::CallableReferenceTarget::BoundExtension { receiver, callee } => {
-                (*callee, Some(receiver.ty))
-            }
-        };
-        let target = self.lower_user_callee(callable);
-        let call_kind = match &reference.target {
-            hir::CallableReferenceTarget::BoundMember { receiver, .. } => {
-                self.bound_reference_call_kind(receiver.ty, callable)
-            }
-            _ => mir::CallKind::Direct,
-        };
-        let signature = self.shell.function_types[function_type].clone();
-        let mut capture_fields =
-            Vec::with_capacity(reference.captures.len() + usize::from(receiver_ty.is_some()));
-        if let Some(receiver_ty) = receiver_ty {
-            capture_fields.push(mir::Field {
-                name: "$receiver".to_string(),
-                ty: self.lower_type(receiver_ty),
-            });
-        }
-        for capture in &reference.captures {
-            capture_fields.push(mir::Field {
-                name: capture.name.clone(),
-                ty: self.lower_type(capture.ty),
-            });
-        }
-
-        let closure_ty = mir::Type::Function(function_type);
-        let mut locals = Arena::new();
-        let closure = locals.alloc(mir::Local {
-            name: "$closure".to_string(),
-            ty: closure_ty.clone(),
-            mutable: false,
-        });
-        let mut params = vec![mir::Param {
-            name: "$closure".to_string(),
-            ty: closure_ty,
-            local: closure,
-        }];
-        let mut source_args = Vec::with_capacity(signature.parameter_types.len());
-        for (index, ty) in signature.parameter_types.iter().cloned().enumerate() {
-            let local = locals.alloc(mir::Local {
-                name: format!("arg{index}"),
-                ty: ty.clone(),
-                mutable: false,
-            });
-            params.push(mir::Param {
-                name: format!("arg{index}"),
-                ty,
-                local,
-            });
-            source_args.push(smir::Expr::Local(local));
-        }
-        let suffix = encoded.join("_");
-        let function = self.functions.alloc(mir::Function {
-            gc_effect: mir::GcEffect::Managed,
-            name: format!("$reference.{}${suffix}", id.into_raw()),
-            symbol: format!("scoop.$reference.{}${suffix}", id.into_raw()),
-            params: Vec::new(),
-            return_ty: signature.return_type.clone(),
-            body: mir::Body::unreachable(Arena::new()),
-        });
-        self.top_level.push(function);
-        let invoke = self
-            .closure_invokes
-            .alloc(mir::ClosureInvokeFunction { function });
-        let class = self.closure_classes.alloc(mir::ClosureClass {
-            name: format!("$Closure$reference{}${suffix}", id.into_raw()),
-            function_type,
-            invoke,
-            captures: capture_fields,
-            bridges: Vec::new(),
-        });
-        let capture_offset = u32::from(receiver_ty.is_some());
-        for (index, capture) in reference.captures.iter().enumerate() {
-            self.closure_capture_indices
-                .insert((class, capture.binding), capture_offset + index as u32);
-        }
-
-        let mut args = Vec::with_capacity(
-            usize::from(receiver_ty.is_some()) + reference.captures.len() + source_args.len(),
-        );
-        if receiver_ty.is_some() {
-            args.push(smir::Expr::ClosureCapture {
-                closure: Box::new(smir::Expr::Local(closure)),
-                class,
-                index: 0,
-            });
-        } else if matches!(reference.target, hir::CallableReferenceTarget::Local { .. }) {
-            for index in 0..reference.captures.len() {
-                args.push(smir::Expr::ClosureCapture {
-                    closure: Box::new(smir::Expr::Local(closure)),
-                    class,
-                    index: index as u32,
-                });
-            }
-        } else {
-            debug_assert!(reference.captures.is_empty());
-        }
-        args.extend(source_args);
-        let call = smir::Expr::Call(smir::Call {
-            target: mir::CallTarget {
-                kind: call_kind,
-                callee: target,
-            },
-            args,
-            return_ty: signature.return_type.clone(),
-        });
-        let statement = if signature.return_type == mir::Type::Unit {
-            smir::StatementKind::Expr(call)
-        } else {
-            smir::StatementKind::Return { value: Some(call) }
-        };
-        let mut statements = vec![smir::Statement {
-            kind: statement,
-            span: reference.span,
-        }];
-        if signature.return_type == mir::Type::Unit {
-            statements.push(smir::Statement {
-                kind: smir::StatementKind::Return { value: None },
-                span: reference.span,
-            });
-        }
-        self.functions[function].params = params;
-        self.functions[function].body = cfg::lower(
-            smir::Body { locals, statements },
-            signature.return_type.clone(),
-        );
-        if signature.is_suspend {
-            self.suspend_sources.push(SuspendSource {
-                function,
-                source_return: signature.return_type,
-                instance: None,
-            });
-        }
-        self.generic_reference_closures.insert(key, class);
-        class
+        self.reference_closures[&id]
     }
 
     fn adapt_function_value(
@@ -5284,7 +4712,7 @@ impl BodyLowerer<'_> {
                     unreachable!("a variant pattern matches an enum value")
                 };
                 let enum_id = *enum_id;
-                let variant = *variant;
+                let variant = variant.into_raw();
                 let tag = smir::Expr::EnumTag(Box::new(self.accessed(&Opd::Local(root), path)));
                 let mut cond = smir::Expr::Binary {
                     op: mir::BinOp::IntEq,
@@ -5402,7 +4830,7 @@ impl BodyLowerer<'_> {
             }
             hir::ExprKind::VariantConstruct { variant, args, .. } => smir::Expr::VariantConstruct {
                 ty: self.lower_type(expr.ty),
-                variant: *variant,
+                variant: variant.into_raw(),
                 fields: args.iter().map(|arg| self.lower_expr(arg)).collect(),
             },
             hir::ExprKind::Local(local) => {
@@ -5568,7 +4996,7 @@ impl BodyLowerer<'_> {
                 }
             }
             hir::ExprKind::PtrLoad { pointer, offset } => {
-                let hir::Type::Ptr(pointee) = self.module.types[pointer.ty] else {
+                let hir::TypeKind::Ptr(pointee) = self.module.types[pointer.ty].kind else {
                     unreachable!("PtrLoad has a pointer operand")
                 };
                 smir::Expr::PtrLoad {
@@ -5584,7 +5012,7 @@ impl BodyLowerer<'_> {
                 offset,
                 value,
             } => {
-                let hir::Type::Ptr(pointee) = self.module.types[pointer.ty] else {
+                let hir::TypeKind::Ptr(pointee) = self.module.types[pointer.ty].kind else {
                     unreachable!("PtrStore has a pointer operand")
                 };
                 smir::Expr::PtrStore {
@@ -5601,7 +5029,7 @@ impl BodyLowerer<'_> {
                 offset,
                 subtract,
             } => {
-                let hir::Type::Ptr(pointee) = self.module.types[pointer.ty] else {
+                let hir::TypeKind::Ptr(pointee) = self.module.types[pointer.ty].kind else {
                     unreachable!("PtrOffset has a pointer operand")
                 };
                 smir::Expr::PtrOffset {
@@ -5638,6 +5066,33 @@ impl BodyLowerer<'_> {
                     self.ensure_callback_bridge(self.function_map[function], signature, expr.span);
                 smir::Expr::FunctionAddress { callback }
             }
+            hir::ExprKind::ForeignCallbackRegister {
+                registration,
+                closure,
+            } => {
+                let bridge = self.ensure_foreign_callback_bridge(*registration, expr.span);
+                smir::Expr::ForeignCallbackRegister {
+                    bridge,
+                    closure: Box::new(self.lower_expr(closure)),
+                }
+            }
+            hir::ExprKind::ForeignCallbackOperation {
+                operation,
+                callback,
+            } => smir::Expr::ForeignCallbackOperation {
+                operation: match operation {
+                    hir::ForeignCallbackOperation::Retain => mir::ForeignCallbackOperation::Retain,
+                    hir::ForeignCallbackOperation::Release => {
+                        mir::ForeignCallbackOperation::Release
+                    }
+                    hir::ForeignCallbackOperation::State => mir::ForeignCallbackOperation::State,
+                    hir::ForeignCallbackOperation::Failure => {
+                        mir::ForeignCallbackOperation::Failure
+                    }
+                },
+                callback: Box::new(self.lower_expr(callback)),
+                result_ty: Box::new(self.lower_type(expr.ty)),
+            },
             hir::ExprKind::FieldAccess { receiver, field } => {
                 // Struct fields, tuple elements and class constructor
                 // properties are all 0-based here (the class index
@@ -5716,7 +5171,7 @@ impl BodyLowerer<'_> {
                         .types
                         .iter()
                         .find_map(|(ty, value)| {
-                            matches!(value, hir::Type::Function(found) if found == function_type)
+                            matches!(value.kind, hir::TypeKind::Function(found) if found == *function_type)
                                 .then_some(ty)
                         })
                         .expect("function type ids are referenced by canonical types")
@@ -5914,6 +5369,206 @@ impl BodyLowerer<'_> {
         callback
     }
 
+    fn ensure_foreign_callback_bridge(
+        &mut self,
+        registration_id: hir::ForeignCallbackRegistrationId,
+        span: Span,
+    ) -> mir::ForeignCallbackBridgeId {
+        if let Some(&bridge) = self.foreign_callback_by_registration.get(&registration_id) {
+            return bridge;
+        }
+
+        let registration = self.module.foreign_callback_registrations[registration_id].clone();
+        let native_signature = self.lower_function_type_id(registration.native_function_type);
+        let managed_signature = self.lower_function_type_id(registration.managed_function_type);
+        let callback = self.struct_map[&registration.callback];
+        let signature = self.shell.function_types[managed_signature].clone();
+        debug_assert!(!signature.is_suspend);
+
+        let mut locals = Arena::new();
+        let closure_ty = mir::Type::Function(managed_signature);
+        let closure = locals.alloc(mir::Local {
+            name: "$closure".to_string(),
+            ty: closure_ty.clone(),
+            mutable: false,
+        });
+        let result_pointer_ty = mir::Type::Ptr(Box::new(signature.return_type.clone()));
+        let result_storage = locals.alloc(mir::Local {
+            name: "$result".to_string(),
+            ty: result_pointer_ty.clone(),
+            mutable: false,
+        });
+        let opaque_pointer = mir::Type::Ptr(Box::new(mir::Type::Unit));
+        let arguments_pointer_ty = mir::Type::Ptr(Box::new(opaque_pointer.clone()));
+        let argument_storage = locals.alloc(mir::Local {
+            name: "$arguments".to_string(),
+            ty: arguments_pointer_ty.clone(),
+            mutable: false,
+        });
+        let throwable = mir::Type::Class(self.class_map[&self.module.exception_core.throwable]);
+        let exception_pointer_ty = mir::Type::Ptr(Box::new(throwable.clone()));
+        let exception_out = locals.alloc(mir::Local {
+            name: "$exception".to_string(),
+            ty: exception_pointer_ty.clone(),
+            mutable: false,
+        });
+
+        let params = vec![
+            mir::Param {
+                name: "$closure".to_string(),
+                ty: closure_ty,
+                local: closure,
+            },
+            mir::Param {
+                name: "$result".to_string(),
+                ty: result_pointer_ty,
+                local: result_storage,
+            },
+            mir::Param {
+                name: "$arguments".to_string(),
+                ty: arguments_pointer_ty,
+                local: argument_storage,
+            },
+            mir::Param {
+                name: "$exception".to_string(),
+                ty: exception_pointer_ty,
+                local: exception_out,
+            },
+        ];
+
+        let mut call_args = vec![mir::Expr::Local(closure)];
+        for (index, parameter_ty) in signature.parameter_types.iter().enumerate() {
+            let raw = mir::Expr::PtrLoad {
+                pointer: Box::new(mir::Expr::Local(argument_storage)),
+                pointee: Box::new(opaque_pointer.clone()),
+                offset: Some(Box::new(mir::Expr::IntLiteral(index as i64))),
+            };
+            call_args.push(mir::Expr::PtrLoad {
+                pointer: Box::new(mir::Expr::PtrCast {
+                    operand: Box::new(raw),
+                    pointee: Box::new(parameter_ty.clone()),
+                }),
+                pointee: Box::new(parameter_ty.clone()),
+                offset: None,
+            });
+        }
+        let call = mir::Call {
+            target: mir::CallTarget {
+                kind: mir::CallKind::Closure {
+                    function_type: managed_signature,
+                },
+                callee: mir::Callee::Closure(managed_signature),
+            },
+            args: call_args,
+        };
+
+        let exception = locals.alloc(mir::Local {
+            name: "$caught".to_string(),
+            ty: throwable.clone(),
+            mutable: false,
+        });
+        let statement = |kind| mir::Statement { kind, span };
+        let mut blocks = Arena::new();
+        let catch = blocks.alloc(mir::BasicBlock {
+            name: "callback.failure".to_string(),
+            statements: vec![
+                statement(mir::StatementKind::Eh(mir::EhStatement::LandingPad {
+                    cleanup: false,
+                })),
+                statement(mir::StatementKind::Eh(mir::EhStatement::BeginCatch)),
+                statement(mir::StatementKind::Call(mir::CallEffect::Value {
+                    destination: exception,
+                    call: mir::Call {
+                        target: mir::CallTarget {
+                            kind: mir::CallKind::Direct,
+                            callee: mir::Callee::Runtime(mir::RuntimeFn::MaterializeException),
+                        },
+                        args: vec![mir::Expr::CaughtException],
+                    },
+                })),
+                statement(mir::StatementKind::Eh(mir::EhStatement::EndCatch)),
+                statement(mir::StatementKind::Expr(mir::Expr::PtrStore {
+                    pointer: Box::new(mir::Expr::Local(exception_out)),
+                    pointee: Box::new(throwable),
+                    offset: None,
+                    value: Box::new(mir::Expr::Local(exception)),
+                })),
+            ],
+            terminator: mir::Terminator::Return {
+                value: Some(mir::Expr::IntLiteral(1)),
+            },
+            unwind: None,
+        });
+
+        let mut success_statements = Vec::new();
+        if signature.return_type == mir::Type::Unit {
+            success_statements.push(statement(mir::StatementKind::Call(mir::CallEffect::Unit(
+                call,
+            ))));
+        } else {
+            let value = locals.alloc(mir::Local {
+                name: "$value".to_string(),
+                ty: signature.return_type.clone(),
+                mutable: false,
+            });
+            success_statements.push(statement(mir::StatementKind::Call(
+                mir::CallEffect::Value {
+                    destination: value,
+                    call,
+                },
+            )));
+            success_statements.push(statement(mir::StatementKind::Expr(mir::Expr::PtrStore {
+                pointer: Box::new(mir::Expr::Local(result_storage)),
+                pointee: Box::new(signature.return_type),
+                offset: None,
+                value: Box::new(mir::Expr::Local(value)),
+            })));
+        }
+        let entry = blocks.alloc(mir::BasicBlock {
+            name: "entry".to_string(),
+            statements: success_statements,
+            terminator: mir::Terminator::Return {
+                value: Some(mir::Expr::IntLiteral(0)),
+            },
+            unwind: Some(catch),
+        });
+        let adapter_index = self.foreign_callback_adapters.len();
+        let function = self.functions.alloc(mir::Function {
+            gc_effect: mir::GcEffect::Managed,
+            name: format!("foreign callback adapter {adapter_index}"),
+            symbol: format!("scoop_foreign_callback_adapter_{adapter_index}"),
+            params,
+            return_ty: mir::Type::UInt,
+            body: mir::Body {
+                locals,
+                blocks,
+                entry,
+            },
+        });
+        self.top_level.push(function);
+        let adapter = self
+            .foreign_callback_adapters
+            .alloc(mir::ForeignCallbackAdapter {
+                function,
+                managed_signature,
+            });
+        let bridge = self
+            .foreign_callback_bridges
+            .alloc(mir::ForeignCallbackBridge {
+                adapter,
+                callback,
+                native_signature,
+                context_index: registration.context_index,
+                mode: match registration.mode {
+                    hir::ForeignCallbackMode::Reusable => mir::ForeignCallbackMode::Reusable,
+                    hir::ForeignCallbackMode::OneShot => mir::ForeignCallbackMode::OneShot,
+                },
+            });
+        self.foreign_callback_by_registration
+            .insert(registration_id, bridge);
+        bridge
+    }
+
     /// `x!!`: the operand is evaluated once into a hidden local, then
     /// `if (tag == Some) { val $uw = <field 0> } else { throw UnwrapException() }`.
     /// The if/else is queued in `prelude` — it must precede the
@@ -5966,11 +5621,15 @@ impl BodyLowerer<'_> {
         result_ty: hir::TypeId,
     ) -> smir::Expr {
         let function = self.module.callable_function(callable);
-        if function == self.module.coroutine_core.start_coroutine {
-            return self.lower_coroutine_start(callable, args);
-        }
-        if function == self.module.coroutine_core.suspend_coroutine {
-            return self.lower_coroutine_suspend(callable, args);
+        if let Some(protocol) = self
+            .module
+            .coroutine_protocol_for_function(function)
+            .copied()
+        {
+            if function == protocol.start_coroutine {
+                return self.lower_coroutine_start(protocol, args);
+            }
+            return self.lower_coroutine_suspend(protocol, args);
         }
         // `@Intrinsic` primitive functions (scoop.core, M7 DESIGN
         // section 2): handled up front — generic intrinsics (the M9
@@ -5987,99 +5646,39 @@ impl BodyLowerer<'_> {
 
     fn lower_user_callee(&mut self, callable: hir::Callable) -> mir::Callee {
         let function = self.module.callable_function(callable);
-        match (&self.module.functions[function].kind, callable) {
-            (hir::FunctionKind::User(_), hir::Callable::Function(_)) => {
-                mir::Callee::User(self.function_map[&function])
-            }
-            // Generic callee: the call's type arguments may mention the
-            // enclosing instance's `Param`s; substitution concretizes
-            // them, and the instance is created on demand (its body is
-            // lowered when the worklist drains).
-            (hir::FunctionKind::User(_), hir::Callable::Generic(resolved)) => {
-                let type_args: Vec<mir::Type> = self.module.instantiations[resolved]
-                    .type_args
-                    .iter()
-                    .map(|&ty| self.lower_type(ty))
-                    .collect();
-                mir::Callee::Monomorphized(self.instances.get_or_create(
-                    self.module,
-                    self.functions,
-                    self.top_level,
-                    self.shell,
-                    resolved,
-                    type_args,
-                ))
-            }
-            (hir::FunctionKind::Extern(extern_id), hir::Callable::Function(_)) => {
-                mir::Callee::Extern(self.extern_map[extern_id])
-            }
-            (hir::FunctionKind::Extern(_), hir::Callable::Generic(_)) => {
-                unreachable!("extern functions cannot be generic")
-            }
-            (hir::FunctionKind::Intrinsic(_), _) => unreachable!("handled above"),
+        match &self.module.functions[function].kind {
+            hir::FunctionKind::User(_) => self.instances.get(function).map_or_else(
+                || mir::Callee::User(self.function_map[&function]),
+                mir::Callee::Monomorphized,
+            ),
+            hir::FunctionKind::Extern(extern_id) => mir::Callee::Extern(self.extern_map[extern_id]),
+            hir::FunctionKind::Intrinsic(_) => unreachable!("handled above"),
         }
     }
 
-    fn lower_coroutine_start(&mut self, callable: hir::Callable, args: &[hir::Expr]) -> smir::Expr {
+    fn lower_coroutine_start(
+        &mut self,
+        protocol: hir::CoroutineProtocol,
+        args: &[hir::Expr],
+    ) -> smir::Expr {
         let [task, completion] = args else {
             unreachable!("hir-lower validates startCoroutine's two parameters")
         };
-        let [result_hir] = self.module.callable_type_args(callable) else {
-            unreachable!("startCoroutine has exactly one resolved type argument")
-        };
-        let result = self.lower_type(*result_hir);
+        let result = self.lower_type(protocol.result_type);
         let task = self.lower_expr(task);
         let completion = self.lower_expr(completion);
-        let task_interface = self.interfaces.get_or_create(
-            self.module,
-            self.shell,
-            self.module.coroutine_core.suspend_task,
-            vec![result.clone()],
-        );
-        let continuation_interface = self.interfaces.get_or_create(
-            self.module,
-            self.shell,
-            self.module.coroutine_core.continuation,
-            vec![result.clone()],
-        );
-        let (_, step_ty) = self.coroutines.step_for(&result, self.enums, self.shell);
-        let run_generic = generic_of(self.module, self.module.coroutine_core.suspend_task_run)
-            .expect("SuspendTask<T>.run has a generic owner");
-        let run = self.instances.get_or_create_generic(
-            self.module,
-            self.functions,
-            self.top_level,
-            self.shell,
-            run_generic,
-            vec![result.clone()],
-        );
-        let resume_generic =
-            generic_of(self.module, self.module.coroutine_core.continuation_resume)
-                .expect("Continuation<T>.resume has a generic owner");
-        let resume = self.instances.get_or_create_generic(
-            self.module,
-            self.functions,
-            self.top_level,
-            self.shell,
-            resume_generic,
-            vec![result.clone()],
-        );
-        let failure_generic = generic_of(
-            self.module,
-            self.module
-                .coroutine_core
-                .continuation_resume_with_exception,
-        )
-        .expect("Continuation<T>.resumeWithException has a generic owner");
-        let failure = self.instances.get_or_create_generic(
-            self.module,
-            self.functions,
-            self.top_level,
-            self.shell,
-            failure_generic,
-            vec![result.clone()],
-        );
-        let throwable = mir::Type::Class(self.class_map[&self.module.coroutine_core.throwable]);
+        let task_interface = self.interfaces.mir_id(protocol.suspend_task);
+        let continuation_interface = self.interfaces.mir_id(protocol.continuation);
+        let (_, step_ty) = self
+            .coroutines
+            .step_for(&result, self.structs, self.enums, self.shell);
+        let run = self.instances.get(protocol.suspend_task_run).unwrap();
+        let resume = self.instances.get(protocol.continuation_resume).unwrap();
+        let failure = self
+            .instances
+            .get(protocol.continuation_resume_with_exception)
+            .unwrap();
+        let throwable = mir::Type::Class(self.class_map[&self.module.exception_core.throwable]);
         let helper = self.coroutines.start_helper(
             &result,
             task_interface,
@@ -6107,35 +5706,18 @@ impl BodyLowerer<'_> {
 
     fn lower_coroutine_suspend(
         &mut self,
-        callable: hir::Callable,
+        protocol: hir::CoroutineProtocol,
         args: &[hir::Expr],
     ) -> smir::Expr {
         let [registration] = args else {
             unreachable!("hir-lower validates suspendCoroutine's one parameter")
         };
-        let [result_hir] = self.module.callable_type_args(callable) else {
-            unreachable!("suspendCoroutine has exactly one resolved type argument")
-        };
-        let result = self.lower_type(*result_hir);
-        let registration_interface = self.interfaces.get_or_create(
-            self.module,
-            self.shell,
-            self.module.coroutine_core.suspend_registration,
-            vec![result.clone()],
-        );
-        let register_generic = generic_of(
-            self.module,
-            self.module.coroutine_core.suspend_registration_register,
-        )
-        .expect("SuspendRegistration<T>.register has a generic owner");
-        let register = self.instances.get_or_create_generic(
-            self.module,
-            self.functions,
-            self.top_level,
-            self.shell,
-            register_generic,
-            vec![result.clone()],
-        );
+        let result = self.lower_type(protocol.result_type);
+        let registration_interface = self.interfaces.mir_id(protocol.suspend_registration);
+        let register = self
+            .instances
+            .get(protocol.suspend_registration_register)
+            .unwrap();
         smir::Expr::Call(smir::Call {
             target: mir::CallTarget {
                 kind: mir::CallKind::Interface {
@@ -6218,24 +5800,10 @@ impl BodyLowerer<'_> {
         let module = self.module;
         let function = module.callable_function(callable);
         let f = &module.functions[function];
-        let callee = match callable {
-            hir::Callable::Function(_) => mir::Callee::User(self.function_map[&function]),
-            hir::Callable::Generic(resolved) => {
-                let type_args: Vec<mir::Type> = module.instantiations[resolved]
-                    .type_args
-                    .iter()
-                    .map(|&ty| self.lower_type(ty))
-                    .collect();
-                mir::Callee::Monomorphized(self.instances.get_or_create(
-                    module,
-                    self.functions,
-                    self.top_level,
-                    self.shell,
-                    resolved,
-                    type_args,
-                ))
-            }
-        };
+        let callee = self.instances.get(function).map_or_else(
+            || mir::Callee::User(self.function_map[&function]),
+            mir::Callee::Monomorphized,
+        );
         // The receiver's static type decides the dispatch kind.
         enum Receiver {
             Class(hir::ClassId),
@@ -6243,14 +5811,14 @@ impl BodyLowerer<'_> {
             Any,
             Value,
         }
-        let receiver_kind = match &module.types[receiver.ty] {
-            hir::Type::Class(class) => Receiver::Class(*class),
-            hir::Type::Interface(..) => Receiver::Interface(receiver.ty),
-            hir::Type::Any => Receiver::Any,
+        let receiver_kind = match &module.types[receiver.ty].kind {
+            hir::TypeKind::Class(class) => Receiver::Class(*class),
+            hir::TypeKind::Interface(..) => Receiver::Interface(receiver.ty),
+            hir::TypeKind::Any => Receiver::Any,
             _ => Receiver::Value,
         };
-        let generic_static_method = matches!(callable, hir::Callable::Generic(_))
-            && !matches!(&receiver_kind, Receiver::Interface(_));
+        let generic_static_method =
+            !f.type_arguments.is_empty() && !matches!(&receiver_kind, Receiver::Interface(_));
         let kind = if generic_static_method {
             // Generic member functions never participate in virtual
             // dispatch. Methods parameterized only by a generic interface
@@ -6276,17 +5844,11 @@ impl BodyLowerer<'_> {
                     let mir::Type::Interface(interface) = self.lower_type(interface_ty) else {
                         unreachable!()
                     };
-                    let (iface, interface_args) = self.interfaces.source(interface);
-                    let interface_args = interface_args.to_vec();
-                    let key = self.signature_key_with_subst(f, &interface_args);
+                    let (iface, _) = self.interfaces.source(interface);
+                    let key = self.signature_key(f);
                     let mut slot = None;
-                    for (index, sig) in module.interfaces[iface]
-                        .methods
-                        .iter()
-                        .filter(|method| method.type_params.is_empty())
-                        .enumerate()
-                    {
-                        if self.sig_key_with_subst(sig, &interface_args) == key {
+                    for (index, sig) in module.interfaces[iface].methods.iter().enumerate() {
+                        if self.sig_key(sig) == key {
                             slot = Some(index as u32);
                             break;
                         }
@@ -6327,50 +5889,14 @@ impl BodyLowerer<'_> {
         self.key_parts(short_name(&function.name), &function.params[skip..])
     }
 
-    fn signature_key_with_subst(
-        &mut self,
-        function: &hir::Function,
-        subst: &[mir::Type],
-    ) -> String {
-        let skip = usize::from(function.method.is_some());
-        self.key_parts_with_subst(short_name(&function.name), &function.params[skip..], subst)
-    }
-
-    fn sig_key_with_subst(&mut self, sig: &hir::MethodSig, subst: &[mir::Type]) -> String {
-        self.key_parts_with_subst(&sig.name, &sig.params, subst)
+    fn sig_key(&mut self, sig: &hir::MethodSig) -> String {
+        self.key_parts(&sig.name, &sig.params)
     }
 
     fn key_parts(&mut self, name: &str, params: &[hir::Param]) -> String {
         let params: Vec<mir::Type> = params
             .iter()
             .map(|param| self.lower_type(param.ty))
-            .collect();
-        format!("{name}({})", mir::encode_params(self.shell, &params))
-    }
-
-    fn key_parts_with_subst(
-        &mut self,
-        name: &str,
-        params: &[hir::Param],
-        subst: &[mir::Type],
-    ) -> String {
-        let types = Types {
-            module: self.module,
-            struct_map: self.struct_map,
-            class_map: self.class_map,
-            subst: Some(subst),
-        };
-        let params: Vec<mir::Type> = params
-            .iter()
-            .map(|param| {
-                types.lower(
-                    param.ty,
-                    self.enums,
-                    self.structs,
-                    self.interfaces,
-                    self.shell,
-                )
-            })
             .collect();
         format!("{name}({})", mir::encode_params(self.shell, &params))
     }
@@ -6387,29 +5913,22 @@ impl BodyLowerer<'_> {
             return;
         }
         let class_id = self.boxed.get_or_create(self.classes, self.shell, payload);
-        let (declared, host_args): (Vec<hir::TypeId>, Vec<mir::Type>) = match payload {
+        let declared: Vec<hir::TypeId> = match payload {
             mir::Type::Struct(mir_id) => {
                 let hir_id = self.hir_struct(*mir_id);
-                let args = self
-                    .structs
-                    .instances
-                    .get(mir_id)
-                    .map(|(_, args)| args.clone())
-                    .unwrap_or_default();
-                (self.module.structs[hir_id].interfaces.clone(), args)
+                self.module.structs[hir_id].interfaces.clone()
             }
-            mir::Type::Enum(mir_id, args) => {
+            mir::Type::Enum(mir_id, _) => {
                 let hir_id = self.enums.hir_ids[mir_id];
-                (self.module.enums[hir_id].interfaces.clone(), args.clone())
+                self.module.enums[hir_id].interfaces.clone()
             }
             // Tuples and primitives implement no interfaces.
-            _ => (Vec::new(), Vec::new()),
+            _ => Vec::new(),
         };
         let types = Types {
             module: self.module,
             struct_map: self.struct_map,
             class_map: self.class_map,
-            subst: (!host_args.is_empty()).then_some(host_args.as_slice()),
         };
         let mut covered = Vec::new();
         for interface_ty in declared {
@@ -6426,7 +5945,7 @@ impl BodyLowerer<'_> {
             covered.push(interface);
         }
         if let Some(target) = target {
-            if matches!(self.module.types[target], hir::Type::Interface(..)) {
+            if matches!(self.module.types[target].kind, hir::TypeKind::Interface(..)) {
                 let mir::Type::Interface(interface) = self.lower_type(target) else {
                     unreachable!()
                 };
@@ -6481,14 +6000,13 @@ impl BodyLowerer<'_> {
         span: Span,
     ) -> smir::Expr {
         let target_hir = if optional {
-            let hir::Type::Enum(option, args) = &self.module.types[expr_ty] else {
+            let hir::TypeKind::Enum(option) = self.module.types[expr_ty].kind else {
                 unreachable!("an `as?` result is an Option<T>")
             };
-            assert_eq!(
-                *option, self.module.option_enum,
-                "an `as?` result is core's Option<T>"
-            );
-            args[0]
+            let (some, _) = self.module.enums[option]
+                .option_variants
+                .expect("an `as?` result is core's Option<T>");
+            self.module.enums[option].variants[some.into_raw() as usize].fields[0].ty
         } else {
             expr_ty
         };
@@ -6595,11 +6113,13 @@ impl BodyLowerer<'_> {
         match op {
             // String `+` is runtime concatenation (DESIGN 2.3); hir-lower
             // type checking makes both operands String here.
-            hir::BinOp::Add if matches!(self.module.types[lhs.ty], hir::Type::String) => self.call(
-                mir::Callee::Runtime(mir::RuntimeFn::StringConcat),
-                &[lhs, rhs],
-                mir::Type::String,
-            ),
+            hir::BinOp::Add if matches!(self.module.types[lhs.ty].kind, hir::TypeKind::String) => {
+                self.call(
+                    mir::Callee::Runtime(mir::RuntimeFn::StringConcat),
+                    &[lhs, rhs],
+                    mir::Type::String,
+                )
+            }
             hir::BinOp::Add => self.primitive(IntAdd, lhs, rhs),
             hir::BinOp::Sub => self.primitive(IntSub, lhs, rhs),
             hir::BinOp::Mul => self.primitive(IntMul, lhs, rhs),
@@ -6991,6 +6511,40 @@ fn non_empty(statements: Vec<smir::Statement>) -> Option<Vec<smir::Statement>> {
 mod tests {
     use super::*;
     use scoop_ast::Span;
+    use scoop_hir as hir;
+
+    fn lower(module: &hir::Module) -> mir::Module {
+        let concrete = scoop_hir_lower::concretize_export(module);
+        super::lower(&concrete)
+    }
+
+    fn dump(module: &mir::Module) -> String {
+        mir::dump(module)
+            .lines()
+            .filter(|line| {
+                !line.contains("class $ThrowableProtocol")
+                    && !line.contains("class $IllegalStateProtocol")
+            })
+            .map(|line| format!("{line}\n"))
+            .collect()
+    }
+
+    fn visible_class_count(module: &mir::Module) -> usize {
+        module
+            .classes
+            .iter()
+            .filter(|(_, class)| !class.name.ends_with("Protocol"))
+            .count()
+    }
+
+    fn boxed_class<'a>(module: &'a mir::Module, name: &str) -> &'a mir::ClassDef {
+        module
+            .classes
+            .iter()
+            .map(|(_, class)| class)
+            .find(|class| class.name == name)
+            .unwrap_or_else(|| panic!("missing boxed class `{name}`"))
+    }
 
     const SPAN: Span = Span { start: 0, end: 0 };
 
@@ -7114,6 +6668,7 @@ mod tests {
             let option_enum = enums.alloc(hir::EnumDecl {
                 name: "Option".to_string(),
                 type_params: vec![type_param("T")],
+                no_gc: false,
                 variants: vec![
                     hir::Variant {
                         name: "Some".to_string(),
@@ -7704,18 +7259,26 @@ mod tests {
         }
 
         fn test_coroutine_core(&mut self, include_exceptions: bool) -> hir::CoroutineCore {
-            let (throwable, illegal_state_exception, throwable_ty) = if include_exceptions {
-                let throwable = self.exception("Throwable");
-                let illegal_state_exception = self.exception("IllegalStateException");
-                let throwable_ty = self.class_ty(throwable);
-                (throwable, illegal_state_exception, throwable_ty)
+            let (throwable, illegal_state_exception) = if include_exceptions {
+                (
+                    self.exception("Throwable"),
+                    self.exception("IllegalStateException"),
+                )
             } else {
-                // Most MIR unit tests exercise isolated language constructs and
-                // intentionally omit the core classes from their expected module.
-                // These ids are protocol-only in those tests and are never resolved.
-                let unused = la_arena::Idx::from_raw(u32::MAX.into());
-                (unused, unused, self.string)
+                let placeholder = |name: &str| hir::ClassDecl {
+                    modifier: hir::ClassModifier::Abstract,
+                    name: name.to_string(),
+                    constructor: Vec::new(),
+                    base_class: None,
+                    interfaces: Vec::new(),
+                    span: SPAN,
+                };
+                (
+                    self.classes.alloc(placeholder("$ThrowableProtocol")),
+                    self.classes.alloc(placeholder("$IllegalStateProtocol")),
+                )
             };
+            let throwable_ty = self.class_ty(throwable);
             let t = self
                 .types
                 .alloc(hir::Type::Param(hir::TypeParamId::from_raw(0)));
@@ -7989,6 +7552,28 @@ mod tests {
                 gc_get_handle_raw: entry,
                 gc_release_handle_raw: entry,
             };
+            let unit_enum = |name: &str, variants: &[&str]| hir::EnumDecl {
+                name: name.to_string(),
+                type_params: Vec::new(),
+                no_gc: false,
+                variants: variants
+                    .iter()
+                    .map(|variant| hir::Variant {
+                        name: (*variant).to_string(),
+                        fields: Vec::new(),
+                        defaults: Vec::new(),
+                    })
+                    .collect(),
+                interfaces: Vec::new(),
+                span: SPAN,
+            };
+            let callback_mode = self
+                .enums
+                .alloc(unit_enum("ForeignCallbackMode", &["Reusable", "OneShot"]));
+            let callback_state = self.enums.alloc(unit_enum(
+                "ForeignCallbackState",
+                &["Registered", "Active", "Completed", "Failed"],
+            ));
             hir::Module {
                 types: self.types,
                 function_types: Arena::new(),
@@ -7997,6 +7582,7 @@ mod tests {
                 local_functions: Arena::new(),
                 callable_references: Arena::new(),
                 function_coercions: Arena::new(),
+                foreign_callback_registrations: Arena::new(),
                 functions: self.functions,
                 extern_functions: self.extern_functions,
                 globals: Arena::new(),
@@ -8013,6 +7599,16 @@ mod tests {
                 option_enum: self.option_enum,
                 coroutine_core,
                 ffi_core,
+                foreign_callback_core: hir::ForeignCallbackCore {
+                    callback: ptr,
+                    mode: callback_mode,
+                    state: callback_state,
+                    register: entry,
+                    retain: entry,
+                    release: entry,
+                    query_state: entry,
+                    failure: entry,
+                },
                 entry,
                 instantiations: self.instantiations,
             }
@@ -8172,11 +7768,14 @@ mod tests {
 
         let step = &module.meta.coroutine_steps[coroutine.step];
         assert_eq!(step.result, mir::Type::Int);
+        let step_def = &module.enums[step.enum_id];
+        assert!(step_def.gc_free);
+        assert!(step_def.variants.iter().all(|variant| variant.gc_free));
         assert_eq!(
             function.return_ty,
             mir::Type::Enum(step.enum_id, Vec::new())
         );
-        assert_eq!(module.enums[step.enum_id].variants[0].name, "Completed");
+        assert_eq!(step_def.variants[0].name, "Completed");
         let mir::Terminator::Return { value: Some(value) } =
             &function.body.blocks[function.body.entry].terminator
         else {
@@ -8273,6 +7872,35 @@ mod tests {
                 .iter()
                 .any(|(_, block)| block.name == "coroutine.resume.1")
         );
+        let int_slot = module
+            .enums
+            .iter()
+            .find_map(|(_, definition)| {
+                (definition.name == "CoroutineSlot$I").then_some(definition)
+            })
+            .expect("live Int local uses a concrete coroutine slot");
+        assert!(int_slot.gc_free);
+        assert!(int_slot.variants.iter().all(|variant| variant.gc_free));
+        let throwable = module
+            .classes
+            .iter()
+            .find_map(|(id, definition)| (definition.name == "Throwable").then_some(id))
+            .expect("Throwable class");
+        let throwable_slot = module
+            .enums
+            .iter()
+            .find_map(|(_, definition)| {
+                (definition.name.starts_with("CoroutineSlot$")
+                    && definition.variants.get(1).is_some_and(|variant| {
+                        variant.fields.len() == 1
+                            && variant.fields[0].ty == mir::Type::Class(throwable)
+                    }))
+                .then_some(definition)
+            })
+            .expect("the failure latch uses a concrete Throwable slot");
+        assert!(!throwable_slot.gc_free);
+        assert!(throwable_slot.variants[0].gc_free);
+        assert!(!throwable_slot.variants[1].gc_free);
         let point = &module.meta.coroutine_resume_points[resume_points[0]];
         assert_eq!(point.result, mir::Type::Int);
         assert_eq!(point.state, 1);
@@ -8497,7 +8125,7 @@ Module
   str @scoop.str.2 \"hello, world\"
   entry @scoop_main
 ";
-        assert_eq!(mir::dump(&module), expected);
+        assert_eq!(dump(&module), expected);
     }
 
     #[test]
@@ -8592,6 +8220,10 @@ Module
         let (string, uint) = (h.string, h.uint());
         let pinned_ptr_s = h.struct_app(gc.pinned_ptr, vec![string]);
         let gc_handle_s = h.struct_app(gc.gc_handle, vec![string]);
+        let pin_raw = h.instantiate(gc.pin_raw, vec![string]);
+        let unpin_raw = h.instantiate(gc.unpin_raw, vec![string]);
+        let get_handle_raw = h.instantiate(gc.get_handle_raw, vec![string]);
+        let release_handle_raw = h.instantiate(gc.release_handle_raw, vec![string]);
         let mut locals = Arena::new();
         let s = locals.alloc(local("s", string));
         let pin_word = locals.alloc(local("pinWord", uint));
@@ -8608,7 +8240,7 @@ Module
                 statements: vec![
                     val_decl(
                         pin_word,
-                        call_typed(gc.pin_raw, vec![local_ref(s, string)], uint),
+                        generic_call(pin_raw, vec![local_ref(s, string)], uint),
                     ),
                     val_decl(
                         ph,
@@ -8616,8 +8248,8 @@ Module
                     ),
                     val_decl(
                         r,
-                        call_typed(
-                            gc.unpin_raw,
+                        generic_call(
+                            unpin_raw,
                             vec![expr(
                                 hir::ExprKind::FieldAccess {
                                     receiver: Box::new(local_ref(ph, pinned_ptr_s)),
@@ -8633,7 +8265,7 @@ Module
                     ),
                     val_decl(
                         handle_word,
-                        call_typed(gc.get_handle_raw, vec![local_ref(s, string)], uint),
+                        generic_call(get_handle_raw, vec![local_ref(s, string)], uint),
                     ),
                     val_decl(
                         gh,
@@ -8645,8 +8277,8 @@ Module
                     ),
                     val_decl(
                         r2,
-                        call_typed(
-                            gc.release_handle_raw,
+                        generic_call(
+                            release_handle_raw,
                             vec![expr(
                                 hir::ExprKind::FieldAccess {
                                     receiver: Box::new(local_ref(gh, gc_handle_s)),
@@ -8815,10 +8447,13 @@ Module
         assert!(defs("Box2").is_empty());
         assert_eq!(defs("PinnedPtr$V").len(), 1);
         assert_eq!(defs("PinnedPtr$V")[0].fields[0].ty, mir::Type::UInt);
+        assert!(defs("PinnedPtr$V")[0].gc_free);
         assert_eq!(defs("PinnedPtr$S").len(), 1);
+        assert!(defs("PinnedPtr$S")[0].gc_free);
         assert_eq!(defs("Box2$S").len(), 1);
         // Field substitution: `Box2<String>`'s `x` is `String`.
         assert_eq!(defs("Box2$S")[0].fields[0].ty, mir::Type::String);
+        assert!(!defs("Box2$S")[0].gc_free);
 
         // Locals and StructInits resolve to the instances.
         let body = &module.functions[module.entry].body;
@@ -9393,7 +9028,7 @@ Module
         );
         let module = lower(&h.finish(main));
 
-        let boxed = &module.classes[class_index(0)];
+        let boxed = boxed_class(&module, "box$S");
         assert_eq!(boxed.itables.len(), 1);
         let record = &boxed.itables[0];
         assert_eq!(record.slots.len(), 2);
@@ -9756,7 +9391,7 @@ Module
         ClassInit ArithmeticException
   entry @scoop_main
 ";
-        assert_eq!(mir::dump(&module), expected);
+        assert_eq!(dump(&module), expected);
     }
 
     #[test]
@@ -9847,7 +9482,7 @@ Module
         ClassInit MyError
   entry @scoop_main
 ";
-        assert_eq!(mir::dump(&module), expected);
+        assert_eq!(dump(&module), expected);
     }
 
     #[test]
@@ -10067,7 +9702,7 @@ Module
       return
   entry @scoop_main
 ";
-        assert_eq!(mir::dump(&module), expected);
+        assert_eq!(dump(&module), expected);
     }
 
     #[test]
@@ -10191,7 +9826,7 @@ Module
   str @scoop.str.1 \"b\"
   entry @scoop_main
 ";
-        assert_eq!(mir::dump(&module), expected);
+        assert_eq!(dump(&module), expected);
     }
 
     #[test]
@@ -10264,7 +9899,7 @@ Module
   str @scoop.str.1 \"y\"
   entry @scoop_main
 ";
-        assert_eq!(mir::dump(&module), expected);
+        assert_eq!(dump(&module), expected);
     }
 
     #[test]
@@ -10599,8 +10234,8 @@ Module
                 ))],
             },
         );
-        // The nested request is still parameterized in HIR's list;
-        // mir-lower concretizes it while lowering forward$I.
+        // The nested request is parameterized in export HIR's list;
+        // local-concrete HIR resolves it while materializing forward$I.
         let module = lower(&h.finish(main));
 
         // main, forward$I, then inner$I (discovered via the worklist).
@@ -10673,6 +10308,7 @@ Module
         let color = h.enums.alloc(hir::EnumDecl {
             name: "Color".to_string(),
             type_params: Vec::new(),
+            no_gc: false,
             variants: ["Red", "Green", "Blue"]
                 .iter()
                 .map(|name| hir::Variant {
@@ -10732,15 +10368,31 @@ Module
         let option_int_def = &module.enums[la_arena::Idx::from_raw(0.into())];
         assert_eq!(option_int_def.variants[0].name, "Some");
         assert_eq!(option_int_def.variants[0].fields[0].ty, mir::Type::Int);
+        assert!(option_int_def.gc_free);
+        assert!(
+            option_int_def
+                .variants
+                .iter()
+                .all(|variant| variant.gc_free)
+        );
         let option_string_def = &module.enums[la_arena::Idx::from_raw(2.into())];
         assert_eq!(
             option_string_def.variants[0].fields[0].ty,
             mir::Type::String
         );
+        assert!(!option_string_def.gc_free);
+        assert!(!option_string_def.variants[0].gc_free);
+        assert!(option_string_def.variants[1].gc_free);
         // Color's variants are all unit variants.
         let color_def = &module.enums[la_arena::Idx::from_raw(1.into())];
+        assert!(color_def.gc_free);
         assert_eq!(color_def.variants.len(), 3);
-        assert!(color_def.variants.iter().all(|v| v.fields.is_empty()));
+        assert!(
+            color_def
+                .variants
+                .iter()
+                .all(|variant| variant.fields.is_empty() && variant.gc_free)
+        );
     }
 
     #[test]
@@ -10811,7 +10463,7 @@ Module
       return
   entry @scoop_main
 ";
-        assert_eq!(mir::dump(&module), expected);
+        assert_eq!(dump(&module), expected);
     }
 
     #[test]
@@ -10891,7 +10543,7 @@ Module
         ClassInit UnwrapException
   entry @scoop_main
 ";
-        assert_eq!(mir::dump(&module), expected);
+        assert_eq!(dump(&module), expected);
     }
 
     /// `val a: Option<Int> = None; val b = Some(1); val r = a <op> b`
@@ -10984,7 +10636,7 @@ Module
       goto bb3
   entry @scoop_main
 ";
-        assert_eq!(mir::dump(&module), expected);
+        assert_eq!(dump(&module), expected);
     }
 
     #[test]
@@ -11044,7 +10696,7 @@ Module
       goto bb3
   entry @scoop_main
 ";
-        assert_eq!(mir::dump(&module), expected);
+        assert_eq!(dump(&module), expected);
     }
 
     fn when_stmt(
@@ -11191,7 +10843,7 @@ Module
   str @scoop.str.1 \"none\"
   entry @scoop_main
 ";
-        assert_eq!(mir::dump(&module), expected);
+        assert_eq!(dump(&module), expected);
     }
 
     #[test]
@@ -11300,7 +10952,7 @@ Module
   str @scoop.str.2 \"neg\"
   entry @scoop_main
 ";
-        assert_eq!(mir::dump(&module), expected);
+        assert_eq!(dump(&module), expected);
     }
 
     #[test]
@@ -11427,7 +11079,7 @@ Module
   str @scoop.str.0 \"x\"
   entry @scoop_main
 ";
-        assert_eq!(mir::dump(&module), expected);
+        assert_eq!(dump(&module), expected);
     }
 
     #[test]
@@ -11584,7 +11236,7 @@ Module
         ClassInit IndexOutOfBoundsException
   entry @scoop_main
 ";
-        assert_eq!(mir::dump(&module), expected);
+        assert_eq!(dump(&module), expected);
     }
 
     #[test]
@@ -11754,7 +11406,7 @@ Module
         );
         let module = lower(&h.finish(main));
 
-        assert_eq!(module.classes.len(), 2);
+        assert_eq!(visible_class_count(&module), 2);
         let base_def = &module.classes[class_index(0)];
         let derived_def = &module.classes[class_index(1)];
         let field_names = |def: &mir::ClassDef| {
@@ -12053,8 +11705,8 @@ Module
         // structural equals in vtable slot 0, the Any defaults in
         // slots 1/2 (aggregate value types keep the Any `toString`
         // default until a spec'd structured format lands).
-        assert_eq!(module.classes.len(), 1);
-        let boxed = &module.classes[class_index(0)];
+        assert_eq!(visible_class_count(&module), 1);
+        let boxed = boxed_class(&module, "box$S");
         assert_eq!(boxed.name, "box$S");
         assert_eq!(boxed.fields.len(), 1);
         assert_eq!(boxed.fields[0].name, "value");
@@ -12106,7 +11758,7 @@ Module
             Local $b
   entry @scoop_main
 ";
-        assert_eq!(mir::dump(&module), expected);
+        assert_eq!(dump(&module), expected);
     }
 
     #[test]
@@ -12135,7 +11787,7 @@ Module
         );
         let module = lower(&h.finish(main));
 
-        let boxed_int = &module.classes[class_index(0)];
+        let boxed_int = boxed_class(&module, "box$I");
         assert_eq!(boxed_int.name, "box$I");
         let vtable: Vec<&str> = boxed_int
             .vtable
@@ -12146,7 +11798,7 @@ Module
             vtable,
             ["scoop.eq.I", "scoop_rt_any_hashcode", "scoop.tostring.I"]
         );
-        let boxed_bool = &module.classes[class_index(1)];
+        let boxed_bool = boxed_class(&module, "box$B");
         assert_eq!(boxed_bool.name, "box$B");
         assert_eq!(slot_fn(&module, &boxed_bool.vtable[2]), "scoop.tostring.B");
 
@@ -12223,7 +11875,7 @@ Module
         );
         let module = lower(&h.finish(main));
 
-        let boxed = &module.classes[class_index(0)];
+        let boxed = boxed_class(&module, "box$S");
         assert_eq!(boxed.interfaces.len(), 1);
         assert_eq!(boxed.itables.len(), 1);
         let record = &boxed.itables[0];
@@ -12387,7 +12039,7 @@ Module
             Local $b
   entry @scoop_main
 ";
-        assert_eq!(mir::dump(&module), expected);
+        assert_eq!(dump(&module), expected);
     }
 
     #[test]
@@ -12524,7 +12176,7 @@ Module
   str @scoop.str.2 \"root\"
   entry @scoop_main
 ";
-        assert_eq!(mir::dump(&module), expected);
+        assert_eq!(dump(&module), expected);
     }
 
     #[test]
@@ -12618,7 +12270,7 @@ Module
         );
         let module = lower(&h.finish(main));
 
-        let boxed = &module.classes[class_index(0)];
+        let boxed = boxed_class(&module, "box$S");
         assert_eq!(boxed.interfaces.len(), 1);
         assert_eq!(boxed.itables.len(), 1);
         let record = &boxed.itables[0];

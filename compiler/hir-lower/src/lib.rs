@@ -96,6 +96,7 @@
 
 mod annotations;
 mod class;
+mod concretize;
 mod effects;
 mod expr;
 mod ffi;
@@ -133,8 +134,17 @@ use scope::{LocalFunctionScopes, Scopes};
 ///
 /// All semantic errors of the M5 subset are diagnosed here with spans;
 /// downstream stages (MIR, LIR) never fail.
-pub fn lower(files: &[ast::SourceFile]) -> Result<hir::Module, Vec<Diagnostic>> {
-    Lowerer::new().run(files)
+pub fn lower(files: &[ast::SourceFile]) -> Result<hir::Output, Vec<Diagnostic>> {
+    let export = Lowerer::new().run(files)?;
+    let local = concretize::lower(&export);
+    Ok(hir::Output { export, local })
+}
+
+/// Convert an already checked export-side graph into the local concrete graph.
+/// Kept public so stage-boundary tests can feed handcrafted checked HIR through
+/// the same fixed-point pass as the production pipeline.
+pub fn concretize_export(export: &hir::ExportHir) -> hir::LocalConcreteHir {
+    concretize::lower(export)
 }
 
 /// A resolved function signature. Kept separate from `hir::Function`
@@ -293,6 +303,7 @@ pub(crate) struct Lowerer {
     pub(crate) local_function_by_function: HashMap<FunctionId, hir::LocalFunctionId>,
     pub(crate) callable_references: Arena<hir::CallableReference>,
     pub(crate) function_coercions: Arena<hir::FunctionCoercion>,
+    pub(crate) foreign_callback_registrations: Arena<hir::ForeignCallbackRegistration>,
     pub(crate) function_coercion_by_types:
         HashMap<(hir::FunctionTypeId, hir::FunctionTypeId), hir::FunctionCoercionId>,
     pub(crate) structs: Arena<StructDecl>,
@@ -351,6 +362,7 @@ pub(crate) struct Lowerer {
     pub(crate) interfaces_by_name: HashMap<String, (InterfaceId, TypeId)>,
     /// Source-file ownership for validating compiler-known core contracts.
     pub(crate) struct_files: HashMap<StructId, usize>,
+    pub(crate) enum_files: HashMap<EnumId, usize>,
     pub(crate) class_files: HashMap<ClassId, usize>,
     pub(crate) interface_files: HashMap<InterfaceId, usize>,
     /// Core pointer declarations discovered after pass 1. Applications can
@@ -359,8 +371,11 @@ pub(crate) struct Lowerer {
     pub(crate) ffi_fun_ptr: Option<StructId>,
     pub(crate) ffi_pinned_ptr: Option<StructId>,
     pub(crate) ffi_gc_handle: Option<StructId>,
+    pub(crate) ffi_foreign_callback: Option<StructId>,
     /// Fully validated pointer core, available while lowering user bodies.
     pub(crate) ffi_core: Option<hir::FfiCore>,
+    pub(crate) foreign_callback_core: Option<hir::ForeignCallbackCore>,
+    pub(crate) allow_deferred_fun_ptr: bool,
     pub(crate) pointer_type_uses: Vec<(TypeId, usize, Span)>,
     pub(crate) fun_ptr_type_uses: Vec<(TypeId, usize, Span)>,
     /// Member functions per owner, in declaration order (this is also
@@ -514,6 +529,7 @@ impl Lowerer {
             local_function_by_function: HashMap::new(),
             callable_references: Arena::new(),
             function_coercions: Arena::new(),
+            foreign_callback_registrations: Arena::new(),
             function_coercion_by_types: HashMap::new(),
             structs: Arena::new(),
             enums: Arena::new(),
@@ -545,13 +561,17 @@ impl Lowerer {
             classes_by_name: HashMap::new(),
             interfaces_by_name: HashMap::new(),
             struct_files: HashMap::new(),
+            enum_files: HashMap::new(),
             class_files: HashMap::new(),
             interface_files: HashMap::new(),
             ffi_ptr: None,
             ffi_fun_ptr: None,
             ffi_pinned_ptr: None,
             ffi_gc_handle: None,
+            ffi_foreign_callback: None,
             ffi_core: None,
+            foreign_callback_core: None,
+            allow_deferred_fun_ptr: false,
             pointer_type_uses: Vec::new(),
             fun_ptr_type_uses: Vec::new(),
             class_methods: HashMap::new(),
@@ -740,6 +760,7 @@ impl Lowerer {
         self.ffi_fun_ptr = self.require_core_struct("FunPtr", files);
         self.ffi_pinned_ptr = self.require_core_struct("PinnedPtr", files);
         self.ffi_gc_handle = self.require_core_struct("GcHandle", files);
+        self.ffi_foreign_callback = self.require_core_struct("ForeignCallback", files);
 
         // The core library's `Option<T>` must be validated before any
         // type annotation is resolved: `T?` desugars to it (spec 7.1).
@@ -755,7 +776,9 @@ impl Lowerer {
         // types).
         for &(id, decl, file_index) in &pending_structs {
             self.current_file = file_index;
+            self.allow_deferred_fun_ptr = Some(id) == self.ffi_foreign_callback;
             self.resolve_fields(id, decl);
+            self.allow_deferred_fun_ptr = false;
             self.type_params_in_scope = self.structs[id].type_params.clone();
             let interfaces = self.resolve_interface_list(&decl.interfaces);
             self.type_params_in_scope.clear();
@@ -798,6 +821,8 @@ impl Lowerer {
         let coroutine_core = self.validate_coroutine_core(files);
         let ffi_core = self.validate_ffi_core(files);
         self.ffi_core = ffi_core;
+        let foreign_callback_core = self.validate_foreign_callback_core(files);
+        self.foreign_callback_core = foreign_callback_core;
         self.validate_pointer_type_uses();
         self.resolve_globals(&pending_globals);
         self.validate_extern_functions();
@@ -857,6 +882,7 @@ impl Lowerer {
         // Effects consume fully resolved calls and types. Local functions and
         // callable literals lifted while lowering the bodies are visible now.
         self.validate_c_ffi_types();
+        self.check_no_gc_types();
         self.check_no_gc_functions();
 
         // A module without `main` never reaches HIR (hir docs); it is a
@@ -925,6 +951,7 @@ impl Lowerer {
             local_functions: self.local_functions,
             callable_references: self.callable_references,
             function_coercions: self.function_coercions,
+            foreign_callback_registrations: self.foreign_callback_registrations,
             functions: self.functions,
             extern_functions: self.extern_functions,
             globals: self.globals,
@@ -941,6 +968,8 @@ impl Lowerer {
             option_enum,
             coroutine_core,
             ffi_core,
+            foreign_callback_core: foreign_callback_core
+                .expect("a missing or invalid foreign callback core protocol is always diagnosed"),
             entry,
             instantiations: self.instantiations,
         })
@@ -1050,7 +1079,7 @@ impl Lowerer {
         pending_methods: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
         file_index: usize,
     ) {
-        self.reject_type_annotations("an enum", &decl.annotations);
+        let no_gc = self.check_enum_annotations(decl);
         if let Some(kind) = self.type_namespace_conflict(&decl.name.text) {
             let what = if kind == "an enum" {
                 format!("duplicate enum `{}`", decl.name.text)
@@ -1080,6 +1109,7 @@ impl Lowerer {
         let id = self.enums.alloc(EnumDecl {
             name: decl.name.text.clone(),
             type_params,
+            no_gc,
             // Filled in pass 2; a resolution failure is diagnosed, so
             // empty variants never reach the output.
             variants: Vec::new(),
@@ -1087,6 +1117,7 @@ impl Lowerer {
             span: decl.span,
         });
         self.enums_by_name.insert(decl.name.text.clone(), id);
+        self.enum_files.insert(id, file_index);
         self.enum_methods.insert(id, Vec::new());
         if is_core && decl.name.text == "Option" {
             self.option_candidates
@@ -1510,6 +1541,170 @@ impl Lowerer {
             gc_get_handle_raw: gc_get_handle_raw?,
             gc_release_handle_raw: gc_release_handle_raw?,
         })
+    }
+
+    fn validate_foreign_callback_core(
+        &mut self,
+        files: &[ast::SourceFile],
+    ) -> Option<hir::ForeignCallbackCore> {
+        // The exception-core validator owns the missing-Throwable diagnostic.
+        // Callback failure typing cannot be validated until that prerequisite
+        // exists, so do not manufacture a second error or unwrap incomplete
+        // upstream state here.
+        let (_, throwable) = self.throwable?;
+        let callback = self.ffi_foreign_callback?;
+        let mode = self.require_core_enum("ForeignCallbackMode", files)?;
+        let state = self.require_core_enum("ForeignCallbackState", files)?;
+        let register = self.require_intrinsic("foreign_callback_register", files);
+        let retain = self.require_intrinsic("foreign_callback_retain", files);
+        let release = self.require_intrinsic("foreign_callback_release", files);
+        let query_state = self.require_intrinsic("foreign_callback_state", files);
+        let failure = self.require_intrinsic("foreign_callback_failure", files);
+
+        self.current_file = self.struct_files[&callback];
+        let callback_decl = &self.structs[callback];
+        let callback_valid = callback_decl.type_params.len() == 1
+            && callback_decl.type_params[0].kind == hir::TypeParamKind::Any
+            && callback_decl.interfaces.is_empty()
+            && callback_decl.attributes.c_layout.is_none()
+            && !callback_decl.attributes.interior_mutable
+            && matches!(callback_decl.fields.as_slice(), [function, context]
+                if function.name == "function"
+                    && matches!(&self.types[function.ty], hir::Type::Struct(id, args)
+                        if *id == self.ffi_fun_ptr.expect("FunPtr core exists")
+                            && matches!(args.as_slice(), [arg] if self.is_type_param(*arg, 0)))
+                    && context.name == "context"
+                    && matches!(self.types[context.ty], hir::Type::Ptr(pointee) if pointee == self.unit));
+        if !callback_valid {
+            self.error(
+                callback_decl.span,
+                "core `ForeignCallback<F>` must contain `function: FunPtr<F>` and `context: Ptr<Unit>`"
+                    .to_string(),
+            );
+        }
+
+        self.validate_unit_enum(mode, &["Reusable", "OneShot"]);
+        self.validate_unit_enum(state, &["Registered", "Active", "Completed", "Failed"]);
+
+        for (id, operation) in [
+            (register, "register"),
+            (retain, "retain"),
+            (release, "release"),
+            (query_state, "state"),
+            (failure, "failure"),
+        ] {
+            let Some(id) = id else { continue };
+            self.current_file = self.function_files[&id];
+            let function = &self.functions[id];
+            let signature = &self.signatures[&id];
+            let common = !signature.is_suspend
+                && signature.type_params.len() == 1
+                && signature.type_params[0].kind == hir::TypeParamKind::Any
+                && signature.attributes.safety == hir::Safety::Unsafe
+                && signature.attributes.gc_effect == hir::GcEffect::Managed
+                && function.method.is_none();
+            let callback_param = |ty| {
+                matches!(&self.types[ty], hir::Type::Struct(found, args)
+                    if *found == callback
+                        && matches!(args.as_slice(), [arg] if self.is_type_param(*arg, 0)))
+            };
+            let signature_valid = match operation {
+                "register" => {
+                    matches!(signature.params.as_slice(), [closure, index, mode_param]
+                        if closure.ty == self.any
+                            && index.ty == self.int
+                            && mode_param.ty == self.interned_enum_type(mode))
+                        && callback_param(signature.return_ty)
+                }
+                "retain" => matches!(signature.params.as_slice(), [param]
+                    if callback_param(param.ty) && callback_param(signature.return_ty)),
+                "release" => matches!(signature.params.as_slice(), [param]
+                    if callback_param(param.ty) && signature.return_ty == self.unit),
+                "state" => matches!(signature.params.as_slice(), [param]
+                    if callback_param(param.ty)
+                        && signature.return_ty == self.interned_enum_type(state)),
+                "failure" => {
+                    matches!(signature.params.as_slice(), [param]
+                        if callback_param(param.ty)
+                            && matches!(&self.types[signature.return_ty], hir::Type::Enum(id, args)
+                                if *id == self.option_enum.expect("Option core exists")
+                                    && args.as_slice() == [throwable]))
+                }
+                _ => unreachable!(),
+            };
+            if !common || !signature_valid {
+                self.error(
+                    function.span,
+                    format!(
+                        "intrinsic `foreign_callback_{operation}` has an invalid core signature"
+                    ),
+                );
+            }
+        }
+
+        Some(hir::ForeignCallbackCore {
+            callback,
+            mode,
+            state,
+            register: register?,
+            retain: retain?,
+            release: release?,
+            query_state: query_state?,
+            failure: failure?,
+        })
+    }
+
+    fn require_core_enum(&mut self, name: &str, files: &[ast::SourceFile]) -> Option<EnumId> {
+        let candidate = self.enums_by_name.get(name).copied();
+        if let Some(id) = candidate
+            && self
+                .enum_files
+                .get(&id)
+                .copied()
+                .unwrap_or(self.user_file_index)
+                < self.user_file_index
+        {
+            return Some(id);
+        }
+        self.current_file = 0;
+        self.error(
+            files[0].span,
+            format!("scoop.core must define exactly one `{name}` enum"),
+        );
+        None
+    }
+
+    fn validate_unit_enum(&mut self, id: EnumId, names: &[&str]) {
+        self.current_file = self.enum_files[&id];
+        let declaration = &self.enums[id];
+        let valid = declaration.type_params.is_empty()
+            && declaration.interfaces.is_empty()
+            && declaration.variants.len() == names.len()
+            && declaration
+                .variants
+                .iter()
+                .zip(names)
+                .all(|(variant, name)| variant.name == *name && variant.fields.is_empty());
+        if !valid {
+            self.error(
+                declaration.span,
+                format!(
+                    "core `{}` must declare unit variants `{}` in order",
+                    declaration.name,
+                    names.join("`, `")
+                ),
+            );
+        }
+    }
+
+    fn interned_enum_type(&self, enum_id: EnumId) -> TypeId {
+        self.types
+            .iter()
+            .find_map(|(id, ty)| {
+                matches!(ty, Type::Enum(found, args) if *found == enum_id && args.is_empty())
+                    .then_some(id)
+            })
+            .expect("a declared non-generic enum has one interned type")
     }
 
     fn validate_ffi_handle_struct(&mut self, id: StructId, name: &str) {
@@ -2457,9 +2652,9 @@ impl Lowerer {
 
     /// Record a resolved generic application, deduplicated by
     /// (generic definition, type arguments), and return the entity id
-    /// carried by the HIR call. Requests from inside generic bodies may
-    /// still mention `Type::Param`; mir-lower concretizes them when the
-    /// requesting instance is materialized.
+    /// carried by the export HIR call. Requests from inside generic bodies
+    /// may still mention `Type::Param`; the local-concrete HIR pass resolves
+    /// them when the requesting instance is materialized.
     pub(crate) fn record_instantiation(
         &mut self,
         function: FunctionId,

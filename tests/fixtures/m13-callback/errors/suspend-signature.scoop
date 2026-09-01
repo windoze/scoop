@@ -1,0 +1,9 @@
+fun main() {
+    @Unsafe {
+        foreignCallback<suspend (Int, Ptr<Unit>) -> Int>(
+            suspend { 0 },
+            1,
+            ForeignCallbackMode.Reusable
+        )
+    }
+}

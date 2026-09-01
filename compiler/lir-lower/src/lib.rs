@@ -23,15 +23,14 @@
 //! M4: enums. Every MIR enum definition gets an `EnumDef` with a fixed
 //! representation (spec 7.4): the niche pointer form when there are
 //! exactly two variants, one without fields and the other with a
-//! single field mapping to `Ptr` (`None` = null — this is
-//! `Option<String>`); otherwise the `{ i64 tag, [N x i8] payload }`
-//! tagged form with N and alignment taken from the largest variant.
+//! single pointer-like field (`None` = null — this is
+//! `Option<String>`); otherwise a tagged form whose pure-value variants
+//! share one payload and whose ref-bearing variants have disjoint slots.
 //! The MIR enum operations map onto `EnumWrap` / `EnumTag` /
 //! `EnumField`, which codegen translates mechanically per the
-//! representation. Enum layouts in the
-//! meta keep recursive per-variant scan programs — scanning an enum
-//! value depends on its tag and composes when the enum is nested in an
-//! aggregate (runtime spec 2.2).
+//! representation. Enum layouts keep fixed ref offsets for all disjoint
+//! ref-bearing slots; inactive slots are zero, so scanning never reads
+//! the tag and composes mechanically in aggregates (runtime spec 2.2).
 //!
 //! M5: arrays (docs/milestone5/DESIGN.md 2.4). Both array kinds map
 //! onto `LirType::Array` — a pointer to `{ td, gc_word, i64 size,
@@ -157,6 +156,7 @@ pub fn lower(module: &mir::Module) -> lir::Module {
     for (id, string) in module.strings.iter() {
         let global = globals.alloc(lir::Global {
             symbol: string.symbol.clone(),
+            address_kind: lir::PointerKind::Managed,
             init: lir::GlobalInit::StringConst(string.value.clone()),
         });
         string_global_map.insert(id, global);
@@ -171,6 +171,7 @@ pub fn lower(module: &mir::Module) -> lir::Module {
     let extern_functions = lower_extern_functions(module);
     let (storage_globals, native_globals) = lower_globals(module, &mut globals);
     let callback_bridges = lower_callback_bridges(module);
+    let foreign_callback_bridges = lower_foreign_callback_bridges(module);
 
     // Tuple types encountered while mapping value types, in
     // first-appearance order; each one gets a meta layout.
@@ -180,7 +181,7 @@ pub fn lower(module: &mir::Module) -> lir::Module {
     // TypeDescriptor reference stubs (`scoop_td_*`), deduplicated by
     // symbol (see the module docs for the TD-reference convention).
     let mut td_map = HashMap::new();
-    let functions = module
+    let mut functions: Vec<lir::Function> = module
         .top_level
         .iter()
         .map(|&id| {
@@ -197,6 +198,9 @@ pub fn lower(module: &mir::Module) -> lir::Module {
             )
         })
         .collect();
+    for function in &mut functions {
+        annotate_native_call_roots(function, &structs, &enums);
+    }
 
     let layouts = layouts(module, &enums, &layout_types);
     let type_descriptors = type_descriptors(module, &enums);
@@ -208,6 +212,7 @@ pub fn lower(module: &mir::Module) -> lir::Module {
         extern_functions,
         native_globals,
         callback_bridges,
+        foreign_callback_bridges,
         entry_symbol: module.functions[module.entry].symbol.clone(),
         meta: lir::LirMeta {
             layouts,
@@ -235,6 +240,46 @@ fn lower_callback_bridges(module: &mir::Module) -> Arena<lir::CallbackBridge> {
     callbacks
 }
 
+fn lower_foreign_callback_bridges(module: &mir::Module) -> Arena<lir::ForeignCallbackBridge> {
+    let mut bridges = Arena::new();
+    let mut shared_trampolines: HashMap<(mir::FunctionTypeId, u32), (String, String)> =
+        HashMap::new();
+    for (_, bridge) in module.foreign_callback_bridges.iter() {
+        let signature = &module.function_types[bridge.native_signature];
+        let adapter = &module.foreign_callback_adapters[bridge.adapter];
+        let key = (bridge.native_signature, bridge.context_index);
+        let (trampoline_symbol, signature_symbol) =
+            if let Some(symbols) = shared_trampolines.get(&key) {
+                symbols.clone()
+            } else {
+                let raw = shared_trampolines.len();
+                let symbols = (
+                    format!("scoop_foreign_callback_{raw}"),
+                    format!("scoop_foreign_callback_signature_{raw}"),
+                );
+                shared_trampolines.insert(key, symbols.clone());
+                symbols
+            };
+        bridges.alloc(lir::ForeignCallbackBridge {
+            adapter_symbol: module.functions[adapter.function].symbol.clone(),
+            trampoline_symbol,
+            signature_symbol,
+            params: signature
+                .parameter_types
+                .iter()
+                .map(|ty| c_ffi_type(module, ty))
+                .collect(),
+            return_type: c_ffi_type(module, &signature.return_type),
+            context_index: bridge.context_index,
+            mode: match bridge.mode {
+                mir::ForeignCallbackMode::Reusable => lir::ForeignCallbackMode::Reusable,
+                mir::ForeignCallbackMode::OneShot => lir::ForeignCallbackMode::OneShot,
+            },
+        });
+    }
+    bridges
+}
+
 #[derive(Clone, Copy)]
 enum StorageGlobal {
     Local(lir::GlobalId),
@@ -258,6 +303,7 @@ fn lower_globals(
             } => {
                 let lir_id = globals.alloc(lir::Global {
                     symbol: global.symbol.clone(),
+                    address_kind: lir::PointerKind::Raw,
                     init: lir::GlobalInit::Storage {
                         ty: lir_type(&global.ty),
                         initializer: lower_constant(initializer),
@@ -421,7 +467,12 @@ fn lower_enums(module: &mir::Module) -> Arena<lir::EnumDef> {
         enums.alloc(lir::EnumDef {
             name: def.name.clone(),
             repr: repr.expect("compute_repr fills every entry"),
+            scan: lir::RefScan::None,
         });
+    }
+    for (id, _) in module.enums.iter() {
+        let scan = ref_scan(module, &enums, &mir::Type::Enum(id, Vec::new()), 0);
+        enums[enum_def_id(id)].scan = scan;
     }
     enums
 }
@@ -459,11 +510,25 @@ fn nested_enums(module: &mir::Module, ty: &mir::Type, out: &mut Vec<mir::EnumId>
     }
 }
 
-/// Compute (memoized) the representation of one enum: the niche
-/// pointer form when there are exactly two variants, one without
-/// fields and the other with exactly one field mapping to `Ptr`;
-/// otherwise the tagged form `{ i64 tag, [N x i8] payload }` with N
-/// and alignment taken from the largest variant. Nested enums are
+fn is_niche_payload(ty: &mir::Type) -> bool {
+    matches!(
+        ty,
+        mir::Type::String
+            | mir::Type::Class(_)
+            | mir::Type::Interface(_)
+            | mir::Type::Function(_)
+            | mir::Type::Any
+            | mir::Type::Array(_)
+            | mir::Type::MutableArray(_)
+            | mir::Type::Ptr(_)
+            | mir::Type::FunPtr(_)
+    )
+}
+
+/// Compute (memoized) the representation of one enum. Niche layout is
+/// restricted to the exact Option-isomorphic cases from spec 7.4.
+/// Tagged layout gives all GC-free variants one shared payload region
+/// and every non-GC-free variant its own disjoint slot. Nested enums are
 /// computed first because variant sizing needs their shapes.
 fn compute_repr(module: &mir::Module, reprs: &mut Vec<Option<lir::EnumRepr>>, id: mir::EnumId) {
     let index = id.into_raw().into_u32() as usize;
@@ -484,17 +549,17 @@ fn compute_repr(module: &mir::Module, reprs: &mut Vec<Option<lir::EnumRepr>>, id
         compute_repr(module, reprs, nested_id);
     }
 
-    // The niche check needs only the mapped field types, not sizes.
+    // This is a semantic whitelist, not merely an LLVM pointer-shape
+    // check: only managed refs, Ptr and FunPtr qualify.
     if def.variants.len() == 2 {
-        let has_unit = def.variants.iter().any(|v| v.fields.is_empty());
+        let has_unit = def.variants.iter().any(|variant| variant.fields.is_empty());
         let payload = def
             .variants
             .iter()
             .enumerate()
-            .find(|(_, v)| !v.fields.is_empty());
+            .find(|(_, variant)| !variant.fields.is_empty());
         if let (true, Some((payload_index, payload_variant))) = (has_unit, payload) {
-            if payload_variant.fields.len() == 1
-                && lir_type(&payload_variant.fields[0].ty) == lir::LirType::Ptr
+            if payload_variant.fields.len() == 1 && is_niche_payload(&payload_variant.fields[0].ty)
             {
                 reprs[index] = Some(lir::EnumRepr::Niche {
                     payload_variant: payload_index as u32,
@@ -504,8 +569,8 @@ fn compute_repr(module: &mir::Module, reprs: &mut Vec<Option<lir::EnumRepr>>, id
         }
     }
 
-    // Tagged form: field types per variant, and the payload big
-    // enough for the largest variant.
+    // First compute each variant's natural field layout independent of
+    // its eventual slot assignment.
     let enum_shape = |id: mir::EnumId| {
         repr_shape(
             reprs[id.into_raw().into_u32() as usize]
@@ -513,9 +578,15 @@ fn compute_repr(module: &mir::Module, reprs: &mut Vec<Option<lir::EnumRepr>>, id
                 .expect("nested enum representations are computed first"),
         )
     };
-    let mut payload_size = 0u64;
-    let mut payload_align = 1u64;
-    let mut variants = Vec::new();
+    struct PendingVariant {
+        fields: Vec<lir::LirType>,
+        field_offsets: Vec<u64>,
+        size: u64,
+        align: u64,
+        gc_free: bool,
+    }
+
+    let mut pending = Vec::new();
     for variant in &def.variants {
         let fields: Vec<lir::LirType> = variant
             .fields
@@ -527,38 +598,78 @@ fn compute_repr(module: &mir::Module, reprs: &mut Vec<Option<lir::EnumRepr>>, id
             .iter()
             .map(|field| field.ty.clone())
             .collect();
-        let (_, size, align) = aggregate_shape(module, &enum_shape, &field_types);
-        payload_size = payload_size.max(size);
-        payload_align = payload_align.max(align);
-        variants.push(fields);
+        let (field_offsets, size, align) = aggregate_shape(module, &enum_shape, &field_types);
+        pending.push(PendingVariant {
+            fields,
+            field_offsets,
+            size,
+            align,
+            gc_free: variant.gc_free,
+        });
     }
+
+    // Pure-value variants all reuse this one region. Empty variants need
+    // no bytes but retain the same offset in the structural metadata.
+    let pure_size = pending
+        .iter()
+        .filter(|variant| variant.gc_free)
+        .map(|variant| variant.size)
+        .max()
+        .unwrap_or(0);
+    let pure_align = pending
+        .iter()
+        .filter(|variant| variant.gc_free)
+        .map(|variant| variant.align)
+        .max()
+        .unwrap_or(1);
+    let pure_offset = 8u64.next_multiple_of(pure_align);
+    let mut cursor = pure_offset + pure_size;
+    let mut align = 8u64.max(pure_align);
+    let mut variants = Vec::with_capacity(pending.len());
+    for variant in pending {
+        let slot_offset = if !variant.gc_free {
+            cursor = cursor.next_multiple_of(variant.align);
+            let offset = cursor;
+            cursor += variant.size;
+            offset
+        } else {
+            pure_offset
+        };
+        align = align.max(variant.align);
+        variants.push(lir::EnumVariantRepr {
+            fields: variant.fields,
+            field_offsets: variant
+                .field_offsets
+                .into_iter()
+                .map(|offset| slot_offset + offset)
+                .collect(),
+            slot_offset,
+            slot_size: variant.size,
+            slot_align: variant.align,
+            gc_free: variant.gc_free,
+        });
+    }
+    let size = cursor.next_multiple_of(align);
     reprs[index] = Some(lir::EnumRepr::Tagged {
         variants,
-        payload_size,
-        payload_align,
+        size,
+        align,
     });
 }
 
 /// Size and alignment of an enum value from its representation: the
-/// niche form is a bare pointer; the tagged form is `{ i64 tag,
-/// [N x i8] payload }` (8-byte tag, payload at offset 8).
+/// niche form is a bare pointer; tagged size/alignment are fixed by its
+/// shared pure-value region and disjoint ref-bearing slots.
 fn repr_shape(repr: &lir::EnumRepr) -> (u64, u64) {
     match repr {
         lir::EnumRepr::Niche { .. } => (8, 8),
-        lir::EnumRepr::Tagged {
-            payload_size,
-            payload_align,
-            ..
-        } => {
-            let align = 8.max(*payload_align);
-            ((8 + payload_size).next_multiple_of(align), align)
-        }
+        lir::EnumRepr::Tagged { size, align, .. } => (*size, *align),
     }
 }
 
 /// The meta layouts (DESIGN 2.4 / 3.4): the runtime `String` object
 /// header, the `Int` / `Boolean` scalars, every struct in declaration
-/// order, every enum in declaration order (with per-variant reference
+/// order, every enum in declaration order (with fixed reference
 /// offsets), every class in declaration order (M6: header + fields),
 /// every tuple type that appears in the module, and every array type
 /// that appears in the module (M5).
@@ -760,10 +871,10 @@ fn struct_layout(
     }
 }
 
-/// Layout of an enum value: niche form is a bare pointer; tagged form
-/// records one recursive scan program per variant.
+/// Layout of an enum value. Tagged enums expose one unconditional scan
+/// over their disjoint ref-bearing slots; the runtime never reads tag.
 fn enum_layout(
-    module: &mir::Module,
+    _module: &mir::Module,
     enums: &Arena<lir::EnumDef>,
     id: mir::EnumId,
     def: &mir::EnumDef,
@@ -777,40 +888,11 @@ fn enum_layout(
             c_layout: None,
             interior_mutable: false,
             kind: lir::LayoutKind::Enum {
-                variants: def
-                    .variants
-                    .iter()
-                    .map(|variant| lir::VariantLayout {
-                        scan: match variant.fields.as_slice() {
-                            [] => lir::RefScan::None,
-                            [field] => ref_scan(module, enums, &field.ty, 0),
-                            _ => unreachable!(
-                                "a niche payload variant has exactly one pointer-like field"
-                            ),
-                        },
-                    })
-                    .collect(),
+                scan: enums[enum_def_id(id)].scan.clone(),
             },
         },
         lir::EnumRepr::Tagged { .. } => {
             let (size, align) = repr_shape(&enums[enum_def_id(id)].repr);
-            let payload_offset = enum_payload_offset(&enums[enum_def_id(id)].repr);
-            let enum_shape = |eid: mir::EnumId| repr_shape(&enums[enum_def_id(eid)].repr);
-            let variants = def
-                .variants
-                .iter()
-                .map(|variant| {
-                    let field_types: Vec<mir::Type> = variant
-                        .fields
-                        .iter()
-                        .map(|field| field.ty.clone())
-                        .collect();
-                    let (offsets, _, _) = aggregate_shape(module, &enum_shape, &field_types);
-                    lir::VariantLayout {
-                        scan: scan_fields(module, enums, &field_types, &offsets, payload_offset),
-                    }
-                })
-                .collect();
             lir::Layout {
                 name: def.name.clone(),
                 size,
@@ -818,7 +900,9 @@ fn enum_layout(
                 fields: Vec::new(),
                 c_layout: None,
                 interior_mutable: false,
-                kind: lir::LayoutKind::Enum { variants },
+                kind: lir::LayoutKind::Enum {
+                    scan: enums[enum_def_id(id)].scan.clone(),
+                },
             }
         }
     }
@@ -1143,42 +1227,29 @@ fn size_align(
     }
 }
 
-/// Payload byte offset of a tagged enum value.
-fn enum_payload_offset(repr: &lir::EnumRepr) -> u64 {
-    match repr {
-        lir::EnumRepr::Niche { .. } => 0,
-        lir::EnumRepr::Tagged { payload_align, .. } => 8u64.max(*payload_align),
-    }
-}
-
 /// Normalize a list of scans: remove empty parts, flatten sequences,
-/// and merge plain reference lists. Tagged branches remain explicit.
+/// and merge plain reference lists.
 fn sequence(parts: impl IntoIterator<Item = lir::RefScan>) -> lir::RefScan {
-    let mut refs = Vec::new();
-    let mut conditional = Vec::new();
-    for part in parts {
-        match part {
+    fn collect(scan: lir::RefScan, refs: &mut Vec<u64>) {
+        match scan {
             lir::RefScan::None => {}
             lir::RefScan::References(offsets) => refs.extend(offsets),
             lir::RefScan::Sequence(parts) => {
-                for nested in parts {
-                    match nested {
-                        lir::RefScan::None => {}
-                        lir::RefScan::References(offsets) => refs.extend(offsets),
-                        other => conditional.push(other),
-                    }
+                for part in parts {
+                    collect(part, refs);
                 }
             }
-            other => conditional.push(other),
         }
     }
-    if !refs.is_empty() {
-        conditional.insert(0, lir::RefScan::References(refs));
+
+    let mut refs = Vec::new();
+    for part in parts {
+        collect(part, &mut refs);
     }
-    match conditional.len() {
-        0 => lir::RefScan::None,
-        1 => conditional.pop().expect("one scan part"),
-        _ => lir::RefScan::Sequence(conditional),
+    if refs.is_empty() {
+        lir::RefScan::None
+    } else {
+        lir::RefScan::References(refs)
     }
 }
 
@@ -1236,31 +1307,21 @@ fn ref_scan(
                 };
                 ref_scan(module, enums, &field.ty, base)
             }
-            repr @ lir::EnumRepr::Tagged { .. } => {
-                let payload_base = base + enum_payload_offset(repr);
-                let enum_shape = |id: mir::EnumId| repr_shape(&enums[enum_def_id(id)].repr);
-                let variants: Vec<lir::RefScan> = module.enums[*id]
+            lir::EnumRepr::Tagged { variants, .. } => sequence(
+                module.enums[*id]
                     .variants
                     .iter()
-                    .map(|variant| {
+                    .zip(variants)
+                    .filter(|(_, repr)| !repr.gc_free)
+                    .map(|(variant, repr)| {
                         let fields: Vec<mir::Type> = variant
                             .fields
                             .iter()
                             .map(|field| field.ty.clone())
                             .collect();
-                        let (offsets, _, _) = aggregate_shape(module, &enum_shape, &fields);
-                        scan_fields(module, enums, &fields, &offsets, payload_base)
-                    })
-                    .collect();
-                if variants.iter().all(|scan| *scan == lir::RefScan::None) {
-                    lir::RefScan::None
-                } else {
-                    lir::RefScan::TaggedEnum {
-                        tag_offset: base,
-                        variants,
-                    }
-                }
-            }
+                        scan_fields(module, enums, &fields, &repr.field_offsets, base)
+                    }),
+            ),
         },
         mir::Type::Unit
         | mir::Type::Int
@@ -1313,9 +1374,9 @@ fn lir_type(ty: &mir::Type) -> lir::LirType {
         | mir::Type::Class(_)
         | mir::Type::Interface(_)
         | mir::Type::Function(_)
-        | mir::Type::Ptr(_)
-        | mir::Type::FunPtr(_)
-        | mir::Type::Any => lir::LirType::Ptr,
+        | mir::Type::Any => lir::LirType::Ptr(lir::PointerKind::Managed),
+        mir::Type::Ptr(_) => lir::LirType::Ptr(lir::PointerKind::Raw),
+        mir::Type::FunPtr(_) => lir::LirType::Ptr(lir::PointerKind::Code),
         mir::Type::Array(element) | mir::Type::MutableArray(element) => {
             lir::LirType::Array(Box::new(lir_type(element)))
         }
@@ -1371,8 +1432,17 @@ fn address_taken_locals(function: &mir::Function) -> HashSet<mir::LocalId> {
             | mir::Expr::ClosureCapture {
                 closure: operand, ..
             }
+            | mir::Expr::ForeignCallbackRegister {
+                closure: operand, ..
+            }
+            | mir::Expr::ForeignCallbackOperation {
+                callback: operand, ..
+            }
             | mir::Expr::FieldAccess {
                 receiver: operand, ..
+            }
+            | mir::Expr::AtomicFieldLoad {
+                object: operand, ..
             }
             | mir::Expr::Box(operand)
             | mir::Expr::Unbox(operand)
@@ -1386,6 +1456,16 @@ fn address_taken_locals(function: &mir::Function) -> HashSet<mir::LocalId> {
             | mir::Expr::PtrFromUInt { operand, .. }
             | mir::Expr::PtrToUInt(operand)
             | mir::Expr::PtrCast { operand, .. } => collect_expr(operand, out),
+            mir::Expr::AtomicFieldCompareExchange {
+                object,
+                expected,
+                replacement,
+                ..
+            } => {
+                collect_expr(object, out);
+                collect_expr(expected, out);
+                collect_expr(replacement, out);
+            }
             mir::Expr::ArrayGet { array, index }
             | mir::Expr::Binary {
                 lhs: array,
@@ -1463,7 +1543,8 @@ fn address_taken_locals(function: &mir::Function) -> HashSet<mir::LocalId> {
                     collect_expr(index, &mut out);
                     collect_expr(value, &mut out);
                 }
-                mir::StatementKind::FieldSet { object, value, .. } => {
+                mir::StatementKind::FieldSet { object, value, .. }
+                | mir::StatementKind::AtomicFieldStore { object, value, .. } => {
                     collect_expr(object, &mut out);
                     collect_expr(value, &mut out);
                 }
@@ -1614,6 +1695,453 @@ fn lower_function<'a>(
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum LiveValue {
+    Param(u32),
+    Local(lir::LocalId),
+    Temp(lir::TempId),
+}
+
+impl LiveValue {
+    fn from_value(value: lir::Value) -> Option<Self> {
+        match value {
+            lir::Value::Param(index) => Some(Self::Param(index)),
+            lir::Value::Local(id) => Some(Self::Local(id)),
+            lir::Value::Temp(id) => Some(Self::Temp(id)),
+            lir::Value::IntConst(_)
+            | lir::Value::BoolConst(_)
+            | lir::Value::NullPtr
+            | lir::Value::Global(_) => None,
+        }
+    }
+
+    fn source(self) -> lir::CallerRootSource {
+        match self {
+            Self::Param(index) => lir::CallerRootSource::Param(index),
+            Self::Local(id) => lir::CallerRootSource::Local(id),
+            Self::Temp(id) => lir::CallerRootSource::Temp(id),
+        }
+    }
+
+    fn sort_key(self) -> (u8, u32) {
+        match self {
+            Self::Param(index) => (0, index),
+            Self::Local(id) => (1, id.into_raw().into_u32()),
+            Self::Temp(id) => (2, id.into_raw().into_u32()),
+        }
+    }
+}
+
+fn instruction_uses(instruction: &lir::Instruction) -> Vec<lir::Value> {
+    match instruction {
+        lir::Instruction::BinOp { lhs, rhs, .. } => vec![*lhs, *rhs],
+        lir::Instruction::UnaryOp { operand, .. }
+        | lir::Instruction::ExtractValue {
+            aggregate: operand, ..
+        }
+        | lir::Instruction::HeapLoad {
+            object: operand, ..
+        }
+        | lir::Instruction::AtomicLoad {
+            object: operand, ..
+        }
+        | lir::Instruction::IntToPtr { value: operand, .. }
+        | lir::Instruction::PtrToInt { value: operand, .. }
+        | lir::Instruction::RawLoad {
+            pointer: operand, ..
+        }
+        | lir::Instruction::BeginCatch { raw: operand, .. }
+        | lir::Instruction::Throw { exception: operand }
+        | lir::Instruction::ArrayLen { operand, .. }
+        | lir::Instruction::ArrayClone { operand, .. }
+        | lir::Instruction::EnumTag { operand, .. }
+        | lir::Instruction::EnumField { operand, .. }
+        | lir::Instruction::ForeignCallbackRegister {
+            closure: operand, ..
+        }
+        | lir::Instruction::ForeignCallbackOperation {
+            callback: operand, ..
+        } => vec![*operand],
+        lir::Instruction::MakeAggregate { elements, .. }
+        | lir::Instruction::ArrayAlloc { elements, .. } => elements.clone(),
+        lir::Instruction::Store { value, .. }
+        | lir::Instruction::GlobalStore { value, .. }
+        | lir::Instruction::NativeGlobalStore { value, .. } => vec![*value],
+        lir::Instruction::NativeCall { args, .. }
+        | lir::Instruction::Call { args, .. }
+        | lir::Instruction::Invoke { args, .. } => args.clone(),
+        lir::Instruction::HeapStore { object, value, .. }
+        | lir::Instruction::AtomicStore { object, value, .. } => vec![*object, *value],
+        lir::Instruction::AtomicCompareExchange {
+            object,
+            expected,
+            replacement,
+            ..
+        } => vec![*object, *expected, *replacement],
+        lir::Instruction::RawStore { pointer, value, .. } => vec![*pointer, *value],
+        lir::Instruction::PtrOffset { pointer, bytes, .. } => vec![*pointer, *bytes],
+        // Taking a local's address makes its current contents observable to
+        // the following raw operation, so keep it live conservatively.
+        lir::Instruction::LocalAddress { local, .. } => vec![lir::Value::Local(*local)],
+        lir::Instruction::CallIndirect { table, args, .. }
+        | lir::Instruction::InvokeIndirect { table, args, .. } => {
+            let mut values = Vec::with_capacity(args.len() + 1);
+            values.push(*table);
+            values.extend(args);
+            values
+        }
+        lir::Instruction::ArrayGet { array, index, .. } => vec![*array, *index],
+        lir::Instruction::ArraySet {
+            array,
+            index,
+            value,
+        } => vec![*array, *index, *value],
+        lir::Instruction::EnumWrap { fields, .. } => fields.clone(),
+        lir::Instruction::GlobalLoad { .. }
+        | lir::Instruction::GlobalAddress { .. }
+        | lir::Instruction::NativeGlobalLoad { .. }
+        | lir::Instruction::NativeGlobalAddress { .. }
+        | lir::Instruction::FunctionAddress { .. }
+        | lir::Instruction::LandingPad { .. }
+        | lir::Instruction::CleanupPad { .. }
+        | lir::Instruction::EndCatch => Vec::new(),
+    }
+}
+
+fn instruction_defs(instruction: &lir::Instruction) -> Vec<LiveValue> {
+    let out = match instruction {
+        lir::Instruction::BinOp { out, .. }
+        | lir::Instruction::UnaryOp { out, .. }
+        | lir::Instruction::MakeAggregate { out, .. }
+        | lir::Instruction::ExtractValue { out, .. }
+        | lir::Instruction::HeapLoad { out, .. }
+        | lir::Instruction::AtomicLoad { out, .. }
+        | lir::Instruction::AtomicCompareExchange { out, .. }
+        | lir::Instruction::GlobalLoad { out, .. }
+        | lir::Instruction::GlobalAddress { out, .. }
+        | lir::Instruction::NativeGlobalLoad { out, .. }
+        | lir::Instruction::NativeGlobalAddress { out, .. }
+        | lir::Instruction::FunctionAddress { out, .. }
+        | lir::Instruction::IntToPtr { out, .. }
+        | lir::Instruction::PtrToInt { out, .. }
+        | lir::Instruction::RawLoad { out, .. }
+        | lir::Instruction::PtrOffset { out, .. }
+        | lir::Instruction::LocalAddress { out, .. }
+        | lir::Instruction::BeginCatch { out, .. }
+        | lir::Instruction::ArrayAlloc { out, .. }
+        | lir::Instruction::ArrayLen { out, .. }
+        | lir::Instruction::ArrayGet { out, .. }
+        | lir::Instruction::ArrayClone { out, .. }
+        | lir::Instruction::EnumWrap { out, .. }
+        | lir::Instruction::EnumTag { out, .. }
+        | lir::Instruction::EnumField { out, .. }
+        | lir::Instruction::ForeignCallbackRegister { out, .. } => Some(*out),
+        lir::Instruction::NativeCall { out, .. }
+        | lir::Instruction::Call { out, .. }
+        | lir::Instruction::CallIndirect { out, .. }
+        | lir::Instruction::Invoke { out, .. }
+        | lir::Instruction::InvokeIndirect { out, .. }
+        | lir::Instruction::ForeignCallbackOperation { out, .. } => *out,
+        lir::Instruction::Store { local, .. } => return vec![LiveValue::Local(*local)],
+        lir::Instruction::LandingPad { record, raw }
+        | lir::Instruction::CleanupPad { record, raw } => {
+            return vec![LiveValue::Temp(*record), LiveValue::Temp(*raw)];
+        }
+        lir::Instruction::GlobalStore { .. }
+        | lir::Instruction::NativeGlobalStore { .. }
+        | lir::Instruction::HeapStore { .. }
+        | lir::Instruction::AtomicStore { .. }
+        | lir::Instruction::RawStore { .. }
+        | lir::Instruction::ArraySet { .. }
+        | lir::Instruction::EndCatch
+        | lir::Instruction::Throw { .. } => None,
+    };
+    out.map_or_else(Vec::new, |out| vec![LiveValue::Temp(out)])
+}
+
+fn terminator_uses(terminator: &lir::Terminator, mut use_value: impl FnMut(lir::Value)) {
+    match terminator {
+        lir::Terminator::CondBr { cond, .. } => use_value(*cond),
+        lir::Terminator::Return { value: Some(value) } => use_value(*value),
+        lir::Terminator::Resume { exception } => use_value(*exception),
+        lir::Terminator::Br(_)
+        | lir::Terminator::Return { value: None }
+        | lir::Terminator::Unreachable => {}
+    }
+}
+
+fn block_successors(block: &lir::BasicBlock) -> Vec<lir::BlockId> {
+    let mut successors = match block.terminator {
+        lir::Terminator::Br(target) => vec![target],
+        lir::Terminator::CondBr {
+            then_block,
+            else_block,
+            ..
+        } => vec![then_block, else_block],
+        lir::Terminator::Return { .. }
+        | lir::Terminator::Resume { .. }
+        | lir::Terminator::Unreachable => Vec::new(),
+    };
+    if let Some(
+        lir::Instruction::Invoke { normal, unwind, .. }
+        | lir::Instruction::InvokeIndirect { normal, unwind, .. },
+    ) = block.instructions.last()
+    {
+        if !successors.contains(normal) {
+            successors.push(*normal);
+        }
+        if !successors.contains(unwind) {
+            successors.push(*unwind);
+        }
+    }
+    successors
+}
+
+fn shift_scan(scan: &lir::RefScan, base: u64) -> lir::RefScan {
+    match scan {
+        lir::RefScan::None => lir::RefScan::None,
+        lir::RefScan::References(offsets) => {
+            lir::RefScan::References(offsets.iter().map(|offset| base + offset).collect())
+        }
+        lir::RefScan::Sequence(parts) => {
+            lir::RefScan::Sequence(parts.iter().map(|part| shift_scan(part, base)).collect())
+        }
+    }
+}
+
+fn lir_size_align(
+    ty: &lir::LirType,
+    structs: &Arena<lir::StructDef>,
+    enums: &Arena<lir::EnumDef>,
+) -> (u64, u64) {
+    match ty {
+        lir::LirType::Void => (0, 1),
+        lir::LirType::I1 => (1, 1),
+        lir::LirType::I64 | lir::LirType::Ptr(_) | lir::LirType::Array(_) => (8, 8),
+        lir::LirType::ExceptionRecord => (16, 8),
+        lir::LirType::Aggregate(fields) => {
+            let (_, size, align) = lir_aggregate_shape(fields, structs, enums);
+            (size, align)
+        }
+        lir::LirType::Struct(id) => (structs[*id].size, structs[*id].align),
+        lir::LirType::Enum(id) => repr_shape(&enums[*id].repr),
+    }
+}
+
+fn lir_aggregate_shape(
+    fields: &[lir::LirType],
+    structs: &Arena<lir::StructDef>,
+    enums: &Arena<lir::EnumDef>,
+) -> (Vec<u64>, u64, u64) {
+    let mut offsets = Vec::with_capacity(fields.len());
+    let mut size = 0u64;
+    let mut align = 1u64;
+    for field in fields {
+        let (field_size, field_align) = lir_size_align(field, structs, enums);
+        size = size.next_multiple_of(field_align);
+        offsets.push(size);
+        size += field_size;
+        align = align.max(field_align);
+    }
+    (offsets, size.next_multiple_of(align), align)
+}
+
+fn lir_root_scan(
+    ty: &lir::LirType,
+    structs: &Arena<lir::StructDef>,
+    enums: &Arena<lir::EnumDef>,
+    base: u64,
+) -> lir::RefScan {
+    match ty {
+        lir::LirType::Ptr(lir::PointerKind::Managed) | lir::LirType::Array(_) => {
+            lir::RefScan::References(vec![base])
+        }
+        lir::LirType::Aggregate(fields) => {
+            let (offsets, _, _) = lir_aggregate_shape(fields, structs, enums);
+            sequence(
+                fields
+                    .iter()
+                    .zip(offsets)
+                    .map(|(field, offset)| lir_root_scan(field, structs, enums, base + offset)),
+            )
+        }
+        lir::LirType::Struct(id) => sequence(
+            structs[*id]
+                .fields
+                .iter()
+                .map(|field| lir_root_scan(&field.ty, structs, enums, base + field.layout.offset)),
+        ),
+        lir::LirType::Enum(id) => shift_scan(&enums[*id].scan, base),
+        lir::LirType::Void
+        | lir::LirType::I1
+        | lir::LirType::I64
+        | lir::LirType::Ptr(_)
+        | lir::LirType::ExceptionRecord => lir::RefScan::None,
+    }
+}
+
+fn live_value_ty(value: LiveValue, function: &lir::Function) -> &lir::LirType {
+    match value {
+        LiveValue::Param(index) => &function.params[index as usize],
+        LiveValue::Local(id) => &function.locals[id].ty,
+        LiveValue::Temp(id) => &function.temps[id].ty,
+    }
+}
+
+fn caller_roots(
+    live: &HashSet<LiveValue>,
+    function: &lir::Function,
+    structs: &Arena<lir::StructDef>,
+    enums: &Arena<lir::EnumDef>,
+) -> Vec<lir::CallerRoot> {
+    let mut live = live.iter().copied().collect::<Vec<_>>();
+    live.sort_by_key(|value| value.sort_key());
+    live.into_iter()
+        .filter_map(|value| {
+            let scan = lir_root_scan(live_value_ty(value, function), structs, enums, 0);
+            (scan != lir::RefScan::None).then(|| lir::CallerRoot {
+                source: value.source(),
+                scan,
+            })
+        })
+        .collect()
+}
+
+fn annotate_native_call_roots(
+    function: &mut lir::Function,
+    structs: &Arena<lir::StructDef>,
+    enums: &Arena<lir::EnumDef>,
+) {
+    type NativeCallAnnotation = Option<(Vec<lir::CallerRoot>, lir::RefScan)>;
+
+    let block_count = function.blocks.len();
+    let mut uses = vec![HashSet::new(); block_count];
+    let mut defs = vec![HashSet::new(); block_count];
+    let mut successors = vec![Vec::new(); block_count];
+
+    for (id, block) in function.blocks.iter() {
+        let index = id.into_raw().into_u32() as usize;
+        let mut block_defs = HashSet::new();
+        let mut block_uses = HashSet::new();
+        for instruction in &block.instructions {
+            for value in instruction_uses(instruction) {
+                if let Some(value) = LiveValue::from_value(value)
+                    && !block_defs.contains(&value)
+                {
+                    block_uses.insert(value);
+                }
+            }
+            block_defs.extend(instruction_defs(instruction));
+        }
+        terminator_uses(&block.terminator, |value| {
+            if let Some(value) = LiveValue::from_value(value)
+                && !block_defs.contains(&value)
+            {
+                block_uses.insert(value);
+            }
+        });
+        uses[index] = block_uses;
+        defs[index] = block_defs;
+        successors[index] = block_successors(block);
+    }
+
+    let mut live_in = vec![HashSet::new(); block_count];
+    let mut live_out = vec![HashSet::new(); block_count];
+    loop {
+        let mut changed = false;
+        for index in (0..block_count).rev() {
+            let mut new_out = HashSet::new();
+            for successor in &successors[index] {
+                new_out.extend(
+                    live_in[successor.into_raw().into_u32() as usize]
+                        .iter()
+                        .copied(),
+                );
+            }
+            let mut new_in = uses[index].clone();
+            new_in.extend(new_out.difference(&defs[index]).copied());
+            if new_out != live_out[index] || new_in != live_in[index] {
+                live_out[index] = new_out;
+                live_in[index] = new_in;
+                changed = true;
+            }
+        }
+        if !changed {
+            break;
+        }
+    }
+
+    let mut annotations: Vec<Vec<NativeCallAnnotation>> = function
+        .blocks
+        .iter()
+        .map(|(_, block)| vec![None; block.instructions.len()])
+        .collect();
+
+    for (id, block) in function.blocks.iter() {
+        let block_index = id.into_raw().into_u32() as usize;
+        let mut live = live_out[block_index].clone();
+        terminator_uses(&block.terminator, |value| {
+            if let Some(value) = LiveValue::from_value(value) {
+                live.insert(value);
+            }
+        });
+        for (instruction_index, instruction) in block.instructions.iter().enumerate().rev() {
+            for definition in instruction_defs(instruction) {
+                live.remove(&definition);
+            }
+            if matches!(
+                instruction,
+                lir::Instruction::NativeCall { .. }
+                    | lir::Instruction::NativeGlobalLoad { .. }
+                    | lir::Instruction::NativeGlobalStore { .. }
+                    | lir::Instruction::NativeGlobalAddress { .. }
+            ) {
+                let roots = caller_roots(&live, function, structs, enums);
+                let result_scan = match instruction {
+                    lir::Instruction::NativeCall { out, .. } => {
+                        out.as_ref().map_or(lir::RefScan::None, |out| {
+                            lir_root_scan(&function.temps[*out].ty, structs, enums, 0)
+                        })
+                    }
+                    _ => lir::RefScan::None,
+                };
+                annotations[block_index][instruction_index] = Some((roots, result_scan));
+            }
+            for value in instruction_uses(instruction) {
+                if let Some(value) = LiveValue::from_value(value) {
+                    live.insert(value);
+                }
+            }
+        }
+    }
+
+    for (id, block) in function.blocks.iter_mut() {
+        let block_index = id.into_raw().into_u32() as usize;
+        for (instruction_index, instruction) in block.instructions.iter_mut().enumerate() {
+            if let lir::Instruction::NativeCall {
+                roots, result_scan, ..
+            } = instruction
+            {
+                let (computed_roots, computed_result_scan) = annotations[block_index]
+                    [instruction_index]
+                    .take()
+                    .expect("every native call receives one liveness annotation");
+                *roots = computed_roots;
+                *result_scan = computed_result_scan;
+            } else if let lir::Instruction::NativeGlobalLoad { roots, .. }
+            | lir::Instruction::NativeGlobalStore { roots, .. }
+            | lir::Instruction::NativeGlobalAddress { roots, .. } = instruction
+            {
+                let (computed_roots, result_scan) = annotations[block_index][instruction_index]
+                    .take()
+                    .expect("every native global bridge receives one liveness annotation");
+                debug_assert_eq!(result_scan, lir::RefScan::None);
+                *roots = computed_roots;
+            }
+        }
+    }
+}
+
 /// Where a MIR local lives in LIR: parameters are SSA values, all
 /// other locals get stack slots.
 #[derive(Clone, Copy)]
@@ -1751,7 +2279,7 @@ impl<'a> FunctionLowerer<'a> {
             return slots;
         }
         let record = self.new_hidden_local(lir::LirType::ExceptionRecord);
-        let raw = self.new_hidden_local(lir::LirType::Ptr);
+        let raw = self.new_hidden_local(lir::RAW_PTR);
         let slots = (record, raw);
         self.exception_slots = Some(slots);
         slots
@@ -1838,6 +2366,10 @@ impl<'a> FunctionLowerer<'a> {
             mir::Expr::FunctionAddress { callback } => {
                 mir::Type::FunPtr(self.module.callback_bridges[*callback].signature)
             }
+            mir::Expr::ForeignCallbackRegister { bridge, .. } => {
+                mir::Type::Struct(self.module.foreign_callback_bridges[*bridge].callback)
+            }
+            mir::Expr::ForeignCallbackOperation { result_ty, .. } => result_ty.as_ref().clone(),
             mir::Expr::Retype { ty, .. } => ty.as_ref().clone(),
             mir::Expr::FieldAccess { receiver, index } => match self.expr_ty(receiver) {
                 mir::Type::Struct(id) => self.module.structs[id].fields[*index as usize].ty.clone(),
@@ -1847,6 +2379,9 @@ impl<'a> FunctionLowerer<'a> {
                 // and class objects.
                 _ => unreachable!("field access on a non-aggregate"),
             },
+            mir::Expr::AtomicFieldLoad { .. } | mir::Expr::AtomicFieldCompareExchange { .. } => {
+                mir::Type::Int
+            }
             mir::Expr::VariantConstruct { ty, .. } => ty.clone(),
             mir::Expr::ClassInit { class_id, .. } => mir::Type::Class(*class_id),
             mir::Expr::ClosureAlloc { class, .. } => {
@@ -1958,7 +2493,11 @@ impl<'a> FunctionLowerer<'a> {
                         self.push(lir::Instruction::GlobalStore { global, value })
                     }
                     StorageGlobal::Native(global) => {
-                        self.push(lir::Instruction::NativeGlobalStore { global, value })
+                        self.push(lir::Instruction::NativeGlobalStore {
+                            global,
+                            value,
+                            roots: Vec::new(),
+                        })
                     }
                 }
             }
@@ -2007,6 +2546,30 @@ impl<'a> FunctionLowerer<'a> {
                     value,
                 });
             }
+            mir::StatementKind::AtomicFieldStore {
+                object,
+                index,
+                value,
+            } => {
+                let object_ty = self.expr_ty(object);
+                let mir::Type::Class(class_id) = &object_ty else {
+                    unreachable!("an atomic field store targets a class object")
+                };
+                assert_eq!(
+                    self.module.classes[*class_id].fields[*index as usize].ty,
+                    mir::Type::Int,
+                    "an atomic state field is a 64-bit Int"
+                );
+                let (offsets, _, _) =
+                    class_shape(self.module, self.enums, &self.module.classes[*class_id]);
+                let object = self.lower_expr(object, &object_ty);
+                let value = self.lower_expr(value, &mir::Type::Int);
+                self.push(lir::Instruction::AtomicStore {
+                    object,
+                    offset: offsets[*index as usize],
+                    value,
+                });
+            }
             mir::StatementKind::Eh(eh) => self.lower_eh_statement(eh),
         }
     }
@@ -2016,7 +2579,7 @@ impl<'a> FunctionLowerer<'a> {
             mir::EhStatement::LandingPad { cleanup } => {
                 let (record_slot, raw_slot) = self.exception_slots();
                 let record = self.new_temp(lir::LirType::ExceptionRecord);
-                let raw = self.new_temp(lir::LirType::Ptr);
+                let raw = self.new_temp(lir::RAW_PTR);
                 if *cleanup {
                     self.push(lir::Instruction::CleanupPad { record, raw });
                 } else {
@@ -2033,7 +2596,7 @@ impl<'a> FunctionLowerer<'a> {
             }
             mir::EhStatement::BeginCatch => {
                 let (_, raw_slot) = self.exception_slots();
-                let exception = self.new_temp(lir::LirType::Ptr);
+                let exception = self.new_temp(lir::MANAGED_PTR);
                 self.push(lir::Instruction::BeginCatch {
                     out: exception,
                     raw: lir::Value::Local(raw_slot),
@@ -2041,7 +2604,7 @@ impl<'a> FunctionLowerer<'a> {
                 let slot = match self.caught_exception {
                     Some(slot) => slot,
                     None => {
-                        let slot = self.new_hidden_local(lir::LirType::Ptr);
+                        let slot = self.new_hidden_local(lir::MANAGED_PTR);
                         self.caught_exception = Some(slot);
                         slot
                     }
@@ -2202,7 +2765,7 @@ impl<'a> FunctionLowerer<'a> {
                     "a ClassInit initializes every flattened field"
                 );
                 let td = self.td_ref(&mir::Type::Class(*class_id));
-                let out = self.new_temp(lir::LirType::Ptr);
+                let out = self.new_temp(lir::MANAGED_PTR);
                 self.push(lir::Instruction::Call {
                     out: Some(out),
                     symbol: ALLOC_SYMBOL.to_string(),
@@ -2232,7 +2795,7 @@ impl<'a> FunctionLowerer<'a> {
                     "ClosureAlloc initializes every capture field"
                 );
                 let td = lir::Value::Global(self.td_global(td_symbol(&def.name)));
-                let out = self.new_temp(lir::LirType::Ptr);
+                let out = self.new_temp(lir::MANAGED_PTR);
                 self.push(lir::Instruction::Call {
                     out: Some(out),
                     symbol: ALLOC_SYMBOL.to_string(),
@@ -2240,7 +2803,7 @@ impl<'a> FunctionLowerer<'a> {
                 });
                 let invoke_function = self.module.closure_invoke_functions[def.invoke].function;
                 let invoke_symbol = self.module.functions[invoke_function].symbol.clone();
-                let invoke = self.new_temp(lir::LirType::Ptr);
+                let invoke = self.new_temp(lir::CODE_PTR);
                 self.push(lir::Instruction::FunctionAddress {
                     out: invoke,
                     symbol: invoke_symbol,
@@ -2332,14 +2895,18 @@ impl<'a> FunctionLowerer<'a> {
                         self.push(lir::Instruction::GlobalLoad { out, global })
                     }
                     StorageGlobal::Native(global) => {
-                        self.push(lir::Instruction::NativeGlobalLoad { out, global })
+                        self.push(lir::Instruction::NativeGlobalLoad {
+                            out,
+                            global,
+                            roots: Vec::new(),
+                        })
                     }
                 }
                 lir::Value::Temp(out)
             }
             mir::Expr::PtrFromUInt { operand, .. } => {
                 let value = self.lower_expr(operand, &mir::Type::UInt);
-                let out = self.new_temp(lir::LirType::Ptr);
+                let out = self.new_temp(lir::RAW_PTR);
                 self.push(lir::Instruction::IntToPtr { out, value });
                 lir::Value::Temp(out)
             }
@@ -2415,18 +2982,22 @@ impl<'a> FunctionLowerer<'a> {
             }
             mir::Expr::AddressOf { local, .. } => {
                 let local = self.local_slot(*local);
-                let out = self.new_temp(lir::LirType::Ptr);
+                let out = self.new_temp(lir::RAW_PTR);
                 self.push(lir::Instruction::LocalAddress { out, local });
                 lir::Value::Temp(out)
             }
             mir::Expr::GlobalAddress { global, .. } => {
-                let out = self.new_temp(lir::LirType::Ptr);
+                let out = self.new_temp(lir::RAW_PTR);
                 match self.storage_globals[global] {
                     StorageGlobal::Local(global) => {
                         self.push(lir::Instruction::GlobalAddress { out, global })
                     }
                     StorageGlobal::Native(global) => {
-                        self.push(lir::Instruction::NativeGlobalAddress { out, global })
+                        self.push(lir::Instruction::NativeGlobalAddress {
+                            out,
+                            global,
+                            roots: Vec::new(),
+                        })
                     }
                 }
                 lir::Value::Temp(out)
@@ -2443,12 +3014,59 @@ impl<'a> FunctionLowerer<'a> {
             }
             mir::Expr::FunPtrNull(_) => lir::Value::NullPtr,
             mir::Expr::FunctionAddress { callback } => {
-                let out = self.new_temp(lir::LirType::Ptr);
+                let out = self.new_temp(lir::CODE_PTR);
                 self.push(lir::Instruction::FunctionAddress {
                     out,
                     symbol: format!("scoop_c_callback_{}", callback.into_raw().into_u32()),
                 });
                 lir::Value::Temp(out)
+            }
+            mir::Expr::ForeignCallbackRegister { bridge, closure } => {
+                let closure_ty = self.expr_ty(closure);
+                let closure = self.lower_expr(closure, &closure_ty);
+                let out_ty = self.value_type(ty);
+                let out = self.new_temp(out_ty);
+                self.push(lir::Instruction::ForeignCallbackRegister {
+                    out,
+                    bridge: la_arena::Idx::from_raw(bridge.into_raw()),
+                    closure,
+                });
+                lir::Value::Temp(out)
+            }
+            mir::Expr::ForeignCallbackOperation {
+                operation,
+                callback,
+                ..
+            } => {
+                let callback_ty = self.expr_ty(callback);
+                let callback = self.lower_expr(callback, &callback_ty);
+                let operation = match operation {
+                    mir::ForeignCallbackOperation::Retain => lir::ForeignCallbackOperation::Retain,
+                    mir::ForeignCallbackOperation::Release => {
+                        lir::ForeignCallbackOperation::Release
+                    }
+                    mir::ForeignCallbackOperation::State => lir::ForeignCallbackOperation::State,
+                    mir::ForeignCallbackOperation::Failure => {
+                        lir::ForeignCallbackOperation::Failure
+                    }
+                };
+                if operation == lir::ForeignCallbackOperation::Release {
+                    self.push(lir::Instruction::ForeignCallbackOperation {
+                        out: None,
+                        operation,
+                        callback,
+                    });
+                    self.unit_value()
+                } else {
+                    let out_ty = self.value_type(ty);
+                    let out = self.new_temp(out_ty);
+                    self.push(lir::Instruction::ForeignCallbackOperation {
+                        out: Some(out),
+                        operation,
+                        callback,
+                    });
+                    lir::Value::Temp(out)
+                }
             }
             mir::Expr::Retype { operand, ty } => self.lower_expr(operand, ty),
             mir::Expr::FieldAccess { receiver, index } => {
@@ -2470,6 +3088,57 @@ impl<'a> FunctionLowerer<'a> {
                 };
                 lir::Value::Temp(out)
             }
+            mir::Expr::AtomicFieldLoad { object, index } => {
+                let object_ty = self.expr_ty(object);
+                let mir::Type::Class(class_id) = &object_ty else {
+                    unreachable!("an atomic field load targets a class object")
+                };
+                assert_eq!(
+                    self.module.classes[*class_id].fields[*index as usize].ty,
+                    mir::Type::Int,
+                    "an atomic state field is a 64-bit Int"
+                );
+                let (offsets, _, _) =
+                    class_shape(self.module, self.enums, &self.module.classes[*class_id]);
+                let object = self.lower_expr(object, &object_ty);
+                let out = self.new_temp(lir::LirType::I64);
+                self.push(lir::Instruction::AtomicLoad {
+                    out,
+                    object,
+                    offset: offsets[*index as usize],
+                });
+                lir::Value::Temp(out)
+            }
+            mir::Expr::AtomicFieldCompareExchange {
+                object,
+                index,
+                expected,
+                replacement,
+            } => {
+                let object_ty = self.expr_ty(object);
+                let mir::Type::Class(class_id) = &object_ty else {
+                    unreachable!("an atomic compare-exchange targets a class object")
+                };
+                assert_eq!(
+                    self.module.classes[*class_id].fields[*index as usize].ty,
+                    mir::Type::Int,
+                    "an atomic state field is a 64-bit Int"
+                );
+                let (offsets, _, _) =
+                    class_shape(self.module, self.enums, &self.module.classes[*class_id]);
+                let object = self.lower_expr(object, &object_ty);
+                let expected = self.lower_expr(expected, &mir::Type::Int);
+                let replacement = self.lower_expr(replacement, &mir::Type::Int);
+                let out = self.new_temp(lir::LirType::I64);
+                self.push(lir::Instruction::AtomicCompareExchange {
+                    out,
+                    object,
+                    offset: offsets[*index as usize],
+                    expected,
+                    replacement,
+                });
+                lir::Value::Temp(out)
+            }
             // `scoop_rt_box(td, payload, size)` (runtime spec 2.3):
             // the td and the size come from the payload's static
             // type; codegen materializes the by-value aggregate
@@ -2481,7 +3150,7 @@ impl<'a> FunctionLowerer<'a> {
                 let td = self.td_ref(&payload_ty);
                 let enum_shape = |id: mir::EnumId| repr_shape(&self.enums[enum_def_id(id)].repr);
                 let (size, _) = size_align(self.module, &enum_shape, &payload_ty);
-                let out = self.new_temp(lir::LirType::Ptr);
+                let out = self.new_temp(lir::MANAGED_PTR);
                 self.push(lir::Instruction::Call {
                     out: Some(out),
                     symbol: mir::RuntimeFn::Box.symbol().to_string(),
@@ -2644,7 +3313,7 @@ impl<'a> FunctionLowerer<'a> {
         } else {
             bytes
         };
-        let out = self.new_temp(lir::LirType::Ptr);
+        let out = self.new_temp(lir::RAW_PTR);
         self.push(lir::Instruction::PtrOffset {
             out,
             pointer,
@@ -2665,6 +3334,7 @@ impl<'a> FunctionLowerer<'a> {
         *self.cstr_count += 1;
         let global = self.globals.alloc(lir::Global {
             symbol,
+            address_kind: lir::PointerKind::Raw,
             init: lir::GlobalInit::CString(message.to_string()),
         });
         let block = self.new_block("unwrap.trap");
@@ -2699,6 +3369,7 @@ impl<'a> FunctionLowerer<'a> {
         }
         let id = self.globals.alloc(lir::Global {
             symbol: symbol.clone(),
+            address_kind: lir::PointerKind::Metadata,
             init: lir::GlobalInit::CString(String::new()),
         });
         self.td_map.insert(symbol, id);
@@ -2741,27 +3412,16 @@ impl<'a> FunctionLowerer<'a> {
                 let function = lir::ExternFunctionId::from_raw(id.into_raw());
                 match extern_.abi {
                     mir::ExternAbi::C => {
-                        let result = if returns_unit {
-                            None
-                        } else {
+                        let result = (!returns_unit).then(|| {
                             let ty = self.value_type(result_ty);
-                            Some(self.new_hidden_local(ty))
-                        };
-                        let mut bridge_args =
-                            Vec::with_capacity(args.len() + usize::from(result.is_some()));
-                        if let Some(local) = result {
-                            let address = self.new_temp(lir::LirType::Ptr);
-                            self.push(lir::Instruction::LocalAddress {
-                                out: address,
-                                local,
-                            });
-                            bridge_args.push(lir::Value::Temp(address));
-                        }
+                            self.new_temp(ty)
+                        });
+                        let mut bridge_args = Vec::with_capacity(args.len());
                         for (value, ty) in args.into_iter().zip(parameter_types) {
                             let ty = self.value_type(&ty);
                             let local = self.new_hidden_local(ty);
                             self.push(lir::Instruction::Store { local, value });
-                            let address = self.new_temp(lir::LirType::Ptr);
+                            let address = self.new_temp(lir::RAW_PTR);
                             self.push(lir::Instruction::LocalAddress {
                                 out: address,
                                 local,
@@ -2769,18 +3429,24 @@ impl<'a> FunctionLowerer<'a> {
                             bridge_args.push(lir::Value::Temp(address));
                         }
                         self.push(lir::Instruction::NativeCall {
-                            out: None,
+                            out: result,
                             function,
+                            effect: lir::NativeCallEffect::NativeSafe,
                             args: bridge_args,
+                            roots: Vec::new(),
+                            result_scan: lir::RefScan::None,
                         });
-                        result.map_or_else(|| self.unit_value(), lir::Value::Local)
+                        result.map_or_else(|| self.unit_value(), lir::Value::Temp)
                     }
                     mir::ExternAbi::Scoop => {
                         if returns_unit {
                             self.push(lir::Instruction::NativeCall {
                                 out: None,
                                 function,
+                                effect: lir::NativeCallEffect::NativeBorrowed,
                                 args,
+                                roots: Vec::new(),
+                                result_scan: lir::RefScan::None,
                             });
                             self.unit_value()
                         } else {
@@ -2789,7 +3455,10 @@ impl<'a> FunctionLowerer<'a> {
                             self.push(lir::Instruction::NativeCall {
                                 out: Some(out),
                                 function,
+                                effect: lir::NativeCallEffect::NativeBorrowed,
                                 args,
+                                roots: Vec::new(),
+                                result_scan: lir::RefScan::None,
                             });
                             lir::Value::Temp(out)
                         }
@@ -2815,9 +3484,9 @@ impl<'a> FunctionLowerer<'a> {
                     .zip(&parameter_types)
                     .map(|(arg, ty)| self.lower_expr(arg, ty))
                     .collect();
-                let td = self.load_at_offset(args[0], 0, lir::LirType::Ptr);
+                let td = self.load_at_offset(args[0], 0, lir::METADATA_PTR);
                 let target_td = self.td_ref(&mir::Type::Function(function_type));
-                let table = self.new_temp(lir::LirType::Ptr);
+                let table = self.new_temp(lir::METADATA_PTR);
                 self.push(lir::Instruction::Call {
                     out: Some(table),
                     symbol: mir::RuntimeFn::ITableLookup.symbol().to_string(),
@@ -2891,18 +3560,18 @@ impl<'a> FunctionLowerer<'a> {
                     // object header holds the TypeDescriptor, whose
                     // vtable pointer is `ScoopTypeDescriptor` field 5.
                     mir::CallKind::Virtual { slot } => {
-                        let td = self.load_at_offset(args[0], 0, lir::LirType::Ptr);
+                        let td = self.load_at_offset(args[0], 0, lir::METADATA_PTR);
                         let vtable =
-                            self.load_at_offset(lir::Value::Temp(td), 5 * 8, lir::LirType::Ptr);
+                            self.load_at_offset(lir::Value::Temp(td), 5 * 8, lir::METADATA_PTR);
                         self.finish_indirect(vtable, slot, args, returns_unit, result_ty)
                     }
                     // itable dispatch: `scoop_rt_itable_lookup(td,
                     // iface_td)` finds the interface's table by its
                     // TypeDescriptor key.
                     mir::CallKind::Interface { interface, slot } => {
-                        let td = self.load_at_offset(args[0], 0, lir::LirType::Ptr);
+                        let td = self.load_at_offset(args[0], 0, lir::METADATA_PTR);
                         let iface_td = self.td_ref(&mir::Type::Interface(interface));
-                        let table = self.new_temp(lir::LirType::Ptr);
+                        let table = self.new_temp(lir::METADATA_PTR);
                         self.push(lir::Instruction::Call {
                             out: Some(table),
                             symbol: mir::RuntimeFn::ITableLookup.symbol().to_string(),
@@ -2980,7 +3649,7 @@ impl<'a> FunctionLowerer<'a> {
                     mir::RuntimeFn::StringConcat
                     | mir::RuntimeFn::IntToString
                     | mir::RuntimeFn::BoolToString => {
-                        self.call_with_result(symbol, args, lir::LirType::Ptr)
+                        self.call_with_result(symbol, args, lir::MANAGED_PTR)
                     }
                     mir::RuntimeFn::StringEq => {
                         self.call_with_result(symbol, args, lir::LirType::I1)
@@ -2995,7 +3664,7 @@ impl<'a> FunctionLowerer<'a> {
                     mir::RuntimeFn::Unpin
                     | mir::RuntimeFn::ReleaseHandle
                     | mir::RuntimeFn::MaterializeException => {
-                        self.call_with_result(symbol, args, lir::LirType::Ptr)
+                        self.call_with_result(symbol, args, lir::MANAGED_PTR)
                     }
                     mir::RuntimeFn::GcCollect => {
                         self.push(lir::Instruction::Call {
@@ -3241,11 +3910,14 @@ mod tests {
         /// `enum Option<T> { Some(T), None }` instantiated at
         /// `payload`, named as mir-lower names its instances.
         fn option_enum(&mut self, name: &str, payload: mir::Type) -> mir::EnumId {
+            let payload_gc_free = self.type_gc_free(&payload);
             self.enums.alloc(mir::EnumDef {
                 name: name.to_string(),
+                gc_free: payload_gc_free,
                 variants: vec![
                     mir::VariantDef {
                         name: "Some".to_string(),
+                        gc_free: payload_gc_free,
                         fields: vec![mir::Field {
                             name: "_1".to_string(),
                             ty: payload,
@@ -3253,10 +3925,34 @@ mod tests {
                     },
                     mir::VariantDef {
                         name: "None".to_string(),
+                        gc_free: true,
                         fields: Vec::new(),
                     },
                 ],
             })
+        }
+
+        fn type_gc_free(&self, ty: &mir::Type) -> bool {
+            match ty {
+                mir::Type::Unit
+                | mir::Type::Int
+                | mir::Type::UInt
+                | mir::Type::Boolean
+                | mir::Type::Ptr(_)
+                | mir::Type::FunPtr(_) => true,
+                mir::Type::String
+                | mir::Type::Class(_)
+                | mir::Type::Interface(_)
+                | mir::Type::Any
+                | mir::Type::Array(_)
+                | mir::Type::MutableArray(_)
+                | mir::Type::Function(_) => false,
+                mir::Type::Struct(id) => self.structs[*id].gc_free,
+                mir::Type::Enum(id, _) => self.enums[*id].gc_free,
+                mir::Type::Tuple(elements) => {
+                    elements.iter().all(|element| self.type_gc_free(element))
+                }
+            }
         }
 
         fn string(&mut self, value: &str) -> mir::StringConstId {
@@ -3287,8 +3983,10 @@ mod tests {
         }
 
         fn strukt(&mut self, name: &str, fields: &[(&str, mir::Type)]) -> mir::StructId {
+            let gc_free = fields.iter().all(|(_, ty)| self.type_gc_free(ty));
             self.structs.alloc(mir::StructDef {
                 name: name.to_string(),
+                gc_free,
                 c_layout: None,
                 interior_mutable: false,
                 fields: fields
@@ -3309,8 +4007,10 @@ mod tests {
             interior_mutable: bool,
             fields: &[(&str, mir::Type)],
         ) -> mir::StructId {
+            let gc_free = fields.iter().all(|(_, ty)| self.type_gc_free(ty));
             self.structs.alloc(mir::StructDef {
                 name: name.to_string(),
+                gc_free,
                 c_layout: Some(mir::CLayout { aligned, packed }),
                 interior_mutable,
                 fields: fields
@@ -3463,6 +4163,8 @@ mod tests {
                 extern_functions: self.extern_functions,
                 globals: Arena::new(),
                 callback_bridges: Arena::new(),
+                foreign_callback_adapters: Arena::new(),
+                foreign_callback_bridges: Arena::new(),
                 function_types: Arena::new(),
                 closure_classes: Arena::new(),
                 closure_invoke_functions: Arena::new(),
@@ -3642,15 +4344,15 @@ mod tests {
 Module
   global @scoop.str.0 = \"hello, world\"
   global @scoop.str.1 = \"!\"
-  extern ef0 write @scoop_rt_write(ptr) -> {} <scoop managed nounwind>
+  extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
   fun @scoop.helper() -> void
   block entry
-    native_call extern0(global1)
+    native_call[native-borrowed] extern0(global1)
     t0 = aggregate () : {}
     ret
   fun @scoop_main() -> void
   block entry
-    native_call extern0(global0)
+    native_call[native-borrowed] extern0(global0)
     t0 = aggregate () : {}
     call @scoop.helper()
     t1 = aggregate () : {}
@@ -3734,16 +4436,16 @@ Module
 Module
   global @scoop.str.0 = \"ok\"
   global @scoop.str.1 = \"ng\"
-  extern ef0 write @scoop_rt_write(ptr) -> {} <scoop managed nounwind>
+  extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
   fun @scoop_main() -> void
   block entry
     cbr true then @if.then.1 else @if.else.2
   block if.then.1
-    native_call extern0(global0)
+    native_call[native-borrowed] extern0(global0)
     t0 = aggregate () : {}
     br @if.merge.3
   block if.else.2
-    native_call extern0(global1)
+    native_call[native-borrowed] extern0(global1)
     t1 = aggregate () : {}
     br @if.merge.3
   block if.merge.3
@@ -4095,7 +4797,7 @@ Module
             panic!("string concat must produce a value")
         };
         assert_eq!(symbol, "scoop_rt_string_concat");
-        assert_eq!(function.temps[*concat_out].ty, lir::LirType::Ptr);
+        assert_eq!(function.temps[*concat_out].ty, lir::MANAGED_PTR);
         assert!(matches!(instructions[1], lir::Instruction::Store { .. }));
 
         let lir::Instruction::Call {
@@ -4120,7 +4822,7 @@ Module
             panic!("intToString must produce a value")
         };
         assert_eq!(symbol, "scoop_rt_int_to_string");
-        assert_eq!(function.temps[*its_out].ty, lir::LirType::Ptr);
+        assert_eq!(function.temps[*its_out].ty, lir::MANAGED_PTR);
         assert!(matches!(instructions[5], lir::Instruction::Store { .. }));
 
         let lir::Instruction::Call {
@@ -4132,7 +4834,7 @@ Module
             panic!("boolToString must produce a value")
         };
         assert_eq!(symbol, "scoop_rt_bool_to_string");
-        assert_eq!(function.temps[*bts_out].ty, lir::LirType::Ptr);
+        assert_eq!(function.temps[*bts_out].ty, lir::MANAGED_PTR);
         assert!(matches!(instructions[7], lir::Instruction::Store { .. }));
 
         // User calls return void; the Unit value is a fresh empty
@@ -4737,11 +5439,11 @@ Module
 
         let expected = "\
 Module
-  fun @scoop.tostring.I(ptr) -> ptr
-    local %0 $call.1: ptr
+  fun @scoop.tostring.I(ptr<managed>) -> ptr<managed>
+    local %0 $call.1: ptr<managed>
   block entry
     t0 = heap_load param0 +16 : i64
-    t1 = call @scoop_rt_int_to_string(t0) : ptr
+    t1 = call @scoop_rt_int_to_string(t0) : ptr<managed>
     store t1 -> local0
     ret local0
   fun @scoop_main() -> void
@@ -4894,14 +5596,14 @@ Module
   fun @scoop_main() -> void
     local %0 o: enum0
     local %1 t: i64
-    local %2 p: ptr
+    local %2 p: ptr<managed>
     local %3 o2: enum0
   block entry
     t0 = enum_wrap e0 v1 () : enum0
     store t0 -> local0
     t1 = enum_tag e0 local0 : i64
     store t1 -> local1
-    t2 = enum_field e0 v0 f0 local0 : ptr
+    t2 = enum_field e0 v0 f0 local0 : ptr<managed>
     store t2 -> local2
     t3 = enum_wrap e0 v0 (local2) : enum0
     store t3 -> local3
@@ -4909,7 +5611,7 @@ Module
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
-  layout Option$S size=8 align=8 enum-refs=[[0], []]
+  layout Option$S size=8 align=8 enum-scan=refs[0]
   entry @scoop_main
 ";
         assert_eq!(lir::dump(&module), expected);
@@ -4932,15 +5634,10 @@ Module
             .iter()
             .find(|layout| layout.name == "Option$P")
             .expect("raw pointer option layout");
-        let lir::LayoutKind::Enum { variants } = &layout.kind else {
+        let lir::LayoutKind::Enum { scan } = &layout.kind else {
             panic!("Option<Ptr<Int>> must retain its enum layout identity")
         };
-        assert_eq!(variants.len(), 2);
-        assert!(
-            variants
-                .iter()
-                .all(|variant| variant.scan == lir::RefScan::None)
-        );
+        assert_eq!(*scan, lir::RefScan::None);
     }
 
     #[test]
@@ -4951,7 +5648,7 @@ Module
 
         let expected = "\
 Module
-  enum Option$I tagged size=8 align=8 variants=(i64) ()
+  enum Option$I tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
   fun @scoop_main() -> void
     local %0 o: enum0
     local %1 t: i64
@@ -4970,27 +5667,32 @@ Module
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
-  layout Option$I size=16 align=8 enum-refs=[[], []]
+  layout Option$I size=16 align=8 enum-scan=none
   entry @scoop_main
 ";
         assert_eq!(lir::dump(&module), expected);
     }
 
     #[test]
-    fn niche_detection_requires_exactly_one_pointer_payload() {
+    fn niche_detection_requires_option_isomorphic_pointer_shape() {
         let mut b = Builder::new();
         let option_s = b.option_enum("Option$S", mir::Type::String);
+        let option_array =
+            b.option_enum("Option$Array$I", mir::Type::Array(Box::new(mir::Type::Int)));
         let option_i = b.option_enum("Option$I", mir::Type::Int);
         // Reversed declaration order: the payload variant comes second.
         let flip = b.enums.alloc(mir::EnumDef {
             name: "Flip".to_string(),
+            gc_free: false,
             variants: vec![
                 mir::VariantDef {
                     name: "Naught".to_string(),
+                    gc_free: true,
                     fields: Vec::new(),
                 },
                 mir::VariantDef {
                     name: "Value".to_string(),
+                    gc_free: false,
                     fields: vec![mir::Field {
                         name: "_1".to_string(),
                         ty: mir::Type::String,
@@ -5001,9 +5703,11 @@ Module
         // Two variants, but the payload variant has two fields: tagged.
         let pair_or_none = b.enums.alloc(mir::EnumDef {
             name: "PairOrNone".to_string(),
+            gc_free: true,
             variants: vec![
                 mir::VariantDef {
                     name: "Pair".to_string(),
+                    gc_free: true,
                     fields: vec![
                         mir::Field {
                             name: "_1".to_string(),
@@ -5017,6 +5721,7 @@ Module
                 },
                 mir::VariantDef {
                     name: "Empty".to_string(),
+                    gc_free: true,
                     fields: Vec::new(),
                 },
             ],
@@ -5029,23 +5734,30 @@ Module
             lir::EnumRepr::Niche { payload_variant: 0 }
         ));
         assert!(matches!(
+            edef(&module, option_array).repr,
+            lir::EnumRepr::Niche { payload_variant: 0 }
+        ));
+        assert!(matches!(
             edef(&module, flip).repr,
             lir::EnumRepr::Niche { payload_variant: 1 }
         ));
         let lir::EnumRepr::Tagged {
             variants,
-            payload_size,
-            payload_align,
+            size,
+            align,
         } = &edef(&module, option_i).repr
         else {
             panic!("Option<Int> must use the tagged representation")
         };
-        assert_eq!(variants.as_slice(), &[vec![lir::LirType::I64], Vec::new()]);
-        assert_eq!((*payload_size, *payload_align), (8, 8));
-        assert!(matches!(
-            edef(&module, pair_or_none).repr,
-            lir::EnumRepr::Tagged { .. }
-        ));
+        assert_eq!(variants[0].fields, [lir::LirType::I64]);
+        assert_eq!(variants[0].slot_offset, variants[1].slot_offset);
+        assert!(variants.iter().all(|variant| variant.gc_free));
+        assert_eq!((*size, *align), (16, 8));
+        let lir::EnumRepr::Tagged { variants, .. } = &edef(&module, pair_or_none).repr else {
+            panic!("PairOrNone must be tagged")
+        };
+        assert_eq!(variants[0].slot_offset, variants[1].slot_offset);
+        assert!(variants.iter().all(|variant| variant.gc_free));
     }
 
     #[test]
@@ -5071,9 +5783,11 @@ Module
         );
         let wrapped = b.enums.alloc(mir::EnumDef {
             name: "Wrapped".to_string(),
+            gc_free: true,
             variants: vec![
                 mir::VariantDef {
                     name: "Value".to_string(),
+                    gc_free: true,
                     fields: vec![mir::Field {
                         name: "value".to_string(),
                         ty: mir::Type::Struct(outer),
@@ -5081,10 +5795,12 @@ Module
                 },
                 mir::VariantDef {
                     name: "Empty".to_string(),
+                    gc_free: true,
                     fields: Vec::new(),
                 },
                 mir::VariantDef {
                     name: "Number".to_string(),
+                    gc_free: true,
                     fields: vec![mir::Field {
                         name: "value".to_string(),
                         ty: mir::Type::Int,
@@ -5201,9 +5917,11 @@ Module
         // enum Msg { Text(String), Pair(Boolean, String), Empty }
         let msg = b.enums.alloc(mir::EnumDef {
             name: "Msg".to_string(),
+            gc_free: false,
             variants: vec![
                 mir::VariantDef {
                     name: "Text".to_string(),
+                    gc_free: false,
                     fields: vec![mir::Field {
                         name: "value".to_string(),
                         ty: mir::Type::String,
@@ -5211,6 +5929,7 @@ Module
                 },
                 mir::VariantDef {
                     name: "Pair".to_string(),
+                    gc_free: false,
                     fields: vec![
                         mir::Field {
                             name: "flag".to_string(),
@@ -5224,6 +5943,7 @@ Module
                 },
                 mir::VariantDef {
                     name: "Empty".to_string(),
+                    gc_free: true,
                     fields: Vec::new(),
                 },
             ],
@@ -5236,9 +5956,8 @@ Module
             &[("o", mir::Type::Enum(option_s, vec![mir::Type::String]))],
         );
         let msg_ty = mir::Type::Enum(msg, Vec::new());
-        // Nested { flag: Boolean @0, msg: Msg @8 }. The conditional
-        // scan must retain the enum's tag rather than flattening all
-        // variant payload offsets into unconditional references.
+        // Nested { flag: Boolean @0, msg: Msg @8 }. Msg's fixed ref
+        // offsets compose without retaining or reading its tag.
         let nested = b.strukt(
             "Nested",
             &[("flag", mir::Type::Boolean), ("msg", msg_ty.clone())],
@@ -5276,30 +5995,28 @@ Module
                 .unwrap_or_else(|| panic!("missing layout for {name}"))
         };
 
-        // Msg: the largest variant is Pair (Boolean + String at
-        // payload offsets 0 and 8), so the tagged value is 8 + 16
-        // bytes at align 8.
+        // Msg has two ref-bearing variants, so Text and Pair receive
+        // disjoint slots. Empty is the zero-sized shared pure region.
         let msg_layout = by_name("Msg");
-        assert_eq!((msg_layout.size, msg_layout.align), (24, 8));
-        let lir::LayoutKind::Enum { variants } = &msg_layout.kind else {
-            panic!("an enum layout keeps per-variant offsets")
+        assert_eq!((msg_layout.size, msg_layout.align), (32, 8));
+        let lir::LayoutKind::Enum { scan } = &msg_layout.kind else {
+            panic!("an enum layout keeps fixed scan offsets")
         };
-        // Text: the String at payload offset 0, absolute offset 8
-        // (behind the 8-byte tag); Pair: the String at payload offset
-        // 8, absolute 16; Empty: no references.
-        assert_eq!(variants[0].scan, lir::RefScan::References(vec![8]));
-        assert_eq!(variants[1].scan, lir::RefScan::References(vec![16]));
-        assert_eq!(variants[2].scan, lir::RefScan::None);
+        assert_eq!(*scan, lir::RefScan::References(vec![8, 24]));
+        let lir::EnumRepr::Tagged { variants, .. } = &edef(&module, msg).repr else {
+            panic!("Msg is tagged")
+        };
+        assert_ne!(variants[0].slot_offset, variants[1].slot_offset);
+        assert_eq!(variants[2].slot_offset, 8);
 
         // The niche layout: the payload variant is the reference
         // itself; the unit variant has none.
         let option_layout = by_name("Option$S");
         assert_eq!((option_layout.size, option_layout.align), (8, 8));
-        let lir::LayoutKind::Enum { variants } = &option_layout.kind else {
-            panic!("an enum layout keeps per-variant offsets")
+        let lir::LayoutKind::Enum { scan } = &option_layout.kind else {
+            panic!("an enum layout keeps fixed scan offsets")
         };
-        assert_eq!(variants[0].scan, lir::RefScan::References(vec![0]));
-        assert_eq!(variants[1].scan, lir::RefScan::None);
+        assert_eq!(*scan, lir::RefScan::References(vec![0]));
 
         // S { o: Option<String> }: the niche value at offset 0 is the
         // struct's reference field.
@@ -5308,18 +6025,11 @@ Module
         assert_eq!(plain_refs(s_layout), [0]);
 
         let nested_layout = by_name("Nested");
-        assert_eq!((nested_layout.size, nested_layout.align), (32, 8));
+        assert_eq!((nested_layout.size, nested_layout.align), (40, 8));
         assert_eq!(
             nested_layout.kind,
             lir::LayoutKind::Plain {
-                scan: lir::RefScan::TaggedEnum {
-                    tag_offset: 8,
-                    variants: vec![
-                        lir::RefScan::References(vec![16]),
-                        lir::RefScan::References(vec![24]),
-                        lir::RefScan::None,
-                    ],
-                },
+                scan: lir::RefScan::References(vec![16, 32]),
             }
         );
 
@@ -5329,21 +6039,8 @@ Module
             .iter()
             .find(|td| td.name == "Holder")
             .expect("Holder TypeDescriptor");
-        assert_eq!((holder_td.size, holder_td.align), (56, 8));
-        assert_eq!(
-            holder_td.scan,
-            lir::RefScan::Sequence(vec![
-                lir::RefScan::References(vec![16]),
-                lir::RefScan::TaggedEnum {
-                    tag_offset: 32,
-                    variants: vec![
-                        lir::RefScan::References(vec![40]),
-                        lir::RefScan::References(vec![48]),
-                        lir::RefScan::None,
-                    ],
-                },
-            ])
-        );
+        assert_eq!((holder_td.size, holder_td.align), (64, 8));
+        assert_eq!(holder_td.scan, lir::RefScan::References(vec![16, 40, 56]));
 
         let array_scan = |name: &str| {
             let lir::LayoutKind::Array { element_scan } = &by_name(name).kind else {
@@ -5353,25 +6050,11 @@ Module
         };
         assert_eq!(
             array_scan("Array<Msg>"),
-            lir::RefScan::TaggedEnum {
-                tag_offset: 0,
-                variants: vec![
-                    lir::RefScan::References(vec![8]),
-                    lir::RefScan::References(vec![16]),
-                    lir::RefScan::None,
-                ],
-            }
+            lir::RefScan::References(vec![8, 24])
         );
         assert_eq!(
             array_scan("Array<Nested>"),
-            lir::RefScan::TaggedEnum {
-                tag_offset: 8,
-                variants: vec![
-                    lir::RefScan::References(vec![16]),
-                    lir::RefScan::References(vec![24]),
-                    lir::RefScan::None,
-                ],
-            }
+            lir::RefScan::References(vec![16, 32])
         );
     }
 
@@ -5496,7 +6179,7 @@ Module
 Module
   global @scoop.str.0 = \"unwrap on None (function f)\"
   global @scoop.cstr.0 = c\"unwrap on None (function f)\"
-  enum Option$I tagged size=8 align=8 variants=(i64) ()
+  enum Option$I tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
   fun @scoop.f(enum0) -> i64
     local %0 $uw.1: i64
     local %1 $uw.2: i64
@@ -5532,7 +6215,7 @@ Module
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
-  layout Option$I size=16 align=8 enum-refs=[[], []]
+  layout Option$I size=16 align=8 enum-scan=none
   entry @scoop_main
 ";
         assert_eq!(lir::dump(&module), expected);
@@ -5744,15 +6427,15 @@ Module
         // vtable[3].
         let expected = "\
 Module
-  fun @scoop.C.m(ptr) -> i64
+  fun @scoop.C.m(ptr<managed>) -> i64
   block entry
     ret 1
   fun @scoop_main() -> void
-    local %0 p: ptr
+    local %0 p: ptr<managed>
     local %1 r: i64
   block entry
-    t0 = heap_load local0 +0 : ptr
-    t1 = heap_load t0 +40 : ptr
+    t0 = heap_load local0 +0 : ptr<metadata>
+    t1 = heap_load t0 +40 : ptr<metadata>
     t2 = call_indirect t1[3](local0) : i64
     store t2 -> local1
     ret
@@ -5808,11 +6491,11 @@ Module
 Module
   global @scoop_td_Describable = c\"\"
   fun @scoop_main() -> void
-    local %0 i: ptr
+    local %0 i: ptr<managed>
     local %1 r: i64
   block entry
-    t0 = heap_load local0 +0 : ptr
-    t1 = call @scoop_rt_itable_lookup(t0, global0) : ptr
+    t0 = heap_load local0 +0 : ptr<metadata>
+    t1 = call @scoop_rt_itable_lookup(t0, global0) : ptr<metadata>
     t2 = call_indirect t1[1](local0) : i64
     store t2 -> local1
     ret
@@ -6047,12 +6730,12 @@ Module
 Module
   global @scoop_td_box$S = c\"\"
   fun @scoop_main() -> void
-    local %0 a: ptr
+    local %0 a: ptr<managed>
     local %1 v: struct0
     local %2 chk: i1
   block entry
     t0 = aggregate (1) : struct0
-    t1 = call @scoop_rt_box(global0, t0, 8) : ptr
+    t1 = call @scoop_rt_box(global0, t0, 8) : ptr<managed>
     store t1 -> local0
     t2 = heap_load local0 +16 : struct0
     store t2 -> local1
@@ -6147,15 +6830,15 @@ Module
         let expected = "\
 Module
   fun @scoop_main() -> void
-    local %0 v: ptr
+    local %0 v: ptr<managed>
     local %1 $call.1: i64
     local %2 h: struct0
-    local %3 $gc.1: ptr
-    local %4 p: ptr
+    local %3 $gc.1: ptr<managed>
+    local %4 p: ptr<managed>
     local %5 $call.2: i64
     local %6 gh: struct1
-    local %7 $gc.2: ptr
-    local %8 p2: ptr
+    local %7 $gc.2: ptr<managed>
+    local %8 p2: ptr<managed>
     local %9 n: i64
   block entry
     t0 = call @scoop_rt_pin(local0) : i64
@@ -6163,7 +6846,7 @@ Module
     t1 = aggregate (local1) : struct0
     store t1 -> local2
     t2 = extract local2, 0 : i64
-    t3 = call @scoop_rt_unpin(t2) : ptr
+    t3 = call @scoop_rt_unpin(t2) : ptr<managed>
     store t3 -> local3
     store local3 -> local4
     t4 = call @scoop_rt_get_handle(local0) : i64
@@ -6171,7 +6854,7 @@ Module
     t5 = aggregate (local5) : struct1
     store t5 -> local6
     t6 = extract local6, 0 : i64
-    t7 = call @scoop_rt_release_handle(t6) : ptr
+    t7 = call @scoop_rt_release_handle(t6) : ptr<managed>
     store t7 -> local7
     store local7 -> local8
     call @scoop_rt_gc_collect()
@@ -6222,7 +6905,7 @@ Module
             panic!("a class field read must be a heap object load")
         };
         assert_eq!(*offset, 24);
-        assert_eq!(function.temps[*out].ty, lir::LirType::Ptr);
+        assert_eq!(function.temps[*out].ty, lir::MANAGED_PTR);
     }
 
     #[test]
@@ -6283,16 +6966,16 @@ Module
 Module
   global @scoop.str.0 = \"x\"
   global @scoop_td_Point = c\"\"
-  fun @scoop.ctor.Point(i64, ptr) -> ptr
+  fun @scoop.ctor.Point(i64, ptr<managed>) -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global1, 32) : ptr
+    t0 = call @scoop_rt_alloc(global1, 32) : ptr<managed>
     heap_store t0 +16 param0
     heap_store t0 +24 param1
     ret t0
   fun @scoop_main() -> void
-    local %0 p: ptr
+    local %0 p: ptr<managed>
   block entry
-    t0 = call @scoop.ctor.Point(1, global0) : ptr
+    t0 = call @scoop.ctor.Point(1, global0) : ptr<managed>
     store t0 -> local0
     ret
   td Point @scoop_td_Point size=32 vtable=3 itables=0
@@ -6426,24 +7109,24 @@ Module
   block entry
     ret
   fun @scoop_main() -> void
-    local %0 e: ptr
+    local %0 e: ptr<managed>
     local %1 $sc.1: exception_record
-    local %2 $sc.2: ptr
-    local %3 $sc.3: ptr
+    local %2 $sc.2: ptr<raw>
+    local %3 $sc.3: ptr<managed>
   block entry
     br @try.body.8
   block try.unwind.1
-    (t0, t1) = landingpad : (exception_record, ptr)
+    (t0, t1) = landingpad : (exception_record, ptr<raw>)
     store t0 -> local1
     store t1 -> local2
     br @try.dispatch.2
   block try.dispatch.2
-    t2 = begin_catch local2 : ptr
+    t2 = begin_catch local2 : ptr<managed>
     store t2 -> local3
     t3 = call @scoop_rt_is_instance(local3, global0) : i1
     cbr t3 then @try.catch.9 else @try.next.10
   block try.handler_pad.3
-    (t4, t5) = cleanup_pad : (exception_record, ptr)
+    (t4, t5) = cleanup_pad : (exception_record, ptr<raw>)
     store t4 -> local1
     store t5 -> local2
     br @try.handler_cleanup.4
@@ -6451,7 +7134,7 @@ Module
     end_catch
     resume local1
   block try.exit_pad.5
-    (t6, t7) = cleanup_pad : (exception_record, ptr)
+    (t6, t7) = cleanup_pad : (exception_record, ptr<raw>)
     store t6 -> local1
     store t7 -> local2
     br @try.exit_cleanup.6
@@ -6688,21 +7371,21 @@ Module
   fun @scoop.f() -> i64
     local %0 $return.1: i64
     local %1 $sc.1: exception_record
-    local %2 $sc.2: ptr
-    local %3 $sc.3: ptr
+    local %2 $sc.2: ptr<raw>
+    local %3 $sc.3: ptr<managed>
   block entry
     br @try.body.6
   block try.unwind.1
-    (t0, t1) = landingpad : (exception_record, ptr)
+    (t0, t1) = landingpad : (exception_record, ptr<raw>)
     store t0 -> local1
     store t1 -> local2
     br @try.dispatch.2
   block try.dispatch.2
-    t2 = begin_catch local2 : ptr
+    t2 = begin_catch local2 : ptr<managed>
     store t2 -> local3
     br @scope.8
   block try.exit_pad.3
-    (t3, t4) = cleanup_pad : (exception_record, ptr)
+    (t3, t4) = cleanup_pad : (exception_record, ptr<raw>)
     store t3 -> local1
     store t4 -> local2
     br @try.exit_cleanup.4
@@ -6790,14 +7473,14 @@ Module
         let expected = "\
 Module
   global @scoop_td_MyError = c\"\"
-  fun @scoop.makeError() -> ptr
+  fun @scoop.makeError() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global0, 16) : ptr
+    t0 = call @scoop_rt_alloc(global0, 16) : ptr<managed>
     ret t0
   fun @scoop_main() -> void
-    local %0 $call.1: ptr
+    local %0 $call.1: ptr<managed>
   block entry
-    t0 = call @scoop.makeError() : ptr
+    t0 = call @scoop.makeError() : ptr<managed>
     store t0 -> local0
     throw local0
     unreachable

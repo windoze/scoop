@@ -68,7 +68,7 @@ fun main() {
 - `LirType::Array(Box<LirType>)`（元素内联的变长对象；值本身为 `Ptr`）；
 - 指令：`ArrayAlloc { out, elements, element_scan }`（计算总大小 = 16B 对象头 + 8B size + n × 元素布局大小，调 `scoop_rt_alloc` 并写 size 与逐元素 store；M12 加入 over-aligned 元素后，公式修订为 `alignUp(24, element_align) + n × element_size`）、`ArrayLen { out, operand }`（load size 字段）、`ArrayGet { out, array, index }`（**越界检查 + 异常**，然后按元素布局 load）、`ArraySet { array, index, value }`（同检查）；
 - `ArrayClone` → runtime 调用 `scoop_rt_array_clone(obj, elem_size)`（见 3.1；M12 为支持 over-aligned 元素扩展为 `(obj, elem_size, data_offset)`）；
-- **布局 meta**：每个数组实例一条元素布局与完整 `element_scan`。该递归扫描可以描述直接引用、含引用的 struct / tuple，以及按 tag 分派的 enum；codegen 以元素 stride 包装为数组扫描节点，runtime 对每个内联元素重复执行。
+- **布局 meta**：每个数组实例一条元素布局与完整`element_scan`。该递归扫描可以描述直接引用、含引用的struct / tuple，以及M13修订后使用固定ref偏移的tagged enum；codegen以元素stride包装为数组扫描节点，runtime对每个内联元素重复执行且不读取enum tag。
 
 ### 2.5 codegen
 

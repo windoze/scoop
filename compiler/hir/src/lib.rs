@@ -12,6 +12,24 @@
 use la_arena::{Arena, Idx};
 use scoop_ast::Span;
 
+pub mod concrete;
+
+/// Cross-Cone semantic interface and generic-template graph.  This name makes
+/// the consumer boundary explicit without changing the export-side data model.
+pub type ExportHir = Module;
+
+/// Fully instantiated graph consumed only by the current Cone's MIR stage.
+pub type LocalConcreteHir = concrete::Module;
+
+/// HIR has two structurally isolated products for two different consumers.
+/// Export ids and local-concrete ids belong to separate Rust type families and
+/// therefore cannot cross the boundary accidentally.
+#[derive(Debug, Clone)]
+pub struct Output {
+    pub export: ExportHir,
+    pub local: LocalConcreteHir,
+}
+
 pub type TypeId = Idx<Type>;
 pub type FunctionTypeId = Idx<FunctionType>;
 pub type LambdaId = Idx<Lambda>;
@@ -19,6 +37,7 @@ pub type AnonymousFunctionId = Idx<AnonymousFunction>;
 pub type LocalFunctionId = Idx<LocalFunction>;
 pub type CallableReferenceId = Idx<CallableReference>;
 pub type FunctionCoercionId = Idx<FunctionCoercion>;
+pub type ForeignCallbackRegistrationId = Idx<ForeignCallbackRegistration>;
 pub type FunctionId = Idx<Function>;
 pub type ExternFunctionId = Idx<ExternFunction>;
 pub type GlobalId = Idx<Global>;
@@ -260,6 +279,7 @@ pub struct Module {
     /// Source/target signatures of every explicit function-value variance
     /// adaptation requested by HIR.
     pub function_coercions: Arena<FunctionCoercion>,
+    pub foreign_callback_registrations: Arena<ForeignCallbackRegistration>,
     pub functions: Arena<Function>,
     /// Native functions imported by source declarations. They have no HIR
     /// body and their identities never enter generic instantiation.
@@ -295,6 +315,9 @@ pub struct Module {
     /// unique source declarations and downstream stages use these typed ids,
     /// never textual names.
     pub ffi_core: FfiCore,
+    /// Compiler-validated managed callback protocol. Its ids are export-side
+    /// semantic identities and are concretized into a distinct local family.
+    pub foreign_callback_core: ForeignCallbackCore,
     /// Entry point: `fun main()`. Guaranteed present.
     pub entry: FunctionId,
     /// Resolved generic function applications, deduplicated in
@@ -324,6 +347,40 @@ pub struct FfiCore {
     pub gc_unpin_raw: FunctionId,
     pub gc_get_handle_raw: FunctionId,
     pub gc_release_handle_raw: FunctionId,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ForeignCallbackCore {
+    pub callback: StructId,
+    pub mode: EnumId,
+    pub state: EnumId,
+    pub register: FunctionId,
+    pub retain: FunctionId,
+    pub release: FunctionId,
+    pub query_state: FunctionId,
+    pub failure: FunctionId,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ForeignCallbackMode {
+    Reusable,
+    OneShot,
+}
+
+#[derive(Debug, Clone)]
+pub struct ForeignCallbackRegistration {
+    pub native_function_type: FunctionTypeId,
+    pub managed_function_type: FunctionTypeId,
+    pub context_index: u32,
+    pub mode: ForeignCallbackMode,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ForeignCallbackOperation {
+    Retain,
+    Release,
+    State,
+    Failure,
 }
 
 #[derive(Debug, Clone)]
@@ -483,6 +540,7 @@ pub struct StructDecl {
 /// cross the AST/HIR boundary.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct StructAttributes {
+    pub no_gc: bool,
     pub c_layout: Option<CLayout>,
     pub interior_mutable: bool,
 }
@@ -497,6 +555,7 @@ pub struct CLayout {
 pub struct EnumDecl {
     pub name: String,
     pub type_params: Vec<TypeParamDecl>,
+    pub no_gc: bool,
     pub variants: Vec<Variant>,
     pub interfaces: Vec<TypeId>,
     pub span: Span,
@@ -936,6 +995,14 @@ pub enum ExprKind {
     FunPtrNull,
     /// Native C callback address selected contextually from `::name`.
     FunctionAddress(FunctionId),
+    ForeignCallbackRegister {
+        registration: ForeignCallbackRegistrationId,
+        closure: Box<Expr>,
+    },
+    ForeignCallbackOperation {
+        operation: ForeignCallbackOperation,
+        callback: Box<Expr>,
+    },
     FieldAccess {
         receiver: Box<Expr>,
         field: FieldRef,
@@ -1205,6 +1272,41 @@ pub const INTRINSIC_REGISTRY: &[IntrinsicSpec] = &[
         target: IntrinsicTarget::TopLevel,
         effects: IntrinsicEffects::NO_GC,
     },
+    IntrinsicSpec {
+        name: "foreign_callback_register",
+        stage: IntrinsicStage::Hir,
+        kind: IntrinsicKind::ForeignCallback,
+        target: IntrinsicTarget::TopLevel,
+        effects: IntrinsicEffects::UNSAFE,
+    },
+    IntrinsicSpec {
+        name: "foreign_callback_retain",
+        stage: IntrinsicStage::Hir,
+        kind: IntrinsicKind::ForeignCallback,
+        target: IntrinsicTarget::TopLevel,
+        effects: IntrinsicEffects::UNSAFE,
+    },
+    IntrinsicSpec {
+        name: "foreign_callback_release",
+        stage: IntrinsicStage::Hir,
+        kind: IntrinsicKind::ForeignCallback,
+        target: IntrinsicTarget::TopLevel,
+        effects: IntrinsicEffects::UNSAFE,
+    },
+    IntrinsicSpec {
+        name: "foreign_callback_state",
+        stage: IntrinsicStage::Hir,
+        kind: IntrinsicKind::ForeignCallback,
+        target: IntrinsicTarget::TopLevel,
+        effects: IntrinsicEffects::UNSAFE,
+    },
+    IntrinsicSpec {
+        name: "foreign_callback_failure",
+        stage: IntrinsicStage::Hir,
+        kind: IntrinsicKind::ForeignCallback,
+        target: IntrinsicTarget::TopLevel,
+        effects: IntrinsicEffects::UNSAFE,
+    },
 ];
 
 /// One entry of the intrinsic registry.
@@ -1227,6 +1329,7 @@ pub enum IntrinsicKind {
     Runtime(&'static str),
     CoroutineStart,
     CoroutineSuspend,
+    ForeignCallback,
     Pointer(PointerIntrinsic),
 }
 
@@ -1288,6 +1391,7 @@ pub fn dump(module: &Module) -> String {
             || id == module.ffi_core.fun_ptr
             || id == module.ffi_core.pinned_ptr
             || id == module.ffi_core.gc_handle
+            || id == module.foreign_callback_core.callback
         {
             continue;
         }
@@ -1310,16 +1414,20 @@ pub fn dump(module: &Module) -> String {
             ));
         }
     }
-    for (_, decl) in module.enums.iter() {
+    for (id, decl) in module.enums.iter() {
+        if id == module.foreign_callback_core.mode || id == module.foreign_callback_core.state {
+            continue;
+        }
         let type_params = if decl.type_params.is_empty() {
             String::new()
         } else {
             dump_type_params(&decl.type_params)
         };
         let interfaces = dump_interface_list(module, &decl.interfaces);
+        let attributes = if decl.no_gc { " <no-gc>" } else { "" };
         out.push_str(&format!(
-            "  enum {}{}{}\n",
-            decl.name, type_params, interfaces
+            "  enum {}{}{}{}\n",
+            decl.name, type_params, interfaces, attributes
         ));
         for variant in &decl.variants {
             let fields: Vec<String> = variant
@@ -1418,6 +1526,11 @@ pub fn dump(module: &Module) -> String {
             module.ffi_core.gc_unpin_raw,
             module.ffi_core.gc_get_handle_raw,
             module.ffi_core.gc_release_handle_raw,
+            module.foreign_callback_core.register,
+            module.foreign_callback_core.retain,
+            module.foreign_callback_core.release,
+            module.foreign_callback_core.query_state,
+            module.foreign_callback_core.failure,
         ]
         .contains(&id)
         {
@@ -1571,6 +1684,9 @@ fn dump_function_attributes(attributes: FunctionAttributes) -> String {
 
 fn dump_struct_attributes(attributes: StructAttributes) -> String {
     let mut values = Vec::new();
+    if attributes.no_gc {
+        values.push("no-gc".to_string());
+    }
     if let Some(layout) = attributes.c_layout {
         values.push(format!(
             "c-layout aligned={} packed={}",
@@ -1974,6 +2090,29 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
             "{pad}FunctionAddress {} : {ty}\n",
             module.functions[*function].name
         )),
+        ExprKind::ForeignCallbackRegister {
+            registration,
+            closure,
+        } => {
+            let registration_id = *registration;
+            let registration = &module.foreign_callback_registrations[registration_id];
+            out.push_str(&format!(
+                "{pad}ForeignCallbackRegister registration{} native=function_type{} managed=function_type{} context={} mode={:?} : {ty}\n",
+                registration_id.into_raw(),
+                registration.native_function_type.into_raw(),
+                registration.managed_function_type.into_raw(),
+                registration.context_index,
+                registration.mode,
+            ));
+            dump_expr(module, locals, closure, indent + 1, out);
+        }
+        ExprKind::ForeignCallbackOperation {
+            operation,
+            callback,
+        } => {
+            out.push_str(&format!("{pad}ForeignCallback{operation:?} : {ty}\n"));
+            dump_expr(module, locals, callback, indent + 1, out);
+        }
         ExprKind::FieldAccess { receiver, field } => {
             let field = match field {
                 FieldRef::StructField { index, .. } => format!("field {index}"),

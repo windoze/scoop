@@ -1,0 +1,10 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m13-callback/errors/safe-context.scoop:2:20: error: unsafe function `foreignCallback` may only be called from an unsafe context
+m13-callback/errors/safe-context.scoop:7:20: error: unsafe function `retainForeignCallback` may only be called from an unsafe context
+m13-callback/errors/safe-context.scoop:8:17: error: unsafe function `foreignCallbackState` may only be called from an unsafe context
+m13-callback/errors/safe-context.scoop:9:19: error: unsafe function `foreignCallbackFailure` may only be called from an unsafe context
+m13-callback/errors/safe-context.scoop:10:5: error: unsafe function `releaseForeignCallback` may only be called from an unsafe context

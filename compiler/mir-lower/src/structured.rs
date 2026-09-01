@@ -138,6 +138,15 @@ pub(crate) enum Expr {
     FunctionAddress {
         callback: mir::CallbackBridgeId,
     },
+    ForeignCallbackRegister {
+        bridge: mir::ForeignCallbackBridgeId,
+        closure: Box<Expr>,
+    },
+    ForeignCallbackOperation {
+        operation: mir::ForeignCallbackOperation,
+        callback: Box<Expr>,
+        result_ty: Box<mir::Type>,
+    },
     Retype {
         operand: Box<Expr>,
         ty: Box<mir::Type>,

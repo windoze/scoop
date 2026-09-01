@@ -1,0 +1,7 @@
+fun build(
+    function: FunPtr<(Int, Ptr<Unit>) -> Int>,
+    context: Ptr<Unit>
+): ForeignCallback<(Int, Ptr<Unit>) -> Int> =
+    ForeignCallback<(Int, Ptr<Unit>) -> Int>(function, context)
+
+fun main() {}

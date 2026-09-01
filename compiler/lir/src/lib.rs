@@ -19,6 +19,7 @@ pub type StructDefId = Idx<StructDef>;
 pub type ExternFunctionId = Idx<ExternFunction>;
 pub type NativeGlobalId = Idx<NativeGlobal>;
 pub type CallbackBridgeId = Idx<CallbackBridge>;
+pub type ForeignCallbackBridgeId = Idx<ForeignCallbackBridge>;
 
 /// Symbol of the TypeDescriptor global for `String` (runtime spec 2.2).
 pub const STRING_TD_SYMBOL: &str = "scoop_td_String";
@@ -35,7 +36,7 @@ pub enum LirType {
     Void,
     I1,
     I64,
-    Ptr,
+    Ptr(PointerKind),
     /// Opaque Itanium EH landing-pad record (`{ ptr, i32 }` in LLVM).
     /// It is produced by exception pads and may be consumed by `Resume`.
     ExceptionRecord,
@@ -53,13 +54,41 @@ pub enum LirType {
     Enum(EnumDefId),
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum PointerKind {
+    /// A GC-traced reference to a managed heap object.
+    Managed,
+    /// A native address that the GC must neither trace nor relocate.
+    Raw,
+    /// An executable function address.
+    Code,
+    /// An immortal runtime descriptor or dispatch-table address.
+    Metadata,
+}
+
+pub const MANAGED_PTR: LirType = LirType::Ptr(PointerKind::Managed);
+pub const RAW_PTR: LirType = LirType::Ptr(PointerKind::Raw);
+pub const CODE_PTR: LirType = LirType::Ptr(PointerKind::Code);
+pub const METADATA_PTR: LirType = LirType::Ptr(PointerKind::Metadata);
+
+impl PointerKind {
+    pub fn dump(self) -> &'static str {
+        match self {
+            Self::Managed => "managed",
+            Self::Raw => "raw",
+            Self::Code => "code",
+            Self::Metadata => "metadata",
+        }
+    }
+}
+
 impl LirType {
     pub fn dump(&self) -> String {
         match self {
             LirType::Void => "void".to_string(),
             LirType::I1 => "i1".to_string(),
             LirType::I64 => "i64".to_string(),
-            LirType::Ptr => "ptr".to_string(),
+            LirType::Ptr(kind) => format!("ptr<{}>", kind.dump()),
             LirType::ExceptionRecord => "exception_record".to_string(),
             LirType::Aggregate(elements) => {
                 let inner: Vec<String> = elements.iter().map(LirType::dump).collect();
@@ -89,6 +118,9 @@ pub struct Module {
     /// Inbound C trampolines that adapt a native signature to a NoGC
     /// Scoop storage-ABI bridge.
     pub callback_bridges: Arena<CallbackBridge>,
+    /// GC-aware managed callback trampolines. These are disjoint from M12's
+    /// NoGC static callback bridges at the type level.
+    pub foreign_callback_bridges: Arena<ForeignCallbackBridge>,
     /// Symbol of the entry function (`scoop_main`).
     pub entry_symbol: String,
     pub meta: LirMeta,
@@ -101,6 +133,31 @@ pub struct CallbackBridge {
     pub trampoline_symbol: String,
     pub params: Vec<CType>,
     pub return_type: CType,
+}
+
+#[derive(Debug)]
+pub struct ForeignCallbackBridge {
+    pub adapter_symbol: String,
+    pub trampoline_symbol: String,
+    pub signature_symbol: String,
+    pub params: Vec<CType>,
+    pub return_type: CType,
+    pub context_index: u32,
+    pub mode: ForeignCallbackMode,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ForeignCallbackMode {
+    Reusable,
+    OneShot,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ForeignCallbackOperation {
+    Retain,
+    Release,
+    State,
+    Failure,
 }
 
 #[derive(Debug)]
@@ -251,17 +308,12 @@ pub enum LayoutKind {
     Array {
         element_scan: RefScan,
     },
-    /// Enum layouts keep one scan program per variant. Their offsets
-    /// are relative to the enum value and therefore compose when the
-    /// enum is nested in another aggregate.
+    /// Enum layouts retain their identity while exposing one fixed scan
+    /// program for the complete physical value. Tagged-enum scans never
+    /// branch on the tag: inactive ref-bearing slots are zero-filled.
     Enum {
-        variants: Vec<VariantLayout>,
+        scan: RefScan,
     },
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub struct VariantLayout {
-    pub scan: RefScan,
 }
 
 /// Recursive, layout-complete description of references in an inline
@@ -271,10 +323,6 @@ pub enum RefScan {
     None,
     References(Vec<u64>),
     Sequence(Vec<RefScan>),
-    TaggedEnum {
-        tag_offset: u64,
-        variants: Vec<RefScan>,
-    },
 }
 
 impl RefScan {
@@ -286,17 +334,6 @@ impl RefScan {
                 "seq({})",
                 parts.iter().map(Self::dump).collect::<Vec<_>>().join(", ")
             ),
-            Self::TaggedEnum {
-                tag_offset,
-                variants,
-            } => format!(
-                "enum@{tag_offset}[{}]",
-                variants
-                    .iter()
-                    .map(Self::dump)
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            ),
         }
     }
 }
@@ -304,6 +341,8 @@ impl RefScan {
 #[derive(Debug)]
 pub struct Global {
     pub symbol: String,
+    /// Provenance of the address produced by `Value::Global`.
+    pub address_kind: PointerKind,
     pub init: GlobalInit,
 }
 
@@ -312,25 +351,41 @@ pub struct Global {
 pub struct EnumDef {
     pub name: String,
     pub repr: EnumRepr,
+    /// Recursive scan program for one inline value of this enum type.
+    pub scan: RefScan,
 }
 
 #[derive(Debug)]
 pub enum EnumRepr {
-    /// Niche optimization (spec 7.4): two variants, one without
-    /// payload, the other a single pointer-represented field — the value
-    /// is one pointer word and the `None`-style variant is 0. Whether that
-    /// word is a managed reference remains a property of the payload type.
+    /// Niche optimization (spec 7.4): only an enum structurally isomorphic to
+    /// `Option<ref/Ptr/FunPtr>` may use it — exactly one empty variant and one
+    /// single pointer-represented payload variant. Names and order do not
+    /// matter. Whether the word is managed remains a payload property.
     Niche {
         /// Index of the payload-carrying variant.
         payload_variant: u32,
     },
-    /// `{ i64 tag, [N x i8] payload }`.
+    /// A tag followed by one optional shared pure-value payload slot and
+    /// one disjoint slot for every variant that contains managed refs.
     Tagged {
-        /// Field types of each variant, in declaration order.
-        variants: Vec<Vec<LirType>>,
-        payload_size: u64,
-        payload_align: u64,
+        variants: Vec<EnumVariantRepr>,
+        size: u64,
+        align: u64,
     },
+}
+
+/// Physical storage assigned to one tagged-enum variant.
+#[derive(Debug)]
+pub struct EnumVariantRepr {
+    pub fields: Vec<LirType>,
+    /// Enum-relative field offsets, including the variant's slot offset.
+    pub field_offsets: Vec<u64>,
+    pub slot_offset: u64,
+    pub slot_size: u64,
+    pub slot_align: u64,
+    /// Copied from the fully specialized MIR variant. Only GC-free
+    /// variants may share the pure-value payload slot.
+    pub gc_free: bool,
 }
 
 #[derive(Debug)]
@@ -391,6 +446,48 @@ pub enum GcEffect {
     NoGc,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NativeCallEffect {
+    NativeSafe,
+    NativeBorrowed,
+}
+
+/// A value whose address is published in a compiler caller-root frame.
+/// Constants and globals cannot appear here: constants have no storage and
+/// managed globals are already roots in their own right.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum CallerRootSource {
+    Param(u32),
+    Local(LocalId),
+    Temp(TempId),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CallerRoot {
+    pub source: CallerRootSource,
+    /// Non-empty recursive scan program relative to the source's storage.
+    pub scan: RefScan,
+}
+
+impl CallerRootSource {
+    fn dump(self) -> String {
+        match self {
+            Self::Param(index) => format!("param{index}"),
+            Self::Local(id) => format!("local{}", id.into_raw()),
+            Self::Temp(id) => format!("t{}", id.into_raw()),
+        }
+    }
+}
+
+impl NativeCallEffect {
+    fn dump(self) -> &'static str {
+        match self {
+            Self::NativeSafe => "native-safe",
+            Self::NativeBorrowed => "native-borrowed",
+        }
+    }
+}
+
 impl Function {
     /// The type of a value in this function.
     pub fn value_ty(&self, globals: &Arena<Global>, value: Value) -> LirType {
@@ -400,11 +497,8 @@ impl Function {
             Value::Param(index) => self.params[index as usize].clone(),
             Value::IntConst(_) => LirType::I64,
             Value::BoolConst(_) => LirType::I1,
-            Value::NullPtr => LirType::Ptr,
-            Value::Global(id) => {
-                let _ = &globals[id];
-                LirType::Ptr
-            }
+            Value::NullPtr => LirType::Ptr(PointerKind::Raw),
+            Value::Global(id) => LirType::Ptr(globals[id].address_kind),
         }
     }
 }
@@ -467,6 +561,12 @@ pub enum Instruction {
         object: Value,
         offset: u64,
     },
+    /// Acquire-load a 64-bit synthetic state word from managed storage.
+    AtomicLoad {
+        out: TempId,
+        object: Value,
+        offset: u64,
+    },
     /// `store value -> local`'s stack slot.
     Store {
         local: LocalId,
@@ -487,21 +587,31 @@ pub enum Instruction {
     NativeGlobalLoad {
         out: TempId,
         global: NativeGlobalId,
+        roots: Vec<CallerRoot>,
     },
     NativeGlobalStore {
         global: NativeGlobalId,
         value: Value,
+        roots: Vec<CallerRoot>,
     },
     NativeGlobalAddress {
         out: TempId,
         global: NativeGlobalId,
+        roots: Vec<CallerRoot>,
     },
     /// A nounwind native call. C ABI operands are storage pointers to the
     /// generated bridge; Scoop ABI operands retain their ordinary typed ABI.
     NativeCall {
         out: Option<TempId>,
         function: ExternFunctionId,
+        effect: NativeCallEffect,
         args: Vec<Value>,
+        /// Values live across this native transition. Codegen spills SSA
+        /// sources and publishes each storage with its recursive scan.
+        roots: Vec<CallerRoot>,
+        /// Scan for the native result storage. `None` means the result is
+        /// absent or contains no managed references.
+        result_scan: RefScan,
     },
     /// Store a typed value at the byte address `object + offset`.
     /// Class fields use their natural layout offsets, base-class fields
@@ -512,11 +622,36 @@ pub enum Instruction {
         offset: u64,
         value: Value,
     },
+    /// Release-store a 64-bit synthetic state word in managed storage.
+    AtomicStore {
+        object: Value,
+        offset: u64,
+        value: Value,
+    },
+    /// Acq_rel/acquire compare-exchange of a 64-bit synthetic state word.
+    /// `out` receives the observed old word.
+    AtomicCompareExchange {
+        out: TempId,
+        object: Value,
+        offset: u64,
+        expected: Value,
+        replacement: Value,
+    },
     /// Materialize the address of a module function as an opaque code
     /// pointer. It is metadata, not a managed reference.
     FunctionAddress {
         out: TempId,
         symbol: String,
+    },
+    ForeignCallbackRegister {
+        out: TempId,
+        bridge: ForeignCallbackBridgeId,
+        closure: Value,
+    },
+    ForeignCallbackOperation {
+        out: Option<TempId>,
+        operation: ForeignCallbackOperation,
+        callback: Value,
     },
     IntToPtr {
         out: TempId,
@@ -758,21 +893,27 @@ pub fn dump(module: &Module) -> String {
             )),
             EnumRepr::Tagged {
                 variants,
-                payload_size,
-                payload_align,
+                size,
+                align,
             } => {
                 let variants: Vec<String> = variants
                     .iter()
-                    .map(|fields| {
-                        let inner: Vec<String> = fields.iter().map(LirType::dump).collect();
-                        format!("({})", inner.join(", "))
+                    .map(|variant| {
+                        let inner: Vec<String> = variant.fields.iter().map(LirType::dump).collect();
+                        format!(
+                            "({})@{}+{}{}",
+                            inner.join(", "),
+                            variant.slot_offset,
+                            variant.slot_size,
+                            if variant.gc_free { "" } else { ":refs" }
+                        )
                     })
                     .collect();
                 out.push_str(&format!(
                     "  enum {} tagged size={} align={} variants={}\n",
                     def.name,
-                    payload_size,
-                    payload_align,
+                    size,
+                    align,
                     variants.join(" ")
                 ));
             }
@@ -921,34 +1062,13 @@ pub fn dump(module: &Module) -> String {
                     element_scan.dump()
                 )),
             },
-            LayoutKind::Enum { variants } => {
-                let simple_offsets = variants
-                    .iter()
-                    .map(|variant| match &variant.scan {
-                        RefScan::None => Some(Vec::new()),
-                        RefScan::References(offsets) => Some(offsets.clone()),
-                        _ => None,
-                    })
-                    .collect::<Option<Vec<_>>>();
-                if let Some(offsets) = simple_offsets {
-                    out.push_str(&format!(
-                        "  layout {} size={} align={} enum-refs={offsets:?}\n",
-                        layout.name, layout.size, layout.align
-                    ));
-                } else {
-                    out.push_str(&format!(
-                        "  layout {} size={} align={} enum-scan=[{}]\n",
-                        layout.name,
-                        layout.size,
-                        layout.align,
-                        variants
-                            .iter()
-                            .map(|variant| variant.scan.dump())
-                            .collect::<Vec<_>>()
-                            .join(", ")
-                    ));
-                }
-            }
+            LayoutKind::Enum { scan } => out.push_str(&format!(
+                "  layout {} size={} align={} enum-scan={}\n",
+                layout.name,
+                layout.size,
+                layout.align,
+                scan.dump()
+            )),
         }
         if let Some(c_layout) = layout.c_layout {
             let fields = layout
@@ -1036,6 +1156,17 @@ fn dump_instruction(function: &Function, instruction: &Instruction, buf: &mut St
             offset,
             function.temps[*out].ty.dump()
         )),
+        Instruction::AtomicLoad {
+            out,
+            object,
+            offset,
+        } => buf.push_str(&format!(
+            "    t{} = atomic_load acquire {} +{} : {}\n",
+            out.into_raw(),
+            value_name(*object),
+            offset,
+            function.temps[*out].ty.dump()
+        )),
         Instruction::GlobalLoad { out, global } => buf.push_str(&format!(
             "    t{} = global_load global{} : {}\n",
             out.into_raw(),
@@ -1052,21 +1183,28 @@ fn dump_instruction(function: &Function, instruction: &Instruction, buf: &mut St
             out.into_raw(),
             global.into_raw()
         )),
-        Instruction::NativeGlobalLoad { out, global } => buf.push_str(&format!(
-            "    t{} = native_global_load ng{} : {}\n",
+        Instruction::NativeGlobalLoad { out, global, roots } => buf.push_str(&format!(
+            "    t{} = native_global_load ng{} roots={} : {}\n",
             out.into_raw(),
             global.into_raw(),
+            roots.len(),
             function.temps[*out].ty.dump()
         )),
-        Instruction::NativeGlobalStore { global, value } => buf.push_str(&format!(
-            "    native_global_store ng{}, {}\n",
+        Instruction::NativeGlobalStore {
+            global,
+            value,
+            roots,
+        } => buf.push_str(&format!(
+            "    native_global_store ng{}, {} roots={}\n",
             global.into_raw(),
-            value_name(*value)
+            value_name(*value),
+            roots.len()
         )),
-        Instruction::NativeGlobalAddress { out, global } => buf.push_str(&format!(
-            "    t{} = native_global_address ng{}\n",
+        Instruction::NativeGlobalAddress { out, global, roots } => buf.push_str(&format!(
+            "    t{} = native_global_address ng{} roots={}\n",
             out.into_raw(),
-            global.into_raw()
+            global.into_raw(),
+            roots.len()
         )),
         Instruction::HeapStore {
             object,
@@ -1078,11 +1216,65 @@ fn dump_instruction(function: &Function, instruction: &Instruction, buf: &mut St
             offset,
             value_name(*value)
         )),
+        Instruction::AtomicStore {
+            object,
+            offset,
+            value,
+        } => buf.push_str(&format!(
+            "    atomic_store release {} +{} {}\n",
+            value_name(*object),
+            offset,
+            value_name(*value)
+        )),
+        Instruction::AtomicCompareExchange {
+            out,
+            object,
+            offset,
+            expected,
+            replacement,
+        } => buf.push_str(&format!(
+            "    t{} = atomic_cmpxchg acq_rel/acquire {} +{} expected={} replacement={} : {}\n",
+            out.into_raw(),
+            value_name(*object),
+            offset,
+            value_name(*expected),
+            value_name(*replacement),
+            function.temps[*out].ty.dump()
+        )),
         Instruction::FunctionAddress { out, symbol } => buf.push_str(&format!(
             "    t{} = function_address @{} : ptr\n",
             out.into_raw(),
             symbol
         )),
+        Instruction::ForeignCallbackRegister {
+            out,
+            bridge,
+            closure,
+        } => buf.push_str(&format!(
+            "    t{} = foreign_callback_register fcb{} {} : {}\n",
+            out.into_raw(),
+            bridge.into_raw(),
+            value_name(*closure),
+            function.temps[*out].ty.dump()
+        )),
+        Instruction::ForeignCallbackOperation {
+            out,
+            operation,
+            callback,
+        } => match out {
+            Some(out) => buf.push_str(&format!(
+                "    t{} = foreign_callback_{:?} {} : {}\n",
+                out.into_raw(),
+                operation,
+                value_name(*callback),
+                function.temps[*out].ty.dump()
+            )),
+            None => buf.push_str(&format!(
+                "    foreign_callback_{:?} {}\n",
+                operation,
+                value_name(*callback)
+            )),
+        },
         Instruction::IntToPtr { out, value } => buf.push_str(&format!(
             "    t{} = int_to_ptr {} : ptr\n",
             out.into_raw(),
@@ -1137,21 +1329,50 @@ fn dump_instruction(function: &Function, instruction: &Instruction, buf: &mut St
         Instruction::NativeCall {
             out,
             function: extern_id,
+            effect,
             args,
+            roots,
+            result_scan,
         } => {
             let args = args.iter().map(|arg| value_name(*arg)).collect::<Vec<_>>();
+            let roots = if roots.is_empty() {
+                String::new()
+            } else {
+                let roots = roots
+                    .iter()
+                    .map(|root| {
+                        let source = root.source.dump();
+                        match &root.scan {
+                            RefScan::References(offsets) if offsets == &[0] => source,
+                            scan => format!("{source}:{}", scan.dump()),
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                format!(" roots=[{}]", roots.join(", "))
+            };
+            let result_root = if *result_scan == RefScan::None {
+                String::new()
+            } else {
+                format!(" result-root={}", result_scan.dump())
+            };
             match out {
                 Some(temp) => buf.push_str(&format!(
-                    "    t{} = native_call extern{}({}) : {}\n",
+                    "    t{} = native_call[{}] extern{}({}){}{} : {}\n",
                     temp.into_raw(),
+                    effect.dump(),
                     extern_id.into_raw(),
                     args.join(", "),
+                    roots,
+                    result_root,
                     function.temps[*temp].ty.dump()
                 )),
                 None => buf.push_str(&format!(
-                    "    native_call extern{}({})\n",
+                    "    native_call[{}] extern{}({}){}{}\n",
+                    effect.dump(),
                     extern_id.into_raw(),
-                    args.join(", ")
+                    args.join(", "),
+                    roots,
+                    result_root
                 )),
             }
         }

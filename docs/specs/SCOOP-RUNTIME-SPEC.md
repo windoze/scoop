@@ -17,9 +17,9 @@ Runtime 是编译产物的支撑层，职责包括：
 
 明确**不在**本文范围：
 
-- GC 算法的具体实现（留待后续；第 3 章只定义它必须满足的契约）；
+- 第 3 章所定单代、非移动 Immix 基线之外的替代 GC 算法及优化；
 - 协程调度器、集合、IO 等标准库内容；
-- C ABI 一侧（无 runtime 介入，spec 13.8）；
+- 普通 outbound C ABI callee 的内部实现；spec 14.3 的 managed callback 是经 runtime gateway 重新进入 Scoop 的独立反向边界；
 - 编译器 intrinsic（`@Intrinsic`，spec 13.1）由编译器生成实现，不经 runtime。
 
 ---
@@ -37,8 +37,8 @@ Runtime 是编译产物的支撑层，职责包括：
 - 类型标识（`is` / `as` 检查用）；
 - 稳定的 UTF-8 类型名（与 TypeDescriptor 同生命周期，用于未捕获异常等运行时诊断）；
 - 实例大小与对齐；
-- **递归引用扫描描述**（GC 扫描对象内部引用用）：普通节点记录相对当前值起点的引用字节偏移；sequence 节点把多个扫描作用于同一起点；tagged-enum 节点记录 tag 的相对偏移及每个变体的子扫描；array 节点记录元素 stride 与单个内联元素的子扫描。扫描描述可任意组合，因此 struct / tuple / class / 装箱 payload 中嵌套的 tagged enum，以及含引用的聚合数组元素，均不会被压平成无条件引用偏移；
-- **enum 的引用扫描按 tag 分派**：扫描 tagged enum 值时先按节点记录的偏移读 tag，再执行对应变体的递归子扫描。niche 表示的 enum（spec 7.4）整体就是一个引用，使用普通引用节点；没有出站引用的节点可用空指针表示。LIR meta 的 `RefScan` / `LayoutKind::Enum` 提供该信息（见 impl spec 2.4）；
+- **递归引用扫描描述**（GC 扫描对象内部引用用）：普通节点记录相对当前值起点的引用字节偏移；sequence 节点把多个扫描作用于同一起点；array 节点记录元素 stride 与单个内联元素的子扫描。tagged enum允许完全不含managed ref的variant复用pure-value payload区；每个直接或间接含managed ref的variant拥有互不重叠的连续slot，构造时把inactive slot清零，因此所有ref-bearing variant中的ref leaf直接合并为固定偏移，不存在按tag分派的扫描节点。该描述可任意组合，覆盖struct / tuple / class / 装箱payload及含引用聚合数组元素；
+- **enum 扫描不读取 tag**：tagged enum的所有潜在ref位置都位于ref-bearing variant的独占slot，按普通固定偏移检查；inactive独占slot必须为全0，pure-value共享区不进入扫描。niche表示的managed-ref enum整体是一个普通引用位置，`Ptr` / `FunPtr` niche不是managed root。没有出站引用的节点可用空指针表示。LIR meta 的`RefScan`提供该信息（见 impl spec 2.4）；
 - 父类型信息（接口、父类）；
 - 虚分派结构：内嵌 **vtable 指针**与 **itable 数组**（itable 以接口 TypeDescriptor 指针为键）。`Any` 的 `equals` / `hashCode` / `toString` 是 vtable 的固定前三个槽位；装箱值类型的表项指向 this 调整 thunk（impl spec 2.9）。
 
@@ -51,7 +51,7 @@ Runtime 是编译产物的支撑层，职责包括：
 ### 2.4 `String` / `Array` 布局
 
 - `String`：对象头 + 长度 + 内联字节数据（UTF-8，spec 11.4）。
-- `Array<T>` / `MutableArray<T>`：对象头 + `size` + 对齐填充 + 内联元素区；元素区起点为 `alignUp(24, alignOf<T>())`。`T` 为值类型时元素不装箱且按 `sizeOf<T>()` stride 连续布局（满足 pack/align 约束，spec 10.1）。数组 TypeDescriptor 的扫描描述以元素 stride 重复执行 `T` 的递归子扫描，因此 `T` 可以是含引用或 tagged enum 的 struct / tuple。
+- `Array<T>` / `MutableArray<T>`：对象头 + `size` + 对齐填充 + 内联元素区；元素区起点为 `alignUp(24, alignOf<T>())`。`T` 为值类型时元素不装箱且按 `sizeOf<T>()` stride 连续布局（满足 pack/align 约束，spec 10.1）。数组 TypeDescriptor 的扫描描述以元素 stride 重复执行 `T` 的递归子扫描，因此 `T` 可以是含引用或 tagged enum 的 struct / tuple；tagged enum元素的inactive variant slot同样保持全0。
 
 ### 2.5 `Option` 的 niche 表示
 
@@ -69,53 +69,57 @@ managed 函数值是普通引用对象，不是原生函数指针。每个 concr
 
 ---
 
-## 3. GC 契约（算法实现留待后续）
+## 3. GC 契约
 
-GC 算法未定时，以下契约先固定，编译器与 runtime 双方据此实现：
+参考实现的M9基线是单代、非移动的Immix mark-region collector；M13在其上增加多mutator STW，collector仍为单线程。以下是编译器与runtime共同遵守的长期契约；后续分代、移动或parallel/concurrent实现可以替换算法，但不得破坏root、safepoint、native借用与handle语义。
 
 ### 3.1 分配入口
 
 分配分为两条通道：
 
-- **managed 快速通道**：编译器生成的代码**不使用 handle**，直接取得裸指针。标准形态是 TLAB 碰撞指针（bump pointer）内联序列：线程本地缓冲区内移动分配指针即完成，缓冲区耗尽时落入 slow path（`scoop_runtime_alloc_slow`，可能触发 GC）。安全性由 statepoint 保证：GC 在 safepoint 移动对象后，由 statepoint rewrite 更新栈上的引用（spec 14.2）。managed 分配是最高频操作，其成本必须是摊销 O(1) 的几条内联指令，不经 handle 表。
+- **managed 快速通道**：编译器生成的代码**不使用 handle**，直接取得裸指针。标准形态是 TLAB 碰撞指针（bump pointer）内联序列；成功后由不含safepoint、不取得heap/world锁的GC-leaf `scoop_runtime_finish_tlab_alloc`完成清零、对象头与object-start登记，缓冲区耗尽时才落入 slow path（`scoop_runtime_alloc_slow`，可能触发 GC）。编译器必须在 safepoint保留完整live root信息；M13的非移动collector可用保守栈扫描消费它，M15 moving collector必须通过statepoint relocation更新引用（spec 14.2）。managed 分配是最高频操作，其成本必须保持摊销 O(1)，不经 handle 表。
 - **Scoop ABI native 通道**：外部实现没有 stack map；它可以直接借用传入的 managed ref，但在调用可能触发 GC 的 runtime入口前，必须先把仍需使用的引用登记为 native root slot（见 4.2）。需要把新对象长期带出 native frame时可使用 handle；需要稳定裸地址时使用 pinned allocation。
 
-TLAB 的有无、尺寸与 slow path 细节随 GC 方案确定；契约只要求：managed 分配返回裸指针、摊销 O(1)、不经 handle 表。
+M13 起每个已attach线程持有独立TLAB；slow path在同步的heap元数据下从Immix free-line run或新block切出互不重叠区间。STW开始后全部TLAB失效，GC结束后各线程在下一次分配时重新refill。内联bump与上述GC-leaf finish helper共同构成fast path，并必须在返回前清零完整对象、初始化对象头并以原子方式登记object-start metadata，保证多mutator分配与构造中途safepoint都可安全扫描。TLAB具体尺寸可调，但managed分配返回裸指针、摊销O(1)、不经handle表的契约不变。
 
 ### 3.2 safepoint 模型
 
 - managed（编译器生成）代码：statepoint poll（spec 14.2 的 LLVM 策略）；
 - Scoop ABI FFI：函数体内**无** safepoint poll，GC 只能在其显式调用 runtime或回调 managed代码时于该入口内部发生；跨越这些入口的 direct ref必须位于 native root slot（spec 14.3）；
-- C ABI callee不接收 managed ref，也不得调用 Scoop GC；M12 单 mutator实现可把它视为纯 GC leaf。启用多 mutator后，outbound caller仍必须在调用前发布 live roots并进入 native-safe状态，使其他线程发起的 STW GC无需等待一个可能阻塞的 C调用；callee本身仍不参与 GC。
+- C ABI callee不接收 managed ref，也不得直接调用 Scoop GC；M12 单 mutator实现可把它视为纯 GC leaf。M13启用多mutator后，outbound caller必须在调用前发布live roots并进入native-safe，使其他线程发起的STW GC无需等待一个可能阻塞的C调用。C代码若持有4.3注册所得的静态trampoline与cookie，可以经这个**独立反向边界**进入managed callback；这不使原C callee获得direct ref或Scoop ABI能力，外层caller roots继续由native-safe transition保活。
 
 ### 3.3 根集合
 
-- 栈根：statepoint stack map（managed caller）、Scoop ABI 调用点保持的 live roots，以及 native callee显式登记的可更新 root slot链；
+- 栈根：managed caller在statepoint处的live roots、Scoop ABI调用点保持的live roots，以及native callee显式登记的可更新root slot链。编译器始终发射statepoint metadata；M13按3.5以经过对象起点校验的保守managed栈段扫描覆盖这些根，M15 moving collector启用前必须改为精确消费stack map；
 - 全局根：`object` 单例等引用类型全局状态（全局 `var` 按 spec 13.6 必须 GC-free，不构成根）；
 - handle 表与 pinned 对象（`GcHandle` 保活其引用对象；pinned 对象作为根被扫描，见 3.4）。
 
 ### 3.4 保活机制（两级）
 
 - **pin（对象头标志）**：保活且阻止移动。pin 标志位于对象头，`PinnedPtr.raw` 即对象地址（spec 14.1），pin/unpin 是 O(1) 的对象头读写，**不经 handle 表**。带 pin 标志的对象作为 GC 根被扫描（其出站引用必须被追踪），但自身不移动。
-- **`GcHandle`（handle 表）**：保活，不阻止移动。handle 表是 runtime 私有结构；handle 值是表项的 opaque 编码；GC 移动对象后负责更新表项。
+- **`GcHandle`（handle 表）**：保活，不阻止移动。handle 表是 runtime 私有结构；64位host使用带generation的`(generation, slot)` opaque编码，0保留为null niche，slot复用时generation递增，避免已释放handle错误命中新对象。GC 移动对象后负责更新表项。
 
 只在一次 Scoop ABI 调用内、且不跨 safepoint使用的 direct ref不需要 pin/handle。需要稳定裸地址时优先 pin；需要长期保活且允许移动时使用 `GcHandle`；仅需跨 native callee内的 safepoint时优先使用 native root slot，避免改变对象移动属性或建立长期 handle。
 
 ### 3.5 线程
 
-线程创建/销毁时向 GC 注册/注销。M13 的多 mutator基线使用 stop-the-world handshake，并至少区分 managed、native-safe与 native-borrowed状态：managed线程在入口/回边 poll或runtime入口停顿；C ABI outbound call发布 caller roots后可进入 native-safe，collector无需等待其返回；持有 direct ref的 Scoop ABI native code属于 native-borrowed，只在登记 native roots的显式 runtime/managed入口参与协调。collector 不得在未握手的普通 native-borrowed指令之间移动对象。进入协调点时，当前线程的 managed roots与 native root slot链必须可扫描、可更新。
+线程创建/销毁时向 GC 注册/注销。M13 的多 mutator基线使用带单调GC epoch的合作式 stop-the-world handshake，并至少区分 managed、native-safe、native-borrowed、parked与collector状态：managed线程在入口/回边 poll或runtime入口保存SP/寄存器后停顿；C ABI outbound call发布 caller roots并冻结当前managed栈段后进入 native-safe，collector扫描已发布roots且无需等待其返回；持有 direct ref的 Scoop ABI native code属于 native-borrowed，只在登记 native roots的显式 runtime/managed入口或返回边界参与协调。每次managed/native重入都在LIFO transition链中划分managed栈段，使collector扫描当前及已冻结managed段而跳过夹在其间的native栈。collector 不得在未握手的普通 native-borrowed指令之间移动对象或扫描仍在变化的native栈。进入协调点时，当前线程的managed栈段链、compiler caller-root frame与native root slot链必须可扫描、可更新。compiler caller-root entry由value storage地址和递归scan descriptor组成；tagged enum的固定ref偏移可直接扫描，因为inactive variant slot按spec 7.4恒为全0。含ref的Scoop ABI返回storage从push前的全零值开始登记，在native返回后、leave可能park前写入结果，并在恢复managed后reload。
+
+进入managed、离开native-safe或离开native-borrowed必须与epoch发布形成无丢失握手：转换方发布mode后复查phase/epoch，观察到`Stopping`或epoch变化时在执行第一条managed指令前park；collector先release发布`Stopping`再以acquire读取线程mode。不得把线程按native-safe计为quiescent后又允许它未经复查进入managed。
 
 foreign thread在进入任何 managed代码前必须 attach，建立 TLS thread state、栈边界、TLAB和空 native-root链；离开最后一个 managed callback后由拥有本次 attachment的入口 detach。重复使用的长期 foreign thread可以显式保持 attachment，但不得在 runtime shutdown后重新进入。
 
+M13 的collector仍是单线程、单代、非移动实现。parked线程只对transition链标出的当前/冻结managed栈段执行经heap-object-start校验的保守扫描，并跳过段间native栈；native-safe/native-borrowed路径同样只扫描冻结managed段和显式roots，不扫描活动native栈。精确消费statepoint stackmap仍是M15移动collector的前置条件，M13不得宣称已支持root relocation。
+
 ### 3.6 屏障
 
-是否需要写/读屏障取决于 GC 算法；编译器侧预留插桩点（具体形式随 GC 方案确定）。
+是否需要写/读屏障取决于 GC 算法；编译器侧预留插桩点（具体形式随 GC 方案确定）。M13 虽仍不消费card table，但多mutator对card的标记必须使用atomic monotonic store/RMW；多个线程写入同一个普通byte即使值都为1也不能视为无数据竞争。
 
 ---
 
 ## 4. Scoop ABI FFI runtime functions
 
-对应 spec 第 14 章。以下是 runtime 必须提供的功能图景，具体函数签名与编码在 GC 方案定型后细化。
+对应 spec 第 14 章。以下固定 runtime 必须提供的功能与语义；M13 已定稿的 thread state、handle 与 callback token 编码按本章执行，尚未列出的导出 C 函数签名在实现时由 runtime header 锁定。
 
 ### 4.1 对象分配
 
@@ -131,26 +135,28 @@ foreign thread在进入任何 managed代码前必须 attach，建立 TLS thread 
 
 - pin / unpin：直接读写对象头的 pin 标志（`scoop_runtime_pin(ptr)` / `scoop_runtime_unpin(ptr)`），O(1)。
 - `scoop_runtime_pin_handle(handle) -> ptr`：把传入的（可移动）handle 解析为当前地址并固定，用于 FFI 收到 `GcHandle` 参数又需要裸指针的场景。
-- handle 校验：runtime 应校验 handle 合法性；非法 handle 的行为由实现定义（spec 14.3）。
+- handle 校验：runtime 必须校验generation、slot与live状态；非法或stale handle按4.4视为fatal runtime ABI error。
 - Scoop 侧的 `pin` / `unpin` / `getGcHandle` / `releaseGcHandle`（spec 14.1）本身就是以 Scoop ABI 实现的 extern 函数，映射到上述能力。
 
 ### 4.3 回调 Scoop closure
 
-- M13 提供 managed callback registration协议。概念入口为 `scoop_runtime_callback_register(closure, adapter, flags) -> ScoopCallbackToken*`：注册函数按 Scoop ABI直接接收 ordinary、非 suspend closure，为其建立 `GcHandle`，并在 native稳定内存中创建 opaque token。token至少保存 handle、typed adapter、函数类型/参数编组描述、引用计数和完成/失败状态；C侧不得读取这些字段。
-- 编译器为每个实际导出的 concrete函数类型生成 managed invoke adapter和静态 C ABI trampoline。trampoline按真实 C签名收参，把值写入 C-FFI-safe args/result storage，再调用 C-callable `scoop_runtime_callback_invoke(token, args, result)`；runtime不能用未类型化可变参数直接猜 managed invoke ABI。
+- M13 提供 managed callback registration协议。概念入口为 `scoop_runtime_callback_register(closure, adapter, signature, mode) -> cookie`：注册函数按 Scoop ABI直接接收 ordinary、非 suspend closure，为其建立 `GcHandle`，并在runtime registry中创建 opaque token slot。64位host的GC-free cookie在目标ABI保证可往返且保持canonical的非零payload位内编码generation和slot，只做`uintptr_t`/`void *`往返、从不解引用；超出该位预算的slot/generation不得分配。slot复用递增generation，因而可检测stale/use-after-final-release而无需永久泄漏C heap tombstone。
+- token slot至少保存closure handle、首个异常handle、typed adapter、静态signature descriptor、`Reusable`/`OneShot` mode、owner/active计数和完成/失败状态；C侧不得读取这些字段，也不得把cookie当地址解引用。
+- 编译器为每个实际导出的 concrete函数类型生成 managed invoke adapter，并按`(C signature, context index)`生成/复用静态 C ABI trampoline。trampoline按真实 C签名收参，移除被token占用的context参数，把其余值写入 C-FFI-safe args/result storage，再调用 C-callable `scoop_runtime_callback_invoke(cookie, signature, args, result)`；runtime不能用未类型化可变参数直接猜 managed invoke ABI。
 - `scoop_runtime_callback_invoke` 执行 attach-if-needed → enter managed → 从 handle取得 closure并登记为root → 调用 adapter → leave managed → detach-if-owned。closure调用期间使用普通 managed ABI、statepoint和异常处理，可以分配及触发 GC；跨调用保存的不是 closure裸指针，而是 token中的 handle。
-- token提供 `retain` / `release` 等价能力并明确 ownership transfer。release到零后撤销handle并销毁token；之后调用属于 ABI错误。一次性回调（如 `pthread_create` entry）由worker消费一份 ownership；需要在`join`侧观察完成/异常时，observer必须另持一份ownership直到读取状态并最终release。创建失败路径释放所有尚未转移的ownership。
-- callback adapter必须在返回 C前捕获所有 Scoop异常，`invoke`以 status和受管异常handle报告失败；异常不得展开穿越 trampoline/C frame。由API-specific wrapper决定终止、返回错误或在 `join`/完成观察点重新抛出。
+- token提供 `retain` / `release` 等价能力并明确 ownership transfer。普通值复制不增加owner；owner与active lease都为零后撤销handles并回收slot，之后调用属于 ABI错误。`Reusable`调用只增减active lease，持久owner由unregister后的调用者释放；`OneShot`入口原子claim并把一份worker owner转为active worker lease，出口消费。需要在`join`侧观察完成/异常时，observer必须预先retain并持有到读取状态后最终release；创建失败路径释放所有尚未转移的ownership。
+- callback adapter必须在返回 C前捕获所有 Scoop异常，物化成managed对象并以status/受管异常handle报告失败；异常不得展开穿越 trampoline/C frame。token以first-wins保存首个失败，trampoline按真实C返回类型返回全零值；由API-specific同步点后的observer决定重新抛出。invalid/stale cookie、signature不匹配、one-shot重复调用或shutdown后调用无法安全映射为任意C API错误，统一视为fatal runtime ABI error。
 - 首版只支持原生API具有显式 `void *` context/user-data槽的 callback；静态 trampoline和token分别占据 function pointer与context。缺少context槽的API不能导出任意closure，只能使用 spec 13.10 的静态 `FunPtr`，直到后续实现动态 executable trampoline或有限slot registry。
 
 ### 4.4 错误处理
 
-- runtime 内部失败（分配失败、非法 handle 等）的处理方式——抛 Scoop 异常还是终止进程——需要逐函数规定，随 GC 方案一同细化。
+- 无法分配runtime/GC元数据、非法或stale handle、native-root LIFO破坏、非法thread transition、callback cookie/signature错误及shutdown后重新进入均为fatal runtime ABI error，打印稳定诊断后终止。普通callback抛出的 Scoop异常不属于runtime内部失败，按4.3转为token失败状态。
 
 ### 4.5 线程状态
 
 - M12 的 Scoop ABI outbound调用不切换线程状态（不插 `enter_native` / `leave_native`，spec 14.2）；native callee仍属于当前已注册 managed thread。M13 多 mutator实现按 3.5 区分 C ABI native-safe与 Scoop ABI native-borrowed，runtime/managed入口读取该线程的 managed/native root frame链并完成 safepoint握手。
 - foreign callback是反向边界：未注册线程必须先经 `scoop_runtime_attach_foreign_thread` 等价入口建立 thread state，再由 callback gateway进入 managed；detach只能由拥有attachment且已退出所有 managed frame/native root frame的代码执行。
+- 边界转换必须可嵌套并按LIFO恢复previous mode；只使用一个`native_depth`不能区分native-safe/native-borrowed，也无法正确处理“managed → C → same-thread managed callback → C”的重入链。native-safe返回、native-borrowed返回和callback enter在切入managed前都必须检查当前GC epoch。
 
 ---
 
@@ -176,14 +182,14 @@ foreign thread在进入任何 managed代码前必须 attach，建立 TLS thread 
 
 - 进程启动：初始化 GC 与 handle 表，注册主线程，调用 `main`；
 - 线程：主线程启动时注册；runtime创建的线程及 foreign thread在首次进入 managed代码前 attach，在退出最后一个 managed入口且不再持有 runtime thread state时 detach（配合 3.5、4.3）；
-- 终止：`main` 返回后的清理（GC 关闭、线程汇合）由实现定。
+- 终止：`main` 返回后runtime先进入`ShuttingDown`并拒绝新attach/registration；只有主线程以外无attachment、无活动callback且token ownership均已释放时才销毁GC状态。存在迟到线程/token时报告计数并终止，不在其仍可能进入时释放runtime。
 
 ## 8. 协程
 
 `suspend` 的状态机变换、`CoroutineStep<T>`、frame 与各挂起点的 `Continuation<T>` adapter 全部由编译器生成（spec 8.2、11.9；impl spec 2.3）。这些实体都是普通 managed 对象/值：
 
 - frame 与 continuation adapter 必须有普通 TypeDescriptor 和完备的递归引用扫描描述；frame 链由 GC 自然保活，不登记额外的 runtime root；
-- continuation 的完成状态与 frame 的当前恢复状态存于 managed 对象字段。M10–M12 的最小实现是单线程协议；M13 为 foreign-thread callback把完成/恢复转换升级为带明确内存序的原子状态机，使已attach线程可以安全恢复既有continuation。调度器、队列和恢复后在哪个线程继续执行仍由后续标准库规定；
+- continuation 的完成状态与 frame 的当前恢复状态存于 managed 对象字段。M10–M12 的最小实现是单线程协议；M13 把adapter claim/完成与frame `running/suspended/completed`转换升级为64位对齐原子状态机：winner以acq_rel CAS取得完成/驱动权，先写payload再release发布终态，读取方以acquire消费；等待短暂`Completing`状态的循环必须包含safepoint/backoff。已attach线程可安全恢复既有continuation，重复完成仍抛`IllegalStateException`。调度器、队列和恢复后在哪个线程继续执行仍由后续标准库规定；
 - hidden continuation ABI 仅存在于编译器生成的 Scoop 托管调用之间。runtime 不提供 suspend FFI 入口、extern trampoline 或 callback wrapper；`@Extern` 与 `suspend` 的互斥，以及挂起函数声明引用不能在 `FunPtr` 上下文中解析为原生地址，由 HIR 保证（spec 8.2、13.4、13.10）；
 - runtime 只提供第 5 章所述的 ABI 异常物化辅助，不参与状态分派、恢复、队列或线程切换；
 - 调度器、事件循环与取消属于标准库。永不恢复的 continuation 只会按普通不可达对象被 GC 回收，runtime 不替它执行 cleanup / `finally`。
@@ -192,10 +198,8 @@ foreign thread在进入任何 managed代码前必须 attach，建立 TLS thread 
 
 ## 9. TBD 清单
 
-随 GC 方案定型后补充：
+仍待后续里程碑补充：
 
-- GC 算法、分代/并发策略、屏障插桩形式；
-- handle 的编码与校验细节；
-- callback token的最终二进制编码、status与异常handle错误矩阵（概念协议见4.3，M13设计时定稿）；
+- moving evacuation与精确root relocation → M15；分代/晋升、parallel/concurrent collector及相应屏障消费策略仍待后续；
 - runtime functions 的完整签名表与错误处理矩阵；
 - 异常穿越 Scoop ABI frame 的最终规则。

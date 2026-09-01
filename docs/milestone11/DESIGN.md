@@ -217,8 +217,8 @@ FunctionTypeKey {
 ```
 
 - key 使用已解析的类型化 type id，不使用显示名或 FQN；
-- 同一编译图内相同 key 只产生一个 `FunctionTypeId`；上游 `.slib` 导入时由完整结构签名显式重映射，不能把不同 Cone 的 arena index 直接视为同一 id；
-- HIR meta 必须导出公开签名及 generic body 中出现的函数类型；MIR 只物化 concrete function type；
+- 同一HIR消费者域内相同key只产生一个typed function-type id。`ExportFunctionTypeId`与`ConcreteFunctionTypeId`是不同类型；上游`.slib`导入时由完整结构签名显式重映射，不能把不同Cone或export/local-concrete两侧的arena index直接视为同一id；
+- `ExportHir`必须包含公开签名及generic template中出现的函数类型，供下游HIR使用；`LocalConcreteHir`必须包含本Cone MIR所需且已完全特化的函数类型。MIR只接受后者，不从export function type临时物化concrete结果；
 - 每个 concrete function type 有自己的 TypeDescriptor/type identity。具体 closure 类型记录 exact function type；MIR 对实际发生的 coercion / `is` / `as` 目标生成 typed bridge entry，以支持结构化函数子类型检查与安全调用；
 - `FunctionTypeId`、命名 `FunctionId`、`LocalFunctionId`、`LambdaId`、`AnonymousFunctionId`、`CallableReferenceId`、`ClosureClassId` 与 `ClosureAdapterId` 全部是不同的新类型，禁止用一个整数或符号字符串混用。
 
@@ -277,7 +277,7 @@ capture 字段按“外层词法层级 → 首次使用源码位置 → BindingI
 - 绑定 final 成员：在 callable reference 创建时按值capture receiver，invoke body 可 direct-call；ref receiver 保存 ref value，value receiver 按 concrete layout 内联保存，调用时都用该字段初始化 spec 3.3 的隐含 `this`；
 - 绑定 virtual/interface 成员：capture receiver 与静态 dispatch contract，invoke body 保留 virtual/interface callee，不保存创建时查到的具体槽目标；
 - 绑定扩展：capture receiver，invoke body direct-call 扩展函数；未绑定扩展不 capture，并把 receiver 作为第一个 source 参数；
-- generic reference：HIR 先由期望类型产生 concrete type arguments，MIR 指向对应单态化实例。
+- generic reference：HIR先由期望类型产生concrete type arguments并在`LocalConcreteHir`中生成对应实例；MIR只指向该concrete实例的映射结果。
 
 ### 2.6 名称遮蔽与候选层
 
@@ -347,17 +347,17 @@ M11 parser 已把 callable reference 保存为中性的完整表达式；由于 
 - lambda、匿名/局部函数、绑定引用与已有函数值已经具有 managed 语义，不能“脱壳”成 native code pointer；
 - 在 `@NoGC` body 中，普通 managed callable reference 仍是分配/引用操作；只有成功走 `FunctionAddress` 的 M12 native-address contextual resolution 才不违反 NoGC。
 
-## 5. MIR 与变换顺序
+## 5. HIR concrete化与MIR变换顺序
 
-MIR 固定以下顺序，任何一步的输出都必须结构完备：
+跨HIR/MIR边界固定以下顺序，任何一步的输出都必须结构完备：
 
-1. **单态化**：实例化 generic 命名/局部函数、closure body、capture type 与所有 concrete function type；
-2. **local function lifting**：为局部函数生成带完整concrete capture参数的lifted body；direct call传值调用，只有callable reference需求才物化closure class；
-3. **closure conversion**：为每个lambda、匿名函数及实际求值的callable reference生成`ClosureClassId`、invoke function和确定布局的按值capture初始化；
-4. **variance adapter**：为实际发生的函数类型 coercion 生成 `ClosureAdapterId` 与 forwarding invoke body；
-5. **call lowering**：`CallableValue` 变成加载 invoke entry 后的 managed indirect call，保留 normal/unwind edge 与从左到右求值；
-6. **coroutine transform**：对所有命名、lifted local、lambda、anonymous、reference adapter 的 concrete suspend body执行 M10 状态机变换；
-7. **完整性检查**：输出不再含 generic、source lambda/local function/callable reference、source suspend callable 或抽象 function coercion 节点，并断言不存在mutable capture或capture box实体。
+1. **HIR单态化**：HIR实例化generic命名/局部函数、closure body、capture type与所有concrete function type，输出不含type parameter的`LocalConcreteHir`；
+2. **MIR local function lifting**：为局部函数生成带完整concrete capture参数的lifted body；direct call传值调用，只有callable reference需求才物化closure class；
+3. **MIR closure conversion**：为每个lambda、匿名函数及实际求值的callable reference生成`ClosureClassId`、invoke function和确定布局的按值capture初始化；
+4. **MIR variance adapter**：为实际发生的函数类型coercion生成`ClosureAdapterId`与forwarding invoke body；
+5. **MIR call lowering**：`CallableValue`变成加载invoke entry后的managed indirect call，保留normal/unwind edge与从左到右求值；
+6. **MIR coroutine transform**：对所有命名、lifted local、lambda、anonymous、reference adapter的concrete suspend body执行M10状态机变换；
+7. **完整性检查**：MIR输出不再含source lambda/local function/callable reference、source suspend callable或抽象function coercion节点，并断言不存在generic、mutable capture或capture box实体。
 
 局部函数 declaration没有运行时求值或隐式allocation。direct call和自递归调用lifted target并显式传递不可变capture值；求值`::local`才分配结构完备的closure。由于capture不可重新绑定，direct参数与reference字段之间不存在需要共享的location，且二者都保持value semantics。
 
@@ -402,7 +402,7 @@ M10 的所有旧 fixture 必须原样通过；新增 lambda fixture必须同时�
 ### 8.2 IR / codegen golden
 
 - AST dump锁定所有函数类型/值语法及span；HIR dump的每个表达式都有`FunctionTypeId`，capture/call target不缺失且capture target全部immutable；
-- MIR dump锁定单态化 → local lifting → closure → adapter → coroutine的结果，不再出现source lambda/reference/suspend call或任何capture box/cell；
+- HIR dump分别锁定export template与local-concrete实例；MIR dump锁定local lifting → closure → adapter → coroutine的结果，不再出现generic、source lambda/reference/suspend call或任何capture box/cell；
 - local recursion调用lifted target并传递capture参数；bound interface reference的invoke保留interface target；
 - LIR layout/RefScan锁定code pointer不扫描、captured value type内联、嵌套引用递归扫描、无额外capture allocation及indirect call unwind edge；
 - LLVM IR 锁定 closure ref隐藏首参、typed return storage、indirect managed statepoint与 suspend invoke hidden ABI。

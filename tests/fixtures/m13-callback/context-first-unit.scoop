@@ -1,0 +1,23 @@
+@Extern(lib = "fixture_native", name = "m13_call_context_first")
+fun callContextFirst(
+    callback: FunPtr<(Ptr<Unit>, Int) -> Unit>,
+    context: Ptr<Unit>,
+    value: Int
+)
+
+fun main() {
+    val captured = "context-first"
+    @Unsafe {
+        val callback = foreignCallback<(Ptr<Unit>, Int) -> Unit>(
+            { value: Int ->
+                println(captured)
+                println(value)
+            },
+            0,
+            ForeignCallbackMode.Reusable
+        )
+        callContextFirst(callback.function, callback.context, 42)
+        println(foreignCallbackState(callback) == ForeignCallbackState.Registered)
+        releaseForeignCallback(callback)
+    }
+}

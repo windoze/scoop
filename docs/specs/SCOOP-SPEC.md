@@ -488,7 +488,7 @@ enum Option<T> {
 - `null` 字面量不存在；表示"无值"使用 `None`。
 - 取值的常规方式是 `when` 解构：`when (s) { Some(v) -> ...; None -> ... }`。**对 `Option<T>` 不提供智能转换**：`isSome()` 之类的判断不会收窄类型（此类收窄的语义存在隐蔽问题，暂不提供；后续如引入会单独修订本节）。
 
-### 7.4 `Option` 的布局保证（niche 优化）
+### 7.4 enum 布局与 `Option` niche 保证
 
 对具有**天然空位（niche）**的类型 `T`，编译器必须保证 `Option<T>` 不增加额外存储：`None` 编码为该空位，`Some(v)` 与 `v` 的表示相同。这是语言的固定特性，而非可选优化。适用类型：
 
@@ -496,6 +496,10 @@ enum Option<T> {
 - **`Ptr<U>` 与 `FunPtr<F>`**：空位是 `_rawPointer == 0u`（null 指针）。
 
 因此 `Option<Ptr<T>>` / `Option<FunPtr<F>>` 可以直接出现在 C ABI 边界上表示可空指针（见 13.10），`Option` 包裹的引用类型与裸引用布局相同。对其他类型 `Option<T>` 带 tag，具体布局不保证。
+
+niche表示的适用范围严格限于与上述`Option<T>`同构的enum：恰有两个variant，其中一个无字段，另一个恰有一个字段，且该字段的具体类型为引用类型、`Ptr<U>`或`FunPtr<F>`；variant名称、顺序以及字段采用位置或命名形式不影响判断。除此之外的enum一律使用tagged表示，不能从其他位模式、整数范围或用户不变量推导niche。
+
+tagged enum的表示由tag、一个可选的**pure-value共享payload区**以及若干**ref-bearing独占连续slot**组成。递归检查后完全不含managed ref的多个variant可以复用同一块共享payload空间；每个直接或间接包含managed ref的variant则必须拥有自己的连续slot，不能与其他variant重叠。共享区或独占slot都按对应variant字段的正常值布局保存其全部字段。构造tagged enum时必须先把整个值（包括共享区、所有inactive ref-bearing slot和padding）清零，再写入tag及当前variant所用的payload；复制按完整值复制。GC只需无条件检查所有ref-bearing独占slot中的固定ref位置，全0 inactive slot不形成引用，扫描不读取tag、不选择variant。`Ptr` / `FunPtr`不是managed ref；在未采用niche的tagged enum中，包含它们但不含managed ref的variant仍属于pure-value共享区。
 
 ---
 
@@ -990,7 +994,10 @@ public import org.foo.bar.SomeType     // SomeType 成为 A 的导出表面的�
 泛型是单态化的（见 3.2），泛型定义必须能导出给下游 Cone、在下游完成实例化，因此 Cone 的编译输出不是纯 `.o` / `.a`，而是 **`.slib`**（类似 Rust 的 `.rlib`），包含：
 
 - 二进制编译结果（`.o`）：已编译的非泛型代码，以及在编译本 Cone 时已产生的单态化实例；
-- 导出泛型所需的 metadata：导出的类型与函数声明、泛型体的中间表示（供下游单态化）、符号表，以及各导出类型的分派表结构（vtable / itable）、TypeDescriptor 符号与类型布局（供下游建表、继承与嵌套布局）等。
+- 下游HIR所需的export metadata：导出的非泛型声明语义接口、泛型声明与template body、`const val`值、调用处实例化的默认表达式，以及这些template引用的类型化依赖闭包；
+- 后续stage所需的MIR/LIR metadata：符号表、各导出类型的分派表结构（vtable / itable）、TypeDescriptor符号与类型布局（供下游建表、继承与嵌套布局）等。
+
+本Cone为了生成`.o`而建立的fully concrete HIR函数体和类型实例只供本Cone的MIR消费，不属于`.slib` export metadata。下游HIR需要的“concrete信息”是导出的非泛型语义接口，而不是上游本地实例体；两者必须具有不同的实体身份，不能共享Cone内arena id。
 
 下游 Cone 编译时读取上游 `.slib` 的 metadata 完成导入解析、类型检查与泛型实例化；最终链接时合并各 Cone 的 `.o`。因此：
 
@@ -1007,7 +1014,7 @@ public import org.foo.bar.SomeType     // SomeType 成为 A 的导出表面的�
 
 以下注解类定义于 `scoop.core`，随默认导入可用。它们修饰的约束大多在编译期检查，违反即为编译错误。
 
-本章多处使用 **GC-free** 的概念：一个类型是 GC-free 的，当且仅当其类型定义中不直接或间接包含任何 ref type（基本类型、`Ptr`、`FunPtr`、`@CLayout` struct 等都是 GC-free 的值类型）；一个函数是 GC-free 的，当且仅当其不读写、不创建任何 ref value（见 13.2）。
+本章多处使用 **GC-free** 的概念：一个类型是 GC-free 的，当且仅当其完全确定的表示中不直接或间接包含任何 ref type（基本类型、`Ptr`、`FunPtr`、不含ref的`@CLayout` struct等都是 GC-free 的值类型）；一个函数是 GC-free 的，当且仅当其不读写、不创建任何 ref value（见 13.2）。GC-free布尔属性只属于不含未解析type parameter的concrete type或fully specialized generic type；每个这样的type实体都必须具有非可选的`gc_free: bool`，不存在“未知”或缺失状态。尚未完全特化的generic declaration不是concrete type，没有GC-free真假flag；编译器可以保存“哪些实参必须GC-free”的符号条件，但该条件不是flag。每个fully specialized enum的每个variant都必须具有非可选`gc_free: bool`，enum自身的flag恒等于所有variant flag的逻辑AND。
 
 ### 13.1 `@Intrinsic`
 
@@ -1031,9 +1038,10 @@ operator fun add(lhs: Int, rhs: Int): Int
 annotation class NoGC
 ```
 
-- 用于 function/method：指明该函数不会/不应与 GC 有任何交互——函数中不读写任何 ref value，也不创建任何 ref type 实例。
+- 用于function/method：指明该函数不会/不应与GC有任何交互——函数中不读写任何ref value，也不创建任何ref type实例。
+- 也可用于`struct`或`enum`，作为“该concrete value type必须GC-free”的静态契约。非generic声明在字段类型解析后立即验证；generic声明本身没有GC-free真假值，每个type parameter全部resolve后的实际类型分别验证。对fully specialized enum，契约同时要求enum整体及每个variant均为GC-free。`@NoGC`不能用于class/interface，因为它们是ref type。
 - 编译期检查；不符合约束是编译错误。
-- generic `@NoGC` callable 可以在签名或 body 中使用类型参数；每个实际影响参数、返回值、receiver、局部值或表达式表示的类型参数，都会在 HIR 形成“实例化实参必须 GC-free”的类型化条件，并经 generic 调用链向外传播。每个具体调用点必须再次验证该条件；未参与运行时表示的 phantom type parameter 不产生条件。
+- generic `@NoGC` callable 可以在签名或 body 中使用类型参数；未特化的generic本身不被判为GC-free或非GC-free。每个实际影响参数、返回值、receiver、局部值或表达式表示的类型参数，都会形成“实例化实参必须GC-free”的类型化条件，并经generic调用链向外传播；只有type parameter全部解析后的具体实例才能用concrete type的GC-free flag验证并成为`@NoGC`实例。未参与运行时表示的phantom type parameter不产生条件。
 - `T : value` 只保证实参是 value type，不保证其递归表示中不含 managed ref，因此不能代替上述 GC-free 条件；`T : ref` 则不可能满足该条件。当前没有单独的源码 bound 语法来声明 GC-free，条件由 `@NoGC` body及其调用图推导。
 - 这样的函数可以安全地跨越 FFI boundary（例如作为 FFI 回调）。
 - 该约束也意味着 `@NoGC` 的成员函数只能属于 value type：class method 有隐含的 `this` 参数，而 `this` 是 ref value。
@@ -1044,6 +1052,13 @@ fun add42(n: Int) = n + 42
 
 @NoGC
 fun <T> identity(value: T): T = value
+
+@NoGC
+struct NativePair(val x: Int, val y: UInt)
+
+// 编译错误：字段直接包含ref
+@NoGC
+struct BadNativeValue(val text: String)
 
 val number = identity<Int>(42)          // 合法：Int 是 GC-free
 val text = identity<String>("managed") // 编译错误：String 是 ref type
@@ -1117,7 +1132,7 @@ Scoop 的 FFI 函数有两种 ABI：
 - **C ABI**（`abi = "c"`，默认）：标准的 FFI function，由外部 lib / so / dylib / dll 提供。它对 Scoop 的类型系统和 GC 环境没有任何了解，也不能使用相关功能，用于直接引入外部库。参数与返回值必须是 C-FFI-safe：GC-free 且具有本章规定的稳定 C 表示。
 - **Scoop ABI**：复用普通、非挂起 Scoop 函数的 typed machine ABI。ref 参数/返回值直接以 managed ref value 传递，value type按 Scoop 自身的 concrete ABI 传递；被调方能读取 TypeDescriptor，并可按第 14 章的 native-root 协议显式进入可能触发 GC 的 runtime 操作。它主要供 runtime 与 core 使用，不是通用 C library ABI。
 
-C ABI callee始终是 GC leaf；多线程runtime下 caller仍可按 runtime spec 3.5 发布roots并切换到native-safe状态。Scoop ABI调用按普通managed call生成，不切换到GC-free native-safe状态。具体机器级序列由实现决定，但不得改变上述类型与GC契约（第14章）。
+C ABI callee本身始终是 GC leaf，不能直接接收managed ref或调用Scoop GC；多线程runtime下 caller仍须按 runtime spec 3.5 发布roots并切换到native-safe状态。C代码只有在持有14.3注册得到的静态trampoline与cookie时，才能经独立的反向边界进入managed callback；这不改变该C函数自身的参数ABI或赋予它Scoop ABI能力。Scoop ABI调用按普通managed call生成，不切换到GC-free native-safe状态。具体机器级序列由实现决定，但不得改变上述类型与GC契约（第14章）。
 
 ref type（如 `String`、`Array`、普通 class）不能出现在 C ABI 的边界上（13.4 的 C-FFI-safe 约束）；同一类型可以直接出现在 Scoop ABI extern 签名中。`PinnedPtr<T>` / `GcHandle<T>` 已是 GC-free 的显式边界值：它们适合 C ABI、跨调用保活或需要稳定裸地址的场景，不是 Scoop ABI direct-ref 调用的必经表示。
 
@@ -1215,12 +1230,12 @@ fun <T : value> alignOf(): UInt
 struct FunPtr<F>(val _rawPointer: UInt = 0u)
 ```
 
-- `_rawPointer` 存放实际的函数指针值（与 `Ptr` 同样以 `UInt` 容纳 raw pointer）。缺省构造产生 null 指针（`0u`），因此 `FunPtr` 可以声明为 struct 字段、先以 null 填充；非 null 的 `FunPtr` 只能由编译器对 `::name` 执行 native-address contextual resolution 时生成（见下）。
-- 除缺省构造（null）外，用户**不能直接构造** `FunPtr` 值；在期望类型明确为 `FunPtr<F>` 的位置使用顶层函数声明引用 `::name`，由编译器直接生成原生 callback 地址。`::name` 是 8.1.4 的中性源码语法，不具有固有的 `FunPtr` 类型；因此 `val callback = ::name` 仍推导为 managed 函数值，要保存原生地址必须由类型标注、参数类型、返回类型等上下文提供 `FunPtr<F>` 期望类型。目标声明签名必须与 `F` **精确相同**，不应用 8.1.1 的函数类型型变。
+- `_rawPointer` 存放实际的函数指针值（与 `Ptr` 同样以 `UInt` 容纳 raw pointer）。缺省构造产生 null 指针（`0u`），因此 `FunPtr` 可以声明为 struct 字段、先以 null 填充。用户源码中独立的静态非null地址只能由编译器对`::name`执行native-address contextual resolution生成（见下）；14.3 的`ForeignCallback.function`是编译器生成的另一种非null值，指向必须与opaque context cookie配对使用的managed-callback trampoline，不是静态目标地址。
+- 除缺省构造（null）外，用户**不能直接构造** `FunPtr` 值；在期望类型明确为 `FunPtr<F>` 的位置使用顶层函数声明引用 `::name`，由编译器直接生成原生 callback 地址。`::name` 是 8.1.4 的中性源码语法，不具有固有的 `FunPtr` 类型；因此 `val callback = ::name` 仍推导为 managed 函数值，要保存原生地址必须由类型标注、参数类型、返回类型等上下文提供 `FunPtr<F>` 期望类型。目标声明签名必须与 `F` **精确相同**，不应用 8.1.1 的函数类型型变。`ForeignCallback.function`只能从已注册值读取，不能用构造器仿造。
 - `F` 的每个参数与返回类型必须满足 C-FFI-safe 约束；`Unit` 只允许作为返回类型。`FunPtr` 描述的是 C ABI callback 地址，不是 Scoop ABI managed callable；函数类型 `F` 在这里仅描述 native signature，本身不会作为 managed 引用穿越边界。
 - 可空函数指针用 `Option<FunPtr<F>>` 表示（niche 优化见 7.4）。
 - native-address resolution 的目标必须是带 `@NoGC` 的普通顶层命名函数，且**不能是 generic、挂起、extern、成员或扩展函数**。lambda、匿名函数、局部函数、任何绑定引用以及已存在的 managed 函数值都不能作为非 null `FunPtr` 的来源。违反这些约束是编译错误：FFI 回调不得与 GC 交互，generic 函数没有单一具体符号，挂起函数只有编译器内部的 hidden continuation ABI，而 closure 还需要原生 ABI 中不存在的 managed 环境参数。编译器不自动生成 closure 或挂起 callback wrapper。
-- `FunPtr` 不提供 Scoop 侧 `invoke`；它只用于传递/存储 native callback 地址。M12 callback 契约仅允许原生方在发起 extern 调用的同一已注册线程上同步调用；保存后异步、跨线程或在 Scoop 程序退出后调用需要 M13 实现的 14.3 GC-aware注册协议，不能由 `FunPtr` 隐式获得。
+- `FunPtr` 不提供 Scoop 侧 `invoke`；它只用于传递/存储 native callback 地址。由`::name`得到的M12静态callback仅允许原生方在发起extern调用的同一已注册线程上同步调用；保存后异步、跨线程或在Scoop程序退出后调用不隐式获得安全性。M13只有14.3 registration返回的`ForeignCallback.function + context`配对具备对应token/attach协议，单独保存或调用其中的function而不携带仍存活的配对context同样非法。
 
 ```
 // C 侧：int compare_int(int a, int b, int (*cmp)(int, int))
@@ -1272,7 +1287,7 @@ Scoop ABI FFI 的 caller side（Scoop 托管代码一侧）必须生成 ordinary
 
 - 按普通 managed call 保持所有 live ref，并把 direct-ref 实参纳入调用点根集合；
 - ordinary call site，由 statepoint rewrite 处理 safepoint；
-- 不插 `enter_native` / `leave_native`；
+- M12 单mutator实现不插线程状态转换；M13多mutator实现发布live caller roots并在调用期间进入`native-borrowed`，返回managed前检查GC epoch。它不得进入C ABI使用的`native-safe`，也不得省略direct-ref callee在显式runtime入口所需的native-root协议；
 - callee 默认不标记为 `gc-leaf-function`；只有签名与实现都满足 13.2、并显式声明 `@NoGC` 的 Scoop ABI extern 才可按 GC leaf 降低；
 - machine callconv 初版使用 LLVM 默认 callconv `0`；
 - 调用点本身**不要求 unsafe context**（`abi = "scoop"` 的 extern 函数不是 unsafe function，见 13.4）。
@@ -1294,6 +1309,50 @@ Scoop ABI extern 的参数与返回值使用普通 Scoop typed ABI，不经过 C
 - native侧通过静态 C ABI trampoline和显式 context/user-data槽携带该 token。trampoline进入 runtime后 attach尚未注册的 foreign thread、切换到 managed执行状态、从 handle重新取得 closure并调用 typed adapter；返回 native前恢复线程状态。参数与返回值必须满足 C-FFI-safe约束，closure body内 GC正常生效。
 - token具有显式 retain/release与 use-after-release错误边界；callback抛出的 Scoop异常必须在反向边界内捕获并转换为 status/受管异常handle，不得展开穿越 C frame。运行时终止后调用 token是 ABI错误。首版只支持原生API提供显式 context/user-data槽的形态；无此槽的任意 closure导出需要后续动态 trampoline或 slot registry。
 - 该协议不改变 `FunPtr`（13.10）：M12 的 `FunPtr` callback仍是静态、同步、同线程、`@NoGC`路径。M13 落地 registration、foreign-thread attach/detach和多 mutator STW协调；suspend closure与 suspend FFI仍不支持。
+
+M13 的 core 源码形态为：
+
+```
+enum ForeignCallbackMode { Reusable, OneShot }
+enum ForeignCallbackState { Registered, Active, Completed, Failed }
+
+struct ForeignCallback<F>(
+    val function: FunPtr<F>,
+    val context: Ptr<Unit>
+)
+
+@Unsafe
+@Intrinsic("foreign_callback_register")
+fun <F> foreignCallback(
+    callback: Any,
+    contextIndex: Int,
+    mode: ForeignCallbackMode
+): ForeignCallback<F>
+
+@Unsafe
+@Intrinsic("foreign_callback_retain")
+fun <F> retainForeignCallback(callback: ForeignCallback<F>): ForeignCallback<F>
+
+@Unsafe
+@Intrinsic("foreign_callback_release")
+fun <F> releaseForeignCallback(callback: ForeignCallback<F>)
+
+@Unsafe
+@Intrinsic("foreign_callback_state")
+fun <F> foreignCallbackState(callback: ForeignCallback<F>): ForeignCallbackState
+
+@Unsafe
+@Intrinsic("foreign_callback_failure")
+fun <F> foreignCallbackFailure(callback: ForeignCallback<F>): Throwable?
+```
+
+- `F` 必须在registration调用处显式给出，是ordinary、非挂起、完全具体化且逐项C-FFI-safe的native callback函数类型。`contextIndex`和`mode`必须为编译期常量；被选参数必须精确为`Ptr<Unit>`；
+- `callback: Any`只是core声明无法表达“从`F`删除context参数”的占位，不执行装箱。HIR删除`F`中`contextIndex`对应的参数，以所得ordinary concrete函数类型检查managed closure；context cookie不作为实参传给closure，返回类型保持不变；
+- `ForeignCallback<F>`是GC-free值，但不是单个C ABI聚合。调用native API时分别传`function`与`context`；有效值只能由`foreignCallback`产生，用户不能直接构造；
+- `ForeignCallback`是compiler-validated core类型，其`F`可在core声明内作为deferred callback signature用于`FunPtr<F>`；每个实际应用仍必须具体化为合法函数类型。这不引入一般性的`function` kind bound，用户generic类型不能据此用未约束参数绕过`FunPtr`检查；
+- `foreignCallback`与`retainForeignCallback`各产生一份逻辑ownership。普通值复制只是借用别名，不增加计数；每份ownership恰好release一次。`Reusable`由调用者在native API完成unregister并确认不再回调后释放；`OneShot`在native创建成功后把worker ownership转移给callback入口，创建失败则仍由调用者释放。join侧若需观察结果，必须在转移前另retain observer ownership；
+- callback抛出时，trampoline按C签名返回全零值，token保存首个managed异常。完成同步后，observer用`foreignCallbackState` / `foreignCallbackFailure`读取并可在Scoop侧重新抛出；最终release通常置于`finally`。stale token、signature不匹配、one-shot重复调用或runtime终止后调用均为runtime ABI错误；
+- `foreignCallback`只接受普通closure，不接受`suspend`函数值。普通callback可以捕获并调用`Continuation<T>.resume`；这仍不是suspend callback或suspend FFI。
 
 ### 14.4 示例：直接输出 managed `String`
 

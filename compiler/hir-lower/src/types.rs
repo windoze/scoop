@@ -147,6 +147,11 @@ impl Lowerer {
                         return Some(ty);
                     }
                     if Some(struct_id) == self.ffi_fun_ptr {
+                        if self.allow_deferred_fun_ptr
+                            && matches!(self.types[resolved[0]], Type::Param(_))
+                        {
+                            return Some(self.struct_application(struct_id, resolved));
+                        }
                         let Type::Function(function_type) = self.types[resolved[0]] else {
                             self.error(
                                 name.span,
@@ -468,6 +473,15 @@ impl Lowerer {
                 let mut substituted = Vec::with_capacity(args.len());
                 for arg in args {
                     substituted.push(self.instantiate_ty(arg, type_args));
+                }
+                if Some(id) == self.ffi_fun_ptr {
+                    let [function] = substituted.as_slice() else {
+                        unreachable!("validated FunPtr has one type argument")
+                    };
+                    let Type::Function(function) = self.types[*function] else {
+                        unreachable!("deferred FunPtr resolves to a function type")
+                    };
+                    return self.intern_type(Type::FunPtr(function));
                 }
                 self.intern_type(Type::Struct(id, substituted))
             }

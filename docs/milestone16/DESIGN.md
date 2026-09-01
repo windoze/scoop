@@ -1,8 +1,8 @@
-# M15 设计：字符串插值
+# M16 设计：字符串插值
 
 版本：0.2（草案）
 
-对应 `docs/ROADMAP.md` 的 M15。目标：实现 `f"..."` / `f"""..."""`、`${expr}` 插值，以及 spec 6.2 规定的 `StringBuilder` 脱糖。M15 位于 M14 泛型上界与 `ToString` 接口化之后，不再保留早期“仅 String / Int / Boolean”或 always-leak builder 的过渡实现。
+对应 `docs/ROADMAP.md` 的 M16。目标：实现 `f"..."` / `f"""..."""`、`${expr}` 插值，以及 spec 6.2 规定的 `StringBuilder` 脱糖。M16 位于 M14 泛型上界与 `ToString` 接口化、M15 moving compaction之后，不再保留早期“仅 String / Int / Boolean”或 always-leak builder 的过渡实现。
 
 ## 0. 范围与关键决策
 
@@ -10,7 +10,7 @@
 - HIR 脱糖为真实的 core `StringBuilder` 构造和 `add` / `build` 调用，普通重载、generic bound 与单态化负责定型；MIR/LIR 不保留 f-string 专用节点；
 - `StringBuilder` 是 managed core class。其公开 API 与 spec 11.6 一致，内部 storage 由编译器验证的 core contract 和 runtime 后备实现提供；builder 及 backing buffer 都受 M9 GC 管理，不泄漏 native malloc buffer；
 - 孔、字面段与嵌套 f-string 严格从左到右求值，每个孔只求值一次；
-- M15 不增加格式化 mini-language、`$name` 简写或其他字符串前缀。
+- M16 不增加格式化 mini-language、`$name` 简写或其他字符串前缀。
 
 ## 1. 语言子集
 
@@ -141,11 +141,11 @@ runtime API 名称与对象内偏移只存在于 compiler/runtime 的 typed cont
 
 ## 5. MIR / LIR / codegen
 
-- MIR 只接收普通构造、generic实例和 call；`add<T>` 单态化 body按具体 `T` 调用其 bounded `toString` target，再调 `add(String)`；
+- MIR只接收`LocalConcreteHir`中的普通构造、fully instantiated body和call；HIR生成的`add<T>` concrete body按具体`T`调用其bounded `toString` target，再调`add(String)`；
 - hidden builder/hole locals参与现有 CFG、异常 unwind与 coroutine liveness，不设置特殊 cleanup；不可达 builder由 GC自然回收；
 - LIR/codegen复用普通 managed对象、TypeDescriptor、HeapLoad/HeapStore、statepoint和runtime call路径；
 - builder与byte buffer布局/扫描描述进入 LIR golden；grow 后的 buffer store必须保留写屏障；
-- 后续可以把短常量拼接常量折叠或预估容量，但 M15基线不依赖这些优化。
+- 后续可以把短常量拼接常量折叠或预估容量，但 M16基线不依赖这些优化。
 
 ## 6. 测试计划
 

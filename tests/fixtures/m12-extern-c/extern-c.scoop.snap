@@ -54,6 +54,33 @@ SourceFile
     @Intrinsic("align_of")
   fun alignOf<T : value>(): UInt
 SourceFile
+  enum ForeignCallbackMode
+    Reusable
+    OneShot
+  enum ForeignCallbackState
+    Registered
+    Active
+    Completed
+    Failed
+  struct ForeignCallback<F>
+    field function: FunPtr<F>
+    field context: Ptr<Unit>
+    @Unsafe
+    @Intrinsic("foreign_callback_register")
+  fun foreignCallback<F>(callback: Any, contextIndex: Int, mode: ForeignCallbackMode): ForeignCallback<F>
+    @Unsafe
+    @Intrinsic("foreign_callback_retain")
+  fun retainForeignCallback<F>(callback: ForeignCallback<F>): ForeignCallback<F>
+    @Unsafe
+    @Intrinsic("foreign_callback_release")
+  fun releaseForeignCallback<F>(callback: ForeignCallback<F>)
+    @Unsafe
+    @Intrinsic("foreign_callback_state")
+  fun foreignCallbackState<F>(callback: ForeignCallback<F>): ForeignCallbackState
+    @Unsafe
+    @Intrinsic("foreign_callback_failure")
+  fun foreignCallbackFailure<F>(callback: ForeignCallback<F>): Throwable?
+SourceFile
   struct PinnedPtr<T : ref>
     field raw: UInt
   struct GcHandle<T : ref>
@@ -572,8 +599,8 @@ Module
   callback cb1 @scoop.transform.NativePair -> @scoop_callback_bridge_1 function_type1
   callback cb2 @scoop.transform.NativeEnvelope -> @scoop_callback_bridge_2 function_type2
   struct NativePair (left: Int, right: Int) <c-layout aligned=0 packed=0>
-  struct NativePacked (flag: Boolean, value: Int) <c-layout aligned=8 packed=1>
   struct NativeEnvelope (tag: Boolean, packed: NativePacked, tail: UInt) <c-layout aligned=16 packed=0>
+  struct NativePacked (flag: Boolean, value: Int) <c-layout aligned=8 packed=1>
   enum Option$S
     Some(_1: String)
     None()
@@ -593,6 +620,8 @@ Module
   class box$I vtable=3 itables=0
   class box$B vtable=3 itables=0
   interface Continuation$I
+  interface SuspendTask$I
+  interface SuspendRegistration$I
   closure cc0 $Closure$reference0 type=function_type0 invoke=@scoop.$reference.0 captures=0
   fun print @scoop.print(message: Any) -> Unit
     bb0 entry
@@ -891,6 +920,11 @@ Module
         Local $call.1
   coroutine_step cs0 CoroutineStep$I result=Int
   coroutine_fn cf0 @scoop.nativeInsideSuspend$suspend source_return=Int step=cs0 immediate
+  coroutine_fn cf1 @scoop.SuspendTask.run$I$suspend source_return=Int step=cs0 immediate
+  instance @scoop.Continuation.resume$I <- Continuation.resume
+  instance @scoop.Continuation.resumeWithException$I <- Continuation.resumeWithException
+  instance @scoop.SuspendTask.run$I$suspend <- SuspendTask.run
+  instance @scoop.SuspendRegistration.register$I <- SuspendRegistration.register
   str @scoop.str.0 "\n"
   str @scoop.str.1 "unwrap on None"
   str @scoop.str.2 "invalid cast"
@@ -919,8 +953,8 @@ Module
   global @scoop_td_IllegalStateException = c""
   enum Option$S niche(payload_variant=0)
   enum Option$NIRIX niche(payload_variant=0)
-  enum CoroutineStep$I tagged size=8 align=8 variants=(i64) ()
-  extern ef0 write @scoop_rt_write(ptr) -> {} <scoop managed nounwind>
+  enum CoroutineStep$I tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
+  extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
   extern ef1 nativeAdd @native_add(i64, i64) -> i64 <c bridge=@scoop_c_bridge_1 gc-leaf nounwind lib=fixture_native>
   extern ef2 nativeAddUnsigned @native_add_unsigned(i64, i64) -> i64 <c bridge=@scoop_c_bridge_2 gc-leaf nounwind lib=fixture_native>
   extern ef3 nativeDefault @nativeDefault(i64) -> i64 <c bridge=@scoop_c_bridge_3 gc-leaf nounwind lib=fixture_native>
@@ -928,33 +962,33 @@ Module
   extern ef5 nativeNot @native_not(i1) -> i1 <c bridge=@scoop_c_bridge_5 gc-leaf nounwind lib=fixture_native>
   extern ef6 nativeSwap @native_swap(struct0) -> struct0 <c bridge=@scoop_c_bridge_6 gc-leaf nounwind lib=fixture_native>
   extern ef7 nativeSink @native_sink(i64) -> {} <c bridge=@scoop_c_bridge_7 gc-leaf nounwind lib=fixture_native>
-  extern ef8 nativeApply @native_apply(i64, ptr) -> i64 <c bridge=@scoop_c_bridge_8 gc-leaf nounwind lib=fixture_native>
-  extern ef9 nativeApplyPair @native_apply_pair(struct0, ptr) -> struct0 <c bridge=@scoop_c_bridge_9 gc-leaf nounwind lib=fixture_native>
+  extern ef8 nativeApply @native_apply(i64, ptr<code>) -> i64 <c bridge=@scoop_c_bridge_8 gc-leaf nounwind lib=fixture_native>
+  extern ef9 nativeApplyPair @native_apply_pair(struct0, ptr<code>) -> struct0 <c bridge=@scoop_c_bridge_9 gc-leaf nounwind lib=fixture_native>
   extern ef10 nativeApplyOptional @native_apply_optional(i64, enum1) -> i64 <c bridge=@scoop_c_bridge_10 gc-leaf nounwind lib=fixture_native>
-  extern ef11 nativeRoundTripEnvelope @native_round_trip_envelope(struct2, ptr) -> struct2 <c bridge=@scoop_c_bridge_11 gc-leaf nounwind lib=fixture_native>
+  extern ef11 nativeRoundTripEnvelope @native_round_trip_envelope(struct1, ptr<code>) -> struct1 <c bridge=@scoop_c_bridge_11 gc-leaf nounwind lib=fixture_native>
   callback cb0 transform @scoop_callback_bridge_0 -> @scoop_c_callback_0
   callback cb1 transform @scoop_callback_bridge_1 -> @scoop_c_callback_1
   callback cb2 transform @scoop_callback_bridge_2 -> @scoop_c_callback_2
-  fun @scoop.print(ptr) -> void
-    local %0 $call.1: ptr
+  fun @scoop.print(ptr<managed>) -> void
+    local %0 $call.1: ptr<managed>
   block entry
-    t0 = heap_load param0 +0 : ptr
-    t1 = heap_load t0 +40 : ptr
-    t2 = call_indirect t1[2](param0) : ptr
+    t0 = heap_load param0 +0 : ptr<metadata>
+    t1 = heap_load t0 +40 : ptr<metadata>
+    t2 = call_indirect t1[2](param0) : ptr<managed>
     store t2 -> local0
-    native_call extern0(local0)
+    native_call[native-borrowed] extern0(local0)
     t3 = aggregate () : {}
     ret
-  fun @scoop.println(ptr) -> void
-    local %0 $call.1: ptr
+  fun @scoop.println(ptr<managed>) -> void
+    local %0 $call.1: ptr<managed>
   block entry
-    t0 = heap_load param0 +0 : ptr
-    t1 = heap_load t0 +40 : ptr
-    t2 = call_indirect t1[2](param0) : ptr
+    t0 = heap_load param0 +0 : ptr<metadata>
+    t1 = heap_load t0 +40 : ptr<metadata>
+    t2 = call_indirect t1[2](param0) : ptr<managed>
     store t2 -> local0
-    native_call extern0(local0)
+    native_call[native-borrowed] extern0(local0)
     t3 = aggregate () : {}
-    native_call extern0(global0)
+    native_call[native-borrowed] extern0(global0)
     t4 = aggregate () : {}
     ret
   fun @scoop.transform.I(i64) -> i64 <no-gc>
@@ -969,43 +1003,41 @@ Module
     t3 = Add t2, 20 : i64
     t4 = aggregate (t1, t3) : struct0
     ret t4
-  fun @scoop.transform.NativeEnvelope(struct2) -> struct2 <no-gc>
+  fun @scoop.transform.NativeEnvelope(struct1) -> struct1 <no-gc>
   block entry
     t0 = extract param0, 0 : i1
     t1 = Not t0 : i1
-    t2 = extract param0, 1 : struct1
+    t2 = extract param0, 1 : struct2
     t3 = extract t2, 0 : i1
     t4 = Not t3 : i1
-    t5 = extract param0, 1 : struct1
+    t5 = extract param0, 1 : struct2
     t6 = extract t5, 1 : i64
     t7 = Add t6, 10 : i64
-    t8 = aggregate (t4, t7) : struct1
+    t8 = aggregate (t4, t7) : struct2
     t9 = extract param0, 2 : i64
     t10 = Add t9, 8 : i64
-    t11 = aggregate (t1, t8, t10) : struct2
+    t11 = aggregate (t1, t8, t10) : struct1
     ret t11
-  fun @scoop.nativeInsideSuspend$suspend(ptr) -> enum2
+  fun @scoop.nativeInsideSuspend$suspend(ptr<managed>) -> enum2
     local %0 $call.1: i64
     local %1 $sc.1: i64
     local %2 $sc.2: i64
-    local %3 $sc.3: i64
   block entry
-    t0 = local_address local1 : ptr
-    store 20 -> local2
-    t1 = local_address local2 : ptr
-    store 22 -> local3
-    t2 = local_address local3 : ptr
-    native_call extern1(t0, t1, t2)
-    store local1 -> local0
+    store 20 -> local1
+    t1 = local_address local1 : ptr
+    store 22 -> local2
+    t2 = local_address local2 : ptr
+    t0 = native_call[native-safe] extern1(t1, t2) : i64
+    store t0 -> local0
     t3 = enum_wrap e2 v0 (local0) : enum2
     ret t3
   fun @scoop_main() -> void
-    local %0 managed: ptr
+    local %0 managed: ptr<managed>
     local %1 noCallback: enum1
     local %2 someCallback: enum1
     local %3 swapped: struct0
     local %4 shifted: struct0
-    local %5 envelope: struct2
+    local %5 envelope: struct1
     local %6 $call.1: i64
     local %7 $call.2: i64
     local %8 $call.3: i64
@@ -1021,32 +1053,21 @@ Module
     local %18 $sc.4: i64
     local %19 $sc.5: i64
     local %20 $sc.6: i64
-    local %21 $sc.7: i64
-    local %22 $sc.8: i64
+    local %21 $sc.7: i1
+    local %22 $sc.8: struct0
     local %23 $sc.9: i64
     local %24 $sc.10: i64
-    local %25 $sc.11: i1
-    local %26 $sc.12: i1
-    local %27 $sc.13: struct0
-    local %28 $sc.14: struct0
-    local %29 $sc.15: i64
-    local %30 $sc.16: i64
-    local %31 $sc.17: i64
-    local %32 $sc.18: ptr
-    local %33 $sc.19: i64
-    local %34 $sc.20: i64
-    local %35 $sc.21: enum1
-    local %36 $sc.22: i64
-    local %37 $sc.23: i64
-    local %38 $sc.24: enum1
-    local %39 $sc.25: struct0
-    local %40 $sc.26: struct0
-    local %41 $sc.27: ptr
-    local %42 $sc.28: struct2
-    local %43 $sc.29: struct2
-    local %44 $sc.30: ptr
+    local %25 $sc.11: ptr<code>
+    local %26 $sc.12: i64
+    local %27 $sc.13: enum1
+    local %28 $sc.14: i64
+    local %29 $sc.15: enum1
+    local %30 $sc.16: struct0
+    local %31 $sc.17: ptr<code>
+    local %32 $sc.18: struct1
+    local %33 $sc.19: ptr<code>
   block entry
-    t0 = call @scoop_rt_alloc(global6, 24) : ptr
+    t0 = call @scoop_rt_alloc(global6, 24) : ptr<managed>
     t1 = function_address @scoop.$reference.0 : ptr
     heap_store t0 +16 t1
     store t0 -> local0
@@ -1057,198 +1078,187 @@ Module
     store t4 -> local2
     t5 = call_indirect local0[2](local0, 40) : i64
     store t5 -> local6
-    t6 = call @scoop_rt_box(global7, local6, 8) : ptr
+    t6 = call @scoop_rt_box(global7, local6, 8) : ptr<managed>
     call @scoop.println(t6)
     t7 = aggregate () : {}
-    t8 = local_address local15 : ptr
-    store 19 -> local16
-    t9 = local_address local16 : ptr
-    store 23 -> local17
-    t10 = local_address local17 : ptr
-    native_call extern1(t8, t9, t10)
-    store local15 -> local7
-    t11 = call @scoop_rt_box(global7, local7, 8) : ptr
+    store 19 -> local15
+    t9 = local_address local15 : ptr
+    store 23 -> local16
+    t10 = local_address local16 : ptr
+    t8 = native_call[native-safe] extern1(t9, t10) : i64
+    store t8 -> local7
+    t11 = call @scoop_rt_box(global7, local7, 8) : ptr<managed>
     call @scoop.println(t11)
     t12 = aggregate () : {}
-    t13 = local_address local18 : ptr
-    store 8 -> local19
-    t14 = local_address local19 : ptr
-    store 8 -> local20
-    t15 = local_address local20 : ptr
-    native_call extern2(t13, t14, t15)
-    store local18 -> local8
+    store 8 -> local17
+    t14 = local_address local17 : ptr
+    store 8 -> local18
+    t15 = local_address local18 : ptr
+    t13 = native_call[native-safe] extern2(t14, t15) : i64
+    store t13 -> local8
     t16 = Eq local8, 16 : i1
-    t17 = call @scoop_rt_box(global8, t16, 1) : ptr
+    t17 = call @scoop_rt_box(global8, t16, 1) : ptr<managed>
     call @scoop.println(t17)
     t18 = aggregate () : {}
-    t19 = local_address local21 : ptr
-    store 8 -> local22
-    t20 = local_address local22 : ptr
-    native_call extern3(t19, t20)
-    store local21 -> local9
+    store 8 -> local19
+    t20 = local_address local19 : ptr
+    t19 = native_call[native-safe] extern3(t20) : i64
+    store t19 -> local9
     t21 = Eq local9, 16 : i1
-    t22 = call @scoop_rt_box(global8, t21, 1) : ptr
+    t22 = call @scoop_rt_box(global8, t21, 1) : ptr<managed>
     call @scoop.println(t22)
     t23 = aggregate () : {}
-    t24 = local_address local23 : ptr
-    store 47 -> local24
-    t25 = local_address local24 : ptr
-    native_call extern4(t24, t25)
-    store local23 -> local10
-    t26 = call @scoop_rt_box(global7, local10, 8) : ptr
+    store 47 -> local20
+    t25 = local_address local20 : ptr
+    t24 = native_call[native-safe] extern4(t25) : i64
+    store t24 -> local10
+    t26 = call @scoop_rt_box(global7, local10, 8) : ptr<managed>
     call @scoop.println(t26)
     t27 = aggregate () : {}
-    t28 = local_address local25 : ptr
-    store false -> local26
-    t29 = local_address local26 : ptr
-    native_call extern5(t28, t29)
-    store local25 -> local11
-    t30 = call @scoop_rt_box(global8, local11, 1) : ptr
+    store false -> local21
+    t29 = local_address local21 : ptr
+    t28 = native_call[native-safe] extern5(t29) : i1
+    store t28 -> local11
+    t30 = call @scoop_rt_box(global8, local11, 1) : ptr<managed>
     call @scoop.println(t30)
     t31 = aggregate () : {}
     t32 = aggregate (7, 11) : struct0
-    t33 = local_address local27 : ptr
-    store t32 -> local28
-    t34 = local_address local28 : ptr
-    native_call extern6(t33, t34)
-    store local27 -> local3
+    store t32 -> local22
+    t34 = local_address local22 : ptr
+    t33 = native_call[native-safe] extern6(t34) : struct0
+    store t33 -> local3
     t35 = extract local3, 0 : i64
-    t36 = call @scoop_rt_box(global7, t35, 8) : ptr
+    t36 = call @scoop_rt_box(global7, t35, 8) : ptr<managed>
     call @scoop.println(t36)
     t37 = aggregate () : {}
     t38 = extract local3, 1 : i64
-    t39 = call @scoop_rt_box(global7, t38, 8) : ptr
+    t39 = call @scoop_rt_box(global7, t38, 8) : ptr<managed>
     call @scoop.println(t39)
     t40 = aggregate () : {}
-    store 1 -> local29
-    t41 = local_address local29 : ptr
-    native_call extern7(t41)
+    store 1 -> local23
+    t41 = local_address local23 : ptr
+    native_call[native-safe] extern7(t41)
     t42 = aggregate () : {}
     t43 = function_address @scoop_c_callback_0 : ptr
-    t44 = local_address local30 : ptr
-    store 41 -> local31
-    t45 = local_address local31 : ptr
-    store t43 -> local32
-    t46 = local_address local32 : ptr
-    native_call extern8(t44, t45, t46)
-    store local30 -> local12
-    t47 = call @scoop_rt_box(global7, local12, 8) : ptr
+    store 41 -> local24
+    t45 = local_address local24 : ptr
+    store t43 -> local25
+    t46 = local_address local25 : ptr
+    t44 = native_call[native-safe] extern8(t45, t46) : i64
+    store t44 -> local12
+    t47 = call @scoop_rt_box(global7, local12, 8) : ptr<managed>
     call @scoop.println(t47)
     t48 = aggregate () : {}
-    t49 = local_address local33 : ptr
-    store 7 -> local34
-    t50 = local_address local34 : ptr
-    store local1 -> local35
-    t51 = local_address local35 : ptr
-    native_call extern10(t49, t50, t51)
-    store local33 -> local13
-    t52 = call @scoop_rt_box(global7, local13, 8) : ptr
+    store 7 -> local26
+    t50 = local_address local26 : ptr
+    store local1 -> local27
+    t51 = local_address local27 : ptr
+    t49 = native_call[native-safe] extern10(t50, t51) : i64
+    store t49 -> local13
+    t52 = call @scoop_rt_box(global7, local13, 8) : ptr<managed>
     call @scoop.println(t52)
     t53 = aggregate () : {}
-    t54 = local_address local36 : ptr
-    store 8 -> local37
-    t55 = local_address local37 : ptr
-    store local2 -> local38
-    t56 = local_address local38 : ptr
-    native_call extern10(t54, t55, t56)
-    store local36 -> local14
-    t57 = call @scoop_rt_box(global7, local14, 8) : ptr
+    store 8 -> local28
+    t55 = local_address local28 : ptr
+    store local2 -> local29
+    t56 = local_address local29 : ptr
+    t54 = native_call[native-safe] extern10(t55, t56) : i64
+    store t54 -> local14
+    t57 = call @scoop_rt_box(global7, local14, 8) : ptr<managed>
     call @scoop.println(t57)
     t58 = aggregate () : {}
     t59 = aggregate (3, 4) : struct0
     t60 = function_address @scoop_c_callback_1 : ptr
-    t61 = local_address local39 : ptr
-    store t59 -> local40
-    t62 = local_address local40 : ptr
-    store t60 -> local41
-    t63 = local_address local41 : ptr
-    native_call extern9(t61, t62, t63)
-    store local39 -> local4
+    store t59 -> local30
+    t62 = local_address local30 : ptr
+    store t60 -> local31
+    t63 = local_address local31 : ptr
+    t61 = native_call[native-safe] extern9(t62, t63) : struct0
+    store t61 -> local4
     t64 = extract local4, 0 : i64
-    t65 = call @scoop_rt_box(global7, t64, 8) : ptr
+    t65 = call @scoop_rt_box(global7, t64, 8) : ptr<managed>
     call @scoop.println(t65)
     t66 = aggregate () : {}
     t67 = extract local4, 1 : i64
-    t68 = call @scoop_rt_box(global7, t67, 8) : ptr
+    t68 = call @scoop_rt_box(global7, t67, 8) : ptr<managed>
     call @scoop.println(t68)
     t69 = aggregate () : {}
-    t70 = aggregate (false, 7) : struct1
-    t71 = aggregate (true, t70, 32) : struct2
+    t70 = aggregate (false, 7) : struct2
+    t71 = aggregate (true, t70, 32) : struct1
     t72 = function_address @scoop_c_callback_2 : ptr
-    t73 = local_address local42 : ptr
-    store t71 -> local43
-    t74 = local_address local43 : ptr
-    store t72 -> local44
-    t75 = local_address local44 : ptr
-    native_call extern11(t73, t74, t75)
-    store local42 -> local5
+    store t71 -> local32
+    t74 = local_address local32 : ptr
+    store t72 -> local33
+    t75 = local_address local33 : ptr
+    t73 = native_call[native-safe] extern11(t74, t75) : struct1
+    store t73 -> local5
     t76 = extract local5, 0 : i1
-    t77 = call @scoop_rt_box(global8, t76, 1) : ptr
+    t77 = call @scoop_rt_box(global8, t76, 1) : ptr<managed>
     call @scoop.println(t77)
     t78 = aggregate () : {}
-    t79 = extract local5, 1 : struct1
+    t79 = extract local5, 1 : struct2
     t80 = extract t79, 0 : i1
-    t81 = call @scoop_rt_box(global8, t80, 1) : ptr
+    t81 = call @scoop_rt_box(global8, t80, 1) : ptr<managed>
     call @scoop.println(t81)
     t82 = aggregate () : {}
-    t83 = extract local5, 1 : struct1
+    t83 = extract local5, 1 : struct2
     t84 = extract t83, 1 : i64
-    t85 = call @scoop_rt_box(global7, t84, 8) : ptr
+    t85 = call @scoop_rt_box(global7, t84, 8) : ptr<managed>
     call @scoop.println(t85)
     t86 = aggregate () : {}
     t87 = extract local5, 2 : i64
     t88 = Add 32, 8 : i64
     t89 = Eq t87, t88 : i1
-    t90 = call @scoop_rt_box(global8, t89, 1) : ptr
+    t90 = call @scoop_rt_box(global8, t89, 1) : ptr<managed>
     call @scoop.println(t90)
     t91 = aggregate () : {}
     ret
-  fun @scoop.$reference.0(ptr, i64) -> i64
+  fun @scoop.$reference.0(ptr<managed>, i64) -> i64
     local %0 $call.1: i64
   block entry
     t0 = call @scoop.transform.I(param1) : i64
     store t0 -> local0
     ret local0
-  fun @scoop.ctor.Throwable() -> ptr
+  fun @scoop.ctor.Throwable() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global9, 16) : ptr
+    t0 = call @scoop_rt_alloc(global9, 16) : ptr<managed>
     ret t0
-  fun @scoop.ctor.Exception(enum0) -> ptr
+  fun @scoop.ctor.Exception(enum0) -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global10, 24) : ptr
+    t0 = call @scoop_rt_alloc(global10, 24) : ptr<managed>
     heap_store t0 +16 param0
     ret t0
-  fun @scoop.ctor.UnwrapException() -> ptr
+  fun @scoop.ctor.UnwrapException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global11, 24) : ptr
+    t0 = call @scoop_rt_alloc(global11, 24) : ptr<managed>
     t1 = enum_wrap e0 v0 (global1) : enum0
     heap_store t0 +16 t1
     ret t0
-  fun @scoop.ctor.ClassCastException() -> ptr
+  fun @scoop.ctor.ClassCastException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global12, 24) : ptr
+    t0 = call @scoop_rt_alloc(global12, 24) : ptr<managed>
     t1 = enum_wrap e0 v0 (global2) : enum0
     heap_store t0 +16 t1
     ret t0
-  fun @scoop.ctor.ArithmeticException() -> ptr
+  fun @scoop.ctor.ArithmeticException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global13, 24) : ptr
+    t0 = call @scoop_rt_alloc(global13, 24) : ptr<managed>
     t1 = enum_wrap e0 v0 (global3) : enum0
     heap_store t0 +16 t1
     ret t0
-  fun @scoop.ctor.IndexOutOfBoundsException() -> ptr
+  fun @scoop.ctor.IndexOutOfBoundsException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global14, 24) : ptr
+    t0 = call @scoop_rt_alloc(global14, 24) : ptr<managed>
     t1 = enum_wrap e0 v0 (global4) : enum0
     heap_store t0 +16 t1
     ret t0
-  fun @scoop.ctor.IllegalStateException() -> ptr
+  fun @scoop.ctor.IllegalStateException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global15, 24) : ptr
+    t0 = call @scoop_rt_alloc(global15, 24) : ptr<managed>
     t1 = enum_wrap e0 v0 (global5) : enum0
     heap_store t0 +16 t1
     ret t0
-  fun @scoop_callback_bridge_0(ptr, ptr) -> void <no-gc>
+  fun @scoop_callback_bridge_0(ptr<raw>, ptr<raw>) -> void <no-gc>
     local %0 $value: i64
   block entry
     t0 = raw_load param1 align 8 : i64
@@ -1257,7 +1267,7 @@ Module
     raw_store param0 local0 align 8
     t2 = aggregate () : {}
     ret
-  fun @scoop_callback_bridge_1(ptr, ptr) -> void <no-gc>
+  fun @scoop_callback_bridge_1(ptr<raw>, ptr<raw>) -> void <no-gc>
     local %0 $value: struct0
   block entry
     t0 = raw_load param1 align 8 : struct0
@@ -1266,16 +1276,16 @@ Module
     raw_store param0 local0 align 8
     t2 = aggregate () : {}
     ret
-  fun @scoop_callback_bridge_2(ptr, ptr) -> void <no-gc>
-    local %0 $value: struct2
+  fun @scoop_callback_bridge_2(ptr<raw>, ptr<raw>) -> void <no-gc>
+    local %0 $value: struct1
   block entry
-    t0 = raw_load param1 align 16 : struct2
-    t1 = call @scoop.transform.NativeEnvelope(t0) : struct2
+    t0 = raw_load param1 align 16 : struct1
+    t1 = call @scoop.transform.NativeEnvelope(t0) : struct1
     store t1 -> local0
     raw_store param0 local0 align 16
     t2 = aggregate () : {}
     ret
-  fun @scoop.eq.I(ptr, ptr) -> i1
+  fun @scoop.eq.I(ptr<managed>, ptr<managed>) -> i1
     local %0 $a: i64
     local %1 $b: i64
   block entry
@@ -1285,14 +1295,14 @@ Module
     store t1 -> local1
     t2 = Eq local0, local1 : i1
     ret t2
-  fun @scoop.tostring.I(ptr) -> ptr
-    local %0 $call.1: ptr
+  fun @scoop.tostring.I(ptr<managed>) -> ptr<managed>
+    local %0 $call.1: ptr<managed>
   block entry
     t0 = heap_load param0 +16 : i64
-    t1 = call @scoop_rt_int_to_string(t0) : ptr
+    t1 = call @scoop_rt_int_to_string(t0) : ptr<managed>
     store t1 -> local0
     ret local0
-  fun @scoop.eq.B(ptr, ptr) -> i1
+  fun @scoop.eq.B(ptr<managed>, ptr<managed>) -> i1
     local %0 $a: i1
     local %1 $b: i1
   block entry
@@ -1302,14 +1312,16 @@ Module
     store t1 -> local1
     t2 = Eq local0, local1 : i1
     ret t2
-  fun @scoop.tostring.B(ptr) -> ptr
-    local %0 $call.1: ptr
+  fun @scoop.tostring.B(ptr<managed>) -> ptr<managed>
+    local %0 $call.1: ptr<managed>
   block entry
     t0 = heap_load param0 +16 : i1
-    t1 = call @scoop_rt_bool_to_string(t0) : ptr
+    t1 = call @scoop_rt_bool_to_string(t0) : ptr<managed>
     store t1 -> local0
     ret local0
   td Continuation$I @scoop_td_Continuation$I size=0 vtable=0 itables=0
+  td SuspendTask$I @scoop_td_SuspendTask$I size=0 vtable=0 itables=0
+  td SuspendRegistration$I @scoop_td_SuspendRegistration$I size=0 vtable=0 itables=0
   td function$FIRIX @scoop_td_function$FIRIX size=0 vtable=0 itables=0
   td function$FNativePairRNativePairX @scoop_td_function$FNativePairRNativePairX size=0 vtable=0 itables=0
   td function$FNativeEnvelopeRNativeEnvelopeX @scoop_td_function$FNativeEnvelopeRNativeEnvelopeX size=0 vtable=0 itables=0
@@ -1328,13 +1340,13 @@ Module
   layout Boolean size=1 align=1 refs=[]
   layout NativePair size=16 align=8 refs=[]
   layout-meta NativePair c-layout(aligned=0,packed=0) fields=[0@8,8@8] interior-mutable=false
-  layout NativePacked size=16 align=8 refs=[]
-  layout-meta NativePacked c-layout(aligned=8,packed=1) fields=[0@1,1@1] interior-mutable=false
   layout NativeEnvelope size=32 align=16 refs=[]
   layout-meta NativeEnvelope c-layout(aligned=16,packed=0) fields=[0@1,8@8,24@8] interior-mutable=false
-  layout Option$S size=8 align=8 enum-refs=[[0], []]
-  layout Option$NIRIX size=8 align=8 enum-refs=[[], []]
-  layout CoroutineStep$I size=16 align=8 enum-refs=[[], []]
+  layout NativePacked size=16 align=8 refs=[]
+  layout-meta NativePacked c-layout(aligned=8,packed=1) fields=[0@1,1@1] interior-mutable=false
+  layout Option$S size=8 align=8 enum-scan=refs[0]
+  layout Option$NIRIX size=8 align=8 enum-scan=none
+  layout CoroutineStep$I size=16 align=8 enum-scan=none
   layout Throwable size=16 align=8 refs=[]
   layout Exception size=24 align=8 refs=[16]
   layout UnwrapException size=24 align=8 refs=[16]

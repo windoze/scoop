@@ -54,6 +54,33 @@ SourceFile
     @Intrinsic("align_of")
   fun alignOf<T : value>(): UInt
 SourceFile
+  enum ForeignCallbackMode
+    Reusable
+    OneShot
+  enum ForeignCallbackState
+    Registered
+    Active
+    Completed
+    Failed
+  struct ForeignCallback<F>
+    field function: FunPtr<F>
+    field context: Ptr<Unit>
+    @Unsafe
+    @Intrinsic("foreign_callback_register")
+  fun foreignCallback<F>(callback: Any, contextIndex: Int, mode: ForeignCallbackMode): ForeignCallback<F>
+    @Unsafe
+    @Intrinsic("foreign_callback_retain")
+  fun retainForeignCallback<F>(callback: ForeignCallback<F>): ForeignCallback<F>
+    @Unsafe
+    @Intrinsic("foreign_callback_release")
+  fun releaseForeignCallback<F>(callback: ForeignCallback<F>)
+    @Unsafe
+    @Intrinsic("foreign_callback_state")
+  fun foreignCallbackState<F>(callback: ForeignCallback<F>): ForeignCallbackState
+    @Unsafe
+    @Intrinsic("foreign_callback_failure")
+  fun foreignCallbackFailure<F>(callback: ForeignCallback<F>): Throwable?
+SourceFile
   struct PinnedPtr<T : ref>
     field raw: UInt
   struct GcHandle<T : ref>
@@ -298,6 +325,10 @@ Module
   class box$Tag vtable=3 itables=1
   class box$B vtable=3 itables=0
   interface Describable
+  fun Tag.describe @scoop.Tag.describe(this: Tag) -> String
+    bb0 entry
+      return
+        StringConst @scoop.str.0
   fun print @scoop.print(message: Any) -> Unit
     bb0 entry
       call $call.1: String = @scoop.Any.toString virtual[2]
@@ -312,12 +343,17 @@ Module
       call extern0 @scoop_rt_write direct
         Local $call.1
       call extern0 @scoop_rt_write direct
-        StringConst @scoop.str.0
+        StringConst @scoop.str.1
       return
+  fun Doc.describe @scoop.Doc.describe(this: Doc) -> String
+    bb0 entry
+      return
+        FieldAccess 0
+          Local this
   fun main @scoop_main() -> Unit
     bb0 entry
       call d: Doc = @scoop.ctor.Doc direct
-        StringConst @scoop.str.1
+        StringConst @scoop.str.2
       call $call.1: Any = @scoop.Doc.describe direct
         Local d
       call @scoop.println direct
@@ -428,15 +464,6 @@ Module
       assign $logic.4
         Local $logic.5
       goto bb12
-  fun Doc.describe @scoop.Doc.describe(this: Doc) -> String
-    bb0 entry
-      return
-        FieldAccess 0
-          Local this
-  fun Tag.describe @scoop.Tag.describe(this: Tag) -> String
-    bb0 entry
-      return
-        StringConst @scoop.str.2
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
     bb0 entry
       return
@@ -521,9 +548,9 @@ Module
           Local this
       return
         Local $call.1
-  str @scoop.str.0 "\n"
-  str @scoop.str.1 "report"
-  str @scoop.str.2 "tag"
+  str @scoop.str.0 "tag"
+  str @scoop.str.1 "\n"
+  str @scoop.str.2 "report"
   str @scoop.str.3 "unwrap on None"
   str @scoop.str.4 "invalid cast"
   str @scoop.str.5 "arithmetic error"
@@ -533,9 +560,9 @@ Module
 
 == lir ==
 Module
-  global @scoop.str.0 = "\n"
-  global @scoop.str.1 = "report"
-  global @scoop.str.2 = "tag"
+  global @scoop.str.0 = "tag"
+  global @scoop.str.1 = "\n"
+  global @scoop.str.2 = "report"
   global @scoop.str.3 = "unwrap on None"
   global @scoop.str.4 = "invalid cast"
   global @scoop.str.5 = "arithmetic error"
@@ -554,74 +581,81 @@ Module
   global @scoop_td_Doc = c""
   enum Option$S niche(payload_variant=0)
   enum Option$Describable niche(payload_variant=0)
-  extern ef0 write @scoop_rt_write(ptr) -> {} <scoop managed nounwind>
-  fun @scoop.print(ptr) -> void
-    local %0 $call.1: ptr
+  extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
+  fun @scoop.Tag.describe(struct0) -> ptr<managed>
   block entry
-    t0 = heap_load param0 +0 : ptr
-    t1 = heap_load t0 +40 : ptr
-    t2 = call_indirect t1[2](param0) : ptr
+    ret global0
+  fun @scoop.print(ptr<managed>) -> void
+    local %0 $call.1: ptr<managed>
+  block entry
+    t0 = heap_load param0 +0 : ptr<metadata>
+    t1 = heap_load t0 +40 : ptr<metadata>
+    t2 = call_indirect t1[2](param0) : ptr<managed>
     store t2 -> local0
-    native_call extern0(local0)
+    native_call[native-borrowed] extern0(local0)
     t3 = aggregate () : {}
     ret
-  fun @scoop.println(ptr) -> void
-    local %0 $call.1: ptr
+  fun @scoop.println(ptr<managed>) -> void
+    local %0 $call.1: ptr<managed>
   block entry
-    t0 = heap_load param0 +0 : ptr
-    t1 = heap_load t0 +40 : ptr
-    t2 = call_indirect t1[2](param0) : ptr
+    t0 = heap_load param0 +0 : ptr<metadata>
+    t1 = heap_load t0 +40 : ptr<metadata>
+    t2 = call_indirect t1[2](param0) : ptr<managed>
     store t2 -> local0
-    native_call extern0(local0)
+    native_call[native-borrowed] extern0(local0)
     t3 = aggregate () : {}
-    native_call extern0(global0)
+    native_call[native-borrowed] extern0(global1)
     t4 = aggregate () : {}
     ret
+  fun @scoop.Doc.describe(ptr<managed>) -> ptr<managed>
+  block entry
+    t0 = heap_load param0 +16 : ptr<managed>
+    ret t0
   fun @scoop_main() -> void
-    local %0 d: ptr
-    local %1 i: ptr
+    local %0 d: ptr<managed>
+    local %1 i: ptr<managed>
     local %2 t: struct0
-    local %3 ti: ptr
-    local %4 a: ptr
-    local %5 $cast.1: ptr
+    local %3 ti: ptr<managed>
+    local %4 a: ptr<managed>
+    local %5 $cast.1: ptr<managed>
     local %6 $cast.2: enum1
-    local %7 $cast.3: ptr
+    local %7 $cast.3: ptr<managed>
     local %8 $cast.4: enum1
-    local %9 $cast.5: ptr
+    local %9 $cast.5: ptr<managed>
     local %10 $cast.6: enum1
-    local %11 $call.1: ptr
-    local %12 $call.2: ptr
-    local %13 $call.3: ptr
+    local %11 $call.1: ptr<managed>
+    local %12 $call.2: ptr<managed>
+    local %13 $call.3: ptr<managed>
     local %14 $logic.4: i1
     local %15 $logic.5: i1
   block entry
-    t0 = call @scoop.ctor.Doc(global1) : ptr
+    t0 = call @scoop.ctor.Doc(global2) : ptr<managed>
     store t0 -> local0
-    t1 = call @scoop.Doc.describe(local0) : ptr
+    t1 = call @scoop.Doc.describe(local0) : ptr<managed>
     store t1 -> local11
     call @scoop.println(local11)
     t2 = aggregate () : {}
     store local0 -> local1
-    t3 = heap_load local1 +0 : ptr
-    t4 = call @scoop_rt_itable_lookup(t3, global8) : ptr
-    t5 = call_indirect t4[0](local1) : ptr
+    t3 = heap_load local1 +0 : ptr<metadata>
+    t4 = call @scoop_rt_itable_lookup(t3, global8) : ptr<metadata>
+    t5 = call_indirect t4[0](local1) : ptr<managed>
     store t5 -> local12
     call @scoop.println(local12)
     t6 = aggregate () : {}
     t7 = aggregate (1) : struct0
     store t7 -> local2
-    t8 = call @scoop_rt_box(global9, local2, 8) : ptr
+    t8 = call @scoop_rt_box(global9, local2, 8) : ptr<managed>
     store t8 -> local3
-    t9 = heap_load local3 +0 : ptr
-    t10 = call @scoop_rt_itable_lookup(t9, global8) : ptr
-    t11 = call_indirect t10[0](local3) : ptr
+    t9 = heap_load local3 +0 : ptr<metadata>
+    t10 = call @scoop_rt_itable_lookup(t9, global8) : ptr<metadata>
+    t11 = call_indirect t10[0](local3) : ptr<managed>
     store t11 -> local13
     call @scoop.println(local13)
     t12 = aggregate () : {}
-    t13 = call @scoop_rt_box(global9, local2, 8) : ptr
+    t13 = call @scoop_rt_box(global9, local2, 8) : ptr<managed>
     store t13 -> local4
     t14 = call @scoop_rt_is_instance(local4, global9) : i1
-    t15 = call @scoop_rt_box(global10, t14, 1) : ptr
+    t15 = call @scoop_rt_box(global10, t14, 1) : ptr<managed>
     call @scoop.println(t15)
     t16 = aggregate () : {}
     store local4 -> local5
@@ -673,7 +707,7 @@ Module
     store true -> local14
     br @logic.merge.12
   block logic.merge.12
-    t32 = call @scoop_rt_box(global10, local14, 1) : ptr
+    t32 = call @scoop_rt_box(global10, local14, 1) : ptr<managed>
     call @scoop.println(t32)
     t33 = aggregate () : {}
     ret
@@ -690,58 +724,51 @@ Module
   block logic.merge.15
     store local15 -> local14
     br @logic.merge.12
-  fun @scoop.Doc.describe(ptr) -> ptr
+  fun @scoop.ctor.Throwable() -> ptr<managed>
   block entry
-    t0 = heap_load param0 +16 : ptr
+    t0 = call @scoop_rt_alloc(global11, 16) : ptr<managed>
     ret t0
-  fun @scoop.Tag.describe(struct0) -> ptr
+  fun @scoop.ctor.Exception(enum0) -> ptr<managed>
   block entry
-    ret global2
-  fun @scoop.ctor.Throwable() -> ptr
-  block entry
-    t0 = call @scoop_rt_alloc(global11, 16) : ptr
-    ret t0
-  fun @scoop.ctor.Exception(enum0) -> ptr
-  block entry
-    t0 = call @scoop_rt_alloc(global12, 24) : ptr
+    t0 = call @scoop_rt_alloc(global12, 24) : ptr<managed>
     heap_store t0 +16 param0
     ret t0
-  fun @scoop.ctor.UnwrapException() -> ptr
+  fun @scoop.ctor.UnwrapException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global13, 24) : ptr
+    t0 = call @scoop_rt_alloc(global13, 24) : ptr<managed>
     t1 = enum_wrap e0 v0 (global3) : enum0
     heap_store t0 +16 t1
     ret t0
-  fun @scoop.ctor.ClassCastException() -> ptr
+  fun @scoop.ctor.ClassCastException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global14, 24) : ptr
+    t0 = call @scoop_rt_alloc(global14, 24) : ptr<managed>
     t1 = enum_wrap e0 v0 (global4) : enum0
     heap_store t0 +16 t1
     ret t0
-  fun @scoop.ctor.ArithmeticException() -> ptr
+  fun @scoop.ctor.ArithmeticException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global15, 24) : ptr
+    t0 = call @scoop_rt_alloc(global15, 24) : ptr<managed>
     t1 = enum_wrap e0 v0 (global5) : enum0
     heap_store t0 +16 t1
     ret t0
-  fun @scoop.ctor.IndexOutOfBoundsException() -> ptr
+  fun @scoop.ctor.IndexOutOfBoundsException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global16, 24) : ptr
+    t0 = call @scoop_rt_alloc(global16, 24) : ptr<managed>
     t1 = enum_wrap e0 v0 (global6) : enum0
     heap_store t0 +16 t1
     ret t0
-  fun @scoop.ctor.IllegalStateException() -> ptr
+  fun @scoop.ctor.IllegalStateException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global17, 24) : ptr
+    t0 = call @scoop_rt_alloc(global17, 24) : ptr<managed>
     t1 = enum_wrap e0 v0 (global7) : enum0
     heap_store t0 +16 t1
     ret t0
-  fun @scoop.ctor.Doc(ptr) -> ptr
+  fun @scoop.ctor.Doc(ptr<managed>) -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global18, 24) : ptr
+    t0 = call @scoop_rt_alloc(global18, 24) : ptr<managed>
     heap_store t0 +16 param0
     ret t0
-  fun @scoop.eq.Tag(ptr, ptr) -> i1
+  fun @scoop.eq.Tag(ptr<managed>, ptr<managed>) -> i1
     local %0 $a: struct0
     local %1 $b: struct0
   block entry
@@ -753,14 +780,14 @@ Module
     t3 = extract local1, 0 : i64
     t4 = Eq t2, t3 : i1
     ret t4
-  fun @scoop.thunk.Tag.Describable.describe(ptr) -> ptr
-    local %0 $call.1: ptr
+  fun @scoop.thunk.Tag.Describable.describe(ptr<managed>) -> ptr<managed>
+    local %0 $call.1: ptr<managed>
   block entry
     t0 = heap_load param0 +16 : struct0
-    t1 = call @scoop.Tag.describe(t0) : ptr
+    t1 = call @scoop.Tag.describe(t0) : ptr<managed>
     store t1 -> local0
     ret local0
-  fun @scoop.eq.B(ptr, ptr) -> i1
+  fun @scoop.eq.B(ptr<managed>, ptr<managed>) -> i1
     local %0 $a: i1
     local %1 $b: i1
   block entry
@@ -770,11 +797,11 @@ Module
     store t1 -> local1
     t2 = Eq local0, local1 : i1
     ret t2
-  fun @scoop.tostring.B(ptr) -> ptr
-    local %0 $call.1: ptr
+  fun @scoop.tostring.B(ptr<managed>) -> ptr<managed>
+    local %0 $call.1: ptr<managed>
   block entry
     t0 = heap_load param0 +16 : i1
-    t1 = call @scoop_rt_bool_to_string(t0) : ptr
+    t1 = call @scoop_rt_bool_to_string(t0) : ptr<managed>
     store t1 -> local0
     ret local0
   td Describable @scoop_td_Describable size=0 vtable=0 itables=0
@@ -792,8 +819,8 @@ Module
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   layout Tag size=8 align=8 refs=[]
-  layout Option$S size=8 align=8 enum-refs=[[0], []]
-  layout Option$Describable size=8 align=8 enum-refs=[[0], []]
+  layout Option$S size=8 align=8 enum-scan=refs[0]
+  layout Option$Describable size=8 align=8 enum-scan=refs[0]
   layout Throwable size=16 align=8 refs=[]
   layout Exception size=24 align=8 refs=[16]
   layout UnwrapException size=24 align=8 refs=[16]

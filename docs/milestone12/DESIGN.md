@@ -130,7 +130,8 @@ AnnotationArg {
 
 `@NoGC` 是模块化效果契约，不是 codegen hint。HIR 在所有签名解析完成后验证：
 
-- callable 必须非 suspend；参数、返回值、receiver 和所有局部值必须是 GC-free。generic body 中出现的类型参数形成“实例化时必须 GC-free”的显式约束，调用点用具体类型再次检查；
+- `@NoGC`也可标记struct/enum的GC-free表示契约；非generic声明立即检查，generic value type在HIR生成fully specialized `ConcreteTypeId`时检查。失败必须在HIR诊断，不能推迟到MIR、布局或codegen；
+- callable 必须非 suspend；参数、返回值、receiver 和所有局部值必须是 GC-free。`ExportHir`中的generic template不携带GC-free布尔结论；其中出现的类型参数只形成“实例化时必须GC-free”的显式约束。HIR在type parameter全部resolve并构造`LocalConcreteHir`实例时完成最终检查，每个`ConcreteTypeId`必须直接带非可选`gc_free: bool`；
 - body 不得构造、读取或写入 managed ref，不得装箱、分配 class/array/String、抛出或捕获异常，也不得执行可能产生 Scoop 异常的检查型操作；初版因此拒绝整数除法、数组访问、`!!`、checked cast 等，即使表面结果是值类型；
 - 只允许调用另一个已验证的 `@NoGC` callable、C ABI extern，或 intrinsic registry 中标记为 NoGC 的 primitive。Scoop ABI extern 只有显式带 `@NoGC` 时才可调用；
 - class / interface method 因 receiver 是 ref 不能 `@NoGC`；struct / enum method 只有在 receiver 的具体类型 GC-free 时合法；
@@ -150,9 +151,9 @@ AnnotationArg {
 
 ### 2.2 GC-free、C-FFI-safe 与 Scoop-ABI-safe 分离
 
-HIR 提供三个独立、可递归且带环检测的判定：
+编译器提供三个独立、可递归且带环检测的判定。GC-free判定由HIR拥有：generic export template至多保存待实例化条件；每个`LocalConcreteHir` concrete type实体必须保存非可选布尔结果，不能使用`Option<bool>`、sentinel或后续stage回填：
 
-- `is_gc_free(T)`：`T` 的表示不直接或间接含 managed ref；
+- `is_gc_free(T)`：concrete `T`的表示不直接或间接含managed ref；fully specialized enum的每个variant均直接带`gc_free: bool`，enum自身的`gc_free: bool`恒等于所有variant结果的AND；
 - `classify_c_ffi_type(T)`：给出明确的 C 边界表示，或返回带字段路径的诊断。C-FFI-safe 必然 GC-free，但 GC-free 不必然有稳定 C 表示；
 - `classify_scoop_abi_type(T)`：判断类型能否按 M12 的普通 Scoop typed ABI直接交给 runtime。它与 GC-free正交，ref type正是该分类器与 C classifier 的核心差异。
 
@@ -253,7 +254,7 @@ ExternFunction {
 - `lib = ""` 表示符号由已经参与最终链接的对象/runtime 提供，不产生额外 linker 参数；非空 `lib` 是逻辑库名，不是路径或任意 linker flag；
 - `abi` 只接受 `"c"` / `"scoop"`。`@CallingConvention` 缺省及显式 `"cdecl"` 等价；
 - native library 不形成符号命名空间。同一 `native_symbol` 在一个编译单元内出现多次时，library、FFI 签名、ABI 与 calling convention 必须完全一致，否则 HIR 诊断；
-- HIR 的普通 `FunctionId`、`ExternFunctionId` 与 MIR 单态化 `FunctionId` 不混用。extern 没有伪造的空 body、unreachable shell 或 generic instance。
+- export侧、本地concrete侧与MIR侧的普通function id分别类型化，且都与各自的`ExternFunctionId`隔离。extern没有伪造的空body、unreachable shell或generic instance。
 
 ### 3.2 C ABI 为什么生成 bridge
 
@@ -287,8 +288,8 @@ Scoop ABI extern 不进入这条 bridge链。编译器按普通 direct managed c
 ### 3.4 库解析与 driver
 
 - driver 收集 LIR 中去重且保持首次出现顺序的非空 library 名，最终以独立参数 `-l<name>` 交给系统 linker；参数不经 shell；
-- CLI 临时增加可重复的 `-L` / `--library-path`，供 M12 单 Cone 构建与 fixture 使用。M16 落地 `Cone.toml` / `.slib` 后，库依赖进入 Cone metadata，此临时入口可保留为命令行覆盖；
-- M12 不支持 `dlopen` / `dlsym`、版本化符号、framework、任意 link args 或由 `lib` 注入路径。需要这些能力时由 M16 的结构化 native dependency 配置设计；
+- CLI 临时增加可重复的 `-L` / `--library-path`，供 M12 单 Cone 构建与 fixture 使用。M17 落地 `Cone.toml` / `.slib` 后，库依赖进入 Cone metadata，此临时入口可保留为命令行覆盖；
+- M12 不支持 `dlopen` / `dlsym`、版本化符号、framework、任意 link args 或由 `lib` 注入路径。需要这些能力时由 M17 的结构化 native dependency 配置设计；
 - 链接顺序固定为 Scoop object、FFI bridge object、runtime archive、extern libraries、C++ ABI 支持库，保证静态库符号按声明顺序可解析。
 
 ### 3.5 M12 的全局存储子集
@@ -356,7 +357,7 @@ Int / Boolean 的临时 `toString` runtime 映射仍由 M14 的 ToString 接口�
 - 分三步处理注解：解析参数/缺省值 → target/coexistence matrix → 与完整签名/body 联合验证。只有全部成功的 typed attributes 能写入 HIR；
 - `FunctionKind` 扩为结构完备的 `Defined(Body) | Abstract | Intrinsic(IntrinsicId) | Extern(ExternFunctionId)`；只有 `Defined` 有 body，`Abstract` 只参与 override/dispatch contract，extern 与 intrinsic 引用各自的类型化实体，不用空 body、unreachable shell或 `Option<Body>` 混合；
 - safety context 与 suspension context 是两个独立、可嵌套的状态栈；extern 普通调用只检查 safety，不改变 suspend 状态；
-- 实现 `is_gc_free`、`classify_c_ffi_type`、`classify_scoop_abi_type`、`requires_unsafe_use` 四个不同判定，并缓存递归结果；诊断给出如“C ABI field `outer.inner` contains ref type `String`”的完整路径；
+- 实现 `is_gc_free`、`classify_c_ffi_type`、`classify_scoop_abi_type`、`requires_unsafe_use` 四个不同判定，并缓存递归结果；诊断给出如“C ABI field `outer.inner` contains ref type `String`”的完整路径。构造`LocalConcreteHir`时把结果写入必填字段；MIR不得再次遍历字段猜测或补齐；
 - `@NoGC` body checker在普通类型检查和调用决议完成后运行，消费 resolved call/operation，不重复名称解析；generic NoGC 的条件约束进入 `GenericFunction` 和调用点实例化检查；
 - 中性的 `Expr::CallableReference` 在 HIR 按 expected type类别一次性定型：`FunPtr<F>` expected type下只对显式 `::name` 尝试第 2.4 节 native-address resolution，成功后生成 `ExprKind::FunctionAddress`；managed function type或无 expected type时继续走 M11 的 managed callable-reference/closure 路径。不能先生成一种结果再转换成另一种，也不能把一个已经定型的函数值事后拆成地址；
 - 全局声明先建完整 signature/storage 表，再检查 initializer 和函数 body，使前向读取、重复声明与 local shadowing 有确定规则；M12 的本地 initializer 禁止引用其他 global，因此不产生初始化依赖图；
@@ -364,11 +365,11 @@ Int / Boolean 的临时 `toString` runtime 映射仍由 M14 的 ToString 接口�
 
 ### 5.3 MIR
 
-- 增加独立 arena：`extern_functions`、`globals`、`callback_bridges`；所有 id 类型互不混用，extern 不进入 user function arena，也不参与单态化；
+- MIR只接收`LocalConcreteHir`；`ExportHir`中的generic template、导出声明id及待实例化条件在输入类型上不可达。增加独立arena：`extern_functions`、`globals`、`callback_bridges`；所有id类型互不混用，extern不进入user function arena；
 - `Callee` 增加 `Extern(ExternFunctionId)`；call 保留 ABI、GC effect、nounwind 与 FFI signature，不先退化成 symbol string；M10 coroutine transform 把它视为 ordinary non-suspend call；
 - 增加 `GlobalRead` / `GlobalWrite` / `AddressOf`、`PtrLoad` / `PtrStore` / `PtrOffset` / `PtrCast`、`FunctionAddress`；每个节点携带完整 concrete type，不允许用统一 `UInt` 后再猜 pointee；
 - 为实际取址的 NoGC function 生成普通、非 managed 的 callback bridge body。bridge 参数是具体 storage pointer，内部 load 后 direct-call 原函数并写 result；synthetic origin 记录源函数与 signature；
-- 本地 global initializer 已是 HIR typed constant，MIR 只做单态化后的常量聚合，不执行 CFG；
+- 本地global initializer已是`LocalConcreteHir` typed constant，MIR只机械映射常量聚合，不执行CFG或类型替换；
 - MIR dump 锁定 extern identity、ABI/effect、global storage/TLS、pointer operation 和 callback bridge 映射。
 
 ### 5.4 LIR

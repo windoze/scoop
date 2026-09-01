@@ -31,6 +31,57 @@ impl CAbiError {
 }
 
 impl Lowerer {
+    pub(crate) fn validate_foreign_callback_signature(
+        &mut self,
+        signature: hir::FunctionTypeId,
+        span: scoop_ast::Span,
+    ) -> bool {
+        let function = self.function_types[signature].clone();
+        if function.is_suspend || self.function_type_contains_param(signature) {
+            self.error(
+                span,
+                "foreign callback signature must be ordinary and fully concrete".to_string(),
+            );
+            return false;
+        }
+        let mut visiting = HashSet::new();
+        for (index, parameter) in function.parameter_types.iter().copied().enumerate() {
+            if let Err(error) = self.classify_c_ffi_type(
+                parameter,
+                &[],
+                false,
+                vec![format!("parameter{}", index + 1)],
+                &mut visiting,
+            ) {
+                self.error(
+                    span,
+                    format!(
+                        "foreign callback signature is not C-FFI-safe: {}",
+                        error.render()
+                    ),
+                );
+                return false;
+            }
+        }
+        if let Err(error) = self.classify_c_ffi_type(
+            function.return_type,
+            &[],
+            true,
+            vec!["return".to_string()],
+            &mut visiting,
+        ) {
+            self.error(
+                span,
+                format!(
+                    "foreign callback signature is not C-FFI-safe: {}",
+                    error.render()
+                ),
+            );
+            return false;
+        }
+        true
+    }
+
     pub(crate) fn validate_extern_global_symbols(&mut self) {
         let extern_globals: Vec<_> = self
             .globals

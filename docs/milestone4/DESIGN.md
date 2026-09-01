@@ -20,12 +20,12 @@ sysroot/
 
 ### 1.2 M4 的编译模型（bootstrapping）
 
-完整的多 Cone 编译（`.slib`、依赖图）是 M16。M4 采用务实的过渡模型：
+完整的多 Cone 编译（`.slib`、依赖图）是 M17。M4 采用务实的过渡模型：
 
 - driver 定位 sysroot（环境变量 `SCOOP_SYSROOT`，缺省为仓库内 `sysroot/`）；
 - `scoop.core` 按 `Cone.toml` 读入全部 `src/*.scoop`，与用户源码**作为同一个编译单元**一起编译（同一作用域体系，core 的声明天然可见——这就是"默认导入"的临时实现）；
 - `Cone.toml` 用 `toml` crate 解析（成熟库，不自己造），M4 只要求 `[cone]` 的 `group`/`name`/`version` 字段存在且 `name` 与目录名一致；
-- 没有 `.slib`，没有跨 Cone 可见性检查——这些随 M16 落地，届时 core 改为预编译 `.slib` 形态，用户代码不再与 core 同单元编译。
+- 没有 `.slib`，没有跨 Cone 可见性检查——这些随 M17 落地，届时 core 改为预编译 `.slib` 形态，用户代码不再与 core 同单元编译。
 
 ### 1.3 注解语法与 intrinsic 登记表（最小落地）
 
@@ -112,14 +112,14 @@ enum Option<T> {                       // 泛型 enum（core 库）
 
 ### 3.4 LIR
 
-- **enum 布局**：`{ i64 tag, [N x i8] payload }`（payload 起点满足最大变体对齐，N = 最大变体 payload 的自然对齐大小）；**niche 特例**（spec 7.4）：两变体、一变体无 payload、另一变体为单个 Ptr 字段 → 裸指针表示（这正是 `Option<String>`，M3 的布局 golden 必须保持通过）；
-- `LirType` 增加 `Enum(EnumDefId)`；LIR meta 记录 enum 布局及每变体的递归 `RefScan`。当 tagged enum 内嵌进 struct / tuple / class / 装箱 payload 时，父布局保留 tag 相对偏移及各变体子扫描，不把各变体引用压平成无条件偏移；
+- **enum 布局**（M13前的union payload方案已由spec 7.4修订）：`{ i64 tag, pure-value shared payload?, ref-bearing slot0, ... }`；完全不含managed ref的variant可复用共享payload，每个直接或间接含managed ref的variant拥有互不重叠、按自身字段自然布局的连续slot。构造先清零完整值，再写tag与active payload。**niche 特例**严格限于两变体、一变体无payload、另一变体为单个引用/`Ptr`/`FunPtr`字段的Option同构形态；
+- `LirType` 增加 `Enum(EnumDefId)`；LIR meta记录每个variant实际使用的slot offset/size/align（pure-value variant可共享offset）及所有ref-bearing独占slot合并后的固定`RefScan`。tagged enum内嵌进struct / tuple / class / 装箱payload时，父布局直接平移这些固定ref偏移；GC不读取tag，inactive独占slot的全0保证无条件扫描安全；
 - 指令新增：`EnumWrap { out, variant, fields }`、`EnumTag { out, operand }`、`EnumField { out, operand, variant, field_index }`（codegen：alloca 副本 + GEP + bitcast + load，注释说明）；niche 表示下这组指令按 M3 的 Ptr 规则翻译（null 测试等）；
 - `scoop_rt_trap` 路径不变（`!!` 的 trap 仍走它）。
 
 ### 3.5 codegen
 
-- 上述指令的机械翻译；enum 类型的 LLVM 表示（niche 或 `{i64, [N x i8]}`）；
+- 上述指令的机械翻译；enum 类型的 LLVM 表示（niche 或`{i64, [shared/independent slots...]}`），`EnumWrap`先写入全零值再初始化tag/active payload；
 - enum 按值使用时不单独生成 TypeDescriptor；装箱或嵌入堆对象时由外层 TypeDescriptor 携带递归扫描描述。
 
 ## 4. runtime
@@ -128,7 +128,7 @@ M4 无新增 runtime 函数（print/println 的 shim 已有；enum 不需要 run
 
 ## 5. 临时决策（及退役里程碑）
 
-1. **core 与用户代码同单元编译**（无 .slib、无 Cone 隔离）：M16 落地真正的多 Cone 后退役；届时 `Option` 的"默认导入"由 import 机制表达。
+1. **core 与用户代码同单元编译**（无 .slib、无 Cone 隔离）：M17 落地真正的多 Cone 后退役；届时 `Option` 的"默认导入"由 import 机制表达。
 2. **注解只支持 `@Intrinsic`，且只在 sysroot**：M12（FFI 注解族）扩展。
 3. **`!!` 仍 trap**：M8。
 4. **构造函数式变体的默认值只支持常量表达式**：完整"定义处解析、调用处求值"（spec 8.5）随函数默认参数里程碑一起做。
@@ -140,7 +140,7 @@ M4 无新增 runtime 函数（print/println 的 shim 已有；enum 不需要 run
 
 ## 7. 文档同步项
 
-- **runtime spec 2.2（已完成）**：TypeDescriptor 使用可组合的递归扫描描述；tagged enum 按 tag 选择 per-variant 子扫描，且可嵌入其他聚合布局；
+- **runtime spec 2.2（M13修订）**：TypeDescriptor使用可组合的递归扫描描述；tagged enum各variant的固定ref偏移直接合并，inactive slot清零，不再按tag选择子扫描；
 - **spec 7.2 / 11.5**：`Option` 从"内建"改为"core 库真实定义"，迁移完成后把 M3 设计 5.1 的临时决策标记为已退役（在 ROADMAP M4 记录）。
 
 ## 8. 测试计划

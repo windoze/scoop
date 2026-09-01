@@ -1,0 +1,127 @@
+@Extern(lib = "fixture_native", name = "m13_start_one")
+fun startOne(
+    callback: FunPtr<(Int, Ptr<Unit>) -> Int>,
+    context: Ptr<Unit>,
+    value: Int
+): Ptr<Unit>
+
+@Extern(lib = "fixture_native", name = "m13_join_one")
+fun joinOne(job: Ptr<Unit>): Int
+
+@Extern(lib = "fixture_native", name = "m13_run_many")
+fun runMany(
+    callback: FunPtr<(Int, Ptr<Unit>) -> Int>,
+    context: Ptr<Unit>,
+    base: Int,
+    count: Int
+): Int
+
+@Extern(lib = "fixture_native", name = "m13_fail_start")
+fun failStart(
+    callback: FunPtr<(Int, Ptr<Unit>) -> Int>,
+    context: Ptr<Unit>
+): Int
+
+@Extern(lib = "fixture_native", name = "m13_callback_barrier")
+fun callbackBarrier()
+
+@Extern(lib = "fixture_native", name = "m13_attached_thread_count")
+fun attachedThreadCount(): Int
+
+@Extern(lib = "fixture_native", name = "m13_borrowed_round_trip", abi = "scoop")
+fun borrowedRoundTrip(
+    message: String,
+    callback: FunPtr<(Ptr<Unit>) -> Unit>,
+    context: Ptr<Unit>
+): String
+
+enum ManagedPayload {
+    Text(String),
+    Empty
+}
+
+fun main() {
+    val offset = 40
+    @Unsafe {
+        val oneShot = foreignCallback<(Int, Ptr<Unit>) -> Int>(
+            { value: Int ->
+                gcCollect()
+                value + offset
+            },
+            1,
+            ForeignCallbackMode.OneShot
+        )
+        val observer = retainForeignCallback(oneShot)
+        val callerRoot = "caller-" + "alive"
+        val job = startOne(oneShot.function, oneShot.context, 2)
+        println(joinOne(job))
+        println(callerRoot)
+        println(foreignCallbackState(observer) == ForeignCallbackState.Completed)
+        println(foreignCallbackFailure(observer) == None)
+        releaseForeignCallback(observer)
+
+        val failedStart = foreignCallback<(Int, Ptr<Unit>) -> Int>(
+            { value: Int -> value },
+            1,
+            ForeignCallbackMode.OneShot
+        )
+        val failedObserver = retainForeignCallback(failedStart)
+        println(failStart(failedStart.function, failedStart.context) == -1)
+        releaseForeignCallback(failedStart)
+        releaseForeignCallback(failedObserver)
+
+        val reusable = foreignCallback<(Int, Ptr<Unit>) -> Int>(
+            { value: Int ->
+                var index = 0
+                var text = "managed"
+                while (index < 32) {
+                    text = text + " callback"
+                    index = index + 1
+                }
+                val payloads: Array<ManagedPayload> = [
+                    ManagedPayload.Text(text),
+                    ManagedPayload.Empty
+                ]
+                @Unsafe {
+                    callbackBarrier()
+                }
+                gcCollect()
+                when (payloads[0]) {
+                    Text(saved) -> if (saved == text) { value } else { -100 }
+                    Empty -> -200
+                }
+            },
+            1,
+            ForeignCallbackMode.Reusable
+        )
+        println(runMany(reusable.function, reusable.context, 10, 4))
+        println(runMany(reusable.function, reusable.context, 10, 4))
+        println(attachedThreadCount() == 1)
+        println(foreignCallbackState(reusable) == ForeignCallbackState.Registered)
+        println(foreignCallbackFailure(reusable) == None)
+        releaseForeignCallback(reusable)
+
+        val collector = foreignCallback<(Ptr<Unit>) -> Unit>(
+            {
+                gcCollect()
+            },
+            0,
+            ForeignCallbackMode.OneShot
+        )
+        val collectorObserver = retainForeignCallback(collector)
+        val borrowedMessage = "borrowed-" + "alive"
+        println(
+            borrowedRoundTrip(
+                borrowedMessage,
+                collector.function,
+                collector.context
+            ) == borrowedMessage
+        )
+        println(
+            foreignCallbackState(collectorObserver) ==
+                ForeignCallbackState.Completed
+        )
+        println(foreignCallbackFailure(collectorObserver) == None)
+        releaseForeignCallback(collectorObserver)
+    }
+}
