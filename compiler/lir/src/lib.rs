@@ -517,6 +517,33 @@ impl RefScan {
             ),
         }
     }
+
+    fn contains_reference(&self) -> bool {
+        match self {
+            Self::None => false,
+            Self::References(offsets) => !offsets.is_empty(),
+            Self::Sequence(parts) => parts.iter().any(Self::contains_reference),
+        }
+    }
+}
+
+/// A recursive scan program that is guaranteed to visit at least one managed
+/// reference. This is the only scan representation accepted by caller roots.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NonEmptyRefScan(RefScan);
+
+impl NonEmptyRefScan {
+    pub fn new(scan: RefScan) -> Option<Self> {
+        scan.contains_reference().then_some(Self(scan))
+    }
+
+    pub fn as_ref_scan(&self) -> &RefScan {
+        &self.0
+    }
+
+    pub fn dump(&self) -> String {
+        self.0.dump()
+    }
 }
 
 #[derive(Debug)]
@@ -856,7 +883,7 @@ pub enum CallerRootSource {
 pub struct CallerRoot {
     pub source: CallerRootSource,
     /// Non-empty recursive scan program relative to the source's storage.
-    pub scan: RefScan,
+    pub scan: NonEmptyRefScan,
 }
 
 impl CallerRootSource {
@@ -1216,3 +1243,38 @@ pub enum Terminator {
 mod dump;
 
 pub use dump::dump;
+
+#[cfg(test)]
+mod tests {
+    use super::{NonEmptyRefScan, RefScan};
+
+    #[test]
+    fn non_empty_ref_scan_rejects_programs_without_references() {
+        assert!(NonEmptyRefScan::new(RefScan::None).is_none());
+        assert!(NonEmptyRefScan::new(RefScan::References(Vec::new())).is_none());
+        assert!(
+            NonEmptyRefScan::new(RefScan::Sequence(vec![
+                RefScan::None,
+                RefScan::References(Vec::new()),
+            ]))
+            .is_none()
+        );
+    }
+
+    #[test]
+    fn non_empty_ref_scan_accepts_nested_references() {
+        let scan = RefScan::Sequence(vec![
+            RefScan::None,
+            RefScan::Sequence(vec![RefScan::References(vec![16])]),
+        ]);
+        let scan = NonEmptyRefScan::new(scan).expect("nested reference makes the scan non-empty");
+
+        assert_eq!(
+            scan.as_ref_scan(),
+            &RefScan::Sequence(vec![
+                RefScan::None,
+                RefScan::Sequence(vec![RefScan::References(vec![16])]),
+            ])
+        );
+    }
+}

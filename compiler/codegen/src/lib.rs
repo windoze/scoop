@@ -2408,7 +2408,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 context,
                 self.llvm,
                 &format!("{}.native.{call_index}.root.{index}", self.function.symbol),
-                &root.scan,
+                root.scan.as_ref_scan(),
             )
             .expect("LIR caller roots always carry a non-empty scan");
             entries.push((storage, descriptor));

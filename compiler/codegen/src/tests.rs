@@ -1719,7 +1719,7 @@ fn native_calls_publish_roots_transition_and_reload() {
             site: safe_site,
             roots: vec![scoop_lir::CallerRoot {
                 source: scoop_lir::CallerRootSource::Param(0),
-                scan: RefScan::References(vec![0]),
+                scan: scoop_lir::NonEmptyRefScan::new(RefScan::References(vec![0])).unwrap(),
             }],
         }],
         terminator: Terminator::Return {

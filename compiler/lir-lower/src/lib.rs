@@ -1101,7 +1101,7 @@ fn caller_roots(
     live.into_iter()
         .filter_map(|value| {
             let scan = lir_root_scan(live_value_ty(value, function), structs, enums, 0);
-            (scan != lir::RefScan::None).then(|| lir::CallerRoot {
+            lir::NonEmptyRefScan::new(scan).map(|scan| lir::CallerRoot {
                 source: value.source(),
                 scan,
             })

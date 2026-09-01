@@ -695,7 +695,7 @@ fn dump_instruction(function: &Function, instruction: &Instruction, buf: &mut St
                     .iter()
                     .map(|root| {
                         let source = root.source.dump();
-                        match &root.scan {
+                        match root.scan.as_ref_scan() {
                             RefScan::References(offsets) if offsets == &[0] => source,
                             scan => format!("{source}:{}", scan.dump()),
                         }
