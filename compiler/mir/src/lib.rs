@@ -437,8 +437,8 @@ pub struct ItableRecord {
 #[derive(Debug)]
 pub struct InterfaceDef {
     pub name: String,
-    /// Method names in declaration order (itable slot indices).
-    pub methods: Vec<String>,
+    /// Signature-only method declarations in itable-slot order.
+    pub methods: Vec<FunctionId>,
 }
 
 #[derive(Debug)]

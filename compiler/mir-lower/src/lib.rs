@@ -664,17 +664,42 @@ impl Lowerer {
             let id = self.declare_function(module, hir_id);
             user_functions.push((hir_id, id));
         }
+        let mut interface_methods = module
+            .interfaces
+            .iter()
+            .map(|(id, interface)| (id, vec![None; interface.methods.len()]))
+            .collect::<HashMap<_, _>>();
         for (hir_id, function) in module.functions.iter() {
             let Some(method) = function.method else {
                 continue;
             };
-            let ty = method.owner;
             // Interface methods are signature-only shells: dispatch goes
             // through the itable, so their declarations only provide the
-            // complete indirect-call signature.
-            if matches!(module.types[ty].kind, hir::TypeKind::Interface(..)) {
-                self.declare_interface_method(module, hir_id);
+            // complete indirect-call signature. The typed dispatch identity
+            // is authoritative; MIR does not infer this role from the owner.
+            let hir::MethodDispatch::Interface { interface, slot } = method.dispatch else {
+                continue;
+            };
+            let mir_id = self.declare_interface_method(module, hir_id);
+            let previous = interface_methods
+                .get_mut(&interface)
+                .expect("the interface method names a local interface")[slot.into_raw() as usize]
+                .replace(mir_id);
+            assert!(
+                previous.is_none(),
+                "concrete HIR emits one declaration per interface slot"
+            );
+        }
+        for (hir_id, slots) in interface_methods {
+            let mir_id = self.interfaces.mir_id(hir_id);
+            let mut methods = Vec::with_capacity(slots.len());
+            for (slot, function) in slots.into_iter().enumerate() {
+                methods.push(
+                    function
+                        .unwrap_or_else(|| self.declare_interface_signature(module, hir_id, slot)),
+                );
             }
+            self.interfaces.defs[mir_id].methods = methods;
         }
         // Bound callable-reference invoke bodies preserve virtual/interface
         // dispatch, so closure materialization needs completed slot tables.
@@ -1751,7 +1776,11 @@ impl Lowerer {
     /// Declare an interface method as a signature-only shell that is never
     /// emitted. Virtual interface calls name it so LIR receives the complete
     /// indirect-call parameter and return types.
-    fn declare_interface_method(&mut self, module: &hir::Module, hir_id: hir::FunctionId) {
+    fn declare_interface_method(
+        &mut self,
+        module: &hir::Module,
+        hir_id: hir::FunctionId,
+    ) -> mir::FunctionId {
         let function = &module.functions[hir_id];
         let types = Types {
             module,
@@ -1826,6 +1855,78 @@ impl Lowerer {
                 type_args,
             );
         }
+        id
+    }
+
+    /// Materialize an interface slot that has no callable use in this cone.
+    /// Local-concrete HIR carries its complete signature on the interface
+    /// definition, so MIR can still give every slot a typed function entity
+    /// without waiting for a call site or reconstructing it from a name.
+    fn declare_interface_signature(
+        &mut self,
+        module: &hir::Module,
+        interface: hir::InterfaceId,
+        slot: usize,
+    ) -> mir::FunctionId {
+        let declaration = &module.interfaces[interface];
+        let method = &declaration.methods[slot];
+        let owner = mir::Type::Interface(self.interfaces.mir_id(interface));
+        let mut locals = Arena::new();
+        let this = locals.alloc(mir::Local {
+            name: "this".to_string(),
+            ty: owner.clone(),
+            mutable: false,
+        });
+        let mut params = vec![mir::Param {
+            name: "this".to_string(),
+            ty: owner,
+            local: this,
+        }];
+        let types = Types {
+            module,
+            struct_map: &self.struct_map,
+            class_map: &self.class_map,
+        };
+        params.extend(method.params.iter().map(|param| {
+            let ty = types.lower(
+                param.ty,
+                &mut self.enums,
+                &mut self.structs,
+                &mut self.interfaces,
+                &mut self.shell,
+            );
+            let local = locals.alloc(mir::Local {
+                name: param.name.clone(),
+                ty: ty.clone(),
+                mutable: false,
+            });
+            mir::Param {
+                name: param.name.clone(),
+                ty,
+                local,
+            }
+        }));
+        let return_ty = types.lower(
+            method.return_ty,
+            &mut self.enums,
+            &mut self.structs,
+            &mut self.interfaces,
+            &mut self.shell,
+        );
+        let name = format!("{}.{}", declaration.name, method.name);
+        let symbol = format!(
+            "scoop.$interface_signature.{}.{}",
+            interface.into_raw().into_u32(),
+            slot
+        );
+        self.functions.alloc(mir::Function {
+            gc_effect: lower_gc_effect(method.attributes.gc_effect),
+            name,
+            symbol,
+            params,
+            return_ty,
+            body: mir::Body::unreachable(locals),
+        })
     }
 
     /// Fill the MIR class fields: the base class's (already
@@ -2352,14 +2453,9 @@ impl InterfaceRegistry {
         }
         let decl = &module.interfaces[hir_id];
         let name = decl.name.clone();
-        let methods = decl
-            .methods
-            .iter()
-            .map(|method| method.name.clone())
-            .collect();
         let id = self.defs.alloc(mir::InterfaceDef {
             name: name.clone(),
-            methods,
+            methods: Vec::new(),
         });
         shell.interfaces.alloc(mir::InterfaceDef {
             name: name.clone(),

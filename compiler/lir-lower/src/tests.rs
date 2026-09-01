@@ -146,9 +146,22 @@ impl Builder {
     }
 
     fn interface(&mut self, name: &str, methods: &[&str]) -> mir::InterfaceId {
+        let methods = methods
+            .iter()
+            .map(|method| {
+                self.functions.alloc(mir::Function {
+                    gc_effect: mir::GcEffect::Managed,
+                    name: format!("{name}.{method}"),
+                    symbol: format!("test.{name}.{method}"),
+                    params: Vec::new(),
+                    return_ty: mir::Type::Unit,
+                    body: mir::Body::unreachable(Arena::new()),
+                })
+            })
+            .collect();
         self.interfaces.alloc(mir::InterfaceDef {
             name: name.to_string(),
-            methods: methods.iter().map(|m| m.to_string()).collect(),
+            methods,
         })
     }
 
