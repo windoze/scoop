@@ -2298,14 +2298,7 @@ impl BodyLowerer<'_> {
 
     /// The HIR declaration behind a plain or instantiated MIR struct.
     fn hir_struct(&self, mir_id: mir::StructId) -> hir::StructId {
-        if let Some((hir_id, _)) = self.structs.instances.get(&mir_id) {
-            return *hir_id;
-        }
-        self.struct_map
-            .iter()
-            .find(|(_, mir)| **mir == mir_id)
-            .map(|(&hir, _)| hir)
-            .expect("every MIR struct comes from a HIR struct")
+        self.structs.hir_ids[&mir_id]
     }
 
     /// Register the boxed value type an `is` / `as` check needs (the

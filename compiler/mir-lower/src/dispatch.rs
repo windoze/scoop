@@ -951,7 +951,7 @@ impl Lowerer {
 
     /// Exact source declaration for a MIR struct-like payload. Primitive
     /// representations use the typed relation emitted by HIR; ordinary
-    /// struct instances use the explicit HIR→MIR instance maps.
+    /// struct instances use the mandatory MIR→HIR provenance map.
     fn value_struct_source(
         &self,
         module: &hir::Module,
@@ -961,16 +961,7 @@ impl Lowerer {
             mir::Type::Int => Some(module.intrinsic_type_core.int),
             mir::Type::UInt => Some(module.intrinsic_type_core.uint),
             mir::Type::Boolean => Some(module.intrinsic_type_core.boolean),
-            mir::Type::Struct(mir_id) => self
-                .structs
-                .instances
-                .get(mir_id)
-                .map(|(id, _)| *id)
-                .or_else(|| {
-                    self.struct_map
-                        .iter()
-                        .find_map(|(hir, mir)| (*mir == *mir_id).then_some(*hir))
-                }),
+            mir::Type::Struct(mir_id) => Some(self.structs.hir_ids[mir_id]),
             _ => None,
         }
     }

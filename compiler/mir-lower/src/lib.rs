@@ -1142,7 +1142,7 @@ impl Lowerer {
                 representation,
             });
             self.struct_map.insert(hir_id, mir_id);
-            self.structs.instances.insert(mir_id, (hir_id, Vec::new()));
+            self.structs.hir_ids.insert(mir_id, hir_id);
         }
     }
 
@@ -1172,26 +1172,12 @@ impl Lowerer {
                 hir::StructRepresentation::Intrinsic { .. } => Vec::new(),
             };
             let mir_id = self.struct_map[&hir_id];
-            let arguments = decl
-                .type_arguments
-                .iter()
-                .map(|argument| {
-                    types.lower(
-                        *argument,
-                        &mut self.enums,
-                        &mut self.structs,
-                        &mut self.interfaces,
-                        &mut self.shell,
-                    )
-                })
-                .collect();
             match &mut self.structs.defs[mir_id].representation {
                 mir::StructRepresentation::Declared {
                     fields: mir_fields, ..
                 } => *mir_fields = fields,
                 mir::StructRepresentation::Intrinsic(_) => debug_assert!(fields.is_empty()),
             }
-            self.structs.instances.insert(mir_id, (hir_id, arguments));
         }
     }
 
@@ -2519,14 +2505,13 @@ impl EnumRegistry {
     }
 }
 
-/// Concrete struct definitions and source-instance metadata. Each HIR struct
-/// is already specialized; the retained type arguments are only for boxing,
-/// interface lookup, and MIR metadata.
+/// Concrete struct definitions and their mandatory local-concrete HIR
+/// provenance. Structs are transposed eagerly, so every MIR id has exactly one
+/// source id before bodies can request boxing or interface lookup.
 #[derive(Default)]
 struct StructRegistry {
     defs: Arena<mir::StructDef>,
-    /// Concrete generic instance -> source declaration and arguments.
-    instances: HashMap<mir::StructId, (hir::StructId, Vec<mir::Type>)>,
+    hir_ids: HashMap<mir::StructId, hir::StructId>,
 }
 
 /// Classify a MIR type while constructing compiler-synthesized concrete
