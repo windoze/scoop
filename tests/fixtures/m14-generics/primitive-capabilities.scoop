@@ -1,0 +1,11 @@
+fun main() {
+    println(42)
+    println(sizeOf<Int>())
+    println(true)
+    println("text")
+
+    println(42.hash() == 42.hash())
+    println(sizeOf<Int>().hash() == sizeOf<Int>().hash())
+    println(true.hash() == true.hash())
+    println("same".hash() == ("sa" + "me").hash())
+}
