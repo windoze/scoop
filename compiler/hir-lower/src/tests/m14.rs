@@ -71,31 +71,6 @@ fn generic_class(
     declaration
 }
 
-fn intrinsic_annotation(name: &str) -> ast::Annotation {
-    ast::Annotation {
-        name: ident("Intrinsic"),
-        args: vec![ast::AnnotationArg {
-            name: None,
-            value: ast::AnnotationLiteral::String(name.to_string()),
-            span: sp(),
-        }],
-        span: sp(),
-    }
-}
-
-fn intrinsic_struct(name: &str, intrinsic: &str) -> Decl {
-    Decl::Struct(ast::StructDecl {
-        annotations: vec![intrinsic_annotation(intrinsic)],
-        name: ident(name),
-        type_params: Vec::new(),
-        fields: ast::StructRepresentationDecl::Omitted,
-        interfaces: Vec::new(),
-        where_clause: None,
-        methods: Vec::new(),
-        span: sp(),
-    })
-}
-
 fn operator_equals(is_override: bool, bodyless: bool, other: TypeRef) -> ast::FunctionDecl {
     let mut method = method_full(
         is_override,
@@ -365,13 +340,15 @@ fn intrinsic_type_shape_is_validated_at_its_source() {
 #[test]
 fn allowlisted_type_provider_preserves_provenance_without_relaxing_shape() {
     let mut core = core_file();
-    core.declarations.retain(
-        |declaration| !matches!(declaration, Decl::Struct(declaration) if declaration.name.text == "Int"),
-    );
-    let user = file(vec![
-        intrinsic_struct("Int", "core_int"),
-        fun("main", vec![]),
-    ]);
+    let int_index = core
+        .declarations
+        .iter()
+        .position(
+            |declaration| matches!(declaration, Decl::Struct(declaration) if declaration.name.text == "Int"),
+        )
+        .expect("core Int declaration");
+    let int = core.declarations.remove(int_index);
+    let user = file(vec![int, fun("main", vec![])]);
     let core_provider = hir::IntrinsicProviderId::from_raw(3);
     let test_provider = hir::IntrinsicProviderId::from_raw(7);
     let unit = CompilationUnit {
@@ -1252,8 +1229,16 @@ fn bounded_receiver_call_records_exact_interface_member_identity() {
     ]))
     .expect("a bound method must resolve from the declared interface capability");
 
-    assert_eq!(output.export.bound_callable_refs.len(), 1);
-    let bound = &output.export.bound_callable_refs.iter().next().unwrap().1;
+    let bound = output
+        .export
+        .bound_callable_refs
+        .iter()
+        .map(|(_, bound)| bound)
+        .find(|bound| {
+            let member = output.export.interface_methods[bound.member];
+            output.export.interfaces[member.owner].name == "Show"
+        })
+        .expect("read<T> has one non-core bound call");
     let member = output.export.interface_methods[bound.member];
     assert_eq!(
         output.export.functions[member.function]
@@ -1369,7 +1354,16 @@ fn bound_member_inherits_through_exact_parent_application() {
     ]))
     .expect("a bound exposes members inherited from its exact parent application");
 
-    let bound = output.export.bound_callable_refs.iter().next().unwrap().1;
+    let bound = output
+        .export
+        .bound_callable_refs
+        .iter()
+        .map(|(_, bound)| bound)
+        .find(|bound| {
+            let member = output.export.interface_methods[bound.member];
+            output.export.interfaces[member.owner].name == "Parent"
+        })
+        .expect("readParent<T> has one non-core bound call");
     assert_eq!(
         output.export.interfaces[output.export.interface_applications[bound.bound].template].name,
         "Child"

@@ -460,6 +460,8 @@ fun <T : ToString> println(value: T) {
 
 String 的 `toString()` 返回自身。M14 为当前编译器已落地的 Boolean、Int 与 UInt补齐core实现；后续加入的所有 spec 11.2 基本类型在进入可用语言子集时必须同时实现 `ToString`，不能恢复按type name的compiler fallback。数值文本格式沿用各基本类型的既有字面/打印约定；Boolean固定为 `true` / `false`。
 
+基础类型成员本身必须有普通Scoop body。当前Scoop尚不能表达的数值格式化、String内容比较/哈希等representation-level操作，由`types.scoop`中的普通Scoop-ABI `@Extern` helper连接runtime；这些helper走既有extern declaration/call target机制，不登记为function intrinsic，也不进入任何capability-specific core结构。以后若相关算法能用Scoop表达，可以只替换core源码body并删除对应runtime helper，调用者和编译器IR不变。
+
 这些声明不形成 `FormattingCore` 或其他编译器专用通道。`ToString` 是普通 interface，`print` / `println` 是普通 generic function，String/basic implementations 是 intrinsic type 上的普通 interface implementation；名称解析、bound 检查、overload resolution、conformance、单态化与调用 lowering 均复用语言的一般机制。
 
 编译器只为 `@Intrinsic` 所声明的 opaque representation 或 Scoop 本身无法表达的最小底层操作保存封闭 typed kind。给 intrinsic type 新增一个可用 Scoop 实现的 interface、method 或 generic 能力，只修改 `scoop.core`，不增加 HIR well-known 字段、不扩展 MIR 特判，也不要求 runtime 登记。确实需要新底层 primitive 时，新增的是该 primitive 的 typed intrinsic lowering，而不是围绕它所服务的高层 interface 建立 capability bundle。

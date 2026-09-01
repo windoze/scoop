@@ -1140,12 +1140,19 @@ void scoop_main(void) {
     scoop_rt_print_boolean(true);
     scoop_rt_println_boolean(false);
 
-    /* M7 primitive conversions backing core's intToString /
-     * boolToString */
+    /* Core representation helpers used by ordinary Scoop methods. */
     scoop_rt_println(scoop_rt_int_to_string(42));
     scoop_rt_println(scoop_rt_int_to_string(-7));
+    scoop_rt_println(scoop_rt_uint_to_string(UINT64_MAX));
     scoop_rt_println(scoop_rt_bool_to_string(true));
     scoop_rt_println(scoop_rt_bool_to_string(false));
+    scoop_rt_println_boolean(scoop_rt_int_equals(-7, -7));
+    scoop_rt_println_boolean(!scoop_rt_uint_equals(1, 2));
+    scoop_rt_println_boolean(scoop_rt_bool_equals(true, true));
+    scoop_rt_println_boolean(scoop_rt_int_hash(42) == scoop_rt_int_hash(42));
+    scoop_rt_println_boolean(scoop_rt_uint_hash(42) == scoop_rt_uint_hash(42));
+    scoop_rt_println_boolean(scoop_rt_bool_hash(true) == scoop_rt_bool_hash(true));
+    scoop_rt_println_boolean(scoop_rt_string_hash(a) == scoop_rt_string_hash(a));
 
     /* scoop_rt_array_clone (M5/M14): independent snapshot — mutating the
      * original after the clone must not affect the copy, and the copy

@@ -2529,7 +2529,9 @@ impl Lowerer {
                 ),
             };
             for (fn_id, function) in module.functions.iter() {
-                if method_class(module, function) != Some(hir_id) || is_generic_method(function) {
+                if method_class(module, fn_id, function) != Some(hir_id)
+                    || is_generic_method(function)
+                {
                     continue;
                 }
                 let mir_fn = self.function_map[&fn_id];
@@ -2718,7 +2720,9 @@ impl Lowerer {
         let mut current = Some(hir_id);
         while let Some(class) = current {
             for (fn_id, function) in module.functions.iter() {
-                if method_class(module, function) != Some(class) || is_generic_method(function) {
+                if method_class(module, fn_id, function) != Some(class)
+                    || is_generic_method(function)
+                {
                     continue;
                 }
                 if self.fn_signature_key(module, function) == key {
@@ -3125,26 +3129,15 @@ impl Lowerer {
         module: &hir::Module,
         payload: &mir::Type,
     ) -> Vec<mir::InterfaceId> {
-        let declared = match payload {
-            mir::Type::Struct(mir_id) => {
-                let hir_id = self
-                    .structs
-                    .instances
-                    .get(mir_id)
-                    .map(|(id, _)| *id)
-                    .or_else(|| {
-                        self.struct_map
-                            .iter()
-                            .find_map(|(hir, mir)| (*mir == *mir_id).then_some(*hir))
-                    })
-                    .expect("every MIR struct comes from HIR");
-                module.structs[hir_id].interfaces.clone()
-            }
-            mir::Type::Enum(mir_id, _) => {
-                let hir_id = self.enums.hir_ids[mir_id];
-                module.enums[hir_id].interfaces.clone()
-            }
-            _ => return Vec::new(),
+        let declared = match self.value_struct_source(module, payload) {
+            Some(hir_id) => module.structs[hir_id].interfaces.clone(),
+            None => match payload {
+                mir::Type::Enum(mir_id, _) => {
+                    let hir_id = self.enums.hir_ids[mir_id];
+                    module.enums[hir_id].interfaces.clone()
+                }
+                _ => return Vec::new(),
+            },
         };
         let types = Types {
             module,
@@ -3176,23 +3169,17 @@ impl Lowerer {
         name: &str,
         expected_params: &[mir::Type],
     ) -> (mir::FunctionId, Vec<mir::Type>, mir::Type) {
+        let source_methods = match self.value_struct_source(module, payload) {
+            Some(source) => module.structs[source].methods.clone(),
+            None => match payload {
+                mir::Type::Enum(id, _) => module.enums[self.enums.hir_ids[id]].methods.clone(),
+                _ => Vec::new(),
+            },
+        };
         let mut candidates = Vec::new();
         let mut owner_methods = Vec::new();
         for (fn_id, function) in module.functions.iter() {
-            let Some(method) = function.method else {
-                continue;
-            };
-            let ty = method.owner;
-            let owner_matches = match (&module.types[ty].kind, payload) {
-                (hir::TypeKind::Struct(hir_id), mir::Type::Struct(mir_id)) => {
-                    self.struct_map.get(hir_id) == Some(mir_id)
-                }
-                (hir::TypeKind::Enum(hir_id), mir::Type::Enum(mir_id, _)) => {
-                    self.enums.hir_ids.get(mir_id) == Some(hir_id)
-                }
-                _ => false,
-            };
-            if !owner_matches {
+            if !source_methods.contains(&fn_id) {
                 continue;
             }
             owner_methods.push(function.name.clone());
@@ -3238,6 +3225,32 @@ impl Lowerer {
         panic!(
             "concrete HIR guarantees `{name}` is implemented by boxed value type {payload_name} ({payload:?}) with parameters {expected_params:?}; owner methods: {owner_methods:?}; matching-name candidates: {candidates:?}"
         )
+    }
+
+    /// Exact source declaration for a MIR struct-like payload. Primitive
+    /// representations use the typed relation emitted by HIR; ordinary
+    /// struct instances use the explicit HIR→MIR instance maps.
+    fn value_struct_source(
+        &self,
+        module: &hir::Module,
+        payload: &mir::Type,
+    ) -> Option<hir::StructId> {
+        match payload {
+            mir::Type::Int => Some(module.intrinsic_type_core.int),
+            mir::Type::UInt => Some(module.intrinsic_type_core.uint),
+            mir::Type::Boolean => Some(module.intrinsic_type_core.boolean),
+            mir::Type::Struct(mir_id) => self
+                .structs
+                .instances
+                .get(mir_id)
+                .map(|(id, _)| *id)
+                .or_else(|| {
+                    self.struct_map
+                        .iter()
+                        .find_map(|(hir, mir)| (*mir == *mir_id).then_some(*hir))
+                }),
+            _ => None,
+        }
     }
 }
 
@@ -3362,10 +3375,21 @@ fn is_abstract_bodiless(function: &hir::Function) -> bool {
 }
 
 /// The class a function is a method of, if any.
-fn method_class(module: &hir::Module, function: &hir::Function) -> Option<hir::ClassId> {
+fn method_class(
+    module: &hir::Module,
+    function_id: hir::FunctionId,
+    function: &hir::Function,
+) -> Option<hir::ClassId> {
     match function.method {
         Some(method) => match module.types[method.owner].kind {
             hir::TypeKind::Class(id) => Some(id),
+            hir::TypeKind::String
+                if module.classes[module.intrinsic_type_core.string]
+                    .methods
+                    .contains(&function_id) =>
+            {
+                Some(module.intrinsic_type_core.string)
+            }
             _ => None,
         },
         None => None,

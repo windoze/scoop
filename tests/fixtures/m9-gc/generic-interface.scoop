@@ -34,7 +34,7 @@ class AnimalConsumer : Consumer<Animal> {
 
 class AnyConsumer : Consumer<Any> {
     override fun put(value: Any) {
-        println(value)
+        println(value is Int)
     }
 }
 
@@ -53,9 +53,9 @@ fun main() {
     println(producer.get().name)
     val consumer: Consumer<Dog> = narrow(AnimalConsumer())
     consumer.put(Dog())
-    println(boxResult(IntProducer()).get())
-    println(boxResult(IntValue(8)).get())
-    println(boxResult(Value(10)).get())
+    println(boxResult(IntProducer()).get() is Int)
+    println(boxResult(IntValue(8)).get() is Int)
+    println(boxResult(Value(10)).get() is Int)
     consumeInt(AnyConsumer()).put(9)
     println(readOr(IntProducer(), 6))
 }

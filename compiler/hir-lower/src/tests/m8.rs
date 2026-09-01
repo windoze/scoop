@@ -86,6 +86,10 @@ Module
   class ArithmeticException()
   class IndexOutOfBoundsException()
   class MyError(code: Int)
+  interface ToString
+    fun toString(): String
+  interface Hash
+    fun hash(): Int
   interface Continuation<in T>
     fun resume(value: T0): Unit
     fun resumeWithException(exception: Throwable): Unit
@@ -93,18 +97,29 @@ Module
     suspend fun run(): T0
   interface SuspendRegistration<out T>
     fun register(continuation: Continuation<T0>): Unit
+  fun coreIntEquals(arg1: Int, arg2: Int): Boolean <extern0 abi=scoop symbol=scoop_rt_int_equals>
+  fun coreUIntEquals(arg1: UInt, arg2: UInt): Boolean <extern1 abi=scoop symbol=scoop_rt_uint_equals>
+  fun coreBooleanEquals(arg1: Boolean, arg2: Boolean): Boolean <extern2 abi=scoop symbol=scoop_rt_bool_equals>
+  fun coreStringEquals(arg1: String, arg2: String): Boolean <extern3 abi=scoop symbol=scoop_rt_string_eq>
+  fun coreIntToString(arg1: Int): String <extern4 abi=scoop symbol=scoop_rt_int_to_string>
+  fun coreUIntToString(arg1: UInt): String <extern5 abi=scoop symbol=scoop_rt_uint_to_string>
+  fun coreBooleanToString(arg1: Boolean): String <extern6 abi=scoop symbol=scoop_rt_bool_to_string>
+  fun coreIntHash(arg1: Int): Int <extern7 abi=scoop symbol=scoop_rt_int_hash>
+  fun coreUIntHash(arg1: UInt): Int <extern8 abi=scoop symbol=scoop_rt_uint_hash>
+  fun coreBooleanHash(arg1: Boolean): Int <extern9 abi=scoop symbol=scoop_rt_bool_hash>
+  fun coreStringHash(arg1: String): Int <extern10 abi=scoop symbol=scoop_rt_string_hash>
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
-  fun write(arg1: String): Unit <extern0 abi=scoop symbol=scoop_rt_write>
-  fun print(message: Any): Unit
+  fun write(arg1: String): Unit <extern11 abi=scoop symbol=scoop_rt_write>
+  fun print<T : ToString>(value: T0): Unit
     Call write : Unit
-      MethodCall Any.toString : String
-        Local message : Any
+      MethodCall bound T0 via ToString -> ToString.toString : String
+        Local value : T0
     return
-  fun println(message: Any): Unit
+  fun println<T : ToString>(value: T0): Unit
     Call write : Unit
-      MethodCall Any.toString : String
-        Local message : Any
+      MethodCall bound T0 via ToString -> ToString.toString : String
+        Local value : T0
     Call write : Unit
       StringLiteral \"\\n\" : String
   fun read(): Int
@@ -115,30 +130,31 @@ Module
   fun main(): Unit
     try
       Call read : Int
-      Call println : Unit
-        StringLiteral \"unreachable\" : Any
+      Call println<String> : Unit
+        StringLiteral \"unreachable\" : String
     catch e: UnwrapException
-      Call println : Unit
-        StringLiteral \"caught unwrap\" : Any
+      Call println<String> : Unit
+        StringLiteral \"caught unwrap\" : String
     catch e: Exception
-      Call println : Unit
-        StringLiteral \"caught other\" : Any
+      Call println<String> : Unit
+        StringLiteral \"caught other\" : String
     finally
-      Call println : Unit
-        StringLiteral \"finally\" : Any
+      Call println<String> : Unit
+        StringLiteral \"finally\" : String
     try
       throw
         ClassInit MyError : MyError
           IntLiteral 42 : Int
     catch e: MyError
-      Call println : Unit
-        Box : Any
-          FieldAccess class field 1 : Int
-            Local e : MyError
+      Call println<Int> : Unit
+        FieldAccess class field 1 : Int
+          Local e : MyError
     finally
-      Call println : Unit
-        StringLiteral \"done\" : Any
+      Call println<String> : Unit
+        StringLiteral \"done\" : String
   entry main
+  instance println<String>
+  instance println<Int>
 ";
     assert_eq!(hir::dump(&module), expected);
 }

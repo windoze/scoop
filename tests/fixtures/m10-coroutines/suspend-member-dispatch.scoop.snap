@@ -128,15 +128,15 @@ SourceFile
 SourceFile
     @Extern(name = "scoop_rt_write", abi = "scoop")
   fun write(message: String)
-  fun print(message: Any)
+  fun print<T : ToString>(value: T)
     =
       Call write
         MethodCall toString
-          Var message
-  fun println(message: Any)
+          Var value
+  fun println<T : ToString>(value: T)
     Call write
       MethodCall toString
-        Var message
+        Var value
     Call write
       StringLiteral "\n"
 SourceFile
@@ -152,18 +152,56 @@ SourceFile
   class IndexOutOfBoundsException() : Exception(<1 args>)
   class IllegalStateException() : Exception(<1 args>)
 SourceFile
+  interface ToString
+    fun toString
+  interface Hash
+    fun hash
     @Intrinsic("core_int")
-  struct Int <representation omitted>
+  struct Int <representation omitted> : ToString, Hash
+    operator fun equals
+    fun toString
+    fun hash
     @Intrinsic("core_uint")
-  struct UInt <representation omitted>
+  struct UInt <representation omitted> : ToString, Hash
+    operator fun equals
+    fun toString
+    fun hash
     @Intrinsic("core_boolean")
-  struct Boolean <representation omitted>
+  struct Boolean <representation omitted> : ToString, Hash
+    operator fun equals
+    fun toString
+    fun hash
     @Intrinsic("core_string")
-  class String()
+  class String(), ToString, Hash
+    operator fun equals
+    fun toString
+    fun hash
     @Intrinsic("core_array")
   class Array<T>()
     @Intrinsic("core_mutable_array")
   class MutableArray<T>()
+    @Extern(name = "scoop_rt_int_equals", abi = "scoop")
+  fun coreIntEquals(left: Int, right: Int): Boolean
+    @Extern(name = "scoop_rt_uint_equals", abi = "scoop")
+  fun coreUIntEquals(left: UInt, right: UInt): Boolean
+    @Extern(name = "scoop_rt_bool_equals", abi = "scoop")
+  fun coreBooleanEquals(left: Boolean, right: Boolean): Boolean
+    @Extern(name = "scoop_rt_string_eq", abi = "scoop")
+  fun coreStringEquals(left: String, right: String): Boolean
+    @Extern(name = "scoop_rt_int_to_string", abi = "scoop")
+  fun coreIntToString(value: Int): String
+    @Extern(name = "scoop_rt_uint_to_string", abi = "scoop")
+  fun coreUIntToString(value: UInt): String
+    @Extern(name = "scoop_rt_bool_to_string", abi = "scoop")
+  fun coreBooleanToString(value: Boolean): String
+    @Extern(name = "scoop_rt_int_hash", abi = "scoop")
+  fun coreIntHash(value: Int): Int
+    @Extern(name = "scoop_rt_uint_hash", abi = "scoop")
+  fun coreUIntHash(value: UInt): Int
+    @Extern(name = "scoop_rt_bool_hash", abi = "scoop")
+  fun coreBooleanHash(value: Boolean): Int
+    @Extern(name = "scoop_rt_string_hash", abi = "scoop")
+  fun coreStringHash(value: String): Int
 SourceFile
   class Gate(var waiter: Continuation<Int>?)
     fun complete
@@ -281,6 +319,10 @@ Module
     suspend fun run(): T0
   interface SuspendRegistration<out T>
     fun register(continuation: Continuation<T0>): Unit
+  interface ToString
+    fun toString(): String
+  interface Hash
+    fun hash(): Int
   interface AsyncWorker
     suspend fun work(): Int
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
@@ -320,17 +362,28 @@ Module
   fun gcCollect(): Unit <intrinsic rt_gc_collect>
   fun gcStats(): UInt <intrinsic rt_gc_stats>
   fun write(arg1: String): Unit <extern0 abi=scoop symbol=scoop_rt_write>
-  fun print(message: Any): Unit
+  fun print<T : ToString>(value: T0): Unit
     Call write : Unit
-      MethodCall Any.toString : String
-        Local message : Any
+      MethodCall bound T0 via ToString -> ToString.toString : String
+        Local value : T0
     return
-  fun println(message: Any): Unit
+  fun println<T : ToString>(value: T0): Unit
     Call write : Unit
-      MethodCall Any.toString : String
-        Local message : Any
+      MethodCall bound T0 via ToString -> ToString.toString : String
+        Local value : T0
     Call write : Unit
       StringLiteral "\n" : String
+  fun coreIntEquals(arg1: Int, arg2: Int): Boolean <extern1 abi=scoop symbol=scoop_rt_int_equals>
+  fun coreUIntEquals(arg1: UInt, arg2: UInt): Boolean <extern2 abi=scoop symbol=scoop_rt_uint_equals>
+  fun coreBooleanEquals(arg1: Boolean, arg2: Boolean): Boolean <extern3 abi=scoop symbol=scoop_rt_bool_equals>
+  fun coreStringEquals(arg1: String, arg2: String): Boolean <extern4 abi=scoop symbol=scoop_rt_string_eq>
+  fun coreIntToString(arg1: Int): String <extern5 abi=scoop symbol=scoop_rt_int_to_string>
+  fun coreUIntToString(arg1: UInt): String <extern6 abi=scoop symbol=scoop_rt_uint_to_string>
+  fun coreBooleanToString(arg1: Boolean): String <extern7 abi=scoop symbol=scoop_rt_bool_to_string>
+  fun coreIntHash(arg1: Int): Int <extern8 abi=scoop symbol=scoop_rt_int_hash>
+  fun coreUIntHash(arg1: UInt): Int <extern9 abi=scoop symbol=scoop_rt_uint_hash>
+  fun coreBooleanHash(arg1: Boolean): Int <extern10 abi=scoop symbol=scoop_rt_bool_hash>
+  fun coreStringHash(arg1: String): Int <extern11 abi=scoop symbol=scoop_rt_string_hash>
   suspend fun waitFor(gate: Gate): Int
     return
       Call suspendCoroutine<Int> : Int
@@ -369,8 +422,8 @@ Module
         VariantConstruct EnumWorker.Waiting : EnumWorker
           Local enumGate : Gate
       ClassInit RecordingCompletion : Continuation<Int>
-    Call println : Unit
-      StringLiteral "started" : Any
+    Call println<String> : Unit
+      StringLiteral "started" : String
     MethodCall Gate.complete : Unit
       Local directGate : Gate
       IntLiteral 1 : Int
@@ -391,10 +444,23 @@ Module
   instance suspendCoroutine<T0>
   instance suspendCoroutine<Int>
   instance startCoroutine<Int>
+  instance println<String>
+  instance println<Int>
 
 == mir ==
 Module
   extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
+  extern ef1 coreIntEquals @scoop_rt_int_equals(Int, Int) -> Boolean <abi=scoop managed>
+  extern ef2 coreUIntEquals @scoop_rt_uint_equals(UInt, UInt) -> Boolean <abi=scoop managed>
+  extern ef3 coreBooleanEquals @scoop_rt_bool_equals(Boolean, Boolean) -> Boolean <abi=scoop managed>
+  extern ef4 coreStringEquals @scoop_rt_string_eq(String, String) -> Boolean <abi=scoop managed>
+  extern ef5 coreIntToString @scoop_rt_int_to_string(Int) -> String <abi=scoop managed>
+  extern ef6 coreUIntToString @scoop_rt_uint_to_string(UInt) -> String <abi=scoop managed>
+  extern ef7 coreBooleanToString @scoop_rt_bool_to_string(Boolean) -> String <abi=scoop managed>
+  extern ef8 coreIntHash @scoop_rt_int_hash(Int) -> Int <abi=scoop managed>
+  extern ef9 coreUIntHash @scoop_rt_uint_hash(UInt) -> Int <abi=scoop managed>
+  extern ef10 coreBooleanHash @scoop_rt_bool_hash(Boolean) -> Int <abi=scoop managed>
+  extern ef11 coreStringHash @scoop_rt_string_hash(String) -> Int <abi=scoop managed>
   struct StructWorker (gate: Gate)
   enum Option$Continuation$I
     Some(_1: Continuation$I)
@@ -449,7 +515,6 @@ Module
   class AsyncWorkerImpl vtable=3 itables=1
   class DispatchTask vtable=3 itables=1
   class RecordingCompletion vtable=3 itables=1
-  class box$I vtable=3 itables=0
   class CoroutineFrame$scoop_StructWorker_work_suspend vtable=3 itables=0
   class CoroutineAdapter$scoop_StructWorker_work_suspend$1 vtable=3 itables=1
   class CoroutineFrame$scoop_EnumWorker_work_suspend vtable=3 itables=0
@@ -468,10 +533,69 @@ Module
   class CoroutineAdapter$scoop_DispatchTask_run_suspend$1 vtable=3 itables=1
   class CoroutineFrame$scoop_waitFor_suspend vtable=3 itables=0
   class CoroutineAdapter$scoop_waitFor_suspend$1 vtable=3 itables=1
+  interface ToString
+  interface Hash
   interface Continuation$I
   interface AsyncWorker
   interface SuspendRegistration$I
   interface SuspendTask$I
+  fun Int.equals @scoop.Int.equals(this: Int, other: Int) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = extern1 @scoop_rt_int_equals direct
+        Local this
+        Local other
+      return
+        Local $call.1
+  fun Int.toString @scoop.Int.toString(this: Int) -> String
+    bb0 entry
+      call $call.1: String = extern5 @scoop_rt_int_to_string direct
+        Local this
+      return
+        Local $call.1
+  fun Int.hash @scoop.Int.hash(this: Int) -> Int
+    bb0 entry
+      call $call.1: Int = extern8 @scoop_rt_int_hash direct
+        Local this
+      return
+        Local $call.1
+  fun UInt.equals @scoop.UInt.equals(this: UInt, other: UInt) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = extern2 @scoop_rt_uint_equals direct
+        Local this
+        Local other
+      return
+        Local $call.1
+  fun UInt.toString @scoop.UInt.toString(this: UInt) -> String
+    bb0 entry
+      call $call.1: String = extern6 @scoop_rt_uint_to_string direct
+        Local this
+      return
+        Local $call.1
+  fun UInt.hash @scoop.UInt.hash(this: UInt) -> Int
+    bb0 entry
+      call $call.1: Int = extern9 @scoop_rt_uint_hash direct
+        Local this
+      return
+        Local $call.1
+  fun Boolean.equals @scoop.Boolean.equals(this: Boolean, other: Boolean) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = extern3 @scoop_rt_bool_equals direct
+        Local this
+        Local other
+      return
+        Local $call.1
+  fun Boolean.toString @scoop.Boolean.toString(this: Boolean) -> String
+    bb0 entry
+      call $call.1: String = extern7 @scoop_rt_bool_to_string direct
+        Local this
+      return
+        Local $call.1
+  fun Boolean.hash @scoop.Boolean.hash(this: Boolean) -> Int
+    bb0 entry
+      call $call.1: Int = extern10 @scoop_rt_bool_hash direct
+        Local this
+      return
+        Local $call.1
   fun Gate.complete @scoop.Gate.complete(this: Gate, value: Int) -> Unit
     bb0 entry
       val $opt.1: Option$Continuation$I<Continuation$I>
@@ -531,6 +655,23 @@ Module
         IntLiteral 0
       return
         Local $step
+  fun String.equals @scoop.String.equals(this: String, other: String) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = extern4 @scoop_rt_string_eq direct
+        Local this
+        Local other
+      return
+        Local $call.1
+  fun String.toString @scoop.String.toString(this: String) -> String
+    bb0 entry
+      return
+        Local this
+  fun String.hash @scoop.String.hash(this: String) -> Int
+    bb0 entry
+      call $call.1: Int = extern11 @scoop_rt_string_hash direct
+        Local this
+      return
+        Local $call.1
   fun Registration.register @scoop.Registration.register(this: Registration, continuation: Continuation$I) -> Unit
     bb0 entry
       field_set 0
@@ -608,30 +749,13 @@ Module
         Local $step
   fun RecordingCompletion.resume @scoop.RecordingCompletion.resume(this: RecordingCompletion, value: Int) -> Unit
     bb0 entry
-      call @scoop.println direct
-        Box
-          Local value
+      call @scoop.println$I direct
+        Local value
       return
   fun RecordingCompletion.resumeWithException @scoop.RecordingCompletion.resumeWithException(this: RecordingCompletion, exception: Throwable) -> Unit
     bb0 entry
-      call @scoop.println direct
+      call @scoop.println$S direct
         StringConst @scoop.str.1
-      return
-  fun print @scoop.print(message: Any) -> Unit
-    bb0 entry
-      call $call.1: String = @scoop.Any.toString virtual[2]
-        Local message
-      call extern0 @scoop_rt_write direct
-        Local $call.1
-      return
-  fun println @scoop.println(message: Any) -> Unit
-    bb0 entry
-      call $call.1: String = @scoop.Any.toString virtual[2]
-        Local message
-      call extern0 @scoop_rt_write direct
-        Local $call.1
-      call extern0 @scoop_rt_write direct
-        StringConst @scoop.str.2
       return
   fun waitFor @scoop.waitFor$suspend(gate: Gate, $completion: Continuation$I) -> CoroutineStep$I
     bb0 entry
@@ -678,8 +802,8 @@ Module
       call @scoop.coroutine.start$I direct
         Local $call.2
         Local $call.3
-      call @scoop.println direct
-        StringConst @scoop.str.3
+      call @scoop.println$S direct
+        StringConst @scoop.str.2
       call @scoop.Gate.complete direct
         Local directGate
         IntLiteral 1
@@ -695,6 +819,24 @@ Module
       call @scoop.Gate.complete direct
         Local enumGate
         IntLiteral 5
+      return
+  fun println @scoop.println$S(value: String) -> Unit
+    bb0 entry
+      call $call.1: String = @scoop.String.toString direct
+        Local value
+      call extern0 @scoop_rt_write direct
+        Local $call.1
+      call extern0 @scoop_rt_write direct
+        StringConst @scoop.str.3
+      return
+  fun println @scoop.println$I(value: Int) -> Unit
+    bb0 entry
+      call $call.1: String = @scoop.Int.toString direct
+        Local value
+      call extern0 @scoop_rt_write direct
+        Local $call.1
+      call extern0 @scoop_rt_write direct
+        StringConst @scoop.str.4
       return
   fun ctor.Gate @scoop.ctor.Gate(waiter: Option$Continuation$I<Continuation$I>) -> Gate
     bb0 entry
@@ -715,31 +857,31 @@ Module
       return
         ClassInit UnwrapException
           VariantConstruct Option$S<String> v0
-            StringConst @scoop.str.4
+            StringConst @scoop.str.5
   fun ctor.ClassCastException @scoop.ctor.ClassCastException() -> ClassCastException
     bb0 entry
       return
         ClassInit ClassCastException
           VariantConstruct Option$S<String> v0
-            StringConst @scoop.str.5
+            StringConst @scoop.str.6
   fun ctor.ArithmeticException @scoop.ctor.ArithmeticException() -> ArithmeticException
     bb0 entry
       return
         ClassInit ArithmeticException
           VariantConstruct Option$S<String> v0
-            StringConst @scoop.str.6
+            StringConst @scoop.str.7
   fun ctor.IndexOutOfBoundsException @scoop.ctor.IndexOutOfBoundsException() -> IndexOutOfBoundsException
     bb0 entry
       return
         ClassInit IndexOutOfBoundsException
           VariantConstruct Option$S<String> v0
-            StringConst @scoop.str.7
+            StringConst @scoop.str.8
   fun ctor.IllegalStateException @scoop.ctor.IllegalStateException() -> IllegalStateException
     bb0 entry
       return
         ClassInit IllegalStateException
           VariantConstruct Option$S<String> v0
-            StringConst @scoop.str.8
+            StringConst @scoop.str.9
   fun ctor.Registration @scoop.ctor.Registration(gate: Gate) -> Registration
     bb0 entry
       return
@@ -803,25 +945,6 @@ Module
           EnumTag
             Local $step
           IntLiteral 0
-  fun eq.I @scoop.eq.I(this: Any, other: Any) -> Boolean
-    bb0 entry
-      val $a: Int
-        Unbox
-          Local this
-      val $b: Int
-        Unbox
-          Local other
-      return
-        Binary IntEq
-          Local $a
-          Local $b
-  fun tostring.I @scoop.tostring.I(this: Any) -> String
-    bb0 entry
-      call $call.1: String = @scoop_rt_int_to_string direct
-        Unbox
-          Local this
-      return
-        Local $call.1
   fun StructWorker.work$drive @scoop.StructWorker.work$suspend$drive($frame: CoroutineFrame$scoop_StructWorker_work_suspend, $dispatch_state: Int) -> CoroutineStep$I
     bb0 entry
       atomic_store_release field=0
@@ -3909,32 +4032,36 @@ Module
   coroutine_fn cf7 @scoop.waitFor$suspend source_return=Int step=cs0 frame=cr6 driver=@scoop.waitFor$suspend$drive resumes=[cp10]
   coroutine_fn cf8 @scoop.AsyncWorker.work$suspend source_return=Int step=cs0 immediate
   coroutine_fn cf9 @scoop.SuspendTask.run$I$suspend source_return=Int step=cs0 immediate
+  instance @scoop.println$S <- println
+  instance @scoop.println$I <- println
   instance @scoop.Continuation.resume$I <- Continuation.resume
   instance @scoop.Continuation.resumeWithException$I <- Continuation.resumeWithException
   instance @scoop.SuspendTask.run$I$suspend <- SuspendTask.run
   instance @scoop.SuspendRegistration.register$I <- SuspendRegistration.register
   str @scoop.str.0 "call to abstract method `VirtualWorker.work`"
   str @scoop.str.1 "failed"
-  str @scoop.str.2 "\n"
-  str @scoop.str.3 "started"
-  str @scoop.str.4 "unwrap on None"
-  str @scoop.str.5 "invalid cast"
-  str @scoop.str.6 "arithmetic error"
-  str @scoop.str.7 "array index out of bounds"
-  str @scoop.str.8 "illegal state"
+  str @scoop.str.2 "started"
+  str @scoop.str.3 "\n"
+  str @scoop.str.4 "\n"
+  str @scoop.str.5 "unwrap on None"
+  str @scoop.str.6 "invalid cast"
+  str @scoop.str.7 "arithmetic error"
+  str @scoop.str.8 "array index out of bounds"
+  str @scoop.str.9 "illegal state"
   entry @scoop_main
 
 == lir ==
 Module
   global @scoop.str.0 = "call to abstract method `VirtualWorker.work`"
   global @scoop.str.1 = "failed"
-  global @scoop.str.2 = "\n"
-  global @scoop.str.3 = "started"
-  global @scoop.str.4 = "unwrap on None"
-  global @scoop.str.5 = "invalid cast"
-  global @scoop.str.6 = "arithmetic error"
-  global @scoop.str.7 = "array index out of bounds"
-  global @scoop.str.8 = "illegal state"
+  global @scoop.str.2 = "started"
+  global @scoop.str.3 = "\n"
+  global @scoop.str.4 = "\n"
+  global @scoop.str.5 = "unwrap on None"
+  global @scoop.str.6 = "invalid cast"
+  global @scoop.str.7 = "arithmetic error"
+  global @scoop.str.8 = "array index out of bounds"
+  global @scoop.str.9 = "illegal state"
   global @scoop_td_Continuation$I = c""
   global @scoop_td_CoroutineFrame$scoop_StructWorker_work_suspend = c""
   global @scoop_td_CoroutineFrame$scoop_EnumWorker_work_suspend = c""
@@ -3943,7 +4070,6 @@ Module
   global @scoop_td_CoroutineFrame$scoop_VirtualWorkerImpl_work_suspend = c""
   global @scoop_td_CoroutineFrame$scoop_AsyncWorkerImpl_work_suspend = c""
   global @scoop_td_CoroutineFrame$scoop_DispatchTask_run_suspend = c""
-  global @scoop_td_box$I = c""
   global @scoop_td_CoroutineFrame$scoop_waitFor_suspend = c""
   global @scoop_td_Gate = c""
   global @scoop_td_Throwable = c""
@@ -3987,6 +4113,71 @@ Module
   enum CoroutineSlot$DispatchTask niche(payload_variant=1)
   enum CoroutineSlot$Gate niche(payload_variant=1)
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
+  extern ef1 coreIntEquals @scoop_rt_int_equals(i64, i64) -> i1 <scoop managed nounwind>
+  extern ef2 coreUIntEquals @scoop_rt_uint_equals(i64, i64) -> i1 <scoop managed nounwind>
+  extern ef3 coreBooleanEquals @scoop_rt_bool_equals(i1, i1) -> i1 <scoop managed nounwind>
+  extern ef4 coreStringEquals @scoop_rt_string_eq(ptr<managed>, ptr<managed>) -> i1 <scoop managed nounwind>
+  extern ef5 coreIntToString @scoop_rt_int_to_string(i64) -> ptr<managed> <scoop managed nounwind>
+  extern ef6 coreUIntToString @scoop_rt_uint_to_string(i64) -> ptr<managed> <scoop managed nounwind>
+  extern ef7 coreBooleanToString @scoop_rt_bool_to_string(i1) -> ptr<managed> <scoop managed nounwind>
+  extern ef8 coreIntHash @scoop_rt_int_hash(i64) -> i64 <scoop managed nounwind>
+  extern ef9 coreUIntHash @scoop_rt_uint_hash(i64) -> i64 <scoop managed nounwind>
+  extern ef10 coreBooleanHash @scoop_rt_bool_hash(i1) -> i64 <scoop managed nounwind>
+  extern ef11 coreStringHash @scoop_rt_string_hash(ptr<managed>) -> i64 <scoop managed nounwind>
+  fun @scoop.Int.equals(i64, i64) -> i1
+    local %0 $call.1: i1
+  block entry
+    t0 = native_call[native-borrowed] extern1(param0, param1) : i1
+    store t0 -> local0
+    ret local0
+  fun @scoop.Int.toString(i64) -> ptr<managed>
+    local %0 $call.1: ptr<managed>
+  block entry
+    t0 = native_call[native-borrowed] extern5(param0) result-root=refs[0] : ptr<managed>
+    store t0 -> local0
+    ret local0
+  fun @scoop.Int.hash(i64) -> i64
+    local %0 $call.1: i64
+  block entry
+    t0 = native_call[native-borrowed] extern8(param0) : i64
+    store t0 -> local0
+    ret local0
+  fun @scoop.UInt.equals(i64, i64) -> i1
+    local %0 $call.1: i1
+  block entry
+    t0 = native_call[native-borrowed] extern2(param0, param1) : i1
+    store t0 -> local0
+    ret local0
+  fun @scoop.UInt.toString(i64) -> ptr<managed>
+    local %0 $call.1: ptr<managed>
+  block entry
+    t0 = native_call[native-borrowed] extern6(param0) result-root=refs[0] : ptr<managed>
+    store t0 -> local0
+    ret local0
+  fun @scoop.UInt.hash(i64) -> i64
+    local %0 $call.1: i64
+  block entry
+    t0 = native_call[native-borrowed] extern9(param0) : i64
+    store t0 -> local0
+    ret local0
+  fun @scoop.Boolean.equals(i1, i1) -> i1
+    local %0 $call.1: i1
+  block entry
+    t0 = native_call[native-borrowed] extern3(param0, param1) : i1
+    store t0 -> local0
+    ret local0
+  fun @scoop.Boolean.toString(i1) -> ptr<managed>
+    local %0 $call.1: ptr<managed>
+  block entry
+    t0 = native_call[native-borrowed] extern7(param0) result-root=refs[0] : ptr<managed>
+    store t0 -> local0
+    ret local0
+  fun @scoop.Boolean.hash(i1) -> i64
+    local %0 $call.1: i64
+  block entry
+    t0 = native_call[native-borrowed] extern10(param0) : i64
+    store t0 -> local0
+    ret local0
   fun @scoop.Gate.complete(ptr<managed>, i64) -> void
     local %0 continuation: ptr<managed>
     local %1 $opt.1: enum0
@@ -4012,7 +4203,7 @@ Module
     t5 = enum_wrap e0 v1 () : enum0
     heap_store param0 +16 t5
     t6 = heap_load local0 +0 : ptr<metadata>
-    t7 = call @scoop_rt_itable_lookup(t6, global9) : ptr<metadata>
+    t7 = call @scoop_rt_itable_lookup(t6, global10) : ptr<metadata>
     call_indirect t7[0](local0, param1)
     t8 = aggregate () : {}
     ret
@@ -4020,7 +4211,7 @@ Module
     local %0 $frame: ptr<managed>
     local %1 $step: enum3
   block entry
-    t0 = call @scoop_rt_alloc(global10, 72) : ptr<managed>
+    t0 = call @scoop_rt_alloc(global11, 72) : ptr<managed>
     heap_store t0 +16 0
     heap_store t0 +24 param1
     t1 = enum_wrap e4 v1 (param0) : enum4
@@ -4037,7 +4228,7 @@ Module
     local %0 $frame: ptr<managed>
     local %1 $step: enum3
   block entry
-    t0 = call @scoop_rt_alloc(global11, 80) : ptr<managed>
+    t0 = call @scoop_rt_alloc(global12, 80) : ptr<managed>
     heap_store t0 +16 0
     heap_store t0 +24 param1
     t1 = enum_wrap e7 v1 (param0) : enum7
@@ -4050,6 +4241,21 @@ Module
     t4 = call @scoop.EnumWorker.work$suspend$drive(local0, 0) : enum3
     store t4 -> local1
     ret local1
+  fun @scoop.String.equals(ptr<managed>, ptr<managed>) -> i1
+    local %0 $call.1: i1
+  block entry
+    t0 = native_call[native-borrowed] extern4(param0, param1) : i1
+    store t0 -> local0
+    ret local0
+  fun @scoop.String.toString(ptr<managed>) -> ptr<managed>
+  block entry
+    ret param0
+  fun @scoop.String.hash(ptr<managed>) -> i64
+    local %0 $call.1: i64
+  block entry
+    t0 = native_call[native-borrowed] extern11(param0) : i64
+    store t0 -> local0
+    ret local0
   fun @scoop.Registration.register(ptr<managed>, ptr<managed>) -> void
   block entry
     t0 = heap_load param0 +16 : ptr<managed>
@@ -4060,7 +4266,7 @@ Module
     local %0 $frame: ptr<managed>
     local %1 $step: enum3
   block entry
-    t0 = call @scoop_rt_alloc(global12, 64) : ptr<managed>
+    t0 = call @scoop_rt_alloc(global13, 64) : ptr<managed>
     heap_store t0 +16 0
     heap_store t0 +24 param1
     t1 = enum_wrap e8 v1 (param0) : enum8
@@ -4077,13 +4283,13 @@ Module
   block entry
     br @unwrap.trap.1
   block unwrap.trap.1
-    call @scoop_rt_trap(global13)
+    call @scoop_rt_trap(global14)
     unreachable
   fun @scoop.VirtualWorkerImpl.work$suspend(ptr<managed>, ptr<managed>) -> enum3
     local %0 $frame: ptr<managed>
     local %1 $step: enum3
   block entry
-    t0 = call @scoop_rt_alloc(global14, 64) : ptr<managed>
+    t0 = call @scoop_rt_alloc(global15, 64) : ptr<managed>
     heap_store t0 +16 0
     heap_store t0 +24 param1
     t1 = enum_wrap e9 v1 (param0) : enum9
@@ -4100,7 +4306,7 @@ Module
     local %0 $frame: ptr<managed>
     local %1 $step: enum3
   block entry
-    t0 = call @scoop_rt_alloc(global15, 64) : ptr<managed>
+    t0 = call @scoop_rt_alloc(global16, 64) : ptr<managed>
     heap_store t0 +16 0
     heap_store t0 +24 param1
     t1 = enum_wrap e10 v1 (param0) : enum10
@@ -4117,7 +4323,7 @@ Module
     local %0 $frame: ptr<managed>
     local %1 $step: enum3
   block entry
-    t0 = call @scoop_rt_alloc(global16, 128) : ptr<managed>
+    t0 = call @scoop_rt_alloc(global17, 128) : ptr<managed>
     heap_store t0 +16 0
     heap_store t0 +24 param1
     t1 = enum_wrap e11 v1 (param0) : enum11
@@ -4140,36 +4346,13 @@ Module
     ret local1
   fun @scoop.RecordingCompletion.resume(ptr<managed>, i64) -> void
   block entry
-    t0 = call @scoop_rt_box(global17, param1, 8) : ptr<managed>
-    call @scoop.println(t0)
-    t1 = aggregate () : {}
+    call @scoop.println$I(param1)
+    t0 = aggregate () : {}
     ret
   fun @scoop.RecordingCompletion.resumeWithException(ptr<managed>, ptr<managed>) -> void
   block entry
-    call @scoop.println(global1)
+    call @scoop.println$S(global1)
     t0 = aggregate () : {}
-    ret
-  fun @scoop.print(ptr<managed>) -> void
-    local %0 $call.1: ptr<managed>
-  block entry
-    t0 = heap_load param0 +0 : ptr<metadata>
-    t1 = heap_load t0 +40 : ptr<metadata>
-    t2 = call_indirect t1[2](param0) : ptr<managed>
-    store t2 -> local0
-    native_call[native-borrowed] extern0(local0)
-    t3 = aggregate () : {}
-    ret
-  fun @scoop.println(ptr<managed>) -> void
-    local %0 $call.1: ptr<managed>
-  block entry
-    t0 = heap_load param0 +0 : ptr<metadata>
-    t1 = heap_load t0 +40 : ptr<metadata>
-    t2 = call_indirect t1[2](param0) : ptr<managed>
-    store t2 -> local0
-    native_call[native-borrowed] extern0(local0)
-    t3 = aggregate () : {}
-    native_call[native-borrowed] extern0(global2)
-    t4 = aggregate () : {}
     ret
   fun @scoop.waitFor$suspend(ptr<managed>, ptr<managed>) -> enum3
     local %0 $frame: ptr<managed>
@@ -4229,7 +4412,7 @@ Module
     store t16 -> local9
     call @scoop.coroutine.start$I(local8, local9)
     t17 = aggregate () : {}
-    call @scoop.println(global3)
+    call @scoop.println$S(global2)
     t18 = aggregate () : {}
     call @scoop.Gate.complete(local0, 1)
     t19 = aggregate () : {}
@@ -4241,6 +4424,26 @@ Module
     t22 = aggregate () : {}
     call @scoop.Gate.complete(local4, 5)
     t23 = aggregate () : {}
+    ret
+  fun @scoop.println$S(ptr<managed>) -> void
+    local %0 $call.1: ptr<managed>
+  block entry
+    t0 = call @scoop.String.toString(param0) : ptr<managed>
+    store t0 -> local0
+    native_call[native-borrowed] extern0(local0)
+    t1 = aggregate () : {}
+    native_call[native-borrowed] extern0(global3)
+    t2 = aggregate () : {}
+    ret
+  fun @scoop.println$I(i64) -> void
+    local %0 $call.1: ptr<managed>
+  block entry
+    t0 = call @scoop.Int.toString(param0) : ptr<managed>
+    store t0 -> local0
+    native_call[native-borrowed] extern0(local0)
+    t1 = aggregate () : {}
+    native_call[native-borrowed] extern0(global4)
+    t2 = aggregate () : {}
     ret
   fun @scoop.ctor.Gate(enum0) -> ptr<managed>
   block entry
@@ -4259,31 +4462,31 @@ Module
   fun @scoop.ctor.UnwrapException() -> ptr<managed>
   block entry
     t0 = call @scoop_rt_alloc(global22, 24) : ptr<managed>
-    t1 = enum_wrap e2 v0 (global4) : enum2
+    t1 = enum_wrap e2 v0 (global5) : enum2
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.ClassCastException() -> ptr<managed>
   block entry
     t0 = call @scoop_rt_alloc(global23, 24) : ptr<managed>
-    t1 = enum_wrap e2 v0 (global5) : enum2
+    t1 = enum_wrap e2 v0 (global6) : enum2
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.ArithmeticException() -> ptr<managed>
   block entry
     t0 = call @scoop_rt_alloc(global24, 24) : ptr<managed>
-    t1 = enum_wrap e2 v0 (global6) : enum2
+    t1 = enum_wrap e2 v0 (global7) : enum2
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.IndexOutOfBoundsException() -> ptr<managed>
   block entry
     t0 = call @scoop_rt_alloc(global25, 24) : ptr<managed>
-    t1 = enum_wrap e2 v0 (global7) : enum2
+    t1 = enum_wrap e2 v0 (global8) : enum2
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.IllegalStateException() -> ptr<managed>
   block entry
     t0 = call @scoop_rt_alloc(global26, 24) : ptr<managed>
-    t1 = enum_wrap e2 v0 (global8) : enum2
+    t1 = enum_wrap e2 v0 (global9) : enum2
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.Registration(ptr<managed>) -> ptr<managed>
@@ -4330,13 +4533,13 @@ Module
   block completed
     t0 = enum_field e3 v0 f0 local0 : i64
     t1 = heap_load param1 +0 : ptr<metadata>
-    t2 = call @scoop_rt_itable_lookup(t1, global9) : ptr<metadata>
+    t2 = call @scoop_rt_itable_lookup(t1, global10) : ptr<metadata>
     call_indirect t2[0](param1, t0)
     t3 = aggregate () : {}
     ret
   block failed
     t4 = heap_load param1 +0 : ptr<metadata>
-    t5 = call @scoop_rt_itable_lookup(t4, global9) : ptr<metadata>
+    t5 = call @scoop_rt_itable_lookup(t4, global10) : ptr<metadata>
     call_indirect t5[1](param1, local1)
     t6 = aggregate () : {}
     ret
@@ -4360,23 +4563,6 @@ Module
     t14 = enum_tag e3 local0 : i64
     t15 = Eq t14, 0 : i1
     cbr t15 then @completed else @suspended
-  fun @scoop.eq.I(ptr<managed>, ptr<managed>) -> i1
-    local %0 $a: i64
-    local %1 $b: i64
-  block entry
-    t0 = heap_load param0 +16 : i64
-    store t0 -> local0
-    t1 = heap_load param1 +16 : i64
-    store t1 -> local1
-    t2 = Eq local0, local1 : i1
-    ret t2
-  fun @scoop.tostring.I(ptr<managed>) -> ptr<managed>
-    local %0 $call.1: ptr<managed>
-  block entry
-    t0 = heap_load param0 +16 : i64
-    t1 = call @scoop_rt_int_to_string(t0) : ptr<managed>
-    store t1 -> local0
-    ret local0
   fun @scoop.StructWorker.work$suspend$drive(ptr<managed>, i64) -> enum3
     local %0 this: struct3
     local %1 $call.1: i64
@@ -4475,7 +4661,7 @@ Module
     t3 = heap_load t2 +24 : ptr<managed>
     t4 = enum_field e3 v0 f0 local0 : i64
     t5 = heap_load t3 +0 : ptr<metadata>
-    t6 = call @scoop_rt_itable_lookup(t5, global9) : ptr<metadata>
+    t6 = call @scoop_rt_itable_lookup(t5, global10) : ptr<metadata>
     call_indirect t6[0](t3, t4)
     t7 = aggregate () : {}
     ret
@@ -4487,7 +4673,7 @@ Module
     t9 = heap_load param0 +16 : ptr<managed>
     t10 = heap_load t9 +24 : ptr<managed>
     t11 = heap_load t10 +0 : ptr<metadata>
-    t12 = call @scoop_rt_itable_lookup(t11, global9) : ptr<metadata>
+    t12 = call @scoop_rt_itable_lookup(t11, global10) : ptr<metadata>
     call_indirect t12[1](t10, local4)
     t13 = aggregate () : {}
     ret
@@ -4549,7 +4735,7 @@ Module
     t3 = heap_load t2 +24 : ptr<managed>
     t4 = enum_field e3 v0 f0 local0 : i64
     t5 = heap_load t3 +0 : ptr<metadata>
-    t6 = call @scoop_rt_itable_lookup(t5, global9) : ptr<metadata>
+    t6 = call @scoop_rt_itable_lookup(t5, global10) : ptr<metadata>
     call_indirect t6[0](t3, t4)
     t7 = aggregate () : {}
     ret
@@ -4561,7 +4747,7 @@ Module
     t9 = heap_load param0 +16 : ptr<managed>
     t10 = heap_load t9 +24 : ptr<managed>
     t11 = heap_load t10 +0 : ptr<metadata>
-    t12 = call @scoop_rt_itable_lookup(t11, global9) : ptr<metadata>
+    t12 = call @scoop_rt_itable_lookup(t11, global10) : ptr<metadata>
     call_indirect t12[1](t10, local4)
     t13 = aggregate () : {}
     ret
@@ -4712,7 +4898,7 @@ Module
     t3 = heap_load t2 +24 : ptr<managed>
     t4 = enum_field e3 v0 f0 local0 : i64
     t5 = heap_load t3 +0 : ptr<metadata>
-    t6 = call @scoop_rt_itable_lookup(t5, global9) : ptr<metadata>
+    t6 = call @scoop_rt_itable_lookup(t5, global10) : ptr<metadata>
     call_indirect t6[0](t3, t4)
     t7 = aggregate () : {}
     ret
@@ -4724,7 +4910,7 @@ Module
     t9 = heap_load param0 +16 : ptr<managed>
     t10 = heap_load t9 +24 : ptr<managed>
     t11 = heap_load t10 +0 : ptr<metadata>
-    t12 = call @scoop_rt_itable_lookup(t11, global9) : ptr<metadata>
+    t12 = call @scoop_rt_itable_lookup(t11, global10) : ptr<metadata>
     call_indirect t12[1](t10, local4)
     t13 = aggregate () : {}
     ret
@@ -4786,7 +4972,7 @@ Module
     t3 = heap_load t2 +24 : ptr<managed>
     t4 = enum_field e3 v0 f0 local0 : i64
     t5 = heap_load t3 +0 : ptr<metadata>
-    t6 = call @scoop_rt_itable_lookup(t5, global9) : ptr<metadata>
+    t6 = call @scoop_rt_itable_lookup(t5, global10) : ptr<metadata>
     call_indirect t6[0](t3, t4)
     t7 = aggregate () : {}
     ret
@@ -4798,7 +4984,7 @@ Module
     t9 = heap_load param0 +16 : ptr<managed>
     t10 = heap_load t9 +24 : ptr<managed>
     t11 = heap_load t10 +0 : ptr<metadata>
-    t12 = call @scoop_rt_itable_lookup(t11, global9) : ptr<metadata>
+    t12 = call @scoop_rt_itable_lookup(t11, global10) : ptr<metadata>
     call_indirect t12[1](t10, local4)
     t13 = aggregate () : {}
     ret
@@ -4937,7 +5123,7 @@ Module
     t3 = heap_load t2 +24 : ptr<managed>
     t4 = enum_field e3 v0 f0 local0 : i64
     t5 = heap_load t3 +0 : ptr<metadata>
-    t6 = call @scoop_rt_itable_lookup(t5, global9) : ptr<metadata>
+    t6 = call @scoop_rt_itable_lookup(t5, global10) : ptr<metadata>
     call_indirect t6[0](t3, t4)
     t7 = aggregate () : {}
     ret
@@ -4949,7 +5135,7 @@ Module
     t9 = heap_load param0 +16 : ptr<managed>
     t10 = heap_load t9 +24 : ptr<managed>
     t11 = heap_load t10 +0 : ptr<metadata>
-    t12 = call @scoop_rt_itable_lookup(t11, global9) : ptr<metadata>
+    t12 = call @scoop_rt_itable_lookup(t11, global10) : ptr<metadata>
     call_indirect t12[1](t10, local4)
     t13 = aggregate () : {}
     ret
@@ -5011,7 +5197,7 @@ Module
     t3 = heap_load t2 +24 : ptr<managed>
     t4 = enum_field e3 v0 f0 local0 : i64
     t5 = heap_load t3 +0 : ptr<metadata>
-    t6 = call @scoop_rt_itable_lookup(t5, global9) : ptr<metadata>
+    t6 = call @scoop_rt_itable_lookup(t5, global10) : ptr<metadata>
     call_indirect t6[0](t3, t4)
     t7 = aggregate () : {}
     ret
@@ -5023,7 +5209,7 @@ Module
     t9 = heap_load param0 +16 : ptr<managed>
     t10 = heap_load t9 +24 : ptr<managed>
     t11 = heap_load t10 +0 : ptr<metadata>
-    t12 = call @scoop_rt_itable_lookup(t11, global9) : ptr<metadata>
+    t12 = call @scoop_rt_itable_lookup(t11, global10) : ptr<metadata>
     call_indirect t12[1](t10, local4)
     t13 = aggregate () : {}
     ret
@@ -5162,7 +5348,7 @@ Module
     t3 = heap_load t2 +24 : ptr<managed>
     t4 = enum_field e3 v0 f0 local0 : i64
     t5 = heap_load t3 +0 : ptr<metadata>
-    t6 = call @scoop_rt_itable_lookup(t5, global9) : ptr<metadata>
+    t6 = call @scoop_rt_itable_lookup(t5, global10) : ptr<metadata>
     call_indirect t6[0](t3, t4)
     t7 = aggregate () : {}
     ret
@@ -5174,7 +5360,7 @@ Module
     t9 = heap_load param0 +16 : ptr<managed>
     t10 = heap_load t9 +24 : ptr<managed>
     t11 = heap_load t10 +0 : ptr<metadata>
-    t12 = call @scoop_rt_itable_lookup(t11, global9) : ptr<metadata>
+    t12 = call @scoop_rt_itable_lookup(t11, global10) : ptr<metadata>
     call_indirect t12[1](t10, local4)
     t13 = aggregate () : {}
     ret
@@ -5236,7 +5422,7 @@ Module
     t3 = heap_load t2 +24 : ptr<managed>
     t4 = enum_field e3 v0 f0 local0 : i64
     t5 = heap_load t3 +0 : ptr<metadata>
-    t6 = call @scoop_rt_itable_lookup(t5, global9) : ptr<metadata>
+    t6 = call @scoop_rt_itable_lookup(t5, global10) : ptr<metadata>
     call_indirect t6[0](t3, t4)
     t7 = aggregate () : {}
     ret
@@ -5248,7 +5434,7 @@ Module
     t9 = heap_load param0 +16 : ptr<managed>
     t10 = heap_load t9 +24 : ptr<managed>
     t11 = heap_load t10 +0 : ptr<metadata>
-    t12 = call @scoop_rt_itable_lookup(t11, global9) : ptr<metadata>
+    t12 = call @scoop_rt_itable_lookup(t11, global10) : ptr<metadata>
     call_indirect t12[1](t10, local4)
     t13 = aggregate () : {}
     ret
@@ -5387,7 +5573,7 @@ Module
     t3 = heap_load t2 +24 : ptr<managed>
     t4 = enum_field e3 v0 f0 local0 : i64
     t5 = heap_load t3 +0 : ptr<metadata>
-    t6 = call @scoop_rt_itable_lookup(t5, global9) : ptr<metadata>
+    t6 = call @scoop_rt_itable_lookup(t5, global10) : ptr<metadata>
     call_indirect t6[0](t3, t4)
     t7 = aggregate () : {}
     ret
@@ -5399,7 +5585,7 @@ Module
     t9 = heap_load param0 +16 : ptr<managed>
     t10 = heap_load t9 +24 : ptr<managed>
     t11 = heap_load t10 +0 : ptr<metadata>
-    t12 = call @scoop_rt_itable_lookup(t11, global9) : ptr<metadata>
+    t12 = call @scoop_rt_itable_lookup(t11, global10) : ptr<metadata>
     call_indirect t12[1](t10, local4)
     t13 = aggregate () : {}
     ret
@@ -5461,7 +5647,7 @@ Module
     t3 = heap_load t2 +24 : ptr<managed>
     t4 = enum_field e3 v0 f0 local0 : i64
     t5 = heap_load t3 +0 : ptr<metadata>
-    t6 = call @scoop_rt_itable_lookup(t5, global9) : ptr<metadata>
+    t6 = call @scoop_rt_itable_lookup(t5, global10) : ptr<metadata>
     call_indirect t6[0](t3, t4)
     t7 = aggregate () : {}
     ret
@@ -5473,7 +5659,7 @@ Module
     t9 = heap_load param0 +16 : ptr<managed>
     t10 = heap_load t9 +24 : ptr<managed>
     t11 = heap_load t10 +0 : ptr<metadata>
-    t12 = call @scoop_rt_itable_lookup(t11, global9) : ptr<metadata>
+    t12 = call @scoop_rt_itable_lookup(t11, global10) : ptr<metadata>
     call_indirect t12[1](t10, local4)
     t13 = aggregate () : {}
     ret
@@ -5956,7 +6142,7 @@ Module
     t3 = heap_load t2 +24 : ptr<managed>
     t4 = enum_field e3 v0 f0 local0 : i64
     t5 = heap_load t3 +0 : ptr<metadata>
-    t6 = call @scoop_rt_itable_lookup(t5, global9) : ptr<metadata>
+    t6 = call @scoop_rt_itable_lookup(t5, global10) : ptr<metadata>
     call_indirect t6[0](t3, t4)
     t7 = aggregate () : {}
     ret
@@ -5968,7 +6154,7 @@ Module
     t9 = heap_load param0 +16 : ptr<managed>
     t10 = heap_load t9 +24 : ptr<managed>
     t11 = heap_load t10 +0 : ptr<metadata>
-    t12 = call @scoop_rt_itable_lookup(t11, global9) : ptr<metadata>
+    t12 = call @scoop_rt_itable_lookup(t11, global10) : ptr<metadata>
     call_indirect t12[1](t10, local4)
     t13 = aggregate () : {}
     ret
@@ -6030,7 +6216,7 @@ Module
     t3 = heap_load t2 +24 : ptr<managed>
     t4 = enum_field e3 v0 f0 local0 : i64
     t5 = heap_load t3 +0 : ptr<metadata>
-    t6 = call @scoop_rt_itable_lookup(t5, global9) : ptr<metadata>
+    t6 = call @scoop_rt_itable_lookup(t5, global10) : ptr<metadata>
     call_indirect t6[0](t3, t4)
     t7 = aggregate () : {}
     ret
@@ -6042,7 +6228,7 @@ Module
     t9 = heap_load param0 +16 : ptr<managed>
     t10 = heap_load t9 +24 : ptr<managed>
     t11 = heap_load t10 +0 : ptr<metadata>
-    t12 = call @scoop_rt_itable_lookup(t11, global9) : ptr<metadata>
+    t12 = call @scoop_rt_itable_lookup(t11, global10) : ptr<metadata>
     call_indirect t12[1](t10, local4)
     t13 = aggregate () : {}
     ret
@@ -6104,7 +6290,7 @@ Module
     t3 = heap_load t2 +24 : ptr<managed>
     t4 = enum_field e3 v0 f0 local0 : i64
     t5 = heap_load t3 +0 : ptr<metadata>
-    t6 = call @scoop_rt_itable_lookup(t5, global9) : ptr<metadata>
+    t6 = call @scoop_rt_itable_lookup(t5, global10) : ptr<metadata>
     call_indirect t6[0](t3, t4)
     t7 = aggregate () : {}
     ret
@@ -6116,7 +6302,7 @@ Module
     t9 = heap_load param0 +16 : ptr<managed>
     t10 = heap_load t9 +24 : ptr<managed>
     t11 = heap_load t10 +0 : ptr<metadata>
-    t12 = call @scoop_rt_itable_lookup(t11, global9) : ptr<metadata>
+    t12 = call @scoop_rt_itable_lookup(t11, global10) : ptr<metadata>
     call_indirect t12[1](t10, local4)
     t13 = aggregate () : {}
     ret
@@ -6178,7 +6364,7 @@ Module
     t3 = heap_load t2 +24 : ptr<managed>
     t4 = enum_field e3 v0 f0 local0 : i64
     t5 = heap_load t3 +0 : ptr<metadata>
-    t6 = call @scoop_rt_itable_lookup(t5, global9) : ptr<metadata>
+    t6 = call @scoop_rt_itable_lookup(t5, global10) : ptr<metadata>
     call_indirect t6[0](t3, t4)
     t7 = aggregate () : {}
     ret
@@ -6190,7 +6376,7 @@ Module
     t9 = heap_load param0 +16 : ptr<managed>
     t10 = heap_load t9 +24 : ptr<managed>
     t11 = heap_load t10 +0 : ptr<metadata>
-    t12 = call @scoop_rt_itable_lookup(t11, global9) : ptr<metadata>
+    t12 = call @scoop_rt_itable_lookup(t11, global10) : ptr<metadata>
     call_indirect t12[1](t10, local4)
     t13 = aggregate () : {}
     ret
@@ -6252,7 +6438,7 @@ Module
     t3 = heap_load t2 +24 : ptr<managed>
     t4 = enum_field e3 v0 f0 local0 : i64
     t5 = heap_load t3 +0 : ptr<metadata>
-    t6 = call @scoop_rt_itable_lookup(t5, global9) : ptr<metadata>
+    t6 = call @scoop_rt_itable_lookup(t5, global10) : ptr<metadata>
     call_indirect t6[0](t3, t4)
     t7 = aggregate () : {}
     ret
@@ -6264,7 +6450,7 @@ Module
     t9 = heap_load param0 +16 : ptr<managed>
     t10 = heap_load t9 +24 : ptr<managed>
     t11 = heap_load t10 +0 : ptr<metadata>
-    t12 = call @scoop_rt_itable_lookup(t11, global9) : ptr<metadata>
+    t12 = call @scoop_rt_itable_lookup(t11, global10) : ptr<metadata>
     call_indirect t12[1](t10, local4)
     t13 = aggregate () : {}
     ret
@@ -6326,7 +6512,7 @@ Module
     t3 = heap_load t2 +24 : ptr<managed>
     t4 = enum_field e3 v0 f0 local0 : i64
     t5 = heap_load t3 +0 : ptr<metadata>
-    t6 = call @scoop_rt_itable_lookup(t5, global9) : ptr<metadata>
+    t6 = call @scoop_rt_itable_lookup(t5, global10) : ptr<metadata>
     call_indirect t6[0](t3, t4)
     t7 = aggregate () : {}
     ret
@@ -6338,7 +6524,7 @@ Module
     t9 = heap_load param0 +16 : ptr<managed>
     t10 = heap_load t9 +24 : ptr<managed>
     t11 = heap_load t10 +0 : ptr<metadata>
-    t12 = call @scoop_rt_itable_lookup(t11, global9) : ptr<metadata>
+    t12 = call @scoop_rt_itable_lookup(t11, global10) : ptr<metadata>
     call_indirect t12[1](t10, local4)
     t13 = aggregate () : {}
     ret
@@ -6400,7 +6586,7 @@ Module
     t3 = heap_load t2 +24 : ptr<managed>
     t4 = enum_field e3 v0 f0 local0 : i64
     t5 = heap_load t3 +0 : ptr<metadata>
-    t6 = call @scoop_rt_itable_lookup(t5, global9) : ptr<metadata>
+    t6 = call @scoop_rt_itable_lookup(t5, global10) : ptr<metadata>
     call_indirect t6[0](t3, t4)
     t7 = aggregate () : {}
     ret
@@ -6412,7 +6598,7 @@ Module
     t9 = heap_load param0 +16 : ptr<managed>
     t10 = heap_load t9 +24 : ptr<managed>
     t11 = heap_load t10 +0 : ptr<metadata>
-    t12 = call @scoop_rt_itable_lookup(t11, global9) : ptr<metadata>
+    t12 = call @scoop_rt_itable_lookup(t11, global10) : ptr<metadata>
     call_indirect t12[1](t10, local4)
     t13 = aggregate () : {}
     ret
@@ -6474,7 +6660,7 @@ Module
     t3 = heap_load t2 +24 : ptr<managed>
     t4 = enum_field e3 v0 f0 local0 : i64
     t5 = heap_load t3 +0 : ptr<metadata>
-    t6 = call @scoop_rt_itable_lookup(t5, global9) : ptr<metadata>
+    t6 = call @scoop_rt_itable_lookup(t5, global10) : ptr<metadata>
     call_indirect t6[0](t3, t4)
     t7 = aggregate () : {}
     ret
@@ -6486,7 +6672,7 @@ Module
     t9 = heap_load param0 +16 : ptr<managed>
     t10 = heap_load t9 +24 : ptr<managed>
     t11 = heap_load t10 +0 : ptr<metadata>
-    t12 = call @scoop_rt_itable_lookup(t11, global9) : ptr<metadata>
+    t12 = call @scoop_rt_itable_lookup(t11, global10) : ptr<metadata>
     call_indirect t12[1](t10, local4)
     t13 = aggregate () : {}
     ret
@@ -6548,7 +6734,7 @@ Module
     t3 = heap_load t2 +24 : ptr<managed>
     t4 = enum_field e3 v0 f0 local0 : i64
     t5 = heap_load t3 +0 : ptr<metadata>
-    t6 = call @scoop_rt_itable_lookup(t5, global9) : ptr<metadata>
+    t6 = call @scoop_rt_itable_lookup(t5, global10) : ptr<metadata>
     call_indirect t6[0](t3, t4)
     t7 = aggregate () : {}
     ret
@@ -6560,7 +6746,7 @@ Module
     t9 = heap_load param0 +16 : ptr<managed>
     t10 = heap_load t9 +24 : ptr<managed>
     t11 = heap_load t10 +0 : ptr<metadata>
-    t12 = call @scoop_rt_itable_lookup(t11, global9) : ptr<metadata>
+    t12 = call @scoop_rt_itable_lookup(t11, global10) : ptr<metadata>
     call_indirect t12[1](t10, local4)
     t13 = aggregate () : {}
     ret
@@ -6622,7 +6808,7 @@ Module
     t3 = heap_load t2 +24 : ptr<managed>
     t4 = enum_field e3 v0 f0 local0 : i64
     t5 = heap_load t3 +0 : ptr<metadata>
-    t6 = call @scoop_rt_itable_lookup(t5, global9) : ptr<metadata>
+    t6 = call @scoop_rt_itable_lookup(t5, global10) : ptr<metadata>
     call_indirect t6[0](t3, t4)
     t7 = aggregate () : {}
     ret
@@ -6634,7 +6820,7 @@ Module
     t9 = heap_load param0 +16 : ptr<managed>
     t10 = heap_load t9 +24 : ptr<managed>
     t11 = heap_load t10 +0 : ptr<metadata>
-    t12 = call @scoop_rt_itable_lookup(t11, global9) : ptr<metadata>
+    t12 = call @scoop_rt_itable_lookup(t11, global10) : ptr<metadata>
     call_indirect t12[1](t10, local4)
     t13 = aggregate () : {}
     ret
@@ -6857,7 +7043,7 @@ Module
     t3 = heap_load t2 +24 : ptr<managed>
     t4 = enum_field e3 v0 f0 local0 : i64
     t5 = heap_load t3 +0 : ptr<metadata>
-    t6 = call @scoop_rt_itable_lookup(t5, global9) : ptr<metadata>
+    t6 = call @scoop_rt_itable_lookup(t5, global10) : ptr<metadata>
     call_indirect t6[0](t3, t4)
     t7 = aggregate () : {}
     ret
@@ -6869,7 +7055,7 @@ Module
     t9 = heap_load param0 +16 : ptr<managed>
     t10 = heap_load t9 +24 : ptr<managed>
     t11 = heap_load t10 +0 : ptr<metadata>
-    t12 = call @scoop_rt_itable_lookup(t11, global9) : ptr<metadata>
+    t12 = call @scoop_rt_itable_lookup(t11, global10) : ptr<metadata>
     call_indirect t12[1](t10, local4)
     t13 = aggregate () : {}
     ret
@@ -6941,7 +7127,7 @@ Module
     t3 = heap_load t2 +24 : ptr<managed>
     t4 = enum_field e3 v0 f0 local0 : i64
     t5 = heap_load t3 +0 : ptr<metadata>
-    t6 = call @scoop_rt_itable_lookup(t5, global9) : ptr<metadata>
+    t6 = call @scoop_rt_itable_lookup(t5, global10) : ptr<metadata>
     call_indirect t6[0](t3, t4)
     t7 = aggregate () : {}
     ret
@@ -6953,7 +7139,7 @@ Module
     t9 = heap_load param0 +16 : ptr<managed>
     t10 = heap_load t9 +24 : ptr<managed>
     t11 = heap_load t10 +0 : ptr<metadata>
-    t12 = call @scoop_rt_itable_lookup(t11, global9) : ptr<metadata>
+    t12 = call @scoop_rt_itable_lookup(t11, global10) : ptr<metadata>
     call_indirect t12[1](t10, local4)
     t13 = aggregate () : {}
     ret
@@ -7004,6 +7190,8 @@ Module
     t22 = enum_tag e3 local0 : i64
     t23 = Eq t22, 0 : i1
     cbr t23 then @completed else @suspended
+  td ToString @scoop_td_ToString size=0 vtable=0 itables=0
+  td Hash @scoop_td_Hash size=0 vtable=0 itables=0
   td Continuation$I @scoop_td_Continuation$I size=0 vtable=0 itables=0
   td AsyncWorker @scoop_td_AsyncWorker size=0 vtable=0 itables=0
   td SuspendRegistration$I @scoop_td_SuspendRegistration$I size=0 vtable=0 itables=0
@@ -7016,7 +7204,6 @@ Module
   td AsyncWorkerImpl @scoop_td_AsyncWorkerImpl size=24 vtable=3 itables=1
   td DispatchTask @scoop_td_DispatchTask size=64 vtable=3 itables=1
   td RecordingCompletion @scoop_td_RecordingCompletion size=16 vtable=3 itables=1
-  td box$I @scoop_td_box$I size=24 vtable=3 itables=0
   td CoroutineFrame$scoop_StructWorker_work_suspend @scoop_td_CoroutineFrame$scoop_StructWorker_work_suspend size=72 vtable=3 itables=0
   td CoroutineAdapter$scoop_StructWorker_work_suspend$1 @scoop_td_CoroutineAdapter$scoop_StructWorker_work_suspend$1 size=32 vtable=3 itables=1
   td CoroutineFrame$scoop_EnumWorker_work_suspend @scoop_td_CoroutineFrame$scoop_EnumWorker_work_suspend size=80 vtable=3 itables=0
@@ -7074,7 +7261,6 @@ Module
   layout AsyncWorkerImpl size=24 align=8 refs=[16]
   layout DispatchTask size=64 align=8 refs=[16, 24, 32, 40, 56]
   layout RecordingCompletion size=16 align=8 refs=[]
-  layout box$I size=24 align=8 refs=[]
   layout CoroutineFrame$scoop_StructWorker_work_suspend size=72 align=8 refs=[24, 40, 64]
   layout CoroutineAdapter$scoop_StructWorker_work_suspend$1 size=32 align=8 refs=[16]
   layout CoroutineFrame$scoop_EnumWorker_work_suspend size=80 align=8 refs=[24, 48, 72]

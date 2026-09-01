@@ -149,7 +149,15 @@ const ScoopString *scoop_rt_string_identity(const ScoopString *s);
 /* M7 additions (milestone7 DESIGN section 3): primitive conversions
  * backing core's intToString / boolToString. */
 const ScoopString *scoop_rt_int_to_string(int64_t v);
+const ScoopString *scoop_rt_uint_to_string(uint64_t v);
 const ScoopString *scoop_rt_bool_to_string(bool v);
+bool scoop_rt_int_equals(int64_t left, int64_t right);
+bool scoop_rt_uint_equals(uint64_t left, uint64_t right);
+bool scoop_rt_bool_equals(bool left, bool right);
+int64_t scoop_rt_int_hash(int64_t v);
+int64_t scoop_rt_uint_hash(uint64_t v);
+int64_t scoop_rt_bool_hash(bool v);
+int64_t scoop_rt_string_hash(const ScoopString *s);
 
 /* M2 additions (DESIGN section 3): String concat / structural equality
  * and Int / Boolean builtin output. */

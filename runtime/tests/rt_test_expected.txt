@@ -31,8 +31,16 @@ false
 truefalse
 42
 -7
+18446744073709551615
 true
 false
+true
+true
+true
+true
+true
+true
+true
 true
 true
 true

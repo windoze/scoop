@@ -128,15 +128,15 @@ SourceFile
 SourceFile
     @Extern(name = "scoop_rt_write", abi = "scoop")
   fun write(message: String)
-  fun print(message: Any)
+  fun print<T : ToString>(value: T)
     =
       Call write
         MethodCall toString
-          Var message
-  fun println(message: Any)
+          Var value
+  fun println<T : ToString>(value: T)
     Call write
       MethodCall toString
-        Var message
+        Var value
     Call write
       StringLiteral "\n"
 SourceFile
@@ -152,18 +152,56 @@ SourceFile
   class IndexOutOfBoundsException() : Exception(<1 args>)
   class IllegalStateException() : Exception(<1 args>)
 SourceFile
+  interface ToString
+    fun toString
+  interface Hash
+    fun hash
     @Intrinsic("core_int")
-  struct Int <representation omitted>
+  struct Int <representation omitted> : ToString, Hash
+    operator fun equals
+    fun toString
+    fun hash
     @Intrinsic("core_uint")
-  struct UInt <representation omitted>
+  struct UInt <representation omitted> : ToString, Hash
+    operator fun equals
+    fun toString
+    fun hash
     @Intrinsic("core_boolean")
-  struct Boolean <representation omitted>
+  struct Boolean <representation omitted> : ToString, Hash
+    operator fun equals
+    fun toString
+    fun hash
     @Intrinsic("core_string")
-  class String()
+  class String(), ToString, Hash
+    operator fun equals
+    fun toString
+    fun hash
     @Intrinsic("core_array")
   class Array<T>()
     @Intrinsic("core_mutable_array")
   class MutableArray<T>()
+    @Extern(name = "scoop_rt_int_equals", abi = "scoop")
+  fun coreIntEquals(left: Int, right: Int): Boolean
+    @Extern(name = "scoop_rt_uint_equals", abi = "scoop")
+  fun coreUIntEquals(left: UInt, right: UInt): Boolean
+    @Extern(name = "scoop_rt_bool_equals", abi = "scoop")
+  fun coreBooleanEquals(left: Boolean, right: Boolean): Boolean
+    @Extern(name = "scoop_rt_string_eq", abi = "scoop")
+  fun coreStringEquals(left: String, right: String): Boolean
+    @Extern(name = "scoop_rt_int_to_string", abi = "scoop")
+  fun coreIntToString(value: Int): String
+    @Extern(name = "scoop_rt_uint_to_string", abi = "scoop")
+  fun coreUIntToString(value: UInt): String
+    @Extern(name = "scoop_rt_bool_to_string", abi = "scoop")
+  fun coreBooleanToString(value: Boolean): String
+    @Extern(name = "scoop_rt_int_hash", abi = "scoop")
+  fun coreIntHash(value: Int): Int
+    @Extern(name = "scoop_rt_uint_hash", abi = "scoop")
+  fun coreUIntHash(value: UInt): Int
+    @Extern(name = "scoop_rt_bool_hash", abi = "scoop")
+  fun coreBooleanHash(value: Boolean): Int
+    @Extern(name = "scoop_rt_string_hash", abi = "scoop")
+  fun coreStringHash(value: String): Int
 SourceFile
   struct Label
     field text: String
@@ -285,6 +323,10 @@ Module
     suspend fun run(): T0
   interface SuspendRegistration<out T>
     fun register(continuation: Continuation<T0>): Unit
+  interface ToString
+    fun toString(): String
+  interface Hash
+    fun hash(): Int
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
   fun startCoroutine<T>(task: suspend () -> T0, completion: Continuation<T0>): Unit
@@ -322,29 +364,40 @@ Module
   fun gcCollect(): Unit <intrinsic rt_gc_collect>
   fun gcStats(): UInt <intrinsic rt_gc_stats>
   fun write(arg1: String): Unit <extern0 abi=scoop symbol=scoop_rt_write>
-  fun print(message: Any): Unit
+  fun print<T : ToString>(value: T0): Unit
     Call write : Unit
-      MethodCall Any.toString : String
-        Local message : Any
+      MethodCall bound T0 via ToString -> ToString.toString : String
+        Local value : T0
     return
-  fun println(message: Any): Unit
+  fun println<T : ToString>(value: T0): Unit
     Call write : Unit
-      MethodCall Any.toString : String
-        Local message : Any
+      MethodCall bound T0 via ToString -> ToString.toString : String
+        Local value : T0
     Call write : Unit
       StringLiteral "\n" : String
+  fun coreIntEquals(arg1: Int, arg2: Int): Boolean <extern1 abi=scoop symbol=scoop_rt_int_equals>
+  fun coreUIntEquals(arg1: UInt, arg2: UInt): Boolean <extern2 abi=scoop symbol=scoop_rt_uint_equals>
+  fun coreBooleanEquals(arg1: Boolean, arg2: Boolean): Boolean <extern3 abi=scoop symbol=scoop_rt_bool_equals>
+  fun coreStringEquals(arg1: String, arg2: String): Boolean <extern4 abi=scoop symbol=scoop_rt_string_eq>
+  fun coreIntToString(arg1: Int): String <extern5 abi=scoop symbol=scoop_rt_int_to_string>
+  fun coreUIntToString(arg1: UInt): String <extern6 abi=scoop symbol=scoop_rt_uint_to_string>
+  fun coreBooleanToString(arg1: Boolean): String <extern7 abi=scoop symbol=scoop_rt_bool_to_string>
+  fun coreIntHash(arg1: Int): Int <extern8 abi=scoop symbol=scoop_rt_int_hash>
+  fun coreUIntHash(arg1: UInt): Int <extern9 abi=scoop symbol=scoop_rt_uint_hash>
+  fun coreBooleanHash(arg1: Boolean): Int <extern10 abi=scoop symbol=scoop_rt_bool_hash>
+  fun coreStringHash(arg1: String): Int <extern11 abi=scoop symbol=scoop_rt_string_hash>
   fun makeAdder(base: Int): (Int) -> Int
     return
       Lambda lambda0 invoke=$lambda.0 captures=1 : (Int) -> Int
-        capture base binding20 : Int
+        capture base binding22 : Int
   fun makeNested(base: Int): () -> () -> Int
     return
       Lambda lambda2 invoke=$lambda.1 captures=1 : () -> () -> Int
-        capture base binding23 : Int
+        capture base binding25 : Int
   fun labelReader(label: Label): () -> String
     return
       Lambda lambda3 invoke=$lambda.3 captures=1 : () -> String
-        capture label binding26 : Label
+        capture label binding28 : Label
   fun snapshot(): () -> Int
     val local0
       IntLiteral 41 : Int
@@ -352,7 +405,7 @@ Module
       Local value : Int
     val local2
       Lambda lambda4 invoke=$lambda.4 captures=1 : () -> Int
-        capture captured binding29 : Int
+        capture captured binding31 : Int
     assign value
       IntLiteral 0 : Int
     return
@@ -387,45 +440,51 @@ Module
       MethodCall Counter.incrementer : () -> Int
         Local counter : Counter
     Call gcCollect : Unit
-    Call println : Unit
-      Box : Any
-        CallableCall function_type4 : Int
-          Local adder : (Int) -> Int
-          IntLiteral 40 : Int
-    Call println : Unit
-      Box : Any
-        CallableCall function_type5 : Int
-          Local inner : () -> Int
-    Call println : Unit
-      CallableCall function_type7 : Any
+    Call println<Int> : Unit
+      CallableCall function_type4 : Int
+        Local adder : (Int) -> Int
+        IntLiteral 40 : Int
+    Call println<Int> : Unit
+      CallableCall function_type5 : Int
+        Local inner : () -> Int
+    Call println<String> : Unit
+      CallableCall function_type7 : String
         Local reader : () -> String
-    Call println : Unit
-      Box : Any
-        CallableCall function_type5 : Int
-          Local getter : () -> Int
-    Call println : Unit
-      Box : Any
-        FieldAccess field 0 : Int
-          Local source : Snapshot
-    Call println : Unit
-      Box : Any
-        CallableCall function_type5 : Int
-          Local increment : () -> Int
-    Call println : Unit
-      Box : Any
-        FieldAccess class field 0 : Int
-          Local counter : Counter
-    Call println : Unit
-      Box : Any
-        CallableCall function_type5 : Int
-          Call snapshot : () -> Int
+    Call println<Int> : Unit
+      CallableCall function_type5 : Int
+        Local getter : () -> Int
+    Call println<Int> : Unit
+      FieldAccess field 0 : Int
+        Local source : Snapshot
+    Call println<Int> : Unit
+      CallableCall function_type5 : Int
+        Local increment : () -> Int
+    Call println<Int> : Unit
+      FieldAccess class field 0 : Int
+        Local counter : Counter
+    Call println<Int> : Unit
+      CallableCall function_type5 : Int
+        Call snapshot : () -> Int
   entry main
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>
+  instance println<Int>
+  instance println<String>
 
 == mir ==
 Module
   extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
+  extern ef1 coreIntEquals @scoop_rt_int_equals(Int, Int) -> Boolean <abi=scoop managed>
+  extern ef2 coreUIntEquals @scoop_rt_uint_equals(UInt, UInt) -> Boolean <abi=scoop managed>
+  extern ef3 coreBooleanEquals @scoop_rt_bool_equals(Boolean, Boolean) -> Boolean <abi=scoop managed>
+  extern ef4 coreStringEquals @scoop_rt_string_eq(String, String) -> Boolean <abi=scoop managed>
+  extern ef5 coreIntToString @scoop_rt_int_to_string(Int) -> String <abi=scoop managed>
+  extern ef6 coreUIntToString @scoop_rt_uint_to_string(UInt) -> String <abi=scoop managed>
+  extern ef7 coreBooleanToString @scoop_rt_bool_to_string(Boolean) -> String <abi=scoop managed>
+  extern ef8 coreIntHash @scoop_rt_int_hash(Int) -> Int <abi=scoop managed>
+  extern ef9 coreUIntHash @scoop_rt_uint_hash(UInt) -> Int <abi=scoop managed>
+  extern ef10 coreBooleanHash @scoop_rt_bool_hash(Boolean) -> Int <abi=scoop managed>
+  extern ef11 coreStringHash @scoop_rt_string_hash(String) -> Int <abi=scoop managed>
   struct Label (text: String)
   struct Snapshot (value: Int)
   enum Option$S
@@ -439,7 +498,8 @@ Module
   class IndexOutOfBoundsException vtable=3 itables=0
   class IllegalStateException vtable=3 itables=0
   class Counter vtable=3 itables=0
-  class box$I vtable=3 itables=0
+  interface ToString
+  interface Hash
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@scoop.$lambda.5 captures=1
   closure cc1 $Closure$lambda1 type=function_type0 invoke=@scoop.$lambda.6 captures=1
   closure cc2 $Closure$lambda2 type=function_type1 invoke=@scoop.$lambda.0 captures=1
@@ -447,32 +507,90 @@ Module
   closure cc4 $Closure$lambda4 type=function_type3 invoke=@scoop.$lambda.3 captures=1
   closure cc5 $Closure$lambda5 type=function_type0 invoke=@scoop.$lambda.4 captures=1
   closure cc6 $Closure$lambda6 type=function_type0 invoke=@scoop.$lambda.2 captures=1
+  fun Int.equals @scoop.Int.equals(this: Int, other: Int) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = extern1 @scoop_rt_int_equals direct
+        Local this
+        Local other
+      return
+        Local $call.1
+  fun Int.toString @scoop.Int.toString(this: Int) -> String
+    bb0 entry
+      call $call.1: String = extern5 @scoop_rt_int_to_string direct
+        Local this
+      return
+        Local $call.1
+  fun Int.hash @scoop.Int.hash(this: Int) -> Int
+    bb0 entry
+      call $call.1: Int = extern8 @scoop_rt_int_hash direct
+        Local this
+      return
+        Local $call.1
+  fun UInt.equals @scoop.UInt.equals(this: UInt, other: UInt) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = extern2 @scoop_rt_uint_equals direct
+        Local this
+        Local other
+      return
+        Local $call.1
+  fun UInt.toString @scoop.UInt.toString(this: UInt) -> String
+    bb0 entry
+      call $call.1: String = extern6 @scoop_rt_uint_to_string direct
+        Local this
+      return
+        Local $call.1
+  fun UInt.hash @scoop.UInt.hash(this: UInt) -> Int
+    bb0 entry
+      call $call.1: Int = extern9 @scoop_rt_uint_hash direct
+        Local this
+      return
+        Local $call.1
+  fun Boolean.equals @scoop.Boolean.equals(this: Boolean, other: Boolean) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = extern3 @scoop_rt_bool_equals direct
+        Local this
+        Local other
+      return
+        Local $call.1
+  fun Boolean.toString @scoop.Boolean.toString(this: Boolean) -> String
+    bb0 entry
+      call $call.1: String = extern7 @scoop_rt_bool_to_string direct
+        Local this
+      return
+        Local $call.1
+  fun Boolean.hash @scoop.Boolean.hash(this: Boolean) -> Int
+    bb0 entry
+      call $call.1: Int = extern10 @scoop_rt_bool_hash direct
+        Local this
+      return
+        Local $call.1
   fun Snapshot.getter @scoop.Snapshot.getter(this: Snapshot) -> () -> Int
     bb0 entry
       return
         ClosureAlloc cc0 $Closure$lambda0
           Local this
+  fun String.equals @scoop.String.equals(this: String, other: String) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = extern4 @scoop_rt_string_eq direct
+        Local this
+        Local other
+      return
+        Local $call.1
+  fun String.toString @scoop.String.toString(this: String) -> String
+    bb0 entry
+      return
+        Local this
+  fun String.hash @scoop.String.hash(this: String) -> Int
+    bb0 entry
+      call $call.1: Int = extern11 @scoop_rt_string_hash direct
+        Local this
+      return
+        Local $call.1
   fun Counter.incrementer @scoop.Counter.incrementer(this: Counter) -> () -> Int
     bb0 entry
       return
         ClosureAlloc cc1 $Closure$lambda1
           Local this
-  fun print @scoop.print(message: Any) -> Unit
-    bb0 entry
-      call $call.1: String = @scoop.Any.toString virtual[2]
-        Local message
-      call extern0 @scoop_rt_write direct
-        Local $call.1
-      return
-  fun println @scoop.println(message: Any) -> Unit
-    bb0 entry
-      call $call.1: String = @scoop.Any.toString virtual[2]
-        Local message
-      call extern0 @scoop_rt_write direct
-        Local $call.1
-      call extern0 @scoop_rt_write direct
-        StringConst @scoop.str.0
-      return
   fun makeAdder @scoop.makeAdder(base: Int) -> (Int) -> Int
     bb0 entry
       return
@@ -511,7 +629,7 @@ Module
         Local outer
       call reader: () -> String = @scoop.labelReader direct
         StructInit Label
-          StringConst @scoop.str.1
+          StringConst @scoop.str.0
       var source: Snapshot
         StructInit Snapshot
           IntLiteral 1
@@ -528,42 +646,35 @@ Module
       call $call.1: Int = <closure:function_type1> closure[function_type1]
         Local adder
         IntLiteral 40
-      call @scoop.println direct
-        Box
-          Local $call.1
+      call @scoop.println$I direct
+        Local $call.1
       call $call.2: Int = <closure:function_type0> closure[function_type0]
         Local inner
-      call @scoop.println direct
-        Box
-          Local $call.2
-      call $call.3: Any = <closure:function_type3> closure[function_type3]
+      call @scoop.println$I direct
+        Local $call.2
+      call $call.3: String = <closure:function_type3> closure[function_type3]
         Local reader
-      call @scoop.println direct
+      call @scoop.println$S direct
         Local $call.3
       call $call.4: Int = <closure:function_type0> closure[function_type0]
         Local getter
-      call @scoop.println direct
-        Box
-          Local $call.4
-      call @scoop.println direct
-        Box
-          FieldAccess 0
-            Local source
+      call @scoop.println$I direct
+        Local $call.4
+      call @scoop.println$I direct
+        FieldAccess 0
+          Local source
       call $call.5: Int = <closure:function_type0> closure[function_type0]
         Local increment
-      call @scoop.println direct
-        Box
-          Local $call.5
-      call @scoop.println direct
-        Box
-          FieldAccess 0
-            Local counter
+      call @scoop.println$I direct
+        Local $call.5
+      call @scoop.println$I direct
+        FieldAccess 0
+          Local counter
       call $call.6: () -> Int = @scoop.snapshot direct
       call $call.7: Int = <closure:function_type0> closure[function_type0]
         Local $call.6
-      call @scoop.println direct
-        Box
-          Local $call.7
+      call @scoop.println$I direct
+        Local $call.7
       return
   fun $lambda.0 @scoop.$lambda.0($closure: (Int) -> Int, value: Int) -> Int
     bb0 entry
@@ -616,6 +727,24 @@ Module
         FieldAccess 0
           ClosureCapture cc1 0
             Local $closure
+  fun println @scoop.println$I(value: Int) -> Unit
+    bb0 entry
+      call $call.1: String = @scoop.Int.toString direct
+        Local value
+      call extern0 @scoop_rt_write direct
+        Local $call.1
+      call extern0 @scoop_rt_write direct
+        StringConst @scoop.str.1
+      return
+  fun println @scoop.println$S(value: String) -> Unit
+    bb0 entry
+      call $call.1: String = @scoop.String.toString direct
+        Local value
+      call extern0 @scoop_rt_write direct
+        Local $call.1
+      call extern0 @scoop_rt_write direct
+        StringConst @scoop.str.2
+      return
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
     bb0 entry
       return
@@ -630,80 +759,64 @@ Module
       return
         ClassInit UnwrapException
           VariantConstruct Option$S<String> v0
-            StringConst @scoop.str.2
+            StringConst @scoop.str.3
   fun ctor.ClassCastException @scoop.ctor.ClassCastException() -> ClassCastException
     bb0 entry
       return
         ClassInit ClassCastException
           VariantConstruct Option$S<String> v0
-            StringConst @scoop.str.3
+            StringConst @scoop.str.4
   fun ctor.ArithmeticException @scoop.ctor.ArithmeticException() -> ArithmeticException
     bb0 entry
       return
         ClassInit ArithmeticException
           VariantConstruct Option$S<String> v0
-            StringConst @scoop.str.4
+            StringConst @scoop.str.5
   fun ctor.IndexOutOfBoundsException @scoop.ctor.IndexOutOfBoundsException() -> IndexOutOfBoundsException
     bb0 entry
       return
         ClassInit IndexOutOfBoundsException
           VariantConstruct Option$S<String> v0
-            StringConst @scoop.str.5
+            StringConst @scoop.str.6
   fun ctor.IllegalStateException @scoop.ctor.IllegalStateException() -> IllegalStateException
     bb0 entry
       return
         ClassInit IllegalStateException
           VariantConstruct Option$S<String> v0
-            StringConst @scoop.str.6
+            StringConst @scoop.str.7
   fun ctor.Counter @scoop.ctor.Counter(value: Int) -> Counter
     bb0 entry
       return
         ClassInit Counter
           Local value
-  fun eq.I @scoop.eq.I(this: Any, other: Any) -> Boolean
-    bb0 entry
-      val $a: Int
-        Unbox
-          Local this
-      val $b: Int
-        Unbox
-          Local other
-      return
-        Binary IntEq
-          Local $a
-          Local $b
-  fun tostring.I @scoop.tostring.I(this: Any) -> String
-    bb0 entry
-      call $call.1: String = @scoop_rt_int_to_string direct
-        Unbox
-          Local this
-      return
-        Local $call.1
-  str @scoop.str.0 "\n"
-  str @scoop.str.1 "alive"
-  str @scoop.str.2 "unwrap on None"
-  str @scoop.str.3 "invalid cast"
-  str @scoop.str.4 "arithmetic error"
-  str @scoop.str.5 "array index out of bounds"
-  str @scoop.str.6 "illegal state"
+  instance @scoop.println$I <- println
+  instance @scoop.println$S <- println
+  str @scoop.str.0 "alive"
+  str @scoop.str.1 "\n"
+  str @scoop.str.2 "\n"
+  str @scoop.str.3 "unwrap on None"
+  str @scoop.str.4 "invalid cast"
+  str @scoop.str.5 "arithmetic error"
+  str @scoop.str.6 "array index out of bounds"
+  str @scoop.str.7 "illegal state"
   entry @scoop_main
 
 == lir ==
 Module
-  global @scoop.str.0 = "\n"
-  global @scoop.str.1 = "alive"
-  global @scoop.str.2 = "unwrap on None"
-  global @scoop.str.3 = "invalid cast"
-  global @scoop.str.4 = "arithmetic error"
-  global @scoop.str.5 = "array index out of bounds"
-  global @scoop.str.6 = "illegal state"
+  global @scoop.str.0 = "alive"
+  global @scoop.str.1 = "\n"
+  global @scoop.str.2 = "\n"
+  global @scoop.str.3 = "unwrap on None"
+  global @scoop.str.4 = "invalid cast"
+  global @scoop.str.5 = "arithmetic error"
+  global @scoop.str.6 = "array index out of bounds"
+  global @scoop.str.7 = "illegal state"
   global @scoop_td_$Closure$lambda0 = c""
   global @scoop_td_$Closure$lambda1 = c""
   global @scoop_td_$Closure$lambda2 = c""
   global @scoop_td_$Closure$lambda3 = c""
   global @scoop_td_$Closure$lambda4 = c""
   global @scoop_td_$Closure$lambda5 = c""
-  global @scoop_td_box$I = c""
   global @scoop_td_$Closure$lambda6 = c""
   global @scoop_td_Throwable = c""
   global @scoop_td_Exception = c""
@@ -715,59 +828,117 @@ Module
   global @scoop_td_Counter = c""
   enum Option$S niche(payload_variant=0)
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
+  extern ef1 coreIntEquals @scoop_rt_int_equals(i64, i64) -> i1 <scoop managed nounwind>
+  extern ef2 coreUIntEquals @scoop_rt_uint_equals(i64, i64) -> i1 <scoop managed nounwind>
+  extern ef3 coreBooleanEquals @scoop_rt_bool_equals(i1, i1) -> i1 <scoop managed nounwind>
+  extern ef4 coreStringEquals @scoop_rt_string_eq(ptr<managed>, ptr<managed>) -> i1 <scoop managed nounwind>
+  extern ef5 coreIntToString @scoop_rt_int_to_string(i64) -> ptr<managed> <scoop managed nounwind>
+  extern ef6 coreUIntToString @scoop_rt_uint_to_string(i64) -> ptr<managed> <scoop managed nounwind>
+  extern ef7 coreBooleanToString @scoop_rt_bool_to_string(i1) -> ptr<managed> <scoop managed nounwind>
+  extern ef8 coreIntHash @scoop_rt_int_hash(i64) -> i64 <scoop managed nounwind>
+  extern ef9 coreUIntHash @scoop_rt_uint_hash(i64) -> i64 <scoop managed nounwind>
+  extern ef10 coreBooleanHash @scoop_rt_bool_hash(i1) -> i64 <scoop managed nounwind>
+  extern ef11 coreStringHash @scoop_rt_string_hash(ptr<managed>) -> i64 <scoop managed nounwind>
+  fun @scoop.Int.equals(i64, i64) -> i1
+    local %0 $call.1: i1
+  block entry
+    t0 = native_call[native-borrowed] extern1(param0, param1) : i1
+    store t0 -> local0
+    ret local0
+  fun @scoop.Int.toString(i64) -> ptr<managed>
+    local %0 $call.1: ptr<managed>
+  block entry
+    t0 = native_call[native-borrowed] extern5(param0) result-root=refs[0] : ptr<managed>
+    store t0 -> local0
+    ret local0
+  fun @scoop.Int.hash(i64) -> i64
+    local %0 $call.1: i64
+  block entry
+    t0 = native_call[native-borrowed] extern8(param0) : i64
+    store t0 -> local0
+    ret local0
+  fun @scoop.UInt.equals(i64, i64) -> i1
+    local %0 $call.1: i1
+  block entry
+    t0 = native_call[native-borrowed] extern2(param0, param1) : i1
+    store t0 -> local0
+    ret local0
+  fun @scoop.UInt.toString(i64) -> ptr<managed>
+    local %0 $call.1: ptr<managed>
+  block entry
+    t0 = native_call[native-borrowed] extern6(param0) result-root=refs[0] : ptr<managed>
+    store t0 -> local0
+    ret local0
+  fun @scoop.UInt.hash(i64) -> i64
+    local %0 $call.1: i64
+  block entry
+    t0 = native_call[native-borrowed] extern9(param0) : i64
+    store t0 -> local0
+    ret local0
+  fun @scoop.Boolean.equals(i1, i1) -> i1
+    local %0 $call.1: i1
+  block entry
+    t0 = native_call[native-borrowed] extern3(param0, param1) : i1
+    store t0 -> local0
+    ret local0
+  fun @scoop.Boolean.toString(i1) -> ptr<managed>
+    local %0 $call.1: ptr<managed>
+  block entry
+    t0 = native_call[native-borrowed] extern7(param0) result-root=refs[0] : ptr<managed>
+    store t0 -> local0
+    ret local0
+  fun @scoop.Boolean.hash(i1) -> i64
+    local %0 $call.1: i64
+  block entry
+    t0 = native_call[native-borrowed] extern10(param0) : i64
+    store t0 -> local0
+    ret local0
   fun @scoop.Snapshot.getter(struct4) -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global7, 32) : ptr<managed>
+    t0 = call @scoop_rt_alloc(global8, 32) : ptr<managed>
     t1 = function_address @scoop.$lambda.5 : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 param0
     ret t0
+  fun @scoop.String.equals(ptr<managed>, ptr<managed>) -> i1
+    local %0 $call.1: i1
+  block entry
+    t0 = native_call[native-borrowed] extern4(param0, param1) : i1
+    store t0 -> local0
+    ret local0
+  fun @scoop.String.toString(ptr<managed>) -> ptr<managed>
+  block entry
+    ret param0
+  fun @scoop.String.hash(ptr<managed>) -> i64
+    local %0 $call.1: i64
+  block entry
+    t0 = native_call[native-borrowed] extern11(param0) : i64
+    store t0 -> local0
+    ret local0
   fun @scoop.Counter.incrementer(ptr<managed>) -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global8, 32) : ptr<managed>
+    t0 = call @scoop_rt_alloc(global9, 32) : ptr<managed>
     t1 = function_address @scoop.$lambda.6 : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 param0
     ret t0
-  fun @scoop.print(ptr<managed>) -> void
-    local %0 $call.1: ptr<managed>
-  block entry
-    t0 = heap_load param0 +0 : ptr<metadata>
-    t1 = heap_load t0 +40 : ptr<metadata>
-    t2 = call_indirect t1[2](param0) : ptr<managed>
-    store t2 -> local0
-    native_call[native-borrowed] extern0(local0)
-    t3 = aggregate () : {}
-    ret
-  fun @scoop.println(ptr<managed>) -> void
-    local %0 $call.1: ptr<managed>
-  block entry
-    t0 = heap_load param0 +0 : ptr<metadata>
-    t1 = heap_load t0 +40 : ptr<metadata>
-    t2 = call_indirect t1[2](param0) : ptr<managed>
-    store t2 -> local0
-    native_call[native-borrowed] extern0(local0)
-    t3 = aggregate () : {}
-    native_call[native-borrowed] extern0(global0)
-    t4 = aggregate () : {}
-    ret
   fun @scoop.makeAdder(i64) -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global9, 32) : ptr<managed>
+    t0 = call @scoop_rt_alloc(global10, 32) : ptr<managed>
     t1 = function_address @scoop.$lambda.0 : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 param0
     ret t0
   fun @scoop.makeNested(i64) -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global10, 32) : ptr<managed>
+    t0 = call @scoop_rt_alloc(global11, 32) : ptr<managed>
     t1 = function_address @scoop.$lambda.1 : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 param0
     ret t0
   fun @scoop.labelReader(struct3) -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global11, 32) : ptr<managed>
+    t0 = call @scoop_rt_alloc(global12, 32) : ptr<managed>
     t1 = function_address @scoop.$lambda.3 : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 param0
@@ -779,7 +950,7 @@ Module
   block entry
     store 41 -> local0
     store local0 -> local1
-    t0 = call @scoop_rt_alloc(global12, 32) : ptr<managed>
+    t0 = call @scoop_rt_alloc(global13, 32) : ptr<managed>
     t1 = function_address @scoop.$lambda.4 : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 local1
@@ -809,7 +980,7 @@ Module
     store t1 -> local1
     t2 = call_indirect local1[2](local1) : ptr<managed>
     store t2 -> local2
-    t3 = aggregate (global1) : struct3
+    t3 = aggregate (global0) : struct3
     t4 = call @scoop.labelReader(t3) : ptr<managed>
     store t4 -> local3
     t5 = aggregate (1) : struct4
@@ -826,43 +997,36 @@ Module
     t10 = aggregate () : {}
     t11 = call_indirect local0[2](local0, 40) : i64
     store t11 -> local8
-    t12 = call @scoop_rt_box(global13, local8, 8) : ptr<managed>
-    call @scoop.println(t12)
-    t13 = aggregate () : {}
-    t14 = call_indirect local2[2](local2) : i64
-    store t14 -> local9
-    t15 = call @scoop_rt_box(global13, local9, 8) : ptr<managed>
-    call @scoop.println(t15)
+    call @scoop.println$I(local8)
+    t12 = aggregate () : {}
+    t13 = call_indirect local2[2](local2) : i64
+    store t13 -> local9
+    call @scoop.println$I(local9)
+    t14 = aggregate () : {}
+    t15 = call_indirect local3[2](local3) : ptr<managed>
+    store t15 -> local10
+    call @scoop.println$S(local10)
     t16 = aggregate () : {}
-    t17 = call_indirect local3[2](local3) : ptr<managed>
-    store t17 -> local10
-    call @scoop.println(local10)
+    t17 = call_indirect local5[2](local5) : i64
+    store t17 -> local11
+    call @scoop.println$I(local11)
     t18 = aggregate () : {}
-    t19 = call_indirect local5[2](local5) : i64
-    store t19 -> local11
-    t20 = call @scoop_rt_box(global13, local11, 8) : ptr<managed>
-    call @scoop.println(t20)
-    t21 = aggregate () : {}
-    t22 = extract local4, 0 : i64
-    t23 = call @scoop_rt_box(global13, t22, 8) : ptr<managed>
-    call @scoop.println(t23)
+    t19 = extract local4, 0 : i64
+    call @scoop.println$I(t19)
+    t20 = aggregate () : {}
+    t21 = call_indirect local7[2](local7) : i64
+    store t21 -> local12
+    call @scoop.println$I(local12)
+    t22 = aggregate () : {}
+    t23 = heap_load local6 +16 : i64
+    call @scoop.println$I(t23)
     t24 = aggregate () : {}
-    t25 = call_indirect local7[2](local7) : i64
-    store t25 -> local12
-    t26 = call @scoop_rt_box(global13, local12, 8) : ptr<managed>
-    call @scoop.println(t26)
+    t25 = call @scoop.snapshot() : ptr<managed>
+    store t25 -> local13
+    t26 = call_indirect local13[2](local13) : i64
+    store t26 -> local14
+    call @scoop.println$I(local14)
     t27 = aggregate () : {}
-    t28 = heap_load local6 +16 : i64
-    t29 = call @scoop_rt_box(global13, t28, 8) : ptr<managed>
-    call @scoop.println(t29)
-    t30 = aggregate () : {}
-    t31 = call @scoop.snapshot() : ptr<managed>
-    store t31 -> local13
-    t32 = call_indirect local13[2](local13) : i64
-    store t32 -> local14
-    t33 = call @scoop_rt_box(global13, local14, 8) : ptr<managed>
-    call @scoop.println(t33)
-    t34 = aggregate () : {}
     ret
   fun @scoop.$lambda.0(ptr<managed>, i64) -> i64
   block entry
@@ -906,6 +1070,26 @@ Module
     t4 = heap_load param0 +24 : ptr<managed>
     t5 = heap_load t4 +16 : i64
     ret t5
+  fun @scoop.println$I(i64) -> void
+    local %0 $call.1: ptr<managed>
+  block entry
+    t0 = call @scoop.Int.toString(param0) : ptr<managed>
+    store t0 -> local0
+    native_call[native-borrowed] extern0(local0)
+    t1 = aggregate () : {}
+    native_call[native-borrowed] extern0(global1)
+    t2 = aggregate () : {}
+    ret
+  fun @scoop.println$S(ptr<managed>) -> void
+    local %0 $call.1: ptr<managed>
+  block entry
+    t0 = call @scoop.String.toString(param0) : ptr<managed>
+    store t0 -> local0
+    native_call[native-borrowed] extern0(local0)
+    t1 = aggregate () : {}
+    native_call[native-borrowed] extern0(global2)
+    t2 = aggregate () : {}
+    ret
   fun @scoop.ctor.Throwable() -> ptr<managed>
   block entry
     t0 = call @scoop_rt_alloc(global15, 16) : ptr<managed>
@@ -918,31 +1102,31 @@ Module
   fun @scoop.ctor.UnwrapException() -> ptr<managed>
   block entry
     t0 = call @scoop_rt_alloc(global17, 24) : ptr<managed>
-    t1 = enum_wrap e0 v0 (global2) : enum0
+    t1 = enum_wrap e0 v0 (global3) : enum0
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.ClassCastException() -> ptr<managed>
   block entry
     t0 = call @scoop_rt_alloc(global18, 24) : ptr<managed>
-    t1 = enum_wrap e0 v0 (global3) : enum0
+    t1 = enum_wrap e0 v0 (global4) : enum0
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.ArithmeticException() -> ptr<managed>
   block entry
     t0 = call @scoop_rt_alloc(global19, 24) : ptr<managed>
-    t1 = enum_wrap e0 v0 (global4) : enum0
+    t1 = enum_wrap e0 v0 (global5) : enum0
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.IndexOutOfBoundsException() -> ptr<managed>
   block entry
     t0 = call @scoop_rt_alloc(global20, 24) : ptr<managed>
-    t1 = enum_wrap e0 v0 (global5) : enum0
+    t1 = enum_wrap e0 v0 (global6) : enum0
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.IllegalStateException() -> ptr<managed>
   block entry
     t0 = call @scoop_rt_alloc(global21, 24) : ptr<managed>
-    t1 = enum_wrap e0 v0 (global6) : enum0
+    t1 = enum_wrap e0 v0 (global7) : enum0
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.Counter(i64) -> ptr<managed>
@@ -950,30 +1134,14 @@ Module
     t0 = call @scoop_rt_alloc(global22, 24) : ptr<managed>
     heap_store t0 +16 param0
     ret t0
-  fun @scoop.eq.I(ptr<managed>, ptr<managed>) -> i1
-    local %0 $a: i64
-    local %1 $b: i64
-  block entry
-    t0 = heap_load param0 +16 : i64
-    store t0 -> local0
-    t1 = heap_load param1 +16 : i64
-    store t1 -> local1
-    t2 = Eq local0, local1 : i1
-    ret t2
-  fun @scoop.tostring.I(ptr<managed>) -> ptr<managed>
-    local %0 $call.1: ptr<managed>
-  block entry
-    t0 = heap_load param0 +16 : i64
-    t1 = call @scoop_rt_int_to_string(t0) : ptr<managed>
-    store t1 -> local0
-    ret local0
+  td ToString @scoop_td_ToString size=0 vtable=0 itables=0
+  td Hash @scoop_td_Hash size=0 vtable=0 itables=0
   td function$FRIX @scoop_td_function$FRIX size=0 vtable=0 itables=0
   td function$FIRIX @scoop_td_function$FIRIX size=0 vtable=0 itables=0
   td function$FRFRIXX @scoop_td_function$FRFRIXX size=0 vtable=0 itables=0
   td function$FRSX @scoop_td_function$FRSX size=0 vtable=0 itables=0
   td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
   td Counter @scoop_td_Counter size=24 vtable=3 itables=0
-  td box$I @scoop_td_box$I size=24 vtable=3 itables=0
   td Exception @scoop_td_Exception size=24 vtable=3 itables=0
   td UnwrapException @scoop_td_UnwrapException size=24 vtable=3 itables=0
   td ClassCastException @scoop_td_ClassCastException size=24 vtable=3 itables=0
@@ -1001,7 +1169,6 @@ Module
   layout IndexOutOfBoundsException size=24 align=8 refs=[16]
   layout IllegalStateException size=24 align=8 refs=[16]
   layout Counter size=24 align=8 refs=[]
-  layout box$I size=24 align=8 refs=[]
   layout $Closure$lambda0 size=32 align=8 refs=[]
   layout $Closure$lambda1 size=32 align=8 refs=[24]
   layout $Closure$lambda2 size=32 align=8 refs=[]

@@ -30,7 +30,6 @@ fn function_types_are_canonical_and_keep_suspend_identity() {
         .expect("use function");
     assert_eq!(use_.params[0].ty, use_.params[1].ty);
     assert_ne!(use_.params[0].ty, use_.params[2].ty);
-    assert_eq!(module.function_types.len(), 2);
     assert_eq!(
         hir::type_name(&module, use_.params[0].ty),
         "(Int) -> String"

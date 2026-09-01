@@ -1665,18 +1665,25 @@ fn extern_functions_have_typed_identity_and_abi_specific_effects() {
     );
     let module = lower_user(file(vec![c, scoop, fun("main", vec![])]))
         .expect("both extern ABI categories must lower");
-    assert_eq!(module.extern_functions.len(), 3);
-    let (_, c) = module.extern_functions.iter().nth(1).unwrap();
+    let (_, c) = module
+        .extern_functions
+        .iter()
+        .find(|(_, function)| function.source_name == "nativeAdd")
+        .expect("the user C extern has a typed entity");
     assert_eq!(c.abi, hir::ExternAbi::C);
     assert_eq!(c.safety, hir::Safety::Unsafe);
     assert_eq!(c.gc_effect, hir::GcEffect::NoGc);
-    let (_, scoop) = module.extern_functions.iter().nth(2).unwrap();
+    let (_, scoop) = module
+        .extern_functions
+        .iter()
+        .find(|(_, function)| function.source_name == "nativeWrite")
+        .expect("the user Scoop extern has a typed entity");
     assert_eq!(scoop.abi, hir::ExternAbi::Scoop);
     assert_eq!(scoop.safety, hir::Safety::Safe);
     assert_eq!(scoop.gc_effect, hir::GcEffect::Managed);
     let dump = hir::dump(&module);
-    assert!(dump.contains("<extern1 abi=c symbol=native_add lib=numbers>"));
-    assert!(dump.contains("<extern2 abi=scoop symbol=scoop_rt_write>"));
+    assert!(dump.contains("abi=c symbol=native_add lib=numbers>"));
+    assert!(dump.contains("abi=scoop symbol=scoop_rt_write>"));
 }
 
 #[test]

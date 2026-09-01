@@ -1281,6 +1281,22 @@ impl Lowerer {
                         .all(|(target, source)| self.is_subtype(target, source))
                     && self.is_subtype(source.return_type, target.return_type)
             }
+            (Type::Int, Type::Interface(..)) => self
+                .intrinsic_type_interfaces(hir::IntrinsicTypeKind::Int)
+                .into_iter()
+                .any(|implemented| self.is_subtype(implemented, b)),
+            (Type::UInt, Type::Interface(..)) => self
+                .intrinsic_type_interfaces(hir::IntrinsicTypeKind::UInt)
+                .into_iter()
+                .any(|implemented| self.is_subtype(implemented, b)),
+            (Type::Boolean, Type::Interface(..)) => self
+                .intrinsic_type_interfaces(hir::IntrinsicTypeKind::Boolean)
+                .into_iter()
+                .any(|implemented| self.is_subtype(implemented, b)),
+            (Type::String, Type::Interface(..)) => self
+                .intrinsic_type_interfaces(hir::IntrinsicTypeKind::String)
+                .into_iter()
+                .any(|implemented| self.is_subtype(implemented, b)),
             (Type::Class(application), Type::Interface(..)) => self
                 .class_interfaces_for_application(application)
                 .into_iter()
@@ -1305,6 +1321,26 @@ impl Lowerer {
         }
     }
 
+    /// Interfaces explicitly declared by the source definition of one
+    /// compiler-represented intrinsic type.  Primitive `Type` variants do not
+    /// erase their source declaration: `intrinsic_type_owners` is the typed
+    /// declaration relation established in pass 1, and all capability checks
+    /// consume that relation instead of maintaining a second built-in list.
+    fn intrinsic_type_interfaces(&mut self, kind: hir::IntrinsicTypeKind) -> Vec<TypeId> {
+        let Some(&(owner, _provider)) = self.intrinsic_type_owners.get(&kind) else {
+            // A missing intrinsic owner is diagnosed by the core-contract
+            // validator and prevents HIR output.  During recovery there is no
+            // source declaration whose interfaces could be consumed.
+            return Vec::new();
+        };
+        match owner {
+            crate::IntrinsicTypeOwner::Struct(owner) => self.structs[owner].interfaces.clone(),
+            crate::IntrinsicTypeOwner::Class(owner) => {
+                self.class_interfaces_for_application(self.classes[owner].self_application)
+            }
+        }
+    }
+
     /// View a concrete argument type through one exact implemented
     /// interface. Generic-call inference uses this before binding the
     /// interface's type arguments, so `C : I<Int>` can constrain a
@@ -1319,6 +1355,10 @@ impl Lowerer {
                 let application = self.interface_applications[application].clone();
                 return (application.template == target).then_some(application.arguments);
             }
+            Type::Int => self.intrinsic_type_interfaces(hir::IntrinsicTypeKind::Int),
+            Type::UInt => self.intrinsic_type_interfaces(hir::IntrinsicTypeKind::UInt),
+            Type::Boolean => self.intrinsic_type_interfaces(hir::IntrinsicTypeKind::Boolean),
+            Type::String => self.intrinsic_type_interfaces(hir::IntrinsicTypeKind::String),
             Type::Class(application) => self.class_interfaces_for_application(application),
             Type::Struct(application) => {
                 let application = self.struct_applications[application].clone();

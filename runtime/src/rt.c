@@ -55,6 +55,15 @@ const ScoopString *scoop_rt_int_to_string(int64_t v) {
     return result;
 }
 
+const ScoopString *scoop_rt_uint_to_string(uint64_t v) {
+    char buf[24]; // 2^64 - 1 needs 20 chars + NUL
+    int len = snprintf(buf, sizeof(buf), "%llu", (unsigned long long)v);
+    ScoopString *result = scoop_rt_alloc(&scoop_td_String, sizeof(ScoopString) + (size_t)len);
+    result->len = (uint64_t)len;
+    memcpy(result->data, buf, (size_t)len);
+    return result;
+}
+
 // "true" / "false" as a fresh ScoopString, backing core's
 // `boolToString` (M7).
 const ScoopString *scoop_rt_bool_to_string(bool v) {
@@ -66,6 +75,48 @@ const ScoopString *scoop_rt_bool_to_string(bool v) {
     result->len = (uint64_t)len;
     memcpy(result->data, text, len);
     return result;
+}
+
+bool scoop_rt_int_equals(int64_t left, int64_t right) {
+    return left == right;
+}
+
+bool scoop_rt_uint_equals(uint64_t left, uint64_t right) {
+    return left == right;
+}
+
+bool scoop_rt_bool_equals(bool left, bool right) {
+    return left == right;
+}
+
+static uint64_t scoop_rt_mix_word(uint64_t value) {
+    value ^= value >> 30;
+    value *= UINT64_C(0xbf58476d1ce4e5b9);
+    value ^= value >> 27;
+    value *= UINT64_C(0x94d049bb133111eb);
+    value ^= value >> 31;
+    return value;
+}
+
+int64_t scoop_rt_int_hash(int64_t v) {
+    return (int64_t)scoop_rt_mix_word((uint64_t)v);
+}
+
+int64_t scoop_rt_uint_hash(uint64_t v) {
+    return (int64_t)scoop_rt_mix_word(v);
+}
+
+int64_t scoop_rt_bool_hash(bool v) {
+    return v ? 1 : 0;
+}
+
+int64_t scoop_rt_string_hash(const ScoopString *s) {
+    uint64_t hash = UINT64_C(1469598103934665603);
+    for (uint64_t index = 0; index < s->len; index++) {
+        hash ^= (uint8_t)s->data[index];
+        hash *= UINT64_C(1099511628211);
+    }
+    return (int64_t)hash;
 }
 
 const ScoopString *scoop_rt_string_concat(const ScoopString *a, const ScoopString *b) {

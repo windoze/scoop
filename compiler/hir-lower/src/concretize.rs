@@ -1982,6 +1982,54 @@ impl<'a> Concretizer<'a> {
         let bound = self.source.bound_callable_refs[source].clone();
         let required_interface = self.lower_interface_application(bound.bound, substitution);
         match self.types[receiver].kind.clone() {
+            concrete::TypeKind::Int => {
+                let source = self.source.intrinsic_type_core.int;
+                let conformances = self.source.structs[source]
+                    .interface_implementations
+                    .clone();
+                self.resolve_nominal_bound_target(
+                    &conformances,
+                    &[],
+                    bound.member,
+                    required_interface,
+                )
+            }
+            concrete::TypeKind::UInt => {
+                let source = self.source.intrinsic_type_core.uint;
+                let conformances = self.source.structs[source]
+                    .interface_implementations
+                    .clone();
+                self.resolve_nominal_bound_target(
+                    &conformances,
+                    &[],
+                    bound.member,
+                    required_interface,
+                )
+            }
+            concrete::TypeKind::Boolean => {
+                let source = self.source.intrinsic_type_core.boolean;
+                let conformances = self.source.structs[source]
+                    .interface_implementations
+                    .clone();
+                self.resolve_nominal_bound_target(
+                    &conformances,
+                    &[],
+                    bound.member,
+                    required_interface,
+                )
+            }
+            concrete::TypeKind::String => {
+                let source = self.source.intrinsic_type_core.string;
+                let conformances = self.source.classes[source]
+                    .interface_implementations
+                    .clone();
+                self.resolve_nominal_bound_target(
+                    &conformances,
+                    &[],
+                    bound.member,
+                    required_interface,
+                )
+            }
             concrete::TypeKind::Struct(id) => {
                 let source = self.struct_source[&id];
                 let arguments = self.structs[id].type_arguments.clone();

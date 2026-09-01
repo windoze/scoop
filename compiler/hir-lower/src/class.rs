@@ -1456,6 +1456,18 @@ impl Lowerer {
     ) -> Vec<crate::CallableCandidate> {
         let mut declared = Vec::<(crate::CallableCandidate, usize, usize)>::new();
         match self.types[ty].clone() {
+            Type::Int => {
+                self.collect_intrinsic_type_methods(hir::IntrinsicTypeKind::Int, &mut declared)
+            }
+            Type::UInt => {
+                self.collect_intrinsic_type_methods(hir::IntrinsicTypeKind::UInt, &mut declared)
+            }
+            Type::Boolean => {
+                self.collect_intrinsic_type_methods(hir::IntrinsicTypeKind::Boolean, &mut declared)
+            }
+            Type::String => {
+                self.collect_intrinsic_type_methods(hir::IntrinsicTypeKind::String, &mut declared)
+            }
             Type::Class(mut application) => {
                 let mut depth = 0;
                 loop {
@@ -1602,6 +1614,36 @@ impl Lowerer {
             .into_iter()
             .map(|(candidate, _, _)| candidate)
             .collect()
+    }
+
+    /// Add the ordinary source methods declared on a compiler-represented
+    /// intrinsic type.  The type representation stays built in, but its
+    /// semantic surface comes exclusively from the exact declaration owner
+    /// recorded by the intrinsic-type registry.
+    fn collect_intrinsic_type_methods(
+        &self,
+        kind: hir::IntrinsicTypeKind,
+        out: &mut Vec<(crate::CallableCandidate, usize, usize)>,
+    ) {
+        let Some(&(owner, _provider)) = self.intrinsic_type_owners.get(&kind) else {
+            return;
+        };
+        let (methods, owner) = match owner {
+            crate::IntrinsicTypeOwner::Struct(owner) => (
+                self.structs[owner].methods.as_slice(),
+                hir::MethodOwnerApplication::Struct(self.structs[owner].self_application),
+            ),
+            crate::IntrinsicTypeOwner::Class(owner) => (
+                self.classes[owner].methods.as_slice(),
+                hir::MethodOwnerApplication::Class(self.classes[owner].self_application),
+            ),
+        };
+        out.extend(
+            methods
+                .iter()
+                .copied()
+                .map(|function| (crate::CallableCandidate::method(function, owner), 0, 0)),
+        );
     }
 
     fn collect_interface_method_candidates(

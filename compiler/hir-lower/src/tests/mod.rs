@@ -1124,7 +1124,8 @@ pub(crate) fn file(declarations: Vec<Decl>) -> SourceFile {
 /// intrinsic and `print` / `println` as ordinary `Any`-parameter
 /// functions dispatching `toString()`.
 pub(crate) fn core_file() -> SourceFile {
-    let mut declarations = intrinsic_type_declarations();
+    let mut declarations = capability_interfaces();
+    declarations.extend(intrinsic_type_declarations());
     declarations.extend([
         enum_decl(
             "Option",
@@ -1145,6 +1146,34 @@ pub(crate) fn core_file() -> SourceFile {
     ]);
     declarations.extend(coroutine_core_declarations());
     declarations.extend(ffi_core_declarations());
+    let mut print = fun_expr(
+        "print",
+        vec!["T"],
+        vec![("value", ty_named("T"))],
+        None,
+        call("write", vec![method_call(var("value"), "toString", vec![])]),
+    );
+    let Decl::Function(print_decl) = &mut print else {
+        unreachable!()
+    };
+    print_decl.type_params[0].inline_bound = Some(ast::TypeBound::Upper(ty_named("ToString")));
+    let mut println = fun_sig(
+        "println",
+        vec!["T"],
+        vec![("value", ty_named("T"))],
+        None,
+        vec![
+            stmt(call(
+                "write",
+                vec![method_call(var("value"), "toString", vec![])],
+            )),
+            stmt(call("write", vec![str_lit("\n")])),
+        ],
+    );
+    let Decl::Function(println_decl) = &mut println else {
+        unreachable!()
+    };
+    println_decl.type_params[0].inline_bound = Some(ast::TypeBound::Upper(ty_named("ToString")));
     declarations.extend([
         scoop_extern_fun(
             "write",
@@ -1152,31 +1181,37 @@ pub(crate) fn core_file() -> SourceFile {
             vec![("message", ty_named("String"))],
             None,
         ),
-        fun_expr(
-            "print",
-            vec![],
-            vec![("message", ty_named("Any"))],
-            None,
-            call(
-                "write",
-                vec![method_call(var("message"), "toString", vec![])],
-            ),
-        ),
-        fun_sig(
-            "println",
-            vec![],
-            vec![("message", ty_named("Any"))],
-            None,
-            vec![
-                stmt(call(
-                    "write",
-                    vec![method_call(var("message"), "toString", vec![])],
-                )),
-                stmt(call("write", vec![str_lit("\n")])),
-            ],
-        ),
+        print,
+        println,
     ]);
     file(declarations)
+}
+
+fn capability_interfaces() -> Vec<Decl> {
+    vec![
+        interface_decl(
+            "ToString",
+            vec![method_full(
+                false,
+                true,
+                "toString",
+                Vec::new(),
+                Some(ty_named("String")),
+                FunctionBody::None,
+            )],
+        ),
+        interface_decl(
+            "Hash",
+            vec![method_full(
+                false,
+                true,
+                "hash",
+                Vec::new(),
+                Some(ty_named("Int")),
+                FunctionBody::None,
+            )],
+        ),
+    ]
 }
 
 fn intrinsic_type_declarations() -> Vec<Decl> {
@@ -1189,15 +1224,47 @@ fn intrinsic_type_declarations() -> Vec<Decl> {
         }],
         span: sp(),
     };
-    let strukt = |name: &str, intrinsic: &str| {
+    let primitive_methods =
+        |type_name: &str, equals_helper: &str, to_string_helper: &str, hash_helper: &str| {
+            let mut equals_method = method_full(
+                false,
+                false,
+                "equals",
+                vec![("other", ty_named(type_name))],
+                Some(ty_named("Boolean")),
+                FunctionBody::Expr(Box::new(call(
+                    equals_helper,
+                    vec![this_expr(), var("other")],
+                ))),
+            );
+            equals_method.operator = Some(ast::OperatorModifier { span: sp() });
+            let to_string_method = method_full(
+                true,
+                false,
+                "toString",
+                Vec::new(),
+                Some(ty_named("String")),
+                FunctionBody::Expr(Box::new(call(to_string_helper, vec![this_expr()]))),
+            );
+            let hash_method = method_full(
+                true,
+                false,
+                "hash",
+                Vec::new(),
+                Some(ty_named("Int")),
+                FunctionBody::Expr(Box::new(call(hash_helper, vec![this_expr()]))),
+            );
+            vec![equals_method, to_string_method, hash_method]
+        };
+    let strukt = |name: &str, intrinsic: &str, methods: Vec<ast::FunctionDecl>| {
         Decl::Struct(AstStructDecl {
             annotations: vec![annotation(intrinsic)],
             name: ident(name),
             type_params: Vec::new(),
             fields: ast::StructRepresentationDecl::Omitted,
-            interfaces: Vec::new(),
+            interfaces: vec![ty_named("ToString"), ty_named("Hash")],
             where_clause: None,
-            methods: Vec::new(),
+            methods,
             span: sp(),
         })
     };
@@ -1215,14 +1282,138 @@ fn intrinsic_type_declarations() -> Vec<Decl> {
             span: sp(),
         })
     };
-    vec![
-        strukt("Int", "core_int"),
-        strukt("UInt", "core_uint"),
-        strukt("Boolean", "core_boolean"),
-        class("String", "core_string", Vec::new()),
+    let mut string = class("String", "core_string", Vec::new());
+    let Decl::Class(string_decl) = &mut string else {
+        unreachable!()
+    };
+    string_decl.interfaces = vec![ty_named("ToString"), ty_named("Hash")];
+    let mut string_equals = method_full(
+        false,
+        false,
+        "equals",
+        vec![("other", ty_named("String"))],
+        Some(ty_named("Boolean")),
+        FunctionBody::Expr(Box::new(call(
+            "coreStringEquals",
+            vec![this_expr(), var("other")],
+        ))),
+    );
+    string_equals.operator = Some(ast::OperatorModifier { span: sp() });
+    let string_to_string = method_full(
+        true,
+        false,
+        "toString",
+        Vec::new(),
+        Some(ty_named("String")),
+        FunctionBody::Expr(Box::new(this_expr())),
+    );
+    let string_hash = method_full(
+        true,
+        false,
+        "hash",
+        Vec::new(),
+        Some(ty_named("Int")),
+        FunctionBody::Expr(Box::new(call("coreStringHash", vec![this_expr()]))),
+    );
+    string_decl.methods = vec![string_equals, string_to_string, string_hash];
+
+    let mut declarations = vec![
+        strukt(
+            "Int",
+            "core_int",
+            primitive_methods("Int", "coreIntEquals", "coreIntToString", "coreIntHash"),
+        ),
+        strukt(
+            "UInt",
+            "core_uint",
+            primitive_methods("UInt", "coreUIntEquals", "coreUIntToString", "coreUIntHash"),
+        ),
+        strukt(
+            "Boolean",
+            "core_boolean",
+            primitive_methods(
+                "Boolean",
+                "coreBooleanEquals",
+                "coreBooleanToString",
+                "coreBooleanHash",
+            ),
+        ),
+        string,
         class("Array", "core_array", vec!["T"]),
         class("MutableArray", "core_mutable_array", vec!["T"]),
-    ]
+    ];
+    declarations.extend([
+        scoop_extern_fun(
+            "coreIntEquals",
+            "scoop_rt_int_equals",
+            vec![("left", ty_named("Int")), ("right", ty_named("Int"))],
+            Some(ty_named("Boolean")),
+        ),
+        scoop_extern_fun(
+            "coreUIntEquals",
+            "scoop_rt_uint_equals",
+            vec![("left", ty_named("UInt")), ("right", ty_named("UInt"))],
+            Some(ty_named("Boolean")),
+        ),
+        scoop_extern_fun(
+            "coreBooleanEquals",
+            "scoop_rt_bool_equals",
+            vec![
+                ("left", ty_named("Boolean")),
+                ("right", ty_named("Boolean")),
+            ],
+            Some(ty_named("Boolean")),
+        ),
+        scoop_extern_fun(
+            "coreStringEquals",
+            "scoop_rt_string_eq",
+            vec![("left", ty_named("String")), ("right", ty_named("String"))],
+            Some(ty_named("Boolean")),
+        ),
+        scoop_extern_fun(
+            "coreIntToString",
+            "scoop_rt_int_to_string",
+            vec![("value", ty_named("Int"))],
+            Some(ty_named("String")),
+        ),
+        scoop_extern_fun(
+            "coreUIntToString",
+            "scoop_rt_uint_to_string",
+            vec![("value", ty_named("UInt"))],
+            Some(ty_named("String")),
+        ),
+        scoop_extern_fun(
+            "coreBooleanToString",
+            "scoop_rt_bool_to_string",
+            vec![("value", ty_named("Boolean"))],
+            Some(ty_named("String")),
+        ),
+        scoop_extern_fun(
+            "coreIntHash",
+            "scoop_rt_int_hash",
+            vec![("value", ty_named("Int"))],
+            Some(ty_named("Int")),
+        ),
+        scoop_extern_fun(
+            "coreUIntHash",
+            "scoop_rt_uint_hash",
+            vec![("value", ty_named("UInt"))],
+            Some(ty_named("Int")),
+        ),
+        scoop_extern_fun(
+            "coreBooleanHash",
+            "scoop_rt_bool_hash",
+            vec![("value", ty_named("Boolean"))],
+            Some(ty_named("Int")),
+        ),
+        scoop_extern_fun(
+            "coreStringHash",
+            "scoop_rt_string_hash",
+            vec![("value", ty_named("String"))],
+            Some(ty_named("Int")),
+        ),
+    ]);
+    declarations
 }
 
 fn ffi_core_declarations() -> Vec<Decl> {
@@ -1779,6 +1970,10 @@ Module
     None()
   open class Throwable()
   class IllegalStateException()
+  interface ToString
+    fun toString(): String
+  interface Hash
+    fun hash(): Int
   interface Continuation<in T>
     fun resume(value: T0): Unit
     fun resumeWithException(exception: Throwable): Unit
@@ -1786,28 +1981,41 @@ Module
     suspend fun run(): T0
   interface SuspendRegistration<out T>
     fun register(continuation: Continuation<T0>): Unit
+  fun coreIntEquals(arg1: Int, arg2: Int): Boolean <extern0 abi=scoop symbol=scoop_rt_int_equals>
+  fun coreUIntEquals(arg1: UInt, arg2: UInt): Boolean <extern1 abi=scoop symbol=scoop_rt_uint_equals>
+  fun coreBooleanEquals(arg1: Boolean, arg2: Boolean): Boolean <extern2 abi=scoop symbol=scoop_rt_bool_equals>
+  fun coreStringEquals(arg1: String, arg2: String): Boolean <extern3 abi=scoop symbol=scoop_rt_string_eq>
+  fun coreIntToString(arg1: Int): String <extern4 abi=scoop symbol=scoop_rt_int_to_string>
+  fun coreUIntToString(arg1: UInt): String <extern5 abi=scoop symbol=scoop_rt_uint_to_string>
+  fun coreBooleanToString(arg1: Boolean): String <extern6 abi=scoop symbol=scoop_rt_bool_to_string>
+  fun coreIntHash(arg1: Int): Int <extern7 abi=scoop symbol=scoop_rt_int_hash>
+  fun coreUIntHash(arg1: UInt): Int <extern8 abi=scoop symbol=scoop_rt_uint_hash>
+  fun coreBooleanHash(arg1: Boolean): Int <extern9 abi=scoop symbol=scoop_rt_bool_hash>
+  fun coreStringHash(arg1: String): Int <extern10 abi=scoop symbol=scoop_rt_string_hash>
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
-  fun write(arg1: String): Unit <extern0 abi=scoop symbol=scoop_rt_write>
-  fun print(message: Any): Unit
+  fun write(arg1: String): Unit <extern11 abi=scoop symbol=scoop_rt_write>
+  fun print<T : ToString>(value: T0): Unit
     Call write : Unit
-      MethodCall Any.toString : String
-        Local message : Any
+      MethodCall bound T0 via ToString -> ToString.toString : String
+        Local value : T0
     return
-  fun println(message: Any): Unit
+  fun println<T : ToString>(value: T0): Unit
     Call write : Unit
-      MethodCall Any.toString : String
-        Local message : Any
+      MethodCall bound T0 via ToString -> ToString.toString : String
+        Local value : T0
     Call write : Unit
       StringLiteral \"\\n\" : String
   fun main(): Unit
-    Call println : Unit
-      StringLiteral \"hello, world\" : Any
+    Call println<String> : Unit
+      StringLiteral \"hello, world\" : String
     Call helper : Unit
   fun helper(): Unit
-    Call print : Unit
-      StringLiteral \"!\" : Any
+    Call print<String> : Unit
+      StringLiteral \"!\" : String
   entry main
+  instance println<String>
+  instance print<String>
 ";
     assert_eq!(hir::dump(&module), expected);
 }
@@ -1827,21 +2035,20 @@ fn duplicate_function_is_an_error() {
 
 #[test]
 fn redeclaring_a_core_function_is_an_error() {
-    // The user file's `print(Any)` duplicates the core declaration
-    // exactly (overloads with different signatures would be legal).
-    let file = file(vec![
-        fun("main", vec![]),
-        fun_expr(
-            "print",
-            vec![],
-            vec![("message", ty_named("Any"))],
-            None,
-            call(
-                "write",
-                vec![method_call(var("message"), "toString", vec![])],
-            ),
-        ),
-    ]);
+    // The user file duplicates core's generic declaration exactly (overloads
+    // with different signatures would be legal).
+    let mut duplicate = fun_expr(
+        "print",
+        vec!["T"],
+        vec![("value", ty_named("T"))],
+        None,
+        unit_lit(),
+    );
+    let Decl::Function(function) = &mut duplicate else {
+        unreachable!()
+    };
+    function.type_params[0].inline_bound = Some(ast::TypeBound::Upper(ty_named("ToString")));
+    let file = file(vec![fun("main", vec![]), duplicate]);
     let errors = lower_user(file).expect_err("redeclaring `print` must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(
