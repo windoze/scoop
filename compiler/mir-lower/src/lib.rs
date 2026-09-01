@@ -6611,6 +6611,7 @@ mod tests {
             HashMap<(hir::ClassId, Vec<hir::TypeId>), hir::ClassApplicationId>,
         interfaces: Arena<hir::InterfaceDecl>,
         interface_applications: Arena<hir::InterfaceApplication>,
+        interface_methods: Arena<hir::InterfaceMethod>,
         interface_applications_by_key:
             HashMap<(hir::InterfaceId, Vec<hir::TypeId>), hir::InterfaceApplicationId>,
         top_level: Vec<hir::FunctionId>,
@@ -6709,6 +6710,7 @@ mod tests {
                     },
                 ],
                 interfaces: Vec::new(),
+                interface_implementations: Vec::new(),
                 methods: Vec::new(),
                 span: SPAN,
             });
@@ -6740,6 +6742,7 @@ mod tests {
                 class_applications_by_key: HashMap::new(),
                 interfaces: Arena::new(),
                 interface_applications: Arena::new(),
+                interface_methods: Arena::new(),
                 interface_applications_by_key: HashMap::new(),
                 top_level: vec![int_to_string, bool_to_string],
                 unit,
@@ -7099,6 +7102,7 @@ mod tests {
                 no_gc: false,
                 variants,
                 interfaces: Vec::new(),
+                interface_implementations: Vec::new(),
                 methods: Vec::new(),
                 span: SPAN,
             });
@@ -7166,12 +7170,66 @@ mod tests {
                 name: name.to_string(),
                 self_application,
                 type_params,
-                methods,
+                parents: Vec::new(),
+                methods: Vec::new(),
                 span: SPAN,
             });
             let actual = self.interface_application(interface, self_arguments);
             assert_eq!(actual, self_application);
+            for method in methods {
+                self.add_interface_method_signature(interface, method);
+            }
             interface
+        }
+
+        fn add_interface_method_signature(
+            &mut self,
+            interface: hir::InterfaceId,
+            method: hir::MethodSig,
+        ) {
+            assert!(method.type_params.is_empty());
+            let declaration = self.interfaces[interface].clone();
+            let owner = self.interface_applications[declaration.self_application].canonical_type;
+            let mut locals = Arena::new();
+            let this = locals.alloc(local("this", owner));
+            let mut params = vec![param("this", owner, this)];
+            for source in method.params {
+                let local = locals.alloc(local(&source.name, source.ty));
+                params.push(param(&source.name, source.ty, local));
+            }
+            let function = self.functions.alloc(hir::Function {
+                name: format!("{}.{}", declaration.name, method.name),
+                genericity: hir::FunctionGenericity::Plain,
+                is_suspend: method.is_suspend,
+                params,
+                return_ty: method.return_ty,
+                attributes: method.attributes,
+                kind: hir::FunctionKind::User(hir::Body {
+                    locals,
+                    statements: Vec::new(),
+                }),
+                method: Some(hir::Method {
+                    owner,
+                    modifier: hir::MethodModifier::Abstract,
+                    owner_type_param_count: declaration.type_params.len() as u32,
+                }),
+                span: method.span,
+            });
+            if !declaration.type_params.is_empty() {
+                let generic = self.generic_functions.alloc(hir::GenericFunction {
+                    function,
+                    no_gc_type_params: Vec::new(),
+                });
+                self.functions[function].genericity = hir::FunctionGenericity::Generic {
+                    definition: generic,
+                    parameters: declaration.type_params,
+                };
+            }
+            let member = self.interface_methods.alloc(hir::InterfaceMethod {
+                owner: interface,
+                function,
+            });
+            self.interfaces[interface].methods.push(member);
         }
 
         fn interface(&mut self, name: &str, methods: &[&str]) -> hir::InterfaceId {
@@ -7216,6 +7274,7 @@ mod tests {
             base_class: Option<(hir::TypeId, Vec<hir::Expr>)>,
             interfaces: Vec<hir::TypeId>,
         ) -> hir::ClassId {
+            let interface_implementations = self.interface_implementation_shells(&interfaces);
             let self_application =
                 hir::ClassApplicationId::from_raw((self.class_applications.len() as u32).into());
             let class = self.classes.alloc(hir::ClassDecl {
@@ -7235,6 +7294,7 @@ mod tests {
                     .collect(),
                 base_class,
                 interfaces,
+                interface_implementations,
                 methods: Vec::new(),
                 span: SPAN,
             });
@@ -7307,6 +7367,7 @@ mod tests {
                 .iter()
                 .map(|&interface| self.interface_ty(interface))
                 .collect();
+            let interface_implementations = self.interface_implementation_shells(&interfaces);
             let self_application =
                 hir::StructApplicationId::from_raw((self.struct_applications.len() as u32).into());
             let strukt = self.structs.alloc(hir::StructDecl {
@@ -7322,12 +7383,39 @@ mod tests {
                     })
                     .collect(),
                 interfaces,
+                interface_implementations,
                 methods: Vec::new(),
                 span: SPAN,
             });
             let actual = self.struct_application(strukt, self_arguments);
             assert_eq!(actual, self_application);
             strukt
+        }
+
+        fn interface_implementation_shells(
+            &self,
+            interfaces: &[hir::TypeId],
+        ) -> Vec<hir::InterfaceImplementation> {
+            interfaces
+                .iter()
+                .map(|&interface| {
+                    let hir::Type::Interface(application) = self.types[interface] else {
+                        panic!("test harness interface lists are fully applied")
+                    };
+                    let template = self.interface_applications[application].template;
+                    hir::InterfaceImplementation {
+                        interface: application,
+                        methods: self.interfaces[template]
+                            .methods
+                            .iter()
+                            .map(|&member| hir::InterfaceMethodImplementation {
+                                member,
+                                target: hir::InterfaceImplementationTarget::Subclass,
+                            })
+                            .collect(),
+                    }
+                })
+                .collect()
         }
 
         /// The `UInt` well-known type (M9, spec 11.2), allocated on
@@ -7620,7 +7708,7 @@ mod tests {
                 }),
                 span: SPAN,
             });
-            self.interfaces[continuation].methods = vec![
+            for method in [
                 hir::MethodSig {
                     name: "resume".to_string(),
                     is_suspend: false,
@@ -7639,7 +7727,9 @@ mod tests {
                     return_ty: self.unit,
                     span: SPAN,
                 },
-            ];
+            ] {
+                self.add_interface_method_signature(continuation, method);
+            }
 
             let suspend_task = self.declare_interface(
                 "SuspendTask",
@@ -7835,6 +7925,7 @@ mod tests {
                 anonymous_functions: Arena::new(),
                 local_functions: Arena::new(),
                 callable_references: Arena::new(),
+                bound_callable_refs: Arena::new(),
                 function_coercions: Arena::new(),
                 foreign_callback_registrations: Arena::new(),
                 functions: self.functions,
@@ -7849,6 +7940,7 @@ mod tests {
                 class_applications: self.class_applications,
                 interfaces: self.interfaces,
                 interface_applications: self.interface_applications,
+                interface_methods: self.interface_methods,
                 top_level: self.top_level,
                 unit: self.unit,
                 int: self.int,
@@ -9114,7 +9206,7 @@ Module
             expr(
                 hir::ExprKind::MethodCall {
                     receiver: Box::new(receiver),
-                    callee: hir::Callable::Function(function),
+                    callee: hir::MethodCallee::Callable(hir::Callable::Function(function)),
                     args: vec![arg],
                 },
                 unit,
@@ -9224,7 +9316,7 @@ Module
             expr(
                 hir::ExprKind::MethodCall {
                     receiver: Box::new(receiver),
-                    callee: hir::Callable::Function(function),
+                    callee: hir::MethodCallee::Callable(hir::Callable::Function(function)),
                     args: vec![arg],
                 },
                 unit,
@@ -11820,7 +11912,7 @@ Module
             expr(
                 hir::ExprKind::MethodCall {
                     receiver: Box::new(receiver),
-                    callee: hir::Callable::Function(function),
+                    callee: hir::MethodCallee::Callable(hir::Callable::Function(function)),
                     args: Vec::new(),
                 },
                 unit,
@@ -11895,7 +11987,7 @@ Module
             expr(
                 hir::ExprKind::MethodCall {
                     receiver: Box::new(receiver),
-                    callee: hir::Callable::Function(function),
+                    callee: hir::MethodCallee::Callable(hir::Callable::Function(function)),
                     args: Vec::new(),
                 },
                 unit,

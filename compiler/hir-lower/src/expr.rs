@@ -79,6 +79,13 @@ enum ReferenceExtensionMode {
     Bound(TypeId),
 }
 
+struct ResolvedReference {
+    callable: hir::Callable,
+    source: crate::CallableCandidateSource,
+    type_args: Vec<TypeId>,
+    ty: TypeId,
+}
+
 impl InferredArguments {
     fn finish(self, sink: &mut Vec<hir::Statement>) -> Vec<hir::Expr> {
         let mut args = Vec::with_capacity(self.args.len());
@@ -684,10 +691,12 @@ impl Lowerer {
         ) {
             return Some(expr);
         }
+        let method_callee =
+            self.materialize_method_callee(resolved.source, resolved.callee, &resolved.type_args);
         Some(hir::Expr {
             kind: ExprKind::MethodCall {
                 receiver: Box::new(receiver),
-                callee: resolved.callee,
+                callee: method_callee,
                 args: resolved.args,
             },
             ty,
@@ -817,15 +826,60 @@ impl Lowerer {
         ) {
             return Some(expr);
         }
+        let method_callee = self.materialize_method_callee(candidate.source, callee, &type_args);
         Some(hir::Expr {
             kind: ExprKind::MethodCall {
                 receiver: Box::new(receiver),
-                callee,
+                callee: method_callee,
                 args: adapted,
             },
             ty,
             span: call.span,
         })
+    }
+
+    fn materialize_method_callee(
+        &mut self,
+        source: crate::CallableCandidateSource,
+        callable: hir::Callable,
+        type_args: &[TypeId],
+    ) -> hir::MethodCallee {
+        let crate::CallableCandidateSource::Bound {
+            receiver_parameter,
+            bound,
+            member,
+        } = source
+        else {
+            return hir::MethodCallee::Callable(callable);
+        };
+        let function = self.interface_method_entities[member].function;
+        let signature = self.signatures[&function].clone();
+        let parameter_types = signature
+            .params
+            .iter()
+            .map(|parameter| self.instantiate_ty(parameter.ty, type_args))
+            .collect();
+        let return_type = self.instantiate_ty(signature.return_ty, type_args);
+        let signature_type =
+            self.intern_function_type(signature.is_suspend, parameter_types, return_type);
+        let Type::Function(instantiated_signature) = self.types[signature_type] else {
+            unreachable!("interned function signatures have function type identity")
+        };
+        let value = hir::BoundCallableRef {
+            receiver_parameter,
+            bound,
+            member,
+            instantiated_signature,
+        };
+        let existing = self
+            .bound_callable_refs
+            .iter()
+            .find_map(|(id, existing)| (existing == &value).then_some(id));
+        let id = match existing {
+            Some(id) => id,
+            None => self.bound_callable_refs.alloc(value),
+        };
+        hir::MethodCallee::Bound(id)
     }
 
     fn normalize_pointer_method_call(
@@ -2051,7 +2105,7 @@ impl Lowerer {
         }
         let expected_signature = self.expected_function_signature(expected);
         let display = format!("callable reference `::{}`", name.text);
-        let (callee, ty) = self.resolve_reference_candidates(
+        let resolved = self.resolve_reference_candidates(
             &candidates,
             &[],
             expected_signature.as_ref(),
@@ -2059,6 +2113,8 @@ impl Lowerer {
             span,
             ReferenceExtensionMode::IncludeUnbound,
         )?;
+        let callee = resolved.callable;
+        let ty = resolved.ty;
         if !self.managed_reference_target_is_safe(callee, span) {
             return None;
         }
@@ -2220,7 +2276,7 @@ impl Lowerer {
         }
         let expected_signature = self.expected_function_signature(expected);
         let display = format!("bound callable reference `receiver::{}`", name.text);
-        let (callee, ty) = if is_extension {
+        let resolved = if is_extension {
             self.resolve_reference_candidates(
                 &extension_candidates,
                 &[],
@@ -2237,6 +2293,8 @@ impl Lowerer {
                 span,
             )?
         };
+        let callee = resolved.callable;
+        let ty = resolved.ty;
         if !self.managed_reference_target_is_safe(callee, span) {
             return None;
         }
@@ -2251,7 +2309,11 @@ impl Lowerer {
         } else {
             hir::CallableReferenceTarget::BoundMember {
                 receiver: Box::new(receiver),
-                callee,
+                callee: self.materialize_method_callee(
+                    resolved.source,
+                    callee,
+                    &resolved.type_args,
+                ),
             }
         };
         let id = self.callable_references.alloc(hir::CallableReference {
@@ -2297,14 +2359,11 @@ impl Lowerer {
         display: &str,
         span: Span,
         extension_mode: ReferenceExtensionMode,
-    ) -> Option<(hir::Callable, TypeId)> {
+    ) -> Option<ResolvedReference> {
         let candidates = candidates
             .iter()
             .copied()
-            .map(|function| crate::CallableCandidate {
-                function,
-                owner_arguments: owner_type_args.to_vec(),
-            })
+            .map(|function| crate::CallableCandidate::direct(function, owner_type_args.to_vec()))
             .collect::<Vec<_>>();
         self.resolve_reference_candidate_set(&candidates, expected, display, span, extension_mode)
     }
@@ -2315,7 +2374,7 @@ impl Lowerer {
         expected: Option<&(TypeId, hir::FunctionType)>,
         display: &str,
         span: Span,
-    ) -> Option<(hir::Callable, TypeId)> {
+    ) -> Option<ResolvedReference> {
         self.resolve_reference_candidate_set(
             candidates,
             expected,
@@ -2332,7 +2391,7 @@ impl Lowerer {
         display: &str,
         span: Span,
         extension_mode: ReferenceExtensionMode,
-    ) -> Option<(hir::Callable, TypeId)> {
+    ) -> Option<ResolvedReference> {
         let mut applicable = Vec::new();
         for candidate in candidates {
             let function = candidate.function;
@@ -2418,6 +2477,7 @@ impl Lowerer {
             let own_type_param_count = sig.type_params.len() - sig.owner_type_param_count;
             applicable.push((
                 function,
+                candidate.source,
                 type_args,
                 parameter_types,
                 return_type,
@@ -2443,7 +2503,7 @@ impl Lowerer {
                 let concrete: Vec<_> = applicable
                     .iter()
                     .enumerate()
-                    .filter_map(|(index, candidate)| (candidate.5 == 0).then_some(index))
+                    .filter_map(|(index, candidate)| (candidate.6 == 0).then_some(index))
                     .collect();
                 if let [index] = concrete.as_slice() {
                     *index
@@ -2463,7 +2523,7 @@ impl Lowerer {
                 return None;
             }
         };
-        let (function, type_args, parameter_types, return_type, is_suspend, _) =
+        let (function, source, type_args, parameter_types, return_type, is_suspend, _) =
             applicable.swap_remove(selected);
         let ty = match expected {
             Some((ty, _)) => *ty,
@@ -2472,12 +2532,17 @@ impl Lowerer {
         let callee = if type_args.is_empty() {
             hir::Callable::Function(function)
         } else {
-            hir::Callable::Generic(self.record_instantiation(function, type_args))
+            hir::Callable::Generic(self.record_instantiation(function, type_args.clone()))
         };
         if !self.managed_reference_target_is_safe(callee, span) {
             return None;
         }
-        Some((callee, ty))
+        Some(ResolvedReference {
+            callable: callee,
+            source,
+            type_args,
+            ty,
+        })
     }
 
     fn lower_local_callable_reference(

@@ -29,15 +29,18 @@ struct Concretizer<'a> {
     structs: Arena<concrete::StructDef>,
     struct_by_key: HashMap<(export::StructId, Vec<concrete::TypeId>), concrete::StructId>,
     struct_type: HashMap<concrete::StructId, concrete::TypeId>,
+    struct_source: HashMap<concrete::StructId, export::StructId>,
     enums: Arena<concrete::EnumDef>,
     enum_by_key: HashMap<(export::EnumId, Vec<concrete::TypeId>), concrete::EnumId>,
     enum_type: HashMap<concrete::EnumId, concrete::TypeId>,
+    enum_source: HashMap<concrete::EnumId, export::EnumId>,
     interfaces: Arena<concrete::InterfaceDef>,
     interface_by_key: HashMap<(export::InterfaceId, Vec<concrete::TypeId>), concrete::InterfaceId>,
     interface_type: HashMap<concrete::InterfaceId, concrete::TypeId>,
     classes: Arena<concrete::ClassDef>,
     class_by_key: HashMap<(export::ClassId, Vec<concrete::TypeId>), concrete::ClassId>,
     class_type: HashMap<concrete::ClassId, concrete::TypeId>,
+    class_source: HashMap<concrete::ClassId, export::ClassId>,
     extern_functions: Arena<concrete::ExternFunction>,
     extern_map: HashMap<export::ExternFunctionId, concrete::ExternFunctionId>,
     globals: Arena<concrete::Global>,
@@ -83,15 +86,18 @@ impl<'a> Concretizer<'a> {
             structs: Arena::new(),
             struct_by_key: HashMap::new(),
             struct_type: HashMap::new(),
+            struct_source: HashMap::new(),
             enums: Arena::new(),
             enum_by_key: HashMap::new(),
             enum_type: HashMap::new(),
+            enum_source: HashMap::new(),
             interfaces: Arena::new(),
             interface_by_key: HashMap::new(),
             interface_type: HashMap::new(),
             classes: Arena::new(),
             class_by_key: HashMap::new(),
             class_type: HashMap::new(),
+            class_source: HashMap::new(),
             extern_functions: Arena::new(),
             extern_map: HashMap::new(),
             globals: Arena::new(),
@@ -325,6 +331,7 @@ impl<'a> Concretizer<'a> {
             span: source.span,
         });
         self.class_by_key.insert(key, id);
+        self.class_source.insert(id, source_id);
         let ty = self.intern_type(concrete::TypeKind::Class(id), false);
         self.class_type.insert(id, ty);
 
@@ -339,9 +346,13 @@ impl<'a> Concretizer<'a> {
             })
             .collect();
         let interfaces = source
-            .interfaces
+            .interface_implementations
             .iter()
-            .map(|interface| self.lower_type(*interface, &arguments))
+            .map(|implementation| {
+                let interface =
+                    self.lower_interface_application(implementation.interface, &arguments);
+                self.interface_type[&interface]
+            })
             .collect();
         let base_class = source.base_class.map(|(base, args)| {
             let base = self.lower_type(base, &arguments);
@@ -657,6 +668,7 @@ impl<'a> Concretizer<'a> {
             span: source.span,
         });
         self.struct_by_key.insert(key, id);
+        self.struct_source.insert(id, source_id);
         let ty = self.intern_type(concrete::TypeKind::Struct(id), false);
         self.struct_type.insert(id, ty);
         let fields: Vec<_> = source
@@ -668,9 +680,13 @@ impl<'a> Concretizer<'a> {
             })
             .collect();
         let interfaces = source
-            .interfaces
+            .interface_implementations
             .iter()
-            .map(|interface| self.lower_type(*interface, &arguments))
+            .map(|implementation| {
+                let interface =
+                    self.lower_interface_application(implementation.interface, &arguments);
+                self.interface_type[&interface]
+            })
             .collect();
         let gc_free = fields.iter().all(|field| self.types[field.ty].gc_free);
         assert!(
@@ -709,6 +725,7 @@ impl<'a> Concretizer<'a> {
             span: source.span,
         });
         self.enum_by_key.insert(key, id);
+        self.enum_source.insert(id, source_id);
         let ty = self.intern_type(concrete::TypeKind::Enum(id), false);
         self.enum_type.insert(id, ty);
         let variants: Vec<_> = source
@@ -733,9 +750,13 @@ impl<'a> Concretizer<'a> {
             })
             .collect();
         let interfaces = source
-            .interfaces
+            .interface_implementations
             .iter()
-            .map(|interface| self.lower_type(*interface, &arguments))
+            .map(|implementation| {
+                let interface =
+                    self.lower_interface_application(implementation.interface, &arguments);
+                self.interface_type[&interface]
+            })
             .collect();
         let gc_free = variants.iter().all(|variant| variant.gc_free);
         assert!(
@@ -795,29 +816,79 @@ impl<'a> Concretizer<'a> {
         self.interface_by_key.insert(key, id);
         let ty = self.intern_type(concrete::TypeKind::Interface(id), false);
         self.interface_type.insert(id, ty);
-        let methods = source
-            .methods
+        let method_instances = self.interface_method_instances(source.self_application, &arguments);
+        let methods = method_instances
             .iter()
-            .filter(|method| method.type_params.is_empty())
-            .map(|method| concrete::MethodSig {
-                name: method.name.clone(),
-                is_suspend: method.is_suspend,
-                attributes: method.attributes,
-                params: method
-                    .params
-                    .iter()
-                    .map(|param| concrete::Param {
-                        name: param.name.clone(),
-                        ty: self.lower_type(param.ty, &arguments),
-                        local: remap_idx(param.local),
-                    })
-                    .collect(),
-                return_ty: self.lower_type(method.return_ty, &arguments),
-                span: method.span,
+            .map(|(method, method_arguments)| {
+                let function =
+                    &self.source.functions[self.source.interface_methods[*method].function];
+                concrete::MethodSig {
+                    name: function
+                        .name
+                        .rsplit('.')
+                        .next()
+                        .expect("interface methods are qualified")
+                        .to_string(),
+                    is_suspend: function.is_suspend,
+                    attributes: function.attributes,
+                    params: function
+                        .params
+                        .iter()
+                        .skip(1)
+                        .map(|param| concrete::Param {
+                            name: param.name.clone(),
+                            ty: self.lower_type(param.ty, method_arguments),
+                            local: remap_idx(param.local),
+                        })
+                        .collect(),
+                    return_ty: self.lower_type(function.return_ty, method_arguments),
+                    span: function.span,
+                }
             })
             .collect();
         self.interfaces[id].methods = methods;
         id
+    }
+
+    fn interface_method_instances(
+        &mut self,
+        application: export::InterfaceApplicationId,
+        substitution: &[concrete::TypeId],
+    ) -> Vec<(export::InterfaceMethodId, Vec<concrete::TypeId>)> {
+        let mut result = Vec::new();
+        let mut seen = Vec::new();
+        self.collect_interface_method_instances(application, substitution, &mut seen, &mut result);
+        result
+    }
+
+    fn collect_interface_method_instances(
+        &mut self,
+        application: export::InterfaceApplicationId,
+        substitution: &[concrete::TypeId],
+        seen: &mut Vec<(export::InterfaceId, Vec<concrete::TypeId>)>,
+        out: &mut Vec<(export::InterfaceMethodId, Vec<concrete::TypeId>)>,
+    ) {
+        let application = self.source.interface_applications[application].clone();
+        let arguments = application
+            .arguments
+            .iter()
+            .map(|argument| self.lower_type(*argument, substitution))
+            .collect::<Vec<_>>();
+        let key = (application.template, arguments.clone());
+        if seen.contains(&key) {
+            return;
+        }
+        seen.push(key);
+        let declaration = self.source.interfaces[application.template].clone();
+        out.extend(
+            declaration
+                .methods
+                .iter()
+                .map(|&member| (member, arguments.clone())),
+        );
+        for parent in declaration.parents {
+            self.collect_interface_method_instances(parent, &arguments, seen, out);
+        }
     }
 
     fn instance_name(&self, base: &str, arguments: &[concrete::TypeId]) -> String {
@@ -1416,14 +1487,30 @@ impl<'a> Concretizer<'a> {
                 receiver,
                 callee,
                 args,
-            } => concrete::ExprKind::MethodCall {
-                receiver: Box::new(self.lower_expr(receiver, substitution, locals)),
-                callee: self.lower_callable(*callee, substitution),
-                args: args
-                    .iter()
-                    .map(|argument| self.lower_expr(argument, substitution, locals))
-                    .collect(),
-            },
+            } => {
+                let mut receiver = self.lower_expr(receiver, substitution, locals);
+                let callee = match callee {
+                    export::MethodCallee::Callable(callable) => {
+                        self.lower_callable(*callable, substitution)
+                    }
+                    export::MethodCallee::Bound(bound) => {
+                        let (callee, interface) =
+                            self.resolve_bound_callee(*bound, receiver.ty, substitution);
+                        if let Some(interface) = interface {
+                            receiver = self.adapt_receiver_to_interface(receiver, interface);
+                        }
+                        callee
+                    }
+                };
+                concrete::ExprKind::MethodCall {
+                    receiver: Box::new(receiver),
+                    callee,
+                    args: args
+                        .iter()
+                        .map(|argument| self.lower_expr(argument, substitution, locals))
+                        .collect(),
+                }
+            }
             export::ExprKind::Box(value) => {
                 concrete::ExprKind::Box(Box::new(self.lower_expr(value, substitution, locals)))
             }
@@ -1535,6 +1622,168 @@ impl<'a> Concretizer<'a> {
         substitution: &[concrete::TypeId],
     ) -> concrete::Callable {
         self.lower_callable_with_arguments(source, substitution).0
+    }
+
+    /// Resolve a template-only bound member from the explicit conformance map
+    /// generated by export HIR. The returned interface is present only when
+    /// dispatch must use the bound interface directly (an interface receiver
+    /// or an abstract subclass-provided implementation).
+    fn resolve_bound_callee(
+        &mut self,
+        source: export::BoundCallableRefId,
+        receiver: concrete::TypeId,
+        substitution: &[concrete::TypeId],
+    ) -> (concrete::Callable, Option<concrete::InterfaceId>) {
+        let bound = self.source.bound_callable_refs[source].clone();
+        let required_interface = self.lower_interface_application(bound.bound, substitution);
+        match self.types[receiver].kind.clone() {
+            concrete::TypeKind::Struct(id) => {
+                let source = self.struct_source[&id];
+                let arguments = self.structs[id].type_arguments.clone();
+                let conformances = self.source.structs[source]
+                    .interface_implementations
+                    .clone();
+                self.resolve_nominal_bound_target(
+                    &conformances,
+                    &arguments,
+                    bound.member,
+                    required_interface,
+                )
+            }
+            concrete::TypeKind::Enum(id) => {
+                let source = self.enum_source[&id];
+                let arguments = self.enums[id].type_arguments.clone();
+                let conformances = self.source.enums[source].interface_implementations.clone();
+                self.resolve_nominal_bound_target(
+                    &conformances,
+                    &arguments,
+                    bound.member,
+                    required_interface,
+                )
+            }
+            concrete::TypeKind::Class(id) => {
+                let source = self.class_source[&id];
+                let arguments = self.classes[id].type_arguments.clone();
+                let conformances = self.source.classes[source]
+                    .interface_implementations
+                    .clone();
+                self.resolve_nominal_bound_target(
+                    &conformances,
+                    &arguments,
+                    bound.member,
+                    required_interface,
+                )
+            }
+            concrete::TypeKind::Interface(_) => {
+                let application = self.source.interface_applications[bound.bound].clone();
+                let arguments = application
+                    .arguments
+                    .iter()
+                    .map(|argument| self.lower_type(*argument, substitution))
+                    .collect();
+                let function = self.source.interface_methods[bound.member].function;
+                (
+                    concrete::Callable::Function(self.request_function(function, arguments)),
+                    Some(required_interface),
+                )
+            }
+            kind => panic!(
+                "bound receiver reached concretization without an explicit conformance: {kind:?}"
+            ),
+        }
+    }
+
+    fn resolve_nominal_bound_target(
+        &mut self,
+        conformances: &[export::InterfaceImplementation],
+        owner_arguments: &[concrete::TypeId],
+        member: export::InterfaceMethodId,
+        required_interface: concrete::InterfaceId,
+    ) -> (concrete::Callable, Option<concrete::InterfaceId>) {
+        for conformance in conformances {
+            let interface =
+                self.lower_interface_application(conformance.interface, owner_arguments);
+            if interface != required_interface {
+                continue;
+            }
+            let implementation = conformance
+                .methods
+                .iter()
+                .find(|implementation| implementation.member == member)
+                .unwrap_or_else(|| {
+                    panic!("export HIR conformance omits a required interface method")
+                });
+            return match &implementation.target {
+                export::InterfaceImplementationTarget::Function {
+                    function,
+                    owner_arguments: target_arguments,
+                } => {
+                    let target_arguments = target_arguments
+                        .iter()
+                        .map(|argument| self.lower_type(*argument, owner_arguments))
+                        .collect();
+                    (
+                        concrete::Callable::Function(
+                            self.request_function(*function, target_arguments),
+                        ),
+                        None,
+                    )
+                }
+                export::InterfaceImplementationTarget::Subclass => {
+                    let function = self.source.interface_methods[member].function;
+                    let interface_arguments = self.source.interface_applications
+                        [conformance.interface]
+                        .arguments
+                        .iter()
+                        .map(|argument| self.lower_type(*argument, owner_arguments))
+                        .collect();
+                    (
+                        concrete::Callable::Function(
+                            self.request_function(function, interface_arguments),
+                        ),
+                        Some(required_interface),
+                    )
+                }
+            };
+        }
+        panic!("export HIR has no explicit conformance for a validated bound call")
+    }
+
+    fn adapt_receiver_to_interface(
+        &mut self,
+        receiver: concrete::Expr,
+        interface: concrete::InterfaceId,
+    ) -> concrete::Expr {
+        let target = self.interface_type[&interface];
+        if receiver.ty == target {
+            return receiver;
+        }
+        let span = receiver.span;
+        let value = matches!(
+            self.types[receiver.ty].kind,
+            concrete::TypeKind::Unit
+                | concrete::TypeKind::Int
+                | concrete::TypeKind::UInt
+                | concrete::TypeKind::Boolean
+                | concrete::TypeKind::Struct(_)
+                | concrete::TypeKind::Enum(_)
+                | concrete::TypeKind::Tuple(_)
+                | concrete::TypeKind::Ptr(_)
+                | concrete::TypeKind::FunPtr(_)
+        );
+        if value {
+            concrete::Expr {
+                kind: concrete::ExprKind::Box(Box::new(receiver)),
+                ty: target,
+                span,
+            }
+        } else {
+            concrete::Expr {
+                kind: receiver.kind,
+                ty: target,
+                span,
+            }
+        }
     }
 
     fn lower_callable_with_arguments(
@@ -1723,9 +1972,23 @@ impl<'a> Concretizer<'a> {
                 }
             }
             export::CallableReferenceTarget::BoundMember { receiver, callee } => {
+                let mut receiver = self.lower_expr(&receiver, substitution, locals);
+                let callee = match callee {
+                    export::MethodCallee::Callable(callable) => {
+                        self.lower_callable(callable, substitution)
+                    }
+                    export::MethodCallee::Bound(bound) => {
+                        let (callee, interface) =
+                            self.resolve_bound_callee(bound, receiver.ty, substitution);
+                        if let Some(interface) = interface {
+                            receiver = self.adapt_receiver_to_interface(receiver, interface);
+                        }
+                        callee
+                    }
+                };
                 concrete::CallableReferenceTarget::BoundMember {
-                    receiver: Box::new(self.lower_expr(&receiver, substitution, locals)),
-                    callee: self.lower_callable(callee, substitution),
+                    receiver: Box::new(receiver),
+                    callee,
                 }
             }
             export::CallableReferenceTarget::BoundExtension { receiver, callee } => {

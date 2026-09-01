@@ -23,8 +23,20 @@ fn validates_and_preserves_coroutine_core_contract() {
     assert_eq!(continuation.type_params.len(), 1);
     assert_eq!(continuation.type_params[0].variance, hir::Variance::In);
     assert_eq!(continuation.methods.len(), 2);
-    assert_eq!(continuation.methods[0].name, "resume");
-    assert_eq!(continuation.methods[1].name, "resumeWithException");
+    assert_eq!(
+        module.functions[module.interface_methods[continuation.methods[0]].function]
+            .name
+            .rsplit('.')
+            .next(),
+        Some("resume")
+    );
+    assert_eq!(
+        module.functions[module.interface_methods[continuation.methods[1]].function]
+            .name
+            .rsplit('.')
+            .next(),
+        Some("resumeWithException")
+    );
     assert_eq!(
         module.classes[module.coroutine_core.throwable].name,
         "Throwable"
@@ -48,7 +60,7 @@ fn validates_and_preserves_coroutine_core_contract() {
         .find_map(|(_, interface)| (interface.name == "SuspendTask").then_some(interface))
         .expect("SuspendTask interface");
     assert_eq!(task.type_params[0].variance, hir::Variance::Out);
-    assert!(task.methods[0].is_suspend);
+    assert!(module.functions[module.interface_methods[task.methods[0]].function].is_suspend);
 
     let start = function_id(&module, "startCoroutine");
     assert_eq!(module.coroutine_core.start_coroutine, start);
@@ -313,7 +325,7 @@ fn matching_suspend_interface_implementation_is_preserved() {
         .iter()
         .find_map(|(_, interface)| (interface.name == "Task").then_some(interface))
         .expect("Task interface");
-    assert!(task.methods[0].is_suspend);
+    assert!(module.functions[module.interface_methods[task.methods[0]].function].is_suspend);
     assert!(module.functions[function_id(&module, "TaskImpl.run")].is_suspend);
 }
 

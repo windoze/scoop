@@ -1256,7 +1256,12 @@ impl Lowerer {
                 let a = self.interface_applications[a].clone();
                 let b = self.interface_applications[b].clone();
                 if a.template != b.template {
-                    return false;
+                    let parents = self.interfaces[a.template].parents.clone();
+                    return parents.into_iter().any(|parent| {
+                        let parent = self.interface_applications[parent].canonical_type;
+                        let parent = self.instantiate_ty(parent, &a.arguments);
+                        self.is_subtype(parent, b.canonical_type)
+                    });
                 }
                 let variances: Vec<hir::Variance> = self.interfaces[a.template]
                     .type_params
@@ -1368,12 +1373,7 @@ impl Lowerer {
             let application_value = self.class_applications[application].clone();
             for interface in self.classes[application_value.template].interfaces.clone() {
                 let interface = self.instantiate_ty(interface, &application_value.arguments);
-                if !result
-                    .iter()
-                    .any(|&other| self.types_equal(other, interface))
-                {
-                    result.push(interface);
-                }
+                self.append_interface_closure(interface, &mut result);
             }
             if let Some((base, _)) = self.classes[application_value.template].base_class.clone() {
                 let base = self.instantiate_ty(base, &application_value.arguments);
@@ -1388,6 +1388,25 @@ impl Lowerer {
             }
         }
         result
+    }
+
+    pub(crate) fn append_interface_closure(&mut self, interface: TypeId, result: &mut Vec<TypeId>) {
+        if result
+            .iter()
+            .any(|&other| self.types_equal(other, interface))
+        {
+            return;
+        }
+        result.push(interface);
+        let Type::Interface(application) = self.types[interface] else {
+            unreachable!("interface closure starts from an interface application")
+        };
+        let application = self.interface_applications[application].clone();
+        for parent in self.interfaces[application.template].parents.clone() {
+            let parent = self.interface_applications[parent].canonical_type;
+            let parent = self.instantiate_ty(parent, &application.arguments);
+            self.append_interface_closure(parent, result);
+        }
     }
 
     /// Whether a value of static type `a` could ever hold a `b` at run

@@ -32,12 +32,14 @@ use scoop_hir as hir;
 use ast::Span;
 use hir::{FunctionId, Type, TypeId};
 
-use crate::{CallableCandidate, Lowerer};
+use crate::{CallableCandidate, CallableCandidateSource, Lowerer};
 
 /// The winner of overload resolution, ready to be wrapped in an
 /// `ExprKind::Call` / `ExprKind::MethodCall` by the caller.
 pub(crate) struct ResolvedCallee {
     pub(crate) callee: hir::Callable,
+    pub(crate) source: CallableCandidateSource,
+    pub(crate) type_args: Vec<TypeId>,
     /// The arguments, lowered once and adapted (boxed where needed) to
     /// the winner's parameter types.
     pub(crate) args: Vec<hir::Expr>,
@@ -57,6 +59,7 @@ pub(crate) struct OverloadCall<'a> {
 /// method suffix and substitutes the complete vector.
 struct Candidate {
     function: FunctionId,
+    source: CallableCandidateSource,
     params: Vec<TypeId>,
     return_ty: TypeId,
     /// Parameters declared by the function/method itself. Owner-only
@@ -94,10 +97,7 @@ impl Lowerer {
         let candidates = candidates
             .iter()
             .copied()
-            .map(|function| CallableCandidate {
-                function,
-                owner_arguments: receiver_type_args.to_vec(),
-            })
+            .map(|function| CallableCandidate::direct(function, receiver_type_args.to_vec()))
             .collect::<Vec<_>>();
         self.resolve_overload_with_receiver(
             name,
@@ -138,10 +138,7 @@ impl Lowerer {
         let candidates = candidates
             .iter()
             .copied()
-            .map(|function| CallableCandidate {
-                function,
-                owner_arguments: Vec::new(),
-            })
+            .map(|function| CallableCandidate::direct(function, Vec::new()))
             .collect::<Vec<_>>();
         self.resolve_overload_with_receiver(
             name,
@@ -229,6 +226,7 @@ impl Lowerer {
                 }
                 Candidate {
                     function,
+                    source: source.source,
                     params,
                     return_ty: sig.return_ty,
                     own_type_param_count,
@@ -390,6 +388,8 @@ impl Lowerer {
         };
         Some(ResolvedCallee {
             callee,
+            source: candidate.source,
+            type_args,
             args,
             return_ty,
         })

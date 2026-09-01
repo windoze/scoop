@@ -51,6 +51,8 @@ pub type StructApplicationId = Idx<StructApplication>;
 pub type EnumApplicationId = Idx<EnumApplication>;
 pub type ClassApplicationId = Idx<ClassApplication>;
 pub type InterfaceApplicationId = Idx<InterfaceApplication>;
+pub type InterfaceMethodId = Idx<InterfaceMethod>;
+pub type BoundCallableRefId = Idx<BoundCallableRef>;
 pub type LocalId = Idx<Local>;
 
 /// Identity of one primary-constructor parameter. Constructor delegation
@@ -319,6 +321,10 @@ pub struct Module {
     pub anonymous_functions: Arena<AnonymousFunction>,
     pub local_functions: Arena<LocalFunction>,
     pub callable_references: Arena<CallableReference>,
+    /// Template-only calls through an interface upper bound. Each entry
+    /// names the exact receiver parameter, bound application and declaring
+    /// interface method; local-concrete HIR has no corresponding arena.
+    pub bound_callable_refs: Arena<BoundCallableRef>,
     /// Source/target signatures of every explicit function-value variance
     /// adaptation requested by HIR.
     pub function_coercions: Arena<FunctionCoercion>,
@@ -344,6 +350,10 @@ pub struct Module {
     pub class_applications: Arena<ClassApplication>,
     pub interfaces: Arena<InterfaceDecl>,
     pub interface_applications: Arena<InterfaceApplication>,
+    /// Interface member declarations have their own identity domain. A
+    /// bound call never uses a general `FunctionId` as a substitute for the
+    /// declaring interface-member identity.
+    pub interface_methods: Arena<InterfaceMethod>,
     /// Top-level functions in declaration order (core library first,
     /// then user code).
     pub top_level: Vec<FunctionId>,
@@ -491,7 +501,7 @@ pub enum CallableReferenceTarget {
     /// expression so MIR can preserve direct / virtual / interface dispatch.
     BoundMember {
         receiver: Box<Expr>,
-        callee: Callable,
+        callee: MethodCallee,
     },
     /// A bound extension reference. Unlike a member reference its invoke
     /// wrapper always direct-calls the extension body, prepending the saved
@@ -536,12 +546,28 @@ pub struct CoroutineCore {
 }
 
 impl Module {
-    pub fn callable_function(&self, callable: Callable) -> FunctionId {
-        callable_parts(self, callable).0
+    pub fn callable_function(&self, callable: impl FunctionCallee) -> FunctionId {
+        callable.function(self)
     }
 
     pub fn callable_type_args(&self, callable: Callable) -> &[TypeId] {
         callable_parts(self, callable).1.unwrap_or(&[])
+    }
+}
+
+pub trait FunctionCallee: Copy {
+    fn function(self, module: &Module) -> FunctionId;
+}
+
+impl FunctionCallee for Callable {
+    fn function(self, module: &Module) -> FunctionId {
+        callable_parts(module, self).0
+    }
+}
+
+impl FunctionCallee for MethodCallee {
+    fn function(self, module: &Module) -> FunctionId {
+        method_callee_function(module, self)
     }
 }
 
@@ -585,6 +611,10 @@ pub struct StructDecl {
     pub attributes: StructAttributes,
     pub fields: Vec<Field>,
     pub interfaces: Vec<TypeId>,
+    /// Source-complete mapping from each implemented interface member to the
+    /// concrete declaration that implements it. Generic owner/interface
+    /// arguments remain in template form and are substituted together.
+    pub interface_implementations: Vec<InterfaceImplementation>,
     /// Member declarations in source order. Consumers follow this typed
     /// relation and never recover ownership by scanning `Module::functions`.
     pub methods: Vec<FunctionId>,
@@ -621,6 +651,7 @@ pub struct EnumDecl {
     pub no_gc: bool,
     pub variants: Vec<Variant>,
     pub interfaces: Vec<TypeId>,
+    pub interface_implementations: Vec<InterfaceImplementation>,
     pub methods: Vec<FunctionId>,
     pub span: Span,
 }
@@ -671,6 +702,7 @@ pub struct ClassDecl {
     /// Base class and the resolved constructor argument expressions.
     pub base_class: Option<(TypeId, Vec<Expr>)>,
     pub interfaces: Vec<TypeId>,
+    pub interface_implementations: Vec<InterfaceImplementation>,
     pub methods: Vec<FunctionId>,
     pub span: Span,
 }
@@ -698,7 +730,12 @@ pub struct InterfaceDecl {
     pub name: String,
     pub self_application: InterfaceApplicationId,
     pub type_params: Vec<TypeParamDecl>,
-    pub methods: Vec<MethodSig>,
+    /// Exact parent applications in declaration order.
+    pub parents: Vec<InterfaceApplicationId>,
+    /// Methods declared directly by this interface, in itable order after
+    /// inherited methods. Inheritance traversal follows `parents` and these
+    /// typed ids; consumers never reconstruct ownership from function names.
+    pub methods: Vec<InterfaceMethodId>,
     pub span: Span,
 }
 
@@ -707,6 +744,45 @@ pub struct InterfaceApplication {
     pub template: InterfaceId,
     pub arguments: Vec<TypeId>,
     pub canonical_type: TypeId,
+}
+
+/// One interface method declaration. Its callable signature and effects live
+/// on the directly referenced function; this relation is the authoritative
+/// ownership edge and is never recovered by scanning `Module::functions`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct InterfaceMethod {
+    pub owner: InterfaceId,
+    pub function: FunctionId,
+}
+
+/// One complete nominal conformance generated by HIR inheritance checking.
+/// `methods` contains an entry for every method in the interface inheritance
+/// closure, not only methods declared directly on `interface`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InterfaceImplementation {
+    pub interface: InterfaceApplicationId,
+    pub methods: Vec<InterfaceMethodImplementation>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InterfaceMethodImplementation {
+    pub member: InterfaceMethodId,
+    pub target: InterfaceImplementationTarget,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum InterfaceImplementationTarget {
+    Function {
+        function: FunctionId,
+        /// Complete host substitution for the implementing declaration. A
+        /// base-class implementation can therefore be requested directly
+        /// without recovering its owner application from the receiver.
+        owner_arguments: Vec<TypeId>,
+    },
+    /// An abstract class may promise an interface while leaving a member for
+    /// a concrete subclass. Calls through such a specialization use the
+    /// interface application directly instead of guessing a class member.
+    Subclass,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -777,17 +853,15 @@ pub enum TypeParamKind {
     Ref,
 }
 
-/// An interface method signature (M6: no body, no properties).
+/// Convenience signature record used by tests and by the fully concrete
+/// interface representation. ExportHir interface ownership does not store
+/// this record: it stores `InterfaceMethodId -> FunctionId` directly so the
+/// declaration identity and callable cannot diverge.
 #[derive(Debug, Clone)]
 pub struct MethodSig {
     pub name: String,
-    /// Suspend is part of the callable contract and must match exactly
-    /// across interface implementation and overriding relationships.
     pub is_suspend: bool,
     pub attributes: FunctionAttributes,
-    /// Type parameters declared by this method (the owning interface's
-    /// parameters are stored on `InterfaceDecl`). An empty list means the
-    /// method occupies an itable slot; generic methods are static-only.
     pub type_params: Vec<TypeParamDecl>,
     pub params: Vec<Param>,
     pub return_ty: TypeId,
@@ -1188,7 +1262,7 @@ pub enum ExprKind {
     /// interface) is decided at MIR from the receiver's static type.
     MethodCall {
         receiver: Box<Expr>,
-        callee: Callable,
+        callee: MethodCallee,
         args: Vec<Expr>,
     },
     /// Box a value type into `Any` / an interface (spec 4.4.4). The
@@ -1267,6 +1341,23 @@ pub enum ExprKind {
         operand: Box<Expr>,
         trap_on_none: bool,
     },
+}
+
+/// Source-level method target. Ordinary receivers already name a resolved
+/// callable. A type-parameter receiver instead names a typed upper-bound
+/// member that must disappear during HIR concretization.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MethodCallee {
+    Callable(Callable),
+    Bound(BoundCallableRefId),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BoundCallableRef {
+    pub receiver_parameter: TypeParamId,
+    pub bound: InterfaceApplicationId,
+    pub member: InterfaceMethodId,
+    pub instantiated_signature: FunctionTypeId,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1651,26 +1742,40 @@ pub fn dump(module: &Module) -> String {
         } else {
             dump_type_params(module, &decl.type_params)
         };
-        out.push_str(&format!("  interface {}{}\n", decl.name, type_params));
+        let parents = if decl.parents.is_empty() {
+            String::new()
+        } else {
+            format!(
+                " : {}",
+                decl.parents
+                    .iter()
+                    .map(|parent| type_name(
+                        module,
+                        module.interface_applications[*parent].canonical_type
+                    ))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )
+        };
+        out.push_str(&format!(
+            "  interface {}{}{}\n",
+            decl.name, type_params, parents
+        ));
         for method in &decl.methods {
-            let method_type_params = if method.type_params.is_empty() {
-                String::new()
-            } else {
-                dump_type_params(module, &method.type_params)
-            };
-            let params: Vec<String> = method
+            let function = &module.functions[module.interface_methods[*method].function];
+            let params: Vec<String> = function
                 .params
                 .iter()
+                .skip(1)
                 .map(|param| format!("{}: {}", param.name, type_name(module, param.ty)))
                 .collect();
             out.push_str(&format!(
-                "    {}fun {}{}({}): {}{}\n",
-                if method.is_suspend { "suspend " } else { "" },
-                method.name,
-                method_type_params,
+                "    {}fun {}({}): {}{}\n",
+                if function.is_suspend { "suspend " } else { "" },
+                function.name.rsplit('.').next().unwrap_or(&function.name),
                 params.join(", "),
-                type_name(module, method.return_ty),
-                dump_function_attributes(method.attributes)
+                type_name(module, function.return_ty),
+                dump_function_attributes(function.attributes)
             ));
         }
     }
@@ -2081,6 +2186,15 @@ fn callable_parts(module: &Module, callable: Callable) -> (FunctionId, Option<&[
     }
 }
 
+fn method_callee_function(module: &Module, callee: MethodCallee) -> FunctionId {
+    match callee {
+        MethodCallee::Callable(callable) => callable_parts(module, callable).0,
+        MethodCallee::Bound(bound) => {
+            module.interface_methods[module.bound_callable_refs[bound].member].function
+        }
+    }
+}
+
 fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize, out: &mut String) {
     let pad = "  ".repeat(indent);
     let ty = type_name(module, expr.ty);
@@ -2205,17 +2319,21 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
         }
         ExprKind::CallableReference(id) => {
             let reference = &module.callable_references[*id];
-            let (callable, receiver) = match &reference.target {
-                CallableReferenceTarget::Named(callable) => (*callable, None),
-                CallableReferenceTarget::Local { callee, .. } => (*callee, None),
-                CallableReferenceTarget::BoundMember { receiver, callee } => {
-                    (*callee, Some(receiver.as_ref()))
+            let (function, receiver) = match &reference.target {
+                CallableReferenceTarget::Named(callable) => {
+                    (callable_parts(module, *callable).0, None)
                 }
+                CallableReferenceTarget::Local { callee, .. } => {
+                    (callable_parts(module, *callee).0, None)
+                }
+                CallableReferenceTarget::BoundMember { receiver, callee } => (
+                    method_callee_function(module, *callee),
+                    Some(receiver.as_ref()),
+                ),
                 CallableReferenceTarget::BoundExtension { receiver, callee } => {
-                    (*callee, Some(receiver.as_ref()))
+                    (callable_parts(module, *callee).0, Some(receiver.as_ref()))
                 }
             };
-            let (function, _) = callable_parts(module, callable);
             out.push_str(&format!(
                 "{pad}CallableReference reference{} target={} captures={} : {ty}\n",
                 id.into_raw(),
@@ -2417,11 +2535,21 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
             callee,
             args,
         } => {
-            let (function, _) = callable_parts(module, *callee);
-            out.push_str(&format!(
-                "{pad}MethodCall {} : {ty}\n",
-                module.functions[function].name
-            ));
+            let function = method_callee_function(module, *callee);
+            let target = match callee {
+                MethodCallee::Callable(_) => module.functions[function].name.clone(),
+                MethodCallee::Bound(bound) => {
+                    let bound = &module.bound_callable_refs[*bound];
+                    let interface = &module.interface_applications[bound.bound];
+                    format!(
+                        "bound T{} via {} -> {}",
+                        bound.receiver_parameter.into_raw(),
+                        type_name(module, interface.canonical_type),
+                        module.functions[function].name
+                    )
+                }
+            };
+            out.push_str(&format!("{pad}MethodCall {} : {ty}\n", target));
             dump_expr(module, locals, receiver, indent + 1, out);
             for arg in args {
                 dump_expr(module, locals, arg, indent + 1, out);

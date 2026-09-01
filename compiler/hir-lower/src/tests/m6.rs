@@ -201,10 +201,11 @@ fn class_and_interface_structure() {
                 && module.interface_applications[application].arguments.is_empty()
     ));
 
-    // The interface's MethodSig mirrors the signature (params exclude `this`).
-    let sig = &module.interfaces[describable_id].methods[0];
-    assert_eq!(sig.name, "describe");
-    assert!(sig.params.is_empty());
+    // The interface method identity points directly at its complete function.
+    let member = module.interfaces[describable_id].methods[0];
+    let sig = &module.functions[module.interface_methods[member].function];
+    assert_eq!(sig.name.rsplit('.').next(), Some("describe"));
+    assert_eq!(sig.params.len(), 1); // only `this`
     assert_eq!(module.types[sig.return_ty], hir::Type::String);
 }
 

@@ -199,6 +199,27 @@ pub(crate) enum Owner {
 pub(crate) struct CallableCandidate {
     pub(crate) function: FunctionId,
     pub(crate) owner_arguments: Vec<TypeId>,
+    pub(crate) source: CallableCandidateSource,
+}
+
+impl CallableCandidate {
+    pub(crate) fn direct(function: FunctionId, owner_arguments: Vec<TypeId>) -> Self {
+        Self {
+            function,
+            owner_arguments,
+            source: CallableCandidateSource::Direct,
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum CallableCandidateSource {
+    Direct,
+    Bound {
+        receiver_parameter: hir::TypeParamId,
+        bound: hir::InterfaceApplicationId,
+        member: hir::InterfaceMethodId,
+    },
 }
 
 /// Lexical permission to invoke a suspend callable. Keeping an explicit,
@@ -310,6 +331,7 @@ pub(crate) struct Lowerer {
     pub(crate) local_functions: Arena<hir::LocalFunction>,
     pub(crate) local_function_by_function: HashMap<FunctionId, hir::LocalFunctionId>,
     pub(crate) callable_references: Arena<hir::CallableReference>,
+    pub(crate) bound_callable_refs: Arena<hir::BoundCallableRef>,
     pub(crate) function_coercions: Arena<hir::FunctionCoercion>,
     pub(crate) foreign_callback_registrations: Arena<hir::ForeignCallbackRegistration>,
     pub(crate) function_coercion_by_types:
@@ -398,6 +420,10 @@ pub(crate) struct Lowerer {
     /// Interface member functions in declaration order. Class/struct/enum
     /// declarations carry their member ids directly in export HIR.
     pub(crate) interface_methods: HashMap<InterfaceId, Vec<FunctionId>>,
+    /// Typed export identities for the functions in `interface_methods`.
+    /// The map above is a lowering-time lookup index; this arena is the
+    /// authoritative relation emitted to ExportHir.
+    pub(crate) interface_method_entities: Arena<hir::InterfaceMethod>,
     /// The owner of every member function.
     pub(crate) function_owner: HashMap<FunctionId, Owner>,
     /// Enums named `Option` declared in core files:
@@ -542,6 +568,7 @@ impl Lowerer {
             local_functions: Arena::new(),
             local_function_by_function: HashMap::new(),
             callable_references: Arena::new(),
+            bound_callable_refs: Arena::new(),
             function_coercions: Arena::new(),
             foreign_callback_registrations: Arena::new(),
             function_coercion_by_types: HashMap::new(),
@@ -596,6 +623,7 @@ impl Lowerer {
             pointer_type_uses: Vec::new(),
             fun_ptr_type_uses: Vec::new(),
             interface_methods: HashMap::new(),
+            interface_method_entities: Arena::new(),
             function_owner: HashMap::new(),
             option_candidates: Vec::new(),
             option_enum: None,
@@ -831,6 +859,20 @@ impl Lowerer {
             self.interfaces[id].type_params = params;
         }
         self.validate_nominal_type_parameter_constraints();
+        for &(id, decl, file_index) in &pending_interfaces {
+            self.current_file = file_index;
+            self.type_params_in_scope = self.interfaces[id].type_params.clone();
+            let parents = self.resolve_interface_list(&decl.parents);
+            self.type_params_in_scope.clear();
+            self.interfaces[id].parents = parents
+                .into_iter()
+                .map(|parent| match self.types[parent] {
+                    Type::Interface(application) => application,
+                    _ => unreachable!("resolved interface parents are interface applications"),
+                })
+                .collect();
+        }
+        self.check_interface_inheritance_cycles(&pending_interfaces);
 
         self.ffi_ptr = self.require_core_struct("Ptr", files);
         self.ffi_fun_ptr = self.require_core_struct("FunPtr", files);
@@ -1026,6 +1068,7 @@ impl Lowerer {
             anonymous_functions: self.anonymous_functions,
             local_functions: self.local_functions,
             callable_references: self.callable_references,
+            bound_callable_refs: self.bound_callable_refs,
             function_coercions: self.function_coercions,
             foreign_callback_registrations: self.foreign_callback_registrations,
             functions: self.functions,
@@ -1040,6 +1083,7 @@ impl Lowerer {
             class_applications: self.class_applications,
             interfaces: self.interfaces,
             interface_applications: self.interface_applications,
+            interface_methods: self.interface_method_entities,
             top_level: self.top_level,
             unit: self.unit,
             int: self.int,
@@ -1138,6 +1182,7 @@ impl Lowerer {
             fields: Vec::new(),
             // Filled in pass 2 together with the fields.
             interfaces: Vec::new(),
+            interface_implementations: Vec::new(),
             methods: Vec::new(),
             span: decl.span,
         });
@@ -1201,6 +1246,7 @@ impl Lowerer {
             // empty variants never reach the output.
             variants: Vec::new(),
             interfaces: Vec::new(),
+            interface_implementations: Vec::new(),
             methods: Vec::new(),
             span: decl.span,
         });
@@ -1273,6 +1319,7 @@ impl Lowerer {
             constructor: Vec::new(),
             base_class: None,
             interfaces: Vec::new(),
+            interface_implementations: Vec::new(),
             methods: Vec::new(),
             span: decl.span,
         });
@@ -1300,12 +1347,6 @@ impl Lowerer {
         pending_methods: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
         file_index: usize,
     ) {
-        if let Some(parent) = decl.parents.first() {
-            self.error(
-                parent.span,
-                "interface inheritance is not supported by the current HIR model".to_string(),
-            );
-        }
         self.reject_type_annotations("an interface", &decl.annotations);
         if let Some(kind) = self.type_namespace_conflict(&decl.name.text) {
             let what = if kind == "an interface" {
@@ -1340,6 +1381,7 @@ impl Lowerer {
             name: decl.name.text.clone(),
             self_application,
             type_params: type_params.clone(),
+            parents: Vec::new(),
             // Filled in pass 2.5 together with the method signatures.
             methods: Vec::new(),
             span: decl.span,
@@ -1427,11 +1469,17 @@ impl Lowerer {
         self.function_files.insert(id, file_index);
         match owner {
             Owner::Class(owner) => self.classes[owner].methods.push(id),
-            Owner::Interface(owner) => self
-                .interface_methods
-                .get_mut(&owner)
-                .expect("the interface owner map was initialized above")
-                .push(id),
+            Owner::Interface(owner) => {
+                self.interface_methods
+                    .get_mut(&owner)
+                    .expect("the interface owner map was initialized above")
+                    .push(id);
+                let member = self.interface_method_entities.alloc(hir::InterfaceMethod {
+                    owner,
+                    function: id,
+                });
+                self.interfaces[owner].methods.push(member);
+            }
             Owner::Struct(owner) => self.structs[owner].methods.push(id),
             Owner::Enum(owner) => self.enums[owner].methods.push(id),
         }
@@ -2105,19 +2153,19 @@ impl Lowerer {
                 ..
             }]
         );
-        let valid_methods = match interface.methods.as_slice() {
+        let valid_methods = match self.interface_methods[&id].as_slice() {
             [resume, resume_exception] => {
-                resume.name == "resume"
+                let resume = &self.functions[*resume];
+                let resume_exception = &self.functions[*resume_exception];
+                resume.name.rsplit('.').next() == Some("resume")
                     && !resume.is_suspend
-                    && resume.type_params.is_empty()
-                    && resume.params.len() == 1
-                    && self.is_type_param(resume.params[0].ty, 0)
+                    && resume.params.len() == 2
+                    && self.is_type_param(resume.params[1].ty, 0)
                     && resume.return_ty == self.unit
-                    && resume_exception.name == "resumeWithException"
+                    && resume_exception.name.rsplit('.').next() == Some("resumeWithException")
                     && !resume_exception.is_suspend
-                    && resume_exception.type_params.is_empty()
-                    && resume_exception.params.len() == 1
-                    && throwable.is_some_and(|ty| resume_exception.params[0].ty == ty)
+                    && resume_exception.params.len() == 2
+                    && throwable.is_some_and(|ty| resume_exception.params[1].ty == ty)
                     && resume_exception.return_ty == self.unit
             }
             _ => false,
@@ -2141,12 +2189,12 @@ impl Lowerer {
                 ..
             }]
         );
-        let valid_method = match interface.methods.as_slice() {
+        let valid_method = match self.interface_methods[&id].as_slice() {
             [run] => {
-                run.name == "run"
+                let run = &self.functions[*run];
+                run.name.rsplit('.').next() == Some("run")
                     && run.is_suspend
-                    && run.type_params.is_empty()
-                    && run.params.is_empty()
+                    && run.params.len() == 1
                     && self.is_type_param(run.return_ty, 0)
             }
             _ => false,
@@ -2174,13 +2222,13 @@ impl Lowerer {
                 ..
             }]
         );
-        let valid_method = match interface.methods.as_slice() {
+        let valid_method = match self.interface_methods[&id].as_slice() {
             [register] => {
-                register.name == "register"
+                let register = &self.functions[*register];
+                register.name.rsplit('.').next() == Some("register")
                     && !register.is_suspend
-                    && register.type_params.is_empty()
-                    && register.params.len() == 1
-                    && self.is_interface_param(register.params[0].ty, continuation, 0)
+                    && register.params.len() == 2
+                    && self.is_interface_param(register.params[1].ty, continuation, 0)
                     && register.return_ty == self.unit
             }
             _ => false,
@@ -2849,6 +2897,24 @@ impl Lowerer {
             Owner::Enum(id) => {
                 self.enum_applications[self.enums[id].self_application].canonical_type
             }
+        }
+    }
+
+    pub(crate) fn owner_type_args(&self, owner: Owner) -> Vec<TypeId> {
+        match owner {
+            Owner::Class(id) => self.class_applications[self.classes[id].self_application]
+                .arguments
+                .clone(),
+            Owner::Interface(id) => self.interface_applications
+                [self.interfaces[id].self_application]
+                .arguments
+                .clone(),
+            Owner::Struct(id) => self.struct_applications[self.structs[id].self_application]
+                .arguments
+                .clone(),
+            Owner::Enum(id) => self.enum_applications[self.enums[id].self_application]
+                .arguments
+                .clone(),
         }
     }
 

@@ -617,7 +617,16 @@ impl Lowerer {
                 callee,
                 args,
             } => {
-                self.check_no_gc_callee(*callee, expr.span, out);
+                match callee {
+                    hir::MethodCallee::Callable(callee) => {
+                        self.check_no_gc_callee(*callee, expr.span, out)
+                    }
+                    hir::MethodCallee::Bound(bound) => {
+                        let member = self.bound_callable_refs[*bound].member;
+                        let function = self.interface_method_entities[member].function;
+                        self.check_no_gc_function(function, expr.span, out);
+                    }
+                }
                 self.collect_no_gc_expr_violations(receiver, out, requirements);
                 for arg in args {
                     self.collect_no_gc_expr_violations(arg, out, requirements);
@@ -770,6 +779,15 @@ impl Lowerer {
                 self.generic_functions[generic].function
             }
         };
+        self.check_no_gc_function(function, span, out);
+    }
+
+    fn check_no_gc_function(
+        &self,
+        function: hir::FunctionId,
+        span: Span,
+        out: &mut Vec<(Span, String)>,
+    ) {
         let callee = &self.functions[function];
         if callee.attributes.gc_effect != hir::GcEffect::NoGc {
             out.push((

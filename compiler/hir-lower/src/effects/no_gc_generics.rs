@@ -375,7 +375,9 @@ impl Lowerer {
                 callee,
                 args,
             } => {
-                record(*callee);
+                if let hir::MethodCallee::Callable(callee) = callee {
+                    record(*callee);
+                }
                 self.collect_generic_calls_in_expr(caller, receiver, out);
                 for arg in args {
                     self.collect_generic_calls_in_expr(caller, arg, out);
