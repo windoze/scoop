@@ -183,10 +183,30 @@ pub enum ForeignCallbackMode {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ForeignCallbackOperation {
-    Retain,
-    Release,
-    State,
-    Failure,
+    Retain { out: TempId, callback: Value },
+    Release { callback: Value },
+    State { out: TempId, callback: Value },
+    Failure { out: TempId, callback: Value },
+}
+
+impl ForeignCallbackOperation {
+    pub fn callback(self) -> Value {
+        match self {
+            Self::Retain { callback, .. }
+            | Self::Release { callback }
+            | Self::State { callback, .. }
+            | Self::Failure { callback, .. } => callback,
+        }
+    }
+
+    pub fn out(self) -> Option<TempId> {
+        match self {
+            Self::Retain { out, .. } | Self::State { out, .. } | Self::Failure { out, .. } => {
+                Some(out)
+            }
+            Self::Release { .. } => None,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -1017,11 +1037,7 @@ pub enum Instruction {
         bridge: ForeignCallbackBridgeId,
         closure: Value,
     },
-    ForeignCallbackOperation {
-        out: Option<TempId>,
-        operation: ForeignCallbackOperation,
-        callback: Value,
-    },
+    ForeignCallbackOperation(ForeignCallbackOperation),
     IntToPtr {
         out: TempId,
         value: Value,

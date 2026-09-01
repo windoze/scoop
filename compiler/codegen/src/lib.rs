@@ -1153,12 +1153,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     })?;
                 self.temps.insert(*out, value.into_struct_value().into());
             }
-            Instruction::ForeignCallbackOperation {
-                out,
-                operation,
-                callback,
-            } => {
-                let callback = self.value(*callback)?.into_struct_value();
+            Instruction::ForeignCallbackOperation(operation) => {
+                let callback = self.value(operation.callback())?.into_struct_value();
                 let function_pointer = builder
                     .build_extract_value(callback, 0, "callback_function")
                     .map_err(|error| CodegenError(format!("extract callback function: {error}")))?
@@ -1167,9 +1163,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     .build_extract_value(callback, 1, "callback_context")
                     .map_err(|error| CodegenError(format!("extract callback context: {error}")))?
                     .into_pointer_value();
-                match operation {
-                    scoop_lir::ForeignCallbackOperation::Retain => {
-                        let out = out.expect("retain produces a callback value");
+                match *operation {
+                    scoop_lir::ForeignCallbackOperation::Retain { out, .. } => {
                         let retain = self.runtime_fn(
                             "scoop_runtime_callback_retain",
                             ptr_ty(context).fn_type(&[ptr_ty(context).into()], false),
@@ -1206,8 +1201,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                             })?;
                         self.temps.insert(out, value.into_struct_value().into());
                     }
-                    scoop_lir::ForeignCallbackOperation::Release => {
-                        debug_assert!(out.is_none());
+                    scoop_lir::ForeignCallbackOperation::Release { .. } => {
                         let release = self.runtime_fn(
                             "scoop_runtime_callback_release",
                             context
@@ -1220,8 +1214,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                                 CodegenError(format!("release foreign callback: {error}"))
                             })?;
                     }
-                    scoop_lir::ForeignCallbackOperation::Failure => {
-                        let out = out.expect("failure query produces Option<Throwable>");
+                    scoop_lir::ForeignCallbackOperation::Failure { out, .. } => {
                         let failure = self.runtime_fn(
                             "scoop_runtime_callback_failure",
                             ptr_ty(context).fn_type(&[ptr_ty(context).into()], false),
@@ -1236,8 +1229,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                             .expect("failure query returns a nullable managed reference");
                         self.temps.insert(out, value);
                     }
-                    scoop_lir::ForeignCallbackOperation::State => {
-                        let out = out.expect("state query produces an enum value");
+                    scoop_lir::ForeignCallbackOperation::State { out, .. } => {
                         let state = self.runtime_fn(
                             "scoop_runtime_callback_state",
                             context.i32_type().fn_type(&[ptr_ty(context).into()], false),

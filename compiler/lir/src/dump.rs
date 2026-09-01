@@ -609,22 +609,31 @@ fn dump_instruction(function: &Function, instruction: &Instruction, buf: &mut St
             value_name(*closure),
             function.temps[*out].ty.dump()
         )),
-        Instruction::ForeignCallbackOperation {
-            out,
-            operation,
-            callback,
-        } => match out {
-            Some(out) => buf.push_str(&format!(
-                "    t{} = foreign_callback_{:?} {} : {}\n",
+        Instruction::ForeignCallbackOperation(operation) => match *operation {
+            ForeignCallbackOperation::Retain { out, callback } => buf.push_str(&format!(
+                "    t{} = foreign_callback_{} {} : {}\n",
                 out.into_raw(),
-                operation,
-                value_name(*callback),
-                function.temps[*out].ty.dump()
+                "Retain",
+                value_name(callback),
+                function.temps[out].ty.dump()
             )),
-            None => buf.push_str(&format!(
-                "    foreign_callback_{:?} {}\n",
-                operation,
-                value_name(*callback)
+            ForeignCallbackOperation::State { out, callback } => buf.push_str(&format!(
+                "    t{} = foreign_callback_{} {} : {}\n",
+                out.into_raw(),
+                "State",
+                value_name(callback),
+                function.temps[out].ty.dump()
+            )),
+            ForeignCallbackOperation::Failure { out, callback } => buf.push_str(&format!(
+                "    t{} = foreign_callback_{} {} : {}\n",
+                out.into_raw(),
+                "Failure",
+                value_name(callback),
+                function.temps[out].ty.dump()
+            )),
+            ForeignCallbackOperation::Release { callback } => buf.push_str(&format!(
+                "    foreign_callback_Release {}\n",
+                value_name(callback)
             )),
         },
         Instruction::IntToPtr { out, value } => buf.push_str(&format!(

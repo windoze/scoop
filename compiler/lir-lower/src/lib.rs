@@ -859,10 +859,8 @@ fn instruction_uses(instruction: &lir::Instruction, function: &lir::Function) ->
         | lir::Instruction::EnumField { operand, .. }
         | lir::Instruction::ForeignCallbackRegister {
             closure: operand, ..
-        }
-        | lir::Instruction::ForeignCallbackOperation {
-            callback: operand, ..
         } => vec![*operand],
+        lir::Instruction::ForeignCallbackOperation(operation) => vec![operation.callback()],
         lir::Instruction::MakeAggregate { elements, .. }
         | lir::Instruction::ArrayAlloc { elements, .. } => elements.clone(),
         lir::Instruction::Store { value, .. }
@@ -951,7 +949,7 @@ fn instruction_defs(instruction: &lir::Instruction) -> Vec<LiveValue> {
             }
             return definitions;
         }
-        lir::Instruction::ForeignCallbackOperation { out, .. } => *out,
+        lir::Instruction::ForeignCallbackOperation(operation) => operation.out(),
         lir::Instruction::Store { local, .. } => return vec![LiveValue::Local(*local)],
         lir::Instruction::LandingPad { record, raw }
         | lir::Instruction::CleanupPad { record, raw } => {
@@ -1973,32 +1971,37 @@ impl<'a> FunctionLowerer<'a> {
                 ..
             } => {
                 let callback = self.lower_expr(callback);
-                let operation = match operation {
-                    mir::ForeignCallbackOperation::Retain => lir::ForeignCallbackOperation::Retain,
+                match operation {
                     mir::ForeignCallbackOperation::Release => {
-                        lir::ForeignCallbackOperation::Release
+                        self.push(lir::Instruction::ForeignCallbackOperation(
+                            lir::ForeignCallbackOperation::Release { callback },
+                        ));
+                        self.unit_value()
                     }
-                    mir::ForeignCallbackOperation::State => lir::ForeignCallbackOperation::State,
+                    mir::ForeignCallbackOperation::Retain => {
+                        let out_ty = self.value_type(ty);
+                        let out = self.new_temp(out_ty);
+                        self.push(lir::Instruction::ForeignCallbackOperation(
+                            lir::ForeignCallbackOperation::Retain { out, callback },
+                        ));
+                        lir::Value::Temp(out)
+                    }
+                    mir::ForeignCallbackOperation::State => {
+                        let out_ty = self.value_type(ty);
+                        let out = self.new_temp(out_ty);
+                        self.push(lir::Instruction::ForeignCallbackOperation(
+                            lir::ForeignCallbackOperation::State { out, callback },
+                        ));
+                        lir::Value::Temp(out)
+                    }
                     mir::ForeignCallbackOperation::Failure => {
-                        lir::ForeignCallbackOperation::Failure
+                        let out_ty = self.value_type(ty);
+                        let out = self.new_temp(out_ty);
+                        self.push(lir::Instruction::ForeignCallbackOperation(
+                            lir::ForeignCallbackOperation::Failure { out, callback },
+                        ));
+                        lir::Value::Temp(out)
                     }
-                };
-                if operation == lir::ForeignCallbackOperation::Release {
-                    self.push(lir::Instruction::ForeignCallbackOperation {
-                        out: None,
-                        operation,
-                        callback,
-                    });
-                    self.unit_value()
-                } else {
-                    let out_ty = self.value_type(ty);
-                    let out = self.new_temp(out_ty);
-                    self.push(lir::Instruction::ForeignCallbackOperation {
-                        out: Some(out),
-                        operation,
-                        callback,
-                    });
-                    lir::Value::Temp(out)
                 }
             }
             mir::ExprKind::Retype { operand, .. } => self.lower_expr(operand),
