@@ -849,6 +849,18 @@ pub enum MethodModifier {
 pub struct Method {
     pub owner: TypeId,
     pub modifier: MethodModifier,
+    /// Language-level operator identity validated at the declaration site.
+    /// `None` is an ordinary method; downstream consumers never recover an
+    /// operator role from the method name or signature.
+    pub operator: Option<OperatorKind>,
+}
+
+/// Closed set of operator member contracts implemented by the current
+/// language milestone. Unsupported source modifiers are rejected before HIR
+/// output, so an unknown operator cannot enter the pipeline as a string.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum OperatorKind {
+    Equals,
 }
 
 #[derive(Debug, Clone)]
@@ -2254,7 +2266,11 @@ pub fn dump(module: &Module) -> String {
                 .map(|param| format!("{}: {}", param.name, type_name(module, param.ty)))
                 .collect();
             out.push_str(&format!(
-                "    {}fun {}({}): {}{}\n",
+                "    {}{}fun {}({}): {}{}\n",
+                match function.method.and_then(|method| method.operator) {
+                    Some(OperatorKind::Equals) => "operator ",
+                    None => "",
+                },
                 if function.is_suspend { "suspend " } else { "" },
                 function.name.rsplit('.').next().unwrap_or(&function.name),
                 params.join(", "),
@@ -2341,6 +2357,10 @@ pub fn dump(module: &Module) -> String {
             type_name(module, function.return_ty)
         );
         let suspend = if function.is_suspend { "suspend " } else { "" };
+        let operator = match function.method.and_then(|method| method.operator) {
+            Some(OperatorKind::Equals) => "operator ",
+            None => "",
+        };
         let attributes = dump_function_attributes(function.attributes);
         let no_gc_requirements = match &function.genericity {
             FunctionGenericity::Plain => &[][..],
@@ -2367,13 +2387,13 @@ pub fn dump(module: &Module) -> String {
         match &function.kind {
             FunctionKind::Intrinsic(intrinsic) => {
                 out.push_str(&format!(
-                    "  {suspend}fun {signature}{attributes}{no_gc_condition} <intrinsic {}>\n",
+                    "  {operator}{suspend}fun {signature}{attributes}{no_gc_condition} <intrinsic {}>\n",
                     intrinsic.kind.name(),
                 ));
             }
             FunctionKind::User(body) => {
                 out.push_str(&format!(
-                    "  {suspend}fun {signature}{attributes}{no_gc_condition}\n"
+                    "  {operator}{suspend}fun {signature}{attributes}{no_gc_condition}\n"
                 ));
                 dump_statements(module, &body.locals, &body.statements, 2, &mut out);
             }

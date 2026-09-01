@@ -538,6 +538,7 @@ pub enum InstanceSymbol {
 pub struct Method {
     pub owner: TypeId,
     pub modifier: MethodModifier,
+    pub operator: Option<super::OperatorKind>,
 }
 
 #[derive(Debug, Clone)]

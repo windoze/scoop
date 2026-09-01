@@ -7478,6 +7478,7 @@ mod tests {
                 method: Some(hir::Method {
                     owner,
                     modifier: hir::MethodModifier::Abstract,
+                    operator: None,
                 }),
                 span: method.span,
             });
@@ -7657,6 +7658,7 @@ mod tests {
                 method: Some(hir::Method {
                     owner: method_of,
                     modifier: hir::MethodModifier::Open,
+                    operator: None,
                 }),
                 span: SPAN,
             });
@@ -8173,6 +8175,7 @@ mod tests {
                 method: Some(hir::Method {
                     owner: continuation_ty,
                     modifier: hir::MethodModifier::Abstract,
+                    operator: None,
                 }),
                 span: SPAN,
             });
@@ -8192,6 +8195,7 @@ mod tests {
                 method: Some(hir::Method {
                     owner: continuation_ty,
                     modifier: hir::MethodModifier::Abstract,
+                    operator: None,
                 }),
                 span: SPAN,
             });
@@ -8249,6 +8253,7 @@ mod tests {
                 method: Some(hir::Method {
                     owner: suspend_task_ty,
                     modifier: hir::MethodModifier::Abstract,
+                    operator: None,
                 }),
                 span: SPAN,
             });
@@ -8284,6 +8289,7 @@ mod tests {
                 method: Some(hir::Method {
                     owner: suspend_registration_ty,
                     modifier: hir::MethodModifier::Abstract,
+                    operator: None,
                 }),
                 span: SPAN,
             });

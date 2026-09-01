@@ -49,7 +49,12 @@ impl Lowerer {
         &mut self,
         decl: &ast::FunctionDecl,
     ) -> Option<hir::LocalFunctionId> {
-        self.reject_unlowered_function_surface(decl);
+        if let Some(operator) = decl.operator {
+            self.error(
+                operator.span,
+                "`operator` is only allowed on member functions".to_string(),
+            );
+        }
         let outer_type_params = self.type_params_in_scope.clone();
         let owner_type_param_count = outer_type_params.len();
         let mut type_params = outer_type_params.clone();
@@ -117,6 +122,7 @@ impl Lowerer {
             function,
             FnSig {
                 is_suspend: decl.is_suspend,
+                operator: None,
                 attributes,
                 owner_type_param_count,
                 type_params: type_params.clone(),

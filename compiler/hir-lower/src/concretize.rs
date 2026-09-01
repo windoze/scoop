@@ -1257,6 +1257,7 @@ impl<'a> Concretizer<'a> {
         let method = source.method.map(|method| concrete::Method {
             owner: self.lower_type(method.owner, &arguments),
             modifier: method.modifier,
+            operator: method.operator,
         });
         let origin = self.function_origin(key, &source);
         concrete::Function {

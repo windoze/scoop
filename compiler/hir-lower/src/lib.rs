@@ -231,6 +231,9 @@ pub fn concretize_export(export: &hir::ExportHir) -> hir::LocalConcreteHir {
 #[derive(Clone)]
 pub(crate) struct FnSig {
     pub(crate) is_suspend: bool,
+    /// Validated language-level operator role. It participates in override
+    /// and interface matching instead of being inferred from the name.
+    pub(crate) operator: Option<hir::OperatorKind>,
     pub(crate) attributes: hir::FunctionAttributes,
     /// Number of owner parameters at the front of `type_params`.
     pub(crate) owner_type_param_count: usize,
@@ -888,6 +891,7 @@ impl Lowerer {
                 method: Some(hir::Method {
                     owner: self.any,
                     modifier: hir::MethodModifier::Open,
+                    operator: None,
                 }),
                 span,
             });
@@ -895,6 +899,7 @@ impl Lowerer {
                 id,
                 FnSig {
                     is_suspend: false,
+                    operator: None,
                     attributes: hir::FunctionAttributes::default(),
                     owner_type_param_count: 0,
                     type_params: Vec::new(),
@@ -1674,7 +1679,6 @@ impl Lowerer {
         pending: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
         file_index: usize,
     ) {
-        self.reject_unlowered_function_surface(decl);
         let checked = self.check_function_annotations(decl, FunctionTarget::Member(owner));
         let host_ty = self.owner_ty(owner);
         let modifier = match owner {
@@ -1715,6 +1719,10 @@ impl Lowerer {
             method: Some(hir::Method {
                 owner: host_ty,
                 modifier,
+                operator: match (&decl.operator, decl.name.text.as_str()) {
+                    (Some(_), "equals") => Some(hir::OperatorKind::Equals),
+                    _ => None,
+                },
             }),
             span: decl.span,
         });
@@ -1751,7 +1759,12 @@ impl Lowerer {
         pending: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize)>,
         file_index: usize,
     ) {
-        self.reject_unlowered_function_surface(decl);
+        if let Some(operator) = decl.operator {
+            self.error(
+                operator.span,
+                "`operator` is only allowed on member functions".to_string(),
+            );
+        }
         let checked = self.check_function_annotations(decl, FunctionTarget::TopLevel);
         let kind = match (checked.intrinsic, checked.extern_) {
             (Some(intrinsic), _) => FunctionKind::Intrinsic(intrinsic),
@@ -3263,6 +3276,7 @@ impl Lowerer {
             id,
             FnSig {
                 is_suspend: decl.is_suspend,
+                operator: None,
                 attributes: self.functions[id].attributes,
                 owner_type_param_count: 0,
                 type_params,
@@ -3717,15 +3731,6 @@ impl Lowerer {
         }
         self.error(span, format!("{operation} requires an unsafe context"));
         false
-    }
-
-    pub(crate) fn reject_unlowered_function_surface(&mut self, decl: &ast::FunctionDecl) {
-        if let Some(operator) = decl.operator {
-            self.error(
-                operator.span,
-                "operator declarations are not supported by the current HIR model".to_string(),
-            );
-        }
     }
 
     pub(crate) fn error(&mut self, span: Span, message: String) {

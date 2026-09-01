@@ -96,6 +96,162 @@ fn intrinsic_struct(name: &str, intrinsic: &str) -> Decl {
     })
 }
 
+fn operator_equals(is_override: bool, bodyless: bool, other: TypeRef) -> ast::FunctionDecl {
+    let mut method = method_full(
+        is_override,
+        bodyless,
+        "equals",
+        vec![("other", other)],
+        Some(ty_named("Boolean")),
+        if bodyless {
+            FunctionBody::None
+        } else {
+            FunctionBody::Expr(Box::new(bool_lit(true)))
+        },
+    );
+    method.operator = Some(ast::OperatorModifier { span: sp() });
+    method
+}
+
+#[test]
+fn operator_equals_is_a_typed_hir_contract() {
+    let output = lower_user_output(file(vec![
+        interface_decl(
+            "EqualTo",
+            vec![operator_equals(false, true, ty_named("EqualTo"))],
+        ),
+        class_decl(
+            ast::ClassModifier::Final,
+            "Value",
+            Vec::new(),
+            None,
+            vec!["EqualTo"],
+            vec![operator_equals(true, false, ty_named("EqualTo"))],
+        ),
+        fun("main", Vec::new()),
+    ]))
+    .expect("operator identity must participate in ordinary interface conformance");
+
+    let methods = output
+        .export
+        .functions
+        .iter()
+        .filter(|(_, function)| matches!(function.name.as_str(), "EqualTo.equals" | "Value.equals"))
+        .map(|(_, function)| {
+            function
+                .method
+                .expect("equals declarations are methods")
+                .operator
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        methods,
+        vec![
+            Some(hir::OperatorKind::Equals),
+            Some(hir::OperatorKind::Equals)
+        ]
+    );
+    assert!(hir::dump(&output.export).contains("operator fun equals(other: EqualTo): Boolean"));
+    assert!(output.local.functions.iter().any(|(_, function)| {
+        function.name == "Value.equals"
+            && function
+                .method
+                .is_some_and(|method| method.operator == Some(hir::OperatorKind::Equals))
+    }));
+
+    let plain_equals = method_full(
+        true,
+        false,
+        "equals",
+        vec![("other", ty_named("EqualTo"))],
+        Some(ty_named("Boolean")),
+        FunctionBody::Expr(Box::new(bool_lit(true))),
+    );
+    let errors = lower_user(file(vec![
+        interface_decl(
+            "EqualTo",
+            vec![operator_equals(false, true, ty_named("EqualTo"))],
+        ),
+        class_decl(
+            ast::ClassModifier::Final,
+            "Plain",
+            Vec::new(),
+            None,
+            vec!["EqualTo"],
+            vec![plain_equals],
+        ),
+        fun("main", Vec::new()),
+    ]))
+    .expect_err("the operator bit is part of the interface method contract");
+    assert!(errors.iter().any(|error| {
+        error.message == "`equals` must have the same `operator` modifier as `EqualTo.equals`"
+    }));
+    assert!(errors.iter().any(|error| {
+        error
+            .message
+            .contains("does not implement interface method `EqualTo.equals`")
+    }));
+}
+
+#[test]
+fn operator_equals_legality_is_checked_at_its_declaration() {
+    let mut wrong_name = operator_equals(false, false, ty_named("Bad"));
+    wrong_name.name = ident("compare");
+    let mut wrong_arity = operator_equals(false, false, ty_named("Bad"));
+    wrong_arity.params.push(ast::Param {
+        name: ident("extra"),
+        ty: ty_named("Bad"),
+        span: sp(),
+    });
+    let mut wrong_result = operator_equals(false, false, ty_named("Bad"));
+    wrong_result.return_ty = Some(ty_named("Int"));
+    let mut generic = operator_equals(false, false, ty_named("T"));
+    generic.type_params = vec![type_param("T")];
+    let mut suspended = operator_equals(false, false, ty_named("Bad"));
+    suspended.is_suspend = true;
+
+    let errors = lower_user(file(vec![
+        class_decl(
+            ast::ClassModifier::Final,
+            "Bad",
+            Vec::new(),
+            None,
+            Vec::new(),
+            vec![wrong_name, wrong_arity, wrong_result, generic, suspended],
+        ),
+        fun("main", Vec::new()),
+    ]))
+    .expect_err("every invalid operator shape must be rejected before HIR output");
+    for expected in [
+        "operator member `compare` is not supported; M14 only defines `equals`",
+        "operator `equals` must have exactly one parameter, found 2",
+        "operator `equals` must return Boolean, found Int",
+        "operator `equals` must not declare type parameters",
+        "operator `equals` must not be suspend",
+    ] {
+        assert!(
+            errors.iter().any(|error| error.message == expected),
+            "missing diagnostic: {expected}"
+        );
+    }
+}
+
+#[test]
+fn operator_modifier_is_rejected_outside_members() {
+    let mut top = fun("top", Vec::new());
+    let Decl::Function(function) = &mut top else {
+        unreachable!()
+    };
+    function.operator = Some(ast::OperatorModifier { span: sp() });
+    let errors = lower_user(file(vec![top, fun("main", Vec::new())]))
+        .expect_err("top-level operator functions are not member capabilities");
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.message == "`operator` is only allowed on member functions")
+    );
+}
+
 #[test]
 fn intrinsic_type_contract_is_complete_in_export_and_local_hir() {
     let output = lower_user_output(file(vec![fun("main", vec![])]))
