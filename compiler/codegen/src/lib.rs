@@ -45,19 +45,13 @@ use inkwell::values::{BasicValue, BasicValueEnum, GlobalValue, IntValue, Pointer
 use inkwell::{AddressSpace, AtomicOrdering, AtomicRMWBinOp, IntPredicate, OptimizationLevel};
 use la_arena::{Arena, Idx};
 use scoop_lir::{
-    BinOp, ConstantValue, EnumDef, EnumRepr, ExternFunction, ExternFunctionKind, Function,
-    GcEffect, Global, GlobalInit, Instruction, LirType, Module, NativeGlobal, RefScan, StructDef,
-    TempId, Terminator, TypeDescriptor, UnOp, Value,
+    ArrayType, ArrayTypeId, BinOp, ConstantValue, EnumDef, EnumRepr, ExternFunction,
+    ExternFunctionKind, Function, GcEffect, Global, GlobalInit, Instruction, LirType, Module,
+    NativeGlobal, RefScan, StructDef, TempId, Terminator, TypeDescriptor, UnOp, Value,
 };
 
 const SCAN_ARRAY: u64 = u64::MAX;
 const SCAN_SEQUENCE: u64 = u64::MAX - 1;
-
-#[derive(Clone, PartialEq, Eq)]
-struct ArrayDescriptor {
-    element: LirType,
-    element_scan: RefScan,
-}
 
 /// Error produced while translating LIR or emitting the object file.
 #[derive(Debug)]
@@ -657,63 +651,22 @@ fn emit_llvm_module<'ctx>(
     // all function declarations exist; codegen does not synthesize it.
     let string_td = llvm.add_global(td_ty, None, scoop_lir::STRING_TD_SYMBOL);
 
-    // One array TypeDescriptor per distinct (element layout, scan)
-    // 2.2): same struct as String's TD, size/align of the *element*
-    // layout, type_ids from 100 (1 is String). `size` here is the
-    // element size, which is also what `scoop_rt_array_clone` needs.
-    // The array wrapper stores the stride and a recursive scan program
-    // for one inline element, so aggregates and tagged enums are
-    // traced without boxing.
-    let array_descriptors = array_descriptors(module);
-    let mut array_tds: Vec<GlobalValue> = Vec::with_capacity(array_descriptors.len());
-    for (index, descriptor) in array_descriptors.iter().enumerate() {
-        let element_ty = basic_ty(context, &module.structs, &module.enums, &descriptor.element)?;
-        let stride = target_data.get_abi_size(&element_ty);
-        let element_scan = emit_ref_scan(
-            context,
-            &llvm,
-            &format!("scoop_td_array.{index}.element"),
-            &descriptor.element_scan,
-        );
-        let ref_offsets: BasicValueEnum = if let Some(element_scan) = element_scan {
-            let words = i64_ty.const_array(&[
-                i64_ty.const_int(SCAN_ARRAY, false),
-                i64_ty.const_int(stride, false),
-                element_scan.const_to_int(i64_ty),
-            ]);
-            private_const_global(&llvm, &format!("scoop_td_array.{index}.refs"), words.into())
-                .into()
-        } else {
-            ptr_ty.const_null().into()
-        };
-        let array_name = private_c_string(
-            context,
-            &llvm,
-            &format!("scoop_td_array.{index}.name"),
-            &format!("Array<{}>", descriptor.element.dump()),
-        );
-        let array_td = llvm.add_global(td_ty, None, &format!("scoop_td_array.{index}"));
-        array_td.set_constant(true);
-        array_td.set_initializer(
-            &context.const_struct(
-                &[
-                    i64_ty.const_int(100 + index as u64, false).into(),
-                    i64_ty.const_int(stride, false).into(),
-                    i64_ty
-                        .const_int(target_data.get_abi_alignment(&element_ty) as u64, false)
-                        .into(),
-                    ref_offsets,
-                    ptr_ty.const_null().into(),
-                    ptr_ty.const_null().into(),
-                    ptr_ty.const_null().into(),
-                    i64_ty.const_zero().into(),
-                    array_name.into(),
-                ],
-                false,
-            ),
-        );
-        array_tds.push(array_td);
-    }
+    // Declare every descriptor from complete LIR metadata before any
+    // initializer is built. Parent/interface references therefore resolve by
+    // construction; array descriptors are indexed exactly like their
+    // `ArrayTypeId` arena and are never deduplicated from instruction shapes.
+    let type_tds: Vec<GlobalValue> = module
+        .meta
+        .type_descriptors
+        .iter()
+        .map(|descriptor| llvm.add_global(td_ty, None, &descriptor.symbol))
+        .collect();
+    let array_tds: Vec<GlobalValue> = module
+        .meta
+        .arrays
+        .iter()
+        .map(|(_, array)| llvm.add_global(td_ty, None, &array.type_descriptor.symbol))
+        .collect();
 
     // Shared "array index out of bounds" message (only when the module
     // performs a checked array access); trap blocks reference it.
@@ -741,6 +694,13 @@ fn emit_llvm_module<'ctx>(
         .type_descriptors
         .iter()
         .map(|td| td.symbol.as_str())
+        .chain(
+            module
+                .meta
+                .arrays
+                .iter()
+                .map(|(_, array)| array.type_descriptor.symbol.as_str()),
+        )
         .chain([module.meta.string.type_descriptor.symbol.as_str()])
         .collect();
     let mut globals: Vec<Option<GlobalValue>> = Vec::with_capacity(module.globals.len());
@@ -815,7 +775,7 @@ fn emit_llvm_module<'ctx>(
         foreign_callback_bridges: &module.foreign_callback_bridges,
         globals_arena: &module.globals,
         globals: &globals,
-        array_descriptors: &array_descriptors,
+        arrays: &module.meta.arrays,
         array_tds: &array_tds,
         target_data: &target_data,
         bounds_message,
@@ -843,7 +803,7 @@ fn emit_llvm_module<'ctx>(
     }
     // Meta TypeDescriptors reference module functions (vtable / itable
     // slots), so they are emitted after the declare pass.
-    emit_type_descriptors(context, &llvm, td_ty, string_td, module)?;
+    emit_type_descriptors(context, &llvm, string_td, &type_tds, &array_tds, module)?;
     for function in &module.functions {
         emit_function(context, &llvm, &builder, &module_ctx, function)?;
     }
@@ -877,8 +837,6 @@ fn basic_ty<'ctx>(
                 false,
             )
             .into(),
-        // An array value is a pointer to the array object.
-        LirType::Array(_) => context.ptr_type(AddressSpace::default()).into(),
         LirType::Aggregate(elements) => {
             let fields: Vec<BasicTypeEnum> = elements
                 .iter()
@@ -1085,7 +1043,7 @@ fn uses_return_slot(enums: &Arena<EnumDef>, ty: &LirType) -> bool {
     match ty {
         LirType::Aggregate(_) | LirType::Struct(_) | LirType::ExceptionRecord => true,
         LirType::Enum(id) => matches!(enums[*id].repr, EnumRepr::Tagged { .. }),
-        LirType::Void | LirType::I1 | LirType::I64 | LirType::Ptr(_) | LirType::Array(_) => false,
+        LirType::Void | LirType::I1 | LirType::I64 | LirType::Ptr(_) => false,
     }
 }
 
@@ -1113,48 +1071,6 @@ fn arena_index<T>(id: Idx<T>) -> usize {
     id.into_raw().into_u32() as usize
 }
 
-/// The element layout of an array type.
-fn array_element(ty: &LirType) -> Result<&LirType, CodegenError> {
-    match ty {
-        LirType::Array(element) => Ok(element),
-        other => Err(CodegenError(format!(
-            "expected an array type, found {}",
-            other.dump()
-        ))),
-    }
-}
-
-/// Every distinct array allocation descriptor in first-use order.
-/// Array operations other than allocation use the object's own TD;
-/// therefore only `ArrayAlloc` needs to select a generated TD.
-fn array_descriptors(module: &Module) -> Vec<ArrayDescriptor> {
-    let mut out = Vec::new();
-    for function in &module.functions {
-        for (_, block) in function.blocks.iter() {
-            for instruction in &block.instructions {
-                if let Instruction::ArrayAlloc {
-                    out: temp,
-                    element_scan,
-                    ..
-                } = instruction
-                {
-                    let element = array_element(&function.temps[*temp].ty)
-                        .expect("ArrayAlloc output is an array")
-                        .clone();
-                    let descriptor = ArrayDescriptor {
-                        element,
-                        element_scan: element_scan.clone(),
-                    };
-                    if !out.contains(&descriptor) {
-                        out.push(descriptor);
-                    }
-                }
-            }
-        }
-    }
-    out
-}
-
 /// Whether any function needs the shared array-bounds trap message.
 /// Array parameters can be indexed without any array being allocated
 /// in this module, so this is intentionally independent of generated
@@ -1177,9 +1093,10 @@ fn ptr_ty(context: &Context) -> inkwell::types::PointerType<'_> {
     context.ptr_type(AddressSpace::default())
 }
 
-/// First `type_id` assigned to `LirMeta::type_descriptors` entries
-/// (runtime spec 2.2): 1 is String, 100+ are the array TDs.
-const FIRST_TD_TYPE_ID: u64 = 1000;
+/// First generated `type_id` after the runtime-owned String id 1. Ordinary
+/// descriptors are followed immediately by concrete arrays, so uniqueness
+/// does not depend on a reserved numeric range or an assumed entity count.
+const FIRST_GENERATED_TD_TYPE_ID: u64 = 2;
 
 /// Emit one recursive GC scan program. Child pointers are stored as
 /// u64 constants because the C runtime descriptor is a word stream.
@@ -1237,22 +1154,43 @@ fn emit_ref_scan<'ctx>(
 fn emit_type_descriptors<'ctx>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
-    td_ty: StructType<'ctx>,
     string_global: GlobalValue<'ctx>,
+    type_globals: &[GlobalValue<'ctx>],
+    array_globals: &[GlobalValue<'ctx>],
     module: &Module,
 ) -> Result<(), CodegenError> {
     let ptr = ptr_ty(context);
     // ScoopItableEntry: { ptr interface, ptr slots }.
     let entry_ty = context.struct_type(&[ptr.into(), ptr.into()], false);
-    for (index, td) in module.meta.type_descriptors.iter().enumerate() {
-        let global = llvm.add_global(td_ty, None, &td.symbol);
+    for (index, (td, global)) in module
+        .meta
+        .type_descriptors
+        .iter()
+        .zip(type_globals)
+        .enumerate()
+    {
         emit_type_descriptor(
             context,
             llvm,
             entry_ty,
-            global,
+            *global,
             td,
-            FIRST_TD_TYPE_ID + index as u64,
+            FIRST_GENERATED_TD_TYPE_ID + index as u64,
+            DescriptorScan::Fixed(&td.scan),
+        )?;
+    }
+    for (index, ((_, array), global)) in module.meta.arrays.iter().zip(array_globals).enumerate() {
+        emit_type_descriptor(
+            context,
+            llvm,
+            entry_ty,
+            *global,
+            &array.type_descriptor,
+            FIRST_GENERATED_TD_TYPE_ID + module.meta.type_descriptors.len() as u64 + index as u64,
+            DescriptorScan::ArrayElement {
+                stride: array.element_size,
+                scan: &array.type_descriptor.scan,
+            },
         )?;
     }
     emit_type_descriptor(
@@ -1262,8 +1200,14 @@ fn emit_type_descriptors<'ctx>(
         string_global,
         &module.meta.string.type_descriptor,
         1,
+        DescriptorScan::Fixed(&module.meta.string.type_descriptor.scan),
     )?;
     Ok(())
+}
+
+enum DescriptorScan<'a> {
+    Fixed(&'a RefScan),
+    ArrayElement { stride: u64, scan: &'a RefScan },
 }
 
 fn emit_type_descriptor<'ctx>(
@@ -1273,16 +1217,34 @@ fn emit_type_descriptor<'ctx>(
     global: GlobalValue<'ctx>,
     descriptor: &TypeDescriptor,
     type_id: u64,
+    scan: DescriptorScan<'_>,
 ) -> Result<(), CodegenError> {
     let i64_ty = context.i64_type();
     let ptr = ptr_ty(context);
-    let ref_offsets: BasicValueEnum = emit_ref_scan(
-        context,
-        llvm,
-        &format!("{}.refs", descriptor.symbol),
-        &descriptor.scan,
-    )
-    .map_or_else(|| ptr.const_null().into(), Into::into);
+    let ref_offsets: BasicValueEnum = match scan {
+        DescriptorScan::Fixed(scan) => {
+            emit_ref_scan(context, llvm, &format!("{}.refs", descriptor.symbol), scan)
+                .map_or_else(|| ptr.const_null().into(), Into::into)
+        }
+        DescriptorScan::ArrayElement { stride, scan } => emit_ref_scan(
+            context,
+            llvm,
+            &format!("{}.element", descriptor.symbol),
+            scan,
+        )
+        .map_or_else(
+            || ptr.const_null().into(),
+            |element_scan| {
+                let words = i64_ty.const_array(&[
+                    i64_ty.const_int(SCAN_ARRAY, false),
+                    i64_ty.const_int(stride, false),
+                    element_scan.const_to_int(i64_ty),
+                ]);
+                private_const_global(llvm, &format!("{}.refs", descriptor.symbol), words.into())
+                    .into()
+            },
+        ),
+    };
     let parent: BasicValueEnum = match &descriptor.parent {
         Some(symbol) => llvm
             .get_global(symbol)
@@ -1457,9 +1419,9 @@ struct FnEmitter<'a, 'ctx> {
     foreign_callback_bridges: &'a Arena<scoop_lir::ForeignCallbackBridge>,
     globals_arena: &'a Arena<Global>,
     globals: &'a [Option<GlobalValue<'ctx>>],
-    /// Distinct array allocation descriptors and their TypeDescriptor
-    /// globals (indexed in parallel).
-    array_descriptors: &'a [ArrayDescriptor],
+    /// Complete array metadata and descriptor globals, indexed directly by
+    /// `ArrayTypeId`.
+    arrays: &'a Arena<ArrayType>,
     array_tds: &'a [GlobalValue<'ctx>],
     target_data: &'a inkwell::targets::TargetData,
     /// Hidden result pointer for a physically indirect aggregate return.
@@ -2891,7 +2853,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             Instruction::ArrayAlloc {
                 out,
                 elements,
-                element_scan,
+                array_type,
             } => {
                 // `{ ptr td, i64 gc_word, i64 size, [n x elem] }`
                 // (runtime spec 2.5; the 16-byte header is M9):
@@ -2899,12 +2861,12 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 // bytes, store the size at offset 16, then store each
                 // element in order. The rounded data offset is visible
                 // for over-aligned C-layout elements.
-                let element = array_element(&function.temps[*out].ty)?;
-                let element_ty = basic_ty(context, self.structs, self.enums, element)?;
-                let stride = self.target_data.get_abi_size(&element_ty);
-                let data_offset =
-                    array_data_offset(self.target_data.get_abi_alignment(&element_ty) as u64);
-                let td = self.array_td(element, element_scan)?.as_pointer_value();
+                let (array_metadata, td) = self.array_type(*array_type);
+                let element_ty =
+                    basic_ty(context, self.structs, self.enums, &array_metadata.element)?;
+                let stride = array_metadata.element_size;
+                let data_offset = array_data_offset(array_metadata.element_align);
+                let td = td.as_pointer_value();
                 let total = data_offset + elements.len() as u64 * stride;
                 let array =
                     self.managed_alloc_value(td, context.i64_type().const_int(total, false))?;
@@ -2938,7 +2900,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 }
                 self.temps.insert(*out, array.into());
             }
-            Instruction::ArrayLen { out, operand } => {
+            Instruction::ArrayLen { out, operand, .. } => {
                 let array = self.value(*operand)?.into_pointer_value();
                 let size_ptr = self.byte_gep(array, 16, "size_ptr")?;
                 let name = format!("t{}", out.into_raw().into_u32());
@@ -2952,10 +2914,15 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     })?;
                 self.temps.insert(*out, size);
             }
-            Instruction::ArrayGet { out, array, index } => {
-                let array_ty = function.value_ty(self.globals_arena, *array);
-                let element = array_element(&array_ty)?;
-                let element_ty = basic_ty(context, self.structs, self.enums, element)?;
+            Instruction::ArrayGet {
+                out,
+                array,
+                index,
+                array_type,
+            } => {
+                let (array_metadata, _) = self.array_type(*array_type);
+                let element_ty =
+                    basic_ty(context, self.structs, self.enums, &array_metadata.element)?;
                 let array = self.value(*array)?.into_pointer_value();
                 let index = self.value(*index)?.into_int_value();
                 self.bounds_check(array, index)?;
@@ -2975,10 +2942,11 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 array,
                 index,
                 value,
+                array_type,
             } => {
-                let array_ty = function.value_ty(self.globals_arena, *array);
-                let element = array_element(&array_ty)?;
-                let element_ty = basic_ty(context, self.structs, self.enums, element)?;
+                let (array_metadata, _) = self.array_type(*array_type);
+                let element_ty =
+                    basic_ty(context, self.structs, self.enums, &array_metadata.element)?;
                 let array = self.value(*array)?.into_pointer_value();
                 let index = self.value(*index)?.into_int_value();
                 self.bounds_check(array, index)?;
@@ -2995,18 +2963,21 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 // (array element stores are heap stores too).
                 self.card_mark(element_ptr)?;
             }
-            Instruction::ArrayClone { out, operand } => {
-                // `ptr scoop_rt_array_clone(ptr obj, i64 elem_size,
-                // i64 data_offset)`.
-                let element = array_element(&function.temps[*out].ty)?;
-                let element_ty = basic_ty(context, self.structs, self.enums, element)?;
-                let stride = self.target_data.get_abi_size(&element_ty);
-                let data_offset =
-                    array_data_offset(self.target_data.get_abi_alignment(&element_ty) as u64);
+            Instruction::ArrayClone {
+                out,
+                operand,
+                array_type,
+            } => {
+                // The target descriptor is explicit: converting Array<T> to
+                // MutableArray<T> (or back) changes nominal runtime identity.
+                let (array_metadata, target_td) = self.array_type(*array_type);
+                let stride = array_metadata.element_size;
+                let data_offset = array_data_offset(array_metadata.element_align);
                 let clone = self.runtime_fn(
                     scoop_lir::ARRAY_CLONE_SYMBOL,
                     ptr_ty(context).fn_type(
                         &[
+                            ptr_ty(context).into(),
                             ptr_ty(context).into(),
                             context.i64_type().into(),
                             context.i64_type().into(),
@@ -3020,6 +2991,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         clone,
                         &[
                             self.value(*operand)?.into(),
+                            target_td.as_pointer_value().into(),
                             context.i64_type().const_int(stride, false).into(),
                             context.i64_type().const_int(data_offset, false).into(),
                         ],
@@ -3853,25 +3825,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         Ok(())
     }
 
-    /// The array TypeDescriptor global for one allocation's element
-    /// layout and scan program.
-    fn array_td(
-        &self,
-        element: &LirType,
-        element_scan: &RefScan,
-    ) -> Result<GlobalValue<'ctx>, CodegenError> {
-        self.array_descriptors
-            .iter()
-            .position(|candidate| {
-                candidate.element == *element && candidate.element_scan == *element_scan
-            })
-            .map(|index| self.array_tds[index])
-            .ok_or_else(|| {
-                CodegenError(format!(
-                    "no array TypeDescriptor for element type {}",
-                    element.dump()
-                ))
-            })
+    fn array_type(&self, id: ArrayTypeId) -> (&ArrayType, GlobalValue<'ctx>) {
+        (&self.arrays[id], self.array_tds[arena_index(id)])
     }
 
     /// Byte-offset GEP from an opaque pointer (object field access).
@@ -4268,7 +4223,7 @@ struct ModuleCtx<'a, 'ctx> {
     foreign_callback_bridges: &'a Arena<scoop_lir::ForeignCallbackBridge>,
     globals_arena: &'a Arena<Global>,
     globals: &'a [Option<GlobalValue<'ctx>>],
-    array_descriptors: &'a [ArrayDescriptor],
+    arrays: &'a Arena<ArrayType>,
     array_tds: &'a [GlobalValue<'ctx>],
     target_data: &'a inkwell::targets::TargetData,
     bounds_message: Option<GlobalValue<'ctx>>,
@@ -4435,7 +4390,7 @@ fn emit_function<'ctx>(
         foreign_callback_bridges: module_ctx.foreign_callback_bridges,
         globals_arena: module_ctx.globals_arena,
         globals: module_ctx.globals,
-        array_descriptors: module_ctx.array_descriptors,
+        arrays: module_ctx.arrays,
         array_tds: module_ctx.array_tds,
         target_data: module_ctx.target_data,
         return_slot,
@@ -4638,6 +4593,33 @@ mod tests {
         }
     }
 
+    fn array_type(
+        arrays: &mut Arena<ArrayType>,
+        name: &str,
+        kind: scoop_lir::ArrayKind,
+        element: LirType,
+        element_size: u64,
+        element_align: u64,
+        scan: RefScan,
+    ) -> ArrayTypeId {
+        arrays.alloc(ArrayType {
+            kind,
+            element,
+            element_size,
+            element_align,
+            type_descriptor: TypeDescriptor {
+                name: name.to_string(),
+                symbol: format!("scoop_td_{name}"),
+                size: element_size,
+                align: element_align,
+                scan,
+                parent: None,
+                vtable: Vec::new(),
+                itables: Vec::new(),
+            },
+        })
+    }
+
     /// An M2-shaped module: string constants, a user function exercising
     /// alloca/store/load, arithmetic, branches, aggregates and
     /// extractvalue, plus calls into the new runtime functions.
@@ -4827,6 +4809,7 @@ mod tests {
             entry_symbol: "scoop_main".to_string(),
             meta: LirMeta {
                 string: string_metadata(),
+                arrays: Arena::new(),
                 layouts: vec![Layout {
                     name: "String".to_string(),
                     size: 24,
@@ -5268,6 +5251,7 @@ mod tests {
             entry_symbol: "scoop.tagged".to_string(),
             meta: LirMeta {
                 string: string_metadata(),
+                arrays: Arena::new(),
                 layouts: vec![
                     Layout {
                         name: "String".to_string(),
@@ -5337,33 +5321,60 @@ mod tests {
     /// ArrayClone on both element shapes.
     fn arrays_module() -> Module {
         let point = LirType::Aggregate(vec![LirType::I64, LirType::I64]);
-        let int_array = LirType::Array(Box::new(LirType::I64));
-        let point_array = LirType::Array(Box::new(point.clone()));
+        let mut arrays = Arena::new();
+        let int_array = array_type(
+            &mut arrays,
+            "Array<Int>",
+            scoop_lir::ArrayKind::Immutable,
+            LirType::I64,
+            8,
+            8,
+            RefScan::None,
+        );
+        let mutable_int_array = array_type(
+            &mut arrays,
+            "MutableArray<Int>",
+            scoop_lir::ArrayKind::Mutable,
+            LirType::I64,
+            8,
+            8,
+            RefScan::None,
+        );
+        let point_array = array_type(
+            &mut arrays,
+            "Array<Point>",
+            scoop_lir::ArrayKind::Immutable,
+            point.clone(),
+            16,
+            8,
+            RefScan::None,
+        );
+        let mutable_point_array = array_type(
+            &mut arrays,
+            "MutableArray<Point>",
+            scoop_lir::ArrayKind::Mutable,
+            point.clone(),
+            16,
+            8,
+            RefScan::None,
+        );
 
         let mut locals = Arena::default();
         let numbers = locals.alloc(Local {
             name: "numbers".to_string(),
-            ty: int_array.clone(),
+            ty: MANAGED_PTR,
         });
 
         let mut temps = Arena::default();
-        let t0 = temps.alloc(Temp {
-            ty: int_array.clone(),
-        }); // array_alloc (1, 2, 3)
+        let t0 = temps.alloc(Temp { ty: MANAGED_PTR }); // array_alloc (1, 2, 3)
         let t1 = temps.alloc(Temp { ty: LirType::I64 }); // array_len t0
         let t2 = temps.alloc(Temp { ty: LirType::I64 }); // array_get t0[1]
-        let t3 = temps.alloc(Temp {
-            ty: int_array.clone(),
-        }); // array_clone t0
+        let t3 = temps.alloc(Temp { ty: MANAGED_PTR }); // array_clone t0
         let t4 = temps.alloc(Temp { ty: point.clone() }); // aggregate (t2, t1)
-        let t5 = temps.alloc(Temp {
-            ty: point_array.clone(),
-        }); // array_alloc (t4, t4)
+        let t5 = temps.alloc(Temp { ty: MANAGED_PTR }); // array_alloc (t4, t4)
         let t6 = temps.alloc(Temp { ty: point.clone() }); // array_get t5[1]
         let t7 = temps.alloc(Temp { ty: LirType::I64 }); // extract t6.1
-        let t8 = temps.alloc(Temp {
-            ty: point_array.clone(),
-        }); // array_clone t5
+        let t8 = temps.alloc(Temp { ty: MANAGED_PTR }); // array_clone t5
         let t9 = temps.alloc(Temp { ty: LirType::I64 }); // t1 + t7
 
         let mut blocks = Arena::default();
@@ -5373,7 +5384,7 @@ mod tests {
                 Instruction::ArrayAlloc {
                     out: t0,
                     elements: vec![Value::IntConst(1), Value::IntConst(2), Value::IntConst(3)],
-                    element_scan: RefScan::None,
+                    array_type: int_array,
                 },
                 Instruction::Store {
                     local: numbers,
@@ -5382,20 +5393,24 @@ mod tests {
                 Instruction::ArrayLen {
                     out: t1,
                     operand: Value::Local(numbers),
+                    array_type: int_array,
                 },
                 Instruction::ArrayGet {
                     out: t2,
                     array: Value::Local(numbers),
                     index: Value::IntConst(1),
+                    array_type: int_array,
                 },
                 Instruction::ArraySet {
                     array: Value::Local(numbers),
                     index: Value::IntConst(0),
                     value: Value::Temp(t2),
+                    array_type: int_array,
                 },
                 Instruction::ArrayClone {
                     out: t3,
                     operand: Value::Local(numbers),
+                    array_type: mutable_int_array,
                 },
                 Instruction::MakeAggregate {
                     out: t4,
@@ -5404,12 +5419,13 @@ mod tests {
                 Instruction::ArrayAlloc {
                     out: t5,
                     elements: vec![Value::Temp(t4), Value::Temp(t4)],
-                    element_scan: RefScan::None,
+                    array_type: point_array,
                 },
                 Instruction::ArrayGet {
                     out: t6,
                     array: Value::Temp(t5),
                     index: Value::IntConst(0),
+                    array_type: point_array,
                 },
                 Instruction::ExtractValue {
                     out: t7,
@@ -5420,10 +5436,12 @@ mod tests {
                     array: Value::Temp(t5),
                     index: Value::Temp(t1),
                     value: Value::Temp(t6),
+                    array_type: point_array,
                 },
                 Instruction::ArrayClone {
                     out: t8,
                     operand: Value::Temp(t5),
+                    array_type: mutable_point_array,
                 },
                 Instruction::BinOp {
                     out: t9,
@@ -5441,11 +5459,13 @@ mod tests {
                     array: Value::Temp(t3),
                     index: Value::IntConst(0),
                     value: Value::IntConst(0),
+                    array_type: mutable_int_array,
                 },
                 Instruction::ArraySet {
                     array: Value::Temp(t8),
                     index: Value::IntConst(0),
                     value: Value::Temp(t6),
+                    array_type: mutable_point_array,
                 },
             ],
             terminator: Terminator::Return { value: None },
@@ -5472,41 +5492,8 @@ mod tests {
             entry_symbol: "scoop_main".to_string(),
             meta: LirMeta {
                 string: string_metadata(),
-                layouts: vec![
-                    Layout {
-                        name: "String".to_string(),
-                        size: 24,
-                        align: 8,
-                        fields: Vec::new(),
-                        c_layout: None,
-                        interior_mutable: false,
-                        kind: LayoutKind::Plain {
-                            scan: RefScan::None,
-                        },
-                    },
-                    Layout {
-                        name: "[i64]".to_string(),
-                        size: 8,
-                        align: 8,
-                        fields: Vec::new(),
-                        c_layout: None,
-                        interior_mutable: false,
-                        kind: LayoutKind::Array {
-                            element_scan: RefScan::None,
-                        },
-                    },
-                    Layout {
-                        name: "[{i64, i64}]".to_string(),
-                        size: 16,
-                        align: 8,
-                        fields: Vec::new(),
-                        c_layout: None,
-                        interior_mutable: false,
-                        kind: LayoutKind::Array {
-                            element_scan: RefScan::None,
-                        },
-                    },
-                ],
+                arrays,
+                layouts: Vec::new(),
                 type_descriptors: vec![],
             },
         }
@@ -5515,6 +5502,21 @@ mod tests {
     #[test]
     fn emits_m5_arrays() {
         let module = arrays_module();
+        let ir = ir_of(&module);
+        assert!(
+            ir.lines().any(|line| {
+                line.contains("call ptr @scoop_rt_array_clone")
+                    && line.contains("scoop_td_MutableArray<Int>")
+            }),
+            "Int clone must receive the target nominal descriptor:\n{ir}"
+        );
+        assert!(
+            ir.lines().any(|line| {
+                line.contains("call ptr @scoop_rt_array_clone")
+                    && line.contains("scoop_td_MutableArray<Point>")
+            }),
+            "Point clone must receive the target nominal descriptor:\n{ir}"
+        );
         let output =
             std::env::temp_dir().join(format!("scoop_codegen_m5_test_{}.o", std::process::id()));
         // `emit_object` verifies the LLVM module before writing, so a
@@ -5611,6 +5613,7 @@ mod tests {
             entry_symbol: "scoop_main".to_string(),
             meta: LirMeta {
                 string: string_metadata(),
+                arrays: Arena::new(),
                 layouts: vec![Layout {
                     name: "String".to_string(),
                     size: 24,
@@ -5844,6 +5847,7 @@ mod tests {
             entry_symbol: "scoop_main".to_string(),
             meta: LirMeta {
                 string: string_metadata(),
+                arrays: Arena::new(),
                 layouts: vec![Layout {
                     name: "String".to_string(),
                     size: 24,
@@ -6057,6 +6061,7 @@ mod tests {
             entry_symbol: "scoop.eh_test".to_string(),
             meta: LirMeta {
                 string: string_metadata(),
+                arrays: Arena::new(),
                 layouts: vec![Layout {
                     name: "String".to_string(),
                     size: 24,
@@ -6223,6 +6228,7 @@ mod tests {
             entry_symbol: "safe_root".to_string(),
             meta: LirMeta {
                 string: string_metadata(),
+                arrays: Arena::new(),
                 layouts: vec![Layout {
                     name: "String".to_string(),
                     size: 24,
@@ -6307,6 +6313,7 @@ mod tests {
             entry_symbol: "continuation_atomics".to_string(),
             meta: LirMeta {
                 string: string_metadata(),
+                arrays: Arena::new(),
                 layouts: vec![Layout {
                     name: "String".to_string(),
                     size: 24,
@@ -6392,6 +6399,7 @@ mod tests {
             entry_symbol: "scoop.closure_abi".to_string(),
             meta: LirMeta {
                 string: string_metadata(),
+                arrays: Arena::new(),
                 layouts: vec![Layout {
                     name: "String".to_string(),
                     size: 24,
@@ -6466,6 +6474,16 @@ mod tests {
     /// `while`-shaped loop (header ← body back edge) for the loop
     /// safepoint poll.
     fn barrier_module() -> Module {
+        let mut arrays = Arena::new();
+        let int_array = array_type(
+            &mut arrays,
+            "Array<Int>",
+            scoop_lir::ArrayKind::Immutable,
+            LirType::I64,
+            8,
+            8,
+            RefScan::None,
+        );
         let mut temps = Arena::default();
         let t0 = temps.alloc(Temp { ty: MANAGED_PTR }); // alloc result
         let mut blocks = Arena::default();
@@ -6506,6 +6524,7 @@ mod tests {
                     array: Value::Param(1),
                     index: Value::IntConst(0),
                     value: Value::IntConst(7),
+                    array_type: int_array,
                 },
             ],
             terminator: Terminator::Br(header),
@@ -6535,7 +6554,7 @@ mod tests {
             functions: vec![Function {
                 gc_effect: GcEffect::Managed,
                 symbol: "scoop_main".to_string(),
-                params: vec![METADATA_PTR, LirType::Array(Box::new(LirType::I64))],
+                params: vec![METADATA_PTR, MANAGED_PTR],
                 return_ty: LirType::Void,
                 locals: Arena::default(),
                 temps,
@@ -6545,6 +6564,7 @@ mod tests {
             entry_symbol: "scoop_main".to_string(),
             meta: LirMeta {
                 string: string_metadata(),
+                arrays,
                 layouts: vec![Layout {
                     name: "String".to_string(),
                     size: 24,
@@ -6677,21 +6697,32 @@ mod tests {
         // A reference-element array's TD carries the SCOOP_REFS_ARRAY
         // sentinel (u64::MAX, printed -1), its stride, and a pointer
         // to the recursive scan for one inline element.
-        let mut temps = Arena::default();
-        let array = temps.alloc(Temp {
-            ty: LirType::Array(Box::new(MANAGED_PTR)),
-        });
-        let nested_array = temps.alloc(Temp {
-            ty: LirType::Array(Box::new(LirType::Aggregate(vec![
-                LirType::I64,
-                MANAGED_PTR,
-                MANAGED_PTR,
-            ]))),
-        });
         let nested_element_scan = RefScan::Sequence(vec![
             RefScan::References(vec![16]),
             RefScan::References(vec![8]),
         ]);
+        let mut arrays = Arena::new();
+        let ref_array_type = array_type(
+            &mut arrays,
+            "ArrayRef",
+            scoop_lir::ArrayKind::Immutable,
+            MANAGED_PTR,
+            8,
+            8,
+            RefScan::References(vec![0]),
+        );
+        let nested_array_type = array_type(
+            &mut arrays,
+            "ArrayNested",
+            scoop_lir::ArrayKind::Immutable,
+            LirType::Aggregate(vec![LirType::I64, MANAGED_PTR, MANAGED_PTR]),
+            24,
+            8,
+            nested_element_scan,
+        );
+        let mut temps = Arena::default();
+        let array = temps.alloc(Temp { ty: MANAGED_PTR });
+        let nested_array = temps.alloc(Temp { ty: MANAGED_PTR });
         let mut blocks = Arena::default();
         let entry = blocks.alloc(BasicBlock {
             name: "entry".to_string(),
@@ -6699,12 +6730,12 @@ mod tests {
                 Instruction::ArrayAlloc {
                     out: array,
                     elements: vec![],
-                    element_scan: RefScan::References(vec![0]),
+                    array_type: ref_array_type,
                 },
                 Instruction::ArrayAlloc {
                     out: nested_array,
                     elements: vec![],
-                    element_scan: nested_element_scan,
+                    array_type: nested_array_type,
                 },
             ],
             terminator: Terminator::Return { value: None },
@@ -6730,6 +6761,7 @@ mod tests {
             entry_symbol: "scoop_main".to_string(),
             meta: LirMeta {
                 string: string_metadata(),
+                arrays,
                 layouts: vec![Layout {
                     name: "String".to_string(),
                     size: 24,
@@ -6759,19 +6791,19 @@ mod tests {
         let ir = ir_of(&module);
         assert!(
             ir.contains(
-                "@scoop_td_array.0.element = private constant [2 x i64] [i64 1, i64 0]"
+                "@scoop_td_ArrayRef.element = private constant [2 x i64] [i64 1, i64 0]"
             ) && ir.contains(
-                "@scoop_td_array.0.refs = private constant [3 x i64] [i64 -1, i64 8, i64 ptrtoint (ptr @scoop_td_array.0.element to i64)]"
+                "@scoop_td_ArrayRef.refs = private constant [3 x i64] [i64 -1, i64 8, i64 ptrtoint (ptr @scoop_td_ArrayRef.element to i64)]"
             ),
             "reference-element array TD must carry SCOOP_REFS_ARRAY:\n{ir}"
         );
         assert!(
             ir.contains(
-                "@scoop_td_array.1.element.part.1 = private constant [2 x i64] [i64 1, i64 8]"
+                "@scoop_td_ArrayNested.element.part.1 = private constant [2 x i64] [i64 1, i64 8]"
             ) && ir.contains(
-                "@scoop_td_array.1.element = private constant [4 x i64] [i64 -2, i64 2"
+                "@scoop_td_ArrayNested.element = private constant [4 x i64] [i64 -2, i64 2"
             ) && ir.contains(
-                "@scoop_td_array.1.refs = private constant [3 x i64] [i64 -1, i64 24, i64 ptrtoint (ptr @scoop_td_array.1.element to i64)]"
+                "@scoop_td_ArrayNested.refs = private constant [3 x i64] [i64 -1, i64 24, i64 ptrtoint (ptr @scoop_td_ArrayNested.element to i64)]"
             ),
             "aggregate array TD must wrap the recursive element scan:\n{ir}"
         );
@@ -6877,6 +6909,17 @@ mod tests {
             scan: RefScan::None,
         });
 
+        let mut arrays = Arena::new();
+        let outer_array = array_type(
+            &mut arrays,
+            "ArrayOuter",
+            scoop_lir::ArrayKind::Immutable,
+            LirType::Struct(outer),
+            32,
+            16,
+            RefScan::None,
+        );
+
         let mut temps = Arena::default();
         let inner_value = temps.alloc(Temp {
             ty: LirType::Struct(inner),
@@ -6888,9 +6931,7 @@ mod tests {
         let outer_field = temps.alloc(Temp {
             ty: LirType::Struct(inner),
         });
-        let array = temps.alloc(Temp {
-            ty: LirType::Array(Box::new(LirType::Struct(outer))),
-        });
+        let array = temps.alloc(Temp { ty: MANAGED_PTR });
         let loaded = temps.alloc(Temp {
             ty: LirType::Struct(outer),
         });
@@ -6923,12 +6964,13 @@ mod tests {
                 Instruction::ArrayAlloc {
                     out: array,
                     elements: vec![Value::Temp(outer_value)],
-                    element_scan: RefScan::None,
+                    array_type: outer_array,
                 },
                 Instruction::ArrayGet {
                     out: loaded,
                     array: Value::Temp(array),
                     index: Value::IntConst(0),
+                    array_type: outer_array,
                 },
             ],
             terminator: Terminator::Return { value: None },
@@ -6954,6 +6996,7 @@ mod tests {
             entry_symbol: "scoop_main".to_string(),
             meta: LirMeta {
                 string: string_metadata(),
+                arrays,
                 layouts: vec![Layout {
                     name: "String".to_string(),
                     size: 24,
@@ -7104,8 +7147,8 @@ mod tests {
         );
         assert!(
             ir.contains(
-                "@scoop_runtime_finish_tlab_alloc(ptr %tlab_object, ptr @scoop_td_array.0, i64 64)"
-            ) && ir.contains("@scoop_runtime_alloc_slow(ptr @scoop_td_array.0, i64 64)"),
+                "@scoop_runtime_finish_tlab_alloc(ptr %tlab_object, ptr @scoop_td_ArrayOuter, i64 64)"
+            ) && ir.contains("@scoop_runtime_alloc_slow(ptr @scoop_td_ArrayOuter, i64 64)"),
             "one 32-byte element plus the aligned 32-byte header must flow through the 64-byte TLAB check:\n{ir}"
         );
     }

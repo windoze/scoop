@@ -110,11 +110,23 @@ pub fn encode_type(module: &Module, ty: &Type) -> String {
         Type::Boolean => "B".to_string(),
         Type::String => "S".to_string(),
         Type::Struct(id) => module.structs[*id].name.clone(),
-        Type::Class(id) => module.classes[*id].name.clone(),
+        Type::Class(id) => match &module.classes[*id].representation {
+            ClassRepresentation::Intrinsic(IntrinsicTypeRepresentation::Array { element }) => {
+                format!("A{}X", encode_type(module, element))
+            }
+            ClassRepresentation::Intrinsic(IntrinsicTypeRepresentation::MutableArray {
+                element,
+            }) => format!("M{}X", encode_type(module, element)),
+            ClassRepresentation::Declared { .. }
+            | ClassRepresentation::Intrinsic(IntrinsicTypeRepresentation::String) => {
+                module.classes[*id].name.clone()
+            }
+            ClassRepresentation::Intrinsic(_) => {
+                unreachable!("the intrinsic registry fixes declaration targets")
+            }
+        },
         Type::Interface(id) => module.interfaces[*id].name.clone(),
         Type::Any => "Any".to_string(),
-        Type::Array(inner) => format!("A{}X", encode_type(module, inner)),
-        Type::MutableArray(inner) => format!("M{}X", encode_type(module, inner)),
         Type::Tuple(elements) => {
             let inner: Vec<String> = elements.iter().map(|t| encode_type(module, t)).collect();
             format!("T{}X", inner.join("_"))
@@ -175,9 +187,6 @@ pub enum Type {
     Interface(InterfaceId),
     /// The root of all types; boxed value types live behind it.
     Any,
-    /// Built-in array types (M5, see hir::Type). Invariant (spec 10.4).
-    Array(Box<Type>),
-    MutableArray(Box<Type>),
     Tuple(Vec<Type>),
     /// Concrete managed function signature. Function values have reference
     /// representation; closure classes are materialized by M11 conversion.
@@ -380,6 +389,31 @@ pub enum IntrinsicTypeRepresentation {
     String,
     Array { element: Type },
     MutableArray { element: Type },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ArrayKind {
+    Immutable,
+    Mutable,
+}
+
+pub fn array_type<'a>(module: &'a Module, ty: &Type) -> Option<(ArrayKind, &'a Type)> {
+    let Type::Class(class) = ty else {
+        return None;
+    };
+    match &module.classes[*class].representation {
+        ClassRepresentation::Intrinsic(IntrinsicTypeRepresentation::Array { element }) => {
+            Some((ArrayKind::Immutable, element))
+        }
+        ClassRepresentation::Intrinsic(IntrinsicTypeRepresentation::MutableArray { element }) => {
+            Some((ArrayKind::Mutable, element))
+        }
+        ClassRepresentation::Declared { .. }
+        | ClassRepresentation::Intrinsic(IntrinsicTypeRepresentation::String) => None,
+        ClassRepresentation::Intrinsic(_) => {
+            unreachable!("the intrinsic registry fixes declaration targets")
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -709,6 +743,7 @@ pub enum StatementKind {
         value: Expr,
     },
     ArraySet {
+        array_type: ClassId,
         array: Expr,
         index: Expr,
         value: Expr,
@@ -903,18 +938,30 @@ pub enum Expr {
         operand: Box<Expr>,
         optional: bool,
     },
-    /// `[e1, ...]` (the kind, Array vs MutableArray, is fixed by the
-    /// producing context — LIR types record it).
-    ArrayLiteral(Vec<Expr>),
+    /// `[e1, ...]`; `array_type` is the exact fully specialized intrinsic
+    /// class application selected by HIR.
+    ArrayLiteral {
+        array_type: ClassId,
+        elements: Vec<Expr>,
+    },
     /// Subscript read; result is the element type.
     ArrayGet {
+        array_type: ClassId,
         array: Box<Expr>,
         index: Box<Expr>,
     },
     /// `array.size`; result is `Int`.
-    ArrayLen(Box<Expr>),
+    ArrayLen {
+        array_type: ClassId,
+        operand: Box<Expr>,
+    },
     /// Array-kind conversion (constructor or method form): memcpy snapshot.
-    ArrayClone(Box<Expr>),
+    /// Both source and target identities are explicit and complete.
+    ArrayClone {
+        source_type: ClassId,
+        target_type: ClassId,
+        operand: Box<Expr>,
+    },
     Binary {
         op: BinOp,
         lhs: Box<Expr>,
@@ -1385,11 +1432,23 @@ pub fn type_name(module: &Module, ty: &Type) -> String {
         Type::Boolean => "Boolean".to_string(),
         Type::String => "String".to_string(),
         Type::Struct(id) => module.structs[*id].name.clone(),
-        Type::Class(id) => module.classes[*id].name.clone(),
+        Type::Class(id) => match &module.classes[*id].representation {
+            ClassRepresentation::Intrinsic(IntrinsicTypeRepresentation::Array { element }) => {
+                format!("Array<{}>", type_name(module, element))
+            }
+            ClassRepresentation::Intrinsic(IntrinsicTypeRepresentation::MutableArray {
+                element,
+            }) => format!("MutableArray<{}>", type_name(module, element)),
+            ClassRepresentation::Declared { .. }
+            | ClassRepresentation::Intrinsic(IntrinsicTypeRepresentation::String) => {
+                module.classes[*id].name.clone()
+            }
+            ClassRepresentation::Intrinsic(_) => {
+                unreachable!("the intrinsic registry fixes declaration targets")
+            }
+        },
         Type::Interface(id) => module.interfaces[*id].name.clone(),
         Type::Any => "Any".to_string(),
-        Type::Array(inner) => format!("Array<{}>", type_name(module, inner)),
-        Type::MutableArray(inner) => format!("MutableArray<{}>", type_name(module, inner)),
         Type::Tuple(elements) => {
             let inner: Vec<String> = elements.iter().map(|t| type_name(module, t)).collect();
             format!("({})", inner.join(", "))
@@ -1480,11 +1539,15 @@ fn dump_statements(
                 dump_expr(module, locals, value, indent + 1, out);
             }
             StatementKind::ArraySet {
+                array_type,
                 array,
                 index,
                 value,
             } => {
-                out.push_str(&format!("{pad}array_set\n"));
+                out.push_str(&format!(
+                    "{pad}array_set {}\n",
+                    module.classes[*array_type].name
+                ));
                 dump_expr(module, locals, array, indent + 1, out);
                 dump_expr(module, locals, index, indent + 1, out);
                 dump_expr(module, locals, value, indent + 1, out);
@@ -1772,23 +1835,49 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
             out.push_str(&format!("{pad}Cast optional={optional}\n"));
             dump_expr(module, locals, operand, indent + 1, out);
         }
-        Expr::ArrayLiteral(elements) => {
-            out.push_str(&format!("{pad}ArrayLiteral\n"));
+        Expr::ArrayLiteral {
+            array_type,
+            elements,
+        } => {
+            out.push_str(&format!(
+                "{pad}ArrayLiteral {}\n",
+                module.classes[*array_type].name
+            ));
             for element in elements {
                 dump_expr(module, locals, element, indent + 1, out);
             }
         }
-        Expr::ArrayGet { array, index } => {
-            out.push_str(&format!("{pad}ArrayGet\n"));
+        Expr::ArrayGet {
+            array_type,
+            array,
+            index,
+        } => {
+            out.push_str(&format!(
+                "{pad}ArrayGet {}\n",
+                module.classes[*array_type].name
+            ));
             dump_expr(module, locals, array, indent + 1, out);
             dump_expr(module, locals, index, indent + 1, out);
         }
-        Expr::ArrayLen(operand) => {
-            out.push_str(&format!("{pad}ArrayLen\n"));
+        Expr::ArrayLen {
+            array_type,
+            operand,
+        } => {
+            out.push_str(&format!(
+                "{pad}ArrayLen {}\n",
+                module.classes[*array_type].name
+            ));
             dump_expr(module, locals, operand, indent + 1, out);
         }
-        Expr::ArrayClone(operand) => {
-            out.push_str(&format!("{pad}ArrayClone\n"));
+        Expr::ArrayClone {
+            source_type,
+            target_type,
+            operand,
+        } => {
+            out.push_str(&format!(
+                "{pad}ArrayClone {} -> {}\n",
+                module.classes[*source_type].name, module.classes[*target_type].name
+            ));
             dump_expr(module, locals, operand, indent + 1, out);
         }
         Expr::Binary { op, lhs, rhs } => {

@@ -194,6 +194,7 @@ impl<'a> CfgLowerer<'a> {
                 );
             }
             smir::StatementKind::ArraySet {
+                array_type,
                 array,
                 index,
                 value,
@@ -203,6 +204,7 @@ impl<'a> CfgLowerer<'a> {
                 let value = self.lower_expr(value, span);
                 self.push(
                     mir::StatementKind::ArraySet {
+                        array_type: *array_type,
                         array,
                         index,
                         value,
@@ -679,22 +681,41 @@ impl<'a> CfgLowerer<'a> {
                 operand: Box::new(self.lower_expr(operand, span)),
                 check_ty: check_ty.clone(),
             },
-            smir::Expr::ArrayLiteral(elements) => mir::Expr::ArrayLiteral(
-                elements
+            smir::Expr::ArrayLiteral {
+                array_type,
+                elements,
+            } => mir::Expr::ArrayLiteral {
+                array_type: *array_type,
+                elements: elements
                     .iter()
                     .map(|element| self.lower_expr(element, span))
                     .collect(),
-            ),
-            smir::Expr::ArrayGet { array, index } => mir::Expr::ArrayGet {
+            },
+            smir::Expr::ArrayGet {
+                array_type,
+                array,
+                index,
+            } => mir::Expr::ArrayGet {
+                array_type: *array_type,
                 array: Box::new(self.lower_expr(array, span)),
                 index: Box::new(self.lower_expr(index, span)),
             },
-            smir::Expr::ArrayLen(operand) => {
-                mir::Expr::ArrayLen(Box::new(self.lower_expr(operand, span)))
-            }
-            smir::Expr::ArrayClone(operand) => {
-                mir::Expr::ArrayClone(Box::new(self.lower_expr(operand, span)))
-            }
+            smir::Expr::ArrayLen {
+                array_type,
+                operand,
+            } => mir::Expr::ArrayLen {
+                array_type: *array_type,
+                operand: Box::new(self.lower_expr(operand, span)),
+            },
+            smir::Expr::ArrayClone {
+                source_type,
+                target_type,
+                operand,
+            } => mir::Expr::ArrayClone {
+                source_type: *source_type,
+                target_type: *target_type,
+                operand: Box::new(self.lower_expr(operand, span)),
+            },
             smir::Expr::ShortCircuit {
                 op: smir::LogicOp::And,
                 lhs,

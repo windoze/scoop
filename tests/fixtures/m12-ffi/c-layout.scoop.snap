@@ -446,7 +446,7 @@ Module
           FieldAccess 1
             Local loaded
       val values: Array<Outer>
-        ArrayLiteral
+        ArrayLiteral Array$Outer
           StructInit Outer
             BoolLiteral true
             Local packed
@@ -469,7 +469,7 @@ Module
       assign $logic.1
         Binary IntGe
           Local $idx.2
-          ArrayLen
+          ArrayLen Array$Outer
             Local $arr.1
       goto bb3
     bb2 logic.short.2
@@ -488,7 +488,7 @@ Module
         Box
           FieldAccess 1
             FieldAccess 1
-              ArrayGet
+              ArrayGet Array$Outer
                 Local $arr.1
                 Local $idx.2
       val $arr.3: Array<Outer>
@@ -503,7 +503,7 @@ Module
       assign $logic.3
         Binary IntGe
           Local $idx.4
-          ArrayLen
+          ArrayLen Array$Outer
             Local $arr.3
       goto bb8
     bb7 logic.short.7
@@ -521,7 +521,7 @@ Module
       call @scoop.println direct
         Box
           FieldAccess 2
-            ArrayGet
+            ArrayGet Array$Outer
               Local $arr.3
               Local $idx.4
       call @scoop.println direct
@@ -660,10 +660,10 @@ Module
     local %0 packed: struct3
     local %1 pointer: ptr<raw>
     local %2 loaded: struct3
-    local %3 values: [struct4]
-    local %4 $arr.1: [struct4]
+    local %3 values: ptr<managed>
+    local %4 $arr.1: ptr<managed>
     local %5 $idx.2: i64
-    local %6 $arr.3: [struct4]
+    local %6 $arr.3: ptr<managed>
     local %7 $idx.4: i64
     local %8 $logic.1: i1
     local %9 $call.2: ptr<managed>
@@ -698,14 +698,14 @@ Module
     t17 = aggregate (true, local0, 11) : struct4
     t18 = aggregate (true, 13) : struct3
     t19 = aggregate (false, t18, 15) : struct4
-    t20 = array_alloc (t17, t19) : [struct4]
+    t20 = array_alloc array0 (t17, t19) : ptr<managed>
     store t20 -> local3
     store local3 -> local4
     store 0 -> local5
     t21 = Lt local5, 0 : i1
     cbr t21 then @logic.short.2 else @logic.rhs.1
   block logic.rhs.1
-    t22 = array_len local4 : i64
+    t22 = array_len array0 local4 : i64
     t23 = Ge local5, t22 : i1
     store t23 -> local8
     br @logic.merge.3
@@ -720,7 +720,7 @@ Module
     throw local9
     unreachable
   block if.merge.5
-    t25 = array_get local4 local5 : struct4
+    t25 = array_get array0 local4 local5 : struct4
     t26 = extract t25, 1 : struct3
     t27 = extract t26, 1 : i64
     t28 = call @scoop_rt_box(global7, t27, 8) : ptr<managed>
@@ -731,7 +731,7 @@ Module
     t30 = Lt local7, 0 : i1
     cbr t30 then @logic.short.7 else @logic.rhs.6
   block logic.rhs.6
-    t31 = array_len local6 : i64
+    t31 = array_len array0 local6 : i64
     t32 = Ge local7, t31 : i1
     store t32 -> local10
     br @logic.merge.8
@@ -746,7 +746,7 @@ Module
     throw local11
     unreachable
   block if.merge.10
-    t34 = array_get local6 local7 : struct4
+    t34 = array_get array0 local6 local7 : struct4
     t35 = extract t34, 2 : i64
     t36 = call @scoop_rt_box(global7, t35, 8) : ptr<managed>
     call @scoop.println(t36)
@@ -839,6 +839,7 @@ Module
   td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=3 itables=0
   td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=3 itables=0
   td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=3 itables=0
+  array-type array0 Array$Outer kind=immutable element=struct4 size=32 align=16 scan=none td=@scoop_td_Array$Outer
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
@@ -858,7 +859,6 @@ Module
   layout IllegalStateException size=24 align=8 refs=[16]
   layout box$B size=24 align=8 refs=[]
   layout box$I size=24 align=8 refs=[]
-  layout Array<Outer> size=32 align=16 array(element_is_ref=false)
   entry @scoop_main
 
 == run ==

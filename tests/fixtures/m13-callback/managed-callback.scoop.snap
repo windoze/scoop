@@ -605,6 +605,9 @@ Module
   extern ef7 borrowedRoundTrip @m13_borrowed_round_trip(String, FunPtr<(Ptr<Unit>) -> Unit>, Ptr<Unit>) -> String <abi=scoop managed lib=fixture_native>
   struct ForeignCallback$FI_PUXRIX (function: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>)
   struct ForeignCallback$FPUXRUX (function: FunPtr<(Ptr<Unit>) -> Unit>, context: Ptr<Unit>)
+  enum ManagedPayload
+    Text(_1: String)
+    Empty()
   enum Option$S
     Some(_1: String)
     None()
@@ -616,9 +619,6 @@ Module
   enum Option$Throwable
     Some(_1: Throwable)
     None()
-  enum ManagedPayload
-    Text(_1: String)
-    Empty()
   class Throwable vtable=3 itables=0
   class Exception vtable=3 itables=0
   class UnwrapException vtable=3 itables=0
@@ -932,7 +932,7 @@ Module
       goto bb1
     bb3 while.exit.3
       val payloads: Array<ManagedPayload>
-        ArrayLiteral
+        ArrayLiteral Array$EManagedPayload
           VariantConstruct ManagedPayload v0
             Local text
           VariantConstruct ManagedPayload v1
@@ -950,7 +950,7 @@ Module
       assign $logic.2
         Binary IntGe
           Local $idx.2
-          ArrayLen
+          ArrayLen Array$EManagedPayload
             Local $arr.1
       goto bb6
     bb5 logic.short.5
@@ -966,7 +966,7 @@ Module
         Local $call.3
     bb8 if.merge.8
       val $when.3: ManagedPayload
-        ArrayGet
+        ArrayGet Array$EManagedPayload
           Local $arr.1
           Local $idx.2
       branch bb9 bb10
@@ -1226,10 +1226,10 @@ Module
   global @scoop_td_ArithmeticException = c""
   global @scoop_td_IndexOutOfBoundsException = c""
   global @scoop_td_IllegalStateException = c""
+  enum ManagedPayload niche(payload_variant=0)
   enum Option$S niche(payload_variant=0)
   enum ForeignCallbackState tagged size=8 align=8 variants=()@8+0 ()@8+0 ()@8+0 ()@8+0
   enum Option$Throwable niche(payload_variant=0)
-  enum ManagedPayload niche(payload_variant=0)
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
   extern ef1 startOne @m13_start_one(ptr<code>, ptr<raw>, i64) -> ptr<raw> <c bridge=@scoop_c_bridge_1 gc-leaf nounwind lib=fixture_native>
   extern ef2 joinOne @m13_join_one(ptr<raw>) -> i64 <c bridge=@scoop_c_bridge_2 gc-leaf nounwind lib=fixture_native>
@@ -1330,23 +1330,23 @@ Module
     t14 = aggregate () : {}
     call @scoop.println(local3)
     t15 = aggregate () : {}
-    t16 = foreign_callback_State local2 : enum1
-    t17 = enum_tag e1 t16 : i64
-    t18 = enum_wrap e1 v2 () : enum1
-    t19 = enum_tag e1 t18 : i64
+    t16 = foreign_callback_State local2 : enum2
+    t17 = enum_tag e2 t16 : i64
+    t18 = enum_wrap e2 v2 () : enum2
+    t19 = enum_tag e2 t18 : i64
     t20 = Eq t17, t19 : i1
     t21 = call @scoop_rt_box(global14, t20, 1) : ptr<managed>
     call @scoop.println(t21)
     t22 = aggregate () : {}
-    t23 = foreign_callback_Failure local2 : enum2
-    t24 = enum_tag e2 t23 : i64
-    t25 = enum_wrap e2 v1 () : enum2
-    t26 = enum_tag e2 t25 : i64
+    t23 = foreign_callback_Failure local2 : enum3
+    t24 = enum_tag e3 t23 : i64
+    t25 = enum_wrap e3 v1 () : enum3
+    t26 = enum_tag e3 t25 : i64
     t27 = Eq t24, t26 : i1
     cbr t27 then @logic.rhs.1 else @logic.short.2
   block logic.rhs.1
-    t28 = foreign_callback_Failure local2 : enum2
-    t29 = enum_tag e2 t28 : i64
+    t28 = foreign_callback_Failure local2 : enum3
+    t29 = enum_tag e3 t28 : i64
     t30 = Ne t29, 0 : i1
     cbr t30 then @logic.short.5 else @logic.rhs.4
   block logic.short.2
@@ -1423,25 +1423,25 @@ Module
     t72 = call @scoop_rt_box(global14, t71, 1) : ptr<managed>
     call @scoop.println(t72)
     t73 = aggregate () : {}
-    t74 = foreign_callback_State local7 : enum1
-    t75 = enum_tag e1 t74 : i64
-    t76 = enum_wrap e1 v0 () : enum1
-    t77 = enum_tag e1 t76 : i64
+    t74 = foreign_callback_State local7 : enum2
+    t75 = enum_tag e2 t74 : i64
+    t76 = enum_wrap e2 v0 () : enum2
+    t77 = enum_tag e2 t76 : i64
     t78 = Eq t75, t77 : i1
     t79 = call @scoop_rt_box(global14, t78, 1) : ptr<managed>
     call @scoop.println(t79)
     t80 = aggregate () : {}
-    t81 = foreign_callback_Failure local7 : enum2
-    t82 = enum_tag e2 t81 : i64
-    t83 = enum_wrap e2 v1 () : enum2
-    t84 = enum_tag e2 t83 : i64
+    t81 = foreign_callback_Failure local7 : enum3
+    t82 = enum_tag e3 t81 : i64
+    t83 = enum_wrap e3 v1 () : enum3
+    t84 = enum_tag e3 t83 : i64
     t85 = Eq t82, t84 : i1
     cbr t85 then @logic.rhs.7 else @logic.short.8
   block logic.rhs.4
-    t86 = foreign_callback_Failure local2 : enum2
-    t87 = enum_field e2 v0 f0 t86 : i64
-    t88 = enum_wrap e2 v1 () : enum2
-    t89 = enum_field e2 v0 f0 t88 : i64
+    t86 = foreign_callback_Failure local2 : enum3
+    t87 = enum_field e3 v0 f0 t86 : i64
+    t88 = enum_wrap e3 v1 () : enum3
+    t89 = enum_field e3 v0 f0 t88 : i64
     t90 = Eq t87, t89 : i1
     store t90 -> local13
     br @logic.merge.6
@@ -1452,8 +1452,8 @@ Module
     store local13 -> local12
     br @logic.merge.3
   block logic.rhs.7
-    t91 = foreign_callback_Failure local7 : enum2
-    t92 = enum_tag e2 t91 : i64
+    t91 = foreign_callback_Failure local7 : enum3
+    t92 = enum_tag e3 t91 : i64
     t93 = Ne t92, 0 : i1
     cbr t93 then @logic.short.11 else @logic.rhs.10
   block logic.short.8
@@ -1483,25 +1483,25 @@ Module
     t106 = call @scoop_rt_box(global14, local21, 1) : ptr<managed>
     call @scoop.println(t106)
     t107 = aggregate () : {}
-    t108 = foreign_callback_State local9 : enum1
-    t109 = enum_tag e1 t108 : i64
-    t110 = enum_wrap e1 v2 () : enum1
-    t111 = enum_tag e1 t110 : i64
+    t108 = foreign_callback_State local9 : enum2
+    t109 = enum_tag e2 t108 : i64
+    t110 = enum_wrap e2 v2 () : enum2
+    t111 = enum_tag e2 t110 : i64
     t112 = Eq t109, t111 : i1
     t113 = call @scoop_rt_box(global14, t112, 1) : ptr<managed>
     call @scoop.println(t113)
     t114 = aggregate () : {}
-    t115 = foreign_callback_Failure local9 : enum2
-    t116 = enum_tag e2 t115 : i64
-    t117 = enum_wrap e2 v1 () : enum2
-    t118 = enum_tag e2 t117 : i64
+    t115 = foreign_callback_Failure local9 : enum3
+    t116 = enum_tag e3 t115 : i64
+    t117 = enum_wrap e3 v1 () : enum3
+    t118 = enum_tag e3 t117 : i64
     t119 = Eq t116, t118 : i1
     cbr t119 then @logic.rhs.13 else @logic.short.14
   block logic.rhs.10
-    t120 = foreign_callback_Failure local7 : enum2
-    t121 = enum_field e2 v0 f0 t120 : i64
-    t122 = enum_wrap e2 v1 () : enum2
-    t123 = enum_field e2 v0 f0 t122 : i64
+    t120 = foreign_callback_Failure local7 : enum3
+    t121 = enum_field e3 v0 f0 t120 : i64
+    t122 = enum_wrap e3 v1 () : enum3
+    t123 = enum_field e3 v0 f0 t122 : i64
     t124 = Eq t121, t123 : i1
     store t124 -> local19
     br @logic.merge.12
@@ -1512,8 +1512,8 @@ Module
     store local19 -> local18
     br @logic.merge.9
   block logic.rhs.13
-    t125 = foreign_callback_Failure local9 : enum2
-    t126 = enum_tag e2 t125 : i64
+    t125 = foreign_callback_Failure local9 : enum3
+    t126 = enum_tag e3 t125 : i64
     t127 = Ne t126, 0 : i1
     cbr t127 then @logic.short.17 else @logic.rhs.16
   block logic.short.14
@@ -1527,10 +1527,10 @@ Module
     t130 = aggregate () : {}
     ret
   block logic.rhs.16
-    t131 = foreign_callback_Failure local9 : enum2
-    t132 = enum_field e2 v0 f0 t131 : i64
-    t133 = enum_wrap e2 v1 () : enum2
-    t134 = enum_field e2 v0 f0 t133 : i64
+    t131 = foreign_callback_Failure local9 : enum3
+    t132 = enum_field e3 v0 f0 t131 : i64
+    t133 = enum_wrap e3 v1 () : enum3
+    t134 = enum_field e3 v0 f0 t133 : i64
     t135 = Eq t132, t134 : i1
     store t135 -> local23
     br @logic.merge.18
@@ -1553,13 +1553,13 @@ Module
   fun @scoop.$lambda.2(ptr<managed>, i64) -> i64
     local %0 index: i64
     local %1 text: ptr<managed>
-    local %2 payloads: [enum3]
+    local %2 payloads: ptr<managed>
     local %3 saved: ptr<managed>
     local %4 $result.0: i64
     local %5 $result.1: i64
-    local %6 $arr.1: [enum3]
+    local %6 $arr.1: ptr<managed>
     local %7 $idx.2: i64
-    local %8 $when.3: enum3
+    local %8 $when.3: enum0
     local %9 $call.1: ptr<managed>
     local %10 $logic.2: i1
     local %11 $call.3: ptr<managed>
@@ -1579,9 +1579,9 @@ Module
     store t2 -> local0
     br @while.cond.1
   block while.exit.3
-    t3 = enum_wrap e3 v0 (local1) : enum3
-    t4 = enum_wrap e3 v1 () : enum3
-    t5 = array_alloc (t3, t4) : [enum3]
+    t3 = enum_wrap e0 v0 (local1) : enum0
+    t4 = enum_wrap e0 v1 () : enum0
+    t5 = array_alloc array0 (t3, t4) : ptr<managed>
     store t5 -> local2
     native_call[native-safe] extern5() roots=[local1, local2]
     t6 = aggregate () : {}
@@ -1592,7 +1592,7 @@ Module
     t8 = Lt local7, 0 : i1
     cbr t8 then @logic.short.5 else @logic.rhs.4
   block logic.rhs.4
-    t9 = array_len local6 : i64
+    t9 = array_len array0 local6 : i64
     t10 = Ge local7, t9 : i1
     store t10 -> local10
     br @logic.merge.6
@@ -1607,19 +1607,19 @@ Module
     throw local11
     unreachable
   block if.merge.8
-    t12 = array_get local6 local7 : enum3
+    t12 = array_get array0 local6 local7 : enum0
     store t12 -> local8
-    t13 = enum_tag e3 local8 : i64
+    t13 = enum_tag e0 local8 : i64
     t14 = Eq t13, 0 : i1
     cbr t14 then @if.then.9 else @if.else.10
   block if.then.9
-    t15 = enum_field e3 v0 f0 local8 : ptr<managed>
+    t15 = enum_field e0 v0 f0 local8 : ptr<managed>
     store t15 -> local3
     t16 = call @scoop_rt_string_eq(local3, local1) : i1
     store t16 -> local12
     cbr local12 then @if.then.12 else @if.else.13
   block if.else.10
-    t17 = enum_tag e3 local8 : i64
+    t17 = enum_tag e0 local8 : i64
     t18 = Eq t17, 1 : i1
     cbr t18 then @if.then.15 else @if.merge.16
   block if.merge.11
@@ -1649,7 +1649,7 @@ Module
   block entry
     t0 = call @scoop_rt_alloc(global18, 16) : ptr<managed>
     ret t0
-  fun @scoop.ctor.Exception(enum0) -> ptr<managed>
+  fun @scoop.ctor.Exception(enum1) -> ptr<managed>
   block entry
     t0 = call @scoop_rt_alloc(global19, 24) : ptr<managed>
     heap_store t0 +16 param0
@@ -1657,31 +1657,31 @@ Module
   fun @scoop.ctor.UnwrapException() -> ptr<managed>
   block entry
     t0 = call @scoop_rt_alloc(global20, 24) : ptr<managed>
-    t1 = enum_wrap e0 v0 (global7) : enum0
+    t1 = enum_wrap e1 v0 (global7) : enum1
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.ClassCastException() -> ptr<managed>
   block entry
     t0 = call @scoop_rt_alloc(global21, 24) : ptr<managed>
-    t1 = enum_wrap e0 v0 (global8) : enum0
+    t1 = enum_wrap e1 v0 (global8) : enum1
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.ArithmeticException() -> ptr<managed>
   block entry
     t0 = call @scoop_rt_alloc(global22, 24) : ptr<managed>
-    t1 = enum_wrap e0 v0 (global9) : enum0
+    t1 = enum_wrap e1 v0 (global9) : enum1
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.IndexOutOfBoundsException() -> ptr<managed>
   block entry
     t0 = call @scoop_rt_alloc(global23, 24) : ptr<managed>
-    t1 = enum_wrap e0 v0 (global10) : enum0
+    t1 = enum_wrap e1 v0 (global10) : enum1
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.IllegalStateException() -> ptr<managed>
   block entry
     t0 = call @scoop_rt_alloc(global24, 24) : ptr<managed>
-    t1 = enum_wrap e0 v0 (global11) : enum0
+    t1 = enum_wrap e1 v0 (global11) : enum1
     heap_store t0 +16 t1
     ret t0
   fun @scoop_foreign_callback_adapter_0(ptr<managed>, ptr<raw>, ptr<raw>, ptr<raw>) -> i64
@@ -1848,15 +1848,16 @@ Module
   td $Closure$lambda1 @scoop_td_$Closure$lambda1 size=24 vtable=3 itables=0
   td $Closure$lambda2 @scoop_td_$Closure$lambda2 size=24 vtable=3 itables=0
   td $Closure$lambda3 @scoop_td_$Closure$lambda3 size=24 vtable=3 itables=0
+  array-type array0 Array$EManagedPayload kind=immutable element=enum0 size=8 align=8 scan=refs[0] td=@scoop_td_Array$EManagedPayload
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   layout ForeignCallback$FI_PUXRIX size=16 align=8 refs=[]
   layout ForeignCallback$FPUXRUX size=16 align=8 refs=[]
+  layout ManagedPayload size=8 align=8 enum-scan=refs[0]
   layout Option$S size=8 align=8 enum-scan=refs[0]
   layout ForeignCallbackState size=8 align=8 enum-scan=none
   layout Option$Throwable size=8 align=8 enum-scan=refs[0]
-  layout ManagedPayload size=8 align=8 enum-scan=refs[0]
   layout Throwable size=16 align=8 refs=[]
   layout Exception size=24 align=8 refs=[16]
   layout UnwrapException size=24 align=8 refs=[16]
@@ -1870,7 +1871,6 @@ Module
   layout $Closure$lambda1 size=24 align=8 refs=[]
   layout $Closure$lambda2 size=24 align=8 refs=[]
   layout $Closure$lambda3 size=24 align=8 refs=[]
-  layout Array<ManagedPayload> size=8 align=8 array(element_is_ref=true)
   entry @scoop_main
 
 == run ==

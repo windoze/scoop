@@ -570,7 +570,7 @@ fn array_annotation_takes_exactly_one_type_argument() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "`Array` takes exactly 1 type argument, but 2 were supplied"
+        "class `Array` takes 1 type argument(s), but 2 were supplied"
     );
 }
 
@@ -584,7 +584,7 @@ fn bare_array_annotation_requires_a_type_argument() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "`Array` requires exactly 1 type argument"
+        "generic class `Array` requires 1 type argument(s)"
     );
 }
 

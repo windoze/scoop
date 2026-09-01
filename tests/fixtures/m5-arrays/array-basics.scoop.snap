@@ -360,7 +360,7 @@ Module
   fun main @scoop_main() -> Unit
     bb0 entry
       val a: Array<Int>
-        ArrayLiteral
+        ArrayLiteral Array$I
           IntLiteral 1
           IntLiteral 2
           IntLiteral 3
@@ -376,7 +376,7 @@ Module
       assign $logic.1
         Binary IntGe
           Local $idx.2
-          ArrayLen
+          ArrayLen Array$I
             Local $arr.1
       goto bb3
     bb2 logic.short.2
@@ -394,13 +394,13 @@ Module
       call @scoop.println direct
         Box
           Binary IntAdd
-            ArrayGet
+            ArrayGet Array$I
               Local $arr.1
               Local $idx.2
-            ArrayLen
+            ArrayLen Array$I
               Local a
       val m: MutableArray<Int>
-        ArrayLiteral
+        ArrayLiteral MutableArray$I
           IntLiteral 4
           IntLiteral 5
       val $arr.3: MutableArray<Int>
@@ -415,7 +415,7 @@ Module
       assign $logic.3
         Binary IntGe
           Local $idx.4
-          ArrayLen
+          ArrayLen MutableArray$I
             Local $arr.3
       goto bb8
     bb7 logic.short.7
@@ -430,7 +430,7 @@ Module
       throw
         Local $call.4
     bb10 if.merge.10
-      array_set
+      array_set MutableArray$I
         Local $arr.3
         Local $idx.4
         IntLiteral 40
@@ -446,7 +446,7 @@ Module
       assign $logic.5
         Binary IntGe
           Local $idx.6
-          ArrayLen
+          ArrayLen MutableArray$I
             Local $arr.5
       goto bb13
     bb12 logic.short.12
@@ -463,11 +463,11 @@ Module
     bb15 if.merge.15
       call @scoop.println direct
         Box
-          ArrayGet
+          ArrayGet MutableArray$I
             Local $arr.5
             Local $idx.6
       val b: Array<Int>
-        ArrayClone
+        ArrayClone MutableArray$I -> Array$I
           Local m
       val $arr.7: MutableArray<Int>
         Local m
@@ -481,7 +481,7 @@ Module
       assign $logic.7
         Binary IntGe
           Local $idx.8
-          ArrayLen
+          ArrayLen MutableArray$I
             Local $arr.7
       goto bb18
     bb17 logic.short.17
@@ -496,7 +496,7 @@ Module
       throw
         Local $call.8
     bb20 if.merge.20
-      array_set
+      array_set MutableArray$I
         Local $arr.7
         Local $idx.8
         IntLiteral 99
@@ -512,7 +512,7 @@ Module
       assign $logic.9
         Binary IntGe
           Local $idx.10
-          ArrayLen
+          ArrayLen Array$I
             Local $arr.9
       goto bb23
     bb22 logic.short.22
@@ -529,14 +529,14 @@ Module
     bb25 if.merge.25
       call @scoop.println direct
         Box
-          ArrayGet
+          ArrayGet Array$I
             Local $arr.9
             Local $idx.10
       val e: Array<Int>
-        ArrayLiteral
+        ArrayLiteral Array$I
       call @scoop.println direct
         Box
-          ArrayLen
+          ArrayLen Array$I
             Local e
       return
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
@@ -646,19 +646,19 @@ Module
     t4 = aggregate () : {}
     ret
   fun @scoop_main() -> void
-    local %0 a: [i64]
-    local %1 m: [i64]
-    local %2 b: [i64]
-    local %3 e: [i64]
-    local %4 $arr.1: [i64]
+    local %0 a: ptr<managed>
+    local %1 m: ptr<managed>
+    local %2 b: ptr<managed>
+    local %3 e: ptr<managed>
+    local %4 $arr.1: ptr<managed>
     local %5 $idx.2: i64
-    local %6 $arr.3: [i64]
+    local %6 $arr.3: ptr<managed>
     local %7 $idx.4: i64
-    local %8 $arr.5: [i64]
+    local %8 $arr.5: ptr<managed>
     local %9 $idx.6: i64
-    local %10 $arr.7: [i64]
+    local %10 $arr.7: ptr<managed>
     local %11 $idx.8: i64
-    local %12 $arr.9: [i64]
+    local %12 $arr.9: ptr<managed>
     local %13 $idx.10: i64
     local %14 $logic.1: i1
     local %15 $call.2: ptr<managed>
@@ -671,14 +671,14 @@ Module
     local %22 $logic.9: i1
     local %23 $call.10: ptr<managed>
   block entry
-    t0 = array_alloc (1, 2, 3) : [i64]
+    t0 = array_alloc array0 (1, 2, 3) : ptr<managed>
     store t0 -> local0
     store local0 -> local4
     store 0 -> local5
     t1 = Lt local5, 0 : i1
     cbr t1 then @logic.short.2 else @logic.rhs.1
   block logic.rhs.1
-    t2 = array_len local4 : i64
+    t2 = array_len array0 local4 : i64
     t3 = Ge local5, t2 : i1
     store t3 -> local14
     br @logic.merge.3
@@ -693,20 +693,20 @@ Module
     throw local15
     unreachable
   block if.merge.5
-    t5 = array_get local4 local5 : i64
-    t6 = array_len local0 : i64
+    t5 = array_get array0 local4 local5 : i64
+    t6 = array_len array0 local0 : i64
     t7 = Add t5, t6 : i64
     t8 = call @scoop_rt_box(global6, t7, 8) : ptr<managed>
     call @scoop.println(t8)
     t9 = aggregate () : {}
-    t10 = array_alloc (4, 5) : [i64]
+    t10 = array_alloc array1 (4, 5) : ptr<managed>
     store t10 -> local1
     store local1 -> local6
     store 0 -> local7
     t11 = Lt local7, 0 : i1
     cbr t11 then @logic.short.7 else @logic.rhs.6
   block logic.rhs.6
-    t12 = array_len local6 : i64
+    t12 = array_len array1 local6 : i64
     t13 = Ge local7, t12 : i1
     store t13 -> local16
     br @logic.merge.8
@@ -721,13 +721,13 @@ Module
     throw local17
     unreachable
   block if.merge.10
-    array_set local6 local7 40
+    array_set array1 local6 local7 40
     store local1 -> local8
     store 0 -> local9
     t15 = Lt local9, 0 : i1
     cbr t15 then @logic.short.12 else @logic.rhs.11
   block logic.rhs.11
-    t16 = array_len local8 : i64
+    t16 = array_len array1 local8 : i64
     t17 = Ge local9, t16 : i1
     store t17 -> local18
     br @logic.merge.13
@@ -742,18 +742,18 @@ Module
     throw local19
     unreachable
   block if.merge.15
-    t19 = array_get local8 local9 : i64
+    t19 = array_get array1 local8 local9 : i64
     t20 = call @scoop_rt_box(global6, t19, 8) : ptr<managed>
     call @scoop.println(t20)
     t21 = aggregate () : {}
-    t22 = array_clone local1 : [i64]
+    t22 = array_clone array0 local1 : ptr<managed>
     store t22 -> local2
     store local1 -> local10
     store 0 -> local11
     t23 = Lt local11, 0 : i1
     cbr t23 then @logic.short.17 else @logic.rhs.16
   block logic.rhs.16
-    t24 = array_len local10 : i64
+    t24 = array_len array1 local10 : i64
     t25 = Ge local11, t24 : i1
     store t25 -> local20
     br @logic.merge.18
@@ -768,13 +768,13 @@ Module
     throw local21
     unreachable
   block if.merge.20
-    array_set local10 local11 99
+    array_set array1 local10 local11 99
     store local2 -> local12
     store 0 -> local13
     t27 = Lt local13, 0 : i1
     cbr t27 then @logic.short.22 else @logic.rhs.21
   block logic.rhs.21
-    t28 = array_len local12 : i64
+    t28 = array_len array0 local12 : i64
     t29 = Ge local13, t28 : i1
     store t29 -> local22
     br @logic.merge.23
@@ -789,13 +789,13 @@ Module
     throw local23
     unreachable
   block if.merge.25
-    t31 = array_get local12 local13 : i64
+    t31 = array_get array0 local12 local13 : i64
     t32 = call @scoop_rt_box(global6, t31, 8) : ptr<managed>
     call @scoop.println(t32)
     t33 = aggregate () : {}
-    t34 = array_alloc () : [i64]
+    t34 = array_alloc array0 () : ptr<managed>
     store t34 -> local3
-    t35 = array_len local3 : i64
+    t35 = array_len array0 local3 : i64
     t36 = call @scoop_rt_box(global6, t35, 8) : ptr<managed>
     call @scoop.println(t36)
     t37 = aggregate () : {}
@@ -864,6 +864,8 @@ Module
   td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=3 itables=0
   td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=3 itables=0
   td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=3 itables=0
+  array-type array0 Array$I kind=immutable element=i64 size=8 align=8 scan=none td=@scoop_td_Array$I
+  array-type array1 MutableArray$I kind=mutable element=i64 size=8 align=8 scan=none td=@scoop_td_MutableArray$I
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
@@ -876,8 +878,6 @@ Module
   layout IndexOutOfBoundsException size=24 align=8 refs=[16]
   layout IllegalStateException size=24 align=8 refs=[16]
   layout box$I size=24 align=8 refs=[]
-  layout Array<Int> size=8 align=8 array(element_is_ref=false)
-  layout MutableArray<Int> size=8 align=8 array(element_is_ref=false)
   entry @scoop_main
 
 == run ==

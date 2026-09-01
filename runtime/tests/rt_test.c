@@ -1147,23 +1147,26 @@ void scoop_main(void) {
     scoop_rt_println(scoop_rt_bool_to_string(true));
     scoop_rt_println(scoop_rt_bool_to_string(false));
 
-    /* scoop_rt_array_clone (M5): independent snapshot — mutating the
+    /* scoop_rt_array_clone (M5/M14): independent snapshot — mutating the
      * original after the clone must not affect the copy, and the copy
-     * keeps the header (td) and size. The source is a stack object
+     * receives the complete target nominal descriptor. The source is a stack object
      * laid out like a codegen array (16-byte header). */
     const ScoopTypeDescriptor array_td = {
         100, 8, 8, NULL, NULL, NULL, NULL, 0, "Array<Int>"};
+    const ScoopTypeDescriptor mutable_array_td = {
+        101, 8, 8, NULL, NULL, NULL, NULL, 0, "MutableArray<Int>"};
     struct {
         const ScoopTypeDescriptor *td;
         uint64_t gc_word;
         uint64_t size;
         int64_t data[3];
     } original = {&array_td, 0, 3, {10, 20, 30}};
-    const ScoopArray *clone = scoop_rt_array_clone(&original, sizeof(int64_t), 24);
+    const ScoopArray *clone =
+        scoop_rt_array_clone(&original, &mutable_array_td, sizeof(int64_t), 24);
     original.data[0] = 99;
     const int64_t *snapshot = (const int64_t *)clone->elements;
     scoop_rt_println_boolean(snapshot[0] == 10 && snapshot[1] == 20 && snapshot[2] == 30);
-    scoop_rt_println_boolean(clone->size == 3 && clone->header.td == &array_td);
+    scoop_rt_println_boolean(clone->size == 3 && clone->header.td == &mutable_array_td);
 
     /* scoop_rt_box (M6): header + payload copy. */
     int64_t payload[2] = {1, 2};

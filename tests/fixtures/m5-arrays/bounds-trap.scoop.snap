@@ -295,7 +295,7 @@ Module
   fun main @scoop_main() -> Unit
     bb0 entry
       val a: Array<Int>
-        ArrayLiteral
+        ArrayLiteral Array$I
           IntLiteral 1
           IntLiteral 2
           IntLiteral 3
@@ -311,7 +311,7 @@ Module
       assign $logic.1
         Binary IntGe
           Local $idx.2
-          ArrayLen
+          ArrayLen Array$I
             Local $arr.1
       goto bb3
     bb2 logic.short.2
@@ -328,7 +328,7 @@ Module
     bb5 if.merge.5
       call @scoop.println direct
         Box
-          ArrayGet
+          ArrayGet Array$I
             Local $arr.1
             Local $idx.2
       return
@@ -439,20 +439,20 @@ Module
     t4 = aggregate () : {}
     ret
   fun @scoop_main() -> void
-    local %0 a: [i64]
-    local %1 $arr.1: [i64]
+    local %0 a: ptr<managed>
+    local %1 $arr.1: ptr<managed>
     local %2 $idx.2: i64
     local %3 $logic.1: i1
     local %4 $call.2: ptr<managed>
   block entry
-    t0 = array_alloc (1, 2, 3) : [i64]
+    t0 = array_alloc array0 (1, 2, 3) : ptr<managed>
     store t0 -> local0
     store local0 -> local1
     store 3 -> local2
     t1 = Lt local2, 0 : i1
     cbr t1 then @logic.short.2 else @logic.rhs.1
   block logic.rhs.1
-    t2 = array_len local1 : i64
+    t2 = array_len array0 local1 : i64
     t3 = Ge local2, t2 : i1
     store t3 -> local3
     br @logic.merge.3
@@ -467,7 +467,7 @@ Module
     throw local4
     unreachable
   block if.merge.5
-    t5 = array_get local1 local2 : i64
+    t5 = array_get array0 local1 local2 : i64
     t6 = call @scoop_rt_box(global6, t5, 8) : ptr<managed>
     call @scoop.println(t6)
     t7 = aggregate () : {}
@@ -536,6 +536,7 @@ Module
   td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=3 itables=0
   td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=3 itables=0
   td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=3 itables=0
+  array-type array0 Array$I kind=immutable element=i64 size=8 align=8 scan=none td=@scoop_td_Array$I
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
@@ -548,7 +549,6 @@ Module
   layout IndexOutOfBoundsException size=24 align=8 refs=[16]
   layout IllegalStateException size=24 align=8 refs=[16]
   layout box$I size=24 align=8 refs=[]
-  layout Array<Int> size=8 align=8 array(element_is_ref=false)
   entry @scoop_main
 
 == trap ==

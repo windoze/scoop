@@ -88,6 +88,7 @@ fn rewrite_statement(statement: &mut mir::StatementKind, managed: mir::LocalId) 
             array,
             index,
             value,
+            ..
         } => {
             rewrite_expr(array, managed);
             rewrite_expr(index, managed);
@@ -135,7 +136,7 @@ fn rewrite_expr(expr: &mut mir::Expr, managed: mir::LocalId) {
     match expr {
         mir::Expr::CaughtException => *expr = mir::Expr::Local(managed),
         mir::Expr::TupleLiteral(elements)
-        | mir::Expr::ArrayLiteral(elements)
+        | mir::Expr::ArrayLiteral { elements, .. }
         | mir::Expr::StructInit { args: elements, .. }
         | mir::Expr::ClassInit { args: elements, .. }
         | mir::Expr::ClosureAlloc {
@@ -168,8 +169,8 @@ fn rewrite_expr(expr: &mut mir::Expr, managed: mir::LocalId) {
         | mir::Expr::Unbox(operand)
         | mir::Expr::IsInstance { operand, .. }
         | mir::Expr::Cast { operand, .. }
-        | mir::Expr::ArrayLen(operand)
-        | mir::Expr::ArrayClone(operand)
+        | mir::Expr::ArrayLen { operand, .. }
+        | mir::Expr::ArrayClone { operand, .. }
         | mir::Expr::PtrFromUInt { operand, .. }
         | mir::Expr::PtrToUInt(operand)
         | mir::Expr::PtrCast { operand, .. }
@@ -186,7 +187,7 @@ fn rewrite_expr(expr: &mut mir::Expr, managed: mir::LocalId) {
             rewrite_expr(expected, managed);
             rewrite_expr(replacement, managed);
         }
-        mir::Expr::ArrayGet { array, index }
+        mir::Expr::ArrayGet { array, index, .. }
         | mir::Expr::Binary {
             lhs: array,
             rhs: index,

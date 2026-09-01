@@ -170,8 +170,9 @@ _Noreturn void scoop_rt_trap(const char *message);
  * (data_offset + size * elem_size bytes, including header/size/padding)
  * into a fresh GC allocation — a shallow snapshot: elements that are
  * references are copied as pointers, not cloned. */
-const void *scoop_rt_array_clone(const void *obj, uint64_t elem_size,
-                                 uint64_t data_offset);
+const void *scoop_rt_array_clone(const void *obj,
+                                 const ScoopTypeDescriptor *target_td,
+                                 uint64_t elem_size, uint64_t data_offset);
 
 /* M6 additions (milestone6 DESIGN section 3): dispatch support. */
 

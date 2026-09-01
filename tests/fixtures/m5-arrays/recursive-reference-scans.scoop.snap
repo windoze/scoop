@@ -405,7 +405,7 @@ Module
         StringConst @scoop.str.5
         StringConst @scoop.str.6
       return
-        ArrayLiteral
+        ArrayLiteral Array$Item
           StructInit Item
             VariantConstruct Payload v0
               Local payload
@@ -429,7 +429,7 @@ Module
       assign $logic.1
         Binary IntGe
           Local $idx.2
-          ArrayLen
+          ArrayLen Array$Item
             Local $arr.1
       goto bb3
     bb2 logic.short.2
@@ -446,7 +446,7 @@ Module
     bb5 if.merge.5
       val $when.3: Payload
         FieldAccess 0
-          ArrayGet
+          ArrayGet Array$Item
             Local $arr.1
             Local $idx.2
       branch bb6 bb7
@@ -503,7 +503,7 @@ Module
       assign $logic.3
         Binary IntGe
           Local $idx.5
-          ArrayLen
+          ArrayLen Array$Item
             Local $arr.4
       goto bb16
     bb15 logic.short.15
@@ -520,7 +520,7 @@ Module
     bb18 if.merge.18
       call @scoop.println direct
         FieldAccess 1
-          ArrayGet
+          ArrayGet Array$Item
             Local $arr.4
             Local $idx.5
       val $arr.6: Array<Item>
@@ -535,7 +535,7 @@ Module
       assign $logic.5
         Binary IntGe
           Local $idx.7
-          ArrayLen
+          ArrayLen Array$Item
             Local $arr.6
       goto bb21
     bb20 logic.short.20
@@ -552,7 +552,7 @@ Module
     bb23 if.merge.23
       call @scoop.println direct
         FieldAccess 1
-          ArrayGet
+          ArrayGet Array$Item
             Local $arr.6
             Local $idx.7
       return
@@ -677,7 +677,7 @@ Module
     native_call[native-borrowed] extern0(global0)
     t4 = aggregate () : {}
     ret
-  fun @scoop.makeItems() -> [struct3]
+  fun @scoop.makeItems() -> ptr<managed>
     local %0 payload: ptr<managed>
     local %1 firstTail: ptr<managed>
     local %2 secondTail: ptr<managed>
@@ -692,18 +692,18 @@ Module
     t4 = aggregate (t3, local1) : struct3
     t5 = enum_wrap e0 v2 () : enum0
     t6 = aggregate (t5, local2) : struct3
-    t7 = array_alloc (t4, t6) scan=refs[16, 24] : [struct3]
+    t7 = array_alloc array0 (t4, t6) : ptr<managed>
     ret t7
   fun @scoop_main() -> void
-    local %0 items: [struct3]
+    local %0 items: ptr<managed>
     local %1 value: ptr<managed>
     local %2 value: i64
-    local %3 $arr.1: [struct3]
+    local %3 $arr.1: ptr<managed>
     local %4 $idx.2: i64
     local %5 $when.3: enum0
-    local %6 $arr.4: [struct3]
+    local %6 $arr.4: ptr<managed>
     local %7 $idx.5: i64
-    local %8 $arr.6: [struct3]
+    local %8 $arr.6: ptr<managed>
     local %9 $idx.7: i64
     local %10 $logic.1: i1
     local %11 $call.2: ptr<managed>
@@ -712,7 +712,7 @@ Module
     local %14 $logic.5: i1
     local %15 $call.6: ptr<managed>
   block entry
-    t0 = call @scoop.makeItems() : [struct3]
+    t0 = call @scoop.makeItems() : ptr<managed>
     store t0 -> local0
     call @scoop_rt_gc_collect()
     t1 = aggregate () : {}
@@ -721,7 +721,7 @@ Module
     t2 = Lt local4, 0 : i1
     cbr t2 then @logic.short.2 else @logic.rhs.1
   block logic.rhs.1
-    t3 = array_len local3 : i64
+    t3 = array_len array0 local3 : i64
     t4 = Ge local4, t3 : i1
     store t4 -> local10
     br @logic.merge.3
@@ -736,7 +736,7 @@ Module
     throw local11
     unreachable
   block if.merge.5
-    t6 = array_get local3 local4 : struct3
+    t6 = array_get array0 local3 local4 : struct3
     t7 = extract t6, 0 : enum0
     store t7 -> local5
     t8 = enum_tag e0 local5 : i64
@@ -777,7 +777,7 @@ Module
   block if.merge.13
     br @if.merge.11
   block logic.rhs.14
-    t21 = array_len local6 : i64
+    t21 = array_len array0 local6 : i64
     t22 = Ge local7, t21 : i1
     store t22 -> local12
     br @logic.merge.16
@@ -792,7 +792,7 @@ Module
     throw local13
     unreachable
   block if.merge.18
-    t24 = array_get local6 local7 : struct3
+    t24 = array_get array0 local6 local7 : struct3
     t25 = extract t24, 1 : ptr<managed>
     call @scoop.println(t25)
     t26 = aggregate () : {}
@@ -801,7 +801,7 @@ Module
     t27 = Lt local9, 0 : i1
     cbr t27 then @logic.short.20 else @logic.rhs.19
   block logic.rhs.19
-    t28 = array_len local8 : i64
+    t28 = array_len array0 local8 : i64
     t29 = Ge local9, t28 : i1
     store t29 -> local14
     br @logic.merge.21
@@ -816,7 +816,7 @@ Module
     throw local15
     unreachable
   block if.merge.23
-    t31 = array_get local8 local9 : struct3
+    t31 = array_get array0 local8 local9 : struct3
     t32 = extract t31, 1 : ptr<managed>
     call @scoop.println(t32)
     t33 = aggregate () : {}
@@ -885,6 +885,7 @@ Module
   td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=3 itables=0
   td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=3 itables=0
   td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=3 itables=0
+  array-type array0 Array$Item kind=immutable element=struct3 size=32 align=8 scan=refs[16, 24] td=@scoop_td_Array$Item
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
@@ -899,7 +900,6 @@ Module
   layout IndexOutOfBoundsException size=24 align=8 refs=[16]
   layout IllegalStateException size=24 align=8 refs=[16]
   layout box$I size=24 align=8 refs=[]
-  layout Array<Item> size=32 align=8 array(scan=refs[16, 24])
   entry @scoop_main
 
 == run ==

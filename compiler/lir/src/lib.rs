@@ -20,6 +20,7 @@ pub type ExternFunctionId = Idx<ExternFunction>;
 pub type NativeGlobalId = Idx<NativeGlobal>;
 pub type CallbackBridgeId = Idx<CallbackBridge>;
 pub type ForeignCallbackBridgeId = Idx<ForeignCallbackBridge>;
+pub type ArrayTypeId = Idx<ArrayType>;
 
 /// Symbol of the TypeDescriptor global for `String` (runtime spec 2.2).
 pub const STRING_TD_SYMBOL: &str = "scoop_td_String";
@@ -46,9 +47,6 @@ pub enum LirType {
     /// module's `StructDef`, so packed and over-aligned layouts cannot be
     /// erased into an anonymous natural aggregate.
     Struct(StructDefId),
-    /// An array object: pointer to `{ td, i64 size, inline elements }`
-    /// (spec 10.1). The payload is the element layout.
-    Array(Box<LirType>),
     /// An enum value; the representation is fixed by
     /// `EnumDef::repr` (niche pointer or tagged union, spec 7.4).
     Enum(EnumDefId),
@@ -96,7 +94,6 @@ impl LirType {
             }
             LirType::Struct(id) => format!("struct{}", id.into_raw()),
             LirType::Enum(id) => format!("enum{}", id.into_raw()),
-            LirType::Array(inner) => format!("[{}]", inner.dump()),
         }
     }
 }
@@ -253,6 +250,10 @@ pub struct LirMeta {
     /// typed intrinsic String declaration. Codegen consumes this directly and
     /// never searches layouts or synthesizes a second descriptor by name.
     pub string: StringMetadata,
+    /// Every fully specialized intrinsic `Array<T>` / `MutableArray<T>`
+    /// application. Array instructions carry an `ArrayTypeId`; codegen never
+    /// reconstructs nominal array identity or GC metadata from value layouts.
+    pub arrays: Arena<ArrayType>,
     pub layouts: Vec<Layout>,
     /// TypeDescriptors to emit (runtime spec 2.2): classes, boxed
     /// value types, and interfaces (symbols serve as itable keys).
@@ -265,6 +266,26 @@ pub struct LirMeta {
 #[derive(Debug)]
 pub struct StringMetadata {
     pub layout: Layout,
+    pub type_descriptor: TypeDescriptor,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ArrayKind {
+    Immutable,
+    Mutable,
+}
+
+/// Complete LIR metadata for one concrete intrinsic array application.
+/// `element_size` / `element_align` are fixed by lir-lower rather than
+/// recomputed from LLVM ABI queries in codegen.
+#[derive(Debug)]
+pub struct ArrayType {
+    pub kind: ArrayKind,
+    pub element: LirType,
+    pub element_size: u64,
+    pub element_align: u64,
+    /// Its `scan` is the recursive scan program for one inline element; the
+    /// array repetition wrapper is added mechanically by codegen.
     pub type_descriptor: TypeDescriptor,
 }
 
@@ -313,11 +334,6 @@ pub enum LayoutKind {
     Plain {
         scan: RefScan,
     },
-    /// Array layouts carry the scan program for one inline element;
-    /// codegen wraps it in the runtime array descriptor.
-    Array {
-        element_scan: RefScan,
-    },
     /// Enum layouts retain their identity while exposing one fixed scan
     /// program for the complete physical value. Tagged-enum scans never
     /// branch on the tag: inactive ref-bearing slots are zero-filled.
@@ -335,14 +351,6 @@ pub enum IntrinsicTypeRepresentation {
     UInt,
     Boolean,
     String,
-    Array {
-        element: LirType,
-        element_scan: RefScan,
-    },
-    MutableArray {
-        element: LirType,
-        element_scan: RefScan,
-    },
 }
 
 /// Recursive, layout-complete description of references in an inline
@@ -777,36 +785,41 @@ pub enum Instruction {
     Throw {
         exception: Value,
     },
-    /// Array operations. The element layout is the `Array(...)` type
-    /// of the array operand (or of `out` for `ArrayAlloc`).
+    /// Array operations. Every instruction names the complete concrete array
+    /// metadata it consumes; no downstream pass recovers it from operand or
+    /// result layouts.
     /// Allocate an array object and store the elements in order.
     ArrayAlloc {
         out: TempId,
         elements: Vec<Value>,
-        /// Scan program for one element, relative to its first byte.
-        element_scan: RefScan,
+        array_type: ArrayTypeId,
     },
     /// `array.size` (result `I64`).
     ArrayLen {
         out: TempId,
         operand: Value,
+        array_type: ArrayTypeId,
     },
     /// Bounds-checked element read (traps out of range).
     ArrayGet {
         out: TempId,
         array: Value,
         index: Value,
+        array_type: ArrayTypeId,
     },
     /// Bounds-checked element write (traps out of range).
     ArraySet {
         array: Value,
         index: Value,
         value: Value,
+        array_type: ArrayTypeId,
     },
     /// `Array(m)` / `MutableArray(a)` conversion (memcpy snapshot).
     ArrayClone {
         out: TempId,
         operand: Value,
+        /// Target array application (`Array<T>` or `MutableArray<T>`).
+        array_type: ArrayTypeId,
     },
     /// Enum operations. The representation (niche pointer or tagged
     /// union) is fixed by `EnumDef::repr`, so codegen translates these
@@ -1055,6 +1068,22 @@ pub fn dump(module: &Module) -> String {
             td.itables.len()
         ));
     }
+    for (id, array) in module.meta.arrays.iter() {
+        out.push_str(&format!(
+            "  array-type array{} {} kind={} element={} size={} align={} scan={} td=@{}\n",
+            id.into_raw(),
+            array.type_descriptor.name,
+            match array.kind {
+                ArrayKind::Immutable => "immutable",
+                ArrayKind::Mutable => "mutable",
+            },
+            array.element.dump(),
+            array.element_size,
+            array.element_align,
+            array.type_descriptor.scan.dump(),
+            array.type_descriptor.symbol,
+        ));
+    }
     // Keep the textual dump stable while the typed intrinsic metadata remains
     // available directly on `LirMeta`: String historically appeared first,
     // and the unused UInt scalar was omitted. Tests that validate the intrinsic
@@ -1103,23 +1132,6 @@ pub fn dump(module: &Module) -> String {
                     scan.dump()
                 )),
             },
-            LayoutKind::Array { element_scan } => match element_scan {
-                RefScan::None => out.push_str(&format!(
-                    "  layout {} size={} align={} array(element_is_ref=false)\n",
-                    layout.name, layout.size, layout.align
-                )),
-                RefScan::References(offsets) if offsets == &[0] => out.push_str(&format!(
-                    "  layout {} size={} align={} array(element_is_ref=true)\n",
-                    layout.name, layout.size, layout.align
-                )),
-                _ => out.push_str(&format!(
-                    "  layout {} size={} align={} array(scan={})\n",
-                    layout.name,
-                    layout.size,
-                    layout.align,
-                    element_scan.dump()
-                )),
-            },
             LayoutKind::Enum { scan } => out.push_str(&format!(
                 "  layout {} size={} align={} enum-scan={}\n",
                 layout.name,
@@ -1136,17 +1148,6 @@ pub fn dump(module: &Module) -> String {
                 "  layout {} size={} align={} refs=[]\n",
                 layout.name, layout.size, layout.align
             )),
-            LayoutKind::Intrinsic(IntrinsicTypeRepresentation::Array { .. }) => {
-                out.push_str(&format!(
-                    "  layout {} size={} align={} intrinsic=array\n",
-                    layout.name, layout.size, layout.align
-                ))
-            }
-            LayoutKind::Intrinsic(IntrinsicTypeRepresentation::MutableArray { .. }) => out
-                .push_str(&format!(
-                    "  layout {} size={} align={} intrinsic=mutable-array\n",
-                    layout.name, layout.size, layout.align
-                )),
         }
         if let Some(c_layout) = layout.c_layout {
             let fields = layout
@@ -1553,31 +1554,37 @@ fn dump_instruction(function: &Function, instruction: &Instruction, buf: &mut St
         Instruction::ArrayAlloc {
             out,
             elements,
-            element_scan,
+            array_type,
         } => {
             let elements: Vec<String> = elements.iter().map(|e| value_name(*e)).collect();
-            let scan = match element_scan {
-                RefScan::None => String::new(),
-                RefScan::References(offsets) if offsets == &[0] => String::new(),
-                _ => format!(" scan={}", element_scan.dump()),
-            };
             buf.push_str(&format!(
-                "    t{} = array_alloc ({}){} : {}\n",
+                "    t{} = array_alloc array{} ({}) : {}\n",
                 out.into_raw(),
+                array_type.into_raw(),
                 elements.join(", "),
-                scan,
                 function.temps[*out].ty.dump()
             ))
         }
-        Instruction::ArrayLen { out, operand } => buf.push_str(&format!(
-            "    t{} = array_len {} : {}\n",
+        Instruction::ArrayLen {
+            out,
+            operand,
+            array_type,
+        } => buf.push_str(&format!(
+            "    t{} = array_len array{} {} : {}\n",
             out.into_raw(),
+            array_type.into_raw(),
             value_name(*operand),
             function.temps[*out].ty.dump()
         )),
-        Instruction::ArrayGet { out, array, index } => buf.push_str(&format!(
-            "    t{} = array_get {} {} : {}\n",
+        Instruction::ArrayGet {
+            out,
+            array,
+            index,
+            array_type,
+        } => buf.push_str(&format!(
+            "    t{} = array_get array{} {} {} : {}\n",
             out.into_raw(),
+            array_type.into_raw(),
             value_name(*array),
             value_name(*index),
             function.temps[*out].ty.dump()
@@ -1586,15 +1593,22 @@ fn dump_instruction(function: &Function, instruction: &Instruction, buf: &mut St
             array,
             index,
             value,
+            array_type,
         } => buf.push_str(&format!(
-            "    array_set {} {} {}\n",
+            "    array_set array{} {} {} {}\n",
+            array_type.into_raw(),
             value_name(*array),
             value_name(*index),
             value_name(*value)
         )),
-        Instruction::ArrayClone { out, operand } => buf.push_str(&format!(
-            "    t{} = array_clone {} : {}\n",
+        Instruction::ArrayClone {
+            out,
+            operand,
+            array_type,
+        } => buf.push_str(&format!(
+            "    t{} = array_clone array{} {} : {}\n",
             out.into_raw(),
+            array_type.into_raw(),
             value_name(*operand),
             function.temps[*out].ty.dump()
         )),

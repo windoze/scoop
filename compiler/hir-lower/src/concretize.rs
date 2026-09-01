@@ -719,14 +719,6 @@ impl<'a> Concretizer<'a> {
                 self.interface_type[&id]
             }
             export::Type::Any => self.intern_type(concrete::TypeKind::Any, false),
-            export::Type::Array(element) => {
-                let element = self.lower_type(element, substitution);
-                self.intern_type(concrete::TypeKind::Array(element), false)
-            }
-            export::Type::MutableArray(element) => {
-                let element = self.lower_type(element, substitution);
-                self.intern_type(concrete::TypeKind::MutableArray(element), false)
-            }
             export::Type::Tuple(elements) => {
                 let elements: Vec<_> = elements
                     .iter()
@@ -1110,13 +1102,26 @@ impl<'a> Concretizer<'a> {
             concrete::TypeKind::Boolean => "B".to_string(),
             concrete::TypeKind::String => "S".to_string(),
             concrete::TypeKind::Struct(id) => self.structs[*id].name.clone(),
-            concrete::TypeKind::Class(id) => self.classes[*id].name.clone(),
+            concrete::TypeKind::Class(id) => match &self.classes[*id].representation {
+                concrete::ClassRepresentation::Intrinsic {
+                    application: concrete::IntrinsicTypeRepresentation::Array { element },
+                    ..
+                } => format!("A{}X", self.encode_type(*element)),
+                concrete::ClassRepresentation::Intrinsic {
+                    application: concrete::IntrinsicTypeRepresentation::MutableArray { element },
+                    ..
+                } => format!("M{}X", self.encode_type(*element)),
+                concrete::ClassRepresentation::Declared { .. }
+                | concrete::ClassRepresentation::Intrinsic {
+                    application: concrete::IntrinsicTypeRepresentation::String,
+                    ..
+                } => self.classes[*id].name.clone(),
+                concrete::ClassRepresentation::Intrinsic { .. } => {
+                    unreachable!("the intrinsic registry fixes declaration targets")
+                }
+            },
             concrete::TypeKind::Interface(id) => self.interfaces[*id].name.clone(),
             concrete::TypeKind::Any => "Any".to_string(),
-            concrete::TypeKind::Array(element) => format!("A{}X", self.encode_type(*element)),
-            concrete::TypeKind::MutableArray(element) => {
-                format!("M{}X", self.encode_type(*element))
-            }
             concrete::TypeKind::Tuple(elements) => format!(
                 "T{}X",
                 elements
@@ -2514,9 +2519,7 @@ fn overloaded_generic_names(module: &export::Module) -> HashSet<String> {
 fn export_type_has_param(module: &export::Module, ty: export::TypeId) -> bool {
     match &module.types[ty] {
         export::Type::Param(_) => true,
-        export::Type::Array(element)
-        | export::Type::MutableArray(element)
-        | export::Type::Ptr(element) => export_type_has_param(module, *element),
+        export::Type::Ptr(element) => export_type_has_param(module, *element),
         export::Type::Tuple(elements) => elements
             .iter()
             .any(|element| export_type_has_param(module, *element)),

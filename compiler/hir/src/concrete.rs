@@ -98,8 +98,6 @@ pub enum TypeKind {
     Class(ClassId),
     Interface(InterfaceId),
     Any,
-    Array(TypeId),
-    MutableArray(TypeId),
     Tuple(Vec<TypeId>),
     Function(FunctionTypeId),
     Ptr(TypeId),

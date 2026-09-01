@@ -103,14 +103,17 @@ _Noreturn void scoop_rt_trap(const char *message) {
     abort();
 }
 
-const void *scoop_rt_array_clone(const void *obj, uint64_t elem_size,
-                                 uint64_t data_offset) {
+const void *scoop_rt_array_clone(const void *obj,
+                                 const ScoopTypeDescriptor *target_td,
+                                 uint64_t elem_size, uint64_t data_offset) {
     const ScoopArray *src = obj;
     size_t bytes = (size_t)data_offset + (size_t)(src->size * elem_size);
-    /* GC allocation: the copy keeps the source's TypeDescriptor (the
-     * conversion preserves the array type, spec 10.4). */
-    void *copy = scoop_rt_alloc(src->header.td, bytes);
-    memcpy(copy, obj, bytes);
+    /* The target nominal array application is fixed by MIR/LIR. Preserve the
+     * fresh GC header and copy only size/padding/elements. */
+    void *copy = scoop_rt_alloc(target_td, bytes);
+    memcpy((char *)copy + sizeof(ScoopObjectHeader),
+           (const char *)obj + sizeof(ScoopObjectHeader),
+           bytes - sizeof(ScoopObjectHeader));
     return copy;
 }
 

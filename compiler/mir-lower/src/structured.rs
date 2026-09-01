@@ -50,6 +50,7 @@ pub(crate) enum StatementKind {
         value: Expr,
     },
     ArraySet {
+        array_type: mir::ClassId,
         array: Expr,
         index: Expr,
         value: Expr,
@@ -162,13 +163,24 @@ pub(crate) enum Expr {
         operand: Box<Expr>,
         check_ty: Box<mir::Type>,
     },
-    ArrayLiteral(Vec<Expr>),
+    ArrayLiteral {
+        array_type: mir::ClassId,
+        elements: Vec<Expr>,
+    },
     ArrayGet {
+        array_type: mir::ClassId,
         array: Box<Expr>,
         index: Box<Expr>,
     },
-    ArrayLen(Box<Expr>),
-    ArrayClone(Box<Expr>),
+    ArrayLen {
+        array_type: mir::ClassId,
+        operand: Box<Expr>,
+    },
+    ArrayClone {
+        source_type: mir::ClassId,
+        target_type: mir::ClassId,
+        operand: Box<Expr>,
+    },
     Binary {
         op: mir::BinOp,
         lhs: Box<Expr>,

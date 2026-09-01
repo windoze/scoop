@@ -374,7 +374,7 @@ Module
       branch bb2 bb3
         Binary IntLt
           Local i
-          ArrayLen
+          ArrayLen Array$I
             Local a
     bb2 while.body.2
       val $arr.1: Array<Int>
@@ -392,7 +392,7 @@ Module
       assign $logic.1
         Binary IntGe
           Local $idx.2
-          ArrayLen
+          ArrayLen Array$I
             Local $arr.1
       goto bb6
     bb5 logic.short.5
@@ -410,7 +410,7 @@ Module
       assign total
         Binary IntAdd
           Local total
-          ArrayGet
+          ArrayGet Array$I
             Local $arr.1
             Local $idx.2
       assign i
@@ -421,20 +421,20 @@ Module
   fun main @scoop_main() -> Unit
     bb0 entry
       call $call.1: Int = @scoop.firstOf$I direct
-        ArrayLiteral
+        ArrayLiteral Array$I
           IntLiteral 10
           IntLiteral 20
       call @scoop.println direct
         Box
           Local $call.1
       call $call.2: Any = @scoop.firstOf$S direct
-        ArrayLiteral
+        ArrayLiteral Array$S
           StringConst @scoop.str.1
           StringConst @scoop.str.2
       call @scoop.println direct
         Local $call.2
       call $call.3: Int = @scoop.sum direct
-        ArrayLiteral
+        ArrayLiteral Array$I
           IntLiteral 1
           IntLiteral 2
           IntLiteral 3
@@ -456,7 +456,7 @@ Module
       assign $logic.1
         Binary IntGe
           Local $idx.2
-          ArrayLen
+          ArrayLen Array$I
             Local $arr.1
       goto bb3
     bb2 logic.short.2
@@ -472,7 +472,7 @@ Module
         Local $call.2
     bb5 if.merge.5
       return
-        ArrayGet
+        ArrayGet Array$I
           Local $arr.1
           Local $idx.2
   fun firstOf @scoop.firstOf$S(a: Array<String>) -> String
@@ -489,7 +489,7 @@ Module
       assign $logic.1
         Binary IntGe
           Local $idx.2
-          ArrayLen
+          ArrayLen Array$S
             Local $arr.1
       goto bb3
     bb2 logic.short.2
@@ -505,7 +505,7 @@ Module
         Local $call.2
     bb5 if.merge.5
       return
-        ArrayGet
+        ArrayGet Array$S
           Local $arr.1
           Local $idx.2
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
@@ -620,10 +620,10 @@ Module
     native_call[native-borrowed] extern0(global0)
     t4 = aggregate () : {}
     ret
-  fun @scoop.sum([i64]) -> i64
+  fun @scoop.sum(ptr<managed>) -> i64
     local %0 total: i64
     local %1 i: i64
-    local %2 $arr.1: [i64]
+    local %2 $arr.1: ptr<managed>
     local %3 $idx.2: i64
     local %4 $logic.1: i1
     local %5 $call.2: ptr<managed>
@@ -632,7 +632,7 @@ Module
     store 0 -> local1
     br @while.cond.1
   block while.cond.1
-    t0 = array_len param0 : i64
+    t0 = array_len array0 param0 : i64
     t1 = Lt local1, t0 : i1
     cbr t1 then @while.body.2 else @while.exit.3
   block while.body.2
@@ -643,7 +643,7 @@ Module
   block while.exit.3
     ret local0
   block logic.rhs.4
-    t3 = array_len local2 : i64
+    t3 = array_len array0 local2 : i64
     t4 = Ge local3, t3 : i1
     store t4 -> local4
     br @logic.merge.6
@@ -658,7 +658,7 @@ Module
     throw local5
     unreachable
   block if.merge.8
-    t6 = array_get local2 local3 : i64
+    t6 = array_get array0 local2 local3 : i64
     t7 = Add local0, t6 : i64
     store t7 -> local0
     t8 = Add local1, 1 : i64
@@ -669,26 +669,26 @@ Module
     local %1 $call.2: ptr<managed>
     local %2 $call.3: i64
   block entry
-    t0 = array_alloc (10, 20) : [i64]
+    t0 = array_alloc array0 (10, 20) : ptr<managed>
     t1 = call @scoop.firstOf$I(t0) : i64
     store t1 -> local0
     t2 = call @scoop_rt_box(global8, local0, 8) : ptr<managed>
     call @scoop.println(t2)
     t3 = aggregate () : {}
-    t4 = array_alloc (global1, global2) : [ptr<managed>]
+    t4 = array_alloc array1 (global1, global2) : ptr<managed>
     t5 = call @scoop.firstOf$S(t4) : ptr<managed>
     store t5 -> local1
     call @scoop.println(local1)
     t6 = aggregate () : {}
-    t7 = array_alloc (1, 2, 3) : [i64]
+    t7 = array_alloc array0 (1, 2, 3) : ptr<managed>
     t8 = call @scoop.sum(t7) : i64
     store t8 -> local2
     t9 = call @scoop_rt_box(global8, local2, 8) : ptr<managed>
     call @scoop.println(t9)
     t10 = aggregate () : {}
     ret
-  fun @scoop.firstOf$I([i64]) -> i64
-    local %0 $arr.1: [i64]
+  fun @scoop.firstOf$I(ptr<managed>) -> i64
+    local %0 $arr.1: ptr<managed>
     local %1 $idx.2: i64
     local %2 $logic.1: i1
     local %3 $call.2: ptr<managed>
@@ -698,7 +698,7 @@ Module
     t0 = Lt local1, 0 : i1
     cbr t0 then @logic.short.2 else @logic.rhs.1
   block logic.rhs.1
-    t1 = array_len local0 : i64
+    t1 = array_len array0 local0 : i64
     t2 = Ge local1, t1 : i1
     store t2 -> local2
     br @logic.merge.3
@@ -713,10 +713,10 @@ Module
     throw local3
     unreachable
   block if.merge.5
-    t4 = array_get local0 local1 : i64
+    t4 = array_get array0 local0 local1 : i64
     ret t4
-  fun @scoop.firstOf$S([ptr<managed>]) -> ptr<managed>
-    local %0 $arr.1: [ptr<managed>]
+  fun @scoop.firstOf$S(ptr<managed>) -> ptr<managed>
+    local %0 $arr.1: ptr<managed>
     local %1 $idx.2: i64
     local %2 $logic.1: i1
     local %3 $call.2: ptr<managed>
@@ -726,7 +726,7 @@ Module
     t0 = Lt local1, 0 : i1
     cbr t0 then @logic.short.2 else @logic.rhs.1
   block logic.rhs.1
-    t1 = array_len local0 : i64
+    t1 = array_len array1 local0 : i64
     t2 = Ge local1, t1 : i1
     store t2 -> local2
     br @logic.merge.3
@@ -741,7 +741,7 @@ Module
     throw local3
     unreachable
   block if.merge.5
-    t4 = array_get local0 local1 : ptr<managed>
+    t4 = array_get array1 local0 local1 : ptr<managed>
     ret t4
   fun @scoop.ctor.Throwable() -> ptr<managed>
   block entry
@@ -807,6 +807,8 @@ Module
   td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=3 itables=0
   td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=3 itables=0
   td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=3 itables=0
+  array-type array0 Array$I kind=immutable element=i64 size=8 align=8 scan=none td=@scoop_td_Array$I
+  array-type array1 Array$S kind=immutable element=ptr<managed> size=8 align=8 scan=refs[0] td=@scoop_td_Array$S
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
@@ -819,8 +821,6 @@ Module
   layout IndexOutOfBoundsException size=24 align=8 refs=[16]
   layout IllegalStateException size=24 align=8 refs=[16]
   layout box$I size=24 align=8 refs=[]
-  layout Array<Int> size=8 align=8 array(element_is_ref=false)
-  layout Array<String> size=8 align=8 array(element_is_ref=true)
   entry @scoop_main
 
 == run ==

@@ -425,7 +425,7 @@ Module
         VariantConstruct Option$FIRIX<(Int) -> Int> v0
           Local operation
       val operations: Array<(Int) -> Int>
-        ArrayLiteral
+        ArrayLiteral Array$FIRIX
           Local operation
           ClosureAlloc cc2 $Closure$reference0
       val box: FunctionBox$I
@@ -478,7 +478,7 @@ Module
       assign $logic.2
         Binary IntGe
           Local $idx.3
-          ArrayLen
+          ArrayLen Array$FIRIX
             Local $arr.2
       goto bb8
     bb7 logic.short.7
@@ -494,7 +494,7 @@ Module
         Local $call.3
     bb10 if.merge.10
       call $call.4: Int = <closure:function_type0> closure[function_type0]
-        ArrayGet
+        ArrayGet Array$FIRIX
           Local $arr.2
           Local $idx.3
         IntLiteral 40
@@ -513,7 +513,7 @@ Module
       assign $logic.5
         Binary IntGe
           Local $idx.5
-          ArrayLen
+          ArrayLen Array$FIRIX
             Local $arr.4
       goto bb13
     bb12 logic.short.12
@@ -529,7 +529,7 @@ Module
         Local $call.6
     bb15 if.merge.15
       call $call.7: Int = <closure:function_type0> closure[function_type0]
-        ArrayGet
+        ArrayGet Array$FIRIX
           Local $arr.4
           Local $idx.5
         IntLiteral 40
@@ -697,14 +697,14 @@ Module
     local %0 offset: i64
     local %1 operation: ptr<managed>
     local %2 optional: enum1
-    local %3 operations: [ptr<managed>]
+    local %3 operations: ptr<managed>
     local %4 box: struct3
     local %5 sum: ptr<managed>
     local %6 selected: ptr<managed>
     local %7 $when.1: enum1
-    local %8 $arr.2: [ptr<managed>]
+    local %8 $arr.2: ptr<managed>
     local %9 $idx.3: i64
-    local %10 $arr.4: [ptr<managed>]
+    local %10 $arr.4: ptr<managed>
     local %11 $idx.5: i64
     local %12 $call.1: i64
     local %13 $logic.2: i1
@@ -727,7 +727,7 @@ Module
     t3 = call @scoop_rt_alloc(global7, 24) : ptr<managed>
     t4 = function_address @scoop.$reference.0 : ptr
     heap_store t3 +16 t4
-    t5 = array_alloc (local1, t3) : [ptr<managed>]
+    t5 = array_alloc array0 (local1, t3) : ptr<managed>
     store t5 -> local3
     t6 = aggregate (local1) : struct3
     store t6 -> local4
@@ -767,7 +767,7 @@ Module
   block if.merge.5
     br @if.merge.3
   block logic.rhs.6
-    t21 = array_len local8 : i64
+    t21 = array_len array0 local8 : i64
     t22 = Ge local9, t21 : i1
     store t22 -> local13
     br @logic.merge.8
@@ -782,7 +782,7 @@ Module
     throw local14
     unreachable
   block if.merge.10
-    t24 = array_get local8 local9 : ptr<managed>
+    t24 = array_get array0 local8 local9 : ptr<managed>
     t25 = call_indirect t24[2](t24, 40) : i64
     store t25 -> local15
     t26 = call @scoop_rt_box(global9, local15, 8) : ptr<managed>
@@ -793,7 +793,7 @@ Module
     t28 = Lt local11, 0 : i1
     cbr t28 then @logic.short.12 else @logic.rhs.11
   block logic.rhs.11
-    t29 = array_len local10 : i64
+    t29 = array_len array0 local10 : i64
     t30 = Ge local11, t29 : i1
     store t30 -> local16
     br @logic.merge.13
@@ -808,7 +808,7 @@ Module
     throw local17
     unreachable
   block if.merge.15
-    t32 = array_get local10 local11 : ptr<managed>
+    t32 = array_get array0 local10 local11 : ptr<managed>
     t33 = call_indirect t32[2](t32, 40) : i64
     store t33 -> local18
     t34 = call @scoop_rt_box(global9, local18, 8) : ptr<managed>
@@ -919,6 +919,7 @@ Module
   td $Closure$lambda0 @scoop_td_$Closure$lambda0 size=32 vtable=3 itables=0
   td $Closure$lambda1 @scoop_td_$Closure$lambda1 size=24 vtable=3 itables=0
   td $Closure$reference0 @scoop_td_$Closure$reference0 size=24 vtable=3 itables=0
+  array-type array0 Array$FIRIX kind=immutable element=ptr<managed> size=8 align=8 scan=refs[0] td=@scoop_td_Array$FIRIX
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
@@ -937,7 +938,6 @@ Module
   layout $Closure$lambda1 size=24 align=8 refs=[]
   layout $Closure$reference0 size=24 align=8 refs=[]
   layout (Int, Int) size=16 align=8 refs=[]
-  layout Array<(Int) -> Int> size=8 align=8 array(element_is_ref=true)
   entry @scoop_main
 
 == run ==

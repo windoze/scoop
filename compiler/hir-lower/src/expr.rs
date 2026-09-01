@@ -54,6 +54,7 @@ use hir::{ExprKind, Type, TypeId};
 use crate::patterns::PatternCtx;
 use crate::scope::Scopes;
 use crate::stmt::statements_can_fall_through;
+use crate::types::{ArrayKind, ArrayType};
 use crate::{
     AvailableCapture, CaptureContext, CaptureSource, ForbiddenSuspendContext, Lowerer,
     PendingCapture, ReturnInference, SuspensionContext,
@@ -535,12 +536,24 @@ impl Lowerer {
             }
             return self.lower_callable_call(receiver, call.args, call.span, sink);
         }
-        let array_conversion = match (&self.types[receiver.ty], name.text.as_str()) {
-            (Type::MutableArray(element), "toArray") => Some((true, *element)),
-            (Type::Array(element), "toMutableArray") => Some((false, *element)),
+        let array_conversion = match (self.array_type_info(receiver.ty), name.text.as_str()) {
+            (
+                Some(ArrayType {
+                    kind: ArrayKind::Mutable,
+                    element,
+                }),
+                "toArray",
+            ) => Some((ArrayKind::Immutable, element)),
+            (
+                Some(ArrayType {
+                    kind: ArrayKind::Immutable,
+                    element,
+                }),
+                "toMutableArray",
+            ) => Some((ArrayKind::Mutable, element)),
             _ => None,
         };
-        if let Some((to_immutable, element)) = array_conversion {
+        if let Some((target_kind, element)) = array_conversion {
             if !call.type_args.is_empty() {
                 self.error(name.span, format!("method `{}` is not generic", name.text));
                 return None;
@@ -550,7 +563,7 @@ impl Lowerer {
                 name,
                 call.args,
                 call.span,
-                to_immutable,
+                target_kind,
                 element,
             );
         }
@@ -622,16 +635,16 @@ impl Lowerer {
         })
     }
 
-    /// `m.toArray()` / `a.toMutableArray()` (spec 10.4). Arrays remain
-    /// compiler-built-in until their core class declarations land, so
-    /// these two methods are represented directly as `ArrayClone`.
+    /// `m.toArray()` / `a.toMutableArray()` (spec 10.4). The receiver and
+    /// result use exact intrinsic class applications; only the clone operation
+    /// itself remains compiler-lowered.
     fn lower_array_method_conversion(
         &mut self,
         receiver: hir::Expr,
         name: &ast::Ident,
         args: &[ast::Expr],
         span: Span,
-        to_immutable: bool,
+        target_kind: ArrayKind,
         element: TypeId,
     ) -> Option<hir::Expr> {
         if !args.is_empty() {
@@ -645,11 +658,7 @@ impl Lowerer {
             );
             return None;
         }
-        let ty = if to_immutable {
-            self.intern_type(Type::Array(element))
-        } else {
-            self.intern_type(Type::MutableArray(element))
-        };
+        let ty = self.array_type(target_kind, element);
         Some(hir::Expr {
             kind: ExprKind::ArrayClone(Box::new(receiver)),
             ty,
@@ -1112,10 +1121,8 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
-        let expected_array = expected.and_then(|ty| match &self.types[ty] {
-            Type::Array(element) | Type::MutableArray(element) => Some((ty, *element)),
-            _ => None,
-        });
+        let expected_array =
+            expected.and_then(|ty| self.array_type_info(ty).map(|array| (ty, array.element)));
         if let Some((array_ty, element_ty)) = expected_array {
             let mut lowered = Vec::with_capacity(elements.len());
             for element in elements {
@@ -1178,7 +1185,7 @@ impl Lowerer {
             .into_iter()
             .map(|element| self.adapt_to(element, element_ty))
             .collect();
-        let ty = self.intern_type(Type::Array(element_ty));
+        let ty = self.array_type(ArrayKind::Immutable, element_ty);
         Some(hir::Expr {
             kind: ExprKind::ArrayLiteral(lowered),
             ty,
@@ -1694,11 +1701,26 @@ impl Lowerer {
             let callee = self.lower_capture(&call.callee)?;
             return self.lower_callable_call(callee, &call.args, call.span, sink);
         }
-        // `Array(m)` / `MutableArray(a)`: the conversion constructors
-        // (spec 10.4) resolve before structs, variants and functions
-        // (milestone5 DESIGN.md 2.2).
-        if call.callee.text == "Array" || call.callee.text == "MutableArray" {
-            return self.lower_array_conversion(call, sink);
+        // An intrinsic array class in constructor position denotes the
+        // opposite-family snapshot conversion. The class namespace resolves
+        // the source name; the typed declaration kind selects the operation.
+        if let Some(&(class, _)) = self.classes_by_name.get(&call.callee.text) {
+            let target_kind = match self.classes[class].representation {
+                hir::ClassRepresentation::Intrinsic(hir::IntrinsicTypeDeclaration {
+                    kind: hir::IntrinsicTypeKind::Array,
+                    ..
+                }) => Some(ArrayKind::Immutable),
+                hir::ClassRepresentation::Intrinsic(hir::IntrinsicTypeDeclaration {
+                    kind: hir::IntrinsicTypeKind::MutableArray,
+                    ..
+                }) => Some(ArrayKind::Mutable),
+                hir::ClassRepresentation::Declared(_) | hir::ClassRepresentation::Intrinsic(_) => {
+                    None
+                }
+            };
+            if let Some(target_kind) = target_kind {
+                return self.lower_array_conversion(call, sink, target_kind);
+            }
         }
         if let Some(core) = self.foreign_callback_core
             && !self
@@ -3330,6 +3352,7 @@ impl Lowerer {
         &mut self,
         call: &ast::CallExpr,
         sink: &mut Vec<hir::Statement>,
+        target_kind: ArrayKind,
     ) -> Option<hir::Expr> {
         let name = call.callee.text.clone();
         let explicit_type_args = self.resolve_call_type_args(&call.type_args)?;
@@ -3352,10 +3375,22 @@ impl Lowerer {
             return None;
         }
         let arg = self.lower_expr(&call.args[0], sink, None)?;
-        let to_immutable = name == "Array";
-        let element_ty = match (to_immutable, self.types[arg.ty].clone()) {
-            (true, Type::MutableArray(element)) | (false, Type::Array(element)) => element,
-            (_, Type::Array(_)) | (_, Type::MutableArray(_)) => {
+        let element_ty = match (target_kind, self.array_type_info(arg.ty)) {
+            (
+                ArrayKind::Immutable,
+                Some(ArrayType {
+                    kind: ArrayKind::Mutable,
+                    element,
+                }),
+            )
+            | (
+                ArrayKind::Mutable,
+                Some(ArrayType {
+                    kind: ArrayKind::Immutable,
+                    element,
+                }),
+            ) => element,
+            (_, Some(_)) => {
                 self.error(
                     arg.span,
                     "use the value directly; conversion is only between Array and MutableArray"
@@ -3364,7 +3399,7 @@ impl Lowerer {
                 return None;
             }
             _ => {
-                let expected = if to_immutable {
+                let expected = if target_kind == ArrayKind::Immutable {
                     "a MutableArray"
                 } else {
                     "an Array"
@@ -3388,11 +3423,7 @@ impl Lowerer {
             );
             return None;
         }
-        let ty = if to_immutable {
-            self.intern_type(Type::Array(element_ty))
-        } else {
-            self.intern_type(Type::MutableArray(element_ty))
-        };
+        let ty = self.array_type(target_kind, element_ty);
         Some(hir::Expr {
             kind: ExprKind::ArrayClone(Box::new(arg)),
             ty,
@@ -4422,9 +4453,6 @@ impl Lowerer {
     fn mark_type_params(&self, ty: TypeId, bound: &mut [bool]) {
         match &self.types[ty] {
             Type::Param(index) => bound[index.into_raw() as usize] = true,
-            Type::Array(element) | Type::MutableArray(element) => {
-                self.mark_type_params(*element, bound);
-            }
             Type::Struct(application) => {
                 for arg in &self.struct_applications[*application].arguments {
                     self.mark_type_params(*arg, bound);
@@ -4593,10 +4621,6 @@ impl Lowerer {
                     ok &= self.bind_type_args(*param, arg, bindings, type_params, span);
                 }
                 ok
-            }
-            (Type::Array(param_element), Type::Array(arg_element))
-            | (Type::MutableArray(param_element), Type::MutableArray(arg_element)) => {
-                self.bind_type_args(param_element, arg_element, bindings, type_params, span)
             }
             (Type::Ptr(param), Type::Ptr(arg)) => {
                 self.bind_type_args(param, arg, bindings, type_params, span)

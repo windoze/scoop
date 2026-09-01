@@ -387,7 +387,7 @@ Module
       goto bb26
     bb8 try.body.8 unwind bb1
       val a: Array<Int>
-        ArrayLiteral
+        ArrayLiteral Array$I
           IntLiteral 1
           IntLiteral 2
       val $arr.1: Array<Int>
@@ -402,7 +402,7 @@ Module
       assign $logic.1
         Binary IntGe
           Local $idx.2
-          ArrayLen
+          ArrayLen Array$I
             Local $arr.1
       goto bb11
     bb10 logic.short.10 unwind bb1
@@ -419,7 +419,7 @@ Module
     bb13 if.merge.13 unwind bb1
       call @scoop.println direct
         Box
-          ArrayGet
+          ArrayGet Array$I
             Local $arr.1
             Local $idx.2
       goto bb14
@@ -735,7 +735,7 @@ Module
     t4 = aggregate () : {}
     ret
   fun @scoop_main() -> void
-    local %0 a: [i64]
+    local %0 a: ptr<managed>
     local %1 e: ptr<managed>
     local %2 x: enum1
     local %3 e: ptr<managed>
@@ -743,7 +743,7 @@ Module
     local %5 s: ptr<managed>
     local %6 e: ptr<managed>
     local %7 e: ptr<managed>
-    local %8 $arr.1: [i64]
+    local %8 $arr.1: ptr<managed>
     local %9 $idx.2: i64
     local %10 $opt.3: enum1
     local %11 $uw.4: i64
@@ -789,14 +789,14 @@ Module
   block try.end.7
     br @try.body.26
   block try.body.8
-    t8 = array_alloc (1, 2) : [i64]
+    t8 = array_alloc array0 (1, 2) : ptr<managed>
     store t8 -> local0
     store local0 -> local8
     store 9 -> local9
     t9 = Lt local9, 0 : i1
     cbr t9 then @logic.short.10 else @logic.rhs.9
   block logic.rhs.9
-    t10 = array_len local8 : i64
+    t10 = array_len array0 local8 : i64
     t11 = Ge local9, t10 : i1
     store t11 -> local15
     br @logic.merge.11
@@ -809,7 +809,7 @@ Module
     invoke @scoop.ctor.IndexOutOfBoundsException() normal @invoke.normal.1 unwind @try.unwind.1
     br @invoke.normal.1
   block if.merge.13
-    t13 = array_get local8 local9 : i64
+    t13 = array_get array0 local8 local9 : i64
     t14 = call @scoop_rt_box(global11, t13, 8) : ptr<managed>
     invoke @scoop.println(t14) normal @invoke.normal.3 unwind @try.unwind.1
     br @invoke.normal.3
@@ -1118,6 +1118,7 @@ Module
   td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=3 itables=0
   td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=3 itables=0
   td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=3 itables=0
+  array-type array0 Array$I kind=immutable element=i64 size=8 align=8 scan=none td=@scoop_td_Array$I
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
@@ -1131,7 +1132,6 @@ Module
   layout IndexOutOfBoundsException size=24 align=8 refs=[16]
   layout IllegalStateException size=24 align=8 refs=[16]
   layout box$I size=24 align=8 refs=[]
-  layout Array<Int> size=8 align=8 array(element_is_ref=false)
   entry @scoop_main
 
 == run ==

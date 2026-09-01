@@ -3666,12 +3666,6 @@ impl Types<'_> {
                 mir::Type::Interface(interfaces.get_or_create(self.module, shell, *id, args))
             }
             hir::TypeKind::Any => mir::Type::Any,
-            hir::TypeKind::Array(element) => mir::Type::Array(Box::new(
-                self.lower(*element, enums, structs, interfaces, shell),
-            )),
-            hir::TypeKind::MutableArray(element) => mir::Type::MutableArray(Box::new(
-                self.lower(*element, enums, structs, interfaces, shell),
-            )),
             hir::TypeKind::Tuple(elements) => mir::Type::Tuple(
                 elements
                     .iter()
@@ -3834,8 +3828,6 @@ fn mir_type_gc_free(ty: &mir::Type, structs: &StructRegistry, enums: &EnumRegist
         | mir::Type::Class(_)
         | mir::Type::Interface(_)
         | mir::Type::Any
-        | mir::Type::Array(_)
-        | mir::Type::MutableArray(_)
         | mir::Type::Function(_) => false,
     }
 }
@@ -3920,8 +3912,6 @@ fn is_reference_mir(ty: &mir::Type) -> bool {
             | mir::Type::Interface(_)
             | mir::Type::Function(_)
             | mir::Type::Any
-            | mir::Type::Array(_)
-            | mir::Type::MutableArray(_)
     )
 }
 
@@ -4526,7 +4516,11 @@ impl BodyLowerer<'_> {
                     // node and is evaluated after the check.
                     hir::AssignTarget::Index { array, index } => {
                         let array_ty = self.lower_type(array.ty);
-                        let array_slot = self.new_hidden("arr", array_ty, false);
+                        let mir::Type::Class(array_type) = array_ty else {
+                            unreachable!("an array assignment has an intrinsic class type")
+                        };
+                        let array_slot =
+                            self.new_hidden("arr", mir::Type::Class(array_type), false);
                         let index_slot = self.new_hidden("idx", mir::Type::Int, false);
                         let array_value = self.lower_expr(array);
                         self.prelude.push(smir::StatementKind::ValDecl {
@@ -4538,9 +4532,10 @@ impl BodyLowerer<'_> {
                             local: index_slot,
                             init: index_value,
                         });
-                        self.bounds_check(array_slot, index_slot, span);
+                        self.bounds_check(array_type, array_slot, index_slot, span);
                         let value = self.lower_expr(value);
                         smir::StatementKind::ArraySet {
+                            array_type,
                             array: smir::Expr::Local(array_slot),
                             index: smir::Expr::Local(index_slot),
                             value,
@@ -4660,7 +4655,13 @@ impl BodyLowerer<'_> {
     /// `ArrayGet` and `ArraySet`:
     /// `if (index < 0 || index >= array.size) throw IndexOutOfBoundsException()`.
     /// CFG normalization expands the `||` into branch edges.
-    fn bounds_check(&mut self, array: mir::LocalId, index: mir::LocalId, span: Span) {
+    fn bounds_check(
+        &mut self,
+        array_type: mir::ClassId,
+        array: mir::LocalId,
+        index: mir::LocalId,
+        span: Span,
+    ) {
         let out_of_bounds = logic(
             smir::LogicOp::Or,
             smir::Expr::Binary {
@@ -4671,7 +4672,10 @@ impl BodyLowerer<'_> {
             smir::Expr::Binary {
                 op: mir::BinOp::IntGe,
                 lhs: Box::new(smir::Expr::Local(index)),
-                rhs: Box::new(smir::Expr::ArrayLen(Box::new(smir::Expr::Local(array)))),
+                rhs: Box::new(smir::Expr::ArrayLen {
+                    array_type,
+                    operand: Box::new(smir::Expr::Local(array)),
+                }),
             },
         );
         let throw = self.throw_builtin("IndexOutOfBoundsException", span);
@@ -5128,11 +5132,16 @@ impl BodyLowerer<'_> {
                 let value = self.lower_expr(source);
                 self.adapt_function_value(value, source_type, target_type, expr.span)
             }
-            // The array nodes translate one-to-one (M5); the literal's
-            // kind (Array vs MutableArray) is fixed by the producing
-            // context — `lower_type(expr.ty)` records it where needed.
+            // Array nodes carry the exact concrete intrinsic class identity;
+            // LIR never reconstructs it from an element layout or context.
             hir::ExprKind::ArrayLiteral(elements) => {
-                smir::Expr::ArrayLiteral(elements.iter().map(|e| self.lower_expr(e)).collect())
+                let mir::Type::Class(array_type) = self.lower_type(expr.ty) else {
+                    unreachable!("an array literal has an intrinsic class type")
+                };
+                smir::Expr::ArrayLiteral {
+                    array_type,
+                    elements: elements.iter().map(|e| self.lower_expr(e)).collect(),
+                }
             }
             // Subscript read. M8: the bounds check moved here from
             // codegen — the array and the index are evaluated once
@@ -5141,7 +5150,10 @@ impl BodyLowerer<'_> {
             // mechanism `!!` uses).
             hir::ExprKind::Index { receiver, index } => {
                 let array_ty = self.lower_type(receiver.ty);
-                let array_slot = self.new_hidden("arr", array_ty, false);
+                let mir::Type::Class(array_type) = array_ty else {
+                    unreachable!("an array subscript has an intrinsic class receiver")
+                };
+                let array_slot = self.new_hidden("arr", mir::Type::Class(array_type), false);
                 let index_slot = self.new_hidden("idx", mir::Type::Int, false);
                 let array = self.lower_expr(receiver);
                 self.prelude.push(smir::StatementKind::ValDecl {
@@ -5153,17 +5165,34 @@ impl BodyLowerer<'_> {
                     local: index_slot,
                     init: index,
                 });
-                self.bounds_check(array_slot, index_slot, expr.span);
+                self.bounds_check(array_type, array_slot, index_slot, expr.span);
                 smir::Expr::ArrayGet {
+                    array_type,
                     array: Box::new(smir::Expr::Local(array_slot)),
                     index: Box::new(smir::Expr::Local(index_slot)),
                 }
             }
             hir::ExprKind::ArrayLen(operand) => {
-                smir::Expr::ArrayLen(Box::new(self.lower_expr(operand)))
+                let mir::Type::Class(array_type) = self.lower_type(operand.ty) else {
+                    unreachable!("array.size has an intrinsic class receiver")
+                };
+                smir::Expr::ArrayLen {
+                    array_type,
+                    operand: Box::new(self.lower_expr(operand)),
+                }
             }
             hir::ExprKind::ArrayClone(operand) => {
-                smir::Expr::ArrayClone(Box::new(self.lower_expr(operand)))
+                let mir::Type::Class(source_type) = self.lower_type(operand.ty) else {
+                    unreachable!("an array conversion has an intrinsic class source")
+                };
+                let mir::Type::Class(target_type) = self.lower_type(expr.ty) else {
+                    unreachable!("an array conversion has an intrinsic class target")
+                };
+                smir::Expr::ArrayClone {
+                    source_type,
+                    target_type,
+                    operand: Box::new(self.lower_expr(operand)),
+                }
             }
             hir::ExprKind::PtrFromUInt(operand) => {
                 let mir::Type::Ptr(pointee) = self.lower_type(expr.ty) else {
@@ -6492,6 +6521,17 @@ impl BodyLowerer<'_> {
             // user-defined `equals` (milestone6 DESIGN 5.1). The
             // operands are pointers, so the primitive integer
             // comparison is a pointer comparison here.
+            mir::Type::Class(class)
+                if matches!(
+                    self.classes[*class].representation,
+                    mir::ClassRepresentation::Intrinsic(
+                        mir::IntrinsicTypeRepresentation::Array { .. }
+                            | mir::IntrinsicTypeRepresentation::MutableArray { .. }
+                    )
+                ) =>
+            {
+                unreachable!("hir-lower rejects equality on array types")
+            }
             mir::Type::Class(_)
             | mir::Type::Interface(_)
             | mir::Type::Function(_)
@@ -6502,12 +6542,6 @@ impl BodyLowerer<'_> {
                     mir::BinOp::IntEq
                 };
                 self.comparison(op, lhs, rhs, path)
-            }
-            // M5 defines no array equality semantics (DESIGN 6) and
-            // hir-lower rejects `==` / `!=` on array types, so no array
-            // type can reach the equality expansion.
-            mir::Type::Array(_) | mir::Type::MutableArray(_) => {
-                unreachable!("hir-lower rejects equality on array types")
             }
         }
     }
@@ -6841,6 +6875,8 @@ mod tests {
         instantiations: Arena<hir::ResolvedGenericFunction>,
         uint: Option<hir::TypeId>,
         gc_core: Option<GcCore>,
+        intrinsic_array: Option<hir::ClassId>,
+        intrinsic_mutable_array: Option<hir::ClassId>,
     }
 
     /// core's GC facilities (M9), as `Harness::gc_core` declares them.
@@ -6979,6 +7015,8 @@ mod tests {
                 instantiations: Arena::new(),
                 uint: None,
                 gc_core: None,
+                intrinsic_array: None,
+                intrinsic_mutable_array: None,
             }
         }
 
@@ -7339,11 +7377,21 @@ mod tests {
                 return *application;
             }
             let canonical_type = hir::TypeId::from_raw((self.types.len() as u32).into());
+            let representation = match self.classes[template].representation {
+                hir::ClassRepresentation::Declared(_) => {
+                    hir::ClassApplicationRepresentation::Declared
+                }
+                hir::ClassRepresentation::Intrinsic(declaration) => {
+                    hir::ClassApplicationRepresentation::Intrinsic(
+                        declaration.kind.application(&key.1),
+                    )
+                }
+            };
             let application = self.class_applications.alloc(hir::ClassApplication {
                 template,
                 arguments: key.1.clone(),
                 canonical_type,
-                representation: hir::ClassApplicationRepresentation::Declared,
+                representation,
             });
             let actual_type = self.types.alloc(hir::Type::Class(application));
             assert_eq!(actual_type, canonical_type);
@@ -7956,12 +8004,43 @@ mod tests {
             self.types.alloc(hir::Type::Tuple(elements.to_vec()))
         }
 
+        fn intrinsic_array_class(&mut self, kind: hir::IntrinsicTypeKind) -> hir::ClassId {
+            let existing = match kind {
+                hir::IntrinsicTypeKind::Array => self.intrinsic_array,
+                hir::IntrinsicTypeKind::MutableArray => self.intrinsic_mutable_array,
+                _ => unreachable!("array helper accepts only intrinsic array families"),
+            };
+            if let Some(class) = existing {
+                return class;
+            }
+            let parameter = self
+                .types
+                .alloc(hir::Type::Param(hir::TypeParamId::from_raw(0)));
+            let class = self.declare_intrinsic_class(
+                kind.source_name(),
+                kind,
+                vec![type_param("T")],
+                vec![parameter],
+                CanonicalTypePlan::Allocate,
+            );
+            match kind {
+                hir::IntrinsicTypeKind::Array => self.intrinsic_array = Some(class),
+                hir::IntrinsicTypeKind::MutableArray => self.intrinsic_mutable_array = Some(class),
+                _ => unreachable!("array helper accepts only intrinsic array families"),
+            }
+            class
+        }
+
         fn array(&mut self, element: hir::TypeId) -> hir::TypeId {
-            self.types.alloc(hir::Type::Array(element))
+            let class = self.intrinsic_array_class(hir::IntrinsicTypeKind::Array);
+            let application = self.class_application(class, vec![element]);
+            self.class_applications[application].canonical_type
         }
 
         fn mutable_array(&mut self, element: hir::TypeId) -> hir::TypeId {
-            self.types.alloc(hir::Type::MutableArray(element))
+            let class = self.intrinsic_array_class(hir::IntrinsicTypeKind::MutableArray);
+            let application = self.class_application(class, vec![element]);
+            self.class_applications[application].canonical_type
         }
 
         fn user_fn(&mut self, name: &str, body: hir::Body) -> hir::FunctionId {
@@ -8351,26 +8430,9 @@ mod tests {
                 Vec::new(),
                 CanonicalTypePlan::Existing(self.string),
             );
-            let array_param = self
-                .types
-                .alloc(hir::Type::Param(hir::TypeParamId::from_raw(0)));
-            let intrinsic_array = self.declare_intrinsic_class(
-                "Array",
-                hir::IntrinsicTypeKind::Array,
-                vec![type_param("T")],
-                vec![array_param],
-                CanonicalTypePlan::Allocate,
-            );
-            let mutable_array_param = self
-                .types
-                .alloc(hir::Type::Param(hir::TypeParamId::from_raw(0)));
-            let intrinsic_mutable_array = self.declare_intrinsic_class(
-                "MutableArray",
-                hir::IntrinsicTypeKind::MutableArray,
-                vec![type_param("T")],
-                vec![mutable_array_param],
-                CanonicalTypePlan::Allocate,
-            );
+            let intrinsic_array = self.intrinsic_array_class(hir::IntrinsicTypeKind::Array);
+            let intrinsic_mutable_array =
+                self.intrinsic_array_class(hir::IntrinsicTypeKind::MutableArray);
             hir::Module {
                 types: self.types,
                 function_types: Arena::new(),
@@ -11992,7 +12054,7 @@ Module
   fun main @scoop_main() -> Unit
     bb0 entry
       val a: Array<Int>
-        ArrayLiteral
+        ArrayLiteral Array$I
           IntLiteral 1
           IntLiteral 2
           IntLiteral 3
@@ -12008,7 +12070,7 @@ Module
       assign $logic.1
         Binary IntGe
           Local $idx.2
-          ArrayLen
+          ArrayLen Array$I
             Local $arr.1
       goto bb3
     bb2 logic.short.2
@@ -12024,14 +12086,14 @@ Module
         Local $call.2
     bb5 if.merge.5
       val x: Int
-        ArrayGet
+        ArrayGet Array$I
           Local $arr.1
           Local $idx.2
       val n: Int
-        ArrayLen
+        ArrayLen Array$I
           Local a
       val m: MutableArray<Int>
-        ArrayClone
+        ArrayClone Array$I -> MutableArray$I
           Local a
       val $arr.3: MutableArray<Int>
         Local m
@@ -12045,7 +12107,7 @@ Module
       assign $logic.3
         Binary IntGe
           Local $idx.4
-          ArrayLen
+          ArrayLen MutableArray$I
             Local $arr.3
       goto bb8
     bb7 logic.short.7
@@ -12060,7 +12122,7 @@ Module
       throw
         Local $call.4
     bb10 if.merge.10
-      array_set
+      array_set MutableArray$I
         Local $arr.3
         Local $idx.4
         IntLiteral 40
@@ -12101,13 +12163,13 @@ Module
         // Substitution recurses into the array element types.
         let array_instance = &module.functions[module.top_level[1]];
         assert_eq!(
-            array_instance.params[0].ty,
-            mir::Type::Array(Box::new(mir::Type::Int))
+            mir::array_type(&module, &array_instance.params[0].ty),
+            Some((mir::ArrayKind::Immutable, &mir::Type::Int))
         );
         let mutable_instance = &module.functions[module.top_level[2]];
         assert_eq!(
-            mutable_instance.return_ty,
-            mir::Type::MutableArray(Box::new(mir::Type::Int))
+            mir::array_type(&module, &mutable_instance.return_ty),
+            Some((mir::ArrayKind::Mutable, &mir::Type::Int))
         );
     }
 

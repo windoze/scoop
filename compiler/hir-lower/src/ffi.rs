@@ -443,8 +443,6 @@ impl Lowerer {
             | hir::Type::Class(..)
             | hir::Type::Interface(_)
             | hir::Type::Any
-            | hir::Type::Array(_)
-            | hir::Type::MutableArray(_)
             | hir::Type::Function(_) => Err(CAbiError {
                 path,
                 reason: format!("ref type `{}` is managed", self.type_name(resolved)),
@@ -472,8 +470,6 @@ impl Lowerer {
             | hir::Type::Class(..)
             | hir::Type::Interface(_)
             | hir::Type::Any
-            | hir::Type::Array(_)
-            | hir::Type::MutableArray(_)
             | hir::Type::Function(_) => Ok(()),
             hir::Type::Param(_) => Err(CAbiError {
                 path,

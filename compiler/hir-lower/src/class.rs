@@ -264,9 +264,6 @@ impl Lowerer {
                     );
                 }
             }
-            Type::Array(element) | Type::MutableArray(element) => {
-                self.check_variance_position(element, TypePosition::Invariant, params, method, span)
-            }
             Type::Ptr(pointee) => {
                 self.check_variance_position(pointee, TypePosition::Invariant, params, method, span)
             }

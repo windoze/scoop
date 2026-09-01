@@ -400,14 +400,14 @@ Module
 Module
   extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
   struct Point (x: Int, y: Int)
-  enum Option$S
-    Some(_1: String)
-    None()
   enum E
     Empty()
     One(_1: Int)
   enum Option$I
     Some(_1: Int)
+    None()
+  enum Option$S
+    Some(_1: String)
     None()
   class Throwable vtable=3 itables=0
   class Exception vtable=3 itables=0
@@ -436,7 +436,7 @@ Module
   fun main @scoop_main() -> Unit
     bb0 entry
       val ps: Array<Point>
-        ArrayLiteral
+        ArrayLiteral Array$Point
           StructInit Point
             IntLiteral 1
             IntLiteral 2
@@ -455,7 +455,7 @@ Module
       assign $logic.1
         Binary IntGe
           Local $idx.2
-          ArrayLen
+          ArrayLen Array$Point
             Local $arr.1
       goto bb3
     bb2 logic.short.2
@@ -473,15 +473,15 @@ Module
       call @scoop.println direct
         Box
           FieldAccess 0
-            ArrayGet
+            ArrayGet Array$Point
               Local $arr.1
               Local $idx.2
       val nested: Array<Array<Int>>
-        ArrayLiteral
-          ArrayLiteral
+        ArrayLiteral Array$AIX
+          ArrayLiteral Array$I
             IntLiteral 1
             IntLiteral 2
-          ArrayLiteral
+          ArrayLiteral Array$I
             IntLiteral 3
       val $arr.5: Array<Array<Int>>
         Local nested
@@ -495,7 +495,7 @@ Module
       assign $logic.3
         Binary IntGe
           Local $idx.6
-          ArrayLen
+          ArrayLen Array$AIX
             Local $arr.5
       goto bb8
     bb7 logic.short.7
@@ -511,7 +511,7 @@ Module
         Local $call.4
     bb10 if.merge.10
       val $arr.3: Array<Int>
-        ArrayGet
+        ArrayGet Array$AIX
           Local $arr.5
           Local $idx.6
       val $idx.4: Int
@@ -524,7 +524,7 @@ Module
       assign $logic.5
         Binary IntGe
           Local $idx.4
-          ArrayLen
+          ArrayLen Array$I
             Local $arr.3
       goto bb13
     bb12 logic.short.12
@@ -541,11 +541,11 @@ Module
     bb15 if.merge.15
       call @scoop.println direct
         Box
-          ArrayGet
+          ArrayGet Array$I
             Local $arr.3
             Local $idx.4
       val es: Array<E>
-        ArrayLiteral
+        ArrayLiteral Array$EE
           VariantConstruct E v1
             IntLiteral 1
           VariantConstruct E v0
@@ -561,7 +561,7 @@ Module
       assign $logic.7
         Binary IntGe
           Local $idx.8
-          ArrayLen
+          ArrayLen Array$EE
             Local $arr.7
       goto bb18
     bb17 logic.short.17
@@ -577,7 +577,7 @@ Module
         Local $call.8
     bb20 if.merge.20
       val $when.9: E
-        ArrayGet
+        ArrayGet Array$EE
           Local $arr.7
           Local $idx.8
       branch bb21 bb22
@@ -601,7 +601,7 @@ Module
           IntLiteral 0
     bb23 if.merge.23
       val opts: Array<Option$I<Int>>
-        ArrayLiteral
+        ArrayLiteral Array$EOption$I
           VariantConstruct Option$I<Int> v0
             IntLiteral 1
           VariantConstruct Option$I<Int> v1
@@ -623,7 +623,7 @@ Module
       assign $logic.9
         Binary IntGe
           Local $idx.11
-          ArrayLen
+          ArrayLen Array$EOption$I
             Local $arr.10
       goto bb28
     bb27 logic.short.27
@@ -639,7 +639,7 @@ Module
         Local $call.10
     bb30 if.merge.30
       val $opt.0: Option$I<Int>
-        ArrayGet
+        ArrayGet Array$EOption$I
           Local $arr.10
           Local $idx.11
       branch bb31 bb32
@@ -672,7 +672,7 @@ Module
       assign $logic.11
         Binary IntGe
           Local $idx.13
-          ArrayLen
+          ArrayLen Array$EOption$I
             Local $arr.12
       goto bb36
     bb35 logic.short.35
@@ -688,7 +688,7 @@ Module
         Local $call.12
     bb38 if.merge.38
       val $opt.2: Option$I<Int>
-        ArrayGet
+        ArrayGet Array$EOption$I
           Local $arr.12
           Local $idx.13
       branch bb39 bb40
@@ -794,9 +794,9 @@ Module
   global @scoop_td_ArithmeticException = c""
   global @scoop_td_IndexOutOfBoundsException = c""
   global @scoop_td_IllegalStateException = c""
-  enum Option$S niche(payload_variant=0)
   enum E tagged size=16 align=8 variants=()@8+0 (i64)@8+8
   enum Option$I tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
+  enum Option$S niche(payload_variant=0)
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
   fun @scoop.print(ptr<managed>) -> void
     local %0 $call.1: ptr<managed>
@@ -821,27 +821,27 @@ Module
     t4 = aggregate () : {}
     ret
   fun @scoop_main() -> void
-    local %0 ps: [struct3]
-    local %1 nested: [[i64]]
-    local %2 es: [enum1]
+    local %0 ps: ptr<managed>
+    local %1 nested: ptr<managed>
+    local %2 es: ptr<managed>
     local %3 v: i64
-    local %4 opts: [enum2]
-    local %5 $opt.0: enum2
+    local %4 opts: ptr<managed>
+    local %5 $opt.0: enum1
     local %6 $res.1: i64
-    local %7 $opt.2: enum2
+    local %7 $opt.2: enum1
     local %8 $res.3: i64
-    local %9 $arr.1: [struct3]
+    local %9 $arr.1: ptr<managed>
     local %10 $idx.2: i64
-    local %11 $arr.3: [i64]
+    local %11 $arr.3: ptr<managed>
     local %12 $idx.4: i64
-    local %13 $arr.5: [[i64]]
+    local %13 $arr.5: ptr<managed>
     local %14 $idx.6: i64
-    local %15 $arr.7: [enum1]
+    local %15 $arr.7: ptr<managed>
     local %16 $idx.8: i64
-    local %17 $when.9: enum1
-    local %18 $arr.10: [enum2]
+    local %17 $when.9: enum0
+    local %18 $arr.10: ptr<managed>
     local %19 $idx.11: i64
-    local %20 $arr.12: [enum2]
+    local %20 $arr.12: ptr<managed>
     local %21 $idx.13: i64
     local %22 $logic.1: i1
     local %23 $call.2: ptr<managed>
@@ -858,14 +858,14 @@ Module
   block entry
     t0 = aggregate (1, 2) : struct3
     t1 = aggregate (3, 4) : struct3
-    t2 = array_alloc (t0, t1) : [struct3]
+    t2 = array_alloc array0 (t0, t1) : ptr<managed>
     store t2 -> local0
     store local0 -> local9
     store 1 -> local10
     t3 = Lt local10, 0 : i1
     cbr t3 then @logic.short.2 else @logic.rhs.1
   block logic.rhs.1
-    t4 = array_len local9 : i64
+    t4 = array_len array0 local9 : i64
     t5 = Ge local10, t4 : i1
     store t5 -> local22
     br @logic.merge.3
@@ -880,21 +880,21 @@ Module
     throw local23
     unreachable
   block if.merge.5
-    t7 = array_get local9 local10 : struct3
+    t7 = array_get array0 local9 local10 : struct3
     t8 = extract t7, 0 : i64
     t9 = call @scoop_rt_box(global7, t8, 8) : ptr<managed>
     call @scoop.println(t9)
     t10 = aggregate () : {}
-    t11 = array_alloc (1, 2) : [i64]
-    t12 = array_alloc (3) : [i64]
-    t13 = array_alloc (t11, t12) : [[i64]]
+    t11 = array_alloc array1 (1, 2) : ptr<managed>
+    t12 = array_alloc array1 (3) : ptr<managed>
+    t13 = array_alloc array2 (t11, t12) : ptr<managed>
     store t13 -> local1
     store local1 -> local13
     store 0 -> local14
     t14 = Lt local14, 0 : i1
     cbr t14 then @logic.short.7 else @logic.rhs.6
   block logic.rhs.6
-    t15 = array_len local13 : i64
+    t15 = array_len array2 local13 : i64
     t16 = Ge local14, t15 : i1
     store t16 -> local24
     br @logic.merge.8
@@ -909,13 +909,13 @@ Module
     throw local25
     unreachable
   block if.merge.10
-    t18 = array_get local13 local14 : [i64]
+    t18 = array_get array2 local13 local14 : ptr<managed>
     store t18 -> local11
     store 1 -> local12
     t19 = Lt local12, 0 : i1
     cbr t19 then @logic.short.12 else @logic.rhs.11
   block logic.rhs.11
-    t20 = array_len local11 : i64
+    t20 = array_len array1 local11 : i64
     t21 = Ge local12, t20 : i1
     store t21 -> local26
     br @logic.merge.13
@@ -930,20 +930,20 @@ Module
     throw local27
     unreachable
   block if.merge.15
-    t23 = array_get local11 local12 : i64
+    t23 = array_get array1 local11 local12 : i64
     t24 = call @scoop_rt_box(global7, t23, 8) : ptr<managed>
     call @scoop.println(t24)
     t25 = aggregate () : {}
-    t26 = enum_wrap e1 v1 (1) : enum1
-    t27 = enum_wrap e1 v0 () : enum1
-    t28 = array_alloc (t26, t27) : [enum1]
+    t26 = enum_wrap e0 v1 (1) : enum0
+    t27 = enum_wrap e0 v0 () : enum0
+    t28 = array_alloc array3 (t26, t27) : ptr<managed>
     store t28 -> local2
     store local2 -> local15
     store 0 -> local16
     t29 = Lt local16, 0 : i1
     cbr t29 then @logic.short.17 else @logic.rhs.16
   block logic.rhs.16
-    t30 = array_len local15 : i64
+    t30 = array_len array3 local15 : i64
     t31 = Ge local16, t30 : i1
     store t31 -> local28
     br @logic.merge.18
@@ -958,26 +958,26 @@ Module
     throw local29
     unreachable
   block if.merge.20
-    t33 = array_get local15 local16 : enum1
+    t33 = array_get array3 local15 local16 : enum0
     store t33 -> local17
-    t34 = enum_tag e1 local17 : i64
+    t34 = enum_tag e0 local17 : i64
     t35 = Eq t34, 1 : i1
     cbr t35 then @if.then.21 else @if.else.22
   block if.then.21
-    t36 = enum_field e1 v1 f0 local17 : i64
+    t36 = enum_field e0 v1 f0 local17 : i64
     store t36 -> local3
     t37 = call @scoop_rt_box(global7, local3, 8) : ptr<managed>
     call @scoop.println(t37)
     t38 = aggregate () : {}
     br @if.merge.23
   block if.else.22
-    t39 = enum_tag e1 local17 : i64
+    t39 = enum_tag e0 local17 : i64
     t40 = Eq t39, 0 : i1
     cbr t40 then @if.then.24 else @if.merge.25
   block if.merge.23
-    t41 = enum_wrap e2 v0 (1) : enum2
-    t42 = enum_wrap e2 v1 () : enum2
-    t43 = array_alloc (t41, t42) : [enum2]
+    t41 = enum_wrap e1 v0 (1) : enum1
+    t42 = enum_wrap e1 v1 () : enum1
+    t43 = array_alloc array4 (t41, t42) : ptr<managed>
     store t43 -> local4
     store local4 -> local18
     store 0 -> local19
@@ -990,7 +990,7 @@ Module
   block if.merge.25
     br @if.merge.23
   block logic.rhs.26
-    t46 = array_len local18 : i64
+    t46 = array_len array4 local18 : i64
     t47 = Ge local19, t46 : i1
     store t47 -> local30
     br @logic.merge.28
@@ -1005,13 +1005,13 @@ Module
     throw local31
     unreachable
   block if.merge.30
-    t49 = array_get local18 local19 : enum2
+    t49 = array_get array4 local18 local19 : enum1
     store t49 -> local5
-    t50 = enum_tag e2 local5 : i64
+    t50 = enum_tag e1 local5 : i64
     t51 = Eq t50, 0 : i1
     cbr t51 then @if.then.31 else @if.else.32
   block if.then.31
-    t52 = enum_field e2 v0 f0 local5 : i64
+    t52 = enum_field e1 v0 f0 local5 : i64
     store t52 -> local6
     br @if.merge.33
   block if.else.32
@@ -1026,7 +1026,7 @@ Module
     t55 = Lt local21, 0 : i1
     cbr t55 then @logic.short.35 else @logic.rhs.34
   block logic.rhs.34
-    t56 = array_len local20 : i64
+    t56 = array_len array4 local20 : i64
     t57 = Ge local21, t56 : i1
     store t57 -> local32
     br @logic.merge.36
@@ -1041,13 +1041,13 @@ Module
     throw local33
     unreachable
   block if.merge.38
-    t59 = array_get local20 local21 : enum2
+    t59 = array_get array4 local20 local21 : enum1
     store t59 -> local7
-    t60 = enum_tag e2 local7 : i64
+    t60 = enum_tag e1 local7 : i64
     t61 = Eq t60, 0 : i1
     cbr t61 then @if.then.39 else @if.else.40
   block if.then.39
-    t62 = enum_field e2 v0 f0 local7 : i64
+    t62 = enum_field e1 v0 f0 local7 : i64
     store t62 -> local8
     br @if.merge.41
   block if.else.40
@@ -1062,7 +1062,7 @@ Module
   block entry
     t0 = call @scoop_rt_alloc(global8, 16) : ptr<managed>
     ret t0
-  fun @scoop.ctor.Exception(enum0) -> ptr<managed>
+  fun @scoop.ctor.Exception(enum2) -> ptr<managed>
   block entry
     t0 = call @scoop_rt_alloc(global9, 24) : ptr<managed>
     heap_store t0 +16 param0
@@ -1070,31 +1070,31 @@ Module
   fun @scoop.ctor.UnwrapException() -> ptr<managed>
   block entry
     t0 = call @scoop_rt_alloc(global10, 24) : ptr<managed>
-    t1 = enum_wrap e0 v0 (global2) : enum0
+    t1 = enum_wrap e2 v0 (global2) : enum2
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.ClassCastException() -> ptr<managed>
   block entry
     t0 = call @scoop_rt_alloc(global11, 24) : ptr<managed>
-    t1 = enum_wrap e0 v0 (global3) : enum0
+    t1 = enum_wrap e2 v0 (global3) : enum2
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.ArithmeticException() -> ptr<managed>
   block entry
     t0 = call @scoop_rt_alloc(global12, 24) : ptr<managed>
-    t1 = enum_wrap e0 v0 (global4) : enum0
+    t1 = enum_wrap e2 v0 (global4) : enum2
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.IndexOutOfBoundsException() -> ptr<managed>
   block entry
     t0 = call @scoop_rt_alloc(global13, 24) : ptr<managed>
-    t1 = enum_wrap e0 v0 (global5) : enum0
+    t1 = enum_wrap e2 v0 (global5) : enum2
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.IllegalStateException() -> ptr<managed>
   block entry
     t0 = call @scoop_rt_alloc(global14, 24) : ptr<managed>
-    t1 = enum_wrap e0 v0 (global6) : enum0
+    t1 = enum_wrap e2 v0 (global6) : enum2
     heap_store t0 +16 t1
     ret t0
   fun @scoop.eq.I(ptr<managed>, ptr<managed>) -> i1
@@ -1122,13 +1122,18 @@ Module
   td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=3 itables=0
   td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=3 itables=0
   td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=3 itables=0
+  array-type array0 Array$Point kind=immutable element=struct3 size=16 align=8 scan=none td=@scoop_td_Array$Point
+  array-type array1 Array$I kind=immutable element=i64 size=8 align=8 scan=none td=@scoop_td_Array$I
+  array-type array2 Array$AIX kind=immutable element=ptr<managed> size=8 align=8 scan=refs[0] td=@scoop_td_Array$AIX
+  array-type array3 Array$EE kind=immutable element=enum0 size=16 align=8 scan=none td=@scoop_td_Array$EE
+  array-type array4 Array$EOption$I kind=immutable element=enum1 size=16 align=8 scan=none td=@scoop_td_Array$EOption$I
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   layout Point size=16 align=8 refs=[]
-  layout Option$S size=8 align=8 enum-scan=refs[0]
   layout E size=16 align=8 enum-scan=none
   layout Option$I size=16 align=8 enum-scan=none
+  layout Option$S size=8 align=8 enum-scan=refs[0]
   layout Throwable size=16 align=8 refs=[]
   layout Exception size=24 align=8 refs=[16]
   layout UnwrapException size=24 align=8 refs=[16]
@@ -1137,11 +1142,6 @@ Module
   layout IndexOutOfBoundsException size=24 align=8 refs=[16]
   layout IllegalStateException size=24 align=8 refs=[16]
   layout box$I size=24 align=8 refs=[]
-  layout Array<Point> size=16 align=8 array(element_is_ref=false)
-  layout Array<Array<Int>> size=8 align=8 array(element_is_ref=true)
-  layout Array<Int> size=8 align=8 array(element_is_ref=false)
-  layout Array<E> size=16 align=8 array(element_is_ref=false)
-  layout Array<Option$I<Int>> size=16 align=8 array(element_is_ref=false)
   entry @scoop_main
 
 == run ==

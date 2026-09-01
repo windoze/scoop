@@ -415,7 +415,7 @@ Module
   fun baseCount @scoop.baseCount(values: Array<Base>) -> Int
     bb0 entry
       return
-        ArrayLen
+        ArrayLen Array$Base
           Local values
   fun secondName @scoop.secondName(values: Array<Named>) -> String
     bb0 entry
@@ -431,7 +431,7 @@ Module
       assign $logic.1
         Binary IntGe
           Local $idx.2
-          ArrayLen
+          ArrayLen Array$Named
             Local $arr.1
       goto bb3
     bb2 logic.short.2
@@ -447,7 +447,7 @@ Module
         Local $call.2
     bb5 if.merge.5
       call $call.3: String = @scoop.Named.name interface Named[0]
-        ArrayGet
+        ArrayGet Array$Named
           Local $arr.1
           Local $idx.2
       return
@@ -455,14 +455,14 @@ Module
   fun anyCount @scoop.anyCount(values: Array<Any>) -> Int
     bb0 entry
       return
-        ArrayLen
+        ArrayLen Array$Any
           Local values
   fun main @scoop_main() -> Unit
     bb0 entry
       call $call.1: Base = @scoop.ctor.Left direct
       call $call.2: Base = @scoop.ctor.Right direct
       val bases: Array<Base>
-        ArrayLiteral
+        ArrayLiteral Array$Base
           Local $call.1
           Local $call.2
       call $call.3: Int = @scoop.baseCount direct
@@ -473,7 +473,7 @@ Module
       call $call.4: Named = @scoop.ctor.Cat direct
       call $call.5: Named = @scoop.ctor.Dog direct
       val named: Array<Named>
-        ArrayLiteral
+        ArrayLiteral Array$Named
           Local $call.4
           Local $call.5
       call $call.6: Any = @scoop.secondName direct
@@ -482,7 +482,7 @@ Module
         Local $call.6
       call $call.7: Any = @scoop.ctor.Left direct
       val unrelated: Array<Any>
-        ArrayLiteral
+        ArrayLiteral Array$Any
           Local $call.7
           StringConst @scoop.str.3
       call $call.8: Int = @scoop.anyCount direct
@@ -495,7 +495,7 @@ Module
           StructInit Tag
             StringConst @scoop.str.4
       val explicitlyBoxed: Array<Named>
-        ArrayLiteral
+        ArrayLiteral Array$Named
           Local tag
           Box
             StructInit Tag
@@ -680,12 +680,12 @@ Module
     native_call[native-borrowed] extern0(global2)
     t4 = aggregate () : {}
     ret
-  fun @scoop.baseCount([ptr<managed>]) -> i64
+  fun @scoop.baseCount(ptr<managed>) -> i64
   block entry
-    t0 = array_len param0 : i64
+    t0 = array_len array0 param0 : i64
     ret t0
-  fun @scoop.secondName([ptr<managed>]) -> ptr<managed>
-    local %0 $arr.1: [ptr<managed>]
+  fun @scoop.secondName(ptr<managed>) -> ptr<managed>
+    local %0 $arr.1: ptr<managed>
     local %1 $idx.2: i64
     local %2 $logic.1: i1
     local %3 $call.2: ptr<managed>
@@ -696,7 +696,7 @@ Module
     t0 = Lt local1, 0 : i1
     cbr t0 then @logic.short.2 else @logic.rhs.1
   block logic.rhs.1
-    t1 = array_len local0 : i64
+    t1 = array_len array1 local0 : i64
     t2 = Ge local1, t1 : i1
     store t2 -> local2
     br @logic.merge.3
@@ -711,22 +711,22 @@ Module
     throw local3
     unreachable
   block if.merge.5
-    t4 = array_get local0 local1 : ptr<managed>
+    t4 = array_get array1 local0 local1 : ptr<managed>
     t5 = heap_load t4 +0 : ptr<metadata>
     t6 = call @scoop_rt_itable_lookup(t5, global11) : ptr<metadata>
     t7 = call_indirect t6[0](t4) : ptr<managed>
     store t7 -> local4
     ret local4
-  fun @scoop.anyCount([ptr<managed>]) -> i64
+  fun @scoop.anyCount(ptr<managed>) -> i64
   block entry
-    t0 = array_len param0 : i64
+    t0 = array_len array2 param0 : i64
     ret t0
   fun @scoop_main() -> void
-    local %0 bases: [ptr<managed>]
-    local %1 named: [ptr<managed>]
-    local %2 unrelated: [ptr<managed>]
+    local %0 bases: ptr<managed>
+    local %1 named: ptr<managed>
+    local %2 unrelated: ptr<managed>
     local %3 tag: ptr<managed>
-    local %4 explicitlyBoxed: [ptr<managed>]
+    local %4 explicitlyBoxed: ptr<managed>
     local %5 $call.1: ptr<managed>
     local %6 $call.2: ptr<managed>
     local %7 $call.3: i64
@@ -741,7 +741,7 @@ Module
     store t0 -> local5
     t1 = call @scoop.ctor.Right() : ptr<managed>
     store t1 -> local6
-    t2 = array_alloc (local5, local6) : [ptr<managed>]
+    t2 = array_alloc array0 (local5, local6) : ptr<managed>
     store t2 -> local0
     t3 = call @scoop.baseCount(local0) : i64
     store t3 -> local7
@@ -752,7 +752,7 @@ Module
     store t6 -> local8
     t7 = call @scoop.ctor.Dog() : ptr<managed>
     store t7 -> local9
-    t8 = array_alloc (local8, local9) : [ptr<managed>]
+    t8 = array_alloc array1 (local8, local9) : ptr<managed>
     store t8 -> local1
     t9 = call @scoop.secondName(local1) : ptr<managed>
     store t9 -> local10
@@ -760,7 +760,7 @@ Module
     t10 = aggregate () : {}
     t11 = call @scoop.ctor.Left() : ptr<managed>
     store t11 -> local11
-    t12 = array_alloc (local11, global3) : [ptr<managed>]
+    t12 = array_alloc array2 (local11, global3) : ptr<managed>
     store t12 -> local2
     t13 = call @scoop.anyCount(local2) : i64
     store t13 -> local12
@@ -772,7 +772,7 @@ Module
     store t17 -> local3
     t18 = aggregate (global5) : struct3
     t19 = call @scoop_rt_box(global13, t18, 8) : ptr<managed>
-    t20 = array_alloc (local3, t19) : [ptr<managed>]
+    t20 = array_alloc array1 (local3, t19) : ptr<managed>
     store t20 -> local4
     t21 = call @scoop.secondName(local4) : ptr<managed>
     store t21 -> local13
@@ -891,6 +891,9 @@ Module
   td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=3 itables=0
   td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=3 itables=0
   td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=3 itables=0
+  array-type array0 Array$Base kind=immutable element=ptr<managed> size=8 align=8 scan=refs[0] td=@scoop_td_Array$Base
+  array-type array1 Array$Named kind=immutable element=ptr<managed> size=8 align=8 scan=refs[0] td=@scoop_td_Array$Named
+  array-type array2 Array$Any kind=immutable element=ptr<managed> size=8 align=8 scan=refs[0] td=@scoop_td_Array$Any
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
@@ -910,9 +913,6 @@ Module
   layout Dog size=16 align=8 refs=[]
   layout box$I size=24 align=8 refs=[]
   layout box$Tag size=24 align=8 refs=[16]
-  layout Array<Base> size=8 align=8 array(element_is_ref=true)
-  layout Array<Named> size=8 align=8 array(element_is_ref=true)
-  layout Array<Any> size=8 align=8 array(element_is_ref=true)
   entry @scoop_main
 
 == run ==

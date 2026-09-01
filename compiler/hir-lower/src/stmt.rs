@@ -21,6 +21,7 @@ use hir::{FunctionId, Type, TypeId};
 
 use crate::patterns::PatternCtx;
 use crate::scope::Scopes;
+use crate::types::ArrayKind;
 use crate::{CaptureContext, FnParam, FnSig, ForbiddenSuspendContext, Lowerer, SuspensionContext};
 
 pub(crate) struct ValueBlock {
@@ -1742,9 +1743,9 @@ impl Lowerer {
     ) -> Option<hir::StatementKind> {
         let mut sink = Vec::new();
         let array = self.lower_expr(receiver, &mut sink, None)?;
-        let element_ty = match self.types[array.ty].clone() {
-            Type::MutableArray(element) => element,
-            Type::Array(_) => {
+        let element_ty = match self.array_type_info(array.ty) {
+            Some(array) if array.kind == ArrayKind::Mutable => array.element,
+            Some(_) => {
                 let found = self.type_name(array.ty);
                 self.error(
                     receiver.span(),

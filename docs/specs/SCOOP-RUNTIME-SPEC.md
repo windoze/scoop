@@ -173,7 +173,7 @@ M13 的collector仍是单线程、单代、非移动实现。parked线程只对t
 以 Scoop ABI FFI 函数形式实现；spec 14.4 的 `write(String)` 是不跨 safepoint直接借用 ref的最小范例，涉及分配的函数则按 4.2 登记 native roots：
 
 - `String`：创建、拼接、内容比较、内容hash、长度、索引/切片；
-- `Array` / `MutableArray`：分配（按 spec 10.1 的元素布局）、`size`、越界检查与抛异常、`toArray` / `toMutableArray` 的 memcpy 转换（spec 10.4）；
+- `Array` / `MutableArray`：分配（按 spec 10.1 的元素布局）、`size`、越界检查与抛异常、`toArray` / `toMutableArray` 的浅拷贝转换（spec 10.4）。转换入口显式接收编译器已选定的目标concrete application TypeDescriptor，以该descriptor分配并保留新对象头，只复制对象头之后的`size`、padding与inline elements；不得从来源对象、元素布局或类型名推断目标类型，也不得沿用来源descriptor；
 - `StringBuilder`：`add` / `build`（spec 11.6）；
 - 基本类型的具体`ToString` / `Hash` / operator equals后备（不提供`Any`或地址fallback）；
 - 类型测试与装箱辅助：`is` / `as` 的 TypeDescriptor 比较、装箱/拆箱。

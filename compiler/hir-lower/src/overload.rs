@@ -567,7 +567,6 @@ impl Lowerer {
     fn mentions_type_param(&self, ty: TypeId) -> bool {
         match self.types[ty].clone() {
             Type::Param(_) => true,
-            Type::Array(element) | Type::MutableArray(element) => self.mentions_type_param(element),
             Type::Ptr(pointee) => self.mentions_type_param(pointee),
             Type::Enum(application) => self.enum_applications[application]
                 .arguments
@@ -707,10 +706,6 @@ impl Lowerer {
                         .iter()
                         .zip(arg_args)
                         .all(|(param, arg)| self.try_bind(*param, arg, bindings))
-            }
-            (Type::Array(param), Type::Array(arg))
-            | (Type::MutableArray(param), Type::MutableArray(arg)) => {
-                self.try_bind(param, arg, bindings)
             }
             (Type::Ptr(param), Type::Ptr(arg)) => self.try_bind(param, arg, bindings),
             (Type::Tuple(params), Type::Tuple(args)) if params.len() == args.len() => params

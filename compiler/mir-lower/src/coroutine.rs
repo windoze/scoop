@@ -2129,6 +2129,7 @@ fn statement_use_def(statement: &mir::Statement) -> (HashSet<mir::LocalId>, Hash
             array,
             index,
             value,
+            ..
         } => {
             expr_uses(array, &mut uses);
             expr_uses(index, &mut uses);
@@ -2205,7 +2206,7 @@ fn expr_uses(expr: &mir::Expr, uses: &mut HashSet<mir::LocalId>) {
             uses.insert(*local);
         }
         mir::Expr::TupleLiteral(elements)
-        | mir::Expr::ArrayLiteral(elements)
+        | mir::Expr::ArrayLiteral { elements, .. }
         | mir::Expr::StructInit { args: elements, .. }
         | mir::Expr::ClassInit { args: elements, .. }
         | mir::Expr::ClosureAlloc {
@@ -2241,8 +2242,8 @@ fn expr_uses(expr: &mir::Expr, uses: &mut HashSet<mir::LocalId>) {
             check_ty: _,
         }
         | mir::Expr::Cast { operand, .. }
-        | mir::Expr::ArrayLen(operand)
-        | mir::Expr::ArrayClone(operand)
+        | mir::Expr::ArrayLen { operand, .. }
+        | mir::Expr::ArrayClone { operand, .. }
         | mir::Expr::PtrFromUInt { operand, .. }
         | mir::Expr::PtrToUInt(operand)
         | mir::Expr::PtrCast { operand, .. }
@@ -2259,7 +2260,7 @@ fn expr_uses(expr: &mir::Expr, uses: &mut HashSet<mir::LocalId>) {
             expr_uses(expected, uses);
             expr_uses(replacement, uses);
         }
-        mir::Expr::ArrayGet { array, index }
+        mir::Expr::ArrayGet { array, index, .. }
         | mir::Expr::Binary {
             lhs: array,
             rhs: index,

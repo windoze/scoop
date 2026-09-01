@@ -16,10 +16,10 @@
 //! type-parameter scope (a generic enum's fields mention
 //! `Type::Param(index)` into `EnumDecl::type_params`).
 //!
-//! M5 (milestone5 DESIGN.md 2.2): `Array<T>` / `MutableArray<T>`
-//! annotations resolve to the compiler-built-in array types (spec 10.1;
-//! class declarations arrive with M7, DESIGN.md 5.1), interned like
-//! every other type.
+//! M14: `Array<T>` / `MutableArray<T>` are ordinary applications of the
+//! typed intrinsic core classes. Their mutability and element type are read
+//! from `ClassApplicationRepresentation`, never from names or a second built-in
+//! type identity.
 //!
 //! M6 (milestone6 DESIGN.md 2.2): `Any` (a compiler built-in, DESIGN.md
 //! 5.5), class and interface type names, and the subtyping relation
@@ -47,7 +47,19 @@ use scoop_ast as ast;
 use scoop_hir as hir;
 use scoop_hir::{ClassDecl, EnumDecl, InterfaceDecl, StructDecl, StructId, Type, TypeId};
 
-use crate::Lowerer;
+use crate::{IntrinsicTypeOwner, Lowerer};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ArrayKind {
+    Immutable,
+    Mutable,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct ArrayType {
+    pub(crate) kind: ArrayKind,
+    pub(crate) element: TypeId,
+}
 
 impl Lowerer {
     /// Resolve the complete constraint set for one declaration after all
@@ -305,28 +317,6 @@ impl Lowerer {
                     );
                     return None;
                 }
-                // The array built-ins resolve before user-declared
-                // types (milestone5 DESIGN.md 2.2).
-                if name.text == "Array" || name.text == "MutableArray" {
-                    if args.len() != 1 {
-                        self.error(
-                            name.span,
-                            format!(
-                                "`{}` takes exactly 1 type argument, but {} were supplied",
-                                name.text,
-                                args.len()
-                            ),
-                        );
-                        return None;
-                    }
-                    let element = self.resolve_type_ref(&args[0])?;
-                    let ty = if name.text == "Array" {
-                        Type::Array(element)
-                    } else {
-                        Type::MutableArray(element)
-                    };
-                    return Some(self.intern_type(ty));
-                }
                 // Generic structs (M9, spec 3.2).
                 if let Some(&(struct_id, _)) = self.structs_by_name.get(&name.text) {
                     let arity = self.structs[struct_id].type_params.len();
@@ -525,16 +515,6 @@ impl Lowerer {
                     // 5.5); the core library shape arrives with M7/core.
                     "Any" => Some(self.any),
                     _ => {
-                        // The array built-ins require their type
-                        // argument (`Array<T>` goes through
-                        // TypeRefKind::Generic).
-                        if name.text == "Array" || name.text == "MutableArray" {
-                            self.error(
-                                name.span,
-                                format!("`{}` requires exactly 1 type argument", name.text),
-                            );
-                            return None;
-                        }
                         if let Some(&(struct_id, ty)) = self.structs_by_name.get(&name.text) {
                             // A generic struct needs its type
                             // arguments (`PinnedPtr<T>` goes through
@@ -889,9 +869,7 @@ impl Lowerer {
     pub(crate) fn type_contains_param(&self, ty: TypeId) -> bool {
         match &self.types[ty] {
             Type::Param(_) => true,
-            Type::Array(element) | Type::MutableArray(element) | Type::Ptr(element) => {
-                self.type_contains_param(*element)
-            }
+            Type::Ptr(element) => self.type_contains_param(*element),
             Type::Struct(application) => self.struct_applications[*application]
                 .arguments
                 .iter()
@@ -967,14 +945,6 @@ impl Lowerer {
                     substituted.push(self.instantiate_ty(arg, type_args));
                 }
                 self.intern_interface_application(application.template, substituted)
-            }
-            Type::Array(element) => {
-                let element = self.instantiate_ty(element, type_args);
-                self.intern_type(Type::Array(element))
-            }
-            Type::MutableArray(element) => {
-                let element = self.instantiate_ty(element, type_args);
-                self.intern_type(Type::MutableArray(element))
             }
             Type::Enum(application) => {
                 let application = self.enum_applications[application].clone();
@@ -1054,14 +1024,6 @@ impl Lowerer {
                     .collect();
                 self.intern_interface_application(application.template, args)
             }
-            Type::Array(element) => {
-                let element = self.instantiate_method_ty(element, bindings);
-                self.intern_type(Type::Array(element))
-            }
-            Type::MutableArray(element) => {
-                let element = self.instantiate_method_ty(element, bindings);
-                self.intern_type(Type::MutableArray(element))
-            }
             Type::Enum(application) => {
                 let application = self.enum_applications[application].clone();
                 let args = application
@@ -1135,14 +1097,6 @@ impl Lowerer {
                 }
                 Some(self.intern_interface_application(application.template, substituted))
             }
-            Type::Array(element) => {
-                let element = self.try_substitute(element, bindings)?;
-                Some(self.intern_type(Type::Array(element)))
-            }
-            Type::MutableArray(element) => {
-                let element = self.try_substitute(element, bindings)?;
-                Some(self.intern_type(Type::MutableArray(element)))
-            }
             Type::Enum(application) => {
                 let application = self.enum_applications[application].clone();
                 let mut substituted = Vec::with_capacity(application.arguments.len());
@@ -1177,12 +1131,52 @@ impl Lowerer {
         }
     }
 
-    /// Whether `ty` is `Array<T>` or `MutableArray<T>`; returns `T`.
-    pub(crate) fn array_element_ty(&self, ty: TypeId) -> Option<TypeId> {
-        match &self.types[ty] {
-            Type::Array(element) | Type::MutableArray(element) => Some(*element),
-            _ => None,
+    pub(crate) fn array_type(&mut self, kind: ArrayKind, element: TypeId) -> TypeId {
+        let intrinsic = match kind {
+            ArrayKind::Immutable => hir::IntrinsicTypeKind::Array,
+            ArrayKind::Mutable => hir::IntrinsicTypeKind::MutableArray,
+        };
+        let &(owner, _) = self
+            .intrinsic_type_owners
+            .get(&intrinsic)
+            .expect("the intrinsic core contract is validated before type resolution");
+        let IntrinsicTypeOwner::Class(template) = owner else {
+            unreachable!("the intrinsic registry fixes array declarations as classes")
+        };
+        self.class_application(template, vec![element])
+    }
+
+    /// Return the exact array family application carried by a class type.
+    /// Ordinary classes and fixed intrinsic classes return `None`.
+    pub(crate) fn array_type_info(&self, ty: TypeId) -> Option<ArrayType> {
+        let Type::Class(application) = self.types[ty] else {
+            return None;
+        };
+        match self.class_applications[application].representation {
+            hir::ClassApplicationRepresentation::Intrinsic(
+                hir::IntrinsicTypeRepresentation::Array { element },
+            ) => Some(ArrayType {
+                kind: ArrayKind::Immutable,
+                element,
+            }),
+            hir::ClassApplicationRepresentation::Intrinsic(
+                hir::IntrinsicTypeRepresentation::MutableArray { element },
+            ) => Some(ArrayType {
+                kind: ArrayKind::Mutable,
+                element,
+            }),
+            hir::ClassApplicationRepresentation::Declared
+            | hir::ClassApplicationRepresentation::Intrinsic(
+                hir::IntrinsicTypeRepresentation::Int
+                | hir::IntrinsicTypeRepresentation::UInt
+                | hir::IntrinsicTypeRepresentation::Boolean
+                | hir::IntrinsicTypeRepresentation::String,
+            ) => None,
         }
+    }
+
+    pub(crate) fn array_element_ty(&self, ty: TypeId) -> Option<TypeId> {
+        self.array_type_info(ty).map(|array| array.element)
     }
 
     /// Structural type equality (tuple and enum types compare
@@ -1658,9 +1652,6 @@ fn type_value_equal(types: &Arena<Type>, a: TypeId, b: TypeId) -> bool {
         (Type::Struct(x), Type::Struct(y)) => x == y,
         (Type::Class(x), Type::Class(y)) => x == y,
         (Type::Interface(x), Type::Interface(y)) => x == y,
-        (Type::Array(x), Type::Array(y)) | (Type::MutableArray(x), Type::MutableArray(y)) => {
-            type_value_equal(types, *x, *y)
-        }
         (Type::Param(x), Type::Param(y)) => x == y,
         (Type::Enum(x), Type::Enum(y)) => x == y,
         (Type::Tuple(xs), Type::Tuple(ys)) => {
@@ -1783,34 +1774,6 @@ fn type_name(
             }
         }
         Type::Any => "Any".to_string(),
-        Type::Array(element) => {
-            let inner = type_name(
-                types,
-                function_types,
-                structs,
-                enums,
-                classes,
-                interfaces,
-                applications,
-                type_params,
-                *element,
-            );
-            format!("Array<{inner}>")
-        }
-        Type::MutableArray(element) => {
-            let inner = type_name(
-                types,
-                function_types,
-                structs,
-                enums,
-                classes,
-                interfaces,
-                applications,
-                type_params,
-                *element,
-            );
-            format!("MutableArray<{inner}>")
-        }
         Type::Ptr(pointee) => {
             let inner = type_name(
                 types,

@@ -213,11 +213,6 @@ pub enum Type {
     /// The root of all types (spec 3.1). Value types reaching it are
     /// boxed (spec 4.4.4).
     Any,
-    /// Compiler-built-in array types (M5; class declarations arrive
-    /// with M7, see docs/milestone5/DESIGN.md 5.1). Invariant in the
-    /// element type (spec 10.4).
-    Array(TypeId),
-    MutableArray(TypeId),
     Tuple(Vec<TypeId>),
     /// A managed function value type. The referenced entry carries the
     /// complete structural signature and is canonical within the Cone.
@@ -261,9 +256,6 @@ pub fn types_equal(module: &Module, a: TypeId, b: TypeId) -> bool {
         (Type::Class(x), Type::Class(y)) => x == y,
         (Type::Interface(x), Type::Interface(y)) => x == y,
         (Type::Any, Type::Any) => true,
-        (Type::Array(x), Type::Array(y)) | (Type::MutableArray(x), Type::MutableArray(y)) => {
-            types_equal(module, *x, *y)
-        }
         (Type::Tuple(xs), Type::Tuple(ys)) => {
             xs.len() == ys.len()
                 && xs
@@ -335,11 +327,6 @@ fn type_name_with_params(module: &Module, ty: TypeId, params: &[TypeParamDecl]) 
             }
         }
         Type::Any => "Any".to_string(),
-        Type::Array(inner) => format!("Array<{}>", type_name_with_params(module, *inner, params)),
-        Type::MutableArray(inner) => format!(
-            "MutableArray<{}>",
-            type_name_with_params(module, *inner, params)
-        ),
         Type::Enum(application) => {
             let application = &module.enum_applications[*application];
             let name = &module.enums[application.template].name;

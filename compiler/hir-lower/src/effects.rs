@@ -314,8 +314,6 @@ impl Lowerer {
             | hir::Type::Class(..)
             | hir::Type::Interface(_)
             | hir::Type::Any
-            | hir::Type::Array(_)
-            | hir::Type::MutableArray(_)
             | hir::Type::Function(_) => None,
             hir::Type::Tuple(elements) => {
                 let mut requirements = HashSet::new();

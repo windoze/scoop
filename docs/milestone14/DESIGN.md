@@ -313,7 +313,9 @@ GenericIntrinsicRepresentation =
 
 `core_array`与`core_mutable_array`的schema都精确要求一个无bound、invariant参数。registry验证arity、variance、bound、target kind、成员/intrinsic operation签名与provider唯一性；测试authority只放宽provider来源，不放宽generic shape。
 
-完成迁移后，export侧的`Array<X>`就是普通`ExportClassApplicationId`，local侧则是`ConcreteClassId`，其`ConcreteClassRepresentation::Intrinsic`完整携带`Array { element: ConcreteTypeId }`或`MutableArray { element: ConcreteTypeId }`。当前HIR/MIR中独立的`Type::Array(T)` / `Type::MutableArray(T)`类型身份必须删除；数组专用expression/instruction可以保留，但必须直接引用concrete array class及其element type，不能再构造第二个语义类型。LIR据该typed representation family生成对象layout、element stride与递归scan，不能从FQN、方法名或数组操作的operand反推出`T`。
+完成迁移后，export侧的`Array<X>`就是普通`ExportClassApplicationId`，local侧则是`ConcreteClassId`，其`ConcreteClassRepresentation::Intrinsic`完整携带`Array { element: ConcreteTypeId }`或`MutableArray { element: ConcreteTypeId }`。当前HIR/MIR中独立的`Type::Array(T)` / `Type::MutableArray(T)`类型身份必须删除；数组专用expression可以保留，但每个节点必须直接携带来源/目标concrete array class，不能由expected type、operand type或元素expression重建数组种类与元素类型。
+
+LIR为每个fully specialized intrinsic array class application建立唯一`ArrayTypeId`及完备`ArrayType`记录，其中一次性给出nominal kind、element storage type、stride/alignment、递归element scan及目标TypeDescriptor。`ArrayAlloc` / `ArrayLen` / `ArrayGet` / `ArraySet` / `ArrayClone`都显式引用该id；LIR value type只保留managed-pointer物理形态，不构造第二份`LirType::Array(T)`身份。codegen严禁遍历`ArrayAlloc`、按`(element layout, scan)`去重或从operand/result type提取元素信息，只能按`ArrayTypeId`机械消费元数据。`ArrayClone`引用的是目标application id，runtime以其TypeDescriptor分配新对象并只复制对象头之后的size/padding/elements，不能整体memcpy后沿用来源descriptor。
 
 ### 2.7 没有`Self`与object safety分类
 

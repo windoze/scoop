@@ -18,8 +18,6 @@ enum SymbolicType {
     Class(hir::ClassId, Vec<SymbolicType>),
     Interface(hir::InterfaceId, Vec<SymbolicType>),
     Any,
-    Array(Box<SymbolicType>),
-    MutableArray(Box<SymbolicType>),
     Tuple(Vec<SymbolicType>),
     Function {
         is_suspend: bool,
@@ -214,12 +212,6 @@ impl Lowerer {
                 )
             }
             hir::Type::Any => SymbolicType::Any,
-            hir::Type::Array(element) => {
-                SymbolicType::Array(Box::new(self.symbolic_type(*element, bindings)))
-            }
-            hir::Type::MutableArray(element) => {
-                SymbolicType::MutableArray(Box::new(self.symbolic_type(*element, bindings)))
-            }
             hir::Type::Tuple(elements) => SymbolicType::Tuple(
                 elements
                     .iter()
