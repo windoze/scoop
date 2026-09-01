@@ -284,7 +284,7 @@ ConcreteTypeKind =
 
 每一组`ExportGeneric*Id`、`Export*ApplicationId`与`Concrete*Id`都是互不兼容的typed id。export application携带完整实参，local concrete type则只引用已经完成替换的concrete entity；当前`Type::Struct(StructId, Vec<TypeId>)`、`Type::Enum(EnumId, Vec<TypeId>)`、`Type::Interface(InterfaceId, Vec<TypeId>)`以及不带application identity的class表示都必须退出export HIR，不能用“声明id + 参数Vec”同时冒充template、application与concrete实例。
 
-每个concrete entity非可选地携带typed origin、全部concrete arguments及已替换的内容：class为field/base/interface/member闭包，struct为field/interface/member闭包，enum为variant/interface/member闭包，interface为parent/member/variance闭包。class的`ConcreteClassRepresentation`还必须是区分ordinary/intrinsic的sum type，而不是`is_intrinsic: bool + Option<...>`；ordinary分支携带普通class layout输入，intrinsic分支携带该表示族要求的完整concrete参数。
+每个concrete entity非可选地携带local-concrete侧的kind-specific typed origin、全部concrete arguments及已替换的内容：class为field/base/interface/member闭包，struct为field/interface/member闭包，enum为variant/interface/member闭包，interface为parent/member/variance闭包。`ConcreteClassOriginId` / `ConcreteStructOriginId` / `ConcreteEnumOriginId` / `ConcreteInterfaceOriginId`与对应的`ExportGeneric*Id`是互不兼容的类型；concretizer内部显式建立映射，不能把export arena id直接塞进`LocalConcreteHir`。class的`ConcreteClassRepresentation`还必须是区分ordinary/intrinsic的sum type，而不是`is_intrinsic: bool + Option<...>`；ordinary分支携带普通class layout输入，intrinsic分支携带该表示族要求的完整concrete参数。
 
 本Cone和下游Cone使用同一个HIR concretizer，以kind-specific `(ExportGeneric*Id, concrete arguments)`作为typed memo key，产生对应concrete id及其依赖闭包。`ExportHir`只导出template/application及类型化依赖，`LocalConcreteHir`只保存本Cone实际需要发射的fully specialized type与函数；MIR不能读取任何generic nominal template或自行替换宿主参数。
 
@@ -380,7 +380,7 @@ ExportGenericMethodOwner =
   | Applied(ExportNominalApplication)
 
 ConcreteMethodOrigin {
-    method: ExportGenericMethodId,
+    method: ConcreteGenericMethodOriginId,
     owner: ConcreteMethodOwner,
     method_arguments: NonEmptyVec<ConcreteTypeId>,
 }
@@ -391,7 +391,7 @@ ConcreteMethodOwner =
   | Enum(ConcreteEnumId)
 ```
 
-`ExportGenericMethodId`不能与top-level/local generic function id、nominal template id或interface method id混用。`ExportNominalDeclRef`与`ExportNominalApplication`在真实IR中还须按class/struct/enum拆成kind-specific variant/id；前者覆盖non-generic owner，后者覆盖generic owner，不能要求所有generic method都恰好位于generic type中。concrete侧直接引用完整`ConcreteMethodOwner`；该owner实体本身非可选地携带origin与全部宿主实参，因此不再平行保存一个“可能为空”的owner argument Vec。非空`method_arguments`同样完整。`LocalConcreteHir`中的body/signature/captures/default-expression请求已经完成替换，MIR只接收普通direct `ConcreteCallableId`。
+`ExportGenericMethodId`不能与top-level/local generic function id、nominal template id或interface method id混用。`ConcreteGenericMethodOriginId`又是local-concrete侧独立的typed provenance identity，不是export template引用；同理，generic free function使用`ConcreteGenericFunctionOriginId`。两侧的映射只存在于HIR concretizer内部，MIR的输入类型无法构造或读取export id。`ExportNominalDeclRef`与`ExportNominalApplication`在真实IR中还须按class/struct/enum拆成kind-specific variant/id；前者覆盖non-generic owner，后者覆盖generic owner，不能要求所有generic method都恰好位于generic type中。concrete侧直接引用完整`ConcreteMethodOwner`；该owner实体本身非可选地携带origin与全部宿主实参，因此不再平行保存一个“可能为空”的owner argument Vec。非空`method_arguments`同样完整。`LocalConcreteHir`中的body/signature/captures/default-expression请求已经完成替换，MIR只接收普通direct `ConcreteCallableId`。
 
 ### 2.9 单态化闭包与终止
 

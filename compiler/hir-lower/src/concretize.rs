@@ -417,6 +417,7 @@ impl<'a> Concretizer<'a> {
             _ => unreachable!("ExportHir declaration and application representations agree"),
         };
         let id = self.classes.alloc(concrete::ClassDef {
+            origin: concrete::ClassOriginId::from_raw(source_id.into_raw().into_u32()),
             modifier: source.modifier,
             name: self.instance_name(&source.name, &arguments),
             type_arguments: arguments.clone(),
@@ -901,6 +902,7 @@ impl<'a> Concretizer<'a> {
             _ => unreachable!("ExportHir declaration and application representations agree"),
         };
         let id = self.structs.alloc(concrete::StructDef {
+            origin: concrete::StructOriginId::from_raw(source_id.into_raw().into_u32()),
             name,
             type_arguments: arguments.clone(),
             gc_free: false,
@@ -984,6 +986,7 @@ impl<'a> Concretizer<'a> {
         assert_eq!(source.type_params.len(), arguments.len());
         let name = self.instance_name(&source.name, &arguments);
         let id = self.enums.alloc(concrete::EnumDef {
+            origin: concrete::EnumOriginId::from_raw(source_id.into_raw().into_u32()),
             name,
             type_arguments: arguments.clone(),
             gc_free: false,
@@ -1071,6 +1074,7 @@ impl<'a> Concretizer<'a> {
         assert_eq!(source.type_params.len(), arguments.len());
         let name = self.instance_name(&source.name, &arguments);
         let id = self.interfaces.alloc(concrete::InterfaceDef {
+            origin: concrete::InterfaceOriginId::from_raw(source_id.into_raw().into_u32()),
             name,
             family: concrete::InterfaceFamilyId::from_raw(source_id.into_raw().into_u32()),
             variances: source
@@ -1481,7 +1485,9 @@ impl<'a> Concretizer<'a> {
                 }
                 export::FunctionGenericity::Generic { definition, .. } => {
                     concrete::FunctionOrigin::Free(concrete::FreeFunctionOrigin::Generic {
-                        definition,
+                        origin: concrete::GenericFunctionOriginId::from_raw(
+                            definition.into_raw().into_u32(),
+                        ),
                         arguments: arguments.clone(),
                         symbol: self.instance_symbol(&source.name, source_id.into_raw().into_u32()),
                     })
@@ -1514,8 +1520,13 @@ impl<'a> Concretizer<'a> {
                         definition,
                         method_arguments,
                     } => concrete::MethodSpecialization::Generic {
-                        definition: *definition,
-                        method_arguments: method_arguments.clone(),
+                        origin: concrete::GenericMethodOriginId::from_raw(
+                            definition.into_raw().into_u32(),
+                        ),
+                        method_arguments: concrete::NonEmptyVec::from_vec(
+                            method_arguments.to_vec(),
+                        )
+                        .expect("a generic method request has non-empty method arguments"),
                         symbol: self.instance_symbol(&source.name, source_id.into_raw().into_u32()),
                     },
                 };

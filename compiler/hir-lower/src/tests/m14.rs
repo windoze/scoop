@@ -897,8 +897,11 @@ fn generic_class_constructor_members_and_concrete_instances_are_complete() {
         .collect::<Vec<_>>();
     instances.sort_by(|left, right| left.name.cmp(&right.name));
     assert_eq!(instances.len(), 2);
+    let concrete_origin =
+        hir::concrete::ClassOriginId::from_raw(export_box_id.into_raw().into_u32());
     assert!(instances.iter().all(|instance| {
-        instance.type_arguments.len() == 1
+        instance.origin == concrete_origin
+            && instance.type_arguments.len() == 1
             && instance.declared_constructor().len() == 1
             && instance.declared_constructor()[0].ty == instance.type_arguments[0]
             && instance.methods.len() == 1
@@ -1019,6 +1022,8 @@ fn generic_method_applications_keep_owner_and_method_arguments_separate() {
             .any(|application| application.method_arguments.to_vec() == [output.export.string])
     );
 
+    let concrete_origin =
+        hir::concrete::GenericMethodOriginId::from_raw(definition.into_raw().into_u32());
     let concrete_methods = output
         .local
         .functions
@@ -1028,11 +1033,11 @@ fn generic_method_applications_keep_owner_and_method_arguments_separate() {
                 owner: hir::concrete::MethodOwner::Class(owner),
                 specialization:
                     hir::concrete::MethodSpecialization::Generic {
-                        definition: found,
+                        origin,
                         method_arguments,
                         ..
                     },
-            }) if found == definition => Some((*owner, method_arguments.to_vec())),
+            }) if *origin == concrete_origin => Some((*owner, method_arguments.to_vec())),
             _ => None,
         })
         .collect::<Vec<_>>();

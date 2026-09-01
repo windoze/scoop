@@ -30,6 +30,77 @@ pub type ClassId = Idx<ClassDef>;
 pub type InterfaceId = Idx<InterfaceDef>;
 pub type LocalId = Idx<Local>;
 
+/// Local-concrete provenance identities. They deliberately are not aliases
+/// for export-side arena ids: the HIR concretizer is the only component that
+/// maps a checked source declaration to one of these ids.
+macro_rules! local_origin_id {
+    ($name:ident) => {
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+        pub struct $name(u32);
+
+        impl $name {
+            pub const fn from_raw(raw: u32) -> Self {
+                Self(raw)
+            }
+
+            pub const fn into_raw(self) -> u32 {
+                self.0
+            }
+        }
+    };
+}
+
+local_origin_id!(StructOriginId);
+local_origin_id!(EnumOriginId);
+local_origin_id!(ClassOriginId);
+local_origin_id!(InterfaceOriginId);
+local_origin_id!(GenericFunctionOriginId);
+local_origin_id!(GenericMethodOriginId);
+
+/// A structurally non-empty local-concrete sequence. It is intentionally a
+/// distinct container from ExportHir's generic-application sequence so an
+/// export application cannot be passed to MIR through a shared wrapper type.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct NonEmptyVec<T> {
+    first: T,
+    rest: Vec<T>,
+}
+
+impl<T> NonEmptyVec<T> {
+    pub fn new(first: T, rest: Vec<T>) -> Self {
+        Self { first, rest }
+    }
+
+    pub fn from_vec(mut values: Vec<T>) -> Option<Self> {
+        if values.is_empty() {
+            return None;
+        }
+        let rest = values.split_off(1);
+        Some(Self {
+            first: values.pop().expect("the non-empty prefix was checked"),
+            rest,
+        })
+    }
+
+    pub fn len(&self) -> usize {
+        1 + self.rest.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        false
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &T> {
+        std::iter::once(&self.first).chain(self.rest.iter())
+    }
+}
+
+impl<T: Copy> NonEmptyVec<T> {
+    pub fn to_vec(&self) -> Vec<T> {
+        self.iter().copied().collect()
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ConstructorParamId(u32);
 
@@ -344,6 +415,7 @@ pub enum Callable {
 
 #[derive(Debug, Clone)]
 pub struct StructDef {
+    pub origin: StructOriginId,
     pub name: String,
     pub type_arguments: Vec<TypeId>,
     pub gc_free: bool,
@@ -379,6 +451,7 @@ impl StructDef {
 
 #[derive(Debug, Clone)]
 pub struct EnumDef {
+    pub origin: EnumOriginId,
     pub name: String,
     pub type_arguments: Vec<TypeId>,
     pub gc_free: bool,
@@ -392,6 +465,7 @@ pub struct EnumDef {
 
 #[derive(Debug, Clone)]
 pub struct ClassDef {
+    pub origin: ClassOriginId,
     pub modifier: ClassModifier,
     pub name: String,
     pub type_arguments: Vec<TypeId>,
@@ -454,6 +528,7 @@ pub struct ConstructorField {
 
 #[derive(Debug, Clone)]
 pub struct InterfaceDef {
+    pub origin: InterfaceOriginId,
     pub name: String,
     pub family: InterfaceFamilyId,
     /// Variance and arguments are copied onto every concrete application.
@@ -572,7 +647,7 @@ pub enum FunctionOrigin {
 pub enum FreeFunctionOrigin {
     Plain,
     Generic {
-        definition: super::GenericFunctionId,
+        origin: GenericFunctionOriginId,
         arguments: Vec<TypeId>,
         symbol: InstanceSymbol,
     },
@@ -602,8 +677,8 @@ pub enum MethodSpecialization {
         symbol: InstanceSymbol,
     },
     Generic {
-        definition: super::GenericMethodId,
-        method_arguments: super::NonEmptyVec<TypeId>,
+        origin: GenericMethodOriginId,
+        method_arguments: NonEmptyVec<TypeId>,
         symbol: InstanceSymbol,
     },
 }
