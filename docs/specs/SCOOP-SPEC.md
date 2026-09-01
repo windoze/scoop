@@ -80,16 +80,30 @@ Scoop 的类型分为两大类：
 ### 3.2 泛型
 
 - 泛型在编译期**单态化**实例化：每个具体类型实参生成一份专门的代码。
+- function、class、struct、enum与interface都可以声明类型参数。generic class/struct/enum的constructor或variant、base/interface application、字段与成员都可以使用宿主类型参数，generic interface的父interface与成员也可以使用宿主类型参数。每个fully specialized nominal application生成独立的concrete identity和成员实现；class还生成对象布局、TypeDescriptor与分派表，struct/enum生成完整value layout与GC-free/扫描信息，interface生成独立TypeDescriptor与itable key identity。
+- Scoop没有预定义`Self`类型、associated type或“当前实现者类型”的隐式占位符；`Self`也不是关键字，若出现在源码中只按普通名称解析。generic/interface契约若需要表达某个类型关系，必须用显式nominal type application或显式type parameter表示，编译器不执行`Self := 实现类型`替换。
 - 泛型调用与泛型值构造的类型实参由整组实参共同约束，推导结果不得依赖实参声明顺序。依赖期望类型的实参（如 `None`、空数组或嵌套泛型构造）可以由任意其他实参先绑定类型参数后再完成检查；运行期求值顺序仍严格保持源码顺序。
 - 调用点可以写出完整的显式类型实参：`f<Int>(value)`、`Box<String>(value)`、`Enum.Some<Int>(value)` 与 `receiver.convert<String>()`。显式列表必须覆盖 callee 自己声明的全部类型参数，不支持部分写出后继续推断；泛型宿主的方法调用只写方法自己的类型参数，宿主前缀仍由 receiver 静态类型确定。没有显式列表时继续使用上一条的整组推断规则。
+- generic type application在类型位置必须携带完整类型实参；不支持裸generic type或部分应用。generic class/struct constructor及enum variant构造可以在调用位置省略显式实参并由整组构造实参和期望类型推导，但推导结束后的类型仍是完整application。
+- primary/secondary constructor与enum variant constructor不声明独立type parameter；构造调用中的显式/推导实参只对应nominal host。只有普通callable可以在generic owner参数之外再拥有一组callable参数。
 - 因此不存在类型擦除，也没有 `reified` 的运行期需求（见 8.4）。
-- 型变规则（`in` / `out` / 投影）与 Kotlin 一致，在编译期检查；`Array<T>` 例外（见 10.4）。
-- 声明点型变目前用于 interface 类型参数：不写修饰符表示不变，`out T` 表示协变，`in T` 表示逆变。对同一 interface 的两个应用，协变参数按同向子类型关系比较，逆变参数按反向子类型关系比较，不变参数必须相等；不同 interface 之间不存在由型变产生的子类型关系。
+- 已落地的声明点型变用于interface类型参数：不写修饰符表示不变，`out T`表示协变，`in T`表示逆变。generic class/struct/enum的类型参数现阶段全部为invariant，不能写`in`/`out`；同一nominal declaration的两个application必须具有完全相同的类型实参才是同一类型，class的普通继承关系另行判断。non-interface declaration-site variance留待后续；value type型变还必须先规定不同concrete layout之间的转换语义。`Array<T>` / `MutableArray<T>`固定不变（见10.4）。
+- 对同一interface的两个application，协变参数按同向子类型关系比较，逆变参数按反向子类型关系比较，不变参数必须相等；不同interface之间不存在由型变产生的子类型关系。
+- 继承与implements闭包只合并完全相同的interface application；同一template的`I<Int>`与`I<String>`始终是不同契约、不同RTTI/itable identity。一个类型可以在继承图中到达二者，但必须分别满足其成员obligation；若替换后的签名无法由普通overload/override规则同时实现，则在实现类型定义处报错，不能按template id或擦除后的文本签名任选其一。
 - interface 声明必须满足型变位置约束：方法返回类型是协变位置，方法参数类型是逆变位置；进入 `out` 类型实参保持位置，进入 `in` 类型实参反转位置，进入不变类型实参则要求参数不在该类型中出现。`out` 参数不得出现在逆变或不变位置，`in` 参数不得出现在协变或不变位置。违反约束是编译错误。
-- 类型投影（使用点 `in` / `out`）沿用 Kotlin 语义，但不属于 M10 前置补齐范围；在其语法落地前，源码只能使用声明点型变。
+- 使用点`in` / `out` projection、star projection与capture conversion尚未进入当前语言子集；源码类型位置必须使用完整type argument，不能写`C<out T>`、`C<in T>`或`C<*>`。这些能力不能简单定义为擦除：Scoop允许type argument是具有不同layout/ABI的value type，每个fully specialized application又有独立TypeDescriptor与dispatch identity。未来规范必须分别定义projected member读写规则、subtyping/推导、RTTI/cast、跨Cone metadata，并决定unboxed value application是否禁止projection或需要显式existential boxing。
 - 除类型上界外，类型参数还可以用 `value` / `ref` 约束限定为值类型或引用类型（见 13.9）。
-- **带类型参数的成员函数不参与虚分派**（类似 Rust 的 object safety）：单态化实例无法枚举，泛型成员函数不进入 vtable / itable。interface 可以声明泛型方法，但只能由具体 class / struct / enum 上同型的泛型方法实现；经 interface 静态类型调用它是编译错误。class 的泛型方法必须为 final（实现 interface 时写作 `final override`），值类型方法本来即为 final；因此所有合法调用都能静态确定实现并使用直接分派。
-- 泛型宿主上的泛型成员函数同时拥有两组类型参数：宿主类型实参由接收者静态类型确定，方法类型实参由整组调用实参推导；两组实参共同组成该方法的单态化身份，顺序固定为“宿主类型实参在前、方法类型实参在后”。方法类型参数不得与宿主类型参数重名。
+- 类型上界在参数列表中写作 `T : Interface`，或在声明头后的 `where T : Interface` 子句中给出；同一参数可以具有多个不同的 interface application 上界。上界必须是带完整类型实参的 interface，当前不接受 class或另一type parameter作为上界，也不产生可作为普通表达式类型的交叉类型。`value` / `ref` kind bound与任一interface上界互斥（见13.9）。
+- 类型实参必须同时满足参数的全部上界；class/interface按继承与声明点型变判断，value type按显式或编译器条件派生的interface实现判断。泛型推导把上界纳入整组约束求解，不得先任选一个类型、再把bound失败降为警告或回退为`Any`。
+- receiver为有界type parameter时，成员候选只来自其interface上界及继承闭包；不加入`Any`成员或实际类型未在bound中声明的能力。generic template中的bound member在实例化时解析为concrete direct / virtual / interface call；单态化不需要runtime dictionary，但不取消actual concrete type本来具有的动态分派语义。
+- 每个合法且实参完整的interface application都是普通reference type，可以直接作为变量、参数、返回值、字段、cast目标和upper bound；Scoop没有trait object/existential的第二种interface形态，也没有object-safety分类或相关flag。所有合法interface成员都必须具有可进入itable的完整签名，并可经concrete、interface或bounded receiver调用。
+- interface方法现阶段不能声明自己的type parameter；`interface I { fun <T> f(value: T) }`在声明处即为编译错误。interface宿主可以generic，例如`interface I<T> { fun f(value: T) }`，完整application `I<String>`中的方法可正常itable分派。这是method-level generic dispatch ABI尚未定义的功能边界，不是允许声明后再限制调用形态的object-safety规则。未来开放时必须同时支持interface与bounded receiver调用。
+- non-interface generic method必须non-virtual。class generic method必须语义为final；generic method不能声明为open/abstract/override，不能实现或覆盖vtable/itable slot。struct/enum方法本来即为final。它们仍是带`this`的instance method，但所有合法调用都根据receiver静态类型与完整type argument使用direct dispatch；运行期派生class不能替换目标实现。
+- class/struct/enum泛型宿主上的泛型成员函数同时拥有两组类型参数：宿主类型实参由接收者静态类型确定，方法类型实参由整组调用实参推导；两组实参共同组成该方法的单态化身份，顺序固定为“宿主类型实参在前、方法类型实参在后”。两组参数使用不同的semantic identity，方法类型参数不得与宿主类型参数重名。调用点显式列表只写method自身参数，并须整组省略或整组完整写出；两组参数的bound一起验证。interface方法现阶段没有第二组参数。
+- top-level、local与extension generic function，以及上述non-interface generic method，都可以使用inline upper bound与`where`。generic method的callable reference必须由期望函数类型唯一确定method全部实参，得到的是某个concrete函数值；Scoop没有first-class polymorphic function value。
+- callable自身的type parameter不能写声明点`in`/`out`；variance modifier只用于规范允许的nominal type parameter。callable参数与返回类型在推导中的方向由constraint solver处理，不通过声明点variance标记函数type parameter。
+- `is` / `as` / `as?`检查完整的generic application identity，不擦除type argument：例如`Box<Int>`与`Box<String>`、`I<Int>`与`I<String>`是不同的检查目标。generic body中的type parameter在单态化后引用其concrete TypeDescriptor；当前没有裸generic或star-projected检查目标。
+- 单态化必须结构上保证实例化闭包终止。同一generic callable递归SCC中的每个调用环，把宿主参数与callable参数组成的完整向量代回起点后必须逐项保持identity；普通直接/互递归因此复用同一concrete实例。参数替换非identity的环属于当前不支持的polymorphic recursion，在template定义检查时报错。非递归调用边仍可任意变换实参。编译器不得用递归深度、实例数量或超时阈值决定源码是否合法。
 
 ### 3.3 参数传递、receiver 与 `this`
 
@@ -145,7 +159,7 @@ val s2 = S(f1 = 10, f2 = "x")  // 命名参数
 struct 自动获得：
 
 - 结构相等：`==` 按字段逐一比较（**条件派生**——仅当全部字段可比较时可用，见 11.11）；
-- `toString()`：按字段生成（编译器派生的 `ToString` 实现，见 11.11）；**不**自动获得哈希——`Hash` 是 opt-in 接口（见 11.11）；
+- `toString()`：在全部字段都实现 `ToString` 时按字段条件派生（见 11.11）；**不**自动获得哈希——`Hash` 是 opt-in 接口（见 11.11）；
 - 解构（见 4.6）：可按字段顺序或按字段名解构；
 - 副本更新表达式（见 4.5）。
 
@@ -180,7 +194,7 @@ enum E {
 - **变体不是类型**：不能用作 `is` 的检查目标、变量类型或参数类型；判断与提取负载通过 `when` 模式（第 5 章）完成。
 - 与 Kotlin enum class 的 entries 类似，变体名可以通过 `import some.package.E.*` 引入后不写前缀直接使用；`scoop.core.Option.*` 由核心库默认引入（见第 7 章），因此在上下文能确定类型时可以直接写 `Some(...)` 和 `None`。
 - 在 `when` 匹配处，变体名可以省略 `E.` 前缀（见第 5 章）。
-- 与 struct 一样：immutable、无 identity、可自动派生结构相等（条件派生，见 11.11）与 `toString()`（`ToString` 派生实现）。
+- 与 struct 一样：immutable、无 identity、可条件派生结构相等与 `ToString`（全部variant的payload字段分别满足相应条件时，见 11.11）。
 - 命名字段变体的字段构造后只读。
 - enum 可以实现 interface（见 4.4.3）。
 - 泛型 enum 允许，例如核心库的 `enum Option<T>`（见 7.2）。
@@ -203,8 +217,8 @@ val s1 = (42,)                              // 1 元 tuple，类型 (Int,)
 - **0 元 tuple 写作 `()`**；其类型名为 `Unit`，`Unit` 既是类型名也是该值的构造器，`()` 与 `Unit` 等价。
 - **1 元 tuple 必须写作 `(e,)`**（尾随逗号），类型记作 `(T,)`；`(e)` 是带括号的表达式 `e` 本身。消歧汇总：`()` = Unit；`(e)` = 括号表达式；`(e,)` = 1 元 tuple；`(e1, e2, ...)` = 多元 tuple。
 - 元素通过解构（见 4.6）或位置访问：`val (a, b) = t1`、`t1._1`、`t1._2`（位置访问从 `_1` 开始）。
-- tuple 是值类型：immutable、无 identity、结构相等。
-- tuple 不支持实现 interface、不支持命名字段；需要命名请使用 struct。
+- tuple 是值类型：immutable、无 identity；当全部元素可比较/实现`ToString`时，分别条件派生结构相等/`ToString`，Unit无条件满足两者（见11.11）。
+- tuple 不支持在源码中显式声明implements列表，也不支持命名字段；编译器按11.11提供的条件派生`ToString`是唯一的内建interface conformance。需要命名或实现其他interface请使用struct。
 
 ### 4.4 值类型通用规则
 
@@ -227,6 +241,7 @@ val s1 = (42,)                              // 1 元 tuple，类型 (Int,)
 
 值类型可以实现 interface，但**不得因此获得可变性**：
 
+- interface是普通nominal reference type；任何合法且完整的interface application均可承载class ref或装箱后的value，不存在trait object转换或“该interface是否object-safe”的额外判定；
 - 实现 interface 方法必须使用 `override`；值类型方法始终为 final，不参与 vtable 分派，但装箱为 interface 后通过该 interface 的 itable 分派；
 - 实现 interface 的成员函数、属性 getter 不得修改 `this` 的任何字段（值类型字段本来就不可写，此规则是自然推论）；
 - 若 interface 契约要求可变行为（例如要求实现 `var` 属性的 setter），值类型实现它是**编译错误**。
@@ -244,7 +259,7 @@ struct Point(val x: Int, val y: Int) : Describable {
 #### 4.4.4 装箱与引用类型
 
 - 值类型向上转型为**任何引用类型**（`Any`、它实现的 interface 等）时，自动**装箱**为堆上的引用对象（类似 Java 的 `int` → `Integer`）。
-- 装箱后的对象：具有 identity（可用 `===` 比较）、immutable、`==` 仍为结构相等。
+- 装箱后的对象具有 identity（可用 `===` 比较）且immutable。装箱不额外赋予相等能力：`==`始终按装箱后表达式的**静态引用类型**查找成员operator equals；`Any`没有该成员，未声明equals的interface也不能比较。经`as`/模式匹配取回原value后才重新使用value type的结构相等规则。
 - **auto-boxing 只发生在 O(1) 场景**：单个值的转换（赋值/初始化、函数实参、返回值等单点转换）允许自动装箱；数组字面量的元素位置等批量场景不做自动装箱，需要显式 `as`（见 10.3）。
 - `is` / `as` / `as?` 可用于判断与取回装箱前的值类型；`as?` 失败时返回 `None`（见第 7 章）。
 - 值类型在类型系统上也是 `Nothing` 的父类型（可向下转型，语义不可达）。
@@ -669,7 +684,11 @@ fun references() {
 
 ### 9.3 运算符重载与约定
 
-`+`/`-`/比较/索引/迭代/`invoke` 等运算符约定与 Kotlin 一致。解构约定：普通 class 可通过 `componentN` 运算符函数支持解构（与 Kotlin 一致）；struct / tuple 走内建解构（见 4.6）。
+`+`/`-`/比较/索引/迭代/`invoke` 等运算符约定与 Kotlin 一致。参与运算符约定的函数必须显式写`operator` modifier；仅仅使用约定名称不会使普通函数成为运算符。解构约定：普通 class 可通过 `componentN` 运算符函数支持解构（与 Kotlin 一致）；struct / tuple 走内建解构（见 4.6）。
+
+`equals`是本规范对Kotlin约定的有意收紧：可参与`==`的声明必须是名为`equals`的**成员**`operator fun`，恰好有一个显式参数并返回`Boolean`，且不得为generic或suspend。顶层、局部与extension equals不参与`==`。成员可以重载，也可按普通规则声明为final/open/abstract/override；operator标志属于override contract。具体决议见11.11。
+
+`equals`签名中的参数必须写普通显式类型。Scoop没有`Self`类型：若interface需要表达“与某个类型比较”，应写成例如`interface EqualTo<T> { operator fun equals(other: T): Boolean }`，实现者显式选择`EqualTo<Point>`等application；编译器不把interface中的任何名字隐式替换为实现者类型。
 
 ### 9.4 注解
 
@@ -683,6 +702,8 @@ Scoop 内置两个数组类型（引用类型，属于核心库）：
 
 - `class Array<T>`：不可变数组（长度固定，元素不可写）；
 - `class MutableArray<T>`：可变数组（长度固定，元素可写）。
+
+它们是由core源码提供nominal identity、由`@Intrinsic`提供representation family的invariant generic class，使用与普通`class C<T>`相同的类型application、约束、成员解析和单态化规则。编译器可以为字面量、内联元素区、下标和转换保留typed专用操作，但不得再建立一个与core class声明平行的数组类型身份。
 
 ### 10.1 值类型元素的内存保证
 
@@ -768,7 +789,7 @@ val good: Array<I> = [j, S(10) as I]     // 显式装箱
 - 浮点：`Float`（f32）/ `Double`（f64）；
 - `Char`。
 
-字面量、算术/位运算/比较运算与 Kotlin 一致。
+字面量、算术/位运算/比较运算与 Kotlin 一致。每个进入已实现语言子集的基本类型必须同时提供同类型值相等、`ToString`与`Hash` core实现（11.11）；这些实现按具体value工作，不经过装箱或`Any`分派。
 
 ### 11.3 `Unit`
 
@@ -778,7 +799,7 @@ val good: Array<I> = [j, S(10) as I]     // 显式装箱
 
 - 引用类型，immutable，UTF-8 语义（编码细节由实现定义）。
 - 支持 `+` 拼接、索引/切片、`length`（或 `size`）、比较等核心操作。
-- `toString()` 返回自身（`ToString` 的恒等实现）。
+- 实现内容相等的成员`operator fun equals(other: String): Boolean`与内容相关`Hash`；`toString()`返回自身（`ToString`的恒等实现）。这些能力均是String的具体core contract，不来自`Any`或TypeDescriptor缺省槽。
 
 ### 11.5 `Option<T>`
 
@@ -816,6 +837,7 @@ class StringBuilder {
   - `IllegalStateException`：运行期状态协议被破坏；核心实现至少用它报告 continuation 的重复完成。
 - `try` / `catch` / `finally` / `throw` 语法与 Kotlin 一致。多个 `catch` 按声明顺序匹配；前一个 `catch` 的类型是后一个的父类型（含相等）时，后者不可达，是编译错误。
 - `throw` 与 `catch` 的类型必须是 `Throwable` 的子类型。未捕获的异常导致进程终止（默认行为：打印异常类型名后 abort）。
+- generic class可以继承`Throwable`；其每个完整application是不同异常类型。`catch (e: Error<Int>)`只匹配该exact application，`catch (e: Throwable)`仍匹配所有application。当前没有`Error<*>`式通配catch，因为star projection尚未支持（3.2）。
 
 ### 11.8 迭代与区间
 
@@ -899,12 +921,13 @@ suspend fun <T> suspendCoroutine(
 
 - **`===` / `!==`（引用相等）**：identity 比较，仅适用于引用类型，不可重载（见 4.4.2）。
 - **`==` / `!=`（值相等）** 的决议规则：
-  - **值类型：条件派生的结构相等**——当且仅当类型的所有字段（元素）**可比较**时，编译器派生逐字段比较。字段可比较指：值类型字段递归可比较、`String`（库提供的比较）、或其类型具有可用的 equals 运算符（如 class 按本条下款定义了 `==`）。任一字段不可比较时，对该类型使用 `==` 是编译错误（诊断指出不可比较的字段）。
-  - **其他类型（class、interface、`Any` 等引用类型）：解析为该类型的 `equals` 运算符方法**（`operator fun`，见 9.3 的运算符约定）；不存在时是编译错误——**没有缺省实现**（与 `+` 等其他运算符一致：漏定义/漏引入在编译期暴露，而不是被缺省语义静默掩盖）。
-  - equals 的决议**只考虑成员函数**（含编译器派生）；扩展函数不得参与 `==`——任何类型在任何 context 下 `==` 的语义唯一，不存在"换个 import 就换语义"或"缺省实现抢先于更合适的实现"。
-  - 类型作者显式定义 equals 运算符时优先于编译器派生。
-- **`ToString`（字符串化）**：接口 `interface ToString { fun toString(): String }`。值类型由编译器按字段派生实现（struct 见 4.1.2）；其他类型 opt-in 实现。`print` / `println` 的目标形态是 `fun <T : ToString> print(v: T)`（单态化静态分发；泛型上界见 2.1/3.2，落地排期见 ROADMAP）。
-- **`Hash`（哈希）**：接口 `interface Hash { fun hash(): Int }`。**没有任何缺省实现**（缺省哈希大概率语义错误）；基本类型与 `String` 由核心库提供实现，其他类型 opt-in 实现。struct 不再自动获得哈希（4.1.2 的历史承诺已废止）。
+  - `lhs == rhs`先各求值一次，再只从lhs静态类型收集成员`operator fun equals`候选，按普通成员overload规则选择唯一目标；`lhs != rhs`调用同一目标后对结果取反。不存在交换左右操作数、extension、地址比较、`Any.equals`或TypeDescriptor fallback。
+  - **值类型：条件派生的结构相等**——编译器可以额外提供一个参数类型等于lhs完整静态value type的`operator fun equals`候选：例如`Point.equals(other: Point)`，generic template `Box<T>`中则是`Box<T>.equals(other: Box<T>)`，实例化后得到`Box<Int>.equals(other: Box<Int>)`。这些都是普通typed nominal application，不存在`Self`占位符。当且仅当类型的所有字段（元素）**可比较**时生成：字段可比较表示对两个该字段静态类型的值执行`==`能选出唯一目标；基本类型具有核心实现，其他value type递归应用本规则。struct/tuple逐字段按声明顺序短路；enum先比较tag，再只比较active variant payload；Unit恒等。任一字段不可比较时，该派生候选不存在，诊断指出首个失败字段/variant路径。
+  - 用户声明参数类型为当前完整宿主application的同签名`equals`时取代派生体；其他参数类型的equals overload不屏蔽该同类型候选。派生方法也是普通成员，遵守value-type`this`按值传递规则。
+  - **引用类型**：只使用该class/interface静态类型声明或继承的成员operator equals；不存在时是编译错误。`Any`没有成员，因而`Any == Any`非法；运行期对象另有equals不能补齐静态契约。需要identity比较时显式使用`===`。
+  - equals 的决议只考虑成员函数（含编译器派生）；扩展函数不得参与——import不能改变某类型`==`的语义。
+- **`ToString`（字符串化）**：接口`interface ToString { fun toString(): String }`。class/object显式opt-in；struct/enum/tuple在全部字段/元素都实现`ToString`时条件派生，generic value type按fully specialized实例判断。显式列出并实现`ToString`时取代派生且不要求字段满足条件。派生格式固定为`S(f=<f>, ...)`、`E.V(...)`/`E.V(f=<f>, ...)`、`Unit`与`(<e>, ...)`，字段按声明顺序求值；String返回自身。`print` / `println` 定义为`fun <T : ToString> print(v: T)`并经普通单态化bound call实现，不接受`Any` fallback。
+- **`Hash`（哈希）**：接口`interface Hash { fun hash(): Int }`。**没有任何缺省或派生实现**；基本类型与String由核心库提供内容相关实现，其他类型显式opt-in。相等的值必须产生相等hash；不以对象地址作为hash，也不承诺算法跨runtime版本保持相同数值。struct不自动获得哈希。
 
 ### 11.12 `SourceLocation` 与位置 intrinsic
 
@@ -1022,15 +1045,35 @@ public import org.foo.bar.SomeType     // SomeType 成为 A 的导出表面的�
 annotation class Intrinsic(val name: String)
 ```
 
-- 用于 function/method：该函数是 compiler intrinsic，由编译器生成实现；**函数体必须省略**；`name` 是 intrinsic 的编译器内部标识。
+- 用于function/method：该函数是compiler intrinsic，由编译器生成实现；**函数体必须省略**；`name`是intrinsic的编译器内部标识。
 
 ```
 @Intrinsic("int_add")
 operator fun add(lhs: Int, rhs: Int): Int
 ```
 
+- 也可用于登记表明确允许的core struct/class，声明一个**intrinsic type**：该类型的representation、literal lowering、ABI及内部构造机制由编译器提供，源码声明其nominal interface与成员语义。例如：
+
+```
+@Intrinsic("core_int")
+struct Int : ToString, Hash {
+    @Intrinsic("int_equals")
+    operator fun equals(other: Int): Boolean
+
+    @Intrinsic("int_to_string")
+    override fun toString(): String
+
+    override fun hash(): Int = this
+}
+```
+
+- intrinsic type不声明字段/primary constructor，也不等价于零字段普通struct/class；不能据此派生零大小布局、全等equals、`Int()`字符串、解构或公开零参数constructor。编译器合成的literal/boxing/allocation entry不进入源码候选集；任何用户可调用constructor或转换仍须显式声明；
+- intrinsic type的implements列表、普通成员body、override/operator规则与普通类型一致；单个成员也可像上例一样另用function intrinsic提供实现。初始intrinsic type至少覆盖进入已实现语言子集的Int/UInt/Boolean、String以及`Array<T>`/`MutableArray<T>`，并允许登记表按同一契约增加其他compiler-represented value/reference type；
+- intrinsic type可以是generic，但其登记项必须完整规定declaration kind、type-parameter数量/variance/bound及representation family。`Array<T>`与`MutableArray<T>`各要求一个无bound、invariant参数；它们的每个fully specialized application仍是普通generic class application，只是对象布局、元素stride和GC扫描由携带concrete element type的typed intrinsic representation产生。不得同时保留普通class application与独立built-in array type两种identity；
+- 生产语言只允许指定的`scoop.core` provider声明intrinsic。编译器测试可以通过实现内部的、按输入provider授权的策略绕过这一条来源检查；该能力不是源码、manifest或稳定CLI的一部分，也不放宽以下name、target、shape、signature与唯一性规则。
+
 - 除非有单独说明，`@Intrinsic` 不能与其他任何注解共存。
-- `name` 必须是编译器内置 intrinsic 登记表中的已知标识；未知的 `name` 是编译错误（用户不能声明自定义 intrinsic）。各 intrinsic 在编译 pipeline 中的展开阶段由实现大纲规定。
+- `name` 必须是编译器内置intrinsic登记表中的已知标识；未知`name`、错误annotation target、与登记shape/signature不符或同一intrinsic kind存在多个provider都是编译错误（用户不能声明自定义intrinsic）。各intrinsic在编译pipeline中的展开阶段由实现大纲规定。
 
 ### 13.2 `@NoGC`
 
@@ -1150,7 +1193,8 @@ needValue("hello")    // 编译错误：String 不是值类型
 ```
 
 - 与类型上界语法同样可用于 `where` 子句。
-- `value` / `ref` 约束与类型上界互斥：同一类型参数不能同时携带两者。
+- interface类型上界可直接写在参数上（`T : ToString`），也可写在声明头之后的`where`子句；同一参数可以有多个不同interface上界。当前类型上界只接受完整的interface application，不接受class、value type、函数类型、`Any`或另一type parameter。
+- `value` / `ref` 约束与interface类型上界互斥：同一类型参数不能同时携带两者；同一个kind bound也不能重复出现在inline与`where`位置。
 - 无约束的类型参数默认接受任何类型（与 Kotlin 一致）。
 
 ### 13.10 `Ptr` 与 `FunPtr`

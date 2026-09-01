@@ -166,10 +166,10 @@ runtime API 名称与对象内偏移只存在于 compiler/runtime 的 typed cont
 
 ### 6.3 端到端与 negative
 
-- fixture目录使用 `tests/fixtures/m15-fstring/`；覆盖 primitive、String、struct派生ToString、class实现ToString、nested/generic/suspend hole；
+- fixture目录使用 `tests/fixtures/m16-fstring/`；覆盖 primitive、String、struct派生ToString、class实现ToString、nested/generic/suspend hole；
 - 组合覆盖孔内 `?:` / `!!` / array访问 / lambda调用 / throwable，以及孔求值副作用计数恰好一次；
 - negative覆盖未实现ToString的类型、`$name`、空/未闭合孔、未终结单行/multiline和独立孔语法错误；
-- M1–M14全部 fixture原样通过。
+- M1–M15全部 fixture原样通过。
 
 ## 7. 实现顺序与验收门
 

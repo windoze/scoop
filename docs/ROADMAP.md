@@ -41,7 +41,7 @@ enum变体、when扩展模式、守卫、穷尽性、解构声明与`..`（spec�
 
 ### M5 数组 ✅（2026-08-27 完成，设计见 `docs/milestone5/DESIGN.md`）
 
-`Array<T>` / `MutableArray<T>`（暂为编译器内建）、字面量与推导规则、下标读写、`size`、构造函数形式互转（memcpy 快照）；越界 trap（M8 改异常）。数组 TD 携带递归元素扫描，支持含引用的 struct / tuple 与 tagged enum 内联元素。
+`Array<T>` / `MutableArray<T>`（M5暂为编译器内建，M14迁移为core generic intrinsic class）、字面量与推导规则、下标读写、`size`、构造函数形式互转（memcpy 快照）；越界 trap（M8 改异常）。数组 TD 携带递归元素扫描，支持含引用的 struct / tuple 与 tagged enum 内联元素。
 
 ### M6 引用类型层级 ✅（2026-08-28 完成，设计见 `docs/milestone6/DESIGN.md`）
 
@@ -90,12 +90,16 @@ M13 已将 M9 的单 mutator runtime升级为**多 mutator、stop-the-world、co
 - 验收使用确定性barrier同时覆盖：多个mutator分配并强制GC、一个线程阻塞在native-safe C ABI调用、一个Scoop ABI direct-ref callee跨runtime入口使用native root、foreign thread反复attach/invoke/detach，以及callback token的retain/release、create失败和异常路径；
 - M13只保证runtime/GC与callback token本身的线程安全，不把未同步的普通managed可变状态竞争定义为安全行为；跨线程共享数据必须由native同步原语或后续标准库memory model约束。
 
-### M14 泛型上界约束与接口化（ToString / Hash / equals）
+### M14 泛型类型、上界约束与接口化（ToString / Hash / equals，设计见 `docs/milestone14/DESIGN.md`）
 
+- generic nominal type统一模型：普通用户class/struct/enum/interface使用各自的ExportHir template → typed application → LocalConcreteHir specialization身份；既有generic struct/enum/interface迁出`declaration id + type args`旧表示，新增invariant generic class的构造推导、generic base/interface、宿主成员解析及单态化layout/TD/vtable/itable完整闭环；`is`/`as`/`as?`按完整application identity工作，不擦除type argument或接受裸generic目标；
+- non-virtual generic method闭环：class/struct/enum method可声明自己的类型参数与bound；class generic method必须final，任何generic method都不能open/abstract/override、实现dispatch slot或进入vtable/itable。宿主参数前缀与method参数后缀使用不同typed identity，共同参与推导、callable reference、单态化及跨Cone template输出；
 - 泛型上界约束：`T : Interface` 与 `where` 子句（spec 2.1/3.2 的既有语法落地）、有界类型参数上的方法解析（bounded method resolution）；
+- `@Intrinsic`扩展到compiler-represented core type：Int/UInt/Boolean/String在core源码中显式声明ToString/Hash/equals等nominal能力；`Array<T>` / `MutableArray<T>`迁移为使用普通generic class身份的generic intrinsic representation family，删除独立built-in array type identity。固定表示与表示族都由typed kind/application提供，不伪装成零字段普通类型。生产模式只允许sysroot provider；compiler test可通过内部`CompileOptions`按input/Cone allowlist授权，且只放宽来源检查；
 - `ToString` / `Hash` 接口落地（spec 11.11）：值类型派生实现，`print` / `println` 改造为 `fun <T : ToString> print(v: T)`（单态化静态分发，退役 M7 的 `Any.toString()` 分发形态）；
 - equals 的 operator fun 化（成员限定，spec 11.11）：class 的 `==` 走 `equals` 运算符，值类型的条件派生 `==`；vtable 前三槽（Any 方法）拆除；
 - 受益方：M16 字符串插值的 `add<T : ToString>`；同时退役现有按对象地址实现的过渡 `Any.hashCode` / `toString`，避免把地址稳定性带入M15 moving collector。
+- 附加完成M13后发现的IR完备性整改：MIR expression携带非可选类型；intrinsic、compiler-generated exception与function type canonical mapping全部类型化；LIR call完整携带target/signature/result/effect，pointer null保留provenance，layout/TypeDescriptor/dispatch只用typed identity连接；用sum type消除native global、foreign callback、caller root与enum field中的非法组合。所有信息由上游结构化地产生，删除下游按context、arena反扫、FQN/symbol或并行字段猜测/补齐的路径。Any typed method/fixed-slot问题随本里程碑主线拆槽自然消失，不作为独立附加项重复实现。
 
 ### M15 精确根、statepoint relocation 与 moving compaction
 
@@ -191,14 +195,14 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 - smart cast 完整 flow analysis（当前简化：仅不可变局部变量、仅 `is`/`!is` 与 `&&`）；
 - 基类构造委托实参不可引用构造函数属性（`class B(val x: Int) : A(x)` 中 `x` 暂不可用于委托实参——hir-lower 在空作用域降级）；
 - ~~class 字段按 8 字节槽索引的约定与连续 sub-8 字段布局冲突~~（已修复：LIR `HeapLoad` / `HeapStore` 携带自然布局的字节偏移，连续 `Boolean` 不再被错误扩为槽）；
-- ~~泛型成员函数~~（已完成：宿主参数前缀与方法参数后缀共同参与推导和单态化；class 泛型方法强制 final，interface 可声明并校验实现但不占 itable 槽，经 interface 调用在 HIR 拒绝；具体 class / struct / enum 调用均 direct）；
+- 泛型成员函数 → M14补齐：现有实现已经覆盖class final与struct/enum direct调用、宿主参数前缀和method参数后缀的部分推导/单态化，但尚未形成完整non-virtual合法性矩阵、upper bound/where、独立method application identity、callable reference与跨Cone template闭包；旧的“interface可声明generic method但经interface调用时拒绝”形态也在M14删除，改为定义处拒绝并把完整动态分派ABI留入后续backlog；
 - `Any` 的 core 库形态（spec 11.1；当前编译器内建）。
 
 ### 来自 M7
 
 - ~~两个泛型重载推导出相同类型实参时，单态化实例按符号错误合并~~（已修复：以 `GenericFunctionId + concrete type args` 为实体键，重载实例符号带定义 discriminator）；
 - 候选集分层的完整层级：局部函数层 → M11；显式 import / 星号 import 分层随 import 机制落地后插入（当前为“成员 → 调用点同侧顶层 → 对侧隐式导入”三层）；
-- 泛型候选的 MSC 比较改用 Kotlin 的 fresh-variable 约束系统（当前为"推断后类型实参参与比较"的简化，复杂多泛型场景随用例扩展）；
+- 泛型候选的MSC比较改用Kotlin式fresh-variable约束系统（当前为“推断后类型实参参与比较”的简化）；与postponed argument、projection参与的LUB/overload一起汇总到“M14设计预留”的完整constraint solver项；
 - ~~`write` 的 `@Intrinsic` 退役~~（M12 已直接声明 `@Extern(abi = "scoop") fun write(String)`，作为 managed ABI direct-ref入口）；
 - `print` / `println` 的 `Any.toString()` 分发形态为过渡基线（→ M14 改造为 `fun <T : ToString> print(v: T)` 单态化分发，并拆除 vtable 前三槽）；
 - 歧义/无匹配诊断的候选明细展示（首版只报主消息）；
@@ -237,3 +241,19 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 
 - ~~managed closure导出、callback token、类型化 invoke adapter、foreign-thread attach/detach及 `pthread_create` 组合闭环 → M13~~（已完成；M12 的裸 `FunPtr` 仍只表示同步同线程的静态 `@NoGC` callback地址，managed callback必须使用配对的trampoline与opaque context）；
 - 无显式 context/user-data槽的 C callback API所需动态 trampoline或有限 slot registry仍待后续；M13 不通过泄漏 closure或把 managed ref伪装成裸指针支持它们。
+
+### 来自 M14（设计预留）
+
+- non-interface generic type（class/struct/enum）的声明点`in`/`out`及其position检查、subtyping、表示转换和必要的分派bridge；M14只实现invariant nominal application。class的参数可能接收不同layout的value type，struct/enum本身又具有不同concrete value layout，不能未经表示设计直接照搬interface的声明点型变；
+- use-site `in` / `out` projection：补齐projection type AST/HIR、subtyping、member读写签名变换、overload/inference与capture conversion；
+- star projection：它表示一个捕获的未知application，不是省略实参，也不能擦除成`Any`。后续必须定义`C<*>`/`I<*>`的RTTI与cast、itable/vtable key、返回或接收未知value type时的ABI、跨Cone metadata；generic struct/enum等unboxed value application需要明确禁止projection还是采用显式existential boxing；
+- class upper bound；M14的upper bound只接受完整interface application；
+- 可作为普通表达式静态类型的交叉类型；M14的多个interface bound只构成type parameter能力集合；
+- interface方法自身的type parameter及其跨Cone specialization/itable ABI；未来实现必须保证每个合法interface application仍可作为普通reference type，并同时支持concrete、interface与bounded receiver调用，不得引入`Self`、trait object或object-safety分类；
+- generic `typealias`：type parameter/bound、透明展开、递归alias诊断、可见性和跨Cone export；alias不产生新的nominal application、layout、TypeDescriptor或单态化身份；
+- generic extension property；普通member/top-level property自身不允许method式type parameter。该能力随extension property基础语义落地，并须定义receiver参数如何参与推导及getter/setter单态化；
+- nested/inner generic type与generic class companion的参数作用域：static nested type不隐式继承外层参数，`inner` type必须携带outer application与outer ref；object/companion声明自身没有type parameter、不按每个宿主application复制，也不能隐式使用宿主type parameter，其中的generic method仍必须non-virtual；
+- 显式type argument中的`_`占位及部分推断；当前只允许“整组省略并推断”或“整组完整写出”；
+- 更一般的polymorphic recursion。M14只接受generic callable递归SCC中环上参数替换合成为identity的可判定子集，并在参数增长/变化的递归环上定义处诊断；未来放宽必须提供结构化termination proof，不能以worklist深度、实例数或超时充当语义；
+- 完整Kotlin fresh-variable/postponed-argument constraint system，以及projection参与后的MSC、LUB与overload比较；M7“推断后实参比较”的简化backlog并入此项；
+- runtime generic dictionary、witness参数、反射式bound调用或共享generic body；M14仅实现单态化，后续只有在代码体积、动态加载或其他明确需求出现时再设计，不能作为缺失concrete信息的fallback；

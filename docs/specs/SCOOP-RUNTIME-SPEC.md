@@ -40,11 +40,11 @@ Runtime 是编译产物的支撑层，职责包括：
 - **递归引用扫描描述**（GC 扫描对象内部引用用）：普通节点记录相对当前值起点的引用字节偏移；sequence 节点把多个扫描作用于同一起点；array 节点记录元素 stride 与单个内联元素的子扫描。tagged enum允许完全不含managed ref的variant复用pure-value payload区；每个直接或间接含managed ref的variant拥有互不重叠的连续slot，构造时把inactive slot清零，因此所有ref-bearing variant中的ref leaf直接合并为固定偏移，不存在按tag分派的扫描节点。该描述可任意组合，覆盖struct / tuple / class / 装箱payload及含引用聚合数组元素；
 - **enum 扫描不读取 tag**：tagged enum的所有潜在ref位置都位于ref-bearing variant的独占slot，按普通固定偏移检查；inactive独占slot必须为全0，pure-value共享区不进入扫描。niche表示的managed-ref enum整体是一个普通引用位置，`Ptr` / `FunPtr` niche不是managed root。没有出站引用的节点可用空指针表示。LIR meta 的`RefScan`提供该信息（见 impl spec 2.4）；
 - 父类型信息（接口、父类）；
-- 虚分派结构：内嵌 **vtable 指针**与 **itable 数组**（itable 以接口 TypeDescriptor 指针为键）。`Any` 的 `equals` / `hashCode` / `toString` 是 vtable 的固定前三个槽位；装箱值类型的表项指向 this 调整 thunk（impl spec 2.9）。
+- 虚分派结构：内嵌 **vtable 指针**与 **itable 数组**（itable 以接口 TypeDescriptor 指针为键）。vtable只含实际需要virtual dispatch的class方法，slot从0开始且允许为空；`Any`没有方法或固定前缀。`ToString` / `Hash`及声明operator equals的interface均走普通itable；装箱值类型的表项指向this调整thunk（impl spec 2.9）。TypeDescriptor的类型名只用于诊断，runtime不得据此合成用户可见字符串、哈希或相等语义。
 
 ### 2.3 装箱
 
-值类型装箱为堆对象：对象头 + 按值存储的 payload（spec 4.4.4）。拆箱取回 payload。装箱对象的 `==` 仍为结构相等（经 TypeDescriptor 分发）。
+值类型装箱为堆对象：对象头 + 按值存储的 payload（spec 4.4.4）。拆箱取回 payload。装箱赋予对象identity但不赋予通用`==`：相等按表达式静态引用类型声明的成员operator equals分派；`Any`或未声明equals的interface不能使用`==`。TypeDescriptor没有通用结构相等入口。
 
 所有 Scoop 方法 receiver 都按值传递（spec 3.3）：ref-type receiver 复制 managed ref value，因而仍指向同一对象；value-type receiver 复制完整值。装箱值经 interface 分派调用值类型实现时，box 只是 payload 的存储来源；dispatch thunk 用 payload 的值初始化 value-type `this`。thunk 可以在不可观察时借用 payload 地址作为 ABI 优化；若 unsafe/interior-mutable 路径能观察或修改存储，必须先复制 payload，不得把 box 内部地址暴露为 `this`。
 
@@ -172,10 +172,10 @@ M13 的collector仍是单线程、单代、非移动实现。parked线程只对t
 
 以 Scoop ABI FFI 函数形式实现；spec 14.4 的 `write(String)` 是不跨 safepoint直接借用 ref的最小范例，涉及分配的函数则按 4.2 登记 native roots：
 
-- `String`：创建、拼接、比较、`hashCode`、长度、索引/切片；
+- `String`：创建、拼接、内容比较、内容hash、长度、索引/切片；
 - `Array` / `MutableArray`：分配（按 spec 10.1 的元素布局）、`size`、越界检查与抛异常、`toArray` / `toMutableArray` 的 memcpy 转换（spec 10.4）；
 - `StringBuilder`：`add` / `build`（spec 11.6）；
-- 基本类型的 `toString` / `hashCode` / `equals`；
+- 基本类型的具体`ToString` / `Hash` / operator equals后备（不提供`Any`或地址fallback）；
 - 类型测试与装箱辅助：`is` / `as` 的 TypeDescriptor 比较、装箱/拆箱。
 
 ## 7. 启动、线程与终止
