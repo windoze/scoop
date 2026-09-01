@@ -106,6 +106,7 @@ impl Lowerer {
             method: Some(hir::Method {
                 owner: owner_ty,
                 modifier: hir::MethodModifier::Final,
+                dispatch: hir::MethodDispatch::Direct,
                 operator: Some(hir::OperatorKind::Equals),
             }),
             span,
@@ -241,6 +242,7 @@ impl Lowerer {
             method: Some(hir::Method {
                 owner: owner_ty,
                 modifier: hir::MethodModifier::Final,
+                dispatch: hir::MethodDispatch::Direct,
                 operator: Some(hir::OperatorKind::Equals),
             }),
             span,

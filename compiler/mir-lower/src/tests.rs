@@ -725,6 +725,7 @@ impl Harness {
             method: Some(hir::Method {
                 owner,
                 modifier: hir::MethodModifier::Abstract,
+                dispatch: hir::MethodDispatch::Direct,
                 operator: None,
             }),
             span: method.span,
@@ -740,6 +741,8 @@ impl Harness {
             owner: interface,
             function,
         });
+        self.functions[function].method.as_mut().unwrap().dispatch =
+            hir::MethodDispatch::Interface(member);
         self.interfaces[interface].methods.push(member);
     }
 
@@ -785,7 +788,26 @@ impl Harness {
         base_class: Option<(hir::TypeId, Vec<hir::Expr>)>,
         interfaces: Vec<hir::TypeId>,
     ) -> hir::ClassId {
-        let interface_implementations = self.interface_implementation_shells(&interfaces);
+        let mut interface_implementations = base_class
+            .as_ref()
+            .map(|(base, _)| {
+                let hir::Type::Class(application) = self.types[*base] else {
+                    panic!("test harness class bases are class applications")
+                };
+                let base = self.class_applications[application].template;
+                self.classes[base].interface_implementations.clone()
+            })
+            .unwrap_or_default();
+        for implementation in self.interface_implementation_shells(&interfaces) {
+            if let Some(existing) = interface_implementations
+                .iter_mut()
+                .find(|existing| existing.interface == implementation.interface)
+            {
+                *existing = implementation;
+            } else {
+                interface_implementations.push(implementation);
+            }
+        }
         let self_application =
             hir::ClassApplicationId::from_raw((self.class_applications.len() as u32).into());
         let class = self.classes.alloc(hir::ClassDecl {
@@ -924,6 +946,35 @@ impl Harness {
             hir::Type::Any => hir::FunctionGenericity::Plain,
             _ => panic!("test harness methods have nominal owners"),
         };
+        let dispatch = match self.types[method_of] {
+            hir::Type::Class(application) => {
+                let class = self.class_applications[application].template;
+                self.inherited_virtual_dispatch(class, name, &params, return_ty)
+                    .unwrap_or_else(|| {
+                        hir::MethodDispatch::Virtual(hir::VirtualMethodId::from_raw(
+                            self.functions.len() as u32,
+                        ))
+                    })
+            }
+            hir::Type::Interface(application) => {
+                let interface = self.interface_applications[application].template;
+                let member = self.interfaces[interface]
+                    .methods
+                    .iter()
+                    .copied()
+                    .find(|member| {
+                        self.same_method_shape(
+                            self.interface_methods[*member].function,
+                            name,
+                            &params,
+                            return_ty,
+                        )
+                    })
+                    .expect("test interface method names an existing typed member");
+                hir::MethodDispatch::Interface(member)
+            }
+            _ => hir::MethodDispatch::Direct,
+        };
         let function = self.functions.alloc(hir::Function {
             name: name.to_string(),
             genericity,
@@ -935,6 +986,7 @@ impl Harness {
             method: Some(hir::Method {
                 owner: method_of,
                 modifier: hir::MethodModifier::Open,
+                dispatch,
                 operator: None,
             }),
             span: SPAN,
@@ -955,7 +1007,124 @@ impl Harness {
             hir::Type::Interface(_) | hir::Type::Any => {}
             _ => unreachable!(),
         }
+        self.bind_interface_implementation(method_of, function);
         function
+    }
+
+    fn inherited_virtual_dispatch(
+        &self,
+        class: hir::ClassId,
+        name: &str,
+        params: &[hir::Param],
+        return_ty: hir::TypeId,
+    ) -> Option<hir::MethodDispatch> {
+        let mut base = self.classes[class].base_class.as_ref().map(|(base, _)| {
+            let hir::Type::Class(application) = self.types[*base] else {
+                panic!("test harness class bases are class applications")
+            };
+            self.class_applications[application].template
+        });
+        while let Some(class) = base {
+            if let Some(dispatch) = self.classes[class]
+                .methods
+                .iter()
+                .copied()
+                .find_map(|method| {
+                    self.same_method_shape(method, name, params, return_ty)
+                        .then_some(self.functions[method].method?.dispatch)
+                })
+            {
+                return Some(dispatch);
+            }
+            base = self.classes[class].base_class.as_ref().map(|(base, _)| {
+                let hir::Type::Class(application) = self.types[*base] else {
+                    panic!("test harness class bases are class applications")
+                };
+                self.class_applications[application].template
+            });
+        }
+        None
+    }
+
+    fn bind_interface_implementation(&mut self, owner: hir::TypeId, function: hir::FunctionId) {
+        let implementations = match self.types[owner] {
+            hir::Type::Class(application) => {
+                let owner = self.class_applications[application].template;
+                self.classes[owner].interface_implementations.clone()
+            }
+            hir::Type::Struct(application) => {
+                let owner = self.struct_applications[application].template;
+                self.structs[owner].interface_implementations.clone()
+            }
+            hir::Type::Enum(application) => {
+                let owner = self.enum_applications[application].template;
+                self.enums[owner].interface_implementations.clone()
+            }
+            hir::Type::Interface(_) | hir::Type::Any => return,
+            _ => unreachable!("test harness methods have nominal owners"),
+        };
+        let mut matches = Vec::new();
+        for (implementation_index, implementation) in implementations.iter().enumerate() {
+            for (method_index, implementation_method) in implementation.methods.iter().enumerate() {
+                let declaration = self.interface_methods[implementation_method.member].function;
+                if self.same_method_shape(
+                    declaration,
+                    &self.functions[function].name,
+                    &self.functions[function].params,
+                    self.functions[function].return_ty,
+                ) {
+                    matches.push((implementation_index, method_index));
+                }
+            }
+        }
+        if matches.is_empty() {
+            return;
+        }
+        let application = self.method_application(function);
+        let target = hir::InterfaceImplementationTarget::Method(application);
+        match self.types[owner] {
+            hir::Type::Class(owner_application) => {
+                let owner = self.class_applications[owner_application].template;
+                for (implementation, method) in matches {
+                    self.classes[owner].interface_implementations[implementation].methods[method]
+                        .target = target;
+                }
+            }
+            hir::Type::Struct(owner_application) => {
+                let owner = self.struct_applications[owner_application].template;
+                for (implementation, method) in matches {
+                    self.structs[owner].interface_implementations[implementation].methods[method]
+                        .target = target;
+                }
+            }
+            hir::Type::Enum(owner_application) => {
+                let owner = self.enum_applications[owner_application].template;
+                for (implementation, method) in matches {
+                    self.enums[owner].interface_implementations[implementation].methods[method]
+                        .target = target;
+                }
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    fn same_method_shape(
+        &self,
+        candidate: hir::FunctionId,
+        name: &str,
+        params: &[hir::Param],
+        return_ty: hir::TypeId,
+    ) -> bool {
+        let candidate = &self.functions[candidate];
+        candidate.name.rsplit('.').next() == name.rsplit('.').next()
+            && candidate.params.len() == params.len()
+            && candidate
+                .params
+                .iter()
+                .skip(1)
+                .zip(params.iter().skip(1))
+                .all(|(left, right)| left.ty == right.ty)
+            && candidate.return_ty == return_ty
     }
 
     fn method_application(&mut self, function: hir::FunctionId) -> hir::MethodApplicationId {
@@ -1433,6 +1602,7 @@ impl Harness {
             method: Some(hir::Method {
                 owner: continuation_ty,
                 modifier: hir::MethodModifier::Abstract,
+                dispatch: hir::MethodDispatch::Direct,
                 operator: None,
             }),
             span: SPAN,
@@ -1453,6 +1623,7 @@ impl Harness {
             method: Some(hir::Method {
                 owner: continuation_ty,
                 modifier: hir::MethodModifier::Abstract,
+                dispatch: hir::MethodDispatch::Direct,
                 operator: None,
             }),
             span: SPAN,
@@ -1479,6 +1650,16 @@ impl Harness {
         ] {
             self.add_interface_method_signature(continuation, method);
         }
+        self.functions[continuation_resume]
+            .method
+            .as_mut()
+            .expect("compiler-core declarations are interface methods")
+            .dispatch = hir::MethodDispatch::Interface(self.interfaces[continuation].methods[0]);
+        self.functions[continuation_resume_with_exception]
+            .method
+            .as_mut()
+            .expect("compiler-core declarations are interface methods")
+            .dispatch = hir::MethodDispatch::Interface(self.interfaces[continuation].methods[1]);
 
         let suspend_task = self.declare_interface(
             "SuspendTask",
@@ -1511,6 +1692,7 @@ impl Harness {
             method: Some(hir::Method {
                 owner: suspend_task_ty,
                 modifier: hir::MethodModifier::Abstract,
+                dispatch: hir::MethodDispatch::Interface(self.interfaces[suspend_task].methods[0]),
                 operator: None,
             }),
             span: SPAN,
@@ -1547,6 +1729,9 @@ impl Harness {
             method: Some(hir::Method {
                 owner: suspend_registration_ty,
                 modifier: hir::MethodModifier::Abstract,
+                dispatch: hir::MethodDispatch::Interface(
+                    self.interfaces[suspend_registration].methods[0],
+                ),
                 operator: None,
             }),
             span: SPAN,
@@ -3044,7 +3229,7 @@ fn overloaded_interface(
     name: &str,
     methods: &[(&str, hir::TypeId)],
 ) -> hir::InterfaceId {
-    let unit = h.unit;
+    let return_ty = h.int;
     let mut locals = Arena::new();
     let methods = methods
         .iter()
@@ -3056,7 +3241,7 @@ fn overloaded_interface(
                 attributes: hir::FunctionAttributes::default(),
                 type_params: Vec::new(),
                 params: vec![param("v", *ty, v)],
-                return_ty: unit,
+                return_ty,
                 span: SPAN,
             }
         })
@@ -3091,7 +3276,7 @@ fn interface_calls_annotate_the_overloads_own_slot() {
     // `val i: Multi = ...; i.m(1); i.m("x")` — interface dispatch
     // locates the slot by the callee's signature.
     let mut h = Harness::new();
-    let (int, string, unit) = (h.int, h.string, h.unit);
+    let (int, string) = (h.int, h.string);
     let multi = overloaded_interface(&mut h, "Multi", &[("m", int), ("m", string)]);
     let multi_ty = h.interface_ty(multi);
     // Interface method shells, as hir-lower materializes them
@@ -3104,7 +3289,7 @@ fn interface_calls_annotate_the_overloads_own_slot() {
             "Multi.m",
             multi_ty,
             vec![param("this", multi_ty, this), param("v", ty, v)],
-            unit,
+            int,
             hir::Body {
                 locals,
                 statements: Vec::new(),
@@ -3123,7 +3308,7 @@ fn interface_calls_annotate_the_overloads_own_slot() {
                     callee: hir::MethodCallee::Callable(hir::Callable::Method(application)),
                     args: vec![arg],
                 },
-                unit,
+                int,
             )
         };
     let mut locals = Arena::new();
@@ -5346,6 +5531,11 @@ fn final_methods_are_direct_while_final_overrides_keep_the_base_slot() {
         .as_mut()
         .expect("method")
         .modifier = hir::MethodModifier::Final;
+    h.functions[base_final]
+        .method
+        .as_mut()
+        .expect("method")
+        .dispatch = hir::MethodDispatch::Direct;
 
     let derived = h.class(
         "Derived",
@@ -5361,6 +5551,18 @@ fn final_methods_are_direct_while_final_overrides_keep_the_base_slot() {
         .as_mut()
         .expect("method")
         .modifier = hir::MethodModifier::Final;
+    let hir::MethodDispatch::Virtual(family) = h.functions[derived_override]
+        .method
+        .expect("method")
+        .dispatch
+    else {
+        panic!("the test override inherits a virtual family")
+    };
+    h.functions[derived_override]
+        .method
+        .as_mut()
+        .expect("method")
+        .dispatch = hir::MethodDispatch::FinalOverride(family);
     let base_open = h.method_application(base_open);
     let base_final = h.method_application(base_final);
     let derived_override = h.method_application(derived_override);

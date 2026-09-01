@@ -189,10 +189,8 @@ struct Lowerer {
     /// Concrete MIR interface applications, created on demand from their
     /// already-specialized HIR definitions.
     interfaces: InterfaceRegistry,
-    /// Method signature key (`fn_signature_key`) -> vtable slot, per
-    /// class (computed by `compute_dispatch`; `BodyLowerer` reads it
-    /// for call-kind annotation).
-    method_slots: HashMap<mir::ClassId, HashMap<String, u32>>,
+    /// Typed HIR virtual-family identity -> vtable slot, per class.
+    method_slots: HashMap<mir::ClassId, HashMap<hir::VirtualMethodId, u32>>,
     /// Local-concrete HIR user function -> MIR function.
     function_map: HashMap<hir::FunctionId, mir::FunctionId>,
     instances: InstanceRegistry,
@@ -1972,59 +1970,6 @@ impl Lowerer {
             .collect()
     }
 
-    /// A method's dispatch signature key: `name(<param encoding>)`
-    /// over the declared parameters (the receiver is not part of it)
-    /// — `describe(I)`, `m(I_S)`, `f()`. An override shares the base
-    /// method's key (hir-lower enforces exact-signature overriding),
-    /// so keying vtable slots by it replaces the base slot in place,
-    /// while overloads get distinct keys and thus distinct slots.
-    fn fn_signature_key(&mut self, module: &hir::Module, function: &hir::Function) -> String {
-        let skip = usize::from(function.method.is_some());
-        let types = Types {
-            module,
-            struct_map: &self.struct_map,
-            class_map: &self.class_map,
-        };
-        let params: Vec<_> = function.params[skip..]
-            .iter()
-            .map(|param| {
-                types.lower(
-                    param.ty,
-                    &mut self.enums,
-                    &mut self.structs,
-                    &mut self.interfaces,
-                    &mut self.shell,
-                )
-            })
-            .collect();
-        let encoding = mir::encode_params(&self.shell, &params);
-        format!("{}({encoding})", short_name(&function.name))
-    }
-
-    /// The dispatch signature key of an interface method signature.
-    fn sig_signature_key(&mut self, module: &hir::Module, sig: &hir::MethodSig) -> String {
-        let types = Types {
-            module,
-            struct_map: &self.struct_map,
-            class_map: &self.class_map,
-        };
-        let params: Vec<_> = sig
-            .params
-            .iter()
-            .map(|param| {
-                types.lower(
-                    param.ty,
-                    &mut self.enums,
-                    &mut self.structs,
-                    &mut self.interfaces,
-                    &mut self.shell,
-                )
-            })
-            .collect();
-        let encoding = mir::encode_params(&self.shell, &params);
-        format!("{}({encoding})", sig.name)
-    }
-
     /// Declare one local-concrete user function (body filled later):
     /// `scoop.<name>`, `scoop.<Type>.<name>` for members, or the fixed
     /// entry symbol `scoop_main` that the C runtime calls (`main` is
@@ -2375,57 +2320,29 @@ impl Lowerer {
     fn bound_reference_call_kind(
         &mut self,
         module: &hir::Module,
-        receiver_ty: hir::TypeId,
+        _receiver_ty: hir::TypeId,
         callable: hir::Callable,
     ) -> mir::CallKind {
         let function = module.callable_function(callable);
         let declaration = &module.functions[function];
-        match module.types[receiver_ty].kind {
-            hir::TypeKind::Class(_)
-                if declaration
-                    .method
-                    .is_some_and(|method| method.modifier == hir::MethodModifier::Final) =>
-            {
+        let method = declaration
+            .method
+            .expect("a bound member reference names method metadata");
+        match method.dispatch {
+            hir::MethodDispatch::Direct | hir::MethodDispatch::FinalOverride(_) => {
                 mir::CallKind::Direct
             }
-            hir::TypeKind::Class(class) => {
-                let key = self.fn_signature_key(module, declaration);
-                self.method_slots[&self.class_map[&class]]
-                    .get(&key)
-                    .map_or(mir::CallKind::Direct, |&slot| mir::CallKind::Virtual {
-                        slot,
-                    })
-            }
-            hir::TypeKind::Interface(..) => {
-                let types = Types {
-                    module,
-                    struct_map: &self.struct_map,
-                    class_map: &self.class_map,
+            hir::MethodDispatch::Virtual(family) => {
+                let hir::TypeKind::Class(class) = module.types[method.owner].kind else {
+                    unreachable!("a virtual family belongs to a class method")
                 };
-                let lowered = types.lower(
-                    receiver_ty,
-                    &mut self.enums,
-                    &mut self.structs,
-                    &mut self.interfaces,
-                    &mut self.shell,
-                );
-                let mir::Type::Interface(interface) = lowered else {
-                    unreachable!("an interface receiver lowers to an interface type")
-                };
-                let (source, _) = self.interfaces.source(interface);
-                let key = self.fn_signature_key(module, declaration);
-                let slot = module.interfaces[source]
-                    .methods
-                    .iter()
-                    .enumerate()
-                    .find_map(|(index, signature)| {
-                        (self.sig_signature_key(module, signature) == key).then_some(index as u32)
-                    })
-                    .expect("hir-lower resolves interface references to interface methods");
-                mir::CallKind::Interface { interface, slot }
+                let slot = self.method_slots[&self.class_map[&class]][&family];
+                mir::CallKind::Virtual { slot }
             }
-            hir::TypeKind::Any => unreachable!("Any has no methods"),
-            _ => mir::CallKind::Direct,
+            hir::MethodDispatch::Interface { interface, slot } => mir::CallKind::Interface {
+                interface: self.interfaces.mir_id(interface),
+                slot: slot.into_raw(),
+            },
         }
     }
 
@@ -2557,18 +2474,11 @@ impl Lowerer {
     }
 
     /// Fix every class's vtable and itables (impl spec 2.9): a derived
-    /// vtable starts from the base's (prefix preserved), an override replaces
-    /// the base slot in place, and new virtual methods append in declaration order
-    /// (generic methods never enter the vtable — impl spec 2.9).
-    /// Slots are keyed by the method's signature (`fn_signature_key`):
-    /// an override shares the base method's key and replaces its slot,
-    /// while same-named overloads have distinct keys and get distinct
-    /// slots (M7). itables cover the interfaces the base class covered
-    /// (records first, in the base's order) plus the ones the class
-    /// declares, each slot resolved to the implementation visible from
-    /// the class (its own override first, then up the base chain) —
-    /// again matched by signature, so an overloaded interface gets one
-    /// slot per method signature.
+    /// Build each class's vtable / itables from dispatch identities emitted by
+    /// concrete HIR. Vtable slots are inherited base-prefix first; overrides
+    /// carry the base virtual family and replace its slot, while overloads
+    /// carry distinct families. Interface records and every slot target are
+    /// likewise complete upstream data, never reconstructed from signatures.
     fn compute_dispatch(&mut self, module: &hir::Module, order: &[hir::ClassId]) {
         for &hir_id in order {
             let mir_id = self.class_map[&hir_id];
@@ -2583,56 +2493,58 @@ impl Lowerer {
                 }
                 None => (Vec::new(), HashMap::new()),
             };
-            for (fn_id, function) in module.functions.iter() {
-                if method_class(module, fn_id, function) != Some(hir_id)
-                    || is_generic_method(function)
-                {
+            for &fn_id in &decl.methods {
+                let function = &module.functions[fn_id];
+                let Some(method) = function.method else {
                     continue;
-                }
+                };
+                let family = match method.dispatch {
+                    hir::MethodDispatch::Virtual(family)
+                    | hir::MethodDispatch::FinalOverride(family) => family,
+                    hir::MethodDispatch::Direct | hir::MethodDispatch::Interface { .. } => {
+                        continue;
+                    }
+                };
                 let mir_fn = self.function_map[&fn_id];
-                let key = self.fn_signature_key(module, function);
-                let modifier = function.method.expect("class method metadata").modifier;
-                match slots.get(&key) {
+                match slots.get(&family) {
                     Some(&slot) => vtable[slot as usize] = mir::TableSlot::Function(mir_fn),
-                    None if modifier != hir::MethodModifier::Final => {
-                        slots.insert(key, vtable.len() as u32);
+                    None => {
+                        slots.insert(family, vtable.len() as u32);
                         vtable.push(mir::TableSlot::Function(mir_fn));
                     }
-                    // A fresh final method is statically dispatched and
-                    // does not consume a vtable slot. A final override
-                    // took the existing-slot arm above so base-typed
-                    // calls still reach it.
-                    None => {}
                 }
             }
-            let mut covered: Vec<mir::InterfaceId> = match decl.base_class() {
-                Some((base, _)) => self.classes[self.class_map[base]]
-                    .itables
-                    .iter()
-                    .map(|record| record.interface)
-                    .collect(),
-                None => Vec::new(),
-            };
-            for mir_iface in self.classes[mir_id].interfaces.clone() {
-                if !covered.contains(&mir_iface) {
-                    covered.push(mir_iface);
-                }
-            }
-            let mut itables = Vec::new();
-            for mir_iface in covered {
-                let (hir_iface, _) = self.interfaces.source(mir_iface);
-                let mut slots_for = Vec::new();
-                for method in module.interfaces[hir_iface].methods.iter() {
-                    let key = self.sig_signature_key(module, method);
-                    slots_for.push(mir::TableSlot::Function(
-                        self.find_impl(module, hir_id, &key),
-                    ));
-                }
-                itables.push(mir::ItableRecord {
-                    interface: mir_iface,
-                    slots: slots_for,
-                });
-            }
+            let itables = decl
+                .interface_implementations
+                .iter()
+                .map(|implementation| {
+                    let interface = self.interfaces.mir_id(implementation.interface);
+                    let method_count = module.interfaces[implementation.interface].methods.len();
+                    let mut slots = std::iter::repeat_with(|| None)
+                        .take(method_count)
+                        .collect::<Vec<_>>();
+                    for method in &implementation.methods {
+                        let target = match method.target {
+                            hir::InterfaceImplementationTarget::Method(function) => function,
+                            hir::InterfaceImplementationTarget::Abstract { declaration } => {
+                                declaration
+                            }
+                        };
+                        let slot = method.slot.into_raw() as usize;
+                        let previous = slots[slot]
+                            .replace(mir::TableSlot::Function(self.function_map[&target]));
+                        assert!(
+                            previous.is_none(),
+                            "concrete HIR emits each itable slot once"
+                        );
+                    }
+                    let slots = slots
+                        .into_iter()
+                        .map(|slot| slot.expect("concrete HIR emits every itable slot"))
+                        .collect();
+                    mir::ItableRecord { interface, slots }
+                })
+                .collect();
             let class = &mut self.classes[mir_id];
             class.vtable = vtable;
             class.itables = itables;
@@ -2765,38 +2677,12 @@ impl Lowerer {
         (params, mir::Type::Class(mir_id), body)
     }
 
-    /// The function implementing the signature `key` for class
-    /// `hir_id`: the class's own method first, then up the base chain
-    /// (matched by signature — `fn_signature_key` — so overloads
-    /// resolve to their own implementation).
-    fn find_impl(
-        &mut self,
-        module: &hir::Module,
-        hir_id: hir::ClassId,
-        key: &str,
-    ) -> mir::FunctionId {
-        let mut current = Some(hir_id);
-        while let Some(class) = current {
-            for (fn_id, function) in module.functions.iter() {
-                if method_class(module, fn_id, function) != Some(class)
-                    || is_generic_method(function)
-                {
-                    continue;
-                }
-                if self.fn_signature_key(module, function) == key {
-                    return self.function_map[&fn_id];
-                }
-            }
-            current = module.classes[class].base_class().map(|(base, _)| *base);
-        }
-        unreachable!("hir-lower guarantees `{key}` is implemented")
-    }
-
     /// Generate boxed value types' ordinary interface dispatch. A box has no
     /// universal vtable entries; every interface the value type implements
     /// gets an itable whose slots point at adjust thunks. The thunk's
     /// `this` is the boxed object; it unboxes and tail-calls the real
-    /// value method.
+    /// value method. Concrete HIR supplies the exact implementation function
+    /// for each typed interface slot.
     fn finalize_boxed(&mut self, module: &hir::Module, index: usize) {
         let class_id = self.boxed.order[index];
         let payload = self.classes[class_id].declared_fields()[0].ty.clone();
@@ -2828,9 +2714,9 @@ impl Lowerer {
     /// unboxes it and tail-calls the real value method (value-type
     /// methods take `this` by value at MIR; the pointer convention
     /// of the receiver is a codegen ABI matter). The implementation
-    /// is matched by signature, so overloaded interface methods get
-    /// one thunk each; the thunk symbol carries the parameter
-    /// encoding when the interface overloads the name.
+    /// is selected by its typed concrete-HIR conformance entry, so overloads
+    /// never require a name/signature search. The thunk symbol carries the
+    /// parameter encoding when the interface overloads the name.
     fn build_thunk(
         &mut self,
         module: &hir::Module,
@@ -2891,33 +2777,58 @@ impl Lowerer {
             &mut self.interfaces,
             &mut self.shell,
         );
-        let source_interface = self
-            .value_interfaces(module, payload)
+        let implementations = self
+            .value_interface_implementations(module, payload)
+            .to_vec();
+        let source_implementation = implementations
             .into_iter()
-            .find(|source| self.interface_is_subtype(module, *source, iface))
-            .expect("HIR guarantees the boxed value implements the target interface");
-        let (source_hir_interface, _) = self.interfaces.source(source_interface);
-        let source_signature = &module.interfaces[source_hir_interface].methods[method_index];
+            .find(|implementation| {
+                let source = self.interfaces.mir_id(implementation.interface);
+                self.interface_is_subtype(module, source, iface)
+            })
+            .expect("concrete HIR supplies the boxed value's target conformance");
+        let implementation = source_implementation
+            .methods
+            .into_iter()
+            .find(|implementation| implementation.slot.into_raw() as usize == method_index)
+            .expect("concrete HIR supplies every boxed itable slot");
+        let implementation = match implementation.target {
+            hir::InterfaceImplementationTarget::Method(function) => function,
+            hir::InterfaceImplementationTarget::Abstract { .. } => {
+                unreachable!("value-type interface implementations are always concrete")
+            }
+        };
+        let implementation_function = &module.functions[implementation];
         let source_types = Types {
             module,
             struct_map: &self.struct_map,
             class_map: &self.class_map,
         };
-        let mut source_params = Vec::new();
-        for param in &source_signature.params {
-            source_params.push(source_types.lower(
-                param.ty,
-                &mut self.enums,
-                &mut self.structs,
-                &mut self.interfaces,
-                &mut self.shell,
-            ));
-        }
-        let implementation = self.value_method(module, payload, &signature.name, &source_params);
+        let source_params = implementation_function
+            .params
+            .iter()
+            .skip(1)
+            .map(|param| {
+                source_types.lower(
+                    param.ty,
+                    &mut self.enums,
+                    &mut self.structs,
+                    &mut self.interfaces,
+                    &mut self.shell,
+                )
+            })
+            .collect::<Vec<_>>();
+        let implementation_return = source_types.lower(
+            implementation_function.return_ty,
+            &mut self.enums,
+            &mut self.structs,
+            &mut self.interfaces,
+            &mut self.shell,
+        );
         for ((local, target_ty), source_ty) in argument_locals
             .into_iter()
             .zip(&target_params)
-            .zip(&implementation.1)
+            .zip(&source_params)
         {
             args.push(self.adapt_variance_bridge(
                 smir::Expr::local(local, target_ty.clone()),
@@ -2926,21 +2837,21 @@ impl Lowerer {
             ));
         }
         let call = smir::Expr::new(
-            implementation.2.clone(),
+            implementation_return.clone(),
             smir::ExprKind::Call(smir::Call {
                 target: mir::CallTarget {
                     kind: mir::CallKind::Direct,
-                    callee: mir::Callee::User(implementation.0),
+                    callee: mir::Callee::User(self.function_map[&implementation]),
                 },
                 args,
-                return_ty: implementation.2.clone(),
+                return_ty: implementation_return.clone(),
             }),
         );
         let kind = if return_ty == mir::Type::Unit {
             smir::StatementKind::Expr(call)
         } else {
             smir::StatementKind::Return {
-                value: Some(self.adapt_variance_bridge(call, &implementation.2, &return_ty)),
+                value: Some(self.adapt_variance_bridge(call, &implementation_return, &return_ty)),
             }
         };
         let encoding = mir::encode_params(&self.shell, &target_params);
@@ -2987,10 +2898,6 @@ impl Lowerer {
         id
     }
 
-    /// The value type's own method with the signature `key` (the
-    /// implementation a boxed thunk tail-calls). HIR guarantees it
-    /// exists: the value type was boxed to an interface that declares
-    /// the method.
     fn value_interfaces(
         &mut self,
         module: &hir::Module,
@@ -3029,69 +2936,20 @@ impl Lowerer {
             .collect()
     }
 
-    fn value_method(
-        &mut self,
-        module: &hir::Module,
+    fn value_interface_implementations<'a>(
+        &self,
+        module: &'a hir::Module,
         payload: &mir::Type,
-        name: &str,
-        expected_params: &[mir::Type],
-    ) -> (mir::FunctionId, Vec<mir::Type>, mir::Type) {
-        let source_methods = match self.value_struct_source(module, payload) {
-            Some(source) => module.structs[source].methods.clone(),
+    ) -> &'a [hir::InterfaceImplementation] {
+        match self.value_struct_source(module, payload) {
+            Some(source) => &module.structs[source].interface_implementations,
             None => match payload {
-                mir::Type::Enum(id, _) => module.enums[self.enums.hir_ids[id]].methods.clone(),
-                _ => Vec::new(),
+                mir::Type::Enum(id, _) => {
+                    &module.enums[self.enums.hir_ids[id]].interface_implementations
+                }
+                _ => unreachable!("only value types receive boxed interface adapters"),
             },
-        };
-        let mut candidates = Vec::new();
-        let mut owner_methods = Vec::new();
-        for (fn_id, function) in module.functions.iter() {
-            if !source_methods.contains(&fn_id) {
-                continue;
-            }
-            owner_methods.push(function.name.clone());
-            if short_name(&function.name) != name {
-                continue;
-            }
-            let types = Types {
-                module,
-                struct_map: &self.struct_map,
-                class_map: &self.class_map,
-            };
-            let params: Vec<_> = function.params[1..]
-                .iter()
-                .map(|param| {
-                    types.lower(
-                        param.ty,
-                        &mut self.enums,
-                        &mut self.structs,
-                        &mut self.interfaces,
-                        &mut self.shell,
-                    )
-                })
-                .collect();
-            candidates.push((function.name.clone(), params.clone()));
-            if params != expected_params {
-                continue;
-            }
-            let return_ty = types.lower(
-                function.return_ty,
-                &mut self.enums,
-                &mut self.structs,
-                &mut self.interfaces,
-                &mut self.shell,
-            );
-            let function = self.function_map[&fn_id];
-            return (function, params, return_ty);
         }
-        let payload_name = match payload {
-            mir::Type::Struct(id) => self.structs.defs[*id].name.clone(),
-            mir::Type::Enum(id, _) => self.enums.defs[*id].name.clone(),
-            _ => format!("{payload:?}"),
-        };
-        panic!(
-            "concrete HIR guarantees `{name}` is implemented by boxed value type {payload_name} ({payload:?}) with parameters {expected_params:?}; owner methods: {owner_methods:?}; matching-name candidates: {candidates:?}"
-        )
     }
 
     /// Exact source declaration for a MIR struct-like payload. Primitive
@@ -3192,16 +3050,6 @@ fn function_instance(
     }
 }
 
-fn is_generic_method(function: &hir::Function) -> bool {
-    matches!(
-        function.origin,
-        hir::FunctionOrigin::Method(hir::MethodOrigin {
-            specialization: hir::MethodSpecialization::Generic { .. },
-            ..
-        })
-    )
-}
-
 /// The names shared by more than one plainly-mangled function (M7
 /// overloads), over the whole module including scoop.core. Only
 /// functions that get a plain `scoop.<name>` symbol count: `User` functions
@@ -3226,41 +3074,12 @@ fn overloaded_names(module: &hir::Module) -> HashSet<String> {
         .collect()
 }
 
-/// A method's short name: hir-lower qualifies member functions as
-/// `Owner.method`; slot lookup, override matching and implementation
-/// resolution all use the short name (M6 has no overloading).
-fn short_name(name: &str) -> &str {
-    name.rsplit('.').next().unwrap_or(name)
-}
-
 /// Whether a function is an abstract class method. HIR carries this
 /// explicitly, including for `Unit`-returning methods.
 fn is_abstract_bodiless(function: &hir::Function) -> bool {
     function
         .method
         .is_some_and(|method| method.modifier == hir::MethodModifier::Abstract)
-}
-
-/// The class a function is a method of, if any.
-fn method_class(
-    module: &hir::Module,
-    function_id: hir::FunctionId,
-    function: &hir::Function,
-) -> Option<hir::ClassId> {
-    match function.method {
-        Some(method) => match module.types[method.owner].kind {
-            hir::TypeKind::Class(id) => Some(id),
-            hir::TypeKind::String
-                if module.classes[module.intrinsic_type_core.string]
-                    .methods
-                    .contains(&function_id) =>
-            {
-                Some(module.intrinsic_type_core.string)
-            }
-            _ => None,
-        },
-        None => None,
-    }
 }
 
 /// Class ids (HIR) ordered base-before-derived (single inheritance:

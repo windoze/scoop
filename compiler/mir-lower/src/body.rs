@@ -11,7 +11,7 @@ pub(super) struct BodyLowerer<'a> {
     pub(super) structs: &'a mut StructRegistry,
     /// Method signature key -> vtable slot per class
     /// (`compute_dispatch`).
-    pub(super) method_slots: &'a HashMap<mir::ClassId, HashMap<String, u32>>,
+    pub(super) method_slots: &'a HashMap<mir::ClassId, HashMap<hir::VirtualMethodId, u32>>,
     pub(super) function_map: &'a HashMap<hir::FunctionId, mir::FunctionId>,
     pub(super) extern_map: &'a HashMap<hir::ExternFunctionId, mir::ExternFunctionId>,
     pub(super) global_map: &'a HashMap<hir::GlobalId, mir::GlobalId>,
@@ -2196,59 +2196,32 @@ impl BodyLowerer<'_> {
             mir::Callee::Monomorphized,
         );
         // The receiver's static type decides the dispatch kind.
-        enum Receiver {
-            Class(hir::ClassId),
-            Interface(hir::TypeId),
-            Value,
-        }
-        let receiver_kind = match &module.types[receiver.ty].kind {
-            hir::TypeKind::Class(class) => Receiver::Class(*class),
-            hir::TypeKind::Interface(..) => Receiver::Interface(receiver.ty),
+        let receiver_class = match &module.types[receiver.ty].kind {
+            hir::TypeKind::Class(class) => Some(*class),
+            hir::TypeKind::Interface(..) => None,
             hir::TypeKind::Any => unreachable!("Any has no methods"),
-            _ => Receiver::Value,
+            _ => None,
         };
-        let generic_static_method = is_generic_method(f);
-        let kind = if generic_static_method {
-            // Generic member functions never participate in virtual
-            // dispatch. Methods parameterized only by a generic interface
-            // host are different: they still dispatch through that concrete
-            // interface application's itable.
-            mir::CallKind::Direct
-        } else {
-            match receiver_kind {
-                Receiver::Class(_)
-                    if f.method
-                        .is_some_and(|method| method.modifier == hir::MethodModifier::Final) =>
-                {
-                    mir::CallKind::Direct
+        let dispatch = f
+            .method
+            .expect("a method call names method metadata")
+            .dispatch;
+        let kind = match dispatch {
+            hir::MethodDispatch::Direct | hir::MethodDispatch::FinalOverride(_) => {
+                mir::CallKind::Direct
+            }
+            hir::MethodDispatch::Virtual(family) => {
+                let class =
+                    receiver_class.expect("a virtual family is called through a class receiver");
+                let slot = self.method_slots[&self.class_map[&class]][&family];
+                mir::CallKind::Virtual { slot }
+            }
+            hir::MethodDispatch::Interface { interface, slot } => {
+                let interface = self.interfaces.mir_id(interface);
+                mir::CallKind::Interface {
+                    interface,
+                    slot: slot.into_raw(),
                 }
-                Receiver::Class(class) => {
-                    let key = self.signature_key(f);
-                    match self.method_slots[&self.class_map[&class]].get(&key) {
-                        Some(&slot) => mir::CallKind::Virtual { slot },
-                        None => mir::CallKind::Direct,
-                    }
-                }
-                Receiver::Interface(interface_ty) => {
-                    let mir::Type::Interface(interface) = self.lower_type(interface_ty) else {
-                        unreachable!()
-                    };
-                    let (iface, _) = self.interfaces.source(interface);
-                    let key = self.signature_key(f);
-                    let mut slot = None;
-                    for (index, sig) in module.interfaces[iface].methods.iter().enumerate() {
-                        if self.sig_key(sig) == key {
-                            slot = Some(index as u32);
-                            break;
-                        }
-                    }
-                    mir::CallKind::Interface {
-                        interface,
-                        slot: slot
-                            .expect("hir-lower resolves interface calls to interface methods"),
-                    }
-                }
-                Receiver::Value => mir::CallKind::Direct,
             }
         };
         let mut call_args = Vec::with_capacity(args.len() + 1);
@@ -2263,26 +2236,6 @@ impl BodyLowerer<'_> {
                 return_ty,
             }),
         )
-    }
-
-    /// The callee's dispatch signature key (`name(<param encoding>)`,
-    /// receiver excluded) — must agree with
-    /// `Lowerer::fn_signature_key`, which keys the vtable slots.
-    fn signature_key(&mut self, function: &hir::Function) -> String {
-        let skip = usize::from(function.method.is_some());
-        self.key_parts(short_name(&function.name), &function.params[skip..])
-    }
-
-    fn sig_key(&mut self, sig: &hir::MethodSig) -> String {
-        self.key_parts(&sig.name, &sig.params)
-    }
-
-    fn key_parts(&mut self, name: &str, params: &[hir::Param]) -> String {
-        let params: Vec<mir::Type> = params
-            .iter()
-            .map(|param| self.lower_type(param.ty))
-            .collect();
-        format!("{name}({})", mir::encode_params(self.shell, &params))
     }
 
     /// Register the boxed value type a `Box` produces. The boxed

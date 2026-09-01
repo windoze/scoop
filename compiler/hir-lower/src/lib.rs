@@ -432,6 +432,8 @@ pub(crate) struct Lowerer {
     /// Cone-wide semantic type-parameter identity allocator. Substitution
     /// slots are assigned separately by each complete lexical signature.
     pub(crate) next_type_param_identity: u32,
+    /// Cone-wide source identity allocator for class virtual method families.
+    pub(crate) next_virtual_method_identity: u32,
     pub(crate) local_functions: Arena<hir::LocalFunction>,
     pub(crate) local_function_by_function: HashMap<FunctionId, hir::LocalFunctionId>,
     pub(crate) callable_references: Arena<hir::CallableReference>,
@@ -653,6 +655,12 @@ impl Lowerer {
         parameter
     }
 
+    pub(crate) fn fresh_virtual_method(&mut self) -> hir::VirtualMethodId {
+        let method = hir::VirtualMethodId::from_raw(self.next_virtual_method_identity);
+        self.next_virtual_method_identity += 1;
+        method
+    }
+
     pub(crate) fn fresh_binding(&mut self) -> hir::BindingId {
         let binding = hir::BindingId::from_raw(self.next_binding_id);
         self.next_binding_id += 1;
@@ -700,6 +708,7 @@ impl Lowerer {
             next_lambda_function: 0,
             next_anonymous_function: 0,
             next_type_param_identity: 0,
+            next_virtual_method_identity: 0,
             local_functions: Arena::new(),
             local_function_by_function: HashMap::new(),
             callable_references: Arena::new(),
@@ -1642,6 +1651,7 @@ impl Lowerer {
             method: Some(hir::Method {
                 owner: host_ty,
                 modifier,
+                dispatch: hir::MethodDispatch::Direct,
                 operator: match (&decl.operator, decl.name.text.as_str()) {
                     (Some(_), "equals") => Some(hir::OperatorKind::Equals),
                     _ => None,
@@ -1665,6 +1675,11 @@ impl Lowerer {
                     owner,
                     function: id,
                 });
+                self.functions[id]
+                    .method
+                    .as_mut()
+                    .expect("declared interface function is a method")
+                    .dispatch = hir::MethodDispatch::Interface(member);
                 self.interfaces[owner].methods.push(member);
             }
             Owner::Struct(owner) => self.structs[owner].methods.push(id),

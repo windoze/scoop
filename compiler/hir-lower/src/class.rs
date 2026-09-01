@@ -850,6 +850,43 @@ impl Lowerer {
             );
             return;
         }
+        if matches!(owner, Owner::Class(_)) {
+            let inherited_family = overrides.as_ref().and_then(|(candidate, _)| {
+                matches!(self.function_owner.get(candidate), Some(Owner::Class(_))).then(|| {
+                    let method = self.functions[*candidate]
+                        .method
+                        .expect("an override candidate is a method");
+                    match method.dispatch {
+                        hir::MethodDispatch::Virtual(family)
+                        | hir::MethodDispatch::FinalOverride(family) => family,
+                        hir::MethodDispatch::Direct | hir::MethodDispatch::Interface(_) => {
+                            unreachable!("an overridable class method owns a virtual family")
+                        }
+                    }
+                })
+            });
+            let modifier = self.functions[id]
+                .method
+                .expect("the checked declaration is a method")
+                .modifier;
+            let dispatch = match (inherited_family, modifier) {
+                (Some(family), hir::MethodModifier::Final) => {
+                    hir::MethodDispatch::FinalOverride(family)
+                }
+                (Some(family), hir::MethodModifier::Open | hir::MethodModifier::Abstract) => {
+                    hir::MethodDispatch::Virtual(family)
+                }
+                (None, hir::MethodModifier::Final) => hir::MethodDispatch::Direct,
+                (None, hir::MethodModifier::Open | hir::MethodModifier::Abstract) => {
+                    hir::MethodDispatch::Virtual(self.fresh_virtual_method())
+                }
+            };
+            self.functions[id]
+                .method
+                .as_mut()
+                .expect("the checked declaration is a method")
+                .dispatch = dispatch;
+        }
         match (overrides, decl.is_override) {
             (Some((candidate, _)), false) => {
                 let owner = self.functions[candidate].name.clone();
@@ -897,14 +934,13 @@ impl Lowerer {
                 let short = qualified.rsplit('.').next().expect("methods are qualified");
                 let own_owner =
                     hir::MethodOwnerApplication::Class(self.classes[id].self_application);
-                let mut candidates = self.base_chain_methods(id);
-                candidates.extend(
-                    self.classes[id]
-                        .methods
-                        .iter()
-                        .copied()
-                        .map(|function| crate::CallableCandidate::method(function, own_owner)),
-                );
+                let mut candidates = self.classes[id]
+                    .methods
+                    .iter()
+                    .copied()
+                    .map(|function| crate::CallableCandidate::method(function, own_owner))
+                    .collect::<Vec<_>>();
+                candidates.extend(self.base_chain_methods(id));
                 let implemented = candidates.into_iter().find(|candidate| {
                     let owner_arguments = match &candidate.owner {
                         crate::CallableCandidateOwner::Method(owner) => {

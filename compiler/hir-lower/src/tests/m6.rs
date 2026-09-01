@@ -1081,16 +1081,17 @@ fn open_and_default_open_override_form_one_visible_dispatch_slot() {
             ],
         ),
     ]);
-    let module = lower_user(file).expect("the override chain must lower without ambiguity");
+    let output = lower_user_output(file).expect("the override chain must lower without ambiguity");
+    let module = &output.export;
     assert_eq!(
-        module.functions[find_fn(&module, "A.f")]
+        module.functions[find_fn(module, "A.f")]
             .method
             .expect("method")
             .modifier,
         hir::MethodModifier::Open
     );
     assert_eq!(
-        module.functions[find_fn(&module, "B.f")]
+        module.functions[find_fn(module, "B.f")]
             .method
             .expect("method")
             .modifier,
@@ -1099,11 +1100,54 @@ fn open_and_default_open_override_form_one_visible_dispatch_slot() {
     // The owner class is final, so its otherwise-open override is
     // normalized to an effectively final method in HIR.
     assert_eq!(
-        module.functions[find_fn(&module, "C.f")]
+        module.functions[find_fn(module, "C.f")]
             .method
             .expect("method")
             .modifier,
         hir::MethodModifier::Final
+    );
+    let hir::MethodDispatch::Virtual(family) = module.functions[find_fn(module, "A.f")]
+        .method
+        .expect("method")
+        .dispatch
+    else {
+        panic!("the first open declaration owns a virtual family")
+    };
+    assert_eq!(
+        module.functions[find_fn(module, "B.f")]
+            .method
+            .expect("method")
+            .dispatch,
+        hir::MethodDispatch::Virtual(family)
+    );
+    assert_eq!(
+        module.functions[find_fn(module, "C.f")]
+            .method
+            .expect("method")
+            .dispatch,
+        hir::MethodDispatch::FinalOverride(family)
+    );
+
+    let dispatches = ["A.f", "B.f", "C.f"].map(|name| {
+        output
+            .local
+            .functions
+            .iter()
+            .find_map(|(_, function)| (function.name == name).then_some(function.method))
+            .flatten()
+            .expect("the concrete override chain keeps method metadata")
+            .dispatch
+    });
+    let hir::concrete::MethodDispatch::Virtual(local_family) = dispatches[0] else {
+        panic!("the concrete base method owns a virtual family")
+    };
+    assert_eq!(
+        dispatches[1],
+        hir::concrete::MethodDispatch::Virtual(local_family)
+    );
+    assert_eq!(
+        dispatches[2],
+        hir::concrete::MethodDispatch::FinalOverride(local_family)
     );
 }
 

@@ -1517,6 +1517,23 @@ fn bounded_receiver_call_records_exact_interface_member_identity() {
         output.export.functions[output.export.method_applications[application].function].name,
         "Shown.show"
     );
+    let shown = output
+        .local
+        .structs
+        .iter()
+        .find(|(_, declaration)| declaration.name == "Shown")
+        .expect("Shown has one concrete specialization")
+        .1;
+    assert_eq!(shown.interface_implementations.len(), 1);
+    let implementation = &shown.interface_implementations[0];
+    assert_eq!(implementation.methods.len(), 1);
+    assert_eq!(implementation.methods[0].slot.into_raw(), 0);
+    let hir::concrete::InterfaceImplementationTarget::Method(target) =
+        implementation.methods[0].target
+    else {
+        panic!("value-type conformances are complete concrete method targets")
+    };
+    assert_eq!(output.local.functions[target].name, "Shown.show");
 
     let read = output
         .local

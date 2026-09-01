@@ -59,6 +59,21 @@ pub type InterfaceMethodId = Idx<InterfaceMethod>;
 pub type BoundCallableRefId = Idx<BoundCallableRef>;
 pub type LocalId = Idx<Local>;
 
+/// Export-side identity of one class virtual-dispatch family. Every override
+/// in the family carries the same id; overloads always receive distinct ids.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct VirtualMethodId(u32);
+
+impl VirtualMethodId {
+    pub const fn from_raw(raw: u32) -> Self {
+        Self(raw)
+    }
+
+    pub const fn into_raw(self) -> u32 {
+        self.0
+    }
+}
+
 /// A structurally non-empty sequence. Generic method applications use this
 /// instead of a plain `Vec` because an empty method-argument group would mean
 /// a different entity kind (an ordinary method application).
@@ -924,10 +939,23 @@ pub enum MethodModifier {
 pub struct Method {
     pub owner: TypeId,
     pub modifier: MethodModifier,
+    /// Complete source-level dispatch identity. Overrides share a typed
+    /// virtual family; interface declarations name their exact member.
+    pub dispatch: MethodDispatch,
     /// Language-level operator identity validated at the declaration site.
     /// `None` is an ordinary method; downstream consumers never recover an
     /// operator role from the method name or signature.
     pub operator: Option<OperatorKind>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MethodDispatch {
+    Direct,
+    Virtual(VirtualMethodId),
+    /// A final override is called directly through its own static type but
+    /// still replaces the inherited virtual-family slot for base-typed calls.
+    FinalOverride(VirtualMethodId),
+    Interface(InterfaceMethodId),
 }
 
 /// Closed set of operator member contracts implemented by the current
@@ -1127,7 +1155,7 @@ pub struct InterfaceMethodImplementation {
     pub target: InterfaceImplementationTarget,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InterfaceImplementationTarget {
     /// Exact ordinary method application selected by HIR conformance
     /// checking. Generic methods cannot implement interface slots.

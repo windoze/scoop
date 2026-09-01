@@ -68,6 +68,9 @@ struct Concretizer<'a> {
     interfaces: Arena<concrete::InterfaceDef>,
     interface_by_key: HashMap<(export::InterfaceId, Vec<concrete::TypeId>), concrete::InterfaceId>,
     interface_type: HashMap<concrete::InterfaceId, concrete::TypeId>,
+    interface_slot_by_source:
+        HashMap<(concrete::InterfaceId, export::InterfaceMethodId), concrete::InterfaceMethodSlot>,
+    virtual_method_by_source: HashMap<export::VirtualMethodId, concrete::VirtualMethodId>,
     classes: Arena<concrete::ClassDef>,
     class_by_key: HashMap<(export::ClassId, Vec<concrete::TypeId>), concrete::ClassId>,
     class_type: HashMap<concrete::ClassId, concrete::TypeId>,
@@ -130,6 +133,8 @@ impl<'a> Concretizer<'a> {
             interfaces: Arena::new(),
             interface_by_key: HashMap::new(),
             interface_type: HashMap::new(),
+            interface_slot_by_source: HashMap::new(),
+            virtual_method_by_source: HashMap::new(),
             classes: Arena::new(),
             class_by_key: HashMap::new(),
             class_type: HashMap::new(),
@@ -417,6 +422,7 @@ impl<'a> Concretizer<'a> {
             type_arguments: arguments.clone(),
             representation,
             interfaces: Vec::new(),
+            interface_implementations: Vec::new(),
             methods: Vec::new(),
             span: source.span,
         });
@@ -450,14 +456,13 @@ impl<'a> Concretizer<'a> {
                 mutable: field.mutable,
             })
             .collect();
-        let interfaces = source
-            .interface_implementations
+        let methods =
+            self.request_concrete_methods(&source.methods, concrete::MethodOwner::Class(id));
+        let interface_implementations =
+            self.lower_interface_implementations(&source.interface_implementations, &arguments);
+        let interfaces = interface_implementations
             .iter()
-            .map(|implementation| {
-                let interface =
-                    self.lower_interface_application(implementation.interface, &arguments);
-                self.interface_type[&interface]
-            })
+            .map(|implementation| self.interface_type[&implementation.interface])
             .collect();
         let base_class = source.base_class.map(|(base, args)| {
             let base = self.lower_type(base, &arguments);
@@ -471,6 +476,7 @@ impl<'a> Concretizer<'a> {
             (base, args)
         });
         self.classes[id].interfaces = interfaces;
+        self.classes[id].interface_implementations = interface_implementations;
         match &mut self.classes[id].representation {
             concrete::ClassRepresentation::Declared {
                 constructor: concrete_constructor,
@@ -483,8 +489,6 @@ impl<'a> Concretizer<'a> {
                 debug_assert!(constructor.is_empty() && base_class.is_none());
             }
         }
-        let methods =
-            self.request_concrete_methods(&source.methods, concrete::MethodOwner::Class(id));
         self.classes[id].methods = methods;
         id
     }
@@ -509,6 +513,46 @@ impl<'a> Concretizer<'a> {
                         unreachable!("nominal method lists do not contain generic functions")
                     }
                 }
+            })
+            .collect()
+    }
+
+    fn lower_interface_implementations(
+        &mut self,
+        source_implementations: &[export::InterfaceImplementation],
+        substitution: &[concrete::TypeId],
+    ) -> Vec<concrete::InterfaceImplementation> {
+        source_implementations
+            .iter()
+            .cloned()
+            .map(|implementation| {
+                let interface =
+                    self.lower_interface_application(implementation.interface, substitution);
+                let methods = implementation
+                    .methods
+                    .into_iter()
+                    .map(|method| {
+                        let slot = self.interface_slot_by_source[&(interface, method.member)];
+                        let target = match method.target {
+                            export::InterfaceImplementationTarget::Method(application) => {
+                                let concrete::Callable::Function(function) =
+                                    self.lower_method_application(application, substitution);
+                                concrete::InterfaceImplementationTarget::Method(function)
+                            }
+                            export::InterfaceImplementationTarget::Subclass => {
+                                let source = self.source.interface_methods[method.member].function;
+                                let declaration = self.request_method(
+                                    source,
+                                    concrete::MethodOwner::Interface(interface),
+                                    MethodRequest::Plain,
+                                );
+                                concrete::InterfaceImplementationTarget::Abstract { declaration }
+                            }
+                        };
+                        concrete::InterfaceMethodImplementation { slot, target }
+                    })
+                    .collect();
+                concrete::InterfaceImplementation { interface, methods }
             })
             .collect()
     }
@@ -862,6 +906,7 @@ impl<'a> Concretizer<'a> {
             gc_free: false,
             representation,
             interfaces: Vec::new(),
+            interface_implementations: Vec::new(),
             methods: Vec::new(),
             span: source.span,
         });
@@ -896,14 +941,13 @@ impl<'a> Concretizer<'a> {
                 ty: self.lower_type(field.ty, &arguments),
             })
             .collect();
-        let interfaces = source
-            .interface_implementations
+        let methods =
+            self.request_concrete_methods(&source.methods, concrete::MethodOwner::Struct(id));
+        let interface_implementations =
+            self.lower_interface_implementations(&source.interface_implementations, &arguments);
+        let interfaces = interface_implementations
             .iter()
-            .map(|implementation| {
-                let interface =
-                    self.lower_interface_application(implementation.interface, &arguments);
-                self.interface_type[&interface]
-            })
+            .map(|implementation| self.interface_type[&implementation.interface])
             .collect();
         let gc_free = fields.iter().all(|field| self.types[field.ty].gc_free);
         assert!(
@@ -911,6 +955,7 @@ impl<'a> Concretizer<'a> {
             "HIR diagnoses an invalid @NoGC struct specialization"
         );
         self.structs[id].interfaces = interfaces;
+        self.structs[id].interface_implementations = interface_implementations;
         self.structs[id].gc_free = gc_free;
         self.types[ty].gc_free = gc_free;
         match &mut self.structs[id].representation {
@@ -922,8 +967,6 @@ impl<'a> Concretizer<'a> {
                 debug_assert!(fields.is_empty() && gc_free);
             }
         }
-        let methods =
-            self.request_concrete_methods(&source.methods, concrete::MethodOwner::Struct(id));
         self.structs[id].methods = methods;
         id
     }
@@ -947,6 +990,7 @@ impl<'a> Concretizer<'a> {
             variants: Vec::new(),
             option_variants: None,
             interfaces: Vec::new(),
+            interface_implementations: Vec::new(),
             methods: Vec::new(),
             span: source.span,
         });
@@ -975,14 +1019,13 @@ impl<'a> Concretizer<'a> {
                 }
             })
             .collect();
-        let interfaces = source
-            .interface_implementations
+        let methods =
+            self.request_concrete_methods(&source.methods, concrete::MethodOwner::Enum(id));
+        let interface_implementations =
+            self.lower_interface_implementations(&source.interface_implementations, &arguments);
+        let interfaces = interface_implementations
             .iter()
-            .map(|implementation| {
-                let interface =
-                    self.lower_interface_application(implementation.interface, &arguments);
-                self.interface_type[&interface]
-            })
+            .map(|implementation| self.interface_type[&implementation.interface])
             .collect();
         let gc_free = variants.iter().all(|variant| variant.gc_free);
         assert!(
@@ -1007,11 +1050,10 @@ impl<'a> Concretizer<'a> {
         });
         self.enums[id].variants = variants;
         self.enums[id].interfaces = interfaces;
+        self.enums[id].interface_implementations = interface_implementations;
         self.enums[id].option_variants = option_variants;
         self.enums[id].gc_free = gc_free;
         self.types[ty].gc_free = gc_free;
-        let methods =
-            self.request_concrete_methods(&source.methods, concrete::MethodOwner::Enum(id));
         self.enums[id].methods = methods;
         id
     }
@@ -1046,7 +1088,12 @@ impl<'a> Concretizer<'a> {
         let method_instances = self.interface_method_instances(source.self_application, &arguments);
         let methods = method_instances
             .iter()
-            .map(|(method, method_arguments)| {
+            .enumerate()
+            .map(|(index, (method, method_arguments))| {
+                self.interface_slot_by_source.insert(
+                    (id, *method),
+                    concrete::InterfaceMethodSlot::from_raw(index as u32),
+                );
                 let function =
                     &self.source.functions[self.source.interface_methods[*method].function];
                 concrete::MethodSig {
@@ -1075,6 +1122,43 @@ impl<'a> Concretizer<'a> {
             .collect();
         self.interfaces[id].methods = methods;
         id
+    }
+
+    fn lower_method_dispatch(
+        &mut self,
+        dispatch: export::MethodDispatch,
+        key: &FunctionKey,
+    ) -> concrete::MethodDispatch {
+        match dispatch {
+            export::MethodDispatch::Direct => concrete::MethodDispatch::Direct,
+            export::MethodDispatch::Virtual(source) => {
+                let next = self.virtual_method_by_source.len() as u32;
+                let method = *self
+                    .virtual_method_by_source
+                    .entry(source)
+                    .or_insert_with(|| concrete::VirtualMethodId::from_raw(next));
+                concrete::MethodDispatch::Virtual(method)
+            }
+            export::MethodDispatch::FinalOverride(source) => {
+                let next = self.virtual_method_by_source.len() as u32;
+                let method = *self
+                    .virtual_method_by_source
+                    .entry(source)
+                    .or_insert_with(|| concrete::VirtualMethodId::from_raw(next));
+                concrete::MethodDispatch::FinalOverride(method)
+            }
+            export::MethodDispatch::Interface(member) => {
+                let FunctionKey::Method {
+                    owner: concrete::MethodOwner::Interface(interface),
+                    ..
+                } = *key
+                else {
+                    unreachable!("interface dispatch belongs to a concrete interface method")
+                };
+                let slot = self.interface_slot_by_source[&(interface, member)];
+                concrete::MethodDispatch::Interface { interface, slot }
+            }
+        }
     }
 
     fn interface_method_instances(
@@ -1315,6 +1399,7 @@ impl<'a> Concretizer<'a> {
         let method = source.method.map(|method| concrete::Method {
             owner: self.lower_type(method.owner, &arguments),
             modifier: method.modifier,
+            dispatch: self.lower_method_dispatch(method.dispatch, key),
             operator: method.operator,
         });
         let origin = self.function_origin(key, &source);
@@ -2375,6 +2460,7 @@ impl<'a> Concretizer<'a> {
                     method: Some(concrete::Method {
                         owner: owner_ty,
                         modifier: concrete::MethodModifier::Final,
+                        dispatch: concrete::MethodDispatch::Direct,
                         operator: Some(export::OperatorKind::Equals),
                     }),
                     span: application.span,

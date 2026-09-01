@@ -78,6 +78,34 @@ impl VariantId {
     }
 }
 
+/// Local-concrete identity of one class virtual-dispatch family. It is mapped
+/// explicitly from the export-side family during HIR concretization.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct VirtualMethodId(u32);
+
+impl VirtualMethodId {
+    pub const fn from_raw(raw: u32) -> Self {
+        Self(raw)
+    }
+
+    pub const fn into_raw(self) -> u32 {
+        self.0
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct InterfaceMethodSlot(u32);
+
+impl InterfaceMethodSlot {
+    pub const fn from_raw(raw: u32) -> Self {
+        Self(raw)
+    }
+
+    pub const fn into_raw(self) -> u32 {
+        self.0
+    }
+}
+
 /// A fully resolved type entity.  `gc_free` is mandatory by construction;
 /// there is no unknown or deferred state in local-concrete HIR.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -321,6 +349,7 @@ pub struct StructDef {
     pub gc_free: bool,
     pub representation: StructRepresentation,
     pub interfaces: Vec<TypeId>,
+    pub interface_implementations: Vec<InterfaceImplementation>,
     pub methods: Vec<FunctionId>,
     pub span: Span,
 }
@@ -356,6 +385,7 @@ pub struct EnumDef {
     pub variants: Vec<Variant>,
     pub option_variants: Option<(VariantId, VariantId)>,
     pub interfaces: Vec<TypeId>,
+    pub interface_implementations: Vec<InterfaceImplementation>,
     pub methods: Vec<FunctionId>,
     pub span: Span,
 }
@@ -367,6 +397,7 @@ pub struct ClassDef {
     pub type_arguments: Vec<TypeId>,
     pub representation: ClassRepresentation,
     pub interfaces: Vec<TypeId>,
+    pub interface_implementations: Vec<InterfaceImplementation>,
     pub methods: Vec<FunctionId>,
     pub span: Span,
 }
@@ -431,6 +462,30 @@ pub struct InterfaceDef {
     pub type_arguments: Vec<TypeId>,
     pub methods: Vec<MethodSig>,
     pub span: Span,
+}
+
+/// Complete local-concrete dispatch table for one exact interface
+/// application. Entries are paired with their typed slot identities.
+#[derive(Debug, Clone)]
+pub struct InterfaceImplementation {
+    pub interface: InterfaceId,
+    pub methods: Vec<InterfaceMethodImplementation>,
+}
+
+#[derive(Debug, Clone)]
+pub struct InterfaceMethodImplementation {
+    pub slot: InterfaceMethodSlot,
+    pub target: InterfaceImplementationTarget,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum InterfaceImplementationTarget {
+    Method(FunctionId),
+    /// An abstract class intentionally leaves this obligation to a concrete
+    /// subclass. The declaration supplies the complete slot signature.
+    Abstract {
+        declaration: FunctionId,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -563,7 +618,21 @@ pub enum InstanceSymbol {
 pub struct Method {
     pub owner: TypeId,
     pub modifier: MethodModifier,
+    pub dispatch: MethodDispatch,
     pub operator: Option<super::OperatorKind>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MethodDispatch {
+    Direct,
+    Virtual(VirtualMethodId),
+    /// Direct call at the declaring static type plus inherited vtable
+    /// membership for base-typed calls.
+    FinalOverride(VirtualMethodId),
+    Interface {
+        interface: InterfaceId,
+        slot: InterfaceMethodSlot,
+    },
 }
 
 #[derive(Debug, Clone)]
