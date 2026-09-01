@@ -28,6 +28,10 @@ pub type VoidCallTargetId = Idx<VoidCallTarget>;
 pub type DirectCallTargetId = Idx<DirectCallTarget>;
 pub type IndirectResultCallTargetId = Idx<IndirectResultCallTarget>;
 pub type DispatchSlotId = Idx<DispatchSlot>;
+pub type LayoutId = Idx<Layout>;
+pub type TypeDescriptorId = Idx<TypeDescriptor>;
+pub type ExternalTypeDescriptorId = Idx<ExternalTypeDescriptor>;
+pub type ExternalCallableId = Idx<ExternalCallable>;
 
 /// Typed index into `Module::functions`. Functions remain in emission order,
 /// while call destinations no longer use their symbols as semantic identity.
@@ -268,27 +272,31 @@ pub struct CLayout {
 /// Per-Cone LIR metadata (impl spec 2.4): type layouts.
 #[derive(Debug)]
 pub struct LirMeta {
-    /// Runtime-owned String representation and descriptor, selected from the
-    /// typed intrinsic String declaration. Codegen consumes this directly and
-    /// never searches layouts or synthesizes a second descriptor by name.
-    pub string: StringMetadata,
+    /// Non-optional identities selected from typed intrinsic declarations.
+    pub well_known_layouts: WellKnownLayouts,
+    pub well_known_type_descriptors: WellKnownTypeDescriptors,
     /// Every fully specialized intrinsic `Array<T>` / `MutableArray<T>`
     /// application. Array instructions carry an `ArrayTypeId`; codegen never
     /// reconstructs nominal array identity or GC metadata from value layouts.
     pub arrays: Arena<ArrayType>,
-    pub layouts: Vec<Layout>,
-    /// TypeDescriptors to emit (runtime spec 2.2): classes, boxed
-    /// value types, and interfaces (symbols serve as itable keys).
-    /// Emission order is significant: `parent` / interface symbols
-    /// must refer to entries in this list (or to
-    /// `STRING_TD_SYMBOL`).
-    pub type_descriptors: Vec<TypeDescriptor>,
+    pub layouts: Arena<Layout>,
+    /// Locally emitted TypeDescriptors. Every semantic edge uses a typed ref;
+    /// `symbol` is only a final link attribute.
+    pub type_descriptors: Arena<TypeDescriptor>,
+    /// Cross-Cone descriptors are declared but not initialized by this Cone.
+    pub external_type_descriptors: Arena<ExternalTypeDescriptor>,
+    /// Cross-Cone callables referenced from local dispatch tables.
+    pub external_callables: Arena<ExternalCallable>,
 }
 
-#[derive(Debug)]
-pub struct StringMetadata {
-    pub layout: Layout,
-    pub type_descriptor: TypeDescriptor,
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct WellKnownLayouts {
+    pub string: LayoutId,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct WellKnownTypeDescriptors {
+    pub string: TypeDescriptorRef,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -306,9 +314,38 @@ pub struct ArrayType {
     pub element: LirType,
     pub element_size: u64,
     pub element_align: u64,
-    /// Its `scan` is the recursive scan program for one inline element; the
-    /// array repetition wrapper is added mechanically by codegen.
-    pub type_descriptor: TypeDescriptor,
+    /// The descriptor owns the recursive repeated-element scan program.
+    pub type_descriptor: TypeDescriptorRef,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum TypeDescriptorRef {
+    Local(TypeDescriptorId),
+    External(ExternalTypeDescriptorId),
+}
+
+#[derive(Debug)]
+pub struct ExternalTypeDescriptor {
+    /// Final linker spelling; never used as semantic identity.
+    pub symbol: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum CallableRef {
+    Local(LocalFunctionId),
+    Runtime(RuntimeFunction),
+    External(ExternalCallableId),
+}
+
+#[derive(Debug)]
+pub struct ExternalCallable {
+    /// Final linker spelling; the typed arena id is the semantic identity.
+    pub symbol: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct DispatchEntry {
+    pub callable: CallableRef,
 }
 
 /// Everything codegen needs to emit one `ScoopTypeDescriptor`
@@ -319,25 +356,31 @@ pub struct TypeDescriptor {
     pub name: String,
     /// Global symbol, e.g. `scoop_td_Point`.
     pub symbol: String,
-    /// `type_id` (codegen assigns small integers, starting after the
-    /// built-ins).
+    /// Runtime-visible identity selected by lir-lower. Codegen does not infer
+    /// it from arena position or descriptor category.
+    pub runtime_type_id: u64,
     pub size: u64,
     pub align: u64,
-    /// Recursive GC scan program for the object payload. Unlike a flat
-    /// offset list, this preserves tagged enums nested in aggregates.
-    pub scan: RefScan,
-    /// Symbol of the parent TypeDescriptor (classes: base class;
-    /// boxed value types / interfaces: none).
-    pub parent: Option<String>,
-    /// Symbols of ordinary virtual functions, in dispatch-slot order.
-    pub vtable: Vec<String>,
+    pub scan: TypeDescriptorScan,
+    /// Classes reference their base descriptor; root/reference-key entities
+    /// have no parent. The absence is emitted as a metadata-provenance null.
+    pub parent: Option<TypeDescriptorRef>,
+    pub vtable: Vec<DispatchEntry>,
     pub itables: Vec<ItableRecord>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TypeDescriptorScan {
+    /// Recursive GC scan program for a fixed-size object payload.
+    Fixed(RefScan),
+    /// Recursive scan for one inline array element, repeated at `stride`.
+    ArrayElement { stride: u64, scan: RefScan },
 }
 
 #[derive(Debug)]
 pub struct ItableRecord {
-    pub interface_symbol: String,
-    pub slots: Vec<String>,
+    pub interface: TypeDescriptorRef,
+    pub slots: Vec<DispatchEntry>,
 }
 
 #[derive(Debug)]
@@ -599,7 +642,7 @@ pub enum DispatchKind {
     FunctionBridge,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum RuntimeFunction {
     Alloc,
     Box,
@@ -768,6 +811,7 @@ impl Function {
             Value::IntConst(_) => LirType::I64,
             Value::BoolConst(_) => LirType::I1,
             Value::NullPointer(kind) => LirType::Ptr(kind),
+            Value::TypeDescriptor(_) => METADATA_PTR,
             Value::Global(id) => LirType::Ptr(globals[id].address_kind),
         }
     }
@@ -791,6 +835,8 @@ pub enum Value {
     IntConst(i64),
     BoolConst(bool),
     NullPointer(PointerKind),
+    /// Address of a local or external TypeDescriptor.
+    TypeDescriptor(TypeDescriptorRef),
     /// Address of a global constant.
     Global(GlobalId),
 }
@@ -1262,21 +1308,65 @@ pub fn dump(module: &Module) -> String {
             }
         }
     }
-    for td in &module.meta.type_descriptors {
+    for (id, td) in module.meta.type_descriptors.iter() {
+        let reference = TypeDescriptorRef::Local(id);
+        if reference == module.meta.well_known_type_descriptors.string
+            || module
+                .meta
+                .arrays
+                .iter()
+                .any(|(_, array)| array.type_descriptor == reference)
+        {
+            continue;
+        }
+        let parent = td
+            .parent
+            .map(type_descriptor_ref_name)
+            .unwrap_or_else(|| "none".to_string());
+        let vtable = td
+            .vtable
+            .iter()
+            .map(|entry| callable_ref_name(entry.callable))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let itables = td
+            .itables
+            .iter()
+            .map(|record| {
+                let slots = record
+                    .slots
+                    .iter()
+                    .map(|entry| callable_ref_name(entry.callable))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("{}:[{slots}]", type_descriptor_ref_name(record.interface))
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
         out.push_str(&format!(
-            "  td {} @{} size={} vtable={} itables={}\n",
+            "  td td{} {} @{} type-id={} size={} parent={} vtable=[{}] itables=[{}]\n",
+            id.into_raw(),
             td.name,
             td.symbol,
+            td.runtime_type_id,
             td.size,
-            td.vtable.len(),
-            td.itables.len()
+            parent,
+            vtable,
+            itables,
         ));
     }
     for (id, array) in module.meta.arrays.iter() {
+        let TypeDescriptorRef::Local(descriptor_id) = array.type_descriptor else {
+            unreachable!("a local array application owns a local descriptor")
+        };
+        let descriptor = &module.meta.type_descriptors[descriptor_id];
+        let TypeDescriptorScan::ArrayElement { scan, .. } = &descriptor.scan else {
+            unreachable!("an array descriptor owns an element scan")
+        };
         out.push_str(&format!(
-            "  array-type array{} {} kind={} element={} size={} align={} scan={} td=@{}\n",
+            "  array-type array{} {} kind={} element={} size={} align={} scan={} td={}\n",
             id.into_raw(),
-            array.type_descriptor.name,
+            descriptor.name,
             match array.kind {
                 ArrayKind::Immutable => "immutable",
                 ArrayKind::Mutable => "mutable",
@@ -1284,39 +1374,40 @@ pub fn dump(module: &Module) -> String {
             array.element.dump(),
             array.element_size,
             array.element_align,
-            array.type_descriptor.scan.dump(),
-            array.type_descriptor.symbol,
+            scan.dump(),
+            type_descriptor_ref_name(array.type_descriptor),
         ));
     }
     // Keep the textual dump stable while the typed intrinsic metadata remains
     // available directly on `LirMeta`: String historically appeared first,
     // and the unused UInt scalar was omitted. Tests that validate the intrinsic
     // contract inspect the typed fields instead of reconstructing it from text.
-    for layout in [&module.meta.string.layout]
-        .into_iter()
-        .chain(module.meta.layouts.iter().filter(|layout| {
-            matches!(
-                layout.kind,
-                LayoutKind::Intrinsic(IntrinsicTypeRepresentation::Int)
-            )
-        }))
-        .chain(module.meta.layouts.iter().filter(|layout| {
-            matches!(
-                layout.kind,
-                LayoutKind::Intrinsic(IntrinsicTypeRepresentation::Boolean)
-            )
-        }))
-        .chain(module.meta.layouts.iter().filter(|layout| {
-            !matches!(
-                layout.kind,
-                LayoutKind::Intrinsic(
-                    IntrinsicTypeRepresentation::Int
-                        | IntrinsicTypeRepresentation::UInt
-                        | IntrinsicTypeRepresentation::Boolean
-                        | IntrinsicTypeRepresentation::String
+    let string_layout = module.meta.well_known_layouts.string;
+    for (_layout_id, layout) in
+        std::iter::once((string_layout, &module.meta.layouts[string_layout]))
+            .chain(module.meta.layouts.iter().filter(|(_, layout)| {
+                matches!(
+                    layout.kind,
+                    LayoutKind::Intrinsic(IntrinsicTypeRepresentation::Int)
                 )
-            )
-        }))
+            }))
+            .chain(module.meta.layouts.iter().filter(|(_, layout)| {
+                matches!(
+                    layout.kind,
+                    LayoutKind::Intrinsic(IntrinsicTypeRepresentation::Boolean)
+                )
+            }))
+            .chain(module.meta.layouts.iter().filter(|(_, layout)| {
+                !matches!(
+                    layout.kind,
+                    LayoutKind::Intrinsic(
+                        IntrinsicTypeRepresentation::Int
+                            | IntrinsicTypeRepresentation::UInt
+                            | IntrinsicTypeRepresentation::Boolean
+                            | IntrinsicTypeRepresentation::String
+                    )
+                )
+            }))
     {
         match &layout.kind {
             LayoutKind::Plain { scan } => match scan {
@@ -1387,7 +1478,23 @@ fn value_name(value: Value) -> String {
         Value::IntConst(value) => format!("{value}"),
         Value::BoolConst(value) => format!("{value}"),
         Value::NullPointer(kind) => format!("null<{}>", kind.dump()),
+        Value::TypeDescriptor(reference) => type_descriptor_ref_name(reference),
         Value::Global(id) => format!("global{}", id.into_raw()),
+    }
+}
+
+fn type_descriptor_ref_name(reference: TypeDescriptorRef) -> String {
+    match reference {
+        TypeDescriptorRef::Local(id) => format!("td{}", id.into_raw()),
+        TypeDescriptorRef::External(id) => format!("external-td{}", id.into_raw()),
+    }
+}
+
+fn callable_ref_name(reference: CallableRef) -> String {
+    match reference {
+        CallableRef::Local(id) => format!("local-fn{}", id.into_u32()),
+        CallableRef::Runtime(function) => format!("runtime@{}", function.symbol()),
+        CallableRef::External(id) => format!("external-fn{}", id.into_raw()),
     }
 }
 

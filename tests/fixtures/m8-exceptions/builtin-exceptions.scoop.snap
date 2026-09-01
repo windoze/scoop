@@ -942,15 +942,6 @@ Module
   global @scoop.str.8 = "arithmetic error"
   global @scoop.str.9 = "array index out of bounds"
   global @scoop.str.10 = "illegal state"
-  global @scoop_td_IndexOutOfBoundsException = c""
-  global @scoop_td_UnwrapException = c""
-  global @scoop_td_ClassCastException = c""
-  global @scoop_td_box$I = c""
-  global @scoop_td_String = c""
-  global @scoop_td_ArithmeticException = c""
-  global @scoop_td_Throwable = c""
-  global @scoop_td_Exception = c""
-  global @scoop_td_IllegalStateException = c""
   enum Option$S niche(payload_variant=0)
   enum Option$I tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
@@ -1069,7 +1060,7 @@ Module
   block try.dispatch.2
     t2 = begin_catch local21 : ptr<managed>
     store t2 -> local22
-    call t3 = direct-target0 sig=direct0 (ptr<managed>, ptr<metadata>) -> i1 effect=no-gc runtime @scoop_rt_is_instance(local22, global11)
+    call t3 = direct-target0 sig=direct0 (ptr<managed>, ptr<metadata>) -> i1 effect=no-gc runtime @scoop_rt_is_instance(local22, td10)
     cbr t3 then @try.catch.15 else @try.next.16
   block try.handler_pad.3
     (t4, t5) = cleanup_pad : (exception_record, ptr<raw>)
@@ -1135,7 +1126,7 @@ Module
   block try.dispatch.20
     t18 = begin_catch local21 : ptr<managed>
     store t18 -> local22
-    call t19 = direct-target2 sig=direct2 (ptr<managed>, ptr<metadata>) -> i1 effect=no-gc runtime @scoop_rt_is_instance(local22, global12)
+    call t19 = direct-target2 sig=direct2 (ptr<managed>, ptr<metadata>) -> i1 effect=no-gc runtime @scoop_rt_is_instance(local22, td7)
     cbr t19 then @try.catch.31 else @try.next.32
   block try.handler_pad.21
     (t20, t21) = cleanup_pad : (exception_record, ptr<raw>)
@@ -1194,7 +1185,7 @@ Module
   block try.dispatch.36
     t33 = begin_catch local21 : ptr<managed>
     store t33 -> local22
-    call t34 = direct-target4 sig=direct4 (ptr<managed>, ptr<metadata>) -> i1 effect=no-gc runtime @scoop_rt_is_instance(local22, global13)
+    call t34 = direct-target4 sig=direct4 (ptr<managed>, ptr<metadata>) -> i1 effect=no-gc runtime @scoop_rt_is_instance(local22, td8)
     cbr t34 then @try.catch.46 else @try.next.47
   block try.handler_pad.37
     (t35, t36) = cleanup_pad : (exception_record, ptr<raw>)
@@ -1217,10 +1208,10 @@ Module
   block try.body.42
     store 1 -> local23
     t39 = local_address local23 : ptr
-    call t40 = direct-target5 sig=direct5 (ptr<metadata>, ptr<raw>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_box(global14, t39, 8)
+    call t40 = direct-target5 sig=direct5 (ptr<metadata>, ptr<raw>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_box(td5, t39, 8)
     store t40 -> local4
     store local4 -> local12
-    call t41 = direct-target6 sig=direct6 (ptr<managed>, ptr<metadata>) -> i1 effect=no-gc runtime @scoop_rt_is_instance(local12, global15)
+    call t41 = direct-target6 sig=direct6 (ptr<managed>, ptr<metadata>) -> i1 effect=no-gc runtime @scoop_rt_is_instance(local12, td3)
     t42 = Not t41 : i1
     cbr t42 then @if.then.43 else @if.merge.44
   block if.then.43
@@ -1252,7 +1243,7 @@ Module
   block try.dispatch.51
     t48 = begin_catch local21 : ptr<managed>
     store t48 -> local22
-    call t49 = direct-target8 sig=direct8 (ptr<managed>, ptr<metadata>) -> i1 effect=no-gc runtime @scoop_rt_is_instance(local22, global16)
+    call t49 = direct-target8 sig=direct8 (ptr<managed>, ptr<metadata>) -> i1 effect=no-gc runtime @scoop_rt_is_instance(local22, td9)
     cbr t49 then @try.catch.61 else @try.next.62
   block try.handler_pad.52
     (t50, t51) = cleanup_pad : (exception_record, ptr<raw>)
@@ -1376,54 +1367,54 @@ Module
     ret
   fun @scoop.ctor.Throwable() -> ptr<managed>
   block entry
-    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(global17, 16)
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td2, 16)
     ret t0
   fun @scoop.ctor.Exception(enum0) -> ptr<managed>
   block entry
-    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(global18, 24)
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td6, 24)
     heap_store t0 +16 param0
     ret t0
   fun @scoop.ctor.UnwrapException() -> ptr<managed>
   block entry
-    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(global12, 24)
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td7, 24)
     t1 = enum_wrap e0 v0 (global6) : enum0
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.ClassCastException() -> ptr<managed>
   block entry
-    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(global13, 24)
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td8, 24)
     t1 = enum_wrap e0 v0 (global7) : enum0
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.ArithmeticException() -> ptr<managed>
   block entry
-    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(global16, 24)
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td9, 24)
     t1 = enum_wrap e0 v0 (global8) : enum0
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.IndexOutOfBoundsException() -> ptr<managed>
   block entry
-    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(global11, 24)
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td10, 24)
     t1 = enum_wrap e0 v0 (global9) : enum0
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.IllegalStateException() -> ptr<managed>
   block entry
-    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(global19, 24)
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td11, 24)
     t1 = enum_wrap e0 v0 (global10) : enum0
     heap_store t0 +16 t1
     ret t0
-  td ToString @scoop_td_ToString size=0 vtable=0 itables=0
-  td Hash @scoop_td_Hash size=0 vtable=0 itables=0
-  td Throwable @scoop_td_Throwable size=16 vtable=0 itables=0
-  td box$I @scoop_td_box$I size=24 vtable=0 itables=0
-  td Exception @scoop_td_Exception size=24 vtable=0 itables=0
-  td UnwrapException @scoop_td_UnwrapException size=24 vtable=0 itables=0
-  td ClassCastException @scoop_td_ClassCastException size=24 vtable=0 itables=0
-  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=0 itables=0
-  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=0 itables=0
-  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=0 itables=0
-  array-type array0 Array$I kind=immutable element=i64 size=8 align=8 scan=none td=@scoop_td_Array$I
+  td td0 ToString @scoop_td_ToString type-id=2 size=0 parent=none vtable=[] itables=[]
+  td td1 Hash @scoop_td_Hash type-id=3 size=0 parent=none vtable=[] itables=[]
+  td td2 Throwable @scoop_td_Throwable type-id=4 size=16 parent=none vtable=[] itables=[]
+  td td5 box$I @scoop_td_box$I type-id=6 size=24 parent=none vtable=[] itables=[]
+  td td6 Exception @scoop_td_Exception type-id=7 size=24 parent=td2 vtable=[] itables=[]
+  td td7 UnwrapException @scoop_td_UnwrapException type-id=8 size=24 parent=td6 vtable=[] itables=[]
+  td td8 ClassCastException @scoop_td_ClassCastException type-id=9 size=24 parent=td6 vtable=[] itables=[]
+  td td9 ArithmeticException @scoop_td_ArithmeticException type-id=10 size=24 parent=td6 vtable=[] itables=[]
+  td td10 IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException type-id=11 size=24 parent=td6 vtable=[] itables=[]
+  td td11 IllegalStateException @scoop_td_IllegalStateException type-id=12 size=24 parent=td6 vtable=[] itables=[]
+  array-type array0 Array$I kind=immutable element=i64 size=8 align=8 scan=none td=td4
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]

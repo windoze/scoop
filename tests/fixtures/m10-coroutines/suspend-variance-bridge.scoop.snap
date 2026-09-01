@@ -2374,30 +2374,6 @@ Module
   global @scoop.str.6 = "array index out of bounds"
   global @scoop.str.7 = "illegal state"
   global @scoop.str.8 = "dog"
-  global @scoop_td_Continuation$C3_DogX = c""
-  global @scoop_td_CoroutineFrame$scoop_SuspendedDogTask_run_suspend = c""
-  global @scoop_td_Throwable = c""
-  global @scoop_td_Exception = c""
-  global @scoop_td_UnwrapException = c""
-  global @scoop_td_ClassCastException = c""
-  global @scoop_td_ArithmeticException = c""
-  global @scoop_td_IndexOutOfBoundsException = c""
-  global @scoop_td_IllegalStateException = c""
-  global @scoop_td_Animal = c""
-  global @scoop_td_Dog = c""
-  global @scoop_td_DogGate = c""
-  global @scoop_td_DogRegistration = c""
-  global @scoop_td_ImmediateDogTask = c""
-  global @scoop_td_SuspendedDogTask = c""
-  global @scoop_td_AnimalCompletion = c""
-  global @scoop_td_Continuation$C6_AnimalX = c""
-  global @scoop_td_SuspendTask$C6_AnimalX = c""
-  global @scoop_td_CoroutineFrame$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend = c""
-  global @scoop_td_CoroutineFrame$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend = c""
-  global @scoop_td_CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1 = c""
-  global @scoop_td_SuspendRegistration$C3_DogX = c""
-  global @scoop_td_CoroutineAdapter$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1 = c""
-  global @scoop_td_CoroutineAdapter$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1 = c""
   enum Option$J20_Continuation$C3_DogXX niche(payload_variant=0)
   enum Option$S niche(payload_variant=0)
   enum CoroutineStep$C6_AnimalX niche(payload_variant=0)
@@ -2512,7 +2488,7 @@ Module
     t5 = enum_wrap e0 v1 () : enum0
     heap_store param0 +16 t5
     t6 = heap_load local0 +0 : ptr<metadata>
-    call t7 = direct-target1 sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t6, global9)
+    call t7 = direct-target1 sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t6, td2)
     call void-target0 sig=void0 (ptr<managed>, ptr<managed>) effect=managed-safepoint dispatch[Interface:0] t7(local0, param1)
     t8 = aggregate () : {}
     ret
@@ -2533,7 +2509,7 @@ Module
     local %0 $frame: ptr<managed>
     local %1 $step: enum3
   block entry
-    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(global10, 56)
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td16, 56)
     heap_store t0 +16 0
     heap_store t0 +24 param1
     t1 = enum_wrap e4 v1 (param0) : enum4
@@ -2599,75 +2575,75 @@ Module
     ret
   fun @scoop.ctor.Throwable() -> ptr<managed>
   block entry
-    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(global11, 16)
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td8, 16)
     ret t0
   fun @scoop.ctor.Exception(enum1) -> ptr<managed>
   block entry
-    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(global12, 24)
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td22, 24)
     heap_store t0 +16 param0
     ret t0
   fun @scoop.ctor.UnwrapException() -> ptr<managed>
   block entry
-    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(global13, 24)
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td24, 24)
     t1 = enum_wrap e1 v0 (global3) : enum1
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.ClassCastException() -> ptr<managed>
   block entry
-    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(global14, 24)
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td25, 24)
     t1 = enum_wrap e1 v0 (global4) : enum1
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.ArithmeticException() -> ptr<managed>
   block entry
-    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(global15, 24)
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td26, 24)
     t1 = enum_wrap e1 v0 (global5) : enum1
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.IndexOutOfBoundsException() -> ptr<managed>
   block entry
-    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(global16, 24)
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td27, 24)
     t1 = enum_wrap e1 v0 (global6) : enum1
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.IllegalStateException() -> ptr<managed>
   block entry
-    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(global17, 24)
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td28, 24)
     t1 = enum_wrap e1 v0 (global7) : enum1
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.Animal(ptr<managed>) -> ptr<managed>
   block entry
-    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(global18, 24)
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td10, 24)
     heap_store t0 +16 param0
     ret t0
   fun @scoop.ctor.Dog() -> ptr<managed>
   block entry
-    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(global19, 24)
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td23, 24)
     heap_store t0 +16 global8
     ret t0
   fun @scoop.ctor.DogGate(enum0) -> ptr<managed>
   block entry
-    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(global20, 24)
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td11, 24)
     heap_store t0 +16 param0
     ret t0
   fun @scoop.ctor.DogRegistration(ptr<managed>) -> ptr<managed>
   block entry
-    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(global21, 24)
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td12, 24)
     heap_store t0 +16 param0
     ret t0
   fun @scoop.ctor.ImmediateDogTask() -> ptr<managed>
   block entry
-    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(global22, 16)
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td13, 16)
     ret t0
   fun @scoop.ctor.SuspendedDogTask(ptr<managed>) -> ptr<managed>
   block entry
-    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(global23, 24)
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td14, 24)
     heap_store t0 +16 param0
     ret t0
   fun @scoop.ctor.AnimalCompletion() -> ptr<managed>
   block entry
-    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(global24, 16)
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td15, 16)
     ret t0
   fun @scoop.coroutine.start$C6_AnimalX(ptr<managed>, ptr<managed>) -> void
     local %0 $step: enum2
@@ -2680,13 +2656,13 @@ Module
   block completed
     t0 = enum_field e2 v0 f0 local0 : ptr<managed>
     t1 = heap_load param1 +0 : ptr<metadata>
-    call t2 = direct-target0 sig=direct0 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t1, global25)
+    call t2 = direct-target0 sig=direct0 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t1, td5)
     call void-target0 sig=void0 (ptr<managed>, ptr<managed>) effect=managed-safepoint dispatch[Interface:0] t2(param1, t0)
     t3 = aggregate () : {}
     ret
   block failed
     t4 = heap_load param1 +0 : ptr<metadata>
-    call t5 = direct-target1 sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t4, global25)
+    call t5 = direct-target1 sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t4, td5)
     call void-target1 sig=void1 (ptr<managed>, ptr<managed>) effect=managed-safepoint dispatch[Interface:1] t5(param1, local1)
     t6 = aggregate () : {}
     ret
@@ -2702,7 +2678,7 @@ Module
     br @failed
   block entry
     t11 = heap_load param0 +0 : ptr<metadata>
-    call t12 = direct-target3 sig=direct3 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t11, global26)
+    call t12 = direct-target3 sig=direct3 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t11, td6)
     invoke t13 = direct-target4 sig=direct4 (ptr<managed>, ptr<managed>) -> enum2 effect=managed-safepoint dispatch[Interface:0] t12(param0, param1) normal @invoke.normal.1 unwind @body_failure
     br @invoke.normal.1
   block invoke.normal.1
@@ -2719,7 +2695,7 @@ Module
     local %0 $frame: ptr<managed>
     local %1 $step: enum2
   block entry
-    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(global27, 56)
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td18, 56)
     heap_store t0 +16 0
     heap_store t0 +24 param1
     t1 = enum_wrap e7 v1 (param0) : enum7
@@ -2736,7 +2712,7 @@ Module
     local %0 $frame: ptr<managed>
     local %1 $step: enum2
   block entry
-    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(global28, 56)
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td20, 56)
     heap_store t0 +16 0
     heap_store t0 +24 param1
     t1 = enum_wrap e7 v1 (param0) : enum7
@@ -2778,7 +2754,7 @@ Module
     call t1 = direct-target0 sig=direct0 (ptr<managed>) -> ptr<managed> effect=managed-safepoint local-fn30(t0)
     store t1 -> local1
     atomic_store release param0 +16 1
-    call t2 = direct-target1 sig=direct1 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(global29, 48)
+    call t2 = direct-target1 sig=direct1 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td17, 48)
     heap_store t2 +16 param0
     heap_store t2 +24 0
     t3 = enum_wrap e5 v0 () : enum5
@@ -2792,7 +2768,7 @@ Module
     ret t5
   block coroutine.register.1
     t6 = heap_load local1 +0 : ptr<metadata>
-    call t7 = direct-target2 sig=direct2 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t6, global30)
+    call t7 = direct-target2 sig=direct2 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t6, td3)
     invoke void-target0 sig=void0 (ptr<managed>, ptr<managed>) effect=managed-safepoint dispatch[Interface:0] t7(local1, local4) normal @invoke.normal.1 unwind @coroutine.registration_failure.1
     br @invoke.normal.1
   block coroutine.registered_success.1
@@ -2942,7 +2918,7 @@ Module
     t3 = heap_load t2 +24 : ptr<managed>
     t4 = enum_field e3 v0 f0 local0 : ptr<managed>
     t5 = heap_load t3 +0 : ptr<metadata>
-    call t6 = direct-target1 sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t5, global9)
+    call t6 = direct-target1 sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t5, td2)
     call void-target0 sig=void0 (ptr<managed>, ptr<managed>) effect=managed-safepoint dispatch[Interface:0] t6(t3, t4)
     t7 = aggregate () : {}
     ret
@@ -2954,7 +2930,7 @@ Module
     t9 = heap_load param0 +16 : ptr<managed>
     t10 = heap_load t9 +24 : ptr<managed>
     t11 = heap_load t10 +0 : ptr<metadata>
-    call t12 = direct-target2 sig=direct2 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t11, global9)
+    call t12 = direct-target2 sig=direct2 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t11, td2)
     call void-target1 sig=void1 (ptr<managed>, ptr<managed>) effect=managed-safepoint dispatch[Interface:1] t12(t10, local4)
     t13 = aggregate () : {}
     ret
@@ -3026,7 +3002,7 @@ Module
     t3 = heap_load t2 +24 : ptr<managed>
     t4 = enum_field e3 v0 f0 local0 : ptr<managed>
     t5 = heap_load t3 +0 : ptr<metadata>
-    call t6 = direct-target1 sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t5, global9)
+    call t6 = direct-target1 sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t5, td2)
     call void-target0 sig=void0 (ptr<managed>, ptr<managed>) effect=managed-safepoint dispatch[Interface:0] t6(t3, t4)
     t7 = aggregate () : {}
     ret
@@ -3038,7 +3014,7 @@ Module
     t9 = heap_load param0 +16 : ptr<managed>
     t10 = heap_load t9 +24 : ptr<managed>
     t11 = heap_load t10 +0 : ptr<metadata>
-    call t12 = direct-target2 sig=direct2 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t11, global9)
+    call t12 = direct-target2 sig=direct2 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t11, td2)
     call void-target1 sig=void1 (ptr<managed>, ptr<managed>) effect=managed-safepoint dispatch[Interface:1] t12(t10, local4)
     t13 = aggregate () : {}
     ret
@@ -3101,7 +3077,7 @@ Module
     local %8 $protocol_error: ptr<managed>
   block entry
     atomic_store release param0 +16 1
-    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(global31, 32)
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td19, 32)
     heap_store t0 +16 param0
     heap_store t0 +24 1
     store t0 -> local3
@@ -3186,7 +3162,7 @@ Module
     t3 = heap_load t2 +24 : ptr<managed>
     t4 = enum_field e2 v0 f0 local0 : ptr<managed>
     t5 = heap_load t3 +0 : ptr<metadata>
-    call t6 = direct-target1 sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t5, global25)
+    call t6 = direct-target1 sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t5, td5)
     call void-target0 sig=void0 (ptr<managed>, ptr<managed>) effect=managed-safepoint dispatch[Interface:0] t6(t3, t4)
     t7 = aggregate () : {}
     ret
@@ -3198,7 +3174,7 @@ Module
     t9 = heap_load param0 +16 : ptr<managed>
     t10 = heap_load t9 +24 : ptr<managed>
     t11 = heap_load t10 +0 : ptr<metadata>
-    call t12 = direct-target2 sig=direct2 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t11, global25)
+    call t12 = direct-target2 sig=direct2 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t11, td5)
     call void-target1 sig=void1 (ptr<managed>, ptr<managed>) effect=managed-safepoint dispatch[Interface:1] t12(t10, local4)
     t13 = aggregate () : {}
     ret
@@ -3260,7 +3236,7 @@ Module
     t3 = heap_load t2 +24 : ptr<managed>
     t4 = enum_field e2 v0 f0 local0 : ptr<managed>
     t5 = heap_load t3 +0 : ptr<metadata>
-    call t6 = direct-target1 sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t5, global25)
+    call t6 = direct-target1 sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t5, td5)
     call void-target0 sig=void0 (ptr<managed>, ptr<managed>) effect=managed-safepoint dispatch[Interface:0] t6(t3, t4)
     t7 = aggregate () : {}
     ret
@@ -3272,7 +3248,7 @@ Module
     t9 = heap_load param0 +16 : ptr<managed>
     t10 = heap_load t9 +24 : ptr<managed>
     t11 = heap_load t10 +0 : ptr<metadata>
-    call t12 = direct-target2 sig=direct2 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t11, global25)
+    call t12 = direct-target2 sig=direct2 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t11, td5)
     call void-target1 sig=void1 (ptr<managed>, ptr<managed>) effect=managed-safepoint dispatch[Interface:1] t12(t10, local4)
     t13 = aggregate () : {}
     ret
@@ -3325,7 +3301,7 @@ Module
     local %8 $protocol_error: ptr<managed>
   block entry
     atomic_store release param0 +16 1
-    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(global32, 32)
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td21, 32)
     heap_store t0 +16 param0
     heap_store t0 +24 1
     store t0 -> local3
@@ -3410,7 +3386,7 @@ Module
     t3 = heap_load t2 +24 : ptr<managed>
     t4 = enum_field e2 v0 f0 local0 : ptr<managed>
     t5 = heap_load t3 +0 : ptr<metadata>
-    call t6 = direct-target1 sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t5, global25)
+    call t6 = direct-target1 sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t5, td5)
     call void-target0 sig=void0 (ptr<managed>, ptr<managed>) effect=managed-safepoint dispatch[Interface:0] t6(t3, t4)
     t7 = aggregate () : {}
     ret
@@ -3422,7 +3398,7 @@ Module
     t9 = heap_load param0 +16 : ptr<managed>
     t10 = heap_load t9 +24 : ptr<managed>
     t11 = heap_load t10 +0 : ptr<metadata>
-    call t12 = direct-target2 sig=direct2 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t11, global25)
+    call t12 = direct-target2 sig=direct2 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t11, td5)
     call void-target1 sig=void1 (ptr<managed>, ptr<managed>) effect=managed-safepoint dispatch[Interface:1] t12(t10, local4)
     t13 = aggregate () : {}
     ret
@@ -3484,7 +3460,7 @@ Module
     t3 = heap_load t2 +24 : ptr<managed>
     t4 = enum_field e2 v0 f0 local0 : ptr<managed>
     t5 = heap_load t3 +0 : ptr<metadata>
-    call t6 = direct-target1 sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t5, global25)
+    call t6 = direct-target1 sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t5, td5)
     call void-target0 sig=void0 (ptr<managed>, ptr<managed>) effect=managed-safepoint dispatch[Interface:0] t6(t3, t4)
     t7 = aggregate () : {}
     ret
@@ -3496,7 +3472,7 @@ Module
     t9 = heap_load param0 +16 : ptr<managed>
     t10 = heap_load t9 +24 : ptr<managed>
     t11 = heap_load t10 +0 : ptr<metadata>
-    call t12 = direct-target2 sig=direct2 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t11, global25)
+    call t12 = direct-target2 sig=direct2 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t11, td5)
     call void-target1 sig=void1 (ptr<managed>, ptr<managed>) effect=managed-safepoint dispatch[Interface:1] t12(t10, local4)
     t13 = aggregate () : {}
     ret
@@ -3537,34 +3513,34 @@ Module
     t22 = enum_tag e2 local0 : i64
     t23 = Eq t22, 0 : i1
     cbr t23 then @completed else @suspended
-  td ToString @scoop_td_ToString size=0 vtable=0 itables=0
-  td Hash @scoop_td_Hash size=0 vtable=0 itables=0
-  td Continuation$C3_DogX @scoop_td_Continuation$C3_DogX size=0 vtable=0 itables=0
-  td SuspendRegistration$C3_DogX @scoop_td_SuspendRegistration$C3_DogX size=0 vtable=0 itables=0
-  td SuspendTask$C3_DogX @scoop_td_SuspendTask$C3_DogX size=0 vtable=0 itables=0
-  td Continuation$C6_AnimalX @scoop_td_Continuation$C6_AnimalX size=0 vtable=0 itables=0
-  td SuspendTask$C6_AnimalX @scoop_td_SuspendTask$C6_AnimalX size=0 vtable=0 itables=0
-  td SuspendRegistration$C6_AnimalX @scoop_td_SuspendRegistration$C6_AnimalX size=0 vtable=0 itables=0
-  td Throwable @scoop_td_Throwable size=16 vtable=0 itables=0
-  td Animal @scoop_td_Animal size=24 vtable=0 itables=0
-  td DogGate @scoop_td_DogGate size=24 vtable=0 itables=0
-  td DogRegistration @scoop_td_DogRegistration size=24 vtable=0 itables=2
-  td ImmediateDogTask @scoop_td_ImmediateDogTask size=16 vtable=0 itables=2
-  td SuspendedDogTask @scoop_td_SuspendedDogTask size=24 vtable=0 itables=2
-  td AnimalCompletion @scoop_td_AnimalCompletion size=16 vtable=0 itables=2
-  td CoroutineFrame$scoop_SuspendedDogTask_run_suspend @scoop_td_CoroutineFrame$scoop_SuspendedDogTask_run_suspend size=56 vtable=0 itables=0
-  td CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1 @scoop_td_CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1 size=48 vtable=0 itables=1
-  td CoroutineFrame$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend @scoop_td_CoroutineFrame$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend size=56 vtable=0 itables=0
-  td CoroutineAdapter$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1 @scoop_td_CoroutineAdapter$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1 size=32 vtable=0 itables=1
-  td CoroutineFrame$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend @scoop_td_CoroutineFrame$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend size=56 vtable=0 itables=0
-  td CoroutineAdapter$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1 @scoop_td_CoroutineAdapter$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1 size=32 vtable=0 itables=1
-  td Exception @scoop_td_Exception size=24 vtable=0 itables=0
-  td Dog @scoop_td_Dog size=24 vtable=0 itables=0
-  td UnwrapException @scoop_td_UnwrapException size=24 vtable=0 itables=0
-  td ClassCastException @scoop_td_ClassCastException size=24 vtable=0 itables=0
-  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=0 itables=0
-  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=0 itables=0
-  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=0 itables=0
+  td td0 ToString @scoop_td_ToString type-id=2 size=0 parent=none vtable=[] itables=[]
+  td td1 Hash @scoop_td_Hash type-id=3 size=0 parent=none vtable=[] itables=[]
+  td td2 Continuation$C3_DogX @scoop_td_Continuation$C3_DogX type-id=4 size=0 parent=none vtable=[] itables=[]
+  td td3 SuspendRegistration$C3_DogX @scoop_td_SuspendRegistration$C3_DogX type-id=5 size=0 parent=none vtable=[] itables=[]
+  td td4 SuspendTask$C3_DogX @scoop_td_SuspendTask$C3_DogX type-id=6 size=0 parent=none vtable=[] itables=[]
+  td td5 Continuation$C6_AnimalX @scoop_td_Continuation$C6_AnimalX type-id=7 size=0 parent=none vtable=[] itables=[]
+  td td6 SuspendTask$C6_AnimalX @scoop_td_SuspendTask$C6_AnimalX type-id=8 size=0 parent=none vtable=[] itables=[]
+  td td7 SuspendRegistration$C6_AnimalX @scoop_td_SuspendRegistration$C6_AnimalX type-id=9 size=0 parent=none vtable=[] itables=[]
+  td td8 Throwable @scoop_td_Throwable type-id=10 size=16 parent=none vtable=[] itables=[]
+  td td10 Animal @scoop_td_Animal type-id=11 size=24 parent=none vtable=[] itables=[]
+  td td11 DogGate @scoop_td_DogGate type-id=12 size=24 parent=none vtable=[] itables=[]
+  td td12 DogRegistration @scoop_td_DogRegistration type-id=13 size=24 parent=none vtable=[] itables=[td3:[local-fn13], td7:[local-fn35]]
+  td td13 ImmediateDogTask @scoop_td_ImmediateDogTask type-id=14 size=16 parent=none vtable=[] itables=[td4:[local-fn14], td6:[local-fn36]]
+  td td14 SuspendedDogTask @scoop_td_SuspendedDogTask type-id=15 size=24 parent=none vtable=[] itables=[td4:[local-fn15], td6:[local-fn37]]
+  td td15 AnimalCompletion @scoop_td_AnimalCompletion type-id=16 size=16 parent=none vtable=[] itables=[td5:[local-fn16, local-fn17], td2:[local-fn38, local-fn39]]
+  td td16 CoroutineFrame$scoop_SuspendedDogTask_run_suspend @scoop_td_CoroutineFrame$scoop_SuspendedDogTask_run_suspend type-id=17 size=56 parent=none vtable=[] itables=[]
+  td td17 CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1 @scoop_td_CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1 type-id=18 size=48 parent=none vtable=[] itables=[td2:[local-fn41, local-fn42]]
+  td td18 CoroutineFrame$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend @scoop_td_CoroutineFrame$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend type-id=19 size=56 parent=none vtable=[] itables=[]
+  td td19 CoroutineAdapter$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1 @scoop_td_CoroutineAdapter$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1 type-id=20 size=32 parent=none vtable=[] itables=[td2:[local-fn44, local-fn45]]
+  td td20 CoroutineFrame$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend @scoop_td_CoroutineFrame$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend type-id=21 size=56 parent=none vtable=[] itables=[]
+  td td21 CoroutineAdapter$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1 @scoop_td_CoroutineAdapter$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1 type-id=22 size=32 parent=none vtable=[] itables=[td2:[local-fn47, local-fn48]]
+  td td22 Exception @scoop_td_Exception type-id=23 size=24 parent=td8 vtable=[] itables=[]
+  td td23 Dog @scoop_td_Dog type-id=24 size=24 parent=td10 vtable=[] itables=[]
+  td td24 UnwrapException @scoop_td_UnwrapException type-id=25 size=24 parent=td22 vtable=[] itables=[]
+  td td25 ClassCastException @scoop_td_ClassCastException type-id=26 size=24 parent=td22 vtable=[] itables=[]
+  td td26 ArithmeticException @scoop_td_ArithmeticException type-id=27 size=24 parent=td22 vtable=[] itables=[]
+  td td27 IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException type-id=28 size=24 parent=td22 vtable=[] itables=[]
+  td td28 IllegalStateException @scoop_td_IllegalStateException type-id=29 size=24 parent=td22 vtable=[] itables=[]
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]

@@ -761,6 +761,12 @@ impl Lowerer {
         // The entry point is a non-generic user function, hence always
         // in the map.
         let entry = self.function_map[&module.entry];
+        let boxed_types = self
+            .boxed
+            .by_type
+            .into_iter()
+            .map(|(payload, class)| mir::BoxedType { payload, class })
+            .collect();
         mir::Module {
             functions: self.functions,
             extern_functions: self.extern_functions,
@@ -787,6 +793,7 @@ impl Lowerer {
                 coroutine_resume_points: self.coroutines.resume_points,
                 closure_adapters: self.closure_adapters,
                 dynamic_closure_adapters: self.dynamic_closure_adapters,
+                boxed_types,
                 ..mir::MirMeta::default()
             },
         }
@@ -11955,6 +11962,13 @@ Module
         );
         assert!(boxed.vtable.is_empty());
         assert!(boxed.itables.is_empty());
+        assert_eq!(module.meta.boxed_types.len(), 1);
+        let boxed_meta = &module.meta.boxed_types[0];
+        assert_eq!(
+            boxed_meta.payload,
+            mir::Type::Struct(la_arena::Idx::from_raw(0.into()))
+        );
+        assert_eq!(module.classes[boxed_meta.class].name, "box$D1_SX");
         assert!(module.functions.iter().all(|(_, function)| {
             !function.symbol.starts_with("scoop.eq.")
                 && !function.symbol.starts_with("scoop.tostring.")

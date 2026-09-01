@@ -45,9 +45,10 @@ use inkwell::values::{BasicValue, BasicValueEnum, GlobalValue, IntValue, Pointer
 use inkwell::{AddressSpace, AtomicOrdering, AtomicRMWBinOp, IntPredicate, OptimizationLevel};
 use la_arena::{Arena, Idx};
 use scoop_lir::{
-    ArrayType, ArrayTypeId, BinOp, ConstantValue, EnumDef, EnumRepr, ExternFunction,
-    ExternFunctionKind, Function, GcEffect, Global, GlobalInit, Instruction, LirType, Module,
-    NativeGlobal, RefScan, StructDef, TempId, Terminator, TypeDescriptor, UnOp, Value,
+    ArrayType, ArrayTypeId, BinOp, CallableRef, ConstantValue, DispatchEntry, EnumDef, EnumRepr,
+    ExternFunction, ExternFunctionKind, Function, GcEffect, Global, GlobalInit, Instruction,
+    LirType, Module, NativeGlobal, RefScan, StructDef, TempId, Terminator, TypeDescriptor,
+    TypeDescriptorRef, TypeDescriptorScan, UnOp, Value,
 };
 
 const SCAN_ARRAY: u64 = u64::MAX;
@@ -646,27 +647,38 @@ fn emit_llvm_module<'ctx>(
         ],
         false,
     );
-    // String constants need the descriptor address before function tables can
-    // be emitted. The complete initializer comes from typed LIR metadata after
-    // all function declarations exist; codegen does not synthesize it.
-    let string_td = llvm.add_global(td_ty, None, scoop_lir::STRING_TD_SYMBOL);
-
-    // Declare every descriptor from complete LIR metadata before any
-    // initializer is built. Parent/interface references therefore resolve by
-    // construction; array descriptors are indexed exactly like their
-    // `ArrayTypeId` arena and are never deduplicated from instruction shapes.
+    // Declare every local and external descriptor before building any
+    // initializer. Semantic edges resolve through typed ids; symbols are read
+    // only from the selected entity at final emission.
     let type_tds: Vec<GlobalValue> = module
         .meta
         .type_descriptors
         .iter()
-        .map(|descriptor| llvm.add_global(td_ty, None, &descriptor.symbol))
+        .map(|(_, descriptor)| llvm.add_global(td_ty, None, &descriptor.symbol))
         .collect();
+    let external_type_tds: Vec<GlobalValue> = module
+        .meta
+        .external_type_descriptors
+        .iter()
+        .map(|(_, descriptor)| {
+            let global = llvm.add_global(td_ty, None, &descriptor.symbol);
+            global.set_linkage(inkwell::module::Linkage::External);
+            global
+        })
+        .collect();
+    let string_td = type_descriptor_global(
+        module.meta.well_known_type_descriptors.string,
+        &type_tds,
+        &external_type_tds,
+    )?;
     let array_tds: Vec<GlobalValue> = module
         .meta
         .arrays
         .iter()
-        .map(|(_, array)| llvm.add_global(td_ty, None, &array.type_descriptor.symbol))
-        .collect();
+        .map(|(_, array)| {
+            type_descriptor_global(array.type_descriptor, &type_tds, &external_type_tds)
+        })
+        .collect::<Result<_, _>>()?;
 
     // Shared "array index out of bounds" message (only when the module
     // performs a checked array access); trap blocks reference it.
@@ -682,33 +694,9 @@ fn emit_llvm_module<'ctx>(
         None
     };
 
-    // Globals. Indexed by GlobalId (arena iteration is in index order).
-    // TypeDescriptor reference stubs (`scoop_td_*`, see the lir-lower
-    // module docs) emit no data: the real TD comes from
-    // typed `LirMeta` descriptors and
-    // `Value::Global` resolves them by symbol at use time. A stub is
-    // recognized by its symbol naming one of those TDs, never by its
-    // init shape.
-    let td_symbols: HashSet<&str> = module
-        .meta
-        .type_descriptors
-        .iter()
-        .map(|td| td.symbol.as_str())
-        .chain(
-            module
-                .meta
-                .arrays
-                .iter()
-                .map(|(_, array)| array.type_descriptor.symbol.as_str()),
-        )
-        .chain([module.meta.string.type_descriptor.symbol.as_str()])
-        .collect();
+    // Ordinary globals are disjoint from descriptor identities.
     let mut globals: Vec<Option<GlobalValue>> = Vec::with_capacity(module.globals.len());
     for (_, global) in module.globals.iter() {
-        if td_symbols.contains(global.symbol.as_str()) {
-            globals.push(None);
-            continue;
-        }
         match &global.init {
             GlobalInit::StringConst(value) => {
                 // { ptr td, i64 gc_word, i64 len, [N x i8] data }
@@ -778,6 +766,8 @@ fn emit_llvm_module<'ctx>(
         globals: &globals,
         arrays: &module.meta.arrays,
         array_tds: &array_tds,
+        type_tds: &type_tds,
+        external_type_tds: &external_type_tds,
         target_data: &target_data,
         bounds_message,
     };
@@ -804,7 +794,7 @@ fn emit_llvm_module<'ctx>(
     }
     // Meta TypeDescriptors reference module functions (vtable / itable
     // slots), so they are emitted after the declare pass.
-    emit_type_descriptors(context, &llvm, string_td, &type_tds, &array_tds, module)?;
+    emit_type_descriptors(context, &llvm, &type_tds, &external_type_tds, module)?;
     for function in &module.functions {
         emit_function(context, &llvm, &builder, &module_ctx, function)?;
     }
@@ -1094,11 +1084,6 @@ fn ptr_ty(context: &Context) -> inkwell::types::PointerType<'_> {
     context.ptr_type(AddressSpace::default())
 }
 
-/// First generated `type_id` after the runtime-owned String id 1. Ordinary
-/// descriptors are followed immediately by concrete arrays, so uniqueness
-/// does not depend on a reserved numeric range or an assumed entity count.
-const FIRST_GENERATED_TD_TYPE_ID: u64 = 2;
-
 /// Emit one recursive GC scan program. Child pointers are stored as
 /// u64 constants because the C runtime descriptor is a word stream.
 /// `None` has no global and is represented by a null pointer.
@@ -1147,87 +1132,78 @@ fn emit_ref_scan<'ctx>(
     Some(private_const_global(llvm, name, array.into()))
 }
 
-/// Emit one `ScoopTypeDescriptor` global per `LirMeta::type_descriptors`
-/// entry (runtime spec 2.2; milestone6 DESIGN 2.5). Emission order
-/// follows the list: `parent` / interface symbols must name globals
-/// emitted earlier (or `STRING_TD_SYMBOL`). Runs after the function
-/// declare pass so vtable / itable slots resolve to real functions.
+fn type_descriptor_global<'ctx>(
+    reference: TypeDescriptorRef,
+    locals: &[GlobalValue<'ctx>],
+    externals: &[GlobalValue<'ctx>],
+) -> Result<GlobalValue<'ctx>, CodegenError> {
+    match reference {
+        TypeDescriptorRef::Local(id) => locals
+            .get(arena_index(id))
+            .copied()
+            .ok_or_else(|| CodegenError(format!("invalid local TypeDescriptor id {id:?}"))),
+        TypeDescriptorRef::External(id) => externals
+            .get(arena_index(id))
+            .copied()
+            .ok_or_else(|| CodegenError(format!("invalid external TypeDescriptor id {id:?}"))),
+    }
+}
+
+/// Emit every local `ScoopTypeDescriptor` from its complete typed graph.
+/// Runs after function declaration so typed dispatch entries resolve to
+/// already-declared functions.
 fn emit_type_descriptors<'ctx>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
-    string_global: GlobalValue<'ctx>,
     type_globals: &[GlobalValue<'ctx>],
-    array_globals: &[GlobalValue<'ctx>],
+    external_type_globals: &[GlobalValue<'ctx>],
     module: &Module,
 ) -> Result<(), CodegenError> {
     let ptr = ptr_ty(context);
     // ScoopItableEntry: { ptr interface, ptr slots }.
     let entry_ty = context.struct_type(&[ptr.into(), ptr.into()], false);
-    for (index, (td, global)) in module
-        .meta
-        .type_descriptors
-        .iter()
-        .zip(type_globals)
-        .enumerate()
-    {
-        emit_type_descriptor(
-            context,
-            llvm,
-            entry_ty,
-            *global,
-            td,
-            FIRST_GENERATED_TD_TYPE_ID + index as u64,
-            DescriptorScan::Fixed(&td.scan),
-        )?;
-    }
-    for (index, ((_, array), global)) in module.meta.arrays.iter().zip(array_globals).enumerate() {
-        emit_type_descriptor(
-            context,
-            llvm,
-            entry_ty,
-            *global,
-            &array.type_descriptor,
-            FIRST_GENERATED_TD_TYPE_ID + module.meta.type_descriptors.len() as u64 + index as u64,
-            DescriptorScan::ArrayElement {
-                stride: array.element_size,
-                scan: &array.type_descriptor.scan,
-            },
-        )?;
-    }
-    emit_type_descriptor(
+    let emission = TypeDescriptorEmission {
         context,
         llvm,
         entry_ty,
-        string_global,
-        &module.meta.string.type_descriptor,
-        1,
-        DescriptorScan::Fixed(&module.meta.string.type_descriptor.scan),
-    )?;
+        type_globals,
+        external_type_globals,
+        module,
+    };
+    for ((_, td), global) in module.meta.type_descriptors.iter().zip(type_globals) {
+        emit_type_descriptor(&emission, *global, td)?;
+    }
     Ok(())
 }
 
-enum DescriptorScan<'a> {
-    Fixed(&'a RefScan),
-    ArrayElement { stride: u64, scan: &'a RefScan },
+struct TypeDescriptorEmission<'a, 'ctx> {
+    context: &'ctx Context,
+    llvm: &'a LlvmModule<'ctx>,
+    entry_ty: StructType<'ctx>,
+    type_globals: &'a [GlobalValue<'ctx>],
+    external_type_globals: &'a [GlobalValue<'ctx>],
+    module: &'a Module,
 }
 
 fn emit_type_descriptor<'ctx>(
-    context: &'ctx Context,
-    llvm: &LlvmModule<'ctx>,
-    entry_ty: StructType<'ctx>,
+    emission: &TypeDescriptorEmission<'_, 'ctx>,
     global: GlobalValue<'ctx>,
     descriptor: &TypeDescriptor,
-    type_id: u64,
-    scan: DescriptorScan<'_>,
 ) -> Result<(), CodegenError> {
+    let context = emission.context;
+    let llvm = emission.llvm;
+    let entry_ty = emission.entry_ty;
+    let type_globals = emission.type_globals;
+    let external_type_globals = emission.external_type_globals;
+    let module = emission.module;
     let i64_ty = context.i64_type();
     let ptr = ptr_ty(context);
-    let ref_offsets: BasicValueEnum = match scan {
-        DescriptorScan::Fixed(scan) => {
+    let ref_offsets: BasicValueEnum = match &descriptor.scan {
+        TypeDescriptorScan::Fixed(scan) => {
             emit_ref_scan(context, llvm, &format!("{}.refs", descriptor.symbol), scan)
                 .map_or_else(|| ptr.const_null().into(), Into::into)
         }
-        DescriptorScan::ArrayElement { stride, scan } => emit_ref_scan(
+        TypeDescriptorScan::ArrayElement { stride, scan } => emit_ref_scan(
             context,
             llvm,
             &format!("{}.element", descriptor.symbol),
@@ -1238,7 +1214,7 @@ fn emit_type_descriptor<'ctx>(
             |element_scan| {
                 let words = i64_ty.const_array(&[
                     i64_ty.const_int(SCAN_ARRAY, false),
-                    i64_ty.const_int(stride, false),
+                    i64_ty.const_int(*stride, false),
                     element_scan.const_to_int(i64_ty),
                 ]);
                 private_const_global(llvm, &format!("{}.refs", descriptor.symbol), words.into())
@@ -1246,15 +1222,8 @@ fn emit_type_descriptor<'ctx>(
             },
         ),
     };
-    let parent: BasicValueEnum = match &descriptor.parent {
-        Some(symbol) => llvm
-            .get_global(symbol)
-            .ok_or_else(|| {
-                CodegenError(format!(
-                    "TypeDescriptor `{}`: parent `@{}` not emitted yet",
-                    descriptor.symbol, symbol
-                ))
-            })?
+    let parent: BasicValueEnum = match descriptor.parent {
+        Some(reference) => type_descriptor_global(reference, type_globals, external_type_globals)?
             .as_pointer_value()
             .into(),
         None => ptr.const_null().into(),
@@ -1264,26 +1233,24 @@ fn emit_type_descriptor<'ctx>(
         llvm,
         &format!("{}.vtable", descriptor.symbol),
         &descriptor.vtable,
+        &module.functions,
+        &module.meta.external_callables,
     )?;
     let (itables, itable_count): (BasicValueEnum, u64) = if descriptor.itables.is_empty() {
         (ptr.const_null().into(), 0)
     } else {
         let mut entries = Vec::with_capacity(descriptor.itables.len());
         for (record_index, record) in descriptor.itables.iter().enumerate() {
-            let interface = llvm
-                .get_global(&record.interface_symbol)
-                .ok_or_else(|| {
-                    CodegenError(format!(
-                        "TypeDescriptor `{}`: interface `@{}` not emitted yet",
-                        descriptor.symbol, record.interface_symbol
-                    ))
-                })?
-                .as_pointer_value();
+            let interface =
+                type_descriptor_global(record.interface, type_globals, external_type_globals)?
+                    .as_pointer_value();
             let slots = emit_fn_table(
                 context,
                 llvm,
                 &format!("{}.itables.{record_index}", descriptor.symbol),
                 &record.slots,
+                &module.functions,
+                &module.meta.external_callables,
             )?;
             entries.push(context.const_struct(&[interface.into(), slots], false));
         }
@@ -1304,7 +1271,7 @@ fn emit_type_descriptor<'ctx>(
     global.set_constant(true);
     global.set_initializer(&context.const_struct(
         &[
-            i64_ty.const_int(type_id, false).into(),
+            i64_ty.const_int(descriptor.runtime_type_id, false).into(),
             i64_ty.const_int(descriptor.size, false).into(),
             i64_ty.const_int(descriptor.align, false).into(),
             ref_offsets,
@@ -1353,15 +1320,22 @@ fn emit_fn_table<'ctx>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
     name: &str,
-    slots: &[String],
+    slots: &[DispatchEntry],
+    functions: &[Function],
+    external_callables: &Arena<scoop_lir::ExternalCallable>,
 ) -> Result<BasicValueEnum<'ctx>, CodegenError> {
     let ptr = ptr_ty(context);
     if slots.is_empty() {
         return Ok(ptr.const_null().into());
     }
     let mut values = Vec::with_capacity(slots.len());
-    for symbol in slots {
-        values.push(slot_fn_ptr(llvm, symbol)?);
+    for entry in slots {
+        values.push(slot_fn_ptr(
+            llvm,
+            entry.callable,
+            functions,
+            external_callables,
+        )?);
     }
     let array = ptr.const_array(&values);
     Ok(private_const_global(llvm, name, array.into()).into())
@@ -1372,13 +1346,24 @@ fn emit_fn_table<'ctx>(
 /// a missing function's signature from its symbol.
 fn slot_fn_ptr<'ctx>(
     llvm: &LlvmModule<'ctx>,
-    symbol: &str,
+    callable: CallableRef,
+    functions: &[Function],
+    external_callables: &Arena<scoop_lir::ExternalCallable>,
 ) -> Result<PointerValue<'ctx>, CodegenError> {
+    let symbol = match callable {
+        CallableRef::Local(id) => functions
+            .get(id.into_u32() as usize)
+            .ok_or_else(|| CodegenError(format!("invalid local callable id {id:?}")))?
+            .symbol
+            .as_str(),
+        CallableRef::Runtime(function) => function.symbol(),
+        CallableRef::External(id) => external_callables[id].symbol.as_str(),
+    };
     llvm.get_function(symbol)
         .map(|function| function.as_global_value().as_pointer_value())
         .ok_or_else(|| {
             CodegenError(format!(
-                "vtable/itable slot `@{symbol}` is not a declared function"
+                "typed dispatch callable {callable:?} (`@{symbol}`) is not declared"
             ))
         })
 }
@@ -1409,6 +1394,8 @@ struct FnEmitter<'a, 'ctx> {
     /// `ArrayTypeId`.
     arrays: &'a Arena<ArrayType>,
     array_tds: &'a [GlobalValue<'ctx>],
+    type_tds: &'a [GlobalValue<'ctx>],
+    external_type_tds: &'a [GlobalValue<'ctx>],
     target_data: &'a inkwell::targets::TargetData,
     /// Hidden result pointer for a physically indirect aggregate return.
     return_slot: Option<PointerValue<'ctx>>,
@@ -1486,23 +1473,15 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             Value::IntConst(value) => context.i64_type().const_int(value as u64, true).into(),
             Value::BoolConst(value) => context.bool_type().const_int(value as u64, false).into(),
             Value::NullPointer(_) => ptr_ty(context).const_null().into(),
-            Value::Global(id) => match &self.globals[arena_index(id)] {
-                Some(global) => global.as_pointer_value().into(),
-                // A TypeDescriptor stub: the TD global (emitted from the
-                // metadata, including the typed intrinsic String descriptor)
-                // is resolved by symbol.
-                None => self
-                    .llvm
-                    .get_global(&self.globals_arena[id].symbol)
-                    .ok_or_else(|| {
-                        CodegenError(format!(
-                            "TypeDescriptor global `@{}` was not emitted",
-                            self.globals_arena[id].symbol
-                        ))
-                    })?
+            Value::TypeDescriptor(reference) => {
+                type_descriptor_global(reference, self.type_tds, self.external_type_tds)?
                     .as_pointer_value()
-                    .into(),
-            },
+                    .into()
+            }
+            Value::Global(id) => self.globals[arena_index(id)]
+                .expect("ordinary globals are emitted")
+                .as_pointer_value()
+                .into(),
         })
     }
 
@@ -4020,6 +3999,8 @@ struct ModuleCtx<'a, 'ctx> {
     globals: &'a [Option<GlobalValue<'ctx>>],
     arrays: &'a Arena<ArrayType>,
     array_tds: &'a [GlobalValue<'ctx>],
+    type_tds: &'a [GlobalValue<'ctx>],
+    external_type_tds: &'a [GlobalValue<'ctx>],
     target_data: &'a inkwell::targets::TargetData,
     bounds_message: Option<GlobalValue<'ctx>>,
 }
@@ -4185,6 +4166,8 @@ fn emit_function<'ctx>(
         globals: module_ctx.globals,
         arrays: module_ctx.arrays,
         array_tds: module_ctx.array_tds,
+        type_tds: module_ctx.type_tds,
+        external_type_tds: module_ctx.external_type_tds,
         target_data: module_ctx.target_data,
         return_slot,
         param_offset,
@@ -4350,7 +4333,8 @@ mod tests {
         DirectCallTarget, DispatchKind, DispatchSlot, EnumDef, EnumRepr, EnumVariantRepr, Global,
         GlobalInit, IndirectResultCallSignature, IndirectResultCallTarget, ItableRecord, Layout,
         LayoutKind, LirMeta, Local, MANAGED_PTR, METADATA_PTR, PointerKind, RAW_PTR, ResultStorage,
-        StringMetadata, Temp, TypeDescriptor, VoidCallSignature, VoidCallTarget,
+        Temp, TypeDescriptor, TypeDescriptorRef, TypeDescriptorScan, VoidCallSignature,
+        VoidCallTarget, WellKnownLayouts, WellKnownTypeDescriptors,
     };
 
     use super::*;
@@ -4442,32 +4426,46 @@ mod tests {
         CallDestination::Dispatch { table, slot }
     }
 
-    fn string_metadata() -> StringMetadata {
-        StringMetadata {
-            layout: Layout {
-                name: "String".to_string(),
-                size: 24,
-                align: 8,
-                fields: Vec::new(),
-                c_layout: None,
-                interior_mutable: false,
-                kind: LayoutKind::Intrinsic(scoop_lir::IntrinsicTypeRepresentation::String),
+    fn string_metadata() -> LirMeta {
+        let mut layouts = Arena::new();
+        let string_layout = layouts.alloc(Layout {
+            name: "String".to_string(),
+            size: 24,
+            align: 8,
+            fields: Vec::new(),
+            c_layout: None,
+            interior_mutable: false,
+            kind: LayoutKind::Intrinsic(scoop_lir::IntrinsicTypeRepresentation::String),
+        });
+        let mut type_descriptors = Arena::new();
+        let string_descriptor = type_descriptors.alloc(TypeDescriptor {
+            name: "String".to_string(),
+            symbol: scoop_lir::STRING_TD_SYMBOL.to_string(),
+            runtime_type_id: 1,
+            size: 24,
+            align: 8,
+            scan: TypeDescriptorScan::Fixed(RefScan::None),
+            parent: None,
+            vtable: Vec::new(),
+            itables: Vec::new(),
+        });
+        LirMeta {
+            well_known_layouts: WellKnownLayouts {
+                string: string_layout,
             },
-            type_descriptor: TypeDescriptor {
-                name: "String".to_string(),
-                symbol: scoop_lir::STRING_TD_SYMBOL.to_string(),
-                size: 24,
-                align: 8,
-                scan: RefScan::None,
-                parent: None,
-                vtable: Vec::new(),
-                itables: Vec::new(),
+            well_known_type_descriptors: WellKnownTypeDescriptors {
+                string: TypeDescriptorRef::Local(string_descriptor),
             },
+            arrays: Arena::new(),
+            layouts,
+            type_descriptors,
+            external_type_descriptors: Arena::new(),
+            external_callables: Arena::new(),
         }
     }
 
     fn array_type(
-        arrays: &mut Arena<ArrayType>,
+        meta: &mut LirMeta,
         name: &str,
         kind: scoop_lir::ArrayKind,
         element: LirType,
@@ -4475,21 +4473,27 @@ mod tests {
         element_align: u64,
         scan: RefScan,
     ) -> ArrayTypeId {
-        arrays.alloc(ArrayType {
+        let runtime_type_id = meta.type_descriptors.len() as u64 + 1;
+        let type_descriptor = meta.type_descriptors.alloc(TypeDescriptor {
+            name: name.to_string(),
+            symbol: format!("scoop_td_{name}"),
+            runtime_type_id,
+            size: element_size,
+            align: element_align,
+            scan: TypeDescriptorScan::ArrayElement {
+                stride: element_size,
+                scan,
+            },
+            parent: None,
+            vtable: Vec::new(),
+            itables: Vec::new(),
+        });
+        meta.arrays.alloc(ArrayType {
             kind,
             element,
             element_size,
             element_align,
-            type_descriptor: TypeDescriptor {
-                name: name.to_string(),
-                symbol: format!("scoop_td_{name}"),
-                size: element_size,
-                align: element_align,
-                scan,
-                parent: None,
-                vtable: Vec::new(),
-                itables: Vec::new(),
-            },
+            type_descriptor: TypeDescriptorRef::Local(type_descriptor),
         })
     }
 
@@ -4663,22 +4667,7 @@ mod tests {
                 entry,
             }],
             entry_symbol: "scoop_main".to_string(),
-            meta: LirMeta {
-                string: string_metadata(),
-                arrays: Arena::new(),
-                layouts: vec![Layout {
-                    name: "String".to_string(),
-                    size: 24,
-                    align: 8,
-                    fields: Vec::new(),
-                    c_layout: None,
-                    interior_mutable: false,
-                    kind: LayoutKind::Plain {
-                        scan: RefScan::None,
-                    },
-                }],
-                type_descriptors: vec![],
-            },
+            meta: string_metadata(),
         }
     }
 
@@ -5127,46 +5116,7 @@ mod tests {
                 consume_indirect,
             ],
             entry_symbol: "scoop.tagged".to_string(),
-            meta: LirMeta {
-                string: string_metadata(),
-                arrays: Arena::new(),
-                layouts: vec![
-                    Layout {
-                        name: "String".to_string(),
-                        size: 24,
-                        align: 8,
-                        fields: Vec::new(),
-                        c_layout: None,
-                        interior_mutable: false,
-                        kind: LayoutKind::Plain {
-                            scan: RefScan::None,
-                        },
-                    },
-                    Layout {
-                        name: "Shape".to_string(),
-                        size: 32,
-                        align: 8,
-                        fields: Vec::new(),
-                        c_layout: None,
-                        interior_mutable: false,
-                        kind: LayoutKind::Enum {
-                            scan: RefScan::References(vec![24]),
-                        },
-                    },
-                    Layout {
-                        name: "Option<String>".to_string(),
-                        size: 8,
-                        align: 8,
-                        fields: Vec::new(),
-                        c_layout: None,
-                        interior_mutable: false,
-                        kind: LayoutKind::Enum {
-                            scan: RefScan::References(vec![0]),
-                        },
-                    },
-                ],
-                type_descriptors: vec![],
-            },
+            meta: string_metadata(),
         }
     }
 
@@ -5199,9 +5149,9 @@ mod tests {
     /// ArrayClone on both element shapes.
     fn arrays_module() -> Module {
         let point = LirType::Aggregate(vec![LirType::I64, LirType::I64]);
-        let mut arrays = Arena::new();
+        let mut meta = string_metadata();
         let int_array = array_type(
-            &mut arrays,
+            &mut meta,
             "Array<Int>",
             scoop_lir::ArrayKind::Immutable,
             LirType::I64,
@@ -5210,7 +5160,7 @@ mod tests {
             RefScan::None,
         );
         let mutable_int_array = array_type(
-            &mut arrays,
+            &mut meta,
             "MutableArray<Int>",
             scoop_lir::ArrayKind::Mutable,
             LirType::I64,
@@ -5219,7 +5169,7 @@ mod tests {
             RefScan::None,
         );
         let point_array = array_type(
-            &mut arrays,
+            &mut meta,
             "Array<Point>",
             scoop_lir::ArrayKind::Immutable,
             point.clone(),
@@ -5228,7 +5178,7 @@ mod tests {
             RefScan::None,
         );
         let mutable_point_array = array_type(
-            &mut arrays,
+            &mut meta,
             "MutableArray<Point>",
             scoop_lir::ArrayKind::Mutable,
             point.clone(),
@@ -5363,12 +5313,7 @@ mod tests {
                 entry,
             }],
             entry_symbol: "scoop_main".to_string(),
-            meta: LirMeta {
-                string: string_metadata(),
-                arrays,
-                layouts: Vec::new(),
-                type_descriptors: vec![],
-            },
+            meta,
         }
     }
 
@@ -5478,6 +5423,50 @@ mod tests {
             entry,
         };
 
+        let mut meta = string_metadata();
+        let describable = meta.type_descriptors.alloc(TypeDescriptor {
+            name: "Describable".to_string(),
+            symbol: "scoop_td_Describable".to_string(),
+            runtime_type_id: 2,
+            size: 0,
+            align: 8,
+            scan: TypeDescriptorScan::Fixed(RefScan::None),
+            parent: None,
+            vtable: vec![],
+            itables: vec![],
+        });
+        let shape = meta.type_descriptors.alloc(TypeDescriptor {
+            name: "Shape".to_string(),
+            symbol: "scoop_td_Shape".to_string(),
+            runtime_type_id: 3,
+            size: 24,
+            align: 8,
+            scan: TypeDescriptorScan::Fixed(RefScan::References(vec![16])),
+            parent: None,
+            vtable: vec![DispatchEntry {
+                callable: CallableRef::Local(scoop_lir::LocalFunctionId::from_u32(0)),
+            }],
+            itables: vec![],
+        });
+        meta.type_descriptors.alloc(TypeDescriptor {
+            name: "Point".to_string(),
+            symbol: "scoop_td_Point".to_string(),
+            runtime_type_id: 4,
+            size: 32,
+            align: 8,
+            scan: TypeDescriptorScan::Fixed(RefScan::References(vec![16])),
+            parent: Some(TypeDescriptorRef::Local(shape)),
+            vtable: vec![DispatchEntry {
+                callable: CallableRef::Local(scoop_lir::LocalFunctionId::from_u32(1)),
+            }],
+            itables: vec![ItableRecord {
+                interface: TypeDescriptorRef::Local(describable),
+                slots: vec![DispatchEntry {
+                    callable: CallableRef::Local(scoop_lir::LocalFunctionId::from_u32(1)),
+                }],
+            }],
+        });
+
         Module {
             globals: Arena::default(),
             structs: Arena::default(),
@@ -5488,59 +5477,7 @@ mod tests {
             foreign_callback_bridges: Arena::default(),
             functions: vec![describe("Shape.describe"), describe("Point.describe"), main],
             entry_symbol: "scoop_main".to_string(),
-            meta: LirMeta {
-                string: string_metadata(),
-                arrays: Arena::new(),
-                layouts: vec![Layout {
-                    name: "String".to_string(),
-                    size: 24,
-                    align: 8,
-                    fields: Vec::new(),
-                    c_layout: None,
-                    interior_mutable: false,
-                    kind: LayoutKind::Plain {
-                        scan: RefScan::None,
-                    },
-                }],
-                type_descriptors: vec![
-                    // interface Describable: itable key only.
-                    TypeDescriptor {
-                        name: "Describable".to_string(),
-                        symbol: "scoop_td_Describable".to_string(),
-                        size: 0,
-                        align: 8,
-                        scan: RefScan::None,
-                        parent: None,
-                        vtable: vec![],
-                        itables: vec![],
-                    },
-                    // open class Shape: its sole ordinary virtual method.
-                    TypeDescriptor {
-                        name: "Shape".to_string(),
-                        symbol: "scoop_td_Shape".to_string(),
-                        size: 24,
-                        align: 8,
-                        scan: RefScan::References(vec![16]),
-                        parent: None,
-                        vtable: vec!["Shape.describe".to_string()],
-                        itables: vec![],
-                    },
-                    // class Point : Shape, Describable.
-                    TypeDescriptor {
-                        name: "Point".to_string(),
-                        symbol: "scoop_td_Point".to_string(),
-                        size: 32,
-                        align: 8,
-                        scan: RefScan::References(vec![16]),
-                        parent: Some("scoop_td_Shape".to_string()),
-                        vtable: vec!["Point.describe".to_string()],
-                        itables: vec![ItableRecord {
-                            interface_symbol: "scoop_td_Describable".to_string(),
-                            slots: vec!["Point.describe".to_string()],
-                        }],
-                    },
-                ],
-            },
+            meta,
         }
     }
 
@@ -5559,20 +5496,27 @@ mod tests {
         std::fs::remove_file(&output).ok();
     }
 
-    /// An M6 heap-access module: a TypeDescriptor reference stub in the
-    /// globals arena (skipped at data emission, resolved by symbol),
+    /// An M6 heap-access module with a typed TypeDescriptor operand,
     /// HeapStore field writes, HeapLoad reads (header, i64
     /// field, ptr field, TD vtable pointer), and a `scoop_rt_box` call
     /// with a by-value aggregate payload.
     fn heap_module() -> Module {
-        let mut globals = Arena::default();
-        // The TD stub lir-lower appends (CString("") placeholder init);
-        // the real TD comes from the meta below.
-        let point_td_stub = globals.alloc(Global {
+        let globals = Arena::default();
+        let mut meta = string_metadata();
+        let point_descriptor = meta.type_descriptors.alloc(TypeDescriptor {
+            name: "Point".to_string(),
             symbol: "scoop_td_Point".to_string(),
-            address_kind: PointerKind::Metadata,
-            init: GlobalInit::CString(String::new()),
+            runtime_type_id: 2,
+            size: 32,
+            align: 8,
+            scan: TypeDescriptorScan::Fixed(RefScan::References(vec![24])),
+            parent: None,
+            vtable: vec![DispatchEntry {
+                callable: CallableRef::Local(scoop_lir::LocalFunctionId::from_u32(0)),
+            }],
+            itables: vec![],
         });
+        let point_descriptor = TypeDescriptorRef::Local(point_descriptor);
 
         // fun @Point.describe(this: ptr) -> ptr: returns `this` (vtable
         // slot material).
@@ -5598,7 +5542,7 @@ mod tests {
 
         // fun @scoop_main() -> void (M9 16-byte header, fields at byte
         // offsets 16 and 24):
-        //   t0 = scoop_rt_alloc(@scoop_td_Point, 32)  (stub operand)
+        //   t0 = scoop_rt_alloc(@scoop_td_Point, 32)  (typed TD operand)
         //   heap_store t0 +16, 42     (i64 field)
         //   heap_store t0 +24, t0     (ptr field)
         //   t1 = heap_load t0 +0 : ptr   (object header: the TD)
@@ -5634,7 +5578,7 @@ mod tests {
             vec![METADATA_PTR, LirType::I64],
             (MANAGED_PTR, RefScan::References(vec![0])),
             t0,
-            vec![Value::Global(point_td_stub), Value::IntConst(32)],
+            vec![Value::TypeDescriptor(point_descriptor), Value::IntConst(32)],
         );
         let box_site = direct_site(
             &mut call_targets,
@@ -5644,7 +5588,7 @@ mod tests {
             (MANAGED_PTR, RefScan::References(vec![0])),
             t6,
             vec![
-                Value::Global(point_td_stub),
+                Value::TypeDescriptor(point_descriptor),
                 Value::Temp(t8),
                 Value::IntConst(8),
             ],
@@ -5656,7 +5600,7 @@ mod tests {
             vec![MANAGED_PTR, METADATA_PTR],
             (LirType::I1, RefScan::None),
             t7,
-            vec![Value::Temp(t6), Value::Global(point_td_stub)],
+            vec![Value::Temp(t6), Value::TypeDescriptor(point_descriptor)],
         );
         let dispatch = dispatch_destination(&mut call_targets, Value::Temp(t4), 0);
         let dispatch_site = void_site(
@@ -5745,36 +5689,12 @@ mod tests {
             foreign_callback_bridges: Arena::default(),
             functions: vec![describe, main],
             entry_symbol: "scoop_main".to_string(),
-            meta: LirMeta {
-                string: string_metadata(),
-                arrays: Arena::new(),
-                layouts: vec![Layout {
-                    name: "String".to_string(),
-                    size: 24,
-                    align: 8,
-                    fields: Vec::new(),
-                    c_layout: None,
-                    interior_mutable: false,
-                    kind: LayoutKind::Plain {
-                        scan: RefScan::None,
-                    },
-                }],
-                type_descriptors: vec![TypeDescriptor {
-                    name: "Point".to_string(),
-                    symbol: "scoop_td_Point".to_string(),
-                    size: 32,
-                    align: 8,
-                    scan: RefScan::References(vec![24]),
-                    parent: None,
-                    vtable: vec!["Point.describe".to_string()],
-                    itables: vec![],
-                }],
-            },
+            meta,
         }
     }
 
     #[test]
-    fn emits_m6_heap_access_and_td_stubs() {
+    fn emits_m6_heap_access_and_typed_descriptors() {
         let module = heap_module();
         let ir = ir_of(&module);
         assert!(
@@ -5991,22 +5911,7 @@ mod tests {
             foreign_callback_bridges: Arena::default(),
             functions: vec![thrower, may_throw, eh_test],
             entry_symbol: "scoop.eh_test".to_string(),
-            meta: LirMeta {
-                string: string_metadata(),
-                arrays: Arena::new(),
-                layouts: vec![Layout {
-                    name: "String".to_string(),
-                    size: 24,
-                    align: 8,
-                    fields: Vec::new(),
-                    c_layout: None,
-                    interior_mutable: false,
-                    kind: LayoutKind::Plain {
-                        scan: RefScan::None,
-                    },
-                }],
-                type_descriptors: vec![],
-            },
+            meta: string_metadata(),
         }
     }
 
@@ -6206,22 +6111,7 @@ mod tests {
             foreign_callback_bridges: Arena::default(),
             functions: vec![safe, borrowed_function],
             entry_symbol: "safe_root".to_string(),
-            meta: LirMeta {
-                string: string_metadata(),
-                arrays: Arena::new(),
-                layouts: vec![Layout {
-                    name: "String".to_string(),
-                    size: 24,
-                    align: 8,
-                    fields: Vec::new(),
-                    c_layout: None,
-                    interior_mutable: false,
-                    kind: LayoutKind::Plain {
-                        scan: RefScan::None,
-                    },
-                }],
-                type_descriptors: Vec::new(),
-            },
+            meta: string_metadata(),
         };
 
         let ir = ir_of(&module);
@@ -6292,22 +6182,7 @@ mod tests {
                 entry,
             }],
             entry_symbol: "continuation_atomics".to_string(),
-            meta: LirMeta {
-                string: string_metadata(),
-                arrays: Arena::new(),
-                layouts: vec![Layout {
-                    name: "String".to_string(),
-                    size: 24,
-                    align: 8,
-                    fields: Vec::new(),
-                    c_layout: None,
-                    interior_mutable: false,
-                    kind: LayoutKind::Plain {
-                        scan: RefScan::None,
-                    },
-                }],
-                type_descriptors: Vec::new(),
-            },
+            meta: string_metadata(),
         };
 
         let ir = ir_of(&module);
@@ -6394,22 +6269,7 @@ mod tests {
                 entry,
             }],
             entry_symbol: "scoop.closure_abi".to_string(),
-            meta: LirMeta {
-                string: string_metadata(),
-                arrays: Arena::new(),
-                layouts: vec![Layout {
-                    name: "String".to_string(),
-                    size: 24,
-                    align: 8,
-                    fields: Vec::new(),
-                    c_layout: None,
-                    interior_mutable: false,
-                    kind: LayoutKind::Plain {
-                        scan: RefScan::None,
-                    },
-                }],
-                type_descriptors: vec![],
-            },
+            meta: string_metadata(),
         }
     }
 
@@ -6472,9 +6332,9 @@ mod tests {
     /// `while`-shaped loop (header ← body back edge) for the loop
     /// safepoint poll.
     fn barrier_module() -> Module {
-        let mut arrays = Arena::new();
+        let mut meta = string_metadata();
         let int_array = array_type(
-            &mut arrays,
+            &mut meta,
             "Array<Int>",
             scoop_lir::ArrayKind::Immutable,
             LirType::I64,
@@ -6567,22 +6427,7 @@ mod tests {
                 entry,
             }],
             entry_symbol: "scoop_main".to_string(),
-            meta: LirMeta {
-                string: string_metadata(),
-                arrays,
-                layouts: vec![Layout {
-                    name: "String".to_string(),
-                    size: 24,
-                    align: 8,
-                    fields: Vec::new(),
-                    c_layout: None,
-                    interior_mutable: false,
-                    kind: LayoutKind::Plain {
-                        scan: RefScan::None,
-                    },
-                }],
-                type_descriptors: vec![],
-            },
+            meta,
         }
     }
 
@@ -6706,9 +6551,9 @@ mod tests {
             RefScan::References(vec![16]),
             RefScan::References(vec![8]),
         ]);
-        let mut arrays = Arena::new();
+        let mut meta = string_metadata();
         let ref_array_type = array_type(
-            &mut arrays,
+            &mut meta,
             "ArrayRef",
             scoop_lir::ArrayKind::Immutable,
             MANAGED_PTR,
@@ -6717,7 +6562,7 @@ mod tests {
             RefScan::References(vec![0]),
         );
         let nested_array_type = array_type(
-            &mut arrays,
+            &mut meta,
             "ArrayNested",
             scoop_lir::ArrayKind::Immutable,
             LirType::Aggregate(vec![LirType::I64, MANAGED_PTR, MANAGED_PTR]),
@@ -6745,6 +6590,21 @@ mod tests {
             ],
             terminator: Terminator::Return { value: None },
         });
+        let runtime_type_id = meta.type_descriptors.len() as u64 + 1;
+        meta.type_descriptors.alloc(TypeDescriptor {
+            name: "Holder".to_string(),
+            symbol: "scoop_td_Holder".to_string(),
+            runtime_type_id,
+            size: 56,
+            align: 8,
+            scan: TypeDescriptorScan::Fixed(RefScan::Sequence(vec![
+                RefScan::References(vec![16]),
+                RefScan::References(vec![40, 48]),
+            ])),
+            parent: None,
+            vtable: vec![],
+            itables: vec![],
+        });
         let module = Module {
             globals: Arena::default(),
             structs: Arena::default(),
@@ -6765,34 +6625,7 @@ mod tests {
                 entry,
             }],
             entry_symbol: "scoop_main".to_string(),
-            meta: LirMeta {
-                string: string_metadata(),
-                arrays,
-                layouts: vec![Layout {
-                    name: "String".to_string(),
-                    size: 24,
-                    align: 8,
-                    fields: Vec::new(),
-                    c_layout: None,
-                    interior_mutable: false,
-                    kind: LayoutKind::Plain {
-                        scan: RefScan::None,
-                    },
-                }],
-                type_descriptors: vec![TypeDescriptor {
-                    name: "Holder".to_string(),
-                    symbol: "scoop_td_Holder".to_string(),
-                    size: 56,
-                    align: 8,
-                    scan: RefScan::Sequence(vec![
-                        RefScan::References(vec![16]),
-                        RefScan::References(vec![40, 48]),
-                    ]),
-                    parent: None,
-                    vtable: vec![],
-                    itables: vec![],
-                }],
-            },
+            meta,
         };
         let ir = ir_of(&module);
         assert!(
@@ -6915,9 +6748,9 @@ mod tests {
             scan: RefScan::None,
         });
 
-        let mut arrays = Arena::new();
+        let mut meta = string_metadata();
         let outer_array = array_type(
-            &mut arrays,
+            &mut meta,
             "ArrayOuter",
             scoop_lir::ArrayKind::Immutable,
             LirType::Struct(outer),
@@ -7001,22 +6834,7 @@ mod tests {
                 entry,
             }],
             entry_symbol: "scoop_main".to_string(),
-            meta: LirMeta {
-                string: string_metadata(),
-                arrays,
-                layouts: vec![Layout {
-                    name: "String".to_string(),
-                    size: 24,
-                    align: 8,
-                    fields: Vec::new(),
-                    c_layout: None,
-                    interior_mutable: false,
-                    kind: LayoutKind::Plain {
-                        scan: RefScan::None,
-                    },
-                }],
-                type_descriptors: vec![],
-            },
+            meta,
         };
 
         let machine = host_target_machine().expect("target machine");

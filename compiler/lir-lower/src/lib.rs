@@ -60,12 +60,11 @@
 //!   Fixed runtime metadata uses the same load primitive: offset 0 is
 //!   an object's TypeDescriptor pointer and offset 40 is the vtable
 //!   pointer in `ScoopTypeDescriptor`.
-//! - A TypeDescriptor operand is passed as `Value::Global` naming a
-//!   global whose symbol is the TD's (`scoop_td_<name>`); lir-lower
-//!   appends one such stub per referenced TD to the globals arena
-//!   (its `CString("")` init is a placeholder). Codegen must skip the
-//!   stubs when emitting data — the TD itself comes from
-//!   `LirMeta::type_descriptors` — and resolve the operand by symbol.
+//! - A TypeDescriptor operand is passed as `Value::TypeDescriptor`
+//!   carrying a typed `TypeDescriptorRef`. Descriptor identity is
+//!   therefore independent of its final linker symbol and cannot be
+//!   confused with an ordinary global. Codegen resolves that typed
+//!   reference directly from `LirMeta::type_descriptors`.
 //!   For `scoop_rt_box` codegen materializes the by-value aggregate
 //!   payload behind a stack pointer (the "临时 alloca 取地址" of the
 //!   lowering contract).
@@ -155,7 +154,6 @@ pub fn lower(module: &mir::Module) -> lir::Module {
     let (storage_globals, native_globals) = lower_globals(module, &mut globals);
     let callback_bridges = lower_callback_bridges(module);
     let foreign_callback_bridges = lower_foreign_callback_bridges(module);
-    let (arrays, array_type_map) = array_types(module, &enums);
     let local_function_map = module
         .top_level
         .iter()
@@ -169,15 +167,15 @@ pub fn lower(module: &mir::Module) -> lir::Module {
             )
         })
         .collect::<HashMap<_, _>>();
+    let (type_descriptors, type_descriptor_refs, well_known_type_descriptors) =
+        type_descriptors(module, &enums, &local_function_map);
+    let (arrays, array_type_map) = array_types(module, &enums, &type_descriptor_refs);
 
     // Tuple types encountered while mapping value types, in
     // first-appearance order; each one gets a meta layout.
     let mut layout_types = Vec::new();
     // Trap message globals (`scoop.cstr.N`), numbered in creation order.
     let mut cstr_count = 0usize;
-    // TypeDescriptor reference stubs (`scoop_td_*`), deduplicated by
-    // symbol (see the module docs for the TD-reference convention).
-    let mut td_map = HashMap::new();
     let mut functions: Vec<lir::Function> = module
         .top_level
         .iter()
@@ -193,7 +191,7 @@ pub fn lower(module: &mir::Module) -> lir::Module {
                 &structs,
                 &enums,
                 &array_type_map,
-                &mut td_map,
+                &type_descriptor_refs,
                 &local_function_map,
             )
         })
@@ -202,8 +200,7 @@ pub fn lower(module: &mir::Module) -> lir::Module {
         annotate_native_call_roots(function, &structs, &enums);
     }
 
-    let (layouts, string_layout) = layouts(module, &enums, &layout_types);
-    let (type_descriptors, string_type_descriptor) = type_descriptors(module, &enums);
+    let (layouts, well_known_layouts) = layouts(module, &enums, &layout_types);
     lir::Module {
         globals,
         structs,
@@ -215,13 +212,13 @@ pub fn lower(module: &mir::Module) -> lir::Module {
         foreign_callback_bridges,
         entry_symbol: module.functions[module.entry].symbol.clone(),
         meta: lir::LirMeta {
-            string: lir::StringMetadata {
-                layout: string_layout,
-                type_descriptor: string_type_descriptor,
-            },
+            well_known_layouts,
+            well_known_type_descriptors,
             arrays,
             layouts,
             type_descriptors,
+            external_type_descriptors: Arena::new(),
+            external_callables: Arena::new(),
         },
     }
 }
@@ -692,7 +689,7 @@ fn layouts(
     module: &mir::Module,
     enums: &Arena<lir::EnumDef>,
     from_code: &[mir::Type],
-) -> (Vec<lir::Layout>, lir::Layout) {
+) -> (Arena<lir::Layout>, lir::WellKnownLayouts) {
     // Tuple types reachable from struct / enum / class declarations
     // appear even when no code value mentions them directly.
     let mut types = Vec::new();
@@ -736,12 +733,12 @@ fn layouts(
         record_layout_types(ty, &mut types);
     }
 
-    let mut layouts = Vec::new();
+    let mut layouts = Arena::new();
     for (_, def) in module.structs.iter() {
-        layouts.push(struct_layout(module, enums, def));
+        layouts.alloc(struct_layout(module, enums, def));
     }
     for (id, def) in module.enums.iter() {
-        layouts.push(enum_layout(module, enums, id, def));
+        layouts.alloc(enum_layout(module, enums, id, def));
     }
     let mut string = None;
     for (_, def) in module.classes.iter() {
@@ -749,7 +746,7 @@ fn layouts(
             mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::String) => {
                 let layout = class_definition_layout(module, enums, def);
                 assert!(
-                    string.replace(layout).is_none(),
+                    string.replace(layouts.alloc(layout)).is_none(),
                     "one typed String representation"
                 );
             }
@@ -757,12 +754,14 @@ fn layouts(
                 mir::IntrinsicTypeRepresentation::Array { .. }
                 | mir::IntrinsicTypeRepresentation::MutableArray { .. },
             ) => {}
-            _ => layouts.push(class_definition_layout(module, enums, def)),
+            _ => {
+                layouts.alloc(class_definition_layout(module, enums, def));
+            }
         }
     }
     for (_, def) in module.closure_classes.iter() {
         let (_, size, align, scan) = closure_shape(module, enums, def);
-        layouts.push(lir::Layout {
+        layouts.alloc(lir::Layout {
             name: def.name.clone(),
             size,
             align,
@@ -775,7 +774,7 @@ fn layouts(
     // Tuple layouts keep their first-appearance order.
     for ty in &types {
         if let mir::Type::Tuple(elements) = ty {
-            layouts.push(aggregate_layout(
+            layouts.alloc(aggregate_layout(
                 module,
                 enums,
                 mir::type_name(module, ty),
@@ -785,7 +784,10 @@ fn layouts(
     }
     (
         layouts,
-        string.expect("LocalConcreteHir supplies the typed intrinsic String representation"),
+        lir::WellKnownLayouts {
+            string: string
+                .expect("LocalConcreteHir supplies the typed intrinsic String representation"),
+        },
     )
 }
 
@@ -1091,113 +1093,188 @@ fn td_symbol(name: &str) -> String {
     format!("scoop_td_{name}")
 }
 
-/// The symbol a vtable / itable slot points at.
-fn slot_symbol(module: &mir::Module, slot: &mir::TableSlot) -> String {
-    match slot {
-        mir::TableSlot::Function(id) => module.functions[*id].symbol.clone(),
-        mir::TableSlot::Runtime(function) => function.symbol().to_string(),
+#[derive(Default)]
+struct TypeDescriptorRefs {
+    classes: HashMap<mir::ClassId, lir::TypeDescriptorRef>,
+    interfaces: HashMap<mir::InterfaceId, lir::TypeDescriptorRef>,
+    function_types: HashMap<mir::FunctionTypeId, lir::TypeDescriptorRef>,
+    closures: HashMap<mir::ClosureClassId, lir::TypeDescriptorRef>,
+    boxed: Vec<(mir::Type, lir::TypeDescriptorRef)>,
+    string: Option<lir::TypeDescriptorRef>,
+}
+
+impl TypeDescriptorRefs {
+    fn for_type(&self, ty: &mir::Type) -> lir::TypeDescriptorRef {
+        match ty {
+            mir::Type::Class(id) => self.classes[id],
+            mir::Type::Interface(id) => self.interfaces[id],
+            mir::Type::String => self.string.expect("typed String descriptor"),
+            mir::Type::Function(id) => self.function_types[id],
+            mir::Type::Struct(_)
+            | mir::Type::Enum(..)
+            | mir::Type::Tuple(_)
+            | mir::Type::Int
+            | mir::Type::UInt
+            | mir::Type::Boolean
+            | mir::Type::Unit
+            | mir::Type::Ptr(_)
+            | mir::Type::FunPtr(_) => self
+                .boxed
+                .iter()
+                .find_map(|(payload, descriptor)| (payload == ty).then_some(*descriptor))
+                .unwrap_or_else(|| panic!("MIR did not supply a boxed descriptor for {ty:?}")),
+            mir::Type::Any => unreachable!("Any has no referenceable TypeDescriptor"),
+        }
     }
 }
 
-/// The meta TypeDescriptors (runtime spec 2.2, milestone6 DESIGN
-/// 2.4): interfaces first — their symbols are the itable keys — then
-/// classes (including the boxed value types) base-before-derived, so
-/// `parent` / interface references always name already-emitted
-/// entries and codegen needs no forward declarations.
+fn dispatch_entry(
+    slot: &mir::TableSlot,
+    local_functions: &HashMap<mir::FunctionId, lir::LocalFunctionId>,
+) -> lir::DispatchEntry {
+    lir::DispatchEntry {
+        callable: match slot {
+            mir::TableSlot::Function(id) => lir::CallableRef::Local(local_functions[id]),
+            mir::TableSlot::Runtime(function) => {
+                lir::CallableRef::Runtime(lower_runtime_function(*function))
+            }
+        },
+    }
+}
+
+const FIRST_GENERATED_TD_TYPE_ID: u64 = 2;
+
+/// Build the complete local TypeDescriptor graph before lowering any body.
+/// Parent, interface, dispatch and operand references can therefore use typed
+/// ids directly; symbols remain emission attributes only.
 fn type_descriptors(
     module: &mir::Module,
     enums: &Arena<lir::EnumDef>,
-) -> (Vec<lir::TypeDescriptor>, lir::TypeDescriptor) {
-    let mut tds = Vec::new();
-    let mut string = None;
-    for (_, def) in module.interfaces.iter() {
-        tds.push(lir::TypeDescriptor {
+    local_functions: &HashMap<mir::FunctionId, lir::LocalFunctionId>,
+) -> (
+    Arena<lir::TypeDescriptor>,
+    TypeDescriptorRefs,
+    lir::WellKnownTypeDescriptors,
+) {
+    let mut descriptors = Arena::new();
+    let mut refs = TypeDescriptorRefs::default();
+    let mut next_type_id = FIRST_GENERATED_TD_TYPE_ID;
+    for (interface, def) in module.interfaces.iter() {
+        let id = descriptors.alloc(lir::TypeDescriptor {
             name: def.name.clone(),
             symbol: td_symbol(&def.name),
+            runtime_type_id: next_type_id,
             size: 0,
             align: 0,
-            scan: lir::RefScan::None,
+            scan: lir::TypeDescriptorScan::Fixed(lir::RefScan::None),
             parent: None,
             vtable: Vec::new(),
             itables: Vec::new(),
         });
+        next_type_id += 1;
+        refs.interfaces
+            .insert(interface, lir::TypeDescriptorRef::Local(id));
     }
     for (id, _) in module.function_types.iter() {
         let name = format!(
             "function${}",
             mir::encode_type(module, &mir::Type::Function(id))
         );
-        tds.push(lir::TypeDescriptor {
+        let descriptor = descriptors.alloc(lir::TypeDescriptor {
             symbol: td_symbol(&name),
             name,
+            runtime_type_id: next_type_id,
             size: 0,
             align: 0,
-            scan: lir::RefScan::None,
+            scan: lir::TypeDescriptorScan::Fixed(lir::RefScan::None),
             parent: None,
             vtable: Vec::new(),
             itables: Vec::new(),
         });
+        next_type_id += 1;
+        refs.function_types
+            .insert(id, lir::TypeDescriptorRef::Local(descriptor));
     }
+    let mut string = None;
     for id in class_order(module) {
         let def = &module.classes[id];
-        let descriptor = class_type_descriptor(module, enums, id);
-        if matches!(
+        let is_string = matches!(
             def.representation,
             mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::String)
-        ) {
+        );
+        let runtime_type_id = if is_string {
+            1
+        } else {
+            let assigned = next_type_id;
+            next_type_id += 1;
+            assigned
+        };
+        let descriptor =
+            class_type_descriptor(module, enums, id, runtime_type_id, &refs, local_functions);
+        let descriptor = lir::TypeDescriptorRef::Local(descriptors.alloc(descriptor));
+        assert!(refs.classes.insert(id, descriptor).is_none());
+        if is_string {
             assert!(
                 string.replace(descriptor).is_none(),
                 "one typed String TypeDescriptor"
             );
-        } else if !matches!(
-            def.representation,
-            mir::ClassRepresentation::Intrinsic(
-                mir::IntrinsicTypeRepresentation::Array { .. }
-                    | mir::IntrinsicTypeRepresentation::MutableArray { .. }
-            )
-        ) {
-            tds.push(descriptor);
+            refs.string = Some(descriptor);
         }
     }
-    for (_, def) in module.closure_classes.iter() {
+    for (closure, def) in module.closure_classes.iter() {
         let (_, size, align, scan) = closure_shape(module, enums, def);
-        tds.push(lir::TypeDescriptor {
+        let descriptor = descriptors.alloc(lir::TypeDescriptor {
             name: def.name.clone(),
             symbol: td_symbol(&def.name),
+            runtime_type_id: next_type_id,
             size,
             align,
-            scan,
-            parent: Some(td_symbol(&format!(
-                "function${}",
-                mir::encode_type(module, &mir::Type::Function(def.function_type))
-            ))),
+            scan: lir::TypeDescriptorScan::Fixed(scan),
+            parent: Some(refs.function_types[&def.function_type]),
             vtable: Vec::new(),
             itables: def
                 .bridges
                 .iter()
                 .map(|bridge| lir::ItableRecord {
-                    interface_symbol: td_symbol(&format!(
-                        "function${}",
-                        mir::encode_type(module, &mir::Type::Function(bridge.target))
-                    )),
-                    slots: vec![module.functions[bridge.function].symbol.clone()],
+                    interface: refs.function_types[&bridge.target],
+                    slots: vec![dispatch_entry(
+                        &mir::TableSlot::Function(bridge.function),
+                        local_functions,
+                    )],
                 })
                 .collect(),
         });
+        next_type_id += 1;
+        refs.closures
+            .insert(closure, lir::TypeDescriptorRef::Local(descriptor));
     }
-    (
-        tds,
-        string.expect("LocalConcreteHir supplies the typed intrinsic String TypeDescriptor"),
-    )
+    refs.boxed = module
+        .meta
+        .boxed_types
+        .iter()
+        .map(|boxed| (boxed.payload.clone(), refs.classes[&boxed.class]))
+        .collect();
+    let string = string.expect("LocalConcreteHir supplies the typed intrinsic String descriptor");
+    (descriptors, refs, lir::WellKnownTypeDescriptors { string })
 }
 
 fn class_type_descriptor(
     module: &mir::Module,
     enums: &Arena<lir::EnumDef>,
     id: mir::ClassId,
+    runtime_type_id: u64,
+    refs: &TypeDescriptorRefs,
+    local_functions: &HashMap<mir::FunctionId, lir::LocalFunctionId>,
 ) -> lir::TypeDescriptor {
     let def = &module.classes[id];
     let (size, align, scan) = class_layout(module, enums, def);
+    let scan = match &def.representation {
+        mir::ClassRepresentation::Intrinsic(
+            mir::IntrinsicTypeRepresentation::Array { .. }
+            | mir::IntrinsicTypeRepresentation::MutableArray { .. },
+        ) => lir::TypeDescriptorScan::ArrayElement { stride: size, scan },
+        _ => lir::TypeDescriptorScan::Fixed(scan),
+    };
     lir::TypeDescriptor {
         name: def.name.clone(),
         symbol: if matches!(
@@ -1208,26 +1285,25 @@ fn class_type_descriptor(
         } else {
             td_symbol(&def.name)
         },
+        runtime_type_id,
         size,
         align,
         scan,
-        parent: def
-            .base_class()
-            .map(|base| td_symbol(&module.classes[base].name)),
+        parent: def.base_class().map(|base| refs.classes[&base]),
         vtable: def
             .vtable
             .iter()
-            .map(|slot| slot_symbol(module, slot))
+            .map(|slot| dispatch_entry(slot, local_functions))
             .collect(),
         itables: def
             .itables
             .iter()
             .map(|record| lir::ItableRecord {
-                interface_symbol: td_symbol(&module.interfaces[record.interface].name),
+                interface: refs.interfaces[&record.interface],
                 slots: record
                     .slots
                     .iter()
-                    .map(|slot| slot_symbol(module, slot))
+                    .map(|slot| dispatch_entry(slot, local_functions))
                     .collect(),
             })
             .collect(),
@@ -1240,6 +1316,7 @@ fn class_type_descriptor(
 fn array_types(
     module: &mir::Module,
     enums: &Arena<lir::EnumDef>,
+    descriptors: &TypeDescriptorRefs,
 ) -> (
     Arena<lir::ArrayType>,
     HashMap<mir::ClassId, lir::ArrayTypeId>,
@@ -1264,7 +1341,7 @@ fn array_types(
             element: lir_type(element),
             element_size,
             element_align,
-            type_descriptor: class_type_descriptor(module, enums, class_id),
+            type_descriptor: descriptors.classes[&class_id],
         });
         assert!(ids.insert(class_id, id).is_none());
     }
@@ -1770,7 +1847,7 @@ fn lower_function<'a>(
     structs: &Arena<lir::StructDef>,
     enums: &Arena<lir::EnumDef>,
     array_types: &'a HashMap<mir::ClassId, lir::ArrayTypeId>,
-    td_map: &mut HashMap<String, lir::GlobalId>,
+    type_descriptors: &'a TypeDescriptorRefs,
     local_function_map: &'a HashMap<mir::FunctionId, lir::LocalFunctionId>,
 ) -> lir::Function {
     // Parameters stay SSA values unless `addressOf` requires stable storage.
@@ -1836,7 +1913,7 @@ fn lower_function<'a>(
         structs,
         enums,
         array_types,
-        td_map,
+        type_descriptors,
         local_function_map,
         local_map,
         locals,
@@ -1907,6 +1984,7 @@ impl LiveValue {
             lir::Value::IntConst(_)
             | lir::Value::BoolConst(_)
             | lir::Value::NullPointer(_)
+            | lir::Value::TypeDescriptor(_)
             | lir::Value::Global(_) => None,
         }
     }
@@ -2333,32 +2411,6 @@ enum LocalSlot {
     Param(u32),
 }
 
-/// The global symbol of the TypeDescriptor a runtime check / box
-/// refers to: classes and interfaces have their own; value types are
-/// compared / boxed through their boxed class's (`box$<encoded>`, as
-/// mir-lower names it); String uses its typed intrinsic TD. `Any` has no TD
-/// (mir-lower folds those checks).
-fn td_symbol_for(module: &mir::Module, ty: &mir::Type) -> String {
-    match ty {
-        mir::Type::Class(id) => td_symbol(&module.classes[*id].name),
-        mir::Type::Interface(id) => td_symbol(&module.interfaces[*id].name),
-        mir::Type::String => lir::STRING_TD_SYMBOL.to_string(),
-        mir::Type::Struct(_)
-        | mir::Type::Enum(..)
-        | mir::Type::Tuple(_)
-        | mir::Type::Int
-        | mir::Type::UInt
-        | mir::Type::Boolean
-        | mir::Type::Unit
-        | mir::Type::Ptr(_)
-        | mir::Type::FunPtr(_) => td_symbol(&format!("box${}", mir::encode_type(module, ty))),
-        mir::Type::Function(_) => td_symbol(&format!("function${}", mir::encode_type(module, ty))),
-        mir::Type::Any => {
-            unreachable!("no referenceable TypeDescriptor for {ty:?}")
-        }
-    }
-}
-
 /// Per-function lowering state: locals, temps, and the basic blocks
 /// built so far. Invariant: the `current` block is always unsealed
 /// (its terminator is a placeholder); a block is sealed exactly when
@@ -2371,8 +2423,7 @@ struct FunctionLowerer<'a> {
     mir_locals: &'a Arena<mir::Local>,
     global_map: &'a HashMap<mir::StringConstId, lir::GlobalId>,
     storage_globals: &'a HashMap<mir::GlobalId, StorageGlobal>,
-    /// Sink for trap message globals (`scoop.cstr.N`) and
-    /// TypeDescriptor reference stubs (`scoop_td_*`).
+    /// Sink for ordinary globals such as trap-message C strings.
     globals: &'a mut Arena<lir::Global>,
     cstr_count: &'a mut usize,
     /// Sink for tuple types encountered in value types (meta layouts).
@@ -2385,8 +2436,8 @@ struct FunctionLowerer<'a> {
     /// Complete class-application to array-metadata mapping produced before
     /// any function is lowered.
     array_types: &'a HashMap<mir::ClassId, lir::ArrayTypeId>,
-    /// TypeDescriptor reference stubs, deduplicated by symbol.
-    td_map: &'a mut HashMap<String, lir::GlobalId>,
+    /// Complete typed TypeDescriptor graph built before body lowering.
+    type_descriptors: &'a TypeDescriptorRefs,
     local_function_map: &'a HashMap<mir::FunctionId, lir::LocalFunctionId>,
     local_map: HashMap<mir::LocalId, LocalSlot>,
     locals: Arena<lir::Local>,
@@ -2836,7 +2887,7 @@ impl<'a> FunctionLowerer<'a> {
                     def.captures.len(),
                     "ClosureAlloc initializes every capture field"
                 );
-                let td = lir::Value::Global(self.td_global(td_symbol(&def.name)));
+                let td = lir::Value::TypeDescriptor(self.type_descriptors.closures[class]);
                 let object = self.emit_plain_call(
                     lir::CallDestination::Runtime(lir::RuntimeFunction::Alloc),
                     runtime_call_effect(lir::RuntimeFunction::Alloc),
@@ -3420,25 +3471,8 @@ impl<'a> FunctionLowerer<'a> {
         block
     }
 
-    /// A `Value` naming the TypeDescriptor of `ty` (see the module
-    /// docs for the TD-reference convention).
-    fn td_ref(&mut self, ty: &mir::Type) -> lir::Value {
-        lir::Value::Global(self.td_global(td_symbol_for(self.module, ty)))
-    }
-
-    /// The globals-arena stub for one referenced TypeDescriptor,
-    /// deduplicated by symbol.
-    fn td_global(&mut self, symbol: String) -> lir::GlobalId {
-        if let Some(&id) = self.td_map.get(&symbol) {
-            return id;
-        }
-        let id = self.globals.alloc(lir::Global {
-            symbol: symbol.clone(),
-            address_kind: lir::PointerKind::Metadata,
-            init: lir::GlobalInit::CString(String::new()),
-        });
-        self.td_map.insert(symbol, id);
-        id
+    fn td_ref(&self, ty: &mir::Type) -> lir::Value {
+        lir::Value::TypeDescriptor(self.type_descriptors.for_type(ty))
     }
 
     /// Struct / tuple construction: an aggregate of the mapped field
@@ -4421,12 +4455,47 @@ mod tests {
         }
     }
 
+    fn layout_values(module: &lir::Module) -> impl Iterator<Item = &lir::Layout> {
+        module.meta.layouts.iter().map(|(_, layout)| layout)
+    }
+
+    fn descriptor_values(module: &lir::Module) -> impl Iterator<Item = &lir::TypeDescriptor> {
+        module
+            .meta
+            .type_descriptors
+            .iter()
+            .map(|(_, descriptor)| descriptor)
+    }
+
+    fn descriptor(module: &lir::Module, reference: lir::TypeDescriptorRef) -> &lir::TypeDescriptor {
+        let lir::TypeDescriptorRef::Local(id) = reference else {
+            panic!("tests expect a local descriptor")
+        };
+        &module.meta.type_descriptors[id]
+    }
+
+    fn fixed_scan(descriptor: &lir::TypeDescriptor) -> &lir::RefScan {
+        let lir::TypeDescriptorScan::Fixed(scan) = &descriptor.scan else {
+            panic!("expected a fixed descriptor scan")
+        };
+        scan
+    }
+
+    fn array_scan(descriptor: &lir::TypeDescriptor) -> &lir::RefScan {
+        let lir::TypeDescriptorScan::ArrayElement { scan, .. } = &descriptor.scan else {
+            panic!("expected an array descriptor scan")
+        };
+        scan
+    }
+
     fn array_metadata<'a>(module: &'a lir::Module, name: &str) -> &'a lir::ArrayType {
         module
             .meta
             .arrays
             .iter()
-            .find_map(|(_, array)| (array.type_descriptor.name == name).then_some(array))
+            .find_map(|(_, array)| {
+                (descriptor(module, array.type_descriptor).name == name).then_some(array)
+            })
             .unwrap_or_else(|| panic!("missing array metadata for {name}"))
     }
 
@@ -4605,28 +4674,27 @@ mod tests {
         // The source declaration's typed intrinsic identity survives through
         // MIR and LIR. String metadata is a required singleton, not a layout
         // or descriptor that codegen has to rediscover by name.
+        let string_layout = &module.meta.layouts[module.meta.well_known_layouts.string];
+        let string_descriptor = descriptor(&module, module.meta.well_known_type_descriptors.string);
         assert_eq!(
-            module.meta.string.layout.kind,
+            string_layout.kind,
             lir::LayoutKind::Intrinsic(lir::IntrinsicTypeRepresentation::String)
         );
+        assert_eq!(string_descriptor.symbol, lir::STRING_TD_SYMBOL);
+        assert_eq!(string_descriptor.runtime_type_id, 1);
+        assert!(string_descriptor.vtable.is_empty());
         assert_eq!(
-            module.meta.string.type_descriptor.symbol,
-            lir::STRING_TD_SYMBOL
-        );
-        assert!(module.meta.string.type_descriptor.vtable.is_empty());
-        assert!(
-            module
-                .meta
-                .type_descriptors
-                .iter()
-                .all(|descriptor| descriptor.symbol != lir::STRING_TD_SYMBOL)
+            descriptor_values(&module)
+                .filter(|descriptor| descriptor.symbol == lir::STRING_TD_SYMBOL)
+                .count(),
+            1
         );
         for representation in [
             lir::IntrinsicTypeRepresentation::Int,
             lir::IntrinsicTypeRepresentation::UInt,
             lir::IntrinsicTypeRepresentation::Boolean,
         ] {
-            assert!(module.meta.layouts.iter().any(|layout| {
+            assert!(layout_values(&module).any(|layout| {
                 layout.kind == lir::LayoutKind::Intrinsic(representation.clone())
             }));
         }
@@ -5348,10 +5416,7 @@ Module
         assert!(matches!(instructions[3], lir::Instruction::Store { .. }));
 
         // The struct layout is in the meta.
-        let layout = module
-            .meta
-            .layouts
-            .iter()
+        let layout = layout_values(&module)
             .find(|l| l.name == "Point")
             .expect("a layout per struct");
         assert_eq!((layout.size, layout.align), (16, 8));
@@ -5378,7 +5443,7 @@ Module
         assert_eq!(function.temps[*out].ty, lir::LirType::Aggregate(Vec::new()));
 
         // Unit itself gets no layout entry (it is just `{}`).
-        assert!(!module.meta.layouts.iter().any(|l| l.name == "Unit"));
+        assert!(!layout_values(&module).any(|l| l.name == "Unit"));
     }
 
     #[test]
@@ -5399,22 +5464,16 @@ Module
         let (_, u_local) = function.locals.iter().next().expect("one local");
         assert_eq!(u_local.ty, lir::LirType::I64);
 
-        let c_layout = module
-            .meta
-            .layouts
-            .iter()
+        let c_layout = layout_values(&module)
             .find(|l| l.name == "C")
             .expect("a layout per class");
         assert_eq!((c_layout.size, c_layout.align), (24, 8));
         assert!(plain_refs(c_layout).is_empty());
-        let c_td = module
-            .meta
-            .type_descriptors
-            .iter()
+        let c_td = descriptor_values(&module)
             .find(|td| td.name == "C")
             .expect("a TypeDescriptor per class");
         assert_eq!(c_td.size, 24);
-        assert_eq!(c_td.scan, lir::RefScan::None);
+        assert_eq!(*fixed_scan(c_td), lir::RefScan::None);
     }
 
     #[test]
@@ -5438,24 +5497,16 @@ Module
         let module = lower(&b.finish(main));
 
         let by_name = |name: &str| {
-            module
-                .meta
-                .layouts
-                .iter()
+            layout_values(&module)
                 .find(|l| l.name == name)
                 .unwrap_or_else(|| panic!("missing layout for {name}"))
         };
 
         // The String singleton is structurally separate; the remaining typed
         // intrinsic layouts stay in declaration order with ordinary layouts.
-        let names: Vec<&str> = module
-            .meta
-            .layouts
-            .iter()
-            .map(|l| l.name.as_str())
-            .collect();
+        let names: Vec<&str> = layout_values(&module).map(|l| l.name.as_str()).collect();
         assert_eq!(
-            module.meta.string.layout.kind,
+            module.meta.layouts[module.meta.well_known_layouts.string].kind,
             lir::LayoutKind::Intrinsic(lir::IntrinsicTypeRepresentation::String)
         );
         assert_eq!(
@@ -5466,12 +5517,13 @@ Module
                 "Int",
                 "UInt",
                 "Boolean",
+                "String",
                 "(String, Int)",
                 "(Boolean, Int)"
             ]
         );
 
-        let string = &module.meta.string.layout;
+        let string = &module.meta.layouts[module.meta.well_known_layouts.string];
         assert_eq!((string.size, string.align), (24, 8));
         assert!(string.fields.is_empty());
 
@@ -6002,10 +6054,7 @@ Module
             edef(&module, option).repr,
             lir::EnumRepr::Niche { payload_variant: 0 }
         ));
-        let layout = module
-            .meta
-            .layouts
-            .iter()
+        let layout = layout_values(&module)
             .find(|layout| layout.name == "Option$P")
             .expect("raw pointer option layout");
         let lir::LayoutKind::Enum { scan } = &layout.kind else {
@@ -6239,10 +6288,7 @@ Module
         );
         assert!(outer_def.interior_mutable);
 
-        let outer_layout = module
-            .meta
-            .layouts
-            .iter()
+        let outer_layout = layout_values(&module)
             .find(|layout| layout.name == "Outer")
             .expect("Outer layout");
         assert_eq!((outer_layout.size, outer_layout.align), (32, 16));
@@ -6260,10 +6306,7 @@ Module
             (array_layout.element_size, array_layout.element_align),
             (32, 16)
         );
-        let wrapped_layout = module
-            .meta
-            .layouts
-            .iter()
+        let wrapped_layout = layout_values(&module)
             .find(|layout| layout.name == "Wrapped")
             .expect("enum layout");
         assert_eq!((wrapped_layout.size, wrapped_layout.align), (48, 16));
@@ -6349,10 +6392,7 @@ Module
         let module = lower(&b.finish(main));
 
         let by_name = |name: &str| {
-            module
-                .meta
-                .layouts
-                .iter()
+            layout_values(&module)
                 .find(|l| l.name == name)
                 .unwrap_or_else(|| panic!("missing layout for {name}"))
         };
@@ -6395,16 +6435,22 @@ Module
             }
         );
 
-        let holder_td = module
-            .meta
-            .type_descriptors
-            .iter()
+        let holder_td = descriptor_values(&module)
             .find(|td| td.name == "Holder")
             .expect("Holder TypeDescriptor");
         assert_eq!((holder_td.size, holder_td.align), (64, 8));
-        assert_eq!(holder_td.scan, lir::RefScan::References(vec![16, 40, 56]));
+        assert_eq!(
+            *fixed_scan(holder_td),
+            lir::RefScan::References(vec![16, 40, 56])
+        );
 
-        let array_scan = |name: &str| array_metadata(&module, name).type_descriptor.scan.clone();
+        let array_scan = |name: &str| {
+            array_scan(descriptor(
+                &module,
+                array_metadata(&module, name).type_descriptor,
+            ))
+            .clone()
+        };
         assert_eq!(
             array_scan("Array<Msg>"),
             lir::RefScan::References(vec![8, 24])
@@ -6679,8 +6725,8 @@ Module
     store t3 -> local3
     array_set array1 local3 0 40
     ret
-  array-type array0 Array<Int> kind=immutable element=i64 size=8 align=8 scan=none td=@scoop_td_Array<Int>
-  array-type array1 MutableArray<Int> kind=mutable element=i64 size=8 align=8 scan=none td=@scoop_td_MutableArray<Int>
+  array-type array0 Array<Int> kind=immutable element=i64 size=8 align=8 scan=none td=td0
+  array-type array1 MutableArray<Int> kind=mutable element=i64 size=8 align=8 scan=none td=td1
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
@@ -6714,7 +6760,7 @@ Module
             (
                 array.element_size,
                 array.element_align,
-                array.type_descriptor.scan.clone(),
+                array_scan(descriptor(&module, array.type_descriptor)).clone(),
             )
         };
         // size / align are element-level: the element stride and
@@ -6751,10 +6797,7 @@ Module
 
         // flag @0 (1 byte), xs @8: an array value is a pointer-sized
         // reference.
-        let holder = module
-            .meta
-            .layouts
-            .iter()
+        let holder = layout_values(&module)
             .find(|l| l.name == "Holder")
             .expect("a layout per struct");
         assert_eq!((holder.size, holder.align), (16, 8));
@@ -6824,7 +6867,7 @@ Module
     call t2 = direct-target0 sig=direct0 (ptr<managed>) -> i64 effect=managed-safepoint dispatch[Virtual:0] t1(local0)
     store t2 -> local1
     ret
-  td C @scoop_td_C size=16 vtable=1 itables=0
+  td td0 C @scoop_td_C type-id=2 size=16 parent=none vtable=[local-fn0] itables=[]
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
@@ -6870,21 +6913,20 @@ Module
         let module = lower(&b.finish(main));
 
         // `scoop_rt_itable_lookup(td, iface_td)` finds the table; the
-        // interface TD is referenced through a globals-arena stub (the
-        // TD itself comes from the meta — see the module docs).
+        // interface TD is a typed metadata reference, not an ordinary
+        // globals-arena entry.
         let expected = "\
 Module
-  global @scoop_td_Describable = c\"\"
   fun @scoop_main() -> void
     local %0 i: ptr<managed>
     local %1 r: i64
   block entry
     t0 = heap_load local0 +0 : ptr<metadata>
-    call t1 = direct-target0 sig=direct0 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t0, global0)
+    call t1 = direct-target0 sig=direct0 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t0, td0)
     call t2 = direct-target1 sig=direct1 (ptr<managed>) -> i64 effect=managed-safepoint dispatch[Interface:1] t1(local0)
     store t2 -> local1
     ret
-  td Describable @scoop_td_Describable size=0 vtable=0 itables=0
+  td td0 Describable @scoop_td_Describable type-id=2 size=0 parent=none vtable=[] itables=[]
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
@@ -6961,11 +7003,22 @@ Module
         // Interfaces first (itable keys), then classes
         // base-before-derived — references always name
         // already-emitted entries.
-        let tds = &module.meta.type_descriptors;
-        assert_eq!(tds.len(), 3);
-        let [i_td, base_td, derived_td] = &tds[..] else {
-            panic!("expected three TypeDescriptors")
+        assert_eq!(module.meta.type_descriptors.len(), 4);
+        let descriptor_by_name = |name: &str| {
+            module
+                .meta
+                .type_descriptors
+                .iter()
+                .find_map(|(id, descriptor)| {
+                    (descriptor.name == name)
+                        .then_some((lir::TypeDescriptorRef::Local(id), descriptor))
+                })
+                .unwrap_or_else(|| panic!("missing descriptor {name}"))
         };
+        let (i_ref, i_td) = descriptor_by_name("I");
+        let (base_ref, base_td) = descriptor_by_name("Base");
+        let (_, derived_td) = descriptor_by_name("Derived");
+        let (_, string_td) = descriptor_by_name("String");
         assert_eq!(i_td.symbol, "scoop_td_I");
         assert_eq!((i_td.size, i_td.align), (0, 0));
         assert!(i_td.parent.is_none());
@@ -6974,21 +7027,27 @@ Module
         assert_eq!(base_td.symbol, "scoop_td_Base");
         // 16-byte header + Int @16 → size 24.
         assert_eq!((base_td.size, base_td.align), (24, 8));
-        assert_eq!(base_td.scan, lir::RefScan::None);
+        assert_eq!(*fixed_scan(base_td), lir::RefScan::None);
         assert!(base_td.parent.is_none());
-        assert_eq!(base_td.vtable, ["scoop.Base.m"]);
+        assert_eq!(
+            base_td.vtable,
+            [lir::DispatchEntry {
+                callable: lir::CallableRef::Local(lir::LocalFunctionId::from_u32(0)),
+            }]
+        );
         assert_eq!(base_td.itables.len(), 1);
-        assert_eq!(base_td.itables[0].interface_symbol, "scoop_td_I");
-        assert_eq!(base_td.itables[0].slots, ["scoop.Base.m"]);
+        assert_eq!(base_td.itables[0].interface, i_ref);
+        assert_eq!(base_td.itables[0].slots, base_td.vtable);
 
         assert_eq!(derived_td.symbol, "scoop_td_Derived");
-        assert_eq!(derived_td.parent.as_deref(), Some("scoop_td_Base"));
+        assert_eq!(derived_td.parent, Some(base_ref));
         // header 16 + Int @16 + String @24 → size 32; the String is
         // the one reference.
         assert_eq!((derived_td.size, derived_td.align), (32, 8));
-        assert_eq!(derived_td.scan, lir::RefScan::References(vec![24]));
-        assert_eq!(derived_td.vtable, ["scoop.Derived.m", "scoop.Derived.m2"]);
-        assert_eq!(derived_td.itables[0].slots, ["scoop.Derived.m"]);
+        assert_eq!(*fixed_scan(derived_td), lir::RefScan::References(vec![24]));
+        assert_eq!(derived_td.vtable.len(), 2);
+        assert_eq!(derived_td.itables[0].slots, [derived_td.vtable[0]]);
+        assert_eq!(string_td.symbol, lir::STRING_TD_SYMBOL);
     }
 
     #[test]
@@ -7010,7 +7069,7 @@ Module
         // A boxed value type: header + the inline payload; references
         // inside the payload shift by the header too.
         let s = b.strukt("S", &[("x", mir::Type::Int), ("s", mir::Type::String)]);
-        let _boxed = b.class(
+        let boxed = b.class(
             "box$S",
             None,
             &[("value", mir::Type::Struct(s))],
@@ -7018,13 +7077,15 @@ Module
             vec![],
         );
         let main = b.main(Arena::new(), vec![]);
-        let module = lower(&b.finish(main));
+        let mut mir_module = b.finish(main);
+        mir_module.meta.boxed_types.push(mir::BoxedType {
+            payload: mir::Type::Struct(s),
+            class: boxed,
+        });
+        let module = lower(&mir_module);
 
         let by_name = |name: &str| {
-            module
-                .meta
-                .layouts
-                .iter()
+            layout_values(&module)
                 .find(|l| l.name == name)
                 .unwrap_or_else(|| panic!("missing layout for {name}"))
         };
@@ -7039,15 +7100,12 @@ Module
         assert_eq!(plain_refs(boxed_layout), [24]);
         // The TypeDescriptors carry the same reference offsets.
         let td = |name: &str| {
-            module
-                .meta
-                .type_descriptors
-                .iter()
+            descriptor_values(&module)
                 .find(|td| td.name == name)
                 .unwrap_or_else(|| panic!("missing TypeDescriptor for {name}"))
         };
-        assert_eq!(td("C").scan, lir::RefScan::References(vec![24, 40]));
-        assert_eq!(td("box$S").scan, lir::RefScan::References(vec![24]));
+        assert_eq!(*fixed_scan(td("C")), lir::RefScan::References(vec![24, 40]));
+        assert_eq!(*fixed_scan(td("box$S")), lir::RefScan::References(vec![24]));
         assert!(td("C").parent.is_none());
         assert!(td("box$S").parent.is_none());
     }
@@ -7058,7 +7116,7 @@ Module
         let s = b.strukt("S", &[("x", mir::Type::Int)]);
         // mir-lower registers the boxed class of every checked / boxed
         // value type.
-        let _boxed = b.class(
+        let boxed = b.class(
             "box$D1_SX",
             None,
             &[("value", mir::Type::Struct(s))],
@@ -7104,14 +7162,26 @@ Module
                 ),
             ],
         );
-        let module = lower(&b.finish(main));
+        let mut mir_module = b.finish(main);
+        mir_module.meta.boxed_types.push(mir::BoxedType {
+            payload: mir::Type::Struct(s),
+            class: boxed,
+        });
+        let module = lower(&mir_module);
+
+        assert!(
+            module
+                .globals
+                .iter()
+                .all(|(_, global)| !global.symbol.starts_with("scoop_td_")),
+            "TypeDescriptors must never be represented by ordinary globals"
+        );
 
         // Box → `scoop_rt_box(td, payload, size)`; Unbox → the payload
         // field behind the header; `is` → `scoop_rt_is_instance(obj,
-        // td)`. Both checks share the one TD stub global.
+        // td)`. Both checks share one typed descriptor reference.
         let expected = "\
 Module
-  global @scoop_td_box$D1_SX = c\"\"
   fun @scoop_main() -> void
     local %0 a: ptr<managed>
     local %1 v: struct0
@@ -7121,14 +7191,14 @@ Module
     t0 = aggregate (1) : struct0
     store t0 -> local3
     t1 = local_address local3 : ptr
-    call t2 = direct-target0 sig=direct0 (ptr<metadata>, ptr<raw>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_box(global0, t1, 8)
+    call t2 = direct-target0 sig=direct0 (ptr<metadata>, ptr<raw>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_box(td0, t1, 8)
     store t2 -> local0
     t3 = heap_load local0 +16 : struct0
     store t3 -> local1
-    call t4 = direct-target1 sig=direct1 (ptr<managed>, ptr<metadata>) -> i1 effect=no-gc runtime @scoop_rt_is_instance(local0, global0)
+    call t4 = direct-target1 sig=direct1 (ptr<managed>, ptr<metadata>) -> i1 effect=no-gc runtime @scoop_rt_is_instance(local0, td0)
     store t4 -> local2
     ret
-  td box$D1_SX @scoop_td_box$D1_SX size=24 vtable=0 itables=0
+  td td0 box$D1_SX @scoop_td_box$D1_SX type-id=2 size=24 parent=none vtable=[] itables=[]
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
@@ -7375,10 +7445,9 @@ Module
         let expected = "\
 Module
   global @scoop.str.0 = \"x\"
-  global @scoop_td_Point = c\"\"
   fun @scoop.ctor.Point(i64, ptr<managed>) -> ptr<managed>
   block entry
-    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(global1, 32)
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td0, 32)
     heap_store t0 +16 param0
     heap_store t0 +24 param1
     ret t0
@@ -7388,7 +7457,7 @@ Module
     call t0 = direct-target0 sig=direct0 (i64, ptr<managed>) -> ptr<managed> effect=managed-safepoint local-fn0(1, global0)
     store t0 -> local0
     ret
-  td Point @scoop_td_Point size=32 vtable=0 itables=0
+  td td0 Point @scoop_td_Point type-id=2 size=32 parent=none vtable=[] itables=[]
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
@@ -7511,7 +7580,6 @@ Module
 
         let expected = "\
 Module
-  global @scoop_td_MyError = c\"\"
   fun @scoop.helper() -> void
   block entry
     ret
@@ -7533,7 +7601,7 @@ Module
   block try.dispatch.2
     t2 = begin_catch local2 : ptr<managed>
     store t2 -> local3
-    call t3 = direct-target0 sig=direct0 (ptr<managed>, ptr<metadata>) -> i1 effect=no-gc runtime @scoop_rt_is_instance(local3, global0)
+    call t3 = direct-target0 sig=direct0 (ptr<managed>, ptr<metadata>) -> i1 effect=no-gc runtime @scoop_rt_is_instance(local3, td0)
     cbr t3 then @try.catch.9 else @try.next.10
   block try.handler_pad.3
     (t4, t5) = cleanup_pad : (exception_record, ptr<raw>)
@@ -7572,7 +7640,7 @@ Module
     br @try.end.7
   block rethrow.normal.3
     unreachable
-  td MyError @scoop_td_MyError size=16 vtable=0 itables=0
+  td td0 MyError @scoop_td_MyError type-id=2 size=16 parent=none vtable=[] itables=[]
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
@@ -7881,10 +7949,9 @@ Module
         // the block; the callee stays a plain call.
         let expected = "\
 Module
-  global @scoop_td_MyError = c\"\"
   fun @scoop.makeError() -> ptr<managed>
   block entry
-    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(global0, 16)
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td0, 16)
     ret t0
   fun @scoop_main() -> void
     local %0 $call.1: ptr<managed>
@@ -7893,7 +7960,7 @@ Module
     store t0 -> local0
     throw local0
     unreachable
-  td MyError @scoop_td_MyError size=16 vtable=0 itables=0
+  td td0 MyError @scoop_td_MyError type-id=2 size=16 parent=none vtable=[] itables=[]
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]

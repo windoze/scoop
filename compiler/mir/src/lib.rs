@@ -568,6 +568,16 @@ pub struct MirMeta {
     pub coroutine_resume_points: Arena<CoroutineResumePoint>,
     pub closure_adapters: Arena<ClosureAdapter>,
     pub dynamic_closure_adapters: Arena<DynamicClosureAdapter>,
+    /// Complete semantic relation between every materialized value box and
+    /// the concrete class whose TypeDescriptor represents it. LIR must not
+    /// reconstruct this relation from the synthetic class link name.
+    pub boxed_types: Vec<BoxedType>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct BoxedType {
+    pub payload: Type,
+    pub class: ClassId,
 }
 
 #[derive(Debug)]

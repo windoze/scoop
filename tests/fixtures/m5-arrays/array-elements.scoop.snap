@@ -1095,13 +1095,6 @@ Module
   global @scoop.str.5 = "arithmetic error"
   global @scoop.str.6 = "array index out of bounds"
   global @scoop.str.7 = "illegal state"
-  global @scoop_td_Throwable = c""
-  global @scoop_td_Exception = c""
-  global @scoop_td_UnwrapException = c""
-  global @scoop_td_ClassCastException = c""
-  global @scoop_td_ArithmeticException = c""
-  global @scoop_td_IndexOutOfBoundsException = c""
-  global @scoop_td_IllegalStateException = c""
   enum E tagged size=16 align=8 variants=()@8+0 (i64)@8+8
   enum Option$I tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
   enum Option$S niche(payload_variant=0)
@@ -1441,57 +1434,57 @@ Module
     ret
   fun @scoop.ctor.Throwable() -> ptr<managed>
   block entry
-    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(global8, 16)
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td2, 16)
     ret t0
   fun @scoop.ctor.Exception(enum2) -> ptr<managed>
   block entry
-    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(global9, 24)
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td9, 24)
     heap_store t0 +16 param0
     ret t0
   fun @scoop.ctor.UnwrapException() -> ptr<managed>
   block entry
-    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(global10, 24)
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td10, 24)
     t1 = enum_wrap e2 v0 (global3) : enum2
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.ClassCastException() -> ptr<managed>
   block entry
-    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(global11, 24)
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td11, 24)
     t1 = enum_wrap e2 v0 (global4) : enum2
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.ArithmeticException() -> ptr<managed>
   block entry
-    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(global12, 24)
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td12, 24)
     t1 = enum_wrap e2 v0 (global5) : enum2
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.IndexOutOfBoundsException() -> ptr<managed>
   block entry
-    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(global13, 24)
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td13, 24)
     t1 = enum_wrap e2 v0 (global6) : enum2
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.IllegalStateException() -> ptr<managed>
   block entry
-    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(global14, 24)
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td14, 24)
     t1 = enum_wrap e2 v0 (global7) : enum2
     heap_store t0 +16 t1
     ret t0
-  td ToString @scoop_td_ToString size=0 vtable=0 itables=0
-  td Hash @scoop_td_Hash size=0 vtable=0 itables=0
-  td Throwable @scoop_td_Throwable size=16 vtable=0 itables=0
-  td Exception @scoop_td_Exception size=24 vtable=0 itables=0
-  td UnwrapException @scoop_td_UnwrapException size=24 vtable=0 itables=0
-  td ClassCastException @scoop_td_ClassCastException size=24 vtable=0 itables=0
-  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=0 itables=0
-  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=0 itables=0
-  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=0 itables=0
-  array-type array0 Array$D5_PointX kind=immutable element=struct3 size=16 align=8 scan=none td=@scoop_td_Array$D5_PointX
-  array-type array1 Array$I kind=immutable element=i64 size=8 align=8 scan=none td=@scoop_td_Array$I
-  array-type array2 Array$AIX kind=immutable element=ptr<managed> size=8 align=8 scan=refs[0] td=@scoop_td_Array$AIX
-  array-type array3 Array$E1_EX kind=immutable element=enum0 size=16 align=8 scan=none td=@scoop_td_Array$E1_EX
-  array-type array4 Array$E8_Option$IX kind=immutable element=enum1 size=16 align=8 scan=none td=@scoop_td_Array$E8_Option$IX
+  td td0 ToString @scoop_td_ToString type-id=2 size=0 parent=none vtable=[] itables=[]
+  td td1 Hash @scoop_td_Hash type-id=3 size=0 parent=none vtable=[] itables=[]
+  td td2 Throwable @scoop_td_Throwable type-id=4 size=16 parent=none vtable=[] itables=[]
+  td td9 Exception @scoop_td_Exception type-id=10 size=24 parent=td2 vtable=[] itables=[]
+  td td10 UnwrapException @scoop_td_UnwrapException type-id=11 size=24 parent=td9 vtable=[] itables=[]
+  td td11 ClassCastException @scoop_td_ClassCastException type-id=12 size=24 parent=td9 vtable=[] itables=[]
+  td td12 ArithmeticException @scoop_td_ArithmeticException type-id=13 size=24 parent=td9 vtable=[] itables=[]
+  td td13 IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException type-id=14 size=24 parent=td9 vtable=[] itables=[]
+  td td14 IllegalStateException @scoop_td_IllegalStateException type-id=15 size=24 parent=td9 vtable=[] itables=[]
+  array-type array0 Array$D5_PointX kind=immutable element=struct3 size=16 align=8 scan=none td=td4
+  array-type array1 Array$I kind=immutable element=i64 size=8 align=8 scan=none td=td5
+  array-type array2 Array$AIX kind=immutable element=ptr<managed> size=8 align=8 scan=refs[0] td=td6
+  array-type array3 Array$E1_EX kind=immutable element=enum0 size=16 align=8 scan=none td=td7
+  array-type array4 Array$E8_Option$IX kind=immutable element=enum1 size=16 align=8 scan=none td=td8
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
