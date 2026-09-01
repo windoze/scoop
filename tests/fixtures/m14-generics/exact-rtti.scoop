@@ -1,0 +1,21 @@
+class Box<T>(val value: T)
+
+interface Marker<T> {}
+
+class Marked<T>(val value: T) : Marker<T>
+
+fun <T> exact(value: Any): Boolean = value is Box<T>
+
+fun main() {
+    val boxedInt: Any = Box(42)
+    println(boxedInt is Box<Int>)
+    println(boxedInt is Box<String>)
+    val concrete = boxedInt as Box<Int>
+    println(concrete.value)
+    println(exact<Int>(boxedInt))
+    println(exact<String>(boxedInt))
+
+    val marker: Any = Marked(1)
+    println(marker is Marker<Int>)
+    println(marker is Marker<String>)
+}

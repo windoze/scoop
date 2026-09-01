@@ -1,0 +1,48 @@
+interface Label {
+    fun label(): String
+}
+
+struct Point(val x: Int, val y: Int) : ToString, Hash, Label {
+    override fun toString(): String = "Point"
+    override fun hash(): Int = x
+    override fun label(): String = toString()
+}
+
+class User(val id: Int) : ToString, Hash {
+    override fun toString(): String = "User"
+    override fun hash(): Int = id
+    operator fun equals(other: User): Boolean = id == other.id
+}
+
+class RenderBox<T : ToString>(val value: T) : ToString {
+    override fun toString(): String = value.toString()
+}
+
+struct RenderPair<T : ToString>(val first: T, val second: T) : ToString {
+    override fun toString(): String = first.toString() + second.toString()
+}
+
+enum RenderState<T : ToString> : ToString {
+    Value(T),
+    Empty
+
+    override fun toString(): String = when (this) {
+        Value(value) -> value.toString()
+        Empty -> "Empty"
+    }
+}
+
+fun <T> render(value: T): String where T : ToString = value.toString()
+
+fun main() {
+    val point = Point(20, 22)
+    println(point)
+    println(point.hash())
+    val first = User(42)
+    val second = User(42)
+    println(first == second)
+    println(RenderBox(point))
+    println(RenderPair(point, point))
+    println(RenderState.Value(point))
+    println(render(point))
+}
