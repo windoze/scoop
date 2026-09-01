@@ -1,0 +1,64 @@
+@Extern(lib = "fixture_native", name = "m13_start_many")
+fun startMany(
+    callback: FunPtr<(Int, Ptr<Unit>) -> Int>,
+    context: Ptr<Unit>,
+    base: Int,
+    count: Int
+): Ptr<Unit>
+
+@Extern(lib = "fixture_native", name = "m13_join_many")
+fun joinMany(group: Ptr<Unit>): Int
+
+class RaceGate(
+    var group: Ptr<Unit>,
+    var callback: ForeignCallback<(Int, Ptr<Unit>) -> Int>?
+)
+
+class RaceRegistration(val gate: RaceGate) : SuspendRegistration<Int> {
+    final override fun register(continuation: Continuation<Int>) {
+        @Unsafe {
+            val callback = foreignCallback<(Int, Ptr<Unit>) -> Int>(
+                { value: Int ->
+                    continuation.resume(value)
+                    1
+                },
+                1,
+                ForeignCallbackMode.Reusable
+            )
+            gate.callback = Some(callback)
+            gate.group = startMany(callback.function, callback.context, 70, 2)
+        }
+    }
+}
+
+class RaceTask(val gate: RaceGate) : SuspendTask<Int> {
+    final override suspend fun run(): Int {
+        return suspendCoroutine(RaceRegistration(gate))
+    }
+}
+
+class RaceCompletion() : Continuation<Int> {
+    final override fun resume(value: Int) {
+        println("completed")
+    }
+
+    final override fun resumeWithException(exception: Throwable) {
+        println("failed")
+    }
+}
+
+fun main() {
+    @Unsafe {
+        val gate = RaceGate(
+            Ptr<Unit>(sizeOf<Int>() - sizeOf<Int>()),
+            None
+        )
+        startCoroutine(RaceTask(gate), RaceCompletion())
+        println("suspended")
+        println(joinMany(gate.group))
+        val callback = gate.callback!!
+        println(foreignCallbackState(callback) == ForeignCallbackState.Failed)
+        println(foreignCallbackFailure(callback)!! is IllegalStateException)
+        releaseForeignCallback(callback)
+    }
+}

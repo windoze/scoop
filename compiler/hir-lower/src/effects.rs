@@ -667,6 +667,20 @@ impl Lowerer {
                     self.collect_no_gc_expr_violations(arg, out, requirements);
                 }
             }
+            ExprKind::ForeignCallbackRegister { closure, .. } => {
+                out.push((
+                    expr.span,
+                    "managed callback registration is not allowed in `@NoGC` code".to_string(),
+                ));
+                self.collect_no_gc_expr_violations(closure, out, requirements);
+            }
+            ExprKind::ForeignCallbackOperation { callback, .. } => {
+                out.push((
+                    expr.span,
+                    "managed callback token operations are not allowed in `@NoGC` code".to_string(),
+                ));
+                self.collect_no_gc_expr_violations(callback, out, requirements);
+            }
             ExprKind::Binary { op, lhs, rhs } => {
                 if *op == hir::BinOp::Div {
                     out.push((

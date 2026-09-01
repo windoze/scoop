@@ -54,6 +54,33 @@ SourceFile
     @Intrinsic("align_of")
   fun alignOf<T : value>(): UInt
 SourceFile
+  enum ForeignCallbackMode
+    Reusable
+    OneShot
+  enum ForeignCallbackState
+    Registered
+    Active
+    Completed
+    Failed
+  struct ForeignCallback<F>
+    field function: FunPtr<F>
+    field context: Ptr<Unit>
+    @Unsafe
+    @Intrinsic("foreign_callback_register")
+  fun foreignCallback<F>(callback: Any, contextIndex: Int, mode: ForeignCallbackMode): ForeignCallback<F>
+    @Unsafe
+    @Intrinsic("foreign_callback_retain")
+  fun retainForeignCallback<F>(callback: ForeignCallback<F>): ForeignCallback<F>
+    @Unsafe
+    @Intrinsic("foreign_callback_release")
+  fun releaseForeignCallback<F>(callback: ForeignCallback<F>)
+    @Unsafe
+    @Intrinsic("foreign_callback_state")
+  fun foreignCallbackState<F>(callback: ForeignCallback<F>): ForeignCallbackState
+    @Unsafe
+    @Intrinsic("foreign_callback_failure")
+  fun foreignCallbackFailure<F>(callback: ForeignCallback<F>): Throwable?
+SourceFile
   struct PinnedPtr<T : ref>
     field raw: UInt
   struct GcHandle<T : ref>
@@ -300,6 +327,27 @@ Module
       call extern0 @scoop_rt_write direct
         StringConst @scoop.str.0
       return
+  fun Shape.kind @scoop.Shape.kind(this: Shape) -> Int
+    bb0 entry
+      return
+        IntLiteral 0
+  fun Shape.label @scoop.Shape.label(this: Shape) -> String
+    bb0 entry
+      return
+        FieldAccess 0
+          Local this
+  fun Circle.kind @scoop.Circle.kind(this: Circle) -> Int
+    bb0 entry
+      return
+        IntLiteral 1
+  fun Base.id @scoop.Base.id(this: Base) -> Int
+    bb0 entry
+      trap @scoop.str.1
+  fun Impl.id @scoop.Impl.id(this: Impl) -> Int
+    bb0 entry
+      return
+        FieldAccess 0
+          Local this
   fun main @scoop_main() -> Unit
     bb0 entry
       call c: Circle = @scoop.ctor.Circle direct
@@ -333,27 +381,6 @@ Module
         Box
           Local $call.4
       return
-  fun Shape.kind @scoop.Shape.kind(this: Shape) -> Int
-    bb0 entry
-      return
-        IntLiteral 0
-  fun Shape.label @scoop.Shape.label(this: Shape) -> String
-    bb0 entry
-      return
-        FieldAccess 0
-          Local this
-  fun Circle.kind @scoop.Circle.kind(this: Circle) -> Int
-    bb0 entry
-      return
-        IntLiteral 1
-  fun Base.id @scoop.Base.id(this: Base) -> Int
-    bb0 entry
-      trap @scoop.str.1
-  fun Impl.id @scoop.Impl.id(this: Impl) -> Int
-    bb0 entry
-      return
-        FieldAccess 0
-          Local this
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
     bb0 entry
       return
@@ -448,8 +475,8 @@ Module
   global @scoop.str.5 = "array index out of bounds"
   global @scoop.str.6 = "illegal state"
   global @scoop.str.7 = "circle"
-  global @scoop_td_box$I = c""
   global @scoop.cstr.0 = c"call to abstract method `Base.id`"
+  global @scoop_td_box$I = c""
   global @scoop_td_Throwable = c""
   global @scoop_td_Exception = c""
   global @scoop_td_UnwrapException = c""
@@ -484,46 +511,6 @@ Module
     native_call[native-borrowed] extern0(global0)
     t4 = aggregate () : {}
     ret
-  fun @scoop_main() -> void
-    local %0 c: ptr<managed>
-    local %1 s: ptr<managed>
-    local %2 i: ptr<managed>
-    local %3 $call.1: i64
-    local %4 $call.2: ptr<managed>
-    local %5 $call.3: i64
-    local %6 $call.4: i64
-  block entry
-    t0 = call @scoop.ctor.Circle(5) : ptr<managed>
-    store t0 -> local0
-    t1 = call @scoop.Circle.kind(local0) : i64
-    store t1 -> local3
-    t2 = call @scoop_rt_box(global8, local3, 8) : ptr<managed>
-    call @scoop.println(t2)
-    t3 = aggregate () : {}
-    t4 = call @scoop.Shape.label(local0) : ptr<managed>
-    store t4 -> local4
-    call @scoop.println(local4)
-    t5 = aggregate () : {}
-    t6 = heap_load local0 +24 : i64
-    t7 = call @scoop_rt_box(global8, t6, 8) : ptr<managed>
-    call @scoop.println(t7)
-    t8 = aggregate () : {}
-    store local0 -> local1
-    t9 = heap_load local1 +0 : ptr<metadata>
-    t10 = heap_load t9 +40 : ptr<metadata>
-    t11 = call_indirect t10[3](local1) : i64
-    store t11 -> local5
-    t12 = call @scoop_rt_box(global8, local5, 8) : ptr<managed>
-    call @scoop.println(t12)
-    t13 = aggregate () : {}
-    t14 = call @scoop.ctor.Impl(7) : ptr<managed>
-    store t14 -> local2
-    t15 = call @scoop.Impl.id(local2) : i64
-    store t15 -> local6
-    t16 = call @scoop_rt_box(global8, local6, 8) : ptr<managed>
-    call @scoop.println(t16)
-    t17 = aggregate () : {}
-    ret
   fun @scoop.Shape.kind(ptr<managed>) -> i64
   block entry
     ret 0
@@ -538,12 +525,52 @@ Module
   block entry
     br @unwrap.trap.1
   block unwrap.trap.1
-    call @scoop_rt_trap(global9)
+    call @scoop_rt_trap(global8)
     unreachable
   fun @scoop.Impl.id(ptr<managed>) -> i64
   block entry
     t0 = heap_load param0 +16 : i64
     ret t0
+  fun @scoop_main() -> void
+    local %0 c: ptr<managed>
+    local %1 s: ptr<managed>
+    local %2 i: ptr<managed>
+    local %3 $call.1: i64
+    local %4 $call.2: ptr<managed>
+    local %5 $call.3: i64
+    local %6 $call.4: i64
+  block entry
+    t0 = call @scoop.ctor.Circle(5) : ptr<managed>
+    store t0 -> local0
+    t1 = call @scoop.Circle.kind(local0) : i64
+    store t1 -> local3
+    t2 = call @scoop_rt_box(global9, local3, 8) : ptr<managed>
+    call @scoop.println(t2)
+    t3 = aggregate () : {}
+    t4 = call @scoop.Shape.label(local0) : ptr<managed>
+    store t4 -> local4
+    call @scoop.println(local4)
+    t5 = aggregate () : {}
+    t6 = heap_load local0 +24 : i64
+    t7 = call @scoop_rt_box(global9, t6, 8) : ptr<managed>
+    call @scoop.println(t7)
+    t8 = aggregate () : {}
+    store local0 -> local1
+    t9 = heap_load local1 +0 : ptr<metadata>
+    t10 = heap_load t9 +40 : ptr<metadata>
+    t11 = call_indirect t10[3](local1) : i64
+    store t11 -> local5
+    t12 = call @scoop_rt_box(global9, local5, 8) : ptr<managed>
+    call @scoop.println(t12)
+    t13 = aggregate () : {}
+    t14 = call @scoop.ctor.Impl(7) : ptr<managed>
+    store t14 -> local2
+    t15 = call @scoop.Impl.id(local2) : i64
+    store t15 -> local6
+    t16 = call @scoop_rt_box(global9, local6, 8) : ptr<managed>
+    call @scoop.println(t16)
+    t17 = aggregate () : {}
+    ret
   fun @scoop.ctor.Throwable() -> ptr<managed>
   block entry
     t0 = call @scoop_rt_alloc(global10, 16) : ptr<managed>
@@ -631,7 +658,7 @@ Module
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
-  layout Option$S size=8 align=8 enum-refs=[[0], []]
+  layout Option$S size=8 align=8 enum-scan=refs[0]
   layout Throwable size=16 align=8 refs=[]
   layout Exception size=24 align=8 refs=[16]
   layout UnwrapException size=24 align=8 refs=[16]

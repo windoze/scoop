@@ -35,6 +35,7 @@ static _Atomic(uint64_t) gc_epoch;
 static _Atomic(uint64_t) last_gc_parked_count;
 static _Atomic(uint64_t) last_gc_native_safe_count;
 static _Thread_local ScoopThreadState *current_thread;
+_Thread_local ScoopAllocationContext *scoop_rt_allocation_context;
 
 static _Noreturn void thread_fatal(const char *message) {
     fprintf(stderr, "scoop runtime: %s\n", message);
@@ -160,7 +161,8 @@ static void require_detachable(const ScoopThreadState *state,
     }
     if (state->managed_depth != (expected_kind == SCOOP_THREAD_MAIN ? 1 : 0) ||
         state->callback_depth != 0 || state->native_roots != NULL ||
-        state->caller_roots != NULL || state->current_transition != NULL) {
+        state->caller_roots != NULL || state->current_transition != NULL ||
+        state->allocation.cursor != NULL || state->allocation.limit != NULL) {
         thread_fatal(
             "thread detach with active managed frames, callbacks, roots, or transitions");
     }
@@ -178,6 +180,7 @@ static void detach_current(ScoopThreadAttachmentKind expected_kind) {
     atomic_store_explicit(&state->mode, SCOOP_THREAD_DETACHING, memory_order_release);
     registry_remove(state);
     current_thread = NULL;
+    scoop_rt_allocation_context = NULL;
     registry_unlock();
     free(state);
 }
@@ -218,6 +221,7 @@ void scoop_thread_attach_main(const void *managed_stack_boundary) {
     }
     registry_insert(state);
     current_thread = state;
+    scoop_rt_allocation_context = &state->allocation;
     registry_unlock();
 }
 
@@ -237,6 +241,7 @@ bool scoop_rt_attach_foreign_thread(void) {
     }
     registry_insert(state);
     current_thread = state;
+    scoop_rt_allocation_context = &state->allocation;
     registry_unlock();
     return true;
 }
@@ -266,6 +271,11 @@ void scoop_thread_prepare_shutdown(void) {
                 attached);
         abort();
     }
+    /* Shutdown is the main thread's final managed boundary. Retire its
+     * owner-only TLAB before detach; the remaining tail is reclaimed only if
+     * a final collection is requested, but must never survive attachment. */
+    state->allocation.cursor = NULL;
+    state->allocation.limit = NULL;
     registry_unlock();
 }
 
@@ -304,21 +314,6 @@ void scoop_thread_require_managed(void) {
     }
 }
 
-void scoop_thread_require_single_attachment_for_allocation(void) {
-    ScoopThreadState *state = scoop_thread_current_required();
-    ScoopThreadMode mode = atomic_load_explicit(&state->mode, memory_order_acquire);
-    if ((mode != SCOOP_THREAD_MANAGED && mode != SCOOP_THREAD_NATIVE_BORROWED) ||
-        (mode == SCOOP_THREAD_MANAGED && state->managed_depth == 0)) {
-        thread_fatal("allocation entered from an invalid thread mode");
-    }
-    registry_lock();
-    bool single = thread_registry_count == 1;
-    registry_unlock();
-    if (!single) {
-        thread_fatal("allocation entered before multi-mutator allocation is enabled");
-    }
-}
-
 static void spill_and_park_current_locked(ScoopThreadState *state,
                                           const char *stack_pointer) {
     ScoopThreadMode from = atomic_load_explicit(&state->mode, memory_order_acquire);
@@ -326,11 +321,15 @@ static void spill_and_park_current_locked(ScoopThreadState *state,
         thread_fatal("only managed or native-borrowed threads may park");
     }
 
+    /* These non-atomic fields are the collector's immutable snapshot for the
+     * whole parked interval. A condition-variable wait may wake spuriously
+     * while the collector scans outside world_lock, so never rewrite them in
+     * the acknowledgement loop below. */
+    state->parked_from = from;
+    state->parked_sp = stack_pointer;
     while (atomic_load_explicit(&world_phase, memory_order_acquire) !=
            SCOOP_WORLD_RUNNING) {
         uint64_t epoch = atomic_load_explicit(&gc_epoch, memory_order_acquire);
-        state->parked_from = from;
-        state->parked_sp = stack_pointer;
         atomic_store_explicit(&state->observed_gc_epoch, epoch, memory_order_release);
         atomic_store_explicit(&state->mode, SCOOP_THREAD_PARKED, memory_order_release);
         world_broadcast();
@@ -546,29 +545,101 @@ void scoop_thread_leave_managed(void) {
     }
     state->managed_depth = 0;
     state->managed_stack_boundary = NULL;
+    state->allocation.cursor = NULL;
+    state->allocation.limit = NULL;
     atomic_store_explicit(&state->mode, SCOOP_THREAD_NATIVE_SAFE, memory_order_release);
     registry_unlock();
 }
 
-static void validate_root_slots(void ***slots, uint64_t count, const char *kind) {
-    if (count != 0 && slots == NULL) {
-        thread_fatal(kind);
+void scoop_thread_enter_callback(ScoopCallbackThreadEntry *entry,
+                                 const void *managed_stack_boundary) {
+    ScoopThreadState *state = scoop_thread_current_required();
+    ScoopThreadMode previous =
+        atomic_load_explicit(&state->mode, memory_order_acquire);
+    if (entry == NULL || entry->active ||
+        (previous != SCOOP_THREAD_NATIVE_SAFE &&
+         previous != SCOOP_THREAD_NATIVE_BORROWED)) {
+        thread_fatal("invalid managed callback entry transition");
     }
-    for (uint64_t i = 0; i < count; i++) {
-        if (slots[i] == NULL) {
-            thread_fatal(kind);
-        }
+    uintptr_t boundary = (uintptr_t)managed_stack_boundary;
+    if (boundary < (uintptr_t)state->stack_low ||
+        boundary > (uintptr_t)state->stack_high) {
+        thread_fatal("managed callback published an invalid stack boundary");
     }
+
+    volatile char stack_marker = 0;
+    (void)setjmp(state->register_spill);
+    registry_lock();
+    if (previous == SCOOP_THREAD_NATIVE_SAFE) {
+        wait_for_running_world();
+    } else if (atomic_load_explicit(&world_phase, memory_order_acquire) !=
+               SCOOP_WORLD_RUNNING) {
+        spill_and_park_current_locked(state, (const char *)&stack_marker);
+    }
+    if (atomic_load_explicit(&state->mode, memory_order_acquire) != previous) {
+        registry_unlock();
+        thread_fatal("native mode changed during managed callback entry");
+    }
+    entry->previous_mode = previous;
+    entry->previous_managed_stack_boundary = state->managed_stack_boundary;
+    entry->previous_managed_depth = state->managed_depth;
+    entry->active = true;
+    state->callback_depth++;
+    state->managed_depth++;
+    state->managed_stack_boundary = managed_stack_boundary;
+    atomic_store_explicit(&state->observed_gc_epoch,
+                          atomic_load_explicit(&gc_epoch, memory_order_acquire),
+                          memory_order_release);
+    atomic_store_explicit(&state->mode, SCOOP_THREAD_MANAGED,
+                          memory_order_release);
+    registry_unlock();
 }
 
-void scoop_rt_push_caller_roots(ScoopCallerRootFrame *frame, void ***slots,
+void scoop_thread_leave_callback(ScoopCallbackThreadEntry *entry) {
+    ScoopThreadState *state = scoop_thread_current_required();
+    scoop_thread_require_managed();
+    if (entry == NULL || !entry->active || state->callback_depth == 0 ||
+        state->managed_depth != entry->previous_managed_depth + 1) {
+        thread_fatal("invalid managed callback exit transition");
+    }
+
+    volatile char stack_marker = 0;
+    (void)setjmp(state->register_spill);
+    registry_lock();
+    if (atomic_load_explicit(&world_phase, memory_order_acquire) !=
+        SCOOP_WORLD_RUNNING) {
+        spill_and_park_current_locked(state, (const char *)&stack_marker);
+    }
+    state->allocation.cursor = NULL;
+    state->allocation.limit = NULL;
+    state->callback_depth--;
+    state->managed_depth = entry->previous_managed_depth;
+    state->managed_stack_boundary = entry->previous_managed_stack_boundary;
+    atomic_store_explicit(&state->observed_gc_epoch,
+                          atomic_load_explicit(&gc_epoch, memory_order_acquire),
+                          memory_order_release);
+    atomic_store_explicit(&state->mode, entry->previous_mode,
+                          memory_order_release);
+    entry->active = false;
+    registry_unlock();
+}
+
+void scoop_rt_push_caller_roots(ScoopCallerRootFrame *frame,
+                                ScoopCallerRootEntry *entries,
                                 uint64_t count) {
     ScoopThreadState *state = scoop_thread_current_required();
     scoop_thread_require_managed();
     if (frame == NULL) {
         thread_fatal("invalid caller root frame");
     }
-    validate_root_slots(slots, count, "invalid caller root frame");
+    if (count != 0 && entries == NULL) {
+        thread_fatal("invalid caller root frame");
+    }
+    for (uint64_t i = 0; i < count; i++) {
+        if (entries[i].base == NULL || entries[i].scan == NULL) {
+            thread_fatal("invalid caller root frame");
+        }
+    }
     for (ScoopCallerRootFrame *active = state->caller_roots; active != NULL;
          active = active->previous) {
         if (active == frame) {
@@ -576,7 +647,7 @@ void scoop_rt_push_caller_roots(ScoopCallerRootFrame *frame, void ***slots,
         }
     }
     frame->previous = state->caller_roots;
-    frame->slots = slots;
+    frame->entries = entries;
     frame->count = count;
     state->caller_roots = frame;
 }
@@ -590,7 +661,7 @@ void scoop_rt_pop_caller_roots(ScoopCallerRootFrame *frame) {
     ScoopCallerRootFrame *previous = frame->previous;
     state->caller_roots = previous;
     frame->previous = NULL;
-    frame->slots = NULL;
+    frame->entries = NULL;
     frame->count = 0;
 }
 

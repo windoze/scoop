@@ -1,0 +1,36 @@
+@Extern(lib = "fixture_native", name = "m13_start_one")
+fun startOne(
+    callback: FunPtr<(Int, Ptr<Unit>) -> Int>,
+    context: Ptr<Unit>,
+    value: Int
+): Ptr<Unit>
+
+@Extern(lib = "fixture_native", name = "m13_join_one")
+fun joinOne(job: Ptr<Unit>): Int
+
+class CallbackError(val payload: String) : Exception(Some("callback failed"))
+
+fun main() {
+    @Unsafe {
+        val worker = foreignCallback<(Int, Ptr<Unit>) -> Int>(
+            { value: Int ->
+                throw CallbackError("managed payload")
+            },
+            1,
+            ForeignCallbackMode.OneShot
+        )
+        val observer = retainForeignCallback(worker)
+        val job = startOne(worker.function, worker.context, 7)
+        println(joinOne(job))
+        println(foreignCallbackState(observer) == ForeignCallbackState.Failed)
+        val failure = foreignCallbackFailure(observer)!!
+        println(failure is CallbackError)
+        try {
+            throw failure
+        } catch (exception: CallbackError) {
+            println(exception.payload)
+        } finally {
+            releaseForeignCallback(observer)
+        }
+    }
+}

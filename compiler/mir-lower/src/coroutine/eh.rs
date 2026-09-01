@@ -93,7 +93,8 @@ fn rewrite_statement(statement: &mut mir::StatementKind, managed: mir::LocalId) 
             rewrite_expr(index, managed);
             rewrite_expr(value, managed);
         }
-        mir::StatementKind::FieldSet { object, value, .. } => {
+        mir::StatementKind::FieldSet { object, value, .. }
+        | mir::StatementKind::AtomicFieldStore { object, value, .. } => {
             rewrite_expr(object, managed);
             rewrite_expr(value, managed);
         }
@@ -151,8 +152,17 @@ fn rewrite_expr(expr: &mut mir::Expr, managed: mir::LocalId) {
         | mir::Expr::ClosureCapture {
             closure: operand, ..
         }
+        | mir::Expr::ForeignCallbackRegister {
+            closure: operand, ..
+        }
+        | mir::Expr::ForeignCallbackOperation {
+            callback: operand, ..
+        }
         | mir::Expr::FieldAccess {
             receiver: operand, ..
+        }
+        | mir::Expr::AtomicFieldLoad {
+            object: operand, ..
         }
         | mir::Expr::Box(operand)
         | mir::Expr::Unbox(operand)
@@ -166,6 +176,16 @@ fn rewrite_expr(expr: &mut mir::Expr, managed: mir::LocalId) {
         | mir::Expr::Unary { operand, .. }
         | mir::Expr::EnumTag(operand)
         | mir::Expr::EnumField { operand, .. } => rewrite_expr(operand, managed),
+        mir::Expr::AtomicFieldCompareExchange {
+            object,
+            expected,
+            replacement,
+            ..
+        } => {
+            rewrite_expr(object, managed);
+            rewrite_expr(expected, managed);
+            rewrite_expr(replacement, managed);
+        }
         mir::Expr::ArrayGet { array, index }
         | mir::Expr::Binary {
             lhs: array,

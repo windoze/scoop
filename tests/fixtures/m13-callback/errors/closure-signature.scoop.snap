@@ -1,0 +1,8 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m13-callback/errors/closure-signature.scoop:4:13: error: ordinary and suspend function types are incompatible
+m13-callback/errors/closure-signature.scoop:14:15: error: lambda parameter type is String, but the expected type is Int
+m13-callback/errors/closure-signature.scoop:24:13: error: lambda result must be of type Int, found String

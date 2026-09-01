@@ -1,6 +1,6 @@
 # M13 设计：多线程 GC 与 foreign-thread managed callback
 
-版本：0.1（草案）
+版本：1.0（已实现，2026-09-01）
 
 对应 `docs/ROADMAP.md` 的 M13。目标：把 M9 的单 mutator、单线程 runtime 升级为**多 mutator、stop-the-world、单线程 collector、非移动**的正确性基线，并实现带显式 `void *context` 槽的 GC-aware managed closure 反向回调。完成后，`pthread_create` 一类 C API 可以在 foreign thread 上执行普通 Scoop closure；closure 内可以分配、触发 GC、抛出 Scoop 异常或恢复既有 continuation，而不会把 managed ref、Scoop 异常或未登记线程暴露给 C ABI。
 
@@ -172,7 +172,7 @@ M13按线程停顿来源选择扫描集合：
 
 当前全局`gc_bump_pos/end`改为每线程TLAB。slow path在heap lock下从free-line run或新block中切出互不重叠的整line区间；线程只在自己的cursor/limit内分配。大对象、block table、arena free-block list、hole/refill list和collection threshold仍走全局slow path。
 
-LIR保留类型化`ManagedAlloc`；codegen可针对runtime公开的最小TLS allocation context发射cursor/limit碰撞检查，失败才调用`scoop_runtime_alloc_slow`。fast path必须同时：
+LIR保留类型化`ManagedAlloc`；codegen针对runtime公开的最小TLS allocation context发射cursor/limit碰撞检查，失败才调用`scoop_runtime_alloc_slow`。成功的内联bump之后调用不含safepoint的GC-leaf `scoop_runtime_finish_tlab_alloc`完成清零、对象头和start bitmap；这仍属于fast path，不进入heap/world锁。fast path整体必须：
 
 - 保证小对象不跨Immix line并按8字节对齐；
 - 以atomic OR登记object-start bitmap，避免两个TLAB虽不重叠却更新同一bitmap word时形成数据竞争；
@@ -586,4 +586,4 @@ runtime把`gc.c`中的单线程global mutator状态拆成thread registry、per-t
 - **spec 13.10 / 14.3**：已补`ForeignCallback<F>` core形态、context删除规则、mode/ownership、异常零返回和它与`FunPtr`的隔离；
 - **runtime spec 3.1–3.6 / 4.2–4.5 / 7–9**：已定稿thread state/STW、native-safe/borrowed、generation handle、callback cookie/status/error matrix与shutdown规则，并从TBD移除callback token编码；
 - **impl spec 2.2–2.5**：已补registration core contract、pointer provenance、native call effect、compiler root frame、managed adapter/C trampoline和continuation atomic IR职责；
-- **ROADMAP M13/backlog**：已链接本文；M13完成后再勾除多mutator、managed callback与continuation跨线程恢复；精确stackmap/移动GC转入M15，无context callback和语言memory model继续保留。
+- **ROADMAP M13/backlog**：已链接本文并勾除多mutator、managed callback与continuation跨线程恢复；精确stackmap/移动GC转入M15，无context callback和语言memory model继续保留。

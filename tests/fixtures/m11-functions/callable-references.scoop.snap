@@ -54,6 +54,33 @@ SourceFile
     @Intrinsic("align_of")
   fun alignOf<T : value>(): UInt
 SourceFile
+  enum ForeignCallbackMode
+    Reusable
+    OneShot
+  enum ForeignCallbackState
+    Registered
+    Active
+    Completed
+    Failed
+  struct ForeignCallback<F>
+    field function: FunPtr<F>
+    field context: Ptr<Unit>
+    @Unsafe
+    @Intrinsic("foreign_callback_register")
+  fun foreignCallback<F>(callback: Any, contextIndex: Int, mode: ForeignCallbackMode): ForeignCallback<F>
+    @Unsafe
+    @Intrinsic("foreign_callback_retain")
+  fun retainForeignCallback<F>(callback: ForeignCallback<F>): ForeignCallback<F>
+    @Unsafe
+    @Intrinsic("foreign_callback_release")
+  fun releaseForeignCallback<F>(callback: ForeignCallback<F>)
+    @Unsafe
+    @Intrinsic("foreign_callback_state")
+  fun foreignCallbackState<F>(callback: ForeignCallback<F>): ForeignCallbackState
+    @Unsafe
+    @Intrinsic("foreign_callback_failure")
+  fun foreignCallbackFailure<F>(callback: ForeignCallback<F>): Throwable?
+SourceFile
   struct PinnedPtr<T : ref>
     field raw: UInt
   struct GcHandle<T : ref>
@@ -501,6 +528,13 @@ Module
   closure cc7 $Closure$reference7 type=function_type1 invoke=@scoop.$reference.7 captures=1
   closure cc8 $Closure$reference8 type=function_type0 invoke=@scoop.$reference.8 captures=1
   closure cc9 $Closure$reference9 type=function_type0 invoke=@scoop.$reference.9 captures=1
+  fun ValueMapper.map @scoop.ValueMapper.map(this: ValueMapper, value: Int) -> Int
+    bb0 entry
+      return
+        Binary IntAdd
+          Local value
+          FieldAccess 0
+            Local this
   fun print @scoop.print(message: Any) -> Unit
     bb0 entry
       call $call.1: String = @scoop.Any.toString virtual[2]
@@ -529,6 +563,58 @@ Module
         StringConst @scoop.str.1
   fun describe @scoop.describe.S(value: String) -> String
     bb0 entry
+      return
+        Local value
+  fun BaseMapper.map @scoop.BaseMapper.map(this: BaseMapper, value: Int) -> Int
+    bb0 entry
+      return
+        Local value
+  fun TimesTwo.map @scoop.TimesTwo.map(this: TimesTwo, value: Int) -> Int
+    bb0 entry
+      return
+        Binary IntAdd
+          Local value
+          Local value
+  fun PlusHundred.map @scoop.PlusHundred.map(this: PlusHundred, value: Int) -> Int
+    bb0 entry
+      return
+        Binary IntAdd
+          Local value
+          IntLiteral 100
+  fun MapperFactory.make @scoop.MapperFactory.make(this: MapperFactory) -> BaseMapper
+    bb0 entry
+      field_set 0
+        Local this
+        Binary IntAdd
+          FieldAccess 0
+            Local this
+          IntLiteral 1
+      call $call.1: BaseMapper = @scoop.ctor.TimesTwo direct
+      return
+        Local $call.1
+  fun PrefixMapper.map @scoop.PrefixMapper.map(this: PrefixMapper, value: String) -> String
+    bb0 entry
+      call $call.1: String = @scoop_rt_string_concat direct
+        FieldAccess 0
+          Local this
+        Local value
+      return
+        Local $call.1
+  fun OverloadedMapper.choose @scoop.OverloadedMapper.choose(this: OverloadedMapper, value: Int) -> Int
+    bb0 entry
+      return
+        IntLiteral 100
+  fun ThrowingMapper.map @scoop.ThrowingMapper.map(this: ThrowingMapper, value: Int) -> Int
+    bb0 entry
+      branch bb1 bb2
+        Binary IntEq
+          Local value
+          IntLiteral 0
+    bb1 if.then.1
+      call $call.1: ArithmeticException = @scoop.ctor.ArithmeticException direct
+      throw
+        Local $call.1
+    bb2 if.merge.2
       return
         Local value
   fun main @scoop_main() -> Unit
@@ -694,63 +780,12 @@ Module
     bb13 scope.13
       end_catch
       goto bb7
-  fun BaseMapper.map @scoop.BaseMapper.map(this: BaseMapper, value: Int) -> Int
+  fun identity @scoop.identity$I(value: Int) -> Int
     bb0 entry
       return
         Local value
-  fun TimesTwo.map @scoop.TimesTwo.map(this: TimesTwo, value: Int) -> Int
+  fun GenericMapper.choose @scoop.GenericMapper.choose$S(this: GenericMapper, value: String) -> String
     bb0 entry
-      return
-        Binary IntAdd
-          Local value
-          Local value
-  fun PlusHundred.map @scoop.PlusHundred.map(this: PlusHundred, value: Int) -> Int
-    bb0 entry
-      return
-        Binary IntAdd
-          Local value
-          IntLiteral 100
-  fun MapperFactory.make @scoop.MapperFactory.make(this: MapperFactory) -> BaseMapper
-    bb0 entry
-      field_set 0
-        Local this
-        Binary IntAdd
-          FieldAccess 0
-            Local this
-          IntLiteral 1
-      call $call.1: BaseMapper = @scoop.ctor.TimesTwo direct
-      return
-        Local $call.1
-  fun PrefixMapper.map @scoop.PrefixMapper.map(this: PrefixMapper, value: String) -> String
-    bb0 entry
-      call $call.1: String = @scoop_rt_string_concat direct
-        FieldAccess 0
-          Local this
-        Local value
-      return
-        Local $call.1
-  fun ValueMapper.map @scoop.ValueMapper.map(this: ValueMapper, value: Int) -> Int
-    bb0 entry
-      return
-        Binary IntAdd
-          Local value
-          FieldAccess 0
-            Local this
-  fun OverloadedMapper.choose @scoop.OverloadedMapper.choose(this: OverloadedMapper, value: Int) -> Int
-    bb0 entry
-      return
-        IntLiteral 100
-  fun ThrowingMapper.map @scoop.ThrowingMapper.map(this: ThrowingMapper, value: Int) -> Int
-    bb0 entry
-      branch bb1 bb2
-        Binary IntEq
-          Local value
-          IntLiteral 0
-    bb1 if.then.1
-      call $call.1: ArithmeticException = @scoop.ctor.ArithmeticException direct
-      throw
-        Local $call.1
-    bb2 if.merge.2
       return
         Local value
   fun $reference.0 @scoop.$reference.0($closure: (Int) -> Int, arg0: Int) -> Int
@@ -759,10 +794,6 @@ Module
         Local arg0
       return
         Local $call.1
-  fun identity @scoop.identity$I(value: Int) -> Int
-    bb0 entry
-      return
-        Local value
   fun $reference.1 @scoop.$reference.1($closure: (Int) -> Int, arg0: Int) -> Int
     bb0 entry
       call $call.1: Int = @scoop.identity$I direct
@@ -807,10 +838,6 @@ Module
         Local arg0
       return
         Local $call.1
-  fun GenericMapper.choose @scoop.GenericMapper.choose$S(this: GenericMapper, value: String) -> String
-    bb0 entry
-      return
-        Local value
   fun $reference.7 @scoop.$reference.7($closure: (String) -> String, arg0: String) -> String
     bb0 entry
       call $call.1: String = @scoop.GenericMapper.choose$S direct
@@ -986,6 +1013,11 @@ Module
   global @scoop_td_ThrowingMapper = c""
   enum Option$S niche(payload_variant=0)
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
+  fun @scoop.ValueMapper.map(struct0, i64) -> i64
+  block entry
+    t0 = extract param0, 0 : i64
+    t1 = Add param1, t0 : i64
+    ret t1
   fun @scoop.print(ptr<managed>) -> void
     local %0 $call.1: ptr<managed>
   block entry
@@ -1018,6 +1050,48 @@ Module
   fun @scoop.describe.S(ptr<managed>) -> ptr<managed>
   block entry
     ret param0
+  fun @scoop.BaseMapper.map(ptr<managed>, i64) -> i64
+  block entry
+    ret param1
+  fun @scoop.TimesTwo.map(ptr<managed>, i64) -> i64
+  block entry
+    t0 = Add param1, param1 : i64
+    ret t0
+  fun @scoop.PlusHundred.map(ptr<managed>, i64) -> i64
+  block entry
+    t0 = Add param1, 100 : i64
+    ret t0
+  fun @scoop.MapperFactory.make(ptr<managed>) -> ptr<managed>
+    local %0 $call.1: ptr<managed>
+  block entry
+    t0 = heap_load param0 +16 : i64
+    t1 = Add t0, 1 : i64
+    heap_store param0 +16 t1
+    t2 = call @scoop.ctor.TimesTwo() : ptr<managed>
+    store t2 -> local0
+    ret local0
+  fun @scoop.PrefixMapper.map(ptr<managed>, ptr<managed>) -> ptr<managed>
+    local %0 $call.1: ptr<managed>
+  block entry
+    t0 = heap_load param0 +16 : ptr<managed>
+    t1 = call @scoop_rt_string_concat(t0, param1) : ptr<managed>
+    store t1 -> local0
+    ret local0
+  fun @scoop.OverloadedMapper.choose(ptr<managed>, i64) -> i64
+  block entry
+    ret 100
+  fun @scoop.ThrowingMapper.map(ptr<managed>, i64) -> i64
+    local %0 $call.1: ptr<managed>
+  block entry
+    t0 = Eq param1, 0 : i1
+    cbr t0 then @if.then.1 else @if.merge.2
+  block if.then.1
+    t1 = call @scoop.ctor.ArithmeticException() : ptr<managed>
+    store t1 -> local0
+    throw local0
+    unreachable
+  block if.merge.2
+    ret param1
   fun @scoop_main() -> void
     local %0 inferred: ptr<managed>
     local %1 generic: ptr<managed>
@@ -1242,52 +1316,11 @@ Module
   block invoke.normal.4
     t77 = aggregate () : {}
     br @scope.13
-  fun @scoop.BaseMapper.map(ptr<managed>, i64) -> i64
+  fun @scoop.identity$I(i64) -> i64
   block entry
-    ret param1
-  fun @scoop.TimesTwo.map(ptr<managed>, i64) -> i64
+    ret param0
+  fun @scoop.GenericMapper.choose$S(ptr<managed>, ptr<managed>) -> ptr<managed>
   block entry
-    t0 = Add param1, param1 : i64
-    ret t0
-  fun @scoop.PlusHundred.map(ptr<managed>, i64) -> i64
-  block entry
-    t0 = Add param1, 100 : i64
-    ret t0
-  fun @scoop.MapperFactory.make(ptr<managed>) -> ptr<managed>
-    local %0 $call.1: ptr<managed>
-  block entry
-    t0 = heap_load param0 +16 : i64
-    t1 = Add t0, 1 : i64
-    heap_store param0 +16 t1
-    t2 = call @scoop.ctor.TimesTwo() : ptr<managed>
-    store t2 -> local0
-    ret local0
-  fun @scoop.PrefixMapper.map(ptr<managed>, ptr<managed>) -> ptr<managed>
-    local %0 $call.1: ptr<managed>
-  block entry
-    t0 = heap_load param0 +16 : ptr<managed>
-    t1 = call @scoop_rt_string_concat(t0, param1) : ptr<managed>
-    store t1 -> local0
-    ret local0
-  fun @scoop.ValueMapper.map(struct0, i64) -> i64
-  block entry
-    t0 = extract param0, 0 : i64
-    t1 = Add param1, t0 : i64
-    ret t1
-  fun @scoop.OverloadedMapper.choose(ptr<managed>, i64) -> i64
-  block entry
-    ret 100
-  fun @scoop.ThrowingMapper.map(ptr<managed>, i64) -> i64
-    local %0 $call.1: ptr<managed>
-  block entry
-    t0 = Eq param1, 0 : i1
-    cbr t0 then @if.then.1 else @if.merge.2
-  block if.then.1
-    t1 = call @scoop.ctor.ArithmeticException() : ptr<managed>
-    store t1 -> local0
-    throw local0
-    unreachable
-  block if.merge.2
     ret param1
   fun @scoop.$reference.0(ptr<managed>, i64) -> i64
     local %0 $call.1: i64
@@ -1295,9 +1328,6 @@ Module
     t0 = call @scoop.increment(param1) : i64
     store t0 -> local0
     ret local0
-  fun @scoop.identity$I(i64) -> i64
-  block entry
-    ret param0
   fun @scoop.$reference.1(ptr<managed>, i64) -> i64
     local %0 $call.1: i64
   block entry
@@ -1344,9 +1374,6 @@ Module
     t1 = call @scoop.ValueMapper.map(t0, param1) : i64
     store t1 -> local0
     ret local0
-  fun @scoop.GenericMapper.choose$S(ptr<managed>, ptr<managed>) -> ptr<managed>
-  block entry
-    ret param1
   fun @scoop.$reference.7(ptr<managed>, ptr<managed>) -> ptr<managed>
     local %0 $call.1: ptr<managed>
   block entry
@@ -1491,7 +1518,7 @@ Module
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   layout ValueMapper size=8 align=8 refs=[]
-  layout Option$S size=8 align=8 enum-refs=[[0], []]
+  layout Option$S size=8 align=8 enum-scan=refs[0]
   layout Throwable size=16 align=8 refs=[]
   layout Exception size=24 align=8 refs=[16]
   layout UnwrapException size=24 align=8 refs=[16]

@@ -54,6 +54,33 @@ SourceFile
     @Intrinsic("align_of")
   fun alignOf<T : value>(): UInt
 SourceFile
+  enum ForeignCallbackMode
+    Reusable
+    OneShot
+  enum ForeignCallbackState
+    Registered
+    Active
+    Completed
+    Failed
+  struct ForeignCallback<F>
+    field function: FunPtr<F>
+    field context: Ptr<Unit>
+    @Unsafe
+    @Intrinsic("foreign_callback_register")
+  fun foreignCallback<F>(callback: Any, contextIndex: Int, mode: ForeignCallbackMode): ForeignCallback<F>
+    @Unsafe
+    @Intrinsic("foreign_callback_retain")
+  fun retainForeignCallback<F>(callback: ForeignCallback<F>): ForeignCallback<F>
+    @Unsafe
+    @Intrinsic("foreign_callback_release")
+  fun releaseForeignCallback<F>(callback: ForeignCallback<F>)
+    @Unsafe
+    @Intrinsic("foreign_callback_state")
+  fun foreignCallbackState<F>(callback: ForeignCallback<F>): ForeignCallbackState
+    @Unsafe
+    @Intrinsic("foreign_callback_failure")
+  fun foreignCallbackFailure<F>(callback: ForeignCallback<F>): Throwable?
+SourceFile
   struct PinnedPtr<T : ref>
     field raw: UInt
   struct GcHandle<T : ref>
@@ -300,6 +327,20 @@ Module
       call extern0 @scoop_rt_write direct
         StringConst @scoop.str.0
       return
+  fun Point.sum @scoop.Point.sum(this: Point) -> Int
+    bb0 entry
+      return
+        Binary IntAdd
+          FieldAccess 0
+            Local this
+          FieldAccess 1
+            Local this
+  fun Point.moveTo @scoop.Point.moveTo(this: Point, ny: Int) -> Unit
+    bb0 entry
+      field_set 1
+        Local this
+        Local ny
+      return
   fun main @scoop_main() -> Unit
     bb0 entry
       call p: Point = @scoop.ctor.Point direct
@@ -335,20 +376,6 @@ Module
           Binary IntEq
             Local p
             Local q
-      return
-  fun Point.sum @scoop.Point.sum(this: Point) -> Int
-    bb0 entry
-      return
-        Binary IntAdd
-          FieldAccess 0
-            Local this
-          FieldAccess 1
-            Local this
-  fun Point.moveTo @scoop.Point.moveTo(this: Point, ny: Int) -> Unit
-    bb0 entry
-      field_set 1
-        Local this
-        Local ny
       return
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
     bb0 entry
@@ -483,6 +510,16 @@ Module
     native_call[native-borrowed] extern0(global0)
     t4 = aggregate () : {}
     ret
+  fun @scoop.Point.sum(ptr<managed>) -> i64
+  block entry
+    t0 = heap_load param0 +16 : i64
+    t1 = heap_load param0 +24 : i64
+    t2 = Add t0, t1 : i64
+    ret t2
+  fun @scoop.Point.moveTo(ptr<managed>, i64) -> void
+  block entry
+    heap_store param0 +24 param1
+    ret
   fun @scoop_main() -> void
     local %0 p: ptr<managed>
     local %1 q: ptr<managed>
@@ -515,16 +552,6 @@ Module
     t15 = call @scoop_rt_box(global7, t14, 1) : ptr<managed>
     call @scoop.println(t15)
     t16 = aggregate () : {}
-    ret
-  fun @scoop.Point.sum(ptr<managed>) -> i64
-  block entry
-    t0 = heap_load param0 +16 : i64
-    t1 = heap_load param0 +24 : i64
-    t2 = Add t0, t1 : i64
-    ret t2
-  fun @scoop.Point.moveTo(ptr<managed>, i64) -> void
-  block entry
-    heap_store param0 +24 param1
     ret
   fun @scoop.ctor.Throwable() -> ptr<managed>
   block entry
@@ -618,7 +645,7 @@ Module
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
-  layout Option$S size=8 align=8 enum-refs=[[0], []]
+  layout Option$S size=8 align=8 enum-scan=refs[0]
   layout Throwable size=16 align=8 refs=[]
   layout Exception size=24 align=8 refs=[16]
   layout UnwrapException size=24 align=8 refs=[16]

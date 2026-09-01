@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m13-callback/errors/generic-signature.scoop:3:9: error: foreign callback signature must be ordinary and fully concrete

@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m13-callback/errors/direct-construction.scoop:5:5: error: `ForeignCallback` values can only be produced by `foreignCallback`

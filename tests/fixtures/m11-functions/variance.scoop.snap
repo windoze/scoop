@@ -54,6 +54,33 @@ SourceFile
     @Intrinsic("align_of")
   fun alignOf<T : value>(): UInt
 SourceFile
+  enum ForeignCallbackMode
+    Reusable
+    OneShot
+  enum ForeignCallbackState
+    Registered
+    Active
+    Completed
+    Failed
+  struct ForeignCallback<F>
+    field function: FunPtr<F>
+    field context: Ptr<Unit>
+    @Unsafe
+    @Intrinsic("foreign_callback_register")
+  fun foreignCallback<F>(callback: Any, contextIndex: Int, mode: ForeignCallbackMode): ForeignCallback<F>
+    @Unsafe
+    @Intrinsic("foreign_callback_retain")
+  fun retainForeignCallback<F>(callback: ForeignCallback<F>): ForeignCallback<F>
+    @Unsafe
+    @Intrinsic("foreign_callback_release")
+  fun releaseForeignCallback<F>(callback: ForeignCallback<F>)
+    @Unsafe
+    @Intrinsic("foreign_callback_state")
+  fun foreignCallbackState<F>(callback: ForeignCallback<F>): ForeignCallbackState
+    @Unsafe
+    @Intrinsic("foreign_callback_failure")
+  fun foreignCallbackFailure<F>(callback: ForeignCallback<F>): Throwable?
+SourceFile
   struct PinnedPtr<T : ref>
     field raw: UInt
   struct GcHandle<T : ref>
@@ -598,6 +625,11 @@ Module
   dynamic_adapter da2 class=cc13 target=function_type2
   dynamic_adapter da3 class=cc14 target=function_type9
   dynamic_adapter da4 class=cc15 target=function_type8
+  fun Label.describe @scoop.Label.describe(this: Label) -> String
+    bb0 entry
+      return
+        FieldAccess 0
+          Local this
   fun print @scoop.print(message: Any) -> Unit
     bb0 entry
       call $call.1: String = @scoop.Any.toString virtual[2]
@@ -962,11 +994,16 @@ Module
     bb38 scope.38
       end_catch
       goto bb32
-  fun Label.describe @scoop.Label.describe(this: Label) -> String
+  fun widen @scoop.widen$I(op: (Any) -> Int) -> (Int) -> Any
     bb0 entry
       return
-        FieldAccess 0
-          Local this
+        ClosureAlloc cc7 $Closure$adapter$FAnyRIX$FIRAnyX
+          Local op
+  fun widen @scoop.widen$S(op: (Any) -> String) -> (String) -> Any
+    bb0 entry
+      return
+        ClosureAlloc cc16 $Closure$adapter$FAnyRSX$FSRAnyX
+          Local op
   fun $reference.0 @scoop.$reference.0($closure: (Any) -> Int, arg0: Any) -> Int
     bb0 entry
       call $call.1: Int = @scoop.acceptAny direct
@@ -1076,16 +1113,6 @@ Module
       return
         Retype Animal
           Local $call.1
-  fun widen @scoop.widen$I(op: (Any) -> Int) -> (Int) -> Any
-    bb0 entry
-      return
-        ClosureAlloc cc7 $Closure$adapter$FAnyRIX$FIRAnyX
-          Local op
-  fun widen @scoop.widen$S(op: (Any) -> String) -> (String) -> Any
-    bb0 entry
-      return
-        ClosureAlloc cc16 $Closure$adapter$FAnyRSX$FSRAnyX
-          Local op
   fun $adapter.FAnyRLabelX.FIRDescribableX @scoop.$adapter.FAnyRLabelX.FIRDescribableX($closure: (Int) -> Describable, arg0: Int) -> Describable
     bb0 entry
       call $call.1: Label = <closure:function_type3> closure[function_type3]
@@ -1363,6 +1390,7 @@ Module
   global @scoop_td_Describable = c""
   global @scoop_td_box$I = c""
   global @scoop_td_ArithmeticException = c""
+  global @scoop_td_$Closure$adapter$FAnyRSX$FSRAnyX = c""
   global @scoop_td_Throwable = c""
   global @scoop_td_Exception = c""
   global @scoop_td_UnwrapException = c""
@@ -1370,12 +1398,15 @@ Module
   global @scoop_td_IndexOutOfBoundsException = c""
   global @scoop_td_IllegalStateException = c""
   global @scoop_td_Animal = c""
-  global @scoop_td_$Closure$adapter$FAnyRSX$FSRAnyX = c""
   global @scoop_td_box$Label = c""
   enum Option$S niche(payload_variant=0)
   enum Option$FAnyRSX niche(payload_variant=0)
   enum Option$FIRAnyX niche(payload_variant=0)
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
+  fun @scoop.Label.describe(struct0) -> ptr<managed>
+  block entry
+    t0 = extract param0, 0 : ptr<managed>
+    ret t0
   fun @scoop.print(ptr<managed>) -> void
     local %0 $call.1: ptr<managed>
   block entry
@@ -1823,9 +1854,19 @@ Module
   block invoke.normal.4
     t126 = aggregate () : {}
     br @scope.38
-  fun @scoop.Label.describe(struct0) -> ptr<managed>
+  fun @scoop.widen$I(ptr<managed>) -> ptr<managed>
   block entry
-    t0 = extract param0, 0 : ptr<managed>
+    t0 = call @scoop_rt_alloc(global13, 32) : ptr<managed>
+    t1 = function_address @scoop.$adapter.FAnyRIX.FIRAnyX : ptr
+    heap_store t0 +16 t1
+    heap_store t0 +24 param0
+    ret t0
+  fun @scoop.widen$S(ptr<managed>) -> ptr<managed>
+  block entry
+    t0 = call @scoop_rt_alloc(global37, 32) : ptr<managed>
+    t1 = function_address @scoop.$adapter.FAnyRSX.FSRAnyX : ptr
+    heap_store t0 +16 t1
+    heap_store t0 +24 param0
     ret t0
   fun @scoop.$reference.0(ptr<managed>, ptr<managed>) -> i64
     local %0 $call.1: i64
@@ -1871,22 +1912,22 @@ Module
     ret local0
   fun @scoop.ctor.Throwable() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global37, 16) : ptr<managed>
+    t0 = call @scoop_rt_alloc(global38, 16) : ptr<managed>
     ret t0
   fun @scoop.ctor.Exception(enum0) -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global38, 24) : ptr<managed>
+    t0 = call @scoop_rt_alloc(global39, 24) : ptr<managed>
     heap_store t0 +16 param0
     ret t0
   fun @scoop.ctor.UnwrapException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global39, 24) : ptr<managed>
+    t0 = call @scoop_rt_alloc(global40, 24) : ptr<managed>
     t1 = enum_wrap e0 v0 (global6) : enum0
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.ClassCastException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global40, 24) : ptr<managed>
+    t0 = call @scoop_rt_alloc(global41, 24) : ptr<managed>
     t1 = enum_wrap e0 v0 (global7) : enum0
     heap_store t0 +16 t1
     ret t0
@@ -1898,19 +1939,19 @@ Module
     ret t0
   fun @scoop.ctor.IndexOutOfBoundsException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global41, 24) : ptr<managed>
+    t0 = call @scoop_rt_alloc(global42, 24) : ptr<managed>
     t1 = enum_wrap e0 v0 (global9) : enum0
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.IllegalStateException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global42, 24) : ptr<managed>
+    t0 = call @scoop_rt_alloc(global43, 24) : ptr<managed>
     t1 = enum_wrap e0 v0 (global10) : enum0
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.Animal() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global43, 16) : ptr<managed>
+    t0 = call @scoop_rt_alloc(global44, 16) : ptr<managed>
     ret t0
   fun @scoop.ctor.Dog() -> ptr<managed>
   block entry
@@ -1932,20 +1973,6 @@ Module
     t1 = call_indirect t0[2](t0, param1) : ptr<managed>
     store t1 -> local0
     ret local0
-  fun @scoop.widen$I(ptr<managed>) -> ptr<managed>
-  block entry
-    t0 = call @scoop_rt_alloc(global13, 32) : ptr<managed>
-    t1 = function_address @scoop.$adapter.FAnyRIX.FIRAnyX : ptr
-    heap_store t0 +16 t1
-    heap_store t0 +24 param0
-    ret t0
-  fun @scoop.widen$S(ptr<managed>) -> ptr<managed>
-  block entry
-    t0 = call @scoop_rt_alloc(global44, 32) : ptr<managed>
-    t1 = function_address @scoop.$adapter.FAnyRSX.FSRAnyX : ptr
-    heap_store t0 +16 t1
-    heap_store t0 +24 param0
-    ret t0
   fun @scoop.$adapter.FAnyRLabelX.FIRDescribableX(ptr<managed>, i64) -> ptr<managed>
     local %0 $call.1: struct0
   block entry
@@ -2209,9 +2236,9 @@ Module
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   layout Label size=8 align=8 refs=[0]
-  layout Option$S size=8 align=8 enum-refs=[[0], []]
-  layout Option$FAnyRSX size=8 align=8 enum-refs=[[0], []]
-  layout Option$FIRAnyX size=8 align=8 enum-refs=[[0], []]
+  layout Option$S size=8 align=8 enum-scan=refs[0]
+  layout Option$FAnyRSX size=8 align=8 enum-scan=refs[0]
+  layout Option$FIRAnyX size=8 align=8 enum-scan=refs[0]
   layout Throwable size=16 align=8 refs=[]
   layout Exception size=24 align=8 refs=[16]
   layout UnwrapException size=24 align=8 refs=[16]

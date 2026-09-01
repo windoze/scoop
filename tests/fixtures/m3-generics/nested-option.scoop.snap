@@ -54,6 +54,33 @@ SourceFile
     @Intrinsic("align_of")
   fun alignOf<T : value>(): UInt
 SourceFile
+  enum ForeignCallbackMode
+    Reusable
+    OneShot
+  enum ForeignCallbackState
+    Registered
+    Active
+    Completed
+    Failed
+  struct ForeignCallback<F>
+    field function: FunPtr<F>
+    field context: Ptr<Unit>
+    @Unsafe
+    @Intrinsic("foreign_callback_register")
+  fun foreignCallback<F>(callback: Any, contextIndex: Int, mode: ForeignCallbackMode): ForeignCallback<F>
+    @Unsafe
+    @Intrinsic("foreign_callback_retain")
+  fun retainForeignCallback<F>(callback: ForeignCallback<F>): ForeignCallback<F>
+    @Unsafe
+    @Intrinsic("foreign_callback_release")
+  fun releaseForeignCallback<F>(callback: ForeignCallback<F>)
+    @Unsafe
+    @Intrinsic("foreign_callback_state")
+  fun foreignCallbackState<F>(callback: ForeignCallback<F>): ForeignCallbackState
+    @Unsafe
+    @Intrinsic("foreign_callback_failure")
+  fun foreignCallbackFailure<F>(callback: ForeignCallback<F>): Throwable?
+SourceFile
   struct PinnedPtr<T : ref>
     field raw: UInt
   struct GcHandle<T : ref>
@@ -303,7 +330,7 @@ Module
   enum Option$I
     Some(_1: Int)
     None()
-  enum Option$EOption$I_IX
+  enum Option$EOption$I
     Some(_1: Option$I<Int>)
     None()
   class Throwable vtable=3 itables=0
@@ -332,16 +359,16 @@ Module
       return
   fun main @scoop_main() -> Unit
     bb0 entry
-      val a: Option$EOption$I_IX<Option$I<Int>>
-        VariantConstruct Option$EOption$I_IX<Option$I<Int>> v0
+      val a: Option$EOption$I<Option$I<Int>>
+        VariantConstruct Option$EOption$I<Option$I<Int>> v0
           VariantConstruct Option$I<Int> v0
             IntLiteral 1
-      val b: Option$EOption$I_IX<Option$I<Int>>
-        VariantConstruct Option$EOption$I_IX<Option$I<Int>> v0
+      val b: Option$EOption$I<Option$I<Int>>
+        VariantConstruct Option$EOption$I<Option$I<Int>> v0
           VariantConstruct Option$I<Int> v1
-      val c: Option$EOption$I_IX<Option$I<Int>>
-        VariantConstruct Option$EOption$I_IX<Option$I<Int>> v1
-      val $opt.1: Option$EOption$I_IX<Option$I<Int>>
+      val c: Option$EOption$I<Option$I<Int>>
+        VariantConstruct Option$EOption$I<Option$I<Int>> v1
+      val $opt.1: Option$EOption$I<Option$I<Int>>
         Local a
       branch bb1 bb2
         Binary IntEq
@@ -378,7 +405,7 @@ Module
       call @scoop.println direct
         Box
           Local $res.1
-      val $opt.3: Option$EOption$I_IX<Option$I<Int>>
+      val $opt.3: Option$EOption$I<Option$I<Int>>
         Local b
       branch bb7 bb8
         Binary IntEq
@@ -415,7 +442,7 @@ Module
       call @scoop.println direct
         Box
           Local $res.3
-      val $opt.4: Option$EOption$I_IX<Option$I<Int>>
+      val $opt.4: Option$EOption$I<Option$I<Int>>
         Local c
       branch bb13 bb14
         Binary IntEq
@@ -537,8 +564,8 @@ Module
   global @scoop_td_IndexOutOfBoundsException = c""
   global @scoop_td_IllegalStateException = c""
   enum Option$S niche(payload_variant=0)
-  enum Option$I tagged size=8 align=8 variants=(i64) ()
-  enum Option$EOption$I_IX tagged size=16 align=8 variants=(enum1) ()
+  enum Option$I tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
+  enum Option$EOption$I tagged size=24 align=8 variants=(enum1)@8+16 ()@8+0
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
   fun @scoop.print(ptr<managed>) -> void
     local %0 $call.1: ptr<managed>
@@ -743,9 +770,9 @@ Module
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
-  layout Option$S size=8 align=8 enum-refs=[[0], []]
-  layout Option$I size=16 align=8 enum-refs=[[], []]
-  layout Option$EOption$I_IX size=24 align=8 enum-refs=[[], []]
+  layout Option$S size=8 align=8 enum-scan=refs[0]
+  layout Option$I size=16 align=8 enum-scan=none
+  layout Option$EOption$I size=24 align=8 enum-scan=none
   layout Throwable size=16 align=8 refs=[]
   layout Exception size=24 align=8 refs=[16]
   layout UnwrapException size=24 align=8 refs=[16]

@@ -20,6 +20,12 @@ struct FunctionKey {
     arguments: Vec<concrete::TypeId>,
 }
 
+#[derive(Debug, Clone, Copy)]
+enum ValueOwner {
+    Struct(export::StructId),
+    Enum(export::EnumId),
+}
+
 struct Concretizer<'a> {
     source: &'a export::Module,
     types: Arena<concrete::Type>,
@@ -65,6 +71,11 @@ struct Concretizer<'a> {
     function_coercions: Arena<concrete::FunctionCoercion>,
     coercion_by_key:
         HashMap<(export::FunctionCoercionId, Vec<concrete::TypeId>), concrete::FunctionCoercionId>,
+    foreign_callback_registrations: Arena<concrete::ForeignCallbackRegistration>,
+    foreign_callback_by_key: HashMap<
+        (export::ForeignCallbackRegistrationId, Vec<concrete::TypeId>),
+        concrete::ForeignCallbackRegistrationId,
+    >,
 }
 
 impl<'a> Concretizer<'a> {
@@ -106,6 +117,8 @@ impl<'a> Concretizer<'a> {
             reference_by_key: HashMap::new(),
             function_coercions: Arena::new(),
             coercion_by_key: HashMap::new(),
+            foreign_callback_registrations: Arena::new(),
+            foreign_callback_by_key: HashMap::new(),
         };
         result.allocate_class_shells();
         result
@@ -163,6 +176,8 @@ impl<'a> Concretizer<'a> {
         self.drain_pending_functions();
         let coroutine_protocols = self.build_coroutine_protocols();
         self.drain_pending_functions();
+        let callback_mode = self.ensure_enum(self.source.foreign_callback_core.mode, Vec::new());
+        let callback_state = self.ensure_enum(self.source.foreign_callback_core.state, Vec::new());
 
         let functions = arena_from_complete_slots(self.function_slots, "concrete function");
         let entry = self.function_by_key[&FunctionKey {
@@ -191,6 +206,7 @@ impl<'a> Concretizer<'a> {
             local_functions: self.local_functions,
             callable_references: self.callable_references,
             function_coercions: self.function_coercions,
+            foreign_callback_registrations: self.foreign_callback_registrations,
             functions,
             extern_functions: self.extern_functions,
             globals: self.globals,
@@ -209,6 +225,10 @@ impl<'a> Concretizer<'a> {
                 illegal_state_exception,
             },
             coroutine_protocols,
+            foreign_callback_core: concrete::ForeignCallbackCore {
+                mode: callback_mode,
+                state: callback_state,
+            },
             entry,
         }
     }
@@ -223,38 +243,66 @@ impl<'a> Concretizer<'a> {
 
     fn build_coroutine_protocols(&mut self) -> Vec<concrete::CoroutineProtocol> {
         let core = self.source.coroutine_core;
-        let mut results = Vec::new();
-        for function in self.function_slots.iter().flatten() {
-            if function.is_suspend && matches!(function.kind, concrete::FunctionKind::User(_)) {
-                results.push(function.return_ty);
+        let mut protocols = Vec::new();
+        loop {
+            self.drain_pending_functions();
+            let mut results = Vec::new();
+            for function in self.function_slots.iter().flatten() {
+                if function.is_suspend && matches!(function.kind, concrete::FunctionKind::User(_)) {
+                    results.push(function.return_ty);
+                }
+                if matches!(function.kind, concrete::FunctionKind::Intrinsic(ref name) if name == "coroutine_start" || name == "coroutine_suspend")
+                {
+                    results.extend(function.type_arguments.iter().copied());
+                }
             }
-            if matches!(function.kind, concrete::FunctionKind::Intrinsic(ref name) if name == "coroutine_start" || name == "coroutine_suspend")
-            {
-                results.extend(function.type_arguments.iter().copied());
+            // Suspend function-value variance bridges are synthesized by MIR
+            // and use the target function type's result. Include those
+            // concrete results in HIR's closed coroutine protocol set too.
+            results.extend(
+                self.function_types.iter().filter_map(|(_, function)| {
+                    function.is_suspend.then_some(function.return_type)
+                }),
+            );
+            results.sort_by_key(|id| id.into_raw().into_u32());
+            results.dedup();
+            results.retain(|result| {
+                !protocols
+                    .iter()
+                    .any(|protocol: &concrete::CoroutineProtocol| protocol.result_type == *result)
+            });
+            if results.is_empty() {
+                break;
             }
+            protocols.extend(
+                results
+                    .into_iter()
+                    .map(|result_type| concrete::CoroutineProtocol {
+                        result_type,
+                        continuation: self.ensure_interface(core.continuation, vec![result_type]),
+                        suspend_task: self.ensure_interface(core.suspend_task, vec![result_type]),
+                        suspend_registration: self
+                            .ensure_interface(core.suspend_registration, vec![result_type]),
+                        start_coroutine: self
+                            .request_function(core.start_coroutine, vec![result_type]),
+                        suspend_coroutine: self
+                            .request_function(core.suspend_coroutine, vec![result_type]),
+                        continuation_resume: self
+                            .request_function(core.continuation_resume, vec![result_type]),
+                        continuation_resume_with_exception: self.request_function(
+                            core.continuation_resume_with_exception,
+                            vec![result_type],
+                        ),
+                        suspend_task_run: self
+                            .request_function(core.suspend_task_run, vec![result_type]),
+                        suspend_registration_register: self.request_function(
+                            core.suspend_registration_register,
+                            vec![result_type],
+                        ),
+                    }),
+            );
         }
-        results.sort_by_key(|id| id.into_raw().into_u32());
-        results.dedup();
-
-        results
-            .into_iter()
-            .map(|result_type| concrete::CoroutineProtocol {
-                result_type,
-                continuation: self.ensure_interface(core.continuation, vec![result_type]),
-                suspend_task: self.ensure_interface(core.suspend_task, vec![result_type]),
-                suspend_registration: self
-                    .ensure_interface(core.suspend_registration, vec![result_type]),
-                start_coroutine: self.request_function(core.start_coroutine, vec![result_type]),
-                suspend_coroutine: self.request_function(core.suspend_coroutine, vec![result_type]),
-                continuation_resume: self
-                    .request_function(core.continuation_resume, vec![result_type]),
-                continuation_resume_with_exception: self
-                    .request_function(core.continuation_resume_with_exception, vec![result_type]),
-                suspend_task_run: self.request_function(core.suspend_task_run, vec![result_type]),
-                suspend_registration_register: self
-                    .request_function(core.suspend_registration_register, vec![result_type]),
-            })
-            .collect()
+        protocols
     }
 
     fn allocate_class_shells(&mut self) {
@@ -395,6 +443,16 @@ impl<'a> Concretizer<'a> {
             export::Type::Boolean => self.intern_type(concrete::TypeKind::Boolean, true),
             export::Type::String => self.intern_type(concrete::TypeKind::String, false),
             export::Type::Struct(id, arguments) => {
+                if id == self.source.ffi_core.fun_ptr {
+                    let [function] = arguments.as_slice() else {
+                        panic!("validated deferred FunPtr has one argument")
+                    };
+                    let function = self.lower_type(*function, substitution);
+                    let concrete::TypeKind::Function(function) = self.types[function].kind else {
+                        panic!("deferred FunPtr resolves to a concrete function type")
+                    };
+                    return self.intern_type(concrete::TypeKind::FunPtr(function), true);
+                }
                 let arguments = arguments
                     .iter()
                     .map(|argument| self.lower_type(*argument, substitution))
@@ -549,6 +607,7 @@ impl<'a> Concretizer<'a> {
         self.structs[id].interfaces = interfaces;
         self.structs[id].gc_free = gc_free;
         self.types[ty].gc_free = gc_free;
+        self.request_concrete_value_methods(ValueOwner::Struct(source_id), &arguments);
         id
     }
 
@@ -628,7 +687,38 @@ impl<'a> Concretizer<'a> {
         self.enums[id].option_variants = option_variants;
         self.enums[id].gc_free = gc_free;
         self.types[ty].gc_free = gc_free;
+        self.request_concrete_value_methods(ValueOwner::Enum(source_id), &arguments);
         id
+    }
+
+    /// Materialize every non-generic method of a fully specialized value
+    /// type. These methods may be reached only through an interface thunk,
+    /// so no ordinary call expression necessarily requests them.
+    fn request_concrete_value_methods(
+        &mut self,
+        owner: ValueOwner,
+        arguments: &[concrete::TypeId],
+    ) {
+        let methods = self
+            .source
+            .functions
+            .iter()
+            .filter_map(|(id, function)| {
+                let method = function.method?;
+                if method.owner_type_param_count as usize != function.type_params.len() {
+                    return None;
+                }
+                let owner_matches = match (&self.source.types[method.owner], owner) {
+                    (export::Type::Struct(id, _), ValueOwner::Struct(expected)) => *id == expected,
+                    (export::Type::Enum(id, _), ValueOwner::Enum(expected)) => *id == expected,
+                    _ => false,
+                };
+                owner_matches.then_some(id)
+            })
+            .collect::<Vec<_>>();
+        for method in methods {
+            self.request_function(method, arguments.to_vec());
+        }
     }
 
     fn ensure_interface(
@@ -1242,6 +1332,40 @@ impl<'a> Concretizer<'a> {
             export::ExprKind::FunctionAddress(function) => {
                 concrete::ExprKind::FunctionAddress(self.request_function(*function, Vec::new()))
             }
+            export::ExprKind::ForeignCallbackRegister {
+                registration,
+                closure,
+            } => {
+                let concrete::TypeKind::Struct(callback) = self.types[ty].kind else {
+                    panic!("foreign callback registration has a concrete callback struct type")
+                };
+                let registration =
+                    self.ensure_foreign_callback(*registration, substitution, callback);
+                concrete::ExprKind::ForeignCallbackRegister {
+                    registration,
+                    closure: Box::new(self.lower_expr(closure, substitution, locals)),
+                }
+            }
+            export::ExprKind::ForeignCallbackOperation {
+                operation,
+                callback,
+            } => concrete::ExprKind::ForeignCallbackOperation {
+                operation: match operation {
+                    export::ForeignCallbackOperation::Retain => {
+                        concrete::ForeignCallbackOperation::Retain
+                    }
+                    export::ForeignCallbackOperation::Release => {
+                        concrete::ForeignCallbackOperation::Release
+                    }
+                    export::ForeignCallbackOperation::State => {
+                        concrete::ForeignCallbackOperation::State
+                    }
+                    export::ForeignCallbackOperation::Failure => {
+                        concrete::ForeignCallbackOperation::Failure
+                    }
+                },
+                callback: Box::new(self.lower_expr(callback, substitution, locals)),
+            },
             export::ExprKind::FieldAccess { receiver, field } => {
                 let receiver = self.lower_expr(receiver, substitution, locals);
                 let field = self.lower_field_ref(*field, receiver.ty);
@@ -1608,6 +1732,39 @@ impl<'a> Concretizer<'a> {
         };
         let id = self.function_coercions.alloc(value);
         self.coercion_by_key.insert(key, id);
+        id
+    }
+
+    fn ensure_foreign_callback(
+        &mut self,
+        source_id: export::ForeignCallbackRegistrationId,
+        substitution: &[concrete::TypeId],
+        callback: concrete::StructId,
+    ) -> concrete::ForeignCallbackRegistrationId {
+        let key = (source_id, substitution.to_vec());
+        if let Some(&id) = self.foreign_callback_by_key.get(&key) {
+            assert_eq!(self.foreign_callback_registrations[id].callback, callback);
+            return id;
+        }
+        let source = self.source.foreign_callback_registrations[source_id].clone();
+        let native_function_type =
+            self.lower_function_type(source.native_function_type, substitution);
+        let managed_function_type =
+            self.lower_function_type(source.managed_function_type, substitution);
+        let mode = match source.mode {
+            export::ForeignCallbackMode::Reusable => concrete::ForeignCallbackMode::Reusable,
+            export::ForeignCallbackMode::OneShot => concrete::ForeignCallbackMode::OneShot,
+        };
+        let id = self
+            .foreign_callback_registrations
+            .alloc(concrete::ForeignCallbackRegistration {
+                callback,
+                native_function_type,
+                managed_function_type,
+                context_index: source.context_index,
+                mode,
+            });
+        self.foreign_callback_by_key.insert(key, id);
         id
     }
 }

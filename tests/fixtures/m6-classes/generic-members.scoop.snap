@@ -54,6 +54,33 @@ SourceFile
     @Intrinsic("align_of")
   fun alignOf<T : value>(): UInt
 SourceFile
+  enum ForeignCallbackMode
+    Reusable
+    OneShot
+  enum ForeignCallbackState
+    Registered
+    Active
+    Completed
+    Failed
+  struct ForeignCallback<F>
+    field function: FunPtr<F>
+    field context: Ptr<Unit>
+    @Unsafe
+    @Intrinsic("foreign_callback_register")
+  fun foreignCallback<F>(callback: Any, contextIndex: Int, mode: ForeignCallbackMode): ForeignCallback<F>
+    @Unsafe
+    @Intrinsic("foreign_callback_retain")
+  fun retainForeignCallback<F>(callback: ForeignCallback<F>): ForeignCallback<F>
+    @Unsafe
+    @Intrinsic("foreign_callback_release")
+  fun releaseForeignCallback<F>(callback: ForeignCallback<F>)
+    @Unsafe
+    @Intrinsic("foreign_callback_state")
+  fun foreignCallbackState<F>(callback: ForeignCallback<F>): ForeignCallbackState
+    @Unsafe
+    @Intrinsic("foreign_callback_failure")
+  fun foreignCallbackFailure<F>(callback: ForeignCallback<F>): Throwable?
+SourceFile
   struct PinnedPtr<T : ref>
     field raw: UInt
   struct GcHandle<T : ref>
@@ -329,6 +356,10 @@ Module
       call extern0 @scoop_rt_write direct
         StringConst @scoop.str.0
       return
+  fun Overloads.id @scoop.Overloads.id(this: Overloads, value: Int) -> Int
+    bb0 entry
+      return
+        IntLiteral 100
   fun read @scoop.read(value: Exchange$I) -> Int
     bb0 entry
       call $call.1: Int = @scoop.Exchange.current$I interface Exchange$I[0]
@@ -372,10 +403,23 @@ Module
       call @scoop.println direct
         Local $call.6
       return
-  fun Overloads.id @scoop.Overloads.id(this: Overloads, value: Int) -> Int
+  fun Box.exchange @scoop.Box.exchange$I_S(this: Box$I, owner: Int, missing: Option$S<String>, value: String) -> String
     bb0 entry
       return
-        IntLiteral 100
+        Local value
+  fun Tool.id @scoop.Tool.id$S(this: Tool, value: String) -> String
+    bb0 entry
+      return
+        Local value
+  fun Overloads.id @scoop.Overloads.id$S(this: Overloads, value: String) -> String
+    bb0 entry
+      return
+        Local value
+  fun Box.current @scoop.Box.current$I(this: Box$I) -> Int
+    bb0 entry
+      return
+        FieldAccess 0
+          Local this
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
     bb0 entry
       return
@@ -423,21 +467,6 @@ Module
     bb0 entry
       return
         ClassInit Overloads
-  fun Exchange.current @scoop.Exchange.current$I(this: Exchange$I) -> Int
-    bb0 entry
-      trap @scoop.str.9
-  fun Box.exchange @scoop.Box.exchange$I_S(this: Box$I, owner: Int, missing: Option$S<String>, value: String) -> String
-    bb0 entry
-      return
-        Local value
-  fun Tool.id @scoop.Tool.id$S(this: Tool, value: String) -> String
-    bb0 entry
-      return
-        Local value
-  fun Overloads.id @scoop.Overloads.id$S(this: Overloads, value: String) -> String
-    bb0 entry
-      return
-        Local value
   fun eq.I @scoop.eq.I(this: Any, other: Any) -> Boolean
     bb0 entry
       val $a: Int
@@ -471,11 +500,6 @@ Module
             Local $a
           FieldAccess 0
             Local $b
-  fun Box.current @scoop.Box.current$I(this: Box$I) -> Int
-    bb0 entry
-      return
-        FieldAccess 0
-          Local this
   fun thunk.Box$I.Exchange$I.current @scoop.thunk.Box$I.Exchange$I.current(this: Any) -> Int
     bb0 entry
       call $call.1: Int = @scoop.Box.current$I direct
@@ -483,11 +507,11 @@ Module
           Local this
       return
         Local $call.1
-  instance @scoop.Exchange.current$I <- Exchange.current
   instance @scoop.Box.exchange$I_S <- Box.exchange
   instance @scoop.Tool.id$S <- Tool.id
   instance @scoop.Overloads.id$S <- Overloads.id
   instance @scoop.Box.current$I <- Box.current
+  instance @scoop.Exchange.current$I <- Exchange.current
   str @scoop.str.0 "\n"
   str @scoop.str.1 "struct"
   str @scoop.str.2 "class"
@@ -497,7 +521,6 @@ Module
   str @scoop.str.6 "arithmetic error"
   str @scoop.str.7 "array index out of bounds"
   str @scoop.str.8 "illegal state"
-  str @scoop.str.9 "call to abstract method `Exchange.current`"
   entry @scoop_main
 
 == lir ==
@@ -511,7 +534,6 @@ Module
   global @scoop.str.6 = "arithmetic error"
   global @scoop.str.7 = "array index out of bounds"
   global @scoop.str.8 = "illegal state"
-  global @scoop.str.9 = "call to abstract method `Exchange.current`"
   global @scoop_td_Exchange$I = c""
   global @scoop_td_box$Box$I = c""
   global @scoop_td_box$I = c""
@@ -524,7 +546,6 @@ Module
   global @scoop_td_IllegalStateException = c""
   global @scoop_td_Tool = c""
   global @scoop_td_Overloads = c""
-  global @scoop.cstr.0 = c"call to abstract method `Exchange.current`"
   enum Option$S niche(payload_variant=0)
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
   fun @scoop.print(ptr<managed>) -> void
@@ -549,11 +570,14 @@ Module
     native_call[native-borrowed] extern0(global0)
     t4 = aggregate () : {}
     ret
+  fun @scoop.Overloads.id(ptr<managed>, i64) -> i64
+  block entry
+    ret 100
   fun @scoop.read(ptr<managed>) -> i64
     local %0 $call.1: i64
   block entry
     t0 = heap_load param0 +0 : ptr<metadata>
-    t1 = call @scoop_rt_itable_lookup(t0, global10) : ptr<metadata>
+    t1 = call @scoop_rt_itable_lookup(t0, global9) : ptr<metadata>
     t2 = call_indirect t1[0](param0) : i64
     store t2 -> local0
     ret local0
@@ -574,10 +598,10 @@ Module
     store t2 -> local2
     call @scoop.println(local2)
     t3 = aggregate () : {}
-    t4 = call @scoop_rt_box(global11, local0, 8) : ptr<managed>
+    t4 = call @scoop_rt_box(global10, local0, 8) : ptr<managed>
     t5 = call @scoop.read(t4) : i64
     store t5 -> local3
-    t6 = call @scoop_rt_box(global12, local3, 8) : ptr<managed>
+    t6 = call @scoop_rt_box(global11, local3, 8) : ptr<managed>
     call @scoop.println(t6)
     t7 = aggregate () : {}
     t8 = call @scoop.ctor.Tool() : ptr<managed>
@@ -590,7 +614,7 @@ Module
     store t11 -> local1
     t12 = call @scoop.Overloads.id(local1, 1) : i64
     store t12 -> local6
-    t13 = call @scoop_rt_box(global12, local6, 8) : ptr<managed>
+    t13 = call @scoop_rt_box(global11, local6, 8) : ptr<managed>
     call @scoop.println(t13)
     t14 = aggregate () : {}
     t15 = call @scoop.Overloads.id$S(local1, global3) : ptr<managed>
@@ -598,62 +622,6 @@ Module
     call @scoop.println(local7)
     t16 = aggregate () : {}
     ret
-  fun @scoop.Overloads.id(ptr<managed>, i64) -> i64
-  block entry
-    ret 100
-  fun @scoop.ctor.Throwable() -> ptr<managed>
-  block entry
-    t0 = call @scoop_rt_alloc(global13, 16) : ptr<managed>
-    ret t0
-  fun @scoop.ctor.Exception(enum0) -> ptr<managed>
-  block entry
-    t0 = call @scoop_rt_alloc(global14, 24) : ptr<managed>
-    heap_store t0 +16 param0
-    ret t0
-  fun @scoop.ctor.UnwrapException() -> ptr<managed>
-  block entry
-    t0 = call @scoop_rt_alloc(global15, 24) : ptr<managed>
-    t1 = enum_wrap e0 v0 (global4) : enum0
-    heap_store t0 +16 t1
-    ret t0
-  fun @scoop.ctor.ClassCastException() -> ptr<managed>
-  block entry
-    t0 = call @scoop_rt_alloc(global16, 24) : ptr<managed>
-    t1 = enum_wrap e0 v0 (global5) : enum0
-    heap_store t0 +16 t1
-    ret t0
-  fun @scoop.ctor.ArithmeticException() -> ptr<managed>
-  block entry
-    t0 = call @scoop_rt_alloc(global17, 24) : ptr<managed>
-    t1 = enum_wrap e0 v0 (global6) : enum0
-    heap_store t0 +16 t1
-    ret t0
-  fun @scoop.ctor.IndexOutOfBoundsException() -> ptr<managed>
-  block entry
-    t0 = call @scoop_rt_alloc(global18, 24) : ptr<managed>
-    t1 = enum_wrap e0 v0 (global7) : enum0
-    heap_store t0 +16 t1
-    ret t0
-  fun @scoop.ctor.IllegalStateException() -> ptr<managed>
-  block entry
-    t0 = call @scoop_rt_alloc(global19, 24) : ptr<managed>
-    t1 = enum_wrap e0 v0 (global8) : enum0
-    heap_store t0 +16 t1
-    ret t0
-  fun @scoop.ctor.Tool() -> ptr<managed>
-  block entry
-    t0 = call @scoop_rt_alloc(global20, 16) : ptr<managed>
-    ret t0
-  fun @scoop.ctor.Overloads() -> ptr<managed>
-  block entry
-    t0 = call @scoop_rt_alloc(global21, 16) : ptr<managed>
-    ret t0
-  fun @scoop.Exchange.current$I(ptr<managed>) -> i64
-  block entry
-    br @unwrap.trap.1
-  block unwrap.trap.1
-    call @scoop_rt_trap(global22)
-    unreachable
   fun @scoop.Box.exchange$I_S(struct0, i64, enum0, ptr<managed>) -> ptr<managed>
   block entry
     ret param3
@@ -663,6 +631,57 @@ Module
   fun @scoop.Overloads.id$S(ptr<managed>, ptr<managed>) -> ptr<managed>
   block entry
     ret param1
+  fun @scoop.Box.current$I(struct0) -> i64
+  block entry
+    t0 = extract param0, 0 : i64
+    ret t0
+  fun @scoop.ctor.Throwable() -> ptr<managed>
+  block entry
+    t0 = call @scoop_rt_alloc(global12, 16) : ptr<managed>
+    ret t0
+  fun @scoop.ctor.Exception(enum0) -> ptr<managed>
+  block entry
+    t0 = call @scoop_rt_alloc(global13, 24) : ptr<managed>
+    heap_store t0 +16 param0
+    ret t0
+  fun @scoop.ctor.UnwrapException() -> ptr<managed>
+  block entry
+    t0 = call @scoop_rt_alloc(global14, 24) : ptr<managed>
+    t1 = enum_wrap e0 v0 (global4) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.ClassCastException() -> ptr<managed>
+  block entry
+    t0 = call @scoop_rt_alloc(global15, 24) : ptr<managed>
+    t1 = enum_wrap e0 v0 (global5) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.ArithmeticException() -> ptr<managed>
+  block entry
+    t0 = call @scoop_rt_alloc(global16, 24) : ptr<managed>
+    t1 = enum_wrap e0 v0 (global6) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.IndexOutOfBoundsException() -> ptr<managed>
+  block entry
+    t0 = call @scoop_rt_alloc(global17, 24) : ptr<managed>
+    t1 = enum_wrap e0 v0 (global7) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.IllegalStateException() -> ptr<managed>
+  block entry
+    t0 = call @scoop_rt_alloc(global18, 24) : ptr<managed>
+    t1 = enum_wrap e0 v0 (global8) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.Tool() -> ptr<managed>
+  block entry
+    t0 = call @scoop_rt_alloc(global19, 16) : ptr<managed>
+    ret t0
+  fun @scoop.ctor.Overloads() -> ptr<managed>
+  block entry
+    t0 = call @scoop_rt_alloc(global20, 16) : ptr<managed>
+    ret t0
   fun @scoop.eq.I(ptr<managed>, ptr<managed>) -> i1
     local %0 $a: i64
     local %1 $b: i64
@@ -692,10 +711,6 @@ Module
     t3 = extract local1, 0 : i64
     t4 = Eq t2, t3 : i1
     ret t4
-  fun @scoop.Box.current$I(struct0) -> i64
-  block entry
-    t0 = extract param0, 0 : i64
-    ret t0
   fun @scoop.thunk.Box$I.Exchange$I.current(ptr<managed>) -> i64
     local %0 $call.1: i64
   block entry
@@ -720,7 +735,7 @@ Module
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   layout Box$I size=8 align=8 refs=[]
-  layout Option$S size=8 align=8 enum-refs=[[0], []]
+  layout Option$S size=8 align=8 enum-scan=refs[0]
   layout Throwable size=16 align=8 refs=[]
   layout Exception size=24 align=8 refs=[16]
   layout UnwrapException size=24 align=8 refs=[16]

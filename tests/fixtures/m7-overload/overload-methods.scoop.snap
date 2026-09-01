@@ -54,6 +54,33 @@ SourceFile
     @Intrinsic("align_of")
   fun alignOf<T : value>(): UInt
 SourceFile
+  enum ForeignCallbackMode
+    Reusable
+    OneShot
+  enum ForeignCallbackState
+    Registered
+    Active
+    Completed
+    Failed
+  struct ForeignCallback<F>
+    field function: FunPtr<F>
+    field context: Ptr<Unit>
+    @Unsafe
+    @Intrinsic("foreign_callback_register")
+  fun foreignCallback<F>(callback: Any, contextIndex: Int, mode: ForeignCallbackMode): ForeignCallback<F>
+    @Unsafe
+    @Intrinsic("foreign_callback_retain")
+  fun retainForeignCallback<F>(callback: ForeignCallback<F>): ForeignCallback<F>
+    @Unsafe
+    @Intrinsic("foreign_callback_release")
+  fun releaseForeignCallback<F>(callback: ForeignCallback<F>)
+    @Unsafe
+    @Intrinsic("foreign_callback_state")
+  fun foreignCallbackState<F>(callback: ForeignCallback<F>): ForeignCallbackState
+    @Unsafe
+    @Intrinsic("foreign_callback_failure")
+  fun foreignCallbackFailure<F>(callback: ForeignCallback<F>): Throwable?
+SourceFile
   struct PinnedPtr<T : ref>
     field raw: UInt
   struct GcHandle<T : ref>
@@ -264,6 +291,18 @@ Module
       call extern0 @scoop_rt_write direct
         StringConst @scoop.str.0
       return
+  fun A.s @scoop.A.s.I(this: A, v: Int) -> Int
+    bb0 entry
+      return
+        IntLiteral 1
+  fun A.s @scoop.A.s.S(this: A, v: String) -> Int
+    bb0 entry
+      return
+        IntLiteral 2
+  fun B.s @scoop.B.s(this: B, v: Int) -> Int
+    bb0 entry
+      return
+        IntLiteral 3
   fun main @scoop_main() -> Unit
     bb0 entry
       call a: A = @scoop.ctor.B direct
@@ -280,18 +319,6 @@ Module
         Box
           Local $call.2
       return
-  fun A.s @scoop.A.s.I(this: A, v: Int) -> Int
-    bb0 entry
-      return
-        IntLiteral 1
-  fun A.s @scoop.A.s.S(this: A, v: String) -> Int
-    bb0 entry
-      return
-        IntLiteral 2
-  fun B.s @scoop.B.s(this: B, v: Int) -> Int
-    bb0 entry
-      return
-        IntLiteral 3
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
     bb0 entry
       return
@@ -410,6 +437,15 @@ Module
     native_call[native-borrowed] extern0(global0)
     t4 = aggregate () : {}
     ret
+  fun @scoop.A.s.I(ptr<managed>, i64) -> i64
+  block entry
+    ret 1
+  fun @scoop.A.s.S(ptr<managed>, ptr<managed>) -> i64
+  block entry
+    ret 2
+  fun @scoop.B.s(ptr<managed>, i64) -> i64
+  block entry
+    ret 3
   fun @scoop_main() -> void
     local %0 a: ptr<managed>
     local %1 $call.1: i64
@@ -430,15 +466,6 @@ Module
     call @scoop.println(t7)
     t8 = aggregate () : {}
     ret
-  fun @scoop.A.s.I(ptr<managed>, i64) -> i64
-  block entry
-    ret 1
-  fun @scoop.A.s.S(ptr<managed>, ptr<managed>) -> i64
-  block entry
-    ret 2
-  fun @scoop.B.s(ptr<managed>, i64) -> i64
-  block entry
-    ret 3
   fun @scoop.ctor.Throwable() -> ptr<managed>
   block entry
     t0 = call @scoop_rt_alloc(global8, 16) : ptr<managed>
@@ -516,7 +543,7 @@ Module
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
-  layout Option$S size=8 align=8 enum-refs=[[0], []]
+  layout Option$S size=8 align=8 enum-scan=refs[0]
   layout Throwable size=16 align=8 refs=[]
   layout Exception size=24 align=8 refs=[16]
   layout UnwrapException size=24 align=8 refs=[16]

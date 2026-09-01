@@ -54,6 +54,33 @@ SourceFile
     @Intrinsic("align_of")
   fun alignOf<T : value>(): UInt
 SourceFile
+  enum ForeignCallbackMode
+    Reusable
+    OneShot
+  enum ForeignCallbackState
+    Registered
+    Active
+    Completed
+    Failed
+  struct ForeignCallback<F>
+    field function: FunPtr<F>
+    field context: Ptr<Unit>
+    @Unsafe
+    @Intrinsic("foreign_callback_register")
+  fun foreignCallback<F>(callback: Any, contextIndex: Int, mode: ForeignCallbackMode): ForeignCallback<F>
+    @Unsafe
+    @Intrinsic("foreign_callback_retain")
+  fun retainForeignCallback<F>(callback: ForeignCallback<F>): ForeignCallback<F>
+    @Unsafe
+    @Intrinsic("foreign_callback_release")
+  fun releaseForeignCallback<F>(callback: ForeignCallback<F>)
+    @Unsafe
+    @Intrinsic("foreign_callback_state")
+  fun foreignCallbackState<F>(callback: ForeignCallback<F>): ForeignCallbackState
+    @Unsafe
+    @Intrinsic("foreign_callback_failure")
+  fun foreignCallbackFailure<F>(callback: ForeignCallback<F>): Throwable?
+SourceFile
   struct PinnedPtr<T : ref>
     field raw: UInt
   struct GcHandle<T : ref>
@@ -466,6 +493,17 @@ Module
   class IndexOutOfBoundsException vtable=3 itables=0
   class IllegalStateException vtable=3 itables=0
   class box$I vtable=3 itables=0
+  fun Slot.rewriteThis @scoop.Slot.rewriteThis(this: Slot) -> Int <no-gc>
+    bb0 entry
+      val pointer: Ptr<Slot>
+        AddressOf this : Ptr<Slot>
+      PtrStore Slot
+        Local pointer
+        StructInit Slot
+          IntLiteral 13
+      return
+        FieldAccess 0
+          Local this
   fun print @scoop.print(message: Any) -> Unit
     bb0 entry
       call $call.1: String = @scoop.Any.toString virtual[2]
@@ -620,17 +658,6 @@ Module
       goto bb5
     bb5 if.merge.5
       goto bb3
-  fun Slot.rewriteThis @scoop.Slot.rewriteThis(this: Slot) -> Int <no-gc>
-    bb0 entry
-      val pointer: Ptr<Slot>
-        AddressOf this : Ptr<Slot>
-      PtrStore Slot
-        Local pointer
-        StructInit Slot
-          IntLiteral 13
-      return
-        FieldAccess 0
-          Local this
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
     bb0 entry
       return
@@ -729,6 +756,18 @@ Module
   extern ef1 malloc @malloc(i64) -> ptr<raw> <c bridge=@scoop_c_bridge_1 gc-leaf nounwind>
   extern ef2 free @free(ptr<raw>) -> {} <c bridge=@scoop_c_bridge_2 gc-leaf nounwind>
   callback cb0 increment @scoop_callback_bridge_0 -> @scoop_c_callback_0
+  fun @scoop.Slot.rewriteThis(struct0) -> i64 <no-gc>
+    local %0 this: struct0
+    local %1 pointer: ptr<raw>
+  block entry
+    store param0 -> local0
+    t0 = local_address local0 : ptr
+    store t0 -> local1
+    t1 = aggregate (13) : struct0
+    raw_store local1 t1 align 8
+    t2 = aggregate () : {}
+    t3 = extract local0, 0 : i64
+    ret t3
   fun @scoop.print(ptr<managed>) -> void
     local %0 $call.1: ptr<managed>
   block entry
@@ -785,9 +824,8 @@ Module
     local %16 $call.1: i64
     local %17 $call.2: i64
     local %18 $call.3: ptr<raw>
-    local %19 $sc.1: ptr<raw>
-    local %20 $sc.2: i64
-    local %21 $sc.3: ptr<raw>
+    local %19 $sc.1: i64
+    local %20 $sc.2: ptr<raw>
   block entry
     store 8 -> local0
     store 8 -> local1
@@ -850,11 +888,10 @@ Module
     t35 = call @scoop_rt_box(global6, local17, 8) : ptr<managed>
     call @scoop.println(t35)
     t36 = aggregate () : {}
-    t37 = local_address local19 : ptr
-    store 8 -> local20
-    t38 = local_address local20 : ptr
-    native_call[native-safe] extern1(t37, t38)
-    store local19 -> local18
+    store 8 -> local19
+    t38 = local_address local19 : ptr
+    t37 = native_call[native-safe] extern1(t38) : ptr<raw>
+    store t37 -> local18
     store local18 -> local12
     raw_store local12 14 align 8
     t39 = aggregate () : {}
@@ -862,8 +899,8 @@ Module
     t41 = call @scoop_rt_box(global6, t40, 8) : ptr<managed>
     call @scoop.println(t41)
     t42 = aggregate () : {}
-    store local12 -> local21
-    t43 = local_address local21 : ptr
+    store local12 -> local20
+    t43 = local_address local20 : ptr
     native_call[native-safe] extern2(t43)
     t44 = aggregate () : {}
     t45 = enum_wrap e2 v0 (local6) : enum2
@@ -893,18 +930,6 @@ Module
     br @if.merge.5
   block if.merge.5
     br @if.merge.3
-  fun @scoop.Slot.rewriteThis(struct0) -> i64 <no-gc>
-    local %0 this: struct0
-    local %1 pointer: ptr<raw>
-  block entry
-    store param0 -> local0
-    t0 = local_address local0 : ptr
-    store t0 -> local1
-    t1 = aggregate (13) : struct0
-    raw_store local1 t1 align 8
-    t2 = aggregate () : {}
-    t3 = extract local0, 0 : i64
-    ret t3
   fun @scoop.ctor.Throwable() -> ptr<managed>
   block entry
     t0 = call @scoop_rt_alloc(global7, 16) : ptr<managed>
@@ -983,9 +1008,9 @@ Module
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   layout Slot size=8 align=8 refs=[]
-  layout Option$S size=8 align=8 enum-refs=[[0], []]
-  layout Option$NIRIX size=8 align=8 enum-refs=[[], []]
-  layout Option$PIX size=8 align=8 enum-refs=[[], []]
+  layout Option$S size=8 align=8 enum-scan=refs[0]
+  layout Option$NIRIX size=8 align=8 enum-scan=none
+  layout Option$PIX size=8 align=8 enum-scan=none
   layout Throwable size=16 align=8 refs=[]
   layout Exception size=24 align=8 refs=[16]
   layout UnwrapException size=24 align=8 refs=[16]

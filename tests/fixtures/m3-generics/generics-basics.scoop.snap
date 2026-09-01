@@ -54,6 +54,33 @@ SourceFile
     @Intrinsic("align_of")
   fun alignOf<T : value>(): UInt
 SourceFile
+  enum ForeignCallbackMode
+    Reusable
+    OneShot
+  enum ForeignCallbackState
+    Registered
+    Active
+    Completed
+    Failed
+  struct ForeignCallback<F>
+    field function: FunPtr<F>
+    field context: Ptr<Unit>
+    @Unsafe
+    @Intrinsic("foreign_callback_register")
+  fun foreignCallback<F>(callback: Any, contextIndex: Int, mode: ForeignCallbackMode): ForeignCallback<F>
+    @Unsafe
+    @Intrinsic("foreign_callback_retain")
+  fun retainForeignCallback<F>(callback: ForeignCallback<F>): ForeignCallback<F>
+    @Unsafe
+    @Intrinsic("foreign_callback_release")
+  fun releaseForeignCallback<F>(callback: ForeignCallback<F>)
+    @Unsafe
+    @Intrinsic("foreign_callback_state")
+  fun foreignCallbackState<F>(callback: ForeignCallback<F>): ForeignCallbackState
+    @Unsafe
+    @Intrinsic("foreign_callback_failure")
+  fun foreignCallbackFailure<F>(callback: ForeignCallback<F>): Throwable?
+SourceFile
   struct PinnedPtr<T : ref>
     field raw: UInt
   struct GcHandle<T : ref>
@@ -302,6 +329,22 @@ Module
         Box
           Local $call.4
       return
+  fun identity @scoop.identity$I(x: Int) -> Int
+    bb0 entry
+      return
+        Local x
+  fun identity @scoop.identity$S(x: String) -> String
+    bb0 entry
+      return
+        Local x
+  fun identity @scoop.identity$B(x: Boolean) -> Boolean
+    bb0 entry
+      return
+        Local x
+  fun first @scoop.first$I_S(a: Int, b: String) -> Int
+    bb0 entry
+      return
+        Local a
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
     bb0 entry
       return
@@ -341,22 +384,6 @@ Module
         ClassInit IllegalStateException
           VariantConstruct Option$S<String> v0
             StringConst @scoop.str.7
-  fun identity @scoop.identity$I(x: Int) -> Int
-    bb0 entry
-      return
-        Local x
-  fun identity @scoop.identity$S(x: String) -> String
-    bb0 entry
-      return
-        Local x
-  fun identity @scoop.identity$B(x: Boolean) -> Boolean
-    bb0 entry
-      return
-        Local x
-  fun first @scoop.first$I_S(a: Int, b: String) -> Int
-    bb0 entry
-      return
-        Local a
   fun eq.I @scoop.eq.I(this: Any, other: Any) -> Boolean
     bb0 entry
       val $a: Int
@@ -478,6 +505,18 @@ Module
     call @scoop.println(t9)
     t10 = aggregate () : {}
     ret
+  fun @scoop.identity$I(i64) -> i64
+  block entry
+    ret param0
+  fun @scoop.identity$S(ptr<managed>) -> ptr<managed>
+  block entry
+    ret param0
+  fun @scoop.identity$B(i1) -> i1
+  block entry
+    ret param0
+  fun @scoop.first$I_S(i64, ptr<managed>) -> i64
+  block entry
+    ret param0
   fun @scoop.ctor.Throwable() -> ptr<managed>
   block entry
     t0 = call @scoop_rt_alloc(global10, 16) : ptr<managed>
@@ -517,18 +556,6 @@ Module
     t1 = enum_wrap e0 v0 (global7) : enum0
     heap_store t0 +16 t1
     ret t0
-  fun @scoop.identity$I(i64) -> i64
-  block entry
-    ret param0
-  fun @scoop.identity$S(ptr<managed>) -> ptr<managed>
-  block entry
-    ret param0
-  fun @scoop.identity$B(i1) -> i1
-  block entry
-    ret param0
-  fun @scoop.first$I_S(i64, ptr<managed>) -> i64
-  block entry
-    ret param0
   fun @scoop.eq.I(ptr<managed>, ptr<managed>) -> i1
     local %0 $a: i64
     local %1 $b: i64
@@ -575,7 +602,7 @@ Module
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
-  layout Option$S size=8 align=8 enum-refs=[[0], []]
+  layout Option$S size=8 align=8 enum-scan=refs[0]
   layout Throwable size=16 align=8 refs=[]
   layout Exception size=24 align=8 refs=[16]
   layout UnwrapException size=24 align=8 refs=[16]

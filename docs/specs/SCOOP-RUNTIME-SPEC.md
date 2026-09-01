@@ -77,10 +77,10 @@ managed 函数值是普通引用对象，不是原生函数指针。每个 concr
 
 分配分为两条通道：
 
-- **managed 快速通道**：编译器生成的代码**不使用 handle**，直接取得裸指针。标准形态是 TLAB 碰撞指针（bump pointer）内联序列：线程本地缓冲区内移动分配指针即完成，缓冲区耗尽时落入 slow path（`scoop_runtime_alloc_slow`，可能触发 GC）。编译器必须在 safepoint保留完整live root信息；M13的非移动collector可用保守栈扫描消费它，M15 moving collector必须通过statepoint relocation更新引用（spec 14.2）。managed 分配是最高频操作，其成本必须是摊销 O(1) 的几条内联指令，不经 handle 表。
+- **managed 快速通道**：编译器生成的代码**不使用 handle**，直接取得裸指针。标准形态是 TLAB 碰撞指针（bump pointer）内联序列；成功后由不含safepoint、不取得heap/world锁的GC-leaf `scoop_runtime_finish_tlab_alloc`完成清零、对象头与object-start登记，缓冲区耗尽时才落入 slow path（`scoop_runtime_alloc_slow`，可能触发 GC）。编译器必须在 safepoint保留完整live root信息；M13的非移动collector可用保守栈扫描消费它，M15 moving collector必须通过statepoint relocation更新引用（spec 14.2）。managed 分配是最高频操作，其成本必须保持摊销 O(1)，不经 handle 表。
 - **Scoop ABI native 通道**：外部实现没有 stack map；它可以直接借用传入的 managed ref，但在调用可能触发 GC 的 runtime入口前，必须先把仍需使用的引用登记为 native root slot（见 4.2）。需要把新对象长期带出 native frame时可使用 handle；需要稳定裸地址时使用 pinned allocation。
 
-M13 起每个已attach线程持有独立TLAB；slow path在同步的heap元数据下从Immix free-line run或新block切出互不重叠区间。STW开始后全部TLAB失效，GC结束后各线程在下一次分配时重新refill。fast path必须在返回前清零完整对象、初始化对象头并以原子方式登记object-start metadata，保证多mutator分配与构造中途safepoint都可安全扫描。TLAB具体尺寸可调，但managed分配返回裸指针、摊销O(1)、不经handle表的契约不变。
+M13 起每个已attach线程持有独立TLAB；slow path在同步的heap元数据下从Immix free-line run或新block切出互不重叠区间。STW开始后全部TLAB失效，GC结束后各线程在下一次分配时重新refill。内联bump与上述GC-leaf finish helper共同构成fast path，并必须在返回前清零完整对象、初始化对象头并以原子方式登记object-start metadata，保证多mutator分配与构造中途safepoint都可安全扫描。TLAB具体尺寸可调，但managed分配返回裸指针、摊销O(1)、不经handle表的契约不变。
 
 ### 3.2 safepoint 模型
 

@@ -169,6 +169,11 @@ fn transform_function(
         ty: mir::Type::Class(frame_class),
         mutable: false,
     });
+    let dispatch_state = body.locals.alloc(mir::Local {
+        name: "$dispatch_state".to_string(),
+        ty: mir::Type::Int,
+        mutable: false,
+    });
 
     let continuation = match completion_ty {
         mir::Type::Interface(interface) => interface,
@@ -217,7 +222,7 @@ fn transform_function(
         statements: source_params
             .iter()
             .map(|param| restore_statement(frame_local, param.local, frame_slots[&param.local]))
-            .chain(std::iter::once(field_set(
+            .chain(std::iter::once(atomic_field_store(
                 mir::Expr::Local(frame_local),
                 0,
                 mir::Expr::IntLiteral(STATE_RUNNING),
@@ -229,16 +234,29 @@ fn transform_function(
     let invalid = protocol_error_block(lowerer, module, &mut body.locals, &mut body.blocks, None);
     let mut next = invalid;
     for (state, target) in resume_targets.iter().rev() {
-        next = dispatch_block(&mut body.blocks, frame_local, *state, *target, next);
+        next = dispatch_block(&mut body.blocks, dispatch_state, *state, *target, next);
     }
-    let entry = dispatch_block(&mut body.blocks, frame_local, STATE_INITIAL, initial, next);
+    let entry = dispatch_block(
+        &mut body.blocks,
+        dispatch_state,
+        STATE_INITIAL,
+        initial,
+        next,
+    );
     body.entry = entry;
 
-    lowerer.functions[driver].params = vec![mir::Param {
-        name: "$frame".to_string(),
-        ty: mir::Type::Class(frame_class),
-        local: frame_local,
-    }];
+    lowerer.functions[driver].params = vec![
+        mir::Param {
+            name: "$frame".to_string(),
+            ty: mir::Type::Class(frame_class),
+            local: frame_local,
+        },
+        mir::Param {
+            name: "$dispatch_state".to_string(),
+            ty: mir::Type::Int,
+            local: dispatch_state,
+        },
+    ];
     lowerer.functions[driver].body = body;
 
     let (wrapper_params, wrapper_locals, wrapper_param_map, wrapper_completion) =
@@ -267,9 +285,11 @@ const STATE_RUNNING: i64 = -1;
 const STATE_COMPLETED: i64 = -2;
 const ADAPTER_REGISTERING: i64 = 0;
 const ADAPTER_WAITING: i64 = 1;
-const ADAPTER_LATCHED_SUCCESS: i64 = 2;
-const ADAPTER_CONSUMED: i64 = 3;
-const ADAPTER_LATCHED_FAILURE: i64 = 4;
+const ADAPTER_COMPLETING_SUCCESS: i64 = 2;
+const ADAPTER_COMPLETING_FAILURE: i64 = 3;
+const ADAPTER_LATCHED_SUCCESS: i64 = 4;
+const ADAPTER_LATCHED_FAILURE: i64 = 5;
+const ADAPTER_CONSUMED: i64 = 6;
 
 fn failure_state(state: u32) -> i64 {
     -i64::from(state) - 2
@@ -399,7 +419,7 @@ fn rewrite_site(
             ));
         }
     }
-    block.statements.push(field_set(
+    block.statements.push(atomic_field_store(
         mir::Expr::Local(frame_local),
         0,
         mir::Expr::IntLiteral(i64::from(site.state)),
@@ -427,11 +447,7 @@ fn rewrite_site(
     let completed = body.blocks.alloc(mir::BasicBlock {
         name: format!("coroutine.completed.{}", site.state),
         statements: {
-            let mut statements = vec![field_set(
-                mir::Expr::Local(adapter_local),
-                1,
-                mir::Expr::IntLiteral(ADAPTER_CONSUMED),
-            )];
+            let mut statements = Vec::new();
             if let Some(destination) = destination {
                 statements.push(statement(mir::StatementKind::ValDecl {
                     local: destination,
@@ -447,6 +463,51 @@ fn rewrite_site(
         terminator: mir::Terminator::Goto(post),
         unwind,
     });
+    let invalid = protocol_error_block(lowerer, module, &mut body.locals, &mut body.blocks, unwind);
+    let adapter_claim = body.locals.alloc(local(
+        &format!("$completed_adapter_claim.{}", site.state),
+        mir::Type::Int,
+    ));
+    let frame_claim = body.locals.alloc(local(
+        &format!("$completed_frame_claim.{}", site.state),
+        mir::Type::Int,
+    ));
+    let claim_frame = body.blocks.alloc(mir::BasicBlock {
+        name: format!("coroutine.completed_claim_frame.{}", site.state),
+        statements: vec![statement(mir::StatementKind::ValDecl {
+            local: frame_claim,
+            init: atomic_field_compare_exchange(
+                mir::Expr::Local(frame_local),
+                0,
+                i64::from(site.state),
+                STATE_RUNNING,
+            ),
+        })],
+        terminator: mir::Terminator::Branch {
+            cond: int_eq(mir::Expr::Local(frame_claim), i64::from(site.state)),
+            then_block: completed,
+            else_block: invalid,
+        },
+        unwind,
+    });
+    let claim_completed = body.blocks.alloc(mir::BasicBlock {
+        name: format!("coroutine.completed_claim_adapter.{}", site.state),
+        statements: vec![statement(mir::StatementKind::ValDecl {
+            local: adapter_claim,
+            init: atomic_field_compare_exchange(
+                mir::Expr::Local(adapter_local),
+                1,
+                ADAPTER_WAITING,
+                ADAPTER_CONSUMED,
+            ),
+        })],
+        terminator: mir::Terminator::Branch {
+            cond: int_eq(mir::Expr::Local(adapter_claim), ADAPTER_WAITING),
+            then_block: claim_frame,
+            else_block: invalid,
+        },
+        unwind,
+    });
     let suspended = body.blocks.alloc(mir::BasicBlock {
         name: format!("coroutine.suspended.{}", site.state),
         statements: Vec::new(),
@@ -457,15 +518,11 @@ fn rewrite_site(
     });
     body.blocks[site.block].terminator = mir::Terminator::Branch {
         cond: is_completed(step_local),
-        then_block: completed,
+        then_block: claim_completed,
         else_block: suspended,
     };
 
-    let mut resume_statements = vec![field_set(
-        mir::Expr::Local(frame_local),
-        0,
-        mir::Expr::IntLiteral(STATE_RUNNING),
-    )];
+    let mut resume_statements = Vec::new();
     for local in &site.live_after {
         if Some(*local) == destination {
             continue;
@@ -511,11 +568,7 @@ fn failure_resume_block(
     site: &SuspendSite,
     unwind: Option<mir::BlockId>,
 ) -> mir::BlockId {
-    let mut statements = vec![field_set(
-        mir::Expr::Local(frame),
-        0,
-        mir::Expr::IntLiteral(STATE_RUNNING),
-    )];
+    let mut statements = Vec::new();
     for local in &site.live_after {
         if Some(*local) == site.destination {
             continue;
@@ -658,6 +711,8 @@ fn generate_resume_method(
     let this = locals.alloc(local("this", mir::Type::Class(adapter)));
     let value = locals.alloc(local("value", result.clone()));
     let step = locals.alloc(local("$step", outer_step.clone()));
+    let adapter_claim = locals.alloc(local("$adapter_claim", mir::Type::Int));
+    let frame_claim = locals.alloc(local("$frame_claim", mir::Type::Int));
     let mut blocks = Arena::new();
     let invalid = protocol_error_block(lowerer, module, &mut locals, &mut blocks, None);
     let exits = drive_exit_blocks(
@@ -674,11 +729,7 @@ fn generate_resume_method(
     let valid = blocks.alloc(mir::BasicBlock {
         name: "valid".to_string(),
         statements: {
-            let mut statements = vec![field_set(
-                mir::Expr::Local(this),
-                1,
-                mir::Expr::IntLiteral(ADAPTER_CONSUMED),
-            )];
+            let mut statements = Vec::new();
             if let Some(destination) = destination {
                 statements.push(field_set(
                     adapter_frame(this),
@@ -686,6 +737,11 @@ fn generate_resume_method(
                     slot_value(destination, mir::Expr::Local(value), result.clone()),
                 ));
             }
+            statements.push(atomic_field_store(
+                mir::Expr::Local(this),
+                1,
+                mir::Expr::IntLiteral(ADAPTER_CONSUMED),
+            ));
             statements.push(statement(mir::StatementKind::Call(
                 mir::CallEffect::Value {
                     destination: step,
@@ -694,7 +750,7 @@ fn generate_resume_method(
                             kind: mir::CallKind::Direct,
                             callee: mir::Callee::User(driver),
                         },
-                        args: vec![adapter_frame(this)],
+                        args: vec![adapter_frame(this), mir::Expr::IntLiteral(i64::from(state))],
                     },
                 },
             )));
@@ -707,22 +763,48 @@ fn generate_resume_method(
         },
         unwind: Some(exits.catch_pad),
     });
-    let valid_state = blocks.alloc(mir::BasicBlock {
-        name: "valid_state".to_string(),
-        statements: Vec::new(),
+    let invalid_frame = blocks.alloc(mir::BasicBlock {
+        name: "invalid_frame".to_string(),
+        statements: vec![atomic_field_store(
+            mir::Expr::Local(this),
+            1,
+            mir::Expr::IntLiteral(ADAPTER_CONSUMED),
+        )],
+        terminator: mir::Terminator::Goto(invalid),
+        unwind: None,
+    });
+    let claim_frame = blocks.alloc(mir::BasicBlock {
+        name: "claim_frame".to_string(),
+        statements: vec![statement(mir::StatementKind::ValDecl {
+            local: frame_claim,
+            init: atomic_field_compare_exchange(
+                adapter_frame(this),
+                0,
+                i64::from(state),
+                STATE_RUNNING,
+            ),
+        })],
         terminator: mir::Terminator::Branch {
-            cond: int_eq(frame_field(adapter_frame(this), 0), i64::from(state)),
+            cond: int_eq(mir::Expr::Local(frame_claim), i64::from(state)),
             then_block: valid,
-            else_block: invalid,
+            else_block: invalid_frame,
         },
         unwind: None,
     });
-    let waiting = blocks.alloc(mir::BasicBlock {
-        name: "waiting".to_string(),
-        statements: Vec::new(),
+    let claim_waiting = blocks.alloc(mir::BasicBlock {
+        name: "claim_waiting".to_string(),
+        statements: vec![statement(mir::StatementKind::ValDecl {
+            local: adapter_claim,
+            init: atomic_field_compare_exchange(
+                mir::Expr::Local(this),
+                1,
+                ADAPTER_WAITING,
+                ADAPTER_COMPLETING_SUCCESS,
+            ),
+        })],
         terminator: mir::Terminator::Branch {
-            cond: int_eq(frame_field(mir::Expr::Local(this), 1), ADAPTER_WAITING),
-            then_block: valid_state,
+            cond: int_eq(mir::Expr::Local(adapter_claim), ADAPTER_WAITING),
+            then_block: claim_frame,
             else_block: invalid,
         },
         unwind: None,
@@ -736,7 +818,7 @@ fn generate_resume_method(
                     latch.field,
                     slot_value(latch, mir::Expr::Local(value), result.clone()),
                 ),
-                field_set(
+                atomic_field_store(
                     mir::Expr::Local(this),
                     1,
                     mir::Expr::IntLiteral(ADAPTER_LATCHED_SUCCESS),
@@ -747,16 +829,24 @@ fn generate_resume_method(
         });
         blocks.alloc(mir::BasicBlock {
             name: "entry".to_string(),
-            statements: Vec::new(),
+            statements: vec![statement(mir::StatementKind::ValDecl {
+                local: adapter_claim,
+                init: atomic_field_compare_exchange(
+                    mir::Expr::Local(this),
+                    1,
+                    ADAPTER_REGISTERING,
+                    ADAPTER_COMPLETING_SUCCESS,
+                ),
+            })],
             terminator: mir::Terminator::Branch {
-                cond: int_eq(frame_field(mir::Expr::Local(this), 1), ADAPTER_REGISTERING),
+                cond: int_eq(mir::Expr::Local(adapter_claim), ADAPTER_REGISTERING),
                 then_block: latched,
-                else_block: waiting,
+                else_block: claim_waiting,
             },
             unwind: None,
         })
     } else {
-        waiting
+        claim_waiting
     };
     let function = lowerer.functions.alloc(mir::Function {
         gc_effect: mir::GcEffect::Managed,
@@ -806,6 +896,8 @@ fn generate_failure_method(
     let this = locals.alloc(local("this", mir::Type::Class(adapter)));
     let exception = locals.alloc(local("exception", throwable.clone()));
     let step = locals.alloc(local("$step", outer_step.clone()));
+    let adapter_claim = locals.alloc(local("$adapter_claim", mir::Type::Int));
+    let frame_claim = locals.alloc(local("$frame_claim", mir::Type::Int));
     let mut blocks = Arena::new();
     let invalid = protocol_error_block(lowerer, module, &mut locals, &mut blocks, None);
     let exits = drive_exit_blocks(
@@ -823,16 +915,15 @@ fn generate_failure_method(
         name: "valid".to_string(),
         statements: vec![
             field_set(
-                mir::Expr::Local(this),
-                1,
-                mir::Expr::IntLiteral(ADAPTER_CONSUMED),
-            ),
-            field_set(
                 adapter_frame(this),
                 failure_slot.field,
                 slot_value(failure_slot, mir::Expr::Local(exception), throwable.clone()),
             ),
-            field_set(adapter_frame(this), 0, mir::Expr::IntLiteral(failure_state)),
+            atomic_field_store(
+                mir::Expr::Local(this),
+                1,
+                mir::Expr::IntLiteral(ADAPTER_CONSUMED),
+            ),
             statement(mir::StatementKind::Call(mir::CallEffect::Value {
                 destination: step,
                 call: mir::Call {
@@ -840,7 +931,7 @@ fn generate_failure_method(
                         kind: mir::CallKind::Direct,
                         callee: mir::Callee::User(driver),
                     },
-                    args: vec![adapter_frame(this)],
+                    args: vec![adapter_frame(this), mir::Expr::IntLiteral(failure_state)],
                 },
             })),
         ],
@@ -851,22 +942,48 @@ fn generate_failure_method(
         },
         unwind: Some(exits.catch_pad),
     });
-    let valid_state = blocks.alloc(mir::BasicBlock {
-        name: "valid_state".to_string(),
-        statements: Vec::new(),
+    let invalid_frame = blocks.alloc(mir::BasicBlock {
+        name: "invalid_frame".to_string(),
+        statements: vec![atomic_field_store(
+            mir::Expr::Local(this),
+            1,
+            mir::Expr::IntLiteral(ADAPTER_CONSUMED),
+        )],
+        terminator: mir::Terminator::Goto(invalid),
+        unwind: None,
+    });
+    let claim_frame = blocks.alloc(mir::BasicBlock {
+        name: "claim_frame".to_string(),
+        statements: vec![statement(mir::StatementKind::ValDecl {
+            local: frame_claim,
+            init: atomic_field_compare_exchange(
+                adapter_frame(this),
+                0,
+                i64::from(state),
+                STATE_RUNNING,
+            ),
+        })],
         terminator: mir::Terminator::Branch {
-            cond: int_eq(frame_field(adapter_frame(this), 0), i64::from(state)),
+            cond: int_eq(mir::Expr::Local(frame_claim), i64::from(state)),
             then_block: valid,
-            else_block: invalid,
+            else_block: invalid_frame,
         },
         unwind: None,
     });
-    let waiting = blocks.alloc(mir::BasicBlock {
-        name: "waiting".to_string(),
-        statements: Vec::new(),
+    let claim_waiting = blocks.alloc(mir::BasicBlock {
+        name: "claim_waiting".to_string(),
+        statements: vec![statement(mir::StatementKind::ValDecl {
+            local: adapter_claim,
+            init: atomic_field_compare_exchange(
+                mir::Expr::Local(this),
+                1,
+                ADAPTER_WAITING,
+                ADAPTER_COMPLETING_FAILURE,
+            ),
+        })],
         terminator: mir::Terminator::Branch {
-            cond: int_eq(frame_field(mir::Expr::Local(this), 1), ADAPTER_WAITING),
-            then_block: valid_state,
+            cond: int_eq(mir::Expr::Local(adapter_claim), ADAPTER_WAITING),
+            then_block: claim_frame,
             else_block: invalid,
         },
         unwind: None,
@@ -880,7 +997,7 @@ fn generate_failure_method(
                     latch.field,
                     slot_value(latch, mir::Expr::Local(exception), throwable.clone()),
                 ),
-                field_set(
+                atomic_field_store(
                     mir::Expr::Local(this),
                     1,
                     mir::Expr::IntLiteral(ADAPTER_LATCHED_FAILURE),
@@ -891,16 +1008,24 @@ fn generate_failure_method(
         });
         blocks.alloc(mir::BasicBlock {
             name: "entry".to_string(),
-            statements: Vec::new(),
+            statements: vec![statement(mir::StatementKind::ValDecl {
+                local: adapter_claim,
+                init: atomic_field_compare_exchange(
+                    mir::Expr::Local(this),
+                    1,
+                    ADAPTER_REGISTERING,
+                    ADAPTER_COMPLETING_FAILURE,
+                ),
+            })],
             terminator: mir::Terminator::Branch {
-                cond: int_eq(frame_field(mir::Expr::Local(this), 1), ADAPTER_REGISTERING),
+                cond: int_eq(mir::Expr::Local(adapter_claim), ADAPTER_REGISTERING),
                 then_block: latched,
-                else_block: waiting,
+                else_block: claim_waiting,
             },
             unwind: None,
         })
     } else {
-        waiting
+        claim_waiting
     };
     let function = lowerer.functions.alloc(mir::Function {
         gc_effect: mir::GcEffect::Managed,
@@ -952,7 +1077,7 @@ fn drive_exit_blocks(
     let completed = blocks.alloc(mir::BasicBlock {
         name: "completed".to_string(),
         statements: vec![
-            field_set(
+            atomic_field_store(
                 adapter_frame(this),
                 0,
                 mir::Expr::IntLiteral(STATE_COMPLETED),
@@ -987,7 +1112,7 @@ fn drive_exit_blocks(
     let failed = blocks.alloc(mir::BasicBlock {
         name: "failed".to_string(),
         statements: vec![
-            field_set(
+            atomic_field_store(
                 adapter_frame(this),
                 0,
                 mir::Expr::IntLiteral(STATE_COMPLETED),
@@ -1150,7 +1275,10 @@ fn wrapper_body(
                         kind: mir::CallKind::Direct,
                         callee: mir::Callee::User(driver),
                     },
-                    args: vec![mir::Expr::Local(frame)],
+                    args: vec![
+                        mir::Expr::Local(frame),
+                        mir::Expr::IntLiteral(STATE_INITIAL),
+                    ],
                 },
             })),
         ],
@@ -1168,7 +1296,7 @@ fn wrapper_body(
 
 fn dispatch_block(
     blocks: &mut Arena<mir::BasicBlock>,
-    frame: mir::LocalId,
+    dispatch_state: mir::LocalId,
     state: i64,
     target: mir::BlockId,
     otherwise: mir::BlockId,
@@ -1177,7 +1305,7 @@ fn dispatch_block(
         name: format!("coroutine.dispatch.{state}"),
         statements: Vec::new(),
         terminator: mir::Terminator::Branch {
-            cond: int_eq(frame_field(mir::Expr::Local(frame), 0), state),
+            cond: int_eq(mir::Expr::Local(dispatch_state), state),
             then_block: target,
             else_block: otherwise,
         },
@@ -1294,6 +1422,35 @@ fn field_set(object: mir::Expr, index: u32, value: mir::Expr) -> mir::Statement 
         index,
         value,
     })
+}
+
+fn atomic_field_load(object: mir::Expr, index: u32) -> mir::Expr {
+    mir::Expr::AtomicFieldLoad {
+        object: Box::new(object),
+        index,
+    }
+}
+
+fn atomic_field_store(object: mir::Expr, index: u32, value: mir::Expr) -> mir::Statement {
+    statement(mir::StatementKind::AtomicFieldStore {
+        object,
+        index,
+        value,
+    })
+}
+
+fn atomic_field_compare_exchange(
+    object: mir::Expr,
+    index: u32,
+    expected: i64,
+    replacement: i64,
+) -> mir::Expr {
+    mir::Expr::AtomicFieldCompareExchange {
+        object: Box::new(object),
+        index,
+        expected: Box::new(mir::Expr::IntLiteral(expected)),
+        replacement: Box::new(mir::Expr::IntLiteral(replacement)),
+    }
 }
 
 fn statement(kind: mir::StatementKind) -> mir::Statement {
@@ -1420,6 +1577,14 @@ fn rewrite_intrinsic_site(
         &format!("$resume_exception.{}", site.state),
         throwable,
     ));
+    let registration_claim = body.locals.alloc(local(
+        &format!("$registration_claim.{}", site.state),
+        mir::Type::Int,
+    ));
+    let frame_claim = body.locals.alloc(local(
+        &format!("$registration_frame_claim.{}", site.state),
+        mir::Type::Int,
+    ));
 
     let current = &mut body.blocks[site.block];
     for local in site
@@ -1437,7 +1602,7 @@ fn rewrite_intrinsic_site(
             ));
         }
     }
-    current.statements.push(field_set(
+    current.statements.push(atomic_field_store(
         mir::Expr::Local(frame_local),
         0,
         mir::Expr::IntLiteral(i64::from(site.state)),
@@ -1471,7 +1636,7 @@ fn rewrite_intrinsic_site(
     let success = body.blocks.alloc(mir::BasicBlock {
         name: format!("coroutine.registered_success.{}", site.state),
         statements: {
-            let mut statements = vec![field_set(
+            let mut statements = vec![atomic_field_store(
                 mir::Expr::Local(adapter_local),
                 1,
                 mir::Expr::IntLiteral(ADAPTER_CONSUMED),
@@ -1497,7 +1662,7 @@ fn rewrite_intrinsic_site(
     let failure = body.blocks.alloc(mir::BasicBlock {
         name: format!("coroutine.registered_failure.{}", site.state),
         statements: vec![
-            field_set(
+            atomic_field_store(
                 mir::Expr::Local(adapter_local),
                 1,
                 mir::Expr::IntLiteral(ADAPTER_CONSUMED),
@@ -1522,59 +1687,156 @@ fn rewrite_intrinsic_site(
     });
     let suspended = body.blocks.alloc(mir::BasicBlock {
         name: format!("coroutine.registered_suspend.{}", site.state),
-        statements: vec![field_set(
-            mir::Expr::Local(adapter_local),
-            1,
-            mir::Expr::IntLiteral(ADAPTER_WAITING),
-        )],
+        statements: Vec::new(),
         terminator: mir::Terminator::Return {
             value: Some(suspended_value(outer_step)),
         },
         unwind: None,
     });
     let invalid = protocol_error_block(lowerer, module, &mut body.locals, &mut body.blocks, unwind);
-    let check_empty = body.blocks.alloc(mir::BasicBlock {
-        name: format!("coroutine.registered_empty.{}", site.state),
-        statements: Vec::new(),
-        terminator: mir::Terminator::Branch {
-            cond: int_eq(
-                frame_field(mir::Expr::Local(adapter_local), 1),
-                ADAPTER_REGISTERING,
+    let claim_success_frame = body.blocks.alloc(mir::BasicBlock {
+        name: format!("coroutine.claim_success_frame.{}", site.state),
+        statements: vec![statement(mir::StatementKind::ValDecl {
+            local: frame_claim,
+            init: atomic_field_compare_exchange(
+                mir::Expr::Local(frame_local),
+                0,
+                i64::from(site.state),
+                STATE_RUNNING,
             ),
-            then_block: suspended,
+        })],
+        terminator: mir::Terminator::Branch {
+            cond: int_eq(mir::Expr::Local(frame_claim), i64::from(site.state)),
+            then_block: success,
             else_block: invalid,
         },
         unwind,
     });
-    let check_failure = body.blocks.alloc(mir::BasicBlock {
-        name: format!("coroutine.registered_check_failure.{}", site.state),
+    let claim_failure_frame = body.blocks.alloc(mir::BasicBlock {
+        name: format!("coroutine.claim_failure_frame.{}", site.state),
+        statements: vec![statement(mir::StatementKind::ValDecl {
+            local: frame_claim,
+            init: atomic_field_compare_exchange(
+                mir::Expr::Local(frame_local),
+                0,
+                i64::from(site.state),
+                STATE_RUNNING,
+            ),
+        })],
+        terminator: mir::Terminator::Branch {
+            cond: int_eq(mir::Expr::Local(frame_claim), i64::from(site.state)),
+            then_block: failure,
+            else_block: invalid,
+        },
+        unwind,
+    });
+    let check_latched_failure = body.blocks.alloc(mir::BasicBlock {
+        name: format!("coroutine.check_latched_failure.{}", site.state),
         statements: Vec::new(),
         terminator: mir::Terminator::Branch {
             cond: int_eq(
-                frame_field(mir::Expr::Local(adapter_local), 1),
+                atomic_field_load(mir::Expr::Local(adapter_local), 1),
                 ADAPTER_LATCHED_FAILURE,
             ),
-            then_block: failure,
-            else_block: check_empty,
+            then_block: claim_failure_frame,
+            else_block: invalid,
+        },
+        unwind,
+    });
+    let check_latched_success = body.blocks.alloc(mir::BasicBlock {
+        name: format!("coroutine.check_latched_success.{}", site.state),
+        statements: Vec::new(),
+        terminator: mir::Terminator::Branch {
+            cond: int_eq(
+                atomic_field_load(mir::Expr::Local(adapter_local), 1),
+                ADAPTER_LATCHED_SUCCESS,
+            ),
+            then_block: claim_success_frame,
+            else_block: check_latched_failure,
+        },
+        unwind,
+    });
+    let completion_spin = body.blocks.alloc(mir::BasicBlock {
+        name: format!("coroutine.completion_backoff.{}", site.state),
+        statements: Vec::new(),
+        terminator: mir::Terminator::Unreachable,
+        unwind: None,
+    });
+    let check_completing_failure = body.blocks.alloc(mir::BasicBlock {
+        name: format!("coroutine.check_completing_failure.{}", site.state),
+        statements: Vec::new(),
+        terminator: mir::Terminator::Branch {
+            cond: int_eq(
+                atomic_field_load(mir::Expr::Local(adapter_local), 1),
+                ADAPTER_COMPLETING_FAILURE,
+            ),
+            then_block: completion_spin,
+            else_block: check_latched_success,
+        },
+        unwind,
+    });
+    let completion_wait = body.blocks.alloc(mir::BasicBlock {
+        name: format!("coroutine.completion_wait.{}", site.state),
+        statements: Vec::new(),
+        terminator: mir::Terminator::Branch {
+            cond: int_eq(
+                atomic_field_load(mir::Expr::Local(adapter_local), 1),
+                ADAPTER_COMPLETING_SUCCESS,
+            ),
+            then_block: completion_spin,
+            else_block: check_completing_failure,
+        },
+        unwind,
+    });
+    body.blocks[completion_spin].terminator = mir::Terminator::Goto(completion_wait);
+    let register_return = body.blocks.alloc(mir::BasicBlock {
+        name: format!("coroutine.register_return.{}", site.state),
+        statements: vec![statement(mir::StatementKind::ValDecl {
+            local: registration_claim,
+            init: atomic_field_compare_exchange(
+                mir::Expr::Local(adapter_local),
+                1,
+                ADAPTER_REGISTERING,
+                ADAPTER_WAITING,
+            ),
+        })],
+        terminator: mir::Terminator::Branch {
+            cond: int_eq(mir::Expr::Local(registration_claim), ADAPTER_REGISTERING),
+            then_block: suspended,
+            else_block: completion_wait,
         },
         unwind,
     });
     let registration_propagate = body.blocks.alloc(mir::BasicBlock {
         name: format!("coroutine.registration_propagate.{}", site.state),
-        statements: vec![field_set(
-            mir::Expr::Local(adapter_local),
-            1,
-            mir::Expr::IntLiteral(ADAPTER_CONSUMED),
-        )],
+        statements: Vec::new(),
         terminator: mir::Terminator::Throw {
             exception: mir::Expr::Local(exception),
             unwind,
         },
         unwind,
     });
+    let registration_claim_frame = body.blocks.alloc(mir::BasicBlock {
+        name: format!("coroutine.registration_claim_frame.{}", site.state),
+        statements: vec![statement(mir::StatementKind::ValDecl {
+            local: frame_claim,
+            init: atomic_field_compare_exchange(
+                mir::Expr::Local(frame_local),
+                0,
+                i64::from(site.state),
+                STATE_RUNNING,
+            ),
+        })],
+        terminator: mir::Terminator::Branch {
+            cond: int_eq(mir::Expr::Local(frame_claim), i64::from(site.state)),
+            then_block: registration_propagate,
+            else_block: invalid,
+        },
+        unwind,
+    });
     let registration_protocol = body.blocks.alloc(mir::BasicBlock {
         name: format!("coroutine.registration_protocol.{}", site.state),
-        statements: vec![field_set(
+        statements: vec![atomic_field_store(
             mir::Expr::Local(adapter_local),
             1,
             mir::Expr::IntLiteral(ADAPTER_CONSUMED),
@@ -1582,6 +1844,60 @@ fn rewrite_intrinsic_site(
         terminator: mir::Terminator::Goto(invalid),
         unwind,
     });
+    let registration_protocol_claim_frame = body.blocks.alloc(mir::BasicBlock {
+        name: format!("coroutine.registration_protocol_claim_frame.{}", site.state),
+        statements: vec![statement(mir::StatementKind::ValDecl {
+            local: frame_claim,
+            init: atomic_field_compare_exchange(
+                mir::Expr::Local(frame_local),
+                0,
+                i64::from(site.state),
+                STATE_RUNNING,
+            ),
+        })],
+        terminator: mir::Terminator::Branch {
+            cond: int_eq(mir::Expr::Local(frame_claim), i64::from(site.state)),
+            then_block: registration_protocol,
+            else_block: invalid,
+        },
+        unwind,
+    });
+    let registration_spin = body.blocks.alloc(mir::BasicBlock {
+        name: format!("coroutine.registration_backoff.{}", site.state),
+        statements: Vec::new(),
+        terminator: mir::Terminator::Unreachable,
+        unwind: None,
+    });
+    let registration_check_completing_failure = body.blocks.alloc(mir::BasicBlock {
+        name: format!(
+            "coroutine.registration_check_completing_failure.{}",
+            site.state
+        ),
+        statements: Vec::new(),
+        terminator: mir::Terminator::Branch {
+            cond: int_eq(
+                atomic_field_load(mir::Expr::Local(adapter_local), 1),
+                ADAPTER_COMPLETING_FAILURE,
+            ),
+            then_block: registration_spin,
+            else_block: registration_protocol_claim_frame,
+        },
+        unwind,
+    });
+    let registration_wait = body.blocks.alloc(mir::BasicBlock {
+        name: format!("coroutine.registration_wait.{}", site.state),
+        statements: Vec::new(),
+        terminator: mir::Terminator::Branch {
+            cond: int_eq(
+                atomic_field_load(mir::Expr::Local(adapter_local), 1),
+                ADAPTER_COMPLETING_SUCCESS,
+            ),
+            then_block: registration_spin,
+            else_block: registration_check_completing_failure,
+        },
+        unwind,
+    });
+    body.blocks[registration_spin].terminator = mir::Terminator::Goto(registration_wait);
     let registration_failure = body.blocks.alloc(mir::BasicBlock {
         name: format!("coroutine.registration_failure.{}", site.state),
         statements: vec![
@@ -1600,32 +1916,27 @@ fn rewrite_intrinsic_site(
                 },
             })),
             statement(mir::StatementKind::Eh(mir::EhStatement::EndCatch)),
+            statement(mir::StatementKind::ValDecl {
+                local: registration_claim,
+                init: atomic_field_compare_exchange(
+                    mir::Expr::Local(adapter_local),
+                    1,
+                    ADAPTER_REGISTERING,
+                    ADAPTER_CONSUMED,
+                ),
+            }),
         ],
         terminator: mir::Terminator::Branch {
-            cond: int_eq(
-                frame_field(mir::Expr::Local(adapter_local), 1),
-                ADAPTER_REGISTERING,
-            ),
-            then_block: registration_propagate,
-            else_block: registration_protocol,
+            cond: int_eq(mir::Expr::Local(registration_claim), ADAPTER_REGISTERING),
+            then_block: registration_claim_frame,
+            else_block: registration_wait,
         },
         unwind: None,
     });
-    body.blocks[register_call].terminator = mir::Terminator::Branch {
-        cond: int_eq(
-            frame_field(mir::Expr::Local(adapter_local), 1),
-            ADAPTER_LATCHED_SUCCESS,
-        ),
-        then_block: success,
-        else_block: check_failure,
-    };
+    body.blocks[register_call].terminator = mir::Terminator::Goto(register_return);
     body.blocks[register_call].unwind = Some(registration_failure);
 
-    let mut resume_statements = vec![field_set(
-        mir::Expr::Local(frame_local),
-        0,
-        mir::Expr::IntLiteral(STATE_RUNNING),
-    )];
+    let mut resume_statements = Vec::new();
     for local in &site.live_after {
         if Some(*local) == site.destination {
             continue;
@@ -1819,7 +2130,8 @@ fn statement_use_def(statement: &mir::Statement) -> (HashSet<mir::LocalId>, Hash
             expr_uses(index, &mut uses);
             expr_uses(value, &mut uses);
         }
-        mir::StatementKind::FieldSet { object, value, .. } => {
+        mir::StatementKind::FieldSet { object, value, .. }
+        | mir::StatementKind::AtomicFieldStore { object, value, .. } => {
             expr_uses(object, &mut uses);
             expr_uses(value, &mut uses);
         }
@@ -1906,8 +2218,17 @@ fn expr_uses(expr: &mir::Expr, uses: &mut HashSet<mir::LocalId>) {
         | mir::Expr::ClosureCapture {
             closure: operand, ..
         }
+        | mir::Expr::ForeignCallbackRegister {
+            closure: operand, ..
+        }
+        | mir::Expr::ForeignCallbackOperation {
+            callback: operand, ..
+        }
         | mir::Expr::FieldAccess {
             receiver: operand, ..
+        }
+        | mir::Expr::AtomicFieldLoad {
+            object: operand, ..
         }
         | mir::Expr::Box(operand)
         | mir::Expr::Unbox(operand)
@@ -1924,6 +2245,16 @@ fn expr_uses(expr: &mir::Expr, uses: &mut HashSet<mir::LocalId>) {
         | mir::Expr::Unary { operand, .. }
         | mir::Expr::EnumTag(operand)
         | mir::Expr::EnumField { operand, .. } => expr_uses(operand, uses),
+        mir::Expr::AtomicFieldCompareExchange {
+            object,
+            expected,
+            replacement,
+            ..
+        } => {
+            expr_uses(object, uses);
+            expr_uses(expected, uses);
+            expr_uses(replacement, uses);
+        }
         mir::Expr::ArrayGet { array, index }
         | mir::Expr::Binary {
             lhs: array,

@@ -1,0 +1,927 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== ast ==
+SourceFile
+  interface Continuation<in T>
+    fun resume
+    fun resumeWithException
+  interface SuspendTask<out T>
+    suspend fun run
+  interface SuspendRegistration<out T>
+    fun register
+  struct FunctionSuspendTask<T> : SuspendTask<T>
+    field task: suspend () -> T
+    suspend fun run
+  struct FunctionSuspendRegistration<T> : SuspendRegistration<T>
+    field registration: (Continuation<T>) -> Unit
+    fun register
+    @Intrinsic("coroutine_start")
+  fun startCoroutine<T>(task: SuspendTask<T>, completion: Continuation<T>)
+    @Intrinsic("coroutine_suspend")
+  suspend fun suspendCoroutine<T>(registration: SuspendRegistration<T>): T
+  fun startCoroutine<T>(task: suspend () -> T, completion: Continuation<T>)
+    Call startCoroutine
+      Call FunctionSuspendTask
+        Var task
+      Var completion
+  suspend fun suspendCoroutine<T>(registration: (Continuation<T>) -> Unit): T
+    =
+      Call suspendCoroutine
+        Call FunctionSuspendRegistration
+          Var registration
+SourceFile
+  struct Ptr<T : value>
+    field _rawPointer: UInt
+    fun toUInt
+    fun cast
+    fun load
+    fun load
+    fun store
+    fun store
+    fun plus
+    fun minus
+  struct FunPtr<F>
+    field _rawPointer: UInt
+    @Unsafe
+    @Intrinsic("address_of")
+  fun addressOf<T : value>(value: T): Ptr<T>
+    @NoGC
+    @Intrinsic("size_of")
+  fun sizeOf<T : value>(): UInt
+    @NoGC
+    @Intrinsic("align_of")
+  fun alignOf<T : value>(): UInt
+SourceFile
+  enum ForeignCallbackMode
+    Reusable
+    OneShot
+  enum ForeignCallbackState
+    Registered
+    Active
+    Completed
+    Failed
+  struct ForeignCallback<F>
+    field function: FunPtr<F>
+    field context: Ptr<Unit>
+    @Unsafe
+    @Intrinsic("foreign_callback_register")
+  fun foreignCallback<F>(callback: Any, contextIndex: Int, mode: ForeignCallbackMode): ForeignCallback<F>
+    @Unsafe
+    @Intrinsic("foreign_callback_retain")
+  fun retainForeignCallback<F>(callback: ForeignCallback<F>): ForeignCallback<F>
+    @Unsafe
+    @Intrinsic("foreign_callback_release")
+  fun releaseForeignCallback<F>(callback: ForeignCallback<F>)
+    @Unsafe
+    @Intrinsic("foreign_callback_state")
+  fun foreignCallbackState<F>(callback: ForeignCallback<F>): ForeignCallbackState
+    @Unsafe
+    @Intrinsic("foreign_callback_failure")
+  fun foreignCallbackFailure<F>(callback: ForeignCallback<F>): Throwable?
+SourceFile
+  struct PinnedPtr<T : ref>
+    field raw: UInt
+  struct GcHandle<T : ref>
+    field raw: UInt
+    @Unsafe
+    @Intrinsic("gc_pin_raw")
+  fun _pin<T : ref>(v: T): UInt
+    @Unsafe
+    @Intrinsic("gc_unpin_raw")
+  fun _unpin<T : ref>(raw: UInt): T
+    @Unsafe
+    @Intrinsic("gc_get_handle_raw")
+  fun _getGcHandle<T : ref>(v: T): UInt
+    @Unsafe
+    @Intrinsic("gc_release_handle_raw")
+  fun _releaseGcHandle<T : ref>(raw: UInt): T
+    @Unsafe
+  fun pin<T : ref>(v: T): PinnedPtr<T>
+    =
+      Call PinnedPtr<T>
+        Call _pin
+          Var v
+    @Unsafe
+  fun unpin<T : ref>(p: PinnedPtr<T>): T
+    =
+      Call _unpin<T>
+        FieldAccess raw
+          Var p
+    @Unsafe
+  fun getGcHandle<T : ref>(v: T): GcHandle<T>
+    =
+      Call GcHandle<T>
+        Call _getGcHandle
+          Var v
+    @Unsafe
+  fun releaseGcHandle<T : ref>(h: GcHandle<T>): T
+    =
+      Call _releaseGcHandle<T>
+        FieldAccess raw
+          Var h
+    @Intrinsic("rt_gc_collect")
+  fun gcCollect()
+    @Intrinsic("rt_gc_stats")
+  fun gcStats(): UInt
+SourceFile
+    @Extern(name = "scoop_rt_write", abi = "scoop")
+  fun write(message: String)
+  fun print(message: Any)
+    =
+      Call write
+        MethodCall toString
+          Var message
+  fun println(message: Any)
+    Call write
+      MethodCall toString
+        Var message
+    Call write
+      StringLiteral "\n"
+SourceFile
+  enum Option<T>
+    Some(T)
+    None
+SourceFile
+  open class Throwable()
+  open class Exception(val message: String?) : Throwable(<0 args>)
+  class UnwrapException() : Exception(<1 args>)
+  class ClassCastException() : Exception(<1 args>)
+  class ArithmeticException() : Exception(<1 args>)
+  class IndexOutOfBoundsException() : Exception(<1 args>)
+  class IllegalStateException() : Exception(<1 args>)
+SourceFile
+    @Extern(lib = "fixture_native", name = "m13_start_one")
+  fun startOne(callback: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>, value: Int): Ptr<Unit>
+    @Extern(lib = "fixture_native", name = "m13_join_one")
+  fun joinOne(job: Ptr<Unit>): Int
+  class CallbackError(val payload: String) : Exception(<1 args>)
+  fun main()
+    @Unsafe block
+      val worker
+        Call foreignCallback<(Int, Ptr<Unit>) -> Int>
+          Lambda 0 suspend=false
+            param value: Int
+            throw
+              Call CallbackError
+                StringLiteral "managed payload"
+          IntLiteral 1
+          FieldAccess OneShot
+            Var ForeignCallbackMode
+      val observer
+        Call retainForeignCallback
+          Var worker
+      val job
+        Call startOne
+          FieldAccess function
+            Var worker
+          FieldAccess context
+            Var worker
+          IntLiteral 7
+      Call println
+        Call joinOne
+          Var job
+      Call println
+        Binary Eq
+          Call foreignCallbackState
+            Var observer
+          FieldAccess Failed
+            Var ForeignCallbackState
+      val failure
+        NullAssert
+          Call foreignCallbackFailure
+            Var observer
+      Call println
+        Is CallbackError false
+          Var failure
+      try
+        throw
+          Var failure
+      catch exception: CallbackError
+        Call println
+          FieldAccess payload
+            Var exception
+      finally
+        Call releaseForeignCallback
+          Var observer
+
+== hir ==
+Module
+  struct FunctionSuspendTask<T> : SuspendTask<T0>
+    field task: suspend () -> T0
+  struct FunctionSuspendRegistration<T> : SuspendRegistration<T0>
+    field registration: (Continuation<T0>) -> Unit
+  enum Option<T>
+    Some(_1: T0)
+    None()
+  open class Throwable()
+  open class Exception(message: Option<String>)
+  class UnwrapException()
+  class ClassCastException()
+  class ArithmeticException()
+  class IndexOutOfBoundsException()
+  class IllegalStateException()
+  class CallbackError(payload: String)
+  interface Continuation<in T>
+    fun resume(value: T0): Unit
+    fun resumeWithException(exception: Throwable): Unit
+  interface SuspendTask<out T>
+    suspend fun run(): T0
+  interface SuspendRegistration<out T>
+    fun register(continuation: Continuation<T0>): Unit
+  fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
+  suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
+  fun startCoroutine<T>(task: suspend () -> T0, completion: Continuation<T0>): Unit
+    Call startCoroutine<T0> : Unit
+      Box : SuspendTask<T0>
+        StructInit FunctionSuspendTask : FunctionSuspendTask<T0>
+          Local task : suspend () -> T0
+      Local completion : Continuation<T0>
+  suspend fun suspendCoroutine<T>(registration: (Continuation<T0>) -> Unit): T0
+    return
+      Call suspendCoroutine<T0> : T0
+        Box : SuspendRegistration<T0>
+          StructInit FunctionSuspendRegistration : FunctionSuspendRegistration<T0>
+            Local registration : (Continuation<T0>) -> Unit
+  fun pin<T : ref>(v: T0): PinnedPtr<T0> <unsafe>
+    return
+      StructInit PinnedPtr : PinnedPtr<T0>
+        Call _pin<T0> : UInt
+          Local v : T0
+  fun unpin<T : ref>(p: PinnedPtr<T0>): T0 <unsafe>
+    return
+      Call _unpin<T0> : T0
+        FieldAccess field 0 : UInt
+          Local p : PinnedPtr<T0>
+  fun getGcHandle<T : ref>(v: T0): GcHandle<T0> <unsafe>
+    return
+      StructInit GcHandle : GcHandle<T0>
+        Call _getGcHandle<T0> : UInt
+          Local v : T0
+  fun releaseGcHandle<T : ref>(h: GcHandle<T0>): T0 <unsafe>
+    return
+      Call _releaseGcHandle<T0> : T0
+        FieldAccess field 0 : UInt
+          Local h : GcHandle<T0>
+  fun gcCollect(): Unit <intrinsic rt_gc_collect>
+  fun gcStats(): UInt <intrinsic rt_gc_stats>
+  fun write(arg1: String): Unit <extern0 abi=scoop symbol=scoop_rt_write>
+  fun print(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    return
+  fun println(message: Any): Unit
+    Call write : Unit
+      MethodCall Any.toString : String
+        Local message : Any
+    Call write : Unit
+      StringLiteral "\n" : String
+  fun startOne(arg1: FunPtr<(Int, Ptr<Unit>) -> Int>, arg2: Ptr<Unit>, arg3: Int): Ptr<Unit> <unsafe no-gc cdecl> <extern1 abi=c symbol=m13_start_one lib=fixture_native>
+  fun joinOne(arg1: Ptr<Unit>): Int <unsafe no-gc cdecl> <extern2 abi=c symbol=m13_join_one lib=fixture_native>
+  fun main(): Unit
+    val local0
+      ForeignCallbackRegister registration0 native=function_type2 managed=function_type3 context=1 mode=OneShot : ForeignCallback<(Int, Ptr<Unit>) -> Int>
+        Lambda lambda0 invoke=$lambda.0 captures=0 : (Int) -> Int
+    val local1
+      ForeignCallbackRetain : ForeignCallback<(Int, Ptr<Unit>) -> Int>
+        Local worker : ForeignCallback<(Int, Ptr<Unit>) -> Int>
+    val local2
+      Call startOne : Ptr<Unit>
+        FieldAccess field 0 : FunPtr<(Int, Ptr<Unit>) -> Int>
+          Local worker : ForeignCallback<(Int, Ptr<Unit>) -> Int>
+        FieldAccess field 1 : Ptr<Unit>
+          Local worker : ForeignCallback<(Int, Ptr<Unit>) -> Int>
+        IntLiteral 7 : Int
+    Call println : Unit
+      Box : Any
+        Call joinOne : Int
+          Local job : Ptr<Unit>
+    Call println : Unit
+      Box : Any
+        Binary Eq : Boolean
+          ForeignCallbackState : ForeignCallbackState
+            Local observer : ForeignCallback<(Int, Ptr<Unit>) -> Int>
+          VariantConstruct ForeignCallbackState.Failed : ForeignCallbackState
+    val local3
+      Unwrap trap=true : Throwable
+        ForeignCallbackFailure : Option<Throwable>
+          Local observer : ForeignCallback<(Int, Ptr<Unit>) -> Int>
+    Call println : Unit
+      Box : Any
+        IsInstance CallbackError : Boolean
+          Local failure : Throwable
+    try
+      throw
+        Local failure : Throwable
+    catch exception: CallbackError
+      Call println : Unit
+        FieldAccess class field 1 : Any
+          Local exception : CallbackError
+    finally
+      ForeignCallbackRelease : Unit
+        Local observer : ForeignCallback<(Int, Ptr<Unit>) -> Int>
+  entry main
+  instance startCoroutine<T0>
+  instance suspendCoroutine<T0>
+
+== mir ==
+Module
+  extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
+  extern ef1 startOne @m13_start_one(FunPtr<(Int, Ptr<Unit>) -> Int>, Ptr<Unit>, Int) -> Ptr<Unit> <abi=c no-gc lib=fixture_native>
+  extern ef2 joinOne @m13_join_one(Ptr<Unit>) -> Int <abi=c no-gc lib=fixture_native>
+  struct ForeignCallback$FI_PUXRIX (function: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>)
+  enum Option$S
+    Some(_1: String)
+    None()
+  enum ForeignCallbackState
+    Registered()
+    Active()
+    Completed()
+    Failed()
+  enum Option$Throwable
+    Some(_1: Throwable)
+    None()
+  class Throwable vtable=3 itables=0
+  class Exception vtable=3 itables=0
+  class UnwrapException vtable=3 itables=0
+  class ClassCastException vtable=3 itables=0
+  class ArithmeticException vtable=3 itables=0
+  class IndexOutOfBoundsException vtable=3 itables=0
+  class IllegalStateException vtable=3 itables=0
+  class CallbackError vtable=3 itables=0
+  class box$I vtable=3 itables=0
+  class box$B vtable=3 itables=0
+  closure cc0 $Closure$lambda0 type=function_type1 invoke=@scoop.$lambda.0 captures=0
+  fun print @scoop.print(message: Any) -> Unit
+    bb0 entry
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call extern0 @scoop_rt_write direct
+        Local $call.1
+      return
+  fun println @scoop.println(message: Any) -> Unit
+    bb0 entry
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call extern0 @scoop_rt_write direct
+        Local $call.1
+      call extern0 @scoop_rt_write direct
+        StringConst @scoop.str.0
+      return
+  fun main @scoop_main() -> Unit
+    bb0 entry
+      val worker: ForeignCallback$FI_PUXRIX
+        ForeignCallbackRegister fcb0 native=function_type0 managed=function_type1 context=1 mode=OneShot adapter=@scoop_foreign_callback_adapter_0
+          ClosureAlloc cc0 $Closure$lambda0
+      val observer: ForeignCallback$FI_PUXRIX
+        ForeignCallbackRetain
+          Local worker
+      call job: Ptr<Unit> = extern1 @m13_start_one direct
+        FieldAccess 0
+          Local worker
+        FieldAccess 1
+          Local worker
+        IntLiteral 7
+      call $call.1: Int = extern2 @m13_join_one direct
+        Local job
+      call @scoop.println direct
+        Box
+          Local $call.1
+      call @scoop.println direct
+        Box
+          Binary IntEq
+            EnumTag
+              ForeignCallbackState
+                Local observer
+            EnumTag
+              VariantConstruct ForeignCallbackState v3
+      val $opt.1: Option$Throwable<Throwable>
+        ForeignCallbackFailure
+          Local observer
+      branch bb1 bb2
+        Binary IntEq
+          EnumTag
+            Local $opt.1
+          IntLiteral 0
+    bb1 if.then.1
+      val $uw.2: Throwable
+        EnumField v0 f0
+          Local $opt.1
+      goto bb3
+    bb2 if.else.2
+      call $call.2: UnwrapException = @scoop.ctor.UnwrapException direct
+      throw
+        Local $call.2
+    bb3 if.merge.3
+      val failure: Throwable
+        Local $uw.2
+      call @scoop.println direct
+        Box
+          IsInstance CallbackError
+            Local failure
+      goto bb11
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      branch bb12 bb13
+        IsInstance CallbackError
+          CaughtException
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      ForeignCallbackRelease
+        Local observer
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      return
+    bb11 try.body.11 unwind bb4
+      throw unwind bb4
+        Local failure
+    bb12 try.catch.12
+      val exception: CallbackError
+        Retype CallbackError
+          CaughtException
+      goto bb14
+    bb13 try.next.13 unwind bb8
+      ForeignCallbackRelease
+        Local observer
+      rethrow unwind bb8
+    bb14 scope.14 unwind bb6
+      call @scoop.println direct
+        FieldAccess 1
+          Local exception
+      goto bb15
+    bb15 scope.15
+      end_catch
+      ForeignCallbackRelease
+        Local observer
+      goto bb10
+  fun $lambda.0 @scoop.$lambda.0($closure: (Int) -> Int, value: Int) -> Int
+    bb0 entry
+      call $call.1: CallbackError = @scoop.ctor.CallbackError direct
+        StringConst @scoop.str.1
+      throw
+        Local $call.1
+  fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
+    bb0 entry
+      return
+        ClassInit Throwable
+  fun ctor.Exception @scoop.ctor.Exception(message: Option$S<String>) -> Exception
+    bb0 entry
+      return
+        ClassInit Exception
+          Local message
+  fun ctor.UnwrapException @scoop.ctor.UnwrapException() -> UnwrapException
+    bb0 entry
+      return
+        ClassInit UnwrapException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.2
+  fun ctor.ClassCastException @scoop.ctor.ClassCastException() -> ClassCastException
+    bb0 entry
+      return
+        ClassInit ClassCastException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.3
+  fun ctor.ArithmeticException @scoop.ctor.ArithmeticException() -> ArithmeticException
+    bb0 entry
+      return
+        ClassInit ArithmeticException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.4
+  fun ctor.IndexOutOfBoundsException @scoop.ctor.IndexOutOfBoundsException() -> IndexOutOfBoundsException
+    bb0 entry
+      return
+        ClassInit IndexOutOfBoundsException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.5
+  fun ctor.IllegalStateException @scoop.ctor.IllegalStateException() -> IllegalStateException
+    bb0 entry
+      return
+        ClassInit IllegalStateException
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.6
+  fun ctor.CallbackError @scoop.ctor.CallbackError(payload: String) -> CallbackError
+    bb0 entry
+      return
+        ClassInit CallbackError
+          VariantConstruct Option$S<String> v0
+            StringConst @scoop.str.7
+          Local payload
+  fun foreign callback adapter 0 @scoop_foreign_callback_adapter_0($closure: (Int) -> Int, $result: Ptr<Int>, $arguments: Ptr<Ptr<Unit>>, $exception: Ptr<Throwable>) -> UInt
+    bb0 callback.failure
+      landing_pad cleanup=false
+      begin_catch
+      call $caught: Throwable = @scoop_rt_materialize_exception direct
+        CaughtException
+      end_catch
+      PtrStore Throwable
+        Local $exception
+        Local $caught
+      return
+        IntLiteral 1
+    bb1 entry unwind bb0
+      call $value: Int = <closure:function_type1> closure[function_type1]
+        Local $closure
+        PtrLoad Int
+          PtrCast Int
+            PtrLoad Ptr<Unit>
+              Local $arguments
+              IntLiteral 0
+      PtrStore Int
+        Local $result
+        Local $value
+      return
+        IntLiteral 0
+  fun eq.I @scoop.eq.I(this: Any, other: Any) -> Boolean
+    bb0 entry
+      val $a: Int
+        Unbox
+          Local this
+      val $b: Int
+        Unbox
+          Local other
+      return
+        Binary IntEq
+          Local $a
+          Local $b
+  fun tostring.I @scoop.tostring.I(this: Any) -> String
+    bb0 entry
+      call $call.1: String = @scoop_rt_int_to_string direct
+        Unbox
+          Local this
+      return
+        Local $call.1
+  fun eq.B @scoop.eq.B(this: Any, other: Any) -> Boolean
+    bb0 entry
+      val $a: Boolean
+        Unbox
+          Local this
+      val $b: Boolean
+        Unbox
+          Local other
+      return
+        Binary BoolEq
+          Local $a
+          Local $b
+  fun tostring.B @scoop.tostring.B(this: Any) -> String
+    bb0 entry
+      call $call.1: String = @scoop_rt_bool_to_string direct
+        Unbox
+          Local this
+      return
+        Local $call.1
+  str @scoop.str.0 "\n"
+  str @scoop.str.1 "managed payload"
+  str @scoop.str.2 "unwrap on None"
+  str @scoop.str.3 "invalid cast"
+  str @scoop.str.4 "arithmetic error"
+  str @scoop.str.5 "array index out of bounds"
+  str @scoop.str.6 "illegal state"
+  str @scoop.str.7 "callback failed"
+  entry @scoop_main
+
+== lir ==
+Module
+  global @scoop.str.0 = "\n"
+  global @scoop.str.1 = "managed payload"
+  global @scoop.str.2 = "unwrap on None"
+  global @scoop.str.3 = "invalid cast"
+  global @scoop.str.4 = "arithmetic error"
+  global @scoop.str.5 = "array index out of bounds"
+  global @scoop.str.6 = "illegal state"
+  global @scoop.str.7 = "callback failed"
+  global @scoop_td_$Closure$lambda0 = c""
+  global @scoop_td_box$I = c""
+  global @scoop_td_box$B = c""
+  global @scoop_td_CallbackError = c""
+  global @scoop_td_Throwable = c""
+  global @scoop_td_Exception = c""
+  global @scoop_td_UnwrapException = c""
+  global @scoop_td_ClassCastException = c""
+  global @scoop_td_ArithmeticException = c""
+  global @scoop_td_IndexOutOfBoundsException = c""
+  global @scoop_td_IllegalStateException = c""
+  enum Option$S niche(payload_variant=0)
+  enum ForeignCallbackState tagged size=8 align=8 variants=()@8+0 ()@8+0 ()@8+0 ()@8+0
+  enum Option$Throwable niche(payload_variant=0)
+  extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
+  extern ef1 startOne @m13_start_one(ptr<code>, ptr<raw>, i64) -> ptr<raw> <c bridge=@scoop_c_bridge_1 gc-leaf nounwind lib=fixture_native>
+  extern ef2 joinOne @m13_join_one(ptr<raw>) -> i64 <c bridge=@scoop_c_bridge_2 gc-leaf nounwind lib=fixture_native>
+  fun @scoop.print(ptr<managed>) -> void
+    local %0 $call.1: ptr<managed>
+  block entry
+    t0 = heap_load param0 +0 : ptr<metadata>
+    t1 = heap_load t0 +40 : ptr<metadata>
+    t2 = call_indirect t1[2](param0) : ptr<managed>
+    store t2 -> local0
+    native_call[native-borrowed] extern0(local0)
+    t3 = aggregate () : {}
+    ret
+  fun @scoop.println(ptr<managed>) -> void
+    local %0 $call.1: ptr<managed>
+  block entry
+    t0 = heap_load param0 +0 : ptr<metadata>
+    t1 = heap_load t0 +40 : ptr<metadata>
+    t2 = call_indirect t1[2](param0) : ptr<managed>
+    store t2 -> local0
+    native_call[native-borrowed] extern0(local0)
+    t3 = aggregate () : {}
+    native_call[native-borrowed] extern0(global0)
+    t4 = aggregate () : {}
+    ret
+  fun @scoop_main() -> void
+    local %0 worker: struct0
+    local %1 observer: struct0
+    local %2 job: ptr<raw>
+    local %3 failure: ptr<managed>
+    local %4 exception: ptr<managed>
+    local %5 $opt.1: enum2
+    local %6 $uw.2: ptr<managed>
+    local %7 $call.1: i64
+    local %8 $call.2: ptr<managed>
+    local %9 $sc.1: ptr<code>
+    local %10 $sc.2: ptr<raw>
+    local %11 $sc.3: i64
+    local %12 $sc.4: ptr<raw>
+    local %13 $sc.5: exception_record
+    local %14 $sc.6: ptr<raw>
+    local %15 $sc.7: ptr<managed>
+  block entry
+    t0 = call @scoop_rt_alloc(global8, 24) : ptr<managed>
+    t1 = function_address @scoop.$lambda.0 : ptr
+    heap_store t0 +16 t1
+    t2 = foreign_callback_register fcb0 t0 : struct0
+    store t2 -> local0
+    t3 = foreign_callback_Retain local0 : struct0
+    store t3 -> local1
+    t4 = extract local0, 0 : ptr<code>
+    t5 = extract local0, 1 : ptr<raw>
+    store t4 -> local9
+    t7 = local_address local9 : ptr
+    store t5 -> local10
+    t8 = local_address local10 : ptr
+    store 7 -> local11
+    t9 = local_address local11 : ptr
+    t6 = native_call[native-safe] extern1(t7, t8, t9) : ptr<raw>
+    store t6 -> local2
+    store local2 -> local12
+    t11 = local_address local12 : ptr
+    t10 = native_call[native-safe] extern2(t11) : i64
+    store t10 -> local7
+    t12 = call @scoop_rt_box(global9, local7, 8) : ptr<managed>
+    call @scoop.println(t12)
+    t13 = aggregate () : {}
+    t14 = foreign_callback_State local1 : enum1
+    t15 = enum_tag e1 t14 : i64
+    t16 = enum_wrap e1 v3 () : enum1
+    t17 = enum_tag e1 t16 : i64
+    t18 = Eq t15, t17 : i1
+    t19 = call @scoop_rt_box(global10, t18, 1) : ptr<managed>
+    call @scoop.println(t19)
+    t20 = aggregate () : {}
+    t21 = foreign_callback_Failure local1 : enum2
+    store t21 -> local5
+    t22 = enum_tag e2 local5 : i64
+    t23 = Eq t22, 0 : i1
+    cbr t23 then @if.then.1 else @if.else.2
+  block if.then.1
+    t24 = enum_field e2 v0 f0 local5 : ptr<managed>
+    store t24 -> local6
+    br @if.merge.3
+  block if.else.2
+    t25 = call @scoop.ctor.UnwrapException() : ptr<managed>
+    store t25 -> local8
+    throw local8
+    unreachable
+  block if.merge.3
+    store local6 -> local3
+    t26 = call @scoop_rt_is_instance(local3, global11) : i1
+    t27 = call @scoop_rt_box(global10, t26, 1) : ptr<managed>
+    call @scoop.println(t27)
+    t28 = aggregate () : {}
+    br @try.body.11
+  block try.unwind.4
+    (t29, t30) = landingpad : (exception_record, ptr<raw>)
+    store t29 -> local13
+    store t30 -> local14
+    br @try.dispatch.5
+  block try.dispatch.5
+    t31 = begin_catch local14 : ptr<managed>
+    store t31 -> local15
+    t32 = call @scoop_rt_is_instance(local15, global11) : i1
+    cbr t32 then @try.catch.12 else @try.next.13
+  block try.handler_pad.6
+    (t33, t34) = cleanup_pad : (exception_record, ptr<raw>)
+    store t33 -> local13
+    store t34 -> local14
+    br @try.handler_cleanup.7
+  block try.handler_cleanup.7
+    end_catch
+    foreign_callback_Release local1
+    t35 = aggregate () : {}
+    resume local13
+  block try.exit_pad.8
+    (t36, t37) = cleanup_pad : (exception_record, ptr<raw>)
+    store t36 -> local13
+    store t37 -> local14
+    br @try.exit_cleanup.9
+  block try.exit_cleanup.9
+    end_catch
+    resume local13
+  block try.end.10
+    ret
+  block try.body.11
+    invoke @scoop_rt_throw(local3) normal @throw.normal.1 unwind @try.unwind.4
+    br @throw.normal.1
+  block try.catch.12
+    store local15 -> local4
+    br @scope.14
+  block try.next.13
+    foreign_callback_Release local1
+    t38 = aggregate () : {}
+    invoke @scoop_rt_rethrow() normal @rethrow.normal.2 unwind @try.exit_pad.8
+    br @rethrow.normal.2
+  block scope.14
+    t39 = heap_load local4 +24 : ptr<managed>
+    invoke @scoop.println(t39) normal @invoke.normal.3 unwind @try.handler_pad.6
+    br @invoke.normal.3
+  block scope.15
+    end_catch
+    foreign_callback_Release local1
+    t41 = aggregate () : {}
+    br @try.end.10
+  block throw.normal.1
+    unreachable
+  block rethrow.normal.2
+    unreachable
+  block invoke.normal.3
+    t40 = aggregate () : {}
+    br @scope.15
+  fun @scoop.$lambda.0(ptr<managed>, i64) -> i64
+    local %0 $call.1: ptr<managed>
+  block entry
+    t0 = call @scoop.ctor.CallbackError(global1) : ptr<managed>
+    store t0 -> local0
+    throw local0
+    unreachable
+  fun @scoop.ctor.Throwable() -> ptr<managed>
+  block entry
+    t0 = call @scoop_rt_alloc(global12, 16) : ptr<managed>
+    ret t0
+  fun @scoop.ctor.Exception(enum0) -> ptr<managed>
+  block entry
+    t0 = call @scoop_rt_alloc(global13, 24) : ptr<managed>
+    heap_store t0 +16 param0
+    ret t0
+  fun @scoop.ctor.UnwrapException() -> ptr<managed>
+  block entry
+    t0 = call @scoop_rt_alloc(global14, 24) : ptr<managed>
+    t1 = enum_wrap e0 v0 (global2) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.ClassCastException() -> ptr<managed>
+  block entry
+    t0 = call @scoop_rt_alloc(global15, 24) : ptr<managed>
+    t1 = enum_wrap e0 v0 (global3) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.ArithmeticException() -> ptr<managed>
+  block entry
+    t0 = call @scoop_rt_alloc(global16, 24) : ptr<managed>
+    t1 = enum_wrap e0 v0 (global4) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.IndexOutOfBoundsException() -> ptr<managed>
+  block entry
+    t0 = call @scoop_rt_alloc(global17, 24) : ptr<managed>
+    t1 = enum_wrap e0 v0 (global5) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.IllegalStateException() -> ptr<managed>
+  block entry
+    t0 = call @scoop_rt_alloc(global18, 24) : ptr<managed>
+    t1 = enum_wrap e0 v0 (global6) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.CallbackError(ptr<managed>) -> ptr<managed>
+  block entry
+    t0 = call @scoop_rt_alloc(global11, 32) : ptr<managed>
+    t1 = enum_wrap e0 v0 (global7) : enum0
+    heap_store t0 +16 t1
+    heap_store t0 +24 param0
+    ret t0
+  fun @scoop_foreign_callback_adapter_0(ptr<managed>, ptr<raw>, ptr<raw>, ptr<raw>) -> i64
+    local %0 $caught: ptr<managed>
+    local %1 $value: i64
+    local %2 $sc.1: exception_record
+    local %3 $sc.2: ptr<raw>
+    local %4 $sc.3: ptr<managed>
+  block callback.failure
+    (t0, t1) = landingpad : (exception_record, ptr<raw>)
+    store t0 -> local2
+    store t1 -> local3
+    t2 = begin_catch local3 : ptr<managed>
+    store t2 -> local4
+    t3 = call @scoop_rt_materialize_exception(local4) : ptr<managed>
+    store t3 -> local0
+    end_catch
+    raw_store param3 local0 align 8
+    t4 = aggregate () : {}
+    ret 1
+  block entry
+    t5 = Mul 0, 8 : i64
+    t6 = ptr_offset param2 t5 : ptr
+    t7 = raw_load t6 align 8 : ptr<raw>
+    t8 = raw_load t7 align 8 : i64
+    invoke_indirect param0[2](param0, t8) normal @invoke.normal.1 unwind @callback.failure
+    br @invoke.normal.1
+  block invoke.normal.1
+    store t9 -> local1
+    raw_store param1 local1 align 8
+    t10 = aggregate () : {}
+    ret 0
+  fun @scoop.eq.I(ptr<managed>, ptr<managed>) -> i1
+    local %0 $a: i64
+    local %1 $b: i64
+  block entry
+    t0 = heap_load param0 +16 : i64
+    store t0 -> local0
+    t1 = heap_load param1 +16 : i64
+    store t1 -> local1
+    t2 = Eq local0, local1 : i1
+    ret t2
+  fun @scoop.tostring.I(ptr<managed>) -> ptr<managed>
+    local %0 $call.1: ptr<managed>
+  block entry
+    t0 = heap_load param0 +16 : i64
+    t1 = call @scoop_rt_int_to_string(t0) : ptr<managed>
+    store t1 -> local0
+    ret local0
+  fun @scoop.eq.B(ptr<managed>, ptr<managed>) -> i1
+    local %0 $a: i1
+    local %1 $b: i1
+  block entry
+    t0 = heap_load param0 +16 : i1
+    store t0 -> local0
+    t1 = heap_load param1 +16 : i1
+    store t1 -> local1
+    t2 = Eq local0, local1 : i1
+    ret t2
+  fun @scoop.tostring.B(ptr<managed>) -> ptr<managed>
+    local %0 $call.1: ptr<managed>
+  block entry
+    t0 = heap_load param0 +16 : i1
+    t1 = call @scoop_rt_bool_to_string(t0) : ptr<managed>
+    store t1 -> local0
+    ret local0
+  td function$FI_PUXRIX @scoop_td_function$FI_PUXRIX size=0 vtable=0 itables=0
+  td function$FIRIX @scoop_td_function$FIRIX size=0 vtable=0 itables=0
+  td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
+  td box$I @scoop_td_box$I size=24 vtable=3 itables=0
+  td box$B @scoop_td_box$B size=24 vtable=3 itables=0
+  td Exception @scoop_td_Exception size=24 vtable=3 itables=0
+  td UnwrapException @scoop_td_UnwrapException size=24 vtable=3 itables=0
+  td ClassCastException @scoop_td_ClassCastException size=24 vtable=3 itables=0
+  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=3 itables=0
+  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=3 itables=0
+  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=3 itables=0
+  td CallbackError @scoop_td_CallbackError size=32 vtable=3 itables=0
+  td $Closure$lambda0 @scoop_td_$Closure$lambda0 size=24 vtable=3 itables=0
+  layout String size=24 align=8 refs=[]
+  layout Int size=8 align=8 refs=[]
+  layout Boolean size=1 align=1 refs=[]
+  layout ForeignCallback$FI_PUXRIX size=16 align=8 refs=[]
+  layout Option$S size=8 align=8 enum-scan=refs[0]
+  layout ForeignCallbackState size=8 align=8 enum-scan=none
+  layout Option$Throwable size=8 align=8 enum-scan=refs[0]
+  layout Throwable size=16 align=8 refs=[]
+  layout Exception size=24 align=8 refs=[16]
+  layout UnwrapException size=24 align=8 refs=[16]
+  layout ClassCastException size=24 align=8 refs=[16]
+  layout ArithmeticException size=24 align=8 refs=[16]
+  layout IndexOutOfBoundsException size=24 align=8 refs=[16]
+  layout IllegalStateException size=24 align=8 refs=[16]
+  layout CallbackError size=32 align=8 refs=[16, 24]
+  layout box$I size=24 align=8 refs=[]
+  layout box$B size=24 align=8 refs=[]
+  layout $Closure$lambda0 size=24 align=8 refs=[]
+  entry @scoop_main
+
+== run ==
+0
+true
+true
+managed payload

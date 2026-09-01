@@ -402,6 +402,12 @@ impl Lowerer {
                     self.collect_generic_calls_in_expr(caller, arg, out);
                 }
             }
+            ExprKind::ForeignCallbackRegister { closure, .. } => {
+                self.collect_generic_calls_in_expr(caller, closure, out);
+            }
+            ExprKind::ForeignCallbackOperation { callback, .. } => {
+                self.collect_generic_calls_in_expr(caller, callback, out);
+            }
         }
     }
 }

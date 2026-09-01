@@ -16,6 +16,8 @@ pub type FunctionId = Idx<Function>;
 pub type ExternFunctionId = Idx<ExternFunction>;
 pub type GlobalId = Idx<Global>;
 pub type CallbackBridgeId = Idx<CallbackBridge>;
+pub type ForeignCallbackAdapterId = Idx<ForeignCallbackAdapter>;
+pub type ForeignCallbackBridgeId = Idx<ForeignCallbackBridge>;
 pub type FunctionTypeId = Idx<FunctionType>;
 pub type ClosureClassId = Idx<ClosureClass>;
 pub type ClosureInvokeFunctionId = Idx<ClosureInvokeFunction>;
@@ -337,6 +339,8 @@ pub struct Module {
     pub extern_functions: Arena<ExternFunction>,
     pub globals: Arena<Global>,
     pub callback_bridges: Arena<CallbackBridge>,
+    pub foreign_callback_adapters: Arena<ForeignCallbackAdapter>,
+    pub foreign_callback_bridges: Arena<ForeignCallbackBridge>,
     pub function_types: Arena<FunctionType>,
     pub closure_classes: Arena<ClosureClass>,
     pub closure_invoke_functions: Arena<ClosureInvokeFunction>,
@@ -357,6 +361,41 @@ pub struct CallbackBridge {
     pub signature: FunctionTypeId,
     /// NoGC storage-ABI entry called by the generated C trampoline.
     pub bridge_function: FunctionId,
+}
+
+/// Managed storage adapter for one foreign callback registration. Its
+/// function is a GC-aware, nounwind boundary: it catches the closure's
+/// exception and returns a runtime status instead of unwinding into C.
+#[derive(Debug)]
+pub struct ForeignCallbackAdapter {
+    pub function: FunctionId,
+    pub managed_signature: FunctionTypeId,
+}
+
+/// Native-signature side of one typed managed callback registration.
+/// Adapter and bridge ids are intentionally distinct from M12's static
+/// `CallbackBridgeId` so a closure can never enter the NoGC callback path.
+#[derive(Debug)]
+pub struct ForeignCallbackBridge {
+    pub adapter: ForeignCallbackAdapterId,
+    pub callback: StructId,
+    pub native_signature: FunctionTypeId,
+    pub context_index: u32,
+    pub mode: ForeignCallbackMode,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ForeignCallbackMode {
+    Reusable,
+    OneShot,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ForeignCallbackOperation {
+    Retain,
+    Release,
+    State,
+    Failure,
 }
 
 #[derive(Debug, Clone)]
@@ -604,6 +643,14 @@ pub enum StatementKind {
         index: u32,
         value: Expr,
     },
+    /// Release-store an aligned 64-bit synthetic state field. This is a
+    /// distinct MIR operation so coroutine synchronization cannot be lost by
+    /// reconstructing atomic intent from field names downstream.
+    AtomicFieldStore {
+        object: Expr,
+        index: u32,
+        value: Expr,
+    },
     Eh(EhStatement),
 }
 
@@ -727,6 +774,15 @@ pub enum Expr {
     FunctionAddress {
         callback: CallbackBridgeId,
     },
+    ForeignCallbackRegister {
+        bridge: ForeignCallbackBridgeId,
+        closure: Box<Expr>,
+    },
+    ForeignCallbackOperation {
+        operation: ForeignCallbackOperation,
+        callback: Box<Expr>,
+        result_ty: Box<Type>,
+    },
     /// The managed exception pointer produced by the active `BeginCatch`.
     /// It is only valid in blocks dominated by that statement.
     CaughtException,
@@ -742,6 +798,19 @@ pub enum Expr {
     FieldAccess {
         receiver: Box<Expr>,
         index: u32,
+    },
+    /// Acquire-load an aligned 64-bit synthetic state field.
+    AtomicFieldLoad {
+        object: Box<Expr>,
+        index: u32,
+    },
+    /// Compare-exchange an aligned 64-bit synthetic state field. The returned
+    /// value is the observed old word; success is acq_rel and failure acquire.
+    AtomicFieldCompareExchange {
+        object: Box<Expr>,
+        index: u32,
+        expected: Box<Expr>,
+        replacement: Box<Expr>,
     },
     /// Box a value type into `Any` / an interface (spec 4.4.4).
     Box(Box<Expr>),
@@ -1312,6 +1381,15 @@ fn dump_statements(
                 dump_expr(module, locals, object, indent + 1, out);
                 dump_expr(module, locals, value, indent + 1, out);
             }
+            StatementKind::AtomicFieldStore {
+                object,
+                index,
+                value,
+            } => {
+                out.push_str(&format!("{pad}atomic_store_release field={index}\n"));
+                dump_expr(module, locals, object, indent + 1, out);
+                dump_expr(module, locals, value, indent + 1, out);
+            }
             StatementKind::ArraySet {
                 array,
                 index,
@@ -1537,6 +1615,29 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
             "{pad}FunctionAddress cb{}\n",
             callback.into_raw().into_u32()
         )),
+        Expr::ForeignCallbackRegister { bridge, closure } => {
+            let bridge_id = *bridge;
+            let bridge = &module.foreign_callback_bridges[bridge_id];
+            let adapter = &module.foreign_callback_adapters[bridge.adapter];
+            out.push_str(&format!(
+                "{pad}ForeignCallbackRegister fcb{} native=function_type{} managed=function_type{} context={} mode={:?} adapter=@{}\n",
+                bridge_id.into_raw().into_u32(),
+                bridge.native_signature.into_raw().into_u32(),
+                adapter.managed_signature.into_raw().into_u32(),
+                bridge.context_index,
+                bridge.mode,
+                module.functions[adapter.function].symbol,
+            ));
+            dump_expr(module, locals, closure, indent + 1, out);
+        }
+        Expr::ForeignCallbackOperation {
+            operation,
+            callback,
+            ..
+        } => {
+            out.push_str(&format!("{pad}ForeignCallback{operation:?}\n"));
+            dump_expr(module, locals, callback, indent + 1, out);
+        }
         Expr::CaughtException => out.push_str(&format!("{pad}CaughtException\n")),
         Expr::Retype { operand, ty } => {
             out.push_str(&format!("{pad}Retype {}\n", type_name(module, ty)));
@@ -1545,6 +1646,23 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
         Expr::FieldAccess { receiver, index } => {
             out.push_str(&format!("{pad}FieldAccess {index}\n"));
             dump_expr(module, locals, receiver, indent + 1, out);
+        }
+        Expr::AtomicFieldLoad { object, index } => {
+            out.push_str(&format!("{pad}AtomicLoadAcquire field={index}\n"));
+            dump_expr(module, locals, object, indent + 1, out);
+        }
+        Expr::AtomicFieldCompareExchange {
+            object,
+            index,
+            expected,
+            replacement,
+        } => {
+            out.push_str(&format!(
+                "{pad}AtomicCompareExchange field={index} success=acq_rel failure=acquire\n"
+            ));
+            dump_expr(module, locals, object, indent + 1, out);
+            dump_expr(module, locals, expected, indent + 1, out);
+            dump_expr(module, locals, replacement, indent + 1, out);
         }
         Expr::Box(operand) => {
             out.push_str(&format!("{pad}Box\n"));

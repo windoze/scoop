@@ -14,8 +14,9 @@
 //! carries the 16-byte header `{ td, gc_word }`: class fields start at
 //! their natural byte offsets from 16, the boxed payload and array size
 //! live at offset 16, array elements at `align_up(24, element_align)`, and string constants get a zeroed GC word
-//! between the TD and the length. `scoop_rt_alloc` writes both header
-//! words, so no allocation site stores the header. Every managed function is
+//! between the TD and the length. M13 allocation sites inline the per-thread
+//! TLAB bump and use a GC-leaf finish helper to initialize both header words;
+//! a failed bump calls the collecting slow path. Every managed function is
 //! declared with the `statepoint-example` GC strategy and the whole
 //! module runs through `rewrite-statepoints-for-gc` before object
 //! emission, so the `.o` carries the `__llvm_stackmaps` section the
@@ -27,7 +28,7 @@
 //! are emitted at every managed function entry and at
 //! the loop-header blocks `loop_headers` finds. Every `HeapStore` /
 //! `ArraySet` is followed by the write-barrier card mark
-//! (`scoop_gc_card_table[addr >> 9] = 1`, runtime spec 3.6).
+//! (`atomicrmw or scoop_gc_card_table[addr >> 9], 1 monotonic`, runtime spec 3.6).
 
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
@@ -41,7 +42,7 @@ use inkwell::targets::{
 };
 use inkwell::types::{BasicMetadataTypeEnum, BasicType, BasicTypeEnum, StructType};
 use inkwell::values::{BasicValue, BasicValueEnum, GlobalValue, IntValue, PointerValue, ValueKind};
-use inkwell::{AddressSpace, IntPredicate, OptimizationLevel};
+use inkwell::{AddressSpace, AtomicOrdering, AtomicRMWBinOp, IntPredicate, OptimizationLevel};
 use la_arena::{Arena, Idx};
 use scoop_lir::{
     BinOp, ConstantValue, EnumDef, EnumRepr, ExternFunction, ExternFunctionKind, Function,
@@ -50,8 +51,7 @@ use scoop_lir::{
 };
 
 const SCAN_ARRAY: u64 = u64::MAX;
-const SCAN_ENUM: u64 = u64::MAX - 1;
-const SCAN_SEQUENCE: u64 = u64::MAX - 2;
+const SCAN_SEQUENCE: u64 = u64::MAX - 1;
 
 #[derive(Clone, PartialEq, Eq)]
 struct ArrayDescriptor {
@@ -211,6 +211,7 @@ pub fn c_bridge_source(module: &Module) -> Result<Option<String>, CodegenError> 
     if c_externs.is_empty()
         && module.native_globals.is_empty()
         && module.callback_bridges.is_empty()
+        && module.foreign_callback_bridges.is_empty()
     {
         return Ok(None);
     }
@@ -270,6 +271,12 @@ pub fn c_bridge_source(module: &Module) -> Result<Option<String>, CodegenError> 
         collect_function_pointers(&global.c_type, &mut function_pointers);
     }
     for (_, callback) in module.callback_bridges.iter() {
+        for parameter in &callback.params {
+            collect_function_pointers(parameter, &mut function_pointers);
+        }
+        collect_function_pointers(&callback.return_type, &mut function_pointers);
+    }
+    for (_, callback) in module.foreign_callback_bridges.iter() {
         for parameter in &callback.params {
             collect_function_pointers(parameter, &mut function_pointers);
         }
@@ -456,6 +463,76 @@ pub fn c_bridge_source(module: &Module) -> Result<Option<String>, CodegenError> 
             "  {}({});\n",
             callback.bridge_symbol,
             storage_args.join(", ")
+        ));
+        if has_result {
+            out.push_str("  return result;\n");
+        }
+        out.push_str("}\n\n");
+    }
+    if !module.foreign_callback_bridges.is_empty() {
+        out.push_str(
+            "extern uint32_t scoop_runtime_callback_invoke(void *context, const void *signature, void *result, const void *const *arguments);\n\n",
+        );
+    }
+    let mut emitted_foreign_trampolines = HashSet::new();
+    for (_, callback) in module.foreign_callback_bridges.iter() {
+        if !emitted_foreign_trampolines.insert(callback.trampoline_symbol.as_str()) {
+            continue;
+        }
+        out.push_str(&format!(
+            "const unsigned char {} = 0;\n",
+            callback.signature_symbol
+        ));
+        let callback_params = callback
+            .params
+            .iter()
+            .enumerate()
+            .map(|(index, parameter)| {
+                format!("{} arg{index}", type_name(parameter, &function_pointers))
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+        out.push_str(&format!(
+            "{} {}({}) {{\n",
+            type_name(&callback.return_type, &function_pointers),
+            callback.trampoline_symbol,
+            if callback_params.is_empty() {
+                "void"
+            } else {
+                &callback_params
+            }
+        ));
+        let has_result = callback.return_type != scoop_lir::CType::Unit;
+        if has_result {
+            out.push_str(&format!(
+                "  {} result = {{0}};\n",
+                type_name(&callback.return_type, &function_pointers)
+            ));
+        }
+        let argument_indices = (0..callback.params.len())
+            .filter(|index| *index != callback.context_index as usize)
+            .collect::<Vec<_>>();
+        if !argument_indices.is_empty() {
+            out.push_str(&format!(
+                "  const void *arguments[{}] = {{{}}};\n",
+                argument_indices.len(),
+                argument_indices
+                    .iter()
+                    .map(|index| format!("&arg{index}"))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ));
+        }
+        out.push_str(&format!(
+            "  (void)scoop_runtime_callback_invoke(arg{}, &{}, {}, {});\n",
+            callback.context_index,
+            callback.signature_symbol,
+            if has_result { "&result" } else { "NULL" },
+            if argument_indices.is_empty() {
+                "NULL"
+            } else {
+                "arguments"
+            }
         ));
         if has_result {
             out.push_str("  return result;\n");
@@ -770,6 +847,7 @@ fn emit_llvm_module<'ctx>(
         enums: &module.enums,
         extern_functions: &module.extern_functions,
         native_globals: &module.native_globals,
+        foreign_callback_bridges: &module.foreign_callback_bridges,
         globals_arena: &module.globals,
         globals: &globals,
         array_descriptors: &array_descriptors,
@@ -782,6 +860,21 @@ fn emit_llvm_module<'ctx>(
     }
     for (_, callback) in module.callback_bridges.iter() {
         declare_callback_trampoline(context, &llvm, &module.structs, &module.enums, callback)?;
+    }
+    let mut declared_foreign_trampolines = HashSet::new();
+    for (_, callback) in module.foreign_callback_bridges.iter() {
+        if !declared_foreign_trampolines.insert(callback.trampoline_symbol.as_str()) {
+            continue;
+        }
+        declare_foreign_callback_trampoline(
+            context,
+            &llvm,
+            &module.structs,
+            &module.enums,
+            callback,
+        )?;
+        let descriptor = llvm.add_global(context.i8_type(), None, &callback.signature_symbol);
+        descriptor.set_linkage(inkwell::module::Linkage::External);
     }
     // Meta TypeDescriptors reference module functions (vtable / itable
     // slots), so they are emitted after the declare pass.
@@ -832,11 +925,7 @@ fn basic_ty<'ctx>(
         LirType::Enum(id) => match &enums[*id].repr {
             // Niche optimization: the value is a bare pointer.
             EnumRepr::Niche { .. } => context.ptr_type(AddressSpace::default()).into(),
-            EnumRepr::Tagged {
-                payload_size,
-                payload_align,
-                ..
-            } => tagged_ty(context, *payload_size, *payload_align)?.into(),
+            EnumRepr::Tagged { size, align, .. } => tagged_ty(context, *size, *align)?.into(),
         },
     })
 }
@@ -1035,22 +1124,16 @@ fn uses_return_slot(enums: &Arena<EnumDef>, ty: &LirType) -> bool {
     }
 }
 
-/// Byte offset of the payload area inside a tagged enum value: right
-/// after the i64 tag, rounded up to the payload alignment.
-fn payload_offset(payload_align: u64) -> u64 {
-    8u64.max(payload_align)
-}
-
-/// `{ i64 tag, [M x i8] payload }` where the payload area starts at
-/// `payload_offset(payload_align)` and spans `payload_size` bytes
-/// (M covers the alignment padding plus the payload).
+/// Opaque physical storage for a tagged enum. LIR has already assigned
+/// the shared pure-value region and every disjoint ref-bearing slot.
 fn tagged_ty(
     context: &Context,
-    payload_size: u64,
-    payload_align: u64,
+    size: u64,
+    align: u64,
 ) -> Result<inkwell::types::StructType<'_>, CodegenError> {
-    let bytes = (payload_offset(payload_align) - 8) + payload_size;
-    let align = 8.max(payload_align);
+    let bytes = size
+        .checked_sub(8)
+        .ok_or_else(|| CodegenError(format!("tagged enum size {size} is smaller than its tag")))?;
     let mut fields: Vec<BasicTypeEnum> = vec![
         context.i64_type().into(),
         context.i8_type().array_type(bytes as u32).into(),
@@ -1174,27 +1257,6 @@ fn emit_ref_scan<'ctx>(
             words.push(i64_ty.const_int(SCAN_SEQUENCE, false));
             words.push(i64_ty.const_int(children.len() as u64, false));
             words.extend(children.into_iter().map(|child| pointer_word(Some(child))));
-            words
-        }
-        RefScan::TaggedEnum {
-            tag_offset,
-            variants,
-        } => {
-            let children: Vec<_> = variants
-                .iter()
-                .enumerate()
-                .map(|(index, variant)| {
-                    emit_ref_scan(context, llvm, &format!("{name}.variant.{index}"), variant)
-                })
-                .collect();
-            if children.iter().all(Option::is_none) {
-                return None;
-            }
-            let mut words = Vec::with_capacity(children.len() + 3);
-            words.push(i64_ty.const_int(SCAN_ENUM, false));
-            words.push(i64_ty.const_int(*tag_offset, false));
-            words.push(i64_ty.const_int(children.len() as u64, false));
-            words.extend(children.into_iter().map(pointer_word));
             words
         }
     };
@@ -1385,6 +1447,7 @@ struct FnEmitter<'a, 'ctx> {
     enums: &'a Arena<EnumDef>,
     extern_functions: &'a Arena<ExternFunction>,
     native_globals: &'a Arena<NativeGlobal>,
+    foreign_callback_bridges: &'a Arena<scoop_lir::ForeignCallbackBridge>,
     globals_arena: &'a Arena<Global>,
     globals: &'a [Option<GlobalValue<'ctx>>],
     /// Distinct array allocation descriptors and their TypeDescriptor
@@ -1398,12 +1461,30 @@ struct FnEmitter<'a, 'ctx> {
     param_offset: u32,
     allocas: Vec<PointerValue<'ctx>>,
     temps: HashMap<TempId, BasicValueEnum<'ctx>>,
+    /// Parameters reloaded from compiler caller-root spills after a native
+    /// transition. Locals reload from their existing allocas; temp reloads
+    /// replace the corresponding entry in `temps`.
+    param_reloads: HashMap<u32, BasicValueEnum<'ctx>>,
+    native_call_index: u32,
+    allocation_index: u32,
     /// Lazily-created shared bounds-check trap block of this function
     /// (one per function, reused by every ArrayGet / ArraySet) and the
     /// module-level "array index out of bounds" message global it
     /// references (`Some` whenever the module uses arrays).
     bounds_trap_block: Option<inkwell::basic_block::BasicBlock<'ctx>>,
     bounds_message: Option<GlobalValue<'ctx>>,
+}
+
+struct PublishedRoot<'ctx> {
+    source: scoop_lir::CallerRootSource,
+    storage: PointerValue<'ctx>,
+    ty: BasicTypeEnum<'ctx>,
+}
+
+struct NativeTransition<'ctx> {
+    frame: PointerValue<'ctx>,
+    transition: PointerValue<'ctx>,
+    roots: Vec<PublishedRoot<'ctx>>,
 }
 
 impl<'ctx> FnEmitter<'_, 'ctx> {
@@ -1420,10 +1501,13 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     .build_load(ty, self.allocas[arena_index(id)], &function.locals[id].name)
                     .map_err(|e| CodegenError(format!("load %{}: {e}", function.locals[id].name)))?
             }
-            Value::Param(index) => self
-                .llvm_function
-                .get_nth_param(index + self.param_offset)
-                .ok_or_else(|| CodegenError(format!("param {index} out of range")))?,
+            Value::Param(index) => match self.param_reloads.get(&index) {
+                Some(value) => *value,
+                None => self
+                    .llvm_function
+                    .get_nth_param(index + self.param_offset)
+                    .ok_or_else(|| CodegenError(format!("param {index} out of range")))?,
+            },
             Value::Temp(id) => *self.temps.get(&id).ok_or_else(|| {
                 CodegenError(format!(
                     "temp t{} used before definition",
@@ -1639,6 +1723,43 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     })?;
                 self.temps.insert(*out, element);
             }
+            Instruction::AtomicLoad {
+                out,
+                object,
+                offset,
+            } => {
+                if *offset < 16 {
+                    return Err(CodegenError(format!(
+                        "atomic_load @{symbol}: offset {offset} is inside the object header",
+                        symbol = function.symbol,
+                        offset = *offset
+                    )));
+                }
+                let name = format!("t{}", out.into_raw().into_u32());
+                let object = self.value(*object)?.into_pointer_value();
+                let field_ptr = self.byte_gep(object, *offset, "atomic_field_ptr")?;
+                let field_ty =
+                    basic_ty(context, self.structs, self.enums, &function.temps[*out].ty)?;
+                let element = builder
+                    .build_load(field_ty, field_ptr, &name)
+                    .map_err(|e| {
+                        CodegenError(format!(
+                            "atomic load @{symbol}: {e}",
+                            symbol = function.symbol
+                        ))
+                    })?;
+                element
+                    .as_instruction_value()
+                    .expect("a load is an instruction")
+                    .set_atomic_ordering(AtomicOrdering::Acquire)
+                    .map_err(|e| {
+                        CodegenError(format!(
+                            "atomic load ordering @{symbol}: {e}",
+                            symbol = function.symbol
+                        ))
+                    })?;
+                self.temps.insert(*out, element);
+            }
             Instruction::HeapStore {
                 object,
                 offset,
@@ -1665,6 +1786,77 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 // M9 write barrier: mark the stored-to address's card.
                 self.card_mark(field_ptr)?;
             }
+            Instruction::AtomicStore {
+                object,
+                offset,
+                value,
+            } => {
+                if *offset < 16 {
+                    return Err(CodegenError(format!(
+                        "atomic_store @{symbol}: offset {offset} is inside the object header",
+                        symbol = function.symbol,
+                        offset = *offset
+                    )));
+                }
+                let object = self.value(*object)?.into_pointer_value();
+                let field_ptr = self.byte_gep(object, *offset, "atomic_field_ptr")?;
+                let store = builder
+                    .build_store(field_ptr, self.value(*value)?)
+                    .map_err(|e| {
+                        CodegenError(format!(
+                            "atomic store @{symbol}: {e}",
+                            symbol = function.symbol
+                        ))
+                    })?;
+                store
+                    .set_atomic_ordering(AtomicOrdering::Release)
+                    .map_err(|e| {
+                        CodegenError(format!(
+                            "atomic store ordering @{symbol}: {e}",
+                            symbol = function.symbol
+                        ))
+                    })?;
+            }
+            Instruction::AtomicCompareExchange {
+                out,
+                object,
+                offset,
+                expected,
+                replacement,
+            } => {
+                if *offset < 16 {
+                    return Err(CodegenError(format!(
+                        "atomic_cmpxchg @{symbol}: offset {offset} is inside the object header",
+                        symbol = function.symbol,
+                        offset = *offset
+                    )));
+                }
+                let object = self.value(*object)?.into_pointer_value();
+                let field_ptr = self.byte_gep(object, *offset, "atomic_field_ptr")?;
+                let pair = builder
+                    .build_cmpxchg(
+                        field_ptr,
+                        self.value(*expected)?.into_int_value(),
+                        self.value(*replacement)?.into_int_value(),
+                        AtomicOrdering::AcquireRelease,
+                        AtomicOrdering::Acquire,
+                    )
+                    .map_err(|e| {
+                        CodegenError(format!(
+                            "atomic cmpxchg @{symbol}: {e}",
+                            symbol = function.symbol
+                        ))
+                    })?;
+                let old = builder
+                    .build_extract_value(pair, 0, &format!("t{}", out.into_raw().into_u32()))
+                    .map_err(|e| {
+                        CodegenError(format!(
+                            "atomic cmpxchg result @{symbol}: {e}",
+                            symbol = function.symbol
+                        ))
+                    })?;
+                self.temps.insert(*out, old);
+            }
             Instruction::FunctionAddress { out, symbol } => {
                 let function_value = self.llvm.get_function(symbol).ok_or_else(|| {
                     CodegenError(format!(
@@ -1676,6 +1868,219 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     *out,
                     function_value.as_global_value().as_pointer_value().into(),
                 );
+            }
+            Instruction::ForeignCallbackRegister {
+                out,
+                bridge,
+                closure,
+            } => {
+                let bridge = &self.foreign_callback_bridges[*bridge];
+                let closure = self.value(*closure)?.into_pointer_value();
+                let adapter = self
+                    .llvm
+                    .get_function(&bridge.adapter_symbol)
+                    .ok_or_else(|| {
+                        CodegenError(format!(
+                            "foreign callback adapter @{} was not emitted",
+                            bridge.adapter_symbol
+                        ))
+                    })?
+                    .as_global_value()
+                    .as_pointer_value();
+                let signature = self
+                    .llvm
+                    .get_global(&bridge.signature_symbol)
+                    .expect("foreign callback signature descriptor is declared")
+                    .as_pointer_value();
+                let register = self.runtime_fn(
+                    "scoop_runtime_callback_register",
+                    ptr_ty(context).fn_type(
+                        &[
+                            ptr_ty(context).into(),
+                            ptr_ty(context).into(),
+                            ptr_ty(context).into(),
+                            context.i32_type().into(),
+                        ],
+                        false,
+                    ),
+                );
+                let mode = match bridge.mode {
+                    scoop_lir::ForeignCallbackMode::Reusable => 0,
+                    scoop_lir::ForeignCallbackMode::OneShot => 1,
+                };
+                let callback_context = builder
+                    .build_call(
+                        register,
+                        &[
+                            closure.into(),
+                            adapter.into(),
+                            signature.into(),
+                            context.i32_type().const_int(mode, false).into(),
+                        ],
+                        "foreign_callback_context",
+                    )
+                    .map_err(|error| {
+                        CodegenError(format!("foreign callback registration: {error}"))
+                    })?
+                    .try_as_basic_value()
+                    .basic()
+                    .expect("callback registration returns a context")
+                    .into_pointer_value();
+                let trampoline = self
+                    .llvm
+                    .get_function(&bridge.trampoline_symbol)
+                    .expect("foreign callback trampoline is declared")
+                    .as_global_value()
+                    .as_pointer_value();
+                let ty = basic_ty(context, self.structs, self.enums, &function.temps[*out].ty)?
+                    .into_struct_type();
+                let value = builder
+                    .build_insert_value(ty.get_undef(), trampoline, 0, "callback_function")
+                    .and_then(|value| {
+                        builder.build_insert_value(
+                            value.into_struct_value(),
+                            callback_context,
+                            1,
+                            "callback_value",
+                        )
+                    })
+                    .map_err(|error| {
+                        CodegenError(format!("construct foreign callback value: {error}"))
+                    })?;
+                self.temps.insert(*out, value.into_struct_value().into());
+            }
+            Instruction::ForeignCallbackOperation {
+                out,
+                operation,
+                callback,
+            } => {
+                let callback = self.value(*callback)?.into_struct_value();
+                let function_pointer = builder
+                    .build_extract_value(callback, 0, "callback_function")
+                    .map_err(|error| CodegenError(format!("extract callback function: {error}")))?
+                    .into_pointer_value();
+                let callback_context = builder
+                    .build_extract_value(callback, 1, "callback_context")
+                    .map_err(|error| CodegenError(format!("extract callback context: {error}")))?
+                    .into_pointer_value();
+                match operation {
+                    scoop_lir::ForeignCallbackOperation::Retain => {
+                        let out = out.expect("retain produces a callback value");
+                        let retain = self.runtime_fn(
+                            "scoop_runtime_callback_retain",
+                            ptr_ty(context).fn_type(&[ptr_ty(context).into()], false),
+                        );
+                        let retained = builder
+                            .build_call(retain, &[callback_context.into()], "retained_context")
+                            .map_err(|error| {
+                                CodegenError(format!("retain foreign callback: {error}"))
+                            })?
+                            .try_as_basic_value()
+                            .basic()
+                            .expect("retain returns a context")
+                            .into_pointer_value();
+                        let ty =
+                            basic_ty(context, self.structs, self.enums, &function.temps[out].ty)?
+                                .into_struct_type();
+                        let value = builder
+                            .build_insert_value(
+                                ty.get_undef(),
+                                function_pointer,
+                                0,
+                                "callback_function",
+                            )
+                            .and_then(|value| {
+                                builder.build_insert_value(
+                                    value.into_struct_value(),
+                                    retained,
+                                    1,
+                                    "retained_callback",
+                                )
+                            })
+                            .map_err(|error| {
+                                CodegenError(format!("construct retained callback: {error}"))
+                            })?;
+                        self.temps.insert(out, value.into_struct_value().into());
+                    }
+                    scoop_lir::ForeignCallbackOperation::Release => {
+                        debug_assert!(out.is_none());
+                        let release = self.runtime_fn(
+                            "scoop_runtime_callback_release",
+                            context
+                                .void_type()
+                                .fn_type(&[ptr_ty(context).into()], false),
+                        );
+                        builder
+                            .build_call(release, &[callback_context.into()], "")
+                            .map_err(|error| {
+                                CodegenError(format!("release foreign callback: {error}"))
+                            })?;
+                    }
+                    scoop_lir::ForeignCallbackOperation::Failure => {
+                        let out = out.expect("failure query produces Option<Throwable>");
+                        let failure = self.runtime_fn(
+                            "scoop_runtime_callback_failure",
+                            ptr_ty(context).fn_type(&[ptr_ty(context).into()], false),
+                        );
+                        let value = builder
+                            .build_call(failure, &[callback_context.into()], "callback_failure")
+                            .map_err(|error| {
+                                CodegenError(format!("query callback failure: {error}"))
+                            })?
+                            .try_as_basic_value()
+                            .basic()
+                            .expect("failure query returns a nullable managed reference");
+                        self.temps.insert(out, value);
+                    }
+                    scoop_lir::ForeignCallbackOperation::State => {
+                        let out = out.expect("state query produces an enum value");
+                        let state = self.runtime_fn(
+                            "scoop_runtime_callback_state",
+                            context.i32_type().fn_type(&[ptr_ty(context).into()], false),
+                        );
+                        let state = builder
+                            .build_call(state, &[callback_context.into()], "callback_state")
+                            .map_err(|error| {
+                                CodegenError(format!("query callback state: {error}"))
+                            })?
+                            .try_as_basic_value()
+                            .basic()
+                            .expect("state query returns a tag")
+                            .into_int_value();
+                        let state = builder
+                            .build_int_z_extend(state, context.i64_type(), "callback_state_tag")
+                            .map_err(|error| {
+                                CodegenError(format!("extend callback state: {error}"))
+                            })?;
+                        let LirType::Enum(enum_id) = function.temps[out].ty else {
+                            return Err(CodegenError(
+                                "callback state result is not an enum".to_string(),
+                            ));
+                        };
+                        let EnumRepr::Tagged { size, align, .. } = &self.enums[enum_id].repr else {
+                            return Err(CodegenError(
+                                "callback state enum unexpectedly uses a niche".to_string(),
+                            ));
+                        };
+                        let ty = tagged_ty(context, *size, *align)?;
+                        let slot = self.entry_alloca(ty.into(), "callback_state_value")?;
+                        builder
+                            .build_store(slot, ty.const_zero())
+                            .map_err(|error| {
+                                CodegenError(format!("zero callback state: {error}"))
+                            })?;
+                        let tag = self.tag_ptr(slot, ty)?;
+                        builder.build_store(tag, state).map_err(|error| {
+                            CodegenError(format!("construct callback state: {error}"))
+                        })?;
+                        let value = builder
+                            .build_load(ty, slot, "callback_state_value")
+                            .map_err(|error| {
+                                CodegenError(format!("load callback state: {error}"))
+                            })?;
+                        self.temps.insert(out, value);
+                    }
+                }
             }
             Instruction::IntToPtr { out, value } => {
                 let value = self.value(*value)?.into_int_value();
@@ -1764,20 +2169,30 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 self.temps
                     .insert(*out, llvm_global.as_pointer_value().into());
             }
-            Instruction::NativeGlobalLoad { out, global } => {
+            Instruction::NativeGlobalLoad { out, global, roots } => {
                 let native = &self.native_globals[*global];
                 let ty = basic_ty(context, self.structs, self.enums, &native.ty)?;
                 let slot = self.entry_alloca(ty, "native_global_result")?;
                 let callee = self.native_global_bridge(&native.get_bridge_symbol);
+                let transition = self.publish_native_roots(
+                    roots,
+                    None,
+                    scoop_lir::NativeCallEffect::NativeSafe,
+                )?;
                 builder
                     .build_call(callee, &[slot.into()], "native_global_get")
                     .map_err(|error| CodegenError(format!("native global read: {error}")))?;
+                self.finish_native_transition(transition, scoop_lir::NativeCallEffect::NativeSafe)?;
                 let value = builder
                     .build_load(ty, slot, "native_global_value")
                     .map_err(|error| CodegenError(format!("native global load: {error}")))?;
                 self.temps.insert(*out, value);
             }
-            Instruction::NativeGlobalStore { global, value } => {
+            Instruction::NativeGlobalStore {
+                global,
+                value,
+                roots,
+            } => {
                 let native = &self.native_globals[*global];
                 let ty = basic_ty(context, self.structs, self.enums, &native.ty)?;
                 let slot = self.entry_alloca(ty, "native_global_argument")?;
@@ -1789,18 +2204,30 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     .as_deref()
                     .expect("only mutable native globals are assigned");
                 let callee = self.native_global_bridge(symbol);
+                let transition = self.publish_native_roots(
+                    roots,
+                    None,
+                    scoop_lir::NativeCallEffect::NativeSafe,
+                )?;
                 builder
                     .build_call(callee, &[slot.into()], "native_global_set")
                     .map_err(|error| CodegenError(format!("native global write: {error}")))?;
+                self.finish_native_transition(transition, scoop_lir::NativeCallEffect::NativeSafe)?;
             }
-            Instruction::NativeGlobalAddress { out, global } => {
+            Instruction::NativeGlobalAddress { out, global, roots } => {
                 let native = &self.native_globals[*global];
                 let ty: BasicTypeEnum = ptr_ty(context).into();
                 let slot = self.entry_alloca(ty, "native_global_address")?;
                 let callee = self.native_global_bridge(&native.address_bridge_symbol);
+                let transition = self.publish_native_roots(
+                    roots,
+                    None,
+                    scoop_lir::NativeCallEffect::NativeSafe,
+                )?;
                 builder
                     .build_call(callee, &[slot.into()], "native_global_address")
                     .map_err(|error| CodegenError(format!("native global address: {error}")))?;
+                self.finish_native_transition(transition, scoop_lir::NativeCallEffect::NativeSafe)?;
                 let value = builder
                     .build_load(ty, slot, "native_global_pointer")
                     .map_err(|error| CodegenError(format!("native global pointer: {error}")))?;
@@ -1819,6 +2246,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 function: extern_id,
                 effect,
                 args,
+                roots,
+                result_scan,
             } => {
                 let extern_ = &self.extern_functions[*extern_id];
                 let expected_effect = match &extern_.kind {
@@ -1839,11 +2268,30 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         (extern_.native_symbol.as_str(), *gc_effect, false)
                     }
                 };
-                let result_slot = if c_bridge {
-                    None
-                } else {
-                    self.result_slot(*out, "native_result")?
-                };
+                let result_slot = out
+                    .map(|temp| {
+                        let lir_ty = &function.temps[temp].ty;
+                        let indirect = !c_bridge && uses_return_slot(self.enums, lir_ty);
+                        let needs_storage = c_bridge || indirect || *result_scan != RefScan::None;
+                        needs_storage
+                            .then(|| {
+                                let ty = basic_ty(context, self.structs, self.enums, lir_ty)?;
+                                let slot = self.entry_alloca(ty, "native_result")?;
+                                if *result_scan != RefScan::None {
+                                    builder.build_store(slot, ty.const_zero()).map_err(
+                                        |error| {
+                                            CodegenError(format!(
+                                                "zero native result @{symbol}: {error}"
+                                            ))
+                                        },
+                                    )?;
+                                }
+                                Ok((temp, slot, ty, indirect))
+                            })
+                            .transpose()
+                    })
+                    .transpose()?
+                    .flatten();
                 let mut param_tys: Vec<BasicMetadataTypeEnum> = if c_bridge {
                     vec![ptr_ty(context).into(); args.len()]
                 } else {
@@ -1859,18 +2307,24 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         })
                         .collect::<Result<_, _>>()?
                 };
-                if result_slot.is_some() {
+                if result_slot
+                    .as_ref()
+                    .is_some_and(|(_, _, _, indirect)| c_bridge || *indirect)
+                {
                     param_tys.insert(0, ptr_ty(context).into());
                 }
                 let fn_ty = match (out, &result_slot, c_bridge) {
-                    (_, _, true) | (_, Some(_), false) => {
+                    (_, _, true) | (_, Some((_, _, _, true)), false) => {
                         context.void_type().fn_type(&param_tys, false)
                     }
-                    (Some(temp), None, false) => {
+                    (Some(temp), _, false) => {
                         basic_ty(context, self.structs, self.enums, &function.temps[*temp].ty)?
                             .fn_type(&param_tys, false)
                     }
                     (None, None, false) => context.void_type().fn_type(&param_tys, false),
+                    (None, Some(_), false) => {
+                        unreachable!("native result storage requires an output temp")
+                    }
                 };
                 let callee = self
                     .llvm
@@ -1890,13 +2344,41 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     args.iter()
                         .map(|arg| self.value(*arg).map(Into::into))
                         .collect::<Result<Vec<inkwell::values::BasicMetadataValueEnum>, _>>()?;
-                if let Some((_, slot, _)) = result_slot {
+                if let Some((_, slot, _, indirect)) = result_slot
+                    && (c_bridge || indirect)
+                {
                     call_args.insert(0, slot.into());
                 }
+                let result_root = result_slot
+                    .as_ref()
+                    .filter(|_| *result_scan != RefScan::None)
+                    .map(|(_, slot, _, _)| (*slot, result_scan));
+                let native = self.publish_native_roots(roots, result_root, *effect)?;
                 let call = builder
                     .build_call(callee, &call_args, "native_call")
                     .map_err(|error| CodegenError(format!("native call @{symbol}: {error}")))?;
-                if let Some((temp, slot, ty)) = result_slot {
+                let direct_result = if out.is_some()
+                    && !c_bridge
+                    && !result_slot
+                        .as_ref()
+                        .is_some_and(|(_, _, _, indirect)| *indirect)
+                {
+                    let ValueKind::Basic(result) = call.try_as_basic_value() else {
+                        return Err(CodegenError(format!(
+                            "native call @{symbol} produced no direct value"
+                        )));
+                    };
+                    if let Some((_, slot, _, _)) = result_slot {
+                        builder.build_store(slot, result).map_err(|error| {
+                            CodegenError(format!("store native result @{symbol}: {error}"))
+                        })?;
+                    }
+                    Some(result)
+                } else {
+                    None
+                };
+                self.finish_native_transition(native, *effect)?;
+                if let Some((temp, slot, ty, _)) = result_slot {
                     let result =
                         builder
                             .build_load(ty, slot, "native_result")
@@ -1904,17 +2386,15 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                                 CodegenError(format!("load native result @{symbol}: {error}"))
                             })?;
                     self.temps.insert(temp, result);
-                } else if let Some(temp) = out {
-                    let ValueKind::Basic(result) = call.try_as_basic_value() else {
-                        return Err(CodegenError(format!(
-                            "native call @{symbol} produced no value for t{}",
-                            temp.into_raw().into_u32()
-                        )));
-                    };
+                } else if let (Some(temp), Some(result)) = (out, direct_result) {
                     self.temps.insert(*temp, result);
                 }
             }
             Instruction::Call { out, symbol, args } => {
+                if symbol == "scoop_rt_alloc" {
+                    self.managed_alloc(out, args)?;
+                    return Ok(());
+                }
                 // `scoop_rt_box` has a fixed runtime contract and a
                 // by-value aggregate payload argument (see `box_call`).
                 if symbol == "scoop_rt_box" {
@@ -2418,27 +2898,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     array_data_offset(self.target_data.get_abi_alignment(&element_ty) as u64);
                 let td = self.array_td(element, element_scan)?.as_pointer_value();
                 let total = data_offset + elements.len() as u64 * stride;
-                let alloc = self.runtime_fn(
-                    "scoop_rt_alloc",
-                    ptr_ty(context)
-                        .fn_type(&[ptr_ty(context).into(), context.i64_type().into()], false),
-                );
-                let array = builder
-                    .build_call(
-                        alloc,
-                        &[td.into(), context.i64_type().const_int(total, false).into()],
-                        "array",
-                    )
-                    .map_err(|e| {
-                        CodegenError(format!(
-                            "array_alloc @{symbol}: {e}",
-                            symbol = function.symbol
-                        ))
-                    })?
-                    .try_as_basic_value()
-                    .basic()
-                    .ok_or_else(|| CodegenError("scoop_rt_alloc returned void".to_string()))?
-                    .into_pointer_value();
+                let array =
+                    self.managed_alloc_value(td, context.i64_type().const_int(total, false))?;
                 let size_ptr = self.byte_gep(array, 16, "size_ptr")?;
                 builder
                     .build_store(
@@ -2592,14 +3053,20 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     }
                     EnumRepr::Tagged {
                         variants,
-                        payload_size,
-                        payload_align,
+                        size,
+                        align,
                     } => {
-                        // Tagged values travel through memory: build the
-                        // `{ i64 tag, [M x i8] payload }` aggregate in an
-                        // entry-block alloca, then load it as a whole.
-                        let ty = tagged_ty(context, *payload_size, *payload_align)?;
+                        // The full value is zero before tag/payload writes,
+                        // so every inactive ref-bearing slot is safe for
+                        // unconditional GC scanning.
+                        let ty = tagged_ty(context, *size, *align)?;
                         let slot = self.entry_alloca(ty.into(), "enum_wrap")?;
+                        builder.build_store(slot, ty.const_zero()).map_err(|e| {
+                            CodegenError(format!(
+                                "enum_wrap zero @{symbol}: {e}",
+                                symbol = function.symbol
+                            ))
+                        })?;
                         let tag_ptr = self.tag_ptr(slot, ty)?;
                         builder
                             .build_store(
@@ -2612,26 +3079,17 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                                     symbol = function.symbol
                                 ))
                             })?;
-                        let field_tys = &variants[*variant as usize];
-                        if !field_tys.is_empty() {
-                            let payload_ptr =
-                                self.payload_ptr(slot, *payload_align, "payload_ptr")?;
-                            for (index, field) in fields.iter().enumerate() {
-                                let field_ptr = self.variant_field_ptr(
-                                    payload_ptr,
-                                    field_tys,
-                                    index as u32,
-                                    "field_ptr",
-                                )?;
-                                builder
-                                    .build_store(field_ptr, self.value(*field)?)
-                                    .map_err(|e| {
-                                        CodegenError(format!(
-                                            "enum_wrap field @{symbol}: {e}",
-                                            symbol = function.symbol
-                                        ))
-                                    })?;
-                            }
+                        let variant_repr = &variants[*variant as usize];
+                        for (field, offset) in fields.iter().zip(&variant_repr.field_offsets) {
+                            let field_ptr = self.enum_field_ptr(slot, *offset, "field_ptr")?;
+                            builder
+                                .build_store(field_ptr, self.value(*field)?)
+                                .map_err(|e| {
+                                    CodegenError(format!(
+                                        "enum_wrap field @{symbol}: {e}",
+                                        symbol = function.symbol
+                                    ))
+                                })?;
                         }
                         builder.build_load(ty, slot, &name).map_err(|e| {
                             CodegenError(format!(
@@ -2711,13 +3169,13 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     EnumRepr::Niche { .. } => operand,
                     EnumRepr::Tagged {
                         variants,
-                        payload_size,
-                        payload_align,
+                        size,
+                        align,
                     } => {
                         // Reverse of EnumWrap: spill the aggregate into an
                         // entry-block alloca, then load the field out of
                         // the payload area.
-                        let ty = tagged_ty(context, *payload_size, *payload_align)?;
+                        let ty = tagged_ty(context, *size, *align)?;
                         let slot = self.entry_alloca(ty.into(), "enum_field")?;
                         builder.build_store(slot, operand).map_err(|e| {
                             CodegenError(format!(
@@ -2725,15 +3183,17 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                                 symbol = function.symbol
                             ))
                         })?;
-                        let payload_ptr = self.payload_ptr(slot, *payload_align, "payload_ptr")?;
-                        let field_tys = &variants[*variant as usize];
-                        let field_ptr =
-                            self.variant_field_ptr(payload_ptr, field_tys, *index, "field_ptr")?;
+                        let variant_repr = &variants[*variant as usize];
+                        let field_ptr = self.enum_field_ptr(
+                            slot,
+                            variant_repr.field_offsets[*index as usize],
+                            "field_ptr",
+                        )?;
                         let field_ty = basic_ty(
                             context,
                             self.structs,
                             self.enums,
-                            &field_tys[*index as usize],
+                            &variant_repr.fields[*index as usize],
                         )?;
                         builder
                             .build_load(field_ty, field_ptr, &name)
@@ -2796,6 +3256,266 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         Ok(Some((temp, slot, ty)))
     }
 
+    fn native_boundary_fn(
+        &self,
+        symbol: &str,
+        ty: inkwell::types::FunctionType<'ctx>,
+    ) -> inkwell::values::FunctionValue<'ctx> {
+        let function = self.runtime_fn(symbol, ty);
+        function.add_attribute(
+            AttributeLoc::Function,
+            self.context
+                .create_enum_attribute(Attribute::get_named_enum_kind_id("nounwind"), 0),
+        );
+        function.add_attribute(
+            AttributeLoc::Function,
+            self.context.create_string_attribute("gc-leaf-function", ""),
+        );
+        function
+    }
+
+    fn publish_native_roots(
+        &mut self,
+        roots: &[scoop_lir::CallerRoot],
+        result_root: Option<(PointerValue<'ctx>, &RefScan)>,
+        effect: scoop_lir::NativeCallEffect,
+    ) -> Result<NativeTransition<'ctx>, CodegenError> {
+        let context = self.context;
+        let builder = self.builder;
+        let ptr = ptr_ty(context);
+        let i64_ty = context.i64_type();
+        let call_index = self.native_call_index;
+        self.native_call_index += 1;
+
+        let mut published = Vec::with_capacity(roots.len());
+        let mut entries = Vec::with_capacity(roots.len() + usize::from(result_root.is_some()));
+        for (index, root) in roots.iter().enumerate() {
+            let (storage, ty) = match root.source {
+                scoop_lir::CallerRootSource::Local(id) => (
+                    self.allocas[arena_index(id)],
+                    basic_ty(
+                        context,
+                        self.structs,
+                        self.enums,
+                        &self.function.locals[id].ty,
+                    )?,
+                ),
+                scoop_lir::CallerRootSource::Param(parameter) => {
+                    let ty = basic_ty(
+                        context,
+                        self.structs,
+                        self.enums,
+                        &self.function.params[parameter as usize],
+                    )?;
+                    let storage = self.entry_alloca(ty, "caller_root_param")?;
+                    builder
+                        .build_store(storage, self.value(Value::Param(parameter))?)
+                        .map_err(|error| {
+                            CodegenError(format!("spill caller-root parameter: {error}"))
+                        })?;
+                    (storage, ty)
+                }
+                scoop_lir::CallerRootSource::Temp(temp) => {
+                    let ty = basic_ty(
+                        context,
+                        self.structs,
+                        self.enums,
+                        &self.function.temps[temp].ty,
+                    )?;
+                    let storage = self.entry_alloca(ty, "caller_root_temp")?;
+                    builder
+                        .build_store(storage, self.value(Value::Temp(temp))?)
+                        .map_err(|error| {
+                            CodegenError(format!("spill caller-root temporary: {error}"))
+                        })?;
+                    (storage, ty)
+                }
+            };
+            let descriptor = emit_ref_scan(
+                context,
+                self.llvm,
+                &format!("{}.native.{call_index}.root.{index}", self.function.symbol),
+                &root.scan,
+            )
+            .expect("LIR caller roots always carry a non-empty scan");
+            entries.push((storage, descriptor));
+            published.push(PublishedRoot {
+                source: root.source,
+                storage,
+                ty,
+            });
+        }
+        if let Some((storage, scan)) = result_root {
+            let descriptor = emit_ref_scan(
+                context,
+                self.llvm,
+                &format!("{}.native.{call_index}.result", self.function.symbol),
+                scan,
+            )
+            .expect("a native result root always carries a non-empty scan");
+            entries.push((storage, descriptor));
+        }
+
+        let entry_ty = context.struct_type(&[ptr.into(), ptr.into()], false);
+        let entries_pointer = if entries.is_empty() {
+            ptr.const_null()
+        } else {
+            let array_ty = entry_ty.array_type(entries.len() as u32);
+            let array = self.entry_alloca(array_ty.into(), "caller_root_entries")?;
+            for (index, (base, scan)) in entries.into_iter().enumerate() {
+                // SAFETY: `index` is within the statically-sized entries array.
+                let entry = unsafe {
+                    builder.build_gep(
+                        array_ty,
+                        array,
+                        &[
+                            context.i32_type().const_zero(),
+                            context.i32_type().const_int(index as u64, false),
+                        ],
+                        "caller_root_entry",
+                    )
+                }
+                .map_err(|error| CodegenError(format!("caller-root entry GEP: {error}")))?;
+                let base_field = builder
+                    .build_struct_gep(entry_ty, entry, 0, "caller_root_base")
+                    .map_err(|error| CodegenError(format!("caller-root base GEP: {error}")))?;
+                let scan_field = builder
+                    .build_struct_gep(entry_ty, entry, 1, "caller_root_scan")
+                    .map_err(|error| CodegenError(format!("caller-root scan GEP: {error}")))?;
+                builder
+                    .build_store(base_field, base)
+                    .map_err(|error| CodegenError(format!("publish caller-root base: {error}")))?;
+                builder
+                    .build_store(scan_field, scan)
+                    .map_err(|error| CodegenError(format!("publish caller-root scan: {error}")))?;
+            }
+            array
+        };
+
+        let frame_ty = context.struct_type(&[ptr.into(), ptr.into(), i64_ty.into()], false);
+        let frame = self.entry_alloca(frame_ty.into(), "caller_root_frame")?;
+        builder
+            .build_store(frame, frame_ty.const_zero())
+            .map_err(|error| CodegenError(format!("zero caller-root frame: {error}")))?;
+        let push = self.native_boundary_fn(
+            "scoop_rt_push_caller_roots",
+            context
+                .void_type()
+                .fn_type(&[ptr.into(), ptr.into(), i64_ty.into()], false),
+        );
+        builder
+            .build_call(
+                push,
+                &[
+                    frame.into(),
+                    entries_pointer.into(),
+                    i64_ty
+                        .const_int(
+                            (roots.len() + usize::from(result_root.is_some())) as u64,
+                            false,
+                        )
+                        .into(),
+                ],
+                "push_caller_roots",
+            )
+            .map_err(|error| CodegenError(format!("push caller roots: {error}")))?;
+
+        let transition_ty = context.struct_type(
+            &[
+                ptr.into(),
+                ptr.into(),
+                i64_ty.into(),
+                i64_ty.into(),
+                context.i32_type().into(),
+                context.i32_type().into(),
+            ],
+            false,
+        );
+        let transition = self.entry_alloca(transition_ty.into(), "native_transition")?;
+        builder
+            .build_store(transition, transition_ty.const_zero())
+            .map_err(|error| CodegenError(format!("zero native transition: {error}")))?;
+        let stack_pointer = builder
+            .build_ptr_to_int(transition, i64_ty, "managed_stack_pointer")
+            .map_err(|error| CodegenError(format!("managed stack pointer: {error}")))?;
+        let enter_symbol = match effect {
+            scoop_lir::NativeCallEffect::NativeSafe => "scoop_rt_enter_native_safe",
+            scoop_lir::NativeCallEffect::NativeBorrowed => "scoop_rt_enter_native_borrowed",
+        };
+        let enter = self.native_boundary_fn(
+            enter_symbol,
+            context
+                .void_type()
+                .fn_type(&[ptr.into(), i64_ty.into()], false),
+        );
+        builder
+            .build_call(
+                enter,
+                &[transition.into(), stack_pointer.into()],
+                "enter_native",
+            )
+            .map_err(|error| CodegenError(format!("enter native transition: {error}")))?;
+
+        Ok(NativeTransition {
+            frame,
+            transition,
+            roots: published,
+        })
+    }
+
+    fn finish_native_transition(
+        &mut self,
+        native: NativeTransition<'ctx>,
+        effect: scoop_lir::NativeCallEffect,
+    ) -> Result<(), CodegenError> {
+        let context = self.context;
+        let ptr = ptr_ty(context);
+        let leave_symbol = match effect {
+            scoop_lir::NativeCallEffect::NativeSafe => "scoop_rt_leave_native_safe",
+            scoop_lir::NativeCallEffect::NativeBorrowed => "scoop_rt_leave_native_borrowed",
+        };
+        let leave = self.native_boundary_fn(
+            leave_symbol,
+            context.void_type().fn_type(&[ptr.into()], false),
+        );
+        self.builder
+            .build_call(leave, &[native.transition.into()], "leave_native")
+            .map_err(|error| CodegenError(format!("leave native transition: {error}")))?;
+
+        for root in native.roots {
+            match root.source {
+                scoop_lir::CallerRootSource::Local(_) => {}
+                scoop_lir::CallerRootSource::Param(parameter) => {
+                    let value = self
+                        .builder
+                        .build_load(root.ty, root.storage, "caller_root_reload")
+                        .map_err(|error| {
+                            CodegenError(format!("reload caller-root parameter: {error}"))
+                        })?;
+                    self.param_reloads.insert(parameter, value);
+                }
+                scoop_lir::CallerRootSource::Temp(temp) => {
+                    let value = self
+                        .builder
+                        .build_load(root.ty, root.storage, "caller_root_reload")
+                        .map_err(|error| {
+                            CodegenError(format!("reload caller-root temporary: {error}"))
+                        })?;
+                    self.temps.insert(temp, value);
+                }
+            }
+        }
+
+        let pop = self.native_boundary_fn(
+            "scoop_rt_pop_caller_roots",
+            context.void_type().fn_type(&[ptr.into()], false),
+        );
+        self.builder
+            .build_call(pop, &[native.frame.into()], "pop_caller_roots")
+            .map_err(|error| CodegenError(format!("pop caller roots: {error}")))?;
+        Ok(())
+    }
+
     /// Get or declare a runtime function with the given signature.
     fn runtime_fn(
         &self,
@@ -2824,6 +3544,237 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             self.context.create_string_attribute("gc-leaf-function", ""),
         );
         function
+    }
+
+    /// M13 managed allocation fast path. Small objects are bumped directly
+    /// from the current thread's public two-pointer allocation context. A
+    /// failed bump calls the collecting slow path; a successful bump calls a
+    /// GC-leaf helper that clears the object, initializes its header, and
+    /// atomically records the object start.
+    fn managed_alloc(&mut self, out: &Option<TempId>, args: &[Value]) -> Result<(), CodegenError> {
+        let Some(out) = *out else {
+            return Err(CodegenError(format!(
+                "scoop_rt_alloc @{}: allocation has no result",
+                self.function.symbol
+            )));
+        };
+        let [descriptor, requested_size] = args else {
+            return Err(CodegenError(format!(
+                "scoop_rt_alloc @{}: expected descriptor and size",
+                self.function.symbol
+            )));
+        };
+        let descriptor = self.value(*descriptor)?.into_pointer_value();
+        let requested_size = self.value(*requested_size)?.into_int_value();
+        let object = self.managed_alloc_value(descriptor, requested_size)?;
+        self.temps.insert(out, object.into());
+        Ok(())
+    }
+
+    fn managed_alloc_value(
+        &mut self,
+        descriptor: PointerValue<'ctx>,
+        requested_size: IntValue<'ctx>,
+    ) -> Result<PointerValue<'ctx>, CodegenError> {
+        let context = self.context;
+        let builder = self.builder;
+        let ptr = ptr_ty(context);
+        let i64_ty = context.i64_type();
+
+        let below_header = builder
+            .build_int_compare(
+                IntPredicate::ULT,
+                requested_size,
+                i64_ty.const_int(16, false),
+                "alloc_below_header",
+            )
+            .map_err(|error| CodegenError(format!("allocation size check: {error}")))?;
+        let at_least_header = builder
+            .build_select(
+                below_header,
+                i64_ty.const_int(16, false),
+                requested_size,
+                "alloc_min_size",
+            )
+            .map_err(|error| CodegenError(format!("normalize allocation size: {error}")))?
+            .into_int_value();
+        let aligned_size = builder
+            .build_and(
+                builder
+                    .build_int_add(
+                        at_least_header,
+                        i64_ty.const_int(7, false),
+                        "alloc_size_plus_align",
+                    )
+                    .map_err(|error| CodegenError(format!("align allocation size: {error}")))?,
+                i64_ty.const_int(!7_u64, false),
+                "alloc_size",
+            )
+            .map_err(|error| CodegenError(format!("mask allocation size: {error}")))?;
+
+        let allocation_global = self
+            .llvm
+            .get_global("scoop_rt_allocation_context")
+            .unwrap_or_else(|| {
+                let global = self
+                    .llvm
+                    .add_global(ptr, None, "scoop_rt_allocation_context");
+                global.set_thread_local(true);
+                global
+            });
+        let allocation_context = builder
+            .build_load(
+                ptr,
+                allocation_global.as_pointer_value(),
+                "allocation_context",
+            )
+            .map_err(|error| CodegenError(format!("load allocation context: {error}")))?
+            .into_pointer_value();
+        let allocation_ty = context.struct_type(&[ptr.into(), ptr.into()], false);
+        let cursor_slot = builder
+            .build_struct_gep(allocation_ty, allocation_context, 0, "tlab_cursor_slot")
+            .map_err(|error| CodegenError(format!("address TLAB cursor: {error}")))?;
+        let limit_slot = builder
+            .build_struct_gep(allocation_ty, allocation_context, 1, "tlab_limit_slot")
+            .map_err(|error| CodegenError(format!("address TLAB limit: {error}")))?;
+        let cursor = builder
+            .build_load(ptr, cursor_slot, "tlab_cursor")
+            .map_err(|error| CodegenError(format!("load TLAB cursor: {error}")))?
+            .into_pointer_value();
+        let limit = builder
+            .build_load(ptr, limit_slot, "tlab_limit")
+            .map_err(|error| CodegenError(format!("load TLAB limit: {error}")))?
+            .into_pointer_value();
+        let cursor_int = builder
+            .build_ptr_to_int(cursor, i64_ty, "tlab_cursor_int")
+            .map_err(|error| CodegenError(format!("convert TLAB cursor: {error}")))?;
+        let limit_int = builder
+            .build_ptr_to_int(limit, i64_ty, "tlab_limit_int")
+            .map_err(|error| CodegenError(format!("convert TLAB limit: {error}")))?;
+        let cursor_end = builder
+            .build_int_add(cursor_int, aligned_size, "tlab_cursor_end")
+            .map_err(|error| CodegenError(format!("advance TLAB cursor: {error}")))?;
+        let line_base = builder
+            .build_and(
+                cursor_int,
+                i64_ty.const_int(!127_u64, false),
+                "tlab_line_base",
+            )
+            .map_err(|error| CodegenError(format!("align TLAB line: {error}")))?;
+        let line_end = builder
+            .build_int_add(line_base, i64_ty.const_int(128, false), "tlab_line_end")
+            .map_err(|error| CodegenError(format!("compute TLAB line end: {error}")))?;
+        let fits_current_line = builder
+            .build_int_compare(IntPredicate::ULE, cursor_end, line_end, "alloc_fits_line")
+            .map_err(|error| CodegenError(format!("check TLAB line: {error}")))?;
+        let object_int = builder
+            .build_select(fits_current_line, cursor_int, line_end, "tlab_object_int")
+            .map_err(|error| CodegenError(format!("select TLAB object: {error}")))?
+            .into_int_value();
+        let next_int = builder
+            .build_int_add(object_int, aligned_size, "tlab_next_int")
+            .map_err(|error| CodegenError(format!("advance selected TLAB object: {error}")))?;
+        let has_tlab = builder
+            .build_int_compare(
+                IntPredicate::NE,
+                cursor_int,
+                i64_ty.const_zero(),
+                "tlab_present",
+            )
+            .map_err(|error| CodegenError(format!("check TLAB presence: {error}")))?;
+        let is_small = builder
+            .build_int_compare(
+                IntPredicate::ULE,
+                aligned_size,
+                i64_ty.const_int(64, false),
+                "alloc_is_small",
+            )
+            .map_err(|error| CodegenError(format!("check small allocation: {error}")))?;
+        let within_limit = builder
+            .build_int_compare(IntPredicate::ULE, next_int, limit_int, "alloc_within_tlab")
+            .map_err(|error| CodegenError(format!("check TLAB limit: {error}")))?;
+        let fast = builder
+            .build_and(has_tlab, is_small, "alloc_has_small_tlab")
+            .and_then(|condition| builder.build_and(condition, within_limit, "alloc_fast_path"))
+            .map_err(|error| CodegenError(format!("combine TLAB checks: {error}")))?;
+
+        let index = self.allocation_index;
+        self.allocation_index += 1;
+        let fast_block =
+            context.append_basic_block(self.llvm_function, &format!("alloc.fast.{index}"));
+        let slow_block =
+            context.append_basic_block(self.llvm_function, &format!("alloc.slow.{index}"));
+        let continue_block =
+            context.append_basic_block(self.llvm_function, &format!("alloc.continue.{index}"));
+        builder
+            .build_conditional_branch(fast, fast_block, slow_block)
+            .map_err(|error| CodegenError(format!("branch on TLAB fast path: {error}")))?;
+
+        builder.position_at_end(fast_block);
+        let object = builder
+            .build_int_to_ptr(object_int, ptr, "tlab_object")
+            .map_err(|error| CodegenError(format!("materialize TLAB object: {error}")))?;
+        let next = builder
+            .build_int_to_ptr(next_int, ptr, "tlab_next")
+            .map_err(|error| CodegenError(format!("materialize TLAB cursor: {error}")))?;
+        builder
+            .build_store(cursor_slot, next)
+            .map_err(|error| CodegenError(format!("publish TLAB cursor: {error}")))?;
+        let finish = self.runtime_fn(
+            "scoop_runtime_finish_tlab_alloc",
+            context
+                .void_type()
+                .fn_type(&[ptr.into(), ptr.into(), i64_ty.into()], false),
+        );
+        finish.add_attribute(
+            AttributeLoc::Function,
+            context.create_enum_attribute(Attribute::get_named_enum_kind_id("nounwind"), 0),
+        );
+        finish.add_attribute(
+            AttributeLoc::Function,
+            context.create_string_attribute("gc-leaf-function", ""),
+        );
+        builder
+            .build_call(
+                finish,
+                &[object.into(), descriptor.into(), aligned_size.into()],
+                "",
+            )
+            .map_err(|error| CodegenError(format!("finish TLAB allocation: {error}")))?;
+        builder
+            .build_unconditional_branch(continue_block)
+            .map_err(|error| CodegenError(format!("leave TLAB fast path: {error}")))?;
+
+        builder.position_at_end(slow_block);
+        let slow = self.runtime_fn(
+            "scoop_runtime_alloc_slow",
+            ptr.fn_type(&[ptr.into(), i64_ty.into()], false),
+        );
+        slow.add_attribute(
+            AttributeLoc::Function,
+            context.create_enum_attribute(Attribute::get_named_enum_kind_id("nounwind"), 0),
+        );
+        let slow_object = builder
+            .build_call(
+                slow,
+                &[descriptor.into(), aligned_size.into()],
+                "slow_object",
+            )
+            .map_err(|error| CodegenError(format!("slow allocation: {error}")))?
+            .try_as_basic_value()
+            .basic()
+            .expect("allocation slow path returns an object")
+            .into_pointer_value();
+        builder
+            .build_unconditional_branch(continue_block)
+            .map_err(|error| CodegenError(format!("leave allocation slow path: {error}")))?;
+
+        builder.position_at_end(continue_block);
+        let phi = builder
+            .build_phi(ptr, "managed_object")
+            .map_err(|error| CodegenError(format!("merge allocation result: {error}")))?;
+        phi.add_incoming(&[(&object, fast_block), (&slow_object, slow_block)]);
+        Ok(phi.as_basic_value().into_pointer_value())
     }
 
     /// `ptr scoop_rt_box(ptr td, ptr payload, i64 size)` (runtime spec
@@ -2941,8 +3892,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
     }
 
     /// M9 write-barrier instrumentation point (milestone9 DESIGN 3.1,
-    /// runtime spec 3.6): after a heap store, mark the card covering
-    /// the stored-to address — `scoop_gc_card_table[addr >> 9] = 1`.
+    /// runtime spec 3.6): after a heap store, mark the card covering the
+    /// stored-to address with a monotonic atomic OR. Equal plain byte stores
+    /// from multiple mutators would still be a data race.
     /// Emitted unconditionally (also for scalar stores); the v1
     /// collector ignores the table, and the generational remembered
     /// set consumes it once generations land.
@@ -2991,7 +3943,12 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             unsafe { builder.build_gep(context.i8_type(), card_table, &[card], "card_ptr") }
                 .map_err(error)?;
         builder
-            .build_store(card_ptr, context.i8_type().const_int(1, false))
+            .build_atomicrmw(
+                AtomicRMWBinOp::Or,
+                card_ptr,
+                context.i8_type().const_int(1, false),
+                AtomicOrdering::Monotonic,
+            )
             .map_err(error)?;
         Ok(())
     }
@@ -3159,66 +4116,27 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         })
     }
 
-    /// Address of the payload area of a tagged enum value in memory.
-    /// Pointers are opaque, so a byte-wise i8 GEP needs no bitcast.
-    fn payload_ptr(
+    /// Address of one tagged-enum field at its enum-relative byte
+    /// offset. LIR owns slot assignment and natural field layout.
+    fn enum_field_ptr(
         &self,
         slot: PointerValue<'ctx>,
-        payload_align: u64,
+        offset: u64,
         name: &str,
     ) -> Result<PointerValue<'ctx>, CodegenError> {
-        // SAFETY: the payload area starts at `payload_offset` bytes into
-        // the `{ i64, [M x i8] }` object `slot` points to.
+        // SAFETY: LIR guarantees every field offset lies within the
+        // complete tagged-enum storage represented by `slot`.
         unsafe {
             self.builder.build_gep(
                 self.context.i8_type(),
                 slot,
-                &[self
-                    .context
-                    .i32_type()
-                    .const_int(payload_offset(payload_align), false)],
+                &[self.context.i64_type().const_int(offset, false)],
                 name,
             )
         }
         .map_err(|e| {
             CodegenError(format!(
-                "payload gep @{symbol}: {e}",
-                symbol = self.function.symbol
-            ))
-        })
-    }
-
-    /// Address of field `index` of a variant payload, viewing the
-    /// payload area as the variant's field struct.
-    fn variant_field_ptr(
-        &self,
-        payload_ptr: PointerValue<'ctx>,
-        field_tys: &[LirType],
-        index: u32,
-        name: &str,
-    ) -> Result<PointerValue<'ctx>, CodegenError> {
-        let fields: Vec<BasicTypeEnum> = field_tys
-            .iter()
-            .map(|ty| basic_ty(self.context, self.structs, self.enums, ty))
-            .collect::<Result<_, _>>()?;
-        let variant_ty = self.context.struct_type(&fields, false);
-        // SAFETY: `payload_ptr` addresses a payload area at least as
-        // large as the variant's field struct; indexes 0, `index`
-        // address the field within it.
-        unsafe {
-            self.builder.build_gep(
-                variant_ty,
-                payload_ptr,
-                &[
-                    self.context.i32_type().const_zero(),
-                    self.context.i32_type().const_int(index as u64, false),
-                ],
-                name,
-            )
-        }
-        .map_err(|e| {
-            CodegenError(format!(
-                "field gep @{symbol}: {e}",
+                "enum field gep @{symbol}: {e}",
                 symbol = self.function.symbol
             ))
         })
@@ -3311,6 +4229,27 @@ fn declare_callback_trampoline<'ctx>(
     Ok(())
 }
 
+fn declare_foreign_callback_trampoline<'ctx>(
+    context: &'ctx Context,
+    llvm: &LlvmModule<'ctx>,
+    structs: &Arena<StructDef>,
+    enums: &Arena<EnumDef>,
+    callback: &scoop_lir::ForeignCallbackBridge,
+) -> Result<(), CodegenError> {
+    let params = callback
+        .params
+        .iter()
+        .map(|ty| c_basic_ty(context, structs, enums, ty).map(Into::into))
+        .collect::<Result<Vec<BasicMetadataTypeEnum<'ctx>>, _>>()?;
+    let fn_ty = if callback.return_type == scoop_lir::CType::Unit {
+        context.void_type().fn_type(&params, false)
+    } else {
+        c_basic_ty(context, structs, enums, &callback.return_type)?.fn_type(&params, false)
+    };
+    llvm.add_function(&callback.trampoline_symbol, fn_ty, None);
+    Ok(())
+}
+
 /// Module-level data function emission needs, bundled to keep
 /// signatures small.
 struct ModuleCtx<'a, 'ctx> {
@@ -3318,6 +4257,7 @@ struct ModuleCtx<'a, 'ctx> {
     enums: &'a Arena<EnumDef>,
     extern_functions: &'a Arena<ExternFunction>,
     native_globals: &'a Arena<NativeGlobal>,
+    foreign_callback_bridges: &'a Arena<scoop_lir::ForeignCallbackBridge>,
     globals_arena: &'a Arena<Global>,
     globals: &'a [Option<GlobalValue<'ctx>>],
     array_descriptors: &'a [ArrayDescriptor],
@@ -3484,6 +4424,7 @@ fn emit_function<'ctx>(
         enums: module_ctx.enums,
         extern_functions: module_ctx.extern_functions,
         native_globals: module_ctx.native_globals,
+        foreign_callback_bridges: module_ctx.foreign_callback_bridges,
         globals_arena: module_ctx.globals_arena,
         globals: module_ctx.globals,
         array_descriptors: module_ctx.array_descriptors,
@@ -3493,6 +4434,9 @@ fn emit_function<'ctx>(
         param_offset,
         allocas: Vec::with_capacity(function.locals.len()),
         temps: HashMap::new(),
+        param_reloads: HashMap::new(),
+        native_call_index: 0,
+        allocation_index: 0,
         bounds_trap_block: None,
         bounds_message: module_ctx.bounds_message,
     };
@@ -3651,9 +4595,9 @@ fn emit_function<'ctx>(
 mod tests {
     use la_arena::Arena;
     use scoop_lir::{
-        BasicBlock, EnumDef, EnumRepr, Global, GlobalInit, ItableRecord, Layout, LayoutKind,
-        LirMeta, Local, MANAGED_PTR, METADATA_PTR, PointerKind, RAW_PTR, Temp, TypeDescriptor,
-        VariantLayout,
+        BasicBlock, EnumDef, EnumRepr, EnumVariantRepr, Global, GlobalInit, ItableRecord, Layout,
+        LayoutKind, LirMeta, Local, MANAGED_PTR, METADATA_PTR, PointerKind, RAW_PTR, Temp,
+        TypeDescriptor,
     };
 
     use super::*;
@@ -3833,6 +4777,7 @@ mod tests {
             extern_functions: Arena::default(),
             native_globals: Arena::default(),
             callback_bridges: Arena::default(),
+            foreign_callback_bridges: Arena::default(),
             functions: vec![Function {
                 gc_effect: GcEffect::Managed,
                 symbol: "scoop_main".to_string(),
@@ -3886,20 +4831,47 @@ mod tests {
             init: GlobalInit::CString("unwrap on None".to_string()),
         });
         let mut enums = Arena::default();
-        // enum Shape { Dot, Circle(Int), Rect(Int, String) } — tagged
-        // `{ i64, [16 x i8] }` (payload `{ i64, ptr }` = 16 bytes).
+        // Dot/Circle share the pure-value slot at 8; Rect owns a
+        // ref-bearing slot at 16, with its String at offset 24.
         let shape = enums.alloc(EnumDef {
             name: "Shape".to_string(),
             repr: EnumRepr::Tagged {
-                variants: vec![vec![], vec![LirType::I64], vec![LirType::I64, MANAGED_PTR]],
-                payload_size: 16,
-                payload_align: 8,
+                variants: vec![
+                    EnumVariantRepr {
+                        fields: vec![],
+                        field_offsets: vec![],
+                        slot_offset: 8,
+                        slot_size: 0,
+                        slot_align: 1,
+                        gc_free: true,
+                    },
+                    EnumVariantRepr {
+                        fields: vec![LirType::I64],
+                        field_offsets: vec![8],
+                        slot_offset: 8,
+                        slot_size: 8,
+                        slot_align: 8,
+                        gc_free: true,
+                    },
+                    EnumVariantRepr {
+                        fields: vec![LirType::I64, MANAGED_PTR],
+                        field_offsets: vec![16, 24],
+                        slot_offset: 16,
+                        slot_size: 16,
+                        slot_align: 8,
+                        gc_free: false,
+                    },
+                ],
+                size: 32,
+                align: 8,
             },
+            scan: RefScan::References(vec![24]),
         });
         // enum Option<String> { None, Some(String) } — niche pointer.
         let option = enums.alloc(EnumDef {
             name: "Option<String>".to_string(),
             repr: EnumRepr::Niche { payload_variant: 1 },
+            scan: RefScan::References(vec![0]),
         });
         let shape_ty = LirType::Enum(shape);
         let option_ty = LirType::Enum(option);
@@ -4247,6 +5219,7 @@ mod tests {
             extern_functions: Arena::default(),
             native_globals: Arena::default(),
             callback_bridges: Arena::default(),
+            foreign_callback_bridges: Arena::default(),
             functions: vec![
                 tagged,
                 niche,
@@ -4271,23 +5244,13 @@ mod tests {
                     },
                     Layout {
                         name: "Shape".to_string(),
-                        size: 24,
+                        size: 32,
                         align: 8,
                         fields: Vec::new(),
                         c_layout: None,
                         interior_mutable: false,
                         kind: LayoutKind::Enum {
-                            variants: vec![
-                                VariantLayout {
-                                    scan: RefScan::None,
-                                },
-                                VariantLayout {
-                                    scan: RefScan::None,
-                                },
-                                VariantLayout {
-                                    scan: RefScan::References(vec![8]),
-                                },
-                            ],
+                            scan: RefScan::References(vec![24]),
                         },
                     },
                     Layout {
@@ -4298,14 +5261,7 @@ mod tests {
                         c_layout: None,
                         interior_mutable: false,
                         kind: LayoutKind::Enum {
-                            variants: vec![
-                                VariantLayout {
-                                    scan: RefScan::None,
-                                },
-                                VariantLayout {
-                                    scan: RefScan::References(vec![0]),
-                                },
-                            ],
+                            scan: RefScan::References(vec![0]),
                         },
                     },
                 ],
@@ -4317,6 +5273,15 @@ mod tests {
     #[test]
     fn emits_m4_enums() {
         let module = enum_module();
+        let ir = ir_of(&module);
+        assert!(
+            ir.contains("store { i64, [24 x i8] } zeroinitializer"),
+            "tagged enum construction must zero every inactive ref slot:\n{ir}"
+        );
+        assert!(
+            ir.contains("getelementptr i8, ptr %enum_wrap") && ir.contains("i64 24"),
+            "ref-bearing variant fields must use their assigned slot offsets:\n{ir}"
+        );
         let output =
             std::env::temp_dir().join(format!("scoop_codegen_m4_test_{}.o", std::process::id()));
         // `emit_object` verifies the LLVM module before writing, so a
@@ -4455,6 +5420,7 @@ mod tests {
             extern_functions: Arena::default(),
             native_globals: Arena::default(),
             callback_bridges: Arena::default(),
+            foreign_callback_bridges: Arena::default(),
             functions: vec![Function {
                 gc_effect: GcEffect::Managed,
                 symbol: "scoop_main".to_string(),
@@ -4601,6 +5567,7 @@ mod tests {
             extern_functions: Arena::default(),
             native_globals: Arena::default(),
             callback_bridges: Arena::default(),
+            foreign_callback_bridges: Arena::default(),
             functions: vec![describe("Shape.describe"), describe("Point.describe"), main],
             entry_symbol: "scoop_main".to_string(),
             meta: LirMeta {
@@ -4832,6 +5799,7 @@ mod tests {
             extern_functions: Arena::default(),
             native_globals: Arena::default(),
             callback_bridges: Arena::default(),
+            foreign_callback_bridges: Arena::default(),
             functions: vec![describe, main],
             entry_symbol: "scoop_main".to_string(),
             meta: LirMeta {
@@ -4868,6 +5836,24 @@ mod tests {
     #[test]
     fn emits_m6_heap_access_and_td_stubs() {
         let module = heap_module();
+        let ir = ir_of(&module);
+        assert!(
+            ir.contains("@scoop_rt_allocation_context = external thread_local global ptr")
+                && ir.contains("alloc.fast.0")
+                && ir.contains("alloc.slow.0")
+                && ir.contains("@scoop_runtime_finish_tlab_alloc")
+                && ir.contains("@scoop_runtime_alloc_slow"),
+            "managed allocation must expose an inline TLAB fast path and collecting fallback:\n{ir}"
+        );
+        assert!(
+            !ir.contains("call ptr @scoop_rt_alloc"),
+            "generated code must not route every allocation through the compatibility entry:\n{ir}"
+        );
+        assert!(
+            ir.contains("and i64 %tlab_cursor_int, -128")
+                && ir.contains("add i64 %tlab_line_base, 128"),
+            "the inline allocator must use runtime's 128-byte Immix line boundary:\n{ir}"
+        );
         let output = std::env::temp_dir().join(format!(
             "scoop_codegen_m6_heap_test_{}.o",
             std::process::id()
@@ -5025,6 +6011,7 @@ mod tests {
             extern_functions: Arena::default(),
             native_globals: Arena::default(),
             callback_bridges: Arena::default(),
+            foreign_callback_bridges: Arena::default(),
             functions: vec![thrower, eh_test],
             entry_symbol: "scoop.eh_test".to_string(),
             meta: LirMeta {
@@ -5086,6 +6073,215 @@ mod tests {
         llvm.print_to_string().to_string()
     }
 
+    #[test]
+    fn native_calls_publish_roots_transition_and_reload() {
+        let mut extern_functions = Arena::default();
+        let c_call = extern_functions.alloc(ExternFunction {
+            source_name: "wait".to_string(),
+            native_symbol: "native_wait".to_string(),
+            library: "fixture".to_string(),
+            calling_convention: scoop_lir::CallingConvention::Cdecl,
+            params: Vec::new(),
+            return_type: LirType::Void,
+            kind: ExternFunctionKind::C {
+                bridge_symbol: "scoop_c_bridge_wait".to_string(),
+                params: Vec::new(),
+                return_type: scoop_lir::CType::Unit,
+            },
+        });
+        let borrowed = extern_functions.alloc(ExternFunction {
+            source_name: "borrowed".to_string(),
+            native_symbol: "native_borrowed".to_string(),
+            library: "fixture".to_string(),
+            calling_convention: scoop_lir::CallingConvention::Cdecl,
+            params: Vec::new(),
+            return_type: MANAGED_PTR,
+            kind: ExternFunctionKind::Scoop {
+                gc_effect: GcEffect::Managed,
+            },
+        });
+
+        let mut safe_blocks = Arena::default();
+        let safe_entry = safe_blocks.alloc(BasicBlock {
+            name: "entry".to_string(),
+            instructions: vec![Instruction::NativeCall {
+                out: None,
+                function: c_call,
+                effect: scoop_lir::NativeCallEffect::NativeSafe,
+                args: Vec::new(),
+                roots: vec![scoop_lir::CallerRoot {
+                    source: scoop_lir::CallerRootSource::Param(0),
+                    scan: RefScan::References(vec![0]),
+                }],
+                result_scan: RefScan::None,
+            }],
+            terminator: Terminator::Return {
+                value: Some(Value::Param(0)),
+            },
+        });
+        let safe = Function {
+            gc_effect: GcEffect::Managed,
+            symbol: "safe_root".to_string(),
+            params: vec![MANAGED_PTR],
+            return_ty: MANAGED_PTR,
+            locals: Arena::default(),
+            temps: Arena::default(),
+            blocks: safe_blocks,
+            entry: safe_entry,
+        };
+
+        let mut borrowed_temps = Arena::default();
+        let result = borrowed_temps.alloc(Temp { ty: MANAGED_PTR });
+        let mut borrowed_blocks = Arena::default();
+        let borrowed_entry = borrowed_blocks.alloc(BasicBlock {
+            name: "entry".to_string(),
+            instructions: vec![Instruction::NativeCall {
+                out: Some(result),
+                function: borrowed,
+                effect: scoop_lir::NativeCallEffect::NativeBorrowed,
+                args: Vec::new(),
+                roots: Vec::new(),
+                result_scan: RefScan::References(vec![0]),
+            }],
+            terminator: Terminator::Return {
+                value: Some(Value::Temp(result)),
+            },
+        });
+        let borrowed_function = Function {
+            gc_effect: GcEffect::Managed,
+            symbol: "borrowed_result".to_string(),
+            params: Vec::new(),
+            return_ty: MANAGED_PTR,
+            locals: Arena::default(),
+            temps: borrowed_temps,
+            blocks: borrowed_blocks,
+            entry: borrowed_entry,
+        };
+
+        let module = Module {
+            globals: Arena::default(),
+            structs: Arena::default(),
+            enums: Arena::default(),
+            extern_functions,
+            native_globals: Arena::default(),
+            callback_bridges: Arena::default(),
+            foreign_callback_bridges: Arena::default(),
+            functions: vec![safe, borrowed_function],
+            entry_symbol: "safe_root".to_string(),
+            meta: LirMeta {
+                layouts: vec![Layout {
+                    name: "String".to_string(),
+                    size: 24,
+                    align: 8,
+                    fields: Vec::new(),
+                    c_layout: None,
+                    interior_mutable: false,
+                    kind: LayoutKind::Plain {
+                        scan: RefScan::None,
+                    },
+                }],
+                type_descriptors: Vec::new(),
+            },
+        };
+
+        let ir = ir_of(&module);
+        assert!(ir.contains("@scoop_rt_push_caller_roots"));
+        assert!(ir.contains("@scoop_rt_enter_native_safe"));
+        assert!(ir.contains("@scoop_rt_leave_native_safe"));
+        assert!(ir.contains("@scoop_rt_enter_native_borrowed"));
+        assert!(ir.contains("@scoop_rt_leave_native_borrowed"));
+        assert!(ir.contains("@scoop_rt_pop_caller_roots"));
+        assert!(
+            ir.contains("store ptr null, ptr %native_result"),
+            "managed native result storage must be zero before publication:\n{ir}"
+        );
+        assert!(
+            ir.contains("%caller_root_reload = load ptr, ptr %caller_root_param"),
+            "published parameter roots must be reloaded after leave-native:\n{ir}"
+        );
+    }
+
+    #[test]
+    fn continuation_state_atomics_keep_their_llvm_orderings() {
+        let mut temps = Arena::default();
+        let loaded = temps.alloc(Temp { ty: LirType::I64 });
+        let observed = temps.alloc(Temp { ty: LirType::I64 });
+        let mut blocks = Arena::default();
+        let entry = blocks.alloc(BasicBlock {
+            name: "entry".to_string(),
+            instructions: vec![
+                Instruction::AtomicLoad {
+                    out: loaded,
+                    object: Value::Param(0),
+                    offset: 16,
+                },
+                Instruction::AtomicStore {
+                    object: Value::Param(0),
+                    offset: 16,
+                    value: Value::IntConst(2),
+                },
+                Instruction::AtomicCompareExchange {
+                    out: observed,
+                    object: Value::Param(0),
+                    offset: 16,
+                    expected: Value::Temp(loaded),
+                    replacement: Value::IntConst(6),
+                },
+            ],
+            terminator: Terminator::Return {
+                value: Some(Value::Temp(observed)),
+            },
+        });
+        let module = Module {
+            globals: Arena::default(),
+            structs: Arena::default(),
+            enums: Arena::default(),
+            extern_functions: Arena::default(),
+            native_globals: Arena::default(),
+            callback_bridges: Arena::default(),
+            foreign_callback_bridges: Arena::default(),
+            functions: vec![Function {
+                gc_effect: GcEffect::Managed,
+                symbol: "continuation_atomics".to_string(),
+                params: vec![MANAGED_PTR],
+                return_ty: LirType::I64,
+                locals: Arena::default(),
+                temps,
+                blocks,
+                entry,
+            }],
+            entry_symbol: "continuation_atomics".to_string(),
+            meta: LirMeta {
+                layouts: vec![Layout {
+                    name: "String".to_string(),
+                    size: 24,
+                    align: 8,
+                    fields: Vec::new(),
+                    c_layout: None,
+                    interior_mutable: false,
+                    kind: LayoutKind::Plain {
+                        scan: RefScan::None,
+                    },
+                }],
+                type_descriptors: Vec::new(),
+            },
+        };
+
+        let ir = ir_of(&module);
+        assert!(
+            ir.contains("load atomic i64, ptr %atomic_field_ptr acquire"),
+            "continuation state reads must be acquire loads:\n{ir}"
+        );
+        assert!(
+            ir.contains("store atomic i64 2, ptr %atomic_field_ptr1 release"),
+            "continuation state publication must be a release store:\n{ir}"
+        );
+        assert!(
+            ir.contains("cmpxchg ptr %atomic_field_ptr2") && ir.contains("acq_rel acquire"),
+            "continuation state claims must be acq_rel/acquire compare-exchange:\n{ir}"
+        );
+    }
+
     /// An M11-shaped module with both ordinary and suspend closure calls.
     /// Both return aggregates so the machine ABI has a leading result slot;
     /// the closure remains the first source-level argument and the suspend
@@ -5127,6 +6323,7 @@ mod tests {
             extern_functions: Arena::default(),
             native_globals: Arena::default(),
             callback_bridges: Arena::default(),
+            foreign_callback_bridges: Arena::default(),
             functions: vec![Function {
                 gc_effect: GcEffect::Managed,
                 symbol: "scoop.closure_abi".to_string(),
@@ -5278,6 +6475,7 @@ mod tests {
             extern_functions: Arena::default(),
             native_globals: Arena::default(),
             callback_bridges: Arena::default(),
+            foreign_callback_bridges: Arena::default(),
             functions: vec![Function {
                 gc_effect: GcEffect::Managed,
                 symbol: "scoop_main".to_string(),
@@ -5348,9 +6546,9 @@ mod tests {
             "card table base load missing:\n{ir}"
         );
         assert!(ir.contains("lshr i64"), "card index shift missing:\n{ir}");
-        // One card mark (`store i8 1`) per heap store: the HeapStore
-        // and the ArraySet element store.
-        let marks = ir.matches("store i8 1").count();
+        // One monotonic atomic card mark per heap store: the HeapStore and
+        // the ArraySet element store.
+        let marks = ir.matches(" = atomicrmw or ptr ").count();
         assert_eq!(marks, 2, "one card mark per heap store:\n{ir}");
     }
 
@@ -5435,10 +6633,7 @@ mod tests {
         });
         let nested_element_scan = RefScan::Sequence(vec![
             RefScan::References(vec![16]),
-            RefScan::TaggedEnum {
-                tag_offset: 0,
-                variants: vec![RefScan::References(vec![8]), RefScan::None, RefScan::None],
-            },
+            RefScan::References(vec![8]),
         ]);
         let mut blocks = Arena::default();
         let entry = blocks.alloc(BasicBlock {
@@ -5464,6 +6659,7 @@ mod tests {
             extern_functions: Arena::default(),
             native_globals: Arena::default(),
             callback_bridges: Arena::default(),
+            foreign_callback_bridges: Arena::default(),
             functions: vec![Function {
                 gc_effect: GcEffect::Managed,
                 symbol: "scoop_main".to_string(),
@@ -5494,14 +6690,7 @@ mod tests {
                     align: 8,
                     scan: RefScan::Sequence(vec![
                         RefScan::References(vec![16]),
-                        RefScan::TaggedEnum {
-                            tag_offset: 32,
-                            variants: vec![
-                                RefScan::References(vec![40]),
-                                RefScan::References(vec![48]),
-                                RefScan::None,
-                            ],
-                        },
+                        RefScan::References(vec![40, 48]),
                     ]),
                     parent: None,
                     vtable: vec![],
@@ -5520,9 +6709,9 @@ mod tests {
         );
         assert!(
             ir.contains(
-                "@scoop_td_array.1.element.part.1 = private constant [6 x i64] [i64 -2, i64 0, i64 3"
+                "@scoop_td_array.1.element.part.1 = private constant [2 x i64] [i64 1, i64 8]"
             ) && ir.contains(
-                "@scoop_td_array.1.element = private constant [4 x i64] [i64 -3, i64 2"
+                "@scoop_td_array.1.element = private constant [4 x i64] [i64 -2, i64 2"
             ) && ir.contains(
                 "@scoop_td_array.1.refs = private constant [3 x i64] [i64 -1, i64 24, i64 ptrtoint (ptr @scoop_td_array.1.element to i64)]"
             ),
@@ -5530,13 +6719,13 @@ mod tests {
         );
         assert!(
             ir.contains(
-                "@scoop_td_Holder.refs.part.1 = private constant [6 x i64] [i64 -2, i64 32, i64 3"
+                "@scoop_td_Holder.refs.part.1 = private constant [3 x i64] [i64 2, i64 40, i64 48]"
             ),
-            "nested tagged enum scan must retain the tag and variants:\n{ir}"
+            "nested tagged enum scan must use fixed ref offsets:\n{ir}"
         );
         assert!(
-            ir.contains("@scoop_td_Holder.refs = private constant [4 x i64] [i64 -3, i64 2"),
-            "aggregate scan must compose plain and conditional scans:\n{ir}"
+            ir.contains("@scoop_td_Holder.refs = private constant [4 x i64] [i64 -2, i64 2"),
+            "aggregate scan must compose fixed scans:\n{ir}"
         );
     }
 
@@ -5606,10 +6795,28 @@ mod tests {
         let wrapped = enums.alloc(EnumDef {
             name: "Wrapped".to_string(),
             repr: EnumRepr::Tagged {
-                variants: vec![vec![LirType::Struct(outer)], Vec::new()],
-                payload_size: 32,
-                payload_align: 16,
+                variants: vec![
+                    EnumVariantRepr {
+                        fields: vec![LirType::Struct(outer)],
+                        field_offsets: vec![16],
+                        slot_offset: 16,
+                        slot_size: 32,
+                        slot_align: 16,
+                        gc_free: true,
+                    },
+                    EnumVariantRepr {
+                        fields: Vec::new(),
+                        field_offsets: Vec::new(),
+                        slot_offset: 16,
+                        slot_size: 0,
+                        slot_align: 1,
+                        gc_free: true,
+                    },
+                ],
+                size: 48,
+                align: 16,
             },
+            scan: RefScan::None,
         });
 
         let mut temps = Arena::default();
@@ -5675,6 +6882,7 @@ mod tests {
             extern_functions: Arena::default(),
             native_globals: Arena::default(),
             callback_bridges: Arena::default(),
+            foreign_callback_bridges: Arena::default(),
             functions: vec![Function {
                 gc_effect: GcEffect::Managed,
                 symbol: "scoop_main".to_string(),
@@ -5765,6 +6973,28 @@ mod tests {
             params: vec![scoop_lir::CType::Struct(outer)],
             return_type: scoop_lir::CType::Struct(outer),
         });
+        for (adapter, mode) in [
+            (
+                "scoop_foreign_callback_adapter_0",
+                scoop_lir::ForeignCallbackMode::Reusable,
+            ),
+            (
+                "scoop_foreign_callback_adapter_1",
+                scoop_lir::ForeignCallbackMode::OneShot,
+            ),
+        ] {
+            module
+                .foreign_callback_bridges
+                .alloc(scoop_lir::ForeignCallbackBridge {
+                    adapter_symbol: adapter.to_string(),
+                    trampoline_symbol: "scoop_foreign_callback_0".to_string(),
+                    signature_symbol: "scoop_foreign_callback_signature_0".to_string(),
+                    params: vec![scoop_lir::CType::Int, scoop_lir::CType::Pointer],
+                    return_type: scoop_lir::CType::Int,
+                    context_index: 1,
+                    mode,
+                });
+        }
         let bridge = c_bridge_source(&module)
             .expect("C bridge")
             .expect("C extern needs a bridge");
@@ -5776,15 +7006,48 @@ mod tests {
         );
         assert!(bridge.contains("scoop_c_layout_1 scoop_c_callback_0(scoop_c_layout_1 arg0)"));
         assert!(bridge.contains("scoop_callback_bridge_0(&result, &arg0);"));
+        assert_eq!(
+            bridge
+                .matches("const unsigned char scoop_foreign_callback_signature_0 = 0;")
+                .count(),
+            1,
+            "one signature/context shape must emit one descriptor:\n{bridge}"
+        );
+        assert_eq!(
+            bridge
+                .matches("int64_t scoop_foreign_callback_0(int64_t arg0, void * arg1)")
+                .count(),
+            1,
+            "registrations sharing a signature/context shape must share one trampoline:\n{bridge}"
+        );
+        assert!(bridge.contains("int64_t result = {0};"));
+        assert!(bridge.contains("const void *arguments[1] = {&arg0};"));
+        assert!(bridge.contains(
+            "scoop_runtime_callback_invoke(arg1, &scoop_foreign_callback_signature_0, &result, arguments)"
+        ));
+        let bridge_source = std::env::temp_dir().join(format!(
+            "scoop_c_foreign_callback_bridge_{}.c",
+            std::process::id()
+        ));
+        std::fs::write(&bridge_source, &bridge).expect("write generated callback C");
+        let status = std::process::Command::new("cc")
+            .args(["-std=c11", "-fsyntax-only"])
+            .arg(&bridge_source)
+            .status()
+            .expect("run C compiler");
+        std::fs::remove_file(&bridge_source).ok();
+        assert!(status.success(), "generated callback C must compile");
 
         let ir = ir_of(&module);
         assert!(
-            ir.contains("getelementptr i8, ptr %array, i32 32"),
+            ir.contains("getelementptr i8, ptr %managed_object, i32 32"),
             "over-aligned array data must start at offset 32:\n{ir}"
         );
         assert!(
-            ir.contains("call ptr @scoop_rt_alloc") && ir.contains("i64 64"),
-            "one 32-byte element plus the aligned 32-byte header must allocate 64 bytes:\n{ir}"
+            ir.contains(
+                "@scoop_runtime_finish_tlab_alloc(ptr %tlab_object, ptr @scoop_td_array.0, i64 64)"
+            ) && ir.contains("@scoop_runtime_alloc_slow(ptr @scoop_td_array.0, i64 64)"),
+            "one 32-byte element plus the aligned 32-byte header must flow through the 64-byte TLAB check:\n{ir}"
         );
     }
 }

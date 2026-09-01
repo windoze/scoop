@@ -1,0 +1,31 @@
+fun dynamicIndex(index: Int) {
+    @Unsafe {
+        foreignCallback<(Int, Ptr<Unit>) -> Int>(
+            { value: Int -> value },
+            index,
+            ForeignCallbackMode.Reusable
+        )
+    }
+}
+
+fun outOfRange() {
+    @Unsafe {
+        foreignCallback<(Int, Ptr<Unit>) -> Int>(
+            { value: Int -> value },
+            2,
+            ForeignCallbackMode.Reusable
+        )
+    }
+}
+
+fun wrongContextType() {
+    @Unsafe {
+        foreignCallback<(Int, Int) -> Int>(
+            { value: Int -> value },
+            1,
+            ForeignCallbackMode.Reusable
+        )
+    }
+}
+
+fun main() {}

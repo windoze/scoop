@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m13-callback/errors/runtime-mode.scoop:6:13: error: foreign callback mode must be the constant `Reusable` or `OneShot`

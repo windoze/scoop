@@ -1296,9 +1296,89 @@ fn ffi_core_declarations() -> Vec<Decl> {
         decl
     };
 
+    let foreign_callback_intrinsic =
+        |name: &str, intrinsic_name: &str, params: Vec<(&str, TypeRef)>, return_ty: TypeRef| {
+            let mut decl =
+                intrinsic_generic_fun(name, intrinsic_name, vec!["F"], params, Some(return_ty));
+            let Decl::Function(function) = &mut decl else {
+                unreachable!()
+            };
+            function.annotations = vec![marker("Unsafe"), intrinsic(intrinsic_name)];
+            decl
+        };
+
     vec![
         ptr,
         fun_ptr,
+        enum_decl(
+            "ForeignCallbackMode",
+            vec![],
+            vec![variant_unit("Reusable"), variant_unit("OneShot")],
+        ),
+        enum_decl(
+            "ForeignCallbackState",
+            vec![],
+            vec![
+                variant_unit("Registered"),
+                variant_unit("Active"),
+                variant_unit("Completed"),
+                variant_unit("Failed"),
+            ],
+        ),
+        generic_struct_decl(
+            "ForeignCallback",
+            vec!["F"],
+            vec![
+                ("function", ty_generic("FunPtr", vec![ty_named("F")])),
+                ("context", ty_generic("Ptr", vec![ty_named("Unit")])),
+            ],
+        ),
+        foreign_callback_intrinsic(
+            "foreignCallback",
+            "foreign_callback_register",
+            vec![
+                ("callback", ty_named("Any")),
+                ("contextIndex", ty_named("Int")),
+                ("mode", ty_named("ForeignCallbackMode")),
+            ],
+            ty_generic("ForeignCallback", vec![ty_named("F")]),
+        ),
+        foreign_callback_intrinsic(
+            "retainForeignCallback",
+            "foreign_callback_retain",
+            vec![(
+                "callback",
+                ty_generic("ForeignCallback", vec![ty_named("F")]),
+            )],
+            ty_generic("ForeignCallback", vec![ty_named("F")]),
+        ),
+        foreign_callback_intrinsic(
+            "releaseForeignCallback",
+            "foreign_callback_release",
+            vec![(
+                "callback",
+                ty_generic("ForeignCallback", vec![ty_named("F")]),
+            )],
+            ty_named("Unit"),
+        ),
+        foreign_callback_intrinsic(
+            "foreignCallbackState",
+            "foreign_callback_state",
+            vec![(
+                "callback",
+                ty_generic("ForeignCallback", vec![ty_named("F")]),
+            )],
+            ty_named("ForeignCallbackState"),
+        ),
+        foreign_callback_intrinsic(
+            "foreignCallbackFailure",
+            "foreign_callback_failure",
+            vec![(
+                "callback",
+                ty_generic("ForeignCallback", vec![ty_named("F")]),
+            )],
+            ty_nullable(ty_named("Throwable")),
+        ),
         ref_bound(generic_struct_decl(
             "PinnedPtr",
             vec!["T"],

@@ -37,6 +37,7 @@ pub type AnonymousFunctionId = Idx<AnonymousFunction>;
 pub type LocalFunctionId = Idx<LocalFunction>;
 pub type CallableReferenceId = Idx<CallableReference>;
 pub type FunctionCoercionId = Idx<FunctionCoercion>;
+pub type ForeignCallbackRegistrationId = Idx<ForeignCallbackRegistration>;
 pub type FunctionId = Idx<Function>;
 pub type ExternFunctionId = Idx<ExternFunction>;
 pub type GlobalId = Idx<Global>;
@@ -278,6 +279,7 @@ pub struct Module {
     /// Source/target signatures of every explicit function-value variance
     /// adaptation requested by HIR.
     pub function_coercions: Arena<FunctionCoercion>,
+    pub foreign_callback_registrations: Arena<ForeignCallbackRegistration>,
     pub functions: Arena<Function>,
     /// Native functions imported by source declarations. They have no HIR
     /// body and their identities never enter generic instantiation.
@@ -313,6 +315,9 @@ pub struct Module {
     /// unique source declarations and downstream stages use these typed ids,
     /// never textual names.
     pub ffi_core: FfiCore,
+    /// Compiler-validated managed callback protocol. Its ids are export-side
+    /// semantic identities and are concretized into a distinct local family.
+    pub foreign_callback_core: ForeignCallbackCore,
     /// Entry point: `fun main()`. Guaranteed present.
     pub entry: FunctionId,
     /// Resolved generic function applications, deduplicated in
@@ -342,6 +347,40 @@ pub struct FfiCore {
     pub gc_unpin_raw: FunctionId,
     pub gc_get_handle_raw: FunctionId,
     pub gc_release_handle_raw: FunctionId,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ForeignCallbackCore {
+    pub callback: StructId,
+    pub mode: EnumId,
+    pub state: EnumId,
+    pub register: FunctionId,
+    pub retain: FunctionId,
+    pub release: FunctionId,
+    pub query_state: FunctionId,
+    pub failure: FunctionId,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ForeignCallbackMode {
+    Reusable,
+    OneShot,
+}
+
+#[derive(Debug, Clone)]
+pub struct ForeignCallbackRegistration {
+    pub native_function_type: FunctionTypeId,
+    pub managed_function_type: FunctionTypeId,
+    pub context_index: u32,
+    pub mode: ForeignCallbackMode,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ForeignCallbackOperation {
+    Retain,
+    Release,
+    State,
+    Failure,
 }
 
 #[derive(Debug, Clone)]
@@ -956,6 +995,14 @@ pub enum ExprKind {
     FunPtrNull,
     /// Native C callback address selected contextually from `::name`.
     FunctionAddress(FunctionId),
+    ForeignCallbackRegister {
+        registration: ForeignCallbackRegistrationId,
+        closure: Box<Expr>,
+    },
+    ForeignCallbackOperation {
+        operation: ForeignCallbackOperation,
+        callback: Box<Expr>,
+    },
     FieldAccess {
         receiver: Box<Expr>,
         field: FieldRef,
@@ -1225,6 +1272,41 @@ pub const INTRINSIC_REGISTRY: &[IntrinsicSpec] = &[
         target: IntrinsicTarget::TopLevel,
         effects: IntrinsicEffects::NO_GC,
     },
+    IntrinsicSpec {
+        name: "foreign_callback_register",
+        stage: IntrinsicStage::Hir,
+        kind: IntrinsicKind::ForeignCallback,
+        target: IntrinsicTarget::TopLevel,
+        effects: IntrinsicEffects::UNSAFE,
+    },
+    IntrinsicSpec {
+        name: "foreign_callback_retain",
+        stage: IntrinsicStage::Hir,
+        kind: IntrinsicKind::ForeignCallback,
+        target: IntrinsicTarget::TopLevel,
+        effects: IntrinsicEffects::UNSAFE,
+    },
+    IntrinsicSpec {
+        name: "foreign_callback_release",
+        stage: IntrinsicStage::Hir,
+        kind: IntrinsicKind::ForeignCallback,
+        target: IntrinsicTarget::TopLevel,
+        effects: IntrinsicEffects::UNSAFE,
+    },
+    IntrinsicSpec {
+        name: "foreign_callback_state",
+        stage: IntrinsicStage::Hir,
+        kind: IntrinsicKind::ForeignCallback,
+        target: IntrinsicTarget::TopLevel,
+        effects: IntrinsicEffects::UNSAFE,
+    },
+    IntrinsicSpec {
+        name: "foreign_callback_failure",
+        stage: IntrinsicStage::Hir,
+        kind: IntrinsicKind::ForeignCallback,
+        target: IntrinsicTarget::TopLevel,
+        effects: IntrinsicEffects::UNSAFE,
+    },
 ];
 
 /// One entry of the intrinsic registry.
@@ -1247,6 +1329,7 @@ pub enum IntrinsicKind {
     Runtime(&'static str),
     CoroutineStart,
     CoroutineSuspend,
+    ForeignCallback,
     Pointer(PointerIntrinsic),
 }
 
@@ -1308,6 +1391,7 @@ pub fn dump(module: &Module) -> String {
             || id == module.ffi_core.fun_ptr
             || id == module.ffi_core.pinned_ptr
             || id == module.ffi_core.gc_handle
+            || id == module.foreign_callback_core.callback
         {
             continue;
         }
@@ -1330,7 +1414,10 @@ pub fn dump(module: &Module) -> String {
             ));
         }
     }
-    for (_, decl) in module.enums.iter() {
+    for (id, decl) in module.enums.iter() {
+        if id == module.foreign_callback_core.mode || id == module.foreign_callback_core.state {
+            continue;
+        }
         let type_params = if decl.type_params.is_empty() {
             String::new()
         } else {
@@ -1439,6 +1526,11 @@ pub fn dump(module: &Module) -> String {
             module.ffi_core.gc_unpin_raw,
             module.ffi_core.gc_get_handle_raw,
             module.ffi_core.gc_release_handle_raw,
+            module.foreign_callback_core.register,
+            module.foreign_callback_core.retain,
+            module.foreign_callback_core.release,
+            module.foreign_callback_core.query_state,
+            module.foreign_callback_core.failure,
         ]
         .contains(&id)
         {
@@ -1998,6 +2090,29 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
             "{pad}FunctionAddress {} : {ty}\n",
             module.functions[*function].name
         )),
+        ExprKind::ForeignCallbackRegister {
+            registration,
+            closure,
+        } => {
+            let registration_id = *registration;
+            let registration = &module.foreign_callback_registrations[registration_id];
+            out.push_str(&format!(
+                "{pad}ForeignCallbackRegister registration{} native=function_type{} managed=function_type{} context={} mode={:?} : {ty}\n",
+                registration_id.into_raw(),
+                registration.native_function_type.into_raw(),
+                registration.managed_function_type.into_raw(),
+                registration.context_index,
+                registration.mode,
+            ));
+            dump_expr(module, locals, closure, indent + 1, out);
+        }
+        ExprKind::ForeignCallbackOperation {
+            operation,
+            callback,
+        } => {
+            out.push_str(&format!("{pad}ForeignCallback{operation:?} : {ty}\n"));
+            dump_expr(module, locals, callback, indent + 1, out);
+        }
         ExprKind::FieldAccess { receiver, field } => {
             let field = match field {
                 FieldRef::StructField { index, .. } => format!("field {index}"),

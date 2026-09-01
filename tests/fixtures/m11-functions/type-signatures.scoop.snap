@@ -54,6 +54,33 @@ SourceFile
     @Intrinsic("align_of")
   fun alignOf<T : value>(): UInt
 SourceFile
+  enum ForeignCallbackMode
+    Reusable
+    OneShot
+  enum ForeignCallbackState
+    Registered
+    Active
+    Completed
+    Failed
+  struct ForeignCallback<F>
+    field function: FunPtr<F>
+    field context: Ptr<Unit>
+    @Unsafe
+    @Intrinsic("foreign_callback_register")
+  fun foreignCallback<F>(callback: Any, contextIndex: Int, mode: ForeignCallbackMode): ForeignCallback<F>
+    @Unsafe
+    @Intrinsic("foreign_callback_retain")
+  fun retainForeignCallback<F>(callback: ForeignCallback<F>): ForeignCallback<F>
+    @Unsafe
+    @Intrinsic("foreign_callback_release")
+  fun releaseForeignCallback<F>(callback: ForeignCallback<F>)
+    @Unsafe
+    @Intrinsic("foreign_callback_state")
+  fun foreignCallbackState<F>(callback: ForeignCallback<F>): ForeignCallbackState
+    @Unsafe
+    @Intrinsic("foreign_callback_failure")
+  fun foreignCallbackFailure<F>(callback: ForeignCallback<F>): Throwable?
+SourceFile
   struct PinnedPtr<T : ref>
     field raw: UInt
   struct GcHandle<T : ref>
@@ -225,6 +252,9 @@ Module
   enum Option$FIRIX
     Some(_1: (Int) -> Int)
     None()
+  enum CoroutineStep$S
+    Completed(value: String)
+    Suspended()
   class Throwable vtable=3 itables=0
   class Exception vtable=3 itables=0
   class UnwrapException vtable=3 itables=0
@@ -232,6 +262,9 @@ Module
   class ArithmeticException vtable=3 itables=0
   class IndexOutOfBoundsException vtable=3 itables=0
   class IllegalStateException vtable=3 itables=0
+  interface Continuation$S
+  interface SuspendTask$S
+  interface SuspendRegistration$S
   fun print @scoop.print(message: Any) -> Unit
     bb0 entry
       call $call.1: String = @scoop.Any.toString virtual[2]
@@ -295,6 +328,12 @@ Module
         ClassInit IllegalStateException
           VariantConstruct Option$S<String> v0
             StringConst @scoop.str.6
+  coroutine_step cs0 CoroutineStep$S result=String
+  coroutine_fn cf0 @scoop.SuspendTask.run$S$suspend source_return=String step=cs0 immediate
+  instance @scoop.Continuation.resume$S <- Continuation.resume
+  instance @scoop.Continuation.resumeWithException$S <- Continuation.resumeWithException
+  instance @scoop.SuspendTask.run$S$suspend <- SuspendTask.run
+  instance @scoop.SuspendRegistration.register$S <- SuspendRegistration.register
   str @scoop.str.0 "\n"
   str @scoop.str.1 "function types"
   str @scoop.str.2 "unwrap on None"
@@ -322,6 +361,7 @@ Module
   global @scoop_td_IllegalStateException = c""
   enum Option$S niche(payload_variant=0)
   enum Option$FIRIX niche(payload_variant=0)
+  enum CoroutineStep$S niche(payload_variant=0)
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
   fun @scoop.print(ptr<managed>) -> void
     local %0 $call.1: ptr<managed>
@@ -392,6 +432,9 @@ Module
     t1 = enum_wrap e0 v0 (global6) : enum0
     heap_store t0 +16 t1
     ret t0
+  td Continuation$S @scoop_td_Continuation$S size=0 vtable=0 itables=0
+  td SuspendTask$S @scoop_td_SuspendTask$S size=0 vtable=0 itables=0
+  td SuspendRegistration$S @scoop_td_SuspendRegistration$S size=0 vtable=0 itables=0
   td function$FIRIX @scoop_td_function$FIRIX size=0 vtable=0 itables=0
   td function$SRSX @scoop_td_function$SRSX size=0 vtable=0 itables=0
   td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
@@ -405,8 +448,9 @@ Module
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   layout Callbacks size=16 align=8 refs=[0, 8]
-  layout Option$S size=8 align=8 enum-refs=[[0], []]
-  layout Option$FIRIX size=8 align=8 enum-refs=[[0], []]
+  layout Option$S size=8 align=8 enum-scan=refs[0]
+  layout Option$FIRIX size=8 align=8 enum-scan=refs[0]
+  layout CoroutineStep$S size=8 align=8 enum-scan=refs[0]
   layout Throwable size=16 align=8 refs=[]
   layout Exception size=24 align=8 refs=[16]
   layout UnwrapException size=24 align=8 refs=[16]

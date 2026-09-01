@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m13-callback/errors/missing-signature.scoop:3:9: error: `foreignCallback` requires one explicit function type and exactly three arguments

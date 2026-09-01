@@ -768,6 +768,10 @@ impl Lowerer {
                         | hir::ExprKind::LocalFunctionCall { .. }
                         | hir::ExprKind::CallableCall { .. }
                         | hir::ExprKind::PtrStore { .. }
+                        | hir::ExprKind::ForeignCallbackOperation {
+                            operation: hir::ForeignCallbackOperation::Release,
+                            ..
+                        }
                 ) {
                     out.extend(sink);
                     hir::StatementKind::Expr(lowered)
@@ -1992,6 +1996,12 @@ fn patch_local_function_call_expr(
             }
         }
         hir::ExprKind::FieldAccess { receiver, .. }
+        | hir::ExprKind::ForeignCallbackRegister {
+            closure: receiver, ..
+        }
+        | hir::ExprKind::ForeignCallbackOperation {
+            callback: receiver, ..
+        }
         | hir::ExprKind::FunctionCoercion {
             source: receiver, ..
         }

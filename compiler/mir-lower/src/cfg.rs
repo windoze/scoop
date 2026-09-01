@@ -647,6 +647,21 @@ impl<'a> CfgLowerer<'a> {
             smir::Expr::FunctionAddress { callback } => mir::Expr::FunctionAddress {
                 callback: *callback,
             },
+            smir::Expr::ForeignCallbackRegister { bridge, closure } => {
+                mir::Expr::ForeignCallbackRegister {
+                    bridge: *bridge,
+                    closure: Box::new(self.lower_expr(closure, span)),
+                }
+            }
+            smir::Expr::ForeignCallbackOperation {
+                operation,
+                callback,
+                result_ty,
+            } => mir::Expr::ForeignCallbackOperation {
+                operation: *operation,
+                callback: Box::new(self.lower_expr(callback, span)),
+                result_ty: result_ty.clone(),
+            },
             smir::Expr::Retype { operand, ty } => mir::Expr::Retype {
                 operand: Box::new(self.lower_expr(operand, span)),
                 ty: ty.clone(),

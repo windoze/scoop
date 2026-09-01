@@ -54,6 +54,33 @@ SourceFile
     @Intrinsic("align_of")
   fun alignOf<T : value>(): UInt
 SourceFile
+  enum ForeignCallbackMode
+    Reusable
+    OneShot
+  enum ForeignCallbackState
+    Registered
+    Active
+    Completed
+    Failed
+  struct ForeignCallback<F>
+    field function: FunPtr<F>
+    field context: Ptr<Unit>
+    @Unsafe
+    @Intrinsic("foreign_callback_register")
+  fun foreignCallback<F>(callback: Any, contextIndex: Int, mode: ForeignCallbackMode): ForeignCallback<F>
+    @Unsafe
+    @Intrinsic("foreign_callback_retain")
+  fun retainForeignCallback<F>(callback: ForeignCallback<F>): ForeignCallback<F>
+    @Unsafe
+    @Intrinsic("foreign_callback_release")
+  fun releaseForeignCallback<F>(callback: ForeignCallback<F>)
+    @Unsafe
+    @Intrinsic("foreign_callback_state")
+  fun foreignCallbackState<F>(callback: ForeignCallback<F>): ForeignCallbackState
+    @Unsafe
+    @Intrinsic("foreign_callback_failure")
+  fun foreignCallbackFailure<F>(callback: ForeignCallback<F>): Throwable?
+SourceFile
   struct PinnedPtr<T : ref>
     field raw: UInt
   struct GcHandle<T : ref>
@@ -495,22 +522,22 @@ Module
   class IndexOutOfBoundsException vtable=3 itables=0
   class IllegalStateException vtable=3 itables=0
   class box$I vtable=3 itables=0
-  closure cc0 $Closure$lambda0$I type=function_type0 invoke=@scoop.$lambda.0$I captures=1
-  closure cc1 $Closure$lambda0$S type=function_type1 invoke=@scoop.$lambda.0$S captures=1
-  closure cc2 $Closure$anonymous0$I type=function_type0 invoke=@scoop.$anonymous.0$I captures=1
-  closure cc3 $Closure$anonymous0$S type=function_type1 invoke=@scoop.$anonymous.0$S captures=1
-  closure cc4 $Closure$reference0$I type=function_type0 invoke=@scoop.$reference.0$I captures=1
-  closure cc5 $Closure$reference0$S type=function_type1 invoke=@scoop.$reference.0$S captures=1
-  closure cc6 $Closure$reference1$I type=function_type2 invoke=@scoop.$reference.1$I captures=0
-  closure cc7 $Closure$reference1$S type=function_type3 invoke=@scoop.$reference.1$S captures=0
-  closure cc8 $Closure$reference2$I type=function_type0 invoke=@scoop.$reference.2$I captures=1
-  closure cc9 $Closure$reference2$S type=function_type1 invoke=@scoop.$reference.2$S captures=1
-  closure cc10 $Closure$anonymous1$I type=function_type4 invoke=@scoop.$anonymous.1$I captures=1
-  closure cc11 $Closure$anonymous1$S type=function_type5 invoke=@scoop.$anonymous.1$S captures=1
-  closure cc12 $Closure$lambda2$I type=function_type0 invoke=@scoop.$lambda.2$I captures=1
-  closure cc13 $Closure$lambda2$S type=function_type1 invoke=@scoop.$lambda.2$S captures=1
-  closure cc14 $Closure$lambda1$I type=function_type0 invoke=@scoop.$lambda.1$I captures=1
-  closure cc15 $Closure$lambda1$S type=function_type1 invoke=@scoop.$lambda.1$S captures=1
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@scoop.$lambda.0$I captures=1
+  closure cc1 $Closure$lambda1 type=function_type1 invoke=@scoop.$lambda.0$S captures=1
+  closure cc2 $Closure$lambda2 type=function_type0 invoke=@scoop.$lambda.2$I captures=1
+  closure cc3 $Closure$lambda3 type=function_type1 invoke=@scoop.$lambda.2$S captures=1
+  closure cc4 $Closure$lambda4 type=function_type0 invoke=@scoop.$lambda.1$I captures=1
+  closure cc5 $Closure$lambda5 type=function_type1 invoke=@scoop.$lambda.1$S captures=1
+  closure cc6 $Closure$anonymous0 type=function_type0 invoke=@scoop.$anonymous.0$I captures=1
+  closure cc7 $Closure$anonymous1 type=function_type1 invoke=@scoop.$anonymous.0$S captures=1
+  closure cc8 $Closure$anonymous2 type=function_type2 invoke=@scoop.$anonymous.1$I captures=1
+  closure cc9 $Closure$anonymous3 type=function_type3 invoke=@scoop.$anonymous.1$S captures=1
+  closure cc10 $Closure$reference0 type=function_type0 invoke=@scoop.$reference.0 captures=1
+  closure cc11 $Closure$reference1 type=function_type1 invoke=@scoop.$reference.1 captures=1
+  closure cc12 $Closure$reference2 type=function_type4 invoke=@scoop.$reference.2 captures=0
+  closure cc13 $Closure$reference3 type=function_type5 invoke=@scoop.$reference.3 captures=0
+  closure cc14 $Closure$reference4 type=function_type0 invoke=@scoop.$reference.4 captures=1
+  closure cc15 $Closure$reference5 type=function_type1 invoke=@scoop.$reference.5 captures=1
   fun print @scoop.print(message: Any) -> Unit
     bb0 entry
       call $call.1: String = @scoop.Any.toString virtual[2]
@@ -585,13 +612,13 @@ Module
         Local stringLocal
       call @scoop.println direct
         Local $call.6
-      call $call.7: Int = <closure:function_type2> closure[function_type2]
+      call $call.7: Int = <closure:function_type4> closure[function_type4]
         Local intIdentity
         IntLiteral 48
       call @scoop.println direct
         Box
           Local $call.7
-      call $call.8: Any = <closure:function_type3> closure[function_type3]
+      call $call.8: Any = <closure:function_type5> closure[function_type5]
         Local stringIdentity
         StringConst @scoop.str.8
       call @scoop.println direct
@@ -605,14 +632,14 @@ Module
         Local stringExtension
       call @scoop.println direct
         Local $call.10
-      call $call.11: () -> Int = <closure:function_type4> closure[function_type4]
+      call $call.11: () -> Int = <closure:function_type2> closure[function_type2]
         Local intNested
       call $call.12: Int = <closure:function_type0> closure[function_type0]
         Local $call.11
       call @scoop.println direct
         Box
           Local $call.12
-      call $call.13: () -> String = <closure:function_type5> closure[function_type5]
+      call $call.13: () -> String = <closure:function_type3> closure[function_type3]
         Local stringNested
       call $call.14: Any = <closure:function_type1> closure[function_type1]
         Local $call.13
@@ -628,6 +655,202 @@ Module
       call @scoop.println direct
         Local $call.16
       return
+  fun makeLambda @scoop.makeLambda$I(value: Int) -> () -> Int
+    bb0 entry
+      return
+        ClosureAlloc cc0 $Closure$lambda0
+          Local value
+  fun makeLambda @scoop.makeLambda$S(value: String) -> () -> String
+    bb0 entry
+      return
+        ClosureAlloc cc1 $Closure$lambda1
+          Local value
+  fun makeAnonymous @scoop.makeAnonymous$I(value: Int) -> () -> Int
+    bb0 entry
+      return
+        ClosureAlloc cc6 $Closure$anonymous0
+          Local value
+  fun makeAnonymous @scoop.makeAnonymous$S(value: String) -> () -> String
+    bb0 entry
+      return
+        ClosureAlloc cc7 $Closure$anonymous1
+          Local value
+  fun makeLocalReference @scoop.makeLocalReference$I(value: Int) -> () -> Int
+    bb0 entry
+      return
+        ClosureAlloc cc10 $Closure$reference0
+          Local value
+  fun makeLocalReference @scoop.makeLocalReference$S(value: String) -> () -> String
+    bb0 entry
+      return
+        ClosureAlloc cc11 $Closure$reference1
+          Local value
+  fun makeNamedReference @scoop.makeNamedReference$I(seed: Int) -> (Int) -> Int
+    bb0 entry
+      val reference: (Int) -> Int
+        ClosureAlloc cc12 $Closure$reference2
+      return
+        Local reference
+  fun makeNamedReference @scoop.makeNamedReference$S(seed: String) -> (String) -> String
+    bb0 entry
+      val reference: (String) -> String
+        ClosureAlloc cc13 $Closure$reference3
+      return
+        Local reference
+  fun makeExtensionReference @scoop.makeExtensionReference$I(value: Int) -> () -> Int
+    bb0 entry
+      return
+        ClosureAlloc cc14 $Closure$reference4
+          Local value
+  fun makeExtensionReference @scoop.makeExtensionReference$S(value: String) -> () -> String
+    bb0 entry
+      return
+        ClosureAlloc cc15 $Closure$reference5
+          Local value
+  fun makeNested @scoop.makeNested$I(value: Int) -> () -> () -> Int
+    bb0 entry
+      return
+        ClosureAlloc cc8 $Closure$anonymous2
+          Local value
+  fun makeNested @scoop.makeNested$S(value: String) -> () -> () -> String
+    bb0 entry
+      return
+        ClosureAlloc cc9 $Closure$anonymous3
+          Local value
+  fun makeBoxReader @scoop.makeBoxReader$I(value: Int) -> () -> Int
+    bb0 entry
+      val box: GenericBox$I
+        StructInit GenericBox$I
+          Local value
+      return
+        ClosureAlloc cc2 $Closure$lambda2
+          Local box
+  fun makeBoxReader @scoop.makeBoxReader$S(value: String) -> () -> String
+    bb0 entry
+      val box: GenericBox$S
+        StructInit GenericBox$S
+          Local value
+      return
+        ClosureAlloc cc3 $Closure$lambda3
+          Local box
+  fun $lambda.0 @scoop.$lambda.0$I($closure: () -> Int) -> Int
+    bb0 entry
+      return
+        ClosureCapture cc0 0
+          Local $closure
+  fun $lambda.0 @scoop.$lambda.0$S($closure: () -> String) -> String
+    bb0 entry
+      return
+        ClosureCapture cc1 0
+          Local $closure
+  fun $anonymous.0 @scoop.$anonymous.0$I($closure: () -> Int) -> Int
+    bb0 entry
+      return
+        ClosureCapture cc6 0
+          Local $closure
+  fun $anonymous.0 @scoop.$anonymous.0$S($closure: () -> String) -> String
+    bb0 entry
+      return
+        ClosureCapture cc7 0
+          Local $closure
+  fun $local.0.read @scoop.$local.0.read$I($capture.value: Int) -> Int
+    bb0 entry
+      return
+        Local $capture.value
+  fun $local.0.read @scoop.$local.0.read$S($capture.value: String) -> String
+    bb0 entry
+      return
+        Local $capture.value
+  fun identity @scoop.identity$I(value: Int) -> Int
+    bb0 entry
+      return
+        Local value
+  fun identity @scoop.identity$S(value: String) -> String
+    bb0 entry
+      return
+        Local value
+  fun $extension.copyValue @scoop.$extension.copyValue$I(this: Int) -> Int
+    bb0 entry
+      return
+        Local this
+  fun $extension.copyValue @scoop.$extension.copyValue$S(this: String) -> String
+    bb0 entry
+      return
+        Local this
+  fun $anonymous.1 @scoop.$anonymous.1$I($closure: () -> () -> Int) -> () -> Int
+    bb0 entry
+      return
+        ClosureAlloc cc4 $Closure$lambda4
+          ClosureCapture cc8 0
+            Local $closure
+  fun $anonymous.1 @scoop.$anonymous.1$S($closure: () -> () -> String) -> () -> String
+    bb0 entry
+      return
+        ClosureAlloc cc5 $Closure$lambda5
+          ClosureCapture cc9 0
+            Local $closure
+  fun $lambda.2 @scoop.$lambda.2$I($closure: () -> Int) -> Int
+    bb0 entry
+      return
+        FieldAccess 0
+          ClosureCapture cc2 0
+            Local $closure
+  fun $lambda.2 @scoop.$lambda.2$S($closure: () -> String) -> String
+    bb0 entry
+      return
+        FieldAccess 0
+          ClosureCapture cc3 0
+            Local $closure
+  fun $lambda.1 @scoop.$lambda.1$I($closure: () -> Int) -> Int
+    bb0 entry
+      return
+        ClosureCapture cc4 0
+          Local $closure
+  fun $lambda.1 @scoop.$lambda.1$S($closure: () -> String) -> String
+    bb0 entry
+      return
+        ClosureCapture cc5 0
+          Local $closure
+  fun $reference.0 @scoop.$reference.0($closure: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @scoop.$local.0.read$I direct
+        ClosureCapture cc10 0
+          Local $closure
+      return
+        Local $call.1
+  fun $reference.1 @scoop.$reference.1($closure: () -> String) -> String
+    bb0 entry
+      call $call.1: String = @scoop.$local.0.read$S direct
+        ClosureCapture cc11 0
+          Local $closure
+      return
+        Local $call.1
+  fun $reference.2 @scoop.$reference.2($closure: (Int) -> Int, arg0: Int) -> Int
+    bb0 entry
+      call $call.1: Int = @scoop.identity$I direct
+        Local arg0
+      return
+        Local $call.1
+  fun $reference.3 @scoop.$reference.3($closure: (String) -> String, arg0: String) -> String
+    bb0 entry
+      call $call.1: String = @scoop.identity$S direct
+        Local arg0
+      return
+        Local $call.1
+  fun $reference.4 @scoop.$reference.4($closure: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @scoop.$extension.copyValue$I direct
+        ClosureCapture cc14 0
+          Local $closure
+      return
+        Local $call.1
+  fun $reference.5 @scoop.$reference.5($closure: () -> String) -> String
+    bb0 entry
+      call $call.1: String = @scoop.$extension.copyValue$S direct
+        ClosureCapture cc15 0
+          Local $closure
+      return
+        Local $call.1
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
     bb0 entry
       return
@@ -667,202 +890,6 @@ Module
         ClassInit IllegalStateException
           VariantConstruct Option$S<String> v0
             StringConst @scoop.str.13
-  fun makeLambda @scoop.makeLambda$I(value: Int) -> () -> Int
-    bb0 entry
-      return
-        ClosureAlloc cc0 $Closure$lambda0$I
-          Local value
-  fun makeLambda @scoop.makeLambda$S(value: String) -> () -> String
-    bb0 entry
-      return
-        ClosureAlloc cc1 $Closure$lambda0$S
-          Local value
-  fun makeAnonymous @scoop.makeAnonymous$I(value: Int) -> () -> Int
-    bb0 entry
-      return
-        ClosureAlloc cc2 $Closure$anonymous0$I
-          Local value
-  fun makeAnonymous @scoop.makeAnonymous$S(value: String) -> () -> String
-    bb0 entry
-      return
-        ClosureAlloc cc3 $Closure$anonymous0$S
-          Local value
-  fun makeLocalReference @scoop.makeLocalReference$I(value: Int) -> () -> Int
-    bb0 entry
-      return
-        ClosureAlloc cc4 $Closure$reference0$I
-          Local value
-  fun makeLocalReference @scoop.makeLocalReference$S(value: String) -> () -> String
-    bb0 entry
-      return
-        ClosureAlloc cc5 $Closure$reference0$S
-          Local value
-  fun makeNamedReference @scoop.makeNamedReference$I(seed: Int) -> (Int) -> Int
-    bb0 entry
-      val reference: (Int) -> Int
-        ClosureAlloc cc6 $Closure$reference1$I
-      return
-        Local reference
-  fun makeNamedReference @scoop.makeNamedReference$S(seed: String) -> (String) -> String
-    bb0 entry
-      val reference: (String) -> String
-        ClosureAlloc cc7 $Closure$reference1$S
-      return
-        Local reference
-  fun makeExtensionReference @scoop.makeExtensionReference$I(value: Int) -> () -> Int
-    bb0 entry
-      return
-        ClosureAlloc cc8 $Closure$reference2$I
-          Local value
-  fun makeExtensionReference @scoop.makeExtensionReference$S(value: String) -> () -> String
-    bb0 entry
-      return
-        ClosureAlloc cc9 $Closure$reference2$S
-          Local value
-  fun makeNested @scoop.makeNested$I(value: Int) -> () -> () -> Int
-    bb0 entry
-      return
-        ClosureAlloc cc10 $Closure$anonymous1$I
-          Local value
-  fun makeNested @scoop.makeNested$S(value: String) -> () -> () -> String
-    bb0 entry
-      return
-        ClosureAlloc cc11 $Closure$anonymous1$S
-          Local value
-  fun makeBoxReader @scoop.makeBoxReader$I(value: Int) -> () -> Int
-    bb0 entry
-      val box: GenericBox$I
-        StructInit GenericBox$I
-          Local value
-      return
-        ClosureAlloc cc12 $Closure$lambda2$I
-          Local box
-  fun makeBoxReader @scoop.makeBoxReader$S(value: String) -> () -> String
-    bb0 entry
-      val box: GenericBox$S
-        StructInit GenericBox$S
-          Local value
-      return
-        ClosureAlloc cc13 $Closure$lambda2$S
-          Local box
-  fun $lambda.0 @scoop.$lambda.0$I($closure: () -> Int) -> Int
-    bb0 entry
-      return
-        ClosureCapture cc0 0
-          Local $closure
-  fun $lambda.0 @scoop.$lambda.0$S($closure: () -> String) -> String
-    bb0 entry
-      return
-        ClosureCapture cc1 0
-          Local $closure
-  fun $anonymous.0 @scoop.$anonymous.0$I($closure: () -> Int) -> Int
-    bb0 entry
-      return
-        ClosureCapture cc2 0
-          Local $closure
-  fun $anonymous.0 @scoop.$anonymous.0$S($closure: () -> String) -> String
-    bb0 entry
-      return
-        ClosureCapture cc3 0
-          Local $closure
-  fun $local.0.read @scoop.$local.0.read$I($capture.value: Int) -> Int
-    bb0 entry
-      return
-        Local $capture.value
-  fun $reference.0$I @scoop.$reference.0$I($closure: () -> Int) -> Int
-    bb0 entry
-      call $call.1: Int = @scoop.$local.0.read$I direct
-        ClosureCapture cc4 0
-          Local $closure
-      return
-        Local $call.1
-  fun $local.0.read @scoop.$local.0.read$S($capture.value: String) -> String
-    bb0 entry
-      return
-        Local $capture.value
-  fun $reference.0$S @scoop.$reference.0$S($closure: () -> String) -> String
-    bb0 entry
-      call $call.1: String = @scoop.$local.0.read$S direct
-        ClosureCapture cc5 0
-          Local $closure
-      return
-        Local $call.1
-  fun identity @scoop.identity$I(value: Int) -> Int
-    bb0 entry
-      return
-        Local value
-  fun $reference.1$I @scoop.$reference.1$I($closure: (Int) -> Int, arg0: Int) -> Int
-    bb0 entry
-      call $call.1: Int = @scoop.identity$I direct
-        Local arg0
-      return
-        Local $call.1
-  fun identity @scoop.identity$S(value: String) -> String
-    bb0 entry
-      return
-        Local value
-  fun $reference.1$S @scoop.$reference.1$S($closure: (String) -> String, arg0: String) -> String
-    bb0 entry
-      call $call.1: String = @scoop.identity$S direct
-        Local arg0
-      return
-        Local $call.1
-  fun $extension.copyValue @scoop.$extension.copyValue$I(this: Int) -> Int
-    bb0 entry
-      return
-        Local this
-  fun $reference.2$I @scoop.$reference.2$I($closure: () -> Int) -> Int
-    bb0 entry
-      call $call.1: Int = @scoop.$extension.copyValue$I direct
-        ClosureCapture cc8 0
-          Local $closure
-      return
-        Local $call.1
-  fun $extension.copyValue @scoop.$extension.copyValue$S(this: String) -> String
-    bb0 entry
-      return
-        Local this
-  fun $reference.2$S @scoop.$reference.2$S($closure: () -> String) -> String
-    bb0 entry
-      call $call.1: String = @scoop.$extension.copyValue$S direct
-        ClosureCapture cc9 0
-          Local $closure
-      return
-        Local $call.1
-  fun $anonymous.1 @scoop.$anonymous.1$I($closure: () -> () -> Int) -> () -> Int
-    bb0 entry
-      return
-        ClosureAlloc cc14 $Closure$lambda1$I
-          ClosureCapture cc10 0
-            Local $closure
-  fun $anonymous.1 @scoop.$anonymous.1$S($closure: () -> () -> String) -> () -> String
-    bb0 entry
-      return
-        ClosureAlloc cc15 $Closure$lambda1$S
-          ClosureCapture cc11 0
-            Local $closure
-  fun $lambda.2 @scoop.$lambda.2$I($closure: () -> Int) -> Int
-    bb0 entry
-      return
-        FieldAccess 0
-          ClosureCapture cc12 0
-            Local $closure
-  fun $lambda.2 @scoop.$lambda.2$S($closure: () -> String) -> String
-    bb0 entry
-      return
-        FieldAccess 0
-          ClosureCapture cc13 0
-            Local $closure
-  fun $lambda.1 @scoop.$lambda.1$I($closure: () -> Int) -> Int
-    bb0 entry
-      return
-        ClosureCapture cc14 0
-          Local $closure
-  fun $lambda.1 @scoop.$lambda.1$S($closure: () -> String) -> String
-    bb0 entry
-      return
-        ClosureCapture cc15 0
-          Local $closure
   fun eq.I @scoop.eq.I(this: Any, other: Any) -> Boolean
     bb0 entry
       val $a: Int
@@ -945,6 +972,22 @@ Module
   global @scoop.str.12 = "array index out of bounds"
   global @scoop.str.13 = "illegal state"
   global @scoop_td_box$I = c""
+  global @scoop_td_$Closure$lambda0 = c""
+  global @scoop_td_$Closure$lambda1 = c""
+  global @scoop_td_$Closure$anonymous0 = c""
+  global @scoop_td_$Closure$anonymous1 = c""
+  global @scoop_td_$Closure$reference0 = c""
+  global @scoop_td_$Closure$reference1 = c""
+  global @scoop_td_$Closure$reference2 = c""
+  global @scoop_td_$Closure$reference3 = c""
+  global @scoop_td_$Closure$reference4 = c""
+  global @scoop_td_$Closure$reference5 = c""
+  global @scoop_td_$Closure$anonymous2 = c""
+  global @scoop_td_$Closure$anonymous3 = c""
+  global @scoop_td_$Closure$lambda2 = c""
+  global @scoop_td_$Closure$lambda3 = c""
+  global @scoop_td_$Closure$lambda4 = c""
+  global @scoop_td_$Closure$lambda5 = c""
   global @scoop_td_Throwable = c""
   global @scoop_td_Exception = c""
   global @scoop_td_UnwrapException = c""
@@ -952,22 +995,6 @@ Module
   global @scoop_td_ArithmeticException = c""
   global @scoop_td_IndexOutOfBoundsException = c""
   global @scoop_td_IllegalStateException = c""
-  global @scoop_td_$Closure$lambda0$I = c""
-  global @scoop_td_$Closure$lambda0$S = c""
-  global @scoop_td_$Closure$anonymous0$I = c""
-  global @scoop_td_$Closure$anonymous0$S = c""
-  global @scoop_td_$Closure$reference0$I = c""
-  global @scoop_td_$Closure$reference0$S = c""
-  global @scoop_td_$Closure$reference1$I = c""
-  global @scoop_td_$Closure$reference1$S = c""
-  global @scoop_td_$Closure$reference2$I = c""
-  global @scoop_td_$Closure$reference2$S = c""
-  global @scoop_td_$Closure$anonymous1$I = c""
-  global @scoop_td_$Closure$anonymous1$S = c""
-  global @scoop_td_$Closure$lambda2$I = c""
-  global @scoop_td_$Closure$lambda2$S = c""
-  global @scoop_td_$Closure$lambda1$I = c""
-  global @scoop_td_$Closure$lambda1$S = c""
   enum Option$S niche(payload_variant=0)
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
   fun @scoop.print(ptr<managed>) -> void
@@ -1122,127 +1149,88 @@ Module
     call @scoop.println(local29)
     t51 = aggregate () : {}
     ret
-  fun @scoop.ctor.Throwable() -> ptr<managed>
-  block entry
-    t0 = call @scoop_rt_alloc(global15, 16) : ptr<managed>
-    ret t0
-  fun @scoop.ctor.Exception(enum0) -> ptr<managed>
-  block entry
-    t0 = call @scoop_rt_alloc(global16, 24) : ptr<managed>
-    heap_store t0 +16 param0
-    ret t0
-  fun @scoop.ctor.UnwrapException() -> ptr<managed>
-  block entry
-    t0 = call @scoop_rt_alloc(global17, 24) : ptr<managed>
-    t1 = enum_wrap e0 v0 (global9) : enum0
-    heap_store t0 +16 t1
-    ret t0
-  fun @scoop.ctor.ClassCastException() -> ptr<managed>
-  block entry
-    t0 = call @scoop_rt_alloc(global18, 24) : ptr<managed>
-    t1 = enum_wrap e0 v0 (global10) : enum0
-    heap_store t0 +16 t1
-    ret t0
-  fun @scoop.ctor.ArithmeticException() -> ptr<managed>
-  block entry
-    t0 = call @scoop_rt_alloc(global19, 24) : ptr<managed>
-    t1 = enum_wrap e0 v0 (global11) : enum0
-    heap_store t0 +16 t1
-    ret t0
-  fun @scoop.ctor.IndexOutOfBoundsException() -> ptr<managed>
-  block entry
-    t0 = call @scoop_rt_alloc(global20, 24) : ptr<managed>
-    t1 = enum_wrap e0 v0 (global12) : enum0
-    heap_store t0 +16 t1
-    ret t0
-  fun @scoop.ctor.IllegalStateException() -> ptr<managed>
-  block entry
-    t0 = call @scoop_rt_alloc(global21, 24) : ptr<managed>
-    t1 = enum_wrap e0 v0 (global13) : enum0
-    heap_store t0 +16 t1
-    ret t0
   fun @scoop.makeLambda$I(i64) -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global22, 32) : ptr<managed>
+    t0 = call @scoop_rt_alloc(global15, 32) : ptr<managed>
     t1 = function_address @scoop.$lambda.0$I : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 param0
     ret t0
   fun @scoop.makeLambda$S(ptr<managed>) -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global23, 32) : ptr<managed>
+    t0 = call @scoop_rt_alloc(global16, 32) : ptr<managed>
     t1 = function_address @scoop.$lambda.0$S : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 param0
     ret t0
   fun @scoop.makeAnonymous$I(i64) -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global24, 32) : ptr<managed>
+    t0 = call @scoop_rt_alloc(global17, 32) : ptr<managed>
     t1 = function_address @scoop.$anonymous.0$I : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 param0
     ret t0
   fun @scoop.makeAnonymous$S(ptr<managed>) -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global25, 32) : ptr<managed>
+    t0 = call @scoop_rt_alloc(global18, 32) : ptr<managed>
     t1 = function_address @scoop.$anonymous.0$S : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 param0
     ret t0
   fun @scoop.makeLocalReference$I(i64) -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global26, 32) : ptr<managed>
-    t1 = function_address @scoop.$reference.0$I : ptr
+    t0 = call @scoop_rt_alloc(global19, 32) : ptr<managed>
+    t1 = function_address @scoop.$reference.0 : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 param0
     ret t0
   fun @scoop.makeLocalReference$S(ptr<managed>) -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global27, 32) : ptr<managed>
-    t1 = function_address @scoop.$reference.0$S : ptr
+    t0 = call @scoop_rt_alloc(global20, 32) : ptr<managed>
+    t1 = function_address @scoop.$reference.1 : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 param0
     ret t0
   fun @scoop.makeNamedReference$I(i64) -> ptr<managed>
     local %0 reference: ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global28, 24) : ptr<managed>
-    t1 = function_address @scoop.$reference.1$I : ptr
+    t0 = call @scoop_rt_alloc(global21, 24) : ptr<managed>
+    t1 = function_address @scoop.$reference.2 : ptr
     heap_store t0 +16 t1
     store t0 -> local0
     ret local0
   fun @scoop.makeNamedReference$S(ptr<managed>) -> ptr<managed>
     local %0 reference: ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global29, 24) : ptr<managed>
-    t1 = function_address @scoop.$reference.1$S : ptr
+    t0 = call @scoop_rt_alloc(global22, 24) : ptr<managed>
+    t1 = function_address @scoop.$reference.3 : ptr
     heap_store t0 +16 t1
     store t0 -> local0
     ret local0
   fun @scoop.makeExtensionReference$I(i64) -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global30, 32) : ptr<managed>
-    t1 = function_address @scoop.$reference.2$I : ptr
+    t0 = call @scoop_rt_alloc(global23, 32) : ptr<managed>
+    t1 = function_address @scoop.$reference.4 : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 param0
     ret t0
   fun @scoop.makeExtensionReference$S(ptr<managed>) -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global31, 32) : ptr<managed>
-    t1 = function_address @scoop.$reference.2$S : ptr
+    t0 = call @scoop_rt_alloc(global24, 32) : ptr<managed>
+    t1 = function_address @scoop.$reference.5 : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 param0
     ret t0
   fun @scoop.makeNested$I(i64) -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global32, 32) : ptr<managed>
+    t0 = call @scoop_rt_alloc(global25, 32) : ptr<managed>
     t1 = function_address @scoop.$anonymous.1$I : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 param0
     ret t0
   fun @scoop.makeNested$S(ptr<managed>) -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global33, 32) : ptr<managed>
+    t0 = call @scoop_rt_alloc(global26, 32) : ptr<managed>
     t1 = function_address @scoop.$anonymous.1$S : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 param0
@@ -1252,7 +1240,7 @@ Module
   block entry
     t0 = aggregate (param0) : struct0
     store t0 -> local0
-    t1 = call @scoop_rt_alloc(global34, 32) : ptr<managed>
+    t1 = call @scoop_rt_alloc(global27, 32) : ptr<managed>
     t2 = function_address @scoop.$lambda.2$I : ptr
     heap_store t1 +16 t2
     heap_store t1 +24 local0
@@ -1262,7 +1250,7 @@ Module
   block entry
     t0 = aggregate (param0) : struct1
     store t0 -> local0
-    t1 = call @scoop_rt_alloc(global35, 32) : ptr<managed>
+    t1 = call @scoop_rt_alloc(global28, 32) : ptr<managed>
     t2 = function_address @scoop.$lambda.2$S : ptr
     heap_store t1 +16 t2
     heap_store t1 +24 local0
@@ -1286,64 +1274,24 @@ Module
   fun @scoop.$local.0.read$I(i64) -> i64
   block entry
     ret param0
-  fun @scoop.$reference.0$I(ptr<managed>) -> i64
-    local %0 $call.1: i64
-  block entry
-    t0 = heap_load param0 +24 : i64
-    t1 = call @scoop.$local.0.read$I(t0) : i64
-    store t1 -> local0
-    ret local0
   fun @scoop.$local.0.read$S(ptr<managed>) -> ptr<managed>
   block entry
     ret param0
-  fun @scoop.$reference.0$S(ptr<managed>) -> ptr<managed>
-    local %0 $call.1: ptr<managed>
-  block entry
-    t0 = heap_load param0 +24 : ptr<managed>
-    t1 = call @scoop.$local.0.read$S(t0) : ptr<managed>
-    store t1 -> local0
-    ret local0
   fun @scoop.identity$I(i64) -> i64
   block entry
     ret param0
-  fun @scoop.$reference.1$I(ptr<managed>, i64) -> i64
-    local %0 $call.1: i64
-  block entry
-    t0 = call @scoop.identity$I(param1) : i64
-    store t0 -> local0
-    ret local0
   fun @scoop.identity$S(ptr<managed>) -> ptr<managed>
   block entry
     ret param0
-  fun @scoop.$reference.1$S(ptr<managed>, ptr<managed>) -> ptr<managed>
-    local %0 $call.1: ptr<managed>
-  block entry
-    t0 = call @scoop.identity$S(param1) : ptr<managed>
-    store t0 -> local0
-    ret local0
   fun @scoop.$extension.copyValue$I(i64) -> i64
   block entry
     ret param0
-  fun @scoop.$reference.2$I(ptr<managed>) -> i64
-    local %0 $call.1: i64
-  block entry
-    t0 = heap_load param0 +24 : i64
-    t1 = call @scoop.$extension.copyValue$I(t0) : i64
-    store t1 -> local0
-    ret local0
   fun @scoop.$extension.copyValue$S(ptr<managed>) -> ptr<managed>
   block entry
     ret param0
-  fun @scoop.$reference.2$S(ptr<managed>) -> ptr<managed>
-    local %0 $call.1: ptr<managed>
-  block entry
-    t0 = heap_load param0 +24 : ptr<managed>
-    t1 = call @scoop.$extension.copyValue$S(t0) : ptr<managed>
-    store t1 -> local0
-    ret local0
   fun @scoop.$anonymous.1$I(ptr<managed>) -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global36, 32) : ptr<managed>
+    t0 = call @scoop_rt_alloc(global29, 32) : ptr<managed>
     t1 = function_address @scoop.$lambda.1$I : ptr
     heap_store t0 +16 t1
     t2 = heap_load param0 +24 : i64
@@ -1351,7 +1299,7 @@ Module
     ret t0
   fun @scoop.$anonymous.1$S(ptr<managed>) -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global37, 32) : ptr<managed>
+    t0 = call @scoop_rt_alloc(global30, 32) : ptr<managed>
     t1 = function_address @scoop.$lambda.1$S : ptr
     heap_store t0 +16 t1
     t2 = heap_load param0 +24 : ptr<managed>
@@ -1375,6 +1323,85 @@ Module
   block entry
     t0 = heap_load param0 +24 : ptr<managed>
     ret t0
+  fun @scoop.$reference.0(ptr<managed>) -> i64
+    local %0 $call.1: i64
+  block entry
+    t0 = heap_load param0 +24 : i64
+    t1 = call @scoop.$local.0.read$I(t0) : i64
+    store t1 -> local0
+    ret local0
+  fun @scoop.$reference.1(ptr<managed>) -> ptr<managed>
+    local %0 $call.1: ptr<managed>
+  block entry
+    t0 = heap_load param0 +24 : ptr<managed>
+    t1 = call @scoop.$local.0.read$S(t0) : ptr<managed>
+    store t1 -> local0
+    ret local0
+  fun @scoop.$reference.2(ptr<managed>, i64) -> i64
+    local %0 $call.1: i64
+  block entry
+    t0 = call @scoop.identity$I(param1) : i64
+    store t0 -> local0
+    ret local0
+  fun @scoop.$reference.3(ptr<managed>, ptr<managed>) -> ptr<managed>
+    local %0 $call.1: ptr<managed>
+  block entry
+    t0 = call @scoop.identity$S(param1) : ptr<managed>
+    store t0 -> local0
+    ret local0
+  fun @scoop.$reference.4(ptr<managed>) -> i64
+    local %0 $call.1: i64
+  block entry
+    t0 = heap_load param0 +24 : i64
+    t1 = call @scoop.$extension.copyValue$I(t0) : i64
+    store t1 -> local0
+    ret local0
+  fun @scoop.$reference.5(ptr<managed>) -> ptr<managed>
+    local %0 $call.1: ptr<managed>
+  block entry
+    t0 = heap_load param0 +24 : ptr<managed>
+    t1 = call @scoop.$extension.copyValue$S(t0) : ptr<managed>
+    store t1 -> local0
+    ret local0
+  fun @scoop.ctor.Throwable() -> ptr<managed>
+  block entry
+    t0 = call @scoop_rt_alloc(global31, 16) : ptr<managed>
+    ret t0
+  fun @scoop.ctor.Exception(enum0) -> ptr<managed>
+  block entry
+    t0 = call @scoop_rt_alloc(global32, 24) : ptr<managed>
+    heap_store t0 +16 param0
+    ret t0
+  fun @scoop.ctor.UnwrapException() -> ptr<managed>
+  block entry
+    t0 = call @scoop_rt_alloc(global33, 24) : ptr<managed>
+    t1 = enum_wrap e0 v0 (global9) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.ClassCastException() -> ptr<managed>
+  block entry
+    t0 = call @scoop_rt_alloc(global34, 24) : ptr<managed>
+    t1 = enum_wrap e0 v0 (global10) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.ArithmeticException() -> ptr<managed>
+  block entry
+    t0 = call @scoop_rt_alloc(global35, 24) : ptr<managed>
+    t1 = enum_wrap e0 v0 (global11) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.IndexOutOfBoundsException() -> ptr<managed>
+  block entry
+    t0 = call @scoop_rt_alloc(global36, 24) : ptr<managed>
+    t1 = enum_wrap e0 v0 (global12) : enum0
+    heap_store t0 +16 t1
+    ret t0
+  fun @scoop.ctor.IllegalStateException() -> ptr<managed>
+  block entry
+    t0 = call @scoop_rt_alloc(global37, 24) : ptr<managed>
+    t1 = enum_wrap e0 v0 (global13) : enum0
+    heap_store t0 +16 t1
+    ret t0
   fun @scoop.eq.I(ptr<managed>, ptr<managed>) -> i1
     local %0 $a: i64
     local %1 $b: i64
@@ -1394,10 +1421,10 @@ Module
     ret local0
   td function$FRIX @scoop_td_function$FRIX size=0 vtable=0 itables=0
   td function$FRSX @scoop_td_function$FRSX size=0 vtable=0 itables=0
-  td function$FIRIX @scoop_td_function$FIRIX size=0 vtable=0 itables=0
-  td function$FSRSX @scoop_td_function$FSRSX size=0 vtable=0 itables=0
   td function$FRFRIXX @scoop_td_function$FRFRIXX size=0 vtable=0 itables=0
   td function$FRFRSXX @scoop_td_function$FRFRSXX size=0 vtable=0 itables=0
+  td function$FIRIX @scoop_td_function$FIRIX size=0 vtable=0 itables=0
+  td function$FSRSX @scoop_td_function$FSRSX size=0 vtable=0 itables=0
   td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
   td box$I @scoop_td_box$I size=24 vtable=3 itables=0
   td Exception @scoop_td_Exception size=24 vtable=3 itables=0
@@ -1406,28 +1433,28 @@ Module
   td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=3 itables=0
   td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=3 itables=0
   td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=3 itables=0
-  td $Closure$lambda0$I @scoop_td_$Closure$lambda0$I size=32 vtable=3 itables=0
-  td $Closure$lambda0$S @scoop_td_$Closure$lambda0$S size=32 vtable=3 itables=0
-  td $Closure$anonymous0$I @scoop_td_$Closure$anonymous0$I size=32 vtable=3 itables=0
-  td $Closure$anonymous0$S @scoop_td_$Closure$anonymous0$S size=32 vtable=3 itables=0
-  td $Closure$reference0$I @scoop_td_$Closure$reference0$I size=32 vtable=3 itables=0
-  td $Closure$reference0$S @scoop_td_$Closure$reference0$S size=32 vtable=3 itables=0
-  td $Closure$reference1$I @scoop_td_$Closure$reference1$I size=24 vtable=3 itables=0
-  td $Closure$reference1$S @scoop_td_$Closure$reference1$S size=24 vtable=3 itables=0
-  td $Closure$reference2$I @scoop_td_$Closure$reference2$I size=32 vtable=3 itables=0
-  td $Closure$reference2$S @scoop_td_$Closure$reference2$S size=32 vtable=3 itables=0
-  td $Closure$anonymous1$I @scoop_td_$Closure$anonymous1$I size=32 vtable=3 itables=0
-  td $Closure$anonymous1$S @scoop_td_$Closure$anonymous1$S size=32 vtable=3 itables=0
-  td $Closure$lambda2$I @scoop_td_$Closure$lambda2$I size=32 vtable=3 itables=0
-  td $Closure$lambda2$S @scoop_td_$Closure$lambda2$S size=32 vtable=3 itables=0
-  td $Closure$lambda1$I @scoop_td_$Closure$lambda1$I size=32 vtable=3 itables=0
-  td $Closure$lambda1$S @scoop_td_$Closure$lambda1$S size=32 vtable=3 itables=0
+  td $Closure$lambda0 @scoop_td_$Closure$lambda0 size=32 vtable=3 itables=0
+  td $Closure$lambda1 @scoop_td_$Closure$lambda1 size=32 vtable=3 itables=0
+  td $Closure$lambda2 @scoop_td_$Closure$lambda2 size=32 vtable=3 itables=0
+  td $Closure$lambda3 @scoop_td_$Closure$lambda3 size=32 vtable=3 itables=0
+  td $Closure$lambda4 @scoop_td_$Closure$lambda4 size=32 vtable=3 itables=0
+  td $Closure$lambda5 @scoop_td_$Closure$lambda5 size=32 vtable=3 itables=0
+  td $Closure$anonymous0 @scoop_td_$Closure$anonymous0 size=32 vtable=3 itables=0
+  td $Closure$anonymous1 @scoop_td_$Closure$anonymous1 size=32 vtable=3 itables=0
+  td $Closure$anonymous2 @scoop_td_$Closure$anonymous2 size=32 vtable=3 itables=0
+  td $Closure$anonymous3 @scoop_td_$Closure$anonymous3 size=32 vtable=3 itables=0
+  td $Closure$reference0 @scoop_td_$Closure$reference0 size=32 vtable=3 itables=0
+  td $Closure$reference1 @scoop_td_$Closure$reference1 size=32 vtable=3 itables=0
+  td $Closure$reference2 @scoop_td_$Closure$reference2 size=24 vtable=3 itables=0
+  td $Closure$reference3 @scoop_td_$Closure$reference3 size=24 vtable=3 itables=0
+  td $Closure$reference4 @scoop_td_$Closure$reference4 size=32 vtable=3 itables=0
+  td $Closure$reference5 @scoop_td_$Closure$reference5 size=32 vtable=3 itables=0
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   layout GenericBox$I size=8 align=8 refs=[]
   layout GenericBox$S size=8 align=8 refs=[0]
-  layout Option$S size=8 align=8 enum-refs=[[0], []]
+  layout Option$S size=8 align=8 enum-scan=refs[0]
   layout Throwable size=16 align=8 refs=[]
   layout Exception size=24 align=8 refs=[16]
   layout UnwrapException size=24 align=8 refs=[16]
@@ -1436,22 +1463,22 @@ Module
   layout IndexOutOfBoundsException size=24 align=8 refs=[16]
   layout IllegalStateException size=24 align=8 refs=[16]
   layout box$I size=24 align=8 refs=[]
-  layout $Closure$lambda0$I size=32 align=8 refs=[]
-  layout $Closure$lambda0$S size=32 align=8 refs=[24]
-  layout $Closure$anonymous0$I size=32 align=8 refs=[]
-  layout $Closure$anonymous0$S size=32 align=8 refs=[24]
-  layout $Closure$reference0$I size=32 align=8 refs=[]
-  layout $Closure$reference0$S size=32 align=8 refs=[24]
-  layout $Closure$reference1$I size=24 align=8 refs=[]
-  layout $Closure$reference1$S size=24 align=8 refs=[]
-  layout $Closure$reference2$I size=32 align=8 refs=[]
-  layout $Closure$reference2$S size=32 align=8 refs=[24]
-  layout $Closure$anonymous1$I size=32 align=8 refs=[]
-  layout $Closure$anonymous1$S size=32 align=8 refs=[24]
-  layout $Closure$lambda2$I size=32 align=8 refs=[]
-  layout $Closure$lambda2$S size=32 align=8 refs=[24]
-  layout $Closure$lambda1$I size=32 align=8 refs=[]
-  layout $Closure$lambda1$S size=32 align=8 refs=[24]
+  layout $Closure$lambda0 size=32 align=8 refs=[]
+  layout $Closure$lambda1 size=32 align=8 refs=[24]
+  layout $Closure$lambda2 size=32 align=8 refs=[]
+  layout $Closure$lambda3 size=32 align=8 refs=[24]
+  layout $Closure$lambda4 size=32 align=8 refs=[]
+  layout $Closure$lambda5 size=32 align=8 refs=[24]
+  layout $Closure$anonymous0 size=32 align=8 refs=[]
+  layout $Closure$anonymous1 size=32 align=8 refs=[24]
+  layout $Closure$anonymous2 size=32 align=8 refs=[]
+  layout $Closure$anonymous3 size=32 align=8 refs=[24]
+  layout $Closure$reference0 size=32 align=8 refs=[]
+  layout $Closure$reference1 size=32 align=8 refs=[24]
+  layout $Closure$reference2 size=24 align=8 refs=[]
+  layout $Closure$reference3 size=24 align=8 refs=[]
+  layout $Closure$reference4 size=32 align=8 refs=[]
+  layout $Closure$reference5 size=32 align=8 refs=[24]
   entry @scoop_main
 
 == run ==

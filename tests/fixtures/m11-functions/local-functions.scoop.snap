@@ -54,6 +54,33 @@ SourceFile
     @Intrinsic("align_of")
   fun alignOf<T : value>(): UInt
 SourceFile
+  enum ForeignCallbackMode
+    Reusable
+    OneShot
+  enum ForeignCallbackState
+    Registered
+    Active
+    Completed
+    Failed
+  struct ForeignCallback<F>
+    field function: FunPtr<F>
+    field context: Ptr<Unit>
+    @Unsafe
+    @Intrinsic("foreign_callback_register")
+  fun foreignCallback<F>(callback: Any, contextIndex: Int, mode: ForeignCallbackMode): ForeignCallback<F>
+    @Unsafe
+    @Intrinsic("foreign_callback_retain")
+  fun retainForeignCallback<F>(callback: ForeignCallback<F>): ForeignCallback<F>
+    @Unsafe
+    @Intrinsic("foreign_callback_release")
+  fun releaseForeignCallback<F>(callback: ForeignCallback<F>)
+    @Unsafe
+    @Intrinsic("foreign_callback_state")
+  fun foreignCallbackState<F>(callback: ForeignCallback<F>): ForeignCallbackState
+    @Unsafe
+    @Intrinsic("foreign_callback_failure")
+  fun foreignCallbackFailure<F>(callback: ForeignCallback<F>): Throwable?
+SourceFile
   struct PinnedPtr<T : ref>
     field raw: UInt
   struct GcHandle<T : ref>
@@ -476,6 +503,12 @@ Module
   closure cc0 $Closure$reference0 type=function_type0 invoke=@scoop.$reference.0 captures=1
   closure cc1 $Closure$reference1 type=function_type0 invoke=@scoop.$reference.1 captures=0
   closure cc2 $Closure$reference2 type=function_type1 invoke=@scoop.$reference.2 captures=1
+  fun LocalSnapshot.readThroughLocal @scoop.LocalSnapshot.readThroughLocal(this: LocalSnapshot) -> Int
+    bb0 entry
+      call $call.1: Int = @scoop.$local.11.read direct
+        Local this
+      return
+        Local $call.1
   fun print @scoop.print(message: Any) -> Unit
     bb0 entry
       call $call.1: String = @scoop.Any.toString virtual[2]
@@ -613,12 +646,6 @@ Module
           FieldAccess 0
             Local snapshot
       return
-  fun LocalSnapshot.readThroughLocal @scoop.LocalSnapshot.readThroughLocal(this: LocalSnapshot) -> Int
-    bb0 entry
-      call $call.1: Int = @scoop.$local.11.read direct
-        Local this
-      return
-        Local $call.1
   fun $local.0.factorial @scoop.$local.0.factorial(n: Int) -> Int
     bb0 entry
       branch bb1 bb2
@@ -698,6 +725,24 @@ Module
       return
         FieldAccess 0
           Local $capture.this
+  fun $local.4.identity @scoop.$local.4.identity$I(value: Int) -> Int
+    bb0 entry
+      return
+        Local value
+  fun $local.5.identity @scoop.$local.5.identity$I(value: Int) -> Int
+    bb0 entry
+      return
+        Local value
+  fun throughOuterGeneric @scoop.throughOuterGeneric$I(value: Int) -> Int
+    bb0 entry
+      call $call.1: Int = @scoop.$local.6.local$I direct
+        Local value
+      return
+        Local $call.1
+  fun $local.6.local @scoop.$local.6.local$I(value: Int) -> Int
+    bb0 entry
+      return
+        Local value
   fun $reference.0 @scoop.$reference.0($closure: (Int) -> Int, arg0: Int) -> Int
     bb0 entry
       call $call.1: Int = @scoop.$local.1.add direct
@@ -706,10 +751,6 @@ Module
         Local arg0
       return
         Local $call.1
-  fun $local.5.identity @scoop.$local.5.identity$I(value: Int) -> Int
-    bb0 entry
-      return
-        Local value
   fun $reference.1 @scoop.$reference.1($closure: (Int) -> Int, arg0: Int) -> Int
     bb0 entry
       call $call.1: Int = @scoop.$local.5.identity$I direct
@@ -762,20 +803,6 @@ Module
         ClassInit IllegalStateException
           VariantConstruct Option$S<String> v0
             StringConst @scoop.str.6
-  fun $local.4.identity @scoop.$local.4.identity$I(value: Int) -> Int
-    bb0 entry
-      return
-        Local value
-  fun throughOuterGeneric @scoop.throughOuterGeneric$I(value: Int) -> Int
-    bb0 entry
-      call $call.1: Int = @scoop.$local.6.local$I direct
-        Local value
-      return
-        Local $call.1
-  fun $local.6.local @scoop.$local.6.local$I(value: Int) -> Int
-    bb0 entry
-      return
-        Local value
   fun eq.I @scoop.eq.I(this: Any, other: Any) -> Boolean
     bb0 entry
       val $a: Int
@@ -795,8 +822,8 @@ Module
           Local this
       return
         Local $call.1
-  instance @scoop.$local.5.identity$I <- $local.5.identity
   instance @scoop.$local.4.identity$I <- $local.4.identity
+  instance @scoop.$local.5.identity$I <- $local.5.identity
   instance @scoop.throughOuterGeneric$I <- throughOuterGeneric
   instance @scoop.$local.6.local$I <- $local.6.local
   str @scoop.str.0 "\n"
@@ -830,6 +857,12 @@ Module
   global @scoop_td_IllegalStateException = c""
   enum Option$S niche(payload_variant=0)
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
+  fun @scoop.LocalSnapshot.readThroughLocal(struct1) -> i64
+    local %0 $call.1: i64
+  block entry
+    t0 = call @scoop.$local.11.read(param0) : i64
+    store t0 -> local0
+    ret local0
   fun @scoop.print(ptr<managed>) -> void
     local %0 $call.1: ptr<managed>
   block entry
@@ -991,12 +1024,6 @@ Module
     call @scoop.println(t37)
     t38 = aggregate () : {}
     ret
-  fun @scoop.LocalSnapshot.readThroughLocal(struct1) -> i64
-    local %0 $call.1: i64
-  block entry
-    t0 = call @scoop.$local.11.read(param0) : i64
-    store t0 -> local0
-    ret local0
   fun @scoop.$local.0.factorial(i64) -> i64
     local %0 $result.0: i64
     local %1 $call.1: i64
@@ -1056,6 +1083,21 @@ Module
   block entry
     t0 = extract param0, 0 : i64
     ret t0
+  fun @scoop.$local.4.identity$I(i64) -> i64
+  block entry
+    ret param0
+  fun @scoop.$local.5.identity$I(i64) -> i64
+  block entry
+    ret param0
+  fun @scoop.throughOuterGeneric$I(i64) -> i64
+    local %0 $call.1: i64
+  block entry
+    t0 = call @scoop.$local.6.local$I(param0) : i64
+    store t0 -> local0
+    ret local0
+  fun @scoop.$local.6.local$I(i64) -> i64
+  block entry
+    ret param0
   fun @scoop.$reference.0(ptr<managed>, i64) -> i64
     local %0 $call.1: i64
   block entry
@@ -1063,9 +1105,6 @@ Module
     t1 = call @scoop.$local.1.add(t0, param1) : i64
     store t1 -> local0
     ret local0
-  fun @scoop.$local.5.identity$I(i64) -> i64
-  block entry
-    ret param0
   fun @scoop.$reference.1(ptr<managed>, i64) -> i64
     local %0 $call.1: i64
   block entry
@@ -1118,18 +1157,6 @@ Module
     t1 = enum_wrap e0 v0 (global6) : enum0
     heap_store t0 +16 t1
     ret t0
-  fun @scoop.$local.4.identity$I(i64) -> i64
-  block entry
-    ret param0
-  fun @scoop.throughOuterGeneric$I(i64) -> i64
-    local %0 $call.1: i64
-  block entry
-    t0 = call @scoop.$local.6.local$I(param0) : i64
-    store t0 -> local0
-    ret local0
-  fun @scoop.$local.6.local$I(i64) -> i64
-  block entry
-    ret param0
   fun @scoop.eq.I(ptr<managed>, ptr<managed>) -> i1
     local %0 $a: i64
     local %1 $b: i64
@@ -1165,7 +1192,7 @@ Module
   layout Boolean size=1 align=1 refs=[]
   layout LocalLabel size=8 align=8 refs=[0]
   layout LocalSnapshot size=8 align=8 refs=[]
-  layout Option$S size=8 align=8 enum-refs=[[0], []]
+  layout Option$S size=8 align=8 enum-scan=refs[0]
   layout Throwable size=16 align=8 refs=[]
   layout Exception size=24 align=8 refs=[16]
   layout UnwrapException size=24 align=8 refs=[16]

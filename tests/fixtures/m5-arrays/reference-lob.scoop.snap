@@ -54,6 +54,33 @@ SourceFile
     @Intrinsic("align_of")
   fun alignOf<T : value>(): UInt
 SourceFile
+  enum ForeignCallbackMode
+    Reusable
+    OneShot
+  enum ForeignCallbackState
+    Registered
+    Active
+    Completed
+    Failed
+  struct ForeignCallback<F>
+    field function: FunPtr<F>
+    field context: Ptr<Unit>
+    @Unsafe
+    @Intrinsic("foreign_callback_register")
+  fun foreignCallback<F>(callback: Any, contextIndex: Int, mode: ForeignCallbackMode): ForeignCallback<F>
+    @Unsafe
+    @Intrinsic("foreign_callback_retain")
+  fun retainForeignCallback<F>(callback: ForeignCallback<F>): ForeignCallback<F>
+    @Unsafe
+    @Intrinsic("foreign_callback_release")
+  fun releaseForeignCallback<F>(callback: ForeignCallback<F>)
+    @Unsafe
+    @Intrinsic("foreign_callback_state")
+  fun foreignCallbackState<F>(callback: ForeignCallback<F>): ForeignCallbackState
+    @Unsafe
+    @Intrinsic("foreign_callback_failure")
+  fun foreignCallbackFailure<F>(callback: ForeignCallback<F>): Throwable?
+SourceFile
   struct PinnedPtr<T : ref>
     field raw: UInt
   struct GcHandle<T : ref>
@@ -343,6 +370,11 @@ Module
   class box$I vtable=3 itables=0
   class box$Tag vtable=3 itables=1
   interface Named
+  fun Tag.name @scoop.Tag.name(this: Tag) -> String
+    bb0 entry
+      return
+        FieldAccess 0
+          Local this
   fun print @scoop.print(message: Any) -> Unit
     bb0 entry
       call $call.1: String = @scoop.Any.toString virtual[2]
@@ -359,6 +391,14 @@ Module
       call extern0 @scoop_rt_write direct
         StringConst @scoop.str.0
       return
+  fun Cat.name @scoop.Cat.name(this: Cat) -> String
+    bb0 entry
+      return
+        StringConst @scoop.str.1
+  fun Dog.name @scoop.Dog.name(this: Dog) -> String
+    bb0 entry
+      return
+        StringConst @scoop.str.2
   fun baseCount @scoop.baseCount(values: Array<Base>) -> Int
     bb0 entry
       return
@@ -431,7 +471,7 @@ Module
       val unrelated: Array<Any>
         ArrayLiteral
           Local $call.7
-          StringConst @scoop.str.1
+          StringConst @scoop.str.3
       call $call.8: Int = @scoop.anyCount direct
         Local unrelated
       call @scoop.println direct
@@ -440,31 +480,18 @@ Module
       val tag: Named
         Box
           StructInit Tag
-            StringConst @scoop.str.2
+            StringConst @scoop.str.4
       val explicitlyBoxed: Array<Named>
         ArrayLiteral
           Local tag
           Box
             StructInit Tag
-              StringConst @scoop.str.3
+              StringConst @scoop.str.5
       call $call.9: Any = @scoop.secondName direct
         Local explicitlyBoxed
       call @scoop.println direct
         Local $call.9
       return
-  fun Cat.name @scoop.Cat.name(this: Cat) -> String
-    bb0 entry
-      return
-        StringConst @scoop.str.4
-  fun Dog.name @scoop.Dog.name(this: Dog) -> String
-    bb0 entry
-      return
-        StringConst @scoop.str.5
-  fun Tag.name @scoop.Tag.name(this: Tag) -> String
-    bb0 entry
-      return
-        FieldAccess 0
-          Local this
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
     bb0 entry
       return
@@ -566,11 +593,11 @@ Module
       return
         Local $call.1
   str @scoop.str.0 "\n"
-  str @scoop.str.1 "text"
-  str @scoop.str.2 "tag"
-  str @scoop.str.3 "boxed"
-  str @scoop.str.4 "cat"
-  str @scoop.str.5 "dog"
+  str @scoop.str.1 "cat"
+  str @scoop.str.2 "dog"
+  str @scoop.str.3 "text"
+  str @scoop.str.4 "tag"
+  str @scoop.str.5 "boxed"
   str @scoop.str.6 "unwrap on None"
   str @scoop.str.7 "invalid cast"
   str @scoop.str.8 "arithmetic error"
@@ -581,11 +608,11 @@ Module
 == lir ==
 Module
   global @scoop.str.0 = "\n"
-  global @scoop.str.1 = "text"
-  global @scoop.str.2 = "tag"
-  global @scoop.str.3 = "boxed"
-  global @scoop.str.4 = "cat"
-  global @scoop.str.5 = "dog"
+  global @scoop.str.1 = "cat"
+  global @scoop.str.2 = "dog"
+  global @scoop.str.3 = "text"
+  global @scoop.str.4 = "tag"
+  global @scoop.str.5 = "boxed"
   global @scoop.str.6 = "unwrap on None"
   global @scoop.str.7 = "invalid cast"
   global @scoop.str.8 = "arithmetic error"
@@ -608,6 +635,10 @@ Module
   global @scoop_td_Dog = c""
   enum Option$S niche(payload_variant=0)
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
+  fun @scoop.Tag.name(struct0) -> ptr<managed>
+  block entry
+    t0 = extract param0, 0 : ptr<managed>
+    ret t0
   fun @scoop.print(ptr<managed>) -> void
     local %0 $call.1: ptr<managed>
   block entry
@@ -630,6 +661,12 @@ Module
     native_call[native-borrowed] extern0(global0)
     t4 = aggregate () : {}
     ret
+  fun @scoop.Cat.name(ptr<managed>) -> ptr<managed>
+  block entry
+    ret global1
+  fun @scoop.Dog.name(ptr<managed>) -> ptr<managed>
+  block entry
+    ret global2
   fun @scoop.baseCount([ptr<managed>]) -> i64
   block entry
     t0 = array_len param0 : i64
@@ -710,17 +747,17 @@ Module
     t10 = aggregate () : {}
     t11 = call @scoop.ctor.Left() : ptr<managed>
     store t11 -> local11
-    t12 = array_alloc (local11, global1) : [ptr<managed>]
+    t12 = array_alloc (local11, global3) : [ptr<managed>]
     store t12 -> local2
     t13 = call @scoop.anyCount(local2) : i64
     store t13 -> local12
     t14 = call @scoop_rt_box(global12, local12, 8) : ptr<managed>
     call @scoop.println(t14)
     t15 = aggregate () : {}
-    t16 = aggregate (global2) : struct0
+    t16 = aggregate (global4) : struct0
     t17 = call @scoop_rt_box(global13, t16, 8) : ptr<managed>
     store t17 -> local3
-    t18 = aggregate (global3) : struct0
+    t18 = aggregate (global5) : struct0
     t19 = call @scoop_rt_box(global13, t18, 8) : ptr<managed>
     t20 = array_alloc (local3, t19) : [ptr<managed>]
     store t20 -> local4
@@ -729,16 +766,6 @@ Module
     call @scoop.println(local13)
     t22 = aggregate () : {}
     ret
-  fun @scoop.Cat.name(ptr<managed>) -> ptr<managed>
-  block entry
-    ret global4
-  fun @scoop.Dog.name(ptr<managed>) -> ptr<managed>
-  block entry
-    ret global5
-  fun @scoop.Tag.name(struct0) -> ptr<managed>
-  block entry
-    t0 = extract param0, 0 : ptr<managed>
-    ret t0
   fun @scoop.ctor.Throwable() -> ptr<managed>
   block entry
     t0 = call @scoop_rt_alloc(global14, 16) : ptr<managed>
@@ -855,7 +882,7 @@ Module
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   layout Tag size=8 align=8 refs=[0]
-  layout Option$S size=8 align=8 enum-refs=[[0], []]
+  layout Option$S size=8 align=8 enum-scan=refs[0]
   layout Throwable size=16 align=8 refs=[]
   layout Exception size=24 align=8 refs=[16]
   layout UnwrapException size=24 align=8 refs=[16]

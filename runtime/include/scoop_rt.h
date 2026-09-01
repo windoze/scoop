@@ -46,25 +46,20 @@ typedef struct ScoopItableEntry {
  *   offset 24. Over-aligned C-layout elements are GC-free and carry a
  *   NULL descriptor. A no-reference element scan makes the whole array
  *   descriptor NULL.
- * - SCOOP_REFS_ENUM: tagged enum at an arbitrary inline offset. Word 1
- *   is the tag byte offset, word 2 is the variant count N, and words
- *   3 .. 3+N are pointers to recursive per-variant scan programs. This
- *   composes for enums nested in class/struct/tuple fields. Niche enums
- *   are ordinary one-word references and use a plain table.
  * - SCOOP_REFS_SEQUENCE: composition of independent scans over the same
  *   base. Word 1 is child count N and words 2 .. 2+N are pointers to
- *   recursive child programs. This combines unconditional references
- *   with one or more nested tagged enums.
- * - otherwise the word is a count N (< SCOOP_REFS_ENUM) and the
+ *   recursive child programs.
+ * - otherwise the word is a count N (< SCOOP_REFS_SEQUENCE) and the
  *   following N words are the object-relative byte offsets of the
- *   reference fields (plain layout).
+ *   reference fields. Tagged enums use this same fixed-offset form:
+ *   each ref-bearing variant has a disjoint slot and inactive slots are
+ *   zero, so scanning never reads the tag.
  *
  * A scanned slot whose value is null or points outside the GC heap is
- * ignored, so null (niche `None`) references and stale bytes are safe.
+ * ignored. Niche `None` and inactive tagged-enum slots must be null.
  */
 #define SCOOP_REFS_ARRAY UINT64_MAX
-#define SCOOP_REFS_ENUM (UINT64_MAX - 1)
-#define SCOOP_REFS_SEQUENCE (UINT64_MAX - 2)
+#define SCOOP_REFS_SEQUENCE (UINT64_MAX - 1)
 
 struct ScoopTypeDescriptor {
     uint64_t type_id;
@@ -106,10 +101,29 @@ typedef struct ScoopArray {
     char elements[];
 } ScoopArray;
 
-/* Allocate `size` bytes (including the 16-byte header) from the GC heap
- * and write the object header (`td` + zeroed gc_word). May trigger a
- * collection (runtime spec 3.1 slow path). The signature matches the
- * pre-M9 always-leak form so callers do not change. */
+/* Minimal per-thread allocation ABI exposed to generated code. The pointed
+ * context belongs to the attached OS thread. Generated code may only read
+ * and advance cursor while managed; the STW collector retires both fields
+ * before sweep. */
+typedef struct ScoopAllocationContext {
+    char *cursor;
+    char *limit;
+} ScoopAllocationContext;
+
+extern _Thread_local ScoopAllocationContext *scoop_rt_allocation_context;
+
+/* Complete one successful inline TLAB allocation. This helper is a GC leaf:
+ * it clears the object, initializes its header, atomically records the object
+ * start, and updates statistics. */
+void scoop_runtime_finish_tlab_alloc(void *object,
+                                     const ScoopTypeDescriptor *td,
+                                     size_t size);
+
+/* Refill/allocate after the inline TLAB bump fails. May trigger GC. */
+void *scoop_runtime_alloc_slow(const ScoopTypeDescriptor *td, size_t size);
+
+/* Runtime-source compatibility entry. Generated M13 code uses the inline
+ * allocation context and falls back to scoop_runtime_alloc_slow. */
 void *scoop_rt_alloc(const ScoopTypeDescriptor *td, size_t size);
 
 /* M9 GC contracts (milestone9 DESIGN 3.1): write-barrier card table
@@ -229,11 +243,18 @@ typedef struct ScoopNativeRootFrame {
 } ScoopNativeRootFrame;
 
 /* Compiler-published roots that stay live across one outbound native call.
- * The shape is intentionally parallel to ScoopNativeRootFrame, but the two
- * chains have different ownership and transition semantics. */
+ * Each entry scans one addressable value using the same recursive descriptor
+ * format as object payloads. Inline tagged enums expose fixed ref offsets;
+ * their inactive ref-bearing slots are zero. The base remains updateable for
+ * moving GC. */
+typedef struct ScoopCallerRootEntry {
+    void *base;
+    const uint64_t *scan;
+} ScoopCallerRootEntry;
+
 typedef struct ScoopCallerRootFrame {
     struct ScoopCallerRootFrame *previous;
-    void ***slots;
+    ScoopCallerRootEntry *entries;
     uint64_t count;
 } ScoopCallerRootFrame;
 
@@ -253,7 +274,8 @@ void scoop_rt_push_native_roots(ScoopNativeRootFrame *frame, void ***slots,
                                 uint64_t count);
 void scoop_rt_pop_native_roots(ScoopNativeRootFrame *frame);
 
-void scoop_rt_push_caller_roots(ScoopCallerRootFrame *frame, void ***slots,
+void scoop_rt_push_caller_roots(ScoopCallerRootFrame *frame,
+                                ScoopCallerRootEntry *entries,
                                 uint64_t count);
 void scoop_rt_pop_caller_roots(ScoopCallerRootFrame *frame);
 void scoop_rt_enter_native_safe(ScoopThreadTransition *transition,
@@ -272,14 +294,53 @@ const void *scoop_rt_pin(const void *obj);
 const void *scoop_rt_unpin(const void *obj);
 
 /* GcHandle table (runtime spec 3.4): keeps the object alive without
- * pinning. The handle value is the table index + 1; 0 is reserved for
- * the niche (get_handle(null) == 0, release_handle(0) == null).
- * release_handle validates the handle and aborts on an invalid or
- * already-released one (runtime spec 4.2). Entries are not updated by
- * the collector (v1 does not move objects; a moving collector must
- * update entries instead — noted in gc.c). */
+ * pinning. A nonzero 64-bit value encodes generation and slot+1, so stale
+ * handles cannot alias a reused slot; 0 remains the null niche.
+ * release/resolve validate both components and abort for stale handles.
+ * Entries are not relocated by M13's non-moving collector; M15 updates
+ * live entries during relocation. */
 uint64_t scoop_rt_get_handle(const void *obj);
 const void *scoop_rt_release_handle(uint64_t handle);
+const void *scoop_rt_resolve_handle(uint64_t handle);
+
+/* M13 managed foreign-callback gateway (runtime spec 8). A generated typed
+ * adapter receives the current closure object plus C argument/result storage,
+ * catches every Scoop exception, and reports it through exception_out. */
+typedef uint64_t (*ScoopForeignCallbackAdapter)(
+    const void *closure, void *result_storage,
+    const void *const *argument_storage, void **exception_out);
+
+enum {
+    SCOOP_FOREIGN_CALLBACK_REUSABLE = 0,
+    SCOOP_FOREIGN_CALLBACK_ONE_SHOT = 1,
+};
+
+enum {
+    SCOOP_FOREIGN_CALLBACK_REGISTERED = 0,
+    SCOOP_FOREIGN_CALLBACK_ACTIVE = 1,
+    SCOOP_FOREIGN_CALLBACK_COMPLETED = 2,
+    SCOOP_FOREIGN_CALLBACK_FAILED = 3,
+};
+
+enum {
+    SCOOP_FOREIGN_CALLBACK_RETURNED = 0,
+    SCOOP_FOREIGN_CALLBACK_THREW = 1,
+};
+
+void scoop_callback_runtime_init(void);
+void scoop_callback_prepare_shutdown(void);
+void *scoop_runtime_callback_register(const void *closure,
+                                      ScoopForeignCallbackAdapter adapter,
+                                      const void *signature_descriptor,
+                                      uint32_t mode);
+void *scoop_runtime_callback_retain(void *context);
+void scoop_runtime_callback_release(void *context);
+uint32_t scoop_runtime_callback_state(void *context);
+const void *scoop_runtime_callback_failure(void *context);
+uint32_t scoop_runtime_callback_invoke(
+    void *context, const void *signature_descriptor, void *result_storage,
+    const void *const *argument_storage);
+uint64_t scoop_runtime_callback_debug_live_count(void);
 
 /* Force a full collection. */
 void scoop_rt_gc_collect(void);

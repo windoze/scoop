@@ -136,6 +136,9 @@ pub fn lower(module: &hir::Module) -> mir::Module {
         global_map: HashMap::new(),
         callback_bridges: Arena::new(),
         callback_by_target: HashMap::new(),
+        foreign_callback_adapters: Arena::new(),
+        foreign_callback_bridges: Arena::new(),
+        foreign_callback_by_registration: HashMap::new(),
         top_level: Vec::new(),
         strings: Arena::new(),
         structs: StructRegistry::default(),
@@ -149,7 +152,7 @@ pub fn lower(module: &hir::Module) -> mir::Module {
         enums: EnumRegistry::default(),
         boxed: BoxedRegistry::default(),
         ctors: HashMap::new(),
-        shell: mangling_shell(&Arena::new(), &Arena::new(), &Arena::new()),
+        shell: mangling_shell(&Arena::new(), &Arena::new(), &Arena::new(), &Arena::new()),
         overloaded: overloaded_names(module),
         option_variants: (0, 0),
         coroutines: CoroutineRegistry::default(),
@@ -179,6 +182,10 @@ struct Lowerer {
     global_map: HashMap<hir::GlobalId, mir::GlobalId>,
     callback_bridges: Arena<mir::CallbackBridge>,
     callback_by_target: HashMap<(mir::FunctionId, mir::FunctionTypeId), mir::CallbackBridgeId>,
+    foreign_callback_adapters: Arena<mir::ForeignCallbackAdapter>,
+    foreign_callback_bridges: Arena<mir::ForeignCallbackBridge>,
+    foreign_callback_by_registration:
+        HashMap<hir::ForeignCallbackRegistrationId, mir::ForeignCallbackBridgeId>,
     /// User functions in declaration order (intrinsics have no MIR body).
     top_level: Vec<mir::FunctionId>,
     strings: Arena<mir::StringConst>,
@@ -614,14 +621,21 @@ impl CoroutineRegistry {
 
 impl Lowerer {
     fn run(mut self, module: &hir::Module) -> mir::Module {
-        // Struct / interface / class ids first (types can reference
+        // Struct / class / interface ids first (types can reference
         // any of them regardless of declaration order), then the
         // mangling shell (their names for `encode_type`), then the
         // field types themselves — which can instantiate enums.
         self.lower_structs(module);
-        self.lower_interfaces(module);
         self.declare_classes(module);
-        self.shell = mangling_shell(&self.structs.defs, &self.classes, &self.interfaces.defs);
+        // Concrete interface type arguments may name classes, so every class
+        // id must exist before interface applications are transposed.
+        self.lower_interfaces(module);
+        self.shell = mangling_shell(
+            &self.structs.defs,
+            &self.enums.defs,
+            &self.classes,
+            &self.interfaces.defs,
+        );
         self.fill_class_hierarchy(module);
         self.fill_struct_fields(module);
         self.lower_globals(module);
@@ -747,6 +761,8 @@ impl Lowerer {
             extern_functions: self.extern_functions,
             globals: self.globals,
             callback_bridges: self.callback_bridges,
+            foreign_callback_adapters: self.foreign_callback_adapters,
+            foreign_callback_bridges: self.foreign_callback_bridges,
             function_types: self.shell.function_types,
             closure_classes: self.closure_classes,
             closure_invoke_functions: self.closure_invokes,
@@ -931,7 +947,14 @@ impl Lowerer {
                 return protocol;
             }
         }
-        unreachable!("local-concrete HIR provides a protocol for every suspend result type")
+        let protocols = module
+            .coroutine_protocols
+            .iter()
+            .map(|protocol| format!("{:?}", module.types[protocol.result_type].kind))
+            .collect::<Vec<_>>();
+        panic!(
+            "local-concrete HIR provides a protocol for every suspend result type; missing {result:?}, available {protocols:?}"
+        )
     }
 
     fn finalize_variance_itables(&mut self, module: &hir::Module) -> bool {
@@ -1531,6 +1554,9 @@ impl Lowerer {
             global_map: &self.global_map,
             callback_bridges: &mut self.callback_bridges,
             callback_by_target: &mut self.callback_by_target,
+            foreign_callback_adapters: &mut self.foreign_callback_adapters,
+            foreign_callback_bridges: &mut self.foreign_callback_bridges,
+            foreign_callback_by_registration: &mut self.foreign_callback_by_registration,
             ctors: &self.ctors,
             strings: &mut self.strings,
             functions: &mut self.functions,
@@ -2492,6 +2518,9 @@ impl Lowerer {
             global_map: &self.global_map,
             callback_bridges: &mut self.callback_bridges,
             callback_by_target: &mut self.callback_by_target,
+            foreign_callback_adapters: &mut self.foreign_callback_adapters,
+            foreign_callback_bridges: &mut self.foreign_callback_bridges,
+            foreign_callback_by_registration: &mut self.foreign_callback_by_registration,
             ctors: &self.ctors,
             strings: &mut self.strings,
             functions: &mut self.functions,
@@ -2689,6 +2718,9 @@ impl Lowerer {
             global_map: &self.global_map,
             callback_bridges: &mut self.callback_bridges,
             callback_by_target: &mut self.callback_by_target,
+            foreign_callback_adapters: &mut self.foreign_callback_adapters,
+            foreign_callback_bridges: &mut self.foreign_callback_bridges,
+            foreign_callback_by_registration: &mut self.foreign_callback_by_registration,
             ctors: &self.ctors,
             strings: &mut self.strings,
             functions: &mut self.functions,
@@ -3034,6 +3066,8 @@ impl Lowerer {
         name: &str,
         expected_params: &[mir::Type],
     ) -> (mir::FunctionId, Vec<mir::Type>, mir::Type) {
+        let mut candidates = Vec::new();
+        let mut owner_methods = Vec::new();
         for (fn_id, function) in module.functions.iter() {
             let Some(method) = function.method else {
                 continue;
@@ -3051,6 +3085,7 @@ impl Lowerer {
             if !owner_matches {
                 continue;
             }
+            owner_methods.push(function.name.clone());
             if short_name(&function.name) != name {
                 continue;
             }
@@ -3071,6 +3106,7 @@ impl Lowerer {
                     )
                 })
                 .collect();
+            candidates.push((function.name.clone(), params.clone()));
             if params != expected_params {
                 continue;
             }
@@ -3084,7 +3120,14 @@ impl Lowerer {
             let function = self.function_map[&fn_id];
             return (function, params, return_ty);
         }
-        unreachable!("hir-lower guarantees `{name}` is implemented by the boxed value type")
+        let payload_name = match payload {
+            mir::Type::Struct(id) => self.structs.defs[*id].name.clone(),
+            mir::Type::Enum(id, _) => self.enums.defs[*id].name.clone(),
+            _ => format!("{payload:?}"),
+        };
+        panic!(
+            "concrete HIR guarantees `{name}` is implemented by boxed value type {payload_name} ({payload:?}) with parameters {expected_params:?}; owner methods: {owner_methods:?}; matching-name candidates: {candidates:?}"
+        )
     }
 }
 
@@ -3236,6 +3279,7 @@ fn clone_fields(fields: &[mir::Field]) -> Vec<mir::Field> {
 /// allocation order, so ids align.
 fn mangling_shell(
     structs: &Arena<mir::StructDef>,
+    enums: &Arena<mir::EnumDef>,
     classes: &Arena<mir::ClassDef>,
     interfaces: &Arena<mir::InterfaceDef>,
 ) -> mir::Module {
@@ -3247,6 +3291,14 @@ fn mangling_shell(
             c_layout: def.c_layout,
             interior_mutable: def.interior_mutable,
             fields: Vec::new(),
+        });
+    }
+    let mut shell_enums = Arena::new();
+    for (_, def) in enums.iter() {
+        shell_enums.alloc(mir::EnumDef {
+            name: def.name.clone(),
+            gc_free: def.gc_free,
+            variants: Vec::new(),
         });
     }
     let mut shell_classes = Arena::new();
@@ -3282,13 +3334,15 @@ fn mangling_shell(
         extern_functions: Arena::new(),
         globals: Arena::new(),
         callback_bridges: Arena::new(),
+        foreign_callback_adapters: Arena::new(),
+        foreign_callback_bridges: Arena::new(),
         function_types: Arena::new(),
         closure_classes: Arena::new(),
         closure_invoke_functions: Arena::new(),
         top_level: Vec::new(),
         strings: Arena::new(),
         structs: shell_structs,
-        enums: Arena::new(),
+        enums: shell_enums,
         classes: shell_classes,
         interfaces: shell_interfaces,
         entry,
@@ -3736,6 +3790,10 @@ struct BodyLowerer<'a> {
     callback_bridges: &'a mut Arena<mir::CallbackBridge>,
     callback_by_target:
         &'a mut HashMap<(mir::FunctionId, mir::FunctionTypeId), mir::CallbackBridgeId>,
+    foreign_callback_adapters: &'a mut Arena<mir::ForeignCallbackAdapter>,
+    foreign_callback_bridges: &'a mut Arena<mir::ForeignCallbackBridge>,
+    foreign_callback_by_registration:
+        &'a mut HashMap<hir::ForeignCallbackRegistrationId, mir::ForeignCallbackBridgeId>,
     /// HIR class -> its constructor function (`ClassInit` calls).
     ctors: &'a HashMap<hir::ClassId, mir::FunctionId>,
     strings: &'a mut Arena<mir::StringConst>,
@@ -5008,6 +5066,33 @@ impl BodyLowerer<'_> {
                     self.ensure_callback_bridge(self.function_map[function], signature, expr.span);
                 smir::Expr::FunctionAddress { callback }
             }
+            hir::ExprKind::ForeignCallbackRegister {
+                registration,
+                closure,
+            } => {
+                let bridge = self.ensure_foreign_callback_bridge(*registration, expr.span);
+                smir::Expr::ForeignCallbackRegister {
+                    bridge,
+                    closure: Box::new(self.lower_expr(closure)),
+                }
+            }
+            hir::ExprKind::ForeignCallbackOperation {
+                operation,
+                callback,
+            } => smir::Expr::ForeignCallbackOperation {
+                operation: match operation {
+                    hir::ForeignCallbackOperation::Retain => mir::ForeignCallbackOperation::Retain,
+                    hir::ForeignCallbackOperation::Release => {
+                        mir::ForeignCallbackOperation::Release
+                    }
+                    hir::ForeignCallbackOperation::State => mir::ForeignCallbackOperation::State,
+                    hir::ForeignCallbackOperation::Failure => {
+                        mir::ForeignCallbackOperation::Failure
+                    }
+                },
+                callback: Box::new(self.lower_expr(callback)),
+                result_ty: Box::new(self.lower_type(expr.ty)),
+            },
             hir::ExprKind::FieldAccess { receiver, field } => {
                 // Struct fields, tuple elements and class constructor
                 // properties are all 0-based here (the class index
@@ -5282,6 +5367,206 @@ impl BodyLowerer<'_> {
         self.callback_by_target
             .insert((source, signature), callback);
         callback
+    }
+
+    fn ensure_foreign_callback_bridge(
+        &mut self,
+        registration_id: hir::ForeignCallbackRegistrationId,
+        span: Span,
+    ) -> mir::ForeignCallbackBridgeId {
+        if let Some(&bridge) = self.foreign_callback_by_registration.get(&registration_id) {
+            return bridge;
+        }
+
+        let registration = self.module.foreign_callback_registrations[registration_id].clone();
+        let native_signature = self.lower_function_type_id(registration.native_function_type);
+        let managed_signature = self.lower_function_type_id(registration.managed_function_type);
+        let callback = self.struct_map[&registration.callback];
+        let signature = self.shell.function_types[managed_signature].clone();
+        debug_assert!(!signature.is_suspend);
+
+        let mut locals = Arena::new();
+        let closure_ty = mir::Type::Function(managed_signature);
+        let closure = locals.alloc(mir::Local {
+            name: "$closure".to_string(),
+            ty: closure_ty.clone(),
+            mutable: false,
+        });
+        let result_pointer_ty = mir::Type::Ptr(Box::new(signature.return_type.clone()));
+        let result_storage = locals.alloc(mir::Local {
+            name: "$result".to_string(),
+            ty: result_pointer_ty.clone(),
+            mutable: false,
+        });
+        let opaque_pointer = mir::Type::Ptr(Box::new(mir::Type::Unit));
+        let arguments_pointer_ty = mir::Type::Ptr(Box::new(opaque_pointer.clone()));
+        let argument_storage = locals.alloc(mir::Local {
+            name: "$arguments".to_string(),
+            ty: arguments_pointer_ty.clone(),
+            mutable: false,
+        });
+        let throwable = mir::Type::Class(self.class_map[&self.module.exception_core.throwable]);
+        let exception_pointer_ty = mir::Type::Ptr(Box::new(throwable.clone()));
+        let exception_out = locals.alloc(mir::Local {
+            name: "$exception".to_string(),
+            ty: exception_pointer_ty.clone(),
+            mutable: false,
+        });
+
+        let params = vec![
+            mir::Param {
+                name: "$closure".to_string(),
+                ty: closure_ty,
+                local: closure,
+            },
+            mir::Param {
+                name: "$result".to_string(),
+                ty: result_pointer_ty,
+                local: result_storage,
+            },
+            mir::Param {
+                name: "$arguments".to_string(),
+                ty: arguments_pointer_ty,
+                local: argument_storage,
+            },
+            mir::Param {
+                name: "$exception".to_string(),
+                ty: exception_pointer_ty,
+                local: exception_out,
+            },
+        ];
+
+        let mut call_args = vec![mir::Expr::Local(closure)];
+        for (index, parameter_ty) in signature.parameter_types.iter().enumerate() {
+            let raw = mir::Expr::PtrLoad {
+                pointer: Box::new(mir::Expr::Local(argument_storage)),
+                pointee: Box::new(opaque_pointer.clone()),
+                offset: Some(Box::new(mir::Expr::IntLiteral(index as i64))),
+            };
+            call_args.push(mir::Expr::PtrLoad {
+                pointer: Box::new(mir::Expr::PtrCast {
+                    operand: Box::new(raw),
+                    pointee: Box::new(parameter_ty.clone()),
+                }),
+                pointee: Box::new(parameter_ty.clone()),
+                offset: None,
+            });
+        }
+        let call = mir::Call {
+            target: mir::CallTarget {
+                kind: mir::CallKind::Closure {
+                    function_type: managed_signature,
+                },
+                callee: mir::Callee::Closure(managed_signature),
+            },
+            args: call_args,
+        };
+
+        let exception = locals.alloc(mir::Local {
+            name: "$caught".to_string(),
+            ty: throwable.clone(),
+            mutable: false,
+        });
+        let statement = |kind| mir::Statement { kind, span };
+        let mut blocks = Arena::new();
+        let catch = blocks.alloc(mir::BasicBlock {
+            name: "callback.failure".to_string(),
+            statements: vec![
+                statement(mir::StatementKind::Eh(mir::EhStatement::LandingPad {
+                    cleanup: false,
+                })),
+                statement(mir::StatementKind::Eh(mir::EhStatement::BeginCatch)),
+                statement(mir::StatementKind::Call(mir::CallEffect::Value {
+                    destination: exception,
+                    call: mir::Call {
+                        target: mir::CallTarget {
+                            kind: mir::CallKind::Direct,
+                            callee: mir::Callee::Runtime(mir::RuntimeFn::MaterializeException),
+                        },
+                        args: vec![mir::Expr::CaughtException],
+                    },
+                })),
+                statement(mir::StatementKind::Eh(mir::EhStatement::EndCatch)),
+                statement(mir::StatementKind::Expr(mir::Expr::PtrStore {
+                    pointer: Box::new(mir::Expr::Local(exception_out)),
+                    pointee: Box::new(throwable),
+                    offset: None,
+                    value: Box::new(mir::Expr::Local(exception)),
+                })),
+            ],
+            terminator: mir::Terminator::Return {
+                value: Some(mir::Expr::IntLiteral(1)),
+            },
+            unwind: None,
+        });
+
+        let mut success_statements = Vec::new();
+        if signature.return_type == mir::Type::Unit {
+            success_statements.push(statement(mir::StatementKind::Call(mir::CallEffect::Unit(
+                call,
+            ))));
+        } else {
+            let value = locals.alloc(mir::Local {
+                name: "$value".to_string(),
+                ty: signature.return_type.clone(),
+                mutable: false,
+            });
+            success_statements.push(statement(mir::StatementKind::Call(
+                mir::CallEffect::Value {
+                    destination: value,
+                    call,
+                },
+            )));
+            success_statements.push(statement(mir::StatementKind::Expr(mir::Expr::PtrStore {
+                pointer: Box::new(mir::Expr::Local(result_storage)),
+                pointee: Box::new(signature.return_type),
+                offset: None,
+                value: Box::new(mir::Expr::Local(value)),
+            })));
+        }
+        let entry = blocks.alloc(mir::BasicBlock {
+            name: "entry".to_string(),
+            statements: success_statements,
+            terminator: mir::Terminator::Return {
+                value: Some(mir::Expr::IntLiteral(0)),
+            },
+            unwind: Some(catch),
+        });
+        let adapter_index = self.foreign_callback_adapters.len();
+        let function = self.functions.alloc(mir::Function {
+            gc_effect: mir::GcEffect::Managed,
+            name: format!("foreign callback adapter {adapter_index}"),
+            symbol: format!("scoop_foreign_callback_adapter_{adapter_index}"),
+            params,
+            return_ty: mir::Type::UInt,
+            body: mir::Body {
+                locals,
+                blocks,
+                entry,
+            },
+        });
+        self.top_level.push(function);
+        let adapter = self
+            .foreign_callback_adapters
+            .alloc(mir::ForeignCallbackAdapter {
+                function,
+                managed_signature,
+            });
+        let bridge = self
+            .foreign_callback_bridges
+            .alloc(mir::ForeignCallbackBridge {
+                adapter,
+                callback,
+                native_signature,
+                context_index: registration.context_index,
+                mode: match registration.mode {
+                    hir::ForeignCallbackMode::Reusable => mir::ForeignCallbackMode::Reusable,
+                    hir::ForeignCallbackMode::OneShot => mir::ForeignCallbackMode::OneShot,
+                },
+            });
+        self.foreign_callback_by_registration
+            .insert(registration_id, bridge);
+        bridge
     }
 
     /// `x!!`: the operand is evaluated once into a hidden local, then
@@ -7267,6 +7552,28 @@ mod tests {
                 gc_get_handle_raw: entry,
                 gc_release_handle_raw: entry,
             };
+            let unit_enum = |name: &str, variants: &[&str]| hir::EnumDecl {
+                name: name.to_string(),
+                type_params: Vec::new(),
+                no_gc: false,
+                variants: variants
+                    .iter()
+                    .map(|variant| hir::Variant {
+                        name: (*variant).to_string(),
+                        fields: Vec::new(),
+                        defaults: Vec::new(),
+                    })
+                    .collect(),
+                interfaces: Vec::new(),
+                span: SPAN,
+            };
+            let callback_mode = self
+                .enums
+                .alloc(unit_enum("ForeignCallbackMode", &["Reusable", "OneShot"]));
+            let callback_state = self.enums.alloc(unit_enum(
+                "ForeignCallbackState",
+                &["Registered", "Active", "Completed", "Failed"],
+            ));
             hir::Module {
                 types: self.types,
                 function_types: Arena::new(),
@@ -7275,6 +7582,7 @@ mod tests {
                 local_functions: Arena::new(),
                 callable_references: Arena::new(),
                 function_coercions: Arena::new(),
+                foreign_callback_registrations: Arena::new(),
                 functions: self.functions,
                 extern_functions: self.extern_functions,
                 globals: Arena::new(),
@@ -7291,6 +7599,16 @@ mod tests {
                 option_enum: self.option_enum,
                 coroutine_core,
                 ffi_core,
+                foreign_callback_core: hir::ForeignCallbackCore {
+                    callback: ptr,
+                    mode: callback_mode,
+                    state: callback_state,
+                    register: entry,
+                    retain: entry,
+                    release: entry,
+                    query_state: entry,
+                    failure: entry,
+                },
                 entry,
                 instantiations: self.instantiations,
             }
@@ -7563,14 +7881,21 @@ mod tests {
             .expect("live Int local uses a concrete coroutine slot");
         assert!(int_slot.gc_free);
         assert!(int_slot.variants.iter().all(|variant| variant.gc_free));
+        let throwable = module
+            .classes
+            .iter()
+            .find_map(|(id, definition)| (definition.name == "Throwable").then_some(id))
+            .expect("Throwable class");
         let throwable_slot = module
             .enums
             .iter()
             .find_map(|(_, definition)| {
-                definition
-                    .name
-                    .starts_with("CoroutineSlot$CThrowable")
-                    .then_some(definition)
+                (definition.name.starts_with("CoroutineSlot$")
+                    && definition.variants.get(1).is_some_and(|variant| {
+                        variant.fields.len() == 1
+                            && variant.fields[0].ty == mir::Type::Class(throwable)
+                    }))
+                .then_some(definition)
             })
             .expect("the failure latch uses a concrete Throwable slot");
         assert!(!throwable_slot.gc_free);
@@ -9909,8 +10234,8 @@ Module
                 ))],
             },
         );
-        // The nested request is still parameterized in HIR's list;
-        // mir-lower concretizes it while lowering forward$I.
+        // The nested request is parameterized in export HIR's list;
+        // local-concrete HIR resolves it while materializing forward$I.
         let module = lower(&h.finish(main));
 
         // main, forward$I, then inner$I (discovered via the worklist).

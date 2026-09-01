@@ -54,6 +54,33 @@ SourceFile
     @Intrinsic("align_of")
   fun alignOf<T : value>(): UInt
 SourceFile
+  enum ForeignCallbackMode
+    Reusable
+    OneShot
+  enum ForeignCallbackState
+    Registered
+    Active
+    Completed
+    Failed
+  struct ForeignCallback<F>
+    field function: FunPtr<F>
+    field context: Ptr<Unit>
+    @Unsafe
+    @Intrinsic("foreign_callback_register")
+  fun foreignCallback<F>(callback: Any, contextIndex: Int, mode: ForeignCallbackMode): ForeignCallback<F>
+    @Unsafe
+    @Intrinsic("foreign_callback_retain")
+  fun retainForeignCallback<F>(callback: ForeignCallback<F>): ForeignCallback<F>
+    @Unsafe
+    @Intrinsic("foreign_callback_release")
+  fun releaseForeignCallback<F>(callback: ForeignCallback<F>)
+    @Unsafe
+    @Intrinsic("foreign_callback_state")
+  fun foreignCallbackState<F>(callback: ForeignCallback<F>): ForeignCallbackState
+    @Unsafe
+    @Intrinsic("foreign_callback_failure")
+  fun foreignCallbackFailure<F>(callback: ForeignCallback<F>): Throwable?
+SourceFile
   struct PinnedPtr<T : ref>
     field raw: UInt
   struct GcHandle<T : ref>
@@ -298,6 +325,10 @@ Module
   class box$Tag vtable=3 itables=1
   class box$B vtable=3 itables=0
   interface Describable
+  fun Tag.describe @scoop.Tag.describe(this: Tag) -> String
+    bb0 entry
+      return
+        StringConst @scoop.str.0
   fun print @scoop.print(message: Any) -> Unit
     bb0 entry
       call $call.1: String = @scoop.Any.toString virtual[2]
@@ -312,12 +343,17 @@ Module
       call extern0 @scoop_rt_write direct
         Local $call.1
       call extern0 @scoop_rt_write direct
-        StringConst @scoop.str.0
+        StringConst @scoop.str.1
       return
+  fun Doc.describe @scoop.Doc.describe(this: Doc) -> String
+    bb0 entry
+      return
+        FieldAccess 0
+          Local this
   fun main @scoop_main() -> Unit
     bb0 entry
       call d: Doc = @scoop.ctor.Doc direct
-        StringConst @scoop.str.1
+        StringConst @scoop.str.2
       call $call.1: Any = @scoop.Doc.describe direct
         Local d
       call @scoop.println direct
@@ -428,15 +464,6 @@ Module
       assign $logic.4
         Local $logic.5
       goto bb12
-  fun Doc.describe @scoop.Doc.describe(this: Doc) -> String
-    bb0 entry
-      return
-        FieldAccess 0
-          Local this
-  fun Tag.describe @scoop.Tag.describe(this: Tag) -> String
-    bb0 entry
-      return
-        StringConst @scoop.str.2
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
     bb0 entry
       return
@@ -521,9 +548,9 @@ Module
           Local this
       return
         Local $call.1
-  str @scoop.str.0 "\n"
-  str @scoop.str.1 "report"
-  str @scoop.str.2 "tag"
+  str @scoop.str.0 "tag"
+  str @scoop.str.1 "\n"
+  str @scoop.str.2 "report"
   str @scoop.str.3 "unwrap on None"
   str @scoop.str.4 "invalid cast"
   str @scoop.str.5 "arithmetic error"
@@ -533,9 +560,9 @@ Module
 
 == lir ==
 Module
-  global @scoop.str.0 = "\n"
-  global @scoop.str.1 = "report"
-  global @scoop.str.2 = "tag"
+  global @scoop.str.0 = "tag"
+  global @scoop.str.1 = "\n"
+  global @scoop.str.2 = "report"
   global @scoop.str.3 = "unwrap on None"
   global @scoop.str.4 = "invalid cast"
   global @scoop.str.5 = "arithmetic error"
@@ -555,6 +582,9 @@ Module
   enum Option$S niche(payload_variant=0)
   enum Option$Describable niche(payload_variant=0)
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
+  fun @scoop.Tag.describe(struct0) -> ptr<managed>
+  block entry
+    ret global0
   fun @scoop.print(ptr<managed>) -> void
     local %0 $call.1: ptr<managed>
   block entry
@@ -574,9 +604,13 @@ Module
     store t2 -> local0
     native_call[native-borrowed] extern0(local0)
     t3 = aggregate () : {}
-    native_call[native-borrowed] extern0(global0)
+    native_call[native-borrowed] extern0(global1)
     t4 = aggregate () : {}
     ret
+  fun @scoop.Doc.describe(ptr<managed>) -> ptr<managed>
+  block entry
+    t0 = heap_load param0 +16 : ptr<managed>
+    ret t0
   fun @scoop_main() -> void
     local %0 d: ptr<managed>
     local %1 i: ptr<managed>
@@ -595,7 +629,7 @@ Module
     local %14 $logic.4: i1
     local %15 $logic.5: i1
   block entry
-    t0 = call @scoop.ctor.Doc(global1) : ptr<managed>
+    t0 = call @scoop.ctor.Doc(global2) : ptr<managed>
     store t0 -> local0
     t1 = call @scoop.Doc.describe(local0) : ptr<managed>
     store t1 -> local11
@@ -690,13 +724,6 @@ Module
   block logic.merge.15
     store local15 -> local14
     br @logic.merge.12
-  fun @scoop.Doc.describe(ptr<managed>) -> ptr<managed>
-  block entry
-    t0 = heap_load param0 +16 : ptr<managed>
-    ret t0
-  fun @scoop.Tag.describe(struct0) -> ptr<managed>
-  block entry
-    ret global2
   fun @scoop.ctor.Throwable() -> ptr<managed>
   block entry
     t0 = call @scoop_rt_alloc(global11, 16) : ptr<managed>
@@ -792,8 +819,8 @@ Module
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   layout Tag size=8 align=8 refs=[]
-  layout Option$S size=8 align=8 enum-refs=[[0], []]
-  layout Option$Describable size=8 align=8 enum-refs=[[0], []]
+  layout Option$S size=8 align=8 enum-scan=refs[0]
+  layout Option$Describable size=8 align=8 enum-scan=refs[0]
   layout Throwable size=16 align=8 refs=[]
   layout Exception size=24 align=8 refs=[16]
   layout UnwrapException size=24 align=8 refs=[16]

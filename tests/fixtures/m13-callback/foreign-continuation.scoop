@@ -1,0 +1,65 @@
+@Extern(lib = "fixture_native", name = "m13_start_one")
+fun startOne(
+    callback: FunPtr<(Int, Ptr<Unit>) -> Int>,
+    context: Ptr<Unit>,
+    value: Int
+): Ptr<Unit>
+
+@Extern(lib = "fixture_native", name = "m13_join_one")
+fun joinOne(job: Ptr<Unit>): Int
+
+class ForeignGate(
+    var job: Ptr<Unit>,
+    var observer: ForeignCallback<(Int, Ptr<Unit>) -> Int>?
+)
+
+class ForeignRegistration(val gate: ForeignGate) : SuspendRegistration<Int> {
+    final override fun register(continuation: Continuation<Int>) {
+        val adjustment = 1
+        @Unsafe {
+            val worker = foreignCallback<(Int, Ptr<Unit>) -> Int>(
+                { value: Int ->
+                    gcCollect()
+                    continuation.resume(value + adjustment)
+                    value
+                },
+                1,
+                ForeignCallbackMode.OneShot
+            )
+            gate.observer = Some(retainForeignCallback(worker))
+            gate.job = startOne(worker.function, worker.context, 41)
+        }
+    }
+}
+
+class ForeignTask(val gate: ForeignGate) : SuspendTask<Int> {
+    final override suspend fun run(): Int {
+        return suspendCoroutine(ForeignRegistration(gate))
+    }
+}
+
+class ForeignCompletion() : Continuation<Int> {
+    final override fun resume(value: Int) {
+        println(value)
+    }
+
+    final override fun resumeWithException(exception: Throwable) {
+        println("failed")
+    }
+}
+
+fun main() {
+    @Unsafe {
+        val gate = ForeignGate(
+            Ptr<Unit>(sizeOf<Int>() - sizeOf<Int>()),
+            None
+        )
+        startCoroutine(ForeignTask(gate), ForeignCompletion())
+        println("suspended")
+        println(joinOne(gate.job))
+        val observer = gate.observer!!
+        println(foreignCallbackState(observer) == ForeignCallbackState.Completed)
+        println(foreignCallbackFailure(observer) == None)
+        releaseForeignCallback(observer)
+    }
+}

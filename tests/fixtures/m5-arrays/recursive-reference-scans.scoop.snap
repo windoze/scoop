@@ -54,6 +54,33 @@ SourceFile
     @Intrinsic("align_of")
   fun alignOf<T : value>(): UInt
 SourceFile
+  enum ForeignCallbackMode
+    Reusable
+    OneShot
+  enum ForeignCallbackState
+    Registered
+    Active
+    Completed
+    Failed
+  struct ForeignCallback<F>
+    field function: FunPtr<F>
+    field context: Ptr<Unit>
+    @Unsafe
+    @Intrinsic("foreign_callback_register")
+  fun foreignCallback<F>(callback: Any, contextIndex: Int, mode: ForeignCallbackMode): ForeignCallback<F>
+    @Unsafe
+    @Intrinsic("foreign_callback_retain")
+  fun retainForeignCallback<F>(callback: ForeignCallback<F>): ForeignCallback<F>
+    @Unsafe
+    @Intrinsic("foreign_callback_release")
+  fun releaseForeignCallback<F>(callback: ForeignCallback<F>)
+    @Unsafe
+    @Intrinsic("foreign_callback_state")
+  fun foreignCallbackState<F>(callback: ForeignCallback<F>): ForeignCallbackState
+    @Unsafe
+    @Intrinsic("foreign_callback_failure")
+  fun foreignCallbackFailure<F>(callback: ForeignCallback<F>): Throwable?
+SourceFile
   struct PinnedPtr<T : ref>
     field raw: UInt
   struct GcHandle<T : ref>
@@ -612,7 +639,7 @@ Module
   global @scoop_td_ArithmeticException = c""
   global @scoop_td_IndexOutOfBoundsException = c""
   global @scoop_td_IllegalStateException = c""
-  enum Payload tagged size=8 align=8 variants=(ptr<managed>) (i64) ()
+  enum Payload tagged size=24 align=8 variants=(ptr<managed>)@16+8:refs (i64)@8+8 ()@8+0
   enum Option$S niche(payload_variant=0)
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
   fun @scoop.print(ptr<managed>) -> void
@@ -652,7 +679,7 @@ Module
     t4 = aggregate (t3, local1) : struct0
     t5 = enum_wrap e0 v2 () : enum0
     t6 = aggregate (t5, local2) : struct0
-    t7 = array_alloc (t4, t6) scan=seq(refs[16], enum@0[refs[8], none, none]) : [struct0]
+    t7 = array_alloc (t4, t6) scan=refs[16, 24] : [struct0]
     ret t7
   fun @scoop_main() -> void
     local %0 items: [struct0]
@@ -848,9 +875,9 @@ Module
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
-  layout Item size=24 align=8 scan=seq(refs[16], enum@0[refs[8], none, none])
-  layout Payload size=16 align=8 enum-refs=[[8], [], []]
-  layout Option$S size=8 align=8 enum-refs=[[0], []]
+  layout Item size=32 align=8 refs=[16, 24]
+  layout Payload size=24 align=8 enum-scan=refs[16]
+  layout Option$S size=8 align=8 enum-scan=refs[0]
   layout Throwable size=16 align=8 refs=[]
   layout Exception size=24 align=8 refs=[16]
   layout UnwrapException size=24 align=8 refs=[16]
@@ -859,7 +886,7 @@ Module
   layout IndexOutOfBoundsException size=24 align=8 refs=[16]
   layout IllegalStateException size=24 align=8 refs=[16]
   layout box$I size=24 align=8 refs=[]
-  layout Array<Item> size=24 align=8 array(scan=seq(refs[16], enum@0[refs[8], none, none]))
+  layout Array<Item> size=32 align=8 array(scan=refs[16, 24])
   entry @scoop_main
 
 == run ==

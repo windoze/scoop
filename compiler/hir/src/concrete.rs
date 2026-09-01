@@ -19,6 +19,7 @@ pub type AnonymousFunctionId = Idx<AnonymousFunction>;
 pub type LocalFunctionId = Idx<LocalFunction>;
 pub type CallableReferenceId = Idx<CallableReference>;
 pub type FunctionCoercionId = Idx<FunctionCoercion>;
+pub type ForeignCallbackRegistrationId = Idx<ForeignCallbackRegistration>;
 pub type FunctionId = Idx<Function>;
 pub type ExternFunctionId = Idx<ExternFunction>;
 pub type GlobalId = Idx<Global>;
@@ -108,6 +109,7 @@ pub struct Module {
     pub local_functions: Arena<LocalFunction>,
     pub callable_references: Arena<CallableReference>,
     pub function_coercions: Arena<FunctionCoercion>,
+    pub foreign_callback_registrations: Arena<ForeignCallbackRegistration>,
     pub functions: Arena<Function>,
     pub extern_functions: Arena<ExternFunction>,
     pub globals: Arena<Global>,
@@ -123,6 +125,7 @@ pub struct Module {
     pub option_variants: (VariantId, VariantId),
     pub exception_core: ExceptionCore,
     pub coroutine_protocols: Vec<CoroutineProtocol>,
+    pub foreign_callback_core: ForeignCallbackCore,
     pub entry: FunctionId,
 }
 
@@ -130,6 +133,35 @@ pub struct Module {
 pub struct ExceptionCore {
     pub throwable: ClassId,
     pub illegal_state_exception: ClassId,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ForeignCallbackCore {
+    pub mode: EnumId,
+    pub state: EnumId,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ForeignCallbackMode {
+    Reusable,
+    OneShot,
+}
+
+#[derive(Debug, Clone)]
+pub struct ForeignCallbackRegistration {
+    pub callback: StructId,
+    pub native_function_type: FunctionTypeId,
+    pub managed_function_type: FunctionTypeId,
+    pub context_index: u32,
+    pub mode: ForeignCallbackMode,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ForeignCallbackOperation {
+    Retain,
+    Release,
+    State,
+    Failure,
 }
 
 /// Fully specialized instances of the generic coroutine protocol for one
@@ -560,6 +592,14 @@ pub enum ExprKind {
     AlignOf(TypeId),
     FunPtrNull,
     FunctionAddress(FunctionId),
+    ForeignCallbackRegister {
+        registration: ForeignCallbackRegistrationId,
+        closure: Box<Expr>,
+    },
+    ForeignCallbackOperation {
+        operation: ForeignCallbackOperation,
+        callback: Box<Expr>,
+    },
     FieldAccess {
         receiver: Box<Expr>,
         field: FieldRef,
