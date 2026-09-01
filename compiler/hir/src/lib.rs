@@ -192,6 +192,10 @@ pub fn types_equal(module: &Module, a: TypeId, b: TypeId) -> bool {
 
 /// Render a type for diagnostics and dumps.
 pub fn type_name(module: &Module, ty: TypeId) -> String {
+    type_name_with_params(module, ty, &[])
+}
+
+fn type_name_with_params(module: &Module, ty: TypeId, params: &[TypeParamDecl]) -> String {
     match &module.types[ty] {
         Type::Unit => "Unit".to_string(),
         Type::Int => "Int".to_string(),
@@ -203,7 +207,10 @@ pub fn type_name(module: &Module, ty: TypeId) -> String {
             if args.is_empty() {
                 name.clone()
             } else {
-                let inner: Vec<String> = args.iter().map(|t| type_name(module, *t)).collect();
+                let inner: Vec<String> = args
+                    .iter()
+                    .map(|t| type_name_with_params(module, *t, params))
+                    .collect();
                 format!("{}<{}>", name, inner.join(", "))
             }
         }
@@ -213,24 +220,36 @@ pub fn type_name(module: &Module, ty: TypeId) -> String {
             if args.is_empty() {
                 name.clone()
             } else {
-                let inner: Vec<String> = args.iter().map(|t| type_name(module, *t)).collect();
+                let inner: Vec<String> = args
+                    .iter()
+                    .map(|t| type_name_with_params(module, *t, params))
+                    .collect();
                 format!("{}<{}>", name, inner.join(", "))
             }
         }
         Type::Any => "Any".to_string(),
-        Type::Array(inner) => format!("Array<{}>", type_name(module, *inner)),
-        Type::MutableArray(inner) => format!("MutableArray<{}>", type_name(module, *inner)),
+        Type::Array(inner) => format!("Array<{}>", type_name_with_params(module, *inner, params)),
+        Type::MutableArray(inner) => format!(
+            "MutableArray<{}>",
+            type_name_with_params(module, *inner, params)
+        ),
         Type::Enum(id, args) => {
             let name = &module.enums[*id].name;
             if args.is_empty() {
                 name.clone()
             } else {
-                let inner: Vec<String> = args.iter().map(|t| type_name(module, *t)).collect();
+                let inner: Vec<String> = args
+                    .iter()
+                    .map(|t| type_name_with_params(module, *t, params))
+                    .collect();
                 format!("{}<{}>", name, inner.join(", "))
             }
         }
         Type::Tuple(elements) => {
-            let inner: Vec<String> = elements.iter().map(|t| type_name(module, *t)).collect();
+            let inner: Vec<String> = elements
+                .iter()
+                .map(|t| type_name_with_params(module, *t, params))
+                .collect();
             format!("({})", inner.join(", "))
         }
         Type::Function(id) => {
@@ -238,30 +257,33 @@ pub fn type_name(module: &Module, ty: TypeId) -> String {
             let parameters: Vec<String> = function
                 .parameter_types
                 .iter()
-                .map(|ty| type_name(module, *ty))
+                .map(|ty| type_name_with_params(module, *ty, params))
                 .collect();
             let suspend = if function.is_suspend { "suspend " } else { "" };
             format!(
                 "{suspend}({}) -> {}",
                 parameters.join(", "),
-                type_name(module, function.return_type)
+                type_name_with_params(module, function.return_type, params)
             )
         }
-        Type::Ptr(pointee) => format!("Ptr<{}>", type_name(module, *pointee)),
+        Type::Ptr(pointee) => format!("Ptr<{}>", type_name_with_params(module, *pointee, params)),
         Type::FunPtr(id) => {
             let function = &module.function_types[*id];
             let parameters = function
                 .parameter_types
                 .iter()
-                .map(|ty| type_name(module, *ty))
+                .map(|ty| type_name_with_params(module, *ty, params))
                 .collect::<Vec<_>>()
                 .join(", ");
             format!(
                 "FunPtr<({parameters}) -> {}>",
-                type_name(module, function.return_type)
+                type_name_with_params(module, function.return_type, params)
             )
         }
-        Type::Param(index) => format!("T{}", index.into_raw()),
+        Type::Param(index) => params
+            .get(index.into_raw() as usize)
+            .map(|parameter| parameter.name.clone())
+            .unwrap_or_else(|| format!("T{}", index.into_raw())),
     }
 }
 
@@ -620,7 +642,54 @@ pub enum Variance {
 pub struct TypeParamDecl {
     pub name: String,
     pub variance: Variance,
-    pub kind: TypeParamKind,
+    /// Complete declaration-site constraint set. The sum type makes kind
+    /// bounds and interface upper bounds mutually exclusive by construction.
+    pub bounds: TypeParamBounds,
+    pub span: Span,
+}
+
+impl TypeParamDecl {
+    /// Representation kind implied by this parameter's constraints. Interface
+    /// upper bounds are reference capabilities, but do not make the generic
+    /// value itself a `ref`-kind parameter: value types may implement them and
+    /// are boxed only at an actual interface crossing.
+    pub fn kind(&self) -> TypeParamKind {
+        match self.bounds {
+            TypeParamBounds::Value { .. } => TypeParamKind::Value,
+            TypeParamBounds::Ref { .. } => TypeParamKind::Ref,
+            TypeParamBounds::Unconstrained | TypeParamBounds::Interfaces(_) => TypeParamKind::Any,
+        }
+    }
+
+    pub fn interface_bounds(&self) -> &[InterfaceBound] {
+        match &self.bounds {
+            TypeParamBounds::Interfaces(bounds) => bounds,
+            TypeParamBounds::Unconstrained
+            | TypeParamBounds::Value { .. }
+            | TypeParamBounds::Ref { .. } => &[],
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TypeParamBounds {
+    Unconstrained,
+    Value {
+        span: Span,
+    },
+    Ref {
+        span: Span,
+    },
+    /// Ordered, distinct, fully resolved interface applications.
+    Interfaces(Vec<InterfaceBound>),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InterfaceBound {
+    /// HIR lowering guarantees this is `Type::Interface` with a complete
+    /// argument list. M14's nominal-identity migration replaces this field
+    /// with the dedicated export application id.
+    pub ty: TypeId,
     pub span: Span,
 }
 
@@ -1398,7 +1467,7 @@ pub fn dump(module: &Module) -> String {
         let type_params = if decl.type_params.is_empty() {
             String::new()
         } else {
-            dump_type_params(&decl.type_params)
+            dump_type_params(module, &decl.type_params)
         };
         let interfaces = dump_interface_list(module, &decl.interfaces);
         let attributes = dump_struct_attributes(decl.attributes);
@@ -1421,7 +1490,7 @@ pub fn dump(module: &Module) -> String {
         let type_params = if decl.type_params.is_empty() {
             String::new()
         } else {
-            dump_type_params(&decl.type_params)
+            dump_type_params(module, &decl.type_params)
         };
         let interfaces = dump_interface_list(module, &decl.interfaces);
         let attributes = if decl.no_gc { " <no-gc>" } else { "" };
@@ -1461,14 +1530,14 @@ pub fn dump(module: &Module) -> String {
         let type_params = if decl.type_params.is_empty() {
             String::new()
         } else {
-            dump_type_params(&decl.type_params)
+            dump_type_params(module, &decl.type_params)
         };
         out.push_str(&format!("  interface {}{}\n", decl.name, type_params));
         for method in &decl.methods {
             let method_type_params = if method.type_params.is_empty() {
                 String::new()
             } else {
-                dump_type_params(&method.type_params)
+                dump_type_params(module, &method.type_params)
             };
             let params: Vec<String> = method
                 .params
@@ -1540,7 +1609,7 @@ pub fn dump(module: &Module) -> String {
         let type_params = if function.type_params.is_empty() {
             String::new()
         } else {
-            dump_type_params(&function.type_params)
+            dump_type_params(module, &function.type_params)
         };
         let params: Vec<String> = match function.kind {
             FunctionKind::Extern(id) => module.extern_functions[id]
@@ -1644,7 +1713,7 @@ pub fn dump(module: &Module) -> String {
     out
 }
 
-fn dump_type_params(params: &[TypeParamDecl]) -> String {
+fn dump_type_params(module: &Module, params: &[TypeParamDecl]) -> String {
     let params = params
         .iter()
         .map(|param| {
@@ -1653,12 +1722,20 @@ fn dump_type_params(params: &[TypeParamDecl]) -> String {
                 Variance::In => "in ",
                 Variance::Out => "out ",
             };
-            let kind = match param.kind {
-                TypeParamKind::Any => "",
-                TypeParamKind::Value => " : value",
-                TypeParamKind::Ref => " : ref",
+            let bounds = match &param.bounds {
+                TypeParamBounds::Unconstrained => String::new(),
+                TypeParamBounds::Value { .. } => " : value".to_string(),
+                TypeParamBounds::Ref { .. } => " : ref".to_string(),
+                TypeParamBounds::Interfaces(bounds) => format!(
+                    " : {}",
+                    bounds
+                        .iter()
+                        .map(|bound| type_name_with_params(module, bound.ty, params))
+                        .collect::<Vec<_>>()
+                        .join(" & ")
+                ),
             };
-            format!("{variance}{}{kind}", param.name)
+            format!("{variance}{}{bounds}", param.name)
         })
         .collect::<Vec<_>>();
     format!("<{}>", params.join(", "))

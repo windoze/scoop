@@ -6552,7 +6552,7 @@ mod tests {
         hir::TypeParamDecl {
             name: name.into(),
             variance: hir::Variance::Invariant,
-            kind: hir::TypeParamKind::Any,
+            bounds: hir::TypeParamBounds::Unconstrained,
             span: SPAN,
         }
     }
@@ -7285,7 +7285,7 @@ mod tests {
             let type_param = || hir::TypeParamDecl {
                 name: "T".to_string(),
                 variance: hir::Variance::Invariant,
-                kind: hir::TypeParamKind::Any,
+                bounds: hir::TypeParamBounds::Unconstrained,
                 span: SPAN,
             };
             let continuation = self.interfaces.alloc(hir::InterfaceDecl {
@@ -8496,7 +8496,7 @@ Module
             type_params: vec![hir::TypeParamDecl {
                 name: "T".to_string(),
                 variance: hir::Variance::Out,
-                kind: hir::TypeParamKind::Any,
+                bounds: hir::TypeParamBounds::Unconstrained,
                 span: SPAN,
             }],
             methods: Vec::new(),

@@ -50,6 +50,228 @@ use scoop_hir::{ClassDecl, EnumDecl, InterfaceDecl, StructDecl, StructId, Type, 
 use crate::Lowerer;
 
 impl Lowerer {
+    /// Resolve the complete constraint set for one declaration after all
+    /// nominal names and arities are known. `params` may begin with an owner
+    /// prefix (generic methods/local functions); only names declared in
+    /// `declarations` may be constrained by this declaration's `where` clause.
+    pub(crate) fn resolve_type_parameter_constraints(
+        &mut self,
+        mut params: Vec<hir::TypeParamDecl>,
+        owner_count: usize,
+        declarations: &[ast::TypeParamDecl],
+        where_clause: Option<&ast::WhereClause>,
+        target: &str,
+    ) -> Vec<hir::TypeParamDecl> {
+        if target != "interface" {
+            for declaration in declarations {
+                if declaration.variance != ast::Variance::Invariant {
+                    self.error(
+                        declaration.span,
+                        format!(
+                            "type parameter `{}` of {target} must be invariant",
+                            declaration.name.text
+                        ),
+                    );
+                }
+            }
+        }
+
+        self.type_params_in_scope = params.clone();
+        let own_indices: std::collections::HashMap<_, _> = params
+            .iter()
+            .enumerate()
+            .skip(owner_count)
+            .map(|(index, parameter)| (parameter.name.clone(), index))
+            .collect();
+
+        let mut seen_inline = std::collections::HashSet::new();
+        for declaration in declarations {
+            if !seen_inline.insert(declaration.name.text.as_str()) {
+                continue;
+            }
+            let Some(bound) = declaration.inline_bound.as_ref() else {
+                continue;
+            };
+            let Some(&index) = own_indices.get(&declaration.name.text) else {
+                continue;
+            };
+            self.apply_type_parameter_constraint(
+                &mut params,
+                index,
+                bound,
+                declaration.span,
+                target,
+            );
+        }
+
+        if let Some(clause) = where_clause {
+            for constraint in &clause.constraints {
+                let Some(&index) = own_indices.get(&constraint.parameter.text) else {
+                    self.error(
+                        constraint.parameter.span,
+                        format!(
+                            "unknown type parameter `{}` in where clause of {target}",
+                            constraint.parameter.text
+                        ),
+                    );
+                    continue;
+                };
+                self.apply_type_parameter_constraint(
+                    &mut params,
+                    index,
+                    &constraint.bound,
+                    constraint.span,
+                    target,
+                );
+            }
+        }
+
+        self.type_params_in_scope.clear();
+        params
+    }
+
+    fn apply_type_parameter_constraint(
+        &mut self,
+        params: &mut [hir::TypeParamDecl],
+        index: usize,
+        bound: &ast::TypeBound,
+        span: ast::Span,
+        target: &str,
+    ) {
+        match bound {
+            ast::TypeBound::Kind(kind) => {
+                let next = match kind {
+                    ast::TypeParamKindBound::Value => hir::TypeParamBounds::Value { span },
+                    ast::TypeParamKindBound::Ref => hir::TypeParamBounds::Ref { span },
+                };
+                match params[index].bounds {
+                    hir::TypeParamBounds::Unconstrained => params[index].bounds = next,
+                    hir::TypeParamBounds::Interfaces(_) => self.error(
+                        span,
+                        format!(
+                            "type parameter `{}` of {target} cannot combine a kind bound with interface upper bounds",
+                            params[index].name
+                        ),
+                    ),
+                    hir::TypeParamBounds::Value { .. }
+                    | hir::TypeParamBounds::Ref { .. } => self.error(
+                        span,
+                        format!(
+                            "duplicate kind bound for type parameter `{}` of {target}",
+                            params[index].name
+                        ),
+                    ),
+                }
+            }
+            ast::TypeBound::Upper(reference) => {
+                // Keep the complete parameter namespace visible while the
+                // upper application (including F-bound arguments) resolves.
+                self.type_params_in_scope = params.to_vec();
+                let Some(ty) = self.resolve_type_ref(reference) else {
+                    return;
+                };
+                if !matches!(self.types[ty], Type::Interface(..)) {
+                    let found = self.type_name(ty);
+                    self.error(
+                        reference.span,
+                        format!(
+                            "upper bound of type parameter `{}` must be an interface, found `{found}`",
+                            params[index].name
+                        ),
+                    );
+                    return;
+                }
+                match &mut params[index].bounds {
+                    hir::TypeParamBounds::Unconstrained => {
+                        params[index].bounds =
+                            hir::TypeParamBounds::Interfaces(vec![hir::InterfaceBound {
+                                ty,
+                                span,
+                            }]);
+                    }
+                    hir::TypeParamBounds::Interfaces(bounds) => {
+                        if bounds
+                            .iter()
+                            .any(|existing| self.types_equal(existing.ty, ty))
+                        {
+                            self.error(
+                                span,
+                                format!(
+                                    "duplicate interface upper bound `{}` for type parameter `{}` of {target}",
+                                    self.type_name(ty), params[index].name
+                                ),
+                            );
+                        } else {
+                            bounds.push(hir::InterfaceBound { ty, span });
+                        }
+                    }
+                    hir::TypeParamBounds::Value { .. }
+                    | hir::TypeParamBounds::Ref { .. } => self.error(
+                        span,
+                        format!(
+                            "type parameter `{}` of {target} cannot combine interface upper bounds with a kind bound",
+                            params[index].name
+                        ),
+                    ),
+                }
+            }
+        }
+        self.type_params_in_scope = params.to_vec();
+    }
+
+    /// Validate dependencies between nominal bound declarations only after all
+    /// of them have complete constraint sets. This is order-independent and
+    /// permits legal F-bound cycles.
+    pub(crate) fn validate_nominal_type_parameter_constraints(&mut self) {
+        let declarations: Vec<_> = self
+            .structs
+            .iter()
+            .map(|(id, declaration)| {
+                (
+                    self.struct_files[&id],
+                    "struct",
+                    declaration.name.clone(),
+                    declaration.type_params.clone(),
+                )
+            })
+            .chain(self.enums.iter().map(|(id, declaration)| {
+                (
+                    self.enum_files[&id],
+                    "enum",
+                    declaration.name.clone(),
+                    declaration.type_params.clone(),
+                )
+            }))
+            .chain(self.interfaces.iter().map(|(id, declaration)| {
+                (
+                    self.interface_files[&id],
+                    "interface",
+                    declaration.name.clone(),
+                    declaration.type_params.clone(),
+                )
+            }))
+            .collect();
+        for (file, kind, name, params) in declarations {
+            self.current_file = file;
+            self.type_params_in_scope = params.clone();
+            for parameter in &params {
+                for bound in parameter.interface_bounds() {
+                    let Type::Interface(interface, arguments) = self.types[bound.ty].clone() else {
+                        unreachable!("interface bounds are validated when constructed")
+                    };
+                    let target_params = self.interfaces[interface].type_params.clone();
+                    self.check_type_argument_kinds(
+                        &target_params,
+                        &arguments,
+                        bound.span,
+                        &format!("upper bound of {kind} `{name}`"),
+                    );
+                }
+            }
+        }
+        self.type_params_in_scope.clear();
+    }
+
     /// Resolve a type annotation (`Int`, `Point`, `(Int, String)`,
     /// `T?`, ...). Function (or enum) type parameters shadow well-known
     /// and declared types: they only scope over one function's
@@ -783,6 +1005,13 @@ impl Lowerer {
         let b_ty = self.types[b].clone();
         match (a_ty, b_ty) {
             (_, Type::Any) => true,
+            (Type::Param(parameter), _) => self
+                .type_params_in_scope
+                .get(parameter.into_raw() as usize)
+                .map(|parameter| parameter.interface_bounds().to_vec())
+                .unwrap_or_default()
+                .into_iter()
+                .any(|bound| self.is_subtype(bound.ty, b)),
             (Type::Class(a), Type::Class(b)) => self.class_inherits(a, b),
             (Type::Interface(a, a_args), Type::Interface(b, b_args)) if a == b => {
                 let variances: Vec<hir::Variance> = self.interfaces[a]
@@ -907,7 +1136,7 @@ impl Lowerer {
             Type::Param(index) => self
                 .type_params_in_scope
                 .get(index.into_raw() as usize)
-                .is_none_or(|param| param.kind != hir::TypeParamKind::Ref),
+                .is_none_or(|param| param.kind() != hir::TypeParamKind::Ref),
             _ => false,
         }
     }
@@ -928,36 +1157,61 @@ impl Lowerer {
     ) -> bool {
         let mut valid = true;
         for (param, &arg) in params.iter().zip(args) {
-            if self.type_satisfies_kind(arg, param.kind) {
-                continue;
+            if !self.type_satisfies_kind(arg, param.kind()) {
+                let required = match param.kind() {
+                    hir::TypeParamKind::Any => continue,
+                    hir::TypeParamKind::Value => "value",
+                    hir::TypeParamKind::Ref => "ref",
+                };
+                let found = self.type_name(arg);
+                self.error(
+                    span,
+                    format!(
+                        "type argument `{found}` for `{}` of {target} must satisfy `{required}`",
+                        param.name
+                    ),
+                );
+                valid = false;
             }
-            let required = match param.kind {
-                hir::TypeParamKind::Any => continue,
-                hir::TypeParamKind::Value => "value",
-                hir::TypeParamKind::Ref => "ref",
-            };
-            let found = self.type_name(arg);
-            self.error(
-                span,
-                format!(
-                    "type argument `{found}` for `{}` of {target} must satisfy `{required}`",
-                    param.name
-                ),
-            );
-            valid = false;
+        }
+        for (param, &arg) in params.iter().zip(args) {
+            for bound in param.interface_bounds() {
+                let required = self.instantiate_ty(bound.ty, args);
+                if self.is_subtype(arg, required) {
+                    continue;
+                }
+                let found = self.type_name(arg);
+                let required = self.type_name(required);
+                self.error(
+                    span,
+                    format!(
+                        "type argument `{found}` for `{}` of {target} must satisfy interface upper bound `{required}`",
+                        param.name
+                    ),
+                );
+                valid = false;
+            }
         }
         valid
     }
 
     pub(crate) fn type_arguments_satisfy_kinds(
-        &self,
+        &mut self,
         params: &[hir::TypeParamDecl],
         args: &[TypeId],
     ) -> bool {
-        params
-            .iter()
-            .zip(args)
-            .all(|(param, &arg)| self.type_satisfies_kind(arg, param.kind))
+        for (param, &arg) in params.iter().zip(args) {
+            if !self.type_satisfies_kind(arg, param.kind()) {
+                return false;
+            }
+            for bound in param.interface_bounds() {
+                let required = self.instantiate_ty(bound.ty, args);
+                if !self.is_subtype(arg, required) {
+                    return false;
+                }
+            }
+        }
+        true
     }
 
     fn type_satisfies_kind(&self, ty: TypeId, required: hir::TypeParamKind) -> bool {
@@ -968,7 +1222,7 @@ impl Lowerer {
             let actual = self
                 .type_params_in_scope
                 .get(index.into_raw() as usize)
-                .map(|param| param.kind)
+                .map(|param| param.kind())
                 .unwrap_or(hir::TypeParamKind::Any);
             return actual == required;
         }

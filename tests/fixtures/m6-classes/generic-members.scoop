@@ -1,19 +1,14 @@
 interface Exchange<T> {
-    fun <U> exchange(owner: T, missing: U?, value: U): U
     fun current(): T
 }
 
 struct Box<T>(val value: T) : Exchange<T> {
-    override fun <U> exchange(owner: T, missing: U?, value: U): U = value
+    fun <U> exchange(owner: T, missing: U?, value: U): U = value
     override fun current(): T = value
 }
 
-interface Identity {
-    fun <T> id(value: T): T
-}
-
-open class Tool : Identity {
-    final override fun <T> id(value: T): T = value
+open class Tool {
+    final fun <T> id(value: T): T = value
 }
 
 class Overloads {

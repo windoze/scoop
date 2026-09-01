@@ -275,8 +275,8 @@ impl Lowerer {
                 }
             }
             if contextual_args_match {
-                let type_params = &self.signatures[&candidate.function].type_params;
-                if self.type_arguments_satisfy_kinds(type_params, &type_args) {
+                let type_params = self.signatures[&candidate.function].type_params.clone();
+                if self.type_arguments_satisfy_kinds(&type_params, &type_args) {
                     applicable.push((index, type_args));
                 } else {
                     kind_failures.push((index, type_args));

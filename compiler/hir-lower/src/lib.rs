@@ -208,23 +208,20 @@ pub(crate) enum ForbiddenSuspendContext {
     ConstructorDelegation,
 }
 
-fn lower_type_param_decl(param: &ast::TypeParamDecl) -> Result<hir::TypeParamDecl, Span> {
-    let kind = match &param.inline_bound {
-        None => hir::TypeParamKind::Any,
-        Some(ast::TypeBound::Kind(ast::TypeParamKindBound::Value)) => hir::TypeParamKind::Value,
-        Some(ast::TypeBound::Kind(ast::TypeParamKindBound::Ref)) => hir::TypeParamKind::Ref,
-        Some(ast::TypeBound::Upper(ty)) => return Err(ty.span),
-    };
-    Ok(hir::TypeParamDecl {
+fn lower_type_param_decl(param: &ast::TypeParamDecl) -> hir::TypeParamDecl {
+    hir::TypeParamDecl {
         name: param.name.text.clone(),
         variance: match param.variance {
             ast::Variance::Invariant => hir::Variance::Invariant,
             ast::Variance::In => hir::Variance::In,
             ast::Variance::Out => hir::Variance::Out,
         },
-        kind,
+        // Bounds are resolved after every nominal declaration has entered the
+        // type namespace. This temporary lowerer state never crosses the HIR
+        // output boundary; successful lowering replaces it completely.
+        bounds: hir::TypeParamBounds::Unconstrained,
         span: param.span,
-    })
+    }
 }
 
 impl Owner {
@@ -719,6 +716,7 @@ impl Lowerer {
         let mut pending_structs = Vec::new();
         let mut pending_enums = Vec::new();
         let mut pending_classes = Vec::new();
+        let mut pending_interfaces = Vec::new();
         let mut pending_functions = Vec::new();
         let mut pending_globals = Vec::new();
         let mut pending_methods: Vec<(FunctionId, &ast::FunctionDecl, usize, Owner)> = Vec::new();
@@ -748,15 +746,60 @@ impl Lowerer {
                         &mut pending_methods,
                         file_index,
                     ),
-                    ast::Decl::Interface(decl) => {
-                        self.declare_interface(decl, &mut pending_methods, file_index)
-                    }
+                    ast::Decl::Interface(decl) => self.declare_interface(
+                        decl,
+                        &mut pending_interfaces,
+                        &mut pending_methods,
+                        file_index,
+                    ),
                     ast::Decl::Function(decl) => {
                         self.declare_function(decl, is_core, &mut pending_functions, file_index)
                     }
                 }
             }
         }
+
+        // Type-parameter names and arities are declared in pass 1. Resolve
+        // their ordered constraints only after every nominal name is visible,
+        // then validate bound applications after all constraint sets are
+        // complete (F-bounds may form legal dependency cycles).
+        for &(id, decl, file_index) in &pending_structs {
+            self.current_file = file_index;
+            let declared = self.structs[id].type_params.clone();
+            let params = self.resolve_type_parameter_constraints(
+                declared,
+                0,
+                &decl.type_params,
+                decl.where_clause.as_ref(),
+                "struct",
+            );
+            self.structs[id].type_params = params;
+        }
+        for &(id, decl, file_index) in &pending_enums {
+            self.current_file = file_index;
+            let declared = self.enums[id].type_params.clone();
+            let params = self.resolve_type_parameter_constraints(
+                declared,
+                0,
+                &decl.type_params,
+                decl.where_clause.as_ref(),
+                "enum",
+            );
+            self.enums[id].type_params = params;
+        }
+        for &(id, decl, file_index) in &pending_interfaces {
+            self.current_file = file_index;
+            let declared = self.interfaces[id].type_params.clone();
+            let params = self.resolve_type_parameter_constraints(
+                declared,
+                0,
+                &decl.type_params,
+                decl.where_clause.as_ref(),
+                "interface",
+            );
+            self.interfaces[id].type_params = params;
+        }
+        self.validate_nominal_type_parameter_constraints();
 
         self.ffi_ptr = self.require_core_struct("Ptr", files);
         self.ffi_fun_ptr = self.require_core_struct("FunPtr", files);
@@ -1023,7 +1066,6 @@ impl Lowerer {
         pending_methods: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
         file_index: usize,
     ) {
-        self.reject_unlowered_where_clause(decl.where_clause.as_ref());
         let attributes = self.check_struct_annotations(decl);
         if let Some(kind) = self.type_namespace_conflict(&decl.name.text) {
             let what = if kind == "a struct" {
@@ -1049,13 +1091,7 @@ impl Lowerer {
                 );
                 continue;
             }
-            match lower_type_param_decl(param) {
-                Ok(param) => type_params.push(param),
-                Err(span) => self.error(
-                    span,
-                    "interface upper bounds are not supported by the current HIR model".to_string(),
-                ),
-            }
+            type_params.push(lower_type_param_decl(param));
         }
         let id = self.structs.alloc(StructDecl {
             name: decl.name.text.clone(),
@@ -1088,7 +1124,6 @@ impl Lowerer {
         pending_methods: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
         file_index: usize,
     ) {
-        self.reject_unlowered_where_clause(decl.where_clause.as_ref());
         let no_gc = self.check_enum_annotations(decl);
         if let Some(kind) = self.type_namespace_conflict(&decl.name.text) {
             let what = if kind == "an enum" {
@@ -1114,13 +1149,7 @@ impl Lowerer {
                 );
                 continue;
             }
-            match lower_type_param_decl(param) {
-                Ok(param) => type_params.push(param),
-                Err(span) => self.error(
-                    span,
-                    "interface upper bounds are not supported by the current HIR model".to_string(),
-                ),
-            }
+            type_params.push(lower_type_param_decl(param));
         }
         let id = self.enums.alloc(EnumDecl {
             name: decl.name.text.clone(),
@@ -1205,10 +1234,10 @@ impl Lowerer {
     fn declare_interface<'a>(
         &mut self,
         decl: &'a ast::InterfaceDecl,
+        pending: &mut Vec<(InterfaceId, &'a ast::InterfaceDecl, usize)>,
         pending_methods: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
         file_index: usize,
     ) {
-        self.reject_unlowered_where_clause(decl.where_clause.as_ref());
         if let Some(parent) = decl.parents.first() {
             self.error(
                 parent.span,
@@ -1240,13 +1269,7 @@ impl Lowerer {
                 );
                 continue;
             }
-            match lower_type_param_decl(param) {
-                Ok(param) => type_params.push(param),
-                Err(span) => self.error(
-                    span,
-                    "interface upper bounds are not supported by the current HIR model".to_string(),
-                ),
-            }
+            type_params.push(lower_type_param_decl(param));
         }
         let id = self.interfaces.alloc(InterfaceDecl {
             name: decl.name.text.clone(),
@@ -1266,6 +1289,7 @@ impl Lowerer {
         for method in &decl.methods {
             self.declare_method(method, Owner::Interface(id), pending_methods, file_index);
         }
+        pending.push((id, decl, file_index));
     }
 
     /// Declare a member function (pass 1): methods live in per-owner
@@ -1602,7 +1626,7 @@ impl Lowerer {
         self.current_file = self.struct_files[&callback];
         let callback_decl = &self.structs[callback];
         let callback_valid = callback_decl.type_params.len() == 1
-            && callback_decl.type_params[0].kind == hir::TypeParamKind::Any
+            && callback_decl.type_params[0].kind() == hir::TypeParamKind::Any
             && callback_decl.interfaces.is_empty()
             && callback_decl.attributes.c_layout.is_none()
             && !callback_decl.attributes.interior_mutable
@@ -1637,7 +1661,7 @@ impl Lowerer {
             let signature = &self.signatures[&id];
             let common = !signature.is_suspend
                 && signature.type_params.len() == 1
-                && signature.type_params[0].kind == hir::TypeParamKind::Any
+                && signature.type_params[0].kind() == hir::TypeParamKind::Any
                 && signature.attributes.safety == hir::Safety::Unsafe
                 && signature.attributes.gc_effect == hir::GcEffect::Managed
                 && function.method.is_none();
@@ -1749,7 +1773,7 @@ impl Lowerer {
         self.current_file = self.struct_files[&id];
         let declaration = &self.structs[id];
         let valid = declaration.type_params.len() == 1
-            && declaration.type_params[0].kind == hir::TypeParamKind::Ref
+            && declaration.type_params[0].kind() == hir::TypeParamKind::Ref
             && matches!(declaration.fields.as_slice(), [field] if field.name == "raw" && field.ty == self.uint)
             && declaration.interfaces.is_empty()
             && !declaration.attributes.interior_mutable
@@ -1778,7 +1802,7 @@ impl Lowerer {
         };
         let valid = !signature.is_suspend
             && signature.type_params.len() == 1
-            && signature.type_params[0].kind == hir::TypeParamKind::Ref
+            && signature.type_params[0].kind() == hir::TypeParamKind::Ref
             && signature.attributes.safety == hir::Safety::Unsafe
             && signature.attributes.gc_effect == hir::GcEffect::Managed
             && function.method.is_none()
@@ -1798,7 +1822,7 @@ impl Lowerer {
         self.current_file = self.struct_files[&id];
         let declaration = &self.structs[id];
         let valid = declaration.type_params.len() == 1
-            && declaration.type_params[0].kind == hir::TypeParamKind::Value
+            && declaration.type_params[0].kind() == hir::TypeParamKind::Value
             && matches!(declaration.fields.as_slice(), [field] if field.name == "_rawPointer" && field.ty == self.uint)
             && declaration.interfaces.is_empty()
             && !declaration.attributes.interior_mutable
@@ -1815,7 +1839,7 @@ impl Lowerer {
         self.current_file = self.struct_files[&id];
         let declaration = &self.structs[id];
         let valid = declaration.type_params.len() == 1
-            && declaration.type_params[0].kind == hir::TypeParamKind::Any
+            && declaration.type_params[0].kind() == hir::TypeParamKind::Any
             && matches!(declaration.fields.as_slice(), [field] if field.name == "_rawPointer" && field.ty == self.uint)
             && declaration.interfaces.is_empty()
             && self.struct_methods[&id].is_empty()
@@ -1842,10 +1866,9 @@ impl Lowerer {
         let base = owner_matches
             && !sig.is_suspend
             && sig.owner_type_param_count == 1
-            && sig
-                .type_params
-                .first()
-                .is_some_and(|param| param.kind == hir::TypeParamKind::Value && param.name == "T")
+            && sig.type_params.first().is_some_and(|param| {
+                param.kind() == hir::TypeParamKind::Value && param.name == "T"
+            })
             && function.attributes.safety == hir::Safety::Unsafe
             && function.attributes.gc_effect == hir::GcEffect::NoGc;
         let valid = base
@@ -1859,7 +1882,7 @@ impl Lowerer {
                 hir::PointerIntrinsic::Cast => {
                     function.name.ends_with(".cast")
                         && sig.type_params.len() == 2
-                        && sig.type_params[1].kind == hir::TypeParamKind::Value
+                        && sig.type_params[1].kind() == hir::TypeParamKind::Value
                         && sig.params.is_empty()
                         && self.is_ptr_param(sig.return_ty, 1)
                 }
@@ -1923,7 +1946,7 @@ impl Lowerer {
         let function = &self.functions[id];
         let sig = &self.signatures[&id];
         let one_value_param = sig.type_params.len() == 1
-            && sig.type_params[0].kind == hir::TypeParamKind::Value
+            && sig.type_params[0].kind() == hir::TypeParamKind::Value
             && sig.owner_type_param_count == 0;
         let valid = function.method.is_none()
             && !sig.is_suspend
@@ -2631,14 +2654,15 @@ impl Lowerer {
                 );
                 continue;
             }
-            match lower_type_param_decl(param) {
-                Ok(param) => type_params.push(param),
-                Err(span) => self.error(
-                    span,
-                    "interface upper bounds are not supported by the current HIR model".to_string(),
-                ),
-            }
+            type_params.push(lower_type_param_decl(param));
         }
+        type_params = self.resolve_type_parameter_constraints(
+            type_params,
+            0,
+            &decl.type_params,
+            decl.where_clause.as_ref(),
+            "function",
+        );
         if !type_params.is_empty() {
             self.register_generic(id);
         }
@@ -2912,7 +2936,6 @@ impl Lowerer {
     }
 
     pub(crate) fn reject_unlowered_function_surface(&mut self, decl: &ast::FunctionDecl) {
-        self.reject_unlowered_where_clause(decl.where_clause.as_ref());
         if let Some(operator) = decl.operator {
             self.error(
                 operator.span,

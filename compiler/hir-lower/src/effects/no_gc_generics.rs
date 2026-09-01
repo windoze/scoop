@@ -73,7 +73,7 @@ impl Lowerer {
                     .iter()
                     .copied()
                     .filter(|parameter| {
-                        function.type_params[parameter.into_raw() as usize].kind
+                        function.type_params[parameter.into_raw() as usize].kind()
                             == hir::TypeParamKind::Ref
                     })
                     .map(|parameter| {

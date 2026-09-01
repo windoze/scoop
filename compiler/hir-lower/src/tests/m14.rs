@@ -1,0 +1,229 @@
+//! M14 structured generic constraints and interface upper-bound validation.
+
+use scoop_ast as ast;
+use scoop_hir as hir;
+
+use super::*;
+
+fn upper(name: &str, interface: TypeRef) -> ast::TypeParamDecl {
+    ast::TypeParamDecl {
+        name: ident(name),
+        variance: ast::Variance::Invariant,
+        inline_bound: Some(ast::TypeBound::Upper(interface)),
+        span: sp(),
+    }
+}
+
+fn where_clause(constraints: Vec<(&str, ast::TypeBound)>) -> ast::WhereClause {
+    ast::WhereClause {
+        constraints: constraints
+            .into_iter()
+            .map(|(parameter, bound)| ast::TypeConstraint {
+                parameter: ident(parameter),
+                bound,
+                span: sp(),
+            })
+            .collect(),
+        span: sp(),
+    }
+}
+
+fn marker_world() -> Vec<Decl> {
+    vec![
+        interface_decl("Marker", vec![]),
+        struct_decl_full("Marked", vec![], vec!["Marker"], vec![]),
+    ]
+}
+
+fn bounded_identity() -> Decl {
+    let mut declaration = fun_expr(
+        "boundedIdentity",
+        vec!["T"],
+        vec![("value", ty_named("T"))],
+        Some(ty_named("T")),
+        var("value"),
+    );
+    let Decl::Function(function) = &mut declaration else {
+        unreachable!()
+    };
+    function.type_params[0] = upper("T", ty_named("Marker"));
+    declaration
+}
+
+#[test]
+fn interface_bounds_are_complete_ordered_hir_constraints() {
+    let mut renderable =
+        generic_interface_decl("Renderable", vec![(ast::Variance::Invariant, "T")], vec![]);
+    let Decl::Interface(renderable_decl) = &mut renderable else {
+        unreachable!()
+    };
+    renderable_decl.type_params[0].inline_bound = Some(ast::TypeBound::Upper(ty_generic(
+        "Comparable",
+        vec![ty_named("T")],
+    )));
+
+    let mut constrained = generic_struct_decl("Constrained", vec!["T"], vec![]);
+    let Decl::Struct(constrained_decl) = &mut constrained else {
+        unreachable!()
+    };
+    constrained_decl.where_clause = Some(where_clause(vec![
+        ("T", ast::TypeBound::Upper(ty_named("Marker"))),
+        (
+            "T",
+            ast::TypeBound::Upper(ty_generic("Comparable", vec![ty_named("T")])),
+        ),
+    ]));
+
+    let module = lower_user(file(vec![
+        interface_decl("Marker", vec![]),
+        generic_interface_decl("Comparable", vec![(ast::Variance::Invariant, "T")], vec![]),
+        renderable,
+        constrained,
+        fun("main", vec![]),
+    ]))
+    .expect("multiple interface bounds and F-bounds must lower");
+
+    let declaration = module
+        .structs
+        .iter()
+        .find(|(_, declaration)| declaration.name == "Constrained")
+        .unwrap()
+        .1;
+    let hir::TypeParamBounds::Interfaces(bounds) = &declaration.type_params[0].bounds else {
+        panic!("interface upper bounds must use the typed constraint branch")
+    };
+    assert_eq!(bounds.len(), 2);
+    assert_eq!(hir::type_name(&module, bounds[0].ty), "Marker");
+    assert_eq!(hir::type_name(&module, bounds[1].ty), "Comparable<T0>");
+    assert!(
+        hir::dump(&module).contains("struct Constrained<T : Marker & Comparable<T>>"),
+        "HIR dump must preserve bound order"
+    );
+}
+
+#[test]
+fn concrete_and_generic_arguments_must_prove_interface_bounds() {
+    let mut declarations = marker_world();
+    declarations.extend([
+        bounded_identity(),
+        fun(
+            "main",
+            vec![stmt(call(
+                "boundedIdentity",
+                vec![struct_init("Marked", vec![])],
+            ))],
+        ),
+    ]);
+    lower_user(file(declarations)).expect("an implementing value type satisfies the bound");
+
+    let mut declarations = marker_world();
+    declarations.extend([
+        bounded_identity(),
+        fun(
+            "main",
+            vec![stmt(call("boundedIdentity", vec![int_lit(1)]))],
+        ),
+    ]);
+    let errors = lower_user(file(declarations)).expect_err("Int does not implement Marker");
+    assert!(errors.iter().any(|error| {
+        error.message
+            == "type argument `Int` for `T` of function `boundedIdentity` must satisfy interface upper bound `Marker`"
+    }));
+}
+
+#[test]
+fn bound_declaration_errors_are_diagnosed_at_hir() {
+    let mut declaration = fun_expr(
+        "invalid",
+        vec!["T"],
+        vec![("value", ty_named("T"))],
+        Some(ty_named("T")),
+        var("value"),
+    );
+    let Decl::Function(function) = &mut declaration else {
+        unreachable!()
+    };
+    function.type_params[0].inline_bound =
+        Some(ast::TypeBound::Kind(ast::TypeParamKindBound::Value));
+    function.where_clause = Some(where_clause(vec![
+        ("T", ast::TypeBound::Upper(ty_named("Marker"))),
+        ("U", ast::TypeBound::Upper(ty_named("Marker"))),
+    ]));
+
+    let errors = lower_user(file(vec![
+        interface_decl("Marker", vec![]),
+        declaration,
+        fun("main", vec![]),
+    ]))
+    .expect_err("kind/interface mixing and unknown where parameters must fail");
+    assert!(errors.iter().any(|error| {
+        error.message
+            == "type parameter `T` of function cannot combine interface upper bounds with a kind bound"
+    }));
+    assert!(errors.iter().any(|error| {
+        error.message == "unknown type parameter `U` in where clause of function"
+    }));
+}
+
+#[test]
+fn upper_bound_must_be_a_complete_interface_application() {
+    let mut declaration = bounded_identity();
+    let Decl::Function(function) = &mut declaration else {
+        unreachable!()
+    };
+    function.type_params[0] = upper("T", ty_named("Int"));
+    let errors = lower_user(file(vec![declaration, fun("main", vec![])]))
+        .expect_err("a value type cannot be an upper bound");
+    assert!(errors.iter().any(|error| {
+        error.message == "upper bound of type parameter `T` must be an interface, found `Int`"
+    }));
+}
+
+#[test]
+fn duplicate_interface_bounds_are_rejected_by_application_identity() {
+    let mut declaration = fun_expr(
+        "duplicate",
+        vec!["T"],
+        vec![("value", ty_named("T"))],
+        Some(ty_named("T")),
+        var("value"),
+    );
+    let Decl::Function(function) = &mut declaration else {
+        unreachable!()
+    };
+    function.where_clause = Some(where_clause(vec![
+        ("T", ast::TypeBound::Upper(ty_named("Marker"))),
+        ("T", ast::TypeBound::Upper(ty_named("Marker"))),
+    ]));
+    let errors = lower_user(file(vec![
+        interface_decl("Marker", vec![]),
+        declaration,
+        fun("main", vec![]),
+    ]))
+    .expect_err("the same normalized bound cannot appear twice");
+    assert!(errors.iter().any(|error| {
+        error.message
+            == "duplicate interface upper bound `Marker` for type parameter `T` of function"
+    }));
+}
+
+#[test]
+fn generic_interface_methods_are_rejected_at_definition() {
+    let mut method = method_full(
+        false,
+        true,
+        "map",
+        vec![("value", ty_named("T"))],
+        Some(ty_named("T")),
+        FunctionBody::None,
+    );
+    method.type_params = vec![type_param("T")];
+    let errors = lower_user(file(vec![
+        interface_decl("Mapper", vec![method]),
+        fun("main", vec![]),
+    ]))
+    .expect_err("interface method-level generics have no dispatch ABI");
+    assert!(errors.iter().any(|error| {
+        error.message == "interface method `map` cannot declare method type parameters"
+    }));
+}

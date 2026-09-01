@@ -153,15 +153,12 @@ SourceFile
   class IllegalStateException() : Exception(<1 args>)
 SourceFile
   interface Exchange<T>
-    fun exchange
     fun current
   struct Box<T> : Exchange<T>
     field value: T
     fun exchange
     fun current
-  interface Identity
-    fun id
-  open class Tool(), Identity
+  open class Tool()
     fun id
   class Overloads()
     fun id
@@ -216,7 +213,7 @@ Module
   class ArithmeticException()
   class IndexOutOfBoundsException()
   class IllegalStateException()
-  open class Tool() : Identity
+  open class Tool()
   class Overloads()
   interface Continuation<in T>
     fun resume(value: T0): Unit
@@ -226,10 +223,7 @@ Module
   interface SuspendRegistration<out T>
     fun register(continuation: Continuation<T0>): Unit
   interface Exchange<T>
-    fun exchange<U>(owner: T0, missing: Option<T1>, value: T1): T1
     fun current(): T0
-  interface Identity
-    fun id<T>(value: T0): T0
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
   fun startCoroutine<T>(task: suspend () -> T0, completion: Continuation<T0>): Unit
@@ -334,11 +328,10 @@ Module
   class ArithmeticException vtable=3 itables=0
   class IndexOutOfBoundsException vtable=3 itables=0
   class IllegalStateException vtable=3 itables=0
-  class Tool vtable=3 itables=1
+  class Tool vtable=3 itables=0
   class Overloads vtable=3 itables=0
   class box$I vtable=3 itables=0
   class box$Box$I vtable=3 itables=1
-  interface Identity
   interface Exchange$I
   fun print @scoop.print(message: Any) -> Unit
     bb0 entry
@@ -718,10 +711,9 @@ Module
     t1 = call @scoop.Box.current$I(t0) : i64
     store t1 -> local0
     ret local0
-  td Identity @scoop_td_Identity size=0 vtable=0 itables=0
   td Exchange$I @scoop_td_Exchange$I size=0 vtable=0 itables=0
   td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
-  td Tool @scoop_td_Tool size=16 vtable=3 itables=1
+  td Tool @scoop_td_Tool size=16 vtable=3 itables=0
   td Overloads @scoop_td_Overloads size=16 vtable=3 itables=0
   td box$I @scoop_td_box$I size=24 vtable=3 itables=0
   td box$Box$I @scoop_td_box$Box$I size=24 vtable=3 itables=1

@@ -63,14 +63,15 @@ impl Lowerer {
                 );
                 continue;
             }
-            match crate::lower_type_param_decl(param) {
-                Ok(param) => type_params.push(param),
-                Err(span) => self.error(
-                    span,
-                    "interface upper bounds are not supported by the current HIR model".to_string(),
-                ),
-            }
+            type_params.push(crate::lower_type_param_decl(param));
         }
+        type_params = self.resolve_type_parameter_constraints(
+            type_params,
+            owner_type_param_count,
+            &decl.type_params,
+            decl.where_clause.as_ref(),
+            "local function",
+        );
         self.type_params_in_scope = type_params.clone();
         let mut sig_params = Vec::with_capacity(decl.params.len());
         for param in &decl.params {

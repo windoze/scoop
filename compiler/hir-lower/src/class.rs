@@ -344,14 +344,25 @@ impl Lowerer {
         owner: Owner,
     ) {
         let short = decl.name.text.clone();
-        if !decl.type_params.is_empty()
-            && matches!(owner, Owner::Class(_))
-            && decl.modifier != ast::MethodModifier::Final
-        {
-            self.error(
-                decl.name.span,
-                format!("generic member function `{short}` in a class must be final"),
-            );
+        if !decl.type_params.is_empty() {
+            if matches!(owner, Owner::Interface(_)) {
+                self.error(
+                    decl.name.span,
+                    format!("interface method `{short}` cannot declare method type parameters"),
+                );
+            }
+            if matches!(owner, Owner::Class(_)) && decl.modifier != ast::MethodModifier::Final {
+                self.error(
+                    decl.name.span,
+                    format!("generic member function `{short}` in a class must be final"),
+                );
+            }
+            if decl.is_override {
+                self.error(
+                    decl.name.span,
+                    format!("generic member function `{short}` cannot be an override"),
+                );
+            }
         }
         self.check_method_body_shape(id, decl, owner);
 
@@ -369,17 +380,18 @@ impl Lowerer {
                 );
                 continue;
             }
-            match crate::lower_type_param_decl(param) {
-                Ok(param) => {
-                    type_params.push(param.clone());
-                    method_type_params.push(param);
-                }
-                Err(span) => self.error(
-                    span,
-                    "interface upper bounds are not supported by the current HIR model".to_string(),
-                ),
-            }
+            let param = crate::lower_type_param_decl(param);
+            type_params.push(param.clone());
+            method_type_params.push(param);
         }
+        type_params = self.resolve_type_parameter_constraints(
+            type_params,
+            owner_type_param_count,
+            &decl.type_params,
+            decl.where_clause.as_ref(),
+            "method",
+        );
+        method_type_params = type_params[owner_type_param_count..].to_vec();
         if !type_params.is_empty() {
             self.register_generic(id);
         }
@@ -854,7 +866,7 @@ impl Lowerer {
             hir::TypeParamDecl {
                 name: String::new(),
                 variance: hir::Variance::Invariant,
-                kind: hir::TypeParamKind::Any,
+                bounds: hir::TypeParamBounds::Unconstrained,
                 span: scoop_ast::Span::new(0, 0),
             };
             target_owner_count
