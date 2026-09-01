@@ -341,6 +341,8 @@ uint32_t scoop_runtime_callback_invoke(
     void *context, const void *signature_descriptor, void *result_storage,
     const void *const *argument_storage);
 uint64_t scoop_runtime_callback_debug_live_count(void);
+uint64_t scoop_runtime_callback_debug_owner_count(void *context);
+uint64_t scoop_runtime_callback_debug_active_count(void *context);
 
 /* Force a full collection. */
 void scoop_rt_gc_collect(void);
@@ -360,6 +362,9 @@ uintptr_t scoop_rt_gc_debug_arena_base(void);
 
 /* Test hook: number of registered global/external roots. */
 uint64_t scoop_rt_gc_debug_root_count(void);
+
+/* Test hook: whether a pointer is the start of a currently allocated object. */
+bool scoop_rt_gc_debug_is_allocated(const void *obj);
 
 /* Test hook: number of slots in the current thread's native-root chain. */
 uint64_t scoop_rt_gc_debug_native_root_count(void);

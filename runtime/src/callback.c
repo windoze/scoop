@@ -14,6 +14,9 @@
 #define CALLBACK_SLOT_MASK ((UINT64_C(1) << CALLBACK_SLOT_BITS) - 1)
 #define CALLBACK_GENERATION_MAX ((UINT32_C(1) << (47 - CALLBACK_SLOT_BITS)) - 1)
 
+_Static_assert(UINTPTR_MAX == UINT64_MAX,
+               "M13 callback cookies require a 64-bit uintptr_t");
+
 typedef struct ScoopCallbackToken {
     const void *signature;
     ScoopForeignCallbackAdapter adapter;
@@ -138,6 +141,12 @@ static void release_handles(ReleasedHandles handles) {
 }
 
 void scoop_callback_runtime_init(void) {
+    uintptr_t round_trip_probe =
+        encode_cookie(CALLBACK_SLOT_MASK - 1, CALLBACK_GENERATION_MAX);
+    if ((uintptr_t)(void *)round_trip_probe != round_trip_probe) {
+        callback_fatal("callback cookie does not round-trip through void pointer");
+    }
+
     lock_callbacks();
     if (callback_initialized || callback_tokens_len != 0 ||
         callback_live_count != 0) {
@@ -384,6 +393,22 @@ uint32_t scoop_runtime_callback_invoke(
 uint64_t scoop_runtime_callback_debug_live_count(void) {
     lock_callbacks();
     uint64_t count = callback_live_count;
+    unlock_callbacks();
+    return count;
+}
+
+uint64_t scoop_runtime_callback_debug_owner_count(void *context) {
+    lock_callbacks();
+    ScoopCallbackToken *token = require_cookie_locked(context, NULL);
+    uint64_t count = token->owners;
+    unlock_callbacks();
+    return count;
+}
+
+uint64_t scoop_runtime_callback_debug_active_count(void *context) {
+    lock_callbacks();
+    ScoopCallbackToken *token = require_cookie_locked(context, NULL);
+    uint64_t count = token->active;
     unlock_callbacks();
     return count;
 }

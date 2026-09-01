@@ -340,7 +340,15 @@ typedef struct StwProbe {
     _Atomic bool ready;
     _Atomic bool collection_returned;
     bool owns_attachment;
+    bool root_survived;
 } StwProbe;
+
+typedef struct BorrowedProbe {
+    _Atomic bool ready;
+    _Atomic bool enter_runtime;
+    bool owns_attachment;
+    bool root_survived;
+} BorrowedProbe;
 
 enum { MULTI_ALLOC_THREADS = 4, MULTI_ALLOC_BATCH = 512 };
 
@@ -396,6 +404,8 @@ static void *multi_allocator(void *raw_probe) {
 
 static const uint64_t callback_signature_i64;
 static const uint64_t callback_signature_other;
+static _Atomic bool callback_lease_entered;
+static _Atomic bool callback_lease_leave;
 
 static uint64_t callback_add_adapter(const void *raw_closure,
                                      void *result_storage,
@@ -419,6 +429,22 @@ static uint64_t callback_throw_adapter(const void *raw_closure,
     const ScoopNode *closure = raw_closure;
     *exception_out = new_node(closure->value + 1000, NULL);
     return SCOOP_FOREIGN_CALLBACK_THREW;
+}
+
+static uint64_t callback_lease_adapter(const void *raw_closure,
+                                       void *result_storage,
+                                       const void *const *argument_storage,
+                                       void **exception_out) {
+    (void)exception_out;
+    const ScoopNode *closure = raw_closure;
+    int64_t argument = *(const int64_t *)argument_storage[0];
+    atomic_store_explicit(&callback_lease_entered, true, memory_order_release);
+    while (!atomic_load_explicit(&callback_lease_leave, memory_order_acquire)) {
+        scoop_rt_safepoint();
+        sched_yield();
+    }
+    *(int64_t *)result_storage = closure->value + argument;
+    return SCOOP_FOREIGN_CALLBACK_RETURNED;
 }
 
 typedef struct CallbackInvokeProbe {
@@ -478,10 +504,14 @@ static void *managed_collection_requester(void *raw_probe) {
 }
 
 static void run_native_safe_observer(StwProbe *probe) {
-    void *caller_root_value = NULL;
+    ScoopNode **caller_root_value = malloc(sizeof *caller_root_value);
+    if (caller_root_value == NULL) {
+        abort();
+    }
+    *caller_root_value = new_node(31415, NULL);
     static const uint64_t caller_root_scan[] = {1, 0};
     ScoopCallerRootEntry caller_root_entries[] = {
-        {.base = &caller_root_value, .scan = caller_root_scan},
+        {.base = caller_root_value, .scan = caller_root_scan},
     };
     ScoopCallerRootFrame caller_frame;
     ScoopThreadTransition transition = {0};
@@ -493,7 +523,12 @@ static void run_native_safe_observer(StwProbe *probe) {
         sched_yield();
     }
     scoop_rt_leave_native_safe(&transition);
+    probe->root_survived =
+        scoop_rt_gc_debug_is_allocated(*caller_root_value) &&
+        (*caller_root_value)->header.td == &node_td &&
+        (*caller_root_value)->value == 31415;
     scoop_rt_pop_caller_roots(&caller_frame);
+    free(caller_root_value);
 }
 
 static void *native_safe_observer(void *raw_probe) {
@@ -502,6 +537,53 @@ static void *native_safe_observer(void *raw_probe) {
     probe->owns_attachment = scoop_rt_attach_foreign_thread();
     scoop_rt_thread_debug_enter_managed((uintptr_t)&managed_stack_boundary);
     run_native_safe_observer(probe);
+    scoop_rt_thread_debug_leave_managed();
+    if (probe->owns_attachment) {
+        scoop_rt_detach_foreign_thread();
+    }
+    return NULL;
+}
+
+static void run_native_borrowed_observer(BorrowedProbe *probe) {
+    ScoopNode **native_root_value = malloc(sizeof *native_root_value);
+    if (native_root_value == NULL) {
+        abort();
+    }
+    *native_root_value = new_node(27182, NULL);
+    void **native_root_slots[] = {(void **)native_root_value};
+    ScoopCallerRootFrame caller_frame;
+    ScoopThreadTransition transition = {0};
+    ScoopNativeRootFrame native_frame;
+    volatile char managed_stack_pointer = 0;
+    scoop_rt_push_caller_roots(&caller_frame, NULL, 0);
+    scoop_rt_enter_native_borrowed(&transition,
+                                    (uintptr_t)&managed_stack_pointer);
+    scoop_rt_push_native_roots(&native_frame, native_root_slots, 1);
+    atomic_store_explicit(&probe->ready, true, memory_order_release);
+    while (!atomic_load_explicit(&probe->enter_runtime,
+                                 memory_order_acquire)) {
+        sched_yield();
+    }
+
+    /* The collector is already waiting for this native-borrowed thread.
+     * The first explicit runtime entry parks it and joins that epoch. */
+    scoop_rt_gc_collect();
+    probe->root_survived =
+        scoop_rt_gc_debug_is_allocated(*native_root_value) &&
+        (*native_root_value)->header.td == &node_td &&
+        (*native_root_value)->value == 27182;
+    scoop_rt_pop_native_roots(&native_frame);
+    scoop_rt_leave_native_borrowed(&transition);
+    scoop_rt_pop_caller_roots(&caller_frame);
+    free(native_root_value);
+}
+
+static void *native_borrowed_observer(void *raw_probe) {
+    BorrowedProbe *probe = raw_probe;
+    volatile char managed_stack_boundary = 0;
+    probe->owns_attachment = scoop_rt_attach_foreign_thread();
+    scoop_rt_thread_debug_enter_managed((uintptr_t)&managed_stack_boundary);
+    run_native_borrowed_observer(probe);
     scoop_rt_thread_debug_leave_managed();
     if (probe->owns_attachment) {
         scoop_rt_detach_foreign_thread();
@@ -603,6 +685,7 @@ void scoop_main(void) {
     scoop_rt_println_boolean(managed_joined && native_joined &&
                              managed_probe.owns_attachment &&
                              native_probe.owns_attachment &&
+                             native_probe.root_survived &&
                              scoop_rt_thread_debug_count() == 1);
 
     /* Per-thread TLABs, heap/root synchronization and generation handles:
@@ -698,6 +781,76 @@ void scoop_main(void) {
                              scoop_rt_thread_debug_transition_depth() == 0 &&
                              scoop_rt_thread_debug_caller_root_count() == 0 &&
                              scoop_rt_gc_debug_native_root_count() == 0);
+
+    /* A native-borrowed thread is not quiescent merely because it is outside
+     * managed code. Another collector waits while it executes ordinary C,
+     * then the borrower parks at its first explicit runtime entry. */
+    _Atomic bool borrowed_collect_now = false;
+    _Atomic bool stop_borrowed_collector = false;
+    StwProbe borrowed_collector_probe = {
+        .collect_now = &borrowed_collect_now,
+        .stop = &stop_borrowed_collector,
+    };
+    BorrowedProbe borrowed_probe = {0};
+    atomic_init(&borrowed_collector_probe.ready, false);
+    atomic_init(&borrowed_collector_probe.collection_returned, false);
+    atomic_init(&borrowed_probe.ready, false);
+    atomic_init(&borrowed_probe.enter_runtime, false);
+    pthread_t borrowed_thread;
+    pthread_t borrowed_collector_thread;
+    bool borrowed_thread_created =
+        pthread_create(&borrowed_thread, NULL, native_borrowed_observer,
+                       &borrowed_probe) == 0;
+    bool borrowed_collector_created =
+        pthread_create(&borrowed_collector_thread, NULL,
+                       managed_collection_requester,
+                       &borrowed_collector_probe) == 0;
+    while (borrowed_thread_created && borrowed_collector_created &&
+           (!atomic_load_explicit(&borrowed_probe.ready,
+                                  memory_order_acquire) ||
+            !atomic_load_explicit(&borrowed_collector_probe.ready,
+                                  memory_order_acquire))) {
+        scoop_rt_safepoint();
+        sched_yield();
+    }
+    ScoopCallerRootFrame borrowed_wait_caller_frame;
+    ScoopThreadTransition borrowed_wait_transition = {0};
+    volatile char borrowed_wait_stack_pointer = 0;
+    scoop_rt_push_caller_roots(&borrowed_wait_caller_frame, NULL, 0);
+    scoop_rt_enter_native_safe(&borrowed_wait_transition,
+                               (uintptr_t)&borrowed_wait_stack_pointer);
+    uint64_t borrowed_wait_epoch = scoop_rt_thread_debug_gc_epoch();
+    atomic_store_explicit(&borrowed_collect_now, true,
+                          memory_order_release);
+    while (borrowed_thread_created && borrowed_collector_created &&
+           scoop_rt_thread_debug_gc_epoch() == borrowed_wait_epoch) {
+        sched_yield();
+    }
+    atomic_store_explicit(&borrowed_probe.enter_runtime, true,
+                          memory_order_release);
+    while (borrowed_thread_created && borrowed_collector_created &&
+           !atomic_load_explicit(&borrowed_collector_probe.collection_returned,
+                                 memory_order_acquire)) {
+        sched_yield();
+    }
+    bool borrowed_wait_counts =
+        scoop_rt_thread_debug_last_gc_parked_count() == 1 &&
+        scoop_rt_thread_debug_last_gc_native_safe_count() == 1;
+    atomic_store_explicit(&stop_borrowed_collector, true,
+                          memory_order_release);
+    scoop_rt_leave_native_safe(&borrowed_wait_transition);
+    scoop_rt_pop_caller_roots(&borrowed_wait_caller_frame);
+    bool borrowed_thread_joined =
+        borrowed_thread_created && pthread_join(borrowed_thread, NULL) == 0;
+    bool borrowed_collector_joined =
+        borrowed_collector_created &&
+        pthread_join(borrowed_collector_thread, NULL) == 0;
+    scoop_rt_println_boolean(
+        borrowed_thread_joined && borrowed_collector_joined &&
+        borrowed_wait_counts && borrowed_probe.owns_attachment &&
+        borrowed_probe.root_survived &&
+        borrowed_collector_probe.owns_attachment &&
+        scoop_rt_thread_debug_count() == 1);
 
     /* Managed callback gateway: a one-shot token transfers its worker owner,
      * automatically attaches a foreign pthread, executes an allocating
@@ -814,6 +967,55 @@ void scoop_main(void) {
                   scoop_runtime_callback_state(reusable) ==
                       SCOOP_FOREIGN_CALLBACK_REGISTERED;
     scoop_rt_println_boolean(reusable_ok);
+
+    /* The active invocation is an independent lease. Deterministically hold
+     * the adapter open, drop every external owner, and prove that the token
+     * remains live until the invocation returns. */
+    atomic_store_explicit(&callback_lease_entered, false,
+                          memory_order_release);
+    atomic_store_explicit(&callback_lease_leave, false,
+                          memory_order_release);
+    ScoopNode *lease_closure = new_node(70, NULL);
+    void *leased = scoop_runtime_callback_register(
+        lease_closure, callback_lease_adapter, &callback_signature_i64,
+        SCOOP_FOREIGN_CALLBACK_REUSABLE);
+    void *lease_observer = scoop_runtime_callback_retain(leased);
+    CallbackInvokeProbe lease_probe = {
+        .context = leased,
+        .signature = &callback_signature_i64,
+        .argument = 2,
+    };
+    pthread_t lease_thread;
+    bool lease_created =
+        pthread_create(&lease_thread, NULL, invoke_callback_worker,
+                       &lease_probe) == 0;
+    while (lease_created &&
+           !atomic_load_explicit(&callback_lease_entered,
+                                 memory_order_acquire)) {
+        scoop_rt_safepoint();
+        sched_yield();
+    }
+    bool active_lease_visible =
+        lease_created &&
+        scoop_runtime_callback_state(leased) ==
+            SCOOP_FOREIGN_CALLBACK_ACTIVE &&
+        scoop_runtime_callback_debug_owner_count(leased) == 2 &&
+        scoop_runtime_callback_debug_active_count(leased) == 1;
+    scoop_runtime_callback_release(leased);
+    scoop_runtime_callback_release(lease_observer);
+    active_lease_visible =
+        active_lease_visible &&
+        scoop_runtime_callback_debug_owner_count(leased) == 0 &&
+        scoop_runtime_callback_debug_active_count(leased) == 1 &&
+        scoop_runtime_callback_debug_live_count() == 2;
+    atomic_store_explicit(&callback_lease_leave, true, memory_order_release);
+    bool lease_joined = lease_created && join_thread_native_safe(lease_thread);
+    scoop_rt_println_boolean(
+        active_lease_visible && lease_joined &&
+        lease_probe.status == SCOOP_FOREIGN_CALLBACK_RETURNED &&
+        lease_probe.result == 72 && lease_probe.detached_before &&
+        lease_probe.detached_after &&
+        scoop_runtime_callback_debug_live_count() == 1);
 
     /* Signature identity is checked before the token is touched by managed
      * code; a mismatched trampoline/token pair is a boundary error. */

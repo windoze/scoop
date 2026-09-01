@@ -1078,6 +1078,13 @@ uint64_t scoop_rt_gc_debug_root_count(void) {
     return count;
 }
 
+bool scoop_rt_gc_debug_is_allocated(const void *obj) {
+    gc_lock(&gc_heap_lock, "failed to lock the heap");
+    bool allocated = is_heap_start(obj);
+    gc_unlock(&gc_heap_lock, "failed to unlock the heap");
+    return allocated;
+}
+
 uint64_t scoop_rt_gc_debug_native_root_count(void) {
     ScoopThreadState *thread = scoop_thread_current();
     if (thread == NULL) {
