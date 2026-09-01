@@ -34,6 +34,7 @@ SourceFile
 SourceFile
   struct Ptr<T : value>
     field _rawPointer: UInt
+    operator fun equals
     fun toUInt
     fun cast
     fun load
@@ -454,31 +455,31 @@ Module
   enum CoroutineSlot$SynchronousFailureTask
     Empty()
     Value(value: SynchronousFailureTask)
-  class Throwable vtable=3 itables=0
-  class Exception vtable=3 itables=0
-  class UnwrapException vtable=3 itables=0
-  class ClassCastException vtable=3 itables=0
-  class ArithmeticException vtable=3 itables=0
-  class IndexOutOfBoundsException vtable=3 itables=0
-  class IllegalStateException vtable=3 itables=0
-  class Holder vtable=3 itables=0
-  class SavingRegistration vtable=3 itables=1
-  class ResumeThenThrowRegistration vtable=3 itables=1
-  class SaveThenThrowRegistration vtable=3 itables=1
-  class SynchronousFailureRegistration vtable=3 itables=1
-  class WaitingTask vtable=3 itables=1
-  class ResumeThenThrowTask vtable=3 itables=1
-  class SaveThenThrowTask vtable=3 itables=1
-  class SynchronousFailureTask vtable=3 itables=1
-  class RecordingCompletion vtable=3 itables=1
-  class CoroutineFrame$scoop_WaitingTask_run_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop_WaitingTask_run_suspend$1 vtable=3 itables=1
-  class CoroutineFrame$scoop_ResumeThenThrowTask_run_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop_ResumeThenThrowTask_run_suspend$1 vtable=3 itables=1
-  class CoroutineFrame$scoop_SaveThenThrowTask_run_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop_SaveThenThrowTask_run_suspend$1 vtable=3 itables=1
-  class CoroutineFrame$scoop_SynchronousFailureTask_run_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop_SynchronousFailureTask_run_suspend$1 vtable=3 itables=1
+  class Throwable vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class UnwrapException vtable=0 itables=0
+  class ClassCastException vtable=0 itables=0
+  class ArithmeticException vtable=0 itables=0
+  class IndexOutOfBoundsException vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Holder vtable=0 itables=0
+  class SavingRegistration vtable=0 itables=1
+  class ResumeThenThrowRegistration vtable=0 itables=1
+  class SaveThenThrowRegistration vtable=0 itables=1
+  class SynchronousFailureRegistration vtable=0 itables=1
+  class WaitingTask vtable=0 itables=1
+  class ResumeThenThrowTask vtable=0 itables=1
+  class SaveThenThrowTask vtable=0 itables=1
+  class SynchronousFailureTask vtable=0 itables=1
+  class RecordingCompletion vtable=0 itables=1
+  class CoroutineFrame$scoop_WaitingTask_run_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop_WaitingTask_run_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop_ResumeThenThrowTask_run_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop_ResumeThenThrowTask_run_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop_SaveThenThrowTask_run_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop_SaveThenThrowTask_run_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop_SynchronousFailureTask_run_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop_SynchronousFailureTask_run_suspend$1 vtable=0 itables=1
   interface ToString
   interface Hash
   interface Continuation$I
@@ -5090,31 +5091,31 @@ Module
   td Continuation$I @scoop_td_Continuation$I size=0 vtable=0 itables=0
   td SuspendRegistration$I @scoop_td_SuspendRegistration$I size=0 vtable=0 itables=0
   td SuspendTask$I @scoop_td_SuspendTask$I size=0 vtable=0 itables=0
-  td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
-  td Holder @scoop_td_Holder size=24 vtable=3 itables=0
-  td SavingRegistration @scoop_td_SavingRegistration size=24 vtable=3 itables=1
-  td ResumeThenThrowRegistration @scoop_td_ResumeThenThrowRegistration size=16 vtable=3 itables=1
-  td SaveThenThrowRegistration @scoop_td_SaveThenThrowRegistration size=24 vtable=3 itables=1
-  td SynchronousFailureRegistration @scoop_td_SynchronousFailureRegistration size=16 vtable=3 itables=1
-  td WaitingTask @scoop_td_WaitingTask size=24 vtable=3 itables=1
-  td ResumeThenThrowTask @scoop_td_ResumeThenThrowTask size=16 vtable=3 itables=1
-  td SaveThenThrowTask @scoop_td_SaveThenThrowTask size=24 vtable=3 itables=1
-  td SynchronousFailureTask @scoop_td_SynchronousFailureTask size=16 vtable=3 itables=1
-  td RecordingCompletion @scoop_td_RecordingCompletion size=16 vtable=3 itables=1
-  td CoroutineFrame$scoop_WaitingTask_run_suspend @scoop_td_CoroutineFrame$scoop_WaitingTask_run_suspend size=64 vtable=3 itables=0
-  td CoroutineAdapter$scoop_WaitingTask_run_suspend$1 @scoop_td_CoroutineAdapter$scoop_WaitingTask_run_suspend$1 size=56 vtable=3 itables=1
-  td CoroutineFrame$scoop_ResumeThenThrowTask_run_suspend @scoop_td_CoroutineFrame$scoop_ResumeThenThrowTask_run_suspend size=64 vtable=3 itables=0
-  td CoroutineAdapter$scoop_ResumeThenThrowTask_run_suspend$1 @scoop_td_CoroutineAdapter$scoop_ResumeThenThrowTask_run_suspend$1 size=56 vtable=3 itables=1
-  td CoroutineFrame$scoop_SaveThenThrowTask_run_suspend @scoop_td_CoroutineFrame$scoop_SaveThenThrowTask_run_suspend size=64 vtable=3 itables=0
-  td CoroutineAdapter$scoop_SaveThenThrowTask_run_suspend$1 @scoop_td_CoroutineAdapter$scoop_SaveThenThrowTask_run_suspend$1 size=56 vtable=3 itables=1
-  td CoroutineFrame$scoop_SynchronousFailureTask_run_suspend @scoop_td_CoroutineFrame$scoop_SynchronousFailureTask_run_suspend size=64 vtable=3 itables=0
-  td CoroutineAdapter$scoop_SynchronousFailureTask_run_suspend$1 @scoop_td_CoroutineAdapter$scoop_SynchronousFailureTask_run_suspend$1 size=56 vtable=3 itables=1
-  td Exception @scoop_td_Exception size=24 vtable=3 itables=0
-  td UnwrapException @scoop_td_UnwrapException size=24 vtable=3 itables=0
-  td ClassCastException @scoop_td_ClassCastException size=24 vtable=3 itables=0
-  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=3 itables=0
-  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=3 itables=0
-  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=3 itables=0
+  td Throwable @scoop_td_Throwable size=16 vtable=0 itables=0
+  td Holder @scoop_td_Holder size=24 vtable=0 itables=0
+  td SavingRegistration @scoop_td_SavingRegistration size=24 vtable=0 itables=1
+  td ResumeThenThrowRegistration @scoop_td_ResumeThenThrowRegistration size=16 vtable=0 itables=1
+  td SaveThenThrowRegistration @scoop_td_SaveThenThrowRegistration size=24 vtable=0 itables=1
+  td SynchronousFailureRegistration @scoop_td_SynchronousFailureRegistration size=16 vtable=0 itables=1
+  td WaitingTask @scoop_td_WaitingTask size=24 vtable=0 itables=1
+  td ResumeThenThrowTask @scoop_td_ResumeThenThrowTask size=16 vtable=0 itables=1
+  td SaveThenThrowTask @scoop_td_SaveThenThrowTask size=24 vtable=0 itables=1
+  td SynchronousFailureTask @scoop_td_SynchronousFailureTask size=16 vtable=0 itables=1
+  td RecordingCompletion @scoop_td_RecordingCompletion size=16 vtable=0 itables=1
+  td CoroutineFrame$scoop_WaitingTask_run_suspend @scoop_td_CoroutineFrame$scoop_WaitingTask_run_suspend size=64 vtable=0 itables=0
+  td CoroutineAdapter$scoop_WaitingTask_run_suspend$1 @scoop_td_CoroutineAdapter$scoop_WaitingTask_run_suspend$1 size=56 vtable=0 itables=1
+  td CoroutineFrame$scoop_ResumeThenThrowTask_run_suspend @scoop_td_CoroutineFrame$scoop_ResumeThenThrowTask_run_suspend size=64 vtable=0 itables=0
+  td CoroutineAdapter$scoop_ResumeThenThrowTask_run_suspend$1 @scoop_td_CoroutineAdapter$scoop_ResumeThenThrowTask_run_suspend$1 size=56 vtable=0 itables=1
+  td CoroutineFrame$scoop_SaveThenThrowTask_run_suspend @scoop_td_CoroutineFrame$scoop_SaveThenThrowTask_run_suspend size=64 vtable=0 itables=0
+  td CoroutineAdapter$scoop_SaveThenThrowTask_run_suspend$1 @scoop_td_CoroutineAdapter$scoop_SaveThenThrowTask_run_suspend$1 size=56 vtable=0 itables=1
+  td CoroutineFrame$scoop_SynchronousFailureTask_run_suspend @scoop_td_CoroutineFrame$scoop_SynchronousFailureTask_run_suspend size=64 vtable=0 itables=0
+  td CoroutineAdapter$scoop_SynchronousFailureTask_run_suspend$1 @scoop_td_CoroutineAdapter$scoop_SynchronousFailureTask_run_suspend$1 size=56 vtable=0 itables=1
+  td Exception @scoop_td_Exception size=24 vtable=0 itables=0
+  td UnwrapException @scoop_td_UnwrapException size=24 vtable=0 itables=0
+  td ClassCastException @scoop_td_ClassCastException size=24 vtable=0 itables=0
+  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=0 itables=0
+  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=0 itables=0
+  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=0 itables=0
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]

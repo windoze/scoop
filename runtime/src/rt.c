@@ -39,11 +39,6 @@ void scoop_rt_println(const ScoopString *s) {
     fputc('\n', stdout);
 }
 
-// Identity for String's own `toString` vtable slot (M7).
-const ScoopString *scoop_rt_string_identity(const ScoopString *s) {
-    return s;
-}
-
 // Format an i64 into a fresh ScoopString (GC-allocated), backing
 // core's `intToString` (M7).
 const ScoopString *scoop_rt_int_to_string(int64_t v) {
@@ -198,24 +193,6 @@ const void *const *scoop_rt_itable_lookup(const ScoopTypeDescriptor *obj_td,
     }
     fprintf(stderr, "scoop_rt_itable_lookup: no itable entry for the interface\n");
     abort();
-}
-
-bool scoop_rt_any_equals(const void *a, const void *b) {
-    return a == b;
-}
-
-uint64_t scoop_rt_any_hashcode(const void *a) {
-    return (uint64_t)(uintptr_t)a;
-}
-
-const ScoopString *scoop_rt_any_tostring(const void *a) {
-    /* "Object@<hex>" minimal form (milestone6 DESIGN section 3). */
-    char buf[32];
-    int len = snprintf(buf, sizeof buf, "Object@%llx", (unsigned long long)(uintptr_t)a);
-    ScoopString *result = scoop_rt_alloc(&scoop_td_String, sizeof(ScoopString) + (size_t)len);
-    result->len = (uint64_t)len;
-    memcpy(result->data, buf, (size_t)len);
-    return result;
 }
 
 /* M8 (milestone8 DESIGN section 4, runtime spec 5). */

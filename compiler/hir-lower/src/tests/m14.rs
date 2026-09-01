@@ -103,7 +103,15 @@ fn operator_equals_is_a_typed_hir_contract() {
             vec!["EqualTo"],
             vec![operator_equals(true, false, ty_named("EqualTo"))],
         ),
-        fun("main", Vec::new()),
+        fun(
+            "main",
+            vec![
+                val("left", call("Value", Vec::new())),
+                val("right", call("Value", Vec::new())),
+                val("same", binary(BinOp::Eq, var("left"), var("right"))),
+                val("different", binary(BinOp::Ne, var("left"), var("right"))),
+            ],
+        ),
     ]))
     .expect("operator identity must participate in ordinary interface conformance");
 
@@ -133,6 +141,12 @@ fn operator_equals_is_a_typed_hir_contract() {
                 .method
                 .is_some_and(|method| method.operator == Some(hir::OperatorKind::Equals))
     }));
+    let dump = hir::dump(&output.export);
+    assert!(dump.contains("MethodCall Value.equals : Boolean"), "{dump}");
+    assert!(
+        dump.contains("Unary Not : Boolean\n        MethodCall Value.equals : Boolean"),
+        "{dump}"
+    );
 
     let plain_equals = method_full(
         true,
@@ -166,6 +180,93 @@ fn operator_equals_is_a_typed_hir_contract() {
             .message
             .contains("does not implement interface method `EqualTo.equals`")
     }));
+}
+
+#[test]
+fn generic_equality_resolves_the_exact_operator_bound_member() {
+    let equality = generic_interface_decl(
+        "Equality",
+        vec![(ast::Variance::Invariant, "T")],
+        vec![operator_equals(false, true, ty_named("T"))],
+    );
+    let mut value = struct_decl_full(
+        "Value",
+        Vec::new(),
+        Vec::new(),
+        vec![operator_equals(true, false, ty_named("Value"))],
+    );
+    let Decl::Struct(value_decl) = &mut value else {
+        unreachable!()
+    };
+    value_decl.interfaces = vec![ty_generic("Equality", vec![ty_named("Value")])];
+
+    let mut equal = fun_expr(
+        "equal",
+        vec!["T"],
+        vec![("left", ty_named("T")), ("right", ty_named("T"))],
+        Some(ty_named("Boolean")),
+        binary(BinOp::Eq, var("left"), var("right")),
+    );
+    let Decl::Function(equal_decl) = &mut equal else {
+        unreachable!()
+    };
+    equal_decl.type_params[0] = upper("T", ty_generic("Equality", vec![ty_named("T")]));
+
+    let output = lower_user_output(file(vec![
+        equality,
+        value,
+        equal,
+        fun(
+            "main",
+            vec![stmt(call(
+                "println",
+                vec![call(
+                    "equal",
+                    vec![
+                        struct_init("Value", Vec::new()),
+                        struct_init("Value", Vec::new()),
+                    ],
+                )],
+            ))],
+        ),
+    ]))
+    .expect("the F-bound exposes its exact operator member");
+
+    let dump = hir::dump(&output.export);
+    assert!(
+        dump.contains("MethodCall bound T0 via Equality<T0> -> Equality.equals : Boolean"),
+        "{dump}"
+    );
+    let concrete = output
+        .local
+        .functions
+        .iter()
+        .find(|(_, function)| {
+            function.name == "equal"
+                && matches!(
+                    function.origin,
+                    hir::concrete::FunctionOrigin::Free(
+                        hir::concrete::FreeFunctionOrigin::Generic { .. }
+                    )
+                )
+        })
+        .expect("equal<Value> specialization")
+        .1;
+    let hir::concrete::FunctionKind::User(body) = &concrete.kind else {
+        panic!("equal<Value> has a concrete body")
+    };
+    let hir::concrete::StatementKind::Return {
+        value:
+            Some(hir::concrete::Expr {
+                kind: hir::concrete::ExprKind::MethodCall { callee, .. },
+                ..
+            }),
+    } = &body.statements[0].kind
+    else {
+        panic!("the concrete body returns the resolved operator call")
+    };
+    let target = output.local.callable_function(*callee);
+    assert_eq!(output.local.functions[target].name, "Value.equals");
 }
 
 #[test]

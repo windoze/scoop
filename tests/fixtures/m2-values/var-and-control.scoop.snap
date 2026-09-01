@@ -34,6 +34,7 @@ SourceFile
 SourceFile
   struct Ptr<T : value>
     field _rawPointer: UInt
+    operator fun equals
     fun toUInt
     fun cast
     fun load
@@ -336,7 +337,7 @@ Module
           Local n : Int
           IntLiteral 1 : Int
       if
-        Binary Eq : Boolean
+        MethodCall Int.equals : Boolean
           Binary Mul : Int
             Binary Div : Int
               Local n : Int
@@ -376,13 +377,13 @@ Module
   enum Option$S
     Some(_1: String)
     None()
-  class Throwable vtable=3 itables=0
-  class Exception vtable=3 itables=0
-  class UnwrapException vtable=3 itables=0
-  class ClassCastException vtable=3 itables=0
-  class ArithmeticException vtable=3 itables=0
-  class IndexOutOfBoundsException vtable=3 itables=0
-  class IllegalStateException vtable=3 itables=0
+  class Throwable vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class UnwrapException vtable=0 itables=0
+  class ClassCastException vtable=0 itables=0
+  class ArithmeticException vtable=0 itables=0
+  class IndexOutOfBoundsException vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
   interface ToString
   interface Hash
   fun Int.equals @scoop.Int.equals(this: Int, other: Int) -> Boolean
@@ -493,14 +494,15 @@ Module
       throw
         Local $call.1
     bb5 if.merge.5
+      call $call.2: Boolean = @scoop.Int.equals direct
+        Binary IntMul
+          Binary IntDiv
+            Local $div.1
+            Local $div.2
+          IntLiteral 2
+        Local n
       branch bb6 bb7
-        Binary IntEq
-          Binary IntMul
-            Binary IntDiv
-              Local $div.1
-              Local $div.2
-            IntLiteral 2
-          Local n
+        Local $call.2
     bb6 if.then.6
       assign sum
         Binary IntAdd
@@ -675,6 +677,7 @@ Module
     local %2 $div.1: i64
     local %3 $div.2: i64
     local %4 $call.1: ptr<managed>
+    local %5 $call.2: i1
   block entry
     store 0 -> local0
     store 0 -> local1
@@ -701,8 +704,9 @@ Module
   block if.merge.5
     t5 = SDiv local2, local3 : i64
     t6 = Mul t5, 2 : i64
-    t7 = Eq t6, local0 : i1
-    cbr t7 then @if.then.6 else @if.else.7
+    t7 = call @scoop.Int.equals(t6, local0) : i1
+    store t7 -> local5
+    cbr local5 then @if.then.6 else @if.else.7
   block if.then.6
     t8 = Add local1, local0 : i64
     store t8 -> local1
@@ -764,13 +768,13 @@ Module
     ret t0
   td ToString @scoop_td_ToString size=0 vtable=0 itables=0
   td Hash @scoop_td_Hash size=0 vtable=0 itables=0
-  td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
-  td Exception @scoop_td_Exception size=24 vtable=3 itables=0
-  td UnwrapException @scoop_td_UnwrapException size=24 vtable=3 itables=0
-  td ClassCastException @scoop_td_ClassCastException size=24 vtable=3 itables=0
-  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=3 itables=0
-  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=3 itables=0
-  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=3 itables=0
+  td Throwable @scoop_td_Throwable size=16 vtable=0 itables=0
+  td Exception @scoop_td_Exception size=24 vtable=0 itables=0
+  td UnwrapException @scoop_td_UnwrapException size=24 vtable=0 itables=0
+  td ClassCastException @scoop_td_ClassCastException size=24 vtable=0 itables=0
+  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=0 itables=0
+  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=0 itables=0
+  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=0 itables=0
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]

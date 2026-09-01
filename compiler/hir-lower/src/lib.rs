@@ -67,11 +67,10 @@
 //! layer containing any candidate wins whole) and then the
 //! most-specific candidate inside the layer (exact arity,
 //! per-argument subtyping, pairwise dominance, non-generic candidates
-//! preferred on ties). `print` / `println` are ordinary core-library
-//! functions taking `Any` and dispatching `message.toString()` through
-//! the synthesized `Any` members (vtable slots 0..2); the `@Intrinsic`
-//! registry only backs compiler primitives and no
-//! call-site special rules remain.
+//! preferred on ties). `print` / `println`, `ToString`, `Hash`, and
+//! operator `equals` are ordinary core declarations. `@Intrinsic`
+//! identifies only the minimal compiler-provided representation and
+//! primitive operations; no capability has a call-site special path.
 //!
 //! M8 (milestone8 DESIGN.md 3.2): exceptions. `scoop.core` must define
 //! a class `Throwable` (the root of the exception hierarchy, spec
@@ -97,6 +96,7 @@
 mod annotations;
 mod class;
 mod concretize;
+mod derived;
 mod effects;
 mod expr;
 mod ffi;
@@ -481,6 +481,9 @@ pub(crate) struct Lowerer {
         ),
         hir::GenericMethodApplicationId,
     >,
+    pub(crate) derived_equality_applications: Arena<hir::DerivedEqualityApplication>,
+    pub(crate) derived_equality_application_by_type:
+        HashMap<TypeId, hir::DerivedEqualityApplicationId>,
     pub(crate) top_level: Vec<FunctionId>,
     pub(crate) unit: TypeId,
     pub(crate) int: TypeId,
@@ -491,10 +494,6 @@ pub(crate) struct Lowerer {
     pub(crate) string: TypeId,
     /// The built-in `Any` type (milestone6 DESIGN.md 5.5).
     pub(crate) any: TypeId,
-    /// The synthesized `Any` members `equals` / `hashCode` /
-    /// `toString`, in vtable-slot order (0..2, mir-lower's fixed
-    /// prefix). Calls on an `Any` receiver resolve to these.
-    pub(crate) any_methods: [FunctionId; 3],
     /// Function namespace: name → overload candidates in declaration
     /// order (M7). Struct and enum names live in separate namespaces:
     /// a struct and a function may share a name.
@@ -693,7 +692,7 @@ impl Lowerer {
         let string = types.alloc(Type::String);
         let any = types.alloc(Type::Any);
 
-        let mut lowerer = Lowerer {
+        Lowerer {
             types,
             function_types: Arena::new(),
             lambdas: Arena::new(),
@@ -731,6 +730,8 @@ impl Lowerer {
             generic_methods: Arena::new(),
             generic_method_applications: Arena::new(),
             generic_method_application_by_key: HashMap::new(),
+            derived_equality_applications: Arena::new(),
+            derived_equality_application_by_type: HashMap::new(),
             top_level: Vec::new(),
             unit,
             int,
@@ -738,8 +739,6 @@ impl Lowerer {
             boolean,
             string,
             any,
-            // Filled by `synthesize_any_members` below.
-            any_methods: [hir::FunctionId::from_raw(0.into()); 3],
             functions_by_name: HashMap::new(),
             extensions_by_name: HashMap::new(),
             extension_receivers: HashMap::new(),
@@ -797,9 +796,7 @@ impl Lowerer {
             instantiations: Arena::new(),
             hidden_count: 0,
             diagnostics: Vec::new(),
-        };
-        lowerer.synthesize_any_members();
-        lowerer
+        }
     }
 
     fn with_intrinsic_sources(
@@ -824,92 +821,6 @@ impl Lowerer {
                 IntrinsicDeclarationPolicy::AllowListedForTesting { providers }
                     if providers.contains(&source.provider)
             )
-    }
-
-    /// The three `Any` members — `equals(other: Any): Boolean`,
-    /// `hashCode(): Int`, `toString(): String` — synthesized as
-    /// bodyless members (parameter-only bodies, like interface
-    /// methods): mir-lower dispatches calls on an `Any` receiver
-    /// virtually through the fixed vtable prefix (slots 0..2, in this
-    /// order), so their bodies never execute. They are not in
-    /// `top_level` (they are members, not user declarations) and
-    /// therefore never appear in HIR dumps.
-    fn synthesize_any_members(&mut self) {
-        let span = Span::new(0, 0);
-        let mut methods = Vec::with_capacity(3);
-        for (short, params, return_ty) in [
-            ("equals", vec![("other", self.any)], self.boolean),
-            ("hashCode", Vec::new(), self.int),
-            ("toString", Vec::new(), self.string),
-        ] {
-            let mut locals = Arena::new();
-            let this_binding = self.fresh_binding();
-            let this = locals.alloc(hir::Local {
-                binding: this_binding,
-                name: "this".to_string(),
-                ty: self.any,
-                mutable: false,
-            });
-            let mut fn_params = vec![hir::Param {
-                name: "this".to_string(),
-                ty: self.any,
-                local: this,
-            }];
-            let mut sig_params = Vec::new();
-            for (param_name, param_ty) in params {
-                let binding = self.fresh_binding();
-                let local = locals.alloc(hir::Local {
-                    binding,
-                    name: param_name.to_string(),
-                    ty: param_ty,
-                    mutable: false,
-                });
-                fn_params.push(hir::Param {
-                    name: param_name.to_string(),
-                    ty: param_ty,
-                    local,
-                });
-                sig_params.push(FnParam {
-                    name: ast::Ident {
-                        text: param_name.to_string(),
-                        span,
-                    },
-                    ty: param_ty,
-                });
-            }
-            let id = self.functions.alloc(Function {
-                name: format!("Any.{short}"),
-                genericity: hir::FunctionGenericity::Plain,
-                is_suspend: false,
-                params: fn_params,
-                return_ty,
-                attributes: hir::FunctionAttributes::default(),
-                kind: FunctionKind::User(hir::Body {
-                    locals,
-                    statements: Vec::new(),
-                }),
-                method: Some(hir::Method {
-                    owner: self.any,
-                    modifier: hir::MethodModifier::Open,
-                    operator: None,
-                }),
-                span,
-            });
-            self.signatures.insert(
-                id,
-                FnSig {
-                    is_suspend: false,
-                    operator: None,
-                    attributes: hir::FunctionAttributes::default(),
-                    owner_type_param_count: 0,
-                    type_params: Vec::new(),
-                    params: sig_params,
-                    return_ty,
-                },
-            );
-            methods.push(id);
-        }
-        self.any_methods = [methods[0], methods[1], methods[2]];
     }
 
     fn run(mut self, files: &[ast::SourceFile]) -> Result<hir::Module, Vec<Diagnostic>> {
@@ -1132,6 +1043,7 @@ impl Lowerer {
             &pending_enums,
             &pending_methods,
         );
+        self.declare_derived_equality_methods();
 
         // Pass 3: lower bodies. Intrinsics have no body to lower (the
         // parser guarantees it is omitted); their `kind` was set at
@@ -1250,6 +1162,7 @@ impl Lowerer {
             method_applications: self.method_applications,
             generic_methods: self.generic_methods,
             generic_method_applications: self.generic_method_applications,
+            derived_equality_applications: self.derived_equality_applications,
             structs: self.structs,
             struct_applications: self.struct_applications,
             enums: self.enums,
@@ -1379,6 +1292,7 @@ impl Lowerer {
             interfaces: Vec::new(),
             interface_implementations: Vec::new(),
             methods: Vec::new(),
+            derived_equality: None,
             span: decl.span,
         });
         let parameter_ids = type_params
@@ -1457,6 +1371,7 @@ impl Lowerer {
             interfaces: Vec::new(),
             interface_implementations: Vec::new(),
             methods: Vec::new(),
+            derived_equality: None,
             span: decl.span,
         });
         self.enums_by_name.insert(decl.name.text.clone(), id);
@@ -2496,6 +2411,7 @@ impl Lowerer {
             let intrinsic = match &function.kind {
                 FunctionKind::Intrinsic(intrinsic) => intrinsic.kind.name(),
                 FunctionKind::User(_) => "pointer",
+                FunctionKind::DerivedEquality => "derived equality",
                 FunctionKind::Extern(_) => "extern",
             };
             self.error(
@@ -2545,6 +2461,7 @@ impl Lowerer {
             let intrinsic = match &function.kind {
                 FunctionKind::Intrinsic(intrinsic) => intrinsic.kind.name(),
                 FunctionKind::User(_) => "pointer",
+                FunctionKind::DerivedEquality => "derived equality",
                 FunctionKind::Extern(_) => "extern",
             };
             self.error(
@@ -3652,7 +3569,6 @@ impl Lowerer {
             hir::MethodOwnerApplication::Interface(id) => {
                 &self.interface_applications[id].arguments
             }
-            hir::MethodOwnerApplication::Any => &[],
         }
     }
 
@@ -3674,7 +3590,7 @@ impl Lowerer {
             hir::MethodOwnerApplication::Class(id) => hir::GenericMethodOwner::Class(id),
             hir::MethodOwnerApplication::Struct(id) => hir::GenericMethodOwner::Struct(id),
             hir::MethodOwnerApplication::Enum(id) => hir::GenericMethodOwner::Enum(id),
-            hir::MethodOwnerApplication::Interface(_) | hir::MethodOwnerApplication::Any => {
+            hir::MethodOwnerApplication::Interface(_) => {
                 unreachable!("generic methods have class, struct, or enum owners")
             }
         }

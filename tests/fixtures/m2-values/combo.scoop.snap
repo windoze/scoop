@@ -34,6 +34,7 @@ SourceFile
 SourceFile
   struct Ptr<T : value>
     field _rawPointer: UInt
+    operator fun equals
     fun toUInt
     fun cast
     fun load
@@ -344,7 +345,7 @@ Module
           IntLiteral 1 : Int
           StringLiteral "one" : String
     Call println<Boolean> : Unit
-      Binary Eq : Boolean
+      MethodCall Tagged.equals <derived> : Boolean
         Local a : Tagged
         Local b : Tagged
     Call println<String> : Unit
@@ -388,13 +389,13 @@ Module
   enum Option$S
     Some(_1: String)
     None()
-  class Throwable vtable=3 itables=0
-  class Exception vtable=3 itables=0
-  class UnwrapException vtable=3 itables=0
-  class ClassCastException vtable=3 itables=0
-  class ArithmeticException vtable=3 itables=0
-  class IndexOutOfBoundsException vtable=3 itables=0
-  class IllegalStateException vtable=3 itables=0
+  class Throwable vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class UnwrapException vtable=0 itables=0
+  class ClassCastException vtable=0 itables=0
+  class ArithmeticException vtable=0 itables=0
+  class IndexOutOfBoundsException vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
   interface ToString
   interface Hash
   fun Int.equals @scoop.Int.equals(this: Int, other: Int) -> Boolean
@@ -485,61 +486,24 @@ Module
           TupleLiteral
             IntLiteral 1
             StringConst @scoop.str.3
-      call $call.1: Boolean = @scoop_rt_string_eq direct
-        FieldAccess 0
-          Local a
-        FieldAccess 0
-          Local b
-      branch bb1 bb2
-        Local $call.1
-    bb1 logic.rhs.1
-      branch bb4 bb5
-        Binary IntEq
-          FieldAccess 0
-            FieldAccess 1
-              Local a
-          FieldAccess 0
-            FieldAccess 1
-              Local b
-    bb2 logic.short.2
-      assign $logic.2
-        BoolLiteral false
-      goto bb3
-    bb3 logic.merge.3
+      call $call.1: Boolean = @scoop.Tagged.equals direct
+        Local a
+        Local b
       call @scoop.println$B direct
-        Local $logic.2
+        Local $call.1
       call @scoop.println$S direct
         FieldAccess 1
           FieldAccess 1
             Local a
       var count: Int
         IntLiteral 0
-      goto bb7
-    bb4 logic.rhs.4
-      call $call.4: Boolean = @scoop_rt_string_eq direct
-        FieldAccess 1
-          FieldAccess 1
-            Local a
-        FieldAccess 1
-          FieldAccess 1
-            Local b
-      assign $logic.3
-        Local $call.4
-      goto bb6
-    bb5 logic.short.5
-      assign $logic.3
-        BoolLiteral false
-      goto bb6
-    bb6 logic.merge.6
-      assign $logic.2
-        Local $logic.3
-      goto bb3
-    bb7 while.cond.7
-      branch bb8 bb9
+      goto bb1
+    bb1 while.cond.1
+      branch bb2 bb3
         Binary IntLt
           Local count
           IntLiteral 2
-    bb8 while.body.8
+    bb2 while.body.2
       call @scoop.println$S direct
         FieldAccess 0
           Local a
@@ -547,8 +511,8 @@ Module
         Binary IntAdd
           Local count
           IntLiteral 1
-      goto bb7
-    bb9 while.exit.9
+      goto bb1
+    bb3 while.exit.3
       return
   fun println @scoop.println$B(value: Boolean) -> Unit
     bb0 entry
@@ -568,6 +532,56 @@ Module
       call extern0 @scoop_rt_write direct
         StringConst @scoop.str.5
       return
+  fun $derived.equals.0 @scoop.$derived.equals.0(this: (Int, String), other: (Int, String)) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = @scoop.Int.equals direct
+        FieldAccess 0
+          Local this
+        FieldAccess 0
+          Local other
+      branch bb1 bb2
+        Local $call.1
+    bb1 logic.rhs.1
+      call $call.3: Boolean = @scoop.String.equals direct
+        FieldAccess 1
+          Local this
+        FieldAccess 1
+          Local other
+      assign $logic.2
+        Local $call.3
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.2
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Local $logic.2
+  fun Tagged.equals @scoop.Tagged.equals(this: Tagged, other: Tagged) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = @scoop.String.equals direct
+        FieldAccess 0
+          Local this
+        FieldAccess 0
+          Local other
+      branch bb1 bb2
+        Local $call.1
+    bb1 logic.rhs.1
+      call $call.3: Boolean = @scoop.$derived.equals.0 direct
+        FieldAccess 1
+          Local this
+        FieldAccess 1
+          Local other
+      assign $logic.2
+        Local $call.3
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.2
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Local $logic.2
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
     bb0 entry
       return
@@ -729,9 +743,6 @@ Module
     local %1 b: struct3
     local %2 count: i64
     local %3 $call.1: i1
-    local %4 $logic.2: i1
-    local %5 $logic.3: i1
-    local %6 $call.4: i1
   block entry
     t0 = aggregate (1, global1) : {i64, ptr<managed>}
     t1 = aggregate (global0, t0) : struct3
@@ -739,56 +750,27 @@ Module
     t2 = aggregate (1, global3) : {i64, ptr<managed>}
     t3 = aggregate (global2, t2) : struct3
     store t3 -> local1
-    t4 = extract local0, 0 : ptr<managed>
-    t5 = extract local1, 0 : ptr<managed>
-    t6 = call @scoop_rt_string_eq(t4, t5) : i1
-    store t6 -> local3
-    cbr local3 then @logic.rhs.1 else @logic.short.2
-  block logic.rhs.1
-    t7 = extract local0, 1 : {i64, ptr<managed>}
-    t8 = extract t7, 0 : i64
-    t9 = extract local1, 1 : {i64, ptr<managed>}
-    t10 = extract t9, 0 : i64
-    t11 = Eq t8, t10 : i1
-    cbr t11 then @logic.rhs.4 else @logic.short.5
-  block logic.short.2
-    store false -> local4
-    br @logic.merge.3
-  block logic.merge.3
-    call @scoop.println$B(local4)
-    t12 = aggregate () : {}
-    t13 = extract local0, 1 : {i64, ptr<managed>}
-    t14 = extract t13, 1 : ptr<managed>
-    call @scoop.println$S(t14)
-    t15 = aggregate () : {}
+    t4 = call @scoop.Tagged.equals(local0, local1) : i1
+    store t4 -> local3
+    call @scoop.println$B(local3)
+    t5 = aggregate () : {}
+    t6 = extract local0, 1 : {i64, ptr<managed>}
+    t7 = extract t6, 1 : ptr<managed>
+    call @scoop.println$S(t7)
+    t8 = aggregate () : {}
     store 0 -> local2
-    br @while.cond.7
-  block logic.rhs.4
-    t16 = extract local0, 1 : {i64, ptr<managed>}
-    t17 = extract t16, 1 : ptr<managed>
-    t18 = extract local1, 1 : {i64, ptr<managed>}
-    t19 = extract t18, 1 : ptr<managed>
-    t20 = call @scoop_rt_string_eq(t17, t19) : i1
-    store t20 -> local6
-    store local6 -> local5
-    br @logic.merge.6
-  block logic.short.5
-    store false -> local5
-    br @logic.merge.6
-  block logic.merge.6
-    store local5 -> local4
-    br @logic.merge.3
-  block while.cond.7
-    t21 = Lt local2, 2 : i1
-    cbr t21 then @while.body.8 else @while.exit.9
-  block while.body.8
-    t22 = extract local0, 0 : ptr<managed>
-    call @scoop.println$S(t22)
-    t23 = aggregate () : {}
-    t24 = Add local2, 1 : i64
-    store t24 -> local2
-    br @while.cond.7
-  block while.exit.9
+    br @while.cond.1
+  block while.cond.1
+    t9 = Lt local2, 2 : i1
+    cbr t9 then @while.body.2 else @while.exit.3
+  block while.body.2
+    t10 = extract local0, 0 : ptr<managed>
+    call @scoop.println$S(t10)
+    t11 = aggregate () : {}
+    t12 = Add local2, 1 : i64
+    store t12 -> local2
+    br @while.cond.1
+  block while.exit.3
     ret
   fun @scoop.println$B(i1) -> void
     local %0 $call.1: ptr<managed>
@@ -810,6 +792,50 @@ Module
     native_call[native-borrowed] extern0(global5)
     t2 = aggregate () : {}
     ret
+  fun @scoop.$derived.equals.0({i64, ptr<managed>}, {i64, ptr<managed>}) -> i1
+    local %0 $call.1: i1
+    local %1 $logic.2: i1
+    local %2 $call.3: i1
+  block entry
+    t0 = extract param0, 0 : i64
+    t1 = extract param1, 0 : i64
+    t2 = call @scoop.Int.equals(t0, t1) : i1
+    store t2 -> local0
+    cbr local0 then @logic.rhs.1 else @logic.short.2
+  block logic.rhs.1
+    t3 = extract param0, 1 : ptr<managed>
+    t4 = extract param1, 1 : ptr<managed>
+    t5 = call @scoop.String.equals(t3, t4) : i1
+    store t5 -> local2
+    store local2 -> local1
+    br @logic.merge.3
+  block logic.short.2
+    store false -> local1
+    br @logic.merge.3
+  block logic.merge.3
+    ret local1
+  fun @scoop.Tagged.equals(struct3, struct3) -> i1
+    local %0 $call.1: i1
+    local %1 $logic.2: i1
+    local %2 $call.3: i1
+  block entry
+    t0 = extract param0, 0 : ptr<managed>
+    t1 = extract param1, 0 : ptr<managed>
+    t2 = call @scoop.String.equals(t0, t1) : i1
+    store t2 -> local0
+    cbr local0 then @logic.rhs.1 else @logic.short.2
+  block logic.rhs.1
+    t3 = extract param0, 1 : {i64, ptr<managed>}
+    t4 = extract param1, 1 : {i64, ptr<managed>}
+    t5 = call @scoop.$derived.equals.0(t3, t4) : i1
+    store t5 -> local2
+    store local2 -> local1
+    br @logic.merge.3
+  block logic.short.2
+    store false -> local1
+    br @logic.merge.3
+  block logic.merge.3
+    ret local1
   fun @scoop.ctor.Throwable() -> ptr<managed>
   block entry
     t0 = call @scoop_rt_alloc(global11, 16) : ptr<managed>
@@ -851,13 +877,13 @@ Module
     ret t0
   td ToString @scoop_td_ToString size=0 vtable=0 itables=0
   td Hash @scoop_td_Hash size=0 vtable=0 itables=0
-  td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
-  td Exception @scoop_td_Exception size=24 vtable=3 itables=0
-  td UnwrapException @scoop_td_UnwrapException size=24 vtable=3 itables=0
-  td ClassCastException @scoop_td_ClassCastException size=24 vtable=3 itables=0
-  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=3 itables=0
-  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=3 itables=0
-  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=3 itables=0
+  td Throwable @scoop_td_Throwable size=16 vtable=0 itables=0
+  td Exception @scoop_td_Exception size=24 vtable=0 itables=0
+  td UnwrapException @scoop_td_UnwrapException size=24 vtable=0 itables=0
+  td ClassCastException @scoop_td_ClassCastException size=24 vtable=0 itables=0
+  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=0 itables=0
+  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=0 itables=0
+  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=0 itables=0
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]

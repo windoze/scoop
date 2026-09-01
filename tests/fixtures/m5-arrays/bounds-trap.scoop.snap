@@ -34,6 +34,7 @@ SourceFile
 SourceFile
   struct Ptr<T : value>
     field _rawPointer: UInt
+    operator fun equals
     fun toUInt
     fun cast
     fun load
@@ -332,13 +333,13 @@ Module
   enum Option$S
     Some(_1: String)
     None()
-  class Throwable vtable=3 itables=0
-  class Exception vtable=3 itables=0
-  class UnwrapException vtable=3 itables=0
-  class ClassCastException vtable=3 itables=0
-  class ArithmeticException vtable=3 itables=0
-  class IndexOutOfBoundsException vtable=3 itables=0
-  class IllegalStateException vtable=3 itables=0
+  class Throwable vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class UnwrapException vtable=0 itables=0
+  class ClassCastException vtable=0 itables=0
+  class ArithmeticException vtable=0 itables=0
+  class IndexOutOfBoundsException vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
   interface ToString
   interface Hash
   fun Int.equals @scoop.Int.equals(this: Int, other: Int) -> Boolean
@@ -692,13 +693,13 @@ Module
     ret t0
   td ToString @scoop_td_ToString size=0 vtable=0 itables=0
   td Hash @scoop_td_Hash size=0 vtable=0 itables=0
-  td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
-  td Exception @scoop_td_Exception size=24 vtable=3 itables=0
-  td UnwrapException @scoop_td_UnwrapException size=24 vtable=3 itables=0
-  td ClassCastException @scoop_td_ClassCastException size=24 vtable=3 itables=0
-  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=3 itables=0
-  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=3 itables=0
-  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=3 itables=0
+  td Throwable @scoop_td_Throwable size=16 vtable=0 itables=0
+  td Exception @scoop_td_Exception size=24 vtable=0 itables=0
+  td UnwrapException @scoop_td_UnwrapException size=24 vtable=0 itables=0
+  td ClassCastException @scoop_td_ClassCastException size=24 vtable=0 itables=0
+  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=0 itables=0
+  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=0 itables=0
+  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=0 itables=0
   array-type array0 Array$I kind=immutable element=i64 size=8 align=8 scan=none td=@scoop_td_Array$I
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]

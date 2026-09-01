@@ -34,6 +34,7 @@ SourceFile
 SourceFile
   struct Ptr<T : value>
     field _rawPointer: UInt
+    operator fun equals
     fun toUInt
     fun cast
     fun load
@@ -425,11 +426,11 @@ Module
   fun makeLambda<T>(value: T0): () -> T0
     return
       Lambda lambda0 invoke=$lambda.0 captures=1 : () -> T0
-        capture value binding24 : T0
+        capture value binding20 : T0
   fun makeAnonymous<T>(value: T0): () -> T0
     return
       AnonymousFunction anonymous0 invoke=$anonymous.0 captures=1 : () -> T0
-        capture value binding26 : T0
+        capture value binding22 : T0
   fun makeLocalReference<T>(value: T0): () -> T0
     LocalFunction local0 body=$local.0.read captures=1
     return
@@ -446,14 +447,14 @@ Module
   fun makeNested<T>(value: T0): () -> () -> T0
     return
       AnonymousFunction anonymous1 invoke=$anonymous.1 captures=1 : () -> () -> T0
-        capture value binding33 : T0
+        capture value binding29 : T0
   fun makeBoxReader<T>(value: T0): () -> T0
     val local1
       StructInit GenericBox : GenericBox<T0>
         Local value : T0
     return
       Lambda lambda2 invoke=$lambda.2 captures=1 : () -> T0
-        capture box binding37 : GenericBox<T0>
+        capture box binding33 : GenericBox<T0>
   fun main(): Unit
     val local0
       Call makeLambda<Int> : () -> Int
@@ -586,13 +587,13 @@ Module
   enum Option$S
     Some(_1: String)
     None()
-  class Throwable vtable=3 itables=0
-  class Exception vtable=3 itables=0
-  class UnwrapException vtable=3 itables=0
-  class ClassCastException vtable=3 itables=0
-  class ArithmeticException vtable=3 itables=0
-  class IndexOutOfBoundsException vtable=3 itables=0
-  class IllegalStateException vtable=3 itables=0
+  class Throwable vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class UnwrapException vtable=0 itables=0
+  class ClassCastException vtable=0 itables=0
+  class ArithmeticException vtable=0 itables=0
+  class IndexOutOfBoundsException vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
   interface ToString
   interface Hash
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@scoop.$lambda.0$I captures=1
@@ -1607,29 +1608,29 @@ Module
   td function$FRFRSXX @scoop_td_function$FRFRSXX size=0 vtable=0 itables=0
   td function$FIRIX @scoop_td_function$FIRIX size=0 vtable=0 itables=0
   td function$FSRSX @scoop_td_function$FSRSX size=0 vtable=0 itables=0
-  td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
-  td Exception @scoop_td_Exception size=24 vtable=3 itables=0
-  td UnwrapException @scoop_td_UnwrapException size=24 vtable=3 itables=0
-  td ClassCastException @scoop_td_ClassCastException size=24 vtable=3 itables=0
-  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=3 itables=0
-  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=3 itables=0
-  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=3 itables=0
-  td $Closure$lambda0 @scoop_td_$Closure$lambda0 size=32 vtable=3 itables=0
-  td $Closure$lambda1 @scoop_td_$Closure$lambda1 size=32 vtable=3 itables=0
-  td $Closure$lambda2 @scoop_td_$Closure$lambda2 size=32 vtable=3 itables=0
-  td $Closure$lambda3 @scoop_td_$Closure$lambda3 size=32 vtable=3 itables=0
-  td $Closure$lambda4 @scoop_td_$Closure$lambda4 size=32 vtable=3 itables=0
-  td $Closure$lambda5 @scoop_td_$Closure$lambda5 size=32 vtable=3 itables=0
-  td $Closure$anonymous0 @scoop_td_$Closure$anonymous0 size=32 vtable=3 itables=0
-  td $Closure$anonymous1 @scoop_td_$Closure$anonymous1 size=32 vtable=3 itables=0
-  td $Closure$anonymous2 @scoop_td_$Closure$anonymous2 size=32 vtable=3 itables=0
-  td $Closure$anonymous3 @scoop_td_$Closure$anonymous3 size=32 vtable=3 itables=0
-  td $Closure$reference0 @scoop_td_$Closure$reference0 size=32 vtable=3 itables=0
-  td $Closure$reference1 @scoop_td_$Closure$reference1 size=32 vtable=3 itables=0
-  td $Closure$reference2 @scoop_td_$Closure$reference2 size=24 vtable=3 itables=0
-  td $Closure$reference3 @scoop_td_$Closure$reference3 size=24 vtable=3 itables=0
-  td $Closure$reference4 @scoop_td_$Closure$reference4 size=32 vtable=3 itables=0
-  td $Closure$reference5 @scoop_td_$Closure$reference5 size=32 vtable=3 itables=0
+  td Throwable @scoop_td_Throwable size=16 vtable=0 itables=0
+  td Exception @scoop_td_Exception size=24 vtable=0 itables=0
+  td UnwrapException @scoop_td_UnwrapException size=24 vtable=0 itables=0
+  td ClassCastException @scoop_td_ClassCastException size=24 vtable=0 itables=0
+  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=0 itables=0
+  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=0 itables=0
+  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=0 itables=0
+  td $Closure$lambda0 @scoop_td_$Closure$lambda0 size=32 vtable=0 itables=0
+  td $Closure$lambda1 @scoop_td_$Closure$lambda1 size=32 vtable=0 itables=0
+  td $Closure$lambda2 @scoop_td_$Closure$lambda2 size=32 vtable=0 itables=0
+  td $Closure$lambda3 @scoop_td_$Closure$lambda3 size=32 vtable=0 itables=0
+  td $Closure$lambda4 @scoop_td_$Closure$lambda4 size=32 vtable=0 itables=0
+  td $Closure$lambda5 @scoop_td_$Closure$lambda5 size=32 vtable=0 itables=0
+  td $Closure$anonymous0 @scoop_td_$Closure$anonymous0 size=32 vtable=0 itables=0
+  td $Closure$anonymous1 @scoop_td_$Closure$anonymous1 size=32 vtable=0 itables=0
+  td $Closure$anonymous2 @scoop_td_$Closure$anonymous2 size=32 vtable=0 itables=0
+  td $Closure$anonymous3 @scoop_td_$Closure$anonymous3 size=32 vtable=0 itables=0
+  td $Closure$reference0 @scoop_td_$Closure$reference0 size=32 vtable=0 itables=0
+  td $Closure$reference1 @scoop_td_$Closure$reference1 size=32 vtable=0 itables=0
+  td $Closure$reference2 @scoop_td_$Closure$reference2 size=24 vtable=0 itables=0
+  td $Closure$reference3 @scoop_td_$Closure$reference3 size=24 vtable=0 itables=0
+  td $Closure$reference4 @scoop_td_$Closure$reference4 size=32 vtable=0 itables=0
+  td $Closure$reference5 @scoop_td_$Closure$reference5 size=32 vtable=0 itables=0
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]

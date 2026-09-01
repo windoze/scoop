@@ -453,7 +453,7 @@ fn uint_mixed_equality_is_an_error() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "operator `==` requires operands of the same type, found UInt and Int"
+        "no overload of `equals` matches argument types (Int)"
     );
 }
 

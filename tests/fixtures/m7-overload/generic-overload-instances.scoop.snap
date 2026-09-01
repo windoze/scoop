@@ -34,6 +34,7 @@ SourceFile
 SourceFile
   struct Ptr<T : value>
     field _rawPointer: UInt
+    operator fun equals
     fun toUInt
     fun cast
     fun load
@@ -344,13 +345,13 @@ Module
   enum Option$S
     Some(_1: String)
     None()
-  class Throwable vtable=3 itables=0
-  class Exception vtable=3 itables=0
-  class UnwrapException vtable=3 itables=0
-  class ClassCastException vtable=3 itables=0
-  class ArithmeticException vtable=3 itables=0
-  class IndexOutOfBoundsException vtable=3 itables=0
-  class IllegalStateException vtable=3 itables=0
+  class Throwable vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class UnwrapException vtable=0 itables=0
+  class ClassCastException vtable=0 itables=0
+  class ArithmeticException vtable=0 itables=0
+  class IndexOutOfBoundsException vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
   interface ToString
   interface Hash
   fun Int.equals @scoop.Int.equals(this: Int, other: Int) -> Boolean
@@ -429,18 +430,18 @@ Module
         Local $call.1
   fun main @scoop_main() -> Unit
     bb0 entry
-      call $call.1: Int = @scoop.choose$I.g67 direct
+      call $call.1: Int = @scoop.choose$I.g65 direct
         IntLiteral 11
         IntLiteral 0
       call @scoop.println$I direct
         Local $call.1
-      call $call.2: Int = @scoop.choose$I.g68 direct
+      call $call.2: Int = @scoop.choose$I.g66 direct
         IntLiteral 22
         StringConst @scoop.str.0
       call @scoop.println$I direct
         Local $call.2
       return
-  fun choose @scoop.choose$I.g67(value: Int, marker: Int) -> Int
+  fun choose @scoop.choose$I.g65(value: Int, marker: Int) -> Int
     bb0 entry
       return
         Local value
@@ -453,7 +454,7 @@ Module
       call extern0 @scoop_rt_write direct
         StringConst @scoop.str.1
       return
-  fun choose @scoop.choose$I.g68(value: Int, marker: String) -> Int
+  fun choose @scoop.choose$I.g66(value: Int, marker: String) -> Int
     bb0 entry
       return
         Local value
@@ -496,9 +497,9 @@ Module
         ClassInit IllegalStateException
           VariantConstruct Option$S<String> v0
             StringConst @scoop.str.6
-  instance @scoop.choose$I.g67 <- choose
+  instance @scoop.choose$I.g65 <- choose
   instance @scoop.println$I <- println
-  instance @scoop.choose$I.g68 <- choose
+  instance @scoop.choose$I.g66 <- choose
   str @scoop.str.0 "string marker"
   str @scoop.str.1 "\n"
   str @scoop.str.2 "unwrap on None"
@@ -610,16 +611,16 @@ Module
     local %0 $call.1: i64
     local %1 $call.2: i64
   block entry
-    t0 = call @scoop.choose$I.g67(11, 0) : i64
+    t0 = call @scoop.choose$I.g65(11, 0) : i64
     store t0 -> local0
     call @scoop.println$I(local0)
     t1 = aggregate () : {}
-    t2 = call @scoop.choose$I.g68(22, global0) : i64
+    t2 = call @scoop.choose$I.g66(22, global0) : i64
     store t2 -> local1
     call @scoop.println$I(local1)
     t3 = aggregate () : {}
     ret
-  fun @scoop.choose$I.g67(i64, i64) -> i64
+  fun @scoop.choose$I.g65(i64, i64) -> i64
   block entry
     ret param0
   fun @scoop.println$I(i64) -> void
@@ -632,7 +633,7 @@ Module
     native_call[native-borrowed] extern0(global1)
     t2 = aggregate () : {}
     ret
-  fun @scoop.choose$I.g68(i64, ptr<managed>) -> i64
+  fun @scoop.choose$I.g66(i64, ptr<managed>) -> i64
   block entry
     ret param0
   fun @scoop.ctor.Throwable() -> ptr<managed>
@@ -676,13 +677,13 @@ Module
     ret t0
   td ToString @scoop_td_ToString size=0 vtable=0 itables=0
   td Hash @scoop_td_Hash size=0 vtable=0 itables=0
-  td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
-  td Exception @scoop_td_Exception size=24 vtable=3 itables=0
-  td UnwrapException @scoop_td_UnwrapException size=24 vtable=3 itables=0
-  td ClassCastException @scoop_td_ClassCastException size=24 vtable=3 itables=0
-  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=3 itables=0
-  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=3 itables=0
-  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=3 itables=0
+  td Throwable @scoop_td_Throwable size=16 vtable=0 itables=0
+  td Exception @scoop_td_Exception size=24 vtable=0 itables=0
+  td UnwrapException @scoop_td_UnwrapException size=24 vtable=0 itables=0
+  td ClassCastException @scoop_td_ClassCastException size=24 vtable=0 itables=0
+  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=0 itables=0
+  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=0 itables=0
+  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=0 itables=0
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]

@@ -34,6 +34,7 @@ SourceFile
 SourceFile
   struct Ptr<T : value>
     field _rawPointer: UInt
+    operator fun equals
     fun toUInt
     fun cast
     fun load
@@ -374,17 +375,17 @@ Module
   enum Option$S
     Some(_1: String)
     None()
-  class Throwable vtable=3 itables=0
-  class Exception vtable=3 itables=0
-  class UnwrapException vtable=3 itables=0
-  class ClassCastException vtable=3 itables=0
-  class ArithmeticException vtable=3 itables=0
-  class IndexOutOfBoundsException vtable=3 itables=0
-  class IllegalStateException vtable=3 itables=0
-  class Shape vtable=4 itables=0
-  class Circle vtable=4 itables=0
-  class Base vtable=4 itables=0
-  class Impl vtable=4 itables=0
+  class Throwable vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class UnwrapException vtable=0 itables=0
+  class ClassCastException vtable=0 itables=0
+  class ArithmeticException vtable=0 itables=0
+  class IndexOutOfBoundsException vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Shape vtable=1 itables=0
+  class Circle vtable=1 itables=0
+  class Base vtable=1 itables=0
+  class Impl vtable=1 itables=0
   interface ToString
   interface Hash
   fun Int.equals @scoop.Int.equals(this: Int, other: Int) -> Boolean
@@ -500,7 +501,7 @@ Module
       val s: Shape
         Retype Shape
           Local c
-      call $call.3: Int = @scoop.Shape.kind virtual[3]
+      call $call.3: Int = @scoop.Shape.kind virtual[0]
         Local s
       call @scoop.println$I direct
         Local $call.3
@@ -746,7 +747,7 @@ Module
     store local0 -> local1
     t7 = heap_load local1 +0 : ptr<metadata>
     t8 = heap_load t7 +40 : ptr<metadata>
-    t9 = call_indirect t8[3](local1) : i64
+    t9 = call_indirect t8[0](local1) : i64
     store t9 -> local5
     call @scoop.println$I(local5)
     t10 = aggregate () : {}
@@ -834,17 +835,17 @@ Module
     ret t0
   td ToString @scoop_td_ToString size=0 vtable=0 itables=0
   td Hash @scoop_td_Hash size=0 vtable=0 itables=0
-  td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
-  td Shape @scoop_td_Shape size=24 vtable=4 itables=0
-  td Base @scoop_td_Base size=16 vtable=4 itables=0
-  td Exception @scoop_td_Exception size=24 vtable=3 itables=0
-  td Circle @scoop_td_Circle size=32 vtable=4 itables=0
-  td Impl @scoop_td_Impl size=24 vtable=4 itables=0
-  td UnwrapException @scoop_td_UnwrapException size=24 vtable=3 itables=0
-  td ClassCastException @scoop_td_ClassCastException size=24 vtable=3 itables=0
-  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=3 itables=0
-  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=3 itables=0
-  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=3 itables=0
+  td Throwable @scoop_td_Throwable size=16 vtable=0 itables=0
+  td Shape @scoop_td_Shape size=24 vtable=1 itables=0
+  td Base @scoop_td_Base size=16 vtable=1 itables=0
+  td Exception @scoop_td_Exception size=24 vtable=0 itables=0
+  td Circle @scoop_td_Circle size=32 vtable=1 itables=0
+  td Impl @scoop_td_Impl size=24 vtable=1 itables=0
+  td UnwrapException @scoop_td_UnwrapException size=24 vtable=0 itables=0
+  td ClassCastException @scoop_td_ClassCastException size=24 vtable=0 itables=0
+  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=0 itables=0
+  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=0 itables=0
+  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=0 itables=0
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]

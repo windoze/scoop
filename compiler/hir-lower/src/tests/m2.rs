@@ -354,7 +354,7 @@ Module
           IntLiteral 1 : Int
     if
       Binary And : Boolean
-        Binary Eq : Boolean
+        MethodCall Int.equals : Boolean
           Local n : Int
           IntLiteral 3 : Int
         BoolLiteral true : Boolean
@@ -753,7 +753,7 @@ fn equality_requires_matching_types() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "operator `==` requires operands of the same type, found Int and String"
+        "no overload of `equals` matches argument types (String)"
     );
 }
 

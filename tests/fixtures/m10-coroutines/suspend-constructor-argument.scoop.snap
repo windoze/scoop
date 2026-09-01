@@ -34,6 +34,7 @@ SourceFile
 SourceFile
   struct Ptr<T : value>
     field _rawPointer: UInt
+    operator fun equals
     fun toUInt
     fun cast
     fun load
@@ -400,22 +401,22 @@ Module
   enum CoroutineSlot$I
     Empty()
     Value(value: Int)
-  class Throwable vtable=3 itables=0
-  class Exception vtable=3 itables=0
-  class UnwrapException vtable=3 itables=0
-  class ClassCastException vtable=3 itables=0
-  class ArithmeticException vtable=3 itables=0
-  class IndexOutOfBoundsException vtable=3 itables=0
-  class IllegalStateException vtable=3 itables=0
-  class Gate vtable=3 itables=0
-  class Registration vtable=3 itables=1
-  class Box vtable=3 itables=0
-  class BoxTask vtable=3 itables=1
-  class RecordingCompletion vtable=3 itables=1
-  class CoroutineFrame$scoop_BoxTask_run_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop_BoxTask_run_suspend$1 vtable=3 itables=1
-  class CoroutineFrame$scoop_buildBox_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop_buildBox_suspend$1 vtable=3 itables=1
+  class Throwable vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class UnwrapException vtable=0 itables=0
+  class ClassCastException vtable=0 itables=0
+  class ArithmeticException vtable=0 itables=0
+  class IndexOutOfBoundsException vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Gate vtable=0 itables=0
+  class Registration vtable=0 itables=1
+  class Box vtable=0 itables=0
+  class BoxTask vtable=0 itables=1
+  class RecordingCompletion vtable=0 itables=1
+  class CoroutineFrame$scoop_BoxTask_run_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop_BoxTask_run_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop_buildBox_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop_buildBox_suspend$1 vtable=0 itables=1
   interface ToString
   interface Hash
   interface Continuation$I
@@ -2315,22 +2316,22 @@ Module
   td Continuation$Box @scoop_td_Continuation$Box size=0 vtable=0 itables=0
   td SuspendTask$Box @scoop_td_SuspendTask$Box size=0 vtable=0 itables=0
   td SuspendRegistration$Box @scoop_td_SuspendRegistration$Box size=0 vtable=0 itables=0
-  td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
-  td Gate @scoop_td_Gate size=24 vtable=3 itables=0
-  td Registration @scoop_td_Registration size=24 vtable=3 itables=1
-  td Box @scoop_td_Box size=24 vtable=3 itables=0
-  td BoxTask @scoop_td_BoxTask size=24 vtable=3 itables=1
-  td RecordingCompletion @scoop_td_RecordingCompletion size=16 vtable=3 itables=1
-  td CoroutineFrame$scoop_BoxTask_run_suspend @scoop_td_CoroutineFrame$scoop_BoxTask_run_suspend size=56 vtable=3 itables=0
-  td CoroutineAdapter$scoop_BoxTask_run_suspend$1 @scoop_td_CoroutineAdapter$scoop_BoxTask_run_suspend$1 size=32 vtable=3 itables=1
-  td CoroutineFrame$scoop_buildBox_suspend @scoop_td_CoroutineFrame$scoop_buildBox_suspend size=64 vtable=3 itables=0
-  td CoroutineAdapter$scoop_buildBox_suspend$1 @scoop_td_CoroutineAdapter$scoop_buildBox_suspend$1 size=56 vtable=3 itables=1
-  td Exception @scoop_td_Exception size=24 vtable=3 itables=0
-  td UnwrapException @scoop_td_UnwrapException size=24 vtable=3 itables=0
-  td ClassCastException @scoop_td_ClassCastException size=24 vtable=3 itables=0
-  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=3 itables=0
-  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=3 itables=0
-  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=3 itables=0
+  td Throwable @scoop_td_Throwable size=16 vtable=0 itables=0
+  td Gate @scoop_td_Gate size=24 vtable=0 itables=0
+  td Registration @scoop_td_Registration size=24 vtable=0 itables=1
+  td Box @scoop_td_Box size=24 vtable=0 itables=0
+  td BoxTask @scoop_td_BoxTask size=24 vtable=0 itables=1
+  td RecordingCompletion @scoop_td_RecordingCompletion size=16 vtable=0 itables=1
+  td CoroutineFrame$scoop_BoxTask_run_suspend @scoop_td_CoroutineFrame$scoop_BoxTask_run_suspend size=56 vtable=0 itables=0
+  td CoroutineAdapter$scoop_BoxTask_run_suspend$1 @scoop_td_CoroutineAdapter$scoop_BoxTask_run_suspend$1 size=32 vtable=0 itables=1
+  td CoroutineFrame$scoop_buildBox_suspend @scoop_td_CoroutineFrame$scoop_buildBox_suspend size=64 vtable=0 itables=0
+  td CoroutineAdapter$scoop_buildBox_suspend$1 @scoop_td_CoroutineAdapter$scoop_buildBox_suspend$1 size=56 vtable=0 itables=1
+  td Exception @scoop_td_Exception size=24 vtable=0 itables=0
+  td UnwrapException @scoop_td_UnwrapException size=24 vtable=0 itables=0
+  td ClassCastException @scoop_td_ClassCastException size=24 vtable=0 itables=0
+  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=0 itables=0
+  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=0 itables=0
+  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=0 itables=0
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]

@@ -34,6 +34,7 @@ SourceFile
 SourceFile
   struct Ptr<T : value>
     field _rawPointer: UInt
+    operator fun equals
     fun toUInt
     fun cast
     fun load
@@ -364,7 +365,7 @@ Module
       Call joinOne : Int
         Local job : Ptr<Unit>
     Call println<Boolean> : Unit
-      Binary Eq : Boolean
+      MethodCall ForeignCallbackState.equals <derived> : Boolean
         ForeignCallbackState : ForeignCallbackState
           Local observer : ForeignCallback<(Int, Ptr<Unit>) -> Int>
         VariantConstruct ForeignCallbackState.Failed : ForeignCallbackState
@@ -420,14 +421,14 @@ Module
   enum Option$Throwable
     Some(_1: Throwable)
     None()
-  class Throwable vtable=3 itables=0
-  class Exception vtable=3 itables=0
-  class UnwrapException vtable=3 itables=0
-  class ClassCastException vtable=3 itables=0
-  class ArithmeticException vtable=3 itables=0
-  class IndexOutOfBoundsException vtable=3 itables=0
-  class IllegalStateException vtable=3 itables=0
-  class CallbackError vtable=3 itables=0
+  class Throwable vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class UnwrapException vtable=0 itables=0
+  class ClassCastException vtable=0 itables=0
+  class ArithmeticException vtable=0 itables=0
+  class IndexOutOfBoundsException vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class CallbackError vtable=0 itables=0
   interface ToString
   interface Hash
   closure cc0 $Closure$lambda0 type=function_type1 invoke=@scoop.$lambda.0 captures=0
@@ -523,13 +524,12 @@ Module
         Local job
       call @scoop.println$I direct
         Local $call.1
+      call $call.2: Boolean = @scoop.ForeignCallbackState.equals direct
+        ForeignCallbackState
+          Local observer
+        VariantConstruct ForeignCallbackState v3
       call @scoop.println$B direct
-        Binary IntEq
-          EnumTag
-            ForeignCallbackState
-              Local observer
-          EnumTag
-            VariantConstruct ForeignCallbackState v3
+        Local $call.2
       val $opt.1: Option$Throwable<Throwable>
         ForeignCallbackFailure
           Local observer
@@ -544,9 +544,9 @@ Module
           Local $opt.1
       goto bb3
     bb2 if.else.2
-      call $call.2: UnwrapException = @scoop.ctor.UnwrapException direct
+      call $call.3: UnwrapException = @scoop.ctor.UnwrapException direct
       throw
-        Local $call.2
+        Local $call.3
     bb3 if.merge.3
       val failure: Throwable
         Local $uw.2
@@ -633,6 +633,105 @@ Module
       call extern0 @scoop_rt_write direct
         StringConst @scoop.str.3
       return
+  fun ForeignCallbackState.equals @scoop.ForeignCallbackState.equals(this: ForeignCallbackState, other: ForeignCallbackState) -> Boolean
+    bb0 entry
+      val $when.1: ForeignCallbackState
+        Local this
+      branch bb1 bb2
+        Binary IntEq
+          EnumTag
+            Local $when.1
+          IntLiteral 0
+    bb1 if.then.1
+      val $when.2: ForeignCallbackState
+        Local other
+      branch bb4 bb5
+        Binary IntEq
+          EnumTag
+            Local $when.2
+          IntLiteral 0
+    bb2 if.else.2
+      branch bb7 bb8
+        Binary IntEq
+          EnumTag
+            Local $when.1
+          IntLiteral 1
+    bb3 if.merge.3
+      unreachable
+    bb4 if.then.4
+      return
+        BoolLiteral true
+    bb5 if.else.5
+      return
+        BoolLiteral false
+    bb6 if.merge.6
+      goto bb3
+    bb7 if.then.7
+      val $when.3: ForeignCallbackState
+        Local other
+      branch bb10 bb11
+        Binary IntEq
+          EnumTag
+            Local $when.3
+          IntLiteral 1
+    bb8 if.else.8
+      branch bb13 bb14
+        Binary IntEq
+          EnumTag
+            Local $when.1
+          IntLiteral 2
+    bb9 if.merge.9
+      goto bb3
+    bb10 if.then.10
+      return
+        BoolLiteral true
+    bb11 if.else.11
+      return
+        BoolLiteral false
+    bb12 if.merge.12
+      goto bb9
+    bb13 if.then.13
+      val $when.4: ForeignCallbackState
+        Local other
+      branch bb16 bb17
+        Binary IntEq
+          EnumTag
+            Local $when.4
+          IntLiteral 2
+    bb14 if.else.14
+      branch bb19 bb20
+        Binary IntEq
+          EnumTag
+            Local $when.1
+          IntLiteral 3
+    bb15 if.merge.15
+      goto bb9
+    bb16 if.then.16
+      return
+        BoolLiteral true
+    bb17 if.else.17
+      return
+        BoolLiteral false
+    bb18 if.merge.18
+      goto bb15
+    bb19 if.then.19
+      val $when.5: ForeignCallbackState
+        Local other
+      branch bb21 bb22
+        Binary IntEq
+          EnumTag
+            Local $when.5
+          IntLiteral 3
+    bb20 if.merge.20
+      goto bb15
+    bb21 if.then.21
+      return
+        BoolLiteral true
+    bb22 if.else.22
+      return
+        BoolLiteral false
+    bb23 if.merge.23
+      goto bb20
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
     bb0 entry
       return
@@ -835,14 +934,15 @@ Module
     local %5 $opt.1: enum2
     local %6 $uw.2: ptr<managed>
     local %7 $call.1: i64
-    local %8 $call.2: ptr<managed>
-    local %9 $sc.1: ptr<code>
-    local %10 $sc.2: ptr<raw>
-    local %11 $sc.3: i64
-    local %12 $sc.4: ptr<raw>
-    local %13 $sc.5: exception_record
-    local %14 $sc.6: ptr<raw>
-    local %15 $sc.7: ptr<managed>
+    local %8 $call.2: i1
+    local %9 $call.3: ptr<managed>
+    local %10 $sc.1: ptr<code>
+    local %11 $sc.2: ptr<raw>
+    local %12 $sc.3: i64
+    local %13 $sc.4: ptr<raw>
+    local %14 $sc.5: exception_record
+    local %15 $sc.6: ptr<raw>
+    local %16 $sc.7: ptr<managed>
   block entry
     t0 = call @scoop_rt_alloc(global10, 24) : ptr<managed>
     t1 = function_address @scoop.$lambda.0 : ptr
@@ -853,103 +953,102 @@ Module
     store t3 -> local1
     t4 = extract local0, 0 : ptr<code>
     t5 = extract local0, 1 : ptr<raw>
-    store t4 -> local9
-    t7 = local_address local9 : ptr
-    store t5 -> local10
-    t8 = local_address local10 : ptr
-    store 7 -> local11
-    t9 = local_address local11 : ptr
+    store t4 -> local10
+    t7 = local_address local10 : ptr
+    store t5 -> local11
+    t8 = local_address local11 : ptr
+    store 7 -> local12
+    t9 = local_address local12 : ptr
     t6 = native_call[native-safe] extern12(t7, t8, t9) : ptr<raw>
     store t6 -> local2
-    store local2 -> local12
-    t11 = local_address local12 : ptr
+    store local2 -> local13
+    t11 = local_address local13 : ptr
     t10 = native_call[native-safe] extern13(t11) : i64
     store t10 -> local7
     call @scoop.println$I(local7)
     t12 = aggregate () : {}
     t13 = foreign_callback_State local1 : enum1
-    t14 = enum_tag e1 t13 : i64
-    t15 = enum_wrap e1 v3 () : enum1
-    t16 = enum_tag e1 t15 : i64
-    t17 = Eq t14, t16 : i1
-    call @scoop.println$B(t17)
-    t18 = aggregate () : {}
-    t19 = foreign_callback_Failure local1 : enum2
-    store t19 -> local5
-    t20 = enum_tag e2 local5 : i64
-    t21 = Eq t20, 0 : i1
-    cbr t21 then @if.then.1 else @if.else.2
+    t14 = enum_wrap e1 v3 () : enum1
+    t15 = call @scoop.ForeignCallbackState.equals(t13, t14) : i1
+    store t15 -> local8
+    call @scoop.println$B(local8)
+    t16 = aggregate () : {}
+    t17 = foreign_callback_Failure local1 : enum2
+    store t17 -> local5
+    t18 = enum_tag e2 local5 : i64
+    t19 = Eq t18, 0 : i1
+    cbr t19 then @if.then.1 else @if.else.2
   block if.then.1
-    t22 = enum_field e2 v0 f0 local5 : ptr<managed>
-    store t22 -> local6
+    t20 = enum_field e2 v0 f0 local5 : ptr<managed>
+    store t20 -> local6
     br @if.merge.3
   block if.else.2
-    t23 = call @scoop.ctor.UnwrapException() : ptr<managed>
-    store t23 -> local8
-    throw local8
+    t21 = call @scoop.ctor.UnwrapException() : ptr<managed>
+    store t21 -> local9
+    throw local9
     unreachable
   block if.merge.3
     store local6 -> local3
-    t24 = call @scoop_rt_is_instance(local3, global11) : i1
-    call @scoop.println$B(t24)
-    t25 = aggregate () : {}
+    t22 = call @scoop_rt_is_instance(local3, global11) : i1
+    call @scoop.println$B(t22)
+    t23 = aggregate () : {}
     br @try.body.11
   block try.unwind.4
-    (t26, t27) = landingpad : (exception_record, ptr<raw>)
-    store t26 -> local13
-    store t27 -> local14
+    (t24, t25) = landingpad : (exception_record, ptr<raw>)
+    store t24 -> local14
+    store t25 -> local15
     br @try.dispatch.5
   block try.dispatch.5
-    t28 = begin_catch local14 : ptr<managed>
-    store t28 -> local15
-    t29 = call @scoop_rt_is_instance(local15, global11) : i1
-    cbr t29 then @try.catch.12 else @try.next.13
+    t26 = begin_catch local15 : ptr<managed>
+    store t26 -> local16
+    t27 = call @scoop_rt_is_instance(local16, global11) : i1
+    cbr t27 then @try.catch.12 else @try.next.13
   block try.handler_pad.6
-    (t30, t31) = cleanup_pad : (exception_record, ptr<raw>)
-    store t30 -> local13
-    store t31 -> local14
+    (t28, t29) = cleanup_pad : (exception_record, ptr<raw>)
+    store t28 -> local14
+    store t29 -> local15
     br @try.handler_cleanup.7
   block try.handler_cleanup.7
     end_catch
     foreign_callback_Release local1
-    t32 = aggregate () : {}
-    resume local13
+    t30 = aggregate () : {}
+    resume local14
   block try.exit_pad.8
-    (t33, t34) = cleanup_pad : (exception_record, ptr<raw>)
-    store t33 -> local13
-    store t34 -> local14
+    (t31, t32) = cleanup_pad : (exception_record, ptr<raw>)
+    store t31 -> local14
+    store t32 -> local15
     br @try.exit_cleanup.9
   block try.exit_cleanup.9
     end_catch
-    resume local13
+    resume local14
   block try.end.10
     ret
   block try.body.11
     invoke @scoop_rt_throw(local3) normal @throw.normal.1 unwind @try.unwind.4
     br @throw.normal.1
   block try.catch.12
-    store local15 -> local4
+    store local16 -> local4
     br @scope.14
   block try.next.13
     foreign_callback_Release local1
-    t35 = aggregate () : {}
+    t33 = aggregate () : {}
     invoke @scoop_rt_rethrow() normal @rethrow.normal.2 unwind @try.exit_pad.8
     br @rethrow.normal.2
   block scope.14
-    t36 = heap_load local4 +24 : ptr<managed>
-    invoke @scoop.println$S(t36) normal @invoke.normal.3 unwind @try.handler_pad.6
+    t34 = heap_load local4 +24 : ptr<managed>
+    invoke @scoop.println$S(t34) normal @invoke.normal.3 unwind @try.handler_pad.6
     br @invoke.normal.3
   block scope.15
     end_catch
     foreign_callback_Release local1
-    t38 = aggregate () : {}
+    t36 = aggregate () : {}
     br @try.end.10
   block throw.normal.1
     unreachable
   block rethrow.normal.2
     unreachable
   block invoke.normal.3
-    t37 = aggregate () : {}
+    t35 = aggregate () : {}
     br @scope.15
   fun @scoop.$lambda.0(ptr<managed>, i64) -> i64
     local %0 $call.1: ptr<managed>
@@ -988,6 +1087,81 @@ Module
     native_call[native-borrowed] extern0(global3)
     t2 = aggregate () : {}
     ret
+  fun @scoop.ForeignCallbackState.equals(enum1, enum1) -> i1
+    local %0 $when.1: enum1
+    local %1 $when.2: enum1
+    local %2 $when.3: enum1
+    local %3 $when.4: enum1
+    local %4 $when.5: enum1
+  block entry
+    store param0 -> local0
+    t0 = enum_tag e1 local0 : i64
+    t1 = Eq t0, 0 : i1
+    cbr t1 then @if.then.1 else @if.else.2
+  block if.then.1
+    store param1 -> local1
+    t2 = enum_tag e1 local1 : i64
+    t3 = Eq t2, 0 : i1
+    cbr t3 then @if.then.4 else @if.else.5
+  block if.else.2
+    t4 = enum_tag e1 local0 : i64
+    t5 = Eq t4, 1 : i1
+    cbr t5 then @if.then.7 else @if.else.8
+  block if.merge.3
+    unreachable
+  block if.then.4
+    ret true
+  block if.else.5
+    ret false
+  block if.merge.6
+    br @if.merge.3
+  block if.then.7
+    store param1 -> local2
+    t6 = enum_tag e1 local2 : i64
+    t7 = Eq t6, 1 : i1
+    cbr t7 then @if.then.10 else @if.else.11
+  block if.else.8
+    t8 = enum_tag e1 local0 : i64
+    t9 = Eq t8, 2 : i1
+    cbr t9 then @if.then.13 else @if.else.14
+  block if.merge.9
+    br @if.merge.3
+  block if.then.10
+    ret true
+  block if.else.11
+    ret false
+  block if.merge.12
+    br @if.merge.9
+  block if.then.13
+    store param1 -> local3
+    t10 = enum_tag e1 local3 : i64
+    t11 = Eq t10, 2 : i1
+    cbr t11 then @if.then.16 else @if.else.17
+  block if.else.14
+    t12 = enum_tag e1 local0 : i64
+    t13 = Eq t12, 3 : i1
+    cbr t13 then @if.then.19 else @if.merge.20
+  block if.merge.15
+    br @if.merge.9
+  block if.then.16
+    ret true
+  block if.else.17
+    ret false
+  block if.merge.18
+    br @if.merge.15
+  block if.then.19
+    store param1 -> local4
+    t14 = enum_tag e1 local4 : i64
+    t15 = Eq t14, 3 : i1
+    cbr t15 then @if.then.21 else @if.else.22
+  block if.merge.20
+    br @if.merge.15
+  block if.then.21
+    ret true
+  block if.else.22
+    ret false
+  block if.merge.23
+    br @if.merge.20
   fun @scoop.ctor.Throwable() -> ptr<managed>
   block entry
     t0 = call @scoop_rt_alloc(global12, 16) : ptr<managed>
@@ -1068,15 +1242,15 @@ Module
   td Hash @scoop_td_Hash size=0 vtable=0 itables=0
   td function$FI_PUXRIX @scoop_td_function$FI_PUXRIX size=0 vtable=0 itables=0
   td function$FIRIX @scoop_td_function$FIRIX size=0 vtable=0 itables=0
-  td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
-  td Exception @scoop_td_Exception size=24 vtable=3 itables=0
-  td UnwrapException @scoop_td_UnwrapException size=24 vtable=3 itables=0
-  td ClassCastException @scoop_td_ClassCastException size=24 vtable=3 itables=0
-  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=3 itables=0
-  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=3 itables=0
-  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=3 itables=0
-  td CallbackError @scoop_td_CallbackError size=32 vtable=3 itables=0
-  td $Closure$lambda0 @scoop_td_$Closure$lambda0 size=24 vtable=3 itables=0
+  td Throwable @scoop_td_Throwable size=16 vtable=0 itables=0
+  td Exception @scoop_td_Exception size=24 vtable=0 itables=0
+  td UnwrapException @scoop_td_UnwrapException size=24 vtable=0 itables=0
+  td ClassCastException @scoop_td_ClassCastException size=24 vtable=0 itables=0
+  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=0 itables=0
+  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=0 itables=0
+  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=0 itables=0
+  td CallbackError @scoop_td_CallbackError size=32 vtable=0 itables=0
+  td $Closure$lambda0 @scoop_td_$Closure$lambda0 size=24 vtable=0 itables=0
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]

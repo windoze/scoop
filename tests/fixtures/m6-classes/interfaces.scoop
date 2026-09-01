@@ -10,6 +10,11 @@ struct Tag(val v: Int) : Describable {
     override fun describe(): String = "tag"
 }
 
+fun <T> isPresent(value: T?): Boolean = when (value) {
+    Some(_) -> true
+    None -> false
+}
+
 fun main() {
     val d = Doc("report")
     println(d.describe())
@@ -20,5 +25,5 @@ fun main() {
     println(ti.describe())
     val a: Any = t
     println(a is Tag)
-    println(a as? Describable != None)
+    println(isPresent(a as? Describable))
 }

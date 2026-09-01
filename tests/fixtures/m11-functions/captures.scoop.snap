@@ -34,6 +34,7 @@ SourceFile
 SourceFile
   struct Ptr<T : value>
     field _rawPointer: UInt
+    operator fun equals
     fun toUInt
     fun cast
     fun load
@@ -389,15 +390,15 @@ Module
   fun makeAdder(base: Int): (Int) -> Int
     return
       Lambda lambda0 invoke=$lambda.0 captures=1 : (Int) -> Int
-        capture base binding22 : Int
+        capture base binding18 : Int
   fun makeNested(base: Int): () -> () -> Int
     return
       Lambda lambda2 invoke=$lambda.1 captures=1 : () -> () -> Int
-        capture base binding25 : Int
+        capture base binding21 : Int
   fun labelReader(label: Label): () -> String
     return
       Lambda lambda3 invoke=$lambda.3 captures=1 : () -> String
-        capture label binding28 : Label
+        capture label binding24 : Label
   fun snapshot(): () -> Int
     val local0
       IntLiteral 41 : Int
@@ -405,7 +406,7 @@ Module
       Local value : Int
     val local2
       Lambda lambda4 invoke=$lambda.4 captures=1 : () -> Int
-        capture captured binding31 : Int
+        capture captured binding27 : Int
     assign value
       IntLiteral 0 : Int
     return
@@ -490,14 +491,14 @@ Module
   enum Option$S
     Some(_1: String)
     None()
-  class Throwable vtable=3 itables=0
-  class Exception vtable=3 itables=0
-  class UnwrapException vtable=3 itables=0
-  class ClassCastException vtable=3 itables=0
-  class ArithmeticException vtable=3 itables=0
-  class IndexOutOfBoundsException vtable=3 itables=0
-  class IllegalStateException vtable=3 itables=0
-  class Counter vtable=3 itables=0
+  class Throwable vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class UnwrapException vtable=0 itables=0
+  class ClassCastException vtable=0 itables=0
+  class ArithmeticException vtable=0 itables=0
+  class IndexOutOfBoundsException vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Counter vtable=0 itables=0
   interface ToString
   interface Hash
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@scoop.$lambda.5 captures=1
@@ -1140,21 +1141,21 @@ Module
   td function$FIRIX @scoop_td_function$FIRIX size=0 vtable=0 itables=0
   td function$FRFRIXX @scoop_td_function$FRFRIXX size=0 vtable=0 itables=0
   td function$FRSX @scoop_td_function$FRSX size=0 vtable=0 itables=0
-  td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
-  td Counter @scoop_td_Counter size=24 vtable=3 itables=0
-  td Exception @scoop_td_Exception size=24 vtable=3 itables=0
-  td UnwrapException @scoop_td_UnwrapException size=24 vtable=3 itables=0
-  td ClassCastException @scoop_td_ClassCastException size=24 vtable=3 itables=0
-  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=3 itables=0
-  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=3 itables=0
-  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=3 itables=0
-  td $Closure$lambda0 @scoop_td_$Closure$lambda0 size=32 vtable=3 itables=0
-  td $Closure$lambda1 @scoop_td_$Closure$lambda1 size=32 vtable=3 itables=0
-  td $Closure$lambda2 @scoop_td_$Closure$lambda2 size=32 vtable=3 itables=0
-  td $Closure$lambda3 @scoop_td_$Closure$lambda3 size=32 vtable=3 itables=0
-  td $Closure$lambda4 @scoop_td_$Closure$lambda4 size=32 vtable=3 itables=0
-  td $Closure$lambda5 @scoop_td_$Closure$lambda5 size=32 vtable=3 itables=0
-  td $Closure$lambda6 @scoop_td_$Closure$lambda6 size=32 vtable=3 itables=0
+  td Throwable @scoop_td_Throwable size=16 vtable=0 itables=0
+  td Counter @scoop_td_Counter size=24 vtable=0 itables=0
+  td Exception @scoop_td_Exception size=24 vtable=0 itables=0
+  td UnwrapException @scoop_td_UnwrapException size=24 vtable=0 itables=0
+  td ClassCastException @scoop_td_ClassCastException size=24 vtable=0 itables=0
+  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=0 itables=0
+  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=0 itables=0
+  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=0 itables=0
+  td $Closure$lambda0 @scoop_td_$Closure$lambda0 size=32 vtable=0 itables=0
+  td $Closure$lambda1 @scoop_td_$Closure$lambda1 size=32 vtable=0 itables=0
+  td $Closure$lambda2 @scoop_td_$Closure$lambda2 size=32 vtable=0 itables=0
+  td $Closure$lambda3 @scoop_td_$Closure$lambda3 size=32 vtable=0 itables=0
+  td $Closure$lambda4 @scoop_td_$Closure$lambda4 size=32 vtable=0 itables=0
+  td $Closure$lambda5 @scoop_td_$Closure$lambda5 size=32 vtable=0 itables=0
+  td $Closure$lambda6 @scoop_td_$Closure$lambda6 size=32 vtable=0 itables=0
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]

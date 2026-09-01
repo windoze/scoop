@@ -53,6 +53,28 @@ pub(crate) struct OverloadCall<'a> {
     pub(crate) span: Span,
 }
 
+/// A member-overload call whose arguments have already been lowered in source
+/// order. Operator resolution uses this form because both operands are
+/// language-mandated single evaluations, while applicability and MSC must
+/// remain exactly the ordinary member-call algorithm.
+pub(crate) struct LoweredOverloadCall {
+    pub(crate) explicit_type_args: Vec<TypeId>,
+    pub(crate) args: Vec<hir::Expr>,
+    pub(crate) span: Span,
+}
+
+enum OverloadArguments<'a> {
+    Source(&'a [ast::Expr]),
+    Lowered(Vec<hir::Expr>),
+}
+
+struct OverloadResolution<'a> {
+    receiver: OverloadReceiver,
+    explicit_type_args: &'a [TypeId],
+    arguments: OverloadArguments<'a>,
+    span: Span,
+}
+
 /// A candidate prepared for resolution: parameter and return types
 /// still use the function's combined type-parameter namespace. A generic
 /// receiver pre-binds the owner prefix; applicability infers the remaining
@@ -103,8 +125,12 @@ impl Lowerer {
         self.resolve_overload_with_receiver(
             name,
             &candidates,
-            OverloadReceiver::Ordinary,
-            call,
+            OverloadResolution {
+                receiver: OverloadReceiver::Ordinary,
+                explicit_type_args: call.explicit_type_args,
+                arguments: OverloadArguments::Source(call.arg_exprs),
+                span: call.span,
+            },
             sink,
         )
     }
@@ -119,8 +145,37 @@ impl Lowerer {
         self.resolve_overload_with_receiver(
             name,
             candidates,
-            OverloadReceiver::Ordinary,
-            call,
+            OverloadResolution {
+                receiver: OverloadReceiver::Ordinary,
+                explicit_type_args: call.explicit_type_args,
+                arguments: OverloadArguments::Source(call.arg_exprs),
+                span: call.span,
+            },
+            sink,
+        )
+    }
+
+    pub(crate) fn resolve_member_overload_lowered(
+        &mut self,
+        name: &str,
+        candidates: &[CallableCandidate],
+        call: LoweredOverloadCall,
+        sink: &mut Vec<hir::Statement>,
+    ) -> Option<ResolvedCallee> {
+        let LoweredOverloadCall {
+            explicit_type_args,
+            args,
+            span,
+        } = call;
+        self.resolve_overload_with_receiver(
+            name,
+            candidates,
+            OverloadResolution {
+                receiver: OverloadReceiver::Ordinary,
+                explicit_type_args: &explicit_type_args,
+                arguments: OverloadArguments::Lowered(args),
+                span,
+            },
             sink,
         )
     }
@@ -144,8 +199,12 @@ impl Lowerer {
         self.resolve_overload_with_receiver(
             name,
             &candidates,
-            OverloadReceiver::Extension(receiver),
-            call,
+            OverloadResolution {
+                receiver: OverloadReceiver::Extension(receiver),
+                explicit_type_args: call.explicit_type_args,
+                arguments: OverloadArguments::Source(call.arg_exprs),
+                span: call.span,
+            },
             sink,
         )
     }
@@ -154,15 +213,19 @@ impl Lowerer {
         &mut self,
         name: &str,
         candidates: &[CallableCandidate],
-        receiver: OverloadReceiver,
-        call: OverloadCall<'_>,
+        resolution: OverloadResolution<'_>,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<ResolvedCallee> {
-        let OverloadCall {
+        let OverloadResolution {
+            receiver,
             explicit_type_args,
-            arg_exprs,
+            arguments,
             span,
-        } = call;
+        } = resolution;
+        let arg_count = match &arguments {
+            OverloadArguments::Source(args) => args.len(),
+            OverloadArguments::Lowered(args) => args.len(),
+        };
         // Context-independent arguments are shared by every candidate and
         // lowered once. `None`, empty arrays and context-dependent generic
         // constructors are postponed until inference provides a candidate
@@ -173,20 +236,25 @@ impl Lowerer {
             OverloadReceiver::Extension(receiver) => Some(receiver),
         };
         let receiver_offset = usize::from(receiver.is_some());
-        let mut lowered: Vec<Option<hir::Expr>> =
-            Vec::with_capacity(receiver_offset + arg_exprs.len());
+        let mut lowered: Vec<Option<hir::Expr>> = Vec::with_capacity(receiver_offset + arg_count);
         if let Some(receiver) = receiver {
             lowered.push(Some(receiver));
         }
-        lowered.extend((0..arg_exprs.len()).map(|_| None));
-        let mut arg_sinks: Vec<Vec<hir::Statement>> =
-            (0..arg_exprs.len()).map(|_| Vec::new()).collect();
-        for (index, arg) in arg_exprs.iter().enumerate() {
-            if self.expr_requires_expected_type(arg) {
-                continue;
+        let mut arg_sinks: Vec<Vec<hir::Statement>> = (0..arg_count).map(|_| Vec::new()).collect();
+        match &arguments {
+            OverloadArguments::Source(arg_exprs) => {
+                lowered.extend((0..arg_exprs.len()).map(|_| None));
+                for (index, arg) in arg_exprs.iter().enumerate() {
+                    if self.expr_requires_expected_type(arg) {
+                        continue;
+                    }
+                    lowered[receiver_offset + index] =
+                        Some(self.lower_expr(arg, &mut arg_sinks[index], None)?);
+                }
             }
-            lowered[receiver_offset + index] =
-                Some(self.lower_expr(arg, &mut arg_sinks[index], None)?);
+            OverloadArguments::Lowered(args) => {
+                lowered.extend(args.iter().cloned().map(Some));
+            }
         }
         let arg_tys: Vec<Option<TypeId>> = lowered
             .iter()
@@ -275,7 +343,7 @@ impl Lowerer {
             if !candidate.explicit_arity_match {
                 continue;
             }
-            if candidate.params.len() != receiver_offset + arg_exprs.len() {
+            if candidate.params.len() != receiver_offset + arg_count {
                 continue;
             }
             let Some(type_args) = self.try_infer_type_args(candidate, &arg_tys) else {
@@ -301,11 +369,13 @@ impl Lowerer {
                 }
                 let expected = self.substitute_call_level(param, &type_args);
                 let source_argument = argument - receiver_offset;
-                if let Err(reason) =
-                    self.probe_contextual_expr(&arg_exprs[source_argument], expected)
-                {
-                    contextual_failures.push((source_argument, expected, reason));
-                    contextual_args_match = false;
+                if let OverloadArguments::Source(arg_exprs) = &arguments {
+                    if let Err(reason) =
+                        self.probe_contextual_expr(&arg_exprs[source_argument], expected)
+                    {
+                        contextual_failures.push((source_argument, expected, reason));
+                        contextual_args_match = false;
+                    }
                 }
             }
             if contextual_args_match {
@@ -332,14 +402,23 @@ impl Lowerer {
                     );
                     return None;
                 }
-                if self.contextual_no_applicable_diagnostic(name, arg_exprs, &contextual_failures) {
-                    return None;
+                if let OverloadArguments::Source(arg_exprs) = &arguments {
+                    if self.contextual_no_applicable_diagnostic(
+                        name,
+                        arg_exprs,
+                        &contextual_failures,
+                    ) {
+                        return None;
+                    }
                 }
                 self.no_applicable_diagnostic(
                     name,
                     &prepared,
                     &arg_tys[receiver_offset..],
-                    arg_exprs,
+                    match &arguments {
+                        OverloadArguments::Source(args) => Some(args),
+                        OverloadArguments::Lowered(_) => None,
+                    },
                     (receiver_offset != 0).then(|| arg_tys[0]).flatten(),
                     span,
                 );
@@ -358,6 +437,9 @@ impl Lowerer {
                 Some(arg) => arg,
                 None => {
                     let source_index = index - receiver_offset;
+                    let OverloadArguments::Source(arg_exprs) = &arguments else {
+                        unreachable!("pre-lowered overload arguments are all present")
+                    };
                     self.lower_expr(
                         &arg_exprs[source_index],
                         &mut arg_sinks[source_index],
@@ -370,7 +452,10 @@ impl Lowerer {
                     name,
                     &prepared,
                     &arg_tys[receiver_offset..],
-                    arg_exprs,
+                    match &arguments {
+                        OverloadArguments::Source(args) => Some(args),
+                        OverloadArguments::Lowered(_) => None,
+                    },
                     (receiver_offset != 0).then(|| arg_tys[0]).flatten(),
                     span,
                 );
@@ -502,12 +587,12 @@ impl Lowerer {
         name: &str,
         prepared: &[Candidate],
         arg_tys: &[Option<TypeId>],
-        arg_exprs: &[ast::Expr],
+        arg_exprs: Option<&[ast::Expr]>,
         extension_receiver: Option<TypeId>,
         span: Span,
     ) {
         let hidden_argument_count = usize::from(extension_receiver.is_some());
-        let supplied = arg_exprs.len();
+        let supplied = arg_tys.len();
         let uniform_arity = prepared[0].params.len() - hidden_argument_count;
         if prepared
             .iter()
@@ -529,10 +614,12 @@ impl Lowerer {
         }
         let found: Vec<String> = arg_tys
             .iter()
-            .zip(arg_exprs)
-            .map(|(ty, expr)| match ty {
+            .enumerate()
+            .map(|(index, ty)| match ty {
                 Some(ty) => self.type_name(*ty),
-                None => contextual_expr_name(expr),
+                None => contextual_expr_name(
+                    &arg_exprs.expect("only source arguments can remain contextual")[index],
+                ),
             })
             .collect();
         let message = match extension_receiver {

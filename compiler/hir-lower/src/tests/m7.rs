@@ -113,7 +113,6 @@ fn has_method_application(
             hir::MethodOwnerApplication::Interface(owner) => {
                 &module.interface_applications[owner].arguments
             }
-            hir::MethodOwnerApplication::Any => &[],
         };
         arguments == owner_arguments
     })
@@ -860,16 +859,6 @@ fn core_write(module: &hir::Module) -> hir::FunctionId {
         .expect("core declares the write extern")
 }
 
-/// The synthesized `Any` member by (qualified) name.
-fn any_member(module: &hir::Module, name: &str) -> hir::FunctionId {
-    module
-        .functions
-        .iter()
-        .find(|(_, f)| f.name == format!("Any.{name}"))
-        .map(|(id, _)| id)
-        .unwrap_or_else(|| panic!("`Any.{name}` is synthesized"))
-}
-
 /// `print` / `println` are ordinary generic core functions bounded by
 /// `ToString`; each call records its exact instantiation and preserves the
 /// argument's concrete type. Their template body resolves `toString()`
@@ -949,11 +938,10 @@ fn print_and_println_use_the_ordinary_to_string_bound() {
     assert!(matches!(receiver.kind, hir::ExprKind::Local(_)));
 }
 
-/// The three `Any` members resolve on an `Any` receiver
-/// (`synthesize_any_members`; mir-lower dispatches them through the
-/// fixed vtable slots 0..2).
+/// `Any` has no capability members. A concrete runtime object cannot add
+/// static ToString/Hash/equality support to an `Any` expression.
 #[test]
-fn any_receiver_resolves_the_any_members() {
+fn any_receiver_has_no_implicit_capability_members() {
     let file = file(vec![fun(
         "main",
         vec![
@@ -973,24 +961,23 @@ fn any_receiver_resolves_the_any_members() {
             )),
         ],
     )]);
-    let module = lower_user(file).expect("`Any` member calls must resolve");
-    let body = body_of(&module, module.entry);
-    for (index, name) in ["toString", "hashCode", "equals"].into_iter().enumerate() {
-        let hir::StatementKind::Expr(outer) = &body.statements[index + 2].kind else {
-            panic!("expected a call statement")
-        };
-        let hir::ExprKind::Call { args, .. } = &outer.kind else {
-            panic!("expected a call")
-        };
-        let inner = match &args[0].kind {
-            hir::ExprKind::Box(operand) => &operand.kind,
-            kind => kind,
-        };
-        let hir::ExprKind::MethodCall { callee, .. } = inner else {
-            panic!("expected a method call")
-        };
-        assert_eq!(module.callable_function(*callee), any_member(&module, name));
-    }
+    let errors = lower_user(file).expect_err("`Any` must not expose implicit capabilities");
+    assert_eq!(errors.len(), 3);
+    assert!(
+        errors[0]
+            .message
+            .contains("type `Any` has no method `toString`")
+    );
+    assert!(
+        errors[1]
+            .message
+            .contains("type `Any` has no method `hashCode`")
+    );
+    assert!(
+        errors[2]
+            .message
+            .contains("type `Any` has no method `equals`")
+    );
 }
 
 /// Intrinsic value types expose the ordinary methods declared by their exact

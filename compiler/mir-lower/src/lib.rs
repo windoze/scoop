@@ -6,9 +6,9 @@
 //!
 //! M2: value types. HIR types are mapped onto MIR types (the struct
 //! arena is transposed in declaration order, field types recursively);
-//! structural equality on aggregates is expanded into primitive
-//! comparisons and runtime calls; String `+` becomes
-//! `scoop_rt_string_concat`.
+//! String `+` becomes `scoop_rt_string_concat`. Equality has already
+//! been resolved in HIR to an ordinary explicit or generated method;
+//! MIR lowers that exact call and never reconstructs equality semantics.
 //! Since M10, a private structured construction tree is normalized into
 //! public MIR basic blocks: calls become explicit effects and `&&` / `||`
 //! become branch edges before this stage returns. This stage never fails:
@@ -27,8 +27,7 @@
 //! failed guard falls through to the next arm). The HIR Option nodes
 //! (`SomeWrap` / `NoneLiteral` / `IsSome` / `Unwrap`) become generic
 //! enum operations; a trapping `Unwrap` (`!!`) becomes an if/else whose
-//! else branch throws `UnwrapException` (M8). Equality on enums expands
-//! into a tag comparison plus a per-variant payload comparison.
+//! else branch throws `UnwrapException` (M8).
 //!
 //! M8: exceptions (docs/milestone8/DESIGN.md section 3.3). `try` /
 //! `catch` / `finally` and `throw` translate one-to-one — MIR keeps
@@ -52,8 +51,8 @@
 //! normal function path. Validated `@Intrinsic` calls map by typed kind onto
 //! the remaining runtime functions: `rt_int_to_string` → `IntToString`,
 //! `rt_bool_to_string` →
-//! `BoolToString` (the latter two back the generated `toString`
-//! bodies below). Mangling is overload-aware: a name shared by
+//! `BoolToString`. These runtime primitives are reached only through
+//! ordinary source declarations in `scoop.core`. Mangling is overload-aware: a name shared by
 //! several plainly-mangled functions gets the parameter encoding
 //! appended (`scoop.show.I`, `scoop.println.S`; the receiver is not
 //! part of a method's overload signature), while unique names keep the
@@ -62,28 +61,22 @@
 //! by signature the same way: vtable / itable slots and call-kind
 //! annotation use `name(<param encoding>)`, so each overload gets its
 //! own slot and an override replaces the base slot with the matching
-//! signature in place. core's output goes through `Any.toString()`:
-//! the synthesized `Any` members are signature-only shells (like
-//! interface methods, never emitted), and a boxed primitive's vtable
-//! slot 2 is a generated per-type `toString` (`scoop.tostring.I` /
-//! `scoop.tostring.B`, converting through the runtime); String's
-//! TypeDescriptor vtable is emitted by codegen with slot 2 bound to
-//! the runtime String identity.
+//! signature in place. `toString`, hashing, and equality are ordinary
+//! Scoop declarations; this stage has no capability-specific channels.
 //!
 //! M5: arrays (docs/milestone5/DESIGN.md). `Array<T>` /
 //! `MutableArray<T>` map onto the corresponding MIR types, and the
 //! array nodes translate one-to-one: literals, subscript reads, `size`,
 //! `m[i] = v` (an `ArraySet` statement), and constructor / method
-//! conversions between the two kinds (`ArrayClone`). There is no array
-//! equality in M5 (DESIGN 6): hir-lower rejects `==` / `!=` on array
-//! types, so the equality expansion treats them as unreachable.
+//! conversions between the two kinds (`ArrayClone`). Whether an array
+//! supports equality is determined solely by ordinary method resolution.
 //!
 //! M6: reference types (docs/milestone6/DESIGN.md). Classes land as
 //! `mir::ClassDef` with the object layout flattened (base-class
 //! fields first, then the constructor properties — the same indexing
 //! HIR's `ClassField` uses) and the dispatch layout fixed (impl spec
-//! 2.9): vtable slots 0..2 are the `Any` defaults, a derived vtable
-//! starts from the base's (overrides replace the base slot in place,
+//! 2.9): a root class starts with an empty vtable, and a derived vtable
+//! starts from the base's (ordinary overrides replace the base slot in place,
 //! new methods append in declaration order), and every implemented
 //! interface gets an itable record whose slots follow the interface's
 //! method declaration order. Method calls are annotated by the
@@ -92,17 +85,14 @@
 //! are mangled qualified (`scoop.Point.describe`) so same-named
 //! methods never collide. Every value type that reaches `Any` / an
 //! interface (`Box`, `is`, `as`) gets a boxed `ClassDef` (`box$<ty>`):
-//! vtable slot 0 is the compiler-generated structural equals
-//! (`scoop.eq.<ty>`, built with the M2 equality expansion over the
-//! unboxed payloads), slots 1/2 stay the `Any` defaults, and its
-//! itable slots point at adjust thunks that unbox `this` and
+//! its vtable contains only ordinary virtual methods, and its itable
+//! slots point at adjust thunks that unbox `this` and
 //! tail-call the real value method. The boxed itables cover the value
 //! type's *declared* interfaces (spec 4.4.3) no matter what it was
 //! boxed to. `as` throws `ClassCastException` on failure (M8); `as?`
-//! wraps in `Option` like `!!` does. Equality on references is
-//! identity (the M6 `Any` default, milestone6 DESIGN 5.1) — a pointer
-//! comparison; `===` / `!==` (`RefEq` / `RefNe`) map onto the same
-//! primitive comparison. Class construction is function-ized: every
+//! wraps in `Option` like `!!` does. Reference identity is expressed
+//! only by `===` / `!==` (`RefEq` / `RefNe`) and maps to a primitive
+//! pointer comparison. Class construction is function-ized: every
 //! non-abstract class gets a `scoop.ctor.<Class>` function whose
 //! parameters are the constructor properties and whose body returns a
 //! raw `smir::Expr::ClassInit` over the flattened field values (the
@@ -668,16 +658,10 @@ impl Lowerer {
                 continue;
             };
             let ty = method.owner;
-            // Interface methods and the synthesized `Any` members
-            // (`equals` / `hashCode` / `toString`) are signature-only
-            // shells: dispatch goes through the vtable prefix / itable,
-            // so the functions themselves are never emitted — their
-            // declarations only give LIR the parameter / return types
-            // for the indirect call.
-            if matches!(
-                module.types[ty].kind,
-                hir::TypeKind::Interface(..) | hir::TypeKind::Any
-            ) {
+            // Interface methods are signature-only shells: dispatch goes
+            // through the itable, so their declarations only provide the
+            // complete indirect-call signature.
+            if matches!(module.types[ty].kind, hir::TypeKind::Interface(..)) {
                 self.declare_interface_method(module, hir_id);
             }
         }
@@ -2340,21 +2324,14 @@ impl Lowerer {
                     .expect("hir-lower resolves interface references to interface methods");
                 mir::CallKind::Interface { interface, slot }
             }
-            hir::TypeKind::Any => match short_name(&declaration.name) {
-                "equals" => mir::CallKind::Virtual { slot: 0 },
-                "hashCode" => mir::CallKind::Virtual { slot: 1 },
-                "toString" => mir::CallKind::Virtual { slot: 2 },
-                _ => mir::CallKind::Direct,
-            },
+            hir::TypeKind::Any => unreachable!("Any has no methods"),
             _ => mir::CallKind::Direct,
         }
     }
 
-    /// Declare an interface method or a synthesized `Any` member: a
-    /// signature-only shell that is never emitted (not in
-    /// `top_level`). It exists so virtual / interface calls can name a
-    /// callee whose parameter / return types LIR reads for the
-    /// indirect call.
+    /// Declare an interface method as a signature-only shell that is never
+    /// emitted. Virtual interface calls name it so LIR receives the complete
+    /// indirect-call parameter and return types.
     fn declare_interface_method(&mut self, module: &hir::Module, hir_id: hir::FunctionId) {
         let function = &module.functions[hir_id];
         let types = Types {
@@ -2479,10 +2456,9 @@ impl Lowerer {
         }
     }
 
-    /// Fix every class's vtable and itables (impl spec 2.9): vtable
-    /// slots 0..2 are the `Any` defaults; a derived vtable starts
-    /// from the base's (prefix preserved), an override replaces the
-    /// base slot in place, new methods append in declaration order
+    /// Fix every class's vtable and itables (impl spec 2.9): a derived
+    /// vtable starts from the base's (prefix preserved), an override replaces
+    /// the base slot in place, and new virtual methods append in declaration order
     /// (generic methods never enter the vtable — impl spec 2.9).
     /// Slots are keyed by the method's signature (`fn_signature_key`):
     /// an override shares the base method's key and replaces its slot,
@@ -2505,28 +2481,7 @@ impl Lowerer {
                         self.method_slots[&base].clone(),
                     )
                 }
-                None => (
-                    if matches!(
-                        decl.representation,
-                        hir::ClassRepresentation::Intrinsic {
-                            application: hir::IntrinsicTypeRepresentation::String,
-                            ..
-                        }
-                    ) {
-                        vec![
-                            mir::TableSlot::Runtime(mir::RuntimeFn::AnyEquals),
-                            mir::TableSlot::Runtime(mir::RuntimeFn::AnyHashCode),
-                            mir::TableSlot::Runtime(mir::RuntimeFn::StringIdentity),
-                        ]
-                    } else {
-                        vec![
-                            mir::TableSlot::Runtime(mir::RuntimeFn::AnyEquals),
-                            mir::TableSlot::Runtime(mir::RuntimeFn::AnyHashCode),
-                            mir::TableSlot::Runtime(mir::RuntimeFn::AnyToString),
-                        ]
-                    },
-                    HashMap::new(),
-                ),
+                None => (Vec::new(), HashMap::new()),
             };
             for (fn_id, function) in module.functions.iter() {
                 if method_class(module, fn_id, function) != Some(hir_id)
@@ -2734,38 +2689,16 @@ impl Lowerer {
         unreachable!("hir-lower guarantees `{key}` is implemented")
     }
 
-    /// Generate the boxed value types' dispatch members (DESIGN 2.3):
-    /// slot 0 of a boxed vtable is the compiler-generated structural
-    /// equals (`scoop.eq.<ty>`; `hashCode` stays the `Any` default),
-    /// slot 2 is a per-type `toString` for the primitives with a
-    /// runtime conversion (`scoop.tostring.<ty>`, M7 — `Int` /
-    /// `Boolean`; aggregate value types keep the `Any` default
-    /// `scoop_rt_any_tostring` until a spec'd structured format
-    /// lands), and every interface the value type was boxed to gets
-    /// an itable whose slots point at adjust thunks — the thunk's
+    /// Generate boxed value types' ordinary interface dispatch. A box has no
+    /// universal vtable entries; every interface the value type implements
+    /// gets an itable whose slots point at adjust thunks. The thunk's
     /// `this` is the boxed object; it unboxes and tail-calls the real
     /// value method.
     fn finalize_boxed(&mut self, module: &hir::Module, index: usize) {
         let class_id = self.boxed.order[index];
         let payload = self.classes[class_id].declared_fields()[0].ty.clone();
         let encoded = mir::encode_type(&self.shell, &payload);
-        let equals = self.build_boxed_equals(module, &payload, &encoded);
-        let tostring = match payload {
-            mir::Type::Int => {
-                let f = self.build_boxed_tostring(&encoded, mir::RuntimeFn::IntToString);
-                mir::TableSlot::Function(f)
-            }
-            mir::Type::Boolean => {
-                let f = self.build_boxed_tostring(&encoded, mir::RuntimeFn::BoolToString);
-                mir::TableSlot::Function(f)
-            }
-            _ => mir::TableSlot::Runtime(mir::RuntimeFn::AnyToString),
-        };
-        self.classes[class_id].vtable = vec![
-            mir::TableSlot::Function(equals),
-            mir::TableSlot::Runtime(mir::RuntimeFn::AnyHashCode),
-            tostring,
-        ];
+        debug_assert!(self.classes[class_id].vtable.is_empty());
         let interfaces = self.classes[class_id].interfaces.clone();
         for iface in interfaces {
             let (hir_iface, _) = self.interfaces.source(iface);
@@ -2785,185 +2718,6 @@ impl Lowerer {
                 slots,
             });
         }
-    }
-
-    /// `scoop.eq.<ty>`: the structural `equals` of a boxed value
-    /// type — unbox both payloads and compare with the M2/M4
-    /// equality expansion. The signature matches the `Any` vtable
-    /// slot (`(this: Any, other: Any) -> Boolean`) so call sites
-    /// dispatch uniformly.
-    fn build_boxed_equals(
-        &mut self,
-        module: &hir::Module,
-        payload: &mir::Type,
-        encoded: &str,
-    ) -> mir::FunctionId {
-        let mut locals = Arena::new();
-        let this = locals.alloc(mir::Local {
-            name: "this".to_string(),
-            ty: mir::Type::Any,
-            mutable: false,
-        });
-        let other = locals.alloc(mir::Local {
-            name: "other".to_string(),
-            ty: mir::Type::Any,
-            mutable: false,
-        });
-        let a = locals.alloc(mir::Local {
-            name: "$a".to_string(),
-            ty: payload.clone(),
-            mutable: false,
-        });
-        let b = locals.alloc(mir::Local {
-            name: "$b".to_string(),
-            ty: payload.clone(),
-            mutable: false,
-        });
-        let mut lowerer = BodyLowerer {
-            module,
-            struct_map: &self.struct_map,
-            class_map: &self.class_map,
-            interfaces: &mut self.interfaces,
-            structs: &mut self.structs,
-            method_slots: &self.method_slots,
-            function_map: &self.function_map,
-            extern_map: &self.extern_map,
-            global_map: &self.global_map,
-            callback_bridges: &mut self.callback_bridges,
-            callback_by_target: &mut self.callback_by_target,
-            foreign_callback_adapters: &mut self.foreign_callback_adapters,
-            foreign_callback_bridges: &mut self.foreign_callback_bridges,
-            foreign_callback_by_registration: &mut self.foreign_callback_by_registration,
-            ctors: &self.ctors,
-            strings: &mut self.strings,
-            functions: &mut self.functions,
-            top_level: &mut self.top_level,
-            instances: &mut self.instances,
-            enums: &mut self.enums,
-            boxed: &mut self.boxed,
-            classes: &mut self.classes,
-            shell: &mut self.shell,
-            local_map: HashMap::new(),
-            constructor_param_map: HashMap::new(),
-            locals,
-            hidden_count: 0,
-            prelude: Vec::new(),
-            option_variants: self.option_variants,
-            coroutines: &mut self.coroutines,
-            lambda_closures: &self.lambda_closures,
-            anonymous_closures: &self.anonymous_closures,
-            reference_closures: &self.reference_closures,
-            closure_classes: &mut self.closure_classes,
-            closure_invokes: &mut self.closure_invokes,
-            closure_capture_indices: &mut self.closure_capture_indices,
-            closure_adapters: &mut self.closure_adapters,
-            closure_adapter_by_types: &mut self.closure_adapter_by_types,
-            dynamic_closure_adapters: &mut self.dynamic_closure_adapters,
-            dynamic_adapter_by_target: &mut self.dynamic_adapter_by_target,
-            function_bridge_targets: &mut self.function_bridge_targets,
-            suspend_sources: &mut self.suspend_sources,
-            current_closure: None,
-            current_closure_local: None,
-            current_local_capture_params: HashMap::new(),
-        };
-        let equality = lowerer.expand_equality(&Opd::Local(a), &Opd::Local(b), payload, &[], false);
-        let body = smir::Body {
-            locals: lowerer.locals,
-            statements: vec![
-                smir::Statement {
-                    kind: smir::StatementKind::ValDecl {
-                        local: a,
-                        init: smir::Expr::Unbox(Box::new(smir::Expr::Local(this))),
-                    },
-                    span: Span { start: 0, end: 0 },
-                },
-                smir::Statement {
-                    kind: smir::StatementKind::ValDecl {
-                        local: b,
-                        init: smir::Expr::Unbox(Box::new(smir::Expr::Local(other))),
-                    },
-                    span: Span { start: 0, end: 0 },
-                },
-                smir::Statement {
-                    kind: smir::StatementKind::Return {
-                        value: Some(equality),
-                    },
-                    span: Span { start: 0, end: 0 },
-                },
-            ],
-        };
-        let body = cfg::lower(body, mir::Type::Boolean);
-        let name = format!("eq.{encoded}");
-        let id = self.functions.alloc(mir::Function {
-            gc_effect: mir::GcEffect::Managed,
-            symbol: format!("scoop.{name}"),
-            name,
-            params: vec![
-                mir::Param {
-                    name: "this".to_string(),
-                    ty: mir::Type::Any,
-                    local: this,
-                },
-                mir::Param {
-                    name: "other".to_string(),
-                    ty: mir::Type::Any,
-                    local: other,
-                },
-            ],
-            return_ty: mir::Type::Boolean,
-            body,
-        });
-        self.top_level.push(id);
-        id
-    }
-
-    /// `scoop.tostring.<ty>`: the `toString` implementation of a boxed
-    /// primitive (`Int` / `Boolean`, M7) — unbox the payload and
-    /// convert it through the runtime (`scoop_rt_int_to_string` /
-    /// `scoop_rt_bool_to_string`). The signature matches the `Any`
-    /// vtable slot (`(this: Any) -> String`) so `Any.toString()`
-    /// dispatches uniformly; core's `print` / `println` rely on it.
-    fn build_boxed_tostring(&mut self, encoded: &str, convert: mir::RuntimeFn) -> mir::FunctionId {
-        let mut locals = Arena::new();
-        let this = locals.alloc(mir::Local {
-            name: "this".to_string(),
-            ty: mir::Type::Any,
-            mutable: false,
-        });
-        let name = format!("tostring.{encoded}");
-        let body = cfg::lower(
-            smir::Body {
-                locals,
-                statements: vec![smir::Statement {
-                    kind: smir::StatementKind::Return {
-                        value: Some(smir::Expr::Call(smir::Call {
-                            target: mir::CallTarget {
-                                kind: mir::CallKind::Direct,
-                                callee: mir::Callee::Runtime(convert),
-                            },
-                            args: vec![smir::Expr::Unbox(Box::new(smir::Expr::Local(this)))],
-                            return_ty: mir::Type::String,
-                        })),
-                    },
-                    span: Span { start: 0, end: 0 },
-                }],
-            },
-            mir::Type::String,
-        );
-        let id = self.functions.alloc(mir::Function {
-            gc_effect: mir::GcEffect::Managed,
-            symbol: format!("scoop.{name}"),
-            name,
-            params: vec![mir::Param {
-                name: "this".to_string(),
-                ty: mir::Type::Any,
-                local: this,
-            }],
-            return_ty: mir::Type::String,
-            body,
-        });
-        self.top_level.push(id);
-        id
     }
 
     /// The adjust thunk for one (boxed value type, interface method)
@@ -3291,7 +3045,7 @@ fn method_owner_type_arguments(module: &hir::Module, owner: hir::MethodOwner) ->
         hir::MethodOwner::Struct(id) => &module.structs[id].type_arguments,
         hir::MethodOwner::Enum(id) => &module.enums[id].type_arguments,
         hir::MethodOwner::Interface(id) => &module.interfaces[id].type_arguments,
-        hir::MethodOwner::Any => &[],
+        hir::MethodOwner::Structural(_) => &[],
     }
 }
 
@@ -3977,8 +3731,8 @@ struct BodyLowerer<'a> {
     struct_map: &'a HashMap<hir::StructId, mir::StructId>,
     class_map: &'a HashMap<hir::ClassId, mir::ClassId>,
     interfaces: &'a mut InterfaceRegistry,
-    /// MIR struct definitions (field types for equality expansion and GC
-    /// classification of compiler-synthesized aggregates).
+    /// MIR struct definitions used for representation and GC
+    /// classification of compiler-synthesized aggregates.
     structs: &'a mut StructRegistry,
     /// Method signature key -> vtable slot per class
     /// (`compute_dispatch`).
@@ -3999,8 +3753,8 @@ struct BodyLowerer<'a> {
     functions: &'a mut Arena<mir::Function>,
     top_level: &'a mut Vec<mir::FunctionId>,
     instances: &'a mut InstanceRegistry,
-    /// Instantiated enum definitions, filled on creation (variant
-    /// field types feed pattern lowering and the equality expansion).
+    /// Instantiated enum definitions, filled on creation; variant
+    /// field types feed pattern lowering and representation.
     enums: &'a mut EnumRegistry,
     /// Boxed value types discovered in this body (`Box` / `is` / `as`).
     boxed: &'a mut BoxedRegistry,
@@ -4043,21 +3797,11 @@ struct BodyLowerer<'a> {
     current_local_capture_params: HashMap<hir::BindingId, hir::LocalId>,
 }
 
-/// A step from a compared operand down to the sub-value at an equality
-/// leaf: a struct field / tuple element access, or an enum variant
-/// field extraction.
+/// A step from a pattern subject down to a nested field.
 #[derive(Clone, Copy)]
 enum Access {
     Field(u32),
     EnumField { variant: u32, index: u32 },
-}
-
-/// An equality operand: either a HIR expression (re-lowered at each
-/// leaf — see `expand_equality`'s purity note) or the hidden local a
-/// `when` subject / destructured value was evaluated into.
-enum Opd<'a> {
-    Hir(&'a hir::Expr),
-    Local(mir::LocalId),
 }
 
 impl BodyLowerer<'_> {
@@ -4912,14 +4656,30 @@ impl BodyLowerer<'_> {
     ) -> Option<smir::Expr> {
         match pattern {
             hir::Pattern::Binding { local } => {
-                let init = self.accessed(&Opd::Local(root), path);
+                let init = self.accessed(root, path);
                 bindings.push((self.local_map[local], init));
                 None
             }
             hir::Pattern::Wildcard => None,
-            // A literal matches by equality (the M2/M3 expansion).
-            hir::Pattern::Literal(literal) => {
-                Some(self.expand_equality(&Opd::Local(root), &Opd::Hir(literal), ty, path, false))
+            hir::Pattern::Literal {
+                value,
+                equals,
+                subject_ty,
+            } => {
+                debug_assert_eq!(self.lower_type(*subject_ty), *ty);
+                let function = self.module.callable_function(*equals);
+                let callee = self.instances.get(function).map_or_else(
+                    || mir::Callee::User(self.function_map[&function]),
+                    mir::Callee::Monomorphized,
+                );
+                Some(smir::Expr::Call(smir::Call {
+                    target: mir::CallTarget {
+                        kind: mir::CallKind::Direct,
+                        callee,
+                    },
+                    args: vec![self.accessed(root, path), self.lower_expr(value)],
+                    return_ty: mir::Type::Boolean,
+                }))
             }
             hir::Pattern::Variant {
                 variant, fields, ..
@@ -4929,7 +4689,7 @@ impl BodyLowerer<'_> {
                 };
                 let enum_id = *enum_id;
                 let variant = variant.into_raw();
-                let tag = smir::Expr::EnumTag(Box::new(self.accessed(&Opd::Local(root), path)));
+                let tag = smir::Expr::EnumTag(Box::new(self.accessed(root, path)));
                 let mut cond = smir::Expr::Binary {
                     op: mir::BinOp::IntEq,
                     lhs: Box::new(tag),
@@ -6062,13 +5822,12 @@ impl BodyLowerer<'_> {
         enum Receiver {
             Class(hir::ClassId),
             Interface(hir::TypeId),
-            Any,
             Value,
         }
         let receiver_kind = match &module.types[receiver.ty].kind {
             hir::TypeKind::Class(class) => Receiver::Class(*class),
             hir::TypeKind::Interface(..) => Receiver::Interface(receiver.ty),
-            hir::TypeKind::Any => Receiver::Any,
+            hir::TypeKind::Any => unreachable!("Any has no methods"),
             _ => Receiver::Value,
         };
         let generic_static_method = is_generic_method(f);
@@ -6112,15 +5871,6 @@ impl BodyLowerer<'_> {
                             .expect("hir-lower resolves interface calls to interface methods"),
                     }
                 }
-                // The `Any` defaults dispatch through the fixed vtable
-                // prefix; anything else hir-lower resolves on `Any` is a
-                // plain direct call.
-                Receiver::Any => match short_name(&f.name) {
-                    "equals" => mir::CallKind::Virtual { slot: 0 },
-                    "hashCode" => mir::CallKind::Virtual { slot: 1 },
-                    "toString" => mir::CallKind::Virtual { slot: 2 },
-                    _ => mir::CallKind::Direct,
-                },
                 Receiver::Value => mir::CallKind::Direct,
             }
         };
@@ -6414,15 +6164,8 @@ impl BodyLowerer<'_> {
             hir::BinOp::Le => self.primitive(IntLe, lhs, rhs),
             hir::BinOp::Gt => self.primitive(IntGt, lhs, rhs),
             hir::BinOp::Ge => self.primitive(IntGe, lhs, rhs),
-            // Structural equality dispatches on the concrete
-            // (monomorphized) operand type.
-            hir::BinOp::Eq => {
-                let ty = self.lower_type(lhs.ty);
-                self.expand_equality(&Opd::Hir(lhs), &Opd::Hir(rhs), &ty, &[], false)
-            }
-            hir::BinOp::Ne => {
-                let ty = self.lower_type(lhs.ty);
-                self.expand_equality(&Opd::Hir(lhs), &Opd::Hir(rhs), &ty, &[], true)
+            hir::BinOp::Eq | hir::BinOp::Ne => {
+                unreachable!("HIR resolves == and != to exact method calls")
             }
             // `===` / `!==`: reference identity — the primitive
             // comparison on the two pointers.
@@ -6447,286 +6190,10 @@ impl BodyLowerer<'_> {
         logic(op, lhs, rhs)
     }
 
-    /// Expand `==` / `!=` on operands of the concrete (monomorphized)
-    /// type `ty` (DESIGN 2.3 / 3.3):
-    ///
-    /// - Int / Boolean: the primitive MIR comparison;
-    /// - String: a `scoop_rt_string_eq` call (`!=` wraps it in `!`);
-    /// - struct / tuple: per-field comparisons, folded with `&&` for
-    ///   `==`; `!=` folds per-field `!=` with `||` — the De Morgan
-    ///   dual of the `==` tree, equivalent to negating it because
-    ///   field access is pure;
-    /// - enum: the tags must be equal, and for every payload-carrying
-    ///   variant `i`, `tag != i || <fields equal>` — the De Morgan
-    ///   dual for `!=`. Unit variants carry no payload, so the tag
-    ///   comparison covers them;
-    /// - Unit (the empty tuple): a constant — `() == ()` is always
-    ///   `true`, `() != ()` always `false`;
-    /// - arrays: none — M5 has no array equality semantics (DESIGN 6),
-    ///   and hir-lower rejects `==` / `!=` on array types, so arrays
-    ///   never reach this expansion (neither as operands nor nested
-    ///   inside compared aggregates).
-    ///
-    /// `path` is the chain of field accesses and variant field
-    /// extractions from the top-level operands down to the values
-    /// compared at this level. HIR operands are re-lowered at each
-    /// leaf; this duplicates structure, not effects, because
-    /// everything that can appear as an operand here is pure (M2
-    /// assumption, still valid in M4): field access, and calls —
-    /// value-returning calls are treated as pure by convention, and
-    /// Unit-returning calls cannot appear because both operands share
-    /// the compared type. If impure value-returning calls ever become
-    /// observable, this expansion must route the operands through
-    /// hidden temporaries instead of re-lowering them.
-    fn expand_equality(
-        &mut self,
-        lhs: &Opd,
-        rhs: &Opd,
-        ty: &mir::Type,
-        path: &[Access],
-        negate: bool,
-    ) -> smir::Expr {
-        match ty {
-            // UInt compares with the same integer equality as Int
-            // (the same machine word, M9).
-            mir::Type::Int | mir::Type::UInt | mir::Type::Ptr(_) | mir::Type::FunPtr(_) => {
-                let op = if negate {
-                    mir::BinOp::IntNe
-                } else {
-                    mir::BinOp::IntEq
-                };
-                self.comparison(op, lhs, rhs, path)
-            }
-            mir::Type::Boolean => {
-                let op = if negate {
-                    mir::BinOp::BoolNe
-                } else {
-                    mir::BinOp::BoolEq
-                };
-                self.comparison(op, lhs, rhs, path)
-            }
-            mir::Type::String => {
-                let call = smir::Expr::Call(smir::Call {
-                    target: mir::CallTarget {
-                        kind: mir::CallKind::Direct,
-                        callee: mir::Callee::Runtime(mir::RuntimeFn::StringEq),
-                    },
-                    args: vec![self.accessed(lhs, path), self.accessed(rhs, path)],
-                    return_ty: mir::Type::Boolean,
-                });
-                if negate {
-                    smir::Expr::Unary {
-                        op: mir::UnOp::BoolNot,
-                        operand: Box::new(call),
-                    }
-                } else {
-                    call
-                }
-            }
-            mir::Type::Unit => smir::Expr::BoolLiteral(!negate),
-            mir::Type::Struct(id) => {
-                let field_types: Vec<mir::Type> = self.structs.defs[*id]
-                    .declared_fields()
-                    .iter()
-                    .map(|field| field.ty.clone())
-                    .collect();
-                self.expand_fields(lhs, rhs, &field_types, path, negate)
-            }
-            mir::Type::Tuple(elements) => {
-                let elements = elements.clone();
-                self.expand_fields(lhs, rhs, &elements, path, negate)
-            }
-            mir::Type::Enum(id, _) => {
-                let id = *id;
-                self.expand_enum_equality(lhs, rhs, id, path, negate)
-            }
-            // References compare by identity: the `Any` default
-            // `equals` is reference equality and M6 has no
-            // user-defined `equals` (milestone6 DESIGN 5.1). The
-            // operands are pointers, so the primitive integer
-            // comparison is a pointer comparison here.
-            mir::Type::Class(class)
-                if matches!(
-                    self.classes[*class].representation,
-                    mir::ClassRepresentation::Intrinsic(
-                        mir::IntrinsicTypeRepresentation::Array { .. }
-                            | mir::IntrinsicTypeRepresentation::MutableArray { .. }
-                    )
-                ) =>
-            {
-                unreachable!("hir-lower rejects equality on array types")
-            }
-            mir::Type::Class(_)
-            | mir::Type::Interface(_)
-            | mir::Type::Function(_)
-            | mir::Type::Any => {
-                let op = if negate {
-                    mir::BinOp::IntNe
-                } else {
-                    mir::BinOp::IntEq
-                };
-                self.comparison(op, lhs, rhs, path)
-            }
-        }
-    }
-
-    /// Enum equality (DESIGN 3.3): `tag(a) == tag(b)` and, for every
-    /// payload-carrying variant `i`, `tag(a) != i || <fields equal>`.
-    /// The fields are only extracted once the tag is known to match
-    /// (CFG normalization expands `&&` / `||`). For `!=` the whole tree is
-    /// dualized: `And` / `Or` swapped, the tag leaves negated, the
-    /// fields compared with `!=`.
-    fn expand_enum_equality(
-        &mut self,
-        lhs: &Opd,
-        rhs: &Opd,
-        enum_id: mir::EnumId,
-        path: &[Access],
-        negate: bool,
-    ) -> smir::Expr {
-        let variants: Vec<Vec<mir::Type>> = self.enums.defs[enum_id]
-            .variants
-            .iter()
-            .map(|variant| {
-                variant
-                    .fields
-                    .iter()
-                    .map(|field| field.ty.clone())
-                    .collect()
-            })
-            .collect();
-        let tag_comparison = smir::Expr::Binary {
-            op: if negate {
-                mir::BinOp::IntNe
-            } else {
-                mir::BinOp::IntEq
-            },
-            lhs: Box::new(smir::Expr::EnumTag(Box::new(self.accessed(lhs, path)))),
-            rhs: Box::new(smir::Expr::EnumTag(Box::new(self.accessed(rhs, path)))),
-        };
-        let mut combined: Option<smir::Expr> = None;
-        for (variant, field_types) in variants.iter().enumerate() {
-            // Unit variants carry no payload; the tag comparison
-            // covers them.
-            if field_types.is_empty() {
-                continue;
-            }
-            let variant = variant as u32;
-            let guard = smir::Expr::Binary {
-                op: if negate {
-                    mir::BinOp::IntEq
-                } else {
-                    mir::BinOp::IntNe
-                },
-                lhs: Box::new(smir::Expr::EnumTag(Box::new(self.accessed(lhs, path)))),
-                rhs: Box::new(smir::Expr::IntLiteral(i64::from(variant))),
-            };
-            let mut fields: Option<smir::Expr> = None;
-            for (index, field_ty) in field_types.iter().enumerate() {
-                let mut field_path = path.to_vec();
-                field_path.push(Access::EnumField {
-                    variant,
-                    index: index as u32,
-                });
-                let comparison = self.expand_equality(lhs, rhs, field_ty, &field_path, negate);
-                fields = Some(match fields {
-                    None => comparison,
-                    Some(acc) => logic(
-                        if negate {
-                            smir::LogicOp::Or
-                        } else {
-                            smir::LogicOp::And
-                        },
-                        acc,
-                        comparison,
-                    ),
-                });
-            }
-            let fields = fields.expect("payload-carrying variant");
-            let clause = logic(
-                if negate {
-                    smir::LogicOp::And
-                } else {
-                    smir::LogicOp::Or
-                },
-                guard,
-                fields,
-            );
-            combined = Some(match combined {
-                None => clause,
-                Some(acc) => logic(
-                    if negate {
-                        smir::LogicOp::Or
-                    } else {
-                        smir::LogicOp::And
-                    },
-                    acc,
-                    clause,
-                ),
-            });
-        }
-        match combined {
-            None => tag_comparison,
-            Some(clauses) => logic(
-                if negate {
-                    smir::LogicOp::Or
-                } else {
-                    smir::LogicOp::And
-                },
-                tag_comparison,
-                clauses,
-            ),
-        }
-    }
-
-    /// Fold the per-field comparisons of an aggregate equality: `&&`
-    /// over `==` leaves for `==`, `||` over `!=` leaves for `!=`; an
-    /// empty aggregate compares as the corresponding constant.
-    fn expand_fields(
-        &mut self,
-        lhs: &Opd,
-        rhs: &Opd,
-        field_types: &[mir::Type],
-        path: &[Access],
-        negate: bool,
-    ) -> smir::Expr {
-        let mut folded: Option<smir::Expr> = None;
-        for (index, field_ty) in field_types.iter().enumerate() {
-            let mut field_path = path.to_vec();
-            field_path.push(Access::Field(index as u32));
-            let comparison = self.expand_equality(lhs, rhs, field_ty, &field_path, negate);
-            folded = Some(match folded {
-                None => comparison,
-                Some(acc) => logic(
-                    if negate {
-                        smir::LogicOp::Or
-                    } else {
-                        smir::LogicOp::And
-                    },
-                    acc,
-                    comparison,
-                ),
-            });
-        }
-        folded.unwrap_or(smir::Expr::BoolLiteral(!negate))
-    }
-
-    /// Primitive comparison of the operand sub-values at `path`.
-    fn comparison(&mut self, op: mir::BinOp, lhs: &Opd, rhs: &Opd, path: &[Access]) -> smir::Expr {
-        let lhs = Box::new(self.accessed(lhs, path));
-        let rhs = Box::new(self.accessed(rhs, path));
-        smir::Expr::Binary { op, lhs, rhs }
-    }
-
-    /// Produce the operand value and wrap it in the `path` accesses.
-    /// Variant field extractions never fail: the decision sequence and
-    /// the equality tree only evaluate them once the tag is known to
-    /// match.
-    fn accessed(&mut self, opd: &Opd, path: &[Access]) -> smir::Expr {
-        let mut lowered = match opd {
-            Opd::Hir(expr) => self.lower_expr(expr),
-            Opd::Local(local) => smir::Expr::Local(*local),
-        };
+    /// Produce a pattern subject's nested value. Variant field extractions are
+    /// guarded by the decision sequence that proved the active tag.
+    fn accessed(&mut self, root: mir::LocalId, path: &[Access]) -> smir::Expr {
+        let mut lowered = smir::Expr::Local(root);
         for access in path {
             lowered = match access {
                 Access::Field(index) => smir::Expr::FieldAccess {
@@ -6985,6 +6452,7 @@ mod tests {
                 interfaces: Vec::new(),
                 interface_implementations: Vec::new(),
                 methods: Vec::new(),
+                derived_equality: None,
                 span: SPAN,
             });
             let option_self_type = hir::TypeId::from_raw((types.len() as u32).into());
@@ -7384,6 +6852,7 @@ mod tests {
                 interfaces: Vec::new(),
                 interface_implementations: Vec::new(),
                 methods: Vec::new(),
+                derived_equality: None,
                 span: SPAN,
             });
             let actual = self.enum_application(enumeration, self_arguments);
@@ -7717,7 +7186,7 @@ mod tests {
                 hir::Type::Interface(application) => {
                     hir::MethodOwnerApplication::Interface(application)
                 }
-                hir::Type::Any => hir::MethodOwnerApplication::Any,
+                hir::Type::Any => panic!("Any has no methods"),
                 _ => panic!("test harness methods have nominal owners"),
             };
             let key = (function, owner);
@@ -7777,6 +7246,7 @@ mod tests {
                 interfaces,
                 interface_implementations,
                 methods: Vec::new(),
+                derived_equality: None,
                 span: SPAN,
             });
             let actual = self.struct_application(strukt, self_arguments);
@@ -7805,6 +7275,7 @@ mod tests {
                 interfaces: Vec::new(),
                 interface_implementations: Vec::new(),
                 methods: Vec::new(),
+                derived_equality: None,
                 span: SPAN,
             });
             let representation = kind.application(&[]);
@@ -8480,6 +7951,7 @@ mod tests {
                 method_applications: self.method_applications,
                 generic_methods: self.generic_methods,
                 generic_method_applications: self.generic_method_applications,
+                derived_equality_applications: Arena::new(),
                 structs: self.structs,
                 struct_applications: self.struct_applications,
                 enums: self.enums,
@@ -9681,9 +9153,9 @@ Module
         // Each overload gets its own vtable slot (keyed by signature),
         // referencing the final (overload-encoded) symbol by id.
         let doc_def = &module.classes[class_index(0)];
-        assert_eq!(doc_def.vtable.len(), 5);
-        assert_eq!(slot_fn(&module, &doc_def.vtable[3]), "scoop.Doc.describe.I");
-        assert_eq!(slot_fn(&module, &doc_def.vtable[4]), "scoop.Doc.describe.S");
+        assert_eq!(doc_def.vtable.len(), 2);
+        assert_eq!(slot_fn(&module, &doc_def.vtable[0]), "scoop.Doc.describe.I");
+        assert_eq!(slot_fn(&module, &doc_def.vtable[1]), "scoop.Doc.describe.S");
     }
 
     /// A class method returning an Int constant:
@@ -9740,18 +9212,18 @@ Module
         let main = empty_main(&mut h);
         let module = lower(&h.finish(main));
 
-        // A: two overload slots after the Any defaults.
+        // A: one slot per overload.
         let a_def = &module.classes[class_index(0)];
-        assert_eq!(a_def.vtable.len(), 5);
-        assert_eq!(slot_fn(&module, &a_def.vtable[3]), "scoop.A.s.I");
-        assert_eq!(slot_fn(&module, &a_def.vtable[4]), "scoop.A.s.S");
-        // B: the `s(Int)` override replaces slot 3 in place; the
-        // inherited `s(String)` keeps slot 4. (`B.s` is a unique name
+        assert_eq!(a_def.vtable.len(), 2);
+        assert_eq!(slot_fn(&module, &a_def.vtable[0]), "scoop.A.s.I");
+        assert_eq!(slot_fn(&module, &a_def.vtable[1]), "scoop.A.s.S");
+        // B: the `s(Int)` override replaces slot 0 in place; the
+        // inherited `s(String)` keeps slot 1. (`B.s` is a unique name
         // in the module, so it keeps the plain symbol.)
         let b_def = &module.classes[class_index(1)];
-        assert_eq!(b_def.vtable.len(), 5);
-        assert_eq!(slot_fn(&module, &b_def.vtable[3]), "scoop.B.s");
-        assert_eq!(slot_fn(&module, &b_def.vtable[4]), "scoop.A.s.S");
+        assert_eq!(b_def.vtable.len(), 2);
+        assert_eq!(slot_fn(&module, &b_def.vtable[0]), "scoop.B.s");
+        assert_eq!(slot_fn(&module, &b_def.vtable[1]), "scoop.A.s.S");
     }
 
     #[test]
@@ -9797,8 +9269,8 @@ Module
             let (call, _) = statement_call(&entry_statements(body)[index]);
             &call.target.kind
         };
-        assert!(matches!(call_kind(0), mir::CallKind::Virtual { slot: 3 }));
-        assert!(matches!(call_kind(1), mir::CallKind::Virtual { slot: 4 }));
+        assert!(matches!(call_kind(0), mir::CallKind::Virtual { slot: 0 }));
+        assert!(matches!(call_kind(1), mir::CallKind::Virtual { slot: 1 }));
     }
 
     /// `interface <name> { fun m(v: T)... }` — one `MethodSig` per
@@ -10030,8 +9502,6 @@ Module
             (hir::BinOp::Le, mir::BinOp::IntLe),
             (hir::BinOp::Gt, mir::BinOp::IntGt),
             (hir::BinOp::Ge, mir::BinOp::IntGe),
-            (hir::BinOp::Eq, mir::BinOp::IntEq),
-            (hir::BinOp::Ne, mir::BinOp::IntNe),
         ];
         for (hir_op, _) in &int_cases {
             let ty = if matches!(hir_op, hir::BinOp::Add | hir::BinOp::Sub | hir::BinOp::Mul) {
@@ -10046,18 +9516,6 @@ Module
                 ty,
             )));
         }
-        let bool_cases = [
-            (hir::BinOp::Eq, mir::BinOp::BoolEq),
-            (hir::BinOp::Ne, mir::BinOp::BoolNe),
-        ];
-        for (hir_op, _) in &bool_cases {
-            statements.push(expr_stmt(binary(
-                *hir_op,
-                bool_lit(&h, true),
-                bool_lit(&h, false),
-                h.boolean,
-            )));
-        }
         let main = h.user_fn(
             "main",
             hir::Body {
@@ -10067,11 +9525,7 @@ Module
         );
         let module = lower(&h.finish(main));
 
-        let expected: Vec<mir::BinOp> = int_cases
-            .iter()
-            .chain(bool_cases.iter())
-            .map(|(_, mir_op)| *mir_op)
-            .collect();
+        let expected: Vec<mir::BinOp> = int_cases.iter().map(|(_, mir_op)| *mir_op).collect();
         let body = &module.functions[module.entry].body;
         let ops: Vec<mir::BinOp> = entry_statements(body)
             .iter()
@@ -10284,7 +9738,7 @@ Module
 
         let expected = "\
 Module
-  class ArithmeticException vtable=3 itables=0
+  class ArithmeticException vtable=0 itables=0
   fun main @scoop_main() -> Unit
     bb0 entry
       val $div.1: Int
@@ -10351,7 +9805,7 @@ Module
 
         let expected = "\
 Module
-  class MyError vtable=3 itables=0
+  class MyError vtable=0 itables=0
   fun main @scoop_main() -> Unit
     bb0 entry
       goto bb8
@@ -10444,393 +9898,6 @@ Module
             })
             .collect();
         assert_eq!(ops, [mir::UnOp::IntNeg, mir::UnOp::BoolNot]);
-    }
-
-    #[test]
-    fn string_equality_lowers_to_runtime_eq() {
-        let mut h = Harness::new();
-        let mut locals = Arena::new();
-        let e = locals.alloc(local("e", h.boolean));
-        let n = locals.alloc(local("n", h.boolean));
-        let main = h.user_fn(
-            "main",
-            hir::Body {
-                locals,
-                statements: vec![
-                    val_decl(
-                        e,
-                        binary(
-                            hir::BinOp::Eq,
-                            str_lit(&h, "a"),
-                            str_lit(&h, "b"),
-                            h.boolean,
-                        ),
-                    ),
-                    val_decl(
-                        n,
-                        binary(
-                            hir::BinOp::Ne,
-                            str_lit(&h, "a"),
-                            str_lit(&h, "b"),
-                            h.boolean,
-                        ),
-                    ),
-                ],
-            },
-        );
-        let module = lower(&h.finish(main));
-
-        let body = &module.functions[module.entry].body;
-        let statements = entry_statements(body);
-        let (call, destination) = statement_call(&statements[0]);
-        assert_eq!(
-            call.target.callee,
-            mir::Callee::Runtime(mir::RuntimeFn::StringEq)
-        );
-        let destination = destination.expect("String equality returns Boolean");
-        assert_eq!(body.locals[destination].name, "e");
-
-        // `!=` materializes the equality call before applying boolean negation.
-        let (call, call_result) = statement_call(&statements[1]);
-        assert_eq!(
-            call.target.callee,
-            mir::Callee::Runtime(mir::RuntimeFn::StringEq)
-        );
-        let call_result = call_result.expect("String equality returns Boolean");
-        let mir::StatementKind::ValDecl { local, init: ne } = &statements[2].kind else {
-            panic!("expected a val declaration")
-        };
-        assert_eq!(body.locals[*local].name, "n");
-        let mir::Expr::Unary {
-            op: mir::UnOp::BoolNot,
-            operand,
-        } = ne
-        else {
-            panic!("String `!=` must negate the equality call")
-        };
-        assert!(matches!(operand.as_ref(), mir::Expr::Local(local) if *local == call_result));
-    }
-
-    #[test]
-    fn unit_equality_is_constant() {
-        let mut h = Harness::new();
-        let mut locals = Arena::new();
-        let b = locals.alloc(local("b", h.boolean));
-        let c = locals.alloc(local("c", h.boolean));
-        let unit_lit = |h: &Harness| expr(hir::ExprKind::UnitLiteral, h.unit);
-        let main = h.user_fn(
-            "main",
-            hir::Body {
-                locals,
-                statements: vec![
-                    val_decl(
-                        b,
-                        binary(hir::BinOp::Eq, unit_lit(&h), unit_lit(&h), h.boolean),
-                    ),
-                    val_decl(
-                        c,
-                        binary(hir::BinOp::Ne, unit_lit(&h), unit_lit(&h), h.boolean),
-                    ),
-                ],
-            },
-        );
-        let module = lower(&h.finish(main));
-
-        let body = &module.functions[module.entry].body;
-        let mir::StatementKind::ValDecl { init: eq, .. } = &entry_statements(body)[0].kind else {
-            panic!("expected a val declaration")
-        };
-        assert!(matches!(eq, mir::Expr::BoolLiteral(true)));
-        let mir::StatementKind::ValDecl { init: ne, .. } = &entry_statements(body)[1].kind else {
-            panic!("expected a val declaration")
-        };
-        assert!(matches!(ne, mir::Expr::BoolLiteral(false)));
-    }
-
-    #[test]
-    fn struct_equality_expands_into_per_field_comparisons() {
-        let mut h = Harness::new();
-        let point = h.strukt("Point", &[("x", h.int), ("y", h.int)]);
-        let point_ty = h.struct_ty(point);
-        let mut locals = Arena::new();
-        let p = locals.alloc(local("p", point_ty));
-        let q = locals.alloc(local("q", point_ty));
-        let b = locals.alloc(local("b", h.boolean));
-        let main = h.user_fn(
-            "main",
-            hir::Body {
-                locals,
-                statements: vec![
-                    val_decl(
-                        p,
-                        struct_init(&h, point_ty, vec![int_lit(&h, 1), int_lit(&h, 2)]),
-                    ),
-                    val_decl(
-                        q,
-                        struct_init(&h, point_ty, vec![int_lit(&h, 3), int_lit(&h, 4)]),
-                    ),
-                    val_decl(
-                        b,
-                        binary(
-                            hir::BinOp::Eq,
-                            local_ref(p, point_ty),
-                            local_ref(q, point_ty),
-                            h.boolean,
-                        ),
-                    ),
-                ],
-            },
-        );
-        let module = lower(&h.finish(main));
-
-        // The struct arena is transposed in declaration order.
-        assert_eq!(
-            module
-                .structs
-                .iter()
-                .filter(|(_, definition)| matches!(
-                    definition.representation,
-                    mir::StructRepresentation::Declared { .. }
-                ))
-                .count(),
-            1
-        );
-
-        let expected = "\
-Module
-  struct Point (x: Int, y: Int)
-  fun main @scoop_main() -> Unit
-    bb0 entry
-      val p: Point
-        StructInit Point
-          IntLiteral 1
-          IntLiteral 2
-      val q: Point
-        StructInit Point
-          IntLiteral 3
-          IntLiteral 4
-      branch bb1 bb2
-        Binary IntEq
-          FieldAccess 0
-            Local p
-          FieldAccess 0
-            Local q
-    bb1 logic.rhs.1
-      assign $logic.1
-        Binary IntEq
-          FieldAccess 1
-            Local p
-          FieldAccess 1
-            Local q
-      goto bb3
-    bb2 logic.short.2
-      assign $logic.1
-        BoolLiteral false
-      goto bb3
-    bb3 logic.merge.3
-      val b: Boolean
-        Local $logic.1
-      return
-  entry @scoop_main
-";
-        assert_eq!(dump(&module), expected);
-    }
-
-    #[test]
-    fn nested_aggregate_inequality_expands_recursively() {
-        // struct Wrap(val tag: String, val pair: (Int, Boolean))
-        let mut h = Harness::new();
-        let pair = h.tuple(&[h.int, h.boolean]);
-        let wrap = h.strukt("Wrap", &[("tag", h.string), ("pair", pair)]);
-        let wrap_ty = h.struct_ty(wrap);
-        let mut locals = Arena::new();
-        let w1 = locals.alloc(local("w1", wrap_ty));
-        let w2 = locals.alloc(local("w2", wrap_ty));
-        let r = locals.alloc(local("r", h.boolean));
-        let tuple_lit =
-            |elements: Vec<hir::Expr>| expr(hir::ExprKind::TupleLiteral(elements), pair);
-        let main = h.user_fn(
-            "main",
-            hir::Body {
-                locals,
-                statements: vec![
-                    val_decl(
-                        w1,
-                        struct_init(
-                            &h,
-                            wrap_ty,
-                            vec![
-                                str_lit(&h, "a"),
-                                tuple_lit(vec![int_lit(&h, 1), bool_lit(&h, true)]),
-                            ],
-                        ),
-                    ),
-                    val_decl(
-                        w2,
-                        struct_init(
-                            &h,
-                            wrap_ty,
-                            vec![
-                                str_lit(&h, "b"),
-                                tuple_lit(vec![int_lit(&h, 2), bool_lit(&h, false)]),
-                            ],
-                        ),
-                    ),
-                    val_decl(
-                        r,
-                        binary(
-                            hir::BinOp::Ne,
-                            local_ref(w1, wrap_ty),
-                            local_ref(w2, wrap_ty),
-                            h.boolean,
-                        ),
-                    ),
-                ],
-            },
-        );
-        let module = lower(&h.finish(main));
-
-        // `!=` folds per-field `!=` with `||`; the String field goes
-        // through `scoop_rt_string_eq` negated, the nested tuple
-        // recurses into per-element comparisons.
-        let expected = "\
-Module
-  struct Wrap (tag: String, pair: (Int, Boolean))
-  fun main @scoop_main() -> Unit
-    bb0 entry
-      val w1: Wrap
-        StructInit Wrap
-          StringConst @scoop.str.0
-          TupleLiteral
-            IntLiteral 1
-            BoolLiteral true
-      val w2: Wrap
-        StructInit Wrap
-          StringConst @scoop.str.1
-          TupleLiteral
-            IntLiteral 2
-            BoolLiteral false
-      call $call.1: Boolean = @scoop_rt_string_eq direct
-        FieldAccess 0
-          Local w1
-        FieldAccess 0
-          Local w2
-      branch bb2 bb1
-        Unary BoolNot
-          Local $call.1
-    bb1 logic.rhs.1
-      branch bb5 bb4
-        Binary IntNe
-          FieldAccess 0
-            FieldAccess 1
-              Local w1
-          FieldAccess 0
-            FieldAccess 1
-              Local w2
-    bb2 logic.short.2
-      assign $logic.2
-        BoolLiteral true
-      goto bb3
-    bb3 logic.merge.3
-      val r: Boolean
-        Local $logic.2
-      return
-    bb4 logic.rhs.4
-      assign $logic.3
-        Binary BoolNe
-          FieldAccess 1
-            FieldAccess 1
-              Local w1
-          FieldAccess 1
-            FieldAccess 1
-              Local w2
-      goto bb6
-    bb5 logic.short.5
-      assign $logic.3
-        BoolLiteral true
-      goto bb6
-    bb6 logic.merge.6
-      assign $logic.2
-        Local $logic.3
-      goto bb3
-  str @scoop.str.0 \"a\"
-  str @scoop.str.1 \"b\"
-  entry @scoop_main
-";
-        assert_eq!(dump(&module), expected);
-    }
-
-    #[test]
-    fn tuple_equality_expands_per_element() {
-        let mut h = Harness::new();
-        let pair = h.tuple(&[h.int, h.string]);
-        let mut locals = Arena::new();
-        let t1 = locals.alloc(local("t1", pair));
-        let t2 = locals.alloc(local("t2", pair));
-        let b = locals.alloc(local("b", h.boolean));
-        let tuple_lit =
-            |elements: Vec<hir::Expr>| expr(hir::ExprKind::TupleLiteral(elements), pair);
-        let main = h.user_fn(
-            "main",
-            hir::Body {
-                locals,
-                statements: vec![
-                    val_decl(t1, tuple_lit(vec![int_lit(&h, 1), str_lit(&h, "x")])),
-                    val_decl(t2, tuple_lit(vec![int_lit(&h, 2), str_lit(&h, "y")])),
-                    val_decl(
-                        b,
-                        binary(
-                            hir::BinOp::Eq,
-                            local_ref(t1, pair),
-                            local_ref(t2, pair),
-                            h.boolean,
-                        ),
-                    ),
-                ],
-            },
-        );
-        let module = lower(&h.finish(main));
-
-        let expected = "\
-Module
-  fun main @scoop_main() -> Unit
-    bb0 entry
-      val t1: (Int, String)
-        TupleLiteral
-          IntLiteral 1
-          StringConst @scoop.str.0
-      val t2: (Int, String)
-        TupleLiteral
-          IntLiteral 2
-          StringConst @scoop.str.1
-      branch bb1 bb2
-        Binary IntEq
-          FieldAccess 0
-            Local t1
-          FieldAccess 0
-            Local t2
-    bb1 logic.rhs.1
-      call $call.2: Boolean = @scoop_rt_string_eq direct
-        FieldAccess 1
-          Local t1
-        FieldAccess 1
-          Local t2
-      assign $logic.1
-        Local $call.2
-      goto bb3
-    bb2 logic.short.2
-      assign $logic.1
-        BoolLiteral false
-      goto bb3
-    bb3 logic.merge.3
-      val b: Boolean
-        Local $logic.1
-      return
-  str @scoop.str.0 \"x\"
-  str @scoop.str.1 \"y\"
-  entry @scoop_main
-";
-        assert_eq!(dump(&module), expected);
     }
 
     #[test]
@@ -11437,7 +10504,7 @@ Module
   enum Option$I
     Some(_1: Int)
     None()
-  class UnwrapException vtable=3 itables=0
+  class UnwrapException vtable=0 itables=0
   fun main @scoop_main() -> Unit
     bb0 entry
       val o: Option$I<Int>
@@ -11474,157 +10541,6 @@ Module
 
     /// `val a: Option<Int> = None; val b = Some(1); val r = a <op> b`
     /// — the shared shell of the enum equality tests.
-    fn option_comparison(mut h: Harness, op: hir::BinOp) -> mir::Module {
-        let (int, boolean) = (h.int, h.boolean);
-        let option_int = h.option(int);
-        let mut locals = Arena::new();
-        let a = locals.alloc(local("a", option_int));
-        let b = locals.alloc(local("b", option_int));
-        let r = locals.alloc(local("r", boolean));
-        let statements = vec![
-            val_decl(a, expr(hir::ExprKind::NoneLiteral, option_int)),
-            val_decl(
-                b,
-                expr(
-                    hir::ExprKind::SomeWrap(Box::new(int_lit(&h, 1))),
-                    option_int,
-                ),
-            ),
-            val_decl(
-                r,
-                binary(
-                    op,
-                    local_ref(a, option_int),
-                    local_ref(b, option_int),
-                    boolean,
-                ),
-            ),
-        ];
-        let main = h.user_fn("main", hir::Body { locals, statements });
-        lower(&h.finish(main))
-    }
-
-    #[test]
-    fn enum_equality_compares_tags_then_payloads() {
-        let h = Harness::new();
-        let module = option_comparison(h, hir::BinOp::Eq);
-
-        // Tags equal, and for the payload-carrying variant:
-        // `tag != Some || payloads equal`. The unit variant (None) is
-        // covered by the tag comparison alone.
-        let expected = "\
-Module
-  enum Option$I
-    Some(_1: Int)
-    None()
-  fun main @scoop_main() -> Unit
-    bb0 entry
-      val a: Option$I<Int>
-        VariantConstruct Option$I<Int> v1
-      val b: Option$I<Int>
-        VariantConstruct Option$I<Int> v0
-          IntLiteral 1
-      branch bb1 bb2
-        Binary IntEq
-          EnumTag
-            Local a
-          EnumTag
-            Local b
-    bb1 logic.rhs.1
-      branch bb5 bb4
-        Binary IntNe
-          EnumTag
-            Local a
-          IntLiteral 0
-    bb2 logic.short.2
-      assign $logic.1
-        BoolLiteral false
-      goto bb3
-    bb3 logic.merge.3
-      val r: Boolean
-        Local $logic.1
-      return
-    bb4 logic.rhs.4
-      assign $logic.2
-        Binary IntEq
-          EnumField v0 f0
-            Local a
-          EnumField v0 f0
-            Local b
-      goto bb6
-    bb5 logic.short.5
-      assign $logic.2
-        BoolLiteral true
-      goto bb6
-    bb6 logic.merge.6
-      assign $logic.1
-        Local $logic.2
-      goto bb3
-  entry @scoop_main
-";
-        assert_eq!(dump(&module), expected);
-    }
-
-    #[test]
-    fn enum_inequality_is_the_dual_tree() {
-        let h = Harness::new();
-        let module = option_comparison(h, hir::BinOp::Ne);
-
-        // The De Morgan dual: `And` / `Or` swapped, the tag leaves
-        // negated, the payload compared with `!=`.
-        let expected = "\
-Module
-  enum Option$I
-    Some(_1: Int)
-    None()
-  fun main @scoop_main() -> Unit
-    bb0 entry
-      val a: Option$I<Int>
-        VariantConstruct Option$I<Int> v1
-      val b: Option$I<Int>
-        VariantConstruct Option$I<Int> v0
-          IntLiteral 1
-      branch bb2 bb1
-        Binary IntNe
-          EnumTag
-            Local a
-          EnumTag
-            Local b
-    bb1 logic.rhs.1
-      branch bb4 bb5
-        Binary IntEq
-          EnumTag
-            Local a
-          IntLiteral 0
-    bb2 logic.short.2
-      assign $logic.1
-        BoolLiteral true
-      goto bb3
-    bb3 logic.merge.3
-      val r: Boolean
-        Local $logic.1
-      return
-    bb4 logic.rhs.4
-      assign $logic.2
-        Binary IntNe
-          EnumField v0 f0
-            Local a
-          EnumField v0 f0
-            Local b
-      goto bb6
-    bb5 logic.short.5
-      assign $logic.2
-        BoolLiteral false
-      goto bb6
-    bb6 logic.merge.6
-      assign $logic.1
-        Local $logic.2
-      goto bb3
-  entry @scoop_main
-";
-        assert_eq!(dump(&module), expected);
-    }
-
     fn when_stmt(
         subject: hir::Expr,
         arms: Vec<hir::WhenArm>,
@@ -11887,6 +10803,25 @@ Module
         let mut h = Harness::new();
         let println = h.println_string();
         let int = h.int;
+        let boolean = h.boolean;
+        let mut equals_locals = Arena::new();
+        let left = equals_locals.alloc(local("left", int));
+        let right = equals_locals.alloc(local("right", int));
+        let equals = h.user_fn_full(
+            "Int.equals",
+            Vec::new(),
+            vec![param("left", int, left), param("right", int, right)],
+            boolean,
+            hir::Body {
+                locals: equals_locals,
+                statements: vec![hir::Statement {
+                    kind: hir::StatementKind::Return {
+                        value: Some(bool_lit(&h, true)),
+                    },
+                    span: SPAN,
+                }],
+            },
+        );
         let mut locals = Arena::new();
         let n = locals.alloc(local("n", int));
         let main = h.user_fn(
@@ -11896,7 +10831,11 @@ Module
                 statements: vec![when_stmt(
                     local_ref(n, int),
                     vec![arm(
-                        hir::Pattern::Literal(int_lit(&h, 1)),
+                        hir::Pattern::Literal {
+                            value: int_lit(&h, 1),
+                            equals: hir::Callable::Function(equals),
+                            subject_ty: int,
+                        },
                         None,
                         vec![expr_stmt(call(&h, println, vec![str_lit(&h, "one")]))],
                     )],
@@ -11911,24 +10850,23 @@ Module
         let module = lower(&h.finish(main));
 
         let body = &module.functions[module.entry].body;
-        // val $when.1 = n; if ($when.1 == 1) ... else ...
-        let mir::Terminator::Branch {
-            cond:
-                mir::Expr::Binary {
-                    op: mir::BinOp::IntEq,
-                    lhs,
-                    rhs,
-                },
-            ..
-        } = &body.blocks[body.entry].terminator
-        else {
-            panic!("a literal pattern must lower to an equality test")
-        };
+        let (call, result) = entry_statements(body)
+            .iter()
+            .find_map(|statement| {
+                matches!(statement.kind, mir::StatementKind::Call(_))
+                    .then(|| statement_call(statement))
+            })
+            .expect("literal pattern calls its HIR-selected equality target");
+        assert!(matches!(call.target.kind, mir::CallKind::Direct));
         assert!(matches!(
-            lhs.as_ref(),
-            mir::Expr::Local(local) if body.locals[*local].name == "$when.1"
+            call.args.as_slice(),
+            [mir::Expr::Local(_), mir::Expr::IntLiteral(1)]
         ));
-        assert!(matches!(rhs.as_ref(), mir::Expr::IntLiteral(1)));
+        let result = result.expect("equals returns Boolean");
+        let mir::Terminator::Branch { cond, .. } = &body.blocks[body.entry].terminator else {
+            panic!("literal equality result controls the pattern branch")
+        };
+        assert!(matches!(cond, mir::Expr::Local(local) if *local == result));
     }
 
     #[test]
@@ -12080,7 +11018,7 @@ Module
         // locals, then `IndexOutOfBoundsException` on failure.
         let expected = "\
 Module
-  class IndexOutOfBoundsException vtable=3 itables=0
+  class IndexOutOfBoundsException vtable=0 itables=0
   fun main @scoop_main() -> Unit
     bb0 entry
       val a: Array<Int>
@@ -12201,38 +11139,6 @@ Module
             mir::array_type(&module, &mutable_instance.return_ty),
             Some((mir::ArrayKind::Mutable, &mir::Type::Int))
         );
-    }
-
-    #[test]
-    #[should_panic(expected = "hir-lower rejects equality on array types")]
-    fn array_equality_never_reaches_the_expansion() {
-        // hir-lower rejects `==` / `!=` on arrays (M5 has no array
-        // equality semantics, DESIGN 6); feed one anyway to lock the
-        // expansion's unreachable arm.
-        let mut h = Harness::new();
-        let int = h.int;
-        let boolean = h.boolean;
-        let array_int = h.array(int);
-        let mut locals = Arena::new();
-        let a = locals.alloc(local("a", array_int));
-        let b = locals.alloc(local("b", array_int));
-        let r = locals.alloc(local("r", boolean));
-        let main = h.user_fn(
-            "main",
-            hir::Body {
-                locals,
-                statements: vec![val_decl(
-                    r,
-                    binary(
-                        hir::BinOp::Eq,
-                        local_ref(a, array_int),
-                        local_ref(b, array_int),
-                        boolean,
-                    ),
-                )],
-            },
-        );
-        let _ = lower(&h.finish(main));
     }
 
     // ---- M6: reference types ----
@@ -12389,30 +11295,17 @@ Module
                 .map(|slot| slot_fn(&module, slot))
                 .collect::<Vec<_>>()
         };
-        // Slots 0..2 are the Any defaults; member functions are
-        // mangled qualified with their class.
+        // Ordinary member functions are the whole vtable; Any does not
+        // reserve compiler-owned slots.
         assert_eq!(
             vtable_symbols(&module.classes[class_index(0)]),
-            [
-                "scoop_rt_any_equals",
-                "scoop_rt_any_hashcode",
-                "scoop_rt_any_tostring",
-                "scoop.Base.m1",
-                "scoop.Base.m2",
-            ]
+            ["scoop.Base.m1", "scoop.Base.m2"]
         );
-        // The base prefix is preserved; the override replaces slot 4
-        // in place; the new method appends at slot 5.
+        // The base prefix is preserved; the override replaces slot 1
+        // in place; the new method appends at slot 2.
         assert_eq!(
             vtable_symbols(&module.classes[class_index(1)]),
-            [
-                "scoop_rt_any_equals",
-                "scoop_rt_any_hashcode",
-                "scoop_rt_any_tostring",
-                "scoop.Base.m1",
-                "scoop.Derived.m2",
-                "scoop.Derived.m3",
-            ]
+            ["scoop.Base.m1", "scoop.Derived.m2", "scoop.Derived.m3"]
         );
     }
 
@@ -12520,9 +11413,8 @@ Module
             assert!(!call.args.is_empty());
             &call.target.kind
         };
-        // Class receiver: virtual through the vtable (slot 3 = the
-        // first slot after the Any defaults).
-        assert!(matches!(call_kind(0), mir::CallKind::Virtual { slot: 3 }));
+        // Class receiver: virtual through its ordinary vtable.
+        assert!(matches!(call_kind(0), mir::CallKind::Virtual { slot: 0 }));
         // Interface receiver: the method's declaration index is the
         // itable slot.
         assert!(matches!(
@@ -12592,12 +11484,12 @@ Module
         let module = lower(&h.finish(main));
 
         let base_vtable = &module.classes[class_index(0)].vtable;
-        assert_eq!(base_vtable.len(), 4);
-        assert_eq!(slot_fn(&module, &base_vtable[3]), "scoop.Base.openMethod");
+        assert_eq!(base_vtable.len(), 1);
+        assert_eq!(slot_fn(&module, &base_vtable[0]), "scoop.Base.openMethod");
         let derived_vtable = &module.classes[class_index(1)].vtable;
-        assert_eq!(derived_vtable.len(), 4);
+        assert_eq!(derived_vtable.len(), 1);
         assert_eq!(
-            slot_fn(&module, &derived_vtable[3]),
+            slot_fn(&module, &derived_vtable[0]),
             "scoop.Derived.openMethod"
         );
 
@@ -12606,13 +11498,13 @@ Module
             let (call, _) = statement_call(&entry_statements(body)[index]);
             &call.target.kind
         };
-        assert!(matches!(kind(0), mir::CallKind::Virtual { slot: 3 }));
+        assert!(matches!(kind(0), mir::CallKind::Virtual { slot: 0 }));
         assert!(matches!(kind(1), mir::CallKind::Direct));
         assert!(matches!(kind(2), mir::CallKind::Direct));
     }
 
     #[test]
-    fn boxing_a_value_type_creates_a_boxed_class_with_structural_equals() {
+    fn boxing_only_materializes_the_payload_class() {
         let mut h = Harness::new();
         let int = h.int;
         let s = h.strukt("S", &[("x", int)]);
@@ -12635,150 +11527,19 @@ Module
         );
         let module = lower(&h.finish(main));
 
-        // The boxed class: one field (the payload), the generated
-        // structural equals in vtable slot 0, the Any defaults in
-        // slots 1/2 (aggregate value types keep the Any `toString`
-        // default until a spec'd structured format lands).
-        assert_eq!(visible_class_count(&module), 1);
         let boxed = boxed_class(&module, "box$S");
-        assert_eq!(boxed.name, "box$S");
         assert_eq!(boxed.declared_fields().len(), 1);
         assert_eq!(boxed.declared_fields()[0].name, "value");
         assert_eq!(
             boxed.declared_fields()[0].ty,
             mir::Type::Struct(la_arena::Idx::from_raw(0.into()))
         );
-        let vtable: Vec<&str> = boxed
-            .vtable
-            .iter()
-            .map(|slot| slot_fn(&module, slot))
-            .collect();
-        assert_eq!(
-            vtable,
-            [
-                "scoop.eq.S",
-                "scoop_rt_any_hashcode",
-                "scoop_rt_any_tostring"
-            ]
-        );
+        assert!(boxed.vtable.is_empty());
         assert!(boxed.itables.is_empty());
-
-        // The generated equals unboxes both payloads and compares
-        // field by field (the M2 expansion).
-        let expected = "\
-Module
-  struct S (x: Int)
-  class box$S vtable=3 itables=0
-  fun main @scoop_main() -> Unit
-    bb0 entry
-      val a: Any
-        Box
-          StructInit S
-            IntLiteral 1
-      return
-  fun eq.S @scoop.eq.S(this: Any, other: Any) -> Boolean
-    bb0 entry
-      val $a: S
-        Unbox
-          Local this
-      val $b: S
-        Unbox
-          Local other
-      return
-        Binary IntEq
-          FieldAccess 0
-            Local $a
-          FieldAccess 0
-            Local $b
-  entry @scoop_main
-";
-        assert_eq!(dump(&module), expected);
-    }
-
-    #[test]
-    fn boxed_primitives_get_a_real_tostring_slot() {
-        // `val a: Any = 42; val b: Any = true` — M7: the boxed
-        // primitives' vtable slot 2 is a generated per-type `toString`
-        // converting through the runtime, so `Any.toString()`
-        // (core's `print` / `println`) produces the value's text.
-        let mut h = Harness::new();
-        let any = h.any();
-        let mut locals = Arena::new();
-        let a = locals.alloc(local("a", any));
-        let b = locals.alloc(local("b", any));
-        let main = h.user_fn(
-            "main",
-            hir::Body {
-                locals,
-                statements: vec![
-                    val_decl(a, expr(hir::ExprKind::Box(Box::new(int_lit(&h, 42))), any)),
-                    val_decl(
-                        b,
-                        expr(hir::ExprKind::Box(Box::new(bool_lit(&h, true))), any),
-                    ),
-                ],
-            },
-        );
-        let module = lower(&h.finish(main));
-
-        let boxed_int = boxed_class(&module, "box$I");
-        assert_eq!(boxed_int.name, "box$I");
-        let vtable: Vec<&str> = boxed_int
-            .vtable
-            .iter()
-            .map(|slot| slot_fn(&module, slot))
-            .collect();
-        assert_eq!(
-            vtable,
-            ["scoop.eq.I", "scoop_rt_any_hashcode", "scoop.tostring.I"]
-        );
-        let boxed_bool = boxed_class(&module, "box$B");
-        assert_eq!(boxed_bool.name, "box$B");
-        assert_eq!(slot_fn(&module, &boxed_bool.vtable[2]), "scoop.tostring.B");
-
-        // The generated toString materializes the runtime call, then returns its result.
-        let tostring = module
-            .functions
-            .iter()
-            .map(|(_, f)| f)
-            .find(|f| f.symbol == "scoop.tostring.I")
-            .expect("the generated toString is a MIR function");
-        assert_eq!(tostring.return_ty, mir::Type::String);
-        assert_eq!(tostring.params.len(), 1);
-        assert_eq!(tostring.params[0].ty, mir::Type::Any);
-        let (call, destination) = statement_call(&entry_statements(&tostring.body)[0]);
-        let destination = destination.expect("Int.toString returns String");
-        assert_eq!(
-            call.target.callee,
-            mir::Callee::Runtime(mir::RuntimeFn::IntToString)
-        );
-        assert!(
-            matches!(&call.args[0], mir::Expr::Unbox(operand) if matches!(operand.as_ref(), mir::Expr::Local(local) if *local == tostring.params[0].local))
-        );
-        assert!(matches!(
-            &tostring.body.blocks[tostring.body.entry].terminator,
-            mir::Terminator::Return {
-                value: Some(mir::Expr::Local(local))
-            } if *local == destination
-        ));
-        let tostring_b = module
-            .functions
-            .iter()
-            .map(|(_, f)| f)
-            .find(|f| f.symbol == "scoop.tostring.B")
-            .expect("the generated toString is a MIR function");
-        let (call_b, destination_b) = statement_call(&entry_statements(&tostring_b.body)[0]);
-        let destination_b = destination_b.expect("Boolean.toString returns String");
-        assert_eq!(
-            call_b.target.callee,
-            mir::Callee::Runtime(mir::RuntimeFn::BoolToString)
-        );
-        assert!(matches!(
-            &tostring_b.body.blocks[tostring_b.body.entry].terminator,
-            mir::Terminator::Return {
-                value: Some(mir::Expr::Local(local))
-            } if *local == destination_b
-        ));
+        assert!(module.functions.iter().all(|(_, function)| {
+            !function.symbol.starts_with("scoop.eq.")
+                && !function.symbol.starts_with("scoop.tostring.")
+        }));
     }
 
     #[test]
@@ -12904,15 +11665,15 @@ Module
         // `is` stays a dedicated node; `as` throws
         // `ClassCastException` on failure (M8); `as?` wraps in
         // Some / None. The value-type checks registered the boxed
-        // class (and its equals function).
+        // payload class. Capabilities are not synthesized from boxing.
         let expected = "\
 Module
   struct S (x: Int)
   enum Option$S
     Some(_1: S)
     None()
-  class ClassCastException vtable=3 itables=0
-  class box$S vtable=3 itables=0
+  class ClassCastException vtable=0 itables=0
+  class box$S vtable=0 itables=0
   fun main @scoop_main() -> Unit
     bb0 entry
       val is_s: Boolean
@@ -12957,70 +11718,9 @@ Module
     bb0 entry
       return
         ClassInit ClassCastException
-  fun eq.S @scoop.eq.S(this: Any, other: Any) -> Boolean
-    bb0 entry
-      val $a: S
-        Unbox
-          Local this
-      val $b: S
-        Unbox
-          Local other
-      return
-        Binary IntEq
-          FieldAccess 0
-            Local $a
-          FieldAccess 0
-            Local $b
   entry @scoop_main
 ";
         assert_eq!(dump(&module), expected);
-    }
-
-    #[test]
-    fn reference_equality_is_a_pointer_comparison() {
-        let mut h = Harness::new();
-        let boolean = h.boolean;
-        let c = h.class("C", hir::ClassModifier::Final, &[], None, &[]);
-        let c_ty = h.class_ty(c);
-        let mut locals = Arena::new();
-        let x = locals.alloc(local("x", c_ty));
-        let y = locals.alloc(local("y", c_ty));
-        let eq = locals.alloc(local("eq", boolean));
-        let main = h.user_fn(
-            "main",
-            hir::Body {
-                locals,
-                statements: vec![val_decl(
-                    eq,
-                    binary(
-                        hir::BinOp::Eq,
-                        local_ref(x, c_ty),
-                        local_ref(y, c_ty),
-                        boolean,
-                    ),
-                )],
-            },
-        );
-        let module = lower(&h.finish(main));
-
-        // `==` on references is identity (the M6 Any default): the
-        // primitive comparison on the two pointers — no runtime call,
-        // no vtable dispatch.
-        let body = &module.functions[module.entry].body;
-        let mir::StatementKind::ValDecl {
-            init:
-                mir::Expr::Binary {
-                    op: mir::BinOp::IntEq,
-                    lhs,
-                    rhs,
-                },
-            ..
-        } = &entry_statements(body)[0].kind
-        else {
-            panic!("reference equality must be a primitive comparison")
-        };
-        assert!(matches!(lhs.as_ref(), mir::Expr::Local(_)));
-        assert!(matches!(rhs.as_ref(), mir::Expr::Local(_)));
     }
 
     #[test]
@@ -13080,9 +11780,9 @@ Module
         // own properties. No base ctor is called.
         let expected = "\
 Module
-  class Root vtable=3 itables=0
-  class Base vtable=3 itables=0
-  class Point vtable=3 itables=0
+  class Root vtable=0 itables=0
+  class Base vtable=0 itables=0
+  class Point vtable=0 itables=0
   fun main @scoop_main() -> Unit
     bb0 entry
       call p: Point = @scoop.ctor.Point direct
@@ -13301,7 +12001,7 @@ Module
         // The abstract method is emitted (the abstract class's vtable
         // slot references it) and traps like a pure-virtual stub.
         let base_def = &module.classes[class_index(0)];
-        assert_eq!(slot_fn(&module, &base_def.vtable[3]), "scoop.Base.id");
+        assert_eq!(slot_fn(&module, &base_def.vtable[0]), "scoop.Base.id");
         let stub = module
             .functions
             .iter()
@@ -13347,7 +12047,7 @@ Module
             "scoop.Doc.describe"
         );
         // The implementing method is a vtable method too.
-        assert_eq!(slot_fn(&module, &doc_def.vtable[3]), "scoop.Doc.describe");
+        assert_eq!(slot_fn(&module, &doc_def.vtable[0]), "scoop.Doc.describe");
     }
 
     #[test]

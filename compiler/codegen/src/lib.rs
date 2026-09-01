@@ -1360,42 +1360,26 @@ fn emit_fn_table<'ctx>(
     }
     let mut values = Vec::with_capacity(slots.len());
     for symbol in slots {
-        values.push(slot_fn_ptr(context, llvm, symbol)?);
+        values.push(slot_fn_ptr(llvm, symbol)?);
     }
     let array = ptr.const_array(&values);
     Ok(private_const_global(llvm, name, array.into()).into())
 }
 
-/// Address of the function a vtable / itable slot points at: a module
-/// function (declared in the first pass — user methods and adjust
-/// thunks) or one of the Any default methods / the String identity,
-/// declared extern here with its runtime signature
-/// (runtime/include/scoop_rt.h).
+/// Address of the exact module function named by a vtable / itable slot.
+/// All dispatch entries are declared in the first pass; codegen never guesses
+/// a missing function's signature from its symbol.
 fn slot_fn_ptr<'ctx>(
-    context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
     symbol: &str,
 ) -> Result<PointerValue<'ctx>, CodegenError> {
-    if let Some(function) = llvm.get_function(symbol) {
-        return Ok(function.as_global_value().as_pointer_value());
-    }
-    let ptr = ptr_ty(context);
-    let fn_ty = match symbol {
-        "scoop_rt_any_equals" => context
-            .bool_type()
-            .fn_type(&[ptr.into(), ptr.into()], false),
-        "scoop_rt_any_hashcode" => context.i64_type().fn_type(&[ptr.into()], false),
-        "scoop_rt_any_tostring" | "scoop_rt_string_identity" => ptr.fn_type(&[ptr.into()], false),
-        _ => {
-            return Err(CodegenError(format!(
-                "vtable/itable slot `@{symbol}` is not a function in the module"
-            )));
-        }
-    };
-    Ok(llvm
-        .add_function(symbol, fn_ty, None)
-        .as_global_value()
-        .as_pointer_value())
+    llvm.get_function(symbol)
+        .map(|function| function.as_global_value().as_pointer_value())
+        .ok_or_else(|| {
+            CodegenError(format!(
+                "vtable/itable slot `@{symbol}` is not a declared function"
+            ))
+        })
 }
 
 /// Per-function emission state: everything instruction translation
@@ -4583,11 +4567,7 @@ mod tests {
                 align: 8,
                 scan: RefScan::None,
                 parent: None,
-                vtable: vec![
-                    "scoop_rt_any_equals".to_string(),
-                    "scoop_rt_any_hashcode".to_string(),
-                    "scoop_rt_string_identity".to_string(),
-                ],
+                vtable: Vec::new(),
                 itables: Vec::new(),
             },
         }
@@ -5594,13 +5574,6 @@ mod tests {
             entry,
         };
 
-        let any_slots = || {
-            vec![
-                "scoop_rt_any_equals".to_string(),
-                "scoop_rt_any_hashcode".to_string(),
-                "scoop_rt_any_tostring".to_string(),
-            ]
-        };
         Module {
             globals: Arena::default(),
             structs: Arena::default(),
@@ -5637,7 +5610,7 @@ mod tests {
                         vtable: vec![],
                         itables: vec![],
                     },
-                    // open class Shape: vtable = Any slots + describe.
+                    // open class Shape: its sole ordinary virtual method.
                     TypeDescriptor {
                         name: "Shape".to_string(),
                         symbol: "scoop_td_Shape".to_string(),
@@ -5645,10 +5618,7 @@ mod tests {
                         align: 8,
                         scan: RefScan::References(vec![16]),
                         parent: None,
-                        vtable: any_slots()
-                            .into_iter()
-                            .chain(["Shape.describe".to_string()])
-                            .collect(),
+                        vtable: vec!["Shape.describe".to_string()],
                         itables: vec![],
                     },
                     // class Point : Shape, Describable.
@@ -5659,10 +5629,7 @@ mod tests {
                         align: 8,
                         scan: RefScan::References(vec![16]),
                         parent: Some("scoop_td_Shape".to_string()),
-                        vtable: any_slots()
-                            .into_iter()
-                            .chain(["Point.describe".to_string()])
-                            .collect(),
+                        vtable: vec!["Point.describe".to_string()],
                         itables: vec![ItableRecord {
                             interface_symbol: "scoop_td_Describable".to_string(),
                             slots: vec!["Point.describe".to_string()],
@@ -5736,7 +5703,7 @@ mod tests {
         //   t5 = aggregate (t2) : {i64}
         //   t6 = scoop_rt_box(@scoop_td_Point, t5, 8)  (by-value payload)
         //   t7 = scoop_rt_is_instance(t6, @scoop_td_Point) : i1
-        //   call_indirect t4[3](t3); println_int t2; println_boolean t7
+        //   call_indirect t4[0](t3); println_int t2; println_boolean t7
         let mut temps = Arena::default();
         let t0 = temps.alloc(Temp { ty: MANAGED_PTR });
         let t1 = temps.alloc(Temp { ty: METADATA_PTR });
@@ -5808,7 +5775,7 @@ mod tests {
                 Instruction::CallIndirect {
                     out: None,
                     table: Value::Temp(t4),
-                    slot: 3,
+                    slot: 0,
                     args: vec![Value::Temp(t3)],
                 },
                 Instruction::Call {
@@ -5866,12 +5833,7 @@ mod tests {
                     align: 8,
                     scan: RefScan::References(vec![24]),
                     parent: None,
-                    vtable: vec![
-                        "scoop_rt_any_equals".to_string(),
-                        "scoop_rt_any_hashcode".to_string(),
-                        "scoop_rt_any_tostring".to_string(),
-                        "Point.describe".to_string(),
-                    ],
+                    vtable: vec!["Point.describe".to_string()],
                     itables: vec![],
                 }],
             },
@@ -6128,7 +6090,7 @@ mod tests {
             1,
             "String must have exactly one descriptor definition"
         );
-        assert!(ir.contains("@scoop_rt_string_identity"));
+        assert!(ir.contains("@scoop_td_String ="));
     }
 
     #[test]

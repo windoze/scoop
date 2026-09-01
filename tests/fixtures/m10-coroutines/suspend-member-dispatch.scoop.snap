@@ -34,6 +34,7 @@ SourceFile
 SourceFile
   struct Ptr<T : value>
     field _rawPointer: UInt
+    operator fun equals
     fun toUInt
     fun cast
     fun load
@@ -500,39 +501,39 @@ Module
   enum CoroutineSlot$Gate
     Empty()
     Value(value: Gate)
-  class Gate vtable=3 itables=0
-  class Throwable vtable=3 itables=0
-  class Exception vtable=3 itables=0
-  class UnwrapException vtable=3 itables=0
-  class ClassCastException vtable=3 itables=0
-  class ArithmeticException vtable=3 itables=0
-  class IndexOutOfBoundsException vtable=3 itables=0
-  class IllegalStateException vtable=3 itables=0
-  class Registration vtable=3 itables=1
-  class DirectWorker vtable=3 itables=0
-  class VirtualWorker vtable=4 itables=0
-  class VirtualWorkerImpl vtable=4 itables=0
-  class AsyncWorkerImpl vtable=3 itables=1
-  class DispatchTask vtable=3 itables=1
-  class RecordingCompletion vtable=3 itables=1
-  class CoroutineFrame$scoop_StructWorker_work_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop_StructWorker_work_suspend$1 vtable=3 itables=1
-  class CoroutineFrame$scoop_EnumWorker_work_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop_EnumWorker_work_suspend$1 vtable=3 itables=1
-  class CoroutineFrame$scoop_DirectWorker_work_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop_DirectWorker_work_suspend$1 vtable=3 itables=1
-  class CoroutineFrame$scoop_VirtualWorkerImpl_work_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop_VirtualWorkerImpl_work_suspend$1 vtable=3 itables=1
-  class CoroutineFrame$scoop_AsyncWorkerImpl_work_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop_AsyncWorkerImpl_work_suspend$1 vtable=3 itables=1
-  class CoroutineFrame$scoop_DispatchTask_run_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop_DispatchTask_run_suspend$5 vtable=3 itables=1
-  class CoroutineAdapter$scoop_DispatchTask_run_suspend$4 vtable=3 itables=1
-  class CoroutineAdapter$scoop_DispatchTask_run_suspend$3 vtable=3 itables=1
-  class CoroutineAdapter$scoop_DispatchTask_run_suspend$2 vtable=3 itables=1
-  class CoroutineAdapter$scoop_DispatchTask_run_suspend$1 vtable=3 itables=1
-  class CoroutineFrame$scoop_waitFor_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop_waitFor_suspend$1 vtable=3 itables=1
+  class Gate vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class UnwrapException vtable=0 itables=0
+  class ClassCastException vtable=0 itables=0
+  class ArithmeticException vtable=0 itables=0
+  class IndexOutOfBoundsException vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Registration vtable=0 itables=1
+  class DirectWorker vtable=0 itables=0
+  class VirtualWorker vtable=1 itables=0
+  class VirtualWorkerImpl vtable=1 itables=0
+  class AsyncWorkerImpl vtable=0 itables=1
+  class DispatchTask vtable=0 itables=1
+  class RecordingCompletion vtable=0 itables=1
+  class CoroutineFrame$scoop_StructWorker_work_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop_StructWorker_work_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop_EnumWorker_work_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop_EnumWorker_work_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop_DirectWorker_work_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop_DirectWorker_work_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop_VirtualWorkerImpl_work_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop_VirtualWorkerImpl_work_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop_AsyncWorkerImpl_work_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop_AsyncWorkerImpl_work_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop_DispatchTask_run_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop_DispatchTask_run_suspend$5 vtable=0 itables=1
+  class CoroutineAdapter$scoop_DispatchTask_run_suspend$4 vtable=0 itables=1
+  class CoroutineAdapter$scoop_DispatchTask_run_suspend$3 vtable=0 itables=1
+  class CoroutineAdapter$scoop_DispatchTask_run_suspend$2 vtable=0 itables=1
+  class CoroutineAdapter$scoop_DispatchTask_run_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop_waitFor_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop_waitFor_suspend$1 vtable=0 itables=1
   interface ToString
   interface Hash
   interface Continuation$I
@@ -2655,7 +2656,7 @@ Module
         ClassInit CoroutineAdapter$scoop_DispatchTask_run_suspend$2
           Local $frame
           IntLiteral 1
-      call $step.2: CoroutineStep$I = @scoop.VirtualWorker.work$suspend virtual[3]
+      call $step.2: CoroutineStep$I = @scoop.VirtualWorker.work$suspend virtual[0]
         FieldAccess 1
           Local this
         Local $adapter.2
@@ -6034,7 +6035,7 @@ Module
     t138 = heap_load local0 +24 : ptr<managed>
     t139 = heap_load t138 +0 : ptr<metadata>
     t140 = heap_load t139 +40 : ptr<metadata>
-    t141 = call_indirect t140[3](t138, local22) : enum3
+    t141 = call_indirect t140[0](t138, local22) : enum3
     store t141 -> local23
     t142 = enum_tag e3 local23 : i64
     t143 = Eq t142, 0 : i1
@@ -7196,39 +7197,39 @@ Module
   td AsyncWorker @scoop_td_AsyncWorker size=0 vtable=0 itables=0
   td SuspendRegistration$I @scoop_td_SuspendRegistration$I size=0 vtable=0 itables=0
   td SuspendTask$I @scoop_td_SuspendTask$I size=0 vtable=0 itables=0
-  td Gate @scoop_td_Gate size=24 vtable=3 itables=0
-  td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
-  td Registration @scoop_td_Registration size=24 vtable=3 itables=1
-  td DirectWorker @scoop_td_DirectWorker size=24 vtable=3 itables=0
-  td VirtualWorker @scoop_td_VirtualWorker size=16 vtable=4 itables=0
-  td AsyncWorkerImpl @scoop_td_AsyncWorkerImpl size=24 vtable=3 itables=1
-  td DispatchTask @scoop_td_DispatchTask size=64 vtable=3 itables=1
-  td RecordingCompletion @scoop_td_RecordingCompletion size=16 vtable=3 itables=1
-  td CoroutineFrame$scoop_StructWorker_work_suspend @scoop_td_CoroutineFrame$scoop_StructWorker_work_suspend size=72 vtable=3 itables=0
-  td CoroutineAdapter$scoop_StructWorker_work_suspend$1 @scoop_td_CoroutineAdapter$scoop_StructWorker_work_suspend$1 size=32 vtable=3 itables=1
-  td CoroutineFrame$scoop_EnumWorker_work_suspend @scoop_td_CoroutineFrame$scoop_EnumWorker_work_suspend size=80 vtable=3 itables=0
-  td CoroutineAdapter$scoop_EnumWorker_work_suspend$1 @scoop_td_CoroutineAdapter$scoop_EnumWorker_work_suspend$1 size=32 vtable=3 itables=1
-  td CoroutineFrame$scoop_DirectWorker_work_suspend @scoop_td_CoroutineFrame$scoop_DirectWorker_work_suspend size=64 vtable=3 itables=0
-  td CoroutineAdapter$scoop_DirectWorker_work_suspend$1 @scoop_td_CoroutineAdapter$scoop_DirectWorker_work_suspend$1 size=32 vtable=3 itables=1
-  td CoroutineFrame$scoop_VirtualWorkerImpl_work_suspend @scoop_td_CoroutineFrame$scoop_VirtualWorkerImpl_work_suspend size=64 vtable=3 itables=0
-  td CoroutineAdapter$scoop_VirtualWorkerImpl_work_suspend$1 @scoop_td_CoroutineAdapter$scoop_VirtualWorkerImpl_work_suspend$1 size=32 vtable=3 itables=1
-  td CoroutineFrame$scoop_AsyncWorkerImpl_work_suspend @scoop_td_CoroutineFrame$scoop_AsyncWorkerImpl_work_suspend size=64 vtable=3 itables=0
-  td CoroutineAdapter$scoop_AsyncWorkerImpl_work_suspend$1 @scoop_td_CoroutineAdapter$scoop_AsyncWorkerImpl_work_suspend$1 size=32 vtable=3 itables=1
-  td CoroutineFrame$scoop_DispatchTask_run_suspend @scoop_td_CoroutineFrame$scoop_DispatchTask_run_suspend size=128 vtable=3 itables=0
-  td CoroutineAdapter$scoop_DispatchTask_run_suspend$5 @scoop_td_CoroutineAdapter$scoop_DispatchTask_run_suspend$5 size=32 vtable=3 itables=1
-  td CoroutineAdapter$scoop_DispatchTask_run_suspend$4 @scoop_td_CoroutineAdapter$scoop_DispatchTask_run_suspend$4 size=32 vtable=3 itables=1
-  td CoroutineAdapter$scoop_DispatchTask_run_suspend$3 @scoop_td_CoroutineAdapter$scoop_DispatchTask_run_suspend$3 size=32 vtable=3 itables=1
-  td CoroutineAdapter$scoop_DispatchTask_run_suspend$2 @scoop_td_CoroutineAdapter$scoop_DispatchTask_run_suspend$2 size=32 vtable=3 itables=1
-  td CoroutineAdapter$scoop_DispatchTask_run_suspend$1 @scoop_td_CoroutineAdapter$scoop_DispatchTask_run_suspend$1 size=32 vtable=3 itables=1
-  td CoroutineFrame$scoop_waitFor_suspend @scoop_td_CoroutineFrame$scoop_waitFor_suspend size=64 vtable=3 itables=0
-  td CoroutineAdapter$scoop_waitFor_suspend$1 @scoop_td_CoroutineAdapter$scoop_waitFor_suspend$1 size=56 vtable=3 itables=1
-  td Exception @scoop_td_Exception size=24 vtable=3 itables=0
-  td VirtualWorkerImpl @scoop_td_VirtualWorkerImpl size=24 vtable=4 itables=0
-  td UnwrapException @scoop_td_UnwrapException size=24 vtable=3 itables=0
-  td ClassCastException @scoop_td_ClassCastException size=24 vtable=3 itables=0
-  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=3 itables=0
-  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=3 itables=0
-  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=3 itables=0
+  td Gate @scoop_td_Gate size=24 vtable=0 itables=0
+  td Throwable @scoop_td_Throwable size=16 vtable=0 itables=0
+  td Registration @scoop_td_Registration size=24 vtable=0 itables=1
+  td DirectWorker @scoop_td_DirectWorker size=24 vtable=0 itables=0
+  td VirtualWorker @scoop_td_VirtualWorker size=16 vtable=1 itables=0
+  td AsyncWorkerImpl @scoop_td_AsyncWorkerImpl size=24 vtable=0 itables=1
+  td DispatchTask @scoop_td_DispatchTask size=64 vtable=0 itables=1
+  td RecordingCompletion @scoop_td_RecordingCompletion size=16 vtable=0 itables=1
+  td CoroutineFrame$scoop_StructWorker_work_suspend @scoop_td_CoroutineFrame$scoop_StructWorker_work_suspend size=72 vtable=0 itables=0
+  td CoroutineAdapter$scoop_StructWorker_work_suspend$1 @scoop_td_CoroutineAdapter$scoop_StructWorker_work_suspend$1 size=32 vtable=0 itables=1
+  td CoroutineFrame$scoop_EnumWorker_work_suspend @scoop_td_CoroutineFrame$scoop_EnumWorker_work_suspend size=80 vtable=0 itables=0
+  td CoroutineAdapter$scoop_EnumWorker_work_suspend$1 @scoop_td_CoroutineAdapter$scoop_EnumWorker_work_suspend$1 size=32 vtable=0 itables=1
+  td CoroutineFrame$scoop_DirectWorker_work_suspend @scoop_td_CoroutineFrame$scoop_DirectWorker_work_suspend size=64 vtable=0 itables=0
+  td CoroutineAdapter$scoop_DirectWorker_work_suspend$1 @scoop_td_CoroutineAdapter$scoop_DirectWorker_work_suspend$1 size=32 vtable=0 itables=1
+  td CoroutineFrame$scoop_VirtualWorkerImpl_work_suspend @scoop_td_CoroutineFrame$scoop_VirtualWorkerImpl_work_suspend size=64 vtable=0 itables=0
+  td CoroutineAdapter$scoop_VirtualWorkerImpl_work_suspend$1 @scoop_td_CoroutineAdapter$scoop_VirtualWorkerImpl_work_suspend$1 size=32 vtable=0 itables=1
+  td CoroutineFrame$scoop_AsyncWorkerImpl_work_suspend @scoop_td_CoroutineFrame$scoop_AsyncWorkerImpl_work_suspend size=64 vtable=0 itables=0
+  td CoroutineAdapter$scoop_AsyncWorkerImpl_work_suspend$1 @scoop_td_CoroutineAdapter$scoop_AsyncWorkerImpl_work_suspend$1 size=32 vtable=0 itables=1
+  td CoroutineFrame$scoop_DispatchTask_run_suspend @scoop_td_CoroutineFrame$scoop_DispatchTask_run_suspend size=128 vtable=0 itables=0
+  td CoroutineAdapter$scoop_DispatchTask_run_suspend$5 @scoop_td_CoroutineAdapter$scoop_DispatchTask_run_suspend$5 size=32 vtable=0 itables=1
+  td CoroutineAdapter$scoop_DispatchTask_run_suspend$4 @scoop_td_CoroutineAdapter$scoop_DispatchTask_run_suspend$4 size=32 vtable=0 itables=1
+  td CoroutineAdapter$scoop_DispatchTask_run_suspend$3 @scoop_td_CoroutineAdapter$scoop_DispatchTask_run_suspend$3 size=32 vtable=0 itables=1
+  td CoroutineAdapter$scoop_DispatchTask_run_suspend$2 @scoop_td_CoroutineAdapter$scoop_DispatchTask_run_suspend$2 size=32 vtable=0 itables=1
+  td CoroutineAdapter$scoop_DispatchTask_run_suspend$1 @scoop_td_CoroutineAdapter$scoop_DispatchTask_run_suspend$1 size=32 vtable=0 itables=1
+  td CoroutineFrame$scoop_waitFor_suspend @scoop_td_CoroutineFrame$scoop_waitFor_suspend size=64 vtable=0 itables=0
+  td CoroutineAdapter$scoop_waitFor_suspend$1 @scoop_td_CoroutineAdapter$scoop_waitFor_suspend$1 size=56 vtable=0 itables=1
+  td Exception @scoop_td_Exception size=24 vtable=0 itables=0
+  td VirtualWorkerImpl @scoop_td_VirtualWorkerImpl size=24 vtable=1 itables=0
+  td UnwrapException @scoop_td_UnwrapException size=24 vtable=0 itables=0
+  td ClassCastException @scoop_td_ClassCastException size=24 vtable=0 itables=0
+  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=0 itables=0
+  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=0 itables=0
+  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=0 itables=0
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]

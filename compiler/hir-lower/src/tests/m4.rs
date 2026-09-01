@@ -149,7 +149,7 @@ fn generic_enum_instantiations_and_interning() {
     let module = lower_user(file).expect("generic enum program must lower");
     let body = match &module.functions[module.entry].kind {
         FunctionKind::User(body) => body,
-        FunctionKind::Intrinsic(_) | FunctionKind::Extern(_) => {
+        FunctionKind::Intrinsic(_) | FunctionKind::Extern(_) | FunctionKind::DerivedEquality => {
             panic!("main is a user function")
         }
     };
@@ -162,7 +162,10 @@ fn generic_enum_instantiations_and_interning() {
         dump.contains("VariantConstruct Option.None<Int> : Option<Int>"),
         "{dump}"
     );
-    assert!(dump.contains("Binary Eq : Boolean"), "{dump}");
+    assert!(
+        dump.contains("MethodCall Option.equals <derived> : Boolean"),
+        "{dump}"
+    );
 }
 
 // --- positive: when ---

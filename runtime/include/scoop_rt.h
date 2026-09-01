@@ -144,7 +144,6 @@ void scoop_rt_safepoint(void);
 void scoop_rt_write(const ScoopString *s);
 void scoop_rt_println(const ScoopString *s);
 
-const ScoopString *scoop_rt_string_identity(const ScoopString *s);
 
 /* M7 additions (milestone7 DESIGN section 3): primitive conversions
  * backing core's intToString / boolToString. */
@@ -159,8 +158,7 @@ int64_t scoop_rt_uint_hash(uint64_t v);
 int64_t scoop_rt_bool_hash(bool v);
 int64_t scoop_rt_string_hash(const ScoopString *s);
 
-/* M2 additions (DESIGN section 3): String concat / structural equality
- * and Int / Boolean builtin output. */
+/* String and primitive operations used by ordinary scoop.core declarations. */
 const ScoopString *scoop_rt_string_concat(const ScoopString *a, const ScoopString *b);
 bool scoop_rt_string_eq(const ScoopString *a, const ScoopString *b);
 void scoop_rt_print_int(int64_t value);
@@ -197,12 +195,6 @@ bool scoop_rt_is_instance(const void *obj, const ScoopTypeDescriptor *td);
  * defensive). */
 const void *const *scoop_rt_itable_lookup(const ScoopTypeDescriptor *obj_td,
                                           const ScoopTypeDescriptor *iface_td);
-
-/* Any default methods (vtable slots 0-2 on every class, milestone6
- * DESIGN 5.1). */
-bool scoop_rt_any_equals(const void *a, const void *b);
-uint64_t scoop_rt_any_hashcode(const void *a);
-const ScoopString *scoop_rt_any_tostring(const void *a);
 
 /* M9 additions (milestone9 DESIGN section 2): GC interface. See
  * runtime/src/gc.c for the implementation and docs/specs/

@@ -34,6 +34,7 @@ SourceFile
 SourceFile
   struct Ptr<T : value>
     field _rawPointer: UInt
+    operator fun equals
     fun toUInt
     fun cast
     fun load
@@ -491,7 +492,7 @@ Module
   fun suffixer(this: String): (String) -> String
     return
       Lambda lambda0 invoke=$lambda.0 captures=1 : (String) -> String
-        capture this binding27 : String
+        capture this binding23 : String
   fun echo<T>(this: T0, value: T0): T0
     return
       Local value : T0
@@ -529,7 +530,7 @@ Module
           Local this : Offset
   fun run(this: ThrowingExtension, value: Int): Int
     if
-      Binary Eq : Boolean
+      MethodCall Int.equals : Boolean
         Local value : Int
         IntLiteral 0 : Int
       throw
@@ -681,17 +682,17 @@ Module
   enum Option$S
     Some(_1: String)
     None()
-  class Throwable vtable=3 itables=0
-  class Exception vtable=3 itables=0
-  class UnwrapException vtable=3 itables=0
-  class ClassCastException vtable=3 itables=0
-  class ArithmeticException vtable=3 itables=0
-  class IndexOutOfBoundsException vtable=3 itables=0
-  class IllegalStateException vtable=3 itables=0
-  class Named vtable=3 itables=0
-  class MutableName vtable=3 itables=0
-  class ReceiverFactory vtable=3 itables=0
-  class ThrowingExtension vtable=3 itables=0
+  class Throwable vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class UnwrapException vtable=0 itables=0
+  class ClassCastException vtable=0 itables=0
+  class ArithmeticException vtable=0 itables=0
+  class IndexOutOfBoundsException vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Named vtable=0 itables=0
+  class MutableName vtable=0 itables=0
+  class ReceiverFactory vtable=0 itables=0
+  class ThrowingExtension vtable=0 itables=0
   interface ToString
   interface Hash
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@scoop.$lambda.0 captures=1
@@ -854,14 +855,15 @@ Module
             Local this
   fun $extension.run @scoop.$extension.run(this: ThrowingExtension, value: Int) -> Int
     bb0 entry
+      call $call.1: Boolean = @scoop.Int.equals direct
+        Local value
+        IntLiteral 0
       branch bb1 bb2
-        Binary IntEq
-          Local value
-          IntLiteral 0
-    bb1 if.then.1
-      call $call.1: ArithmeticException = @scoop.ctor.ArithmeticException direct
-      throw
         Local $call.1
+    bb1 if.then.1
+      call $call.2: ArithmeticException = @scoop.ctor.ArithmeticException direct
+      throw
+        Local $call.2
     bb2 if.merge.2
       return
         Local value
@@ -1417,14 +1419,16 @@ Module
     t1 = Add param1, t0 : i64
     ret t1
   fun @scoop.$extension.run(ptr<managed>, i64) -> i64
-    local %0 $call.1: ptr<managed>
+    local %0 $call.1: i1
+    local %1 $call.2: ptr<managed>
   block entry
-    t0 = Eq param1, 0 : i1
-    cbr t0 then @if.then.1 else @if.merge.2
+    t0 = call @scoop.Int.equals(param1, 0) : i1
+    store t0 -> local0
+    cbr local0 then @if.then.1 else @if.merge.2
   block if.then.1
     t1 = call @scoop.ctor.ArithmeticException() : ptr<managed>
-    store t1 -> local0
-    throw local0
+    store t1 -> local1
+    throw local1
     unreachable
   block if.merge.2
     ret param1
@@ -1804,26 +1808,26 @@ Module
   td function$FRSX @scoop_td_function$FRSX size=0 vtable=0 itables=0
   td function$FS_SRSX @scoop_td_function$FS_SRSX size=0 vtable=0 itables=0
   td function$FIRIX @scoop_td_function$FIRIX size=0 vtable=0 itables=0
-  td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
-  td Named @scoop_td_Named size=24 vtable=3 itables=0
-  td MutableName @scoop_td_MutableName size=24 vtable=3 itables=0
-  td ReceiverFactory @scoop_td_ReceiverFactory size=24 vtable=3 itables=0
-  td ThrowingExtension @scoop_td_ThrowingExtension size=16 vtable=3 itables=0
-  td Exception @scoop_td_Exception size=24 vtable=3 itables=0
-  td UnwrapException @scoop_td_UnwrapException size=24 vtable=3 itables=0
-  td ClassCastException @scoop_td_ClassCastException size=24 vtable=3 itables=0
-  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=3 itables=0
-  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=3 itables=0
-  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=3 itables=0
-  td $Closure$lambda0 @scoop_td_$Closure$lambda0 size=32 vtable=3 itables=0
-  td $Closure$reference0 @scoop_td_$Closure$reference0 size=32 vtable=3 itables=0
-  td $Closure$reference1 @scoop_td_$Closure$reference1 size=24 vtable=3 itables=0
-  td $Closure$reference2 @scoop_td_$Closure$reference2 size=32 vtable=3 itables=0
-  td $Closure$reference3 @scoop_td_$Closure$reference3 size=24 vtable=3 itables=0
-  td $Closure$reference4 @scoop_td_$Closure$reference4 size=32 vtable=3 itables=0
-  td $Closure$reference5 @scoop_td_$Closure$reference5 size=32 vtable=3 itables=0
-  td $Closure$reference6 @scoop_td_$Closure$reference6 size=32 vtable=3 itables=0
-  td $Closure$reference7 @scoop_td_$Closure$reference7 size=32 vtable=3 itables=0
+  td Throwable @scoop_td_Throwable size=16 vtable=0 itables=0
+  td Named @scoop_td_Named size=24 vtable=0 itables=0
+  td MutableName @scoop_td_MutableName size=24 vtable=0 itables=0
+  td ReceiverFactory @scoop_td_ReceiverFactory size=24 vtable=0 itables=0
+  td ThrowingExtension @scoop_td_ThrowingExtension size=16 vtable=0 itables=0
+  td Exception @scoop_td_Exception size=24 vtable=0 itables=0
+  td UnwrapException @scoop_td_UnwrapException size=24 vtable=0 itables=0
+  td ClassCastException @scoop_td_ClassCastException size=24 vtable=0 itables=0
+  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=0 itables=0
+  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=0 itables=0
+  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=0 itables=0
+  td $Closure$lambda0 @scoop_td_$Closure$lambda0 size=32 vtable=0 itables=0
+  td $Closure$reference0 @scoop_td_$Closure$reference0 size=32 vtable=0 itables=0
+  td $Closure$reference1 @scoop_td_$Closure$reference1 size=24 vtable=0 itables=0
+  td $Closure$reference2 @scoop_td_$Closure$reference2 size=32 vtable=0 itables=0
+  td $Closure$reference3 @scoop_td_$Closure$reference3 size=24 vtable=0 itables=0
+  td $Closure$reference4 @scoop_td_$Closure$reference4 size=32 vtable=0 itables=0
+  td $Closure$reference5 @scoop_td_$Closure$reference5 size=32 vtable=0 itables=0
+  td $Closure$reference6 @scoop_td_$Closure$reference6 size=32 vtable=0 itables=0
+  td $Closure$reference7 @scoop_td_$Closure$reference7 size=32 vtable=0 itables=0
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]

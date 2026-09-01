@@ -77,6 +77,11 @@ struct Concretizer<'a> {
     global_map: HashMap<export::GlobalId, concrete::GlobalId>,
     function_slots: Vec<Option<concrete::Function>>,
     function_by_key: HashMap<FunctionKey, concrete::FunctionId>,
+    /// Concrete ordinary bodies supplied by typed derived-equality
+    /// applications before their function key enters the emission queue.
+    derived_bodies: HashMap<FunctionKey, (concrete::Body, Vec<concrete::LocalId>)>,
+    structural_derived_functions:
+        HashMap<(export::DerivedEqualityApplicationId, concrete::TypeId), concrete::FunctionId>,
     pending_functions: VecDeque<(FunctionKey, concrete::FunctionId)>,
     emitted_functions: Vec<concrete::FunctionId>,
     overloaded_generic_names: HashSet<String>,
@@ -134,6 +139,8 @@ impl<'a> Concretizer<'a> {
             global_map: HashMap::new(),
             function_slots: Vec::new(),
             function_by_key: HashMap::new(),
+            derived_bodies: HashMap::new(),
+            structural_derived_functions: HashMap::new(),
             pending_functions: VecDeque::new(),
             emitted_functions: Vec::new(),
             overloaded_generic_names: overloaded_generic_names(source),
@@ -1161,7 +1168,10 @@ impl<'a> Concretizer<'a> {
 
     fn is_emittable_source_function(&self, id: export::FunctionId) -> bool {
         let function = &self.source.functions[id];
-        if !matches!(function.kind, export::FunctionKind::User(_)) {
+        if !matches!(
+            function.kind,
+            export::FunctionKind::User(_) | export::FunctionKind::DerivedEquality
+        ) {
             return false;
         }
         let Some(method) = function.method else {
@@ -1233,6 +1243,12 @@ impl<'a> Concretizer<'a> {
                 let (body, local_map) = self.lower_body(body, &arguments);
                 (concrete::FunctionKind::User(body), local_map)
             }
+            export::FunctionKind::DerivedEquality => {
+                let (body, local_map) = self.derived_bodies.get(key).cloned().expect(
+                    "a typed derived application supplies its concrete body before emission",
+                );
+                (concrete::FunctionKind::User(body), local_map)
+            }
             export::FunctionKind::Intrinsic(intrinsic) => {
                 (concrete::FunctionKind::Intrinsic(*intrinsic), Vec::new())
             }
@@ -1299,7 +1315,7 @@ impl<'a> Concretizer<'a> {
             concrete::MethodOwner::Struct(id) => &self.structs[id].type_arguments,
             concrete::MethodOwner::Enum(id) => &self.enums[id].type_arguments,
             concrete::MethodOwner::Interface(id) => &self.interfaces[id].type_arguments,
-            concrete::MethodOwner::Any => &[],
+            concrete::MethodOwner::Structural(_) => &[],
         }
     }
 
@@ -1571,9 +1587,15 @@ impl<'a> Concretizer<'a> {
                 local: self.lower_local(*local, locals),
             },
             export::Pattern::Wildcard => concrete::Pattern::Wildcard,
-            export::Pattern::Literal(expr) => {
-                concrete::Pattern::Literal(self.lower_expr(expr, substitution, locals))
-            }
+            export::Pattern::Literal {
+                value,
+                equals,
+                subject_ty,
+            } => concrete::Pattern::Literal {
+                value: self.lower_expr(value, substitution, locals),
+                equals: self.lower_callable(*equals, substitution),
+                subject_ty: self.lower_type(*subject_ty, substitution),
+            },
             export::Pattern::Variant {
                 application,
                 variant,
@@ -1845,6 +1867,9 @@ impl<'a> Concretizer<'a> {
                             receiver = self.adapt_receiver_to_interface(receiver, interface);
                         }
                         callee
+                    }
+                    export::MethodCallee::DerivedEquality(application) => {
+                        self.lower_derived_equality_application(*application, substitution)
                     }
                 };
                 concrete::ExprKind::MethodCall {
@@ -2246,6 +2271,80 @@ impl<'a> Concretizer<'a> {
         (concrete::Callable::Function(function), arguments)
     }
 
+    fn lower_derived_equality_application(
+        &mut self,
+        source: export::DerivedEqualityApplicationId,
+        substitution: &[concrete::TypeId],
+    ) -> concrete::Callable {
+        let application = self.source.derived_equality_applications[source].clone();
+        match application.origin {
+            export::DerivedEqualityOrigin::Nominal(owner) => {
+                let owner = self.lower_method_owner(owner, substitution);
+                let key = FunctionKey::Method {
+                    source: application.function,
+                    owner,
+                    specialization: MethodRequest::Plain,
+                };
+                if !self.derived_bodies.contains_key(&key) {
+                    let body = self.lower_body(&application.body, substitution);
+                    self.derived_bodies.insert(key.clone(), body);
+                }
+                concrete::Callable::Function(self.request_function_key(key))
+            }
+            export::DerivedEqualityOrigin::Structural(source_owner_ty) => {
+                debug_assert_eq!(source_owner_ty, application.owner_ty);
+                let owner_ty = self.lower_type(application.owner_ty, substitution);
+                let cache_key = (source, owner_ty);
+                if let Some(&function) = self.structural_derived_functions.get(&cache_key) {
+                    return concrete::Callable::Function(function);
+                }
+
+                // Reserve and publish the identity before lowering the body,
+                // so nested structural applications can refer back to it
+                // without requiring a downstream recursion heuristic.
+                let raw = self.function_slots.len() as u32;
+                self.function_slots.push(None);
+                let function = concrete::FunctionId::from_raw(raw.into());
+                self.structural_derived_functions
+                    .insert(cache_key, function);
+
+                let (body, local_map) = self.lower_body(&application.body, substitution);
+                let source_function = &self.source.functions[application.function];
+                let params = source_function
+                    .params
+                    .iter()
+                    .map(|param| concrete::Param {
+                        name: param.name.clone(),
+                        ty: owner_ty,
+                        local: local_map[param.local.into_raw().into_u32() as usize],
+                    })
+                    .collect();
+                let value = concrete::Function {
+                    name: format!("$derived.equals.{}", source.into_raw().into_u32()),
+                    origin: concrete::FunctionOrigin::Method(concrete::MethodOrigin {
+                        owner: concrete::MethodOwner::Structural(owner_ty),
+                        specialization: concrete::MethodSpecialization::Plain,
+                    }),
+                    is_suspend: false,
+                    params,
+                    return_ty: self.lower_type(source_function.return_ty, substitution),
+                    attributes: application.attributes,
+                    kind: concrete::FunctionKind::User(body),
+                    method: Some(concrete::Method {
+                        owner: owner_ty,
+                        modifier: concrete::MethodModifier::Final,
+                        operator: Some(export::OperatorKind::Equals),
+                    }),
+                    span: application.span,
+                };
+                let slot = function.into_raw().into_u32() as usize;
+                assert!(self.function_slots[slot].replace(value).is_none());
+                self.emitted_functions.push(function);
+                concrete::Callable::Function(function)
+            }
+        }
+    }
+
     fn lower_method_owner(
         &mut self,
         owner: export::MethodOwnerApplication,
@@ -2264,7 +2363,6 @@ impl<'a> Concretizer<'a> {
             export::MethodOwnerApplication::Interface(id) => {
                 concrete::MethodOwner::Interface(self.lower_interface_application(id, substitution))
             }
-            export::MethodOwnerApplication::Any => concrete::MethodOwner::Any,
         }
     }
 
@@ -2456,6 +2554,9 @@ impl<'a> Concretizer<'a> {
                             receiver = self.adapt_receiver_to_interface(receiver, interface);
                         }
                         callee
+                    }
+                    export::MethodCallee::DerivedEquality(application) => {
+                        self.lower_derived_equality_application(application, substitution)
                     }
                 };
                 concrete::CallableReferenceTarget::BoundMember {

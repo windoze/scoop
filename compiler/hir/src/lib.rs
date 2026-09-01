@@ -46,6 +46,7 @@ pub type ResolvedGenericFunctionId = Idx<ResolvedGenericFunction>;
 pub type MethodApplicationId = Idx<MethodApplication>;
 pub type GenericMethodId = Idx<GenericMethod>;
 pub type GenericMethodApplicationId = Idx<GenericMethodApplication>;
+pub type DerivedEqualityApplicationId = Idx<DerivedEqualityApplication>;
 pub type StructId = Idx<StructDecl>;
 pub type EnumId = Idx<EnumDecl>;
 pub type ClassId = Idx<ClassDecl>;
@@ -421,6 +422,11 @@ pub struct Module {
     pub method_applications: Arena<MethodApplication>,
     pub generic_methods: Arena<GenericMethod>,
     pub generic_method_applications: Arena<GenericMethodApplication>,
+    /// Fully typed compiler-derived equality bodies requested while lowering
+    /// source operators. Each body already names every nested member/derived
+    /// target; concretization substitutes it mechanically and never performs
+    /// member lookup or reconstructs aggregate semantics.
+    pub derived_equality_applications: Arena<DerivedEqualityApplication>,
     pub structs: Arena<StructDecl>,
     /// Canonical, fully applied export-side struct identities.  A type never
     /// stores a declaration id and an unrelated argument vector.
@@ -692,13 +698,37 @@ pub enum MethodOwnerApplication {
     Struct(StructApplicationId),
     Enum(EnumApplicationId),
     Interface(InterfaceApplicationId),
-    Any,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct MethodApplication {
     pub function: FunctionId,
     pub owner: MethodOwnerApplication,
+}
+
+/// Exact origin of one compiler-derived value-type equality method.
+/// Nominal declarations reuse their owner application; structural Unit/tuple
+/// methods carry their owner type directly because they have no declaration
+/// arena whose identity could stand in for that type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum DerivedEqualityOrigin {
+    Nominal(MethodOwnerApplication),
+    Structural(TypeId),
+}
+
+/// One application of a compiler-derived value-type equality method. The
+/// source method declaration supplies stable callable identity; every other
+/// property needed to materialize the concrete method is mandatory here.
+/// `body` is complete application-specific HIR, including exact nested
+/// callees, so concretization only substitutes types and callable identities.
+#[derive(Debug, Clone)]
+pub struct DerivedEqualityApplication {
+    pub function: FunctionId,
+    pub origin: DerivedEqualityOrigin,
+    pub owner_ty: TypeId,
+    pub attributes: FunctionAttributes,
+    pub span: Span,
+    pub body: Body,
 }
 
 /// A non-virtual generic method template. Its declaration identity is
@@ -752,6 +782,10 @@ pub struct StructDecl {
     /// Member declarations in source order. Consumers follow this typed
     /// relation and never recover ownership by scanning `Module::functions`.
     pub methods: Vec<FunctionId>,
+    /// Compiler-derived same-type equality declaration, when no explicit
+    /// same-signature operator suppresses derivation. Applicability remains
+    /// conditional on this application's field obligations.
+    pub derived_equality: Option<FunctionId>,
     pub span: Span,
 }
 
@@ -817,6 +851,7 @@ pub struct EnumDecl {
     pub interfaces: Vec<TypeId>,
     pub interface_implementations: Vec<InterfaceImplementation>,
     pub methods: Vec<FunctionId>,
+    pub derived_equality: Option<FunctionId>,
     pub span: Span,
 }
 
@@ -1408,6 +1443,11 @@ pub struct Param {
 #[derive(Debug, Clone)]
 pub enum FunctionKind {
     User(Body),
+    /// Stable source identity for a conditional derived equality method. Its
+    /// application-specific ordinary body lives on
+    /// `DerivedEqualityApplication` and must be present before concretization
+    /// requests this function.
+    DerivedEquality,
     /// A validated compiler intrinsic. Raw annotation text does not cross the
     /// AST/HIR boundary: kind and defining provider are both typed and
     /// mandatory.
@@ -1535,8 +1575,14 @@ pub enum Pattern {
         local: LocalId,
     },
     Wildcard,
-    /// A literal matched by equality (the expression is a literal).
-    Literal(Expr),
+    /// A literal matched by an exact ordinary `operator fun equals` target.
+    /// The subject type is retained explicitly rather than reconstructed from
+    /// the recursive pattern position by a downstream stage.
+    Literal {
+        value: Expr,
+        equals: Callable,
+        subject_ty: TypeId,
+    },
     Variant {
         application: EnumApplicationId,
         /// Variant index in declaration order.
@@ -1733,6 +1779,7 @@ pub enum ExprKind {
 pub enum MethodCallee {
     Callable(Callable),
     Bound(BoundCallableRefId),
+    DerivedEquality(DerivedEqualityApplicationId),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -2397,6 +2444,11 @@ pub fn dump(module: &Module) -> String {
                 ));
                 dump_statements(module, &body.locals, &body.statements, 2, &mut out);
             }
+            FunctionKind::DerivedEquality => {
+                out.push_str(&format!(
+                    "  {operator}{suspend}fun {signature}{attributes}{no_gc_condition} <derived equality>\n"
+                ));
+            }
             FunctionKind::Extern(id) => {
                 let extern_ = &module.extern_functions[*id];
                 let abi = match extern_.abi {
@@ -2674,7 +2726,9 @@ pub fn dump_pattern(pattern: &Pattern) -> String {
     match pattern {
         Pattern::Binding { local } => format!("local{}", local.into_raw()),
         Pattern::Wildcard => "_".to_string(),
-        Pattern::Literal(expr) => format!("<lit {:?}>", expr.kind).chars().take(40).collect(),
+        Pattern::Literal { value, .. } => {
+            format!("<lit {:?}>", value.kind).chars().take(40).collect()
+        }
         Pattern::Variant {
             variant, fields, ..
         } => {
@@ -2748,7 +2802,6 @@ fn method_owner_arguments(module: &Module, owner: MethodOwnerApplication) -> &[T
         MethodOwnerApplication::Struct(id) => &module.struct_applications[id].arguments,
         MethodOwnerApplication::Enum(id) => &module.enum_applications[id].arguments,
         MethodOwnerApplication::Interface(id) => &module.interface_applications[id].arguments,
-        MethodOwnerApplication::Any => &[],
     }
 }
 
@@ -2765,6 +2818,9 @@ fn method_callee_function(module: &Module, callee: MethodCallee) -> FunctionId {
         MethodCallee::Callable(callable) => callable_function(module, callable),
         MethodCallee::Bound(bound) => {
             module.interface_methods[module.bound_callable_refs[bound].member].function
+        }
+        MethodCallee::DerivedEquality(application) => {
+            module.derived_equality_applications[application].function
         }
     }
 }
@@ -3125,6 +3181,9 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
                         type_name(module, interface.canonical_type),
                         module.functions[function].name
                     )
+                }
+                MethodCallee::DerivedEquality(_) => {
+                    format!("{} <derived>", module.functions[function].name)
                 }
             };
             out.push_str(&format!("{pad}MethodCall {} : {ty}\n", target));

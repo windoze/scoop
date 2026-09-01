@@ -57,7 +57,7 @@ static const FiveCharConst hello = {&scoop_td_String, 0, 5, {'h', 'e', 'l', 'l',
 static const FiveCharConst world = {&scoop_td_String, 0, 5, {'w', 'o', 'r', 'l', 'd'}};
 
 /* M6 dispatch fixtures: interface Describable; class Shape; class
- * Point : Shape, Describable (vtable = Any slots + describe). Sizes
+ * Point : Shape, Describable (vtable contains its ordinary describe method). Sizes
  * include the 16-byte header. */
 static int64_t point_describe(const void *self) {
     (void)self;
@@ -68,12 +68,7 @@ static const ScoopTypeDescriptor describable_td = {
     1002, 0, 8, NULL, NULL, NULL, NULL, 0, "Describable"};
 static const void *const point_describable_slots[] = {(const void *)&point_describe};
 static const ScoopItableEntry point_itables[] = {{&describable_td, point_describable_slots}};
-static const void *const point_vtable[] = {
-    (const void *)&scoop_rt_any_equals,
-    (const void *)&scoop_rt_any_hashcode,
-    (const void *)&scoop_rt_any_tostring,
-    (const void *)&point_describe,
-};
+static const void *const point_vtable[] = {(const void *)&point_describe};
 static const ScoopTypeDescriptor shape_td = {1000, 24, 8, NULL, NULL, NULL, NULL, 0, "Shape"};
 static const ScoopTypeDescriptor point_td = {
     1001, 32, 8, NULL, &shape_td, point_vtable, point_itables, 1, "Point"};
@@ -1194,14 +1189,6 @@ void scoop_main(void) {
     scoop_rt_println_boolean(slots == point_describable_slots);
     typedef int64_t (*DescribeFn)(const void *);
     scoop_rt_println_int(((DescribeFn)slots[0])(boxed));
-
-    /* Any default methods (M6): identity equality, address hash,
-     * "Object@<hex>" toString. */
-    scoop_rt_println_boolean(scoop_rt_any_equals(boxed, boxed));
-    scoop_rt_println_boolean(scoop_rt_any_equals(boxed, a));
-    scoop_rt_println_boolean(scoop_rt_any_hashcode(boxed) == (uint64_t)(uintptr_t)boxed);
-    const ScoopString *description = scoop_rt_any_tostring(boxed);
-    scoop_rt_println_boolean(description->len > 7 && memcmp(description->data, "Object@", 7) == 0);
 
     /* scoop_rt_trap (M3) aborts the process, so it is not exercised
      * here; its trap path is covered end-to-end by EXPECT-TRAP compiler

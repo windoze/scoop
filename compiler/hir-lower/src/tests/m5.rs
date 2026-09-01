@@ -258,7 +258,7 @@ fn literal_inference_in_argument_and_return_positions() {
     // one.
     let main_body = match &module.functions[module.entry].kind {
         FunctionKind::User(body) => body,
-        FunctionKind::Intrinsic(_) | FunctionKind::Extern(_) => {
+        FunctionKind::Intrinsic(_) | FunctionKind::Extern(_) | FunctionKind::DerivedEquality => {
             panic!("main is a user function")
         }
     };
@@ -282,7 +282,7 @@ fn literal_inference_in_argument_and_return_positions() {
         .expect("make is declared");
     let make_body = match &module.functions[make].kind {
         FunctionKind::User(body) => body,
-        FunctionKind::Intrinsic(_) | FunctionKind::Extern(_) => {
+        FunctionKind::Intrinsic(_) | FunctionKind::Extern(_) | FunctionKind::DerivedEquality => {
             panic!("make is a user function")
         }
     };
@@ -319,7 +319,7 @@ fn struct_elements_and_field_through_subscript() {
     let module = lower_user(file).expect("struct element program must lower");
     let body = match &module.functions[module.entry].kind {
         FunctionKind::User(body) => body,
-        FunctionKind::Intrinsic(_) | FunctionKind::Extern(_) => {
+        FunctionKind::Intrinsic(_) | FunctionKind::Extern(_) | FunctionKind::DerivedEquality => {
             panic!("main is a user function")
         }
     };
@@ -347,7 +347,7 @@ fn array_types_are_interned() {
     let module = lower_user(file).expect("interning program must lower");
     let body = match &module.functions[module.entry].kind {
         FunctionKind::User(body) => body,
-        FunctionKind::Intrinsic(_) | FunctionKind::Extern(_) => {
+        FunctionKind::Intrinsic(_) | FunctionKind::Extern(_) | FunctionKind::DerivedEquality => {
             panic!("main is a user function")
         }
     };
@@ -389,7 +389,7 @@ fn conversion_resolves_before_user_functions() {
     let module = lower_user(file).expect("conversion precedence program must lower");
     let body = match &module.functions[module.entry].kind {
         FunctionKind::User(body) => body,
-        FunctionKind::Intrinsic(_) | FunctionKind::Extern(_) => {
+        FunctionKind::Intrinsic(_) | FunctionKind::Extern(_) | FunctionKind::DerivedEquality => {
             panic!("main is a user function")
         }
     };
@@ -421,7 +421,7 @@ fn conversion_method_forms_clone_to_the_opposite_kind() {
     let module = lower_user(file).expect("array conversion methods must lower");
     let body = match &module.functions[module.entry].kind {
         FunctionKind::User(body) => body,
-        FunctionKind::Intrinsic(_) | FunctionKind::Extern(_) => {
+        FunctionKind::Intrinsic(_) | FunctionKind::Extern(_) | FunctionKind::DerivedEquality => {
             panic!("main is a user function")
         }
     };
@@ -513,7 +513,9 @@ fn reference_elements_infer_their_representable_lob() {
     let module = lower_user(file).expect("reference LOB inference must lower");
     let body = match &module.functions[module.entry].kind {
         hir::FunctionKind::User(body) => body,
-        hir::FunctionKind::Intrinsic(_) | hir::FunctionKind::Extern(_) => {
+        hir::FunctionKind::Intrinsic(_)
+        | hir::FunctionKind::Extern(_)
+        | hir::FunctionKind::DerivedEquality => {
             panic!("main is a user function")
         }
     };

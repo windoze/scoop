@@ -34,6 +34,7 @@ SourceFile
 SourceFile
   struct Ptr<T : value>
     field _rawPointer: UInt
+    operator fun equals
     fun toUInt
     fun cast
     fun load
@@ -207,7 +208,7 @@ SourceFile
   fun nativeWrite(message: String)
     @Extern(lib = "fixture_native", name = "native_root_round_trip", abi = "scoop")
   fun nativeRootRoundTrip(message: String): String
-  fun stringify(value: Any): String
+  fun stringify<T : ToString>(value: T): String
     =
       MethodCall toString
         Var value
@@ -307,21 +308,21 @@ Module
   fun coreStringHash(arg1: String): Int <extern11 abi=scoop symbol=scoop_rt_string_hash>
   fun nativeWrite(arg1: String): Unit <extern12 abi=scoop symbol=scoop_rt_write>
   fun nativeRootRoundTrip(arg1: String): String <extern13 abi=scoop symbol=native_root_round_trip lib=fixture_native>
-  fun stringify(value: Any): String
+  fun stringify<T : ToString>(value: T0): String
     return
-      MethodCall Any.toString : String
-        Local value : Any
+      MethodCall bound T0 via ToString -> ToString.toString : String
+        Local value : T0
   fun main(): Unit
     Call nativeWrite : Unit
       StringLiteral "direct managed ref" : String
     Call println<String> : Unit
       Call nativeRootRoundTrip : String
-        Call stringify : String
-          Box : Any
-            IntLiteral 42 : Int
+        Call stringify<Int> : String
+          IntLiteral 42 : Int
   entry main
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>
+  instance stringify<Int>
   instance println<String>
 
 == mir ==
@@ -343,14 +344,13 @@ Module
   enum Option$S
     Some(_1: String)
     None()
-  class Throwable vtable=3 itables=0
-  class Exception vtable=3 itables=0
-  class UnwrapException vtable=3 itables=0
-  class ClassCastException vtable=3 itables=0
-  class ArithmeticException vtable=3 itables=0
-  class IndexOutOfBoundsException vtable=3 itables=0
-  class IllegalStateException vtable=3 itables=0
-  class box$I vtable=3 itables=0
+  class Throwable vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class UnwrapException vtable=0 itables=0
+  class ClassCastException vtable=0 itables=0
+  class ArithmeticException vtable=0 itables=0
+  class IndexOutOfBoundsException vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
   interface ToString
   interface Hash
   fun Int.equals @scoop.Int.equals(this: Int, other: Int) -> Boolean
@@ -427,24 +427,23 @@ Module
         Local this
       return
         Local $call.1
-  fun stringify @scoop.stringify(value: Any) -> String
-    bb0 entry
-      call $call.1: String = @scoop.Any.toString virtual[2]
-        Local value
-      return
-        Local $call.1
   fun main @scoop_main() -> Unit
     bb0 entry
       call extern12 @scoop_rt_write direct
         StringConst @scoop.str.0
-      call $call.1: String = @scoop.stringify direct
-        Box
-          IntLiteral 42
+      call $call.1: String = @scoop.stringify$I direct
+        IntLiteral 42
       call $call.2: String = extern13 @native_root_round_trip direct
         Local $call.1
       call @scoop.println$S direct
         Local $call.2
       return
+  fun stringify @scoop.stringify$I(value: Int) -> String
+    bb0 entry
+      call $call.1: String = @scoop.Int.toString direct
+        Local value
+      return
+        Local $call.1
   fun println @scoop.println$S(value: String) -> Unit
     bb0 entry
       call $call.1: String = @scoop.String.toString direct
@@ -493,25 +492,7 @@ Module
         ClassInit IllegalStateException
           VariantConstruct Option$S<String> v0
             StringConst @scoop.str.6
-  fun eq.I @scoop.eq.I(this: Any, other: Any) -> Boolean
-    bb0 entry
-      val $a: Int
-        Unbox
-          Local this
-      val $b: Int
-        Unbox
-          Local other
-      return
-        Binary IntEq
-          Local $a
-          Local $b
-  fun tostring.I @scoop.tostring.I(this: Any) -> String
-    bb0 entry
-      call $call.1: String = @scoop_rt_int_to_string direct
-        Unbox
-          Local this
-      return
-        Local $call.1
+  instance @scoop.stringify$I <- stringify
   instance @scoop.println$S <- println
   str @scoop.str.0 "direct managed ref"
   str @scoop.str.1 "\n"
@@ -531,7 +512,6 @@ Module
   global @scoop.str.4 = "arithmetic error"
   global @scoop.str.5 = "array index out of bounds"
   global @scoop.str.6 = "illegal state"
-  global @scoop_td_box$I = c""
   global @scoop_td_Throwable = c""
   global @scoop_td_Exception = c""
   global @scoop_td_UnwrapException = c""
@@ -623,28 +603,25 @@ Module
     t0 = native_call[native-borrowed] extern11(param0) : i64
     store t0 -> local0
     ret local0
-  fun @scoop.stringify(ptr<managed>) -> ptr<managed>
-    local %0 $call.1: ptr<managed>
-  block entry
-    t0 = heap_load param0 +0 : ptr<metadata>
-    t1 = heap_load t0 +40 : ptr<metadata>
-    t2 = call_indirect t1[2](param0) : ptr<managed>
-    store t2 -> local0
-    ret local0
   fun @scoop_main() -> void
     local %0 $call.1: ptr<managed>
     local %1 $call.2: ptr<managed>
   block entry
     native_call[native-borrowed] extern12(global0)
     t0 = aggregate () : {}
-    t1 = call @scoop_rt_box(global7, 42, 8) : ptr<managed>
-    t2 = call @scoop.stringify(t1) : ptr<managed>
-    store t2 -> local0
-    t3 = native_call[native-borrowed] extern13(local0) result-root=refs[0] : ptr<managed>
-    store t3 -> local1
+    t1 = call @scoop.stringify$I(42) : ptr<managed>
+    store t1 -> local0
+    t2 = native_call[native-borrowed] extern13(local0) result-root=refs[0] : ptr<managed>
+    store t2 -> local1
     call @scoop.println$S(local1)
-    t4 = aggregate () : {}
+    t3 = aggregate () : {}
     ret
+  fun @scoop.stringify$I(i64) -> ptr<managed>
+    local %0 $call.1: ptr<managed>
+  block entry
+    t0 = call @scoop.Int.toString(param0) : ptr<managed>
+    store t0 -> local0
+    ret local0
   fun @scoop.println$S(ptr<managed>) -> void
     local %0 $call.1: ptr<managed>
   block entry
@@ -657,70 +634,52 @@ Module
     ret
   fun @scoop.ctor.Throwable() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global8, 16) : ptr<managed>
+    t0 = call @scoop_rt_alloc(global7, 16) : ptr<managed>
     ret t0
   fun @scoop.ctor.Exception(enum0) -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global9, 24) : ptr<managed>
+    t0 = call @scoop_rt_alloc(global8, 24) : ptr<managed>
     heap_store t0 +16 param0
     ret t0
   fun @scoop.ctor.UnwrapException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global10, 24) : ptr<managed>
+    t0 = call @scoop_rt_alloc(global9, 24) : ptr<managed>
     t1 = enum_wrap e0 v0 (global2) : enum0
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.ClassCastException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global11, 24) : ptr<managed>
+    t0 = call @scoop_rt_alloc(global10, 24) : ptr<managed>
     t1 = enum_wrap e0 v0 (global3) : enum0
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.ArithmeticException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global12, 24) : ptr<managed>
+    t0 = call @scoop_rt_alloc(global11, 24) : ptr<managed>
     t1 = enum_wrap e0 v0 (global4) : enum0
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.IndexOutOfBoundsException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global13, 24) : ptr<managed>
+    t0 = call @scoop_rt_alloc(global12, 24) : ptr<managed>
     t1 = enum_wrap e0 v0 (global5) : enum0
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.IllegalStateException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global14, 24) : ptr<managed>
+    t0 = call @scoop_rt_alloc(global13, 24) : ptr<managed>
     t1 = enum_wrap e0 v0 (global6) : enum0
     heap_store t0 +16 t1
     ret t0
-  fun @scoop.eq.I(ptr<managed>, ptr<managed>) -> i1
-    local %0 $a: i64
-    local %1 $b: i64
-  block entry
-    t0 = heap_load param0 +16 : i64
-    store t0 -> local0
-    t1 = heap_load param1 +16 : i64
-    store t1 -> local1
-    t2 = Eq local0, local1 : i1
-    ret t2
-  fun @scoop.tostring.I(ptr<managed>) -> ptr<managed>
-    local %0 $call.1: ptr<managed>
-  block entry
-    t0 = heap_load param0 +16 : i64
-    t1 = call @scoop_rt_int_to_string(t0) : ptr<managed>
-    store t1 -> local0
-    ret local0
   td ToString @scoop_td_ToString size=0 vtable=0 itables=0
   td Hash @scoop_td_Hash size=0 vtable=0 itables=0
-  td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
-  td box$I @scoop_td_box$I size=24 vtable=3 itables=0
-  td Exception @scoop_td_Exception size=24 vtable=3 itables=0
-  td UnwrapException @scoop_td_UnwrapException size=24 vtable=3 itables=0
-  td ClassCastException @scoop_td_ClassCastException size=24 vtable=3 itables=0
-  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=3 itables=0
-  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=3 itables=0
-  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=3 itables=0
+  td Throwable @scoop_td_Throwable size=16 vtable=0 itables=0
+  td Exception @scoop_td_Exception size=24 vtable=0 itables=0
+  td UnwrapException @scoop_td_UnwrapException size=24 vtable=0 itables=0
+  td ClassCastException @scoop_td_ClassCastException size=24 vtable=0 itables=0
+  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=0 itables=0
+  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=0 itables=0
+  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=0 itables=0
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
@@ -732,7 +691,6 @@ Module
   layout ArithmeticException size=24 align=8 refs=[16]
   layout IndexOutOfBoundsException size=24 align=8 refs=[16]
   layout IllegalStateException size=24 align=8 refs=[16]
-  layout box$I size=24 align=8 refs=[]
   entry @scoop_main
 
 == run ==

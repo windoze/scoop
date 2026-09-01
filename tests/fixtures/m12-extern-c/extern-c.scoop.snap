@@ -34,6 +34,7 @@ SourceFile
 SourceFile
   struct Ptr<T : value>
     field _rawPointer: UInt
+    operator fun equals
     fun toUInt
     fun cast
     fun load
@@ -546,13 +547,13 @@ Module
         IntLiteral 19 : Int
         IntLiteral 23 : Int
     Call println<Boolean> : Unit
-      Binary Eq : Boolean
+      MethodCall UInt.equals : Boolean
         Call nativeAddUnsigned : UInt
           SizeOf Int : UInt
           AlignOf Int : UInt
         SizeOf NativePair : UInt
     Call println<Boolean> : Unit
-      Binary Eq : Boolean
+      MethodCall UInt.equals : Boolean
         Call nativeDefault : UInt
           SizeOf Int : UInt
         SizeOf NativePair : UInt
@@ -620,7 +621,7 @@ Module
         FieldAccess field 1 : NativePacked
           Local envelope : NativeEnvelope
     Call println<Boolean> : Unit
-      Binary Eq : Boolean
+      MethodCall UInt.equals : Boolean
         FieldAccess field 2 : UInt
           Local envelope : NativeEnvelope
         Binary Add : UInt
@@ -672,13 +673,13 @@ Module
   enum CoroutineStep$I
     Completed(value: Int)
     Suspended()
-  class Throwable vtable=3 itables=0
-  class Exception vtable=3 itables=0
-  class UnwrapException vtable=3 itables=0
-  class ClassCastException vtable=3 itables=0
-  class ArithmeticException vtable=3 itables=0
-  class IndexOutOfBoundsException vtable=3 itables=0
-  class IllegalStateException vtable=3 itables=0
+  class Throwable vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class UnwrapException vtable=0 itables=0
+  class ClassCastException vtable=0 itables=0
+  class ArithmeticException vtable=0 itables=0
+  class IndexOutOfBoundsException vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
   interface ToString
   interface Hash
   interface Continuation$I
@@ -828,24 +829,26 @@ Module
       call $call.3: UInt = extern13 @native_add_unsigned direct
         SizeOf Int
         AlignOf Int
+      call $call.4: Boolean = @scoop.UInt.equals direct
+        Local $call.3
+        SizeOf NativePair
       call @scoop.println$B direct
-        Binary IntEq
-          Local $call.3
-          SizeOf NativePair
-      call $call.4: UInt = extern14 @nativeDefault direct
+        Local $call.4
+      call $call.5: UInt = extern14 @nativeDefault direct
         SizeOf Int
-      call @scoop.println$B direct
-        Binary IntEq
-          Local $call.4
-          SizeOf NativePair
-      call $call.5: Int = extern15 @extra_delta direct
-        IntLiteral 47
-      call @scoop.println$I direct
+      call $call.6: Boolean = @scoop.UInt.equals direct
         Local $call.5
-      call $call.6: Boolean = extern16 @native_not direct
-        BoolLiteral false
+        SizeOf NativePair
       call @scoop.println$B direct
         Local $call.6
+      call $call.7: Int = extern15 @extra_delta direct
+        IntLiteral 47
+      call @scoop.println$I direct
+        Local $call.7
+      call $call.8: Boolean = extern16 @native_not direct
+        BoolLiteral false
+      call @scoop.println$B direct
+        Local $call.8
       call swapped: NativePair = extern17 @native_swap direct
         StructInit NativePair
           IntLiteral 7
@@ -858,21 +861,21 @@ Module
           Local swapped
       call extern18 @native_sink direct
         IntLiteral 1
-      call $call.7: Int = extern19 @native_apply direct
+      call $call.9: Int = extern19 @native_apply direct
         IntLiteral 41
         FunctionAddress cb0
       call @scoop.println$I direct
-        Local $call.7
-      call $call.8: Int = extern21 @native_apply_optional direct
+        Local $call.9
+      call $call.10: Int = extern21 @native_apply_optional direct
         IntLiteral 7
         Local noCallback
       call @scoop.println$I direct
-        Local $call.8
-      call $call.9: Int = extern21 @native_apply_optional direct
+        Local $call.10
+      call $call.11: Int = extern21 @native_apply_optional direct
         IntLiteral 8
         Local someCallback
       call @scoop.println$I direct
-        Local $call.9
+        Local $call.11
       call shifted: NativePair = extern20 @native_apply_pair direct
         StructInit NativePair
           IntLiteral 3
@@ -903,13 +906,14 @@ Module
         FieldAccess 1
           FieldAccess 1
             Local envelope
+      call $call.12: Boolean = @scoop.UInt.equals direct
+        FieldAccess 2
+          Local envelope
+        Binary IntAdd
+          SizeOf NativeEnvelope
+          SizeOf Int
       call @scoop.println$B direct
-        Binary IntEq
-          FieldAccess 2
-            Local envelope
-          Binary IntAdd
-            SizeOf NativeEnvelope
-            SizeOf Int
+        Local $call.12
       return
   fun println @scoop.println$I(value: Int) -> Unit
     bb0 entry
@@ -1184,31 +1188,34 @@ Module
     local %6 $call.1: i64
     local %7 $call.2: i64
     local %8 $call.3: i64
-    local %9 $call.4: i64
+    local %9 $call.4: i1
     local %10 $call.5: i64
     local %11 $call.6: i1
     local %12 $call.7: i64
-    local %13 $call.8: i64
+    local %13 $call.8: i1
     local %14 $call.9: i64
-    local %15 $sc.1: i64
-    local %16 $sc.2: i64
-    local %17 $sc.3: i64
-    local %18 $sc.4: i64
-    local %19 $sc.5: i64
-    local %20 $sc.6: i64
-    local %21 $sc.7: i1
-    local %22 $sc.8: struct0
-    local %23 $sc.9: i64
-    local %24 $sc.10: i64
-    local %25 $sc.11: ptr<code>
-    local %26 $sc.12: i64
-    local %27 $sc.13: enum1
-    local %28 $sc.14: i64
-    local %29 $sc.15: enum1
-    local %30 $sc.16: struct0
-    local %31 $sc.17: ptr<code>
-    local %32 $sc.18: struct1
-    local %33 $sc.19: ptr<code>
+    local %15 $call.10: i64
+    local %16 $call.11: i64
+    local %17 $call.12: i1
+    local %18 $sc.1: i64
+    local %19 $sc.2: i64
+    local %20 $sc.3: i64
+    local %21 $sc.4: i64
+    local %22 $sc.5: i64
+    local %23 $sc.6: i64
+    local %24 $sc.7: i1
+    local %25 $sc.8: struct0
+    local %26 $sc.9: i64
+    local %27 $sc.10: i64
+    local %28 $sc.11: ptr<code>
+    local %29 $sc.12: i64
+    local %30 $sc.13: enum1
+    local %31 $sc.14: i64
+    local %32 $sc.15: enum1
+    local %33 $sc.16: struct0
+    local %34 $sc.17: ptr<code>
+    local %35 $sc.18: struct1
+    local %36 $sc.19: ptr<code>
   block entry
     t0 = call @scoop_rt_alloc(global7, 24) : ptr<managed>
     t1 = function_address @scoop.$reference.0 : ptr
@@ -1223,45 +1230,47 @@ Module
     store t5 -> local6
     call @scoop.println$I(local6)
     t6 = aggregate () : {}
-    store 19 -> local15
-    t8 = local_address local15 : ptr
-    store 23 -> local16
-    t9 = local_address local16 : ptr
+    store 19 -> local18
+    t8 = local_address local18 : ptr
+    store 23 -> local19
+    t9 = local_address local19 : ptr
     t7 = native_call[native-safe] extern12(t8, t9) : i64
     store t7 -> local7
     call @scoop.println$I(local7)
     t10 = aggregate () : {}
-    store 8 -> local17
-    t12 = local_address local17 : ptr
-    store 8 -> local18
-    t13 = local_address local18 : ptr
+    store 8 -> local20
+    t12 = local_address local20 : ptr
+    store 8 -> local21
+    t13 = local_address local21 : ptr
     t11 = native_call[native-safe] extern13(t12, t13) : i64
     store t11 -> local8
-    t14 = Eq local8, 16 : i1
-    call @scoop.println$B(t14)
+    t14 = call @scoop.UInt.equals(local8, 16) : i1
+    store t14 -> local9
+    call @scoop.println$B(local9)
     t15 = aggregate () : {}
-    store 8 -> local19
-    t17 = local_address local19 : ptr
+    store 8 -> local22
+    t17 = local_address local22 : ptr
     t16 = native_call[native-safe] extern14(t17) : i64
-    store t16 -> local9
-    t18 = Eq local9, 16 : i1
-    call @scoop.println$B(t18)
-    t19 = aggregate () : {}
-    store 47 -> local20
-    t21 = local_address local20 : ptr
-    t20 = native_call[native-safe] extern15(t21) : i64
-    store t20 -> local10
-    call @scoop.println$I(local10)
-    t22 = aggregate () : {}
-    store false -> local21
-    t24 = local_address local21 : ptr
-    t23 = native_call[native-safe] extern16(t24) : i1
-    store t23 -> local11
+    store t16 -> local10
+    t18 = call @scoop.UInt.equals(local10, 16) : i1
+    store t18 -> local11
     call @scoop.println$B(local11)
+    t19 = aggregate () : {}
+    store 47 -> local23
+    t21 = local_address local23 : ptr
+    t20 = native_call[native-safe] extern15(t21) : i64
+    store t20 -> local12
+    call @scoop.println$I(local12)
+    t22 = aggregate () : {}
+    store false -> local24
+    t24 = local_address local24 : ptr
+    t23 = native_call[native-safe] extern16(t24) : i1
+    store t23 -> local13
+    call @scoop.println$B(local13)
     t25 = aggregate () : {}
     t26 = aggregate (7, 11) : struct0
-    store t26 -> local22
-    t28 = local_address local22 : ptr
+    store t26 -> local25
+    t28 = local_address local25 : ptr
     t27 = native_call[native-safe] extern17(t28) : struct0
     store t27 -> local3
     t29 = extract local3, 0 : i64
@@ -1270,41 +1279,41 @@ Module
     t31 = extract local3, 1 : i64
     call @scoop.println$I(t31)
     t32 = aggregate () : {}
-    store 1 -> local23
-    t33 = local_address local23 : ptr
+    store 1 -> local26
+    t33 = local_address local26 : ptr
     native_call[native-safe] extern18(t33)
     t34 = aggregate () : {}
     t35 = function_address @scoop_c_callback_0 : ptr
-    store 41 -> local24
-    t37 = local_address local24 : ptr
-    store t35 -> local25
-    t38 = local_address local25 : ptr
+    store 41 -> local27
+    t37 = local_address local27 : ptr
+    store t35 -> local28
+    t38 = local_address local28 : ptr
     t36 = native_call[native-safe] extern19(t37, t38) : i64
-    store t36 -> local12
-    call @scoop.println$I(local12)
-    t39 = aggregate () : {}
-    store 7 -> local26
-    t41 = local_address local26 : ptr
-    store local1 -> local27
-    t42 = local_address local27 : ptr
-    t40 = native_call[native-safe] extern21(t41, t42) : i64
-    store t40 -> local13
-    call @scoop.println$I(local13)
-    t43 = aggregate () : {}
-    store 8 -> local28
-    t45 = local_address local28 : ptr
-    store local2 -> local29
-    t46 = local_address local29 : ptr
-    t44 = native_call[native-safe] extern21(t45, t46) : i64
-    store t44 -> local14
+    store t36 -> local14
     call @scoop.println$I(local14)
+    t39 = aggregate () : {}
+    store 7 -> local29
+    t41 = local_address local29 : ptr
+    store local1 -> local30
+    t42 = local_address local30 : ptr
+    t40 = native_call[native-safe] extern21(t41, t42) : i64
+    store t40 -> local15
+    call @scoop.println$I(local15)
+    t43 = aggregate () : {}
+    store 8 -> local31
+    t45 = local_address local31 : ptr
+    store local2 -> local32
+    t46 = local_address local32 : ptr
+    t44 = native_call[native-safe] extern21(t45, t46) : i64
+    store t44 -> local16
+    call @scoop.println$I(local16)
     t47 = aggregate () : {}
     t48 = aggregate (3, 4) : struct0
     t49 = function_address @scoop_c_callback_1 : ptr
-    store t48 -> local30
-    t51 = local_address local30 : ptr
-    store t49 -> local31
-    t52 = local_address local31 : ptr
+    store t48 -> local33
+    t51 = local_address local33 : ptr
+    store t49 -> local34
+    t52 = local_address local34 : ptr
     t50 = native_call[native-safe] extern20(t51, t52) : struct0
     store t50 -> local4
     t53 = extract local4, 0 : i64
@@ -1316,10 +1325,10 @@ Module
     t57 = aggregate (false, 7) : struct2
     t58 = aggregate (true, t57, 32) : struct1
     t59 = function_address @scoop_c_callback_2 : ptr
-    store t58 -> local32
-    t61 = local_address local32 : ptr
-    store t59 -> local33
-    t62 = local_address local33 : ptr
+    store t58 -> local35
+    t61 = local_address local35 : ptr
+    store t59 -> local36
+    t62 = local_address local36 : ptr
     t60 = native_call[native-safe] extern22(t61, t62) : struct1
     store t60 -> local5
     t63 = extract local5, 0 : i1
@@ -1335,8 +1344,9 @@ Module
     t70 = aggregate () : {}
     t71 = extract local5, 2 : i64
     t72 = Add 32, 8 : i64
-    t73 = Eq t71, t72 : i1
-    call @scoop.println$B(t73)
+    t73 = call @scoop.UInt.equals(t71, t72) : i1
+    store t73 -> local17
+    call @scoop.println$B(local17)
     t74 = aggregate () : {}
     ret
   fun @scoop.println$I(i64) -> void
@@ -1439,14 +1449,14 @@ Module
   td function$FIRIX @scoop_td_function$FIRIX size=0 vtable=0 itables=0
   td function$FNativePairRNativePairX @scoop_td_function$FNativePairRNativePairX size=0 vtable=0 itables=0
   td function$FNativeEnvelopeRNativeEnvelopeX @scoop_td_function$FNativeEnvelopeRNativeEnvelopeX size=0 vtable=0 itables=0
-  td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
-  td Exception @scoop_td_Exception size=24 vtable=3 itables=0
-  td UnwrapException @scoop_td_UnwrapException size=24 vtable=3 itables=0
-  td ClassCastException @scoop_td_ClassCastException size=24 vtable=3 itables=0
-  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=3 itables=0
-  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=3 itables=0
-  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=3 itables=0
-  td $Closure$reference0 @scoop_td_$Closure$reference0 size=24 vtable=3 itables=0
+  td Throwable @scoop_td_Throwable size=16 vtable=0 itables=0
+  td Exception @scoop_td_Exception size=24 vtable=0 itables=0
+  td UnwrapException @scoop_td_UnwrapException size=24 vtable=0 itables=0
+  td ClassCastException @scoop_td_ClassCastException size=24 vtable=0 itables=0
+  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=0 itables=0
+  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=0 itables=0
+  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=0 itables=0
+  td $Closure$reference0 @scoop_td_$Closure$reference0 size=24 vtable=0 itables=0
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]

@@ -34,6 +34,7 @@ SourceFile
 SourceFile
   struct Ptr<T : value>
     field _rawPointer: UInt
+    operator fun equals
     fun toUInt
     fun cast
     fun load
@@ -616,37 +617,37 @@ Module
   enum CoroutineSlot$ChoiceGate
     Empty()
     Value(value: ChoiceGate)
-  class Throwable vtable=3 itables=0
-  class Exception vtable=3 itables=0
-  class UnwrapException vtable=3 itables=0
-  class ClassCastException vtable=3 itables=0
-  class ArithmeticException vtable=3 itables=0
-  class IndexOutOfBoundsException vtable=3 itables=0
-  class IllegalStateException vtable=3 itables=0
-  class IntGate vtable=3 itables=0
-  class BooleanGate vtable=3 itables=0
-  class ChoiceGate vtable=3 itables=0
-  class IntRegistration vtable=3 itables=1
-  class BooleanRegistration vtable=3 itables=1
-  class ChoiceRegistration vtable=3 itables=1
-  class ControlTask vtable=3 itables=1
-  class RecordingCompletion vtable=3 itables=1
-  class CoroutineFrame$scoop_ControlTask_run_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop_ControlTask_run_suspend$9 vtable=3 itables=1
-  class CoroutineAdapter$scoop_ControlTask_run_suspend$8 vtable=3 itables=1
-  class CoroutineAdapter$scoop_ControlTask_run_suspend$7 vtable=3 itables=1
-  class CoroutineAdapter$scoop_ControlTask_run_suspend$6 vtable=3 itables=1
-  class CoroutineAdapter$scoop_ControlTask_run_suspend$5 vtable=3 itables=1
-  class CoroutineAdapter$scoop_ControlTask_run_suspend$4 vtable=3 itables=1
-  class CoroutineAdapter$scoop_ControlTask_run_suspend$3 vtable=3 itables=1
-  class CoroutineAdapter$scoop_ControlTask_run_suspend$2 vtable=3 itables=1
-  class CoroutineAdapter$scoop_ControlTask_run_suspend$1 vtable=3 itables=1
-  class CoroutineFrame$scoop_waitForInt_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop_waitForInt_suspend$1 vtable=3 itables=1
-  class CoroutineFrame$scoop_waitForBoolean_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop_waitForBoolean_suspend$1 vtable=3 itables=1
-  class CoroutineFrame$scoop_waitForChoice_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop_waitForChoice_suspend$1 vtable=3 itables=1
+  class Throwable vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class UnwrapException vtable=0 itables=0
+  class ClassCastException vtable=0 itables=0
+  class ArithmeticException vtable=0 itables=0
+  class IndexOutOfBoundsException vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class IntGate vtable=0 itables=0
+  class BooleanGate vtable=0 itables=0
+  class ChoiceGate vtable=0 itables=0
+  class IntRegistration vtable=0 itables=1
+  class BooleanRegistration vtable=0 itables=1
+  class ChoiceRegistration vtable=0 itables=1
+  class ControlTask vtable=0 itables=1
+  class RecordingCompletion vtable=0 itables=1
+  class CoroutineFrame$scoop_ControlTask_run_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop_ControlTask_run_suspend$9 vtable=0 itables=1
+  class CoroutineAdapter$scoop_ControlTask_run_suspend$8 vtable=0 itables=1
+  class CoroutineAdapter$scoop_ControlTask_run_suspend$7 vtable=0 itables=1
+  class CoroutineAdapter$scoop_ControlTask_run_suspend$6 vtable=0 itables=1
+  class CoroutineAdapter$scoop_ControlTask_run_suspend$5 vtable=0 itables=1
+  class CoroutineAdapter$scoop_ControlTask_run_suspend$4 vtable=0 itables=1
+  class CoroutineAdapter$scoop_ControlTask_run_suspend$3 vtable=0 itables=1
+  class CoroutineAdapter$scoop_ControlTask_run_suspend$2 vtable=0 itables=1
+  class CoroutineAdapter$scoop_ControlTask_run_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop_waitForInt_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop_waitForInt_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop_waitForBoolean_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop_waitForBoolean_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop_waitForChoice_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop_waitForChoice_suspend$1 vtable=0 itables=1
   interface ToString
   interface Hash
   interface Continuation$I
@@ -8971,37 +8972,37 @@ Module
   td SuspendTask$I @scoop_td_SuspendTask$I size=0 vtable=0 itables=0
   td SuspendTask$B @scoop_td_SuspendTask$B size=0 vtable=0 itables=0
   td SuspendTask$EChoice @scoop_td_SuspendTask$EChoice size=0 vtable=0 itables=0
-  td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
-  td IntGate @scoop_td_IntGate size=24 vtable=3 itables=0
-  td BooleanGate @scoop_td_BooleanGate size=24 vtable=3 itables=0
-  td ChoiceGate @scoop_td_ChoiceGate size=24 vtable=3 itables=0
-  td IntRegistration @scoop_td_IntRegistration size=24 vtable=3 itables=1
-  td BooleanRegistration @scoop_td_BooleanRegistration size=24 vtable=3 itables=1
-  td ChoiceRegistration @scoop_td_ChoiceRegistration size=24 vtable=3 itables=1
-  td ControlTask @scoop_td_ControlTask size=88 vtable=3 itables=1
-  td RecordingCompletion @scoop_td_RecordingCompletion size=16 vtable=3 itables=1
-  td CoroutineFrame$scoop_ControlTask_run_suspend @scoop_td_CoroutineFrame$scoop_ControlTask_run_suspend size=328 vtable=3 itables=0
-  td CoroutineAdapter$scoop_ControlTask_run_suspend$9 @scoop_td_CoroutineAdapter$scoop_ControlTask_run_suspend$9 size=32 vtable=3 itables=1
-  td CoroutineAdapter$scoop_ControlTask_run_suspend$8 @scoop_td_CoroutineAdapter$scoop_ControlTask_run_suspend$8 size=32 vtable=3 itables=1
-  td CoroutineAdapter$scoop_ControlTask_run_suspend$7 @scoop_td_CoroutineAdapter$scoop_ControlTask_run_suspend$7 size=32 vtable=3 itables=1
-  td CoroutineAdapter$scoop_ControlTask_run_suspend$6 @scoop_td_CoroutineAdapter$scoop_ControlTask_run_suspend$6 size=32 vtable=3 itables=1
-  td CoroutineAdapter$scoop_ControlTask_run_suspend$5 @scoop_td_CoroutineAdapter$scoop_ControlTask_run_suspend$5 size=32 vtable=3 itables=1
-  td CoroutineAdapter$scoop_ControlTask_run_suspend$4 @scoop_td_CoroutineAdapter$scoop_ControlTask_run_suspend$4 size=32 vtable=3 itables=1
-  td CoroutineAdapter$scoop_ControlTask_run_suspend$3 @scoop_td_CoroutineAdapter$scoop_ControlTask_run_suspend$3 size=32 vtable=3 itables=1
-  td CoroutineAdapter$scoop_ControlTask_run_suspend$2 @scoop_td_CoroutineAdapter$scoop_ControlTask_run_suspend$2 size=32 vtable=3 itables=1
-  td CoroutineAdapter$scoop_ControlTask_run_suspend$1 @scoop_td_CoroutineAdapter$scoop_ControlTask_run_suspend$1 size=32 vtable=3 itables=1
-  td CoroutineFrame$scoop_waitForInt_suspend @scoop_td_CoroutineFrame$scoop_waitForInt_suspend size=64 vtable=3 itables=0
-  td CoroutineAdapter$scoop_waitForInt_suspend$1 @scoop_td_CoroutineAdapter$scoop_waitForInt_suspend$1 size=56 vtable=3 itables=1
-  td CoroutineFrame$scoop_waitForBoolean_suspend @scoop_td_CoroutineFrame$scoop_waitForBoolean_suspend size=64 vtable=3 itables=0
-  td CoroutineAdapter$scoop_waitForBoolean_suspend$1 @scoop_td_CoroutineAdapter$scoop_waitForBoolean_suspend$1 size=56 vtable=3 itables=1
-  td CoroutineFrame$scoop_waitForChoice_suspend @scoop_td_CoroutineFrame$scoop_waitForChoice_suspend size=72 vtable=3 itables=0
-  td CoroutineAdapter$scoop_waitForChoice_suspend$1 @scoop_td_CoroutineAdapter$scoop_waitForChoice_suspend$1 size=64 vtable=3 itables=1
-  td Exception @scoop_td_Exception size=24 vtable=3 itables=0
-  td UnwrapException @scoop_td_UnwrapException size=24 vtable=3 itables=0
-  td ClassCastException @scoop_td_ClassCastException size=24 vtable=3 itables=0
-  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=3 itables=0
-  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=3 itables=0
-  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=3 itables=0
+  td Throwable @scoop_td_Throwable size=16 vtable=0 itables=0
+  td IntGate @scoop_td_IntGate size=24 vtable=0 itables=0
+  td BooleanGate @scoop_td_BooleanGate size=24 vtable=0 itables=0
+  td ChoiceGate @scoop_td_ChoiceGate size=24 vtable=0 itables=0
+  td IntRegistration @scoop_td_IntRegistration size=24 vtable=0 itables=1
+  td BooleanRegistration @scoop_td_BooleanRegistration size=24 vtable=0 itables=1
+  td ChoiceRegistration @scoop_td_ChoiceRegistration size=24 vtable=0 itables=1
+  td ControlTask @scoop_td_ControlTask size=88 vtable=0 itables=1
+  td RecordingCompletion @scoop_td_RecordingCompletion size=16 vtable=0 itables=1
+  td CoroutineFrame$scoop_ControlTask_run_suspend @scoop_td_CoroutineFrame$scoop_ControlTask_run_suspend size=328 vtable=0 itables=0
+  td CoroutineAdapter$scoop_ControlTask_run_suspend$9 @scoop_td_CoroutineAdapter$scoop_ControlTask_run_suspend$9 size=32 vtable=0 itables=1
+  td CoroutineAdapter$scoop_ControlTask_run_suspend$8 @scoop_td_CoroutineAdapter$scoop_ControlTask_run_suspend$8 size=32 vtable=0 itables=1
+  td CoroutineAdapter$scoop_ControlTask_run_suspend$7 @scoop_td_CoroutineAdapter$scoop_ControlTask_run_suspend$7 size=32 vtable=0 itables=1
+  td CoroutineAdapter$scoop_ControlTask_run_suspend$6 @scoop_td_CoroutineAdapter$scoop_ControlTask_run_suspend$6 size=32 vtable=0 itables=1
+  td CoroutineAdapter$scoop_ControlTask_run_suspend$5 @scoop_td_CoroutineAdapter$scoop_ControlTask_run_suspend$5 size=32 vtable=0 itables=1
+  td CoroutineAdapter$scoop_ControlTask_run_suspend$4 @scoop_td_CoroutineAdapter$scoop_ControlTask_run_suspend$4 size=32 vtable=0 itables=1
+  td CoroutineAdapter$scoop_ControlTask_run_suspend$3 @scoop_td_CoroutineAdapter$scoop_ControlTask_run_suspend$3 size=32 vtable=0 itables=1
+  td CoroutineAdapter$scoop_ControlTask_run_suspend$2 @scoop_td_CoroutineAdapter$scoop_ControlTask_run_suspend$2 size=32 vtable=0 itables=1
+  td CoroutineAdapter$scoop_ControlTask_run_suspend$1 @scoop_td_CoroutineAdapter$scoop_ControlTask_run_suspend$1 size=32 vtable=0 itables=1
+  td CoroutineFrame$scoop_waitForInt_suspend @scoop_td_CoroutineFrame$scoop_waitForInt_suspend size=64 vtable=0 itables=0
+  td CoroutineAdapter$scoop_waitForInt_suspend$1 @scoop_td_CoroutineAdapter$scoop_waitForInt_suspend$1 size=56 vtable=0 itables=1
+  td CoroutineFrame$scoop_waitForBoolean_suspend @scoop_td_CoroutineFrame$scoop_waitForBoolean_suspend size=64 vtable=0 itables=0
+  td CoroutineAdapter$scoop_waitForBoolean_suspend$1 @scoop_td_CoroutineAdapter$scoop_waitForBoolean_suspend$1 size=56 vtable=0 itables=1
+  td CoroutineFrame$scoop_waitForChoice_suspend @scoop_td_CoroutineFrame$scoop_waitForChoice_suspend size=72 vtable=0 itables=0
+  td CoroutineAdapter$scoop_waitForChoice_suspend$1 @scoop_td_CoroutineAdapter$scoop_waitForChoice_suspend$1 size=64 vtable=0 itables=1
+  td Exception @scoop_td_Exception size=24 vtable=0 itables=0
+  td UnwrapException @scoop_td_UnwrapException size=24 vtable=0 itables=0
+  td ClassCastException @scoop_td_ClassCastException size=24 vtable=0 itables=0
+  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=0 itables=0
+  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=0 itables=0
+  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=0 itables=0
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]

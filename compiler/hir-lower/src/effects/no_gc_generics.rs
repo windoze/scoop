@@ -379,7 +379,9 @@ impl Lowerer {
         out: &mut Vec<GenericCallSite>,
     ) {
         match pattern {
-            hir::Pattern::Literal(expr) => self.collect_generic_calls_in_expr(caller, expr, out),
+            hir::Pattern::Literal { value, .. } => {
+                self.collect_generic_calls_in_expr(caller, value, out)
+            }
             hir::Pattern::Variant { fields, .. } | hir::Pattern::Struct { fields, .. } => {
                 for (_, pattern) in fields {
                     self.collect_generic_calls_in_pattern(caller, pattern, out);

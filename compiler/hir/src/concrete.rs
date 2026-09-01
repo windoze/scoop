@@ -512,7 +512,9 @@ pub enum MethodOwner {
     Struct(StructId),
     Enum(EnumId),
     Interface(InterfaceId),
-    Any,
+    /// A compiler-derived method on a structural value type such as Unit or
+    /// tuple. The exact concrete owner type is part of the identity.
+    Structural(TypeId),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -667,7 +669,14 @@ pub enum Pattern {
         local: LocalId,
     },
     Wildcard,
-    Literal(Expr),
+    Literal {
+        value: Expr,
+        /// Exact ordinary operator target selected by Export HIR.
+        equals: Callable,
+        /// Static subject type used to select dispatch. This is explicit so
+        /// MIR never reconstructs it from its recursive pattern context.
+        subject_ty: TypeId,
+    },
     Variant {
         enum_id: EnumId,
         variant: VariantId,

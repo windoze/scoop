@@ -58,6 +58,11 @@ class FailureCompletion() : Continuation<Int> {
     }
 }
 
+fun <T> isNone(value: T?): Boolean = when (value) {
+    Some(_) -> false
+    None -> true
+}
+
 fun main() {
     @Unsafe {
         val gate = FailureGate(
@@ -69,7 +74,7 @@ fun main() {
         println(joinOne(gate.job))
         val observer = gate.observer!!
         println(foreignCallbackState(observer) == ForeignCallbackState.Completed)
-        println(foreignCallbackFailure(observer) == None)
+        println(isNone(foreignCallbackFailure(observer)))
         releaseForeignCallback(observer)
     }
 }

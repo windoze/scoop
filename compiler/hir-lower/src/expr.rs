@@ -843,7 +843,7 @@ impl Lowerer {
         })
     }
 
-    fn materialize_method_callee(
+    pub(crate) fn materialize_method_callee(
         &mut self,
         source: crate::CallableCandidateSource,
         callable: hir::Callable,
@@ -5425,6 +5425,9 @@ impl Lowerer {
             let rhs = self.lower_expr(rhs, sink, rhs_hint)?;
             (lhs, rhs)
         };
+        if matches!(op, hir::BinOp::Eq | hir::BinOp::Ne) {
+            return self.lower_equality_operator(op, lhs, rhs, symbol, span, sink);
+        }
         if matches!(op, hir::BinOp::Add | hir::BinOp::Sub)
             && matches!(self.types[lhs.ty], Type::Ptr(_))
         {
@@ -5469,26 +5472,7 @@ impl Lowerer {
                 self.boolean
             }
             hir::BinOp::Eq | hir::BinOp::Ne | hir::BinOp::RefEq | hir::BinOp::RefNe => {
-                // Every type supports structural equality (including
-                // type parameters and enums — `== None` relies on
-                // this); the two sides just have to agree. The
-                // expansion over enum payloads happens in MIR
-                // (milestone4 DESIGN.md 3.3). (`RefEq` / `RefNe` never
-                // reach here — `lower_ref_eq` intercepts them and
-                // builds the `Binary` node directly — but the
-                // same-type check would be correct for them too.)
-                if !self.types_equal(lhs.ty, rhs.ty) {
-                    let lhs_ty = self.type_name(lhs.ty);
-                    let rhs_ty = self.type_name(rhs.ty);
-                    self.error(
-                        span,
-                        format!(
-                            "operator `{symbol}` requires operands of the same type, found {lhs_ty} and {rhs_ty}"
-                        ),
-                    );
-                    return None;
-                }
-                self.boolean
+                unreachable!("equality operators are lowered before primitive binary operators")
             }
             hir::BinOp::And | hir::BinOp::Or => {
                 if lhs.ty != self.boolean || rhs.ty != self.boolean {
@@ -5516,11 +5500,183 @@ impl Lowerer {
         })
     }
 
+    /// Resolve `==` / `!=` through the lhs static type's ordinary
+    /// `operator fun equals` member set. The operands arrive already lowered,
+    /// preserving the language's left-to-right, exactly-once evaluation rule;
+    /// applicability and MSC still use the same overload engine as an explicit
+    /// member call. Nominal value derivation contributes a typed synthetic
+    /// candidate whose application carries its complete ordinary HIR body.
+    fn lower_equality_operator(
+        &mut self,
+        op: hir::BinOp,
+        lhs: hir::Expr,
+        rhs: hir::Expr,
+        symbol: &str,
+        span: Span,
+        sink: &mut Vec<hir::Statement>,
+    ) -> Option<hir::Expr> {
+        let mut candidates = self.methods_by_name(lhs.ty, "equals");
+        candidates.retain(|candidate| {
+            self.signatures[&candidate.function].operator == Some(hir::OperatorKind::Equals)
+        });
+        let mut derived = None;
+        let mut structural_derived = None;
+        let mut derivation_failure = None;
+        if self.types_equal(lhs.ty, rhs.ty) {
+            match self.derived_equality_candidate(lhs.ty, span) {
+                Ok(Some(crate::derived::DerivedEqualityCandidate::Nominal {
+                    overload,
+                    application,
+                })) => {
+                    derived = Some((overload.function, application));
+                    candidates.push(overload);
+                }
+                Ok(Some(crate::derived::DerivedEqualityCandidate::Structural {
+                    function,
+                    application,
+                })) => structural_derived = Some((function, application)),
+                Ok(None) => {}
+                Err(reason) => derivation_failure = Some(reason),
+            }
+        }
+        if let Some((function, application)) = structural_derived {
+            debug_assert!(candidates.is_empty());
+            self.check_call_effects(hir::Callable::Function(function), span);
+            let call = hir::Expr {
+                kind: ExprKind::MethodCall {
+                    receiver: Box::new(lhs),
+                    callee: hir::MethodCallee::DerivedEquality(application),
+                    args: vec![rhs],
+                },
+                ty: self.boolean,
+                span,
+            };
+            return Some(if op == hir::BinOp::Ne {
+                hir::Expr {
+                    kind: ExprKind::Unary {
+                        op: hir::UnOp::Not,
+                        operand: Box::new(call),
+                    },
+                    ty: self.boolean,
+                    span,
+                }
+            } else {
+                call
+            });
+        }
+        if !candidates.is_empty() {
+            let resolved = self.resolve_member_overload_lowered(
+                "equals",
+                &candidates,
+                crate::overload::LoweredOverloadCall {
+                    explicit_type_args: Vec::new(),
+                    args: vec![rhs],
+                    span,
+                },
+                sink,
+            )?;
+            debug_assert_eq!(resolved.return_ty, self.boolean);
+            self.check_call_effects(resolved.callee, span);
+            let function = self.callable_function_id(resolved.callee);
+            let callee = match derived {
+                Some((derived_function, application)) if function == derived_function => {
+                    hir::MethodCallee::DerivedEquality(application)
+                }
+                _ => self.materialize_method_callee(
+                    resolved.source,
+                    resolved.callee,
+                    &resolved.type_args,
+                ),
+            };
+            let call = hir::Expr {
+                kind: ExprKind::MethodCall {
+                    receiver: Box::new(lhs),
+                    callee,
+                    args: resolved.args,
+                },
+                ty: self.boolean,
+                span,
+            };
+            return Some(if op == hir::BinOp::Ne {
+                hir::Expr {
+                    kind: ExprKind::Unary {
+                        op: hir::UnOp::Not,
+                        operand: Box::new(call),
+                    },
+                    ty: self.boolean,
+                    span,
+                }
+            } else {
+                call
+            });
+        }
+
+        if let Some(reason) = derivation_failure {
+            let found = self.type_name(lhs.ty);
+            self.error(
+                span,
+                format!("cannot derive `equals` for `{found}`: {reason}"),
+            );
+            return None;
+        }
+
+        let found = self.type_name(lhs.ty);
+        self.error(
+            span,
+            format!("type `{found}` has no member operator `equals` for `{symbol}`"),
+        );
+        None
+    }
+
+    /// Resolve the equality operation used by a literal pattern while the
+    /// matched subject type is still explicit. Literal patterns are limited
+    /// to primitive/String literals, so this is always an ordinary core
+    /// member call; the exact callable crosses HIR instead of being selected
+    /// again from the literal kind in MIR.
+    pub(crate) fn resolve_literal_pattern_equality(
+        &mut self,
+        subject_ty: hir::TypeId,
+        literal: hir::Expr,
+        span: Span,
+    ) -> Option<(hir::Expr, hir::Callable)> {
+        let candidates = self
+            .methods_by_name(subject_ty, "equals")
+            .into_iter()
+            .filter(|candidate| {
+                self.signatures[&candidate.function].operator == Some(hir::OperatorKind::Equals)
+            })
+            .collect::<Vec<_>>();
+        let mut sink = Vec::new();
+        let resolved = self.resolve_member_overload_lowered(
+            "equals",
+            &candidates,
+            crate::overload::LoweredOverloadCall {
+                explicit_type_args: Vec::new(),
+                args: vec![literal],
+                span,
+            },
+            &mut sink,
+        )?;
+        debug_assert!(
+            sink.is_empty(),
+            "literal equality with identical static types needs no temporary"
+        );
+        self.check_call_effects(resolved.callee, span);
+        let callee =
+            self.materialize_method_callee(resolved.source, resolved.callee, &resolved.type_args);
+        let hir::MethodCallee::Callable(callee) = callee else {
+            unreachable!("literal core equality is an ordinary concrete member")
+        };
+        let [literal] = resolved.args.as_slice() else {
+            unreachable!("equals has exactly one explicit argument")
+        };
+        Some((literal.clone(), callee))
+    }
+
     /// `===` / `!==` (spec 4.4.2): both operands must be reference
     /// types (class / interface / `Any` / `String` / arrays); on value
-    /// types it is a compile error. Identity vs structural equality is
-    /// decided at MIR from the operand types — reference operands
-    /// compare by pointer.
+    /// types it is a compile error. This is the explicit identity
+    /// operator and is unrelated to ordinary `operator equals` lookup.
     fn lower_ref_eq(
         &mut self,
         op: ast::BinOp,

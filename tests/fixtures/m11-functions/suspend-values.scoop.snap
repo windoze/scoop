@@ -34,6 +34,7 @@ SourceFile
 SourceFile
   struct Ptr<T : value>
     field _rawPointer: UInt
+    operator fun equals
     fun toUInt
     fun cast
     fun load
@@ -623,7 +624,7 @@ Module
   fun makeTask(gate: Gate): suspend () -> Int
     return
       Lambda lambda1 invoke=$lambda.0 captures=1 : suspend () -> Int
-        capture gate binding23 : Gate
+        capture gate binding19 : Gate
   suspend fun referenced(): Int
     return
       IntLiteral 43 : Int
@@ -642,7 +643,7 @@ Module
         Local exact : suspend (Any) -> Int
     return
       Lambda lambda3 invoke=$lambda.3 captures=1 : suspend () -> Int
-        capture widened binding36 : suspend (Int) -> Any
+        capture widened binding32 : suspend (Int) -> Any
   fun dynamicVarianceTask(): suspend () -> Int
     val local0
       CallableReference reference2 target=acceptAny captures=0 : suspend (Any) -> Int
@@ -653,15 +654,15 @@ Module
         Local erased : Any
     return
       Lambda lambda4 invoke=$lambda.4 captures=1 : suspend () -> Int
-        capture checked binding40 : suspend (Int) -> Any
+        capture checked binding36 : suspend (Int) -> Any
   fun constantTask<T>(value: T0): suspend () -> T0
     return
       Lambda lambda5 invoke=$lambda.5 captures=1 : suspend () -> T0
-        capture value binding42 : T0
+        capture value binding38 : T0
   fun failureTask(gate: Gate): suspend () -> Int
     return
       Lambda lambda7 invoke=$lambda.6 captures=1 : suspend () -> Int
-        capture gate binding44 : Gate
+        capture gate binding40 : Gate
   suspend fun synchronousValue(): Int
     return
       Call suspendCoroutine<Int> : Int
@@ -685,7 +686,7 @@ Module
   fun nestedTask(gate: Gate): suspend () -> Int
     return
       Lambda lambda15 invoke=$lambda.13 captures=1 : suspend () -> Int
-        capture gate binding60 : Gate
+        capture gate binding56 : Gate
   fun main(): Unit
     val local0
       Lambda lambda16 invoke=$lambda.16 captures=0 : suspend () -> Int
@@ -904,97 +905,97 @@ Module
   enum CoroutineSlot$FunctionSuspendTask$U
     Empty()
     Value(value: FunctionSuspendTask$U)
-  class Throwable vtable=3 itables=0
-  class Exception vtable=3 itables=0
-  class UnwrapException vtable=3 itables=0
-  class ClassCastException vtable=3 itables=0
-  class ArithmeticException vtable=3 itables=0
-  class IndexOutOfBoundsException vtable=3 itables=0
-  class IllegalStateException vtable=3 itables=0
-  class Done vtable=3 itables=1
-  class UnitDone vtable=3 itables=1
-  class Gate vtable=3 itables=0
-  class Worker vtable=3 itables=0
-  class AsyncWorker vtable=3 itables=1
-  class box$I vtable=3 itables=0
-  class box$FunctionSuspendRegistration$I vtable=3 itables=2
-  class box$FunctionSuspendTask$I vtable=3 itables=2
-  class box$FunctionSuspendTask$U vtable=3 itables=2
-  class box$U vtable=3 itables=0
-  class CoroutineFrame$scoop__reference_0_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop__reference_0_suspend$1 vtable=3 itables=1
-  class CoroutineFrame$scoop__reference_1_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop__reference_1_suspend$1 vtable=3 itables=1
-  class CoroutineFrame$scoop__reference_2_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop__reference_2_suspend$1 vtable=3 itables=1
-  class CoroutineFrame$scoop__reference_3_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop__reference_3_suspend$1 vtable=3 itables=1
-  class CoroutineFrame$scoop__reference_4_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop__reference_4_suspend$1 vtable=3 itables=1
-  class CoroutineFrame$scoop__reference_5_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop__reference_5_suspend$1 vtable=3 itables=1
-  class CoroutineFrame$scoop_Worker_await_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop_Worker_await_suspend$1 vtable=3 itables=1
-  class CoroutineFrame$scoop_AsyncWorker_read_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop_AsyncWorker_read_suspend$1 vtable=3 itables=1
-  class CoroutineFrame$scoop__adapter_SAnyRIX_SIRAnyX_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop__adapter_SAnyRIX_SIRAnyX_suspend$1 vtable=3 itables=1
-  class CoroutineFrame$scoop__dynamic_adapter_SIRAnyX_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop__dynamic_adapter_SIRAnyX_suspend$1 vtable=3 itables=1
-  class CoroutineFrame$scoop_synchronousValue_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop_synchronousValue_suspend$1 vtable=3 itables=1
-  class CoroutineFrame$scoop_synchronousFailure_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop_synchronousFailure_suspend$1 vtable=3 itables=1
-  class CoroutineFrame$scoop_registrationFailure_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop_registrationFailure_suspend$1 vtable=3 itables=1
-  class CoroutineFrame$scoop_resumedThenThrows_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop_resumedThenThrows_suspend$1 vtable=3 itables=1
-  class CoroutineFrame$scoop_resumedTwice_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop_resumedTwice_suspend$1 vtable=3 itables=1
-  class CoroutineFrame$scoop__dynamic_adapter_SRIX_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop__dynamic_adapter_SRIX_suspend$1 vtable=3 itables=1
-  class CoroutineFrame$scoop__lambda_0_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop__lambda_0_suspend$1 vtable=3 itables=1
-  class CoroutineFrame$scoop__local_0_local_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop__local_0_local_suspend$1 vtable=3 itables=1
-  class CoroutineFrame$scoop__lambda_3_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop__lambda_3_suspend$1 vtable=3 itables=1
-  class CoroutineFrame$scoop__lambda_4_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop__lambda_4_suspend$1 vtable=3 itables=1
-  class CoroutineFrame$scoop__lambda_6_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop__lambda_6_suspend$1 vtable=3 itables=1
-  class CoroutineFrame$scoop__lambda_14_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop__lambda_14_suspend$1 vtable=3 itables=1
-  class CoroutineFrame$scoop__lambda_13_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop__lambda_13_suspend$1 vtable=3 itables=1
-  class CoroutineFrame$scoop__lambda_18_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop__lambda_18_suspend$1 vtable=3 itables=1
-  class CoroutineFrame$scoop__lambda_19_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop__lambda_19_suspend$1 vtable=3 itables=1
-  class CoroutineFrame$scoop__lambda_20_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop__lambda_20_suspend$1 vtable=3 itables=1
-  class CoroutineFrame$scoop__lambda_21_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop__lambda_21_suspend$1 vtable=3 itables=1
-  class CoroutineFrame$scoop__lambda_22_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop__lambda_22_suspend$1 vtable=3 itables=1
-  class CoroutineFrame$scoop_suspendCoroutine_I_g12_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop_suspendCoroutine_I_g12_suspend$1 vtable=3 itables=1
-  class CoroutineFrame$scoop_FunctionSuspendTask_run_I_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop_FunctionSuspendTask_run_I_suspend$1 vtable=3 itables=1
-  class CoroutineFrame$scoop_FunctionSuspendTask_run_U_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop_FunctionSuspendTask_run_U_suspend$1 vtable=3 itables=1
-  class CoroutineFrame$scoop_thunk_FunctionSuspendTask_I_SuspendTask_I_run_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop_thunk_FunctionSuspendTask_I_SuspendTask_I_run_suspend$1 vtable=3 itables=1
-  class CoroutineFrame$scoop_thunk_FunctionSuspendTask_U_SuspendTask_U_run_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop_thunk_FunctionSuspendTask_U_SuspendTask_U_run_suspend$1 vtable=3 itables=1
-  class CoroutineFrame$scoop_variance_box_FunctionSuspendTask_I_SuspendTask_Any_run_0_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop_variance_box_FunctionSuspendTask_I_SuspendTask_Any_run_0_suspend$1 vtable=3 itables=1
-  class CoroutineFrame$scoop_variance_box_FunctionSuspendTask_U_SuspendTask_Any_run_0_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop_variance_box_FunctionSuspendTask_U_SuspendTask_Any_run_0_suspend$1 vtable=3 itables=1
-  class CoroutineFrame$scoop_function_bridge__Closure_reference1_SIRAnyX_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop_function_bridge__Closure_reference1_SIRAnyX_suspend$1 vtable=3 itables=1
-  class CoroutineFrame$scoop_function_bridge__Closure_reference2_SIRAnyX_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop_function_bridge__Closure_reference2_SIRAnyX_suspend$1 vtable=3 itables=1
+  class Throwable vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class UnwrapException vtable=0 itables=0
+  class ClassCastException vtable=0 itables=0
+  class ArithmeticException vtable=0 itables=0
+  class IndexOutOfBoundsException vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Done vtable=0 itables=1
+  class UnitDone vtable=0 itables=1
+  class Gate vtable=0 itables=0
+  class Worker vtable=0 itables=0
+  class AsyncWorker vtable=0 itables=1
+  class box$I vtable=0 itables=0
+  class box$FunctionSuspendRegistration$I vtable=0 itables=2
+  class box$FunctionSuspendTask$I vtable=0 itables=2
+  class box$FunctionSuspendTask$U vtable=0 itables=2
+  class box$U vtable=0 itables=0
+  class CoroutineFrame$scoop__reference_0_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop__reference_0_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop__reference_1_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop__reference_1_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop__reference_2_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop__reference_2_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop__reference_3_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop__reference_3_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop__reference_4_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop__reference_4_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop__reference_5_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop__reference_5_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop_Worker_await_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop_Worker_await_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop_AsyncWorker_read_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop_AsyncWorker_read_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop__adapter_SAnyRIX_SIRAnyX_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop__adapter_SAnyRIX_SIRAnyX_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop__dynamic_adapter_SIRAnyX_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop__dynamic_adapter_SIRAnyX_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop_synchronousValue_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop_synchronousValue_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop_synchronousFailure_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop_synchronousFailure_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop_registrationFailure_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop_registrationFailure_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop_resumedThenThrows_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop_resumedThenThrows_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop_resumedTwice_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop_resumedTwice_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop__dynamic_adapter_SRIX_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop__dynamic_adapter_SRIX_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop__lambda_0_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop__lambda_0_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop__local_0_local_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop__local_0_local_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop__lambda_3_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop__lambda_3_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop__lambda_4_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop__lambda_4_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop__lambda_6_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop__lambda_6_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop__lambda_14_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop__lambda_14_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop__lambda_13_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop__lambda_13_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop__lambda_18_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop__lambda_18_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop__lambda_19_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop__lambda_19_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop__lambda_20_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop__lambda_20_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop__lambda_21_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop__lambda_21_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop__lambda_22_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop__lambda_22_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop_suspendCoroutine_I_g9_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop_suspendCoroutine_I_g9_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop_FunctionSuspendTask_run_I_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop_FunctionSuspendTask_run_I_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop_FunctionSuspendTask_run_U_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop_FunctionSuspendTask_run_U_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop_thunk_FunctionSuspendTask_I_SuspendTask_I_run_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop_thunk_FunctionSuspendTask_I_SuspendTask_I_run_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop_thunk_FunctionSuspendTask_U_SuspendTask_U_run_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop_thunk_FunctionSuspendTask_U_SuspendTask_U_run_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop_variance_box_FunctionSuspendTask_I_SuspendTask_Any_run_0_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop_variance_box_FunctionSuspendTask_I_SuspendTask_Any_run_0_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop_variance_box_FunctionSuspendTask_U_SuspendTask_Any_run_0_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop_variance_box_FunctionSuspendTask_U_SuspendTask_Any_run_0_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop_function_bridge__Closure_reference1_SIRAnyX_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop_function_bridge__Closure_reference1_SIRAnyX_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop_function_bridge__Closure_reference2_SIRAnyX_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop_function_bridge__Closure_reference2_SIRAnyX_suspend$1 vtable=0 itables=1
   interface ToString
   interface Hash
   interface AsyncValue
@@ -1386,7 +1387,7 @@ Module
       val task: suspend () -> Int
         ClosureAlloc cc12 $Closure$lambda12
       call $call.1: Continuation$I = @scoop.ctor.Done direct
-      call @scoop.startCoroutine$I.g11 direct
+      call @scoop.startCoroutine$I.g8 direct
         Local task
         Local $call.1
       call @scoop.println$S direct
@@ -1396,7 +1397,7 @@ Module
       call $call.2: suspend () -> Int = @scoop.makeTask direct
         Local gate
       call $call.3: Continuation$I = @scoop.ctor.Done direct
-      call @scoop.startCoroutine$I.g11 direct
+      call @scoop.startCoroutine$I.g8 direct
         Local $call.2
         Local $call.3
       call @scoop.println$S direct
@@ -1408,7 +1409,7 @@ Module
       val top: suspend () -> Int
         ClosureAlloc cc30 $Closure$reference3
       call $call.4: Continuation$I = @scoop.ctor.Done direct
-      call @scoop.startCoroutine$I.g11 direct
+      call @scoop.startCoroutine$I.g8 direct
         Local top
         Local $call.4
       val erased: Any
@@ -1432,25 +1433,25 @@ Module
         ClosureAlloc cc35 $Closure$dynamic_adapter$SRIX
           Local $cast.1
       call $call.6: Continuation$I = @scoop.ctor.Done direct
-      call @scoop.startCoroutine$I.g11 direct
+      call @scoop.startCoroutine$I.g8 direct
         Local checked
         Local $call.6
       val anonymous: suspend () -> Int
         ClosureAlloc cc25 $Closure$anonymous0
       call $call.7: Continuation$I = @scoop.ctor.Done direct
-      call @scoop.startCoroutine$I.g11 direct
+      call @scoop.startCoroutine$I.g8 direct
         Local anonymous
         Local $call.7
       val unitTask: suspend () -> Unit
         ClosureAlloc cc13 $Closure$lambda13
       call $call.8: Continuation$U = @scoop.ctor.UnitDone direct
-      call @scoop.startCoroutine$U.g11 direct
+      call @scoop.startCoroutine$U.g8 direct
         Local unitTask
         Local $call.8
       val failing: suspend () -> Int
         ClosureAlloc cc26 $Closure$anonymous1
       call $call.9: Continuation$I = @scoop.ctor.Done direct
-      call @scoop.startCoroutine$I.g11 direct
+      call @scoop.startCoroutine$I.g8 direct
         Local failing
         Local $call.9
       call boundGate: Gate = @scoop.ctor.Gate direct
@@ -1461,7 +1462,7 @@ Module
         ClosureAlloc cc31 $Closure$reference4
           Local $call.10
       call $call.11: Continuation$I = @scoop.ctor.Done direct
-      call @scoop.startCoroutine$I.g11 direct
+      call @scoop.startCoroutine$I.g8 direct
         Local bound
         Local $call.11
       call @scoop.Gate.complete direct
@@ -1475,7 +1476,7 @@ Module
         ClosureAlloc cc32 $Closure$reference5
           Local interfaceValue
       call $call.12: Continuation$I = @scoop.ctor.Done direct
-      call @scoop.startCoroutine$I.g11 direct
+      call @scoop.startCoroutine$I.g8 direct
         Local interfaceBound
         Local $call.12
       call @scoop.Gate.complete direct
@@ -1486,7 +1487,7 @@ Module
       call $call.13: suspend () -> Int = @scoop.localTask direct
         Local localGate
       call $call.14: Continuation$I = @scoop.ctor.Done direct
-      call @scoop.startCoroutine$I.g11 direct
+      call @scoop.startCoroutine$I.g8 direct
         Local $call.13
         Local $call.14
       call @scoop.Gate.complete direct
@@ -1494,38 +1495,38 @@ Module
         IntLiteral 47
       call $call.15: suspend () -> Int = @scoop.varianceTask direct
       call $call.16: Continuation$I = @scoop.ctor.Done direct
-      call @scoop.startCoroutine$I.g11 direct
+      call @scoop.startCoroutine$I.g8 direct
         Local $call.15
         Local $call.16
       call $call.17: suspend () -> Int = @scoop.dynamicVarianceTask direct
       call $call.18: Continuation$I = @scoop.ctor.Done direct
-      call @scoop.startCoroutine$I.g11 direct
+      call @scoop.startCoroutine$I.g8 direct
         Local $call.17
         Local $call.18
       call $call.19: suspend () -> Int = @scoop.constantTask$I direct
         IntLiteral 48
       call $call.20: Continuation$I = @scoop.ctor.Done direct
-      call @scoop.startCoroutine$I.g11 direct
+      call @scoop.startCoroutine$I.g8 direct
         Local $call.19
         Local $call.20
       call $call.21: Continuation$I = @scoop.ctor.Done direct
-      call @scoop.startCoroutine$I.g11 direct
+      call @scoop.startCoroutine$I.g8 direct
         ClosureAlloc cc14 $Closure$lambda14
         Local $call.21
       call $call.22: Continuation$I = @scoop.ctor.Done direct
-      call @scoop.startCoroutine$I.g11 direct
+      call @scoop.startCoroutine$I.g8 direct
         ClosureAlloc cc15 $Closure$lambda15
         Local $call.22
       call $call.23: Continuation$I = @scoop.ctor.Done direct
-      call @scoop.startCoroutine$I.g11 direct
+      call @scoop.startCoroutine$I.g8 direct
         ClosureAlloc cc16 $Closure$lambda16
         Local $call.23
       call $call.24: Continuation$I = @scoop.ctor.Done direct
-      call @scoop.startCoroutine$I.g11 direct
+      call @scoop.startCoroutine$I.g8 direct
         ClosureAlloc cc17 $Closure$lambda17
         Local $call.24
       call $call.25: Continuation$I = @scoop.ctor.Done direct
-      call @scoop.startCoroutine$I.g11 direct
+      call @scoop.startCoroutine$I.g8 direct
         ClosureAlloc cc18 $Closure$lambda18
         Local $call.25
       call nestedGate: Gate = @scoop.ctor.Gate direct
@@ -1533,7 +1534,7 @@ Module
       call $call.26: suspend () -> Int = @scoop.nestedTask direct
         Local nestedGate
       call $call.27: Continuation$I = @scoop.ctor.Done direct
-      call @scoop.startCoroutine$I.g11 direct
+      call @scoop.startCoroutine$I.g8 direct
         Local $call.26
         Local $call.27
       call @scoop_rt_gc_collect direct
@@ -1545,7 +1546,7 @@ Module
       call $call.28: suspend () -> Int = @scoop.failureTask direct
         Local failureGate
       call $call.29: Continuation$I = @scoop.ctor.Done direct
-      call @scoop.startCoroutine$I.g11 direct
+      call @scoop.startCoroutine$I.g8 direct
         Local $call.28
         Local $call.29
       call $call.30: Throwable = @scoop.ctor.ArithmeticException direct
@@ -1841,17 +1842,17 @@ Module
         VariantConstruct Option$Continuation$I<Continuation$I> v0
           Local continuation
       return
-  fun suspendCoroutine @scoop.suspendCoroutine$I.g12$suspend(registration: (Continuation$I) -> Unit, $completion: Continuation$I) -> CoroutineStep$I
+  fun suspendCoroutine @scoop.suspendCoroutine$I.g9$suspend(registration: (Continuation$I) -> Unit, $completion: Continuation$I) -> CoroutineStep$I
     bb0 entry
-      val $frame: CoroutineFrame$scoop_suspendCoroutine_I_g12_suspend
-        ClassInit CoroutineFrame$scoop_suspendCoroutine_I_g12_suspend
+      val $frame: CoroutineFrame$scoop_suspendCoroutine_I_g9_suspend
+        ClassInit CoroutineFrame$scoop_suspendCoroutine_I_g9_suspend
           IntLiteral 0
           Local $completion
           VariantConstruct CoroutineSlot$FContinuation$IRUX v1
             Local registration
           VariantConstruct CoroutineSlot$I v0
           VariantConstruct CoroutineSlot$Throwable v0
-      call $step: CoroutineStep$I = @scoop.suspendCoroutine$I.g12$suspend$drive direct
+      call $step: CoroutineStep$I = @scoop.suspendCoroutine$I.g9$suspend$drive direct
         Local $frame
         IntLiteral 0
       return
@@ -1865,7 +1866,7 @@ Module
       call extern0 @scoop_rt_write direct
         StringConst @scoop.str.10
       return
-  fun startCoroutine @scoop.startCoroutine$I.g11(task: suspend () -> Int, completion: Continuation$I) -> Unit
+  fun startCoroutine @scoop.startCoroutine$I.g8(task: suspend () -> Int, completion: Continuation$I) -> Unit
     bb0 entry
       call @scoop.coroutine.start$I direct
         Box
@@ -1882,7 +1883,7 @@ Module
       call extern0 @scoop_rt_write direct
         StringConst @scoop.str.11
       return
-  fun startCoroutine @scoop.startCoroutine$U.g11(task: suspend () -> Unit, completion: Continuation$U) -> Unit
+  fun startCoroutine @scoop.startCoroutine$U.g8(task: suspend () -> Unit, completion: Continuation$U) -> Unit
     bb0 entry
       call @scoop.coroutine.start$U direct
         Box
@@ -2211,39 +2212,6 @@ Module
           EnumTag
             Local $step
           IntLiteral 0
-  fun eq.I @scoop.eq.I(this: Any, other: Any) -> Boolean
-    bb0 entry
-      val $a: Int
-        Unbox
-          Local this
-      val $b: Int
-        Unbox
-          Local other
-      return
-        Binary IntEq
-          Local $a
-          Local $b
-  fun tostring.I @scoop.tostring.I(this: Any) -> String
-    bb0 entry
-      call $call.1: String = @scoop_rt_int_to_string direct
-        Unbox
-          Local this
-      return
-        Local $call.1
-  fun eq.FunctionSuspendRegistration$I @scoop.eq.FunctionSuspendRegistration$I(this: Any, other: Any) -> Boolean
-    bb0 entry
-      val $a: FunctionSuspendRegistration$I
-        Unbox
-          Local this
-      val $b: FunctionSuspendRegistration$I
-        Unbox
-          Local other
-      return
-        Binary IntEq
-          FieldAccess 0
-            Local $a
-          FieldAccess 0
-            Local $b
   fun thunk.FunctionSuspendRegistration$I.SuspendRegistration$I.register @scoop.thunk.FunctionSuspendRegistration$I.SuspendRegistration$I.register(this: Any, continuation: Continuation$I) -> Unit
     bb0 entry
       call @scoop.FunctionSuspendRegistration.register$I direct
@@ -2251,20 +2219,6 @@ Module
           Local this
         Local continuation
       return
-  fun eq.FunctionSuspendTask$I @scoop.eq.FunctionSuspendTask$I(this: Any, other: Any) -> Boolean
-    bb0 entry
-      val $a: FunctionSuspendTask$I
-        Unbox
-          Local this
-      val $b: FunctionSuspendTask$I
-        Unbox
-          Local other
-      return
-        Binary IntEq
-          FieldAccess 0
-            Local $a
-          FieldAccess 0
-            Local $b
   fun thunk.FunctionSuspendTask$I.SuspendTask$I.run @scoop.thunk.FunctionSuspendTask$I.SuspendTask$I.run$suspend(this: Any, $completion: Continuation$I) -> CoroutineStep$I
     bb0 entry
       val $frame: CoroutineFrame$scoop_thunk_FunctionSuspendTask_I_SuspendTask_I_run_suspend
@@ -2280,20 +2234,6 @@ Module
         IntLiteral 0
       return
         Local $step
-  fun eq.FunctionSuspendTask$U @scoop.eq.FunctionSuspendTask$U(this: Any, other: Any) -> Boolean
-    bb0 entry
-      val $a: FunctionSuspendTask$U
-        Unbox
-          Local this
-      val $b: FunctionSuspendTask$U
-        Unbox
-          Local other
-      return
-        Binary IntEq
-          FieldAccess 0
-            Local $a
-          FieldAccess 0
-            Local $b
   fun thunk.FunctionSuspendTask$U.SuspendTask$U.run @scoop.thunk.FunctionSuspendTask$U.SuspendTask$U.run$suspend(this: Any, $completion: Continuation$U) -> CoroutineStep$U
     bb0 entry
       val $frame: CoroutineFrame$scoop_thunk_FunctionSuspendTask_U_SuspendTask_U_run_suspend
@@ -2377,16 +2317,6 @@ Module
         IntLiteral 0
       return
         Local $step
-  fun eq.U @scoop.eq.U(this: Any, other: Any) -> Boolean
-    bb0 entry
-      val $a: Unit
-        Unbox
-          Local this
-      val $b: Unit
-        Unbox
-          Local other
-      return
-        BoolLiteral true
   fun $reference.0$drive @scoop.$reference.0$suspend$drive($frame: CoroutineFrame$scoop__reference_0_suspend, $dispatch_state: Int) -> CoroutineStep$I
     bb0 entry
       atomic_store_release field=0
@@ -3930,7 +3860,7 @@ Module
         ClassInit CoroutineAdapter$scoop_Worker_await_suspend$1
           Local $frame
           IntLiteral 1
-      call $step.1: CoroutineStep$I = @scoop.suspendCoroutine$I.g12$suspend direct
+      call $step.1: CoroutineStep$I = @scoop.suspendCoroutine$I.g9$suspend direct
         ClosureAlloc cc0 $Closure$lambda0
           Local this
         Local $adapter.1
@@ -4185,7 +4115,7 @@ Module
         ClassInit CoroutineAdapter$scoop_AsyncWorker_read_suspend$1
           Local $frame
           IntLiteral 1
-      call $step.1: CoroutineStep$I = @scoop.suspendCoroutine$I.g12$suspend direct
+      call $step.1: CoroutineStep$I = @scoop.suspendCoroutine$I.g9$suspend direct
         ClosureAlloc cc1 $Closure$lambda1
           Local this
         Local $adapter.1
@@ -4962,7 +4892,7 @@ Module
         ClassInit CoroutineAdapter$scoop_synchronousValue_suspend$1
           Local $frame
           IntLiteral 1
-      call $step.1: CoroutineStep$I = @scoop.suspendCoroutine$I.g12$suspend direct
+      call $step.1: CoroutineStep$I = @scoop.suspendCoroutine$I.g9$suspend direct
         ClosureAlloc cc6 $Closure$lambda6
         Local $adapter.1
       branch bb5 bb6
@@ -5212,7 +5142,7 @@ Module
         ClassInit CoroutineAdapter$scoop_synchronousFailure_suspend$1
           Local $frame
           IntLiteral 1
-      call $step.1: CoroutineStep$I = @scoop.suspendCoroutine$I.g12$suspend direct
+      call $step.1: CoroutineStep$I = @scoop.suspendCoroutine$I.g9$suspend direct
         ClosureAlloc cc7 $Closure$lambda7
         Local $adapter.1
       branch bb5 bb6
@@ -5462,7 +5392,7 @@ Module
         ClassInit CoroutineAdapter$scoop_registrationFailure_suspend$1
           Local $frame
           IntLiteral 1
-      call $step.1: CoroutineStep$I = @scoop.suspendCoroutine$I.g12$suspend direct
+      call $step.1: CoroutineStep$I = @scoop.suspendCoroutine$I.g9$suspend direct
         ClosureAlloc cc8 $Closure$lambda8
         Local $adapter.1
       branch bb5 bb6
@@ -5712,7 +5642,7 @@ Module
         ClassInit CoroutineAdapter$scoop_resumedThenThrows_suspend$1
           Local $frame
           IntLiteral 1
-      call $step.1: CoroutineStep$I = @scoop.suspendCoroutine$I.g12$suspend direct
+      call $step.1: CoroutineStep$I = @scoop.suspendCoroutine$I.g9$suspend direct
         ClosureAlloc cc9 $Closure$lambda9
         Local $adapter.1
       branch bb5 bb6
@@ -5962,7 +5892,7 @@ Module
         ClassInit CoroutineAdapter$scoop_resumedTwice_suspend$1
           Local $frame
           IntLiteral 1
-      call $step.1: CoroutineStep$I = @scoop.suspendCoroutine$I.g12$suspend direct
+      call $step.1: CoroutineStep$I = @scoop.suspendCoroutine$I.g9$suspend direct
         ClosureAlloc cc10 $Closure$lambda10
         Local $adapter.1
       branch bb5 bb6
@@ -6499,7 +6429,7 @@ Module
         ClassInit CoroutineAdapter$scoop__lambda_0_suspend$1
           Local $frame
           IntLiteral 1
-      call $step.1: CoroutineStep$I = @scoop.suspendCoroutine$I.g12$suspend direct
+      call $step.1: CoroutineStep$I = @scoop.suspendCoroutine$I.g9$suspend direct
         ClosureAlloc cc19 $Closure$lambda19
           ClosureCapture cc2 0
             Local $closure
@@ -6777,7 +6707,7 @@ Module
         ClassInit CoroutineAdapter$scoop__local_0_local_suspend$1
           Local $frame
           IntLiteral 1
-      call $step.1: CoroutineStep$I = @scoop.suspendCoroutine$I.g12$suspend direct
+      call $step.1: CoroutineStep$I = @scoop.suspendCoroutine$I.g9$suspend direct
         ClosureAlloc cc20 $Closure$lambda20
           Local $capture.gate
         Local $adapter.1
@@ -7607,7 +7537,7 @@ Module
         ClassInit CoroutineAdapter$scoop__lambda_6_suspend$1
           Local $frame
           IntLiteral 1
-      call $step.1: CoroutineStep$I = @scoop.suspendCoroutine$I.g12$suspend direct
+      call $step.1: CoroutineStep$I = @scoop.suspendCoroutine$I.g9$suspend direct
         ClosureAlloc cc21 $Closure$lambda21
           ClosureCapture cc5 0
             Local $closure
@@ -7885,7 +7815,7 @@ Module
         ClassInit CoroutineAdapter$scoop__lambda_14_suspend$1
           Local $frame
           IntLiteral 1
-      call $step.1: CoroutineStep$I = @scoop.suspendCoroutine$I.g12$suspend direct
+      call $step.1: CoroutineStep$I = @scoop.suspendCoroutine$I.g9$suspend direct
         ClosureAlloc cc22 $Closure$lambda22
           ClosureCapture cc23 0
             Local $closure
@@ -9657,13 +9587,13 @@ Module
         Binary IntEq
           Local $adapter_claim
           IntLiteral 1
-  fun suspendCoroutine$drive @scoop.suspendCoroutine$I.g12$suspend$drive($frame: CoroutineFrame$scoop_suspendCoroutine_I_g12_suspend, $dispatch_state: Int) -> CoroutineStep$I
+  fun suspendCoroutine$drive @scoop.suspendCoroutine$I.g9$suspend$drive($frame: CoroutineFrame$scoop_suspendCoroutine_I_g9_suspend, $dispatch_state: Int) -> CoroutineStep$I
     bb0 entry
       atomic_store_release field=0
         Local $frame
         IntLiteral 1
-      val $safe_adapter.1: CoroutineAdapter$scoop_suspendCoroutine_I_g12_suspend$1
-        ClassInit CoroutineAdapter$scoop_suspendCoroutine_I_g12_suspend$1
+      val $safe_adapter.1: CoroutineAdapter$scoop_suspendCoroutine_I_g9_suspend$1
+        ClassInit CoroutineAdapter$scoop_suspendCoroutine_I_g9_suspend$1
           Local $frame
           IntLiteral 0
           VariantConstruct CoroutineSlot$I v0
@@ -9858,7 +9788,7 @@ Module
         Binary IntEq
           Local $dispatch_state
           IntLiteral 0
-  fun CoroutineAdapter.resume$1 @scoop.suspendCoroutine$I.g12$suspend$resume$1(this: CoroutineAdapter$scoop_suspendCoroutine_I_g12_suspend$1, value: Int) -> Unit
+  fun CoroutineAdapter.resume$1 @scoop.suspendCoroutine$I.g9$suspend$resume$1(this: CoroutineAdapter$scoop_suspendCoroutine_I_g9_suspend$1, value: Int) -> Unit
     bb0 coroutine.protocol_error
       call $protocol_error: IllegalStateException = @scoop.ctor.IllegalStateException direct
       throw
@@ -9904,7 +9834,7 @@ Module
       atomic_store_release field=1
         Local this
         IntLiteral 6
-      call $step: CoroutineStep$I = @scoop.suspendCoroutine$I.g12$suspend$drive direct
+      call $step: CoroutineStep$I = @scoop.suspendCoroutine$I.g9$suspend$drive direct
         FieldAccess 0
           Local this
         IntLiteral 1
@@ -9958,7 +9888,7 @@ Module
         Binary IntEq
           Local $adapter_claim
           IntLiteral 0
-  fun CoroutineAdapter.resumeWithException$1 @scoop.suspendCoroutine$I.g12$suspend$resume_exception$1(this: CoroutineAdapter$scoop_suspendCoroutine_I_g12_suspend$1, exception: Throwable) -> Unit
+  fun CoroutineAdapter.resumeWithException$1 @scoop.suspendCoroutine$I.g9$suspend$resume_exception$1(this: CoroutineAdapter$scoop_suspendCoroutine_I_g9_suspend$1, exception: Throwable) -> Unit
     bb0 coroutine.protocol_error
       call $protocol_error: IllegalStateException = @scoop.ctor.IllegalStateException direct
       throw
@@ -10004,7 +9934,7 @@ Module
       atomic_store_release field=1
         Local this
         IntLiteral 6
-      call $step: CoroutineStep$I = @scoop.suspendCoroutine$I.g12$suspend$drive direct
+      call $step: CoroutineStep$I = @scoop.suspendCoroutine$I.g9$suspend$drive direct
         FieldAccess 0
           Local this
         IntLiteral -3
@@ -12118,7 +12048,7 @@ Module
   coroutine_frame cr25 CoroutineFrame$scoop__lambda_20_suspend owner=cf31
   coroutine_frame cr26 CoroutineFrame$scoop__lambda_21_suspend owner=cf32
   coroutine_frame cr27 CoroutineFrame$scoop__lambda_22_suspend owner=cf33
-  coroutine_frame cr28 CoroutineFrame$scoop_suspendCoroutine_I_g12_suspend owner=cf34
+  coroutine_frame cr28 CoroutineFrame$scoop_suspendCoroutine_I_g9_suspend owner=cf34
   coroutine_frame cr29 CoroutineFrame$scoop_FunctionSuspendTask_run_I_suspend owner=cf35
   coroutine_frame cr30 CoroutineFrame$scoop_FunctionSuspendTask_run_U_suspend owner=cf36
   coroutine_frame cr31 CoroutineFrame$scoop_thunk_FunctionSuspendTask_I_SuspendTask_I_run_suspend owner=cf42
@@ -12155,7 +12085,7 @@ Module
   coroutine_resume cp25 state=1 result=Int frame=cr25 adapter=CoroutineAdapter$scoop__lambda_20_suspend$1 resume=@scoop.$lambda.20$suspend$resume$1 failure=@scoop.$lambda.20$suspend$resume_exception$1
   coroutine_resume cp26 state=1 result=Int frame=cr26 adapter=CoroutineAdapter$scoop__lambda_21_suspend$1 resume=@scoop.$lambda.21$suspend$resume$1 failure=@scoop.$lambda.21$suspend$resume_exception$1
   coroutine_resume cp27 state=1 result=Int frame=cr27 adapter=CoroutineAdapter$scoop__lambda_22_suspend$1 resume=@scoop.$lambda.22$suspend$resume$1 failure=@scoop.$lambda.22$suspend$resume_exception$1
-  coroutine_resume cp28 state=1 result=Int frame=cr28 adapter=CoroutineAdapter$scoop_suspendCoroutine_I_g12_suspend$1 resume=@scoop.suspendCoroutine$I.g12$suspend$resume$1 failure=@scoop.suspendCoroutine$I.g12$suspend$resume_exception$1
+  coroutine_resume cp28 state=1 result=Int frame=cr28 adapter=CoroutineAdapter$scoop_suspendCoroutine_I_g9_suspend$1 resume=@scoop.suspendCoroutine$I.g9$suspend$resume$1 failure=@scoop.suspendCoroutine$I.g9$suspend$resume_exception$1
   coroutine_resume cp29 state=1 result=Int frame=cr29 adapter=CoroutineAdapter$scoop_FunctionSuspendTask_run_I_suspend$1 resume=@scoop.FunctionSuspendTask.run$I$suspend$resume$1 failure=@scoop.FunctionSuspendTask.run$I$suspend$resume_exception$1
   coroutine_resume cp30 state=1 result=Unit frame=cr30 adapter=CoroutineAdapter$scoop_FunctionSuspendTask_run_U_suspend$1 resume=@scoop.FunctionSuspendTask.run$U$suspend$resume$1 failure=@scoop.FunctionSuspendTask.run$U$suspend$resume_exception$1
   coroutine_resume cp31 state=1 result=Int frame=cr31 adapter=CoroutineAdapter$scoop_thunk_FunctionSuspendTask_I_SuspendTask_I_run_suspend$1 resume=@scoop.thunk.FunctionSuspendTask$I.SuspendTask$I.run$suspend$resume$1 failure=@scoop.thunk.FunctionSuspendTask$I.SuspendTask$I.run$suspend$resume_exception$1
@@ -12198,7 +12128,7 @@ Module
   coroutine_fn cf31 @scoop.$lambda.20$suspend source_return=Int step=cs0 frame=cr25 driver=@scoop.$lambda.20$suspend$drive resumes=[cp25]
   coroutine_fn cf32 @scoop.$lambda.21$suspend source_return=Int step=cs0 frame=cr26 driver=@scoop.$lambda.21$suspend$drive resumes=[cp26]
   coroutine_fn cf33 @scoop.$lambda.22$suspend source_return=Int step=cs0 frame=cr27 driver=@scoop.$lambda.22$suspend$drive resumes=[cp27]
-  coroutine_fn cf34 @scoop.suspendCoroutine$I.g12$suspend source_return=Int step=cs0 frame=cr28 driver=@scoop.suspendCoroutine$I.g12$suspend$drive resumes=[cp28]
+  coroutine_fn cf34 @scoop.suspendCoroutine$I.g9$suspend source_return=Int step=cs0 frame=cr28 driver=@scoop.suspendCoroutine$I.g9$suspend$drive resumes=[cp28]
   coroutine_fn cf35 @scoop.FunctionSuspendTask.run$I$suspend source_return=Int step=cs0 frame=cr29 driver=@scoop.FunctionSuspendTask.run$I$suspend$drive resumes=[cp29]
   coroutine_fn cf36 @scoop.FunctionSuspendTask.run$U$suspend source_return=Unit step=cs1 frame=cr30 driver=@scoop.FunctionSuspendTask.run$U$suspend$drive resumes=[cp30]
   coroutine_fn cf37 @scoop.$lambda.5$I$suspend source_return=Int step=cs0 immediate
@@ -12212,11 +12142,11 @@ Module
   coroutine_fn cf45 @scoop.variance.box$FunctionSuspendTask$U.SuspendTask$Any.run.0$suspend source_return=Any step=cs2 frame=cr34 driver=@scoop.variance.box$FunctionSuspendTask$U.SuspendTask$Any.run.0$suspend$drive resumes=[cp34]
   coroutine_fn cf46 @scoop.function_bridge.$Closure$reference1.SIRAnyX$suspend source_return=Any step=cs2 frame=cr35 driver=@scoop.function_bridge.$Closure$reference1.SIRAnyX$suspend$drive resumes=[cp35]
   coroutine_fn cf47 @scoop.function_bridge.$Closure$reference2.SIRAnyX$suspend source_return=Any step=cs2 frame=cr36 driver=@scoop.function_bridge.$Closure$reference2.SIRAnyX$suspend$drive resumes=[cp36]
-  instance @scoop.suspendCoroutine$I.g12$suspend <- suspendCoroutine
+  instance @scoop.suspendCoroutine$I.g9$suspend <- suspendCoroutine
   instance @scoop.println$S <- println
-  instance @scoop.startCoroutine$I.g11 <- startCoroutine
+  instance @scoop.startCoroutine$I.g8 <- startCoroutine
   instance @scoop.println$B <- println
-  instance @scoop.startCoroutine$U.g11 <- startCoroutine
+  instance @scoop.startCoroutine$U.g8 <- startCoroutine
   instance @scoop.constantTask$I <- constantTask
   instance @scoop.println$I <- println
   instance @scoop.FunctionSuspendRegistration.register$I <- FunctionSuspendRegistration.register
@@ -12320,7 +12250,7 @@ Module
   global @scoop_td_CoroutineFrame$scoop__lambda_20_suspend = c""
   global @scoop_td_CoroutineFrame$scoop__lambda_21_suspend = c""
   global @scoop_td_CoroutineFrame$scoop__lambda_22_suspend = c""
-  global @scoop_td_CoroutineFrame$scoop_suspendCoroutine_I_g12_suspend = c""
+  global @scoop_td_CoroutineFrame$scoop_suspendCoroutine_I_g9_suspend = c""
   global @scoop_td_box$FunctionSuspendTask$I = c""
   global @scoop_td_box$FunctionSuspendTask$U = c""
   global @scoop_td_$Closure$lambda24 = c""
@@ -12399,7 +12329,7 @@ Module
   global @scoop_td_CoroutineAdapter$scoop__lambda_20_suspend$1 = c""
   global @scoop_td_CoroutineAdapter$scoop__lambda_21_suspend$1 = c""
   global @scoop_td_CoroutineAdapter$scoop__lambda_22_suspend$1 = c""
-  global @scoop_td_CoroutineAdapter$scoop_suspendCoroutine_I_g12_suspend$1 = c""
+  global @scoop_td_CoroutineAdapter$scoop_suspendCoroutine_I_g9_suspend$1 = c""
   global @scoop_td_box$FunctionSuspendRegistration$I = c""
   global @scoop_td_SuspendRegistration$I = c""
   global @scoop_td_CoroutineAdapter$scoop_FunctionSuspendTask_run_I_suspend$1 = c""
@@ -12838,7 +12768,7 @@ Module
     store t0 -> local0
     t2 = call @scoop.ctor.Done() : ptr<managed>
     store t2 -> local17
-    call @scoop.startCoroutine$I.g11(local0, local17)
+    call @scoop.startCoroutine$I.g8(local0, local17)
     t3 = aggregate () : {}
     call @scoop.println$S(global3)
     t4 = aggregate () : {}
@@ -12849,7 +12779,7 @@ Module
     store t7 -> local18
     t8 = call @scoop.ctor.Done() : ptr<managed>
     store t8 -> local19
-    call @scoop.startCoroutine$I.g11(local18, local19)
+    call @scoop.startCoroutine$I.g8(local18, local19)
     t9 = aggregate () : {}
     call @scoop.println$S(global4)
     t10 = aggregate () : {}
@@ -12863,7 +12793,7 @@ Module
     store t13 -> local2
     t15 = call @scoop.ctor.Done() : ptr<managed>
     store t15 -> local20
-    call @scoop.startCoroutine$I.g11(local2, local20)
+    call @scoop.startCoroutine$I.g8(local2, local20)
     t16 = aggregate () : {}
     store local2 -> local3
     t17 = call @scoop_rt_is_instance(local3, global39) : i1
@@ -12886,7 +12816,7 @@ Module
     store t22 -> local4
     t24 = call @scoop.ctor.Done() : ptr<managed>
     store t24 -> local22
-    call @scoop.startCoroutine$I.g11(local4, local22)
+    call @scoop.startCoroutine$I.g8(local4, local22)
     t25 = aggregate () : {}
     t26 = call @scoop_rt_alloc(global41, 24) : ptr<managed>
     t27 = function_address @scoop.$anonymous.0$suspend : ptr
@@ -12894,7 +12824,7 @@ Module
     store t26 -> local5
     t28 = call @scoop.ctor.Done() : ptr<managed>
     store t28 -> local23
-    call @scoop.startCoroutine$I.g11(local5, local23)
+    call @scoop.startCoroutine$I.g8(local5, local23)
     t29 = aggregate () : {}
     t30 = call @scoop_rt_alloc(global42, 24) : ptr<managed>
     t31 = function_address @scoop.$lambda.17$suspend : ptr
@@ -12902,7 +12832,7 @@ Module
     store t30 -> local6
     t32 = call @scoop.ctor.UnitDone() : ptr<managed>
     store t32 -> local24
-    call @scoop.startCoroutine$U.g11(local6, local24)
+    call @scoop.startCoroutine$U.g8(local6, local24)
     t33 = aggregate () : {}
     t34 = call @scoop_rt_alloc(global43, 24) : ptr<managed>
     t35 = function_address @scoop.$anonymous.1$suspend : ptr
@@ -12910,7 +12840,7 @@ Module
     store t34 -> local7
     t36 = call @scoop.ctor.Done() : ptr<managed>
     store t36 -> local25
-    call @scoop.startCoroutine$I.g11(local7, local25)
+    call @scoop.startCoroutine$I.g8(local7, local25)
     t37 = aggregate () : {}
     t38 = enum_wrap e0 v1 () : enum0
     t39 = call @scoop.ctor.Gate(t38) : ptr<managed>
@@ -12924,7 +12854,7 @@ Module
     store t41 -> local9
     t43 = call @scoop.ctor.Done() : ptr<managed>
     store t43 -> local27
-    call @scoop.startCoroutine$I.g11(local9, local27)
+    call @scoop.startCoroutine$I.g8(local9, local27)
     t44 = aggregate () : {}
     call @scoop.Gate.complete(local8, 46)
     t45 = aggregate () : {}
@@ -12940,7 +12870,7 @@ Module
     store t49 -> local12
     t51 = call @scoop.ctor.Done() : ptr<managed>
     store t51 -> local28
-    call @scoop.startCoroutine$I.g11(local12, local28)
+    call @scoop.startCoroutine$I.g8(local12, local28)
     t52 = aggregate () : {}
     call @scoop.Gate.complete(local10, 50)
     t53 = aggregate () : {}
@@ -12951,7 +12881,7 @@ Module
     store t56 -> local29
     t57 = call @scoop.ctor.Done() : ptr<managed>
     store t57 -> local30
-    call @scoop.startCoroutine$I.g11(local29, local30)
+    call @scoop.startCoroutine$I.g8(local29, local30)
     t58 = aggregate () : {}
     call @scoop.Gate.complete(local13, 47)
     t59 = aggregate () : {}
@@ -12959,54 +12889,54 @@ Module
     store t60 -> local31
     t61 = call @scoop.ctor.Done() : ptr<managed>
     store t61 -> local32
-    call @scoop.startCoroutine$I.g11(local31, local32)
+    call @scoop.startCoroutine$I.g8(local31, local32)
     t62 = aggregate () : {}
     t63 = call @scoop.dynamicVarianceTask() : ptr<managed>
     store t63 -> local33
     t64 = call @scoop.ctor.Done() : ptr<managed>
     store t64 -> local34
-    call @scoop.startCoroutine$I.g11(local33, local34)
+    call @scoop.startCoroutine$I.g8(local33, local34)
     t65 = aggregate () : {}
     t66 = call @scoop.constantTask$I(48) : ptr<managed>
     store t66 -> local35
     t67 = call @scoop.ctor.Done() : ptr<managed>
     store t67 -> local36
-    call @scoop.startCoroutine$I.g11(local35, local36)
+    call @scoop.startCoroutine$I.g8(local35, local36)
     t68 = aggregate () : {}
     t69 = call @scoop.ctor.Done() : ptr<managed>
     store t69 -> local37
     t70 = call @scoop_rt_alloc(global46, 24) : ptr<managed>
     t71 = function_address @scoop.$lambda.18$suspend : ptr
     heap_store t70 +16 t71
-    call @scoop.startCoroutine$I.g11(t70, local37)
+    call @scoop.startCoroutine$I.g8(t70, local37)
     t72 = aggregate () : {}
     t73 = call @scoop.ctor.Done() : ptr<managed>
     store t73 -> local38
     t74 = call @scoop_rt_alloc(global47, 24) : ptr<managed>
     t75 = function_address @scoop.$lambda.19$suspend : ptr
     heap_store t74 +16 t75
-    call @scoop.startCoroutine$I.g11(t74, local38)
+    call @scoop.startCoroutine$I.g8(t74, local38)
     t76 = aggregate () : {}
     t77 = call @scoop.ctor.Done() : ptr<managed>
     store t77 -> local39
     t78 = call @scoop_rt_alloc(global48, 24) : ptr<managed>
     t79 = function_address @scoop.$lambda.20$suspend : ptr
     heap_store t78 +16 t79
-    call @scoop.startCoroutine$I.g11(t78, local39)
+    call @scoop.startCoroutine$I.g8(t78, local39)
     t80 = aggregate () : {}
     t81 = call @scoop.ctor.Done() : ptr<managed>
     store t81 -> local40
     t82 = call @scoop_rt_alloc(global49, 24) : ptr<managed>
     t83 = function_address @scoop.$lambda.21$suspend : ptr
     heap_store t82 +16 t83
-    call @scoop.startCoroutine$I.g11(t82, local40)
+    call @scoop.startCoroutine$I.g8(t82, local40)
     t84 = aggregate () : {}
     t85 = call @scoop.ctor.Done() : ptr<managed>
     store t85 -> local41
     t86 = call @scoop_rt_alloc(global50, 24) : ptr<managed>
     t87 = function_address @scoop.$lambda.22$suspend : ptr
     heap_store t86 +16 t87
-    call @scoop.startCoroutine$I.g11(t86, local41)
+    call @scoop.startCoroutine$I.g8(t86, local41)
     t88 = aggregate () : {}
     t89 = enum_wrap e0 v1 () : enum0
     t90 = call @scoop.ctor.Gate(t89) : ptr<managed>
@@ -13015,7 +12945,7 @@ Module
     store t91 -> local42
     t92 = call @scoop.ctor.Done() : ptr<managed>
     store t92 -> local43
-    call @scoop.startCoroutine$I.g11(local42, local43)
+    call @scoop.startCoroutine$I.g8(local42, local43)
     t93 = aggregate () : {}
     call @scoop_rt_gc_collect()
     t94 = aggregate () : {}
@@ -13028,7 +12958,7 @@ Module
     store t98 -> local44
     t99 = call @scoop.ctor.Done() : ptr<managed>
     store t99 -> local45
-    call @scoop.startCoroutine$I.g11(local44, local45)
+    call @scoop.startCoroutine$I.g8(local44, local45)
     t100 = aggregate () : {}
     t101 = call @scoop.ctor.ArithmeticException() : ptr<managed>
     store t101 -> local46
@@ -13347,7 +13277,7 @@ Module
     t2 = enum_wrap e0 v0 (param1) : enum0
     heap_store t1 +16 t2
     ret
-  fun @scoop.suspendCoroutine$I.g12$suspend(ptr<managed>, ptr<managed>) -> enum2
+  fun @scoop.suspendCoroutine$I.g9$suspend(ptr<managed>, ptr<managed>) -> enum2
     local %0 $frame: ptr<managed>
     local %1 $step: enum2
   block entry
@@ -13361,7 +13291,7 @@ Module
     t3 = enum_wrap e7 v0 () : enum7
     heap_store t0 +56 t3
     store t0 -> local0
-    t4 = call @scoop.suspendCoroutine$I.g12$suspend$drive(local0, 0) : enum2
+    t4 = call @scoop.suspendCoroutine$I.g9$suspend$drive(local0, 0) : enum2
     store t4 -> local1
     ret local1
   fun @scoop.println$S(ptr<managed>) -> void
@@ -13374,7 +13304,7 @@ Module
     native_call[native-borrowed] extern0(global10)
     t2 = aggregate () : {}
     ret
-  fun @scoop.startCoroutine$I.g11(ptr<managed>, ptr<managed>) -> void
+  fun @scoop.startCoroutine$I.g8(ptr<managed>, ptr<managed>) -> void
   block entry
     t0 = aggregate (param0) : struct4
     t1 = call @scoop_rt_box(global64, t0, 8) : ptr<managed>
@@ -13391,7 +13321,7 @@ Module
     native_call[native-borrowed] extern0(global11)
     t2 = aggregate () : {}
     ret
-  fun @scoop.startCoroutine$U.g11(ptr<managed>, ptr<managed>) -> void
+  fun @scoop.startCoroutine$U.g8(ptr<managed>, ptr<managed>) -> void
   block entry
     t0 = aggregate (param0) : struct5
     t1 = call @scoop_rt_box(global65, t0, 8) : ptr<managed>
@@ -13763,53 +13693,12 @@ Module
     t14 = enum_tag e3 local0 : i64
     t15 = Eq t14, 0 : i1
     cbr t15 then @completed else @suspended
-  fun @scoop.eq.I(ptr<managed>, ptr<managed>) -> i1
-    local %0 $a: i64
-    local %1 $b: i64
-  block entry
-    t0 = heap_load param0 +16 : i64
-    store t0 -> local0
-    t1 = heap_load param1 +16 : i64
-    store t1 -> local1
-    t2 = Eq local0, local1 : i1
-    ret t2
-  fun @scoop.tostring.I(ptr<managed>) -> ptr<managed>
-    local %0 $call.1: ptr<managed>
-  block entry
-    t0 = heap_load param0 +16 : i64
-    t1 = call @scoop_rt_int_to_string(t0) : ptr<managed>
-    store t1 -> local0
-    ret local0
-  fun @scoop.eq.FunctionSuspendRegistration$I(ptr<managed>, ptr<managed>) -> i1
-    local %0 $a: struct3
-    local %1 $b: struct3
-  block entry
-    t0 = heap_load param0 +16 : struct3
-    store t0 -> local0
-    t1 = heap_load param1 +16 : struct3
-    store t1 -> local1
-    t2 = extract local0, 0 : i64
-    t3 = extract local1, 0 : i64
-    t4 = Eq t2, t3 : i1
-    ret t4
   fun @scoop.thunk.FunctionSuspendRegistration$I.SuspendRegistration$I.register(ptr<managed>, ptr<managed>) -> void
   block entry
     t0 = heap_load param0 +16 : struct3
     call @scoop.FunctionSuspendRegistration.register$I(t0, param1)
     t1 = aggregate () : {}
     ret
-  fun @scoop.eq.FunctionSuspendTask$I(ptr<managed>, ptr<managed>) -> i1
-    local %0 $a: struct4
-    local %1 $b: struct4
-  block entry
-    t0 = heap_load param0 +16 : struct4
-    store t0 -> local0
-    t1 = heap_load param1 +16 : struct4
-    store t1 -> local1
-    t2 = extract local0, 0 : i64
-    t3 = extract local1, 0 : i64
-    t4 = Eq t2, t3 : i1
-    ret t4
   fun @scoop.thunk.FunctionSuspendTask$I.SuspendTask$I.run$suspend(ptr<managed>, ptr<managed>) -> enum2
     local %0 $frame: ptr<managed>
     local %1 $step: enum2
@@ -13827,18 +13716,6 @@ Module
     t4 = call @scoop.thunk.FunctionSuspendTask$I.SuspendTask$I.run$suspend$drive(local0, 0) : enum2
     store t4 -> local1
     ret local1
-  fun @scoop.eq.FunctionSuspendTask$U(ptr<managed>, ptr<managed>) -> i1
-    local %0 $a: struct5
-    local %1 $b: struct5
-  block entry
-    t0 = heap_load param0 +16 : struct5
-    store t0 -> local0
-    t1 = heap_load param1 +16 : struct5
-    store t1 -> local1
-    t2 = extract local0, 0 : i64
-    t3 = extract local1, 0 : i64
-    t4 = Eq t2, t3 : i1
-    ret t4
   fun @scoop.thunk.FunctionSuspendTask$U.SuspendTask$U.run$suspend(ptr<managed>, ptr<managed>) -> enum3
     local %0 $frame: ptr<managed>
     local %1 $step: enum3
@@ -13929,15 +13806,6 @@ Module
     t5 = call @scoop.function_bridge.$Closure$reference2.SIRAnyX$suspend$drive(local0, 0) : enum4
     store t5 -> local1
     ret local1
-  fun @scoop.eq.U(ptr<managed>, ptr<managed>) -> i1
-    local %0 $a: {}
-    local %1 $b: {}
-  block entry
-    t0 = heap_load param0 +16 : {}
-    store t0 -> local0
-    t1 = heap_load param1 +16 : {}
-    store t1 -> local1
-    ret true
   fun @scoop.$reference.0$suspend$drive(ptr<managed>, i64) -> enum2
     local %0 $closure: ptr<managed>
     local %1 $call.1: i64
@@ -15315,7 +15183,7 @@ Module
     t2 = function_address @scoop.$lambda.23 : ptr
     heap_store t1 +16 t2
     heap_store t1 +24 local0
-    t3 = call @scoop.suspendCoroutine$I.g12$suspend(t1, local3) : enum2
+    t3 = call @scoop.suspendCoroutine$I.g9$suspend(t1, local3) : enum2
     store t3 -> local4
     t4 = enum_tag e2 local4 : i64
     t5 = Eq t4, 0 : i1
@@ -15543,7 +15411,7 @@ Module
     t2 = function_address @scoop.$lambda.24 : ptr
     heap_store t1 +16 t2
     heap_store t1 +24 local0
-    t3 = call @scoop.suspendCoroutine$I.g12$suspend(t1, local3) : enum2
+    t3 = call @scoop.suspendCoroutine$I.g9$suspend(t1, local3) : enum2
     store t3 -> local4
     t4 = enum_tag e2 local4 : i64
     t5 = Eq t4, 0 : i1
@@ -16231,7 +16099,7 @@ Module
     t1 = call @scoop_rt_alloc(global115, 24) : ptr<managed>
     t2 = function_address @scoop.$lambda.8 : ptr
     heap_store t1 +16 t2
-    t3 = call @scoop.suspendCoroutine$I.g12$suspend(t1, local2) : enum2
+    t3 = call @scoop.suspendCoroutine$I.g9$suspend(t1, local2) : enum2
     store t3 -> local3
     t4 = enum_tag e2 local3 : i64
     t5 = Eq t4, 0 : i1
@@ -16454,7 +16322,7 @@ Module
     t1 = call @scoop_rt_alloc(global117, 24) : ptr<managed>
     t2 = function_address @scoop.$lambda.9 : ptr
     heap_store t1 +16 t2
-    t3 = call @scoop.suspendCoroutine$I.g12$suspend(t1, local2) : enum2
+    t3 = call @scoop.suspendCoroutine$I.g9$suspend(t1, local2) : enum2
     store t3 -> local3
     t4 = enum_tag e2 local3 : i64
     t5 = Eq t4, 0 : i1
@@ -16677,7 +16545,7 @@ Module
     t1 = call @scoop_rt_alloc(global119, 24) : ptr<managed>
     t2 = function_address @scoop.$lambda.10 : ptr
     heap_store t1 +16 t2
-    t3 = call @scoop.suspendCoroutine$I.g12$suspend(t1, local2) : enum2
+    t3 = call @scoop.suspendCoroutine$I.g9$suspend(t1, local2) : enum2
     store t3 -> local3
     t4 = enum_tag e2 local3 : i64
     t5 = Eq t4, 0 : i1
@@ -16900,7 +16768,7 @@ Module
     t1 = call @scoop_rt_alloc(global121, 24) : ptr<managed>
     t2 = function_address @scoop.$lambda.11 : ptr
     heap_store t1 +16 t2
-    t3 = call @scoop.suspendCoroutine$I.g12$suspend(t1, local2) : enum2
+    t3 = call @scoop.suspendCoroutine$I.g9$suspend(t1, local2) : enum2
     store t3 -> local3
     t4 = enum_tag e2 local3 : i64
     t5 = Eq t4, 0 : i1
@@ -17123,7 +16991,7 @@ Module
     t1 = call @scoop_rt_alloc(global123, 24) : ptr<managed>
     t2 = function_address @scoop.$lambda.12 : ptr
     heap_store t1 +16 t2
-    t3 = call @scoop.suspendCoroutine$I.g12$suspend(t1, local2) : enum2
+    t3 = call @scoop.suspendCoroutine$I.g9$suspend(t1, local2) : enum2
     store t3 -> local3
     t4 = enum_tag e2 local3 : i64
     t5 = Eq t4, 0 : i1
@@ -17616,7 +17484,7 @@ Module
     heap_store t12 +16 t13
     t14 = heap_load local3 +24 : ptr<managed>
     heap_store t12 +24 t14
-    invoke @scoop.suspendCoroutine$I.g12$suspend(t12, local6) normal @invoke.normal.1 unwind @try.unwind.1
+    invoke @scoop.suspendCoroutine$I.g9$suspend(t12, local6) normal @invoke.normal.1 unwind @try.unwind.1
     br @invoke.normal.1
   block scope.7
     call @scoop.println$S(global7)
@@ -17878,7 +17746,7 @@ Module
     t2 = function_address @scoop.$lambda.2 : ptr
     heap_store t1 +16 t2
     heap_store t1 +24 local0
-    t3 = call @scoop.suspendCoroutine$I.g12$suspend(t1, local3) : enum2
+    t3 = call @scoop.suspendCoroutine$I.g9$suspend(t1, local3) : enum2
     store t3 -> local4
     t4 = enum_tag e2 local4 : i64
     t5 = Eq t4, 0 : i1
@@ -18635,7 +18503,7 @@ Module
     heap_store t16 +16 t17
     t18 = heap_load local2 +24 : ptr<managed>
     heap_store t16 +24 t18
-    invoke @scoop.suspendCoroutine$I.g12$suspend(t16, local6) normal @invoke.normal.1 unwind @try.unwind.1
+    invoke @scoop.suspendCoroutine$I.g9$suspend(t16, local6) normal @invoke.normal.1 unwind @try.unwind.1
     br @invoke.normal.1
   block scope.9
     call @scoop.println$S(global8)
@@ -18895,7 +18763,7 @@ Module
     heap_store t1 +16 t2
     t3 = heap_load local0 +24 : ptr<managed>
     heap_store t1 +24 t3
-    t4 = call @scoop.suspendCoroutine$I.g12$suspend(t1, local3) : enum2
+    t4 = call @scoop.suspendCoroutine$I.g9$suspend(t1, local3) : enum2
     store t4 -> local4
     t5 = enum_tag e2 local4 : i64
     t6 = Eq t5, 0 : i1
@@ -20455,7 +20323,7 @@ Module
     t22 = enum_tag e2 local0 : i64
     t23 = Eq t22, 0 : i1
     cbr t23 then @completed else @suspended
-  fun @scoop.suspendCoroutine$I.g12$suspend$drive(ptr<managed>, i64) -> enum2
+  fun @scoop.suspendCoroutine$I.g9$suspend$drive(ptr<managed>, i64) -> enum2
     local %0 registration: ptr<managed>
     local %1 $call.1: i64
     local %2 $completion: ptr<managed>
@@ -20615,7 +20483,7 @@ Module
   block invoke.normal.1
     t8 = aggregate () : {}
     br @coroutine.register_return.1
-  fun @scoop.suspendCoroutine$I.g12$suspend$resume$1(ptr<managed>, i64) -> void
+  fun @scoop.suspendCoroutine$I.g9$suspend$resume$1(ptr<managed>, i64) -> void
     local %0 $step: enum2
     local %1 $adapter_claim: i64
     local %2 $frame_claim: i64
@@ -20668,7 +20536,7 @@ Module
     heap_store t18 +40 t19
     atomic_store release param0 +24 6
     t20 = heap_load param0 +16 : ptr<managed>
-    invoke @scoop.suspendCoroutine$I.g12$suspend$drive(t20, 1) normal @invoke.normal.1 unwind @body_failure
+    invoke @scoop.suspendCoroutine$I.g9$suspend$drive(t20, 1) normal @invoke.normal.1 unwind @body_failure
     br @invoke.normal.1
   block invalid_frame
     atomic_store release param0 +24 6
@@ -20699,7 +20567,7 @@ Module
     t22 = enum_tag e2 local0 : i64
     t23 = Eq t22, 0 : i1
     cbr t23 then @completed else @suspended
-  fun @scoop.suspendCoroutine$I.g12$suspend$resume_exception$1(ptr<managed>, ptr<managed>) -> void
+  fun @scoop.suspendCoroutine$I.g9$suspend$resume_exception$1(ptr<managed>, ptr<managed>) -> void
     local %0 $step: enum2
     local %1 $adapter_claim: i64
     local %2 $frame_claim: i64
@@ -20752,7 +20620,7 @@ Module
     heap_store t18 +56 t19
     atomic_store release param0 +24 6
     t20 = heap_load param0 +16 : ptr<managed>
-    invoke @scoop.suspendCoroutine$I.g12$suspend$drive(t20, -3) normal @invoke.normal.1 unwind @body_failure
+    invoke @scoop.suspendCoroutine$I.g9$suspend$drive(t20, -3) normal @invoke.normal.1 unwind @body_failure
     br @invoke.normal.1
   block invalid_frame
     atomic_store release param0 +24 6
@@ -22586,133 +22454,133 @@ Module
   td function$SRUX @scoop_td_function$SRUX size=0 vtable=0 itables=0
   td function$SIRAnyX @scoop_td_function$SIRAnyX size=0 vtable=0 itables=0
   td function$SAnyRIX @scoop_td_function$SAnyRIX size=0 vtable=0 itables=0
-  td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
-  td Done @scoop_td_Done size=16 vtable=3 itables=1
-  td UnitDone @scoop_td_UnitDone size=16 vtable=3 itables=1
-  td Gate @scoop_td_Gate size=24 vtable=3 itables=0
-  td Worker @scoop_td_Worker size=24 vtable=3 itables=0
-  td AsyncWorker @scoop_td_AsyncWorker size=24 vtable=3 itables=1
-  td box$I @scoop_td_box$I size=24 vtable=3 itables=0
-  td box$FunctionSuspendRegistration$I @scoop_td_box$FunctionSuspendRegistration$I size=24 vtable=3 itables=2
-  td box$FunctionSuspendTask$I @scoop_td_box$FunctionSuspendTask$I size=24 vtable=3 itables=2
-  td box$FunctionSuspendTask$U @scoop_td_box$FunctionSuspendTask$U size=24 vtable=3 itables=2
-  td box$U @scoop_td_box$U size=16 vtable=3 itables=0
-  td CoroutineFrame$scoop__reference_0_suspend @scoop_td_CoroutineFrame$scoop__reference_0_suspend size=64 vtable=3 itables=0
-  td CoroutineAdapter$scoop__reference_0_suspend$1 @scoop_td_CoroutineAdapter$scoop__reference_0_suspend$1 size=32 vtable=3 itables=1
-  td CoroutineFrame$scoop__reference_1_suspend @scoop_td_CoroutineFrame$scoop__reference_1_suspend size=72 vtable=3 itables=0
-  td CoroutineAdapter$scoop__reference_1_suspend$1 @scoop_td_CoroutineAdapter$scoop__reference_1_suspend$1 size=32 vtable=3 itables=1
-  td CoroutineFrame$scoop__reference_2_suspend @scoop_td_CoroutineFrame$scoop__reference_2_suspend size=72 vtable=3 itables=0
-  td CoroutineAdapter$scoop__reference_2_suspend$1 @scoop_td_CoroutineAdapter$scoop__reference_2_suspend$1 size=32 vtable=3 itables=1
-  td CoroutineFrame$scoop__reference_3_suspend @scoop_td_CoroutineFrame$scoop__reference_3_suspend size=64 vtable=3 itables=0
-  td CoroutineAdapter$scoop__reference_3_suspend$1 @scoop_td_CoroutineAdapter$scoop__reference_3_suspend$1 size=32 vtable=3 itables=1
-  td CoroutineFrame$scoop__reference_4_suspend @scoop_td_CoroutineFrame$scoop__reference_4_suspend size=64 vtable=3 itables=0
-  td CoroutineAdapter$scoop__reference_4_suspend$1 @scoop_td_CoroutineAdapter$scoop__reference_4_suspend$1 size=32 vtable=3 itables=1
-  td CoroutineFrame$scoop__reference_5_suspend @scoop_td_CoroutineFrame$scoop__reference_5_suspend size=64 vtable=3 itables=0
-  td CoroutineAdapter$scoop__reference_5_suspend$1 @scoop_td_CoroutineAdapter$scoop__reference_5_suspend$1 size=32 vtable=3 itables=1
-  td CoroutineFrame$scoop_Worker_await_suspend @scoop_td_CoroutineFrame$scoop_Worker_await_suspend size=64 vtable=3 itables=0
-  td CoroutineAdapter$scoop_Worker_await_suspend$1 @scoop_td_CoroutineAdapter$scoop_Worker_await_suspend$1 size=32 vtable=3 itables=1
-  td CoroutineFrame$scoop_AsyncWorker_read_suspend @scoop_td_CoroutineFrame$scoop_AsyncWorker_read_suspend size=64 vtable=3 itables=0
-  td CoroutineAdapter$scoop_AsyncWorker_read_suspend$1 @scoop_td_CoroutineAdapter$scoop_AsyncWorker_read_suspend$1 size=32 vtable=3 itables=1
-  td CoroutineFrame$scoop__adapter_SAnyRIX_SIRAnyX_suspend @scoop_td_CoroutineFrame$scoop__adapter_SAnyRIX_SIRAnyX_suspend size=80 vtable=3 itables=0
-  td CoroutineAdapter$scoop__adapter_SAnyRIX_SIRAnyX_suspend$1 @scoop_td_CoroutineAdapter$scoop__adapter_SAnyRIX_SIRAnyX_suspend$1 size=32 vtable=3 itables=1
-  td CoroutineFrame$scoop__dynamic_adapter_SIRAnyX_suspend @scoop_td_CoroutineFrame$scoop__dynamic_adapter_SIRAnyX_suspend size=72 vtable=3 itables=0
-  td CoroutineAdapter$scoop__dynamic_adapter_SIRAnyX_suspend$1 @scoop_td_CoroutineAdapter$scoop__dynamic_adapter_SIRAnyX_suspend$1 size=32 vtable=3 itables=1
-  td CoroutineFrame$scoop_synchronousValue_suspend @scoop_td_CoroutineFrame$scoop_synchronousValue_suspend size=56 vtable=3 itables=0
-  td CoroutineAdapter$scoop_synchronousValue_suspend$1 @scoop_td_CoroutineAdapter$scoop_synchronousValue_suspend$1 size=32 vtable=3 itables=1
-  td CoroutineFrame$scoop_synchronousFailure_suspend @scoop_td_CoroutineFrame$scoop_synchronousFailure_suspend size=56 vtable=3 itables=0
-  td CoroutineAdapter$scoop_synchronousFailure_suspend$1 @scoop_td_CoroutineAdapter$scoop_synchronousFailure_suspend$1 size=32 vtable=3 itables=1
-  td CoroutineFrame$scoop_registrationFailure_suspend @scoop_td_CoroutineFrame$scoop_registrationFailure_suspend size=56 vtable=3 itables=0
-  td CoroutineAdapter$scoop_registrationFailure_suspend$1 @scoop_td_CoroutineAdapter$scoop_registrationFailure_suspend$1 size=32 vtable=3 itables=1
-  td CoroutineFrame$scoop_resumedThenThrows_suspend @scoop_td_CoroutineFrame$scoop_resumedThenThrows_suspend size=56 vtable=3 itables=0
-  td CoroutineAdapter$scoop_resumedThenThrows_suspend$1 @scoop_td_CoroutineAdapter$scoop_resumedThenThrows_suspend$1 size=32 vtable=3 itables=1
-  td CoroutineFrame$scoop_resumedTwice_suspend @scoop_td_CoroutineFrame$scoop_resumedTwice_suspend size=56 vtable=3 itables=0
-  td CoroutineAdapter$scoop_resumedTwice_suspend$1 @scoop_td_CoroutineAdapter$scoop_resumedTwice_suspend$1 size=32 vtable=3 itables=1
-  td CoroutineFrame$scoop__dynamic_adapter_SRIX_suspend @scoop_td_CoroutineFrame$scoop__dynamic_adapter_SRIX_suspend size=64 vtable=3 itables=0
-  td CoroutineAdapter$scoop__dynamic_adapter_SRIX_suspend$1 @scoop_td_CoroutineAdapter$scoop__dynamic_adapter_SRIX_suspend$1 size=32 vtable=3 itables=1
-  td CoroutineFrame$scoop__lambda_0_suspend @scoop_td_CoroutineFrame$scoop__lambda_0_suspend size=72 vtable=3 itables=0
-  td CoroutineAdapter$scoop__lambda_0_suspend$1 @scoop_td_CoroutineAdapter$scoop__lambda_0_suspend$1 size=32 vtable=3 itables=1
-  td CoroutineFrame$scoop__local_0_local_suspend @scoop_td_CoroutineFrame$scoop__local_0_local_suspend size=64 vtable=3 itables=0
-  td CoroutineAdapter$scoop__local_0_local_suspend$1 @scoop_td_CoroutineAdapter$scoop__local_0_local_suspend$1 size=32 vtable=3 itables=1
-  td CoroutineFrame$scoop__lambda_3_suspend @scoop_td_CoroutineFrame$scoop__lambda_3_suspend size=56 vtable=3 itables=0
-  td CoroutineAdapter$scoop__lambda_3_suspend$1 @scoop_td_CoroutineAdapter$scoop__lambda_3_suspend$1 size=32 vtable=3 itables=1
-  td CoroutineFrame$scoop__lambda_4_suspend @scoop_td_CoroutineFrame$scoop__lambda_4_suspend size=56 vtable=3 itables=0
-  td CoroutineAdapter$scoop__lambda_4_suspend$1 @scoop_td_CoroutineAdapter$scoop__lambda_4_suspend$1 size=32 vtable=3 itables=1
-  td CoroutineFrame$scoop__lambda_6_suspend @scoop_td_CoroutineFrame$scoop__lambda_6_suspend size=64 vtable=3 itables=0
-  td CoroutineAdapter$scoop__lambda_6_suspend$1 @scoop_td_CoroutineAdapter$scoop__lambda_6_suspend$1 size=32 vtable=3 itables=1
-  td CoroutineFrame$scoop__lambda_14_suspend @scoop_td_CoroutineFrame$scoop__lambda_14_suspend size=64 vtable=3 itables=0
-  td CoroutineAdapter$scoop__lambda_14_suspend$1 @scoop_td_CoroutineAdapter$scoop__lambda_14_suspend$1 size=32 vtable=3 itables=1
-  td CoroutineFrame$scoop__lambda_13_suspend @scoop_td_CoroutineFrame$scoop__lambda_13_suspend size=64 vtable=3 itables=0
-  td CoroutineAdapter$scoop__lambda_13_suspend$1 @scoop_td_CoroutineAdapter$scoop__lambda_13_suspend$1 size=32 vtable=3 itables=1
-  td CoroutineFrame$scoop__lambda_18_suspend @scoop_td_CoroutineFrame$scoop__lambda_18_suspend size=64 vtable=3 itables=0
-  td CoroutineAdapter$scoop__lambda_18_suspend$1 @scoop_td_CoroutineAdapter$scoop__lambda_18_suspend$1 size=32 vtable=3 itables=1
-  td CoroutineFrame$scoop__lambda_19_suspend @scoop_td_CoroutineFrame$scoop__lambda_19_suspend size=64 vtable=3 itables=0
-  td CoroutineAdapter$scoop__lambda_19_suspend$1 @scoop_td_CoroutineAdapter$scoop__lambda_19_suspend$1 size=32 vtable=3 itables=1
-  td CoroutineFrame$scoop__lambda_20_suspend @scoop_td_CoroutineFrame$scoop__lambda_20_suspend size=64 vtable=3 itables=0
-  td CoroutineAdapter$scoop__lambda_20_suspend$1 @scoop_td_CoroutineAdapter$scoop__lambda_20_suspend$1 size=32 vtable=3 itables=1
-  td CoroutineFrame$scoop__lambda_21_suspend @scoop_td_CoroutineFrame$scoop__lambda_21_suspend size=64 vtable=3 itables=0
-  td CoroutineAdapter$scoop__lambda_21_suspend$1 @scoop_td_CoroutineAdapter$scoop__lambda_21_suspend$1 size=32 vtable=3 itables=1
-  td CoroutineFrame$scoop__lambda_22_suspend @scoop_td_CoroutineFrame$scoop__lambda_22_suspend size=64 vtable=3 itables=0
-  td CoroutineAdapter$scoop__lambda_22_suspend$1 @scoop_td_CoroutineAdapter$scoop__lambda_22_suspend$1 size=32 vtable=3 itables=1
-  td CoroutineFrame$scoop_suspendCoroutine_I_g12_suspend @scoop_td_CoroutineFrame$scoop_suspendCoroutine_I_g12_suspend size=64 vtable=3 itables=0
-  td CoroutineAdapter$scoop_suspendCoroutine_I_g12_suspend$1 @scoop_td_CoroutineAdapter$scoop_suspendCoroutine_I_g12_suspend$1 size=56 vtable=3 itables=1
-  td CoroutineFrame$scoop_FunctionSuspendTask_run_I_suspend @scoop_td_CoroutineFrame$scoop_FunctionSuspendTask_run_I_suspend size=72 vtable=3 itables=0
-  td CoroutineAdapter$scoop_FunctionSuspendTask_run_I_suspend$1 @scoop_td_CoroutineAdapter$scoop_FunctionSuspendTask_run_I_suspend$1 size=32 vtable=3 itables=1
-  td CoroutineFrame$scoop_FunctionSuspendTask_run_U_suspend @scoop_td_CoroutineFrame$scoop_FunctionSuspendTask_run_U_suspend size=56 vtable=3 itables=0
-  td CoroutineAdapter$scoop_FunctionSuspendTask_run_U_suspend$1 @scoop_td_CoroutineAdapter$scoop_FunctionSuspendTask_run_U_suspend$1 size=32 vtable=3 itables=1
-  td CoroutineFrame$scoop_thunk_FunctionSuspendTask_I_SuspendTask_I_run_suspend @scoop_td_CoroutineFrame$scoop_thunk_FunctionSuspendTask_I_SuspendTask_I_run_suspend size=64 vtable=3 itables=0
-  td CoroutineAdapter$scoop_thunk_FunctionSuspendTask_I_SuspendTask_I_run_suspend$1 @scoop_td_CoroutineAdapter$scoop_thunk_FunctionSuspendTask_I_SuspendTask_I_run_suspend$1 size=32 vtable=3 itables=1
-  td CoroutineFrame$scoop_thunk_FunctionSuspendTask_U_SuspendTask_U_run_suspend @scoop_td_CoroutineFrame$scoop_thunk_FunctionSuspendTask_U_SuspendTask_U_run_suspend size=48 vtable=3 itables=0
-  td CoroutineAdapter$scoop_thunk_FunctionSuspendTask_U_SuspendTask_U_run_suspend$1 @scoop_td_CoroutineAdapter$scoop_thunk_FunctionSuspendTask_U_SuspendTask_U_run_suspend$1 size=32 vtable=3 itables=1
-  td CoroutineFrame$scoop_variance_box_FunctionSuspendTask_I_SuspendTask_Any_run_0_suspend @scoop_td_CoroutineFrame$scoop_variance_box_FunctionSuspendTask_I_SuspendTask_Any_run_0_suspend size=64 vtable=3 itables=0
-  td CoroutineAdapter$scoop_variance_box_FunctionSuspendTask_I_SuspendTask_Any_run_0_suspend$1 @scoop_td_CoroutineAdapter$scoop_variance_box_FunctionSuspendTask_I_SuspendTask_Any_run_0_suspend$1 size=32 vtable=3 itables=1
-  td CoroutineFrame$scoop_variance_box_FunctionSuspendTask_U_SuspendTask_Any_run_0_suspend @scoop_td_CoroutineFrame$scoop_variance_box_FunctionSuspendTask_U_SuspendTask_Any_run_0_suspend size=48 vtable=3 itables=0
-  td CoroutineAdapter$scoop_variance_box_FunctionSuspendTask_U_SuspendTask_Any_run_0_suspend$1 @scoop_td_CoroutineAdapter$scoop_variance_box_FunctionSuspendTask_U_SuspendTask_Any_run_0_suspend$1 size=32 vtable=3 itables=1
-  td CoroutineFrame$scoop_function_bridge__Closure_reference1_SIRAnyX_suspend @scoop_td_CoroutineFrame$scoop_function_bridge__Closure_reference1_SIRAnyX_suspend size=80 vtable=3 itables=0
-  td CoroutineAdapter$scoop_function_bridge__Closure_reference1_SIRAnyX_suspend$1 @scoop_td_CoroutineAdapter$scoop_function_bridge__Closure_reference1_SIRAnyX_suspend$1 size=32 vtable=3 itables=1
-  td CoroutineFrame$scoop_function_bridge__Closure_reference2_SIRAnyX_suspend @scoop_td_CoroutineFrame$scoop_function_bridge__Closure_reference2_SIRAnyX_suspend size=80 vtable=3 itables=0
-  td CoroutineAdapter$scoop_function_bridge__Closure_reference2_SIRAnyX_suspend$1 @scoop_td_CoroutineAdapter$scoop_function_bridge__Closure_reference2_SIRAnyX_suspend$1 size=32 vtable=3 itables=1
-  td Exception @scoop_td_Exception size=24 vtable=3 itables=0
-  td UnwrapException @scoop_td_UnwrapException size=24 vtable=3 itables=0
-  td ClassCastException @scoop_td_ClassCastException size=24 vtable=3 itables=0
-  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=3 itables=0
-  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=3 itables=0
-  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=3 itables=0
-  td $Closure$lambda0 @scoop_td_$Closure$lambda0 size=32 vtable=3 itables=0
-  td $Closure$lambda1 @scoop_td_$Closure$lambda1 size=32 vtable=3 itables=0
-  td $Closure$lambda2 @scoop_td_$Closure$lambda2 size=32 vtable=3 itables=1
-  td $Closure$lambda3 @scoop_td_$Closure$lambda3 size=32 vtable=3 itables=1
-  td $Closure$lambda4 @scoop_td_$Closure$lambda4 size=32 vtable=3 itables=1
-  td $Closure$lambda5 @scoop_td_$Closure$lambda5 size=32 vtable=3 itables=1
-  td $Closure$lambda6 @scoop_td_$Closure$lambda6 size=24 vtable=3 itables=0
-  td $Closure$lambda7 @scoop_td_$Closure$lambda7 size=24 vtable=3 itables=0
-  td $Closure$lambda8 @scoop_td_$Closure$lambda8 size=24 vtable=3 itables=0
-  td $Closure$lambda9 @scoop_td_$Closure$lambda9 size=24 vtable=3 itables=0
-  td $Closure$lambda10 @scoop_td_$Closure$lambda10 size=24 vtable=3 itables=0
-  td $Closure$lambda11 @scoop_td_$Closure$lambda11 size=32 vtable=3 itables=1
-  td $Closure$lambda12 @scoop_td_$Closure$lambda12 size=24 vtable=3 itables=1
-  td $Closure$lambda13 @scoop_td_$Closure$lambda13 size=24 vtable=3 itables=0
-  td $Closure$lambda14 @scoop_td_$Closure$lambda14 size=24 vtable=3 itables=1
-  td $Closure$lambda15 @scoop_td_$Closure$lambda15 size=24 vtable=3 itables=1
-  td $Closure$lambda16 @scoop_td_$Closure$lambda16 size=24 vtable=3 itables=1
-  td $Closure$lambda17 @scoop_td_$Closure$lambda17 size=24 vtable=3 itables=1
-  td $Closure$lambda18 @scoop_td_$Closure$lambda18 size=24 vtable=3 itables=1
-  td $Closure$lambda19 @scoop_td_$Closure$lambda19 size=32 vtable=3 itables=0
-  td $Closure$lambda20 @scoop_td_$Closure$lambda20 size=32 vtable=3 itables=0
-  td $Closure$lambda21 @scoop_td_$Closure$lambda21 size=32 vtable=3 itables=0
-  td $Closure$lambda22 @scoop_td_$Closure$lambda22 size=32 vtable=3 itables=0
-  td $Closure$lambda23 @scoop_td_$Closure$lambda23 size=32 vtable=3 itables=1
-  td $Closure$lambda24 @scoop_td_$Closure$lambda24 size=32 vtable=3 itables=1
-  td $Closure$anonymous0 @scoop_td_$Closure$anonymous0 size=24 vtable=3 itables=1
-  td $Closure$anonymous1 @scoop_td_$Closure$anonymous1 size=24 vtable=3 itables=1
-  td $Closure$reference0 @scoop_td_$Closure$reference0 size=32 vtable=3 itables=1
-  td $Closure$reference1 @scoop_td_$Closure$reference1 size=24 vtable=3 itables=1
-  td $Closure$reference2 @scoop_td_$Closure$reference2 size=24 vtable=3 itables=1
-  td $Closure$reference3 @scoop_td_$Closure$reference3 size=24 vtable=3 itables=1
-  td $Closure$reference4 @scoop_td_$Closure$reference4 size=32 vtable=3 itables=1
-  td $Closure$reference5 @scoop_td_$Closure$reference5 size=32 vtable=3 itables=1
-  td $Closure$adapter$SAnyRIX$SIRAnyX @scoop_td_$Closure$adapter$SAnyRIX$SIRAnyX size=32 vtable=3 itables=1
-  td $Closure$dynamic_adapter$SIRAnyX @scoop_td_$Closure$dynamic_adapter$SIRAnyX size=32 vtable=3 itables=1
-  td $Closure$dynamic_adapter$SRIX @scoop_td_$Closure$dynamic_adapter$SRIX size=32 vtable=3 itables=1
+  td Throwable @scoop_td_Throwable size=16 vtable=0 itables=0
+  td Done @scoop_td_Done size=16 vtable=0 itables=1
+  td UnitDone @scoop_td_UnitDone size=16 vtable=0 itables=1
+  td Gate @scoop_td_Gate size=24 vtable=0 itables=0
+  td Worker @scoop_td_Worker size=24 vtable=0 itables=0
+  td AsyncWorker @scoop_td_AsyncWorker size=24 vtable=0 itables=1
+  td box$I @scoop_td_box$I size=24 vtable=0 itables=0
+  td box$FunctionSuspendRegistration$I @scoop_td_box$FunctionSuspendRegistration$I size=24 vtable=0 itables=2
+  td box$FunctionSuspendTask$I @scoop_td_box$FunctionSuspendTask$I size=24 vtable=0 itables=2
+  td box$FunctionSuspendTask$U @scoop_td_box$FunctionSuspendTask$U size=24 vtable=0 itables=2
+  td box$U @scoop_td_box$U size=16 vtable=0 itables=0
+  td CoroutineFrame$scoop__reference_0_suspend @scoop_td_CoroutineFrame$scoop__reference_0_suspend size=64 vtable=0 itables=0
+  td CoroutineAdapter$scoop__reference_0_suspend$1 @scoop_td_CoroutineAdapter$scoop__reference_0_suspend$1 size=32 vtable=0 itables=1
+  td CoroutineFrame$scoop__reference_1_suspend @scoop_td_CoroutineFrame$scoop__reference_1_suspend size=72 vtable=0 itables=0
+  td CoroutineAdapter$scoop__reference_1_suspend$1 @scoop_td_CoroutineAdapter$scoop__reference_1_suspend$1 size=32 vtable=0 itables=1
+  td CoroutineFrame$scoop__reference_2_suspend @scoop_td_CoroutineFrame$scoop__reference_2_suspend size=72 vtable=0 itables=0
+  td CoroutineAdapter$scoop__reference_2_suspend$1 @scoop_td_CoroutineAdapter$scoop__reference_2_suspend$1 size=32 vtable=0 itables=1
+  td CoroutineFrame$scoop__reference_3_suspend @scoop_td_CoroutineFrame$scoop__reference_3_suspend size=64 vtable=0 itables=0
+  td CoroutineAdapter$scoop__reference_3_suspend$1 @scoop_td_CoroutineAdapter$scoop__reference_3_suspend$1 size=32 vtable=0 itables=1
+  td CoroutineFrame$scoop__reference_4_suspend @scoop_td_CoroutineFrame$scoop__reference_4_suspend size=64 vtable=0 itables=0
+  td CoroutineAdapter$scoop__reference_4_suspend$1 @scoop_td_CoroutineAdapter$scoop__reference_4_suspend$1 size=32 vtable=0 itables=1
+  td CoroutineFrame$scoop__reference_5_suspend @scoop_td_CoroutineFrame$scoop__reference_5_suspend size=64 vtable=0 itables=0
+  td CoroutineAdapter$scoop__reference_5_suspend$1 @scoop_td_CoroutineAdapter$scoop__reference_5_suspend$1 size=32 vtable=0 itables=1
+  td CoroutineFrame$scoop_Worker_await_suspend @scoop_td_CoroutineFrame$scoop_Worker_await_suspend size=64 vtable=0 itables=0
+  td CoroutineAdapter$scoop_Worker_await_suspend$1 @scoop_td_CoroutineAdapter$scoop_Worker_await_suspend$1 size=32 vtable=0 itables=1
+  td CoroutineFrame$scoop_AsyncWorker_read_suspend @scoop_td_CoroutineFrame$scoop_AsyncWorker_read_suspend size=64 vtable=0 itables=0
+  td CoroutineAdapter$scoop_AsyncWorker_read_suspend$1 @scoop_td_CoroutineAdapter$scoop_AsyncWorker_read_suspend$1 size=32 vtable=0 itables=1
+  td CoroutineFrame$scoop__adapter_SAnyRIX_SIRAnyX_suspend @scoop_td_CoroutineFrame$scoop__adapter_SAnyRIX_SIRAnyX_suspend size=80 vtable=0 itables=0
+  td CoroutineAdapter$scoop__adapter_SAnyRIX_SIRAnyX_suspend$1 @scoop_td_CoroutineAdapter$scoop__adapter_SAnyRIX_SIRAnyX_suspend$1 size=32 vtable=0 itables=1
+  td CoroutineFrame$scoop__dynamic_adapter_SIRAnyX_suspend @scoop_td_CoroutineFrame$scoop__dynamic_adapter_SIRAnyX_suspend size=72 vtable=0 itables=0
+  td CoroutineAdapter$scoop__dynamic_adapter_SIRAnyX_suspend$1 @scoop_td_CoroutineAdapter$scoop__dynamic_adapter_SIRAnyX_suspend$1 size=32 vtable=0 itables=1
+  td CoroutineFrame$scoop_synchronousValue_suspend @scoop_td_CoroutineFrame$scoop_synchronousValue_suspend size=56 vtable=0 itables=0
+  td CoroutineAdapter$scoop_synchronousValue_suspend$1 @scoop_td_CoroutineAdapter$scoop_synchronousValue_suspend$1 size=32 vtable=0 itables=1
+  td CoroutineFrame$scoop_synchronousFailure_suspend @scoop_td_CoroutineFrame$scoop_synchronousFailure_suspend size=56 vtable=0 itables=0
+  td CoroutineAdapter$scoop_synchronousFailure_suspend$1 @scoop_td_CoroutineAdapter$scoop_synchronousFailure_suspend$1 size=32 vtable=0 itables=1
+  td CoroutineFrame$scoop_registrationFailure_suspend @scoop_td_CoroutineFrame$scoop_registrationFailure_suspend size=56 vtable=0 itables=0
+  td CoroutineAdapter$scoop_registrationFailure_suspend$1 @scoop_td_CoroutineAdapter$scoop_registrationFailure_suspend$1 size=32 vtable=0 itables=1
+  td CoroutineFrame$scoop_resumedThenThrows_suspend @scoop_td_CoroutineFrame$scoop_resumedThenThrows_suspend size=56 vtable=0 itables=0
+  td CoroutineAdapter$scoop_resumedThenThrows_suspend$1 @scoop_td_CoroutineAdapter$scoop_resumedThenThrows_suspend$1 size=32 vtable=0 itables=1
+  td CoroutineFrame$scoop_resumedTwice_suspend @scoop_td_CoroutineFrame$scoop_resumedTwice_suspend size=56 vtable=0 itables=0
+  td CoroutineAdapter$scoop_resumedTwice_suspend$1 @scoop_td_CoroutineAdapter$scoop_resumedTwice_suspend$1 size=32 vtable=0 itables=1
+  td CoroutineFrame$scoop__dynamic_adapter_SRIX_suspend @scoop_td_CoroutineFrame$scoop__dynamic_adapter_SRIX_suspend size=64 vtable=0 itables=0
+  td CoroutineAdapter$scoop__dynamic_adapter_SRIX_suspend$1 @scoop_td_CoroutineAdapter$scoop__dynamic_adapter_SRIX_suspend$1 size=32 vtable=0 itables=1
+  td CoroutineFrame$scoop__lambda_0_suspend @scoop_td_CoroutineFrame$scoop__lambda_0_suspend size=72 vtable=0 itables=0
+  td CoroutineAdapter$scoop__lambda_0_suspend$1 @scoop_td_CoroutineAdapter$scoop__lambda_0_suspend$1 size=32 vtable=0 itables=1
+  td CoroutineFrame$scoop__local_0_local_suspend @scoop_td_CoroutineFrame$scoop__local_0_local_suspend size=64 vtable=0 itables=0
+  td CoroutineAdapter$scoop__local_0_local_suspend$1 @scoop_td_CoroutineAdapter$scoop__local_0_local_suspend$1 size=32 vtable=0 itables=1
+  td CoroutineFrame$scoop__lambda_3_suspend @scoop_td_CoroutineFrame$scoop__lambda_3_suspend size=56 vtable=0 itables=0
+  td CoroutineAdapter$scoop__lambda_3_suspend$1 @scoop_td_CoroutineAdapter$scoop__lambda_3_suspend$1 size=32 vtable=0 itables=1
+  td CoroutineFrame$scoop__lambda_4_suspend @scoop_td_CoroutineFrame$scoop__lambda_4_suspend size=56 vtable=0 itables=0
+  td CoroutineAdapter$scoop__lambda_4_suspend$1 @scoop_td_CoroutineAdapter$scoop__lambda_4_suspend$1 size=32 vtable=0 itables=1
+  td CoroutineFrame$scoop__lambda_6_suspend @scoop_td_CoroutineFrame$scoop__lambda_6_suspend size=64 vtable=0 itables=0
+  td CoroutineAdapter$scoop__lambda_6_suspend$1 @scoop_td_CoroutineAdapter$scoop__lambda_6_suspend$1 size=32 vtable=0 itables=1
+  td CoroutineFrame$scoop__lambda_14_suspend @scoop_td_CoroutineFrame$scoop__lambda_14_suspend size=64 vtable=0 itables=0
+  td CoroutineAdapter$scoop__lambda_14_suspend$1 @scoop_td_CoroutineAdapter$scoop__lambda_14_suspend$1 size=32 vtable=0 itables=1
+  td CoroutineFrame$scoop__lambda_13_suspend @scoop_td_CoroutineFrame$scoop__lambda_13_suspend size=64 vtable=0 itables=0
+  td CoroutineAdapter$scoop__lambda_13_suspend$1 @scoop_td_CoroutineAdapter$scoop__lambda_13_suspend$1 size=32 vtable=0 itables=1
+  td CoroutineFrame$scoop__lambda_18_suspend @scoop_td_CoroutineFrame$scoop__lambda_18_suspend size=64 vtable=0 itables=0
+  td CoroutineAdapter$scoop__lambda_18_suspend$1 @scoop_td_CoroutineAdapter$scoop__lambda_18_suspend$1 size=32 vtable=0 itables=1
+  td CoroutineFrame$scoop__lambda_19_suspend @scoop_td_CoroutineFrame$scoop__lambda_19_suspend size=64 vtable=0 itables=0
+  td CoroutineAdapter$scoop__lambda_19_suspend$1 @scoop_td_CoroutineAdapter$scoop__lambda_19_suspend$1 size=32 vtable=0 itables=1
+  td CoroutineFrame$scoop__lambda_20_suspend @scoop_td_CoroutineFrame$scoop__lambda_20_suspend size=64 vtable=0 itables=0
+  td CoroutineAdapter$scoop__lambda_20_suspend$1 @scoop_td_CoroutineAdapter$scoop__lambda_20_suspend$1 size=32 vtable=0 itables=1
+  td CoroutineFrame$scoop__lambda_21_suspend @scoop_td_CoroutineFrame$scoop__lambda_21_suspend size=64 vtable=0 itables=0
+  td CoroutineAdapter$scoop__lambda_21_suspend$1 @scoop_td_CoroutineAdapter$scoop__lambda_21_suspend$1 size=32 vtable=0 itables=1
+  td CoroutineFrame$scoop__lambda_22_suspend @scoop_td_CoroutineFrame$scoop__lambda_22_suspend size=64 vtable=0 itables=0
+  td CoroutineAdapter$scoop__lambda_22_suspend$1 @scoop_td_CoroutineAdapter$scoop__lambda_22_suspend$1 size=32 vtable=0 itables=1
+  td CoroutineFrame$scoop_suspendCoroutine_I_g9_suspend @scoop_td_CoroutineFrame$scoop_suspendCoroutine_I_g9_suspend size=64 vtable=0 itables=0
+  td CoroutineAdapter$scoop_suspendCoroutine_I_g9_suspend$1 @scoop_td_CoroutineAdapter$scoop_suspendCoroutine_I_g9_suspend$1 size=56 vtable=0 itables=1
+  td CoroutineFrame$scoop_FunctionSuspendTask_run_I_suspend @scoop_td_CoroutineFrame$scoop_FunctionSuspendTask_run_I_suspend size=72 vtable=0 itables=0
+  td CoroutineAdapter$scoop_FunctionSuspendTask_run_I_suspend$1 @scoop_td_CoroutineAdapter$scoop_FunctionSuspendTask_run_I_suspend$1 size=32 vtable=0 itables=1
+  td CoroutineFrame$scoop_FunctionSuspendTask_run_U_suspend @scoop_td_CoroutineFrame$scoop_FunctionSuspendTask_run_U_suspend size=56 vtable=0 itables=0
+  td CoroutineAdapter$scoop_FunctionSuspendTask_run_U_suspend$1 @scoop_td_CoroutineAdapter$scoop_FunctionSuspendTask_run_U_suspend$1 size=32 vtable=0 itables=1
+  td CoroutineFrame$scoop_thunk_FunctionSuspendTask_I_SuspendTask_I_run_suspend @scoop_td_CoroutineFrame$scoop_thunk_FunctionSuspendTask_I_SuspendTask_I_run_suspend size=64 vtable=0 itables=0
+  td CoroutineAdapter$scoop_thunk_FunctionSuspendTask_I_SuspendTask_I_run_suspend$1 @scoop_td_CoroutineAdapter$scoop_thunk_FunctionSuspendTask_I_SuspendTask_I_run_suspend$1 size=32 vtable=0 itables=1
+  td CoroutineFrame$scoop_thunk_FunctionSuspendTask_U_SuspendTask_U_run_suspend @scoop_td_CoroutineFrame$scoop_thunk_FunctionSuspendTask_U_SuspendTask_U_run_suspend size=48 vtable=0 itables=0
+  td CoroutineAdapter$scoop_thunk_FunctionSuspendTask_U_SuspendTask_U_run_suspend$1 @scoop_td_CoroutineAdapter$scoop_thunk_FunctionSuspendTask_U_SuspendTask_U_run_suspend$1 size=32 vtable=0 itables=1
+  td CoroutineFrame$scoop_variance_box_FunctionSuspendTask_I_SuspendTask_Any_run_0_suspend @scoop_td_CoroutineFrame$scoop_variance_box_FunctionSuspendTask_I_SuspendTask_Any_run_0_suspend size=64 vtable=0 itables=0
+  td CoroutineAdapter$scoop_variance_box_FunctionSuspendTask_I_SuspendTask_Any_run_0_suspend$1 @scoop_td_CoroutineAdapter$scoop_variance_box_FunctionSuspendTask_I_SuspendTask_Any_run_0_suspend$1 size=32 vtable=0 itables=1
+  td CoroutineFrame$scoop_variance_box_FunctionSuspendTask_U_SuspendTask_Any_run_0_suspend @scoop_td_CoroutineFrame$scoop_variance_box_FunctionSuspendTask_U_SuspendTask_Any_run_0_suspend size=48 vtable=0 itables=0
+  td CoroutineAdapter$scoop_variance_box_FunctionSuspendTask_U_SuspendTask_Any_run_0_suspend$1 @scoop_td_CoroutineAdapter$scoop_variance_box_FunctionSuspendTask_U_SuspendTask_Any_run_0_suspend$1 size=32 vtable=0 itables=1
+  td CoroutineFrame$scoop_function_bridge__Closure_reference1_SIRAnyX_suspend @scoop_td_CoroutineFrame$scoop_function_bridge__Closure_reference1_SIRAnyX_suspend size=80 vtable=0 itables=0
+  td CoroutineAdapter$scoop_function_bridge__Closure_reference1_SIRAnyX_suspend$1 @scoop_td_CoroutineAdapter$scoop_function_bridge__Closure_reference1_SIRAnyX_suspend$1 size=32 vtable=0 itables=1
+  td CoroutineFrame$scoop_function_bridge__Closure_reference2_SIRAnyX_suspend @scoop_td_CoroutineFrame$scoop_function_bridge__Closure_reference2_SIRAnyX_suspend size=80 vtable=0 itables=0
+  td CoroutineAdapter$scoop_function_bridge__Closure_reference2_SIRAnyX_suspend$1 @scoop_td_CoroutineAdapter$scoop_function_bridge__Closure_reference2_SIRAnyX_suspend$1 size=32 vtable=0 itables=1
+  td Exception @scoop_td_Exception size=24 vtable=0 itables=0
+  td UnwrapException @scoop_td_UnwrapException size=24 vtable=0 itables=0
+  td ClassCastException @scoop_td_ClassCastException size=24 vtable=0 itables=0
+  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=0 itables=0
+  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=0 itables=0
+  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=0 itables=0
+  td $Closure$lambda0 @scoop_td_$Closure$lambda0 size=32 vtable=0 itables=0
+  td $Closure$lambda1 @scoop_td_$Closure$lambda1 size=32 vtable=0 itables=0
+  td $Closure$lambda2 @scoop_td_$Closure$lambda2 size=32 vtable=0 itables=1
+  td $Closure$lambda3 @scoop_td_$Closure$lambda3 size=32 vtable=0 itables=1
+  td $Closure$lambda4 @scoop_td_$Closure$lambda4 size=32 vtable=0 itables=1
+  td $Closure$lambda5 @scoop_td_$Closure$lambda5 size=32 vtable=0 itables=1
+  td $Closure$lambda6 @scoop_td_$Closure$lambda6 size=24 vtable=0 itables=0
+  td $Closure$lambda7 @scoop_td_$Closure$lambda7 size=24 vtable=0 itables=0
+  td $Closure$lambda8 @scoop_td_$Closure$lambda8 size=24 vtable=0 itables=0
+  td $Closure$lambda9 @scoop_td_$Closure$lambda9 size=24 vtable=0 itables=0
+  td $Closure$lambda10 @scoop_td_$Closure$lambda10 size=24 vtable=0 itables=0
+  td $Closure$lambda11 @scoop_td_$Closure$lambda11 size=32 vtable=0 itables=1
+  td $Closure$lambda12 @scoop_td_$Closure$lambda12 size=24 vtable=0 itables=1
+  td $Closure$lambda13 @scoop_td_$Closure$lambda13 size=24 vtable=0 itables=0
+  td $Closure$lambda14 @scoop_td_$Closure$lambda14 size=24 vtable=0 itables=1
+  td $Closure$lambda15 @scoop_td_$Closure$lambda15 size=24 vtable=0 itables=1
+  td $Closure$lambda16 @scoop_td_$Closure$lambda16 size=24 vtable=0 itables=1
+  td $Closure$lambda17 @scoop_td_$Closure$lambda17 size=24 vtable=0 itables=1
+  td $Closure$lambda18 @scoop_td_$Closure$lambda18 size=24 vtable=0 itables=1
+  td $Closure$lambda19 @scoop_td_$Closure$lambda19 size=32 vtable=0 itables=0
+  td $Closure$lambda20 @scoop_td_$Closure$lambda20 size=32 vtable=0 itables=0
+  td $Closure$lambda21 @scoop_td_$Closure$lambda21 size=32 vtable=0 itables=0
+  td $Closure$lambda22 @scoop_td_$Closure$lambda22 size=32 vtable=0 itables=0
+  td $Closure$lambda23 @scoop_td_$Closure$lambda23 size=32 vtable=0 itables=1
+  td $Closure$lambda24 @scoop_td_$Closure$lambda24 size=32 vtable=0 itables=1
+  td $Closure$anonymous0 @scoop_td_$Closure$anonymous0 size=24 vtable=0 itables=1
+  td $Closure$anonymous1 @scoop_td_$Closure$anonymous1 size=24 vtable=0 itables=1
+  td $Closure$reference0 @scoop_td_$Closure$reference0 size=32 vtable=0 itables=1
+  td $Closure$reference1 @scoop_td_$Closure$reference1 size=24 vtable=0 itables=1
+  td $Closure$reference2 @scoop_td_$Closure$reference2 size=24 vtable=0 itables=1
+  td $Closure$reference3 @scoop_td_$Closure$reference3 size=24 vtable=0 itables=1
+  td $Closure$reference4 @scoop_td_$Closure$reference4 size=32 vtable=0 itables=1
+  td $Closure$reference5 @scoop_td_$Closure$reference5 size=32 vtable=0 itables=1
+  td $Closure$adapter$SAnyRIX$SIRAnyX @scoop_td_$Closure$adapter$SAnyRIX$SIRAnyX size=32 vtable=0 itables=1
+  td $Closure$dynamic_adapter$SIRAnyX @scoop_td_$Closure$dynamic_adapter$SIRAnyX size=32 vtable=0 itables=1
+  td $Closure$dynamic_adapter$SRIX @scoop_td_$Closure$dynamic_adapter$SRIX size=32 vtable=0 itables=1
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
@@ -22810,8 +22678,8 @@ Module
   layout CoroutineAdapter$scoop__lambda_21_suspend$1 size=32 align=8 refs=[16]
   layout CoroutineFrame$scoop__lambda_22_suspend size=64 align=8 refs=[24, 32, 56]
   layout CoroutineAdapter$scoop__lambda_22_suspend$1 size=32 align=8 refs=[16]
-  layout CoroutineFrame$scoop_suspendCoroutine_I_g12_suspend size=64 align=8 refs=[24, 32, 56]
-  layout CoroutineAdapter$scoop_suspendCoroutine_I_g12_suspend$1 size=56 align=8 refs=[16, 48]
+  layout CoroutineFrame$scoop_suspendCoroutine_I_g9_suspend size=64 align=8 refs=[24, 32, 56]
+  layout CoroutineAdapter$scoop_suspendCoroutine_I_g9_suspend$1 size=56 align=8 refs=[16, 48]
   layout CoroutineFrame$scoop_FunctionSuspendTask_run_I_suspend size=72 align=8 refs=[24, 40, 64]
   layout CoroutineAdapter$scoop_FunctionSuspendTask_run_I_suspend$1 size=32 align=8 refs=[16]
   layout CoroutineFrame$scoop_FunctionSuspendTask_run_U_suspend size=56 align=8 refs=[24, 40, 48]

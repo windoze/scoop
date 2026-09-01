@@ -1088,9 +1088,7 @@ fn td_symbol(name: &str) -> String {
     format!("scoop_td_{name}")
 }
 
-/// The symbol a vtable / itable slot points at: a module function
-/// (user methods, generated equals / thunks) or a runtime function
-/// (the `Any` defaults).
+/// The symbol a vtable / itable slot points at.
 fn slot_symbol(module: &mir::Module, slot: &mir::TableSlot) -> String {
     match slot {
         mir::TableSlot::Function(id) => module.functions[*id].symbol.clone(),
@@ -1170,11 +1168,7 @@ fn type_descriptors(
                 "function${}",
                 mir::encode_type(module, &mir::Type::Function(def.function_type))
             ))),
-            vtable: vec![
-                mir::RuntimeFn::AnyEquals.symbol().to_string(),
-                mir::RuntimeFn::AnyHashCode.symbol().to_string(),
-                mir::RuntimeFn::AnyToString.symbol().to_string(),
-            ],
+            vtable: Vec::new(),
             itables: def
                 .bridges
                 .iter()
@@ -3788,17 +3782,12 @@ impl<'a> FunctionLowerer<'a> {
                     }
                     mir::RuntimeFn::GcCollect | mir::RuntimeFn::GcStats => Vec::new(),
                     mir::RuntimeFn::MaterializeException => vec![mir::Type::Any],
-                    // The M6 runtime functions are emitted by the
-                    // dedicated lowerings (Box / IsInstance / dispatch)
-                    // or appear only as vtable slot symbols — never as
-                    // plain MIR calls.
+                    // The M6 runtime functions are emitted by dedicated
+                    // Box / IsInstance / dispatch lowerings, never as plain
+                    // MIR calls.
                     mir::RuntimeFn::Box
                     | mir::RuntimeFn::IsInstance
-                    | mir::RuntimeFn::ITableLookup
-                    | mir::RuntimeFn::AnyEquals
-                    | mir::RuntimeFn::AnyHashCode
-                    | mir::RuntimeFn::AnyToString
-                    | mir::RuntimeFn::StringIdentity => {
+                    | mir::RuntimeFn::ITableLookup => {
                         unreachable!("{function:?} calls are emitted by the dedicated M6 lowerings")
                     }
                     // Handled by the arm above.
@@ -3841,11 +3830,7 @@ impl<'a> FunctionLowerer<'a> {
                     }
                     mir::RuntimeFn::Box
                     | mir::RuntimeFn::IsInstance
-                    | mir::RuntimeFn::ITableLookup
-                    | mir::RuntimeFn::AnyEquals
-                    | mir::RuntimeFn::AnyHashCode
-                    | mir::RuntimeFn::AnyToString
-                    | mir::RuntimeFn::StringIdentity => {
+                    | mir::RuntimeFn::ITableLookup => {
                         unreachable!("{function:?} calls are emitted by the dedicated M6 lowerings")
                     }
                     mir::RuntimeFn::Trap => unreachable!("trap calls never reach here"),
@@ -4377,11 +4362,7 @@ mod tests {
                     mir::IntrinsicTypeRepresentation::String,
                 ),
                 interfaces: Vec::new(),
-                vtable: vec![
-                    mir::TableSlot::Runtime(mir::RuntimeFn::AnyEquals),
-                    mir::TableSlot::Runtime(mir::RuntimeFn::AnyHashCode),
-                    mir::TableSlot::Runtime(mir::RuntimeFn::StringIdentity),
-                ],
+                vtable: Vec::new(),
                 itables: Vec::new(),
             });
             mir::Module {
@@ -4585,10 +4566,7 @@ mod tests {
             module.meta.string.type_descriptor.symbol,
             lir::STRING_TD_SYMBOL
         );
-        assert_eq!(
-            module.meta.string.type_descriptor.vtable[2],
-            mir::RuntimeFn::StringIdentity.symbol()
-        );
+        assert!(module.meta.string.type_descriptor.vtable.is_empty());
         assert!(
             module
                 .meta
@@ -5314,7 +5292,7 @@ Module
         let mut b = Builder::new();
         // A UInt field in a class: an 8-byte scalar slot behind the
         // 16-byte header, exactly like an Int field.
-        let _c = b.class("C", None, &[("u", mir::Type::UInt)], any_slots(), vec![]);
+        let _c = b.class("C", None, &[("u", mir::Type::UInt)], empty_vtable(), vec![]);
         let mut locals = Arena::new();
         let u = locals.alloc(local("u", mir::Type::UInt));
         let main = b.main(locals, vec![val_decl(u, mir::Expr::IntLiteral(1))]);
@@ -6235,7 +6213,7 @@ Module
                 ("head", mir::Type::String),
                 ("nested", mir::Type::Struct(nested)),
             ],
-            any_slots(),
+            empty_vtable(),
             vec![],
         );
         let messages_array = b.array("Array<Msg>", msg_ty.clone());
@@ -6647,19 +6625,14 @@ Module
 
     // ---- M6: reference types ----
 
-    /// The fixed `Any` vtable prefix, as mir-lower emits it.
-    fn any_slots() -> Vec<mir::TableSlot> {
-        vec![
-            mir::TableSlot::Runtime(mir::RuntimeFn::AnyEquals),
-            mir::TableSlot::Runtime(mir::RuntimeFn::AnyHashCode),
-            mir::TableSlot::Runtime(mir::RuntimeFn::AnyToString),
-        ]
+    fn empty_vtable() -> Vec<mir::TableSlot> {
+        Vec::new()
     }
 
     #[test]
     fn virtual_calls_load_the_vtable_and_call_indirect() {
         let mut b = Builder::new();
-        let c = b.class("C", None, &[], any_slots(), vec![]);
+        let c = b.class("C", None, &[], empty_vtable(), vec![]);
         // `C.m(this: C): Int { return 1 }`.
         let mut method_locals = Arena::new();
         let this = method_locals.alloc(local("this", mir::Type::Class(c)));
@@ -6670,7 +6643,8 @@ Module
             mir::Type::Int,
             returning_body(method_locals, mir::Expr::IntLiteral(1)),
         );
-        // main: `val p: C; val r = p.m()` (a virtual call at slot 3).
+        b.classes[c].vtable.push(mir::TableSlot::Function(m));
+        // main: `val p: C; val r = p.m()` (the first ordinary virtual slot).
         let mut locals = Arena::new();
         let p = locals.alloc(local("p", mir::Type::Class(c)));
         let r = locals.alloc(local("r", mir::Type::Int));
@@ -6680,7 +6654,7 @@ Module
                 r,
                 mir::Call {
                     target: mir::CallTarget {
-                        kind: mir::CallKind::Virtual { slot: 3 },
+                        kind: mir::CallKind::Virtual { slot: 0 },
                         callee: mir::Callee::User(m),
                     },
                     args: vec![mir::Expr::Local(p)],
@@ -6691,7 +6665,7 @@ Module
 
         // The receiver's object header (index 0) holds the TD; its
         // vtable pointer is ScoopTypeDescriptor field 5; the callee is
-        // vtable[3].
+        // vtable[0].
         let expected = "\
 Module
   fun @scoop.C.m(ptr<managed>) -> i64
@@ -6703,10 +6677,10 @@ Module
   block entry
     t0 = heap_load local0 +0 : ptr<metadata>
     t1 = heap_load t0 +40 : ptr<metadata>
-    t2 = call_indirect t1[3](local0) : i64
+    t2 = call_indirect t1[0](local0) : i64
     store t2 -> local1
     ret
-  td C @scoop_td_C size=16 vtable=3 itables=0
+  td C @scoop_td_C size=16 vtable=1 itables=0
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
@@ -6811,7 +6785,7 @@ Module
             vec![],
         );
         // Base implements I; Derived overrides `m` and adds `m2`.
-        let mut base_vtable = any_slots();
+        let mut base_vtable = empty_vtable();
         base_vtable.push(mir::TableSlot::Function(base_m));
         let base = b.class(
             "Base",
@@ -6823,7 +6797,7 @@ Module
                 slots: vec![mir::TableSlot::Function(base_m)],
             }],
         );
-        let mut derived_vtable = any_slots();
+        let mut derived_vtable = empty_vtable();
         derived_vtable.push(mir::TableSlot::Function(derived_m));
         derived_vtable.push(mir::TableSlot::Function(derived_m2));
         let _derived = b.class(
@@ -6858,15 +6832,7 @@ Module
         assert_eq!((base_td.size, base_td.align), (24, 8));
         assert_eq!(base_td.scan, lir::RefScan::None);
         assert!(base_td.parent.is_none());
-        assert_eq!(
-            base_td.vtable,
-            [
-                "scoop_rt_any_equals",
-                "scoop_rt_any_hashcode",
-                "scoop_rt_any_tostring",
-                "scoop.Base.m",
-            ]
-        );
+        assert_eq!(base_td.vtable, ["scoop.Base.m"]);
         assert_eq!(base_td.itables.len(), 1);
         assert_eq!(base_td.itables[0].interface_symbol, "scoop_td_I");
         assert_eq!(base_td.itables[0].slots, ["scoop.Base.m"]);
@@ -6877,16 +6843,7 @@ Module
         // the one reference.
         assert_eq!((derived_td.size, derived_td.align), (32, 8));
         assert_eq!(derived_td.scan, lir::RefScan::References(vec![24]));
-        assert_eq!(
-            derived_td.vtable,
-            [
-                "scoop_rt_any_equals",
-                "scoop_rt_any_hashcode",
-                "scoop_rt_any_tostring",
-                "scoop.Derived.m",
-                "scoop.Derived.m2",
-            ]
-        );
+        assert_eq!(derived_td.vtable, ["scoop.Derived.m", "scoop.Derived.m2"]);
         assert_eq!(derived_td.itables[0].slots, ["scoop.Derived.m"]);
     }
 
@@ -6902,7 +6859,7 @@ Module
                 ("flag", mir::Type::Boolean),
                 ("r", mir::Type::Any),
             ],
-            any_slots(),
+            empty_vtable(),
             vec![],
         );
         let _ = c;
@@ -6913,7 +6870,7 @@ Module
             "box$S",
             None,
             &[("value", mir::Type::Struct(s))],
-            any_slots(),
+            empty_vtable(),
             vec![],
         );
         let main = b.main(Arena::new(), vec![]);
@@ -6961,7 +6918,7 @@ Module
             "box$S",
             None,
             &[("value", mir::Type::Struct(s))],
-            any_slots(),
+            empty_vtable(),
             vec![],
         );
         let mut locals = Arena::new();
@@ -7009,7 +6966,7 @@ Module
     t3 = call @scoop_rt_is_instance(local0, global0) : i1
     store t3 -> local2
     ret
-  td box$S @scoop_td_box$S size=24 vtable=3 itables=0
+  td box$S @scoop_td_box$S size=24 vtable=0 itables=0
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
@@ -7146,7 +7103,7 @@ Module
             "C",
             None,
             &[("a", mir::Type::Int), ("s", mir::Type::String)],
-            any_slots(),
+            empty_vtable(),
             vec![],
         );
         let mut locals = Arena::new();
@@ -7187,7 +7144,7 @@ Module
             "Point",
             None,
             &[("x", mir::Type::Int), ("s", mir::Type::String)],
-            any_slots(),
+            empty_vtable(),
             vec![],
         );
         let mut ctor_locals = Arena::new();
@@ -7245,7 +7202,7 @@ Module
     t0 = call @scoop.ctor.Point(1, global0) : ptr<managed>
     store t0 -> local0
     ret
-  td Point @scoop_td_Point size=32 vtable=3 itables=0
+  td Point @scoop_td_Point size=32 vtable=0 itables=0
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
@@ -7264,7 +7221,7 @@ Module
             "C",
             None,
             &[("x", mir::Type::Int), ("y", mir::Type::Int)],
-            any_slots(),
+            empty_vtable(),
             vec![],
         );
         let mut locals = Arena::new();

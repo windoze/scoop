@@ -34,6 +34,7 @@ SourceFile
 SourceFile
   struct Ptr<T : value>
     field _rawPointer: UInt
+    operator fun equals
     fun toUInt
     fun cast
     fun load
@@ -209,14 +210,13 @@ SourceFile
         Var o
         Var fallback
   fun isPresent<T>(o: T?): Boolean
-    if
-      Binary Eq
-        Var o
-        Var None
-      return
-        BoolLiteral false
     return
-      BoolLiteral true
+      WhenExpression
+        Var o
+        arm None
+          BoolLiteral false
+        arm Some(_)
+          BoolLiteral true
   fun main()
     Call println
       Call unwrapOr
@@ -338,14 +338,16 @@ Module
     return
       Local $res.1 : T0
   fun isPresent<T>(o: Option<T0>): Boolean
-    if
-      Binary Eq : Boolean
-        Local o : Option<T0>
-        VariantConstruct Option.None<T0> : Option<T0>
-      return
-        BoolLiteral false : Boolean
+    when
+      Local o : Option<T0>
+      arm variant1()
+        assign $result.2
+          BoolLiteral false : Boolean
+      arm variant0(0: _)
+        assign $result.2
+          BoolLiteral true : Boolean
     return
-      BoolLiteral true : Boolean
+      Local $result.2 : Boolean
   fun main(): Unit
     Call println<Int> : Unit
       Call unwrapOr<Int> : Int
@@ -394,13 +396,13 @@ Module
   enum Option$I
     Some(_1: Int)
     None()
-  class Throwable vtable=3 itables=0
-  class Exception vtable=3 itables=0
-  class UnwrapException vtable=3 itables=0
-  class ClassCastException vtable=3 itables=0
-  class ArithmeticException vtable=3 itables=0
-  class IndexOutOfBoundsException vtable=3 itables=0
-  class IllegalStateException vtable=3 itables=0
+  class Throwable vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class UnwrapException vtable=0 itables=0
+  class ClassCastException vtable=0 itables=0
+  class ArithmeticException vtable=0 itables=0
+  class IndexOutOfBoundsException vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
   interface ToString
   interface Hash
   fun Int.equals @scoop.Int.equals(this: Int, other: Int) -> Boolean
@@ -534,48 +536,32 @@ Module
       return
   fun isPresent @scoop.isPresent$S(o: Option$S<String>) -> Boolean
     bb0 entry
+      val $when.1: Option$S<String>
+        Local o
       branch bb1 bb2
         Binary IntEq
           EnumTag
-            Local o
+            Local $when.1
+          IntLiteral 1
+    bb1 if.then.1
+      assign $result.2
+        BoolLiteral false
+      goto bb3
+    bb2 if.else.2
+      branch bb4 bb5
+        Binary IntEq
           EnumTag
-            VariantConstruct Option$S<String> v1
-    bb1 logic.rhs.1
-      branch bb5 bb4
-        Binary IntNe
-          EnumTag
-            Local o
+            Local $when.1
           IntLiteral 0
-    bb2 logic.short.2
-      assign $logic.1
-        BoolLiteral false
-      goto bb3
-    bb3 logic.merge.3
-      branch bb7 bb8
-        Local $logic.1
-    bb4 logic.rhs.4
-      call $call.3: Boolean = @scoop_rt_string_eq direct
-        EnumField v0 f0
-          Local o
-        EnumField v0 f0
-          VariantConstruct Option$S<String> v1
-      assign $logic.2
-        Local $call.3
-      goto bb6
-    bb5 logic.short.5
-      assign $logic.2
-        BoolLiteral true
-      goto bb6
-    bb6 logic.merge.6
-      assign $logic.1
-        Local $logic.2
-      goto bb3
-    bb7 if.then.7
+    bb3 if.merge.3
       return
-        BoolLiteral false
-    bb8 if.merge.8
-      return
+        Local $result.2
+    bb4 if.then.4
+      assign $result.2
         BoolLiteral true
+      goto bb5
+    bb5 if.merge.5
+      goto bb3
   fun println @scoop.println$B(value: Boolean) -> Unit
     bb0 entry
       call $call.1: String = @scoop.Boolean.toString direct
@@ -587,47 +573,32 @@ Module
       return
   fun isPresent @scoop.isPresent$I(o: Option$I<Int>) -> Boolean
     bb0 entry
+      val $when.1: Option$I<Int>
+        Local o
       branch bb1 bb2
         Binary IntEq
           EnumTag
-            Local o
-          EnumTag
-            VariantConstruct Option$I<Int> v1
-    bb1 logic.rhs.1
-      branch bb5 bb4
-        Binary IntNe
-          EnumTag
-            Local o
-          IntLiteral 0
-    bb2 logic.short.2
-      assign $logic.1
+            Local $when.1
+          IntLiteral 1
+    bb1 if.then.1
+      assign $result.2
         BoolLiteral false
       goto bb3
-    bb3 logic.merge.3
-      branch bb7 bb8
-        Local $logic.1
-    bb4 logic.rhs.4
-      assign $logic.2
+    bb2 if.else.2
+      branch bb4 bb5
         Binary IntEq
-          EnumField v0 f0
-            Local o
-          EnumField v0 f0
-            VariantConstruct Option$I<Int> v1
-      goto bb6
-    bb5 logic.short.5
-      assign $logic.2
+          EnumTag
+            Local $when.1
+          IntLiteral 0
+    bb3 if.merge.3
+      return
+        Local $result.2
+    bb4 if.then.4
+      assign $result.2
         BoolLiteral true
-      goto bb6
-    bb6 logic.merge.6
-      assign $logic.1
-        Local $logic.2
+      goto bb5
+    bb5 if.merge.5
       goto bb3
-    bb7 if.then.7
-      return
-        BoolLiteral false
-    bb8 if.merge.8
-      return
-        BoolLiteral true
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
     bb0 entry
       return
@@ -838,42 +809,27 @@ Module
     t2 = aggregate () : {}
     ret
   fun @scoop.isPresent$S(enum0) -> i1
-    local %0 $logic.1: i1
-    local %1 $logic.2: i1
-    local %2 $call.3: i1
+    local %0 $result.2: i1
+    local %1 $when.1: enum0
   block entry
-    t0 = enum_tag e0 param0 : i64
-    t1 = enum_wrap e0 v1 () : enum0
-    t2 = enum_tag e0 t1 : i64
-    t3 = Eq t0, t2 : i1
-    cbr t3 then @logic.rhs.1 else @logic.short.2
-  block logic.rhs.1
-    t4 = enum_tag e0 param0 : i64
-    t5 = Ne t4, 0 : i1
-    cbr t5 then @logic.short.5 else @logic.rhs.4
-  block logic.short.2
+    store param0 -> local1
+    t0 = enum_tag e0 local1 : i64
+    t1 = Eq t0, 1 : i1
+    cbr t1 then @if.then.1 else @if.else.2
+  block if.then.1
     store false -> local0
-    br @logic.merge.3
-  block logic.merge.3
-    cbr local0 then @if.then.7 else @if.merge.8
-  block logic.rhs.4
-    t6 = enum_field e0 v0 f0 param0 : ptr<managed>
-    t7 = enum_wrap e0 v1 () : enum0
-    t8 = enum_field e0 v0 f0 t7 : ptr<managed>
-    t9 = call @scoop_rt_string_eq(t6, t8) : i1
-    store t9 -> local2
-    store local2 -> local1
-    br @logic.merge.6
-  block logic.short.5
-    store true -> local1
-    br @logic.merge.6
-  block logic.merge.6
-    store local1 -> local0
-    br @logic.merge.3
-  block if.then.7
-    ret false
-  block if.merge.8
-    ret true
+    br @if.merge.3
+  block if.else.2
+    t2 = enum_tag e0 local1 : i64
+    t3 = Eq t2, 0 : i1
+    cbr t3 then @if.then.4 else @if.merge.5
+  block if.merge.3
+    ret local0
+  block if.then.4
+    store true -> local0
+    br @if.merge.5
+  block if.merge.5
+    br @if.merge.3
   fun @scoop.println$B(i1) -> void
     local %0 $call.1: ptr<managed>
   block entry
@@ -885,40 +841,27 @@ Module
     t2 = aggregate () : {}
     ret
   fun @scoop.isPresent$I(enum1) -> i1
-    local %0 $logic.1: i1
-    local %1 $logic.2: i1
+    local %0 $result.2: i1
+    local %1 $when.1: enum1
   block entry
-    t0 = enum_tag e1 param0 : i64
-    t1 = enum_wrap e1 v1 () : enum1
-    t2 = enum_tag e1 t1 : i64
-    t3 = Eq t0, t2 : i1
-    cbr t3 then @logic.rhs.1 else @logic.short.2
-  block logic.rhs.1
-    t4 = enum_tag e1 param0 : i64
-    t5 = Ne t4, 0 : i1
-    cbr t5 then @logic.short.5 else @logic.rhs.4
-  block logic.short.2
+    store param0 -> local1
+    t0 = enum_tag e1 local1 : i64
+    t1 = Eq t0, 1 : i1
+    cbr t1 then @if.then.1 else @if.else.2
+  block if.then.1
     store false -> local0
-    br @logic.merge.3
-  block logic.merge.3
-    cbr local0 then @if.then.7 else @if.merge.8
-  block logic.rhs.4
-    t6 = enum_field e1 v0 f0 param0 : i64
-    t7 = enum_wrap e1 v1 () : enum1
-    t8 = enum_field e1 v0 f0 t7 : i64
-    t9 = Eq t6, t8 : i1
-    store t9 -> local1
-    br @logic.merge.6
-  block logic.short.5
-    store true -> local1
-    br @logic.merge.6
-  block logic.merge.6
-    store local1 -> local0
-    br @logic.merge.3
-  block if.then.7
-    ret false
-  block if.merge.8
-    ret true
+    br @if.merge.3
+  block if.else.2
+    t2 = enum_tag e1 local1 : i64
+    t3 = Eq t2, 0 : i1
+    cbr t3 then @if.then.4 else @if.merge.5
+  block if.merge.3
+    ret local0
+  block if.then.4
+    store true -> local0
+    br @if.merge.5
+  block if.merge.5
+    br @if.merge.3
   fun @scoop.ctor.Throwable() -> ptr<managed>
   block entry
     t0 = call @scoop_rt_alloc(global8, 16) : ptr<managed>
@@ -960,13 +903,13 @@ Module
     ret t0
   td ToString @scoop_td_ToString size=0 vtable=0 itables=0
   td Hash @scoop_td_Hash size=0 vtable=0 itables=0
-  td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
-  td Exception @scoop_td_Exception size=24 vtable=3 itables=0
-  td UnwrapException @scoop_td_UnwrapException size=24 vtable=3 itables=0
-  td ClassCastException @scoop_td_ClassCastException size=24 vtable=3 itables=0
-  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=3 itables=0
-  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=3 itables=0
-  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=3 itables=0
+  td Throwable @scoop_td_Throwable size=16 vtable=0 itables=0
+  td Exception @scoop_td_Exception size=24 vtable=0 itables=0
+  td UnwrapException @scoop_td_UnwrapException size=24 vtable=0 itables=0
+  td ClassCastException @scoop_td_ClassCastException size=24 vtable=0 itables=0
+  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=0 itables=0
+  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=0 itables=0
+  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=0 itables=0
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]

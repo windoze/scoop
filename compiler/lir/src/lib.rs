@@ -293,7 +293,7 @@ pub struct ArrayType {
 /// global (see runtime/include/scoop_rt.h for the field order).
 #[derive(Debug)]
 pub struct TypeDescriptor {
-    /// Name for dumps and the default `toString`.
+    /// Human-readable type name used in metadata dumps.
     pub name: String,
     /// Global symbol, e.g. `scoop_td_Point`.
     pub symbol: String,
@@ -307,7 +307,7 @@ pub struct TypeDescriptor {
     /// Symbol of the parent TypeDescriptor (classes: base class;
     /// boxed value types / interfaces: none).
     pub parent: Option<String>,
-    /// vtable slot symbols (functions or `scoop_rt_any_*`).
+    /// Symbols of ordinary virtual functions, in dispatch-slot order.
     pub vtable: Vec<String>,
     pub itables: Vec<ItableRecord>,
 }

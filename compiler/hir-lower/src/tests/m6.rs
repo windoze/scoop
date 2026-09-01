@@ -615,14 +615,6 @@ fn is_cast_and_ref_eq() {
             Some(ty_named("Boolean")),
             binary(BinOp::RefEq, var("a"), var("s")),
         ),
-        // `==` on references is allowed (reference equality at MIR).
-        fun_expr(
-            "eq",
-            vec![],
-            vec![("s1", ty_named("Shape")), ("s2", ty_named("Shape"))],
-            Some(ty_named("Boolean")),
-            binary(BinOp::Eq, var("s1"), var("s2")),
-        ),
         fun("main", vec![]),
     ]);
     let module = lower_user(file).expect("type operators must lower");
@@ -663,19 +655,11 @@ fn is_cast_and_ref_eq() {
         hir::ExprKind::Cast { optional: true, .. } => {}
         other => panic!("expected an optional cast, found {other:?}"),
     }
-    // `===` lowers to `RefEq`; `==` on references stays `Eq` (the
-    // equality flavor is decided at MIR from the operand types).
+    // Reference identity remains the non-overloadable `===` operation.
     assert!(matches!(
         returned(body_of(&module, "same")).kind,
         hir::ExprKind::Binary {
             op: hir::BinOp::RefEq,
-            ..
-        }
-    ));
-    assert!(matches!(
-        returned(body_of(&module, "eq")).kind,
-        hir::ExprKind::Binary {
-            op: hir::BinOp::Eq,
             ..
         }
     ));

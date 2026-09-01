@@ -34,6 +34,7 @@ SourceFile
 SourceFile
   struct Ptr<T : value>
     field _rawPointer: UInt
+    operator fun equals
     fun toUInt
     fun cast
     fun load
@@ -366,19 +367,19 @@ Module
   enum CoroutineSlot$U
     Empty()
     Value(value: Unit)
-  class Throwable vtable=3 itables=0
-  class Exception vtable=3 itables=0
-  class UnwrapException vtable=3 itables=0
-  class ClassCastException vtable=3 itables=0
-  class ArithmeticException vtable=3 itables=0
-  class IndexOutOfBoundsException vtable=3 itables=0
-  class IllegalStateException vtable=3 itables=0
-  class UnitGate vtable=3 itables=0
-  class UnitRegistration vtable=3 itables=1
-  class UnitTask vtable=3 itables=1
-  class UnitCompletion vtable=3 itables=1
-  class CoroutineFrame$scoop_UnitTask_run_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop_UnitTask_run_suspend$1 vtable=3 itables=1
+  class Throwable vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class UnwrapException vtable=0 itables=0
+  class ClassCastException vtable=0 itables=0
+  class ArithmeticException vtable=0 itables=0
+  class IndexOutOfBoundsException vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class UnitGate vtable=0 itables=0
+  class UnitRegistration vtable=0 itables=1
+  class UnitTask vtable=0 itables=1
+  class UnitCompletion vtable=0 itables=1
+  class CoroutineFrame$scoop_UnitTask_run_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop_UnitTask_run_suspend$1 vtable=0 itables=1
   interface ToString
   interface Hash
   interface Continuation$U
@@ -1679,19 +1680,19 @@ Module
   td Continuation$U @scoop_td_Continuation$U size=0 vtable=0 itables=0
   td SuspendRegistration$U @scoop_td_SuspendRegistration$U size=0 vtable=0 itables=0
   td SuspendTask$U @scoop_td_SuspendTask$U size=0 vtable=0 itables=0
-  td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
-  td UnitGate @scoop_td_UnitGate size=24 vtable=3 itables=0
-  td UnitRegistration @scoop_td_UnitRegistration size=24 vtable=3 itables=1
-  td UnitTask @scoop_td_UnitTask size=24 vtable=3 itables=1
-  td UnitCompletion @scoop_td_UnitCompletion size=16 vtable=3 itables=1
-  td CoroutineFrame$scoop_UnitTask_run_suspend @scoop_td_CoroutineFrame$scoop_UnitTask_run_suspend size=48 vtable=3 itables=0
-  td CoroutineAdapter$scoop_UnitTask_run_suspend$1 @scoop_td_CoroutineAdapter$scoop_UnitTask_run_suspend$1 size=48 vtable=3 itables=1
-  td Exception @scoop_td_Exception size=24 vtable=3 itables=0
-  td UnwrapException @scoop_td_UnwrapException size=24 vtable=3 itables=0
-  td ClassCastException @scoop_td_ClassCastException size=24 vtable=3 itables=0
-  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=3 itables=0
-  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=3 itables=0
-  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=3 itables=0
+  td Throwable @scoop_td_Throwable size=16 vtable=0 itables=0
+  td UnitGate @scoop_td_UnitGate size=24 vtable=0 itables=0
+  td UnitRegistration @scoop_td_UnitRegistration size=24 vtable=0 itables=1
+  td UnitTask @scoop_td_UnitTask size=24 vtable=0 itables=1
+  td UnitCompletion @scoop_td_UnitCompletion size=16 vtable=0 itables=1
+  td CoroutineFrame$scoop_UnitTask_run_suspend @scoop_td_CoroutineFrame$scoop_UnitTask_run_suspend size=48 vtable=0 itables=0
+  td CoroutineAdapter$scoop_UnitTask_run_suspend$1 @scoop_td_CoroutineAdapter$scoop_UnitTask_run_suspend$1 size=48 vtable=0 itables=1
+  td Exception @scoop_td_Exception size=24 vtable=0 itables=0
+  td UnwrapException @scoop_td_UnwrapException size=24 vtable=0 itables=0
+  td ClassCastException @scoop_td_ClassCastException size=24 vtable=0 itables=0
+  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=0 itables=0
+  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=0 itables=0
+  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=0 itables=0
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]

@@ -1439,16 +1439,9 @@ impl Lowerer {
     /// the corresponding base declaration so one dynamic-dispatch slot
     /// never appears as two ambiguous overload candidates.
     ///
-    /// An `Any` receiver additionally resolves the three `Any`
-    /// members (`equals` / `hashCode` / `toString`), synthesized by
-    /// `synthesize_any_members`: mir-lower dispatches them virtually
-    /// through the fixed vtable prefix (slots 0..2), so every runtime
-    /// value behind the `Any` (boxed value types, class objects)
-    /// reaches its per-type implementation. Narrower static types
-    /// deliberately do not get this fallback yet: mir-lower only
-    /// virtualizes these three on an exactly-`Any` receiver (a class
-    /// receiver would come out as a direct call, an interface
-    /// receiver has no matching itable slot).
+    /// `Any` deliberately contributes no methods. Capabilities such as
+    /// ToString, Hash and operator equals are ordinary declared interfaces or
+    /// members and therefore enter this list only through their real owner.
     pub(crate) fn methods_by_name(
         &mut self,
         ty: TypeId,
@@ -1538,6 +1531,7 @@ impl Lowerer {
                     }));
                 }
             }
+            Type::FunPtr(_) => {}
             Type::Enum(application) => {
                 let application_value = self.enum_applications[application].clone();
                 declared.extend(
@@ -1557,18 +1551,7 @@ impl Lowerer {
                         }),
                 );
             }
-            Type::Any => {
-                if let Some(function) = self.any_method(name) {
-                    declared.push((
-                        crate::CallableCandidate::method(
-                            function,
-                            hir::MethodOwnerApplication::Any,
-                        ),
-                        0,
-                        0,
-                    ));
-                }
-            }
+            Type::Any => {}
             Type::Param(receiver_parameter) => {
                 let bounds = self
                     .type_params_in_scope
@@ -1784,18 +1767,5 @@ impl Lowerer {
                 .zip(&right_sig.params)
                 .all(|(left, right)| self.types_equal(left.ty, right.ty))
             && self.types_equal(left_sig.return_ty, right_sig.return_ty)
-    }
-
-    /// The synthesized `Any` member named `name`
-    /// (`synthesize_any_members`), when `name` is one of `equals` /
-    /// `hashCode` / `toString`.
-    fn any_method(&self, name: &str) -> Option<FunctionId> {
-        let index = match name {
-            "equals" => 0,
-            "hashCode" => 1,
-            "toString" => 2,
-            _ => return None,
-        };
-        Some(self.any_methods[index])
     }
 }

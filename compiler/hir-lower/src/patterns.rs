@@ -93,7 +93,13 @@ impl Lowerer {
                     );
                     return None;
                 }
-                Some(hir::Pattern::Literal(literal))
+                let (literal, equals) =
+                    self.resolve_literal_pattern_equality(matched_ty, literal, *span)?;
+                Some(hir::Pattern::Literal {
+                    value: literal,
+                    equals,
+                    subject_ty: matched_ty,
+                })
             }
             ast::Pattern::Tuple {
                 elements,
@@ -706,7 +712,7 @@ fn is_irrefutable(pattern: &hir::Pattern) -> bool {
         hir::Pattern::Binding { .. } | hir::Pattern::Wildcard => true,
         hir::Pattern::Tuple(elements) => elements.iter().all(is_irrefutable),
         hir::Pattern::Struct { fields, .. } => fields.iter().all(|(_, sub)| is_irrefutable(sub)),
-        hir::Pattern::Variant { .. } | hir::Pattern::Literal(_) => false,
+        hir::Pattern::Variant { .. } | hir::Pattern::Literal { .. } => false,
     }
 }
 

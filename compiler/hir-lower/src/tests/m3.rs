@@ -310,9 +310,11 @@ fn multiple_type_parameters() {
     assert!(dump.contains("instance pair<Int, String>"), "{dump}");
 }
 
-/// `==` / `!=` are allowed on type parameters (both sides same type).
+/// An unconstrained type parameter does not acquire an implicit equality
+/// operation. Generic code needs an interface bound that declares the
+/// operator member.
 #[test]
-fn generic_equality_is_allowed() {
+fn generic_equality_requires_an_operator_bound() {
     let file = file(vec![
         fun_expr(
             "eq",
@@ -321,15 +323,14 @@ fn generic_equality_is_allowed() {
             Some(ty_named("Boolean")),
             binary(BinOp::Eq, var("a"), var("b")),
         ),
-        fun(
-            "main",
-            vec![stmt(call(
-                "println",
-                vec![call("eq", vec![int_lit(1), int_lit(2)])],
-            ))],
-        ),
+        fun("main", vec![]),
     ]);
-    lower_user(file).expect("generic equality must lower");
+    let errors = lower_user(file).expect_err("unbounded generic equality must fail");
+    assert_eq!(errors.len(), 1);
+    assert_eq!(
+        errors[0].message,
+        "type `T` has no member operator `equals` for `==`"
+    );
 }
 
 /// A generic call inside a generic body records an instantiation

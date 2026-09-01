@@ -34,6 +34,7 @@ SourceFile
 SourceFile
   struct Ptr<T : value>
     field _rawPointer: UInt
+    operator fun equals
     fun toUInt
     fun cast
     fun load
@@ -210,6 +211,14 @@ SourceFile
   struct Tag : Describable
     field v: Int
     fun describe
+  fun isPresent<T>(value: T?): Boolean
+    =
+      WhenExpression
+        Var value
+        arm Some(_)
+          BoolLiteral true
+        arm None
+          BoolLiteral false
   fun main()
     val d
       Call Doc
@@ -236,10 +245,9 @@ SourceFile
       Is Tag false
         Var a
     Call println
-      Binary Ne
+      Call isPresent
         Cast Describable optional=true
           Var a
-        Var None
 
 == hir ==
 Module
@@ -332,6 +340,17 @@ Module
   fun coreUIntHash(arg1: UInt): Int <extern9 abi=scoop symbol=scoop_rt_uint_hash>
   fun coreBooleanHash(arg1: Boolean): Int <extern10 abi=scoop symbol=scoop_rt_bool_hash>
   fun coreStringHash(arg1: String): Int <extern11 abi=scoop symbol=scoop_rt_string_hash>
+  fun isPresent<T>(value: Option<T0>): Boolean
+    when
+      Local value : Option<T0>
+      arm variant0(0: _)
+        assign $result.0
+          BoolLiteral true : Boolean
+      arm variant1()
+        assign $result.0
+          BoolLiteral false : Boolean
+    return
+      Local $result.0 : Boolean
   fun main(): Unit
     val local0
       ClassInit Doc : Doc
@@ -360,15 +379,15 @@ Module
       IsInstance Tag : Boolean
         Local a : Any
     Call println<Boolean> : Unit
-      Binary Ne : Boolean
+      Call isPresent<Describable> : Boolean
         Cast optional=true : Option<Describable>
           Local a : Any
-        VariantConstruct Option.None<Describable> : Option<Describable>
   entry main
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>
   instance println<String>
   instance println<Boolean>
+  instance isPresent<Describable>
 
 == mir ==
 Module
@@ -391,15 +410,15 @@ Module
   enum Option$Describable
     Some(_1: Describable)
     None()
-  class Throwable vtable=3 itables=0
-  class Exception vtable=3 itables=0
-  class UnwrapException vtable=3 itables=0
-  class ClassCastException vtable=3 itables=0
-  class ArithmeticException vtable=3 itables=0
-  class IndexOutOfBoundsException vtable=3 itables=0
-  class IllegalStateException vtable=3 itables=0
-  class Doc vtable=3 itables=1
-  class box$Tag vtable=3 itables=1
+  class Throwable vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class UnwrapException vtable=0 itables=0
+  class ClassCastException vtable=0 itables=0
+  class ArithmeticException vtable=0 itables=0
+  class IndexOutOfBoundsException vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Doc vtable=0 itables=1
+  class box$Tag vtable=0 itables=1
   interface ToString
   interface Hash
   interface Describable
@@ -532,72 +551,11 @@ Module
         VariantConstruct Option$Describable<Describable> v1
       goto bb3
     bb3 if.merge.3
-      val $cast.3: Any
-        Local a
-      branch bb4 bb5
-        IsInstance Describable
-          Local $cast.3
-    bb4 if.then.4
-      assign $cast.4
-        VariantConstruct Option$Describable<Describable> v0
-          Local $cast.3
-      goto bb6
-    bb5 if.else.5
-      assign $cast.4
-        VariantConstruct Option$Describable<Describable> v1
-      goto bb6
-    bb6 if.merge.6
-      val $cast.5: Any
-        Local a
-      branch bb7 bb8
-        IsInstance Describable
-          Local $cast.5
-    bb7 if.then.7
-      assign $cast.6
-        VariantConstruct Option$Describable<Describable> v0
-          Local $cast.5
-      goto bb9
-    bb8 if.else.8
-      assign $cast.6
-        VariantConstruct Option$Describable<Describable> v1
-      goto bb9
-    bb9 if.merge.9
-      branch bb11 bb10
-        Binary IntNe
-          EnumTag
-            Local $cast.2
-          EnumTag
-            VariantConstruct Option$Describable<Describable> v1
-    bb10 logic.rhs.10
-      branch bb13 bb14
-        Binary IntEq
-          EnumTag
-            Local $cast.4
-          IntLiteral 0
-    bb11 logic.short.11
-      assign $logic.4
-        BoolLiteral true
-      goto bb12
-    bb12 logic.merge.12
+      call $call.4: Boolean = @scoop.isPresent$Describable direct
+        Local $cast.2
       call @scoop.println$B direct
-        Local $logic.4
+        Local $call.4
       return
-    bb13 logic.rhs.13
-      assign $logic.5
-        Binary IntNe
-          EnumField v0 f0
-            Local $cast.6
-          EnumField v0 f0
-            VariantConstruct Option$Describable<Describable> v1
-      goto bb15
-    bb14 logic.short.14
-      assign $logic.5
-        BoolLiteral false
-      goto bb15
-    bb15 logic.merge.15
-      assign $logic.4
-        Local $logic.5
-      goto bb12
   fun println @scoop.println$S(value: String) -> Unit
     bb0 entry
       call $call.1: String = @scoop.String.toString direct
@@ -616,6 +574,34 @@ Module
       call extern0 @scoop_rt_write direct
         StringConst @scoop.str.3
       return
+  fun isPresent @scoop.isPresent$Describable(value: Option$Describable<Describable>) -> Boolean
+    bb0 entry
+      val $when.1: Option$Describable<Describable>
+        Local value
+      branch bb1 bb2
+        Binary IntEq
+          EnumTag
+            Local $when.1
+          IntLiteral 0
+    bb1 if.then.1
+      assign $result.0
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      branch bb4 bb5
+        Binary IntEq
+          EnumTag
+            Local $when.1
+          IntLiteral 1
+    bb3 if.merge.3
+      return
+        Local $result.0
+    bb4 if.then.4
+      assign $result.0
+        BoolLiteral false
+      goto bb5
+    bb5 if.merge.5
+      goto bb3
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
     bb0 entry
       return
@@ -660,20 +646,6 @@ Module
       return
         ClassInit Doc
           Local title
-  fun eq.Tag @scoop.eq.Tag(this: Any, other: Any) -> Boolean
-    bb0 entry
-      val $a: Tag
-        Unbox
-          Local this
-      val $b: Tag
-        Unbox
-          Local other
-      return
-        Binary IntEq
-          FieldAccess 0
-            Local $a
-          FieldAccess 0
-            Local $b
   fun thunk.Tag.Describable.describe @scoop.thunk.Tag.Describable.describe(this: Any) -> String
     bb0 entry
       call $call.1: String = @scoop.Tag.describe direct
@@ -683,6 +655,7 @@ Module
         Local $call.1
   instance @scoop.println$S <- println
   instance @scoop.println$B <- println
+  instance @scoop.isPresent$Describable <- isPresent
   str @scoop.str.0 "tag"
   str @scoop.str.1 "report"
   str @scoop.str.2 "\n"
@@ -813,28 +786,23 @@ Module
     local %4 a: ptr<managed>
     local %5 $cast.1: ptr<managed>
     local %6 $cast.2: enum1
-    local %7 $cast.3: ptr<managed>
-    local %8 $cast.4: enum1
-    local %9 $cast.5: ptr<managed>
-    local %10 $cast.6: enum1
-    local %11 $call.1: ptr<managed>
-    local %12 $call.2: ptr<managed>
-    local %13 $call.3: ptr<managed>
-    local %14 $logic.4: i1
-    local %15 $logic.5: i1
+    local %7 $call.1: ptr<managed>
+    local %8 $call.2: ptr<managed>
+    local %9 $call.3: ptr<managed>
+    local %10 $call.4: i1
   block entry
     t0 = call @scoop.ctor.Doc(global1) : ptr<managed>
     store t0 -> local0
     t1 = call @scoop.Doc.describe(local0) : ptr<managed>
-    store t1 -> local11
-    call @scoop.println$S(local11)
+    store t1 -> local7
+    call @scoop.println$S(local7)
     t2 = aggregate () : {}
     store local0 -> local1
     t3 = heap_load local1 +0 : ptr<metadata>
     t4 = call @scoop_rt_itable_lookup(t3, global9) : ptr<metadata>
     t5 = call_indirect t4[0](local1) : ptr<managed>
-    store t5 -> local12
-    call @scoop.println$S(local12)
+    store t5 -> local8
+    call @scoop.println$S(local8)
     t6 = aggregate () : {}
     t7 = aggregate (1) : struct3
     store t7 -> local2
@@ -843,8 +811,8 @@ Module
     t9 = heap_load local3 +0 : ptr<metadata>
     t10 = call @scoop_rt_itable_lookup(t9, global9) : ptr<metadata>
     t11 = call_indirect t10[0](local3) : ptr<managed>
-    store t11 -> local13
-    call @scoop.println$S(local13)
+    store t11 -> local9
+    call @scoop.println$S(local9)
     t12 = aggregate () : {}
     t13 = call @scoop_rt_box(global10, local2, 8) : ptr<managed>
     store t13 -> local4
@@ -863,59 +831,11 @@ Module
     store t18 -> local6
     br @if.merge.3
   block if.merge.3
-    store local4 -> local7
-    t19 = call @scoop_rt_is_instance(local7, global9) : i1
-    cbr t19 then @if.then.4 else @if.else.5
-  block if.then.4
-    t20 = enum_wrap e1 v0 (local7) : enum1
-    store t20 -> local8
-    br @if.merge.6
-  block if.else.5
-    t21 = enum_wrap e1 v1 () : enum1
-    store t21 -> local8
-    br @if.merge.6
-  block if.merge.6
-    store local4 -> local9
-    t22 = call @scoop_rt_is_instance(local9, global9) : i1
-    cbr t22 then @if.then.7 else @if.else.8
-  block if.then.7
-    t23 = enum_wrap e1 v0 (local9) : enum1
-    store t23 -> local10
-    br @if.merge.9
-  block if.else.8
-    t24 = enum_wrap e1 v1 () : enum1
-    store t24 -> local10
-    br @if.merge.9
-  block if.merge.9
-    t25 = enum_tag e1 local6 : i64
-    t26 = enum_wrap e1 v1 () : enum1
-    t27 = enum_tag e1 t26 : i64
-    t28 = Ne t25, t27 : i1
-    cbr t28 then @logic.short.11 else @logic.rhs.10
-  block logic.rhs.10
-    t29 = enum_tag e1 local8 : i64
-    t30 = Eq t29, 0 : i1
-    cbr t30 then @logic.rhs.13 else @logic.short.14
-  block logic.short.11
-    store true -> local14
-    br @logic.merge.12
-  block logic.merge.12
-    call @scoop.println$B(local14)
-    t31 = aggregate () : {}
+    t19 = call @scoop.isPresent$Describable(local6) : i1
+    store t19 -> local10
+    call @scoop.println$B(local10)
+    t20 = aggregate () : {}
     ret
-  block logic.rhs.13
-    t32 = enum_field e1 v0 f0 local10 : i64
-    t33 = enum_wrap e1 v1 () : enum1
-    t34 = enum_field e1 v0 f0 t33 : i64
-    t35 = Ne t32, t34 : i1
-    store t35 -> local15
-    br @logic.merge.15
-  block logic.short.14
-    store false -> local15
-    br @logic.merge.15
-  block logic.merge.15
-    store local15 -> local14
-    br @logic.merge.12
   fun @scoop.println$S(ptr<managed>) -> void
     local %0 $call.1: ptr<managed>
   block entry
@@ -936,6 +856,28 @@ Module
     native_call[native-borrowed] extern0(global3)
     t2 = aggregate () : {}
     ret
+  fun @scoop.isPresent$Describable(enum1) -> i1
+    local %0 $result.0: i1
+    local %1 $when.1: enum1
+  block entry
+    store param0 -> local1
+    t0 = enum_tag e1 local1 : i64
+    t1 = Eq t0, 0 : i1
+    cbr t1 then @if.then.1 else @if.else.2
+  block if.then.1
+    store true -> local0
+    br @if.merge.3
+  block if.else.2
+    t2 = enum_tag e1 local1 : i64
+    t3 = Eq t2, 1 : i1
+    cbr t3 then @if.then.4 else @if.merge.5
+  block if.merge.3
+    ret local0
+  block if.then.4
+    store false -> local0
+    br @if.merge.5
+  block if.merge.5
+    br @if.merge.3
   fun @scoop.ctor.Throwable() -> ptr<managed>
   block entry
     t0 = call @scoop_rt_alloc(global11, 16) : ptr<managed>
@@ -980,18 +922,6 @@ Module
     t0 = call @scoop_rt_alloc(global18, 24) : ptr<managed>
     heap_store t0 +16 param0
     ret t0
-  fun @scoop.eq.Tag(ptr<managed>, ptr<managed>) -> i1
-    local %0 $a: struct3
-    local %1 $b: struct3
-  block entry
-    t0 = heap_load param0 +16 : struct3
-    store t0 -> local0
-    t1 = heap_load param1 +16 : struct3
-    store t1 -> local1
-    t2 = extract local0, 0 : i64
-    t3 = extract local1, 0 : i64
-    t4 = Eq t2, t3 : i1
-    ret t4
   fun @scoop.thunk.Tag.Describable.describe(ptr<managed>) -> ptr<managed>
     local %0 $call.1: ptr<managed>
   block entry
@@ -1002,15 +932,15 @@ Module
   td ToString @scoop_td_ToString size=0 vtable=0 itables=0
   td Hash @scoop_td_Hash size=0 vtable=0 itables=0
   td Describable @scoop_td_Describable size=0 vtable=0 itables=0
-  td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
-  td Doc @scoop_td_Doc size=24 vtable=3 itables=1
-  td box$Tag @scoop_td_box$Tag size=24 vtable=3 itables=1
-  td Exception @scoop_td_Exception size=24 vtable=3 itables=0
-  td UnwrapException @scoop_td_UnwrapException size=24 vtable=3 itables=0
-  td ClassCastException @scoop_td_ClassCastException size=24 vtable=3 itables=0
-  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=3 itables=0
-  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=3 itables=0
-  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=3 itables=0
+  td Throwable @scoop_td_Throwable size=16 vtable=0 itables=0
+  td Doc @scoop_td_Doc size=24 vtable=0 itables=1
+  td box$Tag @scoop_td_box$Tag size=24 vtable=0 itables=1
+  td Exception @scoop_td_Exception size=24 vtable=0 itables=0
+  td UnwrapException @scoop_td_UnwrapException size=24 vtable=0 itables=0
+  td ClassCastException @scoop_td_ClassCastException size=24 vtable=0 itables=0
+  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=0 itables=0
+  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=0 itables=0
+  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=0 itables=0
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]

@@ -663,6 +663,10 @@ impl Lowerer {
                         let function = self.interface_method_entities[member].function;
                         self.check_no_gc_function(function, expr.span, out);
                     }
+                    hir::MethodCallee::DerivedEquality(application) => {
+                        let function = self.derived_equality_applications[*application].function;
+                        self.check_no_gc_function(function, expr.span, out);
+                    }
                 }
                 self.collect_no_gc_expr_violations(receiver, out, requirements);
                 for arg in args {

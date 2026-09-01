@@ -333,9 +333,8 @@ pub struct ClassDef {
     pub name: String,
     pub representation: ClassRepresentation,
     pub interfaces: Vec<InterfaceId>,
-    /// vtable slots: 0..2 are the `Any` defaults
-    /// (`RuntimeFn::AnyEquals/AnyHashCode/AnyToString`), then user
-    /// methods in vtable order (overrides share the base slot).
+    /// Ordinary virtual methods in vtable order (overrides share the base
+    /// slot). Empty vtables are valid and have no implicit prefix.
     pub vtable: Vec<TableSlot>,
     /// itable entries, one per implemented interface (pointer-keyed
     /// lookup at runtime).
@@ -1059,12 +1058,6 @@ pub enum RuntimeFn {
     IsInstance,
     /// `scoop_rt_itable_lookup(td, iface_td)`
     ITableLookup,
-    /// The `Any` vtable defaults (slots 0..2).
-    AnyEquals,
-    AnyHashCode,
-    AnyToString,
-    /// Identity implementation for the typed intrinsic `String` vtable.
-    StringIdentity,
     /// GC facilities (spec 14.1; M9 via intrinsics, see
     /// docs/milestone9/DESIGN.md 5.2).
     Pin,
@@ -1092,10 +1085,6 @@ impl RuntimeFn {
             RuntimeFn::Box => "scoop_rt_box",
             RuntimeFn::IsInstance => "scoop_rt_is_instance",
             RuntimeFn::ITableLookup => "scoop_rt_itable_lookup",
-            RuntimeFn::AnyEquals => "scoop_rt_any_equals",
-            RuntimeFn::AnyHashCode => "scoop_rt_any_hashcode",
-            RuntimeFn::AnyToString => "scoop_rt_any_tostring",
-            RuntimeFn::StringIdentity => "scoop_rt_string_identity",
             RuntimeFn::Pin => "scoop_rt_pin",
             RuntimeFn::Unpin => "scoop_rt_unpin",
             RuntimeFn::GetHandle => "scoop_rt_get_handle",

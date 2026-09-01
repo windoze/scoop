@@ -1178,7 +1178,7 @@ fn generated_class(
             base_class: None,
         },
         interfaces,
-        vtable: any_vtable(),
+        vtable: Vec::new(),
         itables,
     });
     let shell = lowerer.shell.classes.alloc(mir::ClassDef {
@@ -1194,14 +1194,6 @@ fn generated_class(
     });
     assert_eq!(class, shell, "the mangling shell mirrors class ids");
     class
-}
-
-fn any_vtable() -> Vec<mir::TableSlot> {
-    vec![
-        mir::TableSlot::Runtime(mir::RuntimeFn::AnyEquals),
-        mir::TableSlot::Runtime(mir::RuntimeFn::AnyHashCode),
-        mir::TableSlot::Runtime(mir::RuntimeFn::AnyToString),
-    ]
 }
 
 fn wrapper_params(

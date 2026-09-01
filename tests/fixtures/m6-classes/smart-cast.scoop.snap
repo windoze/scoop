@@ -34,6 +34,7 @@ SourceFile
 SourceFile
   struct Ptr<T : value>
     field _rawPointer: UInt
+    operator fun equals
     fun toUInt
     fun cast
     fun load
@@ -338,10 +339,11 @@ Module
       Call println<String> : Unit
         StringLiteral "not int" : String
     Call println<Boolean> : Unit
-      Binary Ne : Boolean
-        Cast optional=true : Option<S>
-          Local a : Any
-        VariantConstruct Option.None<S> : Option<S>
+      Unary Not : Boolean
+        MethodCall Option.equals <derived> : Boolean
+          Cast optional=true : Option<S>
+            Local a : Any
+          VariantConstruct Option.None<S> : Option<S>
   entry main
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>
@@ -367,15 +369,15 @@ Module
   enum Option$S
     Some(_1: String)
     None()
-  class Throwable vtable=3 itables=0
-  class Exception vtable=3 itables=0
-  class UnwrapException vtable=3 itables=0
-  class ClassCastException vtable=3 itables=0
-  class ArithmeticException vtable=3 itables=0
-  class IndexOutOfBoundsException vtable=3 itables=0
-  class IllegalStateException vtable=3 itables=0
-  class box$S vtable=3 itables=0
-  class box$I vtable=3 itables=0
+  class Throwable vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class UnwrapException vtable=0 itables=0
+  class ClassCastException vtable=0 itables=0
+  class ArithmeticException vtable=0 itables=0
+  class IndexOutOfBoundsException vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class box$S vtable=0 itables=0
+  class box$I vtable=0 itables=0
   interface ToString
   interface Hash
   fun Int.equals @scoop.Int.equals(this: Int, other: Int) -> Boolean
@@ -498,76 +500,13 @@ Module
         VariantConstruct Option$S<S> v1
       goto bb8
     bb8 if.merge.8
-      val $cast.4: Any
-        Local a
-      branch bb9 bb10
-        IsInstance S
-          Local $cast.4
-    bb9 if.then.9
-      assign $cast.5
-        VariantConstruct Option$S<S> v0
-          Unbox
-            Local $cast.4
-      goto bb11
-    bb10 if.else.10
-      assign $cast.5
+      call $call.1: Boolean = @scoop.Option.equals$S direct
+        Local $cast.3
         VariantConstruct Option$S<S> v1
-      goto bb11
-    bb11 if.merge.11
-      val $cast.6: Any
-        Local a
-      branch bb12 bb13
-        IsInstance S
-          Local $cast.6
-    bb12 if.then.12
-      assign $cast.7
-        VariantConstruct Option$S<S> v0
-          Unbox
-            Local $cast.6
-      goto bb14
-    bb13 if.else.13
-      assign $cast.7
-        VariantConstruct Option$S<S> v1
-      goto bb14
-    bb14 if.merge.14
-      branch bb16 bb15
-        Binary IntNe
-          EnumTag
-            Local $cast.3
-          EnumTag
-            VariantConstruct Option$S<S> v1
-    bb15 logic.rhs.15
-      branch bb18 bb19
-        Binary IntEq
-          EnumTag
-            Local $cast.5
-          IntLiteral 0
-    bb16 logic.short.16
-      assign $logic.1
-        BoolLiteral true
-      goto bb17
-    bb17 logic.merge.17
       call @scoop.println$B direct
-        Local $logic.1
-      return
-    bb18 logic.rhs.18
-      call $call.3: Boolean = @scoop_rt_string_eq direct
-        EnumField v0 f0
-          Local $cast.7
-        EnumField v0 f0
-          VariantConstruct Option$S<S> v1
-      assign $logic.2
         Unary BoolNot
-          Local $call.3
-      goto bb20
-    bb19 logic.short.19
-      assign $logic.2
-        BoolLiteral false
-      goto bb20
-    bb20 logic.merge.20
-      assign $logic.1
-        Local $logic.2
-      goto bb17
+          Local $call.1
+      return
   fun println @scoop.println$I(value: Int) -> Unit
     bb0 entry
       call $call.1: String = @scoop.Int.toString direct
@@ -595,6 +534,75 @@ Module
       call extern0 @scoop_rt_write direct
         StringConst @scoop.str.4
       return
+  fun S.equals @scoop.S.equals(this: S, other: S) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = @scoop.Int.equals direct
+        FieldAccess 0
+          Local this
+        FieldAccess 0
+          Local other
+      return
+        Local $call.1
+  fun Option.equals @scoop.Option.equals$S(this: Option$S<S>, other: Option$S<S>) -> Boolean
+    bb0 entry
+      val $when.1: Option$S<S>
+        Local this
+      branch bb1 bb2
+        Binary IntEq
+          EnumTag
+            Local $when.1
+          IntLiteral 0
+    bb1 if.then.1
+      val $left.0.0: S
+        EnumField v0 f0
+          Local $when.1
+      val $when.2: Option$S<S>
+        Local other
+      branch bb4 bb5
+        Binary IntEq
+          EnumTag
+            Local $when.2
+          IntLiteral 0
+    bb2 if.else.2
+      branch bb7 bb8
+        Binary IntEq
+          EnumTag
+            Local $when.1
+          IntLiteral 1
+    bb3 if.merge.3
+      unreachable
+    bb4 if.then.4
+      val $right.0.0: S
+        EnumField v0 f0
+          Local $when.2
+      call $call.1: Boolean = @scoop.S.equals direct
+        Local $left.0.0
+        Local $right.0.0
+      return
+        Local $call.1
+    bb5 if.else.5
+      return
+        BoolLiteral false
+    bb6 if.merge.6
+      goto bb3
+    bb7 if.then.7
+      val $when.3: Option$S<S>
+        Local other
+      branch bb9 bb10
+        Binary IntEq
+          EnumTag
+            Local $when.3
+          IntLiteral 1
+    bb8 if.merge.8
+      goto bb3
+    bb9 if.then.9
+      return
+        BoolLiteral true
+    bb10 if.else.10
+      return
+        BoolLiteral false
+    bb11 if.merge.11
+      goto bb8
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
     bb0 entry
       return
@@ -634,42 +642,10 @@ Module
         ClassInit IllegalStateException
           VariantConstruct Option$S<String> v0
             StringConst @scoop.str.9
-  fun eq.S @scoop.eq.S(this: Any, other: Any) -> Boolean
-    bb0 entry
-      val $a: S
-        Unbox
-          Local this
-      val $b: S
-        Unbox
-          Local other
-      return
-        Binary IntEq
-          FieldAccess 0
-            Local $a
-          FieldAccess 0
-            Local $b
-  fun eq.I @scoop.eq.I(this: Any, other: Any) -> Boolean
-    bb0 entry
-      val $a: Int
-        Unbox
-          Local this
-      val $b: Int
-        Unbox
-          Local other
-      return
-        Binary IntEq
-          Local $a
-          Local $b
-  fun tostring.I @scoop.tostring.I(this: Any) -> String
-    bb0 entry
-      call $call.1: String = @scoop_rt_int_to_string direct
-        Unbox
-          Local this
-      return
-        Local $call.1
   instance @scoop.println$I <- println
   instance @scoop.println$S <- println
   instance @scoop.println$B <- println
+  instance @scoop.Option.equals$S <- Option.equals
   str @scoop.str.0 "int"
   str @scoop.str.1 "not int"
   str @scoop.str.2 "\n"
@@ -790,13 +766,7 @@ Module
     local %1 $ub.1: struct3
     local %2 $cast.2: ptr<managed>
     local %3 $cast.3: enum0
-    local %4 $cast.4: ptr<managed>
-    local %5 $cast.5: enum0
-    local %6 $cast.6: ptr<managed>
-    local %7 $cast.7: enum0
-    local %8 $logic.1: i1
-    local %9 $logic.2: i1
-    local %10 $call.3: i1
+    local %4 $call.1: i1
   block entry
     t0 = aggregate (9) : struct3
     t1 = call @scoop_rt_box(global10, t0, 8) : ptr<managed>
@@ -835,63 +805,13 @@ Module
     store t12 -> local3
     br @if.merge.8
   block if.merge.8
-    store local0 -> local4
-    t13 = call @scoop_rt_is_instance(local4, global10) : i1
-    cbr t13 then @if.then.9 else @if.else.10
-  block if.then.9
-    t14 = heap_load local4 +16 : ptr<managed>
-    t15 = enum_wrap e0 v0 (t14) : enum0
-    store t15 -> local5
-    br @if.merge.11
-  block if.else.10
-    t16 = enum_wrap e0 v1 () : enum0
-    store t16 -> local5
-    br @if.merge.11
-  block if.merge.11
-    store local0 -> local6
-    t17 = call @scoop_rt_is_instance(local6, global10) : i1
-    cbr t17 then @if.then.12 else @if.else.13
-  block if.then.12
-    t18 = heap_load local6 +16 : ptr<managed>
-    t19 = enum_wrap e0 v0 (t18) : enum0
-    store t19 -> local7
-    br @if.merge.14
-  block if.else.13
-    t20 = enum_wrap e0 v1 () : enum0
-    store t20 -> local7
-    br @if.merge.14
-  block if.merge.14
-    t21 = enum_tag e0 local3 : i64
-    t22 = enum_wrap e0 v1 () : enum0
-    t23 = enum_tag e0 t22 : i64
-    t24 = Ne t21, t23 : i1
-    cbr t24 then @logic.short.16 else @logic.rhs.15
-  block logic.rhs.15
-    t25 = enum_tag e0 local5 : i64
-    t26 = Eq t25, 0 : i1
-    cbr t26 then @logic.rhs.18 else @logic.short.19
-  block logic.short.16
-    store true -> local8
-    br @logic.merge.17
-  block logic.merge.17
-    call @scoop.println$B(local8)
-    t27 = aggregate () : {}
+    t13 = enum_wrap e0 v1 () : enum0
+    t14 = call @scoop.Option.equals$S(local3, t13) : i1
+    store t14 -> local4
+    t15 = Not local4 : i1
+    call @scoop.println$B(t15)
+    t16 = aggregate () : {}
     ret
-  block logic.rhs.18
-    t28 = enum_field e0 v0 f0 local7 : ptr<managed>
-    t29 = enum_wrap e0 v1 () : enum0
-    t30 = enum_field e0 v0 f0 t29 : ptr<managed>
-    t31 = call @scoop_rt_string_eq(t28, t30) : i1
-    store t31 -> local10
-    t32 = Not local10 : i1
-    store t32 -> local9
-    br @logic.merge.20
-  block logic.short.19
-    store false -> local9
-    br @logic.merge.20
-  block logic.merge.20
-    store local9 -> local8
-    br @logic.merge.17
   fun @scoop.println$I(i64) -> void
     local %0 $call.1: ptr<managed>
   block entry
@@ -922,6 +842,62 @@ Module
     native_call[native-borrowed] extern0(global4)
     t2 = aggregate () : {}
     ret
+  fun @scoop.S.equals(struct3, struct3) -> i1
+    local %0 $call.1: i1
+  block entry
+    t0 = extract param0, 0 : i64
+    t1 = extract param1, 0 : i64
+    t2 = call @scoop.Int.equals(t0, t1) : i1
+    store t2 -> local0
+    ret local0
+  fun @scoop.Option.equals$S(enum0, enum0) -> i1
+    local %0 $left.0.0: struct3
+    local %1 $right.0.0: struct3
+    local %2 $when.1: enum0
+    local %3 $when.2: enum0
+    local %4 $when.3: enum0
+    local %5 $call.1: i1
+  block entry
+    store param0 -> local2
+    t0 = enum_tag e0 local2 : i64
+    t1 = Eq t0, 0 : i1
+    cbr t1 then @if.then.1 else @if.else.2
+  block if.then.1
+    t2 = enum_field e0 v0 f0 local2 : struct3
+    store t2 -> local0
+    store param1 -> local3
+    t3 = enum_tag e0 local3 : i64
+    t4 = Eq t3, 0 : i1
+    cbr t4 then @if.then.4 else @if.else.5
+  block if.else.2
+    t5 = enum_tag e0 local2 : i64
+    t6 = Eq t5, 1 : i1
+    cbr t6 then @if.then.7 else @if.merge.8
+  block if.merge.3
+    unreachable
+  block if.then.4
+    t7 = enum_field e0 v0 f0 local3 : struct3
+    store t7 -> local1
+    t8 = call @scoop.S.equals(local0, local1) : i1
+    store t8 -> local5
+    ret local5
+  block if.else.5
+    ret false
+  block if.merge.6
+    br @if.merge.3
+  block if.then.7
+    store param1 -> local4
+    t9 = enum_tag e0 local4 : i64
+    t10 = Eq t9, 1 : i1
+    cbr t10 then @if.then.9 else @if.else.10
+  block if.merge.8
+    br @if.merge.3
+  block if.then.9
+    ret true
+  block if.else.10
+    ret false
+  block if.merge.11
+    br @if.merge.8
   fun @scoop.ctor.Throwable() -> ptr<managed>
   block entry
     t0 = call @scoop_rt_alloc(global12, 16) : ptr<managed>
@@ -961,46 +937,17 @@ Module
     t1 = enum_wrap e0 v0 (global9) : enum0
     heap_store t0 +16 t1
     ret t0
-  fun @scoop.eq.S(ptr<managed>, ptr<managed>) -> i1
-    local %0 $a: struct3
-    local %1 $b: struct3
-  block entry
-    t0 = heap_load param0 +16 : struct3
-    store t0 -> local0
-    t1 = heap_load param1 +16 : struct3
-    store t1 -> local1
-    t2 = extract local0, 0 : i64
-    t3 = extract local1, 0 : i64
-    t4 = Eq t2, t3 : i1
-    ret t4
-  fun @scoop.eq.I(ptr<managed>, ptr<managed>) -> i1
-    local %0 $a: i64
-    local %1 $b: i64
-  block entry
-    t0 = heap_load param0 +16 : i64
-    store t0 -> local0
-    t1 = heap_load param1 +16 : i64
-    store t1 -> local1
-    t2 = Eq local0, local1 : i1
-    ret t2
-  fun @scoop.tostring.I(ptr<managed>) -> ptr<managed>
-    local %0 $call.1: ptr<managed>
-  block entry
-    t0 = heap_load param0 +16 : i64
-    t1 = call @scoop_rt_int_to_string(t0) : ptr<managed>
-    store t1 -> local0
-    ret local0
   td ToString @scoop_td_ToString size=0 vtable=0 itables=0
   td Hash @scoop_td_Hash size=0 vtable=0 itables=0
-  td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
-  td box$S @scoop_td_box$S size=24 vtable=3 itables=0
-  td box$I @scoop_td_box$I size=24 vtable=3 itables=0
-  td Exception @scoop_td_Exception size=24 vtable=3 itables=0
-  td UnwrapException @scoop_td_UnwrapException size=24 vtable=3 itables=0
-  td ClassCastException @scoop_td_ClassCastException size=24 vtable=3 itables=0
-  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=3 itables=0
-  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=3 itables=0
-  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=3 itables=0
+  td Throwable @scoop_td_Throwable size=16 vtable=0 itables=0
+  td box$S @scoop_td_box$S size=24 vtable=0 itables=0
+  td box$I @scoop_td_box$I size=24 vtable=0 itables=0
+  td Exception @scoop_td_Exception size=24 vtable=0 itables=0
+  td UnwrapException @scoop_td_UnwrapException size=24 vtable=0 itables=0
+  td ClassCastException @scoop_td_ClassCastException size=24 vtable=0 itables=0
+  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=0 itables=0
+  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=0 itables=0
+  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=0 itables=0
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]

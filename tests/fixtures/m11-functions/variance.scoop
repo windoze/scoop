@@ -23,6 +23,11 @@ fun failAny(value: Any): Int {
 
 fun <T> widen(op: (Any) -> T): (T) -> Any = op
 
+fun <T> isNone(value: T?): Boolean = when (value) {
+    Some(_) -> false
+    None -> true
+}
+
 fun returnNested(op: (Int) -> Any): (Any) -> Int = ::acceptAny
 
 fun main() {
@@ -64,7 +69,7 @@ fun main() {
     println(checked(0) is Int)
     println(exactChecked("ignored"))
     println(optionalChecked(0) is Int)
-    println(missing == None)
+    println(isNone(missing))
     println(nestedDynamicResult(0) is Int)
     println(boxedChecked(0).describe())
     if (erased is (Int) -> Any) {

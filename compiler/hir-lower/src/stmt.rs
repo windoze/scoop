@@ -1959,7 +1959,9 @@ fn patch_local_function_call_pattern(
     captures: &[hir::Capture],
 ) {
     match pattern {
-        hir::Pattern::Literal(expr) => patch_local_function_call_expr(expr, target, captures),
+        hir::Pattern::Literal { value, .. } => {
+            patch_local_function_call_expr(value, target, captures)
+        }
         hir::Pattern::Variant { fields, .. } | hir::Pattern::Struct { fields, .. } => {
             for (_, field) in fields {
                 patch_local_function_call_pattern(field, target, captures);
