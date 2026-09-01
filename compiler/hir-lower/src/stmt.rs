@@ -48,6 +48,7 @@ impl Lowerer {
         &mut self,
         decl: &ast::FunctionDecl,
     ) -> Option<hir::LocalFunctionId> {
+        self.reject_unlowered_function_surface(decl);
         let outer_type_params = self.type_params_in_scope.clone();
         let owner_type_param_count = outer_type_params.len();
         let mut type_params = outer_type_params.clone();
@@ -62,7 +63,13 @@ impl Lowerer {
                 );
                 continue;
             }
-            type_params.push(crate::lower_type_param_decl(param));
+            match crate::lower_type_param_decl(param) {
+                Ok(param) => type_params.push(param),
+                Err(span) => self.error(
+                    span,
+                    "interface upper bounds are not supported by the current HIR model".to_string(),
+                ),
+            }
         }
         self.type_params_in_scope = type_params.clone();
         let mut sig_params = Vec::with_capacity(decl.params.len());

@@ -1,7 +1,7 @@
 //! M12 annotation syntax and lexical safety-block tests.
 
 use scoop_ast::{
-    AnnotationLiteral, BinOp, Decl, Expr, FunctionBody, SafetyMode, StatementKind,
+    AnnotationLiteral, BinOp, Decl, Expr, FunctionBody, SafetyMode, StatementKind, TypeBound,
     TypeParamKindBound, TypeRefKind, Variance,
 };
 
@@ -124,30 +124,30 @@ fn parses_kind_bounds_on_every_m12_generic_declaration() {
         panic!("expected function");
     };
     assert_eq!(
-        function.type_params[0].kind_bound,
-        Some(TypeParamKindBound::Value)
+        function.type_params[0].inline_bound,
+        Some(TypeBound::Kind(TypeParamKindBound::Value))
     );
     let Decl::Struct(decl) = &file.declarations[1] else {
         panic!("expected struct");
     };
     assert_eq!(
-        decl.type_params[0].kind_bound,
-        Some(TypeParamKindBound::Ref)
+        decl.type_params[0].inline_bound,
+        Some(TypeBound::Kind(TypeParamKindBound::Ref))
     );
     let Decl::Enum(decl) = &file.declarations[2] else {
         panic!("expected enum");
     };
     assert_eq!(
-        decl.type_params[0].kind_bound,
-        Some(TypeParamKindBound::Value)
+        decl.type_params[0].inline_bound,
+        Some(TypeBound::Kind(TypeParamKindBound::Value))
     );
     let Decl::Interface(decl) = &file.declarations[3] else {
         panic!("expected interface");
     };
     assert_eq!(decl.type_params[0].variance, Variance::Out);
     assert_eq!(
-        decl.type_params[0].kind_bound,
-        Some(TypeParamKindBound::Ref)
+        decl.type_params[0].inline_bound,
+        Some(TypeBound::Kind(TypeParamKindBound::Ref))
     );
 
     let dump = scoop_ast::dump(&file);
@@ -158,12 +158,14 @@ fn parses_kind_bounds_on_every_m12_generic_declaration() {
 }
 
 #[test]
-fn rejects_bounds_outside_the_m12_kind_vocabulary() {
-    let (_, message) = err("fun <T : Comparable> compare(value: T) = value");
-    assert_eq!(
-        message,
-        "unsupported type parameter bound `Comparable`; M12 supports only `value` or `ref`"
-    );
+fn parses_interface_upper_bounds_for_hir_validation() {
+    let file = ok("fun <T : Comparable> compare(value: T) = value");
+    let bound = &only_function(&file).type_params[0].inline_bound;
+    assert!(matches!(
+        bound,
+        Some(TypeBound::Upper(ty))
+            if matches!(&ty.kind, TypeRefKind::Named(name) if name.text == "Comparable")
+    ));
 }
 
 #[test]

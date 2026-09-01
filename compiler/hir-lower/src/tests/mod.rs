@@ -48,7 +48,7 @@ pub(crate) fn type_param(name: &str) -> ast::TypeParamDecl {
     ast::TypeParamDecl {
         name: ident(name),
         variance: ast::Variance::Invariant,
-        kind_bound: None,
+        inline_bound: None,
         span: sp(),
     }
 }
@@ -552,6 +552,7 @@ pub(crate) fn fun_sig(
         annotations: Vec::new(),
         is_suspend: false,
         is_override: false,
+        operator: None,
         modifier: ast::MethodModifier::Final,
         receiver_ty: None,
         name: ident(name),
@@ -565,6 +566,7 @@ pub(crate) fn fun_sig(
             })
             .collect(),
         return_ty,
+        where_clause: None,
         body: FunctionBody::Block(block(statements)),
         span: sp(),
     })
@@ -598,6 +600,7 @@ pub(crate) fn fun_expr(
         annotations: Vec::new(),
         is_suspend: false,
         is_override: false,
+        operator: None,
         modifier: ast::MethodModifier::Final,
         receiver_ty: None,
         name: ident(name),
@@ -611,6 +614,7 @@ pub(crate) fn fun_expr(
             })
             .collect(),
         return_ty,
+        where_clause: None,
         body: FunctionBody::Expr(Box::new(expr)),
         span: sp(),
     })
@@ -662,6 +666,7 @@ pub(crate) fn intrinsic_generic_fun(
         }],
         is_suspend: false,
         is_override: false,
+        operator: None,
         modifier: ast::MethodModifier::Final,
         receiver_ty: None,
         name: ident(name),
@@ -675,6 +680,7 @@ pub(crate) fn intrinsic_generic_fun(
             })
             .collect(),
         return_ty,
+        where_clause: None,
         body: FunctionBody::None,
         span: sp(),
     })
@@ -736,6 +742,7 @@ pub(crate) fn class_decl(
         annotations: vec![],
         modifier,
         name: ident(name),
+        type_params: Vec::new(),
         constructor: ctor
             .into_iter()
             .map(|(mutable, name, ty)| ast::ConstructorProp {
@@ -745,8 +752,9 @@ pub(crate) fn class_decl(
                 span: sp(),
             })
             .collect(),
-        base_class: base.map(|(name, args)| (ident(name), args)),
+        base_class: base.map(|(name, args)| (ty_named(name), args)),
         interfaces: interfaces.into_iter().map(ty_named).collect(),
+        where_clause: None,
         methods,
         span: sp(),
     })
@@ -758,6 +766,8 @@ pub(crate) fn interface_decl(name: &str, methods: Vec<FunctionDecl>) -> Decl {
         annotations: vec![],
         name: ident(name),
         type_params: Vec::new(),
+        parents: Vec::new(),
+        where_clause: None,
         methods,
         span: sp(),
     })
@@ -776,10 +786,12 @@ pub(crate) fn generic_interface_decl(
             .map(|(variance, name)| ast::TypeParamDecl {
                 name: ident(name),
                 variance,
-                kind_bound: None,
+                inline_bound: None,
                 span: sp(),
             })
             .collect(),
+        parents: Vec::new(),
+        where_clause: None,
         methods,
         span: sp(),
     })
@@ -798,6 +810,7 @@ pub(crate) fn method_full(
         annotations: Vec::new(),
         is_suspend: false,
         is_override,
+        operator: None,
         modifier: if is_abstract {
             ast::MethodModifier::Abstract
         } else if is_override {
@@ -817,6 +830,7 @@ pub(crate) fn method_full(
             })
             .collect(),
         return_ty,
+        where_clause: None,
         body,
         span: sp(),
     }
@@ -939,6 +953,7 @@ pub(crate) fn generic_struct_decl_full(
             })
             .collect(),
         interfaces: interfaces.into_iter().map(ty_named).collect(),
+        where_clause: None,
         methods,
         span: sp(),
     })
@@ -968,6 +983,7 @@ pub(crate) fn enum_decl_full(
         type_params: type_params.into_iter().map(type_param).collect(),
         variants,
         interfaces: interfaces.into_iter().map(ty_named).collect(),
+        where_clause: None,
         methods,
         span: sp(),
     })
@@ -1031,6 +1047,7 @@ pub(crate) fn enum_decl(name: &str, type_params: Vec<&str>, variants: Vec<Varian
         type_params: type_params.into_iter().map(type_param).collect(),
         variants,
         interfaces: Vec::new(),
+        where_clause: None,
         methods: Vec::new(),
         span: sp(),
     })
@@ -1184,7 +1201,7 @@ fn ffi_core_declarations() -> Vec<Decl> {
         method.annotations = vec![marker("NoGC"), marker("Unsafe"), intrinsic(intrinsic_name)];
         method.type_params = type_params.into_iter().map(type_param).collect();
         for param in &mut method.type_params {
-            param.kind_bound = Some(ast::TypeParamKindBound::Value);
+            param.inline_bound = Some(ast::TypeBound::Kind(ast::TypeParamKindBound::Value));
         }
         method
     };
@@ -1250,7 +1267,8 @@ fn ffi_core_declarations() -> Vec<Decl> {
     let Decl::Struct(ptr_decl) = &mut ptr else {
         unreachable!()
     };
-    ptr_decl.type_params[0].kind_bound = Some(ast::TypeParamKindBound::Value);
+    ptr_decl.type_params[0].inline_bound =
+        Some(ast::TypeBound::Kind(ast::TypeParamKindBound::Value));
 
     let fun_ptr = generic_struct_decl("FunPtr", vec!["F"], vec![("_rawPointer", ty_named("UInt"))]);
 
@@ -1260,7 +1278,7 @@ fn ffi_core_declarations() -> Vec<Decl> {
             Decl::Function(decl) => &mut decl.type_params,
             _ => unreachable!("FFI core declarations are structs or functions"),
         };
-        type_params[0].kind_bound = Some(ast::TypeParamKindBound::Ref);
+        type_params[0].inline_bound = Some(ast::TypeBound::Kind(ast::TypeParamKindBound::Ref));
         decl
     };
     let gc_intrinsic =
@@ -1284,7 +1302,8 @@ fn ffi_core_declarations() -> Vec<Decl> {
         let Decl::Function(function) = &mut decl else {
             unreachable!()
         };
-        function.type_params[0].kind_bound = Some(ast::TypeParamKindBound::Value);
+        function.type_params[0].inline_bound =
+            Some(ast::TypeBound::Kind(ast::TypeParamKindBound::Value));
         function.annotations.clear();
         if no_gc {
             function.annotations.push(marker("NoGC"));
@@ -1436,7 +1455,8 @@ fn gc_api_declarations() -> Vec<Decl> {
             args: Vec::new(),
             span: sp(),
         }];
-        function.type_params[0].kind_bound = Some(ast::TypeParamKindBound::Ref);
+        function.type_params[0].inline_bound =
+            Some(ast::TypeBound::Kind(ast::TypeParamKindBound::Ref));
         decl
     };
     vec![

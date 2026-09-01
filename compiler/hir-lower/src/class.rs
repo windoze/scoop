@@ -270,7 +270,14 @@ impl Lowerer {
         self.classes[id].constructor = props;
         self.class_prop_mutability.insert(id, mutability);
 
-        if let Some((base_name, _)) = &decl.base_class {
+        if let Some((base_ty, _)) = &decl.base_class {
+            let ast::TypeRefKind::Named(base_name) = &base_ty.kind else {
+                self.error(
+                    base_ty.span,
+                    "generic base classes are not supported by the current HIR model".to_string(),
+                );
+                return;
+            };
             match self.classes_by_name.get(&base_name.text) {
                 Some(&(base_id, _)) => {
                     if self.classes[base_id].modifier == hir::ClassModifier::Final {
@@ -362,9 +369,16 @@ impl Lowerer {
                 );
                 continue;
             }
-            let param = crate::lower_type_param_decl(param);
-            type_params.push(param.clone());
-            method_type_params.push(param);
+            match crate::lower_type_param_decl(param) {
+                Ok(param) => {
+                    type_params.push(param.clone());
+                    method_type_params.push(param);
+                }
+                Err(span) => self.error(
+                    span,
+                    "interface upper bounds are not supported by the current HIR model".to_string(),
+                ),
+            }
         }
         if !type_params.is_empty() {
             self.register_generic(id);
@@ -936,8 +950,11 @@ impl Lowerer {
     /// scope there (an M6 simplification: HIR has no body to host the
     /// locals a reference would need).
     pub(crate) fn lower_base_args(&mut self, id: ClassId, decl: &ast::ClassDecl) {
-        let Some((base_name, args)) = &decl.base_class else {
+        let Some((base_ty, args)) = &decl.base_class else {
             return;
+        };
+        let ast::TypeRefKind::Named(base_name) = &base_ty.kind else {
+            return; // rejected while resolving the inheritance clause
         };
         let base_id = match self.classes[id].base_class.as_ref() {
             Some((base_id, _)) => *base_id,

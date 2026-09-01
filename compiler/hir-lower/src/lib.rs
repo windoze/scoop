@@ -208,21 +208,23 @@ pub(crate) enum ForbiddenSuspendContext {
     ConstructorDelegation,
 }
 
-fn lower_type_param_decl(param: &ast::TypeParamDecl) -> hir::TypeParamDecl {
-    hir::TypeParamDecl {
+fn lower_type_param_decl(param: &ast::TypeParamDecl) -> Result<hir::TypeParamDecl, Span> {
+    let kind = match &param.inline_bound {
+        None => hir::TypeParamKind::Any,
+        Some(ast::TypeBound::Kind(ast::TypeParamKindBound::Value)) => hir::TypeParamKind::Value,
+        Some(ast::TypeBound::Kind(ast::TypeParamKindBound::Ref)) => hir::TypeParamKind::Ref,
+        Some(ast::TypeBound::Upper(ty)) => return Err(ty.span),
+    };
+    Ok(hir::TypeParamDecl {
         name: param.name.text.clone(),
         variance: match param.variance {
             ast::Variance::Invariant => hir::Variance::Invariant,
             ast::Variance::In => hir::Variance::In,
             ast::Variance::Out => hir::Variance::Out,
         },
-        kind: match param.kind_bound {
-            None => hir::TypeParamKind::Any,
-            Some(ast::TypeParamKindBound::Value) => hir::TypeParamKind::Value,
-            Some(ast::TypeParamKindBound::Ref) => hir::TypeParamKind::Ref,
-        },
+        kind,
         span: param.span,
-    }
+    })
 }
 
 impl Owner {
@@ -1021,6 +1023,7 @@ impl Lowerer {
         pending_methods: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
         file_index: usize,
     ) {
+        self.reject_unlowered_where_clause(decl.where_clause.as_ref());
         let attributes = self.check_struct_annotations(decl);
         if let Some(kind) = self.type_namespace_conflict(&decl.name.text) {
             let what = if kind == "a struct" {
@@ -1046,7 +1049,13 @@ impl Lowerer {
                 );
                 continue;
             }
-            type_params.push(lower_type_param_decl(param));
+            match lower_type_param_decl(param) {
+                Ok(param) => type_params.push(param),
+                Err(span) => self.error(
+                    span,
+                    "interface upper bounds are not supported by the current HIR model".to_string(),
+                ),
+            }
         }
         let id = self.structs.alloc(StructDecl {
             name: decl.name.text.clone(),
@@ -1079,6 +1088,7 @@ impl Lowerer {
         pending_methods: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
         file_index: usize,
     ) {
+        self.reject_unlowered_where_clause(decl.where_clause.as_ref());
         let no_gc = self.check_enum_annotations(decl);
         if let Some(kind) = self.type_namespace_conflict(&decl.name.text) {
             let what = if kind == "an enum" {
@@ -1104,7 +1114,13 @@ impl Lowerer {
                 );
                 continue;
             }
-            type_params.push(lower_type_param_decl(param));
+            match lower_type_param_decl(param) {
+                Ok(param) => type_params.push(param),
+                Err(span) => self.error(
+                    span,
+                    "interface upper bounds are not supported by the current HIR model".to_string(),
+                ),
+            }
         }
         let id = self.enums.alloc(EnumDecl {
             name: decl.name.text.clone(),
@@ -1137,6 +1153,13 @@ impl Lowerer {
         pending_methods: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
         file_index: usize,
     ) {
+        self.reject_unlowered_where_clause(decl.where_clause.as_ref());
+        if let Some(param) = decl.type_params.first() {
+            self.error(
+                param.span,
+                "generic classes are not supported by the current HIR model".to_string(),
+            );
+        }
         self.reject_type_annotations("a class", &decl.annotations);
         if let Some(kind) = self.type_namespace_conflict(&decl.name.text) {
             let what = if kind == "a class" {
@@ -1185,6 +1208,13 @@ impl Lowerer {
         pending_methods: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
         file_index: usize,
     ) {
+        self.reject_unlowered_where_clause(decl.where_clause.as_ref());
+        if let Some(parent) = decl.parents.first() {
+            self.error(
+                parent.span,
+                "interface inheritance is not supported by the current HIR model".to_string(),
+            );
+        }
         self.reject_type_annotations("an interface", &decl.annotations);
         if let Some(kind) = self.type_namespace_conflict(&decl.name.text) {
             let what = if kind == "an interface" {
@@ -1210,7 +1240,13 @@ impl Lowerer {
                 );
                 continue;
             }
-            type_params.push(lower_type_param_decl(param));
+            match lower_type_param_decl(param) {
+                Ok(param) => type_params.push(param),
+                Err(span) => self.error(
+                    span,
+                    "interface upper bounds are not supported by the current HIR model".to_string(),
+                ),
+            }
         }
         let id = self.interfaces.alloc(InterfaceDecl {
             name: decl.name.text.clone(),
@@ -1246,6 +1282,7 @@ impl Lowerer {
         pending: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
         file_index: usize,
     ) {
+        self.reject_unlowered_function_surface(decl);
         let checked = self.check_function_annotations(
             decl,
             file_index < self.user_file_index,
@@ -1318,6 +1355,7 @@ impl Lowerer {
         pending: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize)>,
         file_index: usize,
     ) {
+        self.reject_unlowered_function_surface(decl);
         let checked = self.check_function_annotations(decl, is_core, FunctionTarget::TopLevel);
         let kind = match (checked.intrinsic, checked.extern_) {
             (Some(intrinsic), _) => FunctionKind::Intrinsic(intrinsic),
@@ -2336,6 +2374,13 @@ impl Lowerer {
         self.type_params_in_scope = self.structs[id].type_params.clone();
         let mut seen = HashSet::new();
         let mut fields = Vec::new();
+        if decl.fields.is_omitted() {
+            self.error(
+                decl.name.span,
+                "an omitted struct representation requires a validated intrinsic type declaration"
+                    .to_string(),
+            );
+        }
         for field in &decl.fields {
             if !seen.insert(field.name.text.clone()) {
                 self.error(
@@ -2586,7 +2631,13 @@ impl Lowerer {
                 );
                 continue;
             }
-            type_params.push(lower_type_param_decl(param));
+            match lower_type_param_decl(param) {
+                Ok(param) => type_params.push(param),
+                Err(span) => self.error(
+                    span,
+                    "interface upper bounds are not supported by the current HIR model".to_string(),
+                ),
+            }
         }
         if !type_params.is_empty() {
             self.register_generic(id);
@@ -2858,6 +2909,25 @@ impl Lowerer {
         }
         self.error(span, format!("{operation} requires an unsafe context"));
         false
+    }
+
+    pub(crate) fn reject_unlowered_function_surface(&mut self, decl: &ast::FunctionDecl) {
+        self.reject_unlowered_where_clause(decl.where_clause.as_ref());
+        if let Some(operator) = decl.operator {
+            self.error(
+                operator.span,
+                "operator declarations are not supported by the current HIR model".to_string(),
+            );
+        }
+    }
+
+    fn reject_unlowered_where_clause(&mut self, clause: Option<&ast::WhereClause>) {
+        if let Some(clause) = clause {
+            self.error(
+                clause.span,
+                "where clauses are not supported by the current HIR model".to_string(),
+            );
+        }
     }
 
     pub(crate) fn error(&mut self, span: Span, message: String) {

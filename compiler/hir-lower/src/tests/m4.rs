@@ -849,6 +849,7 @@ fn named_variant_default_is_an_error() {
             type_params: vec![],
             methods: vec![],
             interfaces: vec![],
+            where_clause: None,
             variants: vec![VariantDecl {
                 name: ident("Named"),
                 kind: VariantDeclKind::Named(vec![VariantFieldDecl {
@@ -977,12 +978,14 @@ fn unknown_annotation_is_an_error() {
         }],
         is_suspend: false,
         is_override: false,
+        operator: None,
         modifier: ast::MethodModifier::Final,
         receiver_ty: None,
         name: ident("pure_fn"),
         type_params: vec![],
         params: vec![],
         return_ty: None,
+        where_clause: None,
         body: FunctionBody::Block(block(vec![])),
         span: sp(),
     }));
