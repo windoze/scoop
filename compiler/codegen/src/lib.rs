@@ -867,7 +867,7 @@ fn llvm_constant<'ctx>(
             .bool_type()
             .const_int(u64::from(*value), false)
             .into(),
-        ConstantValue::NullPtr => ptr_ty(context).const_null().into(),
+        ConstantValue::NullPointer(_) => ptr_ty(context).const_null().into(),
         ConstantValue::Struct { struct_id, fields } => {
             let definition = &structs[*struct_id];
             if fields.len() != definition.fields.len() {
@@ -1485,7 +1485,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             })?,
             Value::IntConst(value) => context.i64_type().const_int(value as u64, true).into(),
             Value::BoolConst(value) => context.bool_type().const_int(value as u64, false).into(),
-            Value::NullPtr => ptr_ty(context).const_null().into(),
+            Value::NullPointer(_) => ptr_ty(context).const_null().into(),
             Value::Global(id) => match &self.globals[arena_index(id)] {
                 Some(global) => global.as_pointer_value().into(),
                 // A TypeDescriptor stub: the TD global (emitted from the

@@ -464,7 +464,7 @@ pub enum GlobalInit {
 pub enum ConstantValue {
     Int(i64),
     Bool(bool),
-    NullPtr,
+    NullPointer(PointerKind),
     Struct {
         struct_id: StructDefId,
         fields: Vec<ConstantValue>,
@@ -767,7 +767,7 @@ impl Function {
             Value::Param(index) => self.params[index as usize].clone(),
             Value::IntConst(_) => LirType::I64,
             Value::BoolConst(_) => LirType::I1,
-            Value::NullPtr => LirType::Ptr(PointerKind::Raw),
+            Value::NullPointer(kind) => LirType::Ptr(kind),
             Value::Global(id) => LirType::Ptr(globals[id].address_kind),
         }
     }
@@ -790,7 +790,7 @@ pub enum Value {
     Temp(TempId),
     IntConst(i64),
     BoolConst(bool),
-    NullPtr,
+    NullPointer(PointerKind),
     /// Address of a global constant.
     Global(GlobalId),
 }
@@ -1386,7 +1386,7 @@ fn value_name(value: Value) -> String {
         Value::Temp(id) => format!("t{}", id.into_raw()),
         Value::IntConst(value) => format!("{value}"),
         Value::BoolConst(value) => format!("{value}"),
-        Value::NullPtr => "null".to_string(),
+        Value::NullPointer(kind) => format!("null<{}>", kind.dump()),
         Value::Global(id) => format!("global{}", id.into_raw()),
     }
 }

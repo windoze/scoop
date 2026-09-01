@@ -347,7 +347,8 @@ fn lower_constant(value: &mir::ConstantValue) -> lir::ConstantValue {
     match value {
         mir::ConstantValue::Int(value) => lir::ConstantValue::Int(*value),
         mir::ConstantValue::Bool(value) => lir::ConstantValue::Bool(*value),
-        mir::ConstantValue::NullPtr | mir::ConstantValue::NullFunPtr => lir::ConstantValue::NullPtr,
+        mir::ConstantValue::NullPtr => lir::ConstantValue::NullPointer(lir::PointerKind::Raw),
+        mir::ConstantValue::NullFunPtr => lir::ConstantValue::NullPointer(lir::PointerKind::Code),
         mir::ConstantValue::Struct { struct_id, fields } => lir::ConstantValue::Struct {
             struct_id: struct_def_id(*struct_id),
             fields: fields.iter().map(lower_constant).collect(),
@@ -1905,7 +1906,7 @@ impl LiveValue {
             lir::Value::Temp(id) => Some(Self::Temp(id)),
             lir::Value::IntConst(_)
             | lir::Value::BoolConst(_)
-            | lir::Value::NullPtr
+            | lir::Value::NullPointer(_)
             | lir::Value::Global(_) => None,
         }
     }
@@ -3068,7 +3069,7 @@ impl<'a> FunctionLowerer<'a> {
                 let (_, align) = size_align(self.module, &enum_shape, value_ty);
                 lir::Value::IntConst(align as i64)
             }
-            mir::ExprKind::FunPtrNull(_) => lir::Value::NullPtr,
+            mir::ExprKind::FunPtrNull(_) => lir::Value::NullPointer(lir::PointerKind::Code),
             mir::ExprKind::FunctionAddress { callback } => {
                 let out = self.new_temp(lir::CODE_PTR);
                 self.push(lir::Instruction::FunctionAddress {
@@ -5126,6 +5127,48 @@ Module
         };
         assert!(elements.is_empty());
         assert_eq!(function.temps[*out].ty, lir::LirType::Aggregate(Vec::new()));
+    }
+
+    #[test]
+    fn pointer_nulls_preserve_raw_and_code_provenance_in_lir() {
+        assert!(matches!(
+            lower_constant(&mir::ConstantValue::NullPtr),
+            lir::ConstantValue::NullPointer(lir::PointerKind::Raw)
+        ));
+        assert!(matches!(
+            lower_constant(&mir::ConstantValue::NullFunPtr),
+            lir::ConstantValue::NullPointer(lir::PointerKind::Code)
+        ));
+
+        let mut blocks = Arena::new();
+        let entry = blocks.alloc(lir::BasicBlock {
+            name: "entry".to_string(),
+            instructions: Vec::new(),
+            terminator: lir::Terminator::Return { value: None },
+        });
+        let function = lir::Function {
+            gc_effect: lir::GcEffect::NoGc,
+            symbol: "null_provenance".to_string(),
+            params: Vec::new(),
+            return_ty: lir::LirType::Void,
+            call_targets: lir::CallTargets::default(),
+            locals: Arena::new(),
+            temps: Arena::new(),
+            blocks,
+            entry,
+        };
+        let globals = Arena::new();
+        for kind in [
+            lir::PointerKind::Managed,
+            lir::PointerKind::Raw,
+            lir::PointerKind::Code,
+            lir::PointerKind::Metadata,
+        ] {
+            assert_eq!(
+                function.value_ty(&globals, lir::Value::NullPointer(kind)),
+                lir::LirType::Ptr(kind)
+            );
+        }
     }
 
     #[test]

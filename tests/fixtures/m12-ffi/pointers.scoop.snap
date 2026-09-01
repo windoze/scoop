@@ -1128,7 +1128,7 @@ Module
   block entry
     store 8 -> local0
     store 8 -> local1
-    store null -> local2
+    store null<code> -> local2
     t0 = function_address @scoop_c_callback_0 : ptr
     store t0 -> local3
     t1 = enum_wrap e1 v1 () : enum1
