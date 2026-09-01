@@ -107,18 +107,12 @@ fn interface_id(module: &hir::Module, name: &str) -> hir::InterfaceId {
 }
 
 fn interface_ty(module: &hir::Module, name: &str) -> hir::TypeId {
-    module
-        .types
-        .iter()
-        .find_map(|(ty, value)| match value {
-            hir::Type::Interface(id, args)
-                if args.is_empty() && module.interfaces[*id].name == name =>
-            {
-                Some(ty)
-            }
-            _ => None,
-        })
-        .expect("interface type")
+    let id = interface_id(module, name);
+    module.interface_applications[module.interfaces[id].self_application].canonical_type
+}
+
+fn class_application(module: &hir::Module, id: hir::ClassId) -> hir::ClassApplicationId {
+    module.classes[id].self_application
 }
 
 // --- positive: golden dump ---
@@ -133,9 +127,18 @@ Module
     Some(_1: T0)
     None()
   open class Throwable()
+  open class Exception(message: Option<String>)
+  class UnwrapException()
+  class ClassCastException()
+  class ArithmeticException()
+  class IndexOutOfBoundsException()
   class IllegalStateException()
   open class Shape(name: String) : Describable
   class Point(x: Int, y: Int)
+  interface ToString
+    fun toString(): String
+  interface Hash
+    fun hash(): Int
   interface Continuation<in T>
     fun resume(value: T0): Unit
     fun resumeWithException(exception: Throwable): Unit
@@ -145,22 +148,34 @@ Module
     fun register(continuation: Continuation<T0>): Unit
   interface Describable
     fun describe(): String
+  fun coreIntEquals(arg1: Int, arg2: Int): Boolean <extern0 abi=scoop symbol=scoop_rt_int_equals>
+  fun coreUIntEquals(arg1: UInt, arg2: UInt): Boolean <extern1 abi=scoop symbol=scoop_rt_uint_equals>
+  fun coreBooleanEquals(arg1: Boolean, arg2: Boolean): Boolean <extern2 abi=scoop symbol=scoop_rt_bool_equals>
+  fun coreStringEquals(arg1: String, arg2: String): Boolean <extern3 abi=scoop symbol=scoop_rt_string_eq>
+  fun coreIntToString(arg1: Int): String <extern4 abi=scoop symbol=scoop_rt_int_to_string>
+  fun coreUIntToString(arg1: UInt): String <extern5 abi=scoop symbol=scoop_rt_uint_to_string>
+  fun coreBooleanToString(arg1: Boolean): String <extern6 abi=scoop symbol=scoop_rt_bool_to_string>
+  fun coreIntHash(arg1: Int): Int <extern7 abi=scoop symbol=scoop_rt_int_hash>
+  fun coreUIntHash(arg1: UInt): Int <extern8 abi=scoop symbol=scoop_rt_uint_hash>
+  fun coreBooleanHash(arg1: Boolean): Int <extern9 abi=scoop symbol=scoop_rt_bool_hash>
+  fun coreStringHash(arg1: String): Int <extern10 abi=scoop symbol=scoop_rt_string_hash>
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
-  fun write(arg1: String): Unit <extern0 abi=scoop symbol=scoop_rt_write>
-  fun print(message: Any): Unit
+  fun write(arg1: String): Unit <extern11 abi=scoop symbol=scoop_rt_write>
+  fun print<T : ToString>(value: T0): Unit
     Call write : Unit
-      MethodCall Any.toString : String
-        Local message : Any
+      MethodCall bound T0 via ToString -> ToString.toString : String
+        Local value : T0
     return
-  fun println(message: Any): Unit
+  fun println<T : ToString>(value: T0): Unit
     Call write : Unit
-      MethodCall Any.toString : String
-        Local message : Any
+      MethodCall bound T0 via ToString -> ToString.toString : String
+        Local value : T0
     Call write : Unit
       StringLiteral \"\\n\" : String
   fun main(): Unit
   entry main
+  instance println<Int>
 ";
     assert_eq!(hir::dump(&module), expected);
 }
@@ -178,13 +193,15 @@ fn class_and_interface_structure() {
 
     let shape = &module.classes[shape_id];
     assert_eq!(shape.modifier, hir::ClassModifier::Open);
-    assert_eq!(shape.constructor.len(), 1);
+    assert_eq!(shape.semantic_constructor().len(), 1);
     assert_eq!(shape.interfaces, vec![interface_ty(&module, "Describable")]);
 
     // Base-class clause with the lowered delegation arguments.
     let point = &module.classes[point_id];
     let (base, args) = point.base_class.as_ref().expect("Point has a base");
-    assert_eq!(*base, shape_id);
+    assert!(matches!(module.types[*base], hir::Type::Class(application)
+        if module.class_applications[application].template == shape_id
+            && module.class_applications[application].arguments.is_empty()));
     assert_eq!(args.len(), 1);
     assert!(matches!(args[0].kind, hir::ExprKind::StringLiteral(_)));
 
@@ -192,14 +209,7 @@ fn class_and_interface_structure() {
     let describe = &module.functions[find_fn(&module, "Shape.describe")];
     assert_eq!(
         describe.method.map(|method| method.owner),
-        Some(
-            module
-                .types
-                .iter()
-                .find(|(_, t)| matches!(t, hir::Type::Class(id) if *id == shape_id))
-                .map(|(id, _)| id)
-                .unwrap()
-        )
+        Some(module.class_applications[class_application(&module, shape_id)].canonical_type)
     );
     assert_eq!(describe.params[0].name, "this");
     assert_eq!(describe.params.len(), 1); // only `this`
@@ -207,13 +217,16 @@ fn class_and_interface_structure() {
     let iface_method = &module.functions[find_fn(&module, "Describable.describe")];
     assert!(matches!(
         module.types[iface_method.method.expect("a method").owner],
-        hir::Type::Interface(id, ref args) if id == describable_id && args.is_empty()
+        hir::Type::Interface(application)
+            if module.interface_applications[application].template == describable_id
+                && module.interface_applications[application].arguments.is_empty()
     ));
 
-    // The interface's MethodSig mirrors the signature (params exclude `this`).
-    let sig = &module.interfaces[describable_id].methods[0];
-    assert_eq!(sig.name, "describe");
-    assert!(sig.params.is_empty());
+    // The interface method identity points directly at its complete function.
+    let member = module.interfaces[describable_id].methods[0];
+    let sig = &module.functions[module.interface_methods[member].function];
+    assert_eq!(sig.name.rsplit('.').next(), Some("describe"));
+    assert_eq!(sig.params.len(), 1); // only `this`
     assert_eq!(module.types[sig.return_ty], hir::Type::String);
 }
 
@@ -317,7 +330,7 @@ fn class_field_layout_is_base_prefix_then_own() {
         hir::ExprKind::FieldAccess { field, .. } => assert_eq!(
             *field,
             hir::FieldRef::ClassField {
-                class_id: point_id,
+                application: class_application(&module, point_id),
                 index: 2
             }
         ),
@@ -327,7 +340,7 @@ fn class_field_layout_is_base_prefix_then_own() {
         hir::ExprKind::FieldAccess { field, .. } => assert_eq!(
             *field,
             hir::FieldRef::ClassField {
-                class_id: shape_id,
+                application: class_application(&module, shape_id),
                 index: 0
             }
         ),
@@ -373,7 +386,7 @@ fn struct_methods_and_bare_field_access() {
             assert_eq!(
                 *field,
                 hir::FieldRef::StructField {
-                    struct_id,
+                    application: module.structs[struct_id].self_application,
                     index: 0
                 }
             );
@@ -607,14 +620,6 @@ fn is_cast_and_ref_eq() {
             Some(ty_named("Boolean")),
             binary(BinOp::RefEq, var("a"), var("s")),
         ),
-        // `==` on references is allowed (reference equality at MIR).
-        fun_expr(
-            "eq",
-            vec![],
-            vec![("s1", ty_named("Shape")), ("s2", ty_named("Shape"))],
-            Some(ty_named("Boolean")),
-            binary(BinOp::Eq, var("s1"), var("s2")),
-        ),
         fun("main", vec![]),
     ]);
     let module = lower_user(file).expect("type operators must lower");
@@ -638,10 +643,14 @@ fn is_cast_and_ref_eq() {
     let down_opt = returned(body_of(&module, "down_opt"));
     match &down_opt.kind {
         hir::ExprKind::Cast { optional: true, .. } => match &module.types[down_opt.ty] {
-            hir::Type::Enum(id, args) => {
-                assert_eq!(*id, module.option_enum);
-                assert_eq!(args.len(), 1);
-                assert!(matches!(module.types[args[0]], hir::Type::Struct(..)));
+            hir::Type::Enum(application) => {
+                let application = &module.enum_applications[*application];
+                assert_eq!(application.template, module.option_enum);
+                assert_eq!(application.arguments.len(), 1);
+                assert!(matches!(
+                    module.types[application.arguments[0]],
+                    hir::Type::Struct(..)
+                ));
             }
             other => panic!("expected Option<S>, found {other:?}"),
         },
@@ -651,19 +660,11 @@ fn is_cast_and_ref_eq() {
         hir::ExprKind::Cast { optional: true, .. } => {}
         other => panic!("expected an optional cast, found {other:?}"),
     }
-    // `===` lowers to `RefEq`; `==` on references stays `Eq` (the
-    // equality flavor is decided at MIR from the operand types).
+    // Reference identity remains the non-overloadable `===` operation.
     assert!(matches!(
         returned(body_of(&module, "same")).kind,
         hir::ExprKind::Binary {
             op: hir::BinOp::RefEq,
-            ..
-        }
-    ));
-    assert!(matches!(
-        returned(body_of(&module, "eq")).kind,
-        hir::ExprKind::Binary {
-            op: hir::BinOp::Eq,
             ..
         }
     ));
@@ -753,7 +754,7 @@ fn smart_cast_narrows_class_references_for_free() {
                     );
                     // The receiver is the same local, retyped — no Unbox.
                     assert!(matches!(receiver.kind, hir::ExprKind::Local(_)));
-                    assert!(matches!(module.types[receiver.ty], hir::Type::Class(_)));
+                    assert!(matches!(module.types[receiver.ty], hir::Type::Class(..)));
                 }
                 other => panic!("expected a method call, found {other:?}"),
             }
@@ -1080,16 +1081,17 @@ fn open_and_default_open_override_form_one_visible_dispatch_slot() {
             ],
         ),
     ]);
-    let module = lower_user(file).expect("the override chain must lower without ambiguity");
+    let output = lower_user_output(file).expect("the override chain must lower without ambiguity");
+    let module = &output.export;
     assert_eq!(
-        module.functions[find_fn(&module, "A.f")]
+        module.functions[find_fn(module, "A.f")]
             .method
             .expect("method")
             .modifier,
         hir::MethodModifier::Open
     );
     assert_eq!(
-        module.functions[find_fn(&module, "B.f")]
+        module.functions[find_fn(module, "B.f")]
             .method
             .expect("method")
             .modifier,
@@ -1098,11 +1100,54 @@ fn open_and_default_open_override_form_one_visible_dispatch_slot() {
     // The owner class is final, so its otherwise-open override is
     // normalized to an effectively final method in HIR.
     assert_eq!(
-        module.functions[find_fn(&module, "C.f")]
+        module.functions[find_fn(module, "C.f")]
             .method
             .expect("method")
             .modifier,
         hir::MethodModifier::Final
+    );
+    let hir::MethodDispatch::Virtual(family) = module.functions[find_fn(module, "A.f")]
+        .method
+        .expect("method")
+        .dispatch
+    else {
+        panic!("the first open declaration owns a virtual family")
+    };
+    assert_eq!(
+        module.functions[find_fn(module, "B.f")]
+            .method
+            .expect("method")
+            .dispatch,
+        hir::MethodDispatch::Virtual(family)
+    );
+    assert_eq!(
+        module.functions[find_fn(module, "C.f")]
+            .method
+            .expect("method")
+            .dispatch,
+        hir::MethodDispatch::FinalOverride(family)
+    );
+
+    let dispatches = ["A.f", "B.f", "C.f"].map(|name| {
+        output
+            .local
+            .functions
+            .iter()
+            .find_map(|(_, function)| (function.name == name).then_some(function.method))
+            .flatten()
+            .expect("the concrete override chain keeps method metadata")
+            .dispatch
+    });
+    let hir::concrete::MethodDispatch::Virtual(local_family) = dispatches[0] else {
+        panic!("the concrete base method owns a virtual family")
+    };
+    assert_eq!(
+        dispatches[1],
+        hir::concrete::MethodDispatch::Virtual(local_family)
+    );
+    assert_eq!(
+        dispatches[2],
+        hir::concrete::MethodDispatch::FinalOverride(local_family)
     );
 }
 
@@ -1367,11 +1412,14 @@ fn class_construction_lowers_to_class_init() {
     let main = body_of(&module, "main");
     match &main.statements[0].kind {
         hir::StatementKind::ValDecl { init, .. } => match &init.kind {
-            hir::ExprKind::ClassInit { class_id, args } => {
-                assert_eq!(module.classes[*class_id].name, "C");
+            hir::ExprKind::ClassInit {
+                application, args, ..
+            } => {
+                let class_id = module.class_applications[*application].template;
+                assert_eq!(module.classes[class_id].name, "C");
                 assert!(matches!(
                     module.types[init.ty],
-                    hir::Type::Class(id) if id == *class_id
+                    hir::Type::Class(found) if found == *application
                 ));
                 assert_eq!(args.len(), 2);
                 // The Int argument crossing into the `Any` property boxes.
@@ -1501,18 +1549,22 @@ fn final_generic_member_functions_are_resolved() {
     ]);
     let module = lower_user(file).expect("a final generic method must lower");
     let method = find_fn(&module, "C.id");
-    assert_eq!(module.functions[method].type_params[0].name, "T");
-    let generic = module
-        .generic_functions
-        .iter()
-        .find_map(|(id, generic)| (generic.function == method).then_some(id))
-        .expect("C.id generic entity");
+    assert_eq!(module.functions[method].type_param_count(), 1);
+    assert_eq!(module.functions[method].type_params()[0].name, "T");
+    let hir::FunctionGenericity::GenericMethod {
+        definition: generic,
+        ..
+    } = module.functions[method].genericity
+    else {
+        panic!("C.id generic entity")
+    };
     let (_, request) = module
-        .instantiations
+        .generic_method_applications
         .iter()
-        .find(|(_, request)| request.generic == generic)
+        .find(|(_, request)| request.method == generic)
         .expect("the call requests an instance");
-    assert_eq!(request.type_args, [module.string]);
+    assert_eq!(request.method_arguments.to_vec(), [module.string]);
+    assert!(matches!(request.owner, hir::GenericMethodOwner::Class(_)));
 }
 
 // --- negative: method calls, fields, assignment ---
@@ -1786,7 +1838,7 @@ fn field_assignment_on_a_var_property() {
                     assert_eq!(
                         *field,
                         hir::FieldRef::ClassField {
-                            class_id: class_id(&module, "Point"),
+                            application: class_application(&module, class_id(&module, "Point")),
                             index: 2
                         }
                     );
@@ -2140,9 +2192,10 @@ fn qualified_generic_variant_infers_type_arguments() {
     let main = body_of(&module, "main");
     match &main.statements[0].kind {
         hir::StatementKind::ValDecl { init, .. } => match &init.kind {
-            hir::ExprKind::VariantConstruct { type_args, .. } => {
-                assert_eq!(type_args.len(), 1);
-                assert_eq!(module.types[type_args[0]], hir::Type::Int);
+            hir::ExprKind::VariantConstruct { application, .. } => {
+                let arguments = &module.enum_applications[*application].arguments;
+                assert_eq!(arguments.len(), 1);
+                assert_eq!(module.types[arguments[0]], hir::Type::Int);
             }
             other => panic!("expected a variant construction, found {other:?}"),
         },

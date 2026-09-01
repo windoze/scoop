@@ -67,11 +67,10 @@
 //! layer containing any candidate wins whole) and then the
 //! most-specific candidate inside the layer (exact arity,
 //! per-argument subtyping, pairwise dominance, non-generic candidates
-//! preferred on ties). `print` / `println` are ordinary core-library
-//! functions taking `Any` and dispatching `message.toString()` through
-//! the synthesized `Any` members (vtable slots 0..2); the `@Intrinsic`
-//! registry only backs compiler primitives and no
-//! call-site special rules remain.
+//! preferred on ties). `print` / `println`, `ToString`, `Hash`, and
+//! operator `equals` are ordinary core declarations. `@Intrinsic`
+//! identifies only the minimal compiler-provided representation and
+//! primitive operations; no capability has a call-site special path.
 //!
 //! M8 (milestone8 DESIGN.md 3.2): exceptions. `scoop.core` must define
 //! a class `Throwable` (the root of the exception hierarchy, spec
@@ -79,9 +78,9 @@
 //! of it, catches are checked for shadowing in declaration order (a
 //! catch covered by an earlier one is unreachable — an error in M8,
 //! DESIGN.md 5.1), and the catch local scopes over its clause body.
-//! The validated `Throwable` stays a lowerer-internal field (the HIR
-//! `Module` is unchanged); mir-lower re-resolves the exception classes
-//! by name when it rewrites the M3 trap paths.
+//! HIR validates the complete compiler exception core and exports typed
+//! zero-argument constructor targets; MIR never resolves exception classes
+//! by source name.
 //!
 //! M9 (milestone9 DESIGN.md section 1): the `UInt` basic type (spec
 //! 11.2 — a distinct type from `Int` with no implicit conversion;
@@ -97,6 +96,8 @@
 mod annotations;
 mod class;
 mod concretize;
+mod core_contract;
+mod derived;
 mod effects;
 mod expr;
 mod ffi;
@@ -135,9 +136,86 @@ use scope::{LocalFunctionScopes, Scopes};
 /// All semantic errors of the M5 subset are diagnosed here with spans;
 /// downstream stages (MIR, LIR) never fail.
 pub fn lower(files: &[ast::SourceFile]) -> Result<hir::Output, Vec<Diagnostic>> {
-    let export = Lowerer::new().run(files)?;
+    if files.is_empty() {
+        return Lowerer::new().run(files).map(|export| hir::Output {
+            local: concretize::lower(&export),
+            export,
+        });
+    }
+    let core_provider = hir::IntrinsicProviderId::from_raw(0);
+    let user_provider = hir::IntrinsicProviderId::from_raw(1);
+    let unit = CompilationUnit {
+        core: files[..files.len() - 1]
+            .iter()
+            .map(|source| ProviderSource {
+                source,
+                provider: core_provider,
+            })
+            .collect(),
+        user: ProviderSource {
+            source: &files[files.len() - 1],
+            provider: user_provider,
+        },
+    };
+    lower_compilation_unit(&unit, IntrinsicDeclarationPolicy::CoreOnly)
+}
+
+/// One parsed source and the non-source identity of its provider. Multiple
+/// files of one Cone carry the same provider id.
+#[derive(Clone, Copy)]
+pub struct ProviderSource<'a> {
+    pub source: &'a ast::SourceFile,
+    pub provider: hir::IntrinsicProviderId,
+}
+
+/// Structurally complete single-Cone compilation input. Core and user sources
+/// cannot be confused by file position inside HIR lowering.
+pub struct CompilationUnit<'a> {
+    pub core: Vec<ProviderSource<'a>>,
+    pub user: ProviderSource<'a>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub enum IntrinsicDeclarationPolicy {
+    #[default]
+    CoreOnly,
+    AllowListedForTesting {
+        providers: HashSet<hir::IntrinsicProviderId>,
+    },
+}
+
+/// Lower a provider-typed compilation unit. The testing policy only grants
+/// source authority; registry target, signature, shape, uniqueness, and effect
+/// checks remain unchanged.
+pub fn lower_compilation_unit(
+    unit: &CompilationUnit<'_>,
+    policy: IntrinsicDeclarationPolicy,
+) -> Result<hir::Output, Vec<Diagnostic>> {
+    let mut files = Vec::with_capacity(unit.core.len() + 1);
+    let mut sources = Vec::with_capacity(unit.core.len() + 1);
+    for input in &unit.core {
+        files.push(input.source.clone());
+        sources.push(SourceProvider {
+            provider: input.provider,
+            core: true,
+        });
+    }
+    files.push(unit.user.source.clone());
+    sources.push(SourceProvider {
+        provider: unit.user.provider,
+        core: false,
+    });
+    let export = Lowerer::new()
+        .with_intrinsic_sources(sources, policy)
+        .run(&files)?;
     let local = concretize::lower(&export);
     Ok(hir::Output { export, local })
+}
+
+#[derive(Debug, Clone, Copy)]
+struct SourceProvider {
+    provider: hir::IntrinsicProviderId,
+    core: bool,
 }
 
 /// Convert an already checked export-side graph into the local concrete graph.
@@ -154,6 +232,9 @@ pub fn concretize_export(export: &hir::ExportHir) -> hir::LocalConcreteHir {
 #[derive(Clone)]
 pub(crate) struct FnSig {
     pub(crate) is_suspend: bool,
+    /// Validated language-level operator role. It participates in override
+    /// and interface matching instead of being inferred from the name.
+    pub(crate) operator: Option<hir::OperatorKind>,
     pub(crate) attributes: hir::FunctionAttributes,
     /// Number of owner parameters at the front of `type_params`.
     pub(crate) owner_type_param_count: usize,
@@ -182,7 +263,7 @@ pub(crate) enum VariantStyle {
 }
 
 /// The type a member function belongs to (M6). Method `Function`s are
-/// registered per owner (`class_methods` and friends) and carry the
+/// registered directly on their nominal owner and carry the
 /// owner's type and modality in `Function::method`; the receiver is `params[0]`.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Owner {
@@ -190,6 +271,56 @@ pub(crate) enum Owner {
     Interface(InterfaceId),
     Struct(StructId),
     Enum(EnumId),
+}
+
+#[derive(Clone, Copy)]
+enum IntrinsicTypeOwner {
+    Struct(StructId),
+    Class(ClassId),
+}
+
+/// A member declaration together with the complete host substitution at the
+/// lookup site. Inherited generic members may have host arguments different
+/// from the receiver's own arguments, so carrying this relation is mandatory.
+#[derive(Clone)]
+pub(crate) struct CallableCandidate {
+    pub(crate) function: FunctionId,
+    pub(crate) owner: CallableCandidateOwner,
+    pub(crate) source: CallableCandidateSource,
+}
+
+impl CallableCandidate {
+    pub(crate) fn function(function: FunctionId, owner_arguments: Vec<TypeId>) -> Self {
+        Self {
+            function,
+            owner: CallableCandidateOwner::Function { owner_arguments },
+            source: CallableCandidateSource::Direct,
+        }
+    }
+
+    pub(crate) fn method(function: FunctionId, owner: hir::MethodOwnerApplication) -> Self {
+        Self {
+            function,
+            owner: CallableCandidateOwner::Method(owner),
+            source: CallableCandidateSource::Direct,
+        }
+    }
+}
+
+#[derive(Clone, PartialEq, Eq)]
+pub(crate) enum CallableCandidateOwner {
+    Function { owner_arguments: Vec<TypeId> },
+    Method(hir::MethodOwnerApplication),
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum CallableCandidateSource {
+    Direct,
+    Bound {
+        receiver_parameter: hir::TypeParamId,
+        bound: hir::InterfaceApplicationId,
+        member: hir::InterfaceMethodId,
+    },
 }
 
 /// Lexical permission to invoke a suspend callable. Keeping an explicit,
@@ -208,19 +339,19 @@ pub(crate) enum ForbiddenSuspendContext {
     ConstructorDelegation,
 }
 
-fn lower_type_param_decl(param: &ast::TypeParamDecl) -> hir::TypeParamDecl {
+fn lower_type_param_decl(param: &ast::TypeParamDecl, id: hir::TypeParamId) -> hir::TypeParamDecl {
     hir::TypeParamDecl {
+        id,
         name: param.name.text.clone(),
         variance: match param.variance {
             ast::Variance::Invariant => hir::Variance::Invariant,
             ast::Variance::In => hir::Variance::In,
             ast::Variance::Out => hir::Variance::Out,
         },
-        kind: match param.kind_bound {
-            None => hir::TypeParamKind::Any,
-            Some(ast::TypeParamKindBound::Value) => hir::TypeParamKind::Value,
-            Some(ast::TypeParamKindBound::Ref) => hir::TypeParamKind::Ref,
-        },
+        // Bounds are resolved after every nominal declaration has entered the
+        // type namespace. This temporary lowerer state never crosses the HIR
+        // output boundary; successful lowering replaces it completely.
+        bounds: hir::TypeParamBounds::Unconstrained,
         span: param.span,
     }
 }
@@ -299,25 +430,63 @@ pub(crate) struct Lowerer {
     /// bodies so nested literals with the same signature cannot collide.
     pub(crate) next_lambda_function: u32,
     pub(crate) next_anonymous_function: u32,
+    /// Cone-wide semantic type-parameter identity allocator. Substitution
+    /// slots are assigned separately by each complete lexical signature.
+    pub(crate) next_type_param_identity: u32,
+    /// Cone-wide source identity allocator for class virtual method families.
+    pub(crate) next_virtual_method_identity: u32,
     pub(crate) local_functions: Arena<hir::LocalFunction>,
     pub(crate) local_function_by_function: HashMap<FunctionId, hir::LocalFunctionId>,
     pub(crate) callable_references: Arena<hir::CallableReference>,
+    pub(crate) bound_callable_refs: Arena<hir::BoundCallableRef>,
     pub(crate) function_coercions: Arena<hir::FunctionCoercion>,
     pub(crate) foreign_callback_registrations: Arena<hir::ForeignCallbackRegistration>,
     pub(crate) function_coercion_by_types:
         HashMap<(hir::FunctionTypeId, hir::FunctionTypeId), hir::FunctionCoercionId>,
     pub(crate) structs: Arena<StructDecl>,
+    pub(crate) struct_applications: Arena<hir::StructApplication>,
+    pub(crate) struct_application_by_key:
+        HashMap<(StructId, Vec<TypeId>), hir::StructApplicationId>,
     pub(crate) enums: Arena<EnumDecl>,
+    pub(crate) enum_applications: Arena<hir::EnumApplication>,
+    pub(crate) enum_application_by_key: HashMap<(EnumId, Vec<TypeId>), hir::EnumApplicationId>,
     pub(crate) classes: Arena<ClassDecl>,
+    pub(crate) class_applications: Arena<hir::ClassApplication>,
+    pub(crate) class_application_by_key: HashMap<(ClassId, Vec<TypeId>), hir::ClassApplicationId>,
     pub(crate) interfaces: Arena<InterfaceDecl>,
+    pub(crate) interface_applications: Arena<hir::InterfaceApplication>,
+    pub(crate) interface_application_by_key:
+        HashMap<(InterfaceId, Vec<TypeId>), hir::InterfaceApplicationId>,
     pub(crate) functions: Arena<Function>,
+    /// Complete source relation for every validated intrinsic kind. Duplicate
+    /// declarations are diagnosed at insertion; core contract validation reads
+    /// this map directly and never scans functions or compares names.
+    pub(crate) intrinsic_functions:
+        HashMap<hir::IntrinsicFunctionKind, (FunctionId, hir::IntrinsicProviderId)>,
+    intrinsic_type_owners:
+        HashMap<hir::IntrinsicTypeKind, (IntrinsicTypeOwner, hir::IntrinsicProviderId)>,
     pub(crate) extern_functions: Arena<hir::ExternFunction>,
     pub(crate) globals: Arena<hir::Global>,
-    /// Generic definitions are separate HIR entities. The reverse map
-    /// is lowerer-only and lets call resolution turn a selected
-    /// `FunctionId` into a typed generic identity.
+    /// Generic definitions are separate HIR entities. Every function carries
+    /// the matching typed id in `Function::genericity`, so this arena is never
+    /// reverse-scanned and no parallel reverse map can drift out of sync.
     pub(crate) generic_functions: Arena<GenericFunction>,
-    pub(crate) generic_by_function: HashMap<FunctionId, GenericFunctionId>,
+    pub(crate) method_applications: Arena<hir::MethodApplication>,
+    pub(crate) method_application_by_key:
+        HashMap<(FunctionId, hir::MethodOwnerApplication), hir::MethodApplicationId>,
+    pub(crate) generic_methods: Arena<hir::GenericMethod>,
+    pub(crate) generic_method_applications: Arena<hir::GenericMethodApplication>,
+    pub(crate) generic_method_application_by_key: HashMap<
+        (
+            hir::GenericMethodId,
+            hir::GenericMethodOwner,
+            hir::NonEmptyVec<TypeId>,
+        ),
+        hir::GenericMethodApplicationId,
+    >,
+    pub(crate) derived_equality_applications: Arena<hir::DerivedEqualityApplication>,
+    pub(crate) derived_equality_application_by_type:
+        HashMap<TypeId, hir::DerivedEqualityApplicationId>,
     pub(crate) top_level: Vec<FunctionId>,
     pub(crate) unit: TypeId,
     pub(crate) int: TypeId,
@@ -328,10 +497,6 @@ pub(crate) struct Lowerer {
     pub(crate) string: TypeId,
     /// The built-in `Any` type (milestone6 DESIGN.md 5.5).
     pub(crate) any: TypeId,
-    /// The synthesized `Any` members `equals` / `hashCode` /
-    /// `toString`, in vtable-slot order (0..2, mir-lower's fixed
-    /// prefix). Calls on an `Any` receiver resolve to these.
-    pub(crate) any_methods: [FunctionId; 3],
     /// Function namespace: name → overload candidates in declaration
     /// order (M7). Struct and enum names live in separate namespaces:
     /// a struct and a function may share a name.
@@ -378,17 +543,15 @@ pub(crate) struct Lowerer {
     pub(crate) allow_deferred_fun_ptr: bool,
     pub(crate) pointer_type_uses: Vec<(TypeId, usize, Span)>,
     pub(crate) fun_ptr_type_uses: Vec<(TypeId, usize, Span)>,
-    /// Member functions per owner, in declaration order (this is also
-    /// declaration order used when building vtables.
-    pub(crate) class_methods: HashMap<ClassId, Vec<FunctionId>>,
+    /// Interface member functions in declaration order. Class/struct/enum
+    /// declarations carry their member ids directly in export HIR.
     pub(crate) interface_methods: HashMap<InterfaceId, Vec<FunctionId>>,
-    pub(crate) struct_methods: HashMap<StructId, Vec<FunctionId>>,
-    pub(crate) enum_methods: HashMap<EnumId, Vec<FunctionId>>,
+    /// Typed export identities for the functions in `interface_methods`.
+    /// The map above is a lowering-time lookup index; this arena is the
+    /// authoritative relation emitted to ExportHir.
+    pub(crate) interface_method_entities: Arena<hir::InterfaceMethod>,
     /// The owner of every member function.
     pub(crate) function_owner: HashMap<FunctionId, Owner>,
-    /// Mutability of each class's own constructor properties
-    /// (declaration order); `hir::Field` has no mutability slot.
-    pub(crate) class_prop_mutability: HashMap<ClassId, Vec<bool>>,
     /// Enums named `Option` declared in core files:
     /// (declaration, file index, span, type parameter count). Validated
     /// after pass 1 (`validate_option_enum`).
@@ -404,9 +567,9 @@ pub(crate) struct Lowerer {
     throwable_candidates: Vec<(ClassId, TypeId)>,
     /// The validated `Throwable` class of `scoop.core` and its
     /// reference type (M8); `None` only when the core library is
-    /// misconfigured (diagnosed, so the module is rejected anyway).
-    /// Lowerer-internal on purpose: `hir::Module` is unchanged and
-    /// mir-lower re-resolves the exception classes by name.
+    /// misconfigured (diagnosed, so the module is rejected anyway). This
+    /// lowering-time lookup feeds the complete typed `CompilerExceptionCore`
+    /// emitted after class representations and inheritance are resolved.
     pub(crate) throwable: Option<(ClassId, TypeId)>,
     /// Surface form of every variant, for pattern shape checks.
     pub(crate) variant_styles: HashMap<(EnumId, u32), VariantStyle>,
@@ -434,6 +597,9 @@ pub(crate) struct Lowerer {
     /// Owner of the member function whose body is being lowered, for
     /// bare property / method resolution (`x` meaning `this.x`).
     pub(crate) current_owner: Option<Owner>,
+    /// Typed primary-constructor parameters visible only while lowering a
+    /// base-constructor delegation expression.
+    pub(crate) constructor_params_in_scope: HashMap<String, (hir::ConstructorParamId, TypeId)>,
     /// Active smart-cast narrowings (milestone6 DESIGN.md 5.4):
     /// immutable local → narrowed type, valid within the branch that
     /// established them. Saved and restored around branch lowering;
@@ -441,6 +607,8 @@ pub(crate) struct Lowerer {
     pub(crate) smart_casts: HashMap<hir::LocalId, TypeId>,
     /// Index of the file currently being processed (diagnostics).
     pub(crate) current_file: usize,
+    intrinsic_sources: Vec<SourceProvider>,
+    intrinsic_policy: IntrinsicDeclarationPolicy,
     /// Locals of the body currently being lowered (taken into the
     /// finished `hir::Body`).
     pub(crate) locals: Arena<hir::Local>,
@@ -479,6 +647,21 @@ impl GcIntrinsic {
 }
 
 impl Lowerer {
+    pub(crate) fn fresh_type_param(&mut self, substitution_slot: usize) -> hir::TypeParamId {
+        let parameter = hir::TypeParamId::with_substitution_slot(
+            self.next_type_param_identity,
+            substitution_slot as u32,
+        );
+        self.next_type_param_identity += 1;
+        parameter
+    }
+
+    pub(crate) fn fresh_virtual_method(&mut self) -> hir::VirtualMethodId {
+        let method = hir::VirtualMethodId::from_raw(self.next_virtual_method_identity);
+        self.next_virtual_method_identity += 1;
+        method
+    }
+
     pub(crate) fn fresh_binding(&mut self) -> hir::BindingId {
         let binding = hir::BindingId::from_raw(self.next_binding_id);
         self.next_binding_id += 1;
@@ -518,28 +701,47 @@ impl Lowerer {
         let string = types.alloc(Type::String);
         let any = types.alloc(Type::Any);
 
-        let mut lowerer = Lowerer {
+        Lowerer {
             types,
             function_types: Arena::new(),
             lambdas: Arena::new(),
             anonymous_functions: Arena::new(),
             next_lambda_function: 0,
             next_anonymous_function: 0,
+            next_type_param_identity: 0,
+            next_virtual_method_identity: 0,
             local_functions: Arena::new(),
             local_function_by_function: HashMap::new(),
             callable_references: Arena::new(),
+            bound_callable_refs: Arena::new(),
             function_coercions: Arena::new(),
             foreign_callback_registrations: Arena::new(),
             function_coercion_by_types: HashMap::new(),
             structs: Arena::new(),
+            struct_applications: Arena::new(),
+            struct_application_by_key: HashMap::new(),
             enums: Arena::new(),
+            enum_applications: Arena::new(),
+            enum_application_by_key: HashMap::new(),
             classes: Arena::new(),
+            class_applications: Arena::new(),
+            class_application_by_key: HashMap::new(),
             interfaces: Arena::new(),
+            interface_applications: Arena::new(),
+            interface_application_by_key: HashMap::new(),
             functions: Arena::new(),
+            intrinsic_functions: HashMap::new(),
+            intrinsic_type_owners: HashMap::new(),
             extern_functions: Arena::new(),
             globals: Arena::new(),
             generic_functions: Arena::new(),
-            generic_by_function: HashMap::new(),
+            method_applications: Arena::new(),
+            method_application_by_key: HashMap::new(),
+            generic_methods: Arena::new(),
+            generic_method_applications: Arena::new(),
+            generic_method_application_by_key: HashMap::new(),
+            derived_equality_applications: Arena::new(),
+            derived_equality_application_by_type: HashMap::new(),
             top_level: Vec::new(),
             unit,
             int,
@@ -547,8 +749,6 @@ impl Lowerer {
             boolean,
             string,
             any,
-            // Filled by `synthesize_any_members` below.
-            any_methods: [hir::FunctionId::from_raw(0.into()); 3],
             functions_by_name: HashMap::new(),
             extensions_by_name: HashMap::new(),
             extension_receivers: HashMap::new(),
@@ -574,12 +774,9 @@ impl Lowerer {
             allow_deferred_fun_ptr: false,
             pointer_type_uses: Vec::new(),
             fun_ptr_type_uses: Vec::new(),
-            class_methods: HashMap::new(),
             interface_methods: HashMap::new(),
-            struct_methods: HashMap::new(),
-            enum_methods: HashMap::new(),
+            interface_method_entities: Arena::new(),
             function_owner: HashMap::new(),
-            class_prop_mutability: HashMap::new(),
             option_candidates: Vec::new(),
             option_enum: None,
             throwable_candidates: Vec::new(),
@@ -596,8 +793,11 @@ impl Lowerer {
             safety_contexts: vec![hir::Safety::Safe],
             current_this: None,
             current_owner: None,
+            constructor_params_in_scope: HashMap::new(),
             smart_casts: HashMap::new(),
             current_file: 0,
+            intrinsic_sources: Vec::new(),
+            intrinsic_policy: IntrinsicDeclarationPolicy::CoreOnly,
             locals: Arena::new(),
             scopes: Scopes::new(),
             local_function_scopes: LocalFunctionScopes::new(),
@@ -606,94 +806,31 @@ impl Lowerer {
             instantiations: Arena::new(),
             hidden_count: 0,
             diagnostics: Vec::new(),
-        };
-        lowerer.synthesize_any_members();
-        lowerer
+        }
     }
 
-    /// The three `Any` members — `equals(other: Any): Boolean`,
-    /// `hashCode(): Int`, `toString(): String` — synthesized as
-    /// bodyless members (parameter-only bodies, like interface
-    /// methods): mir-lower dispatches calls on an `Any` receiver
-    /// virtually through the fixed vtable prefix (slots 0..2, in this
-    /// order), so their bodies never execute. They are not in
-    /// `top_level` (they are members, not user declarations) and
-    /// therefore never appear in HIR dumps.
-    fn synthesize_any_members(&mut self) {
-        let span = Span::new(0, 0);
-        let mut methods = Vec::with_capacity(3);
-        for (short, params, return_ty) in [
-            ("equals", vec![("other", self.any)], self.boolean),
-            ("hashCode", Vec::new(), self.int),
-            ("toString", Vec::new(), self.string),
-        ] {
-            let mut locals = Arena::new();
-            let this_binding = self.fresh_binding();
-            let this = locals.alloc(hir::Local {
-                binding: this_binding,
-                name: "this".to_string(),
-                ty: self.any,
-                mutable: false,
-            });
-            let mut fn_params = vec![hir::Param {
-                name: "this".to_string(),
-                ty: self.any,
-                local: this,
-            }];
-            let mut sig_params = Vec::new();
-            for (param_name, param_ty) in params {
-                let binding = self.fresh_binding();
-                let local = locals.alloc(hir::Local {
-                    binding,
-                    name: param_name.to_string(),
-                    ty: param_ty,
-                    mutable: false,
-                });
-                fn_params.push(hir::Param {
-                    name: param_name.to_string(),
-                    ty: param_ty,
-                    local,
-                });
-                sig_params.push(FnParam {
-                    name: ast::Ident {
-                        text: param_name.to_string(),
-                        span,
-                    },
-                    ty: param_ty,
-                });
-            }
-            let id = self.functions.alloc(Function {
-                name: format!("Any.{short}"),
-                is_suspend: false,
-                type_params: Vec::new(),
-                params: fn_params,
-                return_ty,
-                attributes: hir::FunctionAttributes::default(),
-                kind: FunctionKind::User(hir::Body {
-                    locals,
-                    statements: Vec::new(),
-                }),
-                method: Some(hir::Method {
-                    owner: self.any,
-                    modifier: hir::MethodModifier::Open,
-                    owner_type_param_count: 0,
-                }),
-                span,
-            });
-            self.signatures.insert(
-                id,
-                FnSig {
-                    is_suspend: false,
-                    attributes: hir::FunctionAttributes::default(),
-                    owner_type_param_count: 0,
-                    type_params: Vec::new(),
-                    params: sig_params,
-                    return_ty,
-                },
-            );
-            methods.push(id);
-        }
-        self.any_methods = [methods[0], methods[1], methods[2]];
+    fn with_intrinsic_sources(
+        mut self,
+        sources: Vec<SourceProvider>,
+        policy: IntrinsicDeclarationPolicy,
+    ) -> Self {
+        self.intrinsic_sources = sources;
+        self.intrinsic_policy = policy;
+        self
+    }
+
+    pub(crate) fn current_intrinsic_provider(&self) -> hir::IntrinsicProviderId {
+        self.intrinsic_sources[self.current_file].provider
+    }
+
+    pub(crate) fn current_provider_may_declare_intrinsics(&self) -> bool {
+        let source = self.intrinsic_sources[self.current_file];
+        source.core
+            || matches!(
+                &self.intrinsic_policy,
+                IntrinsicDeclarationPolicy::AllowListedForTesting { providers }
+                    if providers.contains(&source.provider)
+            )
     }
 
     fn run(mut self, files: &[ast::SourceFile]) -> Result<hir::Module, Vec<Diagnostic>> {
@@ -717,12 +854,13 @@ impl Lowerer {
         let mut pending_structs = Vec::new();
         let mut pending_enums = Vec::new();
         let mut pending_classes = Vec::new();
+        let mut pending_interfaces = Vec::new();
         let mut pending_functions = Vec::new();
         let mut pending_globals = Vec::new();
         let mut pending_methods: Vec<(FunctionId, &ast::FunctionDecl, usize, Owner)> = Vec::new();
         for (file_index, file) in files.iter().enumerate() {
             self.current_file = file_index;
-            let is_core = file_index < user_file_index;
+            let is_core = self.intrinsic_sources[file_index].core;
             for decl in &file.declarations {
                 match decl {
                     ast::Decl::Global(decl) => pending_globals.push((decl, file_index)),
@@ -746,15 +884,87 @@ impl Lowerer {
                         &mut pending_methods,
                         file_index,
                     ),
-                    ast::Decl::Interface(decl) => {
-                        self.declare_interface(decl, &mut pending_methods, file_index)
-                    }
+                    ast::Decl::Interface(decl) => self.declare_interface(
+                        decl,
+                        &mut pending_interfaces,
+                        &mut pending_methods,
+                        file_index,
+                    ),
                     ast::Decl::Function(decl) => {
-                        self.declare_function(decl, is_core, &mut pending_functions, file_index)
+                        self.declare_function(decl, &mut pending_functions, file_index)
                     }
                 }
             }
         }
+
+        // Type-parameter names and arities are declared in pass 1. Resolve
+        // their ordered constraints only after every nominal name is visible,
+        // then validate bound applications after all constraint sets are
+        // complete (F-bounds may form legal dependency cycles).
+        for &(id, decl, file_index) in &pending_structs {
+            self.current_file = file_index;
+            let declared = self.structs[id].type_params.clone();
+            let params = self.resolve_type_parameter_constraints(
+                declared,
+                0,
+                &decl.type_params,
+                decl.where_clause.as_ref(),
+                "struct",
+            );
+            self.structs[id].type_params = params;
+        }
+        for &(id, decl, file_index) in &pending_enums {
+            self.current_file = file_index;
+            let declared = self.enums[id].type_params.clone();
+            let params = self.resolve_type_parameter_constraints(
+                declared,
+                0,
+                &decl.type_params,
+                decl.where_clause.as_ref(),
+                "enum",
+            );
+            self.enums[id].type_params = params;
+        }
+        for &(id, decl, file_index) in &pending_classes {
+            self.current_file = file_index;
+            let declared = self.classes[id].type_params.clone();
+            let params = self.resolve_type_parameter_constraints(
+                declared,
+                0,
+                &decl.type_params,
+                decl.where_clause.as_ref(),
+                "class",
+            );
+            self.classes[id].type_params = params;
+        }
+        for &(id, decl, file_index) in &pending_interfaces {
+            self.current_file = file_index;
+            let declared = self.interfaces[id].type_params.clone();
+            let params = self.resolve_type_parameter_constraints(
+                declared,
+                0,
+                &decl.type_params,
+                decl.where_clause.as_ref(),
+                "interface",
+            );
+            self.interfaces[id].type_params = params;
+        }
+        self.validate_nominal_type_parameter_constraints();
+        let intrinsic_type_core = self.validate_intrinsic_type_core(files);
+        for &(id, decl, file_index) in &pending_interfaces {
+            self.current_file = file_index;
+            self.type_params_in_scope = self.interfaces[id].type_params.clone();
+            let parents = self.resolve_interface_list(&decl.parents);
+            self.type_params_in_scope.clear();
+            self.interfaces[id].parents = parents
+                .into_iter()
+                .map(|parent| match self.types[parent] {
+                    Type::Interface(application) => application,
+                    _ => unreachable!("resolved interface parents are interface applications"),
+                })
+                .collect();
+        }
+        self.check_interface_inheritance_cycles(&pending_interfaces);
 
         self.ffi_ptr = self.require_core_struct("Ptr", files);
         self.ffi_fun_ptr = self.require_core_struct("FunPtr", files);
@@ -843,6 +1053,12 @@ impl Lowerer {
             &pending_enums,
             &pending_methods,
         );
+        self.declare_derived_equality_methods();
+        // Compiler-generated exception edges receive complete typed class /
+        // zero-argument-constructor identities after inheritance has been
+        // validated and before body lowering. MIR never recovers these
+        // targets from names.
+        let exception_core = self.validate_exception_core(files);
 
         // Pass 3: lower bodies. Intrinsics have no body to lower (the
         // parser guarantees it is omitted); their `kind` was set at
@@ -882,6 +1098,7 @@ impl Lowerer {
         // Effects consume fully resolved calls and types. Local functions and
         // callable literals lifted while lowering the bodies are visible now.
         self.validate_c_ffi_types();
+        self.check_generic_recursion();
         self.check_no_gc_types();
         self.check_no_gc_functions();
 
@@ -901,7 +1118,7 @@ impl Lowerer {
             Some(id) => {
                 // The entry point is monomorphic: there is no caller to
                 // infer type arguments from.
-                if !self.functions[id].type_params.is_empty() {
+                if !self.functions[id].type_params().is_empty() {
                     self.error(
                         self.functions[id].span,
                         "`main` must not be generic".to_string(),
@@ -941,6 +1158,8 @@ impl Lowerer {
             .expect("a missing or invalid core `Option` is always diagnosed");
         let coroutine_core = coroutine_core
             .expect("a missing or invalid coroutine core protocol is always diagnosed");
+        let exception_core = exception_core
+            .expect("a missing or invalid compiler exception core is always diagnosed");
         let ffi_core =
             ffi_core.expect("a missing or invalid FFI core protocol is always diagnosed");
         Ok(hir::Module {
@@ -950,26 +1169,39 @@ impl Lowerer {
             anonymous_functions: self.anonymous_functions,
             local_functions: self.local_functions,
             callable_references: self.callable_references,
+            bound_callable_refs: self.bound_callable_refs,
             function_coercions: self.function_coercions,
             foreign_callback_registrations: self.foreign_callback_registrations,
             functions: self.functions,
             extern_functions: self.extern_functions,
             globals: self.globals,
             generic_functions: self.generic_functions,
+            method_applications: self.method_applications,
+            generic_methods: self.generic_methods,
+            generic_method_applications: self.generic_method_applications,
+            derived_equality_applications: self.derived_equality_applications,
             structs: self.structs,
+            struct_applications: self.struct_applications,
             enums: self.enums,
+            enum_applications: self.enum_applications,
             classes: self.classes,
+            class_applications: self.class_applications,
             interfaces: self.interfaces,
+            interface_applications: self.interface_applications,
+            interface_methods: self.interface_method_entities,
             top_level: self.top_level,
             unit: self.unit,
             int: self.int,
             boolean: self.boolean,
             string: self.string,
             option_enum,
+            exception_core,
             coroutine_core,
             ffi_core,
             foreign_callback_core: foreign_callback_core
                 .expect("a missing or invalid foreign callback core protocol is always diagnosed"),
+            intrinsic_type_core: intrinsic_type_core
+                .expect("missing or invalid intrinsic core types are always diagnosed"),
             entry,
             instantiations: self.instantiations,
         })
@@ -1021,7 +1253,7 @@ impl Lowerer {
         pending_methods: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
         file_index: usize,
     ) {
-        let attributes = self.check_struct_annotations(decl);
+        let checked = self.check_struct_annotations(decl);
         if let Some(kind) = self.type_namespace_conflict(&decl.name.text) {
             let what = if kind == "a struct" {
                 format!("duplicate struct `{}`", decl.name.text)
@@ -1046,25 +1278,62 @@ impl Lowerer {
                 );
                 continue;
             }
-            type_params.push(lower_type_param_decl(param));
+            let parameter = self.fresh_type_param(type_params.len());
+            type_params.push(lower_type_param_decl(param, parameter));
         }
+        let self_application =
+            hir::StructApplicationId::from_raw((self.struct_applications.len() as u32).into());
+        let representation = match checked.intrinsic {
+            Some(spec) => {
+                self.validate_intrinsic_type_source_shape(
+                    spec,
+                    &decl.name,
+                    &decl.type_params,
+                    decl.where_clause.as_ref(),
+                    decl.fields.is_omitted(),
+                    decl.span,
+                );
+                hir::StructRepresentation::Intrinsic(hir::IntrinsicTypeDeclaration {
+                    kind: spec.kind,
+                    provider: self.current_intrinsic_provider(),
+                })
+            }
+            None => hir::StructRepresentation::Declared(Vec::new()),
+        };
         let id = self.structs.alloc(StructDecl {
             name: decl.name.text.clone(),
+            self_application,
             type_params: type_params.clone(),
-            attributes,
-            fields: Vec::new(),
+            attributes: checked.attributes,
+            representation,
             // Filled in pass 2 together with the fields.
             interfaces: Vec::new(),
+            interface_implementations: Vec::new(),
+            methods: Vec::new(),
+            derived_equality: None,
             span: decl.span,
         });
-        let type_args = (0..type_params.len())
-            .map(|index| self.intern_type(Type::Param(hir::TypeParamId::from_raw(index as u32))))
+        let parameter_ids = type_params
+            .iter()
+            .map(|parameter| parameter.id)
+            .collect::<Vec<_>>();
+        let type_args = parameter_ids
+            .into_iter()
+            .map(|parameter| self.intern_type(Type::Param(parameter)))
             .collect();
-        let ty = self.intern_type(Type::Struct(id, type_args));
+        let ty = self.struct_application(id, type_args);
+        if matches!(
+            self.structs[id].representation,
+            hir::StructRepresentation::Declared(_)
+        ) {
+            assert_eq!(self.types[ty], Type::Struct(self_application));
+        }
         self.structs_by_name
             .insert(decl.name.text.clone(), (id, ty));
         self.struct_files.insert(id, file_index);
-        self.struct_methods.insert(id, Vec::new());
+        if let hir::StructRepresentation::Intrinsic(intrinsic) = self.structs[id].representation {
+            self.register_intrinsic_type(intrinsic, IntrinsicTypeOwner::Struct(id), decl.span);
+        }
         for method in &decl.methods {
             self.declare_method(method, Owner::Struct(id), pending_methods, file_index);
         }
@@ -1104,21 +1373,38 @@ impl Lowerer {
                 );
                 continue;
             }
-            type_params.push(lower_type_param_decl(param));
+            let parameter = self.fresh_type_param(type_params.len());
+            type_params.push(lower_type_param_decl(param, parameter));
         }
+        let self_application =
+            hir::EnumApplicationId::from_raw((self.enum_applications.len() as u32).into());
         let id = self.enums.alloc(EnumDecl {
             name: decl.name.text.clone(),
+            self_application,
             type_params,
             no_gc,
             // Filled in pass 2; a resolution failure is diagnosed, so
             // empty variants never reach the output.
             variants: Vec::new(),
             interfaces: Vec::new(),
+            interface_implementations: Vec::new(),
+            methods: Vec::new(),
+            derived_equality: None,
             span: decl.span,
         });
         self.enums_by_name.insert(decl.name.text.clone(), id);
+        let parameter_ids = self.enums[id]
+            .type_params
+            .iter()
+            .map(|parameter| parameter.id)
+            .collect::<Vec<_>>();
+        let type_args = parameter_ids
+            .into_iter()
+            .map(|parameter| self.intern_type(Type::Param(parameter)))
+            .collect();
+        let ty = self.enum_application(id, type_args);
+        assert_eq!(self.types[ty], Type::Enum(self_application));
         self.enum_files.insert(id, file_index);
-        self.enum_methods.insert(id, Vec::new());
         if is_core && decl.name.text == "Option" {
             self.option_candidates
                 .push((id, file_index, decl.span, decl.type_params.len()));
@@ -1137,7 +1423,7 @@ impl Lowerer {
         pending_methods: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
         file_index: usize,
     ) {
-        self.reject_type_annotations("a class", &decl.annotations);
+        let checked = self.check_class_annotations(decl);
         if let Some(kind) = self.type_namespace_conflict(&decl.name.text) {
             let what = if kind == "a class" {
                 format!("duplicate class `{}`", decl.name.text)
@@ -1155,21 +1441,87 @@ impl Lowerer {
             ast::ClassModifier::Open => hir::ClassModifier::Open,
             ast::ClassModifier::Abstract => hir::ClassModifier::Abstract,
         };
+        let mut type_params = Vec::new();
+        for param in &decl.type_params {
+            if type_params
+                .iter()
+                .any(|existing: &hir::TypeParamDecl| existing.name == param.name.text)
+            {
+                self.error(
+                    param.span,
+                    format!("duplicate type parameter `{}`", param.name.text),
+                );
+                continue;
+            }
+            let parameter = self.fresh_type_param(type_params.len());
+            type_params.push(lower_type_param_decl(param, parameter));
+        }
+        let self_application =
+            hir::ClassApplicationId::from_raw((self.class_applications.len() as u32).into());
+        let representation = match checked.intrinsic {
+            Some(spec) => {
+                self.validate_intrinsic_type_source_shape(
+                    spec,
+                    &decl.name,
+                    &decl.type_params,
+                    decl.where_clause.as_ref(),
+                    decl.constructor.is_omitted(),
+                    decl.span,
+                );
+                if modifier != hir::ClassModifier::Final {
+                    self.error(
+                        decl.span,
+                        "an intrinsic class declaration must be final".to_string(),
+                    );
+                }
+                if decl.base_class.is_some() {
+                    self.error(
+                        decl.span,
+                        "an intrinsic class declaration cannot have a base class".to_string(),
+                    );
+                }
+                hir::ClassRepresentation::Intrinsic(hir::IntrinsicTypeDeclaration {
+                    kind: spec.kind,
+                    provider: self.current_intrinsic_provider(),
+                })
+            }
+            None => hir::ClassRepresentation::Declared(Vec::new()),
+        };
         let id = self.classes.alloc(ClassDecl {
             modifier,
             name: decl.name.text.clone(),
+            self_application,
+            type_params: type_params.clone(),
             // Filled in pass 2; resolution failures are diagnosed, so
             // these never reach the output unfinished.
-            constructor: Vec::new(),
+            representation,
             base_class: None,
             interfaces: Vec::new(),
+            interface_implementations: Vec::new(),
+            methods: Vec::new(),
             span: decl.span,
         });
-        let ty = self.types.alloc(Type::Class(id));
+        let parameter_ids = type_params
+            .iter()
+            .map(|parameter| parameter.id)
+            .collect::<Vec<_>>();
+        let type_args = parameter_ids
+            .into_iter()
+            .map(|parameter| self.intern_type(Type::Param(parameter)))
+            .collect();
+        let ty = self.class_application(id, type_args);
+        if matches!(
+            self.classes[id].representation,
+            hir::ClassRepresentation::Declared(_)
+        ) {
+            assert_eq!(self.types[ty], Type::Class(self_application));
+        }
         self.classes_by_name
             .insert(decl.name.text.clone(), (id, ty));
         self.class_files.insert(id, file_index);
-        self.class_methods.insert(id, Vec::new());
+        if let hir::ClassRepresentation::Intrinsic(intrinsic) = self.classes[id].representation {
+            self.register_intrinsic_type(intrinsic, IntrinsicTypeOwner::Class(id), decl.span);
+        }
         if is_core && decl.name.text == "Throwable" {
             self.throwable_candidates.push((id, ty));
         }
@@ -1182,6 +1534,7 @@ impl Lowerer {
     fn declare_interface<'a>(
         &mut self,
         decl: &'a ast::InterfaceDecl,
+        pending: &mut Vec<(InterfaceId, &'a ast::InterfaceDecl, usize)>,
         pending_methods: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
         file_index: usize,
     ) {
@@ -1210,19 +1563,31 @@ impl Lowerer {
                 );
                 continue;
             }
-            type_params.push(lower_type_param_decl(param));
+            let parameter = self.fresh_type_param(type_params.len());
+            type_params.push(lower_type_param_decl(param, parameter));
         }
+        let self_application = hir::InterfaceApplicationId::from_raw(
+            (self.interface_applications.len() as u32).into(),
+        );
         let id = self.interfaces.alloc(InterfaceDecl {
             name: decl.name.text.clone(),
+            self_application,
             type_params: type_params.clone(),
+            parents: Vec::new(),
             // Filled in pass 2.5 together with the method signatures.
             methods: Vec::new(),
             span: decl.span,
         });
-        let type_args = (0..type_params.len())
-            .map(|index| self.intern_type(Type::Param(hir::TypeParamId::from_raw(index as u32))))
+        let parameter_ids = type_params
+            .iter()
+            .map(|parameter| parameter.id)
+            .collect::<Vec<_>>();
+        let type_args = parameter_ids
+            .into_iter()
+            .map(|parameter| self.intern_type(Type::Param(parameter)))
             .collect();
-        let ty = self.intern_type(Type::Interface(id, type_args));
+        let ty = self.intern_interface_application(id, type_args);
+        assert_eq!(self.types[ty], Type::Interface(self_application));
         self.interfaces_by_name
             .insert(decl.name.text.clone(), (id, ty));
         self.interface_files.insert(id, file_index);
@@ -1230,6 +1595,7 @@ impl Lowerer {
         for method in &decl.methods {
             self.declare_method(method, Owner::Interface(id), pending_methods, file_index);
         }
+        pending.push((id, decl, file_index));
     }
 
     /// Declare a member function (pass 1): methods live in per-owner
@@ -1246,11 +1612,7 @@ impl Lowerer {
         pending: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
         file_index: usize,
     ) {
-        let checked = self.check_function_annotations(
-            decl,
-            file_index < self.user_file_index,
-            FunctionTarget::Member(owner),
-        );
+        let checked = self.check_function_annotations(decl, FunctionTarget::Member(owner));
         let host_ty = self.owner_ty(owner);
         let modifier = match owner {
             Owner::Interface(_) => hir::MethodModifier::Abstract,
@@ -1270,7 +1632,6 @@ impl Lowerer {
                 ast::MethodModifier::Abstract => hir::MethodModifier::Abstract,
             },
         };
-        let owner_type_param_count = self.owner_type_params(owner).len() as u32;
         let kind = match checked.intrinsic {
             Some(intrinsic) => FunctionKind::Intrinsic(intrinsic),
             None => FunctionKind::User(hir::Body {
@@ -1280,10 +1641,10 @@ impl Lowerer {
         };
         let id = self.functions.alloc(Function {
             name: format!("{}.{}", owner.describe_name(self), decl.name.text),
+            genericity: hir::FunctionGenericity::Plain,
             is_suspend: decl.is_suspend,
             // Filled in pass 2.5 (signature) and pass 3 (body and
             // parameter locals).
-            type_params: Vec::new(),
             params: Vec::new(),
             return_ty: self.unit,
             attributes: checked.attributes,
@@ -1291,20 +1652,40 @@ impl Lowerer {
             method: Some(hir::Method {
                 owner: host_ty,
                 modifier,
-                owner_type_param_count,
+                dispatch: hir::MethodDispatch::Direct,
+                operator: match (&decl.operator, decl.name.text.as_str()) {
+                    (Some(_), "equals") => Some(hir::OperatorKind::Equals),
+                    _ => None,
+                },
             }),
             span: decl.span,
         });
+        if let Some(intrinsic) = checked.intrinsic {
+            self.register_intrinsic_function(id, intrinsic, decl.span);
+        }
         self.function_owner.insert(id, owner);
         self.function_files.insert(id, file_index);
         match owner {
-            Owner::Class(id) => self.class_methods.get_mut(&id),
-            Owner::Interface(id) => self.interface_methods.get_mut(&id),
-            Owner::Struct(id) => self.struct_methods.get_mut(&id),
-            Owner::Enum(id) => self.enum_methods.get_mut(&id),
+            Owner::Class(owner) => self.classes[owner].methods.push(id),
+            Owner::Interface(owner) => {
+                self.interface_methods
+                    .get_mut(&owner)
+                    .expect("the interface owner map was initialized above")
+                    .push(id);
+                let member = self.interface_method_entities.alloc(hir::InterfaceMethod {
+                    owner,
+                    function: id,
+                });
+                self.functions[id]
+                    .method
+                    .as_mut()
+                    .expect("declared interface function is a method")
+                    .dispatch = hir::MethodDispatch::Interface(member);
+                self.interfaces[owner].methods.push(member);
+            }
+            Owner::Struct(owner) => self.structs[owner].methods.push(id),
+            Owner::Enum(owner) => self.enums[owner].methods.push(id),
         }
-        .expect("the owner map was initialized above")
-        .push(id);
         pending.push((id, decl, file_index, owner));
     }
 
@@ -1314,11 +1695,16 @@ impl Lowerer {
     fn declare_function<'a>(
         &mut self,
         decl: &'a ast::FunctionDecl,
-        is_core: bool,
         pending: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize)>,
         file_index: usize,
     ) {
-        let checked = self.check_function_annotations(decl, is_core, FunctionTarget::TopLevel);
+        if let Some(operator) = decl.operator {
+            self.error(
+                operator.span,
+                "`operator` is only allowed on member functions".to_string(),
+            );
+        }
+        let checked = self.check_function_annotations(decl, FunctionTarget::TopLevel);
         let kind = match (checked.intrinsic, checked.extern_) {
             (Some(intrinsic), _) => FunctionKind::Intrinsic(intrinsic),
             (None, Some(extern_)) => {
@@ -1342,11 +1728,11 @@ impl Lowerer {
         };
         let id = self.functions.alloc(Function {
             name: decl.name.text.clone(),
+            genericity: hir::FunctionGenericity::Plain,
             is_suspend: decl.is_suspend,
             // Filled in pass 2.5 (signature) and pass 3 (parameter
             // locals); a resolution failure is diagnosed, so these
             // never reach the output.
-            type_params: Vec::new(),
             params: Vec::new(),
             return_ty: self.unit,
             attributes: checked.attributes,
@@ -1354,6 +1740,9 @@ impl Lowerer {
             method: None,
             span: decl.span,
         });
+        if let Some(intrinsic) = checked.intrinsic {
+            self.register_intrinsic_function(id, intrinsic, decl.span);
+        }
         self.top_level.push(id);
         let namespace = if decl.receiver_ty.is_some() {
             &mut self.extensions_by_name
@@ -1366,892 +1755,6 @@ impl Lowerer {
             .push(id);
         self.function_files.insert(id, file_index);
         pending.push((id, decl, file_index));
-    }
-
-    fn validate_coroutine_core(&mut self, files: &[ast::SourceFile]) -> Option<hir::CoroutineCore> {
-        let continuation = self.require_core_interface("Continuation", files);
-        let suspend_task = self.require_core_interface("SuspendTask", files);
-        let suspend_registration = self.require_core_interface("SuspendRegistration", files);
-        let throwable = self.throwable.map(|(id, _)| id);
-
-        if let Some(id) = continuation {
-            self.validate_continuation_contract(id);
-        }
-        if let Some(id) = suspend_task {
-            self.validate_suspend_task_contract(id);
-        }
-        if let (Some(id), Some(continuation)) = (suspend_registration, continuation) {
-            self.validate_suspend_registration_contract(id, continuation);
-        }
-        let illegal_state_exception = self.validate_illegal_state_exception(files);
-        let start_coroutine = self.require_intrinsic("coroutine_start", files);
-        let suspend_coroutine = self.require_intrinsic("coroutine_suspend", files);
-
-        if let (Some(id), Some(continuation), Some(suspend_task)) =
-            (start_coroutine, continuation, suspend_task)
-        {
-            self.validate_coroutine_start(id, continuation, suspend_task);
-        }
-        if let (Some(id), Some(suspend_registration)) = (suspend_coroutine, suspend_registration) {
-            self.validate_coroutine_suspend(id, suspend_registration);
-        }
-
-        let continuation_methods = continuation
-            .and_then(|id| self.interface_methods.get(&id))
-            .and_then(|methods| match methods.as_slice() {
-                [resume, resume_with_exception] => Some((*resume, *resume_with_exception)),
-                _ => None,
-            });
-        let suspend_task_run = suspend_task
-            .and_then(|id| self.interface_methods.get(&id))
-            .and_then(|methods| matches!(methods.as_slice(), [_]).then_some(methods[0]));
-        let suspend_registration_register = suspend_registration
-            .and_then(|id| self.interface_methods.get(&id))
-            .and_then(|methods| matches!(methods.as_slice(), [_]).then_some(methods[0]));
-        let (
-            Some(throwable),
-            Some(illegal_state_exception),
-            Some(continuation),
-            Some((continuation_resume, continuation_resume_with_exception)),
-            Some(suspend_task),
-            Some(suspend_task_run),
-            Some(suspend_registration),
-            Some(suspend_registration_register),
-            Some(start_coroutine),
-            Some(suspend_coroutine),
-        ) = (
-            throwable,
-            illegal_state_exception,
-            continuation,
-            continuation_methods,
-            suspend_task,
-            suspend_task_run,
-            suspend_registration,
-            suspend_registration_register,
-            start_coroutine,
-            suspend_coroutine,
-        )
-        else {
-            return None;
-        };
-        Some(hir::CoroutineCore {
-            throwable,
-            illegal_state_exception,
-            continuation,
-            continuation_resume,
-            continuation_resume_with_exception,
-            suspend_task,
-            suspend_task_run,
-            suspend_registration,
-            suspend_registration_register,
-            start_coroutine,
-            suspend_coroutine,
-        })
-    }
-
-    fn validate_ffi_core(&mut self, files: &[ast::SourceFile]) -> Option<hir::FfiCore> {
-        let ptr = self.ffi_ptr;
-        let fun_ptr = self.ffi_fun_ptr;
-        let pinned_ptr = self.ffi_pinned_ptr;
-        let gc_handle = self.ffi_gc_handle;
-        if let Some(id) = ptr {
-            self.validate_ptr_struct(id);
-        }
-        if let Some(id) = fun_ptr {
-            self.validate_fun_ptr_struct(id);
-        }
-        if let Some(id) = pinned_ptr {
-            self.validate_ffi_handle_struct(id, "PinnedPtr");
-        }
-        if let Some(id) = gc_handle {
-            self.validate_ffi_handle_struct(id, "GcHandle");
-        }
-
-        let ptr_to_uint = self.require_intrinsic("ptr_to_uint", files);
-        let ptr_cast = self.require_intrinsic("ptr_cast", files);
-        let ptr_load = self.require_intrinsic("ptr_load", files);
-        let ptr_load_offset = self.require_intrinsic("ptr_load_offset", files);
-        let ptr_store = self.require_intrinsic("ptr_store", files);
-        let ptr_store_offset = self.require_intrinsic("ptr_store_offset", files);
-        let ptr_plus = self.require_intrinsic("ptr_plus", files);
-        let ptr_minus = self.require_intrinsic("ptr_minus", files);
-        let address_of = self.require_intrinsic("address_of", files);
-        let size_of = self.require_intrinsic("size_of", files);
-        let align_of = self.require_intrinsic("align_of", files);
-        let gc_pin_raw = self.require_intrinsic("gc_pin_raw", files);
-        let gc_unpin_raw = self.require_intrinsic("gc_unpin_raw", files);
-        let gc_get_handle_raw = self.require_intrinsic("gc_get_handle_raw", files);
-        let gc_release_handle_raw = self.require_intrinsic("gc_release_handle_raw", files);
-
-        for (id, kind) in [
-            (gc_pin_raw, GcIntrinsic::Pin),
-            (gc_unpin_raw, GcIntrinsic::Unpin),
-            (gc_get_handle_raw, GcIntrinsic::GetHandle),
-            (gc_release_handle_raw, GcIntrinsic::ReleaseHandle),
-        ] {
-            if let Some(id) = id {
-                self.validate_gc_intrinsic(id, kind);
-            }
-        }
-
-        if let Some(ptr) = ptr {
-            for (id, kind) in [
-                (ptr_to_uint, hir::PointerIntrinsic::ToUInt),
-                (ptr_cast, hir::PointerIntrinsic::Cast),
-                (ptr_load, hir::PointerIntrinsic::Load),
-                (ptr_load_offset, hir::PointerIntrinsic::LoadOffset),
-                (ptr_store, hir::PointerIntrinsic::Store),
-                (ptr_store_offset, hir::PointerIntrinsic::StoreOffset),
-                (ptr_plus, hir::PointerIntrinsic::Plus),
-                (ptr_minus, hir::PointerIntrinsic::Minus),
-            ] {
-                if let Some(id) = id {
-                    self.validate_ptr_method_intrinsic(id, ptr, kind);
-                }
-            }
-        }
-        if let Some(id) = address_of {
-            self.validate_pointer_top_level_intrinsic(id, hir::PointerIntrinsic::AddressOf);
-        }
-        if let Some(id) = size_of {
-            self.validate_pointer_top_level_intrinsic(id, hir::PointerIntrinsic::SizeOf);
-        }
-        if let Some(id) = align_of {
-            self.validate_pointer_top_level_intrinsic(id, hir::PointerIntrinsic::AlignOf);
-        }
-
-        Some(hir::FfiCore {
-            ptr: ptr?,
-            fun_ptr: fun_ptr?,
-            pinned_ptr: pinned_ptr?,
-            gc_handle: gc_handle?,
-            ptr_to_uint: ptr_to_uint?,
-            ptr_cast: ptr_cast?,
-            ptr_load: ptr_load?,
-            ptr_load_offset: ptr_load_offset?,
-            ptr_store: ptr_store?,
-            ptr_store_offset: ptr_store_offset?,
-            ptr_plus: ptr_plus?,
-            ptr_minus: ptr_minus?,
-            address_of: address_of?,
-            size_of: size_of?,
-            align_of: align_of?,
-            gc_pin_raw: gc_pin_raw?,
-            gc_unpin_raw: gc_unpin_raw?,
-            gc_get_handle_raw: gc_get_handle_raw?,
-            gc_release_handle_raw: gc_release_handle_raw?,
-        })
-    }
-
-    fn validate_foreign_callback_core(
-        &mut self,
-        files: &[ast::SourceFile],
-    ) -> Option<hir::ForeignCallbackCore> {
-        // The exception-core validator owns the missing-Throwable diagnostic.
-        // Callback failure typing cannot be validated until that prerequisite
-        // exists, so do not manufacture a second error or unwrap incomplete
-        // upstream state here.
-        let (_, throwable) = self.throwable?;
-        let callback = self.ffi_foreign_callback?;
-        let mode = self.require_core_enum("ForeignCallbackMode", files)?;
-        let state = self.require_core_enum("ForeignCallbackState", files)?;
-        let register = self.require_intrinsic("foreign_callback_register", files);
-        let retain = self.require_intrinsic("foreign_callback_retain", files);
-        let release = self.require_intrinsic("foreign_callback_release", files);
-        let query_state = self.require_intrinsic("foreign_callback_state", files);
-        let failure = self.require_intrinsic("foreign_callback_failure", files);
-
-        self.current_file = self.struct_files[&callback];
-        let callback_decl = &self.structs[callback];
-        let callback_valid = callback_decl.type_params.len() == 1
-            && callback_decl.type_params[0].kind == hir::TypeParamKind::Any
-            && callback_decl.interfaces.is_empty()
-            && callback_decl.attributes.c_layout.is_none()
-            && !callback_decl.attributes.interior_mutable
-            && matches!(callback_decl.fields.as_slice(), [function, context]
-                if function.name == "function"
-                    && matches!(&self.types[function.ty], hir::Type::Struct(id, args)
-                        if *id == self.ffi_fun_ptr.expect("FunPtr core exists")
-                            && matches!(args.as_slice(), [arg] if self.is_type_param(*arg, 0)))
-                    && context.name == "context"
-                    && matches!(self.types[context.ty], hir::Type::Ptr(pointee) if pointee == self.unit));
-        if !callback_valid {
-            self.error(
-                callback_decl.span,
-                "core `ForeignCallback<F>` must contain `function: FunPtr<F>` and `context: Ptr<Unit>`"
-                    .to_string(),
-            );
-        }
-
-        self.validate_unit_enum(mode, &["Reusable", "OneShot"]);
-        self.validate_unit_enum(state, &["Registered", "Active", "Completed", "Failed"]);
-
-        for (id, operation) in [
-            (register, "register"),
-            (retain, "retain"),
-            (release, "release"),
-            (query_state, "state"),
-            (failure, "failure"),
-        ] {
-            let Some(id) = id else { continue };
-            self.current_file = self.function_files[&id];
-            let function = &self.functions[id];
-            let signature = &self.signatures[&id];
-            let common = !signature.is_suspend
-                && signature.type_params.len() == 1
-                && signature.type_params[0].kind == hir::TypeParamKind::Any
-                && signature.attributes.safety == hir::Safety::Unsafe
-                && signature.attributes.gc_effect == hir::GcEffect::Managed
-                && function.method.is_none();
-            let callback_param = |ty| {
-                matches!(&self.types[ty], hir::Type::Struct(found, args)
-                    if *found == callback
-                        && matches!(args.as_slice(), [arg] if self.is_type_param(*arg, 0)))
-            };
-            let signature_valid = match operation {
-                "register" => {
-                    matches!(signature.params.as_slice(), [closure, index, mode_param]
-                        if closure.ty == self.any
-                            && index.ty == self.int
-                            && mode_param.ty == self.interned_enum_type(mode))
-                        && callback_param(signature.return_ty)
-                }
-                "retain" => matches!(signature.params.as_slice(), [param]
-                    if callback_param(param.ty) && callback_param(signature.return_ty)),
-                "release" => matches!(signature.params.as_slice(), [param]
-                    if callback_param(param.ty) && signature.return_ty == self.unit),
-                "state" => matches!(signature.params.as_slice(), [param]
-                    if callback_param(param.ty)
-                        && signature.return_ty == self.interned_enum_type(state)),
-                "failure" => {
-                    matches!(signature.params.as_slice(), [param]
-                        if callback_param(param.ty)
-                            && matches!(&self.types[signature.return_ty], hir::Type::Enum(id, args)
-                                if *id == self.option_enum.expect("Option core exists")
-                                    && args.as_slice() == [throwable]))
-                }
-                _ => unreachable!(),
-            };
-            if !common || !signature_valid {
-                self.error(
-                    function.span,
-                    format!(
-                        "intrinsic `foreign_callback_{operation}` has an invalid core signature"
-                    ),
-                );
-            }
-        }
-
-        Some(hir::ForeignCallbackCore {
-            callback,
-            mode,
-            state,
-            register: register?,
-            retain: retain?,
-            release: release?,
-            query_state: query_state?,
-            failure: failure?,
-        })
-    }
-
-    fn require_core_enum(&mut self, name: &str, files: &[ast::SourceFile]) -> Option<EnumId> {
-        let candidate = self.enums_by_name.get(name).copied();
-        if let Some(id) = candidate
-            && self
-                .enum_files
-                .get(&id)
-                .copied()
-                .unwrap_or(self.user_file_index)
-                < self.user_file_index
-        {
-            return Some(id);
-        }
-        self.current_file = 0;
-        self.error(
-            files[0].span,
-            format!("scoop.core must define exactly one `{name}` enum"),
-        );
-        None
-    }
-
-    fn validate_unit_enum(&mut self, id: EnumId, names: &[&str]) {
-        self.current_file = self.enum_files[&id];
-        let declaration = &self.enums[id];
-        let valid = declaration.type_params.is_empty()
-            && declaration.interfaces.is_empty()
-            && declaration.variants.len() == names.len()
-            && declaration
-                .variants
-                .iter()
-                .zip(names)
-                .all(|(variant, name)| variant.name == *name && variant.fields.is_empty());
-        if !valid {
-            self.error(
-                declaration.span,
-                format!(
-                    "core `{}` must declare unit variants `{}` in order",
-                    declaration.name,
-                    names.join("`, `")
-                ),
-            );
-        }
-    }
-
-    fn interned_enum_type(&self, enum_id: EnumId) -> TypeId {
-        self.types
-            .iter()
-            .find_map(|(id, ty)| {
-                matches!(ty, Type::Enum(found, args) if *found == enum_id && args.is_empty())
-                    .then_some(id)
-            })
-            .expect("a declared non-generic enum has one interned type")
-    }
-
-    fn validate_ffi_handle_struct(&mut self, id: StructId, name: &str) {
-        self.current_file = self.struct_files[&id];
-        let declaration = &self.structs[id];
-        let valid = declaration.type_params.len() == 1
-            && declaration.type_params[0].kind == hir::TypeParamKind::Ref
-            && matches!(declaration.fields.as_slice(), [field] if field.name == "raw" && field.ty == self.uint)
-            && declaration.interfaces.is_empty()
-            && !declaration.attributes.interior_mutable
-            && declaration.attributes.c_layout.is_none();
-        if !valid {
-            self.error(
-                declaration.span,
-                format!("core `{name}` must be `struct {name}<T : ref>(val raw: UInt)`"),
-            );
-        }
-    }
-
-    fn validate_gc_intrinsic(&mut self, id: FunctionId, kind: GcIntrinsic) {
-        self.current_file = self.function_files[&id];
-        let function = &self.functions[id];
-        let signature = &self.signatures[&id];
-        let parameter_matches = match kind {
-            GcIntrinsic::Pin | GcIntrinsic::GetHandle => {
-                matches!(signature.params.as_slice(), [param] if self.is_type_param(param.ty, 0))
-                    && signature.return_ty == self.uint
-            }
-            GcIntrinsic::Unpin | GcIntrinsic::ReleaseHandle => {
-                matches!(signature.params.as_slice(), [param] if param.ty == self.uint)
-                    && self.is_type_param(signature.return_ty, 0)
-            }
-        };
-        let valid = !signature.is_suspend
-            && signature.type_params.len() == 1
-            && signature.type_params[0].kind == hir::TypeParamKind::Ref
-            && signature.attributes.safety == hir::Safety::Unsafe
-            && signature.attributes.gc_effect == hir::GcEffect::Managed
-            && function.method.is_none()
-            && parameter_matches;
-        if !valid {
-            self.error(
-                function.span,
-                format!(
-                    "intrinsic `{}` has an invalid core GC primitive signature",
-                    kind.name()
-                ),
-            );
-        }
-    }
-
-    fn validate_ptr_struct(&mut self, id: StructId) {
-        self.current_file = self.struct_files[&id];
-        let declaration = &self.structs[id];
-        let valid = declaration.type_params.len() == 1
-            && declaration.type_params[0].kind == hir::TypeParamKind::Value
-            && matches!(declaration.fields.as_slice(), [field] if field.name == "_rawPointer" && field.ty == self.uint)
-            && declaration.interfaces.is_empty()
-            && !declaration.attributes.interior_mutable
-            && declaration.attributes.c_layout.is_none();
-        if !valid {
-            self.error(
-                declaration.span,
-                "core `Ptr` must be `struct Ptr<T : value>(val _rawPointer: UInt)`".to_string(),
-            );
-        }
-    }
-
-    fn validate_fun_ptr_struct(&mut self, id: StructId) {
-        self.current_file = self.struct_files[&id];
-        let declaration = &self.structs[id];
-        let valid = declaration.type_params.len() == 1
-            && declaration.type_params[0].kind == hir::TypeParamKind::Any
-            && matches!(declaration.fields.as_slice(), [field] if field.name == "_rawPointer" && field.ty == self.uint)
-            && declaration.interfaces.is_empty()
-            && self.struct_methods[&id].is_empty()
-            && !declaration.attributes.interior_mutable
-            && declaration.attributes.c_layout.is_none();
-        if !valid {
-            self.error(
-                declaration.span,
-                "core `FunPtr` must be `struct FunPtr<F>(val _rawPointer: UInt)`".to_string(),
-            );
-        }
-    }
-
-    fn validate_ptr_method_intrinsic(
-        &mut self,
-        id: FunctionId,
-        ptr: StructId,
-        kind: hir::PointerIntrinsic,
-    ) {
-        self.current_file = self.function_files[&id];
-        let function = &self.functions[id];
-        let sig = &self.signatures[&id];
-        let owner_matches = self.function_owner.get(&id) == Some(&Owner::Struct(ptr));
-        let base = owner_matches
-            && !sig.is_suspend
-            && sig.owner_type_param_count == 1
-            && sig
-                .type_params
-                .first()
-                .is_some_and(|param| param.kind == hir::TypeParamKind::Value && param.name == "T")
-            && function.attributes.safety == hir::Safety::Unsafe
-            && function.attributes.gc_effect == hir::GcEffect::NoGc;
-        let valid = base
-            && match kind {
-                hir::PointerIntrinsic::ToUInt => {
-                    function.name.ends_with(".toUInt")
-                        && sig.type_params.len() == 1
-                        && sig.params.is_empty()
-                        && sig.return_ty == self.uint
-                }
-                hir::PointerIntrinsic::Cast => {
-                    function.name.ends_with(".cast")
-                        && sig.type_params.len() == 2
-                        && sig.type_params[1].kind == hir::TypeParamKind::Value
-                        && sig.params.is_empty()
-                        && self.is_ptr_param(sig.return_ty, 1)
-                }
-                hir::PointerIntrinsic::Load => {
-                    function.name.ends_with(".load")
-                        && sig.type_params.len() == 1
-                        && sig.params.is_empty()
-                        && self.is_type_param(sig.return_ty, 0)
-                }
-                hir::PointerIntrinsic::LoadOffset => {
-                    function.name.ends_with(".load")
-                        && sig.type_params.len() == 1
-                        && matches!(sig.params.as_slice(), [param] if param.ty == self.int)
-                        && self.is_type_param(sig.return_ty, 0)
-                }
-                hir::PointerIntrinsic::Store => {
-                    function.name.ends_with(".store")
-                        && sig.type_params.len() == 1
-                        && matches!(sig.params.as_slice(), [param] if self.is_type_param(param.ty, 0))
-                        && sig.return_ty == self.unit
-                }
-                hir::PointerIntrinsic::StoreOffset => {
-                    function.name.ends_with(".store")
-                        && sig.type_params.len() == 1
-                        && matches!(sig.params.as_slice(), [offset, value] if offset.ty == self.int && self.is_type_param(value.ty, 0))
-                        && sig.return_ty == self.unit
-                }
-                hir::PointerIntrinsic::Plus | hir::PointerIntrinsic::Minus => {
-                    function
-                        .name
-                        .ends_with(if kind == hir::PointerIntrinsic::Plus {
-                            ".plus"
-                        } else {
-                            ".minus"
-                        })
-                        && sig.type_params.len() == 1
-                        && matches!(sig.params.as_slice(), [param] if param.ty == self.int)
-                        && self.is_ptr_param(sig.return_ty, 0)
-                }
-                _ => false,
-            };
-        if !valid {
-            let intrinsic = match &function.kind {
-                FunctionKind::Intrinsic(name) => name.as_str(),
-                FunctionKind::User(_) => "pointer",
-                FunctionKind::Extern(_) => "extern",
-            };
-            self.error(
-                function.span,
-                format!("malformed core pointer intrinsic `{intrinsic}`"),
-            );
-        }
-    }
-
-    fn validate_pointer_top_level_intrinsic(
-        &mut self,
-        id: FunctionId,
-        kind: hir::PointerIntrinsic,
-    ) {
-        self.current_file = self.function_files[&id];
-        let function = &self.functions[id];
-        let sig = &self.signatures[&id];
-        let one_value_param = sig.type_params.len() == 1
-            && sig.type_params[0].kind == hir::TypeParamKind::Value
-            && sig.owner_type_param_count == 0;
-        let valid = function.method.is_none()
-            && !sig.is_suspend
-            && one_value_param
-            && match kind {
-                hir::PointerIntrinsic::AddressOf => {
-                    function.name == "addressOf"
-                        && function.attributes.safety == hir::Safety::Unsafe
-                        && function.attributes.gc_effect == hir::GcEffect::Managed
-                        && matches!(sig.params.as_slice(), [param] if self.is_type_param(param.ty, 0))
-                        && self.is_ptr_param(sig.return_ty, 0)
-                }
-                hir::PointerIntrinsic::SizeOf | hir::PointerIntrinsic::AlignOf => {
-                    function.name
-                        == if kind == hir::PointerIntrinsic::SizeOf {
-                            "sizeOf"
-                        } else {
-                            "alignOf"
-                        }
-                        && function.attributes.safety == hir::Safety::Safe
-                        && function.attributes.gc_effect == hir::GcEffect::NoGc
-                        && sig.params.is_empty()
-                        && sig.return_ty == self.uint
-                }
-                _ => false,
-            };
-        if !valid {
-            let intrinsic = match &function.kind {
-                FunctionKind::Intrinsic(name) => name.as_str(),
-                FunctionKind::User(_) => "pointer",
-                FunctionKind::Extern(_) => "extern",
-            };
-            self.error(
-                function.span,
-                format!("malformed core pointer intrinsic `{intrinsic}`"),
-            );
-        }
-    }
-
-    fn validate_pointer_type_uses(&mut self) {
-        let uses = self.pointer_type_uses.clone();
-        for (ty, file, span) in uses {
-            let Type::Ptr(pointee) = self.types[ty] else {
-                continue;
-            };
-            if self.type_contains_param(pointee) {
-                continue;
-            }
-            if !self.is_gc_free(pointee) {
-                self.current_file = file;
-                self.error(
-                    span,
-                    format!(
-                        "`Ptr` pointee must be GC-free, found {}",
-                        self.type_name(pointee)
-                    ),
-                );
-            }
-        }
-    }
-
-    fn require_core_interface(
-        &mut self,
-        name: &str,
-        files: &[ast::SourceFile],
-    ) -> Option<InterfaceId> {
-        let candidate = self
-            .interfaces_by_name
-            .get(name)
-            .map(|(id, _)| *id)
-            .filter(|id| self.interface_files[id] < self.user_file_index);
-        if candidate.is_none() {
-            self.current_file = 0;
-            self.error(
-                files[0].span,
-                format!("scoop.core must define interface `{name}`"),
-            );
-        }
-        candidate
-    }
-
-    fn validate_continuation_contract(&mut self, id: InterfaceId) {
-        self.current_file = self.interface_files[&id];
-        let interface = &self.interfaces[id];
-        let throwable = self.throwable.map(|(_, ty)| ty);
-        let valid_type_param = matches!(
-            interface.type_params.as_slice(),
-            [hir::TypeParamDecl {
-                variance: hir::Variance::In,
-                ..
-            }]
-        );
-        let valid_methods = match interface.methods.as_slice() {
-            [resume, resume_exception] => {
-                resume.name == "resume"
-                    && !resume.is_suspend
-                    && resume.type_params.is_empty()
-                    && resume.params.len() == 1
-                    && self.is_type_param(resume.params[0].ty, 0)
-                    && resume.return_ty == self.unit
-                    && resume_exception.name == "resumeWithException"
-                    && !resume_exception.is_suspend
-                    && resume_exception.type_params.is_empty()
-                    && resume_exception.params.len() == 1
-                    && throwable.is_some_and(|ty| resume_exception.params[0].ty == ty)
-                    && resume_exception.return_ty == self.unit
-            }
-            _ => false,
-        };
-        if !valid_type_param || !valid_methods {
-            self.error(
-                interface.span,
-                "interface `Continuation<in T>` in scoop.core must declare exactly `fun resume(value: T)` followed by `fun resumeWithException(exception: Throwable)`"
-                    .to_string(),
-            );
-        }
-    }
-
-    fn validate_suspend_task_contract(&mut self, id: InterfaceId) {
-        self.current_file = self.interface_files[&id];
-        let interface = &self.interfaces[id];
-        let valid_type_param = matches!(
-            interface.type_params.as_slice(),
-            [hir::TypeParamDecl {
-                variance: hir::Variance::Out,
-                ..
-            }]
-        );
-        let valid_method = match interface.methods.as_slice() {
-            [run] => {
-                run.name == "run"
-                    && run.is_suspend
-                    && run.type_params.is_empty()
-                    && run.params.is_empty()
-                    && self.is_type_param(run.return_ty, 0)
-            }
-            _ => false,
-        };
-        if !valid_type_param || !valid_method {
-            self.error(
-                interface.span,
-                "interface `SuspendTask<out T>` in scoop.core must declare exactly `suspend fun run(): T`"
-                    .to_string(),
-            );
-        }
-    }
-
-    fn validate_suspend_registration_contract(
-        &mut self,
-        id: InterfaceId,
-        continuation: InterfaceId,
-    ) {
-        self.current_file = self.interface_files[&id];
-        let interface = &self.interfaces[id];
-        let valid_type_param = matches!(
-            interface.type_params.as_slice(),
-            [hir::TypeParamDecl {
-                variance: hir::Variance::Out,
-                ..
-            }]
-        );
-        let valid_method = match interface.methods.as_slice() {
-            [register] => {
-                register.name == "register"
-                    && !register.is_suspend
-                    && register.type_params.is_empty()
-                    && register.params.len() == 1
-                    && self.is_interface_param(register.params[0].ty, continuation, 0)
-                    && register.return_ty == self.unit
-            }
-            _ => false,
-        };
-        if !valid_type_param || !valid_method {
-            self.error(
-                interface.span,
-                "interface `SuspendRegistration<out T>` in scoop.core must declare exactly `fun register(continuation: Continuation<T>)`"
-                    .to_string(),
-            );
-        }
-    }
-
-    fn validate_illegal_state_exception(&mut self, files: &[ast::SourceFile]) -> Option<ClassId> {
-        let candidate = self
-            .classes_by_name
-            .get("IllegalStateException")
-            .map(|(id, _)| *id)
-            .filter(|id| self.class_files[id] < self.user_file_index);
-        let Some(id) = candidate else {
-            self.current_file = 0;
-            self.error(
-                files[0].span,
-                "scoop.core must define class `IllegalStateException`".to_string(),
-            );
-            return None;
-        };
-        self.current_file = self.class_files[&id];
-        let throwable = self.throwable.map(|(id, _)| id);
-        let valid = self.classes[id].modifier == hir::ClassModifier::Final
-            && throwable.is_some_and(|root| self.class_descends_from(id, root));
-        if !valid {
-            self.error(
-                self.classes[id].span,
-                "class `IllegalStateException` in scoop.core must be a final subtype of `Throwable`"
-                    .to_string(),
-            );
-        }
-        Some(id)
-    }
-
-    fn validate_coroutine_start(
-        &mut self,
-        id: FunctionId,
-        continuation: InterfaceId,
-        suspend_task: InterfaceId,
-    ) {
-        self.current_file = self.function_files[&id];
-        let function = &self.functions[id];
-        let sig = &self.signatures[&id];
-        let valid = function.name == "startCoroutine"
-            && !sig.is_suspend
-            && sig.type_params.len() == 1
-            && sig.params.len() == 2
-            && self.is_interface_param(sig.params[0].ty, suspend_task, 0)
-            && self.is_interface_param(sig.params[1].ty, continuation, 0)
-            && sig.return_ty == self.unit;
-        if !valid {
-            self.error(
-                function.span,
-                "intrinsic `coroutine_start` must have signature `fun <T> startCoroutine(task: SuspendTask<T>, completion: Continuation<T>): Unit`"
-                    .to_string(),
-            );
-        }
-    }
-
-    fn validate_coroutine_suspend(&mut self, id: FunctionId, suspend_registration: InterfaceId) {
-        self.current_file = self.function_files[&id];
-        let function = &self.functions[id];
-        let sig = &self.signatures[&id];
-        let valid = function.name == "suspendCoroutine"
-            && sig.is_suspend
-            && sig.type_params.len() == 1
-            && sig.params.len() == 1
-            && self.is_interface_param(sig.params[0].ty, suspend_registration, 0)
-            && self.is_type_param(sig.return_ty, 0);
-        if !valid {
-            self.error(
-                function.span,
-                "intrinsic `coroutine_suspend` must have signature `suspend fun <T> suspendCoroutine(registration: SuspendRegistration<T>): T`"
-                    .to_string(),
-            );
-        }
-    }
-
-    fn require_intrinsic(&mut self, name: &str, files: &[ast::SourceFile]) -> Option<FunctionId> {
-        let candidates: Vec<_> = self
-            .functions
-            .iter()
-            .filter_map(|(id, function)| {
-                matches!(&function.kind, FunctionKind::Intrinsic(found) if found == name)
-                    .then_some(id)
-            })
-            .collect();
-        if let [id] = candidates.as_slice() {
-            return Some(*id);
-        }
-        self.current_file = candidates.first().map_or(0, |id| self.function_files[id]);
-        self.error(
-            files[0].span,
-            format!("scoop.core must define exactly one `{name}` intrinsic"),
-        );
-        None
-    }
-
-    fn is_type_param(&self, ty: TypeId, index: u32) -> bool {
-        matches!(
-            self.types[ty],
-            Type::Param(param) if param == hir::TypeParamId::from_raw(index)
-        )
-    }
-
-    fn is_ptr_param(&self, ty: TypeId, index: u32) -> bool {
-        matches!(
-            self.types[ty],
-            Type::Ptr(pointee) if self.is_type_param(pointee, index)
-        )
-    }
-
-    fn is_interface_param(&self, ty: TypeId, interface: InterfaceId, index: u32) -> bool {
-        matches!(
-            &self.types[ty],
-            Type::Interface(found, args)
-                if *found == interface
-                    && matches!(args.as_slice(), [arg] if self.is_type_param(*arg, index))
-        )
-    }
-
-    fn class_descends_from(&self, class: ClassId, root: ClassId) -> bool {
-        let mut current = Some(class);
-        let mut visited = HashSet::new();
-        while let Some(id) = current {
-            if id == root {
-                return true;
-            }
-            if !visited.insert(id) {
-                return false;
-            }
-            current = self.classes[id].base_class.as_ref().map(|(base, _)| *base);
-        }
-        false
-    }
-
-    /// `scoop.core` must define exactly one enum named `Option` with
-    /// exactly one type parameter (hir docs, spec 7.2). A second
-    /// `Option` was already rejected as a duplicate enum in pass 1, so
-    /// at most one candidate reaches here.
-    fn validate_option_enum(&mut self, files: &[ast::SourceFile]) {
-        let Some(&(id, file_index, span, type_param_count)) = self.option_candidates.first() else {
-            // Attribute to the first file: with a core library present
-            // that is a core file; without one it is the user file.
-            self.current_file = 0;
-            self.error(
-                files[0].span,
-                "scoop.core must define an enum `Option<T>`".to_string(),
-            );
-            return;
-        };
-        if type_param_count != 1 {
-            self.current_file = file_index;
-            self.error(
-                span,
-                format!(
-                    "enum `Option` in scoop.core must have exactly one type parameter, found {type_param_count}"
-                ),
-            );
-            return;
-        }
-        self.option_enum = Some(id);
-    }
-
-    /// `scoop.core` must define a class named `Throwable` (spec 11.7,
-    /// milestone8 DESIGN.md 2.1): the root of the exception hierarchy
-    /// that `throw` operands and catch parameter types are checked
-    /// against. A `Throwable` declared as another type kind, or only
-    /// in the user file, is a core configuration error attributed to
-    /// the first file (with a core library present that is a core
-    /// file). A second core `Throwable` was already rejected as a
-    /// duplicate class in pass 1, so at most one candidate reaches
-    /// here.
-    fn validate_throwable(&mut self, files: &[ast::SourceFile]) {
-        let Some(&candidate) = self.throwable_candidates.first() else {
-            self.current_file = 0;
-            self.error(
-                files[0].span,
-                "scoop.core must define a class `Throwable`".to_string(),
-            );
-            return;
-        };
-        self.throwable = Some(candidate);
-    }
-
-    /// The `Throwable` reference type of `scoop.core`, when validated.
-    /// `throw` / catch lowering skips its subtype check when this is
-    /// `None` (the misconfigured core was already diagnosed, so the
-    /// module is rejected anyway).
-    pub(crate) fn throwable_ty(&self) -> Option<TypeId> {
-        self.throwable.map(|(_, ty)| ty)
     }
 
     /// Overload declaration check (pass 2.6, milestone7 DESIGN.md 1.1):
@@ -2312,11 +1815,22 @@ impl Lowerer {
         let (Some(a_sig), Some(b_sig)) = (self.signatures.get(&a), self.signatures.get(&b)) else {
             return false;
         };
+        let a_sig = a_sig.clone();
+        let b_sig = b_sig.clone();
+        if a_sig.type_params.len() != b_sig.type_params.len() {
+            return false;
+        }
+        let parameter_pairs = a_sig
+            .type_params
+            .iter()
+            .zip(&b_sig.type_params)
+            .map(|(a, b)| (a.id, b.id))
+            .collect::<Vec<_>>();
         let receivers_match = match (
             self.extension_receivers.get(&a),
             self.extension_receivers.get(&b),
         ) {
-            (Some(&a), Some(&b)) => self.types_equal(a, b),
+            (Some(&a), Some(&b)) => self.signature_types_equal(a, b, &parameter_pairs),
             (None, None) => true,
             _ => false,
         };
@@ -2326,7 +1840,104 @@ impl Lowerer {
                 .params
                 .iter()
                 .zip(&b_sig.params)
-                .all(|(x, y)| self.types_equal(x.ty, y.ty))
+                .all(|(x, y)| self.signature_types_equal(x.ty, y.ty, &parameter_pairs))
+    }
+
+    /// Compare two declaration-signature types under the exact
+    /// alpha-renaming relation produced by their owning signatures. Type
+    /// parameters keep globally unique identities in HIR; declaration
+    /// equivalence therefore cannot use raw `TypeId` equality.
+    fn signature_types_equal(
+        &self,
+        left: TypeId,
+        right: TypeId,
+        parameter_pairs: &[(hir::TypeParamId, hir::TypeParamId)],
+    ) -> bool {
+        match (&self.types[left], &self.types[right]) {
+            (Type::Param(left), Type::Param(right)) => {
+                parameter_pairs
+                    .iter()
+                    .any(|&(expected_left, expected_right)| {
+                        expected_left == *left && expected_right == *right
+                    })
+            }
+            (Type::Struct(left), Type::Struct(right)) => {
+                let left = &self.struct_applications[*left];
+                let right = &self.struct_applications[*right];
+                left.template == right.template
+                    && self.signature_type_lists_equal(
+                        &left.arguments,
+                        &right.arguments,
+                        parameter_pairs,
+                    )
+            }
+            (Type::Class(left), Type::Class(right)) => {
+                let left = &self.class_applications[*left];
+                let right = &self.class_applications[*right];
+                left.template == right.template
+                    && self.signature_type_lists_equal(
+                        &left.arguments,
+                        &right.arguments,
+                        parameter_pairs,
+                    )
+            }
+            (Type::Interface(left), Type::Interface(right)) => {
+                let left = &self.interface_applications[*left];
+                let right = &self.interface_applications[*right];
+                left.template == right.template
+                    && self.signature_type_lists_equal(
+                        &left.arguments,
+                        &right.arguments,
+                        parameter_pairs,
+                    )
+            }
+            (Type::Enum(left), Type::Enum(right)) => {
+                let left = &self.enum_applications[*left];
+                let right = &self.enum_applications[*right];
+                left.template == right.template
+                    && self.signature_type_lists_equal(
+                        &left.arguments,
+                        &right.arguments,
+                        parameter_pairs,
+                    )
+            }
+            (Type::Tuple(left), Type::Tuple(right)) => {
+                self.signature_type_lists_equal(left, right, parameter_pairs)
+            }
+            (Type::Function(left), Type::Function(right))
+            | (Type::FunPtr(left), Type::FunPtr(right)) => {
+                let left = &self.function_types[*left];
+                let right = &self.function_types[*right];
+                left.is_suspend == right.is_suspend
+                    && self.signature_type_lists_equal(
+                        &left.parameter_types,
+                        &right.parameter_types,
+                        parameter_pairs,
+                    )
+                    && self.signature_types_equal(
+                        left.return_type,
+                        right.return_type,
+                        parameter_pairs,
+                    )
+            }
+            (Type::Ptr(left), Type::Ptr(right)) => {
+                self.signature_types_equal(*left, *right, parameter_pairs)
+            }
+            _ => self.types_equal(left, right),
+        }
+    }
+
+    fn signature_type_lists_equal(
+        &self,
+        left: &[TypeId],
+        right: &[TypeId],
+        parameter_pairs: &[(hir::TypeParamId, hir::TypeParamId)],
+    ) -> bool {
+        left.len() == right.len()
+            && left
+                .iter()
+                .zip(right)
+                .all(|(&left, &right)| self.signature_types_equal(left, right, parameter_pairs))
     }
 
     /// Resolve the field types of a struct declaration. Fields with
@@ -2334,8 +1945,22 @@ impl Lowerer {
     /// the module is rejected anyway once any diagnostic is recorded.
     fn resolve_fields(&mut self, id: StructId, decl: &ast::StructDecl) {
         self.type_params_in_scope = self.structs[id].type_params.clone();
+        if matches!(
+            self.structs[id].representation,
+            hir::StructRepresentation::Intrinsic(_)
+        ) {
+            self.type_params_in_scope.clear();
+            return;
+        }
         let mut seen = HashSet::new();
         let mut fields = Vec::new();
+        if decl.fields.is_omitted() {
+            self.error(
+                decl.name.span,
+                "an omitted struct representation requires a validated intrinsic type declaration"
+                    .to_string(),
+            );
+        }
         for field in &decl.fields {
             if !seen.insert(field.name.text.clone()) {
                 self.error(
@@ -2355,7 +1980,7 @@ impl Lowerer {
                 ty,
             });
         }
-        self.structs[id].fields = fields;
+        self.structs[id].representation = hir::StructRepresentation::Declared(fields);
         self.type_params_in_scope.clear();
     }
 
@@ -2586,10 +2211,18 @@ impl Lowerer {
                 );
                 continue;
             }
-            type_params.push(lower_type_param_decl(param));
+            let parameter = self.fresh_type_param(type_params.len());
+            type_params.push(lower_type_param_decl(param, parameter));
         }
+        type_params = self.resolve_type_parameter_constraints(
+            type_params,
+            0,
+            &decl.type_params,
+            decl.where_clause.as_ref(),
+            "function",
+        );
         if !type_params.is_empty() {
-            self.register_generic(id);
+            self.register_generic(id, type_params.clone());
         }
         self.type_params_in_scope = type_params.clone();
 
@@ -2616,12 +2249,12 @@ impl Lowerer {
         };
         self.type_params_in_scope.clear();
 
-        self.functions[id].type_params = type_params.clone();
         self.functions[id].return_ty = return_ty;
         self.signatures.insert(
             id,
             FnSig {
                 is_suspend: decl.is_suspend,
+                operator: None,
                 attributes: self.functions[id].attributes,
                 owner_type_param_count: 0,
                 type_params,
@@ -2638,15 +2271,28 @@ impl Lowerer {
     }
 
     /// Register a generic definition once and return its typed id.
-    pub(crate) fn register_generic(&mut self, function: FunctionId) -> GenericFunctionId {
-        if let Some(&generic) = self.generic_by_function.get(&function) {
-            return generic;
+    pub(crate) fn register_generic(
+        &mut self,
+        function: FunctionId,
+        parameters: Vec<hir::TypeParamDecl>,
+    ) -> GenericFunctionId {
+        if let hir::FunctionGenericity::Generic {
+            definition,
+            parameters: existing,
+        } = &self.functions[function].genericity
+        {
+            assert_eq!(existing, &parameters);
+            return *definition;
         }
+        assert!(!parameters.is_empty());
         let generic = self.generic_functions.alloc(GenericFunction {
             function,
             no_gc_type_params: Vec::new(),
         });
-        self.generic_by_function.insert(function, generic);
+        self.functions[function].genericity = hir::FunctionGenericity::Generic {
+            definition: generic,
+            parameters,
+        };
         generic
     }
 
@@ -2660,7 +2306,9 @@ impl Lowerer {
         function: FunctionId,
         type_args: Vec<TypeId>,
     ) -> hir::ResolvedGenericFunctionId {
-        let generic = self.generic_by_function[&function];
+        let Some(generic) = self.functions[function].generic_definition() else {
+            unreachable!("only a generic function can be instantiated")
+        };
         if let Some((id, _)) = self
             .instantiations
             .iter()
@@ -2672,19 +2320,231 @@ impl Lowerer {
             .alloc(hir::ResolvedGenericFunction { generic, type_args })
     }
 
+    pub(crate) fn register_method_parameters(
+        &mut self,
+        function: FunctionId,
+        owner_parameters: Vec<hir::TypeParamDecl>,
+        method_parameters: Vec<hir::TypeParamDecl>,
+    ) {
+        if method_parameters.is_empty() {
+            self.functions[function].genericity = if owner_parameters.is_empty() {
+                hir::FunctionGenericity::Plain
+            } else {
+                hir::FunctionGenericity::OwnerParameterizedMethod {
+                    owner_parameters,
+                    no_gc_type_params: Vec::new(),
+                }
+            };
+            return;
+        }
+        let method_parameters = hir::NonEmptyVec::from_vec(method_parameters)
+            .expect("generic method declarations have a non-empty method parameter group");
+        let definition = self.generic_methods.alloc(hir::GenericMethod {
+            function,
+            no_gc_type_params: Vec::new(),
+        });
+        self.functions[function].genericity = hir::FunctionGenericity::GenericMethod {
+            definition,
+            owner_parameters,
+            method_parameters,
+        };
+    }
+
+    pub(crate) fn record_method_application(
+        &mut self,
+        function: FunctionId,
+        owner: hir::MethodOwnerApplication,
+    ) -> hir::MethodApplicationId {
+        let key = (function, owner);
+        if let Some(&application) = self.method_application_by_key.get(&key) {
+            return application;
+        }
+        let application = self
+            .method_applications
+            .alloc(hir::MethodApplication { function, owner });
+        self.method_application_by_key.insert(key, application);
+        application
+    }
+
+    pub(crate) fn record_generic_method_application(
+        &mut self,
+        function: FunctionId,
+        owner: hir::GenericMethodOwner,
+        method_arguments: Vec<TypeId>,
+    ) -> hir::GenericMethodApplicationId {
+        let method = self.functions[function]
+            .generic_method_definition()
+            .expect("only a generic method has a generic method application");
+        let method_arguments = hir::NonEmptyVec::from_vec(method_arguments)
+            .expect("generic method applications have method arguments");
+        let key = (method, owner, method_arguments.clone());
+        if let Some(&application) = self.generic_method_application_by_key.get(&key) {
+            return application;
+        }
+        let application = self
+            .generic_method_applications
+            .alloc(hir::GenericMethodApplication {
+                method,
+                owner,
+                method_arguments,
+            });
+        self.generic_method_application_by_key
+            .insert(key, application);
+        application
+    }
+
+    pub(crate) fn materialize_candidate_callable(
+        &mut self,
+        candidate: &CallableCandidate,
+        type_arguments: &[TypeId],
+    ) -> hir::Callable {
+        match &candidate.owner {
+            CallableCandidateOwner::Function { .. } => {
+                match self.functions[candidate.function].genericity {
+                    hir::FunctionGenericity::Plain => hir::Callable::Function(candidate.function),
+                    hir::FunctionGenericity::Generic { .. } => hir::Callable::Generic(
+                        self.record_instantiation(candidate.function, type_arguments.to_vec()),
+                    ),
+                    hir::FunctionGenericity::OwnerParameterizedMethod { .. }
+                    | hir::FunctionGenericity::GenericMethod { .. } => {
+                        unreachable!("a method candidate has an exact method owner")
+                    }
+                }
+            }
+            CallableCandidateOwner::Method(owner) => {
+                match &self.functions[candidate.function].genericity {
+                    hir::FunctionGenericity::Plain
+                    | hir::FunctionGenericity::OwnerParameterizedMethod { .. } => {
+                        hir::Callable::Method(
+                            self.record_method_application(candidate.function, *owner),
+                        )
+                    }
+                    hir::FunctionGenericity::GenericMethod {
+                        method_parameters, ..
+                    } => {
+                        let method_arguments = method_parameters
+                            .iter()
+                            .map(|parameter| type_arguments[parameter.id.into_raw() as usize])
+                            .collect();
+                        hir::Callable::GenericMethod(self.record_generic_method_application(
+                            candidate.function,
+                            self.generic_method_owner(*owner),
+                            method_arguments,
+                        ))
+                    }
+                    hir::FunctionGenericity::Generic { .. } => {
+                        unreachable!("generic functions do not have nominal method owners")
+                    }
+                }
+            }
+        }
+    }
+
+    pub(crate) fn callable_function_id(&self, callable: hir::Callable) -> FunctionId {
+        match callable {
+            hir::Callable::Function(function) => function,
+            hir::Callable::Generic(instantiation) => {
+                let generic = self.instantiations[instantiation].generic;
+                self.generic_functions[generic].function
+            }
+            hir::Callable::Method(application) => self.method_applications[application].function,
+            hir::Callable::GenericMethod(application) => {
+                let method = self.generic_method_applications[application].method;
+                self.generic_methods[method].function
+            }
+        }
+    }
+
     /// The host type of a member-function owner: the class / interface
     /// / struct type, or the enum applied to its own type parameters
     /// (the form `this` has inside the enum's methods).
     pub(crate) fn owner_ty(&mut self, owner: Owner) -> TypeId {
         match owner {
-            Owner::Class(id) => self.classes_by_name[&self.classes[id].name].1,
-            Owner::Interface(id) => self.interfaces_by_name[&self.interfaces[id].name].1,
-            Owner::Struct(id) => self.structs_by_name[&self.structs[id].name].1,
+            Owner::Class(id) => {
+                self.class_applications[self.classes[id].self_application].canonical_type
+            }
+            Owner::Interface(id) => {
+                self.interface_applications[self.interfaces[id].self_application].canonical_type
+            }
+            Owner::Struct(id) => {
+                self.struct_applications[self.structs[id].self_application].canonical_type
+            }
             Owner::Enum(id) => {
-                let params = (0..self.enums[id].type_params.len() as u32)
-                    .map(|index| self.intern_type(Type::Param(hir::TypeParamId::from_raw(index))))
-                    .collect();
-                self.intern_type(Type::Enum(id, params))
+                self.enum_applications[self.enums[id].self_application].canonical_type
+            }
+        }
+    }
+
+    pub(crate) fn owner_type_args(&self, owner: Owner) -> Vec<TypeId> {
+        match owner {
+            Owner::Class(id) => self.class_applications[self.classes[id].self_application]
+                .arguments
+                .clone(),
+            Owner::Interface(id) => self.interface_applications
+                [self.interfaces[id].self_application]
+                .arguments
+                .clone(),
+            Owner::Struct(id) => self.struct_applications[self.structs[id].self_application]
+                .arguments
+                .clone(),
+            Owner::Enum(id) => self.enum_applications[self.enums[id].self_application]
+                .arguments
+                .clone(),
+        }
+    }
+
+    pub(crate) fn method_owner_application(
+        &mut self,
+        owner: Owner,
+        arguments: Vec<TypeId>,
+    ) -> hir::MethodOwnerApplication {
+        match owner {
+            Owner::Class(id) => {
+                hir::MethodOwnerApplication::Class(self.class_application_id(id, arguments))
+            }
+            Owner::Struct(id) => {
+                hir::MethodOwnerApplication::Struct(self.struct_application_id(id, arguments))
+            }
+            Owner::Enum(id) => {
+                hir::MethodOwnerApplication::Enum(self.enum_application_id(id, arguments))
+            }
+            Owner::Interface(id) => {
+                hir::MethodOwnerApplication::Interface(self.interface_application_id(id, arguments))
+            }
+        }
+    }
+
+    pub(crate) fn method_owner_arguments(&self, owner: hir::MethodOwnerApplication) -> &[TypeId] {
+        match owner {
+            hir::MethodOwnerApplication::Class(id) => &self.class_applications[id].arguments,
+            hir::MethodOwnerApplication::Struct(id) => &self.struct_applications[id].arguments,
+            hir::MethodOwnerApplication::Enum(id) => &self.enum_applications[id].arguments,
+            hir::MethodOwnerApplication::Interface(id) => {
+                &self.interface_applications[id].arguments
+            }
+        }
+    }
+
+    pub(crate) fn callable_candidate_owner_arguments(
+        &self,
+        candidate: &CallableCandidate,
+    ) -> Vec<TypeId> {
+        match &candidate.owner {
+            CallableCandidateOwner::Function { owner_arguments } => owner_arguments.clone(),
+            CallableCandidateOwner::Method(owner) => self.method_owner_arguments(*owner).to_vec(),
+        }
+    }
+
+    pub(crate) fn generic_method_owner(
+        &self,
+        owner: hir::MethodOwnerApplication,
+    ) -> hir::GenericMethodOwner {
+        match owner {
+            hir::MethodOwnerApplication::Class(id) => hir::GenericMethodOwner::Class(id),
+            hir::MethodOwnerApplication::Struct(id) => hir::GenericMethodOwner::Struct(id),
+            hir::MethodOwnerApplication::Enum(id) => hir::GenericMethodOwner::Enum(id),
+            hir::MethodOwnerApplication::Interface(_) => {
+                unreachable!("generic methods have class, struct, or enum owners")
             }
         }
     }
@@ -2693,7 +2553,7 @@ impl Lowerer {
     /// form the prefix of the member function's combined parameter space.
     pub(crate) fn owner_type_params(&self, owner: Owner) -> Vec<hir::TypeParamDecl> {
         match owner {
-            Owner::Class(_) => Vec::new(),
+            Owner::Class(id) => self.classes[id].type_params.clone(),
             Owner::Struct(id) => self.structs[id].type_params.clone(),
             Owner::Enum(id) => self.enums[id].type_params.clone(),
             Owner::Interface(id) => self.interfaces[id].type_params.clone(),
@@ -2744,8 +2604,10 @@ impl Lowerer {
     /// Whether `ty` is `Option<T>`; returns `T`.
     pub(crate) fn as_option(&self, ty: TypeId) -> Option<TypeId> {
         match &self.types[ty] {
-            Type::Enum(id, args) if Some(*id) == self.option_enum && args.len() == 1 => {
-                Some(args[0])
+            Type::Enum(application) => {
+                let application = &self.enum_applications[*application];
+                (Some(application.template) == self.option_enum && application.arguments.len() == 1)
+                    .then_some(application.arguments[0])
             }
             _ => None,
         }
@@ -2757,7 +2619,7 @@ impl Lowerer {
         let id = self
             .option_enum
             .expect("Option types only exist after core validation");
-        self.intern_type(Type::Enum(id, vec![inner]))
+        self.enum_application(id, vec![inner])
     }
 
     pub(crate) fn push_suspension_context(&mut self, context: SuspensionContext) {
@@ -2788,13 +2650,7 @@ impl Lowerer {
     /// no continuation. The resolved callable, including a generic
     /// instantiation, always leads back to exactly one function entity.
     pub(crate) fn check_suspend_call(&mut self, callable: hir::Callable, span: Span) {
-        let function = match callable {
-            hir::Callable::Function(function) => function,
-            hir::Callable::Generic(instantiation) => {
-                let generic = self.instantiations[instantiation].generic;
-                self.generic_functions[generic].function
-            }
-        };
+        let function = self.callable_function_id(callable);
         if !self.functions[function].is_suspend {
             return;
         }
@@ -2821,13 +2677,7 @@ impl Lowerer {
 
     pub(crate) fn check_call_effects(&mut self, callable: hir::Callable, span: Span) {
         self.check_suspend_call(callable, span);
-        let function = match callable {
-            hir::Callable::Function(function) => function,
-            hir::Callable::Generic(instantiation) => {
-                let generic = self.instantiations[instantiation].generic;
-                self.generic_functions[generic].function
-            }
-        };
+        let function = self.callable_function_id(callable);
         if self.functions[function].attributes.safety != hir::Safety::Unsafe {
             return;
         }

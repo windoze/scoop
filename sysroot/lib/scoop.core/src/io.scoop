@@ -1,13 +1,13 @@
 // Output functions (spec 14.4, M12 DESIGN section 4.3). `write` borrows the
-// managed String directly through the Scoop ABI; print/println retain ordinary
-// Any.toString() dispatch (vtable slot 2).
+// managed String directly through the Scoop ABI. Formatting capability is a
+// static generic bound; `Any` has no implicit methods.
 
 @Extern(name = "scoop_rt_write", abi = "scoop")
 fun write(message: String)
 
-fun print(message: Any) = write(message.toString())
+fun <T : ToString> print(value: T) = write(value.toString())
 
-fun println(message: Any) {
-    write(message.toString())
+fun <T : ToString> println(value: T) {
+    write(value.toString())
     write("\n")
 }

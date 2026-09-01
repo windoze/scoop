@@ -36,7 +36,7 @@ fun main() {
     println(nested)
 
     val mixed = if (true) { 5 } else { "mixed" }
-    println(mixed)
+    println(mixed is Int)
 
     val inferred = if (false) { None } else { Some(4) }
     println(inferred!!)

@@ -24,6 +24,9 @@ pub type ClosureInvokeFunctionId = Idx<ClosureInvokeFunction>;
 pub type ClosureAdapterId = Idx<ClosureAdapter>;
 pub type DynamicClosureAdapterId = Idx<DynamicClosureAdapter>;
 pub type MonomorphizedFunctionId = Idx<MonomorphizedFunction>;
+pub type GenericFunctionSourceId = Idx<GenericFunctionSource>;
+pub type ParameterizedMethodSourceId = Idx<ParameterizedMethodSource>;
+pub type GenericMethodSourceId = Idx<GenericMethodSource>;
 pub type StringConstId = Idx<StringConst>;
 pub type StructId = Idx<StructDef>;
 pub type EnumId = Idx<EnumDef>;
@@ -109,12 +112,31 @@ pub fn encode_type(module: &Module, ty: &Type) -> String {
         Type::UInt => "V".to_string(),
         Type::Boolean => "B".to_string(),
         Type::String => "S".to_string(),
-        Type::Struct(id) => module.structs[*id].name.clone(),
-        Type::Class(id) => module.classes[*id].name.clone(),
-        Type::Interface(id) => module.interfaces[*id].name.clone(),
+        Type::Struct(id) => {
+            let name = &module.structs[*id].name;
+            format!("D{}_{}X", name.len(), name)
+        }
+        Type::Class(id) => match &module.classes[*id].representation {
+            ClassRepresentation::Intrinsic(IntrinsicTypeRepresentation::Array { element }) => {
+                format!("A{}X", encode_type(module, element))
+            }
+            ClassRepresentation::Intrinsic(IntrinsicTypeRepresentation::MutableArray {
+                element,
+            }) => format!("M{}X", encode_type(module, element)),
+            ClassRepresentation::Declared { .. }
+            | ClassRepresentation::Intrinsic(IntrinsicTypeRepresentation::String) => {
+                let name = &module.classes[*id].name;
+                format!("C{}_{}X", name.len(), name)
+            }
+            ClassRepresentation::Intrinsic(_) => {
+                unreachable!("the intrinsic registry fixes declaration targets")
+            }
+        },
+        Type::Interface(id) => {
+            let name = &module.interfaces[*id].name;
+            format!("J{}_{}X", name.len(), name)
+        }
         Type::Any => "Any".to_string(),
-        Type::Array(inner) => format!("A{}X", encode_type(module, inner)),
-        Type::MutableArray(inner) => format!("M{}X", encode_type(module, inner)),
         Type::Tuple(elements) => {
             let inner: Vec<String> = elements.iter().map(|t| encode_type(module, t)).collect();
             format!("T{}X", inner.join("_"))
@@ -150,10 +172,10 @@ pub fn encode_type(module: &Module, ty: &Type) -> String {
         Type::Enum(id, args) => {
             let name = &module.enums[*id].name;
             if args.is_empty() {
-                format!("E{name}")
+                format!("E{}_{}X", name.len(), name)
             } else {
                 let inner: Vec<String> = args.iter().map(|t| encode_type(module, t)).collect();
-                format!("E{}_{}X", name, inner.join("_"))
+                format!("E{}_{}A{}X", name.len(), name, inner.join("_"))
             }
         }
     }
@@ -175,9 +197,6 @@ pub enum Type {
     Interface(InterfaceId),
     /// The root of all types; boxed value types live behind it.
     Any,
-    /// Built-in array types (M5, see hir::Type). Invariant (spec 10.4).
-    Array(Box<Type>),
-    MutableArray(Box<Type>),
     Tuple(Vec<Type>),
     /// Concrete managed function signature. Function values have reference
     /// representation; closure classes are materialized by M11 conversion.
@@ -244,9 +263,37 @@ pub struct StructDef {
     /// Fixed after all type parameters have been resolved and this MIR
     /// type entity has a complete concrete field list.
     pub gc_free: bool,
-    pub c_layout: Option<CLayout>,
-    pub interior_mutable: bool,
-    pub fields: Vec<Field>,
+    pub representation: StructRepresentation,
+}
+
+#[derive(Debug)]
+pub enum StructRepresentation {
+    Declared {
+        c_layout: Option<CLayout>,
+        interior_mutable: bool,
+        fields: Vec<Field>,
+    },
+    Intrinsic(IntrinsicTypeRepresentation),
+}
+
+impl StructDef {
+    pub fn declared_fields(&self) -> &[Field] {
+        match &self.representation {
+            StructRepresentation::Declared { fields, .. } => fields,
+            StructRepresentation::Intrinsic(_) => {
+                panic!("an intrinsic struct has no declared field representation")
+            }
+        }
+    }
+
+    pub fn declared_fields_mut(&mut self) -> &mut Vec<Field> {
+        match &mut self.representation {
+            StructRepresentation::Declared { fields, .. } => fields,
+            StructRepresentation::Intrinsic(_) => {
+                panic!("an intrinsic struct has no declared field representation")
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -294,17 +341,88 @@ pub enum ClassModifier {
 pub struct ClassDef {
     pub modifier: ClassModifier,
     pub name: String,
-    /// Constructor properties in declaration order.
-    pub fields: Vec<Field>,
-    pub base_class: Option<ClassId>,
+    pub representation: ClassRepresentation,
     pub interfaces: Vec<InterfaceId>,
-    /// vtable slots: 0..2 are the `Any` defaults
-    /// (`RuntimeFn::AnyEquals/AnyHashCode/AnyToString`), then user
-    /// methods in vtable order (overrides share the base slot).
+    /// Ordinary virtual methods in vtable order (overrides share the base
+    /// slot). Empty vtables are valid and have no implicit prefix.
     pub vtable: Vec<TableSlot>,
     /// itable entries, one per implemented interface (pointer-keyed
     /// lookup at runtime).
     pub itables: Vec<ItableRecord>,
+}
+
+#[derive(Debug)]
+pub enum ClassRepresentation {
+    Declared {
+        /// Constructor properties in flattened base-first order.
+        fields: Vec<Field>,
+        base_class: Option<ClassId>,
+    },
+    Intrinsic(IntrinsicTypeRepresentation),
+}
+
+impl ClassDef {
+    pub fn declared_fields(&self) -> &[Field] {
+        match &self.representation {
+            ClassRepresentation::Declared { fields, .. } => fields,
+            ClassRepresentation::Intrinsic(_) => {
+                panic!("an intrinsic class has no declared field representation")
+            }
+        }
+    }
+
+    pub fn declared_fields_mut(&mut self) -> &mut Vec<Field> {
+        match &mut self.representation {
+            ClassRepresentation::Declared { fields, .. } => fields,
+            ClassRepresentation::Intrinsic(_) => {
+                panic!("an intrinsic class has no declared field representation")
+            }
+        }
+    }
+
+    pub fn base_class(&self) -> Option<ClassId> {
+        match &self.representation {
+            ClassRepresentation::Declared { base_class, .. } => *base_class,
+            ClassRepresentation::Intrinsic(_) => None,
+        }
+    }
+}
+
+/// The exact compiler representation selected upstream for this fully
+/// specialized nominal type. Family variants carry their MIR element type.
+#[derive(Debug, Clone, PartialEq)]
+pub enum IntrinsicTypeRepresentation {
+    Int,
+    UInt,
+    Boolean,
+    String,
+    Array { element: Type },
+    MutableArray { element: Type },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ArrayKind {
+    Immutable,
+    Mutable,
+}
+
+pub fn array_type<'a>(module: &'a Module, ty: &Type) -> Option<(ArrayKind, &'a Type)> {
+    let Type::Class(class) = ty else {
+        return None;
+    };
+    match &module.classes[*class].representation {
+        ClassRepresentation::Intrinsic(IntrinsicTypeRepresentation::Array { element }) => {
+            Some((ArrayKind::Immutable, element))
+        }
+        ClassRepresentation::Intrinsic(IntrinsicTypeRepresentation::MutableArray { element }) => {
+            Some((ArrayKind::Mutable, element))
+        }
+        ClassRepresentation::Declared { .. }
+        | ClassRepresentation::Intrinsic(IntrinsicTypeRepresentation::String) => None,
+        ClassRepresentation::Intrinsic(_) => {
+            unreachable!("the intrinsic registry fixes declaration targets")
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -322,8 +440,8 @@ pub struct ItableRecord {
 #[derive(Debug)]
 pub struct InterfaceDef {
     pub name: String,
-    /// Method names in declaration order (itable slot indices).
-    pub methods: Vec<String>,
+    /// Signature-only method declarations in itable-slot order.
+    pub methods: Vec<FunctionId>,
 }
 
 #[derive(Debug)]
@@ -436,9 +554,13 @@ pub enum ConstantValue {
 #[derive(Debug, Default)]
 pub struct MirMeta {
     pub dispatch_tables: Vec<DispatchTable>,
+    /// Typed source identities are separate from their display names and from
+    /// concrete instances. The three id families cannot be interchanged.
+    pub generic_function_sources: Arena<GenericFunctionSource>,
+    pub parameterized_method_sources: Arena<ParameterizedMethodSource>,
+    pub generic_method_sources: Arena<GenericMethodSource>,
     /// Monomorphized function instances in creation order. The entry
-    /// records the emitted symbol and its generic HIR source without
-    /// leaking HIR ids across the stage boundary.
+    /// records the emitted symbol and its MIR-local typed source identity.
     pub instances: Arena<MonomorphizedFunction>,
     /// Concrete hidden-ABI suspend callables, indexed independently from the
     /// ordinary function arena.
@@ -453,6 +575,16 @@ pub struct MirMeta {
     pub coroutine_resume_points: Arena<CoroutineResumePoint>,
     pub closure_adapters: Arena<ClosureAdapter>,
     pub dynamic_closure_adapters: Arena<DynamicClosureAdapter>,
+    /// Complete semantic relation between every materialized value box and
+    /// the concrete class whose TypeDescriptor represents it. LIR must not
+    /// reconstruct this relation from the synthetic class link name.
+    pub boxed_types: Vec<BoxedType>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct BoxedType {
+    pub payload: Type,
+    pub class: ClassId,
 }
 
 #[derive(Debug)]
@@ -501,14 +633,102 @@ pub struct CoroutineResumePoint {
     pub resume_with_exception: FunctionId,
 }
 
-/// Provenance of one concrete generic function emitted into the MIR
-/// function arena. Its typed id is also what MIR call sites carry.
+/// Display metadata for one generic free-function declaration. Identity is
+/// the arena id; `display_name` is never used for semantic decisions.
+#[derive(Debug)]
+pub struct GenericFunctionSource {
+    pub display_name: String,
+}
+
+/// Display metadata for one ordinary member whose owner is generic.
+#[derive(Debug)]
+pub struct ParameterizedMethodSource {
+    pub display_name: String,
+}
+
+/// Display metadata for one method that declares its own type parameters.
+#[derive(Debug)]
+pub struct GenericMethodSource {
+    pub display_name: String,
+}
+
+/// A structurally non-empty MIR type-argument group.
+#[derive(Debug, Clone, PartialEq)]
+pub struct NonEmptyTypeArguments {
+    first: Type,
+    rest: Vec<Type>,
+}
+
+impl NonEmptyTypeArguments {
+    pub fn new(first: Type, rest: Vec<Type>) -> Self {
+        Self { first, rest }
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &Type> {
+        std::iter::once(&self.first).chain(self.rest.iter())
+    }
+
+    pub fn to_vec(&self) -> Vec<Type> {
+        self.iter().cloned().collect()
+    }
+}
+
+/// Exact concrete owner of a monomorphized method instance.
+#[derive(Debug, Clone, PartialEq)]
+pub enum MonomorphizedMethodOwner {
+    Class(ClassId),
+    Struct(StructId),
+    Enum(EnumId),
+    Interface(InterfaceId),
+    Structural(Type),
+}
+
+/// Typed provenance and structurally complete argument groups for one
+/// concrete instance. Owner and method arguments cannot be flattened or
+/// attached to the wrong source category.
+#[derive(Debug, Clone, PartialEq)]
+pub enum MonomorphizedSource {
+    GenericFunction {
+        source: GenericFunctionSourceId,
+        arguments: NonEmptyTypeArguments,
+    },
+    ParameterizedMethod {
+        source: ParameterizedMethodSourceId,
+        owner: MonomorphizedMethodOwner,
+        owner_arguments: NonEmptyTypeArguments,
+    },
+    GenericMethod {
+        source: GenericMethodSourceId,
+        owner: MonomorphizedMethodOwner,
+        owner_arguments: Vec<Type>,
+        method_arguments: NonEmptyTypeArguments,
+    },
+}
+
+impl MirMeta {
+    /// Human-readable source name for dumps and diagnostics only.
+    pub fn monomorphized_source_display_name(&self, source: &MonomorphizedSource) -> &str {
+        match source {
+            MonomorphizedSource::GenericFunction { source, .. } => {
+                &self.generic_function_sources[*source].display_name
+            }
+            MonomorphizedSource::ParameterizedMethod { source, .. } => {
+                &self.parameterized_method_sources[*source].display_name
+            }
+            MonomorphizedSource::GenericMethod { source, .. } => {
+                &self.generic_method_sources[*source].display_name
+            }
+        }
+    }
+}
+
+/// Provenance of one concrete generic function emitted into the MIR function
+/// arena. Its typed id is also what MIR call sites carry.
 #[derive(Debug)]
 pub struct MonomorphizedFunction {
     pub function: FunctionId,
     pub symbol: String,
-    pub source: String,
-    pub type_args: Vec<Type>,
+    pub source: MonomorphizedSource,
 }
 
 #[derive(Debug)]
@@ -634,6 +854,7 @@ pub enum StatementKind {
         value: Expr,
     },
     ArraySet {
+        array_type: ClassId,
         array: Expr,
         index: Expr,
         value: Expr,
@@ -705,8 +926,47 @@ pub enum Terminator {
     Unreachable,
 }
 
+/// A MIR expression whose semantic result type is complete by construction.
+/// Consumers must use `ty` directly; reconstructing it from the expression
+/// shape, surrounding local or expected context is forbidden.
 #[derive(Debug, Clone)]
-pub enum Expr {
+pub struct Expr {
+    pub ty: Type,
+    pub kind: ExprKind,
+}
+
+impl Expr {
+    pub fn new(ty: Type, kind: ExprKind) -> Self {
+        Self { ty, kind }
+    }
+
+    pub fn local(local: LocalId, ty: Type) -> Self {
+        Self::new(ty, ExprKind::Local(local))
+    }
+
+    pub fn int(value: i64) -> Self {
+        Self::new(Type::Int, ExprKind::IntLiteral(value))
+    }
+
+    pub fn bool(value: bool) -> Self {
+        Self::new(Type::Boolean, ExprKind::BoolLiteral(value))
+    }
+
+    pub fn unit() -> Self {
+        Self::new(Type::Unit, ExprKind::UnitLiteral)
+    }
+
+    pub fn caught_exception() -> Self {
+        Self::new(Type::Any, ExprKind::CaughtException)
+    }
+
+    pub fn enum_tag(operand: Expr) -> Self {
+        Self::new(Type::Int, ExprKind::EnumTag(Box::new(operand)))
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum ExprKind {
     StringConst(StringConstId),
     IntLiteral(i64),
     BoolLiteral(bool),
@@ -781,7 +1041,6 @@ pub enum Expr {
     ForeignCallbackOperation {
         operation: ForeignCallbackOperation,
         callback: Box<Expr>,
-        result_ty: Box<Type>,
     },
     /// The managed exception pointer produced by the active `BeginCatch`.
     /// It is only valid in blocks dominated by that statement.
@@ -828,18 +1087,30 @@ pub enum Expr {
         operand: Box<Expr>,
         optional: bool,
     },
-    /// `[e1, ...]` (the kind, Array vs MutableArray, is fixed by the
-    /// producing context — LIR types record it).
-    ArrayLiteral(Vec<Expr>),
+    /// `[e1, ...]`; `array_type` is the exact fully specialized intrinsic
+    /// class application selected by HIR.
+    ArrayLiteral {
+        array_type: ClassId,
+        elements: Vec<Expr>,
+    },
     /// Subscript read; result is the element type.
     ArrayGet {
+        array_type: ClassId,
         array: Box<Expr>,
         index: Box<Expr>,
     },
     /// `array.size`; result is `Int`.
-    ArrayLen(Box<Expr>),
+    ArrayLen {
+        array_type: ClassId,
+        operand: Box<Expr>,
+    },
     /// Array-kind conversion (constructor or method form): memcpy snapshot.
-    ArrayClone(Box<Expr>),
+    /// Both source and target identities are explicit and complete.
+    ArrayClone {
+        source_type: ClassId,
+        target_type: ClassId,
+        operand: Box<Expr>,
+    },
     Binary {
         op: BinOp,
         lhs: Box<Expr>,
@@ -849,10 +1120,9 @@ pub enum Expr {
         op: UnOp,
         operand: Box<Expr>,
     },
-    /// Variant construction; `ty` is the instantiated enum type.
-    /// `fields` are the variant's field values in declaration order.
+    /// Variant construction. The enclosing `Expr::ty` is the instantiated
+    /// enum type; `fields` are the variant's values in declaration order.
     VariantConstruct {
-        ty: Type,
         variant: u32,
         fields: Vec<Expr>,
     },
@@ -927,8 +1197,9 @@ pub enum Callee {
     Runtime(RuntimeFn),
 }
 
-/// Runtime functions callable from generated code. The output shims
-/// are temporary until M11 (docs/milestone1/DESIGN.md 5.2).
+/// Runtime functions called directly by compiler-generated operations.
+/// Source-level core capabilities use ordinary declarations and extern calls;
+/// they do not acquire entries in this enum.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RuntimeFn {
     /// `scoop_rt_box(td, payload, size)`
@@ -937,10 +1208,6 @@ pub enum RuntimeFn {
     IsInstance,
     /// `scoop_rt_itable_lookup(td, iface_td)`
     ITableLookup,
-    /// The `Any` vtable defaults (slots 0..2).
-    AnyEquals,
-    AnyHashCode,
-    AnyToString,
     /// GC facilities (spec 14.1; M9 via intrinsics, see
     /// docs/milestone9/DESIGN.md 5.2).
     Pin,
@@ -952,11 +1219,7 @@ pub enum RuntimeFn {
     GcStats,
     /// ABI exception buffer -> ordinary managed object (runtime spec 5).
     MaterializeException,
-    /// Primitive conversions temporarily backing core's `toString` paths.
-    IntToString,
-    BoolToString,
     StringConcat,
-    StringEq,
     /// Noreturn runtime trap, called with a message string constant
     /// (M4: `!!` on `None`; M8: real exceptions).
     Trap,
@@ -968,9 +1231,6 @@ impl RuntimeFn {
             RuntimeFn::Box => "scoop_rt_box",
             RuntimeFn::IsInstance => "scoop_rt_is_instance",
             RuntimeFn::ITableLookup => "scoop_rt_itable_lookup",
-            RuntimeFn::AnyEquals => "scoop_rt_any_equals",
-            RuntimeFn::AnyHashCode => "scoop_rt_any_hashcode",
-            RuntimeFn::AnyToString => "scoop_rt_any_tostring",
             RuntimeFn::Pin => "scoop_rt_pin",
             RuntimeFn::Unpin => "scoop_rt_unpin",
             RuntimeFn::GetHandle => "scoop_rt_get_handle",
@@ -978,10 +1238,7 @@ impl RuntimeFn {
             RuntimeFn::GcCollect => "scoop_rt_gc_collect",
             RuntimeFn::GcStats => "scoop_rt_gc_stats",
             RuntimeFn::MaterializeException => "scoop_rt_materialize_exception",
-            RuntimeFn::IntToString => "scoop_rt_int_to_string",
-            RuntimeFn::BoolToString => "scoop_rt_bool_to_string",
             RuntimeFn::StringConcat => "scoop_rt_string_concat",
-            RuntimeFn::StringEq => "scoop_rt_string_eq",
             RuntimeFn::Trap => "scoop_rt_trap",
         }
     }
@@ -1081,32 +1338,40 @@ pub fn dump(module: &Module) -> String {
         ));
     }
     for (_, def) in module.structs.iter() {
-        let fields: Vec<String> = def
-            .fields
-            .iter()
-            .map(|f| format!("{}: {}", f.name, type_name(module, &f.ty)))
-            .collect();
-        let mut attributes = Vec::new();
-        if let Some(layout) = def.c_layout {
-            attributes.push(format!(
-                "c-layout aligned={} packed={}",
-                layout.aligned, layout.packed
-            ));
+        match &def.representation {
+            StructRepresentation::Declared {
+                c_layout,
+                interior_mutable,
+                fields,
+            } => {
+                let fields: Vec<String> = fields
+                    .iter()
+                    .map(|f| format!("{}: {}", f.name, type_name(module, &f.ty)))
+                    .collect();
+                let mut attributes = Vec::new();
+                if let Some(layout) = c_layout {
+                    attributes.push(format!(
+                        "c-layout aligned={} packed={}",
+                        layout.aligned, layout.packed
+                    ));
+                }
+                if *interior_mutable {
+                    attributes.push("interior-mutable".to_string());
+                }
+                let attributes = if attributes.is_empty() {
+                    String::new()
+                } else {
+                    format!(" <{}>", attributes.join(" "))
+                };
+                out.push_str(&format!(
+                    "  struct {} ({}){}\n",
+                    def.name,
+                    fields.join(", "),
+                    attributes
+                ));
+            }
+            StructRepresentation::Intrinsic(_) => {}
         }
-        if def.interior_mutable {
-            attributes.push("interior-mutable".to_string());
-        }
-        let attributes = if attributes.is_empty() {
-            String::new()
-        } else {
-            format!(" <{}>", attributes.join(" "))
-        };
-        out.push_str(&format!(
-            "  struct {} ({}){}\n",
-            def.name,
-            fields.join(", "),
-            attributes
-        ));
     }
     for (_, def) in module.enums.iter() {
         out.push_str(&format!("  enum {}\n", def.name));
@@ -1120,6 +1385,9 @@ pub fn dump(module: &Module) -> String {
         }
     }
     for (_, def) in module.classes.iter() {
+        if matches!(def.representation, ClassRepresentation::Intrinsic(_)) {
+            continue;
+        }
         out.push_str(&format!(
             "  class {} vtable={} itables={}\n",
             def.name,
@@ -1277,7 +1545,10 @@ pub fn dump(module: &Module) -> String {
     for (_, instance) in module.meta.instances.iter() {
         out.push_str(&format!(
             "  instance @{} <- {}\n",
-            instance.symbol, instance.source
+            instance.symbol,
+            module
+                .meta
+                .monomorphized_source_display_name(&instance.source)
         ));
     }
     for (_, string) in module.strings.iter() {
@@ -1296,11 +1567,23 @@ pub fn type_name(module: &Module, ty: &Type) -> String {
         Type::Boolean => "Boolean".to_string(),
         Type::String => "String".to_string(),
         Type::Struct(id) => module.structs[*id].name.clone(),
-        Type::Class(id) => module.classes[*id].name.clone(),
+        Type::Class(id) => match &module.classes[*id].representation {
+            ClassRepresentation::Intrinsic(IntrinsicTypeRepresentation::Array { element }) => {
+                format!("Array<{}>", type_name(module, element))
+            }
+            ClassRepresentation::Intrinsic(IntrinsicTypeRepresentation::MutableArray {
+                element,
+            }) => format!("MutableArray<{}>", type_name(module, element)),
+            ClassRepresentation::Declared { .. }
+            | ClassRepresentation::Intrinsic(IntrinsicTypeRepresentation::String) => {
+                module.classes[*id].name.clone()
+            }
+            ClassRepresentation::Intrinsic(_) => {
+                unreachable!("the intrinsic registry fixes declaration targets")
+            }
+        },
         Type::Interface(id) => module.interfaces[*id].name.clone(),
         Type::Any => "Any".to_string(),
-        Type::Array(inner) => format!("Array<{}>", type_name(module, inner)),
-        Type::MutableArray(inner) => format!("MutableArray<{}>", type_name(module, inner)),
         Type::Tuple(elements) => {
             let inner: Vec<String> = elements.iter().map(|t| type_name(module, t)).collect();
             format!("({})", inner.join(", "))
@@ -1391,11 +1674,15 @@ fn dump_statements(
                 dump_expr(module, locals, value, indent + 1, out);
             }
             StatementKind::ArraySet {
+                array_type,
                 array,
                 index,
                 value,
             } => {
-                out.push_str(&format!("{pad}array_set\n"));
+                out.push_str(&format!(
+                    "{pad}array_set {}\n",
+                    module.classes[*array_type].name
+                ));
                 dump_expr(module, locals, array, indent + 1, out);
                 dump_expr(module, locals, index, indent + 1, out);
                 dump_expr(module, locals, value, indent + 1, out);
@@ -1479,23 +1766,24 @@ fn dump_terminator(
 
 fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize, out: &mut String) {
     let pad = "  ".repeat(indent);
-    match expr {
-        Expr::StringConst(id) => {
+    out.push_str(&format!("{pad}Type {}\n", type_name(module, &expr.ty)));
+    match &expr.kind {
+        ExprKind::StringConst(id) => {
             out.push_str(&format!(
                 "{pad}StringConst @{}\n",
                 module.strings[*id].symbol
             ));
         }
-        Expr::IntLiteral(value) => out.push_str(&format!("{pad}IntLiteral {value}\n")),
-        Expr::BoolLiteral(value) => out.push_str(&format!("{pad}BoolLiteral {value}\n")),
-        Expr::UnitLiteral => out.push_str(&format!("{pad}UnitLiteral\n")),
-        Expr::TupleLiteral(elements) => {
+        ExprKind::IntLiteral(value) => out.push_str(&format!("{pad}IntLiteral {value}\n")),
+        ExprKind::BoolLiteral(value) => out.push_str(&format!("{pad}BoolLiteral {value}\n")),
+        ExprKind::UnitLiteral => out.push_str(&format!("{pad}UnitLiteral\n")),
+        ExprKind::TupleLiteral(elements) => {
             out.push_str(&format!("{pad}TupleLiteral\n"));
             for element in elements {
                 dump_expr(module, locals, element, indent + 1, out);
             }
         }
-        Expr::ClassInit { class_id, args } => {
+        ExprKind::ClassInit { class_id, args } => {
             out.push_str(&format!(
                 "{pad}ClassInit {}\n",
                 module.classes[*class_id].name
@@ -1504,7 +1792,7 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
                 dump_expr(module, locals, arg, indent + 1, out);
             }
         }
-        Expr::ClosureAlloc { class, captures } => {
+        ExprKind::ClosureAlloc { class, captures } => {
             out.push_str(&format!(
                 "{pad}ClosureAlloc cc{} {}\n",
                 class.into_raw().into_u32(),
@@ -1514,7 +1802,7 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
                 dump_expr(module, locals, capture, indent + 1, out);
             }
         }
-        Expr::ClosureCapture {
+        ExprKind::ClosureCapture {
             closure,
             class,
             index,
@@ -1525,7 +1813,7 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
             ));
             dump_expr(module, locals, closure, indent + 1, out);
         }
-        Expr::StructInit { struct_id, args } => {
+        ExprKind::StructInit { struct_id, args } => {
             out.push_str(&format!(
                 "{pad}StructInit {}\n",
                 module.structs[*struct_id].name
@@ -1534,27 +1822,27 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
                 dump_expr(module, locals, arg, indent + 1, out);
             }
         }
-        Expr::Local(local) => out.push_str(&format!("{pad}Local {}\n", locals[*local].name)),
-        Expr::GlobalRead(global) => out.push_str(&format!(
+        ExprKind::Local(local) => out.push_str(&format!("{pad}Local {}\n", locals[*local].name)),
+        ExprKind::GlobalRead(global) => out.push_str(&format!(
             "{pad}GlobalRead {}\n",
             module.globals[*global].name
         )),
-        Expr::PtrFromUInt { operand, pointee } => {
+        ExprKind::PtrFromUInt { operand, pointee } => {
             out.push_str(&format!(
                 "{pad}PtrFromUInt {}\n",
                 type_name(module, pointee)
             ));
             dump_expr(module, locals, operand, indent + 1, out);
         }
-        Expr::PtrToUInt(operand) => {
+        ExprKind::PtrToUInt(operand) => {
             out.push_str(&format!("{pad}PtrToUInt\n"));
             dump_expr(module, locals, operand, indent + 1, out);
         }
-        Expr::PtrCast { operand, pointee } => {
+        ExprKind::PtrCast { operand, pointee } => {
             out.push_str(&format!("{pad}PtrCast {}\n", type_name(module, pointee)));
             dump_expr(module, locals, operand, indent + 1, out);
         }
-        Expr::PtrLoad {
+        ExprKind::PtrLoad {
             pointer,
             pointee,
             offset,
@@ -1565,7 +1853,7 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
                 dump_expr(module, locals, offset, indent + 1, out);
             }
         }
-        Expr::PtrStore {
+        ExprKind::PtrStore {
             pointer,
             pointee,
             offset,
@@ -1578,7 +1866,7 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
             }
             dump_expr(module, locals, value, indent + 1, out);
         }
-        Expr::PtrOffset {
+        ExprKind::PtrOffset {
             pointer,
             pointee,
             offset,
@@ -1591,31 +1879,31 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
             dump_expr(module, locals, pointer, indent + 1, out);
             dump_expr(module, locals, offset, indent + 1, out);
         }
-        Expr::AddressOf { local, pointee } => out.push_str(&format!(
+        ExprKind::AddressOf { local, pointee } => out.push_str(&format!(
             "{pad}AddressOf {} : Ptr<{}>\n",
             locals[*local].name,
             type_name(module, pointee)
         )),
-        Expr::GlobalAddress { global, pointee } => out.push_str(&format!(
+        ExprKind::GlobalAddress { global, pointee } => out.push_str(&format!(
             "{pad}GlobalAddress {} {}\n",
             module.globals[*global].name,
             type_name(module, pointee)
         )),
-        Expr::SizeOf(ty) => {
+        ExprKind::SizeOf(ty) => {
             out.push_str(&format!("{pad}SizeOf {}\n", type_name(module, ty)));
         }
-        Expr::AlignOf(ty) => {
+        ExprKind::AlignOf(ty) => {
             out.push_str(&format!("{pad}AlignOf {}\n", type_name(module, ty)));
         }
-        Expr::FunPtrNull(signature) => out.push_str(&format!(
+        ExprKind::FunPtrNull(signature) => out.push_str(&format!(
             "{pad}FunPtrNull function_type{}\n",
             signature.into_raw().into_u32()
         )),
-        Expr::FunctionAddress { callback } => out.push_str(&format!(
+        ExprKind::FunctionAddress { callback } => out.push_str(&format!(
             "{pad}FunctionAddress cb{}\n",
             callback.into_raw().into_u32()
         )),
-        Expr::ForeignCallbackRegister { bridge, closure } => {
+        ExprKind::ForeignCallbackRegister { bridge, closure } => {
             let bridge_id = *bridge;
             let bridge = &module.foreign_callback_bridges[bridge_id];
             let adapter = &module.foreign_callback_adapters[bridge.adapter];
@@ -1630,7 +1918,7 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
             ));
             dump_expr(module, locals, closure, indent + 1, out);
         }
-        Expr::ForeignCallbackOperation {
+        ExprKind::ForeignCallbackOperation {
             operation,
             callback,
             ..
@@ -1638,20 +1926,20 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
             out.push_str(&format!("{pad}ForeignCallback{operation:?}\n"));
             dump_expr(module, locals, callback, indent + 1, out);
         }
-        Expr::CaughtException => out.push_str(&format!("{pad}CaughtException\n")),
-        Expr::Retype { operand, ty } => {
+        ExprKind::CaughtException => out.push_str(&format!("{pad}CaughtException\n")),
+        ExprKind::Retype { operand, ty } => {
             out.push_str(&format!("{pad}Retype {}\n", type_name(module, ty)));
             dump_expr(module, locals, operand, indent + 1, out);
         }
-        Expr::FieldAccess { receiver, index } => {
+        ExprKind::FieldAccess { receiver, index } => {
             out.push_str(&format!("{pad}FieldAccess {index}\n"));
             dump_expr(module, locals, receiver, indent + 1, out);
         }
-        Expr::AtomicFieldLoad { object, index } => {
+        ExprKind::AtomicFieldLoad { object, index } => {
             out.push_str(&format!("{pad}AtomicLoadAcquire field={index}\n"));
             dump_expr(module, locals, object, indent + 1, out);
         }
-        Expr::AtomicFieldCompareExchange {
+        ExprKind::AtomicFieldCompareExchange {
             object,
             index,
             expected,
@@ -1664,72 +1952,94 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
             dump_expr(module, locals, expected, indent + 1, out);
             dump_expr(module, locals, replacement, indent + 1, out);
         }
-        Expr::Box(operand) => {
+        ExprKind::Box(operand) => {
             out.push_str(&format!("{pad}Box\n"));
             dump_expr(module, locals, operand, indent + 1, out);
         }
-        Expr::Unbox(operand) => {
+        ExprKind::Unbox(operand) => {
             out.push_str(&format!("{pad}Unbox\n"));
             dump_expr(module, locals, operand, indent + 1, out);
         }
-        Expr::IsInstance { operand, check_ty } => {
+        ExprKind::IsInstance { operand, check_ty } => {
             out.push_str(&format!(
                 "{pad}IsInstance {}\n",
                 type_name(module, check_ty)
             ));
             dump_expr(module, locals, operand, indent + 1, out);
         }
-        Expr::Cast { operand, optional } => {
+        ExprKind::Cast { operand, optional } => {
             out.push_str(&format!("{pad}Cast optional={optional}\n"));
             dump_expr(module, locals, operand, indent + 1, out);
         }
-        Expr::ArrayLiteral(elements) => {
-            out.push_str(&format!("{pad}ArrayLiteral\n"));
+        ExprKind::ArrayLiteral {
+            array_type,
+            elements,
+        } => {
+            out.push_str(&format!(
+                "{pad}ArrayLiteral {}\n",
+                module.classes[*array_type].name
+            ));
             for element in elements {
                 dump_expr(module, locals, element, indent + 1, out);
             }
         }
-        Expr::ArrayGet { array, index } => {
-            out.push_str(&format!("{pad}ArrayGet\n"));
+        ExprKind::ArrayGet {
+            array_type,
+            array,
+            index,
+        } => {
+            out.push_str(&format!(
+                "{pad}ArrayGet {}\n",
+                module.classes[*array_type].name
+            ));
             dump_expr(module, locals, array, indent + 1, out);
             dump_expr(module, locals, index, indent + 1, out);
         }
-        Expr::ArrayLen(operand) => {
-            out.push_str(&format!("{pad}ArrayLen\n"));
+        ExprKind::ArrayLen {
+            array_type,
+            operand,
+        } => {
+            out.push_str(&format!(
+                "{pad}ArrayLen {}\n",
+                module.classes[*array_type].name
+            ));
             dump_expr(module, locals, operand, indent + 1, out);
         }
-        Expr::ArrayClone(operand) => {
-            out.push_str(&format!("{pad}ArrayClone\n"));
+        ExprKind::ArrayClone {
+            source_type,
+            target_type,
+            operand,
+        } => {
+            out.push_str(&format!(
+                "{pad}ArrayClone {} -> {}\n",
+                module.classes[*source_type].name, module.classes[*target_type].name
+            ));
             dump_expr(module, locals, operand, indent + 1, out);
         }
-        Expr::Binary { op, lhs, rhs } => {
+        ExprKind::Binary { op, lhs, rhs } => {
             out.push_str(&format!("{pad}Binary {op:?}\n"));
             dump_expr(module, locals, lhs, indent + 1, out);
             dump_expr(module, locals, rhs, indent + 1, out);
         }
-        Expr::Unary { op, operand } => {
+        ExprKind::Unary { op, operand } => {
             out.push_str(&format!("{pad}Unary {op:?}\n"));
             dump_expr(module, locals, operand, indent + 1, out);
         }
-        Expr::VariantConstruct {
-            ty,
-            variant,
-            fields,
-        } => {
+        ExprKind::VariantConstruct { variant, fields } => {
             out.push_str(&format!(
                 "{pad}VariantConstruct {} v{}\n",
-                type_name(module, ty),
+                type_name(module, &expr.ty),
                 variant
             ));
             for field in fields {
                 dump_expr(module, locals, field, indent + 1, out);
             }
         }
-        Expr::EnumTag(operand) => {
+        ExprKind::EnumTag(operand) => {
             out.push_str(&format!("{pad}EnumTag\n"));
             dump_expr(module, locals, operand, indent + 1, out);
         }
-        Expr::EnumField {
+        ExprKind::EnumField {
             operand,
             variant,
             index,

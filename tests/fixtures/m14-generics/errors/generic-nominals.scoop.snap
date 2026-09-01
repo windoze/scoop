@@ -1,0 +1,14 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m14-generics/errors/generic-nominals.scoop:16:22: error: type parameter `T` of struct must be invariant
+m14-generics/errors/generic-nominals.scoop:18:18: error: type parameter `T` of enum must be invariant
+m14-generics/errors/generic-nominals.scoop:14:20: error: type parameter `T` of class must be invariant
+m14-generics/errors/generic-nominals.scoop:22:21: error: generic class `Empty` requires 1 type argument(s)
+m14-generics/errors/generic-nominals.scoop:24:22: error: generic struct `Pair` requires 1 type argument(s)
+m14-generics/errors/generic-nominals.scoop:26:20: error: generic enum `Choice` requires 1 type argument(s)
+m14-generics/errors/generic-nominals.scoop:28:25: error: generic interface `Cell` requires 1 type argument(s)
+m14-generics/errors/generic-nominals.scoop:31:5: error: cannot infer type argument `T` for class `Empty`
+m14-generics/errors/generic-nominals.scoop:32:5: error: class `Empty` takes exactly 1 type argument(s), but 2 were supplied

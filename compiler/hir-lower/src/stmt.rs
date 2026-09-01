@@ -21,6 +21,7 @@ use hir::{FunctionId, Type, TypeId};
 
 use crate::patterns::PatternCtx;
 use crate::scope::Scopes;
+use crate::types::ArrayKind;
 use crate::{CaptureContext, FnParam, FnSig, ForbiddenSuspendContext, Lowerer, SuspensionContext};
 
 pub(crate) struct ValueBlock {
@@ -48,6 +49,12 @@ impl Lowerer {
         &mut self,
         decl: &ast::FunctionDecl,
     ) -> Option<hir::LocalFunctionId> {
+        if let Some(operator) = decl.operator {
+            self.error(
+                operator.span,
+                "`operator` is only allowed on member functions".to_string(),
+            );
+        }
         let outer_type_params = self.type_params_in_scope.clone();
         let owner_type_param_count = outer_type_params.len();
         let mut type_params = outer_type_params.clone();
@@ -62,8 +69,16 @@ impl Lowerer {
                 );
                 continue;
             }
-            type_params.push(crate::lower_type_param_decl(param));
+            let parameter = self.fresh_type_param(type_params.len());
+            type_params.push(crate::lower_type_param_decl(param, parameter));
         }
+        type_params = self.resolve_type_parameter_constraints(
+            type_params,
+            owner_type_param_count,
+            &decl.type_params,
+            decl.where_clause.as_ref(),
+            "local function",
+        );
         self.type_params_in_scope = type_params.clone();
         let mut sig_params = Vec::with_capacity(decl.params.len());
         for param in &decl.params {
@@ -86,13 +101,13 @@ impl Lowerer {
             unreachable!("interning a function type returns a function type")
         };
         let attributes = self
-            .check_function_annotations(decl, false, crate::FunctionTarget::Local)
+            .check_function_annotations(decl, crate::FunctionTarget::Local)
             .attributes;
         let local_number = self.local_functions.len();
         let function = self.functions.alloc(hir::Function {
             name: format!("$local.{local_number}.{}", decl.name.text),
+            genericity: hir::FunctionGenericity::Plain,
             is_suspend: decl.is_suspend,
-            type_params: type_params.clone(),
             params: Vec::new(),
             return_ty,
             attributes,
@@ -107,6 +122,7 @@ impl Lowerer {
             function,
             FnSig {
                 is_suspend: decl.is_suspend,
+                operator: None,
                 attributes,
                 owner_type_param_count,
                 type_params: type_params.clone(),
@@ -115,7 +131,7 @@ impl Lowerer {
             },
         );
         if !type_params.is_empty() {
-            self.register_generic(function);
+            self.register_generic(function, type_params.clone());
         }
         let local = self.local_functions.alloc(hir::LocalFunction {
             function,
@@ -1527,8 +1543,8 @@ impl Lowerer {
         name: &ast::Ident,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::StatementKind> {
-        let class_id = match self.types[receiver.ty] {
-            Type::Class(id) => id,
+        let application = match self.types[receiver.ty] {
+            Type::Class(application) => application,
             _ if self.is_value_ty(receiver.ty) => {
                 self.error(
                     name.span,
@@ -1542,8 +1558,9 @@ impl Lowerer {
                 return None;
             }
         };
+        let class_id = self.class_applications[application].template;
         let Some((declaring, index, field_ty, mutable)) =
-            self.find_class_field(class_id, &name.text)
+            self.find_class_application_field(application, &name.text)
         else {
             let class_name = self.classes[class_id].name.clone();
             self.error(
@@ -1577,7 +1594,7 @@ impl Lowerer {
             target: hir::AssignTarget::Field {
                 receiver: Box::new(receiver),
                 field: hir::FieldRef::ClassField {
-                    class_id: declaring,
+                    application: declaring,
                     index,
                 },
             },
@@ -1616,8 +1633,10 @@ impl Lowerer {
                 return None;
             }
             match self.current_this_ty().map(|ty| self.types[ty].clone()) {
-                Some(Type::Class(class_id)) => {
-                    if let Some((_, _, _, mutable)) = self.find_class_field(class_id, &name.text) {
+                Some(Type::Class(application)) => {
+                    if let Some((_, _, _, mutable)) =
+                        self.find_class_application_field(application, &name.text)
+                    {
                         if !mutable {
                             self.error(
                                 name.span,
@@ -1634,9 +1653,9 @@ impl Lowerer {
                         return Some(kind);
                     }
                 }
-                Some(Type::Struct(struct_id, _))
-                    if self.structs[struct_id]
-                        .fields
+                Some(Type::Struct(application))
+                    if self.structs[self.struct_applications[application].template]
+                        .semantic_fields()
                         .iter()
                         .any(|field| field.name == name.text) =>
                 {
@@ -1730,9 +1749,9 @@ impl Lowerer {
     ) -> Option<hir::StatementKind> {
         let mut sink = Vec::new();
         let array = self.lower_expr(receiver, &mut sink, None)?;
-        let element_ty = match self.types[array.ty].clone() {
-            Type::MutableArray(element) => element,
-            Type::Array(_) => {
+        let element_ty = match self.array_type_info(array.ty) {
+            Some(array) if array.kind == ArrayKind::Mutable => array.element,
+            Some(_) => {
                 let found = self.type_name(array.ty);
                 self.error(
                     receiver.span(),
@@ -1940,7 +1959,9 @@ fn patch_local_function_call_pattern(
     captures: &[hir::Capture],
 ) {
     match pattern {
-        hir::Pattern::Literal(expr) => patch_local_function_call_expr(expr, target, captures),
+        hir::Pattern::Literal { value, .. } => {
+            patch_local_function_call_expr(value, target, captures)
+        }
         hir::Pattern::Variant { fields, .. } | hir::Pattern::Struct { fields, .. } => {
             for (_, field) in fields {
                 patch_local_function_call_pattern(field, target, captures);
@@ -2075,6 +2096,7 @@ fn patch_local_function_call_expr(
         | hir::ExprKind::BoolLiteral(_)
         | hir::ExprKind::UnitLiteral
         | hir::ExprKind::Local(_)
+        | hir::ExprKind::ConstructorParam(_)
         | hir::ExprKind::GlobalRead(_)
         | hir::ExprKind::Capture(_)
         | hir::ExprKind::Lambda(_)

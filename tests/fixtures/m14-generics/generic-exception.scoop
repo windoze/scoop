@@ -1,0 +1,25 @@
+class GenericError<T> : Exception(None)
+
+fun failInt() {
+    throw GenericError<Int>()
+}
+
+fun failString() {
+    throw GenericError<String>()
+}
+
+fun main() {
+    try {
+        failInt()
+    } catch (error: GenericError<Int>) {
+        println("int")
+    }
+
+    try {
+        failString()
+    } catch (error: GenericError<Int>) {
+        println("wrong")
+    } catch (error: Exception) {
+        println("base")
+    }
+}

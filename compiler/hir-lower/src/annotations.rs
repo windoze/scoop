@@ -16,7 +16,7 @@ pub(crate) enum FunctionTarget {
 
 pub(crate) struct CheckedFunctionAnnotations {
     pub(crate) attributes: hir::FunctionAttributes,
-    pub(crate) intrinsic: Option<String>,
+    pub(crate) intrinsic: Option<hir::IntrinsicFunction>,
     pub(crate) extern_: Option<ExternAnnotation>,
 }
 
@@ -31,6 +31,15 @@ pub(crate) struct CheckedGlobalAnnotations {
     pub(crate) extern_: Option<ExternAnnotation>,
     /// `Some(false)` is `@Global`; `Some(true)` is `@ThreadLocal`.
     pub(crate) storage: Option<bool>,
+}
+
+pub(crate) struct CheckedStructAnnotations {
+    pub(crate) attributes: hir::StructAttributes,
+    pub(crate) intrinsic: Option<&'static hir::IntrinsicTypeSpec>,
+}
+
+pub(crate) struct CheckedClassAnnotations {
+    pub(crate) intrinsic: Option<&'static hir::IntrinsicTypeSpec>,
 }
 
 impl Lowerer {
@@ -126,11 +135,11 @@ impl Lowerer {
     pub(crate) fn check_function_annotations(
         &mut self,
         decl: &ast::FunctionDecl,
-        is_core: bool,
         target: FunctionTarget,
     ) -> CheckedFunctionAnnotations {
         let mut attributes = hir::FunctionAttributes::default();
         let mut intrinsic = None;
+        let mut intrinsic_spec = None;
         let mut extern_ = None;
         let mut saw_safe = false;
         let mut saw_unsafe = false;
@@ -166,13 +175,17 @@ impl Lowerer {
                             annotation.span,
                             "`@Intrinsic` is not allowed on this function target".to_string(),
                         );
-                    } else if !is_core {
+                    } else if !self.current_provider_may_declare_intrinsics() {
                         self.error(
                             annotation.span,
                             "`@Intrinsic` is only allowed in the core library".to_string(),
                         );
                     } else {
-                        intrinsic = Some(value);
+                        intrinsic = Some(hir::IntrinsicFunction {
+                            kind: spec.kind,
+                            provider: self.current_intrinsic_provider(),
+                        });
+                        intrinsic_spec = Some(spec);
                     }
                 }
                 "NoGC" => {
@@ -305,8 +318,7 @@ impl Lowerer {
                 );
             }
         }
-        if let Some(name) = &intrinsic {
-            let spec = hir::intrinsic_spec(name).expect("validated intrinsic name");
+        if let (Some(intrinsic), Some(spec)) = (intrinsic, intrinsic_spec) {
             if spec.effects == hir::IntrinsicEffects::NONE
                 && (saw_safe || saw_unsafe || saw_no_gc || saw_calling_convention)
             {
@@ -329,7 +341,8 @@ impl Lowerer {
                 self.error(
                     decl.span,
                     format!(
-                        "intrinsic `{name}` requires exactly {} effect annotation(s)",
+                        "intrinsic `{}` requires exactly {} effect annotation(s)",
+                        intrinsic.kind.name(),
                         if required.is_empty() {
                             "no".to_string()
                         } else {
@@ -362,8 +375,9 @@ impl Lowerer {
     pub(crate) fn check_struct_annotations(
         &mut self,
         decl: &ast::StructDecl,
-    ) -> hir::StructAttributes {
+    ) -> CheckedStructAnnotations {
         let mut attributes = hir::StructAttributes::default();
+        let mut intrinsic = None;
         let mut seen = HashSet::new();
         for annotation in &decl.annotations {
             let name = annotation.name.text.as_str();
@@ -390,18 +404,106 @@ impl Lowerer {
                         attributes.interior_mutable = true;
                     }
                 }
-                "Extern" | "Unsafe" | "Safe" | "CallingConvention" | "Global" | "ThreadLocal"
-                | "Intrinsic" => self.error(
-                    annotation.span,
-                    format!("`@{name}` is not allowed on a struct"),
-                ),
+                "Intrinsic" => {
+                    intrinsic = self.check_intrinsic_type_annotation(
+                        annotation,
+                        hir::IntrinsicTypeTarget::Struct,
+                    );
+                }
+                "Extern" | "Unsafe" | "Safe" | "CallingConvention" | "Global" | "ThreadLocal" => {
+                    self.error(
+                        annotation.span,
+                        format!("`@{name}` is not allowed on a struct"),
+                    )
+                }
                 _ => self.error(
                     annotation.span,
                     format!("unsupported annotation `@{name}` in milestone M12"),
                 ),
             }
         }
-        attributes
+        if intrinsic.is_some() && decl.annotations.len() != 1 {
+            self.error(
+                decl.span,
+                "`@Intrinsic` cannot be combined with other annotations on a type".to_string(),
+            );
+        }
+        CheckedStructAnnotations {
+            attributes,
+            intrinsic,
+        }
+    }
+
+    pub(crate) fn check_class_annotations(
+        &mut self,
+        decl: &ast::ClassDecl,
+    ) -> CheckedClassAnnotations {
+        let mut intrinsic = None;
+        let mut seen = HashSet::new();
+        for annotation in &decl.annotations {
+            let name = annotation.name.text.as_str();
+            if !seen.insert(name.to_string()) {
+                self.error(
+                    annotation.span,
+                    format!("annotation `@{name}` must not be repeated"),
+                );
+                continue;
+            }
+            if name == "Intrinsic" {
+                intrinsic = self
+                    .check_intrinsic_type_annotation(annotation, hir::IntrinsicTypeTarget::Class);
+            } else if is_core_annotation(name) {
+                self.error(
+                    annotation.span,
+                    format!("`@{name}` is not allowed on a class"),
+                );
+            } else {
+                self.error(
+                    annotation.span,
+                    format!("unsupported annotation `@{name}` in milestone M14"),
+                );
+            }
+        }
+        if intrinsic.is_some() && decl.annotations.len() != 1 {
+            self.error(
+                decl.span,
+                "`@Intrinsic` cannot be combined with other annotations on a type".to_string(),
+            );
+        }
+        CheckedClassAnnotations { intrinsic }
+    }
+
+    fn check_intrinsic_type_annotation(
+        &mut self,
+        annotation: &ast::Annotation,
+        target: hir::IntrinsicTypeTarget,
+    ) -> Option<&'static hir::IntrinsicTypeSpec> {
+        let value = self.annotation_string(annotation, "name")?;
+        let Some(spec) = hir::intrinsic_type_spec(&value) else {
+            self.error(annotation.span, format!("unknown intrinsic type `{value}`"));
+            return None;
+        };
+        if spec.kind.target() != target {
+            self.error(
+                annotation.span,
+                format!(
+                    "intrinsic type `{value}` requires a {} declaration",
+                    match spec.kind.target() {
+                        hir::IntrinsicTypeTarget::Struct => "struct",
+                        hir::IntrinsicTypeTarget::Class => "class",
+                    }
+                ),
+            );
+            return None;
+        }
+        if !self.current_provider_may_declare_intrinsics() {
+            self.error(
+                annotation.span,
+                "`@Intrinsic` is only allowed in the core library".to_string(),
+            );
+            return None;
+        }
+        Some(spec)
     }
 
     pub(crate) fn check_enum_annotations(&mut self, decl: &ast::EnumDecl) -> bool {

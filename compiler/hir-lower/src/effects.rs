@@ -7,14 +7,31 @@ use scoop_hir as hir;
 
 use crate::Lowerer;
 
+mod generic_recursion;
 mod no_gc_generics;
 
 /// Type arguments in a generic aggregate are expressed in the caller's
 /// parameter namespace. Chaining environments lets GC-freedom analysis
 /// substitute nested generic fields without interning synthetic HIR types.
 struct TypeEnvironment<'a> {
-    args: Vec<hir::TypeId>,
+    bindings: Vec<(hir::TypeParamId, hir::TypeId)>,
     parent: Option<&'a TypeEnvironment<'a>>,
+}
+
+impl<'a> TypeEnvironment<'a> {
+    fn resolve(
+        &'a self,
+        parameter: hir::TypeParamId,
+    ) -> Option<(hir::TypeId, Option<&'a TypeEnvironment<'a>>)> {
+        if let Some(argument) = self
+            .bindings
+            .iter()
+            .find_map(|(candidate, argument)| (*candidate == parameter).then_some(*argument))
+        {
+            return Some((argument, self.parent));
+        }
+        self.parent?.resolve(parameter)
+    }
 }
 
 impl Lowerer {
@@ -44,24 +61,27 @@ impl Lowerer {
                 );
             }
         }
-        let types = self
-            .types
-            .iter()
-            .filter_map(|(ty, kind)| match kind {
-                hir::Type::Struct(id, _) if self.structs[*id].attributes.no_gc => Some((
-                    ty,
-                    "struct",
-                    id.into_raw().into_u32(),
-                    self.structs[*id].span,
-                )),
-                hir::Type::Enum(id, _)
-                    if self.enums[*id].no_gc && !self.enums[*id].type_params.is_empty() =>
-                {
-                    Some((ty, "enum", id.into_raw().into_u32(), self.enums[*id].span))
-                }
-                _ => None,
-            })
-            .collect::<Vec<_>>();
+        let types =
+            self.types
+                .iter()
+                .filter_map(|(ty, kind)| match kind {
+                    hir::Type::Struct(application) => {
+                        let id = self.struct_applications[*application].template;
+                        self.structs[id].attributes.no_gc.then_some((
+                            ty,
+                            "struct",
+                            id.into_raw().into_u32(),
+                            self.structs[id].span,
+                        ))
+                    }
+                    hir::Type::Enum(application) => {
+                        let id = self.enum_applications[*application].template;
+                        (self.enums[id].no_gc && !self.enums[id].type_params.is_empty())
+                            .then_some((ty, "enum", id.into_raw().into_u32(), self.enums[id].span))
+                    }
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
         for (ty, kind, raw_id, span) in types {
             if self.type_contains_param(ty) {
                 continue;
@@ -199,11 +219,9 @@ impl Lowerer {
             for (span, message) in violations {
                 self.error(span, message);
             }
-            if let Some(&generic) = self.generic_by_function.get(&id) {
-                let mut requirements: Vec<_> = requirements.into_iter().collect();
-                requirements.sort_by_key(|parameter| parameter.into_raw());
-                self.generic_functions[generic].no_gc_type_params = requirements;
-            }
+            let mut requirements: Vec<_> = requirements.into_iter().collect();
+            requirements.sort_by_key(|parameter| parameter.into_raw());
+            self.set_function_no_gc_requirements(id, requirements);
         }
 
         self.validate_no_gc_instantiations();
@@ -293,11 +311,9 @@ impl Lowerer {
             | hir::Type::Ptr(_)
             | hir::Type::FunPtr(_) => Some(HashSet::new()),
             hir::Type::String
-            | hir::Type::Class(_)
-            | hir::Type::Interface(_, _)
+            | hir::Type::Class(..)
+            | hir::Type::Interface(_)
             | hir::Type::Any
-            | hir::Type::Array(_)
-            | hir::Type::MutableArray(_)
             | hir::Type::Function(_) => None,
             hir::Type::Tuple(elements) => {
                 let mut requirements = HashSet::new();
@@ -312,21 +328,30 @@ impl Lowerer {
             }
             hir::Type::Param(index) => match environment {
                 Some(environment) => {
-                    let argument = environment.args[index.into_raw() as usize];
-                    self.gc_free_requirements_inner(argument, environment.parent, visiting)
+                    let (argument, parent) = environment
+                        .resolve(*index)
+                        .expect("the complete type environment binds every referenced parameter");
+                    self.gc_free_requirements_inner(argument, parent, visiting)
                 }
                 None => Some(HashSet::from([*index])),
             },
-            hir::Type::Struct(id, args) => {
+            hir::Type::Struct(application) => {
+                let application = &self.struct_applications[*application];
+                let id = application.template;
                 if !visiting.insert(ty) {
                     return None;
                 }
                 let nested = TypeEnvironment {
-                    args: args.clone(),
+                    bindings: self.structs[id]
+                        .type_params
+                        .iter()
+                        .zip(application.arguments.iter().copied())
+                        .map(|(parameter, argument)| (parameter.id, argument))
+                        .collect(),
                     parent: environment,
                 };
                 let mut requirements = HashSet::new();
-                for field in &self.structs[*id].fields {
+                for field in self.structs[id].semantic_fields() {
                     let Some(required) =
                         self.gc_free_requirements_inner(field.ty, Some(&nested), visiting)
                     else {
@@ -338,16 +363,23 @@ impl Lowerer {
                 visiting.remove(&ty);
                 Some(requirements)
             }
-            hir::Type::Enum(id, args) => {
+            hir::Type::Enum(application) => {
+                let application = &self.enum_applications[*application];
+                let id = application.template;
                 if !visiting.insert(ty) {
                     return None;
                 }
                 let nested = TypeEnvironment {
-                    args: args.clone(),
+                    bindings: self.enums[id]
+                        .type_params
+                        .iter()
+                        .zip(application.arguments.iter().copied())
+                        .map(|(parameter, argument)| (parameter.id, argument))
+                        .collect(),
                     parent: environment,
                 };
                 let mut requirements = HashSet::new();
-                for field in self.enums[*id]
+                for field in self.enums[id]
                     .variants
                     .iter()
                     .flat_map(|variant| &variant.fields)
@@ -377,33 +409,47 @@ impl Lowerer {
         visiting: &mut HashSet<hir::TypeId>,
     ) -> bool {
         match &self.types[ty] {
-            hir::Type::Struct(id, args) => {
-                if self.structs[*id].attributes.interior_mutable {
+            hir::Type::Struct(application) => {
+                let application = &self.struct_applications[*application];
+                let id = application.template;
+                if self.structs[id].attributes.interior_mutable {
                     return true;
                 }
                 if !visiting.insert(ty) {
                     return false;
                 }
                 let nested = TypeEnvironment {
-                    args: args.clone(),
+                    bindings: self.structs[id]
+                        .type_params
+                        .iter()
+                        .zip(application.arguments.iter().copied())
+                        .map(|(parameter, argument)| (parameter.id, argument))
+                        .collect(),
                     parent: environment,
                 };
-                let result = self.structs[*id]
-                    .fields
+                let result = self.structs[id]
+                    .semantic_fields()
                     .iter()
                     .any(|field| self.requires_unsafe_use_inner(field.ty, Some(&nested), visiting));
                 visiting.remove(&ty);
                 result
             }
-            hir::Type::Enum(id, args) => {
+            hir::Type::Enum(application) => {
+                let application = &self.enum_applications[*application];
+                let id = application.template;
                 if !visiting.insert(ty) {
                     return false;
                 }
                 let nested = TypeEnvironment {
-                    args: args.clone(),
+                    bindings: self.enums[id]
+                        .type_params
+                        .iter()
+                        .zip(application.arguments.iter().copied())
+                        .map(|(parameter, argument)| (parameter.id, argument))
+                        .collect(),
                     parent: environment,
                 };
-                let result = self.enums[*id].variants.iter().any(|variant| {
+                let result = self.enums[id].variants.iter().any(|variant| {
                     variant.fields.iter().any(|field| {
                         self.requires_unsafe_use_inner(field.ty, Some(&nested), visiting)
                     })
@@ -415,8 +461,10 @@ impl Lowerer {
                 .iter()
                 .any(|ty| self.requires_unsafe_use_inner(*ty, environment, visiting)),
             hir::Type::Param(index) => environment.is_some_and(|environment| {
-                let argument = environment.args[index.into_raw() as usize];
-                self.requires_unsafe_use_inner(argument, environment.parent, visiting)
+                let (argument, parent) = environment
+                    .resolve(*index)
+                    .expect("the complete type environment binds every referenced parameter");
+                self.requires_unsafe_use_inner(argument, parent, visiting)
             }),
             _ => false,
         }
@@ -556,6 +604,7 @@ impl Lowerer {
             | ExprKind::BoolLiteral(_)
             | ExprKind::UnitLiteral
             | ExprKind::Local(_)
+            | ExprKind::ConstructorParam(_)
             | ExprKind::GlobalRead(_)
             | ExprKind::Capture(_)
             | ExprKind::NoneLiteral => {}
@@ -605,7 +654,20 @@ impl Lowerer {
                 callee,
                 args,
             } => {
-                self.check_no_gc_callee(*callee, expr.span, out);
+                match callee {
+                    hir::MethodCallee::Callable(callee) => {
+                        self.check_no_gc_callee(*callee, expr.span, out)
+                    }
+                    hir::MethodCallee::Bound(bound) => {
+                        let member = self.bound_callable_refs[*bound].member;
+                        let function = self.interface_method_entities[member].function;
+                        self.check_no_gc_function(function, expr.span, out);
+                    }
+                    hir::MethodCallee::DerivedEquality(application) => {
+                        let function = self.derived_equality_applications[*application].function;
+                        self.check_no_gc_function(function, expr.span, out);
+                    }
+                }
                 self.collect_no_gc_expr_violations(receiver, out, requirements);
                 for arg in args {
                     self.collect_no_gc_expr_violations(arg, out, requirements);
@@ -751,13 +813,16 @@ impl Lowerer {
         span: Span,
         out: &mut Vec<(Span, String)>,
     ) {
-        let function = match callable {
-            hir::Callable::Function(function) => function,
-            hir::Callable::Generic(instantiation) => {
-                let generic = self.instantiations[instantiation].generic;
-                self.generic_functions[generic].function
-            }
-        };
+        let function = self.callable_function_id(callable);
+        self.check_no_gc_function(function, span, out);
+    }
+
+    fn check_no_gc_function(
+        &self,
+        function: hir::FunctionId,
+        span: Span,
+        out: &mut Vec<(Span, String)>,
+    ) {
         let callee = &self.functions[function];
         if callee.attributes.gc_effect != hir::GcEffect::NoGc {
             out.push((

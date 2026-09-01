@@ -50,6 +50,7 @@ pub(crate) enum StatementKind {
         value: Expr,
     },
     ArraySet {
+        array_type: mir::ClassId,
         array: Expr,
         index: Expr,
         value: Expr,
@@ -72,8 +73,39 @@ pub(crate) enum StatementKind {
     },
 }
 
+/// Call-preserving structured expression used before CFG normalization.
+/// It is fully typed at creation so CFG construction never recovers a result
+/// type from an enclosing statement or expected context.
 #[derive(Debug, Clone)]
-pub(crate) enum Expr {
+pub(crate) struct Expr {
+    pub(crate) ty: mir::Type,
+    pub(crate) kind: ExprKind,
+}
+
+impl Expr {
+    pub(crate) fn new(ty: mir::Type, kind: ExprKind) -> Self {
+        Self { ty, kind }
+    }
+
+    pub(crate) fn local(local: mir::LocalId, ty: mir::Type) -> Self {
+        Self::new(ty, ExprKind::Local(local))
+    }
+
+    pub(crate) fn int(value: i64) -> Self {
+        Self::new(mir::Type::Int, ExprKind::IntLiteral(value))
+    }
+
+    pub(crate) fn bool(value: bool) -> Self {
+        Self::new(mir::Type::Boolean, ExprKind::BoolLiteral(value))
+    }
+
+    pub(crate) fn unit() -> Self {
+        Self::new(mir::Type::Unit, ExprKind::UnitLiteral)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub(crate) enum ExprKind {
     StringConst(mir::StringConstId),
     IntLiteral(i64),
     BoolLiteral(bool),
@@ -145,7 +177,6 @@ pub(crate) enum Expr {
     ForeignCallbackOperation {
         operation: mir::ForeignCallbackOperation,
         callback: Box<Expr>,
-        result_ty: Box<mir::Type>,
     },
     Retype {
         operand: Box<Expr>,
@@ -162,13 +193,24 @@ pub(crate) enum Expr {
         operand: Box<Expr>,
         check_ty: Box<mir::Type>,
     },
-    ArrayLiteral(Vec<Expr>),
+    ArrayLiteral {
+        array_type: mir::ClassId,
+        elements: Vec<Expr>,
+    },
     ArrayGet {
+        array_type: mir::ClassId,
         array: Box<Expr>,
         index: Box<Expr>,
     },
-    ArrayLen(Box<Expr>),
-    ArrayClone(Box<Expr>),
+    ArrayLen {
+        array_type: mir::ClassId,
+        operand: Box<Expr>,
+    },
+    ArrayClone {
+        source_type: mir::ClassId,
+        target_type: mir::ClassId,
+        operand: Box<Expr>,
+    },
     Binary {
         op: mir::BinOp,
         lhs: Box<Expr>,
@@ -184,7 +226,6 @@ pub(crate) enum Expr {
         operand: Box<Expr>,
     },
     VariantConstruct {
-        ty: mir::Type,
         variant: u32,
         fields: Vec<Expr>,
     },

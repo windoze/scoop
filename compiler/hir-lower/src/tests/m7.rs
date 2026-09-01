@@ -66,8 +66,9 @@ fn call_in_main(
         panic!("statement {index} is not a call")
     };
     if unnest {
-        // `print` / `println` take `Any`: a value-typed result arrives
-        // under a `Box` adaptation node.
+        // Keep this helper usable for older boxing-oriented overload cases as
+        // well as the generic core output functions, whose arguments retain
+        // their concrete types.
         let inner = match &args[0].kind {
             hir::ExprKind::Box(operand) => &operand.kind,
             kind => kind,
@@ -89,6 +90,31 @@ fn has_instantiation(
     module.instantiations.iter().any(|(_, resolved)| {
         module.generic_functions[resolved.generic].function == function
             && resolved.type_args == type_args
+    })
+}
+
+fn has_method_application(
+    module: &hir::Module,
+    function: hir::FunctionId,
+    owner_arguments: &[hir::TypeId],
+) -> bool {
+    module.method_applications.iter().any(|(_, application)| {
+        if application.function != function {
+            return false;
+        }
+        let arguments: &[hir::TypeId] = match application.owner {
+            hir::MethodOwnerApplication::Class(owner) => {
+                &module.class_applications[owner].arguments
+            }
+            hir::MethodOwnerApplication::Struct(owner) => {
+                &module.struct_applications[owner].arguments
+            }
+            hir::MethodOwnerApplication::Enum(owner) => &module.enum_applications[owner].arguments,
+            hir::MethodOwnerApplication::Interface(owner) => {
+                &module.interface_applications[owner].arguments
+            }
+        };
+        arguments == owner_arguments
     })
 }
 
@@ -566,13 +592,10 @@ fn non_generic_wins_ties_against_generic() {
     let hir::ExprKind::Call { args, .. } = &outer.kind else {
         panic!("expected a call")
     };
-    let hir::ExprKind::Box(nested) = &args[0].kind else {
-        panic!("the Int result must be boxed into `Any`")
-    };
-    let hir::ExprKind::Call { callee, .. } = &nested.kind else {
+    let hir::ExprKind::Call { callee, .. } = &args[0].kind else {
         panic!("expected a nested call")
     };
-    assert!(module.callable_type_args(*callee).is_empty());
+    assert!(matches!(callee, hir::Callable::Function(id) if *id == concrete));
 
     // `id("s")`: only the generic candidate is applicable, with
     // `T = String` inferred and recorded.
@@ -785,9 +808,8 @@ fn layering_is_relative_to_the_call_site_file() {
     let (target, _) = call_in_main(&module, 0, true);
     assert_eq!(target, top_level_fn(&module, "write", &["Int"]));
 
-    // Core's `print(Any)` body still calls the core managed `write`
-    // extern — the user
-    // overload does not leak into core's own layer.
+    // Core's generic `print<T : ToString>` body still calls the core managed
+    // `write` extern; the user overload does not leak into core's own layer.
     let core_write = module
         .top_level
         .iter()
@@ -797,7 +819,7 @@ fn layering_is_relative_to_the_call_site_file() {
             f.name == "write" && matches!(f.kind, hir::FunctionKind::Extern(_))
         })
         .expect("core declares the write extern");
-    let core_print = top_level_fn(&module, "print", &["Any"]);
+    let core_print = top_level_fn(&module, "print", &["T0"]);
     let body = body_of(&module, core_print);
     let hir::StatementKind::Expr(value) = &body.statements[0].kind else {
         panic!("expected the call statement")
@@ -809,7 +831,7 @@ fn layering_is_relative_to_the_call_site_file() {
 
     // Core's `println` body is likewise unaffected: both of its
     // `write` calls target the core extern.
-    let core_println = top_level_fn(&module, "println", &["Any"]);
+    let core_println = top_level_fn(&module, "println", &["T0"]);
     let body = body_of(&module, core_println);
     for statement in &body.statements {
         let hir::StatementKind::Expr(value) = &statement.kind else {
@@ -837,23 +859,12 @@ fn core_write(module: &hir::Module) -> hir::FunctionId {
         .expect("core declares the write extern")
 }
 
-/// The synthesized `Any` member by (qualified) name.
-fn any_member(module: &hir::Module, name: &str) -> hir::FunctionId {
-    module
-        .functions
-        .iter()
-        .find(|(_, f)| f.name == format!("Any.{name}"))
-        .map(|(id, _)| id)
-        .unwrap_or_else(|| panic!("`Any.{name}` is synthesized"))
-}
-
-/// `print` / `println` are single `Any`-parameter core functions:
-/// every argument type resolves to them (value types arrive boxed,
-/// references retyped), and their bodies call `write` with
-/// `message.toString()` — a method call on the `Any` receiver
-/// resolving to the synthesized `Any.toString` (vtable slot 2).
+/// `print` / `println` are ordinary generic core functions bounded by
+/// `ToString`; each call records its exact instantiation and preserves the
+/// argument's concrete type. Their template body resolves `toString()`
+/// through the declared interface bound.
 #[test]
-fn print_and_println_take_any_and_dispatch_to_string() {
+fn print_and_println_use_the_ordinary_to_string_bound() {
     let file = file(vec![fun(
         "main",
         vec![
@@ -863,18 +874,22 @@ fn print_and_println_take_any_and_dispatch_to_string() {
             stmt(call("print", vec![int_lit(1)])),
         ],
     )]);
-    let module = lower_user(file).expect("the core `Any` functions must resolve");
-    let println = top_level_fn(&module, "println", &["Any"]);
-    let print = top_level_fn(&module, "print", &["Any"]);
+    let module = lower_user(file).expect("the generic core functions must resolve");
+    let println = top_level_fn(&module, "println", &["T0"]);
+    let print = top_level_fn(&module, "print", &["T0"]);
 
-    // All four calls resolve to the single core `println` / `print`.
+    // All four calls resolve to the ordinary generic declarations.
     for (index, want) in [println, println, println, print].into_iter().enumerate() {
         let (target, _) = call_in_main(&module, index, false);
         assert_eq!(target, want);
     }
 
-    // The `Int` argument is boxed into `Any`; the `String` argument is
-    // a zero-cost retype (no `Box` node, its type becomes `Any`).
+    assert!(has_instantiation(&module, println, &[module.int]));
+    assert!(has_instantiation(&module, println, &[module.string]));
+    assert!(has_instantiation(&module, println, &[module.boolean]));
+    assert!(has_instantiation(&module, print, &[module.int]));
+
+    // Arguments keep their exact types; formatting no longer crosses Any.
     let body = body_of(&module, module.entry);
     let hir::StatementKind::Expr(first) = &body.statements[0].kind else {
         panic!("expected a call statement")
@@ -882,8 +897,8 @@ fn print_and_println_take_any_and_dispatch_to_string() {
     let hir::ExprKind::Call { args, .. } = &first.kind else {
         panic!("expected a call")
     };
-    assert!(matches!(args[0].kind, hir::ExprKind::Box(_)));
-    assert!(matches!(module.types[args[0].ty], Type::Any));
+    assert!(matches!(args[0].kind, hir::ExprKind::IntLiteral(42)));
+    assert_eq!(args[0].ty, module.int);
     let hir::StatementKind::Expr(second) = &body.statements[1].kind else {
         panic!("expected a call statement")
     };
@@ -891,13 +906,11 @@ fn print_and_println_take_any_and_dispatch_to_string() {
         panic!("expected a call")
     };
     assert!(matches!(args[0].kind, hir::ExprKind::StringLiteral(_)));
-    assert!(matches!(module.types[args[0].ty], Type::Any));
+    assert_eq!(args[0].ty, module.string);
 
-    // Core's `print` body is `write(message.toString())`: the write
-    // call targets the managed `write` extern, its argument a method
-    // call to the synthesized `Any.toString` on the `Any` parameter.
+    // Core's template body calls the managed write extern and carries an
+    // exact bound-member identity for `ToString.toString`.
     let write = core_write(&module);
-    let to_string = any_member(&module, "toString");
     let body = body_of(&module, print);
     let hir::StatementKind::Expr(value) = &body.statements[0].kind else {
         panic!("expected a call statement")
@@ -912,15 +925,23 @@ fn print_and_println_take_any_and_dispatch_to_string() {
     else {
         panic!("expected a `toString()` method call")
     };
-    assert_eq!(module.callable_function(*callee), to_string);
+    let hir::MethodCallee::Bound(bound) = callee else {
+        panic!("generic print must retain a typed bound call")
+    };
+    let member = module.bound_callable_refs[*bound].member;
+    let interface_method = module.interface_methods[member];
+    assert_eq!(module.interfaces[interface_method.owner].name, "ToString");
+    assert_eq!(
+        module.functions[interface_method.function].name,
+        "ToString.toString"
+    );
     assert!(matches!(receiver.kind, hir::ExprKind::Local(_)));
 }
 
-/// The three `Any` members resolve on an `Any` receiver
-/// (`synthesize_any_members`; mir-lower dispatches them through the
-/// fixed vtable slots 0..2).
+/// `Any` has no capability members. A concrete runtime object cannot add
+/// static ToString/Hash/equality support to an `Any` expression.
 #[test]
-fn any_receiver_resolves_the_any_members() {
+fn any_receiver_has_no_implicit_capability_members() {
     let file = file(vec![fun(
         "main",
         vec![
@@ -940,31 +961,30 @@ fn any_receiver_resolves_the_any_members() {
             )),
         ],
     )]);
-    let module = lower_user(file).expect("`Any` member calls must resolve");
-    let body = body_of(&module, module.entry);
-    for (index, name) in ["toString", "hashCode", "equals"].into_iter().enumerate() {
-        let hir::StatementKind::Expr(outer) = &body.statements[index + 2].kind else {
-            panic!("expected a call statement")
-        };
-        let hir::ExprKind::Call { args, .. } = &outer.kind else {
-            panic!("expected a call")
-        };
-        let inner = match &args[0].kind {
-            hir::ExprKind::Box(operand) => &operand.kind,
-            kind => kind,
-        };
-        let hir::ExprKind::MethodCall { callee, .. } = inner else {
-            panic!("expected a method call")
-        };
-        assert_eq!(module.callable_function(*callee), any_member(&module, name));
-    }
+    let errors = lower_user(file).expect_err("`Any` must not expose implicit capabilities");
+    assert_eq!(errors.len(), 3);
+    assert!(
+        errors[0]
+            .message
+            .contains("type `Any` has no method `toString`")
+    );
+    assert!(
+        errors[1]
+            .message
+            .contains("type `Any` has no method `hashCode`")
+    );
+    assert!(
+        errors[2]
+            .message
+            .contains("type `Any` has no method `equals`")
+    );
 }
 
-/// The fallback is deliberately narrow: value-type receivers (which
-/// would need boxing before the virtual call) do not resolve the
-/// `Any` members yet.
+/// Intrinsic value types expose the ordinary methods declared by their exact
+/// source owner; method lookup does not use an `Any` fallback or a compiler
+/// capability table.
 #[test]
-fn any_members_do_not_resolve_on_value_receivers() {
+fn intrinsic_value_members_resolve_from_their_source_declaration() {
     let file = file(vec![fun(
         "main",
         vec![stmt(call(
@@ -972,9 +992,32 @@ fn any_members_do_not_resolve_on_value_receivers() {
             vec![method_call(int_lit(1), "toString", vec![])],
         ))],
     )]);
-    let errors = lower_user(file).expect_err("`Int` has no `toString` in M7");
-    assert_eq!(errors.len(), 1);
-    assert_eq!(errors[0].message, "type `Int` has no method `toString`");
+    let module = lower_user(file).expect("Int.toString is declared in core source");
+    let body = body_of(&module, module.entry);
+    let hir::StatementKind::Expr(outer) = &body.statements[0].kind else {
+        panic!("expected print call")
+    };
+    let hir::ExprKind::Call { args, .. } = &outer.kind else {
+        panic!("expected print call")
+    };
+    let hir::ExprKind::MethodCall { callee, .. } = &args[0].kind else {
+        panic!("expected Int.toString call")
+    };
+    let target = module.callable_function(*callee);
+    assert_eq!(module.functions[target].name, "Int.toString");
+    let body = body_of(&module, target);
+    let hir::StatementKind::Return { value: Some(value) } = &body.statements[0].kind else {
+        panic!("the ordinary core method must return its source expression")
+    };
+    let hir::ExprKind::Call { callee, .. } = value.kind else {
+        panic!("the core method body must call its representation helper")
+    };
+    let helper = module.callable_function(callee);
+    assert_eq!(module.functions[helper].name, "coreIntToString");
+    assert!(matches!(
+        module.functions[helper].kind,
+        hir::FunctionKind::Extern(_)
+    ));
 }
 
 // --- generic enum method overloads ---
@@ -1047,8 +1090,8 @@ fn enum_method_overloads_instantiate_with_the_receiver() {
 
     // The chosen enum methods request instantiations with the
     // receiver's type arguments.
-    assert!(has_instantiation(&module, pick_t, &[module.string]));
-    assert!(has_instantiation(&module, pick_int, &[module.int]));
+    assert!(has_method_application(&module, pick_t, &[module.string]));
+    assert!(has_method_application(&module, pick_int, &[module.int]));
 }
 
 // --- entry point ---

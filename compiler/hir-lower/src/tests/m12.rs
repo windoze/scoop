@@ -109,10 +109,10 @@ fn with_kind(mut decl: Decl, kind: ast::TypeParamKindBound) -> Decl {
         Decl::Struct(decl) => &mut decl.type_params,
         Decl::Enum(decl) => &mut decl.type_params,
         Decl::Interface(decl) => &mut decl.type_params,
-        Decl::Class(_) => panic!("classes have no M12 type parameters"),
+        Decl::Class(decl) => &mut decl.type_params,
         Decl::Global(_) => panic!("globals have no type parameters"),
     };
-    type_params[0].kind_bound = Some(kind);
+    type_params[0].inline_bound = Some(ast::TypeBound::Kind(kind));
     decl
 }
 
@@ -562,7 +562,7 @@ fn kind_bounds_are_typed_on_all_generic_hir_declarations() {
         .find(|(_, function)| function.name == "identity")
         .unwrap()
         .1;
-    assert_eq!(identity.type_params[0].kind, hir::TypeParamKind::Value);
+    assert_eq!(identity.type_params()[0].kind(), hir::TypeParamKind::Value);
     assert_eq!(
         module
             .structs
@@ -571,7 +571,7 @@ fn kind_bounds_are_typed_on_all_generic_hir_declarations() {
             .unwrap()
             .1
             .type_params[0]
-            .kind,
+            .kind(),
         hir::TypeParamKind::Ref
     );
     assert_eq!(
@@ -582,7 +582,7 @@ fn kind_bounds_are_typed_on_all_generic_hir_declarations() {
             .unwrap()
             .1
             .type_params[0]
-            .kind,
+            .kind(),
         hir::TypeParamKind::Value
     );
     assert_eq!(
@@ -593,7 +593,7 @@ fn kind_bounds_are_typed_on_all_generic_hir_declarations() {
             .unwrap()
             .1
             .type_params[0]
-            .kind,
+            .kind(),
         hir::TypeParamKind::Ref
     );
     let dump = hir::dump(&module);
@@ -755,7 +755,7 @@ fn explicit_type_arguments_bind_functions_constructors_variants_and_method_suffi
     );
     assert!(
         dump.contains("MethodCall Holder.convert : String")
-            && dump.contains("instance Holder.convert<Int, String>"),
+            && dump.contains("method instance Holder.convert<owner=[Int], method=[String]>"),
         "{dump}"
     );
 }
@@ -1355,6 +1355,112 @@ fn generic_no_gc_checks_value_type_receiver_instantiations() {
 }
 
 #[test]
+fn generic_no_gc_method_tracks_owner_and_method_preconditions() {
+    let mut keep = annotate_method(
+        method_expr(
+            "keep",
+            vec![("other", ty_named("U"))],
+            Some(ty_named("U")),
+            var("other"),
+        ),
+        vec![marker("NoGC")],
+    );
+    keep.type_params = vec![type_param("U")];
+    let cell = generic_struct_decl_full(
+        "Cell",
+        vec!["T"],
+        vec![("value", ty_named("T"))],
+        vec![],
+        vec![keep],
+    );
+
+    let module = lower_user(file(vec![
+        cell.clone(),
+        fun(
+            "main",
+            vec![stmt(method_call(
+                struct_init("Cell", vec![int_lit(1)]),
+                "keep",
+                vec![int_lit(2)],
+            ))],
+        ),
+    ]))
+    .expect("both exact type-argument groups are GC-free");
+    let method = module
+        .generic_methods
+        .iter()
+        .map(|(_, method)| method)
+        .find(|method| module.functions[method.function].name == "Cell.keep")
+        .expect("Cell.keep generic method entity");
+    assert_eq!(
+        method
+            .no_gc_type_params
+            .iter()
+            .map(|parameter| parameter.into_raw())
+            .collect::<Vec<_>>(),
+        [0, 1]
+    );
+
+    let owner_errors = messages(vec![
+        cell.clone(),
+        fun(
+            "main",
+            vec![stmt(method_call(
+                struct_init("Cell", vec![str_lit("managed owner")]),
+                "keep",
+                vec![int_lit(2)],
+            ))],
+        ),
+    ]);
+    assert!(owner_errors.iter().any(|message| {
+        message
+            == "generic function `Cell.keep` requires type argument String for `T` to be GC-free"
+    }));
+
+    let method_errors = messages(vec![
+        cell.clone(),
+        fun(
+            "main",
+            vec![stmt(method_call(
+                struct_init("Cell", vec![int_lit(1)]),
+                "keep",
+                vec![str_lit("managed method argument")],
+            ))],
+        ),
+    ]);
+    assert!(method_errors.iter().any(|message| {
+        message
+            == "generic function `Cell.keep` requires type argument String for `U` to be GC-free"
+    }));
+
+    let reference = ast::Expr::CallableReference {
+        id: ast::CallableReferenceId(0),
+        receiver: Some(Box::new(struct_init("Cell", vec![int_lit(1)]))),
+        name: ident("keep"),
+        span: sp(),
+    };
+    let reference_errors = messages(vec![
+        cell,
+        fun(
+            "main",
+            vec![val_ty(
+                "keepString",
+                Some(ty_function(
+                    false,
+                    vec![ty_named("String")],
+                    ty_named("String"),
+                )),
+                reference,
+            )],
+        ),
+    ]);
+    assert!(reference_errors.iter().any(|message| {
+        message
+            == "generic function `Cell.keep` requires type argument String for `U` to be GC-free"
+    }));
+}
+
+#[test]
 fn no_gc_unsafe_functions_can_use_stack_addresses_and_pointer_intrinsics() {
     let function = annotate(
         fun_sig(
@@ -1559,18 +1665,25 @@ fn extern_functions_have_typed_identity_and_abi_specific_effects() {
     );
     let module = lower_user(file(vec![c, scoop, fun("main", vec![])]))
         .expect("both extern ABI categories must lower");
-    assert_eq!(module.extern_functions.len(), 3);
-    let (_, c) = module.extern_functions.iter().nth(1).unwrap();
+    let (_, c) = module
+        .extern_functions
+        .iter()
+        .find(|(_, function)| function.source_name == "nativeAdd")
+        .expect("the user C extern has a typed entity");
     assert_eq!(c.abi, hir::ExternAbi::C);
     assert_eq!(c.safety, hir::Safety::Unsafe);
     assert_eq!(c.gc_effect, hir::GcEffect::NoGc);
-    let (_, scoop) = module.extern_functions.iter().nth(2).unwrap();
+    let (_, scoop) = module
+        .extern_functions
+        .iter()
+        .find(|(_, function)| function.source_name == "nativeWrite")
+        .expect("the user Scoop extern has a typed entity");
     assert_eq!(scoop.abi, hir::ExternAbi::Scoop);
     assert_eq!(scoop.safety, hir::Safety::Safe);
     assert_eq!(scoop.gc_effect, hir::GcEffect::Managed);
     let dump = hir::dump(&module);
-    assert!(dump.contains("<extern1 abi=c symbol=native_add lib=numbers>"));
-    assert!(dump.contains("<extern2 abi=scoop symbol=scoop_rt_write>"));
+    assert!(dump.contains("abi=c symbol=native_add lib=numbers>"));
+    assert!(dump.contains("abi=scoop symbol=scoop_rt_write>"));
 }
 
 #[test]

@@ -34,6 +34,7 @@ SourceFile
 SourceFile
   struct Ptr<T : value>
     field _rawPointer: UInt
+    operator fun equals
     fun toUInt
     fun cast
     fun load
@@ -128,15 +129,15 @@ SourceFile
 SourceFile
     @Extern(name = "scoop_rt_write", abi = "scoop")
   fun write(message: String)
-  fun print(message: Any)
+  fun print<T : ToString>(value: T)
     =
       Call write
         MethodCall toString
-          Var message
-  fun println(message: Any)
+          Var value
+  fun println<T : ToString>(value: T)
     Call write
       MethodCall toString
-        Var message
+        Var value
     Call write
       StringLiteral "\n"
 SourceFile
@@ -151,6 +152,57 @@ SourceFile
   class ArithmeticException() : Exception(<1 args>)
   class IndexOutOfBoundsException() : Exception(<1 args>)
   class IllegalStateException() : Exception(<1 args>)
+SourceFile
+  interface ToString
+    fun toString
+  interface Hash
+    fun hash
+    @Intrinsic("core_int")
+  struct Int <representation omitted> : ToString, Hash
+    operator fun equals
+    fun toString
+    fun hash
+    @Intrinsic("core_uint")
+  struct UInt <representation omitted> : ToString, Hash
+    operator fun equals
+    fun toString
+    fun hash
+    @Intrinsic("core_boolean")
+  struct Boolean <representation omitted> : ToString, Hash
+    operator fun equals
+    fun toString
+    fun hash
+    @Intrinsic("core_string")
+  class String(), ToString, Hash
+    operator fun equals
+    fun toString
+    fun hash
+    @Intrinsic("core_array")
+  class Array<T>()
+    @Intrinsic("core_mutable_array")
+  class MutableArray<T>()
+    @Extern(name = "scoop_rt_int_equals", abi = "scoop")
+  fun coreIntEquals(left: Int, right: Int): Boolean
+    @Extern(name = "scoop_rt_uint_equals", abi = "scoop")
+  fun coreUIntEquals(left: UInt, right: UInt): Boolean
+    @Extern(name = "scoop_rt_bool_equals", abi = "scoop")
+  fun coreBooleanEquals(left: Boolean, right: Boolean): Boolean
+    @Extern(name = "scoop_rt_string_eq", abi = "scoop")
+  fun coreStringEquals(left: String, right: String): Boolean
+    @Extern(name = "scoop_rt_int_to_string", abi = "scoop")
+  fun coreIntToString(value: Int): String
+    @Extern(name = "scoop_rt_uint_to_string", abi = "scoop")
+  fun coreUIntToString(value: UInt): String
+    @Extern(name = "scoop_rt_bool_to_string", abi = "scoop")
+  fun coreBooleanToString(value: Boolean): String
+    @Extern(name = "scoop_rt_int_hash", abi = "scoop")
+  fun coreIntHash(value: Int): Int
+    @Extern(name = "scoop_rt_uint_hash", abi = "scoop")
+  fun coreUIntHash(value: UInt): Int
+    @Extern(name = "scoop_rt_bool_hash", abi = "scoop")
+  fun coreBooleanHash(value: Boolean): Int
+    @Extern(name = "scoop_rt_string_hash", abi = "scoop")
+  fun coreStringHash(value: String): Int
 SourceFile
   open class Animal(val name: String)
   class Dog() : Animal(<1 args>)
@@ -216,6 +268,10 @@ Module
     suspend fun run(): T0
   interface SuspendRegistration<out T>
     fun register(continuation: Continuation<T0>): Unit
+  interface ToString
+    fun toString(): String
+  interface Hash
+    fun hash(): Int
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
   fun startCoroutine<T>(task: suspend () -> T0, completion: Continuation<T0>): Unit
@@ -253,17 +309,28 @@ Module
   fun gcCollect(): Unit <intrinsic rt_gc_collect>
   fun gcStats(): UInt <intrinsic rt_gc_stats>
   fun write(arg1: String): Unit <extern0 abi=scoop symbol=scoop_rt_write>
-  fun print(message: Any): Unit
+  fun print<T : ToString>(value: T0): Unit
     Call write : Unit
-      MethodCall Any.toString : String
-        Local message : Any
+      MethodCall bound T0 via ToString -> ToString.toString : String
+        Local value : T0
     return
-  fun println(message: Any): Unit
+  fun println<T : ToString>(value: T0): Unit
     Call write : Unit
-      MethodCall Any.toString : String
-        Local message : Any
+      MethodCall bound T0 via ToString -> ToString.toString : String
+        Local value : T0
     Call write : Unit
       StringLiteral "\n" : String
+  fun coreIntEquals(arg1: Int, arg2: Int): Boolean <extern1 abi=scoop symbol=scoop_rt_int_equals>
+  fun coreUIntEquals(arg1: UInt, arg2: UInt): Boolean <extern2 abi=scoop symbol=scoop_rt_uint_equals>
+  fun coreBooleanEquals(arg1: Boolean, arg2: Boolean): Boolean <extern3 abi=scoop symbol=scoop_rt_bool_equals>
+  fun coreStringEquals(arg1: String, arg2: String): Boolean <extern4 abi=scoop symbol=scoop_rt_string_eq>
+  fun coreIntToString(arg1: Int): String <extern5 abi=scoop symbol=scoop_rt_int_to_string>
+  fun coreUIntToString(arg1: UInt): String <extern6 abi=scoop symbol=scoop_rt_uint_to_string>
+  fun coreBooleanToString(arg1: Boolean): String <extern7 abi=scoop symbol=scoop_rt_bool_to_string>
+  fun coreIntHash(arg1: Int): Int <extern8 abi=scoop symbol=scoop_rt_int_hash>
+  fun coreUIntHash(arg1: UInt): Int <extern9 abi=scoop symbol=scoop_rt_uint_hash>
+  fun coreBooleanHash(arg1: Boolean): Int <extern10 abi=scoop symbol=scoop_rt_bool_hash>
+  fun coreStringHash(arg1: String): Int <extern11 abi=scoop symbol=scoop_rt_string_hash>
   fun main(): Unit
     val local0
       ClassInit ImmediateDogTask : SuspendTask<Animal>
@@ -279,8 +346,8 @@ Module
     Call startCoroutine<Animal> : Unit
       Local suspended : SuspendTask<Animal>
       ClassInit AnimalCompletion : Continuation<Animal>
-    Call println : Unit
-      StringLiteral "returned" : Any
+    Call println<String> : Unit
+      StringLiteral "returned" : String
     MethodCall DogGate.complete : Unit
       Local gate : DogGate
       ClassInit Dog : Dog
@@ -288,1258 +355,2022 @@ Module
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>
   instance startCoroutine<Animal>
-  instance Continuation.resume<Dog>
+  instance println<String>
   instance suspendCoroutine<Dog>
 
 == mir ==
 Module
   extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
-  enum Option$Continuation$Dog
-    Some(_1: Continuation$Dog)
+  extern ef1 coreIntEquals @scoop_rt_int_equals(Int, Int) -> Boolean <abi=scoop managed>
+  extern ef2 coreUIntEquals @scoop_rt_uint_equals(UInt, UInt) -> Boolean <abi=scoop managed>
+  extern ef3 coreBooleanEquals @scoop_rt_bool_equals(Boolean, Boolean) -> Boolean <abi=scoop managed>
+  extern ef4 coreStringEquals @scoop_rt_string_eq(String, String) -> Boolean <abi=scoop managed>
+  extern ef5 coreIntToString @scoop_rt_int_to_string(Int) -> String <abi=scoop managed>
+  extern ef6 coreUIntToString @scoop_rt_uint_to_string(UInt) -> String <abi=scoop managed>
+  extern ef7 coreBooleanToString @scoop_rt_bool_to_string(Boolean) -> String <abi=scoop managed>
+  extern ef8 coreIntHash @scoop_rt_int_hash(Int) -> Int <abi=scoop managed>
+  extern ef9 coreUIntHash @scoop_rt_uint_hash(UInt) -> Int <abi=scoop managed>
+  extern ef10 coreBooleanHash @scoop_rt_bool_hash(Boolean) -> Int <abi=scoop managed>
+  extern ef11 coreStringHash @scoop_rt_string_hash(String) -> Int <abi=scoop managed>
+  enum Option$J20_Continuation$C3_DogXX
+    Some(_1: Continuation$C3_DogX)
     None()
   enum Option$S
     Some(_1: String)
     None()
-  enum CoroutineStep$Animal
+  enum CoroutineStep$C6_AnimalX
     Completed(value: Animal)
     Suspended()
-  enum CoroutineStep$Dog
+  enum CoroutineStep$C3_DogX
     Completed(value: Dog)
     Suspended()
-  enum CoroutineSlot$SuspendedDogTask
+  enum CoroutineSlot$C16_SuspendedDogTaskX
     Empty()
     Value(value: SuspendedDogTask)
-  enum CoroutineSlot$Dog
+  enum CoroutineSlot$C3_DogX
     Empty()
     Value(value: Dog)
-  enum CoroutineSlot$Throwable
+  enum CoroutineSlot$C9_ThrowableX
     Empty()
     Value(value: Throwable)
   enum CoroutineSlot$Any
     Empty()
     Value(value: Any)
-  class Throwable vtable=3 itables=0
-  class Exception vtable=3 itables=0
-  class UnwrapException vtable=3 itables=0
-  class ClassCastException vtable=3 itables=0
-  class ArithmeticException vtable=3 itables=0
-  class IndexOutOfBoundsException vtable=3 itables=0
-  class IllegalStateException vtable=3 itables=0
-  class Animal vtable=3 itables=0
-  class Dog vtable=3 itables=0
-  class DogGate vtable=3 itables=0
-  class DogRegistration vtable=3 itables=2
-  class ImmediateDogTask vtable=3 itables=2
-  class SuspendedDogTask vtable=3 itables=2
-  class AnimalCompletion vtable=3 itables=2
-  class CoroutineFrame$scoop_SuspendedDogTask_run_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1 vtable=3 itables=1
-  class CoroutineFrame$scoop_variance_ImmediateDogTask_SuspendTask_Animal_run_0_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop_variance_ImmediateDogTask_SuspendTask_Animal_run_0_suspend$1 vtable=3 itables=1
-  class CoroutineFrame$scoop_variance_SuspendedDogTask_SuspendTask_Animal_run_0_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop_variance_SuspendedDogTask_SuspendTask_Animal_run_0_suspend$1 vtable=3 itables=1
-  interface Continuation$Dog
-  interface SuspendRegistration$Dog
-  interface SuspendTask$Dog
-  interface Continuation$Animal
-  interface SuspendTask$Animal
-  interface SuspendRegistration$Animal
-  fun print @scoop.print(message: Any) -> Unit
+  class Throwable vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class UnwrapException vtable=0 itables=0
+  class ClassCastException vtable=0 itables=0
+  class ArithmeticException vtable=0 itables=0
+  class IndexOutOfBoundsException vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Animal vtable=0 itables=0
+  class Dog vtable=0 itables=0
+  class DogGate vtable=0 itables=0
+  class DogRegistration vtable=0 itables=2
+  class ImmediateDogTask vtable=0 itables=2
+  class SuspendedDogTask vtable=0 itables=2
+  class AnimalCompletion vtable=0 itables=2
+  class CoroutineFrame$scoop_SuspendedDogTask_run_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1 vtable=0 itables=1
+  class CoroutineFrame$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend vtable=0 itables=0
+  class CoroutineAdapter$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1 vtable=0 itables=1
+  interface ToString
+  interface Hash
+  interface Continuation$C3_DogX
+  interface SuspendRegistration$C3_DogX
+  interface SuspendTask$C3_DogX
+  interface Continuation$C6_AnimalX
+  interface SuspendTask$C6_AnimalX
+  interface SuspendRegistration$C6_AnimalX
+  fun Int.equals @scoop.Int.equals(this: Int, other: Int) -> Boolean
     bb0 entry
-      call $call.1: String = @scoop.Any.toString virtual[2]
-        Local message
-      call extern0 @scoop_rt_write direct
-        Local $call.1
+      call $call.1: Boolean = extern1 @scoop_rt_int_equals direct
+        Type Int
+        Local this
+        Type Int
+        Local other
       return
-  fun println @scoop.println(message: Any) -> Unit
+        Type Boolean
+        Local $call.1
+  fun Int.toString @scoop.Int.toString(this: Int) -> String
     bb0 entry
-      call $call.1: String = @scoop.Any.toString virtual[2]
-        Local message
-      call extern0 @scoop_rt_write direct
-        Local $call.1
-      call extern0 @scoop_rt_write direct
-        StringConst @scoop.str.0
+      call $call.1: String = extern5 @scoop_rt_int_to_string direct
+        Type Int
+        Local this
       return
+        Type String
+        Local $call.1
+  fun Int.hash @scoop.Int.hash(this: Int) -> Int
+    bb0 entry
+      call $call.1: Int = extern8 @scoop_rt_int_hash direct
+        Type Int
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun UInt.equals @scoop.UInt.equals(this: UInt, other: UInt) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = extern2 @scoop_rt_uint_equals direct
+        Type UInt
+        Local this
+        Type UInt
+        Local other
+      return
+        Type Boolean
+        Local $call.1
+  fun UInt.toString @scoop.UInt.toString(this: UInt) -> String
+    bb0 entry
+      call $call.1: String = extern6 @scoop_rt_uint_to_string direct
+        Type UInt
+        Local this
+      return
+        Type String
+        Local $call.1
+  fun UInt.hash @scoop.UInt.hash(this: UInt) -> Int
+    bb0 entry
+      call $call.1: Int = extern9 @scoop_rt_uint_hash direct
+        Type UInt
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun Boolean.equals @scoop.Boolean.equals(this: Boolean, other: Boolean) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = extern3 @scoop_rt_bool_equals direct
+        Type Boolean
+        Local this
+        Type Boolean
+        Local other
+      return
+        Type Boolean
+        Local $call.1
+  fun Boolean.toString @scoop.Boolean.toString(this: Boolean) -> String
+    bb0 entry
+      call $call.1: String = extern7 @scoop_rt_bool_to_string direct
+        Type Boolean
+        Local this
+      return
+        Type String
+        Local $call.1
+  fun Boolean.hash @scoop.Boolean.hash(this: Boolean) -> Int
+    bb0 entry
+      call $call.1: Int = extern10 @scoop_rt_bool_hash direct
+        Type Boolean
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun String.equals @scoop.String.equals(this: String, other: String) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = extern4 @scoop_rt_string_eq direct
+        Type String
+        Local this
+        Type String
+        Local other
+      return
+        Type Boolean
+        Local $call.1
+  fun String.toString @scoop.String.toString(this: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local this
+  fun String.hash @scoop.String.hash(this: String) -> Int
+    bb0 entry
+      call $call.1: Int = extern11 @scoop_rt_string_hash direct
+        Type String
+        Local this
+      return
+        Type Int
+        Local $call.1
   fun DogGate.complete @scoop.DogGate.complete(this: DogGate, value: Dog) -> Unit
     bb0 entry
-      val $opt.1: Option$Continuation$Dog<Continuation$Dog>
+      val $opt.1: Option$J20_Continuation$C3_DogXX<Continuation$C3_DogX>
+        Type Option$J20_Continuation$C3_DogXX<Continuation$C3_DogX>
         FieldAccess 0
+          Type DogGate
           Local this
       branch bb1 bb2
+        Type Boolean
         Binary IntEq
+          Type Int
           EnumTag
+            Type Option$J20_Continuation$C3_DogXX<Continuation$C3_DogX>
             Local $opt.1
+          Type Int
           IntLiteral 0
     bb1 if.then.1
-      val $uw.2: Continuation$Dog
+      val $uw.2: Continuation$C3_DogX
+        Type Continuation$C3_DogX
         EnumField v0 f0
+          Type Option$J20_Continuation$C3_DogXX<Continuation$C3_DogX>
           Local $opt.1
       goto bb3
     bb2 if.else.2
       call $call.1: UnwrapException = @scoop.ctor.UnwrapException direct
       throw
+        Type UnwrapException
         Local $call.1
     bb3 if.merge.3
-      val continuation: Continuation$Dog
+      val continuation: Continuation$C3_DogX
+        Type Continuation$C3_DogX
         Local $uw.2
       field_set 0
+        Type DogGate
         Local this
-        VariantConstruct Option$Continuation$Dog<Continuation$Dog> v1
-      call @scoop.Continuation.resume$Dog interface Continuation$Dog[0]
+        Type Option$J20_Continuation$C3_DogXX<Continuation$C3_DogX>
+        VariantConstruct Option$J20_Continuation$C3_DogXX<Continuation$C3_DogX> v1
+      call @scoop.Continuation.resume$C3_DogX interface Continuation$C3_DogX[0]
+        Type Continuation$C3_DogX
         Local continuation
+        Type Dog
         Local value
       return
-  fun DogRegistration.register @scoop.DogRegistration.register(this: DogRegistration, continuation: Continuation$Dog) -> Unit
+  fun DogRegistration.register @scoop.DogRegistration.register(this: DogRegistration, continuation: Continuation$C3_DogX) -> Unit
     bb0 entry
       field_set 0
+        Type DogGate
         FieldAccess 0
+          Type DogRegistration
           Local this
-        VariantConstruct Option$Continuation$Dog<Continuation$Dog> v0
+        Type Option$J20_Continuation$C3_DogXX<Continuation$C3_DogX>
+        VariantConstruct Option$J20_Continuation$C3_DogXX<Continuation$C3_DogX> v0
+          Type Continuation$C3_DogX
           Local continuation
       return
-  fun ImmediateDogTask.run @scoop.ImmediateDogTask.run$suspend(this: ImmediateDogTask, $completion: Continuation$Dog) -> CoroutineStep$Dog
+  fun ImmediateDogTask.run @scoop.ImmediateDogTask.run$suspend(this: ImmediateDogTask, $completion: Continuation$C3_DogX) -> CoroutineStep$C3_DogX
     bb0 entry
       call $call.1: Dog = @scoop.ctor.Dog direct
       return
-        VariantConstruct CoroutineStep$Dog v0
+        Type CoroutineStep$C3_DogX
+        VariantConstruct CoroutineStep$C3_DogX v0
+          Type Dog
           Local $call.1
-  fun SuspendedDogTask.run @scoop.SuspendedDogTask.run$suspend(this: SuspendedDogTask, $completion: Continuation$Dog) -> CoroutineStep$Dog
+  fun SuspendedDogTask.run @scoop.SuspendedDogTask.run$suspend(this: SuspendedDogTask, $completion: Continuation$C3_DogX) -> CoroutineStep$C3_DogX
     bb0 entry
       val $frame: CoroutineFrame$scoop_SuspendedDogTask_run_suspend
+        Type CoroutineFrame$scoop_SuspendedDogTask_run_suspend
         ClassInit CoroutineFrame$scoop_SuspendedDogTask_run_suspend
+          Type Int
           IntLiteral 0
+          Type Continuation$C3_DogX
           Local $completion
-          VariantConstruct CoroutineSlot$SuspendedDogTask v1
+          Type CoroutineSlot$C16_SuspendedDogTaskX
+          VariantConstruct CoroutineSlot$C16_SuspendedDogTaskX v1
+            Type SuspendedDogTask
             Local this
-          VariantConstruct CoroutineSlot$Dog v0
-          VariantConstruct CoroutineSlot$Throwable v0
-      call $step: CoroutineStep$Dog = @scoop.SuspendedDogTask.run$suspend$drive direct
+          Type CoroutineSlot$C3_DogX
+          VariantConstruct CoroutineSlot$C3_DogX v0
+          Type CoroutineSlot$C9_ThrowableX
+          VariantConstruct CoroutineSlot$C9_ThrowableX v0
+      call $step: CoroutineStep$C3_DogX = @scoop.SuspendedDogTask.run$suspend$drive direct
+        Type CoroutineFrame$scoop_SuspendedDogTask_run_suspend
         Local $frame
+        Type Int
         IntLiteral 0
       return
+        Type CoroutineStep$C3_DogX
         Local $step
   fun AnimalCompletion.resume @scoop.AnimalCompletion.resume(this: AnimalCompletion, value: Animal) -> Unit
     bb0 entry
-      call @scoop.println direct
+      call @scoop.println$S direct
+        Type String
         FieldAccess 0
+          Type Animal
           Local value
       return
   fun AnimalCompletion.resumeWithException @scoop.AnimalCompletion.resumeWithException(this: AnimalCompletion, exception: Throwable) -> Unit
     bb0 entry
-      call @scoop.println direct
-        StringConst @scoop.str.1
+      call @scoop.println$S direct
+        Type String
+        StringConst @scoop.str.0
       return
   fun main @scoop_main() -> Unit
     bb0 entry
-      call immediate: SuspendTask$Animal = @scoop.ctor.ImmediateDogTask direct
-      call $call.1: Continuation$Animal = @scoop.ctor.AnimalCompletion direct
-      call @scoop.coroutine.start$Animal direct
+      call $call.1: ImmediateDogTask = @scoop.ctor.ImmediateDogTask direct
+      val immediate: SuspendTask$C6_AnimalX
+        Type SuspendTask$C6_AnimalX
+        Retype SuspendTask$C6_AnimalX
+          Type ImmediateDogTask
+          Local $call.1
+      call $call.2: AnimalCompletion = @scoop.ctor.AnimalCompletion direct
+      call @scoop.coroutine.start$C6_AnimalX direct
+        Type SuspendTask$C6_AnimalX
         Local immediate
-        Local $call.1
+        Type Continuation$C6_AnimalX
+        Retype Continuation$C6_AnimalX
+          Type AnimalCompletion
+          Local $call.2
       call gate: DogGate = @scoop.ctor.DogGate direct
-        VariantConstruct Option$Continuation$Dog<Continuation$Dog> v1
-      call suspended: SuspendTask$Animal = @scoop.ctor.SuspendedDogTask direct
+        Type Option$J20_Continuation$C3_DogXX<Continuation$C3_DogX>
+        VariantConstruct Option$J20_Continuation$C3_DogXX<Continuation$C3_DogX> v1
+      call $call.3: SuspendedDogTask = @scoop.ctor.SuspendedDogTask direct
+        Type DogGate
         Local gate
-      call $call.2: Continuation$Animal = @scoop.ctor.AnimalCompletion direct
-      call @scoop.coroutine.start$Animal direct
+      val suspended: SuspendTask$C6_AnimalX
+        Type SuspendTask$C6_AnimalX
+        Retype SuspendTask$C6_AnimalX
+          Type SuspendedDogTask
+          Local $call.3
+      call $call.4: AnimalCompletion = @scoop.ctor.AnimalCompletion direct
+      call @scoop.coroutine.start$C6_AnimalX direct
+        Type SuspendTask$C6_AnimalX
         Local suspended
-        Local $call.2
-      call @scoop.println direct
-        StringConst @scoop.str.2
-      call $call.3: Dog = @scoop.ctor.Dog direct
+        Type Continuation$C6_AnimalX
+        Retype Continuation$C6_AnimalX
+          Type AnimalCompletion
+          Local $call.4
+      call @scoop.println$S direct
+        Type String
+        StringConst @scoop.str.1
+      call $call.5: Dog = @scoop.ctor.Dog direct
       call @scoop.DogGate.complete direct
+        Type DogGate
         Local gate
-        Local $call.3
+        Type Dog
+        Local $call.5
+      return
+  fun println @scoop.println$S(value: String) -> Unit
+    bb0 entry
+      call $call.1: String = @scoop.String.toString direct
+        Type String
+        Local value
+      call extern0 @scoop_rt_write direct
+        Type String
+        Local $call.1
+      call extern0 @scoop_rt_write direct
+        Type String
+        StringConst @scoop.str.2
       return
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
     bb0 entry
       return
+        Type Throwable
         ClassInit Throwable
   fun ctor.Exception @scoop.ctor.Exception(message: Option$S<String>) -> Exception
     bb0 entry
       return
+        Type Exception
         ClassInit Exception
+          Type Option$S<String>
           Local message
   fun ctor.UnwrapException @scoop.ctor.UnwrapException() -> UnwrapException
     bb0 entry
       return
+        Type UnwrapException
         ClassInit UnwrapException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.3
   fun ctor.ClassCastException @scoop.ctor.ClassCastException() -> ClassCastException
     bb0 entry
       return
+        Type ClassCastException
         ClassInit ClassCastException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.4
   fun ctor.ArithmeticException @scoop.ctor.ArithmeticException() -> ArithmeticException
     bb0 entry
       return
+        Type ArithmeticException
         ClassInit ArithmeticException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.5
   fun ctor.IndexOutOfBoundsException @scoop.ctor.IndexOutOfBoundsException() -> IndexOutOfBoundsException
     bb0 entry
       return
+        Type IndexOutOfBoundsException
         ClassInit IndexOutOfBoundsException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.6
   fun ctor.IllegalStateException @scoop.ctor.IllegalStateException() -> IllegalStateException
     bb0 entry
       return
+        Type IllegalStateException
         ClassInit IllegalStateException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
+            Type String
             StringConst @scoop.str.7
   fun ctor.Animal @scoop.ctor.Animal(name: String) -> Animal
     bb0 entry
       return
+        Type Animal
         ClassInit Animal
+          Type String
           Local name
   fun ctor.Dog @scoop.ctor.Dog() -> Dog
     bb0 entry
       return
+        Type Dog
         ClassInit Dog
+          Type String
           StringConst @scoop.str.8
-  fun ctor.DogGate @scoop.ctor.DogGate(waiter: Option$Continuation$Dog<Continuation$Dog>) -> DogGate
+  fun ctor.DogGate @scoop.ctor.DogGate(waiter: Option$J20_Continuation$C3_DogXX<Continuation$C3_DogX>) -> DogGate
     bb0 entry
       return
+        Type DogGate
         ClassInit DogGate
+          Type Option$J20_Continuation$C3_DogXX<Continuation$C3_DogX>
           Local waiter
   fun ctor.DogRegistration @scoop.ctor.DogRegistration(gate: DogGate) -> DogRegistration
     bb0 entry
       return
+        Type DogRegistration
         ClassInit DogRegistration
+          Type DogGate
           Local gate
   fun ctor.ImmediateDogTask @scoop.ctor.ImmediateDogTask() -> ImmediateDogTask
     bb0 entry
       return
+        Type ImmediateDogTask
         ClassInit ImmediateDogTask
   fun ctor.SuspendedDogTask @scoop.ctor.SuspendedDogTask(gate: DogGate) -> SuspendedDogTask
     bb0 entry
       return
+        Type SuspendedDogTask
         ClassInit SuspendedDogTask
+          Type DogGate
           Local gate
   fun ctor.AnimalCompletion @scoop.ctor.AnimalCompletion() -> AnimalCompletion
     bb0 entry
       return
+        Type AnimalCompletion
         ClassInit AnimalCompletion
-  fun startCoroutine$Animal @scoop.coroutine.start$Animal(task: SuspendTask$Animal, completion: Continuation$Animal) -> Unit
+  fun startCoroutine$C6_AnimalX @scoop.coroutine.start$C6_AnimalX(task: SuspendTask$C6_AnimalX, completion: Continuation$C6_AnimalX) -> Unit
     bb0 suspended
       return
     bb1 completed
-      call @scoop.Continuation.resume$Animal interface Continuation$Animal[0]
+      call @scoop.Continuation.resume$C6_AnimalX interface Continuation$C6_AnimalX[0]
+        Type Continuation$C6_AnimalX
         Local completion
+        Type Animal
         EnumField v0 f0
+          Type CoroutineStep$C6_AnimalX
           Local $step
       return
     bb2 failed
-      call @scoop.Continuation.resumeWithException$Animal interface Continuation$Animal[1]
+      call @scoop.Continuation.resumeWithException$C6_AnimalX interface Continuation$C6_AnimalX[1]
+        Type Continuation$C6_AnimalX
         Local completion
+        Type Throwable
         Local $exception
       return
     bb3 body_failure
       landing_pad cleanup=false
       begin_catch
       call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
         CaughtException
       end_catch
       goto bb2
     bb4 entry unwind bb3
-      call $step: CoroutineStep$Animal = @scoop.SuspendTask.run$Animal$suspend interface SuspendTask$Animal[0]
+      call $step: CoroutineStep$C6_AnimalX = @scoop.SuspendTask.run$C6_AnimalX$suspend interface SuspendTask$C6_AnimalX[0]
+        Type SuspendTask$C6_AnimalX
         Local task
+        Type Continuation$C6_AnimalX
         Local completion
       branch bb1 bb0
+        Type Boolean
         Binary IntEq
+          Type Int
           EnumTag
+            Type CoroutineStep$C6_AnimalX
             Local $step
+          Type Int
           IntLiteral 0
-  fun variance.DogRegistration.SuspendRegistration$Animal.register.0 @scoop.variance.DogRegistration.SuspendRegistration$Animal.register.0(this: Any, continuation: Continuation$Animal) -> Unit
+  fun variance.DogRegistration.SuspendRegistration$C6_AnimalX.register.0 @scoop.variance.DogRegistration.SuspendRegistration$C6_AnimalX.register.0(this: Any, continuation: Continuation$C6_AnimalX) -> Unit
     bb0 entry
       call @scoop.DogRegistration.register direct
+        Type Any
         Local this
+        Type Continuation$C6_AnimalX
         Local continuation
       return
-  fun variance.ImmediateDogTask.SuspendTask$Animal.run.0 @scoop.variance.ImmediateDogTask.SuspendTask$Animal.run.0$suspend(this: Any, $completion: Continuation$Animal) -> CoroutineStep$Animal
+  fun variance.ImmediateDogTask.SuspendTask$C6_AnimalX.run.0 @scoop.variance.ImmediateDogTask.SuspendTask$C6_AnimalX.run.0$suspend(this: Any, $completion: Continuation$C6_AnimalX) -> CoroutineStep$C6_AnimalX
     bb0 entry
-      val $frame: CoroutineFrame$scoop_variance_ImmediateDogTask_SuspendTask_Animal_run_0_suspend
-        ClassInit CoroutineFrame$scoop_variance_ImmediateDogTask_SuspendTask_Animal_run_0_suspend
+      val $frame: CoroutineFrame$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend
+        Type CoroutineFrame$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend
+        ClassInit CoroutineFrame$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend
+          Type Int
           IntLiteral 0
+          Type Continuation$C6_AnimalX
           Local $completion
+          Type CoroutineSlot$Any
           VariantConstruct CoroutineSlot$Any v1
+            Type Any
             Local this
-          VariantConstruct CoroutineSlot$Dog v0
-          VariantConstruct CoroutineSlot$Throwable v0
-      call $step: CoroutineStep$Animal = @scoop.variance.ImmediateDogTask.SuspendTask$Animal.run.0$suspend$drive direct
+          Type CoroutineSlot$C3_DogX
+          VariantConstruct CoroutineSlot$C3_DogX v0
+          Type CoroutineSlot$C9_ThrowableX
+          VariantConstruct CoroutineSlot$C9_ThrowableX v0
+      call $step: CoroutineStep$C6_AnimalX = @scoop.variance.ImmediateDogTask.SuspendTask$C6_AnimalX.run.0$suspend$drive direct
+        Type CoroutineFrame$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend
         Local $frame
+        Type Int
         IntLiteral 0
       return
+        Type CoroutineStep$C6_AnimalX
         Local $step
-  fun variance.SuspendedDogTask.SuspendTask$Animal.run.0 @scoop.variance.SuspendedDogTask.SuspendTask$Animal.run.0$suspend(this: Any, $completion: Continuation$Animal) -> CoroutineStep$Animal
+  fun variance.SuspendedDogTask.SuspendTask$C6_AnimalX.run.0 @scoop.variance.SuspendedDogTask.SuspendTask$C6_AnimalX.run.0$suspend(this: Any, $completion: Continuation$C6_AnimalX) -> CoroutineStep$C6_AnimalX
     bb0 entry
-      val $frame: CoroutineFrame$scoop_variance_SuspendedDogTask_SuspendTask_Animal_run_0_suspend
-        ClassInit CoroutineFrame$scoop_variance_SuspendedDogTask_SuspendTask_Animal_run_0_suspend
+      val $frame: CoroutineFrame$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend
+        Type CoroutineFrame$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend
+        ClassInit CoroutineFrame$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend
+          Type Int
           IntLiteral 0
+          Type Continuation$C6_AnimalX
           Local $completion
+          Type CoroutineSlot$Any
           VariantConstruct CoroutineSlot$Any v1
+            Type Any
             Local this
-          VariantConstruct CoroutineSlot$Dog v0
-          VariantConstruct CoroutineSlot$Throwable v0
-      call $step: CoroutineStep$Animal = @scoop.variance.SuspendedDogTask.SuspendTask$Animal.run.0$suspend$drive direct
+          Type CoroutineSlot$C3_DogX
+          VariantConstruct CoroutineSlot$C3_DogX v0
+          Type CoroutineSlot$C9_ThrowableX
+          VariantConstruct CoroutineSlot$C9_ThrowableX v0
+      call $step: CoroutineStep$C6_AnimalX = @scoop.variance.SuspendedDogTask.SuspendTask$C6_AnimalX.run.0$suspend$drive direct
+        Type CoroutineFrame$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend
         Local $frame
+        Type Int
         IntLiteral 0
       return
+        Type CoroutineStep$C6_AnimalX
         Local $step
-  fun variance.AnimalCompletion.Continuation$Dog.resume.0 @scoop.variance.AnimalCompletion.Continuation$Dog.resume.0(this: Any, value: Dog) -> Unit
+  fun variance.AnimalCompletion.Continuation$C3_DogX.resume.0 @scoop.variance.AnimalCompletion.Continuation$C3_DogX.resume.0(this: Any, value: Dog) -> Unit
     bb0 entry
       call @scoop.AnimalCompletion.resume direct
+        Type Any
         Local this
+        Type Dog
         Local value
       return
-  fun variance.AnimalCompletion.Continuation$Dog.resumeWithException.1 @scoop.variance.AnimalCompletion.Continuation$Dog.resumeWithException.1(this: Any, exception: Throwable) -> Unit
+  fun variance.AnimalCompletion.Continuation$C3_DogX.resumeWithException.1 @scoop.variance.AnimalCompletion.Continuation$C3_DogX.resumeWithException.1(this: Any, exception: Throwable) -> Unit
     bb0 entry
       call @scoop.AnimalCompletion.resumeWithException direct
+        Type Any
         Local this
+        Type Throwable
         Local exception
       return
-  fun SuspendedDogTask.run$drive @scoop.SuspendedDogTask.run$suspend$drive($frame: CoroutineFrame$scoop_SuspendedDogTask_run_suspend, $dispatch_state: Int) -> CoroutineStep$Dog
+  fun SuspendedDogTask.run$drive @scoop.SuspendedDogTask.run$suspend$drive($frame: CoroutineFrame$scoop_SuspendedDogTask_run_suspend, $dispatch_state: Int) -> CoroutineStep$C3_DogX
     bb0 entry
-      call $call.1: SuspendRegistration$Dog = @scoop.ctor.DogRegistration direct
+      call $call.1: DogRegistration = @scoop.ctor.DogRegistration direct
+        Type DogGate
         FieldAccess 0
+          Type SuspendedDogTask
           Local this
       atomic_store_release field=0
+        Type CoroutineFrame$scoop_SuspendedDogTask_run_suspend
         Local $frame
+        Type Int
         IntLiteral 1
       val $safe_adapter.1: CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1
+        Type CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1
         ClassInit CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1
+          Type CoroutineFrame$scoop_SuspendedDogTask_run_suspend
           Local $frame
+          Type Int
           IntLiteral 0
-          VariantConstruct CoroutineSlot$Dog v0
-          VariantConstruct CoroutineSlot$Throwable v0
+          Type CoroutineSlot$C3_DogX
+          VariantConstruct CoroutineSlot$C3_DogX v0
+          Type CoroutineSlot$C9_ThrowableX
+          VariantConstruct CoroutineSlot$C9_ThrowableX v0
       goto bb2
     bb1 coroutine.post.1
       return
-        VariantConstruct CoroutineStep$Dog v0
+        Type CoroutineStep$C3_DogX
+        VariantConstruct CoroutineStep$C3_DogX v0
+          Type Dog
           Local $call.2
     bb2 coroutine.register.1 unwind bb22
-      call @scoop.SuspendRegistration.register$Dog interface SuspendRegistration$Dog[0]
-        Local $call.1
+      call @scoop.SuspendRegistration.register$C3_DogX interface SuspendRegistration$C3_DogX[0]
+        Type SuspendRegistration$C3_DogX
+        Retype SuspendRegistration$C3_DogX
+          Type DogRegistration
+          Local $call.1
+        Type CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1
         Local $safe_adapter.1
       goto bb14
     bb3 coroutine.registered_success.1
       atomic_store_release field=1
+        Type CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1
         Local $safe_adapter.1
+        Type Int
         IntLiteral 6
       val $call.2: Dog
+        Type Dog
         EnumField v1 f0
+          Type CoroutineSlot$C3_DogX
           FieldAccess 2
+            Type CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1
             Local $safe_adapter.1
       goto bb1
     bb4 coroutine.registered_failure.1
       atomic_store_release field=1
+        Type CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1
         Local $safe_adapter.1
+        Type Int
         IntLiteral 6
       val $resume_exception.1: Throwable
+        Type Throwable
         EnumField v1 f0
+          Type CoroutineSlot$C9_ThrowableX
           FieldAccess 3
+            Type CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1
             Local $safe_adapter.1
       throw
+        Type Throwable
         Local $resume_exception.1
     bb5 coroutine.registered_suspend.1
       return
-        VariantConstruct CoroutineStep$Dog v1
+        Type CoroutineStep$C3_DogX
+        VariantConstruct CoroutineStep$C3_DogX v1
     bb6 coroutine.protocol_error
       call $protocol_error: IllegalStateException = @scoop.ctor.IllegalStateException direct
       throw
+        Type IllegalStateException
         Local $protocol_error
     bb7 coroutine.claim_success_frame.1
       val $registration_frame_claim.1: Int
+        Type Int
         AtomicCompareExchange field=0 success=acq_rel failure=acquire
+          Type CoroutineFrame$scoop_SuspendedDogTask_run_suspend
           Local $frame
+          Type Int
           IntLiteral 1
+          Type Int
           IntLiteral -1
       branch bb3 bb6
+        Type Boolean
         Binary IntEq
+          Type Int
           Local $registration_frame_claim.1
+          Type Int
           IntLiteral 1
     bb8 coroutine.claim_failure_frame.1
       val $registration_frame_claim.1: Int
+        Type Int
         AtomicCompareExchange field=0 success=acq_rel failure=acquire
+          Type CoroutineFrame$scoop_SuspendedDogTask_run_suspend
           Local $frame
+          Type Int
           IntLiteral 1
+          Type Int
           IntLiteral -1
       branch bb4 bb6
+        Type Boolean
         Binary IntEq
+          Type Int
           Local $registration_frame_claim.1
+          Type Int
           IntLiteral 1
     bb9 coroutine.check_latched_failure.1
       branch bb8 bb6
+        Type Boolean
         Binary IntEq
+          Type Int
           AtomicLoadAcquire field=1
+            Type CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1
             Local $safe_adapter.1
+          Type Int
           IntLiteral 5
     bb10 coroutine.check_latched_success.1
       branch bb7 bb9
+        Type Boolean
         Binary IntEq
+          Type Int
           AtomicLoadAcquire field=1
+            Type CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1
             Local $safe_adapter.1
+          Type Int
           IntLiteral 4
     bb11 coroutine.completion_backoff.1
       goto bb13
     bb12 coroutine.check_completing_failure.1
       branch bb11 bb10
+        Type Boolean
         Binary IntEq
+          Type Int
           AtomicLoadAcquire field=1
+            Type CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1
             Local $safe_adapter.1
+          Type Int
           IntLiteral 3
     bb13 coroutine.completion_wait.1
       branch bb11 bb12
+        Type Boolean
         Binary IntEq
+          Type Int
           AtomicLoadAcquire field=1
+            Type CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1
             Local $safe_adapter.1
+          Type Int
           IntLiteral 2
     bb14 coroutine.register_return.1
       val $registration_claim.1: Int
+        Type Int
         AtomicCompareExchange field=1 success=acq_rel failure=acquire
+          Type CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1
           Local $safe_adapter.1
+          Type Int
           IntLiteral 0
+          Type Int
           IntLiteral 1
       branch bb5 bb13
+        Type Boolean
         Binary IntEq
+          Type Int
           Local $registration_claim.1
+          Type Int
           IntLiteral 0
     bb15 coroutine.registration_propagate.1
       throw
+        Type Throwable
         Local $resume_exception.1
     bb16 coroutine.registration_claim_frame.1
       val $registration_frame_claim.1: Int
+        Type Int
         AtomicCompareExchange field=0 success=acq_rel failure=acquire
+          Type CoroutineFrame$scoop_SuspendedDogTask_run_suspend
           Local $frame
+          Type Int
           IntLiteral 1
+          Type Int
           IntLiteral -1
       branch bb15 bb6
+        Type Boolean
         Binary IntEq
+          Type Int
           Local $registration_frame_claim.1
+          Type Int
           IntLiteral 1
     bb17 coroutine.registration_protocol.1
       atomic_store_release field=1
+        Type CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1
         Local $safe_adapter.1
+        Type Int
         IntLiteral 6
       goto bb6
     bb18 coroutine.registration_protocol_claim_frame.1
       val $registration_frame_claim.1: Int
+        Type Int
         AtomicCompareExchange field=0 success=acq_rel failure=acquire
+          Type CoroutineFrame$scoop_SuspendedDogTask_run_suspend
           Local $frame
+          Type Int
           IntLiteral 1
+          Type Int
           IntLiteral -1
       branch bb17 bb6
+        Type Boolean
         Binary IntEq
+          Type Int
           Local $registration_frame_claim.1
+          Type Int
           IntLiteral 1
     bb19 coroutine.registration_backoff.1
       goto bb21
     bb20 coroutine.registration_check_completing_failure.1
       branch bb19 bb18
+        Type Boolean
         Binary IntEq
+          Type Int
           AtomicLoadAcquire field=1
+            Type CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1
             Local $safe_adapter.1
+          Type Int
           IntLiteral 3
     bb21 coroutine.registration_wait.1
       branch bb19 bb20
+        Type Boolean
         Binary IntEq
+          Type Int
           AtomicLoadAcquire field=1
+            Type CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1
             Local $safe_adapter.1
+          Type Int
           IntLiteral 2
     bb22 coroutine.registration_failure.1
       landing_pad cleanup=false
       begin_catch
       call $resume_exception.1: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
         CaughtException
       end_catch
       val $registration_claim.1: Int
+        Type Int
         AtomicCompareExchange field=1 success=acq_rel failure=acquire
+          Type CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1
           Local $safe_adapter.1
+          Type Int
           IntLiteral 0
+          Type Int
           IntLiteral 6
       branch bb16 bb21
+        Type Boolean
         Binary IntEq
+          Type Int
           Local $registration_claim.1
+          Type Int
           IntLiteral 0
     bb23 coroutine.resume.1
       assign $call.2
+        Type Dog
         EnumField v1 f0
+          Type CoroutineSlot$C3_DogX
           FieldAccess 3
+            Type CoroutineFrame$scoop_SuspendedDogTask_run_suspend
             Local $frame
       goto bb1
     bb24 coroutine.failure.1
       throw
+        Type Throwable
         EnumField v1 f0
+          Type CoroutineSlot$C9_ThrowableX
           FieldAccess 4
+            Type CoroutineFrame$scoop_SuspendedDogTask_run_suspend
             Local $frame
     bb25 coroutine.initial
       assign this
+        Type SuspendedDogTask
         EnumField v1 f0
+          Type CoroutineSlot$C16_SuspendedDogTaskX
           FieldAccess 2
+            Type CoroutineFrame$scoop_SuspendedDogTask_run_suspend
             Local $frame
       atomic_store_release field=0
+        Type CoroutineFrame$scoop_SuspendedDogTask_run_suspend
         Local $frame
+        Type Int
         IntLiteral -1
       goto bb0
     bb26 coroutine.protocol_error
       call $protocol_error: IllegalStateException = @scoop.ctor.IllegalStateException direct
       throw
+        Type IllegalStateException
         Local $protocol_error
     bb27 coroutine.dispatch.1
       branch bb23 bb26
+        Type Boolean
         Binary IntEq
+          Type Int
           Local $dispatch_state
+          Type Int
           IntLiteral 1
     bb28 coroutine.dispatch.-3
       branch bb24 bb27
+        Type Boolean
         Binary IntEq
+          Type Int
           Local $dispatch_state
+          Type Int
           IntLiteral -3
     bb29 coroutine.dispatch.0
       branch bb25 bb28
+        Type Boolean
         Binary IntEq
+          Type Int
           Local $dispatch_state
+          Type Int
           IntLiteral 0
   fun CoroutineAdapter.resume$1 @scoop.SuspendedDogTask.run$suspend$resume$1(this: CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1, value: Dog) -> Unit
     bb0 coroutine.protocol_error
       call $protocol_error: IllegalStateException = @scoop.ctor.IllegalStateException direct
       throw
+        Type IllegalStateException
         Local $protocol_error
     bb1 completed
       atomic_store_release field=0
+        Type CoroutineFrame$scoop_SuspendedDogTask_run_suspend
         FieldAccess 0
+          Type CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1
           Local this
+        Type Int
         IntLiteral -2
-      call @scoop.Continuation.resume$Dog interface Continuation$Dog[0]
+      call @scoop.Continuation.resume$C3_DogX interface Continuation$C3_DogX[0]
+        Type Continuation$C3_DogX
         FieldAccess 1
+          Type CoroutineFrame$scoop_SuspendedDogTask_run_suspend
           FieldAccess 0
+            Type CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1
             Local this
+        Type Dog
         EnumField v0 f0
+          Type CoroutineStep$C3_DogX
           Local $step
       return
     bb2 suspended
       return
     bb3 failed
       atomic_store_release field=0
+        Type CoroutineFrame$scoop_SuspendedDogTask_run_suspend
         FieldAccess 0
+          Type CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1
           Local this
+        Type Int
         IntLiteral -2
-      call @scoop.Continuation.resumeWithException$Dog interface Continuation$Dog[1]
+      call @scoop.Continuation.resumeWithException$C3_DogX interface Continuation$C3_DogX[1]
+        Type Continuation$C3_DogX
         FieldAccess 1
+          Type CoroutineFrame$scoop_SuspendedDogTask_run_suspend
           FieldAccess 0
+            Type CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1
             Local this
+        Type Throwable
         Local $uncaught
       return
     bb4 body_failure
       landing_pad cleanup=false
       begin_catch
       call $uncaught: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
         CaughtException
       end_catch
       goto bb3
     bb5 valid unwind bb4
       field_set 3
+        Type CoroutineFrame$scoop_SuspendedDogTask_run_suspend
         FieldAccess 0
+          Type CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1
           Local this
-        VariantConstruct CoroutineSlot$Dog v1
+        Type CoroutineSlot$C3_DogX
+        VariantConstruct CoroutineSlot$C3_DogX v1
+          Type Dog
           Local value
       atomic_store_release field=1
+        Type CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1
         Local this
+        Type Int
         IntLiteral 6
-      call $step: CoroutineStep$Dog = @scoop.SuspendedDogTask.run$suspend$drive direct
+      call $step: CoroutineStep$C3_DogX = @scoop.SuspendedDogTask.run$suspend$drive direct
+        Type CoroutineFrame$scoop_SuspendedDogTask_run_suspend
         FieldAccess 0
+          Type CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1
           Local this
+        Type Int
         IntLiteral 1
       branch bb1 bb2
+        Type Boolean
         Binary IntEq
+          Type Int
           EnumTag
+            Type CoroutineStep$C3_DogX
             Local $step
+          Type Int
           IntLiteral 0
     bb6 invalid_frame
       atomic_store_release field=1
+        Type CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1
         Local this
+        Type Int
         IntLiteral 6
       goto bb0
     bb7 claim_frame
       val $frame_claim: Int
+        Type Int
         AtomicCompareExchange field=0 success=acq_rel failure=acquire
+          Type CoroutineFrame$scoop_SuspendedDogTask_run_suspend
           FieldAccess 0
+            Type CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1
             Local this
+          Type Int
           IntLiteral 1
+          Type Int
           IntLiteral -1
       branch bb5 bb6
+        Type Boolean
         Binary IntEq
+          Type Int
           Local $frame_claim
+          Type Int
           IntLiteral 1
     bb8 claim_waiting
       val $adapter_claim: Int
+        Type Int
         AtomicCompareExchange field=1 success=acq_rel failure=acquire
+          Type CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1
           Local this
+          Type Int
           IntLiteral 1
+          Type Int
           IntLiteral 2
       branch bb7 bb0
+        Type Boolean
         Binary IntEq
+          Type Int
           Local $adapter_claim
+          Type Int
           IntLiteral 1
     bb9 latched
       field_set 2
+        Type CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1
         Local this
-        VariantConstruct CoroutineSlot$Dog v1
+        Type CoroutineSlot$C3_DogX
+        VariantConstruct CoroutineSlot$C3_DogX v1
+          Type Dog
           Local value
       atomic_store_release field=1
+        Type CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1
         Local this
+        Type Int
         IntLiteral 4
       return
     bb10 entry
       val $adapter_claim: Int
+        Type Int
         AtomicCompareExchange field=1 success=acq_rel failure=acquire
+          Type CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1
           Local this
+          Type Int
           IntLiteral 0
+          Type Int
           IntLiteral 2
       branch bb9 bb8
+        Type Boolean
         Binary IntEq
+          Type Int
           Local $adapter_claim
+          Type Int
           IntLiteral 0
   fun CoroutineAdapter.resumeWithException$1 @scoop.SuspendedDogTask.run$suspend$resume_exception$1(this: CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1, exception: Throwable) -> Unit
     bb0 coroutine.protocol_error
       call $protocol_error: IllegalStateException = @scoop.ctor.IllegalStateException direct
       throw
+        Type IllegalStateException
         Local $protocol_error
     bb1 completed
       atomic_store_release field=0
+        Type CoroutineFrame$scoop_SuspendedDogTask_run_suspend
         FieldAccess 0
+          Type CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1
           Local this
+        Type Int
         IntLiteral -2
-      call @scoop.Continuation.resume$Dog interface Continuation$Dog[0]
+      call @scoop.Continuation.resume$C3_DogX interface Continuation$C3_DogX[0]
+        Type Continuation$C3_DogX
         FieldAccess 1
+          Type CoroutineFrame$scoop_SuspendedDogTask_run_suspend
           FieldAccess 0
+            Type CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1
             Local this
+        Type Dog
         EnumField v0 f0
+          Type CoroutineStep$C3_DogX
           Local $step
       return
     bb2 suspended
       return
     bb3 failed
       atomic_store_release field=0
+        Type CoroutineFrame$scoop_SuspendedDogTask_run_suspend
         FieldAccess 0
+          Type CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1
           Local this
+        Type Int
         IntLiteral -2
-      call @scoop.Continuation.resumeWithException$Dog interface Continuation$Dog[1]
+      call @scoop.Continuation.resumeWithException$C3_DogX interface Continuation$C3_DogX[1]
+        Type Continuation$C3_DogX
         FieldAccess 1
+          Type CoroutineFrame$scoop_SuspendedDogTask_run_suspend
           FieldAccess 0
+            Type CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1
             Local this
+        Type Throwable
         Local $uncaught
       return
     bb4 body_failure
       landing_pad cleanup=false
       begin_catch
       call $uncaught: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
         CaughtException
       end_catch
       goto bb3
     bb5 valid unwind bb4
       field_set 4
+        Type CoroutineFrame$scoop_SuspendedDogTask_run_suspend
         FieldAccess 0
+          Type CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1
           Local this
-        VariantConstruct CoroutineSlot$Throwable v1
+        Type CoroutineSlot$C9_ThrowableX
+        VariantConstruct CoroutineSlot$C9_ThrowableX v1
+          Type Throwable
           Local exception
       atomic_store_release field=1
+        Type CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1
         Local this
+        Type Int
         IntLiteral 6
-      call $step: CoroutineStep$Dog = @scoop.SuspendedDogTask.run$suspend$drive direct
+      call $step: CoroutineStep$C3_DogX = @scoop.SuspendedDogTask.run$suspend$drive direct
+        Type CoroutineFrame$scoop_SuspendedDogTask_run_suspend
         FieldAccess 0
+          Type CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1
           Local this
+        Type Int
         IntLiteral -3
       branch bb1 bb2
+        Type Boolean
         Binary IntEq
+          Type Int
           EnumTag
+            Type CoroutineStep$C3_DogX
             Local $step
+          Type Int
           IntLiteral 0
     bb6 invalid_frame
       atomic_store_release field=1
+        Type CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1
         Local this
+        Type Int
         IntLiteral 6
       goto bb0
     bb7 claim_frame
       val $frame_claim: Int
+        Type Int
         AtomicCompareExchange field=0 success=acq_rel failure=acquire
+          Type CoroutineFrame$scoop_SuspendedDogTask_run_suspend
           FieldAccess 0
+            Type CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1
             Local this
+          Type Int
           IntLiteral 1
+          Type Int
           IntLiteral -1
       branch bb5 bb6
+        Type Boolean
         Binary IntEq
+          Type Int
           Local $frame_claim
+          Type Int
           IntLiteral 1
     bb8 claim_waiting
       val $adapter_claim: Int
+        Type Int
         AtomicCompareExchange field=1 success=acq_rel failure=acquire
+          Type CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1
           Local this
+          Type Int
           IntLiteral 1
+          Type Int
           IntLiteral 3
       branch bb7 bb0
+        Type Boolean
         Binary IntEq
+          Type Int
           Local $adapter_claim
+          Type Int
           IntLiteral 1
     bb9 latched
       field_set 3
+        Type CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1
         Local this
-        VariantConstruct CoroutineSlot$Throwable v1
+        Type CoroutineSlot$C9_ThrowableX
+        VariantConstruct CoroutineSlot$C9_ThrowableX v1
+          Type Throwable
           Local exception
       atomic_store_release field=1
+        Type CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1
         Local this
+        Type Int
         IntLiteral 5
       return
     bb10 entry
       val $adapter_claim: Int
+        Type Int
         AtomicCompareExchange field=1 success=acq_rel failure=acquire
+          Type CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1
           Local this
+          Type Int
           IntLiteral 0
+          Type Int
           IntLiteral 3
       branch bb9 bb8
+        Type Boolean
         Binary IntEq
+          Type Int
           Local $adapter_claim
+          Type Int
           IntLiteral 0
-  fun variance.ImmediateDogTask.SuspendTask$Animal.run.0$drive @scoop.variance.ImmediateDogTask.SuspendTask$Animal.run.0$suspend$drive($frame: CoroutineFrame$scoop_variance_ImmediateDogTask_SuspendTask_Animal_run_0_suspend, $dispatch_state: Int) -> CoroutineStep$Animal
+  fun variance.ImmediateDogTask.SuspendTask$C6_AnimalX.run.0$drive @scoop.variance.ImmediateDogTask.SuspendTask$C6_AnimalX.run.0$suspend$drive($frame: CoroutineFrame$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend, $dispatch_state: Int) -> CoroutineStep$C6_AnimalX
     bb0 entry
       atomic_store_release field=0
+        Type CoroutineFrame$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend
         Local $frame
+        Type Int
         IntLiteral 1
-      val $adapter.1: CoroutineAdapter$scoop_variance_ImmediateDogTask_SuspendTask_Animal_run_0_suspend$1
-        ClassInit CoroutineAdapter$scoop_variance_ImmediateDogTask_SuspendTask_Animal_run_0_suspend$1
+      val $adapter.1: CoroutineAdapter$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1
+        Type CoroutineAdapter$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1
+        ClassInit CoroutineAdapter$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1
+          Type CoroutineFrame$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend
           Local $frame
+          Type Int
           IntLiteral 1
-      call $step.1: CoroutineStep$Dog = @scoop.ImmediateDogTask.run$suspend direct
+      call $step.1: CoroutineStep$C3_DogX = @scoop.ImmediateDogTask.run$suspend direct
+        Type Any
         Local this
+        Type CoroutineAdapter$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1
         Local $adapter.1
       branch bb5 bb6
+        Type Boolean
         Binary IntEq
+          Type Int
           EnumTag
+            Type CoroutineStep$C3_DogX
             Local $step.1
+          Type Int
           IntLiteral 0
     bb1 coroutine.post.1
       return
-        VariantConstruct CoroutineStep$Animal v0
+        Type CoroutineStep$C6_AnimalX
+        VariantConstruct CoroutineStep$C6_AnimalX v0
+          Type Dog
           Local $call.1
     bb2 coroutine.completed.1
       val $call.1: Dog
+        Type Dog
         EnumField v0 f0
+          Type CoroutineStep$C3_DogX
           Local $step.1
       goto bb1
     bb3 coroutine.protocol_error
       call $protocol_error: IllegalStateException = @scoop.ctor.IllegalStateException direct
       throw
+        Type IllegalStateException
         Local $protocol_error
     bb4 coroutine.completed_claim_frame.1
       val $completed_frame_claim.1: Int
+        Type Int
         AtomicCompareExchange field=0 success=acq_rel failure=acquire
+          Type CoroutineFrame$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend
           Local $frame
+          Type Int
           IntLiteral 1
+          Type Int
           IntLiteral -1
       branch bb2 bb3
+        Type Boolean
         Binary IntEq
+          Type Int
           Local $completed_frame_claim.1
+          Type Int
           IntLiteral 1
     bb5 coroutine.completed_claim_adapter.1
       val $completed_adapter_claim.1: Int
+        Type Int
         AtomicCompareExchange field=1 success=acq_rel failure=acquire
+          Type CoroutineAdapter$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1
           Local $adapter.1
+          Type Int
           IntLiteral 1
+          Type Int
           IntLiteral 6
       branch bb4 bb3
+        Type Boolean
         Binary IntEq
+          Type Int
           Local $completed_adapter_claim.1
+          Type Int
           IntLiteral 1
     bb6 coroutine.suspended.1
       return
-        VariantConstruct CoroutineStep$Animal v1
+        Type CoroutineStep$C6_AnimalX
+        VariantConstruct CoroutineStep$C6_AnimalX v1
     bb7 coroutine.resume.1
       assign $call.1
+        Type Dog
         EnumField v1 f0
+          Type CoroutineSlot$C3_DogX
           FieldAccess 3
+            Type CoroutineFrame$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend
             Local $frame
       goto bb1
     bb8 coroutine.failure.1
       throw
+        Type Throwable
         EnumField v1 f0
+          Type CoroutineSlot$C9_ThrowableX
           FieldAccess 4
+            Type CoroutineFrame$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend
             Local $frame
     bb9 coroutine.initial
       assign this
+        Type Any
         EnumField v1 f0
+          Type CoroutineSlot$Any
           FieldAccess 2
+            Type CoroutineFrame$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend
             Local $frame
       atomic_store_release field=0
+        Type CoroutineFrame$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend
         Local $frame
+        Type Int
         IntLiteral -1
       goto bb0
     bb10 coroutine.protocol_error
       call $protocol_error: IllegalStateException = @scoop.ctor.IllegalStateException direct
       throw
+        Type IllegalStateException
         Local $protocol_error
     bb11 coroutine.dispatch.1
       branch bb7 bb10
+        Type Boolean
         Binary IntEq
+          Type Int
           Local $dispatch_state
+          Type Int
           IntLiteral 1
     bb12 coroutine.dispatch.-3
       branch bb8 bb11
+        Type Boolean
         Binary IntEq
+          Type Int
           Local $dispatch_state
+          Type Int
           IntLiteral -3
     bb13 coroutine.dispatch.0
       branch bb9 bb12
+        Type Boolean
         Binary IntEq
+          Type Int
           Local $dispatch_state
+          Type Int
           IntLiteral 0
-  fun CoroutineAdapter.resume$1 @scoop.variance.ImmediateDogTask.SuspendTask$Animal.run.0$suspend$resume$1(this: CoroutineAdapter$scoop_variance_ImmediateDogTask_SuspendTask_Animal_run_0_suspend$1, value: Dog) -> Unit
+  fun CoroutineAdapter.resume$1 @scoop.variance.ImmediateDogTask.SuspendTask$C6_AnimalX.run.0$suspend$resume$1(this: CoroutineAdapter$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1, value: Dog) -> Unit
     bb0 coroutine.protocol_error
       call $protocol_error: IllegalStateException = @scoop.ctor.IllegalStateException direct
       throw
+        Type IllegalStateException
         Local $protocol_error
     bb1 completed
       atomic_store_release field=0
+        Type CoroutineFrame$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend
         FieldAccess 0
+          Type CoroutineAdapter$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1
           Local this
+        Type Int
         IntLiteral -2
-      call @scoop.Continuation.resume$Animal interface Continuation$Animal[0]
+      call @scoop.Continuation.resume$C6_AnimalX interface Continuation$C6_AnimalX[0]
+        Type Continuation$C6_AnimalX
         FieldAccess 1
+          Type CoroutineFrame$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend
           FieldAccess 0
+            Type CoroutineAdapter$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1
             Local this
+        Type Animal
         EnumField v0 f0
+          Type CoroutineStep$C6_AnimalX
           Local $step
       return
     bb2 suspended
       return
     bb3 failed
       atomic_store_release field=0
+        Type CoroutineFrame$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend
         FieldAccess 0
+          Type CoroutineAdapter$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1
           Local this
+        Type Int
         IntLiteral -2
-      call @scoop.Continuation.resumeWithException$Animal interface Continuation$Animal[1]
+      call @scoop.Continuation.resumeWithException$C6_AnimalX interface Continuation$C6_AnimalX[1]
+        Type Continuation$C6_AnimalX
         FieldAccess 1
+          Type CoroutineFrame$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend
           FieldAccess 0
+            Type CoroutineAdapter$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1
             Local this
+        Type Throwable
         Local $uncaught
       return
     bb4 body_failure
       landing_pad cleanup=false
       begin_catch
       call $uncaught: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
         CaughtException
       end_catch
       goto bb3
     bb5 valid unwind bb4
       field_set 3
+        Type CoroutineFrame$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend
         FieldAccess 0
+          Type CoroutineAdapter$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1
           Local this
-        VariantConstruct CoroutineSlot$Dog v1
+        Type CoroutineSlot$C3_DogX
+        VariantConstruct CoroutineSlot$C3_DogX v1
+          Type Dog
           Local value
       atomic_store_release field=1
+        Type CoroutineAdapter$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1
         Local this
+        Type Int
         IntLiteral 6
-      call $step: CoroutineStep$Animal = @scoop.variance.ImmediateDogTask.SuspendTask$Animal.run.0$suspend$drive direct
+      call $step: CoroutineStep$C6_AnimalX = @scoop.variance.ImmediateDogTask.SuspendTask$C6_AnimalX.run.0$suspend$drive direct
+        Type CoroutineFrame$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend
         FieldAccess 0
+          Type CoroutineAdapter$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1
           Local this
+        Type Int
         IntLiteral 1
       branch bb1 bb2
+        Type Boolean
         Binary IntEq
+          Type Int
           EnumTag
+            Type CoroutineStep$C6_AnimalX
             Local $step
+          Type Int
           IntLiteral 0
     bb6 invalid_frame
       atomic_store_release field=1
+        Type CoroutineAdapter$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1
         Local this
+        Type Int
         IntLiteral 6
       goto bb0
     bb7 claim_frame
       val $frame_claim: Int
+        Type Int
         AtomicCompareExchange field=0 success=acq_rel failure=acquire
+          Type CoroutineFrame$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend
           FieldAccess 0
+            Type CoroutineAdapter$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1
             Local this
+          Type Int
           IntLiteral 1
+          Type Int
           IntLiteral -1
       branch bb5 bb6
+        Type Boolean
         Binary IntEq
+          Type Int
           Local $frame_claim
+          Type Int
           IntLiteral 1
     bb8 claim_waiting
       val $adapter_claim: Int
+        Type Int
         AtomicCompareExchange field=1 success=acq_rel failure=acquire
+          Type CoroutineAdapter$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1
           Local this
+          Type Int
           IntLiteral 1
+          Type Int
           IntLiteral 2
       branch bb7 bb0
+        Type Boolean
         Binary IntEq
+          Type Int
           Local $adapter_claim
+          Type Int
           IntLiteral 1
-  fun CoroutineAdapter.resumeWithException$1 @scoop.variance.ImmediateDogTask.SuspendTask$Animal.run.0$suspend$resume_exception$1(this: CoroutineAdapter$scoop_variance_ImmediateDogTask_SuspendTask_Animal_run_0_suspend$1, exception: Throwable) -> Unit
+  fun CoroutineAdapter.resumeWithException$1 @scoop.variance.ImmediateDogTask.SuspendTask$C6_AnimalX.run.0$suspend$resume_exception$1(this: CoroutineAdapter$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1, exception: Throwable) -> Unit
     bb0 coroutine.protocol_error
       call $protocol_error: IllegalStateException = @scoop.ctor.IllegalStateException direct
       throw
+        Type IllegalStateException
         Local $protocol_error
     bb1 completed
       atomic_store_release field=0
+        Type CoroutineFrame$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend
         FieldAccess 0
+          Type CoroutineAdapter$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1
           Local this
+        Type Int
         IntLiteral -2
-      call @scoop.Continuation.resume$Animal interface Continuation$Animal[0]
+      call @scoop.Continuation.resume$C6_AnimalX interface Continuation$C6_AnimalX[0]
+        Type Continuation$C6_AnimalX
         FieldAccess 1
+          Type CoroutineFrame$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend
           FieldAccess 0
+            Type CoroutineAdapter$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1
             Local this
+        Type Animal
         EnumField v0 f0
+          Type CoroutineStep$C6_AnimalX
           Local $step
       return
     bb2 suspended
       return
     bb3 failed
       atomic_store_release field=0
+        Type CoroutineFrame$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend
         FieldAccess 0
+          Type CoroutineAdapter$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1
           Local this
+        Type Int
         IntLiteral -2
-      call @scoop.Continuation.resumeWithException$Animal interface Continuation$Animal[1]
+      call @scoop.Continuation.resumeWithException$C6_AnimalX interface Continuation$C6_AnimalX[1]
+        Type Continuation$C6_AnimalX
         FieldAccess 1
+          Type CoroutineFrame$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend
           FieldAccess 0
+            Type CoroutineAdapter$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1
             Local this
+        Type Throwable
         Local $uncaught
       return
     bb4 body_failure
       landing_pad cleanup=false
       begin_catch
       call $uncaught: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
         CaughtException
       end_catch
       goto bb3
     bb5 valid unwind bb4
       field_set 4
+        Type CoroutineFrame$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend
         FieldAccess 0
+          Type CoroutineAdapter$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1
           Local this
-        VariantConstruct CoroutineSlot$Throwable v1
+        Type CoroutineSlot$C9_ThrowableX
+        VariantConstruct CoroutineSlot$C9_ThrowableX v1
+          Type Throwable
           Local exception
       atomic_store_release field=1
+        Type CoroutineAdapter$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1
         Local this
+        Type Int
         IntLiteral 6
-      call $step: CoroutineStep$Animal = @scoop.variance.ImmediateDogTask.SuspendTask$Animal.run.0$suspend$drive direct
+      call $step: CoroutineStep$C6_AnimalX = @scoop.variance.ImmediateDogTask.SuspendTask$C6_AnimalX.run.0$suspend$drive direct
+        Type CoroutineFrame$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend
         FieldAccess 0
+          Type CoroutineAdapter$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1
           Local this
+        Type Int
         IntLiteral -3
       branch bb1 bb2
+        Type Boolean
         Binary IntEq
+          Type Int
           EnumTag
+            Type CoroutineStep$C6_AnimalX
             Local $step
+          Type Int
           IntLiteral 0
     bb6 invalid_frame
       atomic_store_release field=1
+        Type CoroutineAdapter$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1
         Local this
+        Type Int
         IntLiteral 6
       goto bb0
     bb7 claim_frame
       val $frame_claim: Int
+        Type Int
         AtomicCompareExchange field=0 success=acq_rel failure=acquire
+          Type CoroutineFrame$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend
           FieldAccess 0
+            Type CoroutineAdapter$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1
             Local this
+          Type Int
           IntLiteral 1
+          Type Int
           IntLiteral -1
       branch bb5 bb6
+        Type Boolean
         Binary IntEq
+          Type Int
           Local $frame_claim
+          Type Int
           IntLiteral 1
     bb8 claim_waiting
       val $adapter_claim: Int
+        Type Int
         AtomicCompareExchange field=1 success=acq_rel failure=acquire
+          Type CoroutineAdapter$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1
           Local this
+          Type Int
           IntLiteral 1
+          Type Int
           IntLiteral 3
       branch bb7 bb0
+        Type Boolean
         Binary IntEq
+          Type Int
           Local $adapter_claim
+          Type Int
           IntLiteral 1
-  fun variance.SuspendedDogTask.SuspendTask$Animal.run.0$drive @scoop.variance.SuspendedDogTask.SuspendTask$Animal.run.0$suspend$drive($frame: CoroutineFrame$scoop_variance_SuspendedDogTask_SuspendTask_Animal_run_0_suspend, $dispatch_state: Int) -> CoroutineStep$Animal
+  fun variance.SuspendedDogTask.SuspendTask$C6_AnimalX.run.0$drive @scoop.variance.SuspendedDogTask.SuspendTask$C6_AnimalX.run.0$suspend$drive($frame: CoroutineFrame$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend, $dispatch_state: Int) -> CoroutineStep$C6_AnimalX
     bb0 entry
       atomic_store_release field=0
+        Type CoroutineFrame$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend
         Local $frame
+        Type Int
         IntLiteral 1
-      val $adapter.1: CoroutineAdapter$scoop_variance_SuspendedDogTask_SuspendTask_Animal_run_0_suspend$1
-        ClassInit CoroutineAdapter$scoop_variance_SuspendedDogTask_SuspendTask_Animal_run_0_suspend$1
+      val $adapter.1: CoroutineAdapter$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1
+        Type CoroutineAdapter$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1
+        ClassInit CoroutineAdapter$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1
+          Type CoroutineFrame$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend
           Local $frame
+          Type Int
           IntLiteral 1
-      call $step.1: CoroutineStep$Dog = @scoop.SuspendedDogTask.run$suspend direct
+      call $step.1: CoroutineStep$C3_DogX = @scoop.SuspendedDogTask.run$suspend direct
+        Type Any
         Local this
+        Type CoroutineAdapter$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1
         Local $adapter.1
       branch bb5 bb6
+        Type Boolean
         Binary IntEq
+          Type Int
           EnumTag
+            Type CoroutineStep$C3_DogX
             Local $step.1
+          Type Int
           IntLiteral 0
     bb1 coroutine.post.1
       return
-        VariantConstruct CoroutineStep$Animal v0
+        Type CoroutineStep$C6_AnimalX
+        VariantConstruct CoroutineStep$C6_AnimalX v0
+          Type Dog
           Local $call.1
     bb2 coroutine.completed.1
       val $call.1: Dog
+        Type Dog
         EnumField v0 f0
+          Type CoroutineStep$C3_DogX
           Local $step.1
       goto bb1
     bb3 coroutine.protocol_error
       call $protocol_error: IllegalStateException = @scoop.ctor.IllegalStateException direct
       throw
+        Type IllegalStateException
         Local $protocol_error
     bb4 coroutine.completed_claim_frame.1
       val $completed_frame_claim.1: Int
+        Type Int
         AtomicCompareExchange field=0 success=acq_rel failure=acquire
+          Type CoroutineFrame$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend
           Local $frame
+          Type Int
           IntLiteral 1
+          Type Int
           IntLiteral -1
       branch bb2 bb3
+        Type Boolean
         Binary IntEq
+          Type Int
           Local $completed_frame_claim.1
+          Type Int
           IntLiteral 1
     bb5 coroutine.completed_claim_adapter.1
       val $completed_adapter_claim.1: Int
+        Type Int
         AtomicCompareExchange field=1 success=acq_rel failure=acquire
+          Type CoroutineAdapter$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1
           Local $adapter.1
+          Type Int
           IntLiteral 1
+          Type Int
           IntLiteral 6
       branch bb4 bb3
+        Type Boolean
         Binary IntEq
+          Type Int
           Local $completed_adapter_claim.1
+          Type Int
           IntLiteral 1
     bb6 coroutine.suspended.1
       return
-        VariantConstruct CoroutineStep$Animal v1
+        Type CoroutineStep$C6_AnimalX
+        VariantConstruct CoroutineStep$C6_AnimalX v1
     bb7 coroutine.resume.1
       assign $call.1
+        Type Dog
         EnumField v1 f0
+          Type CoroutineSlot$C3_DogX
           FieldAccess 3
+            Type CoroutineFrame$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend
             Local $frame
       goto bb1
     bb8 coroutine.failure.1
       throw
+        Type Throwable
         EnumField v1 f0
+          Type CoroutineSlot$C9_ThrowableX
           FieldAccess 4
+            Type CoroutineFrame$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend
             Local $frame
     bb9 coroutine.initial
       assign this
+        Type Any
         EnumField v1 f0
+          Type CoroutineSlot$Any
           FieldAccess 2
+            Type CoroutineFrame$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend
             Local $frame
       atomic_store_release field=0
+        Type CoroutineFrame$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend
         Local $frame
+        Type Int
         IntLiteral -1
       goto bb0
     bb10 coroutine.protocol_error
       call $protocol_error: IllegalStateException = @scoop.ctor.IllegalStateException direct
       throw
+        Type IllegalStateException
         Local $protocol_error
     bb11 coroutine.dispatch.1
       branch bb7 bb10
+        Type Boolean
         Binary IntEq
+          Type Int
           Local $dispatch_state
+          Type Int
           IntLiteral 1
     bb12 coroutine.dispatch.-3
       branch bb8 bb11
+        Type Boolean
         Binary IntEq
+          Type Int
           Local $dispatch_state
+          Type Int
           IntLiteral -3
     bb13 coroutine.dispatch.0
       branch bb9 bb12
+        Type Boolean
         Binary IntEq
+          Type Int
           Local $dispatch_state
+          Type Int
           IntLiteral 0
-  fun CoroutineAdapter.resume$1 @scoop.variance.SuspendedDogTask.SuspendTask$Animal.run.0$suspend$resume$1(this: CoroutineAdapter$scoop_variance_SuspendedDogTask_SuspendTask_Animal_run_0_suspend$1, value: Dog) -> Unit
+  fun CoroutineAdapter.resume$1 @scoop.variance.SuspendedDogTask.SuspendTask$C6_AnimalX.run.0$suspend$resume$1(this: CoroutineAdapter$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1, value: Dog) -> Unit
     bb0 coroutine.protocol_error
       call $protocol_error: IllegalStateException = @scoop.ctor.IllegalStateException direct
       throw
+        Type IllegalStateException
         Local $protocol_error
     bb1 completed
       atomic_store_release field=0
+        Type CoroutineFrame$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend
         FieldAccess 0
+          Type CoroutineAdapter$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1
           Local this
+        Type Int
         IntLiteral -2
-      call @scoop.Continuation.resume$Animal interface Continuation$Animal[0]
+      call @scoop.Continuation.resume$C6_AnimalX interface Continuation$C6_AnimalX[0]
+        Type Continuation$C6_AnimalX
         FieldAccess 1
+          Type CoroutineFrame$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend
           FieldAccess 0
+            Type CoroutineAdapter$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1
             Local this
+        Type Animal
         EnumField v0 f0
+          Type CoroutineStep$C6_AnimalX
           Local $step
       return
     bb2 suspended
       return
     bb3 failed
       atomic_store_release field=0
+        Type CoroutineFrame$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend
         FieldAccess 0
+          Type CoroutineAdapter$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1
           Local this
+        Type Int
         IntLiteral -2
-      call @scoop.Continuation.resumeWithException$Animal interface Continuation$Animal[1]
+      call @scoop.Continuation.resumeWithException$C6_AnimalX interface Continuation$C6_AnimalX[1]
+        Type Continuation$C6_AnimalX
         FieldAccess 1
+          Type CoroutineFrame$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend
           FieldAccess 0
+            Type CoroutineAdapter$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1
             Local this
+        Type Throwable
         Local $uncaught
       return
     bb4 body_failure
       landing_pad cleanup=false
       begin_catch
       call $uncaught: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
         CaughtException
       end_catch
       goto bb3
     bb5 valid unwind bb4
       field_set 3
+        Type CoroutineFrame$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend
         FieldAccess 0
+          Type CoroutineAdapter$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1
           Local this
-        VariantConstruct CoroutineSlot$Dog v1
+        Type CoroutineSlot$C3_DogX
+        VariantConstruct CoroutineSlot$C3_DogX v1
+          Type Dog
           Local value
       atomic_store_release field=1
+        Type CoroutineAdapter$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1
         Local this
+        Type Int
         IntLiteral 6
-      call $step: CoroutineStep$Animal = @scoop.variance.SuspendedDogTask.SuspendTask$Animal.run.0$suspend$drive direct
+      call $step: CoroutineStep$C6_AnimalX = @scoop.variance.SuspendedDogTask.SuspendTask$C6_AnimalX.run.0$suspend$drive direct
+        Type CoroutineFrame$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend
         FieldAccess 0
+          Type CoroutineAdapter$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1
           Local this
+        Type Int
         IntLiteral 1
       branch bb1 bb2
+        Type Boolean
         Binary IntEq
+          Type Int
           EnumTag
+            Type CoroutineStep$C6_AnimalX
             Local $step
+          Type Int
           IntLiteral 0
     bb6 invalid_frame
       atomic_store_release field=1
+        Type CoroutineAdapter$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1
         Local this
+        Type Int
         IntLiteral 6
       goto bb0
     bb7 claim_frame
       val $frame_claim: Int
+        Type Int
         AtomicCompareExchange field=0 success=acq_rel failure=acquire
+          Type CoroutineFrame$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend
           FieldAccess 0
+            Type CoroutineAdapter$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1
             Local this
+          Type Int
           IntLiteral 1
+          Type Int
           IntLiteral -1
       branch bb5 bb6
+        Type Boolean
         Binary IntEq
+          Type Int
           Local $frame_claim
+          Type Int
           IntLiteral 1
     bb8 claim_waiting
       val $adapter_claim: Int
+        Type Int
         AtomicCompareExchange field=1 success=acq_rel failure=acquire
+          Type CoroutineAdapter$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1
           Local this
+          Type Int
           IntLiteral 1
+          Type Int
           IntLiteral 2
       branch bb7 bb0
+        Type Boolean
         Binary IntEq
+          Type Int
           Local $adapter_claim
+          Type Int
           IntLiteral 1
-  fun CoroutineAdapter.resumeWithException$1 @scoop.variance.SuspendedDogTask.SuspendTask$Animal.run.0$suspend$resume_exception$1(this: CoroutineAdapter$scoop_variance_SuspendedDogTask_SuspendTask_Animal_run_0_suspend$1, exception: Throwable) -> Unit
+  fun CoroutineAdapter.resumeWithException$1 @scoop.variance.SuspendedDogTask.SuspendTask$C6_AnimalX.run.0$suspend$resume_exception$1(this: CoroutineAdapter$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1, exception: Throwable) -> Unit
     bb0 coroutine.protocol_error
       call $protocol_error: IllegalStateException = @scoop.ctor.IllegalStateException direct
       throw
+        Type IllegalStateException
         Local $protocol_error
     bb1 completed
       atomic_store_release field=0
+        Type CoroutineFrame$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend
         FieldAccess 0
+          Type CoroutineAdapter$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1
           Local this
+        Type Int
         IntLiteral -2
-      call @scoop.Continuation.resume$Animal interface Continuation$Animal[0]
+      call @scoop.Continuation.resume$C6_AnimalX interface Continuation$C6_AnimalX[0]
+        Type Continuation$C6_AnimalX
         FieldAccess 1
+          Type CoroutineFrame$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend
           FieldAccess 0
+            Type CoroutineAdapter$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1
             Local this
+        Type Animal
         EnumField v0 f0
+          Type CoroutineStep$C6_AnimalX
           Local $step
       return
     bb2 suspended
       return
     bb3 failed
       atomic_store_release field=0
+        Type CoroutineFrame$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend
         FieldAccess 0
+          Type CoroutineAdapter$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1
           Local this
+        Type Int
         IntLiteral -2
-      call @scoop.Continuation.resumeWithException$Animal interface Continuation$Animal[1]
+      call @scoop.Continuation.resumeWithException$C6_AnimalX interface Continuation$C6_AnimalX[1]
+        Type Continuation$C6_AnimalX
         FieldAccess 1
+          Type CoroutineFrame$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend
           FieldAccess 0
+            Type CoroutineAdapter$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1
             Local this
+        Type Throwable
         Local $uncaught
       return
     bb4 body_failure
       landing_pad cleanup=false
       begin_catch
       call $uncaught: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
         CaughtException
       end_catch
       goto bb3
     bb5 valid unwind bb4
       field_set 4
+        Type CoroutineFrame$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend
         FieldAccess 0
+          Type CoroutineAdapter$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1
           Local this
-        VariantConstruct CoroutineSlot$Throwable v1
+        Type CoroutineSlot$C9_ThrowableX
+        VariantConstruct CoroutineSlot$C9_ThrowableX v1
+          Type Throwable
           Local exception
       atomic_store_release field=1
+        Type CoroutineAdapter$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1
         Local this
+        Type Int
         IntLiteral 6
-      call $step: CoroutineStep$Animal = @scoop.variance.SuspendedDogTask.SuspendTask$Animal.run.0$suspend$drive direct
+      call $step: CoroutineStep$C6_AnimalX = @scoop.variance.SuspendedDogTask.SuspendTask$C6_AnimalX.run.0$suspend$drive direct
+        Type CoroutineFrame$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend
         FieldAccess 0
+          Type CoroutineAdapter$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1
           Local this
+        Type Int
         IntLiteral -3
       branch bb1 bb2
+        Type Boolean
         Binary IntEq
+          Type Int
           EnumTag
+            Type CoroutineStep$C6_AnimalX
             Local $step
+          Type Int
           IntLiteral 0
     bb6 invalid_frame
       atomic_store_release field=1
+        Type CoroutineAdapter$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1
         Local this
+        Type Int
         IntLiteral 6
       goto bb0
     bb7 claim_frame
       val $frame_claim: Int
+        Type Int
         AtomicCompareExchange field=0 success=acq_rel failure=acquire
+          Type CoroutineFrame$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend
           FieldAccess 0
+            Type CoroutineAdapter$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1
             Local this
+          Type Int
           IntLiteral 1
+          Type Int
           IntLiteral -1
       branch bb5 bb6
+        Type Boolean
         Binary IntEq
+          Type Int
           Local $frame_claim
+          Type Int
           IntLiteral 1
     bb8 claim_waiting
       val $adapter_claim: Int
+        Type Int
         AtomicCompareExchange field=1 success=acq_rel failure=acquire
+          Type CoroutineAdapter$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1
           Local this
+          Type Int
           IntLiteral 1
+          Type Int
           IntLiteral 3
       branch bb7 bb0
+        Type Boolean
         Binary IntEq
+          Type Int
           Local $adapter_claim
+          Type Int
           IntLiteral 1
-  coroutine_step cs0 CoroutineStep$Animal result=Animal
-  coroutine_step cs1 CoroutineStep$Dog result=Dog
-  coroutine_slot cl0 CoroutineSlot$SuspendedDogTask value=SuspendedDogTask
-  coroutine_slot cl1 CoroutineSlot$Dog value=Dog
-  coroutine_slot cl2 CoroutineSlot$Throwable value=Throwable
+  coroutine_step cs0 CoroutineStep$C6_AnimalX result=Animal
+  coroutine_step cs1 CoroutineStep$C3_DogX result=Dog
+  coroutine_slot cl0 CoroutineSlot$C16_SuspendedDogTaskX value=SuspendedDogTask
+  coroutine_slot cl1 CoroutineSlot$C3_DogX value=Dog
+  coroutine_slot cl2 CoroutineSlot$C9_ThrowableX value=Throwable
   coroutine_slot cl3 CoroutineSlot$Any value=Any
   coroutine_frame cr0 CoroutineFrame$scoop_SuspendedDogTask_run_suspend owner=cf1
-  coroutine_frame cr1 CoroutineFrame$scoop_variance_ImmediateDogTask_SuspendTask_Animal_run_0_suspend owner=cf4
-  coroutine_frame cr2 CoroutineFrame$scoop_variance_SuspendedDogTask_SuspendTask_Animal_run_0_suspend owner=cf5
+  coroutine_frame cr1 CoroutineFrame$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend owner=cf4
+  coroutine_frame cr2 CoroutineFrame$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend owner=cf5
   coroutine_resume cp0 state=1 result=Dog frame=cr0 adapter=CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1 resume=@scoop.SuspendedDogTask.run$suspend$resume$1 failure=@scoop.SuspendedDogTask.run$suspend$resume_exception$1
-  coroutine_resume cp1 state=1 result=Dog frame=cr1 adapter=CoroutineAdapter$scoop_variance_ImmediateDogTask_SuspendTask_Animal_run_0_suspend$1 resume=@scoop.variance.ImmediateDogTask.SuspendTask$Animal.run.0$suspend$resume$1 failure=@scoop.variance.ImmediateDogTask.SuspendTask$Animal.run.0$suspend$resume_exception$1
-  coroutine_resume cp2 state=1 result=Dog frame=cr2 adapter=CoroutineAdapter$scoop_variance_SuspendedDogTask_SuspendTask_Animal_run_0_suspend$1 resume=@scoop.variance.SuspendedDogTask.SuspendTask$Animal.run.0$suspend$resume$1 failure=@scoop.variance.SuspendedDogTask.SuspendTask$Animal.run.0$suspend$resume_exception$1
+  coroutine_resume cp1 state=1 result=Dog frame=cr1 adapter=CoroutineAdapter$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1 resume=@scoop.variance.ImmediateDogTask.SuspendTask$C6_AnimalX.run.0$suspend$resume$1 failure=@scoop.variance.ImmediateDogTask.SuspendTask$C6_AnimalX.run.0$suspend$resume_exception$1
+  coroutine_resume cp2 state=1 result=Dog frame=cr2 adapter=CoroutineAdapter$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1 resume=@scoop.variance.SuspendedDogTask.SuspendTask$C6_AnimalX.run.0$suspend$resume$1 failure=@scoop.variance.SuspendedDogTask.SuspendTask$C6_AnimalX.run.0$suspend$resume_exception$1
   coroutine_fn cf0 @scoop.ImmediateDogTask.run$suspend source_return=Dog step=cs1 immediate
   coroutine_fn cf1 @scoop.SuspendedDogTask.run$suspend source_return=Dog step=cs1 frame=cr0 driver=@scoop.SuspendedDogTask.run$suspend$drive resumes=[cp0]
-  coroutine_fn cf2 @scoop.SuspendTask.run$Dog$suspend source_return=Dog step=cs1 immediate
-  coroutine_fn cf3 @scoop.SuspendTask.run$Animal$suspend source_return=Animal step=cs0 immediate
-  coroutine_fn cf4 @scoop.variance.ImmediateDogTask.SuspendTask$Animal.run.0$suspend source_return=Animal step=cs0 frame=cr1 driver=@scoop.variance.ImmediateDogTask.SuspendTask$Animal.run.0$suspend$drive resumes=[cp1]
-  coroutine_fn cf5 @scoop.variance.SuspendedDogTask.SuspendTask$Animal.run.0$suspend source_return=Animal step=cs0 frame=cr2 driver=@scoop.variance.SuspendedDogTask.SuspendTask$Animal.run.0$suspend$drive resumes=[cp2]
-  instance @scoop.Continuation.resume$Dog <- Continuation.resume
-  instance @scoop.Continuation.resumeWithException$Dog <- Continuation.resumeWithException
-  instance @scoop.SuspendTask.run$Dog$suspend <- SuspendTask.run
-  instance @scoop.SuspendRegistration.register$Dog <- SuspendRegistration.register
-  instance @scoop.Continuation.resume$Animal <- Continuation.resume
-  instance @scoop.Continuation.resumeWithException$Animal <- Continuation.resumeWithException
-  instance @scoop.SuspendTask.run$Animal$suspend <- SuspendTask.run
-  instance @scoop.SuspendRegistration.register$Animal <- SuspendRegistration.register
-  str @scoop.str.0 "\n"
-  str @scoop.str.1 "failed"
-  str @scoop.str.2 "returned"
+  coroutine_fn cf2 @scoop.SuspendTask.run$C6_AnimalX$suspend source_return=Animal step=cs0 immediate
+  coroutine_fn cf3 @scoop.SuspendTask.run$C3_DogX$suspend source_return=Dog step=cs1 immediate
+  coroutine_fn cf4 @scoop.variance.ImmediateDogTask.SuspendTask$C6_AnimalX.run.0$suspend source_return=Animal step=cs0 frame=cr1 driver=@scoop.variance.ImmediateDogTask.SuspendTask$C6_AnimalX.run.0$suspend$drive resumes=[cp1]
+  coroutine_fn cf5 @scoop.variance.SuspendedDogTask.SuspendTask$C6_AnimalX.run.0$suspend source_return=Animal step=cs0 frame=cr2 driver=@scoop.variance.SuspendedDogTask.SuspendTask$C6_AnimalX.run.0$suspend$drive resumes=[cp2]
+  instance @scoop.println$S <- println
+  instance @scoop.Continuation.resume$C3_DogX <- Continuation.resume
+  instance @scoop.Continuation.resume$C6_AnimalX <- Continuation.resume
+  instance @scoop.Continuation.resumeWithException$C6_AnimalX <- Continuation.resumeWithException
+  instance @scoop.SuspendTask.run$C6_AnimalX$suspend <- SuspendTask.run
+  instance @scoop.SuspendRegistration.register$C6_AnimalX <- SuspendRegistration.register
+  instance @scoop.Continuation.resumeWithException$C3_DogX <- Continuation.resumeWithException
+  instance @scoop.SuspendTask.run$C3_DogX$suspend <- SuspendTask.run
+  instance @scoop.SuspendRegistration.register$C3_DogX <- SuspendRegistration.register
+  str @scoop.str.0 "failed"
+  str @scoop.str.1 "returned"
+  str @scoop.str.2 "\n"
   str @scoop.str.3 "unwrap on None"
   str @scoop.str.4 "invalid cast"
   str @scoop.str.5 "arithmetic error"
@@ -1550,70 +2381,104 @@ Module
 
 == lir ==
 Module
-  global @scoop.str.0 = "\n"
-  global @scoop.str.1 = "failed"
-  global @scoop.str.2 = "returned"
+  global @scoop.str.0 = "failed"
+  global @scoop.str.1 = "returned"
+  global @scoop.str.2 = "\n"
   global @scoop.str.3 = "unwrap on None"
   global @scoop.str.4 = "invalid cast"
   global @scoop.str.5 = "arithmetic error"
   global @scoop.str.6 = "array index out of bounds"
   global @scoop.str.7 = "illegal state"
   global @scoop.str.8 = "dog"
-  global @scoop_td_Continuation$Dog = c""
-  global @scoop_td_CoroutineFrame$scoop_SuspendedDogTask_run_suspend = c""
-  global @scoop_td_Throwable = c""
-  global @scoop_td_Exception = c""
-  global @scoop_td_UnwrapException = c""
-  global @scoop_td_ClassCastException = c""
-  global @scoop_td_ArithmeticException = c""
-  global @scoop_td_IndexOutOfBoundsException = c""
-  global @scoop_td_IllegalStateException = c""
-  global @scoop_td_Animal = c""
-  global @scoop_td_Dog = c""
-  global @scoop_td_DogGate = c""
-  global @scoop_td_DogRegistration = c""
-  global @scoop_td_ImmediateDogTask = c""
-  global @scoop_td_SuspendedDogTask = c""
-  global @scoop_td_AnimalCompletion = c""
-  global @scoop_td_Continuation$Animal = c""
-  global @scoop_td_SuspendTask$Animal = c""
-  global @scoop_td_CoroutineFrame$scoop_variance_ImmediateDogTask_SuspendTask_Animal_run_0_suspend = c""
-  global @scoop_td_CoroutineFrame$scoop_variance_SuspendedDogTask_SuspendTask_Animal_run_0_suspend = c""
-  global @scoop_td_CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1 = c""
-  global @scoop_td_SuspendRegistration$Dog = c""
-  global @scoop_td_CoroutineAdapter$scoop_variance_ImmediateDogTask_SuspendTask_Animal_run_0_suspend$1 = c""
-  global @scoop_td_CoroutineAdapter$scoop_variance_SuspendedDogTask_SuspendTask_Animal_run_0_suspend$1 = c""
-  enum Option$Continuation$Dog niche(payload_variant=0)
+  enum Option$J20_Continuation$C3_DogXX niche(payload_variant=0)
   enum Option$S niche(payload_variant=0)
-  enum CoroutineStep$Animal niche(payload_variant=0)
-  enum CoroutineStep$Dog niche(payload_variant=0)
-  enum CoroutineSlot$SuspendedDogTask niche(payload_variant=1)
-  enum CoroutineSlot$Dog niche(payload_variant=1)
-  enum CoroutineSlot$Throwable niche(payload_variant=1)
+  enum CoroutineStep$C6_AnimalX niche(payload_variant=0)
+  enum CoroutineStep$C3_DogX niche(payload_variant=0)
+  enum CoroutineSlot$C16_SuspendedDogTaskX niche(payload_variant=1)
+  enum CoroutineSlot$C3_DogX niche(payload_variant=1)
+  enum CoroutineSlot$C9_ThrowableX niche(payload_variant=1)
   enum CoroutineSlot$Any niche(payload_variant=1)
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
-  fun @scoop.print(ptr<managed>) -> void
+  extern ef1 coreIntEquals @scoop_rt_int_equals(i64, i64) -> i1 <scoop managed nounwind>
+  extern ef2 coreUIntEquals @scoop_rt_uint_equals(i64, i64) -> i1 <scoop managed nounwind>
+  extern ef3 coreBooleanEquals @scoop_rt_bool_equals(i1, i1) -> i1 <scoop managed nounwind>
+  extern ef4 coreStringEquals @scoop_rt_string_eq(ptr<managed>, ptr<managed>) -> i1 <scoop managed nounwind>
+  extern ef5 coreIntToString @scoop_rt_int_to_string(i64) -> ptr<managed> <scoop managed nounwind>
+  extern ef6 coreUIntToString @scoop_rt_uint_to_string(i64) -> ptr<managed> <scoop managed nounwind>
+  extern ef7 coreBooleanToString @scoop_rt_bool_to_string(i1) -> ptr<managed> <scoop managed nounwind>
+  extern ef8 coreIntHash @scoop_rt_int_hash(i64) -> i64 <scoop managed nounwind>
+  extern ef9 coreUIntHash @scoop_rt_uint_hash(i64) -> i64 <scoop managed nounwind>
+  extern ef10 coreBooleanHash @scoop_rt_bool_hash(i1) -> i64 <scoop managed nounwind>
+  extern ef11 coreStringHash @scoop_rt_string_hash(ptr<managed>) -> i64 <scoop managed nounwind>
+  fun @scoop.Int.equals(i64, i64) -> i1
+    local %0 $call.1: i1
+  block entry
+    native_call t0 = direct-target0 sig=direct0 (i64, i64) -> i1 effect=native-borrowed extern1(param0, param1)
+    store t0 -> local0
+    ret local0
+  fun @scoop.Int.toString(i64) -> ptr<managed>
     local %0 $call.1: ptr<managed>
   block entry
-    t0 = heap_load param0 +0 : ptr<metadata>
-    t1 = heap_load t0 +40 : ptr<metadata>
-    t2 = call_indirect t1[2](param0) : ptr<managed>
-    store t2 -> local0
-    native_call[native-borrowed] extern0(local0)
-    t3 = aggregate () : {}
-    ret
-  fun @scoop.println(ptr<managed>) -> void
+    native_call t0 = direct-target0 sig=direct0 (i64) -> ptr<managed> effect=native-borrowed extern5(param0) result-root=refs[0]
+    store t0 -> local0
+    ret local0
+  fun @scoop.Int.hash(i64) -> i64
+    local %0 $call.1: i64
+  block entry
+    native_call t0 = direct-target0 sig=direct0 (i64) -> i64 effect=native-borrowed extern8(param0)
+    store t0 -> local0
+    ret local0
+  fun @scoop.UInt.equals(i64, i64) -> i1
+    local %0 $call.1: i1
+  block entry
+    native_call t0 = direct-target0 sig=direct0 (i64, i64) -> i1 effect=native-borrowed extern2(param0, param1)
+    store t0 -> local0
+    ret local0
+  fun @scoop.UInt.toString(i64) -> ptr<managed>
     local %0 $call.1: ptr<managed>
   block entry
-    t0 = heap_load param0 +0 : ptr<metadata>
-    t1 = heap_load t0 +40 : ptr<metadata>
-    t2 = call_indirect t1[2](param0) : ptr<managed>
-    store t2 -> local0
-    native_call[native-borrowed] extern0(local0)
-    t3 = aggregate () : {}
-    native_call[native-borrowed] extern0(global0)
-    t4 = aggregate () : {}
-    ret
+    native_call t0 = direct-target0 sig=direct0 (i64) -> ptr<managed> effect=native-borrowed extern6(param0) result-root=refs[0]
+    store t0 -> local0
+    ret local0
+  fun @scoop.UInt.hash(i64) -> i64
+    local %0 $call.1: i64
+  block entry
+    native_call t0 = direct-target0 sig=direct0 (i64) -> i64 effect=native-borrowed extern9(param0)
+    store t0 -> local0
+    ret local0
+  fun @scoop.Boolean.equals(i1, i1) -> i1
+    local %0 $call.1: i1
+  block entry
+    native_call t0 = direct-target0 sig=direct0 (i1, i1) -> i1 effect=native-borrowed extern3(param0, param1)
+    store t0 -> local0
+    ret local0
+  fun @scoop.Boolean.toString(i1) -> ptr<managed>
+    local %0 $call.1: ptr<managed>
+  block entry
+    native_call t0 = direct-target0 sig=direct0 (i1) -> ptr<managed> effect=native-borrowed extern7(param0) result-root=refs[0]
+    store t0 -> local0
+    ret local0
+  fun @scoop.Boolean.hash(i1) -> i64
+    local %0 $call.1: i64
+  block entry
+    native_call t0 = direct-target0 sig=direct0 (i1) -> i64 effect=native-borrowed extern10(param0)
+    store t0 -> local0
+    ret local0
+  fun @scoop.String.equals(ptr<managed>, ptr<managed>) -> i1
+    local %0 $call.1: i1
+  block entry
+    native_call t0 = direct-target0 sig=direct0 (ptr<managed>, ptr<managed>) -> i1 effect=native-borrowed extern4(param0, param1)
+    store t0 -> local0
+    ret local0
+  fun @scoop.String.toString(ptr<managed>) -> ptr<managed>
+  block entry
+    ret param0
+  fun @scoop.String.hash(ptr<managed>) -> i64
+    local %0 $call.1: i64
+  block entry
+    native_call t0 = direct-target0 sig=direct0 (ptr<managed>) -> i64 effect=native-borrowed extern11(param0)
+    store t0 -> local0
+    ret local0
   fun @scoop.DogGate.complete(ptr<managed>, ptr<managed>) -> void
     local %0 continuation: ptr<managed>
     local %1 $opt.1: enum0
@@ -1630,7 +2495,7 @@ Module
     store t3 -> local2
     br @if.merge.3
   block if.else.2
-    t4 = call @scoop.ctor.UnwrapException() : ptr<managed>
+    call t4 = direct-target0 sig=direct0 () -> ptr<managed> effect=managed-safepoint local-fn22()
     store t4 -> local3
     throw local3
     unreachable
@@ -1639,8 +2504,8 @@ Module
     t5 = enum_wrap e0 v1 () : enum0
     heap_store param0 +16 t5
     t6 = heap_load local0 +0 : ptr<metadata>
-    t7 = call @scoop_rt_itable_lookup(t6, global9) : ptr<metadata>
-    call_indirect t7[0](local0, param1)
+    call t7 = direct-target1 sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t6, td2)
+    call void-target0 sig=void0 (ptr<managed>, ptr<managed>) effect=managed-safepoint dispatch[Interface:0] t7(local0, param1)
     t8 = aggregate () : {}
     ret
   fun @scoop.DogRegistration.register(ptr<managed>, ptr<managed>) -> void
@@ -1652,7 +2517,7 @@ Module
   fun @scoop.ImmediateDogTask.run$suspend(ptr<managed>, ptr<managed>) -> enum3
     local %0 $call.1: ptr<managed>
   block entry
-    t0 = call @scoop.ctor.Dog() : ptr<managed>
+    call t0 = direct-target0 sig=direct0 () -> ptr<managed> effect=managed-safepoint local-fn28()
     store t0 -> local0
     t1 = enum_wrap e3 v0 (local0) : enum3
     ret t1
@@ -1660,7 +2525,7 @@ Module
     local %0 $frame: ptr<managed>
     local %1 $step: enum3
   block entry
-    t0 = call @scoop_rt_alloc(global10, 56) : ptr<managed>
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td16, 56)
     heap_store t0 +16 0
     heap_store t0 +24 param1
     t1 = enum_wrap e4 v1 (param0) : enum4
@@ -1670,18 +2535,18 @@ Module
     t3 = enum_wrap e6 v0 () : enum6
     heap_store t0 +48 t3
     store t0 -> local0
-    t4 = call @scoop.SuspendedDogTask.run$suspend$drive(local0, 0) : enum3
+    call t4 = direct-target1 sig=direct1 (ptr<managed>, i64) -> enum3 effect=managed-safepoint local-fn40(local0, 0)
     store t4 -> local1
     ret local1
   fun @scoop.AnimalCompletion.resume(ptr<managed>, ptr<managed>) -> void
   block entry
     t0 = heap_load param1 +16 : ptr<managed>
-    call @scoop.println(t0)
+    call void-target0 sig=void0 (ptr<managed>) effect=managed-safepoint local-fn19(t0)
     t1 = aggregate () : {}
     ret
   fun @scoop.AnimalCompletion.resumeWithException(ptr<managed>, ptr<managed>) -> void
   block entry
-    call @scoop.println(global1)
+    call void-target0 sig=void0 (ptr<managed>) effect=managed-safepoint local-fn19(global0)
     t0 = aggregate () : {}
     ret
   fun @scoop_main() -> void
@@ -1691,102 +2556,116 @@ Module
     local %3 $call.1: ptr<managed>
     local %4 $call.2: ptr<managed>
     local %5 $call.3: ptr<managed>
+    local %6 $call.4: ptr<managed>
+    local %7 $call.5: ptr<managed>
   block entry
-    t0 = call @scoop.ctor.ImmediateDogTask() : ptr<managed>
-    store t0 -> local0
-    t1 = call @scoop.ctor.AnimalCompletion() : ptr<managed>
-    store t1 -> local3
-    call @scoop.coroutine.start$Animal(local0, local3)
+    call t0 = direct-target0 sig=direct0 () -> ptr<managed> effect=managed-safepoint local-fn31()
+    store t0 -> local3
+    store local3 -> local0
+    call t1 = direct-target1 sig=direct1 () -> ptr<managed> effect=managed-safepoint local-fn33()
+    store t1 -> local4
+    call void-target0 sig=void0 (ptr<managed>, ptr<managed>) effect=managed-safepoint local-fn34(local0, local4)
     t2 = aggregate () : {}
     t3 = enum_wrap e0 v1 () : enum0
-    t4 = call @scoop.ctor.DogGate(t3) : ptr<managed>
+    call t4 = direct-target2 sig=direct2 (enum0) -> ptr<managed> effect=managed-safepoint local-fn29(t3)
     store t4 -> local1
-    t5 = call @scoop.ctor.SuspendedDogTask(local1) : ptr<managed>
-    store t5 -> local2
-    t6 = call @scoop.ctor.AnimalCompletion() : ptr<managed>
-    store t6 -> local4
-    call @scoop.coroutine.start$Animal(local2, local4)
+    call t5 = direct-target3 sig=direct3 (ptr<managed>) -> ptr<managed> effect=managed-safepoint local-fn32(local1)
+    store t5 -> local5
+    store local5 -> local2
+    call t6 = direct-target4 sig=direct4 () -> ptr<managed> effect=managed-safepoint local-fn33()
+    store t6 -> local6
+    call void-target1 sig=void1 (ptr<managed>, ptr<managed>) effect=managed-safepoint local-fn34(local2, local6)
     t7 = aggregate () : {}
-    call @scoop.println(global2)
+    call void-target2 sig=void2 (ptr<managed>) effect=managed-safepoint local-fn19(global1)
     t8 = aggregate () : {}
-    t9 = call @scoop.ctor.Dog() : ptr<managed>
-    store t9 -> local5
-    call @scoop.DogGate.complete(local1, local5)
+    call t9 = direct-target5 sig=direct5 () -> ptr<managed> effect=managed-safepoint local-fn28()
+    store t9 -> local7
+    call void-target3 sig=void3 (ptr<managed>, ptr<managed>) effect=managed-safepoint local-fn12(local1, local7)
     t10 = aggregate () : {}
+    ret
+  fun @scoop.println$S(ptr<managed>) -> void
+    local %0 $call.1: ptr<managed>
+  block entry
+    call t0 = direct-target0 sig=direct0 (ptr<managed>) -> ptr<managed> effect=managed-safepoint local-fn10(param0)
+    store t0 -> local0
+    native_call void-target0 sig=void0 (ptr<managed>) effect=native-borrowed extern0(local0)
+    t1 = aggregate () : {}
+    native_call void-target1 sig=void1 (ptr<managed>) effect=native-borrowed extern0(global2)
+    t2 = aggregate () : {}
     ret
   fun @scoop.ctor.Throwable() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global11, 16) : ptr<managed>
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td8, 16)
     ret t0
   fun @scoop.ctor.Exception(enum1) -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global12, 24) : ptr<managed>
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td22, 24)
     heap_store t0 +16 param0
     ret t0
   fun @scoop.ctor.UnwrapException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global13, 24) : ptr<managed>
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td24, 24)
     t1 = enum_wrap e1 v0 (global3) : enum1
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.ClassCastException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global14, 24) : ptr<managed>
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td25, 24)
     t1 = enum_wrap e1 v0 (global4) : enum1
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.ArithmeticException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global15, 24) : ptr<managed>
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td26, 24)
     t1 = enum_wrap e1 v0 (global5) : enum1
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.IndexOutOfBoundsException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global16, 24) : ptr<managed>
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td27, 24)
     t1 = enum_wrap e1 v0 (global6) : enum1
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.IllegalStateException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global17, 24) : ptr<managed>
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td28, 24)
     t1 = enum_wrap e1 v0 (global7) : enum1
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.Animal(ptr<managed>) -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global18, 24) : ptr<managed>
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td10, 24)
     heap_store t0 +16 param0
     ret t0
   fun @scoop.ctor.Dog() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global19, 24) : ptr<managed>
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td23, 24)
     heap_store t0 +16 global8
     ret t0
   fun @scoop.ctor.DogGate(enum0) -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global20, 24) : ptr<managed>
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td11, 24)
     heap_store t0 +16 param0
     ret t0
   fun @scoop.ctor.DogRegistration(ptr<managed>) -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global21, 24) : ptr<managed>
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td12, 24)
     heap_store t0 +16 param0
     ret t0
   fun @scoop.ctor.ImmediateDogTask() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global22, 16) : ptr<managed>
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td13, 16)
     ret t0
   fun @scoop.ctor.SuspendedDogTask(ptr<managed>) -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global23, 24) : ptr<managed>
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td14, 24)
     heap_store t0 +16 param0
     ret t0
   fun @scoop.ctor.AnimalCompletion() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global24, 16) : ptr<managed>
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td15, 16)
     ret t0
-  fun @scoop.coroutine.start$Animal(ptr<managed>, ptr<managed>) -> void
+  fun @scoop.coroutine.start$C6_AnimalX(ptr<managed>, ptr<managed>) -> void
     local %0 $step: enum2
     local %1 $exception: ptr<managed>
     local %2 $sc.1: exception_record
@@ -1797,14 +2676,14 @@ Module
   block completed
     t0 = enum_field e2 v0 f0 local0 : ptr<managed>
     t1 = heap_load param1 +0 : ptr<metadata>
-    t2 = call @scoop_rt_itable_lookup(t1, global25) : ptr<metadata>
-    call_indirect t2[0](param1, t0)
+    call t2 = direct-target0 sig=direct0 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t1, td5)
+    call void-target0 sig=void0 (ptr<managed>, ptr<managed>) effect=managed-safepoint dispatch[Interface:0] t2(param1, t0)
     t3 = aggregate () : {}
     ret
   block failed
     t4 = heap_load param1 +0 : ptr<metadata>
-    t5 = call @scoop_rt_itable_lookup(t4, global25) : ptr<metadata>
-    call_indirect t5[1](param1, local1)
+    call t5 = direct-target1 sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t4, td5)
+    call void-target1 sig=void1 (ptr<managed>, ptr<managed>) effect=managed-safepoint dispatch[Interface:1] t5(param1, local1)
     t6 = aggregate () : {}
     ret
   block body_failure
@@ -1813,30 +2692,30 @@ Module
     store t8 -> local3
     t9 = begin_catch local3 : ptr<managed>
     store t9 -> local4
-    t10 = call @scoop_rt_materialize_exception(local4) : ptr<managed>
+    call t10 = direct-target2 sig=direct2 (ptr<raw>) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_materialize_exception(local4)
     store t10 -> local1
     end_catch
     br @failed
   block entry
     t11 = heap_load param0 +0 : ptr<metadata>
-    t12 = call @scoop_rt_itable_lookup(t11, global26) : ptr<metadata>
-    invoke_indirect t12[0](param0, param1) normal @invoke.normal.1 unwind @body_failure
+    call t12 = direct-target3 sig=direct3 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t11, td6)
+    invoke t13 = direct-target4 sig=direct4 (ptr<managed>, ptr<managed>) -> enum2 effect=managed-safepoint dispatch[Interface:0] t12(param0, param1) normal @invoke.normal.1 unwind @body_failure
     br @invoke.normal.1
   block invoke.normal.1
     store t13 -> local0
     t14 = enum_tag e2 local0 : i64
     t15 = Eq t14, 0 : i1
     cbr t15 then @completed else @suspended
-  fun @scoop.variance.DogRegistration.SuspendRegistration$Animal.register.0(ptr<managed>, ptr<managed>) -> void
+  fun @scoop.variance.DogRegistration.SuspendRegistration$C6_AnimalX.register.0(ptr<managed>, ptr<managed>) -> void
   block entry
-    call @scoop.DogRegistration.register(param0, param1)
+    call void-target0 sig=void0 (ptr<managed>, ptr<managed>) effect=managed-safepoint local-fn13(param0, param1)
     t0 = aggregate () : {}
     ret
-  fun @scoop.variance.ImmediateDogTask.SuspendTask$Animal.run.0$suspend(ptr<managed>, ptr<managed>) -> enum2
+  fun @scoop.variance.ImmediateDogTask.SuspendTask$C6_AnimalX.run.0$suspend(ptr<managed>, ptr<managed>) -> enum2
     local %0 $frame: ptr<managed>
     local %1 $step: enum2
   block entry
-    t0 = call @scoop_rt_alloc(global27, 56) : ptr<managed>
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td18, 56)
     heap_store t0 +16 0
     heap_store t0 +24 param1
     t1 = enum_wrap e7 v1 (param0) : enum7
@@ -1846,14 +2725,14 @@ Module
     t3 = enum_wrap e6 v0 () : enum6
     heap_store t0 +48 t3
     store t0 -> local0
-    t4 = call @scoop.variance.ImmediateDogTask.SuspendTask$Animal.run.0$suspend$drive(local0, 0) : enum2
+    call t4 = direct-target1 sig=direct1 (ptr<managed>, i64) -> enum2 effect=managed-safepoint local-fn43(local0, 0)
     store t4 -> local1
     ret local1
-  fun @scoop.variance.SuspendedDogTask.SuspendTask$Animal.run.0$suspend(ptr<managed>, ptr<managed>) -> enum2
+  fun @scoop.variance.SuspendedDogTask.SuspendTask$C6_AnimalX.run.0$suspend(ptr<managed>, ptr<managed>) -> enum2
     local %0 $frame: ptr<managed>
     local %1 $step: enum2
   block entry
-    t0 = call @scoop_rt_alloc(global28, 56) : ptr<managed>
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td20, 56)
     heap_store t0 +16 0
     heap_store t0 +24 param1
     t1 = enum_wrap e7 v1 (param0) : enum7
@@ -1863,17 +2742,17 @@ Module
     t3 = enum_wrap e6 v0 () : enum6
     heap_store t0 +48 t3
     store t0 -> local0
-    t4 = call @scoop.variance.SuspendedDogTask.SuspendTask$Animal.run.0$suspend$drive(local0, 0) : enum2
+    call t4 = direct-target1 sig=direct1 (ptr<managed>, i64) -> enum2 effect=managed-safepoint local-fn46(local0, 0)
     store t4 -> local1
     ret local1
-  fun @scoop.variance.AnimalCompletion.Continuation$Dog.resume.0(ptr<managed>, ptr<managed>) -> void
+  fun @scoop.variance.AnimalCompletion.Continuation$C3_DogX.resume.0(ptr<managed>, ptr<managed>) -> void
   block entry
-    call @scoop.AnimalCompletion.resume(param0, param1)
+    call void-target0 sig=void0 (ptr<managed>, ptr<managed>) effect=managed-safepoint local-fn16(param0, param1)
     t0 = aggregate () : {}
     ret
-  fun @scoop.variance.AnimalCompletion.Continuation$Dog.resumeWithException.1(ptr<managed>, ptr<managed>) -> void
+  fun @scoop.variance.AnimalCompletion.Continuation$C3_DogX.resumeWithException.1(ptr<managed>, ptr<managed>) -> void
   block entry
-    call @scoop.AnimalCompletion.resumeWithException(param0, param1)
+    call void-target0 sig=void0 (ptr<managed>, ptr<managed>) effect=managed-safepoint local-fn17(param0, param1)
     t0 = aggregate () : {}
     ret
   fun @scoop.SuspendedDogTask.run$suspend$drive(ptr<managed>, i64) -> enum3
@@ -1892,10 +2771,10 @@ Module
     local %12 $sc.3: ptr<managed>
   block entry
     t0 = heap_load local0 +16 : ptr<managed>
-    t1 = call @scoop.ctor.DogRegistration(t0) : ptr<managed>
+    call t1 = direct-target0 sig=direct0 (ptr<managed>) -> ptr<managed> effect=managed-safepoint local-fn30(t0)
     store t1 -> local1
     atomic_store release param0 +16 1
-    t2 = call @scoop_rt_alloc(global29, 48) : ptr<managed>
+    call t2 = direct-target1 sig=direct1 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td17, 48)
     heap_store t2 +16 param0
     heap_store t2 +24 0
     t3 = enum_wrap e5 v0 () : enum5
@@ -1909,8 +2788,8 @@ Module
     ret t5
   block coroutine.register.1
     t6 = heap_load local1 +0 : ptr<metadata>
-    t7 = call @scoop_rt_itable_lookup(t6, global30) : ptr<metadata>
-    invoke_indirect t7[0](local1, local4) normal @invoke.normal.1 unwind @coroutine.registration_failure.1
+    call t7 = direct-target2 sig=direct2 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t6, td3)
+    invoke void-target0 sig=void0 (ptr<managed>, ptr<managed>) effect=managed-safepoint dispatch[Interface:0] t7(local1, local4) normal @invoke.normal.1 unwind @coroutine.registration_failure.1
     br @invoke.normal.1
   block coroutine.registered_success.1
     atomic_store release local4 +24 6
@@ -1929,7 +2808,7 @@ Module
     t13 = enum_wrap e3 v1 () : enum3
     ret t13
   block coroutine.protocol_error
-    t14 = call @scoop.ctor.IllegalStateException() : ptr<managed>
+    call t14 = direct-target3 sig=direct3 () -> ptr<managed> effect=managed-safepoint local-fn26()
     store t14 -> local8
     throw local8
     unreachable
@@ -1998,7 +2877,7 @@ Module
     store t38 -> local11
     t39 = begin_catch local11 : ptr<managed>
     store t39 -> local12
-    t40 = call @scoop_rt_materialize_exception(local12) : ptr<managed>
+    call t40 = direct-target4 sig=direct4 (ptr<raw>) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_materialize_exception(local12)
     store t40 -> local5
     end_catch
     t41 = atomic_cmpxchg acq_rel/acquire local4 +24 expected=0 replacement=6 : i64
@@ -2022,7 +2901,7 @@ Module
     atomic_store release param0 +16 -1
     br @entry
   block coroutine.protocol_error
-    t49 = call @scoop.ctor.IllegalStateException() : ptr<managed>
+    call t49 = direct-target5 sig=direct5 () -> ptr<managed> effect=managed-safepoint local-fn26()
     store t49 -> local9
     throw local9
     unreachable
@@ -2048,7 +2927,7 @@ Module
     local %6 $sc.2: ptr<raw>
     local %7 $sc.3: ptr<managed>
   block coroutine.protocol_error
-    t0 = call @scoop.ctor.IllegalStateException() : ptr<managed>
+    call t0 = direct-target0 sig=direct0 () -> ptr<managed> effect=managed-safepoint local-fn26()
     store t0 -> local3
     throw local3
     unreachable
@@ -2059,8 +2938,8 @@ Module
     t3 = heap_load t2 +24 : ptr<managed>
     t4 = enum_field e3 v0 f0 local0 : ptr<managed>
     t5 = heap_load t3 +0 : ptr<metadata>
-    t6 = call @scoop_rt_itable_lookup(t5, global9) : ptr<metadata>
-    call_indirect t6[0](t3, t4)
+    call t6 = direct-target1 sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t5, td2)
+    call void-target0 sig=void0 (ptr<managed>, ptr<managed>) effect=managed-safepoint dispatch[Interface:0] t6(t3, t4)
     t7 = aggregate () : {}
     ret
   block suspended
@@ -2071,8 +2950,8 @@ Module
     t9 = heap_load param0 +16 : ptr<managed>
     t10 = heap_load t9 +24 : ptr<managed>
     t11 = heap_load t10 +0 : ptr<metadata>
-    t12 = call @scoop_rt_itable_lookup(t11, global9) : ptr<metadata>
-    call_indirect t12[1](t10, local4)
+    call t12 = direct-target2 sig=direct2 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t11, td2)
+    call void-target1 sig=void1 (ptr<managed>, ptr<managed>) effect=managed-safepoint dispatch[Interface:1] t12(t10, local4)
     t13 = aggregate () : {}
     ret
   block body_failure
@@ -2081,7 +2960,7 @@ Module
     store t15 -> local6
     t16 = begin_catch local6 : ptr<managed>
     store t16 -> local7
-    t17 = call @scoop_rt_materialize_exception(local7) : ptr<managed>
+    call t17 = direct-target3 sig=direct3 (ptr<raw>) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_materialize_exception(local7)
     store t17 -> local4
     end_catch
     br @failed
@@ -2091,7 +2970,7 @@ Module
     heap_store t18 +40 t19
     atomic_store release param0 +24 6
     t20 = heap_load param0 +16 : ptr<managed>
-    invoke @scoop.SuspendedDogTask.run$suspend$drive(t20, 1) normal @invoke.normal.1 unwind @body_failure
+    invoke t21 = direct-target4 sig=direct4 (ptr<managed>, i64) -> enum3 effect=managed-safepoint local-fn40(t20, 1) normal @invoke.normal.1 unwind @body_failure
     br @invoke.normal.1
   block invalid_frame
     atomic_store release param0 +24 6
@@ -2132,7 +3011,7 @@ Module
     local %6 $sc.2: ptr<raw>
     local %7 $sc.3: ptr<managed>
   block coroutine.protocol_error
-    t0 = call @scoop.ctor.IllegalStateException() : ptr<managed>
+    call t0 = direct-target0 sig=direct0 () -> ptr<managed> effect=managed-safepoint local-fn26()
     store t0 -> local3
     throw local3
     unreachable
@@ -2143,8 +3022,8 @@ Module
     t3 = heap_load t2 +24 : ptr<managed>
     t4 = enum_field e3 v0 f0 local0 : ptr<managed>
     t5 = heap_load t3 +0 : ptr<metadata>
-    t6 = call @scoop_rt_itable_lookup(t5, global9) : ptr<metadata>
-    call_indirect t6[0](t3, t4)
+    call t6 = direct-target1 sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t5, td2)
+    call void-target0 sig=void0 (ptr<managed>, ptr<managed>) effect=managed-safepoint dispatch[Interface:0] t6(t3, t4)
     t7 = aggregate () : {}
     ret
   block suspended
@@ -2155,8 +3034,8 @@ Module
     t9 = heap_load param0 +16 : ptr<managed>
     t10 = heap_load t9 +24 : ptr<managed>
     t11 = heap_load t10 +0 : ptr<metadata>
-    t12 = call @scoop_rt_itable_lookup(t11, global9) : ptr<metadata>
-    call_indirect t12[1](t10, local4)
+    call t12 = direct-target2 sig=direct2 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t11, td2)
+    call void-target1 sig=void1 (ptr<managed>, ptr<managed>) effect=managed-safepoint dispatch[Interface:1] t12(t10, local4)
     t13 = aggregate () : {}
     ret
   block body_failure
@@ -2165,7 +3044,7 @@ Module
     store t15 -> local6
     t16 = begin_catch local6 : ptr<managed>
     store t16 -> local7
-    t17 = call @scoop_rt_materialize_exception(local7) : ptr<managed>
+    call t17 = direct-target3 sig=direct3 (ptr<raw>) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_materialize_exception(local7)
     store t17 -> local4
     end_catch
     br @failed
@@ -2175,7 +3054,7 @@ Module
     heap_store t18 +48 t19
     atomic_store release param0 +24 6
     t20 = heap_load param0 +16 : ptr<managed>
-    invoke @scoop.SuspendedDogTask.run$suspend$drive(t20, -3) normal @invoke.normal.1 unwind @body_failure
+    invoke t21 = direct-target4 sig=direct4 (ptr<managed>, i64) -> enum3 effect=managed-safepoint local-fn40(t20, -3) normal @invoke.normal.1 unwind @body_failure
     br @invoke.normal.1
   block invalid_frame
     atomic_store release param0 +24 6
@@ -2206,7 +3085,7 @@ Module
     t22 = enum_tag e3 local0 : i64
     t23 = Eq t22, 0 : i1
     cbr t23 then @completed else @suspended
-  fun @scoop.variance.ImmediateDogTask.SuspendTask$Animal.run.0$suspend$drive(ptr<managed>, i64) -> enum2
+  fun @scoop.variance.ImmediateDogTask.SuspendTask$C6_AnimalX.run.0$suspend$drive(ptr<managed>, i64) -> enum2
     local %0 this: ptr<managed>
     local %1 $call.1: ptr<managed>
     local %2 $completion: ptr<managed>
@@ -2218,11 +3097,11 @@ Module
     local %8 $protocol_error: ptr<managed>
   block entry
     atomic_store release param0 +16 1
-    t0 = call @scoop_rt_alloc(global31, 32) : ptr<managed>
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td19, 32)
     heap_store t0 +16 param0
     heap_store t0 +24 1
     store t0 -> local3
-    t1 = call @scoop.ImmediateDogTask.run$suspend(local0, local3) : enum3
+    call t1 = direct-target1 sig=direct1 (ptr<managed>, ptr<managed>) -> enum3 effect=managed-safepoint local-fn14(local0, local3)
     store t1 -> local4
     t2 = enum_tag e3 local4 : i64
     t3 = Eq t2, 0 : i1
@@ -2235,7 +3114,7 @@ Module
     store t5 -> local1
     br @coroutine.post.1
   block coroutine.protocol_error
-    t6 = call @scoop.ctor.IllegalStateException() : ptr<managed>
+    call t6 = direct-target2 sig=direct2 () -> ptr<managed> effect=managed-safepoint local-fn26()
     store t6 -> local5
     throw local5
     unreachable
@@ -2269,7 +3148,7 @@ Module
     atomic_store release param0 +16 -1
     br @entry
   block coroutine.protocol_error
-    t18 = call @scoop.ctor.IllegalStateException() : ptr<managed>
+    call t18 = direct-target3 sig=direct3 () -> ptr<managed> effect=managed-safepoint local-fn26()
     store t18 -> local8
     throw local8
     unreachable
@@ -2282,7 +3161,7 @@ Module
   block coroutine.dispatch.0
     t21 = Eq param1, 0 : i1
     cbr t21 then @coroutine.initial else @coroutine.dispatch.-3
-  fun @scoop.variance.ImmediateDogTask.SuspendTask$Animal.run.0$suspend$resume$1(ptr<managed>, ptr<managed>) -> void
+  fun @scoop.variance.ImmediateDogTask.SuspendTask$C6_AnimalX.run.0$suspend$resume$1(ptr<managed>, ptr<managed>) -> void
     local %0 $step: enum2
     local %1 $adapter_claim: i64
     local %2 $frame_claim: i64
@@ -2292,7 +3171,7 @@ Module
     local %6 $sc.2: ptr<raw>
     local %7 $sc.3: ptr<managed>
   block coroutine.protocol_error
-    t0 = call @scoop.ctor.IllegalStateException() : ptr<managed>
+    call t0 = direct-target0 sig=direct0 () -> ptr<managed> effect=managed-safepoint local-fn26()
     store t0 -> local3
     throw local3
     unreachable
@@ -2303,8 +3182,8 @@ Module
     t3 = heap_load t2 +24 : ptr<managed>
     t4 = enum_field e2 v0 f0 local0 : ptr<managed>
     t5 = heap_load t3 +0 : ptr<metadata>
-    t6 = call @scoop_rt_itable_lookup(t5, global25) : ptr<metadata>
-    call_indirect t6[0](t3, t4)
+    call t6 = direct-target1 sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t5, td5)
+    call void-target0 sig=void0 (ptr<managed>, ptr<managed>) effect=managed-safepoint dispatch[Interface:0] t6(t3, t4)
     t7 = aggregate () : {}
     ret
   block suspended
@@ -2315,8 +3194,8 @@ Module
     t9 = heap_load param0 +16 : ptr<managed>
     t10 = heap_load t9 +24 : ptr<managed>
     t11 = heap_load t10 +0 : ptr<metadata>
-    t12 = call @scoop_rt_itable_lookup(t11, global25) : ptr<metadata>
-    call_indirect t12[1](t10, local4)
+    call t12 = direct-target2 sig=direct2 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t11, td5)
+    call void-target1 sig=void1 (ptr<managed>, ptr<managed>) effect=managed-safepoint dispatch[Interface:1] t12(t10, local4)
     t13 = aggregate () : {}
     ret
   block body_failure
@@ -2325,7 +3204,7 @@ Module
     store t15 -> local6
     t16 = begin_catch local6 : ptr<managed>
     store t16 -> local7
-    t17 = call @scoop_rt_materialize_exception(local7) : ptr<managed>
+    call t17 = direct-target3 sig=direct3 (ptr<raw>) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_materialize_exception(local7)
     store t17 -> local4
     end_catch
     br @failed
@@ -2335,7 +3214,7 @@ Module
     heap_store t18 +40 t19
     atomic_store release param0 +24 6
     t20 = heap_load param0 +16 : ptr<managed>
-    invoke @scoop.variance.ImmediateDogTask.SuspendTask$Animal.run.0$suspend$drive(t20, 1) normal @invoke.normal.1 unwind @body_failure
+    invoke t21 = direct-target4 sig=direct4 (ptr<managed>, i64) -> enum2 effect=managed-safepoint local-fn43(t20, 1) normal @invoke.normal.1 unwind @body_failure
     br @invoke.normal.1
   block invalid_frame
     atomic_store release param0 +24 6
@@ -2356,7 +3235,7 @@ Module
     t22 = enum_tag e2 local0 : i64
     t23 = Eq t22, 0 : i1
     cbr t23 then @completed else @suspended
-  fun @scoop.variance.ImmediateDogTask.SuspendTask$Animal.run.0$suspend$resume_exception$1(ptr<managed>, ptr<managed>) -> void
+  fun @scoop.variance.ImmediateDogTask.SuspendTask$C6_AnimalX.run.0$suspend$resume_exception$1(ptr<managed>, ptr<managed>) -> void
     local %0 $step: enum2
     local %1 $adapter_claim: i64
     local %2 $frame_claim: i64
@@ -2366,7 +3245,7 @@ Module
     local %6 $sc.2: ptr<raw>
     local %7 $sc.3: ptr<managed>
   block coroutine.protocol_error
-    t0 = call @scoop.ctor.IllegalStateException() : ptr<managed>
+    call t0 = direct-target0 sig=direct0 () -> ptr<managed> effect=managed-safepoint local-fn26()
     store t0 -> local3
     throw local3
     unreachable
@@ -2377,8 +3256,8 @@ Module
     t3 = heap_load t2 +24 : ptr<managed>
     t4 = enum_field e2 v0 f0 local0 : ptr<managed>
     t5 = heap_load t3 +0 : ptr<metadata>
-    t6 = call @scoop_rt_itable_lookup(t5, global25) : ptr<metadata>
-    call_indirect t6[0](t3, t4)
+    call t6 = direct-target1 sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t5, td5)
+    call void-target0 sig=void0 (ptr<managed>, ptr<managed>) effect=managed-safepoint dispatch[Interface:0] t6(t3, t4)
     t7 = aggregate () : {}
     ret
   block suspended
@@ -2389,8 +3268,8 @@ Module
     t9 = heap_load param0 +16 : ptr<managed>
     t10 = heap_load t9 +24 : ptr<managed>
     t11 = heap_load t10 +0 : ptr<metadata>
-    t12 = call @scoop_rt_itable_lookup(t11, global25) : ptr<metadata>
-    call_indirect t12[1](t10, local4)
+    call t12 = direct-target2 sig=direct2 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t11, td5)
+    call void-target1 sig=void1 (ptr<managed>, ptr<managed>) effect=managed-safepoint dispatch[Interface:1] t12(t10, local4)
     t13 = aggregate () : {}
     ret
   block body_failure
@@ -2399,7 +3278,7 @@ Module
     store t15 -> local6
     t16 = begin_catch local6 : ptr<managed>
     store t16 -> local7
-    t17 = call @scoop_rt_materialize_exception(local7) : ptr<managed>
+    call t17 = direct-target3 sig=direct3 (ptr<raw>) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_materialize_exception(local7)
     store t17 -> local4
     end_catch
     br @failed
@@ -2409,7 +3288,7 @@ Module
     heap_store t18 +48 t19
     atomic_store release param0 +24 6
     t20 = heap_load param0 +16 : ptr<managed>
-    invoke @scoop.variance.ImmediateDogTask.SuspendTask$Animal.run.0$suspend$drive(t20, -3) normal @invoke.normal.1 unwind @body_failure
+    invoke t21 = direct-target4 sig=direct4 (ptr<managed>, i64) -> enum2 effect=managed-safepoint local-fn43(t20, -3) normal @invoke.normal.1 unwind @body_failure
     br @invoke.normal.1
   block invalid_frame
     atomic_store release param0 +24 6
@@ -2430,7 +3309,7 @@ Module
     t22 = enum_tag e2 local0 : i64
     t23 = Eq t22, 0 : i1
     cbr t23 then @completed else @suspended
-  fun @scoop.variance.SuspendedDogTask.SuspendTask$Animal.run.0$suspend$drive(ptr<managed>, i64) -> enum2
+  fun @scoop.variance.SuspendedDogTask.SuspendTask$C6_AnimalX.run.0$suspend$drive(ptr<managed>, i64) -> enum2
     local %0 this: ptr<managed>
     local %1 $call.1: ptr<managed>
     local %2 $completion: ptr<managed>
@@ -2442,11 +3321,11 @@ Module
     local %8 $protocol_error: ptr<managed>
   block entry
     atomic_store release param0 +16 1
-    t0 = call @scoop_rt_alloc(global32, 32) : ptr<managed>
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td21, 32)
     heap_store t0 +16 param0
     heap_store t0 +24 1
     store t0 -> local3
-    t1 = call @scoop.SuspendedDogTask.run$suspend(local0, local3) : enum3
+    call t1 = direct-target1 sig=direct1 (ptr<managed>, ptr<managed>) -> enum3 effect=managed-safepoint local-fn15(local0, local3)
     store t1 -> local4
     t2 = enum_tag e3 local4 : i64
     t3 = Eq t2, 0 : i1
@@ -2459,7 +3338,7 @@ Module
     store t5 -> local1
     br @coroutine.post.1
   block coroutine.protocol_error
-    t6 = call @scoop.ctor.IllegalStateException() : ptr<managed>
+    call t6 = direct-target2 sig=direct2 () -> ptr<managed> effect=managed-safepoint local-fn26()
     store t6 -> local5
     throw local5
     unreachable
@@ -2493,7 +3372,7 @@ Module
     atomic_store release param0 +16 -1
     br @entry
   block coroutine.protocol_error
-    t18 = call @scoop.ctor.IllegalStateException() : ptr<managed>
+    call t18 = direct-target3 sig=direct3 () -> ptr<managed> effect=managed-safepoint local-fn26()
     store t18 -> local8
     throw local8
     unreachable
@@ -2506,7 +3385,7 @@ Module
   block coroutine.dispatch.0
     t21 = Eq param1, 0 : i1
     cbr t21 then @coroutine.initial else @coroutine.dispatch.-3
-  fun @scoop.variance.SuspendedDogTask.SuspendTask$Animal.run.0$suspend$resume$1(ptr<managed>, ptr<managed>) -> void
+  fun @scoop.variance.SuspendedDogTask.SuspendTask$C6_AnimalX.run.0$suspend$resume$1(ptr<managed>, ptr<managed>) -> void
     local %0 $step: enum2
     local %1 $adapter_claim: i64
     local %2 $frame_claim: i64
@@ -2516,7 +3395,7 @@ Module
     local %6 $sc.2: ptr<raw>
     local %7 $sc.3: ptr<managed>
   block coroutine.protocol_error
-    t0 = call @scoop.ctor.IllegalStateException() : ptr<managed>
+    call t0 = direct-target0 sig=direct0 () -> ptr<managed> effect=managed-safepoint local-fn26()
     store t0 -> local3
     throw local3
     unreachable
@@ -2527,8 +3406,8 @@ Module
     t3 = heap_load t2 +24 : ptr<managed>
     t4 = enum_field e2 v0 f0 local0 : ptr<managed>
     t5 = heap_load t3 +0 : ptr<metadata>
-    t6 = call @scoop_rt_itable_lookup(t5, global25) : ptr<metadata>
-    call_indirect t6[0](t3, t4)
+    call t6 = direct-target1 sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t5, td5)
+    call void-target0 sig=void0 (ptr<managed>, ptr<managed>) effect=managed-safepoint dispatch[Interface:0] t6(t3, t4)
     t7 = aggregate () : {}
     ret
   block suspended
@@ -2539,8 +3418,8 @@ Module
     t9 = heap_load param0 +16 : ptr<managed>
     t10 = heap_load t9 +24 : ptr<managed>
     t11 = heap_load t10 +0 : ptr<metadata>
-    t12 = call @scoop_rt_itable_lookup(t11, global25) : ptr<metadata>
-    call_indirect t12[1](t10, local4)
+    call t12 = direct-target2 sig=direct2 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t11, td5)
+    call void-target1 sig=void1 (ptr<managed>, ptr<managed>) effect=managed-safepoint dispatch[Interface:1] t12(t10, local4)
     t13 = aggregate () : {}
     ret
   block body_failure
@@ -2549,7 +3428,7 @@ Module
     store t15 -> local6
     t16 = begin_catch local6 : ptr<managed>
     store t16 -> local7
-    t17 = call @scoop_rt_materialize_exception(local7) : ptr<managed>
+    call t17 = direct-target3 sig=direct3 (ptr<raw>) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_materialize_exception(local7)
     store t17 -> local4
     end_catch
     br @failed
@@ -2559,7 +3438,7 @@ Module
     heap_store t18 +40 t19
     atomic_store release param0 +24 6
     t20 = heap_load param0 +16 : ptr<managed>
-    invoke @scoop.variance.SuspendedDogTask.SuspendTask$Animal.run.0$suspend$drive(t20, 1) normal @invoke.normal.1 unwind @body_failure
+    invoke t21 = direct-target4 sig=direct4 (ptr<managed>, i64) -> enum2 effect=managed-safepoint local-fn46(t20, 1) normal @invoke.normal.1 unwind @body_failure
     br @invoke.normal.1
   block invalid_frame
     atomic_store release param0 +24 6
@@ -2580,7 +3459,7 @@ Module
     t22 = enum_tag e2 local0 : i64
     t23 = Eq t22, 0 : i1
     cbr t23 then @completed else @suspended
-  fun @scoop.variance.SuspendedDogTask.SuspendTask$Animal.run.0$suspend$resume_exception$1(ptr<managed>, ptr<managed>) -> void
+  fun @scoop.variance.SuspendedDogTask.SuspendTask$C6_AnimalX.run.0$suspend$resume_exception$1(ptr<managed>, ptr<managed>) -> void
     local %0 $step: enum2
     local %1 $adapter_claim: i64
     local %2 $frame_claim: i64
@@ -2590,7 +3469,7 @@ Module
     local %6 $sc.2: ptr<raw>
     local %7 $sc.3: ptr<managed>
   block coroutine.protocol_error
-    t0 = call @scoop.ctor.IllegalStateException() : ptr<managed>
+    call t0 = direct-target0 sig=direct0 () -> ptr<managed> effect=managed-safepoint local-fn26()
     store t0 -> local3
     throw local3
     unreachable
@@ -2601,8 +3480,8 @@ Module
     t3 = heap_load t2 +24 : ptr<managed>
     t4 = enum_field e2 v0 f0 local0 : ptr<managed>
     t5 = heap_load t3 +0 : ptr<metadata>
-    t6 = call @scoop_rt_itable_lookup(t5, global25) : ptr<metadata>
-    call_indirect t6[0](t3, t4)
+    call t6 = direct-target1 sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t5, td5)
+    call void-target0 sig=void0 (ptr<managed>, ptr<managed>) effect=managed-safepoint dispatch[Interface:0] t6(t3, t4)
     t7 = aggregate () : {}
     ret
   block suspended
@@ -2613,8 +3492,8 @@ Module
     t9 = heap_load param0 +16 : ptr<managed>
     t10 = heap_load t9 +24 : ptr<managed>
     t11 = heap_load t10 +0 : ptr<metadata>
-    t12 = call @scoop_rt_itable_lookup(t11, global25) : ptr<metadata>
-    call_indirect t12[1](t10, local4)
+    call t12 = direct-target2 sig=direct2 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t11, td5)
+    call void-target1 sig=void1 (ptr<managed>, ptr<managed>) effect=managed-safepoint dispatch[Interface:1] t12(t10, local4)
     t13 = aggregate () : {}
     ret
   block body_failure
@@ -2623,7 +3502,7 @@ Module
     store t15 -> local6
     t16 = begin_catch local6 : ptr<managed>
     store t16 -> local7
-    t17 = call @scoop_rt_materialize_exception(local7) : ptr<managed>
+    call t17 = direct-target3 sig=direct3 (ptr<raw>) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_materialize_exception(local7)
     store t17 -> local4
     end_catch
     br @failed
@@ -2633,7 +3512,7 @@ Module
     heap_store t18 +48 t19
     atomic_store release param0 +24 6
     t20 = heap_load param0 +16 : ptr<managed>
-    invoke @scoop.variance.SuspendedDogTask.SuspendTask$Animal.run.0$suspend$drive(t20, -3) normal @invoke.normal.1 unwind @body_failure
+    invoke t21 = direct-target4 sig=direct4 (ptr<managed>, i64) -> enum2 effect=managed-safepoint local-fn46(t20, -3) normal @invoke.normal.1 unwind @body_failure
     br @invoke.normal.1
   block invalid_frame
     atomic_store release param0 +24 6
@@ -2654,42 +3533,44 @@ Module
     t22 = enum_tag e2 local0 : i64
     t23 = Eq t22, 0 : i1
     cbr t23 then @completed else @suspended
-  td Continuation$Dog @scoop_td_Continuation$Dog size=0 vtable=0 itables=0
-  td SuspendRegistration$Dog @scoop_td_SuspendRegistration$Dog size=0 vtable=0 itables=0
-  td SuspendTask$Dog @scoop_td_SuspendTask$Dog size=0 vtable=0 itables=0
-  td Continuation$Animal @scoop_td_Continuation$Animal size=0 vtable=0 itables=0
-  td SuspendTask$Animal @scoop_td_SuspendTask$Animal size=0 vtable=0 itables=0
-  td SuspendRegistration$Animal @scoop_td_SuspendRegistration$Animal size=0 vtable=0 itables=0
-  td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
-  td Animal @scoop_td_Animal size=24 vtable=3 itables=0
-  td DogGate @scoop_td_DogGate size=24 vtable=3 itables=0
-  td DogRegistration @scoop_td_DogRegistration size=24 vtable=3 itables=2
-  td ImmediateDogTask @scoop_td_ImmediateDogTask size=16 vtable=3 itables=2
-  td SuspendedDogTask @scoop_td_SuspendedDogTask size=24 vtable=3 itables=2
-  td AnimalCompletion @scoop_td_AnimalCompletion size=16 vtable=3 itables=2
-  td CoroutineFrame$scoop_SuspendedDogTask_run_suspend @scoop_td_CoroutineFrame$scoop_SuspendedDogTask_run_suspend size=56 vtable=3 itables=0
-  td CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1 @scoop_td_CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1 size=48 vtable=3 itables=1
-  td CoroutineFrame$scoop_variance_ImmediateDogTask_SuspendTask_Animal_run_0_suspend @scoop_td_CoroutineFrame$scoop_variance_ImmediateDogTask_SuspendTask_Animal_run_0_suspend size=56 vtable=3 itables=0
-  td CoroutineAdapter$scoop_variance_ImmediateDogTask_SuspendTask_Animal_run_0_suspend$1 @scoop_td_CoroutineAdapter$scoop_variance_ImmediateDogTask_SuspendTask_Animal_run_0_suspend$1 size=32 vtable=3 itables=1
-  td CoroutineFrame$scoop_variance_SuspendedDogTask_SuspendTask_Animal_run_0_suspend @scoop_td_CoroutineFrame$scoop_variance_SuspendedDogTask_SuspendTask_Animal_run_0_suspend size=56 vtable=3 itables=0
-  td CoroutineAdapter$scoop_variance_SuspendedDogTask_SuspendTask_Animal_run_0_suspend$1 @scoop_td_CoroutineAdapter$scoop_variance_SuspendedDogTask_SuspendTask_Animal_run_0_suspend$1 size=32 vtable=3 itables=1
-  td Exception @scoop_td_Exception size=24 vtable=3 itables=0
-  td Dog @scoop_td_Dog size=24 vtable=3 itables=0
-  td UnwrapException @scoop_td_UnwrapException size=24 vtable=3 itables=0
-  td ClassCastException @scoop_td_ClassCastException size=24 vtable=3 itables=0
-  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=3 itables=0
-  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=3 itables=0
-  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=3 itables=0
+  td td0 ToString @scoop_td_ToString type-id=2 size=0 parent=none vtable=[] itables=[]
+  td td1 Hash @scoop_td_Hash type-id=3 size=0 parent=none vtable=[] itables=[]
+  td td2 Continuation$C3_DogX @scoop_td_Continuation$C3_DogX type-id=4 size=0 parent=none vtable=[] itables=[]
+  td td3 SuspendRegistration$C3_DogX @scoop_td_SuspendRegistration$C3_DogX type-id=5 size=0 parent=none vtable=[] itables=[]
+  td td4 SuspendTask$C3_DogX @scoop_td_SuspendTask$C3_DogX type-id=6 size=0 parent=none vtable=[] itables=[]
+  td td5 Continuation$C6_AnimalX @scoop_td_Continuation$C6_AnimalX type-id=7 size=0 parent=none vtable=[] itables=[]
+  td td6 SuspendTask$C6_AnimalX @scoop_td_SuspendTask$C6_AnimalX type-id=8 size=0 parent=none vtable=[] itables=[]
+  td td7 SuspendRegistration$C6_AnimalX @scoop_td_SuspendRegistration$C6_AnimalX type-id=9 size=0 parent=none vtable=[] itables=[]
+  td td8 Throwable @scoop_td_Throwable type-id=10 size=16 parent=none vtable=[] itables=[]
+  td td10 Animal @scoop_td_Animal type-id=11 size=24 parent=none vtable=[] itables=[]
+  td td11 DogGate @scoop_td_DogGate type-id=12 size=24 parent=none vtable=[] itables=[]
+  td td12 DogRegistration @scoop_td_DogRegistration type-id=13 size=24 parent=none vtable=[] itables=[td3:[local-fn13], td7:[local-fn35]]
+  td td13 ImmediateDogTask @scoop_td_ImmediateDogTask type-id=14 size=16 parent=none vtable=[] itables=[td4:[local-fn14], td6:[local-fn36]]
+  td td14 SuspendedDogTask @scoop_td_SuspendedDogTask type-id=15 size=24 parent=none vtable=[] itables=[td4:[local-fn15], td6:[local-fn37]]
+  td td15 AnimalCompletion @scoop_td_AnimalCompletion type-id=16 size=16 parent=none vtable=[] itables=[td5:[local-fn16, local-fn17], td2:[local-fn38, local-fn39]]
+  td td16 CoroutineFrame$scoop_SuspendedDogTask_run_suspend @scoop_td_CoroutineFrame$scoop_SuspendedDogTask_run_suspend type-id=17 size=56 parent=none vtable=[] itables=[]
+  td td17 CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1 @scoop_td_CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1 type-id=18 size=48 parent=none vtable=[] itables=[td2:[local-fn41, local-fn42]]
+  td td18 CoroutineFrame$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend @scoop_td_CoroutineFrame$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend type-id=19 size=56 parent=none vtable=[] itables=[]
+  td td19 CoroutineAdapter$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1 @scoop_td_CoroutineAdapter$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1 type-id=20 size=32 parent=none vtable=[] itables=[td2:[local-fn44, local-fn45]]
+  td td20 CoroutineFrame$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend @scoop_td_CoroutineFrame$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend type-id=21 size=56 parent=none vtable=[] itables=[]
+  td td21 CoroutineAdapter$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1 @scoop_td_CoroutineAdapter$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1 type-id=22 size=32 parent=none vtable=[] itables=[td2:[local-fn47, local-fn48]]
+  td td22 Exception @scoop_td_Exception type-id=23 size=24 parent=td8 vtable=[] itables=[]
+  td td23 Dog @scoop_td_Dog type-id=24 size=24 parent=td10 vtable=[] itables=[]
+  td td24 UnwrapException @scoop_td_UnwrapException type-id=25 size=24 parent=td22 vtable=[] itables=[]
+  td td25 ClassCastException @scoop_td_ClassCastException type-id=26 size=24 parent=td22 vtable=[] itables=[]
+  td td26 ArithmeticException @scoop_td_ArithmeticException type-id=27 size=24 parent=td22 vtable=[] itables=[]
+  td td27 IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException type-id=28 size=24 parent=td22 vtable=[] itables=[]
+  td td28 IllegalStateException @scoop_td_IllegalStateException type-id=29 size=24 parent=td22 vtable=[] itables=[]
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
-  layout Option$Continuation$Dog size=8 align=8 enum-scan=refs[0]
+  layout Option$J20_Continuation$C3_DogXX size=8 align=8 enum-scan=refs[0]
   layout Option$S size=8 align=8 enum-scan=refs[0]
-  layout CoroutineStep$Animal size=8 align=8 enum-scan=refs[0]
-  layout CoroutineStep$Dog size=8 align=8 enum-scan=refs[0]
-  layout CoroutineSlot$SuspendedDogTask size=8 align=8 enum-scan=refs[0]
-  layout CoroutineSlot$Dog size=8 align=8 enum-scan=refs[0]
-  layout CoroutineSlot$Throwable size=8 align=8 enum-scan=refs[0]
+  layout CoroutineStep$C6_AnimalX size=8 align=8 enum-scan=refs[0]
+  layout CoroutineStep$C3_DogX size=8 align=8 enum-scan=refs[0]
+  layout CoroutineSlot$C16_SuspendedDogTaskX size=8 align=8 enum-scan=refs[0]
+  layout CoroutineSlot$C3_DogX size=8 align=8 enum-scan=refs[0]
+  layout CoroutineSlot$C9_ThrowableX size=8 align=8 enum-scan=refs[0]
   layout CoroutineSlot$Any size=8 align=8 enum-scan=refs[0]
   layout Throwable size=16 align=8 refs=[]
   layout Exception size=24 align=8 refs=[16]
@@ -2707,10 +3588,10 @@ Module
   layout AnimalCompletion size=16 align=8 refs=[]
   layout CoroutineFrame$scoop_SuspendedDogTask_run_suspend size=56 align=8 refs=[24, 32, 40, 48]
   layout CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1 size=48 align=8 refs=[16, 32, 40]
-  layout CoroutineFrame$scoop_variance_ImmediateDogTask_SuspendTask_Animal_run_0_suspend size=56 align=8 refs=[24, 32, 40, 48]
-  layout CoroutineAdapter$scoop_variance_ImmediateDogTask_SuspendTask_Animal_run_0_suspend$1 size=32 align=8 refs=[16]
-  layout CoroutineFrame$scoop_variance_SuspendedDogTask_SuspendTask_Animal_run_0_suspend size=56 align=8 refs=[24, 32, 40, 48]
-  layout CoroutineAdapter$scoop_variance_SuspendedDogTask_SuspendTask_Animal_run_0_suspend$1 size=32 align=8 refs=[16]
+  layout CoroutineFrame$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend size=56 align=8 refs=[24, 32, 40, 48]
+  layout CoroutineAdapter$scoop_variance_ImmediateDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1 size=32 align=8 refs=[16]
+  layout CoroutineFrame$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend size=56 align=8 refs=[24, 32, 40, 48]
+  layout CoroutineAdapter$scoop_variance_SuspendedDogTask_SuspendTask_C6_AnimalX_run_0_suspend$1 size=32 align=8 refs=[16]
   entry @scoop_main
 
 == run ==

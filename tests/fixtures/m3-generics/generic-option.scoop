@@ -3,10 +3,10 @@ fun <T> unwrapOr(o: T?, fallback: T): T {
 }
 
 fun <T> isPresent(o: T?): Boolean {
-    if (o == None) {
-        return false
+    return when (o) {
+        None -> false
+        Some(_) -> true
     }
-    return true
 }
 
 fun main() {

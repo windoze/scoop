@@ -72,7 +72,16 @@ Module
     Named(w: Int, h: Int)
     WithDefault(d: Int)
   open class Throwable()
+  open class Exception(message: Option<String>)
+  class UnwrapException()
+  class ClassCastException()
+  class ArithmeticException()
+  class IndexOutOfBoundsException()
   class IllegalStateException()
+  interface ToString
+    fun toString(): String
+  interface Hash
+    fun hash(): Int
   interface Continuation<in T>
     fun resume(value: T0): Unit
     fun resumeWithException(exception: Throwable): Unit
@@ -80,18 +89,29 @@ Module
     suspend fun run(): T0
   interface SuspendRegistration<out T>
     fun register(continuation: Continuation<T0>): Unit
+  fun coreIntEquals(arg1: Int, arg2: Int): Boolean <extern0 abi=scoop symbol=scoop_rt_int_equals>
+  fun coreUIntEquals(arg1: UInt, arg2: UInt): Boolean <extern1 abi=scoop symbol=scoop_rt_uint_equals>
+  fun coreBooleanEquals(arg1: Boolean, arg2: Boolean): Boolean <extern2 abi=scoop symbol=scoop_rt_bool_equals>
+  fun coreStringEquals(arg1: String, arg2: String): Boolean <extern3 abi=scoop symbol=scoop_rt_string_eq>
+  fun coreIntToString(arg1: Int): String <extern4 abi=scoop symbol=scoop_rt_int_to_string>
+  fun coreUIntToString(arg1: UInt): String <extern5 abi=scoop symbol=scoop_rt_uint_to_string>
+  fun coreBooleanToString(arg1: Boolean): String <extern6 abi=scoop symbol=scoop_rt_bool_to_string>
+  fun coreIntHash(arg1: Int): Int <extern7 abi=scoop symbol=scoop_rt_int_hash>
+  fun coreUIntHash(arg1: UInt): Int <extern8 abi=scoop symbol=scoop_rt_uint_hash>
+  fun coreBooleanHash(arg1: Boolean): Int <extern9 abi=scoop symbol=scoop_rt_bool_hash>
+  fun coreStringHash(arg1: String): Int <extern10 abi=scoop symbol=scoop_rt_string_hash>
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
-  fun write(arg1: String): Unit <extern0 abi=scoop symbol=scoop_rt_write>
-  fun print(message: Any): Unit
+  fun write(arg1: String): Unit <extern11 abi=scoop symbol=scoop_rt_write>
+  fun print<T : ToString>(value: T0): Unit
     Call write : Unit
-      MethodCall Any.toString : String
-        Local message : Any
+      MethodCall bound T0 via ToString -> ToString.toString : String
+        Local value : T0
     return
-  fun println(message: Any): Unit
+  fun println<T : ToString>(value: T0): Unit
     Call write : Unit
-      MethodCall Any.toString : String
-        Local message : Any
+      MethodCall bound T0 via ToString -> ToString.toString : String
+        Local value : T0
     Call write : Unit
       StringLiteral \"\\n\" : String
   fun main(): Unit
@@ -134,7 +154,7 @@ fn generic_enum_instantiations_and_interning() {
     let module = lower_user(file).expect("generic enum program must lower");
     let body = match &module.functions[module.entry].kind {
         FunctionKind::User(body) => body,
-        FunctionKind::Intrinsic(_) | FunctionKind::Extern(_) => {
+        FunctionKind::Intrinsic(_) | FunctionKind::Extern(_) | FunctionKind::DerivedEquality => {
             panic!("main is a user function")
         }
     };
@@ -147,7 +167,10 @@ fn generic_enum_instantiations_and_interning() {
         dump.contains("VariantConstruct Option.None<Int> : Option<Int>"),
         "{dump}"
     );
-    assert!(dump.contains("Binary Eq : Boolean"), "{dump}");
+    assert!(
+        dump.contains("MethodCall Option.equals <derived> : Boolean"),
+        "{dump}"
+    );
 }
 
 // --- positive: when ---
@@ -197,7 +220,16 @@ Module
     Green()
     Blue()
   open class Throwable()
+  open class Exception(message: Option<String>)
+  class UnwrapException()
+  class ClassCastException()
+  class ArithmeticException()
+  class IndexOutOfBoundsException()
   class IllegalStateException()
+  interface ToString
+    fun toString(): String
+  interface Hash
+    fun hash(): Int
   interface Continuation<in T>
     fun resume(value: T0): Unit
     fun resumeWithException(exception: Throwable): Unit
@@ -205,18 +237,29 @@ Module
     suspend fun run(): T0
   interface SuspendRegistration<out T>
     fun register(continuation: Continuation<T0>): Unit
+  fun coreIntEquals(arg1: Int, arg2: Int): Boolean <extern0 abi=scoop symbol=scoop_rt_int_equals>
+  fun coreUIntEquals(arg1: UInt, arg2: UInt): Boolean <extern1 abi=scoop symbol=scoop_rt_uint_equals>
+  fun coreBooleanEquals(arg1: Boolean, arg2: Boolean): Boolean <extern2 abi=scoop symbol=scoop_rt_bool_equals>
+  fun coreStringEquals(arg1: String, arg2: String): Boolean <extern3 abi=scoop symbol=scoop_rt_string_eq>
+  fun coreIntToString(arg1: Int): String <extern4 abi=scoop symbol=scoop_rt_int_to_string>
+  fun coreUIntToString(arg1: UInt): String <extern5 abi=scoop symbol=scoop_rt_uint_to_string>
+  fun coreBooleanToString(arg1: Boolean): String <extern6 abi=scoop symbol=scoop_rt_bool_to_string>
+  fun coreIntHash(arg1: Int): Int <extern7 abi=scoop symbol=scoop_rt_int_hash>
+  fun coreUIntHash(arg1: UInt): Int <extern8 abi=scoop symbol=scoop_rt_uint_hash>
+  fun coreBooleanHash(arg1: Boolean): Int <extern9 abi=scoop symbol=scoop_rt_bool_hash>
+  fun coreStringHash(arg1: String): Int <extern10 abi=scoop symbol=scoop_rt_string_hash>
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
-  fun write(arg1: String): Unit <extern0 abi=scoop symbol=scoop_rt_write>
-  fun print(message: Any): Unit
+  fun write(arg1: String): Unit <extern11 abi=scoop symbol=scoop_rt_write>
+  fun print<T : ToString>(value: T0): Unit
     Call write : Unit
-      MethodCall Any.toString : String
-        Local message : Any
+      MethodCall bound T0 via ToString -> ToString.toString : String
+        Local value : T0
     return
-  fun println(message: Any): Unit
+  fun println<T : ToString>(value: T0): Unit
     Call write : Unit
-      MethodCall Any.toString : String
-        Local message : Any
+      MethodCall bound T0 via ToString -> ToString.toString : String
+        Local value : T0
     Call write : Unit
       StringLiteral \"\\n\" : String
   fun main(): Unit
@@ -225,15 +268,16 @@ Module
     when
       Local c : Color
       arm variant0()
-        Call println : Unit
-          StringLiteral \"red\" : Any
+        Call println<String> : Unit
+          StringLiteral \"red\" : String
       arm variant1()
-        Call println : Unit
-          StringLiteral \"green\" : Any
+        Call println<String> : Unit
+          StringLiteral \"green\" : String
       arm variant2()
-        Call println : Unit
-          StringLiteral \"blue\" : Any
+        Call println<String> : Unit
+          StringLiteral \"blue\" : String
   entry main
+  instance println<String>
 ";
     assert_eq!(hir::dump(&module), expected);
 }
@@ -278,7 +322,16 @@ Module
     Some(_1: T0)
     None()
   open class Throwable()
+  open class Exception(message: Option<String>)
+  class UnwrapException()
+  class ClassCastException()
+  class ArithmeticException()
+  class IndexOutOfBoundsException()
   class IllegalStateException()
+  interface ToString
+    fun toString(): String
+  interface Hash
+    fun hash(): Int
   interface Continuation<in T>
     fun resume(value: T0): Unit
     fun resumeWithException(exception: Throwable): Unit
@@ -286,18 +339,29 @@ Module
     suspend fun run(): T0
   interface SuspendRegistration<out T>
     fun register(continuation: Continuation<T0>): Unit
+  fun coreIntEquals(arg1: Int, arg2: Int): Boolean <extern0 abi=scoop symbol=scoop_rt_int_equals>
+  fun coreUIntEquals(arg1: UInt, arg2: UInt): Boolean <extern1 abi=scoop symbol=scoop_rt_uint_equals>
+  fun coreBooleanEquals(arg1: Boolean, arg2: Boolean): Boolean <extern2 abi=scoop symbol=scoop_rt_bool_equals>
+  fun coreStringEquals(arg1: String, arg2: String): Boolean <extern3 abi=scoop symbol=scoop_rt_string_eq>
+  fun coreIntToString(arg1: Int): String <extern4 abi=scoop symbol=scoop_rt_int_to_string>
+  fun coreUIntToString(arg1: UInt): String <extern5 abi=scoop symbol=scoop_rt_uint_to_string>
+  fun coreBooleanToString(arg1: Boolean): String <extern6 abi=scoop symbol=scoop_rt_bool_to_string>
+  fun coreIntHash(arg1: Int): Int <extern7 abi=scoop symbol=scoop_rt_int_hash>
+  fun coreUIntHash(arg1: UInt): Int <extern8 abi=scoop symbol=scoop_rt_uint_hash>
+  fun coreBooleanHash(arg1: Boolean): Int <extern9 abi=scoop symbol=scoop_rt_bool_hash>
+  fun coreStringHash(arg1: String): Int <extern10 abi=scoop symbol=scoop_rt_string_hash>
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
-  fun write(arg1: String): Unit <extern0 abi=scoop symbol=scoop_rt_write>
-  fun print(message: Any): Unit
+  fun write(arg1: String): Unit <extern11 abi=scoop symbol=scoop_rt_write>
+  fun print<T : ToString>(value: T0): Unit
     Call write : Unit
-      MethodCall Any.toString : String
-        Local message : Any
+      MethodCall bound T0 via ToString -> ToString.toString : String
+        Local value : T0
     return
-  fun println(message: Any): Unit
+  fun println<T : ToString>(value: T0): Unit
     Call write : Unit
-      MethodCall Any.toString : String
-        Local message : Any
+      MethodCall bound T0 via ToString -> ToString.toString : String
+        Local value : T0
     Call write : Unit
       StringLiteral \"\\n\" : String
   fun main(): Unit
@@ -307,17 +371,17 @@ Module
     when
       Local o : Option<Int>
       arm variant0(0: local1) if <guard>
-        Call println : Unit
-          Box : Any
-            Local x : Int
+        Call println<Int> : Unit
+          Local x : Int
       arm variant0(0: local2)
-        Call println : Unit
-          Box : Any
-            IntLiteral 0 : Int
+        Call println<Int> : Unit
+          IntLiteral 0 : Int
       arm variant1()
-        Call println : Unit
-          StringLiteral \"none\" : Any
+        Call println<String> : Unit
+          StringLiteral \"none\" : String
   entry main
+  instance println<Int>
+  instance println<String>
 ";
     assert_eq!(hir::dump(&module), expected);
 }
@@ -386,7 +450,16 @@ Module
     Some(_1: T0)
     None()
   open class Throwable()
+  open class Exception(message: Option<String>)
+  class UnwrapException()
+  class ClassCastException()
+  class ArithmeticException()
+  class IndexOutOfBoundsException()
   class IllegalStateException()
+  interface ToString
+    fun toString(): String
+  interface Hash
+    fun hash(): Int
   interface Continuation<in T>
     fun resume(value: T0): Unit
     fun resumeWithException(exception: Throwable): Unit
@@ -394,18 +467,29 @@ Module
     suspend fun run(): T0
   interface SuspendRegistration<out T>
     fun register(continuation: Continuation<T0>): Unit
+  fun coreIntEquals(arg1: Int, arg2: Int): Boolean <extern0 abi=scoop symbol=scoop_rt_int_equals>
+  fun coreUIntEquals(arg1: UInt, arg2: UInt): Boolean <extern1 abi=scoop symbol=scoop_rt_uint_equals>
+  fun coreBooleanEquals(arg1: Boolean, arg2: Boolean): Boolean <extern2 abi=scoop symbol=scoop_rt_bool_equals>
+  fun coreStringEquals(arg1: String, arg2: String): Boolean <extern3 abi=scoop symbol=scoop_rt_string_eq>
+  fun coreIntToString(arg1: Int): String <extern4 abi=scoop symbol=scoop_rt_int_to_string>
+  fun coreUIntToString(arg1: UInt): String <extern5 abi=scoop symbol=scoop_rt_uint_to_string>
+  fun coreBooleanToString(arg1: Boolean): String <extern6 abi=scoop symbol=scoop_rt_bool_to_string>
+  fun coreIntHash(arg1: Int): Int <extern7 abi=scoop symbol=scoop_rt_int_hash>
+  fun coreUIntHash(arg1: UInt): Int <extern8 abi=scoop symbol=scoop_rt_uint_hash>
+  fun coreBooleanHash(arg1: Boolean): Int <extern9 abi=scoop symbol=scoop_rt_bool_hash>
+  fun coreStringHash(arg1: String): Int <extern10 abi=scoop symbol=scoop_rt_string_hash>
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
-  fun write(arg1: String): Unit <extern0 abi=scoop symbol=scoop_rt_write>
-  fun print(message: Any): Unit
+  fun write(arg1: String): Unit <extern11 abi=scoop symbol=scoop_rt_write>
+  fun print<T : ToString>(value: T0): Unit
     Call write : Unit
-      MethodCall Any.toString : String
-        Local message : Any
+      MethodCall bound T0 via ToString -> ToString.toString : String
+        Local value : T0
     return
-  fun println(message: Any): Unit
+  fun println<T : ToString>(value: T0): Unit
     Call write : Unit
-      MethodCall Any.toString : String
-        Local message : Any
+      MethodCall bound T0 via ToString -> ToString.toString : String
+        Local value : T0
     Call write : Unit
       StringLiteral \"\\n\" : String
   fun main(): Unit
@@ -416,12 +500,11 @@ Module
     when
       Local t : (Int, String)
       arm (<lit IntLiteral(0)>, _)
-        Call println : Unit
-          StringLiteral \"zero\" : Any
+        Call println<String> : Unit
+          StringLiteral \"zero\" : String
       arm (local1, _)
-        Call println : Unit
-          Box : Any
-            Local n : Int
+        Call println<Int> : Unit
+          Local n : Int
     val local2
       StructInit Point : Point
         IntLiteral 1 : Int
@@ -429,13 +512,14 @@ Module
     when
       Local p : Point
       arm struct(0: local3, 1: local4) if <guard>
-        Call println : Unit
-          StringLiteral \"eq\" : Any
+        Call println<String> : Unit
+          StringLiteral \"eq\" : String
       arm struct(0: local5, 1: local6)
-        Call println : Unit
-          Box : Any
-            Local a : Int
+        Call println<Int> : Unit
+          Local a : Int
   entry main
+  instance println<String>
+  instance println<Int>
 ";
     assert_eq!(hir::dump(&module), expected);
 }
@@ -572,7 +656,16 @@ Module
     Some(_1: T0)
     None()
   open class Throwable()
+  open class Exception(message: Option<String>)
+  class UnwrapException()
+  class ClassCastException()
+  class ArithmeticException()
+  class IndexOutOfBoundsException()
   class IllegalStateException()
+  interface ToString
+    fun toString(): String
+  interface Hash
+    fun hash(): Int
   interface Continuation<in T>
     fun resume(value: T0): Unit
     fun resumeWithException(exception: Throwable): Unit
@@ -580,18 +673,29 @@ Module
     suspend fun run(): T0
   interface SuspendRegistration<out T>
     fun register(continuation: Continuation<T0>): Unit
+  fun coreIntEquals(arg1: Int, arg2: Int): Boolean <extern0 abi=scoop symbol=scoop_rt_int_equals>
+  fun coreUIntEquals(arg1: UInt, arg2: UInt): Boolean <extern1 abi=scoop symbol=scoop_rt_uint_equals>
+  fun coreBooleanEquals(arg1: Boolean, arg2: Boolean): Boolean <extern2 abi=scoop symbol=scoop_rt_bool_equals>
+  fun coreStringEquals(arg1: String, arg2: String): Boolean <extern3 abi=scoop symbol=scoop_rt_string_eq>
+  fun coreIntToString(arg1: Int): String <extern4 abi=scoop symbol=scoop_rt_int_to_string>
+  fun coreUIntToString(arg1: UInt): String <extern5 abi=scoop symbol=scoop_rt_uint_to_string>
+  fun coreBooleanToString(arg1: Boolean): String <extern6 abi=scoop symbol=scoop_rt_bool_to_string>
+  fun coreIntHash(arg1: Int): Int <extern7 abi=scoop symbol=scoop_rt_int_hash>
+  fun coreUIntHash(arg1: UInt): Int <extern8 abi=scoop symbol=scoop_rt_uint_hash>
+  fun coreBooleanHash(arg1: Boolean): Int <extern9 abi=scoop symbol=scoop_rt_bool_hash>
+  fun coreStringHash(arg1: String): Int <extern10 abi=scoop symbol=scoop_rt_string_hash>
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
-  fun write(arg1: String): Unit <extern0 abi=scoop symbol=scoop_rt_write>
-  fun print(message: Any): Unit
+  fun write(arg1: String): Unit <extern11 abi=scoop symbol=scoop_rt_write>
+  fun print<T : ToString>(value: T0): Unit
     Call write : Unit
-      MethodCall Any.toString : String
-        Local message : Any
+      MethodCall bound T0 via ToString -> ToString.toString : String
+        Local value : T0
     return
-  fun println(message: Any): Unit
+  fun println<T : ToString>(value: T0): Unit
     Call write : Unit
-      MethodCall Any.toString : String
-        Local message : Any
+      MethodCall bound T0 via ToString -> ToString.toString : String
+        Local value : T0
     Call write : Unit
       StringLiteral \"\\n\" : String
   fun main(): Unit
@@ -619,19 +723,16 @@ Module
         StringLiteral \"s\" : String
     val ((local7, local8), _)
       Local nested : ((Int, Int), String)
-    Call println : Unit
-      Box : Any
-        Local a : Int
-    Call println : Unit
-      Box : Any
-        Local b : Int
-    Call println : Unit
-      Box : Any
-        Local px : Int
-    Call println : Unit
-      Box : Any
-        Local m : Int
+    Call println<Int> : Unit
+      Local a : Int
+    Call println<Int> : Unit
+      Local b : Int
+    Call println<Int> : Unit
+      Local px : Int
+    Call println<Int> : Unit
+      Local m : Int
   entry main
+  instance println<Int>
 ";
     assert_eq!(hir::dump(&module), expected);
 }
@@ -654,7 +755,8 @@ fn intrinsic_functions_are_marked() {
         .expect("core declares startCoroutine");
     assert!(matches!(
         start_coroutine.kind,
-        FunctionKind::Intrinsic(ref name) if name == "coroutine_start"
+        FunctionKind::Intrinsic(intrinsic)
+            if intrinsic.kind == hir::IntrinsicFunctionKind::CoroutineStart
     ));
 }
 
@@ -849,6 +951,7 @@ fn named_variant_default_is_an_error() {
             type_params: vec![],
             methods: vec![],
             interfaces: vec![],
+            where_clause: None,
             variants: vec![VariantDecl {
                 name: ident("Named"),
                 kind: VariantDeclKind::Named(vec![VariantFieldDecl {
@@ -967,6 +1070,98 @@ fn intrinsic_in_user_file_is_an_error() {
 }
 
 #[test]
+fn allowlisted_test_provider_carries_typed_intrinsic_provenance() {
+    let mut core = core_file();
+    core.declarations.retain(
+        |decl| !matches!(decl, Decl::Function(function) if function.name.text == "gcCollect"),
+    );
+    let user = file(vec![
+        intrinsic_fun("gcCollect", "rt_gc_collect", vec![], None),
+        fun("main", vec![stmt(call("gcCollect", vec![]))]),
+    ]);
+    let core_provider = hir::IntrinsicProviderId::from_raw(3);
+    let test_provider = hir::IntrinsicProviderId::from_raw(7);
+    let unit = CompilationUnit {
+        core: vec![ProviderSource {
+            source: &core,
+            provider: core_provider,
+        }],
+        user: ProviderSource {
+            source: &user,
+            provider: test_provider,
+        },
+    };
+    let output = lower_compilation_unit(
+        &unit,
+        IntrinsicDeclarationPolicy::AllowListedForTesting {
+            providers: std::collections::HashSet::from([test_provider]),
+        },
+    )
+    .expect("an explicitly allowlisted test provider may define an intrinsic");
+    let function = output
+        .export
+        .functions
+        .iter()
+        .map(|(_, function)| function)
+        .find(|function| function.name == "gcCollect")
+        .expect("the user declaration is present");
+    assert!(matches!(
+        function.kind,
+        hir::FunctionKind::Intrinsic(hir::IntrinsicFunction {
+            kind: hir::IntrinsicFunctionKind::GcCollect,
+            provider,
+        }) if provider == test_provider
+    ));
+    let concrete = output
+        .local
+        .functions
+        .iter()
+        .map(|(_, function)| function)
+        .find(|function| function.name == "gcCollect")
+        .expect("the concrete declaration is present");
+    assert!(matches!(
+        concrete.kind,
+        hir::concrete::FunctionKind::Intrinsic(hir::IntrinsicFunction {
+            kind: hir::IntrinsicFunctionKind::GcCollect,
+            provider,
+        }) if provider == test_provider
+    ));
+}
+
+#[test]
+fn a_typed_intrinsic_kind_has_one_defining_provider() {
+    let core = core_file();
+    let user = file(vec![
+        intrinsic_generic_fun("anotherStart", "coroutine_start", vec!["T"], vec![], None),
+        fun("main", vec![]),
+    ]);
+    let core_provider = hir::IntrinsicProviderId::from_raw(3);
+    let test_provider = hir::IntrinsicProviderId::from_raw(7);
+    let unit = CompilationUnit {
+        core: vec![ProviderSource {
+            source: &core,
+            provider: core_provider,
+        }],
+        user: ProviderSource {
+            source: &user,
+            provider: test_provider,
+        },
+    };
+    let errors = lower_compilation_unit(
+        &unit,
+        IntrinsicDeclarationPolicy::AllowListedForTesting {
+            providers: std::collections::HashSet::from([test_provider]),
+        },
+    )
+    .expect_err("one typed intrinsic kind cannot have two declarations");
+    assert!(errors.iter().any(|error| {
+        error.file == 1
+            && error.message
+                == "intrinsic `coroutine_start` is already defined by provider 3 as `startCoroutine`; provider 7 cannot define it again"
+    }));
+}
+
+#[test]
 fn unknown_annotation_is_an_error() {
     let mut core = core_file();
     core.declarations.push(Decl::Function(FunctionDecl {
@@ -977,12 +1172,14 @@ fn unknown_annotation_is_an_error() {
         }],
         is_suspend: false,
         is_override: false,
+        operator: None,
         modifier: ast::MethodModifier::Final,
         receiver_ty: None,
         name: ident("pure_fn"),
         type_params: vec![],
         params: vec![],
         return_ty: None,
+        where_clause: None,
         body: FunctionBody::Block(block(vec![])),
         span: sp(),
     }));

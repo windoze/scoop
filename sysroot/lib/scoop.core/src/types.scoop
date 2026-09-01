@@ -1,0 +1,84 @@
+interface ToString {
+    fun toString(): String
+}
+
+interface Hash {
+    fun hash(): Int
+}
+
+@Intrinsic("core_int")
+struct Int : ToString, Hash {
+    operator fun equals(other: Int): Boolean = coreIntEquals(this, other)
+
+    override fun toString(): String = coreIntToString(this)
+
+    override fun hash(): Int = coreIntHash(this)
+}
+
+@Intrinsic("core_uint")
+struct UInt : ToString, Hash {
+    operator fun equals(other: UInt): Boolean = coreUIntEquals(this, other)
+
+    override fun toString(): String = coreUIntToString(this)
+
+    override fun hash(): Int = coreUIntHash(this)
+}
+
+@Intrinsic("core_boolean")
+struct Boolean : ToString, Hash {
+    operator fun equals(other: Boolean): Boolean = coreBooleanEquals(this, other)
+
+    override fun toString(): String = coreBooleanToString(this)
+
+    override fun hash(): Int = coreBooleanHash(this)
+}
+
+@Intrinsic("core_string")
+class String : ToString, Hash {
+    operator fun equals(other: String): Boolean = coreStringEquals(this, other)
+
+    override fun toString(): String = this
+
+    override fun hash(): Int = coreStringHash(this)
+}
+
+@Intrinsic("core_array")
+class Array<T>
+
+@Intrinsic("core_mutable_array")
+class MutableArray<T>
+
+// Representation-level operations used by the ordinary source methods above.
+// They are regular Scoop-ABI FFI declarations, not compiler capability hooks.
+@Extern(name = "scoop_rt_int_equals", abi = "scoop")
+fun coreIntEquals(left: Int, right: Int): Boolean
+
+@Extern(name = "scoop_rt_uint_equals", abi = "scoop")
+fun coreUIntEquals(left: UInt, right: UInt): Boolean
+
+@Extern(name = "scoop_rt_bool_equals", abi = "scoop")
+fun coreBooleanEquals(left: Boolean, right: Boolean): Boolean
+
+@Extern(name = "scoop_rt_string_eq", abi = "scoop")
+fun coreStringEquals(left: String, right: String): Boolean
+
+@Extern(name = "scoop_rt_int_to_string", abi = "scoop")
+fun coreIntToString(value: Int): String
+
+@Extern(name = "scoop_rt_uint_to_string", abi = "scoop")
+fun coreUIntToString(value: UInt): String
+
+@Extern(name = "scoop_rt_bool_to_string", abi = "scoop")
+fun coreBooleanToString(value: Boolean): String
+
+@Extern(name = "scoop_rt_int_hash", abi = "scoop")
+fun coreIntHash(value: Int): Int
+
+@Extern(name = "scoop_rt_uint_hash", abi = "scoop")
+fun coreUIntHash(value: UInt): Int
+
+@Extern(name = "scoop_rt_bool_hash", abi = "scoop")
+fun coreBooleanHash(value: Boolean): Int
+
+@Extern(name = "scoop_rt_string_hash", abi = "scoop")
+fun coreStringHash(value: String): Int

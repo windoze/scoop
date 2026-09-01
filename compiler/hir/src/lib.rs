@@ -43,11 +43,96 @@ pub type ExternFunctionId = Idx<ExternFunction>;
 pub type GlobalId = Idx<Global>;
 pub type GenericFunctionId = Idx<GenericFunction>;
 pub type ResolvedGenericFunctionId = Idx<ResolvedGenericFunction>;
+pub type MethodApplicationId = Idx<MethodApplication>;
+pub type GenericMethodId = Idx<GenericMethod>;
+pub type GenericMethodApplicationId = Idx<GenericMethodApplication>;
+pub type DerivedEqualityApplicationId = Idx<DerivedEqualityApplication>;
 pub type StructId = Idx<StructDecl>;
 pub type EnumId = Idx<EnumDecl>;
 pub type ClassId = Idx<ClassDecl>;
 pub type InterfaceId = Idx<InterfaceDecl>;
+pub type StructApplicationId = Idx<StructApplication>;
+pub type EnumApplicationId = Idx<EnumApplication>;
+pub type ClassApplicationId = Idx<ClassApplication>;
+pub type InterfaceApplicationId = Idx<InterfaceApplication>;
+pub type InterfaceMethodId = Idx<InterfaceMethod>;
+pub type BoundCallableRefId = Idx<BoundCallableRef>;
 pub type LocalId = Idx<Local>;
+
+/// Export-side identity of one class virtual-dispatch family. Every override
+/// in the family carries the same id; overloads always receive distinct ids.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct VirtualMethodId(u32);
+
+impl VirtualMethodId {
+    pub const fn from_raw(raw: u32) -> Self {
+        Self(raw)
+    }
+
+    pub const fn into_raw(self) -> u32 {
+        self.0
+    }
+}
+
+/// A structurally non-empty sequence. Generic method applications use this
+/// instead of a plain `Vec` because an empty method-argument group would mean
+/// a different entity kind (an ordinary method application).
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct NonEmptyVec<T> {
+    first: T,
+    rest: Vec<T>,
+}
+
+impl<T> NonEmptyVec<T> {
+    pub fn new(first: T, rest: Vec<T>) -> Self {
+        Self { first, rest }
+    }
+
+    pub fn from_vec(mut values: Vec<T>) -> Option<Self> {
+        if values.is_empty() {
+            return None;
+        }
+        let rest = values.split_off(1);
+        Some(Self {
+            first: values.pop().expect("the non-empty prefix was checked"),
+            rest,
+        })
+    }
+
+    pub fn len(&self) -> usize {
+        1 + self.rest.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        false
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &T> {
+        std::iter::once(&self.first).chain(self.rest.iter())
+    }
+}
+
+impl<T: Copy> NonEmptyVec<T> {
+    pub fn to_vec(&self) -> Vec<T> {
+        self.iter().copied().collect()
+    }
+}
+
+/// Identity of one primary-constructor parameter. Constructor delegation
+/// expressions use this domain directly; these parameters do not belong to a
+/// function body's `LocalId` arena.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ConstructorParamId(u32);
+
+impl ConstructorParamId {
+    pub const fn from_raw(raw: u32) -> Self {
+        Self(raw)
+    }
+
+    pub const fn into_raw(self) -> u32 {
+        self.0
+    }
+}
 
 /// Cone-wide identity of a lexical value binding. Unlike `LocalId`, which is
 /// only meaningful inside one function body's local arena, this identity is
@@ -66,19 +151,58 @@ impl BindingId {
     }
 }
 
-/// A function- or generic-type-local type-parameter index. This is a
-/// distinct id type so it cannot be mixed with field, variant or
-/// arena indices by accident.
+/// Cone-wide semantic identity of a type parameter together with the exact
+/// substitution slot assigned by its declaring HIR scope. Identity, rather
+/// than a name or a position in a merged vector, decides equality. The slot
+/// is source-produced replacement data and is never used as identity.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct TypeParamId(u32);
+pub struct TypeParamId {
+    identity: u32,
+    substitution_slot: u32,
+}
 
-impl TypeParamId {
+/// Driver-assigned identity of the source provider that defines a compiler
+/// intrinsic. Source text cannot construct this identity; it is carried on the
+/// validated intrinsic entity so later stages never reconstruct provenance
+/// from a path, package name, or declaration position.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct IntrinsicProviderId(u32);
+
+impl IntrinsicProviderId {
     pub const fn from_raw(raw: u32) -> Self {
         Self(raw)
     }
 
     pub const fn into_raw(self) -> u32 {
         self.0
+    }
+}
+
+impl TypeParamId {
+    /// Construct a self-contained identity for handcrafted IR. Production
+    /// HIR uses `with_substitution_slot` with a Cone-wide unique identity.
+    pub const fn from_raw(raw: u32) -> Self {
+        Self {
+            identity: raw,
+            substitution_slot: raw,
+        }
+    }
+
+    pub const fn with_substitution_slot(identity: u32, substitution_slot: u32) -> Self {
+        Self {
+            identity,
+            substitution_slot,
+        }
+    }
+
+    pub const fn identity_raw(self) -> u32 {
+        self.identity
+    }
+
+    /// The complete substitution environment slot emitted by HIR. Kept as
+    /// `into_raw` for the existing IR API; it is deliberately not identity.
+    pub const fn into_raw(self) -> u32 {
+        self.substitution_slot
     }
 }
 
@@ -93,20 +217,18 @@ pub enum Type {
     /// A struct type with resolved type arguments (empty for
     /// non-generic structs). Keeping the arguments in the type itself
     /// makes every `TypeId` structurally complete.
-    Struct(StructId, Vec<TypeId>),
+    Struct(StructApplicationId),
     /// A reference type declared with `class` (spec 9.1).
-    Class(ClassId),
+    /// A class application with complete host arguments (empty for a
+    /// non-generic class). M14 gives generic classes the same nominal
+    /// application semantics as the other declaration kinds.
+    Class(ClassApplicationId),
     /// An interface application with complete type arguments (empty for a
     /// non-generic interface). Values behind it are references.
-    Interface(InterfaceId, Vec<TypeId>),
+    Interface(InterfaceApplicationId),
     /// The root of all types (spec 3.1). Value types reaching it are
     /// boxed (spec 4.4.4).
     Any,
-    /// Compiler-built-in array types (M5; class declarations arrive
-    /// with M7, see docs/milestone5/DESIGN.md 5.1). Invariant in the
-    /// element type (spec 10.4).
-    Array(TypeId),
-    MutableArray(TypeId),
     Tuple(Vec<TypeId>),
     /// A managed function value type. The referenced entry carries the
     /// complete structural signature and is canonical within the Cone.
@@ -120,7 +242,7 @@ pub enum Type {
     /// An enum type with resolved type arguments (empty for
     /// non-generic enums). `Option<T>` is one of these since M4
     /// (defined in `scoop.core`).
-    Enum(EnumId, Vec<TypeId>),
+    Enum(EnumApplicationId),
     /// A type parameter, by typed local index. Only appears inside a
     /// generic function/type definition; instantiated MIR never
     /// contains it.
@@ -132,6 +254,10 @@ pub enum Type {
 /// construction (spec 8.1.1).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FunctionType {
+    /// The unique ordinary managed-function type represented by this
+    /// signature. Consumers use this edge directly; they never scan `types`
+    /// to recover the reverse mapping.
+    pub canonical_type: TypeId,
     pub is_suspend: bool,
     pub parameter_types: Vec<TypeId>,
     pub return_type: TypeId,
@@ -146,27 +272,10 @@ pub fn types_equal(module: &Module, a: TypeId, b: TypeId) -> bool {
         | (Type::UInt, Type::UInt)
         | (Type::Boolean, Type::Boolean)
         | (Type::String, Type::String) => true,
-        (Type::Struct(x, x_args), Type::Struct(y, y_args)) => {
-            x == y
-                && x_args.len() == y_args.len()
-                && x_args
-                    .iter()
-                    .zip(y_args.iter())
-                    .all(|(x, y)| types_equal(module, *x, *y))
-        }
-        (Type::Class(x), Type::Class(y)) => *x == *y,
-        (Type::Interface(x, x_args), Type::Interface(y, y_args)) => {
-            x == y
-                && x_args.len() == y_args.len()
-                && x_args
-                    .iter()
-                    .zip(y_args.iter())
-                    .all(|(x, y)| types_equal(module, *x, *y))
-        }
+        (Type::Struct(x), Type::Struct(y)) => x == y,
+        (Type::Class(x), Type::Class(y)) => x == y,
+        (Type::Interface(x), Type::Interface(y)) => x == y,
         (Type::Any, Type::Any) => true,
-        (Type::Array(x), Type::Array(y)) | (Type::MutableArray(x), Type::MutableArray(y)) => {
-            types_equal(module, *x, *y)
-        }
         (Type::Tuple(xs), Type::Tuple(ys)) => {
             xs.len() == ys.len()
                 && xs
@@ -177,14 +286,7 @@ pub fn types_equal(module: &Module, a: TypeId, b: TypeId) -> bool {
         (Type::Function(x), Type::Function(y)) => x == y,
         (Type::Ptr(x), Type::Ptr(y)) => types_equal(module, *x, *y),
         (Type::FunPtr(x), Type::FunPtr(y)) => x == y,
-        (Type::Enum(x, x_args), Type::Enum(y, y_args)) => {
-            x == y
-                && x_args.len() == y_args.len()
-                && x_args
-                    .iter()
-                    .zip(y_args.iter())
-                    .all(|(x, y)| types_equal(module, *x, *y))
-        }
+        (Type::Enum(x), Type::Enum(y)) => x == y,
         (Type::Param(x), Type::Param(y)) => x == y,
         _ => false,
     }
@@ -192,45 +294,78 @@ pub fn types_equal(module: &Module, a: TypeId, b: TypeId) -> bool {
 
 /// Render a type for diagnostics and dumps.
 pub fn type_name(module: &Module, ty: TypeId) -> String {
+    type_name_with_params(module, ty, &[])
+}
+
+fn type_name_with_params(module: &Module, ty: TypeId, params: &[TypeParamDecl]) -> String {
     match &module.types[ty] {
         Type::Unit => "Unit".to_string(),
         Type::Int => "Int".to_string(),
         Type::UInt => "UInt".to_string(),
         Type::Boolean => "Boolean".to_string(),
         Type::String => "String".to_string(),
-        Type::Struct(id, args) => {
-            let name = &module.structs[*id].name;
+        Type::Struct(application) => {
+            let application = &module.struct_applications[*application];
+            let name = &module.structs[application.template].name;
+            let args = &application.arguments;
             if args.is_empty() {
                 name.clone()
             } else {
-                let inner: Vec<String> = args.iter().map(|t| type_name(module, *t)).collect();
+                let inner: Vec<String> = args
+                    .iter()
+                    .map(|t| type_name_with_params(module, *t, params))
+                    .collect();
                 format!("{}<{}>", name, inner.join(", "))
             }
         }
-        Type::Class(id) => module.classes[*id].name.clone(),
-        Type::Interface(id, args) => {
-            let name = &module.interfaces[*id].name;
+        Type::Class(application) => {
+            let application = &module.class_applications[*application];
+            let name = &module.classes[application.template].name;
+            let args = &application.arguments;
             if args.is_empty() {
                 name.clone()
             } else {
-                let inner: Vec<String> = args.iter().map(|t| type_name(module, *t)).collect();
+                let inner: Vec<String> = args
+                    .iter()
+                    .map(|ty| type_name_with_params(module, *ty, params))
+                    .collect();
+                format!("{}<{}>", name, inner.join(", "))
+            }
+        }
+        Type::Interface(application) => {
+            let application = &module.interface_applications[*application];
+            let name = &module.interfaces[application.template].name;
+            let args = &application.arguments;
+            if args.is_empty() {
+                name.clone()
+            } else {
+                let inner: Vec<String> = args
+                    .iter()
+                    .map(|t| type_name_with_params(module, *t, params))
+                    .collect();
                 format!("{}<{}>", name, inner.join(", "))
             }
         }
         Type::Any => "Any".to_string(),
-        Type::Array(inner) => format!("Array<{}>", type_name(module, *inner)),
-        Type::MutableArray(inner) => format!("MutableArray<{}>", type_name(module, *inner)),
-        Type::Enum(id, args) => {
-            let name = &module.enums[*id].name;
+        Type::Enum(application) => {
+            let application = &module.enum_applications[*application];
+            let name = &module.enums[application.template].name;
+            let args = &application.arguments;
             if args.is_empty() {
                 name.clone()
             } else {
-                let inner: Vec<String> = args.iter().map(|t| type_name(module, *t)).collect();
+                let inner: Vec<String> = args
+                    .iter()
+                    .map(|t| type_name_with_params(module, *t, params))
+                    .collect();
                 format!("{}<{}>", name, inner.join(", "))
             }
         }
         Type::Tuple(elements) => {
-            let inner: Vec<String> = elements.iter().map(|t| type_name(module, *t)).collect();
+            let inner: Vec<String> = elements
+                .iter()
+                .map(|t| type_name_with_params(module, *t, params))
+                .collect();
             format!("({})", inner.join(", "))
         }
         Type::Function(id) => {
@@ -238,37 +373,42 @@ pub fn type_name(module: &Module, ty: TypeId) -> String {
             let parameters: Vec<String> = function
                 .parameter_types
                 .iter()
-                .map(|ty| type_name(module, *ty))
+                .map(|ty| type_name_with_params(module, *ty, params))
                 .collect();
             let suspend = if function.is_suspend { "suspend " } else { "" };
             format!(
                 "{suspend}({}) -> {}",
                 parameters.join(", "),
-                type_name(module, function.return_type)
+                type_name_with_params(module, function.return_type, params)
             )
         }
-        Type::Ptr(pointee) => format!("Ptr<{}>", type_name(module, *pointee)),
+        Type::Ptr(pointee) => format!("Ptr<{}>", type_name_with_params(module, *pointee, params)),
         Type::FunPtr(id) => {
             let function = &module.function_types[*id];
             let parameters = function
                 .parameter_types
                 .iter()
-                .map(|ty| type_name(module, *ty))
+                .map(|ty| type_name_with_params(module, *ty, params))
                 .collect::<Vec<_>>()
                 .join(", ");
             format!(
                 "FunPtr<({parameters}) -> {}>",
-                type_name(module, function.return_type)
+                type_name_with_params(module, function.return_type, params)
             )
         }
-        Type::Param(index) => format!("T{}", index.into_raw()),
+        Type::Param(index) => params
+            .iter()
+            .find(|parameter| parameter.id == *index)
+            .map(|parameter| parameter.name.clone())
+            .unwrap_or_else(|| format!("T{}", index.into_raw())),
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct Module {
     pub types: Arena<Type>,
-    /// Canonical function signatures referenced by `Type::Function`.
+    /// Canonical function signatures in one-to-one correspondence with their
+    /// `FunctionType::canonical_type` entries in `types`.
     pub function_types: Arena<FunctionType>,
     /// Source callable-value entities. Their identities are intentionally
     /// separate from the generated invoke functions they own.
@@ -276,6 +416,10 @@ pub struct Module {
     pub anonymous_functions: Arena<AnonymousFunction>,
     pub local_functions: Arena<LocalFunction>,
     pub callable_references: Arena<CallableReference>,
+    /// Template-only calls through an interface upper bound. Each entry
+    /// names the exact receiver parameter, bound application and declaring
+    /// interface method; local-concrete HIR has no corresponding arena.
+    pub bound_callable_refs: Arena<BoundCallableRef>,
     /// Source/target signatures of every explicit function-value variance
     /// adaptation requested by HIR.
     pub function_coercions: Arena<FunctionCoercion>,
@@ -291,10 +435,32 @@ pub struct Module {
     /// ordinary `FunctionId`s even though each entry points at the HIR
     /// function that owns the parameterized body.
     pub generic_functions: Arena<GenericFunction>,
+    /// Exact ordinary method applications and non-virtual generic method
+    /// templates/applications. Calls carry these typed identities directly;
+    /// concretization never reconstructs an owner from a function or a flat
+    /// argument vector.
+    pub method_applications: Arena<MethodApplication>,
+    pub generic_methods: Arena<GenericMethod>,
+    pub generic_method_applications: Arena<GenericMethodApplication>,
+    /// Fully typed compiler-derived equality bodies requested while lowering
+    /// source operators. Each body already names every nested member/derived
+    /// target; concretization substitutes it mechanically and never performs
+    /// member lookup or reconstructs aggregate semantics.
+    pub derived_equality_applications: Arena<DerivedEqualityApplication>,
     pub structs: Arena<StructDecl>,
+    /// Canonical, fully applied export-side struct identities.  A type never
+    /// stores a declaration id and an unrelated argument vector.
+    pub struct_applications: Arena<StructApplication>,
     pub enums: Arena<EnumDecl>,
+    pub enum_applications: Arena<EnumApplication>,
     pub classes: Arena<ClassDecl>,
+    pub class_applications: Arena<ClassApplication>,
     pub interfaces: Arena<InterfaceDecl>,
+    pub interface_applications: Arena<InterfaceApplication>,
+    /// Interface member declarations have their own identity domain. A
+    /// bound call never uses a general `FunctionId` as a substitute for the
+    /// declaring interface-member identity.
+    pub interface_methods: Arena<InterfaceMethod>,
     /// Top-level functions in declaration order (core library first,
     /// then user code).
     pub top_level: Vec<FunctionId>,
@@ -307,6 +473,10 @@ pub struct Module {
     /// `T?`, spec 7.1). Guaranteed present: a core library without a
     /// suitable `Option` definition is a driver-level error.
     pub option_enum: EnumId,
+    /// Compiler-generated exception construction targets. Every entry is a
+    /// validated, zero-argument class constructor; later stages never find
+    /// these entities by source or link name.
+    pub exception_core: CompilerExceptionCore,
     /// Compiler-known coroutine protocol entities. HIR lowering validates
     /// their exact declarations before constructing the module, so MIR never
     /// falls back to textual lookup for protocol types or methods.
@@ -318,6 +488,10 @@ pub struct Module {
     /// Compiler-validated managed callback protocol. Its ids are export-side
     /// semantic identities and are concretized into a distinct local family.
     pub foreign_callback_core: ForeignCallbackCore,
+    /// Source-validated nominal declarations for every compiler-represented
+    /// core type. These typed ids are the only bridge from primitive/family
+    /// semantics to source members and interfaces.
+    pub intrinsic_type_core: IntrinsicTypeCore,
     /// Entry point: `fun main()`. Guaranteed present.
     pub entry: FunctionId,
     /// Resolved generic function applications, deduplicated in
@@ -359,6 +533,16 @@ pub struct ForeignCallbackCore {
     pub release: FunctionId,
     pub query_state: FunctionId,
     pub failure: FunctionId,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct IntrinsicTypeCore {
+    pub int: StructId,
+    pub uint: StructId,
+    pub boolean: StructId,
+    pub string: ClassId,
+    pub array: ClassId,
+    pub mutable_array: ClassId,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -442,7 +626,7 @@ pub enum CallableReferenceTarget {
     /// expression so MIR can preserve direct / virtual / interface dispatch.
     BoundMember {
         receiver: Box<Expr>,
-        callee: Callable,
+        callee: MethodCallee,
     },
     /// A bound extension reference. Unlike a member reference its invoke
     /// wrapper always direct-calls the extension body, prepending the saved
@@ -471,10 +655,41 @@ pub struct FunctionCoercion {
     pub target: FunctionTypeId,
 }
 
+/// A constructor target whose zero-argument signature is guaranteed by its
+/// type. The constructed exception type is exactly `class`; there is no
+/// parallel return-type field that could disagree with it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ZeroArgClassConstructor {
+    pub class: ClassId,
+}
+
+/// One compiler-known exception type together with its only construction
+/// target needed by compiler-generated control flow.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CompilerException {
+    pub constructor: ZeroArgClassConstructor,
+}
+
+impl CompilerException {
+    pub const fn class(self) -> ClassId {
+        self.constructor.class
+    }
+}
+
+/// Complete exception capabilities emitted by Export HIR. These ids belong
+/// exclusively to the export-side family and are concretized before MIR.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CompilerExceptionCore {
+    pub throwable: CompilerException,
+    pub unwrap_exception: CompilerException,
+    pub class_cast_exception: CompilerException,
+    pub arithmetic_exception: CompilerException,
+    pub index_out_of_bounds_exception: CompilerException,
+    pub illegal_state_exception: CompilerException,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CoroutineCore {
-    pub throwable: ClassId,
-    pub illegal_state_exception: ClassId,
     pub continuation: InterfaceId,
     pub continuation_resume: FunctionId,
     pub continuation_resume_with_exception: FunctionId,
@@ -487,12 +702,24 @@ pub struct CoroutineCore {
 }
 
 impl Module {
-    pub fn callable_function(&self, callable: Callable) -> FunctionId {
-        callable_parts(self, callable).0
+    pub fn callable_function(&self, callable: impl FunctionCallee) -> FunctionId {
+        callable.function(self)
     }
+}
 
-    pub fn callable_type_args(&self, callable: Callable) -> &[TypeId] {
-        callable_parts(self, callable).1.unwrap_or(&[])
+pub trait FunctionCallee: Copy {
+    fn function(self, module: &Module) -> FunctionId;
+}
+
+impl FunctionCallee for Callable {
+    fn function(self, module: &Module) -> FunctionId {
+        callable_function(module, self)
+    }
+}
+
+impl FunctionCallee for MethodCallee {
+    fn function(self, module: &Module) -> FunctionId {
+        method_callee_function(module, self)
     }
 }
 
@@ -517,6 +744,71 @@ pub struct ResolvedGenericFunction {
     pub type_args: Vec<TypeId>,
 }
 
+/// Exact source-side owner of a method call. Parameter-free owners still use
+/// their canonical empty application, so every method application has one
+/// uniform and complete representation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum MethodOwnerApplication {
+    Class(ClassApplicationId),
+    Struct(StructApplicationId),
+    Enum(EnumApplicationId),
+    Interface(InterfaceApplicationId),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct MethodApplication {
+    pub function: FunctionId,
+    pub owner: MethodOwnerApplication,
+}
+
+/// Exact origin of one compiler-derived value-type equality method.
+/// Nominal declarations reuse their owner application; structural Unit/tuple
+/// methods carry their owner type directly because they have no declaration
+/// arena whose identity could stand in for that type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum DerivedEqualityOrigin {
+    Nominal(MethodOwnerApplication),
+    Structural(TypeId),
+}
+
+/// One application of a compiler-derived value-type equality method. The
+/// source method declaration supplies stable callable identity; every other
+/// property needed to materialize the concrete method is mandatory here.
+/// `body` is complete application-specific HIR, including exact nested
+/// callees, so concretization only substitutes types and callable identities.
+#[derive(Debug, Clone)]
+pub struct DerivedEqualityApplication {
+    pub function: FunctionId,
+    pub origin: DerivedEqualityOrigin,
+    pub owner_ty: TypeId,
+    pub attributes: FunctionAttributes,
+    pub span: Span,
+    pub body: Body,
+}
+
+/// A non-virtual generic method template. Its declaration identity is
+/// separate from every other generic callable family.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GenericMethod {
+    pub function: FunctionId,
+    pub no_gc_type_params: Vec<TypeParamId>,
+}
+
+/// Exact owner kinds accepted by non-interface generic methods.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum GenericMethodOwner {
+    Class(ClassApplicationId),
+    Struct(StructApplicationId),
+    Enum(EnumApplicationId),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct GenericMethodApplication {
+    pub method: GenericMethodId,
+    pub owner: GenericMethodOwner,
+    pub method_arguments: NonEmptyVec<TypeId>,
+}
+
 /// The fully-resolved callable stored on HIR calls. A generic call
 /// cannot be represented as a plain function plus an unrelated type
 /// argument vector: it must reference a resolved generic entity.
@@ -524,16 +816,69 @@ pub struct ResolvedGenericFunction {
 pub enum Callable {
     Function(FunctionId),
     Generic(ResolvedGenericFunctionId),
+    Method(MethodApplicationId),
+    GenericMethod(GenericMethodApplicationId),
 }
 
 #[derive(Debug, Clone)]
 pub struct StructDecl {
     pub name: String,
+    /// Application to this declaration's own type parameters (or the empty
+    /// application for a parameter-free declaration).
+    pub self_application: StructApplicationId,
     pub type_params: Vec<TypeParamDecl>,
     pub attributes: StructAttributes,
-    pub fields: Vec<Field>,
+    pub representation: StructRepresentation,
     pub interfaces: Vec<TypeId>,
+    /// Source-complete mapping from each implemented interface member to the
+    /// concrete declaration that implements it. Generic owner/interface
+    /// arguments remain in template form and are substituted together.
+    pub interface_implementations: Vec<InterfaceImplementation>,
+    /// Member declarations in source order. Consumers follow this typed
+    /// relation and never recover ownership by scanning `Module::functions`.
+    pub methods: Vec<FunctionId>,
+    /// Compiler-derived same-type equality declaration, when no explicit
+    /// same-signature operator suppresses derivation. Applicability remains
+    /// conditional on this application's field obligations.
+    pub derived_equality: Option<FunctionId>,
     pub span: Span,
+}
+
+impl StructDecl {
+    pub fn semantic_fields(&self) -> &[Field] {
+        self.representation.semantic_fields()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StructApplication {
+    pub template: StructId,
+    pub arguments: Vec<TypeId>,
+    pub canonical_type: TypeId,
+    pub representation: StructApplicationRepresentation,
+}
+
+#[derive(Debug, Clone)]
+pub enum StructRepresentation {
+    Declared(Vec<Field>),
+    Intrinsic(IntrinsicTypeDeclaration),
+}
+
+impl StructRepresentation {
+    /// Source-visible fields. Intrinsic types deliberately expose no source
+    /// fields even though their compiler representation is not empty.
+    pub fn semantic_fields(&self) -> &[Field] {
+        match self {
+            Self::Declared(fields) => fields,
+            Self::Intrinsic(_) => &[],
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum StructApplicationRepresentation {
+    Declared,
+    Intrinsic(IntrinsicTypeRepresentation),
 }
 
 /// Typed struct attributes. Raw annotation names and argument syntax never
@@ -554,11 +899,22 @@ pub struct CLayout {
 #[derive(Debug, Clone)]
 pub struct EnumDecl {
     pub name: String,
+    pub self_application: EnumApplicationId,
     pub type_params: Vec<TypeParamDecl>,
     pub no_gc: bool,
     pub variants: Vec<Variant>,
     pub interfaces: Vec<TypeId>,
+    pub interface_implementations: Vec<InterfaceImplementation>,
+    pub methods: Vec<FunctionId>,
+    pub derived_equality: Option<FunctionId>,
     pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EnumApplication {
+    pub template: EnumId,
+    pub arguments: Vec<TypeId>,
+    pub canonical_type: TypeId,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -583,30 +939,231 @@ pub enum MethodModifier {
 pub struct Method {
     pub owner: TypeId,
     pub modifier: MethodModifier,
-    /// Number of owner type parameters at the front of the containing
-    /// function's combined type-parameter namespace. Method parameters
-    /// follow this prefix.
-    pub owner_type_param_count: u32,
+    /// Complete source-level dispatch identity. Overrides share a typed
+    /// virtual family; interface declarations name their exact member.
+    pub dispatch: MethodDispatch,
+    /// Language-level operator identity validated at the declaration site.
+    /// `None` is an ordinary method; downstream consumers never recover an
+    /// operator role from the method name or signature.
+    pub operator: Option<OperatorKind>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MethodDispatch {
+    Direct,
+    Virtual(VirtualMethodId),
+    /// A final override is called directly through its own static type but
+    /// still replaces the inherited virtual-family slot for base-typed calls.
+    FinalOverride(VirtualMethodId),
+    Interface(InterfaceMethodId),
+}
+
+/// Closed set of operator member contracts implemented by the current
+/// language milestone. Unsupported source modifiers are rejected before HIR
+/// output, so an unknown operator cannot enter the pipeline as a string.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum OperatorKind {
+    Equals,
 }
 
 #[derive(Debug, Clone)]
 pub struct ClassDecl {
     pub modifier: ClassModifier,
     pub name: String,
-    /// Primary-constructor properties in declaration order.
-    pub constructor: Vec<Field>,
+    pub self_application: ClassApplicationId,
+    pub type_params: Vec<TypeParamDecl>,
+    pub representation: ClassRepresentation,
     /// Base class and the resolved constructor argument expressions.
-    pub base_class: Option<(ClassId, Vec<Expr>)>,
+    pub base_class: Option<(TypeId, Vec<Expr>)>,
     pub interfaces: Vec<TypeId>,
+    pub interface_implementations: Vec<InterfaceImplementation>,
+    pub methods: Vec<FunctionId>,
     pub span: Span,
+}
+
+impl ClassDecl {
+    pub fn semantic_constructor(&self) -> &[ConstructorField] {
+        self.representation.semantic_constructor()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ClassApplication {
+    pub template: ClassId,
+    pub arguments: Vec<TypeId>,
+    pub canonical_type: TypeId,
+    pub representation: ClassApplicationRepresentation,
+}
+
+#[derive(Debug, Clone)]
+pub enum ClassRepresentation {
+    Declared(Vec<ConstructorField>),
+    Intrinsic(IntrinsicTypeDeclaration),
+}
+
+impl ClassRepresentation {
+    /// Source-visible primary-constructor properties. Intrinsic classes have
+    /// hidden construction entries and no source constructor by declaration.
+    pub fn semantic_constructor(&self) -> &[ConstructorField] {
+        match self {
+            Self::Declared(constructor) => constructor,
+            Self::Intrinsic(_) => &[],
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ClassApplicationRepresentation {
+    Declared,
+    Intrinsic(IntrinsicTypeRepresentation),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct IntrinsicTypeDeclaration {
+    pub kind: IntrinsicTypeKind,
+    pub provider: IntrinsicProviderId,
+}
+
+/// Closed semantic identity of every compiler-represented nominal type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum IntrinsicTypeKind {
+    Int,
+    UInt,
+    Boolean,
+    String,
+    Array,
+    MutableArray,
+}
+
+impl IntrinsicTypeKind {
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Int => "core_int",
+            Self::UInt => "core_uint",
+            Self::Boolean => "core_boolean",
+            Self::String => "core_string",
+            Self::Array => "core_array",
+            Self::MutableArray => "core_mutable_array",
+        }
+    }
+
+    pub const fn source_name(self) -> &'static str {
+        match self {
+            Self::Int => "Int",
+            Self::UInt => "UInt",
+            Self::Boolean => "Boolean",
+            Self::String => "String",
+            Self::Array => "Array",
+            Self::MutableArray => "MutableArray",
+        }
+    }
+
+    pub const fn target(self) -> IntrinsicTypeTarget {
+        match self {
+            Self::Int | Self::UInt | Self::Boolean => IntrinsicTypeTarget::Struct,
+            Self::String | Self::Array | Self::MutableArray => IntrinsicTypeTarget::Class,
+        }
+    }
+
+    pub const fn parameters(self) -> IntrinsicTypeParameters {
+        match self {
+            Self::Int | Self::UInt | Self::Boolean | Self::String => IntrinsicTypeParameters::None,
+            Self::Array | Self::MutableArray => IntrinsicTypeParameters::OneInvariantUnconstrained,
+        }
+    }
+
+    pub fn application(self, arguments: &[TypeId]) -> IntrinsicTypeRepresentation {
+        match (self, arguments) {
+            (Self::Int, []) => IntrinsicTypeRepresentation::Int,
+            (Self::UInt, []) => IntrinsicTypeRepresentation::UInt,
+            (Self::Boolean, []) => IntrinsicTypeRepresentation::Boolean,
+            (Self::String, []) => IntrinsicTypeRepresentation::String,
+            (Self::Array, [element]) => IntrinsicTypeRepresentation::Array { element: *element },
+            (Self::MutableArray, [element]) => {
+                IntrinsicTypeRepresentation::MutableArray { element: *element }
+            }
+            _ => unreachable!("HIR validates the intrinsic declaration contract before use"),
+        }
+    }
+}
+
+/// Complete compiler representation of one nominal application. Generic
+/// family variants contain their concrete element type directly.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum IntrinsicTypeRepresentation {
+    Int,
+    UInt,
+    Boolean,
+    String,
+    Array { element: TypeId },
+    MutableArray { element: TypeId },
+}
+
+/// A primary-constructor property is simultaneously a source parameter and
+/// an object field. Keeping both identities and mutability together prevents
+/// delegation lowering and field assignment from reconstructing either fact.
+#[derive(Debug, Clone)]
+pub struct ConstructorField {
+    pub parameter: ConstructorParamId,
+    pub name: String,
+    pub ty: TypeId,
+    pub mutable: bool,
 }
 
 #[derive(Debug, Clone)]
 pub struct InterfaceDecl {
     pub name: String,
+    pub self_application: InterfaceApplicationId,
     pub type_params: Vec<TypeParamDecl>,
-    pub methods: Vec<MethodSig>,
+    /// Exact parent applications in declaration order.
+    pub parents: Vec<InterfaceApplicationId>,
+    /// Methods declared directly by this interface, in itable order after
+    /// inherited methods. Inheritance traversal follows `parents` and these
+    /// typed ids; consumers never reconstruct ownership from function names.
+    pub methods: Vec<InterfaceMethodId>,
     pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InterfaceApplication {
+    pub template: InterfaceId,
+    pub arguments: Vec<TypeId>,
+    pub canonical_type: TypeId,
+}
+
+/// One interface method declaration. Its callable signature and effects live
+/// on the directly referenced function; this relation is the authoritative
+/// ownership edge and is never recovered by scanning `Module::functions`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct InterfaceMethod {
+    pub owner: InterfaceId,
+    pub function: FunctionId,
+}
+
+/// One complete nominal conformance generated by HIR inheritance checking.
+/// `methods` contains an entry for every method in the interface inheritance
+/// closure, not only methods declared directly on `interface`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InterfaceImplementation {
+    pub interface: InterfaceApplicationId,
+    pub methods: Vec<InterfaceMethodImplementation>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InterfaceMethodImplementation {
+    pub member: InterfaceMethodId,
+    pub target: InterfaceImplementationTarget,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InterfaceImplementationTarget {
+    /// Exact ordinary method application selected by HIR conformance
+    /// checking. Generic methods cannot implement interface slots.
+    Method(MethodApplicationId),
+    /// An abstract class may promise an interface while leaving a member for
+    /// a concrete subclass. Calls through such a specialization use the
+    /// interface application directly instead of guessing a class member.
+    Subclass,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -618,9 +1175,56 @@ pub enum Variance {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TypeParamDecl {
+    pub id: TypeParamId,
     pub name: String,
     pub variance: Variance,
-    pub kind: TypeParamKind,
+    /// Complete declaration-site constraint set. The sum type makes kind
+    /// bounds and interface upper bounds mutually exclusive by construction.
+    pub bounds: TypeParamBounds,
+    pub span: Span,
+}
+
+impl TypeParamDecl {
+    /// Representation kind implied by this parameter's constraints. Interface
+    /// upper bounds are reference capabilities, but do not make the generic
+    /// value itself a `ref`-kind parameter: value types may implement them and
+    /// are boxed only at an actual interface crossing.
+    pub fn kind(&self) -> TypeParamKind {
+        match self.bounds {
+            TypeParamBounds::Value { .. } => TypeParamKind::Value,
+            TypeParamBounds::Ref { .. } => TypeParamKind::Ref,
+            TypeParamBounds::Unconstrained | TypeParamBounds::Interfaces(_) => TypeParamKind::Any,
+        }
+    }
+
+    pub fn interface_bounds(&self) -> &[InterfaceBound] {
+        match &self.bounds {
+            TypeParamBounds::Interfaces(bounds) => bounds,
+            TypeParamBounds::Unconstrained
+            | TypeParamBounds::Value { .. }
+            | TypeParamBounds::Ref { .. } => &[],
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TypeParamBounds {
+    Unconstrained,
+    Value {
+        span: Span,
+    },
+    Ref {
+        span: Span,
+    },
+    /// Ordered, distinct, fully resolved interface applications.
+    Interfaces(Vec<InterfaceBound>),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InterfaceBound {
+    /// Complete interface application.  The bound cannot name a declaration
+    /// without its arguments or another nominal kind.
+    pub application: InterfaceApplicationId,
     pub span: Span,
 }
 
@@ -631,17 +1235,15 @@ pub enum TypeParamKind {
     Ref,
 }
 
-/// An interface method signature (M6: no body, no properties).
+/// Convenience signature record used by tests and by the fully concrete
+/// interface representation. ExportHir interface ownership does not store
+/// this record: it stores `InterfaceMethodId -> FunctionId` directly so the
+/// declaration identity and callable cannot diverge.
 #[derive(Debug, Clone)]
 pub struct MethodSig {
     pub name: String,
-    /// Suspend is part of the callable contract and must match exactly
-    /// across interface implementation and overriding relationships.
     pub is_suspend: bool,
     pub attributes: FunctionAttributes,
-    /// Type parameters declared by this method (the owning interface's
-    /// parameters are stored on `InterfaceDecl`). An empty list means the
-    /// method occupies an itable slot; generic methods are static-only.
     pub type_params: Vec<TypeParamDecl>,
     pub params: Vec<Param>,
     pub return_ty: TypeId,
@@ -695,7 +1297,7 @@ pub enum ConstantValue {
     NullPtr,
     NullFunPtr,
     Struct {
-        struct_id: StructId,
+        application: StructApplicationId,
         fields: Vec<ConstantValue>,
     },
 }
@@ -703,13 +1305,12 @@ pub enum ConstantValue {
 #[derive(Debug, Clone)]
 pub struct Function {
     pub name: String,
+    /// Complete declaration identity. Generic functions carry their distinct
+    /// template id directly; consumers never recover it by scanning the
+    /// `generic_functions` arena or by inspecting `type_params`.
+    pub genericity: FunctionGenericity,
     /// Whether calls use the coroutine ABI rather than the ordinary ABI.
     pub is_suspend: bool,
-    /// Typed generic parameters; empty for non-generic functions. For
-    /// methods this is one combined namespace: owner parameters first,
-    /// method-declared parameters second (`Method::owner_type_param_count`
-    /// separates the two groups).
-    pub type_params: Vec<TypeParamDecl>,
     pub params: Vec<Param>,
     pub return_ty: TypeId,
     pub attributes: FunctionAttributes,
@@ -718,6 +1319,131 @@ pub struct Function {
     /// `params` (named `this`). Top-level functions have `None`.
     pub method: Option<Method>,
     pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FunctionGenericity {
+    Plain,
+    Generic {
+        definition: GenericFunctionId,
+        parameters: Vec<TypeParamDecl>,
+    },
+    /// An ordinary method whose signature/body depends only on its nominal
+    /// owner's parameters. Its concrete identity comes from a
+    /// `MethodApplication`, not a generic-function application.
+    OwnerParameterizedMethod {
+        owner_parameters: Vec<TypeParamDecl>,
+        no_gc_type_params: Vec<TypeParamId>,
+    },
+    /// A non-virtual method with its own parameters. The two groups are
+    /// structurally separate; no downstream consumer receives a merged
+    /// argument vector and an index at which it is expected to split it.
+    GenericMethod {
+        definition: GenericMethodId,
+        owner_parameters: Vec<TypeParamDecl>,
+        method_parameters: NonEmptyVec<TypeParamDecl>,
+    },
+}
+
+impl Function {
+    pub fn type_param_count(&self) -> usize {
+        match &self.genericity {
+            FunctionGenericity::Plain => 0,
+            FunctionGenericity::Generic { parameters, .. } => parameters.len(),
+            FunctionGenericity::OwnerParameterizedMethod {
+                owner_parameters, ..
+            } => owner_parameters.len(),
+            FunctionGenericity::GenericMethod {
+                owner_parameters,
+                method_parameters,
+                ..
+            } => owner_parameters.len() + method_parameters.len(),
+        }
+    }
+
+    pub fn owner_type_param_count(&self) -> usize {
+        match &self.genericity {
+            FunctionGenericity::OwnerParameterizedMethod {
+                owner_parameters, ..
+            }
+            | FunctionGenericity::GenericMethod {
+                owner_parameters, ..
+            } => owner_parameters.len(),
+            FunctionGenericity::Plain | FunctionGenericity::Generic { .. } => 0,
+        }
+    }
+
+    pub fn method_type_param_count(&self) -> usize {
+        match &self.genericity {
+            FunctionGenericity::GenericMethod {
+                method_parameters, ..
+            } => method_parameters.len(),
+            FunctionGenericity::Plain
+            | FunctionGenericity::Generic { .. }
+            | FunctionGenericity::OwnerParameterizedMethod { .. } => 0,
+        }
+    }
+
+    pub fn type_param(&self, id: TypeParamId) -> &TypeParamDecl {
+        match &self.genericity {
+            FunctionGenericity::Plain => panic!("plain function has no type parameters"),
+            FunctionGenericity::Generic { parameters, .. } => parameters
+                .iter()
+                .find(|parameter| parameter.id == id)
+                .expect("generic function owns the referenced type parameter"),
+            FunctionGenericity::OwnerParameterizedMethod {
+                owner_parameters, ..
+            } => owner_parameters
+                .iter()
+                .find(|parameter| parameter.id == id)
+                .expect("method owner owns the referenced type parameter"),
+            FunctionGenericity::GenericMethod {
+                owner_parameters,
+                method_parameters,
+                ..
+            } => owner_parameters
+                .iter()
+                .chain(method_parameters.iter())
+                .find(|parameter| parameter.id == id)
+                .expect("generic method owns the referenced type parameter"),
+        }
+    }
+
+    pub fn type_params(&self) -> Vec<&TypeParamDecl> {
+        match &self.genericity {
+            FunctionGenericity::Plain => Vec::new(),
+            FunctionGenericity::Generic { parameters, .. } => parameters.iter().collect(),
+            FunctionGenericity::OwnerParameterizedMethod {
+                owner_parameters, ..
+            } => owner_parameters.iter().collect(),
+            FunctionGenericity::GenericMethod {
+                owner_parameters,
+                method_parameters,
+                ..
+            } => owner_parameters
+                .iter()
+                .chain(method_parameters.iter())
+                .collect(),
+        }
+    }
+
+    pub fn generic_definition(&self) -> Option<GenericFunctionId> {
+        match &self.genericity {
+            FunctionGenericity::Plain
+            | FunctionGenericity::OwnerParameterizedMethod { .. }
+            | FunctionGenericity::GenericMethod { .. } => None,
+            FunctionGenericity::Generic { definition, .. } => Some(*definition),
+        }
+    }
+
+    pub fn generic_method_definition(&self) -> Option<GenericMethodId> {
+        match self.genericity {
+            FunctionGenericity::GenericMethod { definition, .. } => Some(definition),
+            FunctionGenericity::Plain
+            | FunctionGenericity::Generic { .. }
+            | FunctionGenericity::OwnerParameterizedMethod { .. } => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -785,12 +1511,24 @@ pub struct Param {
 #[derive(Debug, Clone)]
 pub enum FunctionKind {
     User(Body),
-    /// A `@Intrinsic("name")` function (spec 13.1); the name is
-    /// guaranteed to be in the compiler's intrinsic registry.
-    Intrinsic(String),
+    /// Stable source identity for a conditional derived equality method. Its
+    /// application-specific ordinary body lives on
+    /// `DerivedEqualityApplication` and must be present before concretization
+    /// requests this function.
+    DerivedEquality,
+    /// A validated compiler intrinsic. Raw annotation text does not cross the
+    /// AST/HIR boundary: kind and defining provider are both typed and
+    /// mandatory.
+    Intrinsic(IntrinsicFunction),
     /// A bodyless native declaration. Complete ABI metadata lives in the
     /// independent extern arena and is referenced by a typed id.
     Extern(ExternFunctionId),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct IntrinsicFunction {
+    pub kind: IntrinsicFunctionKind,
+    pub provider: IntrinsicProviderId,
 }
 
 #[derive(Debug, Clone)]
@@ -905,10 +1643,16 @@ pub enum Pattern {
         local: LocalId,
     },
     Wildcard,
-    /// A literal matched by equality (the expression is a literal).
-    Literal(Expr),
+    /// A literal matched by an exact ordinary `operator fun equals` target.
+    /// The subject type is retained explicitly rather than reconstructed from
+    /// the recursive pattern position by a downstream stage.
+    Literal {
+        value: Expr,
+        equals: Callable,
+        subject_ty: TypeId,
+    },
     Variant {
-        enum_id: EnumId,
+        application: EnumApplicationId,
         /// Variant index in declaration order.
         variant: u32,
         /// `(field index, subpattern)` in declaration order.
@@ -916,7 +1660,7 @@ pub enum Pattern {
     },
     Tuple(Vec<Pattern>),
     Struct {
-        struct_id: StructId,
+        application: StructApplicationId,
         fields: Vec<(u32, Pattern)>,
     },
 }
@@ -936,23 +1680,27 @@ pub enum ExprKind {
     UnitLiteral,
     TupleLiteral(Vec<Expr>),
     StructInit {
-        struct_id: StructId,
+        application: StructApplicationId,
         args: Vec<Expr>,
     },
     /// Class instantiation `Point(1, 2)`: constructor properties in
     /// declaration order. Base-class delegation is part of the
     /// generated constructor (see mir-lower).
     ClassInit {
-        class_id: ClassId,
+        /// The allocated application remains explicit when `Expr::ty` is
+        /// adapted to a base class or interface at the use site.
+        application: ClassApplicationId,
         args: Vec<Expr>,
     },
+    /// Read of a primary-constructor parameter inside a base-constructor
+    /// delegation expression.
+    ConstructorParam(ConstructorParamId),
     /// Variant construction (`Some(x)`, `Color.Red`, `E.Named(f = 1)`);
     /// `args` are the variant's fields in declaration order, with
     /// constructor-style defaults already filled in.
     VariantConstruct {
-        enum_id: EnumId,
+        application: EnumApplicationId,
         variant: u32,
-        type_args: Vec<TypeId>,
         args: Vec<Expr>,
     },
     Local(LocalId),
@@ -1011,7 +1759,7 @@ pub enum ExprKind {
     /// interface) is decided at MIR from the receiver's static type.
     MethodCall {
         receiver: Box<Expr>,
-        callee: Callable,
+        callee: MethodCallee,
         args: Vec<Expr>,
     },
     /// Box a value type into `Any` / an interface (spec 4.4.4). The
@@ -1092,6 +1840,24 @@ pub enum ExprKind {
     },
 }
 
+/// Source-level method target. Ordinary receivers already name a resolved
+/// callable. A type-parameter receiver instead names a typed upper-bound
+/// member that must disappear during HIR concretization.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MethodCallee {
+    Callable(Callable),
+    Bound(BoundCallableRefId),
+    DerivedEquality(DerivedEqualityApplicationId),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BoundCallableRef {
+    pub receiver_parameter: TypeParamId,
+    pub bound: InterfaceApplicationId,
+    pub member: InterfaceMethodId,
+    pub instantiated_signature: FunctionTypeId,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Place {
     Local(LocalId),
@@ -1101,13 +1867,18 @@ pub enum Place {
 /// A fully resolved field access.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FieldRef {
-    /// Field `index` of the struct type `struct_id`.
-    StructField { struct_id: StructId, index: u32 },
+    /// Field `index` of one complete struct application.
+    StructField {
+        application: StructApplicationId,
+        index: u32,
+    },
     /// Element `index` (0-based) of a tuple.
     TupleIndex(u32),
-    /// Constructor property `index` of the class `class_id` (a heap
-    /// object load).
-    ClassField { class_id: ClassId, index: u32 },
+    /// Constructor property `index` of one complete class application.
+    ClassField {
+        application: ClassApplicationId,
+        index: u32,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1135,6 +1906,59 @@ pub enum UnOp {
     Not,
 }
 
+/// Registry-approved intrinsic type declaration shapes. This table owns both
+/// the raw annotation spelling accepted at the AST boundary and the complete
+/// nominal declaration contract emitted as typed HIR.
+pub const INTRINSIC_TYPE_REGISTRY: &[IntrinsicTypeSpec] = &[
+    IntrinsicTypeSpec {
+        name: "core_int",
+        kind: IntrinsicTypeKind::Int,
+    },
+    IntrinsicTypeSpec {
+        name: "core_uint",
+        kind: IntrinsicTypeKind::UInt,
+    },
+    IntrinsicTypeSpec {
+        name: "core_boolean",
+        kind: IntrinsicTypeKind::Boolean,
+    },
+    IntrinsicTypeSpec {
+        name: "core_string",
+        kind: IntrinsicTypeKind::String,
+    },
+    IntrinsicTypeSpec {
+        name: "core_array",
+        kind: IntrinsicTypeKind::Array,
+    },
+    IntrinsicTypeSpec {
+        name: "core_mutable_array",
+        kind: IntrinsicTypeKind::MutableArray,
+    },
+];
+
+pub struct IntrinsicTypeSpec {
+    pub name: &'static str,
+    pub kind: IntrinsicTypeKind,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IntrinsicTypeTarget {
+    Struct,
+    Class,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IntrinsicTypeParameters {
+    None,
+    OneInvariantUnconstrained,
+}
+
+pub fn intrinsic_type_spec(name: &str) -> Option<&'static IntrinsicTypeSpec> {
+    INTRINSIC_TYPE_REGISTRY
+        .iter()
+        .find(|spec| spec.name == name)
+}
+
 /// The compiler's intrinsic registry (impl spec 2.10). Signature rules
 /// live with hir-lower; this table is the single source of truth for
 /// valid names, expansion stage, and backend kind.
@@ -1142,168 +1966,168 @@ pub const INTRINSIC_REGISTRY: &[IntrinsicSpec] = &[
     IntrinsicSpec {
         name: "gc_pin_raw",
         stage: IntrinsicStage::Mir,
-        kind: IntrinsicKind::Runtime("scoop_rt_pin"),
+        kind: IntrinsicFunctionKind::GcPinRaw,
         target: IntrinsicTarget::TopLevel,
         effects: IntrinsicEffects::UNSAFE,
     },
     IntrinsicSpec {
         name: "gc_unpin_raw",
         stage: IntrinsicStage::Mir,
-        kind: IntrinsicKind::Runtime("scoop_rt_unpin"),
+        kind: IntrinsicFunctionKind::GcUnpinRaw,
         target: IntrinsicTarget::TopLevel,
         effects: IntrinsicEffects::UNSAFE,
     },
     IntrinsicSpec {
         name: "gc_get_handle_raw",
         stage: IntrinsicStage::Mir,
-        kind: IntrinsicKind::Runtime("scoop_rt_get_handle"),
+        kind: IntrinsicFunctionKind::GcGetHandleRaw,
         target: IntrinsicTarget::TopLevel,
         effects: IntrinsicEffects::UNSAFE,
     },
     IntrinsicSpec {
         name: "gc_release_handle_raw",
         stage: IntrinsicStage::Mir,
-        kind: IntrinsicKind::Runtime("scoop_rt_release_handle"),
+        kind: IntrinsicFunctionKind::GcReleaseHandleRaw,
         target: IntrinsicTarget::TopLevel,
         effects: IntrinsicEffects::UNSAFE,
     },
     IntrinsicSpec {
         name: "rt_gc_collect",
         stage: IntrinsicStage::Mir,
-        kind: IntrinsicKind::Runtime("scoop_rt_gc_collect"),
+        kind: IntrinsicFunctionKind::GcCollect,
         target: IntrinsicTarget::TopLevel,
         effects: IntrinsicEffects::NONE,
     },
     IntrinsicSpec {
         name: "rt_gc_stats",
         stage: IntrinsicStage::Mir,
-        kind: IntrinsicKind::Runtime("scoop_rt_gc_stats"),
+        kind: IntrinsicFunctionKind::GcStats,
         target: IntrinsicTarget::TopLevel,
         effects: IntrinsicEffects::NONE,
     },
     IntrinsicSpec {
         name: "coroutine_start",
         stage: IntrinsicStage::Mir,
-        kind: IntrinsicKind::CoroutineStart,
+        kind: IntrinsicFunctionKind::CoroutineStart,
         target: IntrinsicTarget::TopLevel,
         effects: IntrinsicEffects::NONE,
     },
     IntrinsicSpec {
         name: "coroutine_suspend",
         stage: IntrinsicStage::Mir,
-        kind: IntrinsicKind::CoroutineSuspend,
+        kind: IntrinsicFunctionKind::CoroutineSuspend,
         target: IntrinsicTarget::TopLevel,
         effects: IntrinsicEffects::NONE,
     },
     IntrinsicSpec {
         name: "ptr_to_uint",
         stage: IntrinsicStage::Hir,
-        kind: IntrinsicKind::Pointer(PointerIntrinsic::ToUInt),
+        kind: IntrinsicFunctionKind::Pointer(PointerIntrinsic::ToUInt),
         target: IntrinsicTarget::Member,
         effects: IntrinsicEffects::NO_GC_UNSAFE,
     },
     IntrinsicSpec {
         name: "ptr_cast",
         stage: IntrinsicStage::Hir,
-        kind: IntrinsicKind::Pointer(PointerIntrinsic::Cast),
+        kind: IntrinsicFunctionKind::Pointer(PointerIntrinsic::Cast),
         target: IntrinsicTarget::Member,
         effects: IntrinsicEffects::NO_GC_UNSAFE,
     },
     IntrinsicSpec {
         name: "ptr_load",
         stage: IntrinsicStage::Hir,
-        kind: IntrinsicKind::Pointer(PointerIntrinsic::Load),
+        kind: IntrinsicFunctionKind::Pointer(PointerIntrinsic::Load),
         target: IntrinsicTarget::Member,
         effects: IntrinsicEffects::NO_GC_UNSAFE,
     },
     IntrinsicSpec {
         name: "ptr_load_offset",
         stage: IntrinsicStage::Hir,
-        kind: IntrinsicKind::Pointer(PointerIntrinsic::LoadOffset),
+        kind: IntrinsicFunctionKind::Pointer(PointerIntrinsic::LoadOffset),
         target: IntrinsicTarget::Member,
         effects: IntrinsicEffects::NO_GC_UNSAFE,
     },
     IntrinsicSpec {
         name: "ptr_store",
         stage: IntrinsicStage::Hir,
-        kind: IntrinsicKind::Pointer(PointerIntrinsic::Store),
+        kind: IntrinsicFunctionKind::Pointer(PointerIntrinsic::Store),
         target: IntrinsicTarget::Member,
         effects: IntrinsicEffects::NO_GC_UNSAFE,
     },
     IntrinsicSpec {
         name: "ptr_store_offset",
         stage: IntrinsicStage::Hir,
-        kind: IntrinsicKind::Pointer(PointerIntrinsic::StoreOffset),
+        kind: IntrinsicFunctionKind::Pointer(PointerIntrinsic::StoreOffset),
         target: IntrinsicTarget::Member,
         effects: IntrinsicEffects::NO_GC_UNSAFE,
     },
     IntrinsicSpec {
         name: "ptr_plus",
         stage: IntrinsicStage::Hir,
-        kind: IntrinsicKind::Pointer(PointerIntrinsic::Plus),
+        kind: IntrinsicFunctionKind::Pointer(PointerIntrinsic::Plus),
         target: IntrinsicTarget::Member,
         effects: IntrinsicEffects::NO_GC_UNSAFE,
     },
     IntrinsicSpec {
         name: "ptr_minus",
         stage: IntrinsicStage::Hir,
-        kind: IntrinsicKind::Pointer(PointerIntrinsic::Minus),
+        kind: IntrinsicFunctionKind::Pointer(PointerIntrinsic::Minus),
         target: IntrinsicTarget::Member,
         effects: IntrinsicEffects::NO_GC_UNSAFE,
     },
     IntrinsicSpec {
         name: "address_of",
         stage: IntrinsicStage::Hir,
-        kind: IntrinsicKind::Pointer(PointerIntrinsic::AddressOf),
+        kind: IntrinsicFunctionKind::Pointer(PointerIntrinsic::AddressOf),
         target: IntrinsicTarget::TopLevel,
         effects: IntrinsicEffects::UNSAFE,
     },
     IntrinsicSpec {
         name: "size_of",
         stage: IntrinsicStage::Hir,
-        kind: IntrinsicKind::Pointer(PointerIntrinsic::SizeOf),
+        kind: IntrinsicFunctionKind::Pointer(PointerIntrinsic::SizeOf),
         target: IntrinsicTarget::TopLevel,
         effects: IntrinsicEffects::NO_GC,
     },
     IntrinsicSpec {
         name: "align_of",
         stage: IntrinsicStage::Hir,
-        kind: IntrinsicKind::Pointer(PointerIntrinsic::AlignOf),
+        kind: IntrinsicFunctionKind::Pointer(PointerIntrinsic::AlignOf),
         target: IntrinsicTarget::TopLevel,
         effects: IntrinsicEffects::NO_GC,
     },
     IntrinsicSpec {
         name: "foreign_callback_register",
         stage: IntrinsicStage::Hir,
-        kind: IntrinsicKind::ForeignCallback,
+        kind: IntrinsicFunctionKind::ForeignCallbackRegister,
         target: IntrinsicTarget::TopLevel,
         effects: IntrinsicEffects::UNSAFE,
     },
     IntrinsicSpec {
         name: "foreign_callback_retain",
         stage: IntrinsicStage::Hir,
-        kind: IntrinsicKind::ForeignCallback,
+        kind: IntrinsicFunctionKind::ForeignCallbackRetain,
         target: IntrinsicTarget::TopLevel,
         effects: IntrinsicEffects::UNSAFE,
     },
     IntrinsicSpec {
         name: "foreign_callback_release",
         stage: IntrinsicStage::Hir,
-        kind: IntrinsicKind::ForeignCallback,
+        kind: IntrinsicFunctionKind::ForeignCallbackRelease,
         target: IntrinsicTarget::TopLevel,
         effects: IntrinsicEffects::UNSAFE,
     },
     IntrinsicSpec {
         name: "foreign_callback_state",
         stage: IntrinsicStage::Hir,
-        kind: IntrinsicKind::ForeignCallback,
+        kind: IntrinsicFunctionKind::ForeignCallbackState,
         target: IntrinsicTarget::TopLevel,
         effects: IntrinsicEffects::UNSAFE,
     },
     IntrinsicSpec {
         name: "foreign_callback_failure",
         stage: IntrinsicStage::Hir,
-        kind: IntrinsicKind::ForeignCallback,
+        kind: IntrinsicFunctionKind::ForeignCallbackFailure,
         target: IntrinsicTarget::TopLevel,
         effects: IntrinsicEffects::UNSAFE,
     },
@@ -1313,7 +2137,7 @@ pub const INTRINSIC_REGISTRY: &[IntrinsicSpec] = &[
 pub struct IntrinsicSpec {
     pub name: &'static str,
     pub stage: IntrinsicStage,
-    pub kind: IntrinsicKind,
+    pub kind: IntrinsicFunctionKind,
     pub target: IntrinsicTarget,
     pub effects: IntrinsicEffects,
 }
@@ -1324,16 +2148,46 @@ pub enum IntrinsicStage {
     Mir,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum IntrinsicKind {
-    Runtime(&'static str),
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum IntrinsicFunctionKind {
+    GcPinRaw,
+    GcUnpinRaw,
+    GcGetHandleRaw,
+    GcReleaseHandleRaw,
+    GcCollect,
+    GcStats,
     CoroutineStart,
     CoroutineSuspend,
-    ForeignCallback,
+    ForeignCallbackRegister,
+    ForeignCallbackRetain,
+    ForeignCallbackRelease,
+    ForeignCallbackState,
+    ForeignCallbackFailure,
     Pointer(PointerIntrinsic),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+impl IntrinsicFunctionKind {
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::GcPinRaw => "gc_pin_raw",
+            Self::GcUnpinRaw => "gc_unpin_raw",
+            Self::GcGetHandleRaw => "gc_get_handle_raw",
+            Self::GcReleaseHandleRaw => "gc_release_handle_raw",
+            Self::GcCollect => "rt_gc_collect",
+            Self::GcStats => "rt_gc_stats",
+            Self::CoroutineStart => "coroutine_start",
+            Self::CoroutineSuspend => "coroutine_suspend",
+            Self::ForeignCallbackRegister => "foreign_callback_register",
+            Self::ForeignCallbackRetain => "foreign_callback_retain",
+            Self::ForeignCallbackRelease => "foreign_callback_release",
+            Self::ForeignCallbackState => "foreign_callback_state",
+            Self::ForeignCallbackFailure => "foreign_callback_failure",
+            Self::Pointer(kind) => kind.name(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PointerIntrinsic {
     ToUInt,
     Cast,
@@ -1346,6 +2200,24 @@ pub enum PointerIntrinsic {
     AddressOf,
     SizeOf,
     AlignOf,
+}
+
+impl PointerIntrinsic {
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::ToUInt => "ptr_to_uint",
+            Self::Cast => "ptr_cast",
+            Self::Load => "ptr_load",
+            Self::LoadOffset => "ptr_load_offset",
+            Self::Store => "ptr_store",
+            Self::StoreOffset => "ptr_store_offset",
+            Self::Plus => "ptr_plus",
+            Self::Minus => "ptr_minus",
+            Self::AddressOf => "address_of",
+            Self::SizeOf => "size_of",
+            Self::AlignOf => "align_of",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1395,10 +2267,13 @@ pub fn dump(module: &Module) -> String {
         {
             continue;
         }
+        if matches!(decl.representation, StructRepresentation::Intrinsic(_)) {
+            continue;
+        }
         let type_params = if decl.type_params.is_empty() {
             String::new()
         } else {
-            dump_type_params(&decl.type_params)
+            dump_type_params(module, &decl.type_params)
         };
         let interfaces = dump_interface_list(module, &decl.interfaces);
         let attributes = dump_struct_attributes(decl.attributes);
@@ -1406,7 +2281,7 @@ pub fn dump(module: &Module) -> String {
             "  struct {}{}{}{}\n",
             decl.name, type_params, interfaces, attributes
         ));
-        for field in &decl.fields {
+        for field in decl.semantic_fields() {
             out.push_str(&format!(
                 "    field {}: {}\n",
                 field.name,
@@ -1421,7 +2296,7 @@ pub fn dump(module: &Module) -> String {
         let type_params = if decl.type_params.is_empty() {
             String::new()
         } else {
-            dump_type_params(&decl.type_params)
+            dump_type_params(module, &decl.type_params)
         };
         let interfaces = dump_interface_list(module, &decl.interfaces);
         let attributes = if decl.no_gc { " <no-gc>" } else { "" };
@@ -1439,20 +2314,29 @@ pub fn dump(module: &Module) -> String {
         }
     }
     for (_, decl) in module.classes.iter() {
+        if matches!(decl.representation, ClassRepresentation::Intrinsic(_)) {
+            continue;
+        }
         let modifier = match decl.modifier {
             ClassModifier::Final => "",
             ClassModifier::Open => "open ",
             ClassModifier::Abstract => "abstract ",
         };
         let ctor: Vec<String> = decl
-            .constructor
+            .semantic_constructor()
             .iter()
             .map(|f| format!("{}: {}", f.name, type_name(module, f.ty)))
             .collect();
+        let type_params = if decl.type_params.is_empty() {
+            String::new()
+        } else {
+            dump_type_params(module, &decl.type_params)
+        };
         let interfaces = dump_interface_list(module, &decl.interfaces);
         out.push_str(&format!(
-            "  {modifier}class {}({}){}\n",
+            "  {modifier}class {}{}({}){}\n",
             decl.name,
+            type_params,
             ctor.join(", "),
             interfaces
         ));
@@ -1461,28 +2345,46 @@ pub fn dump(module: &Module) -> String {
         let type_params = if decl.type_params.is_empty() {
             String::new()
         } else {
-            dump_type_params(&decl.type_params)
+            dump_type_params(module, &decl.type_params)
         };
-        out.push_str(&format!("  interface {}{}\n", decl.name, type_params));
+        let parents = if decl.parents.is_empty() {
+            String::new()
+        } else {
+            format!(
+                " : {}",
+                decl.parents
+                    .iter()
+                    .map(|parent| type_name(
+                        module,
+                        module.interface_applications[*parent].canonical_type
+                    ))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )
+        };
+        out.push_str(&format!(
+            "  interface {}{}{}\n",
+            decl.name, type_params, parents
+        ));
         for method in &decl.methods {
-            let method_type_params = if method.type_params.is_empty() {
-                String::new()
-            } else {
-                dump_type_params(&method.type_params)
-            };
-            let params: Vec<String> = method
+            let function = &module.functions[module.interface_methods[*method].function];
+            let params: Vec<String> = function
                 .params
                 .iter()
+                .skip(1)
                 .map(|param| format!("{}: {}", param.name, type_name(module, param.ty)))
                 .collect();
             out.push_str(&format!(
-                "    {}fun {}{}({}): {}{}\n",
-                if method.is_suspend { "suspend " } else { "" },
-                method.name,
-                method_type_params,
+                "    {}{}fun {}({}): {}{}\n",
+                match function.method.and_then(|method| method.operator) {
+                    Some(OperatorKind::Equals) => "operator ",
+                    None => "",
+                },
+                if function.is_suspend { "suspend " } else { "" },
+                function.name.rsplit('.').next().unwrap_or(&function.name),
                 params.join(", "),
-                type_name(module, method.return_ty),
-                dump_function_attributes(method.attributes)
+                type_name(module, function.return_ty),
+                dump_function_attributes(function.attributes)
             ));
         }
     }
@@ -1537,10 +2439,11 @@ pub fn dump(module: &Module) -> String {
             continue;
         }
         let function = &module.functions[id];
-        let type_params = if function.type_params.is_empty() {
+        let function_type_params: Vec<_> = function.type_params().into_iter().cloned().collect();
+        let type_params = if function_type_params.is_empty() {
             String::new()
         } else {
-            dump_type_params(&function.type_params)
+            dump_type_params(module, &function_type_params)
         };
         let params: Vec<String> = match function.kind {
             FunctionKind::Extern(id) => module.extern_functions[id]
@@ -1563,36 +2466,50 @@ pub fn dump(module: &Module) -> String {
             type_name(module, function.return_ty)
         );
         let suspend = if function.is_suspend { "suspend " } else { "" };
+        let operator = match function.method.and_then(|method| method.operator) {
+            Some(OperatorKind::Equals) => "operator ",
+            None => "",
+        };
         let attributes = dump_function_attributes(function.attributes);
-        let no_gc_condition = module
-            .generic_functions
-            .iter()
-            .find(|(_, generic)| generic.function == id && !generic.no_gc_type_params.is_empty())
-            .map(|(_, generic)| {
-                let parameters = generic
-                    .no_gc_type_params
-                    .iter()
-                    .map(|parameter| {
-                        function.type_params[parameter.into_raw() as usize]
-                            .name
-                            .as_str()
-                    })
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                format!(" <requires-gc-free {parameters}>")
-            })
-            .unwrap_or_default();
+        let no_gc_requirements = match &function.genericity {
+            FunctionGenericity::Plain => &[][..],
+            FunctionGenericity::Generic { definition, .. } => {
+                &module.generic_functions[*definition].no_gc_type_params
+            }
+            FunctionGenericity::OwnerParameterizedMethod {
+                no_gc_type_params, ..
+            } => no_gc_type_params,
+            FunctionGenericity::GenericMethod { definition, .. } => {
+                &module.generic_methods[*definition].no_gc_type_params
+            }
+        };
+        let no_gc_condition = if no_gc_requirements.is_empty() {
+            String::new()
+        } else {
+            let parameters = no_gc_requirements
+                .iter()
+                .map(|parameter| function.type_param(*parameter).name.as_str())
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!(" <requires-gc-free {parameters}>")
+        };
         match &function.kind {
-            FunctionKind::Intrinsic(name) => {
+            FunctionKind::Intrinsic(intrinsic) => {
                 out.push_str(&format!(
-                    "  {suspend}fun {signature}{attributes}{no_gc_condition} <intrinsic {name}>\n"
+                    "  {operator}{suspend}fun {signature}{attributes}{no_gc_condition} <intrinsic {}>\n",
+                    intrinsic.kind.name(),
                 ));
             }
             FunctionKind::User(body) => {
                 out.push_str(&format!(
-                    "  {suspend}fun {signature}{attributes}{no_gc_condition}\n"
+                    "  {operator}{suspend}fun {signature}{attributes}{no_gc_condition}\n"
                 ));
                 dump_statements(module, &body.locals, &body.statements, 2, &mut out);
+            }
+            FunctionKind::DerivedEquality => {
+                out.push_str(&format!(
+                    "  {operator}{suspend}fun {signature}{attributes}{no_gc_condition} <derived equality>\n"
+                ));
             }
             FunctionKind::Extern(id) => {
                 let extern_ = &module.extern_functions[*id];
@@ -1641,10 +2558,28 @@ pub fn dump(module: &Module) -> String {
             args.join(", ")
         ));
     }
+    for (_, application) in module.generic_method_applications.iter() {
+        let function = module.generic_methods[application.method].function;
+        let owner = generic_method_owner_arguments(module, application.owner)
+            .iter()
+            .map(|argument| type_name(module, *argument))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let method = application
+            .method_arguments
+            .iter()
+            .map(|argument| type_name(module, *argument))
+            .collect::<Vec<_>>()
+            .join(", ");
+        out.push_str(&format!(
+            "  method instance {}<owner=[{}], method=[{}]>\n",
+            module.functions[function].name, owner, method
+        ));
+    }
     out
 }
 
-fn dump_type_params(params: &[TypeParamDecl]) -> String {
+fn dump_type_params(module: &Module, params: &[TypeParamDecl]) -> String {
     let params = params
         .iter()
         .map(|param| {
@@ -1653,12 +2588,34 @@ fn dump_type_params(params: &[TypeParamDecl]) -> String {
                 Variance::In => "in ",
                 Variance::Out => "out ",
             };
-            let kind = match param.kind {
-                TypeParamKind::Any => "",
-                TypeParamKind::Value => " : value",
-                TypeParamKind::Ref => " : ref",
+            let bounds = match &param.bounds {
+                TypeParamBounds::Unconstrained => String::new(),
+                TypeParamBounds::Value { .. } => " : value".to_string(),
+                TypeParamBounds::Ref { .. } => " : ref".to_string(),
+                TypeParamBounds::Interfaces(bounds) => format!(
+                    " : {}",
+                    bounds
+                        .iter()
+                        .map(|bound| {
+                            let application = &module.interface_applications[bound.application];
+                            let name = &module.interfaces[application.template].name;
+                            if application.arguments.is_empty() {
+                                name.clone()
+                            } else {
+                                let arguments = application
+                                    .arguments
+                                    .iter()
+                                    .map(|ty| type_name_with_params(module, *ty, params))
+                                    .collect::<Vec<_>>()
+                                    .join(", ");
+                                format!("{name}<{arguments}>")
+                            }
+                        })
+                        .collect::<Vec<_>>()
+                        .join(" & ")
+                ),
             };
-            format!("{variance}{}{kind}", param.name)
+            format!("{variance}{}{bounds}", param.name)
         })
         .collect::<Vec<_>>();
     format!("<{}>", params.join(", "))
@@ -1831,7 +2788,9 @@ pub fn dump_pattern(pattern: &Pattern) -> String {
     match pattern {
         Pattern::Binding { local } => format!("local{}", local.into_raw()),
         Pattern::Wildcard => "_".to_string(),
-        Pattern::Literal(expr) => format!("<lit {:?}>", expr.kind).chars().take(40).collect(),
+        Pattern::Literal { value, .. } => {
+            format!("<lit {:?}>", value.kind).chars().take(40).collect()
+        }
         Pattern::Variant {
             variant, fields, ..
         } => {
@@ -1855,15 +2814,75 @@ pub fn dump_pattern(pattern: &Pattern) -> String {
     }
 }
 
-fn callable_parts(module: &Module, callable: Callable) -> (FunctionId, Option<&[TypeId]>) {
+fn callable_function(module: &Module, callable: Callable) -> FunctionId {
     match callable {
-        Callable::Function(function) => (function, None),
+        Callable::Function(function) => function,
+        Callable::Generic(id) => {
+            module.generic_functions[module.instantiations[id].generic].function
+        }
+        Callable::Method(id) => module.method_applications[id].function,
+        Callable::GenericMethod(id) => {
+            module.generic_methods[module.generic_method_applications[id].method].function
+        }
+    }
+}
+
+/// Compose application arguments only for the human-readable HIR dump. No
+/// semantic consumer receives this flattened presentation value.
+fn callable_dump_parts(module: &Module, callable: Callable) -> (FunctionId, Vec<TypeId>) {
+    match callable {
+        Callable::Function(function) => (function, Vec::new()),
         Callable::Generic(id) => {
             let resolved = &module.instantiations[id];
             (
                 module.generic_functions[resolved.generic].function,
-                Some(&resolved.type_args),
+                resolved.type_args.clone(),
             )
+        }
+        Callable::Method(id) => {
+            let application = &module.method_applications[id];
+            (
+                application.function,
+                method_owner_arguments(module, application.owner).to_vec(),
+            )
+        }
+        Callable::GenericMethod(id) => {
+            let application = &module.generic_method_applications[id];
+            let mut arguments = generic_method_owner_arguments(module, application.owner).to_vec();
+            arguments.extend(application.method_arguments.iter().copied());
+            (
+                module.generic_methods[application.method].function,
+                arguments,
+            )
+        }
+    }
+}
+
+fn method_owner_arguments(module: &Module, owner: MethodOwnerApplication) -> &[TypeId] {
+    match owner {
+        MethodOwnerApplication::Class(id) => &module.class_applications[id].arguments,
+        MethodOwnerApplication::Struct(id) => &module.struct_applications[id].arguments,
+        MethodOwnerApplication::Enum(id) => &module.enum_applications[id].arguments,
+        MethodOwnerApplication::Interface(id) => &module.interface_applications[id].arguments,
+    }
+}
+
+fn generic_method_owner_arguments(module: &Module, owner: GenericMethodOwner) -> &[TypeId] {
+    match owner {
+        GenericMethodOwner::Class(id) => &module.class_applications[id].arguments,
+        GenericMethodOwner::Struct(id) => &module.struct_applications[id].arguments,
+        GenericMethodOwner::Enum(id) => &module.enum_applications[id].arguments,
+    }
+}
+
+fn method_callee_function(module: &Module, callee: MethodCallee) -> FunctionId {
+    match callee {
+        MethodCallee::Callable(callable) => callable_function(module, callable),
+        MethodCallee::Bound(bound) => {
+            module.interface_methods[module.bound_callable_refs[bound].member].function
+        }
+        MethodCallee::DerivedEquality(application) => {
+            module.derived_equality_applications[application].function
         }
     }
 }
@@ -1884,35 +2903,53 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
                 dump_expr(module, locals, element, indent + 1, out);
             }
         }
-        ExprKind::ClassInit { class_id, args } => {
-            out.push_str(&format!(
-                "{pad}ClassInit {} : {ty}\n",
-                module.classes[*class_id].name
-            ));
+        ExprKind::ClassInit { application, args } => {
+            let application = &module.class_applications[*application];
+            let name = &module.classes[application.template].name;
+            let arguments = application
+                .arguments
+                .iter()
+                .map(|ty| type_name(module, *ty))
+                .collect::<Vec<_>>();
+            let constructed = if arguments.is_empty() {
+                name.clone()
+            } else {
+                format!("{name}<{}>", arguments.join(", "))
+            };
+            out.push_str(&format!("{pad}ClassInit {} : {ty}\n", constructed));
             for arg in args {
                 dump_expr(module, locals, arg, indent + 1, out);
             }
         }
-        ExprKind::StructInit { struct_id, args } => {
+        ExprKind::ConstructorParam(parameter) => out.push_str(&format!(
+            "{pad}ConstructorParam #{} : {ty}\n",
+            parameter.into_raw()
+        )),
+        ExprKind::StructInit { application, args } => {
+            let application = &module.struct_applications[*application];
             out.push_str(&format!(
                 "{pad}StructInit {} : {ty}\n",
-                module.structs[*struct_id].name
+                module.structs[application.template].name
             ));
             for arg in args {
                 dump_expr(module, locals, arg, indent + 1, out);
             }
         }
         ExprKind::VariantConstruct {
-            enum_id,
+            application,
             variant,
-            type_args,
             args,
         } => {
-            let decl = &module.enums[*enum_id];
-            let type_args = if type_args.is_empty() {
+            let application = &module.enum_applications[*application];
+            let decl = &module.enums[application.template];
+            let type_args = if application.arguments.is_empty() {
                 String::new()
             } else {
-                let args: Vec<String> = type_args.iter().map(|t| type_name(module, *t)).collect();
+                let args: Vec<String> = application
+                    .arguments
+                    .iter()
+                    .map(|t| type_name(module, *t))
+                    .collect();
                 format!("<{}>", args.join(", "))
             };
             out.push_str(&format!(
@@ -1974,17 +3011,21 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
         }
         ExprKind::CallableReference(id) => {
             let reference = &module.callable_references[*id];
-            let (callable, receiver) = match &reference.target {
-                CallableReferenceTarget::Named(callable) => (*callable, None),
-                CallableReferenceTarget::Local { callee, .. } => (*callee, None),
-                CallableReferenceTarget::BoundMember { receiver, callee } => {
-                    (*callee, Some(receiver.as_ref()))
+            let (function, receiver) = match &reference.target {
+                CallableReferenceTarget::Named(callable) => {
+                    (callable_function(module, *callable), None)
                 }
+                CallableReferenceTarget::Local { callee, .. } => {
+                    (callable_function(module, *callee), None)
+                }
+                CallableReferenceTarget::BoundMember { receiver, callee } => (
+                    method_callee_function(module, *callee),
+                    Some(receiver.as_ref()),
+                ),
                 CallableReferenceTarget::BoundExtension { receiver, callee } => {
-                    (*callee, Some(receiver.as_ref()))
+                    (callable_function(module, *callee), Some(receiver.as_ref()))
                 }
             };
-            let (function, _) = callable_parts(module, callable);
             out.push_str(&format!(
                 "{pad}CallableReference reference{} target={} captures={} : {ty}\n",
                 id.into_raw(),
@@ -2123,12 +3164,14 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
             dump_expr(module, locals, receiver, indent + 1, out);
         }
         ExprKind::Call { callee, args } => {
-            let (function, type_args) = callable_parts(module, *callee);
+            let (function, type_args) = callable_dump_parts(module, *callee);
             let callee = &module.functions[function];
-            let type_args = type_args.map_or_else(String::new, |type_args| {
+            let type_args = if type_args.is_empty() {
+                String::new()
+            } else {
                 let args: Vec<String> = type_args.iter().map(|t| type_name(module, *t)).collect();
                 format!("<{}>", args.join(", "))
-            });
+            };
             out.push_str(&format!("{pad}Call {}{type_args} : {ty}\n", callee.name));
             for arg in args {
                 dump_expr(module, locals, arg, indent + 1, out);
@@ -2140,11 +3183,13 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
             captures,
             args,
         } => {
-            let (function, type_args) = callable_parts(module, *callee);
-            let type_args = type_args.map_or_else(String::new, |type_args| {
+            let (function, type_args) = callable_dump_parts(module, *callee);
+            let type_args = if type_args.is_empty() {
+                String::new()
+            } else {
                 let args: Vec<String> = type_args.iter().map(|t| type_name(module, *t)).collect();
                 format!("<{}>", args.join(", "))
-            });
+            };
             out.push_str(&format!(
                 "{pad}LocalFunctionCall local{} {}{type_args} captures={} : {ty}\n",
                 local_function.into_raw(),
@@ -2186,11 +3231,24 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
             callee,
             args,
         } => {
-            let (function, _) = callable_parts(module, *callee);
-            out.push_str(&format!(
-                "{pad}MethodCall {} : {ty}\n",
-                module.functions[function].name
-            ));
+            let function = method_callee_function(module, *callee);
+            let target = match callee {
+                MethodCallee::Callable(_) => module.functions[function].name.clone(),
+                MethodCallee::Bound(bound) => {
+                    let bound = &module.bound_callable_refs[*bound];
+                    let interface = &module.interface_applications[bound.bound];
+                    format!(
+                        "bound T{} via {} -> {}",
+                        bound.receiver_parameter.into_raw(),
+                        type_name(module, interface.canonical_type),
+                        module.functions[function].name
+                    )
+                }
+                MethodCallee::DerivedEquality(_) => {
+                    format!("{} <derived>", module.functions[function].name)
+                }
+            };
+            out.push_str(&format!("{pad}MethodCall {} : {ty}\n", target));
             dump_expr(module, locals, receiver, indent + 1, out);
             for arg in args {
                 dump_expr(module, locals, arg, indent + 1, out);

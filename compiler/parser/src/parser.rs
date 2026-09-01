@@ -122,7 +122,10 @@ impl Parser {
             | TokenKind::Interface
             | TokenKind::At => true,
             TokenKind::Ident(text) => {
-                matches!(text.as_str(), "open" | "abstract" | "sealed" | "object")
+                matches!(
+                    text.as_str(),
+                    "open" | "abstract" | "sealed" | "object" | "operator"
+                )
             }
             _ => false,
         }
@@ -389,11 +392,8 @@ impl Parser {
     fn parse_statement(&mut self) -> Result<Statement, Diagnostic> {
         match &self.peek().kind {
             TokenKind::Fun if !matches!(self.tokens[self.pos + 1].kind, TokenKind::LParen) => {
-                let function = self.parse_function(
-                    Vec::new(),
-                    crate::decl::Modifiers::default(),
-                    crate::decl::FunctionContext::Local,
-                )?;
+                let function = self
+                    .parse_non_member_function(Vec::new(), crate::decl::FunctionContext::Local)?;
                 Ok(Statement {
                     span: function.span,
                     kind: StatementKind::LocalFunction(function),
@@ -403,17 +403,19 @@ impl Parser {
                 if matches!(self.tokens[self.pos + 1].kind, TokenKind::Fun)
                     && !matches!(self.tokens[self.pos + 2].kind, TokenKind::LParen) =>
             {
-                let suspend = self.bump();
-                let function = self.parse_function(
-                    Vec::new(),
-                    crate::decl::Modifiers {
-                        is_suspend: true,
-                        suspend_span: Some(suspend.span),
-                        start: Some(suspend.span.start),
-                        ..crate::decl::Modifiers::default()
-                    },
-                    crate::decl::FunctionContext::Local,
-                )?;
+                let function = self
+                    .parse_non_member_function(Vec::new(), crate::decl::FunctionContext::Local)?;
+                Ok(Statement {
+                    span: function.span,
+                    kind: StatementKind::LocalFunction(function),
+                })
+            }
+            TokenKind::Ident(text)
+                if text == "operator"
+                    && !matches!(self.tokens[self.pos + 1].kind, TokenKind::LParen) =>
+            {
+                let function = self
+                    .parse_non_member_function(Vec::new(), crate::decl::FunctionContext::Local)?;
                 Ok(Statement {
                     span: function.span,
                     kind: StatementKind::LocalFunction(function),

@@ -39,16 +39,20 @@ void scoop_rt_println(const ScoopString *s) {
     fputc('\n', stdout);
 }
 
-// Identity for String's own `toString` vtable slot (M7).
-const ScoopString *scoop_rt_string_identity(const ScoopString *s) {
-    return s;
-}
-
 // Format an i64 into a fresh ScoopString (GC-allocated), backing
 // core's `intToString` (M7).
 const ScoopString *scoop_rt_int_to_string(int64_t v) {
     char buf[24]; // -2^63 needs 20 chars + NUL
     int len = snprintf(buf, sizeof(buf), "%lld", (long long)v);
+    ScoopString *result = scoop_rt_alloc(&scoop_td_String, sizeof(ScoopString) + (size_t)len);
+    result->len = (uint64_t)len;
+    memcpy(result->data, buf, (size_t)len);
+    return result;
+}
+
+const ScoopString *scoop_rt_uint_to_string(uint64_t v) {
+    char buf[24]; // 2^64 - 1 needs 20 chars + NUL
+    int len = snprintf(buf, sizeof(buf), "%llu", (unsigned long long)v);
     ScoopString *result = scoop_rt_alloc(&scoop_td_String, sizeof(ScoopString) + (size_t)len);
     result->len = (uint64_t)len;
     memcpy(result->data, buf, (size_t)len);
@@ -66,6 +70,48 @@ const ScoopString *scoop_rt_bool_to_string(bool v) {
     result->len = (uint64_t)len;
     memcpy(result->data, text, len);
     return result;
+}
+
+bool scoop_rt_int_equals(int64_t left, int64_t right) {
+    return left == right;
+}
+
+bool scoop_rt_uint_equals(uint64_t left, uint64_t right) {
+    return left == right;
+}
+
+bool scoop_rt_bool_equals(bool left, bool right) {
+    return left == right;
+}
+
+static uint64_t scoop_rt_mix_word(uint64_t value) {
+    value ^= value >> 30;
+    value *= UINT64_C(0xbf58476d1ce4e5b9);
+    value ^= value >> 27;
+    value *= UINT64_C(0x94d049bb133111eb);
+    value ^= value >> 31;
+    return value;
+}
+
+int64_t scoop_rt_int_hash(int64_t v) {
+    return (int64_t)scoop_rt_mix_word((uint64_t)v);
+}
+
+int64_t scoop_rt_uint_hash(uint64_t v) {
+    return (int64_t)scoop_rt_mix_word(v);
+}
+
+int64_t scoop_rt_bool_hash(bool v) {
+    return v ? 1 : 0;
+}
+
+int64_t scoop_rt_string_hash(const ScoopString *s) {
+    uint64_t hash = UINT64_C(1469598103934665603);
+    for (uint64_t index = 0; index < s->len; index++) {
+        hash ^= (uint8_t)s->data[index];
+        hash *= UINT64_C(1099511628211);
+    }
+    return (int64_t)hash;
 }
 
 const ScoopString *scoop_rt_string_concat(const ScoopString *a, const ScoopString *b) {
@@ -103,14 +149,17 @@ _Noreturn void scoop_rt_trap(const char *message) {
     abort();
 }
 
-const void *scoop_rt_array_clone(const void *obj, uint64_t elem_size,
-                                 uint64_t data_offset) {
+const void *scoop_rt_array_clone(const void *obj,
+                                 const ScoopTypeDescriptor *target_td,
+                                 uint64_t elem_size, uint64_t data_offset) {
     const ScoopArray *src = obj;
     size_t bytes = (size_t)data_offset + (size_t)(src->size * elem_size);
-    /* GC allocation: the copy keeps the source's TypeDescriptor (the
-     * conversion preserves the array type, spec 10.4). */
-    void *copy = scoop_rt_alloc(src->header.td, bytes);
-    memcpy(copy, obj, bytes);
+    /* The target nominal array application is fixed by MIR/LIR. Preserve the
+     * fresh GC header and copy only size/padding/elements. */
+    void *copy = scoop_rt_alloc(target_td, bytes);
+    memcpy((char *)copy + sizeof(ScoopObjectHeader),
+           (const char *)obj + sizeof(ScoopObjectHeader),
+           bytes - sizeof(ScoopObjectHeader));
     return copy;
 }
 
@@ -144,24 +193,6 @@ const void *const *scoop_rt_itable_lookup(const ScoopTypeDescriptor *obj_td,
     }
     fprintf(stderr, "scoop_rt_itable_lookup: no itable entry for the interface\n");
     abort();
-}
-
-bool scoop_rt_any_equals(const void *a, const void *b) {
-    return a == b;
-}
-
-uint64_t scoop_rt_any_hashcode(const void *a) {
-    return (uint64_t)(uintptr_t)a;
-}
-
-const ScoopString *scoop_rt_any_tostring(const void *a) {
-    /* "Object@<hex>" minimal form (milestone6 DESIGN section 3). */
-    char buf[32];
-    int len = snprintf(buf, sizeof buf, "Object@%llx", (unsigned long long)(uintptr_t)a);
-    ScoopString *result = scoop_rt_alloc(&scoop_td_String, sizeof(ScoopString) + (size_t)len);
-    result->len = (uint64_t)len;
-    memcpy(result->data, buf, (size_t)len);
-    return result;
 }
 
 /* M8 (milestone8 DESIGN section 4, runtime spec 5). */

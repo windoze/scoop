@@ -8,7 +8,7 @@
 
 M12 交付以下闭环：Scoop 声明一个外部函数并链接原生库；在显式 unsafe context 中通过 C ABI 传入 GC-free 标量、指针或 `@CLayout` struct；外部函数可以读写显式全局存储并同步回调一个 `@NoGC` Scoop 顶层函数；返回后 Scoop 继续执行。Scoop ABI extern 另以普通 managed call直接传递 ref，作为 runtime / core 的 GC-aware 入口，并用于退役 `write(String)` intrinsic。
 
-- 支持 `@Extern`、`@NoGC`、`@Unsafe`、`@Safe`、`@CLayout`、`@CallingConvention`、`@Global`、`@ThreadLocal`、`@InteriorMutable`；`@Intrinsic` 迁移到同一套通用注解 AST 与共存检查，但仍只允许 core 声明已登记的 intrinsic；
+- 支持 `@Extern`、`@NoGC`、`@Unsafe`、`@Safe`、`@CLayout`、`@CallingConvention`、`@Global`、`@ThreadLocal`、`@InteriorMutable`；`@Intrinsic` 迁移到同一套通用注解 AST 与共存检查，生产编译仍只允许 core 声明已登记的 intrinsic。M14将其扩展到intrinsic type，并为compiler test增加只放宽provider来源检查的内部allowlist；
 - 支持 `T : value` / `T : ref` 两种 kind bound，满足 `Ptr<T>` 与 GC handle API 的需要；interface 上界和 `where` 子句仍属于 M14；
 - 支持 `Ptr<T>`、`Option<Ptr<T>>`、`FunPtr<(A...) -> R>`、`Option<FunPtr<F>>`，并复用 M11 的函数类型与中性函数声明引用语法：在明确的 `FunPtr<F>` 期望类型下，合格的顶层 `::name` 直接解析为 native callback 地址；在 managed 函数类型上下文或无期望类型时，同一语法仍产生 M11 callable reference。managed 函数值/lambda/closure 不是 C-FFI-safe，不能一般性转换为 `FunPtr`；`FunPtr` 本身不提供 `invoke`。M12 只交付同步同线程的 `@NoGC` callback，不导出 managed closure、不建立 callback token，也不允许 foreign thread进入 managed代码；这些能力由 M13 完成；
 - 支持 M12 所需的最小顶层存储声明：extern `val` / `var` 无 initializer；本 Cone 的 `@Global` / `@ThreadLocal var` 只接受 GC-free 编译期常量 initializer。普通顶层属性、引用类型全局根、动态初始化顺序与 `const val` 仍在既有 backlog；

@@ -1,0 +1,33 @@
+class Empty<T>()
+
+struct Pair<T>(val value: T)
+
+enum Choice<T> {
+    Value(T),
+    Empty
+}
+
+interface Cell<T> {
+    fun get(): T
+}
+
+class VariantClass<out T>()
+
+struct VariantStruct<in T>(val value: T)
+
+enum VariantEnum<out T> {
+    Value(T)
+}
+
+fun rawClass(value: Empty) {}
+
+fun rawStruct(value: Pair) {}
+
+fun rawEnum(value: Choice) {}
+
+fun rawInterface(value: Cell) {}
+
+fun main() {
+    Empty()
+    Empty<Int, String>()
+}

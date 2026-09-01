@@ -32,12 +32,14 @@ use scoop_hir as hir;
 use ast::Span;
 use hir::{FunctionId, Type, TypeId};
 
-use crate::Lowerer;
+use crate::{CallableCandidate, CallableCandidateSource, Lowerer};
 
 /// The winner of overload resolution, ready to be wrapped in an
 /// `ExprKind::Call` / `ExprKind::MethodCall` by the caller.
 pub(crate) struct ResolvedCallee {
     pub(crate) callee: hir::Callable,
+    pub(crate) source: CallableCandidateSource,
+    pub(crate) type_args: Vec<TypeId>,
     /// The arguments, lowered once and adapted (boxed where needed) to
     /// the winner's parameter types.
     pub(crate) args: Vec<hir::Expr>,
@@ -51,12 +53,36 @@ pub(crate) struct OverloadCall<'a> {
     pub(crate) span: Span,
 }
 
+/// A member-overload call whose arguments have already been lowered in source
+/// order. Operator resolution uses this form because both operands are
+/// language-mandated single evaluations, while applicability and MSC must
+/// remain exactly the ordinary member-call algorithm.
+pub(crate) struct LoweredOverloadCall {
+    pub(crate) explicit_type_args: Vec<TypeId>,
+    pub(crate) args: Vec<hir::Expr>,
+    pub(crate) span: Span,
+}
+
+enum OverloadArguments<'a> {
+    Source(&'a [ast::Expr]),
+    Lowered(Vec<hir::Expr>),
+}
+
+struct OverloadResolution<'a> {
+    receiver: OverloadReceiver,
+    explicit_type_args: &'a [TypeId],
+    arguments: OverloadArguments<'a>,
+    span: Span,
+}
+
 /// A candidate prepared for resolution: parameter and return types
 /// still use the function's combined type-parameter namespace. A generic
 /// receiver pre-binds the owner prefix; applicability infers the remaining
 /// method suffix and substitutes the complete vector.
 struct Candidate {
     function: FunctionId,
+    owner: crate::CallableCandidateOwner,
+    source: CallableCandidateSource,
     params: Vec<TypeId>,
     return_ty: TypeId,
     /// Parameters declared by the function/method itself. Owner-only
@@ -72,8 +98,8 @@ struct Candidate {
     parameterized: bool,
 }
 
-enum OverloadReceiver<'a> {
-    Ordinary(&'a [TypeId]),
+enum OverloadReceiver {
+    Ordinary,
     Extension(hir::Expr),
 }
 
@@ -91,11 +117,65 @@ impl Lowerer {
         call: OverloadCall<'_>,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<ResolvedCallee> {
+        let candidates = candidates
+            .iter()
+            .copied()
+            .map(|function| CallableCandidate::function(function, receiver_type_args.to_vec()))
+            .collect::<Vec<_>>();
+        self.resolve_overload_with_receiver(
+            name,
+            &candidates,
+            OverloadResolution {
+                receiver: OverloadReceiver::Ordinary,
+                explicit_type_args: call.explicit_type_args,
+                arguments: OverloadArguments::Source(call.arg_exprs),
+                span: call.span,
+            },
+            sink,
+        )
+    }
+
+    pub(crate) fn resolve_member_overload(
+        &mut self,
+        name: &str,
+        candidates: &[CallableCandidate],
+        call: OverloadCall<'_>,
+        sink: &mut Vec<hir::Statement>,
+    ) -> Option<ResolvedCallee> {
         self.resolve_overload_with_receiver(
             name,
             candidates,
-            OverloadReceiver::Ordinary(receiver_type_args),
-            call,
+            OverloadResolution {
+                receiver: OverloadReceiver::Ordinary,
+                explicit_type_args: call.explicit_type_args,
+                arguments: OverloadArguments::Source(call.arg_exprs),
+                span: call.span,
+            },
+            sink,
+        )
+    }
+
+    pub(crate) fn resolve_member_overload_lowered(
+        &mut self,
+        name: &str,
+        candidates: &[CallableCandidate],
+        call: LoweredOverloadCall,
+        sink: &mut Vec<hir::Statement>,
+    ) -> Option<ResolvedCallee> {
+        let LoweredOverloadCall {
+            explicit_type_args,
+            args,
+            span,
+        } = call;
+        self.resolve_overload_with_receiver(
+            name,
+            candidates,
+            OverloadResolution {
+                receiver: OverloadReceiver::Ordinary,
+                explicit_type_args: &explicit_type_args,
+                arguments: OverloadArguments::Lowered(args),
+                span,
+            },
             sink,
         )
     }
@@ -111,11 +191,20 @@ impl Lowerer {
         call: OverloadCall<'_>,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<ResolvedCallee> {
+        let candidates = candidates
+            .iter()
+            .copied()
+            .map(|function| CallableCandidate::function(function, Vec::new()))
+            .collect::<Vec<_>>();
         self.resolve_overload_with_receiver(
             name,
-            candidates,
-            OverloadReceiver::Extension(receiver),
-            call,
+            &candidates,
+            OverloadResolution {
+                receiver: OverloadReceiver::Extension(receiver),
+                explicit_type_args: call.explicit_type_args,
+                arguments: OverloadArguments::Source(call.arg_exprs),
+                span: call.span,
+            },
             sink,
         )
     }
@@ -123,40 +212,49 @@ impl Lowerer {
     fn resolve_overload_with_receiver(
         &mut self,
         name: &str,
-        candidates: &[FunctionId],
-        receiver: OverloadReceiver<'_>,
-        call: OverloadCall<'_>,
+        candidates: &[CallableCandidate],
+        resolution: OverloadResolution<'_>,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<ResolvedCallee> {
-        let OverloadCall {
+        let OverloadResolution {
+            receiver,
             explicit_type_args,
-            arg_exprs,
+            arguments,
             span,
-        } = call;
+        } = resolution;
+        let arg_count = match &arguments {
+            OverloadArguments::Source(args) => args.len(),
+            OverloadArguments::Lowered(args) => args.len(),
+        };
         // Context-independent arguments are shared by every candidate and
         // lowered once. `None`, empty arrays and context-dependent generic
         // constructors are postponed until inference provides a candidate
         // parameter type. Per-argument sinks preserve source evaluation
         // order even when later arguments are typed first.
-        let (receiver_type_args, receiver) = match receiver {
-            OverloadReceiver::Ordinary(type_args) => (type_args, None),
-            OverloadReceiver::Extension(receiver) => (&[][..], Some(receiver)),
+        let receiver = match receiver {
+            OverloadReceiver::Ordinary => None,
+            OverloadReceiver::Extension(receiver) => Some(receiver),
         };
         let receiver_offset = usize::from(receiver.is_some());
-        let mut lowered: Vec<Option<hir::Expr>> =
-            Vec::with_capacity(receiver_offset + arg_exprs.len());
+        let mut lowered: Vec<Option<hir::Expr>> = Vec::with_capacity(receiver_offset + arg_count);
         if let Some(receiver) = receiver {
             lowered.push(Some(receiver));
         }
-        lowered.extend((0..arg_exprs.len()).map(|_| None));
-        let mut arg_sinks: Vec<Vec<hir::Statement>> =
-            (0..arg_exprs.len()).map(|_| Vec::new()).collect();
-        for (index, arg) in arg_exprs.iter().enumerate() {
-            if self.expr_requires_expected_type(arg) {
-                continue;
+        let mut arg_sinks: Vec<Vec<hir::Statement>> = (0..arg_count).map(|_| Vec::new()).collect();
+        match &arguments {
+            OverloadArguments::Source(arg_exprs) => {
+                lowered.extend((0..arg_exprs.len()).map(|_| None));
+                for (index, arg) in arg_exprs.iter().enumerate() {
+                    if self.expr_requires_expected_type(arg) {
+                        continue;
+                    }
+                    lowered[receiver_offset + index] =
+                        Some(self.lower_expr(arg, &mut arg_sinks[index], None)?);
+                }
             }
-            lowered[receiver_offset + index] =
-                Some(self.lower_expr(arg, &mut arg_sinks[index], None)?);
+            OverloadArguments::Lowered(args) => {
+                lowered.extend(args.iter().cloned().map(Some));
+            }
         }
         let arg_tys: Vec<Option<TypeId>> = lowered
             .iter()
@@ -165,7 +263,8 @@ impl Lowerer {
 
         let prepared: Vec<Candidate> = candidates
             .iter()
-            .map(|&function| {
+            .map(|source| {
+                let function = source.function;
                 let sig = self.signatures[&function].clone();
                 let mut params: Vec<_> = sig.params.iter().map(|param| param.ty).collect();
                 if receiver_offset != 0 {
@@ -178,9 +277,10 @@ impl Lowerer {
                     );
                 }
                 let parameterized = params.iter().any(|&ty| self.mentions_type_param(ty));
-                debug_assert_eq!(sig.owner_type_param_count, receiver_type_args.len());
+                let owner_arguments = self.callable_candidate_owner_arguments(source);
+                debug_assert_eq!(sig.owner_type_param_count, owner_arguments.len());
                 let mut initial_bindings = vec![None; sig.type_params.len()];
-                for (binding, &ty) in initial_bindings.iter_mut().zip(receiver_type_args) {
+                for (binding, &ty) in initial_bindings.iter_mut().zip(&owner_arguments) {
                     *binding = Some(ty);
                 }
                 let own_type_param_count = sig.type_params.len() - sig.owner_type_param_count;
@@ -196,6 +296,8 @@ impl Lowerer {
                 }
                 Candidate {
                     function,
+                    owner: source.owner.clone(),
+                    source: source.source,
                     params,
                     return_ty: sig.return_ty,
                     own_type_param_count,
@@ -241,7 +343,7 @@ impl Lowerer {
             if !candidate.explicit_arity_match {
                 continue;
             }
-            if candidate.params.len() != receiver_offset + arg_exprs.len() {
+            if candidate.params.len() != receiver_offset + arg_count {
                 continue;
             }
             let Some(type_args) = self.try_infer_type_args(candidate, &arg_tys) else {
@@ -267,16 +369,18 @@ impl Lowerer {
                 }
                 let expected = self.substitute_call_level(param, &type_args);
                 let source_argument = argument - receiver_offset;
-                if let Err(reason) =
-                    self.probe_contextual_expr(&arg_exprs[source_argument], expected)
-                {
-                    contextual_failures.push((source_argument, expected, reason));
-                    contextual_args_match = false;
+                if let OverloadArguments::Source(arg_exprs) = &arguments {
+                    if let Err(reason) =
+                        self.probe_contextual_expr(&arg_exprs[source_argument], expected)
+                    {
+                        contextual_failures.push((source_argument, expected, reason));
+                        contextual_args_match = false;
+                    }
                 }
             }
             if contextual_args_match {
-                let type_params = &self.signatures[&candidate.function].type_params;
-                if self.type_arguments_satisfy_kinds(type_params, &type_args) {
+                let type_params = self.signatures[&candidate.function].type_params.clone();
+                if self.type_arguments_satisfy_kinds(&type_params, &type_args) {
                     applicable.push((index, type_args));
                 } else {
                     kind_failures.push((index, type_args));
@@ -298,14 +402,23 @@ impl Lowerer {
                     );
                     return None;
                 }
-                if self.contextual_no_applicable_diagnostic(name, arg_exprs, &contextual_failures) {
-                    return None;
+                if let OverloadArguments::Source(arg_exprs) = &arguments {
+                    if self.contextual_no_applicable_diagnostic(
+                        name,
+                        arg_exprs,
+                        &contextual_failures,
+                    ) {
+                        return None;
+                    }
                 }
                 self.no_applicable_diagnostic(
                     name,
                     &prepared,
                     &arg_tys[receiver_offset..],
-                    arg_exprs,
+                    match &arguments {
+                        OverloadArguments::Source(args) => Some(args),
+                        OverloadArguments::Lowered(_) => None,
+                    },
                     (receiver_offset != 0).then(|| arg_tys[0]).flatten(),
                     span,
                 );
@@ -324,6 +437,9 @@ impl Lowerer {
                 Some(arg) => arg,
                 None => {
                     let source_index = index - receiver_offset;
+                    let OverloadArguments::Source(arg_exprs) = &arguments else {
+                        unreachable!("pre-lowered overload arguments are all present")
+                    };
                     self.lower_expr(
                         &arg_exprs[source_index],
                         &mut arg_sinks[source_index],
@@ -336,7 +452,10 @@ impl Lowerer {
                     name,
                     &prepared,
                     &arg_tys[receiver_offset..],
-                    arg_exprs,
+                    match &arguments {
+                        OverloadArguments::Source(args) => Some(args),
+                        OverloadArguments::Lowered(_) => None,
+                    },
                     (receiver_offset != 0).then(|| arg_tys[0]).flatten(),
                     span,
                 );
@@ -350,13 +469,16 @@ impl Lowerer {
         let return_ty = self.substitute_call_level(candidate.return_ty, &type_args);
         // The complete owner-prefix plus method-suffix vector identifies
         // the resolved generic entity stored on the HIR call.
-        let callee = if !type_args.is_empty() {
-            hir::Callable::Generic(self.record_instantiation(function, type_args.clone()))
-        } else {
-            hir::Callable::Function(function)
+        let resolved_candidate = CallableCandidate {
+            function,
+            owner: candidate.owner.clone(),
+            source: candidate.source,
         };
+        let callee = self.materialize_candidate_callable(&resolved_candidate, &type_args);
         Some(ResolvedCallee {
             callee,
+            source: candidate.source,
+            type_args,
             args,
             return_ty,
         })
@@ -465,12 +587,12 @@ impl Lowerer {
         name: &str,
         prepared: &[Candidate],
         arg_tys: &[Option<TypeId>],
-        arg_exprs: &[ast::Expr],
+        arg_exprs: Option<&[ast::Expr]>,
         extension_receiver: Option<TypeId>,
         span: Span,
     ) {
         let hidden_argument_count = usize::from(extension_receiver.is_some());
-        let supplied = arg_exprs.len();
+        let supplied = arg_tys.len();
         let uniform_arity = prepared[0].params.len() - hidden_argument_count;
         if prepared
             .iter()
@@ -492,10 +614,12 @@ impl Lowerer {
         }
         let found: Vec<String> = arg_tys
             .iter()
-            .zip(arg_exprs)
-            .map(|(ty, expr)| match ty {
+            .enumerate()
+            .map(|(index, ty)| match ty {
                 Some(ty) => self.type_name(*ty),
-                None => contextual_expr_name(expr),
+                None => contextual_expr_name(
+                    &arg_exprs.expect("only source arguments can remain contextual")[index],
+                ),
             })
             .collect();
         let message = match extension_receiver {
@@ -530,11 +654,23 @@ impl Lowerer {
     fn mentions_type_param(&self, ty: TypeId) -> bool {
         match self.types[ty].clone() {
             Type::Param(_) => true,
-            Type::Array(element) | Type::MutableArray(element) => self.mentions_type_param(element),
             Type::Ptr(pointee) => self.mentions_type_param(pointee),
-            Type::Enum(_, args) | Type::Struct(_, args) | Type::Interface(_, args) => {
-                args.iter().any(|&arg| self.mentions_type_param(arg))
-            }
+            Type::Enum(application) => self.enum_applications[application]
+                .arguments
+                .iter()
+                .any(|&arg| self.mentions_type_param(arg)),
+            Type::Struct(application) => self.struct_applications[application]
+                .arguments
+                .iter()
+                .any(|&arg| self.mentions_type_param(arg)),
+            Type::Class(application) => self.class_applications[application]
+                .arguments
+                .iter()
+                .any(|&arg| self.mentions_type_param(arg)),
+            Type::Interface(application) => self.interface_applications[application]
+                .arguments
+                .iter()
+                .any(|&arg| self.mentions_type_param(arg)),
             Type::Tuple(elements) => elements
                 .iter()
                 .any(|&element| self.mentions_type_param(element)),
@@ -601,44 +737,62 @@ impl Lowerer {
                     }
                 }
             }
-            (Type::Enum(param_id, param_args), Type::Enum(arg_id, arg_args))
-                if param_id == arg_id && param_args.len() == arg_args.len() =>
-            {
-                param_args
-                    .iter()
-                    .zip(arg_args)
-                    .all(|(param, arg)| self.try_bind(*param, arg, bindings))
+            (Type::Enum(param), Type::Enum(arg)) => {
+                let param = self.enum_applications[param].clone();
+                let arg = self.enum_applications[arg].clone();
+                param.template == arg.template
+                    && param.arguments.len() == arg.arguments.len()
+                    && param
+                        .arguments
+                        .iter()
+                        .zip(arg.arguments)
+                        .all(|(param, arg)| self.try_bind(*param, arg, bindings))
             }
-            (Type::Struct(param_id, param_args), Type::Struct(arg_id, arg_args))
-                if param_id == arg_id && param_args.len() == arg_args.len() =>
-            {
-                param_args
-                    .iter()
-                    .zip(arg_args.iter())
-                    .all(|(param, arg)| self.try_bind(*param, *arg, bindings))
+            (Type::Struct(param), Type::Struct(arg)) => {
+                let param = self.struct_applications[param].clone();
+                let arg = self.struct_applications[arg].clone();
+                param.template == arg.template
+                    && param.arguments.len() == arg.arguments.len()
+                    && param
+                        .arguments
+                        .iter()
+                        .zip(arg.arguments)
+                        .all(|(param, arg)| self.try_bind(*param, arg, bindings))
             }
-            (Type::Interface(param_id, param_args), Type::Interface(arg_id, arg_args))
-                if param_id == arg_id && param_args.len() == arg_args.len() =>
-            {
-                param_args
-                    .iter()
-                    .zip(arg_args.iter())
-                    .all(|(param, arg)| self.try_bind(*param, *arg, bindings))
+            (Type::Class(param), Type::Class(arg)) => {
+                let param = self.class_applications[param].clone();
+                let arg = self.class_applications[arg].clone();
+                param.template == arg.template
+                    && param.arguments.len() == arg.arguments.len()
+                    && param
+                        .arguments
+                        .iter()
+                        .zip(arg.arguments)
+                        .all(|(param, arg)| self.try_bind(*param, arg, bindings))
             }
-            (Type::Interface(param_id, param_args), _) => {
-                let Some(arg_args) = self.implemented_interface_application(arg_ty, param_id)
+            (Type::Interface(param), Type::Interface(arg)) => {
+                let param = self.interface_applications[param].clone();
+                let arg = self.interface_applications[arg].clone();
+                param.template == arg.template
+                    && param.arguments.len() == arg.arguments.len()
+                    && param
+                        .arguments
+                        .iter()
+                        .zip(arg.arguments)
+                        .all(|(param, arg)| self.try_bind(*param, arg, bindings))
+            }
+            (Type::Interface(param), _) => {
+                let param = self.interface_applications[param].clone();
+                let Some(arg_args) = self.implemented_interface_application(arg_ty, param.template)
                 else {
                     return true;
                 };
-                param_args.len() == arg_args.len()
-                    && param_args
+                param.arguments.len() == arg_args.len()
+                    && param
+                        .arguments
                         .iter()
                         .zip(arg_args)
                         .all(|(param, arg)| self.try_bind(*param, arg, bindings))
-            }
-            (Type::Array(param), Type::Array(arg))
-            | (Type::MutableArray(param), Type::MutableArray(arg)) => {
-                self.try_bind(param, arg, bindings)
             }
             (Type::Ptr(param), Type::Ptr(arg)) => self.try_bind(param, arg, bindings),
             (Type::Tuple(params), Type::Tuple(args)) if params.len() == args.len() => params

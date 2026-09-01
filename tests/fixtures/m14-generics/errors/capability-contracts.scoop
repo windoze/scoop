@@ -1,0 +1,15 @@
+class NamedEquals() {
+    final fun equals(other: NamedEquals): Boolean = true
+}
+
+class BadToString() : ToString {
+    override fun toString(): Int = 0
+}
+
+class BadHash() : Hash {
+    override fun hash(): String = "bad"
+}
+
+fun main() {
+    NamedEquals() == NamedEquals()
+}

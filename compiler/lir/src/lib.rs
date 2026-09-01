@@ -18,8 +18,38 @@ pub type EnumDefId = Idx<EnumDef>;
 pub type StructDefId = Idx<StructDef>;
 pub type ExternFunctionId = Idx<ExternFunction>;
 pub type NativeGlobalId = Idx<NativeGlobal>;
+pub type NativeGlobalGetBridgeId = Idx<NativeGlobalGetBridge>;
+pub type NativeGlobalSetBridgeId = Idx<NativeGlobalSetBridge>;
+pub type NativeGlobalAddressBridgeId = Idx<NativeGlobalAddressBridge>;
 pub type CallbackBridgeId = Idx<CallbackBridge>;
 pub type ForeignCallbackBridgeId = Idx<ForeignCallbackBridge>;
+pub type ArrayTypeId = Idx<ArrayType>;
+pub type VoidCallSignatureId = Idx<VoidCallSignature>;
+pub type DirectCallSignatureId = Idx<DirectCallSignature>;
+pub type IndirectResultCallSignatureId = Idx<IndirectResultCallSignature>;
+pub type VoidCallTargetId = Idx<VoidCallTarget>;
+pub type DirectCallTargetId = Idx<DirectCallTarget>;
+pub type IndirectResultCallTargetId = Idx<IndirectResultCallTarget>;
+pub type DispatchSlotId = Idx<DispatchSlot>;
+pub type LayoutId = Idx<Layout>;
+pub type TypeDescriptorId = Idx<TypeDescriptor>;
+pub type ExternalTypeDescriptorId = Idx<ExternalTypeDescriptor>;
+pub type ExternalCallableId = Idx<ExternalCallable>;
+
+/// Typed index into `Module::functions`. Functions remain in emission order,
+/// while call destinations no longer use their symbols as semantic identity.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct LocalFunctionId(u32);
+
+impl LocalFunctionId {
+    pub const fn from_u32(raw: u32) -> Self {
+        Self(raw)
+    }
+
+    pub const fn into_u32(self) -> u32 {
+        self.0
+    }
+}
 
 /// Symbol of the TypeDescriptor global for `String` (runtime spec 2.2).
 pub const STRING_TD_SYMBOL: &str = "scoop_td_String";
@@ -46,9 +76,6 @@ pub enum LirType {
     /// module's `StructDef`, so packed and over-aligned layouts cannot be
     /// erased into an anonymous natural aggregate.
     Struct(StructDefId),
-    /// An array object: pointer to `{ td, i64 size, inline elements }`
-    /// (spec 10.1). The payload is the element layout.
-    Array(Box<LirType>),
     /// An enum value; the representation is fixed by
     /// `EnumDef::repr` (niche pointer or tagged union, spec 7.4).
     Enum(EnumDefId),
@@ -96,7 +123,6 @@ impl LirType {
             }
             LirType::Struct(id) => format!("struct{}", id.into_raw()),
             LirType::Enum(id) => format!("enum{}", id.into_raw()),
-            LirType::Array(inner) => format!("[{}]", inner.dump()),
         }
     }
 }
@@ -115,6 +141,9 @@ pub struct Module {
     pub extern_functions: Arena<ExternFunction>,
     /// C data imports accessed only through generated get/set/address bridges.
     pub native_globals: Arena<NativeGlobal>,
+    /// Typed bridge entities used by native-global access records. Separate id
+    /// families make get/set/address roles impossible to interchange.
+    pub native_global_bridges: NativeGlobalBridges,
     /// Inbound C trampolines that adapt a native signature to a NoGC
     /// Scoop storage-ABI bridge.
     pub callback_bridges: Arena<CallbackBridge>,
@@ -154,10 +183,30 @@ pub enum ForeignCallbackMode {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ForeignCallbackOperation {
-    Retain,
-    Release,
-    State,
-    Failure,
+    Retain { out: TempId, callback: Value },
+    Release { callback: Value },
+    State { out: TempId, callback: Value },
+    Failure { out: TempId, callback: Value },
+}
+
+impl ForeignCallbackOperation {
+    pub fn callback(self) -> Value {
+        match self {
+            Self::Retain { callback, .. }
+            | Self::Release { callback }
+            | Self::State { callback, .. }
+            | Self::Failure { callback, .. } => callback,
+        }
+    }
+
+    pub fn out(self) -> Option<TempId> {
+        match self {
+            Self::Retain { out, .. } | Self::State { out, .. } | Self::Failure { out, .. } => {
+                Some(out)
+            }
+            Self::Release { .. } => None,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -167,11 +216,64 @@ pub struct NativeGlobal {
     pub library: String,
     pub ty: LirType,
     pub c_type: CType,
-    pub mutable: bool,
     pub thread_local: bool,
-    pub get_bridge_symbol: String,
-    pub set_bridge_symbol: Option<String>,
-    pub address_bridge_symbol: String,
+    pub access: NativeGlobalAccess,
+}
+
+#[derive(Debug, Default)]
+pub struct NativeGlobalBridges {
+    pub gets: Arena<NativeGlobalGetBridge>,
+    pub sets: Arena<NativeGlobalSetBridge>,
+    pub addresses: Arena<NativeGlobalAddressBridge>,
+}
+
+#[derive(Debug)]
+pub struct NativeGlobalGetBridge {
+    pub symbol: String,
+}
+
+#[derive(Debug)]
+pub struct NativeGlobalSetBridge {
+    pub symbol: String,
+}
+
+#[derive(Debug)]
+pub struct NativeGlobalAddressBridge {
+    pub symbol: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NativeGlobalAccess {
+    ReadOnly {
+        get: NativeGlobalGetBridgeId,
+        address: NativeGlobalAddressBridgeId,
+    },
+    Mutable {
+        get: NativeGlobalGetBridgeId,
+        set: NativeGlobalSetBridgeId,
+        address: NativeGlobalAddressBridgeId,
+    },
+}
+
+impl NativeGlobalAccess {
+    pub fn get(self) -> NativeGlobalGetBridgeId {
+        match self {
+            Self::ReadOnly { get, .. } | Self::Mutable { get, .. } => get,
+        }
+    }
+
+    pub fn set(self) -> Option<NativeGlobalSetBridgeId> {
+        match self {
+            Self::ReadOnly { .. } => None,
+            Self::Mutable { set, .. } => Some(set),
+        }
+    }
+
+    pub fn address(self) -> NativeGlobalAddressBridgeId {
+        match self {
+            Self::ReadOnly { address, .. } | Self::Mutable { address, .. } => address,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -249,42 +351,115 @@ pub struct CLayout {
 /// Per-Cone LIR metadata (impl spec 2.4): type layouts.
 #[derive(Debug)]
 pub struct LirMeta {
-    pub layouts: Vec<Layout>,
-    /// TypeDescriptors to emit (runtime spec 2.2): classes, boxed
-    /// value types, and interfaces (symbols serve as itable keys).
-    /// Emission order is significant: `parent` / interface symbols
-    /// must refer to entries in this list (or to
-    /// `STRING_TD_SYMBOL`).
-    pub type_descriptors: Vec<TypeDescriptor>,
+    /// Non-optional identities selected from typed intrinsic declarations.
+    pub well_known_layouts: WellKnownLayouts,
+    pub well_known_type_descriptors: WellKnownTypeDescriptors,
+    /// Every fully specialized intrinsic `Array<T>` / `MutableArray<T>`
+    /// application. Array instructions carry an `ArrayTypeId`; codegen never
+    /// reconstructs nominal array identity or GC metadata from value layouts.
+    pub arrays: Arena<ArrayType>,
+    pub layouts: Arena<Layout>,
+    /// Locally emitted TypeDescriptors. Every semantic edge uses a typed ref;
+    /// `symbol` is only a final link attribute.
+    pub type_descriptors: Arena<TypeDescriptor>,
+    /// Cross-Cone descriptors are declared but not initialized by this Cone.
+    pub external_type_descriptors: Arena<ExternalTypeDescriptor>,
+    /// Cross-Cone callables referenced from local dispatch tables.
+    pub external_callables: Arena<ExternalCallable>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct WellKnownLayouts {
+    pub string: LayoutId,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct WellKnownTypeDescriptors {
+    pub string: TypeDescriptorRef,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ArrayKind {
+    Immutable,
+    Mutable,
+}
+
+/// Complete LIR metadata for one concrete intrinsic array application.
+/// `element_size` / `element_align` are fixed by lir-lower rather than
+/// recomputed from LLVM ABI queries in codegen.
+#[derive(Debug)]
+pub struct ArrayType {
+    pub kind: ArrayKind,
+    pub element: LirType,
+    pub element_size: u64,
+    pub element_align: u64,
+    /// The descriptor owns the recursive repeated-element scan program.
+    pub type_descriptor: TypeDescriptorRef,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum TypeDescriptorRef {
+    Local(TypeDescriptorId),
+    External(ExternalTypeDescriptorId),
+}
+
+#[derive(Debug)]
+pub struct ExternalTypeDescriptor {
+    /// Final linker spelling; never used as semantic identity.
+    pub symbol: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum CallableRef {
+    Local(LocalFunctionId),
+    Runtime(RuntimeFunction),
+    External(ExternalCallableId),
+}
+
+#[derive(Debug)]
+pub struct ExternalCallable {
+    /// Final linker spelling; the typed arena id is the semantic identity.
+    pub symbol: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct DispatchEntry {
+    pub callable: CallableRef,
 }
 
 /// Everything codegen needs to emit one `ScoopTypeDescriptor`
 /// global (see runtime/include/scoop_rt.h for the field order).
 #[derive(Debug)]
 pub struct TypeDescriptor {
-    /// Name for dumps and the default `toString`.
+    /// Human-readable type name used in metadata dumps.
     pub name: String,
     /// Global symbol, e.g. `scoop_td_Point`.
     pub symbol: String,
-    /// `type_id` (codegen assigns small integers, starting after the
-    /// built-ins).
+    /// Runtime-visible identity selected by lir-lower. Codegen does not infer
+    /// it from arena position or descriptor category.
+    pub runtime_type_id: u64,
     pub size: u64,
     pub align: u64,
-    /// Recursive GC scan program for the object payload. Unlike a flat
-    /// offset list, this preserves tagged enums nested in aggregates.
-    pub scan: RefScan,
-    /// Symbol of the parent TypeDescriptor (classes: base class;
-    /// boxed value types / interfaces: none).
-    pub parent: Option<String>,
-    /// vtable slot symbols (functions or `scoop_rt_any_*`).
-    pub vtable: Vec<String>,
+    pub scan: TypeDescriptorScan,
+    /// Classes reference their base descriptor; root/reference-key entities
+    /// have no parent. The absence is emitted as a metadata-provenance null.
+    pub parent: Option<TypeDescriptorRef>,
+    pub vtable: Vec<DispatchEntry>,
     pub itables: Vec<ItableRecord>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TypeDescriptorScan {
+    /// Recursive GC scan program for a fixed-size object payload.
+    Fixed(RefScan),
+    /// Recursive scan for one inline array element, repeated at `stride`.
+    ArrayElement { stride: u64, scan: RefScan },
 }
 
 #[derive(Debug)]
 pub struct ItableRecord {
-    pub interface_symbol: String,
-    pub slots: Vec<String>,
+    pub interface: TypeDescriptorRef,
+    pub slots: Vec<DispatchEntry>,
 }
 
 #[derive(Debug)]
@@ -303,17 +478,23 @@ pub enum LayoutKind {
     Plain {
         scan: RefScan,
     },
-    /// Array layouts carry the scan program for one inline element;
-    /// codegen wraps it in the runtime array descriptor.
-    Array {
-        element_scan: RefScan,
-    },
     /// Enum layouts retain their identity while exposing one fixed scan
     /// program for the complete physical value. Tagged-enum scans never
     /// branch on the tag: inactive ref-bearing slots are zero-filled.
     Enum {
         scan: RefScan,
     },
+    /// Compiler representation selected by the typed intrinsic application
+    /// in MIR. Generic family variants carry the fully lowered element type.
+    Intrinsic(IntrinsicTypeRepresentation),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum IntrinsicTypeRepresentation {
+    Int,
+    UInt,
+    Boolean,
+    String,
 }
 
 /// Recursive, layout-complete description of references in an inline
@@ -335,6 +516,33 @@ impl RefScan {
                 parts.iter().map(Self::dump).collect::<Vec<_>>().join(", ")
             ),
         }
+    }
+
+    fn contains_reference(&self) -> bool {
+        match self {
+            Self::None => false,
+            Self::References(offsets) => !offsets.is_empty(),
+            Self::Sequence(parts) => parts.iter().any(Self::contains_reference),
+        }
+    }
+}
+
+/// A recursive scan program that is guaranteed to visit at least one managed
+/// reference. This is the only scan representation accepted by caller roots.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NonEmptyRefScan(RefScan);
+
+impl NonEmptyRefScan {
+    pub fn new(scan: RefScan) -> Option<Self> {
+        scan.contains_reference().then_some(Self(scan))
+    }
+
+    pub fn as_ref_scan(&self) -> &RefScan {
+        &self.0
+    }
+
+    pub fn dump(&self) -> String {
+        self.0.dump()
     }
 }
 
@@ -377,15 +585,21 @@ pub enum EnumRepr {
 /// Physical storage assigned to one tagged-enum variant.
 #[derive(Debug)]
 pub struct EnumVariantRepr {
-    pub fields: Vec<LirType>,
-    /// Enum-relative field offsets, including the variant's slot offset.
-    pub field_offsets: Vec<u64>,
+    pub fields: Vec<EnumFieldRepr>,
     pub slot_offset: u64,
     pub slot_size: u64,
     pub slot_align: u64,
     /// Copied from the fully specialized MIR variant. Only GC-free
     /// variants may share the pure-value payload slot.
     pub gc_free: bool,
+}
+
+/// The complete physical representation of one tagged-enum field.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EnumFieldRepr {
+    pub ty: LirType,
+    /// Enum-relative offset, including the variant's slot offset.
+    pub offset: u64,
 }
 
 #[derive(Debug)]
@@ -405,7 +619,7 @@ pub enum GlobalInit {
 pub enum ConstantValue {
     Int(i64),
     Bool(bool),
-    NullPtr,
+    NullPointer(PointerKind),
     Struct {
         struct_id: StructDefId,
         fields: Vec<ConstantValue>,
@@ -433,6 +647,9 @@ pub struct Function {
     /// Parameter types; arguments are SSA values (`Value::Param`).
     pub params: Vec<LirType>,
     pub return_ty: LirType,
+    /// Function-local call entities. Targets may contain local SSA operands
+    /// (for dispatch tables), so their ids are scoped to this function.
+    pub call_targets: CallTargets,
     pub locals: Arena<Local>,
     pub temps: Arena<Temp>,
     pub blocks: Arena<BasicBlock>,
@@ -447,9 +664,209 @@ pub enum GcEffect {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum NativeCallEffect {
+pub enum CallEffect {
+    ManagedSafepoint,
+    NoGc,
     NativeSafe,
     NativeBorrowed,
+}
+
+#[derive(Debug, Default)]
+pub struct CallTargets {
+    pub void_signatures: Arena<VoidCallSignature>,
+    pub direct_signatures: Arena<DirectCallSignature>,
+    pub indirect_result_signatures: Arena<IndirectResultCallSignature>,
+    pub void_targets: Arena<VoidCallTarget>,
+    pub direct_targets: Arena<DirectCallTarget>,
+    pub indirect_result_targets: Arena<IndirectResultCallTarget>,
+    pub dispatch_slots: Arena<DispatchSlot>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VoidCallSignature {
+    pub params: Vec<LirType>,
+    pub calling_convention: CallingConvention,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DirectCallSignature {
+    pub params: Vec<LirType>,
+    pub result: LirType,
+    /// Recursive scan of a direct result. Native transitions use it to
+    /// publish result storage before re-entering managed code.
+    pub result_scan: RefScan,
+    pub calling_convention: CallingConvention,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IndirectResultCallSignature {
+    pub params: Vec<LirType>,
+    pub result: ResultStorage,
+    pub calling_convention: CallingConvention,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ResultStorage {
+    pub ty: LirType,
+    pub scan: RefScan,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CallDestination {
+    Local(LocalFunctionId),
+    Runtime(RuntimeFunction),
+    Extern(ExternFunctionId),
+    Dispatch { table: Value, slot: DispatchSlotId },
+}
+
+#[derive(Debug)]
+pub struct VoidCallTarget {
+    pub destination: CallDestination,
+    pub signature: VoidCallSignatureId,
+    pub effect: CallEffect,
+}
+
+#[derive(Debug)]
+pub struct DirectCallTarget {
+    pub destination: CallDestination,
+    pub signature: DirectCallSignatureId,
+    pub effect: CallEffect,
+}
+
+#[derive(Debug)]
+pub struct IndirectResultCallTarget {
+    pub destination: CallDestination,
+    pub signature: IndirectResultCallSignatureId,
+    pub effect: CallEffect,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DispatchSlot {
+    pub kind: DispatchKind,
+    pub index: u32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DispatchKind {
+    Virtual,
+    Interface,
+    Closure,
+    FunctionBridge,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum RuntimeFunction {
+    Alloc,
+    Box,
+    IsInstance,
+    ITableLookup,
+    Pin,
+    Unpin,
+    GetHandle,
+    ReleaseHandle,
+    GcCollect,
+    GcStats,
+    MaterializeException,
+    StringConcat,
+    Trap,
+    Throw,
+    Rethrow,
+}
+
+impl RuntimeFunction {
+    pub const fn symbol(self) -> &'static str {
+        match self {
+            Self::Alloc => "scoop_rt_alloc",
+            Self::Box => "scoop_rt_box",
+            Self::IsInstance => "scoop_rt_is_instance",
+            Self::ITableLookup => "scoop_rt_itable_lookup",
+            Self::Pin => "scoop_rt_pin",
+            Self::Unpin => "scoop_rt_unpin",
+            Self::GetHandle => "scoop_rt_get_handle",
+            Self::ReleaseHandle => "scoop_rt_release_handle",
+            Self::GcCollect => "scoop_rt_gc_collect",
+            Self::GcStats => "scoop_rt_gc_stats",
+            Self::MaterializeException => "scoop_rt_materialize_exception",
+            Self::StringConcat => "scoop_rt_string_concat",
+            Self::Trap => "scoop_rt_trap",
+            Self::Throw => "scoop_rt_throw",
+            Self::Rethrow => "scoop_rt_rethrow",
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum CallSite {
+    Void {
+        target: VoidCallTargetId,
+        args: Vec<Value>,
+    },
+    Direct {
+        target: DirectCallTargetId,
+        out: TempId,
+        args: Vec<Value>,
+    },
+    IndirectResult {
+        target: IndirectResultCallTargetId,
+        storage: LocalId,
+        args: Vec<Value>,
+    },
+}
+
+impl CallSite {
+    pub fn args(&self) -> &[Value] {
+        match self {
+            Self::Void { args, .. }
+            | Self::Direct { args, .. }
+            | Self::IndirectResult { args, .. } => args,
+        }
+    }
+
+    pub fn destination(&self, targets: &CallTargets) -> CallDestination {
+        match *self {
+            Self::Void { target, .. } => targets.void_targets[target].destination,
+            Self::Direct { target, .. } => targets.direct_targets[target].destination,
+            Self::IndirectResult { target, .. } => {
+                targets.indirect_result_targets[target].destination
+            }
+        }
+    }
+
+    pub fn effect(&self, targets: &CallTargets) -> CallEffect {
+        match *self {
+            Self::Void { target, .. } => targets.void_targets[target].effect,
+            Self::Direct { target, .. } => targets.direct_targets[target].effect,
+            Self::IndirectResult { target, .. } => targets.indirect_result_targets[target].effect,
+        }
+    }
+
+    pub fn result_scan<'a>(&self, targets: &'a CallTargets) -> &'a RefScan {
+        match *self {
+            Self::Void { .. } => &RefScan::None,
+            Self::Direct { target, .. } => {
+                let signature = targets.direct_targets[target].signature;
+                &targets.direct_signatures[signature].result_scan
+            }
+            Self::IndirectResult { target, .. } => {
+                let signature = targets.indirect_result_targets[target].signature;
+                &targets.indirect_result_signatures[signature].result.scan
+            }
+        }
+    }
+
+    pub fn direct_out(&self) -> Option<TempId> {
+        match *self {
+            Self::Direct { out, .. } => Some(out),
+            Self::Void { .. } | Self::IndirectResult { .. } => None,
+        }
+    }
+
+    pub fn result_storage(&self) -> Option<LocalId> {
+        match *self {
+            Self::IndirectResult { storage, .. } => Some(storage),
+            Self::Void { .. } | Self::Direct { .. } => None,
+        }
+    }
 }
 
 /// A value whose address is published in a compiler caller-root frame.
@@ -466,7 +883,7 @@ pub enum CallerRootSource {
 pub struct CallerRoot {
     pub source: CallerRootSource,
     /// Non-empty recursive scan program relative to the source's storage.
-    pub scan: RefScan,
+    pub scan: NonEmptyRefScan,
 }
 
 impl CallerRootSource {
@@ -479,9 +896,11 @@ impl CallerRootSource {
     }
 }
 
-impl NativeCallEffect {
+impl CallEffect {
     fn dump(self) -> &'static str {
         match self {
+            Self::ManagedSafepoint => "managed-safepoint",
+            Self::NoGc => "no-gc",
             Self::NativeSafe => "native-safe",
             Self::NativeBorrowed => "native-borrowed",
         }
@@ -497,7 +916,8 @@ impl Function {
             Value::Param(index) => self.params[index as usize].clone(),
             Value::IntConst(_) => LirType::I64,
             Value::BoolConst(_) => LirType::I1,
-            Value::NullPtr => LirType::Ptr(PointerKind::Raw),
+            Value::NullPointer(kind) => LirType::Ptr(kind),
+            Value::TypeDescriptor(_) => METADATA_PTR,
             Value::Global(id) => LirType::Ptr(globals[id].address_kind),
         }
     }
@@ -511,7 +931,7 @@ pub struct BasicBlock {
 }
 
 /// A value usable as an instruction operand.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Value {
     /// Contents of a local's stack slot (loaded implicitly).
     Local(LocalId),
@@ -520,7 +940,9 @@ pub enum Value {
     Temp(TempId),
     IntConst(i64),
     BoolConst(bool),
-    NullPtr,
+    NullPointer(PointerKind),
+    /// Address of a local or external TypeDescriptor.
+    TypeDescriptor(TypeDescriptorRef),
     /// Address of a global constant.
     Global(GlobalId),
 }
@@ -602,16 +1024,10 @@ pub enum Instruction {
     /// A nounwind native call. C ABI operands are storage pointers to the
     /// generated bridge; Scoop ABI operands retain their ordinary typed ABI.
     NativeCall {
-        out: Option<TempId>,
-        function: ExternFunctionId,
-        effect: NativeCallEffect,
-        args: Vec<Value>,
+        site: CallSite,
         /// Values live across this native transition. Codegen spills SSA
         /// sources and publishes each storage with its recursive scan.
         roots: Vec<CallerRoot>,
-        /// Scan for the native result storage. `None` means the result is
-        /// absent or contains no managed references.
-        result_scan: RefScan,
     },
     /// Store a typed value at the byte address `object + offset`.
     /// Class fields use their natural layout offsets, base-class fields
@@ -648,11 +1064,7 @@ pub enum Instruction {
         bridge: ForeignCallbackBridgeId,
         closure: Value,
     },
-    ForeignCallbackOperation {
-        out: Option<TempId>,
-        operation: ForeignCallbackOperation,
-        callback: Value,
-    },
+    ForeignCallbackOperation(ForeignCallbackOperation),
     IntToPtr {
         out: TempId,
         value: Value,
@@ -681,22 +1093,10 @@ pub enum Instruction {
         out: TempId,
         local: LocalId,
     },
-    /// Direct call. `out` is `None` exactly when the callee returns
-    /// void; runtime functions with results produce a Temp of the
-    /// result type.
+    /// Direct or dispatch call. The target atomically owns destination,
+    /// physical ABI signature, return convention and effect.
     Call {
-        out: Option<TempId>,
-        symbol: String,
-        args: Vec<Value>,
-    },
-    /// Indirect call through a function table (vtable / itable
-    /// dispatch, impl spec 2.9): `table` is a `ptr` to the first slot,
-    /// the callee is `table[slot]`. Arguments include the receiver.
-    CallIndirect {
-        out: Option<TempId>,
-        table: Value,
-        slot: u32,
-        args: Vec<Value>,
+        site: CallSite,
     },
     /// Call that may throw (inside a `try`): control transfers to
     /// `normal` on success and to the `unwind` landing pad on a
@@ -707,18 +1107,7 @@ pub enum Instruction {
     /// this instruction as the LLVM terminator without emitting the
     /// branch.
     Invoke {
-        out: Option<TempId>,
-        symbol: String,
-        args: Vec<Value>,
-        normal: BlockId,
-        unwind: BlockId,
-    },
-    /// Indirect variant of `Invoke` (same terminator convention).
-    InvokeIndirect {
-        out: Option<TempId>,
-        table: Value,
-        slot: u32,
-        args: Vec<Value>,
+        site: CallSite,
         normal: BlockId,
         unwind: BlockId,
     },
@@ -748,36 +1137,41 @@ pub enum Instruction {
     Throw {
         exception: Value,
     },
-    /// Array operations. The element layout is the `Array(...)` type
-    /// of the array operand (or of `out` for `ArrayAlloc`).
+    /// Array operations. Every instruction names the complete concrete array
+    /// metadata it consumes; no downstream pass recovers it from operand or
+    /// result layouts.
     /// Allocate an array object and store the elements in order.
     ArrayAlloc {
         out: TempId,
         elements: Vec<Value>,
-        /// Scan program for one element, relative to its first byte.
-        element_scan: RefScan,
+        array_type: ArrayTypeId,
     },
     /// `array.size` (result `I64`).
     ArrayLen {
         out: TempId,
         operand: Value,
+        array_type: ArrayTypeId,
     },
     /// Bounds-checked element read (traps out of range).
     ArrayGet {
         out: TempId,
         array: Value,
         index: Value,
+        array_type: ArrayTypeId,
     },
     /// Bounds-checked element write (traps out of range).
     ArraySet {
         array: Value,
         index: Value,
         value: Value,
+        array_type: ArrayTypeId,
     },
     /// `Array(m)` / `MutableArray(a)` conversion (memcpy snapshot).
     ArrayClone {
         out: TempId,
         operand: Value,
+        /// Target array application (`Array<T>` or `MutableArray<T>`).
+        array_type: ArrayTypeId,
     },
     /// Enum operations. The representation (niche pointer or tagged
     /// union) is fixed by `EnumDef::repr`, so codegen translates these
@@ -846,721 +1240,41 @@ pub enum Terminator {
     Unreachable,
 }
 
-/// Indented text dump for golden tests (`scoopc build --emit=lir`).
-pub fn dump(module: &Module) -> String {
-    let mut out = String::from("Module\n");
-    for (_, global) in module.globals.iter() {
-        match &global.init {
-            GlobalInit::StringConst(value) => {
-                out.push_str(&format!("  global @{} = {:?}\n", global.symbol, value));
-            }
-            GlobalInit::CString(value) => {
-                out.push_str(&format!("  global @{} = c{:?}\n", global.symbol, value));
-            }
-            GlobalInit::Storage {
-                ty, thread_local, ..
-            } => out.push_str(&format!(
-                "  {} @{} : {}\n",
-                if *thread_local {
-                    "thread_local"
-                } else {
-                    "global"
-                },
-                global.symbol,
-                ty.dump()
-            )),
-        }
-    }
-    for (id, global) in module.native_globals.iter() {
-        out.push_str(&format!(
-            "  native_global{} {} @{} : {}{}\n",
-            id.into_raw(),
-            global.source_name,
-            global.native_symbol,
-            global.ty.dump(),
-            if global.thread_local {
-                " thread_local"
-            } else {
-                ""
-            }
-        ));
-    }
-    for (_, def) in module.enums.iter() {
-        match &def.repr {
-            EnumRepr::Niche { payload_variant } => out.push_str(&format!(
-                "  enum {} niche(payload_variant={})\n",
-                def.name, payload_variant
-            )),
-            EnumRepr::Tagged {
-                variants,
-                size,
-                align,
-            } => {
-                let variants: Vec<String> = variants
-                    .iter()
-                    .map(|variant| {
-                        let inner: Vec<String> = variant.fields.iter().map(LirType::dump).collect();
-                        format!(
-                            "({})@{}+{}{}",
-                            inner.join(", "),
-                            variant.slot_offset,
-                            variant.slot_size,
-                            if variant.gc_free { "" } else { ":refs" }
-                        )
-                    })
-                    .collect();
-                out.push_str(&format!(
-                    "  enum {} tagged size={} align={} variants={}\n",
-                    def.name,
-                    size,
-                    align,
-                    variants.join(" ")
-                ));
-            }
-        }
-    }
-    for (id, extern_) in module.extern_functions.iter() {
-        let params = extern_
-            .params
-            .iter()
-            .map(LirType::dump)
-            .collect::<Vec<_>>()
-            .join(", ");
-        let kind = match &extern_.kind {
-            ExternFunctionKind::C { bridge_symbol, .. } => {
-                format!("c bridge=@{bridge_symbol} gc-leaf nounwind")
-            }
-            ExternFunctionKind::Scoop { gc_effect } => format!(
-                "scoop {} nounwind",
-                if *gc_effect == GcEffect::NoGc {
-                    "gc-leaf"
-                } else {
-                    "managed"
-                }
-            ),
-        };
-        let library = if extern_.library.is_empty() {
-            String::new()
-        } else {
-            format!(" lib={}", extern_.library)
-        };
-        out.push_str(&format!(
-            "  extern ef{} {} @{}({}) -> {} <{}{}>\n",
-            id.into_raw(),
-            extern_.source_name,
-            extern_.native_symbol,
-            params,
-            extern_.return_type.dump(),
-            kind,
-            library
-        ));
-    }
-    for (id, callback) in module.callback_bridges.iter() {
-        out.push_str(&format!(
-            "  callback cb{} {} @{} -> @{}\n",
-            id.into_raw(),
-            callback.source_name,
-            callback.bridge_symbol,
-            callback.trampoline_symbol
-        ));
-    }
-    for function in &module.functions {
-        let params: Vec<String> = function.params.iter().map(LirType::dump).collect();
-        out.push_str(&format!(
-            "  fun @{}({}) -> {}{}\n",
-            function.symbol,
-            params.join(", "),
-            function.return_ty.dump(),
-            if function.gc_effect == GcEffect::NoGc {
-                " <no-gc>"
-            } else {
-                ""
-            }
-        ));
-        for (id, local) in function.locals.iter() {
-            out.push_str(&format!(
-                "    local %{} {}: {}\n",
-                id.into_raw(),
-                local.name,
-                local.ty.dump()
-            ));
-        }
-        for (block_id, block) in function.blocks.iter() {
-            let _ = block_id;
-            out.push_str(&format!("  block {}\n", block.name));
-            for instruction in &block.instructions {
-                dump_instruction(function, instruction, &mut out);
-            }
-            match &block.terminator {
-                Terminator::Br(target) => {
-                    out.push_str(&format!("    br @{}\n", block_name(function, *target)))
-                }
-                Terminator::CondBr {
-                    cond,
-                    then_block,
-                    else_block,
-                } => out.push_str(&format!(
-                    "    cbr {} then @{} else @{}\n",
-                    value_name(*cond),
-                    block_name(function, *then_block),
-                    block_name(function, *else_block)
-                )),
-                Terminator::Return { value } => match value {
-                    Some(value) => out.push_str(&format!("    ret {}\n", value_name(*value))),
-                    None => out.push_str("    ret\n"),
-                },
-                Terminator::Resume { exception } => {
-                    out.push_str(&format!("    resume {}\n", value_name(*exception)))
-                }
-                Terminator::Unreachable => out.push_str("    unreachable\n"),
-            }
-        }
-    }
-    for td in &module.meta.type_descriptors {
-        out.push_str(&format!(
-            "  td {} @{} size={} vtable={} itables={}\n",
-            td.name,
-            td.symbol,
-            td.size,
-            td.vtable.len(),
-            td.itables.len()
-        ));
-    }
-    for layout in &module.meta.layouts {
-        match &layout.kind {
-            LayoutKind::Plain { scan } => match scan {
-                RefScan::None => out.push_str(&format!(
-                    "  layout {} size={} align={} refs=[]\n",
-                    layout.name, layout.size, layout.align
-                )),
-                RefScan::References(offsets) => out.push_str(&format!(
-                    "  layout {} size={} align={} refs={offsets:?}\n",
-                    layout.name, layout.size, layout.align
-                )),
-                _ => out.push_str(&format!(
-                    "  layout {} size={} align={} scan={}\n",
-                    layout.name,
-                    layout.size,
-                    layout.align,
-                    scan.dump()
-                )),
-            },
-            LayoutKind::Array { element_scan } => match element_scan {
-                RefScan::None => out.push_str(&format!(
-                    "  layout {} size={} align={} array(element_is_ref=false)\n",
-                    layout.name, layout.size, layout.align
-                )),
-                RefScan::References(offsets) if offsets == &[0] => out.push_str(&format!(
-                    "  layout {} size={} align={} array(element_is_ref=true)\n",
-                    layout.name, layout.size, layout.align
-                )),
-                _ => out.push_str(&format!(
-                    "  layout {} size={} align={} array(scan={})\n",
-                    layout.name,
-                    layout.size,
-                    layout.align,
-                    element_scan.dump()
-                )),
-            },
-            LayoutKind::Enum { scan } => out.push_str(&format!(
-                "  layout {} size={} align={} enum-scan={}\n",
-                layout.name,
-                layout.size,
-                layout.align,
-                scan.dump()
-            )),
-        }
-        if let Some(c_layout) = layout.c_layout {
-            let fields = layout
-                .fields
-                .iter()
-                .map(|field| format!("{}@{}", field.offset, field.access_align))
-                .collect::<Vec<_>>()
-                .join(",");
-            out.push_str(&format!(
-                "  layout-meta {} c-layout(aligned={},packed={}) fields=[{}] interior-mutable={}\n",
-                layout.name, c_layout.aligned, c_layout.packed, fields, layout.interior_mutable
-            ));
-        } else if layout.interior_mutable {
-            out.push_str(&format!(
-                "  layout-meta {} interior-mutable=true\n",
-                layout.name
-            ));
-        }
-    }
-    out.push_str(&format!("  entry @{}\n", module.entry_symbol));
-    out
-}
+mod dump;
 
-fn block_name(function: &Function, id: BlockId) -> String {
-    function.blocks[id].name.clone()
-}
+pub use dump::dump;
 
-fn value_name(value: Value) -> String {
-    match value {
-        Value::Local(id) => format!("local{}", id.into_raw()),
-        Value::Param(index) => format!("param{index}"),
-        Value::Temp(id) => format!("t{}", id.into_raw()),
-        Value::IntConst(value) => format!("{value}"),
-        Value::BoolConst(value) => format!("{value}"),
-        Value::NullPtr => "null".to_string(),
-        Value::Global(id) => format!("global{}", id.into_raw()),
+#[cfg(test)]
+mod tests {
+    use super::{NonEmptyRefScan, RefScan};
+
+    #[test]
+    fn non_empty_ref_scan_rejects_programs_without_references() {
+        assert!(NonEmptyRefScan::new(RefScan::None).is_none());
+        assert!(NonEmptyRefScan::new(RefScan::References(Vec::new())).is_none());
+        assert!(
+            NonEmptyRefScan::new(RefScan::Sequence(vec![
+                RefScan::None,
+                RefScan::References(Vec::new()),
+            ]))
+            .is_none()
+        );
     }
-}
 
-fn dump_instruction(function: &Function, instruction: &Instruction, buf: &mut String) {
-    match instruction {
-        Instruction::BinOp { out, op, lhs, rhs } => buf.push_str(&format!(
-            "    t{} = {:?} {}, {} : {}\n",
-            out.into_raw(),
-            op,
-            value_name(*lhs),
-            value_name(*rhs),
-            function.temps[*out].ty.dump()
-        )),
-        Instruction::UnaryOp { out, op, operand } => buf.push_str(&format!(
-            "    t{} = {:?} {} : {}\n",
-            out.into_raw(),
-            op,
-            value_name(*operand),
-            function.temps[*out].ty.dump()
-        )),
-        Instruction::MakeAggregate { out, elements } => {
-            let elements: Vec<String> = elements.iter().map(|e| value_name(*e)).collect();
-            buf.push_str(&format!(
-                "    t{} = aggregate ({}) : {}\n",
-                out.into_raw(),
-                elements.join(", "),
-                function.temps[*out].ty.dump()
-            ))
-        }
-        Instruction::ExtractValue {
-            out,
-            aggregate,
-            index,
-        } => buf.push_str(&format!(
-            "    t{} = extract {}, {} : {}\n",
-            out.into_raw(),
-            value_name(*aggregate),
-            index,
-            function.temps[*out].ty.dump()
-        )),
-        Instruction::HeapLoad {
-            out,
-            object,
-            offset,
-        } => buf.push_str(&format!(
-            "    t{} = heap_load {} +{} : {}\n",
-            out.into_raw(),
-            value_name(*object),
-            offset,
-            function.temps[*out].ty.dump()
-        )),
-        Instruction::AtomicLoad {
-            out,
-            object,
-            offset,
-        } => buf.push_str(&format!(
-            "    t{} = atomic_load acquire {} +{} : {}\n",
-            out.into_raw(),
-            value_name(*object),
-            offset,
-            function.temps[*out].ty.dump()
-        )),
-        Instruction::GlobalLoad { out, global } => buf.push_str(&format!(
-            "    t{} = global_load global{} : {}\n",
-            out.into_raw(),
-            global.into_raw(),
-            function.temps[*out].ty.dump()
-        )),
-        Instruction::GlobalStore { global, value } => buf.push_str(&format!(
-            "    global_store global{}, {}\n",
-            global.into_raw(),
-            value_name(*value)
-        )),
-        Instruction::GlobalAddress { out, global } => buf.push_str(&format!(
-            "    t{} = global_address global{}\n",
-            out.into_raw(),
-            global.into_raw()
-        )),
-        Instruction::NativeGlobalLoad { out, global, roots } => buf.push_str(&format!(
-            "    t{} = native_global_load ng{} roots={} : {}\n",
-            out.into_raw(),
-            global.into_raw(),
-            roots.len(),
-            function.temps[*out].ty.dump()
-        )),
-        Instruction::NativeGlobalStore {
-            global,
-            value,
-            roots,
-        } => buf.push_str(&format!(
-            "    native_global_store ng{}, {} roots={}\n",
-            global.into_raw(),
-            value_name(*value),
-            roots.len()
-        )),
-        Instruction::NativeGlobalAddress { out, global, roots } => buf.push_str(&format!(
-            "    t{} = native_global_address ng{} roots={}\n",
-            out.into_raw(),
-            global.into_raw(),
-            roots.len()
-        )),
-        Instruction::HeapStore {
-            object,
-            offset,
-            value,
-        } => buf.push_str(&format!(
-            "    heap_store {} +{} {}\n",
-            value_name(*object),
-            offset,
-            value_name(*value)
-        )),
-        Instruction::AtomicStore {
-            object,
-            offset,
-            value,
-        } => buf.push_str(&format!(
-            "    atomic_store release {} +{} {}\n",
-            value_name(*object),
-            offset,
-            value_name(*value)
-        )),
-        Instruction::AtomicCompareExchange {
-            out,
-            object,
-            offset,
-            expected,
-            replacement,
-        } => buf.push_str(&format!(
-            "    t{} = atomic_cmpxchg acq_rel/acquire {} +{} expected={} replacement={} : {}\n",
-            out.into_raw(),
-            value_name(*object),
-            offset,
-            value_name(*expected),
-            value_name(*replacement),
-            function.temps[*out].ty.dump()
-        )),
-        Instruction::FunctionAddress { out, symbol } => buf.push_str(&format!(
-            "    t{} = function_address @{} : ptr\n",
-            out.into_raw(),
-            symbol
-        )),
-        Instruction::ForeignCallbackRegister {
-            out,
-            bridge,
-            closure,
-        } => buf.push_str(&format!(
-            "    t{} = foreign_callback_register fcb{} {} : {}\n",
-            out.into_raw(),
-            bridge.into_raw(),
-            value_name(*closure),
-            function.temps[*out].ty.dump()
-        )),
-        Instruction::ForeignCallbackOperation {
-            out,
-            operation,
-            callback,
-        } => match out {
-            Some(out) => buf.push_str(&format!(
-                "    t{} = foreign_callback_{:?} {} : {}\n",
-                out.into_raw(),
-                operation,
-                value_name(*callback),
-                function.temps[*out].ty.dump()
-            )),
-            None => buf.push_str(&format!(
-                "    foreign_callback_{:?} {}\n",
-                operation,
-                value_name(*callback)
-            )),
-        },
-        Instruction::IntToPtr { out, value } => buf.push_str(&format!(
-            "    t{} = int_to_ptr {} : ptr\n",
-            out.into_raw(),
-            value_name(*value)
-        )),
-        Instruction::PtrToInt { out, value } => buf.push_str(&format!(
-            "    t{} = ptr_to_int {} : i64\n",
-            out.into_raw(),
-            value_name(*value)
-        )),
-        Instruction::RawLoad {
-            out,
-            pointer,
-            align,
-        } => buf.push_str(&format!(
-            "    t{} = raw_load {} align {} : {}\n",
-            out.into_raw(),
-            value_name(*pointer),
-            align,
-            function.temps[*out].ty.dump()
-        )),
-        Instruction::RawStore {
-            pointer,
-            value,
-            align,
-        } => buf.push_str(&format!(
-            "    raw_store {} {} align {}\n",
-            value_name(*pointer),
-            value_name(*value),
-            align
-        )),
-        Instruction::PtrOffset {
-            out,
-            pointer,
-            bytes,
-        } => buf.push_str(&format!(
-            "    t{} = ptr_offset {} {} : ptr\n",
-            out.into_raw(),
-            value_name(*pointer),
-            value_name(*bytes)
-        )),
-        Instruction::LocalAddress { out, local } => buf.push_str(&format!(
-            "    t{} = local_address local{} : ptr\n",
-            out.into_raw(),
-            local.into_raw()
-        )),
-        Instruction::Store { local, value } => buf.push_str(&format!(
-            "    store {} -> local{}\n",
-            value_name(*value),
-            local.into_raw()
-        )),
-        Instruction::NativeCall {
-            out,
-            function: extern_id,
-            effect,
-            args,
-            roots,
-            result_scan,
-        } => {
-            let args = args.iter().map(|arg| value_name(*arg)).collect::<Vec<_>>();
-            let roots = if roots.is_empty() {
-                String::new()
-            } else {
-                let roots = roots
-                    .iter()
-                    .map(|root| {
-                        let source = root.source.dump();
-                        match &root.scan {
-                            RefScan::References(offsets) if offsets == &[0] => source,
-                            scan => format!("{source}:{}", scan.dump()),
-                        }
-                    })
-                    .collect::<Vec<_>>();
-                format!(" roots=[{}]", roots.join(", "))
-            };
-            let result_root = if *result_scan == RefScan::None {
-                String::new()
-            } else {
-                format!(" result-root={}", result_scan.dump())
-            };
-            match out {
-                Some(temp) => buf.push_str(&format!(
-                    "    t{} = native_call[{}] extern{}({}){}{} : {}\n",
-                    temp.into_raw(),
-                    effect.dump(),
-                    extern_id.into_raw(),
-                    args.join(", "),
-                    roots,
-                    result_root,
-                    function.temps[*temp].ty.dump()
-                )),
-                None => buf.push_str(&format!(
-                    "    native_call[{}] extern{}({}){}{}\n",
-                    effect.dump(),
-                    extern_id.into_raw(),
-                    args.join(", "),
-                    roots,
-                    result_root
-                )),
-            }
-        }
-        Instruction::Call { out, symbol, args } => {
-            let args: Vec<String> = args.iter().map(|a| value_name(*a)).collect();
-            match out {
-                Some(temp) => buf.push_str(&format!(
-                    "    t{} = call @{}({}) : {}\n",
-                    temp.into_raw(),
-                    symbol,
-                    args.join(", "),
-                    function.temps[*temp].ty.dump()
-                )),
-                None => buf.push_str(&format!("    call @{}({})\n", symbol, args.join(", "))),
-            }
-        }
-        Instruction::CallIndirect {
-            out,
-            table,
-            slot,
-            args,
-        } => {
-            let args: Vec<String> = args.iter().map(|a| value_name(*a)).collect();
-            match out {
-                Some(temp) => buf.push_str(&format!(
-                    "    t{} = call_indirect {}[{}]({}) : {}\n",
-                    temp.into_raw(),
-                    value_name(*table),
-                    slot,
-                    args.join(", "),
-                    function.temps[*temp].ty.dump()
-                )),
-                None => buf.push_str(&format!(
-                    "    call_indirect {}[{}]({})\n",
-                    value_name(*table),
-                    slot,
-                    args.join(", ")
-                )),
-            }
-        }
-        Instruction::Invoke {
-            out,
-            symbol,
-            args,
-            normal,
-            unwind,
-        } => {
-            let args: Vec<String> = args.iter().map(|a| value_name(*a)).collect();
-            buf.push_str(&format!(
-                "    invoke @{}({}) normal @{} unwind @{}\n",
-                symbol,
-                args.join(", "),
-                block_name(function, *normal),
-                block_name(function, *unwind)
-            ));
-            let _ = out;
-        }
-        Instruction::InvokeIndirect {
-            table,
-            slot,
-            args,
-            normal,
-            unwind,
-            ..
-        } => {
-            let args: Vec<String> = args.iter().map(|a| value_name(*a)).collect();
-            buf.push_str(&format!(
-                "    invoke_indirect {}[{}]({}) normal @{} unwind @{}\n",
-                value_name(*table),
-                slot,
-                args.join(", "),
-                block_name(function, *normal),
-                block_name(function, *unwind)
-            ));
-        }
-        Instruction::LandingPad { record, raw } => buf.push_str(&format!(
-            "    (t{}, t{}) = landingpad : ({}, {})\n",
-            record.into_raw(),
-            raw.into_raw(),
-            function.temps[*record].ty.dump(),
-            function.temps[*raw].ty.dump()
-        )),
-        Instruction::CleanupPad { record, raw } => buf.push_str(&format!(
-            "    (t{}, t{}) = cleanup_pad : ({}, {})\n",
-            record.into_raw(),
-            raw.into_raw(),
-            function.temps[*record].ty.dump(),
-            function.temps[*raw].ty.dump()
-        )),
-        Instruction::BeginCatch { out, raw } => buf.push_str(&format!(
-            "    t{} = begin_catch {} : {}\n",
-            out.into_raw(),
-            value_name(*raw),
-            function.temps[*out].ty.dump()
-        )),
-        Instruction::EndCatch => buf.push_str("    end_catch\n"),
-        Instruction::Throw { exception } => {
-            buf.push_str(&format!("    throw {}\n", value_name(*exception)))
-        }
-        Instruction::ArrayAlloc {
-            out,
-            elements,
-            element_scan,
-        } => {
-            let elements: Vec<String> = elements.iter().map(|e| value_name(*e)).collect();
-            let scan = match element_scan {
-                RefScan::None => String::new(),
-                RefScan::References(offsets) if offsets == &[0] => String::new(),
-                _ => format!(" scan={}", element_scan.dump()),
-            };
-            buf.push_str(&format!(
-                "    t{} = array_alloc ({}){} : {}\n",
-                out.into_raw(),
-                elements.join(", "),
-                scan,
-                function.temps[*out].ty.dump()
-            ))
-        }
-        Instruction::ArrayLen { out, operand } => buf.push_str(&format!(
-            "    t{} = array_len {} : {}\n",
-            out.into_raw(),
-            value_name(*operand),
-            function.temps[*out].ty.dump()
-        )),
-        Instruction::ArrayGet { out, array, index } => buf.push_str(&format!(
-            "    t{} = array_get {} {} : {}\n",
-            out.into_raw(),
-            value_name(*array),
-            value_name(*index),
-            function.temps[*out].ty.dump()
-        )),
-        Instruction::ArraySet {
-            array,
-            index,
-            value,
-        } => buf.push_str(&format!(
-            "    array_set {} {} {}\n",
-            value_name(*array),
-            value_name(*index),
-            value_name(*value)
-        )),
-        Instruction::ArrayClone { out, operand } => buf.push_str(&format!(
-            "    t{} = array_clone {} : {}\n",
-            out.into_raw(),
-            value_name(*operand),
-            function.temps[*out].ty.dump()
-        )),
-        Instruction::EnumWrap {
-            out,
-            enum_id,
-            variant,
-            fields,
-        } => {
-            let fields: Vec<String> = fields.iter().map(|f| value_name(*f)).collect();
-            buf.push_str(&format!(
-                "    t{} = enum_wrap e{} v{} ({}) : {}\n",
-                out.into_raw(),
-                enum_id.into_raw(),
-                variant,
-                fields.join(", "),
-                function.temps[*out].ty.dump()
-            ))
-        }
-        Instruction::EnumTag {
-            out,
-            enum_id,
-            operand,
-        } => buf.push_str(&format!(
-            "    t{} = enum_tag e{} {} : {}\n",
-            out.into_raw(),
-            enum_id.into_raw(),
-            value_name(*operand),
-            function.temps[*out].ty.dump()
-        )),
-        Instruction::EnumField {
-            out,
-            enum_id,
-            variant,
-            index,
-            operand,
-        } => buf.push_str(&format!(
-            "    t{} = enum_field e{} v{} f{} {} : {}\n",
-            out.into_raw(),
-            enum_id.into_raw(),
-            variant,
-            index,
-            value_name(*operand),
-            function.temps[*out].ty.dump()
-        )),
+    #[test]
+    fn non_empty_ref_scan_accepts_nested_references() {
+        let scan = RefScan::Sequence(vec![
+            RefScan::None,
+            RefScan::Sequence(vec![RefScan::References(vec![16])]),
+        ]);
+        let scan = NonEmptyRefScan::new(scan).expect("nested reference makes the scan non-empty");
+
+        assert_eq!(
+            scan.as_ref_scan(),
+            &RefScan::Sequence(vec![
+                RefScan::None,
+                RefScan::Sequence(vec![RefScan::References(vec![16])]),
+            ])
+        );
     }
 }

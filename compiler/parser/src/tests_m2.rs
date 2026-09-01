@@ -489,10 +489,15 @@ fn struct_empty_member_body() {
 }
 
 #[test]
-fn fieldless_struct_not_supported() {
-    let (span, message) = err("struct S()");
-    assert_eq!(span, Span::new(9, 10));
-    assert_eq!(message, "expected field declaration, found `)`");
+fn explicit_fieldless_struct_is_preserved() {
+    let file = ok("struct S()");
+    let Decl::Struct(struct_) = &file.declarations[0] else {
+        panic!("expected struct");
+    };
+    assert!(matches!(
+        struct_.fields,
+        scoop_ast::StructRepresentationDecl::Declared(ref fields) if fields.is_empty()
+    ));
 }
 
 // --- generic M2 syntax errors ----------------------------------------------

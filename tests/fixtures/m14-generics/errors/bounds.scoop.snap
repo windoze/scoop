@@ -1,0 +1,12 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m14-generics/errors/bounds.scoop:13:46: error: type parameter `T` of function cannot combine interface upper bounds with a kind bound
+m14-generics/errors/bounds.scoop:15:45: error: unknown type parameter `U` in where clause of function
+m14-generics/errors/bounds.scoop:17:10: error: upper bound of type parameter `T` must be an interface, found `Int`
+m14-generics/errors/bounds.scoop:19:50: error: duplicate interface upper bound `Marker` for type parameter `T` of function
+m14-generics/errors/bounds.scoop:21:10: error: generic interface `Boxed` requires 1 type argument(s)
+m14-generics/errors/bounds.scoop:25:59: error: call to `value` is ambiguous
+m14-generics/errors/bounds.scoop:28:5: error: type argument `Int` for `T` of function `requiresMarker` must satisfy interface upper bound `Marker`

@@ -1,0 +1,24 @@
+interface Show {
+    fun show(): Int
+}
+
+struct Shown(val value: Int) : Show {
+    override fun show(): Int = value
+}
+
+open class Box<T>(val value: T) {
+    final fun <U : Show> combine(other: U): Int = other.show()
+    final fun <U> choose(other: U): U = other
+}
+
+class Derived : Box<Int>(1)
+
+fun main() {
+    val box = Box("owner")
+    println(box.combine(Shown(40)))
+    println(box.choose<String>("explicit"))
+    println(Derived().combine(Shown(41)))
+
+    val bound: (Shown) -> Int = box::combine
+    println(bound(Shown(42)))
+}

@@ -3,6 +3,12 @@
 // dedicated Ptr/FunPtr types; downstream stages never identify them by name.
 
 struct Ptr<T : value>(val _rawPointer: UInt) {
+    operator fun equals(other: Ptr<T>): Boolean {
+        @Unsafe {
+            return this.toUInt() == other.toUInt()
+        }
+    }
+
     @NoGC
     @Unsafe
     @Intrinsic("ptr_to_uint")

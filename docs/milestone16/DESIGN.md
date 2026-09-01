@@ -155,7 +155,7 @@ runtime API 名称与对象内偏移只存在于 compiler/runtime 的 typed cont
 - 普通 escape、字面 `$`、`$name`诊断、raw multiline中的反斜杠与 `$`；
 - 未终结字符串/孔、空孔、孔内独立语法错误及多错误恢复；
 - HIR golden锁定 typed StringBuilderCore目标、hidden local、从左到右顺序、无孔常量化及 source origin；
-- `ToString` bound成功/失败、generic孔、值类型派生实现、class opt-in实现。
+- `ToString` bound成功/失败、generic孔、struct/class显式adopt实现。
 
 ### 6.2 IR / runtime
 
@@ -166,10 +166,10 @@ runtime API 名称与对象内偏移只存在于 compiler/runtime 的 typed cont
 
 ### 6.3 端到端与 negative
 
-- fixture目录使用 `tests/fixtures/m15-fstring/`；覆盖 primitive、String、struct派生ToString、class实现ToString、nested/generic/suspend hole；
+- fixture目录使用 `tests/fixtures/m16-fstring/`；覆盖 primitive、String、struct/class显式实现ToString、nested/generic/suspend hole；
 - 组合覆盖孔内 `?:` / `!!` / array访问 / lambda调用 / throwable，以及孔求值副作用计数恰好一次；
 - negative覆盖未实现ToString的类型、`$name`、空/未闭合孔、未终结单行/multiline和独立孔语法错误；
-- M1–M14全部 fixture原样通过。
+- M1–M15全部 fixture原样通过。
 
 ## 7. 实现顺序与验收门
 

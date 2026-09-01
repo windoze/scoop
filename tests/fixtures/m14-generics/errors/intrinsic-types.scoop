@@ -1,0 +1,7 @@
+@Intrinsic("core_int")
+struct FakeInt
+
+fun main() {
+    Int()
+    String()
+}

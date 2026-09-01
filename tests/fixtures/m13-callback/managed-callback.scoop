@@ -40,6 +40,11 @@ enum ManagedPayload {
     Empty
 }
 
+fun <T> isNone(value: T?): Boolean = when (value) {
+    Some(_) -> false
+    None -> true
+}
+
 fun main() {
     val offset = 40
     @Unsafe {
@@ -57,7 +62,7 @@ fun main() {
         println(joinOne(job))
         println(callerRoot)
         println(foreignCallbackState(observer) == ForeignCallbackState.Completed)
-        println(foreignCallbackFailure(observer) == None)
+        println(isNone(foreignCallbackFailure(observer)))
         releaseForeignCallback(observer)
 
         val failedStart = foreignCallback<(Int, Ptr<Unit>) -> Int>(
@@ -98,7 +103,7 @@ fun main() {
         println(runMany(reusable.function, reusable.context, 10, 4))
         println(attachedThreadCount() == 1)
         println(foreignCallbackState(reusable) == ForeignCallbackState.Registered)
-        println(foreignCallbackFailure(reusable) == None)
+        println(isNone(foreignCallbackFailure(reusable)))
         releaseForeignCallback(reusable)
 
         val collector = foreignCallback<(Ptr<Unit>) -> Unit>(
@@ -121,7 +126,7 @@ fun main() {
             foreignCallbackState(collectorObserver) ==
                 ForeignCallbackState.Completed
         )
-        println(foreignCallbackFailure(collectorObserver) == None)
+        println(isNone(foreignCallbackFailure(collectorObserver)))
         releaseForeignCallback(collectorObserver)
     }
 }

@@ -67,7 +67,7 @@ fun main() {
 
 - `LirType::Array(Box<LirType>)`（元素内联的变长对象；值本身为 `Ptr`）；
 - 指令：`ArrayAlloc { out, elements, element_scan }`（计算总大小 = 16B 对象头 + 8B size + n × 元素布局大小，调 `scoop_rt_alloc` 并写 size 与逐元素 store；M12 加入 over-aligned 元素后，公式修订为 `alignUp(24, element_align) + n × element_size`）、`ArrayLen { out, operand }`（load size 字段）、`ArrayGet { out, array, index }`（**越界检查 + 异常**，然后按元素布局 load）、`ArraySet { array, index, value }`（同检查）；
-- `ArrayClone` → runtime 调用 `scoop_rt_array_clone(obj, elem_size)`（见 3.1；M12 为支持 over-aligned 元素扩展为 `(obj, elem_size, data_offset)`）；
+- `ArrayClone` → runtime 调用 `scoop_rt_array_clone(obj, elem_size)`（见 3.1）；M12 为支持 over-aligned 元素扩展为 `(obj, elem_size, data_offset)`，M14再加入已定型的目标application TypeDescriptor，当前契约为`(obj, target_td, elem_size, data_offset)`；
 - **布局 meta**：每个数组实例一条元素布局与完整`element_scan`。该递归扫描可以描述直接引用、含引用的struct / tuple，以及M13修订后使用固定ref偏移的tagged enum；codegen以元素stride包装为数组扫描节点，runtime对每个内联元素重复执行且不读取enum tag。
 
 ### 2.5 codegen
@@ -80,7 +80,7 @@ fun main() {
 
 ### 3.1 `scoop_rt_array_clone`
 
-`const void *scoop_rt_array_clone(const void *obj, uint64_t elem_size)`：从对象头后读 `size`，计算总字节数，经 GC allocator 分配并整体 memcpy，返回新对象。元素为引用时**浅拷贝**（spec 10.4 的"独立快照"指数组本身，元素对象不递归复制——与 memcpy 语义一致）。M12 为支持 over-aligned 元素，在保持该语义不变的前提下增加第三个 `data_offset` 参数。
+M5初版为`const void *scoop_rt_array_clone(const void *obj, uint64_t elem_size)`：从对象头后读`size`，计算总字节数，经GC allocator分配并复制，返回新对象。元素为引用时**浅拷贝**（spec 10.4的“独立快照”指数组本身，元素对象不递归复制）。M12为over-aligned元素加入`data_offset`；M14数组改为普通generic intrinsic class application后，当前入口为`const void *scoop_rt_array_clone(const void *obj, const ScoopTypeDescriptor *target_td, uint64_t elem_size, uint64_t data_offset)`。它以目标descriptor分配并保留新对象头，只复制对象头之后的size/padding/elements，因而`Array<T>`与`MutableArray<T>`转换不会错误沿用来源descriptor。
 
 ## 4. 测试计划
 

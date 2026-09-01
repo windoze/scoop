@@ -51,7 +51,10 @@ fn class_with_base_and_interfaces() {
         panic!("expected a class declaration");
     };
     let (base, args) = decl.base_class.as_ref().expect("a base class");
-    assert_eq!(base.text, "Shape");
+    assert!(matches!(
+        &base.kind,
+        TypeRefKind::Named(name) if name.text == "Shape"
+    ));
     assert_eq!(args.len(), 1);
     assert!(matches!(&args[0], Expr::StringLiteral { value, .. } if value == "point"));
     assert_eq!(decl.interfaces.len(), 1);

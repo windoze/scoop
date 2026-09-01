@@ -127,20 +127,24 @@ impl Lowerer {
             (hir::Type::FunPtr(signature), ast::Expr::Call(call))
                 if call.callee.text == "FunPtr" && call.args.is_empty() =>
             {
-                let function_ty = self.intern_type(hir::Type::Function(signature));
+                let function_ty = self.function_types[signature].canonical_type;
                 if self.explicit_global_type_arg_matches(&call.type_args, &[function_ty]) {
                     Some(hir::ConstantValue::NullFunPtr)
                 } else {
                     None
                 }
             }
-            (hir::Type::Struct(struct_id, type_args), ast::Expr::Call(call))
-                if call.callee.text == self.structs[struct_id].name =>
+            (hir::Type::Struct(application), ast::Expr::Call(call))
+                if call.callee.text
+                    == self.structs[self.struct_applications[application].template].name =>
             {
+                let application_value = self.struct_applications[application].clone();
+                let struct_id = application_value.template;
+                let type_args = application_value.arguments;
                 if !self.explicit_global_type_arg_matches(&call.type_args, &type_args) {
                     return None;
                 }
-                let fields = self.structs[struct_id].fields.clone();
+                let fields = self.structs[struct_id].semantic_fields().to_vec();
                 if call.args.len() != fields.len() {
                     return None;
                 }
@@ -150,7 +154,7 @@ impl Lowerer {
                     values.push(self.global_constant(argument, field_ty)?);
                 }
                 Some(hir::ConstantValue::Struct {
-                    struct_id,
+                    application,
                     fields: values,
                 })
             }

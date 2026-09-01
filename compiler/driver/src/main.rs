@@ -51,7 +51,10 @@ fn main() -> ExitCode {
         } => match scoopc::compile_file_with_options(
             &file,
             &out_dir,
-            &scoopc::CompileOptions { library_paths },
+            &scoopc::CompileOptions {
+                library_paths,
+                ..Default::default()
+            },
         ) {
             Ok(success) => {
                 if let Some(emit) = emit {

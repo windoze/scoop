@@ -9,7 +9,8 @@ use scoop_ast::Span;
 
 pub use super::{
     BinOp, CLayout, CallingConvention, ClassModifier, ExternAbi, FunctionAttributes, GcEffect,
-    MethodModifier, Safety, StructAttributes, UnOp, Variance,
+    IntrinsicFunction, IntrinsicFunctionKind, IntrinsicProviderId, IntrinsicTypeDeclaration,
+    IntrinsicTypeKind, MethodModifier, Safety, StructAttributes, UnOp, Variance,
 };
 
 pub type TypeId = Idx<Type>;
@@ -26,8 +27,94 @@ pub type GlobalId = Idx<Global>;
 pub type StructId = Idx<StructDef>;
 pub type EnumId = Idx<EnumDef>;
 pub type ClassId = Idx<ClassDef>;
+pub type ClassConstructorId = Idx<ClassConstructor>;
 pub type InterfaceId = Idx<InterfaceDef>;
 pub type LocalId = Idx<Local>;
+
+/// Local-concrete provenance identities. They deliberately are not aliases
+/// for export-side arena ids: the HIR concretizer is the only component that
+/// maps a checked source declaration to one of these ids.
+macro_rules! local_origin_id {
+    ($name:ident) => {
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+        pub struct $name(u32);
+
+        impl $name {
+            pub const fn from_raw(raw: u32) -> Self {
+                Self(raw)
+            }
+
+            pub const fn into_raw(self) -> u32 {
+                self.0
+            }
+        }
+    };
+}
+
+local_origin_id!(StructOriginId);
+local_origin_id!(EnumOriginId);
+local_origin_id!(ClassOriginId);
+local_origin_id!(InterfaceOriginId);
+local_origin_id!(GenericFunctionOriginId);
+local_origin_id!(OwnerParameterizedMethodOriginId);
+local_origin_id!(GenericMethodOriginId);
+
+/// A structurally non-empty local-concrete sequence. It is intentionally a
+/// distinct container from ExportHir's generic-application sequence so an
+/// export application cannot be passed to MIR through a shared wrapper type.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct NonEmptyVec<T> {
+    first: T,
+    rest: Vec<T>,
+}
+
+impl<T> NonEmptyVec<T> {
+    pub fn new(first: T, rest: Vec<T>) -> Self {
+        Self { first, rest }
+    }
+
+    pub fn from_vec(mut values: Vec<T>) -> Option<Self> {
+        if values.is_empty() {
+            return None;
+        }
+        let rest = values.split_off(1);
+        Some(Self {
+            first: values.pop().expect("the non-empty prefix was checked"),
+            rest,
+        })
+    }
+
+    pub fn len(&self) -> usize {
+        1 + self.rest.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        false
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &T> {
+        std::iter::once(&self.first).chain(self.rest.iter())
+    }
+}
+
+impl<T: Copy> NonEmptyVec<T> {
+    pub fn to_vec(&self) -> Vec<T> {
+        self.iter().copied().collect()
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ConstructorParamId(u32);
+
+impl ConstructorParamId {
+    pub const fn from_raw(raw: u32) -> Self {
+        Self(raw)
+    }
+
+    pub const fn into_raw(self) -> u32 {
+        self.0
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct InterfaceFamilyId(u32);
@@ -64,6 +151,34 @@ impl VariantId {
     }
 }
 
+/// Local-concrete identity of one class virtual-dispatch family. It is mapped
+/// explicitly from the export-side family during HIR concretization.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct VirtualMethodId(u32);
+
+impl VirtualMethodId {
+    pub const fn from_raw(raw: u32) -> Self {
+        Self(raw)
+    }
+
+    pub const fn into_raw(self) -> u32 {
+        self.0
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct InterfaceMethodSlot(u32);
+
+impl InterfaceMethodSlot {
+    pub const fn from_raw(raw: u32) -> Self {
+        Self(raw)
+    }
+
+    pub const fn into_raw(self) -> u32 {
+        self.0
+    }
+}
+
 /// A fully resolved type entity.  `gc_free` is mandatory by construction;
 /// there is no unknown or deferred state in local-concrete HIR.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -84,8 +199,6 @@ pub enum TypeKind {
     Class(ClassId),
     Interface(InterfaceId),
     Any,
-    Array(TypeId),
-    MutableArray(TypeId),
     Tuple(Vec<TypeId>),
     Function(FunctionTypeId),
     Ptr(TypeId),
@@ -95,6 +208,7 @@ pub enum TypeKind {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct FunctionType {
+    pub canonical_type: TypeId,
     pub is_suspend: bool,
     pub parameter_types: Vec<TypeId>,
     pub return_type: TypeId,
@@ -116,6 +230,10 @@ pub struct Module {
     pub structs: Arena<StructDef>,
     pub enums: Arena<EnumDef>,
     pub classes: Arena<ClassDef>,
+    /// Hidden, fully typed allocation/initialization callables for every
+    /// instantiable declared class. Class construction expressions and
+    /// compiler exceptions reference these ids directly.
+    pub class_constructors: Arena<ClassConstructor>,
     pub interfaces: Arena<InterfaceDef>,
     pub top_level: Vec<FunctionId>,
     pub unit: TypeId,
@@ -123,22 +241,61 @@ pub struct Module {
     pub boolean: TypeId,
     pub string: TypeId,
     pub option_variants: (VariantId, VariantId),
-    pub exception_core: ExceptionCore,
+    pub exception_core: CompilerExceptionCore,
     pub coroutine_protocols: Vec<CoroutineProtocol>,
     pub foreign_callback_core: ForeignCallbackCore,
+    /// Nominal owners of the fixed compiler-represented types. Generic
+    /// intrinsic families are represented by each concrete class instance,
+    /// so no parameterized template can leak into this local graph.
+    pub intrinsic_type_core: IntrinsicTypeCore,
     pub entry: FunctionId,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ExceptionCore {
-    pub throwable: ClassId,
-    pub illegal_state_exception: ClassId,
+pub struct ZeroArgClassConstructor {
+    pub class: ClassId,
+    pub callable: ClassConstructorId,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CompilerException {
+    pub constructor: ZeroArgClassConstructor,
+}
+
+impl CompilerException {
+    pub const fn class(self) -> ClassId {
+        self.constructor.class
+    }
+
+    pub const fn callable(self) -> ClassConstructorId {
+        self.constructor.callable
+    }
+}
+
+/// Local-concrete exception capabilities. Export ids cannot be represented
+/// here, and every constructor target has already been fully specialized.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CompilerExceptionCore {
+    pub throwable: CompilerException,
+    pub unwrap_exception: CompilerException,
+    pub class_cast_exception: CompilerException,
+    pub arithmetic_exception: CompilerException,
+    pub index_out_of_bounds_exception: CompilerException,
+    pub illegal_state_exception: CompilerException,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ForeignCallbackCore {
     pub mode: EnumId,
     pub state: EnumId,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct IntrinsicTypeCore {
+    pub int: StructId,
+    pub uint: StructId,
+    pub boolean: StructId,
+    pub string: ClassId,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -269,38 +426,130 @@ pub enum Callable {
 
 #[derive(Debug, Clone)]
 pub struct StructDef {
+    pub origin: StructOriginId,
     pub name: String,
     pub type_arguments: Vec<TypeId>,
     pub gc_free: bool,
-    pub attributes: StructAttributes,
-    pub fields: Vec<Field>,
+    pub representation: StructRepresentation,
     pub interfaces: Vec<TypeId>,
+    pub interface_implementations: Vec<InterfaceImplementation>,
+    pub methods: Vec<FunctionId>,
     pub span: Span,
 }
 
 #[derive(Debug, Clone)]
+pub enum StructRepresentation {
+    Declared {
+        attributes: StructAttributes,
+        fields: Vec<Field>,
+    },
+    Intrinsic {
+        declaration: IntrinsicTypeDeclaration,
+        application: IntrinsicTypeRepresentation,
+    },
+}
+
+impl StructDef {
+    pub fn declared_fields(&self) -> &[Field] {
+        match &self.representation {
+            StructRepresentation::Declared { fields, .. } => fields,
+            StructRepresentation::Intrinsic { .. } => {
+                panic!("an intrinsic struct has no source field representation")
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct EnumDef {
+    pub origin: EnumOriginId,
     pub name: String,
     pub type_arguments: Vec<TypeId>,
     pub gc_free: bool,
     pub variants: Vec<Variant>,
     pub option_variants: Option<(VariantId, VariantId)>,
     pub interfaces: Vec<TypeId>,
+    pub interface_implementations: Vec<InterfaceImplementation>,
+    pub methods: Vec<FunctionId>,
     pub span: Span,
 }
 
 #[derive(Debug, Clone)]
 pub struct ClassDef {
+    pub origin: ClassOriginId,
     pub modifier: ClassModifier,
     pub name: String,
-    pub constructor: Vec<Field>,
-    pub base_class: Option<(ClassId, Vec<Expr>)>,
+    pub type_arguments: Vec<TypeId>,
+    pub representation: ClassRepresentation,
     pub interfaces: Vec<TypeId>,
+    pub interface_implementations: Vec<InterfaceImplementation>,
+    pub methods: Vec<FunctionId>,
     pub span: Span,
+}
+
+/// Complete signature and owning class of one compiler-hidden constructor.
+/// This is a callable entity in LocalConcreteHir, not a request for MIR to
+/// discover or synthesize a target from the class name or id.
+#[derive(Debug, Clone)]
+pub struct ClassConstructor {
+    pub class: ClassId,
+    pub params: Vec<TypeId>,
+    pub return_type: TypeId,
+}
+
+#[derive(Debug, Clone)]
+pub enum ClassRepresentation {
+    Declared {
+        constructor: Vec<ConstructorField>,
+        base_class: Option<(ClassId, Vec<Expr>)>,
+    },
+    Intrinsic {
+        declaration: IntrinsicTypeDeclaration,
+        application: IntrinsicTypeRepresentation,
+    },
+}
+
+impl ClassDef {
+    pub fn declared_constructor(&self) -> &[ConstructorField] {
+        match &self.representation {
+            ClassRepresentation::Declared { constructor, .. } => constructor,
+            ClassRepresentation::Intrinsic { .. } => {
+                panic!("an intrinsic class has no source constructor representation")
+            }
+        }
+    }
+
+    pub fn base_class(&self) -> Option<&(ClassId, Vec<Expr>)> {
+        match &self.representation {
+            ClassRepresentation::Declared { base_class, .. } => base_class.as_ref(),
+            ClassRepresentation::Intrinsic { .. } => None,
+        }
+    }
+}
+
+/// Complete concrete representation selected by an intrinsic declaration and
+/// this application's already-lowered arguments.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum IntrinsicTypeRepresentation {
+    Int,
+    UInt,
+    Boolean,
+    String,
+    Array { element: TypeId },
+    MutableArray { element: TypeId },
+}
+
+#[derive(Debug, Clone)]
+pub struct ConstructorField {
+    pub parameter: ConstructorParamId,
+    pub name: String,
+    pub ty: TypeId,
+    pub mutable: bool,
 }
 
 #[derive(Debug, Clone)]
 pub struct InterfaceDef {
+    pub origin: InterfaceOriginId,
     pub name: String,
     pub family: InterfaceFamilyId,
     /// Variance and arguments are copied onto every concrete application.
@@ -309,6 +558,30 @@ pub struct InterfaceDef {
     pub type_arguments: Vec<TypeId>,
     pub methods: Vec<MethodSig>,
     pub span: Span,
+}
+
+/// Complete local-concrete dispatch table for one exact interface
+/// application. Entries are paired with their typed slot identities.
+#[derive(Debug, Clone)]
+pub struct InterfaceImplementation {
+    pub interface: InterfaceId,
+    pub methods: Vec<InterfaceMethodImplementation>,
+}
+
+#[derive(Debug, Clone)]
+pub struct InterfaceMethodImplementation {
+    pub slot: InterfaceMethodSlot,
+    pub target: InterfaceImplementationTarget,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum InterfaceImplementationTarget {
+    Method(FunctionId),
+    /// An abstract class intentionally leaves this obligation to a concrete
+    /// subclass. The declaration supplies the complete slot signature.
+    Abstract {
+        declaration: FunctionId,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -372,12 +645,10 @@ pub enum ConstantValue {
 #[derive(Debug, Clone)]
 pub struct Function {
     pub name: String,
-    /// Concrete type arguments used to instantiate the source template.
-    /// Empty for an originally non-generic function.
-    pub type_arguments: Vec<TypeId>,
-    /// Present only when same-qualified-name generic overloads require a
-    /// stable discriminator in MIR's symbol mangling.
-    pub generic_discriminator: Option<u32>,
+    /// Complete source/application category. MIR consumes this sum type
+    /// directly and never infers genericity or method ownership from an
+    /// argument vector, function name, or the optional `method` field.
+    pub origin: FunctionOrigin,
     pub is_suspend: bool,
     pub params: Vec<Param>,
     pub return_ty: TypeId,
@@ -387,10 +658,78 @@ pub struct Function {
     pub span: Span,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FunctionOrigin {
+    Free(FreeFunctionOrigin),
+    Method(MethodOrigin),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FreeFunctionOrigin {
+    Plain,
+    Generic {
+        origin: GenericFunctionOriginId,
+        arguments: NonEmptyVec<TypeId>,
+        symbol: InstanceSymbol,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MethodOrigin {
+    pub owner: MethodOwner,
+    pub specialization: MethodSpecialization,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum MethodOwner {
+    Class(ClassId),
+    Struct(StructId),
+    Enum(EnumId),
+    Interface(InterfaceId),
+    /// A compiler-derived method on a structural value type such as Unit or
+    /// tuple. The exact concrete owner type is part of the identity.
+    Structural(TypeId),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MethodSpecialization {
+    Plain,
+    OwnerParameterized {
+        origin: OwnerParameterizedMethodOriginId,
+        symbol: InstanceSymbol,
+    },
+    Generic {
+        origin: GenericMethodOriginId,
+        method_arguments: NonEmptyVec<TypeId>,
+        symbol: InstanceSymbol,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InstanceSymbol {
+    Unique,
+    Overloaded { discriminator: u32 },
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Method {
     pub owner: TypeId,
     pub modifier: MethodModifier,
+    pub dispatch: MethodDispatch,
+    pub operator: Option<super::OperatorKind>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MethodDispatch {
+    Direct,
+    Virtual(VirtualMethodId),
+    /// Direct call at the declaring static type plus inherited vtable
+    /// membership for base-typed calls.
+    FinalOverride(VirtualMethodId),
+    Interface {
+        interface: InterfaceId,
+        slot: InterfaceMethodSlot,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -416,7 +755,7 @@ pub struct Param {
 #[derive(Debug, Clone)]
 pub enum FunctionKind {
     User(Body),
-    Intrinsic(String),
+    Intrinsic(IntrinsicFunction),
     Extern(ExternFunctionId),
 }
 
@@ -519,7 +858,14 @@ pub enum Pattern {
         local: LocalId,
     },
     Wildcard,
-    Literal(Expr),
+    Literal {
+        value: Expr,
+        /// Exact ordinary operator target selected by Export HIR.
+        equals: Callable,
+        /// Static subject type used to select dispatch. This is explicit so
+        /// MIR never reconstructs it from its recursive pattern context.
+        subject_ty: TypeId,
+    },
     Variant {
         enum_id: EnumId,
         variant: VariantId,
@@ -551,9 +897,10 @@ pub enum ExprKind {
         args: Vec<Expr>,
     },
     ClassInit {
-        class_id: ClassId,
+        constructor: ClassConstructorId,
         args: Vec<Expr>,
     },
+    ConstructorParam(ConstructorParamId),
     VariantConstruct {
         enum_id: EnumId,
         variant: VariantId,

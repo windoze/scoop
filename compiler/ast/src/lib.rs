@@ -168,13 +168,57 @@ pub struct ClassDecl {
     pub annotations: Vec<Annotation>,
     pub modifier: ClassModifier,
     pub name: Ident,
+    /// Generic host parameters (`class Name<T, U> ...`).
+    pub type_params: Vec<TypeParamDecl>,
     /// Primary-constructor properties (`val` / `var`).
-    pub constructor: Vec<ConstructorProp>,
+    pub constructor: ClassConstructorDecl,
     /// Base class and its constructor arguments (`: Base(args)`).
-    pub base_class: Option<(Ident, Vec<Expr>)>,
+    pub base_class: Option<(TypeRef, Vec<Expr>)>,
     pub interfaces: Vec<TypeRef>,
+    pub where_clause: Option<WhereClause>,
     pub methods: Vec<FunctionDecl>,
     pub span: Span,
+}
+
+/// The source form of a class primary constructor. Keeping omission distinct
+/// from an explicit empty constructor lets HIR validate intrinsic type shapes
+/// without reconstructing syntax from an empty property list.
+#[derive(Debug, Clone, PartialEq)]
+pub enum ClassConstructorDecl {
+    Omitted,
+    Declared(Vec<ConstructorProp>),
+}
+
+impl ClassConstructorDecl {
+    pub fn is_omitted(&self) -> bool {
+        matches!(self, Self::Omitted)
+    }
+}
+
+impl std::ops::Deref for ClassConstructorDecl {
+    type Target = [ConstructorProp];
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Self::Omitted => &[],
+            Self::Declared(properties) => properties,
+        }
+    }
+}
+
+impl<'a> IntoIterator for &'a ClassConstructorDecl {
+    type Item = &'a ConstructorProp;
+    type IntoIter = std::slice::Iter<'a, ConstructorProp>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl FromIterator<ConstructorProp> for ClassConstructorDecl {
+    fn from_iter<T: IntoIterator<Item = ConstructorProp>>(iter: T) -> Self {
+        Self::Declared(iter.into_iter().collect())
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -192,6 +236,8 @@ pub struct InterfaceDecl {
     pub annotations: Vec<Annotation>,
     pub name: Ident,
     pub type_params: Vec<TypeParamDecl>,
+    pub parents: Vec<TypeRef>,
+    pub where_clause: Option<WhereClause>,
     pub methods: Vec<FunctionDecl>,
     pub span: Span,
 }
@@ -203,11 +249,11 @@ pub enum Variance {
     Out,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TypeParamDecl {
     pub name: Ident,
     pub variance: Variance,
-    pub kind_bound: Option<TypeParamKindBound>,
+    pub inline_bound: Option<TypeBound>,
     pub span: Span,
 }
 
@@ -215,6 +261,25 @@ pub struct TypeParamDecl {
 pub enum TypeParamKindBound {
     Value,
     Ref,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum TypeBound {
+    Kind(TypeParamKindBound),
+    Upper(TypeRef),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct WhereClause {
+    pub constraints: Vec<TypeConstraint>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct TypeConstraint {
+    pub parameter: Ident,
+    pub bound: TypeBound,
+    pub span: Span,
 }
 
 /// `enum E<T> { ... }` (spec 4.2).
@@ -226,6 +291,7 @@ pub struct EnumDecl {
     pub variants: Vec<VariantDecl>,
     /// Implemented interfaces (spec 4.4.3).
     pub interfaces: Vec<TypeRef>,
+    pub where_clause: Option<WhereClause>,
     /// Member functions (spec 4.2).
     pub methods: Vec<FunctionDecl>,
     pub span: Span,
@@ -268,12 +334,54 @@ pub struct StructDecl {
     /// Generic type parameters (`struct Name<T, U>(...)`); empty for
     /// non-generic structs.
     pub type_params: Vec<TypeParamDecl>,
-    pub fields: Vec<FieldDecl>,
+    pub fields: StructRepresentationDecl,
     /// Implemented interfaces (`struct S(...) : I1, I2`, spec 4.4.3).
     pub interfaces: Vec<TypeRef>,
+    pub where_clause: Option<WhereClause>,
     /// Member functions (value receiver, spec 4.1/4.4.3).
     pub methods: Vec<FunctionDecl>,
     pub span: Span,
+}
+
+/// The representation syntax of a struct declaration. Only a registry-approved
+/// intrinsic type may use `Omitted`; ordinary zero-field structs use
+/// `Declared(Vec::new())` and therefore remain distinguishable.
+#[derive(Debug, Clone, PartialEq)]
+pub enum StructRepresentationDecl {
+    Omitted,
+    Declared(Vec<FieldDecl>),
+}
+
+impl StructRepresentationDecl {
+    pub fn is_omitted(&self) -> bool {
+        matches!(self, Self::Omitted)
+    }
+}
+
+impl std::ops::Deref for StructRepresentationDecl {
+    type Target = [FieldDecl];
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Self::Omitted => &[],
+            Self::Declared(fields) => fields,
+        }
+    }
+}
+
+impl<'a> IntoIterator for &'a StructRepresentationDecl {
+    type Item = &'a FieldDecl;
+    type IntoIter = std::slice::Iter<'a, FieldDecl>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl FromIterator<FieldDecl> for StructRepresentationDecl {
+    fn from_iter<T: IntoIterator<Item = FieldDecl>>(iter: T) -> Self {
+        Self::Declared(iter.into_iter().collect())
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -291,6 +399,9 @@ pub struct FunctionDecl {
     pub is_suspend: bool,
     /// `override` (required when overriding, forbidden otherwise).
     pub is_override: bool,
+    /// Present exactly when the declaration has an `operator` modifier; the
+    /// modifier span is retained for HIR signature/target diagnostics.
+    pub operator: Option<OperatorModifier>,
     /// Effective member modality. It is `Final` for top-level
     /// functions, where member modality is not applicable.
     pub modifier: MethodModifier,
@@ -304,7 +415,13 @@ pub struct FunctionDecl {
     pub params: Vec<Param>,
     /// Return type annotation; absent means `Unit`.
     pub return_ty: Option<TypeRef>,
+    pub where_clause: Option<WhereClause>,
     pub body: FunctionBody,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct OperatorModifier {
     pub span: Span,
 }
 
@@ -792,9 +909,10 @@ pub fn dump(file: &SourceFile) -> String {
                     let names: Vec<String> = e.interfaces.iter().map(dump_type_ref).collect();
                     format!(" : {}", names.join(", "))
                 };
+                let where_clause = dump_where_clause(e.where_clause.as_ref());
                 out.push_str(&format!(
-                    "  enum {}{}{}\n",
-                    e.name.text, type_params, interfaces
+                    "  enum {}{}{}{}\n",
+                    e.name.text, type_params, interfaces, where_clause
                 ));
                 for variant in &e.variants {
                     match &variant.kind {
@@ -840,22 +958,27 @@ pub fn dump(file: &SourceFile) -> String {
                     ClassModifier::Open => "open ",
                     ClassModifier::Abstract => "abstract ",
                 };
-                let ctor: Vec<String> = c
-                    .constructor
-                    .iter()
-                    .map(|p| {
-                        format!(
-                            "{}{}: {}",
-                            if p.mutable { "var " } else { "val " },
-                            p.name.text,
-                            dump_type_ref(&p.ty)
-                        )
-                    })
-                    .collect();
+                let type_params = dump_type_params(&c.type_params);
+                let ctor = match &c.constructor {
+                    ClassConstructorDecl::Omitted => "()".to_string(),
+                    ClassConstructorDecl::Declared(properties) => format!(
+                        "({})",
+                        properties
+                            .iter()
+                            .map(|p| format!(
+                                "{}{}: {}",
+                                if p.mutable { "var " } else { "val " },
+                                p.name.text,
+                                dump_type_ref(&p.ty)
+                            ))
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    ),
+                };
                 let base = c
                     .base_class
                     .as_ref()
-                    .map(|(name, args)| format!(" : {}(<{} args>)", name.text, args.len()))
+                    .map(|(ty, args)| format!(" : {}(<{} args>)", dump_type_ref(ty), args.len()))
                     .unwrap_or_default();
                 let ifaces = if c.interfaces.is_empty() {
                     String::new()
@@ -863,16 +986,22 @@ pub fn dump(file: &SourceFile) -> String {
                     let names: Vec<String> = c.interfaces.iter().map(dump_type_ref).collect();
                     format!(", {}", names.join(", "))
                 };
+                let where_clause = dump_where_clause(c.where_clause.as_ref());
                 out.push_str(&format!(
-                    "  {modifier}class {}({}){}{}\n",
-                    c.name.text,
-                    ctor.join(", "),
-                    base,
-                    ifaces
+                    "  {modifier}class {}{}{}{}{}{}\n",
+                    c.name.text, type_params, ctor, base, ifaces, where_clause
                 ));
                 for method in &c.methods {
                     let suspend = if method.is_suspend { "suspend " } else { "" };
-                    out.push_str(&format!("    {suspend}fun {}\n", method.name.text));
+                    let operator = if method.operator.is_some() {
+                        "operator "
+                    } else {
+                        ""
+                    };
+                    out.push_str(&format!(
+                        "    {operator}{suspend}fun {}\n",
+                        method.name.text
+                    ));
                 }
             }
             Decl::Interface(i) => {
@@ -883,10 +1012,34 @@ pub fn dump(file: &SourceFile) -> String {
                     let params: Vec<String> = i.type_params.iter().map(dump_type_param).collect();
                     format!("<{}>", params.join(", "))
                 };
-                out.push_str(&format!("  interface {}{}\n", i.name.text, params));
+                let parents = if i.parents.is_empty() {
+                    String::new()
+                } else {
+                    format!(
+                        " : {}",
+                        i.parents
+                            .iter()
+                            .map(dump_type_ref)
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    )
+                };
+                let where_clause = dump_where_clause(i.where_clause.as_ref());
+                out.push_str(&format!(
+                    "  interface {}{}{}{}\n",
+                    i.name.text, params, parents, where_clause
+                ));
                 for method in &i.methods {
                     let suspend = if method.is_suspend { "suspend " } else { "" };
-                    out.push_str(&format!("    {suspend}fun {}\n", method.name.text));
+                    let operator = if method.operator.is_some() {
+                        "operator "
+                    } else {
+                        ""
+                    };
+                    out.push_str(&format!(
+                        "    {operator}{suspend}fun {}\n",
+                        method.name.text
+                    ));
                 }
             }
             Decl::Struct(s) => {
@@ -909,9 +1062,15 @@ pub fn dump(file: &SourceFile) -> String {
                     let names: Vec<String> = s.interfaces.iter().map(dump_type_ref).collect();
                     format!(" : {}", names.join(", "))
                 };
+                let representation = if s.fields.is_omitted() {
+                    " <representation omitted>"
+                } else {
+                    ""
+                };
+                let where_clause = dump_where_clause(s.where_clause.as_ref());
                 out.push_str(&format!(
-                    "  struct {}{}{}\n",
-                    s.name.text, type_params, interfaces
+                    "  struct {}{}{}{}{}\n",
+                    s.name.text, type_params, representation, interfaces, where_clause
                 ));
                 for field in &s.fields {
                     out.push_str(&format!(
@@ -922,7 +1081,15 @@ pub fn dump(file: &SourceFile) -> String {
                 }
                 for method in &s.methods {
                     let suspend = if method.is_suspend { "suspend " } else { "" };
-                    out.push_str(&format!("    {suspend}fun {}\n", method.name.text));
+                    let operator = if method.operator.is_some() {
+                        "operator "
+                    } else {
+                        ""
+                    };
+                    out.push_str(&format!(
+                        "    {operator}{suspend}fun {}\n",
+                        method.name.text
+                    ));
                 }
             }
             Decl::Function(f) => {
@@ -959,9 +1126,14 @@ pub fn dump(file: &SourceFile) -> String {
                     (MethodModifier::Abstract, _) => "abstract ",
                 };
                 let flags = format!(
-                    "{}{}{}",
+                    "{}{}{}{}",
                     modifier,
                     if f.is_override { "override " } else { "" },
+                    if f.operator.is_some() {
+                        "operator "
+                    } else {
+                        ""
+                    },
                     if f.is_suspend { "suspend " } else { "" }
                 );
                 let receiver = f
@@ -970,11 +1142,12 @@ pub fn dump(file: &SourceFile) -> String {
                     .map(|ty| format!("{}.", dump_type_ref(ty)))
                     .unwrap_or_default();
                 out.push_str(&format!(
-                    "  {flags}fun {receiver}{}{}({}){}\n",
+                    "  {flags}fun {receiver}{}{}({}){}{}\n",
                     f.name.text,
                     type_params,
                     params.join(", "),
-                    ret
+                    ret,
+                    dump_where_clause(f.where_clause.as_ref())
                 ));
                 match &f.body {
                     FunctionBody::Block(block) => dump_block(block, 2, &mut out),
@@ -1204,12 +1377,53 @@ fn dump_type_param(param: &TypeParamDecl) -> String {
         Variance::In => "in ",
         Variance::Out => "out ",
     };
-    let kind = match param.kind_bound {
-        None => "",
-        Some(TypeParamKindBound::Value) => " : value",
-        Some(TypeParamKindBound::Ref) => " : ref",
+    let bound = match &param.inline_bound {
+        None => String::new(),
+        Some(bound) => format!(" : {}", dump_type_bound(bound)),
     };
-    format!("{variance}{}{kind}", param.name.text)
+    format!("{variance}{}{bound}", param.name.text)
+}
+
+fn dump_type_params(params: &[TypeParamDecl]) -> String {
+    if params.is_empty() {
+        String::new()
+    } else {
+        format!(
+            "<{}>",
+            params
+                .iter()
+                .map(dump_type_param)
+                .collect::<Vec<_>>()
+                .join(", ")
+        )
+    }
+}
+
+fn dump_type_bound(bound: &TypeBound) -> String {
+    match bound {
+        TypeBound::Kind(TypeParamKindBound::Value) => "value".to_string(),
+        TypeBound::Kind(TypeParamKindBound::Ref) => "ref".to_string(),
+        TypeBound::Upper(ty) => dump_type_ref(ty),
+    }
+}
+
+fn dump_where_clause(clause: Option<&WhereClause>) -> String {
+    let Some(clause) = clause else {
+        return String::new();
+    };
+    format!(
+        " where {}",
+        clause
+            .constraints
+            .iter()
+            .map(|constraint| format!(
+                "{} : {}",
+                constraint.parameter.text,
+                dump_type_bound(&constraint.bound)
+            ))
+            .collect::<Vec<_>>()
+            .join(", ")
+    )
 }
 
 /// Compact one-line pattern rendering for dumps.

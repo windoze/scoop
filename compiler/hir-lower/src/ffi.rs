@@ -249,7 +249,7 @@ impl Lowerer {
         for id in layouts {
             self.current_file = self.struct_files[&id];
             let declaration = self.structs[id].clone();
-            if declaration.fields.is_empty() {
+            if declaration.semantic_fields().is_empty() {
                 self.error(
                     declaration.span,
                     format!(
@@ -260,8 +260,8 @@ impl Lowerer {
                 continue;
             }
             let mut visiting = HashSet::new();
-            for field in declaration.fields {
-                let path = vec![declaration.name.clone(), field.name];
+            for field in declaration.semantic_fields() {
+                let path = vec![declaration.name.clone(), field.name.clone()];
                 if let Err(error) =
                     self.classify_c_ffi_type(field.ty, &[], false, path, &mut visiting)
                 {
@@ -281,12 +281,15 @@ impl Lowerer {
             .types
             .iter()
             .filter_map(|(ty, value)| match value {
-                hir::Type::Struct(id, args)
-                    if self.structs[*id].attributes.c_layout.is_some()
-                        && !args.is_empty()
-                        && !self.type_contains_param(ty) =>
-                {
-                    Some((ty, *id))
+                hir::Type::Struct(application) => {
+                    let application = &self.struct_applications[*application];
+                    (self.structs[application.template]
+                        .attributes
+                        .c_layout
+                        .is_some()
+                        && !application.arguments.is_empty()
+                        && !self.type_contains_param(ty))
+                    .then_some((ty, application.template))
                 }
                 _ => None,
             })
@@ -375,7 +378,9 @@ impl Lowerer {
                     Classification::Safe
                 })
             }
-            hir::Type::Struct(id, args) => {
+            hir::Type::Struct(application) => {
+                let application = self.struct_applications[application].clone();
+                let id = application.template;
                 if self.structs[id].attributes.c_layout.is_none() {
                     return Err(CAbiError {
                         path,
@@ -391,19 +396,15 @@ impl Lowerer {
                         reason: "recursive by-value C layout is not finite".to_string(),
                     });
                 }
-                let fields = self.structs[id].fields.clone();
+                let fields = self.structs[id].semantic_fields().to_vec();
                 let mut deferred = false;
                 for field in fields {
-                    let field_ty = self.instantiate_ty(field.ty, &args);
+                    let field_ty = self.instantiate_ty(field.ty, &application.arguments);
                     let mut field_path = path.clone();
                     field_path.push(field.name);
-                    deferred |= self.classify_c_ffi_type(
-                        field_ty,
-                        &[],
-                        false,
-                        field_path,
-                        visiting,
-                    )? == Classification::Deferred;
+                    deferred |=
+                        self.classify_c_ffi_type(field_ty, &[], false, field_path, visiting)?
+                            == Classification::Deferred;
                 }
                 visiting.remove(&resolved);
                 Ok(if deferred {
@@ -412,12 +413,19 @@ impl Lowerer {
                     Classification::Safe
                 })
             }
-            hir::Type::Enum(id, args)
-                if Some(id) == self.option_enum && args.len() == 1 =>
-            {
-                match self.types[args[0]] {
+            hir::Type::Enum(application) => {
+                let application = self.enum_applications[application].clone();
+                if Some(application.template) != self.option_enum
+                    || application.arguments.len() != 1
+                {
+                    return Err(CAbiError {
+                        path,
+                        reason: "enum types have no M12 C ABI representation".to_string(),
+                    });
+                }
+                match self.types[application.arguments[0]] {
                     hir::Type::Ptr(_) | hir::Type::FunPtr(_) => self.classify_c_ffi_type(
-                        args[0],
+                        application.arguments[0],
                         substitution,
                         false,
                         path,
@@ -432,11 +440,9 @@ impl Lowerer {
             }
             hir::Type::Param(_) => Ok(Classification::Deferred),
             hir::Type::String
-            | hir::Type::Class(_)
-            | hir::Type::Interface(_, _)
+            | hir::Type::Class(..)
+            | hir::Type::Interface(_)
             | hir::Type::Any
-            | hir::Type::Array(_)
-            | hir::Type::MutableArray(_)
             | hir::Type::Function(_) => Err(CAbiError {
                 path,
                 reason: format!("ref type `{}` is managed", self.type_name(resolved)),
@@ -444,10 +450,6 @@ impl Lowerer {
             hir::Type::Tuple(_) => Err(CAbiError {
                 path,
                 reason: "tuple types have no stable C layout".to_string(),
-            }),
-            hir::Type::Enum(_, _) => Err(CAbiError {
-                path,
-                reason: "enum types have no M12 C ABI representation".to_string(),
             }),
         }
     }
@@ -465,11 +467,9 @@ impl Lowerer {
                 reason: "`Unit` is only allowed as a Scoop ABI return type".to_string(),
             }),
             hir::Type::String
-            | hir::Type::Class(_)
-            | hir::Type::Interface(_, _)
+            | hir::Type::Class(..)
+            | hir::Type::Interface(_)
             | hir::Type::Any
-            | hir::Type::Array(_)
-            | hir::Type::MutableArray(_)
             | hir::Type::Function(_) => Ok(()),
             hir::Type::Param(_) => Err(CAbiError {
                 path,

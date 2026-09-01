@@ -1,0 +1,29 @@
+interface Marker {}
+
+interface Boxed<T> {}
+
+interface Left {
+    fun value(): Int
+}
+
+interface Right {
+    fun value(): Int
+}
+
+fun <T : value> mixedKind(value: T): T where T : Marker = value
+
+fun <T> unknownParameter(value: T): T where U : Marker = value
+
+fun <T : Int> nonInterface(value: T): T = value
+
+fun <T> duplicate(value: T): T where T : Marker, T : Marker = value
+
+fun <T : Boxed> incompleteApplication(value: T): T = value
+
+fun <T : Marker> requiresMarker(value: T): T = value
+
+fun <T : Left> ambiguous(value: T): Int where T : Right = value.value()
+
+fun main() {
+    requiresMarker(42)
+}

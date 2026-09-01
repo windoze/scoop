@@ -34,6 +34,7 @@ SourceFile
 SourceFile
   struct Ptr<T : value>
     field _rawPointer: UInt
+    operator fun equals
     fun toUInt
     fun cast
     fun load
@@ -128,15 +129,15 @@ SourceFile
 SourceFile
     @Extern(name = "scoop_rt_write", abi = "scoop")
   fun write(message: String)
-  fun print(message: Any)
+  fun print<T : ToString>(value: T)
     =
       Call write
         MethodCall toString
-          Var message
-  fun println(message: Any)
+          Var value
+  fun println<T : ToString>(value: T)
     Call write
       MethodCall toString
-        Var message
+        Var value
     Call write
       StringLiteral "\n"
 SourceFile
@@ -151,6 +152,57 @@ SourceFile
   class ArithmeticException() : Exception(<1 args>)
   class IndexOutOfBoundsException() : Exception(<1 args>)
   class IllegalStateException() : Exception(<1 args>)
+SourceFile
+  interface ToString
+    fun toString
+  interface Hash
+    fun hash
+    @Intrinsic("core_int")
+  struct Int <representation omitted> : ToString, Hash
+    operator fun equals
+    fun toString
+    fun hash
+    @Intrinsic("core_uint")
+  struct UInt <representation omitted> : ToString, Hash
+    operator fun equals
+    fun toString
+    fun hash
+    @Intrinsic("core_boolean")
+  struct Boolean <representation omitted> : ToString, Hash
+    operator fun equals
+    fun toString
+    fun hash
+    @Intrinsic("core_string")
+  class String(), ToString, Hash
+    operator fun equals
+    fun toString
+    fun hash
+    @Intrinsic("core_array")
+  class Array<T>()
+    @Intrinsic("core_mutable_array")
+  class MutableArray<T>()
+    @Extern(name = "scoop_rt_int_equals", abi = "scoop")
+  fun coreIntEquals(left: Int, right: Int): Boolean
+    @Extern(name = "scoop_rt_uint_equals", abi = "scoop")
+  fun coreUIntEquals(left: UInt, right: UInt): Boolean
+    @Extern(name = "scoop_rt_bool_equals", abi = "scoop")
+  fun coreBooleanEquals(left: Boolean, right: Boolean): Boolean
+    @Extern(name = "scoop_rt_string_eq", abi = "scoop")
+  fun coreStringEquals(left: String, right: String): Boolean
+    @Extern(name = "scoop_rt_int_to_string", abi = "scoop")
+  fun coreIntToString(value: Int): String
+    @Extern(name = "scoop_rt_uint_to_string", abi = "scoop")
+  fun coreUIntToString(value: UInt): String
+    @Extern(name = "scoop_rt_bool_to_string", abi = "scoop")
+  fun coreBooleanToString(value: Boolean): String
+    @Extern(name = "scoop_rt_int_hash", abi = "scoop")
+  fun coreIntHash(value: Int): Int
+    @Extern(name = "scoop_rt_uint_hash", abi = "scoop")
+  fun coreUIntHash(value: UInt): Int
+    @Extern(name = "scoop_rt_bool_hash", abi = "scoop")
+  fun coreBooleanHash(value: Boolean): Int
+    @Extern(name = "scoop_rt_string_hash", abi = "scoop")
+  fun coreStringHash(value: String): Int
 SourceFile
   struct S
     field v: Int
@@ -203,6 +255,10 @@ Module
     suspend fun run(): T0
   interface SuspendRegistration<out T>
     fun register(continuation: Continuation<T0>): Unit
+  interface ToString
+    fun toString(): String
+  interface Hash
+    fun hash(): Int
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
   fun startCoroutine<T>(task: suspend () -> T0, completion: Continuation<T0>): Unit
@@ -240,17 +296,28 @@ Module
   fun gcCollect(): Unit <intrinsic rt_gc_collect>
   fun gcStats(): UInt <intrinsic rt_gc_stats>
   fun write(arg1: String): Unit <extern0 abi=scoop symbol=scoop_rt_write>
-  fun print(message: Any): Unit
+  fun print<T : ToString>(value: T0): Unit
     Call write : Unit
-      MethodCall Any.toString : String
-        Local message : Any
+      MethodCall bound T0 via ToString -> ToString.toString : String
+        Local value : T0
     return
-  fun println(message: Any): Unit
+  fun println<T : ToString>(value: T0): Unit
     Call write : Unit
-      MethodCall Any.toString : String
-        Local message : Any
+      MethodCall bound T0 via ToString -> ToString.toString : String
+        Local value : T0
     Call write : Unit
       StringLiteral "\n" : String
+  fun coreIntEquals(arg1: Int, arg2: Int): Boolean <extern1 abi=scoop symbol=scoop_rt_int_equals>
+  fun coreUIntEquals(arg1: UInt, arg2: UInt): Boolean <extern2 abi=scoop symbol=scoop_rt_uint_equals>
+  fun coreBooleanEquals(arg1: Boolean, arg2: Boolean): Boolean <extern3 abi=scoop symbol=scoop_rt_bool_equals>
+  fun coreStringEquals(arg1: String, arg2: String): Boolean <extern4 abi=scoop symbol=scoop_rt_string_eq>
+  fun coreIntToString(arg1: Int): String <extern5 abi=scoop symbol=scoop_rt_int_to_string>
+  fun coreUIntToString(arg1: UInt): String <extern6 abi=scoop symbol=scoop_rt_uint_to_string>
+  fun coreBooleanToString(arg1: Boolean): String <extern7 abi=scoop symbol=scoop_rt_bool_to_string>
+  fun coreIntHash(arg1: Int): Int <extern8 abi=scoop symbol=scoop_rt_int_hash>
+  fun coreUIntHash(arg1: UInt): Int <extern9 abi=scoop symbol=scoop_rt_uint_hash>
+  fun coreBooleanHash(arg1: Boolean): Int <extern10 abi=scoop symbol=scoop_rt_bool_hash>
+  fun coreStringHash(arg1: String): Int <extern11 abi=scoop symbol=scoop_rt_string_hash>
   fun main(): Unit
     val local0
       Box : Any
@@ -259,534 +326,744 @@ Module
     if
       IsInstance S : Boolean
         Local a : Any
-      Call println : Unit
-        Box : Any
-          FieldAccess field 0 : Int
-            Unbox : S
-              Local a : Any
+      Call println<Int> : Unit
+        FieldAccess field 0 : Int
+          Unbox : S
+            Local a : Any
     if
       IsInstance Int : Boolean
         Local a : Any
-      Call println : Unit
-        StringLiteral "int" : Any
+      Call println<String> : Unit
+        StringLiteral "int" : String
     else
-      Call println : Unit
-        StringLiteral "not int" : Any
-    Call println : Unit
-      Box : Any
-        Binary Ne : Boolean
+      Call println<String> : Unit
+        StringLiteral "not int" : String
+    Call println<Boolean> : Unit
+      Unary Not : Boolean
+        MethodCall Option.equals <derived> : Boolean
           Cast optional=true : Option<S>
             Local a : Any
           VariantConstruct Option.None<S> : Option<S>
   entry main
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>
+  instance println<Int>
+  instance println<String>
+  instance println<Boolean>
 
 == mir ==
 Module
   extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
+  extern ef1 coreIntEquals @scoop_rt_int_equals(Int, Int) -> Boolean <abi=scoop managed>
+  extern ef2 coreUIntEquals @scoop_rt_uint_equals(UInt, UInt) -> Boolean <abi=scoop managed>
+  extern ef3 coreBooleanEquals @scoop_rt_bool_equals(Boolean, Boolean) -> Boolean <abi=scoop managed>
+  extern ef4 coreStringEquals @scoop_rt_string_eq(String, String) -> Boolean <abi=scoop managed>
+  extern ef5 coreIntToString @scoop_rt_int_to_string(Int) -> String <abi=scoop managed>
+  extern ef6 coreUIntToString @scoop_rt_uint_to_string(UInt) -> String <abi=scoop managed>
+  extern ef7 coreBooleanToString @scoop_rt_bool_to_string(Boolean) -> String <abi=scoop managed>
+  extern ef8 coreIntHash @scoop_rt_int_hash(Int) -> Int <abi=scoop managed>
+  extern ef9 coreUIntHash @scoop_rt_uint_hash(UInt) -> Int <abi=scoop managed>
+  extern ef10 coreBooleanHash @scoop_rt_bool_hash(Boolean) -> Int <abi=scoop managed>
+  extern ef11 coreStringHash @scoop_rt_string_hash(String) -> Int <abi=scoop managed>
   struct S (v: Int)
   enum Option$S
     Some(_1: String)
     None()
-  class Throwable vtable=3 itables=0
-  class Exception vtable=3 itables=0
-  class UnwrapException vtable=3 itables=0
-  class ClassCastException vtable=3 itables=0
-  class ArithmeticException vtable=3 itables=0
-  class IndexOutOfBoundsException vtable=3 itables=0
-  class IllegalStateException vtable=3 itables=0
-  class box$S vtable=3 itables=0
-  class box$I vtable=3 itables=0
-  class box$B vtable=3 itables=0
-  fun print @scoop.print(message: Any) -> Unit
+  enum Option$D1_SX
+    Some(_1: S)
+    None()
+  class Throwable vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class UnwrapException vtable=0 itables=0
+  class ClassCastException vtable=0 itables=0
+  class ArithmeticException vtable=0 itables=0
+  class IndexOutOfBoundsException vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class box$D1_SX vtable=0 itables=0
+  class box$I vtable=0 itables=0
+  interface ToString
+  interface Hash
+  fun Int.equals @scoop.Int.equals(this: Int, other: Int) -> Boolean
     bb0 entry
-      call $call.1: String = @scoop.Any.toString virtual[2]
-        Local message
-      call extern0 @scoop_rt_write direct
-        Local $call.1
+      call $call.1: Boolean = extern1 @scoop_rt_int_equals direct
+        Type Int
+        Local this
+        Type Int
+        Local other
       return
-  fun println @scoop.println(message: Any) -> Unit
+        Type Boolean
+        Local $call.1
+  fun Int.toString @scoop.Int.toString(this: Int) -> String
     bb0 entry
-      call $call.1: String = @scoop.Any.toString virtual[2]
-        Local message
-      call extern0 @scoop_rt_write direct
-        Local $call.1
-      call extern0 @scoop_rt_write direct
-        StringConst @scoop.str.0
+      call $call.1: String = extern5 @scoop_rt_int_to_string direct
+        Type Int
+        Local this
       return
+        Type String
+        Local $call.1
+  fun Int.hash @scoop.Int.hash(this: Int) -> Int
+    bb0 entry
+      call $call.1: Int = extern8 @scoop_rt_int_hash direct
+        Type Int
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun UInt.equals @scoop.UInt.equals(this: UInt, other: UInt) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = extern2 @scoop_rt_uint_equals direct
+        Type UInt
+        Local this
+        Type UInt
+        Local other
+      return
+        Type Boolean
+        Local $call.1
+  fun UInt.toString @scoop.UInt.toString(this: UInt) -> String
+    bb0 entry
+      call $call.1: String = extern6 @scoop_rt_uint_to_string direct
+        Type UInt
+        Local this
+      return
+        Type String
+        Local $call.1
+  fun UInt.hash @scoop.UInt.hash(this: UInt) -> Int
+    bb0 entry
+      call $call.1: Int = extern9 @scoop_rt_uint_hash direct
+        Type UInt
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun Boolean.equals @scoop.Boolean.equals(this: Boolean, other: Boolean) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = extern3 @scoop_rt_bool_equals direct
+        Type Boolean
+        Local this
+        Type Boolean
+        Local other
+      return
+        Type Boolean
+        Local $call.1
+  fun Boolean.toString @scoop.Boolean.toString(this: Boolean) -> String
+    bb0 entry
+      call $call.1: String = extern7 @scoop_rt_bool_to_string direct
+        Type Boolean
+        Local this
+      return
+        Type String
+        Local $call.1
+  fun Boolean.hash @scoop.Boolean.hash(this: Boolean) -> Int
+    bb0 entry
+      call $call.1: Int = extern10 @scoop_rt_bool_hash direct
+        Type Boolean
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun String.equals @scoop.String.equals(this: String, other: String) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = extern4 @scoop_rt_string_eq direct
+        Type String
+        Local this
+        Type String
+        Local other
+      return
+        Type Boolean
+        Local $call.1
+  fun String.toString @scoop.String.toString(this: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local this
+  fun String.hash @scoop.String.hash(this: String) -> Int
+    bb0 entry
+      call $call.1: Int = extern11 @scoop_rt_string_hash direct
+        Type String
+        Local this
+      return
+        Type Int
+        Local $call.1
   fun main @scoop_main() -> Unit
     bb0 entry
       val a: Any
+        Type Any
         Box
+          Type S
           StructInit S
+            Type Int
             IntLiteral 9
       branch bb1 bb2
+        Type Boolean
         IsInstance S
+          Type Any
           Local a
     bb1 if.then.1
       val $ub.1: S
+        Type S
         Unbox
+          Type Any
           Local a
-      call @scoop.println direct
-        Box
-          FieldAccess 0
-            Local $ub.1
+      call @scoop.println$I direct
+        Type Int
+        FieldAccess 0
+          Type S
+          Local $ub.1
       goto bb2
     bb2 if.merge.2
       branch bb3 bb4
+        Type Boolean
         IsInstance Int
+          Type Any
           Local a
     bb3 if.then.3
-      call @scoop.println direct
-        StringConst @scoop.str.1
+      call @scoop.println$S direct
+        Type String
+        StringConst @scoop.str.0
       goto bb5
     bb4 if.else.4
-      call @scoop.println direct
-        StringConst @scoop.str.2
+      call @scoop.println$S direct
+        Type String
+        StringConst @scoop.str.1
       goto bb5
     bb5 if.merge.5
       val $cast.2: Any
+        Type Any
         Local a
       branch bb6 bb7
+        Type Boolean
         IsInstance S
+          Type Any
           Local $cast.2
     bb6 if.then.6
       assign $cast.3
-        VariantConstruct Option$S<S> v0
+        Type Option$D1_SX<S>
+        VariantConstruct Option$D1_SX<S> v0
+          Type S
           Unbox
+            Type Any
             Local $cast.2
       goto bb8
     bb7 if.else.7
       assign $cast.3
-        VariantConstruct Option$S<S> v1
+        Type Option$D1_SX<S>
+        VariantConstruct Option$D1_SX<S> v1
       goto bb8
     bb8 if.merge.8
-      val $cast.4: Any
-        Local a
-      branch bb9 bb10
-        IsInstance S
-          Local $cast.4
-    bb9 if.then.9
-      assign $cast.5
-        VariantConstruct Option$S<S> v0
-          Unbox
-            Local $cast.4
-      goto bb11
-    bb10 if.else.10
-      assign $cast.5
-        VariantConstruct Option$S<S> v1
-      goto bb11
-    bb11 if.merge.11
-      val $cast.6: Any
-        Local a
-      branch bb12 bb13
-        IsInstance S
-          Local $cast.6
-    bb12 if.then.12
-      assign $cast.7
-        VariantConstruct Option$S<S> v0
-          Unbox
-            Local $cast.6
-      goto bb14
-    bb13 if.else.13
-      assign $cast.7
-        VariantConstruct Option$S<S> v1
-      goto bb14
-    bb14 if.merge.14
-      branch bb16 bb15
-        Binary IntNe
-          EnumTag
-            Local $cast.3
-          EnumTag
-            VariantConstruct Option$S<S> v1
-    bb15 logic.rhs.15
-      branch bb18 bb19
-        Binary IntEq
-          EnumTag
-            Local $cast.5
-          IntLiteral 0
-    bb16 logic.short.16
-      assign $logic.1
-        BoolLiteral true
-      goto bb17
-    bb17 logic.merge.17
-      call @scoop.println direct
-        Box
-          Local $logic.1
-      return
-    bb18 logic.rhs.18
-      call $call.3: Boolean = @scoop_rt_string_eq direct
-        EnumField v0 f0
-          Local $cast.7
-        EnumField v0 f0
-          VariantConstruct Option$S<S> v1
-      assign $logic.2
+      call $call.1: Boolean = @scoop.Option.equals$D1_SX direct
+        Type Option$D1_SX<S>
+        Local $cast.3
+        Type Option$D1_SX<S>
+        VariantConstruct Option$D1_SX<S> v1
+      call @scoop.println$B direct
+        Type Boolean
         Unary BoolNot
-          Local $call.3
-      goto bb20
-    bb19 logic.short.19
-      assign $logic.2
+          Type Boolean
+          Local $call.1
+      return
+  fun println @scoop.println$I(value: Int) -> Unit
+    bb0 entry
+      call $call.1: String = @scoop.Int.toString direct
+        Type Int
+        Local value
+      call extern0 @scoop_rt_write direct
+        Type String
+        Local $call.1
+      call extern0 @scoop_rt_write direct
+        Type String
+        StringConst @scoop.str.2
+      return
+  fun println @scoop.println$S(value: String) -> Unit
+    bb0 entry
+      call $call.1: String = @scoop.String.toString direct
+        Type String
+        Local value
+      call extern0 @scoop_rt_write direct
+        Type String
+        Local $call.1
+      call extern0 @scoop_rt_write direct
+        Type String
+        StringConst @scoop.str.3
+      return
+  fun println @scoop.println$B(value: Boolean) -> Unit
+    bb0 entry
+      call $call.1: String = @scoop.Boolean.toString direct
+        Type Boolean
+        Local value
+      call extern0 @scoop_rt_write direct
+        Type String
+        Local $call.1
+      call extern0 @scoop_rt_write direct
+        Type String
+        StringConst @scoop.str.4
+      return
+  fun S.equals @scoop.S.equals(this: S, other: S) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = @scoop.Int.equals direct
+        Type Int
+        FieldAccess 0
+          Type S
+          Local this
+        Type Int
+        FieldAccess 0
+          Type S
+          Local other
+      return
+        Type Boolean
+        Local $call.1
+  fun Option.equals @scoop.Option.equals$D1_SX(this: Option$D1_SX<S>, other: Option$D1_SX<S>) -> Boolean
+    bb0 entry
+      val $when.1: Option$D1_SX<S>
+        Type Option$D1_SX<S>
+        Local this
+      branch bb1 bb2
+        Type Boolean
+        Binary IntEq
+          Type Int
+          EnumTag
+            Type Option$D1_SX<S>
+            Local $when.1
+          Type Int
+          IntLiteral 0
+    bb1 if.then.1
+      val $left.0.0: S
+        Type S
+        EnumField v0 f0
+          Type Option$D1_SX<S>
+          Local $when.1
+      val $when.2: Option$D1_SX<S>
+        Type Option$D1_SX<S>
+        Local other
+      branch bb4 bb5
+        Type Boolean
+        Binary IntEq
+          Type Int
+          EnumTag
+            Type Option$D1_SX<S>
+            Local $when.2
+          Type Int
+          IntLiteral 0
+    bb2 if.else.2
+      branch bb7 bb8
+        Type Boolean
+        Binary IntEq
+          Type Int
+          EnumTag
+            Type Option$D1_SX<S>
+            Local $when.1
+          Type Int
+          IntLiteral 1
+    bb3 if.merge.3
+      unreachable
+    bb4 if.then.4
+      val $right.0.0: S
+        Type S
+        EnumField v0 f0
+          Type Option$D1_SX<S>
+          Local $when.2
+      call $call.1: Boolean = @scoop.S.equals direct
+        Type S
+        Local $left.0.0
+        Type S
+        Local $right.0.0
+      return
+        Type Boolean
+        Local $call.1
+    bb5 if.else.5
+      return
+        Type Boolean
         BoolLiteral false
-      goto bb20
-    bb20 logic.merge.20
-      assign $logic.1
-        Local $logic.2
-      goto bb17
+    bb6 if.merge.6
+      goto bb3
+    bb7 if.then.7
+      val $when.3: Option$D1_SX<S>
+        Type Option$D1_SX<S>
+        Local other
+      branch bb9 bb10
+        Type Boolean
+        Binary IntEq
+          Type Int
+          EnumTag
+            Type Option$D1_SX<S>
+            Local $when.3
+          Type Int
+          IntLiteral 1
+    bb8 if.merge.8
+      goto bb3
+    bb9 if.then.9
+      return
+        Type Boolean
+        BoolLiteral true
+    bb10 if.else.10
+      return
+        Type Boolean
+        BoolLiteral false
+    bb11 if.merge.11
+      goto bb8
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
     bb0 entry
       return
+        Type Throwable
         ClassInit Throwable
   fun ctor.Exception @scoop.ctor.Exception(message: Option$S<String>) -> Exception
     bb0 entry
       return
+        Type Exception
         ClassInit Exception
+          Type Option$S<String>
           Local message
   fun ctor.UnwrapException @scoop.ctor.UnwrapException() -> UnwrapException
     bb0 entry
       return
+        Type UnwrapException
         ClassInit UnwrapException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
-            StringConst @scoop.str.3
+            Type String
+            StringConst @scoop.str.5
   fun ctor.ClassCastException @scoop.ctor.ClassCastException() -> ClassCastException
     bb0 entry
       return
+        Type ClassCastException
         ClassInit ClassCastException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
-            StringConst @scoop.str.4
+            Type String
+            StringConst @scoop.str.6
   fun ctor.ArithmeticException @scoop.ctor.ArithmeticException() -> ArithmeticException
     bb0 entry
       return
+        Type ArithmeticException
         ClassInit ArithmeticException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
-            StringConst @scoop.str.5
+            Type String
+            StringConst @scoop.str.7
   fun ctor.IndexOutOfBoundsException @scoop.ctor.IndexOutOfBoundsException() -> IndexOutOfBoundsException
     bb0 entry
       return
+        Type IndexOutOfBoundsException
         ClassInit IndexOutOfBoundsException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
-            StringConst @scoop.str.6
+            Type String
+            StringConst @scoop.str.8
   fun ctor.IllegalStateException @scoop.ctor.IllegalStateException() -> IllegalStateException
     bb0 entry
       return
+        Type IllegalStateException
         ClassInit IllegalStateException
+          Type Option$S<String>
           VariantConstruct Option$S<String> v0
-            StringConst @scoop.str.7
-  fun eq.S @scoop.eq.S(this: Any, other: Any) -> Boolean
-    bb0 entry
-      val $a: S
-        Unbox
-          Local this
-      val $b: S
-        Unbox
-          Local other
-      return
-        Binary IntEq
-          FieldAccess 0
-            Local $a
-          FieldAccess 0
-            Local $b
-  fun eq.I @scoop.eq.I(this: Any, other: Any) -> Boolean
-    bb0 entry
-      val $a: Int
-        Unbox
-          Local this
-      val $b: Int
-        Unbox
-          Local other
-      return
-        Binary IntEq
-          Local $a
-          Local $b
-  fun tostring.I @scoop.tostring.I(this: Any) -> String
-    bb0 entry
-      call $call.1: String = @scoop_rt_int_to_string direct
-        Unbox
-          Local this
-      return
-        Local $call.1
-  fun eq.B @scoop.eq.B(this: Any, other: Any) -> Boolean
-    bb0 entry
-      val $a: Boolean
-        Unbox
-          Local this
-      val $b: Boolean
-        Unbox
-          Local other
-      return
-        Binary BoolEq
-          Local $a
-          Local $b
-  fun tostring.B @scoop.tostring.B(this: Any) -> String
-    bb0 entry
-      call $call.1: String = @scoop_rt_bool_to_string direct
-        Unbox
-          Local this
-      return
-        Local $call.1
-  str @scoop.str.0 "\n"
-  str @scoop.str.1 "int"
-  str @scoop.str.2 "not int"
-  str @scoop.str.3 "unwrap on None"
-  str @scoop.str.4 "invalid cast"
-  str @scoop.str.5 "arithmetic error"
-  str @scoop.str.6 "array index out of bounds"
-  str @scoop.str.7 "illegal state"
+            Type String
+            StringConst @scoop.str.9
+  instance @scoop.println$I <- println
+  instance @scoop.println$S <- println
+  instance @scoop.println$B <- println
+  instance @scoop.Option.equals$D1_SX <- Option.equals
+  str @scoop.str.0 "int"
+  str @scoop.str.1 "not int"
+  str @scoop.str.2 "\n"
+  str @scoop.str.3 "\n"
+  str @scoop.str.4 "\n"
+  str @scoop.str.5 "unwrap on None"
+  str @scoop.str.6 "invalid cast"
+  str @scoop.str.7 "arithmetic error"
+  str @scoop.str.8 "array index out of bounds"
+  str @scoop.str.9 "illegal state"
   entry @scoop_main
 
 == lir ==
 Module
-  global @scoop.str.0 = "\n"
-  global @scoop.str.1 = "int"
-  global @scoop.str.2 = "not int"
-  global @scoop.str.3 = "unwrap on None"
-  global @scoop.str.4 = "invalid cast"
-  global @scoop.str.5 = "arithmetic error"
-  global @scoop.str.6 = "array index out of bounds"
-  global @scoop.str.7 = "illegal state"
-  global @scoop_td_box$S = c""
-  global @scoop_td_box$I = c""
-  global @scoop_td_box$B = c""
-  global @scoop_td_Throwable = c""
-  global @scoop_td_Exception = c""
-  global @scoop_td_UnwrapException = c""
-  global @scoop_td_ClassCastException = c""
-  global @scoop_td_ArithmeticException = c""
-  global @scoop_td_IndexOutOfBoundsException = c""
-  global @scoop_td_IllegalStateException = c""
+  global @scoop.str.0 = "int"
+  global @scoop.str.1 = "not int"
+  global @scoop.str.2 = "\n"
+  global @scoop.str.3 = "\n"
+  global @scoop.str.4 = "\n"
+  global @scoop.str.5 = "unwrap on None"
+  global @scoop.str.6 = "invalid cast"
+  global @scoop.str.7 = "arithmetic error"
+  global @scoop.str.8 = "array index out of bounds"
+  global @scoop.str.9 = "illegal state"
   enum Option$S niche(payload_variant=0)
+  enum Option$D1_SX tagged size=16 align=8 variants=(struct3)@8+8 ()@8+0
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
-  fun @scoop.print(ptr<managed>) -> void
+  extern ef1 coreIntEquals @scoop_rt_int_equals(i64, i64) -> i1 <scoop managed nounwind>
+  extern ef2 coreUIntEquals @scoop_rt_uint_equals(i64, i64) -> i1 <scoop managed nounwind>
+  extern ef3 coreBooleanEquals @scoop_rt_bool_equals(i1, i1) -> i1 <scoop managed nounwind>
+  extern ef4 coreStringEquals @scoop_rt_string_eq(ptr<managed>, ptr<managed>) -> i1 <scoop managed nounwind>
+  extern ef5 coreIntToString @scoop_rt_int_to_string(i64) -> ptr<managed> <scoop managed nounwind>
+  extern ef6 coreUIntToString @scoop_rt_uint_to_string(i64) -> ptr<managed> <scoop managed nounwind>
+  extern ef7 coreBooleanToString @scoop_rt_bool_to_string(i1) -> ptr<managed> <scoop managed nounwind>
+  extern ef8 coreIntHash @scoop_rt_int_hash(i64) -> i64 <scoop managed nounwind>
+  extern ef9 coreUIntHash @scoop_rt_uint_hash(i64) -> i64 <scoop managed nounwind>
+  extern ef10 coreBooleanHash @scoop_rt_bool_hash(i1) -> i64 <scoop managed nounwind>
+  extern ef11 coreStringHash @scoop_rt_string_hash(ptr<managed>) -> i64 <scoop managed nounwind>
+  fun @scoop.Int.equals(i64, i64) -> i1
+    local %0 $call.1: i1
+  block entry
+    native_call t0 = direct-target0 sig=direct0 (i64, i64) -> i1 effect=native-borrowed extern1(param0, param1)
+    store t0 -> local0
+    ret local0
+  fun @scoop.Int.toString(i64) -> ptr<managed>
     local %0 $call.1: ptr<managed>
   block entry
-    t0 = heap_load param0 +0 : ptr<metadata>
-    t1 = heap_load t0 +40 : ptr<metadata>
-    t2 = call_indirect t1[2](param0) : ptr<managed>
-    store t2 -> local0
-    native_call[native-borrowed] extern0(local0)
-    t3 = aggregate () : {}
-    ret
-  fun @scoop.println(ptr<managed>) -> void
+    native_call t0 = direct-target0 sig=direct0 (i64) -> ptr<managed> effect=native-borrowed extern5(param0) result-root=refs[0]
+    store t0 -> local0
+    ret local0
+  fun @scoop.Int.hash(i64) -> i64
+    local %0 $call.1: i64
+  block entry
+    native_call t0 = direct-target0 sig=direct0 (i64) -> i64 effect=native-borrowed extern8(param0)
+    store t0 -> local0
+    ret local0
+  fun @scoop.UInt.equals(i64, i64) -> i1
+    local %0 $call.1: i1
+  block entry
+    native_call t0 = direct-target0 sig=direct0 (i64, i64) -> i1 effect=native-borrowed extern2(param0, param1)
+    store t0 -> local0
+    ret local0
+  fun @scoop.UInt.toString(i64) -> ptr<managed>
     local %0 $call.1: ptr<managed>
   block entry
-    t0 = heap_load param0 +0 : ptr<metadata>
-    t1 = heap_load t0 +40 : ptr<metadata>
-    t2 = call_indirect t1[2](param0) : ptr<managed>
-    store t2 -> local0
-    native_call[native-borrowed] extern0(local0)
-    t3 = aggregate () : {}
-    native_call[native-borrowed] extern0(global0)
-    t4 = aggregate () : {}
-    ret
+    native_call t0 = direct-target0 sig=direct0 (i64) -> ptr<managed> effect=native-borrowed extern6(param0) result-root=refs[0]
+    store t0 -> local0
+    ret local0
+  fun @scoop.UInt.hash(i64) -> i64
+    local %0 $call.1: i64
+  block entry
+    native_call t0 = direct-target0 sig=direct0 (i64) -> i64 effect=native-borrowed extern9(param0)
+    store t0 -> local0
+    ret local0
+  fun @scoop.Boolean.equals(i1, i1) -> i1
+    local %0 $call.1: i1
+  block entry
+    native_call t0 = direct-target0 sig=direct0 (i1, i1) -> i1 effect=native-borrowed extern3(param0, param1)
+    store t0 -> local0
+    ret local0
+  fun @scoop.Boolean.toString(i1) -> ptr<managed>
+    local %0 $call.1: ptr<managed>
+  block entry
+    native_call t0 = direct-target0 sig=direct0 (i1) -> ptr<managed> effect=native-borrowed extern7(param0) result-root=refs[0]
+    store t0 -> local0
+    ret local0
+  fun @scoop.Boolean.hash(i1) -> i64
+    local %0 $call.1: i64
+  block entry
+    native_call t0 = direct-target0 sig=direct0 (i1) -> i64 effect=native-borrowed extern10(param0)
+    store t0 -> local0
+    ret local0
+  fun @scoop.String.equals(ptr<managed>, ptr<managed>) -> i1
+    local %0 $call.1: i1
+  block entry
+    native_call t0 = direct-target0 sig=direct0 (ptr<managed>, ptr<managed>) -> i1 effect=native-borrowed extern4(param0, param1)
+    store t0 -> local0
+    ret local0
+  fun @scoop.String.toString(ptr<managed>) -> ptr<managed>
+  block entry
+    ret param0
+  fun @scoop.String.hash(ptr<managed>) -> i64
+    local %0 $call.1: i64
+  block entry
+    native_call t0 = direct-target0 sig=direct0 (ptr<managed>) -> i64 effect=native-borrowed extern11(param0)
+    store t0 -> local0
+    ret local0
   fun @scoop_main() -> void
     local %0 a: ptr<managed>
-    local %1 $ub.1: struct0
+    local %1 $ub.1: struct3
     local %2 $cast.2: ptr<managed>
-    local %3 $cast.3: enum0
-    local %4 $cast.4: ptr<managed>
-    local %5 $cast.5: enum0
-    local %6 $cast.6: ptr<managed>
-    local %7 $cast.7: enum0
-    local %8 $logic.1: i1
-    local %9 $logic.2: i1
-    local %10 $call.3: i1
+    local %3 $cast.3: enum1
+    local %4 $call.1: i1
+    local %5 $sc.1: struct3
   block entry
-    t0 = aggregate (9) : struct0
-    t1 = call @scoop_rt_box(global8, t0, 8) : ptr<managed>
-    store t1 -> local0
-    t2 = call @scoop_rt_is_instance(local0, global8) : i1
-    cbr t2 then @if.then.1 else @if.merge.2
+    t0 = aggregate (9) : struct3
+    store t0 -> local5
+    t1 = local_address local5 : ptr
+    call t2 = direct-target0 sig=direct0 (ptr<metadata>, ptr<raw>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_box(td4, t1, 8)
+    store t2 -> local0
+    call t3 = direct-target1 sig=direct1 (ptr<managed>, ptr<metadata>) -> i1 effect=no-gc runtime @scoop_rt_is_instance(local0, td4)
+    cbr t3 then @if.then.1 else @if.merge.2
   block if.then.1
-    t3 = heap_load local0 +16 : struct0
-    store t3 -> local1
-    t4 = extract local1, 0 : i64
-    t5 = call @scoop_rt_box(global9, t4, 8) : ptr<managed>
-    call @scoop.println(t5)
+    t4 = heap_load local0 +16 : struct3
+    store t4 -> local1
+    t5 = extract local1, 0 : i64
+    call void-target0 sig=void0 (i64) effect=managed-safepoint local-fn13(t5)
     t6 = aggregate () : {}
     br @if.merge.2
   block if.merge.2
-    t7 = call @scoop_rt_is_instance(local0, global9) : i1
+    call t7 = direct-target2 sig=direct2 (ptr<managed>, ptr<metadata>) -> i1 effect=no-gc runtime @scoop_rt_is_instance(local0, td5)
     cbr t7 then @if.then.3 else @if.else.4
   block if.then.3
-    call @scoop.println(global1)
+    call void-target1 sig=void1 (ptr<managed>) effect=managed-safepoint local-fn14(global0)
     t8 = aggregate () : {}
     br @if.merge.5
   block if.else.4
-    call @scoop.println(global2)
+    call void-target2 sig=void2 (ptr<managed>) effect=managed-safepoint local-fn14(global1)
     t9 = aggregate () : {}
     br @if.merge.5
   block if.merge.5
     store local0 -> local2
-    t10 = call @scoop_rt_is_instance(local2, global8) : i1
+    call t10 = direct-target3 sig=direct3 (ptr<managed>, ptr<metadata>) -> i1 effect=no-gc runtime @scoop_rt_is_instance(local2, td4)
     cbr t10 then @if.then.6 else @if.else.7
   block if.then.6
-    t11 = heap_load local2 +16 : ptr<managed>
-    t12 = enum_wrap e0 v0 (t11) : enum0
+    t11 = heap_load local2 +16 : struct3
+    t12 = enum_wrap e1 v0 (t11) : enum1
     store t12 -> local3
     br @if.merge.8
   block if.else.7
-    t13 = enum_wrap e0 v1 () : enum0
+    t13 = enum_wrap e1 v1 () : enum1
     store t13 -> local3
     br @if.merge.8
   block if.merge.8
-    store local0 -> local4
-    t14 = call @scoop_rt_is_instance(local4, global8) : i1
-    cbr t14 then @if.then.9 else @if.else.10
-  block if.then.9
-    t15 = heap_load local4 +16 : ptr<managed>
-    t16 = enum_wrap e0 v0 (t15) : enum0
-    store t16 -> local5
-    br @if.merge.11
-  block if.else.10
-    t17 = enum_wrap e0 v1 () : enum0
-    store t17 -> local5
-    br @if.merge.11
-  block if.merge.11
-    store local0 -> local6
-    t18 = call @scoop_rt_is_instance(local6, global8) : i1
-    cbr t18 then @if.then.12 else @if.else.13
-  block if.then.12
-    t19 = heap_load local6 +16 : ptr<managed>
-    t20 = enum_wrap e0 v0 (t19) : enum0
-    store t20 -> local7
-    br @if.merge.14
-  block if.else.13
-    t21 = enum_wrap e0 v1 () : enum0
-    store t21 -> local7
-    br @if.merge.14
-  block if.merge.14
-    t22 = enum_tag e0 local3 : i64
-    t23 = enum_wrap e0 v1 () : enum0
-    t24 = enum_tag e0 t23 : i64
-    t25 = Ne t22, t24 : i1
-    cbr t25 then @logic.short.16 else @logic.rhs.15
-  block logic.rhs.15
-    t26 = enum_tag e0 local5 : i64
-    t27 = Eq t26, 0 : i1
-    cbr t27 then @logic.rhs.18 else @logic.short.19
-  block logic.short.16
-    store true -> local8
-    br @logic.merge.17
-  block logic.merge.17
-    t28 = call @scoop_rt_box(global10, local8, 1) : ptr<managed>
-    call @scoop.println(t28)
-    t29 = aggregate () : {}
+    t14 = enum_wrap e1 v1 () : enum1
+    call t15 = direct-target4 sig=direct4 (enum1, enum1) -> i1 effect=managed-safepoint local-fn17(local3, t14)
+    store t15 -> local4
+    t16 = Not local4 : i1
+    call void-target3 sig=void3 (i1) effect=managed-safepoint local-fn15(t16)
+    t17 = aggregate () : {}
     ret
-  block logic.rhs.18
-    t30 = enum_field e0 v0 f0 local7 : ptr<managed>
-    t31 = enum_wrap e0 v1 () : enum0
-    t32 = enum_field e0 v0 f0 t31 : ptr<managed>
-    t33 = call @scoop_rt_string_eq(t30, t32) : i1
-    store t33 -> local10
-    t34 = Not local10 : i1
-    store t34 -> local9
-    br @logic.merge.20
-  block logic.short.19
-    store false -> local9
-    br @logic.merge.20
-  block logic.merge.20
-    store local9 -> local8
-    br @logic.merge.17
+  fun @scoop.println$I(i64) -> void
+    local %0 $call.1: ptr<managed>
+  block entry
+    call t0 = direct-target0 sig=direct0 (i64) -> ptr<managed> effect=managed-safepoint local-fn1(param0)
+    store t0 -> local0
+    native_call void-target0 sig=void0 (ptr<managed>) effect=native-borrowed extern0(local0)
+    t1 = aggregate () : {}
+    native_call void-target1 sig=void1 (ptr<managed>) effect=native-borrowed extern0(global2)
+    t2 = aggregate () : {}
+    ret
+  fun @scoop.println$S(ptr<managed>) -> void
+    local %0 $call.1: ptr<managed>
+  block entry
+    call t0 = direct-target0 sig=direct0 (ptr<managed>) -> ptr<managed> effect=managed-safepoint local-fn10(param0)
+    store t0 -> local0
+    native_call void-target0 sig=void0 (ptr<managed>) effect=native-borrowed extern0(local0)
+    t1 = aggregate () : {}
+    native_call void-target1 sig=void1 (ptr<managed>) effect=native-borrowed extern0(global3)
+    t2 = aggregate () : {}
+    ret
+  fun @scoop.println$B(i1) -> void
+    local %0 $call.1: ptr<managed>
+  block entry
+    call t0 = direct-target0 sig=direct0 (i1) -> ptr<managed> effect=managed-safepoint local-fn7(param0)
+    store t0 -> local0
+    native_call void-target0 sig=void0 (ptr<managed>) effect=native-borrowed extern0(local0)
+    t1 = aggregate () : {}
+    native_call void-target1 sig=void1 (ptr<managed>) effect=native-borrowed extern0(global4)
+    t2 = aggregate () : {}
+    ret
+  fun @scoop.S.equals(struct3, struct3) -> i1
+    local %0 $call.1: i1
+  block entry
+    t0 = extract param0, 0 : i64
+    t1 = extract param1, 0 : i64
+    call t2 = direct-target0 sig=direct0 (i64, i64) -> i1 effect=managed-safepoint local-fn0(t0, t1)
+    store t2 -> local0
+    ret local0
+  fun @scoop.Option.equals$D1_SX(enum1, enum1) -> i1
+    local %0 $left.0.0: struct3
+    local %1 $right.0.0: struct3
+    local %2 $when.1: enum1
+    local %3 $when.2: enum1
+    local %4 $when.3: enum1
+    local %5 $call.1: i1
+  block entry
+    store param0 -> local2
+    t0 = enum_tag e1 local2 : i64
+    t1 = Eq t0, 0 : i1
+    cbr t1 then @if.then.1 else @if.else.2
+  block if.then.1
+    t2 = enum_field e1 v0 f0 local2 : struct3
+    store t2 -> local0
+    store param1 -> local3
+    t3 = enum_tag e1 local3 : i64
+    t4 = Eq t3, 0 : i1
+    cbr t4 then @if.then.4 else @if.else.5
+  block if.else.2
+    t5 = enum_tag e1 local2 : i64
+    t6 = Eq t5, 1 : i1
+    cbr t6 then @if.then.7 else @if.merge.8
+  block if.merge.3
+    unreachable
+  block if.then.4
+    t7 = enum_field e1 v0 f0 local3 : struct3
+    store t7 -> local1
+    call t8 = direct-target0 sig=direct0 (struct3, struct3) -> i1 effect=managed-safepoint local-fn16(local0, local1)
+    store t8 -> local5
+    ret local5
+  block if.else.5
+    ret false
+  block if.merge.6
+    br @if.merge.3
+  block if.then.7
+    store param1 -> local4
+    t9 = enum_tag e1 local4 : i64
+    t10 = Eq t9, 1 : i1
+    cbr t10 then @if.then.9 else @if.else.10
+  block if.merge.8
+    br @if.merge.3
+  block if.then.9
+    ret true
+  block if.else.10
+    ret false
+  block if.merge.11
+    br @if.merge.8
   fun @scoop.ctor.Throwable() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global11, 16) : ptr<managed>
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td2, 16)
     ret t0
   fun @scoop.ctor.Exception(enum0) -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global12, 24) : ptr<managed>
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td6, 24)
     heap_store t0 +16 param0
     ret t0
   fun @scoop.ctor.UnwrapException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global13, 24) : ptr<managed>
-    t1 = enum_wrap e0 v0 (global3) : enum0
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td7, 24)
+    t1 = enum_wrap e0 v0 (global5) : enum0
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.ClassCastException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global14, 24) : ptr<managed>
-    t1 = enum_wrap e0 v0 (global4) : enum0
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td8, 24)
+    t1 = enum_wrap e0 v0 (global6) : enum0
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.ArithmeticException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global15, 24) : ptr<managed>
-    t1 = enum_wrap e0 v0 (global5) : enum0
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td9, 24)
+    t1 = enum_wrap e0 v0 (global7) : enum0
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.IndexOutOfBoundsException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global16, 24) : ptr<managed>
-    t1 = enum_wrap e0 v0 (global6) : enum0
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td10, 24)
+    t1 = enum_wrap e0 v0 (global8) : enum0
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.IllegalStateException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global17, 24) : ptr<managed>
-    t1 = enum_wrap e0 v0 (global7) : enum0
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td11, 24)
+    t1 = enum_wrap e0 v0 (global9) : enum0
     heap_store t0 +16 t1
     ret t0
-  fun @scoop.eq.S(ptr<managed>, ptr<managed>) -> i1
-    local %0 $a: struct0
-    local %1 $b: struct0
-  block entry
-    t0 = heap_load param0 +16 : struct0
-    store t0 -> local0
-    t1 = heap_load param1 +16 : struct0
-    store t1 -> local1
-    t2 = extract local0, 0 : i64
-    t3 = extract local1, 0 : i64
-    t4 = Eq t2, t3 : i1
-    ret t4
-  fun @scoop.eq.I(ptr<managed>, ptr<managed>) -> i1
-    local %0 $a: i64
-    local %1 $b: i64
-  block entry
-    t0 = heap_load param0 +16 : i64
-    store t0 -> local0
-    t1 = heap_load param1 +16 : i64
-    store t1 -> local1
-    t2 = Eq local0, local1 : i1
-    ret t2
-  fun @scoop.tostring.I(ptr<managed>) -> ptr<managed>
-    local %0 $call.1: ptr<managed>
-  block entry
-    t0 = heap_load param0 +16 : i64
-    t1 = call @scoop_rt_int_to_string(t0) : ptr<managed>
-    store t1 -> local0
-    ret local0
-  fun @scoop.eq.B(ptr<managed>, ptr<managed>) -> i1
-    local %0 $a: i1
-    local %1 $b: i1
-  block entry
-    t0 = heap_load param0 +16 : i1
-    store t0 -> local0
-    t1 = heap_load param1 +16 : i1
-    store t1 -> local1
-    t2 = Eq local0, local1 : i1
-    ret t2
-  fun @scoop.tostring.B(ptr<managed>) -> ptr<managed>
-    local %0 $call.1: ptr<managed>
-  block entry
-    t0 = heap_load param0 +16 : i1
-    t1 = call @scoop_rt_bool_to_string(t0) : ptr<managed>
-    store t1 -> local0
-    ret local0
-  td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
-  td box$S @scoop_td_box$S size=24 vtable=3 itables=0
-  td box$I @scoop_td_box$I size=24 vtable=3 itables=0
-  td box$B @scoop_td_box$B size=24 vtable=3 itables=0
-  td Exception @scoop_td_Exception size=24 vtable=3 itables=0
-  td UnwrapException @scoop_td_UnwrapException size=24 vtable=3 itables=0
-  td ClassCastException @scoop_td_ClassCastException size=24 vtable=3 itables=0
-  td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=3 itables=0
-  td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=3 itables=0
-  td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=3 itables=0
+  td td0 ToString @scoop_td_ToString type-id=2 size=0 parent=none vtable=[] itables=[]
+  td td1 Hash @scoop_td_Hash type-id=3 size=0 parent=none vtable=[] itables=[]
+  td td2 Throwable @scoop_td_Throwable type-id=4 size=16 parent=none vtable=[] itables=[]
+  td td4 box$D1_SX @scoop_td_box$D1_SX type-id=5 size=24 parent=none vtable=[] itables=[]
+  td td5 box$I @scoop_td_box$I type-id=6 size=24 parent=none vtable=[] itables=[]
+  td td6 Exception @scoop_td_Exception type-id=7 size=24 parent=td2 vtable=[] itables=[]
+  td td7 UnwrapException @scoop_td_UnwrapException type-id=8 size=24 parent=td6 vtable=[] itables=[]
+  td td8 ClassCastException @scoop_td_ClassCastException type-id=9 size=24 parent=td6 vtable=[] itables=[]
+  td td9 ArithmeticException @scoop_td_ArithmeticException type-id=10 size=24 parent=td6 vtable=[] itables=[]
+  td td10 IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException type-id=11 size=24 parent=td6 vtable=[] itables=[]
+  td td11 IllegalStateException @scoop_td_IllegalStateException type-id=12 size=24 parent=td6 vtable=[] itables=[]
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   layout S size=8 align=8 refs=[]
   layout Option$S size=8 align=8 enum-scan=refs[0]
+  layout Option$D1_SX size=16 align=8 enum-scan=none
   layout Throwable size=16 align=8 refs=[]
   layout Exception size=24 align=8 refs=[16]
   layout UnwrapException size=24 align=8 refs=[16]
@@ -794,9 +1071,8 @@ Module
   layout ArithmeticException size=24 align=8 refs=[16]
   layout IndexOutOfBoundsException size=24 align=8 refs=[16]
   layout IllegalStateException size=24 align=8 refs=[16]
-  layout box$S size=24 align=8 refs=[]
+  layout box$D1_SX size=24 align=8 refs=[]
   layout box$I size=24 align=8 refs=[]
-  layout box$B size=24 align=8 refs=[]
   entry @scoop_main
 
 == run ==

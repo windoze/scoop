@@ -23,6 +23,11 @@ fun failAny(value: Any): Int {
 
 fun <T> widen(op: (Any) -> T): (T) -> Any = op
 
+fun <T> isNone(value: T?): Boolean = when (value) {
+    Some(_) -> false
+    None -> true
+}
+
 fun returnNested(op: (Int) -> Any): (Any) -> Int = ::acceptAny
 
 fun main() {
@@ -53,25 +58,25 @@ fun main() {
     val boxedChecked = boxedErased as (Int) -> Describable
 
     gcCollect()
-    println(widenedValue(0))
+    println(widenedValue(0) is Int)
     println(widenedReference(Dog()) is Dog)
-    println(genericInt(0))
-    println(genericString("ignored"))
+    println(genericInt(0) is Int)
+    println(genericString("ignored") is String)
     println(boxedReturn(0).describe())
-    println(nestedResult(0))
+    println(nestedResult(0) is Int)
     println(erased is (Int) -> Any)
     println(erased is (Any) -> String)
-    println(checked(0))
+    println(checked(0) is Int)
     println(exactChecked("ignored"))
-    println(optionalChecked(0))
-    println(missing == None)
-    println(nestedDynamicResult(0))
+    println(optionalChecked(0) is Int)
+    println(isNone(missing))
+    println(nestedDynamicResult(0) is Int)
     println(boxedChecked(0).describe())
     if (erased is (Int) -> Any) {
-        println(erased(0))
+        println(erased(0) is Int)
     }
     try {
-        println(widenedFailing(0))
+        widenedFailing(0)
     } catch (exception: ArithmeticException) {
         println("caught")
     }
