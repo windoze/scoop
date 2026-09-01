@@ -135,7 +135,7 @@ pub struct Module {
     pub boolean: TypeId,
     pub string: TypeId,
     pub option_variants: (VariantId, VariantId),
-    pub exception_core: ExceptionCore,
+    pub exception_core: CompilerExceptionCore,
     pub coroutine_protocols: Vec<CoroutineProtocol>,
     pub foreign_callback_core: ForeignCallbackCore,
     /// Nominal owners of the fixed compiler-represented types. Generic
@@ -146,9 +146,31 @@ pub struct Module {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ExceptionCore {
-    pub throwable: ClassId,
-    pub illegal_state_exception: ClassId,
+pub struct ZeroArgClassConstructor {
+    pub class: ClassId,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CompilerException {
+    pub constructor: ZeroArgClassConstructor,
+}
+
+impl CompilerException {
+    pub const fn class(self) -> ClassId {
+        self.constructor.class
+    }
+}
+
+/// Local-concrete exception capabilities. Export ids cannot be represented
+/// here, and every constructor target has already been fully specialized.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CompilerExceptionCore {
+    pub throwable: CompilerException,
+    pub unwrap_exception: CompilerException,
+    pub class_cast_exception: CompilerException,
+    pub arithmetic_exception: CompilerException,
+    pub index_out_of_bounds_exception: CompilerException,
+    pub illegal_state_exception: CompilerException,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -40,9 +40,9 @@
 //! `ClassCastException`, and integer division gains a divisor check
 //! that throws `ArithmeticException`. The built-in exception classes
 //! (core's throwable.scoop) are ordinary classes, so construction is
-//! a plain call to the generated constructor function (M6); they are
-//! resolved by name — hir-lower validates that core declares
-//! `Throwable`, so a missing class is a core configuration error.
+//! a plain call to the generated constructor function (M6). LocalConcrete
+//! HIR supplies the complete typed exception/constructor identities; MIR
+//! performs no class-arena name lookup or missing-core fallback.
 //! `RuntimeFn::Trap` keeps exactly one generation path: the
 //! abstract-method stub (a cannot-happen pure-virtual trap).
 //!
@@ -4493,21 +4493,11 @@ impl BodyLowerer<'_> {
         }
     }
 
-    /// `throw <Name>()`: one of core's built-in exception classes
-    /// (throwable.scoop). They are ordinary class declarations, so
-    /// construction is a plain call to the generated constructor
-    /// function — the same path a use-site `ClassInit` takes (M6).
-    /// The class is resolved by name; hir-lower validates that core
-    /// declares `Throwable`, so a missing class is a core
-    /// configuration error, not a user error.
-    fn throw_builtin(&mut self, name: &str, span: Span) -> smir::Statement {
-        let class = self
-            .module
-            .classes
-            .iter()
-            .find(|(_, decl)| decl.name == name)
-            .map(|(id, _)| id)
-            .unwrap_or_else(|| panic!("core must declare `{name}` (throwable.scoop)"));
+    /// Construct and throw one compiler-known exception. The zero-argument
+    /// constructor target is complete in LocalConcrete HIR, so this operation
+    /// only transposes typed identities.
+    fn throw_builtin(&mut self, exception: hir::CompilerException, span: Span) -> smir::Statement {
+        let class = exception.class();
         let ctor = self.ctors[&class];
         let exception_ty = mir::Type::Class(self.class_map[&class]);
         smir::Statement {
@@ -4565,7 +4555,10 @@ impl BodyLowerer<'_> {
                 },
             ),
         );
-        let throw = self.throw_builtin("IndexOutOfBoundsException", span);
+        let throw = self.throw_builtin(
+            self.module.exception_core.index_out_of_bounds_exception,
+            span,
+        );
         self.prelude.push(smir::StatementKind::If {
             cond: out_of_bounds,
             then_body: vec![throw],
@@ -5557,7 +5550,8 @@ impl BodyLowerer<'_> {
             ty: arguments_pointer_ty.clone(),
             mutable: false,
         });
-        let throwable = mir::Type::Class(self.class_map[&self.module.exception_core.throwable]);
+        let throwable =
+            mir::Type::Class(self.class_map[&self.module.exception_core.throwable.class()]);
         let exception_pointer_ty = mir::Type::Ptr(Box::new(throwable.clone()));
         let exception_out = locals.alloc(mir::Local {
             name: "$exception".to_string(),
@@ -5767,7 +5761,7 @@ impl BodyLowerer<'_> {
         let value = self.lower_expr(operand);
         let slot = self.new_hidden("opt", option_ty.clone(), false);
         let result = self.new_hidden("uw", payload_ty.clone(), false);
-        let throw = self.throw_builtin("UnwrapException", span);
+        let throw = self.throw_builtin(self.module.exception_core.unwrap_exception, span);
         self.prelude.push(smir::StatementKind::ValDecl {
             local: slot,
             init: value,
@@ -5869,7 +5863,8 @@ impl BodyLowerer<'_> {
             .instances
             .get(protocol.continuation_resume_with_exception)
             .unwrap();
-        let throwable = mir::Type::Class(self.class_map[&self.module.exception_core.throwable]);
+        let throwable =
+            mir::Type::Class(self.class_map[&self.module.exception_core.throwable.class()]);
         let helper = self.coroutines.start_helper(
             &result,
             task_interface,
@@ -6233,7 +6228,7 @@ impl BodyLowerer<'_> {
             ),
         };
         if !optional {
-            let throw = self.throw_builtin("ClassCastException", span);
+            let throw = self.throw_builtin(self.module.exception_core.class_cast_exception, span);
             self.prelude.push(smir::StatementKind::If {
                 cond: smir::Expr::new(
                     mir::Type::Boolean,
@@ -6379,7 +6374,8 @@ impl BodyLowerer<'_> {
                     local: rhs_slot,
                     init: rhs,
                 });
-                let throw = self.throw_builtin("ArithmeticException", span);
+                let throw =
+                    self.throw_builtin(self.module.exception_core.arithmetic_exception, span);
                 self.prelude.push(smir::StatementKind::If {
                     cond: smir::Expr::new(
                         mir::Type::Boolean,
@@ -6528,8 +6524,8 @@ mod tests {
         mir::dump(module)
             .lines()
             .filter(|line| {
-                !line.contains("class $ThrowableProtocol")
-                    && !line.contains("class $IllegalStateProtocol")
+                !(line.contains("class $") && line.contains("ExceptionProtocol"))
+                    && !line.contains("class $ThrowableProtocol")
             })
             .map(|line| format!("{line}\n"))
             .collect()
@@ -7343,14 +7339,45 @@ mod tests {
             class
         }
 
-        /// core's built-in exception classes (throwable.scoop),
-        /// declared flat — no constructor properties, no base:
-        /// mir-lower only resolves them by name to call the
-        /// generated constructor, so the test shell keeps the minimal
-        /// shape. Tests declare exactly the exceptions they use, so
-        /// unrelated dumps stay free of them.
+        /// A concrete zero-argument exception shell used by tests that
+        /// exercise compiler-generated exception edges.
         fn exception(&mut self, name: &str) -> hir::ClassId {
             self.class(name, hir::ClassModifier::Final, &[], None, &[])
+        }
+
+        fn exception_target(&mut self, name: &str, include: bool) -> hir::CompilerException {
+            let existing = self
+                .classes
+                .iter()
+                .find_map(|(id, declaration)| (declaration.name == name).then_some(id));
+            let class = if let Some(existing) = existing {
+                existing
+            } else if include {
+                self.exception(name)
+            } else {
+                self.class(
+                    &format!("${name}Protocol"),
+                    hir::ClassModifier::Abstract,
+                    &[],
+                    None,
+                    &[],
+                )
+            };
+            hir::CompilerException {
+                constructor: hir::ZeroArgClassConstructor { class },
+            }
+        }
+
+        fn test_exception_core(&mut self, include: bool) -> hir::CompilerExceptionCore {
+            hir::CompilerExceptionCore {
+                throwable: self.exception_target("Throwable", include),
+                unwrap_exception: self.exception_target("UnwrapException", include),
+                class_cast_exception: self.exception_target("ClassCastException", include),
+                arithmetic_exception: self.exception_target("ArithmeticException", include),
+                index_out_of_bounds_exception: self
+                    .exception_target("IndexOutOfBoundsException", include),
+                illegal_state_exception: self.exception_target("IllegalStateException", include),
+            }
         }
 
         /// A member function (kept out of `top_level`, as hir-lower
@@ -7895,30 +7922,7 @@ mod tests {
                 .alloc(hir::ResolvedGenericFunction { generic, type_args })
         }
 
-        fn test_coroutine_core(&mut self, include_exceptions: bool) -> hir::CoroutineCore {
-            let (throwable, illegal_state_exception) = if include_exceptions {
-                (
-                    self.exception("Throwable"),
-                    self.exception("IllegalStateException"),
-                )
-            } else {
-                (
-                    self.class(
-                        "$ThrowableProtocol",
-                        hir::ClassModifier::Abstract,
-                        &[],
-                        None,
-                        &[],
-                    ),
-                    self.class(
-                        "$IllegalStateProtocol",
-                        hir::ClassModifier::Abstract,
-                        &[],
-                        None,
-                        &[],
-                    ),
-                )
-            };
+        fn test_coroutine_core(&mut self, throwable: hir::ClassId) -> hir::CoroutineCore {
             let throwable_ty = self.class_ty(throwable);
             let t = self
                 .types
@@ -8115,8 +8119,6 @@ mod tests {
                 self.top_level.push(function);
             }
             hir::CoroutineCore {
-                throwable,
-                illegal_state_exception,
                 continuation,
                 continuation_resume,
                 continuation_resume_with_exception,
@@ -8142,7 +8144,8 @@ mod tests {
             entry: hir::FunctionId,
             include_exceptions: bool,
         ) -> hir::Module {
-            let coroutine_core = self.test_coroutine_core(include_exceptions);
+            let exception_core = self.test_exception_core(include_exceptions);
+            let coroutine_core = self.test_coroutine_core(exception_core.throwable.class());
             let t = self
                 .types
                 .alloc(hir::Type::Param(hir::TypeParamId::from_raw(0)));
@@ -8248,6 +8251,7 @@ mod tests {
                 boolean: self.boolean,
                 string: self.string,
                 option_enum: self.option_enum,
+                exception_core,
                 coroutine_core,
                 ffi_core,
                 foreign_callback_core: hir::ForeignCallbackCore {

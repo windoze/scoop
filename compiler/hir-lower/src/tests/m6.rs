@@ -127,6 +127,11 @@ Module
     Some(_1: T0)
     None()
   open class Throwable()
+  open class Exception(message: Option<String>)
+  class UnwrapException()
+  class ClassCastException()
+  class ArithmeticException()
+  class IndexOutOfBoundsException()
   class IllegalStateException()
   open class Shape(name: String) : Describable
   class Point(x: Int, y: Int)

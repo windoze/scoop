@@ -5,6 +5,84 @@ use scoop_hir as hir;
 
 use super::*;
 
+#[test]
+fn compiler_exception_core_is_complete_in_export_and_local_hir() {
+    let output = lower_user_output(file(vec![fun("main", vec![])]))
+        .expect("the canonical compiler exception core must lower");
+
+    let export = output.export.exception_core;
+    let export_names = [
+        export.throwable,
+        export.unwrap_exception,
+        export.class_cast_exception,
+        export.arithmetic_exception,
+        export.index_out_of_bounds_exception,
+        export.illegal_state_exception,
+    ]
+    .map(|exception| output.export.classes[exception.class()].name.as_str());
+    assert_eq!(
+        export_names,
+        [
+            "Throwable",
+            "UnwrapException",
+            "ClassCastException",
+            "ArithmeticException",
+            "IndexOutOfBoundsException",
+            "IllegalStateException",
+        ]
+    );
+
+    let local = output.local.exception_core;
+    let local_names = [
+        local.throwable,
+        local.unwrap_exception,
+        local.class_cast_exception,
+        local.arithmetic_exception,
+        local.index_out_of_bounds_exception,
+        local.illegal_state_exception,
+    ]
+    .map(|exception| output.local.classes[exception.class()].name.as_str());
+    assert_eq!(local_names, export_names);
+}
+
+#[test]
+fn compiler_exception_core_rejects_missing_or_nonzero_arg_targets() {
+    let mut missing = core_file();
+    missing.declarations.retain(
+        |declaration| !matches!(declaration, Decl::Class(class) if class.name.text == "UnwrapException"),
+    );
+    let errors = lower(&[missing, file(vec![fun("main", vec![])])])
+        .expect_err("a missing compiler exception must reject the core");
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.message == "scoop.core must define class `UnwrapException`")
+    );
+
+    let mut malformed = core_file();
+    let declaration = malformed
+        .declarations
+        .iter_mut()
+        .find(|declaration| {
+            matches!(declaration, Decl::Class(class) if class.name.text == "ArithmeticException")
+        })
+        .expect("ArithmeticException declaration");
+    *declaration = class_decl(
+        ast::ClassModifier::Final,
+        "ArithmeticException",
+        vec![(false, "code", ty_named("Int"))],
+        Some(("Throwable", vec![])),
+        vec![],
+        vec![],
+    );
+    let errors = lower(&[malformed, file(vec![fun("main", vec![])])])
+        .expect_err("a nonzero-argument compiler exception must reject the core");
+    assert!(errors.iter().any(|error| {
+        error.message
+            == "class `ArithmeticException` in scoop.core must be a non-generic final subtype of `Throwable` with a zero-argument constructor"
+    }));
+}
+
 fn upper(name: &str, interface: TypeRef) -> ast::TypeParamDecl {
     ast::TypeParamDecl {
         name: ident(name),

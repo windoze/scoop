@@ -1117,8 +1117,8 @@ pub(crate) fn file(declarations: Vec<Decl>) -> SourceFile {
 }
 
 /// The minimal `scoop.core` (sysroot): the `Option<T>` enum (spec 7.2),
-/// the `Throwable` exception root (spec 11.7; most subclasses live in
-/// `throwable_core()`), the M10 coroutine protocol, plus the M7
+/// the complete compiler exception core (spec 11.7), the M10 coroutine
+/// protocol, plus the M7
 /// `io.scoop` final shape
 /// (docs/milestone7/DESIGN.md section 2) — the managed `write` extern
 /// intrinsic and `print` / `println` as ordinary `Any`-parameter
@@ -1126,24 +1126,15 @@ pub(crate) fn file(declarations: Vec<Decl>) -> SourceFile {
 pub(crate) fn core_file() -> SourceFile {
     let mut declarations = capability_interfaces();
     declarations.extend(intrinsic_type_declarations());
-    declarations.extend([
-        enum_decl(
-            "Option",
-            vec!["T"],
-            vec![
-                variant_positional("Some", vec![ty_named("T")]),
-                variant_unit("None"),
-            ],
-        ),
-        class_decl(
-            ast::ClassModifier::Open,
-            "Throwable",
-            vec![],
-            None,
-            vec![],
-            vec![],
-        ),
-    ]);
+    declarations.push(enum_decl(
+        "Option",
+        vec!["T"],
+        vec![
+            variant_positional("Some", vec![ty_named("T")]),
+            variant_unit("None"),
+        ],
+    ));
+    declarations.extend(exception_core_declarations());
     declarations.extend(coroutine_core_declarations());
     declarations.extend(ffi_core_declarations());
     let mut print = fun_expr(
@@ -1744,6 +1735,42 @@ fn gc_api_declarations() -> Vec<Decl> {
     ]
 }
 
+fn exception_core_declarations() -> Vec<Decl> {
+    let subclass = |name: &str, message: &str| {
+        class_decl(
+            ast::ClassModifier::Final,
+            name,
+            vec![],
+            Some(("Exception", vec![some(str_lit(message))])),
+            vec![],
+            vec![],
+        )
+    };
+    vec![
+        class_decl(
+            ast::ClassModifier::Open,
+            "Throwable",
+            vec![],
+            None,
+            vec![],
+            vec![],
+        ),
+        class_decl(
+            ast::ClassModifier::Open,
+            "Exception",
+            vec![(false, "message", ty_nullable(ty_named("String")))],
+            Some(("Throwable", vec![])),
+            vec![],
+            vec![],
+        ),
+        subclass("UnwrapException", "unwrap on None"),
+        subclass("ClassCastException", "invalid cast"),
+        subclass("ArithmeticException", "arithmetic error"),
+        subclass("IndexOutOfBoundsException", "array index out of bounds"),
+        subclass("IllegalStateException", "illegal state"),
+    ]
+}
+
 fn coroutine_core_declarations() -> Vec<Decl> {
     let continuation = generic_interface_decl(
         "Continuation",
@@ -1781,14 +1808,6 @@ fn coroutine_core_declarations() -> Vec<Decl> {
             None,
         )],
     );
-    let illegal_state = class_decl(
-        ast::ClassModifier::Final,
-        "IllegalStateException",
-        vec![],
-        Some(("Throwable", vec![])),
-        vec![],
-        vec![],
-    );
     let start = intrinsic_generic_fun(
         "startCoroutine",
         "coroutine_start",
@@ -1820,7 +1839,6 @@ fn coroutine_core_declarations() -> Vec<Decl> {
         continuation,
         task,
         registration,
-        illegal_state,
         start,
         Decl::Function(suspend),
     ]
@@ -1889,41 +1907,10 @@ pub(crate) fn catch_clause_at(
     }
 }
 
-/// The exception subclasses of `scoop.core`
-/// (sysroot/lib/scoop.core/src/throwable.scoop) as a second core file
-/// for tests that exercise `throw` / `catch`; the `Throwable` root
-/// lives in `core_file()`.
-pub(crate) fn throwable_core() -> SourceFile {
-    let subclass = |name: &str, message: &str| {
-        class_decl(
-            ast::ClassModifier::Final,
-            name,
-            vec![],
-            Some(("Exception", vec![some(str_lit(message))])),
-            vec![],
-            vec![],
-        )
-    };
-    file(vec![
-        class_decl(
-            ast::ClassModifier::Open,
-            "Exception",
-            vec![(false, "message", ty_nullable(ty_named("String")))],
-            Some(("Throwable", vec![])),
-            vec![],
-            vec![],
-        ),
-        subclass("UnwrapException", "unwrap on None"),
-        subclass("ClassCastException", "invalid cast"),
-        subclass("ArithmeticException", "arithmetic error"),
-        subclass("IndexOutOfBoundsException", "array index out of bounds"),
-    ])
-}
-
 /// Lower a user file with the full core exception hierarchy available
 /// (M8 tests).
 pub(crate) fn lower_user_with_exceptions(user: SourceFile) -> Result<hir::Module, Vec<Diagnostic>> {
-    lower(&[core_file(), throwable_core(), user]).map(|output| output.export)
+    lower(&[core_file(), user]).map(|output| output.export)
 }
 
 /// Lower a user file with the core GC facilities available (M9 tests).
@@ -1969,6 +1956,11 @@ Module
     Some(_1: T0)
     None()
   open class Throwable()
+  open class Exception(message: Option<String>)
+  class UnwrapException()
+  class ClassCastException()
+  class ArithmeticException()
+  class IndexOutOfBoundsException()
   class IllegalStateException()
   interface ToString
     fun toString(): String

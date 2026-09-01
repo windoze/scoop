@@ -233,11 +233,12 @@ impl<'a> Concretizer<'a> {
             source: self.source.entry,
             arguments: Vec::new(),
         }];
-        let throwable = self.class_by_key[&(self.source.coroutine_core.throwable, Vec::new())];
-        let illegal_state_exception = self.class_by_key[&(
-            self.source.coroutine_core.illegal_state_exception,
-            Vec::new(),
-        )];
+        let lower_exception = |exception: export::CompilerException| concrete::CompilerException {
+            constructor: concrete::ZeroArgClassConstructor {
+                class: self.class_by_key[&(exception.class(), Vec::new())],
+            },
+        };
+        let source_exception_core = self.source.exception_core;
         let option = &self.source.enums[self.source.option_enum];
         let option_variant = |name: &str| {
             concrete::VariantId::from_raw(
@@ -271,9 +272,17 @@ impl<'a> Concretizer<'a> {
             boolean,
             string,
             option_variants: (option_variant("Some"), option_variant("None")),
-            exception_core: concrete::ExceptionCore {
-                throwable,
-                illegal_state_exception,
+            exception_core: concrete::CompilerExceptionCore {
+                throwable: lower_exception(source_exception_core.throwable),
+                unwrap_exception: lower_exception(source_exception_core.unwrap_exception),
+                class_cast_exception: lower_exception(source_exception_core.class_cast_exception),
+                arithmetic_exception: lower_exception(source_exception_core.arithmetic_exception),
+                index_out_of_bounds_exception: lower_exception(
+                    source_exception_core.index_out_of_bounds_exception,
+                ),
+                illegal_state_exception: lower_exception(
+                    source_exception_core.illegal_state_exception,
+                ),
             },
             coroutine_protocols,
             foreign_callback_core: concrete::ForeignCallbackCore {

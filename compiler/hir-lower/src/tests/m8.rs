@@ -79,12 +79,12 @@ Module
     Some(_1: T0)
     None()
   open class Throwable()
-  class IllegalStateException()
   open class Exception(message: Option<String>)
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
   class IndexOutOfBoundsException()
+  class IllegalStateException()
   class MyError(code: Int)
   interface ToString
     fun toString(): String
@@ -281,8 +281,8 @@ fn throw_non_throwable_is_an_error() {
         "cannot throw value of type Int: not a subtype of Throwable"
     );
     assert_eq!(errors[0].span, Some(value_span));
-    // The user file is the third input (two core files).
-    assert_eq!(errors[0].file, 2);
+    // The user file follows the single complete core file.
+    assert_eq!(errors[0].file, 1);
 }
 
 /// A non-Unit function may end with `throw` instead of `return`: the

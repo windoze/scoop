@@ -43,7 +43,8 @@ pub(super) fn transform(lowerer: &mut Lowerer, module: &hir::Module) {
         if sites.is_empty() {
             continue;
         }
-        let throwable = mir::Type::Class(lowerer.class_map[&module.exception_core.throwable]);
+        let throwable =
+            mir::Type::Class(lowerer.class_map[&module.exception_core.throwable.class()]);
         eh::materialize_exceptions(&mut lowerer.functions[function].body, throwable);
         sites = analyze_sites(lowerer, &lowerer.functions[function].body);
         for (index, site) in sites.iter_mut().enumerate() {
@@ -78,7 +79,8 @@ fn transform_function(
     let completion_old = completion.local;
     let completion_ty = completion.ty.clone();
     let source_params = &old_params[..old_params.len() - 1];
-    let throwable_ty = mir::Type::Class(lowerer.class_map[&module.exception_core.throwable]);
+    let throwable_ty =
+        mir::Type::Class(lowerer.class_map[&module.exception_core.throwable.class()]);
 
     let mut saved = HashSet::new();
     saved.extend(source_params.iter().map(|param| param.local));
@@ -942,7 +944,7 @@ fn generate_failure_method(
     failure_state: i64,
     latch: Option<FrameSlot>,
 ) -> mir::FunctionId {
-    let throwable = mir::Type::Class(lowerer.class_map[&module.exception_core.throwable]);
+    let throwable = mir::Type::Class(lowerer.class_map[&module.exception_core.throwable.class()]);
     let mut locals = Arena::new();
     let this = locals.alloc(local("this", mir::Type::Class(adapter)));
     let exception = locals.alloc(local("exception", throwable.clone()));
@@ -1144,7 +1146,7 @@ fn drive_exit_blocks(
     outer_resume: mir::FunctionId,
     outer_failure: mir::FunctionId,
 ) -> DriveExitBlocks {
-    let throwable = mir::Type::Class(lowerer.class_map[&module.exception_core.throwable]);
+    let throwable = mir::Type::Class(lowerer.class_map[&module.exception_core.throwable.class()]);
     let exception = locals.alloc(local("$uncaught", throwable.clone()));
     let completion_ty = mir::Type::Interface(outer_continuation);
     let completed_value_ty = lowerer.functions[outer_resume].params[1].ty.clone();
@@ -1396,7 +1398,7 @@ fn protocol_error_block(
     blocks: &mut Arena<mir::BasicBlock>,
     unwind: Option<mir::BlockId>,
 ) -> mir::BlockId {
-    let class = module.exception_core.illegal_state_exception;
+    let class = module.exception_core.illegal_state_exception.class();
     let mir_class = lowerer.class_map[&class];
     let exception = locals.alloc(local("$protocol_error", mir::Type::Class(mir_class)));
     blocks.alloc(mir::BasicBlock {
@@ -1617,7 +1619,7 @@ fn rewrite_intrinsic_site(
     let SuspendKind::Intrinsic { register } = site.kind else {
         unreachable!("intrinsic site carries its concrete register method")
     };
-    let throwable = mir::Type::Class(lowerer.class_map[&module.exception_core.throwable]);
+    let throwable = mir::Type::Class(lowerer.class_map[&module.exception_core.throwable.class()]);
     let (_, result_latch_ty) = lowerer.coroutines.slot_for(
         &site.result,
         &lowerer.structs,

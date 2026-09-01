@@ -453,6 +453,10 @@ pub struct Module {
     /// `T?`, spec 7.1). Guaranteed present: a core library without a
     /// suitable `Option` definition is a driver-level error.
     pub option_enum: EnumId,
+    /// Compiler-generated exception construction targets. Every entry is a
+    /// validated, zero-argument class constructor; later stages never find
+    /// these entities by source or link name.
+    pub exception_core: CompilerExceptionCore,
     /// Compiler-known coroutine protocol entities. HIR lowering validates
     /// their exact declarations before constructing the module, so MIR never
     /// falls back to textual lookup for protocol types or methods.
@@ -631,10 +635,41 @@ pub struct FunctionCoercion {
     pub target: FunctionTypeId,
 }
 
+/// A constructor target whose zero-argument signature is guaranteed by its
+/// type. The constructed exception type is exactly `class`; there is no
+/// parallel return-type field that could disagree with it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ZeroArgClassConstructor {
+    pub class: ClassId,
+}
+
+/// One compiler-known exception type together with its only construction
+/// target needed by compiler-generated control flow.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CompilerException {
+    pub constructor: ZeroArgClassConstructor,
+}
+
+impl CompilerException {
+    pub const fn class(self) -> ClassId {
+        self.constructor.class
+    }
+}
+
+/// Complete exception capabilities emitted by Export HIR. These ids belong
+/// exclusively to the export-side family and are concretized before MIR.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CompilerExceptionCore {
+    pub throwable: CompilerException,
+    pub unwrap_exception: CompilerException,
+    pub class_cast_exception: CompilerException,
+    pub arithmetic_exception: CompilerException,
+    pub index_out_of_bounds_exception: CompilerException,
+    pub illegal_state_exception: CompilerException,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CoroutineCore {
-    pub throwable: ClassId,
-    pub illegal_state_exception: ClassId,
     pub continuation: InterfaceId,
     pub continuation_resume: FunctionId,
     pub continuation_resume_with_exception: FunctionId,

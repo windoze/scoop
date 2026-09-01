@@ -38,11 +38,11 @@ fn validates_and_preserves_coroutine_core_contract() {
         Some("resumeWithException")
     );
     assert_eq!(
-        module.classes[module.coroutine_core.throwable].name,
+        module.classes[module.exception_core.throwable.class()].name,
         "Throwable"
     );
     assert_eq!(
-        module.classes[module.coroutine_core.illegal_state_exception].name,
+        module.classes[module.exception_core.illegal_state_exception.class()].name,
         "IllegalStateException"
     );
     assert_eq!(

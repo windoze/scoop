@@ -78,9 +78,9 @@
 //! of it, catches are checked for shadowing in declaration order (a
 //! catch covered by an earlier one is unreachable — an error in M8,
 //! DESIGN.md 5.1), and the catch local scopes over its clause body.
-//! The validated `Throwable` stays a lowerer-internal field (the HIR
-//! `Module` is unchanged); mir-lower re-resolves the exception classes
-//! by name when it rewrites the M3 trap paths.
+//! HIR validates the complete compiler exception core and exports typed
+//! zero-argument constructor targets; MIR never resolves exception classes
+//! by source name.
 //!
 //! M9 (milestone9 DESIGN.md section 1): the `UInt` basic type (spec
 //! 11.2 — a distinct type from `Int` with no implicit conversion;
@@ -564,9 +564,9 @@ pub(crate) struct Lowerer {
     throwable_candidates: Vec<(ClassId, TypeId)>,
     /// The validated `Throwable` class of `scoop.core` and its
     /// reference type (M8); `None` only when the core library is
-    /// misconfigured (diagnosed, so the module is rejected anyway).
-    /// Lowerer-internal on purpose: `hir::Module` is unchanged and
-    /// mir-lower re-resolves the exception classes by name.
+    /// misconfigured (diagnosed, so the module is rejected anyway). This
+    /// lowering-time lookup feeds the complete typed `CompilerExceptionCore`
+    /// emitted after class representations and inheritance are resolved.
     pub(crate) throwable: Option<(ClassId, TypeId)>,
     /// Surface form of every variant, for pattern shape checks.
     pub(crate) variant_styles: HashMap<(EnumId, u32), VariantStyle>,
@@ -1044,6 +1044,11 @@ impl Lowerer {
             &pending_methods,
         );
         self.declare_derived_equality_methods();
+        // Compiler-generated exception edges receive complete typed class /
+        // zero-argument-constructor identities after inheritance has been
+        // validated and before body lowering. MIR never recovers these
+        // targets from names.
+        let exception_core = self.validate_exception_core(files);
 
         // Pass 3: lower bodies. Intrinsics have no body to lower (the
         // parser guarantees it is omitted); their `kind` was set at
@@ -1143,6 +1148,8 @@ impl Lowerer {
             .expect("a missing or invalid core `Option` is always diagnosed");
         let coroutine_core = coroutine_core
             .expect("a missing or invalid coroutine core protocol is always diagnosed");
+        let exception_core = exception_core
+            .expect("a missing or invalid compiler exception core is always diagnosed");
         let ffi_core =
             ffi_core.expect("a missing or invalid FFI core protocol is always diagnosed");
         Ok(hir::Module {
@@ -1178,6 +1185,7 @@ impl Lowerer {
             boolean: self.boolean,
             string: self.string,
             option_enum,
+            exception_core,
             coroutine_core,
             ffi_core,
             foreign_callback_core: foreign_callback_core
@@ -1874,11 +1882,103 @@ impl Lowerer {
         })
     }
 
+    fn compiler_exception(
+        &mut self,
+        name: &str,
+        files: &[ast::SourceFile],
+        throwable: ClassId,
+    ) -> Option<hir::CompilerException> {
+        let candidate = self.classes_by_name.get(name).map(|(id, _)| *id);
+        let id = candidate.filter(|id| self.class_files[id] < self.user_file_index);
+        let Some(id) = id else {
+            self.current_file = candidate
+                .and_then(|id| self.class_files.get(&id).copied())
+                .unwrap_or(0);
+            self.error(
+                files[0].span,
+                format!("scoop.core must define class `{name}`"),
+            );
+            return None;
+        };
+        self.current_file = self.class_files[&id];
+        let declaration = &self.classes[id];
+        let valid = declaration.modifier == hir::ClassModifier::Final
+            && declaration.type_params.is_empty()
+            && matches!(
+                &declaration.representation,
+                hir::ClassRepresentation::Declared(constructor) if constructor.is_empty()
+            )
+            && self.class_descends_from(id, throwable);
+        if !valid {
+            self.error(
+                declaration.span,
+                format!(
+                    "class `{name}` in scoop.core must be a non-generic final subtype of `Throwable` with a zero-argument constructor"
+                ),
+            );
+        }
+        Some(hir::CompilerException {
+            constructor: hir::ZeroArgClassConstructor { class: id },
+        })
+    }
+
+    fn validate_exception_core(
+        &mut self,
+        files: &[ast::SourceFile],
+    ) -> Option<hir::CompilerExceptionCore> {
+        let throwable = self.throwable.map(|(id, _)| id)?;
+        self.current_file = self.class_files[&throwable];
+        let declaration = &self.classes[throwable];
+        let valid_throwable = declaration.modifier == hir::ClassModifier::Open
+            && declaration.type_params.is_empty()
+            && matches!(
+                &declaration.representation,
+                hir::ClassRepresentation::Declared(constructor) if constructor.is_empty()
+            );
+        if !valid_throwable {
+            self.error(
+                declaration.span,
+                "class `Throwable` in scoop.core must be a non-generic open class with a zero-argument constructor"
+                    .to_string(),
+            );
+        }
+        let throwable = hir::CompilerException {
+            constructor: hir::ZeroArgClassConstructor { class: throwable },
+        };
+        Some(hir::CompilerExceptionCore {
+            throwable,
+            unwrap_exception: self.compiler_exception(
+                "UnwrapException",
+                files,
+                throwable.class(),
+            )?,
+            class_cast_exception: self.compiler_exception(
+                "ClassCastException",
+                files,
+                throwable.class(),
+            )?,
+            arithmetic_exception: self.compiler_exception(
+                "ArithmeticException",
+                files,
+                throwable.class(),
+            )?,
+            index_out_of_bounds_exception: self.compiler_exception(
+                "IndexOutOfBoundsException",
+                files,
+                throwable.class(),
+            )?,
+            illegal_state_exception: self.compiler_exception(
+                "IllegalStateException",
+                files,
+                throwable.class(),
+            )?,
+        })
+    }
+
     fn validate_coroutine_core(&mut self, files: &[ast::SourceFile]) -> Option<hir::CoroutineCore> {
         let continuation = self.require_core_interface("Continuation", files);
         let suspend_task = self.require_core_interface("SuspendTask", files);
         let suspend_registration = self.require_core_interface("SuspendRegistration", files);
-        let throwable = self.throwable.map(|(id, _)| id);
 
         if let Some(id) = continuation {
             self.validate_continuation_contract(id);
@@ -1889,7 +1989,6 @@ impl Lowerer {
         if let (Some(id), Some(continuation)) = (suspend_registration, continuation) {
             self.validate_suspend_registration_contract(id, continuation);
         }
-        let illegal_state_exception = self.validate_illegal_state_exception(files);
         let start_coroutine =
             self.require_intrinsic(hir::IntrinsicFunctionKind::CoroutineStart, files);
         let suspend_coroutine =
@@ -1917,8 +2016,6 @@ impl Lowerer {
             .and_then(|id| self.interface_methods.get(&id))
             .and_then(|methods| matches!(methods.as_slice(), [_]).then_some(methods[0]));
         let (
-            Some(throwable),
-            Some(illegal_state_exception),
             Some(continuation),
             Some((continuation_resume, continuation_resume_with_exception)),
             Some(suspend_task),
@@ -1928,8 +2025,6 @@ impl Lowerer {
             Some(start_coroutine),
             Some(suspend_coroutine),
         ) = (
-            throwable,
-            illegal_state_exception,
             continuation,
             continuation_methods,
             suspend_task,
@@ -1943,8 +2038,6 @@ impl Lowerer {
             return None;
         };
         Some(hir::CoroutineCore {
-            throwable,
-            illegal_state_exception,
             continuation,
             continuation_resume,
             continuation_resume_with_exception,
@@ -2611,34 +2704,6 @@ impl Lowerer {
                     .to_string(),
             );
         }
-    }
-
-    fn validate_illegal_state_exception(&mut self, files: &[ast::SourceFile]) -> Option<ClassId> {
-        let candidate = self
-            .classes_by_name
-            .get("IllegalStateException")
-            .map(|(id, _)| *id)
-            .filter(|id| self.class_files[id] < self.user_file_index);
-        let Some(id) = candidate else {
-            self.current_file = 0;
-            self.error(
-                files[0].span,
-                "scoop.core must define class `IllegalStateException`".to_string(),
-            );
-            return None;
-        };
-        self.current_file = self.class_files[&id];
-        let throwable = self.throwable.map(|(id, _)| id);
-        let valid = self.classes[id].modifier == hir::ClassModifier::Final
-            && throwable.is_some_and(|root| self.class_descends_from(id, root));
-        if !valid {
-            self.error(
-                self.classes[id].span,
-                "class `IllegalStateException` in scoop.core must be a final subtype of `Throwable`"
-                    .to_string(),
-            );
-        }
-        Some(id)
     }
 
     fn validate_coroutine_start(
