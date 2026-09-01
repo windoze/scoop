@@ -56,6 +56,7 @@ local_origin_id!(EnumOriginId);
 local_origin_id!(ClassOriginId);
 local_origin_id!(InterfaceOriginId);
 local_origin_id!(GenericFunctionOriginId);
+local_origin_id!(OwnerParameterizedMethodOriginId);
 local_origin_id!(GenericMethodOriginId);
 
 /// A structurally non-empty local-concrete sequence. It is intentionally a
@@ -668,7 +669,7 @@ pub enum FreeFunctionOrigin {
     Plain,
     Generic {
         origin: GenericFunctionOriginId,
-        arguments: Vec<TypeId>,
+        arguments: NonEmptyVec<TypeId>,
         symbol: InstanceSymbol,
     },
 }
@@ -694,6 +695,7 @@ pub enum MethodOwner {
 pub enum MethodSpecialization {
     Plain,
     OwnerParameterized {
+        origin: OwnerParameterizedMethodOriginId,
         symbol: InstanceSymbol,
     },
     Generic {

@@ -1126,7 +1126,7 @@ fn parameterized_method_families_use_one_source_identity_domain_for_symbols() {
                 return None;
             };
             match &origin.specialization {
-                hir::concrete::MethodSpecialization::OwnerParameterized { symbol }
+                hir::concrete::MethodSpecialization::OwnerParameterized { symbol, .. }
                 | hir::concrete::MethodSpecialization::Generic { symbol, .. } => Some(*symbol),
                 hir::concrete::MethodSpecialization::Plain => None,
             }

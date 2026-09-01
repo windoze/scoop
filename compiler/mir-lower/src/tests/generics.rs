@@ -1,6 +1,99 @@
 //! Generic nominal specialization and ordinary generic core calls.
 
 use super::*;
+use crate::instances::LoweredFunctionInstance;
+
+#[test]
+fn monomorphization_metadata_preserves_typed_sources_and_argument_groups() {
+    let mut registry = InstanceRegistry::default();
+    let hir_function = |raw: u32| hir::concrete::FunctionId::from_raw(raw.into());
+    let mir_function = |raw: u32| mir::FunctionId::from_raw(raw.into());
+    let arguments = |first, rest| mir::NonEmptyTypeArguments::new(first, rest);
+
+    registry.record(
+        hir_function(0),
+        mir_function(0),
+        "scoop.identity$I".to_string(),
+        "identity".to_string(),
+        LoweredFunctionInstance::GenericFunction {
+            origin: hir::concrete::GenericFunctionOriginId::from_raw(7),
+            arguments: arguments(mir::Type::Int, Vec::new()),
+        },
+    );
+    registry.record(
+        hir_function(1),
+        mir_function(1),
+        "scoop.identity$S".to_string(),
+        "identity".to_string(),
+        LoweredFunctionInstance::GenericFunction {
+            origin: hir::concrete::GenericFunctionOriginId::from_raw(7),
+            arguments: arguments(mir::Type::String, Vec::new()),
+        },
+    );
+    registry.record(
+        hir_function(2),
+        mir_function(2),
+        "scoop.Box$I.get$I".to_string(),
+        "Box.get".to_string(),
+        LoweredFunctionInstance::ParameterizedMethod {
+            origin: hir::concrete::OwnerParameterizedMethodOriginId::from_raw(11),
+            owner: mir::MonomorphizedMethodOwner::Class(mir::ClassId::from_raw(3_u32.into())),
+            owner_arguments: arguments(mir::Type::Int, Vec::new()),
+        },
+    );
+    registry.record(
+        hir_function(3),
+        mir_function(3),
+        "scoop.Host.convert$S".to_string(),
+        "Host.convert".to_string(),
+        LoweredFunctionInstance::GenericMethod {
+            origin: hir::concrete::GenericMethodOriginId::from_raw(13),
+            owner: mir::MonomorphizedMethodOwner::Class(mir::ClassId::from_raw(4_u32.into())),
+            owner_arguments: Vec::new(),
+            method_arguments: arguments(mir::Type::String, Vec::new()),
+        },
+    );
+
+    assert_eq!(registry.generic_function_sources.len(), 1);
+    assert_eq!(registry.parameterized_method_sources.len(), 1);
+    assert_eq!(registry.generic_method_sources.len(), 1);
+    assert_eq!(registry.meta.len(), 4);
+
+    let mir::MonomorphizedSource::GenericFunction { source, arguments } =
+        &registry.meta[mir::MonomorphizedFunctionId::from_raw(1_u32.into())].source
+    else {
+        panic!("the second instance must retain its free-function category")
+    };
+    assert_eq!(
+        registry.generic_function_sources[*source].display_name,
+        "identity"
+    );
+    assert_eq!(arguments.to_vec(), vec![mir::Type::String]);
+
+    let mir::MonomorphizedSource::ParameterizedMethod {
+        owner,
+        owner_arguments,
+        ..
+    } = &registry.meta[mir::MonomorphizedFunctionId::from_raw(2_u32.into())].source
+    else {
+        panic!("the owner-parameterized method category must be retained")
+    };
+    assert!(matches!(owner, mir::MonomorphizedMethodOwner::Class(_)));
+    assert_eq!(owner_arguments.to_vec(), vec![mir::Type::Int]);
+
+    let mir::MonomorphizedSource::GenericMethod {
+        owner,
+        owner_arguments,
+        method_arguments,
+        ..
+    } = &registry.meta[mir::MonomorphizedFunctionId::from_raw(3_u32.into())].source
+    else {
+        panic!("the generic-method category must be retained")
+    };
+    assert!(matches!(owner, mir::MonomorphizedMethodOwner::Class(_)));
+    assert!(owner_arguments.is_empty());
+    assert_eq!(method_arguments.to_vec(), vec![mir::Type::String]);
+}
 
 #[test]
 fn generic_structs_instantiate_per_argument_list() {

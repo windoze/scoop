@@ -1504,7 +1504,7 @@ impl<'a> Concretizer<'a> {
             concrete::FunctionOrigin::Free(concrete::FreeFunctionOrigin::Generic {
                 arguments,
                 ..
-            }) => arguments.clone(),
+            }) => arguments.to_vec(),
             concrete::FunctionOrigin::Method(origin) => {
                 let mut arguments = self.concrete_method_owner_arguments(origin.owner).to_vec();
                 if let concrete::MethodSpecialization::Generic {
@@ -1536,7 +1536,8 @@ impl<'a> Concretizer<'a> {
                         origin: concrete::GenericFunctionOriginId::from_raw(
                             definition.into_raw().into_u32(),
                         ),
-                        arguments: arguments.clone(),
+                        arguments: concrete::NonEmptyVec::from_vec(arguments.clone())
+                            .expect("a generic function application has non-empty arguments"),
                         symbol: self.instance_symbol(&source.name, source_id.into_raw().into_u32()),
                     })
                 }
@@ -1555,6 +1556,9 @@ impl<'a> Concretizer<'a> {
                         export::FunctionGenericity::Plain => concrete::MethodSpecialization::Plain,
                         export::FunctionGenericity::OwnerParameterizedMethod { .. } => {
                             concrete::MethodSpecialization::OwnerParameterized {
+                                origin: concrete::OwnerParameterizedMethodOriginId::from_raw(
+                                    source_id.into_raw().into_u32(),
+                                ),
                                 symbol: self
                                     .instance_symbol(&source.name, source_id.into_raw().into_u32()),
                             }

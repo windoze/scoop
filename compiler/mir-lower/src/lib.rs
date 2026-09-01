@@ -110,8 +110,10 @@ use scoop_mir as mir;
 mod cfg;
 mod coroutine;
 mod dispatch;
+mod instances;
 mod structured;
 
+use instances::{InstanceRegistry, function_instance};
 use structured as smir;
 
 /// Lower HIR to MIR.
@@ -798,6 +800,9 @@ impl Lowerer {
             interfaces: self.interfaces.defs,
             entry,
             meta: mir::MirMeta {
+                generic_function_sources: self.instances.generic_function_sources,
+                parameterized_method_sources: self.instances.parameterized_method_sources,
+                generic_method_sources: self.instances.generic_method_sources,
                 instances: self.instances.meta,
                 coroutine_functions: self.coroutines.functions,
                 coroutine_steps: self.coroutines.steps,
@@ -1339,13 +1344,14 @@ impl Lowerer {
     fn declare_symbol(&mut self, module: &hir::Module, hir_id: hir::FunctionId) -> String {
         let function = &module.functions[hir_id];
         let name = fn_name(function);
-        if let Some((type_arguments, symbol_identity)) = function_instance(module, function) {
+        if let Some(instance) = function_instance(module, function) {
             let types = Types {
                 module,
                 struct_map: &self.struct_map,
                 class_map: &self.class_map,
             };
-            let arguments = type_arguments
+            let arguments = instance
+                .all_arguments()
                 .iter()
                 .map(|argument| {
                     types.lower(
@@ -1357,7 +1363,7 @@ impl Lowerer {
                     )
                 })
                 .collect::<Vec<_>>();
-            return match symbol_identity {
+            return match instance.symbol() {
                 hir::InstanceSymbol::Unique => mir::mangle_instance(&self.shell, &name, &arguments),
                 hir::InstanceSymbol::Overloaded { discriminator } => {
                     mir::mangle_generic_overload(&self.shell, &name, &arguments, discriminator)
@@ -1422,32 +1428,7 @@ impl Lowerer {
         });
         self.top_level.push(id);
         self.function_map.insert(hir_id, id);
-        if let Some((type_arguments, _)) = function_instance(module, function) {
-            let type_args = type_arguments
-                .iter()
-                .map(|argument| {
-                    Types {
-                        module,
-                        struct_map: &self.struct_map,
-                        class_map: &self.class_map,
-                    }
-                    .lower(
-                        *argument,
-                        &mut self.enums,
-                        &mut self.structs,
-                        &mut self.interfaces,
-                        &mut self.shell,
-                    )
-                })
-                .collect();
-            self.instances.record(
-                hir_id,
-                id,
-                self.functions[id].symbol.clone(),
-                self.functions[id].name.clone(),
-                type_args,
-            );
-        }
+        self.record_function_instance(module, hir_id, id);
         id
     }
 
@@ -1829,32 +1810,7 @@ impl Lowerer {
             body: mir::Body::unreachable(locals),
         });
         self.function_map.insert(hir_id, id);
-        if let Some((type_arguments, _)) = function_instance(module, function) {
-            let type_args = type_arguments
-                .iter()
-                .map(|argument| {
-                    Types {
-                        module,
-                        struct_map: &self.struct_map,
-                        class_map: &self.class_map,
-                    }
-                    .lower(
-                        *argument,
-                        &mut self.enums,
-                        &mut self.structs,
-                        &mut self.interfaces,
-                        &mut self.shell,
-                    )
-                })
-                .collect();
-            self.instances.record(
-                hir_id,
-                id,
-                self.functions[id].symbol.clone(),
-                self.functions[id].name.clone(),
-                type_args,
-            );
-        }
+        self.record_function_instance(module, hir_id, id);
         id
     }
 
@@ -2152,46 +2108,6 @@ fn lower_gc_effect(effect: hir::GcEffect) -> mir::GcEffect {
     match effect {
         hir::GcEffect::Managed => mir::GcEffect::Managed,
         hir::GcEffect::NoGc => mir::GcEffect::NoGc,
-    }
-}
-
-fn method_owner_type_arguments(module: &hir::Module, owner: hir::MethodOwner) -> &[hir::TypeId] {
-    match owner {
-        hir::MethodOwner::Class(id) => &module.classes[id].type_arguments,
-        hir::MethodOwner::Struct(id) => &module.structs[id].type_arguments,
-        hir::MethodOwner::Enum(id) => &module.enums[id].type_arguments,
-        hir::MethodOwner::Interface(id) => &module.interfaces[id].type_arguments,
-        hir::MethodOwner::Structural(_) => &[],
-    }
-}
-
-/// Exact specialization data emitted by HIR. `None` means this declaration
-/// uses ordinary overload mangling; it never means "unknown".
-fn function_instance(
-    module: &hir::Module,
-    function: &hir::Function,
-) -> Option<(Vec<hir::TypeId>, hir::InstanceSymbol)> {
-    match &function.origin {
-        hir::FunctionOrigin::Free(hir::FreeFunctionOrigin::Plain) => None,
-        hir::FunctionOrigin::Free(hir::FreeFunctionOrigin::Generic {
-            arguments, symbol, ..
-        }) => Some((arguments.clone(), *symbol)),
-        hir::FunctionOrigin::Method(method) => match &method.specialization {
-            hir::MethodSpecialization::Plain => None,
-            hir::MethodSpecialization::OwnerParameterized { symbol } => Some((
-                method_owner_type_arguments(module, method.owner).to_vec(),
-                *symbol,
-            )),
-            hir::MethodSpecialization::Generic {
-                method_arguments,
-                symbol,
-                ..
-            } => {
-                let mut arguments = method_owner_type_arguments(module, method.owner).to_vec();
-                arguments.extend(method_arguments.iter().copied());
-                Some((arguments, *symbol))
-            }
-        },
     }
 }
 
@@ -2719,38 +2635,6 @@ fn is_reference_mir(ty: &mir::Type) -> bool {
             | mir::Type::Function(_)
             | mir::Type::Any
     )
-}
-
-/// Metadata for functions that HIR has already fully instantiated. MIR never
-/// owns an instantiation worklist; it only records the concrete source mapping.
-#[derive(Default)]
-struct InstanceRegistry {
-    by_function: HashMap<hir::FunctionId, mir::MonomorphizedFunctionId>,
-    meta: Arena<mir::MonomorphizedFunction>,
-}
-
-impl InstanceRegistry {
-    fn record(
-        &mut self,
-        source: hir::FunctionId,
-        function: mir::FunctionId,
-        symbol: String,
-        name: String,
-        type_args: Vec<mir::Type>,
-    ) -> mir::MonomorphizedFunctionId {
-        let id = self.meta.alloc(mir::MonomorphizedFunction {
-            function,
-            symbol,
-            source: name,
-            type_args,
-        });
-        assert!(self.by_function.insert(source, id).is_none());
-        id
-    }
-
-    fn get(&self, source: hir::FunctionId) -> Option<mir::MonomorphizedFunctionId> {
-        self.by_function.get(&source).copied()
-    }
 }
 
 mod body;

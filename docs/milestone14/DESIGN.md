@@ -719,6 +719,7 @@ NullPointer(PointerKind::Managed | Raw | Code | Metadata)
 - LIR meta为每个layout分配 `LayoutId`，并输出非可选 `WellKnownLayouts`（至少含String）；String literal/concat/descriptor直接引用该id，不扫描 `layouts` 查找名字 `"String"`；
 - TypeDescriptor parent、interface key、vtable/itable slot使用 `TypeDescriptorRef` / `DispatchEntry` / `CallableRef`。跨Cone引用用区分local/external的typed enum；external实体内部可以携带link symbol，但symbol不充当semantic id；
 - `Vec<String>` 形式的vtable/itable内容退役。codegen不得根据runtime symbol猜slot函数签名；
+- MIR单态化metadata分别使用`GenericFunctionSourceId`、`ParameterizedMethodSourceId`与`GenericMethodSourceId`；instance按variant携带对应source id。method instance还必须直接携带exact concrete owner，owner参数与method自身参数保持两组，其中语义上非空的参数组使用不可表示空值的容器。`source: String`与把两组参数压平的`type_args: Vec<Type>`均须退役；
 - display name仍可作为诊断数据保留，但任何layout、subtyping、dispatch、core type或ABI决策都不能读取它。
 
 ### 8.7 消除可构造的非法组合
@@ -758,7 +759,7 @@ NullPointer(PointerKind::Managed | Raw | Code | Metadata)
 - ExportHir锁定typed constraints、generic class/struct/enum/interface template与独立application identity、generic method template/application的宿主与方法参数分组、conditional equality、普通interface conformance、bound member target及canonical function type mapping；
 - Export/LocalConcrete HIR反向检查不存在`Self` type variant、object-safety bool/enum或跳过itable的合法interface method；
 - LocalConcreteHir锁定generic nominal application与bound call已消失，每个class/struct/enum/interface specialization分别具有完整field/variant/base/parent/interface/member闭包和非可选GC-free信息；generic method只留下带完整origin与两组concrete arguments的direct callable，不进入任何dispatch table；派生函数与implements完整，intrinsic fixed/family representation、exception/intrinsic/core identities非可选；
-- MIR锁定每个expression有type、generic nominal specialization、derived body、direct/virtual/interface选择及零前缀vtable；
+- MIR锁定每个expression有type、generic nominal specialization、derived body、direct/virtual/interface选择及零前缀vtable；generic callable metadata还须锁定三类typed source id、exact method owner与未压平的参数分组；
 - LIR锁定typed call target/signature/result/effect、pointer null provenance、typedmetadata refs、non-empty caller root与结构化enum field；
 - codegen测试明确禁止symbol-driven function type fallback、Any runtime特判和固定slot偏移。
 

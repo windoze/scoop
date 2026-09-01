@@ -109,8 +109,15 @@ fn monomorphizes_generic_functions() {
     assert_eq!(module.meta.instances.len(), 2);
     let int_meta = &module.meta.instances[instance_id(&module, module.top_level[1])];
     assert_eq!(int_meta.symbol, "scoop.identity$I");
-    assert_eq!(int_meta.source, "identity");
-    assert_eq!(int_meta.type_args, vec![mir::Type::Int]);
+    let mir::MonomorphizedSource::GenericFunction { source, arguments } = &int_meta.source else {
+        panic!("identity must retain generic free-function provenance")
+    };
+    assert_eq!(
+        module.meta.generic_function_sources[*source].display_name,
+        "identity"
+    );
+    assert_eq!(arguments.to_vec(), vec![mir::Type::Int]);
+    assert_eq!(module.meta.generic_function_sources.len(), 1);
 
     // The calls in main resolve to the two instances.
     let main_fn = &module.functions[module.entry];

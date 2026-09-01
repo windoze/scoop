@@ -24,6 +24,9 @@ pub type ClosureInvokeFunctionId = Idx<ClosureInvokeFunction>;
 pub type ClosureAdapterId = Idx<ClosureAdapter>;
 pub type DynamicClosureAdapterId = Idx<DynamicClosureAdapter>;
 pub type MonomorphizedFunctionId = Idx<MonomorphizedFunction>;
+pub type GenericFunctionSourceId = Idx<GenericFunctionSource>;
+pub type ParameterizedMethodSourceId = Idx<ParameterizedMethodSource>;
+pub type GenericMethodSourceId = Idx<GenericMethodSource>;
 pub type StringConstId = Idx<StringConst>;
 pub type StructId = Idx<StructDef>;
 pub type EnumId = Idx<EnumDef>;
@@ -551,9 +554,13 @@ pub enum ConstantValue {
 #[derive(Debug, Default)]
 pub struct MirMeta {
     pub dispatch_tables: Vec<DispatchTable>,
+    /// Typed source identities are separate from their display names and from
+    /// concrete instances. The three id families cannot be interchanged.
+    pub generic_function_sources: Arena<GenericFunctionSource>,
+    pub parameterized_method_sources: Arena<ParameterizedMethodSource>,
+    pub generic_method_sources: Arena<GenericMethodSource>,
     /// Monomorphized function instances in creation order. The entry
-    /// records the emitted symbol and its generic HIR source without
-    /// leaking HIR ids across the stage boundary.
+    /// records the emitted symbol and its MIR-local typed source identity.
     pub instances: Arena<MonomorphizedFunction>,
     /// Concrete hidden-ABI suspend callables, indexed independently from the
     /// ordinary function arena.
@@ -626,14 +633,102 @@ pub struct CoroutineResumePoint {
     pub resume_with_exception: FunctionId,
 }
 
-/// Provenance of one concrete generic function emitted into the MIR
-/// function arena. Its typed id is also what MIR call sites carry.
+/// Display metadata for one generic free-function declaration. Identity is
+/// the arena id; `display_name` is never used for semantic decisions.
+#[derive(Debug)]
+pub struct GenericFunctionSource {
+    pub display_name: String,
+}
+
+/// Display metadata for one ordinary member whose owner is generic.
+#[derive(Debug)]
+pub struct ParameterizedMethodSource {
+    pub display_name: String,
+}
+
+/// Display metadata for one method that declares its own type parameters.
+#[derive(Debug)]
+pub struct GenericMethodSource {
+    pub display_name: String,
+}
+
+/// A structurally non-empty MIR type-argument group.
+#[derive(Debug, Clone, PartialEq)]
+pub struct NonEmptyTypeArguments {
+    first: Type,
+    rest: Vec<Type>,
+}
+
+impl NonEmptyTypeArguments {
+    pub fn new(first: Type, rest: Vec<Type>) -> Self {
+        Self { first, rest }
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &Type> {
+        std::iter::once(&self.first).chain(self.rest.iter())
+    }
+
+    pub fn to_vec(&self) -> Vec<Type> {
+        self.iter().cloned().collect()
+    }
+}
+
+/// Exact concrete owner of a monomorphized method instance.
+#[derive(Debug, Clone, PartialEq)]
+pub enum MonomorphizedMethodOwner {
+    Class(ClassId),
+    Struct(StructId),
+    Enum(EnumId),
+    Interface(InterfaceId),
+    Structural(Type),
+}
+
+/// Typed provenance and structurally complete argument groups for one
+/// concrete instance. Owner and method arguments cannot be flattened or
+/// attached to the wrong source category.
+#[derive(Debug, Clone, PartialEq)]
+pub enum MonomorphizedSource {
+    GenericFunction {
+        source: GenericFunctionSourceId,
+        arguments: NonEmptyTypeArguments,
+    },
+    ParameterizedMethod {
+        source: ParameterizedMethodSourceId,
+        owner: MonomorphizedMethodOwner,
+        owner_arguments: NonEmptyTypeArguments,
+    },
+    GenericMethod {
+        source: GenericMethodSourceId,
+        owner: MonomorphizedMethodOwner,
+        owner_arguments: Vec<Type>,
+        method_arguments: NonEmptyTypeArguments,
+    },
+}
+
+impl MirMeta {
+    /// Human-readable source name for dumps and diagnostics only.
+    pub fn monomorphized_source_display_name(&self, source: &MonomorphizedSource) -> &str {
+        match source {
+            MonomorphizedSource::GenericFunction { source, .. } => {
+                &self.generic_function_sources[*source].display_name
+            }
+            MonomorphizedSource::ParameterizedMethod { source, .. } => {
+                &self.parameterized_method_sources[*source].display_name
+            }
+            MonomorphizedSource::GenericMethod { source, .. } => {
+                &self.generic_method_sources[*source].display_name
+            }
+        }
+    }
+}
+
+/// Provenance of one concrete generic function emitted into the MIR function
+/// arena. Its typed id is also what MIR call sites carry.
 #[derive(Debug)]
 pub struct MonomorphizedFunction {
     pub function: FunctionId,
     pub symbol: String,
-    pub source: String,
-    pub type_args: Vec<Type>,
+    pub source: MonomorphizedSource,
 }
 
 #[derive(Debug)]
@@ -1450,7 +1545,10 @@ pub fn dump(module: &Module) -> String {
     for (_, instance) in module.meta.instances.iter() {
         out.push_str(&format!(
             "  instance @{} <- {}\n",
-            instance.symbol, instance.source
+            instance.symbol,
+            module
+                .meta
+                .monomorphized_source_display_name(&instance.source)
         ));
     }
     for (_, string) in module.strings.iter() {
