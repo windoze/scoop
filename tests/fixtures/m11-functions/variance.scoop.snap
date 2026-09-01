@@ -433,7 +433,7 @@ Module
       FunctionCoercion coercion4 ((Int) -> Any) -> (Any) -> Int -> ((Any) -> Int) -> (Int) -> Any : ((Any) -> Int) -> (Int) -> Any
         Local nestedExact : ((Int) -> Any) -> (Any) -> Int
     val local12
-      CallableCall function_type13 : (Int) -> Any
+      CallableCall function_type15 : (Int) -> Any
         Local nestedWidened : ((Any) -> Int) -> (Int) -> Any
         Local exactValue : (Any) -> Int
     val local13
@@ -457,7 +457,7 @@ Module
       Cast optional=false : ((Any) -> Int) -> (Int) -> Any
         Local nestedErased : Any
     val local20
-      CallableCall function_type13 : (Int) -> Any
+      CallableCall function_type15 : (Int) -> Any
         Local nestedChecked : ((Any) -> Int) -> (Int) -> Any
         Local exactValue : (Any) -> Int
     val local21
@@ -467,30 +467,30 @@ Module
         Local boxedErased : Any
     Call gcCollect : Unit
     Call println : Unit
-      CallableCall function_type4 : Any
+      CallableCall function_type6 : Any
         Local widenedValue : (Int) -> Any
         IntLiteral 0 : Int
     Call println : Unit
       Box : Any
         IsInstance Dog : Boolean
-          CallableCall function_type7 : Animal
+          CallableCall function_type9 : Animal
             Local widenedReference : (Dog) -> Animal
             ClassInit Dog : Dog
     Call println : Unit
-      CallableCall function_type4 : Any
+      CallableCall function_type6 : Any
         Local genericInt : (Int) -> Any
         IntLiteral 0 : Int
     Call println : Unit
-      CallableCall function_type9 : Any
+      CallableCall function_type11 : Any
         Local genericString : (String) -> Any
         StringLiteral "ignored" : String
     Call println : Unit
       MethodCall Describable.describe : Any
-        CallableCall function_type11 : Describable
+        CallableCall function_type13 : Describable
           Local boxedReturn : (Int) -> Describable
           IntLiteral 0 : Int
     Call println : Unit
-      CallableCall function_type4 : Any
+      CallableCall function_type6 : Any
         Local nestedResult : (Int) -> Any
         IntLiteral 0 : Int
     Call println : Unit
@@ -502,16 +502,16 @@ Module
         IsInstance (Any) -> String : Boolean
           Local erased : Any
     Call println : Unit
-      CallableCall function_type4 : Any
+      CallableCall function_type6 : Any
         Local checked : (Int) -> Any
         IntLiteral 0 : Int
     Call println : Unit
       Box : Any
-        CallableCall function_type5 : Int
+        CallableCall function_type7 : Int
           Local exactChecked : (Any) -> Int
           StringLiteral "ignored" : Any
     Call println : Unit
-      CallableCall function_type4 : Any
+      CallableCall function_type6 : Any
         Local optionalChecked : (Int) -> Any
         IntLiteral 0 : Int
     Call println : Unit
@@ -520,24 +520,24 @@ Module
           Local missing : Option<(Any) -> String>
           VariantConstruct Option.None<(Any) -> String> : Option<(Any) -> String>
     Call println : Unit
-      CallableCall function_type4 : Any
+      CallableCall function_type6 : Any
         Local nestedDynamicResult : (Int) -> Any
         IntLiteral 0 : Int
     Call println : Unit
       MethodCall Describable.describe : Any
-        CallableCall function_type11 : Describable
+        CallableCall function_type13 : Describable
           Local boxedChecked : (Int) -> Describable
           IntLiteral 0 : Int
     if
       IsInstance (Int) -> Any : Boolean
         Local erased : Any
       Call println : Unit
-        CallableCall function_type4 : Any
+        CallableCall function_type6 : Any
           Local erased : (Int) -> Any
           IntLiteral 0 : Int
     try
       Call println : Unit
-        CallableCall function_type4 : Any
+        CallableCall function_type6 : Any
           Local widenedFailing : (Int) -> Any
           IntLiteral 0 : Int
     catch exception: ArithmeticException

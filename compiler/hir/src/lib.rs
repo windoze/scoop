@@ -43,6 +43,9 @@ pub type ExternFunctionId = Idx<ExternFunction>;
 pub type GlobalId = Idx<Global>;
 pub type GenericFunctionId = Idx<GenericFunction>;
 pub type ResolvedGenericFunctionId = Idx<ResolvedGenericFunction>;
+pub type MethodApplicationId = Idx<MethodApplication>;
+pub type GenericMethodId = Idx<GenericMethod>;
+pub type GenericMethodApplicationId = Idx<GenericMethodApplication>;
 pub type StructId = Idx<StructDecl>;
 pub type EnumId = Idx<EnumDecl>;
 pub type ClassId = Idx<ClassDecl>;
@@ -54,6 +57,50 @@ pub type InterfaceApplicationId = Idx<InterfaceApplication>;
 pub type InterfaceMethodId = Idx<InterfaceMethod>;
 pub type BoundCallableRefId = Idx<BoundCallableRef>;
 pub type LocalId = Idx<Local>;
+
+/// A structurally non-empty sequence. Generic method applications use this
+/// instead of a plain `Vec` because an empty method-argument group would mean
+/// a different entity kind (an ordinary method application).
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct NonEmptyVec<T> {
+    first: T,
+    rest: Vec<T>,
+}
+
+impl<T> NonEmptyVec<T> {
+    pub fn new(first: T, rest: Vec<T>) -> Self {
+        Self { first, rest }
+    }
+
+    pub fn from_vec(mut values: Vec<T>) -> Option<Self> {
+        if values.is_empty() {
+            return None;
+        }
+        let rest = values.split_off(1);
+        Some(Self {
+            first: values.pop().expect("the non-empty prefix was checked"),
+            rest,
+        })
+    }
+
+    pub fn len(&self) -> usize {
+        1 + self.rest.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        false
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &T> {
+        std::iter::once(&self.first).chain(self.rest.iter())
+    }
+}
+
+impl<T: Copy> NonEmptyVec<T> {
+    pub fn to_vec(&self) -> Vec<T> {
+        self.iter().copied().collect()
+    }
+}
 
 /// Identity of one primary-constructor parameter. Constructor delegation
 /// expressions use this domain directly; these parameters do not belong to a
@@ -88,19 +135,41 @@ impl BindingId {
     }
 }
 
-/// A function- or generic-type-local type-parameter index. This is a
-/// distinct id type so it cannot be mixed with field, variant or
-/// arena indices by accident.
+/// Cone-wide semantic identity of a type parameter together with the exact
+/// substitution slot assigned by its declaring HIR scope. Identity, rather
+/// than a name or a position in a merged vector, decides equality. The slot
+/// is source-produced replacement data and is never used as identity.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct TypeParamId(u32);
+pub struct TypeParamId {
+    identity: u32,
+    substitution_slot: u32,
+}
 
 impl TypeParamId {
+    /// Construct a self-contained identity for handcrafted IR. Production
+    /// HIR uses `with_substitution_slot` with a Cone-wide unique identity.
     pub const fn from_raw(raw: u32) -> Self {
-        Self(raw)
+        Self {
+            identity: raw,
+            substitution_slot: raw,
+        }
     }
 
+    pub const fn with_substitution_slot(identity: u32, substitution_slot: u32) -> Self {
+        Self {
+            identity,
+            substitution_slot,
+        }
+    }
+
+    pub const fn identity_raw(self) -> u32 {
+        self.identity
+    }
+
+    /// The complete substitution environment slot emitted by HIR. Kept as
+    /// `into_raw` for the existing IR API; it is deliberately not identity.
     pub const fn into_raw(self) -> u32 {
-        self.0
+        self.substitution_slot
     }
 }
 
@@ -304,7 +373,8 @@ fn type_name_with_params(module: &Module, ty: TypeId, params: &[TypeParamDecl]) 
             )
         }
         Type::Param(index) => params
-            .get(index.into_raw() as usize)
+            .iter()
+            .find(|parameter| parameter.id == *index)
             .map(|parameter| parameter.name.clone())
             .unwrap_or_else(|| format!("T{}", index.into_raw())),
     }
@@ -340,6 +410,13 @@ pub struct Module {
     /// ordinary `FunctionId`s even though each entry points at the HIR
     /// function that owns the parameterized body.
     pub generic_functions: Arena<GenericFunction>,
+    /// Exact ordinary method applications and non-virtual generic method
+    /// templates/applications. Calls carry these typed identities directly;
+    /// concretization never reconstructs an owner from a function or a flat
+    /// argument vector.
+    pub method_applications: Arena<MethodApplication>,
+    pub generic_methods: Arena<GenericMethod>,
+    pub generic_method_applications: Arena<GenericMethodApplication>,
     pub structs: Arena<StructDecl>,
     /// Canonical, fully applied export-side struct identities.  A type never
     /// stores a declaration id and an unrelated argument vector.
@@ -549,10 +626,6 @@ impl Module {
     pub fn callable_function(&self, callable: impl FunctionCallee) -> FunctionId {
         callable.function(self)
     }
-
-    pub fn callable_type_args(&self, callable: Callable) -> &[TypeId] {
-        callable_parts(self, callable).1.unwrap_or(&[])
-    }
 }
 
 pub trait FunctionCallee: Copy {
@@ -561,7 +634,7 @@ pub trait FunctionCallee: Copy {
 
 impl FunctionCallee for Callable {
     fn function(self, module: &Module) -> FunctionId {
-        callable_parts(module, self).0
+        callable_function(module, self)
     }
 }
 
@@ -592,6 +665,47 @@ pub struct ResolvedGenericFunction {
     pub type_args: Vec<TypeId>,
 }
 
+/// Exact source-side owner of a method call. Parameter-free owners still use
+/// their canonical empty application, so every method application has one
+/// uniform and complete representation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum MethodOwnerApplication {
+    Class(ClassApplicationId),
+    Struct(StructApplicationId),
+    Enum(EnumApplicationId),
+    Interface(InterfaceApplicationId),
+    Any,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct MethodApplication {
+    pub function: FunctionId,
+    pub owner: MethodOwnerApplication,
+}
+
+/// A non-virtual generic method template. Its declaration identity is
+/// separate from every other generic callable family.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GenericMethod {
+    pub function: FunctionId,
+    pub no_gc_type_params: Vec<TypeParamId>,
+}
+
+/// Exact owner kinds accepted by non-interface generic methods.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum GenericMethodOwner {
+    Class(ClassApplicationId),
+    Struct(StructApplicationId),
+    Enum(EnumApplicationId),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct GenericMethodApplication {
+    pub method: GenericMethodId,
+    pub owner: GenericMethodOwner,
+    pub method_arguments: NonEmptyVec<TypeId>,
+}
+
 /// The fully-resolved callable stored on HIR calls. A generic call
 /// cannot be represented as a plain function plus an unrelated type
 /// argument vector: it must reference a resolved generic entity.
@@ -599,6 +713,8 @@ pub struct ResolvedGenericFunction {
 pub enum Callable {
     Function(FunctionId),
     Generic(ResolvedGenericFunctionId),
+    Method(MethodApplicationId),
+    GenericMethod(GenericMethodApplicationId),
 }
 
 #[derive(Debug, Clone)]
@@ -685,10 +801,6 @@ pub enum MethodModifier {
 pub struct Method {
     pub owner: TypeId,
     pub modifier: MethodModifier,
-    /// Number of owner type parameters at the front of the containing
-    /// function's combined type-parameter namespace. Method parameters
-    /// follow this prefix.
-    pub owner_type_param_count: u32,
 }
 
 #[derive(Debug, Clone)]
@@ -772,13 +884,9 @@ pub struct InterfaceMethodImplementation {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum InterfaceImplementationTarget {
-    Function {
-        function: FunctionId,
-        /// Complete host substitution for the implementing declaration. A
-        /// base-class implementation can therefore be requested directly
-        /// without recovering its owner application from the receiver.
-        owner_arguments: Vec<TypeId>,
-    },
+    /// Exact ordinary method application selected by HIR conformance
+    /// checking. Generic methods cannot implement interface slots.
+    Method(MethodApplicationId),
     /// An abstract class may promise an interface while leaving a member for
     /// a concrete subclass. Calls through such a specialization use the
     /// interface application directly instead of guessing a class member.
@@ -794,6 +902,7 @@ pub enum Variance {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TypeParamDecl {
+    pub id: TypeParamId,
     pub name: String,
     pub variance: Variance,
     /// Complete declaration-site constraint set. The sum type makes kind
@@ -944,25 +1053,122 @@ pub enum FunctionGenericity {
     Plain,
     Generic {
         definition: GenericFunctionId,
-        /// One complete namespace: owner parameters first, followed by
-        /// method-declared parameters. `Method::owner_type_param_count`
-        /// separates the two groups.
         parameters: Vec<TypeParamDecl>,
+    },
+    /// An ordinary method whose signature/body depends only on its nominal
+    /// owner's parameters. Its concrete identity comes from a
+    /// `MethodApplication`, not a generic-function application.
+    OwnerParameterizedMethod {
+        owner_parameters: Vec<TypeParamDecl>,
+        no_gc_type_params: Vec<TypeParamId>,
+    },
+    /// A non-virtual method with its own parameters. The two groups are
+    /// structurally separate; no downstream consumer receives a merged
+    /// argument vector and an index at which it is expected to split it.
+    GenericMethod {
+        definition: GenericMethodId,
+        owner_parameters: Vec<TypeParamDecl>,
+        method_parameters: NonEmptyVec<TypeParamDecl>,
     },
 }
 
 impl Function {
-    pub fn type_params(&self) -> &[TypeParamDecl] {
+    pub fn type_param_count(&self) -> usize {
         match &self.genericity {
-            FunctionGenericity::Plain => &[],
-            FunctionGenericity::Generic { parameters, .. } => parameters,
+            FunctionGenericity::Plain => 0,
+            FunctionGenericity::Generic { parameters, .. } => parameters.len(),
+            FunctionGenericity::OwnerParameterizedMethod {
+                owner_parameters, ..
+            } => owner_parameters.len(),
+            FunctionGenericity::GenericMethod {
+                owner_parameters,
+                method_parameters,
+                ..
+            } => owner_parameters.len() + method_parameters.len(),
+        }
+    }
+
+    pub fn owner_type_param_count(&self) -> usize {
+        match &self.genericity {
+            FunctionGenericity::OwnerParameterizedMethod {
+                owner_parameters, ..
+            }
+            | FunctionGenericity::GenericMethod {
+                owner_parameters, ..
+            } => owner_parameters.len(),
+            FunctionGenericity::Plain | FunctionGenericity::Generic { .. } => 0,
+        }
+    }
+
+    pub fn method_type_param_count(&self) -> usize {
+        match &self.genericity {
+            FunctionGenericity::GenericMethod {
+                method_parameters, ..
+            } => method_parameters.len(),
+            FunctionGenericity::Plain
+            | FunctionGenericity::Generic { .. }
+            | FunctionGenericity::OwnerParameterizedMethod { .. } => 0,
+        }
+    }
+
+    pub fn type_param(&self, id: TypeParamId) -> &TypeParamDecl {
+        match &self.genericity {
+            FunctionGenericity::Plain => panic!("plain function has no type parameters"),
+            FunctionGenericity::Generic { parameters, .. } => parameters
+                .iter()
+                .find(|parameter| parameter.id == id)
+                .expect("generic function owns the referenced type parameter"),
+            FunctionGenericity::OwnerParameterizedMethod {
+                owner_parameters, ..
+            } => owner_parameters
+                .iter()
+                .find(|parameter| parameter.id == id)
+                .expect("method owner owns the referenced type parameter"),
+            FunctionGenericity::GenericMethod {
+                owner_parameters,
+                method_parameters,
+                ..
+            } => owner_parameters
+                .iter()
+                .chain(method_parameters.iter())
+                .find(|parameter| parameter.id == id)
+                .expect("generic method owns the referenced type parameter"),
+        }
+    }
+
+    pub fn type_params(&self) -> Vec<&TypeParamDecl> {
+        match &self.genericity {
+            FunctionGenericity::Plain => Vec::new(),
+            FunctionGenericity::Generic { parameters, .. } => parameters.iter().collect(),
+            FunctionGenericity::OwnerParameterizedMethod {
+                owner_parameters, ..
+            } => owner_parameters.iter().collect(),
+            FunctionGenericity::GenericMethod {
+                owner_parameters,
+                method_parameters,
+                ..
+            } => owner_parameters
+                .iter()
+                .chain(method_parameters.iter())
+                .collect(),
         }
     }
 
     pub fn generic_definition(&self) -> Option<GenericFunctionId> {
         match &self.genericity {
-            FunctionGenericity::Plain => None,
+            FunctionGenericity::Plain
+            | FunctionGenericity::OwnerParameterizedMethod { .. }
+            | FunctionGenericity::GenericMethod { .. } => None,
             FunctionGenericity::Generic { definition, .. } => Some(*definition),
+        }
+    }
+
+    pub fn generic_method_definition(&self) -> Option<GenericMethodId> {
+        match self.genericity {
+            FunctionGenericity::GenericMethod { definition, .. } => Some(definition),
+            FunctionGenericity::Plain
+            | FunctionGenericity::Generic { .. }
+            | FunctionGenericity::OwnerParameterizedMethod { .. } => None,
         }
     }
 }
@@ -1830,10 +2036,11 @@ pub fn dump(module: &Module) -> String {
             continue;
         }
         let function = &module.functions[id];
-        let type_params = if function.type_params().is_empty() {
+        let function_type_params: Vec<_> = function.type_params().into_iter().cloned().collect();
+        let type_params = if function_type_params.is_empty() {
             String::new()
         } else {
-            dump_type_params(module, function.type_params())
+            dump_type_params(module, &function_type_params)
         };
         let params: Vec<String> = match function.kind {
             FunctionKind::Extern(id) => module.extern_functions[id]
@@ -1857,27 +2064,28 @@ pub fn dump(module: &Module) -> String {
         );
         let suspend = if function.is_suspend { "suspend " } else { "" };
         let attributes = dump_function_attributes(function.attributes);
-        let no_gc_condition = match function.generic_definition() {
-            None => None,
-            Some(definition) => {
-                let generic = &module.generic_functions[definition];
-                (!generic.no_gc_type_params.is_empty()).then_some(generic)
+        let no_gc_requirements = match &function.genericity {
+            FunctionGenericity::Plain => &[][..],
+            FunctionGenericity::Generic { definition, .. } => {
+                &module.generic_functions[*definition].no_gc_type_params
             }
-        }
-        .map(|generic| {
-            let parameters = generic
-                .no_gc_type_params
+            FunctionGenericity::OwnerParameterizedMethod {
+                no_gc_type_params, ..
+            } => no_gc_type_params,
+            FunctionGenericity::GenericMethod { definition, .. } => {
+                &module.generic_methods[*definition].no_gc_type_params
+            }
+        };
+        let no_gc_condition = if no_gc_requirements.is_empty() {
+            String::new()
+        } else {
+            let parameters = no_gc_requirements
                 .iter()
-                .map(|parameter| {
-                    function.type_params()[parameter.into_raw() as usize]
-                        .name
-                        .as_str()
-                })
+                .map(|parameter| function.type_param(*parameter).name.as_str())
                 .collect::<Vec<_>>()
                 .join(", ");
             format!(" <requires-gc-free {parameters}>")
-        })
-        .unwrap_or_default();
+        };
         match &function.kind {
             FunctionKind::Intrinsic(name) => {
                 out.push_str(&format!(
@@ -1935,6 +2143,24 @@ pub fn dump(module: &Module) -> String {
             "  instance {}<{}>\n",
             module.functions[function].name,
             args.join(", ")
+        ));
+    }
+    for (_, application) in module.generic_method_applications.iter() {
+        let function = module.generic_methods[application.method].function;
+        let owner = generic_method_owner_arguments(module, application.owner)
+            .iter()
+            .map(|argument| type_name(module, *argument))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let method = application
+            .method_arguments
+            .iter()
+            .map(|argument| type_name(module, *argument))
+            .collect::<Vec<_>>()
+            .join(", ");
+        out.push_str(&format!(
+            "  method instance {}<owner=[{}], method=[{}]>\n",
+            module.functions[function].name, owner, method
         ));
     }
     out
@@ -2173,22 +2399,71 @@ pub fn dump_pattern(pattern: &Pattern) -> String {
     }
 }
 
-fn callable_parts(module: &Module, callable: Callable) -> (FunctionId, Option<&[TypeId]>) {
+fn callable_function(module: &Module, callable: Callable) -> FunctionId {
     match callable {
-        Callable::Function(function) => (function, None),
+        Callable::Function(function) => function,
+        Callable::Generic(id) => {
+            module.generic_functions[module.instantiations[id].generic].function
+        }
+        Callable::Method(id) => module.method_applications[id].function,
+        Callable::GenericMethod(id) => {
+            module.generic_methods[module.generic_method_applications[id].method].function
+        }
+    }
+}
+
+/// Compose application arguments only for the human-readable HIR dump. No
+/// semantic consumer receives this flattened presentation value.
+fn callable_dump_parts(module: &Module, callable: Callable) -> (FunctionId, Vec<TypeId>) {
+    match callable {
+        Callable::Function(function) => (function, Vec::new()),
         Callable::Generic(id) => {
             let resolved = &module.instantiations[id];
             (
                 module.generic_functions[resolved.generic].function,
-                Some(&resolved.type_args),
+                resolved.type_args.clone(),
+            )
+        }
+        Callable::Method(id) => {
+            let application = &module.method_applications[id];
+            (
+                application.function,
+                method_owner_arguments(module, application.owner).to_vec(),
+            )
+        }
+        Callable::GenericMethod(id) => {
+            let application = &module.generic_method_applications[id];
+            let mut arguments = generic_method_owner_arguments(module, application.owner).to_vec();
+            arguments.extend(application.method_arguments.iter().copied());
+            (
+                module.generic_methods[application.method].function,
+                arguments,
             )
         }
     }
 }
 
+fn method_owner_arguments(module: &Module, owner: MethodOwnerApplication) -> &[TypeId] {
+    match owner {
+        MethodOwnerApplication::Class(id) => &module.class_applications[id].arguments,
+        MethodOwnerApplication::Struct(id) => &module.struct_applications[id].arguments,
+        MethodOwnerApplication::Enum(id) => &module.enum_applications[id].arguments,
+        MethodOwnerApplication::Interface(id) => &module.interface_applications[id].arguments,
+        MethodOwnerApplication::Any => &[],
+    }
+}
+
+fn generic_method_owner_arguments(module: &Module, owner: GenericMethodOwner) -> &[TypeId] {
+    match owner {
+        GenericMethodOwner::Class(id) => &module.class_applications[id].arguments,
+        GenericMethodOwner::Struct(id) => &module.struct_applications[id].arguments,
+        GenericMethodOwner::Enum(id) => &module.enum_applications[id].arguments,
+    }
+}
+
 fn method_callee_function(module: &Module, callee: MethodCallee) -> FunctionId {
     match callee {
-        MethodCallee::Callable(callable) => callable_parts(module, callable).0,
+        MethodCallee::Callable(callable) => callable_function(module, callable),
         MethodCallee::Bound(bound) => {
             module.interface_methods[module.bound_callable_refs[bound].member].function
         }
@@ -2321,17 +2596,17 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
             let reference = &module.callable_references[*id];
             let (function, receiver) = match &reference.target {
                 CallableReferenceTarget::Named(callable) => {
-                    (callable_parts(module, *callable).0, None)
+                    (callable_function(module, *callable), None)
                 }
                 CallableReferenceTarget::Local { callee, .. } => {
-                    (callable_parts(module, *callee).0, None)
+                    (callable_function(module, *callee), None)
                 }
                 CallableReferenceTarget::BoundMember { receiver, callee } => (
                     method_callee_function(module, *callee),
                     Some(receiver.as_ref()),
                 ),
                 CallableReferenceTarget::BoundExtension { receiver, callee } => {
-                    (callable_parts(module, *callee).0, Some(receiver.as_ref()))
+                    (callable_function(module, *callee), Some(receiver.as_ref()))
                 }
             };
             out.push_str(&format!(
@@ -2472,12 +2747,14 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
             dump_expr(module, locals, receiver, indent + 1, out);
         }
         ExprKind::Call { callee, args } => {
-            let (function, type_args) = callable_parts(module, *callee);
+            let (function, type_args) = callable_dump_parts(module, *callee);
             let callee = &module.functions[function];
-            let type_args = type_args.map_or_else(String::new, |type_args| {
+            let type_args = if type_args.is_empty() {
+                String::new()
+            } else {
                 let args: Vec<String> = type_args.iter().map(|t| type_name(module, *t)).collect();
                 format!("<{}>", args.join(", "))
-            });
+            };
             out.push_str(&format!("{pad}Call {}{type_args} : {ty}\n", callee.name));
             for arg in args {
                 dump_expr(module, locals, arg, indent + 1, out);
@@ -2489,11 +2766,13 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
             captures,
             args,
         } => {
-            let (function, type_args) = callable_parts(module, *callee);
-            let type_args = type_args.map_or_else(String::new, |type_args| {
+            let (function, type_args) = callable_dump_parts(module, *callee);
+            let type_args = if type_args.is_empty() {
+                String::new()
+            } else {
                 let args: Vec<String> = type_args.iter().map(|t| type_name(module, *t)).collect();
                 format!("<{}>", args.join(", "))
-            });
+            };
             out.push_str(&format!(
                 "{pad}LocalFunctionCall local{} {}{type_args} captures={} : {ty}\n",
                 local_function.into_raw(),

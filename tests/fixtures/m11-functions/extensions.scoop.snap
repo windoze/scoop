@@ -500,7 +500,7 @@ Module
       CallableReference reference0 target=Named.label captures=0 : () -> String
         Local named : Named
     Call println : Unit
-      CallableCall function_type3 : Any
+      CallableCall function_type5 : Any
         Local member : () -> String
     val local2
       ClassInit MutableName : MutableName
@@ -553,34 +553,34 @@ Module
         ClassInit ThrowingExtension : ThrowingExtension
     Call gcCollect : Unit
     Call println : Unit
-      CallableCall function_type4 : Any
+      CallableCall function_type6 : Any
         Local unbound : (String, String) -> String
         StringLiteral "unbound" : String
         StringLiteral "-ok" : String
     Call println : Unit
-      CallableCall function_type2 : Any
+      CallableCall function_type4 : Any
         Local bound : (String) -> String
         StringLiteral "-ok" : String
     Call println : Unit
-      CallableCall function_type4 : Any
+      CallableCall function_type6 : Any
         Local genericUnbound : (String, String) -> String
         StringLiteral "ignored" : String
         StringLiteral "generic-unbound" : String
     Call println : Unit
-      CallableCall function_type2 : Any
+      CallableCall function_type4 : Any
         Local genericBound : (String) -> String
         StringLiteral "generic-bound" : String
     Call println : Unit
-      CallableCall function_type2 : Any
+      CallableCall function_type4 : Any
         Local capturedReceiver : (String) -> String
         StringLiteral "-this" : String
     Call println : Unit
-      CallableCall function_type2 : Any
+      CallableCall function_type4 : Any
         Local once : (String) -> String
         StringLiteral "-only" : String
     Call println : Unit
       Box : Any
-        CallableCall function_type5 : Int
+        CallableCall function_type7 : Int
           Local snapshot : (Int) -> Int
           IntLiteral 40 : Int
     Call println : Unit
@@ -591,7 +591,7 @@ Module
     try
       Call println : Unit
         Box : Any
-          CallableCall function_type5 : Int
+          CallableCall function_type7 : Int
             Local throwing : (Int) -> Int
             IntLiteral 0 : Int
     catch exception: ArithmeticException

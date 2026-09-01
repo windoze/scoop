@@ -735,7 +735,7 @@ impl Lowerer {
     ) -> Option<hir::Expr> {
         let function = candidate.function;
         let name = self.functions[function].name.clone();
-        let owner_type_args = candidate.owner_arguments;
+        let owner_type_args = self.callable_candidate_owner_arguments(&candidate);
         let sig = self.signatures[&function].clone();
         if sig.params.len() != call.args.len() {
             let expected = sig.params.len();
@@ -810,11 +810,7 @@ impl Lowerer {
             }
             adapted.push(self.adapt_to(arg, param_ty));
         }
-        let callee = if type_args.is_empty() {
-            hir::Callable::Function(function)
-        } else {
-            hir::Callable::Generic(self.record_instantiation(function, type_args.clone()))
-        };
+        let callee = self.materialize_candidate_callable(&candidate, &type_args);
         let ty = self.instantiate_ty(sig.return_ty, &type_args);
         self.check_call_effects(callee, call.span);
         if let Some(expr) = self.normalize_pointer_method_call(
@@ -2363,7 +2359,7 @@ impl Lowerer {
         let candidates = candidates
             .iter()
             .copied()
-            .map(|function| crate::CallableCandidate::direct(function, owner_type_args.to_vec()))
+            .map(|function| crate::CallableCandidate::function(function, owner_type_args.to_vec()))
             .collect::<Vec<_>>();
         self.resolve_reference_candidate_set(&candidates, expected, display, span, extension_mode)
     }
@@ -2395,13 +2391,13 @@ impl Lowerer {
         let mut applicable = Vec::new();
         for candidate in candidates {
             let function = candidate.function;
-            let owner_type_args = &candidate.owner_arguments;
+            let owner_type_args = self.callable_candidate_owner_arguments(candidate);
             let sig = self.signatures[&function].clone();
             if sig.owner_type_param_count != owner_type_args.len() {
                 continue;
             }
             let mut bindings = vec![None; sig.type_params.len()];
-            for (binding, &ty) in bindings.iter_mut().zip(owner_type_args) {
+            for (binding, &ty) in bindings.iter_mut().zip(&owner_type_args) {
                 *binding = Some(ty);
             }
             let extension_receiver = self.extension_receivers.get(&function).copied();
@@ -2478,6 +2474,7 @@ impl Lowerer {
             applicable.push((
                 function,
                 candidate.source,
+                candidate.owner.clone(),
                 type_args,
                 parameter_types,
                 return_type,
@@ -2503,7 +2500,7 @@ impl Lowerer {
                 let concrete: Vec<_> = applicable
                     .iter()
                     .enumerate()
-                    .filter_map(|(index, candidate)| (candidate.6 == 0).then_some(index))
+                    .filter_map(|(index, candidate)| (candidate.7 == 0).then_some(index))
                     .collect();
                 if let [index] = concrete.as_slice() {
                     *index
@@ -2523,17 +2520,18 @@ impl Lowerer {
                 return None;
             }
         };
-        let (function, source, type_args, parameter_types, return_type, is_suspend, _) =
+        let (function, source, owner, type_args, parameter_types, return_type, is_suspend, _) =
             applicable.swap_remove(selected);
         let ty = match expected {
             Some((ty, _)) => *ty,
             None => self.intern_function_type(is_suspend, parameter_types, return_type),
         };
-        let callee = if type_args.is_empty() {
-            hir::Callable::Function(function)
-        } else {
-            hir::Callable::Generic(self.record_instantiation(function, type_args.clone()))
+        let selected_candidate = crate::CallableCandidate {
+            function,
+            owner,
+            source,
         };
+        let callee = self.materialize_candidate_callable(&selected_candidate, &type_args);
         if !self.managed_reference_target_is_safe(callee, span) {
             return None;
         }
@@ -3700,19 +3698,13 @@ impl Lowerer {
         })
     }
 
-    fn callable_function_id(&self, callable: hir::Callable) -> hir::FunctionId {
-        match callable {
-            hir::Callable::Function(function) => function,
-            hir::Callable::Generic(instantiation) => {
-                let generic = self.instantiations[instantiation].generic;
-                self.generic_functions[generic].function
-            }
-        }
-    }
-
     fn ambient_type_args(&mut self, count: usize) -> Vec<TypeId> {
-        (0..count)
-            .map(|index| self.intern_type(Type::Param(hir::TypeParamId::from_raw(index as u32))))
+        self.type_params_in_scope[..count]
+            .iter()
+            .map(|parameter| parameter.id)
+            .collect::<Vec<_>>()
+            .into_iter()
+            .map(|parameter| self.intern_type(Type::Param(parameter)))
             .collect()
     }
 

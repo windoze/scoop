@@ -352,7 +352,7 @@ Module
       Call makeNested : () -> () -> Int
         IntLiteral 41 : Int
     val local2
-      CallableCall function_type4 : () -> Int
+      CallableCall function_type6 : () -> Int
         Local outer : () -> () -> Int
     val local3
       Call labelReader : () -> String
@@ -376,19 +376,19 @@ Module
     Call gcCollect : Unit
     Call println : Unit
       Box : Any
-        CallableCall function_type2 : Int
+        CallableCall function_type4 : Int
           Local adder : (Int) -> Int
           IntLiteral 40 : Int
     Call println : Unit
       Box : Any
-        CallableCall function_type3 : Int
+        CallableCall function_type5 : Int
           Local inner : () -> Int
     Call println : Unit
-      CallableCall function_type5 : Any
+      CallableCall function_type7 : Any
         Local reader : () -> String
     Call println : Unit
       Box : Any
-        CallableCall function_type3 : Int
+        CallableCall function_type5 : Int
           Local getter : () -> Int
     Call println : Unit
       Box : Any
@@ -396,7 +396,7 @@ Module
           Local source : Snapshot
     Call println : Unit
       Box : Any
-        CallableCall function_type3 : Int
+        CallableCall function_type5 : Int
           Local increment : () -> Int
     Call println : Unit
       Box : Any
@@ -404,7 +404,7 @@ Module
           Local counter : Counter
     Call println : Unit
       Box : Any
-        CallableCall function_type3 : Int
+        CallableCall function_type5 : Int
           Call snapshot : () -> Int
   entry main
   instance startCoroutine<T0>

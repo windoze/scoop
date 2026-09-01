@@ -266,8 +266,6 @@ Module
   entry main
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>
-  instance Box.echo<Int>
-  instance Box.echo<String>
 
 == mir ==
 Module

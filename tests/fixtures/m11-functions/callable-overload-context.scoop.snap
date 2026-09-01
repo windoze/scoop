@@ -268,22 +268,22 @@ Module
       StringLiteral "\n" : String
   fun select(operation: (Int) -> Int): Int
     return
-      CallableCall function_type2 : Int
+      CallableCall function_type4 : Int
         Local operation : (Int) -> Int
         IntLiteral 41 : Int
   fun select(operation: (Int) -> String): String
     return
-      CallableCall function_type3 : String
+      CallableCall function_type5 : String
         Local operation : (Int) -> String
         IntLiteral 41 : Int
   fun apply(operation: (Int) -> Int): Int
     return
-      CallableCall function_type2 : Int
+      CallableCall function_type4 : Int
         Local operation : (Int) -> Int
         IntLiteral 41 : Int
   fun apply(operation: (String) -> String): String
     return
-      CallableCall function_type4 : String
+      CallableCall function_type6 : String
         Local operation : (String) -> String
         StringLiteral "kept" : String
   fun intIdentity(value: Int): Int

@@ -7,14 +7,31 @@ use scoop_hir as hir;
 
 use crate::Lowerer;
 
+mod generic_recursion;
 mod no_gc_generics;
 
 /// Type arguments in a generic aggregate are expressed in the caller's
 /// parameter namespace. Chaining environments lets GC-freedom analysis
 /// substitute nested generic fields without interning synthetic HIR types.
 struct TypeEnvironment<'a> {
-    args: Vec<hir::TypeId>,
+    bindings: Vec<(hir::TypeParamId, hir::TypeId)>,
     parent: Option<&'a TypeEnvironment<'a>>,
+}
+
+impl<'a> TypeEnvironment<'a> {
+    fn resolve(
+        &'a self,
+        parameter: hir::TypeParamId,
+    ) -> Option<(hir::TypeId, Option<&'a TypeEnvironment<'a>>)> {
+        if let Some(argument) = self
+            .bindings
+            .iter()
+            .find_map(|(candidate, argument)| (*candidate == parameter).then_some(*argument))
+        {
+            return Some((argument, self.parent));
+        }
+        self.parent?.resolve(parameter)
+    }
 }
 
 impl Lowerer {
@@ -202,11 +219,9 @@ impl Lowerer {
             for (span, message) in violations {
                 self.error(span, message);
             }
-            if let Some(generic) = self.functions[id].generic_definition() {
-                let mut requirements: Vec<_> = requirements.into_iter().collect();
-                requirements.sort_by_key(|parameter| parameter.into_raw());
-                self.generic_functions[generic].no_gc_type_params = requirements;
-            }
+            let mut requirements: Vec<_> = requirements.into_iter().collect();
+            requirements.sort_by_key(|parameter| parameter.into_raw());
+            self.set_function_no_gc_requirements(id, requirements);
         }
 
         self.validate_no_gc_instantiations();
@@ -315,8 +330,10 @@ impl Lowerer {
             }
             hir::Type::Param(index) => match environment {
                 Some(environment) => {
-                    let argument = environment.args[index.into_raw() as usize];
-                    self.gc_free_requirements_inner(argument, environment.parent, visiting)
+                    let (argument, parent) = environment
+                        .resolve(*index)
+                        .expect("the complete type environment binds every referenced parameter");
+                    self.gc_free_requirements_inner(argument, parent, visiting)
                 }
                 None => Some(HashSet::from([*index])),
             },
@@ -327,7 +344,12 @@ impl Lowerer {
                     return None;
                 }
                 let nested = TypeEnvironment {
-                    args: application.arguments.clone(),
+                    bindings: self.structs[id]
+                        .type_params
+                        .iter()
+                        .zip(application.arguments.iter().copied())
+                        .map(|(parameter, argument)| (parameter.id, argument))
+                        .collect(),
                     parent: environment,
                 };
                 let mut requirements = HashSet::new();
@@ -350,7 +372,12 @@ impl Lowerer {
                     return None;
                 }
                 let nested = TypeEnvironment {
-                    args: application.arguments.clone(),
+                    bindings: self.enums[id]
+                        .type_params
+                        .iter()
+                        .zip(application.arguments.iter().copied())
+                        .map(|(parameter, argument)| (parameter.id, argument))
+                        .collect(),
                     parent: environment,
                 };
                 let mut requirements = HashSet::new();
@@ -394,7 +421,12 @@ impl Lowerer {
                     return false;
                 }
                 let nested = TypeEnvironment {
-                    args: application.arguments.clone(),
+                    bindings: self.structs[id]
+                        .type_params
+                        .iter()
+                        .zip(application.arguments.iter().copied())
+                        .map(|(parameter, argument)| (parameter.id, argument))
+                        .collect(),
                     parent: environment,
                 };
                 let result = self.structs[id]
@@ -411,7 +443,12 @@ impl Lowerer {
                     return false;
                 }
                 let nested = TypeEnvironment {
-                    args: application.arguments.clone(),
+                    bindings: self.enums[id]
+                        .type_params
+                        .iter()
+                        .zip(application.arguments.iter().copied())
+                        .map(|(parameter, argument)| (parameter.id, argument))
+                        .collect(),
                     parent: environment,
                 };
                 let result = self.enums[id].variants.iter().any(|variant| {
@@ -426,8 +463,10 @@ impl Lowerer {
                 .iter()
                 .any(|ty| self.requires_unsafe_use_inner(*ty, environment, visiting)),
             hir::Type::Param(index) => environment.is_some_and(|environment| {
-                let argument = environment.args[index.into_raw() as usize];
-                self.requires_unsafe_use_inner(argument, environment.parent, visiting)
+                let (argument, parent) = environment
+                    .resolve(*index)
+                    .expect("the complete type environment binds every referenced parameter");
+                self.requires_unsafe_use_inner(argument, parent, visiting)
             }),
             _ => false,
         }
@@ -772,13 +811,7 @@ impl Lowerer {
         span: Span,
         out: &mut Vec<(Span, String)>,
     ) {
-        let function = match callable {
-            hir::Callable::Function(function) => function,
-            hir::Callable::Generic(instantiation) => {
-                let generic = self.instantiations[instantiation].generic;
-                self.generic_functions[generic].function
-            }
-        };
+        let function = self.callable_function_id(callable);
         self.check_no_gc_function(function, span, out);
     }
 

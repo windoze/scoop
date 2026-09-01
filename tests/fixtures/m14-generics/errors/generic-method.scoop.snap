@@ -1,0 +1,7 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m14-generics/errors/generic-method.scoop:12:5: error: type argument `Int` for `U` of function `Host.accept` must satisfy interface upper bound `Marker`
+m14-generics/errors/generic-method.scoop:7:9: error: polymorphic recursion is not supported: generic callable cycle `Host.grow` changes its complete type-argument mapping

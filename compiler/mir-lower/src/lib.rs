@@ -1751,14 +1751,13 @@ impl Lowerer {
     fn declare_symbol(&mut self, module: &hir::Module, hir_id: hir::FunctionId) -> String {
         let function = &module.functions[hir_id];
         let name = fn_name(function);
-        if !function.type_arguments.is_empty() {
+        if let Some((type_arguments, symbol_identity)) = function_instance(module, function) {
             let types = Types {
                 module,
                 struct_map: &self.struct_map,
                 class_map: &self.class_map,
             };
-            let arguments = function
-                .type_arguments
+            let arguments = type_arguments
                 .iter()
                 .map(|argument| {
                     types.lower(
@@ -1770,12 +1769,12 @@ impl Lowerer {
                     )
                 })
                 .collect::<Vec<_>>();
-            return function.generic_discriminator.map_or_else(
-                || mir::mangle_instance(&self.shell, &name, &arguments),
-                |discriminator| {
+            return match symbol_identity {
+                hir::InstanceSymbol::Unique => mir::mangle_instance(&self.shell, &name, &arguments),
+                hir::InstanceSymbol::Overloaded { discriminator } => {
                     mir::mangle_generic_overload(&self.shell, &name, &arguments, discriminator)
-                },
-            );
+                }
+            };
         }
         if hir_id == module.entry || !self.overloaded.contains(&name) {
             return mir::mangle_function(&name, hir_id == module.entry);
@@ -1888,9 +1887,8 @@ impl Lowerer {
         });
         self.top_level.push(id);
         self.function_map.insert(hir_id, id);
-        if !function.type_arguments.is_empty() {
-            let type_args = function
-                .type_arguments
+        if let Some((type_arguments, _)) = function_instance(module, function) {
+            let type_args = type_arguments
                 .iter()
                 .map(|argument| {
                     Types {
@@ -2318,9 +2316,8 @@ impl Lowerer {
             body: mir::Body::unreachable(locals),
         });
         self.function_map.insert(hir_id, id);
-        if !function.type_arguments.is_empty() {
-            let type_args = function
-                .type_arguments
+        if let Some((type_arguments, _)) = function_instance(module, function) {
+            let type_args = type_arguments
                 .iter()
                 .map(|argument| {
                     Types {
@@ -2416,9 +2413,7 @@ impl Lowerer {
                 ),
             };
             for (fn_id, function) in module.functions.iter() {
-                if method_class(module, function) != Some(hir_id)
-                    || !function.type_arguments.is_empty()
-                {
+                if method_class(module, function) != Some(hir_id) || is_generic_method(function) {
                     continue;
                 }
                 let mir_fn = self.function_map[&fn_id];
@@ -2607,9 +2602,7 @@ impl Lowerer {
         let mut current = Some(hir_id);
         while let Some(class) = current {
             for (fn_id, function) in module.functions.iter() {
-                if method_class(module, function) != Some(class)
-                    || !function.type_arguments.is_empty()
-                {
+                if method_class(module, function) != Some(class) || is_generic_method(function) {
                     continue;
                 }
                 if self.fn_signature_key(module, function) == key {
@@ -3166,6 +3159,56 @@ fn lower_gc_effect(effect: hir::GcEffect) -> mir::GcEffect {
     }
 }
 
+fn method_owner_type_arguments(module: &hir::Module, owner: hir::MethodOwner) -> &[hir::TypeId] {
+    match owner {
+        hir::MethodOwner::Class(id) => &module.classes[id].type_arguments,
+        hir::MethodOwner::Struct(id) => &module.structs[id].type_arguments,
+        hir::MethodOwner::Enum(id) => &module.enums[id].type_arguments,
+        hir::MethodOwner::Interface(id) => &module.interfaces[id].type_arguments,
+        hir::MethodOwner::Any => &[],
+    }
+}
+
+/// Exact specialization data emitted by HIR. `None` means this declaration
+/// uses ordinary overload mangling; it never means "unknown".
+fn function_instance(
+    module: &hir::Module,
+    function: &hir::Function,
+) -> Option<(Vec<hir::TypeId>, hir::InstanceSymbol)> {
+    match &function.origin {
+        hir::FunctionOrigin::Free(hir::FreeFunctionOrigin::Plain) => None,
+        hir::FunctionOrigin::Free(hir::FreeFunctionOrigin::Generic {
+            arguments, symbol, ..
+        }) => Some((arguments.clone(), *symbol)),
+        hir::FunctionOrigin::Method(method) => match &method.specialization {
+            hir::MethodSpecialization::Plain => None,
+            hir::MethodSpecialization::OwnerParameterized { symbol } => Some((
+                method_owner_type_arguments(module, method.owner).to_vec(),
+                *symbol,
+            )),
+            hir::MethodSpecialization::Generic {
+                method_arguments,
+                symbol,
+                ..
+            } => {
+                let mut arguments = method_owner_type_arguments(module, method.owner).to_vec();
+                arguments.extend(method_arguments.iter().copied());
+                Some((arguments, *symbol))
+            }
+        },
+    }
+}
+
+fn is_generic_method(function: &hir::Function) -> bool {
+    matches!(
+        function.origin,
+        hir::FunctionOrigin::Method(hir::MethodOrigin {
+            specialization: hir::MethodSpecialization::Generic { .. },
+            ..
+        })
+    )
+}
+
 /// The names shared by more than one plainly-mangled function (M7
 /// overloads), over the whole module including scoop.core. Only
 /// functions that get a plain `scoop.<name>` symbol count: `User` functions
@@ -3177,7 +3220,7 @@ fn overloaded_names(module: &hir::Module) -> HashSet<String> {
     let mut counts: HashMap<String, usize> = HashMap::new();
     for (_, function) in module.functions.iter() {
         if !matches!(function.kind, hir::FunctionKind::User(_))
-            || !function.type_arguments.is_empty()
+            || function_instance(module, function).is_some()
         {
             continue;
         }
@@ -5827,8 +5870,7 @@ impl BodyLowerer<'_> {
             hir::TypeKind::Any => Receiver::Any,
             _ => Receiver::Value,
         };
-        let generic_static_method =
-            !f.type_arguments.is_empty() && !matches!(&receiver_kind, Receiver::Interface(_));
+        let generic_static_method = is_generic_method(f);
         let kind = if generic_static_method {
             // Generic member functions never participate in virtual
             // dispatch. Methods parameterized only by a generic interface
@@ -6560,6 +6602,7 @@ mod tests {
 
     fn type_param(name: impl Into<String>) -> hir::TypeParamDecl {
         hir::TypeParamDecl {
+            id: hir::TypeParamId::from_raw(0),
             name: name.into(),
             variance: hir::Variance::Invariant,
             bounds: hir::TypeParamBounds::Unconstrained,
@@ -6598,6 +6641,11 @@ mod tests {
         functions: Arena<hir::Function>,
         extern_functions: Arena<hir::ExternFunction>,
         generic_functions: Arena<hir::GenericFunction>,
+        method_applications: Arena<hir::MethodApplication>,
+        method_applications_by_key:
+            HashMap<(hir::FunctionId, hir::MethodOwnerApplication), hir::MethodApplicationId>,
+        generic_methods: Arena<hir::GenericMethod>,
+        generic_method_applications: Arena<hir::GenericMethodApplication>,
         structs: Arena<hir::StructDecl>,
         struct_applications: Arena<hir::StructApplication>,
         struct_applications_by_key:
@@ -6731,6 +6779,10 @@ mod tests {
                 functions,
                 extern_functions,
                 generic_functions: Arena::new(),
+                method_applications: Arena::new(),
+                method_applications_by_key: HashMap::new(),
+                generic_methods: Arena::new(),
+                generic_method_applications: Arena::new(),
                 structs: Arena::new(),
                 struct_applications: Arena::new(),
                 struct_applications_by_key: HashMap::new(),
@@ -7211,19 +7263,15 @@ mod tests {
                 method: Some(hir::Method {
                     owner,
                     modifier: hir::MethodModifier::Abstract,
-                    owner_type_param_count: declaration.type_params.len() as u32,
                 }),
                 span: method.span,
             });
             if !declaration.type_params.is_empty() {
-                let generic = self.generic_functions.alloc(hir::GenericFunction {
-                    function,
-                    no_gc_type_params: Vec::new(),
-                });
-                self.functions[function].genericity = hir::FunctionGenericity::Generic {
-                    definition: generic,
-                    parameters: declaration.type_params,
-                };
+                self.functions[function].genericity =
+                    hir::FunctionGenericity::OwnerParameterizedMethod {
+                        owner_parameters: declaration.type_params,
+                        no_gc_type_params: Vec::new(),
+                    };
             }
             let member = self.interface_methods.alloc(hir::InterfaceMethod {
                 owner: interface,
@@ -7324,9 +7372,66 @@ mod tests {
             return_ty: hir::TypeId,
             body: hir::Body,
         ) -> hir::FunctionId {
-            self.functions.alloc(hir::Function {
+            let genericity = match self.types[method_of] {
+                hir::Type::Class(application) => {
+                    let parameters = self.classes[self.class_applications[application].template]
+                        .type_params
+                        .clone();
+                    if parameters.is_empty() {
+                        hir::FunctionGenericity::Plain
+                    } else {
+                        hir::FunctionGenericity::OwnerParameterizedMethod {
+                            owner_parameters: parameters,
+                            no_gc_type_params: Vec::new(),
+                        }
+                    }
+                }
+                hir::Type::Struct(application) => {
+                    let parameters = self.structs[self.struct_applications[application].template]
+                        .type_params
+                        .clone();
+                    if parameters.is_empty() {
+                        hir::FunctionGenericity::Plain
+                    } else {
+                        hir::FunctionGenericity::OwnerParameterizedMethod {
+                            owner_parameters: parameters,
+                            no_gc_type_params: Vec::new(),
+                        }
+                    }
+                }
+                hir::Type::Enum(application) => {
+                    let parameters = self.enums[self.enum_applications[application].template]
+                        .type_params
+                        .clone();
+                    if parameters.is_empty() {
+                        hir::FunctionGenericity::Plain
+                    } else {
+                        hir::FunctionGenericity::OwnerParameterizedMethod {
+                            owner_parameters: parameters,
+                            no_gc_type_params: Vec::new(),
+                        }
+                    }
+                }
+                hir::Type::Interface(application) => {
+                    let parameters = self.interfaces
+                        [self.interface_applications[application].template]
+                        .type_params
+                        .clone();
+                    if parameters.is_empty() {
+                        hir::FunctionGenericity::Plain
+                    } else {
+                        hir::FunctionGenericity::OwnerParameterizedMethod {
+                            owner_parameters: parameters,
+                            no_gc_type_params: Vec::new(),
+                        }
+                    }
+                }
+                hir::Type::Any => hir::FunctionGenericity::Plain,
+                _ => panic!("test harness methods have nominal owners"),
+            };
+            let function = self.functions.alloc(hir::Function {
                 name: name.to_string(),
-                genericity: hir::FunctionGenericity::Plain,
+                genericity,
                 is_suspend: false,
                 params,
                 return_ty,
@@ -7335,10 +7440,52 @@ mod tests {
                 method: Some(hir::Method {
                     owner: method_of,
                     modifier: hir::MethodModifier::Open,
-                    owner_type_param_count: 0,
                 }),
                 span: SPAN,
-            })
+            });
+            match self.types[method_of] {
+                hir::Type::Class(application) => self.classes
+                    [self.class_applications[application].template]
+                    .methods
+                    .push(function),
+                hir::Type::Struct(application) => self.structs
+                    [self.struct_applications[application].template]
+                    .methods
+                    .push(function),
+                hir::Type::Enum(application) => self.enums
+                    [self.enum_applications[application].template]
+                    .methods
+                    .push(function),
+                hir::Type::Interface(_) | hir::Type::Any => {}
+                _ => unreachable!(),
+            }
+            function
+        }
+
+        fn method_application(&mut self, function: hir::FunctionId) -> hir::MethodApplicationId {
+            let owner_ty = self.functions[function]
+                .method
+                .expect("test harness method has metadata")
+                .owner;
+            let owner = match self.types[owner_ty] {
+                hir::Type::Class(application) => hir::MethodOwnerApplication::Class(application),
+                hir::Type::Struct(application) => hir::MethodOwnerApplication::Struct(application),
+                hir::Type::Enum(application) => hir::MethodOwnerApplication::Enum(application),
+                hir::Type::Interface(application) => {
+                    hir::MethodOwnerApplication::Interface(application)
+                }
+                hir::Type::Any => hir::MethodOwnerApplication::Any,
+                _ => panic!("test harness methods have nominal owners"),
+            };
+            let key = (function, owner);
+            if let Some(&application) = self.method_applications_by_key.get(&key) {
+                return application;
+            }
+            let application = self
+                .method_applications
+                .alloc(hir::MethodApplication { function, owner });
+            self.method_applications_by_key.insert(key, application);
+            application
         }
 
         fn strukt(&mut self, name: &str, fields: &[(&str, hir::TypeId)]) -> hir::StructId {
@@ -7658,6 +7805,7 @@ mod tests {
                 .types
                 .alloc(hir::Type::Param(hir::TypeParamId::from_raw(0)));
             let type_param = || hir::TypeParamDecl {
+                id: hir::TypeParamId::from_raw(0),
                 name: "T".to_string(),
                 variance: hir::Variance::Invariant,
                 bounds: hir::TypeParamBounds::Unconstrained,
@@ -7684,7 +7832,6 @@ mod tests {
                 method: Some(hir::Method {
                     owner: continuation_ty,
                     modifier: hir::MethodModifier::Abstract,
-                    owner_type_param_count: 1,
                 }),
                 span: SPAN,
             });
@@ -7704,7 +7851,6 @@ mod tests {
                 method: Some(hir::Method {
                     owner: continuation_ty,
                     modifier: hir::MethodModifier::Abstract,
-                    owner_type_param_count: 1,
                 }),
                 span: SPAN,
             });
@@ -7762,7 +7908,6 @@ mod tests {
                 method: Some(hir::Method {
                     owner: suspend_task_ty,
                     modifier: hir::MethodModifier::Abstract,
-                    owner_type_param_count: 1,
                 }),
                 span: SPAN,
             });
@@ -7798,7 +7943,6 @@ mod tests {
                 method: Some(hir::Method {
                     owner: suspend_registration_ty,
                     modifier: hir::MethodModifier::Abstract,
-                    owner_type_param_count: 1,
                 }),
                 span: SPAN,
             });
@@ -7809,7 +7953,11 @@ mod tests {
                 suspend_task_run,
                 suspend_registration_register,
             ] {
-                self.register_generic(function, vec![type_param()]);
+                self.functions[function].genericity =
+                    hir::FunctionGenericity::OwnerParameterizedMethod {
+                        owner_parameters: vec![type_param()],
+                        no_gc_type_params: Vec::new(),
+                    };
             }
             let start_coroutine = self.functions.alloc(hir::Function {
                 name: "startCoroutine".to_string(),
@@ -7932,6 +8080,9 @@ mod tests {
                 extern_functions: self.extern_functions,
                 globals: Arena::new(),
                 generic_functions: self.generic_functions,
+                method_applications: self.method_applications,
+                generic_methods: self.generic_methods,
+                generic_method_applications: self.generic_method_applications,
                 structs: self.structs,
                 struct_applications: self.struct_applications,
                 enums: self.enums,
@@ -8852,6 +9003,7 @@ Module
         let interface = h.declare_interface(
             "Channel",
             vec![hir::TypeParamDecl {
+                id: hir::TypeParamId::from_raw(0),
                 name: "T".to_string(),
                 variance: hir::Variance::Out,
                 bounds: hir::TypeParamBounds::Unconstrained,
@@ -9202,16 +9354,19 @@ Module
         let a_ty = h.class_ty(a);
         let s_int = int_method(&mut h, "A.s", a_ty, Some(int), 1);
         let s_string = int_method(&mut h, "A.s", a_ty, Some(string), 2);
-        let method_call = |receiver: hir::Expr, function: hir::FunctionId, arg: hir::Expr| {
-            expr(
-                hir::ExprKind::MethodCall {
-                    receiver: Box::new(receiver),
-                    callee: hir::MethodCallee::Callable(hir::Callable::Function(function)),
-                    args: vec![arg],
-                },
-                unit,
-            )
-        };
+        let s_int = h.method_application(s_int);
+        let s_string = h.method_application(s_string);
+        let method_call =
+            |receiver: hir::Expr, application: hir::MethodApplicationId, arg: hir::Expr| {
+                expr(
+                    hir::ExprKind::MethodCall {
+                        receiver: Box::new(receiver),
+                        callee: hir::MethodCallee::Callable(hir::Callable::Method(application)),
+                        args: vec![arg],
+                    },
+                    unit,
+                )
+            };
         let mut locals = Arena::new();
         let av = locals.alloc(local("a", a_ty));
         let main = h.user_fn(
@@ -9312,16 +9467,19 @@ Module
         };
         let m_int = shell(&mut h, int);
         let m_string = shell(&mut h, string);
-        let method_call = |receiver: hir::Expr, function: hir::FunctionId, arg: hir::Expr| {
-            expr(
-                hir::ExprKind::MethodCall {
-                    receiver: Box::new(receiver),
-                    callee: hir::MethodCallee::Callable(hir::Callable::Function(function)),
-                    args: vec![arg],
-                },
-                unit,
-            )
-        };
+        let m_int = h.method_application(m_int);
+        let m_string = h.method_application(m_string);
+        let method_call =
+            |receiver: hir::Expr, application: hir::MethodApplicationId, arg: hir::Expr| {
+                expr(
+                    hir::ExprKind::MethodCall {
+                        receiver: Box::new(receiver),
+                        callee: hir::MethodCallee::Callable(hir::Callable::Method(application)),
+                        args: vec![arg],
+                    },
+                    unit,
+                )
+            };
         let mut locals = Arena::new();
         let i = locals.alloc(local("i", multi_ty));
         let main = h.user_fn(
@@ -11902,17 +12060,20 @@ Module
         let s = h.strukt("S", &[("x", int)]);
         let s_ty = h.struct_ty(s);
         let s_describe = empty_method(&mut h, "S", "describe", s_ty);
+        let class_describe = h.method_application(class_describe);
+        let iface_label = h.method_application(iface_label);
+        let s_describe = h.method_application(s_describe);
 
         let unit = h.unit;
         let mut locals = Arena::new();
         let c = locals.alloc(local("c", class_ty));
         let i = locals.alloc(local("i", iface_ty));
         let sv = locals.alloc(local("sv", s_ty));
-        let method_call = |receiver: hir::Expr, function: hir::FunctionId| {
+        let method_call = |receiver: hir::Expr, application: hir::MethodApplicationId| {
             expr(
                 hir::ExprKind::MethodCall {
                     receiver: Box::new(receiver),
-                    callee: hir::MethodCallee::Callable(hir::Callable::Function(function)),
+                    callee: hir::MethodCallee::Callable(hir::Callable::Method(application)),
                     args: Vec::new(),
                 },
                 unit,
@@ -11978,16 +12139,19 @@ Module
             .as_mut()
             .expect("method")
             .modifier = hir::MethodModifier::Final;
+        let base_open = h.method_application(base_open);
+        let base_final = h.method_application(base_final);
+        let derived_override = h.method_application(derived_override);
 
         let unit = h.unit;
         let mut locals = Arena::new();
         let as_base = locals.alloc(local("asBase", base_ty));
         let as_derived = locals.alloc(local("asDerived", derived_ty));
-        let call = |receiver: hir::Expr, function: hir::FunctionId| {
+        let call = |receiver: hir::Expr, application: hir::MethodApplicationId| {
             expr(
                 hir::ExprKind::MethodCall {
                     receiver: Box::new(receiver),
-                    callee: hir::MethodCallee::Callable(hir::Callable::Function(function)),
+                    callee: hir::MethodCallee::Callable(hir::Callable::Method(application)),
                     args: Vec::new(),
                 },
                 unit,

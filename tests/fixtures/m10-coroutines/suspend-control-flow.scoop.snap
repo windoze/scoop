@@ -485,9 +485,6 @@ Module
   instance suspendCoroutine<Boolean>
   instance suspendCoroutine<Choice>
   instance startCoroutine<Int>
-  instance Continuation.resume<Int>
-  instance Continuation.resume<Boolean>
-  instance Continuation.resume<Choice>
 
 == mir ==
 Module

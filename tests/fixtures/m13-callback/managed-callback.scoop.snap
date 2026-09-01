@@ -445,7 +445,7 @@ Module
     val local0
       IntLiteral 40 : Int
     val local1
-      ForeignCallbackRegister registration0 native=function_type2 managed=function_type4 context=1 mode=OneShot : ForeignCallback<(Int, Ptr<Unit>) -> Int>
+      ForeignCallbackRegister registration0 native=function_type4 managed=function_type6 context=1 mode=OneShot : ForeignCallback<(Int, Ptr<Unit>) -> Int>
         Lambda lambda0 invoke=$lambda.0 captures=1 : (Int) -> Int
           capture offset binding20 : Int
     val local2
@@ -483,7 +483,7 @@ Module
     ForeignCallbackRelease : Unit
       Local observer : ForeignCallback<(Int, Ptr<Unit>) -> Int>
     val local5
-      ForeignCallbackRegister registration1 native=function_type2 managed=function_type4 context=1 mode=OneShot : ForeignCallback<(Int, Ptr<Unit>) -> Int>
+      ForeignCallbackRegister registration1 native=function_type4 managed=function_type6 context=1 mode=OneShot : ForeignCallback<(Int, Ptr<Unit>) -> Int>
         Lambda lambda1 invoke=$lambda.1 captures=0 : (Int) -> Int
     val local6
       ForeignCallbackRetain : ForeignCallback<(Int, Ptr<Unit>) -> Int>
@@ -503,7 +503,7 @@ Module
     ForeignCallbackRelease : Unit
       Local failedObserver : ForeignCallback<(Int, Ptr<Unit>) -> Int>
     val local7
-      ForeignCallbackRegister registration2 native=function_type2 managed=function_type4 context=1 mode=Reusable : ForeignCallback<(Int, Ptr<Unit>) -> Int>
+      ForeignCallbackRegister registration2 native=function_type4 managed=function_type6 context=1 mode=Reusable : ForeignCallback<(Int, Ptr<Unit>) -> Int>
         Lambda lambda2 invoke=$lambda.2 captures=0 : (Int) -> Int
     Call println : Unit
       Box : Any
@@ -543,7 +543,7 @@ Module
     ForeignCallbackRelease : Unit
       Local reusable : ForeignCallback<(Int, Ptr<Unit>) -> Int>
     val local8
-      ForeignCallbackRegister registration3 native=function_type3 managed=function_type5 context=0 mode=OneShot : ForeignCallback<(Ptr<Unit>) -> Unit>
+      ForeignCallbackRegister registration3 native=function_type5 managed=function_type7 context=0 mode=OneShot : ForeignCallback<(Ptr<Unit>) -> Unit>
         Lambda lambda3 invoke=$lambda.3 captures=0 : () -> Unit
     val local9
       ForeignCallbackRetain : ForeignCallback<(Ptr<Unit>) -> Unit>

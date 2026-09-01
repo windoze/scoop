@@ -198,18 +198,32 @@ pub(crate) enum Owner {
 #[derive(Clone)]
 pub(crate) struct CallableCandidate {
     pub(crate) function: FunctionId,
-    pub(crate) owner_arguments: Vec<TypeId>,
+    pub(crate) owner: CallableCandidateOwner,
     pub(crate) source: CallableCandidateSource,
 }
 
 impl CallableCandidate {
-    pub(crate) fn direct(function: FunctionId, owner_arguments: Vec<TypeId>) -> Self {
+    pub(crate) fn function(function: FunctionId, owner_arguments: Vec<TypeId>) -> Self {
         Self {
             function,
-            owner_arguments,
+            owner: CallableCandidateOwner::Function { owner_arguments },
             source: CallableCandidateSource::Direct,
         }
     }
+
+    pub(crate) fn method(function: FunctionId, owner: hir::MethodOwnerApplication) -> Self {
+        Self {
+            function,
+            owner: CallableCandidateOwner::Method(owner),
+            source: CallableCandidateSource::Direct,
+        }
+    }
+}
+
+#[derive(Clone, PartialEq, Eq)]
+pub(crate) enum CallableCandidateOwner {
+    Function { owner_arguments: Vec<TypeId> },
+    Method(hir::MethodOwnerApplication),
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -238,8 +252,9 @@ pub(crate) enum ForbiddenSuspendContext {
     ConstructorDelegation,
 }
 
-fn lower_type_param_decl(param: &ast::TypeParamDecl) -> hir::TypeParamDecl {
+fn lower_type_param_decl(param: &ast::TypeParamDecl, id: hir::TypeParamId) -> hir::TypeParamDecl {
     hir::TypeParamDecl {
+        id,
         name: param.name.text.clone(),
         variance: match param.variance {
             ast::Variance::Invariant => hir::Variance::Invariant,
@@ -328,6 +343,9 @@ pub(crate) struct Lowerer {
     /// bodies so nested literals with the same signature cannot collide.
     pub(crate) next_lambda_function: u32,
     pub(crate) next_anonymous_function: u32,
+    /// Cone-wide semantic type-parameter identity allocator. Substitution
+    /// slots are assigned separately by each complete lexical signature.
+    pub(crate) next_type_param_identity: u32,
     pub(crate) local_functions: Arena<hir::LocalFunction>,
     pub(crate) local_function_by_function: HashMap<FunctionId, hir::LocalFunctionId>,
     pub(crate) callable_references: Arena<hir::CallableReference>,
@@ -357,6 +375,19 @@ pub(crate) struct Lowerer {
     /// the matching typed id in `Function::genericity`, so this arena is never
     /// reverse-scanned and no parallel reverse map can drift out of sync.
     pub(crate) generic_functions: Arena<GenericFunction>,
+    pub(crate) method_applications: Arena<hir::MethodApplication>,
+    pub(crate) method_application_by_key:
+        HashMap<(FunctionId, hir::MethodOwnerApplication), hir::MethodApplicationId>,
+    pub(crate) generic_methods: Arena<hir::GenericMethod>,
+    pub(crate) generic_method_applications: Arena<hir::GenericMethodApplication>,
+    pub(crate) generic_method_application_by_key: HashMap<
+        (
+            hir::GenericMethodId,
+            hir::GenericMethodOwner,
+            hir::NonEmptyVec<TypeId>,
+        ),
+        hir::GenericMethodApplicationId,
+    >,
     pub(crate) top_level: Vec<FunctionId>,
     pub(crate) unit: TypeId,
     pub(crate) int: TypeId,
@@ -519,6 +550,15 @@ impl GcIntrinsic {
 }
 
 impl Lowerer {
+    pub(crate) fn fresh_type_param(&mut self, substitution_slot: usize) -> hir::TypeParamId {
+        let parameter = hir::TypeParamId::with_substitution_slot(
+            self.next_type_param_identity,
+            substitution_slot as u32,
+        );
+        self.next_type_param_identity += 1;
+        parameter
+    }
+
     pub(crate) fn fresh_binding(&mut self) -> hir::BindingId {
         let binding = hir::BindingId::from_raw(self.next_binding_id);
         self.next_binding_id += 1;
@@ -565,6 +605,7 @@ impl Lowerer {
             anonymous_functions: Arena::new(),
             next_lambda_function: 0,
             next_anonymous_function: 0,
+            next_type_param_identity: 0,
             local_functions: Arena::new(),
             local_function_by_function: HashMap::new(),
             callable_references: Arena::new(),
@@ -588,6 +629,11 @@ impl Lowerer {
             extern_functions: Arena::new(),
             globals: Arena::new(),
             generic_functions: Arena::new(),
+            method_applications: Arena::new(),
+            method_application_by_key: HashMap::new(),
+            generic_methods: Arena::new(),
+            generic_method_applications: Arena::new(),
+            generic_method_application_by_key: HashMap::new(),
             top_level: Vec::new(),
             unit,
             int,
@@ -722,7 +768,6 @@ impl Lowerer {
                 method: Some(hir::Method {
                     owner: self.any,
                     modifier: hir::MethodModifier::Open,
-                    owner_type_param_count: 0,
                 }),
                 span,
             });
@@ -1000,6 +1045,7 @@ impl Lowerer {
         // Effects consume fully resolved calls and types. Local functions and
         // callable literals lifted while lowering the bodies are visible now.
         self.validate_c_ffi_types();
+        self.check_generic_recursion();
         self.check_no_gc_types();
         self.check_no_gc_functions();
 
@@ -1075,6 +1121,9 @@ impl Lowerer {
             extern_functions: self.extern_functions,
             globals: self.globals,
             generic_functions: self.generic_functions,
+            method_applications: self.method_applications,
+            generic_methods: self.generic_methods,
+            generic_method_applications: self.generic_method_applications,
             structs: self.structs,
             struct_applications: self.struct_applications,
             enums: self.enums,
@@ -1170,7 +1219,8 @@ impl Lowerer {
                 );
                 continue;
             }
-            type_params.push(lower_type_param_decl(param));
+            let parameter = self.fresh_type_param(type_params.len());
+            type_params.push(lower_type_param_decl(param, parameter));
         }
         let self_application =
             hir::StructApplicationId::from_raw((self.struct_applications.len() as u32).into());
@@ -1186,8 +1236,13 @@ impl Lowerer {
             methods: Vec::new(),
             span: decl.span,
         });
-        let type_args = (0..type_params.len())
-            .map(|index| self.intern_type(Type::Param(hir::TypeParamId::from_raw(index as u32))))
+        let parameter_ids = type_params
+            .iter()
+            .map(|parameter| parameter.id)
+            .collect::<Vec<_>>();
+        let type_args = parameter_ids
+            .into_iter()
+            .map(|parameter| self.intern_type(Type::Param(parameter)))
             .collect();
         let ty = self.struct_application(id, type_args);
         assert_eq!(self.types[ty], Type::Struct(self_application));
@@ -1233,7 +1288,8 @@ impl Lowerer {
                 );
                 continue;
             }
-            type_params.push(lower_type_param_decl(param));
+            let parameter = self.fresh_type_param(type_params.len());
+            type_params.push(lower_type_param_decl(param, parameter));
         }
         let self_application =
             hir::EnumApplicationId::from_raw((self.enum_applications.len() as u32).into());
@@ -1251,8 +1307,14 @@ impl Lowerer {
             span: decl.span,
         });
         self.enums_by_name.insert(decl.name.text.clone(), id);
-        let type_args = (0..self.enums[id].type_params.len())
-            .map(|index| self.intern_type(Type::Param(hir::TypeParamId::from_raw(index as u32))))
+        let parameter_ids = self.enums[id]
+            .type_params
+            .iter()
+            .map(|parameter| parameter.id)
+            .collect::<Vec<_>>();
+        let type_args = parameter_ids
+            .into_iter()
+            .map(|parameter| self.intern_type(Type::Param(parameter)))
             .collect();
         let ty = self.enum_application(id, type_args);
         assert_eq!(self.types[ty], Type::Enum(self_application));
@@ -1305,7 +1367,8 @@ impl Lowerer {
                 );
                 continue;
             }
-            type_params.push(lower_type_param_decl(param));
+            let parameter = self.fresh_type_param(type_params.len());
+            type_params.push(lower_type_param_decl(param, parameter));
         }
         let self_application =
             hir::ClassApplicationId::from_raw((self.class_applications.len() as u32).into());
@@ -1323,8 +1386,13 @@ impl Lowerer {
             methods: Vec::new(),
             span: decl.span,
         });
-        let type_args = (0..type_params.len())
-            .map(|index| self.intern_type(Type::Param(hir::TypeParamId::from_raw(index as u32))))
+        let parameter_ids = type_params
+            .iter()
+            .map(|parameter| parameter.id)
+            .collect::<Vec<_>>();
+        let type_args = parameter_ids
+            .into_iter()
+            .map(|parameter| self.intern_type(Type::Param(parameter)))
             .collect();
         let ty = self.class_application(id, type_args);
         assert_eq!(self.types[ty], Type::Class(self_application));
@@ -1372,7 +1440,8 @@ impl Lowerer {
                 );
                 continue;
             }
-            type_params.push(lower_type_param_decl(param));
+            let parameter = self.fresh_type_param(type_params.len());
+            type_params.push(lower_type_param_decl(param, parameter));
         }
         let self_application = hir::InterfaceApplicationId::from_raw(
             (self.interface_applications.len() as u32).into(),
@@ -1386,8 +1455,13 @@ impl Lowerer {
             methods: Vec::new(),
             span: decl.span,
         });
-        let type_args = (0..type_params.len())
-            .map(|index| self.intern_type(Type::Param(hir::TypeParamId::from_raw(index as u32))))
+        let parameter_ids = type_params
+            .iter()
+            .map(|parameter| parameter.id)
+            .collect::<Vec<_>>();
+        let type_args = parameter_ids
+            .into_iter()
+            .map(|parameter| self.intern_type(Type::Param(parameter)))
             .collect();
         let ty = self.intern_interface_application(id, type_args);
         assert_eq!(self.types[ty], Type::Interface(self_application));
@@ -1440,7 +1514,6 @@ impl Lowerer {
                 ast::MethodModifier::Abstract => hir::MethodModifier::Abstract,
             },
         };
-        let owner_type_param_count = self.owner_type_params(owner).len() as u32;
         let kind = match checked.intrinsic {
             Some(intrinsic) => FunctionKind::Intrinsic(intrinsic),
             None => FunctionKind::User(hir::Body {
@@ -1461,7 +1534,6 @@ impl Lowerer {
             method: Some(hir::Method {
                 owner: host_ty,
                 modifier,
-                owner_type_param_count,
             }),
             span: decl.span,
         });
@@ -2337,7 +2409,7 @@ impl Lowerer {
     fn is_type_param(&self, ty: TypeId, index: u32) -> bool {
         matches!(
             self.types[ty],
-            Type::Param(param) if param == hir::TypeParamId::from_raw(index)
+            Type::Param(param) if param.into_raw() == index
         )
     }
 
@@ -2773,7 +2845,8 @@ impl Lowerer {
                 );
                 continue;
             }
-            type_params.push(lower_type_param_decl(param));
+            let parameter = self.fresh_type_param(type_params.len());
+            type_params.push(lower_type_param_decl(param, parameter));
         }
         type_params = self.resolve_type_parameter_constraints(
             type_params,
@@ -2880,6 +2953,141 @@ impl Lowerer {
             .alloc(hir::ResolvedGenericFunction { generic, type_args })
     }
 
+    pub(crate) fn register_method_parameters(
+        &mut self,
+        function: FunctionId,
+        owner_parameters: Vec<hir::TypeParamDecl>,
+        method_parameters: Vec<hir::TypeParamDecl>,
+    ) {
+        if method_parameters.is_empty() {
+            self.functions[function].genericity = if owner_parameters.is_empty() {
+                hir::FunctionGenericity::Plain
+            } else {
+                hir::FunctionGenericity::OwnerParameterizedMethod {
+                    owner_parameters,
+                    no_gc_type_params: Vec::new(),
+                }
+            };
+            return;
+        }
+        let method_parameters = hir::NonEmptyVec::from_vec(method_parameters)
+            .expect("generic method declarations have a non-empty method parameter group");
+        let definition = self.generic_methods.alloc(hir::GenericMethod {
+            function,
+            no_gc_type_params: Vec::new(),
+        });
+        self.functions[function].genericity = hir::FunctionGenericity::GenericMethod {
+            definition,
+            owner_parameters,
+            method_parameters,
+        };
+    }
+
+    pub(crate) fn record_method_application(
+        &mut self,
+        function: FunctionId,
+        owner: hir::MethodOwnerApplication,
+    ) -> hir::MethodApplicationId {
+        let key = (function, owner);
+        if let Some(&application) = self.method_application_by_key.get(&key) {
+            return application;
+        }
+        let application = self
+            .method_applications
+            .alloc(hir::MethodApplication { function, owner });
+        self.method_application_by_key.insert(key, application);
+        application
+    }
+
+    pub(crate) fn record_generic_method_application(
+        &mut self,
+        function: FunctionId,
+        owner: hir::GenericMethodOwner,
+        method_arguments: Vec<TypeId>,
+    ) -> hir::GenericMethodApplicationId {
+        let method = self.functions[function]
+            .generic_method_definition()
+            .expect("only a generic method has a generic method application");
+        let method_arguments = hir::NonEmptyVec::from_vec(method_arguments)
+            .expect("generic method applications have method arguments");
+        let key = (method, owner, method_arguments.clone());
+        if let Some(&application) = self.generic_method_application_by_key.get(&key) {
+            return application;
+        }
+        let application = self
+            .generic_method_applications
+            .alloc(hir::GenericMethodApplication {
+                method,
+                owner,
+                method_arguments,
+            });
+        self.generic_method_application_by_key
+            .insert(key, application);
+        application
+    }
+
+    pub(crate) fn materialize_candidate_callable(
+        &mut self,
+        candidate: &CallableCandidate,
+        type_arguments: &[TypeId],
+    ) -> hir::Callable {
+        match &candidate.owner {
+            CallableCandidateOwner::Function { .. } => {
+                match self.functions[candidate.function].genericity {
+                    hir::FunctionGenericity::Plain => hir::Callable::Function(candidate.function),
+                    hir::FunctionGenericity::Generic { .. } => hir::Callable::Generic(
+                        self.record_instantiation(candidate.function, type_arguments.to_vec()),
+                    ),
+                    hir::FunctionGenericity::OwnerParameterizedMethod { .. }
+                    | hir::FunctionGenericity::GenericMethod { .. } => {
+                        unreachable!("a method candidate has an exact method owner")
+                    }
+                }
+            }
+            CallableCandidateOwner::Method(owner) => {
+                match &self.functions[candidate.function].genericity {
+                    hir::FunctionGenericity::Plain
+                    | hir::FunctionGenericity::OwnerParameterizedMethod { .. } => {
+                        hir::Callable::Method(
+                            self.record_method_application(candidate.function, *owner),
+                        )
+                    }
+                    hir::FunctionGenericity::GenericMethod {
+                        method_parameters, ..
+                    } => {
+                        let method_arguments = method_parameters
+                            .iter()
+                            .map(|parameter| type_arguments[parameter.id.into_raw() as usize])
+                            .collect();
+                        hir::Callable::GenericMethod(self.record_generic_method_application(
+                            candidate.function,
+                            self.generic_method_owner(*owner),
+                            method_arguments,
+                        ))
+                    }
+                    hir::FunctionGenericity::Generic { .. } => {
+                        unreachable!("generic functions do not have nominal method owners")
+                    }
+                }
+            }
+        }
+    }
+
+    pub(crate) fn callable_function_id(&self, callable: hir::Callable) -> FunctionId {
+        match callable {
+            hir::Callable::Function(function) => function,
+            hir::Callable::Generic(instantiation) => {
+                let generic = self.instantiations[instantiation].generic;
+                self.generic_functions[generic].function
+            }
+            hir::Callable::Method(application) => self.method_applications[application].function,
+            hir::Callable::GenericMethod(application) => {
+                let method = self.generic_method_applications[application].method;
+                self.generic_methods[method].function
+            }
+        }
+    }
+
     /// The host type of a member-function owner: the class / interface
     /// / struct type, or the enum applied to its own type parameters
     /// (the form `this` has inside the enum's methods).
@@ -2915,6 +3123,63 @@ impl Lowerer {
             Owner::Enum(id) => self.enum_applications[self.enums[id].self_application]
                 .arguments
                 .clone(),
+        }
+    }
+
+    pub(crate) fn method_owner_application(
+        &mut self,
+        owner: Owner,
+        arguments: Vec<TypeId>,
+    ) -> hir::MethodOwnerApplication {
+        match owner {
+            Owner::Class(id) => {
+                hir::MethodOwnerApplication::Class(self.class_application_id(id, arguments))
+            }
+            Owner::Struct(id) => {
+                hir::MethodOwnerApplication::Struct(self.struct_application_id(id, arguments))
+            }
+            Owner::Enum(id) => {
+                hir::MethodOwnerApplication::Enum(self.enum_application_id(id, arguments))
+            }
+            Owner::Interface(id) => {
+                hir::MethodOwnerApplication::Interface(self.interface_application_id(id, arguments))
+            }
+        }
+    }
+
+    pub(crate) fn method_owner_arguments(&self, owner: hir::MethodOwnerApplication) -> &[TypeId] {
+        match owner {
+            hir::MethodOwnerApplication::Class(id) => &self.class_applications[id].arguments,
+            hir::MethodOwnerApplication::Struct(id) => &self.struct_applications[id].arguments,
+            hir::MethodOwnerApplication::Enum(id) => &self.enum_applications[id].arguments,
+            hir::MethodOwnerApplication::Interface(id) => {
+                &self.interface_applications[id].arguments
+            }
+            hir::MethodOwnerApplication::Any => &[],
+        }
+    }
+
+    pub(crate) fn callable_candidate_owner_arguments(
+        &self,
+        candidate: &CallableCandidate,
+    ) -> Vec<TypeId> {
+        match &candidate.owner {
+            CallableCandidateOwner::Function { owner_arguments } => owner_arguments.clone(),
+            CallableCandidateOwner::Method(owner) => self.method_owner_arguments(*owner).to_vec(),
+        }
+    }
+
+    pub(crate) fn generic_method_owner(
+        &self,
+        owner: hir::MethodOwnerApplication,
+    ) -> hir::GenericMethodOwner {
+        match owner {
+            hir::MethodOwnerApplication::Class(id) => hir::GenericMethodOwner::Class(id),
+            hir::MethodOwnerApplication::Struct(id) => hir::GenericMethodOwner::Struct(id),
+            hir::MethodOwnerApplication::Enum(id) => hir::GenericMethodOwner::Enum(id),
+            hir::MethodOwnerApplication::Interface(_) | hir::MethodOwnerApplication::Any => {
+                unreachable!("generic methods have class, struct, or enum owners")
+            }
         }
     }
 
@@ -3019,13 +3284,7 @@ impl Lowerer {
     /// no continuation. The resolved callable, including a generic
     /// instantiation, always leads back to exactly one function entity.
     pub(crate) fn check_suspend_call(&mut self, callable: hir::Callable, span: Span) {
-        let function = match callable {
-            hir::Callable::Function(function) => function,
-            hir::Callable::Generic(instantiation) => {
-                let generic = self.instantiations[instantiation].generic;
-                self.generic_functions[generic].function
-            }
-        };
+        let function = self.callable_function_id(callable);
         if !self.functions[function].is_suspend {
             return;
         }
@@ -3052,13 +3311,7 @@ impl Lowerer {
 
     pub(crate) fn check_call_effects(&mut self, callable: hir::Callable, span: Span) {
         self.check_suspend_call(callable, span);
-        let function = match callable {
-            hir::Callable::Function(function) => function,
-            hir::Callable::Generic(instantiation) => {
-                let generic = self.instantiations[instantiation].generic;
-                self.generic_functions[generic].function
-            }
-        };
+        let function = self.callable_function_id(callable);
         if self.functions[function].attributes.safety != hir::Safety::Unsafe {
             return;
         }

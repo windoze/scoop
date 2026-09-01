@@ -458,16 +458,10 @@ Module
   entry main
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>
-  instance Ptr.store<Int>
-  instance Ptr.load<Int>
-  instance Ptr.toUInt<Int>
-  instance Ptr.load<Int>
-  instance Ptr.cast<Int, Boolean>
-  instance Ptr.cast<Boolean, Int>
-  instance Ptr.store<Int>
-  instance Ptr.cast<Unit, Int>
-  instance Ptr.cast<Int, Unit>
-  instance Ptr.store<Slot>
+  method instance Ptr.cast<owner=[Int], method=[Boolean]>
+  method instance Ptr.cast<owner=[Boolean], method=[Int]>
+  method instance Ptr.cast<owner=[Unit], method=[Int]>
+  method instance Ptr.cast<owner=[Int], method=[Unit]>
 
 == mir ==
 Module

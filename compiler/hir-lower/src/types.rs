@@ -508,14 +508,12 @@ impl Lowerer {
                 Some(self.enum_application(enum_id, resolved))
             }
             ast::TypeRefKind::Named(name) => {
-                if let Some(index) = self
+                if let Some(parameter) = self
                     .type_params_in_scope
                     .iter()
-                    .position(|param| param.name == name.text)
+                    .find(|param| param.name == name.text)
                 {
-                    return Some(
-                        self.intern_type(Type::Param(hir::TypeParamId::from_raw(index as u32))),
-                    );
+                    return Some(self.intern_type(Type::Param(parameter.id)));
                 }
                 match name.text.as_str() {
                     "Unit" => Some(self.unit),
@@ -948,42 +946,26 @@ impl Lowerer {
         }
     }
 
-    /// Replace the owner-parameter prefix of a method signature and rebase
-    /// its remaining method parameters behind a target owner's prefix. This
-    /// is used when an interface method is compared with a concrete
-    /// implementation whose own generic host has a distinct parameter
-    /// namespace.
-    pub(crate) fn instantiate_method_owner_ty(
+    /// Apply an exact source-produced type-parameter relation while comparing
+    /// method signatures. Both owner substitutions and callable-parameter
+    /// alpha-renaming are explicit bindings; this routine never derives a
+    /// split point from an index.
+    pub(crate) fn instantiate_method_ty(
         &mut self,
         ty: TypeId,
-        owner_args: &[TypeId],
-        source_owner_count: usize,
-        target_owner_count: usize,
+        bindings: &[(hir::TypeParamId, TypeId)],
     ) -> TypeId {
         match self.types[ty].clone() {
-            Type::Param(index) => {
-                let index = index.into_raw() as usize;
-                if index < source_owner_count {
-                    owner_args[index]
-                } else {
-                    self.intern_type(Type::Param(hir::TypeParamId::from_raw(
-                        (target_owner_count + index - source_owner_count) as u32,
-                    )))
-                }
-            }
+            Type::Param(parameter) => bindings
+                .iter()
+                .find_map(|(source, target)| (*source == parameter).then_some(*target))
+                .expect("a complete method substitution binds every referenced parameter"),
             Type::Struct(application) => {
                 let application = self.struct_applications[application].clone();
                 let args = application
                     .arguments
                     .into_iter()
-                    .map(|arg| {
-                        self.instantiate_method_owner_ty(
-                            arg,
-                            owner_args,
-                            source_owner_count,
-                            target_owner_count,
-                        )
-                    })
+                    .map(|arg| self.instantiate_method_ty(arg, bindings))
                     .collect();
                 self.struct_application(application.template, args)
             }
@@ -992,14 +974,7 @@ impl Lowerer {
                 let args = application
                     .arguments
                     .into_iter()
-                    .map(|arg| {
-                        self.instantiate_method_owner_ty(
-                            arg,
-                            owner_args,
-                            source_owner_count,
-                            target_owner_count,
-                        )
-                    })
+                    .map(|arg| self.instantiate_method_ty(arg, bindings))
                     .collect();
                 self.class_application(application.template, args)
             }
@@ -1008,33 +983,16 @@ impl Lowerer {
                 let args = application
                     .arguments
                     .into_iter()
-                    .map(|arg| {
-                        self.instantiate_method_owner_ty(
-                            arg,
-                            owner_args,
-                            source_owner_count,
-                            target_owner_count,
-                        )
-                    })
+                    .map(|arg| self.instantiate_method_ty(arg, bindings))
                     .collect();
                 self.intern_interface_application(application.template, args)
             }
             Type::Array(element) => {
-                let element = self.instantiate_method_owner_ty(
-                    element,
-                    owner_args,
-                    source_owner_count,
-                    target_owner_count,
-                );
+                let element = self.instantiate_method_ty(element, bindings);
                 self.intern_type(Type::Array(element))
             }
             Type::MutableArray(element) => {
-                let element = self.instantiate_method_owner_ty(
-                    element,
-                    owner_args,
-                    source_owner_count,
-                    target_owner_count,
-                );
+                let element = self.instantiate_method_ty(element, bindings);
                 self.intern_type(Type::MutableArray(element))
             }
             Type::Enum(application) => {
@@ -1042,59 +1000,30 @@ impl Lowerer {
                 let args = application
                     .arguments
                     .into_iter()
-                    .map(|arg| {
-                        self.instantiate_method_owner_ty(
-                            arg,
-                            owner_args,
-                            source_owner_count,
-                            target_owner_count,
-                        )
-                    })
+                    .map(|arg| self.instantiate_method_ty(arg, bindings))
                     .collect();
                 self.enum_application(application.template, args)
             }
             Type::Tuple(elements) => {
                 let elements = elements
                     .into_iter()
-                    .map(|element| {
-                        self.instantiate_method_owner_ty(
-                            element,
-                            owner_args,
-                            source_owner_count,
-                            target_owner_count,
-                        )
-                    })
+                    .map(|element| self.instantiate_method_ty(element, bindings))
                     .collect();
                 self.intern_type(Type::Tuple(elements))
             }
             Type::Function(id) => self
                 .instantiate_function_type(id, |this, ty| {
-                    Some(this.instantiate_method_owner_ty(
-                        ty,
-                        owner_args,
-                        source_owner_count,
-                        target_owner_count,
-                    ))
+                    Some(this.instantiate_method_ty(ty, bindings))
                 })
                 .expect("complete owner substitution"),
             Type::Ptr(pointee) => {
-                let pointee = self.instantiate_method_owner_ty(
-                    pointee,
-                    owner_args,
-                    source_owner_count,
-                    target_owner_count,
-                );
+                let pointee = self.instantiate_method_ty(pointee, bindings);
                 self.intern_type(Type::Ptr(pointee))
             }
             Type::FunPtr(id) => {
                 let function = self
                     .instantiate_function_type(id, |this, ty| {
-                        Some(this.instantiate_method_owner_ty(
-                            ty,
-                            owner_args,
-                            source_owner_count,
-                            target_owner_count,
-                        ))
+                        Some(this.instantiate_method_ty(ty, bindings))
                     })
                     .expect("complete function pointer owner substitution");
                 let Type::Function(id) = self.types[function] else {
@@ -1236,7 +1165,8 @@ impl Lowerer {
             (_, Type::Any) => true,
             (Type::Param(parameter), _) => self
                 .type_params_in_scope
-                .get(parameter.into_raw() as usize)
+                .iter()
+                .find(|candidate| candidate.id == parameter)
                 .map(|parameter| parameter.interface_bounds().to_vec())
                 .unwrap_or_default()
                 .into_iter()
@@ -1446,7 +1376,8 @@ impl Lowerer {
             | Type::FunPtr(_) => true,
             Type::Param(index) => self
                 .type_params_in_scope
-                .get(index.into_raw() as usize)
+                .iter()
+                .find(|parameter| parameter.id == index)
                 .is_none_or(|param| param.kind() != hir::TypeParamKind::Ref),
             _ => false,
         }
@@ -1534,7 +1465,8 @@ impl Lowerer {
         if let Type::Param(index) = self.types[ty] {
             let actual = self
                 .type_params_in_scope
-                .get(index.into_raw() as usize)
+                .iter()
+                .find(|parameter| parameter.id == index)
                 .map(|param| param.kind())
                 .unwrap_or(hir::TypeParamKind::Any);
             return actual == required;
@@ -1941,7 +1873,8 @@ fn type_name(
             format!("{suspend}({}) -> {return_type}", parameters.join(", "))
         }
         Type::Param(index) => type_params
-            .get(index.into_raw() as usize)
+            .iter()
+            .find(|parameter| parameter.id == *index)
             .map(|param| param.name.clone())
             .unwrap_or_else(|| format!("T{}", index.into_raw())),
     }

@@ -397,12 +397,10 @@ pub enum ConstantValue {
 #[derive(Debug, Clone)]
 pub struct Function {
     pub name: String,
-    /// Concrete type arguments used to instantiate the source template.
-    /// Empty for an originally non-generic function.
-    pub type_arguments: Vec<TypeId>,
-    /// Present only when same-qualified-name generic overloads require a
-    /// stable discriminator in MIR's symbol mangling.
-    pub generic_discriminator: Option<u32>,
+    /// Complete source/application category. MIR consumes this sum type
+    /// directly and never infers genericity or method ownership from an
+    /// argument vector, function name, or the optional `method` field.
+    pub origin: FunctionOrigin,
     pub is_suspend: bool,
     pub params: Vec<Param>,
     pub return_ty: TypeId,
@@ -410,6 +408,56 @@ pub struct Function {
     pub kind: FunctionKind,
     pub method: Option<Method>,
     pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FunctionOrigin {
+    Free(FreeFunctionOrigin),
+    Method(MethodOrigin),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FreeFunctionOrigin {
+    Plain,
+    Generic {
+        definition: super::GenericFunctionId,
+        arguments: Vec<TypeId>,
+        symbol: InstanceSymbol,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MethodOrigin {
+    pub owner: MethodOwner,
+    pub specialization: MethodSpecialization,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum MethodOwner {
+    Class(ClassId),
+    Struct(StructId),
+    Enum(EnumId),
+    Interface(InterfaceId),
+    Any,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MethodSpecialization {
+    Plain,
+    OwnerParameterized {
+        symbol: InstanceSymbol,
+    },
+    Generic {
+        definition: super::GenericMethodId,
+        method_arguments: super::NonEmptyVec<TypeId>,
+        symbol: InstanceSymbol,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InstanceSymbol {
+    Unique,
+    Overloaded { discriminator: u32 },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

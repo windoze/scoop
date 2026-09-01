@@ -433,7 +433,7 @@ Module
           IntLiteral 5 : Int
     Call println : Unit
       Box : Any
-        CallableCall function_type2 : Int
+        CallableCall function_type4 : Int
           Local add : (Int) -> Int
           IntLiteral 40 : Int
     Call println : Unit
@@ -444,7 +444,7 @@ Module
         Call genericLocal : Int
     Call println : Unit
       Box : Any
-        CallableCall function_type2 : Int
+        CallableCall function_type4 : Int
           Call genericReference : (Int) -> Int
           IntLiteral 42 : Int
     Call println : Unit
@@ -456,7 +456,7 @@ Module
         Call recursiveCapture : Int
           IntLiteral 42 : Int
     Call println : Unit
-      CallableCall function_type3 : Any
+      CallableCall function_type5 : Any
         Local read : () -> String
     Call println : Unit
       Box : Any

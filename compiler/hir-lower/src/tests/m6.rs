@@ -1500,8 +1500,9 @@ fn final_generic_member_functions_are_resolved() {
     ]);
     let module = lower_user(file).expect("a final generic method must lower");
     let method = find_fn(&module, "C.id");
+    assert_eq!(module.functions[method].type_param_count(), 1);
     assert_eq!(module.functions[method].type_params()[0].name, "T");
-    let hir::FunctionGenericity::Generic {
+    let hir::FunctionGenericity::GenericMethod {
         definition: generic,
         ..
     } = module.functions[method].genericity
@@ -1509,11 +1510,12 @@ fn final_generic_member_functions_are_resolved() {
         panic!("C.id generic entity")
     };
     let (_, request) = module
-        .instantiations
+        .generic_method_applications
         .iter()
-        .find(|(_, request)| request.generic == generic)
+        .find(|(_, request)| request.method == generic)
         .expect("the call requests an instance");
-    assert_eq!(request.type_args, [module.string]);
+    assert_eq!(request.method_arguments.to_vec(), [module.string]);
+    assert!(matches!(request.owner, hir::GenericMethodOwner::Class(_)));
 }
 
 // --- negative: method calls, fields, assignment ---

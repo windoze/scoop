@@ -429,26 +429,26 @@ Module
     Call gcCollect : Unit
     Call println : Unit
       Box : Any
-        CallableCall function_type2 : Int
+        CallableCall function_type4 : Int
           Local inferred : (Int) -> Int
           IntLiteral 41 : Int
     Call println : Unit
       Box : Any
-        CallableCall function_type2 : Int
+        CallableCall function_type4 : Int
           Local generic : (Int) -> Int
           IntLiteral 42 : Int
     Call println : Unit
-      CallableCall function_type3 : Any
+      CallableCall function_type5 : Any
         Local overloaded : (String) -> String
         StringLiteral "string" : String
     Call println : Unit
       Box : Any
-        CallableCall function_type2 : Int
+        CallableCall function_type4 : Int
           Local once : (Int) -> Int
           IntLiteral 21 : Int
     Call println : Unit
       Box : Any
-        CallableCall function_type2 : Int
+        CallableCall function_type4 : Int
           Local virtual : (Int) -> Int
           IntLiteral 21 : Int
     Call println : Unit
@@ -457,12 +457,12 @@ Module
           Local selected : BaseMapper
           IntLiteral 21 : Int
     Call println : Unit
-      CallableCall function_type3 : Any
+      CallableCall function_type5 : Any
         Local interfaceReference : (String) -> String
         StringLiteral "alive" : String
     Call println : Unit
       Box : Any
-        CallableCall function_type2 : Int
+        CallableCall function_type4 : Int
           Local valueReference : (Int) -> Int
           IntLiteral 40 : Int
     Call println : Unit
@@ -471,18 +471,18 @@ Module
           Local valueMapper : ValueMapper
           IntLiteral 40 : Int
     Call println : Unit
-      CallableCall function_type3 : Any
+      CallableCall function_type5 : Any
         Local genericMember : (String) -> String
         StringLiteral "generic" : String
     Call println : Unit
       Box : Any
-        CallableCall function_type2 : Int
+        CallableCall function_type4 : Int
           Local concreteWins : (Int) -> Int
           IntLiteral 1 : Int
     try
       Call println : Unit
         Box : Any
-          CallableCall function_type2 : Int
+          CallableCall function_type4 : Int
             Local throwing : (Int) -> Int
             IntLiteral 0 : Int
     catch exception: ArithmeticException
@@ -492,7 +492,7 @@ Module
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>
   instance identity<Int>
-  instance GenericMapper.choose<String>
+  method instance GenericMapper.choose<owner=[], method=[String]>
 
 == mir ==
 Module

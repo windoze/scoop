@@ -5,42 +5,52 @@ use scoop_hir as hir;
 
 use crate::Lowerer;
 
-#[derive(Debug, Clone, Copy)]
-struct GenericCallSite {
-    caller: hir::FunctionId,
-    instantiation: hir::ResolvedGenericFunctionId,
-    span: Span,
+#[derive(Debug, Clone)]
+pub(super) struct GenericCallSite {
+    pub(super) caller: hir::FunctionId,
+    pub(super) callee: hir::FunctionId,
+    /// Complete declaration-parameter to application-argument relation. It
+    /// is built from the exact callable application variants; consumers do
+    /// not split or reconstruct an argument vector.
+    pub(super) arguments: Vec<(hir::TypeParamId, hir::TypeId)>,
+    pub(super) span: Span,
+}
+
+impl GenericCallSite {
+    fn argument(&self, parameter: hir::TypeParamId) -> hir::TypeId {
+        self.arguments
+            .iter()
+            .find_map(|(candidate, argument)| (*candidate == parameter).then_some(*argument))
+            .expect("every parameterized call application binds every declaration parameter")
+    }
 }
 
 impl Lowerer {
     pub(super) fn validate_no_gc_instantiations(&mut self) {
         let call_sites = self.generic_call_sites();
 
-        // A generic caller inherits the concrete GC-free preconditions of
-        // every generic callee. Iterate to a fixed point so wrappers and
-        // mutually recursive generic call graphs retain the full condition.
+        // A parameterized caller inherits the concrete GC-free preconditions
+        // of every parameterized callee. Iterate to a fixed point so wrappers
+        // and mutually recursive call graphs retain the full condition.
         loop {
             let mut additions = Vec::new();
             for call_site in &call_sites {
-                let Some(caller_generic) = self.functions[call_site.caller].generic_definition()
-                else {
+                if self.functions[call_site.caller].type_param_count() == 0 {
                     continue;
-                };
-                let instantiation = &self.instantiations[call_site.instantiation];
-                let callee_requirements = self.generic_functions[instantiation.generic]
-                    .no_gc_type_params
-                    .clone();
+                }
+                let callee_requirements =
+                    self.function_no_gc_requirements(call_site.callee).to_vec();
                 for parameter in callee_requirements {
-                    let argument = instantiation.type_args[parameter.into_raw() as usize];
+                    let argument = call_site.argument(parameter);
                     let Some(mapped) = self.gc_free_requirements(argument) else {
                         continue;
                     };
                     for mapped_parameter in mapped {
-                        if !self.generic_functions[caller_generic]
-                            .no_gc_type_params
+                        if !self
+                            .function_no_gc_requirements(call_site.caller)
                             .contains(&mapped_parameter)
                         {
-                            additions.push((caller_generic, mapped_parameter));
+                            additions.push((call_site.caller, mapped_parameter));
                         }
                     }
                 }
@@ -48,44 +58,31 @@ impl Lowerer {
             if additions.is_empty() {
                 break;
             }
-            for (generic, parameter) in additions {
-                let requirements = &mut self.generic_functions[generic].no_gc_type_params;
-                if !requirements.contains(&parameter) {
-                    requirements.push(parameter);
-                }
-            }
-            for (_, generic) in self.generic_functions.iter_mut() {
-                generic
-                    .no_gc_type_params
-                    .sort_by_key(|parameter| parameter.into_raw());
+            for (function, parameter) in additions {
+                self.add_function_no_gc_requirement(function, parameter);
             }
         }
 
         // A ref-bound parameter can never satisfy a GC-free precondition.
-        // Diagnose this on the generic definition even if no concrete caller
-        // has instantiated it yet.
+        // Diagnose this on the exact callable declaration even if no concrete
+        // caller has instantiated it yet.
         let impossible_requirements: Vec<_> = self
-            .generic_functions
+            .functions
             .iter()
-            .flat_map(|(_, generic)| {
-                let function = &self.functions[generic.function];
-                generic
-                    .no_gc_type_params
+            .flat_map(|(function_id, function)| {
+                self.function_no_gc_requirements(function_id)
                     .iter()
                     .copied()
                     .filter(|parameter| {
-                        function.type_params()[parameter.into_raw() as usize].kind()
-                            == hir::TypeParamKind::Ref
+                        function.type_param(*parameter).kind() == hir::TypeParamKind::Ref
                     })
                     .map(|parameter| {
                         (
-                            generic.function,
+                            function_id,
                             parameter,
                             function.span,
                             function.name.clone(),
-                            function.type_params()[parameter.into_raw() as usize]
-                                .name
-                                .clone(),
+                            function.type_param(parameter).name.clone(),
                         )
                     })
                     .collect::<Vec<_>>()
@@ -106,17 +103,13 @@ impl Lowerer {
         }
 
         for call_site in call_sites {
-            let instantiation = self.instantiations[call_site.instantiation].clone();
-            let generic = self.generic_functions[instantiation.generic].clone();
-            let requirements = generic.no_gc_type_params;
+            let requirements = self.function_no_gc_requirements(call_site.callee).to_vec();
             if requirements.is_empty() {
                 continue;
             }
-            let callee = self.functions[generic.function].clone();
-            let caller_requirements = match self.functions[call_site.caller].generic_definition() {
-                None => None,
-                Some(caller) => Some(self.generic_functions[caller].no_gc_type_params.clone()),
-            };
+            let callee = self.functions[call_site.callee].clone();
+            let caller_requirements = (self.functions[call_site.caller].type_param_count() != 0)
+                .then(|| self.function_no_gc_requirements(call_site.caller).to_vec());
             self.current_file = self
                 .function_files
                 .get(&call_site.caller)
@@ -124,8 +117,7 @@ impl Lowerer {
                 .unwrap_or(self.user_file_index);
 
             for parameter in requirements {
-                let index = parameter.into_raw() as usize;
-                let argument = instantiation.type_args[index];
+                let argument = call_site.argument(parameter);
                 let valid = match self.gc_free_requirements(argument) {
                     Some(mapped) if mapped.is_empty() => true,
                     Some(mapped) => caller_requirements
@@ -140,7 +132,7 @@ impl Lowerer {
                             "generic function `{}` requires type argument {} for `{}` to be GC-free",
                             callee.name,
                             self.type_name(argument),
-                            callee.type_params()[index].name
+                            callee.type_param(parameter).name
                         ),
                     );
                 }
@@ -148,7 +140,66 @@ impl Lowerer {
         }
     }
 
-    fn generic_call_sites(&self) -> Vec<GenericCallSite> {
+    pub(super) fn set_function_no_gc_requirements(
+        &mut self,
+        function: hir::FunctionId,
+        mut requirements: Vec<hir::TypeParamId>,
+    ) {
+        requirements.sort_by_key(|parameter| parameter.into_raw());
+        requirements.dedup();
+        match self.functions[function].genericity.clone() {
+            hir::FunctionGenericity::Plain => {
+                assert!(
+                    requirements.is_empty(),
+                    "a parameter-free function cannot have type-parameter requirements"
+                );
+            }
+            hir::FunctionGenericity::Generic { definition, .. } => {
+                self.generic_functions[definition].no_gc_type_params = requirements;
+            }
+            hir::FunctionGenericity::OwnerParameterizedMethod { .. } => {
+                let hir::FunctionGenericity::OwnerParameterizedMethod {
+                    no_gc_type_params, ..
+                } = &mut self.functions[function].genericity
+                else {
+                    unreachable!("the matched genericity remains stable")
+                };
+                *no_gc_type_params = requirements;
+            }
+            hir::FunctionGenericity::GenericMethod { definition, .. } => {
+                self.generic_methods[definition].no_gc_type_params = requirements;
+            }
+        }
+    }
+
+    fn function_no_gc_requirements(&self, function: hir::FunctionId) -> &[hir::TypeParamId] {
+        match &self.functions[function].genericity {
+            hir::FunctionGenericity::Plain => &[],
+            hir::FunctionGenericity::Generic { definition, .. } => {
+                &self.generic_functions[*definition].no_gc_type_params
+            }
+            hir::FunctionGenericity::OwnerParameterizedMethod {
+                no_gc_type_params, ..
+            } => no_gc_type_params,
+            hir::FunctionGenericity::GenericMethod { definition, .. } => {
+                &self.generic_methods[*definition].no_gc_type_params
+            }
+        }
+    }
+
+    fn add_function_no_gc_requirement(
+        &mut self,
+        function: hir::FunctionId,
+        parameter: hir::TypeParamId,
+    ) {
+        let mut requirements = self.function_no_gc_requirements(function).to_vec();
+        if !requirements.contains(&parameter) {
+            requirements.push(parameter);
+            self.set_function_no_gc_requirements(function, requirements);
+        }
+    }
+
+    pub(super) fn generic_call_sites(&self) -> Vec<GenericCallSite> {
         let mut out = Vec::new();
         for (caller, function) in self.functions.iter() {
             let hir::FunctionKind::User(body) = &function.kind else {
@@ -157,6 +208,93 @@ impl Lowerer {
             self.collect_generic_calls_in_statements(caller, &body.statements, &mut out);
         }
         out
+    }
+
+    fn generic_call_site(
+        &self,
+        caller: hir::FunctionId,
+        callable: hir::Callable,
+        span: Span,
+    ) -> Option<GenericCallSite> {
+        let (callee, arguments) = match callable {
+            hir::Callable::Function(_) => return None,
+            hir::Callable::Generic(application) => {
+                let application = &self.instantiations[application];
+                let generic = &self.generic_functions[application.generic];
+                let hir::FunctionGenericity::Generic { parameters, .. } =
+                    &self.functions[generic.function].genericity
+                else {
+                    unreachable!("a generic application names a generic function declaration")
+                };
+                assert_eq!(parameters.len(), application.type_args.len());
+                let arguments = parameters
+                    .iter()
+                    .zip(application.type_args.iter().copied())
+                    .map(|(parameter, argument)| (parameter.id, argument))
+                    .collect();
+                (generic.function, arguments)
+            }
+            hir::Callable::Method(application) => {
+                let application = &self.method_applications[application];
+                let hir::FunctionGenericity::OwnerParameterizedMethod {
+                    owner_parameters, ..
+                } = &self.functions[application.function].genericity
+                else {
+                    // Parameter-free ordinary methods have no generic GC-free
+                    // preconditions and therefore need no call-site record.
+                    return None;
+                };
+                let owner_arguments = self.method_owner_arguments(application.owner);
+                assert_eq!(owner_parameters.len(), owner_arguments.len());
+                let arguments = owner_parameters
+                    .iter()
+                    .zip(owner_arguments.iter().copied())
+                    .map(|(parameter, argument)| (parameter.id, argument))
+                    .collect();
+                (application.function, arguments)
+            }
+            hir::Callable::GenericMethod(application) => {
+                let application = &self.generic_method_applications[application];
+                let method = &self.generic_methods[application.method];
+                let hir::FunctionGenericity::GenericMethod {
+                    owner_parameters,
+                    method_parameters,
+                    ..
+                } = &self.functions[method.function].genericity
+                else {
+                    unreachable!("a generic method application names a generic method declaration")
+                };
+                let owner_arguments = self.generic_method_owner_arguments(application.owner);
+                assert_eq!(owner_parameters.len(), owner_arguments.len());
+                assert_eq!(method_parameters.len(), application.method_arguments.len());
+                let mut arguments = owner_parameters
+                    .iter()
+                    .zip(owner_arguments.iter().copied())
+                    .map(|(parameter, argument)| (parameter.id, argument))
+                    .collect::<Vec<_>>();
+                arguments.extend(
+                    method_parameters
+                        .iter()
+                        .zip(application.method_arguments.iter().copied())
+                        .map(|(parameter, argument)| (parameter.id, argument)),
+                );
+                (method.function, arguments)
+            }
+        };
+        Some(GenericCallSite {
+            caller,
+            callee,
+            arguments,
+            span,
+        })
+    }
+
+    fn generic_method_owner_arguments(&self, owner: hir::GenericMethodOwner) -> &[hir::TypeId] {
+        match owner {
+            hir::GenericMethodOwner::Class(id) => &self.class_applications[id].arguments,
+            hir::GenericMethodOwner::Struct(id) => &self.struct_applications[id].arguments,
+            hir::GenericMethodOwner::Enum(id) => &self.enum_applications[id].arguments,
+        }
     }
 
     fn collect_generic_calls_in_statements(
@@ -265,12 +403,8 @@ impl Lowerer {
         use hir::ExprKind;
 
         let mut record = |callable: hir::Callable| {
-            if let hir::Callable::Generic(instantiation) = callable {
-                out.push(GenericCallSite {
-                    caller,
-                    instantiation,
-                    span: expr.span,
-                });
+            if let Some(call_site) = self.generic_call_site(caller, callable, expr.span) {
+                out.push(call_site);
             }
         };
         match &expr.kind {
@@ -305,10 +439,16 @@ impl Lowerer {
             ExprKind::CallableReference(reference) => {
                 let reference = &self.callable_references[*reference];
                 match &reference.target {
-                    hir::CallableReferenceTarget::Named(_)
-                    | hir::CallableReferenceTarget::Local { .. } => {}
-                    hir::CallableReferenceTarget::BoundMember { receiver, .. }
-                    | hir::CallableReferenceTarget::BoundExtension { receiver, .. } => {
+                    hir::CallableReferenceTarget::Named(callee) => record(*callee),
+                    hir::CallableReferenceTarget::Local { callee, .. } => record(*callee),
+                    hir::CallableReferenceTarget::BoundMember { receiver, callee } => {
+                        if let hir::MethodCallee::Callable(callee) = callee {
+                            record(*callee);
+                        }
+                        self.collect_generic_calls_in_expr(caller, receiver, out);
+                    }
+                    hir::CallableReferenceTarget::BoundExtension { receiver, callee } => {
+                        record(*callee);
                         self.collect_generic_calls_in_expr(caller, receiver, out);
                     }
                 }

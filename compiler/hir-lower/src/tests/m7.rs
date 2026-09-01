@@ -92,6 +92,32 @@ fn has_instantiation(
     })
 }
 
+fn has_method_application(
+    module: &hir::Module,
+    function: hir::FunctionId,
+    owner_arguments: &[hir::TypeId],
+) -> bool {
+    module.method_applications.iter().any(|(_, application)| {
+        if application.function != function {
+            return false;
+        }
+        let arguments: &[hir::TypeId] = match application.owner {
+            hir::MethodOwnerApplication::Class(owner) => {
+                &module.class_applications[owner].arguments
+            }
+            hir::MethodOwnerApplication::Struct(owner) => {
+                &module.struct_applications[owner].arguments
+            }
+            hir::MethodOwnerApplication::Enum(owner) => &module.enum_applications[owner].arguments,
+            hir::MethodOwnerApplication::Interface(owner) => {
+                &module.interface_applications[owner].arguments
+            }
+            hir::MethodOwnerApplication::Any => &[],
+        };
+        arguments == owner_arguments
+    })
+}
+
 // --- declaration rules (DESIGN 1.1) ---
 
 #[test]
@@ -572,7 +598,7 @@ fn non_generic_wins_ties_against_generic() {
     let hir::ExprKind::Call { callee, .. } = &nested.kind else {
         panic!("expected a nested call")
     };
-    assert!(module.callable_type_args(*callee).is_empty());
+    assert!(matches!(callee, hir::Callable::Function(id) if *id == concrete));
 
     // `id("s")`: only the generic candidate is applicable, with
     // `T = String` inferred and recorded.
@@ -1047,8 +1073,8 @@ fn enum_method_overloads_instantiate_with_the_receiver() {
 
     // The chosen enum methods request instantiations with the
     // receiver's type arguments.
-    assert!(has_instantiation(&module, pick_t, &[module.string]));
-    assert!(has_instantiation(&module, pick_int, &[module.int]));
+    assert!(has_method_application(&module, pick_t, &[module.string]));
+    assert!(has_method_application(&module, pick_int, &[module.int]));
 }
 
 // --- entry point ---

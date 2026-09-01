@@ -258,7 +258,7 @@ Module
     try
       Call println : Unit
         Box : Any
-          CallableCall function_type2 : Int
+          CallableCall function_type4 : Int
             Local operation : (Int) -> Int
             IntLiteral 0 : Int
     catch exception: ArithmeticException

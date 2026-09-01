@@ -473,7 +473,7 @@ Module
         FunctionAddress transform : FunPtr<(Int) -> Int>
     Call println : Unit
       Box : Any
-        CallableCall function_type2 : Int
+        CallableCall function_type4 : Int
           Local managed : (Int) -> Int
           IntLiteral 40 : Int
     Call println : Unit

@@ -291,8 +291,6 @@ Module
   entry main
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>
-  instance Box.get<Int>
-  instance Box.get<String>
 
 == mir ==
 Module

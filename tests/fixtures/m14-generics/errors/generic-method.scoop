@@ -1,0 +1,13 @@
+interface Marker {}
+
+struct Host<T>(val owner: T) {
+    fun <U : Marker> accept(value: U): U = value
+
+    fun <U> grow(value: U) {
+        grow<U?>(Some(value))
+    }
+}
+
+fun main() {
+    Host(1).accept(2)
+}

@@ -761,8 +761,6 @@ Module
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>
   instance suspendCoroutine<Int>
-  instance Continuation.resume<Int>
-  instance Continuation.resumeWithException<Int>
   instance startCoroutine<Int>
   instance startCoroutine<Unit>
   instance constantTask<Int>
@@ -901,8 +899,8 @@ Module
   class CoroutineAdapter$scoop__lambda_21_suspend$1 vtable=3 itables=1
   class CoroutineFrame$scoop__lambda_22_suspend vtable=3 itables=0
   class CoroutineAdapter$scoop__lambda_22_suspend$1 vtable=3 itables=1
-  class CoroutineFrame$scoop_suspendCoroutine_I_g3_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop_suspendCoroutine_I_g3_suspend$1 vtable=3 itables=1
+  class CoroutineFrame$scoop_suspendCoroutine_I_g12_suspend vtable=3 itables=0
+  class CoroutineAdapter$scoop_suspendCoroutine_I_g12_suspend$1 vtable=3 itables=1
   class CoroutineFrame$scoop_FunctionSuspendTask_run_I_suspend vtable=3 itables=0
   class CoroutineAdapter$scoop_FunctionSuspendTask_run_I_suspend$1 vtable=3 itables=1
   class CoroutineFrame$scoop_FunctionSuspendTask_run_U_suspend vtable=3 itables=0
@@ -1251,7 +1249,7 @@ Module
       val task: suspend () -> Int
         ClosureAlloc cc12 $Closure$lambda12
       call $call.1: Continuation$I = @scoop.ctor.Done direct
-      call @scoop.startCoroutine$I.g2 direct
+      call @scoop.startCoroutine$I.g11 direct
         Local task
         Local $call.1
       call @scoop.println direct
@@ -1261,7 +1259,7 @@ Module
       call $call.2: suspend () -> Int = @scoop.makeTask direct
         Local gate
       call $call.3: Continuation$I = @scoop.ctor.Done direct
-      call @scoop.startCoroutine$I.g2 direct
+      call @scoop.startCoroutine$I.g11 direct
         Local $call.2
         Local $call.3
       call @scoop.println direct
@@ -1273,7 +1271,7 @@ Module
       val top: suspend () -> Int
         ClosureAlloc cc30 $Closure$reference3
       call $call.4: Continuation$I = @scoop.ctor.Done direct
-      call @scoop.startCoroutine$I.g2 direct
+      call @scoop.startCoroutine$I.g11 direct
         Local top
         Local $call.4
       val erased: Any
@@ -1298,25 +1296,25 @@ Module
         ClosureAlloc cc35 $Closure$dynamic_adapter$SRIX
           Local $cast.1
       call $call.6: Continuation$I = @scoop.ctor.Done direct
-      call @scoop.startCoroutine$I.g2 direct
+      call @scoop.startCoroutine$I.g11 direct
         Local checked
         Local $call.6
       val anonymous: suspend () -> Int
         ClosureAlloc cc25 $Closure$anonymous0
       call $call.7: Continuation$I = @scoop.ctor.Done direct
-      call @scoop.startCoroutine$I.g2 direct
+      call @scoop.startCoroutine$I.g11 direct
         Local anonymous
         Local $call.7
       val unitTask: suspend () -> Unit
         ClosureAlloc cc13 $Closure$lambda13
       call $call.8: Continuation$U = @scoop.ctor.UnitDone direct
-      call @scoop.startCoroutine$U.g2 direct
+      call @scoop.startCoroutine$U.g11 direct
         Local unitTask
         Local $call.8
       val failing: suspend () -> Int
         ClosureAlloc cc26 $Closure$anonymous1
       call $call.9: Continuation$I = @scoop.ctor.Done direct
-      call @scoop.startCoroutine$I.g2 direct
+      call @scoop.startCoroutine$I.g11 direct
         Local failing
         Local $call.9
       call boundGate: Gate = @scoop.ctor.Gate direct
@@ -1327,7 +1325,7 @@ Module
         ClosureAlloc cc31 $Closure$reference4
           Local $call.10
       call $call.11: Continuation$I = @scoop.ctor.Done direct
-      call @scoop.startCoroutine$I.g2 direct
+      call @scoop.startCoroutine$I.g11 direct
         Local bound
         Local $call.11
       call @scoop.Gate.complete direct
@@ -1341,7 +1339,7 @@ Module
         ClosureAlloc cc32 $Closure$reference5
           Local interfaceValue
       call $call.12: Continuation$I = @scoop.ctor.Done direct
-      call @scoop.startCoroutine$I.g2 direct
+      call @scoop.startCoroutine$I.g11 direct
         Local interfaceBound
         Local $call.12
       call @scoop.Gate.complete direct
@@ -1352,7 +1350,7 @@ Module
       call $call.13: suspend () -> Int = @scoop.localTask direct
         Local localGate
       call $call.14: Continuation$I = @scoop.ctor.Done direct
-      call @scoop.startCoroutine$I.g2 direct
+      call @scoop.startCoroutine$I.g11 direct
         Local $call.13
         Local $call.14
       call @scoop.Gate.complete direct
@@ -1360,38 +1358,38 @@ Module
         IntLiteral 47
       call $call.15: suspend () -> Int = @scoop.varianceTask direct
       call $call.16: Continuation$I = @scoop.ctor.Done direct
-      call @scoop.startCoroutine$I.g2 direct
+      call @scoop.startCoroutine$I.g11 direct
         Local $call.15
         Local $call.16
       call $call.17: suspend () -> Int = @scoop.dynamicVarianceTask direct
       call $call.18: Continuation$I = @scoop.ctor.Done direct
-      call @scoop.startCoroutine$I.g2 direct
+      call @scoop.startCoroutine$I.g11 direct
         Local $call.17
         Local $call.18
       call $call.19: suspend () -> Int = @scoop.constantTask$I direct
         IntLiteral 48
       call $call.20: Continuation$I = @scoop.ctor.Done direct
-      call @scoop.startCoroutine$I.g2 direct
+      call @scoop.startCoroutine$I.g11 direct
         Local $call.19
         Local $call.20
       call $call.21: Continuation$I = @scoop.ctor.Done direct
-      call @scoop.startCoroutine$I.g2 direct
+      call @scoop.startCoroutine$I.g11 direct
         ClosureAlloc cc14 $Closure$lambda14
         Local $call.21
       call $call.22: Continuation$I = @scoop.ctor.Done direct
-      call @scoop.startCoroutine$I.g2 direct
+      call @scoop.startCoroutine$I.g11 direct
         ClosureAlloc cc15 $Closure$lambda15
         Local $call.22
       call $call.23: Continuation$I = @scoop.ctor.Done direct
-      call @scoop.startCoroutine$I.g2 direct
+      call @scoop.startCoroutine$I.g11 direct
         ClosureAlloc cc16 $Closure$lambda16
         Local $call.23
       call $call.24: Continuation$I = @scoop.ctor.Done direct
-      call @scoop.startCoroutine$I.g2 direct
+      call @scoop.startCoroutine$I.g11 direct
         ClosureAlloc cc17 $Closure$lambda17
         Local $call.24
       call $call.25: Continuation$I = @scoop.ctor.Done direct
-      call @scoop.startCoroutine$I.g2 direct
+      call @scoop.startCoroutine$I.g11 direct
         ClosureAlloc cc18 $Closure$lambda18
         Local $call.25
       call nestedGate: Gate = @scoop.ctor.Gate direct
@@ -1399,7 +1397,7 @@ Module
       call $call.26: suspend () -> Int = @scoop.nestedTask direct
         Local nestedGate
       call $call.27: Continuation$I = @scoop.ctor.Done direct
-      call @scoop.startCoroutine$I.g2 direct
+      call @scoop.startCoroutine$I.g11 direct
         Local $call.26
         Local $call.27
       call @scoop_rt_gc_collect direct
@@ -1411,7 +1409,7 @@ Module
       call $call.28: suspend () -> Int = @scoop.failureTask direct
         Local failureGate
       call $call.29: Continuation$I = @scoop.ctor.Done direct
-      call @scoop.startCoroutine$I.g2 direct
+      call @scoop.startCoroutine$I.g11 direct
         Local $call.28
         Local $call.29
       call $call.30: Throwable = @scoop.ctor.ArithmeticException direct
@@ -1707,22 +1705,22 @@ Module
         VariantConstruct Option$Continuation$I<Continuation$I> v0
           Local continuation
       return
-  fun suspendCoroutine @scoop.suspendCoroutine$I.g3$suspend(registration: (Continuation$I) -> Unit, $completion: Continuation$I) -> CoroutineStep$I
+  fun suspendCoroutine @scoop.suspendCoroutine$I.g12$suspend(registration: (Continuation$I) -> Unit, $completion: Continuation$I) -> CoroutineStep$I
     bb0 entry
-      val $frame: CoroutineFrame$scoop_suspendCoroutine_I_g3_suspend
-        ClassInit CoroutineFrame$scoop_suspendCoroutine_I_g3_suspend
+      val $frame: CoroutineFrame$scoop_suspendCoroutine_I_g12_suspend
+        ClassInit CoroutineFrame$scoop_suspendCoroutine_I_g12_suspend
           IntLiteral 0
           Local $completion
           VariantConstruct CoroutineSlot$FContinuation$IRUX v1
             Local registration
           VariantConstruct CoroutineSlot$I v0
           VariantConstruct CoroutineSlot$Throwable v0
-      call $step: CoroutineStep$I = @scoop.suspendCoroutine$I.g3$suspend$drive direct
+      call $step: CoroutineStep$I = @scoop.suspendCoroutine$I.g12$suspend$drive direct
         Local $frame
         IntLiteral 0
       return
         Local $step
-  fun startCoroutine @scoop.startCoroutine$I.g2(task: suspend () -> Int, completion: Continuation$I) -> Unit
+  fun startCoroutine @scoop.startCoroutine$I.g11(task: suspend () -> Int, completion: Continuation$I) -> Unit
     bb0 entry
       call @scoop.coroutine.start$I direct
         Box
@@ -1730,7 +1728,7 @@ Module
             Local task
         Local completion
       return
-  fun startCoroutine @scoop.startCoroutine$U.g2(task: suspend () -> Unit, completion: Continuation$U) -> Unit
+  fun startCoroutine @scoop.startCoroutine$U.g11(task: suspend () -> Unit, completion: Continuation$U) -> Unit
     bb0 entry
       call @scoop.coroutine.start$U direct
         Box
@@ -3788,7 +3786,7 @@ Module
         ClassInit CoroutineAdapter$scoop_Worker_await_suspend$1
           Local $frame
           IntLiteral 1
-      call $step.1: CoroutineStep$I = @scoop.suspendCoroutine$I.g3$suspend direct
+      call $step.1: CoroutineStep$I = @scoop.suspendCoroutine$I.g12$suspend direct
         ClosureAlloc cc0 $Closure$lambda0
           Local this
         Local $adapter.1
@@ -4043,7 +4041,7 @@ Module
         ClassInit CoroutineAdapter$scoop_AsyncWorker_read_suspend$1
           Local $frame
           IntLiteral 1
-      call $step.1: CoroutineStep$I = @scoop.suspendCoroutine$I.g3$suspend direct
+      call $step.1: CoroutineStep$I = @scoop.suspendCoroutine$I.g12$suspend direct
         ClosureAlloc cc1 $Closure$lambda1
           Local this
         Local $adapter.1
@@ -4820,7 +4818,7 @@ Module
         ClassInit CoroutineAdapter$scoop_synchronousValue_suspend$1
           Local $frame
           IntLiteral 1
-      call $step.1: CoroutineStep$I = @scoop.suspendCoroutine$I.g3$suspend direct
+      call $step.1: CoroutineStep$I = @scoop.suspendCoroutine$I.g12$suspend direct
         ClosureAlloc cc6 $Closure$lambda6
         Local $adapter.1
       branch bb5 bb6
@@ -5070,7 +5068,7 @@ Module
         ClassInit CoroutineAdapter$scoop_synchronousFailure_suspend$1
           Local $frame
           IntLiteral 1
-      call $step.1: CoroutineStep$I = @scoop.suspendCoroutine$I.g3$suspend direct
+      call $step.1: CoroutineStep$I = @scoop.suspendCoroutine$I.g12$suspend direct
         ClosureAlloc cc7 $Closure$lambda7
         Local $adapter.1
       branch bb5 bb6
@@ -5320,7 +5318,7 @@ Module
         ClassInit CoroutineAdapter$scoop_registrationFailure_suspend$1
           Local $frame
           IntLiteral 1
-      call $step.1: CoroutineStep$I = @scoop.suspendCoroutine$I.g3$suspend direct
+      call $step.1: CoroutineStep$I = @scoop.suspendCoroutine$I.g12$suspend direct
         ClosureAlloc cc8 $Closure$lambda8
         Local $adapter.1
       branch bb5 bb6
@@ -5570,7 +5568,7 @@ Module
         ClassInit CoroutineAdapter$scoop_resumedThenThrows_suspend$1
           Local $frame
           IntLiteral 1
-      call $step.1: CoroutineStep$I = @scoop.suspendCoroutine$I.g3$suspend direct
+      call $step.1: CoroutineStep$I = @scoop.suspendCoroutine$I.g12$suspend direct
         ClosureAlloc cc9 $Closure$lambda9
         Local $adapter.1
       branch bb5 bb6
@@ -5820,7 +5818,7 @@ Module
         ClassInit CoroutineAdapter$scoop_resumedTwice_suspend$1
           Local $frame
           IntLiteral 1
-      call $step.1: CoroutineStep$I = @scoop.suspendCoroutine$I.g3$suspend direct
+      call $step.1: CoroutineStep$I = @scoop.suspendCoroutine$I.g12$suspend direct
         ClosureAlloc cc10 $Closure$lambda10
         Local $adapter.1
       branch bb5 bb6
@@ -6357,7 +6355,7 @@ Module
         ClassInit CoroutineAdapter$scoop__lambda_0_suspend$1
           Local $frame
           IntLiteral 1
-      call $step.1: CoroutineStep$I = @scoop.suspendCoroutine$I.g3$suspend direct
+      call $step.1: CoroutineStep$I = @scoop.suspendCoroutine$I.g12$suspend direct
         ClosureAlloc cc19 $Closure$lambda19
           ClosureCapture cc2 0
             Local $closure
@@ -6636,7 +6634,7 @@ Module
         ClassInit CoroutineAdapter$scoop__local_0_local_suspend$1
           Local $frame
           IntLiteral 1
-      call $step.1: CoroutineStep$I = @scoop.suspendCoroutine$I.g3$suspend direct
+      call $step.1: CoroutineStep$I = @scoop.suspendCoroutine$I.g12$suspend direct
         ClosureAlloc cc20 $Closure$lambda20
           Local $capture.gate
         Local $adapter.1
@@ -7466,7 +7464,7 @@ Module
         ClassInit CoroutineAdapter$scoop__lambda_6_suspend$1
           Local $frame
           IntLiteral 1
-      call $step.1: CoroutineStep$I = @scoop.suspendCoroutine$I.g3$suspend direct
+      call $step.1: CoroutineStep$I = @scoop.suspendCoroutine$I.g12$suspend direct
         ClosureAlloc cc21 $Closure$lambda21
           ClosureCapture cc5 0
             Local $closure
@@ -7744,7 +7742,7 @@ Module
         ClassInit CoroutineAdapter$scoop__lambda_14_suspend$1
           Local $frame
           IntLiteral 1
-      call $step.1: CoroutineStep$I = @scoop.suspendCoroutine$I.g3$suspend direct
+      call $step.1: CoroutineStep$I = @scoop.suspendCoroutine$I.g12$suspend direct
         ClosureAlloc cc22 $Closure$lambda22
           ClosureCapture cc23 0
             Local $closure
@@ -9516,13 +9514,13 @@ Module
         Binary IntEq
           Local $adapter_claim
           IntLiteral 1
-  fun suspendCoroutine$drive @scoop.suspendCoroutine$I.g3$suspend$drive($frame: CoroutineFrame$scoop_suspendCoroutine_I_g3_suspend, $dispatch_state: Int) -> CoroutineStep$I
+  fun suspendCoroutine$drive @scoop.suspendCoroutine$I.g12$suspend$drive($frame: CoroutineFrame$scoop_suspendCoroutine_I_g12_suspend, $dispatch_state: Int) -> CoroutineStep$I
     bb0 entry
       atomic_store_release field=0
         Local $frame
         IntLiteral 1
-      val $safe_adapter.1: CoroutineAdapter$scoop_suspendCoroutine_I_g3_suspend$1
-        ClassInit CoroutineAdapter$scoop_suspendCoroutine_I_g3_suspend$1
+      val $safe_adapter.1: CoroutineAdapter$scoop_suspendCoroutine_I_g12_suspend$1
+        ClassInit CoroutineAdapter$scoop_suspendCoroutine_I_g12_suspend$1
           Local $frame
           IntLiteral 0
           VariantConstruct CoroutineSlot$I v0
@@ -9717,7 +9715,7 @@ Module
         Binary IntEq
           Local $dispatch_state
           IntLiteral 0
-  fun CoroutineAdapter.resume$1 @scoop.suspendCoroutine$I.g3$suspend$resume$1(this: CoroutineAdapter$scoop_suspendCoroutine_I_g3_suspend$1, value: Int) -> Unit
+  fun CoroutineAdapter.resume$1 @scoop.suspendCoroutine$I.g12$suspend$resume$1(this: CoroutineAdapter$scoop_suspendCoroutine_I_g12_suspend$1, value: Int) -> Unit
     bb0 coroutine.protocol_error
       call $protocol_error: IllegalStateException = @scoop.ctor.IllegalStateException direct
       throw
@@ -9763,7 +9761,7 @@ Module
       atomic_store_release field=1
         Local this
         IntLiteral 6
-      call $step: CoroutineStep$I = @scoop.suspendCoroutine$I.g3$suspend$drive direct
+      call $step: CoroutineStep$I = @scoop.suspendCoroutine$I.g12$suspend$drive direct
         FieldAccess 0
           Local this
         IntLiteral 1
@@ -9817,7 +9815,7 @@ Module
         Binary IntEq
           Local $adapter_claim
           IntLiteral 0
-  fun CoroutineAdapter.resumeWithException$1 @scoop.suspendCoroutine$I.g3$suspend$resume_exception$1(this: CoroutineAdapter$scoop_suspendCoroutine_I_g3_suspend$1, exception: Throwable) -> Unit
+  fun CoroutineAdapter.resumeWithException$1 @scoop.suspendCoroutine$I.g12$suspend$resume_exception$1(this: CoroutineAdapter$scoop_suspendCoroutine_I_g12_suspend$1, exception: Throwable) -> Unit
     bb0 coroutine.protocol_error
       call $protocol_error: IllegalStateException = @scoop.ctor.IllegalStateException direct
       throw
@@ -9863,7 +9861,7 @@ Module
       atomic_store_release field=1
         Local this
         IntLiteral 6
-      call $step: CoroutineStep$I = @scoop.suspendCoroutine$I.g3$suspend$drive direct
+      call $step: CoroutineStep$I = @scoop.suspendCoroutine$I.g12$suspend$drive direct
         FieldAccess 0
           Local this
         IntLiteral -3
@@ -11977,7 +11975,7 @@ Module
   coroutine_frame cr25 CoroutineFrame$scoop__lambda_20_suspend owner=cf31
   coroutine_frame cr26 CoroutineFrame$scoop__lambda_21_suspend owner=cf32
   coroutine_frame cr27 CoroutineFrame$scoop__lambda_22_suspend owner=cf33
-  coroutine_frame cr28 CoroutineFrame$scoop_suspendCoroutine_I_g3_suspend owner=cf34
+  coroutine_frame cr28 CoroutineFrame$scoop_suspendCoroutine_I_g12_suspend owner=cf34
   coroutine_frame cr29 CoroutineFrame$scoop_FunctionSuspendTask_run_I_suspend owner=cf35
   coroutine_frame cr30 CoroutineFrame$scoop_FunctionSuspendTask_run_U_suspend owner=cf36
   coroutine_frame cr31 CoroutineFrame$scoop_thunk_FunctionSuspendTask_I_SuspendTask_I_run_suspend owner=cf42
@@ -12014,7 +12012,7 @@ Module
   coroutine_resume cp25 state=1 result=Int frame=cr25 adapter=CoroutineAdapter$scoop__lambda_20_suspend$1 resume=@scoop.$lambda.20$suspend$resume$1 failure=@scoop.$lambda.20$suspend$resume_exception$1
   coroutine_resume cp26 state=1 result=Int frame=cr26 adapter=CoroutineAdapter$scoop__lambda_21_suspend$1 resume=@scoop.$lambda.21$suspend$resume$1 failure=@scoop.$lambda.21$suspend$resume_exception$1
   coroutine_resume cp27 state=1 result=Int frame=cr27 adapter=CoroutineAdapter$scoop__lambda_22_suspend$1 resume=@scoop.$lambda.22$suspend$resume$1 failure=@scoop.$lambda.22$suspend$resume_exception$1
-  coroutine_resume cp28 state=1 result=Int frame=cr28 adapter=CoroutineAdapter$scoop_suspendCoroutine_I_g3_suspend$1 resume=@scoop.suspendCoroutine$I.g3$suspend$resume$1 failure=@scoop.suspendCoroutine$I.g3$suspend$resume_exception$1
+  coroutine_resume cp28 state=1 result=Int frame=cr28 adapter=CoroutineAdapter$scoop_suspendCoroutine_I_g12_suspend$1 resume=@scoop.suspendCoroutine$I.g12$suspend$resume$1 failure=@scoop.suspendCoroutine$I.g12$suspend$resume_exception$1
   coroutine_resume cp29 state=1 result=Int frame=cr29 adapter=CoroutineAdapter$scoop_FunctionSuspendTask_run_I_suspend$1 resume=@scoop.FunctionSuspendTask.run$I$suspend$resume$1 failure=@scoop.FunctionSuspendTask.run$I$suspend$resume_exception$1
   coroutine_resume cp30 state=1 result=Unit frame=cr30 adapter=CoroutineAdapter$scoop_FunctionSuspendTask_run_U_suspend$1 resume=@scoop.FunctionSuspendTask.run$U$suspend$resume$1 failure=@scoop.FunctionSuspendTask.run$U$suspend$resume_exception$1
   coroutine_resume cp31 state=1 result=Int frame=cr31 adapter=CoroutineAdapter$scoop_thunk_FunctionSuspendTask_I_SuspendTask_I_run_suspend$1 resume=@scoop.thunk.FunctionSuspendTask$I.SuspendTask$I.run$suspend$resume$1 failure=@scoop.thunk.FunctionSuspendTask$I.SuspendTask$I.run$suspend$resume_exception$1
@@ -12057,7 +12055,7 @@ Module
   coroutine_fn cf31 @scoop.$lambda.20$suspend source_return=Int step=cs0 frame=cr25 driver=@scoop.$lambda.20$suspend$drive resumes=[cp25]
   coroutine_fn cf32 @scoop.$lambda.21$suspend source_return=Int step=cs0 frame=cr26 driver=@scoop.$lambda.21$suspend$drive resumes=[cp26]
   coroutine_fn cf33 @scoop.$lambda.22$suspend source_return=Int step=cs0 frame=cr27 driver=@scoop.$lambda.22$suspend$drive resumes=[cp27]
-  coroutine_fn cf34 @scoop.suspendCoroutine$I.g3$suspend source_return=Int step=cs0 frame=cr28 driver=@scoop.suspendCoroutine$I.g3$suspend$drive resumes=[cp28]
+  coroutine_fn cf34 @scoop.suspendCoroutine$I.g12$suspend source_return=Int step=cs0 frame=cr28 driver=@scoop.suspendCoroutine$I.g12$suspend$drive resumes=[cp28]
   coroutine_fn cf35 @scoop.FunctionSuspendTask.run$I$suspend source_return=Int step=cs0 frame=cr29 driver=@scoop.FunctionSuspendTask.run$I$suspend$drive resumes=[cp29]
   coroutine_fn cf36 @scoop.FunctionSuspendTask.run$U$suspend source_return=Unit step=cs1 frame=cr30 driver=@scoop.FunctionSuspendTask.run$U$suspend$drive resumes=[cp30]
   coroutine_fn cf37 @scoop.$lambda.5$I$suspend source_return=Int step=cs0 immediate
@@ -12071,9 +12069,9 @@ Module
   coroutine_fn cf45 @scoop.variance.box$FunctionSuspendTask$U.SuspendTask$Any.run.0$suspend source_return=Any step=cs2 frame=cr34 driver=@scoop.variance.box$FunctionSuspendTask$U.SuspendTask$Any.run.0$suspend$drive resumes=[cp34]
   coroutine_fn cf46 @scoop.function_bridge.$Closure$reference1.SIRAnyX$suspend source_return=Any step=cs2 frame=cr35 driver=@scoop.function_bridge.$Closure$reference1.SIRAnyX$suspend$drive resumes=[cp35]
   coroutine_fn cf47 @scoop.function_bridge.$Closure$reference2.SIRAnyX$suspend source_return=Any step=cs2 frame=cr36 driver=@scoop.function_bridge.$Closure$reference2.SIRAnyX$suspend$drive resumes=[cp36]
-  instance @scoop.suspendCoroutine$I.g3$suspend <- suspendCoroutine
-  instance @scoop.startCoroutine$I.g2 <- startCoroutine
-  instance @scoop.startCoroutine$U.g2 <- startCoroutine
+  instance @scoop.suspendCoroutine$I.g12$suspend <- suspendCoroutine
+  instance @scoop.startCoroutine$I.g11 <- startCoroutine
+  instance @scoop.startCoroutine$U.g11 <- startCoroutine
   instance @scoop.constantTask$I <- constantTask
   instance @scoop.FunctionSuspendRegistration.register$I <- FunctionSuspendRegistration.register
   instance @scoop.FunctionSuspendTask.run$I$suspend <- FunctionSuspendTask.run
@@ -12174,7 +12172,7 @@ Module
   global @scoop_td_CoroutineFrame$scoop__lambda_20_suspend = c""
   global @scoop_td_CoroutineFrame$scoop__lambda_21_suspend = c""
   global @scoop_td_CoroutineFrame$scoop__lambda_22_suspend = c""
-  global @scoop_td_CoroutineFrame$scoop_suspendCoroutine_I_g3_suspend = c""
+  global @scoop_td_CoroutineFrame$scoop_suspendCoroutine_I_g12_suspend = c""
   global @scoop_td_box$FunctionSuspendTask$I = c""
   global @scoop_td_box$FunctionSuspendTask$U = c""
   global @scoop_td_$Closure$lambda24 = c""
@@ -12252,7 +12250,7 @@ Module
   global @scoop_td_CoroutineAdapter$scoop__lambda_20_suspend$1 = c""
   global @scoop_td_CoroutineAdapter$scoop__lambda_21_suspend$1 = c""
   global @scoop_td_CoroutineAdapter$scoop__lambda_22_suspend$1 = c""
-  global @scoop_td_CoroutineAdapter$scoop_suspendCoroutine_I_g3_suspend$1 = c""
+  global @scoop_td_CoroutineAdapter$scoop_suspendCoroutine_I_g12_suspend$1 = c""
   global @scoop_td_box$FunctionSuspendRegistration$I = c""
   global @scoop_td_SuspendRegistration$I = c""
   global @scoop_td_CoroutineAdapter$scoop_FunctionSuspendTask_run_I_suspend$1 = c""
@@ -12634,7 +12632,7 @@ Module
     store t0 -> local0
     t2 = call @scoop.ctor.Done() : ptr<managed>
     store t2 -> local17
-    call @scoop.startCoroutine$I.g2(local0, local17)
+    call @scoop.startCoroutine$I.g11(local0, local17)
     t3 = aggregate () : {}
     call @scoop.println(global4)
     t4 = aggregate () : {}
@@ -12645,7 +12643,7 @@ Module
     store t7 -> local18
     t8 = call @scoop.ctor.Done() : ptr<managed>
     store t8 -> local19
-    call @scoop.startCoroutine$I.g2(local18, local19)
+    call @scoop.startCoroutine$I.g11(local18, local19)
     t9 = aggregate () : {}
     call @scoop.println(global5)
     t10 = aggregate () : {}
@@ -12659,7 +12657,7 @@ Module
     store t13 -> local2
     t15 = call @scoop.ctor.Done() : ptr<managed>
     store t15 -> local20
-    call @scoop.startCoroutine$I.g2(local2, local20)
+    call @scoop.startCoroutine$I.g11(local2, local20)
     t16 = aggregate () : {}
     store local2 -> local3
     t17 = call @scoop_rt_is_instance(local3, global38) : i1
@@ -12683,7 +12681,7 @@ Module
     store t23 -> local4
     t25 = call @scoop.ctor.Done() : ptr<managed>
     store t25 -> local22
-    call @scoop.startCoroutine$I.g2(local4, local22)
+    call @scoop.startCoroutine$I.g11(local4, local22)
     t26 = aggregate () : {}
     t27 = call @scoop_rt_alloc(global41, 24) : ptr<managed>
     t28 = function_address @scoop.$anonymous.0$suspend : ptr
@@ -12691,7 +12689,7 @@ Module
     store t27 -> local5
     t29 = call @scoop.ctor.Done() : ptr<managed>
     store t29 -> local23
-    call @scoop.startCoroutine$I.g2(local5, local23)
+    call @scoop.startCoroutine$I.g11(local5, local23)
     t30 = aggregate () : {}
     t31 = call @scoop_rt_alloc(global42, 24) : ptr<managed>
     t32 = function_address @scoop.$lambda.17$suspend : ptr
@@ -12699,7 +12697,7 @@ Module
     store t31 -> local6
     t33 = call @scoop.ctor.UnitDone() : ptr<managed>
     store t33 -> local24
-    call @scoop.startCoroutine$U.g2(local6, local24)
+    call @scoop.startCoroutine$U.g11(local6, local24)
     t34 = aggregate () : {}
     t35 = call @scoop_rt_alloc(global43, 24) : ptr<managed>
     t36 = function_address @scoop.$anonymous.1$suspend : ptr
@@ -12707,7 +12705,7 @@ Module
     store t35 -> local7
     t37 = call @scoop.ctor.Done() : ptr<managed>
     store t37 -> local25
-    call @scoop.startCoroutine$I.g2(local7, local25)
+    call @scoop.startCoroutine$I.g11(local7, local25)
     t38 = aggregate () : {}
     t39 = enum_wrap e0 v1 () : enum0
     t40 = call @scoop.ctor.Gate(t39) : ptr<managed>
@@ -12721,7 +12719,7 @@ Module
     store t42 -> local9
     t44 = call @scoop.ctor.Done() : ptr<managed>
     store t44 -> local27
-    call @scoop.startCoroutine$I.g2(local9, local27)
+    call @scoop.startCoroutine$I.g11(local9, local27)
     t45 = aggregate () : {}
     call @scoop.Gate.complete(local8, 46)
     t46 = aggregate () : {}
@@ -12737,7 +12735,7 @@ Module
     store t50 -> local12
     t52 = call @scoop.ctor.Done() : ptr<managed>
     store t52 -> local28
-    call @scoop.startCoroutine$I.g2(local12, local28)
+    call @scoop.startCoroutine$I.g11(local12, local28)
     t53 = aggregate () : {}
     call @scoop.Gate.complete(local10, 50)
     t54 = aggregate () : {}
@@ -12748,7 +12746,7 @@ Module
     store t57 -> local29
     t58 = call @scoop.ctor.Done() : ptr<managed>
     store t58 -> local30
-    call @scoop.startCoroutine$I.g2(local29, local30)
+    call @scoop.startCoroutine$I.g11(local29, local30)
     t59 = aggregate () : {}
     call @scoop.Gate.complete(local13, 47)
     t60 = aggregate () : {}
@@ -12756,54 +12754,54 @@ Module
     store t61 -> local31
     t62 = call @scoop.ctor.Done() : ptr<managed>
     store t62 -> local32
-    call @scoop.startCoroutine$I.g2(local31, local32)
+    call @scoop.startCoroutine$I.g11(local31, local32)
     t63 = aggregate () : {}
     t64 = call @scoop.dynamicVarianceTask() : ptr<managed>
     store t64 -> local33
     t65 = call @scoop.ctor.Done() : ptr<managed>
     store t65 -> local34
-    call @scoop.startCoroutine$I.g2(local33, local34)
+    call @scoop.startCoroutine$I.g11(local33, local34)
     t66 = aggregate () : {}
     t67 = call @scoop.constantTask$I(48) : ptr<managed>
     store t67 -> local35
     t68 = call @scoop.ctor.Done() : ptr<managed>
     store t68 -> local36
-    call @scoop.startCoroutine$I.g2(local35, local36)
+    call @scoop.startCoroutine$I.g11(local35, local36)
     t69 = aggregate () : {}
     t70 = call @scoop.ctor.Done() : ptr<managed>
     store t70 -> local37
     t71 = call @scoop_rt_alloc(global46, 24) : ptr<managed>
     t72 = function_address @scoop.$lambda.18$suspend : ptr
     heap_store t71 +16 t72
-    call @scoop.startCoroutine$I.g2(t71, local37)
+    call @scoop.startCoroutine$I.g11(t71, local37)
     t73 = aggregate () : {}
     t74 = call @scoop.ctor.Done() : ptr<managed>
     store t74 -> local38
     t75 = call @scoop_rt_alloc(global47, 24) : ptr<managed>
     t76 = function_address @scoop.$lambda.19$suspend : ptr
     heap_store t75 +16 t76
-    call @scoop.startCoroutine$I.g2(t75, local38)
+    call @scoop.startCoroutine$I.g11(t75, local38)
     t77 = aggregate () : {}
     t78 = call @scoop.ctor.Done() : ptr<managed>
     store t78 -> local39
     t79 = call @scoop_rt_alloc(global48, 24) : ptr<managed>
     t80 = function_address @scoop.$lambda.20$suspend : ptr
     heap_store t79 +16 t80
-    call @scoop.startCoroutine$I.g2(t79, local39)
+    call @scoop.startCoroutine$I.g11(t79, local39)
     t81 = aggregate () : {}
     t82 = call @scoop.ctor.Done() : ptr<managed>
     store t82 -> local40
     t83 = call @scoop_rt_alloc(global49, 24) : ptr<managed>
     t84 = function_address @scoop.$lambda.21$suspend : ptr
     heap_store t83 +16 t84
-    call @scoop.startCoroutine$I.g2(t83, local40)
+    call @scoop.startCoroutine$I.g11(t83, local40)
     t85 = aggregate () : {}
     t86 = call @scoop.ctor.Done() : ptr<managed>
     store t86 -> local41
     t87 = call @scoop_rt_alloc(global50, 24) : ptr<managed>
     t88 = function_address @scoop.$lambda.22$suspend : ptr
     heap_store t87 +16 t88
-    call @scoop.startCoroutine$I.g2(t87, local41)
+    call @scoop.startCoroutine$I.g11(t87, local41)
     t89 = aggregate () : {}
     t90 = enum_wrap e0 v1 () : enum0
     t91 = call @scoop.ctor.Gate(t90) : ptr<managed>
@@ -12812,7 +12810,7 @@ Module
     store t92 -> local42
     t93 = call @scoop.ctor.Done() : ptr<managed>
     store t93 -> local43
-    call @scoop.startCoroutine$I.g2(local42, local43)
+    call @scoop.startCoroutine$I.g11(local42, local43)
     t94 = aggregate () : {}
     call @scoop_rt_gc_collect()
     t95 = aggregate () : {}
@@ -12825,7 +12823,7 @@ Module
     store t99 -> local44
     t100 = call @scoop.ctor.Done() : ptr<managed>
     store t100 -> local45
-    call @scoop.startCoroutine$I.g2(local44, local45)
+    call @scoop.startCoroutine$I.g11(local44, local45)
     t101 = aggregate () : {}
     t102 = call @scoop.ctor.ArithmeticException() : ptr<managed>
     store t102 -> local46
@@ -13144,7 +13142,7 @@ Module
     t2 = enum_wrap e0 v0 (param1) : enum0
     heap_store t1 +16 t2
     ret
-  fun @scoop.suspendCoroutine$I.g3$suspend(ptr<managed>, ptr<managed>) -> enum2
+  fun @scoop.suspendCoroutine$I.g12$suspend(ptr<managed>, ptr<managed>) -> enum2
     local %0 $frame: ptr<managed>
     local %1 $step: enum2
   block entry
@@ -13158,17 +13156,17 @@ Module
     t3 = enum_wrap e7 v0 () : enum7
     heap_store t0 +56 t3
     store t0 -> local0
-    t4 = call @scoop.suspendCoroutine$I.g3$suspend$drive(local0, 0) : enum2
+    t4 = call @scoop.suspendCoroutine$I.g12$suspend$drive(local0, 0) : enum2
     store t4 -> local1
     ret local1
-  fun @scoop.startCoroutine$I.g2(ptr<managed>, ptr<managed>) -> void
+  fun @scoop.startCoroutine$I.g11(ptr<managed>, ptr<managed>) -> void
   block entry
     t0 = aggregate (param0) : struct1
     t1 = call @scoop_rt_box(global64, t0, 8) : ptr<managed>
     call @scoop.coroutine.start$I(t1, param1)
     t2 = aggregate () : {}
     ret
-  fun @scoop.startCoroutine$U.g2(ptr<managed>, ptr<managed>) -> void
+  fun @scoop.startCoroutine$U.g11(ptr<managed>, ptr<managed>) -> void
   block entry
     t0 = aggregate (param0) : struct2
     t1 = call @scoop_rt_box(global65, t0, 8) : ptr<managed>
@@ -15099,7 +15097,7 @@ Module
     t2 = function_address @scoop.$lambda.23 : ptr
     heap_store t1 +16 t2
     heap_store t1 +24 local0
-    t3 = call @scoop.suspendCoroutine$I.g3$suspend(t1, local3) : enum2
+    t3 = call @scoop.suspendCoroutine$I.g12$suspend(t1, local3) : enum2
     store t3 -> local4
     t4 = enum_tag e2 local4 : i64
     t5 = Eq t4, 0 : i1
@@ -15327,7 +15325,7 @@ Module
     t2 = function_address @scoop.$lambda.24 : ptr
     heap_store t1 +16 t2
     heap_store t1 +24 local0
-    t3 = call @scoop.suspendCoroutine$I.g3$suspend(t1, local3) : enum2
+    t3 = call @scoop.suspendCoroutine$I.g12$suspend(t1, local3) : enum2
     store t3 -> local4
     t4 = enum_tag e2 local4 : i64
     t5 = Eq t4, 0 : i1
@@ -16015,7 +16013,7 @@ Module
     t1 = call @scoop_rt_alloc(global114, 24) : ptr<managed>
     t2 = function_address @scoop.$lambda.8 : ptr
     heap_store t1 +16 t2
-    t3 = call @scoop.suspendCoroutine$I.g3$suspend(t1, local2) : enum2
+    t3 = call @scoop.suspendCoroutine$I.g12$suspend(t1, local2) : enum2
     store t3 -> local3
     t4 = enum_tag e2 local3 : i64
     t5 = Eq t4, 0 : i1
@@ -16238,7 +16236,7 @@ Module
     t1 = call @scoop_rt_alloc(global116, 24) : ptr<managed>
     t2 = function_address @scoop.$lambda.9 : ptr
     heap_store t1 +16 t2
-    t3 = call @scoop.suspendCoroutine$I.g3$suspend(t1, local2) : enum2
+    t3 = call @scoop.suspendCoroutine$I.g12$suspend(t1, local2) : enum2
     store t3 -> local3
     t4 = enum_tag e2 local3 : i64
     t5 = Eq t4, 0 : i1
@@ -16461,7 +16459,7 @@ Module
     t1 = call @scoop_rt_alloc(global118, 24) : ptr<managed>
     t2 = function_address @scoop.$lambda.10 : ptr
     heap_store t1 +16 t2
-    t3 = call @scoop.suspendCoroutine$I.g3$suspend(t1, local2) : enum2
+    t3 = call @scoop.suspendCoroutine$I.g12$suspend(t1, local2) : enum2
     store t3 -> local3
     t4 = enum_tag e2 local3 : i64
     t5 = Eq t4, 0 : i1
@@ -16684,7 +16682,7 @@ Module
     t1 = call @scoop_rt_alloc(global120, 24) : ptr<managed>
     t2 = function_address @scoop.$lambda.11 : ptr
     heap_store t1 +16 t2
-    t3 = call @scoop.suspendCoroutine$I.g3$suspend(t1, local2) : enum2
+    t3 = call @scoop.suspendCoroutine$I.g12$suspend(t1, local2) : enum2
     store t3 -> local3
     t4 = enum_tag e2 local3 : i64
     t5 = Eq t4, 0 : i1
@@ -16907,7 +16905,7 @@ Module
     t1 = call @scoop_rt_alloc(global122, 24) : ptr<managed>
     t2 = function_address @scoop.$lambda.12 : ptr
     heap_store t1 +16 t2
-    t3 = call @scoop.suspendCoroutine$I.g3$suspend(t1, local2) : enum2
+    t3 = call @scoop.suspendCoroutine$I.g12$suspend(t1, local2) : enum2
     store t3 -> local3
     t4 = enum_tag e2 local3 : i64
     t5 = Eq t4, 0 : i1
@@ -17400,7 +17398,7 @@ Module
     heap_store t12 +16 t13
     t14 = heap_load local3 +24 : ptr<managed>
     heap_store t12 +24 t14
-    invoke @scoop.suspendCoroutine$I.g3$suspend(t12, local6) normal @invoke.normal.1 unwind @try.unwind.1
+    invoke @scoop.suspendCoroutine$I.g12$suspend(t12, local6) normal @invoke.normal.1 unwind @try.unwind.1
     br @invoke.normal.1
   block scope.7
     call @scoop.println(global8)
@@ -17662,7 +17660,7 @@ Module
     t2 = function_address @scoop.$lambda.2 : ptr
     heap_store t1 +16 t2
     heap_store t1 +24 local0
-    t3 = call @scoop.suspendCoroutine$I.g3$suspend(t1, local3) : enum2
+    t3 = call @scoop.suspendCoroutine$I.g12$suspend(t1, local3) : enum2
     store t3 -> local4
     t4 = enum_tag e2 local4 : i64
     t5 = Eq t4, 0 : i1
@@ -18419,7 +18417,7 @@ Module
     heap_store t16 +16 t17
     t18 = heap_load local2 +24 : ptr<managed>
     heap_store t16 +24 t18
-    invoke @scoop.suspendCoroutine$I.g3$suspend(t16, local6) normal @invoke.normal.1 unwind @try.unwind.1
+    invoke @scoop.suspendCoroutine$I.g12$suspend(t16, local6) normal @invoke.normal.1 unwind @try.unwind.1
     br @invoke.normal.1
   block scope.9
     call @scoop.println(global9)
@@ -18679,7 +18677,7 @@ Module
     heap_store t1 +16 t2
     t3 = heap_load local0 +24 : ptr<managed>
     heap_store t1 +24 t3
-    t4 = call @scoop.suspendCoroutine$I.g3$suspend(t1, local3) : enum2
+    t4 = call @scoop.suspendCoroutine$I.g12$suspend(t1, local3) : enum2
     store t4 -> local4
     t5 = enum_tag e2 local4 : i64
     t6 = Eq t5, 0 : i1
@@ -20239,7 +20237,7 @@ Module
     t22 = enum_tag e2 local0 : i64
     t23 = Eq t22, 0 : i1
     cbr t23 then @completed else @suspended
-  fun @scoop.suspendCoroutine$I.g3$suspend$drive(ptr<managed>, i64) -> enum2
+  fun @scoop.suspendCoroutine$I.g12$suspend$drive(ptr<managed>, i64) -> enum2
     local %0 registration: ptr<managed>
     local %1 $call.1: i64
     local %2 $completion: ptr<managed>
@@ -20399,7 +20397,7 @@ Module
   block invoke.normal.1
     t8 = aggregate () : {}
     br @coroutine.register_return.1
-  fun @scoop.suspendCoroutine$I.g3$suspend$resume$1(ptr<managed>, i64) -> void
+  fun @scoop.suspendCoroutine$I.g12$suspend$resume$1(ptr<managed>, i64) -> void
     local %0 $step: enum2
     local %1 $adapter_claim: i64
     local %2 $frame_claim: i64
@@ -20452,7 +20450,7 @@ Module
     heap_store t18 +40 t19
     atomic_store release param0 +24 6
     t20 = heap_load param0 +16 : ptr<managed>
-    invoke @scoop.suspendCoroutine$I.g3$suspend$drive(t20, 1) normal @invoke.normal.1 unwind @body_failure
+    invoke @scoop.suspendCoroutine$I.g12$suspend$drive(t20, 1) normal @invoke.normal.1 unwind @body_failure
     br @invoke.normal.1
   block invalid_frame
     atomic_store release param0 +24 6
@@ -20483,7 +20481,7 @@ Module
     t22 = enum_tag e2 local0 : i64
     t23 = Eq t22, 0 : i1
     cbr t23 then @completed else @suspended
-  fun @scoop.suspendCoroutine$I.g3$suspend$resume_exception$1(ptr<managed>, ptr<managed>) -> void
+  fun @scoop.suspendCoroutine$I.g12$suspend$resume_exception$1(ptr<managed>, ptr<managed>) -> void
     local %0 $step: enum2
     local %1 $adapter_claim: i64
     local %2 $frame_claim: i64
@@ -20536,7 +20534,7 @@ Module
     heap_store t18 +56 t19
     atomic_store release param0 +24 6
     t20 = heap_load param0 +16 : ptr<managed>
-    invoke @scoop.suspendCoroutine$I.g3$suspend$drive(t20, -3) normal @invoke.normal.1 unwind @body_failure
+    invoke @scoop.suspendCoroutine$I.g12$suspend$drive(t20, -3) normal @invoke.normal.1 unwind @body_failure
     br @invoke.normal.1
   block invalid_frame
     atomic_store release param0 +24 6
@@ -22436,8 +22434,8 @@ Module
   td CoroutineAdapter$scoop__lambda_21_suspend$1 @scoop_td_CoroutineAdapter$scoop__lambda_21_suspend$1 size=32 vtable=3 itables=1
   td CoroutineFrame$scoop__lambda_22_suspend @scoop_td_CoroutineFrame$scoop__lambda_22_suspend size=64 vtable=3 itables=0
   td CoroutineAdapter$scoop__lambda_22_suspend$1 @scoop_td_CoroutineAdapter$scoop__lambda_22_suspend$1 size=32 vtable=3 itables=1
-  td CoroutineFrame$scoop_suspendCoroutine_I_g3_suspend @scoop_td_CoroutineFrame$scoop_suspendCoroutine_I_g3_suspend size=64 vtable=3 itables=0
-  td CoroutineAdapter$scoop_suspendCoroutine_I_g3_suspend$1 @scoop_td_CoroutineAdapter$scoop_suspendCoroutine_I_g3_suspend$1 size=56 vtable=3 itables=1
+  td CoroutineFrame$scoop_suspendCoroutine_I_g12_suspend @scoop_td_CoroutineFrame$scoop_suspendCoroutine_I_g12_suspend size=64 vtable=3 itables=0
+  td CoroutineAdapter$scoop_suspendCoroutine_I_g12_suspend$1 @scoop_td_CoroutineAdapter$scoop_suspendCoroutine_I_g12_suspend$1 size=56 vtable=3 itables=1
   td CoroutineFrame$scoop_FunctionSuspendTask_run_I_suspend @scoop_td_CoroutineFrame$scoop_FunctionSuspendTask_run_I_suspend size=72 vtable=3 itables=0
   td CoroutineAdapter$scoop_FunctionSuspendTask_run_I_suspend$1 @scoop_td_CoroutineAdapter$scoop_FunctionSuspendTask_run_I_suspend$1 size=32 vtable=3 itables=1
   td CoroutineFrame$scoop_FunctionSuspendTask_run_U_suspend @scoop_td_CoroutineFrame$scoop_FunctionSuspendTask_run_U_suspend size=56 vtable=3 itables=0
@@ -22594,8 +22592,8 @@ Module
   layout CoroutineAdapter$scoop__lambda_21_suspend$1 size=32 align=8 refs=[16]
   layout CoroutineFrame$scoop__lambda_22_suspend size=64 align=8 refs=[24, 32, 56]
   layout CoroutineAdapter$scoop__lambda_22_suspend$1 size=32 align=8 refs=[16]
-  layout CoroutineFrame$scoop_suspendCoroutine_I_g3_suspend size=64 align=8 refs=[24, 32, 56]
-  layout CoroutineAdapter$scoop_suspendCoroutine_I_g3_suspend$1 size=56 align=8 refs=[16, 48]
+  layout CoroutineFrame$scoop_suspendCoroutine_I_g12_suspend size=64 align=8 refs=[24, 32, 56]
+  layout CoroutineAdapter$scoop_suspendCoroutine_I_g12_suspend$1 size=56 align=8 refs=[16, 48]
   layout CoroutineFrame$scoop_FunctionSuspendTask_run_I_suspend size=72 align=8 refs=[24, 40, 64]
   layout CoroutineAdapter$scoop_FunctionSuspendTask_run_I_suspend$1 size=32 align=8 refs=[16]
   layout CoroutineFrame$scoop_FunctionSuspendTask_run_U_suspend size=56 align=8 refs=[24, 40, 48]

@@ -320,7 +320,7 @@ Module
       arm variant0(0: local6)
         Call println : Unit
           Box : Any
-            CallableCall function_type3 : Int
+            CallableCall function_type5 : Int
               Local selected : (Int) -> Int
               IntLiteral 40 : Int
       arm variant1()
@@ -329,27 +329,27 @@ Module
             IntLiteral 0 : Int
     Call println : Unit
       Box : Any
-        CallableCall function_type3 : Int
+        CallableCall function_type5 : Int
           Index : (Int) -> Int
             Local operations : Array<(Int) -> Int>
             IntLiteral 0 : Int
           IntLiteral 40 : Int
     Call println : Unit
       Box : Any
-        CallableCall function_type3 : Int
+        CallableCall function_type5 : Int
           Index : (Int) -> Int
             Local operations : Array<(Int) -> Int>
             IntLiteral 1 : Int
           IntLiteral 40 : Int
     Call println : Unit
       Box : Any
-        CallableCall function_type3 : Int
+        CallableCall function_type5 : Int
           FieldAccess field 0 : (Int) -> Int
             Local box : FunctionBox<Int>
           IntLiteral 40 : Int
     Call println : Unit
       Box : Any
-        CallableCall function_type4 : Int
+        CallableCall function_type6 : Int
           Local sum : ((Int, Int)) -> Int
           TupleLiteral : (Int, Int)
             IntLiteral 20 : Int

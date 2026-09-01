@@ -321,7 +321,6 @@ Module
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>
   instance startCoroutine<Int>
-  instance Continuation.resumeWithException<Int>
   instance suspendCoroutine<Int>
 
 == mir ==

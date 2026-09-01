@@ -276,19 +276,19 @@ Module
     Call gcCollect : Unit
     Call println : Unit
       Box : Any
-        CallableCall function_type2 : Int
+        CallableCall function_type4 : Int
           Local operation : (Int) -> Int
           IntLiteral 40 : Int
     Call println : Unit
       Box : Any
-        CallableCall function_type2 : Int
+        CallableCall function_type4 : Int
           Local operation : (Int) -> Int
           Binary Sub : Int
             IntLiteral 0 : Int
             IntLiteral 7 : Int
     Call println : Unit
       Box : Any
-        CallableCall function_type2 : Int
+        CallableCall function_type4 : Int
           Local inferred : (Int) -> Int
           IntLiteral 41 : Int
   entry main

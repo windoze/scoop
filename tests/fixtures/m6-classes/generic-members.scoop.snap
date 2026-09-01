@@ -309,10 +309,9 @@ Module
   entry main
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>
-  instance Exchange.current<Int>
-  instance Box.exchange<Int, String>
-  instance Tool.id<String>
-  instance Overloads.id<String>
+  method instance Box.exchange<owner=[Int], method=[String]>
+  method instance Tool.id<owner=[], method=[String]>
+  method instance Overloads.id<owner=[], method=[String]>
 
 == mir ==
 Module
@@ -396,6 +395,11 @@ Module
       call @scoop.println direct
         Local $call.6
       return
+  fun Box.current @scoop.Box.current$I(this: Box$I) -> Int
+    bb0 entry
+      return
+        FieldAccess 0
+          Local this
   fun Box.exchange @scoop.Box.exchange$I_S(this: Box$I, owner: Int, missing: Option$S<String>, value: String) -> String
     bb0 entry
       return
@@ -408,11 +412,6 @@ Module
     bb0 entry
       return
         Local value
-  fun Box.current @scoop.Box.current$I(this: Box$I) -> Int
-    bb0 entry
-      return
-        FieldAccess 0
-          Local this
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
     bb0 entry
       return
@@ -500,10 +499,10 @@ Module
           Local this
       return
         Local $call.1
+  instance @scoop.Box.current$I <- Box.current
   instance @scoop.Box.exchange$I_S <- Box.exchange
   instance @scoop.Tool.id$S <- Tool.id
   instance @scoop.Overloads.id$S <- Overloads.id
-  instance @scoop.Box.current$I <- Box.current
   instance @scoop.Exchange.current$I <- Exchange.current
   str @scoop.str.0 "\n"
   str @scoop.str.1 "struct"
@@ -615,6 +614,10 @@ Module
     call @scoop.println(local7)
     t16 = aggregate () : {}
     ret
+  fun @scoop.Box.current$I(struct0) -> i64
+  block entry
+    t0 = extract param0, 0 : i64
+    ret t0
   fun @scoop.Box.exchange$I_S(struct0, i64, enum0, ptr<managed>) -> ptr<managed>
   block entry
     ret param3
@@ -624,10 +627,6 @@ Module
   fun @scoop.Overloads.id$S(ptr<managed>, ptr<managed>) -> ptr<managed>
   block entry
     ret param1
-  fun @scoop.Box.current$I(struct0) -> i64
-  block entry
-    t0 = extract param0, 0 : i64
-    ret t0
   fun @scoop.ctor.Throwable() -> ptr<managed>
   block entry
     t0 = call @scoop_rt_alloc(global12, 16) : ptr<managed>

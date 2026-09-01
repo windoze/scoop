@@ -356,15 +356,13 @@ Module
   entry main
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>
+  instance suspendCoroutine<T0>
   instance startCoroutine<Int>
-  instance Continuation.resume<Int>
-  instance Continuation.resume<Pair>
-  instance Continuation.resume<Boolean>
-  instance Continuation.resume<Choice>
+  instance suspendCoroutine<T0>
   instance awaitTop<Int>
   instance awaitTop<Pair>
-  instance Awaiter.awaitMember<Boolean>
-  instance Awaiter.awaitMember<Choice>
+  method instance Awaiter.awaitMember<owner=[], method=[Boolean]>
+  method instance Awaiter.awaitMember<owner=[], method=[Choice]>
 
 == mir ==
 Module

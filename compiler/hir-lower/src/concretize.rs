@@ -15,9 +15,33 @@ pub(crate) fn lower(module: &export::Module) -> concrete::Module {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-struct FunctionKey {
-    source: export::FunctionId,
-    arguments: Vec<concrete::TypeId>,
+enum FunctionKey {
+    Free {
+        source: export::FunctionId,
+        arguments: Vec<concrete::TypeId>,
+    },
+    Method {
+        source: export::FunctionId,
+        owner: concrete::MethodOwner,
+        specialization: MethodRequest,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+enum MethodRequest {
+    Plain,
+    Generic {
+        definition: export::GenericMethodId,
+        method_arguments: export::NonEmptyVec<concrete::TypeId>,
+    },
+}
+
+impl FunctionKey {
+    fn source(&self) -> export::FunctionId {
+        match *self {
+            Self::Free { source, .. } | Self::Method { source, .. } => source,
+        }
+    }
 }
 
 struct Concretizer<'a> {
@@ -154,7 +178,10 @@ impl<'a> Concretizer<'a> {
             }
         }
         for (id, function) in self.source.functions.iter() {
-            if function.type_params().is_empty() && self.is_emittable_source_function(id) {
+            if function.method.is_none()
+                && function.type_param_count() == 0
+                && self.is_emittable_source_function(id)
+            {
                 self.request_function(id, Vec::new());
             }
         }
@@ -182,7 +209,7 @@ impl<'a> Concretizer<'a> {
         let callback_state = self.ensure_enum(self.source.foreign_callback_core.state, Vec::new());
 
         let functions = arena_from_complete_slots(self.function_slots, "concrete function");
-        let entry = self.function_by_key[&FunctionKey {
+        let entry = self.function_by_key[&FunctionKey::Free {
             source: self.source.entry,
             arguments: Vec::new(),
         }];
@@ -257,7 +284,7 @@ impl<'a> Concretizer<'a> {
                 }
                 if matches!(function.kind, concrete::FunctionKind::Intrinsic(ref name) if name == "coroutine_start" || name == "coroutine_suspend")
                 {
-                    results.extend(function.type_arguments.iter().copied());
+                    results.extend(self.concrete_function_arguments(function));
                 }
             }
             // Suspend function-value variance bridges are synthesized by MIR
@@ -278,33 +305,41 @@ impl<'a> Concretizer<'a> {
             if results.is_empty() {
                 break;
             }
-            protocols.extend(
-                results
-                    .into_iter()
-                    .map(|result_type| concrete::CoroutineProtocol {
-                        result_type,
-                        continuation: self.ensure_interface(core.continuation, vec![result_type]),
-                        suspend_task: self.ensure_interface(core.suspend_task, vec![result_type]),
-                        suspend_registration: self
-                            .ensure_interface(core.suspend_registration, vec![result_type]),
-                        start_coroutine: self
-                            .request_function(core.start_coroutine, vec![result_type]),
-                        suspend_coroutine: self
-                            .request_function(core.suspend_coroutine, vec![result_type]),
-                        continuation_resume: self
-                            .request_function(core.continuation_resume, vec![result_type]),
-                        continuation_resume_with_exception: self.request_function(
-                            core.continuation_resume_with_exception,
-                            vec![result_type],
-                        ),
-                        suspend_task_run: self
-                            .request_function(core.suspend_task_run, vec![result_type]),
-                        suspend_registration_register: self.request_function(
-                            core.suspend_registration_register,
-                            vec![result_type],
-                        ),
-                    }),
-            );
+            protocols.extend(results.into_iter().map(|result_type| {
+                let continuation = self.ensure_interface(core.continuation, vec![result_type]);
+                let suspend_task = self.ensure_interface(core.suspend_task, vec![result_type]);
+                let suspend_registration =
+                    self.ensure_interface(core.suspend_registration, vec![result_type]);
+                concrete::CoroutineProtocol {
+                    result_type,
+                    continuation,
+                    suspend_task,
+                    suspend_registration,
+                    start_coroutine: self.request_function(core.start_coroutine, vec![result_type]),
+                    suspend_coroutine: self
+                        .request_function(core.suspend_coroutine, vec![result_type]),
+                    continuation_resume: self.request_method(
+                        core.continuation_resume,
+                        concrete::MethodOwner::Interface(continuation),
+                        MethodRequest::Plain,
+                    ),
+                    continuation_resume_with_exception: self.request_method(
+                        core.continuation_resume_with_exception,
+                        concrete::MethodOwner::Interface(continuation),
+                        MethodRequest::Plain,
+                    ),
+                    suspend_task_run: self.request_method(
+                        core.suspend_task_run,
+                        concrete::MethodOwner::Interface(suspend_task),
+                        MethodRequest::Plain,
+                    ),
+                    suspend_registration_register: self.request_method(
+                        core.suspend_registration_register,
+                        concrete::MethodOwner::Interface(suspend_registration),
+                        MethodRequest::Plain,
+                    ),
+                }
+            }));
         }
         protocols
     }
@@ -368,7 +403,8 @@ impl<'a> Concretizer<'a> {
         self.classes[id].constructor = constructor;
         self.classes[id].interfaces = interfaces;
         self.classes[id].base_class = base_class;
-        let methods = self.request_concrete_methods(&source.methods, &arguments);
+        let methods =
+            self.request_concrete_methods(&source.methods, concrete::MethodOwner::Class(id));
         self.classes[id].methods = methods;
         id
     }
@@ -376,19 +412,23 @@ impl<'a> Concretizer<'a> {
     fn request_concrete_methods(
         &mut self,
         source_methods: &[export::FunctionId],
-        arguments: &[concrete::TypeId],
+        owner: concrete::MethodOwner,
     ) -> Vec<concrete::FunctionId> {
         source_methods
             .iter()
             .copied()
             .filter_map(|method| {
                 let function = &self.source.functions[method];
-                let owner_count = function
-                    .method
-                    .expect("a nominal member id names a method")
-                    .owner_type_param_count as usize;
-                (owner_count == function.type_params().len())
-                    .then(|| self.request_function(method, arguments.to_vec()))
+                match function.genericity {
+                    export::FunctionGenericity::Plain
+                    | export::FunctionGenericity::OwnerParameterizedMethod { .. } => {
+                        Some(self.request_method(method, owner, MethodRequest::Plain))
+                    }
+                    export::FunctionGenericity::GenericMethod { .. } => None,
+                    export::FunctionGenericity::Generic { .. } => {
+                        unreachable!("nominal method lists do not contain generic functions")
+                    }
+                }
             })
             .collect()
     }
@@ -697,7 +737,8 @@ impl<'a> Concretizer<'a> {
         self.structs[id].interfaces = interfaces;
         self.structs[id].gc_free = gc_free;
         self.types[ty].gc_free = gc_free;
-        let methods = self.request_concrete_methods(&source.methods, &arguments);
+        let methods =
+            self.request_concrete_methods(&source.methods, concrete::MethodOwner::Struct(id));
         self.structs[id].methods = methods;
         id
     }
@@ -784,7 +825,8 @@ impl<'a> Concretizer<'a> {
         self.enums[id].option_variants = option_variants;
         self.enums[id].gc_free = gc_free;
         self.types[ty].gc_free = gc_free;
-        let methods = self.request_concrete_methods(&source.methods, &arguments);
+        let methods =
+            self.request_concrete_methods(&source.methods, concrete::MethodOwner::Enum(id));
         self.enums[id].methods = methods;
         id
     }
@@ -975,13 +1017,40 @@ impl<'a> Concretizer<'a> {
         source: export::FunctionId,
         arguments: Vec<concrete::TypeId>,
     ) -> concrete::FunctionId {
-        let key = FunctionKey { source, arguments };
+        assert!(
+            self.source.functions[source].method.is_none(),
+            "method instances require an exact concrete owner"
+        );
+        let key = FunctionKey::Free { source, arguments };
+        self.request_function_key(key)
+    }
+
+    fn request_method(
+        &mut self,
+        source: export::FunctionId,
+        owner: concrete::MethodOwner,
+        specialization: MethodRequest,
+    ) -> concrete::FunctionId {
+        assert!(
+            self.source.functions[source].method.is_some(),
+            "method requests name a method declaration"
+        );
+        self.request_function_key(FunctionKey::Method {
+            source,
+            owner,
+            specialization,
+        })
+    }
+
+    fn request_function_key(&mut self, key: FunctionKey) -> concrete::FunctionId {
         if let Some(&id) = self.function_by_key.get(&key) {
             return id;
         }
+        let source = key.source();
+        let arguments = self.function_key_arguments(&key);
         assert_eq!(
-            self.source.functions[source].type_params().len(),
-            key.arguments.len()
+            self.source.functions[source].type_param_count(),
+            arguments.len()
         );
         let raw = self.function_slots.len() as u32;
         self.function_slots.push(None);
@@ -995,10 +1064,12 @@ impl<'a> Concretizer<'a> {
     }
 
     fn lower_function(&mut self, key: &FunctionKey) -> concrete::Function {
-        let source = self.source.functions[key.source].clone();
+        let source_id = key.source();
+        let source = self.source.functions[source_id].clone();
+        let arguments = self.function_key_arguments(key);
         let (kind, local_map) = match &source.kind {
             export::FunctionKind::User(body) => {
-                let (body, local_map) = self.lower_body(body, &key.arguments);
+                let (body, local_map) = self.lower_body(body, &arguments);
                 (concrete::FunctionKind::User(body), local_map)
             }
             export::FunctionKind::Intrinsic(name) => {
@@ -1014,29 +1085,22 @@ impl<'a> Concretizer<'a> {
             .iter()
             .map(|param| concrete::Param {
                 name: param.name.clone(),
-                ty: self.lower_type(param.ty, &key.arguments),
+                ty: self.lower_type(param.ty, &arguments),
                 local: local_map
                     .get(param.local.into_raw().into_u32() as usize)
                     .copied()
                     .unwrap_or_else(|| remap_idx(param.local)),
             })
             .collect();
-        let return_ty = self.lower_type(source.return_ty, &key.arguments);
+        let return_ty = self.lower_type(source.return_ty, &arguments);
         let method = source.method.map(|method| concrete::Method {
-            owner: self.lower_type(method.owner, &key.arguments),
+            owner: self.lower_type(method.owner, &arguments),
             modifier: method.modifier,
         });
-        let generic_discriminator = match source.generic_definition() {
-            None => None,
-            Some(generic) => self
-                .overloaded_generic_names
-                .contains(&source.name)
-                .then(|| generic.into_raw().into_u32()),
-        };
+        let origin = self.function_origin(key, &source);
         concrete::Function {
             name: source.name,
-            type_arguments: key.arguments.clone(),
-            generic_discriminator,
+            origin,
             is_suspend: source.is_suspend,
             params,
             return_ty,
@@ -1044,6 +1108,125 @@ impl<'a> Concretizer<'a> {
             kind,
             method,
             span: source.span,
+        }
+    }
+
+    fn function_key_arguments(&self, key: &FunctionKey) -> Vec<concrete::TypeId> {
+        match key {
+            FunctionKey::Free { arguments, .. } => arguments.clone(),
+            FunctionKey::Method {
+                owner,
+                specialization,
+                ..
+            } => {
+                let mut arguments = self.concrete_method_owner_arguments(*owner).to_vec();
+                if let MethodRequest::Generic {
+                    method_arguments, ..
+                } = specialization
+                {
+                    arguments.extend(method_arguments.iter().copied());
+                }
+                arguments
+            }
+        }
+    }
+
+    fn concrete_method_owner_arguments(&self, owner: concrete::MethodOwner) -> &[concrete::TypeId] {
+        match owner {
+            concrete::MethodOwner::Class(id) => &self.classes[id].type_arguments,
+            concrete::MethodOwner::Struct(id) => &self.structs[id].type_arguments,
+            concrete::MethodOwner::Enum(id) => &self.enums[id].type_arguments,
+            concrete::MethodOwner::Interface(id) => &self.interfaces[id].type_arguments,
+            concrete::MethodOwner::Any => &[],
+        }
+    }
+
+    fn concrete_function_arguments(&self, function: &concrete::Function) -> Vec<concrete::TypeId> {
+        match &function.origin {
+            concrete::FunctionOrigin::Free(concrete::FreeFunctionOrigin::Plain) => Vec::new(),
+            concrete::FunctionOrigin::Free(concrete::FreeFunctionOrigin::Generic {
+                arguments,
+                ..
+            }) => arguments.clone(),
+            concrete::FunctionOrigin::Method(origin) => {
+                let mut arguments = self.concrete_method_owner_arguments(origin.owner).to_vec();
+                if let concrete::MethodSpecialization::Generic {
+                    method_arguments, ..
+                } = &origin.specialization
+                {
+                    arguments.extend(method_arguments.iter().copied());
+                }
+                arguments
+            }
+        }
+    }
+
+    fn function_origin(
+        &self,
+        key: &FunctionKey,
+        source: &export::Function,
+    ) -> concrete::FunctionOrigin {
+        match key {
+            FunctionKey::Free {
+                source: source_id,
+                arguments,
+            } => match source.genericity {
+                export::FunctionGenericity::Plain => {
+                    concrete::FunctionOrigin::Free(concrete::FreeFunctionOrigin::Plain)
+                }
+                export::FunctionGenericity::Generic { definition, .. } => {
+                    concrete::FunctionOrigin::Free(concrete::FreeFunctionOrigin::Generic {
+                        definition,
+                        arguments: arguments.clone(),
+                        symbol: self.instance_symbol(&source.name, source_id.into_raw().into_u32()),
+                    })
+                }
+                export::FunctionGenericity::OwnerParameterizedMethod { .. }
+                | export::FunctionGenericity::GenericMethod { .. } => {
+                    unreachable!("free function keys cannot name methods")
+                }
+            },
+            FunctionKey::Method {
+                source: source_id,
+                owner,
+                specialization,
+            } => {
+                let specialization = match specialization {
+                    MethodRequest::Plain => match source.genericity {
+                        export::FunctionGenericity::Plain => concrete::MethodSpecialization::Plain,
+                        export::FunctionGenericity::OwnerParameterizedMethod { .. } => {
+                            concrete::MethodSpecialization::OwnerParameterized {
+                                symbol: self
+                                    .instance_symbol(&source.name, source_id.into_raw().into_u32()),
+                            }
+                        }
+                        export::FunctionGenericity::Generic { .. }
+                        | export::FunctionGenericity::GenericMethod { .. } => {
+                            unreachable!("plain method requests match plain method declarations")
+                        }
+                    },
+                    MethodRequest::Generic {
+                        definition,
+                        method_arguments,
+                    } => concrete::MethodSpecialization::Generic {
+                        definition: *definition,
+                        method_arguments: method_arguments.clone(),
+                        symbol: self.instance_symbol(&source.name, source_id.into_raw().into_u32()),
+                    },
+                };
+                concrete::FunctionOrigin::Method(concrete::MethodOrigin {
+                    owner: *owner,
+                    specialization,
+                })
+            }
+        }
+    }
+
+    fn instance_symbol(&self, name: &str, discriminator: u32) -> concrete::InstanceSymbol {
+        if self.overloaded_generic_names.contains(name) {
+            concrete::InstanceSymbol::Overloaded { discriminator }
+        } else {
+            concrete::InstanceSymbol::Unique
         }
     }
 
@@ -1714,33 +1897,18 @@ impl<'a> Concretizer<'a> {
                     panic!("export HIR conformance omits a required interface method")
                 });
             return match &implementation.target {
-                export::InterfaceImplementationTarget::Function {
-                    function,
-                    owner_arguments: target_arguments,
-                } => {
-                    let target_arguments = target_arguments
-                        .iter()
-                        .map(|argument| self.lower_type(*argument, owner_arguments))
-                        .collect();
-                    (
-                        concrete::Callable::Function(
-                            self.request_function(*function, target_arguments),
-                        ),
-                        None,
-                    )
-                }
+                export::InterfaceImplementationTarget::Method(application) => (
+                    self.lower_method_application(*application, owner_arguments),
+                    None,
+                ),
                 export::InterfaceImplementationTarget::Subclass => {
                     let function = self.source.interface_methods[member].function;
-                    let interface_arguments = self.source.interface_applications
-                        [conformance.interface]
-                        .arguments
-                        .iter()
-                        .map(|argument| self.lower_type(*argument, owner_arguments))
-                        .collect();
                     (
-                        concrete::Callable::Function(
-                            self.request_function(function, interface_arguments),
-                        ),
+                        concrete::Callable::Function(self.request_method(
+                            function,
+                            concrete::MethodOwner::Interface(required_interface),
+                            MethodRequest::Plain,
+                        )),
                         Some(required_interface),
                     )
                 }
@@ -1791,27 +1959,121 @@ impl<'a> Concretizer<'a> {
         source: export::Callable,
         substitution: &[concrete::TypeId],
     ) -> (concrete::Callable, Vec<concrete::TypeId>) {
-        let (function, arguments) = match source {
+        match source {
             export::Callable::Function(function) => {
                 assert!(
-                    self.source.functions[function].type_params().is_empty(),
+                    self.source.functions[function].type_param_count() == 0,
                     "a parameterized callable uses a resolved generic identity"
                 );
-                (function, Vec::new())
+                (
+                    concrete::Callable::Function(self.request_function(function, Vec::new())),
+                    Vec::new(),
+                )
             }
             export::Callable::Generic(resolved) => {
                 let resolved = self.source.instantiations[resolved].clone();
                 let function = self.source.generic_functions[resolved.generic].function;
-                let arguments = resolved
+                let arguments: Vec<_> = resolved
                     .type_args
                     .iter()
                     .map(|argument| self.lower_type(*argument, substitution))
                     .collect();
-                (function, arguments)
+                (
+                    concrete::Callable::Function(
+                        self.request_function(function, arguments.clone()),
+                    ),
+                    arguments,
+                )
             }
-        };
-        let concrete = self.request_function(function, arguments.clone());
-        (concrete::Callable::Function(concrete), arguments)
+            export::Callable::Method(application) => {
+                self.lower_method_application_with_arguments(application, substitution)
+            }
+            export::Callable::GenericMethod(application) => {
+                let application = self.source.generic_method_applications[application].clone();
+                let owner = self.lower_generic_method_owner(application.owner, substitution);
+                let method_arguments = export::NonEmptyVec::from_vec(
+                    application
+                        .method_arguments
+                        .iter()
+                        .map(|argument| self.lower_type(*argument, substitution))
+                        .collect(),
+                )
+                .expect("export generic method applications are non-empty");
+                let mut arguments = self.concrete_method_owner_arguments(owner).to_vec();
+                arguments.extend(method_arguments.iter().copied());
+                let function = self.source.generic_methods[application.method].function;
+                let concrete = self.request_method(
+                    function,
+                    owner,
+                    MethodRequest::Generic {
+                        definition: application.method,
+                        method_arguments,
+                    },
+                );
+                (concrete::Callable::Function(concrete), arguments)
+            }
+        }
+    }
+
+    fn lower_method_application(
+        &mut self,
+        source: export::MethodApplicationId,
+        substitution: &[concrete::TypeId],
+    ) -> concrete::Callable {
+        self.lower_method_application_with_arguments(source, substitution)
+            .0
+    }
+
+    fn lower_method_application_with_arguments(
+        &mut self,
+        source: export::MethodApplicationId,
+        substitution: &[concrete::TypeId],
+    ) -> (concrete::Callable, Vec<concrete::TypeId>) {
+        let application = self.source.method_applications[source].clone();
+        let owner = self.lower_method_owner(application.owner, substitution);
+        let arguments = self.concrete_method_owner_arguments(owner).to_vec();
+        let function = self.request_method(application.function, owner, MethodRequest::Plain);
+        (concrete::Callable::Function(function), arguments)
+    }
+
+    fn lower_method_owner(
+        &mut self,
+        owner: export::MethodOwnerApplication,
+        substitution: &[concrete::TypeId],
+    ) -> concrete::MethodOwner {
+        match owner {
+            export::MethodOwnerApplication::Class(id) => {
+                concrete::MethodOwner::Class(self.lower_class_application(id, substitution))
+            }
+            export::MethodOwnerApplication::Struct(id) => {
+                concrete::MethodOwner::Struct(self.lower_struct_application(id, substitution))
+            }
+            export::MethodOwnerApplication::Enum(id) => {
+                concrete::MethodOwner::Enum(self.lower_enum_application(id, substitution))
+            }
+            export::MethodOwnerApplication::Interface(id) => {
+                concrete::MethodOwner::Interface(self.lower_interface_application(id, substitution))
+            }
+            export::MethodOwnerApplication::Any => concrete::MethodOwner::Any,
+        }
+    }
+
+    fn lower_generic_method_owner(
+        &mut self,
+        owner: export::GenericMethodOwner,
+        substitution: &[concrete::TypeId],
+    ) -> concrete::MethodOwner {
+        match owner {
+            export::GenericMethodOwner::Class(id) => {
+                concrete::MethodOwner::Class(self.lower_class_application(id, substitution))
+            }
+            export::GenericMethodOwner::Struct(id) => {
+                concrete::MethodOwner::Struct(self.lower_struct_application(id, substitution))
+            }
+            export::GenericMethodOwner::Enum(id) => {
+                concrete::MethodOwner::Enum(self.lower_enum_application(id, substitution))
+            }
+        }
     }
 
     fn lower_place(&self, source: export::Place, locals: &[concrete::LocalId]) -> concrete::Place {
@@ -2082,9 +2344,10 @@ fn arena_from_complete_slots<T>(slots: Vec<Option<T>>, what: &str) -> Arena<T> {
 
 fn overloaded_generic_names(module: &export::Module) -> HashSet<String> {
     let mut counts = HashMap::<String, usize>::new();
-    for (_, generic) in module.generic_functions.iter() {
-        let function = &module.functions[generic.function];
-        *counts.entry(function.name.clone()).or_default() += 1;
+    for (_, function) in module.functions.iter() {
+        if !matches!(function.genericity, export::FunctionGenericity::Plain) {
+            *counts.entry(function.name.clone()).or_default() += 1;
+        }
     }
     counts
         .into_iter()

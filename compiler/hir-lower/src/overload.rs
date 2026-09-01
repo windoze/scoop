@@ -59,6 +59,7 @@ pub(crate) struct OverloadCall<'a> {
 /// method suffix and substitutes the complete vector.
 struct Candidate {
     function: FunctionId,
+    owner: crate::CallableCandidateOwner,
     source: CallableCandidateSource,
     params: Vec<TypeId>,
     return_ty: TypeId,
@@ -97,7 +98,7 @@ impl Lowerer {
         let candidates = candidates
             .iter()
             .copied()
-            .map(|function| CallableCandidate::direct(function, receiver_type_args.to_vec()))
+            .map(|function| CallableCandidate::function(function, receiver_type_args.to_vec()))
             .collect::<Vec<_>>();
         self.resolve_overload_with_receiver(
             name,
@@ -138,7 +139,7 @@ impl Lowerer {
         let candidates = candidates
             .iter()
             .copied()
-            .map(|function| CallableCandidate::direct(function, Vec::new()))
+            .map(|function| CallableCandidate::function(function, Vec::new()))
             .collect::<Vec<_>>();
         self.resolve_overload_with_receiver(
             name,
@@ -208,9 +209,10 @@ impl Lowerer {
                     );
                 }
                 let parameterized = params.iter().any(|&ty| self.mentions_type_param(ty));
-                debug_assert_eq!(sig.owner_type_param_count, source.owner_arguments.len());
+                let owner_arguments = self.callable_candidate_owner_arguments(source);
+                debug_assert_eq!(sig.owner_type_param_count, owner_arguments.len());
                 let mut initial_bindings = vec![None; sig.type_params.len()];
-                for (binding, &ty) in initial_bindings.iter_mut().zip(&source.owner_arguments) {
+                for (binding, &ty) in initial_bindings.iter_mut().zip(&owner_arguments) {
                     *binding = Some(ty);
                 }
                 let own_type_param_count = sig.type_params.len() - sig.owner_type_param_count;
@@ -226,6 +228,7 @@ impl Lowerer {
                 }
                 Candidate {
                     function,
+                    owner: source.owner.clone(),
                     source: source.source,
                     params,
                     return_ty: sig.return_ty,
@@ -381,11 +384,12 @@ impl Lowerer {
         let return_ty = self.substitute_call_level(candidate.return_ty, &type_args);
         // The complete owner-prefix plus method-suffix vector identifies
         // the resolved generic entity stored on the HIR call.
-        let callee = if !type_args.is_empty() {
-            hir::Callable::Generic(self.record_instantiation(function, type_args.clone()))
-        } else {
-            hir::Callable::Function(function)
+        let resolved_candidate = CallableCandidate {
+            function,
+            owner: candidate.owner.clone(),
+            source: candidate.source,
         };
+        let callee = self.materialize_candidate_callable(&resolved_candidate, &type_args);
         Some(ResolvedCallee {
             callee,
             source: candidate.source,

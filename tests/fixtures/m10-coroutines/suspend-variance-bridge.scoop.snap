@@ -288,7 +288,6 @@ Module
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>
   instance startCoroutine<Animal>
-  instance Continuation.resume<Dog>
   instance suspendCoroutine<Dog>
 
 == mir ==

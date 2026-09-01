@@ -282,7 +282,7 @@ Module
   fun joinOne(arg1: Ptr<Unit>): Int <unsafe no-gc cdecl> <extern2 abi=c symbol=m13_join_one lib=fixture_native>
   fun main(): Unit
     val local0
-      ForeignCallbackRegister registration0 native=function_type2 managed=function_type3 context=1 mode=OneShot : ForeignCallback<(Int, Ptr<Unit>) -> Int>
+      ForeignCallbackRegister registration0 native=function_type4 managed=function_type5 context=1 mode=OneShot : ForeignCallback<(Int, Ptr<Unit>) -> Int>
         Lambda lambda0 invoke=$lambda.0 captures=0 : (Int) -> Int
     val local1
       ForeignCallbackRetain : ForeignCallback<(Int, Ptr<Unit>) -> Int>

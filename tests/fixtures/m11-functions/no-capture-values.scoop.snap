@@ -313,7 +313,7 @@ Module
         IntLiteral 1 : Int
   fun apply(value: Int, operation: (Int) -> Int): Int
     return
-      CallableCall function_type2 : Int
+      CallableCall function_type4 : Int
         Local operation : (Int) -> Int
         Local value : Int
   fun main(): Unit
@@ -334,12 +334,12 @@ Module
     Call gcCollect : Unit
     Call println : Unit
       Box : Any
-        CallableCall function_type2 : Int
+        CallableCall function_type4 : Int
           Local lambda : (Int) -> Int
           IntLiteral 40 : Int
     Call println : Unit
       Box : Any
-        CallableCall function_type2 : Int
+        CallableCall function_type4 : Int
           Local reference : (Int) -> Int
           IntLiteral 40 : Int
     Call println : Unit
@@ -349,21 +349,21 @@ Module
           Lambda lambda5 invoke=$lambda.5 captures=0 : (Int) -> Int
     Call println : Unit
       Box : Any
-        CallableCall function_type2 : Int
+        CallableCall function_type4 : Int
           Local standalone : (Int) -> Int
           IntLiteral 39 : Int
     Call println : Unit
       Box : Any
-        CallableCall function_type2 : Int
+        CallableCall function_type4 : Int
           Local implicit : (Int) -> Int
           IntLiteral 40 : Int
     Call println : Unit
       Box : Any
-        CallableCall function_type3 : Int
+        CallableCall function_type5 : Int
           Local zero : () -> Int
     Call println : Unit
       Box : Any
-        CallableCall function_type2 : Int
+        CallableCall function_type4 : Int
           Lambda lambda6 invoke=$lambda.6 captures=0 : (Int) -> Int
           IntLiteral 40 : Int
     Call println : Unit
@@ -371,7 +371,7 @@ Module
         Binary RefEq : Boolean
           Local reference : (Int) -> Int
           Local secondReference : (Int) -> Int
-    CallableCall function_type4 : Unit
+    CallableCall function_type6 : Unit
       Local discard : (Int) -> Unit
       IntLiteral 41 : Int
     Call println : Unit

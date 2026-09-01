@@ -294,24 +294,24 @@ Module
       return
   fun main @scoop_main() -> Unit
     bb0 entry
-      call $call.1: Int = @scoop.choose$I.g20 direct
+      call $call.1: Int = @scoop.choose$I.g42 direct
         IntLiteral 11
         IntLiteral 0
       call @scoop.println direct
         Box
           Local $call.1
-      call $call.2: Int = @scoop.choose$I.g21 direct
+      call $call.2: Int = @scoop.choose$I.g43 direct
         IntLiteral 22
         StringConst @scoop.str.1
       call @scoop.println direct
         Box
           Local $call.2
       return
-  fun choose @scoop.choose$I.g20(value: Int, marker: Int) -> Int
+  fun choose @scoop.choose$I.g42(value: Int, marker: Int) -> Int
     bb0 entry
       return
         Local value
-  fun choose @scoop.choose$I.g21(value: Int, marker: String) -> Int
+  fun choose @scoop.choose$I.g43(value: Int, marker: String) -> Int
     bb0 entry
       return
         Local value
@@ -373,8 +373,8 @@ Module
           Local this
       return
         Local $call.1
-  instance @scoop.choose$I.g20 <- choose
-  instance @scoop.choose$I.g21 <- choose
+  instance @scoop.choose$I.g42 <- choose
+  instance @scoop.choose$I.g43 <- choose
   str @scoop.str.0 "\n"
   str @scoop.str.1 "string marker"
   str @scoop.str.2 "unwrap on None"
@@ -429,21 +429,21 @@ Module
     local %0 $call.1: i64
     local %1 $call.2: i64
   block entry
-    t0 = call @scoop.choose$I.g20(11, 0) : i64
+    t0 = call @scoop.choose$I.g42(11, 0) : i64
     store t0 -> local0
     t1 = call @scoop_rt_box(global7, local0, 8) : ptr<managed>
     call @scoop.println(t1)
     t2 = aggregate () : {}
-    t3 = call @scoop.choose$I.g21(22, global1) : i64
+    t3 = call @scoop.choose$I.g43(22, global1) : i64
     store t3 -> local1
     t4 = call @scoop_rt_box(global7, local1, 8) : ptr<managed>
     call @scoop.println(t4)
     t5 = aggregate () : {}
     ret
-  fun @scoop.choose$I.g20(i64, i64) -> i64
+  fun @scoop.choose$I.g42(i64, i64) -> i64
   block entry
     ret param0
-  fun @scoop.choose$I.g21(i64, ptr<managed>) -> i64
+  fun @scoop.choose$I.g43(i64, ptr<managed>) -> i64
   block entry
     ret param0
   fun @scoop.ctor.Throwable() -> ptr<managed>
