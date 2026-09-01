@@ -21,6 +21,28 @@ pub type NativeGlobalId = Idx<NativeGlobal>;
 pub type CallbackBridgeId = Idx<CallbackBridge>;
 pub type ForeignCallbackBridgeId = Idx<ForeignCallbackBridge>;
 pub type ArrayTypeId = Idx<ArrayType>;
+pub type VoidCallSignatureId = Idx<VoidCallSignature>;
+pub type DirectCallSignatureId = Idx<DirectCallSignature>;
+pub type IndirectResultCallSignatureId = Idx<IndirectResultCallSignature>;
+pub type VoidCallTargetId = Idx<VoidCallTarget>;
+pub type DirectCallTargetId = Idx<DirectCallTarget>;
+pub type IndirectResultCallTargetId = Idx<IndirectResultCallTarget>;
+pub type DispatchSlotId = Idx<DispatchSlot>;
+
+/// Typed index into `Module::functions`. Functions remain in emission order,
+/// while call destinations no longer use their symbols as semantic identity.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct LocalFunctionId(u32);
+
+impl LocalFunctionId {
+    pub const fn from_u32(raw: u32) -> Self {
+        Self(raw)
+    }
+
+    pub const fn into_u32(self) -> u32 {
+        self.0
+    }
+}
 
 /// Symbol of the TypeDescriptor global for `String` (runtime spec 2.2).
 pub const STRING_TD_SYMBOL: &str = "scoop_td_String";
@@ -470,6 +492,9 @@ pub struct Function {
     /// Parameter types; arguments are SSA values (`Value::Param`).
     pub params: Vec<LirType>,
     pub return_ty: LirType,
+    /// Function-local call entities. Targets may contain local SSA operands
+    /// (for dispatch tables), so their ids are scoped to this function.
+    pub call_targets: CallTargets,
     pub locals: Arena<Local>,
     pub temps: Arena<Temp>,
     pub blocks: Arena<BasicBlock>,
@@ -484,9 +509,215 @@ pub enum GcEffect {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum NativeCallEffect {
+pub enum CallEffect {
+    ManagedSafepoint,
+    NoGc,
     NativeSafe,
     NativeBorrowed,
+}
+
+#[derive(Debug, Default)]
+pub struct CallTargets {
+    pub void_signatures: Arena<VoidCallSignature>,
+    pub direct_signatures: Arena<DirectCallSignature>,
+    pub indirect_result_signatures: Arena<IndirectResultCallSignature>,
+    pub void_targets: Arena<VoidCallTarget>,
+    pub direct_targets: Arena<DirectCallTarget>,
+    pub indirect_result_targets: Arena<IndirectResultCallTarget>,
+    pub dispatch_slots: Arena<DispatchSlot>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VoidCallSignature {
+    pub params: Vec<LirType>,
+    pub calling_convention: CallingConvention,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DirectCallSignature {
+    pub params: Vec<LirType>,
+    pub result: LirType,
+    /// Recursive scan of a direct result. Native transitions use it to
+    /// publish result storage before re-entering managed code.
+    pub result_scan: RefScan,
+    pub calling_convention: CallingConvention,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IndirectResultCallSignature {
+    pub params: Vec<LirType>,
+    pub result: ResultStorage,
+    pub calling_convention: CallingConvention,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ResultStorage {
+    pub ty: LirType,
+    pub scan: RefScan,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CallDestination {
+    Local(LocalFunctionId),
+    Runtime(RuntimeFunction),
+    Extern(ExternFunctionId),
+    Dispatch { table: Value, slot: DispatchSlotId },
+}
+
+#[derive(Debug)]
+pub struct VoidCallTarget {
+    pub destination: CallDestination,
+    pub signature: VoidCallSignatureId,
+    pub effect: CallEffect,
+}
+
+#[derive(Debug)]
+pub struct DirectCallTarget {
+    pub destination: CallDestination,
+    pub signature: DirectCallSignatureId,
+    pub effect: CallEffect,
+}
+
+#[derive(Debug)]
+pub struct IndirectResultCallTarget {
+    pub destination: CallDestination,
+    pub signature: IndirectResultCallSignatureId,
+    pub effect: CallEffect,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DispatchSlot {
+    pub kind: DispatchKind,
+    pub index: u32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DispatchKind {
+    Virtual,
+    Interface,
+    Closure,
+    FunctionBridge,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RuntimeFunction {
+    Alloc,
+    Box,
+    IsInstance,
+    ITableLookup,
+    Pin,
+    Unpin,
+    GetHandle,
+    ReleaseHandle,
+    GcCollect,
+    GcStats,
+    MaterializeException,
+    IntToString,
+    BoolToString,
+    StringConcat,
+    StringEq,
+    Trap,
+    Throw,
+    Rethrow,
+}
+
+impl RuntimeFunction {
+    pub const fn symbol(self) -> &'static str {
+        match self {
+            Self::Alloc => "scoop_rt_alloc",
+            Self::Box => "scoop_rt_box",
+            Self::IsInstance => "scoop_rt_is_instance",
+            Self::ITableLookup => "scoop_rt_itable_lookup",
+            Self::Pin => "scoop_rt_pin",
+            Self::Unpin => "scoop_rt_unpin",
+            Self::GetHandle => "scoop_rt_get_handle",
+            Self::ReleaseHandle => "scoop_rt_release_handle",
+            Self::GcCollect => "scoop_rt_gc_collect",
+            Self::GcStats => "scoop_rt_gc_stats",
+            Self::MaterializeException => "scoop_rt_materialize_exception",
+            Self::IntToString => "scoop_rt_int_to_string",
+            Self::BoolToString => "scoop_rt_bool_to_string",
+            Self::StringConcat => "scoop_rt_string_concat",
+            Self::StringEq => "scoop_rt_string_eq",
+            Self::Trap => "scoop_rt_trap",
+            Self::Throw => "scoop_rt_throw",
+            Self::Rethrow => "scoop_rt_rethrow",
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum CallSite {
+    Void {
+        target: VoidCallTargetId,
+        args: Vec<Value>,
+    },
+    Direct {
+        target: DirectCallTargetId,
+        out: TempId,
+        args: Vec<Value>,
+    },
+    IndirectResult {
+        target: IndirectResultCallTargetId,
+        storage: LocalId,
+        args: Vec<Value>,
+    },
+}
+
+impl CallSite {
+    pub fn args(&self) -> &[Value] {
+        match self {
+            Self::Void { args, .. }
+            | Self::Direct { args, .. }
+            | Self::IndirectResult { args, .. } => args,
+        }
+    }
+
+    pub fn destination(&self, targets: &CallTargets) -> CallDestination {
+        match *self {
+            Self::Void { target, .. } => targets.void_targets[target].destination,
+            Self::Direct { target, .. } => targets.direct_targets[target].destination,
+            Self::IndirectResult { target, .. } => {
+                targets.indirect_result_targets[target].destination
+            }
+        }
+    }
+
+    pub fn effect(&self, targets: &CallTargets) -> CallEffect {
+        match *self {
+            Self::Void { target, .. } => targets.void_targets[target].effect,
+            Self::Direct { target, .. } => targets.direct_targets[target].effect,
+            Self::IndirectResult { target, .. } => targets.indirect_result_targets[target].effect,
+        }
+    }
+
+    pub fn result_scan<'a>(&self, targets: &'a CallTargets) -> &'a RefScan {
+        match *self {
+            Self::Void { .. } => &RefScan::None,
+            Self::Direct { target, .. } => {
+                let signature = targets.direct_targets[target].signature;
+                &targets.direct_signatures[signature].result_scan
+            }
+            Self::IndirectResult { target, .. } => {
+                let signature = targets.indirect_result_targets[target].signature;
+                &targets.indirect_result_signatures[signature].result.scan
+            }
+        }
+    }
+
+    pub fn direct_out(&self) -> Option<TempId> {
+        match *self {
+            Self::Direct { out, .. } => Some(out),
+            Self::Void { .. } | Self::IndirectResult { .. } => None,
+        }
+    }
+
+    pub fn result_storage(&self) -> Option<LocalId> {
+        match *self {
+            Self::IndirectResult { storage, .. } => Some(storage),
+            Self::Void { .. } | Self::Direct { .. } => None,
+        }
+    }
 }
 
 /// A value whose address is published in a compiler caller-root frame.
@@ -516,9 +747,11 @@ impl CallerRootSource {
     }
 }
 
-impl NativeCallEffect {
+impl CallEffect {
     fn dump(self) -> &'static str {
         match self {
+            Self::ManagedSafepoint => "managed-safepoint",
+            Self::NoGc => "no-gc",
             Self::NativeSafe => "native-safe",
             Self::NativeBorrowed => "native-borrowed",
         }
@@ -548,7 +781,7 @@ pub struct BasicBlock {
 }
 
 /// A value usable as an instruction operand.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Value {
     /// Contents of a local's stack slot (loaded implicitly).
     Local(LocalId),
@@ -639,16 +872,10 @@ pub enum Instruction {
     /// A nounwind native call. C ABI operands are storage pointers to the
     /// generated bridge; Scoop ABI operands retain their ordinary typed ABI.
     NativeCall {
-        out: Option<TempId>,
-        function: ExternFunctionId,
-        effect: NativeCallEffect,
-        args: Vec<Value>,
+        site: CallSite,
         /// Values live across this native transition. Codegen spills SSA
         /// sources and publishes each storage with its recursive scan.
         roots: Vec<CallerRoot>,
-        /// Scan for the native result storage. `None` means the result is
-        /// absent or contains no managed references.
-        result_scan: RefScan,
     },
     /// Store a typed value at the byte address `object + offset`.
     /// Class fields use their natural layout offsets, base-class fields
@@ -718,22 +945,10 @@ pub enum Instruction {
         out: TempId,
         local: LocalId,
     },
-    /// Direct call. `out` is `None` exactly when the callee returns
-    /// void; runtime functions with results produce a Temp of the
-    /// result type.
+    /// Direct or dispatch call. The target atomically owns destination,
+    /// physical ABI signature, return convention and effect.
     Call {
-        out: Option<TempId>,
-        symbol: String,
-        args: Vec<Value>,
-    },
-    /// Indirect call through a function table (vtable / itable
-    /// dispatch, impl spec 2.9): `table` is a `ptr` to the first slot,
-    /// the callee is `table[slot]`. Arguments include the receiver.
-    CallIndirect {
-        out: Option<TempId>,
-        table: Value,
-        slot: u32,
-        args: Vec<Value>,
+        site: CallSite,
     },
     /// Call that may throw (inside a `try`): control transfers to
     /// `normal` on success and to the `unwind` landing pad on a
@@ -744,18 +959,7 @@ pub enum Instruction {
     /// this instruction as the LLVM terminator without emitting the
     /// branch.
     Invoke {
-        out: Option<TempId>,
-        symbol: String,
-        args: Vec<Value>,
-        normal: BlockId,
-        unwind: BlockId,
-    },
-    /// Indirect variant of `Invoke` (same terminator convention).
-    InvokeIndirect {
-        out: Option<TempId>,
-        table: Value,
-        slot: u32,
-        args: Vec<Value>,
+        site: CallSite,
         normal: BlockId,
         unwind: BlockId,
     },
@@ -1187,6 +1391,92 @@ fn value_name(value: Value) -> String {
     }
 }
 
+fn call_destination_name(function: &Function, destination: CallDestination) -> String {
+    match destination {
+        CallDestination::Local(id) => format!("local-fn{}", id.into_u32()),
+        CallDestination::Runtime(runtime) => format!("runtime @{}", runtime.symbol()),
+        CallDestination::Extern(id) => format!("extern{}", id.into_raw()),
+        CallDestination::Dispatch { table, slot } => {
+            let slot = function.call_targets.dispatch_slots[slot];
+            format!(
+                "dispatch[{:?}:{}] {}",
+                slot.kind,
+                slot.index,
+                value_name(table)
+            )
+        }
+    }
+}
+
+fn call_site_name(function: &Function, site: &CallSite) -> String {
+    let targets = &function.call_targets;
+    let args = site
+        .args()
+        .iter()
+        .map(|arg| value_name(*arg))
+        .collect::<Vec<_>>()
+        .join(", ");
+    match *site {
+        CallSite::Void { target, .. } => {
+            let target_value = &targets.void_targets[target];
+            let signature = &targets.void_signatures[target_value.signature];
+            let params = signature
+                .params
+                .iter()
+                .map(LirType::dump)
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!(
+                "void-target{} sig=void{} ({params}) effect={} {}({args})",
+                target.into_raw(),
+                target_value.signature.into_raw(),
+                target_value.effect.dump(),
+                call_destination_name(function, target_value.destination),
+            )
+        }
+        CallSite::Direct { target, out, .. } => {
+            let target_value = &targets.direct_targets[target];
+            let signature = &targets.direct_signatures[target_value.signature];
+            let params = signature
+                .params
+                .iter()
+                .map(LirType::dump)
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!(
+                "t{} = direct-target{} sig=direct{} ({params}) -> {} effect={} {}({args})",
+                out.into_raw(),
+                target.into_raw(),
+                target_value.signature.into_raw(),
+                signature.result.dump(),
+                target_value.effect.dump(),
+                call_destination_name(function, target_value.destination),
+            )
+        }
+        CallSite::IndirectResult {
+            target, storage, ..
+        } => {
+            let target_value = &targets.indirect_result_targets[target];
+            let signature = &targets.indirect_result_signatures[target_value.signature];
+            let params = signature
+                .params
+                .iter()
+                .map(LirType::dump)
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!(
+                "local{} = indirect-result-target{} sig=indirect{} (sret {}, {params}) effect={} {}({args})",
+                storage.into_raw(),
+                target.into_raw(),
+                target_value.signature.into_raw(),
+                signature.result.ty.dump(),
+                target_value.effect.dump(),
+                call_destination_name(function, target_value.destination),
+            )
+        }
+    }
+}
+
 fn dump_instruction(function: &Function, instruction: &Instruction, buf: &mut String) {
     match instruction {
         Instruction::BinOp { out, op, lhs, rhs } => buf.push_str(&format!(
@@ -1405,15 +1695,7 @@ fn dump_instruction(function: &Function, instruction: &Instruction, buf: &mut St
             value_name(*value),
             local.into_raw()
         )),
-        Instruction::NativeCall {
-            out,
-            function: extern_id,
-            effect,
-            args,
-            roots,
-            result_scan,
-        } => {
-            let args = args.iter().map(|arg| value_name(*arg)).collect::<Vec<_>>();
+        Instruction::NativeCall { site, roots } => {
             let roots = if roots.is_empty() {
                 String::new()
             } else {
@@ -1429,100 +1711,30 @@ fn dump_instruction(function: &Function, instruction: &Instruction, buf: &mut St
                     .collect::<Vec<_>>();
                 format!(" roots=[{}]", roots.join(", "))
             };
+            let result_scan = site.result_scan(&function.call_targets);
             let result_root = if *result_scan == RefScan::None {
                 String::new()
             } else {
                 format!(" result-root={}", result_scan.dump())
             };
-            match out {
-                Some(temp) => buf.push_str(&format!(
-                    "    t{} = native_call[{}] extern{}({}){}{} : {}\n",
-                    temp.into_raw(),
-                    effect.dump(),
-                    extern_id.into_raw(),
-                    args.join(", "),
-                    roots,
-                    result_root,
-                    function.temps[*temp].ty.dump()
-                )),
-                None => buf.push_str(&format!(
-                    "    native_call[{}] extern{}({}){}{}\n",
-                    effect.dump(),
-                    extern_id.into_raw(),
-                    args.join(", "),
-                    roots,
-                    result_root
-                )),
-            }
+            buf.push_str(&format!(
+                "    native_call {}{}{}\n",
+                call_site_name(function, site),
+                roots,
+                result_root
+            ));
         }
-        Instruction::Call { out, symbol, args } => {
-            let args: Vec<String> = args.iter().map(|a| value_name(*a)).collect();
-            match out {
-                Some(temp) => buf.push_str(&format!(
-                    "    t{} = call @{}({}) : {}\n",
-                    temp.into_raw(),
-                    symbol,
-                    args.join(", "),
-                    function.temps[*temp].ty.dump()
-                )),
-                None => buf.push_str(&format!("    call @{}({})\n", symbol, args.join(", "))),
-            }
-        }
-        Instruction::CallIndirect {
-            out,
-            table,
-            slot,
-            args,
-        } => {
-            let args: Vec<String> = args.iter().map(|a| value_name(*a)).collect();
-            match out {
-                Some(temp) => buf.push_str(&format!(
-                    "    t{} = call_indirect {}[{}]({}) : {}\n",
-                    temp.into_raw(),
-                    value_name(*table),
-                    slot,
-                    args.join(", "),
-                    function.temps[*temp].ty.dump()
-                )),
-                None => buf.push_str(&format!(
-                    "    call_indirect {}[{}]({})\n",
-                    value_name(*table),
-                    slot,
-                    args.join(", ")
-                )),
-            }
+        Instruction::Call { site } => {
+            buf.push_str(&format!("    call {}\n", call_site_name(function, site)));
         }
         Instruction::Invoke {
-            out,
-            symbol,
-            args,
+            site,
             normal,
             unwind,
         } => {
-            let args: Vec<String> = args.iter().map(|a| value_name(*a)).collect();
             buf.push_str(&format!(
-                "    invoke @{}({}) normal @{} unwind @{}\n",
-                symbol,
-                args.join(", "),
-                block_name(function, *normal),
-                block_name(function, *unwind)
-            ));
-            let _ = out;
-        }
-        Instruction::InvokeIndirect {
-            table,
-            slot,
-            args,
-            normal,
-            unwind,
-            ..
-        } => {
-            let args: Vec<String> = args.iter().map(|a| value_name(*a)).collect();
-            buf.push_str(&format!(
-                "    invoke_indirect {}[{}]({}) normal @{} unwind @{}\n",
-                value_name(*table),
-                slot,
-                args.join(", "),
+                "    invoke {} normal @{} unwind @{}\n",
+                call_site_name(function, site),
                 block_name(function, *normal),
                 block_name(function, *unwind)
             ));

@@ -129,19 +129,6 @@ use std::collections::{HashMap, HashSet};
 use la_arena::Arena;
 use scoop_lir as lir;
 
-/// Runtime object allocation: `ptr scoop_rt_alloc(ptr td, i64 size)`
-/// (runtime spec 2.1). `ClassInit` lowerings call it.
-const ALLOC_SYMBOL: &str = "scoop_rt_alloc";
-/// Runtime throw entry: `void scoop_rt_throw(ptr)` (runtime spec 5).
-/// A `throw` inside a `try` is invoked to the current landing pad
-/// through this symbol; outside a `try` the `Throw` instruction is
-/// used instead (both lower to `__cxa_throw` in codegen / the C
-/// runtime). Noreturn.
-const THROW_SYMBOL: &str = "scoop_rt_throw";
-/// Runtime rethrow entry: `void scoop_rt_rethrow(void)` — resumes
-/// unwinding of the active exception (`__cxa_rethrow`) when no catch
-/// of the current try matches. Noreturn.
-const RETHROW_SYMBOL: &str = "scoop_rt_rethrow";
 use scoop_mir as mir;
 
 /// Lower MIR to LIR.
@@ -169,6 +156,19 @@ pub fn lower(module: &mir::Module) -> lir::Module {
     let callback_bridges = lower_callback_bridges(module);
     let foreign_callback_bridges = lower_foreign_callback_bridges(module);
     let (arrays, array_type_map) = array_types(module, &enums);
+    let local_function_map = module
+        .top_level
+        .iter()
+        .enumerate()
+        .map(|(index, id)| {
+            (
+                *id,
+                lir::LocalFunctionId::from_u32(
+                    u32::try_from(index).expect("the LIR function list fits its typed id"),
+                ),
+            )
+        })
+        .collect::<HashMap<_, _>>();
 
     // Tuple types encountered while mapping value types, in
     // first-appearance order; each one gets a meta layout.
@@ -190,9 +190,11 @@ pub fn lower(module: &mir::Module) -> lir::Module {
                 &mut globals,
                 &mut cstr_count,
                 &mut layout_types,
+                &structs,
                 &enums,
                 &array_type_map,
                 &mut td_map,
+                &local_function_map,
             )
         })
         .collect();
@@ -1523,6 +1525,59 @@ fn lir_type(ty: &mir::Type) -> lir::LirType {
     }
 }
 
+fn uses_indirect_result(enums: &Arena<lir::EnumDef>, ty: &lir::LirType) -> bool {
+    match ty {
+        lir::LirType::Aggregate(_) | lir::LirType::Struct(_) | lir::LirType::ExceptionRecord => {
+            true
+        }
+        lir::LirType::Enum(id) => matches!(enums[*id].repr, lir::EnumRepr::Tagged { .. }),
+        lir::LirType::Void | lir::LirType::I1 | lir::LirType::I64 | lir::LirType::Ptr(_) => false,
+    }
+}
+
+fn lower_runtime_function(function: mir::RuntimeFn) -> lir::RuntimeFunction {
+    match function {
+        mir::RuntimeFn::Box => lir::RuntimeFunction::Box,
+        mir::RuntimeFn::IsInstance => lir::RuntimeFunction::IsInstance,
+        mir::RuntimeFn::ITableLookup => lir::RuntimeFunction::ITableLookup,
+        mir::RuntimeFn::Pin => lir::RuntimeFunction::Pin,
+        mir::RuntimeFn::Unpin => lir::RuntimeFunction::Unpin,
+        mir::RuntimeFn::GetHandle => lir::RuntimeFunction::GetHandle,
+        mir::RuntimeFn::ReleaseHandle => lir::RuntimeFunction::ReleaseHandle,
+        mir::RuntimeFn::GcCollect => lir::RuntimeFunction::GcCollect,
+        mir::RuntimeFn::GcStats => lir::RuntimeFunction::GcStats,
+        mir::RuntimeFn::MaterializeException => lir::RuntimeFunction::MaterializeException,
+        mir::RuntimeFn::IntToString => lir::RuntimeFunction::IntToString,
+        mir::RuntimeFn::BoolToString => lir::RuntimeFunction::BoolToString,
+        mir::RuntimeFn::StringConcat => lir::RuntimeFunction::StringConcat,
+        mir::RuntimeFn::StringEq => lir::RuntimeFunction::StringEq,
+        mir::RuntimeFn::Trap => lir::RuntimeFunction::Trap,
+    }
+}
+
+fn runtime_call_effect(function: lir::RuntimeFunction) -> lir::CallEffect {
+    match function {
+        lir::RuntimeFunction::Alloc
+        | lir::RuntimeFunction::Box
+        | lir::RuntimeFunction::GcCollect
+        | lir::RuntimeFunction::MaterializeException
+        | lir::RuntimeFunction::IntToString
+        | lir::RuntimeFunction::BoolToString
+        | lir::RuntimeFunction::StringConcat => lir::CallEffect::ManagedSafepoint,
+        lir::RuntimeFunction::IsInstance
+        | lir::RuntimeFunction::ITableLookup
+        | lir::RuntimeFunction::Pin
+        | lir::RuntimeFunction::Unpin
+        | lir::RuntimeFunction::GetHandle
+        | lir::RuntimeFunction::ReleaseHandle
+        | lir::RuntimeFunction::GcStats
+        | lir::RuntimeFunction::StringEq
+        | lir::RuntimeFunction::Trap
+        | lir::RuntimeFunction::Throw
+        | lir::RuntimeFunction::Rethrow => lir::CallEffect::NoGc,
+    }
+}
+
 /// Map a primitive MIR binary operator onto its LIR opcode. Operand and result
 /// types come exclusively from the typed MIR expressions.
 fn binary_op(op: mir::BinOp) -> lir::BinOp {
@@ -1711,9 +1766,11 @@ fn lower_function<'a>(
     globals: &mut Arena<lir::Global>,
     cstr_count: &mut usize,
     layout_types: &mut Vec<mir::Type>,
+    structs: &Arena<lir::StructDef>,
     enums: &Arena<lir::EnumDef>,
     array_types: &'a HashMap<mir::ClassId, lir::ArrayTypeId>,
     td_map: &mut HashMap<String, lir::GlobalId>,
+    local_function_map: &'a HashMap<mir::FunctionId, lir::LocalFunctionId>,
 ) -> lir::Function {
     // Parameters stay SSA values unless `addressOf` requires stable storage.
     // Address-taken parameters are copied once into a method-local slot.
@@ -1775,9 +1832,11 @@ fn lower_function<'a>(
         globals,
         cstr_count,
         layout_types,
+        structs,
         enums,
         array_types,
         td_map,
+        local_function_map,
         local_map,
         locals,
         temps: Arena::new(),
@@ -1788,6 +1847,7 @@ fn lower_function<'a>(
         block_count: 0,
         hidden_count: 0,
         returns_void,
+        call_targets: lir::CallTargets::default(),
         trap_blocks: HashMap::new(),
         current_sealed: false,
         exception_slots: None,
@@ -1822,6 +1882,7 @@ fn lower_function<'a>(
         symbol: function.symbol.clone(),
         params,
         return_ty,
+        call_targets: lowerer.call_targets,
         locals: lowerer.locals,
         temps: lowerer.temps,
         blocks: lowerer.blocks,
@@ -1866,7 +1927,7 @@ impl LiveValue {
     }
 }
 
-fn instruction_uses(instruction: &lir::Instruction) -> Vec<lir::Value> {
+fn instruction_uses(instruction: &lir::Instruction, function: &lir::Function) -> Vec<lir::Value> {
     match instruction {
         lir::Instruction::BinOp { lhs, rhs, .. } => vec![*lhs, *rhs],
         lir::Instruction::UnaryOp { operand, .. }
@@ -1901,9 +1962,17 @@ fn instruction_uses(instruction: &lir::Instruction) -> Vec<lir::Value> {
         lir::Instruction::Store { value, .. }
         | lir::Instruction::GlobalStore { value, .. }
         | lir::Instruction::NativeGlobalStore { value, .. } => vec![*value],
-        lir::Instruction::NativeCall { args, .. }
-        | lir::Instruction::Call { args, .. }
-        | lir::Instruction::Invoke { args, .. } => args.clone(),
+        lir::Instruction::NativeCall { site, .. }
+        | lir::Instruction::Call { site }
+        | lir::Instruction::Invoke { site, .. } => {
+            let mut values = site.args().to_vec();
+            if let lir::CallDestination::Dispatch { table, .. } =
+                site.destination(&function.call_targets)
+            {
+                values.push(table);
+            }
+            values
+        }
         lir::Instruction::HeapStore { object, value, .. }
         | lir::Instruction::AtomicStore { object, value, .. } => vec![*object, *value],
         lir::Instruction::AtomicCompareExchange {
@@ -1917,13 +1986,6 @@ fn instruction_uses(instruction: &lir::Instruction) -> Vec<lir::Value> {
         // Taking a local's address makes its current contents observable to
         // the following raw operation, so keep it live conservatively.
         lir::Instruction::LocalAddress { local, .. } => vec![lir::Value::Local(*local)],
-        lir::Instruction::CallIndirect { table, args, .. }
-        | lir::Instruction::InvokeIndirect { table, args, .. } => {
-            let mut values = Vec::with_capacity(args.len() + 1);
-            values.push(*table);
-            values.extend(args);
-            values
-        }
         lir::Instruction::ArrayGet { array, index, .. } => vec![*array, *index],
         lir::Instruction::ArraySet {
             array,
@@ -1971,12 +2033,19 @@ fn instruction_defs(instruction: &lir::Instruction) -> Vec<LiveValue> {
         | lir::Instruction::EnumTag { out, .. }
         | lir::Instruction::EnumField { out, .. }
         | lir::Instruction::ForeignCallbackRegister { out, .. } => Some(*out),
-        lir::Instruction::NativeCall { out, .. }
-        | lir::Instruction::Call { out, .. }
-        | lir::Instruction::CallIndirect { out, .. }
-        | lir::Instruction::Invoke { out, .. }
-        | lir::Instruction::InvokeIndirect { out, .. }
-        | lir::Instruction::ForeignCallbackOperation { out, .. } => *out,
+        lir::Instruction::NativeCall { site, .. }
+        | lir::Instruction::Call { site }
+        | lir::Instruction::Invoke { site, .. } => {
+            let mut definitions = Vec::new();
+            if let Some(out) = site.direct_out() {
+                definitions.push(LiveValue::Temp(out));
+            }
+            if let Some(storage) = site.result_storage() {
+                definitions.push(LiveValue::Local(storage));
+            }
+            return definitions;
+        }
+        lir::Instruction::ForeignCallbackOperation { out, .. } => *out,
         lir::Instruction::Store { local, .. } => return vec![LiveValue::Local(*local)],
         lir::Instruction::LandingPad { record, raw }
         | lir::Instruction::CleanupPad { record, raw } => {
@@ -2017,11 +2086,7 @@ fn block_successors(block: &lir::BasicBlock) -> Vec<lir::BlockId> {
         | lir::Terminator::Resume { .. }
         | lir::Terminator::Unreachable => Vec::new(),
     };
-    if let Some(
-        lir::Instruction::Invoke { normal, unwind, .. }
-        | lir::Instruction::InvokeIndirect { normal, unwind, .. },
-    ) = block.instructions.last()
-    {
+    if let Some(lir::Instruction::Invoke { normal, unwind, .. }) = block.instructions.last() {
         if !successors.contains(normal) {
             successors.push(*normal);
         }
@@ -2145,8 +2210,6 @@ fn annotate_native_call_roots(
     structs: &Arena<lir::StructDef>,
     enums: &Arena<lir::EnumDef>,
 ) {
-    type NativeCallAnnotation = Option<(Vec<lir::CallerRoot>, lir::RefScan)>;
-
     let block_count = function.blocks.len();
     let mut uses = vec![HashSet::new(); block_count];
     let mut defs = vec![HashSet::new(); block_count];
@@ -2157,7 +2220,7 @@ fn annotate_native_call_roots(
         let mut block_defs = HashSet::new();
         let mut block_uses = HashSet::new();
         for instruction in &block.instructions {
-            for value in instruction_uses(instruction) {
+            for value in instruction_uses(instruction, function) {
                 if let Some(value) = LiveValue::from_value(value)
                     && !block_defs.contains(&value)
                 {
@@ -2204,7 +2267,7 @@ fn annotate_native_call_roots(
         }
     }
 
-    let mut annotations: Vec<Vec<NativeCallAnnotation>> = function
+    let mut annotations: Vec<Vec<Option<Vec<lir::CallerRoot>>>> = function
         .blocks
         .iter()
         .map(|(_, block)| vec![None; block.instructions.len()])
@@ -2230,17 +2293,9 @@ fn annotate_native_call_roots(
                     | lir::Instruction::NativeGlobalAddress { .. }
             ) {
                 let roots = caller_roots(&live, function, structs, enums);
-                let result_scan = match instruction {
-                    lir::Instruction::NativeCall { out, .. } => {
-                        out.as_ref().map_or(lir::RefScan::None, |out| {
-                            lir_root_scan(&function.temps[*out].ty, structs, enums, 0)
-                        })
-                    }
-                    _ => lir::RefScan::None,
-                };
-                annotations[block_index][instruction_index] = Some((roots, result_scan));
+                annotations[block_index][instruction_index] = Some(roots);
             }
-            for value in instruction_uses(instruction) {
+            for value in instruction_uses(instruction, function) {
                 if let Some(value) = LiveValue::from_value(value) {
                     live.insert(value);
                 }
@@ -2251,24 +2306,18 @@ fn annotate_native_call_roots(
     for (id, block) in function.blocks.iter_mut() {
         let block_index = id.into_raw().into_u32() as usize;
         for (instruction_index, instruction) in block.instructions.iter_mut().enumerate() {
-            if let lir::Instruction::NativeCall {
-                roots, result_scan, ..
-            } = instruction
-            {
-                let (computed_roots, computed_result_scan) = annotations[block_index]
-                    [instruction_index]
+            if let lir::Instruction::NativeCall { roots, .. } = instruction {
+                let computed_roots = annotations[block_index][instruction_index]
                     .take()
                     .expect("every native call receives one liveness annotation");
                 *roots = computed_roots;
-                *result_scan = computed_result_scan;
             } else if let lir::Instruction::NativeGlobalLoad { roots, .. }
             | lir::Instruction::NativeGlobalStore { roots, .. }
             | lir::Instruction::NativeGlobalAddress { roots, .. } = instruction
             {
-                let (computed_roots, result_scan) = annotations[block_index][instruction_index]
+                let computed_roots = annotations[block_index][instruction_index]
                     .take()
                     .expect("every native global bridge receives one liveness annotation");
-                debug_assert_eq!(result_scan, lir::RefScan::None);
                 *roots = computed_roots;
             }
         }
@@ -2327,6 +2376,8 @@ struct FunctionLowerer<'a> {
     cstr_count: &'a mut usize,
     /// Sink for tuple types encountered in value types (meta layouts).
     layout_types: &'a mut Vec<mir::Type>,
+    /// Complete value layouts used to classify return conventions and scans.
+    structs: &'a Arena<lir::StructDef>,
     /// Enum definitions with fixed representations (enum value
     /// sizing, e.g. for `scoop_rt_box` payload sizes).
     enums: &'a Arena<lir::EnumDef>,
@@ -2335,6 +2386,7 @@ struct FunctionLowerer<'a> {
     array_types: &'a HashMap<mir::ClassId, lir::ArrayTypeId>,
     /// TypeDescriptor reference stubs, deduplicated by symbol.
     td_map: &'a mut HashMap<String, lir::GlobalId>,
+    local_function_map: &'a HashMap<mir::FunctionId, lir::LocalFunctionId>,
     local_map: HashMap<mir::LocalId, LocalSlot>,
     locals: Arena<lir::Local>,
     temps: Arena<lir::Temp>,
@@ -2346,6 +2398,7 @@ struct FunctionLowerer<'a> {
     block_count: usize,
     hidden_count: usize,
     returns_void: bool,
+    call_targets: lir::CallTargets,
     /// The shared trap blocks of this function, one per message,
     /// created on first use.
     trap_blocks: HashMap<String, lir::BlockId>,
@@ -2648,10 +2701,15 @@ impl<'a> FunctionLowerer<'a> {
                 let value = self.lower_expr(exception);
                 if let Some(unwind) = unwind {
                     let normal = self.new_block("throw.normal");
+                    let (site, _) = self.call_site(
+                        lir::CallDestination::Runtime(lir::RuntimeFunction::Throw),
+                        runtime_call_effect(lir::RuntimeFunction::Throw),
+                        vec![lir::MANAGED_PTR],
+                        lir::LirType::Void,
+                        vec![value],
+                    );
                     self.push(lir::Instruction::Invoke {
-                        out: None,
-                        symbol: THROW_SYMBOL.to_string(),
-                        args: vec![value],
+                        site,
                         normal,
                         unwind: self.block_map[unwind],
                     });
@@ -2666,10 +2724,15 @@ impl<'a> FunctionLowerer<'a> {
             mir::Terminator::Rethrow { unwind } => match unwind {
                 Some(unwind) => {
                     let normal = self.new_block("rethrow.normal");
+                    let (site, _) = self.call_site(
+                        lir::CallDestination::Runtime(lir::RuntimeFunction::Rethrow),
+                        runtime_call_effect(lir::RuntimeFunction::Rethrow),
+                        Vec::new(),
+                        lir::LirType::Void,
+                        Vec::new(),
+                    );
                     self.push(lir::Instruction::Invoke {
-                        out: None,
-                        symbol: RETHROW_SYMBOL.to_string(),
-                        args: Vec::new(),
+                        site,
                         normal,
                         unwind: self.block_map[unwind],
                     });
@@ -2678,11 +2741,13 @@ impl<'a> FunctionLowerer<'a> {
                     self.seal(lir::Terminator::Unreachable);
                 }
                 None => {
-                    self.push(lir::Instruction::Call {
-                        out: None,
-                        symbol: RETHROW_SYMBOL.to_string(),
-                        args: Vec::new(),
-                    });
+                    self.emit_plain_call(
+                        lir::CallDestination::Runtime(lir::RuntimeFunction::Rethrow),
+                        runtime_call_effect(lir::RuntimeFunction::Rethrow),
+                        Vec::new(),
+                        lir::LirType::Void,
+                        Vec::new(),
+                    );
                     self.seal(lir::Terminator::Unreachable);
                 }
             },
@@ -2745,21 +2810,22 @@ impl<'a> FunctionLowerer<'a> {
                     "a ClassInit initializes every flattened field"
                 );
                 let td = self.td_ref(&mir::Type::Class(*class_id));
-                let out = self.new_temp(lir::MANAGED_PTR);
-                self.push(lir::Instruction::Call {
-                    out: Some(out),
-                    symbol: ALLOC_SYMBOL.to_string(),
-                    args: vec![td, lir::Value::IntConst(size as i64)],
-                });
+                let object = self.emit_plain_call(
+                    lir::CallDestination::Runtime(lir::RuntimeFunction::Alloc),
+                    runtime_call_effect(lir::RuntimeFunction::Alloc),
+                    vec![lir::METADATA_PTR, lir::LirType::I64],
+                    lir::MANAGED_PTR,
+                    vec![td, lir::Value::IntConst(size as i64)],
+                );
                 for (arg, offset) in args.iter().zip(field_offsets) {
                     let value = self.lower_expr(arg);
                     self.push(lir::Instruction::HeapStore {
-                        object: lir::Value::Temp(out),
+                        object,
                         offset,
                         value,
                     });
                 }
-                lir::Value::Temp(out)
+                object
             }
             mir::ExprKind::ClosureAlloc { class, captures } => {
                 let def = &self.module.closure_classes[*class];
@@ -2770,12 +2836,13 @@ impl<'a> FunctionLowerer<'a> {
                     "ClosureAlloc initializes every capture field"
                 );
                 let td = lir::Value::Global(self.td_global(td_symbol(&def.name)));
-                let out = self.new_temp(lir::MANAGED_PTR);
-                self.push(lir::Instruction::Call {
-                    out: Some(out),
-                    symbol: ALLOC_SYMBOL.to_string(),
-                    args: vec![td, lir::Value::IntConst(size as i64)],
-                });
+                let object = self.emit_plain_call(
+                    lir::CallDestination::Runtime(lir::RuntimeFunction::Alloc),
+                    runtime_call_effect(lir::RuntimeFunction::Alloc),
+                    vec![lir::METADATA_PTR, lir::LirType::I64],
+                    lir::MANAGED_PTR,
+                    vec![td, lir::Value::IntConst(size as i64)],
+                );
                 let invoke_function = self.module.closure_invoke_functions[def.invoke].function;
                 let invoke_symbol = self.module.functions[invoke_function].symbol.clone();
                 let invoke = self.new_temp(lir::CODE_PTR);
@@ -2784,19 +2851,19 @@ impl<'a> FunctionLowerer<'a> {
                     symbol: invoke_symbol,
                 });
                 self.push(lir::Instruction::HeapStore {
-                    object: lir::Value::Temp(out),
+                    object,
                     offset: 16,
                     value: lir::Value::Temp(invoke),
                 });
                 for (capture, offset) in captures.iter().zip(capture_offsets) {
                     let value = self.lower_expr(capture);
                     self.push(lir::Instruction::HeapStore {
-                        object: lir::Value::Temp(out),
+                        object,
                         offset,
                         value,
                     });
                 }
-                lir::Value::Temp(out)
+                object
             }
             mir::ExprKind::ClosureCapture {
                 closure,
@@ -3126,24 +3193,38 @@ impl<'a> FunctionLowerer<'a> {
                 });
                 lir::Value::Temp(out)
             }
-            // `scoop_rt_box(td, payload, size)` (runtime spec 2.3):
-            // the td and the size come from the payload's static
-            // type; codegen materializes the by-value aggregate
-            // payload behind a stack pointer (module docs).
+            // `scoop_rt_box(td, payload, size)` (runtime spec 2.3): LIR
+            // materializes the payload storage, so the typed target contains
+            // the final physical pointer signature consumed by codegen.
             mir::ExprKind::Box(operand) => {
                 let payload_ty = operand.ty.clone();
                 record_layout_types(&payload_ty, self.layout_types);
                 let payload = self.lower_expr(operand);
+                let payload_lir_type = self.value_type(&payload_ty);
+                let payload_storage = self.new_hidden_local(payload_lir_type);
+                self.push(lir::Instruction::Store {
+                    local: payload_storage,
+                    value: payload,
+                });
+                let payload_address = self.new_temp(lir::RAW_PTR);
+                self.push(lir::Instruction::LocalAddress {
+                    out: payload_address,
+                    local: payload_storage,
+                });
                 let td = self.td_ref(&payload_ty);
                 let enum_shape = |id: mir::EnumId| repr_shape(&self.enums[enum_def_id(id)].repr);
                 let (size, _) = size_align(self.module, &enum_shape, &payload_ty);
-                let out = self.new_temp(lir::MANAGED_PTR);
-                self.push(lir::Instruction::Call {
-                    out: Some(out),
-                    symbol: mir::RuntimeFn::Box.symbol().to_string(),
-                    args: vec![td, payload, lir::Value::IntConst(size as i64)],
-                });
-                lir::Value::Temp(out)
+                self.emit_plain_call(
+                    lir::CallDestination::Runtime(lir::RuntimeFunction::Box),
+                    runtime_call_effect(lir::RuntimeFunction::Box),
+                    vec![lir::METADATA_PTR, lir::RAW_PTR, lir::LirType::I64],
+                    lir::MANAGED_PTR,
+                    vec![
+                        td,
+                        lir::Value::Temp(payload_address),
+                        lir::Value::IntConst(size as i64),
+                    ],
+                )
             }
             // The payload sits right behind the 16-byte object header:
             // byte offset 16 of the boxed object (see the module docs).
@@ -3157,13 +3238,13 @@ impl<'a> FunctionLowerer<'a> {
             mir::ExprKind::IsInstance { operand, check_ty } => {
                 let object = self.lower_expr(operand);
                 let td = self.td_ref(check_ty);
-                let out = self.new_temp(lir::LirType::I1);
-                self.push(lir::Instruction::Call {
-                    out: Some(out),
-                    symbol: mir::RuntimeFn::IsInstance.symbol().to_string(),
-                    args: vec![object, td],
-                });
-                lir::Value::Temp(out)
+                self.emit_plain_call(
+                    lir::CallDestination::Runtime(lir::RuntimeFunction::IsInstance),
+                    runtime_call_effect(lir::RuntimeFunction::IsInstance),
+                    vec![lir::MANAGED_PTR, lir::METADATA_PTR],
+                    lir::LirType::I1,
+                    vec![object, td],
+                )
             }
             // mir-lower expands `as` / `as?` into runtime checks plus
             // Option wrapping; the node never reaches LIR.
@@ -3322,11 +3403,15 @@ impl<'a> FunctionLowerer<'a> {
         let saved = self.current;
         let saved_sealed = self.current_sealed;
         self.enter(block);
-        self.push(lir::Instruction::Call {
-            out: None,
-            symbol: lir::TRAP_SYMBOL.to_string(),
-            args: vec![lir::Value::Global(global)],
-        });
+        let (site, result) = self.call_site(
+            lir::CallDestination::Runtime(lir::RuntimeFunction::Trap),
+            runtime_call_effect(lir::RuntimeFunction::Trap),
+            vec![lir::RAW_PTR],
+            lir::LirType::Void,
+            vec![lir::Value::Global(global)],
+        );
+        assert!(result.is_none(), "trap has no value result");
+        self.push(lir::Instruction::Call { site });
         self.seal(lir::Terminator::Unreachable);
         self.trap_blocks.insert(message.to_string(), block);
         self.current = saved;
@@ -3375,6 +3460,199 @@ impl<'a> FunctionLowerer<'a> {
         lir::Value::Temp(out)
     }
 
+    fn call_site(
+        &mut self,
+        destination: lir::CallDestination,
+        effect: lir::CallEffect,
+        parameter_types: Vec<lir::LirType>,
+        result_type: lir::LirType,
+        args: Vec<lir::Value>,
+    ) -> (lir::CallSite, Option<lir::Value>) {
+        assert_eq!(parameter_types.len(), args.len(), "typed call arity");
+        let calling_convention = lir::CallingConvention::Cdecl;
+        if result_type == lir::LirType::Void {
+            let signature = self
+                .call_targets
+                .void_signatures
+                .alloc(lir::VoidCallSignature {
+                    params: parameter_types,
+                    calling_convention,
+                });
+            let target = self.call_targets.void_targets.alloc(lir::VoidCallTarget {
+                destination,
+                signature,
+                effect,
+            });
+            return (lir::CallSite::Void { target, args }, None);
+        }
+
+        let result_scan = lir_root_scan(&result_type, self.structs, self.enums, 0);
+        if uses_indirect_result(self.enums, &result_type) {
+            let signature = self.call_targets.indirect_result_signatures.alloc(
+                lir::IndirectResultCallSignature {
+                    params: parameter_types,
+                    result: lir::ResultStorage {
+                        ty: result_type.clone(),
+                        scan: result_scan,
+                    },
+                    calling_convention,
+                },
+            );
+            let target =
+                self.call_targets
+                    .indirect_result_targets
+                    .alloc(lir::IndirectResultCallTarget {
+                        destination,
+                        signature,
+                        effect,
+                    });
+            let storage = self.new_hidden_local(result_type);
+            return (
+                lir::CallSite::IndirectResult {
+                    target,
+                    storage,
+                    args,
+                },
+                Some(lir::Value::Local(storage)),
+            );
+        }
+
+        let signature = self
+            .call_targets
+            .direct_signatures
+            .alloc(lir::DirectCallSignature {
+                params: parameter_types,
+                result: result_type.clone(),
+                result_scan,
+                calling_convention,
+            });
+        let target = self
+            .call_targets
+            .direct_targets
+            .alloc(lir::DirectCallTarget {
+                destination,
+                signature,
+                effect,
+            });
+        let out = self.new_temp(result_type);
+        (
+            lir::CallSite::Direct { target, out, args },
+            Some(lir::Value::Temp(out)),
+        )
+    }
+
+    fn dispatch_destination(
+        &mut self,
+        table: lir::Value,
+        kind: lir::DispatchKind,
+        index: u32,
+    ) -> lir::CallDestination {
+        let slot = self
+            .call_targets
+            .dispatch_slots
+            .alloc(lir::DispatchSlot { kind, index });
+        lir::CallDestination::Dispatch { table, slot }
+    }
+
+    fn emit_managed_call(
+        &mut self,
+        destination: lir::CallDestination,
+        effect: lir::CallEffect,
+        parameter_types: Vec<lir::LirType>,
+        result_type: lir::LirType,
+        args: Vec<lir::Value>,
+    ) -> lir::Value {
+        let (site, value) = self.call_site(destination, effect, parameter_types, result_type, args);
+        if let Some(unwind) = self.current_unwind {
+            let normal = self.new_block("invoke.normal");
+            self.push(lir::Instruction::Invoke {
+                site,
+                normal,
+                unwind,
+            });
+            self.seal(lir::Terminator::Br(normal));
+            self.enter(normal);
+        } else {
+            self.push(lir::Instruction::Call { site });
+        }
+        value.unwrap_or_else(|| self.unit_value())
+    }
+
+    fn emit_plain_call(
+        &mut self,
+        destination: lir::CallDestination,
+        effect: lir::CallEffect,
+        parameter_types: Vec<lir::LirType>,
+        result_type: lir::LirType,
+        args: Vec<lir::Value>,
+    ) -> lir::Value {
+        let (site, value) = self.call_site(destination, effect, parameter_types, result_type, args);
+        self.push(lir::Instruction::Call { site });
+        value.unwrap_or_else(|| self.unit_value())
+    }
+
+    fn emit_native_call(
+        &mut self,
+        destination: lir::CallDestination,
+        effect: lir::CallEffect,
+        parameter_types: Vec<lir::LirType>,
+        result_type: lir::LirType,
+        args: Vec<lir::Value>,
+    ) -> lir::Value {
+        assert!(matches!(
+            effect,
+            lir::CallEffect::NativeSafe | lir::CallEffect::NativeBorrowed
+        ));
+        let (site, value) = self.call_site(destination, effect, parameter_types, result_type, args);
+        self.push(lir::Instruction::NativeCall {
+            site,
+            roots: Vec::new(),
+        });
+        value.unwrap_or_else(|| self.unit_value())
+    }
+
+    fn emit_native_storage_call(
+        &mut self,
+        destination: lir::CallDestination,
+        effect: lir::CallEffect,
+        parameter_types: Vec<lir::LirType>,
+        result_type: lir::LirType,
+        result_scan: lir::RefScan,
+        args: Vec<lir::Value>,
+    ) -> lir::Value {
+        assert_ne!(result_type, lir::LirType::Void);
+        assert_eq!(parameter_types.len(), args.len(), "typed call arity");
+        let signature =
+            self.call_targets
+                .indirect_result_signatures
+                .alloc(lir::IndirectResultCallSignature {
+                    params: parameter_types,
+                    result: lir::ResultStorage {
+                        ty: result_type.clone(),
+                        scan: result_scan,
+                    },
+                    calling_convention: lir::CallingConvention::Cdecl,
+                });
+        let target =
+            self.call_targets
+                .indirect_result_targets
+                .alloc(lir::IndirectResultCallTarget {
+                    destination,
+                    signature,
+                    effect,
+                });
+        let storage = self.new_hidden_local(result_type);
+        self.push(lir::Instruction::NativeCall {
+            site: lir::CallSite::IndirectResult {
+                target,
+                storage,
+                args,
+            },
+            roots: Vec::new(),
+        });
+        lir::Value::Local(storage)
+    }
+
     fn lower_call(&mut self, call: &mir::Call, result_ty: &mir::Type) -> lir::Value {
         match call.target.callee {
             mir::Callee::Extern(id) => {
@@ -3389,12 +3667,9 @@ impl<'a> FunctionLowerer<'a> {
                     .map(|arg| self.lower_expr(arg))
                     .collect::<Vec<_>>();
                 let function = lir::ExternFunctionId::from_raw(id.into_raw());
+                let destination = lir::CallDestination::Extern(function);
                 match extern_.abi {
                     mir::ExternAbi::C => {
-                        let result = (!returns_unit).then(|| {
-                            let ty = self.value_type(result_ty);
-                            self.new_temp(ty)
-                        });
                         let mut bridge_args = Vec::with_capacity(args.len());
                         for (value, ty) in args.into_iter().zip(parameter_types) {
                             let ty = self.value_type(&ty);
@@ -3407,40 +3682,44 @@ impl<'a> FunctionLowerer<'a> {
                             });
                             bridge_args.push(lir::Value::Temp(address));
                         }
-                        self.push(lir::Instruction::NativeCall {
-                            out: result,
-                            function,
-                            effect: lir::NativeCallEffect::NativeSafe,
-                            args: bridge_args,
-                            roots: Vec::new(),
-                            result_scan: lir::RefScan::None,
-                        });
-                        result.map_or_else(|| self.unit_value(), lir::Value::Temp)
+                        let bridge_parameter_types = vec![lir::RAW_PTR; bridge_args.len()];
+                        if returns_unit {
+                            self.emit_native_call(
+                                destination,
+                                lir::CallEffect::NativeSafe,
+                                bridge_parameter_types,
+                                lir::LirType::Void,
+                                bridge_args,
+                            )
+                        } else {
+                            let result_type = self.value_type(result_ty);
+                            self.emit_native_storage_call(
+                                destination,
+                                lir::CallEffect::NativeSafe,
+                                bridge_parameter_types,
+                                result_type,
+                                lir::RefScan::None,
+                                bridge_args,
+                            )
+                        }
                     }
                     mir::ExternAbi::Scoop => {
-                        if returns_unit {
-                            self.push(lir::Instruction::NativeCall {
-                                out: None,
-                                function,
-                                effect: lir::NativeCallEffect::NativeBorrowed,
-                                args,
-                                roots: Vec::new(),
-                                result_scan: lir::RefScan::None,
-                            });
-                            self.unit_value()
+                        let parameter_types = parameter_types
+                            .iter()
+                            .map(|ty| self.value_type(ty))
+                            .collect();
+                        let result_type = if returns_unit {
+                            lir::LirType::Void
                         } else {
-                            let ty = self.value_type(result_ty);
-                            let out = self.new_temp(ty);
-                            self.push(lir::Instruction::NativeCall {
-                                out: Some(out),
-                                function,
-                                effect: lir::NativeCallEffect::NativeBorrowed,
-                                args,
-                                roots: Vec::new(),
-                                result_scan: lir::RefScan::None,
-                            });
-                            lir::Value::Temp(out)
-                        }
+                            self.value_type(result_ty)
+                        };
+                        self.emit_native_call(
+                            destination,
+                            lir::CallEffect::NativeBorrowed,
+                            parameter_types,
+                            result_type,
+                            args,
+                        )
                     }
                 }
             }
@@ -3461,16 +3740,20 @@ impl<'a> FunctionLowerer<'a> {
                     call.args.iter().map(|arg| self.lower_expr(arg)).collect();
                 let td = self.load_at_offset(args[0], 0, lir::METADATA_PTR);
                 let target_td = self.td_ref(&mir::Type::Function(function_type));
-                let table = self.new_temp(lir::METADATA_PTR);
-                self.push(lir::Instruction::Call {
-                    out: Some(table),
-                    symbol: mir::RuntimeFn::ITableLookup.symbol().to_string(),
-                    args: vec![lir::Value::Temp(td), target_td],
-                });
+                let table = self.emit_plain_call(
+                    lir::CallDestination::Runtime(lir::RuntimeFunction::ITableLookup),
+                    runtime_call_effect(lir::RuntimeFunction::ITableLookup),
+                    vec![lir::METADATA_PTR, lir::METADATA_PTR],
+                    lir::METADATA_PTR,
+                    vec![lir::Value::Temp(td), target_td],
+                );
+                let destination =
+                    self.dispatch_destination(table, lir::DispatchKind::FunctionBridge, 0);
                 self.finish_indirect(
-                    table,
-                    0,
+                    destination,
+                    lir::CallEffect::ManagedSafepoint,
                     args,
+                    parameter_types,
                     !signature.is_suspend && signature.return_type == mir::Type::Unit,
                     result_ty,
                 )
@@ -3493,6 +3776,7 @@ impl<'a> FunctionLowerer<'a> {
                 self.finish_closure(
                     args[0],
                     args,
+                    parameter_types,
                     !signature.is_suspend && signature.return_type == mir::Type::Unit,
                     result_ty,
                 )
@@ -3515,14 +3799,25 @@ impl<'a> FunctionLowerer<'a> {
                 let param_types: Vec<mir::Type> =
                     callee.params.iter().map(|param| param.ty.clone()).collect();
                 let returns_unit = callee.return_ty == mir::Type::Unit;
-                let symbol = callee.symbol.clone();
+                let effect = match callee.gc_effect {
+                    mir::GcEffect::Managed => lir::CallEffect::ManagedSafepoint,
+                    mir::GcEffect::NoGc => lir::CallEffect::NoGc,
+                };
                 assert_eq!(call.args.len(), param_types.len(), "user call arity");
                 // Arguments are evaluated left to right, before the call.
                 let args: Vec<lir::Value> =
                     call.args.iter().map(|arg| self.lower_expr(arg)).collect();
                 match call.target.kind {
                     mir::CallKind::Direct => {
-                        self.finish_call(symbol, args, returns_unit, result_ty)
+                        let destination = lir::CallDestination::Local(self.local_function_map[&id]);
+                        self.finish_call(
+                            destination,
+                            effect,
+                            args,
+                            param_types,
+                            returns_unit,
+                            result_ty,
+                        )
                     }
                     // vtable dispatch (impl spec 2.9): the receiver's
                     // object header holds the TypeDescriptor, whose
@@ -3531,7 +3826,19 @@ impl<'a> FunctionLowerer<'a> {
                         let td = self.load_at_offset(args[0], 0, lir::METADATA_PTR);
                         let vtable =
                             self.load_at_offset(lir::Value::Temp(td), 5 * 8, lir::METADATA_PTR);
-                        self.finish_indirect(vtable, slot, args, returns_unit, result_ty)
+                        let destination = self.dispatch_destination(
+                            lir::Value::Temp(vtable),
+                            lir::DispatchKind::Virtual,
+                            slot,
+                        );
+                        self.finish_indirect(
+                            destination,
+                            effect,
+                            args,
+                            param_types,
+                            returns_unit,
+                            result_ty,
+                        )
                     }
                     // itable dispatch: `scoop_rt_itable_lookup(td,
                     // iface_td)` finds the interface's table by its
@@ -3539,13 +3846,23 @@ impl<'a> FunctionLowerer<'a> {
                     mir::CallKind::Interface { interface, slot } => {
                         let td = self.load_at_offset(args[0], 0, lir::METADATA_PTR);
                         let iface_td = self.td_ref(&mir::Type::Interface(interface));
-                        let table = self.new_temp(lir::METADATA_PTR);
-                        self.push(lir::Instruction::Call {
-                            out: Some(table),
-                            symbol: mir::RuntimeFn::ITableLookup.symbol().to_string(),
-                            args: vec![lir::Value::Temp(td), iface_td],
-                        });
-                        self.finish_indirect(table, slot, args, returns_unit, result_ty)
+                        let table = self.emit_plain_call(
+                            lir::CallDestination::Runtime(lir::RuntimeFunction::ITableLookup),
+                            runtime_call_effect(lir::RuntimeFunction::ITableLookup),
+                            vec![lir::METADATA_PTR, lir::METADATA_PTR],
+                            lir::METADATA_PTR,
+                            vec![lir::Value::Temp(td), iface_td],
+                        );
+                        let destination =
+                            self.dispatch_destination(table, lir::DispatchKind::Interface, slot);
+                        self.finish_indirect(
+                            destination,
+                            effect,
+                            args,
+                            param_types,
+                            returns_unit,
+                            result_ty,
+                        )
                     }
                     mir::CallKind::Closure { .. } => {
                         unreachable!("closure calls have no statically selected user callee")
@@ -3575,7 +3892,6 @@ impl<'a> FunctionLowerer<'a> {
                 lir::Value::IntConst(0)
             }
             mir::Callee::Runtime(function) => {
-                let symbol = function.symbol().to_string();
                 let expected_arg_count = match function {
                     mir::RuntimeFn::IntToString | mir::RuntimeFn::BoolToString => 1,
                     mir::RuntimeFn::StringConcat | mir::RuntimeFn::StringEq => 2,
@@ -3603,42 +3919,47 @@ impl<'a> FunctionLowerer<'a> {
                 assert_eq!(call.args.len(), expected_arg_count, "runtime call arity");
                 let args: Vec<lir::Value> =
                     call.args.iter().map(|arg| self.lower_expr(arg)).collect();
-                match function {
-                    mir::RuntimeFn::StringConcat
-                    | mir::RuntimeFn::IntToString
-                    | mir::RuntimeFn::BoolToString => {
-                        self.call_with_result(symbol, args, lir::MANAGED_PTR)
+                let (parameter_types, result_type) = match function {
+                    mir::RuntimeFn::StringConcat => {
+                        (vec![lir::MANAGED_PTR, lir::MANAGED_PTR], lir::MANAGED_PTR)
                     }
+                    mir::RuntimeFn::IntToString => (vec![lir::LirType::I64], lir::MANAGED_PTR),
+                    mir::RuntimeFn::BoolToString => (vec![lir::LirType::I1], lir::MANAGED_PTR),
                     mir::RuntimeFn::StringEq => {
-                        self.call_with_result(symbol, args, lir::LirType::I1)
+                        (vec![lir::MANAGED_PTR, lir::MANAGED_PTR], lir::LirType::I1)
                     }
                     // The pin / handle intrinsics exchange a word with
                     // the runtime: `pin` / `getGcHandle` yield the raw
                     // word (i64), `unpin` / `releaseGcHandle` yield the
                     // reference (ptr), `gcStats` yields the count.
                     mir::RuntimeFn::Pin | mir::RuntimeFn::GetHandle | mir::RuntimeFn::GcStats => {
-                        self.call_with_result(symbol, args, lir::LirType::I64)
+                        let params = if function == mir::RuntimeFn::GcStats {
+                            Vec::new()
+                        } else {
+                            vec![lir::MANAGED_PTR]
+                        };
+                        (params, lir::LirType::I64)
                     }
-                    mir::RuntimeFn::Unpin
-                    | mir::RuntimeFn::ReleaseHandle
-                    | mir::RuntimeFn::MaterializeException => {
-                        self.call_with_result(symbol, args, lir::MANAGED_PTR)
+                    mir::RuntimeFn::Unpin | mir::RuntimeFn::ReleaseHandle => {
+                        (vec![lir::LirType::I64], lir::MANAGED_PTR)
                     }
-                    mir::RuntimeFn::GcCollect => {
-                        self.push(lir::Instruction::Call {
-                            out: None,
-                            symbol,
-                            args,
-                        });
-                        self.unit_value()
-                    }
+                    mir::RuntimeFn::MaterializeException => (vec![lir::RAW_PTR], lir::MANAGED_PTR),
+                    mir::RuntimeFn::GcCollect => (Vec::new(), lir::LirType::Void),
                     mir::RuntimeFn::Box
                     | mir::RuntimeFn::IsInstance
                     | mir::RuntimeFn::ITableLookup => {
                         unreachable!("{function:?} calls are emitted by the dedicated M6 lowerings")
                     }
                     mir::RuntimeFn::Trap => unreachable!("trap calls never reach here"),
-                }
+                };
+                let function = lower_runtime_function(function);
+                self.emit_plain_call(
+                    lir::CallDestination::Runtime(function),
+                    runtime_call_effect(function),
+                    parameter_types,
+                    result_type,
+                    args,
+                )
             }
         }
     }
@@ -3662,50 +3983,23 @@ impl<'a> FunctionLowerer<'a> {
     /// the normal successor.
     fn finish_call(
         &mut self,
-        symbol: String,
+        destination: lir::CallDestination,
+        effect: lir::CallEffect,
         args: Vec<lir::Value>,
+        parameter_types: Vec<mir::Type>,
         returns_unit: bool,
         result_ty: &mir::Type,
     ) -> lir::Value {
-        if let Some(unwind) = self.current_unwind {
-            let normal = self.new_block("invoke.normal");
-            let out = if returns_unit {
-                None
-            } else {
-                let ty = self.value_type(result_ty);
-                Some(self.new_temp(ty))
-            };
-            self.push(lir::Instruction::Invoke {
-                out,
-                symbol,
-                args,
-                normal,
-                unwind,
-            });
-            self.seal(lir::Terminator::Br(normal));
-            self.enter(normal);
-            return match out {
-                Some(temp) => lir::Value::Temp(temp),
-                None => self.unit_value(),
-            };
-        }
-        if returns_unit {
-            self.push(lir::Instruction::Call {
-                out: None,
-                symbol,
-                args,
-            });
-            self.unit_value()
+        let parameter_types = parameter_types
+            .iter()
+            .map(|ty| self.value_type(ty))
+            .collect();
+        let result_type = if returns_unit {
+            lir::LirType::Void
         } else {
-            let ty = self.value_type(result_ty);
-            let out = self.new_temp(ty);
-            self.push(lir::Instruction::Call {
-                out: Some(out),
-                symbol,
-                args,
-            });
-            lir::Value::Temp(out)
-        }
+            self.value_type(result_ty)
+        };
+        self.emit_managed_call(destination, effect, parameter_types, result_type, args)
     }
 
     /// An indirect call through a function table (vtable / itable
@@ -3713,54 +4007,21 @@ impl<'a> FunctionLowerer<'a> {
     /// the innermost landing pad, like `finish_call`.
     fn finish_indirect(
         &mut self,
-        table: lir::TempId,
-        slot: u32,
+        destination: lir::CallDestination,
+        effect: lir::CallEffect,
         args: Vec<lir::Value>,
+        parameter_types: Vec<mir::Type>,
         returns_unit: bool,
         result_ty: &mir::Type,
     ) -> lir::Value {
-        if let Some(unwind) = self.current_unwind {
-            let normal = self.new_block("invoke.normal");
-            let out = if returns_unit {
-                None
-            } else {
-                let ty = self.value_type(result_ty);
-                Some(self.new_temp(ty))
-            };
-            self.push(lir::Instruction::InvokeIndirect {
-                out,
-                table: lir::Value::Temp(table),
-                slot,
-                args,
-                normal,
-                unwind,
-            });
-            self.seal(lir::Terminator::Br(normal));
-            self.enter(normal);
-            return match out {
-                Some(temp) => lir::Value::Temp(temp),
-                None => self.unit_value(),
-            };
-        }
-        if returns_unit {
-            self.push(lir::Instruction::CallIndirect {
-                out: None,
-                table: lir::Value::Temp(table),
-                slot,
-                args,
-            });
-            self.unit_value()
-        } else {
-            let ty = self.value_type(result_ty);
-            let out = self.new_temp(ty);
-            self.push(lir::Instruction::CallIndirect {
-                out: Some(out),
-                table: lir::Value::Temp(table),
-                slot,
-                args,
-            });
-            lir::Value::Temp(out)
-        }
+        self.finish_call(
+            destination,
+            effect,
+            args,
+            parameter_types,
+            returns_unit,
+            result_ty,
+        )
     }
 
     /// A managed closure call through the code pointer already loaded from
@@ -3770,63 +4031,19 @@ impl<'a> FunctionLowerer<'a> {
         &mut self,
         closure: lir::Value,
         args: Vec<lir::Value>,
+        parameter_types: Vec<mir::Type>,
         returns_unit: bool,
         result_ty: &mir::Type,
     ) -> lir::Value {
-        if let Some(unwind) = self.current_unwind {
-            let normal = self.new_block("invoke.normal");
-            let out = if returns_unit {
-                None
-            } else {
-                let ty = self.value_type(result_ty);
-                Some(self.new_temp(ty))
-            };
-            self.push(lir::Instruction::InvokeIndirect {
-                out,
-                table: closure,
-                slot: 2,
-                args,
-                normal,
-                unwind,
-            });
-            self.seal(lir::Terminator::Br(normal));
-            self.enter(normal);
-            return out.map_or_else(|| self.unit_value(), lir::Value::Temp);
-        }
-        if returns_unit {
-            self.push(lir::Instruction::CallIndirect {
-                out: None,
-                table: closure,
-                slot: 2,
-                args,
-            });
-            self.unit_value()
-        } else {
-            let ty = self.value_type(result_ty);
-            let out = self.new_temp(ty);
-            self.push(lir::Instruction::CallIndirect {
-                out: Some(out),
-                table: closure,
-                slot: 2,
-                args,
-            });
-            lir::Value::Temp(out)
-        }
-    }
-
-    fn call_with_result(
-        &mut self,
-        symbol: String,
-        args: Vec<lir::Value>,
-        ty: lir::LirType,
-    ) -> lir::Value {
-        let out = self.new_temp(ty);
-        self.push(lir::Instruction::Call {
-            out: Some(out),
-            symbol,
+        let destination = self.dispatch_destination(closure, lir::DispatchKind::Closure, 2);
+        self.finish_indirect(
+            destination,
+            lir::CallEffect::ManagedSafepoint,
             args,
-        });
-        lir::Value::Temp(out)
+            parameter_types,
+            returns_unit,
+            result_ty,
+        )
     }
 }
 #[cfg(test)]
@@ -4267,6 +4484,19 @@ mod tests {
         )
     }
 
+    fn call_symbol<'a>(
+        module: &'a lir::Module,
+        function: &lir::Function,
+        site: &lir::CallSite,
+    ) -> &'a str {
+        match site.destination(&function.call_targets) {
+            lir::CallDestination::Local(id) => &module.functions[id.into_u32() as usize].symbol,
+            lir::CallDestination::Runtime(runtime) => runtime.symbol(),
+            lir::CallDestination::Extern(id) => &module.extern_functions[id].native_symbol,
+            lir::CallDestination::Dispatch { .. } => panic!("dispatch calls have no symbol"),
+        }
+    }
+
     #[test]
     fn no_gc_effect_is_preserved_in_lir() {
         let mut builder = Builder::new();
@@ -4408,14 +4638,14 @@ Module
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
   fun @scoop.helper() -> void
   block entry
-    native_call[native-borrowed] extern0(global1)
+    native_call void-target0 sig=void0 (ptr<managed>) effect=native-borrowed extern0(global1)
     t0 = aggregate () : {}
     ret
   fun @scoop_main() -> void
   block entry
-    native_call[native-borrowed] extern0(global0)
+    native_call void-target0 sig=void0 (ptr<managed>) effect=native-borrowed extern0(global0)
     t0 = aggregate () : {}
-    call @scoop.helper()
+    call void-target1 sig=void1 () effect=managed-safepoint local-fn0()
     t1 = aggregate () : {}
     ret
   layout String size=24 align=8 refs=[]
@@ -4496,11 +4726,11 @@ Module
   block entry
     cbr true then @if.then.1 else @if.else.2
   block if.then.1
-    native_call[native-borrowed] extern0(global0)
+    native_call void-target0 sig=void0 (ptr<managed>) effect=native-borrowed extern0(global0)
     t0 = aggregate () : {}
     br @if.merge.3
   block if.else.2
-    native_call[native-borrowed] extern0(global1)
+    native_call void-target1 sig=void1 (ptr<managed>) effect=native-borrowed extern0(global1)
     t1 = aggregate () : {}
     br @if.merge.3
   block if.merge.3
@@ -4689,11 +4919,11 @@ Module
     local %1 $call.2: i1
     local %2 b: i1
   block entry
-    t0 = call @scoop_rt_string_eq(global0, global1) : i1
+    call t0 = direct-target0 sig=direct0 (ptr<managed>, ptr<managed>) -> i1 effect=no-gc runtime @scoop_rt_string_eq(global0, global1)
     store t0 -> local0
     cbr local0 then @logic.rhs.1 else @logic.short.2
   block logic.rhs.1
-    t1 = call @scoop_rt_string_eq(global2, global3) : i1
+    call t1 = direct-target1 sig=direct1 (ptr<managed>, ptr<managed>) -> i1 effect=no-gc runtime @scoop_rt_string_eq(global2, global3)
     store t1 -> local1
     store local1 -> local2
     br @logic.merge.3
@@ -4842,64 +5072,55 @@ Module
         let function = &module.functions[1];
         let instructions = &function.blocks[function.entry].instructions;
 
-        let lir::Instruction::Call {
-            out: Some(concat_out),
-            symbol,
-            ..
-        } = &instructions[0]
-        else {
+        let lir::Instruction::Call { site } = &instructions[0] else {
             panic!("string concat must produce a value")
         };
-        assert_eq!(symbol, "scoop_rt_string_concat");
-        assert_eq!(function.temps[*concat_out].ty, lir::MANAGED_PTR);
+        let concat_out = site.direct_out().expect("string concat result");
+        assert_eq!(
+            call_symbol(&module, function, site),
+            "scoop_rt_string_concat"
+        );
+        assert_eq!(function.temps[concat_out].ty, lir::MANAGED_PTR);
         assert!(matches!(instructions[1], lir::Instruction::Store { .. }));
 
-        let lir::Instruction::Call {
-            out: Some(eq_out),
-            symbol,
-            ..
-        } = &instructions[2]
-        else {
+        let lir::Instruction::Call { site } = &instructions[2] else {
             panic!("string eq must produce a value")
         };
-        assert_eq!(symbol, "scoop_rt_string_eq");
-        assert_eq!(function.temps[*eq_out].ty, lir::LirType::I1);
+        let eq_out = site.direct_out().expect("string equality result");
+        assert_eq!(call_symbol(&module, function, site), "scoop_rt_string_eq");
+        assert_eq!(function.temps[eq_out].ty, lir::LirType::I1);
         assert!(matches!(instructions[3], lir::Instruction::Store { .. }));
 
         // The M7 conversion intrinsics (`ptr(i64)` / `ptr(i1)`).
-        let lir::Instruction::Call {
-            out: Some(its_out),
-            symbol,
-            ..
-        } = &instructions[4]
-        else {
+        let lir::Instruction::Call { site } = &instructions[4] else {
             panic!("intToString must produce a value")
         };
-        assert_eq!(symbol, "scoop_rt_int_to_string");
-        assert_eq!(function.temps[*its_out].ty, lir::MANAGED_PTR);
+        let its_out = site.direct_out().expect("Int.toString result");
+        assert_eq!(
+            call_symbol(&module, function, site),
+            "scoop_rt_int_to_string"
+        );
+        assert_eq!(function.temps[its_out].ty, lir::MANAGED_PTR);
         assert!(matches!(instructions[5], lir::Instruction::Store { .. }));
 
-        let lir::Instruction::Call {
-            out: Some(bts_out),
-            symbol,
-            ..
-        } = &instructions[6]
-        else {
+        let lir::Instruction::Call { site } = &instructions[6] else {
             panic!("boolToString must produce a value")
         };
-        assert_eq!(symbol, "scoop_rt_bool_to_string");
-        assert_eq!(function.temps[*bts_out].ty, lir::MANAGED_PTR);
+        let bts_out = site.direct_out().expect("Boolean.toString result");
+        assert_eq!(
+            call_symbol(&module, function, site),
+            "scoop_rt_bool_to_string"
+        );
+        assert_eq!(function.temps[bts_out].ty, lir::MANAGED_PTR);
         assert!(matches!(instructions[7], lir::Instruction::Store { .. }));
 
         // User calls return void; the Unit value is a fresh empty
         // aggregate.
-        let lir::Instruction::Call {
-            out: None, symbol, ..
-        } = &instructions[8]
-        else {
+        let lir::Instruction::Call { site } = &instructions[8] else {
             panic!("user calls must return void")
         };
-        assert_eq!(symbol, "scoop.helper");
+        assert!(matches!(site, lir::CallSite::Void { .. }));
+        assert_eq!(call_symbol(&module, function, site), "scoop.helper");
         let lir::Instruction::MakeAggregate { out, elements } = &instructions[9] else {
             panic!("a void call's Unit value must be an empty aggregate")
         };
@@ -5489,7 +5710,7 @@ Module
   fun @scoop_main() -> void
     local %0 r: i64
   block entry
-    t0 = call @scoop.add(40, 2) : i64
+    call t0 = direct-target0 sig=direct0 (i64, i64) -> i64 effect=managed-safepoint local-fn0(40, 2)
     store t0 -> local0
     ret
   layout String size=24 align=8 refs=[]
@@ -5540,7 +5761,7 @@ Module
     local %0 $call.1: ptr<managed>
   block entry
     t0 = heap_load param0 +16 : i64
-    t1 = call @scoop_rt_int_to_string(t0) : ptr<managed>
+    call t1 = direct-target0 sig=direct0 (i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_int_to_string(t0)
     store t1 -> local0
     ret local0
   fun @scoop_main() -> void
@@ -6308,7 +6529,7 @@ Module
     t6 = Add local0, local1 : i64
     ret t6
   block unwrap.trap.1
-    call @scoop_rt_trap(global1)
+    call void-target0 sig=void0 (ptr<raw>) effect=no-gc runtime @scoop_rt_trap(global1)
     unreachable
   fun @scoop_main() -> void
   block entry
@@ -6557,7 +6778,7 @@ Module
   block entry
     t0 = heap_load local0 +0 : ptr<metadata>
     t1 = heap_load t0 +40 : ptr<metadata>
-    t2 = call_indirect t1[0](local0) : i64
+    call t2 = direct-target0 sig=direct0 (ptr<managed>) -> i64 effect=managed-safepoint dispatch[Virtual:0] t1(local0)
     store t2 -> local1
     ret
   td C @scoop_td_C size=16 vtable=1 itables=0
@@ -6616,8 +6837,8 @@ Module
     local %1 r: i64
   block entry
     t0 = heap_load local0 +0 : ptr<metadata>
-    t1 = call @scoop_rt_itable_lookup(t0, global0) : ptr<metadata>
-    t2 = call_indirect t1[1](local0) : i64
+    call t1 = direct-target0 sig=direct0 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t0, global0)
+    call t2 = direct-target1 sig=direct1 (ptr<managed>) -> i64 effect=managed-safepoint dispatch[Interface:1] t1(local0)
     store t2 -> local1
     ret
   td Describable @scoop_td_Describable size=0 vtable=0 itables=0
@@ -6852,14 +7073,17 @@ Module
     local %0 a: ptr<managed>
     local %1 v: struct0
     local %2 chk: i1
+    local %3 $sc.1: struct0
   block entry
     t0 = aggregate (1) : struct0
-    t1 = call @scoop_rt_box(global0, t0, 8) : ptr<managed>
-    store t1 -> local0
-    t2 = heap_load local0 +16 : struct0
-    store t2 -> local1
-    t3 = call @scoop_rt_is_instance(local0, global0) : i1
-    store t3 -> local2
+    store t0 -> local3
+    t1 = local_address local3 : ptr
+    call t2 = direct-target0 sig=direct0 (ptr<metadata>, ptr<raw>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_box(global0, t1, 8)
+    store t2 -> local0
+    t3 = heap_load local0 +16 : struct0
+    store t3 -> local1
+    call t4 = direct-target1 sig=direct1 (ptr<managed>, ptr<metadata>) -> i1 effect=no-gc runtime @scoop_rt_is_instance(local0, global0)
+    store t4 -> local2
     ret
   td box$D1_SX @scoop_td_box$D1_SX size=24 vtable=0 itables=0
   layout String size=24 align=8 refs=[]
@@ -6975,25 +7199,25 @@ Module
     local %8 p2: ptr<managed>
     local %9 n: i64
   block entry
-    t0 = call @scoop_rt_pin(local0) : i64
+    call t0 = direct-target0 sig=direct0 (ptr<managed>) -> i64 effect=no-gc runtime @scoop_rt_pin(local0)
     store t0 -> local1
     t1 = aggregate (local1) : struct0
     store t1 -> local2
     t2 = extract local2, 0 : i64
-    t3 = call @scoop_rt_unpin(t2) : ptr<managed>
+    call t3 = direct-target1 sig=direct1 (i64) -> ptr<managed> effect=no-gc runtime @scoop_rt_unpin(t2)
     store t3 -> local3
     store local3 -> local4
-    t4 = call @scoop_rt_get_handle(local0) : i64
+    call t4 = direct-target2 sig=direct2 (ptr<managed>) -> i64 effect=no-gc runtime @scoop_rt_get_handle(local0)
     store t4 -> local5
     t5 = aggregate (local5) : struct1
     store t5 -> local6
     t6 = extract local6, 0 : i64
-    t7 = call @scoop_rt_release_handle(t6) : ptr<managed>
+    call t7 = direct-target3 sig=direct3 (i64) -> ptr<managed> effect=no-gc runtime @scoop_rt_release_handle(t6)
     store t7 -> local7
     store local7 -> local8
-    call @scoop_rt_gc_collect()
+    call void-target0 sig=void0 () effect=managed-safepoint runtime @scoop_rt_gc_collect()
     t8 = aggregate () : {}
-    t9 = call @scoop_rt_gc_stats() : i64
+    call t9 = direct-target4 sig=direct4 () -> i64 effect=no-gc runtime @scoop_rt_gc_stats()
     store t9 -> local9
     ret
   layout String size=24 align=8 refs=[]
@@ -7111,14 +7335,14 @@ Module
   global @scoop_td_Point = c\"\"
   fun @scoop.ctor.Point(i64, ptr<managed>) -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global1, 32) : ptr<managed>
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(global1, 32)
     heap_store t0 +16 param0
     heap_store t0 +24 param1
     ret t0
   fun @scoop_main() -> void
     local %0 p: ptr<managed>
   block entry
-    t0 = call @scoop.ctor.Point(1, global0) : ptr<managed>
+    call t0 = direct-target0 sig=direct0 (i64, ptr<managed>) -> ptr<managed> effect=managed-safepoint local-fn0(1, global0)
     store t0 -> local0
     ret
   td Point @scoop_td_Point size=32 vtable=0 itables=0
@@ -7266,7 +7490,7 @@ Module
   block try.dispatch.2
     t2 = begin_catch local2 : ptr<managed>
     store t2 -> local3
-    t3 = call @scoop_rt_is_instance(local3, global0) : i1
+    call t3 = direct-target0 sig=direct0 (ptr<managed>, ptr<metadata>) -> i1 effect=no-gc runtime @scoop_rt_is_instance(local3, global0)
     cbr t3 then @try.catch.9 else @try.next.10
   block try.handler_pad.3
     (t4, t5) = cleanup_pad : (exception_record, ptr<raw>)
@@ -7287,14 +7511,14 @@ Module
   block try.end.7
     ret
   block try.body.8
-    invoke @scoop.helper() normal @invoke.normal.1 unwind @try.unwind.1
+    invoke void-target0 sig=void0 () effect=managed-safepoint local-fn0() normal @invoke.normal.1 unwind @try.unwind.1
     br @invoke.normal.1
   block try.catch.9
     store local3 -> local0
-    invoke @scoop.handled() normal @invoke.normal.2 unwind @try.handler_pad.3
+    invoke void-target1 sig=void1 () effect=managed-safepoint local-fn1() normal @invoke.normal.2 unwind @try.handler_pad.3
     br @invoke.normal.2
   block try.next.10
-    invoke @scoop_rt_rethrow() normal @rethrow.normal.3 unwind @try.exit_pad.5
+    invoke void-target2 sig=void2 () effect=no-gc runtime @scoop_rt_rethrow() normal @rethrow.normal.3 unwind @try.exit_pad.5
     br @rethrow.normal.3
   block invoke.normal.1
     t8 = aggregate () : {}
@@ -7375,17 +7599,13 @@ Module
         // The finally body is inlined on normal completion, after the
         // catch body, on a catch-body exceptional exit, and before the
         // no-match rethrow.
-        assert_eq!(
-            dump.matches("call @scoop.cleanup()").count()
-                + dump.matches("invoke @scoop.cleanup()").count(),
-            4
-        );
+        assert_eq!(dump.matches("local-fn2()").count(), 4);
         // The last copy is on the rethrow path, before the rethrow.
         let rethrow = dump
-            .find("invoke @scoop_rt_rethrow()")
+            .find("runtime @scoop_rt_rethrow()")
             .expect("a rethrow path");
         let last_cleanup = dump
-            .rfind("@scoop.cleanup()")
+            .rfind("local-fn2()")
             .expect("the rethrow path runs the finally");
         assert!(last_cleanup < rethrow);
         assert!(dump.contains("landingpad"));
@@ -7541,15 +7761,15 @@ Module
     store 1 -> local0
     br @scope.7
   block scope.7
-    call @scoop.cleanup()
+    call void-target0 sig=void0 () effect=managed-safepoint local-fn2()
     t5 = aggregate () : {}
     ret local0
   block scope.8
-    invoke @scoop.cleanup() normal @invoke.normal.1 unwind @try.exit_pad.3
+    invoke void-target1 sig=void1 () effect=managed-safepoint local-fn2() normal @invoke.normal.1 unwind @try.exit_pad.3
     br @invoke.normal.1
   block invoke.normal.1
     t6 = aggregate () : {}
-    invoke @scoop_rt_rethrow() normal @rethrow.normal.2 unwind @try.exit_pad.3
+    invoke void-target2 sig=void2 () effect=no-gc runtime @scoop_rt_rethrow() normal @rethrow.normal.2 unwind @try.exit_pad.3
     br @rethrow.normal.2
   block rethrow.normal.2
     unreachable
@@ -7621,12 +7841,12 @@ Module
   global @scoop_td_MyError = c\"\"
   fun @scoop.makeError() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global0, 16) : ptr<managed>
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(global0, 16)
     ret t0
   fun @scoop_main() -> void
     local %0 $call.1: ptr<managed>
   block entry
-    t0 = call @scoop.makeError() : ptr<managed>
+    call t0 = direct-target0 sig=direct0 () -> ptr<managed> effect=managed-safepoint local-fn0()
     store t0 -> local0
     throw local0
     unreachable
@@ -7686,7 +7906,7 @@ Module
             .find(|block| block.name == "try.body.8")
             .expect("the try body");
         let lir::Instruction::Invoke {
-            symbol,
+            site,
             normal,
             unwind,
             ..
@@ -7694,7 +7914,7 @@ Module
         else {
             panic!("a throw inside a try must be invoked")
         };
-        assert_eq!(symbol, "scoop_rt_throw");
+        assert_eq!(call_symbol(&module, function, site), "scoop_rt_throw");
         assert!(matches!(
             function.blocks[*unwind].instructions.first(),
             Some(lir::Instruction::LandingPad { .. })
@@ -7891,8 +8111,11 @@ Module
         let mut invokes = Vec::new();
         for (_, block) in function.blocks.iter() {
             for instruction in &block.instructions {
-                if let lir::Instruction::Invoke { symbol, unwind, .. } = instruction {
-                    invokes.push((symbol.as_str(), function.blocks[*unwind].name.as_str()));
+                if let lir::Instruction::Invoke { site, unwind, .. } = instruction {
+                    invokes.push((
+                        call_symbol(&module, function, site),
+                        function.blocks[*unwind].name.as_str(),
+                    ));
                 }
             }
         }

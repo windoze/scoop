@@ -1019,61 +1019,61 @@ Module
   fun @scoop.Int.equals(i64, i64) -> i1
     local %0 $call.1: i1
   block entry
-    t0 = native_call[native-borrowed] extern1(param0, param1) : i1
+    native_call t0 = direct-target0 sig=direct0 (i64, i64) -> i1 effect=native-borrowed extern1(param0, param1)
     store t0 -> local0
     ret local0
   fun @scoop.Int.toString(i64) -> ptr<managed>
     local %0 $call.1: ptr<managed>
   block entry
-    t0 = native_call[native-borrowed] extern5(param0) result-root=refs[0] : ptr<managed>
+    native_call t0 = direct-target0 sig=direct0 (i64) -> ptr<managed> effect=native-borrowed extern5(param0) result-root=refs[0]
     store t0 -> local0
     ret local0
   fun @scoop.Int.hash(i64) -> i64
     local %0 $call.1: i64
   block entry
-    t0 = native_call[native-borrowed] extern8(param0) : i64
+    native_call t0 = direct-target0 sig=direct0 (i64) -> i64 effect=native-borrowed extern8(param0)
     store t0 -> local0
     ret local0
   fun @scoop.UInt.equals(i64, i64) -> i1
     local %0 $call.1: i1
   block entry
-    t0 = native_call[native-borrowed] extern2(param0, param1) : i1
+    native_call t0 = direct-target0 sig=direct0 (i64, i64) -> i1 effect=native-borrowed extern2(param0, param1)
     store t0 -> local0
     ret local0
   fun @scoop.UInt.toString(i64) -> ptr<managed>
     local %0 $call.1: ptr<managed>
   block entry
-    t0 = native_call[native-borrowed] extern6(param0) result-root=refs[0] : ptr<managed>
+    native_call t0 = direct-target0 sig=direct0 (i64) -> ptr<managed> effect=native-borrowed extern6(param0) result-root=refs[0]
     store t0 -> local0
     ret local0
   fun @scoop.UInt.hash(i64) -> i64
     local %0 $call.1: i64
   block entry
-    t0 = native_call[native-borrowed] extern9(param0) : i64
+    native_call t0 = direct-target0 sig=direct0 (i64) -> i64 effect=native-borrowed extern9(param0)
     store t0 -> local0
     ret local0
   fun @scoop.Boolean.equals(i1, i1) -> i1
     local %0 $call.1: i1
   block entry
-    t0 = native_call[native-borrowed] extern3(param0, param1) : i1
+    native_call t0 = direct-target0 sig=direct0 (i1, i1) -> i1 effect=native-borrowed extern3(param0, param1)
     store t0 -> local0
     ret local0
   fun @scoop.Boolean.toString(i1) -> ptr<managed>
     local %0 $call.1: ptr<managed>
   block entry
-    t0 = native_call[native-borrowed] extern7(param0) result-root=refs[0] : ptr<managed>
+    native_call t0 = direct-target0 sig=direct0 (i1) -> ptr<managed> effect=native-borrowed extern7(param0) result-root=refs[0]
     store t0 -> local0
     ret local0
   fun @scoop.Boolean.hash(i1) -> i64
     local %0 $call.1: i64
   block entry
-    t0 = native_call[native-borrowed] extern10(param0) : i64
+    native_call t0 = direct-target0 sig=direct0 (i1) -> i64 effect=native-borrowed extern10(param0)
     store t0 -> local0
     ret local0
   fun @scoop.String.equals(ptr<managed>, ptr<managed>) -> i1
     local %0 $call.1: i1
   block entry
-    t0 = native_call[native-borrowed] extern4(param0, param1) : i1
+    native_call t0 = direct-target0 sig=direct0 (ptr<managed>, ptr<managed>) -> i1 effect=native-borrowed extern4(param0, param1)
     store t0 -> local0
     ret local0
   fun @scoop.String.toString(ptr<managed>) -> ptr<managed>
@@ -1082,7 +1082,7 @@ Module
   fun @scoop.String.hash(ptr<managed>) -> i64
     local %0 $call.1: i64
   block entry
-    t0 = native_call[native-borrowed] extern11(param0) : i64
+    native_call t0 = direct-target0 sig=direct0 (ptr<managed>) -> i64 effect=native-borrowed extern11(param0)
     store t0 -> local0
     ret local0
   fun @scoop_main() -> void
@@ -1100,11 +1100,13 @@ Module
     local %11 $sc.2: ptr<raw>
     local %12 $sc.3: i64
     local %13 $sc.4: ptr<raw>
-    local %14 $sc.5: exception_record
-    local %15 $sc.6: ptr<raw>
-    local %16 $sc.7: ptr<managed>
+    local %14 $sc.5: ptr<raw>
+    local %15 $sc.6: i64
+    local %16 $sc.7: exception_record
+    local %17 $sc.8: ptr<raw>
+    local %18 $sc.9: ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global10, 24) : ptr<managed>
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(global10, 24)
     t1 = function_address @scoop.$lambda.0 : ptr
     heap_store t0 +16 t1
     t2 = foreign_callback_register fcb0 t0 : struct3
@@ -1114,137 +1116,137 @@ Module
     t4 = extract local0, 0 : ptr<code>
     t5 = extract local0, 1 : ptr<raw>
     store t4 -> local10
-    t7 = local_address local10 : ptr
+    t6 = local_address local10 : ptr
     store t5 -> local11
-    t8 = local_address local11 : ptr
+    t7 = local_address local11 : ptr
     store 7 -> local12
-    t9 = local_address local12 : ptr
-    t6 = native_call[native-safe] extern12(t7, t8, t9) : ptr<raw>
-    store t6 -> local2
-    store local2 -> local13
-    t11 = local_address local13 : ptr
-    t10 = native_call[native-safe] extern13(t11) : i64
-    store t10 -> local7
-    call @scoop.println$I(local7)
-    t12 = aggregate () : {}
-    t13 = foreign_callback_State local1 : enum1
-    t14 = enum_wrap e1 v3 () : enum1
-    t15 = call @scoop.ForeignCallbackState.equals(t13, t14) : i1
-    store t15 -> local8
-    call @scoop.println$B(local8)
-    t16 = aggregate () : {}
-    t17 = foreign_callback_Failure local1 : enum2
-    store t17 -> local5
-    t18 = enum_tag e2 local5 : i64
-    t19 = Eq t18, 0 : i1
-    cbr t19 then @if.then.1 else @if.else.2
+    t8 = local_address local12 : ptr
+    native_call local13 = indirect-result-target0 sig=indirect0 (sret ptr<raw>, ptr<raw>, ptr<raw>, ptr<raw>) effect=native-safe extern12(t6, t7, t8)
+    store local13 -> local2
+    store local2 -> local14
+    t9 = local_address local14 : ptr
+    native_call local15 = indirect-result-target1 sig=indirect1 (sret i64, ptr<raw>) effect=native-safe extern13(t9)
+    store local15 -> local7
+    call void-target0 sig=void0 (i64) effect=managed-safepoint local-fn14(local7)
+    t10 = aggregate () : {}
+    t11 = foreign_callback_State local1 : enum1
+    t12 = enum_wrap e1 v3 () : enum1
+    call t13 = direct-target1 sig=direct1 (enum1, enum1) -> i1 effect=managed-safepoint local-fn17(t11, t12)
+    store t13 -> local8
+    call void-target1 sig=void1 (i1) effect=managed-safepoint local-fn15(local8)
+    t14 = aggregate () : {}
+    t15 = foreign_callback_Failure local1 : enum2
+    store t15 -> local5
+    t16 = enum_tag e2 local5 : i64
+    t17 = Eq t16, 0 : i1
+    cbr t17 then @if.then.1 else @if.else.2
   block if.then.1
-    t20 = enum_field e2 v0 f0 local5 : ptr<managed>
-    store t20 -> local6
+    t18 = enum_field e2 v0 f0 local5 : ptr<managed>
+    store t18 -> local6
     br @if.merge.3
   block if.else.2
-    t21 = call @scoop.ctor.UnwrapException() : ptr<managed>
-    store t21 -> local9
+    call t19 = direct-target2 sig=direct2 () -> ptr<managed> effect=managed-safepoint local-fn20()
+    store t19 -> local9
     throw local9
     unreachable
   block if.merge.3
     store local6 -> local3
-    t22 = call @scoop_rt_is_instance(local3, global11) : i1
-    call @scoop.println$B(t22)
-    t23 = aggregate () : {}
+    call t20 = direct-target3 sig=direct3 (ptr<managed>, ptr<metadata>) -> i1 effect=no-gc runtime @scoop_rt_is_instance(local3, global11)
+    call void-target2 sig=void2 (i1) effect=managed-safepoint local-fn15(t20)
+    t21 = aggregate () : {}
     br @try.body.11
   block try.unwind.4
-    (t24, t25) = landingpad : (exception_record, ptr<raw>)
-    store t24 -> local14
-    store t25 -> local15
+    (t22, t23) = landingpad : (exception_record, ptr<raw>)
+    store t22 -> local16
+    store t23 -> local17
     br @try.dispatch.5
   block try.dispatch.5
-    t26 = begin_catch local15 : ptr<managed>
-    store t26 -> local16
-    t27 = call @scoop_rt_is_instance(local16, global11) : i1
-    cbr t27 then @try.catch.12 else @try.next.13
+    t24 = begin_catch local17 : ptr<managed>
+    store t24 -> local18
+    call t25 = direct-target4 sig=direct4 (ptr<managed>, ptr<metadata>) -> i1 effect=no-gc runtime @scoop_rt_is_instance(local18, global11)
+    cbr t25 then @try.catch.12 else @try.next.13
   block try.handler_pad.6
-    (t28, t29) = cleanup_pad : (exception_record, ptr<raw>)
-    store t28 -> local14
-    store t29 -> local15
+    (t26, t27) = cleanup_pad : (exception_record, ptr<raw>)
+    store t26 -> local16
+    store t27 -> local17
     br @try.handler_cleanup.7
   block try.handler_cleanup.7
     end_catch
     foreign_callback_Release local1
-    t30 = aggregate () : {}
-    resume local14
+    t28 = aggregate () : {}
+    resume local16
   block try.exit_pad.8
-    (t31, t32) = cleanup_pad : (exception_record, ptr<raw>)
-    store t31 -> local14
-    store t32 -> local15
+    (t29, t30) = cleanup_pad : (exception_record, ptr<raw>)
+    store t29 -> local16
+    store t30 -> local17
     br @try.exit_cleanup.9
   block try.exit_cleanup.9
     end_catch
-    resume local14
+    resume local16
   block try.end.10
     ret
   block try.body.11
-    invoke @scoop_rt_throw(local3) normal @throw.normal.1 unwind @try.unwind.4
+    invoke void-target3 sig=void3 (ptr<managed>) effect=no-gc runtime @scoop_rt_throw(local3) normal @throw.normal.1 unwind @try.unwind.4
     br @throw.normal.1
   block try.catch.12
-    store local16 -> local4
+    store local18 -> local4
     br @scope.14
   block try.next.13
     foreign_callback_Release local1
-    t33 = aggregate () : {}
-    invoke @scoop_rt_rethrow() normal @rethrow.normal.2 unwind @try.exit_pad.8
+    t31 = aggregate () : {}
+    invoke void-target4 sig=void4 () effect=no-gc runtime @scoop_rt_rethrow() normal @rethrow.normal.2 unwind @try.exit_pad.8
     br @rethrow.normal.2
   block scope.14
-    t34 = heap_load local4 +24 : ptr<managed>
-    invoke @scoop.println$S(t34) normal @invoke.normal.3 unwind @try.handler_pad.6
+    t32 = heap_load local4 +24 : ptr<managed>
+    invoke void-target5 sig=void5 (ptr<managed>) effect=managed-safepoint local-fn16(t32) normal @invoke.normal.3 unwind @try.handler_pad.6
     br @invoke.normal.3
   block scope.15
     end_catch
     foreign_callback_Release local1
-    t36 = aggregate () : {}
+    t34 = aggregate () : {}
     br @try.end.10
   block throw.normal.1
     unreachable
   block rethrow.normal.2
     unreachable
   block invoke.normal.3
-    t35 = aggregate () : {}
+    t33 = aggregate () : {}
     br @scope.15
   fun @scoop.$lambda.0(ptr<managed>, i64) -> i64
     local %0 $call.1: ptr<managed>
   block entry
-    t0 = call @scoop.ctor.CallbackError(global0) : ptr<managed>
+    call t0 = direct-target0 sig=direct0 (ptr<managed>) -> ptr<managed> effect=managed-safepoint local-fn25(global0)
     store t0 -> local0
     throw local0
     unreachable
   fun @scoop.println$I(i64) -> void
     local %0 $call.1: ptr<managed>
   block entry
-    t0 = call @scoop.Int.toString(param0) : ptr<managed>
+    call t0 = direct-target0 sig=direct0 (i64) -> ptr<managed> effect=managed-safepoint local-fn1(param0)
     store t0 -> local0
-    native_call[native-borrowed] extern0(local0)
+    native_call void-target0 sig=void0 (ptr<managed>) effect=native-borrowed extern0(local0)
     t1 = aggregate () : {}
-    native_call[native-borrowed] extern0(global1)
+    native_call void-target1 sig=void1 (ptr<managed>) effect=native-borrowed extern0(global1)
     t2 = aggregate () : {}
     ret
   fun @scoop.println$B(i1) -> void
     local %0 $call.1: ptr<managed>
   block entry
-    t0 = call @scoop.Boolean.toString(param0) : ptr<managed>
+    call t0 = direct-target0 sig=direct0 (i1) -> ptr<managed> effect=managed-safepoint local-fn7(param0)
     store t0 -> local0
-    native_call[native-borrowed] extern0(local0)
+    native_call void-target0 sig=void0 (ptr<managed>) effect=native-borrowed extern0(local0)
     t1 = aggregate () : {}
-    native_call[native-borrowed] extern0(global2)
+    native_call void-target1 sig=void1 (ptr<managed>) effect=native-borrowed extern0(global2)
     t2 = aggregate () : {}
     ret
   fun @scoop.println$S(ptr<managed>) -> void
     local %0 $call.1: ptr<managed>
   block entry
-    t0 = call @scoop.String.toString(param0) : ptr<managed>
+    call t0 = direct-target0 sig=direct0 (ptr<managed>) -> ptr<managed> effect=managed-safepoint local-fn10(param0)
     store t0 -> local0
-    native_call[native-borrowed] extern0(local0)
+    native_call void-target0 sig=void0 (ptr<managed>) effect=native-borrowed extern0(local0)
     t1 = aggregate () : {}
-    native_call[native-borrowed] extern0(global3)
+    native_call void-target1 sig=void1 (ptr<managed>) effect=native-borrowed extern0(global3)
     t2 = aggregate () : {}
     ret
   fun @scoop.ForeignCallbackState.equals(enum1, enum1) -> i1
@@ -1324,46 +1326,46 @@ Module
     br @if.merge.20
   fun @scoop.ctor.Throwable() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global12, 16) : ptr<managed>
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(global12, 16)
     ret t0
   fun @scoop.ctor.Exception(enum0) -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global13, 24) : ptr<managed>
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(global13, 24)
     heap_store t0 +16 param0
     ret t0
   fun @scoop.ctor.UnwrapException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global14, 24) : ptr<managed>
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(global14, 24)
     t1 = enum_wrap e0 v0 (global4) : enum0
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.ClassCastException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global15, 24) : ptr<managed>
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(global15, 24)
     t1 = enum_wrap e0 v0 (global5) : enum0
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.ArithmeticException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global16, 24) : ptr<managed>
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(global16, 24)
     t1 = enum_wrap e0 v0 (global6) : enum0
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.IndexOutOfBoundsException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global17, 24) : ptr<managed>
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(global17, 24)
     t1 = enum_wrap e0 v0 (global7) : enum0
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.IllegalStateException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global18, 24) : ptr<managed>
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(global18, 24)
     t1 = enum_wrap e0 v0 (global8) : enum0
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.CallbackError(ptr<managed>) -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global11, 32) : ptr<managed>
+    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(global11, 32)
     t1 = enum_wrap e0 v0 (global9) : enum0
     heap_store t0 +16 t1
     heap_store t0 +24 param0
@@ -1380,7 +1382,7 @@ Module
     store t1 -> local3
     t2 = begin_catch local3 : ptr<managed>
     store t2 -> local4
-    t3 = call @scoop_rt_materialize_exception(local4) : ptr<managed>
+    call t3 = direct-target0 sig=direct0 (ptr<raw>) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_materialize_exception(local4)
     store t3 -> local0
     end_catch
     raw_store param3 local0 align 8
@@ -1391,7 +1393,7 @@ Module
     t6 = ptr_offset param2 t5 : ptr
     t7 = raw_load t6 align 8 : ptr<raw>
     t8 = raw_load t7 align 8 : i64
-    invoke_indirect param0[2](param0, t8) normal @invoke.normal.1 unwind @callback.failure
+    invoke t9 = direct-target1 sig=direct1 (ptr<managed>, i64) -> i64 effect=managed-safepoint dispatch[Closure:2] param0(param0, t8) normal @invoke.normal.1 unwind @callback.failure
     br @invoke.normal.1
   block invoke.normal.1
     store t9 -> local1

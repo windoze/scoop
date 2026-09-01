@@ -6,9 +6,9 @@
 //!
 //! All locals become `alloca`s at the top of the entry block; SSA
 //! construction is left to LLVM's mem2reg. Temps are SSA values kept in a
-//! map. Function signatures come from LIR (`params` / `return_ty`);
-//! runtime functions are declared at their call sites with the signature
-//! implied by the operands.
+//! map. Function and call-target signatures come from typed LIR; codegen
+//! never reconstructs a callee ABI from operands, result temporaries, or a
+//! symbol name.
 //!
 //! M9: GC support (milestone9 DESIGN section 3.1). Every heap object
 //! carries the 16-byte header `{ td, gc_word }`: class fields start at
@@ -768,6 +768,7 @@ fn emit_llvm_module<'ctx>(
     // otherwise declare the symbol as extern, and the later definition
     // would be renamed with a `.N` suffix by LLVM, breaking the link).
     let module_ctx = ModuleCtx {
+        functions: &module.functions,
         structs: &module.structs,
         enums: &module.enums,
         extern_functions: &module.extern_functions,
@@ -1396,6 +1397,7 @@ struct FnEmitter<'a, 'ctx> {
     /// Every LLVM basic block of the function, indexed by `BlockId`
     /// (invoke targets).
     llvm_blocks: &'a [inkwell::basic_block::BasicBlock<'ctx>],
+    functions: &'a [Function],
     structs: &'a Arena<StructDef>,
     enums: &'a Arena<EnumDef>,
     extern_functions: &'a Arena<ExternFunction>,
@@ -1438,6 +1440,20 @@ struct NativeTransition<'ctx> {
     frame: PointerValue<'ctx>,
     transition: PointerValue<'ctx>,
     roots: Vec<PublishedRoot<'ctx>>,
+}
+
+enum TypedCallResult<'a> {
+    Void,
+    Direct {
+        out: TempId,
+        ty: &'a LirType,
+        scan: &'a RefScan,
+    },
+    Indirect {
+        storage: scoop_lir::LocalId,
+        ty: &'a LirType,
+        scan: &'a RefScan,
+    },
 }
 
 impl<'ctx> FnEmitter<'_, 'ctx> {
@@ -2128,15 +2144,12 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 let ty = basic_ty(context, self.structs, self.enums, &native.ty)?;
                 let slot = self.entry_alloca(ty, "native_global_result")?;
                 let callee = self.native_global_bridge(&native.get_bridge_symbol);
-                let transition = self.publish_native_roots(
-                    roots,
-                    None,
-                    scoop_lir::NativeCallEffect::NativeSafe,
-                )?;
+                let transition =
+                    self.publish_native_roots(roots, None, scoop_lir::CallEffect::NativeSafe)?;
                 builder
                     .build_call(callee, &[slot.into()], "native_global_get")
                     .map_err(|error| CodegenError(format!("native global read: {error}")))?;
-                self.finish_native_transition(transition, scoop_lir::NativeCallEffect::NativeSafe)?;
+                self.finish_native_transition(transition, scoop_lir::CallEffect::NativeSafe)?;
                 let value = builder
                     .build_load(ty, slot, "native_global_value")
                     .map_err(|error| CodegenError(format!("native global load: {error}")))?;
@@ -2158,30 +2171,24 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     .as_deref()
                     .expect("only mutable native globals are assigned");
                 let callee = self.native_global_bridge(symbol);
-                let transition = self.publish_native_roots(
-                    roots,
-                    None,
-                    scoop_lir::NativeCallEffect::NativeSafe,
-                )?;
+                let transition =
+                    self.publish_native_roots(roots, None, scoop_lir::CallEffect::NativeSafe)?;
                 builder
                     .build_call(callee, &[slot.into()], "native_global_set")
                     .map_err(|error| CodegenError(format!("native global write: {error}")))?;
-                self.finish_native_transition(transition, scoop_lir::NativeCallEffect::NativeSafe)?;
+                self.finish_native_transition(transition, scoop_lir::CallEffect::NativeSafe)?;
             }
             Instruction::NativeGlobalAddress { out, global, roots } => {
                 let native = &self.native_globals[*global];
                 let ty: BasicTypeEnum = ptr_ty(context).into();
                 let slot = self.entry_alloca(ty, "native_global_address")?;
                 let callee = self.native_global_bridge(&native.address_bridge_symbol);
-                let transition = self.publish_native_roots(
-                    roots,
-                    None,
-                    scoop_lir::NativeCallEffect::NativeSafe,
-                )?;
+                let transition =
+                    self.publish_native_roots(roots, None, scoop_lir::CallEffect::NativeSafe)?;
                 builder
                     .build_call(callee, &[slot.into()], "native_global_address")
                     .map_err(|error| CodegenError(format!("native global address: {error}")))?;
-                self.finish_native_transition(transition, scoop_lir::NativeCallEffect::NativeSafe)?;
+                self.finish_native_transition(transition, scoop_lir::CallEffect::NativeSafe)?;
                 let value = builder
                     .build_load(ty, slot, "native_global_pointer")
                     .map_err(|error| CodegenError(format!("native global pointer: {error}")))?;
@@ -2195,513 +2202,18 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         CodegenError(format!("store %{}: {e}", function.locals[*local].name))
                     })?;
             }
-            Instruction::NativeCall {
-                out,
-                function: extern_id,
-                effect,
-                args,
-                roots,
-                result_scan,
-            } => {
-                let extern_ = &self.extern_functions[*extern_id];
-                let expected_effect = match &extern_.kind {
-                    ExternFunctionKind::C { .. } => scoop_lir::NativeCallEffect::NativeSafe,
-                    ExternFunctionKind::Scoop { .. } => scoop_lir::NativeCallEffect::NativeBorrowed,
-                };
-                if *effect != expected_effect {
-                    return Err(CodegenError(format!(
-                        "native call effect does not match extern{} ABI",
-                        extern_id.into_raw().into_u32()
-                    )));
-                }
-                let (symbol, gc_effect, c_bridge) = match &extern_.kind {
-                    ExternFunctionKind::C { bridge_symbol, .. } => {
-                        (bridge_symbol.as_str(), GcEffect::NoGc, true)
-                    }
-                    ExternFunctionKind::Scoop { gc_effect } => {
-                        (extern_.native_symbol.as_str(), *gc_effect, false)
-                    }
-                };
-                let result_slot = out
-                    .map(|temp| {
-                        let lir_ty = &function.temps[temp].ty;
-                        let indirect = !c_bridge && uses_return_slot(self.enums, lir_ty);
-                        let needs_storage = c_bridge || indirect || *result_scan != RefScan::None;
-                        needs_storage
-                            .then(|| {
-                                let ty = basic_ty(context, self.structs, self.enums, lir_ty)?;
-                                let slot = self.entry_alloca(ty, "native_result")?;
-                                if *result_scan != RefScan::None {
-                                    builder.build_store(slot, ty.const_zero()).map_err(
-                                        |error| {
-                                            CodegenError(format!(
-                                                "zero native result @{symbol}: {error}"
-                                            ))
-                                        },
-                                    )?;
-                                }
-                                Ok((temp, slot, ty, indirect))
-                            })
-                            .transpose()
-                    })
-                    .transpose()?
-                    .flatten();
-                let mut param_tys: Vec<BasicMetadataTypeEnum> = if c_bridge {
-                    vec![ptr_ty(context).into(); args.len()]
-                } else {
-                    args.iter()
-                        .map(|arg| {
-                            basic_ty(
-                                context,
-                                self.structs,
-                                self.enums,
-                                &function.value_ty(self.globals_arena, *arg),
-                            )
-                            .map(Into::into)
-                        })
-                        .collect::<Result<_, _>>()?
-                };
-                if result_slot
-                    .as_ref()
-                    .is_some_and(|(_, _, _, indirect)| c_bridge || *indirect)
-                {
-                    param_tys.insert(0, ptr_ty(context).into());
-                }
-                let fn_ty = match (out, &result_slot, c_bridge) {
-                    (_, _, true) | (_, Some((_, _, _, true)), false) => {
-                        context.void_type().fn_type(&param_tys, false)
-                    }
-                    (Some(temp), _, false) => {
-                        basic_ty(context, self.structs, self.enums, &function.temps[*temp].ty)?
-                            .fn_type(&param_tys, false)
-                    }
-                    (None, None, false) => context.void_type().fn_type(&param_tys, false),
-                    (None, Some(_), false) => {
-                        unreachable!("native result storage requires an output temp")
-                    }
-                };
-                let callee = self
-                    .llvm
-                    .get_function(symbol)
-                    .unwrap_or_else(|| self.llvm.add_function(symbol, fn_ty, None));
-                callee.add_attribute(
-                    AttributeLoc::Function,
-                    context.create_enum_attribute(Attribute::get_named_enum_kind_id("nounwind"), 0),
-                );
-                if gc_effect == GcEffect::NoGc {
-                    callee.add_attribute(
-                        AttributeLoc::Function,
-                        context.create_string_attribute("gc-leaf-function", ""),
-                    );
-                }
-                let mut call_args =
-                    args.iter()
-                        .map(|arg| self.value(*arg).map(Into::into))
-                        .collect::<Result<Vec<inkwell::values::BasicMetadataValueEnum>, _>>()?;
-                if let Some((_, slot, _, indirect)) = result_slot
-                    && (c_bridge || indirect)
-                {
-                    call_args.insert(0, slot.into());
-                }
-                let result_root = result_slot
-                    .as_ref()
-                    .filter(|_| *result_scan != RefScan::None)
-                    .map(|(_, slot, _, _)| (*slot, result_scan));
-                let native = self.publish_native_roots(roots, result_root, *effect)?;
-                let call = builder
-                    .build_call(callee, &call_args, "native_call")
-                    .map_err(|error| CodegenError(format!("native call @{symbol}: {error}")))?;
-                let direct_result = if out.is_some()
-                    && !c_bridge
-                    && !result_slot
-                        .as_ref()
-                        .is_some_and(|(_, _, _, indirect)| *indirect)
-                {
-                    let ValueKind::Basic(result) = call.try_as_basic_value() else {
-                        return Err(CodegenError(format!(
-                            "native call @{symbol} produced no direct value"
-                        )));
-                    };
-                    if let Some((_, slot, _, _)) = result_slot {
-                        builder.build_store(slot, result).map_err(|error| {
-                            CodegenError(format!("store native result @{symbol}: {error}"))
-                        })?;
-                    }
-                    Some(result)
-                } else {
-                    None
-                };
-                self.finish_native_transition(native, *effect)?;
-                if let Some((temp, slot, ty, _)) = result_slot {
-                    let result =
-                        builder
-                            .build_load(ty, slot, "native_result")
-                            .map_err(|error| {
-                                CodegenError(format!("load native result @{symbol}: {error}"))
-                            })?;
-                    self.temps.insert(temp, result);
-                } else if let (Some(temp), Some(result)) = (out, direct_result) {
-                    self.temps.insert(*temp, result);
-                }
+            Instruction::NativeCall { site, roots } => {
+                self.emit_typed_call(site, Some(roots), None)?;
             }
-            Instruction::Call { out, symbol, args } => {
-                if symbol == "scoop_rt_alloc" {
-                    self.managed_alloc(out, args)?;
-                    return Ok(());
-                }
-                // `scoop_rt_box` has a fixed runtime contract and a
-                // by-value aggregate payload argument (see `box_call`).
-                if symbol == "scoop_rt_box" {
-                    self.box_call(out, args)?;
-                    return Ok(());
-                }
-                // Signature from the call site: parameter types from the
-                // operands, return type from the result temp (void when
-                // there is none). Undefined callees are declared extern.
-                let result_slot = self.result_slot(*out, "call_result")?;
-                let mut param_tys: Vec<BasicMetadataTypeEnum> = args
-                    .iter()
-                    .map(|arg| {
-                        basic_ty(
-                            context,
-                            self.structs,
-                            self.enums,
-                            &function.value_ty(self.globals_arena, *arg),
-                        )
-                        .map(Into::into)
-                    })
-                    .collect::<Result<_, _>>()?;
-                if result_slot.is_some() {
-                    param_tys.insert(0, ptr_ty(context).into());
-                }
-                let fn_ty = if symbol == scoop_lir::TRAP_SYMBOL {
-                    // Fixed runtime contract: void scoop_rt_trap(ptr).
-                    context
-                        .void_type()
-                        .fn_type(&[ptr_ty(context).into()], false)
-                } else {
-                    match (out, &result_slot) {
-                        (_, Some(_)) => context.void_type().fn_type(&param_tys, false),
-                        (Some(temp), None) => {
-                            basic_ty(context, self.structs, self.enums, &function.temps[*temp].ty)?
-                                .fn_type(&param_tys, false)
-                        }
-                        (None, None) => context.void_type().fn_type(&param_tys, false),
-                    }
-                };
-                let callee = self
-                    .llvm
-                    .get_function(symbol)
-                    .unwrap_or_else(|| self.llvm.add_function(symbol, fn_ty, None));
-                let mut call_args: Vec<inkwell::values::BasicMetadataValueEnum> = args
-                    .iter()
-                    .map(|arg| self.value(*arg).map(Into::into))
-                    .collect::<Result<_, _>>()?;
-                if let Some((_, slot, _)) = result_slot {
-                    call_args.insert(0, slot.into());
-                }
-                let call = builder
-                    .build_call(callee, &call_args, "call")
-                    .map_err(|e| CodegenError(format!("call @{symbol}: {e}")))?;
-                if let Some((temp, slot, ty)) = result_slot {
-                    let result = builder
-                        .build_load(ty, slot, "call_result")
-                        .map_err(|e| CodegenError(format!("load call result @{symbol}: {e}")))?;
-                    self.temps.insert(temp, result);
-                } else if let Some(temp) = out {
-                    match call.try_as_basic_value() {
-                        ValueKind::Basic(result) => {
-                            self.temps.insert(*temp, result);
-                        }
-                        ValueKind::Instruction(_) => {
-                            return Err(CodegenError(format!(
-                                "call @{symbol} produced no value for t{}",
-                                temp.into_raw().into_u32()
-                            )));
-                        }
-                    }
-                }
-            }
-            Instruction::CallIndirect {
-                out,
-                table,
-                slot,
-                args,
-            } => {
-                // `table[slot]` (ptr GEP + load), called with the
-                // signature implied by the call site (impl spec 2.9).
-                let table = self.value(*table)?.into_pointer_value();
-                // SAFETY: `table` addresses a function table with at
-                // least `slot + 1` slots (LIR contract of CallIndirect).
-                let slot_ptr = unsafe {
-                    builder.build_gep(
-                        ptr_ty(context),
-                        table,
-                        &[context.i32_type().const_int((*slot).into(), false)],
-                        "slot_ptr",
-                    )
-                }
-                .map_err(|e| {
-                    CodegenError(format!(
-                        "call_indirect @{symbol}: {e}",
-                        symbol = function.symbol
-                    ))
-                })?;
-                let fn_ptr = builder
-                    .build_load(ptr_ty(context), slot_ptr, "fn_ptr")
-                    .map_err(|e| {
-                        CodegenError(format!(
-                            "call_indirect @{symbol}: {e}",
-                            symbol = function.symbol
-                        ))
-                    })?
-                    .into_pointer_value();
-                let result_slot = self.result_slot(*out, "indirect_result")?;
-                let mut param_tys: Vec<BasicMetadataTypeEnum> = args
-                    .iter()
-                    .map(|arg| {
-                        basic_ty(
-                            context,
-                            self.structs,
-                            self.enums,
-                            &function.value_ty(self.globals_arena, *arg),
-                        )
-                        .map(Into::into)
-                    })
-                    .collect::<Result<_, _>>()?;
-                if result_slot.is_some() {
-                    param_tys.insert(0, ptr_ty(context).into());
-                }
-                let fn_ty = match (out, &result_slot) {
-                    (_, Some(_)) => context.void_type().fn_type(&param_tys, false),
-                    (Some(temp), None) => {
-                        basic_ty(context, self.structs, self.enums, &function.temps[*temp].ty)?
-                            .fn_type(&param_tys, false)
-                    }
-                    (None, None) => context.void_type().fn_type(&param_tys, false),
-                };
-                let mut call_args: Vec<inkwell::values::BasicMetadataValueEnum> = args
-                    .iter()
-                    .map(|arg| self.value(*arg).map(Into::into))
-                    .collect::<Result<_, _>>()?;
-                if let Some((_, slot, _)) = result_slot {
-                    call_args.insert(0, slot.into());
-                }
-                let call = builder
-                    .build_indirect_call(fn_ty, fn_ptr, &call_args, "call_indirect")
-                    .map_err(|e| {
-                        CodegenError(format!(
-                            "call_indirect @{symbol}: {e}",
-                            symbol = function.symbol
-                        ))
-                    })?;
-                if let Some((temp, slot, ty)) = result_slot {
-                    let result = builder
-                        .build_load(ty, slot, "indirect_result")
-                        .map_err(|e| {
-                            CodegenError(format!(
-                                "load indirect result @{symbol}: {e}",
-                                symbol = function.symbol
-                            ))
-                        })?;
-                    self.temps.insert(temp, result);
-                } else if let Some(temp) = out {
-                    match call.try_as_basic_value() {
-                        ValueKind::Basic(result) => {
-                            self.temps.insert(*temp, result);
-                        }
-                        ValueKind::Instruction(_) => {
-                            return Err(CodegenError(format!(
-                                "call_indirect produced no value for t{}",
-                                temp.into_raw().into_u32()
-                            )));
-                        }
-                    }
-                }
+            Instruction::Call { site } => {
+                self.emit_typed_call(site, None, None)?;
             }
             Instruction::Invoke {
-                out,
-                symbol,
-                args,
+                site,
                 normal,
                 unwind,
             } => {
-                // LLVM `invoke` (M8, runtime spec 5): the call may throw;
-                // control continues in `normal` or unwinds into the
-                // `unwind` landing pad. Signature from the call site, as
-                // for Call; undefined callees are declared extern.
-                let result_slot = self.result_slot(*out, "invoke_result")?;
-                let mut param_tys: Vec<BasicMetadataTypeEnum> = args
-                    .iter()
-                    .map(|arg| {
-                        basic_ty(
-                            context,
-                            self.structs,
-                            self.enums,
-                            &function.value_ty(self.globals_arena, *arg),
-                        )
-                        .map(Into::into)
-                    })
-                    .collect::<Result<_, _>>()?;
-                if result_slot.is_some() {
-                    param_tys.insert(0, ptr_ty(context).into());
-                }
-                let fn_ty = match (out, &result_slot) {
-                    (_, Some(_)) => context.void_type().fn_type(&param_tys, false),
-                    (Some(temp), None) => {
-                        basic_ty(context, self.structs, self.enums, &function.temps[*temp].ty)?
-                            .fn_type(&param_tys, false)
-                    }
-                    (None, None) => context.void_type().fn_type(&param_tys, false),
-                };
-                let callee = self
-                    .llvm
-                    .get_function(symbol)
-                    .unwrap_or_else(|| self.llvm.add_function(symbol, fn_ty, None));
-                let mut call_args: Vec<BasicValueEnum> = args
-                    .iter()
-                    .map(|arg| self.value(*arg))
-                    .collect::<Result<_, _>>()?;
-                if let Some((_, slot, _)) = result_slot {
-                    call_args.insert(0, slot.into());
-                }
-                let invoke = builder
-                    .build_invoke(
-                        callee,
-                        &call_args,
-                        self.llvm_blocks[arena_index(*normal)],
-                        self.llvm_blocks[arena_index(*unwind)],
-                        "invoke",
-                    )
-                    .map_err(|e| CodegenError(format!("invoke @{symbol}: {e}")))?;
-                // The result is defined on the normal edge; it enters the
-                // temp map like a call result.
-                if let Some((temp, slot, ty)) = result_slot {
-                    builder.position_at_end(self.llvm_blocks[arena_index(*normal)]);
-                    let result = builder
-                        .build_load(ty, slot, "invoke_result")
-                        .map_err(|e| CodegenError(format!("load invoke result @{symbol}: {e}")))?;
-                    self.temps.insert(temp, result);
-                } else if let Some(temp) = out {
-                    match invoke.try_as_basic_value() {
-                        ValueKind::Basic(result) => {
-                            self.temps.insert(*temp, result);
-                        }
-                        ValueKind::Instruction(_) => {
-                            return Err(CodegenError(format!(
-                                "invoke @{symbol} produced no value for t{}",
-                                temp.into_raw().into_u32()
-                            )));
-                        }
-                    }
-                }
-            }
-            Instruction::InvokeIndirect {
-                out,
-                table,
-                slot,
-                args,
-                normal,
-                unwind,
-            } => {
-                // Indirect variant: `table[slot]` loaded like
-                // CallIndirect, invoked with the call-site signature.
-                let table = self.value(*table)?.into_pointer_value();
-                // SAFETY: `table` addresses a function table with at
-                // least `slot + 1` slots (LIR contract of InvokeIndirect).
-                let slot_ptr = unsafe {
-                    builder.build_gep(
-                        ptr_ty(context),
-                        table,
-                        &[context.i32_type().const_int((*slot).into(), false)],
-                        "slot_ptr",
-                    )
-                }
-                .map_err(|e| {
-                    CodegenError(format!(
-                        "invoke_indirect @{symbol}: {e}",
-                        symbol = function.symbol
-                    ))
-                })?;
-                let fn_ptr = builder
-                    .build_load(ptr_ty(context), slot_ptr, "fn_ptr")
-                    .map_err(|e| {
-                        CodegenError(format!(
-                            "invoke_indirect @{symbol}: {e}",
-                            symbol = function.symbol
-                        ))
-                    })?
-                    .into_pointer_value();
-                let result_slot = self.result_slot(*out, "indirect_invoke_result")?;
-                let mut param_tys: Vec<BasicMetadataTypeEnum> = args
-                    .iter()
-                    .map(|arg| {
-                        basic_ty(
-                            context,
-                            self.structs,
-                            self.enums,
-                            &function.value_ty(self.globals_arena, *arg),
-                        )
-                        .map(Into::into)
-                    })
-                    .collect::<Result<_, _>>()?;
-                if result_slot.is_some() {
-                    param_tys.insert(0, ptr_ty(context).into());
-                }
-                let fn_ty = match (out, &result_slot) {
-                    (_, Some(_)) => context.void_type().fn_type(&param_tys, false),
-                    (Some(temp), None) => {
-                        basic_ty(context, self.structs, self.enums, &function.temps[*temp].ty)?
-                            .fn_type(&param_tys, false)
-                    }
-                    (None, None) => context.void_type().fn_type(&param_tys, false),
-                };
-                let mut call_args: Vec<BasicValueEnum> = args
-                    .iter()
-                    .map(|arg| self.value(*arg))
-                    .collect::<Result<_, _>>()?;
-                if let Some((_, slot, _)) = result_slot {
-                    call_args.insert(0, slot.into());
-                }
-                let invoke = builder
-                    .build_indirect_invoke(
-                        fn_ty,
-                        fn_ptr,
-                        &call_args,
-                        self.llvm_blocks[arena_index(*normal)],
-                        self.llvm_blocks[arena_index(*unwind)],
-                        "invoke_indirect",
-                    )
-                    .map_err(|e| {
-                        CodegenError(format!(
-                            "invoke_indirect @{symbol}: {e}",
-                            symbol = function.symbol
-                        ))
-                    })?;
-                if let Some((temp, slot, ty)) = result_slot {
-                    builder.position_at_end(self.llvm_blocks[arena_index(*normal)]);
-                    let result = builder
-                        .build_load(ty, slot, "indirect_invoke_result")
-                        .map_err(|e| {
-                            CodegenError(format!(
-                                "load indirect invoke result @{symbol}: {e}",
-                                symbol = function.symbol
-                            ))
-                        })?;
-                    self.temps.insert(temp, result);
-                } else if let Some(temp) = out {
-                    match invoke.try_as_basic_value() {
-                        ValueKind::Basic(result) => {
-                            self.temps.insert(*temp, result);
-                        }
-                        ValueKind::Instruction(_) => {
-                            return Err(CodegenError(format!(
-                                "invoke_indirect produced no value for t{}",
-                                temp.into_raw().into_u32()
-                            )));
-                        }
-                    }
-                }
+                self.emit_typed_call(site, None, Some((*normal, *unwind)))?;
             }
             Instruction::LandingPad { record, raw } => {
                 // Catch-all landing pad (M8, runtime spec 5). Keep the
@@ -3202,22 +2714,388 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         Ok(alloca)
     }
 
-    /// Allocate the hidden result slot for an aggregate-producing call.
-    fn result_slot(
-        &self,
-        out: Option<TempId>,
-        name: &str,
-    ) -> Result<Option<(TempId, PointerValue<'ctx>, BasicTypeEnum<'ctx>)>, CodegenError> {
-        let Some(temp) = out else {
-            return Ok(None);
+    /// Emit one typed direct/dispatch call. Destination, physical signature,
+    /// return convention, and GC/native effect all come from the target entity
+    /// referenced by `site`; none are reconstructed from operands or symbols.
+    fn emit_typed_call(
+        &mut self,
+        site: &scoop_lir::CallSite,
+        native_roots: Option<&[scoop_lir::CallerRoot]>,
+        invoke: Option<(scoop_lir::BlockId, scoop_lir::BlockId)>,
+    ) -> Result<(), CodegenError> {
+        let targets = &self.function.call_targets;
+        let (destination, effect, params, result) = match *site {
+            scoop_lir::CallSite::Void { target, .. } => {
+                let target = &targets.void_targets[target];
+                let signature = &targets.void_signatures[target.signature];
+                (
+                    target.destination,
+                    target.effect,
+                    signature.params.as_slice(),
+                    TypedCallResult::Void,
+                )
+            }
+            scoop_lir::CallSite::Direct { target, out, .. } => {
+                let target = &targets.direct_targets[target];
+                let signature = &targets.direct_signatures[target.signature];
+                (
+                    target.destination,
+                    target.effect,
+                    signature.params.as_slice(),
+                    TypedCallResult::Direct {
+                        out,
+                        ty: &signature.result,
+                        scan: &signature.result_scan,
+                    },
+                )
+            }
+            scoop_lir::CallSite::IndirectResult {
+                target, storage, ..
+            } => {
+                let target = &targets.indirect_result_targets[target];
+                let signature = &targets.indirect_result_signatures[target.signature];
+                (
+                    target.destination,
+                    target.effect,
+                    signature.params.as_slice(),
+                    TypedCallResult::Indirect {
+                        storage,
+                        ty: &signature.result.ty,
+                        scan: &signature.result.scan,
+                    },
+                )
+            }
         };
-        let ty = &self.function.temps[temp].ty;
-        if !uses_return_slot(self.enums, ty) {
-            return Ok(None);
+
+        let is_native = matches!(
+            effect,
+            scoop_lir::CallEffect::NativeSafe | scoop_lir::CallEffect::NativeBorrowed
+        );
+        if is_native != native_roots.is_some() {
+            return Err(CodegenError(format!(
+                "typed call @{}: native instruction/effect mismatch",
+                self.function.symbol
+            )));
         }
-        let ty = basic_ty(self.context, self.structs, self.enums, ty)?;
-        let slot = self.entry_alloca(ty, name)?;
-        Ok(Some((temp, slot, ty)))
+        if is_native && invoke.is_some() {
+            return Err(CodegenError(format!(
+                "typed call @{}: native calls cannot unwind through managed code",
+                self.function.symbol
+            )));
+        }
+        if site.args().len() != params.len() {
+            return Err(CodegenError(format!(
+                "typed call @{}: signature has {} parameters but call has {} arguments",
+                self.function.symbol,
+                params.len(),
+                site.args().len()
+            )));
+        }
+
+        match &result {
+            TypedCallResult::Void => {}
+            TypedCallResult::Direct { out, ty, .. } => {
+                if &self.function.temps[*out].ty != *ty {
+                    return Err(CodegenError(format!(
+                        "typed call @{}: direct result temp does not match its signature",
+                        self.function.symbol
+                    )));
+                }
+            }
+            TypedCallResult::Indirect { storage, ty, .. } => {
+                if &self.function.locals[*storage].ty != *ty {
+                    return Err(CodegenError(format!(
+                        "typed call @{}: result storage does not match its signature",
+                        self.function.symbol
+                    )));
+                }
+            }
+        }
+
+        // Allocation is the one codegen-expanded runtime primitive. Its typed
+        // identity selects the expansion; its symbol is not inspected.
+        if destination == scoop_lir::CallDestination::Runtime(scoop_lir::RuntimeFunction::Alloc) {
+            let TypedCallResult::Direct { out, .. } = result else {
+                return Err(CodegenError(format!(
+                    "typed allocation @{} must have a direct result",
+                    self.function.symbol
+                )));
+            };
+            if effect != scoop_lir::CallEffect::ManagedSafepoint || invoke.is_some() {
+                return Err(CodegenError(format!(
+                    "typed allocation @{} has an invalid effect or unwind edge",
+                    self.function.symbol
+                )));
+            }
+            return self.managed_alloc(out, site.args());
+        }
+
+        let mut param_tys = params
+            .iter()
+            .map(|ty| basic_ty(self.context, self.structs, self.enums, ty).map(Into::into))
+            .collect::<Result<Vec<BasicMetadataTypeEnum<'ctx>>, _>>()?;
+        let fn_ty = match &result {
+            TypedCallResult::Void => self.context.void_type().fn_type(&param_tys, false),
+            TypedCallResult::Direct { ty, .. } => {
+                basic_ty(self.context, self.structs, self.enums, ty)?.fn_type(&param_tys, false)
+            }
+            TypedCallResult::Indirect { .. } => {
+                param_tys.insert(0, ptr_ty(self.context).into());
+                self.context.void_type().fn_type(&param_tys, false)
+            }
+        };
+
+        let mut call_args = site
+            .args()
+            .iter()
+            .map(|argument| self.value(*argument))
+            .collect::<Result<Vec<BasicValueEnum<'ctx>>, _>>()?;
+        if let TypedCallResult::Indirect { storage, .. } = &result {
+            call_args.insert(0, self.allocas[arena_index(*storage)].into());
+        }
+
+        let native_result_storage = if native_roots.is_some() {
+            match &result {
+                TypedCallResult::Direct { ty, scan, .. } if **scan != RefScan::None => {
+                    let llvm_ty = basic_ty(self.context, self.structs, self.enums, ty)?;
+                    let storage = self.entry_alloca(llvm_ty, "native_result")?;
+                    self.builder
+                        .build_store(storage, llvm_ty.const_zero())
+                        .map_err(|error| CodegenError(format!("zero native result: {error}")))?;
+                    Some((storage, llvm_ty, *scan))
+                }
+                TypedCallResult::Indirect { storage, ty, scan } if **scan != RefScan::None => {
+                    let llvm_ty = basic_ty(self.context, self.structs, self.enums, ty)?;
+                    let storage = self.allocas[arena_index(*storage)];
+                    self.builder
+                        .build_store(storage, llvm_ty.const_zero())
+                        .map_err(|error| CodegenError(format!("zero native result: {error}")))?;
+                    Some((storage, llvm_ty, *scan))
+                }
+                TypedCallResult::Void
+                | TypedCallResult::Direct { .. }
+                | TypedCallResult::Indirect { .. } => None,
+            }
+        } else {
+            None
+        };
+        let transition = if let Some(roots) = native_roots {
+            self.publish_native_roots(
+                roots,
+                native_result_storage.map(|(storage, _, scan)| (storage, scan)),
+                effect,
+            )
+            .map(Some)?
+        } else {
+            None
+        };
+
+        let callee = match destination {
+            scoop_lir::CallDestination::Dispatch { .. } => None,
+            _ => Some(self.typed_callee(destination, fn_ty)?),
+        };
+        let call = match (destination, invoke) {
+            (scoop_lir::CallDestination::Dispatch { table, slot }, None) => {
+                let pointer = self.dispatch_function_pointer(table, slot)?;
+                let arguments = call_args
+                    .iter()
+                    .copied()
+                    .map(Into::into)
+                    .collect::<Vec<_>>();
+                self.builder
+                    .build_indirect_call(fn_ty, pointer, &arguments, "typed_call")
+                    .map_err(|error| CodegenError(format!("typed dispatch call: {error}")))?
+            }
+            (scoop_lir::CallDestination::Dispatch { table, slot }, Some((normal, unwind))) => {
+                let pointer = self.dispatch_function_pointer(table, slot)?;
+                self.builder
+                    .build_indirect_invoke(
+                        fn_ty,
+                        pointer,
+                        &call_args,
+                        self.llvm_blocks[arena_index(normal)],
+                        self.llvm_blocks[arena_index(unwind)],
+                        "typed_invoke",
+                    )
+                    .map_err(|error| CodegenError(format!("typed dispatch invoke: {error}")))?
+            }
+            (_, None) => {
+                let arguments = call_args
+                    .iter()
+                    .copied()
+                    .map(Into::into)
+                    .collect::<Vec<_>>();
+                self.builder
+                    .build_call(
+                        callee.expect("direct destination has a callee"),
+                        &arguments,
+                        "typed_call",
+                    )
+                    .map_err(|error| CodegenError(format!("typed direct call: {error}")))?
+            }
+            (_, Some((normal, unwind))) => self
+                .builder
+                .build_invoke(
+                    callee.expect("direct destination has a callee"),
+                    &call_args,
+                    self.llvm_blocks[arena_index(normal)],
+                    self.llvm_blocks[arena_index(unwind)],
+                    "typed_invoke",
+                )
+                .map_err(|error| CodegenError(format!("typed direct invoke: {error}")))?,
+        };
+        self.apply_call_effect(call, destination, effect);
+
+        let direct_value = match &result {
+            TypedCallResult::Direct { .. } => match call.try_as_basic_value() {
+                ValueKind::Basic(value) => Some(value),
+                ValueKind::Instruction(_) => {
+                    return Err(CodegenError(format!(
+                        "typed call @{} produced no direct value",
+                        self.function.symbol
+                    )));
+                }
+            },
+            TypedCallResult::Void | TypedCallResult::Indirect { .. } => None,
+        };
+
+        if let (Some(value), TypedCallResult::Direct { .. }, Some((storage, _, _))) =
+            (direct_value, &result, native_result_storage)
+        {
+            self.builder
+                .build_store(storage, value)
+                .map_err(|error| CodegenError(format!("store native result: {error}")))?;
+        }
+        if let Some(transition) = transition {
+            self.finish_native_transition(transition, effect)?;
+        }
+
+        if let TypedCallResult::Direct { out, .. } = result {
+            let value = if let Some((storage, ty, _)) = native_result_storage {
+                self.builder
+                    .build_load(ty, storage, "native_result")
+                    .map_err(|error| CodegenError(format!("load native result: {error}")))?
+            } else {
+                direct_value.expect("direct typed call produced a value")
+            };
+            self.temps.insert(out, value);
+        }
+        Ok(())
+    }
+
+    fn typed_callee(
+        &self,
+        destination: scoop_lir::CallDestination,
+        fn_ty: inkwell::types::FunctionType<'ctx>,
+    ) -> Result<inkwell::values::FunctionValue<'ctx>, CodegenError> {
+        let symbol = match destination {
+            scoop_lir::CallDestination::Local(id) => {
+                let symbol = self
+                    .functions
+                    .get(id.into_u32() as usize)
+                    .ok_or_else(|| {
+                        CodegenError(format!("invalid local function id {}", id.into_u32()))
+                    })?
+                    .symbol
+                    .as_str();
+                let function = self.llvm.get_function(symbol).ok_or_else(|| {
+                    CodegenError(format!(
+                        "typed local target `{symbol}` was not declared in the module pass"
+                    ))
+                })?;
+                if function.get_type() != fn_ty {
+                    return Err(CodegenError(format!(
+                        "typed target `{symbol}` disagrees with its existing declaration"
+                    )));
+                }
+                return Ok(function);
+            }
+            scoop_lir::CallDestination::Runtime(function) => function.symbol(),
+            scoop_lir::CallDestination::Extern(id) => match &self.extern_functions[id].kind {
+                ExternFunctionKind::C { bridge_symbol, .. } => bridge_symbol,
+                ExternFunctionKind::Scoop { .. } => &self.extern_functions[id].native_symbol,
+            },
+            scoop_lir::CallDestination::Dispatch { .. } => {
+                unreachable!("dispatch destinations have no direct callee")
+            }
+        };
+        if let Some(function) = self.llvm.get_function(symbol) {
+            if function.get_type() != fn_ty {
+                return Err(CodegenError(format!(
+                    "typed target `{symbol}` disagrees with its existing declaration"
+                )));
+            }
+            Ok(function)
+        } else {
+            Ok(self.llvm.add_function(symbol, fn_ty, None))
+        }
+    }
+
+    fn dispatch_function_pointer(
+        &self,
+        table: Value,
+        slot: scoop_lir::DispatchSlotId,
+    ) -> Result<PointerValue<'ctx>, CodegenError> {
+        let table = self.value(table)?.into_pointer_value();
+        let slot = self.function.call_targets.dispatch_slots[slot];
+        // SAFETY: the typed dispatch slot is assigned by lir-lower from the
+        // complete vtable/itable/closure layout.
+        let slot_pointer = unsafe {
+            self.builder.build_gep(
+                ptr_ty(self.context),
+                table,
+                &[self.context.i32_type().const_int(slot.index.into(), false)],
+                "dispatch_slot",
+            )
+        }
+        .map_err(|error| CodegenError(format!("typed dispatch slot: {error}")))?;
+        self.builder
+            .build_load(ptr_ty(self.context), slot_pointer, "dispatch_function")
+            .map(BasicValueEnum::into_pointer_value)
+            .map_err(|error| CodegenError(format!("typed dispatch load: {error}")))
+    }
+
+    fn apply_call_effect(
+        &self,
+        call: inkwell::values::CallSiteValue<'ctx>,
+        destination: scoop_lir::CallDestination,
+        effect: scoop_lir::CallEffect,
+    ) {
+        if matches!(
+            effect,
+            scoop_lir::CallEffect::NoGc
+                | scoop_lir::CallEffect::NativeSafe
+                | scoop_lir::CallEffect::NativeBorrowed
+        ) {
+            call.add_attribute(
+                AttributeLoc::Function,
+                self.context.create_string_attribute("gc-leaf-function", ""),
+            );
+        }
+        if matches!(
+            effect,
+            scoop_lir::CallEffect::NativeSafe | scoop_lir::CallEffect::NativeBorrowed
+        ) {
+            call.add_attribute(
+                AttributeLoc::Function,
+                self.context
+                    .create_enum_attribute(Attribute::get_named_enum_kind_id("nounwind"), 0),
+            );
+        }
+        if matches!(
+            destination,
+            scoop_lir::CallDestination::Runtime(
+                scoop_lir::RuntimeFunction::Trap
+                    | scoop_lir::RuntimeFunction::Throw
+                    | scoop_lir::RuntimeFunction::Rethrow
+            )
+        ) {
+            call.add_attribute(
+                AttributeLoc::Function,
+                self.context
+                    .create_enum_attribute(Attribute::get_named_enum_kind_id("noreturn"), 0),
+            );
+        }
     }
 
     fn native_boundary_fn(
@@ -3242,7 +3120,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         &mut self,
         roots: &[scoop_lir::CallerRoot],
         result_root: Option<(PointerValue<'ctx>, &RefScan)>,
-        effect: scoop_lir::NativeCallEffect,
+        effect: scoop_lir::CallEffect,
     ) -> Result<NativeTransition<'ctx>, CodegenError> {
         let context = self.context;
         let builder = self.builder;
@@ -3403,8 +3281,11 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .build_ptr_to_int(transition, i64_ty, "managed_stack_pointer")
             .map_err(|error| CodegenError(format!("managed stack pointer: {error}")))?;
         let enter_symbol = match effect {
-            scoop_lir::NativeCallEffect::NativeSafe => "scoop_rt_enter_native_safe",
-            scoop_lir::NativeCallEffect::NativeBorrowed => "scoop_rt_enter_native_borrowed",
+            scoop_lir::CallEffect::NativeSafe => "scoop_rt_enter_native_safe",
+            scoop_lir::CallEffect::NativeBorrowed => "scoop_rt_enter_native_borrowed",
+            scoop_lir::CallEffect::ManagedSafepoint | scoop_lir::CallEffect::NoGc => {
+                unreachable!("non-native effect cannot enter a native transition")
+            }
         };
         let enter = self.native_boundary_fn(
             enter_symbol,
@@ -3430,13 +3311,16 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
     fn finish_native_transition(
         &mut self,
         native: NativeTransition<'ctx>,
-        effect: scoop_lir::NativeCallEffect,
+        effect: scoop_lir::CallEffect,
     ) -> Result<(), CodegenError> {
         let context = self.context;
         let ptr = ptr_ty(context);
         let leave_symbol = match effect {
-            scoop_lir::NativeCallEffect::NativeSafe => "scoop_rt_leave_native_safe",
-            scoop_lir::NativeCallEffect::NativeBorrowed => "scoop_rt_leave_native_borrowed",
+            scoop_lir::CallEffect::NativeSafe => "scoop_rt_leave_native_safe",
+            scoop_lir::CallEffect::NativeBorrowed => "scoop_rt_leave_native_borrowed",
+            scoop_lir::CallEffect::ManagedSafepoint | scoop_lir::CallEffect::NoGc => {
+                unreachable!("non-native effect cannot leave a native transition")
+            }
         };
         let leave = self.native_boundary_fn(
             leave_symbol,
@@ -3515,13 +3399,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
     /// failed bump calls the collecting slow path; a successful bump calls a
     /// GC-leaf helper that clears the object, initializes its header, and
     /// atomically records the object start.
-    fn managed_alloc(&mut self, out: &Option<TempId>, args: &[Value]) -> Result<(), CodegenError> {
-        let Some(out) = *out else {
-            return Err(CodegenError(format!(
-                "scoop_rt_alloc @{}: allocation has no result",
-                self.function.symbol
-            )));
-        };
+    fn managed_alloc(&mut self, out: TempId, args: &[Value]) -> Result<(), CodegenError> {
         let [descriptor, requested_size] = args else {
             return Err(CodegenError(format!(
                 "scoop_rt_alloc @{}: expected descriptor and size",
@@ -3739,74 +3617,6 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .map_err(|error| CodegenError(format!("merge allocation result: {error}")))?;
         phi.add_incoming(&[(&object, fast_block), (&slow_object, slow_block)]);
         Ok(phi.as_basic_value().into_pointer_value())
-    }
-
-    /// `ptr scoop_rt_box(ptr td, ptr payload, i64 size)` (runtime spec
-    /// 2.3). lir-lower passes the payload by value (an aggregate for a
-    /// value type); it is materialized behind a stack pointer here
-    /// (lir-lower module docs, the "临时 alloca 取地址" contract).
-    fn box_call(&mut self, out: &Option<TempId>, args: &[Value]) -> Result<(), CodegenError> {
-        let context = self.context;
-        let builder = self.builder;
-        let function = self.function;
-        let [td, payload, size] = args else {
-            return Err(CodegenError(format!(
-                "scoop_rt_box @{symbol}: expected 3 arguments, got {count}",
-                symbol = function.symbol,
-                count = args.len()
-            )));
-        };
-        let payload_ty = basic_ty(
-            context,
-            self.structs,
-            self.enums,
-            &function.value_ty(self.globals_arena, *payload),
-        )?;
-        let slot = self.entry_alloca(payload_ty, "box_payload")?;
-        builder
-            .build_store(slot, self.value(*payload)?)
-            .map_err(|e| {
-                CodegenError(format!(
-                    "box payload @{symbol}: {e}",
-                    symbol = function.symbol
-                ))
-            })?;
-        let box_fn = self.runtime_fn(
-            "scoop_rt_box",
-            ptr_ty(context).fn_type(
-                &[
-                    ptr_ty(context).into(),
-                    ptr_ty(context).into(),
-                    context.i64_type().into(),
-                ],
-                false,
-            ),
-        );
-        let call = builder
-            .build_call(
-                box_fn,
-                &[
-                    self.value(*td)?.into(),
-                    slot.into(),
-                    self.value(*size)?.into(),
-                ],
-                "box",
-            )
-            .map_err(|e| CodegenError(format!("box @{symbol}: {e}", symbol = function.symbol)))?;
-        if let Some(temp) = out {
-            match call.try_as_basic_value() {
-                ValueKind::Basic(result) => {
-                    self.temps.insert(*temp, result);
-                }
-                ValueKind::Instruction(_) => {
-                    return Err(CodegenError(format!(
-                        "scoop_rt_box produced no value for t{}",
-                        temp.into_raw().into_u32()
-                    )));
-                }
-            }
-        }
-        Ok(())
     }
 
     fn array_type(&self, id: ArrayTypeId) -> (&ArrayType, GlobalValue<'ctx>) {
@@ -4200,6 +4010,7 @@ fn declare_foreign_callback_trampoline<'ctx>(
 /// Module-level data function emission needs, bundled to keep
 /// signatures small.
 struct ModuleCtx<'a, 'ctx> {
+    functions: &'a [Function],
     structs: &'a Arena<StructDef>,
     enums: &'a Arena<EnumDef>,
     extern_functions: &'a Arena<ExternFunction>,
@@ -4239,13 +4050,10 @@ fn loop_headers(function: &Function) -> Vec<bool> {
             }
             Terminator::Return { .. } | Terminator::Resume { .. } | Terminator::Unreachable => {}
         }
-        // Invoke / InvokeIndirect are terminator-like: the block's own
+        // Invoke is terminator-like: the block's own
         // terminator restates the normal successor (counted above), so
         // only the unwind edge is extra.
-        if let Some(
-            Instruction::Invoke { unwind, .. } | Instruction::InvokeIndirect { unwind, .. },
-        ) = block.instructions.last()
-        {
+        if let Some(Instruction::Invoke { unwind, .. }) = block.instructions.last() {
             successors[from].push(arena_index(*unwind));
         }
     }
@@ -4367,6 +4175,7 @@ fn emit_function<'ctx>(
         llvm_function,
         entry_block: blocks[arena_index(function.entry)],
         llvm_blocks: &blocks,
+        functions: module_ctx.functions,
         structs: module_ctx.structs,
         enums: module_ctx.enums,
         extern_functions: module_ctx.extern_functions,
@@ -4423,7 +4232,7 @@ fn emit_function<'ctx>(
         {
             emitter.safepoint_poll()?;
         }
-        // Invoke / InvokeIndirect are LLVM terminators even though they
+        // Invoke is an LLVM terminator even though it
         // are LIR instructions: one must be the last instruction of its
         // block, and the block's LIR terminator must be the redundant
         // `Br` to the invoke's normal target (kept so dumps stay
@@ -4431,10 +4240,7 @@ fn emit_function<'ctx>(
         // the first of its block (LLVM requires the landingpad first).
         let mut invoke_terminated = false;
         for (index, instruction) in block.instructions.iter().enumerate() {
-            let is_invoke = matches!(
-                instruction,
-                Instruction::Invoke { .. } | Instruction::InvokeIndirect { .. }
-            );
+            let is_invoke = matches!(instruction, Instruction::Invoke { .. });
             if is_invoke && index + 1 != block.instructions.len() {
                 return Err(CodegenError(format!(
                     "invoke @{}: must be the last instruction of block {}",
@@ -4456,9 +4262,7 @@ fn emit_function<'ctx>(
         }
         if invoke_terminated {
             let normal = match block.instructions.last() {
-                Some(
-                    Instruction::Invoke { normal, .. } | Instruction::InvokeIndirect { normal, .. },
-                ) => *normal,
+                Some(Instruction::Invoke { normal, .. }) => *normal,
                 _ => continue,
             };
             match &block.terminator {
@@ -4542,12 +4346,101 @@ fn emit_function<'ctx>(
 mod tests {
     use la_arena::Arena;
     use scoop_lir::{
-        BasicBlock, EnumDef, EnumRepr, EnumVariantRepr, Global, GlobalInit, ItableRecord, Layout,
-        LayoutKind, LirMeta, Local, MANAGED_PTR, METADATA_PTR, PointerKind, RAW_PTR,
-        StringMetadata, Temp, TypeDescriptor,
+        BasicBlock, CallDestination, CallEffect, CallSite, CallTargets, DirectCallSignature,
+        DirectCallTarget, DispatchKind, DispatchSlot, EnumDef, EnumRepr, EnumVariantRepr, Global,
+        GlobalInit, IndirectResultCallSignature, IndirectResultCallTarget, ItableRecord, Layout,
+        LayoutKind, LirMeta, Local, MANAGED_PTR, METADATA_PTR, PointerKind, RAW_PTR, ResultStorage,
+        StringMetadata, Temp, TypeDescriptor, VoidCallSignature, VoidCallTarget,
     };
 
     use super::*;
+
+    fn void_site(
+        targets: &mut CallTargets,
+        destination: CallDestination,
+        effect: CallEffect,
+        params: Vec<LirType>,
+        args: Vec<Value>,
+    ) -> CallSite {
+        let signature = targets.void_signatures.alloc(VoidCallSignature {
+            params,
+            calling_convention: scoop_lir::CallingConvention::Cdecl,
+        });
+        let target = targets.void_targets.alloc(VoidCallTarget {
+            destination,
+            signature,
+            effect,
+        });
+        CallSite::Void { target, args }
+    }
+
+    fn direct_site(
+        targets: &mut CallTargets,
+        destination: CallDestination,
+        effect: CallEffect,
+        params: Vec<LirType>,
+        result: (LirType, RefScan),
+        out: TempId,
+        args: Vec<Value>,
+    ) -> CallSite {
+        let signature = targets.direct_signatures.alloc(DirectCallSignature {
+            params,
+            result: result.0,
+            result_scan: result.1,
+            calling_convention: scoop_lir::CallingConvention::Cdecl,
+        });
+        let target = targets.direct_targets.alloc(DirectCallTarget {
+            destination,
+            signature,
+            effect,
+        });
+        CallSite::Direct { target, out, args }
+    }
+
+    fn indirect_result_site(
+        targets: &mut CallTargets,
+        destination: CallDestination,
+        effect: CallEffect,
+        params: Vec<LirType>,
+        result: (LirType, RefScan),
+        storage: scoop_lir::LocalId,
+        args: Vec<Value>,
+    ) -> CallSite {
+        let signature = targets
+            .indirect_result_signatures
+            .alloc(IndirectResultCallSignature {
+                params,
+                result: ResultStorage {
+                    ty: result.0,
+                    scan: result.1,
+                },
+                calling_convention: scoop_lir::CallingConvention::Cdecl,
+            });
+        let target = targets
+            .indirect_result_targets
+            .alloc(IndirectResultCallTarget {
+                destination,
+                signature,
+                effect,
+            });
+        CallSite::IndirectResult {
+            target,
+            storage,
+            args,
+        }
+    }
+
+    fn dispatch_destination(
+        targets: &mut CallTargets,
+        table: Value,
+        index: u32,
+    ) -> CallDestination {
+        let slot = targets.dispatch_slots.alloc(DispatchSlot {
+            kind: DispatchKind::Virtual,
+            index,
+        });
+        CallDestination::Dispatch { table, slot }
+    }
 
     fn string_metadata() -> StringMetadata {
         StringMetadata {
@@ -4651,6 +4544,16 @@ mod tests {
         let t6 = temp(&mut temps, MANAGED_PTR);
         // t7 = ()
         let t7 = temp(&mut temps, LirType::Aggregate(vec![]));
+        let mut call_targets = CallTargets::default();
+        let concat = direct_site(
+            &mut call_targets,
+            CallDestination::Runtime(scoop_lir::RuntimeFunction::StringConcat),
+            CallEffect::ManagedSafepoint,
+            vec![MANAGED_PTR, MANAGED_PTR],
+            (MANAGED_PTR, RefScan::References(vec![0])),
+            t6,
+            vec![Value::Global(hello), Value::Global(world)],
+        );
 
         // Allocate the four blocks first so terminators can reference
         // them, then fill in their bodies.
@@ -4699,11 +4602,7 @@ mod tests {
                     lhs: Value::Temp(t2),
                     rhs: Value::IntConst(100),
                 },
-                Instruction::Call {
-                    out: Some(t6),
-                    symbol: "scoop_rt_string_concat".to_string(),
-                    args: vec![Value::Global(hello), Value::Global(world)],
-                },
+                Instruction::Call { site: concat },
             ],
             terminator: Terminator::CondBr {
                 cond: Value::Temp(t3),
@@ -4713,44 +4612,20 @@ mod tests {
         };
         blocks[then_block] = BasicBlock {
             name: "then".to_string(),
-            instructions: vec![
-                Instruction::UnaryOp {
-                    out: t4,
-                    op: UnOp::Neg,
-                    operand: Value::Temp(t2),
-                },
-                Instruction::Call {
-                    out: None,
-                    symbol: "scoop_rt_println_int".to_string(),
-                    args: vec![Value::Temp(t4)],
-                },
-                Instruction::Call {
-                    out: None,
-                    symbol: "scoop_rt_println".to_string(),
-                    args: vec![Value::Temp(t6)],
-                },
-            ],
+            instructions: vec![Instruction::UnaryOp {
+                out: t4,
+                op: UnOp::Neg,
+                operand: Value::Temp(t2),
+            }],
             terminator: Terminator::Br(end),
         };
         blocks[else_block] = BasicBlock {
             name: "else".to_string(),
-            instructions: vec![
-                Instruction::UnaryOp {
-                    out: t5,
-                    op: UnOp::Not,
-                    operand: Value::BoolConst(true),
-                },
-                Instruction::Call {
-                    out: None,
-                    symbol: "scoop_rt_println_boolean".to_string(),
-                    args: vec![Value::Temp(t5)],
-                },
-                Instruction::Call {
-                    out: None,
-                    symbol: "scoop_rt_println_int".to_string(),
-                    args: vec![Value::Local(n)],
-                },
-            ],
+            instructions: vec![Instruction::UnaryOp {
+                out: t5,
+                op: UnOp::Not,
+                operand: Value::BoolConst(true),
+            }],
             terminator: Terminator::Br(end),
         };
         blocks[end] = BasicBlock {
@@ -4781,6 +4656,7 @@ mod tests {
                 symbol: "scoop_main".to_string(),
                 params: vec![],
                 return_ty: LirType::Void,
+                call_targets,
                 locals,
                 temps,
                 blocks,
@@ -4977,12 +4853,6 @@ mod tests {
                     lhs: Value::Temp(t8),
                     rhs: Value::Temp(t9),
                 },
-                // Use the extracted pointer so nothing is dead.
-                Instruction::Call {
-                    out: None,
-                    symbol: "scoop_rt_println".to_string(),
-                    args: vec![Value::Temp(t6)],
-                },
             ],
             terminator: Terminator::Return {
                 value: Some(Value::Temp(t10)),
@@ -4993,6 +4863,7 @@ mod tests {
             symbol: "scoop.tagged".to_string(),
             params: vec![shape_ty.clone(), MANAGED_PTR],
             return_ty: LirType::I64,
+            call_targets: CallTargets::default(),
             locals: tagged_locals,
             temps: tagged_temps,
             blocks: tagged_blocks,
@@ -5083,6 +4954,7 @@ mod tests {
             symbol: "scoop.niche".to_string(),
             params: vec![option_ty.clone()],
             return_ty: LirType::I64,
+            call_targets: CallTargets::default(),
             locals: niche_locals,
             temps: niche_temps,
             blocks: niche_blocks,
@@ -5091,14 +4963,18 @@ mod tests {
 
         // fun @scoop.trap_on_none(): the `!!`-on-None path — trap call
         // (noreturn) followed by unreachable.
+        let mut trap_targets = CallTargets::default();
+        let trap_site = void_site(
+            &mut trap_targets,
+            CallDestination::Runtime(scoop_lir::RuntimeFunction::Trap),
+            CallEffect::NoGc,
+            vec![RAW_PTR],
+            vec![Value::Global(trap_message)],
+        );
         let mut trap_blocks = Arena::default();
         let trap_entry = trap_blocks.alloc(BasicBlock {
             name: "entry".to_string(),
-            instructions: vec![Instruction::Call {
-                out: None,
-                symbol: scoop_lir::TRAP_SYMBOL.to_string(),
-                args: vec![Value::Global(trap_message)],
-            }],
+            instructions: vec![Instruction::Call { site: trap_site }],
             terminator: Terminator::Unreachable,
         });
         let trap_on_none = Function {
@@ -5106,6 +4982,7 @@ mod tests {
             symbol: "scoop.trap_on_none".to_string(),
             params: vec![],
             return_ty: LirType::Void,
+            call_targets: trap_targets,
             locals: Arena::default(),
             temps: Arena::default(),
             blocks: trap_blocks,
@@ -5137,29 +5014,38 @@ mod tests {
             symbol: "scoop.produce_shape".to_string(),
             params: vec![],
             return_ty: shape_ty.clone(),
+            call_targets: CallTargets::default(),
             locals: Arena::default(),
             temps: produce_temps,
             blocks: produce_blocks,
             entry: produce_entry,
         };
-        let mut consume_temps = Arena::default();
-        let received = consume_temps.alloc(Temp {
+        let mut consume_locals = Arena::default();
+        let received = consume_locals.alloc(Local {
+            name: "received".to_string(),
             ty: shape_ty.clone(),
         });
+        let mut consume_temps = Arena::default();
         let tag = consume_temps.alloc(Temp { ty: LirType::I64 });
+        let mut consume_targets = CallTargets::default();
+        let produce_site = indirect_result_site(
+            &mut consume_targets,
+            CallDestination::Local(scoop_lir::LocalFunctionId::from_u32(3)),
+            CallEffect::ManagedSafepoint,
+            Vec::new(),
+            (shape_ty.clone(), RefScan::References(vec![24])),
+            received,
+            Vec::new(),
+        );
         let mut consume_blocks = Arena::default();
         let consume_entry = consume_blocks.alloc(BasicBlock {
             name: "entry".to_string(),
             instructions: vec![
-                Instruction::Call {
-                    out: Some(received),
-                    symbol: "scoop.produce_shape".to_string(),
-                    args: vec![],
-                },
+                Instruction::Call { site: produce_site },
                 Instruction::EnumTag {
                     out: tag,
                     enum_id: shape,
-                    operand: Value::Temp(received),
+                    operand: Value::Local(received),
                 },
             ],
             terminator: Terminator::Return {
@@ -5171,30 +5057,41 @@ mod tests {
             symbol: "scoop.consume_shape".to_string(),
             params: vec![],
             return_ty: LirType::I64,
-            locals: Arena::default(),
+            call_targets: consume_targets,
+            locals: consume_locals,
             temps: consume_temps,
             blocks: consume_blocks,
             entry: consume_entry,
         };
-        let mut indirect_temps = Arena::default();
-        let indirect_received = indirect_temps.alloc(Temp {
+        let mut indirect_locals = Arena::default();
+        let indirect_received = indirect_locals.alloc(Local {
+            name: "indirect_received".to_string(),
             ty: shape_ty.clone(),
         });
+        let mut indirect_temps = Arena::default();
         let indirect_tag = indirect_temps.alloc(Temp { ty: LirType::I64 });
+        let mut indirect_targets = CallTargets::default();
+        let dispatch = dispatch_destination(&mut indirect_targets, Value::Param(0), 0);
+        let indirect_site = indirect_result_site(
+            &mut indirect_targets,
+            dispatch,
+            CallEffect::ManagedSafepoint,
+            Vec::new(),
+            (shape_ty.clone(), RefScan::References(vec![24])),
+            indirect_received,
+            Vec::new(),
+        );
         let mut indirect_blocks = Arena::default();
         let indirect_entry = indirect_blocks.alloc(BasicBlock {
             name: "entry".to_string(),
             instructions: vec![
-                Instruction::CallIndirect {
-                    out: Some(indirect_received),
-                    table: Value::Param(0),
-                    slot: 0,
-                    args: vec![],
+                Instruction::Call {
+                    site: indirect_site,
                 },
                 Instruction::EnumTag {
                     out: indirect_tag,
                     enum_id: shape,
-                    operand: Value::Temp(indirect_received),
+                    operand: Value::Local(indirect_received),
                 },
             ],
             terminator: Terminator::Return {
@@ -5206,7 +5103,8 @@ mod tests {
             symbol: "scoop.consume_shape_indirect".to_string(),
             params: vec![METADATA_PTR],
             return_ty: LirType::I64,
-            locals: Arena::default(),
+            call_targets: indirect_targets,
+            locals: indirect_locals,
             temps: indirect_temps,
             blocks: indirect_blocks,
             entry: indirect_entry,
@@ -5429,12 +5327,6 @@ mod tests {
                     lhs: Value::Temp(t1),
                     rhs: Value::Temp(t7),
                 },
-                // Use the clones and the sum so nothing is dead.
-                Instruction::Call {
-                    out: None,
-                    symbol: "scoop_rt_println_int".to_string(),
-                    args: vec![Value::Temp(t9)],
-                },
                 Instruction::ArraySet {
                     array: Value::Temp(t3),
                     index: Value::IntConst(0),
@@ -5464,6 +5356,7 @@ mod tests {
                 symbol: "scoop_main".to_string(),
                 params: vec![],
                 return_ty: LirType::Void,
+                call_targets: CallTargets::default(),
                 locals,
                 temps,
                 blocks,
@@ -5529,6 +5422,7 @@ mod tests {
                 symbol: symbol.to_string(),
                 params: vec![MANAGED_PTR],
                 return_ty: MANAGED_PTR,
+                call_targets: CallTargets::default(),
                 locals: Arena::default(),
                 temps: Arena::default(),
                 blocks,
@@ -5542,22 +5436,31 @@ mod tests {
         //   ret t0
         let mut temps = Arena::default();
         let t0 = temps.alloc(Temp { ty: MANAGED_PTR });
+        let mut call_targets = CallTargets::default();
+        let result_dispatch = dispatch_destination(&mut call_targets, Value::Param(0), 0);
+        let result_call = direct_site(
+            &mut call_targets,
+            result_dispatch,
+            CallEffect::ManagedSafepoint,
+            vec![MANAGED_PTR],
+            (MANAGED_PTR, RefScan::References(vec![0])),
+            t0,
+            vec![Value::Param(1)],
+        );
+        let void_dispatch = dispatch_destination(&mut call_targets, Value::Param(0), 1);
+        let void_call = void_site(
+            &mut call_targets,
+            void_dispatch,
+            CallEffect::ManagedSafepoint,
+            vec![MANAGED_PTR],
+            vec![Value::Param(1)],
+        );
         let mut blocks = Arena::default();
         let entry = blocks.alloc(BasicBlock {
             name: "entry".to_string(),
             instructions: vec![
-                Instruction::CallIndirect {
-                    out: Some(t0),
-                    table: Value::Param(0),
-                    slot: 0,
-                    args: vec![Value::Param(1)],
-                },
-                Instruction::CallIndirect {
-                    out: None,
-                    table: Value::Param(0),
-                    slot: 1,
-                    args: vec![Value::Param(1)],
-                },
+                Instruction::Call { site: result_call },
+                Instruction::Call { site: void_call },
             ],
             terminator: Terminator::Return {
                 value: Some(Value::Temp(t0)),
@@ -5568,6 +5471,7 @@ mod tests {
             symbol: "scoop_main".to_string(),
             params: vec![METADATA_PTR, MANAGED_PTR],
             return_ty: MANAGED_PTR,
+            call_targets,
             locals: Arena::default(),
             temps,
             blocks,
@@ -5685,6 +5589,7 @@ mod tests {
             symbol: "Point.describe".to_string(),
             params: vec![MANAGED_PTR],
             return_ty: MANAGED_PTR,
+            call_targets: CallTargets::default(),
             locals: Arena::default(),
             temps: Arena::default(),
             blocks: describe_blocks,
@@ -5715,15 +5620,57 @@ mod tests {
         });
         let t6 = temps.alloc(Temp { ty: MANAGED_PTR });
         let t7 = temps.alloc(Temp { ty: LirType::I1 });
+        let t8 = temps.alloc(Temp { ty: RAW_PTR });
+        let mut locals = Arena::default();
+        let payload = locals.alloc(Local {
+            name: "box_payload".to_string(),
+            ty: LirType::Aggregate(vec![LirType::I64]),
+        });
+        let mut call_targets = CallTargets::default();
+        let alloc_site = direct_site(
+            &mut call_targets,
+            CallDestination::Runtime(scoop_lir::RuntimeFunction::Alloc),
+            CallEffect::ManagedSafepoint,
+            vec![METADATA_PTR, LirType::I64],
+            (MANAGED_PTR, RefScan::References(vec![0])),
+            t0,
+            vec![Value::Global(point_td_stub), Value::IntConst(32)],
+        );
+        let box_site = direct_site(
+            &mut call_targets,
+            CallDestination::Runtime(scoop_lir::RuntimeFunction::Box),
+            CallEffect::ManagedSafepoint,
+            vec![METADATA_PTR, RAW_PTR, LirType::I64],
+            (MANAGED_PTR, RefScan::References(vec![0])),
+            t6,
+            vec![
+                Value::Global(point_td_stub),
+                Value::Temp(t8),
+                Value::IntConst(8),
+            ],
+        );
+        let is_instance_site = direct_site(
+            &mut call_targets,
+            CallDestination::Runtime(scoop_lir::RuntimeFunction::IsInstance),
+            CallEffect::NoGc,
+            vec![MANAGED_PTR, METADATA_PTR],
+            (LirType::I1, RefScan::None),
+            t7,
+            vec![Value::Temp(t6), Value::Global(point_td_stub)],
+        );
+        let dispatch = dispatch_destination(&mut call_targets, Value::Temp(t4), 0);
+        let dispatch_site = void_site(
+            &mut call_targets,
+            dispatch,
+            CallEffect::ManagedSafepoint,
+            vec![MANAGED_PTR],
+            vec![Value::Temp(t3)],
+        );
         let mut blocks = Arena::default();
         let entry = blocks.alloc(BasicBlock {
             name: "entry".to_string(),
             instructions: vec![
-                Instruction::Call {
-                    out: Some(t0),
-                    symbol: "scoop_rt_alloc".to_string(),
-                    args: vec![Value::Global(point_td_stub), Value::IntConst(32)],
-                },
+                Instruction::Call { site: alloc_site },
                 Instruction::HeapStore {
                     object: Value::Temp(t0),
                     offset: 16,
@@ -5758,35 +5705,20 @@ mod tests {
                     out: t5,
                     elements: vec![Value::Temp(t2)],
                 },
+                Instruction::Store {
+                    local: payload,
+                    value: Value::Temp(t5),
+                },
+                Instruction::LocalAddress {
+                    out: t8,
+                    local: payload,
+                },
+                Instruction::Call { site: box_site },
                 Instruction::Call {
-                    out: Some(t6),
-                    symbol: "scoop_rt_box".to_string(),
-                    args: vec![
-                        Value::Global(point_td_stub),
-                        Value::Temp(t5),
-                        Value::IntConst(8),
-                    ],
+                    site: is_instance_site,
                 },
                 Instruction::Call {
-                    out: Some(t7),
-                    symbol: "scoop_rt_is_instance".to_string(),
-                    args: vec![Value::Temp(t6), Value::Global(point_td_stub)],
-                },
-                Instruction::CallIndirect {
-                    out: None,
-                    table: Value::Temp(t4),
-                    slot: 0,
-                    args: vec![Value::Temp(t3)],
-                },
-                Instruction::Call {
-                    out: None,
-                    symbol: "scoop_rt_println_int".to_string(),
-                    args: vec![Value::Temp(t2)],
-                },
-                Instruction::Call {
-                    out: None,
-                    symbol: "scoop_rt_println_boolean".to_string(),
-                    args: vec![Value::Temp(t7)],
+                    site: dispatch_site,
                 },
             ],
             terminator: Terminator::Return { value: None },
@@ -5796,7 +5728,8 @@ mod tests {
             symbol: "scoop_main".to_string(),
             params: vec![],
             return_ty: LirType::Void,
-            locals: Arena::default(),
+            call_targets,
+            locals,
             temps,
             blocks,
             entry,
@@ -5895,10 +5828,31 @@ mod tests {
             symbol: "scoop.thrower".to_string(),
             params: vec![MANAGED_PTR],
             return_ty: LirType::Void,
+            call_targets: CallTargets::default(),
             locals: Arena::default(),
             temps: Arena::default(),
             blocks: thrower_blocks,
             entry: thrower_entry,
+        };
+
+        let mut may_throw_blocks = Arena::default();
+        let may_throw_entry = may_throw_blocks.alloc(BasicBlock {
+            name: "entry".to_string(),
+            instructions: Vec::new(),
+            terminator: Terminator::Return {
+                value: Some(Value::IntConst(1)),
+            },
+        });
+        let may_throw = Function {
+            gc_effect: GcEffect::Managed,
+            symbol: "scoop.may_throw".to_string(),
+            params: Vec::new(),
+            return_ty: LirType::I64,
+            call_targets: CallTargets::default(),
+            locals: Arena::default(),
+            temps: Arena::default(),
+            blocks: may_throw_blocks,
+            entry: may_throw_entry,
         };
 
         // fun @scoop.eh_test(table: ptr) -> i64:
@@ -5935,13 +5889,30 @@ mod tests {
         let done = placeholder(&mut blocks, "done");
         let lpad = placeholder(&mut blocks, "lpad");
         let cleanup = placeholder(&mut blocks, "cleanup");
+        let mut call_targets = CallTargets::default();
+        let dispatch = dispatch_destination(&mut call_targets, Value::Param(0), 0);
+        let first_invoke = direct_site(
+            &mut call_targets,
+            dispatch,
+            CallEffect::ManagedSafepoint,
+            Vec::new(),
+            (LirType::I64, RefScan::None),
+            t0,
+            Vec::new(),
+        );
+        let second_invoke = direct_site(
+            &mut call_targets,
+            CallDestination::Local(scoop_lir::LocalFunctionId::from_u32(1)),
+            CallEffect::ManagedSafepoint,
+            Vec::new(),
+            (LirType::I64, RefScan::None),
+            t1,
+            Vec::new(),
+        );
         blocks[entry] = BasicBlock {
             name: "entry".to_string(),
-            instructions: vec![Instruction::InvokeIndirect {
-                out: Some(t0),
-                table: Value::Param(0),
-                slot: 0,
-                args: vec![],
+            instructions: vec![Instruction::Invoke {
+                site: first_invoke,
                 normal,
                 unwind: lpad,
             }],
@@ -5950,9 +5921,7 @@ mod tests {
         blocks[normal] = BasicBlock {
             name: "normal".to_string(),
             instructions: vec![Instruction::Invoke {
-                out: Some(t1),
-                symbol: "scoop.may_throw".to_string(),
-                args: vec![],
+                site: second_invoke,
                 normal: done,
                 unwind: lpad,
             }],
@@ -6005,6 +5974,7 @@ mod tests {
             symbol: "scoop.eh_test".to_string(),
             params: vec![METADATA_PTR],
             return_ty: LirType::I64,
+            call_targets,
             locals: Arena::default(),
             temps,
             blocks,
@@ -6019,7 +5989,7 @@ mod tests {
             native_globals: Arena::default(),
             callback_bridges: Arena::default(),
             foreign_callback_bridges: Arena::default(),
-            functions: vec![thrower, eh_test],
+            functions: vec![thrower, may_throw, eh_test],
             entry_symbol: "scoop.eh_test".to_string(),
             meta: LirMeta {
                 string: string_metadata(),
@@ -6094,6 +6064,42 @@ mod tests {
     }
 
     #[test]
+    fn typed_local_call_signature_cannot_be_replaced_by_a_callsite_guess() {
+        let mut module = exceptions_module();
+        module.functions[1].params.push(LirType::I64);
+        let machine = host_target_machine().expect("target machine");
+        let context = Context::create();
+        let error = emit_llvm_module(&context, &module, &machine)
+            .expect_err("the local declaration and typed call target disagree");
+        assert!(
+            error.0.contains("disagrees with its existing declaration"),
+            "unexpected error: {error}"
+        );
+    }
+
+    #[test]
+    fn typed_no_gc_effect_keeps_the_call_outside_statepoints() {
+        let module = heap_module();
+        let machine = host_target_machine().expect("target machine");
+        let context = Context::create();
+        let llvm = emit_llvm_module(&context, &module, &machine).expect("emit module");
+        llvm.verify().expect("valid LLVM module");
+        llvm.run_passes(
+            "rewrite-statepoints-for-gc",
+            &machine,
+            PassBuilderOptions::create(),
+        )
+        .expect("rewrite-statepoints-for-gc pass");
+        let rewritten = llvm.print_to_string().to_string();
+        assert!(
+            rewritten
+                .lines()
+                .any(|line| line.contains("call i1 @scoop_rt_is_instance")),
+            "NoGC call must remain an ordinary call after statepoint rewriting:\n{rewritten}"
+        );
+    }
+
+    #[test]
     fn native_calls_publish_roots_transition_and_reload() {
         let mut extern_functions = Arena::default();
         let c_call = extern_functions.alloc(ExternFunction {
@@ -6121,19 +6127,23 @@ mod tests {
             },
         });
 
+        let mut safe_targets = CallTargets::default();
+        let safe_site = void_site(
+            &mut safe_targets,
+            CallDestination::Extern(c_call),
+            CallEffect::NativeSafe,
+            Vec::new(),
+            Vec::new(),
+        );
         let mut safe_blocks = Arena::default();
         let safe_entry = safe_blocks.alloc(BasicBlock {
             name: "entry".to_string(),
             instructions: vec![Instruction::NativeCall {
-                out: None,
-                function: c_call,
-                effect: scoop_lir::NativeCallEffect::NativeSafe,
-                args: Vec::new(),
+                site: safe_site,
                 roots: vec![scoop_lir::CallerRoot {
                     source: scoop_lir::CallerRootSource::Param(0),
                     scan: RefScan::References(vec![0]),
                 }],
-                result_scan: RefScan::None,
             }],
             terminator: Terminator::Return {
                 value: Some(Value::Param(0)),
@@ -6144,6 +6154,7 @@ mod tests {
             symbol: "safe_root".to_string(),
             params: vec![MANAGED_PTR],
             return_ty: MANAGED_PTR,
+            call_targets: safe_targets,
             locals: Arena::default(),
             temps: Arena::default(),
             blocks: safe_blocks,
@@ -6152,16 +6163,22 @@ mod tests {
 
         let mut borrowed_temps = Arena::default();
         let result = borrowed_temps.alloc(Temp { ty: MANAGED_PTR });
+        let mut borrowed_targets = CallTargets::default();
+        let borrowed_site = direct_site(
+            &mut borrowed_targets,
+            CallDestination::Extern(borrowed),
+            CallEffect::NativeBorrowed,
+            Vec::new(),
+            (MANAGED_PTR, RefScan::References(vec![0])),
+            result,
+            Vec::new(),
+        );
         let mut borrowed_blocks = Arena::default();
         let borrowed_entry = borrowed_blocks.alloc(BasicBlock {
             name: "entry".to_string(),
             instructions: vec![Instruction::NativeCall {
-                out: Some(result),
-                function: borrowed,
-                effect: scoop_lir::NativeCallEffect::NativeBorrowed,
-                args: Vec::new(),
+                site: borrowed_site,
                 roots: Vec::new(),
-                result_scan: RefScan::References(vec![0]),
             }],
             terminator: Terminator::Return {
                 value: Some(Value::Temp(result)),
@@ -6172,6 +6189,7 @@ mod tests {
             symbol: "borrowed_result".to_string(),
             params: Vec::new(),
             return_ty: MANAGED_PTR,
+            call_targets: borrowed_targets,
             locals: Arena::default(),
             temps: borrowed_temps,
             blocks: borrowed_blocks,
@@ -6267,6 +6285,7 @@ mod tests {
                 symbol: "continuation_atomics".to_string(),
                 params: vec![MANAGED_PTR],
                 return_ty: LirType::I64,
+                call_targets: CallTargets::default(),
                 locals: Arena::default(),
                 temps,
                 blocks,
@@ -6313,29 +6332,44 @@ mod tests {
     fn closure_abi_module() -> Module {
         let ordinary_result_ty = LirType::Aggregate(vec![LirType::I64, MANAGED_PTR]);
         let suspend_result_ty = LirType::Aggregate(vec![LirType::I64, LirType::I64]);
-        let mut temps = Arena::default();
-        let ordinary_result = temps.alloc(Temp {
-            ty: ordinary_result_ty,
+        let mut locals = Arena::default();
+        let ordinary_result = locals.alloc(Local {
+            name: "ordinary_result".to_string(),
+            ty: ordinary_result_ty.clone(),
         });
-        let suspend_result = temps.alloc(Temp {
-            ty: suspend_result_ty,
+        let suspend_result = locals.alloc(Local {
+            name: "suspend_result".to_string(),
+            ty: suspend_result_ty.clone(),
         });
+        let mut call_targets = CallTargets::default();
+        let ordinary_dispatch = dispatch_destination(&mut call_targets, Value::Param(0), 2);
+        let ordinary_site = indirect_result_site(
+            &mut call_targets,
+            ordinary_dispatch,
+            CallEffect::ManagedSafepoint,
+            vec![MANAGED_PTR, LirType::I64],
+            (ordinary_result_ty, RefScan::References(vec![8])),
+            ordinary_result,
+            vec![Value::Param(0), Value::Param(1)],
+        );
+        let suspend_dispatch = dispatch_destination(&mut call_targets, Value::Param(0), 2);
+        let suspend_site = indirect_result_site(
+            &mut call_targets,
+            suspend_dispatch,
+            CallEffect::ManagedSafepoint,
+            vec![MANAGED_PTR, MANAGED_PTR],
+            (suspend_result_ty, RefScan::None),
+            suspend_result,
+            vec![Value::Param(0), Value::Param(2)],
+        );
         let mut blocks = Arena::default();
         let entry = blocks.alloc(BasicBlock {
             name: "entry".to_string(),
             instructions: vec![
-                Instruction::CallIndirect {
-                    out: Some(ordinary_result),
-                    table: Value::Param(0),
-                    slot: 2,
-                    args: vec![Value::Param(0), Value::Param(1)],
+                Instruction::Call {
+                    site: ordinary_site,
                 },
-                Instruction::CallIndirect {
-                    out: Some(suspend_result),
-                    table: Value::Param(0),
-                    slot: 2,
-                    args: vec![Value::Param(0), Value::Param(2)],
-                },
+                Instruction::Call { site: suspend_site },
             ],
             terminator: Terminator::Return { value: None },
         });
@@ -6353,8 +6387,9 @@ mod tests {
                 symbol: "scoop.closure_abi".to_string(),
                 params: vec![MANAGED_PTR, LirType::I64, MANAGED_PTR],
                 return_ty: LirType::Void,
-                locals: Arena::default(),
-                temps,
+                call_targets,
+                locals,
+                temps: Arena::default(),
                 blocks,
                 entry,
             }],
@@ -6389,20 +6424,21 @@ mod tests {
         );
         assert!(
             ir.lines().any(|line| {
-                line.contains("call void %fn_ptr")
-                    && line.contains("(ptr %indirect_result, ptr %0, i64 %1)")
+                line.contains("call void %dispatch_function")
+                    && line.contains("(ptr %ordinary_result, ptr %0, i64 %1)")
             }),
             "ordinary closure ABI must be (result slot, closure, arguments):\n{ir}"
         );
         assert!(
             ir.lines().any(|line| {
-                line.contains("call void %fn_ptr") && line.contains("ptr %0, ptr %2)")
+                line.contains("call void %dispatch_function")
+                    && line.contains("ptr %suspend_result, ptr %0, ptr %2")
             }),
             "suspend closure ABI must keep continuation after the closure:\n{ir}"
         );
         assert!(
-            ir.contains("load { i64, ptr }, ptr %indirect_result")
-                && ir.contains("load { i64, i64 }, ptr %indirect_result"),
+            ir.contains("%ordinary_result = alloca { i64, ptr }")
+                && ir.contains("%suspend_result = alloca { i64, i64 }"),
             "aggregate closure results must use typed return storage:\n{ir}"
         );
 
@@ -6423,7 +6459,7 @@ mod tests {
                 .filter(|line| {
                     line.contains("call token")
                         && line.contains("gc.statepoint")
-                        && line.contains("%fn_ptr")
+                        && line.contains("%dispatch_function")
                 })
                 .count(),
             2,
@@ -6448,6 +6484,16 @@ mod tests {
         );
         let mut temps = Arena::default();
         let t0 = temps.alloc(Temp { ty: MANAGED_PTR }); // alloc result
+        let mut call_targets = CallTargets::default();
+        let alloc_site = direct_site(
+            &mut call_targets,
+            CallDestination::Runtime(scoop_lir::RuntimeFunction::Alloc),
+            CallEffect::ManagedSafepoint,
+            vec![METADATA_PTR, LirType::I64],
+            (MANAGED_PTR, RefScan::References(vec![0])),
+            t0,
+            vec![Value::Param(0), Value::IntConst(24)],
+        );
         let mut blocks = Arena::default();
         let entry = blocks.alloc(BasicBlock {
             name: "entry".to_string(),
@@ -6472,11 +6518,7 @@ mod tests {
         blocks[entry] = BasicBlock {
             name: "entry".to_string(),
             instructions: vec![
-                Instruction::Call {
-                    out: Some(t0),
-                    symbol: "scoop_rt_alloc".to_string(),
-                    args: vec![Value::Param(0), Value::IntConst(24)],
-                },
+                Instruction::Call { site: alloc_site },
                 Instruction::HeapStore {
                     object: Value::Temp(t0),
                     offset: 16,
@@ -6518,6 +6560,7 @@ mod tests {
                 symbol: "scoop_main".to_string(),
                 params: vec![METADATA_PTR, MANAGED_PTR],
                 return_ty: LirType::Void,
+                call_targets,
                 locals: Arena::default(),
                 temps,
                 blocks,
@@ -6715,6 +6758,7 @@ mod tests {
                 symbol: "scoop_main".to_string(),
                 params: vec![],
                 return_ty: LirType::Void,
+                call_targets: CallTargets::default(),
                 locals: Arena::default(),
                 temps,
                 blocks,
@@ -6950,6 +6994,7 @@ mod tests {
                 symbol: "scoop_main".to_string(),
                 params: vec![],
                 return_ty: LirType::Void,
+                call_targets: CallTargets::default(),
                 locals: Arena::default(),
                 temps,
                 blocks,
