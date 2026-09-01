@@ -26,12 +26,26 @@ pub fn dump(module: &Module) -> String {
         }
     }
     for (id, global) in module.native_globals.iter() {
+        let access = match global.access {
+            NativeGlobalAccess::ReadOnly { get, address } => format!(
+                "readonly(get=ng-get{},address=ng-address{})",
+                get.into_raw(),
+                address.into_raw()
+            ),
+            NativeGlobalAccess::Mutable { get, set, address } => format!(
+                "mutable(get=ng-get{},set=ng-set{},address=ng-address{})",
+                get.into_raw(),
+                set.into_raw(),
+                address.into_raw()
+            ),
+        };
         out.push_str(&format!(
-            "  native_global{} {} @{} : {}{}\n",
+            "  native_global{} {} @{} : {} {}{}\n",
             id.into_raw(),
             global.source_name,
             global.native_symbol,
             global.ty.dump(),
+            access,
             if global.thread_local {
                 " thread_local"
             } else {

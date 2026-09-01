@@ -311,6 +311,8 @@ pub fn c_bridge_source(module: &Module) -> Result<Option<String>, CodegenError> 
     }
     for (_, global) in module.native_globals.iter() {
         let native_type = type_name(&global.c_type, &function_pointers);
+        let get = &module.native_global_bridges.gets[global.access.get()].symbol;
+        let address = &module.native_global_bridges.addresses[global.access.address()].symbol;
         let thread_local = if global.thread_local {
             "_Thread_local "
         } else {
@@ -324,9 +326,10 @@ pub fn c_bridge_source(module: &Module) -> Result<Option<String>, CodegenError> 
         }
         out.push_str(&format!(
             "void {}(void *result) {{\n  memcpy(result, &{}, sizeof({}));\n}}\n\n",
-            global.get_bridge_symbol, global.native_symbol, global.native_symbol
+            get, global.native_symbol, global.native_symbol
         ));
-        if let Some(setter) = &global.set_bridge_symbol {
+        if let scoop_lir::NativeGlobalAccess::Mutable { set, .. } = global.access {
+            let setter = &module.native_global_bridges.sets[set].symbol;
             out.push_str(&format!(
                 "void {setter}(const void *value) {{\n  memcpy(&{}, value, sizeof({}));\n}}\n\n",
                 global.native_symbol, global.native_symbol
@@ -334,7 +337,7 @@ pub fn c_bridge_source(module: &Module) -> Result<Option<String>, CodegenError> 
         }
         out.push_str(&format!(
             "void {}(void *result) {{\n  void *native_address = (void *)&{};\n  memcpy(result, &native_address, sizeof(native_address));\n}}\n\n",
-            global.address_bridge_symbol, global.native_symbol
+            address, global.native_symbol
         ));
     }
     for (_, callback) in module.callback_bridges.iter() {

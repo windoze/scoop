@@ -1,4 +1,3 @@
-
 use super::*;
 use scoop_ast::Span;
 use scoop_hir as hir;

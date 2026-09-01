@@ -803,10 +803,10 @@ Module
   global @scoop.global.pair : struct0
   global @scoop.global.emptyPointer : ptr<raw>
   global @scoop.global.emptyCallback : ptr<code>
-  native_global0 nativeCounter @native_counter : i64
-  native_global1 nativeTlsCounter @native_tls_counter : i64 thread_local
-  native_global2 nativeLimit @native_limit : i64
-  native_global3 nativePair @native_pair : struct0
+  native_global0 nativeCounter @native_counter : i64 mutable(get=ng-get0,set=ng-set0,address=ng-address0)
+  native_global1 nativeTlsCounter @native_tls_counter : i64 mutable(get=ng-get1,set=ng-set1,address=ng-address1) thread_local
+  native_global2 nativeLimit @native_limit : i64 readonly(get=ng-get2,address=ng-address2)
+  native_global3 nativePair @native_pair : struct0 mutable(get=ng-get3,set=ng-set2,address=ng-address3)
   enum Option$S niche(payload_variant=0)
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
   extern ef1 coreIntEquals @scoop_rt_int_equals(i64, i64) -> i1 <scoop managed nounwind>

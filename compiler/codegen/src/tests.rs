@@ -1,4 +1,3 @@
-
 use la_arena::Arena;
 use scoop_lir::{
     BasicBlock, CallDestination, CallEffect, CallSite, CallTargets, DirectCallSignature,
@@ -321,6 +320,7 @@ fn values_module() -> Module {
         enums: Arena::default(),
         extern_functions: Arena::default(),
         native_globals: Arena::default(),
+        native_global_bridges: Default::default(),
         callback_bridges: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![Function {
@@ -772,6 +772,7 @@ fn enum_module() -> Module {
         enums,
         extern_functions: Arena::default(),
         native_globals: Arena::default(),
+        native_global_bridges: Default::default(),
         callback_bridges: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![
@@ -966,6 +967,7 @@ fn arrays_module() -> Module {
         enums: Arena::default(),
         extern_functions: Arena::default(),
         native_globals: Arena::default(),
+        native_global_bridges: Default::default(),
         callback_bridges: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![Function {
@@ -1140,6 +1142,7 @@ fn classes_module() -> Module {
         enums: Arena::default(),
         extern_functions: Arena::default(),
         native_globals: Arena::default(),
+        native_global_bridges: Default::default(),
         callback_bridges: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![describe("Shape.describe"), describe("Point.describe"), main],
@@ -1352,6 +1355,7 @@ fn heap_module() -> Module {
         enums: Arena::default(),
         extern_functions: Arena::default(),
         native_globals: Arena::default(),
+        native_global_bridges: Default::default(),
         callback_bridges: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![describe, main],
@@ -1574,6 +1578,7 @@ fn exceptions_module() -> Module {
         enums: Arena::default(),
         extern_functions: Arena::default(),
         native_globals: Arena::default(),
+        native_global_bridges: Default::default(),
         callback_bridges: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![thrower, may_throw, eh_test],
@@ -1774,6 +1779,7 @@ fn native_calls_publish_roots_transition_and_reload() {
         enums: Arena::default(),
         extern_functions,
         native_globals: Arena::default(),
+        native_global_bridges: Default::default(),
         callback_bridges: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![safe, borrowed_function],
@@ -1835,6 +1841,7 @@ fn continuation_state_atomics_keep_their_llvm_orderings() {
         enums: Arena::default(),
         extern_functions: Arena::default(),
         native_globals: Arena::default(),
+        native_global_bridges: Default::default(),
         callback_bridges: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![Function {
@@ -1922,6 +1929,7 @@ fn closure_abi_module() -> Module {
         enums: Arena::default(),
         extern_functions: Arena::default(),
         native_globals: Arena::default(),
+        native_global_bridges: Default::default(),
         callback_bridges: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![Function {
@@ -2080,6 +2088,7 @@ fn barrier_module() -> Module {
         enums: Arena::default(),
         extern_functions: Arena::default(),
         native_globals: Arena::default(),
+        native_global_bridges: Default::default(),
         callback_bridges: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![Function {
@@ -2278,6 +2287,7 @@ fn type_descriptors_carry_the_gc_scan_descriptors() {
         enums: Arena::default(),
         extern_functions: Arena::default(),
         native_globals: Arena::default(),
+        native_global_bridges: Default::default(),
         callback_bridges: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![Function {
@@ -2487,6 +2497,7 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
         enums,
         extern_functions: Arena::default(),
         native_globals: Arena::default(),
+        native_global_bridges: Default::default(),
         callback_bridges: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![Function {

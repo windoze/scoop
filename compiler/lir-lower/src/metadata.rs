@@ -1,5 +1,6 @@
 use super::*;
 
+/// The `lir::EnumDefId` of a MIR enum (the arenas are transposed 1:1).
 pub(super) fn enum_def_id(id: mir::EnumId) -> lir::EnumDefId {
     lir::EnumDefId::from_raw(id.into_raw())
 }

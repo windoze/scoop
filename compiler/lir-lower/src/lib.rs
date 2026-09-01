@@ -151,7 +151,8 @@ pub fn lower(module: &mir::Module) -> lir::Module {
     // physical layout needed by codegen and C bridge generation.
     let structs = lower_structs(module, &enums);
     let extern_functions = lower_extern_functions(module);
-    let (storage_globals, native_globals) = lower_globals(module, &mut globals);
+    let (storage_globals, native_globals, native_global_bridges) =
+        lower_globals(module, &mut globals);
     let callback_bridges = lower_callback_bridges(module);
     let foreign_callback_bridges = lower_foreign_callback_bridges(module);
     let local_function_map = module
@@ -208,6 +209,7 @@ pub fn lower(module: &mir::Module) -> lir::Module {
         functions,
         extern_functions,
         native_globals,
+        native_global_bridges,
         callback_bridges,
         foreign_callback_bridges,
         entry_symbol: module.functions[module.entry].symbol.clone(),
@@ -294,9 +296,11 @@ fn lower_globals(
 ) -> (
     HashMap<mir::GlobalId, StorageGlobal>,
     Arena<lir::NativeGlobal>,
+    lir::NativeGlobalBridges,
 ) {
     let mut map = HashMap::new();
     let mut native = Arena::new();
+    let mut bridges = lir::NativeGlobalBridges::default();
     for (id, global) in module.globals.iter() {
         let storage = match &global.storage {
             mir::GlobalStorage::Local {
@@ -320,24 +324,35 @@ fn lower_globals(
                 thread_local,
             } => {
                 let raw = native.len() as u32;
+                let get = bridges.gets.alloc(lir::NativeGlobalGetBridge {
+                    symbol: format!("scoop_c_global_get_{raw}"),
+                });
+                let address = bridges.addresses.alloc(lir::NativeGlobalAddressBridge {
+                    symbol: format!("scoop_c_global_address_{raw}"),
+                });
+                let access = if global.mutable {
+                    let set = bridges.sets.alloc(lir::NativeGlobalSetBridge {
+                        symbol: format!("scoop_c_global_set_{raw}"),
+                    });
+                    lir::NativeGlobalAccess::Mutable { get, set, address }
+                } else {
+                    lir::NativeGlobalAccess::ReadOnly { get, address }
+                };
                 let lir_id = native.alloc(lir::NativeGlobal {
                     source_name: global.name.clone(),
                     native_symbol: native_symbol.clone(),
                     library: library.clone(),
                     ty: lir_type(&global.ty),
                     c_type: c_ffi_type(module, &global.ty),
-                    mutable: global.mutable,
                     thread_local: *thread_local,
-                    get_bridge_symbol: format!("scoop_c_global_get_{raw}"),
-                    set_bridge_symbol: global.mutable.then(|| format!("scoop_c_global_set_{raw}")),
-                    address_bridge_symbol: format!("scoop_c_global_address_{raw}"),
+                    access,
                 });
                 StorageGlobal::Native(lir_id)
             }
         };
         map.insert(id, storage);
     }
-    (map, native)
+    (map, native, bridges)
 }
 
 fn lower_constant(value: &mir::ConstantValue) -> lir::ConstantValue {
@@ -421,7 +436,6 @@ fn c_ffi_type(module: &mir::Module, ty: &mir::Type) -> lir::CType {
     }
 }
 
-/// The `lir::EnumDefId` of a MIR enum (the arenas are transposed 1:1).
 mod metadata;
 
 use metadata::*;

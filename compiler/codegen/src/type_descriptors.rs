@@ -1,5 +1,8 @@
 use super::*;
 
+/// Emit one recursive GC scan program. Child pointers are stored as
+/// u64 constants because the C runtime descriptor is a word stream.
+/// `None` has no global and is represented by a null pointer.
 pub(super) fn emit_ref_scan<'ctx>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,

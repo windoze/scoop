@@ -294,6 +294,7 @@ fn emit_llvm_module<'ctx>(
         enums: &module.enums,
         extern_functions: &module.extern_functions,
         native_globals: &module.native_globals,
+        native_global_bridges: &module.native_global_bridges,
         foreign_callback_bridges: &module.foreign_callback_bridges,
         globals_arena: &module.globals,
         globals: &globals,
@@ -617,9 +618,6 @@ fn ptr_ty(context: &Context) -> inkwell::types::PointerType<'_> {
     context.ptr_type(AddressSpace::default())
 }
 
-/// Emit one recursive GC scan program. Child pointers are stored as
-/// u64 constants because the C runtime descriptor is a word stream.
-/// `None` has no global and is represented by a null pointer.
 mod type_descriptors;
 
 use type_descriptors::{emit_ref_scan, emit_type_descriptors, type_descriptor_global};
@@ -643,6 +641,7 @@ struct FnEmitter<'a, 'ctx> {
     enums: &'a Arena<EnumDef>,
     extern_functions: &'a Arena<ExternFunction>,
     native_globals: &'a Arena<NativeGlobal>,
+    native_global_bridges: &'a scoop_lir::NativeGlobalBridges,
     foreign_callback_bridges: &'a Arena<scoop_lir::ForeignCallbackBridge>,
     globals_arena: &'a Arena<Global>,
     globals: &'a [Option<GlobalValue<'ctx>>],
@@ -1378,7 +1377,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 let native = &self.native_globals[*global];
                 let ty = basic_ty(context, self.structs, self.enums, &native.ty)?;
                 let slot = self.entry_alloca(ty, "native_global_result")?;
-                let callee = self.native_global_bridge(&native.get_bridge_symbol);
+                let symbol = &self.native_global_bridges.gets[native.access.get()].symbol;
+                let callee = self.native_global_bridge(symbol);
                 let transition =
                     self.publish_native_roots(roots, None, scoop_lir::CallEffect::NativeSafe)?;
                 builder
@@ -1401,10 +1401,13 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 builder
                     .build_store(slot, self.value(*value)?)
                     .map_err(|error| CodegenError(format!("native global spill: {error}")))?;
-                let symbol = native
-                    .set_bridge_symbol
-                    .as_deref()
-                    .expect("only mutable native globals are assigned");
+                let scoop_lir::NativeGlobalAccess::Mutable { set, .. } = native.access else {
+                    return Err(CodegenError(format!(
+                        "native global store targets readonly `{}`",
+                        native.source_name
+                    )));
+                };
+                let symbol = &self.native_global_bridges.sets[set].symbol;
                 let callee = self.native_global_bridge(symbol);
                 let transition =
                     self.publish_native_roots(roots, None, scoop_lir::CallEffect::NativeSafe)?;
@@ -1417,7 +1420,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 let native = &self.native_globals[*global];
                 let ty: BasicTypeEnum = ptr_ty(context).into();
                 let slot = self.entry_alloca(ty, "native_global_address")?;
-                let callee = self.native_global_bridge(&native.address_bridge_symbol);
+                let symbol = &self.native_global_bridges.addresses[native.access.address()].symbol;
+                let callee = self.native_global_bridge(symbol);
                 let transition =
                     self.publish_native_roots(roots, None, scoop_lir::CallEffect::NativeSafe)?;
                 builder
@@ -3250,6 +3254,7 @@ struct ModuleCtx<'a, 'ctx> {
     enums: &'a Arena<EnumDef>,
     extern_functions: &'a Arena<ExternFunction>,
     native_globals: &'a Arena<NativeGlobal>,
+    native_global_bridges: &'a scoop_lir::NativeGlobalBridges,
     foreign_callback_bridges: &'a Arena<scoop_lir::ForeignCallbackBridge>,
     globals_arena: &'a Arena<Global>,
     globals: &'a [Option<GlobalValue<'ctx>>],
@@ -3417,6 +3422,7 @@ fn emit_function<'ctx>(
         enums: module_ctx.enums,
         extern_functions: module_ctx.extern_functions,
         native_globals: module_ctx.native_globals,
+        native_global_bridges: module_ctx.native_global_bridges,
         foreign_callback_bridges: module_ctx.foreign_callback_bridges,
         globals_arena: module_ctx.globals_arena,
         globals: module_ctx.globals,

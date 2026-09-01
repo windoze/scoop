@@ -18,6 +18,9 @@ pub type EnumDefId = Idx<EnumDef>;
 pub type StructDefId = Idx<StructDef>;
 pub type ExternFunctionId = Idx<ExternFunction>;
 pub type NativeGlobalId = Idx<NativeGlobal>;
+pub type NativeGlobalGetBridgeId = Idx<NativeGlobalGetBridge>;
+pub type NativeGlobalSetBridgeId = Idx<NativeGlobalSetBridge>;
+pub type NativeGlobalAddressBridgeId = Idx<NativeGlobalAddressBridge>;
 pub type CallbackBridgeId = Idx<CallbackBridge>;
 pub type ForeignCallbackBridgeId = Idx<ForeignCallbackBridge>;
 pub type ArrayTypeId = Idx<ArrayType>;
@@ -138,6 +141,9 @@ pub struct Module {
     pub extern_functions: Arena<ExternFunction>,
     /// C data imports accessed only through generated get/set/address bridges.
     pub native_globals: Arena<NativeGlobal>,
+    /// Typed bridge entities used by native-global access records. Separate id
+    /// families make get/set/address roles impossible to interchange.
+    pub native_global_bridges: NativeGlobalBridges,
     /// Inbound C trampolines that adapt a native signature to a NoGC
     /// Scoop storage-ABI bridge.
     pub callback_bridges: Arena<CallbackBridge>,
@@ -190,11 +196,64 @@ pub struct NativeGlobal {
     pub library: String,
     pub ty: LirType,
     pub c_type: CType,
-    pub mutable: bool,
     pub thread_local: bool,
-    pub get_bridge_symbol: String,
-    pub set_bridge_symbol: Option<String>,
-    pub address_bridge_symbol: String,
+    pub access: NativeGlobalAccess,
+}
+
+#[derive(Debug, Default)]
+pub struct NativeGlobalBridges {
+    pub gets: Arena<NativeGlobalGetBridge>,
+    pub sets: Arena<NativeGlobalSetBridge>,
+    pub addresses: Arena<NativeGlobalAddressBridge>,
+}
+
+#[derive(Debug)]
+pub struct NativeGlobalGetBridge {
+    pub symbol: String,
+}
+
+#[derive(Debug)]
+pub struct NativeGlobalSetBridge {
+    pub symbol: String,
+}
+
+#[derive(Debug)]
+pub struct NativeGlobalAddressBridge {
+    pub symbol: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NativeGlobalAccess {
+    ReadOnly {
+        get: NativeGlobalGetBridgeId,
+        address: NativeGlobalAddressBridgeId,
+    },
+    Mutable {
+        get: NativeGlobalGetBridgeId,
+        set: NativeGlobalSetBridgeId,
+        address: NativeGlobalAddressBridgeId,
+    },
+}
+
+impl NativeGlobalAccess {
+    pub fn get(self) -> NativeGlobalGetBridgeId {
+        match self {
+            Self::ReadOnly { get, .. } | Self::Mutable { get, .. } => get,
+        }
+    }
+
+    pub fn set(self) -> Option<NativeGlobalSetBridgeId> {
+        match self {
+            Self::ReadOnly { .. } => None,
+            Self::Mutable { set, .. } => Some(set),
+        }
+    }
+
+    pub fn address(self) -> NativeGlobalAddressBridgeId {
+        match self {
+            Self::ReadOnly { address, .. } | Self::Mutable { address, .. } => address,
+        }
+    }
 }
 
 #[derive(Debug)]
