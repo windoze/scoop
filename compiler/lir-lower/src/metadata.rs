@@ -235,11 +235,14 @@ pub(super) fn compute_repr(
         };
         align = align.max(variant.align);
         variants.push(lir::EnumVariantRepr {
-            fields: variant.fields,
-            field_offsets: variant
-                .field_offsets
+            fields: variant
+                .fields
                 .into_iter()
-                .map(|offset| slot_offset + offset)
+                .zip(variant.field_offsets)
+                .map(|(ty, offset)| lir::EnumFieldRepr {
+                    ty,
+                    offset: slot_offset + offset,
+                })
                 .collect(),
             slot_offset,
             slot_size: variant.size,
@@ -1136,7 +1139,9 @@ pub(super) fn ref_scan(
                             .iter()
                             .map(|field| field.ty.clone())
                             .collect();
-                        scan_fields(module, enums, &fields, &repr.field_offsets, base)
+                        let offsets: Vec<u64> =
+                            repr.fields.iter().map(|field| field.offset).collect();
+                        scan_fields(module, enums, &fields, &offsets, base)
                     }),
             ),
         },

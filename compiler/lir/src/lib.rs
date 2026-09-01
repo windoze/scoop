@@ -585,15 +585,21 @@ pub enum EnumRepr {
 /// Physical storage assigned to one tagged-enum variant.
 #[derive(Debug)]
 pub struct EnumVariantRepr {
-    pub fields: Vec<LirType>,
-    /// Enum-relative field offsets, including the variant's slot offset.
-    pub field_offsets: Vec<u64>,
+    pub fields: Vec<EnumFieldRepr>,
     pub slot_offset: u64,
     pub slot_size: u64,
     pub slot_align: u64,
     /// Copied from the fully specialized MIR variant. Only GC-free
     /// variants may share the pure-value payload slot.
     pub gc_free: bool,
+}
+
+/// The complete physical representation of one tagged-enum field.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EnumFieldRepr {
+    pub ty: LirType,
+    /// Enum-relative offset, including the variant's slot offset.
+    pub offset: u64,
 }
 
 #[derive(Debug)]

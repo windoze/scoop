@@ -2085,7 +2085,13 @@ fn niche_detection_requires_option_isomorphic_pointer_shape() {
     else {
         panic!("Option<Int> must use the tagged representation")
     };
-    assert_eq!(variants[0].fields, [lir::LirType::I64]);
+    assert_eq!(
+        variants[0].fields,
+        [lir::EnumFieldRepr {
+            ty: lir::LirType::I64,
+            offset: 8,
+        }]
+    );
     assert_eq!(variants[0].slot_offset, variants[1].slot_offset);
     assert!(variants.iter().all(|variant| variant.gc_free));
     assert_eq!((*size, *align), (16, 8));
@@ -2323,6 +2329,21 @@ fn recursive_scans_preserve_tagged_enums_in_aggregates_and_arrays() {
     };
     assert_ne!(variants[0].slot_offset, variants[1].slot_offset);
     assert_eq!(variants[2].slot_offset, 8);
+    assert_eq!(
+        variants[0].fields,
+        [lir::EnumFieldRepr {
+            ty: lir::LirType::Ptr(lir::PointerKind::Managed),
+            offset: 8,
+        }]
+    );
+    assert_eq!(
+        variants[1]
+            .fields
+            .iter()
+            .map(|field| field.offset)
+            .collect::<Vec<_>>(),
+        [16, 24]
+    );
 
     // The niche layout: the payload variant is the reference
     // itself; the unit variant has none.

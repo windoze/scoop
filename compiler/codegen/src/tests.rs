@@ -1,11 +1,11 @@
 use la_arena::Arena;
 use scoop_lir::{
     BasicBlock, CallDestination, CallEffect, CallSite, CallTargets, DirectCallSignature,
-    DirectCallTarget, DispatchKind, DispatchSlot, EnumDef, EnumRepr, EnumVariantRepr, Global,
-    GlobalInit, IndirectResultCallSignature, IndirectResultCallTarget, ItableRecord, Layout,
-    LayoutKind, LirMeta, Local, MANAGED_PTR, METADATA_PTR, PointerKind, RAW_PTR, ResultStorage,
-    Temp, TypeDescriptor, TypeDescriptorRef, TypeDescriptorScan, VoidCallSignature, VoidCallTarget,
-    WellKnownLayouts, WellKnownTypeDescriptors,
+    DirectCallTarget, DispatchKind, DispatchSlot, EnumDef, EnumFieldRepr, EnumRepr,
+    EnumVariantRepr, Global, GlobalInit, IndirectResultCallSignature, IndirectResultCallTarget,
+    ItableRecord, Layout, LayoutKind, LirMeta, Local, MANAGED_PTR, METADATA_PTR, PointerKind,
+    RAW_PTR, ResultStorage, Temp, TypeDescriptor, TypeDescriptorRef, TypeDescriptorScan,
+    VoidCallSignature, VoidCallTarget, WellKnownLayouts, WellKnownTypeDescriptors,
 };
 
 use super::*;
@@ -371,23 +371,32 @@ fn enum_module() -> Module {
             variants: vec![
                 EnumVariantRepr {
                     fields: vec![],
-                    field_offsets: vec![],
                     slot_offset: 8,
                     slot_size: 0,
                     slot_align: 1,
                     gc_free: true,
                 },
                 EnumVariantRepr {
-                    fields: vec![LirType::I64],
-                    field_offsets: vec![8],
+                    fields: vec![EnumFieldRepr {
+                        ty: LirType::I64,
+                        offset: 8,
+                    }],
                     slot_offset: 8,
                     slot_size: 8,
                     slot_align: 8,
                     gc_free: true,
                 },
                 EnumVariantRepr {
-                    fields: vec![LirType::I64, MANAGED_PTR],
-                    field_offsets: vec![16, 24],
+                    fields: vec![
+                        EnumFieldRepr {
+                            ty: LirType::I64,
+                            offset: 16,
+                        },
+                        EnumFieldRepr {
+                            ty: MANAGED_PTR,
+                            offset: 24,
+                        },
+                    ],
                     slot_offset: 16,
                     slot_size: 16,
                     slot_align: 8,
@@ -2403,8 +2412,10 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
         repr: EnumRepr::Tagged {
             variants: vec![
                 EnumVariantRepr {
-                    fields: vec![LirType::Struct(outer)],
-                    field_offsets: vec![16],
+                    fields: vec![EnumFieldRepr {
+                        ty: LirType::Struct(outer),
+                        offset: 16,
+                    }],
                     slot_offset: 16,
                     slot_size: 32,
                     slot_align: 16,
@@ -2412,7 +2423,6 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
                 },
                 EnumVariantRepr {
                     fields: Vec::new(),
-                    field_offsets: Vec::new(),
                     slot_offset: 16,
                     slot_size: 0,
                     slot_align: 1,

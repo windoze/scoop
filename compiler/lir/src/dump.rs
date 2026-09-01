@@ -67,7 +67,8 @@ pub fn dump(module: &Module) -> String {
                 let variants: Vec<String> = variants
                     .iter()
                     .map(|variant| {
-                        let inner: Vec<String> = variant.fields.iter().map(LirType::dump).collect();
+                        let inner: Vec<String> =
+                            variant.fields.iter().map(|field| field.ty.dump()).collect();
                         format!(
                             "({})@{}+{}{}",
                             inner.join(", "),

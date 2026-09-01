@@ -1787,10 +1787,10 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                                 ))
                             })?;
                         let variant_repr = &variants[*variant as usize];
-                        for (field, offset) in fields.iter().zip(&variant_repr.field_offsets) {
-                            let field_ptr = self.enum_field_ptr(slot, *offset, "field_ptr")?;
+                        for (value, field) in fields.iter().zip(&variant_repr.fields) {
+                            let field_ptr = self.enum_field_ptr(slot, field.offset, "field_ptr")?;
                             builder
-                                .build_store(field_ptr, self.value(*field)?)
+                                .build_store(field_ptr, self.value(*value)?)
                                 .map_err(|e| {
                                     CodegenError(format!(
                                         "enum_wrap field @{symbol}: {e}",
@@ -1891,17 +1891,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                             ))
                         })?;
                         let variant_repr = &variants[*variant as usize];
-                        let field_ptr = self.enum_field_ptr(
-                            slot,
-                            variant_repr.field_offsets[*index as usize],
-                            "field_ptr",
-                        )?;
-                        let field_ty = basic_ty(
-                            context,
-                            self.structs,
-                            self.enums,
-                            &variant_repr.fields[*index as usize],
-                        )?;
+                        let field = &variant_repr.fields[*index as usize];
+                        let field_ptr = self.enum_field_ptr(slot, field.offset, "field_ptr")?;
+                        let field_ty = basic_ty(context, self.structs, self.enums, &field.ty)?;
                         builder
                             .build_load(field_ty, field_ptr, &name)
                             .map_err(|e| {
