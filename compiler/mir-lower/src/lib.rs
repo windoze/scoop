@@ -195,9 +195,8 @@ struct Lowerer {
     enums: EnumRegistry,
     /// Boxed value types discovered while lowering bodies.
     boxed: BoxedRegistry,
-    /// HIR class -> its generated constructor function (every
-    /// non-abstract class; see `declare_ctors`).
-    ctors: HashMap<hir::ClassId, mir::FunctionId>,
+    /// Local-concrete hidden constructor callable -> MIR function.
+    ctors: HashMap<hir::ClassConstructorId, mir::FunctionId>,
     /// Mangling shell: the struct / enum / class / interface names
     /// `mir::encode_type` reads, kept in sync with the real arenas
     /// (same ids).
@@ -683,20 +682,13 @@ impl Lowerer {
         // or lowered source bodies.
         self.compute_dispatch(module, &class_order);
         self.declare_closures(module);
-        // Constructor functions: one per non-abstract class, declared
-        // like ordinary functions so `ClassInit` call sites resolve.
+        // Constructor functions are declared from HIR's complete hidden
+        // callable arena; MIR does not rediscover instantiability from class
+        // modifiers or representation shape.
         let mut ctor_functions = Vec::new();
-        for (hir_id, decl) in module.classes.iter() {
-            if decl.modifier == hir::ClassModifier::Abstract
-                || matches!(
-                    decl.representation,
-                    hir::ClassRepresentation::Intrinsic { .. }
-                )
-            {
-                continue;
-            }
-            let id = self.declare_ctor(module, hir_id);
-            ctor_functions.push((hir_id, id));
+        for (constructor_id, _) in module.class_constructors.iter() {
+            let id = self.declare_ctor(module, constructor_id);
+            ctor_functions.push((constructor_id, id));
         }
 
         for (hir_id, mir_id) in user_functions {
@@ -714,8 +706,8 @@ impl Lowerer {
             function.return_ty = return_ty;
             function.body = body;
         }
-        for (hir_id, mir_id) in ctor_functions {
-            let (params, return_ty, body) = self.lower_ctor(module, hir_id);
+        for (constructor_id, mir_id) in ctor_functions {
+            let (params, return_ty, body) = self.lower_ctor(module, constructor_id);
             let body = cfg::lower(body, return_ty.clone());
             let function = &mut self.functions[mir_id];
             function.params = params;
@@ -1886,8 +1878,13 @@ impl Lowerer {
     /// Declare the constructor function of one class (`scoop.ctor.
     /// <Class>`): parameters are the constructor properties in
     /// declaration order; the body is filled by `lower_ctor`.
-    fn declare_ctor(&mut self, module: &hir::Module, hir_id: hir::ClassId) -> mir::FunctionId {
-        let decl = &module.classes[hir_id];
+    fn declare_ctor(
+        &mut self,
+        module: &hir::Module,
+        constructor_id: hir::ClassConstructorId,
+    ) -> mir::FunctionId {
+        let constructor = &module.class_constructors[constructor_id];
+        let decl = &module.classes[constructor.class];
         let name = format!("ctor.{}", decl.name);
         let id = self.functions.alloc(mir::Function {
             gc_effect: mir::GcEffect::Managed,
@@ -1898,7 +1895,7 @@ impl Lowerer {
             body: mir::Body::unreachable(Arena::new()),
         });
         self.top_level.push(id);
-        self.ctors.insert(hir_id, id);
+        self.ctors.insert(constructor_id, id);
         id
     }
 
@@ -1913,8 +1910,10 @@ impl Lowerer {
     fn lower_ctor(
         &mut self,
         module: &hir::Module,
-        hir_id: hir::ClassId,
+        constructor_id: hir::ClassConstructorId,
     ) -> (Vec<mir::Param>, mir::Type, smir::Body) {
+        let constructor = module.class_constructors[constructor_id].clone();
+        let hir_id = constructor.class;
         let decl = &module.classes[hir_id];
         let mir_id = self.class_map[&hir_id];
         let field_count = self.classes[mir_id].declared_fields().len();
@@ -1967,10 +1966,19 @@ impl Lowerer {
             current_closure_local: None,
             current_local_capture_params: HashMap::new(),
         };
+        assert_eq!(
+            decl.declared_constructor().len(),
+            constructor.params.len(),
+            "the typed constructor signature covers every source parameter"
+        );
         let mut params = Vec::new();
         let mut own = Vec::new();
-        for field in decl.declared_constructor() {
-            let ty = lowerer.lower_type(field.ty);
+        for (field, parameter_type) in decl
+            .declared_constructor()
+            .iter()
+            .zip(constructor.params.iter().copied())
+        {
+            let ty = lowerer.lower_type(parameter_type);
             let local = lowerer.locals.alloc(mir::Local {
                 name: field.name.clone(),
                 ty: ty.clone(),
@@ -1990,12 +1998,18 @@ impl Lowerer {
             field_count,
             "the flattened initializer covers every field"
         );
+        let return_ty = lowerer.lower_type(constructor.return_type);
+        assert_eq!(
+            return_ty,
+            mir::Type::Class(mir_id),
+            "the hidden constructor returns its owning concrete class"
+        );
         let body = smir::Body {
             locals: lowerer.locals,
             statements: vec![smir::Statement {
                 kind: smir::StatementKind::Return {
                     value: Some(smir::Expr::new(
-                        mir::Type::Class(mir_id),
+                        return_ty.clone(),
                         smir::ExprKind::ClassInit {
                             class_id: mir_id,
                             args,
@@ -2005,7 +2019,7 @@ impl Lowerer {
                 span: decl.span,
             }],
         };
-        (params, mir::Type::Class(mir_id), body)
+        (params, return_ty, body)
     }
 }
 

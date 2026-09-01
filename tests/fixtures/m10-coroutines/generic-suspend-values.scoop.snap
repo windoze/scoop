@@ -938,7 +938,7 @@ Module
       call choiceGate: ChoiceGate = @scoop.ctor.ChoiceGate direct
         Type Option$J23_Continuation$E6_ChoiceXX<Continuation$E6_ChoiceX>
         VariantConstruct Option$J23_Continuation$E6_ChoiceXX<Continuation$E6_ChoiceX> v1
-      call $call.1: SuspendTask$I = @scoop.ctor.GenericTask direct
+      call $call.1: GenericTask = @scoop.ctor.GenericTask direct
         Type IntGate
         Local intGate
         Type PairGate
@@ -947,12 +947,16 @@ Module
         Local booleanGate
         Type ChoiceGate
         Local choiceGate
-      call $call.2: Continuation$I = @scoop.ctor.RecordingCompletion direct
+      call $call.2: RecordingCompletion = @scoop.ctor.RecordingCompletion direct
       call @scoop.coroutine.start$I direct
         Type SuspendTask$I
-        Local $call.1
+        Retype SuspendTask$I
+          Type GenericTask
+          Local $call.1
         Type Continuation$I
-        Local $call.2
+        Retype Continuation$I
+          Type RecordingCompletion
+          Local $call.2
       call @scoop.println$S direct
         Type String
         StringConst @scoop.str.1
@@ -1295,7 +1299,7 @@ Module
           IntLiteral 0
   fun GenericTask.run$drive @scoop.GenericTask.run$suspend$drive($frame: CoroutineFrame$scoop_GenericTask_run_suspend, $dispatch_state: Int) -> CoroutineStep$I
     bb0 entry
-      call $call.1: SuspendRegistration$I = @scoop.ctor.IntRegistration direct
+      call $call.1: IntRegistration = @scoop.ctor.IntRegistration direct
         Type IntGate
         FieldAccess 0
           Type GenericTask
@@ -1328,7 +1332,9 @@ Module
           IntLiteral 1
       call $step.1: CoroutineStep$I = @scoop.awaitTop$I$suspend direct
         Type SuspendRegistration$I
-        Local $call.1
+        Retype SuspendRegistration$I
+          Type IntRegistration
+          Local $call.1
         Type CoroutineAdapter$scoop_GenericTask_run_suspend$1
         Local $adapter.1
       branch bb37 bb38
@@ -1547,7 +1553,7 @@ Module
             Type CoroutineFrame$scoop_GenericTask_run_suspend
             Local $frame
     bb17 coroutine.post.3
-      call $call.4: SuspendRegistration$E6_ChoiceX = @scoop.ctor.ChoiceRegistration direct
+      call $call.4: ChoiceRegistration = @scoop.ctor.ChoiceRegistration direct
         Type ChoiceGate
         FieldAccess 3
           Type GenericTask
@@ -1596,7 +1602,9 @@ Module
         Type Awaiter
         Local awaiter
         Type SuspendRegistration$E6_ChoiceX
-        Local $call.4
+        Retype SuspendRegistration$E6_ChoiceX
+          Type ChoiceRegistration
+          Local $call.4
         Type CoroutineAdapter$scoop_GenericTask_run_suspend$4
         Local $adapter.4
       branch bb13 bb14
@@ -1747,7 +1755,7 @@ Module
             Local $frame
     bb25 coroutine.post.2
       call awaiter: Awaiter = @scoop.ctor.Awaiter direct
-      call $call.3: SuspendRegistration$B = @scoop.ctor.BooleanRegistration direct
+      call $call.3: BooleanRegistration = @scoop.ctor.BooleanRegistration direct
         Type BooleanGate
         FieldAccess 2
           Type GenericTask
@@ -1803,7 +1811,9 @@ Module
         Type Awaiter
         Local awaiter
         Type SuspendRegistration$B
-        Local $call.3
+        Retype SuspendRegistration$B
+          Type BooleanRegistration
+          Local $call.3
         Type CoroutineAdapter$scoop_GenericTask_run_suspend$3
         Local $adapter.3
       branch bb21 bb22
@@ -1925,7 +1935,7 @@ Module
             Type CoroutineFrame$scoop_GenericTask_run_suspend
             Local $frame
     bb33 coroutine.post.1
-      call $call.2: SuspendRegistration$D4_PairX = @scoop.ctor.PairRegistration direct
+      call $call.2: PairRegistration = @scoop.ctor.PairRegistration direct
         Type PairGate
         FieldAccess 1
           Type GenericTask
@@ -1965,7 +1975,9 @@ Module
           IntLiteral 1
       call $step.2: CoroutineStep$D4_PairX = @scoop.awaitTop$D4_PairX$suspend direct
         Type SuspendRegistration$D4_PairX
-        Local $call.2
+        Retype SuspendRegistration$D4_PairX
+          Type PairRegistration
+          Local $call.2
         Type CoroutineAdapter$scoop_GenericTask_run_suspend$2
         Local $adapter.2
       branch bb29 bb30

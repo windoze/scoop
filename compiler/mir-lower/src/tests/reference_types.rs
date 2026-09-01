@@ -716,7 +716,7 @@ fn abstract_classes_get_no_constructor() {
         !module
             .functions
             .iter()
-            .any(|(_, f)| f.symbol.starts_with("scoop.ctor."))
+            .any(|(_, f)| f.symbol == "scoop.ctor.Base")
     );
 }
 

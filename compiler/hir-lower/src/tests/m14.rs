@@ -108,16 +108,26 @@ fn compiler_exception_core_is_complete_in_export_and_local_hir() {
     );
 
     let local = output.local.exception_core;
-    let local_names = [
+    let local_exceptions = [
         local.throwable,
         local.unwrap_exception,
         local.class_cast_exception,
         local.arithmetic_exception,
         local.index_out_of_bounds_exception,
         local.illegal_state_exception,
-    ]
-    .map(|exception| output.local.classes[exception.class()].name.as_str());
+    ];
+    let local_names =
+        local_exceptions.map(|exception| output.local.classes[exception.class()].name.as_str());
     assert_eq!(local_names, export_names);
+    for exception in local_exceptions {
+        let constructor = &output.local.class_constructors[exception.callable()];
+        assert_eq!(constructor.class, exception.class());
+        assert!(constructor.params.is_empty());
+        assert!(matches!(
+            output.local.types[constructor.return_type].kind,
+            hir::concrete::TypeKind::Class(class) if class == exception.class()
+        ));
+    }
 }
 
 #[test]

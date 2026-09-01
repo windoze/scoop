@@ -1399,6 +1399,7 @@ fn protocol_error_block(
     unwind: Option<mir::BlockId>,
 ) -> mir::BlockId {
     let class = module.exception_core.illegal_state_exception.class();
+    let constructor = module.exception_core.illegal_state_exception.callable();
     let mir_class = lowerer.class_map[&class];
     let exception = locals.alloc(local("$protocol_error", mir::Type::Class(mir_class)));
     blocks.alloc(mir::BasicBlock {
@@ -1409,7 +1410,7 @@ fn protocol_error_block(
                 call: mir::Call {
                     target: mir::CallTarget {
                         kind: mir::CallKind::Direct,
-                        callee: mir::Callee::User(lowerer.ctors[&class]),
+                        callee: mir::Callee::User(lowerer.ctors[&constructor]),
                     },
                     args: Vec::new(),
                 },

@@ -499,13 +499,18 @@ Module
       call @scoop.println$I direct
         Type Int
         Local $call.1
-      call base: Base = @scoop.ctor.Derived direct
-      call $call.2: Int = @scoop.read$C4_BaseX direct
+      call $call.2: Derived = @scoop.ctor.Derived direct
+      val base: Base
+        Type Base
+        Retype Base
+          Type Derived
+          Local $call.2
+      call $call.3: Int = @scoop.read$C4_BaseX direct
         Type Base
         Local base
       call @scoop.println$I direct
         Type Int
-        Local $call.2
+        Local $call.3
       return
   fun read @scoop.read$D5_ShownX(value: Shown) -> Int
     bb0 entry
@@ -716,7 +721,8 @@ Module
   fun @scoop_main() -> void
     local %0 base: ptr<managed>
     local %1 $call.1: i64
-    local %2 $call.2: i64
+    local %2 $call.2: ptr<managed>
+    local %3 $call.3: i64
   block entry
     t0 = aggregate (42) : struct3
     call t1 = direct-target0 sig=direct0 (struct3) -> i64 effect=managed-safepoint local-fn16(t0)
@@ -724,10 +730,11 @@ Module
     call void-target0 sig=void0 (i64) effect=managed-safepoint local-fn17(local1)
     t2 = aggregate () : {}
     call t3 = direct-target1 sig=direct1 () -> ptr<managed> effect=managed-safepoint local-fn27()
-    store t3 -> local0
+    store t3 -> local2
+    store local2 -> local0
     call t4 = direct-target2 sig=direct2 (ptr<managed>) -> i64 effect=managed-safepoint local-fn18(local0)
-    store t4 -> local2
-    call void-target1 sig=void1 (i64) effect=managed-safepoint local-fn17(local2)
+    store t4 -> local3
+    call void-target1 sig=void1 (i64) effect=managed-safepoint local-fn17(local3)
     t5 = aggregate () : {}
     ret
   fun @scoop.read$D5_ShownX(struct3) -> i64

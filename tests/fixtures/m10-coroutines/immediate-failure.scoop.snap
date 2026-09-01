@@ -488,13 +488,17 @@ Module
       return
   fun main @scoop_main() -> Unit
     bb0 entry
-      call $call.1: SuspendTask$I = @scoop.ctor.FailingTask direct
-      call $call.2: Continuation$I = @scoop.ctor.RecordingCompletion direct
+      call $call.1: FailingTask = @scoop.ctor.FailingTask direct
+      call $call.2: RecordingCompletion = @scoop.ctor.RecordingCompletion direct
       call @scoop.launch direct
         Type SuspendTask$I
-        Local $call.1
+        Retype SuspendTask$I
+          Type FailingTask
+          Local $call.1
         Type Continuation$I
-        Local $call.2
+        Retype Continuation$I
+          Type RecordingCompletion
+          Local $call.2
       call @scoop.println$S direct
         Type String
         StringConst @scoop.str.1

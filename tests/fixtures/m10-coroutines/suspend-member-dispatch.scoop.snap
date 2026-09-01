@@ -911,18 +911,28 @@ Module
       call enumGate: Gate = @scoop.ctor.Gate direct
         Type Option$J14_Continuation$IX<Continuation$I>
         VariantConstruct Option$J14_Continuation$IX<Continuation$I> v1
-      call virtual: VirtualWorker = @scoop.ctor.VirtualWorkerImpl direct
+      call $call.1: VirtualWorkerImpl = @scoop.ctor.VirtualWorkerImpl direct
         Type Gate
         Local virtualGate
-      call interfaced: AsyncWorker = @scoop.ctor.AsyncWorkerImpl direct
+      val virtual: VirtualWorker
+        Type VirtualWorker
+        Retype VirtualWorker
+          Type VirtualWorkerImpl
+          Local $call.1
+      call $call.2: AsyncWorkerImpl = @scoop.ctor.AsyncWorkerImpl direct
         Type Gate
         Local interfaceGate
-      call $call.1: DirectWorker = @scoop.ctor.DirectWorker direct
+      val interfaced: AsyncWorker
+        Type AsyncWorker
+        Retype AsyncWorker
+          Type AsyncWorkerImpl
+          Local $call.2
+      call $call.3: DirectWorker = @scoop.ctor.DirectWorker direct
         Type Gate
         Local directGate
-      call $call.2: SuspendTask$I = @scoop.ctor.DispatchTask direct
+      call $call.4: DispatchTask = @scoop.ctor.DispatchTask direct
         Type DirectWorker
-        Local $call.1
+        Local $call.3
         Type VirtualWorker
         Local virtual
         Type AsyncWorker
@@ -935,12 +945,16 @@ Module
         VariantConstruct EnumWorker v0
           Type Gate
           Local enumGate
-      call $call.3: Continuation$I = @scoop.ctor.RecordingCompletion direct
+      call $call.5: RecordingCompletion = @scoop.ctor.RecordingCompletion direct
       call @scoop.coroutine.start$I direct
         Type SuspendTask$I
-        Local $call.2
+        Retype SuspendTask$I
+          Type DispatchTask
+          Local $call.4
         Type Continuation$I
-        Local $call.3
+        Retype Continuation$I
+          Type RecordingCompletion
+          Local $call.5
       call @scoop.println$S direct
         Type String
         StringConst @scoop.str.2
@@ -5365,7 +5379,7 @@ Module
           IntLiteral 1
   fun waitFor$drive @scoop.waitFor$suspend$drive($frame: CoroutineFrame$scoop_waitFor_suspend, $dispatch_state: Int) -> CoroutineStep$I
     bb0 entry
-      call $call.1: SuspendRegistration$I = @scoop.ctor.Registration direct
+      call $call.1: Registration = @scoop.ctor.Registration direct
         Type Gate
         Local gate
       atomic_store_release field=0
@@ -5394,7 +5408,9 @@ Module
     bb2 coroutine.register.1 unwind bb22
       call @scoop.SuspendRegistration.register$I interface SuspendRegistration$I[0]
         Type SuspendRegistration$I
-        Local $call.1
+        Retype SuspendRegistration$I
+          Type Registration
+          Local $call.1
         Type CoroutineAdapter$scoop_waitFor_suspend$1
         Local $safe_adapter.1
       goto bb14
@@ -6357,6 +6373,8 @@ Module
     local %7 $call.1: ptr<managed>
     local %8 $call.2: ptr<managed>
     local %9 $call.3: ptr<managed>
+    local %10 $call.4: ptr<managed>
+    local %11 $call.5: ptr<managed>
   block entry
     t0 = enum_wrap e0 v1 () : enum0
     call t1 = direct-target0 sig=direct0 (enum0) -> ptr<managed> effect=managed-safepoint local-fn27(t0)
@@ -6374,18 +6392,20 @@ Module
     call t9 = direct-target4 sig=direct4 (enum0) -> ptr<managed> effect=managed-safepoint local-fn27(t8)
     store t9 -> local4
     call t10 = direct-target5 sig=direct5 (ptr<managed>) -> ptr<managed> effect=managed-safepoint local-fn37(local1)
-    store t10 -> local5
+    store t10 -> local7
+    store local7 -> local5
     call t11 = direct-target6 sig=direct6 (ptr<managed>) -> ptr<managed> effect=managed-safepoint local-fn38(local2)
-    store t11 -> local6
+    store t11 -> local8
+    store local8 -> local6
     call t12 = direct-target7 sig=direct7 (ptr<managed>) -> ptr<managed> effect=managed-safepoint local-fn36(local0)
-    store t12 -> local7
+    store t12 -> local9
     t13 = aggregate (local3) : struct3
     t14 = enum_wrap e1 v0 (local4) : enum1
-    call t15 = direct-target8 sig=direct8 (ptr<managed>, ptr<managed>, ptr<managed>, struct3, enum1) -> ptr<managed> effect=managed-safepoint local-fn39(local7, local5, local6, t13, t14)
-    store t15 -> local8
+    call t15 = direct-target8 sig=direct8 (ptr<managed>, ptr<managed>, ptr<managed>, struct3, enum1) -> ptr<managed> effect=managed-safepoint local-fn39(local9, local5, local6, t13, t14)
+    store t15 -> local10
     call t16 = direct-target9 sig=direct9 () -> ptr<managed> effect=managed-safepoint local-fn40()
-    store t16 -> local9
-    call void-target0 sig=void0 (ptr<managed>, ptr<managed>) effect=managed-safepoint local-fn41(local8, local9)
+    store t16 -> local11
+    call void-target0 sig=void0 (ptr<managed>, ptr<managed>) effect=managed-safepoint local-fn41(local10, local11)
     t17 = aggregate () : {}
     call void-target1 sig=void1 (ptr<managed>) effect=managed-safepoint local-fn25(global2)
     t18 = aggregate () : {}

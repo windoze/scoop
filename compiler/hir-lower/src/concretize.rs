@@ -75,6 +75,8 @@ struct Concretizer<'a> {
     class_by_key: HashMap<(export::ClassId, Vec<concrete::TypeId>), concrete::ClassId>,
     class_type: HashMap<concrete::ClassId, concrete::TypeId>,
     class_source: HashMap<concrete::ClassId, export::ClassId>,
+    class_constructor_slots: Vec<Option<concrete::ClassConstructor>>,
+    class_constructor_by_class: HashMap<concrete::ClassId, concrete::ClassConstructorId>,
     extern_functions: Arena<concrete::ExternFunction>,
     extern_map: HashMap<export::ExternFunctionId, concrete::ExternFunctionId>,
     globals: Arena<concrete::Global>,
@@ -139,6 +141,8 @@ impl<'a> Concretizer<'a> {
             class_by_key: HashMap::new(),
             class_type: HashMap::new(),
             class_source: HashMap::new(),
+            class_constructor_slots: Vec::new(),
+            class_constructor_by_class: HashMap::new(),
             extern_functions: Arena::new(),
             extern_map: HashMap::new(),
             globals: Arena::new(),
@@ -235,13 +239,19 @@ impl<'a> Concretizer<'a> {
         };
 
         let functions = arena_from_complete_slots(self.function_slots, "concrete function");
+        let class_constructors =
+            arena_from_complete_slots(self.class_constructor_slots, "concrete class constructor");
         let entry = self.function_by_key[&FunctionKey::Free {
             source: self.source.entry,
             arguments: Vec::new(),
         }];
         let lower_exception = |exception: export::CompilerException| concrete::CompilerException {
-            constructor: concrete::ZeroArgClassConstructor {
-                class: self.class_by_key[&(exception.class(), Vec::new())],
+            constructor: {
+                let class = self.class_by_key[&(exception.class(), Vec::new())];
+                concrete::ZeroArgClassConstructor {
+                    class,
+                    callable: self.class_constructor_by_class[&class],
+                }
             },
         };
         let source_exception_core = self.source.exception_core;
@@ -271,6 +281,7 @@ impl<'a> Concretizer<'a> {
             structs: self.structs,
             enums: self.enums,
             classes: self.classes,
+            class_constructors,
             interfaces: self.interfaces,
             top_level: self.emitted_functions,
             unit,
@@ -447,7 +458,28 @@ impl<'a> Concretizer<'a> {
         };
         self.class_type.insert(id, ty);
 
-        let constructor = source
+        // Reserve the hidden callable identity before lowering constructor
+        // expressions. A base-delegation expression may recursively mention
+        // this already-interned class, and must still see the same target.
+        let constructor_id = if source.modifier != export::ClassModifier::Abstract
+            && matches!(
+                &source.representation,
+                export::ClassRepresentation::Declared(_)
+            ) {
+            let raw = self.class_constructor_slots.len() as u32;
+            self.class_constructor_slots.push(None);
+            let constructor = concrete::ClassConstructorId::from_raw(raw.into());
+            assert!(
+                self.class_constructor_by_class
+                    .insert(id, constructor)
+                    .is_none()
+            );
+            Some(constructor)
+        } else {
+            None
+        };
+
+        let constructor: Vec<concrete::ConstructorField> = source
             .semantic_constructor()
             .iter()
             .map(|field| concrete::ConstructorField {
@@ -456,6 +488,10 @@ impl<'a> Concretizer<'a> {
                 ty: self.lower_type(field.ty, &arguments),
                 mutable: field.mutable,
             })
+            .collect();
+        let constructor_params = constructor
+            .iter()
+            .map(|field: &concrete::ConstructorField| field.ty)
             .collect();
         let methods =
             self.request_concrete_methods(&source.methods, concrete::MethodOwner::Class(id));
@@ -491,6 +527,18 @@ impl<'a> Concretizer<'a> {
             }
         }
         self.classes[id].methods = methods;
+        if let Some(constructor_id) = constructor_id {
+            let slot = constructor_id.into_raw().into_u32() as usize;
+            assert!(
+                self.class_constructor_slots[slot]
+                    .replace(concrete::ClassConstructor {
+                        class: id,
+                        params: constructor_params,
+                        return_type: ty,
+                    })
+                    .is_none()
+            );
+        }
         id
     }
 
@@ -1846,7 +1894,7 @@ impl<'a> Concretizer<'a> {
             export::ExprKind::ClassInit { application, args } => {
                 let concrete_id = self.lower_class_application(*application, substitution);
                 concrete::ExprKind::ClassInit {
-                    class_id: concrete_id,
+                    constructor: self.class_constructor_by_class[&concrete_id],
                     args: args
                         .iter()
                         .map(|argument| self.lower_expr(argument, substitution, locals))

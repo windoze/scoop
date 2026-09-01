@@ -590,9 +590,14 @@ Module
       call @scoop.println$B direct
         Type Boolean
         Local $call.2
-      call b: A = @scoop.ctor.B direct
+      call $call.3: B = @scoop.ctor.B direct
         Type Int
         IntLiteral 2
+      val b: A
+        Type A
+        Retype A
+          Type B
+          Local $call.3
       call @scoop.println$B direct
         Type Boolean
         IsInstance B
@@ -907,11 +912,12 @@ Module
     local %7 $cast.4: enum1
     local %8 $call.1: ptr<managed>
     local %9 $call.2: i1
-    local %10 $sc.1: struct3
+    local %10 $call.3: ptr<managed>
+    local %11 $sc.1: struct3
   block entry
     t0 = aggregate (1) : struct3
-    store t0 -> local10
-    t1 = local_address local10 : ptr
+    store t0 -> local11
+    t1 = local_address local11 : ptr
     call t2 = direct-target0 sig=direct0 (ptr<metadata>, ptr<raw>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_box(td5, t1, 8)
     store t2 -> local0
     call t3 = direct-target1 sig=direct1 (ptr<managed>, ptr<metadata>) -> i1 effect=no-gc runtime @scoop_rt_is_instance(local0, td5)
@@ -956,7 +962,8 @@ Module
     call void-target3 sig=void3 (i1) effect=managed-safepoint local-fn13(local9)
     t19 = aggregate () : {}
     call t20 = direct-target7 sig=direct7 (i64) -> ptr<managed> effect=managed-safepoint local-fn24(2)
-    store t20 -> local3
+    store t20 -> local10
+    store local10 -> local3
     call t21 = direct-target8 sig=direct8 (ptr<managed>, ptr<metadata>) -> i1 effect=no-gc runtime @scoop_rt_is_instance(local3, td8)
     call void-target4 sig=void4 (i1) effect=managed-safepoint local-fn13(t21)
     t22 = aggregate () : {}

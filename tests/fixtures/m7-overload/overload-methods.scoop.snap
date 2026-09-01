@@ -471,23 +471,28 @@ Module
         IntLiteral 3
   fun main @scoop_main() -> Unit
     bb0 entry
-      call a: A = @scoop.ctor.B direct
-      call $call.1: Int = @scoop.A.s.I virtual[0]
+      call $call.1: B = @scoop.ctor.B direct
+      val a: A
+        Type A
+        Retype A
+          Type B
+          Local $call.1
+      call $call.2: Int = @scoop.A.s.I virtual[0]
         Type A
         Local a
         Type Int
         IntLiteral 1
       call @scoop.println$I direct
         Type Int
-        Local $call.1
-      call $call.2: Int = @scoop.A.s.S direct
+        Local $call.2
+      call $call.3: Int = @scoop.A.s.S direct
         Type A
         Local a
         Type String
         StringConst @scoop.str.0
       call @scoop.println$I direct
         Type Int
-        Local $call.2
+        Local $call.3
       return
   fun println @scoop.println$I(value: Int) -> Unit
     bb0 entry
@@ -680,20 +685,22 @@ Module
     ret 3
   fun @scoop_main() -> void
     local %0 a: ptr<managed>
-    local %1 $call.1: i64
+    local %1 $call.1: ptr<managed>
     local %2 $call.2: i64
+    local %3 $call.3: i64
   block entry
     call t0 = direct-target0 sig=direct0 () -> ptr<managed> effect=managed-safepoint local-fn25()
-    store t0 -> local0
+    store t0 -> local1
+    store local1 -> local0
     t1 = heap_load local0 +0 : ptr<metadata>
     t2 = heap_load t1 +40 : ptr<metadata>
     call t3 = direct-target1 sig=direct1 (ptr<managed>, i64) -> i64 effect=managed-safepoint dispatch[Virtual:0] t2(local0, 1)
-    store t3 -> local1
-    call void-target0 sig=void0 (i64) effect=managed-safepoint local-fn16(local1)
+    store t3 -> local2
+    call void-target0 sig=void0 (i64) effect=managed-safepoint local-fn16(local2)
     t4 = aggregate () : {}
     call t5 = direct-target2 sig=direct2 (ptr<managed>, ptr<managed>) -> i64 effect=managed-safepoint local-fn13(local0, global0)
-    store t5 -> local2
-    call void-target1 sig=void1 (i64) effect=managed-safepoint local-fn16(local2)
+    store t5 -> local3
+    call void-target1 sig=void1 (i64) effect=managed-safepoint local-fn16(local3)
     t6 = aggregate () : {}
     ret
   fun @scoop.println$I(i64) -> void

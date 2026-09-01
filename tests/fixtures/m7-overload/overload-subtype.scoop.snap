@@ -497,12 +497,14 @@ Module
         StringConst @scoop.str.3
   fun main @scoop_main() -> Unit
     bb0 entry
-      call $call.1: Shape = @scoop.ctor.Circle direct
+      call $call.1: Circle = @scoop.ctor.Circle direct
         Type Int
         IntLiteral 1
       call $call.2: String = @scoop.tag.C5_ShapeX direct
         Type Shape
-        Local $call.1
+        Retype Shape
+          Type Circle
+          Local $call.1
       call @scoop.println$S direct
         Type String
         Local $call.2

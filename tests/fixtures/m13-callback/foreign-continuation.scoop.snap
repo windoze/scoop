@@ -663,15 +663,19 @@ Module
             SizeOf Int
         Type Option$D25_ForeignCallback$FI_PUXRIXX<ForeignCallback$FI_PUXRIX>
         VariantConstruct Option$D25_ForeignCallback$FI_PUXRIXX<ForeignCallback$FI_PUXRIX> v1
-      call $call.1: SuspendTask$I = @scoop.ctor.ForeignTask direct
+      call $call.1: ForeignTask = @scoop.ctor.ForeignTask direct
         Type ForeignGate
         Local gate
-      call $call.2: Continuation$I = @scoop.ctor.ForeignCompletion direct
+      call $call.2: ForeignCompletion = @scoop.ctor.ForeignCompletion direct
       call @scoop.coroutine.start$I direct
         Type SuspendTask$I
-        Local $call.1
+        Retype SuspendTask$I
+          Type ForeignTask
+          Local $call.1
         Type Continuation$I
-        Local $call.2
+        Retype Continuation$I
+          Type ForeignCompletion
+          Local $call.2
       call @scoop.println$S direct
         Type String
         StringConst @scoop.str.1
@@ -1144,7 +1148,7 @@ Module
           IntLiteral 0
   fun ForeignTask.run$drive @scoop.ForeignTask.run$suspend$drive($frame: CoroutineFrame$scoop_ForeignTask_run_suspend, $dispatch_state: Int) -> CoroutineStep$I
     bb0 entry
-      call $call.1: SuspendRegistration$I = @scoop.ctor.ForeignRegistration direct
+      call $call.1: ForeignRegistration = @scoop.ctor.ForeignRegistration direct
         Type ForeignGate
         FieldAccess 0
           Type ForeignTask
@@ -1175,7 +1179,9 @@ Module
     bb2 coroutine.register.1 unwind bb22
       call @scoop.SuspendRegistration.register$I interface SuspendRegistration$I[0]
         Type SuspendRegistration$I
-        Local $call.1
+        Retype SuspendRegistration$I
+          Type ForeignRegistration
+          Local $call.1
         Type CoroutineAdapter$scoop_ForeignTask_run_suspend$1
         Local $safe_adapter.1
       goto bb14

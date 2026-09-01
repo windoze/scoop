@@ -747,10 +747,12 @@ Module
             Local this
           Type Int
           IntLiteral 1
-      call $call.1: BaseMapper = @scoop.ctor.TimesTwo direct
+      call $call.1: TimesTwo = @scoop.ctor.TimesTwo direct
       return
         Type BaseMapper
-        Local $call.1
+        Retype BaseMapper
+          Type TimesTwo
+          Local $call.1
   fun PrefixMapper.map @scoop.PrefixMapper.map(this: PrefixMapper, value: String) -> String
     bb0 entry
       call $call.1: String = @scoop_rt_string_concat direct
@@ -833,19 +835,31 @@ Module
         FieldAccess 0
           Type MapperFactory
           Local factory
-      call selected: BaseMapper = @scoop.ctor.TimesTwo direct
+      call $call.2: TimesTwo = @scoop.ctor.TimesTwo direct
+      var selected: BaseMapper
+        Type BaseMapper
+        Retype BaseMapper
+          Type TimesTwo
+          Local $call.2
       val virtual: (Int) -> Int
         Type (Int) -> Int
         ClosureAlloc cc4 $Closure$reference4
           Type BaseMapper
           Local selected
-      call $call.2: BaseMapper = @scoop.ctor.PlusHundred direct
+      call $call.3: PlusHundred = @scoop.ctor.PlusHundred direct
       assign selected
         Type BaseMapper
-        Local $call.2
-      call mapper: TextMapper = @scoop.ctor.PrefixMapper direct
+        Retype BaseMapper
+          Type PlusHundred
+          Local $call.3
+      call $call.4: PrefixMapper = @scoop.ctor.PrefixMapper direct
         Type String
         StringConst @scoop.str.1
+      val mapper: TextMapper
+        Type TextMapper
+        Retype TextMapper
+          Type PrefixMapper
+          Local $call.4
       val interfaceReference: (String) -> String
         Type (String) -> String
         ClosureAlloc cc5 $Closure$reference5
@@ -866,113 +880,113 @@ Module
         StructInit ValueMapper
           Type Int
           IntLiteral 100
-      call $call.3: GenericMapper = @scoop.ctor.GenericMapper direct
+      call $call.5: GenericMapper = @scoop.ctor.GenericMapper direct
       val genericMember: (String) -> String
         Type (String) -> String
         ClosureAlloc cc7 $Closure$reference7
           Type GenericMapper
-          Local $call.3
-      call $call.4: OverloadedMapper = @scoop.ctor.OverloadedMapper direct
+          Local $call.5
+      call $call.6: OverloadedMapper = @scoop.ctor.OverloadedMapper direct
       val concreteWins: (Int) -> Int
         Type (Int) -> Int
         ClosureAlloc cc8 $Closure$reference8
           Type OverloadedMapper
-          Local $call.4
-      call $call.5: ThrowingMapper = @scoop.ctor.ThrowingMapper direct
+          Local $call.6
+      call $call.7: ThrowingMapper = @scoop.ctor.ThrowingMapper direct
       val throwing: (Int) -> Int
         Type (Int) -> Int
         ClosureAlloc cc9 $Closure$reference9
           Type ThrowingMapper
-          Local $call.5
+          Local $call.7
       call @scoop_rt_gc_collect direct
-      call $call.6: Int = <closure:function_type0> closure[function_type0]
+      call $call.8: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
         Local inferred
         Type Int
         IntLiteral 41
       call @scoop.println$I direct
         Type Int
-        Local $call.6
-      call $call.7: Int = <closure:function_type0> closure[function_type0]
+        Local $call.8
+      call $call.9: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
         Local generic
         Type Int
         IntLiteral 42
       call @scoop.println$I direct
         Type Int
-        Local $call.7
-      call $call.8: String = <closure:function_type1> closure[function_type1]
+        Local $call.9
+      call $call.10: String = <closure:function_type1> closure[function_type1]
         Type (String) -> String
         Local overloaded
         Type String
         StringConst @scoop.str.2
       call @scoop.println$S direct
         Type String
-        Local $call.8
-      call $call.9: Int = <closure:function_type0> closure[function_type0]
+        Local $call.10
+      call $call.11: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
         Local once
         Type Int
         IntLiteral 21
       call @scoop.println$I direct
         Type Int
-        Local $call.9
-      call $call.10: Int = <closure:function_type0> closure[function_type0]
+        Local $call.11
+      call $call.12: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
         Local virtual
         Type Int
         IntLiteral 21
       call @scoop.println$I direct
         Type Int
-        Local $call.10
-      call $call.11: Int = @scoop.BaseMapper.map virtual[0]
+        Local $call.12
+      call $call.13: Int = @scoop.BaseMapper.map virtual[0]
         Type BaseMapper
         Local selected
         Type Int
         IntLiteral 21
       call @scoop.println$I direct
         Type Int
-        Local $call.11
-      call $call.12: String = <closure:function_type1> closure[function_type1]
+        Local $call.13
+      call $call.14: String = <closure:function_type1> closure[function_type1]
         Type (String) -> String
         Local interfaceReference
         Type String
         StringConst @scoop.str.3
       call @scoop.println$S direct
         Type String
-        Local $call.12
-      call $call.13: Int = <closure:function_type0> closure[function_type0]
+        Local $call.14
+      call $call.15: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
         Local valueReference
         Type Int
         IntLiteral 40
       call @scoop.println$I direct
         Type Int
-        Local $call.13
-      call $call.14: Int = @scoop.ValueMapper.map direct
+        Local $call.15
+      call $call.16: Int = @scoop.ValueMapper.map direct
         Type ValueMapper
         Local valueMapper
         Type Int
         IntLiteral 40
       call @scoop.println$I direct
         Type Int
-        Local $call.14
-      call $call.15: String = <closure:function_type1> closure[function_type1]
+        Local $call.16
+      call $call.17: String = <closure:function_type1> closure[function_type1]
         Type (String) -> String
         Local genericMember
         Type String
         StringConst @scoop.str.4
       call @scoop.println$S direct
         Type String
-        Local $call.15
-      call $call.16: Int = <closure:function_type0> closure[function_type0]
+        Local $call.17
+      call $call.18: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
         Local concreteWins
         Type Int
         IntLiteral 1
       call @scoop.println$I direct
         Type Int
-        Local $call.16
+        Local $call.18
       goto bb8
     bb1 try.unwind.1
       landing_pad cleanup=false
@@ -999,14 +1013,14 @@ Module
     bb7 try.end.7
       return
     bb8 try.body.8 unwind bb1
-      call $call.17: Int = <closure:function_type0> closure[function_type0]
+      call $call.19: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
         Local throwing
         Type Int
         IntLiteral 0
       call @scoop.println$I direct
         Type Int
-        Local $call.17
+        Local $call.19
       goto bb9
     bb9 scope.9
       goto bb7
@@ -1466,21 +1480,23 @@ Module
     local %17 $call.3: ptr<managed>
     local %18 $call.4: ptr<managed>
     local %19 $call.5: ptr<managed>
-    local %20 $call.6: i64
-    local %21 $call.7: i64
-    local %22 $call.8: ptr<managed>
+    local %20 $call.6: ptr<managed>
+    local %21 $call.7: ptr<managed>
+    local %22 $call.8: i64
     local %23 $call.9: i64
-    local %24 $call.10: i64
+    local %24 $call.10: ptr<managed>
     local %25 $call.11: i64
-    local %26 $call.12: ptr<managed>
+    local %26 $call.12: i64
     local %27 $call.13: i64
-    local %28 $call.14: i64
-    local %29 $call.15: ptr<managed>
+    local %28 $call.14: ptr<managed>
+    local %29 $call.15: i64
     local %30 $call.16: i64
-    local %31 $call.17: i64
-    local %32 $sc.1: exception_record
-    local %33 $sc.2: ptr<raw>
-    local %34 $sc.3: ptr<managed>
+    local %31 $call.17: ptr<managed>
+    local %32 $call.18: i64
+    local %33 $call.19: i64
+    local %34 $sc.1: exception_record
+    local %35 $sc.2: ptr<raw>
+    local %36 $sc.3: ptr<managed>
   block entry
     call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td21, 24)
     t1 = function_address @scoop.$reference.0 : ptr
@@ -1507,17 +1523,19 @@ Module
     call void-target0 sig=void0 (i64) effect=managed-safepoint local-fn25(t10)
     t11 = aggregate () : {}
     call t12 = direct-target6 sig=direct6 () -> ptr<managed> effect=managed-safepoint local-fn46()
-    store t12 -> local5
+    store t12 -> local16
+    store local16 -> local5
     call t13 = direct-target7 sig=direct7 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td25, 32)
     t14 = function_address @scoop.$reference.4 : ptr
     heap_store t13 +16 t14
     heap_store t13 +24 local5
     store t13 -> local6
     call t15 = direct-target8 sig=direct8 () -> ptr<managed> effect=managed-safepoint local-fn47()
-    store t15 -> local16
-    store local16 -> local5
+    store t15 -> local17
+    store local17 -> local5
     call t16 = direct-target9 sig=direct9 (ptr<managed>) -> ptr<managed> effect=managed-safepoint local-fn49(global1)
-    store t16 -> local7
+    store t16 -> local18
+    store local18 -> local7
     call t17 = direct-target10 sig=direct10 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td26, 32)
     t18 = function_address @scoop.$reference.5 : ptr
     heap_store t17 +16 t18
@@ -1533,101 +1551,101 @@ Module
     t22 = aggregate (100) : struct3
     store t22 -> local9
     call t23 = direct-target12 sig=direct12 () -> ptr<managed> effect=managed-safepoint local-fn50()
-    store t23 -> local17
+    store t23 -> local19
     call t24 = direct-target13 sig=direct13 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td28, 32)
     t25 = function_address @scoop.$reference.7 : ptr
     heap_store t24 +16 t25
-    heap_store t24 +24 local17
+    heap_store t24 +24 local19
     store t24 -> local11
     call t26 = direct-target14 sig=direct14 () -> ptr<managed> effect=managed-safepoint local-fn51()
-    store t26 -> local18
+    store t26 -> local20
     call t27 = direct-target15 sig=direct15 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td29, 32)
     t28 = function_address @scoop.$reference.8 : ptr
     heap_store t27 +16 t28
-    heap_store t27 +24 local18
+    heap_store t27 +24 local20
     store t27 -> local12
     call t29 = direct-target16 sig=direct16 () -> ptr<managed> effect=managed-safepoint local-fn52()
-    store t29 -> local19
+    store t29 -> local21
     call t30 = direct-target17 sig=direct17 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td30, 32)
     t31 = function_address @scoop.$reference.9 : ptr
     heap_store t30 +16 t31
-    heap_store t30 +24 local19
+    heap_store t30 +24 local21
     store t30 -> local13
     call void-target1 sig=void1 () effect=managed-safepoint runtime @scoop_rt_gc_collect()
     t32 = aggregate () : {}
     call t33 = direct-target18 sig=direct18 (ptr<managed>, i64) -> i64 effect=managed-safepoint dispatch[Closure:2] local0(local0, 41)
-    store t33 -> local20
-    call void-target2 sig=void2 (i64) effect=managed-safepoint local-fn25(local20)
+    store t33 -> local22
+    call void-target2 sig=void2 (i64) effect=managed-safepoint local-fn25(local22)
     t34 = aggregate () : {}
     call t35 = direct-target19 sig=direct19 (ptr<managed>, i64) -> i64 effect=managed-safepoint dispatch[Closure:2] local1(local1, 42)
-    store t35 -> local21
-    call void-target3 sig=void3 (i64) effect=managed-safepoint local-fn25(local21)
+    store t35 -> local23
+    call void-target3 sig=void3 (i64) effect=managed-safepoint local-fn25(local23)
     t36 = aggregate () : {}
     call t37 = direct-target20 sig=direct20 (ptr<managed>, ptr<managed>) -> ptr<managed> effect=managed-safepoint dispatch[Closure:2] local2(local2, global2)
-    store t37 -> local22
-    call void-target4 sig=void4 (ptr<managed>) effect=managed-safepoint local-fn26(local22)
+    store t37 -> local24
+    call void-target4 sig=void4 (ptr<managed>) effect=managed-safepoint local-fn26(local24)
     t38 = aggregate () : {}
     call t39 = direct-target21 sig=direct21 (ptr<managed>, i64) -> i64 effect=managed-safepoint dispatch[Closure:2] local4(local4, 21)
-    store t39 -> local23
-    call void-target5 sig=void5 (i64) effect=managed-safepoint local-fn25(local23)
+    store t39 -> local25
+    call void-target5 sig=void5 (i64) effect=managed-safepoint local-fn25(local25)
     t40 = aggregate () : {}
     call t41 = direct-target22 sig=direct22 (ptr<managed>, i64) -> i64 effect=managed-safepoint dispatch[Closure:2] local6(local6, 21)
-    store t41 -> local24
-    call void-target6 sig=void6 (i64) effect=managed-safepoint local-fn25(local24)
+    store t41 -> local26
+    call void-target6 sig=void6 (i64) effect=managed-safepoint local-fn25(local26)
     t42 = aggregate () : {}
     t43 = heap_load local5 +0 : ptr<metadata>
     t44 = heap_load t43 +40 : ptr<metadata>
     call t45 = direct-target23 sig=direct23 (ptr<managed>, i64) -> i64 effect=managed-safepoint dispatch[Virtual:0] t44(local5, 21)
-    store t45 -> local25
-    call void-target7 sig=void7 (i64) effect=managed-safepoint local-fn25(local25)
+    store t45 -> local27
+    call void-target7 sig=void7 (i64) effect=managed-safepoint local-fn25(local27)
     t46 = aggregate () : {}
     call t47 = direct-target24 sig=direct24 (ptr<managed>, ptr<managed>) -> ptr<managed> effect=managed-safepoint dispatch[Closure:2] local8(local8, global3)
-    store t47 -> local26
-    call void-target8 sig=void8 (ptr<managed>) effect=managed-safepoint local-fn26(local26)
+    store t47 -> local28
+    call void-target8 sig=void8 (ptr<managed>) effect=managed-safepoint local-fn26(local28)
     t48 = aggregate () : {}
     call t49 = direct-target25 sig=direct25 (ptr<managed>, i64) -> i64 effect=managed-safepoint dispatch[Closure:2] local10(local10, 40)
-    store t49 -> local27
-    call void-target9 sig=void9 (i64) effect=managed-safepoint local-fn25(local27)
+    store t49 -> local29
+    call void-target9 sig=void9 (i64) effect=managed-safepoint local-fn25(local29)
     t50 = aggregate () : {}
     call t51 = direct-target26 sig=direct26 (struct3, i64) -> i64 effect=managed-safepoint local-fn9(local9, 40)
-    store t51 -> local28
-    call void-target10 sig=void10 (i64) effect=managed-safepoint local-fn25(local28)
+    store t51 -> local30
+    call void-target10 sig=void10 (i64) effect=managed-safepoint local-fn25(local30)
     t52 = aggregate () : {}
     call t53 = direct-target27 sig=direct27 (ptr<managed>, ptr<managed>) -> ptr<managed> effect=managed-safepoint dispatch[Closure:2] local11(local11, global4)
-    store t53 -> local29
-    call void-target11 sig=void11 (ptr<managed>) effect=managed-safepoint local-fn26(local29)
+    store t53 -> local31
+    call void-target11 sig=void11 (ptr<managed>) effect=managed-safepoint local-fn26(local31)
     t54 = aggregate () : {}
     call t55 = direct-target28 sig=direct28 (ptr<managed>, i64) -> i64 effect=managed-safepoint dispatch[Closure:2] local12(local12, 1)
-    store t55 -> local30
-    call void-target12 sig=void12 (i64) effect=managed-safepoint local-fn25(local30)
+    store t55 -> local32
+    call void-target12 sig=void12 (i64) effect=managed-safepoint local-fn25(local32)
     t56 = aggregate () : {}
     br @try.body.8
   block try.unwind.1
     (t57, t58) = landingpad : (exception_record, ptr<raw>)
-    store t57 -> local32
-    store t58 -> local33
+    store t57 -> local34
+    store t58 -> local35
     br @try.dispatch.2
   block try.dispatch.2
-    t59 = begin_catch local33 : ptr<managed>
-    store t59 -> local34
-    call t60 = direct-target29 sig=direct29 (ptr<managed>, ptr<metadata>) -> i1 effect=no-gc runtime @scoop_rt_is_instance(local34, td18)
+    t59 = begin_catch local35 : ptr<managed>
+    store t59 -> local36
+    call t60 = direct-target29 sig=direct29 (ptr<managed>, ptr<metadata>) -> i1 effect=no-gc runtime @scoop_rt_is_instance(local36, td18)
     cbr t60 then @try.catch.10 else @try.next.11
   block try.handler_pad.3
     (t61, t62) = cleanup_pad : (exception_record, ptr<raw>)
-    store t61 -> local32
-    store t62 -> local33
+    store t61 -> local34
+    store t62 -> local35
     br @try.handler_cleanup.4
   block try.handler_cleanup.4
     end_catch
-    resume local32
+    resume local34
   block try.exit_pad.5
     (t63, t64) = cleanup_pad : (exception_record, ptr<raw>)
-    store t63 -> local32
-    store t64 -> local33
+    store t63 -> local34
+    store t64 -> local35
     br @try.exit_cleanup.6
   block try.exit_cleanup.6
     end_catch
-    resume local32
+    resume local34
   block try.end.7
     ret
   block try.body.8
@@ -1636,7 +1654,7 @@ Module
   block scope.9
     br @try.end.7
   block try.catch.10
-    store local34 -> local14
+    store local36 -> local14
     br @scope.12
   block try.next.11
     invoke void-target14 sig=void14 () effect=no-gc runtime @scoop_rt_rethrow() normal @rethrow.normal.3 unwind @try.exit_pad.5
@@ -1648,8 +1666,8 @@ Module
     end_catch
     br @try.end.7
   block invoke.normal.1
-    store t65 -> local31
-    invoke void-target13 sig=void13 (i64) effect=managed-safepoint local-fn25(local31) normal @invoke.normal.2 unwind @try.unwind.1
+    store t65 -> local33
+    invoke void-target13 sig=void13 (i64) effect=managed-safepoint local-fn25(local33) normal @invoke.normal.2 unwind @try.unwind.1
     br @invoke.normal.2
   block invoke.normal.2
     t66 = aggregate () : {}

@@ -969,10 +969,12 @@ Module
         Type Boolean
         BoolLiteral true
     bb19 if.then.19
-      call $call.2: Animal = @scoop.ctor.Dog direct
+      call $call.2: Dog = @scoop.ctor.Dog direct
       assign $result.7
         Type Animal
-        Local $call.2
+        Retype Animal
+          Type Dog
+          Local $call.2
       goto bb21
     bb20 if.else.20
       call $call.3: Animal = @scoop.ctor.Animal direct

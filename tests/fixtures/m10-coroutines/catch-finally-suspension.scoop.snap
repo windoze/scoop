@@ -983,15 +983,19 @@ Module
       call catchGate: Gate = @scoop.ctor.Gate direct
         Type Option$J14_Continuation$IX<Continuation$I>
         VariantConstruct Option$J14_Continuation$IX<Continuation$I> v1
-      call $call.1: SuspendTask$I = @scoop.ctor.CatchTask direct
+      call $call.1: CatchTask = @scoop.ctor.CatchTask direct
         Type Gate
         Local catchGate
-      call $call.2: Continuation$I = @scoop.ctor.RecordingCompletion direct
+      call $call.2: RecordingCompletion = @scoop.ctor.RecordingCompletion direct
       call @scoop.launch direct
         Type SuspendTask$I
-        Local $call.1
+        Retype SuspendTask$I
+          Type CatchTask
+          Local $call.1
         Type Continuation$I
-        Local $call.2
+        Retype Continuation$I
+          Type RecordingCompletion
+          Local $call.2
       call @scoop.println$S direct
         Type String
         StringConst @scoop.str.1
@@ -1003,15 +1007,19 @@ Module
       call returnGate: Gate = @scoop.ctor.Gate direct
         Type Option$J14_Continuation$IX<Continuation$I>
         VariantConstruct Option$J14_Continuation$IX<Continuation$I> v1
-      call $call.3: SuspendTask$I = @scoop.ctor.ReturnFinallyTask direct
+      call $call.3: ReturnFinallyTask = @scoop.ctor.ReturnFinallyTask direct
         Type Gate
         Local returnGate
-      call $call.4: Continuation$I = @scoop.ctor.RecordingCompletion direct
+      call $call.4: RecordingCompletion = @scoop.ctor.RecordingCompletion direct
       call @scoop.launch direct
         Type SuspendTask$I
-        Local $call.3
+        Retype SuspendTask$I
+          Type ReturnFinallyTask
+          Local $call.3
         Type Continuation$I
-        Local $call.4
+        Retype Continuation$I
+          Type RecordingCompletion
+          Local $call.4
       call @scoop.println$S direct
         Type String
         StringConst @scoop.str.2
@@ -1023,15 +1031,19 @@ Module
       call throwGate: Gate = @scoop.ctor.Gate direct
         Type Option$J14_Continuation$IX<Continuation$I>
         VariantConstruct Option$J14_Continuation$IX<Continuation$I> v1
-      call $call.5: SuspendTask$I = @scoop.ctor.ThrowFinallyTask direct
+      call $call.5: ThrowFinallyTask = @scoop.ctor.ThrowFinallyTask direct
         Type Gate
         Local throwGate
-      call $call.6: Continuation$I = @scoop.ctor.RecordingCompletion direct
+      call $call.6: RecordingCompletion = @scoop.ctor.RecordingCompletion direct
       call @scoop.launch direct
         Type SuspendTask$I
-        Local $call.5
+        Retype SuspendTask$I
+          Type ThrowFinallyTask
+          Local $call.5
         Type Continuation$I
-        Local $call.6
+        Retype Continuation$I
+          Type RecordingCompletion
+          Local $call.6
       call @scoop.println$S direct
         Type String
         StringConst @scoop.str.3
@@ -1043,15 +1055,19 @@ Module
       call overrideReturnGate: Gate = @scoop.ctor.Gate direct
         Type Option$J14_Continuation$IX<Continuation$I>
         VariantConstruct Option$J14_Continuation$IX<Continuation$I> v1
-      call $call.7: SuspendTask$I = @scoop.ctor.OverrideReturnFinallyTask direct
+      call $call.7: OverrideReturnFinallyTask = @scoop.ctor.OverrideReturnFinallyTask direct
         Type Gate
         Local overrideReturnGate
-      call $call.8: Continuation$I = @scoop.ctor.RecordingCompletion direct
+      call $call.8: RecordingCompletion = @scoop.ctor.RecordingCompletion direct
       call @scoop.launch direct
         Type SuspendTask$I
-        Local $call.7
+        Retype SuspendTask$I
+          Type OverrideReturnFinallyTask
+          Local $call.7
         Type Continuation$I
-        Local $call.8
+        Retype Continuation$I
+          Type RecordingCompletion
+          Local $call.8
       call @scoop.println$S direct
         Type String
         StringConst @scoop.str.4
@@ -1063,15 +1079,19 @@ Module
       call overrideThrowGate: Gate = @scoop.ctor.Gate direct
         Type Option$J14_Continuation$IX<Continuation$I>
         VariantConstruct Option$J14_Continuation$IX<Continuation$I> v1
-      call $call.9: SuspendTask$I = @scoop.ctor.OverrideThrowFinallyTask direct
+      call $call.9: OverrideThrowFinallyTask = @scoop.ctor.OverrideThrowFinallyTask direct
         Type Gate
         Local overrideThrowGate
-      call $call.10: Continuation$I = @scoop.ctor.RecordingCompletion direct
+      call $call.10: RecordingCompletion = @scoop.ctor.RecordingCompletion direct
       call @scoop.launch direct
         Type SuspendTask$I
-        Local $call.9
+        Retype SuspendTask$I
+          Type OverrideThrowFinallyTask
+          Local $call.9
         Type Continuation$I
-        Local $call.10
+        Retype Continuation$I
+          Type RecordingCompletion
+          Local $call.10
       call @scoop.println$S direct
         Type String
         StringConst @scoop.str.5
@@ -4324,9 +4344,14 @@ Module
           IntLiteral 1
   fun waitFor$drive @scoop.waitFor$suspend$drive($frame: CoroutineFrame$scoop_waitFor_suspend, $dispatch_state: Int) -> CoroutineStep$I
     bb0 entry
-      call registration: SuspendRegistration$I = @scoop.ctor.Registration direct
+      call $call.1: Registration = @scoop.ctor.Registration direct
         Type Gate
         Local gate
+      val registration: SuspendRegistration$I
+        Type SuspendRegistration$I
+        Retype SuspendRegistration$I
+          Type Registration
+          Local $call.1
       atomic_store_release field=0
         Type CoroutineFrame$scoop_waitFor_suspend
         Local $frame
@@ -4349,7 +4374,7 @@ Module
         Type CoroutineStep$I
         VariantConstruct CoroutineStep$I v0
           Type Int
-          Local $call.1
+          Local $call.2
     bb2 coroutine.register.1 unwind bb22
       call @scoop.SuspendRegistration.register$I interface SuspendRegistration$I[0]
         Type SuspendRegistration$I
@@ -4363,7 +4388,7 @@ Module
         Local $safe_adapter.1
         Type Int
         IntLiteral 6
-      val $call.1: Int
+      val $call.2: Int
         Type Int
         EnumField v1 f0
           Type CoroutineSlot$I
@@ -4580,7 +4605,7 @@ Module
           Type Int
           IntLiteral 0
     bb23 coroutine.resume.1
-      assign $call.1
+      assign $call.2
         Type Int
         EnumField v1 f0
           Type CoroutineSlot$I
@@ -8711,20 +8736,22 @@ Module
   fun @scoop.waitFor$suspend$drive(ptr<managed>, i64) -> enum2
     local %0 gate: ptr<managed>
     local %1 registration: ptr<managed>
-    local %2 $call.1: i64
-    local %3 $completion: ptr<managed>
-    local %4 $safe_adapter.1: ptr<managed>
-    local %5 $resume_exception.1: ptr<managed>
-    local %6 $registration_claim.1: i64
-    local %7 $registration_frame_claim.1: i64
-    local %8 $protocol_error: ptr<managed>
+    local %2 $call.1: ptr<managed>
+    local %3 $call.2: i64
+    local %4 $completion: ptr<managed>
+    local %5 $safe_adapter.1: ptr<managed>
+    local %6 $resume_exception.1: ptr<managed>
+    local %7 $registration_claim.1: i64
+    local %8 $registration_frame_claim.1: i64
     local %9 $protocol_error: ptr<managed>
-    local %10 $sc.1: exception_record
-    local %11 $sc.2: ptr<raw>
-    local %12 $sc.3: ptr<managed>
+    local %10 $protocol_error: ptr<managed>
+    local %11 $sc.1: exception_record
+    local %12 $sc.2: ptr<raw>
+    local %13 $sc.3: ptr<managed>
   block entry
     call t0 = direct-target0 sig=direct0 (ptr<managed>) -> ptr<managed> effect=managed-safepoint local-fn36(local0)
-    store t0 -> local1
+    store t0 -> local2
+    store local2 -> local1
     atomic_store release param0 +16 1
     call t1 = direct-target1 sig=direct1 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td28, 56)
     heap_store t1 +16 param0
@@ -8733,113 +8760,113 @@ Module
     heap_store t1 +32 t2
     t3 = enum_wrap e5 v0 () : enum5
     heap_store t1 +48 t3
-    store t1 -> local4
+    store t1 -> local5
     br @coroutine.register.1
   block coroutine.post.1
-    t4 = enum_wrap e2 v0 (local2) : enum2
+    t4 = enum_wrap e2 v0 (local3) : enum2
     ret t4
   block coroutine.register.1
     t5 = heap_load local1 +0 : ptr<metadata>
     call t6 = direct-target2 sig=direct2 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t5, td3)
-    invoke void-target0 sig=void0 (ptr<managed>, ptr<managed>) effect=managed-safepoint dispatch[Interface:0] t6(local1, local4) normal @invoke.normal.1 unwind @coroutine.registration_failure.1
+    invoke void-target0 sig=void0 (ptr<managed>, ptr<managed>) effect=managed-safepoint dispatch[Interface:0] t6(local1, local5) normal @invoke.normal.1 unwind @coroutine.registration_failure.1
     br @invoke.normal.1
   block coroutine.registered_success.1
-    atomic_store release local4 +24 6
-    t8 = heap_load local4 +32 : enum4
+    atomic_store release local5 +24 6
+    t8 = heap_load local5 +32 : enum4
     t9 = enum_field e4 v1 f0 t8 : i64
-    store t9 -> local2
+    store t9 -> local3
     br @coroutine.post.1
   block coroutine.registered_failure.1
-    atomic_store release local4 +24 6
-    t10 = heap_load local4 +48 : enum5
+    atomic_store release local5 +24 6
+    t10 = heap_load local5 +48 : enum5
     t11 = enum_field e5 v1 f0 t10 : ptr<managed>
-    store t11 -> local5
-    throw local5
+    store t11 -> local6
+    throw local6
     unreachable
   block coroutine.registered_suspend.1
     t12 = enum_wrap e2 v1 () : enum2
     ret t12
   block coroutine.protocol_error
     call t13 = direct-target3 sig=direct3 () -> ptr<managed> effect=managed-safepoint local-fn34()
-    store t13 -> local8
-    throw local8
+    store t13 -> local9
+    throw local9
     unreachable
   block coroutine.claim_success_frame.1
     t14 = atomic_cmpxchg acq_rel/acquire param0 +16 expected=1 replacement=-1 : i64
-    store t14 -> local7
-    t15 = Eq local7, 1 : i1
+    store t14 -> local8
+    t15 = Eq local8, 1 : i1
     cbr t15 then @coroutine.registered_success.1 else @coroutine.protocol_error
   block coroutine.claim_failure_frame.1
     t16 = atomic_cmpxchg acq_rel/acquire param0 +16 expected=1 replacement=-1 : i64
-    store t16 -> local7
-    t17 = Eq local7, 1 : i1
+    store t16 -> local8
+    t17 = Eq local8, 1 : i1
     cbr t17 then @coroutine.registered_failure.1 else @coroutine.protocol_error
   block coroutine.check_latched_failure.1
-    t18 = atomic_load acquire local4 +24 : i64
+    t18 = atomic_load acquire local5 +24 : i64
     t19 = Eq t18, 5 : i1
     cbr t19 then @coroutine.claim_failure_frame.1 else @coroutine.protocol_error
   block coroutine.check_latched_success.1
-    t20 = atomic_load acquire local4 +24 : i64
+    t20 = atomic_load acquire local5 +24 : i64
     t21 = Eq t20, 4 : i1
     cbr t21 then @coroutine.claim_success_frame.1 else @coroutine.check_latched_failure.1
   block coroutine.completion_backoff.1
     br @coroutine.completion_wait.1
   block coroutine.check_completing_failure.1
-    t22 = atomic_load acquire local4 +24 : i64
+    t22 = atomic_load acquire local5 +24 : i64
     t23 = Eq t22, 3 : i1
     cbr t23 then @coroutine.completion_backoff.1 else @coroutine.check_latched_success.1
   block coroutine.completion_wait.1
-    t24 = atomic_load acquire local4 +24 : i64
+    t24 = atomic_load acquire local5 +24 : i64
     t25 = Eq t24, 2 : i1
     cbr t25 then @coroutine.completion_backoff.1 else @coroutine.check_completing_failure.1
   block coroutine.register_return.1
-    t26 = atomic_cmpxchg acq_rel/acquire local4 +24 expected=0 replacement=1 : i64
-    store t26 -> local6
-    t27 = Eq local6, 0 : i1
+    t26 = atomic_cmpxchg acq_rel/acquire local5 +24 expected=0 replacement=1 : i64
+    store t26 -> local7
+    t27 = Eq local7, 0 : i1
     cbr t27 then @coroutine.registered_suspend.1 else @coroutine.completion_wait.1
   block coroutine.registration_propagate.1
-    throw local5
+    throw local6
     unreachable
   block coroutine.registration_claim_frame.1
     t28 = atomic_cmpxchg acq_rel/acquire param0 +16 expected=1 replacement=-1 : i64
-    store t28 -> local7
-    t29 = Eq local7, 1 : i1
+    store t28 -> local8
+    t29 = Eq local8, 1 : i1
     cbr t29 then @coroutine.registration_propagate.1 else @coroutine.protocol_error
   block coroutine.registration_protocol.1
-    atomic_store release local4 +24 6
+    atomic_store release local5 +24 6
     br @coroutine.protocol_error
   block coroutine.registration_protocol_claim_frame.1
     t30 = atomic_cmpxchg acq_rel/acquire param0 +16 expected=1 replacement=-1 : i64
-    store t30 -> local7
-    t31 = Eq local7, 1 : i1
+    store t30 -> local8
+    t31 = Eq local8, 1 : i1
     cbr t31 then @coroutine.registration_protocol.1 else @coroutine.protocol_error
   block coroutine.registration_backoff.1
     br @coroutine.registration_wait.1
   block coroutine.registration_check_completing_failure.1
-    t32 = atomic_load acquire local4 +24 : i64
+    t32 = atomic_load acquire local5 +24 : i64
     t33 = Eq t32, 3 : i1
     cbr t33 then @coroutine.registration_backoff.1 else @coroutine.registration_protocol_claim_frame.1
   block coroutine.registration_wait.1
-    t34 = atomic_load acquire local4 +24 : i64
+    t34 = atomic_load acquire local5 +24 : i64
     t35 = Eq t34, 2 : i1
     cbr t35 then @coroutine.registration_backoff.1 else @coroutine.registration_check_completing_failure.1
   block coroutine.registration_failure.1
     (t36, t37) = landingpad : (exception_record, ptr<raw>)
-    store t36 -> local10
-    store t37 -> local11
-    t38 = begin_catch local11 : ptr<managed>
-    store t38 -> local12
-    call t39 = direct-target4 sig=direct4 (ptr<raw>) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_materialize_exception(local12)
-    store t39 -> local5
+    store t36 -> local11
+    store t37 -> local12
+    t38 = begin_catch local12 : ptr<managed>
+    store t38 -> local13
+    call t39 = direct-target4 sig=direct4 (ptr<raw>) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_materialize_exception(local13)
+    store t39 -> local6
     end_catch
-    t40 = atomic_cmpxchg acq_rel/acquire local4 +24 expected=0 replacement=6 : i64
-    store t40 -> local6
-    t41 = Eq local6, 0 : i1
+    t40 = atomic_cmpxchg acq_rel/acquire local5 +24 expected=0 replacement=6 : i64
+    store t40 -> local7
+    t41 = Eq local7, 0 : i1
     cbr t41 then @coroutine.registration_claim_frame.1 else @coroutine.registration_wait.1
   block coroutine.resume.1
     t42 = heap_load param0 +40 : enum4
     t43 = enum_field e4 v1 f0 t42 : i64
-    store t43 -> local2
+    store t43 -> local3
     br @coroutine.post.1
   block coroutine.failure.1
     t44 = heap_load param0 +56 : enum5
@@ -8854,8 +8881,8 @@ Module
     br @entry
   block coroutine.protocol_error
     call t48 = direct-target5 sig=direct5 () -> ptr<managed> effect=managed-safepoint local-fn34()
-    store t48 -> local9
-    throw local9
+    store t48 -> local10
+    throw local10
     unreachable
   block coroutine.dispatch.1
     t49 = Eq param1, 1 : i1

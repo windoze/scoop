@@ -27,6 +27,7 @@ pub type GlobalId = Idx<Global>;
 pub type StructId = Idx<StructDef>;
 pub type EnumId = Idx<EnumDef>;
 pub type ClassId = Idx<ClassDef>;
+pub type ClassConstructorId = Idx<ClassConstructor>;
 pub type InterfaceId = Idx<InterfaceDef>;
 pub type LocalId = Idx<Local>;
 
@@ -228,6 +229,10 @@ pub struct Module {
     pub structs: Arena<StructDef>,
     pub enums: Arena<EnumDef>,
     pub classes: Arena<ClassDef>,
+    /// Hidden, fully typed allocation/initialization callables for every
+    /// instantiable declared class. Class construction expressions and
+    /// compiler exceptions reference these ids directly.
+    pub class_constructors: Arena<ClassConstructor>,
     pub interfaces: Arena<InterfaceDef>,
     pub top_level: Vec<FunctionId>,
     pub unit: TypeId,
@@ -248,6 +253,7 @@ pub struct Module {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ZeroArgClassConstructor {
     pub class: ClassId,
+    pub callable: ClassConstructorId,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -258,6 +264,10 @@ pub struct CompilerException {
 impl CompilerException {
     pub const fn class(self) -> ClassId {
         self.constructor.class
+    }
+
+    pub const fn callable(self) -> ClassConstructorId {
+        self.constructor.callable
     }
 }
 
@@ -474,6 +484,16 @@ pub struct ClassDef {
     pub interface_implementations: Vec<InterfaceImplementation>,
     pub methods: Vec<FunctionId>,
     pub span: Span,
+}
+
+/// Complete signature and owning class of one compiler-hidden constructor.
+/// This is a callable entity in LocalConcreteHir, not a request for MIR to
+/// discover or synthesize a target from the class name or id.
+#[derive(Debug, Clone)]
+pub struct ClassConstructor {
+    pub class: ClassId,
+    pub params: Vec<TypeId>,
+    pub return_type: TypeId,
 }
 
 #[derive(Debug, Clone)]
@@ -875,7 +895,7 @@ pub enum ExprKind {
         args: Vec<Expr>,
     },
     ClassInit {
-        class_id: ClassId,
+        constructor: ClassConstructorId,
         args: Vec<Expr>,
     },
     ConstructorParam(ConstructorParamId),

@@ -10,7 +10,16 @@ mod value_types;
 
 fn lower(module: &hir::Module) -> mir::Module {
     let concrete = scoop_hir_lower::concretize_export(module);
-    super::lower(&concrete)
+    let mut module = super::lower(&concrete);
+    // Handcrafted unit modules use hidden, valid exception shells to satisfy
+    // LocalConcreteHir's complete core contract. Keep their constructor
+    // functions out of unrelated top-level ordering/dump assertions.
+    let functions = &module.functions;
+    module.top_level.retain(|id| {
+        let name = &functions[*id].name;
+        !(name.starts_with("ctor.$") && name.ends_with("Protocol"))
+    });
+    module
 }
 
 fn dump(module: &mir::Module) -> String {
@@ -881,8 +890,8 @@ impl Harness {
         class
     }
 
-    /// A concrete zero-argument exception shell used by tests that
-    /// exercise compiler-generated exception edges.
+    /// A concrete zero-argument exception shell used by tests that exercise
+    /// compiler-generated exception edges.
     fn exception(&mut self, name: &str) -> hir::ClassId {
         self.class(name, hir::ClassModifier::Final, &[], None, &[])
     }
@@ -899,7 +908,10 @@ impl Harness {
         } else {
             self.class(
                 &format!("${name}Protocol"),
-                hir::ClassModifier::Abstract,
+                // LocalConcreteHir's exception contract always includes a
+                // real constructor callable. The protocol shell remains
+                // hidden from unrelated dump assertions by the test helper.
+                hir::ClassModifier::Final,
                 &[],
                 None,
                 &[],

@@ -655,10 +655,12 @@ Module
           Local consumer
   fun main @scoop_main() -> Unit
     bb0 entry
-      call $call.1: Producer$C3_DogX = @scoop.ctor.DogProducer direct
+      call $call.1: DogProducer = @scoop.ctor.DogProducer direct
       call producer: Producer$C6_AnimalX = @scoop.widen direct
         Type Producer$C3_DogX
-        Local $call.1
+        Retype Producer$C3_DogX
+          Type DogProducer
+          Local $call.1
       call $call.2: Animal = @scoop.Producer.get$C6_AnimalX interface Producer$C6_AnimalX[0]
         Type Producer$C6_AnimalX
         Local producer
@@ -667,20 +669,24 @@ Module
         FieldAccess 0
           Type Animal
           Local $call.2
-      call $call.3: Consumer$C6_AnimalX = @scoop.ctor.AnimalConsumer direct
+      call $call.3: AnimalConsumer = @scoop.ctor.AnimalConsumer direct
       call consumer: Consumer$C3_DogX = @scoop.narrow direct
         Type Consumer$C6_AnimalX
-        Local $call.3
+        Retype Consumer$C6_AnimalX
+          Type AnimalConsumer
+          Local $call.3
       call $call.4: Dog = @scoop.ctor.Dog direct
       call @scoop.Consumer.put$C3_DogX interface Consumer$C3_DogX[0]
         Type Consumer$C3_DogX
         Local consumer
         Type Dog
         Local $call.4
-      call $call.5: Producer$I = @scoop.ctor.IntProducer direct
+      call $call.5: IntProducer = @scoop.ctor.IntProducer direct
       call $call.6: Producer$Any = @scoop.boxResult direct
         Type Producer$I
-        Local $call.5
+        Retype Producer$I
+          Type IntProducer
+          Local $call.5
       call $call.7: Any = @scoop.Producer.get$Any interface Producer$Any[0]
         Type Producer$Any
         Local $call.6
@@ -719,19 +725,23 @@ Module
         IsInstance Int
           Type Any
           Local $call.11
-      call $call.12: Consumer$Any = @scoop.ctor.AnyConsumer direct
+      call $call.12: AnyConsumer = @scoop.ctor.AnyConsumer direct
       call $call.13: Consumer$I = @scoop.consumeInt direct
         Type Consumer$Any
-        Local $call.12
+        Retype Consumer$Any
+          Type AnyConsumer
+          Local $call.12
       call @scoop.Consumer.put$I interface Consumer$I[0]
         Type Consumer$I
         Local $call.13
         Type Int
         IntLiteral 9
-      call $call.14: Producer$I = @scoop.ctor.IntProducer direct
+      call $call.14: IntProducer = @scoop.ctor.IntProducer direct
       call $call.15: Int = @scoop.readOr$I direct
         Type Producer$I
-        Local $call.14
+        Retype Producer$I
+          Type IntProducer
+          Local $call.14
         Type Int
         IntLiteral 6
       call @scoop.println$I direct

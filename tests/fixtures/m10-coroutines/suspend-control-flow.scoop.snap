@@ -1127,7 +1127,7 @@ Module
       call orGate: BooleanGate = @scoop.ctor.BooleanGate direct
         Type Option$J14_Continuation$BX<Continuation$B>
         VariantConstruct Option$J14_Continuation$BX<Continuation$B> v1
-      call $call.1: SuspendTask$I = @scoop.ctor.ControlTask direct
+      call $call.1: ControlTask = @scoop.ctor.ControlTask direct
         Type IntGate
         Local argumentGate
         Type BooleanGate
@@ -1146,12 +1146,16 @@ Module
         Local andGate
         Type BooleanGate
         Local orGate
-      call $call.2: Continuation$I = @scoop.ctor.RecordingCompletion direct
+      call $call.2: RecordingCompletion = @scoop.ctor.RecordingCompletion direct
       call @scoop.coroutine.start$I direct
         Type SuspendTask$I
-        Local $call.1
+        Retype SuspendTask$I
+          Type ControlTask
+          Local $call.1
         Type Continuation$I
-        Local $call.2
+        Retype Continuation$I
+          Type RecordingCompletion
+          Local $call.2
       call @scoop.println$S direct
         Type String
         StringConst @scoop.str.5
@@ -5730,7 +5734,7 @@ Module
           IntLiteral 1
   fun waitForInt$drive @scoop.waitForInt$suspend$drive($frame: CoroutineFrame$scoop_waitForInt_suspend, $dispatch_state: Int) -> CoroutineStep$I
     bb0 entry
-      call $call.1: SuspendRegistration$I = @scoop.ctor.IntRegistration direct
+      call $call.1: IntRegistration = @scoop.ctor.IntRegistration direct
         Type IntGate
         Local gate
       atomic_store_release field=0
@@ -5759,7 +5763,9 @@ Module
     bb2 coroutine.register.1 unwind bb22
       call @scoop.SuspendRegistration.register$I interface SuspendRegistration$I[0]
         Type SuspendRegistration$I
-        Local $call.1
+        Retype SuspendRegistration$I
+          Type IntRegistration
+          Local $call.1
         Type CoroutineAdapter$scoop_waitForInt_suspend$1
         Local $safe_adapter.1
       goto bb14
@@ -6365,7 +6371,7 @@ Module
           IntLiteral 0
   fun waitForBoolean$drive @scoop.waitForBoolean$suspend$drive($frame: CoroutineFrame$scoop_waitForBoolean_suspend, $dispatch_state: Int) -> CoroutineStep$B
     bb0 entry
-      call $call.1: SuspendRegistration$B = @scoop.ctor.BooleanRegistration direct
+      call $call.1: BooleanRegistration = @scoop.ctor.BooleanRegistration direct
         Type BooleanGate
         Local gate
       atomic_store_release field=0
@@ -6394,7 +6400,9 @@ Module
     bb2 coroutine.register.1 unwind bb22
       call @scoop.SuspendRegistration.register$B interface SuspendRegistration$B[0]
         Type SuspendRegistration$B
-        Local $call.1
+        Retype SuspendRegistration$B
+          Type BooleanRegistration
+          Local $call.1
         Type CoroutineAdapter$scoop_waitForBoolean_suspend$1
         Local $safe_adapter.1
       goto bb14
@@ -7000,7 +7008,7 @@ Module
           IntLiteral 0
   fun waitForChoice$drive @scoop.waitForChoice$suspend$drive($frame: CoroutineFrame$scoop_waitForChoice_suspend, $dispatch_state: Int) -> CoroutineStep$E6_ChoiceX
     bb0 entry
-      call $call.1: SuspendRegistration$E6_ChoiceX = @scoop.ctor.ChoiceRegistration direct
+      call $call.1: ChoiceRegistration = @scoop.ctor.ChoiceRegistration direct
         Type ChoiceGate
         Local gate
       atomic_store_release field=0
@@ -7029,7 +7037,9 @@ Module
     bb2 coroutine.register.1 unwind bb22
       call @scoop.SuspendRegistration.register$E6_ChoiceX interface SuspendRegistration$E6_ChoiceX[0]
         Type SuspendRegistration$E6_ChoiceX
-        Local $call.1
+        Retype SuspendRegistration$E6_ChoiceX
+          Type ChoiceRegistration
+          Local $call.1
         Type CoroutineAdapter$scoop_waitForChoice_suspend$1
         Local $safe_adapter.1
       goto bb14

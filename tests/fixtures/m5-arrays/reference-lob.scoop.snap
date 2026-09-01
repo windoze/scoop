@@ -634,42 +634,52 @@ Module
           Local values
   fun main @scoop_main() -> Unit
     bb0 entry
-      call $call.1: Base = @scoop.ctor.Left direct
-      call $call.2: Base = @scoop.ctor.Right direct
+      call $call.1: Left = @scoop.ctor.Left direct
+      call $call.2: Right = @scoop.ctor.Right direct
       val bases: Array<Base>
         Type Array<Base>
         ArrayLiteral Array$C4_BaseX
           Type Base
-          Local $call.1
+          Retype Base
+            Type Left
+            Local $call.1
           Type Base
-          Local $call.2
+          Retype Base
+            Type Right
+            Local $call.2
       call $call.3: Int = @scoop.baseCount direct
         Type Array<Base>
         Local bases
       call @scoop.println$I direct
         Type Int
         Local $call.3
-      call $call.4: Named = @scoop.ctor.Cat direct
-      call $call.5: Named = @scoop.ctor.Dog direct
+      call $call.4: Cat = @scoop.ctor.Cat direct
+      call $call.5: Dog = @scoop.ctor.Dog direct
       val named: Array<Named>
         Type Array<Named>
         ArrayLiteral Array$J5_NamedX
           Type Named
-          Local $call.4
+          Retype Named
+            Type Cat
+            Local $call.4
           Type Named
-          Local $call.5
+          Retype Named
+            Type Dog
+            Local $call.5
       call $call.6: String = @scoop.secondName direct
         Type Array<Named>
         Local named
       call @scoop.println$S direct
         Type String
         Local $call.6
-      call $call.7: Any = @scoop.ctor.Left direct
+      call $call.7: Left = @scoop.ctor.Left direct
       val unrelated: Array<Any>
         Type Array<Any>
         ArrayLiteral Array$Any
           Type Any
-          Local $call.7
+          Retype Any
+            Type Left
+            Local $call.7
           Type Any
           StringConst @scoop.str.2
       call $call.8: Int = @scoop.anyCount direct

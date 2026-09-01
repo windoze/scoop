@@ -581,15 +581,19 @@ Module
       call gate: UnitGate = @scoop.ctor.UnitGate direct
         Type Option$J14_Continuation$UX<Continuation$U>
         VariantConstruct Option$J14_Continuation$UX<Continuation$U> v1
-      call $call.1: SuspendTask$U = @scoop.ctor.UnitTask direct
+      call $call.1: UnitTask = @scoop.ctor.UnitTask direct
         Type UnitGate
         Local gate
-      call $call.2: Continuation$U = @scoop.ctor.UnitCompletion direct
+      call $call.2: UnitCompletion = @scoop.ctor.UnitCompletion direct
       call @scoop.coroutine.start$U direct
         Type SuspendTask$U
-        Local $call.1
+        Retype SuspendTask$U
+          Type UnitTask
+          Local $call.1
         Type Continuation$U
-        Local $call.2
+        Retype Continuation$U
+          Type UnitCompletion
+          Local $call.2
       call @scoop.println$S direct
         Type String
         StringConst @scoop.str.3
@@ -736,7 +740,7 @@ Module
           IntLiteral 0
   fun UnitTask.run$drive @scoop.UnitTask.run$suspend$drive($frame: CoroutineFrame$scoop_UnitTask_run_suspend, $dispatch_state: Int) -> CoroutineStep$U
     bb0 entry
-      call $call.1: SuspendRegistration$U = @scoop.ctor.UnitRegistration direct
+      call $call.1: UnitRegistration = @scoop.ctor.UnitRegistration direct
         Type UnitGate
         FieldAccess 0
           Type UnitTask
@@ -770,7 +774,9 @@ Module
     bb2 coroutine.register.1 unwind bb22
       call @scoop.SuspendRegistration.register$U interface SuspendRegistration$U[0]
         Type SuspendRegistration$U
-        Local $call.1
+        Retype SuspendRegistration$U
+          Type UnitRegistration
+          Local $call.1
         Type CoroutineAdapter$scoop_UnitTask_run_suspend$1
         Local $safe_adapter.1
       goto bb14

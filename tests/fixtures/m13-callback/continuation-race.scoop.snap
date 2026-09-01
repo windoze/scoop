@@ -640,15 +640,19 @@ Module
             SizeOf Int
         Type Option$D25_ForeignCallback$FI_PUXRIXX<ForeignCallback$FI_PUXRIX>
         VariantConstruct Option$D25_ForeignCallback$FI_PUXRIXX<ForeignCallback$FI_PUXRIX> v1
-      call $call.1: SuspendTask$I = @scoop.ctor.RaceTask direct
+      call $call.1: RaceTask = @scoop.ctor.RaceTask direct
         Type RaceGate
         Local gate
-      call $call.2: Continuation$I = @scoop.ctor.RaceCompletion direct
+      call $call.2: RaceCompletion = @scoop.ctor.RaceCompletion direct
       call @scoop.coroutine.start$I direct
         Type SuspendTask$I
-        Local $call.1
+        Retype SuspendTask$I
+          Type RaceTask
+          Local $call.1
         Type Continuation$I
-        Local $call.2
+        Retype Continuation$I
+          Type RaceCompletion
+          Local $call.2
       call @scoop.println$S direct
         Type String
         StringConst @scoop.str.2
@@ -1098,7 +1102,7 @@ Module
           IntLiteral 0
   fun RaceTask.run$drive @scoop.RaceTask.run$suspend$drive($frame: CoroutineFrame$scoop_RaceTask_run_suspend, $dispatch_state: Int) -> CoroutineStep$I
     bb0 entry
-      call $call.1: SuspendRegistration$I = @scoop.ctor.RaceRegistration direct
+      call $call.1: RaceRegistration = @scoop.ctor.RaceRegistration direct
         Type RaceGate
         FieldAccess 0
           Type RaceTask
@@ -1129,7 +1133,9 @@ Module
     bb2 coroutine.register.1 unwind bb22
       call @scoop.SuspendRegistration.register$I interface SuspendRegistration$I[0]
         Type SuspendRegistration$I
-        Local $call.1
+        Retype SuspendRegistration$I
+          Type RaceRegistration
+          Local $call.1
         Type CoroutineAdapter$scoop_RaceTask_run_suspend$1
         Local $safe_adapter.1
       goto bb14

@@ -516,44 +516,49 @@ Module
         IntLiteral 100
   fun main @scoop_main() -> Unit
     bb0 entry
-      call base: Base = @scoop.ctor.Leaf direct
-      call $call.1: Int = @scoop.Base.dynamic virtual[0]
+      call $call.1: Leaf = @scoop.ctor.Leaf direct
+      val base: Base
         Type Base
-        Local base
-      call @scoop.println$I direct
-        Type Int
-        Local $call.1
-      call $call.2: Int = @scoop.Base.fixed direct
+        Retype Base
+          Type Leaf
+          Local $call.1
+      call $call.2: Int = @scoop.Base.dynamic virtual[0]
         Type Base
         Local base
       call @scoop.println$I direct
         Type Int
         Local $call.2
-      call $call.3: Int = @scoop.Base.closedLater virtual[1]
+      call $call.3: Int = @scoop.Base.fixed direct
         Type Base
         Local base
       call @scoop.println$I direct
         Type Int
         Local $call.3
-      call leaf: Leaf = @scoop.ctor.Leaf direct
-      call $call.4: Int = @scoop.Leaf.dynamic direct
-        Type Leaf
-        Local leaf
+      call $call.4: Int = @scoop.Base.closedLater virtual[1]
+        Type Base
+        Local base
       call @scoop.println$I direct
         Type Int
         Local $call.4
-      call $call.5: Int = @scoop.Base.fixed direct
+      call leaf: Leaf = @scoop.ctor.Leaf direct
+      call $call.5: Int = @scoop.Leaf.dynamic direct
         Type Leaf
         Local leaf
       call @scoop.println$I direct
         Type Int
         Local $call.5
-      call $call.6: Int = @scoop.Middle.closedLater direct
+      call $call.6: Int = @scoop.Base.fixed direct
         Type Leaf
         Local leaf
       call @scoop.println$I direct
         Type Int
         Local $call.6
+      call $call.7: Int = @scoop.Middle.closedLater direct
+        Type Leaf
+        Local leaf
+      call @scoop.println$I direct
+        Type Int
+        Local $call.7
       return
   fun println @scoop.println$I(value: Int) -> Unit
     bb0 entry
@@ -759,44 +764,46 @@ Module
   fun @scoop_main() -> void
     local %0 base: ptr<managed>
     local %1 leaf: ptr<managed>
-    local %2 $call.1: i64
+    local %2 $call.1: ptr<managed>
     local %3 $call.2: i64
     local %4 $call.3: i64
     local %5 $call.4: i64
     local %6 $call.5: i64
     local %7 $call.6: i64
+    local %8 $call.7: i64
   block entry
     call t0 = direct-target0 sig=direct0 () -> ptr<managed> effect=managed-safepoint local-fn29()
-    store t0 -> local0
+    store t0 -> local2
+    store local2 -> local0
     t1 = heap_load local0 +0 : ptr<metadata>
     t2 = heap_load t1 +40 : ptr<metadata>
     call t3 = direct-target1 sig=direct1 (ptr<managed>) -> i64 effect=managed-safepoint dispatch[Virtual:0] t2(local0)
-    store t3 -> local2
-    call void-target0 sig=void0 (i64) effect=managed-safepoint local-fn19(local2)
+    store t3 -> local3
+    call void-target0 sig=void0 (i64) effect=managed-safepoint local-fn19(local3)
     t4 = aggregate () : {}
     call t5 = direct-target2 sig=direct2 (ptr<managed>) -> i64 effect=managed-safepoint local-fn13(local0)
-    store t5 -> local3
-    call void-target1 sig=void1 (i64) effect=managed-safepoint local-fn19(local3)
+    store t5 -> local4
+    call void-target1 sig=void1 (i64) effect=managed-safepoint local-fn19(local4)
     t6 = aggregate () : {}
     t7 = heap_load local0 +0 : ptr<metadata>
     t8 = heap_load t7 +40 : ptr<metadata>
     call t9 = direct-target3 sig=direct3 (ptr<managed>) -> i64 effect=managed-safepoint dispatch[Virtual:1] t8(local0)
-    store t9 -> local4
-    call void-target2 sig=void2 (i64) effect=managed-safepoint local-fn19(local4)
+    store t9 -> local5
+    call void-target2 sig=void2 (i64) effect=managed-safepoint local-fn19(local5)
     t10 = aggregate () : {}
     call t11 = direct-target4 sig=direct4 () -> ptr<managed> effect=managed-safepoint local-fn29()
     store t11 -> local1
     call t12 = direct-target5 sig=direct5 (ptr<managed>) -> i64 effect=managed-safepoint local-fn17(local1)
-    store t12 -> local5
-    call void-target3 sig=void3 (i64) effect=managed-safepoint local-fn19(local5)
+    store t12 -> local6
+    call void-target3 sig=void3 (i64) effect=managed-safepoint local-fn19(local6)
     t13 = aggregate () : {}
     call t14 = direct-target6 sig=direct6 (ptr<managed>) -> i64 effect=managed-safepoint local-fn13(local1)
-    store t14 -> local6
-    call void-target4 sig=void4 (i64) effect=managed-safepoint local-fn19(local6)
+    store t14 -> local7
+    call void-target4 sig=void4 (i64) effect=managed-safepoint local-fn19(local7)
     t15 = aggregate () : {}
     call t16 = direct-target7 sig=direct7 (ptr<managed>) -> i64 effect=managed-safepoint local-fn16(local1)
-    store t16 -> local7
-    call void-target5 sig=void5 (i64) effect=managed-safepoint local-fn19(local7)
+    store t16 -> local8
+    call void-target5 sig=void5 (i64) effect=managed-safepoint local-fn19(local8)
     t17 = aggregate () : {}
     ret
   fun @scoop.println$I(i64) -> void

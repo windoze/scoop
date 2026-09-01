@@ -160,6 +160,7 @@ impl<'a> CfgLowerer<'a> {
             smir::StatementKind::ValDecl { local, init } => {
                 if let smir::ExprKind::Call(call) = &init.kind
                     && call.return_ty != mir::Type::Unit
+                    && call.return_ty == init.ty
                 {
                     self.lower_call(call, Some(*local), span);
                     return;
@@ -685,7 +686,19 @@ impl<'a> CfgLowerer<'a> {
                 receiver: Box::new(self.lower_expr(receiver, span)),
                 index: *index,
             },
-            smir::ExprKind::Call(call) => return self.lower_call(call, None, span),
+            smir::ExprKind::Call(call) => {
+                let value = self.lower_call(call, None, span);
+                if value.ty == expr.ty {
+                    return value;
+                }
+                return mir::Expr::new(
+                    expr.ty.clone(),
+                    mir::ExprKind::Retype {
+                        operand: Box::new(value),
+                        ty: Box::new(expr.ty.clone()),
+                    },
+                );
+            }
             smir::ExprKind::Box(operand) => {
                 mir::ExprKind::Box(Box::new(self.lower_expr(operand, span)))
             }

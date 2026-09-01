@@ -661,15 +661,19 @@ Module
             SizeOf Int
         Type Option$D25_ForeignCallback$FI_PUXRIXX<ForeignCallback$FI_PUXRIX>
         VariantConstruct Option$D25_ForeignCallback$FI_PUXRIXX<ForeignCallback$FI_PUXRIX> v1
-      call $call.1: SuspendTask$I = @scoop.ctor.FailureTask direct
+      call $call.1: FailureTask = @scoop.ctor.FailureTask direct
         Type FailureGate
         Local gate
-      call $call.2: Continuation$I = @scoop.ctor.FailureCompletion direct
+      call $call.2: FailureCompletion = @scoop.ctor.FailureCompletion direct
       call @scoop.coroutine.start$I direct
         Type SuspendTask$I
-        Local $call.1
+        Retype SuspendTask$I
+          Type FailureTask
+          Local $call.1
         Type Continuation$I
-        Local $call.2
+        Retype Continuation$I
+          Type FailureCompletion
+          Local $call.2
       call @scoop.println$S direct
         Type String
         StringConst @scoop.str.2
@@ -737,7 +741,7 @@ Module
   fun $lambda.0 @scoop.$lambda.0($closure: (Int) -> Int, value: Int) -> Int
     bb0 entry
       call @scoop_rt_gc_collect direct
-      call $call.1: Throwable = @scoop.ctor.ForeignResumeError direct
+      call $call.1: ForeignResumeError = @scoop.ctor.ForeignResumeError direct
         Type String
         StringConst @scoop.str.3
       call @scoop.Continuation.resumeWithException$I interface Continuation$I[1]
@@ -746,7 +750,9 @@ Module
           Type (Int) -> Int
           Local $closure
         Type Throwable
-        Local $call.1
+        Retype Throwable
+          Type ForeignResumeError
+          Local $call.1
       return
         Type Int
         Local value
@@ -1195,7 +1201,7 @@ Module
     bb7 try.end.7
       unreachable
     bb8 try.body.8 unwind bb1
-      call $call.1: SuspendRegistration$I = @scoop.ctor.FailureRegistration direct
+      call $call.1: FailureRegistration = @scoop.ctor.FailureRegistration direct
         Type FailureGate
         FieldAccess 0
           Type FailureTask
@@ -1267,7 +1273,9 @@ Module
     bb15 coroutine.register.1 unwind bb35
       call @scoop.SuspendRegistration.register$I interface SuspendRegistration$I[0]
         Type SuspendRegistration$I
-        Local $call.1
+        Retype SuspendRegistration$I
+          Type FailureRegistration
+          Local $call.1
         Type CoroutineAdapter$scoop_FailureTask_run_suspend$1
         Local $safe_adapter.1
       goto bb27

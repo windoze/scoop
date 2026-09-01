@@ -1535,12 +1535,14 @@ Module
       val task: suspend () -> Int
         Type suspend () -> Int
         ClosureAlloc cc12 $Closure$lambda12
-      call $call.1: Continuation$I = @scoop.ctor.Done direct
+      call $call.1: Done = @scoop.ctor.Done direct
       call @scoop.startCoroutine$I.g8 direct
         Type suspend () -> Int
         Local task
         Type Continuation$I
-        Local $call.1
+        Retype Continuation$I
+          Type Done
+          Local $call.1
       call @scoop.println$S direct
         Type String
         StringConst @scoop.str.3
@@ -1550,12 +1552,14 @@ Module
       call $call.2: suspend () -> Int = @scoop.makeTask direct
         Type Gate
         Local gate
-      call $call.3: Continuation$I = @scoop.ctor.Done direct
+      call $call.3: Done = @scoop.ctor.Done direct
       call @scoop.startCoroutine$I.g8 direct
         Type suspend () -> Int
         Local $call.2
         Type Continuation$I
-        Local $call.3
+        Retype Continuation$I
+          Type Done
+          Local $call.3
       call @scoop.println$S direct
         Type String
         StringConst @scoop.str.4
@@ -1568,12 +1572,14 @@ Module
       val top: suspend () -> Int
         Type suspend () -> Int
         ClosureAlloc cc30 $Closure$reference3
-      call $call.4: Continuation$I = @scoop.ctor.Done direct
+      call $call.4: Done = @scoop.ctor.Done direct
       call @scoop.startCoroutine$I.g8 direct
         Type suspend () -> Int
         Local top
         Type Continuation$I
-        Local $call.4
+        Retype Continuation$I
+          Type Done
+          Local $call.4
       val erased: Any
         Type Any
         Retype Any
@@ -1605,39 +1611,47 @@ Module
         ClosureAlloc cc35 $Closure$dynamic_adapter$SRIX
           Type Any
           Local $cast.1
-      call $call.6: Continuation$I = @scoop.ctor.Done direct
+      call $call.6: Done = @scoop.ctor.Done direct
       call @scoop.startCoroutine$I.g8 direct
         Type suspend () -> Int
         Local checked
         Type Continuation$I
-        Local $call.6
+        Retype Continuation$I
+          Type Done
+          Local $call.6
       val anonymous: suspend () -> Int
         Type suspend () -> Int
         ClosureAlloc cc25 $Closure$anonymous0
-      call $call.7: Continuation$I = @scoop.ctor.Done direct
+      call $call.7: Done = @scoop.ctor.Done direct
       call @scoop.startCoroutine$I.g8 direct
         Type suspend () -> Int
         Local anonymous
         Type Continuation$I
-        Local $call.7
+        Retype Continuation$I
+          Type Done
+          Local $call.7
       val unitTask: suspend () -> Unit
         Type suspend () -> Unit
         ClosureAlloc cc13 $Closure$lambda13
-      call $call.8: Continuation$U = @scoop.ctor.UnitDone direct
+      call $call.8: UnitDone = @scoop.ctor.UnitDone direct
       call @scoop.startCoroutine$U.g8 direct
         Type suspend () -> Unit
         Local unitTask
         Type Continuation$U
-        Local $call.8
+        Retype Continuation$U
+          Type UnitDone
+          Local $call.8
       val failing: suspend () -> Int
         Type suspend () -> Int
         ClosureAlloc cc26 $Closure$anonymous1
-      call $call.9: Continuation$I = @scoop.ctor.Done direct
+      call $call.9: Done = @scoop.ctor.Done direct
       call @scoop.startCoroutine$I.g8 direct
         Type suspend () -> Int
         Local failing
         Type Continuation$I
-        Local $call.9
+        Retype Continuation$I
+          Type Done
+          Local $call.9
       call boundGate: Gate = @scoop.ctor.Gate direct
         Type Option$J14_Continuation$IX<Continuation$I>
         VariantConstruct Option$J14_Continuation$IX<Continuation$I> v1
@@ -1649,12 +1663,14 @@ Module
         ClosureAlloc cc31 $Closure$reference4
           Type Worker
           Local $call.10
-      call $call.11: Continuation$I = @scoop.ctor.Done direct
+      call $call.11: Done = @scoop.ctor.Done direct
       call @scoop.startCoroutine$I.g8 direct
         Type suspend () -> Int
         Local bound
         Type Continuation$I
-        Local $call.11
+        Retype Continuation$I
+          Type Done
+          Local $call.11
       call @scoop.Gate.complete direct
         Type Gate
         Local boundGate
@@ -1663,20 +1679,27 @@ Module
       call interfaceGate: Gate = @scoop.ctor.Gate direct
         Type Option$J14_Continuation$IX<Continuation$I>
         VariantConstruct Option$J14_Continuation$IX<Continuation$I> v1
-      call interfaceValue: AsyncValue = @scoop.ctor.AsyncWorker direct
+      call $call.12: AsyncWorker = @scoop.ctor.AsyncWorker direct
         Type Gate
         Local interfaceGate
+      val interfaceValue: AsyncValue
+        Type AsyncValue
+        Retype AsyncValue
+          Type AsyncWorker
+          Local $call.12
       val interfaceBound: suspend () -> Int
         Type suspend () -> Int
         ClosureAlloc cc32 $Closure$reference5
           Type AsyncValue
           Local interfaceValue
-      call $call.12: Continuation$I = @scoop.ctor.Done direct
+      call $call.13: Done = @scoop.ctor.Done direct
       call @scoop.startCoroutine$I.g8 direct
         Type suspend () -> Int
         Local interfaceBound
         Type Continuation$I
-        Local $call.12
+        Retype Continuation$I
+          Type Done
+          Local $call.13
       call @scoop.Gate.complete direct
         Type Gate
         Local interfaceGate
@@ -1685,85 +1708,105 @@ Module
       call localGate: Gate = @scoop.ctor.Gate direct
         Type Option$J14_Continuation$IX<Continuation$I>
         VariantConstruct Option$J14_Continuation$IX<Continuation$I> v1
-      call $call.13: suspend () -> Int = @scoop.localTask direct
+      call $call.14: suspend () -> Int = @scoop.localTask direct
         Type Gate
         Local localGate
-      call $call.14: Continuation$I = @scoop.ctor.Done direct
+      call $call.15: Done = @scoop.ctor.Done direct
       call @scoop.startCoroutine$I.g8 direct
         Type suspend () -> Int
-        Local $call.13
-        Type Continuation$I
         Local $call.14
+        Type Continuation$I
+        Retype Continuation$I
+          Type Done
+          Local $call.15
       call @scoop.Gate.complete direct
         Type Gate
         Local localGate
         Type Int
         IntLiteral 47
-      call $call.15: suspend () -> Int = @scoop.varianceTask direct
-      call $call.16: Continuation$I = @scoop.ctor.Done direct
+      call $call.16: suspend () -> Int = @scoop.varianceTask direct
+      call $call.17: Done = @scoop.ctor.Done direct
       call @scoop.startCoroutine$I.g8 direct
         Type suspend () -> Int
-        Local $call.15
-        Type Continuation$I
         Local $call.16
-      call $call.17: suspend () -> Int = @scoop.dynamicVarianceTask direct
-      call $call.18: Continuation$I = @scoop.ctor.Done direct
+        Type Continuation$I
+        Retype Continuation$I
+          Type Done
+          Local $call.17
+      call $call.18: suspend () -> Int = @scoop.dynamicVarianceTask direct
+      call $call.19: Done = @scoop.ctor.Done direct
       call @scoop.startCoroutine$I.g8 direct
         Type suspend () -> Int
-        Local $call.17
-        Type Continuation$I
         Local $call.18
-      call $call.19: suspend () -> Int = @scoop.constantTask$I direct
+        Type Continuation$I
+        Retype Continuation$I
+          Type Done
+          Local $call.19
+      call $call.20: suspend () -> Int = @scoop.constantTask$I direct
         Type Int
         IntLiteral 48
-      call $call.20: Continuation$I = @scoop.ctor.Done direct
+      call $call.21: Done = @scoop.ctor.Done direct
       call @scoop.startCoroutine$I.g8 direct
         Type suspend () -> Int
-        Local $call.19
-        Type Continuation$I
         Local $call.20
-      call $call.21: Continuation$I = @scoop.ctor.Done direct
+        Type Continuation$I
+        Retype Continuation$I
+          Type Done
+          Local $call.21
+      call $call.22: Done = @scoop.ctor.Done direct
       call @scoop.startCoroutine$I.g8 direct
         Type suspend () -> Int
         ClosureAlloc cc14 $Closure$lambda14
         Type Continuation$I
-        Local $call.21
-      call $call.22: Continuation$I = @scoop.ctor.Done direct
+        Retype Continuation$I
+          Type Done
+          Local $call.22
+      call $call.23: Done = @scoop.ctor.Done direct
       call @scoop.startCoroutine$I.g8 direct
         Type suspend () -> Int
         ClosureAlloc cc15 $Closure$lambda15
         Type Continuation$I
-        Local $call.22
-      call $call.23: Continuation$I = @scoop.ctor.Done direct
+        Retype Continuation$I
+          Type Done
+          Local $call.23
+      call $call.24: Done = @scoop.ctor.Done direct
       call @scoop.startCoroutine$I.g8 direct
         Type suspend () -> Int
         ClosureAlloc cc16 $Closure$lambda16
         Type Continuation$I
-        Local $call.23
-      call $call.24: Continuation$I = @scoop.ctor.Done direct
+        Retype Continuation$I
+          Type Done
+          Local $call.24
+      call $call.25: Done = @scoop.ctor.Done direct
       call @scoop.startCoroutine$I.g8 direct
         Type suspend () -> Int
         ClosureAlloc cc17 $Closure$lambda17
         Type Continuation$I
-        Local $call.24
-      call $call.25: Continuation$I = @scoop.ctor.Done direct
+        Retype Continuation$I
+          Type Done
+          Local $call.25
+      call $call.26: Done = @scoop.ctor.Done direct
       call @scoop.startCoroutine$I.g8 direct
         Type suspend () -> Int
         ClosureAlloc cc18 $Closure$lambda18
         Type Continuation$I
-        Local $call.25
+        Retype Continuation$I
+          Type Done
+          Local $call.26
       call nestedGate: Gate = @scoop.ctor.Gate direct
         Type Option$J14_Continuation$IX<Continuation$I>
         VariantConstruct Option$J14_Continuation$IX<Continuation$I> v1
-      call $call.26: suspend () -> Int = @scoop.nestedTask direct
+      call $call.27: suspend () -> Int = @scoop.nestedTask direct
         Type Gate
         Local nestedGate
-      call $call.27: Continuation$I = @scoop.ctor.Done direct
+      call $call.28: Done = @scoop.ctor.Done direct
       call @scoop.startCoroutine$I.g8 direct
         Type suspend () -> Int
-        Local $call.26
-        Type Continuation$I
         Local $call.27
+        Type Continuation$I
+        Retype Continuation$I
+          Type Done
+          Local $call.28
       call @scoop_rt_gc_collect direct
       call @scoop.Gate.complete direct
         Type Gate
@@ -1773,21 +1816,25 @@ Module
       call failureGate: Gate = @scoop.ctor.Gate direct
         Type Option$J14_Continuation$IX<Continuation$I>
         VariantConstruct Option$J14_Continuation$IX<Continuation$I> v1
-      call $call.28: suspend () -> Int = @scoop.failureTask direct
+      call $call.29: suspend () -> Int = @scoop.failureTask direct
         Type Gate
         Local failureGate
-      call $call.29: Continuation$I = @scoop.ctor.Done direct
+      call $call.30: Done = @scoop.ctor.Done direct
       call @scoop.startCoroutine$I.g8 direct
         Type suspend () -> Int
-        Local $call.28
-        Type Continuation$I
         Local $call.29
-      call $call.30: Throwable = @scoop.ctor.ArithmeticException direct
+        Type Continuation$I
+        Retype Continuation$I
+          Type Done
+          Local $call.30
+      call $call.31: ArithmeticException = @scoop.ctor.ArithmeticException direct
       call @scoop.Gate.fail direct
         Type Gate
         Local failureGate
         Type Throwable
-        Local $call.30
+        Retype Throwable
+          Type ArithmeticException
+          Local $call.31
       return
   fun $lambda.1 @scoop.$lambda.1($closure: (Continuation$I) -> Unit, continuation: Continuation$I) -> Unit
     bb0 entry
@@ -1962,12 +2009,14 @@ Module
       return
   fun $lambda.9 @scoop.$lambda.9($closure: (Continuation$I) -> Unit, continuation: Continuation$I) -> Unit
     bb0 entry
-      call $call.1: Throwable = @scoop.ctor.ArithmeticException direct
+      call $call.1: ArithmeticException = @scoop.ctor.ArithmeticException direct
       call @scoop.Continuation.resumeWithException$I interface Continuation$I[1]
         Type Continuation$I
         Local continuation
         Type Throwable
-        Local $call.1
+        Retype Throwable
+          Type ArithmeticException
+          Local $call.1
       return
   fun $lambda.10 @scoop.$lambda.10($closure: (Continuation$I) -> Unit, continuation: Continuation$I) -> Unit
     bb0 entry
@@ -18853,6 +18902,7 @@ Module
     local %44 $call.28: ptr<managed>
     local %45 $call.29: ptr<managed>
     local %46 $call.30: ptr<managed>
+    local %47 $call.31: ptr<managed>
   block entry
     call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td121, 24)
     t1 = function_address @scoop.$lambda.16$suspend : ptr
@@ -18954,15 +19004,16 @@ Module
     call t47 = direct-target22 sig=direct22 (enum0) -> ptr<managed> effect=managed-safepoint local-fn87(t46)
     store t47 -> local10
     call t48 = direct-target23 sig=direct23 (ptr<managed>) -> ptr<managed> effect=managed-safepoint local-fn89(local10)
-    store t48 -> local11
+    store t48 -> local28
+    store local28 -> local11
     call t49 = direct-target24 sig=direct24 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td141, 32)
     t50 = function_address @scoop.$reference.5$suspend : ptr
     heap_store t49 +16 t50
     heap_store t49 +24 local11
     store t49 -> local12
     call t51 = direct-target25 sig=direct25 () -> ptr<managed> effect=managed-safepoint local-fn85()
-    store t51 -> local28
-    call void-target14 sig=void14 (ptr<managed>, ptr<managed>) effect=managed-safepoint local-fn63(local12, local28)
+    store t51 -> local29
+    call void-target14 sig=void14 (ptr<managed>, ptr<managed>) effect=managed-safepoint local-fn63(local12, local29)
     t52 = aggregate () : {}
     call void-target15 sig=void15 (ptr<managed>, i64) effect=managed-safepoint local-fn16(local10, 50)
     t53 = aggregate () : {}
@@ -18970,74 +19021,74 @@ Module
     call t55 = direct-target26 sig=direct26 (enum0) -> ptr<managed> effect=managed-safepoint local-fn87(t54)
     store t55 -> local13
     call t56 = direct-target27 sig=direct27 (ptr<managed>) -> ptr<managed> effect=managed-safepoint local-fn23(local13)
-    store t56 -> local29
+    store t56 -> local30
     call t57 = direct-target28 sig=direct28 () -> ptr<managed> effect=managed-safepoint local-fn85()
-    store t57 -> local30
-    call void-target16 sig=void16 (ptr<managed>, ptr<managed>) effect=managed-safepoint local-fn63(local29, local30)
+    store t57 -> local31
+    call void-target16 sig=void16 (ptr<managed>, ptr<managed>) effect=managed-safepoint local-fn63(local30, local31)
     t58 = aggregate () : {}
     call void-target17 sig=void17 (ptr<managed>, i64) effect=managed-safepoint local-fn16(local13, 47)
     t59 = aggregate () : {}
     call t60 = direct-target29 sig=direct29 () -> ptr<managed> effect=managed-safepoint local-fn24()
-    store t60 -> local31
+    store t60 -> local32
     call t61 = direct-target30 sig=direct30 () -> ptr<managed> effect=managed-safepoint local-fn85()
-    store t61 -> local32
-    call void-target18 sig=void18 (ptr<managed>, ptr<managed>) effect=managed-safepoint local-fn63(local31, local32)
+    store t61 -> local33
+    call void-target18 sig=void18 (ptr<managed>, ptr<managed>) effect=managed-safepoint local-fn63(local32, local33)
     t62 = aggregate () : {}
     call t63 = direct-target31 sig=direct31 () -> ptr<managed> effect=managed-safepoint local-fn25()
-    store t63 -> local33
+    store t63 -> local34
     call t64 = direct-target32 sig=direct32 () -> ptr<managed> effect=managed-safepoint local-fn85()
-    store t64 -> local34
-    call void-target19 sig=void19 (ptr<managed>, ptr<managed>) effect=managed-safepoint local-fn63(local33, local34)
+    store t64 -> local35
+    call void-target19 sig=void19 (ptr<managed>, ptr<managed>) effect=managed-safepoint local-fn63(local34, local35)
     t65 = aggregate () : {}
     call t66 = direct-target33 sig=direct33 (i64) -> ptr<managed> effect=managed-safepoint local-fn66(48)
-    store t66 -> local35
+    store t66 -> local36
     call t67 = direct-target34 sig=direct34 () -> ptr<managed> effect=managed-safepoint local-fn85()
-    store t67 -> local36
-    call void-target20 sig=void20 (ptr<managed>, ptr<managed>) effect=managed-safepoint local-fn63(local35, local36)
+    store t67 -> local37
+    call void-target20 sig=void20 (ptr<managed>, ptr<managed>) effect=managed-safepoint local-fn63(local36, local37)
     t68 = aggregate () : {}
     call t69 = direct-target35 sig=direct35 () -> ptr<managed> effect=managed-safepoint local-fn85()
-    store t69 -> local37
+    store t69 -> local38
     call t70 = direct-target36 sig=direct36 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td123, 24)
     t71 = function_address @scoop.$lambda.18$suspend : ptr
     heap_store t70 +16 t71
-    call void-target21 sig=void21 (ptr<managed>, ptr<managed>) effect=managed-safepoint local-fn63(t70, local37)
+    call void-target21 sig=void21 (ptr<managed>, ptr<managed>) effect=managed-safepoint local-fn63(t70, local38)
     t72 = aggregate () : {}
     call t73 = direct-target37 sig=direct37 () -> ptr<managed> effect=managed-safepoint local-fn85()
-    store t73 -> local38
+    store t73 -> local39
     call t74 = direct-target38 sig=direct38 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td124, 24)
     t75 = function_address @scoop.$lambda.19$suspend : ptr
     heap_store t74 +16 t75
-    call void-target22 sig=void22 (ptr<managed>, ptr<managed>) effect=managed-safepoint local-fn63(t74, local38)
+    call void-target22 sig=void22 (ptr<managed>, ptr<managed>) effect=managed-safepoint local-fn63(t74, local39)
     t76 = aggregate () : {}
     call t77 = direct-target39 sig=direct39 () -> ptr<managed> effect=managed-safepoint local-fn85()
-    store t77 -> local39
+    store t77 -> local40
     call t78 = direct-target40 sig=direct40 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td125, 24)
     t79 = function_address @scoop.$lambda.20$suspend : ptr
     heap_store t78 +16 t79
-    call void-target23 sig=void23 (ptr<managed>, ptr<managed>) effect=managed-safepoint local-fn63(t78, local39)
+    call void-target23 sig=void23 (ptr<managed>, ptr<managed>) effect=managed-safepoint local-fn63(t78, local40)
     t80 = aggregate () : {}
     call t81 = direct-target41 sig=direct41 () -> ptr<managed> effect=managed-safepoint local-fn85()
-    store t81 -> local40
+    store t81 -> local41
     call t82 = direct-target42 sig=direct42 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td126, 24)
     t83 = function_address @scoop.$lambda.21$suspend : ptr
     heap_store t82 +16 t83
-    call void-target24 sig=void24 (ptr<managed>, ptr<managed>) effect=managed-safepoint local-fn63(t82, local40)
+    call void-target24 sig=void24 (ptr<managed>, ptr<managed>) effect=managed-safepoint local-fn63(t82, local41)
     t84 = aggregate () : {}
     call t85 = direct-target43 sig=direct43 () -> ptr<managed> effect=managed-safepoint local-fn85()
-    store t85 -> local41
+    store t85 -> local42
     call t86 = direct-target44 sig=direct44 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td127, 24)
     t87 = function_address @scoop.$lambda.22$suspend : ptr
     heap_store t86 +16 t87
-    call void-target25 sig=void25 (ptr<managed>, ptr<managed>) effect=managed-safepoint local-fn63(t86, local41)
+    call void-target25 sig=void25 (ptr<managed>, ptr<managed>) effect=managed-safepoint local-fn63(t86, local42)
     t88 = aggregate () : {}
     t89 = enum_wrap e0 v1 () : enum0
     call t90 = direct-target45 sig=direct45 (enum0) -> ptr<managed> effect=managed-safepoint local-fn87(t89)
     store t90 -> local14
     call t91 = direct-target46 sig=direct46 (ptr<managed>) -> ptr<managed> effect=managed-safepoint local-fn32(local14)
-    store t91 -> local42
+    store t91 -> local43
     call t92 = direct-target47 sig=direct47 () -> ptr<managed> effect=managed-safepoint local-fn85()
-    store t92 -> local43
-    call void-target26 sig=void26 (ptr<managed>, ptr<managed>) effect=managed-safepoint local-fn63(local42, local43)
+    store t92 -> local44
+    call void-target26 sig=void26 (ptr<managed>, ptr<managed>) effect=managed-safepoint local-fn63(local43, local44)
     t93 = aggregate () : {}
     call void-target27 sig=void27 () effect=managed-safepoint runtime @scoop_rt_gc_collect()
     t94 = aggregate () : {}
@@ -19047,14 +19098,14 @@ Module
     call t97 = direct-target48 sig=direct48 (enum0) -> ptr<managed> effect=managed-safepoint local-fn87(t96)
     store t97 -> local15
     call t98 = direct-target49 sig=direct49 (ptr<managed>) -> ptr<managed> effect=managed-safepoint local-fn26(local15)
-    store t98 -> local44
+    store t98 -> local45
     call t99 = direct-target50 sig=direct50 () -> ptr<managed> effect=managed-safepoint local-fn85()
-    store t99 -> local45
-    call void-target29 sig=void29 (ptr<managed>, ptr<managed>) effect=managed-safepoint local-fn63(local44, local45)
+    store t99 -> local46
+    call void-target29 sig=void29 (ptr<managed>, ptr<managed>) effect=managed-safepoint local-fn63(local45, local46)
     t100 = aggregate () : {}
     call t101 = direct-target51 sig=direct51 () -> ptr<managed> effect=managed-safepoint local-fn82()
-    store t101 -> local46
-    call void-target30 sig=void30 (ptr<managed>, ptr<managed>) effect=managed-safepoint local-fn17(local15, local46)
+    store t101 -> local47
+    call void-target30 sig=void30 (ptr<managed>, ptr<managed>) effect=managed-safepoint local-fn17(local15, local47)
     t102 = aggregate () : {}
     ret
   fun @scoop.$lambda.1(ptr<managed>, ptr<managed>) -> void

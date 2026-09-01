@@ -22,8 +22,8 @@ pub(super) struct BodyLowerer<'a> {
     pub(super) foreign_callback_bridges: &'a mut Arena<mir::ForeignCallbackBridge>,
     pub(super) foreign_callback_by_registration:
         &'a mut HashMap<hir::ForeignCallbackRegistrationId, mir::ForeignCallbackBridgeId>,
-    /// HIR class -> its constructor function (`ClassInit` calls).
-    pub(super) ctors: &'a HashMap<hir::ClassId, mir::FunctionId>,
+    /// Local-concrete constructor callable -> MIR function.
+    pub(super) ctors: &'a HashMap<hir::ClassConstructorId, mir::FunctionId>,
     pub(super) strings: &'a mut Arena<mir::StringConst>,
     pub(super) functions: &'a mut Arena<mir::Function>,
     pub(super) top_level: &'a mut Vec<mir::FunctionId>,
@@ -694,9 +694,10 @@ impl BodyLowerer<'_> {
     /// constructor target is complete in LocalConcrete HIR, so this operation
     /// only transposes typed identities.
     fn throw_builtin(&mut self, exception: hir::CompilerException, span: Span) -> smir::Statement {
-        let class = exception.class();
-        let ctor = self.ctors[&class];
-        let exception_ty = mir::Type::Class(self.class_map[&class]);
+        let constructor = &self.module.class_constructors[exception.callable()];
+        debug_assert!(constructor.params.is_empty());
+        let ctor = self.ctors[&exception.callable()];
+        let exception_ty = self.lower_type(constructor.return_type);
         smir::Statement {
             kind: smir::StatementKind::Throw(smir::Expr::new(
                 exception_ty.clone(),
@@ -1112,15 +1113,16 @@ impl BodyLowerer<'_> {
             // Class construction calls the class's constructor
             // function (`scoop.ctor.<Class>`); the raw allocation and
             // field initialization live inside it (see `lower_ctor`).
-            hir::ExprKind::ClassInit { class_id, args } => {
-                let ctor = self.ctors[class_id];
+            hir::ExprKind::ClassInit { constructor, args } => {
+                let ctor = self.ctors[constructor];
+                let return_type = self.module.class_constructors[*constructor].return_type;
                 smir::ExprKind::Call(smir::Call {
                     target: mir::CallTarget {
                         kind: mir::CallKind::Direct,
                         callee: mir::Callee::User(ctor),
                     },
                     args: args.iter().map(|arg| self.lower_expr(arg)).collect(),
-                    return_ty: self.lower_type(expr.ty),
+                    return_ty: self.lower_type(return_type),
                 })
             }
             hir::ExprKind::VariantConstruct { variant, args, .. } => {

@@ -629,34 +629,48 @@ Module
       return
   fun main @scoop_main() -> Unit
     bb0 entry
-      call immediate: SuspendTask$C6_AnimalX = @scoop.ctor.ImmediateDogTask direct
-      call $call.1: Continuation$C6_AnimalX = @scoop.ctor.AnimalCompletion direct
+      call $call.1: ImmediateDogTask = @scoop.ctor.ImmediateDogTask direct
+      val immediate: SuspendTask$C6_AnimalX
+        Type SuspendTask$C6_AnimalX
+        Retype SuspendTask$C6_AnimalX
+          Type ImmediateDogTask
+          Local $call.1
+      call $call.2: AnimalCompletion = @scoop.ctor.AnimalCompletion direct
       call @scoop.coroutine.start$C6_AnimalX direct
         Type SuspendTask$C6_AnimalX
         Local immediate
         Type Continuation$C6_AnimalX
-        Local $call.1
+        Retype Continuation$C6_AnimalX
+          Type AnimalCompletion
+          Local $call.2
       call gate: DogGate = @scoop.ctor.DogGate direct
         Type Option$J20_Continuation$C3_DogXX<Continuation$C3_DogX>
         VariantConstruct Option$J20_Continuation$C3_DogXX<Continuation$C3_DogX> v1
-      call suspended: SuspendTask$C6_AnimalX = @scoop.ctor.SuspendedDogTask direct
+      call $call.3: SuspendedDogTask = @scoop.ctor.SuspendedDogTask direct
         Type DogGate
         Local gate
-      call $call.2: Continuation$C6_AnimalX = @scoop.ctor.AnimalCompletion direct
+      val suspended: SuspendTask$C6_AnimalX
+        Type SuspendTask$C6_AnimalX
+        Retype SuspendTask$C6_AnimalX
+          Type SuspendedDogTask
+          Local $call.3
+      call $call.4: AnimalCompletion = @scoop.ctor.AnimalCompletion direct
       call @scoop.coroutine.start$C6_AnimalX direct
         Type SuspendTask$C6_AnimalX
         Local suspended
         Type Continuation$C6_AnimalX
-        Local $call.2
+        Retype Continuation$C6_AnimalX
+          Type AnimalCompletion
+          Local $call.4
       call @scoop.println$S direct
         Type String
         StringConst @scoop.str.1
-      call $call.3: Dog = @scoop.ctor.Dog direct
+      call $call.5: Dog = @scoop.ctor.Dog direct
       call @scoop.DogGate.complete direct
         Type DogGate
         Local gate
         Type Dog
-        Local $call.3
+        Local $call.5
       return
   fun println @scoop.println$S(value: String) -> Unit
     bb0 entry
@@ -890,7 +904,7 @@ Module
       return
   fun SuspendedDogTask.run$drive @scoop.SuspendedDogTask.run$suspend$drive($frame: CoroutineFrame$scoop_SuspendedDogTask_run_suspend, $dispatch_state: Int) -> CoroutineStep$C3_DogX
     bb0 entry
-      call $call.1: SuspendRegistration$C3_DogX = @scoop.ctor.DogRegistration direct
+      call $call.1: DogRegistration = @scoop.ctor.DogRegistration direct
         Type DogGate
         FieldAccess 0
           Type SuspendedDogTask
@@ -921,7 +935,9 @@ Module
     bb2 coroutine.register.1 unwind bb22
       call @scoop.SuspendRegistration.register$C3_DogX interface SuspendRegistration$C3_DogX[0]
         Type SuspendRegistration$C3_DogX
-        Local $call.1
+        Retype SuspendRegistration$C3_DogX
+          Type DogRegistration
+          Local $call.1
         Type CoroutineAdapter$scoop_SuspendedDogTask_run_suspend$1
         Local $safe_adapter.1
       goto bb14
@@ -2540,27 +2556,31 @@ Module
     local %3 $call.1: ptr<managed>
     local %4 $call.2: ptr<managed>
     local %5 $call.3: ptr<managed>
+    local %6 $call.4: ptr<managed>
+    local %7 $call.5: ptr<managed>
   block entry
     call t0 = direct-target0 sig=direct0 () -> ptr<managed> effect=managed-safepoint local-fn31()
-    store t0 -> local0
+    store t0 -> local3
+    store local3 -> local0
     call t1 = direct-target1 sig=direct1 () -> ptr<managed> effect=managed-safepoint local-fn33()
-    store t1 -> local3
-    call void-target0 sig=void0 (ptr<managed>, ptr<managed>) effect=managed-safepoint local-fn34(local0, local3)
+    store t1 -> local4
+    call void-target0 sig=void0 (ptr<managed>, ptr<managed>) effect=managed-safepoint local-fn34(local0, local4)
     t2 = aggregate () : {}
     t3 = enum_wrap e0 v1 () : enum0
     call t4 = direct-target2 sig=direct2 (enum0) -> ptr<managed> effect=managed-safepoint local-fn29(t3)
     store t4 -> local1
     call t5 = direct-target3 sig=direct3 (ptr<managed>) -> ptr<managed> effect=managed-safepoint local-fn32(local1)
-    store t5 -> local2
+    store t5 -> local5
+    store local5 -> local2
     call t6 = direct-target4 sig=direct4 () -> ptr<managed> effect=managed-safepoint local-fn33()
-    store t6 -> local4
-    call void-target1 sig=void1 (ptr<managed>, ptr<managed>) effect=managed-safepoint local-fn34(local2, local4)
+    store t6 -> local6
+    call void-target1 sig=void1 (ptr<managed>, ptr<managed>) effect=managed-safepoint local-fn34(local2, local6)
     t7 = aggregate () : {}
     call void-target2 sig=void2 (ptr<managed>) effect=managed-safepoint local-fn19(global1)
     t8 = aggregate () : {}
     call t9 = direct-target5 sig=direct5 () -> ptr<managed> effect=managed-safepoint local-fn28()
-    store t9 -> local5
-    call void-target3 sig=void3 (ptr<managed>, ptr<managed>) effect=managed-safepoint local-fn12(local1, local5)
+    store t9 -> local7
+    call void-target3 sig=void3 (ptr<managed>, ptr<managed>) effect=managed-safepoint local-fn12(local1, local7)
     t10 = aggregate () : {}
     ret
   fun @scoop.println$S(ptr<managed>) -> void
