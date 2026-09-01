@@ -127,7 +127,7 @@ impl Lowerer {
             (hir::Type::FunPtr(signature), ast::Expr::Call(call))
                 if call.callee.text == "FunPtr" && call.args.is_empty() =>
             {
-                let function_ty = self.intern_type(hir::Type::Function(signature));
+                let function_ty = self.function_types[signature].canonical_type;
                 if self.explicit_global_type_arg_matches(&call.type_args, &[function_ty]) {
                     Some(hir::ConstantValue::NullFunPtr)
                 } else {

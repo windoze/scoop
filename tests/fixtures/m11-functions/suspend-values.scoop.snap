@@ -1027,7 +1027,7 @@ Module
     bridge function_type1 -> @scoop.$lambda.13$suspend
   closure cc12 $Closure$lambda12 type=function_type1 invoke=@scoop.$lambda.16$suspend captures=0
     bridge function_type1 -> @scoop.$lambda.16$suspend
-  closure cc13 $Closure$lambda13 type=function_type2 invoke=@scoop.$lambda.17$suspend captures=0
+  closure cc13 $Closure$lambda13 type=function_type4 invoke=@scoop.$lambda.17$suspend captures=0
   closure cc14 $Closure$lambda14 type=function_type1 invoke=@scoop.$lambda.18$suspend captures=0
     bridge function_type1 -> @scoop.$lambda.18$suspend
   closure cc15 $Closure$lambda15 type=function_type1 invoke=@scoop.$lambda.19$suspend captures=0
@@ -1052,9 +1052,9 @@ Module
     bridge function_type1 -> @scoop.$anonymous.1$suspend
   closure cc27 $Closure$reference0 type=function_type1 invoke=@scoop.$reference.0$suspend captures=1
     bridge function_type1 -> @scoop.$reference.0$suspend
-  closure cc28 $Closure$reference1 type=function_type4 invoke=@scoop.$reference.1$suspend captures=0
+  closure cc28 $Closure$reference1 type=function_type2 invoke=@scoop.$reference.1$suspend captures=0
     bridge function_type3 -> @scoop.function_bridge.$Closure$reference1.SIRAnyX$suspend
-  closure cc29 $Closure$reference2 type=function_type4 invoke=@scoop.$reference.2$suspend captures=0
+  closure cc29 $Closure$reference2 type=function_type2 invoke=@scoop.$reference.2$suspend captures=0
     bridge function_type3 -> @scoop.function_bridge.$Closure$reference2.SIRAnyX$suspend
   closure cc30 $Closure$reference3 type=function_type1 invoke=@scoop.$reference.3$suspend captures=0
     bridge function_type1 -> @scoop.$reference.3$suspend
@@ -1068,7 +1068,7 @@ Module
     bridge function_type3 -> @scoop.$dynamic_adapter.SIRAnyX$suspend
   closure cc35 $Closure$dynamic_adapter$SRIX type=function_type1 invoke=@scoop.$dynamic_adapter.SRIX$suspend captures=1
     bridge function_type1 -> @scoop.$dynamic_adapter.SRIX$suspend
-  adapter ca0 class=cc33 source=function_type4 target=function_type3
+  adapter ca0 class=cc33 source=function_type2 target=function_type3
   dynamic_adapter da0 class=cc34 target=function_type3
   dynamic_adapter da1 class=cc35 target=function_type1
   fun Int.equals @scoop.Int.equals(this: Int, other: Int) -> Boolean
@@ -6224,7 +6224,7 @@ Module
           Local $frame
           Type Int
           IntLiteral 1
-      call $step.1: CoroutineStep$I = <closure:function_type4> closure[function_type4]
+      call $step.1: CoroutineStep$I = <closure:function_type2> closure[function_type2]
         Type suspend (Any) -> Int
         ClosureCapture cc33 0
           Type suspend (Int) -> Any
@@ -15466,7 +15466,7 @@ Module
           Local $frame
           Type Int
           IntLiteral 1
-      call $step.1: CoroutineStep$U = <closure:function_type2> closure[function_type2]
+      call $step.1: CoroutineStep$U = <closure:function_type4> closure[function_type4]
         Type suspend () -> Unit
         FieldAccess 0
           Type FunctionSuspendTask$U
@@ -17413,7 +17413,7 @@ Module
           Local $frame
           Type Int
           IntLiteral 1
-      call $step.1: CoroutineStep$I = <closure:function_type4> closure[function_type4]
+      call $step.1: CoroutineStep$I = <closure:function_type2> closure[function_type2]
         Type suspend (Any) -> Int
         Local $source
         Type Any
@@ -17826,7 +17826,7 @@ Module
           Local $frame
           Type Int
           IntLiteral 1
-      call $step.1: CoroutineStep$I = <closure:function_type4> closure[function_type4]
+      call $step.1: CoroutineStep$I = <closure:function_type2> closure[function_type2]
         Type suspend (Any) -> Int
         Local $source
         Type Any
@@ -28672,9 +28672,9 @@ Module
   td SuspendRegistration$Any @scoop_td_SuspendRegistration$Any size=0 vtable=0 itables=0
   td function$FJ14_Continuation$IXRUX @scoop_td_function$FJ14_Continuation$IXRUX size=0 vtable=0 itables=0
   td function$SRIX @scoop_td_function$SRIX size=0 vtable=0 itables=0
-  td function$SRUX @scoop_td_function$SRUX size=0 vtable=0 itables=0
-  td function$SIRAnyX @scoop_td_function$SIRAnyX size=0 vtable=0 itables=0
   td function$SAnyRIX @scoop_td_function$SAnyRIX size=0 vtable=0 itables=0
+  td function$SIRAnyX @scoop_td_function$SIRAnyX size=0 vtable=0 itables=0
+  td function$SRUX @scoop_td_function$SRUX size=0 vtable=0 itables=0
   td Throwable @scoop_td_Throwable size=16 vtable=0 itables=0
   td Done @scoop_td_Done size=16 vtable=0 itables=1
   td UnitDone @scoop_td_UnitDone size=16 vtable=0 itables=1

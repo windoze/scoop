@@ -604,12 +604,12 @@ Module
   closure cc5 $Closure$lambda5 type=function_type1 invoke=@scoop.$lambda.1$S captures=1
   closure cc6 $Closure$anonymous0 type=function_type0 invoke=@scoop.$anonymous.0$I captures=1
   closure cc7 $Closure$anonymous1 type=function_type1 invoke=@scoop.$anonymous.0$S captures=1
-  closure cc8 $Closure$anonymous2 type=function_type2 invoke=@scoop.$anonymous.1$I captures=1
-  closure cc9 $Closure$anonymous3 type=function_type3 invoke=@scoop.$anonymous.1$S captures=1
+  closure cc8 $Closure$anonymous2 type=function_type4 invoke=@scoop.$anonymous.1$I captures=1
+  closure cc9 $Closure$anonymous3 type=function_type5 invoke=@scoop.$anonymous.1$S captures=1
   closure cc10 $Closure$reference0 type=function_type0 invoke=@scoop.$reference.0 captures=1
   closure cc11 $Closure$reference1 type=function_type1 invoke=@scoop.$reference.1 captures=1
-  closure cc12 $Closure$reference2 type=function_type4 invoke=@scoop.$reference.2 captures=0
-  closure cc13 $Closure$reference3 type=function_type5 invoke=@scoop.$reference.3 captures=0
+  closure cc12 $Closure$reference2 type=function_type2 invoke=@scoop.$reference.2 captures=0
+  closure cc13 $Closure$reference3 type=function_type3 invoke=@scoop.$reference.3 captures=0
   closure cc14 $Closure$reference4 type=function_type0 invoke=@scoop.$reference.4 captures=1
   closure cc15 $Closure$reference5 type=function_type1 invoke=@scoop.$reference.5 captures=1
   fun Int.equals @scoop.Int.equals(this: Int, other: Int) -> Boolean
@@ -794,7 +794,7 @@ Module
       call @scoop.println$S direct
         Type String
         Local $call.6
-      call $call.7: Int = <closure:function_type4> closure[function_type4]
+      call $call.7: Int = <closure:function_type2> closure[function_type2]
         Type (Int) -> Int
         Local intIdentity
         Type Int
@@ -802,7 +802,7 @@ Module
       call @scoop.println$I direct
         Type Int
         Local $call.7
-      call $call.8: String = <closure:function_type5> closure[function_type5]
+      call $call.8: String = <closure:function_type3> closure[function_type3]
         Type (String) -> String
         Local stringIdentity
         Type String
@@ -822,7 +822,7 @@ Module
       call @scoop.println$S direct
         Type String
         Local $call.10
-      call $call.11: () -> Int = <closure:function_type2> closure[function_type2]
+      call $call.11: () -> Int = <closure:function_type4> closure[function_type4]
         Type () -> () -> Int
         Local intNested
       call $call.12: Int = <closure:function_type0> closure[function_type0]
@@ -831,7 +831,7 @@ Module
       call @scoop.println$I direct
         Type Int
         Local $call.12
-      call $call.13: () -> String = <closure:function_type3> closure[function_type3]
+      call $call.13: () -> String = <closure:function_type5> closure[function_type5]
         Type () -> () -> String
         Local stringNested
       call $call.14: String = <closure:function_type1> closure[function_type1]
@@ -1779,10 +1779,10 @@ Module
   td Hash @scoop_td_Hash size=0 vtable=0 itables=0
   td function$FRIX @scoop_td_function$FRIX size=0 vtable=0 itables=0
   td function$FRSX @scoop_td_function$FRSX size=0 vtable=0 itables=0
-  td function$FRFRIXX @scoop_td_function$FRFRIXX size=0 vtable=0 itables=0
-  td function$FRFRSXX @scoop_td_function$FRFRSXX size=0 vtable=0 itables=0
   td function$FIRIX @scoop_td_function$FIRIX size=0 vtable=0 itables=0
   td function$FSRSX @scoop_td_function$FSRSX size=0 vtable=0 itables=0
+  td function$FRFRIXX @scoop_td_function$FRFRIXX size=0 vtable=0 itables=0
+  td function$FRFRSXX @scoop_td_function$FRFRSXX size=0 vtable=0 itables=0
   td Throwable @scoop_td_Throwable size=16 vtable=0 itables=0
   td Exception @scoop_td_Exception size=24 vtable=0 itables=0
   td UnwrapException @scoop_td_UnwrapException size=24 vtable=0 itables=0

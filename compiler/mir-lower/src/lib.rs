@@ -641,6 +641,7 @@ impl Lowerer {
             &self.classes,
             &self.interfaces.defs,
         );
+        self.lower_function_types(module);
         self.fill_class_hierarchy(module);
         self.fill_struct_fields(module);
         self.lower_globals(module);
@@ -837,6 +838,45 @@ impl Lowerer {
                 return_type,
             });
             self.extern_map.insert(hir_id, id);
+        }
+    }
+
+    /// Transpose the concrete HIR function-type arena one-to-one. MIR keeps
+    /// the same typed identity order, so type lowering never scans signatures
+    /// or re-interns an equal shape.
+    fn lower_function_types(&mut self, module: &hir::Module) {
+        let types = Types {
+            module,
+            struct_map: &self.struct_map,
+            class_map: &self.class_map,
+        };
+        for (source_id, source) in module.function_types.iter() {
+            let parameter_types = source
+                .parameter_types
+                .iter()
+                .map(|parameter| {
+                    types.lower(
+                        *parameter,
+                        &mut self.enums,
+                        &mut self.structs,
+                        &mut self.interfaces,
+                        &mut self.shell,
+                    )
+                })
+                .collect();
+            let return_type = types.lower(
+                source.return_type,
+                &mut self.enums,
+                &mut self.structs,
+                &mut self.interfaces,
+                &mut self.shell,
+            );
+            let target_id = self.shell.function_types.alloc(mir::FunctionType {
+                is_suspend: source.is_suspend,
+                parameter_types,
+                return_type,
+            });
+            assert_eq!(source_id.into_raw(), target_id.into_raw());
         }
     }
 
@@ -2037,13 +2077,7 @@ impl Lowerer {
         module: &hir::Module,
         id: hir::FunctionTypeId,
     ) -> mir::FunctionTypeId {
-        let ty = module
-            .types
-            .iter()
-            .find_map(|(ty, value)| {
-                matches!(value.kind, hir::TypeKind::Function(found) if found == id).then_some(ty)
-            })
-            .expect("every function signature is referenced by a canonical HIR type");
+        let ty = module.function_types[id].canonical_type;
         let lowered = Types {
             module,
             struct_map: &self.struct_map,
@@ -3422,6 +3456,10 @@ fn lower_global_constant(
     }
 }
 
+fn remap_idx<S, T>(id: la_arena::Idx<S>) -> la_arena::Idx<T> {
+    la_arena::Idx::from_raw(id.into_raw())
+}
+
 /// Concrete interface applications. The MIR identity includes every type
 /// argument because it is also the runtime TypeDescriptor / itable lookup key.
 #[derive(Default)]
@@ -3520,58 +3558,11 @@ impl Types<'_> {
                     .map(|&element| self.lower(element, enums, structs, interfaces, shell))
                     .collect(),
             ),
-            hir::TypeKind::Function(id) => {
-                let function = self.module.function_types[*id].clone();
-                let parameter_types: Vec<mir::Type> = function
-                    .parameter_types
-                    .into_iter()
-                    .map(|parameter| self.lower(parameter, enums, structs, interfaces, shell))
-                    .collect();
-                let return_type =
-                    self.lower(function.return_type, enums, structs, interfaces, shell);
-                let existing = shell.function_types.iter().find_map(|(id, candidate)| {
-                    (candidate.is_suspend == function.is_suspend
-                        && candidate.parameter_types == parameter_types
-                        && candidate.return_type == return_type)
-                        .then_some(id)
-                });
-                let id = match existing {
-                    Some(id) => id,
-                    None => shell.function_types.alloc(mir::FunctionType {
-                        is_suspend: function.is_suspend,
-                        parameter_types,
-                        return_type,
-                    }),
-                };
-                mir::Type::Function(id)
-            }
+            hir::TypeKind::Function(id) => mir::Type::Function(remap_idx(*id)),
             hir::TypeKind::Ptr(pointee) => mir::Type::Ptr(Box::new(
                 self.lower(*pointee, enums, structs, interfaces, shell),
             )),
-            hir::TypeKind::FunPtr(id) => {
-                let function = self.module.function_types[*id].clone();
-                let parameter_types: Vec<mir::Type> = function
-                    .parameter_types
-                    .into_iter()
-                    .map(|parameter| self.lower(parameter, enums, structs, interfaces, shell))
-                    .collect();
-                let return_type =
-                    self.lower(function.return_type, enums, structs, interfaces, shell);
-                let existing = shell.function_types.iter().find_map(|(id, candidate)| {
-                    (candidate.is_suspend == function.is_suspend
-                        && candidate.parameter_types == parameter_types
-                        && candidate.return_type == return_type)
-                        .then_some(id)
-                });
-                let id = existing.unwrap_or_else(|| {
-                    shell.function_types.alloc(mir::FunctionType {
-                        is_suspend: function.is_suspend,
-                        parameter_types,
-                        return_type,
-                    })
-                });
-                mir::Type::FunPtr(id)
-            }
+            hir::TypeKind::FunPtr(id) => mir::Type::FunPtr(remap_idx(*id)),
             hir::TypeKind::Enum(id) => {
                 let args = self.module.enums[*id]
                     .type_arguments
@@ -3956,15 +3947,7 @@ impl BodyLowerer<'_> {
         &mut self,
         function_type: hir::FunctionTypeId,
     ) -> mir::FunctionTypeId {
-        let ty = self
-            .module
-            .types
-            .iter()
-            .find_map(|(ty, value)| {
-                matches!(value.kind, hir::TypeKind::Function(found) if found == function_type)
-                    .then_some(ty)
-            })
-            .expect("every function signature is referenced by a canonical HIR type");
+        let ty = self.module.function_types[function_type].canonical_type;
         let mir::Type::Function(function_type) = self.lower_type(ty) else {
             unreachable!("lowering a function type preserves its category")
         };
@@ -5295,18 +5278,7 @@ impl BodyLowerer<'_> {
                 function_type,
                 args,
             } => {
-                let mir::Type::Function(function_type) = self.lower_type({
-                    self.module
-                        .types
-                        .iter()
-                        .find_map(|(ty, value)| {
-                            matches!(value.kind, hir::TypeKind::Function(found) if found == *function_type)
-                                .then_some(ty)
-                        })
-                        .expect("function type ids are referenced by canonical types")
-                }) else {
-                    unreachable!()
-                };
+                let function_type = self.lower_function_type_id(*function_type);
                 let mut call_args = Vec::with_capacity(args.len() + 1);
                 call_args.push(self.lower_expr(callee));
                 call_args.extend(args.iter().map(|arg| self.lower_expr(arg)));

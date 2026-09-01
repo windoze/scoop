@@ -239,6 +239,10 @@ pub enum Type {
 /// construction (spec 8.1.1).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FunctionType {
+    /// The unique ordinary managed-function type represented by this
+    /// signature. Consumers use this edge directly; they never scan `types`
+    /// to recover the reverse mapping.
+    pub canonical_type: TypeId,
     pub is_suspend: bool,
     pub parameter_types: Vec<TypeId>,
     pub return_type: TypeId,
@@ -388,7 +392,8 @@ fn type_name_with_params(module: &Module, ty: TypeId, params: &[TypeParamDecl]) 
 #[derive(Debug, Clone)]
 pub struct Module {
     pub types: Arena<Type>,
-    /// Canonical function signatures referenced by `Type::Function`.
+    /// Canonical function signatures in one-to-one correspondence with their
+    /// `FunctionType::canonical_type` entries in `types`.
     pub function_types: Arena<FunctionType>,
     /// Source callable-value entities. Their identities are intentionally
     /// separate from the generated invoke functions they own.

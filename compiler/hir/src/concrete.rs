@@ -107,6 +107,7 @@ pub enum TypeKind {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct FunctionType {
+    pub canonical_type: TypeId,
     pub is_suspend: bool,
     pub parameter_types: Vec<TypeId>,
     pub return_type: TypeId,

@@ -55,7 +55,8 @@ struct Concretizer<'a> {
     types: Arena<concrete::Type>,
     type_by_kind: HashMap<concrete::TypeKind, concrete::TypeId>,
     function_types: Arena<concrete::FunctionType>,
-    function_type_by_value: HashMap<concrete::FunctionType, concrete::FunctionTypeId>,
+    function_type_by_signature:
+        HashMap<(bool, Vec<concrete::TypeId>, concrete::TypeId), concrete::FunctionTypeId>,
     structs: Arena<concrete::StructDef>,
     struct_by_key: HashMap<(export::StructId, Vec<concrete::TypeId>), concrete::StructId>,
     struct_type: HashMap<concrete::StructId, concrete::TypeId>,
@@ -117,7 +118,7 @@ impl<'a> Concretizer<'a> {
             types: Arena::new(),
             type_by_kind: HashMap::new(),
             function_types: Arena::new(),
-            function_type_by_value: HashMap::new(),
+            function_type_by_signature: HashMap::new(),
             structs: Arena::new(),
             struct_by_key: HashMap::new(),
             struct_type: HashMap::new(),
@@ -745,7 +746,7 @@ impl<'a> Concretizer<'a> {
             }
             export::Type::Function(id) => {
                 let id = self.lower_function_type(id, substitution);
-                self.intern_type(concrete::TypeKind::Function(id), false)
+                self.function_types[id].canonical_type
             }
             export::Type::Ptr(pointee) => {
                 let pointee = self.lower_type(pointee, substitution);
@@ -767,6 +768,10 @@ impl<'a> Concretizer<'a> {
     }
 
     fn intern_type(&mut self, kind: concrete::TypeKind, gc_free: bool) -> concrete::TypeId {
+        if let concrete::TypeKind::Function(function) = &kind {
+            assert!(!gc_free, "managed function values are GC references");
+            return self.function_types[*function].canonical_type;
+        }
         if let Some(&id) = self.type_by_kind.get(&kind) {
             assert_eq!(
                 self.types[id].gc_free, gc_free,
@@ -788,20 +793,36 @@ impl<'a> Concretizer<'a> {
         substitution: &[concrete::TypeId],
     ) -> concrete::FunctionTypeId {
         let source = self.source.function_types[source].clone();
-        let value = concrete::FunctionType {
-            is_suspend: source.is_suspend,
-            parameter_types: source
-                .parameter_types
-                .iter()
-                .map(|ty| self.lower_type(*ty, substitution))
-                .collect(),
-            return_type: self.lower_type(source.return_type, substitution),
-        };
-        if let Some(&id) = self.function_type_by_value.get(&value) {
+        let parameter_types = source
+            .parameter_types
+            .iter()
+            .map(|ty| self.lower_type(*ty, substitution))
+            .collect::<Vec<_>>();
+        let return_type = self.lower_type(source.return_type, substitution);
+        let key = (source.is_suspend, parameter_types.clone(), return_type);
+        if let Some(&id) = self.function_type_by_signature.get(&key) {
             return id;
         }
-        let id = self.function_types.alloc(value.clone());
-        self.function_type_by_value.insert(value, id);
+        let expected_id = concrete::FunctionTypeId::from_raw(
+            u32::try_from(self.function_types.len())
+                .expect("the concrete function-type arena fits its typed id")
+                .into(),
+        );
+        let canonical_kind = concrete::TypeKind::Function(expected_id);
+        assert!(!self.type_by_kind.contains_key(&canonical_kind));
+        let canonical_type = self.types.alloc(concrete::Type {
+            kind: canonical_kind.clone(),
+            gc_free: false,
+        });
+        self.type_by_kind.insert(canonical_kind, canonical_type);
+        let id = self.function_types.alloc(concrete::FunctionType {
+            canonical_type,
+            is_suspend: source.is_suspend,
+            parameter_types,
+            return_type,
+        });
+        assert_eq!(id, expected_id);
+        self.function_type_by_signature.insert(key, id);
         id
     }
 

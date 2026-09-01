@@ -684,56 +684,56 @@ Module
   interface ToString
   interface Hash
   interface Describable
-  closure cc0 $Closure$reference0 type=function_type1 invoke=@scoop.$reference.0 captures=0
-    bridge function_type4 -> @scoop.function_bridge.$Closure$reference0.FIRAnyX
-    bridge function_type1 -> @scoop.$reference.0
-  closure cc1 $Closure$reference1 type=function_type1 invoke=@scoop.$reference.1 captures=0
-    bridge function_type4 -> @scoop.function_bridge.$Closure$reference1.FIRAnyX
-    bridge function_type1 -> @scoop.$reference.1
-  closure cc2 $Closure$reference2 type=function_type2 invoke=@scoop.$reference.2 captures=0
-  closure cc3 $Closure$reference3 type=function_type1 invoke=@scoop.$reference.3 captures=0
-    bridge function_type4 -> @scoop.function_bridge.$Closure$reference3.FIRAnyX
-    bridge function_type1 -> @scoop.$reference.3
+  closure cc0 $Closure$reference0 type=function_type2 invoke=@scoop.$reference.0 captures=0
+    bridge function_type1 -> @scoop.function_bridge.$Closure$reference0.FIRAnyX
+    bridge function_type2 -> @scoop.$reference.0
+  closure cc1 $Closure$reference1 type=function_type2 invoke=@scoop.$reference.1 captures=0
+    bridge function_type1 -> @scoop.function_bridge.$Closure$reference1.FIRAnyX
+    bridge function_type2 -> @scoop.$reference.1
+  closure cc2 $Closure$reference2 type=function_type3 invoke=@scoop.$reference.2 captures=0
+  closure cc3 $Closure$reference3 type=function_type2 invoke=@scoop.$reference.3 captures=0
+    bridge function_type1 -> @scoop.function_bridge.$Closure$reference3.FIRAnyX
+    bridge function_type2 -> @scoop.$reference.3
   closure cc4 $Closure$reference4 type=function_type0 invoke=@scoop.$reference.4 captures=0
-    bridge function_type4 -> @scoop.function_bridge.$Closure$reference4.FIRAnyX
+    bridge function_type1 -> @scoop.function_bridge.$Closure$reference4.FIRAnyX
     bridge function_type0 -> @scoop.$reference.4
-  closure cc5 $Closure$reference5 type=function_type3 invoke=@scoop.$reference.5 captures=0
-    bridge function_type4 -> @scoop.function_bridge.$Closure$reference5.FIRAnyX
-    bridge function_type8 -> @scoop.function_bridge.$Closure$reference5.FIRJ11_DescribableXX
-  closure cc6 $Closure$reference6 type=function_type5 invoke=@scoop.$reference.6 captures=0
+  closure cc5 $Closure$reference5 type=function_type6 invoke=@scoop.$reference.5 captures=0
+    bridge function_type1 -> @scoop.function_bridge.$Closure$reference5.FIRAnyX
+    bridge function_type7 -> @scoop.function_bridge.$Closure$reference5.FIRJ11_DescribableXX
+  closure cc6 $Closure$reference6 type=function_type8 invoke=@scoop.$reference.6 captures=0
     bridge function_type9 -> @scoop.function_bridge.$Closure$reference6.FFAnyRIXRFIRAnyXX
-  closure cc7 $Closure$adapter$FAnyRIX$FIRAnyX type=function_type4 invoke=@scoop.$adapter.FAnyRIX.FIRAnyX captures=1
-    bridge function_type4 -> @scoop.$adapter.FAnyRIX.FIRAnyX
-  closure cc8 $Closure$adapter$FC6_AnimalXRC3_DogXX$FC3_DogXRC6_AnimalXX type=function_type6 invoke=@scoop.$adapter.FC6_AnimalXRC3_DogXX.FC3_DogXRC6_AnimalXX captures=1
-  closure cc9 $Closure$adapter$FAnyRD5_LabelXX$FIRJ11_DescribableXX type=function_type8 invoke=@scoop.$adapter.FAnyRD5_LabelXX.FIRJ11_DescribableXX captures=1
-    bridge function_type4 -> @scoop.function_bridge.$Closure$adapter$FAnyRD5_LabelXX$FIRJ11_DescribableXX.FIRAnyX
-    bridge function_type8 -> @scoop.$adapter.FAnyRD5_LabelXX.FIRJ11_DescribableXX
+  closure cc7 $Closure$adapter$FAnyRIX$FIRAnyX type=function_type1 invoke=@scoop.$adapter.FAnyRIX.FIRAnyX captures=1
+    bridge function_type1 -> @scoop.$adapter.FAnyRIX.FIRAnyX
+  closure cc8 $Closure$adapter$FC6_AnimalXRC3_DogXX$FC3_DogXRC6_AnimalXX type=function_type4 invoke=@scoop.$adapter.FC6_AnimalXRC3_DogXX.FC3_DogXRC6_AnimalXX captures=1
+  closure cc9 $Closure$adapter$FAnyRD5_LabelXX$FIRJ11_DescribableXX type=function_type7 invoke=@scoop.$adapter.FAnyRD5_LabelXX.FIRJ11_DescribableXX captures=1
+    bridge function_type1 -> @scoop.function_bridge.$Closure$adapter$FAnyRD5_LabelXX$FIRJ11_DescribableXX.FIRAnyX
+    bridge function_type7 -> @scoop.$adapter.FAnyRD5_LabelXX.FIRJ11_DescribableXX
   closure cc10 $Closure$adapter$FFIRAnyXRFAnyRIXX$FFAnyRIXRFIRAnyXX type=function_type9 invoke=@scoop.$adapter.FFIRAnyXRFAnyRIXX.FFAnyRIXRFIRAnyXX captures=1
     bridge function_type9 -> @scoop.$adapter.FFIRAnyXRFAnyRIXX.FFAnyRIXRFIRAnyXX
-  closure cc11 $Closure$dynamic_adapter$FIRAnyX type=function_type4 invoke=@scoop.$dynamic_adapter.FIRAnyX captures=1
-    bridge function_type4 -> @scoop.$dynamic_adapter.FIRAnyX
-  closure cc12 $Closure$dynamic_adapter$FAnyRIX type=function_type1 invoke=@scoop.$dynamic_adapter.FAnyRIX captures=1
-    bridge function_type4 -> @scoop.function_bridge.$Closure$dynamic_adapter$FAnyRIX.FIRAnyX
-    bridge function_type1 -> @scoop.$dynamic_adapter.FAnyRIX
+  closure cc11 $Closure$dynamic_adapter$FIRAnyX type=function_type1 invoke=@scoop.$dynamic_adapter.FIRAnyX captures=1
+    bridge function_type1 -> @scoop.$dynamic_adapter.FIRAnyX
+  closure cc12 $Closure$dynamic_adapter$FAnyRIX type=function_type2 invoke=@scoop.$dynamic_adapter.FAnyRIX captures=1
+    bridge function_type1 -> @scoop.function_bridge.$Closure$dynamic_adapter$FAnyRIX.FIRAnyX
+    bridge function_type2 -> @scoop.$dynamic_adapter.FAnyRIX
   closure cc13 $Closure$dynamic_adapter$FAnyRSX type=function_type0 invoke=@scoop.$dynamic_adapter.FAnyRSX captures=1
-    bridge function_type4 -> @scoop.function_bridge.$Closure$dynamic_adapter$FAnyRSX.FIRAnyX
+    bridge function_type1 -> @scoop.function_bridge.$Closure$dynamic_adapter$FAnyRSX.FIRAnyX
     bridge function_type0 -> @scoop.$dynamic_adapter.FAnyRSX
   closure cc14 $Closure$dynamic_adapter$FFAnyRIXRFIRAnyXX type=function_type9 invoke=@scoop.$dynamic_adapter.FFAnyRIXRFIRAnyXX captures=1
     bridge function_type9 -> @scoop.$dynamic_adapter.FFAnyRIXRFIRAnyXX
-  closure cc15 $Closure$dynamic_adapter$FIRJ11_DescribableXX type=function_type8 invoke=@scoop.$dynamic_adapter.FIRJ11_DescribableXX captures=1
-    bridge function_type4 -> @scoop.function_bridge.$Closure$dynamic_adapter$FIRJ11_DescribableXX.FIRAnyX
-    bridge function_type8 -> @scoop.$dynamic_adapter.FIRJ11_DescribableXX
-  closure cc16 $Closure$adapter$FAnyRSX$FSRAnyX type=function_type7 invoke=@scoop.$adapter.FAnyRSX.FSRAnyX captures=1
-  adapter ca0 class=cc7 source=function_type1 target=function_type4
-  adapter ca1 class=cc8 source=function_type2 target=function_type6
-  adapter ca2 class=cc9 source=function_type3 target=function_type8
-  adapter ca3 class=cc10 source=function_type5 target=function_type9
-  adapter ca4 class=cc16 source=function_type0 target=function_type7
-  dynamic_adapter da0 class=cc11 target=function_type4
-  dynamic_adapter da1 class=cc12 target=function_type1
+  closure cc15 $Closure$dynamic_adapter$FIRJ11_DescribableXX type=function_type7 invoke=@scoop.$dynamic_adapter.FIRJ11_DescribableXX captures=1
+    bridge function_type1 -> @scoop.function_bridge.$Closure$dynamic_adapter$FIRJ11_DescribableXX.FIRAnyX
+    bridge function_type7 -> @scoop.$dynamic_adapter.FIRJ11_DescribableXX
+  closure cc16 $Closure$adapter$FAnyRSX$FSRAnyX type=function_type5 invoke=@scoop.$adapter.FAnyRSX.FSRAnyX captures=1
+  adapter ca0 class=cc7 source=function_type2 target=function_type1
+  adapter ca1 class=cc8 source=function_type3 target=function_type4
+  adapter ca2 class=cc9 source=function_type6 target=function_type7
+  adapter ca3 class=cc10 source=function_type8 target=function_type9
+  adapter ca4 class=cc16 source=function_type0 target=function_type5
+  dynamic_adapter da0 class=cc11 target=function_type1
+  dynamic_adapter da1 class=cc12 target=function_type2
   dynamic_adapter da2 class=cc13 target=function_type0
   dynamic_adapter da3 class=cc14 target=function_type9
-  dynamic_adapter da4 class=cc15 target=function_type8
+  dynamic_adapter da4 class=cc15 target=function_type7
   fun Int.equals @scoop.Int.equals(this: Int, other: Int) -> Boolean
     bb0 entry
       call $call.1: Boolean = extern1 @scoop_rt_int_equals direct
@@ -1111,7 +1111,7 @@ Module
           Type Any
           Local $cast.10
       call @scoop_rt_gc_collect direct
-      call $call.6: Any = <closure:function_type4> closure[function_type4]
+      call $call.6: Any = <closure:function_type1> closure[function_type1]
         Type (Int) -> Any
         Local widenedValue
         Type Int
@@ -1122,7 +1122,7 @@ Module
           Type Any
           Local $call.6
       call $call.7: Dog = @scoop.ctor.Dog direct
-      call $call.8: Animal = <closure:function_type6> closure[function_type6]
+      call $call.8: Animal = <closure:function_type4> closure[function_type4]
         Type (Dog) -> Animal
         Local widenedReference
         Type Dog
@@ -1132,7 +1132,7 @@ Module
         IsInstance Dog
           Type Animal
           Local $call.8
-      call $call.9: Any = <closure:function_type4> closure[function_type4]
+      call $call.9: Any = <closure:function_type1> closure[function_type1]
         Type (Int) -> Any
         Local genericInt
         Type Int
@@ -1142,7 +1142,7 @@ Module
         IsInstance Int
           Type Any
           Local $call.9
-      call $call.10: Any = <closure:function_type7> closure[function_type7]
+      call $call.10: Any = <closure:function_type5> closure[function_type5]
         Type (String) -> Any
         Local genericString
         Type String
@@ -1152,7 +1152,7 @@ Module
         IsInstance String
           Type Any
           Local $call.10
-      call $call.11: Describable = <closure:function_type8> closure[function_type8]
+      call $call.11: Describable = <closure:function_type7> closure[function_type7]
         Type (Int) -> Describable
         Local boxedReturn
         Type Int
@@ -1163,7 +1163,7 @@ Module
       call @scoop.println$S direct
         Type String
         Local $call.12
-      call $call.13: Any = <closure:function_type4> closure[function_type4]
+      call $call.13: Any = <closure:function_type1> closure[function_type1]
         Type (Int) -> Any
         Local nestedResult
         Type Int
@@ -1183,7 +1183,7 @@ Module
         IsInstance (Any) -> String
           Type Any
           Local erased
-      call $call.14: Any = <closure:function_type4> closure[function_type4]
+      call $call.14: Any = <closure:function_type1> closure[function_type1]
         Type (Int) -> Any
         Local checked
         Type Int
@@ -1193,7 +1193,7 @@ Module
         IsInstance Int
           Type Any
           Local $call.14
-      call $call.15: Int = <closure:function_type1> closure[function_type1]
+      call $call.15: Int = <closure:function_type2> closure[function_type2]
         Type (Any) -> Int
         Local exactChecked
         Type Any
@@ -1201,7 +1201,7 @@ Module
       call @scoop.println$I direct
         Type Int
         Local $call.15
-      call $call.16: Any = <closure:function_type4> closure[function_type4]
+      call $call.16: Any = <closure:function_type1> closure[function_type1]
         Type (Int) -> Any
         Local optionalChecked
         Type Int
@@ -1217,7 +1217,7 @@ Module
       call @scoop.println$B direct
         Type Boolean
         Local $call.17
-      call $call.18: Any = <closure:function_type4> closure[function_type4]
+      call $call.18: Any = <closure:function_type1> closure[function_type1]
         Type (Int) -> Any
         Local nestedDynamicResult
         Type Int
@@ -1227,7 +1227,7 @@ Module
         IsInstance Int
           Type Any
           Local $call.18
-      call $call.19: Describable = <closure:function_type8> closure[function_type8]
+      call $call.19: Describable = <closure:function_type7> closure[function_type7]
         Type (Int) -> Describable
         Local boxedChecked
         Type Int
@@ -1244,7 +1244,7 @@ Module
           Type Any
           Local erased
     bb18 if.then.18
-      call $call.21: Any = <closure:function_type4> closure[function_type4]
+      call $call.21: Any = <closure:function_type1> closure[function_type1]
         Type (Int) -> Any
         ClosureAlloc cc11 $Closure$dynamic_adapter$FIRAnyX
           Type Any
@@ -1284,7 +1284,7 @@ Module
     bb26 try.end.26
       return
     bb27 try.body.27 unwind bb20
-      call $call.22: Any = <closure:function_type4> closure[function_type4]
+      call $call.22: Any = <closure:function_type1> closure[function_type1]
         Type (Int) -> Any
         Local widenedFailing
         Type Int
@@ -1524,7 +1524,7 @@ Module
         ClassInit Dog
   fun $adapter.FAnyRIX.FIRAnyX @scoop.$adapter.FAnyRIX.FIRAnyX($closure: (Int) -> Any, arg0: Int) -> Any
     bb0 entry
-      call $call.1: Int = <closure:function_type1> closure[function_type1]
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type (Any) -> Int
         ClosureCapture cc7 0
           Type (Int) -> Any
@@ -1540,7 +1540,7 @@ Module
           Local $call.1
   fun $adapter.FC6_AnimalXRC3_DogXX.FC3_DogXRC6_AnimalXX @scoop.$adapter.FC6_AnimalXRC3_DogXX.FC3_DogXRC6_AnimalXX($closure: (Dog) -> Animal, arg0: Dog) -> Animal
     bb0 entry
-      call $call.1: Dog = <closure:function_type2> closure[function_type2]
+      call $call.1: Dog = <closure:function_type3> closure[function_type3]
         Type (Animal) -> Dog
         ClosureCapture cc8 0
           Type (Dog) -> Animal
@@ -1556,7 +1556,7 @@ Module
           Local $call.1
   fun $adapter.FAnyRD5_LabelXX.FIRJ11_DescribableXX @scoop.$adapter.FAnyRD5_LabelXX.FIRJ11_DescribableXX($closure: (Int) -> Describable, arg0: Int) -> Describable
     bb0 entry
-      call $call.1: Label = <closure:function_type3> closure[function_type3]
+      call $call.1: Label = <closure:function_type6> closure[function_type6]
         Type (Any) -> Label
         ClosureCapture cc9 0
           Type (Int) -> Describable
@@ -1572,7 +1572,7 @@ Module
           Local $call.1
   fun $adapter.FFIRAnyXRFAnyRIXX.FFAnyRIXRFIRAnyXX @scoop.$adapter.FFIRAnyXRFAnyRIXX.FFAnyRIXRFIRAnyXX($closure: ((Any) -> Int) -> (Int) -> Any, arg0: (Any) -> Int) -> (Int) -> Any
     bb0 entry
-      call $call.1: (Any) -> Int = <closure:function_type5> closure[function_type5]
+      call $call.1: (Any) -> Int = <closure:function_type8> closure[function_type8]
         Type ((Int) -> Any) -> (Any) -> Int
         ClosureCapture cc10 0
           Type ((Any) -> Int) -> (Int) -> Any
@@ -1588,7 +1588,7 @@ Module
           Local $call.1
   fun $dynamic_adapter.FIRAnyX @scoop.$dynamic_adapter.FIRAnyX($closure: (Int) -> Any, arg0: Int) -> Any
     bb0 entry
-      call $call.1: Any = <function_bridge:function_type4> function_bridge[function_type4]
+      call $call.1: Any = <function_bridge:function_type1> function_bridge[function_type1]
         Type Any
         ClosureCapture cc11 0
           Type (Int) -> Any
@@ -1600,7 +1600,7 @@ Module
         Local $call.1
   fun $dynamic_adapter.FAnyRIX @scoop.$dynamic_adapter.FAnyRIX($closure: (Any) -> Int, arg0: Any) -> Int
     bb0 entry
-      call $call.1: Int = <function_bridge:function_type1> function_bridge[function_type1]
+      call $call.1: Int = <function_bridge:function_type2> function_bridge[function_type2]
         Type Any
         ClosureCapture cc12 0
           Type (Any) -> Int
@@ -1636,7 +1636,7 @@ Module
         Local $call.1
   fun $dynamic_adapter.FIRJ11_DescribableXX @scoop.$dynamic_adapter.FIRJ11_DescribableXX($closure: (Int) -> Describable, arg0: Int) -> Describable
     bb0 entry
-      call $call.1: Describable = <function_bridge:function_type8> function_bridge[function_type8]
+      call $call.1: Describable = <function_bridge:function_type7> function_bridge[function_type7]
         Type Any
         ClosureCapture cc15 0
           Type (Int) -> Describable
@@ -1674,7 +1674,7 @@ Module
         Local $call.1
   fun function_bridge.$Closure$reference0.FIRAnyX @scoop.function_bridge.$Closure$reference0.FIRAnyX($source: (Any) -> Int, arg0: Int) -> Any
     bb0 entry
-      call $call.1: Int = <closure:function_type1> closure[function_type1]
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type (Any) -> Int
         Local $source
         Type Any
@@ -1688,7 +1688,7 @@ Module
           Local $call.1
   fun function_bridge.$Closure$reference1.FIRAnyX @scoop.function_bridge.$Closure$reference1.FIRAnyX($source: (Any) -> Int, arg0: Int) -> Any
     bb0 entry
-      call $call.1: Int = <closure:function_type1> closure[function_type1]
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type (Any) -> Int
         Local $source
         Type Any
@@ -1702,7 +1702,7 @@ Module
           Local $call.1
   fun function_bridge.$Closure$reference3.FIRAnyX @scoop.function_bridge.$Closure$reference3.FIRAnyX($source: (Any) -> Int, arg0: Int) -> Any
     bb0 entry
-      call $call.1: Int = <closure:function_type1> closure[function_type1]
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type (Any) -> Int
         Local $source
         Type Any
@@ -1728,7 +1728,7 @@ Module
         Local $call.1
   fun function_bridge.$Closure$reference5.FIRAnyX @scoop.function_bridge.$Closure$reference5.FIRAnyX($source: (Any) -> Label, arg0: Int) -> Any
     bb0 entry
-      call $call.1: Label = <closure:function_type3> closure[function_type3]
+      call $call.1: Label = <closure:function_type6> closure[function_type6]
         Type (Any) -> Label
         Local $source
         Type Any
@@ -1742,7 +1742,7 @@ Module
           Local $call.1
   fun function_bridge.$Closure$reference5.FIRJ11_DescribableXX @scoop.function_bridge.$Closure$reference5.FIRJ11_DescribableXX($source: (Any) -> Label, arg0: Int) -> Describable
     bb0 entry
-      call $call.1: Label = <closure:function_type3> closure[function_type3]
+      call $call.1: Label = <closure:function_type6> closure[function_type6]
         Type (Any) -> Label
         Local $source
         Type Any
@@ -1756,7 +1756,7 @@ Module
           Local $call.1
   fun function_bridge.$Closure$reference6.FFAnyRIXRFIRAnyXX @scoop.function_bridge.$Closure$reference6.FFAnyRIXRFIRAnyXX($source: ((Int) -> Any) -> (Any) -> Int, arg0: (Any) -> Int) -> (Int) -> Any
     bb0 entry
-      call $call.1: (Any) -> Int = <closure:function_type5> closure[function_type5]
+      call $call.1: (Any) -> Int = <closure:function_type8> closure[function_type8]
         Type ((Int) -> Any) -> (Any) -> Int
         Local $source
         Type (Int) -> Any
@@ -1770,7 +1770,7 @@ Module
           Local $call.1
   fun function_bridge.$Closure$adapter$FAnyRD5_LabelXX$FIRJ11_DescribableXX.FIRAnyX @scoop.function_bridge.$Closure$adapter$FAnyRD5_LabelXX$FIRJ11_DescribableXX.FIRAnyX($source: (Int) -> Describable, arg0: Int) -> Any
     bb0 entry
-      call $call.1: Describable = <closure:function_type8> closure[function_type8]
+      call $call.1: Describable = <closure:function_type7> closure[function_type7]
         Type (Int) -> Describable
         Local $source
         Type Int
@@ -1780,7 +1780,7 @@ Module
         Local $call.1
   fun function_bridge.$Closure$dynamic_adapter$FAnyRIX.FIRAnyX @scoop.function_bridge.$Closure$dynamic_adapter$FAnyRIX.FIRAnyX($source: (Any) -> Int, arg0: Int) -> Any
     bb0 entry
-      call $call.1: Int = <closure:function_type1> closure[function_type1]
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type (Any) -> Int
         Local $source
         Type Any
@@ -1806,7 +1806,7 @@ Module
         Local $call.1
   fun function_bridge.$Closure$dynamic_adapter$FIRJ11_DescribableXX.FIRAnyX @scoop.function_bridge.$Closure$dynamic_adapter$FIRJ11_DescribableXX.FIRAnyX($source: (Int) -> Describable, arg0: Int) -> Any
     bb0 entry
-      call $call.1: Describable = <closure:function_type8> closure[function_type8]
+      call $call.1: Describable = <closure:function_type7> closure[function_type7]
         Type (Int) -> Describable
         Local $source
         Type Int
@@ -2718,14 +2718,14 @@ Module
   td Hash @scoop_td_Hash size=0 vtable=0 itables=0
   td Describable @scoop_td_Describable size=0 vtable=0 itables=0
   td function$FAnyRSX @scoop_td_function$FAnyRSX size=0 vtable=0 itables=0
+  td function$FIRAnyX @scoop_td_function$FIRAnyX size=0 vtable=0 itables=0
   td function$FAnyRIX @scoop_td_function$FAnyRIX size=0 vtable=0 itables=0
   td function$FC6_AnimalXRC3_DogXX @scoop_td_function$FC6_AnimalXRC3_DogXX size=0 vtable=0 itables=0
-  td function$FAnyRD5_LabelXX @scoop_td_function$FAnyRD5_LabelXX size=0 vtable=0 itables=0
-  td function$FIRAnyX @scoop_td_function$FIRAnyX size=0 vtable=0 itables=0
-  td function$FFIRAnyXRFAnyRIXX @scoop_td_function$FFIRAnyXRFAnyRIXX size=0 vtable=0 itables=0
   td function$FC3_DogXRC6_AnimalXX @scoop_td_function$FC3_DogXRC6_AnimalXX size=0 vtable=0 itables=0
   td function$FSRAnyX @scoop_td_function$FSRAnyX size=0 vtable=0 itables=0
+  td function$FAnyRD5_LabelXX @scoop_td_function$FAnyRD5_LabelXX size=0 vtable=0 itables=0
   td function$FIRJ11_DescribableXX @scoop_td_function$FIRJ11_DescribableXX size=0 vtable=0 itables=0
+  td function$FFIRAnyXRFAnyRIXX @scoop_td_function$FFIRAnyXRFAnyRIXX size=0 vtable=0 itables=0
   td function$FFAnyRIXRFIRAnyXX @scoop_td_function$FFAnyRIXRFIRAnyXX size=0 vtable=0 itables=0
   td Throwable @scoop_td_Throwable size=16 vtable=0 itables=0
   td Animal @scoop_td_Animal size=16 vtable=0 itables=0

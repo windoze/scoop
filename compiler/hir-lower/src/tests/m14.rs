@@ -6,6 +6,81 @@ use scoop_hir as hir;
 use super::*;
 
 #[test]
+fn function_types_own_unique_canonical_types_in_both_hir_products() {
+    let ordinary = ty_function(false, vec![ty_named("Int")], ty_named("String"));
+    let suspended = ty_function(true, vec![ty_named("Int")], ty_named("String"));
+    let output = lower_user_output(file(vec![
+        fun_sig(
+            "useFunctions",
+            vec![],
+            vec![
+                ("first", ordinary.clone()),
+                ("second", ordinary),
+                ("suspended", suspended),
+            ],
+            None,
+            vec![],
+        ),
+        fun("main", vec![]),
+    ]))
+    .expect("canonical function types must lower");
+
+    for (function_type, signature) in output.export.function_types.iter() {
+        assert!(matches!(
+            output.export.types[signature.canonical_type],
+            hir::Type::Function(found) if found == function_type
+        ));
+        assert_eq!(
+            output
+                .export
+                .types
+                .iter()
+                .filter(
+                    |(_, ty)| matches!(ty, hir::Type::Function(found) if *found == function_type)
+                )
+                .count(),
+            1
+        );
+    }
+
+    for (function_type, signature) in output.local.function_types.iter() {
+        assert!(matches!(
+            &output.local.types[signature.canonical_type].kind,
+            hir::concrete::TypeKind::Function(found) if *found == function_type
+        ));
+        assert_eq!(
+            output
+                .local
+                .types
+                .iter()
+                .filter(|(_, ty)| matches!(&ty.kind, hir::concrete::TypeKind::Function(found) if *found == function_type))
+                .count(),
+            1
+        );
+    }
+
+    let export_use = output
+        .export
+        .functions
+        .iter()
+        .map(|(_, function)| function)
+        .find(|function| function.name == "useFunctions")
+        .expect("export function");
+    assert_eq!(export_use.params[0].ty, export_use.params[1].ty);
+    assert_ne!(export_use.params[0].ty, export_use.params[2].ty);
+
+    let local_use = output
+        .local
+        .functions
+        .iter()
+        .map(|(_, function)| function)
+        .find(|function| function.name == "useFunctions")
+        .expect("local function");
+    assert_eq!(local_use.params[0].ty, local_use.params[1].ty);
+    assert_ne!(local_use.params[0].ty, local_use.params[2].ty);
+}
+
+#[test]
 fn compiler_exception_core_is_complete_in_export_and_local_hir() {
     let output = lower_user_output(file(vec![fun("main", vec![])]))
         .expect("the canonical compiler exception core must lower");

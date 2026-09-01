@@ -629,6 +629,9 @@ impl Lowerer {
     /// On a dedup hit the fresh entry simply stays unreferenced
     /// (nothing iterates the arena semantically).
     pub(crate) fn intern_type(&mut self, candidate: Type) -> TypeId {
+        if let Type::Function(function) = &candidate {
+            return self.function_types[*function].canonical_type;
+        }
         let id = self.types.alloc(candidate);
         for (other, _) in self.types.iter() {
             if other != id && type_value_equal(&self.types, other, id) {
@@ -653,15 +656,24 @@ impl Lowerer {
                 && candidate.return_type == return_type)
                 .then_some(id)
         });
-        let function = match existing {
-            Some(id) => id,
-            None => self.function_types.alloc(hir::FunctionType {
-                is_suspend,
-                parameter_types,
-                return_type,
-            }),
-        };
-        self.intern_type(Type::Function(function))
+        if let Some(function) = existing {
+            return self.function_types[function].canonical_type;
+        }
+
+        let expected_function = hir::FunctionTypeId::from_raw(
+            u32::try_from(self.function_types.len())
+                .expect("the function-type arena fits its typed id")
+                .into(),
+        );
+        let canonical_type = self.types.alloc(Type::Function(expected_function));
+        let function = self.function_types.alloc(hir::FunctionType {
+            canonical_type,
+            is_suspend,
+            parameter_types,
+            return_type,
+        });
+        assert_eq!(function, expected_function);
+        canonical_type
     }
 
     fn instantiate_function_type(
