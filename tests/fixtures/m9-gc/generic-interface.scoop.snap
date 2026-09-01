@@ -152,6 +152,19 @@ SourceFile
   class IndexOutOfBoundsException() : Exception(<1 args>)
   class IllegalStateException() : Exception(<1 args>)
 SourceFile
+    @Intrinsic("core_int")
+  struct Int <representation omitted>
+    @Intrinsic("core_uint")
+  struct UInt <representation omitted>
+    @Intrinsic("core_boolean")
+  struct Boolean <representation omitted>
+    @Intrinsic("core_string")
+  class String()
+    @Intrinsic("core_array")
+  class Array<T>()
+    @Intrinsic("core_mutable_array")
+  class MutableArray<T>()
+SourceFile
   interface Producer<out T>
     fun get
   interface Consumer<in T>
@@ -760,7 +773,7 @@ Module
   global @scoop_td_AnyConsumer = c""
   enum Option$S niche(payload_variant=0)
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
-  fun @scoop.IntValue.get(struct0) -> i64
+  fun @scoop.IntValue.get(struct3) -> i64
   block entry
     t0 = extract param0, 0 : i64
     ret t0
@@ -868,7 +881,7 @@ Module
     store t17 -> local8
     call @scoop.println(local8)
     t18 = aggregate () : {}
-    t19 = aggregate (8) : struct0
+    t19 = aggregate (8) : struct3
     t20 = call @scoop_rt_box(global10, t19, 8) : ptr<managed>
     t21 = call @scoop.boxResult(t20) : ptr<managed>
     store t21 -> local9
@@ -878,7 +891,7 @@ Module
     store t24 -> local10
     call @scoop.println(local10)
     t25 = aggregate () : {}
-    t26 = aggregate (10) : struct1
+    t26 = aggregate (10) : struct4
     t27 = call @scoop_rt_box(global11, t26, 8) : ptr<managed>
     t28 = call @scoop.boxResult(t27) : ptr<managed>
     store t28 -> local11
@@ -912,7 +925,7 @@ Module
     t2 = call_indirect t1[0](param0) : i64
     store t2 -> local0
     ret local0
-  fun @scoop.Value.get$I(struct1) -> i64
+  fun @scoop.Value.get$I(struct4) -> i64
   block entry
     t0 = extract param0, 0 : i64
     ret t0
@@ -982,12 +995,12 @@ Module
     t0 = call @scoop_rt_alloc(global27, 16) : ptr<managed>
     ret t0
   fun @scoop.eq.IntValue(ptr<managed>, ptr<managed>) -> i1
-    local %0 $a: struct0
-    local %1 $b: struct0
+    local %0 $a: struct3
+    local %1 $b: struct3
   block entry
-    t0 = heap_load param0 +16 : struct0
+    t0 = heap_load param0 +16 : struct3
     store t0 -> local0
-    t1 = heap_load param1 +16 : struct0
+    t1 = heap_load param1 +16 : struct3
     store t1 -> local1
     t2 = extract local0, 0 : i64
     t3 = extract local1, 0 : i64
@@ -996,17 +1009,17 @@ Module
   fun @scoop.thunk.IntValue.Producer$I.get(ptr<managed>) -> i64
     local %0 $call.1: i64
   block entry
-    t0 = heap_load param0 +16 : struct0
+    t0 = heap_load param0 +16 : struct3
     t1 = call @scoop.IntValue.get(t0) : i64
     store t1 -> local0
     ret local0
   fun @scoop.eq.Value$I(ptr<managed>, ptr<managed>) -> i1
-    local %0 $a: struct1
-    local %1 $b: struct1
+    local %0 $a: struct4
+    local %1 $b: struct4
   block entry
-    t0 = heap_load param0 +16 : struct1
+    t0 = heap_load param0 +16 : struct4
     store t0 -> local0
-    t1 = heap_load param1 +16 : struct1
+    t1 = heap_load param1 +16 : struct4
     store t1 -> local1
     t2 = extract local0, 0 : i64
     t3 = extract local1, 0 : i64
@@ -1015,7 +1028,7 @@ Module
   fun @scoop.thunk.Value$I.Producer$I.get(ptr<managed>) -> i64
     local %0 $call.1: i64
   block entry
-    t0 = heap_load param0 +16 : struct1
+    t0 = heap_load param0 +16 : struct4
     t1 = call @scoop.Value.get$I(t0) : i64
     store t1 -> local0
     ret local0

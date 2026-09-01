@@ -152,6 +152,19 @@ SourceFile
   class IndexOutOfBoundsException() : Exception(<1 args>)
   class IllegalStateException() : Exception(<1 args>)
 SourceFile
+    @Intrinsic("core_int")
+  struct Int <representation omitted>
+    @Intrinsic("core_uint")
+  struct UInt <representation omitted>
+    @Intrinsic("core_boolean")
+  struct Boolean <representation omitted>
+    @Intrinsic("core_string")
+  class String()
+    @Intrinsic("core_array")
+  class Array<T>()
+    @Intrinsic("core_mutable_array")
+  class MutableArray<T>()
+SourceFile
   interface Show
     fun show
   struct Shown : Show
@@ -510,7 +523,7 @@ Module
   global @scoop_td_Box$S = c""
   enum Option$S niche(payload_variant=0)
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
-  fun @scoop.Shown.show(struct0) -> i64
+  fun @scoop.Shown.show(struct3) -> i64
   block entry
     t0 = extract param0, 0 : i64
     ret t0
@@ -547,7 +560,7 @@ Module
   block entry
     t0 = call @scoop.ctor.Box$S(global1) : ptr<managed>
     store t0 -> local0
-    t1 = aggregate (40) : struct0
+    t1 = aggregate (40) : struct3
     t2 = call @scoop.Box.combine$S_Shown(local0, t1) : i64
     store t2 -> local2
     t3 = call @scoop_rt_box(global8, local2, 8) : ptr<managed>
@@ -559,7 +572,7 @@ Module
     t6 = aggregate () : {}
     t7 = call @scoop.ctor.Derived() : ptr<managed>
     store t7 -> local4
-    t8 = aggregate (41) : struct0
+    t8 = aggregate (41) : struct3
     t9 = call @scoop.Box.combine$I_Shown(local4, t8) : i64
     store t9 -> local5
     t10 = call @scoop_rt_box(global8, local5, 8) : ptr<managed>
@@ -570,14 +583,14 @@ Module
     heap_store t12 +16 t13
     heap_store t12 +24 local0
     store t12 -> local1
-    t14 = aggregate (42) : struct0
+    t14 = aggregate (42) : struct3
     t15 = call_indirect local1[2](local1, t14) : i64
     store t15 -> local6
     t16 = call @scoop_rt_box(global8, local6, 8) : ptr<managed>
     call @scoop.println(t16)
     t17 = aggregate () : {}
     ret
-  fun @scoop.Box.combine$S_Shown(ptr<managed>, struct0) -> i64
+  fun @scoop.Box.combine$S_Shown(ptr<managed>, struct3) -> i64
     local %0 $call.1: i64
   block entry
     t0 = call @scoop.Shown.show(param1) : i64
@@ -586,13 +599,13 @@ Module
   fun @scoop.Box.choose$S_S(ptr<managed>, ptr<managed>) -> ptr<managed>
   block entry
     ret param1
-  fun @scoop.Box.combine$I_Shown(ptr<managed>, struct0) -> i64
+  fun @scoop.Box.combine$I_Shown(ptr<managed>, struct3) -> i64
     local %0 $call.1: i64
   block entry
     t0 = call @scoop.Shown.show(param1) : i64
     store t0 -> local0
     ret local0
-  fun @scoop.$reference.0(ptr<managed>, struct0) -> i64
+  fun @scoop.$reference.0(ptr<managed>, struct3) -> i64
     local %0 $call.1: i64
   block entry
     t0 = heap_load param0 +24 : ptr<managed>

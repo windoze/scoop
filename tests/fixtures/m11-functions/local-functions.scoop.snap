@@ -152,6 +152,19 @@ SourceFile
   class IndexOutOfBoundsException() : Exception(<1 args>)
   class IllegalStateException() : Exception(<1 args>)
 SourceFile
+    @Intrinsic("core_int")
+  struct Int <representation omitted>
+    @Intrinsic("core_uint")
+  struct UInt <representation omitted>
+    @Intrinsic("core_boolean")
+  struct Boolean <representation omitted>
+    @Intrinsic("core_string")
+  class String()
+    @Intrinsic("core_array")
+  class Array<T>()
+    @Intrinsic("core_mutable_array")
+  class MutableArray<T>()
+SourceFile
   fun factorialOf(value: Int): Int
     fun factorial(n: Int): Int
       return
@@ -857,7 +870,7 @@ Module
   global @scoop_td_IllegalStateException = c""
   enum Option$S niche(payload_variant=0)
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
-  fun @scoop.LocalSnapshot.readThroughLocal(struct1) -> i64
+  fun @scoop.LocalSnapshot.readThroughLocal(struct4) -> i64
     local %0 $call.1: i64
   block entry
     t0 = call @scoop.$local.11.read(param0) : i64
@@ -928,7 +941,7 @@ Module
     t0 = call @scoop.$local.7.finishAfter(param0, 2) : i64
     store t0 -> local0
     ret local0
-  fun @scoop.makeLabelReader(struct0) -> ptr<managed>
+  fun @scoop.makeLabelReader(struct3) -> ptr<managed>
   block entry
     t0 = call @scoop_rt_alloc(global10, 32) : ptr<managed>
     t1 = function_address @scoop.$reference.2 : ptr
@@ -944,7 +957,7 @@ Module
   fun @scoop_main() -> void
     local %0 add: ptr<managed>
     local %1 read: ptr<managed>
-    local %2 snapshot: struct1
+    local %2 snapshot: struct4
     local %3 $call.1: i64
     local %4 $call.2: i64
     local %5 $call.3: i64
@@ -959,7 +972,7 @@ Module
   block entry
     t0 = call @scoop.makeAdder(2) : ptr<managed>
     store t0 -> local0
-    t1 = aggregate (global1) : struct0
+    t1 = aggregate (global1) : struct3
     t2 = call @scoop.makeLabelReader(t1) : ptr<managed>
     store t2 -> local1
     call @scoop_rt_gc_collect()
@@ -1010,14 +1023,14 @@ Module
     t29 = call @scoop_rt_box(global7, local12, 8) : ptr<managed>
     call @scoop.println(t29)
     t30 = aggregate () : {}
-    t31 = aggregate (42) : struct1
+    t31 = aggregate (42) : struct4
     store t31 -> local2
     t32 = call @scoop.LocalSnapshot.readThroughLocal(local2) : i64
     store t32 -> local13
     t33 = call @scoop_rt_box(global7, local13, 8) : ptr<managed>
     call @scoop.println(t33)
     t34 = aggregate () : {}
-    t35 = aggregate (0) : struct1
+    t35 = aggregate (0) : struct4
     store t35 -> local2
     t36 = extract local2, 0 : i64
     t37 = call @scoop_rt_box(global7, t36, 8) : ptr<managed>
@@ -1065,7 +1078,7 @@ Module
     ret local0
   block if.merge.2
     ret param0
-  fun @scoop.$local.8.read(struct0) -> ptr<managed>
+  fun @scoop.$local.8.read(struct3) -> ptr<managed>
   block entry
     t0 = extract param0, 0 : ptr<managed>
     ret t0
@@ -1079,7 +1092,7 @@ Module
   block entry
     t0 = Add param1, param0 : i64
     ret t0
-  fun @scoop.$local.11.read(struct1) -> i64
+  fun @scoop.$local.11.read(struct4) -> i64
   block entry
     t0 = extract param0, 0 : i64
     ret t0
@@ -1114,7 +1127,7 @@ Module
   fun @scoop.$reference.2(ptr<managed>) -> ptr<managed>
     local %0 $call.1: ptr<managed>
   block entry
-    t0 = heap_load param0 +24 : struct0
+    t0 = heap_load param0 +24 : struct3
     t1 = call @scoop.$local.8.read(t0) : ptr<managed>
     store t1 -> local0
     ret local0

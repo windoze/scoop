@@ -152,6 +152,19 @@ SourceFile
   class IndexOutOfBoundsException() : Exception(<1 args>)
   class IllegalStateException() : Exception(<1 args>)
 SourceFile
+    @Intrinsic("core_int")
+  struct Int <representation omitted>
+    @Intrinsic("core_uint")
+  struct UInt <representation omitted>
+    @Intrinsic("core_boolean")
+  struct Boolean <representation omitted>
+    @Intrinsic("core_string")
+  class String()
+    @Intrinsic("core_array")
+  class Array<T>()
+    @Intrinsic("core_mutable_array")
+  class MutableArray<T>()
+SourceFile
   interface Describable
     fun describe
   class Doc(val title: String), Describable
@@ -582,7 +595,7 @@ Module
   enum Option$S niche(payload_variant=0)
   enum Option$Describable niche(payload_variant=0)
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
-  fun @scoop.Tag.describe(struct0) -> ptr<managed>
+  fun @scoop.Tag.describe(struct3) -> ptr<managed>
   block entry
     ret global0
   fun @scoop.Doc.describe(ptr<managed>) -> ptr<managed>
@@ -614,7 +627,7 @@ Module
   fun @scoop_main() -> void
     local %0 d: ptr<managed>
     local %1 i: ptr<managed>
-    local %2 t: struct0
+    local %2 t: struct3
     local %3 ti: ptr<managed>
     local %4 a: ptr<managed>
     local %5 $cast.1: ptr<managed>
@@ -642,7 +655,7 @@ Module
     store t5 -> local12
     call @scoop.println(local12)
     t6 = aggregate () : {}
-    t7 = aggregate (1) : struct0
+    t7 = aggregate (1) : struct3
     store t7 -> local2
     t8 = call @scoop_rt_box(global9, local2, 8) : ptr<managed>
     store t8 -> local3
@@ -769,12 +782,12 @@ Module
     heap_store t0 +16 param0
     ret t0
   fun @scoop.eq.Tag(ptr<managed>, ptr<managed>) -> i1
-    local %0 $a: struct0
-    local %1 $b: struct0
+    local %0 $a: struct3
+    local %1 $b: struct3
   block entry
-    t0 = heap_load param0 +16 : struct0
+    t0 = heap_load param0 +16 : struct3
     store t0 -> local0
-    t1 = heap_load param1 +16 : struct0
+    t1 = heap_load param1 +16 : struct3
     store t1 -> local1
     t2 = extract local0, 0 : i64
     t3 = extract local1, 0 : i64
@@ -783,7 +796,7 @@ Module
   fun @scoop.thunk.Tag.Describable.describe(ptr<managed>) -> ptr<managed>
     local %0 $call.1: ptr<managed>
   block entry
-    t0 = heap_load param0 +16 : struct0
+    t0 = heap_load param0 +16 : struct3
     t1 = call @scoop.Tag.describe(t0) : ptr<managed>
     store t1 -> local0
     ret local0

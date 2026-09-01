@@ -152,6 +152,19 @@ SourceFile
   class IndexOutOfBoundsException() : Exception(<1 args>)
   class IllegalStateException() : Exception(<1 args>)
 SourceFile
+    @Intrinsic("core_int")
+  struct Int <representation omitted>
+    @Intrinsic("core_uint")
+  struct UInt <representation omitted>
+    @Intrinsic("core_boolean")
+  struct Boolean <representation omitted>
+    @Intrinsic("core_string")
+  class String()
+    @Intrinsic("core_array")
+  class Array<T>()
+    @Intrinsic("core_mutable_array")
+  class MutableArray<T>()
+SourceFile
   struct Tagged
     field tag: String
     field pair: (Int, String)
@@ -529,8 +542,8 @@ Module
     t4 = aggregate () : {}
     ret
   fun @scoop_main() -> void
-    local %0 a: struct0
-    local %1 b: struct0
+    local %0 a: struct3
+    local %1 b: struct3
     local %2 count: i64
     local %3 $call.1: i1
     local %4 $logic.2: i1
@@ -538,10 +551,10 @@ Module
     local %6 $call.4: i1
   block entry
     t0 = aggregate (1, global2) : {i64, ptr<managed>}
-    t1 = aggregate (global1, t0) : struct0
+    t1 = aggregate (global1, t0) : struct3
     store t1 -> local0
     t2 = aggregate (1, global4) : {i64, ptr<managed>}
-    t3 = aggregate (global3, t2) : struct0
+    t3 = aggregate (global3, t2) : struct3
     store t3 -> local1
     t4 = extract local0, 0 : ptr<managed>
     t5 = extract local1, 0 : ptr<managed>

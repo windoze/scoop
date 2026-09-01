@@ -127,7 +127,7 @@ impl Lowerer {
                     let struct_id = application_value.template;
                     let owner = format!("struct `{}`", self.structs[struct_id].name);
                     let declared: Vec<TypeId> = self.structs[struct_id]
-                        .fields
+                        .semantic_fields()
                         .iter()
                         .map(|f| f.ty)
                         .collect();
@@ -215,7 +215,7 @@ impl Lowerer {
                         let struct_id = application_value.template;
                         let owner = format!("struct `{}`", self.structs[struct_id].name);
                         let declared: Vec<TypeId> = self.structs[struct_id]
-                            .fields
+                            .semantic_fields()
                             .iter()
                             .map(|f| f.ty)
                             .collect();
@@ -296,7 +296,7 @@ impl Lowerer {
                         let struct_id = application_value.template;
                         let owner = format!("struct `{}`", self.structs[struct_id].name);
                         let declared: Vec<(String, TypeId)> = self.structs[struct_id]
-                            .fields
+                            .semantic_fields()
                             .iter()
                             .map(|f| (f.name.clone(), f.ty))
                             .collect();

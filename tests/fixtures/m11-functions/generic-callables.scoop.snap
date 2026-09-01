@@ -152,6 +152,19 @@ SourceFile
   class IndexOutOfBoundsException() : Exception(<1 args>)
   class IllegalStateException() : Exception(<1 args>)
 SourceFile
+    @Intrinsic("core_int")
+  struct Int <representation omitted>
+    @Intrinsic("core_uint")
+  struct UInt <representation omitted>
+    @Intrinsic("core_boolean")
+  struct Boolean <representation omitted>
+    @Intrinsic("core_string")
+  class String()
+    @Intrinsic("core_array")
+  class Array<T>()
+    @Intrinsic("core_mutable_array")
+  class MutableArray<T>()
+SourceFile
   struct GenericBox<T>
     field value: T
   fun identity<T>(value: T): T
@@ -1236,9 +1249,9 @@ Module
     heap_store t0 +24 param0
     ret t0
   fun @scoop.makeBoxReader$I(i64) -> ptr<managed>
-    local %0 box: struct0
+    local %0 box: struct3
   block entry
-    t0 = aggregate (param0) : struct0
+    t0 = aggregate (param0) : struct3
     store t0 -> local0
     t1 = call @scoop_rt_alloc(global27, 32) : ptr<managed>
     t2 = function_address @scoop.$lambda.2$I : ptr
@@ -1246,9 +1259,9 @@ Module
     heap_store t1 +24 local0
     ret t1
   fun @scoop.makeBoxReader$S(ptr<managed>) -> ptr<managed>
-    local %0 box: struct1
+    local %0 box: struct4
   block entry
-    t0 = aggregate (param0) : struct1
+    t0 = aggregate (param0) : struct4
     store t0 -> local0
     t1 = call @scoop_rt_alloc(global28, 32) : ptr<managed>
     t2 = function_address @scoop.$lambda.2$S : ptr
@@ -1307,12 +1320,12 @@ Module
     ret t0
   fun @scoop.$lambda.2$I(ptr<managed>) -> i64
   block entry
-    t0 = heap_load param0 +24 : struct0
+    t0 = heap_load param0 +24 : struct3
     t1 = extract t0, 0 : i64
     ret t1
   fun @scoop.$lambda.2$S(ptr<managed>) -> ptr<managed>
   block entry
-    t0 = heap_load param0 +24 : struct1
+    t0 = heap_load param0 +24 : struct4
     t1 = extract t0, 0 : ptr<managed>
     ret t1
   fun @scoop.$lambda.1$I(ptr<managed>) -> i64

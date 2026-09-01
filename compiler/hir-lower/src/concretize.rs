@@ -36,6 +36,12 @@ enum MethodRequest {
     },
 }
 
+#[derive(Debug, Clone)]
+enum ConcreteApplicationRepresentation {
+    Declared,
+    Intrinsic(concrete::IntrinsicTypeRepresentation),
+}
+
 impl FunctionKey {
     fn source(&self) -> export::FunctionId {
         match *self {
@@ -157,9 +163,9 @@ impl<'a> Concretizer<'a> {
 
         // Non-generic aggregate declarations and source functions are local
         // concrete entities even when no expression happens to mention them.
-        for (id, declaration) in self.source.structs.iter() {
+        for (_, declaration) in self.source.structs.iter() {
             if declaration.type_params.is_empty() {
-                self.ensure_struct(id, Vec::new());
+                self.lower_struct_application(declaration.self_application, &[]);
             }
         }
         for (id, declaration) in self.source.enums.iter() {
@@ -172,9 +178,9 @@ impl<'a> Concretizer<'a> {
                 self.ensure_interface(id, Vec::new());
             }
         }
-        for (id, declaration) in self.source.classes.iter() {
+        for (_, declaration) in self.source.classes.iter() {
             if declaration.type_params.is_empty() {
-                self.ensure_class(id, Vec::new());
+                self.lower_class_application(declaration.self_application, &[]);
             }
         }
         for (id, function) in self.source.functions.iter() {
@@ -207,6 +213,13 @@ impl<'a> Concretizer<'a> {
         self.drain_pending_functions();
         let callback_mode = self.ensure_enum(self.source.foreign_callback_core.mode, Vec::new());
         let callback_state = self.ensure_enum(self.source.foreign_callback_core.state, Vec::new());
+
+        let intrinsic_type_core = concrete::IntrinsicTypeCore {
+            int: self.struct_by_key[&(self.source.intrinsic_type_core.int, Vec::new())],
+            uint: self.struct_by_key[&(self.source.intrinsic_type_core.uint, Vec::new())],
+            boolean: self.struct_by_key[&(self.source.intrinsic_type_core.boolean, Vec::new())],
+            string: self.class_by_key[&(self.source.intrinsic_type_core.string, Vec::new())],
+        };
 
         let functions = arena_from_complete_slots(self.function_slots, "concrete function");
         let entry = self.function_by_key[&FunctionKey::Free {
@@ -260,6 +273,7 @@ impl<'a> Concretizer<'a> {
                 mode: callback_mode,
                 state: callback_state,
             },
+            intrinsic_type_core,
             entry,
         }
     }
@@ -355,6 +369,7 @@ impl<'a> Concretizer<'a> {
         &mut self,
         source_id: export::ClassId,
         arguments: Vec<concrete::TypeId>,
+        application: ConcreteApplicationRepresentation,
     ) -> concrete::ClassId {
         let key = (source_id, arguments.clone());
         if let Some(&id) = self.class_by_key.get(&key) {
@@ -362,23 +377,54 @@ impl<'a> Concretizer<'a> {
         }
         let source = self.source.classes[source_id].clone();
         assert_eq!(source.type_params.len(), arguments.len());
+        let representation = match (&source.representation, application) {
+            (
+                export::ClassRepresentation::Declared(_),
+                ConcreteApplicationRepresentation::Declared,
+            ) => concrete::ClassRepresentation::Declared {
+                constructor: Vec::new(),
+                base_class: None,
+            },
+            (
+                export::ClassRepresentation::Intrinsic(declaration),
+                ConcreteApplicationRepresentation::Intrinsic(application),
+            ) => concrete::ClassRepresentation::Intrinsic {
+                declaration: *declaration,
+                application,
+            },
+            _ => unreachable!("ExportHir declaration and application representations agree"),
+        };
         let id = self.classes.alloc(concrete::ClassDef {
             modifier: source.modifier,
             name: self.instance_name(&source.name, &arguments),
             type_arguments: arguments.clone(),
-            constructor: Vec::new(),
-            base_class: None,
+            representation,
             interfaces: Vec::new(),
             methods: Vec::new(),
             span: source.span,
         });
         self.class_by_key.insert(key, id);
         self.class_source.insert(id, source_id);
-        let ty = self.intern_type(concrete::TypeKind::Class(id), false);
+        let ty = match self.classes[id].representation {
+            concrete::ClassRepresentation::Intrinsic {
+                application: concrete::IntrinsicTypeRepresentation::String,
+                ..
+            } => self.intern_type(concrete::TypeKind::String, false),
+            concrete::ClassRepresentation::Declared { .. }
+            | concrete::ClassRepresentation::Intrinsic {
+                application:
+                    concrete::IntrinsicTypeRepresentation::Array { .. }
+                    | concrete::IntrinsicTypeRepresentation::MutableArray { .. },
+                ..
+            } => self.intern_type(concrete::TypeKind::Class(id), false),
+            concrete::ClassRepresentation::Intrinsic { .. } => {
+                unreachable!("the registry fixes intrinsic declaration targets")
+            }
+        };
         self.class_type.insert(id, ty);
 
         let constructor = source
-            .constructor
+            .semantic_constructor()
             .iter()
             .map(|field| concrete::ConstructorField {
                 parameter: concrete::ConstructorParamId::from_raw(field.parameter.into_raw()),
@@ -407,9 +453,19 @@ impl<'a> Concretizer<'a> {
                 .collect();
             (base, args)
         });
-        self.classes[id].constructor = constructor;
         self.classes[id].interfaces = interfaces;
-        self.classes[id].base_class = base_class;
+        match &mut self.classes[id].representation {
+            concrete::ClassRepresentation::Declared {
+                constructor: concrete_constructor,
+                base_class: concrete_base,
+            } => {
+                *concrete_constructor = constructor;
+                *concrete_base = base_class;
+            }
+            concrete::ClassRepresentation::Intrinsic { .. } => {
+                debug_assert!(constructor.is_empty() && base_class.is_none());
+            }
+        }
         let methods =
             self.request_concrete_methods(&source.methods, concrete::MethodOwner::Class(id));
         self.classes[id].methods = methods;
@@ -534,7 +590,17 @@ impl<'a> Concretizer<'a> {
             .iter()
             .map(|argument| self.lower_type(*argument, substitution))
             .collect();
-        self.ensure_struct(application.template, arguments)
+        let representation = match application.representation {
+            export::StructApplicationRepresentation::Declared => {
+                ConcreteApplicationRepresentation::Declared
+            }
+            export::StructApplicationRepresentation::Intrinsic(representation) => {
+                ConcreteApplicationRepresentation::Intrinsic(
+                    self.lower_intrinsic_type_representation(representation, substitution),
+                )
+            }
+        };
+        self.ensure_struct(application.template, arguments, representation)
     }
 
     fn lower_enum_application(
@@ -562,7 +628,46 @@ impl<'a> Concretizer<'a> {
             .iter()
             .map(|argument| self.lower_type(*argument, substitution))
             .collect();
-        self.ensure_class(application.template, arguments)
+        let representation = match application.representation {
+            export::ClassApplicationRepresentation::Declared => {
+                ConcreteApplicationRepresentation::Declared
+            }
+            export::ClassApplicationRepresentation::Intrinsic(representation) => {
+                ConcreteApplicationRepresentation::Intrinsic(
+                    self.lower_intrinsic_type_representation(representation, substitution),
+                )
+            }
+        };
+        self.ensure_class(application.template, arguments, representation)
+    }
+
+    fn lower_intrinsic_type_representation(
+        &mut self,
+        representation: export::IntrinsicTypeRepresentation,
+        substitution: &[concrete::TypeId],
+    ) -> concrete::IntrinsicTypeRepresentation {
+        match representation {
+            export::IntrinsicTypeRepresentation::Int => concrete::IntrinsicTypeRepresentation::Int,
+            export::IntrinsicTypeRepresentation::UInt => {
+                concrete::IntrinsicTypeRepresentation::UInt
+            }
+            export::IntrinsicTypeRepresentation::Boolean => {
+                concrete::IntrinsicTypeRepresentation::Boolean
+            }
+            export::IntrinsicTypeRepresentation::String => {
+                concrete::IntrinsicTypeRepresentation::String
+            }
+            export::IntrinsicTypeRepresentation::Array { element } => {
+                concrete::IntrinsicTypeRepresentation::Array {
+                    element: self.lower_type(element, substitution),
+                }
+            }
+            export::IntrinsicTypeRepresentation::MutableArray { element } => {
+                concrete::IntrinsicTypeRepresentation::MutableArray {
+                    element: self.lower_type(element, substitution),
+                }
+            }
+        }
     }
 
     fn lower_interface_application(
@@ -696,6 +801,7 @@ impl<'a> Concretizer<'a> {
         &mut self,
         source_id: export::StructId,
         arguments: Vec<concrete::TypeId>,
+        application: ConcreteApplicationRepresentation,
     ) -> concrete::StructId {
         let key = (source_id, arguments.clone());
         if let Some(&id) = self.struct_by_key.get(&key) {
@@ -704,22 +810,57 @@ impl<'a> Concretizer<'a> {
         let source = self.source.structs[source_id].clone();
         assert_eq!(source.type_params.len(), arguments.len());
         let name = self.instance_name(&source.name, &arguments);
+        let representation = match (&source.representation, application) {
+            (
+                export::StructRepresentation::Declared(_),
+                ConcreteApplicationRepresentation::Declared,
+            ) => concrete::StructRepresentation::Declared {
+                attributes: source.attributes,
+                fields: Vec::new(),
+            },
+            (
+                export::StructRepresentation::Intrinsic(declaration),
+                ConcreteApplicationRepresentation::Intrinsic(application),
+            ) => concrete::StructRepresentation::Intrinsic {
+                declaration: *declaration,
+                application,
+            },
+            _ => unreachable!("ExportHir declaration and application representations agree"),
+        };
         let id = self.structs.alloc(concrete::StructDef {
             name,
             type_arguments: arguments.clone(),
             gc_free: false,
-            attributes: source.attributes,
-            fields: Vec::new(),
+            representation,
             interfaces: Vec::new(),
             methods: Vec::new(),
             span: source.span,
         });
         self.struct_by_key.insert(key, id);
         self.struct_source.insert(id, source_id);
-        let ty = self.intern_type(concrete::TypeKind::Struct(id), false);
+        let ty = match self.structs[id].representation {
+            concrete::StructRepresentation::Intrinsic {
+                application: concrete::IntrinsicTypeRepresentation::Int,
+                ..
+            } => self.intern_type(concrete::TypeKind::Int, true),
+            concrete::StructRepresentation::Intrinsic {
+                application: concrete::IntrinsicTypeRepresentation::UInt,
+                ..
+            } => self.intern_type(concrete::TypeKind::UInt, true),
+            concrete::StructRepresentation::Intrinsic {
+                application: concrete::IntrinsicTypeRepresentation::Boolean,
+                ..
+            } => self.intern_type(concrete::TypeKind::Boolean, true),
+            concrete::StructRepresentation::Declared { .. } => {
+                self.intern_type(concrete::TypeKind::Struct(id), false)
+            }
+            concrete::StructRepresentation::Intrinsic { .. } => {
+                unreachable!("the registry fixes intrinsic declaration targets")
+            }
+        };
         self.struct_type.insert(id, ty);
         let fields: Vec<_> = source
-            .fields
+            .semantic_fields()
             .iter()
             .map(|field| concrete::Field {
                 name: field.name.clone(),
@@ -740,10 +881,18 @@ impl<'a> Concretizer<'a> {
             !source.attributes.no_gc || gc_free,
             "HIR diagnoses an invalid @NoGC struct specialization"
         );
-        self.structs[id].fields = fields;
         self.structs[id].interfaces = interfaces;
         self.structs[id].gc_free = gc_free;
         self.types[ty].gc_free = gc_free;
+        match &mut self.structs[id].representation {
+            concrete::StructRepresentation::Declared {
+                fields: concrete_fields,
+                ..
+            } => *concrete_fields = fields,
+            concrete::StructRepresentation::Intrinsic { .. } => {
+                debug_assert!(fields.is_empty() && gc_free);
+            }
+        }
         let methods =
             self.request_concrete_methods(&source.methods, concrete::MethodOwner::Struct(id));
         self.structs[id].methods = methods;
@@ -1476,7 +1625,7 @@ impl<'a> Concretizer<'a> {
                     concrete::TypeKind::Struct(concrete_struct),
                     "the checked pattern application must match its subject"
                 );
-                let definition = self.structs[concrete_struct].fields.clone();
+                let definition = self.structs[concrete_struct].declared_fields().to_vec();
                 concrete::Pattern::Struct {
                     struct_id: concrete_struct,
                     fields: fields

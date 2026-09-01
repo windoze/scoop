@@ -152,6 +152,19 @@ SourceFile
   class IndexOutOfBoundsException() : Exception(<1 args>)
   class IllegalStateException() : Exception(<1 args>)
 SourceFile
+    @Intrinsic("core_int")
+  struct Int <representation omitted>
+    @Intrinsic("core_uint")
+  struct UInt <representation omitted>
+    @Intrinsic("core_boolean")
+  struct Boolean <representation omitted>
+    @Intrinsic("core_string")
+  class String()
+    @Intrinsic("core_array")
+  class Array<T>()
+    @Intrinsic("core_mutable_array")
+  class MutableArray<T>()
+SourceFile
   class Node(val name: String)
   struct Bundle
     field text: String
@@ -1904,12 +1917,12 @@ Module
   global @scoop_td_CoroutineAdapter$scoop_middle_suspend$1 = c""
   enum Option$Continuation$I niche(payload_variant=0)
   enum Option$S niche(payload_variant=0)
-  enum Payload tagged size=24 align=8 variants=(struct0)@8+16:refs ()@8+0
+  enum Payload tagged size=24 align=8 variants=(struct3)@8+16:refs ()@8+0
   enum CoroutineStep$I tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
   enum CoroutineSlot$GcTask niche(payload_variant=1)
   enum CoroutineSlot$S niche(payload_variant=1)
   enum CoroutineSlot$Node niche(payload_variant=1)
-  enum CoroutineSlot$Bundle tagged size=24 align=8 variants=()@8+0 (struct0)@8+16:refs
+  enum CoroutineSlot$Bundle tagged size=24 align=8 variants=()@8+0 (struct3)@8+16:refs
   enum CoroutineSlot$EPayload tagged size=32 align=8 variants=()@8+0 (enum2)@8+24:refs
   enum CoroutineSlot$I tagged size=16 align=8 variants=()@8+0 (i64)@8+8
   enum CoroutineSlot$Throwable niche(payload_variant=1)
@@ -2218,10 +2231,10 @@ Module
     local %0 this: ptr<managed>
     local %1 taskText: ptr<managed>
     local %2 node: ptr<managed>
-    local %3 bundle: struct0
+    local %3 bundle: struct3
     local %4 payload: enum2
     local %5 value: i64
-    local %6 saved: struct0
+    local %6 saved: struct3
     local %7 $when.1: enum2
     local %8 $call.1: ptr<managed>
     local %9 $call.2: ptr<managed>
@@ -2241,7 +2254,7 @@ Module
     store t2 -> local2
     t3 = call @scoop_rt_string_concat(global4, global5) : ptr<managed>
     store t3 -> local9
-    t4 = aggregate (local9, local2) : struct0
+    t4 = aggregate (local9, local2) : struct3
     store t4 -> local3
     t5 = enum_wrap e2 v0 (local3) : enum2
     store t5 -> local4
@@ -2265,7 +2278,7 @@ Module
     t14 = Eq t13, 0 : i1
     cbr t14 then @coroutine.completed_claim_adapter.1 else @coroutine.suspended.1
   block if.then.1
-    t15 = enum_field e2 v0 f0 local7 : struct0
+    t15 = enum_field e2 v0 f0 local7 : struct3
     store t15 -> local6
     t16 = extract local6, 0 : ptr<managed>
     call @scoop.println(t16)
@@ -2332,7 +2345,7 @@ Module
     t43 = enum_field e6 v1 f0 t42 : ptr<managed>
     store t43 -> local2
     t44 = heap_load param0 +56 : enum7
-    t45 = enum_field e7 v1 f0 t44 : struct0
+    t45 = enum_field e7 v1 f0 t44 : struct3
     store t45 -> local3
     t46 = heap_load param0 +80 : enum8
     t47 = enum_field e8 v1 f0 t46 : enum2
@@ -2349,7 +2362,7 @@ Module
     t53 = enum_field e6 v1 f0 t52 : ptr<managed>
     store t53 -> local2
     t54 = heap_load param0 +56 : enum7
-    t55 = enum_field e7 v1 f0 t54 : struct0
+    t55 = enum_field e7 v1 f0 t54 : struct3
     store t55 -> local3
     t56 = heap_load param0 +80 : enum8
     t57 = enum_field e8 v1 f0 t56 : enum2
@@ -2860,7 +2873,7 @@ Module
     local %1 payload: enum2
     local %2 marker: ptr<managed>
     local %3 value: i64
-    local %4 bundle: struct0
+    local %4 bundle: struct3
     local %5 $when.1: enum2
     local %6 $completion: ptr<managed>
     local %7 $adapter.1: ptr<managed>
@@ -2887,7 +2900,7 @@ Module
     t6 = Eq t5, 0 : i1
     cbr t6 then @coroutine.completed_claim_adapter.1 else @coroutine.suspended.1
   block if.then.1
-    t7 = enum_field e2 v0 f0 local5 : struct0
+    t7 = enum_field e2 v0 f0 local5 : struct3
     store t7 -> local4
     t8 = extract local4, 0 : ptr<managed>
     call @scoop.println(t8)

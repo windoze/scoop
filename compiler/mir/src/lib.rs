@@ -244,9 +244,37 @@ pub struct StructDef {
     /// Fixed after all type parameters have been resolved and this MIR
     /// type entity has a complete concrete field list.
     pub gc_free: bool,
-    pub c_layout: Option<CLayout>,
-    pub interior_mutable: bool,
-    pub fields: Vec<Field>,
+    pub representation: StructRepresentation,
+}
+
+#[derive(Debug)]
+pub enum StructRepresentation {
+    Declared {
+        c_layout: Option<CLayout>,
+        interior_mutable: bool,
+        fields: Vec<Field>,
+    },
+    Intrinsic(IntrinsicTypeRepresentation),
+}
+
+impl StructDef {
+    pub fn declared_fields(&self) -> &[Field] {
+        match &self.representation {
+            StructRepresentation::Declared { fields, .. } => fields,
+            StructRepresentation::Intrinsic(_) => {
+                panic!("an intrinsic struct has no declared field representation")
+            }
+        }
+    }
+
+    pub fn declared_fields_mut(&mut self) -> &mut Vec<Field> {
+        match &mut self.representation {
+            StructRepresentation::Declared { fields, .. } => fields,
+            StructRepresentation::Intrinsic(_) => {
+                panic!("an intrinsic struct has no declared field representation")
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -294,9 +322,7 @@ pub enum ClassModifier {
 pub struct ClassDef {
     pub modifier: ClassModifier,
     pub name: String,
-    /// Constructor properties in declaration order.
-    pub fields: Vec<Field>,
-    pub base_class: Option<ClassId>,
+    pub representation: ClassRepresentation,
     pub interfaces: Vec<InterfaceId>,
     /// vtable slots: 0..2 are the `Any` defaults
     /// (`RuntimeFn::AnyEquals/AnyHashCode/AnyToString`), then user
@@ -305,6 +331,55 @@ pub struct ClassDef {
     /// itable entries, one per implemented interface (pointer-keyed
     /// lookup at runtime).
     pub itables: Vec<ItableRecord>,
+}
+
+#[derive(Debug)]
+pub enum ClassRepresentation {
+    Declared {
+        /// Constructor properties in flattened base-first order.
+        fields: Vec<Field>,
+        base_class: Option<ClassId>,
+    },
+    Intrinsic(IntrinsicTypeRepresentation),
+}
+
+impl ClassDef {
+    pub fn declared_fields(&self) -> &[Field] {
+        match &self.representation {
+            ClassRepresentation::Declared { fields, .. } => fields,
+            ClassRepresentation::Intrinsic(_) => {
+                panic!("an intrinsic class has no declared field representation")
+            }
+        }
+    }
+
+    pub fn declared_fields_mut(&mut self) -> &mut Vec<Field> {
+        match &mut self.representation {
+            ClassRepresentation::Declared { fields, .. } => fields,
+            ClassRepresentation::Intrinsic(_) => {
+                panic!("an intrinsic class has no declared field representation")
+            }
+        }
+    }
+
+    pub fn base_class(&self) -> Option<ClassId> {
+        match &self.representation {
+            ClassRepresentation::Declared { base_class, .. } => *base_class,
+            ClassRepresentation::Intrinsic(_) => None,
+        }
+    }
+}
+
+/// The exact compiler representation selected upstream for this fully
+/// specialized nominal type. Family variants carry their MIR element type.
+#[derive(Debug, Clone, PartialEq)]
+pub enum IntrinsicTypeRepresentation {
+    Int,
+    UInt,
+    Boolean,
+    String,
+    Array { element: Type },
+    MutableArray { element: Type },
 }
 
 #[derive(Debug)]
@@ -941,6 +1016,8 @@ pub enum RuntimeFn {
     AnyEquals,
     AnyHashCode,
     AnyToString,
+    /// Identity implementation for the typed intrinsic `String` vtable.
+    StringIdentity,
     /// GC facilities (spec 14.1; M9 via intrinsics, see
     /// docs/milestone9/DESIGN.md 5.2).
     Pin,
@@ -971,6 +1048,7 @@ impl RuntimeFn {
             RuntimeFn::AnyEquals => "scoop_rt_any_equals",
             RuntimeFn::AnyHashCode => "scoop_rt_any_hashcode",
             RuntimeFn::AnyToString => "scoop_rt_any_tostring",
+            RuntimeFn::StringIdentity => "scoop_rt_string_identity",
             RuntimeFn::Pin => "scoop_rt_pin",
             RuntimeFn::Unpin => "scoop_rt_unpin",
             RuntimeFn::GetHandle => "scoop_rt_get_handle",
@@ -1081,32 +1159,40 @@ pub fn dump(module: &Module) -> String {
         ));
     }
     for (_, def) in module.structs.iter() {
-        let fields: Vec<String> = def
-            .fields
-            .iter()
-            .map(|f| format!("{}: {}", f.name, type_name(module, &f.ty)))
-            .collect();
-        let mut attributes = Vec::new();
-        if let Some(layout) = def.c_layout {
-            attributes.push(format!(
-                "c-layout aligned={} packed={}",
-                layout.aligned, layout.packed
-            ));
+        match &def.representation {
+            StructRepresentation::Declared {
+                c_layout,
+                interior_mutable,
+                fields,
+            } => {
+                let fields: Vec<String> = fields
+                    .iter()
+                    .map(|f| format!("{}: {}", f.name, type_name(module, &f.ty)))
+                    .collect();
+                let mut attributes = Vec::new();
+                if let Some(layout) = c_layout {
+                    attributes.push(format!(
+                        "c-layout aligned={} packed={}",
+                        layout.aligned, layout.packed
+                    ));
+                }
+                if *interior_mutable {
+                    attributes.push("interior-mutable".to_string());
+                }
+                let attributes = if attributes.is_empty() {
+                    String::new()
+                } else {
+                    format!(" <{}>", attributes.join(" "))
+                };
+                out.push_str(&format!(
+                    "  struct {} ({}){}\n",
+                    def.name,
+                    fields.join(", "),
+                    attributes
+                ));
+            }
+            StructRepresentation::Intrinsic(_) => {}
         }
-        if def.interior_mutable {
-            attributes.push("interior-mutable".to_string());
-        }
-        let attributes = if attributes.is_empty() {
-            String::new()
-        } else {
-            format!(" <{}>", attributes.join(" "))
-        };
-        out.push_str(&format!(
-            "  struct {} ({}){}\n",
-            def.name,
-            fields.join(", "),
-            attributes
-        ));
     }
     for (_, def) in module.enums.iter() {
         out.push_str(&format!("  enum {}\n", def.name));
@@ -1120,6 +1206,9 @@ pub fn dump(module: &Module) -> String {
         }
     }
     for (_, def) in module.classes.iter() {
+        if matches!(def.representation, ClassRepresentation::Intrinsic(_)) {
+            continue;
+        }
         out.push_str(&format!(
             "  class {} vtable={} itables={}\n",
             def.name,

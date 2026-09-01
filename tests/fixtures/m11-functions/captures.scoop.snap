@@ -152,6 +152,19 @@ SourceFile
   class IndexOutOfBoundsException() : Exception(<1 args>)
   class IllegalStateException() : Exception(<1 args>)
 SourceFile
+    @Intrinsic("core_int")
+  struct Int <representation omitted>
+    @Intrinsic("core_uint")
+  struct UInt <representation omitted>
+    @Intrinsic("core_boolean")
+  struct Boolean <representation omitted>
+    @Intrinsic("core_string")
+  class String()
+    @Intrinsic("core_array")
+  class Array<T>()
+    @Intrinsic("core_mutable_array")
+  class MutableArray<T>()
+SourceFile
   struct Label
     field text: String
   struct Snapshot
@@ -702,7 +715,7 @@ Module
   global @scoop_td_Counter = c""
   enum Option$S niche(payload_variant=0)
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
-  fun @scoop.Snapshot.getter(struct1) -> ptr<managed>
+  fun @scoop.Snapshot.getter(struct4) -> ptr<managed>
   block entry
     t0 = call @scoop_rt_alloc(global7, 32) : ptr<managed>
     t1 = function_address @scoop.$lambda.5 : ptr
@@ -752,7 +765,7 @@ Module
     heap_store t0 +16 t1
     heap_store t0 +24 param0
     ret t0
-  fun @scoop.labelReader(struct0) -> ptr<managed>
+  fun @scoop.labelReader(struct3) -> ptr<managed>
   block entry
     t0 = call @scoop_rt_alloc(global11, 32) : ptr<managed>
     t1 = function_address @scoop.$lambda.3 : ptr
@@ -778,7 +791,7 @@ Module
     local %1 outer: ptr<managed>
     local %2 inner: ptr<managed>
     local %3 reader: ptr<managed>
-    local %4 source: struct1
+    local %4 source: struct4
     local %5 getter: ptr<managed>
     local %6 counter: ptr<managed>
     local %7 increment: ptr<managed>
@@ -796,14 +809,14 @@ Module
     store t1 -> local1
     t2 = call_indirect local1[2](local1) : ptr<managed>
     store t2 -> local2
-    t3 = aggregate (global1) : struct0
+    t3 = aggregate (global1) : struct3
     t4 = call @scoop.labelReader(t3) : ptr<managed>
     store t4 -> local3
-    t5 = aggregate (1) : struct1
+    t5 = aggregate (1) : struct4
     store t5 -> local4
     t6 = call @scoop.Snapshot.getter(local4) : ptr<managed>
     store t6 -> local5
-    t7 = aggregate (2) : struct1
+    t7 = aggregate (2) : struct4
     store t7 -> local4
     t8 = call @scoop.ctor.Counter(40) : ptr<managed>
     store t8 -> local6
@@ -870,7 +883,7 @@ Module
     ret t0
   fun @scoop.$lambda.3(ptr<managed>) -> ptr<managed>
   block entry
-    t0 = heap_load param0 +24 : struct0
+    t0 = heap_load param0 +24 : struct3
     t1 = extract t0, 0 : ptr<managed>
     ret t1
   fun @scoop.$lambda.4(ptr<managed>) -> i64
@@ -880,7 +893,7 @@ Module
     ret t1
   fun @scoop.$lambda.5(ptr<managed>) -> i64
   block entry
-    t0 = heap_load param0 +24 : struct1
+    t0 = heap_load param0 +24 : struct4
     t1 = extract t0, 0 : i64
     ret t1
   fun @scoop.$lambda.6(ptr<managed>) -> i64

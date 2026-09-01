@@ -152,6 +152,19 @@ SourceFile
   class IndexOutOfBoundsException() : Exception(<1 args>)
   class IllegalStateException() : Exception(<1 args>)
 SourceFile
+    @Intrinsic("core_int")
+  struct Int <representation omitted>
+    @Intrinsic("core_uint")
+  struct UInt <representation omitted>
+    @Intrinsic("core_boolean")
+  struct Boolean <representation omitted>
+    @Intrinsic("core_string")
+  class String()
+    @Intrinsic("core_array")
+  class Array<T>()
+    @Intrinsic("core_mutable_array")
+  class MutableArray<T>()
+SourceFile
     @Extern(lib = "fixture_native", name = "m13_start_one")
   fun startOne(callback: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>, value: Int): Ptr<Unit>
     @Extern(lib = "fixture_native", name = "m13_join_one")
@@ -1149,7 +1162,7 @@ Module
   global @scoop_td_SuspendTask$I = c""
   global @scoop_td_CoroutineAdapter$scoop_ForeignTask_run_suspend$1 = c""
   global @scoop_td_SuspendRegistration$I = c""
-  enum Option$ForeignCallback$FI_PUXRIX tagged size=24 align=8 variants=(struct0)@8+16 ()@8+0
+  enum Option$ForeignCallback$FI_PUXRIX tagged size=24 align=8 variants=(struct3)@8+16 ()@8+0
   enum Option$S niche(payload_variant=0)
   enum CoroutineStep$I tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
   enum ForeignCallbackState tagged size=8 align=8 variants=()@8+0 ()@8+0 ()@8+0 ()@8+0
@@ -1162,7 +1175,7 @@ Module
   extern ef2 joinOne @m13_join_one(ptr<raw>) -> i64 <c bridge=@scoop_c_bridge_2 gc-leaf nounwind lib=fixture_native>
   fun @scoop.ForeignRegistration.register(ptr<managed>, ptr<managed>) -> void
     local %0 adjustment: i64
-    local %1 worker: struct0
+    local %1 worker: struct3
     local %2 $call.1: ptr<raw>
     local %3 $sc.1: ptr<code>
     local %4 $sc.2: ptr<raw>
@@ -1174,10 +1187,10 @@ Module
     heap_store t0 +16 t1
     heap_store t0 +24 param1
     heap_store t0 +32 local0
-    t2 = foreign_callback_register fcb0 t0 : struct0
+    t2 = foreign_callback_register fcb0 t0 : struct3
     store t2 -> local1
     t3 = heap_load param0 +16 : ptr<managed>
-    t4 = foreign_callback_Retain local1 : struct0
+    t4 = foreign_callback_Retain local1 : struct3
     t5 = enum_wrap e0 v0 (t4) : enum0
     heap_store t3 +24 t5
     t6 = extract local1, 0 : ptr<code>
@@ -1245,9 +1258,9 @@ Module
     ret
   fun @scoop_main() -> void
     local %0 gate: ptr<managed>
-    local %1 observer: struct0
+    local %1 observer: struct3
     local %2 $opt.1: enum0
-    local %3 $uw.2: struct0
+    local %3 $uw.2: struct3
     local %4 $call.1: ptr<managed>
     local %5 $call.2: ptr<managed>
     local %6 $call.3: i64
@@ -1283,7 +1296,7 @@ Module
     t15 = Eq t14, 0 : i1
     cbr t15 then @if.then.1 else @if.else.2
   block if.then.1
-    t16 = enum_field e0 v0 f0 local2 : struct0
+    t16 = enum_field e0 v0 f0 local2 : struct3
     store t16 -> local3
     br @if.merge.3
   block if.else.2

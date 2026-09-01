@@ -152,6 +152,19 @@ SourceFile
   class IndexOutOfBoundsException() : Exception(<1 args>)
   class IllegalStateException() : Exception(<1 args>)
 SourceFile
+    @Intrinsic("core_int")
+  struct Int <representation omitted>
+    @Intrinsic("core_uint")
+  struct UInt <representation omitted>
+    @Intrinsic("core_boolean")
+  struct Boolean <representation omitted>
+    @Intrinsic("core_string")
+  class String()
+    @Intrinsic("core_array")
+  class Array<T>()
+    @Intrinsic("core_mutable_array")
+  class MutableArray<T>()
+SourceFile
   struct Point
     field x: Int
     field y: Int
@@ -647,7 +660,7 @@ Module
   global @scoop_td_IllegalStateException = c""
   enum Option$S niche(payload_variant=0)
   enum Option$I tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
-  enum Option$Point tagged size=24 align=8 variants=(struct0)@8+16 ()@8+0
+  enum Option$Point tagged size=24 align=8 variants=(struct3)@8+16 ()@8+0
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
   fun @scoop.print(ptr<managed>) -> void
     local %0 $call.1: ptr<managed>
@@ -726,7 +739,7 @@ Module
     t10 = call @scoop_rt_box(global6, local5, 8) : ptr<managed>
     call @scoop.println(t10)
     t11 = aggregate () : {}
-    t12 = aggregate (10, 20) : struct0
+    t12 = aggregate (10, 20) : struct3
     t13 = enum_wrap e2 v0 (t12) : enum2
     store t13 -> local6
     store local6 -> local7
@@ -734,7 +747,7 @@ Module
     t15 = Eq t14, 0 : i1
     cbr t15 then @if.then.7 else @if.else.8
   block if.then.7
-    t16 = enum_field e2 v0 f0 local7 : struct0
+    t16 = enum_field e2 v0 f0 local7 : struct3
     t17 = extract t16, 0 : i64
     t18 = enum_wrap e1 v0 (t17) : enum1
     store t18 -> local8
@@ -766,7 +779,7 @@ Module
     t27 = Eq t26, 0 : i1
     cbr t27 then @if.then.13 else @if.else.14
   block if.then.13
-    t28 = enum_field e2 v0 f0 local12 : struct0
+    t28 = enum_field e2 v0 f0 local12 : struct3
     t29 = extract t28, 0 : i64
     t30 = enum_wrap e1 v0 (t29) : enum1
     store t30 -> local13

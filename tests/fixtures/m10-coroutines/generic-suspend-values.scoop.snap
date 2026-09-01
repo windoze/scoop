@@ -152,6 +152,19 @@ SourceFile
   class IndexOutOfBoundsException() : Exception(<1 args>)
   class IllegalStateException() : Exception(<1 args>)
 SourceFile
+    @Intrinsic("core_int")
+  struct Int <representation omitted>
+    @Intrinsic("core_uint")
+  struct UInt <representation omitted>
+    @Intrinsic("core_boolean")
+  struct Boolean <representation omitted>
+    @Intrinsic("core_string")
+  class String()
+    @Intrinsic("core_array")
+  class Array<T>()
+    @Intrinsic("core_mutable_array")
+  class MutableArray<T>()
+SourceFile
   struct Pair
     field number: Int
     field text: String
@@ -3827,12 +3840,12 @@ Module
   enum Option$Continuation$EChoice niche(payload_variant=0)
   enum Option$S niche(payload_variant=0)
   enum CoroutineStep$I tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
-  enum CoroutineStep$Pair tagged size=24 align=8 variants=(struct0)@8+16:refs ()@8+0
+  enum CoroutineStep$Pair tagged size=24 align=8 variants=(struct3)@8+16:refs ()@8+0
   enum CoroutineStep$B tagged size=16 align=8 variants=(i1)@8+1 ()@8+0
   enum CoroutineStep$EChoice tagged size=32 align=8 variants=(enum0)@8+24:refs ()@8+0
   enum CoroutineSlot$GenericTask niche(payload_variant=1)
   enum CoroutineSlot$I tagged size=16 align=8 variants=()@8+0 (i64)@8+8
-  enum CoroutineSlot$Pair tagged size=24 align=8 variants=()@8+0 (struct0)@8+16:refs
+  enum CoroutineSlot$Pair tagged size=24 align=8 variants=()@8+0 (struct3)@8+16:refs
   enum CoroutineSlot$Awaiter niche(payload_variant=1)
   enum CoroutineSlot$B tagged size=16 align=8 variants=()@8+0 (i1)@8+1
   enum CoroutineSlot$EChoice tagged size=32 align=8 variants=()@8+0 (enum0)@8+24:refs
@@ -3871,7 +3884,7 @@ Module
     call_indirect t7[0](local0, param1)
     t8 = aggregate () : {}
     ret
-  fun @scoop.PairGate.complete(ptr<managed>, struct0) -> void
+  fun @scoop.PairGate.complete(ptr<managed>, struct3) -> void
     local %0 continuation: ptr<managed>
     local %1 $opt.1: enum2
     local %2 $uw.2: ptr<managed>
@@ -4072,7 +4085,7 @@ Module
     t11 = aggregate () : {}
     call @scoop.IntGate.complete(local0, 10)
     t12 = aggregate () : {}
-    t13 = aggregate (20, global3) : struct0
+    t13 = aggregate (20, global3) : struct3
     call @scoop.PairGate.complete(local1, t13)
     t14 = aggregate () : {}
     call @scoop.BooleanGate.complete(local2, true)
@@ -4309,7 +4322,7 @@ Module
   fun @scoop.GenericTask.run$suspend$drive(ptr<managed>, i64) -> enum6
     local %0 this: ptr<managed>
     local %1 number: i64
-    local %2 pair: struct0
+    local %2 pair: struct3
     local %3 awaiter: ptr<managed>
     local %4 accepted: i1
     local %5 choice: enum0
@@ -4429,7 +4442,7 @@ Module
     t28 = enum_field e11 v1 f0 t27 : i64
     store t28 -> local1
     t29 = heap_load param0 +56 : enum12
-    t30 = enum_field e12 v1 f0 t29 : struct0
+    t30 = enum_field e12 v1 f0 t29 : struct3
     store t30 -> local2
     t31 = heap_load param0 +88 : enum14
     t32 = enum_field e14 v1 f0 t31 : i1
@@ -4446,7 +4459,7 @@ Module
     t38 = enum_field e11 v1 f0 t37 : i64
     store t38 -> local1
     t39 = heap_load param0 +56 : enum12
-    t40 = enum_field e12 v1 f0 t39 : struct0
+    t40 = enum_field e12 v1 f0 t39 : struct3
     store t40 -> local2
     t41 = heap_load param0 +88 : enum14
     t42 = enum_field e14 v1 f0 t41 : i1
@@ -4510,7 +4523,7 @@ Module
     t67 = enum_field e11 v1 f0 t66 : i64
     store t67 -> local1
     t68 = heap_load param0 +56 : enum12
-    t69 = enum_field e12 v1 f0 t68 : struct0
+    t69 = enum_field e12 v1 f0 t68 : struct3
     store t69 -> local2
     t70 = heap_load param0 +80 : enum13
     t71 = enum_field e13 v1 f0 t70 : ptr<managed>
@@ -4530,7 +4543,7 @@ Module
     t79 = enum_field e11 v1 f0 t78 : i64
     store t79 -> local1
     t80 = heap_load param0 +56 : enum12
-    t81 = enum_field e12 v1 f0 t80 : struct0
+    t81 = enum_field e12 v1 f0 t80 : struct3
     store t81 -> local2
     t82 = heap_load param0 +80 : enum13
     t83 = enum_field e13 v1 f0 t82 : ptr<managed>
@@ -4569,7 +4582,7 @@ Module
     t99 = Eq t98, 0 : i1
     cbr t99 then @coroutine.completed_claim_adapter.3 else @coroutine.suspended.3
   block coroutine.completed.2
-    t100 = enum_field e7 v0 f0 local28 : struct0
+    t100 = enum_field e7 v0 f0 local28 : struct3
     store t100 -> local2
     br @coroutine.post.2
   block coroutine.protocol_error
@@ -4601,7 +4614,7 @@ Module
     t112 = enum_field e11 v1 f0 t111 : i64
     store t112 -> local8
     t113 = heap_load param0 +56 : enum12
-    t114 = enum_field e12 v1 f0 t113 : struct0
+    t114 = enum_field e12 v1 f0 t113 : struct3
     store t114 -> local2
     br @coroutine.post.2
   block coroutine.failure.2
@@ -5016,7 +5029,7 @@ Module
     t22 = enum_tag e6 local0 : i64
     t23 = Eq t22, 0 : i1
     cbr t23 then @completed else @suspended
-  fun @scoop.GenericTask.run$suspend$resume$2(ptr<managed>, struct0) -> void
+  fun @scoop.GenericTask.run$suspend$resume$2(ptr<managed>, struct3) -> void
     local %0 $step: enum6
     local %1 $adapter_claim: i64
     local %2 $frame_claim: i64
@@ -5640,7 +5653,7 @@ Module
     cbr t23 then @completed else @suspended
   fun @scoop.awaitTop$Pair$suspend$drive(ptr<managed>, i64) -> enum7
     local %0 registration: ptr<managed>
-    local %1 $call.1: struct0
+    local %1 $call.1: struct3
     local %2 $completion: ptr<managed>
     local %3 $safe_adapter.1: ptr<managed>
     local %4 $resume_exception.1: ptr<managed>
@@ -5673,7 +5686,7 @@ Module
   block coroutine.registered_success.1
     atomic_store release local3 +24 6
     t7 = heap_load local3 +32 : enum12
-    t8 = enum_field e12 v1 f0 t7 : struct0
+    t8 = enum_field e12 v1 f0 t7 : struct3
     store t8 -> local1
     br @coroutine.post.1
   block coroutine.registered_failure.1
@@ -5765,7 +5778,7 @@ Module
     cbr t40 then @coroutine.registration_claim_frame.1 else @coroutine.registration_wait.1
   block coroutine.resume.1
     t41 = heap_load param0 +40 : enum12
-    t42 = enum_field e12 v1 f0 t41 : struct0
+    t42 = enum_field e12 v1 f0 t41 : struct3
     store t42 -> local1
     br @coroutine.post.1
   block coroutine.failure.1
@@ -5796,7 +5809,7 @@ Module
   block invoke.normal.1
     t6 = aggregate () : {}
     br @coroutine.register_return.1
-  fun @scoop.awaitTop$Pair$suspend$resume$1(ptr<managed>, struct0) -> void
+  fun @scoop.awaitTop$Pair$suspend$resume$1(ptr<managed>, struct3) -> void
     local %0 $step: enum7
     local %1 $adapter_claim: i64
     local %2 $frame_claim: i64
@@ -5815,7 +5828,7 @@ Module
     atomic_store release t1 +16 -2
     t2 = heap_load param0 +16 : ptr<managed>
     t3 = heap_load t2 +24 : ptr<managed>
-    t4 = enum_field e7 v0 f0 local0 : struct0
+    t4 = enum_field e7 v0 f0 local0 : struct3
     t5 = heap_load t3 +0 : ptr<metadata>
     t6 = call @scoop_rt_itable_lookup(t5, global10) : ptr<metadata>
     call_indirect t6[0](t3, t4)
@@ -5899,7 +5912,7 @@ Module
     atomic_store release t1 +16 -2
     t2 = heap_load param0 +16 : ptr<managed>
     t3 = heap_load t2 +24 : ptr<managed>
-    t4 = enum_field e7 v0 f0 local0 : struct0
+    t4 = enum_field e7 v0 f0 local0 : struct3
     t5 = heap_load t3 +0 : ptr<metadata>
     t6 = call @scoop_rt_itable_lookup(t5, global10) : ptr<metadata>
     call_indirect t6[0](t3, t4)

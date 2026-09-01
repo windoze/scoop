@@ -152,6 +152,19 @@ SourceFile
   class IndexOutOfBoundsException() : Exception(<1 args>)
   class IllegalStateException() : Exception(<1 args>)
 SourceFile
+    @Intrinsic("core_int")
+  struct Int <representation omitted>
+    @Intrinsic("core_uint")
+  struct UInt <representation omitted>
+    @Intrinsic("core_boolean")
+  struct Boolean <representation omitted>
+    @Intrinsic("core_string")
+  class String()
+    @Intrinsic("core_array")
+  class Array<T>()
+    @Intrinsic("core_mutable_array")
+  class MutableArray<T>()
+SourceFile
   fun increment(value: Int): Int
     =
       Binary Add
@@ -1013,7 +1026,7 @@ Module
   global @scoop_td_ThrowingMapper = c""
   enum Option$S niche(payload_variant=0)
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
-  fun @scoop.ValueMapper.map(struct0, i64) -> i64
+  fun @scoop.ValueMapper.map(struct3, i64) -> i64
   block entry
     t0 = extract param0, 0 : i64
     t1 = Add param1, t0 : i64
@@ -1102,7 +1115,7 @@ Module
     local %6 virtual: ptr<managed>
     local %7 mapper: ptr<managed>
     local %8 interfaceReference: ptr<managed>
-    local %9 valueMapper: struct0
+    local %9 valueMapper: struct3
     local %10 valueReference: ptr<managed>
     local %11 genericMember: ptr<managed>
     local %12 concreteWins: ptr<managed>
@@ -1171,14 +1184,14 @@ Module
     heap_store t18 +16 t19
     heap_store t18 +24 local7
     store t18 -> local8
-    t20 = aggregate (2) : struct0
+    t20 = aggregate (2) : struct3
     store t20 -> local9
     t21 = call @scoop_rt_alloc(global19, 32) : ptr<managed>
     t22 = function_address @scoop.$reference.6 : ptr
     heap_store t21 +16 t22
     heap_store t21 +24 local9
     store t21 -> local10
-    t23 = aggregate (100) : struct0
+    t23 = aggregate (100) : struct3
     store t23 -> local9
     t24 = call @scoop.ctor.GenericMapper() : ptr<managed>
     store t24 -> local17
@@ -1370,7 +1383,7 @@ Module
   fun @scoop.$reference.6(ptr<managed>, i64) -> i64
     local %0 $call.1: i64
   block entry
-    t0 = heap_load param0 +24 : struct0
+    t0 = heap_load param0 +24 : struct3
     t1 = call @scoop.ValueMapper.map(t0, param1) : i64
     store t1 -> local0
     ret local0

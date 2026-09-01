@@ -249,7 +249,7 @@ impl Lowerer {
         for id in layouts {
             self.current_file = self.struct_files[&id];
             let declaration = self.structs[id].clone();
-            if declaration.fields.is_empty() {
+            if declaration.semantic_fields().is_empty() {
                 self.error(
                     declaration.span,
                     format!(
@@ -260,8 +260,8 @@ impl Lowerer {
                 continue;
             }
             let mut visiting = HashSet::new();
-            for field in declaration.fields {
-                let path = vec![declaration.name.clone(), field.name];
+            for field in declaration.semantic_fields() {
+                let path = vec![declaration.name.clone(), field.name.clone()];
                 if let Err(error) =
                     self.classify_c_ffi_type(field.ty, &[], false, path, &mut visiting)
                 {
@@ -396,7 +396,7 @@ impl Lowerer {
                         reason: "recursive by-value C layout is not finite".to_string(),
                     });
                 }
-                let fields = self.structs[id].fields.clone();
+                let fields = self.structs[id].semantic_fields().to_vec();
                 let mut deferred = false;
                 for field in fields {
                     let field_ty = self.instantiate_ty(field.ty, &application.arguments);

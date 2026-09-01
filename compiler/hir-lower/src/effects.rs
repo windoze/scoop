@@ -353,7 +353,7 @@ impl Lowerer {
                     parent: environment,
                 };
                 let mut requirements = HashSet::new();
-                for field in &self.structs[id].fields {
+                for field in self.structs[id].semantic_fields() {
                     let Some(required) =
                         self.gc_free_requirements_inner(field.ty, Some(&nested), visiting)
                     else {
@@ -430,7 +430,7 @@ impl Lowerer {
                     parent: environment,
                 };
                 let result = self.structs[id]
-                    .fields
+                    .semantic_fields()
                     .iter()
                     .any(|field| self.requires_unsafe_use_inner(field.ty, Some(&nested), visiting));
                 visiting.remove(&ty);

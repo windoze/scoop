@@ -9,8 +9,8 @@ use scoop_ast::Span;
 
 pub use super::{
     BinOp, CLayout, CallingConvention, ClassModifier, ExternAbi, FunctionAttributes, GcEffect,
-    IntrinsicFunction, IntrinsicFunctionKind, IntrinsicProviderId, MethodModifier, Safety,
-    StructAttributes, UnOp, Variance,
+    IntrinsicFunction, IntrinsicFunctionKind, IntrinsicProviderId, IntrinsicTypeDeclaration,
+    IntrinsicTypeKind, MethodModifier, Safety, StructAttributes, UnOp, Variance,
 };
 
 pub type TypeId = Idx<Type>;
@@ -140,6 +140,10 @@ pub struct Module {
     pub exception_core: ExceptionCore,
     pub coroutine_protocols: Vec<CoroutineProtocol>,
     pub foreign_callback_core: ForeignCallbackCore,
+    /// Nominal owners of the fixed compiler-represented types. Generic
+    /// intrinsic families are represented by each concrete class instance,
+    /// so no parameterized template can leak into this local graph.
+    pub intrinsic_type_core: IntrinsicTypeCore,
     pub entry: FunctionId,
 }
 
@@ -153,6 +157,14 @@ pub struct ExceptionCore {
 pub struct ForeignCallbackCore {
     pub mode: EnumId,
     pub state: EnumId,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct IntrinsicTypeCore {
+    pub int: StructId,
+    pub uint: StructId,
+    pub boolean: StructId,
+    pub string: ClassId,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -286,11 +298,33 @@ pub struct StructDef {
     pub name: String,
     pub type_arguments: Vec<TypeId>,
     pub gc_free: bool,
-    pub attributes: StructAttributes,
-    pub fields: Vec<Field>,
+    pub representation: StructRepresentation,
     pub interfaces: Vec<TypeId>,
     pub methods: Vec<FunctionId>,
     pub span: Span,
+}
+
+#[derive(Debug, Clone)]
+pub enum StructRepresentation {
+    Declared {
+        attributes: StructAttributes,
+        fields: Vec<Field>,
+    },
+    Intrinsic {
+        declaration: IntrinsicTypeDeclaration,
+        application: IntrinsicTypeRepresentation,
+    },
+}
+
+impl StructDef {
+    pub fn declared_fields(&self) -> &[Field] {
+        match &self.representation {
+            StructRepresentation::Declared { fields, .. } => fields,
+            StructRepresentation::Intrinsic { .. } => {
+                panic!("an intrinsic struct has no source field representation")
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -310,11 +344,52 @@ pub struct ClassDef {
     pub modifier: ClassModifier,
     pub name: String,
     pub type_arguments: Vec<TypeId>,
-    pub constructor: Vec<ConstructorField>,
-    pub base_class: Option<(ClassId, Vec<Expr>)>,
+    pub representation: ClassRepresentation,
     pub interfaces: Vec<TypeId>,
     pub methods: Vec<FunctionId>,
     pub span: Span,
+}
+
+#[derive(Debug, Clone)]
+pub enum ClassRepresentation {
+    Declared {
+        constructor: Vec<ConstructorField>,
+        base_class: Option<(ClassId, Vec<Expr>)>,
+    },
+    Intrinsic {
+        declaration: IntrinsicTypeDeclaration,
+        application: IntrinsicTypeRepresentation,
+    },
+}
+
+impl ClassDef {
+    pub fn declared_constructor(&self) -> &[ConstructorField] {
+        match &self.representation {
+            ClassRepresentation::Declared { constructor, .. } => constructor,
+            ClassRepresentation::Intrinsic { .. } => {
+                panic!("an intrinsic class has no source constructor representation")
+            }
+        }
+    }
+
+    pub fn base_class(&self) -> Option<&(ClassId, Vec<Expr>)> {
+        match &self.representation {
+            ClassRepresentation::Declared { base_class, .. } => base_class.as_ref(),
+            ClassRepresentation::Intrinsic { .. } => None,
+        }
+    }
+}
+
+/// Complete concrete representation selected by an intrinsic declaration and
+/// this application's already-lowered arguments.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum IntrinsicTypeRepresentation {
+    Int,
+    UInt,
+    Boolean,
+    String,
+    Array { element: TypeId },
+    MutableArray { element: TypeId },
 }
 
 #[derive(Debug, Clone)]

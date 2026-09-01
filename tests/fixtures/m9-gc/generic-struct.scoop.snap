@@ -152,6 +152,19 @@ SourceFile
   class IndexOutOfBoundsException() : Exception(<1 args>)
   class IllegalStateException() : Exception(<1 args>)
 SourceFile
+    @Intrinsic("core_int")
+  struct Int <representation omitted>
+    @Intrinsic("core_uint")
+  struct UInt <representation omitted>
+    @Intrinsic("core_boolean")
+  struct Boolean <representation omitted>
+    @Intrinsic("core_string")
+  class String()
+    @Intrinsic("core_array")
+  class Array<T>()
+    @Intrinsic("core_mutable_array")
+  class MutableArray<T>()
+SourceFile
   struct Box<T>
     field value: T
     fun get
@@ -507,28 +520,28 @@ Module
     t4 = aggregate () : {}
     ret
   fun @scoop_main() -> void
-    local %0 pair: struct2
+    local %0 pair: struct5
     local %1 readable: ptr<managed>
     local %2 $call.1: i64
     local %3 $call.2: ptr<managed>
     local %4 $call.3: ptr<managed>
   block entry
-    t0 = aggregate (7) : struct0
-    t1 = aggregate (global1) : struct1
-    t2 = aggregate (t0, t1) : struct2
+    t0 = aggregate (7) : struct3
+    t1 = aggregate (global1) : struct4
+    t2 = aggregate (t0, t1) : struct5
     store t2 -> local0
-    t3 = extract local0, 0 : struct0
+    t3 = extract local0, 0 : struct3
     t4 = call @scoop.Box.get$I(t3) : i64
     store t4 -> local2
     t5 = call @scoop_rt_box(global8, local2, 8) : ptr<managed>
     call @scoop.println(t5)
     t6 = aggregate () : {}
-    t7 = extract local0, 1 : struct1
+    t7 = extract local0, 1 : struct4
     t8 = call @scoop.Box.get$S(t7) : ptr<managed>
     store t8 -> local3
     call @scoop.println(local3)
     t9 = aggregate () : {}
-    t10 = aggregate (9) : struct3
+    t10 = aggregate (9) : struct6
     t11 = call @scoop_rt_box(global9, t10, 8) : ptr<managed>
     store t11 -> local1
     t12 = heap_load local1 +0 : ptr<metadata>
@@ -538,15 +551,15 @@ Module
     call @scoop.println(local4)
     t15 = aggregate () : {}
     ret
-  fun @scoop.Box.get$I(struct0) -> i64
+  fun @scoop.Box.get$I(struct3) -> i64
   block entry
     t0 = extract param0, 0 : i64
     ret t0
-  fun @scoop.Box.get$S(struct1) -> ptr<managed>
+  fun @scoop.Box.get$S(struct4) -> ptr<managed>
   block entry
     t0 = extract param0, 0 : ptr<managed>
     ret t0
-  fun @scoop.Holder.read$I(struct3) -> ptr<managed>
+  fun @scoop.Holder.read$I(struct6) -> ptr<managed>
   block entry
     ret global2
   fun @scoop.ctor.Throwable() -> ptr<managed>
@@ -606,12 +619,12 @@ Module
     store t1 -> local0
     ret local0
   fun @scoop.eq.Holder$I(ptr<managed>, ptr<managed>) -> i1
-    local %0 $a: struct3
-    local %1 $b: struct3
+    local %0 $a: struct6
+    local %1 $b: struct6
   block entry
-    t0 = heap_load param0 +16 : struct3
+    t0 = heap_load param0 +16 : struct6
     store t0 -> local0
-    t1 = heap_load param1 +16 : struct3
+    t1 = heap_load param1 +16 : struct6
     store t1 -> local1
     t2 = extract local0, 0 : i64
     t3 = extract local1, 0 : i64
@@ -620,7 +633,7 @@ Module
   fun @scoop.thunk.Holder$I.Readable.read(ptr<managed>) -> ptr<managed>
     local %0 $call.1: ptr<managed>
   block entry
-    t0 = heap_load param0 +16 : struct3
+    t0 = heap_load param0 +16 : struct6
     t1 = call @scoop.Holder.read$I(t0) : ptr<managed>
     store t1 -> local0
     ret local0

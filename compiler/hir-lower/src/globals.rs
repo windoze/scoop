@@ -144,7 +144,7 @@ impl Lowerer {
                 if !self.explicit_global_type_arg_matches(&call.type_args, &type_args) {
                     return None;
                 }
-                let fields = self.structs[struct_id].fields.clone();
+                let fields = self.structs[struct_id].semantic_fields().to_vec();
                 if call.args.len() != fields.len() {
                     return None;
                 }

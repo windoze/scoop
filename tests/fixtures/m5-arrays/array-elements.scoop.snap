@@ -152,6 +152,19 @@ SourceFile
   class IndexOutOfBoundsException() : Exception(<1 args>)
   class IllegalStateException() : Exception(<1 args>)
 SourceFile
+    @Intrinsic("core_int")
+  struct Int <representation omitted>
+    @Intrinsic("core_uint")
+  struct UInt <representation omitted>
+    @Intrinsic("core_boolean")
+  struct Boolean <representation omitted>
+    @Intrinsic("core_string")
+  class String()
+    @Intrinsic("core_array")
+  class Array<T>()
+    @Intrinsic("core_mutable_array")
+  class MutableArray<T>()
+SourceFile
   struct Point
     field x: Int
     field y: Int
@@ -808,7 +821,7 @@ Module
     t4 = aggregate () : {}
     ret
   fun @scoop_main() -> void
-    local %0 ps: [struct0]
+    local %0 ps: [struct3]
     local %1 nested: [[i64]]
     local %2 es: [enum1]
     local %3 v: i64
@@ -817,7 +830,7 @@ Module
     local %6 $res.1: i64
     local %7 $opt.2: enum2
     local %8 $res.3: i64
-    local %9 $arr.1: [struct0]
+    local %9 $arr.1: [struct3]
     local %10 $idx.2: i64
     local %11 $arr.3: [i64]
     local %12 $idx.4: i64
@@ -843,9 +856,9 @@ Module
     local %32 $logic.11: i1
     local %33 $call.12: ptr<managed>
   block entry
-    t0 = aggregate (1, 2) : struct0
-    t1 = aggregate (3, 4) : struct0
-    t2 = array_alloc (t0, t1) : [struct0]
+    t0 = aggregate (1, 2) : struct3
+    t1 = aggregate (3, 4) : struct3
+    t2 = array_alloc (t0, t1) : [struct3]
     store t2 -> local0
     store local0 -> local9
     store 1 -> local10
@@ -867,7 +880,7 @@ Module
     throw local23
     unreachable
   block if.merge.5
-    t7 = array_get local9 local10 : struct0
+    t7 = array_get local9 local10 : struct3
     t8 = extract t7, 0 : i64
     t9 = call @scoop_rt_box(global7, t8, 8) : ptr<managed>
     call @scoop.println(t9)

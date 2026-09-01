@@ -316,6 +316,15 @@ impl Lowerer {
     /// interface list (pass 2).
     pub(crate) fn resolve_class(&mut self, id: ClassId, decl: &ast::ClassDecl) {
         self.type_params_in_scope = self.classes[id].type_params.clone();
+        if matches!(
+            self.classes[id].representation,
+            hir::ClassRepresentation::Intrinsic(_)
+        ) {
+            let interfaces = self.resolve_interface_list(&decl.interfaces);
+            self.classes[id].interfaces = interfaces;
+            self.type_params_in_scope.clear();
+            return;
+        }
         let mut seen = std::collections::HashSet::new();
         let mut props = Vec::new();
         for prop in &decl.constructor {
@@ -339,7 +348,7 @@ impl Lowerer {
                 mutable: prop.mutable,
             });
         }
-        self.classes[id].constructor = props;
+        self.classes[id].representation = hir::ClassRepresentation::Declared(props);
 
         if let Some((base_ref, _)) = &decl.base_class
             && let Some(base_ty) = self.resolve_type_ref(base_ref)
@@ -1149,7 +1158,7 @@ impl Lowerer {
         let base_id = base_application.template;
         let base_type_args = base_application.arguments;
         let base_name = self.classes[base_id].name.clone();
-        let base_constructor = self.classes[base_id].constructor.clone();
+        let base_constructor = self.classes[base_id].semantic_constructor().to_vec();
         let props: Vec<(String, TypeId)> = base_constructor
             .iter()
             .map(|field| {
@@ -1179,7 +1188,7 @@ impl Lowerer {
         let mut ok = true;
         self.type_params_in_scope = self.classes[id].type_params.clone();
         self.constructor_params_in_scope = self.classes[id]
-            .constructor
+            .semantic_constructor()
             .iter()
             .map(|parameter| (parameter.name.clone(), (parameter.parameter, parameter.ty)))
             .collect();
@@ -1290,7 +1299,7 @@ impl Lowerer {
             current = match self.direct_base_class(id) {
                 Some(base) if !seen.contains(&base) => {
                     seen.push(base);
-                    total += self.classes[base].constructor.len() as u32;
+                    total += self.classes[base].semantic_constructor().len() as u32;
                     Some(base)
                 }
                 _ => None,
@@ -1309,13 +1318,13 @@ impl Lowerer {
         name: &str,
     ) -> Option<(ClassId, u32, TypeId, bool)> {
         if let Some(index) = self.classes[c]
-            .constructor
+            .semantic_constructor()
             .iter()
             .position(|field| field.name == name)
         {
             let abs = self.base_field_total(c) + index as u32;
-            let ty = self.classes[c].constructor[index].ty;
-            let mutable = self.classes[c].constructor[index].mutable;
+            let ty = self.classes[c].semantic_constructor()[index].ty;
+            let mutable = self.classes[c].semantic_constructor()[index].mutable;
             return Some((c, abs, ty, mutable));
         }
         let base = self.direct_base_class(c)?;
@@ -1333,14 +1342,14 @@ impl Lowerer {
         let application_value = self.class_applications[application].clone();
         let class = application_value.template;
         if let Some(index) = self.classes[class]
-            .constructor
+            .semantic_constructor()
             .iter()
             .position(|field| field.name == name)
         {
             let abs = self.base_field_total(class) + index as u32;
-            let field_ty = self.classes[class].constructor[index].ty;
+            let field_ty = self.classes[class].semantic_constructor()[index].ty;
             let ty = self.instantiate_ty(field_ty, &application_value.arguments);
-            let mutable = self.classes[class].constructor[index].mutable;
+            let mutable = self.classes[class].semantic_constructor()[index].mutable;
             return Some((application, abs, ty, mutable));
         }
         let (base, _) = self.classes[class].base_class.clone()?;

@@ -1173,8 +1173,10 @@ fn generated_class(
     let class = lowerer.classes.alloc(mir::ClassDef {
         modifier: mir::ClassModifier::Final,
         name: name.clone(),
-        fields,
-        base_class: None,
+        representation: mir::ClassRepresentation::Declared {
+            fields,
+            base_class: None,
+        },
         interfaces,
         vtable: any_vtable(),
         itables,
@@ -1182,8 +1184,10 @@ fn generated_class(
     let shell = lowerer.shell.classes.alloc(mir::ClassDef {
         modifier: mir::ClassModifier::Final,
         name,
-        fields: Vec::new(),
-        base_class: None,
+        representation: mir::ClassRepresentation::Declared {
+            fields: Vec::new(),
+            base_class: None,
+        },
         interfaces: Vec::new(),
         vtable: Vec::new(),
         itables: Vec::new(),

@@ -269,6 +269,12 @@ pub(crate) enum Owner {
     Enum(EnumId),
 }
 
+#[derive(Clone, Copy)]
+enum IntrinsicTypeOwner {
+    Struct(StructId),
+    Class(ClassId),
+}
+
 /// A member declaration together with the complete host substitution at the
 /// lookup site. Inherited generic members may have host arguments different
 /// from the receiver's own arguments, so carrying this relation is mandatory.
@@ -451,6 +457,8 @@ pub(crate) struct Lowerer {
     /// this map directly and never scans functions or compares names.
     pub(crate) intrinsic_functions:
         HashMap<hir::IntrinsicFunctionKind, (FunctionId, hir::IntrinsicProviderId)>,
+    intrinsic_type_owners:
+        HashMap<hir::IntrinsicTypeKind, (IntrinsicTypeOwner, hir::IntrinsicProviderId)>,
     pub(crate) extern_functions: Arena<hir::ExternFunction>,
     pub(crate) globals: Arena<hir::Global>,
     /// Generic definitions are separate HIR entities. Every function carries
@@ -711,6 +719,7 @@ impl Lowerer {
             interface_application_by_key: HashMap::new(),
             functions: Arena::new(),
             intrinsic_functions: HashMap::new(),
+            intrinsic_type_owners: HashMap::new(),
             extern_functions: Arena::new(),
             globals: Arena::new(),
             generic_functions: Arena::new(),
@@ -1015,6 +1024,7 @@ impl Lowerer {
             self.interfaces[id].type_params = params;
         }
         self.validate_nominal_type_parameter_constraints();
+        let intrinsic_type_core = self.validate_intrinsic_type_core(files);
         for &(id, decl, file_index) in &pending_interfaces {
             self.current_file = file_index;
             self.type_params_in_scope = self.interfaces[id].type_params.clone();
@@ -1254,6 +1264,8 @@ impl Lowerer {
             ffi_core,
             foreign_callback_core: foreign_callback_core
                 .expect("a missing or invalid foreign callback core protocol is always diagnosed"),
+            intrinsic_type_core: intrinsic_type_core
+                .expect("missing or invalid intrinsic core types are always diagnosed"),
             entry,
             instantiations: self.instantiations,
         })
@@ -1305,7 +1317,7 @@ impl Lowerer {
         pending_methods: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
         file_index: usize,
     ) {
-        let attributes = self.check_struct_annotations(decl);
+        let checked = self.check_struct_annotations(decl);
         if let Some(kind) = self.type_namespace_conflict(&decl.name.text) {
             let what = if kind == "a struct" {
                 format!("duplicate struct `{}`", decl.name.text)
@@ -1335,12 +1347,29 @@ impl Lowerer {
         }
         let self_application =
             hir::StructApplicationId::from_raw((self.struct_applications.len() as u32).into());
+        let representation = match checked.intrinsic {
+            Some(spec) => {
+                self.validate_intrinsic_type_source_shape(
+                    spec,
+                    &decl.name,
+                    &decl.type_params,
+                    decl.where_clause.as_ref(),
+                    decl.fields.is_omitted(),
+                    decl.span,
+                );
+                hir::StructRepresentation::Intrinsic(hir::IntrinsicTypeDeclaration {
+                    kind: spec.kind,
+                    provider: self.current_intrinsic_provider(),
+                })
+            }
+            None => hir::StructRepresentation::Declared(Vec::new()),
+        };
         let id = self.structs.alloc(StructDecl {
             name: decl.name.text.clone(),
             self_application,
             type_params: type_params.clone(),
-            attributes,
-            fields: Vec::new(),
+            attributes: checked.attributes,
+            representation,
             // Filled in pass 2 together with the fields.
             interfaces: Vec::new(),
             interface_implementations: Vec::new(),
@@ -1356,10 +1385,18 @@ impl Lowerer {
             .map(|parameter| self.intern_type(Type::Param(parameter)))
             .collect();
         let ty = self.struct_application(id, type_args);
-        assert_eq!(self.types[ty], Type::Struct(self_application));
+        if matches!(
+            self.structs[id].representation,
+            hir::StructRepresentation::Declared(_)
+        ) {
+            assert_eq!(self.types[ty], Type::Struct(self_application));
+        }
         self.structs_by_name
             .insert(decl.name.text.clone(), (id, ty));
         self.struct_files.insert(id, file_index);
+        if let hir::StructRepresentation::Intrinsic(intrinsic) = self.structs[id].representation {
+            self.register_intrinsic_type(intrinsic, IntrinsicTypeOwner::Struct(id), decl.span);
+        }
         for method in &decl.methods {
             self.declare_method(method, Owner::Struct(id), pending_methods, file_index);
         }
@@ -1448,7 +1485,7 @@ impl Lowerer {
         pending_methods: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
         file_index: usize,
     ) {
-        self.reject_type_annotations("a class", &decl.annotations);
+        let checked = self.check_class_annotations(decl);
         if let Some(kind) = self.type_namespace_conflict(&decl.name.text) {
             let what = if kind == "a class" {
                 format!("duplicate class `{}`", decl.name.text)
@@ -1483,6 +1520,35 @@ impl Lowerer {
         }
         let self_application =
             hir::ClassApplicationId::from_raw((self.class_applications.len() as u32).into());
+        let representation = match checked.intrinsic {
+            Some(spec) => {
+                self.validate_intrinsic_type_source_shape(
+                    spec,
+                    &decl.name,
+                    &decl.type_params,
+                    decl.where_clause.as_ref(),
+                    decl.constructor.is_omitted(),
+                    decl.span,
+                );
+                if modifier != hir::ClassModifier::Final {
+                    self.error(
+                        decl.span,
+                        "an intrinsic class declaration must be final".to_string(),
+                    );
+                }
+                if decl.base_class.is_some() {
+                    self.error(
+                        decl.span,
+                        "an intrinsic class declaration cannot have a base class".to_string(),
+                    );
+                }
+                hir::ClassRepresentation::Intrinsic(hir::IntrinsicTypeDeclaration {
+                    kind: spec.kind,
+                    provider: self.current_intrinsic_provider(),
+                })
+            }
+            None => hir::ClassRepresentation::Declared(Vec::new()),
+        };
         let id = self.classes.alloc(ClassDecl {
             modifier,
             name: decl.name.text.clone(),
@@ -1490,7 +1556,7 @@ impl Lowerer {
             type_params: type_params.clone(),
             // Filled in pass 2; resolution failures are diagnosed, so
             // these never reach the output unfinished.
-            constructor: Vec::new(),
+            representation,
             base_class: None,
             interfaces: Vec::new(),
             interface_implementations: Vec::new(),
@@ -1506,10 +1572,18 @@ impl Lowerer {
             .map(|parameter| self.intern_type(Type::Param(parameter)))
             .collect();
         let ty = self.class_application(id, type_args);
-        assert_eq!(self.types[ty], Type::Class(self_application));
+        if matches!(
+            self.classes[id].representation,
+            hir::ClassRepresentation::Declared(_)
+        ) {
+            assert_eq!(self.types[ty], Type::Class(self_application));
+        }
         self.classes_by_name
             .insert(decl.name.text.clone(), (id, ty));
         self.class_files.insert(id, file_index);
+        if let hir::ClassRepresentation::Intrinsic(intrinsic) = self.classes[id].representation {
+            self.register_intrinsic_type(intrinsic, IntrinsicTypeOwner::Class(id), decl.span);
+        }
         if is_core && decl.name.text == "Throwable" {
             self.throwable_candidates.push((id, ty));
         }
@@ -1755,6 +1829,123 @@ impl Lowerer {
             .insert(intrinsic.kind, (function, intrinsic.provider));
     }
 
+    fn validate_intrinsic_type_source_shape(
+        &mut self,
+        spec: &'static hir::IntrinsicTypeSpec,
+        name: &ast::Ident,
+        parameters: &[ast::TypeParamDecl],
+        where_clause: Option<&ast::WhereClause>,
+        representation_omitted: bool,
+        span: Span,
+    ) {
+        if name.text != spec.kind.source_name() {
+            self.error(
+                name.span,
+                format!(
+                    "intrinsic type `{}` must be declared with source name `{}`",
+                    spec.name,
+                    spec.kind.source_name()
+                ),
+            );
+        }
+        if !representation_omitted {
+            self.error(
+                span,
+                format!(
+                    "intrinsic type `{}` must omit its fields or primary constructor",
+                    spec.name
+                ),
+            );
+        }
+        let valid_parameters = match spec.kind.parameters() {
+            hir::IntrinsicTypeParameters::None => parameters.is_empty(),
+            hir::IntrinsicTypeParameters::OneInvariantUnconstrained => {
+                matches!(parameters, [parameter]
+                    if parameter.variance == ast::Variance::Invariant
+                        && parameter.inline_bound.is_none())
+                    && where_clause.is_none()
+            }
+        };
+        if !valid_parameters {
+            self.error(
+                span,
+                format!(
+                    "intrinsic type `{}` has an invalid type-parameter declaration",
+                    spec.name
+                ),
+            );
+        }
+    }
+
+    fn register_intrinsic_type(
+        &mut self,
+        intrinsic: hir::IntrinsicTypeDeclaration,
+        owner: IntrinsicTypeOwner,
+        span: Span,
+    ) {
+        if let Some(&(_previous, previous_provider)) =
+            self.intrinsic_type_owners.get(&intrinsic.kind)
+        {
+            self.error(
+                span,
+                format!(
+                    "intrinsic type `{}` is already defined by provider {}; provider {} cannot define it again",
+                    intrinsic.kind.name(),
+                    previous_provider.into_raw(),
+                    intrinsic.provider.into_raw(),
+                ),
+            );
+            return;
+        }
+        self.intrinsic_type_owners
+            .insert(intrinsic.kind, (owner, intrinsic.provider));
+    }
+
+    fn validate_intrinsic_type_core(
+        &mut self,
+        files: &[ast::SourceFile],
+    ) -> Option<hir::IntrinsicTypeCore> {
+        let require = |this: &mut Self, kind: hir::IntrinsicTypeKind| {
+            let Some(&(owner, _provider)) = this.intrinsic_type_owners.get(&kind) else {
+                this.current_file = 0;
+                this.error(
+                    files[0].span,
+                    format!(
+                        "scoop.core must define exactly one `{}` intrinsic type",
+                        kind.name()
+                    ),
+                );
+                return None;
+            };
+            Some(owner)
+        };
+        let int = require(self, hir::IntrinsicTypeKind::Int)?;
+        let uint = require(self, hir::IntrinsicTypeKind::UInt)?;
+        let boolean = require(self, hir::IntrinsicTypeKind::Boolean)?;
+        let string = require(self, hir::IntrinsicTypeKind::String)?;
+        let array = require(self, hir::IntrinsicTypeKind::Array)?;
+        let mutable_array = require(self, hir::IntrinsicTypeKind::MutableArray)?;
+        let (
+            IntrinsicTypeOwner::Struct(int),
+            IntrinsicTypeOwner::Struct(uint),
+            IntrinsicTypeOwner::Struct(boolean),
+            IntrinsicTypeOwner::Class(string),
+            IntrinsicTypeOwner::Class(array),
+            IntrinsicTypeOwner::Class(mutable_array),
+        ) = (int, uint, boolean, string, array, mutable_array)
+        else {
+            unreachable!("the intrinsic registry fixes every declaration target")
+        };
+        Some(hir::IntrinsicTypeCore {
+            int,
+            uint,
+            boolean,
+            string,
+            array,
+            mutable_array,
+        })
+    }
+
     fn validate_coroutine_core(&mut self, files: &[ast::SourceFile]) -> Option<hir::CoroutineCore> {
         let continuation = self.require_core_interface("Continuation", files);
         let suspend_task = self.require_core_interface("SuspendTask", files);
@@ -1997,7 +2188,7 @@ impl Lowerer {
             && callback_decl.interfaces.is_empty()
             && callback_decl.attributes.c_layout.is_none()
             && !callback_decl.attributes.interior_mutable
-            && matches!(callback_decl.fields.as_slice(), [function, context]
+            && matches!(callback_decl.semantic_fields(), [function, context]
                 if function.name == "function"
                     && matches!(self.types[function.ty], hir::Type::Struct(application)
                         if self.struct_applications[application].template
@@ -2138,7 +2329,7 @@ impl Lowerer {
         let declaration = &self.structs[id];
         let valid = declaration.type_params.len() == 1
             && declaration.type_params[0].kind() == hir::TypeParamKind::Ref
-            && matches!(declaration.fields.as_slice(), [field] if field.name == "raw" && field.ty == self.uint)
+            && matches!(declaration.semantic_fields(), [field] if field.name == "raw" && field.ty == self.uint)
             && declaration.interfaces.is_empty()
             && !declaration.attributes.interior_mutable
             && declaration.attributes.c_layout.is_none();
@@ -2187,7 +2378,7 @@ impl Lowerer {
         let declaration = &self.structs[id];
         let valid = declaration.type_params.len() == 1
             && declaration.type_params[0].kind() == hir::TypeParamKind::Value
-            && matches!(declaration.fields.as_slice(), [field] if field.name == "_rawPointer" && field.ty == self.uint)
+            && matches!(declaration.semantic_fields(), [field] if field.name == "_rawPointer" && field.ty == self.uint)
             && declaration.interfaces.is_empty()
             && !declaration.attributes.interior_mutable
             && declaration.attributes.c_layout.is_none();
@@ -2204,7 +2395,7 @@ impl Lowerer {
         let declaration = &self.structs[id];
         let valid = declaration.type_params.len() == 1
             && declaration.type_params[0].kind() == hir::TypeParamKind::Any
-            && matches!(declaration.fields.as_slice(), [field] if field.name == "_rawPointer" && field.ty == self.uint)
+            && matches!(declaration.semantic_fields(), [field] if field.name == "_rawPointer" && field.ty == self.uint)
             && declaration.interfaces.is_empty()
             && declaration.methods.is_empty()
             && !declaration.attributes.interior_mutable
@@ -2763,6 +2954,13 @@ impl Lowerer {
     /// the module is rejected anyway once any diagnostic is recorded.
     fn resolve_fields(&mut self, id: StructId, decl: &ast::StructDecl) {
         self.type_params_in_scope = self.structs[id].type_params.clone();
+        if matches!(
+            self.structs[id].representation,
+            hir::StructRepresentation::Intrinsic(_)
+        ) {
+            self.type_params_in_scope.clear();
+            return;
+        }
         let mut seen = HashSet::new();
         let mut fields = Vec::new();
         if decl.fields.is_omitted() {
@@ -2791,7 +2989,7 @@ impl Lowerer {
                 ty,
             });
         }
-        self.structs[id].fields = fields;
+        self.structs[id].representation = hir::StructRepresentation::Declared(fields);
         self.type_params_in_scope.clear();
     }
 

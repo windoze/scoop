@@ -152,6 +152,19 @@ SourceFile
   class IndexOutOfBoundsException() : Exception(<1 args>)
   class IllegalStateException() : Exception(<1 args>)
 SourceFile
+    @Intrinsic("core_int")
+  struct Int <representation omitted>
+    @Intrinsic("core_uint")
+  struct UInt <representation omitted>
+    @Intrinsic("core_boolean")
+  struct Boolean <representation omitted>
+    @Intrinsic("core_string")
+  class String()
+    @Intrinsic("core_array")
+  class Array<T>()
+    @Intrinsic("core_mutable_array")
+  class MutableArray<T>()
+SourceFile
     @CLayout(aligned = 8, packed = 1)
   struct Packed
     field flag: Boolean
@@ -644,20 +657,20 @@ Module
     t4 = aggregate () : {}
     ret
   fun @scoop_main() -> void
-    local %0 packed: struct0
+    local %0 packed: struct3
     local %1 pointer: ptr<raw>
-    local %2 loaded: struct0
-    local %3 values: [struct1]
-    local %4 $arr.1: [struct1]
+    local %2 loaded: struct3
+    local %3 values: [struct4]
+    local %4 $arr.1: [struct4]
     local %5 $idx.2: i64
-    local %6 $arr.3: [struct1]
+    local %6 $arr.3: [struct4]
     local %7 $idx.4: i64
     local %8 $logic.1: i1
     local %9 $call.2: ptr<managed>
     local %10 $logic.3: i1
     local %11 $call.4: ptr<managed>
   block entry
-    t0 = aggregate (true, 7) : struct0
+    t0 = aggregate (true, 7) : struct3
     store t0 -> local0
     t1 = extract local0, 0 : i1
     t2 = call @scoop_rt_box(global6, t1, 1) : ptr<managed>
@@ -669,10 +682,10 @@ Module
     t6 = aggregate () : {}
     t7 = local_address local0 : ptr
     store t7 -> local1
-    t8 = aggregate (false, 9) : struct0
+    t8 = aggregate (false, 9) : struct3
     raw_store local1 t8 align 8
     t9 = aggregate () : {}
-    t10 = raw_load local1 align 8 : struct0
+    t10 = raw_load local1 align 8 : struct3
     store t10 -> local2
     t11 = extract local2, 0 : i1
     t12 = call @scoop_rt_box(global6, t11, 1) : ptr<managed>
@@ -682,10 +695,10 @@ Module
     t15 = call @scoop_rt_box(global7, t14, 8) : ptr<managed>
     call @scoop.println(t15)
     t16 = aggregate () : {}
-    t17 = aggregate (true, local0, 11) : struct1
-    t18 = aggregate (true, 13) : struct0
-    t19 = aggregate (false, t18, 15) : struct1
-    t20 = array_alloc (t17, t19) : [struct1]
+    t17 = aggregate (true, local0, 11) : struct4
+    t18 = aggregate (true, 13) : struct3
+    t19 = aggregate (false, t18, 15) : struct4
+    t20 = array_alloc (t17, t19) : [struct4]
     store t20 -> local3
     store local3 -> local4
     store 0 -> local5
@@ -707,8 +720,8 @@ Module
     throw local9
     unreachable
   block if.merge.5
-    t25 = array_get local4 local5 : struct1
-    t26 = extract t25, 1 : struct0
+    t25 = array_get local4 local5 : struct4
+    t26 = extract t25, 1 : struct3
     t27 = extract t26, 1 : i64
     t28 = call @scoop_rt_box(global7, t27, 8) : ptr<managed>
     call @scoop.println(t28)
@@ -733,12 +746,12 @@ Module
     throw local11
     unreachable
   block if.merge.10
-    t34 = array_get local6 local7 : struct1
+    t34 = array_get local6 local7 : struct4
     t35 = extract t34, 2 : i64
     t36 = call @scoop_rt_box(global7, t35, 8) : ptr<managed>
     call @scoop.println(t36)
     t37 = aggregate () : {}
-    t38 = aggregate (17) : struct2
+    t38 = aggregate (17) : struct5
     t39 = extract t38, 0 : i64
     t40 = call @scoop_rt_box(global7, t39, 8) : ptr<managed>
     call @scoop.println(t40)

@@ -202,8 +202,8 @@ pub fn lower(module: &mir::Module) -> lir::Module {
         annotate_native_call_roots(function, &structs, &enums);
     }
 
-    let layouts = layouts(module, &enums, &layout_types);
-    let type_descriptors = type_descriptors(module, &enums);
+    let (layouts, string_layout) = layouts(module, &enums, &layout_types);
+    let (type_descriptors, string_type_descriptor) = type_descriptors(module, &enums);
     lir::Module {
         globals,
         structs,
@@ -215,6 +215,10 @@ pub fn lower(module: &mir::Module) -> lir::Module {
         foreign_callback_bridges,
         entry_symbol: module.functions[module.entry].symbol.clone(),
         meta: lir::LirMeta {
+            string: lir::StringMetadata {
+                layout: string_layout,
+                type_descriptor: string_type_descriptor,
+            },
             layouts,
             type_descriptors,
         },
@@ -432,24 +436,35 @@ fn lower_structs(module: &mir::Module, enums: &Arena<lir::EnumDef>) -> Arena<lir
     let mut structs = Arena::new();
     for (_, definition) in module.structs.iter() {
         let (field_layouts, size, align) = struct_shape(module, &enum_shape, definition);
+        let (fields, c_layout, interior_mutable) = match &definition.representation {
+            mir::StructRepresentation::Declared {
+                c_layout,
+                interior_mutable,
+                fields,
+            } => (
+                fields
+                    .iter()
+                    .zip(field_layouts)
+                    .map(|(field, layout)| lir::StructField {
+                        ty: lir_type(&field.ty),
+                        layout,
+                    })
+                    .collect(),
+                c_layout.map(|layout| lir::CLayout {
+                    aligned: layout.aligned,
+                    packed: layout.packed,
+                }),
+                *interior_mutable,
+            ),
+            mir::StructRepresentation::Intrinsic(_) => (Vec::new(), None, false),
+        };
         structs.alloc(lir::StructDef {
             name: definition.name.clone(),
-            fields: definition
-                .fields
-                .iter()
-                .zip(field_layouts)
-                .map(|(field, layout)| lir::StructField {
-                    ty: lir_type(&field.ty),
-                    layout,
-                })
-                .collect(),
+            fields,
             size,
             align,
-            c_layout: definition.c_layout.map(|layout| lir::CLayout {
-                aligned: layout.aligned,
-                packed: layout.packed,
-            }),
-            interior_mutable: definition.interior_mutable,
+            c_layout,
+            interior_mutable,
         });
     }
     structs
@@ -487,11 +502,18 @@ fn nested_enums(module: &mir::Module, ty: &mir::Type, out: &mut Vec<mir::EnumId>
                 nested_enums(module, element, out);
             }
         }
-        mir::Type::Struct(id) => {
-            for field in &module.structs[*id].fields {
-                nested_enums(module, &field.ty, out);
+        mir::Type::Struct(id) => match &module.structs[*id].representation {
+            mir::StructRepresentation::Declared { fields, .. } => {
+                for field in fields {
+                    nested_enums(module, &field.ty, out);
+                }
             }
-        }
+            mir::StructRepresentation::Intrinsic(
+                mir::IntrinsicTypeRepresentation::Array { element }
+                | mir::IntrinsicTypeRepresentation::MutableArray { element },
+            ) => nested_enums(module, element, out),
+            mir::StructRepresentation::Intrinsic(_) => {}
+        },
         mir::Type::Array(element) | mir::Type::MutableArray(element) => {
             nested_enums(module, element, out);
         }
@@ -677,13 +699,22 @@ fn layouts(
     module: &mir::Module,
     enums: &Arena<lir::EnumDef>,
     from_code: &[mir::Type],
-) -> Vec<lir::Layout> {
+) -> (Vec<lir::Layout>, lir::Layout) {
     // Tuple types reachable from struct / enum / class declarations
     // appear even when no code value mentions them directly.
     let mut types = Vec::new();
     for (_, def) in module.structs.iter() {
-        for field in &def.fields {
-            record_layout_types(&field.ty, &mut types);
+        match &def.representation {
+            mir::StructRepresentation::Declared { fields, .. } => {
+                for field in fields {
+                    record_layout_types(&field.ty, &mut types);
+                }
+            }
+            mir::StructRepresentation::Intrinsic(
+                mir::IntrinsicTypeRepresentation::Array { element }
+                | mir::IntrinsicTypeRepresentation::MutableArray { element },
+            ) => record_layout_types(element, &mut types),
+            mir::StructRepresentation::Intrinsic(_) => {}
         }
     }
     for (_, def) in module.enums.iter() {
@@ -694,8 +725,17 @@ fn layouts(
         }
     }
     for (_, def) in module.classes.iter() {
-        for field in &def.fields {
-            record_layout_types(&field.ty, &mut types);
+        match &def.representation {
+            mir::ClassRepresentation::Declared { fields, .. } => {
+                for field in fields {
+                    record_layout_types(&field.ty, &mut types);
+                }
+            }
+            mir::ClassRepresentation::Intrinsic(
+                mir::IntrinsicTypeRepresentation::Array { element }
+                | mir::IntrinsicTypeRepresentation::MutableArray { element },
+            ) => record_layout_types(element, &mut types),
+            mir::ClassRepresentation::Intrinsic(_) => {}
         }
     }
     for (_, def) in module.closure_classes.iter() {
@@ -707,40 +747,27 @@ fn layouts(
         record_layout_types(ty, &mut types);
     }
 
-    let mut layouts = vec![
-        string_layout(),
-        scalar_layout("Int", 8, 8),
-        scalar_layout("Boolean", 1, 1),
-    ];
+    let mut layouts = Vec::new();
     for (_, def) in module.structs.iter() {
         layouts.push(struct_layout(module, enums, def));
     }
     for (id, def) in module.enums.iter() {
         layouts.push(enum_layout(module, enums, id, def));
     }
+    let mut string = None;
     for (_, def) in module.classes.iter() {
-        let (size, align, scan) = class_layout(module, enums, def);
-        layouts.push(lir::Layout {
-            name: def.name.clone(),
-            size,
-            align,
-            fields: def
-                .fields
-                .iter()
-                .zip(class_shape(module, enums, def).0)
-                .map(|(field, offset)| {
-                    let enum_shape = |id: mir::EnumId| repr_shape(&enums[enum_def_id(id)].repr);
-                    let (_, access_align) = size_align(module, &enum_shape, &field.ty);
-                    lir::FieldLayout {
-                        offset,
-                        access_align,
-                    }
-                })
-                .collect(),
-            c_layout: None,
-            interior_mutable: false,
-            kind: lir::LayoutKind::Plain { scan },
-        });
+        let layout = class_definition_layout(module, enums, def);
+        if matches!(
+            def.representation,
+            mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::String)
+        ) {
+            assert!(
+                string.replace(layout).is_none(),
+                "one typed String representation"
+            );
+        } else {
+            layouts.push(layout);
+        }
     }
     for (_, def) in module.closure_classes.iter() {
         let (_, size, align, scan) = closure_shape(module, enums, def);
@@ -775,39 +802,10 @@ fn layouts(
             _ => unreachable!("only tuple and array types get layouts"),
         }
     }
-    layouts
-}
-
-/// The runtime `String` object layout (runtime spec 2.4): the 16-byte
-/// object header (TD pointer + GC word, M9) + `len` (u64, 8 bytes) at
-/// offset 16. The string data is variable-length and not counted in
-/// `size`.
-fn string_layout() -> lir::Layout {
-    lir::Layout {
-        name: "String".to_string(),
-        size: 24,
-        align: 8,
-        fields: Vec::new(),
-        c_layout: None,
-        interior_mutable: false,
-        kind: lir::LayoutKind::Plain {
-            scan: lir::RefScan::None,
-        },
-    }
-}
-
-fn scalar_layout(name: &str, size: u64, align: u64) -> lir::Layout {
-    lir::Layout {
-        name: name.to_string(),
-        size,
-        align,
-        fields: Vec::new(),
-        c_layout: None,
-        interior_mutable: false,
-        kind: lir::LayoutKind::Plain {
-            scan: lir::RefScan::None,
-        },
-    }
+    (
+        layouts,
+        string.expect("LocalConcreteHir supplies the typed intrinsic String representation"),
+    )
 }
 
 /// Layout of an aggregate value (struct / tuple / Unit): fields in
@@ -848,10 +846,42 @@ fn struct_layout(
     enums: &Arena<lir::EnumDef>,
     definition: &mir::StructDef,
 ) -> lir::Layout {
+    if let mir::StructRepresentation::Intrinsic(representation) = &definition.representation {
+        let (size, align, representation) = match representation {
+            mir::IntrinsicTypeRepresentation::Int => (8, 8, lir::IntrinsicTypeRepresentation::Int),
+            mir::IntrinsicTypeRepresentation::UInt => {
+                (8, 8, lir::IntrinsicTypeRepresentation::UInt)
+            }
+            mir::IntrinsicTypeRepresentation::Boolean => {
+                (1, 1, lir::IntrinsicTypeRepresentation::Boolean)
+            }
+            mir::IntrinsicTypeRepresentation::String
+            | mir::IntrinsicTypeRepresentation::Array { .. }
+            | mir::IntrinsicTypeRepresentation::MutableArray { .. } => {
+                unreachable!("the registry fixes intrinsic declaration targets")
+            }
+        };
+        return lir::Layout {
+            name: definition.name.clone(),
+            size,
+            align,
+            fields: Vec::new(),
+            c_layout: None,
+            interior_mutable: false,
+            kind: lir::LayoutKind::Intrinsic(representation),
+        };
+    }
     let enum_shape = |id: mir::EnumId| repr_shape(&enums[enum_def_id(id)].repr);
     let (fields, size, align) = struct_shape(module, &enum_shape, definition);
-    let field_types: Vec<_> = definition
-        .fields
+    let mir::StructRepresentation::Declared {
+        c_layout,
+        interior_mutable,
+        fields: definition_fields,
+    } = &definition.representation
+    else {
+        unreachable!()
+    };
+    let field_types: Vec<_> = definition_fields
         .iter()
         .map(|field| field.ty.clone())
         .collect();
@@ -862,11 +892,11 @@ fn struct_layout(
         size,
         align,
         fields,
-        c_layout: definition.c_layout.map(|layout| lir::CLayout {
+        c_layout: c_layout.map(|layout| lir::CLayout {
             aligned: layout.aligned,
             packed: layout.packed,
         }),
-        interior_mutable: definition.interior_mutable,
+        interior_mutable: *interior_mutable,
         kind: lir::LayoutKind::Plain { scan },
     }
 }
@@ -947,8 +977,33 @@ fn class_layout(
     enums: &Arena<lir::EnumDef>,
     def: &mir::ClassDef,
 ) -> (u64, u64, lir::RefScan) {
+    match &def.representation {
+        mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::String) => {
+            return (24, 8, lir::RefScan::None);
+        }
+        mir::ClassRepresentation::Intrinsic(
+            mir::IntrinsicTypeRepresentation::Array { element }
+            | mir::IntrinsicTypeRepresentation::MutableArray { element },
+        ) => {
+            let enum_shape = |id: mir::EnumId| repr_shape(&enums[enum_def_id(id)].repr);
+            let (size, align) = size_align(module, &enum_shape, element);
+            return (
+                size.next_multiple_of(align),
+                align,
+                ref_scan(module, enums, element, 0),
+            );
+        }
+        mir::ClassRepresentation::Intrinsic(_) => {
+            unreachable!("the registry fixes intrinsic declaration targets")
+        }
+        mir::ClassRepresentation::Declared { .. } => {}
+    }
     let (offsets, size, align) = class_shape(module, enums, def);
-    let fields: Vec<mir::Type> = def.fields.iter().map(|field| field.ty.clone()).collect();
+    let fields: Vec<mir::Type> = def
+        .declared_fields()
+        .iter()
+        .map(|field| field.ty.clone())
+        .collect();
     let scan = scan_fields(module, enums, &fields, &offsets, 0);
     (size, align, scan)
 }
@@ -962,11 +1017,12 @@ fn class_shape(
     enums: &Arena<lir::EnumDef>,
     def: &mir::ClassDef,
 ) -> (Vec<u64>, u64, u64) {
+    let fields = def.declared_fields();
     let enum_shape = |id: mir::EnumId| repr_shape(&enums[enum_def_id(id)].repr);
-    let mut offsets = Vec::with_capacity(def.fields.len());
+    let mut offsets = Vec::with_capacity(fields.len());
     let mut size = 16u64;
     let mut align = 8u64;
-    for field in &def.fields {
+    for field in fields {
         let (field_size, field_align) = size_align(module, &enum_shape, &field.ty);
         let offset = size.next_multiple_of(field_align);
         offsets.push(offset);
@@ -974,6 +1030,94 @@ fn class_shape(
         align = align.max(field_align);
     }
     (offsets, size.next_multiple_of(align), align)
+}
+
+fn class_definition_layout(
+    module: &mir::Module,
+    enums: &Arena<lir::EnumDef>,
+    def: &mir::ClassDef,
+) -> lir::Layout {
+    match &def.representation {
+        mir::ClassRepresentation::Declared { fields, .. } => {
+            let (size, align, scan) = class_layout(module, enums, def);
+            let offsets = class_shape(module, enums, def).0;
+            lir::Layout {
+                name: def.name.clone(),
+                size,
+                align,
+                fields: fields
+                    .iter()
+                    .zip(offsets)
+                    .map(|(field, offset)| {
+                        let enum_shape = |id: mir::EnumId| repr_shape(&enums[enum_def_id(id)].repr);
+                        let (_, access_align) = size_align(module, &enum_shape, &field.ty);
+                        lir::FieldLayout {
+                            offset,
+                            access_align,
+                        }
+                    })
+                    .collect(),
+                c_layout: None,
+                interior_mutable: false,
+                kind: lir::LayoutKind::Plain { scan },
+            }
+        }
+        mir::ClassRepresentation::Intrinsic(representation) => {
+            let (size, align, kind) = match representation {
+                mir::IntrinsicTypeRepresentation::String => {
+                    (24, 8, lir::IntrinsicTypeRepresentation::String)
+                }
+                mir::IntrinsicTypeRepresentation::Array { element } => {
+                    let (_, size, align) =
+                        class_shape_for_intrinsic_element(module, enums, element);
+                    (
+                        size,
+                        align,
+                        lir::IntrinsicTypeRepresentation::Array {
+                            element: lir_type(element),
+                            element_scan: ref_scan(module, enums, element, 0),
+                        },
+                    )
+                }
+                mir::IntrinsicTypeRepresentation::MutableArray { element } => {
+                    let (_, size, align) =
+                        class_shape_for_intrinsic_element(module, enums, element);
+                    (
+                        size,
+                        align,
+                        lir::IntrinsicTypeRepresentation::MutableArray {
+                            element: lir_type(element),
+                            element_scan: ref_scan(module, enums, element, 0),
+                        },
+                    )
+                }
+                mir::IntrinsicTypeRepresentation::Int
+                | mir::IntrinsicTypeRepresentation::UInt
+                | mir::IntrinsicTypeRepresentation::Boolean => {
+                    unreachable!("the registry fixes intrinsic declaration targets")
+                }
+            };
+            lir::Layout {
+                name: def.name.clone(),
+                size,
+                align,
+                fields: Vec::new(),
+                c_layout: None,
+                interior_mutable: false,
+                kind: lir::LayoutKind::Intrinsic(kind),
+            }
+        }
+    }
+}
+
+fn class_shape_for_intrinsic_element(
+    module: &mir::Module,
+    enums: &Arena<lir::EnumDef>,
+    element: &mir::Type,
+) -> (u64, u64, u64) {
+    let enum_shape = |id: mir::EnumId| repr_shape(&enums[enum_def_id(id)].repr);
+    let (size, align) = size_align(module, &enum_shape, element);
+    (24, size.next_multiple_of(align), align)
 }
 
 /// Closure object layout: the 16-byte managed header, one non-scanned code
@@ -1007,7 +1151,7 @@ fn closure_shape(
 /// in the base chain; ties keep declaration order).
 fn class_order(module: &mir::Module) -> Vec<mir::ClassId> {
     fn depth(module: &mir::Module, id: mir::ClassId) -> usize {
-        match module.classes[id].base_class {
+        match module.classes[id].base_class() {
             Some(base) => depth(module, base) + 1,
             None => 0,
         }
@@ -1038,8 +1182,12 @@ fn slot_symbol(module: &mir::Module, slot: &mir::TableSlot) -> String {
 /// classes (including the boxed value types) base-before-derived, so
 /// `parent` / interface references always name already-emitted
 /// entries and codegen needs no forward declarations.
-fn type_descriptors(module: &mir::Module, enums: &Arena<lir::EnumDef>) -> Vec<lir::TypeDescriptor> {
+fn type_descriptors(
+    module: &mir::Module,
+    enums: &Arena<lir::EnumDef>,
+) -> (Vec<lir::TypeDescriptor>, lir::TypeDescriptor) {
     let mut tds = Vec::new();
+    let mut string = None;
     for (_, def) in module.interfaces.iter() {
         tds.push(lir::TypeDescriptor {
             name: def.name.clone(),
@@ -1071,14 +1219,21 @@ fn type_descriptors(module: &mir::Module, enums: &Arena<lir::EnumDef>) -> Vec<li
     for id in class_order(module) {
         let def = &module.classes[id];
         let (size, align, scan) = class_layout(module, enums, def);
-        tds.push(lir::TypeDescriptor {
+        let descriptor = lir::TypeDescriptor {
             name: def.name.clone(),
-            symbol: td_symbol(&def.name),
+            symbol: if matches!(
+                def.representation,
+                mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::String)
+            ) {
+                lir::STRING_TD_SYMBOL.to_string()
+            } else {
+                td_symbol(&def.name)
+            },
             size,
             align,
             scan,
             parent: def
-                .base_class
+                .base_class()
                 .map(|base| td_symbol(&module.classes[base].name)),
             vtable: def
                 .vtable
@@ -1097,7 +1252,18 @@ fn type_descriptors(module: &mir::Module, enums: &Arena<lir::EnumDef>) -> Vec<li
                         .collect(),
                 })
                 .collect(),
-        });
+        };
+        if matches!(
+            def.representation,
+            mir::ClassRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::String)
+        ) {
+            assert!(
+                string.replace(descriptor).is_none(),
+                "one typed String TypeDescriptor"
+            );
+        } else {
+            tds.push(descriptor);
+        }
     }
     for (_, def) in module.closure_classes.iter() {
         let (_, size, align, scan) = closure_shape(module, enums, def);
@@ -1129,7 +1295,10 @@ fn type_descriptors(module: &mir::Module, enums: &Arena<lir::EnumDef>) -> Vec<li
                 .collect(),
         });
     }
-    tds
+    (
+        tds,
+        string.expect("LocalConcreteHir supplies the typed intrinsic String TypeDescriptor"),
+    )
 }
 
 /// Field offsets plus total size and alignment of an aggregate with
@@ -1164,18 +1333,32 @@ fn struct_shape(
     enum_shape: &dyn Fn(mir::EnumId) -> (u64, u64),
     definition: &mir::StructDef,
 ) -> (Vec<lir::FieldLayout>, u64, u64) {
-    let packed = definition
-        .c_layout
-        .map(|layout| u64::from(layout.packed))
-        .unwrap_or(0);
-    let explicit_align = definition
-        .c_layout
+    let mir::StructRepresentation::Declared {
+        c_layout, fields, ..
+    } = &definition.representation
+    else {
+        return match definition.representation {
+            mir::StructRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Int)
+            | mir::StructRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::UInt) => {
+                (Vec::new(), 8, 8)
+            }
+            mir::StructRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Boolean) => {
+                (Vec::new(), 1, 1)
+            }
+            mir::StructRepresentation::Intrinsic(_) => {
+                unreachable!("the registry fixes intrinsic declaration targets")
+            }
+            mir::StructRepresentation::Declared { .. } => unreachable!(),
+        };
+    };
+    let packed = c_layout.map(|layout| u64::from(layout.packed)).unwrap_or(0);
+    let explicit_align = c_layout
         .map(|layout| u64::from(layout.aligned))
         .unwrap_or(0);
-    let mut layouts = Vec::with_capacity(definition.fields.len());
+    let mut layouts = Vec::with_capacity(fields.len());
     let mut size = 0u64;
     let mut align = explicit_align.max(1);
-    for field in &definition.fields {
+    for field in fields {
         let (field_size, natural_align) = size_align(module, enum_shape, &field.ty);
         let access_align = if packed == 0 {
             natural_align
@@ -1285,7 +1468,7 @@ fn ref_scan(
         mir::Type::Array(_) | mir::Type::MutableArray(_) => lir::RefScan::References(vec![base]),
         mir::Type::Struct(id) => {
             let fields: Vec<mir::Type> = module.structs[*id]
-                .fields
+                .declared_fields()
                 .iter()
                 .map(|field| field.ty.clone())
                 .collect();
@@ -2162,7 +2345,7 @@ fn array_element(ty: &mir::Type) -> &mir::Type {
 /// The global symbol of the TypeDescriptor a runtime check / box
 /// refers to: classes and interfaces have their own; value types are
 /// compared / boxed through their boxed class's (`box$<encoded>`, as
-/// mir-lower names it); String keeps its built-in TD. `Any` has no TD
+/// mir-lower names it); String uses its typed intrinsic TD. `Any` has no TD
 /// (mir-lower folds those checks), and array TDs are assigned by
 /// codegen (`scoop_td_array.N`), so neither is referenceable here.
 fn td_symbol_for(module: &mir::Module, ty: &mir::Type) -> String {
@@ -2372,9 +2555,13 @@ impl<'a> FunctionLowerer<'a> {
             mir::Expr::ForeignCallbackOperation { result_ty, .. } => result_ty.as_ref().clone(),
             mir::Expr::Retype { ty, .. } => ty.as_ref().clone(),
             mir::Expr::FieldAccess { receiver, index } => match self.expr_ty(receiver) {
-                mir::Type::Struct(id) => self.module.structs[id].fields[*index as usize].ty.clone(),
+                mir::Type::Struct(id) => self.module.structs[id].declared_fields()[*index as usize]
+                    .ty
+                    .clone(),
                 mir::Type::Tuple(elements) => elements[*index as usize].clone(),
-                mir::Type::Class(id) => self.module.classes[id].fields[*index as usize].ty.clone(),
+                mir::Type::Class(id) => self.module.classes[id].declared_fields()[*index as usize]
+                    .ty
+                    .clone(),
                 // mir-lower only emits field accesses on aggregates
                 // and class objects.
                 _ => unreachable!("field access on a non-aggregate"),
@@ -2532,7 +2719,7 @@ impl<'a> FunctionLowerer<'a> {
                 let mir::Type::Class(class_id) = &object_ty else {
                     unreachable!("a field store targets a class object")
                 };
-                let field_ty = self.module.classes[*class_id].fields[*index as usize]
+                let field_ty = self.module.classes[*class_id].declared_fields()[*index as usize]
                     .ty
                     .clone();
                 let (offsets, _, _) =
@@ -2556,7 +2743,7 @@ impl<'a> FunctionLowerer<'a> {
                     unreachable!("an atomic field store targets a class object")
                 };
                 assert_eq!(
-                    self.module.classes[*class_id].fields[*index as usize].ty,
+                    self.module.classes[*class_id].declared_fields()[*index as usize].ty,
                     mir::Type::Int,
                     "an atomic state field is a 64-bit Int"
                 );
@@ -2738,7 +2925,7 @@ impl<'a> FunctionLowerer<'a> {
             }
             mir::Expr::StructInit { struct_id, args } => {
                 let field_types: Vec<mir::Type> = self.module.structs[*struct_id]
-                    .fields
+                    .declared_fields()
                     .iter()
                     .map(|field| field.ty.clone())
                     .collect();
@@ -2757,8 +2944,11 @@ impl<'a> FunctionLowerer<'a> {
             mir::Expr::ClassInit { class_id, args } => {
                 let def = &self.module.classes[*class_id];
                 let (field_offsets, size, _) = class_shape(self.module, self.enums, def);
-                let field_types: Vec<mir::Type> =
-                    def.fields.iter().map(|field| field.ty.clone()).collect();
+                let field_types: Vec<mir::Type> = def
+                    .declared_fields()
+                    .iter()
+                    .map(|field| field.ty.clone())
+                    .collect();
                 assert_eq!(
                     args.len(),
                     field_types.len(),
@@ -3094,7 +3284,7 @@ impl<'a> FunctionLowerer<'a> {
                     unreachable!("an atomic field load targets a class object")
                 };
                 assert_eq!(
-                    self.module.classes[*class_id].fields[*index as usize].ty,
+                    self.module.classes[*class_id].declared_fields()[*index as usize].ty,
                     mir::Type::Int,
                     "an atomic state field is a 64-bit Int"
                 );
@@ -3120,7 +3310,7 @@ impl<'a> FunctionLowerer<'a> {
                     unreachable!("an atomic compare-exchange targets a class object")
                 };
                 assert_eq!(
-                    self.module.classes[*class_id].fields[*index as usize].ty,
+                    self.module.classes[*class_id].declared_fields()[*index as usize].ty,
                     mir::Type::Int,
                     "an atomic state field is a 64-bit Int"
                 );
@@ -3633,7 +3823,8 @@ impl<'a> FunctionLowerer<'a> {
                     | mir::RuntimeFn::ITableLookup
                     | mir::RuntimeFn::AnyEquals
                     | mir::RuntimeFn::AnyHashCode
-                    | mir::RuntimeFn::AnyToString => {
+                    | mir::RuntimeFn::AnyToString
+                    | mir::RuntimeFn::StringIdentity => {
                         unreachable!("{function:?} calls are emitted by the dedicated M6 lowerings")
                     }
                     // Handled by the arm above.
@@ -3679,7 +3870,8 @@ impl<'a> FunctionLowerer<'a> {
                     | mir::RuntimeFn::ITableLookup
                     | mir::RuntimeFn::AnyEquals
                     | mir::RuntimeFn::AnyHashCode
-                    | mir::RuntimeFn::AnyToString => {
+                    | mir::RuntimeFn::AnyToString
+                    | mir::RuntimeFn::StringIdentity => {
                         unreachable!("{function:?} calls are emitted by the dedicated M6 lowerings")
                     }
                     mir::RuntimeFn::Trap => unreachable!("trap calls never reach here"),
@@ -3987,15 +4179,17 @@ mod tests {
             self.structs.alloc(mir::StructDef {
                 name: name.to_string(),
                 gc_free,
-                c_layout: None,
-                interior_mutable: false,
-                fields: fields
-                    .iter()
-                    .map(|(name, ty)| mir::Field {
-                        name: name.to_string(),
-                        ty: ty.clone(),
-                    })
-                    .collect(),
+                representation: mir::StructRepresentation::Declared {
+                    c_layout: None,
+                    interior_mutable: false,
+                    fields: fields
+                        .iter()
+                        .map(|(name, ty)| mir::Field {
+                            name: name.to_string(),
+                            ty: ty.clone(),
+                        })
+                        .collect(),
+                },
             })
         }
 
@@ -4011,15 +4205,17 @@ mod tests {
             self.structs.alloc(mir::StructDef {
                 name: name.to_string(),
                 gc_free,
-                c_layout: Some(mir::CLayout { aligned, packed }),
-                interior_mutable,
-                fields: fields
-                    .iter()
-                    .map(|(name, ty)| mir::Field {
-                        name: name.to_string(),
-                        ty: ty.clone(),
-                    })
-                    .collect(),
+                representation: mir::StructRepresentation::Declared {
+                    c_layout: Some(mir::CLayout { aligned, packed }),
+                    interior_mutable,
+                    fields: fields
+                        .iter()
+                        .map(|(name, ty)| mir::Field {
+                            name: name.to_string(),
+                            ty: ty.clone(),
+                        })
+                        .collect(),
+                },
             })
         }
 
@@ -4041,14 +4237,16 @@ mod tests {
             self.classes.alloc(mir::ClassDef {
                 modifier: mir::ClassModifier::Final,
                 name: name.to_string(),
-                fields: fields
-                    .iter()
-                    .map(|(name, ty)| mir::Field {
-                        name: name.to_string(),
-                        ty: ty.clone(),
-                    })
-                    .collect(),
-                base_class: base,
+                representation: mir::ClassRepresentation::Declared {
+                    fields: fields
+                        .iter()
+                        .map(|(name, ty)| mir::Field {
+                            name: name.to_string(),
+                            ty: ty.clone(),
+                        })
+                        .collect(),
+                    base_class: base,
+                },
                 interfaces: Vec::new(),
                 vtable,
                 itables,
@@ -4157,7 +4355,32 @@ mod tests {
             self.user_fn("main", mir::ENTRY_SYMBOL, locals, statements)
         }
 
-        fn finish(self, entry: mir::FunctionId) -> mir::Module {
+        fn finish(mut self, entry: mir::FunctionId) -> mir::Module {
+            for (name, representation) in [
+                ("Int", mir::IntrinsicTypeRepresentation::Int),
+                ("UInt", mir::IntrinsicTypeRepresentation::UInt),
+                ("Boolean", mir::IntrinsicTypeRepresentation::Boolean),
+            ] {
+                self.structs.alloc(mir::StructDef {
+                    name: name.to_string(),
+                    gc_free: true,
+                    representation: mir::StructRepresentation::Intrinsic(representation),
+                });
+            }
+            self.classes.alloc(mir::ClassDef {
+                modifier: mir::ClassModifier::Final,
+                name: "String".to_string(),
+                representation: mir::ClassRepresentation::Intrinsic(
+                    mir::IntrinsicTypeRepresentation::String,
+                ),
+                interfaces: Vec::new(),
+                vtable: vec![
+                    mir::TableSlot::Runtime(mir::RuntimeFn::AnyEquals),
+                    mir::TableSlot::Runtime(mir::RuntimeFn::AnyHashCode),
+                    mir::TableSlot::Runtime(mir::RuntimeFn::StringIdentity),
+                ],
+                itables: Vec::new(),
+            });
             mir::Module {
                 functions: self.functions,
                 extern_functions: self.extern_functions,
@@ -4338,6 +4561,38 @@ mod tests {
         let symbols: Vec<&str> = module.functions.iter().map(|f| f.symbol.as_str()).collect();
         assert_eq!(symbols, ["scoop.helper", mir::ENTRY_SYMBOL]);
         assert_eq!(module.entry_symbol, mir::ENTRY_SYMBOL);
+
+        // The source declaration's typed intrinsic identity survives through
+        // MIR and LIR. String metadata is a required singleton, not a layout
+        // or descriptor that codegen has to rediscover by name.
+        assert_eq!(
+            module.meta.string.layout.kind,
+            lir::LayoutKind::Intrinsic(lir::IntrinsicTypeRepresentation::String)
+        );
+        assert_eq!(
+            module.meta.string.type_descriptor.symbol,
+            lir::STRING_TD_SYMBOL
+        );
+        assert_eq!(
+            module.meta.string.type_descriptor.vtable[2],
+            mir::RuntimeFn::StringIdentity.symbol()
+        );
+        assert!(
+            module
+                .meta
+                .type_descriptors
+                .iter()
+                .all(|descriptor| descriptor.symbol != lir::STRING_TD_SYMBOL)
+        );
+        for representation in [
+            lir::IntrinsicTypeRepresentation::Int,
+            lir::IntrinsicTypeRepresentation::UInt,
+            lir::IntrinsicTypeRepresentation::Boolean,
+        ] {
+            assert!(module.meta.layouts.iter().any(|layout| {
+                layout.kind == lir::LayoutKind::Intrinsic(representation.clone())
+            }));
+        }
 
         // Golden dump locks the output structure.
         let expected = "\
@@ -5104,7 +5359,8 @@ Module
                 .unwrap_or_else(|| panic!("missing layout for {name}"))
         };
 
-        // Builtins first: the runtime String object header + scalars.
+        // The String singleton is structurally separate; the remaining typed
+        // intrinsic layouts stay in declaration order with ordinary layouts.
         let names: Vec<&str> = module
             .meta
             .layouts
@@ -5112,21 +5368,25 @@ Module
             .map(|l| l.name.as_str())
             .collect();
         assert_eq!(
+            module.meta.string.layout.kind,
+            lir::LayoutKind::Intrinsic(lir::IntrinsicTypeRepresentation::String)
+        );
+        assert_eq!(
             names,
             [
-                "String",
-                "Int",
-                "Boolean",
                 "S",
                 "Outer",
+                "Int",
+                "UInt",
+                "Boolean",
                 "(String, Int)",
                 "(Boolean, Int)"
             ]
         );
 
-        let string = by_name("String");
+        let string = &module.meta.string.layout;
         assert_eq!((string.size, string.align), (24, 8));
-        assert!(plain_refs(string).is_empty());
+        assert!(string.fields.is_empty());
 
         // S { a: Int @0, s: String @8 }: size 16, align 8, refs [8].
         let s_layout = by_name("S");

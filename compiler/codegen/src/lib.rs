@@ -47,7 +47,7 @@ use la_arena::{Arena, Idx};
 use scoop_lir::{
     BinOp, ConstantValue, EnumDef, EnumRepr, ExternFunction, ExternFunctionKind, Function,
     GcEffect, Global, GlobalInit, Instruction, LirType, Module, NativeGlobal, RefScan, StructDef,
-    TempId, Terminator, UnOp, Value,
+    TempId, Terminator, TypeDescriptor, UnOp, Value,
 };
 
 const SCAN_ARRAY: u64 = u64::MAX;
@@ -627,13 +627,6 @@ fn emit_llvm_module<'ctx>(
     module: &Module,
     machine: &TargetMachine,
 ) -> Result<LlvmModule<'ctx>, CodegenError> {
-    let string_layout = module
-        .meta
-        .layouts
-        .iter()
-        .find(|layout| layout.name == "String")
-        .ok_or_else(|| CodegenError("LIR meta lacks a layout for String".to_string()))?;
-
     let llvm = context.create_module("scoop");
     let builder = context.create_builder();
     let target_data = machine.get_target_data();
@@ -659,38 +652,10 @@ fn emit_llvm_module<'ctx>(
         ],
         false,
     );
-    // @scoop_td_String: type_id 1, no parent. Its vtable carries the
-    // Any default slots with `toString` (slot 2) bound to the runtime
-    // String identity (M7): String is a reference type and is never
-    // boxed, so `Any.toString()` on a String dispatches through this
-    // table — core's `print` / `println` rely on it.
-    let string_vtable = emit_fn_table(
-        context,
-        &llvm,
-        "scoop_td_String.vtable",
-        &[
-            "scoop_rt_any_equals".to_string(),
-            "scoop_rt_any_hashcode".to_string(),
-            "scoop_rt_string_identity".to_string(),
-        ],
-    )?;
-    let string_name = private_c_string(context, &llvm, "scoop_td_String.name", "String");
+    // String constants need the descriptor address before function tables can
+    // be emitted. The complete initializer comes from typed LIR metadata after
+    // all function declarations exist; codegen does not synthesize it.
     let string_td = llvm.add_global(td_ty, None, scoop_lir::STRING_TD_SYMBOL);
-    string_td.set_constant(true);
-    string_td.set_initializer(&context.const_struct(
-        &[
-            i64_ty.const_int(1, false).into(),
-            i64_ty.const_int(string_layout.size, false).into(),
-            i64_ty.const_int(string_layout.align, false).into(),
-            ptr_ty.const_null().into(),
-            ptr_ty.const_null().into(),
-            string_vtable,
-            ptr_ty.const_null().into(),
-            i64_ty.const_zero().into(),
-            string_name.into(),
-        ],
-        false,
-    ));
 
     // One array TypeDescriptor per distinct (element layout, scan)
     // 2.2): same struct as String's TD, size/align of the *element*
@@ -767,7 +732,7 @@ fn emit_llvm_module<'ctx>(
     // Globals. Indexed by GlobalId (arena iteration is in index order).
     // TypeDescriptor reference stubs (`scoop_td_*`, see the lir-lower
     // module docs) emit no data: the real TD comes from
-    // `LirMeta::type_descriptors` (or the built-in String TD above) and
+    // typed `LirMeta` descriptors and
     // `Value::Global` resolves them by symbol at use time. A stub is
     // recognized by its symbol naming one of those TDs, never by its
     // init shape.
@@ -776,7 +741,7 @@ fn emit_llvm_module<'ctx>(
         .type_descriptors
         .iter()
         .map(|td| td.symbol.as_str())
-        .chain([scoop_lir::STRING_TD_SYMBOL])
+        .chain([module.meta.string.type_descriptor.symbol.as_str()])
         .collect();
     let mut globals: Vec<Option<GlobalValue>> = Vec::with_capacity(module.globals.len());
     for (_, global) in module.globals.iter() {
@@ -878,7 +843,7 @@ fn emit_llvm_module<'ctx>(
     }
     // Meta TypeDescriptors reference module functions (vtable / itable
     // slots), so they are emitted after the declare pass.
-    emit_type_descriptors(context, &llvm, td_ty, module)?;
+    emit_type_descriptors(context, &llvm, td_ty, string_td, module)?;
     for function in &module.functions {
         emit_function(context, &llvm, &builder, &module_ctx, function)?;
     }
@@ -1273,79 +1238,121 @@ fn emit_type_descriptors<'ctx>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
     td_ty: StructType<'ctx>,
+    string_global: GlobalValue<'ctx>,
     module: &Module,
 ) -> Result<(), CodegenError> {
-    let i64_ty = context.i64_type();
     let ptr = ptr_ty(context);
     // ScoopItableEntry: { ptr interface, ptr slots }.
     let entry_ty = context.struct_type(&[ptr.into(), ptr.into()], false);
     for (index, td) in module.meta.type_descriptors.iter().enumerate() {
-        let ref_offsets: BasicValueEnum =
-            emit_ref_scan(context, llvm, &format!("{}.refs", td.symbol), &td.scan)
-                .map_or_else(|| ptr.const_null().into(), Into::into);
-        let parent: BasicValueEnum = match &td.parent {
-            Some(symbol) => llvm
-                .get_global(symbol)
+        let global = llvm.add_global(td_ty, None, &td.symbol);
+        emit_type_descriptor(
+            context,
+            llvm,
+            entry_ty,
+            global,
+            td,
+            FIRST_TD_TYPE_ID + index as u64,
+        )?;
+    }
+    emit_type_descriptor(
+        context,
+        llvm,
+        entry_ty,
+        string_global,
+        &module.meta.string.type_descriptor,
+        1,
+    )?;
+    Ok(())
+}
+
+fn emit_type_descriptor<'ctx>(
+    context: &'ctx Context,
+    llvm: &LlvmModule<'ctx>,
+    entry_ty: StructType<'ctx>,
+    global: GlobalValue<'ctx>,
+    descriptor: &TypeDescriptor,
+    type_id: u64,
+) -> Result<(), CodegenError> {
+    let i64_ty = context.i64_type();
+    let ptr = ptr_ty(context);
+    let ref_offsets: BasicValueEnum = emit_ref_scan(
+        context,
+        llvm,
+        &format!("{}.refs", descriptor.symbol),
+        &descriptor.scan,
+    )
+    .map_or_else(|| ptr.const_null().into(), Into::into);
+    let parent: BasicValueEnum = match &descriptor.parent {
+        Some(symbol) => llvm
+            .get_global(symbol)
+            .ok_or_else(|| {
+                CodegenError(format!(
+                    "TypeDescriptor `{}`: parent `@{}` not emitted yet",
+                    descriptor.symbol, symbol
+                ))
+            })?
+            .as_pointer_value()
+            .into(),
+        None => ptr.const_null().into(),
+    };
+    let vtable = emit_fn_table(
+        context,
+        llvm,
+        &format!("{}.vtable", descriptor.symbol),
+        &descriptor.vtable,
+    )?;
+    let (itables, itable_count): (BasicValueEnum, u64) = if descriptor.itables.is_empty() {
+        (ptr.const_null().into(), 0)
+    } else {
+        let mut entries = Vec::with_capacity(descriptor.itables.len());
+        for (record_index, record) in descriptor.itables.iter().enumerate() {
+            let interface = llvm
+                .get_global(&record.interface_symbol)
                 .ok_or_else(|| {
                     CodegenError(format!(
-                        "TypeDescriptor `{}`: parent `@{}` not emitted yet",
-                        td.symbol, symbol
+                        "TypeDescriptor `{}`: interface `@{}` not emitted yet",
+                        descriptor.symbol, record.interface_symbol
                     ))
                 })?
-                .as_pointer_value()
-                .into(),
-            None => ptr.const_null().into(),
-        };
-        let vtable = emit_fn_table(context, llvm, &format!("{}.vtable", td.symbol), &td.vtable)?;
-        let (itables, itable_count): (BasicValueEnum, u64) = if td.itables.is_empty() {
-            (ptr.const_null().into(), 0)
-        } else {
-            let mut entries = Vec::with_capacity(td.itables.len());
-            for (record_index, record) in td.itables.iter().enumerate() {
-                let interface = llvm
-                    .get_global(&record.interface_symbol)
-                    .ok_or_else(|| {
-                        CodegenError(format!(
-                            "TypeDescriptor `{}`: interface `@{}` not emitted yet",
-                            td.symbol, record.interface_symbol
-                        ))
-                    })?
-                    .as_pointer_value();
-                let slots = emit_fn_table(
-                    context,
-                    llvm,
-                    &format!("{}.itables.{record_index}", td.symbol),
-                    &record.slots,
-                )?;
-                entries.push(context.const_struct(&[interface.into(), slots], false));
-            }
-            let array = entry_ty.const_array(&entries);
-            let global =
-                private_const_global(llvm, &format!("{}.itables", td.symbol), array.into());
-            (global.into(), td.itables.len() as u64)
-        };
-        let global = llvm.add_global(td_ty, None, &td.symbol);
-        let name = private_c_string(context, llvm, &format!("{}.name", td.symbol), &td.name);
-        global.set_constant(true);
-        global.set_initializer(
-            &context.const_struct(
-                &[
-                    i64_ty
-                        .const_int(FIRST_TD_TYPE_ID + index as u64, false)
-                        .into(),
-                    i64_ty.const_int(td.size, false).into(),
-                    i64_ty.const_int(td.align, false).into(),
-                    ref_offsets,
-                    parent,
-                    vtable,
-                    itables,
-                    i64_ty.const_int(itable_count, false).into(),
-                    name.into(),
-                ],
-                false,
-            ),
+                .as_pointer_value();
+            let slots = emit_fn_table(
+                context,
+                llvm,
+                &format!("{}.itables.{record_index}", descriptor.symbol),
+                &record.slots,
+            )?;
+            entries.push(context.const_struct(&[interface.into(), slots], false));
+        }
+        let array = entry_ty.const_array(&entries);
+        let itable_global = private_const_global(
+            llvm,
+            &format!("{}.itables", descriptor.symbol),
+            array.into(),
         );
-    }
+        (itable_global.into(), descriptor.itables.len() as u64)
+    };
+    let name = private_c_string(
+        context,
+        llvm,
+        &format!("{}.name", descriptor.symbol),
+        &descriptor.name,
+    );
+    global.set_constant(true);
+    global.set_initializer(&context.const_struct(
+        &[
+            i64_ty.const_int(type_id, false).into(),
+            i64_ty.const_int(descriptor.size, false).into(),
+            i64_ty.const_int(descriptor.align, false).into(),
+            ref_offsets,
+            parent,
+            vtable,
+            itables,
+            i64_ty.const_int(itable_count, false).into(),
+            name.into(),
+        ],
+        false,
+    ));
     Ok(())
 }
 
@@ -1520,7 +1527,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             Value::Global(id) => match &self.globals[arena_index(id)] {
                 Some(global) => global.as_pointer_value().into(),
                 // A TypeDescriptor stub: the TD global (emitted from the
-                // meta, or the built-in String TD) is resolved by symbol.
+                // metadata, including the typed intrinsic String descriptor)
+                // is resolved by symbol.
                 None => self
                     .llvm
                     .get_global(&self.globals_arena[id].symbol)
@@ -4596,11 +4604,39 @@ mod tests {
     use la_arena::Arena;
     use scoop_lir::{
         BasicBlock, EnumDef, EnumRepr, EnumVariantRepr, Global, GlobalInit, ItableRecord, Layout,
-        LayoutKind, LirMeta, Local, MANAGED_PTR, METADATA_PTR, PointerKind, RAW_PTR, Temp,
-        TypeDescriptor,
+        LayoutKind, LirMeta, Local, MANAGED_PTR, METADATA_PTR, PointerKind, RAW_PTR,
+        StringMetadata, Temp, TypeDescriptor,
     };
 
     use super::*;
+
+    fn string_metadata() -> StringMetadata {
+        StringMetadata {
+            layout: Layout {
+                name: "String".to_string(),
+                size: 24,
+                align: 8,
+                fields: Vec::new(),
+                c_layout: None,
+                interior_mutable: false,
+                kind: LayoutKind::Intrinsic(scoop_lir::IntrinsicTypeRepresentation::String),
+            },
+            type_descriptor: TypeDescriptor {
+                name: "String".to_string(),
+                symbol: scoop_lir::STRING_TD_SYMBOL.to_string(),
+                size: 24,
+                align: 8,
+                scan: RefScan::None,
+                parent: None,
+                vtable: vec![
+                    "scoop_rt_any_equals".to_string(),
+                    "scoop_rt_any_hashcode".to_string(),
+                    "scoop_rt_string_identity".to_string(),
+                ],
+                itables: Vec::new(),
+            },
+        }
+    }
 
     /// An M2-shaped module: string constants, a user function exercising
     /// alloca/store/load, arithmetic, branches, aggregates and
@@ -4790,6 +4826,7 @@ mod tests {
             }],
             entry_symbol: "scoop_main".to_string(),
             meta: LirMeta {
+                string: string_metadata(),
                 layouts: vec![Layout {
                     name: "String".to_string(),
                     size: 24,
@@ -5230,6 +5267,7 @@ mod tests {
             ],
             entry_symbol: "scoop.tagged".to_string(),
             meta: LirMeta {
+                string: string_metadata(),
                 layouts: vec![
                     Layout {
                         name: "String".to_string(),
@@ -5433,6 +5471,7 @@ mod tests {
             }],
             entry_symbol: "scoop_main".to_string(),
             meta: LirMeta {
+                string: string_metadata(),
                 layouts: vec![
                     Layout {
                         name: "String".to_string(),
@@ -5571,6 +5610,7 @@ mod tests {
             functions: vec![describe("Shape.describe"), describe("Point.describe"), main],
             entry_symbol: "scoop_main".to_string(),
             meta: LirMeta {
+                string: string_metadata(),
                 layouts: vec![Layout {
                     name: "String".to_string(),
                     size: 24,
@@ -5803,6 +5843,7 @@ mod tests {
             functions: vec![describe, main],
             entry_symbol: "scoop_main".to_string(),
             meta: LirMeta {
+                string: string_metadata(),
                 layouts: vec![Layout {
                     name: "String".to_string(),
                     size: 24,
@@ -6015,6 +6056,7 @@ mod tests {
             functions: vec![thrower, eh_test],
             entry_symbol: "scoop.eh_test".to_string(),
             meta: LirMeta {
+                string: string_metadata(),
                 layouts: vec![Layout {
                     name: "String".to_string(),
                     size: 24,
@@ -6071,6 +6113,17 @@ mod tests {
         let llvm = emit_llvm_module(&context, module, &machine).expect("emit module");
         llvm.verify().expect("valid LLVM module");
         llvm.print_to_string().to_string()
+    }
+
+    #[test]
+    fn typed_intrinsic_string_supplies_the_only_descriptor_definition() {
+        let ir = ir_of(&values_module());
+        assert_eq!(
+            ir.match_indices("@scoop_td_String =").count(),
+            1,
+            "String must have exactly one descriptor definition"
+        );
+        assert!(ir.contains("@scoop_rt_string_identity"));
     }
 
     #[test]
@@ -6169,6 +6222,7 @@ mod tests {
             functions: vec![safe, borrowed_function],
             entry_symbol: "safe_root".to_string(),
             meta: LirMeta {
+                string: string_metadata(),
                 layouts: vec![Layout {
                     name: "String".to_string(),
                     size: 24,
@@ -6252,6 +6306,7 @@ mod tests {
             }],
             entry_symbol: "continuation_atomics".to_string(),
             meta: LirMeta {
+                string: string_metadata(),
                 layouts: vec![Layout {
                     name: "String".to_string(),
                     size: 24,
@@ -6336,6 +6391,7 @@ mod tests {
             }],
             entry_symbol: "scoop.closure_abi".to_string(),
             meta: LirMeta {
+                string: string_metadata(),
                 layouts: vec![Layout {
                     name: "String".to_string(),
                     size: 24,
@@ -6488,6 +6544,7 @@ mod tests {
             }],
             entry_symbol: "scoop_main".to_string(),
             meta: LirMeta {
+                string: string_metadata(),
                 layouts: vec![Layout {
                     name: "String".to_string(),
                     size: 24,
@@ -6672,6 +6729,7 @@ mod tests {
             }],
             entry_symbol: "scoop_main".to_string(),
             meta: LirMeta {
+                string: string_metadata(),
                 layouts: vec![Layout {
                     name: "String".to_string(),
                     size: 24,
@@ -6895,6 +6953,7 @@ mod tests {
             }],
             entry_symbol: "scoop_main".to_string(),
             meta: LirMeta {
+                string: string_metadata(),
                 layouts: vec![Layout {
                     name: "String".to_string(),
                     size: 24,

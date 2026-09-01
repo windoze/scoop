@@ -152,6 +152,19 @@ SourceFile
   class IndexOutOfBoundsException() : Exception(<1 args>)
   class IllegalStateException() : Exception(<1 args>)
 SourceFile
+    @Intrinsic("core_int")
+  struct Int <representation omitted>
+    @Intrinsic("core_uint")
+  struct UInt <representation omitted>
+    @Intrinsic("core_boolean")
+  struct Boolean <representation omitted>
+    @Intrinsic("core_string")
+  class String()
+    @Intrinsic("core_array")
+  class Array<T>()
+    @Intrinsic("core_mutable_array")
+  class MutableArray<T>()
+SourceFile
     @Extern(lib = "fixture_native", name = "m13_start_one")
   fun startOne(callback: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>, value: Int): Ptr<Unit>
     @Extern(lib = "fixture_native", name = "m13_join_one")
@@ -1249,15 +1262,15 @@ Module
     ret
   fun @scoop_main() -> void
     local %0 offset: i64
-    local %1 oneShot: struct0
-    local %2 observer: struct0
+    local %1 oneShot: struct3
+    local %2 observer: struct3
     local %3 callerRoot: ptr<managed>
     local %4 job: ptr<raw>
-    local %5 failedStart: struct0
-    local %6 failedObserver: struct0
-    local %7 reusable: struct0
-    local %8 collector: struct1
-    local %9 collectorObserver: struct1
+    local %5 failedStart: struct3
+    local %6 failedObserver: struct3
+    local %7 reusable: struct3
+    local %8 collector: struct4
+    local %9 collectorObserver: struct4
     local %10 borrowedMessage: ptr<managed>
     local %11 $call.1: i64
     local %12 $logic.2: i1
@@ -1292,9 +1305,9 @@ Module
     t1 = function_address @scoop.$lambda.0 : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 local0
-    t2 = foreign_callback_register fcb0 t0 : struct0
+    t2 = foreign_callback_register fcb0 t0 : struct3
     store t2 -> local1
-    t3 = foreign_callback_Retain local1 : struct0
+    t3 = foreign_callback_Retain local1 : struct3
     store t3 -> local2
     t4 = call @scoop_rt_string_concat(global1, global2) : ptr<managed>
     store t4 -> local3
@@ -1348,9 +1361,9 @@ Module
     t34 = call @scoop_rt_alloc(global15, 24) : ptr<managed>
     t35 = function_address @scoop.$lambda.1 : ptr
     heap_store t34 +16 t35
-    t36 = foreign_callback_register fcb1 t34 : struct0
+    t36 = foreign_callback_register fcb1 t34 : struct3
     store t36 -> local5
-    t37 = foreign_callback_Retain local5 : struct0
+    t37 = foreign_callback_Retain local5 : struct3
     store t37 -> local6
     t38 = extract local5, 0 : ptr<code>
     t39 = extract local5, 1 : ptr<raw>
@@ -1372,7 +1385,7 @@ Module
     t49 = call @scoop_rt_alloc(global16, 24) : ptr<managed>
     t50 = function_address @scoop.$lambda.2 : ptr
     heap_store t49 +16 t50
-    t51 = foreign_callback_register fcb2 t49 : struct0
+    t51 = foreign_callback_register fcb2 t49 : struct3
     store t51 -> local7
     t52 = extract local7, 0 : ptr<code>
     t53 = extract local7, 1 : ptr<raw>
@@ -1455,9 +1468,9 @@ Module
     t97 = call @scoop_rt_alloc(global17, 24) : ptr<managed>
     t98 = function_address @scoop.$lambda.3 : ptr
     heap_store t97 +16 t98
-    t99 = foreign_callback_register fcb3 t97 : struct1
+    t99 = foreign_callback_register fcb3 t97 : struct4
     store t99 -> local8
-    t100 = foreign_callback_Retain local8 : struct1
+    t100 = foreign_callback_Retain local8 : struct4
     store t100 -> local9
     t101 = call @scoop_rt_string_concat(global3, global4) : ptr<managed>
     store t101 -> local10

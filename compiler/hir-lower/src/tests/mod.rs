@@ -1124,7 +1124,8 @@ pub(crate) fn file(declarations: Vec<Decl>) -> SourceFile {
 /// intrinsic and `print` / `println` as ordinary `Any`-parameter
 /// functions dispatching `toString()`.
 pub(crate) fn core_file() -> SourceFile {
-    let mut declarations = vec![
+    let mut declarations = intrinsic_type_declarations();
+    declarations.extend([
         enum_decl(
             "Option",
             vec!["T"],
@@ -1141,7 +1142,7 @@ pub(crate) fn core_file() -> SourceFile {
             vec![],
             vec![],
         ),
-    ];
+    ]);
     declarations.extend(coroutine_core_declarations());
     declarations.extend(ffi_core_declarations());
     declarations.extend([
@@ -1176,6 +1177,52 @@ pub(crate) fn core_file() -> SourceFile {
         ),
     ]);
     file(declarations)
+}
+
+fn intrinsic_type_declarations() -> Vec<Decl> {
+    let annotation = |name: &str| ast::Annotation {
+        name: ident("Intrinsic"),
+        args: vec![ast::AnnotationArg {
+            name: None,
+            value: ast::AnnotationLiteral::String(name.to_string()),
+            span: sp(),
+        }],
+        span: sp(),
+    };
+    let strukt = |name: &str, intrinsic: &str| {
+        Decl::Struct(AstStructDecl {
+            annotations: vec![annotation(intrinsic)],
+            name: ident(name),
+            type_params: Vec::new(),
+            fields: ast::StructRepresentationDecl::Omitted,
+            interfaces: Vec::new(),
+            where_clause: None,
+            methods: Vec::new(),
+            span: sp(),
+        })
+    };
+    let class = |name: &str, intrinsic: &str, type_params: Vec<&str>| {
+        Decl::Class(ast::ClassDecl {
+            annotations: vec![annotation(intrinsic)],
+            modifier: ast::ClassModifier::Final,
+            name: ident(name),
+            type_params: type_params.into_iter().map(type_param).collect(),
+            constructor: ast::ClassConstructorDecl::Omitted,
+            base_class: None,
+            interfaces: Vec::new(),
+            where_clause: None,
+            methods: Vec::new(),
+            span: sp(),
+        })
+    };
+    vec![
+        strukt("Int", "core_int"),
+        strukt("UInt", "core_uint"),
+        strukt("Boolean", "core_boolean"),
+        class("String", "core_string", Vec::new()),
+        class("Array", "core_array", vec!["T"]),
+        class("MutableArray", "core_mutable_array", vec!["T"]),
+    ]
 }
 
 fn ffi_core_declarations() -> Vec<Decl> {

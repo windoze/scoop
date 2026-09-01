@@ -152,6 +152,19 @@ SourceFile
   class IndexOutOfBoundsException() : Exception(<1 args>)
   class IllegalStateException() : Exception(<1 args>)
 SourceFile
+    @Intrinsic("core_int")
+  struct Int <representation omitted>
+    @Intrinsic("core_uint")
+  struct UInt <representation omitted>
+    @Intrinsic("core_boolean")
+  struct Boolean <representation omitted>
+    @Intrinsic("core_string")
+  class String()
+    @Intrinsic("core_array")
+  class Array<T>()
+    @Intrinsic("core_mutable_array")
+  class MutableArray<T>()
+SourceFile
   interface Show
     fun show
   struct Shown : Show
@@ -445,7 +458,7 @@ Module
   global @scoop_td_Derived = c""
   enum Option$S niche(payload_variant=0)
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
-  fun @scoop.Shown.show(struct0) -> i64
+  fun @scoop.Shown.show(struct3) -> i64
   block entry
     t0 = extract param0, 0 : i64
     ret t0
@@ -482,7 +495,7 @@ Module
     local %1 $call.1: i64
     local %2 $call.2: i64
   block entry
-    t0 = aggregate (42) : struct0
+    t0 = aggregate (42) : struct3
     t1 = call @scoop.read$Shown(t0) : i64
     store t1 -> local1
     t2 = call @scoop_rt_box(global6, local1, 8) : ptr<managed>
@@ -496,7 +509,7 @@ Module
     call @scoop.println(t6)
     t7 = aggregate () : {}
     ret
-  fun @scoop.read$Shown(struct0) -> i64
+  fun @scoop.read$Shown(struct3) -> i64
     local %0 $call.1: i64
   block entry
     t0 = call @scoop.Shown.show(param0) : i64

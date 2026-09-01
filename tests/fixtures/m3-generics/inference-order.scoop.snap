@@ -152,6 +152,19 @@ SourceFile
   class IndexOutOfBoundsException() : Exception(<1 args>)
   class IllegalStateException() : Exception(<1 args>)
 SourceFile
+    @Intrinsic("core_int")
+  struct Int <representation omitted>
+    @Intrinsic("core_uint")
+  struct UInt <representation omitted>
+    @Intrinsic("core_boolean")
+  struct Boolean <representation omitted>
+    @Intrinsic("core_string")
+  class String()
+    @Intrinsic("core_array")
+  class Array<T>()
+    @Intrinsic("core_mutable_array")
+  class MutableArray<T>()
+SourceFile
   struct Pair<T>
     field maybe: T?
     field value: T
@@ -613,7 +626,7 @@ Module
   block entry
     ret param1
   fun @scoop_main() -> void
-    local %0 pair: struct0
+    local %0 pair: struct3
     local %1 duo: enum2
     local %2 value: i64
     local %3 $when.1: enum2
@@ -630,7 +643,7 @@ Module
     call @scoop.println(t2)
     t3 = aggregate () : {}
     t4 = enum_wrap e0 v1 () : enum0
-    t5 = aggregate (t4, 8) : struct0
+    t5 = aggregate (t4, 8) : struct3
     store t5 -> local0
     t6 = extract local0, 1 : i64
     t7 = call @scoop_rt_box(global6, t6, 8) : ptr<managed>

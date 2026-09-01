@@ -152,6 +152,19 @@ SourceFile
   class IndexOutOfBoundsException() : Exception(<1 args>)
   class IllegalStateException() : Exception(<1 args>)
 SourceFile
+    @Intrinsic("core_int")
+  struct Int <representation omitted>
+    @Intrinsic("core_uint")
+  struct UInt <representation omitted>
+    @Intrinsic("core_boolean")
+  struct Boolean <representation omitted>
+    @Intrinsic("core_string")
+  class String()
+    @Intrinsic("core_array")
+  class Array<T>()
+    @Intrinsic("core_mutable_array")
+  class MutableArray<T>()
+SourceFile
   class Gate(var waiter: Continuation<Int>?)
     fun complete
   class Registration(val gate: Gate), SuspendRegistration<Int>
@@ -3964,7 +3977,7 @@ Module
   enum EnumWorker tagged size=16 align=8 variants=(ptr<managed>)@8+8:refs
   enum Option$S niche(payload_variant=0)
   enum CoroutineStep$I tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
-  enum CoroutineSlot$StructWorker tagged size=16 align=8 variants=()@8+0 (struct0)@8+8:refs
+  enum CoroutineSlot$StructWorker tagged size=16 align=8 variants=()@8+0 (struct3)@8+8:refs
   enum CoroutineSlot$I tagged size=16 align=8 variants=()@8+0 (i64)@8+8
   enum CoroutineSlot$Throwable niche(payload_variant=1)
   enum CoroutineSlot$EEnumWorker tagged size=24 align=8 variants=()@8+0 (enum1)@8+16:refs
@@ -4003,7 +4016,7 @@ Module
     call_indirect t7[0](local0, param1)
     t8 = aggregate () : {}
     ret
-  fun @scoop.StructWorker.work$suspend(struct0, ptr<managed>) -> enum3
+  fun @scoop.StructWorker.work$suspend(struct3, ptr<managed>) -> enum3
     local %0 $frame: ptr<managed>
     local %1 $step: enum3
   block entry
@@ -4208,7 +4221,7 @@ Module
     store t11 -> local6
     t12 = call @scoop.ctor.DirectWorker(local0) : ptr<managed>
     store t12 -> local7
-    t13 = aggregate (local3) : struct0
+    t13 = aggregate (local3) : struct3
     t14 = enum_wrap e1 v0 (local4) : enum1
     t15 = call @scoop.ctor.DispatchTask(local7, local5, local6, t13, t14) : ptr<managed>
     store t15 -> local8
@@ -4293,7 +4306,7 @@ Module
     t0 = call @scoop_rt_alloc(global30, 24) : ptr<managed>
     heap_store t0 +16 param0
     ret t0
-  fun @scoop.ctor.DispatchTask(ptr<managed>, ptr<managed>, ptr<managed>, struct0, enum1) -> ptr<managed>
+  fun @scoop.ctor.DispatchTask(ptr<managed>, ptr<managed>, ptr<managed>, struct3, enum1) -> ptr<managed>
   block entry
     t0 = call @scoop_rt_alloc(global31, 64) : ptr<managed>
     heap_store t0 +16 param0
@@ -4365,7 +4378,7 @@ Module
     store t1 -> local0
     ret local0
   fun @scoop.StructWorker.work$suspend$drive(ptr<managed>, i64) -> enum3
-    local %0 this: struct0
+    local %0 this: struct3
     local %1 $call.1: i64
     local %2 $completion: ptr<managed>
     local %3 $adapter.1: ptr<managed>
@@ -4423,7 +4436,7 @@ Module
     unreachable
   block coroutine.initial
     t17 = heap_load param0 +32 : enum4
-    t18 = enum_field e4 v1 f0 t17 : struct0
+    t18 = enum_field e4 v1 f0 t17 : struct3
     store t18 -> local0
     atomic_store release param0 +16 -1
     br @entry
@@ -5702,7 +5715,7 @@ Module
     heap_store t78 +16 param0
     heap_store t78 +24 1
     store t78 -> local12
-    t79 = heap_load local0 +40 : struct0
+    t79 = heap_load local0 +40 : struct3
     t80 = call @scoop.StructWorker.work$suspend(t79, local12) : enum3
     store t80 -> local13
     t81 = enum_tag e3 local13 : i64

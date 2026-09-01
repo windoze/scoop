@@ -152,6 +152,19 @@ SourceFile
   class IndexOutOfBoundsException() : Exception(<1 args>)
   class IllegalStateException() : Exception(<1 args>)
 SourceFile
+    @Intrinsic("core_int")
+  struct Int <representation omitted>
+    @Intrinsic("core_uint")
+  struct UInt <representation omitted>
+    @Intrinsic("core_boolean")
+  struct Boolean <representation omitted>
+    @Intrinsic("core_string")
+  class String()
+    @Intrinsic("core_array")
+  class Array<T>()
+    @Intrinsic("core_mutable_array")
+  class MutableArray<T>()
+SourceFile
   open class Base()
   class Left() : Base(<0 args>)
   class Right() : Base(<0 args>)
@@ -635,7 +648,7 @@ Module
   global @scoop_td_Dog = c""
   enum Option$S niche(payload_variant=0)
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
-  fun @scoop.Tag.name(struct0) -> ptr<managed>
+  fun @scoop.Tag.name(struct3) -> ptr<managed>
   block entry
     t0 = extract param0, 0 : ptr<managed>
     ret t0
@@ -754,10 +767,10 @@ Module
     t14 = call @scoop_rt_box(global12, local12, 8) : ptr<managed>
     call @scoop.println(t14)
     t15 = aggregate () : {}
-    t16 = aggregate (global4) : struct0
+    t16 = aggregate (global4) : struct3
     t17 = call @scoop_rt_box(global13, t16, 8) : ptr<managed>
     store t17 -> local3
-    t18 = aggregate (global5) : struct0
+    t18 = aggregate (global5) : struct3
     t19 = call @scoop_rt_box(global13, t18, 8) : ptr<managed>
     t20 = array_alloc (local3, t19) : [ptr<managed>]
     store t20 -> local4
@@ -843,13 +856,13 @@ Module
     store t1 -> local0
     ret local0
   fun @scoop.eq.Tag(ptr<managed>, ptr<managed>) -> i1
-    local %0 $a: struct0
-    local %1 $b: struct0
+    local %0 $a: struct3
+    local %1 $b: struct3
     local %2 $call.1: i1
   block entry
-    t0 = heap_load param0 +16 : struct0
+    t0 = heap_load param0 +16 : struct3
     store t0 -> local0
-    t1 = heap_load param1 +16 : struct0
+    t1 = heap_load param1 +16 : struct3
     store t1 -> local1
     t2 = extract local0, 0 : ptr<managed>
     t3 = extract local1, 0 : ptr<managed>
@@ -859,7 +872,7 @@ Module
   fun @scoop.thunk.Tag.Named.name(ptr<managed>) -> ptr<managed>
     local %0 $call.1: ptr<managed>
   block entry
-    t0 = heap_load param0 +16 : struct0
+    t0 = heap_load param0 +16 : struct3
     t1 = call @scoop.Tag.name(t0) : ptr<managed>
     store t1 -> local0
     ret local0

@@ -152,6 +152,19 @@ SourceFile
   class IndexOutOfBoundsException() : Exception(<1 args>)
   class IllegalStateException() : Exception(<1 args>)
 SourceFile
+    @Intrinsic("core_int")
+  struct Int <representation omitted>
+    @Intrinsic("core_uint")
+  struct UInt <representation omitted>
+    @Intrinsic("core_boolean")
+  struct Boolean <representation omitted>
+    @Intrinsic("core_string")
+  class String()
+    @Intrinsic("core_array")
+  class Array<T>()
+    @Intrinsic("core_mutable_array")
+  class MutableArray<T>()
+SourceFile
   fun Int.bump(delta: Int): Int
     =
       Binary Add
@@ -1229,7 +1242,7 @@ Module
     heap_store param0 +16 param1
     t0 = heap_load param0 +16 : ptr<managed>
     ret t0
-  fun @scoop.$extension.apply(struct0, i64) -> i64
+  fun @scoop.$extension.apply(struct3, i64) -> i64
   block entry
     t0 = extract param0, 0 : i64
     t1 = Add param1, t0 : i64
@@ -1257,7 +1270,7 @@ Module
     local %7 capturedReceiver: ptr<managed>
     local %8 factory: ptr<managed>
     local %9 once: ptr<managed>
-    local %10 offset: struct0
+    local %10 offset: struct3
     local %11 snapshot: ptr<managed>
     local %12 throwing: ptr<managed>
     local %13 exception: ptr<managed>
@@ -1329,7 +1342,7 @@ Module
     store t21 -> local21
     call @scoop.println(local21)
     t22 = aggregate () : {}
-    t23 = aggregate (2) : struct0
+    t23 = aggregate (2) : struct3
     t24 = call @scoop.$extension.apply(t23, 40) : i64
     store t24 -> local22
     t25 = call @scoop_rt_box(global29, local22, 8) : ptr<managed>
@@ -1368,14 +1381,14 @@ Module
     t41 = call @scoop_rt_box(global29, t40, 8) : ptr<managed>
     call @scoop.println(t41)
     t42 = aggregate () : {}
-    t43 = aggregate (2) : struct0
+    t43 = aggregate (2) : struct3
     store t43 -> local10
     t44 = call @scoop_rt_alloc(global36, 32) : ptr<managed>
     t45 = function_address @scoop.$reference.6 : ptr
     heap_store t44 +16 t45
     heap_store t44 +24 local10
     store t44 -> local11
-    t46 = aggregate (100) : struct0
+    t46 = aggregate (100) : struct3
     store t46 -> local10
     t47 = call @scoop.ctor.ThrowingExtension() : ptr<managed>
     store t47 -> local24
@@ -1535,7 +1548,7 @@ Module
   fun @scoop.$reference.6(ptr<managed>, i64) -> i64
     local %0 $call.1: i64
   block entry
-    t0 = heap_load param0 +24 : struct0
+    t0 = heap_load param0 +24 : struct3
     t1 = call @scoop.$extension.apply(t0, param1) : i64
     store t1 -> local0
     ret local0

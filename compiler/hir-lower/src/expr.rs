@@ -715,7 +715,7 @@ impl Lowerer {
                 .is_some(),
             Some(Type::Struct(application)) => self.structs
                 [self.struct_applications[application].template]
-                .fields
+                .semantic_fields()
                 .iter()
                 .any(|field| field.name == name),
             _ => false,
@@ -1346,7 +1346,7 @@ impl Lowerer {
                 let application_value = self.struct_applications[application].clone();
                 let struct_id = application_value.template;
                 let index = self.structs[struct_id]
-                    .fields
+                    .semantic_fields()
                     .iter()
                     .position(|field| field.name == name.text)?;
                 (
@@ -1355,7 +1355,7 @@ impl Lowerer {
                         index: index as u32,
                     },
                     self.instantiate_ty(
-                        self.structs[struct_id].fields[index].ty,
+                        self.structs[struct_id].semantic_fields()[index].ty,
                         &application_value.arguments,
                     ),
                 )
@@ -1531,6 +1531,16 @@ impl Lowerer {
             span,
         } = call;
         let name = self.classes[class_id].name.clone();
+        if matches!(
+            self.classes[class_id].representation,
+            hir::ClassRepresentation::Intrinsic(_)
+        ) {
+            self.error(
+                span,
+                format!("intrinsic class `{name}` has no source constructor"),
+            );
+            return None;
+        }
         if self.classes[class_id].modifier == hir::ClassModifier::Abstract {
             self.error(
                 span,
@@ -1539,7 +1549,7 @@ impl Lowerer {
             return None;
         }
         let props: Vec<(String, TypeId)> = self.classes[class_id]
-            .constructor
+            .semantic_constructor()
             .iter()
             .map(|field| (field.name.clone(), field.ty))
             .collect();
@@ -4389,7 +4399,7 @@ impl Lowerer {
                 (
                     self.structs[*struct_id].type_params.len(),
                     self.structs[*struct_id]
-                        .fields
+                        .semantic_fields()
                         .iter()
                         .map(|field| field.ty)
                         .collect(),
@@ -4400,7 +4410,7 @@ impl Lowerer {
                     (
                         self.classes[*class_id].type_params.len(),
                         self.classes[*class_id]
-                            .constructor
+                            .semantic_constructor()
                             .iter()
                             .map(|field| field.ty)
                             .collect(),
@@ -4822,9 +4832,19 @@ impl Lowerer {
             span,
         } = call;
         let name = self.structs[struct_id].name.clone();
+        if matches!(
+            self.structs[struct_id].representation,
+            hir::StructRepresentation::Intrinsic(_)
+        ) {
+            self.error(
+                span,
+                format!("intrinsic struct `{name}` has no source constructor"),
+            );
+            return None;
+        }
         let type_params = self.structs[struct_id].type_params.clone();
         let fields: Vec<(String, TypeId)> = self.structs[struct_id]
-            .fields
+            .semantic_fields()
             .iter()
             .map(|field| (field.name.clone(), field.ty))
             .collect();
@@ -5264,7 +5284,7 @@ impl Lowerer {
                 let struct_name = self.structs[struct_id].name.clone();
                 match selector {
                     ast::FieldSelector::Name(field) => {
-                        let fields = &self.structs[struct_id].fields;
+                        let fields = self.structs[struct_id].semantic_fields();
                         let Some(index) = fields.iter().position(|f| f.name == field.text) else {
                             self.error(
                                 field.span,

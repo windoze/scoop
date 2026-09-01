@@ -471,6 +471,10 @@ pub struct Module {
     /// Compiler-validated managed callback protocol. Its ids are export-side
     /// semantic identities and are concretized into a distinct local family.
     pub foreign_callback_core: ForeignCallbackCore,
+    /// Source-validated nominal declarations for every compiler-represented
+    /// core type. These typed ids are the only bridge from primitive/family
+    /// semantics to source members and interfaces.
+    pub intrinsic_type_core: IntrinsicTypeCore,
     /// Entry point: `fun main()`. Guaranteed present.
     pub entry: FunctionId,
     /// Resolved generic function applications, deduplicated in
@@ -512,6 +516,16 @@ pub struct ForeignCallbackCore {
     pub release: FunctionId,
     pub query_state: FunctionId,
     pub failure: FunctionId,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct IntrinsicTypeCore {
+    pub int: StructId,
+    pub uint: StructId,
+    pub boolean: StructId,
+    pub string: ClassId,
+    pub array: ClassId,
+    pub mutable_array: ClassId,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -742,7 +756,7 @@ pub struct StructDecl {
     pub self_application: StructApplicationId,
     pub type_params: Vec<TypeParamDecl>,
     pub attributes: StructAttributes,
-    pub fields: Vec<Field>,
+    pub representation: StructRepresentation,
     pub interfaces: Vec<TypeId>,
     /// Source-complete mapping from each implemented interface member to the
     /// concrete declaration that implements it. Generic owner/interface
@@ -754,11 +768,41 @@ pub struct StructDecl {
     pub span: Span,
 }
 
+impl StructDecl {
+    pub fn semantic_fields(&self) -> &[Field] {
+        self.representation.semantic_fields()
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StructApplication {
     pub template: StructId,
     pub arguments: Vec<TypeId>,
     pub canonical_type: TypeId,
+    pub representation: StructApplicationRepresentation,
+}
+
+#[derive(Debug, Clone)]
+pub enum StructRepresentation {
+    Declared(Vec<Field>),
+    Intrinsic(IntrinsicTypeDeclaration),
+}
+
+impl StructRepresentation {
+    /// Source-visible fields. Intrinsic types deliberately expose no source
+    /// fields even though their compiler representation is not empty.
+    pub fn semantic_fields(&self) -> &[Field] {
+        match self {
+            Self::Declared(fields) => fields,
+            Self::Intrinsic(_) => &[],
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum StructApplicationRepresentation {
+    Declared,
+    Intrinsic(IntrinsicTypeRepresentation),
 }
 
 /// Typed struct attributes. Raw annotation names and argument syntax never
@@ -826,8 +870,7 @@ pub struct ClassDecl {
     pub name: String,
     pub self_application: ClassApplicationId,
     pub type_params: Vec<TypeParamDecl>,
-    /// Primary-constructor properties in declaration order.
-    pub constructor: Vec<ConstructorField>,
+    pub representation: ClassRepresentation,
     /// Base class and the resolved constructor argument expressions.
     pub base_class: Option<(TypeId, Vec<Expr>)>,
     pub interfaces: Vec<TypeId>,
@@ -836,11 +879,122 @@ pub struct ClassDecl {
     pub span: Span,
 }
 
+impl ClassDecl {
+    pub fn semantic_constructor(&self) -> &[ConstructorField] {
+        self.representation.semantic_constructor()
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ClassApplication {
     pub template: ClassId,
     pub arguments: Vec<TypeId>,
     pub canonical_type: TypeId,
+    pub representation: ClassApplicationRepresentation,
+}
+
+#[derive(Debug, Clone)]
+pub enum ClassRepresentation {
+    Declared(Vec<ConstructorField>),
+    Intrinsic(IntrinsicTypeDeclaration),
+}
+
+impl ClassRepresentation {
+    /// Source-visible primary-constructor properties. Intrinsic classes have
+    /// hidden construction entries and no source constructor by declaration.
+    pub fn semantic_constructor(&self) -> &[ConstructorField] {
+        match self {
+            Self::Declared(constructor) => constructor,
+            Self::Intrinsic(_) => &[],
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ClassApplicationRepresentation {
+    Declared,
+    Intrinsic(IntrinsicTypeRepresentation),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct IntrinsicTypeDeclaration {
+    pub kind: IntrinsicTypeKind,
+    pub provider: IntrinsicProviderId,
+}
+
+/// Closed semantic identity of every compiler-represented nominal type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum IntrinsicTypeKind {
+    Int,
+    UInt,
+    Boolean,
+    String,
+    Array,
+    MutableArray,
+}
+
+impl IntrinsicTypeKind {
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Int => "core_int",
+            Self::UInt => "core_uint",
+            Self::Boolean => "core_boolean",
+            Self::String => "core_string",
+            Self::Array => "core_array",
+            Self::MutableArray => "core_mutable_array",
+        }
+    }
+
+    pub const fn source_name(self) -> &'static str {
+        match self {
+            Self::Int => "Int",
+            Self::UInt => "UInt",
+            Self::Boolean => "Boolean",
+            Self::String => "String",
+            Self::Array => "Array",
+            Self::MutableArray => "MutableArray",
+        }
+    }
+
+    pub const fn target(self) -> IntrinsicTypeTarget {
+        match self {
+            Self::Int | Self::UInt | Self::Boolean => IntrinsicTypeTarget::Struct,
+            Self::String | Self::Array | Self::MutableArray => IntrinsicTypeTarget::Class,
+        }
+    }
+
+    pub const fn parameters(self) -> IntrinsicTypeParameters {
+        match self {
+            Self::Int | Self::UInt | Self::Boolean | Self::String => IntrinsicTypeParameters::None,
+            Self::Array | Self::MutableArray => IntrinsicTypeParameters::OneInvariantUnconstrained,
+        }
+    }
+
+    pub fn application(self, arguments: &[TypeId]) -> IntrinsicTypeRepresentation {
+        match (self, arguments) {
+            (Self::Int, []) => IntrinsicTypeRepresentation::Int,
+            (Self::UInt, []) => IntrinsicTypeRepresentation::UInt,
+            (Self::Boolean, []) => IntrinsicTypeRepresentation::Boolean,
+            (Self::String, []) => IntrinsicTypeRepresentation::String,
+            (Self::Array, [element]) => IntrinsicTypeRepresentation::Array { element: *element },
+            (Self::MutableArray, [element]) => {
+                IntrinsicTypeRepresentation::MutableArray { element: *element }
+            }
+            _ => unreachable!("HIR validates the intrinsic declaration contract before use"),
+        }
+    }
+}
+
+/// Complete compiler representation of one nominal application. Generic
+/// family variants contain their concrete element type directly.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum IntrinsicTypeRepresentation {
+    Int,
+    UInt,
+    Boolean,
+    String,
+    Array { element: TypeId },
+    MutableArray { element: TypeId },
 }
 
 /// A primary-constructor property is simultaneously a source parameter and
@@ -1638,6 +1792,59 @@ pub enum UnOp {
     Not,
 }
 
+/// Registry-approved intrinsic type declaration shapes. This table owns both
+/// the raw annotation spelling accepted at the AST boundary and the complete
+/// nominal declaration contract emitted as typed HIR.
+pub const INTRINSIC_TYPE_REGISTRY: &[IntrinsicTypeSpec] = &[
+    IntrinsicTypeSpec {
+        name: "core_int",
+        kind: IntrinsicTypeKind::Int,
+    },
+    IntrinsicTypeSpec {
+        name: "core_uint",
+        kind: IntrinsicTypeKind::UInt,
+    },
+    IntrinsicTypeSpec {
+        name: "core_boolean",
+        kind: IntrinsicTypeKind::Boolean,
+    },
+    IntrinsicTypeSpec {
+        name: "core_string",
+        kind: IntrinsicTypeKind::String,
+    },
+    IntrinsicTypeSpec {
+        name: "core_array",
+        kind: IntrinsicTypeKind::Array,
+    },
+    IntrinsicTypeSpec {
+        name: "core_mutable_array",
+        kind: IntrinsicTypeKind::MutableArray,
+    },
+];
+
+pub struct IntrinsicTypeSpec {
+    pub name: &'static str,
+    pub kind: IntrinsicTypeKind,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IntrinsicTypeTarget {
+    Struct,
+    Class,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IntrinsicTypeParameters {
+    None,
+    OneInvariantUnconstrained,
+}
+
+pub fn intrinsic_type_spec(name: &str) -> Option<&'static IntrinsicTypeSpec> {
+    INTRINSIC_TYPE_REGISTRY
+        .iter()
+        .find(|spec| spec.name == name)
+}
+
 /// The compiler's intrinsic registry (impl spec 2.10). Signature rules
 /// live with hir-lower; this table is the single source of truth for
 /// valid names, expansion stage, and backend kind.
@@ -1952,6 +2159,9 @@ pub fn dump(module: &Module) -> String {
         {
             continue;
         }
+        if matches!(decl.representation, StructRepresentation::Intrinsic(_)) {
+            continue;
+        }
         let type_params = if decl.type_params.is_empty() {
             String::new()
         } else {
@@ -1963,7 +2173,7 @@ pub fn dump(module: &Module) -> String {
             "  struct {}{}{}{}\n",
             decl.name, type_params, interfaces, attributes
         ));
-        for field in &decl.fields {
+        for field in decl.semantic_fields() {
             out.push_str(&format!(
                 "    field {}: {}\n",
                 field.name,
@@ -1996,13 +2206,16 @@ pub fn dump(module: &Module) -> String {
         }
     }
     for (_, decl) in module.classes.iter() {
+        if matches!(decl.representation, ClassRepresentation::Intrinsic(_)) {
+            continue;
+        }
         let modifier = match decl.modifier {
             ClassModifier::Final => "",
             ClassModifier::Open => "open ",
             ClassModifier::Abstract => "abstract ",
         };
         let ctor: Vec<String> = decl
-            .constructor
+            .semantic_constructor()
             .iter()
             .map(|f| format!("{}: {}", f.name, type_name(module, f.ty)))
             .collect();

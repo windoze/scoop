@@ -152,6 +152,19 @@ SourceFile
   class IndexOutOfBoundsException() : Exception(<1 args>)
   class IllegalStateException() : Exception(<1 args>)
 SourceFile
+    @Intrinsic("core_int")
+  struct Int <representation omitted>
+    @Intrinsic("core_uint")
+  struct UInt <representation omitted>
+    @Intrinsic("core_boolean")
+  struct Boolean <representation omitted>
+    @Intrinsic("core_string")
+  class String()
+    @Intrinsic("core_array")
+  class Array<T>()
+    @Intrinsic("core_mutable_array")
+  class MutableArray<T>()
+SourceFile
   enum Payload
     Text(String)
     Number(Int)
@@ -664,7 +677,7 @@ Module
     native_call[native-borrowed] extern0(global0)
     t4 = aggregate () : {}
     ret
-  fun @scoop.makeItems() -> [struct0]
+  fun @scoop.makeItems() -> [struct3]
     local %0 payload: ptr<managed>
     local %1 firstTail: ptr<managed>
     local %2 secondTail: ptr<managed>
@@ -676,21 +689,21 @@ Module
     t2 = call @scoop_rt_string_concat(global5, global6) : ptr<managed>
     store t2 -> local2
     t3 = enum_wrap e0 v0 (local0) : enum0
-    t4 = aggregate (t3, local1) : struct0
+    t4 = aggregate (t3, local1) : struct3
     t5 = enum_wrap e0 v2 () : enum0
-    t6 = aggregate (t5, local2) : struct0
-    t7 = array_alloc (t4, t6) scan=refs[16, 24] : [struct0]
+    t6 = aggregate (t5, local2) : struct3
+    t7 = array_alloc (t4, t6) scan=refs[16, 24] : [struct3]
     ret t7
   fun @scoop_main() -> void
-    local %0 items: [struct0]
+    local %0 items: [struct3]
     local %1 value: ptr<managed>
     local %2 value: i64
-    local %3 $arr.1: [struct0]
+    local %3 $arr.1: [struct3]
     local %4 $idx.2: i64
     local %5 $when.3: enum0
-    local %6 $arr.4: [struct0]
+    local %6 $arr.4: [struct3]
     local %7 $idx.5: i64
-    local %8 $arr.6: [struct0]
+    local %8 $arr.6: [struct3]
     local %9 $idx.7: i64
     local %10 $logic.1: i1
     local %11 $call.2: ptr<managed>
@@ -699,7 +712,7 @@ Module
     local %14 $logic.5: i1
     local %15 $call.6: ptr<managed>
   block entry
-    t0 = call @scoop.makeItems() : [struct0]
+    t0 = call @scoop.makeItems() : [struct3]
     store t0 -> local0
     call @scoop_rt_gc_collect()
     t1 = aggregate () : {}
@@ -723,7 +736,7 @@ Module
     throw local11
     unreachable
   block if.merge.5
-    t6 = array_get local3 local4 : struct0
+    t6 = array_get local3 local4 : struct3
     t7 = extract t6, 0 : enum0
     store t7 -> local5
     t8 = enum_tag e0 local5 : i64
@@ -779,7 +792,7 @@ Module
     throw local13
     unreachable
   block if.merge.18
-    t24 = array_get local6 local7 : struct0
+    t24 = array_get local6 local7 : struct3
     t25 = extract t24, 1 : ptr<managed>
     call @scoop.println(t25)
     t26 = aggregate () : {}
@@ -803,7 +816,7 @@ Module
     throw local15
     unreachable
   block if.merge.23
-    t31 = array_get local8 local9 : struct0
+    t31 = array_get local8 local9 : struct3
     t32 = extract t31, 1 : ptr<managed>
     call @scoop.println(t32)
     t33 = aggregate () : {}

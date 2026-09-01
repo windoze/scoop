@@ -172,7 +172,7 @@ fn class_and_interface_structure() {
 
     let shape = &module.classes[shape_id];
     assert_eq!(shape.modifier, hir::ClassModifier::Open);
-    assert_eq!(shape.constructor.len(), 1);
+    assert_eq!(shape.semantic_constructor().len(), 1);
     assert_eq!(shape.interfaces, vec![interface_ty(&module, "Describable")]);
 
     // Base-class clause with the lowered delegation arguments.

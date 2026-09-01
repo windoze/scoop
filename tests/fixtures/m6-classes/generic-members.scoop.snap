@@ -152,6 +152,19 @@ SourceFile
   class IndexOutOfBoundsException() : Exception(<1 args>)
   class IllegalStateException() : Exception(<1 args>)
 SourceFile
+    @Intrinsic("core_int")
+  struct Int <representation omitted>
+    @Intrinsic("core_uint")
+  struct UInt <representation omitted>
+    @Intrinsic("core_boolean")
+  struct Boolean <representation omitted>
+    @Intrinsic("core_string")
+  class String()
+    @Intrinsic("core_array")
+  class Array<T>()
+    @Intrinsic("core_mutable_array")
+  class MutableArray<T>()
+SourceFile
   interface Exchange<T>
     fun current
   struct Box<T> : Exchange<T>
@@ -574,7 +587,7 @@ Module
     store t2 -> local0
     ret local0
   fun @scoop_main() -> void
-    local %0 box: struct0
+    local %0 box: struct3
     local %1 overloads: ptr<managed>
     local %2 $call.1: ptr<managed>
     local %3 $call.2: i64
@@ -583,7 +596,7 @@ Module
     local %6 $call.5: i64
     local %7 $call.6: ptr<managed>
   block entry
-    t0 = aggregate (7) : struct0
+    t0 = aggregate (7) : struct3
     store t0 -> local0
     t1 = enum_wrap e0 v1 () : enum0
     t2 = call @scoop.Box.exchange$I_S(local0, 7, t1, global1) : ptr<managed>
@@ -614,11 +627,11 @@ Module
     call @scoop.println(local7)
     t16 = aggregate () : {}
     ret
-  fun @scoop.Box.current$I(struct0) -> i64
+  fun @scoop.Box.current$I(struct3) -> i64
   block entry
     t0 = extract param0, 0 : i64
     ret t0
-  fun @scoop.Box.exchange$I_S(struct0, i64, enum0, ptr<managed>) -> ptr<managed>
+  fun @scoop.Box.exchange$I_S(struct3, i64, enum0, ptr<managed>) -> ptr<managed>
   block entry
     ret param3
   fun @scoop.Tool.id$S(ptr<managed>, ptr<managed>) -> ptr<managed>
@@ -692,12 +705,12 @@ Module
     store t1 -> local0
     ret local0
   fun @scoop.eq.Box$I(ptr<managed>, ptr<managed>) -> i1
-    local %0 $a: struct0
-    local %1 $b: struct0
+    local %0 $a: struct3
+    local %1 $b: struct3
   block entry
-    t0 = heap_load param0 +16 : struct0
+    t0 = heap_load param0 +16 : struct3
     store t0 -> local0
-    t1 = heap_load param1 +16 : struct0
+    t1 = heap_load param1 +16 : struct3
     store t1 -> local1
     t2 = extract local0, 0 : i64
     t3 = extract local1, 0 : i64
@@ -706,7 +719,7 @@ Module
   fun @scoop.thunk.Box$I.Exchange$I.current(ptr<managed>) -> i64
     local %0 $call.1: i64
   block entry
-    t0 = heap_load param0 +16 : struct0
+    t0 = heap_load param0 +16 : struct3
     t1 = call @scoop.Box.current$I(t0) : i64
     store t1 -> local0
     ret local0

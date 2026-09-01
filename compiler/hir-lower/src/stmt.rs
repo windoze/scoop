@@ -1648,7 +1648,7 @@ impl Lowerer {
                 }
                 Some(Type::Struct(application))
                     if self.structs[self.struct_applications[application].template]
-                        .fields
+                        .semantic_fields()
                         .iter()
                         .any(|field| field.name == name.text) =>
                 {

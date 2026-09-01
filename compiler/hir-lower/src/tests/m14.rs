@@ -71,6 +71,197 @@ fn generic_class(
     declaration
 }
 
+fn intrinsic_annotation(name: &str) -> ast::Annotation {
+    ast::Annotation {
+        name: ident("Intrinsic"),
+        args: vec![ast::AnnotationArg {
+            name: None,
+            value: ast::AnnotationLiteral::String(name.to_string()),
+            span: sp(),
+        }],
+        span: sp(),
+    }
+}
+
+fn intrinsic_struct(name: &str, intrinsic: &str) -> Decl {
+    Decl::Struct(ast::StructDecl {
+        annotations: vec![intrinsic_annotation(intrinsic)],
+        name: ident(name),
+        type_params: Vec::new(),
+        fields: ast::StructRepresentationDecl::Omitted,
+        interfaces: Vec::new(),
+        where_clause: None,
+        methods: Vec::new(),
+        span: sp(),
+    })
+}
+
+#[test]
+fn intrinsic_type_contract_is_complete_in_export_and_local_hir() {
+    let output = lower_user_output(file(vec![fun("main", vec![])]))
+        .expect("the core intrinsic type contract must lower");
+    let export = &output.export;
+    let core = export.intrinsic_type_core;
+    for (id, kind, representation) in [
+        (
+            core.int,
+            hir::IntrinsicTypeKind::Int,
+            hir::IntrinsicTypeRepresentation::Int,
+        ),
+        (
+            core.uint,
+            hir::IntrinsicTypeKind::UInt,
+            hir::IntrinsicTypeRepresentation::UInt,
+        ),
+        (
+            core.boolean,
+            hir::IntrinsicTypeKind::Boolean,
+            hir::IntrinsicTypeRepresentation::Boolean,
+        ),
+    ] {
+        let hir::StructRepresentation::Intrinsic(declaration) = export.structs[id].representation
+        else {
+            panic!("fixed intrinsic struct must not masquerade as an empty declaration")
+        };
+        assert_eq!(declaration.kind, kind);
+        assert_eq!(declaration.provider, hir::IntrinsicProviderId::from_raw(0));
+        assert_eq!(
+            export.struct_applications[export.structs[id].self_application].representation,
+            hir::StructApplicationRepresentation::Intrinsic(representation)
+        );
+    }
+
+    let hir::ClassRepresentation::Intrinsic(string_declaration) =
+        export.classes[core.string].representation
+    else {
+        panic!("String must have an explicit intrinsic representation")
+    };
+    assert_eq!(string_declaration.kind, hir::IntrinsicTypeKind::String);
+    assert!(matches!(
+        export.class_applications[export.classes[core.string].self_application].representation,
+        hir::ClassApplicationRepresentation::Intrinsic(hir::IntrinsicTypeRepresentation::String)
+    ));
+    for (id, mutable) in [(core.array, false), (core.mutable_array, true)] {
+        let application = &export.class_applications[export.classes[id].self_application];
+        let element = match &application.representation {
+            hir::ClassApplicationRepresentation::Intrinsic(
+                hir::IntrinsicTypeRepresentation::Array { element },
+            ) if !mutable => element,
+            hir::ClassApplicationRepresentation::Intrinsic(
+                hir::IntrinsicTypeRepresentation::MutableArray { element },
+            ) if mutable => element,
+            _ => panic!("generic intrinsic family must carry its element type"),
+        };
+        assert!(matches!(export.types[*element], hir::Type::Param(_)));
+    }
+
+    let local = &output.local;
+    for (id, expected) in [
+        (
+            local.intrinsic_type_core.int,
+            hir::concrete::IntrinsicTypeRepresentation::Int,
+        ),
+        (
+            local.intrinsic_type_core.uint,
+            hir::concrete::IntrinsicTypeRepresentation::UInt,
+        ),
+        (
+            local.intrinsic_type_core.boolean,
+            hir::concrete::IntrinsicTypeRepresentation::Boolean,
+        ),
+    ] {
+        assert!(matches!(
+            &local.structs[id].representation,
+            hir::concrete::StructRepresentation::Intrinsic { application, .. }
+                if application == &expected
+        ));
+    }
+    assert!(matches!(
+        local.classes[local.intrinsic_type_core.string].representation,
+        hir::concrete::ClassRepresentation::Intrinsic {
+            application: hir::concrete::IntrinsicTypeRepresentation::String,
+            ..
+        }
+    ));
+}
+
+#[test]
+fn intrinsic_type_shape_is_validated_at_its_source() {
+    let mut core = core_file();
+    let int = core
+        .declarations
+        .iter_mut()
+        .find_map(|declaration| match declaration {
+            Decl::Struct(declaration) if declaration.name.text == "Int" => Some(declaration),
+            _ => None,
+        })
+        .expect("core Int declaration");
+    int.fields = ast::StructRepresentationDecl::Declared(Vec::new());
+    let errors = lower(&[core, file(vec![fun("main", vec![])])])
+        .expect_err("an intrinsic type must omit its compiler representation");
+    assert!(errors.iter().any(|error| {
+        error.file == 0
+            && error.message
+                == "intrinsic type `core_int` must omit its fields or primary constructor"
+    }));
+}
+
+#[test]
+fn allowlisted_type_provider_preserves_provenance_without_relaxing_shape() {
+    let mut core = core_file();
+    core.declarations.retain(
+        |declaration| !matches!(declaration, Decl::Struct(declaration) if declaration.name.text == "Int"),
+    );
+    let user = file(vec![
+        intrinsic_struct("Int", "core_int"),
+        fun("main", vec![]),
+    ]);
+    let core_provider = hir::IntrinsicProviderId::from_raw(3);
+    let test_provider = hir::IntrinsicProviderId::from_raw(7);
+    let unit = CompilationUnit {
+        core: vec![ProviderSource {
+            source: &core,
+            provider: core_provider,
+        }],
+        user: ProviderSource {
+            source: &user,
+            provider: test_provider,
+        },
+    };
+    let output = lower_compilation_unit(
+        &unit,
+        IntrinsicDeclarationPolicy::AllowListedForTesting {
+            providers: std::collections::HashSet::from([test_provider]),
+        },
+    )
+    .expect("the internal allowlist grants only declaration authority");
+    let hir::StructRepresentation::Intrinsic(declaration) =
+        output.export.structs[output.export.intrinsic_type_core.int].representation
+    else {
+        panic!("the allowlisted declaration remains typed")
+    };
+    assert_eq!(declaration.provider, test_provider);
+}
+
+#[test]
+fn intrinsic_types_do_not_acquire_zero_argument_source_constructors() {
+    let errors = lower_user_output(file(vec![fun(
+        "main",
+        vec![stmt(call("Int", vec![])), stmt(call("String", vec![]))],
+    )]))
+    .expect_err("hidden intrinsic construction is not a source constructor");
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.message == "intrinsic struct `Int` has no source constructor")
+    );
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.message == "intrinsic class `String` has no source constructor")
+    );
+}
+
 #[test]
 fn interface_bounds_are_complete_ordered_hir_constraints() {
     let mut renderable =
@@ -321,8 +512,8 @@ fn generic_class_constructor_members_and_concrete_instances_are_complete() {
     assert_eq!(instances.len(), 2);
     assert!(instances.iter().all(|instance| {
         instance.type_arguments.len() == 1
-            && instance.constructor.len() == 1
-            && instance.constructor[0].ty == instance.type_arguments[0]
+            && instance.declared_constructor().len() == 1
+            && instance.declared_constructor()[0].ty == instance.type_arguments[0]
             && instance.methods.len() == 1
     }));
     assert!(instances.iter().any(|instance| {
@@ -778,7 +969,7 @@ fn generic_class_base_application_and_delegation_keep_typed_sources() {
         .find(|(_, declaration)| declaration.name.starts_with("Derived$"))
         .expect("Derived<Int> specialization")
         .1;
-    let (base, arguments) = derived.base_class.as_ref().expect("typed concrete base");
+    let (base, arguments) = derived.base_class().expect("typed concrete base");
     assert!(output.local.classes[*base].name.starts_with("Base$"));
     assert!(matches!(
         arguments.as_slice(),
@@ -844,7 +1035,7 @@ fn generic_base_substitution_preserves_nested_application_identity() {
         .find(|(_, declaration)| declaration.name.starts_with("Derived$"))
         .expect("Derived<Int> specialization")
         .1;
-    let (base, _) = derived.base_class.as_ref().expect("specialized base");
+    let (base, _) = derived.base_class().expect("specialized base");
     let base_argument = output.local.classes[*base].type_arguments[0];
     let hir::concrete::TypeKind::Struct(wrapper) = output.local.types[base_argument].kind else {
         panic!("Base argument must be the concrete Wrapper<Int> identity")

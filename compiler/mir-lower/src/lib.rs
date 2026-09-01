@@ -691,7 +691,12 @@ impl Lowerer {
         // like ordinary functions so `ClassInit` call sites resolve.
         let mut ctor_functions = Vec::new();
         for (hir_id, decl) in module.classes.iter() {
-            if decl.modifier == hir::ClassModifier::Abstract {
+            if decl.modifier == hir::ClassModifier::Abstract
+                || matches!(
+                    decl.representation,
+                    hir::ClassRepresentation::Intrinsic { .. }
+                )
+            {
                 continue;
             }
             let id = self.declare_ctor(module, hir_id);
@@ -1356,7 +1361,7 @@ impl Lowerer {
                     if class == *target {
                         return true;
                     }
-                    current = self.classes[class].base_class;
+                    current = self.classes[class].base_class();
                 }
                 false
             }
@@ -1596,15 +1601,40 @@ impl Lowerer {
     /// (ids only; field types are filled by `fill_struct_fields`).
     fn lower_structs(&mut self, module: &hir::Module) {
         for (hir_id, decl) in module.structs.iter() {
+            let representation = match &decl.representation {
+                hir::StructRepresentation::Declared { attributes, .. } => {
+                    mir::StructRepresentation::Declared {
+                        c_layout: attributes.c_layout.map(|layout| mir::CLayout {
+                            aligned: layout.aligned,
+                            packed: layout.packed,
+                        }),
+                        interior_mutable: attributes.interior_mutable,
+                        fields: Vec::new(),
+                    }
+                }
+                hir::StructRepresentation::Intrinsic { application, .. } => {
+                    mir::StructRepresentation::Intrinsic(match application {
+                        hir::IntrinsicTypeRepresentation::Int => {
+                            mir::IntrinsicTypeRepresentation::Int
+                        }
+                        hir::IntrinsicTypeRepresentation::UInt => {
+                            mir::IntrinsicTypeRepresentation::UInt
+                        }
+                        hir::IntrinsicTypeRepresentation::Boolean => {
+                            mir::IntrinsicTypeRepresentation::Boolean
+                        }
+                        hir::IntrinsicTypeRepresentation::String
+                        | hir::IntrinsicTypeRepresentation::Array { .. }
+                        | hir::IntrinsicTypeRepresentation::MutableArray { .. } => {
+                            unreachable!("the registry fixes intrinsic declaration targets")
+                        }
+                    })
+                }
+            };
             let mir_id = self.structs.defs.alloc(mir::StructDef {
                 name: decl.name.clone(),
                 gc_free: decl.gc_free,
-                c_layout: decl.attributes.c_layout.map(|layout| mir::CLayout {
-                    aligned: layout.aligned,
-                    packed: layout.packed,
-                }),
-                interior_mutable: decl.attributes.interior_mutable,
-                fields: Vec::new(),
+                representation,
             });
             self.struct_map.insert(hir_id, mir_id);
             self.structs.instances.insert(mir_id, (hir_id, Vec::new()));
@@ -1620,20 +1650,22 @@ impl Lowerer {
                 struct_map: &self.struct_map,
                 class_map: &self.class_map,
             };
-            let fields = decl
-                .fields
-                .iter()
-                .map(|field| mir::Field {
-                    name: field.name.clone(),
-                    ty: types.lower(
-                        field.ty,
-                        &mut self.enums,
-                        &mut self.structs,
-                        &mut self.interfaces,
-                        &mut self.shell,
-                    ),
-                })
-                .collect();
+            let fields = match &decl.representation {
+                hir::StructRepresentation::Declared { fields, .. } => fields
+                    .iter()
+                    .map(|field| mir::Field {
+                        name: field.name.clone(),
+                        ty: types.lower(
+                            field.ty,
+                            &mut self.enums,
+                            &mut self.structs,
+                            &mut self.interfaces,
+                            &mut self.shell,
+                        ),
+                    })
+                    .collect(),
+                hir::StructRepresentation::Intrinsic { .. } => Vec::new(),
+            };
             let mir_id = self.struct_map[&hir_id];
             let arguments = decl
                 .type_arguments
@@ -1648,7 +1680,12 @@ impl Lowerer {
                     )
                 })
                 .collect();
-            self.structs.defs[mir_id].fields = fields;
+            match &mut self.structs.defs[mir_id].representation {
+                mir::StructRepresentation::Declared {
+                    fields: mir_fields, ..
+                } => *mir_fields = fields,
+                mir::StructRepresentation::Intrinsic(_) => debug_assert!(fields.is_empty()),
+            }
             self.structs.instances.insert(mir_id, (hir_id, arguments));
         }
     }
@@ -1683,22 +1720,70 @@ impl Lowerer {
     /// Fields / vtable / itables are filled later (they need the base
     /// class and the method list, respectively).
     fn declare_classes(&mut self, module: &hir::Module) {
+        for (hir_id, _) in module.classes.iter() {
+            self.class_map
+                .insert(hir_id, mir::ClassId::from_raw(hir_id.into_raw()));
+        }
         for (hir_id, decl) in module.classes.iter() {
             let modifier = match decl.modifier {
                 hir::ClassModifier::Final => mir::ClassModifier::Final,
                 hir::ClassModifier::Open => mir::ClassModifier::Open,
                 hir::ClassModifier::Abstract => mir::ClassModifier::Abstract,
             };
+            let representation = match &decl.representation {
+                hir::ClassRepresentation::Declared { .. } => mir::ClassRepresentation::Declared {
+                    fields: Vec::new(),
+                    base_class: None,
+                },
+                hir::ClassRepresentation::Intrinsic { application, .. } => {
+                    let types = Types {
+                        module,
+                        struct_map: &self.struct_map,
+                        class_map: &self.class_map,
+                    };
+                    mir::ClassRepresentation::Intrinsic(match application {
+                        hir::IntrinsicTypeRepresentation::String => {
+                            mir::IntrinsicTypeRepresentation::String
+                        }
+                        hir::IntrinsicTypeRepresentation::Array { element } => {
+                            mir::IntrinsicTypeRepresentation::Array {
+                                element: types.lower(
+                                    *element,
+                                    &mut self.enums,
+                                    &mut self.structs,
+                                    &mut self.interfaces,
+                                    &mut self.shell,
+                                ),
+                            }
+                        }
+                        hir::IntrinsicTypeRepresentation::MutableArray { element } => {
+                            mir::IntrinsicTypeRepresentation::MutableArray {
+                                element: types.lower(
+                                    *element,
+                                    &mut self.enums,
+                                    &mut self.structs,
+                                    &mut self.interfaces,
+                                    &mut self.shell,
+                                ),
+                            }
+                        }
+                        hir::IntrinsicTypeRepresentation::Int
+                        | hir::IntrinsicTypeRepresentation::UInt
+                        | hir::IntrinsicTypeRepresentation::Boolean => {
+                            unreachable!("the registry fixes intrinsic declaration targets")
+                        }
+                    })
+                }
+            };
             let mir_id = self.classes.alloc(mir::ClassDef {
                 modifier,
                 name: decl.name.clone(),
-                fields: Vec::new(),
-                base_class: None,
+                representation,
                 interfaces: Vec::new(),
                 vtable: Vec::new(),
                 itables: Vec::new(),
             });
-            self.class_map.insert(hir_id, mir_id);
+            assert_eq!(mir_id, self.class_map[&hir_id]);
         }
     }
 
@@ -1708,10 +1793,7 @@ impl Lowerer {
     fn fill_class_hierarchy(&mut self, module: &hir::Module) {
         for (hir_id, decl) in module.classes.iter() {
             let mir_id = self.class_map[&hir_id];
-            let base_class = decl
-                .base_class
-                .as_ref()
-                .map(|(base, _)| self.class_map[base]);
+            let base_class = decl.base_class().map(|(base, _)| self.class_map[base]);
             let types = Types {
                 module,
                 struct_map: &self.struct_map,
@@ -1735,7 +1817,13 @@ impl Lowerer {
                 })
                 .collect();
             let class = &mut self.classes[mir_id];
-            class.base_class = base_class;
+            match &mut class.representation {
+                mir::ClassRepresentation::Declared {
+                    base_class: mir_base,
+                    ..
+                } => *mir_base = base_class,
+                mir::ClassRepresentation::Intrinsic(_) => debug_assert!(base_class.is_none()),
+            }
             class.interfaces = interfaces;
         }
     }
@@ -2352,8 +2440,17 @@ impl Lowerer {
         for &hir_id in order {
             let decl = &module.classes[hir_id];
             let mir_id = self.class_map[&hir_id];
-            let mut fields = match decl.base_class {
-                Some((base, _)) => clone_fields(&self.classes[self.class_map[&base]].fields),
+            if matches!(
+                decl.representation,
+                hir::ClassRepresentation::Intrinsic { .. }
+            ) {
+                debug_assert!(decl.base_class().is_none());
+                continue;
+            }
+            let mut fields = match decl.base_class() {
+                Some((base, _)) => {
+                    clone_fields(self.classes[self.class_map[base]].declared_fields())
+                }
                 None => Vec::new(),
             };
             let types = Types {
@@ -2361,7 +2458,7 @@ impl Lowerer {
                 struct_map: &self.struct_map,
                 class_map: &self.class_map,
             };
-            for field in &decl.constructor {
+            for field in decl.declared_constructor() {
                 fields.push(mir::Field {
                     name: field.name.clone(),
                     ty: types.lower(
@@ -2373,7 +2470,12 @@ impl Lowerer {
                     ),
                 });
             }
-            self.classes[mir_id].fields = fields;
+            match &mut self.classes[mir_id].representation {
+                mir::ClassRepresentation::Declared {
+                    fields: mir_fields, ..
+                } => *mir_fields = fields,
+                mir::ClassRepresentation::Intrinsic(_) => debug_assert!(fields.is_empty()),
+            }
         }
     }
 
@@ -2395,20 +2497,34 @@ impl Lowerer {
         for &hir_id in order {
             let mir_id = self.class_map[&hir_id];
             let decl = &module.classes[hir_id];
-            let (mut vtable, mut slots) = match decl.base_class {
+            let (mut vtable, mut slots) = match decl.base_class() {
                 Some((base, _)) => {
-                    let base = self.class_map[&base];
+                    let base = self.class_map[base];
                     (
                         clone_slots(&self.classes[base].vtable),
                         self.method_slots[&base].clone(),
                     )
                 }
                 None => (
-                    vec![
-                        mir::TableSlot::Runtime(mir::RuntimeFn::AnyEquals),
-                        mir::TableSlot::Runtime(mir::RuntimeFn::AnyHashCode),
-                        mir::TableSlot::Runtime(mir::RuntimeFn::AnyToString),
-                    ],
+                    if matches!(
+                        decl.representation,
+                        hir::ClassRepresentation::Intrinsic {
+                            application: hir::IntrinsicTypeRepresentation::String,
+                            ..
+                        }
+                    ) {
+                        vec![
+                            mir::TableSlot::Runtime(mir::RuntimeFn::AnyEquals),
+                            mir::TableSlot::Runtime(mir::RuntimeFn::AnyHashCode),
+                            mir::TableSlot::Runtime(mir::RuntimeFn::StringIdentity),
+                        ]
+                    } else {
+                        vec![
+                            mir::TableSlot::Runtime(mir::RuntimeFn::AnyEquals),
+                            mir::TableSlot::Runtime(mir::RuntimeFn::AnyHashCode),
+                            mir::TableSlot::Runtime(mir::RuntimeFn::AnyToString),
+                        ]
+                    },
                     HashMap::new(),
                 ),
             };
@@ -2432,8 +2548,8 @@ impl Lowerer {
                     None => {}
                 }
             }
-            let mut covered: Vec<mir::InterfaceId> = match decl.base_class {
-                Some((base, _)) => self.classes[self.class_map[&base]]
+            let mut covered: Vec<mir::InterfaceId> = match decl.base_class() {
+                Some((base, _)) => self.classes[self.class_map[base]]
                     .itables
                     .iter()
                     .map(|record| record.interface)
@@ -2501,7 +2617,7 @@ impl Lowerer {
     ) -> (Vec<mir::Param>, mir::Type, smir::Body) {
         let decl = &module.classes[hir_id];
         let mir_id = self.class_map[&hir_id];
-        let field_count = self.classes[mir_id].fields.len();
+        let field_count = self.classes[mir_id].declared_fields().len();
         let mut lowerer = BodyLowerer {
             module,
             struct_map: &self.struct_map,
@@ -2553,7 +2669,7 @@ impl Lowerer {
         };
         let mut params = Vec::new();
         let mut own = Vec::new();
-        for field in &decl.constructor {
+        for field in decl.declared_constructor() {
             let ty = lowerer.lower_type(field.ty);
             let local = lowerer.locals.alloc(mir::Local {
                 name: field.name.clone(),
@@ -2609,10 +2725,7 @@ impl Lowerer {
                     return self.function_map[&fn_id];
                 }
             }
-            current = module.classes[class]
-                .base_class
-                .as_ref()
-                .map(|(base, _)| *base);
+            current = module.classes[class].base_class().map(|(base, _)| *base);
         }
         unreachable!("hir-lower guarantees `{key}` is implemented")
     }
@@ -2630,7 +2743,7 @@ impl Lowerer {
     /// value method.
     fn finalize_boxed(&mut self, module: &hir::Module, index: usize) {
         let class_id = self.boxed.order[index];
-        let payload = self.classes[class_id].fields[0].ty.clone();
+        let payload = self.classes[class_id].declared_fields()[0].ty.clone();
         let encoded = mir::encode_type(&self.shell, &payload);
         let equals = self.build_boxed_equals(module, &payload, &encoded);
         let tostring = match payload {
@@ -3263,8 +3376,8 @@ fn method_class(module: &hir::Module, function: &hir::Function) -> Option<hir::C
 /// depth in the base chain; ties keep declaration order).
 fn topo_class_order(module: &hir::Module) -> Vec<hir::ClassId> {
     fn depth(module: &hir::Module, id: hir::ClassId) -> usize {
-        match module.classes[id].base_class {
-            Some((base, _)) => depth(module, base) + 1,
+        match module.classes[id].base_class() {
+            Some((base, _)) => depth(module, *base) + 1,
             None => 0,
         }
     }
@@ -3284,7 +3397,7 @@ fn flattened_ctor_args(
     hir_id: hir::ClassId,
     own: Vec<smir::Expr>,
 ) -> Vec<smir::Expr> {
-    let mut out = match &module.classes[hir_id].base_class {
+    let mut out = match module.classes[hir_id].base_class() {
         Some((base, delegation)) => {
             let base_own: Vec<smir::Expr> = delegation
                 .iter()
@@ -3332,12 +3445,24 @@ fn mangling_shell(
 ) -> mir::Module {
     let mut shell_structs = Arena::new();
     for (_, def) in structs.iter() {
+        let representation = match &def.representation {
+            mir::StructRepresentation::Declared {
+                c_layout,
+                interior_mutable,
+                ..
+            } => mir::StructRepresentation::Declared {
+                c_layout: *c_layout,
+                interior_mutable: *interior_mutable,
+                fields: Vec::new(),
+            },
+            mir::StructRepresentation::Intrinsic(representation) => {
+                mir::StructRepresentation::Intrinsic(representation.clone())
+            }
+        };
         shell_structs.alloc(mir::StructDef {
             name: def.name.clone(),
             gc_free: def.gc_free,
-            c_layout: def.c_layout,
-            interior_mutable: def.interior_mutable,
-            fields: Vec::new(),
+            representation,
         });
     }
     let mut shell_enums = Arena::new();
@@ -3350,11 +3475,19 @@ fn mangling_shell(
     }
     let mut shell_classes = Arena::new();
     for (_, def) in classes.iter() {
+        let representation = match &def.representation {
+            mir::ClassRepresentation::Declared { .. } => mir::ClassRepresentation::Declared {
+                fields: Vec::new(),
+                base_class: None,
+            },
+            mir::ClassRepresentation::Intrinsic(representation) => {
+                mir::ClassRepresentation::Intrinsic(representation.clone())
+            }
+        };
         shell_classes.alloc(mir::ClassDef {
             modifier: mir::ClassModifier::Final,
             name: def.name.clone(),
-            fields: Vec::new(),
-            base_class: None,
+            representation,
             interfaces: Vec::new(),
             vtable: Vec::new(),
             itables: Vec::new(),
@@ -3418,16 +3551,17 @@ fn lower_global_constant(
         (hir::ConstantValue::NullFunPtr, mir::Type::FunPtr(_)) => mir::ConstantValue::NullFunPtr,
         (hir::ConstantValue::Struct { fields, .. }, mir::Type::Struct(struct_id)) => {
             let definition = &structs[*struct_id];
+            let definition_fields = definition.declared_fields();
             assert_eq!(
                 fields.len(),
-                definition.fields.len(),
+                definition_fields.len(),
                 "typed global struct constants preserve field arity"
             );
             mir::ConstantValue::Struct {
                 struct_id: *struct_id,
                 fields: fields
                     .iter()
-                    .zip(&definition.fields)
+                    .zip(definition_fields)
                     .map(|(field, definition)| {
                         lower_global_constant(field, &definition.ty, structs)
                     })
@@ -3733,11 +3867,13 @@ impl BoxedRegistry {
             modifier: mir::ClassModifier::Final,
             name: name.clone(),
             // The object layout is the header plus the inline payload.
-            fields: vec![mir::Field {
-                name: "value".to_string(),
-                ty: payload.clone(),
-            }],
-            base_class: None,
+            representation: mir::ClassRepresentation::Declared {
+                fields: vec![mir::Field {
+                    name: "value".to_string(),
+                    ty: payload.clone(),
+                }],
+                base_class: None,
+            },
             interfaces: Vec::new(),
             // Filled by `finalize_boxed`.
             vtable: Vec::new(),
@@ -3747,8 +3883,10 @@ impl BoxedRegistry {
         shell.classes.alloc(mir::ClassDef {
             modifier: mir::ClassModifier::Final,
             name: name.clone(),
-            fields: Vec::new(),
-            base_class: None,
+            representation: mir::ClassRepresentation::Declared {
+                fields: Vec::new(),
+                base_class: None,
+            },
             interfaces: Vec::new(),
             vtable: Vec::new(),
             itables: Vec::new(),
@@ -4811,7 +4949,7 @@ impl BodyLowerer<'_> {
                     unreachable!("a struct pattern matches a struct value")
                 };
                 let field_types: Vec<mir::Type> = self.structs.defs[*struct_id]
-                    .fields
+                    .declared_fields()
                     .iter()
                     .map(|field| field.ty.clone())
                     .collect();
@@ -6335,7 +6473,7 @@ impl BodyLowerer<'_> {
             mir::Type::Unit => smir::Expr::BoolLiteral(!negate),
             mir::Type::Struct(id) => {
                 let field_types: Vec<mir::Type> = self.structs.defs[*id]
-                    .fields
+                    .declared_fields()
                     .iter()
                     .map(|field| field.ty.clone())
                     .collect();
@@ -6595,7 +6733,13 @@ mod tests {
         module
             .classes
             .iter()
-            .filter(|(_, class)| !class.name.ends_with("Protocol"))
+            .filter(|(_, class)| {
+                !class.name.ends_with("Protocol")
+                    && matches!(
+                        class.representation,
+                        mir::ClassRepresentation::Declared { .. }
+                    )
+            })
             .count()
     }
 
@@ -6646,6 +6790,11 @@ mod tests {
     /// core's managed `write` extern, two conversion intrinsics, and the ordinary
     /// `print` / `println` overloads (M7), plus core's `Option` enum
     /// allocated first.
+    enum CanonicalTypePlan {
+        Existing(hir::TypeId),
+        Allocate,
+    }
+
     struct Harness {
         types: Arena<hir::Type>,
         functions: Arena<hir::Function>,
@@ -7125,6 +7274,7 @@ mod tests {
                 template,
                 arguments: key.1.clone(),
                 canonical_type,
+                representation: hir::StructApplicationRepresentation::Declared,
             });
             let actual_type = self.types.alloc(hir::Type::Struct(application));
             assert_eq!(actual_type, canonical_type);
@@ -7193,6 +7343,7 @@ mod tests {
                 template,
                 arguments: key.1.clone(),
                 canonical_type,
+                representation: hir::ClassApplicationRepresentation::Declared,
             });
             let actual_type = self.types.alloc(hir::Type::Class(application));
             assert_eq!(actual_type, canonical_type);
@@ -7346,16 +7497,18 @@ mod tests {
                 name: name.to_string(),
                 self_application,
                 type_params: Vec::new(),
-                constructor: constructor
-                    .iter()
-                    .enumerate()
-                    .map(|(index, (name, ty))| hir::ConstructorField {
-                        parameter: hir::ConstructorParamId::from_raw(index as u32),
-                        name: name.to_string(),
-                        ty: *ty,
-                        mutable: false,
-                    })
-                    .collect(),
+                representation: hir::ClassRepresentation::Declared(
+                    constructor
+                        .iter()
+                        .enumerate()
+                        .map(|(index, (name, ty))| hir::ConstructorField {
+                            parameter: hir::ConstructorParamId::from_raw(index as u32),
+                            name: name.to_string(),
+                            ty: *ty,
+                            mutable: false,
+                        })
+                        .collect(),
+                ),
                 base_class,
                 interfaces,
                 interface_implementations,
@@ -7538,13 +7691,15 @@ mod tests {
                 self_application,
                 type_params,
                 attributes: hir::StructAttributes::default(),
-                fields: fields
-                    .iter()
-                    .map(|(name, ty)| hir::Field {
-                        name: name.to_string(),
-                        ty: *ty,
-                    })
-                    .collect(),
+                representation: hir::StructRepresentation::Declared(
+                    fields
+                        .iter()
+                        .map(|(name, ty)| hir::Field {
+                            name: name.to_string(),
+                            ty: *ty,
+                        })
+                        .collect(),
+                ),
                 interfaces,
                 interface_implementations,
                 methods: Vec::new(),
@@ -7553,6 +7708,92 @@ mod tests {
             let actual = self.struct_application(strukt, self_arguments);
             assert_eq!(actual, self_application);
             strukt
+        }
+
+        fn declare_fixed_intrinsic_struct(
+            &mut self,
+            name: &str,
+            kind: hir::IntrinsicTypeKind,
+            canonical_type: hir::TypeId,
+        ) -> hir::StructId {
+            let self_application =
+                hir::StructApplicationId::from_raw((self.struct_applications.len() as u32).into());
+            let declaration = hir::IntrinsicTypeDeclaration {
+                kind,
+                provider: hir::IntrinsicProviderId::from_raw(0),
+            };
+            let strukt = self.structs.alloc(hir::StructDecl {
+                name: name.to_string(),
+                self_application,
+                type_params: Vec::new(),
+                attributes: hir::StructAttributes::default(),
+                representation: hir::StructRepresentation::Intrinsic(declaration),
+                interfaces: Vec::new(),
+                interface_implementations: Vec::new(),
+                methods: Vec::new(),
+                span: SPAN,
+            });
+            let representation = kind.application(&[]);
+            let actual = self.struct_applications.alloc(hir::StructApplication {
+                template: strukt,
+                arguments: Vec::new(),
+                canonical_type,
+                representation: hir::StructApplicationRepresentation::Intrinsic(representation),
+            });
+            assert_eq!(actual, self_application);
+            self.struct_applications_by_key
+                .insert((strukt, Vec::new()), actual);
+            strukt
+        }
+
+        fn declare_intrinsic_class(
+            &mut self,
+            name: &str,
+            kind: hir::IntrinsicTypeKind,
+            type_params: Vec<hir::TypeParamDecl>,
+            self_arguments: Vec<hir::TypeId>,
+            canonical_type_plan: CanonicalTypePlan,
+        ) -> hir::ClassId {
+            let self_application =
+                hir::ClassApplicationId::from_raw((self.class_applications.len() as u32).into());
+            let declaration = hir::IntrinsicTypeDeclaration {
+                kind,
+                provider: hir::IntrinsicProviderId::from_raw(0),
+            };
+            let class = self.classes.alloc(hir::ClassDecl {
+                modifier: hir::ClassModifier::Final,
+                name: name.to_string(),
+                self_application,
+                type_params,
+                representation: hir::ClassRepresentation::Intrinsic(declaration),
+                base_class: None,
+                interfaces: Vec::new(),
+                interface_implementations: Vec::new(),
+                methods: Vec::new(),
+                span: SPAN,
+            });
+            let representation = kind.application(&self_arguments);
+            let (canonical_type, allocate_canonical_type) = match canonical_type_plan {
+                CanonicalTypePlan::Existing(canonical_type) => (canonical_type, false),
+                CanonicalTypePlan::Allocate => (
+                    hir::TypeId::from_raw((self.types.len() as u32).into()),
+                    true,
+                ),
+            };
+            let actual = self.class_applications.alloc(hir::ClassApplication {
+                template: class,
+                arguments: self_arguments.clone(),
+                canonical_type,
+                representation: hir::ClassApplicationRepresentation::Intrinsic(representation),
+            });
+            assert_eq!(actual, self_application);
+            if allocate_canonical_type {
+                let allocated = self.types.alloc(hir::Type::Class(actual));
+                assert_eq!(allocated, canonical_type);
+            }
+            self.class_applications_by_key
+                .insert((class, self_arguments), actual);
+            class
         }
 
         fn interface_implementation_shells(
@@ -8093,6 +8334,43 @@ mod tests {
                 Vec::new(),
                 unit_variants(&["Registered", "Active", "Completed", "Failed"]),
             );
+            let uint = self.uint();
+            let intrinsic_int =
+                self.declare_fixed_intrinsic_struct("Int", hir::IntrinsicTypeKind::Int, self.int);
+            let intrinsic_uint =
+                self.declare_fixed_intrinsic_struct("UInt", hir::IntrinsicTypeKind::UInt, uint);
+            let intrinsic_boolean = self.declare_fixed_intrinsic_struct(
+                "Boolean",
+                hir::IntrinsicTypeKind::Boolean,
+                self.boolean,
+            );
+            let intrinsic_string = self.declare_intrinsic_class(
+                "String",
+                hir::IntrinsicTypeKind::String,
+                Vec::new(),
+                Vec::new(),
+                CanonicalTypePlan::Existing(self.string),
+            );
+            let array_param = self
+                .types
+                .alloc(hir::Type::Param(hir::TypeParamId::from_raw(0)));
+            let intrinsic_array = self.declare_intrinsic_class(
+                "Array",
+                hir::IntrinsicTypeKind::Array,
+                vec![type_param("T")],
+                vec![array_param],
+                CanonicalTypePlan::Allocate,
+            );
+            let mutable_array_param = self
+                .types
+                .alloc(hir::Type::Param(hir::TypeParamId::from_raw(0)));
+            let intrinsic_mutable_array = self.declare_intrinsic_class(
+                "MutableArray",
+                hir::IntrinsicTypeKind::MutableArray,
+                vec![type_param("T")],
+                vec![mutable_array_param],
+                CanonicalTypePlan::Allocate,
+            );
             hir::Module {
                 types: self.types,
                 function_types: Arena::new(),
@@ -8136,6 +8414,14 @@ mod tests {
                     release: entry,
                     query_state: entry,
                     failure: entry,
+                },
+                intrinsic_type_core: hir::IntrinsicTypeCore {
+                    int: intrinsic_int,
+                    uint: intrinsic_uint,
+                    boolean: intrinsic_boolean,
+                    string: intrinsic_string,
+                    array: intrinsic_array,
+                    mutable_array: intrinsic_mutable_array,
                 },
                 entry,
                 instantiations: self.instantiations,
@@ -8404,7 +8690,7 @@ mod tests {
         };
         assert_eq!(resume_points.len(), 1);
         let frame = &module.meta.coroutine_frames[*frame];
-        let fields = &module.classes[frame.class].fields;
+        let fields = module.classes[frame.class].declared_fields();
         assert_eq!(fields[0].name, "state");
         assert_eq!(fields[1].name, "completion");
         assert_eq!(
@@ -8863,7 +9149,10 @@ Module
             panic!("the raw result is wrapped into PinnedPtr")
         };
         assert_eq!(module.structs[*struct_id].name, "PinnedPtr$S");
-        assert_eq!(module.structs[*struct_id].fields[0].ty, mir::Type::UInt);
+        assert_eq!(
+            module.structs[*struct_id].declared_fields()[0].ty,
+            mir::Type::UInt
+        );
         assert!(matches!(args.as_slice(), [mir::Expr::Local(local)] if *local == pin_result));
 
         // `_unpin(ph.raw)` directly initializes the source result local.
@@ -8979,13 +9268,16 @@ Module
         assert!(defs("PinnedPtr").is_empty());
         assert!(defs("Box2").is_empty());
         assert_eq!(defs("PinnedPtr$V").len(), 1);
-        assert_eq!(defs("PinnedPtr$V")[0].fields[0].ty, mir::Type::UInt);
+        assert_eq!(
+            defs("PinnedPtr$V")[0].declared_fields()[0].ty,
+            mir::Type::UInt
+        );
         assert!(defs("PinnedPtr$V")[0].gc_free);
         assert_eq!(defs("PinnedPtr$S").len(), 1);
         assert!(defs("PinnedPtr$S")[0].gc_free);
         assert_eq!(defs("Box2$S").len(), 1);
         // Field substitution: `Box2<String>`'s `x` is `String`.
-        assert_eq!(defs("Box2$S")[0].fields[0].ty, mir::Type::String);
+        assert_eq!(defs("Box2$S")[0].declared_fields()[0].ty, mir::Type::String);
         assert!(!defs("Box2$S")[0].gc_free);
 
         // Locals and StructInits resolve to the instances.
@@ -10200,7 +10492,17 @@ Module
         let module = lower(&h.finish(main));
 
         // The struct arena is transposed in declaration order.
-        assert_eq!(module.structs.len(), 1);
+        assert_eq!(
+            module
+                .structs
+                .iter()
+                .filter(|(_, definition)| matches!(
+                    definition.representation,
+                    mir::StructRepresentation::Declared { .. }
+                ))
+                .count(),
+            1
+        );
 
         let expected = "\
 Module
@@ -11944,7 +12246,7 @@ Module
         let base_def = &module.classes[class_index(0)];
         let derived_def = &module.classes[class_index(1)];
         let field_names = |def: &mir::ClassDef| {
-            def.fields
+            def.declared_fields()
                 .iter()
                 .map(|field| field.name.clone())
                 .collect::<Vec<_>>()
@@ -11953,8 +12255,8 @@ Module
         // The base prefix comes first; HIR's `ClassField` indices
         // follow the same flattened order.
         assert_eq!(field_names(derived_def), ["a", "b"]);
-        assert_eq!(derived_def.fields[1].ty, mir::Type::String);
-        assert_eq!(derived_def.base_class, Some(class_index(0)));
+        assert_eq!(derived_def.declared_fields()[1].ty, mir::Type::String);
+        assert_eq!(derived_def.base_class(), Some(class_index(0)));
         assert_eq!(derived_def.modifier, mir::ClassModifier::Final);
         assert_eq!(base_def.modifier, mir::ClassModifier::Open);
 
@@ -12248,10 +12550,10 @@ Module
         assert_eq!(visible_class_count(&module), 1);
         let boxed = boxed_class(&module, "box$S");
         assert_eq!(boxed.name, "box$S");
-        assert_eq!(boxed.fields.len(), 1);
-        assert_eq!(boxed.fields[0].name, "value");
+        assert_eq!(boxed.declared_fields().len(), 1);
+        assert_eq!(boxed.declared_fields()[0].name, "value");
         assert_eq!(
-            boxed.fields[0].ty,
+            boxed.declared_fields()[0].ty,
             mir::Type::Struct(la_arena::Idx::from_raw(0.into()))
         );
         let vtable: Vec<&str> = boxed

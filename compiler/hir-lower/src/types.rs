@@ -707,14 +707,48 @@ impl Lowerer {
         if let Some(&application) = self.struct_application_by_key.get(&key) {
             return application;
         }
-        let canonical_type = hir::TypeId::from_raw((self.types.len() as u32).into());
+        let intrinsic = match self.structs[template].representation {
+            hir::StructRepresentation::Declared(_) => None,
+            hir::StructRepresentation::Intrinsic(intrinsic) => Some(intrinsic),
+        };
+        let representation = intrinsic.map_or(
+            hir::StructApplicationRepresentation::Declared,
+            |intrinsic| {
+                hir::StructApplicationRepresentation::Intrinsic(
+                    intrinsic.kind.application(&arguments),
+                )
+            },
+        );
+        let canonical_type = match &representation {
+            hir::StructApplicationRepresentation::Intrinsic(
+                hir::IntrinsicTypeRepresentation::Int,
+            ) => self.int,
+            hir::StructApplicationRepresentation::Intrinsic(
+                hir::IntrinsicTypeRepresentation::UInt,
+            ) => self.uint,
+            hir::StructApplicationRepresentation::Intrinsic(
+                hir::IntrinsicTypeRepresentation::Boolean,
+            ) => self.boolean,
+            hir::StructApplicationRepresentation::Declared => {
+                hir::TypeId::from_raw((self.types.len() as u32).into())
+            }
+            hir::StructApplicationRepresentation::Intrinsic(_) => {
+                unreachable!("the intrinsic contract fixes its declaration target")
+            }
+        };
         let application = self.struct_applications.alloc(hir::StructApplication {
             template,
             arguments,
             canonical_type,
+            representation,
         });
-        let allocated_type = self.types.alloc(Type::Struct(application));
-        assert_eq!(allocated_type, canonical_type);
+        if matches!(
+            self.struct_applications[application].representation,
+            hir::StructApplicationRepresentation::Declared
+        ) {
+            let allocated_type = self.types.alloc(Type::Struct(application));
+            assert_eq!(allocated_type, canonical_type);
+        }
         self.struct_application_by_key.insert(key, application);
         application
     }
@@ -766,14 +800,47 @@ impl Lowerer {
         if let Some(&application) = self.class_application_by_key.get(&key) {
             return application;
         }
-        let canonical_type = hir::TypeId::from_raw((self.types.len() as u32).into());
+        let intrinsic = match self.classes[template].representation {
+            hir::ClassRepresentation::Declared(_) => None,
+            hir::ClassRepresentation::Intrinsic(intrinsic) => Some(intrinsic),
+        };
+        let representation =
+            intrinsic.map_or(hir::ClassApplicationRepresentation::Declared, |intrinsic| {
+                hir::ClassApplicationRepresentation::Intrinsic(
+                    intrinsic.kind.application(&arguments),
+                )
+            });
+        let canonical_type = match &representation {
+            hir::ClassApplicationRepresentation::Intrinsic(
+                hir::IntrinsicTypeRepresentation::String,
+            ) => self.string,
+            hir::ClassApplicationRepresentation::Intrinsic(
+                hir::IntrinsicTypeRepresentation::Array { .. }
+                | hir::IntrinsicTypeRepresentation::MutableArray { .. },
+            )
+            | hir::ClassApplicationRepresentation::Declared => {
+                hir::TypeId::from_raw((self.types.len() as u32).into())
+            }
+            hir::ClassApplicationRepresentation::Intrinsic(_) => {
+                unreachable!("the intrinsic contract fixes its declaration target")
+            }
+        };
         let application = self.class_applications.alloc(hir::ClassApplication {
             template,
             arguments,
             canonical_type,
+            representation,
         });
-        let allocated_type = self.types.alloc(Type::Class(application));
-        assert_eq!(allocated_type, canonical_type);
+        let allocate_type = !matches!(
+            self.class_applications[application].representation,
+            hir::ClassApplicationRepresentation::Intrinsic(
+                hir::IntrinsicTypeRepresentation::String
+            )
+        );
+        if allocate_type {
+            let allocated_type = self.types.alloc(Type::Class(application));
+            assert_eq!(allocated_type, canonical_type);
+        }
         self.class_application_by_key.insert(key, application);
         application
     }

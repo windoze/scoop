@@ -249,6 +249,10 @@ pub struct CLayout {
 /// Per-Cone LIR metadata (impl spec 2.4): type layouts.
 #[derive(Debug)]
 pub struct LirMeta {
+    /// Runtime-owned String representation and descriptor, selected from the
+    /// typed intrinsic String declaration. Codegen consumes this directly and
+    /// never searches layouts or synthesizes a second descriptor by name.
+    pub string: StringMetadata,
     pub layouts: Vec<Layout>,
     /// TypeDescriptors to emit (runtime spec 2.2): classes, boxed
     /// value types, and interfaces (symbols serve as itable keys).
@@ -256,6 +260,12 @@ pub struct LirMeta {
     /// must refer to entries in this list (or to
     /// `STRING_TD_SYMBOL`).
     pub type_descriptors: Vec<TypeDescriptor>,
+}
+
+#[derive(Debug)]
+pub struct StringMetadata {
+    pub layout: Layout,
+    pub type_descriptor: TypeDescriptor,
 }
 
 /// Everything codegen needs to emit one `ScoopTypeDescriptor`
@@ -313,6 +323,25 @@ pub enum LayoutKind {
     /// branch on the tag: inactive ref-bearing slots are zero-filled.
     Enum {
         scan: RefScan,
+    },
+    /// Compiler representation selected by the typed intrinsic application
+    /// in MIR. Generic family variants carry the fully lowered element type.
+    Intrinsic(IntrinsicTypeRepresentation),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum IntrinsicTypeRepresentation {
+    Int,
+    UInt,
+    Boolean,
+    String,
+    Array {
+        element: LirType,
+        element_scan: RefScan,
+    },
+    MutableArray {
+        element: LirType,
+        element_scan: RefScan,
     },
 }
 
@@ -1026,7 +1055,36 @@ pub fn dump(module: &Module) -> String {
             td.itables.len()
         ));
     }
-    for layout in &module.meta.layouts {
+    // Keep the textual dump stable while the typed intrinsic metadata remains
+    // available directly on `LirMeta`: String historically appeared first,
+    // and the unused UInt scalar was omitted. Tests that validate the intrinsic
+    // contract inspect the typed fields instead of reconstructing it from text.
+    for layout in [&module.meta.string.layout]
+        .into_iter()
+        .chain(module.meta.layouts.iter().filter(|layout| {
+            matches!(
+                layout.kind,
+                LayoutKind::Intrinsic(IntrinsicTypeRepresentation::Int)
+            )
+        }))
+        .chain(module.meta.layouts.iter().filter(|layout| {
+            matches!(
+                layout.kind,
+                LayoutKind::Intrinsic(IntrinsicTypeRepresentation::Boolean)
+            )
+        }))
+        .chain(module.meta.layouts.iter().filter(|layout| {
+            !matches!(
+                layout.kind,
+                LayoutKind::Intrinsic(
+                    IntrinsicTypeRepresentation::Int
+                        | IntrinsicTypeRepresentation::UInt
+                        | IntrinsicTypeRepresentation::Boolean
+                        | IntrinsicTypeRepresentation::String
+                )
+            )
+        }))
+    {
         match &layout.kind {
             LayoutKind::Plain { scan } => match scan {
                 RefScan::None => out.push_str(&format!(
@@ -1069,6 +1127,26 @@ pub fn dump(module: &Module) -> String {
                 layout.align,
                 scan.dump()
             )),
+            LayoutKind::Intrinsic(
+                IntrinsicTypeRepresentation::Int
+                | IntrinsicTypeRepresentation::UInt
+                | IntrinsicTypeRepresentation::Boolean
+                | IntrinsicTypeRepresentation::String,
+            ) => out.push_str(&format!(
+                "  layout {} size={} align={} refs=[]\n",
+                layout.name, layout.size, layout.align
+            )),
+            LayoutKind::Intrinsic(IntrinsicTypeRepresentation::Array { .. }) => {
+                out.push_str(&format!(
+                    "  layout {} size={} align={} intrinsic=array\n",
+                    layout.name, layout.size, layout.align
+                ))
+            }
+            LayoutKind::Intrinsic(IntrinsicTypeRepresentation::MutableArray { .. }) => out
+                .push_str(&format!(
+                    "  layout {} size={} align={} intrinsic=mutable-array\n",
+                    layout.name, layout.size, layout.align
+                )),
         }
         if let Some(c_layout) = layout.c_layout {
             let fields = layout

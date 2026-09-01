@@ -152,6 +152,19 @@ SourceFile
   class IndexOutOfBoundsException() : Exception(<1 args>)
   class IllegalStateException() : Exception(<1 args>)
 SourceFile
+    @Intrinsic("core_int")
+  struct Int <representation omitted>
+    @Intrinsic("core_uint")
+  struct UInt <representation omitted>
+    @Intrinsic("core_boolean")
+  struct Boolean <representation omitted>
+    @Intrinsic("core_string")
+  class String()
+    @Intrinsic("core_array")
+  class Array<T>()
+    @Intrinsic("core_mutable_array")
+  class MutableArray<T>()
+SourceFile
   open class Animal()
   class Dog() : Animal(<0 args>)
   interface Describable
@@ -1403,7 +1416,7 @@ Module
   enum Option$FAnyRSX niche(payload_variant=0)
   enum Option$FIRAnyX niche(payload_variant=0)
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
-  fun @scoop.Label.describe(struct0) -> ptr<managed>
+  fun @scoop.Label.describe(struct3) -> ptr<managed>
   block entry
     t0 = extract param0, 0 : ptr<managed>
     ret t0
@@ -1435,9 +1448,9 @@ Module
   fun @scoop.acceptAnyString(ptr<managed>) -> ptr<managed>
   block entry
     ret global1
-  fun @scoop.acceptAnyLabel(ptr<managed>) -> struct0
+  fun @scoop.acceptAnyLabel(ptr<managed>) -> struct3
   block entry
-    t0 = aggregate (global2) : struct0
+    t0 = aggregate (global2) : struct3
     ret t0
   fun @scoop.acceptAnimal(ptr<managed>) -> ptr<managed>
     local %0 $call.1: ptr<managed>
@@ -1898,10 +1911,10 @@ Module
     t0 = call @scoop.acceptAnyString(param1) : ptr<managed>
     store t0 -> local0
     ret local0
-  fun @scoop.$reference.5(ptr<managed>, ptr<managed>) -> struct0
-    local %0 $call.1: struct0
+  fun @scoop.$reference.5(ptr<managed>, ptr<managed>) -> struct3
+    local %0 $call.1: struct3
   block entry
-    t0 = call @scoop.acceptAnyLabel(param1) : struct0
+    t0 = call @scoop.acceptAnyLabel(param1) : struct3
     store t0 -> local0
     ret local0
   fun @scoop.$reference.6(ptr<managed>, ptr<managed>) -> ptr<managed>
@@ -1974,11 +1987,11 @@ Module
     store t1 -> local0
     ret local0
   fun @scoop.$adapter.FAnyRLabelX.FIRDescribableX(ptr<managed>, i64) -> ptr<managed>
-    local %0 $call.1: struct0
+    local %0 $call.1: struct3
   block entry
     t0 = heap_load param0 +24 : ptr<managed>
     t1 = call @scoop_rt_box(global35, param1, 8) : ptr<managed>
-    t2 = call_indirect t0[2](t0, t1) : struct0
+    t2 = call_indirect t0[2](t0, t1) : struct3
     store t2 -> local0
     t3 = call @scoop_rt_box(global45, local0, 8) : ptr<managed>
     ret t3
@@ -2067,13 +2080,13 @@ Module
     store t1 -> local0
     ret local0
   fun @scoop.eq.Label(ptr<managed>, ptr<managed>) -> i1
-    local %0 $a: struct0
-    local %1 $b: struct0
+    local %0 $a: struct3
+    local %1 $b: struct3
     local %2 $call.1: i1
   block entry
-    t0 = heap_load param0 +16 : struct0
+    t0 = heap_load param0 +16 : struct3
     store t0 -> local0
-    t1 = heap_load param1 +16 : struct0
+    t1 = heap_load param1 +16 : struct3
     store t1 -> local1
     t2 = extract local0, 0 : ptr<managed>
     t3 = extract local1, 0 : ptr<managed>
@@ -2083,7 +2096,7 @@ Module
   fun @scoop.thunk.Label.Describable.describe(ptr<managed>) -> ptr<managed>
     local %0 $call.1: ptr<managed>
   block entry
-    t0 = heap_load param0 +16 : struct0
+    t0 = heap_load param0 +16 : struct3
     t1 = call @scoop.Label.describe(t0) : ptr<managed>
     store t1 -> local0
     ret local0
@@ -2136,18 +2149,18 @@ Module
     store t1 -> local0
     ret local0
   fun @scoop.function_bridge.$Closure$reference5.FIRAnyX(ptr<managed>, i64) -> ptr<managed>
-    local %0 $call.1: struct0
+    local %0 $call.1: struct3
   block entry
     t0 = call @scoop_rt_box(global35, param1, 8) : ptr<managed>
-    t1 = call_indirect param0[2](param0, t0) : struct0
+    t1 = call_indirect param0[2](param0, t0) : struct3
     store t1 -> local0
     t2 = call @scoop_rt_box(global45, local0, 8) : ptr<managed>
     ret t2
   fun @scoop.function_bridge.$Closure$reference5.FIRDescribableX(ptr<managed>, i64) -> ptr<managed>
-    local %0 $call.1: struct0
+    local %0 $call.1: struct3
   block entry
     t0 = call @scoop_rt_box(global35, param1, 8) : ptr<managed>
-    t1 = call_indirect param0[2](param0, t0) : struct0
+    t1 = call_indirect param0[2](param0, t0) : struct3
     store t1 -> local0
     t2 = call @scoop_rt_box(global45, local0, 8) : ptr<managed>
     ret t2

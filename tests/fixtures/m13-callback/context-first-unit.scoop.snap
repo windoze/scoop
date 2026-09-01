@@ -152,6 +152,19 @@ SourceFile
   class IndexOutOfBoundsException() : Exception(<1 args>)
   class IllegalStateException() : Exception(<1 args>)
 SourceFile
+    @Intrinsic("core_int")
+  struct Int <representation omitted>
+    @Intrinsic("core_uint")
+  struct UInt <representation omitted>
+    @Intrinsic("core_boolean")
+  struct Boolean <representation omitted>
+    @Intrinsic("core_string")
+  class String()
+    @Intrinsic("core_array")
+  class Array<T>()
+    @Intrinsic("core_mutable_array")
+  class MutableArray<T>()
+SourceFile
     @Extern(lib = "fixture_native", name = "m13_call_context_first")
   fun callContextFirst(callback: FunPtr<(Ptr<Unit>, Int) -> Unit>, context: Ptr<Unit>, value: Int)
   fun main()
@@ -509,7 +522,7 @@ Module
     ret
   fun @scoop_main() -> void
     local %0 captured: ptr<managed>
-    local %1 callback: struct0
+    local %1 callback: struct3
     local %2 $sc.1: ptr<code>
     local %3 $sc.2: ptr<raw>
     local %4 $sc.3: i64
@@ -519,7 +532,7 @@ Module
     t1 = function_address @scoop.$lambda.0 : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 local0
-    t2 = foreign_callback_register fcb0 t0 : struct0
+    t2 = foreign_callback_register fcb0 t0 : struct3
     store t2 -> local1
     t3 = extract local1, 0 : ptr<code>
     t4 = extract local1, 1 : ptr<raw>

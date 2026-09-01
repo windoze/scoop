@@ -152,6 +152,19 @@ SourceFile
   class IndexOutOfBoundsException() : Exception(<1 args>)
   class IllegalStateException() : Exception(<1 args>)
 SourceFile
+    @Intrinsic("core_int")
+  struct Int <representation omitted>
+    @Intrinsic("core_uint")
+  struct UInt <representation omitted>
+    @Intrinsic("core_boolean")
+  struct Boolean <representation omitted>
+    @Intrinsic("core_string")
+  class String()
+    @Intrinsic("core_array")
+  class Array<T>()
+    @Intrinsic("core_mutable_array")
+  class MutableArray<T>()
+SourceFile
     @Extern(lib = "fixture_native", name = "m13_start_one")
   fun startOne(callback: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>, value: Int): Ptr<Unit>
     @Extern(lib = "fixture_native", name = "m13_join_one")
@@ -643,8 +656,8 @@ Module
     t4 = aggregate () : {}
     ret
   fun @scoop_main() -> void
-    local %0 worker: struct0
-    local %1 observer: struct0
+    local %0 worker: struct3
+    local %1 observer: struct3
     local %2 job: ptr<raw>
     local %3 failure: ptr<managed>
     local %4 exception: ptr<managed>
@@ -663,9 +676,9 @@ Module
     t0 = call @scoop_rt_alloc(global8, 24) : ptr<managed>
     t1 = function_address @scoop.$lambda.0 : ptr
     heap_store t0 +16 t1
-    t2 = foreign_callback_register fcb0 t0 : struct0
+    t2 = foreign_callback_register fcb0 t0 : struct3
     store t2 -> local0
-    t3 = foreign_callback_Retain local0 : struct0
+    t3 = foreign_callback_Retain local0 : struct3
     store t3 -> local1
     t4 = extract local0, 0 : ptr<code>
     t5 = extract local0, 1 : ptr<raw>

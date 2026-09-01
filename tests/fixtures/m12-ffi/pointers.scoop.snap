@@ -152,6 +152,19 @@ SourceFile
   class IndexOutOfBoundsException() : Exception(<1 args>)
   class IllegalStateException() : Exception(<1 args>)
 SourceFile
+    @Intrinsic("core_int")
+  struct Int <representation omitted>
+    @Intrinsic("core_uint")
+  struct UInt <representation omitted>
+    @Intrinsic("core_boolean")
+  struct Boolean <representation omitted>
+    @Intrinsic("core_string")
+  class String()
+    @Intrinsic("core_array")
+  class Array<T>()
+    @Intrinsic("core_mutable_array")
+  class MutableArray<T>()
+SourceFile
     @NoGC
   fun increment(value: Int): Int
     =
@@ -750,14 +763,14 @@ Module
   extern ef1 malloc @malloc(i64) -> ptr<raw> <c bridge=@scoop_c_bridge_1 gc-leaf nounwind>
   extern ef2 free @free(ptr<raw>) -> {} <c bridge=@scoop_c_bridge_2 gc-leaf nounwind>
   callback cb0 increment @scoop_callback_bridge_0 -> @scoop_c_callback_0
-  fun @scoop.Slot.rewriteThis(struct0) -> i64 <no-gc>
-    local %0 this: struct0
+  fun @scoop.Slot.rewriteThis(struct3) -> i64 <no-gc>
+    local %0 this: struct3
     local %1 pointer: ptr<raw>
   block entry
     store param0 -> local0
     t0 = local_address local0 : ptr
     store t0 -> local1
-    t1 = aggregate (13) : struct0
+    t1 = aggregate (13) : struct3
     raw_store local1 t1 align 8
     t2 = aggregate () : {}
     t3 = extract local0, 0 : i64
@@ -876,7 +889,7 @@ Module
     t31 = call @scoop_rt_box(global6, local16, 8) : ptr<managed>
     call @scoop.println(t31)
     t32 = aggregate () : {}
-    t33 = aggregate (0) : struct0
+    t33 = aggregate (0) : struct3
     t34 = call @scoop.Slot.rewriteThis(t33) : i64
     store t34 -> local17
     t35 = call @scoop_rt_box(global6, local17, 8) : ptr<managed>

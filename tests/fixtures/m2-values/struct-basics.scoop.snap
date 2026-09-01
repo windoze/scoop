@@ -152,6 +152,19 @@ SourceFile
   class IndexOutOfBoundsException() : Exception(<1 args>)
   class IllegalStateException() : Exception(<1 args>)
 SourceFile
+    @Intrinsic("core_int")
+  struct Int <representation omitted>
+    @Intrinsic("core_uint")
+  struct UInt <representation omitted>
+    @Intrinsic("core_boolean")
+  struct Boolean <representation omitted>
+    @Intrinsic("core_string")
+  class String()
+    @Intrinsic("core_array")
+  class Array<T>()
+    @Intrinsic("core_mutable_array")
+  class MutableArray<T>()
+SourceFile
   struct Point
     field x: Int
     field y: Int
@@ -411,9 +424,9 @@ Module
     t4 = aggregate () : {}
     ret
   fun @scoop_main() -> void
-    local %0 p: struct0
+    local %0 p: struct3
   block entry
-    t0 = aggregate (1, 2) : struct0
+    t0 = aggregate (1, 2) : struct3
     store t0 -> local0
     t1 = extract local0, 0 : i64
     t2 = call @scoop_rt_box(global6, t1, 8) : ptr<managed>
