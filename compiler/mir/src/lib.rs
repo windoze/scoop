@@ -946,7 +946,6 @@ pub enum ExprKind {
     ForeignCallbackOperation {
         operation: ForeignCallbackOperation,
         callback: Box<Expr>,
-        result_ty: Box<Type>,
     },
     /// The managed exception pointer produced by the active `BeginCatch`.
     /// It is only valid in blocks dominated by that statement.

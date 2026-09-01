@@ -673,11 +673,9 @@ impl<'a> CfgLowerer<'a> {
             smir::ExprKind::ForeignCallbackOperation {
                 operation,
                 callback,
-                result_ty,
             } => mir::ExprKind::ForeignCallbackOperation {
                 operation: *operation,
                 callback: Box::new(self.lower_expr(callback, span)),
-                result_ty: result_ty.clone(),
             },
             smir::ExprKind::Retype { operand, ty } => mir::ExprKind::Retype {
                 operand: Box::new(self.lower_expr(operand, span)),

@@ -726,7 +726,7 @@ NullPointer(PointerKind::Managed | Raw | Code | Metadata)
 以下关系改为sum type或成对实体，从结构上排除缺失/错位：
 
 - `NativeGlobalAccess::{ReadOnly { get, address }, Mutable { get, set, address }}` 取代 `mutable: bool + set_bridge: Option<_>`；bridge全部使用typed id；
-- `ForeignCallbackOperation` 的 `Retain/State/Failure` 结果型variant携带必需out，`Release`为无结果variant；不再使用 `operation + out: Option<_>`；
+- `ForeignCallbackOperation` 在MIR只读取统一`MirExpr.ty`，不得在kind中再平行保存一份`result_ty`；到LIR后，`Retain/State/Failure`结果型variant携带必需out，`Release`为无结果variant，不再使用 `operation + out: Option<_>`；
 - caller root使用 `NonEmptyRefScan`，其constructor拒绝/无法表示 `None`、空offset与全空sequence；GC-free值不能形成 `CallerRoot`；
 - tagged enum field表示为单个 `EnumFieldRepr { ty, offset }` 列表，取代 `fields` / `field_offsets` 两个平行Vec；variant slot与字段offset在构造时一并验证；
 - call result按8.4的typed target/return sum表达；同样的互斥return convention复用于function declaration与return lowering，禁止`Void`签名配有out、value签名缺out或indirect signature另配一份不一致scan。

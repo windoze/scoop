@@ -1417,7 +1417,6 @@ impl BodyLowerer<'_> {
                     }
                 },
                 callback: Box::new(self.lower_expr(callback)),
-                result_ty: Box::new(self.lower_type(expr.ty)),
             },
             hir::ExprKind::FieldAccess { receiver, field } => {
                 // Struct fields, tuple elements and class constructor

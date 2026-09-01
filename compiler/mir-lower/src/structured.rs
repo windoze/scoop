@@ -177,7 +177,6 @@ pub(crate) enum ExprKind {
     ForeignCallbackOperation {
         operation: mir::ForeignCallbackOperation,
         callback: Box<Expr>,
-        result_ty: Box<mir::Type>,
     },
     Retype {
         operand: Box<Expr>,
