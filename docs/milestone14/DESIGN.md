@@ -439,7 +439,7 @@ IntrinsicDeclarationPolicy =
 
 这样unit/golden/negative fixture可以构造最小intrinsic provider或单独测试错误分支，同时不能用内部开关掩盖registry、signature或IR完备性问题。
 
-### 3.2 core contract
+### 3.2 普通 core 声明
 
 core 新增并由HIR按typed id验证：
 
@@ -460,7 +460,11 @@ fun <T : ToString> println(value: T) {
 
 String 的 `toString()` 返回自身。M14 为当前编译器已落地的 Boolean、Int 与 UInt补齐core实现；后续加入的所有 spec 11.2 基本类型在进入可用语言子集时必须同时实现 `ToString`，不能恢复按type name的compiler fallback。数值文本格式沿用各基本类型的既有字面/打印约定；Boolean固定为 `true` / `false`。
 
-这些core声明在 HIR 中形成非可选的 `FormattingCore`：`ToString` interface id、唯一方法id、String/basic implementations、`print` / `println` generic ids及底层 `write` id。contract缺失或签名不符是sysroot配置错误；后续stage不按FQN查找替代实体。
+这些声明不形成 `FormattingCore` 或其他编译器专用通道。`ToString` 是普通 interface，`print` / `println` 是普通 generic function，String/basic implementations 是 intrinsic type 上的普通 interface implementation；名称解析、bound 检查、overload resolution、conformance、单态化与调用 lowering 均复用语言的一般机制。
+
+编译器只为 `@Intrinsic` 所声明的 opaque representation 或 Scoop 本身无法表达的最小底层操作保存封闭 typed kind。给 intrinsic type 新增一个可用 Scoop 实现的 interface、method 或 generic 能力，只修改 `scoop.core`，不增加 HIR well-known 字段、不扩展 MIR 特判，也不要求 runtime 登记。确实需要新底层 primitive 时，新增的是该 primitive 的 typed intrinsic lowering，而不是围绕它所服务的高层 interface 建立 capability bundle。
+
+自动派生 `ToString` 时，HIR 在产生派生 conformance 的来源点按普通 core 名称解析取得目标 interface application，并立即把 exact interface/member typed id 写入 generated conformance 与 generated body；下游只消费这些普通 typed entity。这个解析属于源码声明解析，不会把 `ToString`、基础类型实现、`print`、`println` 或 `write` 汇总成可被后续 stage 依赖的特殊结构。若 core 中不存在符合语言规范的 `ToString` 声明，错误在产生派生声明的 HIR 阶段报告，不能让 MIR 按名称补找。
 
 ### 3.3 派生条件与输出格式
 
@@ -557,7 +561,7 @@ operator fun equals(other: Box<T>): Boolean
 这里的`Point`与`Box<T>`都是普通nominal type/application；不存在名为`Self`的特殊类型。`Box<Int>`实例化后的concrete方法参数非可选地为`Box<Int>`。
 
 - struct/tuple逐字段比较，enum先比较tag，再只比较active variant的payload；字段按声明顺序短路；Unit恒为true；
-- 字段“可比较”表示对 `field: F` 的两个值执行 `F == F` 能在HIR选出唯一成员/派生目标。Boolean/整数等intrinsic type与String都在core声明成员operator，非可选`EqualityCore`只保存验证后的typed声明identity；其他value type递归条件派生，class/interface必须声明可用operator。HIR不能按类型名临时放行基本类型或String；
+- 字段“可比较”表示对 `field: F` 的两个值执行 `F == F` 能在HIR按普通operator resolution选出唯一成员/派生目标。Boolean/整数等intrinsic type与String都在core源码中声明普通成员operator；它们不进入`EqualityCore`之类的专用表。其他value type递归条件派生，class/interface必须声明可用operator。HIR不能按类型名临时放行基本类型或String；
 - generic value type在`ExportHir`保存typed conditional-equality predicate；generic template只能从当前bound提供的operator能力结构化证明它，fully specialized实例再由HIR定稿。失败诊断给出第一个不可比较字段/variant路径；
 - 用户声明参数类型为当前完整宿主application的同签名operator equals，或显式实现了参数替换后恰好相同的interface contract时，不再生成派生体。其他参数类型的equals overload不屏蔽该同类型派生候选；
 - 派生方法是普通 `ConcreteFunctionId`，被box/interface thunk引用时仍按value-type `this`的按值规则工作。
@@ -618,7 +622,7 @@ String、boxed primitive、boxed aggregate、closure、array与普通class全部
 - HIR类型检查generic template时只使用声明bound暴露的能力；本Cone实例化和下游Cone实例化走同一个concretizer。generic nominal concretization按kind同时完成field/variant、base、interface、member和constructor替换闭包；
 - concretizer分别维护nominal与callable的typed instantiation state；普通递归复用已经intern的concrete identity，参数变换不为identity的recursive callable SCC按2.9诊断polymorphic recursion，不能靠深度/实例数上限终止；
 - `LocalConcreteHir`包含实例化后的class/struct/enum/interface实体、普通call target、派生函数体、完整implements/parent关系、intrinsic fixed/family representation与core typed identities，不含generic application、constraint节点或未解析宿主参数；
-- `FormattingCore`、`EqualityCore`、`CompilerExceptionCore`等well-known contract一次验证后以非可选typed结构进入输出；
+- 只有编译器会脱离普通源码调用主动构造的实体（例如`CompilerExceptionCore`中的异常类型与constructor）才形成非可选well-known typed结构。`ToString` / `Hash` / operator equals、`print` / `println`及其基础类型实现都通过普通声明、conformance和callable identity流动，不形成capability-specific core结构；
 - 所有bound、operator、派生失败和core contract错误在HIR结束前报告。
 
 ### 7.3 MIR
@@ -795,7 +799,7 @@ NullPointer(PointerKind::Managed | Raw | Code | Metadata)
 2. parser/AST为class加入完整type parameter scope，并加入结构化bound、where、operator modifier与intrinsic type声明形态；
 3. HIR为class/struct/enum/interface建立各自的export generic template/application/local concrete specialization typed-id家族，并为non-interface generic method建立独立template/application/concrete callable identity；迁移既有`StructId/EnumId/InterfaceId + args`与合并参数Vec表示，完成constructor/variant/method推导、field/variant/base/parent/interface/member替换、non-virtual检查和可终止实例化固定点；
 4. 将`Array<T>` / `MutableArray<T>`迁移为core generic intrinsic class，删除独立built-in array type identity；driver/HIR同时加入默认core-only、测试按provider allowlist的内部authority策略；
-5. HIR完成intrinsic fixed/family representation正规化、bound检查、bounded resolution及ToString/Hash/equals core contract；
+5. HIR完成intrinsic fixed/family representation正规化、bound检查与bounded resolution；ToString/Hash/equals只通过普通core声明、interface conformance与operator resolution进入这些一般路径；
 6. HIR生成conditional conformance与derived body，core print/println迁移到generic形态；
 7. MIR拆除Any synthetic methods/三槽，重建普通typed dispatch；runtime删除地址fallback；
 8. 按数据流顺序完成附加整改：HIR typed identity → MIR expression type → LIR call/metadata/provenance/非法组合 → mechanical codegen；
