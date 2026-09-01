@@ -94,7 +94,7 @@ Scoop 的类型分为两大类：
 - 使用点`in` / `out` projection、star projection与capture conversion尚未进入当前语言子集；源码类型位置必须使用完整type argument，不能写`C<out T>`、`C<in T>`或`C<*>`。这些能力不能简单定义为擦除：Scoop允许type argument是具有不同layout/ABI的value type，每个fully specialized application又有独立TypeDescriptor与dispatch identity。未来规范必须分别定义projected member读写规则、subtyping/推导、RTTI/cast、跨Cone metadata，并决定unboxed value application是否禁止projection或需要显式existential boxing。
 - 除类型上界外，类型参数还可以用 `value` / `ref` 约束限定为值类型或引用类型（见 13.9）。
 - 类型上界在参数列表中写作 `T : Interface`，或在声明头后的 `where T : Interface` 子句中给出；同一参数可以具有多个不同的 interface application 上界。上界必须是带完整类型实参的 interface，当前不接受 class或另一type parameter作为上界，也不产生可作为普通表达式类型的交叉类型。`value` / `ref` kind bound与任一interface上界互斥（见13.9）。
-- 类型实参必须同时满足参数的全部上界；class/interface按继承与声明点型变判断，value type按显式或编译器条件派生的interface实现判断。泛型推导把上界纳入整组约束求解，不得先任选一个类型、再把bound失败降为警告或回退为`Any`。
+- 类型实参必须同时满足参数的全部上界；class/interface按继承与声明点型变判断，value type同样只按显式声明的interface实现判断。泛型推导把上界纳入整组约束求解，不得先任选一个类型、再把bound失败降为警告或回退为`Any`。
 - receiver为有界type parameter时，成员候选只来自其interface上界及继承闭包；不加入`Any`成员或实际类型未在bound中声明的能力。generic template中的bound member在实例化时解析为concrete direct / virtual / interface call；单态化不需要runtime dictionary，但不取消actual concrete type本来具有的动态分派语义。
 - 每个合法且实参完整的interface application都是普通reference type，可以直接作为变量、参数、返回值、字段、cast目标和upper bound；Scoop没有trait object/existential的第二种interface形态，也没有object-safety分类或相关flag。所有合法interface成员都必须具有可进入itable的完整签名，并可经concrete、interface或bounded receiver调用。
 - interface方法现阶段不能声明自己的type parameter；`interface I { fun <T> f(value: T) }`在声明处即为编译错误。interface宿主可以generic，例如`interface I<T> { fun f(value: T) }`，完整application `I<String>`中的方法可正常itable分派。这是method-level generic dispatch ABI尚未定义的功能边界，不是允许声明后再限制调用形态的object-safety规则。未来开放时必须同时支持interface与bounded receiver调用。
@@ -159,7 +159,7 @@ val s2 = S(f1 = 10, f2 = "x")  // 命名参数
 struct 自动获得：
 
 - 结构相等：`==` 按字段逐一比较（**条件派生**——仅当全部字段可比较时可用，见 11.11）；
-- `toString()`：在全部字段都实现 `ToString` 时按字段条件派生（见 11.11）；**不**自动获得哈希——`Hash` 是 opt-in 接口（见 11.11）；
+- 不自动获得`ToString`或`Hash`；两者都必须在struct声明中显式adopt并实现（见11.11）；
 - 解构（见 4.6）：可按字段顺序或按字段名解构；
 - 副本更新表达式（见 4.5）。
 
@@ -194,7 +194,7 @@ enum E {
 - **变体不是类型**：不能用作 `is` 的检查目标、变量类型或参数类型；判断与提取负载通过 `when` 模式（第 5 章）完成。
 - 与 Kotlin enum class 的 entries 类似，变体名可以通过 `import some.package.E.*` 引入后不写前缀直接使用；`scoop.core.Option.*` 由核心库默认引入（见第 7 章），因此在上下文能确定类型时可以直接写 `Some(...)` 和 `None`。
 - 在 `when` 匹配处，变体名可以省略 `E.` 前缀（见第 5 章）。
-- 与 struct 一样：immutable、无 identity、可条件派生结构相等与 `ToString`（全部variant的payload字段分别满足相应条件时，见 11.11）。
+- 与 struct 一样：immutable、无 identity，可条件派生结构相等；`ToString`与`Hash`必须显式adopt并实现（见11.11）。
 - 命名字段变体的字段构造后只读。
 - enum 可以实现 interface（见 4.4.3）。
 - 泛型 enum 允许，例如核心库的 `enum Option<T>`（见 7.2）。
@@ -217,8 +217,8 @@ val s1 = (42,)                              // 1 元 tuple，类型 (Int,)
 - **0 元 tuple 写作 `()`**；其类型名为 `Unit`，`Unit` 既是类型名也是该值的构造器，`()` 与 `Unit` 等价。
 - **1 元 tuple 必须写作 `(e,)`**（尾随逗号），类型记作 `(T,)`；`(e)` 是带括号的表达式 `e` 本身。消歧汇总：`()` = Unit；`(e)` = 括号表达式；`(e,)` = 1 元 tuple；`(e1, e2, ...)` = 多元 tuple。
 - 元素通过解构（见 4.6）或位置访问：`val (a, b) = t1`、`t1._1`、`t1._2`（位置访问从 `_1` 开始）。
-- tuple 是值类型：immutable、无 identity；当全部元素可比较/实现`ToString`时，分别条件派生结构相等/`ToString`，Unit无条件满足两者（见11.11）。
-- tuple 不支持在源码中显式声明implements列表，也不支持命名字段；编译器按11.11提供的条件派生`ToString`是唯一的内建interface conformance。需要命名或实现其他interface请使用struct。
+- tuple 是值类型：immutable、无 identity；当全部元素可比较时条件派生结构相等，Unit无条件满足结构相等（见11.11）。
+- tuple 不支持在源码中显式声明implements列表，也不支持命名字段，因此不实现`ToString`或其他普通interface。需要命名或实现interface请使用struct。
 
 ### 4.4 值类型通用规则
 
@@ -926,7 +926,7 @@ suspend fun <T> suspendCoroutine(
   - 用户声明参数类型为当前完整宿主application的同签名`equals`时取代派生体；其他参数类型的equals overload不屏蔽该同类型候选。派生方法也是普通成员，遵守value-type`this`按值传递规则。
   - **引用类型**：只使用该class/interface静态类型声明或继承的成员operator equals；不存在时是编译错误。`Any`没有成员，因而`Any == Any`非法；运行期对象另有equals不能补齐静态契约。需要identity比较时显式使用`===`。
   - equals 的决议只考虑成员函数（含编译器派生）；扩展函数不得参与——import不能改变某类型`==`的语义。
-- **`ToString`（字符串化）**：接口`interface ToString { fun toString(): String }`。class/object显式opt-in；struct/enum/tuple在全部字段/元素都实现`ToString`时条件派生，generic value type按fully specialized实例判断。显式列出并实现`ToString`时取代派生且不要求字段满足条件。派生格式固定为`S(f=<f>, ...)`、`E.V(...)`/`E.V(f=<f>, ...)`、`Unit`与`(<e>, ...)`，字段按声明顺序求值；String返回自身。`print` / `println` 定义为`fun <T : ToString> print(v: T)`并经普通单态化bound call实现，不接受`Any` fallback。
+- **`ToString`（字符串化）**：接口`interface ToString { fun toString(): String }`。class/object/struct/enum都必须在声明中显式列出该interface并提供合法override；字段或payload实现`ToString`不会让宿主自动获得conformance。generic nominal type若在实现体中调用类型参数值的`toString()`，必须为相应参数声明普通`ToString`上界。tuple与Unit不能声明implements列表，因而不实现`ToString`。String与基础类型由core中的intrinsic nominal声明显式adopt，String实现返回自身。`print` / `println` 定义为`fun <T : ToString> print(v: T)`并经普通单态化bound call实现，不接受`Any` fallback，也不按成员同形或字段结构补齐conformance。
 - **`Hash`（哈希）**：接口`interface Hash { fun hash(): Int }`。**没有任何缺省或派生实现**；基本类型与String由核心库提供内容相关实现，其他类型显式opt-in。相等的值必须产生相等hash；不以对象地址作为hash，也不承诺算法跨runtime版本保持相同数值。struct不自动获得哈希。
 
 ### 11.12 `SourceLocation` 与位置 intrinsic

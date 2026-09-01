@@ -13,9 +13,9 @@ M14 完成后，class/struct/enum/interface都使用同一原则下、按declara
 - M14 落地 `T : Interface` 和 `where T : Interface`。同一类型参数可以有多个 interface 上界，并统一适用于function、class、struct、enum与interface；M14 不引入 class 上界、交叉类型值或使用点类型投影；
 - `value` / `ref` kind bound 与 interface 上界继续互斥。同一类型参数一旦有任一 interface 上界，就不能再有 `value` / `ref` 约束；
 - generic template 中对有界类型参数的成员调用在 HIR 解析为类型化的 bound member，不生成运行期 dictionary/witness 参数。实例化时由 HIR 将它解析为 concrete direct / virtual / interface call；`LocalConcreteHir` 不允许保留 type parameter 或未决 bound call；
-- `ToString` 和 `Hash` 是普通 nominal interface。值类型的 `ToString` 与“参数类型等于当前完整concrete value type”的equals可以条件派生；`Hash`永不派生。Scoop没有内建`Self`类型，interface也没有隐含的实现者类型参数；class与其他引用类型必须显式opt-in；
+- `ToString` 和 `Hash` 是普通 nominal interface，所有类型都必须显式adopt并提供实现，编译器不为任何值类型自动生成这两个interface的conformance或成员。“参数类型等于当前完整concrete value type”的equals仍可条件派生。Scoop没有内建`Self`类型，interface也没有隐含的实现者类型参数；
 - `==` 只考虑左操作数的成员 `operator fun equals`；值类型另有编译器生成的同类成员候选。`Any` 没有 equals，缺少可用成员时直接编译错误；`===` 仍是不可重载的引用 identity 比较；
-- `print` / `println` 变为普通 generic core 函数 `fun <T : ToString> ...`。String、当前已落地的基本类型及可派生值类型均通过同一 bound 路径调用，不在 HIR/MIR 按类型名分支；
+- `print` / `println` 变为普通 generic core 函数 `fun <T : ToString> ...`。String、当前已落地的基本类型及其他显式adopt `ToString`的类型均通过同一 bound 路径调用，不在 HIR/MIR 按类型名分支；
 - `@Intrinsic`扩展到core type声明，使Int/UInt/Boolean/String以及generic `Array<T>` / `MutableArray<T>`等compiler-represented类型在源码中显式给出nominal声明与成员/interface表面；固定表示与依赖类型实参的表示族都从HIR起使用独立typed representation，绝不伪装成零字段struct/class；
 - `Array<T>` / `MutableArray<T>`复用普通generic class的类型身份、bound、成员解析与单态化；现有独立compiler-built-in array type identity在M14退役，不能与core class application双轨并存；
 - 删除 `Any` 固定三槽、地址哈希与地址字符串化是 M14 主目标的一部分，不在附加整改中重复列项；
@@ -65,7 +65,10 @@ fun <T> renderPair(first: T, second: T): String
     where T : ToString =
     first.toString() + ", " + second.toString()
 
-struct Point(val x: Int, val y: Int)
+struct Point(val x: Int, val y: Int) : ToString {
+    override fun toString(): String =
+        "Point(x=" + x.toString() + ", y=" + y.toString() + ")"
+}
 
 class User(val id: Int) : ToString, Hash {
     override fun toString(): String = "User"
@@ -77,11 +80,19 @@ class RenderBox<T : ToString>(val value: T) : ToString {
     override fun toString(): String = value.toString()
 }
 
-struct RenderPair<T : ToString>(val first: T, val second: T)
+struct RenderPair<T : ToString>(val first: T, val second: T) : ToString {
+    override fun toString(): String =
+        first.toString() + ", " + second.toString()
+}
 
-enum RenderState<T : ToString> {
+enum RenderState<T : ToString> : ToString {
     Value(T),
     Empty
+
+    override fun toString(): String = when (this) {
+        Value(value) -> value.toString()
+        Empty -> "Empty"
+    }
 }
 
 fun main() {
@@ -100,8 +111,8 @@ fun main() {
 
 - `render` 的 template body 只从 `ToString` 上界取得 `toString`，不依赖某个实际类型或 `Any`；
 - `RenderBox<T>`是普通generic class；其字段、constructor、interface实现和方法体在`RenderBox<Point>`实例化时统一替换，不能为class保留另一套非泛型路径；
-- `RenderPair<T>`与`RenderState<T>`分别是generic struct/enum；上界参与template body检查与构造推导，fully specialized value type再取得完整layout、GC-free flag与条件派生实现；
-- `Point` 的两个字段都实现 `ToString` 且可比较，因此 concrete `Point` 自动获得派生 `ToString` 与 `equals(Point)`；
+- `RenderPair<T>`与`RenderState<T>`分别是generic struct/enum；上界参与template body检查、显式`ToString`实现与构造推导，fully specialized value type再取得完整layout与GC-free flag；
+- `Point` 显式adopt并实现 `ToString`；它的两个字段可比较，因此仍可自动获得条件派生的 `equals(Point)`。这两种能力来源彼此独立；
 - `User` 的三个行为都是普通成员/interface 实现，没有 TypeDescriptor 特权槽；
 - `println(a == b)` 先按 `User` 的成员候选解析 equals，再把 Boolean 通过 `ToString` 打印；
 - 把 `a` 显式上转为 `Any` 后不能调用 `toString`、`hash` 或 `==`；若需要这些能力，静态类型必须保留相应 interface。
@@ -178,8 +189,8 @@ M14 不把多个上界物化为一个可写入变量的交叉类型。它们只�
 类型实参 `A` 满足 `T : I<X...>`，当且仅当把当前 substitution 应用于整个上界后，`A` 是该 concrete interface application 的子类型：
 
 - class/interface按普通继承、实现与声明点型变规则判断；
-- struct/enum按其显式实现或编译器派生的conditional conformance判断；
-- tuple只能满足编译器明确定义的派生 interface（M14 为 `ToString`），不能被视为实现任意同形接口；
+- struct/enum与class一样，只按源码显式声明的interface conformance判断；条件派生的equals是成员，不产生interface conformance；
+- tuple/Unit不能在源码中声明implements列表，因此M14不满足任何普通interface上界，也不能因元素成员同形而被视为实现某个interface；
 - 装箱不是“满足上界”的额外规则。值类型本身实现 interface 后可以作为 `T`，只有在实际需要interface ref表示时才按既有 O(1) 规则装箱；
 - `Any` 不因保存过某个实现者就满足该interface。静态类型已经丢失的能力不能由运行期猜回。
 
@@ -189,7 +200,7 @@ M14 不把多个上界物化为一个可写入变量的交叉类型。它们只�
 - 不得在多个候选中任意选择一个“碰巧满足bound”的类型，也不得用 `Any` 填补未绑定参数；
 - 显式类型实参与推导结果走同一套bound验证；
 - generic class/struct/enum构造与generic function调用使用同一个固定点求解器。构造调用可以从显式类型实参、constructor/variant实参和期望类型推导宿主参数；类型标注、字段类型、基类与interface列表中的generic nominal application必须写出完整实参，不能出现裸generic type或部分application；
-- 诊断必须同时指出不满足的具体实参、声明处bound及失败的interface application；conditional conformance失败时继续给出第一个不满足条件的字段路径。
+- 诊断必须同时指出不满足的具体实参、声明处bound及失败的interface application；不能检查字段形状后替类型补出未声明的conformance。
 
 ### 2.4 bounded member resolution
 
@@ -389,11 +400,11 @@ ConcreteMethodOwner =
 - 同一generic callable递归SCC内，任一调用环把宿主与callable参数组成的完整参数向量代回起点后，必须与起点参数逐项相同（允许参数改名和跨多个template的identity传递）；这类普通/互递归在concrete key进入`InProgress`后直接引用已intern的identity；
 - 调用环若改变完整参数向量，就是polymorphic recursion，在HIR template检查阶段报错并展示组成该环的call site与参数变换。不能等worklist增长到任意深度后abort，也不能用实例数量上限改变程序是否合法；
 - 非递归边可以任意变换实参，例如`outer<T>`单向调用`inner<Option<T>>`；只要不处于返回原template的环中，就只会为每个入口产生有限闭包；
-- nominal value-layout recursion继续使用2.5的独立规则；callable SCC、nominal layout SCC和conditional-conformance predicate SCC是不同typed状态机，不能共享一个“visited name”集合。
+- nominal value-layout recursion继续使用2.5的独立规则；callable SCC、nominal layout SCC和conditional-equality SCC是不同typed状态机，不能共享一个“visited name”集合。
 
 未来若要接受能够证明终止的更一般polymorphic recursion，需要单独定义termination proof及跨Cone实例化契约，已记入ROADMAP；M14只接受上述结构上可判定且不依赖资源上限的子集。
 
-## 3. `ToString` 与条件派生
+## 3. `ToString` 的显式adoption
 
 ### 3.1 intrinsic core type声明
 
@@ -418,7 +429,7 @@ intrinsic type不是“恰好没有字段的普通类型”：
 
 - AST允许被登记表批准的`@Intrinsic` struct/class省略primary-constructor/field列表；普通零字段struct仍写作`struct Marker()`；
 - HIR将声明正规化为`IntrinsicTypeKind::{Int, UInt, Boolean, String, Array, MutableArray, ...}`等封闭typed variant，并按2.6把generic intrinsic application正规化为携带完整concrete实参的representation family；不能构造`Struct { fields: [] }`或`Class { fields: [] }`后让下游看名称修正；
-- intrinsic struct不参与普通零字段struct的derived equals/ToString、解构、size或默认constructor规则。它的equals/ToString/Hash必须由声明中的成员/interface明确提供；
+- intrinsic struct不参与普通零字段struct的derived equals、解构、size或默认constructor规则。它的equals/ToString/Hash必须由声明中的成员/interface明确提供；
 - 编译器只合成literal、boxing、runtime allocation等不进入源码候选集的hidden construction entry。`Int()`、数值转换或其他用户可调用constructor必须显式声明，不能以“必要constructor”为理由绕过HIR API；
 - `ExportHir`保存export侧intrinsic type kind、完整type-parameter schema、显式语义接口及成员，`LocalConcreteHir`保存独立concrete id、固定表示或已完全应用的generic representation family，以及非可选`gc_free`。LIR对该sum type做穷尽layout lowering；没有stage根据FQN、空字段、annotation字符串或操作数猜representation/type argument；
 - 同一机制允许compiler-represented value type、reference type及generic representation family：Int/UInt/Boolean是scalar value，String是变长managed class，Array/MutableArray是按element type特化的变长managed class。annotation target的共同点是opaque compiler representation，不是都采用struct布局或固定layout。
@@ -466,42 +477,16 @@ String 的 `toString()` 返回自身。M14 为当前编译器已落地的 Boolea
 
 编译器只为 `@Intrinsic` 所声明的 opaque representation 或 Scoop 本身无法表达的最小底层操作保存封闭 typed kind。给 intrinsic type 新增一个可用 Scoop 实现的 interface、method 或 generic 能力，只修改 `scoop.core`，不增加 HIR well-known 字段、不扩展 MIR 特判，也不要求 runtime 登记。确实需要新底层 primitive 时，新增的是该 primitive 的 typed intrinsic lowering，而不是围绕它所服务的高层 interface 建立 capability bundle。
 
-自动派生 `ToString` 时，HIR 在产生派生 conformance 的来源点按普通 core 名称解析取得目标 interface application，并立即把 exact interface/member typed id 写入 generated conformance 与 generated body；下游只消费这些普通 typed entity。这个解析属于源码声明解析，不会把 `ToString`、基础类型实现、`print`、`println` 或 `write` 汇总成可被后续 stage 依赖的特殊结构。若 core 中不存在符合语言规范的 `ToString` 声明，错误在产生派生声明的 HIR 阶段报告，不能让 MIR 按名称补找。
+HIR只按普通声明解析 `ToString`：implements列表产生exact interface application，override检查产生exact interface member → implementation映射，generic bound保存普通interface application。`LocalConcreteHir`接收完全替换后的普通conformance与callable identity；MIR不得按接口名、成员名、返回类型或字段形状补找。若core未声明`ToString`，只有实际引用该名称的core/用户源码按普通unknown type规则报错，不建立编译器well-known错误分支。
 
-### 3.3 派生条件与输出格式
+### 3.3 adoption规则
 
-编译器为没有显式 `ToString` 实现的concrete value type条件派生conformance：
-
-- struct：所有字段类型都实现 `ToString`；
-- enum：所有variant的所有payload字段类型都实现 `ToString`；
-- tuple：所有元素类型都实现 `ToString`，Unit无条件满足；
-- generic value type：条件在`ExportHir`中保存为type-param/interface组成的typed predicate。另一个generic template可以用当前bound环境对该predicate做结构化蕴含检查（例如`U : ToString`足以证明`Box<U> : ToString`），不能因尚未concrete就一律拒绝或假定成功；每个fully specialized实例再由HIR求值，成功才在`LocalConcreteHir`生成conformance与方法体。不得把“尝试生成失败”留给MIR；
-- recursive检查按concrete `TypeId`带环检测。合法的值布局递归最终必须经过ref边界；ref字段是否满足只看其静态类型的nominal conformance，不递归窥视对象字段。
-
-派生文本固定为：
-
-| value | 结果形态 |
-|---|---|
-| zero-field struct `struct Marker()` | `Marker()` |
-| `struct Point(val x, val y)` | `Point(x=<x>, y=<y>)` |
-| enum unit variant `E.Empty` | `E.Empty` |
-| enum positional variant `E.Value(x, y)` | `E.Value(<x>, <y>)` |
-| enum named variant `E.Value { x, y }` | `E.Value(x=<x>, y=<y>)` |
-| Unit | `Unit` |
-| one-element tuple `(x,)` | `(<x>,)` |
-| tuple `(x, y, ...)` | `(<x>, <y>, ...)` |
-
-类型和variant使用源码声明的非限定短名；字段保持声明顺序。泛型实参不打印在类型名中。派生方法从左到右各读取一次字段并调用其静态 `ToString` 实现；任一调用抛异常时立即传播，不继续访问后续字段。
-
-M14 在 M16 `StringBuilder` 落地前使用已登记的managed String concat primitive拼接结果。每次concat都是可分配、可GC的managed call；派生body必须是普通可检查的HIR/MIR，不在runtime接收opaque type descriptor后反射字段。M16可以把生成策略优化为builder，但不得改变上述可观察文本和求值顺序。
-
-### 3.4 显式实现与派生的关系
-
-- class/object只能通过显式列出 `: ToString` 并提供合法 `override fun toString(): String` opt-in；没有地址/type-name缺省；
-- struct/enum显式列出 `: ToString` 时，必须按普通interface规则提供实现；该显式实现取代派生，不要求字段本身实现 `ToString`；
-- 未显式列出 `ToString` 的struct/enum在满足条件时获得compiler-derived conformance。若源码声明了同签名 `toString` 却没有显式interface/`override`，HIR报冲突并提示显式实现，不能让普通成员静默遮蔽派生方法；
-- tuple不能写成员或implements列表，只能使用条件派生；
-- generated implementation、this-adjust thunk、itable entry和conditional predicate都有typed id。下游不能通过函数名 `toString` 或返回类型猜测它们。
+- class/object/struct/enum都只能通过显式列出 `: ToString` 并提供合法 `override fun toString(): String` adopt；字段或payload是否实现`ToString`不会自动赋予宿主任何能力；
+- generic nominal type可以显式adopt。若实现体需要调用字段的`toString()`，必须在相应type parameter上声明`ToString` bound；这由普通bounded member resolution检查，不是conformance predicate；
+- tuple与Unit不能声明成员或implements列表，因此M14不实现`ToString`。需要字符串化时应使用显式adopt `ToString`的命名struct，或由调用者显式格式化各元素；
+- 普通同签名 `fun toString(): String` 若没有在implements/override关系中实现 `ToString`，仍只是普通成员，不能满足bound、不能进入`ToString` itable，也不会被 `print` / `println` 接受；
+- String和基础类型通过其intrinsic nominal声明显式adopt，行为由core源码中的普通实现决定。编译器不规定其他类型的文本格式、字段求值顺序或拼接策略；
+- explicit implementation、this-adjust thunk与itable entry都使用既有普通typed id。不存在generated `ToString` implementation、conditional predicate或专用dispatch路径。
 
 ## 4. `Hash`
 
@@ -586,7 +571,7 @@ boxing只改变表示与静态类型，不额外赋予相等能力：
 
 - vtable从slot 0开始只包含实际需要virtual dispatch的class方法；不再预留 `Any.equals/hashCode/toString` 三槽；
 - final class方法直接调用，不因名称为equals/hash/toString进入vtable。open/abstract operator equals按普通class override规则占槽；
-- `ToString` / `Hash` 以及声明equals的interface按普通itable布局。value type的派生/显式实现需要装箱分派时使用既有this-adjust thunk；
+- `ToString` / `Hash` 以及声明equals的interface按普通itable布局。value type的显式interface实现需要装箱分派时使用既有this-adjust thunk；
 - slot identity、签名和实现目标都由MIR typed dispatch entity给出。slot编号是表内布局结果，不是方法语义identity；
 - class继承与跨Cone MIR meta输出从新布局重新编号。M14是尚未稳定发布ABI前的整体切换，不提供旧三槽兼容层。
 
@@ -617,7 +602,7 @@ String、boxed primitive、boxed aggregate、closure、array与普通class全部
 
 ### 7.2 HIR
 
-- `ExportHir`拥有export侧type parameter、generic class/struct/enum/interface template及application、constraint、conditional conformance与 `BoundCallableRef`；每种nominal type的declaration/application/concrete specialization使用不同typed id，且所有export id与本Cone concrete侧隔离；
+- `ExportHir`拥有export侧type parameter、generic class/struct/enum/interface template及application、constraint、conditional equality与 `BoundCallableRef`；每种nominal type的declaration/application/concrete specialization使用不同typed id，且所有export id与本Cone concrete侧隔离；
 - AST/HIR没有`Self` type kind或object-safety flag。HIR按普通名称解析源码`Self`，在interface定义处拒绝method-level type parameter，并保证每个合法interface method都产生完整itable signature；
 - HIR为non-interface generic method建立独立`ExportGenericMethodId`与完整application identity，执行non-virtual modifier/override检查、两组参数固定点推导、method bound检查及callable-reference具体化；interface method-level type parameter仍在定义处拒绝；
 - HIR按driver传入的`IntrinsicDeclarationPolicy`验证provider authority，再把type/function intrinsic name一次性正规化为封闭typed kind；test allowlist不进入输出；
@@ -629,7 +614,7 @@ String、boxed primitive、boxed aggregate、closure、array与普通class全部
 
 ### 7.3 MIR
 
-- 只接收 `LocalConcreteHir`，为fully specialized generic class/struct/enum及其成员、derived equals/toString建立普通concrete MIR实体；不解释generic bound、nominal template或宿主type substitution；
+- 只接收 `LocalConcreteHir`，为fully specialized generic class/struct/enum、普通interface实现及derived equals建立普通concrete MIR实体；不解释generic bound、nominal template或宿主type substitution；
 - generic method到达MIR时已经是完整的direct concrete callable；MIR不得为其分配vtable/itable slot，也不得从`owner_type_param_count`、函数名或残留type argument重新拼装实例；
 - normal call kind沿用HIR已解析target与concrete receiver信息，MIR只定稿direct/virtual/interface表实体；
 - vtable/itable从零重新布局，移除Any synthetic members、fixed prefix、boxed aggregate universal equals及primitive universal toString生成路径；
@@ -759,18 +744,18 @@ NullPointer(PointerKind::Managed | Raw | Code | Metadata)
 - `Self`未定义时按普通unknown type诊断、存在同名用户类型时按该nominal identity解析且绝不替换为宿主；interface method-level type parameter在声明处拒绝，不产生“声明合法但某类receiver不可调用”的诊断分支；
 - intrinsic type省略representation的合法core/test-provider形态、普通来源拒绝、按input allowlist授权、授权不传递，以及未知kind/错误target/重复provider/错误type-parameter schema或成员签名在测试模式下仍被拒绝；
 - unknown type parameter、重复bound、class/value/function type作为upper bound、缺失interface实参、kind/interface混用；
-- 显式/推导type argument不满足bound，conditional ToString/equality失败时的字段与variant路径；
+- 显式/推导type argument不满足bound；条件派生equality失败时给出字段与variant路径；
 - bounded receiver无成员、互不相关bound产生歧义、interface方法自身声明type parameter在定义处拒绝；同时正向覆盖generic interface宿主参数替换后经interface/bounded receiver调用；
 - 同一generic interface的相同application经diamond路径去重、不同application保持独立；无法同时满足的成员obligation在实现处诊断，不按template id或文本签名误合并；
 - operator equals缺 `operator`、参数数目/返回值错误、generic/suspend/extension equals、override flag不匹配；
 - `Any == Any`、class无equals、interface未声明equals、无ToString类型传给print；
-- 用户普通 `toString` 与派生冲突、显式ToString/Hash实现签名错误。
+- 只有普通 `toString` 成员但未显式adopt `ToString`的类型不能满足bound、显式ToString/Hash实现签名错误。
 
 所有错误在HIR报告源码span；MIR/LIR/codegen测试不接受“panic证明negative生效”。
 
 ### 9.2 HIR / MIR / LIR golden
 
-- ExportHir锁定typed constraints、generic class/struct/enum/interface template与独立application identity、generic method template/application的宿主与方法参数分组、conditional conformance、bound member target及canonical function type mapping；
+- ExportHir锁定typed constraints、generic class/struct/enum/interface template与独立application identity、generic method template/application的宿主与方法参数分组、conditional equality、普通interface conformance、bound member target及canonical function type mapping；
 - Export/LocalConcrete HIR反向检查不存在`Self` type variant、object-safety bool/enum或跳过itable的合法interface method；
 - LocalConcreteHir锁定generic nominal application与bound call已消失，每个class/struct/enum/interface specialization分别具有完整field/variant/base/parent/interface/member闭包和非可选GC-free信息；generic method只留下带完整origin与两组concrete arguments的direct callable，不进入任何dispatch table；派生函数与implements完整，intrinsic fixed/family representation、exception/intrinsic/core identities非可选；
 - MIR锁定每个expression有type、generic nominal specialization、derived body、direct/virtual/interface选择及零前缀vtable；
@@ -786,7 +771,7 @@ NullPointer(PointerKind::Managed | Raw | Code | Metadata)
 - `EqualTo<T>`一类显式实现者类型参数契约经concrete/interface/bounded receiver调用；所有interface application都能用于变量、字段、参数、返回值与cast，不存在object-safety差异；
 - 同一对象实现/继承`I<Int>`与`I<String>`时使用不同itable key，variance bridge不抹去application identity；能由不同参数overload满足的obligation正确分派，只按返回类型区分等不可表达冲突给出定义处诊断；
 - `Array<T>` / `MutableArray<T>`从core generic intrinsic class取得唯一nominal identity，数组字面量、size、下标、转换与GC扫描继续通过typed representation工作；反向检查HIR/MIR不再存在独立built-in array type identity或按名称映射；
-- struct/enum/tuple/Unit派生格式、嵌套generic、显式实现覆盖派生、失败字段诊断；
+- struct/enum/tuple/Unit条件相等派生、嵌套generic、显式同类型equals覆盖派生及失败字段诊断；普通`ToString`只覆盖显式adoption；
 - value/reference/interface equals、`!=`一次取反、short-circuit与左右求值各一次；`===`行为不变；
 - final/direct、open/virtual、interface/itable、boxed value adjust thunk及跨generic bound组合；
 - print/println只通过generic ToString，write仍为Scoop ABI NativeBorrowed call；
@@ -802,7 +787,7 @@ NullPointer(PointerKind::Managed | Raw | Code | Metadata)
 3. HIR为class/struct/enum/interface建立各自的export generic template/application/local concrete specialization typed-id家族，并为non-interface generic method建立独立template/application/concrete callable identity；迁移既有`StructId/EnumId/InterfaceId + args`与合并参数Vec表示，完成constructor/variant/method推导、field/variant/base/parent/interface/member替换、non-virtual检查和可终止实例化固定点；
 4. 将`Array<T>` / `MutableArray<T>`迁移为core generic intrinsic class，删除独立built-in array type identity；driver/HIR同时加入默认core-only、测试按provider allowlist的内部authority策略；
 5. HIR完成intrinsic fixed/family representation正规化、bound检查与bounded resolution；ToString/Hash/equals只通过普通core声明、interface conformance与operator resolution进入这些一般路径；
-6. HIR生成conditional conformance与derived body，core print/println迁移到generic形态；
+6. HIR生成conditional equality member与derived body，core显式ToString conformance及generic print/println走普通interface路径；
 7. MIR拆除Any synthetic methods/三槽，重建普通typed dispatch；runtime删除地址fallback；
 8. 按数据流顺序完成附加整改：HIR typed identity → MIR expression type → LIR call/metadata/provenance/非法组合 → mechanical codegen；
 9. 更新core/runtime测试、stage golden、negative与组合fixture，执行格式化、lint和全量测试。
@@ -822,7 +807,7 @@ M14 只有在以下条件同时满足时完成：普通用户generic class/struc
 9. 完整Kotlin fresh-variable/postponed-argument constraint system，以及加入projection后的MSC、LUB和overload比较；M14只扩展当前固定点求解器以处理宿主参数、method参数与upper bound，M7已有的简化比较backlog继续有效；
 10. runtime generic dictionary、witness参数、反射式bound调用或以代码体积为目标的共享泛型body；M14仅实现单态化，不能把这些机制作为缺失concrete信息的fallback；
 11. first-class polymorphic function value、generic lambda/匿名函数、higher-kinded type、associated type、const generic或用户可控specialization。它们不属于当前Kotlin核心兼容范围，也不因M14使用“完整泛型”一词而被隐式引入；
-12. 自动派生Hash、identity hash、`Any`默认字符串化/相等；
+12. 自动派生ToString/Hash、identity hash、`Any`默认字符串化/相等；
 13. extension equals参与 `==`，或把 `===` 开放重载；
 14. locale/format specifier与StringBuilder优化（进入M16）；
 15. 为旧固定三槽提供ABI兼容层；
