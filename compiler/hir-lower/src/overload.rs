@@ -32,7 +32,7 @@ use scoop_hir as hir;
 use ast::Span;
 use hir::{FunctionId, Type, TypeId};
 
-use crate::Lowerer;
+use crate::{CallableCandidate, Lowerer};
 
 /// The winner of overload resolution, ready to be wrapped in an
 /// `ExprKind::Call` / `ExprKind::MethodCall` by the caller.
@@ -72,8 +72,8 @@ struct Candidate {
     parameterized: bool,
 }
 
-enum OverloadReceiver<'a> {
-    Ordinary(&'a [TypeId]),
+enum OverloadReceiver {
+    Ordinary,
     Extension(hir::Expr),
 }
 
@@ -91,10 +91,34 @@ impl Lowerer {
         call: OverloadCall<'_>,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<ResolvedCallee> {
+        let candidates = candidates
+            .iter()
+            .copied()
+            .map(|function| CallableCandidate {
+                function,
+                owner_arguments: receiver_type_args.to_vec(),
+            })
+            .collect::<Vec<_>>();
+        self.resolve_overload_with_receiver(
+            name,
+            &candidates,
+            OverloadReceiver::Ordinary,
+            call,
+            sink,
+        )
+    }
+
+    pub(crate) fn resolve_member_overload(
+        &mut self,
+        name: &str,
+        candidates: &[CallableCandidate],
+        call: OverloadCall<'_>,
+        sink: &mut Vec<hir::Statement>,
+    ) -> Option<ResolvedCallee> {
         self.resolve_overload_with_receiver(
             name,
             candidates,
-            OverloadReceiver::Ordinary(receiver_type_args),
+            OverloadReceiver::Ordinary,
             call,
             sink,
         )
@@ -111,9 +135,17 @@ impl Lowerer {
         call: OverloadCall<'_>,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<ResolvedCallee> {
+        let candidates = candidates
+            .iter()
+            .copied()
+            .map(|function| CallableCandidate {
+                function,
+                owner_arguments: Vec::new(),
+            })
+            .collect::<Vec<_>>();
         self.resolve_overload_with_receiver(
             name,
-            candidates,
+            &candidates,
             OverloadReceiver::Extension(receiver),
             call,
             sink,
@@ -123,8 +155,8 @@ impl Lowerer {
     fn resolve_overload_with_receiver(
         &mut self,
         name: &str,
-        candidates: &[FunctionId],
-        receiver: OverloadReceiver<'_>,
+        candidates: &[CallableCandidate],
+        receiver: OverloadReceiver,
         call: OverloadCall<'_>,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<ResolvedCallee> {
@@ -138,9 +170,9 @@ impl Lowerer {
         // constructors are postponed until inference provides a candidate
         // parameter type. Per-argument sinks preserve source evaluation
         // order even when later arguments are typed first.
-        let (receiver_type_args, receiver) = match receiver {
-            OverloadReceiver::Ordinary(type_args) => (type_args, None),
-            OverloadReceiver::Extension(receiver) => (&[][..], Some(receiver)),
+        let receiver = match receiver {
+            OverloadReceiver::Ordinary => None,
+            OverloadReceiver::Extension(receiver) => Some(receiver),
         };
         let receiver_offset = usize::from(receiver.is_some());
         let mut lowered: Vec<Option<hir::Expr>> =
@@ -165,7 +197,8 @@ impl Lowerer {
 
         let prepared: Vec<Candidate> = candidates
             .iter()
-            .map(|&function| {
+            .map(|source| {
+                let function = source.function;
                 let sig = self.signatures[&function].clone();
                 let mut params: Vec<_> = sig.params.iter().map(|param| param.ty).collect();
                 if receiver_offset != 0 {
@@ -178,9 +211,9 @@ impl Lowerer {
                     );
                 }
                 let parameterized = params.iter().any(|&ty| self.mentions_type_param(ty));
-                debug_assert_eq!(sig.owner_type_param_count, receiver_type_args.len());
+                debug_assert_eq!(sig.owner_type_param_count, source.owner_arguments.len());
                 let mut initial_bindings = vec![None; sig.type_params.len()];
-                for (binding, &ty) in initial_bindings.iter_mut().zip(receiver_type_args) {
+                for (binding, &ty) in initial_bindings.iter_mut().zip(&source.owner_arguments) {
                     *binding = Some(ty);
                 }
                 let own_type_param_count = sig.type_params.len() - sig.owner_type_param_count;
@@ -532,9 +565,22 @@ impl Lowerer {
             Type::Param(_) => true,
             Type::Array(element) | Type::MutableArray(element) => self.mentions_type_param(element),
             Type::Ptr(pointee) => self.mentions_type_param(pointee),
-            Type::Enum(_, args) | Type::Struct(_, args) | Type::Interface(_, args) => {
-                args.iter().any(|&arg| self.mentions_type_param(arg))
-            }
+            Type::Enum(application) => self.enum_applications[application]
+                .arguments
+                .iter()
+                .any(|&arg| self.mentions_type_param(arg)),
+            Type::Struct(application) => self.struct_applications[application]
+                .arguments
+                .iter()
+                .any(|&arg| self.mentions_type_param(arg)),
+            Type::Class(application) => self.class_applications[application]
+                .arguments
+                .iter()
+                .any(|&arg| self.mentions_type_param(arg)),
+            Type::Interface(application) => self.interface_applications[application]
+                .arguments
+                .iter()
+                .any(|&arg| self.mentions_type_param(arg)),
             Type::Tuple(elements) => elements
                 .iter()
                 .any(|&element| self.mentions_type_param(element)),
@@ -601,37 +647,59 @@ impl Lowerer {
                     }
                 }
             }
-            (Type::Enum(param_id, param_args), Type::Enum(arg_id, arg_args))
-                if param_id == arg_id && param_args.len() == arg_args.len() =>
-            {
-                param_args
-                    .iter()
-                    .zip(arg_args)
-                    .all(|(param, arg)| self.try_bind(*param, arg, bindings))
+            (Type::Enum(param), Type::Enum(arg)) => {
+                let param = self.enum_applications[param].clone();
+                let arg = self.enum_applications[arg].clone();
+                param.template == arg.template
+                    && param.arguments.len() == arg.arguments.len()
+                    && param
+                        .arguments
+                        .iter()
+                        .zip(arg.arguments)
+                        .all(|(param, arg)| self.try_bind(*param, arg, bindings))
             }
-            (Type::Struct(param_id, param_args), Type::Struct(arg_id, arg_args))
-                if param_id == arg_id && param_args.len() == arg_args.len() =>
-            {
-                param_args
-                    .iter()
-                    .zip(arg_args.iter())
-                    .all(|(param, arg)| self.try_bind(*param, *arg, bindings))
+            (Type::Struct(param), Type::Struct(arg)) => {
+                let param = self.struct_applications[param].clone();
+                let arg = self.struct_applications[arg].clone();
+                param.template == arg.template
+                    && param.arguments.len() == arg.arguments.len()
+                    && param
+                        .arguments
+                        .iter()
+                        .zip(arg.arguments)
+                        .all(|(param, arg)| self.try_bind(*param, arg, bindings))
             }
-            (Type::Interface(param_id, param_args), Type::Interface(arg_id, arg_args))
-                if param_id == arg_id && param_args.len() == arg_args.len() =>
-            {
-                param_args
-                    .iter()
-                    .zip(arg_args.iter())
-                    .all(|(param, arg)| self.try_bind(*param, *arg, bindings))
+            (Type::Class(param), Type::Class(arg)) => {
+                let param = self.class_applications[param].clone();
+                let arg = self.class_applications[arg].clone();
+                param.template == arg.template
+                    && param.arguments.len() == arg.arguments.len()
+                    && param
+                        .arguments
+                        .iter()
+                        .zip(arg.arguments)
+                        .all(|(param, arg)| self.try_bind(*param, arg, bindings))
             }
-            (Type::Interface(param_id, param_args), _) => {
-                let Some(arg_args) = self.implemented_interface_application(arg_ty, param_id)
+            (Type::Interface(param), Type::Interface(arg)) => {
+                let param = self.interface_applications[param].clone();
+                let arg = self.interface_applications[arg].clone();
+                param.template == arg.template
+                    && param.arguments.len() == arg.arguments.len()
+                    && param
+                        .arguments
+                        .iter()
+                        .zip(arg.arguments)
+                        .all(|(param, arg)| self.try_bind(*param, arg, bindings))
+            }
+            (Type::Interface(param), _) => {
+                let param = self.interface_applications[param].clone();
+                let Some(arg_args) = self.implemented_interface_application(arg_ty, param.template)
                 else {
                     return true;
                 };
-                param_args.len() == arg_args.len()
-                    && param_args
+                param.arguments.len() == arg_args.len()
+                    && param
+                        .arguments
                         .iter()
                         .zip(arg_args)
                         .all(|(param, arg)| self.try_bind(*param, arg, bindings))

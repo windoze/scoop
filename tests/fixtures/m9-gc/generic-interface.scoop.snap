@@ -399,8 +399,8 @@ Module
   class box$IntValue vtable=3 itables=2
   class box$Value$I vtable=3 itables=2
   class box$I vtable=3 itables=0
-  interface Producer$Dog
   interface Producer$I
+  interface Producer$Dog
   interface Consumer$Animal
   interface Consumer$Any
   interface Producer$Animal
@@ -412,22 +412,6 @@ Module
       return
         FieldAccess 0
           Local this
-  fun print @scoop.print(message: Any) -> Unit
-    bb0 entry
-      call $call.1: String = @scoop.Any.toString virtual[2]
-        Local message
-      call extern0 @scoop_rt_write direct
-        Local $call.1
-      return
-  fun println @scoop.println(message: Any) -> Unit
-    bb0 entry
-      call $call.1: String = @scoop.Any.toString virtual[2]
-        Local message
-      call extern0 @scoop_rt_write direct
-        Local $call.1
-      call extern0 @scoop_rt_write direct
-        StringConst @scoop.str.0
-      return
   fun DogProducer.get @scoop.DogProducer.get(this: DogProducer) -> Dog
     bb0 entry
       call $call.1: Dog = @scoop.ctor.Dog direct
@@ -447,6 +431,22 @@ Module
     bb0 entry
       call @scoop.println direct
         Local value
+      return
+  fun print @scoop.print(message: Any) -> Unit
+    bb0 entry
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call extern0 @scoop_rt_write direct
+        Local $call.1
+      return
+  fun println @scoop.println(message: Any) -> Unit
+    bb0 entry
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call extern0 @scoop_rt_write direct
+        Local $call.1
+      call extern0 @scoop_rt_write direct
+        StringConst @scoop.str.0
       return
   fun widen @scoop.widen(producer: Producer$Dog) -> Producer$Animal
     bb0 entry
@@ -769,6 +769,26 @@ Module
   block entry
     t0 = extract param0, 0 : i64
     ret t0
+  fun @scoop.DogProducer.get(ptr<managed>) -> ptr<managed>
+    local %0 $call.1: ptr<managed>
+  block entry
+    t0 = call @scoop.ctor.Dog() : ptr<managed>
+    store t0 -> local0
+    ret local0
+  fun @scoop.IntProducer.get(ptr<managed>) -> i64
+  block entry
+    ret 7
+  fun @scoop.AnimalConsumer.put(ptr<managed>, ptr<managed>) -> void
+  block entry
+    t0 = heap_load param1 +16 : ptr<managed>
+    call @scoop.println(t0)
+    t1 = aggregate () : {}
+    ret
+  fun @scoop.AnyConsumer.put(ptr<managed>, ptr<managed>) -> void
+  block entry
+    call @scoop.println(param1)
+    t0 = aggregate () : {}
+    ret
   fun @scoop.print(ptr<managed>) -> void
     local %0 $call.1: ptr<managed>
   block entry
@@ -790,26 +810,6 @@ Module
     t3 = aggregate () : {}
     native_call[native-borrowed] extern0(global0)
     t4 = aggregate () : {}
-    ret
-  fun @scoop.DogProducer.get(ptr<managed>) -> ptr<managed>
-    local %0 $call.1: ptr<managed>
-  block entry
-    t0 = call @scoop.ctor.Dog() : ptr<managed>
-    store t0 -> local0
-    ret local0
-  fun @scoop.IntProducer.get(ptr<managed>) -> i64
-  block entry
-    ret 7
-  fun @scoop.AnimalConsumer.put(ptr<managed>, ptr<managed>) -> void
-  block entry
-    t0 = heap_load param1 +16 : ptr<managed>
-    call @scoop.println(t0)
-    t1 = aggregate () : {}
-    ret
-  fun @scoop.AnyConsumer.put(ptr<managed>, ptr<managed>) -> void
-  block entry
-    call @scoop.println(param1)
-    t0 = aggregate () : {}
     ret
   fun @scoop.widen(ptr<managed>) -> ptr<managed>
   block entry
@@ -1095,8 +1095,8 @@ Module
     store t0 -> local0
     t1 = call @scoop_rt_box(global13, local0, 8) : ptr<managed>
     ret t1
-  td Producer$Dog @scoop_td_Producer$Dog size=0 vtable=0 itables=0
   td Producer$I @scoop_td_Producer$I size=0 vtable=0 itables=0
+  td Producer$Dog @scoop_td_Producer$Dog size=0 vtable=0 itables=0
   td Consumer$Animal @scoop_td_Consumer$Animal size=0 vtable=0 itables=0
   td Consumer$Any @scoop_td_Consumer$Any size=0 vtable=0 itables=0
   td Producer$Animal @scoop_td_Producer$Animal size=0 vtable=0 itables=0

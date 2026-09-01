@@ -333,6 +333,10 @@ Module
   class box$I vtable=3 itables=0
   class box$Box$I vtable=3 itables=1
   interface Exchange$I
+  fun Overloads.id @scoop.Overloads.id(this: Overloads, value: Int) -> Int
+    bb0 entry
+      return
+        IntLiteral 100
   fun print @scoop.print(message: Any) -> Unit
     bb0 entry
       call $call.1: String = @scoop.Any.toString virtual[2]
@@ -349,10 +353,6 @@ Module
       call extern0 @scoop_rt_write direct
         StringConst @scoop.str.0
       return
-  fun Overloads.id @scoop.Overloads.id(this: Overloads, value: Int) -> Int
-    bb0 entry
-      return
-        IntLiteral 100
   fun read @scoop.read(value: Exchange$I) -> Int
     bb0 entry
       call $call.1: Int = @scoop.Exchange.current$I interface Exchange$I[0]
@@ -541,6 +541,9 @@ Module
   global @scoop_td_Overloads = c""
   enum Option$S niche(payload_variant=0)
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
+  fun @scoop.Overloads.id(ptr<managed>, i64) -> i64
+  block entry
+    ret 100
   fun @scoop.print(ptr<managed>) -> void
     local %0 $call.1: ptr<managed>
   block entry
@@ -563,9 +566,6 @@ Module
     native_call[native-borrowed] extern0(global0)
     t4 = aggregate () : {}
     ret
-  fun @scoop.Overloads.id(ptr<managed>, i64) -> i64
-  block entry
-    ret 100
   fun @scoop.read(ptr<managed>) -> i64
     local %0 $call.1: i64
   block entry

@@ -562,7 +562,7 @@ fn kind_bounds_are_typed_on_all_generic_hir_declarations() {
         .find(|(_, function)| function.name == "identity")
         .unwrap()
         .1;
-    assert_eq!(identity.type_params[0].kind(), hir::TypeParamKind::Value);
+    assert_eq!(identity.type_params()[0].kind(), hir::TypeParamKind::Value);
     assert_eq!(
         module
             .structs

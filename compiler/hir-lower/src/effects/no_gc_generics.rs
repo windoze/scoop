@@ -22,7 +22,8 @@ impl Lowerer {
         loop {
             let mut additions = Vec::new();
             for call_site in &call_sites {
-                let Some(&caller_generic) = self.generic_by_function.get(&call_site.caller) else {
+                let Some(caller_generic) = self.functions[call_site.caller].generic_definition()
+                else {
                     continue;
                 };
                 let instantiation = &self.instantiations[call_site.instantiation];
@@ -73,7 +74,7 @@ impl Lowerer {
                     .iter()
                     .copied()
                     .filter(|parameter| {
-                        function.type_params[parameter.into_raw() as usize].kind()
+                        function.type_params()[parameter.into_raw() as usize].kind()
                             == hir::TypeParamKind::Ref
                     })
                     .map(|parameter| {
@@ -82,7 +83,7 @@ impl Lowerer {
                             parameter,
                             function.span,
                             function.name.clone(),
-                            function.type_params[parameter.into_raw() as usize]
+                            function.type_params()[parameter.into_raw() as usize]
                                 .name
                                 .clone(),
                         )
@@ -112,10 +113,10 @@ impl Lowerer {
                 continue;
             }
             let callee = self.functions[generic.function].clone();
-            let caller_requirements = self
-                .generic_by_function
-                .get(&call_site.caller)
-                .map(|caller| self.generic_functions[*caller].no_gc_type_params.clone());
+            let caller_requirements = match self.functions[call_site.caller].generic_definition() {
+                None => None,
+                Some(caller) => Some(self.generic_functions[caller].no_gc_type_params.clone()),
+            };
             self.current_file = self
                 .function_files
                 .get(&call_site.caller)
@@ -139,7 +140,7 @@ impl Lowerer {
                             "generic function `{}` requires type argument {} for `{}` to be GC-free",
                             callee.name,
                             self.type_name(argument),
-                            callee.type_params[index].name
+                            callee.type_params()[index].name
                         ),
                     );
                 }
@@ -278,6 +279,7 @@ impl Lowerer {
             | ExprKind::BoolLiteral(_)
             | ExprKind::UnitLiteral
             | ExprKind::Local(_)
+            | ExprKind::ConstructorParam(_)
             | ExprKind::GlobalRead(_)
             | ExprKind::Capture(_)
             | ExprKind::Lambda(_)

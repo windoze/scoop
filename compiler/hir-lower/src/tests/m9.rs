@@ -120,7 +120,10 @@ fn generic_interfaces_apply_variance_and_instantiate_methods() {
     let applications: Vec<_> = module
         .types
         .iter()
-        .filter(|(_, ty)| matches!(ty, hir::Type::Interface(_, args) if !args.is_empty()))
+        .filter(|(_, ty)| {
+            matches!(ty, hir::Type::Interface(application)
+                if !module.interface_applications[*application].arguments.is_empty())
+        })
         .collect();
     assert!(applications.len() >= 4);
 }

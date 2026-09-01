@@ -311,22 +311,6 @@ Module
   class Base vtable=4 itables=0
   class Impl vtable=4 itables=0
   class box$I vtable=3 itables=0
-  fun print @scoop.print(message: Any) -> Unit
-    bb0 entry
-      call $call.1: String = @scoop.Any.toString virtual[2]
-        Local message
-      call extern0 @scoop_rt_write direct
-        Local $call.1
-      return
-  fun println @scoop.println(message: Any) -> Unit
-    bb0 entry
-      call $call.1: String = @scoop.Any.toString virtual[2]
-        Local message
-      call extern0 @scoop_rt_write direct
-        Local $call.1
-      call extern0 @scoop_rt_write direct
-        StringConst @scoop.str.0
-      return
   fun Shape.kind @scoop.Shape.kind(this: Shape) -> Int
     bb0 entry
       return
@@ -342,12 +326,28 @@ Module
         IntLiteral 1
   fun Base.id @scoop.Base.id(this: Base) -> Int
     bb0 entry
-      trap @scoop.str.1
+      trap @scoop.str.0
   fun Impl.id @scoop.Impl.id(this: Impl) -> Int
     bb0 entry
       return
         FieldAccess 0
           Local this
+  fun print @scoop.print(message: Any) -> Unit
+    bb0 entry
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call extern0 @scoop_rt_write direct
+        Local $call.1
+      return
+  fun println @scoop.println(message: Any) -> Unit
+    bb0 entry
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call extern0 @scoop_rt_write direct
+        Local $call.1
+      call extern0 @scoop_rt_write direct
+        StringConst @scoop.str.1
+      return
   fun main @scoop_main() -> Unit
     bb0 entry
       call c: Circle = @scoop.ctor.Circle direct
@@ -455,8 +455,8 @@ Module
           Local this
       return
         Local $call.1
-  str @scoop.str.0 "\n"
-  str @scoop.str.1 "call to abstract method `Base.id`"
+  str @scoop.str.0 "call to abstract method `Base.id`"
+  str @scoop.str.1 "\n"
   str @scoop.str.2 "unwrap on None"
   str @scoop.str.3 "invalid cast"
   str @scoop.str.4 "arithmetic error"
@@ -467,8 +467,8 @@ Module
 
 == lir ==
 Module
-  global @scoop.str.0 = "\n"
-  global @scoop.str.1 = "call to abstract method `Base.id`"
+  global @scoop.str.0 = "call to abstract method `Base.id`"
+  global @scoop.str.1 = "\n"
   global @scoop.str.2 = "unwrap on None"
   global @scoop.str.3 = "invalid cast"
   global @scoop.str.4 = "arithmetic error"
@@ -489,28 +489,6 @@ Module
   global @scoop_td_Impl = c""
   enum Option$S niche(payload_variant=0)
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
-  fun @scoop.print(ptr<managed>) -> void
-    local %0 $call.1: ptr<managed>
-  block entry
-    t0 = heap_load param0 +0 : ptr<metadata>
-    t1 = heap_load t0 +40 : ptr<metadata>
-    t2 = call_indirect t1[2](param0) : ptr<managed>
-    store t2 -> local0
-    native_call[native-borrowed] extern0(local0)
-    t3 = aggregate () : {}
-    ret
-  fun @scoop.println(ptr<managed>) -> void
-    local %0 $call.1: ptr<managed>
-  block entry
-    t0 = heap_load param0 +0 : ptr<metadata>
-    t1 = heap_load t0 +40 : ptr<metadata>
-    t2 = call_indirect t1[2](param0) : ptr<managed>
-    store t2 -> local0
-    native_call[native-borrowed] extern0(local0)
-    t3 = aggregate () : {}
-    native_call[native-borrowed] extern0(global0)
-    t4 = aggregate () : {}
-    ret
   fun @scoop.Shape.kind(ptr<managed>) -> i64
   block entry
     ret 0
@@ -531,6 +509,28 @@ Module
   block entry
     t0 = heap_load param0 +16 : i64
     ret t0
+  fun @scoop.print(ptr<managed>) -> void
+    local %0 $call.1: ptr<managed>
+  block entry
+    t0 = heap_load param0 +0 : ptr<metadata>
+    t1 = heap_load t0 +40 : ptr<metadata>
+    t2 = call_indirect t1[2](param0) : ptr<managed>
+    store t2 -> local0
+    native_call[native-borrowed] extern0(local0)
+    t3 = aggregate () : {}
+    ret
+  fun @scoop.println(ptr<managed>) -> void
+    local %0 $call.1: ptr<managed>
+  block entry
+    t0 = heap_load param0 +0 : ptr<metadata>
+    t1 = heap_load t0 +40 : ptr<metadata>
+    t2 = call_indirect t1[2](param0) : ptr<managed>
+    store t2 -> local0
+    native_call[native-borrowed] extern0(local0)
+    t3 = aggregate () : {}
+    native_call[native-borrowed] extern0(global1)
+    t4 = aggregate () : {}
+    ret
   fun @scoop_main() -> void
     local %0 c: ptr<managed>
     local %1 s: ptr<managed>

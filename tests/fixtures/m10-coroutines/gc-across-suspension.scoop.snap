@@ -406,30 +406,31 @@ Module
   enum CoroutineStep$I
     Completed(value: Int)
     Suspended()
-  enum CoroutineSlot$Gate
-    Empty()
-    Value(value: Gate)
-  enum CoroutineSlot$I
-    Empty()
-    Value(value: Int)
-  enum CoroutineSlot$Throwable
-    Empty()
-    Value(value: Throwable)
-  enum CoroutineSlot$EPayload
-    Empty()
-    Value(value: Payload)
-  enum CoroutineSlot$S
-    Empty()
-    Value(value: String)
   enum CoroutineSlot$GcTask
     Empty()
     Value(value: GcTask)
+  enum CoroutineSlot$S
+    Empty()
+    Value(value: String)
   enum CoroutineSlot$Node
     Empty()
     Value(value: Node)
   enum CoroutineSlot$Bundle
     Empty()
     Value(value: Bundle)
+  enum CoroutineSlot$EPayload
+    Empty()
+    Value(value: Payload)
+  enum CoroutineSlot$I
+    Empty()
+    Value(value: Int)
+  enum CoroutineSlot$Throwable
+    Empty()
+    Value(value: Throwable)
+  enum CoroutineSlot$Gate
+    Empty()
+    Value(value: Gate)
+  class Node vtable=3 itables=0
   class Throwable vtable=3 itables=0
   class Exception vtable=3 itables=0
   class UnwrapException vtable=3 itables=0
@@ -437,37 +438,20 @@ Module
   class ArithmeticException vtable=3 itables=0
   class IndexOutOfBoundsException vtable=3 itables=0
   class IllegalStateException vtable=3 itables=0
-  class Node vtable=3 itables=0
   class Gate vtable=3 itables=0
   class Registration vtable=3 itables=1
   class GcTask vtable=3 itables=1
   class RecordingCompletion vtable=3 itables=1
   class box$I vtable=3 itables=0
+  class CoroutineFrame$scoop_GcTask_run_suspend vtable=3 itables=0
+  class CoroutineAdapter$scoop_GcTask_run_suspend$1 vtable=3 itables=1
   class CoroutineFrame$scoop_deepest_suspend vtable=3 itables=0
   class CoroutineAdapter$scoop_deepest_suspend$1 vtable=3 itables=1
   class CoroutineFrame$scoop_middle_suspend vtable=3 itables=0
   class CoroutineAdapter$scoop_middle_suspend$1 vtable=3 itables=1
-  class CoroutineFrame$scoop_GcTask_run_suspend vtable=3 itables=0
-  class CoroutineAdapter$scoop_GcTask_run_suspend$1 vtable=3 itables=1
   interface Continuation$I
   interface SuspendRegistration$I
   interface SuspendTask$I
-  fun print @scoop.print(message: Any) -> Unit
-    bb0 entry
-      call $call.1: String = @scoop.Any.toString virtual[2]
-        Local message
-      call extern0 @scoop_rt_write direct
-        Local $call.1
-      return
-  fun println @scoop.println(message: Any) -> Unit
-    bb0 entry
-      call $call.1: String = @scoop.Any.toString virtual[2]
-        Local message
-      call extern0 @scoop_rt_write direct
-        Local $call.1
-      call extern0 @scoop_rt_write direct
-        StringConst @scoop.str.0
-      return
   fun Gate.complete @scoop.Gate.complete(this: Gate, value: Int) -> Unit
     bb0 entry
       val $opt.1: Option$Continuation$I<Continuation$I>
@@ -505,6 +489,52 @@ Module
         VariantConstruct Option$Continuation$I<Continuation$I> v0
           Local continuation
       return
+  fun GcTask.run @scoop.GcTask.run$suspend(this: GcTask, $completion: Continuation$I) -> CoroutineStep$I
+    bb0 entry
+      val $frame: CoroutineFrame$scoop_GcTask_run_suspend
+        ClassInit CoroutineFrame$scoop_GcTask_run_suspend
+          IntLiteral 0
+          Local $completion
+          VariantConstruct CoroutineSlot$GcTask v1
+            Local this
+          VariantConstruct CoroutineSlot$S v0
+          VariantConstruct CoroutineSlot$Node v0
+          VariantConstruct CoroutineSlot$Bundle v0
+          VariantConstruct CoroutineSlot$EPayload v0
+          VariantConstruct CoroutineSlot$I v0
+          VariantConstruct CoroutineSlot$Throwable v0
+      call $step: CoroutineStep$I = @scoop.GcTask.run$suspend$drive direct
+        Local $frame
+        IntLiteral 0
+      return
+        Local $step
+  fun RecordingCompletion.resume @scoop.RecordingCompletion.resume(this: RecordingCompletion, value: Int) -> Unit
+    bb0 entry
+      call @scoop.println direct
+        Box
+          Local value
+      return
+  fun RecordingCompletion.resumeWithException @scoop.RecordingCompletion.resumeWithException(this: RecordingCompletion, exception: Throwable) -> Unit
+    bb0 entry
+      call @scoop.println direct
+        StringConst @scoop.str.7
+      return
+  fun print @scoop.print(message: Any) -> Unit
+    bb0 entry
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call extern0 @scoop_rt_write direct
+        Local $call.1
+      return
+  fun println @scoop.println(message: Any) -> Unit
+    bb0 entry
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call extern0 @scoop_rt_write direct
+        Local $call.1
+      call extern0 @scoop_rt_write direct
+        StringConst @scoop.str.8
+      return
   fun deepest @scoop.deepest$suspend(gate: Gate, $completion: Continuation$I) -> CoroutineStep$I
     bb0 entry
       val $frame: CoroutineFrame$scoop_deepest_suspend
@@ -538,36 +568,6 @@ Module
         IntLiteral 0
       return
         Local $step
-  fun GcTask.run @scoop.GcTask.run$suspend(this: GcTask, $completion: Continuation$I) -> CoroutineStep$I
-    bb0 entry
-      val $frame: CoroutineFrame$scoop_GcTask_run_suspend
-        ClassInit CoroutineFrame$scoop_GcTask_run_suspend
-          IntLiteral 0
-          Local $completion
-          VariantConstruct CoroutineSlot$GcTask v1
-            Local this
-          VariantConstruct CoroutineSlot$S v0
-          VariantConstruct CoroutineSlot$Node v0
-          VariantConstruct CoroutineSlot$Bundle v0
-          VariantConstruct CoroutineSlot$EPayload v0
-          VariantConstruct CoroutineSlot$I v0
-          VariantConstruct CoroutineSlot$Throwable v0
-      call $step: CoroutineStep$I = @scoop.GcTask.run$suspend$drive direct
-        Local $frame
-        IntLiteral 0
-      return
-        Local $step
-  fun RecordingCompletion.resume @scoop.RecordingCompletion.resume(this: RecordingCompletion, value: Int) -> Unit
-    bb0 entry
-      call @scoop.println direct
-        Box
-          Local value
-      return
-  fun RecordingCompletion.resumeWithException @scoop.RecordingCompletion.resumeWithException(this: RecordingCompletion, exception: Throwable) -> Unit
-    bb0 entry
-      call @scoop.println direct
-        StringConst @scoop.str.11
-      return
   fun makeGarbage @scoop.makeGarbage() -> Unit
     bb0 entry
       var index: Int
@@ -612,6 +612,11 @@ Module
         Local gate
         IntLiteral 40
       return
+  fun ctor.Node @scoop.ctor.Node(name: String) -> Node
+    bb0 entry
+      return
+        ClassInit Node
+          Local name
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
     bb0 entry
       return
@@ -651,11 +656,6 @@ Module
         ClassInit IllegalStateException
           VariantConstruct Option$S<String> v0
             StringConst @scoop.str.20
-  fun ctor.Node @scoop.ctor.Node(name: String) -> Node
-    bb0 entry
-      return
-        ClassInit Node
-          Local name
   fun ctor.Gate @scoop.ctor.Gate(waiter: Option$Continuation$I<Continuation$I>) -> Gate
     bb0 entry
       return
@@ -724,6 +724,371 @@ Module
           Local this
       return
         Local $call.1
+  fun GcTask.run$drive @scoop.GcTask.run$suspend$drive($frame: CoroutineFrame$scoop_GcTask_run_suspend, $dispatch_state: Int) -> CoroutineStep$I
+    bb0 entry
+      call taskText: String = @scoop_rt_string_concat direct
+        StringConst @scoop.str.0
+        StringConst @scoop.str.1
+      call $call.1: String = @scoop_rt_string_concat direct
+        StringConst @scoop.str.2
+        StringConst @scoop.str.3
+      call node: Node = @scoop.ctor.Node direct
+        Local $call.1
+      call $call.2: String = @scoop_rt_string_concat direct
+        StringConst @scoop.str.4
+        StringConst @scoop.str.5
+      val bundle: Bundle
+        StructInit Bundle
+          Local $call.2
+          Local node
+      val payload: Payload
+        VariantConstruct Payload v0
+          Local bundle
+      field_set 3
+        Local $frame
+        VariantConstruct CoroutineSlot$S v1
+          Local taskText
+      field_set 4
+        Local $frame
+        VariantConstruct CoroutineSlot$Node v1
+          Local node
+      field_set 5
+        Local $frame
+        VariantConstruct CoroutineSlot$Bundle v1
+          Local bundle
+      field_set 6
+        Local $frame
+        VariantConstruct CoroutineSlot$EPayload v1
+          Local payload
+      atomic_store_release field=0
+        Local $frame
+        IntLiteral 1
+      val $adapter.1: CoroutineAdapter$scoop_GcTask_run_suspend$1
+        ClassInit CoroutineAdapter$scoop_GcTask_run_suspend$1
+          Local $frame
+          IntLiteral 1
+      call $step.1: CoroutineStep$I = @scoop.middle$suspend direct
+        FieldAccess 0
+          Local this
+        Local payload
+        Local $adapter.1
+      branch bb10 bb11
+        Binary IntEq
+          EnumTag
+            Local $step.1
+          IntLiteral 0
+    bb1 if.then.1
+      val saved: Bundle
+        EnumField v0 f0
+          Local $when.1
+      call @scoop.println direct
+        FieldAccess 0
+          Local saved
+      call @scoop.println direct
+        FieldAccess 0
+          FieldAccess 1
+            Local saved
+      goto bb3
+    bb2 if.else.2
+      branch bb4 bb5
+        Binary IntEq
+          EnumTag
+            Local $when.1
+          IntLiteral 1
+    bb3 if.merge.3
+      return
+        VariantConstruct CoroutineStep$I v0
+          Binary IntAdd
+            Local value
+            IntLiteral 1
+    bb4 if.then.4
+      call @scoop.println direct
+        StringConst @scoop.str.6
+      goto bb5
+    bb5 if.merge.5
+      goto bb3
+    bb6 coroutine.post.1
+      call @scoop.println direct
+        Retype Any
+          Local taskText
+      call @scoop.println direct
+        FieldAccess 0
+          Local node
+      call @scoop.println direct
+        FieldAccess 0
+          Local bundle
+      val $when.1: Payload
+        Local payload
+      branch bb1 bb2
+        Binary IntEq
+          EnumTag
+            Local $when.1
+          IntLiteral 0
+    bb7 coroutine.completed.1
+      val value: Int
+        EnumField v0 f0
+          Local $step.1
+      goto bb6
+    bb8 coroutine.protocol_error
+      call $protocol_error: IllegalStateException = @scoop.ctor.IllegalStateException direct
+      throw
+        Local $protocol_error
+    bb9 coroutine.completed_claim_frame.1
+      val $completed_frame_claim.1: Int
+        AtomicCompareExchange field=0 success=acq_rel failure=acquire
+          Local $frame
+          IntLiteral 1
+          IntLiteral -1
+      branch bb7 bb8
+        Binary IntEq
+          Local $completed_frame_claim.1
+          IntLiteral 1
+    bb10 coroutine.completed_claim_adapter.1
+      val $completed_adapter_claim.1: Int
+        AtomicCompareExchange field=1 success=acq_rel failure=acquire
+          Local $adapter.1
+          IntLiteral 1
+          IntLiteral 6
+      branch bb9 bb8
+        Binary IntEq
+          Local $completed_adapter_claim.1
+          IntLiteral 1
+    bb11 coroutine.suspended.1
+      return
+        VariantConstruct CoroutineStep$I v1
+    bb12 coroutine.resume.1
+      assign taskText
+        EnumField v1 f0
+          FieldAccess 3
+            Local $frame
+      assign node
+        EnumField v1 f0
+          FieldAccess 4
+            Local $frame
+      assign bundle
+        EnumField v1 f0
+          FieldAccess 5
+            Local $frame
+      assign payload
+        EnumField v1 f0
+          FieldAccess 6
+            Local $frame
+      assign value
+        EnumField v1 f0
+          FieldAccess 7
+            Local $frame
+      goto bb6
+    bb13 coroutine.failure.1
+      assign taskText
+        EnumField v1 f0
+          FieldAccess 3
+            Local $frame
+      assign node
+        EnumField v1 f0
+          FieldAccess 4
+            Local $frame
+      assign bundle
+        EnumField v1 f0
+          FieldAccess 5
+            Local $frame
+      assign payload
+        EnumField v1 f0
+          FieldAccess 6
+            Local $frame
+      throw
+        EnumField v1 f0
+          FieldAccess 8
+            Local $frame
+    bb14 coroutine.initial
+      assign this
+        EnumField v1 f0
+          FieldAccess 2
+            Local $frame
+      atomic_store_release field=0
+        Local $frame
+        IntLiteral -1
+      goto bb0
+    bb15 coroutine.protocol_error
+      call $protocol_error: IllegalStateException = @scoop.ctor.IllegalStateException direct
+      throw
+        Local $protocol_error
+    bb16 coroutine.dispatch.1
+      branch bb12 bb15
+        Binary IntEq
+          Local $dispatch_state
+          IntLiteral 1
+    bb17 coroutine.dispatch.-3
+      branch bb13 bb16
+        Binary IntEq
+          Local $dispatch_state
+          IntLiteral -3
+    bb18 coroutine.dispatch.0
+      branch bb14 bb17
+        Binary IntEq
+          Local $dispatch_state
+          IntLiteral 0
+  fun CoroutineAdapter.resume$1 @scoop.GcTask.run$suspend$resume$1(this: CoroutineAdapter$scoop_GcTask_run_suspend$1, value: Int) -> Unit
+    bb0 coroutine.protocol_error
+      call $protocol_error: IllegalStateException = @scoop.ctor.IllegalStateException direct
+      throw
+        Local $protocol_error
+    bb1 completed
+      atomic_store_release field=0
+        FieldAccess 0
+          Local this
+        IntLiteral -2
+      call @scoop.Continuation.resume$I interface Continuation$I[0]
+        FieldAccess 1
+          FieldAccess 0
+            Local this
+        EnumField v0 f0
+          Local $step
+      return
+    bb2 suspended
+      return
+    bb3 failed
+      atomic_store_release field=0
+        FieldAccess 0
+          Local this
+        IntLiteral -2
+      call @scoop.Continuation.resumeWithException$I interface Continuation$I[1]
+        FieldAccess 1
+          FieldAccess 0
+            Local this
+        Local $uncaught
+      return
+    bb4 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $uncaught: Throwable = @scoop_rt_materialize_exception direct
+        CaughtException
+      end_catch
+      goto bb3
+    bb5 valid unwind bb4
+      field_set 7
+        FieldAccess 0
+          Local this
+        VariantConstruct CoroutineSlot$I v1
+          Local value
+      atomic_store_release field=1
+        Local this
+        IntLiteral 6
+      call $step: CoroutineStep$I = @scoop.GcTask.run$suspend$drive direct
+        FieldAccess 0
+          Local this
+        IntLiteral 1
+      branch bb1 bb2
+        Binary IntEq
+          EnumTag
+            Local $step
+          IntLiteral 0
+    bb6 invalid_frame
+      atomic_store_release field=1
+        Local this
+        IntLiteral 6
+      goto bb0
+    bb7 claim_frame
+      val $frame_claim: Int
+        AtomicCompareExchange field=0 success=acq_rel failure=acquire
+          FieldAccess 0
+            Local this
+          IntLiteral 1
+          IntLiteral -1
+      branch bb5 bb6
+        Binary IntEq
+          Local $frame_claim
+          IntLiteral 1
+    bb8 claim_waiting
+      val $adapter_claim: Int
+        AtomicCompareExchange field=1 success=acq_rel failure=acquire
+          Local this
+          IntLiteral 1
+          IntLiteral 2
+      branch bb7 bb0
+        Binary IntEq
+          Local $adapter_claim
+          IntLiteral 1
+  fun CoroutineAdapter.resumeWithException$1 @scoop.GcTask.run$suspend$resume_exception$1(this: CoroutineAdapter$scoop_GcTask_run_suspend$1, exception: Throwable) -> Unit
+    bb0 coroutine.protocol_error
+      call $protocol_error: IllegalStateException = @scoop.ctor.IllegalStateException direct
+      throw
+        Local $protocol_error
+    bb1 completed
+      atomic_store_release field=0
+        FieldAccess 0
+          Local this
+        IntLiteral -2
+      call @scoop.Continuation.resume$I interface Continuation$I[0]
+        FieldAccess 1
+          FieldAccess 0
+            Local this
+        EnumField v0 f0
+          Local $step
+      return
+    bb2 suspended
+      return
+    bb3 failed
+      atomic_store_release field=0
+        FieldAccess 0
+          Local this
+        IntLiteral -2
+      call @scoop.Continuation.resumeWithException$I interface Continuation$I[1]
+        FieldAccess 1
+          FieldAccess 0
+            Local this
+        Local $uncaught
+      return
+    bb4 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $uncaught: Throwable = @scoop_rt_materialize_exception direct
+        CaughtException
+      end_catch
+      goto bb3
+    bb5 valid unwind bb4
+      field_set 8
+        FieldAccess 0
+          Local this
+        VariantConstruct CoroutineSlot$Throwable v1
+          Local exception
+      atomic_store_release field=1
+        Local this
+        IntLiteral 6
+      call $step: CoroutineStep$I = @scoop.GcTask.run$suspend$drive direct
+        FieldAccess 0
+          Local this
+        IntLiteral -3
+      branch bb1 bb2
+        Binary IntEq
+          EnumTag
+            Local $step
+          IntLiteral 0
+    bb6 invalid_frame
+      atomic_store_release field=1
+        Local this
+        IntLiteral 6
+      goto bb0
+    bb7 claim_frame
+      val $frame_claim: Int
+        AtomicCompareExchange field=0 success=acq_rel failure=acquire
+          FieldAccess 0
+            Local this
+          IntLiteral 1
+          IntLiteral -1
+      branch bb5 bb6
+        Binary IntEq
+          Local $frame_claim
+          IntLiteral 1
+    bb8 claim_waiting
+      val $adapter_claim: Int
+        AtomicCompareExchange field=1 success=acq_rel failure=acquire
+          Local this
+          IntLiteral 1
+          IntLiteral 3
+      branch bb7 bb0
+        Binary IntEq
+          Local $adapter_claim
+          IntLiteral 1
   fun deepest$drive @scoop.deepest$suspend$drive($frame: CoroutineFrame$scoop_deepest_suspend, $dispatch_state: Int) -> CoroutineStep$I
     bb0 entry
       call $call.1: SuspendRegistration$I = @scoop.ctor.Registration direct
@@ -1128,8 +1493,8 @@ Module
   fun middle$drive @scoop.middle$suspend$drive($frame: CoroutineFrame$scoop_middle_suspend, $dispatch_state: Int) -> CoroutineStep$I
     bb0 entry
       call marker: String = @scoop_rt_string_concat direct
-        StringConst @scoop.str.1
-        StringConst @scoop.str.2
+        StringConst @scoop.str.9
+        StringConst @scoop.str.10
       field_set 3
         Local $frame
         VariantConstruct CoroutineSlot$EPayload v1
@@ -1179,7 +1544,7 @@ Module
             IntLiteral 1
     bb4 if.then.4
       call @scoop.println direct
-        StringConst @scoop.str.3
+        StringConst @scoop.str.11
       goto bb5
     bb5 if.merge.5
       goto bb3
@@ -1447,406 +1812,41 @@ Module
         Binary IntEq
           Local $adapter_claim
           IntLiteral 1
-  fun GcTask.run$drive @scoop.GcTask.run$suspend$drive($frame: CoroutineFrame$scoop_GcTask_run_suspend, $dispatch_state: Int) -> CoroutineStep$I
-    bb0 entry
-      call taskText: String = @scoop_rt_string_concat direct
-        StringConst @scoop.str.4
-        StringConst @scoop.str.5
-      call $call.1: String = @scoop_rt_string_concat direct
-        StringConst @scoop.str.6
-        StringConst @scoop.str.7
-      call node: Node = @scoop.ctor.Node direct
-        Local $call.1
-      call $call.2: String = @scoop_rt_string_concat direct
-        StringConst @scoop.str.8
-        StringConst @scoop.str.9
-      val bundle: Bundle
-        StructInit Bundle
-          Local $call.2
-          Local node
-      val payload: Payload
-        VariantConstruct Payload v0
-          Local bundle
-      field_set 3
-        Local $frame
-        VariantConstruct CoroutineSlot$S v1
-          Local taskText
-      field_set 4
-        Local $frame
-        VariantConstruct CoroutineSlot$Node v1
-          Local node
-      field_set 5
-        Local $frame
-        VariantConstruct CoroutineSlot$Bundle v1
-          Local bundle
-      field_set 6
-        Local $frame
-        VariantConstruct CoroutineSlot$EPayload v1
-          Local payload
-      atomic_store_release field=0
-        Local $frame
-        IntLiteral 1
-      val $adapter.1: CoroutineAdapter$scoop_GcTask_run_suspend$1
-        ClassInit CoroutineAdapter$scoop_GcTask_run_suspend$1
-          Local $frame
-          IntLiteral 1
-      call $step.1: CoroutineStep$I = @scoop.middle$suspend direct
-        FieldAccess 0
-          Local this
-        Local payload
-        Local $adapter.1
-      branch bb10 bb11
-        Binary IntEq
-          EnumTag
-            Local $step.1
-          IntLiteral 0
-    bb1 if.then.1
-      val saved: Bundle
-        EnumField v0 f0
-          Local $when.1
-      call @scoop.println direct
-        FieldAccess 0
-          Local saved
-      call @scoop.println direct
-        FieldAccess 0
-          FieldAccess 1
-            Local saved
-      goto bb3
-    bb2 if.else.2
-      branch bb4 bb5
-        Binary IntEq
-          EnumTag
-            Local $when.1
-          IntLiteral 1
-    bb3 if.merge.3
-      return
-        VariantConstruct CoroutineStep$I v0
-          Binary IntAdd
-            Local value
-            IntLiteral 1
-    bb4 if.then.4
-      call @scoop.println direct
-        StringConst @scoop.str.10
-      goto bb5
-    bb5 if.merge.5
-      goto bb3
-    bb6 coroutine.post.1
-      call @scoop.println direct
-        Retype Any
-          Local taskText
-      call @scoop.println direct
-        FieldAccess 0
-          Local node
-      call @scoop.println direct
-        FieldAccess 0
-          Local bundle
-      val $when.1: Payload
-        Local payload
-      branch bb1 bb2
-        Binary IntEq
-          EnumTag
-            Local $when.1
-          IntLiteral 0
-    bb7 coroutine.completed.1
-      val value: Int
-        EnumField v0 f0
-          Local $step.1
-      goto bb6
-    bb8 coroutine.protocol_error
-      call $protocol_error: IllegalStateException = @scoop.ctor.IllegalStateException direct
-      throw
-        Local $protocol_error
-    bb9 coroutine.completed_claim_frame.1
-      val $completed_frame_claim.1: Int
-        AtomicCompareExchange field=0 success=acq_rel failure=acquire
-          Local $frame
-          IntLiteral 1
-          IntLiteral -1
-      branch bb7 bb8
-        Binary IntEq
-          Local $completed_frame_claim.1
-          IntLiteral 1
-    bb10 coroutine.completed_claim_adapter.1
-      val $completed_adapter_claim.1: Int
-        AtomicCompareExchange field=1 success=acq_rel failure=acquire
-          Local $adapter.1
-          IntLiteral 1
-          IntLiteral 6
-      branch bb9 bb8
-        Binary IntEq
-          Local $completed_adapter_claim.1
-          IntLiteral 1
-    bb11 coroutine.suspended.1
-      return
-        VariantConstruct CoroutineStep$I v1
-    bb12 coroutine.resume.1
-      assign taskText
-        EnumField v1 f0
-          FieldAccess 3
-            Local $frame
-      assign node
-        EnumField v1 f0
-          FieldAccess 4
-            Local $frame
-      assign bundle
-        EnumField v1 f0
-          FieldAccess 5
-            Local $frame
-      assign payload
-        EnumField v1 f0
-          FieldAccess 6
-            Local $frame
-      assign value
-        EnumField v1 f0
-          FieldAccess 7
-            Local $frame
-      goto bb6
-    bb13 coroutine.failure.1
-      assign taskText
-        EnumField v1 f0
-          FieldAccess 3
-            Local $frame
-      assign node
-        EnumField v1 f0
-          FieldAccess 4
-            Local $frame
-      assign bundle
-        EnumField v1 f0
-          FieldAccess 5
-            Local $frame
-      assign payload
-        EnumField v1 f0
-          FieldAccess 6
-            Local $frame
-      throw
-        EnumField v1 f0
-          FieldAccess 8
-            Local $frame
-    bb14 coroutine.initial
-      assign this
-        EnumField v1 f0
-          FieldAccess 2
-            Local $frame
-      atomic_store_release field=0
-        Local $frame
-        IntLiteral -1
-      goto bb0
-    bb15 coroutine.protocol_error
-      call $protocol_error: IllegalStateException = @scoop.ctor.IllegalStateException direct
-      throw
-        Local $protocol_error
-    bb16 coroutine.dispatch.1
-      branch bb12 bb15
-        Binary IntEq
-          Local $dispatch_state
-          IntLiteral 1
-    bb17 coroutine.dispatch.-3
-      branch bb13 bb16
-        Binary IntEq
-          Local $dispatch_state
-          IntLiteral -3
-    bb18 coroutine.dispatch.0
-      branch bb14 bb17
-        Binary IntEq
-          Local $dispatch_state
-          IntLiteral 0
-  fun CoroutineAdapter.resume$1 @scoop.GcTask.run$suspend$resume$1(this: CoroutineAdapter$scoop_GcTask_run_suspend$1, value: Int) -> Unit
-    bb0 coroutine.protocol_error
-      call $protocol_error: IllegalStateException = @scoop.ctor.IllegalStateException direct
-      throw
-        Local $protocol_error
-    bb1 completed
-      atomic_store_release field=0
-        FieldAccess 0
-          Local this
-        IntLiteral -2
-      call @scoop.Continuation.resume$I interface Continuation$I[0]
-        FieldAccess 1
-          FieldAccess 0
-            Local this
-        EnumField v0 f0
-          Local $step
-      return
-    bb2 suspended
-      return
-    bb3 failed
-      atomic_store_release field=0
-        FieldAccess 0
-          Local this
-        IntLiteral -2
-      call @scoop.Continuation.resumeWithException$I interface Continuation$I[1]
-        FieldAccess 1
-          FieldAccess 0
-            Local this
-        Local $uncaught
-      return
-    bb4 body_failure
-      landing_pad cleanup=false
-      begin_catch
-      call $uncaught: Throwable = @scoop_rt_materialize_exception direct
-        CaughtException
-      end_catch
-      goto bb3
-    bb5 valid unwind bb4
-      field_set 7
-        FieldAccess 0
-          Local this
-        VariantConstruct CoroutineSlot$I v1
-          Local value
-      atomic_store_release field=1
-        Local this
-        IntLiteral 6
-      call $step: CoroutineStep$I = @scoop.GcTask.run$suspend$drive direct
-        FieldAccess 0
-          Local this
-        IntLiteral 1
-      branch bb1 bb2
-        Binary IntEq
-          EnumTag
-            Local $step
-          IntLiteral 0
-    bb6 invalid_frame
-      atomic_store_release field=1
-        Local this
-        IntLiteral 6
-      goto bb0
-    bb7 claim_frame
-      val $frame_claim: Int
-        AtomicCompareExchange field=0 success=acq_rel failure=acquire
-          FieldAccess 0
-            Local this
-          IntLiteral 1
-          IntLiteral -1
-      branch bb5 bb6
-        Binary IntEq
-          Local $frame_claim
-          IntLiteral 1
-    bb8 claim_waiting
-      val $adapter_claim: Int
-        AtomicCompareExchange field=1 success=acq_rel failure=acquire
-          Local this
-          IntLiteral 1
-          IntLiteral 2
-      branch bb7 bb0
-        Binary IntEq
-          Local $adapter_claim
-          IntLiteral 1
-  fun CoroutineAdapter.resumeWithException$1 @scoop.GcTask.run$suspend$resume_exception$1(this: CoroutineAdapter$scoop_GcTask_run_suspend$1, exception: Throwable) -> Unit
-    bb0 coroutine.protocol_error
-      call $protocol_error: IllegalStateException = @scoop.ctor.IllegalStateException direct
-      throw
-        Local $protocol_error
-    bb1 completed
-      atomic_store_release field=0
-        FieldAccess 0
-          Local this
-        IntLiteral -2
-      call @scoop.Continuation.resume$I interface Continuation$I[0]
-        FieldAccess 1
-          FieldAccess 0
-            Local this
-        EnumField v0 f0
-          Local $step
-      return
-    bb2 suspended
-      return
-    bb3 failed
-      atomic_store_release field=0
-        FieldAccess 0
-          Local this
-        IntLiteral -2
-      call @scoop.Continuation.resumeWithException$I interface Continuation$I[1]
-        FieldAccess 1
-          FieldAccess 0
-            Local this
-        Local $uncaught
-      return
-    bb4 body_failure
-      landing_pad cleanup=false
-      begin_catch
-      call $uncaught: Throwable = @scoop_rt_materialize_exception direct
-        CaughtException
-      end_catch
-      goto bb3
-    bb5 valid unwind bb4
-      field_set 8
-        FieldAccess 0
-          Local this
-        VariantConstruct CoroutineSlot$Throwable v1
-          Local exception
-      atomic_store_release field=1
-        Local this
-        IntLiteral 6
-      call $step: CoroutineStep$I = @scoop.GcTask.run$suspend$drive direct
-        FieldAccess 0
-          Local this
-        IntLiteral -3
-      branch bb1 bb2
-        Binary IntEq
-          EnumTag
-            Local $step
-          IntLiteral 0
-    bb6 invalid_frame
-      atomic_store_release field=1
-        Local this
-        IntLiteral 6
-      goto bb0
-    bb7 claim_frame
-      val $frame_claim: Int
-        AtomicCompareExchange field=0 success=acq_rel failure=acquire
-          FieldAccess 0
-            Local this
-          IntLiteral 1
-          IntLiteral -1
-      branch bb5 bb6
-        Binary IntEq
-          Local $frame_claim
-          IntLiteral 1
-    bb8 claim_waiting
-      val $adapter_claim: Int
-        AtomicCompareExchange field=1 success=acq_rel failure=acquire
-          Local this
-          IntLiteral 1
-          IntLiteral 3
-      branch bb7 bb0
-        Binary IntEq
-          Local $adapter_claim
-          IntLiteral 1
   coroutine_step cs0 CoroutineStep$I result=Int
-  coroutine_slot cl0 CoroutineSlot$Gate value=Gate
-  coroutine_slot cl1 CoroutineSlot$I value=Int
-  coroutine_slot cl2 CoroutineSlot$Throwable value=Throwable
-  coroutine_slot cl3 CoroutineSlot$EPayload value=Payload
-  coroutine_slot cl4 CoroutineSlot$S value=String
-  coroutine_slot cl5 CoroutineSlot$GcTask value=GcTask
-  coroutine_slot cl6 CoroutineSlot$Node value=Node
-  coroutine_slot cl7 CoroutineSlot$Bundle value=Bundle
-  coroutine_frame cr0 CoroutineFrame$scoop_deepest_suspend owner=cf0
-  coroutine_frame cr1 CoroutineFrame$scoop_middle_suspend owner=cf1
-  coroutine_frame cr2 CoroutineFrame$scoop_GcTask_run_suspend owner=cf2
-  coroutine_resume cp0 state=1 result=Int frame=cr0 adapter=CoroutineAdapter$scoop_deepest_suspend$1 resume=@scoop.deepest$suspend$resume$1 failure=@scoop.deepest$suspend$resume_exception$1
-  coroutine_resume cp1 state=1 result=Int frame=cr1 adapter=CoroutineAdapter$scoop_middle_suspend$1 resume=@scoop.middle$suspend$resume$1 failure=@scoop.middle$suspend$resume_exception$1
-  coroutine_resume cp2 state=1 result=Int frame=cr2 adapter=CoroutineAdapter$scoop_GcTask_run_suspend$1 resume=@scoop.GcTask.run$suspend$resume$1 failure=@scoop.GcTask.run$suspend$resume_exception$1
-  coroutine_fn cf0 @scoop.deepest$suspend source_return=Int step=cs0 frame=cr0 driver=@scoop.deepest$suspend$drive resumes=[cp0]
-  coroutine_fn cf1 @scoop.middle$suspend source_return=Int step=cs0 frame=cr1 driver=@scoop.middle$suspend$drive resumes=[cp1]
-  coroutine_fn cf2 @scoop.GcTask.run$suspend source_return=Int step=cs0 frame=cr2 driver=@scoop.GcTask.run$suspend$drive resumes=[cp2]
+  coroutine_slot cl0 CoroutineSlot$GcTask value=GcTask
+  coroutine_slot cl1 CoroutineSlot$S value=String
+  coroutine_slot cl2 CoroutineSlot$Node value=Node
+  coroutine_slot cl3 CoroutineSlot$Bundle value=Bundle
+  coroutine_slot cl4 CoroutineSlot$EPayload value=Payload
+  coroutine_slot cl5 CoroutineSlot$I value=Int
+  coroutine_slot cl6 CoroutineSlot$Throwable value=Throwable
+  coroutine_slot cl7 CoroutineSlot$Gate value=Gate
+  coroutine_frame cr0 CoroutineFrame$scoop_GcTask_run_suspend owner=cf0
+  coroutine_frame cr1 CoroutineFrame$scoop_deepest_suspend owner=cf1
+  coroutine_frame cr2 CoroutineFrame$scoop_middle_suspend owner=cf2
+  coroutine_resume cp0 state=1 result=Int frame=cr0 adapter=CoroutineAdapter$scoop_GcTask_run_suspend$1 resume=@scoop.GcTask.run$suspend$resume$1 failure=@scoop.GcTask.run$suspend$resume_exception$1
+  coroutine_resume cp1 state=1 result=Int frame=cr1 adapter=CoroutineAdapter$scoop_deepest_suspend$1 resume=@scoop.deepest$suspend$resume$1 failure=@scoop.deepest$suspend$resume_exception$1
+  coroutine_resume cp2 state=1 result=Int frame=cr2 adapter=CoroutineAdapter$scoop_middle_suspend$1 resume=@scoop.middle$suspend$resume$1 failure=@scoop.middle$suspend$resume_exception$1
+  coroutine_fn cf0 @scoop.GcTask.run$suspend source_return=Int step=cs0 frame=cr0 driver=@scoop.GcTask.run$suspend$drive resumes=[cp0]
+  coroutine_fn cf1 @scoop.deepest$suspend source_return=Int step=cs0 frame=cr1 driver=@scoop.deepest$suspend$drive resumes=[cp1]
+  coroutine_fn cf2 @scoop.middle$suspend source_return=Int step=cs0 frame=cr2 driver=@scoop.middle$suspend$drive resumes=[cp2]
   coroutine_fn cf3 @scoop.SuspendTask.run$I$suspend source_return=Int step=cs0 immediate
   instance @scoop.Continuation.resume$I <- Continuation.resume
   instance @scoop.Continuation.resumeWithException$I <- Continuation.resumeWithException
   instance @scoop.SuspendTask.run$I$suspend <- SuspendTask.run
   instance @scoop.SuspendRegistration.register$I <- SuspendRegistration.register
-  str @scoop.str.0 "\n"
-  str @scoop.str.1 "middle-"
-  str @scoop.str.2 "alive"
-  str @scoop.str.3 "empty"
-  str @scoop.str.4 "task-"
+  str @scoop.str.0 "task-"
+  str @scoop.str.1 "alive"
+  str @scoop.str.2 "node-"
+  str @scoop.str.3 "alive"
+  str @scoop.str.4 "bundle-"
   str @scoop.str.5 "alive"
-  str @scoop.str.6 "node-"
-  str @scoop.str.7 "alive"
-  str @scoop.str.8 "bundle-"
-  str @scoop.str.9 "alive"
-  str @scoop.str.10 "empty"
-  str @scoop.str.11 "failed"
+  str @scoop.str.6 "empty"
+  str @scoop.str.7 "failed"
+  str @scoop.str.8 "\n"
+  str @scoop.str.9 "middle-"
+  str @scoop.str.10 "alive"
+  str @scoop.str.11 "empty"
   str @scoop.str.12 "garbage-"
   str @scoop.str.13 "node"
   str @scoop.str.14 "suspended"
@@ -1860,18 +1860,18 @@ Module
 
 == lir ==
 Module
-  global @scoop.str.0 = "\n"
-  global @scoop.str.1 = "middle-"
-  global @scoop.str.2 = "alive"
-  global @scoop.str.3 = "empty"
-  global @scoop.str.4 = "task-"
+  global @scoop.str.0 = "task-"
+  global @scoop.str.1 = "alive"
+  global @scoop.str.2 = "node-"
+  global @scoop.str.3 = "alive"
+  global @scoop.str.4 = "bundle-"
   global @scoop.str.5 = "alive"
-  global @scoop.str.6 = "node-"
-  global @scoop.str.7 = "alive"
-  global @scoop.str.8 = "bundle-"
-  global @scoop.str.9 = "alive"
-  global @scoop.str.10 = "empty"
-  global @scoop.str.11 = "failed"
+  global @scoop.str.6 = "empty"
+  global @scoop.str.7 = "failed"
+  global @scoop.str.8 = "\n"
+  global @scoop.str.9 = "middle-"
+  global @scoop.str.10 = "alive"
+  global @scoop.str.11 = "empty"
   global @scoop.str.12 = "garbage-"
   global @scoop.str.13 = "node"
   global @scoop.str.14 = "suspended"
@@ -1882,10 +1882,11 @@ Module
   global @scoop.str.19 = "array index out of bounds"
   global @scoop.str.20 = "illegal state"
   global @scoop_td_Continuation$I = c""
-  global @scoop_td_CoroutineFrame$scoop_deepest_suspend = c""
-  global @scoop_td_CoroutineFrame$scoop_middle_suspend = c""
   global @scoop_td_CoroutineFrame$scoop_GcTask_run_suspend = c""
   global @scoop_td_box$I = c""
+  global @scoop_td_CoroutineFrame$scoop_deepest_suspend = c""
+  global @scoop_td_CoroutineFrame$scoop_middle_suspend = c""
+  global @scoop_td_Node = c""
   global @scoop_td_Throwable = c""
   global @scoop_td_Exception = c""
   global @scoop_td_UnwrapException = c""
@@ -1893,51 +1894,28 @@ Module
   global @scoop_td_ArithmeticException = c""
   global @scoop_td_IndexOutOfBoundsException = c""
   global @scoop_td_IllegalStateException = c""
-  global @scoop_td_Node = c""
   global @scoop_td_Gate = c""
   global @scoop_td_Registration = c""
   global @scoop_td_GcTask = c""
   global @scoop_td_RecordingCompletion = c""
   global @scoop_td_SuspendTask$I = c""
+  global @scoop_td_CoroutineAdapter$scoop_GcTask_run_suspend$1 = c""
   global @scoop_td_CoroutineAdapter$scoop_deepest_suspend$1 = c""
   global @scoop_td_SuspendRegistration$I = c""
   global @scoop_td_CoroutineAdapter$scoop_middle_suspend$1 = c""
-  global @scoop_td_CoroutineAdapter$scoop_GcTask_run_suspend$1 = c""
   enum Option$Continuation$I niche(payload_variant=0)
   enum Option$S niche(payload_variant=0)
   enum Payload tagged size=24 align=8 variants=(struct0)@8+16:refs ()@8+0
   enum CoroutineStep$I tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
-  enum CoroutineSlot$Gate niche(payload_variant=1)
-  enum CoroutineSlot$I tagged size=16 align=8 variants=()@8+0 (i64)@8+8
-  enum CoroutineSlot$Throwable niche(payload_variant=1)
-  enum CoroutineSlot$EPayload tagged size=32 align=8 variants=()@8+0 (enum2)@8+24:refs
-  enum CoroutineSlot$S niche(payload_variant=1)
   enum CoroutineSlot$GcTask niche(payload_variant=1)
+  enum CoroutineSlot$S niche(payload_variant=1)
   enum CoroutineSlot$Node niche(payload_variant=1)
   enum CoroutineSlot$Bundle tagged size=24 align=8 variants=()@8+0 (struct0)@8+16:refs
+  enum CoroutineSlot$EPayload tagged size=32 align=8 variants=()@8+0 (enum2)@8+24:refs
+  enum CoroutineSlot$I tagged size=16 align=8 variants=()@8+0 (i64)@8+8
+  enum CoroutineSlot$Throwable niche(payload_variant=1)
+  enum CoroutineSlot$Gate niche(payload_variant=1)
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
-  fun @scoop.print(ptr<managed>) -> void
-    local %0 $call.1: ptr<managed>
-  block entry
-    t0 = heap_load param0 +0 : ptr<metadata>
-    t1 = heap_load t0 +40 : ptr<metadata>
-    t2 = call_indirect t1[2](param0) : ptr<managed>
-    store t2 -> local0
-    native_call[native-borrowed] extern0(local0)
-    t3 = aggregate () : {}
-    ret
-  fun @scoop.println(ptr<managed>) -> void
-    local %0 $call.1: ptr<managed>
-  block entry
-    t0 = heap_load param0 +0 : ptr<metadata>
-    t1 = heap_load t0 +40 : ptr<metadata>
-    t2 = call_indirect t1[2](param0) : ptr<managed>
-    store t2 -> local0
-    native_call[native-borrowed] extern0(local0)
-    t3 = aggregate () : {}
-    native_call[native-borrowed] extern0(global0)
-    t4 = aggregate () : {}
-    ret
   fun @scoop.Gate.complete(ptr<managed>, i64) -> void
     local %0 continuation: ptr<managed>
     local %1 $opt.1: enum0
@@ -1973,11 +1951,11 @@ Module
     t1 = enum_wrap e0 v0 (param1) : enum0
     heap_store t0 +16 t1
     ret
-  fun @scoop.deepest$suspend(ptr<managed>, ptr<managed>) -> enum3
+  fun @scoop.GcTask.run$suspend(ptr<managed>, ptr<managed>) -> enum3
     local %0 $frame: ptr<managed>
     local %1 $step: enum3
   block entry
-    t0 = call @scoop_rt_alloc(global22, 64) : ptr<managed>
+    t0 = call @scoop_rt_alloc(global22, 136) : ptr<managed>
     heap_store t0 +16 0
     heap_store t0 +24 param1
     t1 = enum_wrap e4 v1 (param0) : enum4
@@ -1985,6 +1963,64 @@ Module
     t2 = enum_wrap e5 v0 () : enum5
     heap_store t0 +40 t2
     t3 = enum_wrap e6 v0 () : enum6
+    heap_store t0 +48 t3
+    t4 = enum_wrap e7 v0 () : enum7
+    heap_store t0 +56 t4
+    t5 = enum_wrap e8 v0 () : enum8
+    heap_store t0 +80 t5
+    t6 = enum_wrap e9 v0 () : enum9
+    heap_store t0 +112 t6
+    t7 = enum_wrap e10 v0 () : enum10
+    heap_store t0 +128 t7
+    store t0 -> local0
+    t8 = call @scoop.GcTask.run$suspend$drive(local0, 0) : enum3
+    store t8 -> local1
+    ret local1
+  fun @scoop.RecordingCompletion.resume(ptr<managed>, i64) -> void
+  block entry
+    t0 = call @scoop_rt_box(global23, param1, 8) : ptr<managed>
+    call @scoop.println(t0)
+    t1 = aggregate () : {}
+    ret
+  fun @scoop.RecordingCompletion.resumeWithException(ptr<managed>, ptr<managed>) -> void
+  block entry
+    call @scoop.println(global7)
+    t0 = aggregate () : {}
+    ret
+  fun @scoop.print(ptr<managed>) -> void
+    local %0 $call.1: ptr<managed>
+  block entry
+    t0 = heap_load param0 +0 : ptr<metadata>
+    t1 = heap_load t0 +40 : ptr<metadata>
+    t2 = call_indirect t1[2](param0) : ptr<managed>
+    store t2 -> local0
+    native_call[native-borrowed] extern0(local0)
+    t3 = aggregate () : {}
+    ret
+  fun @scoop.println(ptr<managed>) -> void
+    local %0 $call.1: ptr<managed>
+  block entry
+    t0 = heap_load param0 +0 : ptr<metadata>
+    t1 = heap_load t0 +40 : ptr<metadata>
+    t2 = call_indirect t1[2](param0) : ptr<managed>
+    store t2 -> local0
+    native_call[native-borrowed] extern0(local0)
+    t3 = aggregate () : {}
+    native_call[native-borrowed] extern0(global8)
+    t4 = aggregate () : {}
+    ret
+  fun @scoop.deepest$suspend(ptr<managed>, ptr<managed>) -> enum3
+    local %0 $frame: ptr<managed>
+    local %1 $step: enum3
+  block entry
+    t0 = call @scoop_rt_alloc(global24, 64) : ptr<managed>
+    heap_store t0 +16 0
+    heap_store t0 +24 param1
+    t1 = enum_wrap e11 v1 (param0) : enum11
+    heap_store t0 +32 t1
+    t2 = enum_wrap e9 v0 () : enum9
+    heap_store t0 +40 t2
+    t3 = enum_wrap e10 v0 () : enum10
     heap_store t0 +56 t3
     store t0 -> local0
     t4 = call @scoop.deepest$suspend$drive(local0, 0) : enum3
@@ -1994,59 +2030,23 @@ Module
     local %0 $frame: ptr<managed>
     local %1 $step: enum3
   block entry
-    t0 = call @scoop_rt_alloc(global23, 104) : ptr<managed>
+    t0 = call @scoop_rt_alloc(global25, 104) : ptr<managed>
     heap_store t0 +16 0
     heap_store t0 +24 param2
-    t1 = enum_wrap e4 v1 (param0) : enum4
+    t1 = enum_wrap e11 v1 (param0) : enum11
     heap_store t0 +32 t1
-    t2 = enum_wrap e7 v1 (param1) : enum7
+    t2 = enum_wrap e8 v1 (param1) : enum8
     heap_store t0 +40 t2
-    t3 = enum_wrap e8 v0 () : enum8
+    t3 = enum_wrap e5 v0 () : enum5
     heap_store t0 +72 t3
-    t4 = enum_wrap e5 v0 () : enum5
+    t4 = enum_wrap e9 v0 () : enum9
     heap_store t0 +80 t4
-    t5 = enum_wrap e6 v0 () : enum6
+    t5 = enum_wrap e10 v0 () : enum10
     heap_store t0 +96 t5
     store t0 -> local0
     t6 = call @scoop.middle$suspend$drive(local0, 0) : enum3
     store t6 -> local1
     ret local1
-  fun @scoop.GcTask.run$suspend(ptr<managed>, ptr<managed>) -> enum3
-    local %0 $frame: ptr<managed>
-    local %1 $step: enum3
-  block entry
-    t0 = call @scoop_rt_alloc(global24, 136) : ptr<managed>
-    heap_store t0 +16 0
-    heap_store t0 +24 param1
-    t1 = enum_wrap e9 v1 (param0) : enum9
-    heap_store t0 +32 t1
-    t2 = enum_wrap e8 v0 () : enum8
-    heap_store t0 +40 t2
-    t3 = enum_wrap e10 v0 () : enum10
-    heap_store t0 +48 t3
-    t4 = enum_wrap e11 v0 () : enum11
-    heap_store t0 +56 t4
-    t5 = enum_wrap e7 v0 () : enum7
-    heap_store t0 +80 t5
-    t6 = enum_wrap e5 v0 () : enum5
-    heap_store t0 +112 t6
-    t7 = enum_wrap e6 v0 () : enum6
-    heap_store t0 +128 t7
-    store t0 -> local0
-    t8 = call @scoop.GcTask.run$suspend$drive(local0, 0) : enum3
-    store t8 -> local1
-    ret local1
-  fun @scoop.RecordingCompletion.resume(ptr<managed>, i64) -> void
-  block entry
-    t0 = call @scoop_rt_box(global25, param1, 8) : ptr<managed>
-    call @scoop.println(t0)
-    t1 = aggregate () : {}
-    ret
-  fun @scoop.RecordingCompletion.resumeWithException(ptr<managed>, ptr<managed>) -> void
-  block entry
-    call @scoop.println(global11)
-    t0 = aggregate () : {}
-    ret
   fun @scoop.makeGarbage() -> void
     local %0 index: i64
     local %1 garbage: ptr<managed>
@@ -2094,49 +2094,49 @@ Module
     call @scoop.Gate.complete(local0, 40)
     t10 = aggregate () : {}
     ret
+  fun @scoop.ctor.Node(ptr<managed>) -> ptr<managed>
+  block entry
+    t0 = call @scoop_rt_alloc(global26, 24) : ptr<managed>
+    heap_store t0 +16 param0
+    ret t0
   fun @scoop.ctor.Throwable() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global26, 16) : ptr<managed>
+    t0 = call @scoop_rt_alloc(global27, 16) : ptr<managed>
     ret t0
   fun @scoop.ctor.Exception(enum1) -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global27, 24) : ptr<managed>
+    t0 = call @scoop_rt_alloc(global28, 24) : ptr<managed>
     heap_store t0 +16 param0
     ret t0
   fun @scoop.ctor.UnwrapException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global28, 24) : ptr<managed>
+    t0 = call @scoop_rt_alloc(global29, 24) : ptr<managed>
     t1 = enum_wrap e1 v0 (global16) : enum1
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.ClassCastException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global29, 24) : ptr<managed>
+    t0 = call @scoop_rt_alloc(global30, 24) : ptr<managed>
     t1 = enum_wrap e1 v0 (global17) : enum1
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.ArithmeticException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global30, 24) : ptr<managed>
+    t0 = call @scoop_rt_alloc(global31, 24) : ptr<managed>
     t1 = enum_wrap e1 v0 (global18) : enum1
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.IndexOutOfBoundsException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global31, 24) : ptr<managed>
+    t0 = call @scoop_rt_alloc(global32, 24) : ptr<managed>
     t1 = enum_wrap e1 v0 (global19) : enum1
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.IllegalStateException() -> ptr<managed>
   block entry
-    t0 = call @scoop_rt_alloc(global32, 24) : ptr<managed>
+    t0 = call @scoop_rt_alloc(global33, 24) : ptr<managed>
     t1 = enum_wrap e1 v0 (global20) : enum1
     heap_store t0 +16 t1
-    ret t0
-  fun @scoop.ctor.Node(ptr<managed>) -> ptr<managed>
-  block entry
-    t0 = call @scoop_rt_alloc(global33, 24) : ptr<managed>
-    heap_store t0 +16 param0
     ret t0
   fun @scoop.ctor.Gate(enum0) -> ptr<managed>
   block entry
@@ -2215,6 +2215,318 @@ Module
     t1 = call @scoop_rt_int_to_string(t0) : ptr<managed>
     store t1 -> local0
     ret local0
+  fun @scoop.GcTask.run$suspend$drive(ptr<managed>, i64) -> enum3
+    local %0 this: ptr<managed>
+    local %1 taskText: ptr<managed>
+    local %2 node: ptr<managed>
+    local %3 bundle: struct0
+    local %4 payload: enum2
+    local %5 value: i64
+    local %6 saved: struct0
+    local %7 $when.1: enum2
+    local %8 $call.1: ptr<managed>
+    local %9 $call.2: ptr<managed>
+    local %10 $completion: ptr<managed>
+    local %11 $adapter.1: ptr<managed>
+    local %12 $step.1: enum3
+    local %13 $protocol_error: ptr<managed>
+    local %14 $completed_adapter_claim.1: i64
+    local %15 $completed_frame_claim.1: i64
+    local %16 $protocol_error: ptr<managed>
+  block entry
+    t0 = call @scoop_rt_string_concat(global0, global1) : ptr<managed>
+    store t0 -> local1
+    t1 = call @scoop_rt_string_concat(global2, global3) : ptr<managed>
+    store t1 -> local8
+    t2 = call @scoop.ctor.Node(local8) : ptr<managed>
+    store t2 -> local2
+    t3 = call @scoop_rt_string_concat(global4, global5) : ptr<managed>
+    store t3 -> local9
+    t4 = aggregate (local9, local2) : struct0
+    store t4 -> local3
+    t5 = enum_wrap e2 v0 (local3) : enum2
+    store t5 -> local4
+    t6 = enum_wrap e5 v1 (local1) : enum5
+    heap_store param0 +40 t6
+    t7 = enum_wrap e6 v1 (local2) : enum6
+    heap_store param0 +48 t7
+    t8 = enum_wrap e7 v1 (local3) : enum7
+    heap_store param0 +56 t8
+    t9 = enum_wrap e8 v1 (local4) : enum8
+    heap_store param0 +80 t9
+    atomic_store release param0 +16 1
+    t10 = call @scoop_rt_alloc(global39, 32) : ptr<managed>
+    heap_store t10 +16 param0
+    heap_store t10 +24 1
+    store t10 -> local11
+    t11 = heap_load local0 +16 : ptr<managed>
+    t12 = call @scoop.middle$suspend(t11, local4, local11) : enum3
+    store t12 -> local12
+    t13 = enum_tag e3 local12 : i64
+    t14 = Eq t13, 0 : i1
+    cbr t14 then @coroutine.completed_claim_adapter.1 else @coroutine.suspended.1
+  block if.then.1
+    t15 = enum_field e2 v0 f0 local7 : struct0
+    store t15 -> local6
+    t16 = extract local6, 0 : ptr<managed>
+    call @scoop.println(t16)
+    t17 = aggregate () : {}
+    t18 = extract local6, 1 : ptr<managed>
+    t19 = heap_load t18 +16 : ptr<managed>
+    call @scoop.println(t19)
+    t20 = aggregate () : {}
+    br @if.merge.3
+  block if.else.2
+    t21 = enum_tag e2 local7 : i64
+    t22 = Eq t21, 1 : i1
+    cbr t22 then @if.then.4 else @if.merge.5
+  block if.merge.3
+    t23 = Add local5, 1 : i64
+    t24 = enum_wrap e3 v0 (t23) : enum3
+    ret t24
+  block if.then.4
+    call @scoop.println(global6)
+    t25 = aggregate () : {}
+    br @if.merge.5
+  block if.merge.5
+    br @if.merge.3
+  block coroutine.post.1
+    call @scoop.println(local1)
+    t26 = aggregate () : {}
+    t27 = heap_load local2 +16 : ptr<managed>
+    call @scoop.println(t27)
+    t28 = aggregate () : {}
+    t29 = extract local3, 0 : ptr<managed>
+    call @scoop.println(t29)
+    t30 = aggregate () : {}
+    store local4 -> local7
+    t31 = enum_tag e2 local7 : i64
+    t32 = Eq t31, 0 : i1
+    cbr t32 then @if.then.1 else @if.else.2
+  block coroutine.completed.1
+    t33 = enum_field e3 v0 f0 local12 : i64
+    store t33 -> local5
+    br @coroutine.post.1
+  block coroutine.protocol_error
+    t34 = call @scoop.ctor.IllegalStateException() : ptr<managed>
+    store t34 -> local13
+    throw local13
+    unreachable
+  block coroutine.completed_claim_frame.1
+    t35 = atomic_cmpxchg acq_rel/acquire param0 +16 expected=1 replacement=-1 : i64
+    store t35 -> local15
+    t36 = Eq local15, 1 : i1
+    cbr t36 then @coroutine.completed.1 else @coroutine.protocol_error
+  block coroutine.completed_claim_adapter.1
+    t37 = atomic_cmpxchg acq_rel/acquire local11 +24 expected=1 replacement=6 : i64
+    store t37 -> local14
+    t38 = Eq local14, 1 : i1
+    cbr t38 then @coroutine.completed_claim_frame.1 else @coroutine.protocol_error
+  block coroutine.suspended.1
+    t39 = enum_wrap e3 v1 () : enum3
+    ret t39
+  block coroutine.resume.1
+    t40 = heap_load param0 +40 : enum5
+    t41 = enum_field e5 v1 f0 t40 : ptr<managed>
+    store t41 -> local1
+    t42 = heap_load param0 +48 : enum6
+    t43 = enum_field e6 v1 f0 t42 : ptr<managed>
+    store t43 -> local2
+    t44 = heap_load param0 +56 : enum7
+    t45 = enum_field e7 v1 f0 t44 : struct0
+    store t45 -> local3
+    t46 = heap_load param0 +80 : enum8
+    t47 = enum_field e8 v1 f0 t46 : enum2
+    store t47 -> local4
+    t48 = heap_load param0 +112 : enum9
+    t49 = enum_field e9 v1 f0 t48 : i64
+    store t49 -> local5
+    br @coroutine.post.1
+  block coroutine.failure.1
+    t50 = heap_load param0 +40 : enum5
+    t51 = enum_field e5 v1 f0 t50 : ptr<managed>
+    store t51 -> local1
+    t52 = heap_load param0 +48 : enum6
+    t53 = enum_field e6 v1 f0 t52 : ptr<managed>
+    store t53 -> local2
+    t54 = heap_load param0 +56 : enum7
+    t55 = enum_field e7 v1 f0 t54 : struct0
+    store t55 -> local3
+    t56 = heap_load param0 +80 : enum8
+    t57 = enum_field e8 v1 f0 t56 : enum2
+    store t57 -> local4
+    t58 = heap_load param0 +128 : enum10
+    t59 = enum_field e10 v1 f0 t58 : ptr<managed>
+    throw t59
+    unreachable
+  block coroutine.initial
+    t60 = heap_load param0 +32 : enum4
+    t61 = enum_field e4 v1 f0 t60 : ptr<managed>
+    store t61 -> local0
+    atomic_store release param0 +16 -1
+    br @entry
+  block coroutine.protocol_error
+    t62 = call @scoop.ctor.IllegalStateException() : ptr<managed>
+    store t62 -> local16
+    throw local16
+    unreachable
+  block coroutine.dispatch.1
+    t63 = Eq param1, 1 : i1
+    cbr t63 then @coroutine.resume.1 else @coroutine.protocol_error
+  block coroutine.dispatch.-3
+    t64 = Eq param1, -3 : i1
+    cbr t64 then @coroutine.failure.1 else @coroutine.dispatch.1
+  block coroutine.dispatch.0
+    t65 = Eq param1, 0 : i1
+    cbr t65 then @coroutine.initial else @coroutine.dispatch.-3
+  fun @scoop.GcTask.run$suspend$resume$1(ptr<managed>, i64) -> void
+    local %0 $step: enum3
+    local %1 $adapter_claim: i64
+    local %2 $frame_claim: i64
+    local %3 $protocol_error: ptr<managed>
+    local %4 $uncaught: ptr<managed>
+    local %5 $sc.1: exception_record
+    local %6 $sc.2: ptr<raw>
+    local %7 $sc.3: ptr<managed>
+  block coroutine.protocol_error
+    t0 = call @scoop.ctor.IllegalStateException() : ptr<managed>
+    store t0 -> local3
+    throw local3
+    unreachable
+  block completed
+    t1 = heap_load param0 +16 : ptr<managed>
+    atomic_store release t1 +16 -2
+    t2 = heap_load param0 +16 : ptr<managed>
+    t3 = heap_load t2 +24 : ptr<managed>
+    t4 = enum_field e3 v0 f0 local0 : i64
+    t5 = heap_load t3 +0 : ptr<metadata>
+    t6 = call @scoop_rt_itable_lookup(t5, global21) : ptr<metadata>
+    call_indirect t6[0](t3, t4)
+    t7 = aggregate () : {}
+    ret
+  block suspended
+    ret
+  block failed
+    t8 = heap_load param0 +16 : ptr<managed>
+    atomic_store release t8 +16 -2
+    t9 = heap_load param0 +16 : ptr<managed>
+    t10 = heap_load t9 +24 : ptr<managed>
+    t11 = heap_load t10 +0 : ptr<metadata>
+    t12 = call @scoop_rt_itable_lookup(t11, global21) : ptr<metadata>
+    call_indirect t12[1](t10, local4)
+    t13 = aggregate () : {}
+    ret
+  block body_failure
+    (t14, t15) = landingpad : (exception_record, ptr<raw>)
+    store t14 -> local5
+    store t15 -> local6
+    t16 = begin_catch local6 : ptr<managed>
+    store t16 -> local7
+    t17 = call @scoop_rt_materialize_exception(local7) : ptr<managed>
+    store t17 -> local4
+    end_catch
+    br @failed
+  block valid
+    t18 = heap_load param0 +16 : ptr<managed>
+    t19 = enum_wrap e9 v1 (param1) : enum9
+    heap_store t18 +112 t19
+    atomic_store release param0 +24 6
+    t20 = heap_load param0 +16 : ptr<managed>
+    invoke @scoop.GcTask.run$suspend$drive(t20, 1) normal @invoke.normal.1 unwind @body_failure
+    br @invoke.normal.1
+  block invalid_frame
+    atomic_store release param0 +24 6
+    br @coroutine.protocol_error
+  block claim_frame
+    t24 = heap_load param0 +16 : ptr<managed>
+    t25 = atomic_cmpxchg acq_rel/acquire t24 +16 expected=1 replacement=-1 : i64
+    store t25 -> local2
+    t26 = Eq local2, 1 : i1
+    cbr t26 then @valid else @invalid_frame
+  block claim_waiting
+    t27 = atomic_cmpxchg acq_rel/acquire param0 +24 expected=1 replacement=2 : i64
+    store t27 -> local1
+    t28 = Eq local1, 1 : i1
+    cbr t28 then @claim_frame else @coroutine.protocol_error
+  block invoke.normal.1
+    store t21 -> local0
+    t22 = enum_tag e3 local0 : i64
+    t23 = Eq t22, 0 : i1
+    cbr t23 then @completed else @suspended
+  fun @scoop.GcTask.run$suspend$resume_exception$1(ptr<managed>, ptr<managed>) -> void
+    local %0 $step: enum3
+    local %1 $adapter_claim: i64
+    local %2 $frame_claim: i64
+    local %3 $protocol_error: ptr<managed>
+    local %4 $uncaught: ptr<managed>
+    local %5 $sc.1: exception_record
+    local %6 $sc.2: ptr<raw>
+    local %7 $sc.3: ptr<managed>
+  block coroutine.protocol_error
+    t0 = call @scoop.ctor.IllegalStateException() : ptr<managed>
+    store t0 -> local3
+    throw local3
+    unreachable
+  block completed
+    t1 = heap_load param0 +16 : ptr<managed>
+    atomic_store release t1 +16 -2
+    t2 = heap_load param0 +16 : ptr<managed>
+    t3 = heap_load t2 +24 : ptr<managed>
+    t4 = enum_field e3 v0 f0 local0 : i64
+    t5 = heap_load t3 +0 : ptr<metadata>
+    t6 = call @scoop_rt_itable_lookup(t5, global21) : ptr<metadata>
+    call_indirect t6[0](t3, t4)
+    t7 = aggregate () : {}
+    ret
+  block suspended
+    ret
+  block failed
+    t8 = heap_load param0 +16 : ptr<managed>
+    atomic_store release t8 +16 -2
+    t9 = heap_load param0 +16 : ptr<managed>
+    t10 = heap_load t9 +24 : ptr<managed>
+    t11 = heap_load t10 +0 : ptr<metadata>
+    t12 = call @scoop_rt_itable_lookup(t11, global21) : ptr<metadata>
+    call_indirect t12[1](t10, local4)
+    t13 = aggregate () : {}
+    ret
+  block body_failure
+    (t14, t15) = landingpad : (exception_record, ptr<raw>)
+    store t14 -> local5
+    store t15 -> local6
+    t16 = begin_catch local6 : ptr<managed>
+    store t16 -> local7
+    t17 = call @scoop_rt_materialize_exception(local7) : ptr<managed>
+    store t17 -> local4
+    end_catch
+    br @failed
+  block valid
+    t18 = heap_load param0 +16 : ptr<managed>
+    t19 = enum_wrap e10 v1 (param1) : enum10
+    heap_store t18 +128 t19
+    atomic_store release param0 +24 6
+    t20 = heap_load param0 +16 : ptr<managed>
+    invoke @scoop.GcTask.run$suspend$drive(t20, -3) normal @invoke.normal.1 unwind @body_failure
+    br @invoke.normal.1
+  block invalid_frame
+    atomic_store release param0 +24 6
+    br @coroutine.protocol_error
+  block claim_frame
+    t24 = heap_load param0 +16 : ptr<managed>
+    t25 = atomic_cmpxchg acq_rel/acquire t24 +16 expected=1 replacement=-1 : i64
+    store t25 -> local2
+    t26 = Eq local2, 1 : i1
+    cbr t26 then @valid else @invalid_frame
+  block claim_waiting
+    t27 = atomic_cmpxchg acq_rel/acquire param0 +24 expected=1 replacement=3 : i64
+    store t27 -> local1
+    t28 = Eq local1, 1 : i1
+    cbr t28 then @claim_frame else @coroutine.protocol_error
+  block invoke.normal.1
+    store t21 -> local0
+    t22 = enum_tag e3 local0 : i64
+    t23 = Eq t22, 0 : i1
+    cbr t23 then @completed else @suspended
   fun @scoop.deepest$suspend$drive(ptr<managed>, i64) -> enum3
     local %0 gate: ptr<managed>
     local %1 $call.1: ptr<managed>
@@ -2233,12 +2545,12 @@ Module
     t0 = call @scoop.ctor.Registration(local0) : ptr<managed>
     store t0 -> local1
     atomic_store release param0 +16 1
-    t1 = call @scoop_rt_alloc(global39, 56) : ptr<managed>
+    t1 = call @scoop_rt_alloc(global40, 56) : ptr<managed>
     heap_store t1 +16 param0
     heap_store t1 +24 0
-    t2 = enum_wrap e5 v0 () : enum5
+    t2 = enum_wrap e9 v0 () : enum9
     heap_store t1 +32 t2
-    t3 = enum_wrap e6 v0 () : enum6
+    t3 = enum_wrap e10 v0 () : enum10
     heap_store t1 +48 t3
     store t1 -> local4
     br @coroutine.register.1
@@ -2247,19 +2559,19 @@ Module
     ret t4
   block coroutine.register.1
     t5 = heap_load local1 +0 : ptr<metadata>
-    t6 = call @scoop_rt_itable_lookup(t5, global40) : ptr<metadata>
+    t6 = call @scoop_rt_itable_lookup(t5, global41) : ptr<metadata>
     invoke_indirect t6[0](local1, local4) normal @invoke.normal.1 unwind @coroutine.registration_failure.1
     br @invoke.normal.1
   block coroutine.registered_success.1
     atomic_store release local4 +24 6
-    t8 = heap_load local4 +32 : enum5
-    t9 = enum_field e5 v1 f0 t8 : i64
+    t8 = heap_load local4 +32 : enum9
+    t9 = enum_field e9 v1 f0 t8 : i64
     store t9 -> local2
     br @coroutine.post.1
   block coroutine.registered_failure.1
     atomic_store release local4 +24 6
-    t10 = heap_load local4 +48 : enum6
-    t11 = enum_field e6 v1 f0 t10 : ptr<managed>
+    t10 = heap_load local4 +48 : enum10
+    t11 = enum_field e10 v1 f0 t10 : ptr<managed>
     store t11 -> local5
     throw local5
     unreachable
@@ -2344,18 +2656,18 @@ Module
     t41 = Eq local6, 0 : i1
     cbr t41 then @coroutine.registration_claim_frame.1 else @coroutine.registration_wait.1
   block coroutine.resume.1
-    t42 = heap_load param0 +40 : enum5
-    t43 = enum_field e5 v1 f0 t42 : i64
+    t42 = heap_load param0 +40 : enum9
+    t43 = enum_field e9 v1 f0 t42 : i64
     store t43 -> local2
     br @coroutine.post.1
   block coroutine.failure.1
-    t44 = heap_load param0 +56 : enum6
-    t45 = enum_field e6 v1 f0 t44 : ptr<managed>
+    t44 = heap_load param0 +56 : enum10
+    t45 = enum_field e10 v1 f0 t44 : ptr<managed>
     throw t45
     unreachable
   block coroutine.initial
-    t46 = heap_load param0 +32 : enum4
-    t47 = enum_field e4 v1 f0 t46 : ptr<managed>
+    t46 = heap_load param0 +32 : enum11
+    t47 = enum_field e11 v1 f0 t46 : ptr<managed>
     store t47 -> local0
     atomic_store release param0 +16 -1
     br @entry
@@ -2425,7 +2737,7 @@ Module
     br @failed
   block valid
     t18 = heap_load param0 +16 : ptr<managed>
-    t19 = enum_wrap e5 v1 (param1) : enum5
+    t19 = enum_wrap e9 v1 (param1) : enum9
     heap_store t18 +40 t19
     atomic_store release param0 +24 6
     t20 = heap_load param0 +16 : ptr<managed>
@@ -2446,7 +2758,7 @@ Module
     t28 = Eq local1, 1 : i1
     cbr t28 then @claim_frame else @coroutine.protocol_error
   block latched
-    t29 = enum_wrap e5 v1 (param1) : enum5
+    t29 = enum_wrap e9 v1 (param1) : enum9
     heap_store param0 +32 t29
     atomic_store release param0 +24 4
     ret
@@ -2509,7 +2821,7 @@ Module
     br @failed
   block valid
     t18 = heap_load param0 +16 : ptr<managed>
-    t19 = enum_wrap e6 v1 (param1) : enum6
+    t19 = enum_wrap e10 v1 (param1) : enum10
     heap_store t18 +56 t19
     atomic_store release param0 +24 6
     t20 = heap_load param0 +16 : ptr<managed>
@@ -2530,7 +2842,7 @@ Module
     t28 = Eq local1, 1 : i1
     cbr t28 then @claim_frame else @coroutine.protocol_error
   block latched
-    t29 = enum_wrap e6 v1 (param1) : enum6
+    t29 = enum_wrap e10 v1 (param1) : enum10
     heap_store param0 +48 t29
     atomic_store release param0 +24 5
     ret
@@ -2559,14 +2871,14 @@ Module
     local %11 $completed_frame_claim.1: i64
     local %12 $protocol_error: ptr<managed>
   block entry
-    t0 = call @scoop_rt_string_concat(global1, global2) : ptr<managed>
+    t0 = call @scoop_rt_string_concat(global9, global10) : ptr<managed>
     store t0 -> local2
-    t1 = enum_wrap e7 v1 (local1) : enum7
+    t1 = enum_wrap e8 v1 (local1) : enum8
     heap_store param0 +40 t1
-    t2 = enum_wrap e8 v1 (local2) : enum8
+    t2 = enum_wrap e5 v1 (local2) : enum5
     heap_store param0 +72 t2
     atomic_store release param0 +16 1
-    t3 = call @scoop_rt_alloc(global41, 32) : ptr<managed>
+    t3 = call @scoop_rt_alloc(global42, 32) : ptr<managed>
     heap_store t3 +16 param0
     heap_store t3 +24 1
     store t3 -> local7
@@ -2595,7 +2907,7 @@ Module
     t16 = enum_wrap e3 v0 (t15) : enum3
     ret t16
   block if.then.4
-    call @scoop.println(global3)
+    call @scoop.println(global11)
     t17 = aggregate () : {}
     br @if.merge.5
   block if.merge.5
@@ -2630,33 +2942,33 @@ Module
     t27 = enum_wrap e3 v1 () : enum3
     ret t27
   block coroutine.resume.1
-    t28 = heap_load param0 +40 : enum7
-    t29 = enum_field e7 v1 f0 t28 : enum2
+    t28 = heap_load param0 +40 : enum8
+    t29 = enum_field e8 v1 f0 t28 : enum2
     store t29 -> local1
-    t30 = heap_load param0 +72 : enum8
-    t31 = enum_field e8 v1 f0 t30 : ptr<managed>
+    t30 = heap_load param0 +72 : enum5
+    t31 = enum_field e5 v1 f0 t30 : ptr<managed>
     store t31 -> local2
-    t32 = heap_load param0 +80 : enum5
-    t33 = enum_field e5 v1 f0 t32 : i64
+    t32 = heap_load param0 +80 : enum9
+    t33 = enum_field e9 v1 f0 t32 : i64
     store t33 -> local3
     br @coroutine.post.1
   block coroutine.failure.1
-    t34 = heap_load param0 +40 : enum7
-    t35 = enum_field e7 v1 f0 t34 : enum2
+    t34 = heap_load param0 +40 : enum8
+    t35 = enum_field e8 v1 f0 t34 : enum2
     store t35 -> local1
-    t36 = heap_load param0 +72 : enum8
-    t37 = enum_field e8 v1 f0 t36 : ptr<managed>
+    t36 = heap_load param0 +72 : enum5
+    t37 = enum_field e5 v1 f0 t36 : ptr<managed>
     store t37 -> local2
-    t38 = heap_load param0 +96 : enum6
-    t39 = enum_field e6 v1 f0 t38 : ptr<managed>
+    t38 = heap_load param0 +96 : enum10
+    t39 = enum_field e10 v1 f0 t38 : ptr<managed>
     throw t39
     unreachable
   block coroutine.initial
-    t40 = heap_load param0 +32 : enum4
-    t41 = enum_field e4 v1 f0 t40 : ptr<managed>
+    t40 = heap_load param0 +32 : enum11
+    t41 = enum_field e11 v1 f0 t40 : ptr<managed>
     store t41 -> local0
-    t42 = heap_load param0 +40 : enum7
-    t43 = enum_field e7 v1 f0 t42 : enum2
+    t42 = heap_load param0 +40 : enum8
+    t43 = enum_field e8 v1 f0 t42 : enum2
     store t43 -> local1
     atomic_store release param0 +16 -1
     br @entry
@@ -2723,7 +3035,7 @@ Module
     br @failed
   block valid
     t18 = heap_load param0 +16 : ptr<managed>
-    t19 = enum_wrap e5 v1 (param1) : enum5
+    t19 = enum_wrap e9 v1 (param1) : enum9
     heap_store t18 +80 t19
     atomic_store release param0 +24 6
     t20 = heap_load param0 +16 : ptr<managed>
@@ -2797,7 +3109,7 @@ Module
     br @failed
   block valid
     t18 = heap_load param0 +16 : ptr<managed>
-    t19 = enum_wrap e6 v1 (param1) : enum6
+    t19 = enum_wrap e10 v1 (param1) : enum10
     heap_store t18 +96 t19
     atomic_store release param0 +24 6
     t20 = heap_load param0 +16 : ptr<managed>
@@ -2822,334 +3134,22 @@ Module
     t22 = enum_tag e3 local0 : i64
     t23 = Eq t22, 0 : i1
     cbr t23 then @completed else @suspended
-  fun @scoop.GcTask.run$suspend$drive(ptr<managed>, i64) -> enum3
-    local %0 this: ptr<managed>
-    local %1 taskText: ptr<managed>
-    local %2 node: ptr<managed>
-    local %3 bundle: struct0
-    local %4 payload: enum2
-    local %5 value: i64
-    local %6 saved: struct0
-    local %7 $when.1: enum2
-    local %8 $call.1: ptr<managed>
-    local %9 $call.2: ptr<managed>
-    local %10 $completion: ptr<managed>
-    local %11 $adapter.1: ptr<managed>
-    local %12 $step.1: enum3
-    local %13 $protocol_error: ptr<managed>
-    local %14 $completed_adapter_claim.1: i64
-    local %15 $completed_frame_claim.1: i64
-    local %16 $protocol_error: ptr<managed>
-  block entry
-    t0 = call @scoop_rt_string_concat(global4, global5) : ptr<managed>
-    store t0 -> local1
-    t1 = call @scoop_rt_string_concat(global6, global7) : ptr<managed>
-    store t1 -> local8
-    t2 = call @scoop.ctor.Node(local8) : ptr<managed>
-    store t2 -> local2
-    t3 = call @scoop_rt_string_concat(global8, global9) : ptr<managed>
-    store t3 -> local9
-    t4 = aggregate (local9, local2) : struct0
-    store t4 -> local3
-    t5 = enum_wrap e2 v0 (local3) : enum2
-    store t5 -> local4
-    t6 = enum_wrap e8 v1 (local1) : enum8
-    heap_store param0 +40 t6
-    t7 = enum_wrap e10 v1 (local2) : enum10
-    heap_store param0 +48 t7
-    t8 = enum_wrap e11 v1 (local3) : enum11
-    heap_store param0 +56 t8
-    t9 = enum_wrap e7 v1 (local4) : enum7
-    heap_store param0 +80 t9
-    atomic_store release param0 +16 1
-    t10 = call @scoop_rt_alloc(global42, 32) : ptr<managed>
-    heap_store t10 +16 param0
-    heap_store t10 +24 1
-    store t10 -> local11
-    t11 = heap_load local0 +16 : ptr<managed>
-    t12 = call @scoop.middle$suspend(t11, local4, local11) : enum3
-    store t12 -> local12
-    t13 = enum_tag e3 local12 : i64
-    t14 = Eq t13, 0 : i1
-    cbr t14 then @coroutine.completed_claim_adapter.1 else @coroutine.suspended.1
-  block if.then.1
-    t15 = enum_field e2 v0 f0 local7 : struct0
-    store t15 -> local6
-    t16 = extract local6, 0 : ptr<managed>
-    call @scoop.println(t16)
-    t17 = aggregate () : {}
-    t18 = extract local6, 1 : ptr<managed>
-    t19 = heap_load t18 +16 : ptr<managed>
-    call @scoop.println(t19)
-    t20 = aggregate () : {}
-    br @if.merge.3
-  block if.else.2
-    t21 = enum_tag e2 local7 : i64
-    t22 = Eq t21, 1 : i1
-    cbr t22 then @if.then.4 else @if.merge.5
-  block if.merge.3
-    t23 = Add local5, 1 : i64
-    t24 = enum_wrap e3 v0 (t23) : enum3
-    ret t24
-  block if.then.4
-    call @scoop.println(global10)
-    t25 = aggregate () : {}
-    br @if.merge.5
-  block if.merge.5
-    br @if.merge.3
-  block coroutine.post.1
-    call @scoop.println(local1)
-    t26 = aggregate () : {}
-    t27 = heap_load local2 +16 : ptr<managed>
-    call @scoop.println(t27)
-    t28 = aggregate () : {}
-    t29 = extract local3, 0 : ptr<managed>
-    call @scoop.println(t29)
-    t30 = aggregate () : {}
-    store local4 -> local7
-    t31 = enum_tag e2 local7 : i64
-    t32 = Eq t31, 0 : i1
-    cbr t32 then @if.then.1 else @if.else.2
-  block coroutine.completed.1
-    t33 = enum_field e3 v0 f0 local12 : i64
-    store t33 -> local5
-    br @coroutine.post.1
-  block coroutine.protocol_error
-    t34 = call @scoop.ctor.IllegalStateException() : ptr<managed>
-    store t34 -> local13
-    throw local13
-    unreachable
-  block coroutine.completed_claim_frame.1
-    t35 = atomic_cmpxchg acq_rel/acquire param0 +16 expected=1 replacement=-1 : i64
-    store t35 -> local15
-    t36 = Eq local15, 1 : i1
-    cbr t36 then @coroutine.completed.1 else @coroutine.protocol_error
-  block coroutine.completed_claim_adapter.1
-    t37 = atomic_cmpxchg acq_rel/acquire local11 +24 expected=1 replacement=6 : i64
-    store t37 -> local14
-    t38 = Eq local14, 1 : i1
-    cbr t38 then @coroutine.completed_claim_frame.1 else @coroutine.protocol_error
-  block coroutine.suspended.1
-    t39 = enum_wrap e3 v1 () : enum3
-    ret t39
-  block coroutine.resume.1
-    t40 = heap_load param0 +40 : enum8
-    t41 = enum_field e8 v1 f0 t40 : ptr<managed>
-    store t41 -> local1
-    t42 = heap_load param0 +48 : enum10
-    t43 = enum_field e10 v1 f0 t42 : ptr<managed>
-    store t43 -> local2
-    t44 = heap_load param0 +56 : enum11
-    t45 = enum_field e11 v1 f0 t44 : struct0
-    store t45 -> local3
-    t46 = heap_load param0 +80 : enum7
-    t47 = enum_field e7 v1 f0 t46 : enum2
-    store t47 -> local4
-    t48 = heap_load param0 +112 : enum5
-    t49 = enum_field e5 v1 f0 t48 : i64
-    store t49 -> local5
-    br @coroutine.post.1
-  block coroutine.failure.1
-    t50 = heap_load param0 +40 : enum8
-    t51 = enum_field e8 v1 f0 t50 : ptr<managed>
-    store t51 -> local1
-    t52 = heap_load param0 +48 : enum10
-    t53 = enum_field e10 v1 f0 t52 : ptr<managed>
-    store t53 -> local2
-    t54 = heap_load param0 +56 : enum11
-    t55 = enum_field e11 v1 f0 t54 : struct0
-    store t55 -> local3
-    t56 = heap_load param0 +80 : enum7
-    t57 = enum_field e7 v1 f0 t56 : enum2
-    store t57 -> local4
-    t58 = heap_load param0 +128 : enum6
-    t59 = enum_field e6 v1 f0 t58 : ptr<managed>
-    throw t59
-    unreachable
-  block coroutine.initial
-    t60 = heap_load param0 +32 : enum9
-    t61 = enum_field e9 v1 f0 t60 : ptr<managed>
-    store t61 -> local0
-    atomic_store release param0 +16 -1
-    br @entry
-  block coroutine.protocol_error
-    t62 = call @scoop.ctor.IllegalStateException() : ptr<managed>
-    store t62 -> local16
-    throw local16
-    unreachable
-  block coroutine.dispatch.1
-    t63 = Eq param1, 1 : i1
-    cbr t63 then @coroutine.resume.1 else @coroutine.protocol_error
-  block coroutine.dispatch.-3
-    t64 = Eq param1, -3 : i1
-    cbr t64 then @coroutine.failure.1 else @coroutine.dispatch.1
-  block coroutine.dispatch.0
-    t65 = Eq param1, 0 : i1
-    cbr t65 then @coroutine.initial else @coroutine.dispatch.-3
-  fun @scoop.GcTask.run$suspend$resume$1(ptr<managed>, i64) -> void
-    local %0 $step: enum3
-    local %1 $adapter_claim: i64
-    local %2 $frame_claim: i64
-    local %3 $protocol_error: ptr<managed>
-    local %4 $uncaught: ptr<managed>
-    local %5 $sc.1: exception_record
-    local %6 $sc.2: ptr<raw>
-    local %7 $sc.3: ptr<managed>
-  block coroutine.protocol_error
-    t0 = call @scoop.ctor.IllegalStateException() : ptr<managed>
-    store t0 -> local3
-    throw local3
-    unreachable
-  block completed
-    t1 = heap_load param0 +16 : ptr<managed>
-    atomic_store release t1 +16 -2
-    t2 = heap_load param0 +16 : ptr<managed>
-    t3 = heap_load t2 +24 : ptr<managed>
-    t4 = enum_field e3 v0 f0 local0 : i64
-    t5 = heap_load t3 +0 : ptr<metadata>
-    t6 = call @scoop_rt_itable_lookup(t5, global21) : ptr<metadata>
-    call_indirect t6[0](t3, t4)
-    t7 = aggregate () : {}
-    ret
-  block suspended
-    ret
-  block failed
-    t8 = heap_load param0 +16 : ptr<managed>
-    atomic_store release t8 +16 -2
-    t9 = heap_load param0 +16 : ptr<managed>
-    t10 = heap_load t9 +24 : ptr<managed>
-    t11 = heap_load t10 +0 : ptr<metadata>
-    t12 = call @scoop_rt_itable_lookup(t11, global21) : ptr<metadata>
-    call_indirect t12[1](t10, local4)
-    t13 = aggregate () : {}
-    ret
-  block body_failure
-    (t14, t15) = landingpad : (exception_record, ptr<raw>)
-    store t14 -> local5
-    store t15 -> local6
-    t16 = begin_catch local6 : ptr<managed>
-    store t16 -> local7
-    t17 = call @scoop_rt_materialize_exception(local7) : ptr<managed>
-    store t17 -> local4
-    end_catch
-    br @failed
-  block valid
-    t18 = heap_load param0 +16 : ptr<managed>
-    t19 = enum_wrap e5 v1 (param1) : enum5
-    heap_store t18 +112 t19
-    atomic_store release param0 +24 6
-    t20 = heap_load param0 +16 : ptr<managed>
-    invoke @scoop.GcTask.run$suspend$drive(t20, 1) normal @invoke.normal.1 unwind @body_failure
-    br @invoke.normal.1
-  block invalid_frame
-    atomic_store release param0 +24 6
-    br @coroutine.protocol_error
-  block claim_frame
-    t24 = heap_load param0 +16 : ptr<managed>
-    t25 = atomic_cmpxchg acq_rel/acquire t24 +16 expected=1 replacement=-1 : i64
-    store t25 -> local2
-    t26 = Eq local2, 1 : i1
-    cbr t26 then @valid else @invalid_frame
-  block claim_waiting
-    t27 = atomic_cmpxchg acq_rel/acquire param0 +24 expected=1 replacement=2 : i64
-    store t27 -> local1
-    t28 = Eq local1, 1 : i1
-    cbr t28 then @claim_frame else @coroutine.protocol_error
-  block invoke.normal.1
-    store t21 -> local0
-    t22 = enum_tag e3 local0 : i64
-    t23 = Eq t22, 0 : i1
-    cbr t23 then @completed else @suspended
-  fun @scoop.GcTask.run$suspend$resume_exception$1(ptr<managed>, ptr<managed>) -> void
-    local %0 $step: enum3
-    local %1 $adapter_claim: i64
-    local %2 $frame_claim: i64
-    local %3 $protocol_error: ptr<managed>
-    local %4 $uncaught: ptr<managed>
-    local %5 $sc.1: exception_record
-    local %6 $sc.2: ptr<raw>
-    local %7 $sc.3: ptr<managed>
-  block coroutine.protocol_error
-    t0 = call @scoop.ctor.IllegalStateException() : ptr<managed>
-    store t0 -> local3
-    throw local3
-    unreachable
-  block completed
-    t1 = heap_load param0 +16 : ptr<managed>
-    atomic_store release t1 +16 -2
-    t2 = heap_load param0 +16 : ptr<managed>
-    t3 = heap_load t2 +24 : ptr<managed>
-    t4 = enum_field e3 v0 f0 local0 : i64
-    t5 = heap_load t3 +0 : ptr<metadata>
-    t6 = call @scoop_rt_itable_lookup(t5, global21) : ptr<metadata>
-    call_indirect t6[0](t3, t4)
-    t7 = aggregate () : {}
-    ret
-  block suspended
-    ret
-  block failed
-    t8 = heap_load param0 +16 : ptr<managed>
-    atomic_store release t8 +16 -2
-    t9 = heap_load param0 +16 : ptr<managed>
-    t10 = heap_load t9 +24 : ptr<managed>
-    t11 = heap_load t10 +0 : ptr<metadata>
-    t12 = call @scoop_rt_itable_lookup(t11, global21) : ptr<metadata>
-    call_indirect t12[1](t10, local4)
-    t13 = aggregate () : {}
-    ret
-  block body_failure
-    (t14, t15) = landingpad : (exception_record, ptr<raw>)
-    store t14 -> local5
-    store t15 -> local6
-    t16 = begin_catch local6 : ptr<managed>
-    store t16 -> local7
-    t17 = call @scoop_rt_materialize_exception(local7) : ptr<managed>
-    store t17 -> local4
-    end_catch
-    br @failed
-  block valid
-    t18 = heap_load param0 +16 : ptr<managed>
-    t19 = enum_wrap e6 v1 (param1) : enum6
-    heap_store t18 +128 t19
-    atomic_store release param0 +24 6
-    t20 = heap_load param0 +16 : ptr<managed>
-    invoke @scoop.GcTask.run$suspend$drive(t20, -3) normal @invoke.normal.1 unwind @body_failure
-    br @invoke.normal.1
-  block invalid_frame
-    atomic_store release param0 +24 6
-    br @coroutine.protocol_error
-  block claim_frame
-    t24 = heap_load param0 +16 : ptr<managed>
-    t25 = atomic_cmpxchg acq_rel/acquire t24 +16 expected=1 replacement=-1 : i64
-    store t25 -> local2
-    t26 = Eq local2, 1 : i1
-    cbr t26 then @valid else @invalid_frame
-  block claim_waiting
-    t27 = atomic_cmpxchg acq_rel/acquire param0 +24 expected=1 replacement=3 : i64
-    store t27 -> local1
-    t28 = Eq local1, 1 : i1
-    cbr t28 then @claim_frame else @coroutine.protocol_error
-  block invoke.normal.1
-    store t21 -> local0
-    t22 = enum_tag e3 local0 : i64
-    t23 = Eq t22, 0 : i1
-    cbr t23 then @completed else @suspended
   td Continuation$I @scoop_td_Continuation$I size=0 vtable=0 itables=0
   td SuspendRegistration$I @scoop_td_SuspendRegistration$I size=0 vtable=0 itables=0
   td SuspendTask$I @scoop_td_SuspendTask$I size=0 vtable=0 itables=0
-  td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
   td Node @scoop_td_Node size=24 vtable=3 itables=0
+  td Throwable @scoop_td_Throwable size=16 vtable=3 itables=0
   td Gate @scoop_td_Gate size=24 vtable=3 itables=0
   td Registration @scoop_td_Registration size=24 vtable=3 itables=1
   td GcTask @scoop_td_GcTask size=24 vtable=3 itables=1
   td RecordingCompletion @scoop_td_RecordingCompletion size=16 vtable=3 itables=1
   td box$I @scoop_td_box$I size=24 vtable=3 itables=0
+  td CoroutineFrame$scoop_GcTask_run_suspend @scoop_td_CoroutineFrame$scoop_GcTask_run_suspend size=136 vtable=3 itables=0
+  td CoroutineAdapter$scoop_GcTask_run_suspend$1 @scoop_td_CoroutineAdapter$scoop_GcTask_run_suspend$1 size=32 vtable=3 itables=1
   td CoroutineFrame$scoop_deepest_suspend @scoop_td_CoroutineFrame$scoop_deepest_suspend size=64 vtable=3 itables=0
   td CoroutineAdapter$scoop_deepest_suspend$1 @scoop_td_CoroutineAdapter$scoop_deepest_suspend$1 size=56 vtable=3 itables=1
   td CoroutineFrame$scoop_middle_suspend @scoop_td_CoroutineFrame$scoop_middle_suspend size=104 vtable=3 itables=0
   td CoroutineAdapter$scoop_middle_suspend$1 @scoop_td_CoroutineAdapter$scoop_middle_suspend$1 size=32 vtable=3 itables=1
-  td CoroutineFrame$scoop_GcTask_run_suspend @scoop_td_CoroutineFrame$scoop_GcTask_run_suspend size=136 vtable=3 itables=0
-  td CoroutineAdapter$scoop_GcTask_run_suspend$1 @scoop_td_CoroutineAdapter$scoop_GcTask_run_suspend$1 size=32 vtable=3 itables=1
   td Exception @scoop_td_Exception size=24 vtable=3 itables=0
   td UnwrapException @scoop_td_UnwrapException size=24 vtable=3 itables=0
   td ClassCastException @scoop_td_ClassCastException size=24 vtable=3 itables=0
@@ -3164,14 +3164,15 @@ Module
   layout Option$S size=8 align=8 enum-scan=refs[0]
   layout Payload size=24 align=8 enum-scan=refs[8, 16]
   layout CoroutineStep$I size=16 align=8 enum-scan=none
-  layout CoroutineSlot$Gate size=8 align=8 enum-scan=refs[0]
-  layout CoroutineSlot$I size=16 align=8 enum-scan=none
-  layout CoroutineSlot$Throwable size=8 align=8 enum-scan=refs[0]
-  layout CoroutineSlot$EPayload size=32 align=8 enum-scan=refs[16, 24]
-  layout CoroutineSlot$S size=8 align=8 enum-scan=refs[0]
   layout CoroutineSlot$GcTask size=8 align=8 enum-scan=refs[0]
+  layout CoroutineSlot$S size=8 align=8 enum-scan=refs[0]
   layout CoroutineSlot$Node size=8 align=8 enum-scan=refs[0]
   layout CoroutineSlot$Bundle size=24 align=8 enum-scan=refs[8, 16]
+  layout CoroutineSlot$EPayload size=32 align=8 enum-scan=refs[16, 24]
+  layout CoroutineSlot$I size=16 align=8 enum-scan=none
+  layout CoroutineSlot$Throwable size=8 align=8 enum-scan=refs[0]
+  layout CoroutineSlot$Gate size=8 align=8 enum-scan=refs[0]
+  layout Node size=24 align=8 refs=[16]
   layout Throwable size=16 align=8 refs=[]
   layout Exception size=24 align=8 refs=[16]
   layout UnwrapException size=24 align=8 refs=[16]
@@ -3179,18 +3180,17 @@ Module
   layout ArithmeticException size=24 align=8 refs=[16]
   layout IndexOutOfBoundsException size=24 align=8 refs=[16]
   layout IllegalStateException size=24 align=8 refs=[16]
-  layout Node size=24 align=8 refs=[16]
   layout Gate size=24 align=8 refs=[16]
   layout Registration size=24 align=8 refs=[16]
   layout GcTask size=24 align=8 refs=[16]
   layout RecordingCompletion size=16 align=8 refs=[]
   layout box$I size=24 align=8 refs=[]
+  layout CoroutineFrame$scoop_GcTask_run_suspend size=136 align=8 refs=[24, 32, 40, 48, 64, 72, 96, 104, 128]
+  layout CoroutineAdapter$scoop_GcTask_run_suspend$1 size=32 align=8 refs=[16]
   layout CoroutineFrame$scoop_deepest_suspend size=64 align=8 refs=[24, 32, 56]
   layout CoroutineAdapter$scoop_deepest_suspend$1 size=56 align=8 refs=[16, 48]
   layout CoroutineFrame$scoop_middle_suspend size=104 align=8 refs=[24, 32, 56, 64, 72, 96]
   layout CoroutineAdapter$scoop_middle_suspend$1 size=32 align=8 refs=[16]
-  layout CoroutineFrame$scoop_GcTask_run_suspend size=136 align=8 refs=[24, 32, 40, 48, 64, 72, 96, 104, 128]
-  layout CoroutineAdapter$scoop_GcTask_run_suspend$1 size=32 align=8 refs=[16]
   entry @scoop_main
 
 == run ==

@@ -275,6 +275,18 @@ Module
   class A vtable=4 itables=0
   class B vtable=4 itables=0
   class box$I vtable=3 itables=0
+  fun A.s @scoop.A.s.I(this: A, v: Int) -> Int
+    bb0 entry
+      return
+        IntLiteral 1
+  fun A.s @scoop.A.s.S(this: A, v: String) -> Int
+    bb0 entry
+      return
+        IntLiteral 2
+  fun B.s @scoop.B.s(this: B, v: Int) -> Int
+    bb0 entry
+      return
+        IntLiteral 3
   fun print @scoop.print(message: Any) -> Unit
     bb0 entry
       call $call.1: String = @scoop.Any.toString virtual[2]
@@ -291,18 +303,6 @@ Module
       call extern0 @scoop_rt_write direct
         StringConst @scoop.str.0
       return
-  fun A.s @scoop.A.s.I(this: A, v: Int) -> Int
-    bb0 entry
-      return
-        IntLiteral 1
-  fun A.s @scoop.A.s.S(this: A, v: String) -> Int
-    bb0 entry
-      return
-        IntLiteral 2
-  fun B.s @scoop.B.s(this: B, v: Int) -> Int
-    bb0 entry
-      return
-        IntLiteral 3
   fun main @scoop_main() -> Unit
     bb0 entry
       call a: A = @scoop.ctor.B direct
@@ -415,6 +415,15 @@ Module
   global @scoop_td_B = c""
   enum Option$S niche(payload_variant=0)
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
+  fun @scoop.A.s.I(ptr<managed>, i64) -> i64
+  block entry
+    ret 1
+  fun @scoop.A.s.S(ptr<managed>, ptr<managed>) -> i64
+  block entry
+    ret 2
+  fun @scoop.B.s(ptr<managed>, i64) -> i64
+  block entry
+    ret 3
   fun @scoop.print(ptr<managed>) -> void
     local %0 $call.1: ptr<managed>
   block entry
@@ -437,15 +446,6 @@ Module
     native_call[native-borrowed] extern0(global0)
     t4 = aggregate () : {}
     ret
-  fun @scoop.A.s.I(ptr<managed>, i64) -> i64
-  block entry
-    ret 1
-  fun @scoop.A.s.S(ptr<managed>, ptr<managed>) -> i64
-  block entry
-    ret 2
-  fun @scoop.B.s(ptr<managed>, i64) -> i64
-  block entry
-    ret 3
   fun @scoop_main() -> void
     local %0 a: ptr<managed>
     local %1 $call.1: i64

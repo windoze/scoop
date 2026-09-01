@@ -329,6 +329,11 @@ Module
     bb0 entry
       return
         StringConst @scoop.str.0
+  fun Doc.describe @scoop.Doc.describe(this: Doc) -> String
+    bb0 entry
+      return
+        FieldAccess 0
+          Local this
   fun print @scoop.print(message: Any) -> Unit
     bb0 entry
       call $call.1: String = @scoop.Any.toString virtual[2]
@@ -345,11 +350,6 @@ Module
       call extern0 @scoop_rt_write direct
         StringConst @scoop.str.1
       return
-  fun Doc.describe @scoop.Doc.describe(this: Doc) -> String
-    bb0 entry
-      return
-        FieldAccess 0
-          Local this
   fun main @scoop_main() -> Unit
     bb0 entry
       call d: Doc = @scoop.ctor.Doc direct
@@ -585,6 +585,10 @@ Module
   fun @scoop.Tag.describe(struct0) -> ptr<managed>
   block entry
     ret global0
+  fun @scoop.Doc.describe(ptr<managed>) -> ptr<managed>
+  block entry
+    t0 = heap_load param0 +16 : ptr<managed>
+    ret t0
   fun @scoop.print(ptr<managed>) -> void
     local %0 $call.1: ptr<managed>
   block entry
@@ -607,10 +611,6 @@ Module
     native_call[native-borrowed] extern0(global1)
     t4 = aggregate () : {}
     ret
-  fun @scoop.Doc.describe(ptr<managed>) -> ptr<managed>
-  block entry
-    t0 = heap_load param0 +16 : ptr<managed>
-    ret t0
   fun @scoop_main() -> void
     local %0 d: ptr<managed>
     local %1 i: ptr<managed>

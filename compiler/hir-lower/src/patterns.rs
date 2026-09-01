@@ -58,9 +58,10 @@ impl Lowerer {
                 // A bare identifier that names a unit variant of the
                 // matched enum is a variant pattern (spec 5.1);
                 // anything else binds (spec 5 "binding priority").
-                if let Type::Enum(enum_id, _) = self.types[matched_ty] {
+                if let Type::Enum(application) = self.types[matched_ty] {
+                    let enum_id = self.enum_applications[application].template;
                     if let Some(variant) = self.find_variant(enum_id, &name.text) {
-                        return self.bare_variant_pattern(name, enum_id, variant, ctx);
+                        return self.bare_variant_pattern(name, application, variant, ctx);
                     }
                 }
                 let local = self.bind_local(name, matched_ty, ctx.mutable)?;
@@ -121,7 +122,9 @@ impl Lowerer {
                 }
                 // A positional struct pattern without the type prefix
                 // (spec 5.3: `(x, ..)` against a struct subject).
-                Type::Struct(struct_id, type_args) => {
+                Type::Struct(application) => {
+                    let application_value = self.struct_applications[application].clone();
+                    let struct_id = application_value.template;
                     let owner = format!("struct `{}`", self.structs[struct_id].name);
                     let declared: Vec<TypeId> = self.structs[struct_id]
                         .fields
@@ -130,7 +133,7 @@ impl Lowerer {
                         .collect();
                     let field_types: Vec<TypeId> = declared
                         .into_iter()
-                        .map(|ty| self.instantiate_ty(ty, &type_args))
+                        .map(|ty| self.instantiate_ty(ty, &application_value.arguments))
                         .collect();
                     let fields = self.lower_positional_pattern(
                         elements,
@@ -140,7 +143,10 @@ impl Lowerer {
                         *span,
                         ctx,
                     )?;
-                    Some(hir::Pattern::Struct { struct_id, fields })
+                    Some(hir::Pattern::Struct {
+                        application,
+                        fields,
+                    })
                 }
                 _ => {
                     let found = self.type_name(matched_ty);
@@ -159,7 +165,9 @@ impl Lowerer {
             } => {
                 let target = self.resolve_pattern_path(path, matched_ty, *span)?;
                 match target {
-                    PatternTarget::Variant(enum_id, variant, type_args) => {
+                    PatternTarget::Variant(application, variant) => {
+                        let application_value = self.enum_applications[application].clone();
+                        let enum_id = application_value.template;
                         if !ctx.in_when {
                             self.error(
                                 *span,
@@ -183,7 +191,11 @@ impl Lowerer {
                             &self.enums[enum_id].name,
                             &self.enums[enum_id].variants[variant as usize].name,
                         );
-                        let field_types = self.variant_field_types(enum_id, variant, &type_args);
+                        let field_types = self.variant_field_types(
+                            enum_id,
+                            variant,
+                            &application_value.arguments,
+                        );
                         let fields = self.lower_positional_pattern(
                             elements,
                             *rest,
@@ -193,12 +205,14 @@ impl Lowerer {
                             ctx,
                         )?;
                         Some(hir::Pattern::Variant {
-                            enum_id,
+                            application,
                             variant,
                             fields,
                         })
                     }
-                    PatternTarget::Struct(struct_id, type_args) => {
+                    PatternTarget::Struct(application) => {
+                        let application_value = self.struct_applications[application].clone();
+                        let struct_id = application_value.template;
                         let owner = format!("struct `{}`", self.structs[struct_id].name);
                         let declared: Vec<TypeId> = self.structs[struct_id]
                             .fields
@@ -207,7 +221,7 @@ impl Lowerer {
                             .collect();
                         let field_types: Vec<TypeId> = declared
                             .into_iter()
-                            .map(|ty| self.instantiate_ty(ty, &type_args))
+                            .map(|ty| self.instantiate_ty(ty, &application_value.arguments))
                             .collect();
                         let fields = self.lower_positional_pattern(
                             elements,
@@ -217,7 +231,10 @@ impl Lowerer {
                             *span,
                             ctx,
                         )?;
-                        Some(hir::Pattern::Struct { struct_id, fields })
+                        Some(hir::Pattern::Struct {
+                            application,
+                            fields,
+                        })
                     }
                 }
             }
@@ -229,7 +246,9 @@ impl Lowerer {
             } => {
                 let target = self.resolve_pattern_path(path, matched_ty, *span)?;
                 match target {
-                    PatternTarget::Variant(enum_id, variant, type_args) => {
+                    PatternTarget::Variant(application, variant) => {
+                        let application_value = self.enum_applications[application].clone();
+                        let enum_id = application_value.template;
                         if !ctx.in_when {
                             self.error(
                                 *span,
@@ -253,8 +272,11 @@ impl Lowerer {
                             &self.enums[enum_id].name,
                             &self.enums[enum_id].variants[variant as usize].name,
                         );
-                        let named_fields =
-                            self.variant_named_field_types(enum_id, variant, &type_args);
+                        let named_fields = self.variant_named_field_types(
+                            enum_id,
+                            variant,
+                            &application_value.arguments,
+                        );
                         let fields = self.lower_named_fields(
                             fields,
                             *rest,
@@ -264,12 +286,14 @@ impl Lowerer {
                             ctx,
                         )?;
                         Some(hir::Pattern::Variant {
-                            enum_id,
+                            application,
                             variant,
                             fields,
                         })
                     }
-                    PatternTarget::Struct(struct_id, type_args) => {
+                    PatternTarget::Struct(application) => {
+                        let application_value = self.struct_applications[application].clone();
+                        let struct_id = application_value.template;
                         let owner = format!("struct `{}`", self.structs[struct_id].name);
                         let declared: Vec<(String, TypeId)> = self.structs[struct_id]
                             .fields
@@ -278,7 +302,9 @@ impl Lowerer {
                             .collect();
                         let named_fields: Vec<(String, TypeId)> = declared
                             .into_iter()
-                            .map(|(name, ty)| (name, self.instantiate_ty(ty, &type_args)))
+                            .map(|(name, ty)| {
+                                (name, self.instantiate_ty(ty, &application_value.arguments))
+                            })
                             .collect();
                         let fields = self.lower_named_fields(
                             fields,
@@ -288,7 +314,10 @@ impl Lowerer {
                             *span,
                             ctx,
                         )?;
-                        Some(hir::Pattern::Struct { struct_id, fields })
+                        Some(hir::Pattern::Struct {
+                            application,
+                            fields,
+                        })
                     }
                 }
             }
@@ -301,10 +330,11 @@ impl Lowerer {
     fn bare_variant_pattern(
         &mut self,
         name: &ast::Ident,
-        enum_id: hir::EnumId,
+        application: hir::EnumApplicationId,
         variant: u32,
         ctx: PatternCtx,
     ) -> Option<hir::Pattern> {
+        let enum_id = self.enum_applications[application].template;
         let field_count = self.enums[enum_id].variants[variant as usize].fields.len();
         if field_count != 0 {
             let enum_name = &self.enums[enum_id].name;
@@ -325,7 +355,7 @@ impl Lowerer {
             return None;
         }
         Some(hir::Pattern::Variant {
-            enum_id,
+            application,
             variant,
             fields: Vec::new(),
         })
@@ -343,9 +373,7 @@ impl Lowerer {
         match path {
             // `S { f1, .. }` without a prefix: only structs (spec 5.3).
             [] => match self.types[matched_ty].clone() {
-                Type::Struct(struct_id, type_args) => {
-                    Some(PatternTarget::Struct(struct_id, type_args))
-                }
+                Type::Struct(application) => Some(PatternTarget::Struct(application)),
                 _ => {
                     let found = self.type_name(matched_ty);
                     self.error(
@@ -356,7 +384,8 @@ impl Lowerer {
                 }
             },
             [name] => match self.types[matched_ty].clone() {
-                Type::Enum(enum_id, type_args) => {
+                Type::Enum(application) => {
+                    let enum_id = self.enum_applications[application].template;
                     let Some(variant) = self.find_variant(enum_id, &name.text) else {
                         let enum_name = self.enums[enum_id].name.clone();
                         self.error(
@@ -365,10 +394,13 @@ impl Lowerer {
                         );
                         return None;
                     };
-                    Some(PatternTarget::Variant(enum_id, variant, type_args))
+                    Some(PatternTarget::Variant(application, variant))
                 }
-                Type::Struct(struct_id, type_args) if self.structs[struct_id].name == name.text => {
-                    Some(PatternTarget::Struct(struct_id, type_args))
+                Type::Struct(application)
+                    if self.structs[self.struct_applications[application].template].name
+                        == name.text =>
+                {
+                    Some(PatternTarget::Struct(application))
                 }
                 Type::Struct(..) => {
                     let found = self.type_name(matched_ty);
@@ -409,8 +441,10 @@ impl Lowerer {
                     return None;
                 };
                 match self.types[matched_ty].clone() {
-                    Type::Enum(id, type_args) if id == enum_id => {
-                        Some(PatternTarget::Variant(enum_id, variant, type_args))
+                    Type::Enum(application)
+                        if self.enum_applications[application].template == enum_id =>
+                    {
+                        Some(PatternTarget::Variant(application, variant))
                     }
                     _ => {
                         let found = self.type_name(matched_ty);
@@ -607,7 +641,7 @@ impl Lowerer {
         if has_else {
             return;
         }
-        let Type::Enum(enum_id, _) = self.types[subject_ty] else {
+        let Type::Enum(application) = self.types[subject_ty] else {
             let exhaustive = arms
                 .iter()
                 .any(|arm| arm.guard.is_none() && is_irrefutable(&arm.pattern));
@@ -619,6 +653,7 @@ impl Lowerer {
             }
             return;
         };
+        let enum_id = self.enum_applications[application].template;
         let mut covered = HashSet::new();
         for arm in arms {
             if arm.guard.is_some() {
@@ -654,8 +689,8 @@ impl Lowerer {
 /// What a pattern path resolved to: an enum variant (with the matched
 /// type's arguments, for instantiating field types) or a struct.
 enum PatternTarget {
-    Variant(hir::EnumId, u32, Vec<TypeId>),
-    Struct(hir::StructId, Vec<TypeId>),
+    Variant(hir::EnumApplicationId, u32),
+    Struct(hir::StructApplicationId),
 }
 
 /// `variant \`V\` of \`E\``, for diagnostics.

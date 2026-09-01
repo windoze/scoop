@@ -175,7 +175,10 @@ fn catch_local_structure() {
     assert_eq!(body.locals[first.local].ty, first.ty);
     assert!(matches!(
         module.types[first.ty],
-        hir::Type::Class(id) if module.classes[id].name == "UnwrapException"
+        hir::Type::Class(application)
+            if module.classes[module.class_applications[application].template].name
+                == "UnwrapException"
+                && module.class_applications[application].arguments.is_empty()
     ));
 }
 

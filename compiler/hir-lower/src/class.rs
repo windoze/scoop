@@ -160,13 +160,14 @@ impl Lowerer {
                     );
                 }
             }
-            Type::Interface(id, args) => {
-                let variances: Vec<_> = self.interfaces[id]
+            Type::Interface(application) => {
+                let application = self.interface_applications[application].clone();
+                let variances: Vec<_> = self.interfaces[application.template]
                     .type_params
                     .iter()
                     .map(|param| param.variance)
                     .collect();
-                for (arg, variance) in args.into_iter().zip(variances) {
+                for (arg, variance) in application.arguments.into_iter().zip(variances) {
                     self.check_variance_position(
                         arg,
                         position.through(variance),
@@ -176,7 +177,43 @@ impl Lowerer {
                     );
                 }
             }
-            Type::Struct(_, args) | Type::Enum(_, args) | Type::Tuple(args) => {
+            Type::Struct(application) => {
+                let args = self.struct_applications[application].arguments.clone();
+                for arg in args {
+                    self.check_variance_position(
+                        arg,
+                        TypePosition::Invariant,
+                        params,
+                        method,
+                        span,
+                    );
+                }
+            }
+            Type::Class(application) => {
+                let args = self.class_applications[application].arguments.clone();
+                for arg in args {
+                    self.check_variance_position(
+                        arg,
+                        TypePosition::Invariant,
+                        params,
+                        method,
+                        span,
+                    );
+                }
+            }
+            Type::Enum(application) => {
+                let args = self.enum_applications[application].arguments.clone();
+                for arg in args {
+                    self.check_variance_position(
+                        arg,
+                        TypePosition::Invariant,
+                        params,
+                        method,
+                        span,
+                    );
+                }
+            }
+            Type::Tuple(args) => {
                 for arg in args {
                     self.check_variance_position(
                         arg,
@@ -231,22 +268,16 @@ impl Lowerer {
                     span,
                 );
             }
-            Type::Unit
-            | Type::Int
-            | Type::UInt
-            | Type::Boolean
-            | Type::String
-            | Type::Class(_)
-            | Type::Any => {}
+            Type::Unit | Type::Int | Type::UInt | Type::Boolean | Type::String | Type::Any => {}
         }
     }
 
     /// Resolve a class's constructor properties, base-class clause and
     /// interface list (pass 2).
     pub(crate) fn resolve_class(&mut self, id: ClassId, decl: &ast::ClassDecl) {
+        self.type_params_in_scope = self.classes[id].type_params.clone();
         let mut seen = std::collections::HashSet::new();
         let mut props = Vec::new();
-        let mut mutability = Vec::new();
         for prop in &decl.constructor {
             if !seen.insert(prop.name.text.clone()) {
                 self.error(
@@ -261,52 +292,44 @@ impl Lowerer {
             let Some(ty) = self.resolve_type_ref(&prop.ty) else {
                 continue; // diagnostic already recorded
             };
-            props.push(hir::Field {
+            props.push(hir::ConstructorField {
+                parameter: hir::ConstructorParamId::from_raw(props.len() as u32),
                 name: prop.name.text.clone(),
                 ty,
+                mutable: prop.mutable,
             });
-            mutability.push(prop.mutable);
         }
         self.classes[id].constructor = props;
-        self.class_prop_mutability.insert(id, mutability);
 
-        if let Some((base_ty, _)) = &decl.base_class {
-            let ast::TypeRefKind::Named(base_name) = &base_ty.kind else {
+        if let Some((base_ref, _)) = &decl.base_class
+            && let Some(base_ty) = self.resolve_type_ref(base_ref)
+        {
+            let Type::Class(base_application) = self.types[base_ty] else {
                 self.error(
-                    base_ty.span,
-                    "generic base classes are not supported by the current HIR model".to_string(),
+                    base_ref.span,
+                    format!("`{}` is not a class", self.type_name(base_ty)),
                 );
+                self.type_params_in_scope.clear();
                 return;
             };
-            match self.classes_by_name.get(&base_name.text) {
-                Some(&(base_id, _)) => {
-                    if self.classes[base_id].modifier == hir::ClassModifier::Final {
-                        self.error(
-                            base_name.span,
-                            format!(
-                                "class `{}` is final and cannot be inherited",
-                                base_name.text
-                            ),
-                        );
-                    } else {
-                        // The constructor arguments are lowered in
-                        // pass 3 (`lower_base_args`).
-                        self.classes[id].base_class = Some((base_id, Vec::new()));
-                    }
-                }
-                None => {
-                    let what = if self.type_namespace_conflict(&base_name.text).is_some() {
-                        format!("`{}` is not a class", base_name.text)
-                    } else {
-                        format!("unknown type `{}`", base_name.text)
-                    };
-                    self.error(base_name.span, what);
-                }
+            let base_id = self.class_applications[base_application].template;
+            if self.classes[base_id].modifier == hir::ClassModifier::Final {
+                self.error(
+                    base_ref.span,
+                    format!(
+                        "class `{}` is final and cannot be inherited",
+                        self.classes[base_id].name
+                    ),
+                );
+            } else {
+                // Constructor arguments are lowered in pass 3.
+                self.classes[id].base_class = Some((base_ty, Vec::new()));
             }
         }
 
         let interfaces = self.resolve_interface_list(&decl.interfaces);
         self.classes[id].interfaces = interfaces;
+        self.type_params_in_scope.clear();
     }
 
     /// Resolve an interface list (`: I1, I2`) on any declaration —
@@ -393,7 +416,7 @@ impl Lowerer {
         );
         method_type_params = type_params[owner_type_param_count..].to_vec();
         if !type_params.is_empty() {
-            self.register_generic(id);
+            self.register_generic(id, type_params.clone());
         }
         self.type_params_in_scope = type_params.clone();
         let mut params = Vec::with_capacity(decl.params.len());
@@ -411,7 +434,6 @@ impl Lowerer {
         };
         self.type_params_in_scope.clear();
 
-        self.functions[id].type_params = type_params.clone();
         self.functions[id].return_ty = return_ty;
         self.signatures.insert(
             id,
@@ -606,7 +628,11 @@ impl Lowerer {
     fn check_inheritance_cycle(&mut self, id: ClassId, decl: &ast::ClassDecl) {
         let mut seen = vec![id];
         let mut current = id;
-        while let Some((base, _)) = self.classes[current].base_class {
+        while let Some((base_ty, _)) = self.classes[current].base_class {
+            let Type::Class(base_application) = self.types[base_ty] else {
+                unreachable!("resolved class bases are class applications")
+            };
+            let base = self.class_applications[base_application].template;
             if seen.contains(&base) {
                 let name = self.classes[id].name.clone();
                 self.error(
@@ -623,9 +649,13 @@ impl Lowerer {
     /// M6 simplification: a constructor property may not reuse the name
     /// of a base-class property (no field shadowing).
     fn check_property_shadowing(&mut self, id: ClassId, decl: &ast::ClassDecl) {
-        let Some((base, _)) = self.classes[id].base_class else {
+        let Some((base_ty, _)) = self.classes[id].base_class else {
             return;
         };
+        let Type::Class(base_application) = self.types[base_ty] else {
+            unreachable!("resolved class bases are class applications")
+        };
+        let base = self.class_applications[base_application].template;
         for prop in &decl.constructor {
             if let Some((declaring, _, _, _)) = self.find_class_field(base, &prop.name.text) {
                 let base_name = self.classes[declaring].name.clone();
@@ -654,7 +684,7 @@ impl Lowerer {
                 let mut candidates: Vec<_> = self
                     .base_chain_methods(class_id)
                     .into_iter()
-                    .map(|method| (method, Vec::new()))
+                    .map(|candidate| (candidate.function, candidate.owner_arguments))
                     .collect();
                 for interface_ty in self.class_interfaces_all(class_id) {
                     let (iface, args) = self.interface_application(interface_ty);
@@ -751,14 +781,25 @@ impl Lowerer {
             for (qualified, method) in methods {
                 let sig = self.instantiated_signature(method, &args, 0);
                 let short = qualified.rsplit('.').next().expect("methods are qualified");
-                let implemented = self
-                    .base_chain_methods(id)
-                    .into_iter()
-                    .chain(self.class_methods[&id].iter().copied())
-                    .any(|candidate| {
-                        self.same_signature(candidate, short, &sig)
-                            && !self.is_abstract_method(candidate)
-                    });
+                let own_arguments = self.class_applications[self.classes[id].self_application]
+                    .arguments
+                    .clone();
+                let mut candidates = self.base_chain_methods(id);
+                candidates.extend(self.classes[id].methods.iter().copied().map(|function| {
+                    crate::CallableCandidate {
+                        function,
+                        owner_arguments: own_arguments.clone(),
+                    }
+                }));
+                let implemented = candidates.into_iter().any(|candidate| {
+                    self.same_instantiated_signature(
+                        candidate.function,
+                        short,
+                        &sig,
+                        &candidate.owner_arguments,
+                        0,
+                    ) && !self.is_abstract_method(candidate.function)
+                });
                 if !implemented {
                     let iface_name = self.interfaces[iface].name.clone();
                     self.error(
@@ -780,11 +821,11 @@ impl Lowerer {
         let (interfaces, own_methods): (Vec<TypeId>, Vec<FunctionId>) = match owner {
             Owner::Struct(id) => (
                 self.structs[id].interfaces.clone(),
-                self.struct_methods[&id].clone(),
+                self.structs[id].methods.clone(),
             ),
             Owner::Enum(id) => (
                 self.enums[id].interfaces.clone(),
-                self.enum_methods[&id].clone(),
+                self.enums[id].methods.clone(),
             ),
             // Only called for value types.
             Owner::Class(_) | Owner::Interface(_) => return,
@@ -936,7 +977,10 @@ impl Lowerer {
 
     fn interface_application(&self, ty: TypeId) -> (hir::InterfaceId, Vec<TypeId>) {
         match &self.types[ty] {
-            Type::Interface(id, args) => (*id, args.clone()),
+            Type::Interface(application) => {
+                let application = &self.interface_applications[*application];
+                (application.template, application.arguments.clone())
+            }
             _ => unreachable!("resolved interface lists only contain interface applications"),
         }
     }
@@ -962,21 +1006,29 @@ impl Lowerer {
     /// scope there (an M6 simplification: HIR has no body to host the
     /// locals a reference would need).
     pub(crate) fn lower_base_args(&mut self, id: ClassId, decl: &ast::ClassDecl) {
-        let Some((base_ty, args)) = &decl.base_class else {
+        let Some((_base_ty, args)) = &decl.base_class else {
             return;
         };
-        let ast::TypeRefKind::Named(base_name) = &base_ty.kind else {
-            return; // rejected while resolving the inheritance clause
-        };
-        let base_id = match self.classes[id].base_class.as_ref() {
-            Some((base_id, _)) => *base_id,
+        let resolved_base = match self.classes[id].base_class.as_ref() {
+            Some((base, _)) => *base,
             None => return, // the clause was rejected in pass 2
         };
-        let base_name = base_name.text.clone();
-        let props: Vec<(String, TypeId)> = self.classes[base_id]
-            .constructor
+        let Type::Class(base_application) = self.types[resolved_base] else {
+            unreachable!("resolved class bases are class applications")
+        };
+        let base_application = self.class_applications[base_application].clone();
+        let base_id = base_application.template;
+        let base_type_args = base_application.arguments;
+        let base_name = self.classes[base_id].name.clone();
+        let base_constructor = self.classes[base_id].constructor.clone();
+        let props: Vec<(String, TypeId)> = base_constructor
             .iter()
-            .map(|field| (field.name.clone(), field.ty))
+            .map(|field| {
+                (
+                    field.name.clone(),
+                    self.instantiate_ty(field.ty, &base_type_args),
+                )
+            })
             .collect();
         if args.len() != props.len() {
             let expected = props.len();
@@ -996,6 +1048,12 @@ impl Lowerer {
         }
         let mut lowered_args = Vec::with_capacity(args.len());
         let mut ok = true;
+        self.type_params_in_scope = self.classes[id].type_params.clone();
+        self.constructor_params_in_scope = self.classes[id]
+            .constructor
+            .iter()
+            .map(|parameter| (parameter.name.clone(), (parameter.parameter, parameter.ty)))
+            .collect();
         self.push_scope();
         self.push_suspension_context(SuspensionContext::Forbidden(
             ForbiddenSuspendContext::ConstructorDelegation,
@@ -1032,69 +1090,60 @@ impl Lowerer {
         }
         self.pop_suspension_context();
         self.pop_scope();
+        self.constructor_params_in_scope.clear();
+        self.type_params_in_scope.clear();
         if ok {
-            self.classes[id].base_class = Some((base_id, lowered_args));
+            self.classes[id].base_class = Some((resolved_base, lowered_args));
         }
     }
 
     // --- member lookup helpers ---
 
-    /// Whether `a` inherits from `b` (a proper base-class-chain walk;
-    /// cycle-safe).
-    pub(crate) fn class_inherits(&self, a: ClassId, b: ClassId) -> bool {
-        let mut seen = vec![a];
-        let mut current = a;
-        while let Some((base, _)) = self.classes[current].base_class {
-            if base == b {
-                return true;
-            }
-            if seen.contains(&base) {
-                return false; // cyclic inheritance (diagnosed separately)
-            }
-            seen.push(base);
-            current = base;
-        }
-        false
+    fn direct_base_class(&self, class: ClassId) -> Option<ClassId> {
+        let (base, _) = self.classes[class].base_class.as_ref()?;
+        let Type::Class(application) = self.types[*base] else {
+            unreachable!("resolved class bases are class applications")
+        };
+        Some(self.class_applications[application].template)
     }
 
     /// Every interface implemented by class `c` or its base classes,
     /// deduplicated, own list first (cycle-safe).
-    pub(crate) fn class_interfaces_all(&self, c: ClassId) -> Vec<TypeId> {
-        let mut result = Vec::new();
-        let mut seen = vec![c];
-        let mut current = Some(c);
-        while let Some(id) = current {
-            for &iface in &self.classes[id].interfaces {
-                if !result.iter().any(|&other| self.types_equal(other, iface)) {
-                    result.push(iface);
-                }
-            }
-            current = match self.classes[id].base_class {
-                Some((base, _)) if !seen.contains(&base) => {
-                    seen.push(base);
-                    Some(base)
-                }
-                _ => None,
-            };
-        }
-        result
+    pub(crate) fn class_interfaces_all(&mut self, c: ClassId) -> Vec<TypeId> {
+        self.class_interfaces_for_application(self.classes[c].self_application)
     }
 
     /// The methods of the base classes of `c`, nearest base first
     /// (cycle-safe).
-    fn base_chain_methods(&self, c: ClassId) -> Vec<FunctionId> {
+    fn base_chain_methods(&mut self, c: ClassId) -> Vec<crate::CallableCandidate> {
         let mut result = Vec::new();
-        let mut seen = vec![c];
-        let mut current = Some(c);
-        while let Some(id) = current {
-            current = match self.classes[id].base_class {
-                Some((base, _)) if !seen.contains(&base) => {
-                    seen.push(base);
-                    result.extend(self.class_methods[&base].iter().copied());
-                    Some(base)
-                }
-                _ => None,
+        let mut current = self.classes[c].self_application;
+        let mut seen = vec![current];
+        loop {
+            let application = self.class_applications[current].clone();
+            let Some((base, _)) = self.classes[application.template].base_class.clone() else {
+                break;
             };
+            let base = self.instantiate_ty(base, &application.arguments);
+            let Type::Class(base_application) = self.types[base] else {
+                unreachable!("class bases are resolved class applications")
+            };
+            if seen.contains(&base_application) {
+                break;
+            }
+            seen.push(base_application);
+            let base = self.class_applications[base_application].clone();
+            result.extend(
+                self.classes[base.template]
+                    .methods
+                    .iter()
+                    .copied()
+                    .map(|function| crate::CallableCandidate {
+                        function,
+                        owner_arguments: base.arguments.clone(),
+                    }),
+            );
+            current = base_application;
         }
         result
     }
@@ -1107,8 +1156,8 @@ impl Lowerer {
         let mut seen = vec![c];
         let mut current = Some(c);
         while let Some(id) = current {
-            current = match self.classes[id].base_class {
-                Some((base, _)) if !seen.contains(&base) => {
+            current = match self.direct_base_class(id) {
+                Some(base) if !seen.contains(&base) => {
                     seen.push(base);
                     total += self.classes[base].constructor.len() as u32;
                     Some(base)
@@ -1135,11 +1184,40 @@ impl Lowerer {
         {
             let abs = self.base_field_total(c) + index as u32;
             let ty = self.classes[c].constructor[index].ty;
-            let mutable = self.class_prop_mutability[&c][index];
+            let mutable = self.classes[c].constructor[index].mutable;
             return Some((c, abs, ty, mutable));
         }
-        let (base, _) = self.classes[c].base_class.as_ref()?;
-        self.find_class_field(*base, name)
+        let base = self.direct_base_class(c)?;
+        self.find_class_field(base, name)
+    }
+
+    /// Field lookup on a complete class application. The declaration/layout
+    /// identity remains the declaring `ClassId`, while the returned field type
+    /// is fully substituted through every generic base application.
+    pub(crate) fn find_class_application_field(
+        &mut self,
+        application: hir::ClassApplicationId,
+        name: &str,
+    ) -> Option<(hir::ClassApplicationId, u32, TypeId, bool)> {
+        let application_value = self.class_applications[application].clone();
+        let class = application_value.template;
+        if let Some(index) = self.classes[class]
+            .constructor
+            .iter()
+            .position(|field| field.name == name)
+        {
+            let abs = self.base_field_total(class) + index as u32;
+            let field_ty = self.classes[class].constructor[index].ty;
+            let ty = self.instantiate_ty(field_ty, &application_value.arguments);
+            let mutable = self.classes[class].constructor[index].mutable;
+            return Some((application, abs, ty, mutable));
+        }
+        let (base, _) = self.classes[class].base_class.clone()?;
+        let base = self.instantiate_ty(base, &application_value.arguments);
+        let Type::Class(base_application) = self.types[base] else {
+            unreachable!("resolved class bases are class applications")
+        };
+        self.find_class_application_field(base_application, name)
     }
 
     /// All visible methods named `name` on a receiver type (M7 overload
@@ -1158,55 +1236,162 @@ impl Lowerer {
     /// virtualizes these three on an exactly-`Any` receiver (a class
     /// receiver would come out as a direct call, an interface
     /// receiver has no matching itable slot).
-    pub(crate) fn methods_by_name(&self, ty: TypeId, name: &str) -> Vec<FunctionId> {
-        let add_visible = |result: &mut Vec<FunctionId>, methods: &[FunctionId]| {
-            for method in methods
-                .iter()
-                .copied()
-                .filter(|&method| self.functions[method].name.rsplit('.').next() == Some(name))
-            {
-                let sig = &self.signatures[&method];
-                if !result
-                    .iter()
-                    .copied()
-                    .any(|visible| self.same_signature(visible, name, sig))
-                {
-                    result.push(method);
+    pub(crate) fn methods_by_name(
+        &mut self,
+        ty: TypeId,
+        name: &str,
+    ) -> Vec<crate::CallableCandidate> {
+        let mut declared = Vec::<(crate::CallableCandidate, usize)>::new();
+        match self.types[ty].clone() {
+            Type::Class(mut application) => {
+                let mut depth = 0;
+                loop {
+                    let application_value = self.class_applications[application].clone();
+                    let class = application_value.template;
+                    declared.extend(self.classes[class].methods.iter().copied().map(|function| {
+                        (
+                            crate::CallableCandidate {
+                                function,
+                                owner_arguments: application_value.arguments.clone(),
+                            },
+                            depth,
+                        )
+                    }));
+                    let Some((base, _)) = self.classes[class].base_class.clone() else {
+                        break;
+                    };
+                    let base = self.instantiate_ty(base, &application_value.arguments);
+                    let Type::Class(base_application) = self.types[base] else {
+                        unreachable!("resolved class bases are class applications")
+                    };
+                    application = base_application;
+                    depth += 1;
                 }
             }
-        };
-        match self.types[ty] {
-            Type::Class(id) => {
-                let mut result = Vec::new();
-                add_visible(&mut result, &self.class_methods[&id]);
-                add_visible(&mut result, &self.base_chain_methods(id));
-                result
+            Type::Interface(application) => {
+                let application = self.interface_applications[application].clone();
+                declared.extend(
+                    self.interface_methods[&application.template]
+                        .iter()
+                        .copied()
+                        .map(|function| {
+                            (
+                                crate::CallableCandidate {
+                                    function,
+                                    owner_arguments: application.arguments.clone(),
+                                },
+                                0,
+                            )
+                        }),
+                );
             }
-            Type::Interface(id, _) => {
-                let mut result = Vec::new();
-                add_visible(&mut result, &self.interface_methods[&id]);
-                result
+            Type::Struct(application) => {
+                let application = self.struct_applications[application].clone();
+                declared.extend(
+                    self.structs[application.template]
+                        .methods
+                        .iter()
+                        .copied()
+                        .map(|function| {
+                            (
+                                crate::CallableCandidate {
+                                    function,
+                                    owner_arguments: application.arguments.clone(),
+                                },
+                                0,
+                            )
+                        }),
+                );
             }
-            Type::Struct(id, _) => {
-                let mut result = Vec::new();
-                add_visible(&mut result, &self.struct_methods[&id]);
-                result
-            }
-            Type::Ptr(_) => {
-                let mut result = Vec::new();
-                if let Some(id) = self.ffi_ptr {
-                    add_visible(&mut result, &self.struct_methods[&id]);
+            Type::Ptr(pointee) => {
+                if let Some(owner) = self.ffi_ptr {
+                    declared.extend(self.structs[owner].methods.iter().copied().map(|function| {
+                        (
+                            crate::CallableCandidate {
+                                function,
+                                owner_arguments: vec![pointee],
+                            },
+                            0,
+                        )
+                    }));
                 }
-                result
             }
-            Type::Enum(id, _) => {
-                let mut result = Vec::new();
-                add_visible(&mut result, &self.enum_methods[&id]);
-                result
+            Type::Enum(application) => {
+                let application = self.enum_applications[application].clone();
+                declared.extend(
+                    self.enums[application.template]
+                        .methods
+                        .iter()
+                        .copied()
+                        .map(|function| {
+                            (
+                                crate::CallableCandidate {
+                                    function,
+                                    owner_arguments: application.arguments.clone(),
+                                },
+                                0,
+                            )
+                        }),
+                );
             }
-            Type::Any => self.any_method(name).into_iter().collect(),
-            _ => Vec::new(),
+            Type::Any => {
+                if let Some(function) = self.any_method(name) {
+                    declared.push((
+                        crate::CallableCandidate {
+                            function,
+                            owner_arguments: Vec::new(),
+                        },
+                        0,
+                    ));
+                }
+            }
+            _ => {}
         }
+
+        let mut visible = Vec::new();
+        for (candidate, depth) in declared {
+            if self.functions[candidate.function].name.rsplit('.').next() != Some(name) {
+                continue;
+            }
+            let mut duplicate = false;
+            for (existing, existing_depth) in &visible {
+                if *existing_depth < depth
+                    && self.same_applied_method_signature(existing, &candidate, name)
+                {
+                    duplicate = true;
+                    break;
+                }
+            }
+            if !duplicate {
+                visible.push((candidate, depth));
+            }
+        }
+        visible
+            .into_iter()
+            .map(|(candidate, _)| candidate)
+            .collect()
+    }
+
+    fn same_applied_method_signature(
+        &mut self,
+        left: &crate::CallableCandidate,
+        right: &crate::CallableCandidate,
+        name: &str,
+    ) -> bool {
+        let left_sig = self.instantiated_signature(left.function, &left.owner_arguments, 0);
+        let right_sig = self.instantiated_signature(right.function, &right.owner_arguments, 0);
+        self.functions[left.function].name.rsplit('.').next() == Some(name)
+            && self.functions[right.function].name.rsplit('.').next() == Some(name)
+            && left_sig.is_suspend == right_sig.is_suspend
+            && left_sig.attributes == right_sig.attributes
+            && left_sig.type_params.len() == right_sig.type_params.len()
+            && left_sig.params.len() == right_sig.params.len()
+            && left_sig
+                .params
+                .iter()
+                .zip(&right_sig.params)
+                .all(|(left, right)| self.types_equal(left.ty, right.ty))
+            && self.types_equal(left_sig.return_ty, right_sig.return_ty)
     }
 
     /// The synthesized `Any` member named `name`

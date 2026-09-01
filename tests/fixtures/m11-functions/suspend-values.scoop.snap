@@ -919,9 +919,9 @@ Module
   class CoroutineAdapter$scoop_function_bridge__Closure_reference1_SIRAnyX_suspend$1 vtable=3 itables=1
   class CoroutineFrame$scoop_function_bridge__Closure_reference2_SIRAnyX_suspend vtable=3 itables=0
   class CoroutineAdapter$scoop_function_bridge__Closure_reference2_SIRAnyX_suspend$1 vtable=3 itables=1
+  interface AsyncValue
   interface Continuation$I
   interface Continuation$U
-  interface AsyncValue
   interface SuspendRegistration$I
   interface SuspendTask$I
   interface SuspendTask$U
@@ -929,10 +929,10 @@ Module
   interface Continuation$Any
   interface SuspendTask$Any
   interface SuspendRegistration$Any
-  closure cc0 $Closure$lambda0 type=function_type1 invoke=@scoop.$lambda.0$suspend captures=1
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@scoop.$lambda.23 captures=1
+  closure cc1 $Closure$lambda1 type=function_type0 invoke=@scoop.$lambda.24 captures=1
+  closure cc2 $Closure$lambda2 type=function_type1 invoke=@scoop.$lambda.0$suspend captures=1
     bridge function_type1 -> @scoop.$lambda.0$suspend
-  closure cc1 $Closure$lambda1 type=function_type0 invoke=@scoop.$lambda.23 captures=1
-  closure cc2 $Closure$lambda2 type=function_type0 invoke=@scoop.$lambda.24 captures=1
   closure cc3 $Closure$lambda3 type=function_type1 invoke=@scoop.$lambda.3$suspend captures=1
     bridge function_type1 -> @scoop.$lambda.3$suspend
   closure cc4 $Closure$lambda4 type=function_type1 invoke=@scoop.$lambda.4$suspend captures=1
@@ -992,22 +992,6 @@ Module
   adapter ca0 class=cc33 source=function_type4 target=function_type3
   dynamic_adapter da0 class=cc34 target=function_type3
   dynamic_adapter da1 class=cc35 target=function_type1
-  fun print @scoop.print(message: Any) -> Unit
-    bb0 entry
-      call $call.1: String = @scoop.Any.toString virtual[2]
-        Local message
-      call extern0 @scoop_rt_write direct
-        Local $call.1
-      return
-  fun println @scoop.println(message: Any) -> Unit
-    bb0 entry
-      call $call.1: String = @scoop.Any.toString virtual[2]
-        Local message
-      call extern0 @scoop_rt_write direct
-        Local $call.1
-      call extern0 @scoop_rt_write direct
-        StringConst @scoop.str.0
-      return
   fun Done.resume @scoop.Done.resume(this: Done, value: Int) -> Unit
     bb0 entry
       call @scoop.println direct
@@ -1017,17 +1001,17 @@ Module
   fun Done.resumeWithException @scoop.Done.resumeWithException(this: Done, exception: Throwable) -> Unit
     bb0 entry
       call @scoop.println direct
-        StringConst @scoop.str.1
+        StringConst @scoop.str.0
       return
   fun UnitDone.resume @scoop.UnitDone.resume(this: UnitDone, value: Unit) -> Unit
     bb0 entry
       call @scoop.println direct
-        StringConst @scoop.str.2
+        StringConst @scoop.str.1
       return
   fun UnitDone.resumeWithException @scoop.UnitDone.resumeWithException(this: UnitDone, exception: Throwable) -> Unit
     bb0 entry
       call @scoop.println direct
-        StringConst @scoop.str.3
+        StringConst @scoop.str.2
       return
   fun Gate.complete @scoop.Gate.complete(this: Gate, value: Int) -> Unit
     bb0 entry
@@ -1087,21 +1071,6 @@ Module
         Local continuation
         Local exception
       return
-  fun makeTask @scoop.makeTask(gate: Gate) -> suspend () -> Int
-    bb0 entry
-      return
-        ClosureAlloc cc0 $Closure$lambda0
-          Local gate
-  fun referenced @scoop.referenced$suspend($completion: Continuation$I) -> CoroutineStep$I
-    bb0 entry
-      return
-        VariantConstruct CoroutineStep$I v0
-          IntLiteral 43
-  fun acceptAny @scoop.acceptAny$suspend(value: Any, $completion: Continuation$I) -> CoroutineStep$I
-    bb0 entry
-      return
-        VariantConstruct CoroutineStep$I v0
-          IntLiteral 44
   fun Worker.await @scoop.Worker.await$suspend(this: Worker, $completion: Continuation$I) -> CoroutineStep$I
     bb0 entry
       val $frame: CoroutineFrame$scoop_Worker_await_suspend
@@ -1132,6 +1101,37 @@ Module
         IntLiteral 0
       return
         Local $step
+  fun print @scoop.print(message: Any) -> Unit
+    bb0 entry
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call extern0 @scoop_rt_write direct
+        Local $call.1
+      return
+  fun println @scoop.println(message: Any) -> Unit
+    bb0 entry
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call extern0 @scoop_rt_write direct
+        Local $call.1
+      call extern0 @scoop_rt_write direct
+        StringConst @scoop.str.3
+      return
+  fun makeTask @scoop.makeTask(gate: Gate) -> suspend () -> Int
+    bb0 entry
+      return
+        ClosureAlloc cc2 $Closure$lambda2
+          Local gate
+  fun referenced @scoop.referenced$suspend($completion: Continuation$I) -> CoroutineStep$I
+    bb0 entry
+      return
+        VariantConstruct CoroutineStep$I v0
+          IntLiteral 43
+  fun acceptAny @scoop.acceptAny$suspend(value: Any, $completion: Continuation$I) -> CoroutineStep$I
+    bb0 entry
+      return
+        VariantConstruct CoroutineStep$I v0
+          IntLiteral 44
   fun localTask @scoop.localTask(gate: Gate) -> suspend () -> Int
     bb0 entry
       return
@@ -1693,7 +1693,7 @@ Module
     bb0 entry
       field_set 0
         FieldAccess 0
-          ClosureCapture cc1 0
+          ClosureCapture cc0 0
             Local $closure
         VariantConstruct Option$Continuation$I<Continuation$I> v0
           Local continuation
@@ -1702,7 +1702,7 @@ Module
     bb0 entry
       field_set 0
         FieldAccess 0
-          ClosureCapture cc2 0
+          ClosureCapture cc1 0
             Local $closure
         VariantConstruct Option$Continuation$I<Continuation$I> v0
           Local continuation
@@ -3789,7 +3789,7 @@ Module
           Local $frame
           IntLiteral 1
       call $step.1: CoroutineStep$I = @scoop.suspendCoroutine$I.g3$suspend direct
-        ClosureAlloc cc1 $Closure$lambda1
+        ClosureAlloc cc0 $Closure$lambda0
           Local this
         Local $adapter.1
       branch bb5 bb6
@@ -4044,7 +4044,7 @@ Module
           Local $frame
           IntLiteral 1
       call $step.1: CoroutineStep$I = @scoop.suspendCoroutine$I.g3$suspend direct
-        ClosureAlloc cc2 $Closure$lambda2
+        ClosureAlloc cc1 $Closure$lambda1
           Local this
         Local $adapter.1
       branch bb5 bb6
@@ -6359,7 +6359,7 @@ Module
           IntLiteral 1
       call $step.1: CoroutineStep$I = @scoop.suspendCoroutine$I.g3$suspend direct
         ClosureAlloc cc19 $Closure$lambda19
-          ClosureCapture cc0 0
+          ClosureCapture cc2 0
             Local $closure
         Local $adapter.1
       branch bb13 bb14
@@ -11955,8 +11955,8 @@ Module
   coroutine_frame cr3 CoroutineFrame$scoop__reference_3_suspend owner=cf3
   coroutine_frame cr4 CoroutineFrame$scoop__reference_4_suspend owner=cf4
   coroutine_frame cr5 CoroutineFrame$scoop__reference_5_suspend owner=cf5
-  coroutine_frame cr6 CoroutineFrame$scoop_Worker_await_suspend owner=cf8
-  coroutine_frame cr7 CoroutineFrame$scoop_AsyncWorker_read_suspend owner=cf9
+  coroutine_frame cr6 CoroutineFrame$scoop_Worker_await_suspend owner=cf6
+  coroutine_frame cr7 CoroutineFrame$scoop_AsyncWorker_read_suspend owner=cf7
   coroutine_frame cr8 CoroutineFrame$scoop__adapter_SAnyRIX_SIRAnyX_suspend owner=cf10
   coroutine_frame cr9 CoroutineFrame$scoop__dynamic_adapter_SIRAnyX_suspend owner=cf11
   coroutine_frame cr10 CoroutineFrame$scoop_synchronousValue_suspend owner=cf12
@@ -12029,10 +12029,10 @@ Module
   coroutine_fn cf3 @scoop.$reference.3$suspend source_return=Int step=cs0 frame=cr3 driver=@scoop.$reference.3$suspend$drive resumes=[cp3]
   coroutine_fn cf4 @scoop.$reference.4$suspend source_return=Int step=cs0 frame=cr4 driver=@scoop.$reference.4$suspend$drive resumes=[cp4]
   coroutine_fn cf5 @scoop.$reference.5$suspend source_return=Int step=cs0 frame=cr5 driver=@scoop.$reference.5$suspend$drive resumes=[cp5]
-  coroutine_fn cf6 @scoop.referenced$suspend source_return=Int step=cs0 immediate
-  coroutine_fn cf7 @scoop.acceptAny$suspend source_return=Int step=cs0 immediate
-  coroutine_fn cf8 @scoop.Worker.await$suspend source_return=Int step=cs0 frame=cr6 driver=@scoop.Worker.await$suspend$drive resumes=[cp6]
-  coroutine_fn cf9 @scoop.AsyncWorker.read$suspend source_return=Int step=cs0 frame=cr7 driver=@scoop.AsyncWorker.read$suspend$drive resumes=[cp7]
+  coroutine_fn cf6 @scoop.Worker.await$suspend source_return=Int step=cs0 frame=cr6 driver=@scoop.Worker.await$suspend$drive resumes=[cp6]
+  coroutine_fn cf7 @scoop.AsyncWorker.read$suspend source_return=Int step=cs0 frame=cr7 driver=@scoop.AsyncWorker.read$suspend$drive resumes=[cp7]
+  coroutine_fn cf8 @scoop.referenced$suspend source_return=Int step=cs0 immediate
+  coroutine_fn cf9 @scoop.acceptAny$suspend source_return=Int step=cs0 immediate
   coroutine_fn cf10 @scoop.$adapter.SAnyRIX.SIRAnyX$suspend source_return=Any step=cs2 frame=cr8 driver=@scoop.$adapter.SAnyRIX.SIRAnyX$suspend$drive resumes=[cp8]
   coroutine_fn cf11 @scoop.$dynamic_adapter.SIRAnyX$suspend source_return=Any step=cs2 frame=cr9 driver=@scoop.$dynamic_adapter.SIRAnyX$suspend$drive resumes=[cp9]
   coroutine_fn cf12 @scoop.synchronousValue$suspend source_return=Int step=cs0 frame=cr10 driver=@scoop.synchronousValue$suspend$drive resumes=[cp10]
@@ -12091,10 +12091,10 @@ Module
   instance @scoop.Continuation.resumeWithException$Any <- Continuation.resumeWithException
   instance @scoop.SuspendTask.run$Any$suspend <- SuspendTask.run
   instance @scoop.SuspendRegistration.register$Any <- SuspendRegistration.register
-  str @scoop.str.0 "\n"
-  str @scoop.str.1 "failed"
-  str @scoop.str.2 "unit-done"
-  str @scoop.str.3 "unit-failed"
+  str @scoop.str.0 "failed"
+  str @scoop.str.1 "unit-done"
+  str @scoop.str.2 "unit-failed"
+  str @scoop.str.3 "\n"
   str @scoop.str.4 "returned"
   str @scoop.str.5 "suspended"
   str @scoop.str.6 "alive-"
@@ -12111,10 +12111,10 @@ Module
 
 == lir ==
 Module
-  global @scoop.str.0 = "\n"
-  global @scoop.str.1 = "failed"
-  global @scoop.str.2 = "unit-done"
-  global @scoop.str.3 = "unit-failed"
+  global @scoop.str.0 = "failed"
+  global @scoop.str.1 = "unit-done"
+  global @scoop.str.2 = "unit-failed"
+  global @scoop.str.3 = "\n"
   global @scoop.str.4 = "returned"
   global @scoop.str.5 = "suspended"
   global @scoop.str.6 = "alive-"
@@ -12129,9 +12129,9 @@ Module
   global @scoop.str.15 = "illegal state"
   global @scoop_td_box$I = c""
   global @scoop_td_Continuation$I = c""
-  global @scoop_td_$Closure$lambda0 = c""
   global @scoop_td_CoroutineFrame$scoop_Worker_await_suspend = c""
   global @scoop_td_CoroutineFrame$scoop_AsyncWorker_read_suspend = c""
+  global @scoop_td_$Closure$lambda2 = c""
   global @scoop_td_$Closure$reference0 = c""
   global @scoop_td_$Closure$reference1 = c""
   global @scoop_td_$Closure$adapter$SAnyRIX$SIRAnyX = c""
@@ -12218,9 +12218,9 @@ Module
   global @scoop_td_CoroutineAdapter$scoop__reference_5_suspend$1 = c""
   global @scoop_td_AsyncValue = c""
   global @scoop_td_CoroutineAdapter$scoop_Worker_await_suspend$1 = c""
-  global @scoop_td_$Closure$lambda1 = c""
+  global @scoop_td_$Closure$lambda0 = c""
   global @scoop_td_CoroutineAdapter$scoop_AsyncWorker_read_suspend$1 = c""
-  global @scoop_td_$Closure$lambda2 = c""
+  global @scoop_td_$Closure$lambda1 = c""
   global @scoop_td_CoroutineAdapter$scoop__adapter_SAnyRIX_SIRAnyX_suspend$1 = c""
   global @scoop_td_Continuation$Any = c""
   global @scoop_td_CoroutineAdapter$scoop__dynamic_adapter_SIRAnyX_suspend$1 = c""
@@ -12283,28 +12283,6 @@ Module
   enum CoroutineSlot$FunctionSuspendTask$I tagged size=16 align=8 variants=()@8+0 (struct1)@8+8:refs
   enum CoroutineSlot$FunctionSuspendTask$U tagged size=16 align=8 variants=()@8+0 (struct2)@8+8:refs
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
-  fun @scoop.print(ptr<managed>) -> void
-    local %0 $call.1: ptr<managed>
-  block entry
-    t0 = heap_load param0 +0 : ptr<metadata>
-    t1 = heap_load t0 +40 : ptr<metadata>
-    t2 = call_indirect t1[2](param0) : ptr<managed>
-    store t2 -> local0
-    native_call[native-borrowed] extern0(local0)
-    t3 = aggregate () : {}
-    ret
-  fun @scoop.println(ptr<managed>) -> void
-    local %0 $call.1: ptr<managed>
-  block entry
-    t0 = heap_load param0 +0 : ptr<metadata>
-    t1 = heap_load t0 +40 : ptr<metadata>
-    t2 = call_indirect t1[2](param0) : ptr<managed>
-    store t2 -> local0
-    native_call[native-borrowed] extern0(local0)
-    t3 = aggregate () : {}
-    native_call[native-borrowed] extern0(global0)
-    t4 = aggregate () : {}
-    ret
   fun @scoop.Done.resume(ptr<managed>, i64) -> void
   block entry
     t0 = call @scoop_rt_box(global16, param1, 8) : ptr<managed>
@@ -12313,17 +12291,17 @@ Module
     ret
   fun @scoop.Done.resumeWithException(ptr<managed>, ptr<managed>) -> void
   block entry
-    call @scoop.println(global1)
+    call @scoop.println(global0)
     t0 = aggregate () : {}
     ret
   fun @scoop.UnitDone.resume(ptr<managed>, {}) -> void
   block entry
-    call @scoop.println(global2)
+    call @scoop.println(global1)
     t0 = aggregate () : {}
     ret
   fun @scoop.UnitDone.resumeWithException(ptr<managed>, ptr<managed>) -> void
   block entry
-    call @scoop.println(global3)
+    call @scoop.println(global2)
     t0 = aggregate () : {}
     ret
   fun @scoop.Gate.complete(ptr<managed>, i64) -> void
@@ -12384,26 +12362,11 @@ Module
     call_indirect t7[1](local0, param1)
     t8 = aggregate () : {}
     ret
-  fun @scoop.makeTask(ptr<managed>) -> ptr<managed>
-  block entry
-    t0 = call @scoop_rt_alloc(global18, 32) : ptr<managed>
-    t1 = function_address @scoop.$lambda.0$suspend : ptr
-    heap_store t0 +16 t1
-    heap_store t0 +24 param0
-    ret t0
-  fun @scoop.referenced$suspend(ptr<managed>) -> enum2
-  block entry
-    t0 = enum_wrap e2 v0 (43) : enum2
-    ret t0
-  fun @scoop.acceptAny$suspend(ptr<managed>, ptr<managed>) -> enum2
-  block entry
-    t0 = enum_wrap e2 v0 (44) : enum2
-    ret t0
   fun @scoop.Worker.await$suspend(ptr<managed>, ptr<managed>) -> enum2
     local %0 $frame: ptr<managed>
     local %1 $step: enum2
   block entry
-    t0 = call @scoop_rt_alloc(global19, 64) : ptr<managed>
+    t0 = call @scoop_rt_alloc(global18, 64) : ptr<managed>
     heap_store t0 +16 0
     heap_store t0 +24 param1
     t1 = enum_wrap e10 v1 (param0) : enum10
@@ -12420,7 +12383,7 @@ Module
     local %0 $frame: ptr<managed>
     local %1 $step: enum2
   block entry
-    t0 = call @scoop_rt_alloc(global20, 64) : ptr<managed>
+    t0 = call @scoop_rt_alloc(global19, 64) : ptr<managed>
     heap_store t0 +16 0
     heap_store t0 +24 param1
     t1 = enum_wrap e11 v1 (param0) : enum11
@@ -12433,6 +12396,43 @@ Module
     t4 = call @scoop.AsyncWorker.read$suspend$drive(local0, 0) : enum2
     store t4 -> local1
     ret local1
+  fun @scoop.print(ptr<managed>) -> void
+    local %0 $call.1: ptr<managed>
+  block entry
+    t0 = heap_load param0 +0 : ptr<metadata>
+    t1 = heap_load t0 +40 : ptr<metadata>
+    t2 = call_indirect t1[2](param0) : ptr<managed>
+    store t2 -> local0
+    native_call[native-borrowed] extern0(local0)
+    t3 = aggregate () : {}
+    ret
+  fun @scoop.println(ptr<managed>) -> void
+    local %0 $call.1: ptr<managed>
+  block entry
+    t0 = heap_load param0 +0 : ptr<metadata>
+    t1 = heap_load t0 +40 : ptr<metadata>
+    t2 = call_indirect t1[2](param0) : ptr<managed>
+    store t2 -> local0
+    native_call[native-borrowed] extern0(local0)
+    t3 = aggregate () : {}
+    native_call[native-borrowed] extern0(global3)
+    t4 = aggregate () : {}
+    ret
+  fun @scoop.makeTask(ptr<managed>) -> ptr<managed>
+  block entry
+    t0 = call @scoop_rt_alloc(global20, 32) : ptr<managed>
+    t1 = function_address @scoop.$lambda.0$suspend : ptr
+    heap_store t0 +16 t1
+    heap_store t0 +24 param0
+    ret t0
+  fun @scoop.referenced$suspend(ptr<managed>) -> enum2
+  block entry
+    t0 = enum_wrap e2 v0 (43) : enum2
+    ret t0
+  fun @scoop.acceptAny$suspend(ptr<managed>, ptr<managed>) -> enum2
+  block entry
+    t0 = enum_wrap e2 v0 (44) : enum2
+    ret t0
   fun @scoop.localTask(ptr<managed>) -> ptr<managed>
   block entry
     t0 = call @scoop_rt_alloc(global21, 32) : ptr<managed>
@@ -22353,9 +22353,9 @@ Module
     t22 = enum_tag e4 local0 : i64
     t23 = Eq t22, 0 : i1
     cbr t23 then @completed else @suspended
+  td AsyncValue @scoop_td_AsyncValue size=0 vtable=0 itables=0
   td Continuation$I @scoop_td_Continuation$I size=0 vtable=0 itables=0
   td Continuation$U @scoop_td_Continuation$U size=0 vtable=0 itables=0
-  td AsyncValue @scoop_td_AsyncValue size=0 vtable=0 itables=0
   td SuspendRegistration$I @scoop_td_SuspendRegistration$I size=0 vtable=0 itables=0
   td SuspendTask$I @scoop_td_SuspendTask$I size=0 vtable=0 itables=0
   td SuspendTask$U @scoop_td_SuspendTask$U size=0 vtable=0 itables=0
@@ -22460,9 +22460,9 @@ Module
   td ArithmeticException @scoop_td_ArithmeticException size=24 vtable=3 itables=0
   td IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException size=24 vtable=3 itables=0
   td IllegalStateException @scoop_td_IllegalStateException size=24 vtable=3 itables=0
-  td $Closure$lambda0 @scoop_td_$Closure$lambda0 size=32 vtable=3 itables=1
+  td $Closure$lambda0 @scoop_td_$Closure$lambda0 size=32 vtable=3 itables=0
   td $Closure$lambda1 @scoop_td_$Closure$lambda1 size=32 vtable=3 itables=0
-  td $Closure$lambda2 @scoop_td_$Closure$lambda2 size=32 vtable=3 itables=0
+  td $Closure$lambda2 @scoop_td_$Closure$lambda2 size=32 vtable=3 itables=1
   td $Closure$lambda3 @scoop_td_$Closure$lambda3 size=32 vtable=3 itables=1
   td $Closure$lambda4 @scoop_td_$Closure$lambda4 size=32 vtable=3 itables=1
   td $Closure$lambda5 @scoop_td_$Closure$lambda5 size=32 vtable=3 itables=1

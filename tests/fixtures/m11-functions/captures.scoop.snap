@@ -439,6 +439,11 @@ Module
       return
         ClosureAlloc cc0 $Closure$lambda0
           Local this
+  fun Counter.incrementer @scoop.Counter.incrementer(this: Counter) -> () -> Int
+    bb0 entry
+      return
+        ClosureAlloc cc1 $Closure$lambda1
+          Local this
   fun print @scoop.print(message: Any) -> Unit
     bb0 entry
       call $call.1: String = @scoop.Any.toString virtual[2]
@@ -455,11 +460,6 @@ Module
       call extern0 @scoop_rt_write direct
         StringConst @scoop.str.0
       return
-  fun Counter.incrementer @scoop.Counter.incrementer(this: Counter) -> () -> Int
-    bb0 entry
-      return
-        ClosureAlloc cc1 $Closure$lambda1
-          Local this
   fun makeAdder @scoop.makeAdder(base: Int) -> (Int) -> Int
     bb0 entry
       return
@@ -709,6 +709,13 @@ Module
     heap_store t0 +16 t1
     heap_store t0 +24 param0
     ret t0
+  fun @scoop.Counter.incrementer(ptr<managed>) -> ptr<managed>
+  block entry
+    t0 = call @scoop_rt_alloc(global8, 32) : ptr<managed>
+    t1 = function_address @scoop.$lambda.6 : ptr
+    heap_store t0 +16 t1
+    heap_store t0 +24 param0
+    ret t0
   fun @scoop.print(ptr<managed>) -> void
     local %0 $call.1: ptr<managed>
   block entry
@@ -731,13 +738,6 @@ Module
     native_call[native-borrowed] extern0(global0)
     t4 = aggregate () : {}
     ret
-  fun @scoop.Counter.incrementer(ptr<managed>) -> ptr<managed>
-  block entry
-    t0 = call @scoop_rt_alloc(global8, 32) : ptr<managed>
-    t1 = function_address @scoop.$lambda.6 : ptr
-    heap_store t0 +16 t1
-    heap_store t0 +24 param0
-    ret t0
   fun @scoop.makeAdder(i64) -> ptr<managed>
   block entry
     t0 = call @scoop_rt_alloc(global9, 32) : ptr<managed>

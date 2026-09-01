@@ -406,22 +406,6 @@ Module
   interface Continuation$I
   interface SuspendRegistration$I
   interface SuspendTask$I
-  fun print @scoop.print(message: Any) -> Unit
-    bb0 entry
-      call $call.1: String = @scoop.Any.toString virtual[2]
-        Local message
-      call extern0 @scoop_rt_write direct
-        Local $call.1
-      return
-  fun println @scoop.println(message: Any) -> Unit
-    bb0 entry
-      call $call.1: String = @scoop.Any.toString virtual[2]
-        Local message
-      call extern0 @scoop_rt_write direct
-        Local $call.1
-      call extern0 @scoop_rt_write direct
-        StringConst @scoop.str.0
-      return
   fun Holder.resumeTwice @scoop.Holder.resumeTwice(this: Holder, value: Int) -> Unit
     bb0 entry
       val $opt.1: Option$Continuation$I<Continuation$I>
@@ -488,7 +472,7 @@ Module
       rethrow unwind bb8
     bb15 scope.15 unwind bb6
       call @scoop.println direct
-        StringConst @scoop.str.1
+        StringConst @scoop.str.0
       goto bb16
     bb16 scope.16
       end_catch
@@ -554,7 +538,7 @@ Module
       rethrow unwind bb8
     bb15 scope.15 unwind bb6
       call @scoop.println direct
-        StringConst @scoop.str.2
+        StringConst @scoop.str.1
       goto bb16
     bb16 scope.16
       end_catch
@@ -624,7 +608,7 @@ Module
       rethrow unwind bb8
     bb15 scope.15 unwind bb6
       call @scoop.println direct
-        StringConst @scoop.str.3
+        StringConst @scoop.str.2
       goto bb16
     bb16 scope.16
       end_catch
@@ -731,6 +715,22 @@ Module
   fun RecordingCompletion.resumeWithException @scoop.RecordingCompletion.resumeWithException(this: RecordingCompletion, exception: Throwable) -> Unit
     bb0 entry
       call @scoop.println direct
+        StringConst @scoop.str.3
+      return
+  fun print @scoop.print(message: Any) -> Unit
+    bb0 entry
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call extern0 @scoop_rt_write direct
+        Local $call.1
+      return
+  fun println @scoop.println(message: Any) -> Unit
+    bb0 entry
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call extern0 @scoop_rt_write direct
+        Local $call.1
+      call extern0 @scoop_rt_write direct
         StringConst @scoop.str.4
       return
   fun launch @scoop.launch(task: SuspendTask$I, completion: Continuation$I) -> Unit
@@ -2693,11 +2693,11 @@ Module
   instance @scoop.Continuation.resumeWithException$I <- Continuation.resumeWithException
   instance @scoop.SuspendTask.run$I$suspend <- SuspendTask.run
   instance @scoop.SuspendRegistration.register$I <- SuspendRegistration.register
-  str @scoop.str.0 "\n"
-  str @scoop.str.1 "duplicate"
-  str @scoop.str.2 "invalidated"
-  str @scoop.str.3 "failure-duplicate"
-  str @scoop.str.4 "failed"
+  str @scoop.str.0 "duplicate"
+  str @scoop.str.1 "invalidated"
+  str @scoop.str.2 "failure-duplicate"
+  str @scoop.str.3 "failed"
+  str @scoop.str.4 "\n"
   str @scoop.str.5 "unwrap on None"
   str @scoop.str.6 "invalid cast"
   str @scoop.str.7 "arithmetic error"
@@ -2707,11 +2707,11 @@ Module
 
 == lir ==
 Module
-  global @scoop.str.0 = "\n"
-  global @scoop.str.1 = "duplicate"
-  global @scoop.str.2 = "invalidated"
-  global @scoop.str.3 = "failure-duplicate"
-  global @scoop.str.4 = "failed"
+  global @scoop.str.0 = "duplicate"
+  global @scoop.str.1 = "invalidated"
+  global @scoop.str.2 = "failure-duplicate"
+  global @scoop.str.3 = "failed"
+  global @scoop.str.4 = "\n"
   global @scoop.str.5 = "unwrap on None"
   global @scoop.str.6 = "invalid cast"
   global @scoop.str.7 = "arithmetic error"
@@ -2756,28 +2756,6 @@ Module
   enum CoroutineSlot$SaveThenThrowTask niche(payload_variant=1)
   enum CoroutineSlot$SynchronousFailureTask niche(payload_variant=1)
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
-  fun @scoop.print(ptr<managed>) -> void
-    local %0 $call.1: ptr<managed>
-  block entry
-    t0 = heap_load param0 +0 : ptr<metadata>
-    t1 = heap_load t0 +40 : ptr<metadata>
-    t2 = call_indirect t1[2](param0) : ptr<managed>
-    store t2 -> local0
-    native_call[native-borrowed] extern0(local0)
-    t3 = aggregate () : {}
-    ret
-  fun @scoop.println(ptr<managed>) -> void
-    local %0 $call.1: ptr<managed>
-  block entry
-    t0 = heap_load param0 +0 : ptr<metadata>
-    t1 = heap_load t0 +40 : ptr<metadata>
-    t2 = call_indirect t1[2](param0) : ptr<managed>
-    store t2 -> local0
-    native_call[native-borrowed] extern0(local0)
-    t3 = aggregate () : {}
-    native_call[native-borrowed] extern0(global0)
-    t4 = aggregate () : {}
-    ret
   fun @scoop.Holder.resumeTwice(ptr<managed>, i64) -> void
     local %0 continuation: ptr<managed>
     local %1 exception: ptr<managed>
@@ -2852,7 +2830,7 @@ Module
     invoke @scoop_rt_rethrow() normal @rethrow.normal.2 unwind @try.exit_pad.8
     br @rethrow.normal.2
   block scope.15
-    invoke @scoop.println(global1) normal @invoke.normal.3 unwind @try.handler_pad.6
+    invoke @scoop.println(global0) normal @invoke.normal.3 unwind @try.handler_pad.6
     br @invoke.normal.3
   block scope.16
     end_catch
@@ -2934,7 +2912,7 @@ Module
     invoke @scoop_rt_rethrow() normal @rethrow.normal.2 unwind @try.exit_pad.8
     br @rethrow.normal.2
   block scope.15
-    invoke @scoop.println(global2) normal @invoke.normal.3 unwind @try.handler_pad.6
+    invoke @scoop.println(global1) normal @invoke.normal.3 unwind @try.handler_pad.6
     br @invoke.normal.3
   block scope.16
     end_catch
@@ -3023,7 +3001,7 @@ Module
     invoke @scoop_rt_rethrow() normal @rethrow.normal.2 unwind @try.exit_pad.8
     br @rethrow.normal.2
   block scope.15
-    invoke @scoop.println(global3) normal @invoke.normal.3 unwind @try.handler_pad.6
+    invoke @scoop.println(global2) normal @invoke.normal.3 unwind @try.handler_pad.6
     br @invoke.normal.3
   block scope.16
     end_catch
@@ -3149,8 +3127,30 @@ Module
     ret
   fun @scoop.RecordingCompletion.resumeWithException(ptr<managed>, ptr<managed>) -> void
   block entry
-    call @scoop.println(global4)
+    call @scoop.println(global3)
     t0 = aggregate () : {}
+    ret
+  fun @scoop.print(ptr<managed>) -> void
+    local %0 $call.1: ptr<managed>
+  block entry
+    t0 = heap_load param0 +0 : ptr<metadata>
+    t1 = heap_load t0 +40 : ptr<metadata>
+    t2 = call_indirect t1[2](param0) : ptr<managed>
+    store t2 -> local0
+    native_call[native-borrowed] extern0(local0)
+    t3 = aggregate () : {}
+    ret
+  fun @scoop.println(ptr<managed>) -> void
+    local %0 $call.1: ptr<managed>
+  block entry
+    t0 = heap_load param0 +0 : ptr<metadata>
+    t1 = heap_load t0 +40 : ptr<metadata>
+    t2 = call_indirect t1[2](param0) : ptr<managed>
+    store t2 -> local0
+    native_call[native-borrowed] extern0(local0)
+    t3 = aggregate () : {}
+    native_call[native-borrowed] extern0(global4)
+    t4 = aggregate () : {}
     ret
   fun @scoop.launch(ptr<managed>, ptr<managed>) -> void
   block entry

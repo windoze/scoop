@@ -30,6 +30,19 @@ pub type InterfaceId = Idx<InterfaceDef>;
 pub type LocalId = Idx<Local>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ConstructorParamId(u32);
+
+impl ConstructorParamId {
+    pub const fn from_raw(raw: u32) -> Self {
+        Self(raw)
+    }
+
+    pub const fn into_raw(self) -> u32 {
+        self.0
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct InterfaceFamilyId(u32);
 
 impl InterfaceFamilyId {
@@ -275,6 +288,7 @@ pub struct StructDef {
     pub attributes: StructAttributes,
     pub fields: Vec<Field>,
     pub interfaces: Vec<TypeId>,
+    pub methods: Vec<FunctionId>,
     pub span: Span,
 }
 
@@ -286,6 +300,7 @@ pub struct EnumDef {
     pub variants: Vec<Variant>,
     pub option_variants: Option<(VariantId, VariantId)>,
     pub interfaces: Vec<TypeId>,
+    pub methods: Vec<FunctionId>,
     pub span: Span,
 }
 
@@ -293,10 +308,20 @@ pub struct EnumDef {
 pub struct ClassDef {
     pub modifier: ClassModifier,
     pub name: String,
-    pub constructor: Vec<Field>,
+    pub type_arguments: Vec<TypeId>,
+    pub constructor: Vec<ConstructorField>,
     pub base_class: Option<(ClassId, Vec<Expr>)>,
     pub interfaces: Vec<TypeId>,
+    pub methods: Vec<FunctionId>,
     pub span: Span,
+}
+
+#[derive(Debug, Clone)]
+pub struct ConstructorField {
+    pub parameter: ConstructorParamId,
+    pub name: String,
+    pub ty: TypeId,
+    pub mutable: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -554,6 +579,7 @@ pub enum ExprKind {
         class_id: ClassId,
         args: Vec<Expr>,
     },
+    ConstructorParam(ConstructorParamId),
     VariantConstruct {
         enum_id: EnumId,
         variant: VariantId,

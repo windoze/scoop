@@ -99,8 +99,8 @@ impl Lowerer {
         let local_number = self.local_functions.len();
         let function = self.functions.alloc(hir::Function {
             name: format!("$local.{local_number}.{}", decl.name.text),
+            genericity: hir::FunctionGenericity::Plain,
             is_suspend: decl.is_suspend,
-            type_params: type_params.clone(),
             params: Vec::new(),
             return_ty,
             attributes,
@@ -123,7 +123,7 @@ impl Lowerer {
             },
         );
         if !type_params.is_empty() {
-            self.register_generic(function);
+            self.register_generic(function, type_params.clone());
         }
         let local = self.local_functions.alloc(hir::LocalFunction {
             function,
@@ -1535,8 +1535,8 @@ impl Lowerer {
         name: &ast::Ident,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::StatementKind> {
-        let class_id = match self.types[receiver.ty] {
-            Type::Class(id) => id,
+        let application = match self.types[receiver.ty] {
+            Type::Class(application) => application,
             _ if self.is_value_ty(receiver.ty) => {
                 self.error(
                     name.span,
@@ -1550,8 +1550,9 @@ impl Lowerer {
                 return None;
             }
         };
+        let class_id = self.class_applications[application].template;
         let Some((declaring, index, field_ty, mutable)) =
-            self.find_class_field(class_id, &name.text)
+            self.find_class_application_field(application, &name.text)
         else {
             let class_name = self.classes[class_id].name.clone();
             self.error(
@@ -1585,7 +1586,7 @@ impl Lowerer {
             target: hir::AssignTarget::Field {
                 receiver: Box::new(receiver),
                 field: hir::FieldRef::ClassField {
-                    class_id: declaring,
+                    application: declaring,
                     index,
                 },
             },
@@ -1624,8 +1625,10 @@ impl Lowerer {
                 return None;
             }
             match self.current_this_ty().map(|ty| self.types[ty].clone()) {
-                Some(Type::Class(class_id)) => {
-                    if let Some((_, _, _, mutable)) = self.find_class_field(class_id, &name.text) {
+                Some(Type::Class(application)) => {
+                    if let Some((_, _, _, mutable)) =
+                        self.find_class_application_field(application, &name.text)
+                    {
                         if !mutable {
                             self.error(
                                 name.span,
@@ -1642,8 +1645,8 @@ impl Lowerer {
                         return Some(kind);
                     }
                 }
-                Some(Type::Struct(struct_id, _))
-                    if self.structs[struct_id]
+                Some(Type::Struct(application))
+                    if self.structs[self.struct_applications[application].template]
                         .fields
                         .iter()
                         .any(|field| field.name == name.text) =>
@@ -2083,6 +2086,7 @@ fn patch_local_function_call_expr(
         | hir::ExprKind::BoolLiteral(_)
         | hir::ExprKind::UnitLiteral
         | hir::ExprKind::Local(_)
+        | hir::ExprKind::ConstructorParam(_)
         | hir::ExprKind::GlobalRead(_)
         | hir::ExprKind::Capture(_)
         | hir::ExprKind::Lambda(_)

@@ -47,7 +47,27 @@ pub type StructId = Idx<StructDecl>;
 pub type EnumId = Idx<EnumDecl>;
 pub type ClassId = Idx<ClassDecl>;
 pub type InterfaceId = Idx<InterfaceDecl>;
+pub type StructApplicationId = Idx<StructApplication>;
+pub type EnumApplicationId = Idx<EnumApplication>;
+pub type ClassApplicationId = Idx<ClassApplication>;
+pub type InterfaceApplicationId = Idx<InterfaceApplication>;
 pub type LocalId = Idx<Local>;
+
+/// Identity of one primary-constructor parameter. Constructor delegation
+/// expressions use this domain directly; these parameters do not belong to a
+/// function body's `LocalId` arena.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ConstructorParamId(u32);
+
+impl ConstructorParamId {
+    pub const fn from_raw(raw: u32) -> Self {
+        Self(raw)
+    }
+
+    pub const fn into_raw(self) -> u32 {
+        self.0
+    }
+}
 
 /// Cone-wide identity of a lexical value binding. Unlike `LocalId`, which is
 /// only meaningful inside one function body's local arena, this identity is
@@ -93,12 +113,15 @@ pub enum Type {
     /// A struct type with resolved type arguments (empty for
     /// non-generic structs). Keeping the arguments in the type itself
     /// makes every `TypeId` structurally complete.
-    Struct(StructId, Vec<TypeId>),
+    Struct(StructApplicationId),
     /// A reference type declared with `class` (spec 9.1).
-    Class(ClassId),
+    /// A class application with complete host arguments (empty for a
+    /// non-generic class). M14 gives generic classes the same nominal
+    /// application semantics as the other declaration kinds.
+    Class(ClassApplicationId),
     /// An interface application with complete type arguments (empty for a
     /// non-generic interface). Values behind it are references.
-    Interface(InterfaceId, Vec<TypeId>),
+    Interface(InterfaceApplicationId),
     /// The root of all types (spec 3.1). Value types reaching it are
     /// boxed (spec 4.4.4).
     Any,
@@ -120,7 +143,7 @@ pub enum Type {
     /// An enum type with resolved type arguments (empty for
     /// non-generic enums). `Option<T>` is one of these since M4
     /// (defined in `scoop.core`).
-    Enum(EnumId, Vec<TypeId>),
+    Enum(EnumApplicationId),
     /// A type parameter, by typed local index. Only appears inside a
     /// generic function/type definition; instantiated MIR never
     /// contains it.
@@ -146,23 +169,9 @@ pub fn types_equal(module: &Module, a: TypeId, b: TypeId) -> bool {
         | (Type::UInt, Type::UInt)
         | (Type::Boolean, Type::Boolean)
         | (Type::String, Type::String) => true,
-        (Type::Struct(x, x_args), Type::Struct(y, y_args)) => {
-            x == y
-                && x_args.len() == y_args.len()
-                && x_args
-                    .iter()
-                    .zip(y_args.iter())
-                    .all(|(x, y)| types_equal(module, *x, *y))
-        }
-        (Type::Class(x), Type::Class(y)) => *x == *y,
-        (Type::Interface(x, x_args), Type::Interface(y, y_args)) => {
-            x == y
-                && x_args.len() == y_args.len()
-                && x_args
-                    .iter()
-                    .zip(y_args.iter())
-                    .all(|(x, y)| types_equal(module, *x, *y))
-        }
+        (Type::Struct(x), Type::Struct(y)) => x == y,
+        (Type::Class(x), Type::Class(y)) => x == y,
+        (Type::Interface(x), Type::Interface(y)) => x == y,
         (Type::Any, Type::Any) => true,
         (Type::Array(x), Type::Array(y)) | (Type::MutableArray(x), Type::MutableArray(y)) => {
             types_equal(module, *x, *y)
@@ -177,14 +186,7 @@ pub fn types_equal(module: &Module, a: TypeId, b: TypeId) -> bool {
         (Type::Function(x), Type::Function(y)) => x == y,
         (Type::Ptr(x), Type::Ptr(y)) => types_equal(module, *x, *y),
         (Type::FunPtr(x), Type::FunPtr(y)) => x == y,
-        (Type::Enum(x, x_args), Type::Enum(y, y_args)) => {
-            x == y
-                && x_args.len() == y_args.len()
-                && x_args
-                    .iter()
-                    .zip(y_args.iter())
-                    .all(|(x, y)| types_equal(module, *x, *y))
-        }
+        (Type::Enum(x), Type::Enum(y)) => x == y,
         (Type::Param(x), Type::Param(y)) => x == y,
         _ => false,
     }
@@ -202,8 +204,10 @@ fn type_name_with_params(module: &Module, ty: TypeId, params: &[TypeParamDecl]) 
         Type::UInt => "UInt".to_string(),
         Type::Boolean => "Boolean".to_string(),
         Type::String => "String".to_string(),
-        Type::Struct(id, args) => {
-            let name = &module.structs[*id].name;
+        Type::Struct(application) => {
+            let application = &module.struct_applications[*application];
+            let name = &module.structs[application.template].name;
+            let args = &application.arguments;
             if args.is_empty() {
                 name.clone()
             } else {
@@ -214,9 +218,24 @@ fn type_name_with_params(module: &Module, ty: TypeId, params: &[TypeParamDecl]) 
                 format!("{}<{}>", name, inner.join(", "))
             }
         }
-        Type::Class(id) => module.classes[*id].name.clone(),
-        Type::Interface(id, args) => {
-            let name = &module.interfaces[*id].name;
+        Type::Class(application) => {
+            let application = &module.class_applications[*application];
+            let name = &module.classes[application.template].name;
+            let args = &application.arguments;
+            if args.is_empty() {
+                name.clone()
+            } else {
+                let inner: Vec<String> = args
+                    .iter()
+                    .map(|ty| type_name_with_params(module, *ty, params))
+                    .collect();
+                format!("{}<{}>", name, inner.join(", "))
+            }
+        }
+        Type::Interface(application) => {
+            let application = &module.interface_applications[*application];
+            let name = &module.interfaces[application.template].name;
+            let args = &application.arguments;
             if args.is_empty() {
                 name.clone()
             } else {
@@ -233,8 +252,10 @@ fn type_name_with_params(module: &Module, ty: TypeId, params: &[TypeParamDecl]) 
             "MutableArray<{}>",
             type_name_with_params(module, *inner, params)
         ),
-        Type::Enum(id, args) => {
-            let name = &module.enums[*id].name;
+        Type::Enum(application) => {
+            let application = &module.enum_applications[*application];
+            let name = &module.enums[application.template].name;
+            let args = &application.arguments;
             if args.is_empty() {
                 name.clone()
             } else {
@@ -314,9 +335,15 @@ pub struct Module {
     /// function that owns the parameterized body.
     pub generic_functions: Arena<GenericFunction>,
     pub structs: Arena<StructDecl>,
+    /// Canonical, fully applied export-side struct identities.  A type never
+    /// stores a declaration id and an unrelated argument vector.
+    pub struct_applications: Arena<StructApplication>,
     pub enums: Arena<EnumDecl>,
+    pub enum_applications: Arena<EnumApplication>,
     pub classes: Arena<ClassDecl>,
+    pub class_applications: Arena<ClassApplication>,
     pub interfaces: Arena<InterfaceDecl>,
+    pub interface_applications: Arena<InterfaceApplication>,
     /// Top-level functions in declaration order (core library first,
     /// then user code).
     pub top_level: Vec<FunctionId>,
@@ -551,11 +578,24 @@ pub enum Callable {
 #[derive(Debug, Clone)]
 pub struct StructDecl {
     pub name: String,
+    /// Application to this declaration's own type parameters (or the empty
+    /// application for a parameter-free declaration).
+    pub self_application: StructApplicationId,
     pub type_params: Vec<TypeParamDecl>,
     pub attributes: StructAttributes,
     pub fields: Vec<Field>,
     pub interfaces: Vec<TypeId>,
+    /// Member declarations in source order. Consumers follow this typed
+    /// relation and never recover ownership by scanning `Module::functions`.
+    pub methods: Vec<FunctionId>,
     pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StructApplication {
+    pub template: StructId,
+    pub arguments: Vec<TypeId>,
+    pub canonical_type: TypeId,
 }
 
 /// Typed struct attributes. Raw annotation names and argument syntax never
@@ -576,11 +616,20 @@ pub struct CLayout {
 #[derive(Debug, Clone)]
 pub struct EnumDecl {
     pub name: String,
+    pub self_application: EnumApplicationId,
     pub type_params: Vec<TypeParamDecl>,
     pub no_gc: bool,
     pub variants: Vec<Variant>,
     pub interfaces: Vec<TypeId>,
+    pub methods: Vec<FunctionId>,
     pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EnumApplication {
+    pub template: EnumId,
+    pub arguments: Vec<TypeId>,
+    pub canonical_type: TypeId,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -615,20 +664,49 @@ pub struct Method {
 pub struct ClassDecl {
     pub modifier: ClassModifier,
     pub name: String,
+    pub self_application: ClassApplicationId,
+    pub type_params: Vec<TypeParamDecl>,
     /// Primary-constructor properties in declaration order.
-    pub constructor: Vec<Field>,
+    pub constructor: Vec<ConstructorField>,
     /// Base class and the resolved constructor argument expressions.
-    pub base_class: Option<(ClassId, Vec<Expr>)>,
+    pub base_class: Option<(TypeId, Vec<Expr>)>,
     pub interfaces: Vec<TypeId>,
+    pub methods: Vec<FunctionId>,
     pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ClassApplication {
+    pub template: ClassId,
+    pub arguments: Vec<TypeId>,
+    pub canonical_type: TypeId,
+}
+
+/// A primary-constructor property is simultaneously a source parameter and
+/// an object field. Keeping both identities and mutability together prevents
+/// delegation lowering and field assignment from reconstructing either fact.
+#[derive(Debug, Clone)]
+pub struct ConstructorField {
+    pub parameter: ConstructorParamId,
+    pub name: String,
+    pub ty: TypeId,
+    pub mutable: bool,
 }
 
 #[derive(Debug, Clone)]
 pub struct InterfaceDecl {
     pub name: String,
+    pub self_application: InterfaceApplicationId,
     pub type_params: Vec<TypeParamDecl>,
     pub methods: Vec<MethodSig>,
     pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InterfaceApplication {
+    pub template: InterfaceId,
+    pub arguments: Vec<TypeId>,
+    pub canonical_type: TypeId,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -686,10 +764,9 @@ pub enum TypeParamBounds {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InterfaceBound {
-    /// HIR lowering guarantees this is `Type::Interface` with a complete
-    /// argument list. M14's nominal-identity migration replaces this field
-    /// with the dedicated export application id.
-    pub ty: TypeId,
+    /// Complete interface application.  The bound cannot name a declaration
+    /// without its arguments or another nominal kind.
+    pub application: InterfaceApplicationId,
     pub span: Span,
 }
 
@@ -764,7 +841,7 @@ pub enum ConstantValue {
     NullPtr,
     NullFunPtr,
     Struct {
-        struct_id: StructId,
+        application: StructApplicationId,
         fields: Vec<ConstantValue>,
     },
 }
@@ -772,13 +849,12 @@ pub enum ConstantValue {
 #[derive(Debug, Clone)]
 pub struct Function {
     pub name: String,
+    /// Complete declaration identity. Generic functions carry their distinct
+    /// template id directly; consumers never recover it by scanning the
+    /// `generic_functions` arena or by inspecting `type_params`.
+    pub genericity: FunctionGenericity,
     /// Whether calls use the coroutine ABI rather than the ordinary ABI.
     pub is_suspend: bool,
-    /// Typed generic parameters; empty for non-generic functions. For
-    /// methods this is one combined namespace: owner parameters first,
-    /// method-declared parameters second (`Method::owner_type_param_count`
-    /// separates the two groups).
-    pub type_params: Vec<TypeParamDecl>,
     pub params: Vec<Param>,
     pub return_ty: TypeId,
     pub attributes: FunctionAttributes,
@@ -787,6 +863,34 @@ pub struct Function {
     /// `params` (named `this`). Top-level functions have `None`.
     pub method: Option<Method>,
     pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FunctionGenericity {
+    Plain,
+    Generic {
+        definition: GenericFunctionId,
+        /// One complete namespace: owner parameters first, followed by
+        /// method-declared parameters. `Method::owner_type_param_count`
+        /// separates the two groups.
+        parameters: Vec<TypeParamDecl>,
+    },
+}
+
+impl Function {
+    pub fn type_params(&self) -> &[TypeParamDecl] {
+        match &self.genericity {
+            FunctionGenericity::Plain => &[],
+            FunctionGenericity::Generic { parameters, .. } => parameters,
+        }
+    }
+
+    pub fn generic_definition(&self) -> Option<GenericFunctionId> {
+        match &self.genericity {
+            FunctionGenericity::Plain => None,
+            FunctionGenericity::Generic { definition, .. } => Some(*definition),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -977,7 +1081,7 @@ pub enum Pattern {
     /// A literal matched by equality (the expression is a literal).
     Literal(Expr),
     Variant {
-        enum_id: EnumId,
+        application: EnumApplicationId,
         /// Variant index in declaration order.
         variant: u32,
         /// `(field index, subpattern)` in declaration order.
@@ -985,7 +1089,7 @@ pub enum Pattern {
     },
     Tuple(Vec<Pattern>),
     Struct {
-        struct_id: StructId,
+        application: StructApplicationId,
         fields: Vec<(u32, Pattern)>,
     },
 }
@@ -1005,23 +1109,27 @@ pub enum ExprKind {
     UnitLiteral,
     TupleLiteral(Vec<Expr>),
     StructInit {
-        struct_id: StructId,
+        application: StructApplicationId,
         args: Vec<Expr>,
     },
     /// Class instantiation `Point(1, 2)`: constructor properties in
     /// declaration order. Base-class delegation is part of the
     /// generated constructor (see mir-lower).
     ClassInit {
-        class_id: ClassId,
+        /// The allocated application remains explicit when `Expr::ty` is
+        /// adapted to a base class or interface at the use site.
+        application: ClassApplicationId,
         args: Vec<Expr>,
     },
+    /// Read of a primary-constructor parameter inside a base-constructor
+    /// delegation expression.
+    ConstructorParam(ConstructorParamId),
     /// Variant construction (`Some(x)`, `Color.Red`, `E.Named(f = 1)`);
     /// `args` are the variant's fields in declaration order, with
     /// constructor-style defaults already filled in.
     VariantConstruct {
-        enum_id: EnumId,
+        application: EnumApplicationId,
         variant: u32,
-        type_args: Vec<TypeId>,
         args: Vec<Expr>,
     },
     Local(LocalId),
@@ -1170,13 +1278,18 @@ pub enum Place {
 /// A fully resolved field access.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FieldRef {
-    /// Field `index` of the struct type `struct_id`.
-    StructField { struct_id: StructId, index: u32 },
+    /// Field `index` of one complete struct application.
+    StructField {
+        application: StructApplicationId,
+        index: u32,
+    },
     /// Element `index` (0-based) of a tuple.
     TupleIndex(u32),
-    /// Constructor property `index` of the class `class_id` (a heap
-    /// object load).
-    ClassField { class_id: ClassId, index: u32 },
+    /// Constructor property `index` of one complete class application.
+    ClassField {
+        application: ClassApplicationId,
+        index: u32,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1518,10 +1631,16 @@ pub fn dump(module: &Module) -> String {
             .iter()
             .map(|f| format!("{}: {}", f.name, type_name(module, f.ty)))
             .collect();
+        let type_params = if decl.type_params.is_empty() {
+            String::new()
+        } else {
+            dump_type_params(module, &decl.type_params)
+        };
         let interfaces = dump_interface_list(module, &decl.interfaces);
         out.push_str(&format!(
-            "  {modifier}class {}({}){}\n",
+            "  {modifier}class {}{}({}){}\n",
             decl.name,
+            type_params,
             ctor.join(", "),
             interfaces
         ));
@@ -1606,10 +1725,10 @@ pub fn dump(module: &Module) -> String {
             continue;
         }
         let function = &module.functions[id];
-        let type_params = if function.type_params.is_empty() {
+        let type_params = if function.type_params().is_empty() {
             String::new()
         } else {
-            dump_type_params(module, &function.type_params)
+            dump_type_params(module, function.type_params())
         };
         let params: Vec<String> = match function.kind {
             FunctionKind::Extern(id) => module.extern_functions[id]
@@ -1633,24 +1752,27 @@ pub fn dump(module: &Module) -> String {
         );
         let suspend = if function.is_suspend { "suspend " } else { "" };
         let attributes = dump_function_attributes(function.attributes);
-        let no_gc_condition = module
-            .generic_functions
-            .iter()
-            .find(|(_, generic)| generic.function == id && !generic.no_gc_type_params.is_empty())
-            .map(|(_, generic)| {
-                let parameters = generic
-                    .no_gc_type_params
-                    .iter()
-                    .map(|parameter| {
-                        function.type_params[parameter.into_raw() as usize]
-                            .name
-                            .as_str()
-                    })
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                format!(" <requires-gc-free {parameters}>")
-            })
-            .unwrap_or_default();
+        let no_gc_condition = match function.generic_definition() {
+            None => None,
+            Some(definition) => {
+                let generic = &module.generic_functions[definition];
+                (!generic.no_gc_type_params.is_empty()).then_some(generic)
+            }
+        }
+        .map(|generic| {
+            let parameters = generic
+                .no_gc_type_params
+                .iter()
+                .map(|parameter| {
+                    function.type_params()[parameter.into_raw() as usize]
+                        .name
+                        .as_str()
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!(" <requires-gc-free {parameters}>")
+        })
+        .unwrap_or_default();
         match &function.kind {
             FunctionKind::Intrinsic(name) => {
                 out.push_str(&format!(
@@ -1730,7 +1852,21 @@ fn dump_type_params(module: &Module, params: &[TypeParamDecl]) -> String {
                     " : {}",
                     bounds
                         .iter()
-                        .map(|bound| type_name_with_params(module, bound.ty, params))
+                        .map(|bound| {
+                            let application = &module.interface_applications[bound.application];
+                            let name = &module.interfaces[application.template].name;
+                            if application.arguments.is_empty() {
+                                name.clone()
+                            } else {
+                                let arguments = application
+                                    .arguments
+                                    .iter()
+                                    .map(|ty| type_name_with_params(module, *ty, params))
+                                    .collect::<Vec<_>>()
+                                    .join(", ");
+                                format!("{name}<{arguments}>")
+                            }
+                        })
                         .collect::<Vec<_>>()
                         .join(" & ")
                 ),
@@ -1961,35 +2097,53 @@ fn dump_expr(module: &Module, locals: &Arena<Local>, expr: &Expr, indent: usize,
                 dump_expr(module, locals, element, indent + 1, out);
             }
         }
-        ExprKind::ClassInit { class_id, args } => {
-            out.push_str(&format!(
-                "{pad}ClassInit {} : {ty}\n",
-                module.classes[*class_id].name
-            ));
+        ExprKind::ClassInit { application, args } => {
+            let application = &module.class_applications[*application];
+            let name = &module.classes[application.template].name;
+            let arguments = application
+                .arguments
+                .iter()
+                .map(|ty| type_name(module, *ty))
+                .collect::<Vec<_>>();
+            let constructed = if arguments.is_empty() {
+                name.clone()
+            } else {
+                format!("{name}<{}>", arguments.join(", "))
+            };
+            out.push_str(&format!("{pad}ClassInit {} : {ty}\n", constructed));
             for arg in args {
                 dump_expr(module, locals, arg, indent + 1, out);
             }
         }
-        ExprKind::StructInit { struct_id, args } => {
+        ExprKind::ConstructorParam(parameter) => out.push_str(&format!(
+            "{pad}ConstructorParam #{} : {ty}\n",
+            parameter.into_raw()
+        )),
+        ExprKind::StructInit { application, args } => {
+            let application = &module.struct_applications[*application];
             out.push_str(&format!(
                 "{pad}StructInit {} : {ty}\n",
-                module.structs[*struct_id].name
+                module.structs[application.template].name
             ));
             for arg in args {
                 dump_expr(module, locals, arg, indent + 1, out);
             }
         }
         ExprKind::VariantConstruct {
-            enum_id,
+            application,
             variant,
-            type_args,
             args,
         } => {
-            let decl = &module.enums[*enum_id];
-            let type_args = if type_args.is_empty() {
+            let application = &module.enum_applications[*application];
+            let decl = &module.enums[application.template];
+            let type_args = if application.arguments.is_empty() {
                 String::new()
             } else {
-                let args: Vec<String> = type_args.iter().map(|t| type_name(module, *t)).collect();
+                let args: Vec<String> = application
+                    .arguments
+                    .iter()
+                    .map(|t| type_name(module, *t))
+                    .collect();
                 format!("<{}>", args.join(", "))
             };
             out.push_str(&format!(

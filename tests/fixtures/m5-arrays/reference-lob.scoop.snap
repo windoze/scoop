@@ -375,6 +375,14 @@ Module
       return
         FieldAccess 0
           Local this
+  fun Cat.name @scoop.Cat.name(this: Cat) -> String
+    bb0 entry
+      return
+        StringConst @scoop.str.0
+  fun Dog.name @scoop.Dog.name(this: Dog) -> String
+    bb0 entry
+      return
+        StringConst @scoop.str.1
   fun print @scoop.print(message: Any) -> Unit
     bb0 entry
       call $call.1: String = @scoop.Any.toString virtual[2]
@@ -389,16 +397,8 @@ Module
       call extern0 @scoop_rt_write direct
         Local $call.1
       call extern0 @scoop_rt_write direct
-        StringConst @scoop.str.0
-      return
-  fun Cat.name @scoop.Cat.name(this: Cat) -> String
-    bb0 entry
-      return
-        StringConst @scoop.str.1
-  fun Dog.name @scoop.Dog.name(this: Dog) -> String
-    bb0 entry
-      return
         StringConst @scoop.str.2
+      return
   fun baseCount @scoop.baseCount(values: Array<Base>) -> Int
     bb0 entry
       return
@@ -592,9 +592,9 @@ Module
           Local this
       return
         Local $call.1
-  str @scoop.str.0 "\n"
-  str @scoop.str.1 "cat"
-  str @scoop.str.2 "dog"
+  str @scoop.str.0 "cat"
+  str @scoop.str.1 "dog"
+  str @scoop.str.2 "\n"
   str @scoop.str.3 "text"
   str @scoop.str.4 "tag"
   str @scoop.str.5 "boxed"
@@ -607,9 +607,9 @@ Module
 
 == lir ==
 Module
-  global @scoop.str.0 = "\n"
-  global @scoop.str.1 = "cat"
-  global @scoop.str.2 = "dog"
+  global @scoop.str.0 = "cat"
+  global @scoop.str.1 = "dog"
+  global @scoop.str.2 = "\n"
   global @scoop.str.3 = "text"
   global @scoop.str.4 = "tag"
   global @scoop.str.5 = "boxed"
@@ -639,6 +639,12 @@ Module
   block entry
     t0 = extract param0, 0 : ptr<managed>
     ret t0
+  fun @scoop.Cat.name(ptr<managed>) -> ptr<managed>
+  block entry
+    ret global0
+  fun @scoop.Dog.name(ptr<managed>) -> ptr<managed>
+  block entry
+    ret global1
   fun @scoop.print(ptr<managed>) -> void
     local %0 $call.1: ptr<managed>
   block entry
@@ -658,15 +664,9 @@ Module
     store t2 -> local0
     native_call[native-borrowed] extern0(local0)
     t3 = aggregate () : {}
-    native_call[native-borrowed] extern0(global0)
+    native_call[native-borrowed] extern0(global2)
     t4 = aggregate () : {}
     ret
-  fun @scoop.Cat.name(ptr<managed>) -> ptr<managed>
-  block entry
-    ret global1
-  fun @scoop.Dog.name(ptr<managed>) -> ptr<managed>
-  block entry
-    ret global2
   fun @scoop.baseCount([ptr<managed>]) -> i64
   block entry
     t0 = array_len param0 : i64

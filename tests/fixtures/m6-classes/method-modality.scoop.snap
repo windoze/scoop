@@ -309,22 +309,6 @@ Module
   class Middle vtable=5 itables=0
   class Leaf vtable=5 itables=0
   class box$I vtable=3 itables=0
-  fun print @scoop.print(message: Any) -> Unit
-    bb0 entry
-      call $call.1: String = @scoop.Any.toString virtual[2]
-        Local message
-      call extern0 @scoop_rt_write direct
-        Local $call.1
-      return
-  fun println @scoop.println(message: Any) -> Unit
-    bb0 entry
-      call $call.1: String = @scoop.Any.toString virtual[2]
-        Local message
-      call extern0 @scoop_rt_write direct
-        Local $call.1
-      call extern0 @scoop_rt_write direct
-        StringConst @scoop.str.0
-      return
   fun Base.dynamic @scoop.Base.dynamic(this: Base) -> Int
     bb0 entry
       return
@@ -349,6 +333,22 @@ Module
     bb0 entry
       return
         IntLiteral 100
+  fun print @scoop.print(message: Any) -> Unit
+    bb0 entry
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call extern0 @scoop_rt_write direct
+        Local $call.1
+      return
+  fun println @scoop.println(message: Any) -> Unit
+    bb0 entry
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call extern0 @scoop_rt_write direct
+        Local $call.1
+      call extern0 @scoop_rt_write direct
+        StringConst @scoop.str.0
+      return
   fun main @scoop_main() -> Unit
     bb0 entry
       call base: Base = @scoop.ctor.Leaf direct
@@ -483,6 +483,24 @@ Module
   global @scoop_td_Leaf = c""
   enum Option$S niche(payload_variant=0)
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
+  fun @scoop.Base.dynamic(ptr<managed>) -> i64
+  block entry
+    ret 1
+  fun @scoop.Base.fixed(ptr<managed>) -> i64
+  block entry
+    ret 2
+  fun @scoop.Base.closedLater(ptr<managed>) -> i64
+  block entry
+    ret 3
+  fun @scoop.Middle.dynamic(ptr<managed>) -> i64
+  block entry
+    ret 10
+  fun @scoop.Middle.closedLater(ptr<managed>) -> i64
+  block entry
+    ret 30
+  fun @scoop.Leaf.dynamic(ptr<managed>) -> i64
+  block entry
+    ret 100
   fun @scoop.print(ptr<managed>) -> void
     local %0 $call.1: ptr<managed>
   block entry
@@ -505,24 +523,6 @@ Module
     native_call[native-borrowed] extern0(global0)
     t4 = aggregate () : {}
     ret
-  fun @scoop.Base.dynamic(ptr<managed>) -> i64
-  block entry
-    ret 1
-  fun @scoop.Base.fixed(ptr<managed>) -> i64
-  block entry
-    ret 2
-  fun @scoop.Base.closedLater(ptr<managed>) -> i64
-  block entry
-    ret 3
-  fun @scoop.Middle.dynamic(ptr<managed>) -> i64
-  block entry
-    ret 10
-  fun @scoop.Middle.closedLater(ptr<managed>) -> i64
-  block entry
-    ret 30
-  fun @scoop.Leaf.dynamic(ptr<managed>) -> i64
-  block entry
-    ret 100
   fun @scoop_main() -> void
     local %0 base: ptr<managed>
     local %1 leaf: ptr<managed>

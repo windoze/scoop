@@ -170,7 +170,7 @@ impl Lowerer {
                 let Some(ty) = self.resolve_type_ref(reference) else {
                     return;
                 };
-                if !matches!(self.types[ty], Type::Interface(..)) {
+                let Type::Interface(application) = self.types[ty] else {
                     let found = self.type_name(ty);
                     self.error(
                         reference.span,
@@ -180,19 +180,19 @@ impl Lowerer {
                         ),
                     );
                     return;
-                }
+                };
                 match &mut params[index].bounds {
                     hir::TypeParamBounds::Unconstrained => {
                         params[index].bounds =
                             hir::TypeParamBounds::Interfaces(vec![hir::InterfaceBound {
-                                ty,
+                                application,
                                 span,
                             }]);
                     }
                     hir::TypeParamBounds::Interfaces(bounds) => {
                         if bounds
                             .iter()
-                            .any(|existing| self.types_equal(existing.ty, ty))
+                            .any(|existing| existing.application == application)
                         {
                             self.error(
                                 span,
@@ -202,7 +202,7 @@ impl Lowerer {
                                 ),
                             );
                         } else {
-                            bounds.push(hir::InterfaceBound { ty, span });
+                            bounds.push(hir::InterfaceBound { application, span });
                         }
                     }
                     hir::TypeParamBounds::Value { .. }
@@ -242,6 +242,14 @@ impl Lowerer {
                     declaration.type_params.clone(),
                 )
             }))
+            .chain(self.classes.iter().map(|(id, declaration)| {
+                (
+                    self.class_files[&id],
+                    "class",
+                    declaration.name.clone(),
+                    declaration.type_params.clone(),
+                )
+            }))
             .chain(self.interfaces.iter().map(|(id, declaration)| {
                 (
                     self.interface_files[&id],
@@ -256,13 +264,11 @@ impl Lowerer {
             self.type_params_in_scope = params.clone();
             for parameter in &params {
                 for bound in parameter.interface_bounds() {
-                    let Type::Interface(interface, arguments) = self.types[bound.ty].clone() else {
-                        unreachable!("interface bounds are validated when constructed")
-                    };
-                    let target_params = self.interfaces[interface].type_params.clone();
+                    let application = self.interface_applications[bound.application].clone();
+                    let target_params = self.interfaces[application.template].type_params.clone();
                     self.check_type_argument_kinds(
                         &target_params,
-                        &arguments,
+                        &application.arguments,
                         bound.span,
                         &format!("upper bound of {kind} `{name}`"),
                     );
@@ -431,12 +437,42 @@ impl Lowerer {
                     ) {
                         return None;
                     }
-                    return Some(self.intern_type(Type::Interface(interface_id, resolved)));
+                    return Some(self.intern_interface_application(interface_id, resolved));
+                }
+                if let Some(&(class_id, _)) = self.classes_by_name.get(&name.text) {
+                    let arity = self.classes[class_id].type_params.len();
+                    if arity == 0 {
+                        self.error(name.span, format!("class `{}` is not generic", name.text));
+                        return None;
+                    }
+                    if arity != args.len() {
+                        self.error(
+                            name.span,
+                            format!(
+                                "class `{}` takes {arity} type argument(s), but {} were supplied",
+                                name.text,
+                                args.len()
+                            ),
+                        );
+                        return None;
+                    }
+                    let mut resolved = Vec::with_capacity(args.len());
+                    for arg in args {
+                        resolved.push(self.resolve_type_ref(arg)?);
+                    }
+                    let params = self.classes[class_id].type_params.clone();
+                    if !self.check_type_argument_kinds(
+                        &params,
+                        &resolved,
+                        name.span,
+                        &format!("class `{}`", name.text),
+                    ) {
+                        return None;
+                    }
+                    return Some(self.class_application(class_id, resolved));
                 }
                 let Some(&enum_id) = self.enums_by_name.get(&name.text) else {
-                    let what = if self.classes_by_name.contains_key(&name.text) {
-                        format!("class `{}` is not generic", name.text)
-                    } else if name.text == "Any" {
+                    let what = if name.text == "Any" {
                         "type `Any` takes no type arguments".to_string()
                     } else {
                         format!("unknown type `{}`", name.text)
@@ -469,7 +505,7 @@ impl Lowerer {
                 ) {
                     return None;
                 }
-                Some(self.intern_type(Type::Enum(enum_id, resolved)))
+                Some(self.enum_application(enum_id, resolved))
             }
             ast::TypeRefKind::Named(name) => {
                 if let Some(index) = self
@@ -519,7 +555,18 @@ impl Lowerer {
                             }
                             return Some(ty);
                         }
-                        if let Some(&(_, ty)) = self.classes_by_name.get(&name.text) {
+                        if let Some(&(class_id, ty)) = self.classes_by_name.get(&name.text) {
+                            let arity = self.classes[class_id].type_params.len();
+                            if arity != 0 {
+                                self.error(
+                                    name.span,
+                                    format!(
+                                        "generic class `{}` requires {arity} type argument(s)",
+                                        name.text
+                                    ),
+                                );
+                                return None;
+                            }
                             return Some(ty);
                         }
                         if let Some(&(interface_id, ty)) = self.interfaces_by_name.get(&name.text) {
@@ -544,7 +591,7 @@ impl Lowerer {
                                 // through TypeRefKind::Generic).
                                 let arity = self.enums[id].type_params.len();
                                 if arity == 0 {
-                                    Some(self.intern_type(Type::Enum(id, Vec::new())))
+                                    Some(self.enum_application(id, Vec::new()))
                                 } else {
                                     let enum_name = self.enums[id].name.clone();
                                     self.error(
@@ -653,9 +700,125 @@ impl Lowerer {
         Some(self.intern_function_type(function.is_suspend, parameter_types, return_type))
     }
 
-    /// Intern a generic struct application (`PinnedPtr<String>`, M12).
-    pub(crate) fn struct_application(&mut self, struct_id: StructId, args: Vec<TypeId>) -> TypeId {
-        self.intern_type(Type::Struct(struct_id, args))
+    pub(crate) fn struct_application_id(
+        &mut self,
+        template: StructId,
+        arguments: Vec<TypeId>,
+    ) -> hir::StructApplicationId {
+        let key = (template, arguments.clone());
+        if let Some(&application) = self.struct_application_by_key.get(&key) {
+            return application;
+        }
+        let canonical_type = hir::TypeId::from_raw((self.types.len() as u32).into());
+        let application = self.struct_applications.alloc(hir::StructApplication {
+            template,
+            arguments,
+            canonical_type,
+        });
+        let allocated_type = self.types.alloc(Type::Struct(application));
+        assert_eq!(allocated_type, canonical_type);
+        self.struct_application_by_key.insert(key, application);
+        application
+    }
+
+    /// Intern a complete generic struct application (`PinnedPtr<String>`,
+    /// M12). The type contains only the application identity; declaration and
+    /// arguments live together in the application arena.
+    pub(crate) fn struct_application(&mut self, template: StructId, args: Vec<TypeId>) -> TypeId {
+        let application = self.struct_application_id(template, args);
+        self.struct_applications[application].canonical_type
+    }
+
+    pub(crate) fn enum_application_id(
+        &mut self,
+        template: hir::EnumId,
+        arguments: Vec<TypeId>,
+    ) -> hir::EnumApplicationId {
+        let key = (template, arguments.clone());
+        if let Some(&application) = self.enum_application_by_key.get(&key) {
+            return application;
+        }
+        let canonical_type = hir::TypeId::from_raw((self.types.len() as u32).into());
+        let application = self.enum_applications.alloc(hir::EnumApplication {
+            template,
+            arguments,
+            canonical_type,
+        });
+        let allocated_type = self.types.alloc(Type::Enum(application));
+        assert_eq!(allocated_type, canonical_type);
+        self.enum_application_by_key.insert(key, application);
+        application
+    }
+
+    pub(crate) fn enum_application(
+        &mut self,
+        template: hir::EnumId,
+        arguments: Vec<TypeId>,
+    ) -> TypeId {
+        let application = self.enum_application_id(template, arguments);
+        self.enum_applications[application].canonical_type
+    }
+
+    pub(crate) fn class_application_id(
+        &mut self,
+        template: hir::ClassId,
+        arguments: Vec<TypeId>,
+    ) -> hir::ClassApplicationId {
+        let key = (template, arguments.clone());
+        if let Some(&application) = self.class_application_by_key.get(&key) {
+            return application;
+        }
+        let canonical_type = hir::TypeId::from_raw((self.types.len() as u32).into());
+        let application = self.class_applications.alloc(hir::ClassApplication {
+            template,
+            arguments,
+            canonical_type,
+        });
+        let allocated_type = self.types.alloc(Type::Class(application));
+        assert_eq!(allocated_type, canonical_type);
+        self.class_application_by_key.insert(key, application);
+        application
+    }
+
+    pub(crate) fn class_application(
+        &mut self,
+        template: hir::ClassId,
+        arguments: Vec<TypeId>,
+    ) -> TypeId {
+        let application = self.class_application_id(template, arguments);
+        self.class_applications[application].canonical_type
+    }
+
+    pub(crate) fn interface_application_id(
+        &mut self,
+        template: hir::InterfaceId,
+        arguments: Vec<TypeId>,
+    ) -> hir::InterfaceApplicationId {
+        let key = (template, arguments.clone());
+        if let Some(&application) = self.interface_application_by_key.get(&key) {
+            return application;
+        }
+        let canonical_type = hir::TypeId::from_raw((self.types.len() as u32).into());
+        let application = self
+            .interface_applications
+            .alloc(hir::InterfaceApplication {
+                template,
+                arguments,
+                canonical_type,
+            });
+        let allocated_type = self.types.alloc(Type::Interface(application));
+        assert_eq!(allocated_type, canonical_type);
+        self.interface_application_by_key.insert(key, application);
+        application
+    }
+
+    pub(crate) fn intern_interface_application(
+        &mut self,
+        template: hir::InterfaceId,
+        arguments: Vec<TypeId>,
+    ) -> TypeId {
+        let application = self.interface_application_id(template, arguments);
+        self.interface_applications[application].canonical_type
     }
 
     pub(crate) fn type_contains_param(&self, ty: TypeId) -> bool {
@@ -664,10 +827,23 @@ impl Lowerer {
             Type::Array(element) | Type::MutableArray(element) | Type::Ptr(element) => {
                 self.type_contains_param(*element)
             }
-            Type::Struct(_, args)
-            | Type::Interface(_, args)
-            | Type::Enum(_, args)
-            | Type::Tuple(args) => args.iter().any(|ty| self.type_contains_param(*ty)),
+            Type::Struct(application) => self.struct_applications[*application]
+                .arguments
+                .iter()
+                .any(|ty| self.type_contains_param(*ty)),
+            Type::Class(application) => self.class_applications[*application]
+                .arguments
+                .iter()
+                .any(|ty| self.type_contains_param(*ty)),
+            Type::Interface(application) => self.interface_applications[*application]
+                .arguments
+                .iter()
+                .any(|ty| self.type_contains_param(*ty)),
+            Type::Enum(application) => self.enum_applications[*application]
+                .arguments
+                .iter()
+                .any(|ty| self.type_contains_param(*ty)),
+            Type::Tuple(args) => args.iter().any(|ty| self.type_contains_param(*ty)),
             Type::Function(id) | Type::FunPtr(id) => self.function_type_contains_param(*id),
             _ => false,
         }
@@ -691,7 +867,10 @@ impl Lowerer {
     pub(crate) fn instantiate_ty(&mut self, ty: TypeId, type_args: &[TypeId]) -> TypeId {
         match self.types[ty].clone() {
             Type::Param(index) => type_args[index.into_raw() as usize],
-            Type::Struct(id, args) => {
+            Type::Struct(application) => {
+                let application = self.struct_applications[application].clone();
+                let id = application.template;
+                let args = application.arguments;
                 let mut substituted = Vec::with_capacity(args.len());
                 for arg in args {
                     substituted.push(self.instantiate_ty(arg, type_args));
@@ -705,14 +884,24 @@ impl Lowerer {
                     };
                     return self.intern_type(Type::FunPtr(function));
                 }
-                self.intern_type(Type::Struct(id, substituted))
+                self.struct_application(id, substituted)
             }
-            Type::Interface(id, args) => {
-                let mut substituted = Vec::with_capacity(args.len());
-                for arg in args {
+            Type::Class(application) => {
+                let application = self.class_applications[application].clone();
+                let substituted = application
+                    .arguments
+                    .into_iter()
+                    .map(|arg| self.instantiate_ty(arg, type_args))
+                    .collect();
+                self.class_application(application.template, substituted)
+            }
+            Type::Interface(application) => {
+                let application = self.interface_applications[application].clone();
+                let mut substituted = Vec::with_capacity(application.arguments.len());
+                for arg in application.arguments {
                     substituted.push(self.instantiate_ty(arg, type_args));
                 }
-                self.intern_type(Type::Interface(id, substituted))
+                self.intern_interface_application(application.template, substituted)
             }
             Type::Array(element) => {
                 let element = self.instantiate_ty(element, type_args);
@@ -722,12 +911,13 @@ impl Lowerer {
                 let element = self.instantiate_ty(element, type_args);
                 self.intern_type(Type::MutableArray(element))
             }
-            Type::Enum(id, args) => {
-                let mut substituted = Vec::with_capacity(args.len());
-                for arg in args {
+            Type::Enum(application) => {
+                let application = self.enum_applications[application].clone();
+                let mut substituted = Vec::with_capacity(application.arguments.len());
+                for arg in application.arguments {
                     substituted.push(self.instantiate_ty(arg, type_args));
                 }
-                self.intern_type(Type::Enum(id, substituted))
+                self.enum_application(application.template, substituted)
             }
             Type::Tuple(elements) => {
                 let mut substituted = Vec::with_capacity(elements.len());
@@ -781,8 +971,10 @@ impl Lowerer {
                     )))
                 }
             }
-            Type::Struct(id, args) => {
-                let args = args
+            Type::Struct(application) => {
+                let application = self.struct_applications[application].clone();
+                let args = application
+                    .arguments
                     .into_iter()
                     .map(|arg| {
                         self.instantiate_method_owner_ty(
@@ -793,10 +985,12 @@ impl Lowerer {
                         )
                     })
                     .collect();
-                self.intern_type(Type::Struct(id, args))
+                self.struct_application(application.template, args)
             }
-            Type::Interface(id, args) => {
-                let args = args
+            Type::Class(application) => {
+                let application = self.class_applications[application].clone();
+                let args = application
+                    .arguments
                     .into_iter()
                     .map(|arg| {
                         self.instantiate_method_owner_ty(
@@ -807,7 +1001,23 @@ impl Lowerer {
                         )
                     })
                     .collect();
-                self.intern_type(Type::Interface(id, args))
+                self.class_application(application.template, args)
+            }
+            Type::Interface(application) => {
+                let application = self.interface_applications[application].clone();
+                let args = application
+                    .arguments
+                    .into_iter()
+                    .map(|arg| {
+                        self.instantiate_method_owner_ty(
+                            arg,
+                            owner_args,
+                            source_owner_count,
+                            target_owner_count,
+                        )
+                    })
+                    .collect();
+                self.intern_interface_application(application.template, args)
             }
             Type::Array(element) => {
                 let element = self.instantiate_method_owner_ty(
@@ -827,8 +1037,10 @@ impl Lowerer {
                 );
                 self.intern_type(Type::MutableArray(element))
             }
-            Type::Enum(id, args) => {
-                let args = args
+            Type::Enum(application) => {
+                let application = self.enum_applications[application].clone();
+                let args = application
+                    .arguments
                     .into_iter()
                     .map(|arg| {
                         self.instantiate_method_owner_ty(
@@ -839,7 +1051,7 @@ impl Lowerer {
                         )
                     })
                     .collect();
-                self.intern_type(Type::Enum(id, args))
+                self.enum_application(application.template, args)
             }
             Type::Tuple(elements) => {
                 let elements = elements
@@ -903,19 +1115,29 @@ impl Lowerer {
     ) -> Option<TypeId> {
         match self.types[ty].clone() {
             Type::Param(index) => bindings.get(index.into_raw() as usize).copied().flatten(),
-            Type::Struct(id, args) => {
-                let mut substituted = Vec::with_capacity(args.len());
-                for arg in args {
+            Type::Struct(application) => {
+                let application = self.struct_applications[application].clone();
+                let mut substituted = Vec::with_capacity(application.arguments.len());
+                for arg in application.arguments {
                     substituted.push(self.try_substitute(arg, bindings)?);
                 }
-                Some(self.intern_type(Type::Struct(id, substituted)))
+                Some(self.struct_application(application.template, substituted))
             }
-            Type::Interface(id, args) => {
-                let mut substituted = Vec::with_capacity(args.len());
-                for arg in args {
+            Type::Class(application) => {
+                let application = self.class_applications[application].clone();
+                let mut substituted = Vec::with_capacity(application.arguments.len());
+                for arg in application.arguments {
                     substituted.push(self.try_substitute(arg, bindings)?);
                 }
-                Some(self.intern_type(Type::Interface(id, substituted)))
+                Some(self.class_application(application.template, substituted))
+            }
+            Type::Interface(application) => {
+                let application = self.interface_applications[application].clone();
+                let mut substituted = Vec::with_capacity(application.arguments.len());
+                for arg in application.arguments {
+                    substituted.push(self.try_substitute(arg, bindings)?);
+                }
+                Some(self.intern_interface_application(application.template, substituted))
             }
             Type::Array(element) => {
                 let element = self.try_substitute(element, bindings)?;
@@ -925,12 +1147,13 @@ impl Lowerer {
                 let element = self.try_substitute(element, bindings)?;
                 Some(self.intern_type(Type::MutableArray(element)))
             }
-            Type::Enum(id, args) => {
-                let mut substituted = Vec::with_capacity(args.len());
-                for arg in args {
+            Type::Enum(application) => {
+                let application = self.enum_applications[application].clone();
+                let mut substituted = Vec::with_capacity(application.arguments.len());
+                for arg in application.arguments {
                     substituted.push(self.try_substitute(arg, bindings)?);
                 }
-                Some(self.intern_type(Type::Enum(id, substituted)))
+                Some(self.enum_application(application.template, substituted))
             }
             Type::Tuple(elements) => {
                 let mut substituted = Vec::with_capacity(elements.len());
@@ -985,6 +1208,12 @@ impl Lowerer {
             &self.enums,
             &self.classes,
             &self.interfaces,
+            NominalApplications {
+                structs: &self.struct_applications,
+                enums: &self.enum_applications,
+                classes: &self.class_applications,
+                interfaces: &self.interface_applications,
+            },
             &self.type_params_in_scope,
             ty,
         )
@@ -1011,18 +1240,33 @@ impl Lowerer {
                 .map(|parameter| parameter.interface_bounds().to_vec())
                 .unwrap_or_default()
                 .into_iter()
-                .any(|bound| self.is_subtype(bound.ty, b)),
-            (Type::Class(a), Type::Class(b)) => self.class_inherits(a, b),
-            (Type::Interface(a, a_args), Type::Interface(b, b_args)) if a == b => {
-                let variances: Vec<hir::Variance> = self.interfaces[a]
+                .any(|bound| {
+                    let bound = self.interface_applications[bound.application].canonical_type;
+                    self.is_subtype(bound, b)
+                }),
+            (Type::Class(application), Type::Class(..)) => {
+                let application = self.class_applications[application].clone();
+                let Some((base, _)) = self.classes[application.template].base_class.clone() else {
+                    return false;
+                };
+                let base = self.instantiate_ty(base, &application.arguments);
+                self.is_subtype(base, b)
+            }
+            (Type::Interface(a), Type::Interface(b)) => {
+                let a = self.interface_applications[a].clone();
+                let b = self.interface_applications[b].clone();
+                if a.template != b.template {
+                    return false;
+                }
+                let variances: Vec<hir::Variance> = self.interfaces[a.template]
                     .type_params
                     .iter()
                     .map(|param| param.variance)
                     .collect();
                 variances
                     .into_iter()
-                    .zip(a_args)
-                    .zip(b_args)
+                    .zip(a.arguments)
+                    .zip(b.arguments)
                     .all(|((variance, a), b)| match variance {
                         hir::Variance::Invariant => self.types_equal(a, b),
                         hir::Variance::Out => self.is_subtype(a, b),
@@ -1041,21 +1285,23 @@ impl Lowerer {
                         .all(|(target, source)| self.is_subtype(target, source))
                     && self.is_subtype(source.return_type, target.return_type)
             }
-            (Type::Class(class), Type::Interface(..)) => self
-                .class_interfaces_all(class)
+            (Type::Class(application), Type::Interface(..)) => self
+                .class_interfaces_for_application(application)
                 .into_iter()
                 .any(|implemented| self.is_subtype(implemented, b)),
-            (Type::Struct(id, args), Type::Interface(..)) => {
-                let interfaces = self.structs[id].interfaces.clone();
+            (Type::Struct(application), Type::Interface(..)) => {
+                let application = self.struct_applications[application].clone();
+                let interfaces = self.structs[application.template].interfaces.clone();
                 interfaces.into_iter().any(|implemented| {
-                    let implemented = self.instantiate_ty(implemented, &args);
+                    let implemented = self.instantiate_ty(implemented, &application.arguments);
                     self.is_subtype(implemented, b)
                 })
             }
-            (Type::Enum(id, args), Type::Interface(..)) => {
-                let interfaces = self.enums[id].interfaces.clone();
+            (Type::Enum(application), Type::Interface(..)) => {
+                let application = self.enum_applications[application].clone();
+                let interfaces = self.enums[application.template].interfaces.clone();
                 interfaces.into_iter().any(|implemented| {
-                    let implemented = self.instantiate_ty(implemented, &args);
+                    let implemented = self.instantiate_ty(implemented, &application.arguments);
                     self.is_subtype(implemented, b)
                 })
             }
@@ -1073,30 +1319,75 @@ impl Lowerer {
         target: hir::InterfaceId,
     ) -> Option<Vec<TypeId>> {
         let candidates = match self.types[ty].clone() {
-            Type::Interface(id, args) => {
-                return (id == target).then_some(args);
+            Type::Interface(application) => {
+                let application = self.interface_applications[application].clone();
+                return (application.template == target).then_some(application.arguments);
             }
-            Type::Class(class) => self.class_interfaces_all(class),
-            Type::Struct(id, args) => self.structs[id]
-                .interfaces
-                .clone()
-                .into_iter()
-                .map(|implemented| self.instantiate_ty(implemented, &args))
-                .collect(),
-            Type::Enum(id, args) => self.enums[id]
-                .interfaces
-                .clone()
-                .into_iter()
-                .map(|implemented| self.instantiate_ty(implemented, &args))
-                .collect(),
+            Type::Class(application) => self.class_interfaces_for_application(application),
+            Type::Struct(application) => {
+                let application = self.struct_applications[application].clone();
+                self.structs[application.template]
+                    .interfaces
+                    .clone()
+                    .into_iter()
+                    .map(|implemented| self.instantiate_ty(implemented, &application.arguments))
+                    .collect()
+            }
+            Type::Enum(application) => {
+                let application = self.enum_applications[application].clone();
+                self.enums[application.template]
+                    .interfaces
+                    .clone()
+                    .into_iter()
+                    .map(|implemented| self.instantiate_ty(implemented, &application.arguments))
+                    .collect()
+            }
             _ => Vec::new(),
         };
         candidates.into_iter().find_map(|candidate| {
-            let Type::Interface(id, args) = self.types[candidate].clone() else {
+            let Type::Interface(application) = self.types[candidate] else {
                 return None;
             };
-            (id == target).then_some(args)
+            let application = &self.interface_applications[application];
+            (application.template == target).then(|| application.arguments.clone())
         })
+    }
+
+    /// Fully substitute every interface reached from one class application,
+    /// including interfaces inherited through its concrete generic base
+    /// application. Applications, rather than declaration ids, are the
+    /// deduplication identity.
+    pub(crate) fn class_interfaces_for_application(
+        &mut self,
+        application: hir::ClassApplicationId,
+    ) -> Vec<TypeId> {
+        let mut result = Vec::new();
+        let mut pending = vec![application];
+        let mut seen = Vec::<hir::ClassApplicationId>::new();
+        while let Some(application) = pending.pop() {
+            let application_value = self.class_applications[application].clone();
+            for interface in self.classes[application_value.template].interfaces.clone() {
+                let interface = self.instantiate_ty(interface, &application_value.arguments);
+                if !result
+                    .iter()
+                    .any(|&other| self.types_equal(other, interface))
+                {
+                    result.push(interface);
+                }
+            }
+            if let Some((base, _)) = self.classes[application_value.template].base_class.clone() {
+                let base = self.instantiate_ty(base, &application_value.arguments);
+                let Type::Class(base_application) = self.types[base] else {
+                    unreachable!("class bases are resolved class applications")
+                };
+                if seen.contains(&base_application) {
+                    continue;
+                }
+                seen.push(base_application);
+                pending.push(base_application);
+            }
+        }
+        result
     }
 
     /// Whether a value of static type `a` could ever hold a `b` at run
@@ -1111,8 +1402,9 @@ impl Lowerer {
         }
         match &self.types[a] {
             Type::Any | Type::Interface(..) => true,
-            &Type::Class(id) => {
-                self.classes[id].modifier != hir::ClassModifier::Final
+            &Type::Class(application) => {
+                let template = self.class_applications[application].template;
+                self.classes[template].modifier != hir::ClassModifier::Final
                     && matches!(self.types[b], Type::Interface(..))
             }
             _ => false,
@@ -1176,7 +1468,8 @@ impl Lowerer {
         }
         for (param, &arg) in params.iter().zip(args) {
             for bound in param.interface_bounds() {
-                let required = self.instantiate_ty(bound.ty, args);
+                let bound = self.interface_applications[bound.application].canonical_type;
+                let required = self.instantiate_ty(bound, args);
                 if self.is_subtype(arg, required) {
                     continue;
                 }
@@ -1205,7 +1498,8 @@ impl Lowerer {
                 return false;
             }
             for bound in param.interface_bounds() {
-                let required = self.instantiate_ty(bound.ty, args);
+                let bound = self.interface_applications[bound.application].canonical_type;
+                let required = self.instantiate_ty(bound, args);
                 if !self.is_subtype(arg, required) {
                     return false;
                 }
@@ -1343,35 +1637,14 @@ fn type_value_equal(types: &Arena<Type>, a: TypeId, b: TypeId) -> bool {
         | (Type::Boolean, Type::Boolean)
         | (Type::String, Type::String)
         | (Type::Any, Type::Any) => true,
-        (Type::Struct(x, x_args), Type::Struct(y, y_args)) => {
-            x == y
-                && x_args.len() == y_args.len()
-                && x_args
-                    .iter()
-                    .zip(y_args.iter())
-                    .all(|(&x, &y)| type_value_equal(types, x, y))
-        }
+        (Type::Struct(x), Type::Struct(y)) => x == y,
         (Type::Class(x), Type::Class(y)) => x == y,
-        (Type::Interface(x, x_args), Type::Interface(y, y_args)) => {
-            x == y
-                && x_args.len() == y_args.len()
-                && x_args
-                    .iter()
-                    .zip(y_args.iter())
-                    .all(|(&x, &y)| type_value_equal(types, x, y))
-        }
+        (Type::Interface(x), Type::Interface(y)) => x == y,
         (Type::Array(x), Type::Array(y)) | (Type::MutableArray(x), Type::MutableArray(y)) => {
             type_value_equal(types, *x, *y)
         }
         (Type::Param(x), Type::Param(y)) => x == y,
-        (Type::Enum(x, x_args), Type::Enum(y, y_args)) => {
-            x == y
-                && x_args.len() == y_args.len()
-                && x_args
-                    .iter()
-                    .zip(y_args.iter())
-                    .all(|(&x, &y)| type_value_equal(types, x, y))
-        }
+        (Type::Enum(x), Type::Enum(y)) => x == y,
         (Type::Tuple(xs), Type::Tuple(ys)) => {
             xs.len() == ys.len()
                 && xs
@@ -1386,6 +1659,14 @@ fn type_value_equal(types: &Arena<Type>, a: TypeId, b: TypeId) -> bool {
     }
 }
 
+#[derive(Clone, Copy)]
+struct NominalApplications<'a> {
+    structs: &'a Arena<hir::StructApplication>,
+    enums: &'a Arena<hir::EnumApplication>,
+    classes: &'a Arena<hir::ClassApplication>,
+    interfaces: &'a Arena<hir::InterfaceApplication>,
+}
+
 #[allow(clippy::too_many_arguments)]
 fn type_name(
     types: &Arena<Type>,
@@ -1394,6 +1675,7 @@ fn type_name(
     enums: &Arena<EnumDecl>,
     classes: &Arena<ClassDecl>,
     interfaces: &Arena<InterfaceDecl>,
+    applications: NominalApplications<'_>,
     type_params: &[hir::TypeParamDecl],
     ty: TypeId,
 ) -> String {
@@ -1403,9 +1685,12 @@ fn type_name(
         Type::UInt => "UInt".to_string(),
         Type::Boolean => "Boolean".to_string(),
         Type::String => "String".to_string(),
-        Type::Struct(id, args) => {
+        Type::Struct(application) => {
+            let application = &applications.structs[*application];
+            let id = application.template;
+            let args = &application.arguments;
             if args.is_empty() {
-                structs[*id].name.clone()
+                structs[id].name.clone()
             } else {
                 let inner: Vec<String> = args
                     .iter()
@@ -1417,18 +1702,48 @@ fn type_name(
                             enums,
                             classes,
                             interfaces,
+                            applications,
                             type_params,
                             *t,
                         )
                     })
                     .collect();
-                format!("{}<{}>", structs[*id].name, inner.join(", "))
+                format!("{}<{}>", structs[id].name, inner.join(", "))
             }
         }
-        Type::Class(id) => classes[*id].name.clone(),
-        Type::Interface(id, args) => {
+        Type::Class(application) => {
+            let application = &applications.classes[*application];
+            let id = application.template;
+            let args = &application.arguments;
             if args.is_empty() {
-                interfaces[*id].name.clone()
+                classes[id].name.clone()
+            } else {
+                let inner = args
+                    .iter()
+                    .map(|ty| {
+                        type_name(
+                            types,
+                            function_types,
+                            structs,
+                            enums,
+                            classes,
+                            interfaces,
+                            applications,
+                            type_params,
+                            *ty,
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("{}<{inner}>", classes[id].name)
+            }
+        }
+        Type::Interface(application) => {
+            let application = &applications.interfaces[*application];
+            let id = application.template;
+            let args = &application.arguments;
+            if args.is_empty() {
+                interfaces[id].name.clone()
             } else {
                 let inner: Vec<String> = args
                     .iter()
@@ -1440,12 +1755,13 @@ fn type_name(
                             enums,
                             classes,
                             interfaces,
+                            applications,
                             type_params,
                             *t,
                         )
                     })
                     .collect();
-                format!("{}<{}>", interfaces[*id].name, inner.join(", "))
+                format!("{}<{}>", interfaces[id].name, inner.join(", "))
             }
         }
         Type::Any => "Any".to_string(),
@@ -1457,6 +1773,7 @@ fn type_name(
                 enums,
                 classes,
                 interfaces,
+                applications,
                 type_params,
                 *element,
             );
@@ -1470,6 +1787,7 @@ fn type_name(
                 enums,
                 classes,
                 interfaces,
+                applications,
                 type_params,
                 *element,
             );
@@ -1483,6 +1801,7 @@ fn type_name(
                 enums,
                 classes,
                 interfaces,
+                applications,
                 type_params,
                 *pointee,
             );
@@ -1501,6 +1820,7 @@ fn type_name(
                         enums,
                         classes,
                         interfaces,
+                        applications,
                         type_params,
                         *ty,
                     )
@@ -1513,6 +1833,7 @@ fn type_name(
                 enums,
                 classes,
                 interfaces,
+                applications,
                 type_params,
                 function.return_type,
             );
@@ -1522,8 +1843,10 @@ fn type_name(
                 parameters.join(", ")
             )
         }
-        Type::Enum(id, args) => {
-            let name = &enums[*id].name;
+        Type::Enum(application) => {
+            let application = &applications.enums[*application];
+            let name = &enums[application.template].name;
+            let args = &application.arguments;
             if args.is_empty() {
                 name.clone()
             } else {
@@ -1537,6 +1860,7 @@ fn type_name(
                             enums,
                             classes,
                             interfaces,
+                            applications,
                             type_params,
                             *t,
                         )
@@ -1556,6 +1880,7 @@ fn type_name(
                         enums,
                         classes,
                         interfaces,
+                        applications,
                         type_params,
                         *t,
                     )
@@ -1576,6 +1901,7 @@ fn type_name(
                         enums,
                         classes,
                         interfaces,
+                        applications,
                         type_params,
                         *ty,
                     )
@@ -1588,6 +1914,7 @@ fn type_name(
                 enums,
                 classes,
                 interfaces,
+                applications,
                 type_params,
                 function.return_type,
             );

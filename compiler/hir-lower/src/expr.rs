@@ -350,9 +350,16 @@ impl Lowerer {
                     sink,
                     expected,
                 ),
-                Constructor::Class { class_id } => {
-                    self.lower_class_construct(class_id, args, *span, sink)
-                }
+                Constructor::Class { class_id } => self.lower_class_construct(
+                    class_id,
+                    CallSite {
+                        type_args: &[],
+                        args,
+                        span: *span,
+                    },
+                    sink,
+                    expected,
+                ),
                 Constructor::Unmatched => {
                     self.error(name.span, format!("unknown struct `{}`", name.text));
                     None
@@ -555,8 +562,8 @@ impl Lowerer {
         }
         if matches!(self.types[receiver.ty], Type::Interface(..)) {
             let before = candidates.len();
-            candidates.retain(|&function| {
-                let sig = &self.signatures[&function];
+            candidates.retain(|candidate| {
+                let sig = &self.signatures[&candidate.function];
                 sig.type_params.len() == sig.owner_type_param_count
             });
             if candidates.is_empty() && before != 0 {
@@ -572,7 +579,7 @@ impl Lowerer {
             }
         }
         if candidates.len() == 1 {
-            return self.finish_method_call(candidates[0], receiver, call, sink);
+            return self.finish_method_call(candidates.remove(0), receiver, call, sink);
         }
         self.finish_overloaded_method_call(candidates, &name.text, receiver, call, sink)
     }
@@ -649,27 +656,16 @@ impl Lowerer {
     /// `MethodCall`.
     fn finish_overloaded_method_call(
         &mut self,
-        candidates: Vec<hir::FunctionId>,
+        candidates: Vec<crate::CallableCandidate>,
         name: &str,
         receiver: hir::Expr,
         call: CallSite<'_>,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
-        // A generic host contributes the already-known prefix. Overload
-        // resolution infers any method-declared suffix independently for
-        // each candidate.
-        let owner_type_args: Vec<TypeId> = match self.types[receiver.ty] {
-            Type::Enum(_, ref args) => args.clone(),
-            Type::Struct(_, ref args) => args.clone(),
-            Type::Interface(_, ref args) => args.clone(),
-            Type::Ptr(pointee) => vec![pointee],
-            _ => Vec::new(),
-        };
         let explicit_type_args = self.resolve_call_type_args(call.type_args)?;
-        let resolved = self.resolve_overload(
+        let resolved = self.resolve_member_overload(
             name,
             &candidates,
-            &owner_type_args,
             crate::overload::OverloadCall {
                 explicit_type_args: &explicit_type_args,
                 arg_exprs: call.args,
@@ -705,8 +701,11 @@ impl Lowerer {
     /// to `this.name` is a property access, not an enum path).
     fn host_has_property(&self, name: &str) -> bool {
         match self.current_this_ty().map(|ty| self.types[ty].clone()) {
-            Some(Type::Class(class_id)) => self.find_class_field(class_id, name).is_some(),
-            Some(Type::Struct(struct_id, _)) => self.structs[struct_id]
+            Some(Type::Class(application)) => self
+                .find_class_field(self.class_applications[application].template, name)
+                .is_some(),
+            Some(Type::Struct(application)) => self.structs
+                [self.struct_applications[application].template]
                 .fields
                 .iter()
                 .any(|field| field.name == name),
@@ -720,19 +719,14 @@ impl Lowerer {
     /// suffix; subtype adaptation (boxing) happens afterwards.
     fn finish_method_call(
         &mut self,
-        function: hir::FunctionId,
+        candidate: crate::CallableCandidate,
         receiver: hir::Expr,
         call: CallSite<'_>,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
+        let function = candidate.function;
         let name = self.functions[function].name.clone();
-        let owner_type_args: Vec<TypeId> = match self.types[receiver.ty] {
-            Type::Enum(_, ref args) => args.clone(),
-            Type::Struct(_, ref args) => args.clone(),
-            Type::Interface(_, ref args) => args.clone(),
-            Type::Ptr(pointee) => vec![pointee],
-            _ => Vec::new(),
-        };
+        let owner_type_args = candidate.owner_arguments;
         let sig = self.signatures[&function].clone();
         if sig.params.len() != call.args.len() {
             let expected = sig.params.len();
@@ -1207,6 +1201,13 @@ impl Lowerer {
             return None;
         }
         let Some(local) = self.scopes.lookup(&name.text) else {
+            if let Some(&(parameter, ty)) = self.constructor_params_in_scope.get(&name.text) {
+                return Some(hir::Expr {
+                    kind: ExprKind::ConstructorParam(parameter),
+                    ty,
+                    span: name.span,
+                });
+            }
             if self.available_capture(&name.text).is_some() {
                 return self.lower_capture(name);
             }
@@ -1280,27 +1281,33 @@ impl Lowerer {
         let receiver_ty = self.current_this_ty()?;
         let receiver = self.lower_current_this(name.span)?;
         let (field, ty) = match self.types[receiver_ty].clone() {
-            Type::Class(class_id) => {
-                let (declaring, index, ty, _) = self.find_class_field(class_id, &name.text)?;
+            Type::Class(application) => {
+                let (declaring, index, ty, _) =
+                    self.find_class_application_field(application, &name.text)?;
                 (
                     hir::FieldRef::ClassField {
-                        class_id: declaring,
+                        application: declaring,
                         index,
                     },
                     ty,
                 )
             }
-            Type::Struct(struct_id, type_args) => {
+            Type::Struct(application) => {
+                let application_value = self.struct_applications[application].clone();
+                let struct_id = application_value.template;
                 let index = self.structs[struct_id]
                     .fields
                     .iter()
                     .position(|field| field.name == name.text)?;
                 (
                     hir::FieldRef::StructField {
-                        struct_id,
+                        application,
                         index: index as u32,
                     },
-                    self.instantiate_ty(self.structs[struct_id].fields[index].ty, &type_args),
+                    self.instantiate_ty(
+                        self.structs[struct_id].fields[index].ty,
+                        &application_value.arguments,
+                    ),
                 )
             }
             // Interfaces have no properties; enum payloads are only
@@ -1391,7 +1398,11 @@ impl Lowerer {
             Vec::new()
         } else {
             let inferred = expected.and_then(|ty| match self.types[ty].clone() {
-                Type::Enum(id, args) if id == enum_id && args.len() == arity => Some(args),
+                Type::Enum(application) => {
+                    let application = &self.enum_applications[application];
+                    (application.template == enum_id && application.arguments.len() == arity)
+                        .then(|| application.arguments.clone())
+                }
                 _ => None,
             });
             match inferred {
@@ -1405,12 +1416,12 @@ impl Lowerer {
                 }
             }
         };
-        let ty = self.intern_type(Type::Enum(enum_id, type_args.clone()));
+        let application = self.enum_application_id(enum_id, type_args);
+        let ty = self.enum_applications[application].canonical_type;
         Some(hir::Expr {
             kind: ExprKind::VariantConstruct {
-                enum_id,
+                application,
                 variant,
-                type_args,
                 args: Vec::new(),
             },
             ty,
@@ -1460,10 +1471,15 @@ impl Lowerer {
     fn lower_class_construct(
         &mut self,
         class_id: hir::ClassId,
-        args: &[ast::Expr],
-        span: Span,
+        call: CallSite<'_>,
         sink: &mut Vec<hir::Statement>,
+        expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
+        let CallSite {
+            type_args: type_arg_refs,
+            args,
+            span,
+        } = call;
         let name = self.classes[class_id].name.clone();
         if self.classes[class_id].modifier == hir::ClassModifier::Abstract {
             self.error(
@@ -1493,9 +1509,62 @@ impl Lowerer {
             );
             return None;
         }
-        let mut lowered = Vec::with_capacity(args.len());
-        for (arg, (prop_name, prop_ty)) in args.iter().zip(props) {
-            let arg = self.lower_expr(arg, sink, Some(prop_ty))?;
+        let type_params = self.classes[class_id].type_params.clone();
+        let explicit_type_args = self.resolve_call_type_args(type_arg_refs)?;
+        if type_params.is_empty() && !explicit_type_args.is_empty() {
+            self.error(span, format!("class `{name}` is not generic"));
+            return None;
+        }
+        let mut bindings = vec![None; type_params.len()];
+        if !self.bind_explicit_type_args(
+            &mut bindings,
+            0,
+            &explicit_type_args,
+            span,
+            &format!("class `{name}`"),
+        ) {
+            return None;
+        }
+        if let Some(expected) = expected
+            && let Type::Class(application) = self.types[expected]
+            && self.class_applications[application].template == class_id
+            && self.class_applications[application].arguments.len() == type_params.len()
+        {
+            let expected_args = self.class_applications[application].arguments.clone();
+            for (binding, argument) in bindings.iter_mut().zip(expected_args) {
+                if binding.is_none() {
+                    *binding = Some(argument);
+                }
+            }
+        }
+        let property_types = props.iter().map(|(_, ty)| *ty).collect::<Vec<_>>();
+        let inferred = self.lower_inference_args(args, &property_types, bindings, &type_params)?;
+        let mut type_args = Vec::with_capacity(type_params.len());
+        for (binding, parameter) in inferred.bindings.iter().copied().zip(&type_params) {
+            let Some(argument) = binding else {
+                self.error(
+                    span,
+                    format!(
+                        "cannot infer type argument `{}` for class `{name}`",
+                        parameter.name
+                    ),
+                );
+                return None;
+            };
+            type_args.push(argument);
+        }
+        if !self.check_type_argument_kinds(
+            &type_params,
+            &type_args,
+            span,
+            &format!("class `{name}`"),
+        ) {
+            return None;
+        }
+        let lowered = inferred.finish(sink);
+        let mut adapted = Vec::with_capacity(lowered.len());
+        for ((prop_name, prop_ty), arg) in props.iter().zip(lowered) {
+            let prop_ty = self.instantiate_ty(*prop_ty, &type_args);
             if !self.is_subtype(arg.ty, prop_ty) {
                 let expected = self.type_name(prop_ty);
                 let found = self.type_name(arg.ty);
@@ -1507,13 +1576,14 @@ impl Lowerer {
                 );
                 return None;
             }
-            lowered.push(self.adapt_to(arg, prop_ty));
+            adapted.push(self.adapt_to(arg, prop_ty));
         }
-        let ty = self.classes_by_name[&name].1;
+        let application = self.class_application_id(class_id, type_args);
+        let ty = self.class_applications[application].canonical_type;
         Some(hir::Expr {
             kind: ExprKind::ClassInit {
-                class_id,
-                args: lowered,
+                application,
+                args: adapted,
             },
             ty,
             span,
@@ -1619,16 +1689,16 @@ impl Lowerer {
                     self.lower_struct_init(struct_id, ty, site, sink, expected)
                 }
             }
-            Constructor::Class { class_id } => {
-                if !call.type_args.is_empty() {
-                    self.error(
-                        call.callee.span,
-                        format!("class `{}` is not generic", call.callee.text),
-                    );
-                    return None;
-                }
-                self.lower_class_construct(class_id, &call.args, call.span, sink)
-            }
+            Constructor::Class { class_id } => self.lower_class_construct(
+                class_id,
+                CallSite {
+                    type_args: &call.type_args,
+                    args: &call.args,
+                    span: call.span,
+                },
+                sink,
+                expected,
+            ),
             Constructor::Unmatched => self.lower_function_call(call, sink),
         }
     }
@@ -1739,10 +1809,9 @@ impl Lowerer {
         let mode_ty = self.interned_enum_type(core.mode);
         let mode = self.lower_expr(&call.args[2], sink, Some(mode_ty))?;
         let ExprKind::VariantConstruct {
-            enum_id,
+            application,
             variant,
             args,
-            ..
         } = mode.kind
         else {
             self.error(
@@ -1751,7 +1820,10 @@ impl Lowerer {
             );
             return None;
         };
-        if enum_id != core.mode || !args.is_empty() || variant > 1 {
+        if self.enum_applications[application].template != core.mode
+            || !args.is_empty()
+            || variant > 1
+        {
             self.error(
                 mode.span,
                 "foreign callback mode must be the constant `Reusable` or `OneShot`".to_string(),
@@ -1811,21 +1883,22 @@ impl Lowerer {
         let expected_callback =
             explicit.map(|function| self.struct_application(core.callback, vec![function]));
         let callback = self.lower_expr(&call.args[0], sink, expected_callback)?;
-        let hir::Type::Struct(callback_struct, arguments) = &self.types[callback.ty] else {
+        let hir::Type::Struct(application) = self.types[callback.ty] else {
             self.error(
                 callback.span,
                 "managed callback token operation requires `ForeignCallback<F>`".to_string(),
             );
             return None;
         };
-        if *callback_struct != core.callback || arguments.len() != 1 {
+        let application = self.struct_applications[application].clone();
+        if application.template != core.callback || application.arguments.len() != 1 {
             self.error(
                 callback.span,
                 "managed callback token operation requires `ForeignCallback<F>`".to_string(),
             );
             return None;
         }
-        let function_ty = arguments[0];
+        let function_ty = application.arguments[0];
         if !matches!(self.types[function_ty], hir::Type::Function(_))
             || explicit.is_some_and(|explicit| !self.types_equal(explicit, function_ty))
         {
@@ -2111,10 +2184,10 @@ impl Lowerer {
         // the first closure field initializer in MIR. It is therefore evaluated
         // once at reference creation, including when it reads a mutable local.
         let receiver = self.lower_expr(receiver, sink, None)?;
-        let mut candidates = self.methods_by_name(receiver.ty, &name.text);
-        let is_extension = candidates.is_empty();
-        if is_extension {
-            candidates = self.extension_candidate_layer(&name.text);
+        let mut member_candidates = self.methods_by_name(receiver.ty, &name.text);
+        let is_extension = member_candidates.is_empty();
+        let extension_candidates = if is_extension {
+            let candidates = self.extension_candidate_layer(&name.text);
             if candidates.is_empty() {
                 let found = self.type_name(receiver.ty);
                 self.error(
@@ -2123,13 +2196,17 @@ impl Lowerer {
                 );
                 return None;
             }
-        } else if matches!(self.types[receiver.ty], Type::Interface(..)) {
-            let before = candidates.len();
-            candidates.retain(|&function| {
-                let sig = &self.signatures[&function];
+            candidates
+        } else {
+            Vec::new()
+        };
+        if !is_extension && matches!(self.types[receiver.ty], Type::Interface(..)) {
+            let before = member_candidates.len();
+            member_candidates.retain(|candidate| {
+                let sig = &self.signatures[&candidate.function];
                 sig.type_params.len() == sig.owner_type_param_count
             });
-            if candidates.is_empty() && before != 0 {
+            if member_candidates.is_empty() && before != 0 {
                 let found = self.type_name(receiver.ty);
                 self.error(
                     name.span,
@@ -2141,25 +2218,25 @@ impl Lowerer {
                 return None;
             }
         }
-        let owner_type_args = if is_extension {
-            Vec::new()
-        } else {
-            self.receiver_type_args(receiver.ty)
-        };
         let expected_signature = self.expected_function_signature(expected);
         let display = format!("bound callable reference `receiver::{}`", name.text);
-        let (callee, ty) = self.resolve_reference_candidates(
-            &candidates,
-            &owner_type_args,
-            expected_signature.as_ref(),
-            &display,
-            span,
-            if is_extension {
-                ReferenceExtensionMode::Bound(receiver.ty)
-            } else {
-                ReferenceExtensionMode::Exclude
-            },
-        )?;
+        let (callee, ty) = if is_extension {
+            self.resolve_reference_candidates(
+                &extension_candidates,
+                &[],
+                expected_signature.as_ref(),
+                &display,
+                span,
+                ReferenceExtensionMode::Bound(receiver.ty),
+            )?
+        } else {
+            self.resolve_member_reference_candidates(
+                &member_candidates,
+                expected_signature.as_ref(),
+                &display,
+                span,
+            )?
+        };
         if !self.managed_reference_target_is_safe(callee, span) {
             return None;
         }
@@ -2208,13 +2285,6 @@ impl Lowerer {
         })
     }
 
-    fn receiver_type_args(&self, receiver: TypeId) -> Vec<TypeId> {
-        match &self.types[receiver] {
-            Type::Enum(_, args) | Type::Struct(_, args) | Type::Interface(_, args) => args.clone(),
-            _ => Vec::new(),
-        }
-    }
-
     /// Resolve one top-level or member callable-reference candidate layer.
     /// Expected function types bind generic parameters in both parameter and
     /// return positions. Without one, only candidates with no declaration-owned
@@ -2228,8 +2298,45 @@ impl Lowerer {
         span: Span,
         extension_mode: ReferenceExtensionMode,
     ) -> Option<(hir::Callable, TypeId)> {
+        let candidates = candidates
+            .iter()
+            .copied()
+            .map(|function| crate::CallableCandidate {
+                function,
+                owner_arguments: owner_type_args.to_vec(),
+            })
+            .collect::<Vec<_>>();
+        self.resolve_reference_candidate_set(&candidates, expected, display, span, extension_mode)
+    }
+
+    fn resolve_member_reference_candidates(
+        &mut self,
+        candidates: &[crate::CallableCandidate],
+        expected: Option<&(TypeId, hir::FunctionType)>,
+        display: &str,
+        span: Span,
+    ) -> Option<(hir::Callable, TypeId)> {
+        self.resolve_reference_candidate_set(
+            candidates,
+            expected,
+            display,
+            span,
+            ReferenceExtensionMode::Exclude,
+        )
+    }
+
+    fn resolve_reference_candidate_set(
+        &mut self,
+        candidates: &[crate::CallableCandidate],
+        expected: Option<&(TypeId, hir::FunctionType)>,
+        display: &str,
+        span: Span,
+        extension_mode: ReferenceExtensionMode,
+    ) -> Option<(hir::Callable, TypeId)> {
         let mut applicable = Vec::new();
-        for &function in candidates {
+        for candidate in candidates {
+            let function = candidate.function;
+            let owner_type_args = &candidate.owner_arguments;
             let sig = self.signatures[&function].clone();
             if sig.owner_type_param_count != owner_type_args.len() {
                 continue;
@@ -2869,8 +2976,8 @@ impl Lowerer {
             let type_params = self.type_params_in_scope.clone();
             let function = self.functions.alloc(hir::Function {
                 name: self.current_fn_name.clone(),
+                genericity: hir::FunctionGenericity::Plain,
                 is_suspend,
-                type_params: type_params.clone(),
                 params,
                 return_ty,
                 attributes: hir::FunctionAttributes::default(),
@@ -2882,7 +2989,7 @@ impl Lowerer {
                 span,
             });
             if !type_params.is_empty() {
-                self.register_generic(function);
+                self.register_generic(function, type_params.clone());
             }
             let captures = self.finish_current_captures();
             let id = self.lambdas.alloc(hir::Lambda {
@@ -3096,8 +3203,8 @@ impl Lowerer {
             let type_params = self.type_params_in_scope.clone();
             let function = self.functions.alloc(hir::Function {
                 name: self.current_fn_name.clone(),
+                genericity: hir::FunctionGenericity::Plain,
                 is_suspend,
-                type_params: type_params.clone(),
                 params: abi_params,
                 return_ty,
                 attributes: hir::FunctionAttributes::default(),
@@ -3109,7 +3216,7 @@ impl Lowerer {
                 span,
             });
             if !type_params.is_empty() {
-                self.register_generic(function);
+                self.register_generic(function, type_params.clone());
             }
             let captures = self.finish_current_captures();
             let id = self.anonymous_functions.alloc(hir::AnonymousFunction {
@@ -3286,9 +3393,12 @@ impl Lowerer {
             return None;
         }
         if let Some(expected) = expected {
-            if let Type::Enum(id, expected_args) = self.types[expected].clone() {
-                if id == enum_id && expected_args.len() == type_params.len() {
-                    for (binding, arg) in bindings.iter_mut().zip(expected_args) {
+            if let Type::Enum(application) = self.types[expected] {
+                let application = self.enum_applications[application].clone();
+                if application.template == enum_id
+                    && application.arguments.len() == type_params.len()
+                {
+                    for (binding, arg) in bindings.iter_mut().zip(application.arguments) {
                         if binding.is_none() {
                             *binding = Some(arg);
                         }
@@ -3351,12 +3461,12 @@ impl Lowerer {
             lowered.push(clone_literal(default));
         }
 
-        let ty = self.intern_type(Type::Enum(enum_id, type_args.clone()));
+        let application = self.enum_application_id(enum_id, type_args);
+        let ty = self.enum_applications[application].canonical_type;
         Some(hir::Expr {
             kind: ExprKind::VariantConstruct {
-                enum_id,
+                application,
                 variant,
-                type_args,
                 args: lowered,
             },
             ty,
@@ -3430,7 +3540,7 @@ impl Lowerer {
         }
 
         // Layer 2: members of the current host.
-        let members: Vec<hir::FunctionId> = self
+        let mut members = self
             .current_this_ty()
             .map(|host_ty| self.methods_by_name(host_ty, &name))
             .unwrap_or_default();
@@ -3440,7 +3550,7 @@ impl Lowerer {
                 .expect("a member callable body always has a lexical `this`");
             if members.len() == 1 {
                 return self.finish_method_call(
-                    members[0],
+                    members.remove(0),
                     receiver,
                     CallSite {
                         type_args: &call.type_args,
@@ -4216,16 +4326,30 @@ impl Lowerer {
                     .collect(),
             ));
         }
-        self.structs_by_name.get(name).map(|(struct_id, _)| {
-            (
-                self.structs[*struct_id].type_params.len(),
-                self.structs[*struct_id]
-                    .fields
-                    .iter()
-                    .map(|field| field.ty)
-                    .collect(),
-            )
-        })
+        self.structs_by_name
+            .get(name)
+            .map(|(struct_id, _)| {
+                (
+                    self.structs[*struct_id].type_params.len(),
+                    self.structs[*struct_id]
+                        .fields
+                        .iter()
+                        .map(|field| field.ty)
+                        .collect(),
+                )
+            })
+            .or_else(|| {
+                self.classes_by_name.get(name).map(|(class_id, _)| {
+                    (
+                        self.classes[*class_id].type_params.len(),
+                        self.classes[*class_id]
+                            .constructor
+                            .iter()
+                            .map(|field| field.ty)
+                            .collect(),
+                    )
+                })
+            })
     }
 
     fn mark_type_params(&self, ty: TypeId, bound: &mut [bool]) {
@@ -4234,10 +4358,27 @@ impl Lowerer {
             Type::Array(element) | Type::MutableArray(element) => {
                 self.mark_type_params(*element, bound);
             }
-            Type::Struct(_, args)
-            | Type::Enum(_, args)
-            | Type::Interface(_, args)
-            | Type::Tuple(args) => {
+            Type::Struct(application) => {
+                for arg in &self.struct_applications[*application].arguments {
+                    self.mark_type_params(*arg, bound);
+                }
+            }
+            Type::Class(application) => {
+                for arg in &self.class_applications[*application].arguments {
+                    self.mark_type_params(*arg, bound);
+                }
+            }
+            Type::Enum(application) => {
+                for arg in &self.enum_applications[*application].arguments {
+                    self.mark_type_params(*arg, bound);
+                }
+            }
+            Type::Interface(application) => {
+                for arg in &self.interface_applications[*application].arguments {
+                    self.mark_type_params(*arg, bound);
+                }
+            }
+            Type::Tuple(args) => {
                 for arg in args {
                     self.mark_type_params(*arg, bound);
                 }
@@ -4323,43 +4464,65 @@ impl Lowerer {
                     }
                 }
             }
-            (Type::Enum(param_id, param_args), Type::Enum(arg_id, arg_args))
-                if param_id == arg_id && param_args.len() == arg_args.len() =>
-            {
+            (Type::Enum(param), Type::Enum(arg)) => {
+                let param = self.enum_applications[param].clone();
+                let arg = self.enum_applications[arg].clone();
+                if param.template != arg.template || param.arguments.len() != arg.arguments.len() {
+                    return true;
+                }
                 let mut ok = true;
-                for (param, arg) in param_args.iter().zip(arg_args.iter()) {
+                for (param, arg) in param.arguments.iter().zip(arg.arguments.iter()) {
                     ok &= self.bind_type_args(*param, *arg, bindings, type_params, span);
                 }
                 ok
             }
-            (Type::Struct(param_id, param_args), Type::Struct(arg_id, arg_args))
-                if param_id == arg_id && param_args.len() == arg_args.len() =>
-            {
+            (Type::Struct(param), Type::Struct(arg)) => {
+                let param = self.struct_applications[param].clone();
+                let arg = self.struct_applications[arg].clone();
+                if param.template != arg.template || param.arguments.len() != arg.arguments.len() {
+                    return true;
+                }
                 let mut ok = true;
-                for (param, arg) in param_args.iter().zip(arg_args.iter()) {
+                for (param, arg) in param.arguments.iter().zip(arg.arguments.iter()) {
                     ok &= self.bind_type_args(*param, *arg, bindings, type_params, span);
                 }
                 ok
             }
-            (Type::Interface(param_id, param_args), Type::Interface(arg_id, arg_args))
-                if param_id == arg_id && param_args.len() == arg_args.len() =>
-            {
+            (Type::Class(param), Type::Class(arg)) => {
+                let param = self.class_applications[param].clone();
+                let arg = self.class_applications[arg].clone();
+                if param.template != arg.template || param.arguments.len() != arg.arguments.len() {
+                    return true;
+                }
                 let mut ok = true;
-                for (param, arg) in param_args.iter().zip(arg_args.iter()) {
+                for (param, arg) in param.arguments.iter().zip(arg.arguments.iter()) {
                     ok &= self.bind_type_args(*param, *arg, bindings, type_params, span);
                 }
                 ok
             }
-            (Type::Interface(param_id, param_args), _) => {
-                let Some(arg_args) = self.implemented_interface_application(arg_ty, param_id)
+            (Type::Interface(param), Type::Interface(arg)) => {
+                let param = self.interface_applications[param].clone();
+                let arg = self.interface_applications[arg].clone();
+                if param.template != arg.template || param.arguments.len() != arg.arguments.len() {
+                    return true;
+                }
+                let mut ok = true;
+                for (param, arg) in param.arguments.iter().zip(arg.arguments.iter()) {
+                    ok &= self.bind_type_args(*param, *arg, bindings, type_params, span);
+                }
+                ok
+            }
+            (Type::Interface(param), _) => {
+                let param = self.interface_applications[param].clone();
+                let Some(arg_args) = self.implemented_interface_application(arg_ty, param.template)
                 else {
                     return true;
                 };
-                if param_args.len() != arg_args.len() {
+                if param.arguments.len() != arg_args.len() {
                     return true;
                 }
                 let mut ok = true;
-                for (param, arg) in param_args.iter().zip(arg_args) {
+                for (param, arg) in param.arguments.iter().zip(arg_args) {
                     ok &= self.bind_type_args(*param, arg, bindings, type_params, span);
                 }
                 ok
@@ -4636,9 +4799,12 @@ impl Lowerer {
             return None;
         }
         if let Some(expected) = expected {
-            if let Type::Struct(id, expected_args) = self.types[expected].clone() {
-                if id == struct_id && expected_args.len() == type_params.len() {
-                    for (binding, arg) in bindings.iter_mut().zip(expected_args) {
+            if let Type::Struct(application) = self.types[expected] {
+                let application = self.struct_applications[application].clone();
+                if application.template == struct_id
+                    && application.arguments.len() == type_params.len()
+                {
+                    for (binding, arg) in bindings.iter_mut().zip(application.arguments) {
                         if binding.is_none() {
                             *binding = Some(arg);
                         }
@@ -4692,14 +4858,14 @@ impl Lowerer {
             }
             adapted.push(self.adapt_to(arg, field_ty));
         }
-        let ty = if type_args.is_empty() {
-            definition_ty
-        } else {
-            self.struct_application(struct_id, type_args)
-        };
+        let application = self.struct_application_id(struct_id, type_args);
+        let ty = self.struct_applications[application].canonical_type;
+        debug_assert!(
+            !self.structs[struct_id].type_params.is_empty() || self.types_equal(ty, definition_ty)
+        );
         Some(hir::Expr {
             kind: ExprKind::StructInit {
-                struct_id,
+                application,
                 args: adapted,
             },
             ty,
@@ -5004,12 +5170,13 @@ impl Lowerer {
         selector: &ast::FieldSelector,
     ) -> Option<(hir::FieldRef, TypeId)> {
         match self.types[receiver_ty].clone() {
-            Type::Class(class_id) => {
+            Type::Class(application) => {
+                let class_id = self.class_applications[application].template;
                 let class_name = self.classes[class_id].name.clone();
                 match selector {
                     ast::FieldSelector::Name(field) => {
                         let Some((declaring, index, ty, _)) =
-                            self.find_class_field(class_id, &field.text)
+                            self.find_class_application_field(application, &field.text)
                         else {
                             self.error(
                                 field.span,
@@ -5019,7 +5186,7 @@ impl Lowerer {
                         };
                         Some((
                             hir::FieldRef::ClassField {
-                                class_id: declaring,
+                                application: declaring,
                                 index,
                             },
                             ty,
@@ -5034,7 +5201,9 @@ impl Lowerer {
                     }
                 }
             }
-            Type::Struct(struct_id, type_args) => {
+            Type::Struct(application) => {
+                let application_value = self.struct_applications[application].clone();
+                let struct_id = application_value.template;
                 let struct_name = self.structs[struct_id].name.clone();
                 match selector {
                     ast::FieldSelector::Name(field) => {
@@ -5047,10 +5216,10 @@ impl Lowerer {
                             return None;
                         };
                         let ty = fields[index].ty;
-                        let ty = self.instantiate_ty(ty, &type_args);
+                        let ty = self.instantiate_ty(ty, &application_value.arguments);
                         Some((
                             hir::FieldRef::StructField {
-                                struct_id,
+                                application,
                                 index: index as u32,
                             },
                             ty,

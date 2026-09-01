@@ -373,22 +373,6 @@ Module
   interface Continuation$I
   interface SuspendTask$I
   closure cc0 $Closure$lambda0 type=function_type1 invoke=@scoop.$lambda.0 captures=2
-  fun print @scoop.print(message: Any) -> Unit
-    bb0 entry
-      call $call.1: String = @scoop.Any.toString virtual[2]
-        Local message
-      call extern0 @scoop_rt_write direct
-        Local $call.1
-      return
-  fun println @scoop.println(message: Any) -> Unit
-    bb0 entry
-      call $call.1: String = @scoop.Any.toString virtual[2]
-        Local message
-      call extern0 @scoop_rt_write direct
-        Local $call.1
-      call extern0 @scoop_rt_write direct
-        StringConst @scoop.str.0
-      return
   fun ForeignRegistration.register @scoop.ForeignRegistration.register(this: ForeignRegistration, continuation: Continuation$I) -> Unit
     bb0 entry
       val adjustment: Int
@@ -439,6 +423,22 @@ Module
   fun ForeignCompletion.resumeWithException @scoop.ForeignCompletion.resumeWithException(this: ForeignCompletion, exception: Throwable) -> Unit
     bb0 entry
       call @scoop.println direct
+        StringConst @scoop.str.0
+      return
+  fun print @scoop.print(message: Any) -> Unit
+    bb0 entry
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call extern0 @scoop_rt_write direct
+        Local $call.1
+      return
+  fun println @scoop.println(message: Any) -> Unit
+    bb0 entry
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call extern0 @scoop_rt_write direct
+        Local $call.1
+      call extern0 @scoop_rt_write direct
         StringConst @scoop.str.1
       return
   fun main @scoop_main() -> Unit
@@ -1111,8 +1111,8 @@ Module
   instance @scoop.Continuation.resumeWithException$I <- Continuation.resumeWithException
   instance @scoop.SuspendTask.run$I$suspend <- SuspendTask.run
   instance @scoop.SuspendRegistration.register$I <- SuspendRegistration.register
-  str @scoop.str.0 "\n"
-  str @scoop.str.1 "failed"
+  str @scoop.str.0 "failed"
+  str @scoop.str.1 "\n"
   str @scoop.str.2 "suspended"
   str @scoop.str.3 "unwrap on None"
   str @scoop.str.4 "invalid cast"
@@ -1123,8 +1123,8 @@ Module
 
 == lir ==
 Module
-  global @scoop.str.0 = "\n"
-  global @scoop.str.1 = "failed"
+  global @scoop.str.0 = "failed"
+  global @scoop.str.1 = "\n"
   global @scoop.str.2 = "suspended"
   global @scoop.str.3 = "unwrap on None"
   global @scoop.str.4 = "invalid cast"
@@ -1161,28 +1161,6 @@ Module
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
   extern ef1 startOne @m13_start_one(ptr<code>, ptr<raw>, i64) -> ptr<raw> <c bridge=@scoop_c_bridge_1 gc-leaf nounwind lib=fixture_native>
   extern ef2 joinOne @m13_join_one(ptr<raw>) -> i64 <c bridge=@scoop_c_bridge_2 gc-leaf nounwind lib=fixture_native>
-  fun @scoop.print(ptr<managed>) -> void
-    local %0 $call.1: ptr<managed>
-  block entry
-    t0 = heap_load param0 +0 : ptr<metadata>
-    t1 = heap_load t0 +40 : ptr<metadata>
-    t2 = call_indirect t1[2](param0) : ptr<managed>
-    store t2 -> local0
-    native_call[native-borrowed] extern0(local0)
-    t3 = aggregate () : {}
-    ret
-  fun @scoop.println(ptr<managed>) -> void
-    local %0 $call.1: ptr<managed>
-  block entry
-    t0 = heap_load param0 +0 : ptr<metadata>
-    t1 = heap_load t0 +40 : ptr<metadata>
-    t2 = call_indirect t1[2](param0) : ptr<managed>
-    store t2 -> local0
-    native_call[native-borrowed] extern0(local0)
-    t3 = aggregate () : {}
-    native_call[native-borrowed] extern0(global0)
-    t4 = aggregate () : {}
-    ret
   fun @scoop.ForeignRegistration.register(ptr<managed>, ptr<managed>) -> void
     local %0 adjustment: i64
     local %1 worker: struct0
@@ -1241,8 +1219,30 @@ Module
     ret
   fun @scoop.ForeignCompletion.resumeWithException(ptr<managed>, ptr<managed>) -> void
   block entry
-    call @scoop.println(global1)
+    call @scoop.println(global0)
     t0 = aggregate () : {}
+    ret
+  fun @scoop.print(ptr<managed>) -> void
+    local %0 $call.1: ptr<managed>
+  block entry
+    t0 = heap_load param0 +0 : ptr<metadata>
+    t1 = heap_load t0 +40 : ptr<metadata>
+    t2 = call_indirect t1[2](param0) : ptr<managed>
+    store t2 -> local0
+    native_call[native-borrowed] extern0(local0)
+    t3 = aggregate () : {}
+    ret
+  fun @scoop.println(ptr<managed>) -> void
+    local %0 $call.1: ptr<managed>
+  block entry
+    t0 = heap_load param0 +0 : ptr<metadata>
+    t1 = heap_load t0 +40 : ptr<metadata>
+    t2 = call_indirect t1[2](param0) : ptr<managed>
+    store t2 -> local0
+    native_call[native-borrowed] extern0(local0)
+    t3 = aggregate () : {}
+    native_call[native-borrowed] extern0(global1)
+    t4 = aggregate () : {}
     ret
   fun @scoop_main() -> void
     local %0 gate: ptr<managed>

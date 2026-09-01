@@ -182,7 +182,7 @@ pub(crate) enum VariantStyle {
 }
 
 /// The type a member function belongs to (M6). Method `Function`s are
-/// registered per owner (`class_methods` and friends) and carry the
+/// registered directly on their nominal owner and carry the
 /// owner's type and modality in `Function::method`; the receiver is `params[0]`.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Owner {
@@ -190,6 +190,15 @@ pub(crate) enum Owner {
     Interface(InterfaceId),
     Struct(StructId),
     Enum(EnumId),
+}
+
+/// A member declaration together with the complete host substitution at the
+/// lookup site. Inherited generic members may have host arguments different
+/// from the receiver's own arguments, so carrying this relation is mandatory.
+#[derive(Clone)]
+pub(crate) struct CallableCandidate {
+    pub(crate) function: FunctionId,
+    pub(crate) owner_arguments: Vec<TypeId>,
 }
 
 /// Lexical permission to invoke a suspend callable. Keeping an explicit,
@@ -306,17 +315,26 @@ pub(crate) struct Lowerer {
     pub(crate) function_coercion_by_types:
         HashMap<(hir::FunctionTypeId, hir::FunctionTypeId), hir::FunctionCoercionId>,
     pub(crate) structs: Arena<StructDecl>,
+    pub(crate) struct_applications: Arena<hir::StructApplication>,
+    pub(crate) struct_application_by_key:
+        HashMap<(StructId, Vec<TypeId>), hir::StructApplicationId>,
     pub(crate) enums: Arena<EnumDecl>,
+    pub(crate) enum_applications: Arena<hir::EnumApplication>,
+    pub(crate) enum_application_by_key: HashMap<(EnumId, Vec<TypeId>), hir::EnumApplicationId>,
     pub(crate) classes: Arena<ClassDecl>,
+    pub(crate) class_applications: Arena<hir::ClassApplication>,
+    pub(crate) class_application_by_key: HashMap<(ClassId, Vec<TypeId>), hir::ClassApplicationId>,
     pub(crate) interfaces: Arena<InterfaceDecl>,
+    pub(crate) interface_applications: Arena<hir::InterfaceApplication>,
+    pub(crate) interface_application_by_key:
+        HashMap<(InterfaceId, Vec<TypeId>), hir::InterfaceApplicationId>,
     pub(crate) functions: Arena<Function>,
     pub(crate) extern_functions: Arena<hir::ExternFunction>,
     pub(crate) globals: Arena<hir::Global>,
-    /// Generic definitions are separate HIR entities. The reverse map
-    /// is lowerer-only and lets call resolution turn a selected
-    /// `FunctionId` into a typed generic identity.
+    /// Generic definitions are separate HIR entities. Every function carries
+    /// the matching typed id in `Function::genericity`, so this arena is never
+    /// reverse-scanned and no parallel reverse map can drift out of sync.
     pub(crate) generic_functions: Arena<GenericFunction>,
-    pub(crate) generic_by_function: HashMap<FunctionId, GenericFunctionId>,
     pub(crate) top_level: Vec<FunctionId>,
     pub(crate) unit: TypeId,
     pub(crate) int: TypeId,
@@ -377,17 +395,11 @@ pub(crate) struct Lowerer {
     pub(crate) allow_deferred_fun_ptr: bool,
     pub(crate) pointer_type_uses: Vec<(TypeId, usize, Span)>,
     pub(crate) fun_ptr_type_uses: Vec<(TypeId, usize, Span)>,
-    /// Member functions per owner, in declaration order (this is also
-    /// declaration order used when building vtables.
-    pub(crate) class_methods: HashMap<ClassId, Vec<FunctionId>>,
+    /// Interface member functions in declaration order. Class/struct/enum
+    /// declarations carry their member ids directly in export HIR.
     pub(crate) interface_methods: HashMap<InterfaceId, Vec<FunctionId>>,
-    pub(crate) struct_methods: HashMap<StructId, Vec<FunctionId>>,
-    pub(crate) enum_methods: HashMap<EnumId, Vec<FunctionId>>,
     /// The owner of every member function.
     pub(crate) function_owner: HashMap<FunctionId, Owner>,
-    /// Mutability of each class's own constructor properties
-    /// (declaration order); `hir::Field` has no mutability slot.
-    pub(crate) class_prop_mutability: HashMap<ClassId, Vec<bool>>,
     /// Enums named `Option` declared in core files:
     /// (declaration, file index, span, type parameter count). Validated
     /// after pass 1 (`validate_option_enum`).
@@ -433,6 +445,9 @@ pub(crate) struct Lowerer {
     /// Owner of the member function whose body is being lowered, for
     /// bare property / method resolution (`x` meaning `this.x`).
     pub(crate) current_owner: Option<Owner>,
+    /// Typed primary-constructor parameters visible only while lowering a
+    /// base-constructor delegation expression.
+    pub(crate) constructor_params_in_scope: HashMap<String, (hir::ConstructorParamId, TypeId)>,
     /// Active smart-cast narrowings (milestone6 DESIGN.md 5.4):
     /// immutable local → narrowed type, valid within the branch that
     /// established them. Saved and restored around branch lowering;
@@ -531,14 +546,21 @@ impl Lowerer {
             foreign_callback_registrations: Arena::new(),
             function_coercion_by_types: HashMap::new(),
             structs: Arena::new(),
+            struct_applications: Arena::new(),
+            struct_application_by_key: HashMap::new(),
             enums: Arena::new(),
+            enum_applications: Arena::new(),
+            enum_application_by_key: HashMap::new(),
             classes: Arena::new(),
+            class_applications: Arena::new(),
+            class_application_by_key: HashMap::new(),
             interfaces: Arena::new(),
+            interface_applications: Arena::new(),
+            interface_application_by_key: HashMap::new(),
             functions: Arena::new(),
             extern_functions: Arena::new(),
             globals: Arena::new(),
             generic_functions: Arena::new(),
-            generic_by_function: HashMap::new(),
             top_level: Vec::new(),
             unit,
             int,
@@ -573,12 +595,8 @@ impl Lowerer {
             allow_deferred_fun_ptr: false,
             pointer_type_uses: Vec::new(),
             fun_ptr_type_uses: Vec::new(),
-            class_methods: HashMap::new(),
             interface_methods: HashMap::new(),
-            struct_methods: HashMap::new(),
-            enum_methods: HashMap::new(),
             function_owner: HashMap::new(),
-            class_prop_mutability: HashMap::new(),
             option_candidates: Vec::new(),
             option_enum: None,
             throwable_candidates: Vec::new(),
@@ -595,6 +613,7 @@ impl Lowerer {
             safety_contexts: vec![hir::Safety::Safe],
             current_this: None,
             current_owner: None,
+            constructor_params_in_scope: HashMap::new(),
             smart_casts: HashMap::new(),
             current_file: 0,
             locals: Arena::new(),
@@ -663,8 +682,8 @@ impl Lowerer {
             }
             let id = self.functions.alloc(Function {
                 name: format!("Any.{short}"),
+                genericity: hir::FunctionGenericity::Plain,
                 is_suspend: false,
-                type_params: Vec::new(),
                 params: fn_params,
                 return_ty,
                 attributes: hir::FunctionAttributes::default(),
@@ -786,6 +805,18 @@ impl Lowerer {
                 "enum",
             );
             self.enums[id].type_params = params;
+        }
+        for &(id, decl, file_index) in &pending_classes {
+            self.current_file = file_index;
+            let declared = self.classes[id].type_params.clone();
+            let params = self.resolve_type_parameter_constraints(
+                declared,
+                0,
+                &decl.type_params,
+                decl.where_clause.as_ref(),
+                "class",
+            );
+            self.classes[id].type_params = params;
         }
         for &(id, decl, file_index) in &pending_interfaces {
             self.current_file = file_index;
@@ -946,7 +977,7 @@ impl Lowerer {
             Some(id) => {
                 // The entry point is monomorphic: there is no caller to
                 // infer type arguments from.
-                if !self.functions[id].type_params.is_empty() {
+                if !self.functions[id].type_params().is_empty() {
                     self.error(
                         self.functions[id].span,
                         "`main` must not be generic".to_string(),
@@ -1002,9 +1033,13 @@ impl Lowerer {
             globals: self.globals,
             generic_functions: self.generic_functions,
             structs: self.structs,
+            struct_applications: self.struct_applications,
             enums: self.enums,
+            enum_applications: self.enum_applications,
             classes: self.classes,
+            class_applications: self.class_applications,
             interfaces: self.interfaces,
+            interface_applications: self.interface_applications,
             top_level: self.top_level,
             unit: self.unit,
             int: self.int,
@@ -1093,23 +1128,27 @@ impl Lowerer {
             }
             type_params.push(lower_type_param_decl(param));
         }
+        let self_application =
+            hir::StructApplicationId::from_raw((self.struct_applications.len() as u32).into());
         let id = self.structs.alloc(StructDecl {
             name: decl.name.text.clone(),
+            self_application,
             type_params: type_params.clone(),
             attributes,
             fields: Vec::new(),
             // Filled in pass 2 together with the fields.
             interfaces: Vec::new(),
+            methods: Vec::new(),
             span: decl.span,
         });
         let type_args = (0..type_params.len())
             .map(|index| self.intern_type(Type::Param(hir::TypeParamId::from_raw(index as u32))))
             .collect();
-        let ty = self.intern_type(Type::Struct(id, type_args));
+        let ty = self.struct_application(id, type_args);
+        assert_eq!(self.types[ty], Type::Struct(self_application));
         self.structs_by_name
             .insert(decl.name.text.clone(), (id, ty));
         self.struct_files.insert(id, file_index);
-        self.struct_methods.insert(id, Vec::new());
         for method in &decl.methods {
             self.declare_method(method, Owner::Struct(id), pending_methods, file_index);
         }
@@ -1151,19 +1190,27 @@ impl Lowerer {
             }
             type_params.push(lower_type_param_decl(param));
         }
+        let self_application =
+            hir::EnumApplicationId::from_raw((self.enum_applications.len() as u32).into());
         let id = self.enums.alloc(EnumDecl {
             name: decl.name.text.clone(),
+            self_application,
             type_params,
             no_gc,
             // Filled in pass 2; a resolution failure is diagnosed, so
             // empty variants never reach the output.
             variants: Vec::new(),
             interfaces: Vec::new(),
+            methods: Vec::new(),
             span: decl.span,
         });
         self.enums_by_name.insert(decl.name.text.clone(), id);
+        let type_args = (0..self.enums[id].type_params.len())
+            .map(|index| self.intern_type(Type::Param(hir::TypeParamId::from_raw(index as u32))))
+            .collect();
+        let ty = self.enum_application(id, type_args);
+        assert_eq!(self.types[ty], Type::Enum(self_application));
         self.enum_files.insert(id, file_index);
-        self.enum_methods.insert(id, Vec::new());
         if is_core && decl.name.text == "Option" {
             self.option_candidates
                 .push((id, file_index, decl.span, decl.type_params.len()));
@@ -1182,13 +1229,6 @@ impl Lowerer {
         pending_methods: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
         file_index: usize,
     ) {
-        self.reject_unlowered_where_clause(decl.where_clause.as_ref());
-        if let Some(param) = decl.type_params.first() {
-            self.error(
-                param.span,
-                "generic classes are not supported by the current HIR model".to_string(),
-            );
-        }
         self.reject_type_annotations("a class", &decl.annotations);
         if let Some(kind) = self.type_namespace_conflict(&decl.name.text) {
             let what = if kind == "a class" {
@@ -1207,21 +1247,43 @@ impl Lowerer {
             ast::ClassModifier::Open => hir::ClassModifier::Open,
             ast::ClassModifier::Abstract => hir::ClassModifier::Abstract,
         };
+        let mut type_params = Vec::new();
+        for param in &decl.type_params {
+            if type_params
+                .iter()
+                .any(|existing: &hir::TypeParamDecl| existing.name == param.name.text)
+            {
+                self.error(
+                    param.span,
+                    format!("duplicate type parameter `{}`", param.name.text),
+                );
+                continue;
+            }
+            type_params.push(lower_type_param_decl(param));
+        }
+        let self_application =
+            hir::ClassApplicationId::from_raw((self.class_applications.len() as u32).into());
         let id = self.classes.alloc(ClassDecl {
             modifier,
             name: decl.name.text.clone(),
+            self_application,
+            type_params: type_params.clone(),
             // Filled in pass 2; resolution failures are diagnosed, so
             // these never reach the output unfinished.
             constructor: Vec::new(),
             base_class: None,
             interfaces: Vec::new(),
+            methods: Vec::new(),
             span: decl.span,
         });
-        let ty = self.types.alloc(Type::Class(id));
+        let type_args = (0..type_params.len())
+            .map(|index| self.intern_type(Type::Param(hir::TypeParamId::from_raw(index as u32))))
+            .collect();
+        let ty = self.class_application(id, type_args);
+        assert_eq!(self.types[ty], Type::Class(self_application));
         self.classes_by_name
             .insert(decl.name.text.clone(), (id, ty));
         self.class_files.insert(id, file_index);
-        self.class_methods.insert(id, Vec::new());
         if is_core && decl.name.text == "Throwable" {
             self.throwable_candidates.push((id, ty));
         }
@@ -1271,8 +1333,12 @@ impl Lowerer {
             }
             type_params.push(lower_type_param_decl(param));
         }
+        let self_application = hir::InterfaceApplicationId::from_raw(
+            (self.interface_applications.len() as u32).into(),
+        );
         let id = self.interfaces.alloc(InterfaceDecl {
             name: decl.name.text.clone(),
+            self_application,
             type_params: type_params.clone(),
             // Filled in pass 2.5 together with the method signatures.
             methods: Vec::new(),
@@ -1281,7 +1347,8 @@ impl Lowerer {
         let type_args = (0..type_params.len())
             .map(|index| self.intern_type(Type::Param(hir::TypeParamId::from_raw(index as u32))))
             .collect();
-        let ty = self.intern_type(Type::Interface(id, type_args));
+        let ty = self.intern_interface_application(id, type_args);
+        assert_eq!(self.types[ty], Type::Interface(self_application));
         self.interfaces_by_name
             .insert(decl.name.text.clone(), (id, ty));
         self.interface_files.insert(id, file_index);
@@ -1341,10 +1408,10 @@ impl Lowerer {
         };
         let id = self.functions.alloc(Function {
             name: format!("{}.{}", owner.describe_name(self), decl.name.text),
+            genericity: hir::FunctionGenericity::Plain,
             is_suspend: decl.is_suspend,
             // Filled in pass 2.5 (signature) and pass 3 (body and
             // parameter locals).
-            type_params: Vec::new(),
             params: Vec::new(),
             return_ty: self.unit,
             attributes: checked.attributes,
@@ -1359,13 +1426,15 @@ impl Lowerer {
         self.function_owner.insert(id, owner);
         self.function_files.insert(id, file_index);
         match owner {
-            Owner::Class(id) => self.class_methods.get_mut(&id),
-            Owner::Interface(id) => self.interface_methods.get_mut(&id),
-            Owner::Struct(id) => self.struct_methods.get_mut(&id),
-            Owner::Enum(id) => self.enum_methods.get_mut(&id),
+            Owner::Class(owner) => self.classes[owner].methods.push(id),
+            Owner::Interface(owner) => self
+                .interface_methods
+                .get_mut(&owner)
+                .expect("the interface owner map was initialized above")
+                .push(id),
+            Owner::Struct(owner) => self.structs[owner].methods.push(id),
+            Owner::Enum(owner) => self.enums[owner].methods.push(id),
         }
-        .expect("the owner map was initialized above")
-        .push(id);
         pending.push((id, decl, file_index, owner));
     }
 
@@ -1404,11 +1473,11 @@ impl Lowerer {
         };
         let id = self.functions.alloc(Function {
             name: decl.name.text.clone(),
+            genericity: hir::FunctionGenericity::Plain,
             is_suspend: decl.is_suspend,
             // Filled in pass 2.5 (signature) and pass 3 (parameter
             // locals); a resolution failure is diagnosed, so these
             // never reach the output.
-            type_params: Vec::new(),
             params: Vec::new(),
             return_ty: self.unit,
             attributes: checked.attributes,
@@ -1632,9 +1701,10 @@ impl Lowerer {
             && !callback_decl.attributes.interior_mutable
             && matches!(callback_decl.fields.as_slice(), [function, context]
                 if function.name == "function"
-                    && matches!(&self.types[function.ty], hir::Type::Struct(id, args)
-                        if *id == self.ffi_fun_ptr.expect("FunPtr core exists")
-                            && matches!(args.as_slice(), [arg] if self.is_type_param(*arg, 0)))
+                    && matches!(self.types[function.ty], hir::Type::Struct(application)
+                        if self.struct_applications[application].template
+                            == self.ffi_fun_ptr.expect("FunPtr core exists")
+                            && matches!(self.struct_applications[application].arguments.as_slice(), [arg] if self.is_type_param(*arg, 0)))
                     && context.name == "context"
                     && matches!(self.types[context.ty], hir::Type::Ptr(pointee) if pointee == self.unit));
         if !callback_valid {
@@ -1666,9 +1736,9 @@ impl Lowerer {
                 && signature.attributes.gc_effect == hir::GcEffect::Managed
                 && function.method.is_none();
             let callback_param = |ty| {
-                matches!(&self.types[ty], hir::Type::Struct(found, args)
-                    if *found == callback
-                        && matches!(args.as_slice(), [arg] if self.is_type_param(*arg, 0)))
+                matches!(self.types[ty], hir::Type::Struct(application)
+                    if self.struct_applications[application].template == callback
+                        && matches!(self.struct_applications[application].arguments.as_slice(), [arg] if self.is_type_param(*arg, 0)))
             };
             let signature_valid = match operation {
                 "register" => {
@@ -1688,9 +1758,11 @@ impl Lowerer {
                 "failure" => {
                     matches!(signature.params.as_slice(), [param]
                         if callback_param(param.ty)
-                            && matches!(&self.types[signature.return_ty], hir::Type::Enum(id, args)
-                                if *id == self.option_enum.expect("Option core exists")
-                                    && args.as_slice() == [throwable]))
+                            && matches!(self.types[signature.return_ty], hir::Type::Enum(application)
+                                if self.enum_applications[application].template
+                                    == self.option_enum.expect("Option core exists")
+                                    && self.enum_applications[application].arguments.as_slice()
+                                        == [throwable]))
                 }
                 _ => unreachable!(),
             };
@@ -1760,13 +1832,7 @@ impl Lowerer {
     }
 
     fn interned_enum_type(&self, enum_id: EnumId) -> TypeId {
-        self.types
-            .iter()
-            .find_map(|(id, ty)| {
-                matches!(ty, Type::Enum(found, args) if *found == enum_id && args.is_empty())
-                    .then_some(id)
-            })
-            .expect("a declared non-generic enum has one interned type")
+        self.enum_applications[self.enums[enum_id].self_application].canonical_type
     }
 
     fn validate_ffi_handle_struct(&mut self, id: StructId, name: &str) {
@@ -1842,7 +1908,7 @@ impl Lowerer {
             && declaration.type_params[0].kind() == hir::TypeParamKind::Any
             && matches!(declaration.fields.as_slice(), [field] if field.name == "_rawPointer" && field.ty == self.uint)
             && declaration.interfaces.is_empty()
-            && self.struct_methods[&id].is_empty()
+            && declaration.methods.is_empty()
             && !declaration.attributes.interior_mutable
             && declaration.attributes.c_layout.is_none();
         if !valid {
@@ -2235,12 +2301,12 @@ impl Lowerer {
     }
 
     fn is_interface_param(&self, ty: TypeId, interface: InterfaceId, index: u32) -> bool {
-        matches!(
-            &self.types[ty],
-            Type::Interface(found, args)
-                if *found == interface
-                    && matches!(args.as_slice(), [arg] if self.is_type_param(*arg, index))
-        )
+        let Type::Interface(application) = self.types[ty] else {
+            return false;
+        };
+        let application = &self.interface_applications[application];
+        application.template == interface
+            && matches!(application.arguments.as_slice(), [arg] if self.is_type_param(*arg, index))
     }
 
     fn class_descends_from(&self, class: ClassId, root: ClassId) -> bool {
@@ -2253,7 +2319,12 @@ impl Lowerer {
             if !visited.insert(id) {
                 return false;
             }
-            current = self.classes[id].base_class.as_ref().map(|(base, _)| *base);
+            current = self.classes[id].base_class.as_ref().map(|(base, _)| {
+                let Type::Class(application) = self.types[*base] else {
+                    unreachable!("resolved class bases are class applications")
+                };
+                self.class_applications[application].template
+            });
         }
         false
     }
@@ -2664,7 +2735,7 @@ impl Lowerer {
             "function",
         );
         if !type_params.is_empty() {
-            self.register_generic(id);
+            self.register_generic(id, type_params.clone());
         }
         self.type_params_in_scope = type_params.clone();
 
@@ -2691,7 +2762,6 @@ impl Lowerer {
         };
         self.type_params_in_scope.clear();
 
-        self.functions[id].type_params = type_params.clone();
         self.functions[id].return_ty = return_ty;
         self.signatures.insert(
             id,
@@ -2713,15 +2783,28 @@ impl Lowerer {
     }
 
     /// Register a generic definition once and return its typed id.
-    pub(crate) fn register_generic(&mut self, function: FunctionId) -> GenericFunctionId {
-        if let Some(&generic) = self.generic_by_function.get(&function) {
-            return generic;
+    pub(crate) fn register_generic(
+        &mut self,
+        function: FunctionId,
+        parameters: Vec<hir::TypeParamDecl>,
+    ) -> GenericFunctionId {
+        if let hir::FunctionGenericity::Generic {
+            definition,
+            parameters: existing,
+        } = &self.functions[function].genericity
+        {
+            assert_eq!(existing, &parameters);
+            return *definition;
         }
+        assert!(!parameters.is_empty());
         let generic = self.generic_functions.alloc(GenericFunction {
             function,
             no_gc_type_params: Vec::new(),
         });
-        self.generic_by_function.insert(function, generic);
+        self.functions[function].genericity = hir::FunctionGenericity::Generic {
+            definition: generic,
+            parameters,
+        };
         generic
     }
 
@@ -2735,7 +2818,9 @@ impl Lowerer {
         function: FunctionId,
         type_args: Vec<TypeId>,
     ) -> hir::ResolvedGenericFunctionId {
-        let generic = self.generic_by_function[&function];
+        let Some(generic) = self.functions[function].generic_definition() else {
+            unreachable!("only a generic function can be instantiated")
+        };
         if let Some((id, _)) = self
             .instantiations
             .iter()
@@ -2752,14 +2837,17 @@ impl Lowerer {
     /// (the form `this` has inside the enum's methods).
     pub(crate) fn owner_ty(&mut self, owner: Owner) -> TypeId {
         match owner {
-            Owner::Class(id) => self.classes_by_name[&self.classes[id].name].1,
-            Owner::Interface(id) => self.interfaces_by_name[&self.interfaces[id].name].1,
-            Owner::Struct(id) => self.structs_by_name[&self.structs[id].name].1,
+            Owner::Class(id) => {
+                self.class_applications[self.classes[id].self_application].canonical_type
+            }
+            Owner::Interface(id) => {
+                self.interface_applications[self.interfaces[id].self_application].canonical_type
+            }
+            Owner::Struct(id) => {
+                self.struct_applications[self.structs[id].self_application].canonical_type
+            }
             Owner::Enum(id) => {
-                let params = (0..self.enums[id].type_params.len() as u32)
-                    .map(|index| self.intern_type(Type::Param(hir::TypeParamId::from_raw(index))))
-                    .collect();
-                self.intern_type(Type::Enum(id, params))
+                self.enum_applications[self.enums[id].self_application].canonical_type
             }
         }
     }
@@ -2768,7 +2856,7 @@ impl Lowerer {
     /// form the prefix of the member function's combined parameter space.
     pub(crate) fn owner_type_params(&self, owner: Owner) -> Vec<hir::TypeParamDecl> {
         match owner {
-            Owner::Class(_) => Vec::new(),
+            Owner::Class(id) => self.classes[id].type_params.clone(),
             Owner::Struct(id) => self.structs[id].type_params.clone(),
             Owner::Enum(id) => self.enums[id].type_params.clone(),
             Owner::Interface(id) => self.interfaces[id].type_params.clone(),
@@ -2819,8 +2907,10 @@ impl Lowerer {
     /// Whether `ty` is `Option<T>`; returns `T`.
     pub(crate) fn as_option(&self, ty: TypeId) -> Option<TypeId> {
         match &self.types[ty] {
-            Type::Enum(id, args) if Some(*id) == self.option_enum && args.len() == 1 => {
-                Some(args[0])
+            Type::Enum(application) => {
+                let application = &self.enum_applications[*application];
+                (Some(application.template) == self.option_enum && application.arguments.len() == 1)
+                    .then_some(application.arguments[0])
             }
             _ => None,
         }
@@ -2832,7 +2922,7 @@ impl Lowerer {
         let id = self
             .option_enum
             .expect("Option types only exist after core validation");
-        self.intern_type(Type::Enum(id, vec![inner]))
+        self.enum_application(id, vec![inner])
     }
 
     pub(crate) fn push_suspension_context(&mut self, context: SuspensionContext) {
@@ -2940,15 +3030,6 @@ impl Lowerer {
             self.error(
                 operator.span,
                 "operator declarations are not supported by the current HIR model".to_string(),
-            );
-        }
-    }
-
-    fn reject_unlowered_where_clause(&mut self, clause: Option<&ast::WhereClause>) {
-        if let Some(clause) = clause {
-            self.error(
-                clause.span,
-                "where clauses are not supported by the current HIR model".to_string(),
             );
         }
     }

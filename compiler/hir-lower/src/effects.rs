@@ -44,24 +44,27 @@ impl Lowerer {
                 );
             }
         }
-        let types = self
-            .types
-            .iter()
-            .filter_map(|(ty, kind)| match kind {
-                hir::Type::Struct(id, _) if self.structs[*id].attributes.no_gc => Some((
-                    ty,
-                    "struct",
-                    id.into_raw().into_u32(),
-                    self.structs[*id].span,
-                )),
-                hir::Type::Enum(id, _)
-                    if self.enums[*id].no_gc && !self.enums[*id].type_params.is_empty() =>
-                {
-                    Some((ty, "enum", id.into_raw().into_u32(), self.enums[*id].span))
-                }
-                _ => None,
-            })
-            .collect::<Vec<_>>();
+        let types =
+            self.types
+                .iter()
+                .filter_map(|(ty, kind)| match kind {
+                    hir::Type::Struct(application) => {
+                        let id = self.struct_applications[*application].template;
+                        self.structs[id].attributes.no_gc.then_some((
+                            ty,
+                            "struct",
+                            id.into_raw().into_u32(),
+                            self.structs[id].span,
+                        ))
+                    }
+                    hir::Type::Enum(application) => {
+                        let id = self.enum_applications[*application].template;
+                        (self.enums[id].no_gc && !self.enums[id].type_params.is_empty())
+                            .then_some((ty, "enum", id.into_raw().into_u32(), self.enums[id].span))
+                    }
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
         for (ty, kind, raw_id, span) in types {
             if self.type_contains_param(ty) {
                 continue;
@@ -199,7 +202,7 @@ impl Lowerer {
             for (span, message) in violations {
                 self.error(span, message);
             }
-            if let Some(&generic) = self.generic_by_function.get(&id) {
+            if let Some(generic) = self.functions[id].generic_definition() {
                 let mut requirements: Vec<_> = requirements.into_iter().collect();
                 requirements.sort_by_key(|parameter| parameter.into_raw());
                 self.generic_functions[generic].no_gc_type_params = requirements;
@@ -293,8 +296,8 @@ impl Lowerer {
             | hir::Type::Ptr(_)
             | hir::Type::FunPtr(_) => Some(HashSet::new()),
             hir::Type::String
-            | hir::Type::Class(_)
-            | hir::Type::Interface(_, _)
+            | hir::Type::Class(..)
+            | hir::Type::Interface(_)
             | hir::Type::Any
             | hir::Type::Array(_)
             | hir::Type::MutableArray(_)
@@ -317,16 +320,18 @@ impl Lowerer {
                 }
                 None => Some(HashSet::from([*index])),
             },
-            hir::Type::Struct(id, args) => {
+            hir::Type::Struct(application) => {
+                let application = &self.struct_applications[*application];
+                let id = application.template;
                 if !visiting.insert(ty) {
                     return None;
                 }
                 let nested = TypeEnvironment {
-                    args: args.clone(),
+                    args: application.arguments.clone(),
                     parent: environment,
                 };
                 let mut requirements = HashSet::new();
-                for field in &self.structs[*id].fields {
+                for field in &self.structs[id].fields {
                     let Some(required) =
                         self.gc_free_requirements_inner(field.ty, Some(&nested), visiting)
                     else {
@@ -338,16 +343,18 @@ impl Lowerer {
                 visiting.remove(&ty);
                 Some(requirements)
             }
-            hir::Type::Enum(id, args) => {
+            hir::Type::Enum(application) => {
+                let application = &self.enum_applications[*application];
+                let id = application.template;
                 if !visiting.insert(ty) {
                     return None;
                 }
                 let nested = TypeEnvironment {
-                    args: args.clone(),
+                    args: application.arguments.clone(),
                     parent: environment,
                 };
                 let mut requirements = HashSet::new();
-                for field in self.enums[*id]
+                for field in self.enums[id]
                     .variants
                     .iter()
                     .flat_map(|variant| &variant.fields)
@@ -377,33 +384,37 @@ impl Lowerer {
         visiting: &mut HashSet<hir::TypeId>,
     ) -> bool {
         match &self.types[ty] {
-            hir::Type::Struct(id, args) => {
-                if self.structs[*id].attributes.interior_mutable {
+            hir::Type::Struct(application) => {
+                let application = &self.struct_applications[*application];
+                let id = application.template;
+                if self.structs[id].attributes.interior_mutable {
                     return true;
                 }
                 if !visiting.insert(ty) {
                     return false;
                 }
                 let nested = TypeEnvironment {
-                    args: args.clone(),
+                    args: application.arguments.clone(),
                     parent: environment,
                 };
-                let result = self.structs[*id]
+                let result = self.structs[id]
                     .fields
                     .iter()
                     .any(|field| self.requires_unsafe_use_inner(field.ty, Some(&nested), visiting));
                 visiting.remove(&ty);
                 result
             }
-            hir::Type::Enum(id, args) => {
+            hir::Type::Enum(application) => {
+                let application = &self.enum_applications[*application];
+                let id = application.template;
                 if !visiting.insert(ty) {
                     return false;
                 }
                 let nested = TypeEnvironment {
-                    args: args.clone(),
+                    args: application.arguments.clone(),
                     parent: environment,
                 };
-                let result = self.enums[*id].variants.iter().any(|variant| {
+                let result = self.enums[id].variants.iter().any(|variant| {
                     variant.fields.iter().any(|field| {
                         self.requires_unsafe_use_inner(field.ty, Some(&nested), visiting)
                     })
@@ -556,6 +567,7 @@ impl Lowerer {
             | ExprKind::BoolLiteral(_)
             | ExprKind::UnitLiteral
             | ExprKind::Local(_)
+            | ExprKind::ConstructorParam(_)
             | ExprKind::GlobalRead(_)
             | ExprKind::Capture(_)
             | ExprKind::NoneLiteral => {}

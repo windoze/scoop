@@ -107,18 +107,12 @@ fn interface_id(module: &hir::Module, name: &str) -> hir::InterfaceId {
 }
 
 fn interface_ty(module: &hir::Module, name: &str) -> hir::TypeId {
-    module
-        .types
-        .iter()
-        .find_map(|(ty, value)| match value {
-            hir::Type::Interface(id, args)
-                if args.is_empty() && module.interfaces[*id].name == name =>
-            {
-                Some(ty)
-            }
-            _ => None,
-        })
-        .expect("interface type")
+    let id = interface_id(module, name);
+    module.interface_applications[module.interfaces[id].self_application].canonical_type
+}
+
+fn class_application(module: &hir::Module, id: hir::ClassId) -> hir::ClassApplicationId {
+    module.classes[id].self_application
 }
 
 // --- positive: golden dump ---
@@ -184,7 +178,9 @@ fn class_and_interface_structure() {
     // Base-class clause with the lowered delegation arguments.
     let point = &module.classes[point_id];
     let (base, args) = point.base_class.as_ref().expect("Point has a base");
-    assert_eq!(*base, shape_id);
+    assert!(matches!(module.types[*base], hir::Type::Class(application)
+        if module.class_applications[application].template == shape_id
+            && module.class_applications[application].arguments.is_empty()));
     assert_eq!(args.len(), 1);
     assert!(matches!(args[0].kind, hir::ExprKind::StringLiteral(_)));
 
@@ -192,14 +188,7 @@ fn class_and_interface_structure() {
     let describe = &module.functions[find_fn(&module, "Shape.describe")];
     assert_eq!(
         describe.method.map(|method| method.owner),
-        Some(
-            module
-                .types
-                .iter()
-                .find(|(_, t)| matches!(t, hir::Type::Class(id) if *id == shape_id))
-                .map(|(id, _)| id)
-                .unwrap()
-        )
+        Some(module.class_applications[class_application(&module, shape_id)].canonical_type)
     );
     assert_eq!(describe.params[0].name, "this");
     assert_eq!(describe.params.len(), 1); // only `this`
@@ -207,7 +196,9 @@ fn class_and_interface_structure() {
     let iface_method = &module.functions[find_fn(&module, "Describable.describe")];
     assert!(matches!(
         module.types[iface_method.method.expect("a method").owner],
-        hir::Type::Interface(id, ref args) if id == describable_id && args.is_empty()
+        hir::Type::Interface(application)
+            if module.interface_applications[application].template == describable_id
+                && module.interface_applications[application].arguments.is_empty()
     ));
 
     // The interface's MethodSig mirrors the signature (params exclude `this`).
@@ -317,7 +308,7 @@ fn class_field_layout_is_base_prefix_then_own() {
         hir::ExprKind::FieldAccess { field, .. } => assert_eq!(
             *field,
             hir::FieldRef::ClassField {
-                class_id: point_id,
+                application: class_application(&module, point_id),
                 index: 2
             }
         ),
@@ -327,7 +318,7 @@ fn class_field_layout_is_base_prefix_then_own() {
         hir::ExprKind::FieldAccess { field, .. } => assert_eq!(
             *field,
             hir::FieldRef::ClassField {
-                class_id: shape_id,
+                application: class_application(&module, shape_id),
                 index: 0
             }
         ),
@@ -373,7 +364,7 @@ fn struct_methods_and_bare_field_access() {
             assert_eq!(
                 *field,
                 hir::FieldRef::StructField {
-                    struct_id,
+                    application: module.structs[struct_id].self_application,
                     index: 0
                 }
             );
@@ -638,10 +629,14 @@ fn is_cast_and_ref_eq() {
     let down_opt = returned(body_of(&module, "down_opt"));
     match &down_opt.kind {
         hir::ExprKind::Cast { optional: true, .. } => match &module.types[down_opt.ty] {
-            hir::Type::Enum(id, args) => {
-                assert_eq!(*id, module.option_enum);
-                assert_eq!(args.len(), 1);
-                assert!(matches!(module.types[args[0]], hir::Type::Struct(..)));
+            hir::Type::Enum(application) => {
+                let application = &module.enum_applications[*application];
+                assert_eq!(application.template, module.option_enum);
+                assert_eq!(application.arguments.len(), 1);
+                assert!(matches!(
+                    module.types[application.arguments[0]],
+                    hir::Type::Struct(..)
+                ));
             }
             other => panic!("expected Option<S>, found {other:?}"),
         },
@@ -753,7 +748,7 @@ fn smart_cast_narrows_class_references_for_free() {
                     );
                     // The receiver is the same local, retyped — no Unbox.
                     assert!(matches!(receiver.kind, hir::ExprKind::Local(_)));
-                    assert!(matches!(module.types[receiver.ty], hir::Type::Class(_)));
+                    assert!(matches!(module.types[receiver.ty], hir::Type::Class(..)));
                 }
                 other => panic!("expected a method call, found {other:?}"),
             }
@@ -1367,11 +1362,14 @@ fn class_construction_lowers_to_class_init() {
     let main = body_of(&module, "main");
     match &main.statements[0].kind {
         hir::StatementKind::ValDecl { init, .. } => match &init.kind {
-            hir::ExprKind::ClassInit { class_id, args } => {
-                assert_eq!(module.classes[*class_id].name, "C");
+            hir::ExprKind::ClassInit {
+                application, args, ..
+            } => {
+                let class_id = module.class_applications[*application].template;
+                assert_eq!(module.classes[class_id].name, "C");
                 assert!(matches!(
                     module.types[init.ty],
-                    hir::Type::Class(id) if id == *class_id
+                    hir::Type::Class(found) if found == *application
                 ));
                 assert_eq!(args.len(), 2);
                 // The Int argument crossing into the `Any` property boxes.
@@ -1501,12 +1499,14 @@ fn final_generic_member_functions_are_resolved() {
     ]);
     let module = lower_user(file).expect("a final generic method must lower");
     let method = find_fn(&module, "C.id");
-    assert_eq!(module.functions[method].type_params[0].name, "T");
-    let generic = module
-        .generic_functions
-        .iter()
-        .find_map(|(id, generic)| (generic.function == method).then_some(id))
-        .expect("C.id generic entity");
+    assert_eq!(module.functions[method].type_params()[0].name, "T");
+    let hir::FunctionGenericity::Generic {
+        definition: generic,
+        ..
+    } = module.functions[method].genericity
+    else {
+        panic!("C.id generic entity")
+    };
     let (_, request) = module
         .instantiations
         .iter()
@@ -1786,7 +1786,7 @@ fn field_assignment_on_a_var_property() {
                     assert_eq!(
                         *field,
                         hir::FieldRef::ClassField {
-                            class_id: class_id(&module, "Point"),
+                            application: class_application(&module, class_id(&module, "Point")),
                             index: 2
                         }
                     );
@@ -2140,9 +2140,10 @@ fn qualified_generic_variant_infers_type_arguments() {
     let main = body_of(&module, "main");
     match &main.statements[0].kind {
         hir::StatementKind::ValDecl { init, .. } => match &init.kind {
-            hir::ExprKind::VariantConstruct { type_args, .. } => {
-                assert_eq!(type_args.len(), 1);
-                assert_eq!(module.types[type_args[0]], hir::Type::Int);
+            hir::ExprKind::VariantConstruct { application, .. } => {
+                let arguments = &module.enum_applications[*application].arguments;
+                assert_eq!(arguments.len(), 1);
+                assert_eq!(module.types[arguments[0]], hir::Type::Int);
             }
             other => panic!("expected a variant construction, found {other:?}"),
         },

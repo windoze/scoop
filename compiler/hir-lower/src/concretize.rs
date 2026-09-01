@@ -20,12 +20,6 @@ struct FunctionKey {
     arguments: Vec<concrete::TypeId>,
 }
 
-#[derive(Debug, Clone, Copy)]
-enum ValueOwner {
-    Struct(export::StructId),
-    Enum(export::EnumId),
-}
-
 struct Concretizer<'a> {
     source: &'a export::Module,
     types: Arena<concrete::Type>,
@@ -42,7 +36,7 @@ struct Concretizer<'a> {
     interface_by_key: HashMap<(export::InterfaceId, Vec<concrete::TypeId>), concrete::InterfaceId>,
     interface_type: HashMap<concrete::InterfaceId, concrete::TypeId>,
     classes: Arena<concrete::ClassDef>,
-    class_map: HashMap<export::ClassId, concrete::ClassId>,
+    class_by_key: HashMap<(export::ClassId, Vec<concrete::TypeId>), concrete::ClassId>,
     class_type: HashMap<concrete::ClassId, concrete::TypeId>,
     extern_functions: Arena<concrete::ExternFunction>,
     extern_map: HashMap<export::ExternFunctionId, concrete::ExternFunctionId>,
@@ -80,7 +74,7 @@ struct Concretizer<'a> {
 
 impl<'a> Concretizer<'a> {
     fn new(source: &'a export::Module) -> Self {
-        let mut result = Self {
+        Self {
             source,
             types: Arena::new(),
             type_by_kind: HashMap::new(),
@@ -96,7 +90,7 @@ impl<'a> Concretizer<'a> {
             interface_by_key: HashMap::new(),
             interface_type: HashMap::new(),
             classes: Arena::new(),
-            class_map: HashMap::new(),
+            class_by_key: HashMap::new(),
             class_type: HashMap::new(),
             extern_functions: Arena::new(),
             extern_map: HashMap::new(),
@@ -119,9 +113,7 @@ impl<'a> Concretizer<'a> {
             coercion_by_key: HashMap::new(),
             foreign_callback_registrations: Arena::new(),
             foreign_callback_by_key: HashMap::new(),
-        };
-        result.allocate_class_shells();
-        result
+        }
     }
 
     fn run(mut self) -> concrete::Module {
@@ -130,7 +122,6 @@ impl<'a> Concretizer<'a> {
         let boolean = self.lower_type(self.source.boolean, &[]);
         let string = self.lower_type(self.source.string, &[]);
 
-        self.fill_classes();
         self.lower_extern_functions();
         self.lower_globals();
 
@@ -151,8 +142,13 @@ impl<'a> Concretizer<'a> {
                 self.ensure_interface(id, Vec::new());
             }
         }
+        for (id, declaration) in self.source.classes.iter() {
+            if declaration.type_params.is_empty() {
+                self.ensure_class(id, Vec::new());
+            }
+        }
         for (id, function) in self.source.functions.iter() {
-            if function.type_params.is_empty() && self.is_emittable_source_function(id) {
+            if function.type_params().is_empty() && self.is_emittable_source_function(id) {
                 self.request_function(id, Vec::new());
             }
         }
@@ -184,9 +180,11 @@ impl<'a> Concretizer<'a> {
             source: self.source.entry,
             arguments: Vec::new(),
         }];
-        let throwable = self.class_map[&self.source.coroutine_core.throwable];
-        let illegal_state_exception =
-            self.class_map[&self.source.coroutine_core.illegal_state_exception];
+        let throwable = self.class_by_key[&(self.source.coroutine_core.throwable, Vec::new())];
+        let illegal_state_exception = self.class_by_key[&(
+            self.source.coroutine_core.illegal_state_exception,
+            Vec::new(),
+        )];
         let option = &self.source.enums[self.source.option_enum];
         let option_variant = |name: &str| {
             concrete::VariantId::from_raw(
@@ -305,50 +303,83 @@ impl<'a> Concretizer<'a> {
         protocols
     }
 
-    fn allocate_class_shells(&mut self) {
-        for (source_id, source) in self.source.classes.iter() {
-            let id = self.classes.alloc(concrete::ClassDef {
-                modifier: source.modifier,
-                name: source.name.clone(),
-                constructor: Vec::new(),
-                base_class: None,
-                interfaces: Vec::new(),
-                span: source.span,
-            });
-            self.class_map.insert(source_id, id);
+    fn ensure_class(
+        &mut self,
+        source_id: export::ClassId,
+        arguments: Vec<concrete::TypeId>,
+    ) -> concrete::ClassId {
+        let key = (source_id, arguments.clone());
+        if let Some(&id) = self.class_by_key.get(&key) {
+            return id;
         }
+        let source = self.source.classes[source_id].clone();
+        assert_eq!(source.type_params.len(), arguments.len());
+        let id = self.classes.alloc(concrete::ClassDef {
+            modifier: source.modifier,
+            name: self.instance_name(&source.name, &arguments),
+            type_arguments: arguments.clone(),
+            constructor: Vec::new(),
+            base_class: None,
+            interfaces: Vec::new(),
+            methods: Vec::new(),
+            span: source.span,
+        });
+        self.class_by_key.insert(key, id);
+        let ty = self.intern_type(concrete::TypeKind::Class(id), false);
+        self.class_type.insert(id, ty);
+
+        let constructor = source
+            .constructor
+            .iter()
+            .map(|field| concrete::ConstructorField {
+                parameter: concrete::ConstructorParamId::from_raw(field.parameter.into_raw()),
+                name: field.name.clone(),
+                ty: self.lower_type(field.ty, &arguments),
+                mutable: field.mutable,
+            })
+            .collect();
+        let interfaces = source
+            .interfaces
+            .iter()
+            .map(|interface| self.lower_type(*interface, &arguments))
+            .collect();
+        let base_class = source.base_class.map(|(base, args)| {
+            let base = self.lower_type(base, &arguments);
+            let concrete::TypeKind::Class(base) = self.types[base].kind else {
+                unreachable!("class bases concretize to class identities")
+            };
+            let args = args
+                .iter()
+                .map(|argument| self.lower_expr(argument, &arguments, &[]))
+                .collect();
+            (base, args)
+        });
+        self.classes[id].constructor = constructor;
+        self.classes[id].interfaces = interfaces;
+        self.classes[id].base_class = base_class;
+        let methods = self.request_concrete_methods(&source.methods, &arguments);
+        self.classes[id].methods = methods;
+        id
     }
 
-    fn fill_classes(&mut self) {
-        for (source_id, source) in self.source.classes.iter() {
-            let source = source.clone();
-            let id = self.class_map[&source_id];
-            let constructor = source
-                .constructor
-                .iter()
-                .map(|field| concrete::Field {
-                    name: field.name.clone(),
-                    ty: self.lower_type(field.ty, &[]),
-                })
-                .collect();
-            let interfaces = source
-                .interfaces
-                .iter()
-                .map(|ty| self.lower_type(*ty, &[]))
-                .collect();
-            let base_class = source.base_class.map(|(base, args)| {
-                let base = self.class_map[&base];
-                let args = args
-                    .iter()
-                    .map(|argument| self.lower_expr(argument, &[], &[]))
-                    .collect();
-                (base, args)
-            });
-            let target = &mut self.classes[id];
-            target.constructor = constructor;
-            target.interfaces = interfaces;
-            target.base_class = base_class;
-        }
+    fn request_concrete_methods(
+        &mut self,
+        source_methods: &[export::FunctionId],
+        arguments: &[concrete::TypeId],
+    ) -> Vec<concrete::FunctionId> {
+        source_methods
+            .iter()
+            .copied()
+            .filter_map(|method| {
+                let function = &self.source.functions[method];
+                let owner_count = function
+                    .method
+                    .expect("a nominal member id names a method")
+                    .owner_type_param_count as usize;
+                (owner_count == function.type_params().len())
+                    .then(|| self.request_function(method, arguments.to_vec()))
+            })
+            .collect()
     }
 
     fn lower_extern_functions(&mut self) {
@@ -418,8 +449,11 @@ impl<'a> Concretizer<'a> {
             export::ConstantValue::Bool(value) => concrete::ConstantValue::Bool(*value),
             export::ConstantValue::NullPtr => concrete::ConstantValue::NullPtr,
             export::ConstantValue::NullFunPtr => concrete::ConstantValue::NullFunPtr,
-            export::ConstantValue::Struct { struct_id, fields } => {
-                let struct_id = self.ensure_struct(*struct_id, Vec::new());
+            export::ConstantValue::Struct {
+                application,
+                fields,
+            } => {
+                let struct_id = self.lower_struct_application(*application, &[]);
                 concrete::ConstantValue::Struct {
                     struct_id,
                     fields: fields
@@ -429,6 +463,62 @@ impl<'a> Concretizer<'a> {
                 }
             }
         }
+    }
+
+    fn lower_struct_application(
+        &mut self,
+        source: export::StructApplicationId,
+        substitution: &[concrete::TypeId],
+    ) -> concrete::StructId {
+        let application = self.source.struct_applications[source].clone();
+        let arguments = application
+            .arguments
+            .iter()
+            .map(|argument| self.lower_type(*argument, substitution))
+            .collect();
+        self.ensure_struct(application.template, arguments)
+    }
+
+    fn lower_enum_application(
+        &mut self,
+        source: export::EnumApplicationId,
+        substitution: &[concrete::TypeId],
+    ) -> concrete::EnumId {
+        let application = self.source.enum_applications[source].clone();
+        let arguments = application
+            .arguments
+            .iter()
+            .map(|argument| self.lower_type(*argument, substitution))
+            .collect();
+        self.ensure_enum(application.template, arguments)
+    }
+
+    fn lower_class_application(
+        &mut self,
+        source: export::ClassApplicationId,
+        substitution: &[concrete::TypeId],
+    ) -> concrete::ClassId {
+        let application = self.source.class_applications[source].clone();
+        let arguments = application
+            .arguments
+            .iter()
+            .map(|argument| self.lower_type(*argument, substitution))
+            .collect();
+        self.ensure_class(application.template, arguments)
+    }
+
+    fn lower_interface_application(
+        &mut self,
+        source: export::InterfaceApplicationId,
+        substitution: &[concrete::TypeId],
+    ) -> concrete::InterfaceId {
+        let application = self.source.interface_applications[source].clone();
+        let arguments = application
+            .arguments
+            .iter()
+            .map(|argument| self.lower_type(*argument, substitution))
+            .collect();
+        self.ensure_interface(application.template, arguments)
     }
 
     fn lower_type(
@@ -442,9 +532,10 @@ impl<'a> Concretizer<'a> {
             export::Type::UInt => self.intern_type(concrete::TypeKind::UInt, true),
             export::Type::Boolean => self.intern_type(concrete::TypeKind::Boolean, true),
             export::Type::String => self.intern_type(concrete::TypeKind::String, false),
-            export::Type::Struct(id, arguments) => {
-                if id == self.source.ffi_core.fun_ptr {
-                    let [function] = arguments.as_slice() else {
+            export::Type::Struct(application) => {
+                let value = self.source.struct_applications[application].clone();
+                if value.template == self.source.ffi_core.fun_ptr {
+                    let [function] = value.arguments.as_slice() else {
                         panic!("validated deferred FunPtr has one argument")
                     };
                     let function = self.lower_type(*function, substitution);
@@ -453,29 +544,15 @@ impl<'a> Concretizer<'a> {
                     };
                     return self.intern_type(concrete::TypeKind::FunPtr(function), true);
                 }
-                let arguments = arguments
-                    .iter()
-                    .map(|argument| self.lower_type(*argument, substitution))
-                    .collect();
-                let id = self.ensure_struct(id, arguments);
+                let id = self.lower_struct_application(application, substitution);
                 self.struct_type[&id]
             }
-            export::Type::Class(id) => {
-                let id = self.class_map[&id];
-                if let Some(&ty) = self.class_type.get(&id) {
-                    ty
-                } else {
-                    let ty = self.intern_type(concrete::TypeKind::Class(id), false);
-                    self.class_type.insert(id, ty);
-                    ty
-                }
+            export::Type::Class(application) => {
+                let id = self.lower_class_application(application, substitution);
+                self.class_type[&id]
             }
-            export::Type::Interface(id, arguments) => {
-                let arguments = arguments
-                    .iter()
-                    .map(|argument| self.lower_type(*argument, substitution))
-                    .collect();
-                let id = self.ensure_interface(id, arguments);
+            export::Type::Interface(application) => {
+                let id = self.lower_interface_application(application, substitution);
                 self.interface_type[&id]
             }
             export::Type::Any => self.intern_type(concrete::TypeKind::Any, false),
@@ -507,12 +584,8 @@ impl<'a> Concretizer<'a> {
                 let id = self.lower_function_type(id, substitution);
                 self.intern_type(concrete::TypeKind::FunPtr(id), true)
             }
-            export::Type::Enum(id, arguments) => {
-                let arguments = arguments
-                    .iter()
-                    .map(|argument| self.lower_type(*argument, substitution))
-                    .collect();
-                let id = self.ensure_enum(id, arguments);
+            export::Type::Enum(application) => {
+                let id = self.lower_enum_application(application, substitution);
                 self.enum_type[&id]
             }
             export::Type::Param(index) => substitution
@@ -580,6 +653,7 @@ impl<'a> Concretizer<'a> {
             attributes: source.attributes,
             fields: Vec::new(),
             interfaces: Vec::new(),
+            methods: Vec::new(),
             span: source.span,
         });
         self.struct_by_key.insert(key, id);
@@ -607,7 +681,8 @@ impl<'a> Concretizer<'a> {
         self.structs[id].interfaces = interfaces;
         self.structs[id].gc_free = gc_free;
         self.types[ty].gc_free = gc_free;
-        self.request_concrete_value_methods(ValueOwner::Struct(source_id), &arguments);
+        let methods = self.request_concrete_methods(&source.methods, &arguments);
+        self.structs[id].methods = methods;
         id
     }
 
@@ -630,6 +705,7 @@ impl<'a> Concretizer<'a> {
             variants: Vec::new(),
             option_variants: None,
             interfaces: Vec::new(),
+            methods: Vec::new(),
             span: source.span,
         });
         self.enum_by_key.insert(key, id);
@@ -687,38 +763,9 @@ impl<'a> Concretizer<'a> {
         self.enums[id].option_variants = option_variants;
         self.enums[id].gc_free = gc_free;
         self.types[ty].gc_free = gc_free;
-        self.request_concrete_value_methods(ValueOwner::Enum(source_id), &arguments);
+        let methods = self.request_concrete_methods(&source.methods, &arguments);
+        self.enums[id].methods = methods;
         id
-    }
-
-    /// Materialize every non-generic method of a fully specialized value
-    /// type. These methods may be reached only through an interface thunk,
-    /// so no ordinary call expression necessarily requests them.
-    fn request_concrete_value_methods(
-        &mut self,
-        owner: ValueOwner,
-        arguments: &[concrete::TypeId],
-    ) {
-        let methods = self
-            .source
-            .functions
-            .iter()
-            .filter_map(|(id, function)| {
-                let method = function.method?;
-                if method.owner_type_param_count as usize != function.type_params.len() {
-                    return None;
-                }
-                let owner_matches = match (&self.source.types[method.owner], owner) {
-                    (export::Type::Struct(id, _), ValueOwner::Struct(expected)) => *id == expected,
-                    (export::Type::Enum(id, _), ValueOwner::Enum(expected)) => *id == expected,
-                    _ => false,
-                };
-                owner_matches.then_some(id)
-            })
-            .collect::<Vec<_>>();
-        for method in methods {
-            self.request_function(method, arguments.to_vec());
-        }
     }
 
     fn ensure_interface(
@@ -862,7 +909,7 @@ impl<'a> Concretizer<'a> {
             return id;
         }
         assert_eq!(
-            self.source.functions[source].type_params.len(),
+            self.source.functions[source].type_params().len(),
             key.arguments.len()
         );
         let raw = self.function_slots.len() as u32;
@@ -908,16 +955,13 @@ impl<'a> Concretizer<'a> {
             owner: self.lower_type(method.owner, &key.arguments),
             modifier: method.modifier,
         });
-        let generic = self
-            .source
-            .generic_functions
-            .iter()
-            .find_map(|(id, generic)| (generic.function == key.source).then_some(id));
-        let generic_discriminator = generic.and_then(|generic| {
-            self.overloaded_generic_names
+        let generic_discriminator = match source.generic_definition() {
+            None => None,
+            Some(generic) => self
+                .overloaded_generic_names
                 .contains(&source.name)
-                .then(|| generic.into_raw().into_u32())
-        });
+                .then(|| generic.into_raw().into_u32()),
+        };
         concrete::Function {
             name: source.name,
             type_arguments: key.arguments.clone(),
@@ -1060,7 +1104,7 @@ impl<'a> Concretizer<'a> {
             },
             export::AssignTarget::Field { receiver, field } => {
                 let receiver = self.lower_expr(receiver, substitution, locals);
-                let field = self.lower_field_ref(*field, receiver.ty);
+                let field = self.lower_field_ref(*field, substitution);
                 concrete::AssignTarget::Field {
                     receiver: Box::new(receiver),
                     field,
@@ -1115,18 +1159,16 @@ impl<'a> Concretizer<'a> {
                 concrete::Pattern::Literal(self.lower_expr(expr, substitution, locals))
             }
             export::Pattern::Variant {
-                enum_id,
+                application,
                 variant,
                 fields,
             } => {
-                let concrete::TypeKind::Enum(concrete_enum) = self.types[expected].kind else {
-                    panic!("a resolved variant pattern has a concrete enum subject")
-                };
-                let source_enum = self
-                    .enum_by_key
-                    .iter()
-                    .find_map(|((source, _), id)| (*id == concrete_enum).then_some(*source));
-                assert_eq!(source_enum, Some(*enum_id));
+                let concrete_enum = self.lower_enum_application(*application, substitution);
+                assert_eq!(
+                    self.types[expected].kind,
+                    concrete::TypeKind::Enum(concrete_enum),
+                    "the checked pattern application must match its subject"
+                );
                 let variant_id = concrete::VariantId::from_raw(*variant);
                 let definition = self.enums[concrete_enum].variants[*variant as usize].clone();
                 let fields = fields
@@ -1163,15 +1205,16 @@ impl<'a> Concretizer<'a> {
                         .collect(),
                 )
             }
-            export::Pattern::Struct { struct_id, fields } => {
-                let concrete::TypeKind::Struct(concrete_struct) = self.types[expected].kind else {
-                    panic!("a resolved struct pattern has a concrete struct subject")
-                };
-                let source_struct = self
-                    .struct_by_key
-                    .iter()
-                    .find_map(|((source, _), id)| (*id == concrete_struct).then_some(*source));
-                assert_eq!(source_struct, Some(*struct_id));
+            export::Pattern::Struct {
+                application,
+                fields,
+            } => {
+                let concrete_struct = self.lower_struct_application(*application, substitution);
+                assert_eq!(
+                    self.types[expected].kind,
+                    concrete::TypeKind::Struct(concrete_struct),
+                    "the checked pattern application must match its subject"
+                );
                 let definition = self.structs[concrete_struct].fields.clone();
                 concrete::Pattern::Struct {
                     struct_id: concrete_struct,
@@ -1214,15 +1257,8 @@ impl<'a> Concretizer<'a> {
                     .map(|element| self.lower_expr(element, substitution, locals))
                     .collect(),
             ),
-            export::ExprKind::StructInit { struct_id, args } => {
-                let concrete::TypeKind::Struct(id) = self.types[ty].kind else {
-                    panic!("a resolved struct initializer has a concrete struct type")
-                };
-                assert!(
-                    self.struct_by_key
-                        .keys()
-                        .any(|(source, _)| source == struct_id)
-                );
+            export::ExprKind::StructInit { application, args } => {
+                let id = self.lower_struct_application(*application, substitution);
                 concrete::ExprKind::StructInit {
                     struct_id: id,
                     args: args
@@ -1231,23 +1267,25 @@ impl<'a> Concretizer<'a> {
                         .collect(),
                 }
             }
-            export::ExprKind::ClassInit { class_id, args } => concrete::ExprKind::ClassInit {
-                class_id: self.class_map[class_id],
-                args: args
-                    .iter()
-                    .map(|argument| self.lower_expr(argument, substitution, locals))
-                    .collect(),
-            },
+            export::ExprKind::ClassInit { application, args } => {
+                let concrete_id = self.lower_class_application(*application, substitution);
+                concrete::ExprKind::ClassInit {
+                    class_id: concrete_id,
+                    args: args
+                        .iter()
+                        .map(|argument| self.lower_expr(argument, substitution, locals))
+                        .collect(),
+                }
+            }
+            export::ExprKind::ConstructorParam(parameter) => concrete::ExprKind::ConstructorParam(
+                concrete::ConstructorParamId::from_raw(parameter.into_raw()),
+            ),
             export::ExprKind::VariantConstruct {
-                enum_id,
+                application,
                 variant,
                 args,
-                ..
             } => {
-                let concrete::TypeKind::Enum(id) = self.types[ty].kind else {
-                    panic!("a resolved variant constructor has a concrete enum type")
-                };
-                assert!(self.enum_by_key.keys().any(|(source, _)| source == enum_id));
+                let id = self.lower_enum_application(*application, substitution);
                 concrete::ExprKind::VariantConstruct {
                     enum_id: id,
                     variant: concrete::VariantId::from_raw(*variant),
@@ -1368,7 +1406,7 @@ impl<'a> Concretizer<'a> {
             },
             export::ExprKind::FieldAccess { receiver, field } => {
                 let receiver = self.lower_expr(receiver, substitution, locals);
-                let field = self.lower_field_ref(*field, receiver.ty);
+                let field = self.lower_field_ref(*field, substitution);
                 concrete::ExprKind::FieldAccess {
                     receiver: Box::new(receiver),
                     field,
@@ -1507,7 +1545,7 @@ impl<'a> Concretizer<'a> {
         let (function, arguments) = match source {
             export::Callable::Function(function) => {
                 assert!(
-                    self.source.functions[function].type_params.is_empty(),
+                    self.source.functions[function].type_params().is_empty(),
                     "a parameterized callable uses a resolved generic identity"
                 );
                 (function, Vec::new())
@@ -1535,30 +1573,26 @@ impl<'a> Concretizer<'a> {
     }
 
     fn lower_field_ref(
-        &self,
+        &mut self,
         source: export::FieldRef,
-        receiver: concrete::TypeId,
+        substitution: &[concrete::TypeId],
     ) -> concrete::FieldRef {
         match source {
-            export::FieldRef::StructField { struct_id, index } => {
-                let concrete::TypeKind::Struct(concrete_id) = self.types[receiver].kind else {
-                    panic!("a struct field has a concrete struct receiver")
-                };
-                assert!(
-                    self.struct_by_key
-                        .keys()
-                        .any(|(source, _)| *source == struct_id)
-                );
+            export::FieldRef::StructField { application, index } => {
+                let concrete_id = self.lower_struct_application(application, substitution);
                 concrete::FieldRef::StructField {
                     struct_id: concrete_id,
                     index,
                 }
             }
             export::FieldRef::TupleIndex(index) => concrete::FieldRef::TupleIndex(index),
-            export::FieldRef::ClassField { class_id, index } => concrete::FieldRef::ClassField {
-                class_id: self.class_map[&class_id],
-                index,
-            },
+            export::FieldRef::ClassField { application, index } => {
+                let concrete_id = self.lower_class_application(application, substitution);
+                concrete::FieldRef::ClassField {
+                    class_id: concrete_id,
+                    index,
+                }
+            }
         }
     }
 
@@ -1812,9 +1846,20 @@ fn export_type_has_param(module: &export::Module, ty: export::TypeId) -> bool {
                 .any(|parameter| export_type_has_param(module, *parameter))
                 || export_type_has_param(module, function.return_type)
         }
-        export::Type::Struct(_, arguments)
-        | export::Type::Interface(_, arguments)
-        | export::Type::Enum(_, arguments) => arguments
+        export::Type::Class(application) => module.class_applications[*application]
+            .arguments
+            .iter()
+            .any(|argument| export_type_has_param(module, *argument)),
+        export::Type::Struct(application) => module.struct_applications[*application]
+            .arguments
+            .iter()
+            .any(|argument| export_type_has_param(module, *argument)),
+        export::Type::Interface(application) => module.interface_applications[*application]
+            .arguments
+            .iter()
+            .any(|argument| export_type_has_param(module, *argument)),
+        export::Type::Enum(application) => module.enum_applications[*application]
+            .arguments
             .iter()
             .any(|argument| export_type_has_param(module, *argument)),
         _ => false,

@@ -134,9 +134,13 @@ impl Lowerer {
                     None
                 }
             }
-            (hir::Type::Struct(struct_id, type_args), ast::Expr::Call(call))
-                if call.callee.text == self.structs[struct_id].name =>
+            (hir::Type::Struct(application), ast::Expr::Call(call))
+                if call.callee.text
+                    == self.structs[self.struct_applications[application].template].name =>
             {
+                let application_value = self.struct_applications[application].clone();
+                let struct_id = application_value.template;
+                let type_args = application_value.arguments;
                 if !self.explicit_global_type_arg_matches(&call.type_args, &type_args) {
                     return None;
                 }
@@ -150,7 +154,7 @@ impl Lowerer {
                     values.push(self.global_constant(argument, field_ty)?);
                 }
                 Some(hir::ConstantValue::Struct {
-                    struct_id,
+                    application,
                     fields: values,
                 })
             }

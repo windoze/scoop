@@ -179,11 +179,13 @@ fn generic_suspend_call_keeps_typed_callee_identity() {
     .expect("generic suspend calls should lower");
     let identity = function_id(&module, "identity");
     assert!(module.functions[identity].is_suspend);
-    let identity_generic = module
-        .generic_functions
-        .iter()
-        .find_map(|(id, generic)| (generic.function == identity).then_some(id))
-        .expect("identity generic entity");
+    let hir::FunctionGenericity::Generic {
+        definition: identity_generic,
+        ..
+    } = module.functions[identity].genericity
+    else {
+        panic!("identity generic entity")
+    };
     let identity_requests: Vec<_> = module
         .instantiations
         .iter()

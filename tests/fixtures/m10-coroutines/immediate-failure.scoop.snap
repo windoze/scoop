@@ -278,22 +278,6 @@ Module
   interface SuspendTask$I
   interface Continuation$I
   interface SuspendRegistration$I
-  fun print @scoop.print(message: Any) -> Unit
-    bb0 entry
-      call $call.1: String = @scoop.Any.toString virtual[2]
-        Local message
-      call extern0 @scoop_rt_write direct
-        Local $call.1
-      return
-  fun println @scoop.println(message: Any) -> Unit
-    bb0 entry
-      call $call.1: String = @scoop.Any.toString virtual[2]
-        Local message
-      call extern0 @scoop_rt_write direct
-        Local $call.1
-      call extern0 @scoop_rt_write direct
-        StringConst @scoop.str.0
-      return
   fun FailingTask.run @scoop.FailingTask.run$suspend(this: FailingTask, $completion: Continuation$I) -> CoroutineStep$I
     bb0 entry
       call $call.1: UnwrapException = @scoop.ctor.UnwrapException direct
@@ -308,6 +292,22 @@ Module
   fun RecordingCompletion.resumeWithException @scoop.RecordingCompletion.resumeWithException(this: RecordingCompletion, exception: Throwable) -> Unit
     bb0 entry
       call @scoop.println direct
+        StringConst @scoop.str.0
+      return
+  fun print @scoop.print(message: Any) -> Unit
+    bb0 entry
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call extern0 @scoop_rt_write direct
+        Local $call.1
+      return
+  fun println @scoop.println(message: Any) -> Unit
+    bb0 entry
+      call $call.1: String = @scoop.Any.toString virtual[2]
+        Local message
+      call extern0 @scoop_rt_write direct
+        Local $call.1
+      call extern0 @scoop_rt_write direct
         StringConst @scoop.str.1
       return
   fun launch @scoop.launch(task: SuspendTask$I, completion: Continuation$I) -> Unit
@@ -429,8 +429,8 @@ Module
   instance @scoop.Continuation.resumeWithException$I <- Continuation.resumeWithException
   instance @scoop.SuspendTask.run$I$suspend <- SuspendTask.run
   instance @scoop.SuspendRegistration.register$I <- SuspendRegistration.register
-  str @scoop.str.0 "\n"
-  str @scoop.str.1 "failed"
+  str @scoop.str.0 "failed"
+  str @scoop.str.1 "\n"
   str @scoop.str.2 "returned"
   str @scoop.str.3 "unwrap on None"
   str @scoop.str.4 "invalid cast"
@@ -441,8 +441,8 @@ Module
 
 == lir ==
 Module
-  global @scoop.str.0 = "\n"
-  global @scoop.str.1 = "failed"
+  global @scoop.str.0 = "failed"
+  global @scoop.str.1 = "\n"
   global @scoop.str.2 = "returned"
   global @scoop.str.3 = "unwrap on None"
   global @scoop.str.4 = "invalid cast"
@@ -464,6 +464,24 @@ Module
   enum Option$S niche(payload_variant=0)
   enum CoroutineStep$I tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
+  fun @scoop.FailingTask.run$suspend(ptr<managed>, ptr<managed>) -> enum1
+    local %0 $call.1: ptr<managed>
+  block entry
+    t0 = call @scoop.ctor.UnwrapException() : ptr<managed>
+    store t0 -> local0
+    throw local0
+    unreachable
+  fun @scoop.RecordingCompletion.resume(ptr<managed>, i64) -> void
+  block entry
+    t0 = call @scoop_rt_box(global8, param1, 8) : ptr<managed>
+    call @scoop.println(t0)
+    t1 = aggregate () : {}
+    ret
+  fun @scoop.RecordingCompletion.resumeWithException(ptr<managed>, ptr<managed>) -> void
+  block entry
+    call @scoop.println(global0)
+    t0 = aggregate () : {}
+    ret
   fun @scoop.print(ptr<managed>) -> void
     local %0 $call.1: ptr<managed>
   block entry
@@ -483,26 +501,8 @@ Module
     store t2 -> local0
     native_call[native-borrowed] extern0(local0)
     t3 = aggregate () : {}
-    native_call[native-borrowed] extern0(global0)
+    native_call[native-borrowed] extern0(global1)
     t4 = aggregate () : {}
-    ret
-  fun @scoop.FailingTask.run$suspend(ptr<managed>, ptr<managed>) -> enum1
-    local %0 $call.1: ptr<managed>
-  block entry
-    t0 = call @scoop.ctor.UnwrapException() : ptr<managed>
-    store t0 -> local0
-    throw local0
-    unreachable
-  fun @scoop.RecordingCompletion.resume(ptr<managed>, i64) -> void
-  block entry
-    t0 = call @scoop_rt_box(global8, param1, 8) : ptr<managed>
-    call @scoop.println(t0)
-    t1 = aggregate () : {}
-    ret
-  fun @scoop.RecordingCompletion.resumeWithException(ptr<managed>, ptr<managed>) -> void
-  block entry
-    call @scoop.println(global1)
-    t0 = aggregate () : {}
     ret
   fun @scoop.launch(ptr<managed>, ptr<managed>) -> void
   block entry

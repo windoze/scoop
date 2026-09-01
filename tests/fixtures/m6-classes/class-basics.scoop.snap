@@ -311,6 +311,20 @@ Module
   class Point vtable=3 itables=0
   class box$I vtable=3 itables=0
   class box$B vtable=3 itables=0
+  fun Point.sum @scoop.Point.sum(this: Point) -> Int
+    bb0 entry
+      return
+        Binary IntAdd
+          FieldAccess 0
+            Local this
+          FieldAccess 1
+            Local this
+  fun Point.moveTo @scoop.Point.moveTo(this: Point, ny: Int) -> Unit
+    bb0 entry
+      field_set 1
+        Local this
+        Local ny
+      return
   fun print @scoop.print(message: Any) -> Unit
     bb0 entry
       call $call.1: String = @scoop.Any.toString virtual[2]
@@ -326,20 +340,6 @@ Module
         Local $call.1
       call extern0 @scoop_rt_write direct
         StringConst @scoop.str.0
-      return
-  fun Point.sum @scoop.Point.sum(this: Point) -> Int
-    bb0 entry
-      return
-        Binary IntAdd
-          FieldAccess 0
-            Local this
-          FieldAccess 1
-            Local this
-  fun Point.moveTo @scoop.Point.moveTo(this: Point, ny: Int) -> Unit
-    bb0 entry
-      field_set 1
-        Local this
-        Local ny
       return
   fun main @scoop_main() -> Unit
     bb0 entry
@@ -488,6 +488,16 @@ Module
   global @scoop_td_Point = c""
   enum Option$S niche(payload_variant=0)
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
+  fun @scoop.Point.sum(ptr<managed>) -> i64
+  block entry
+    t0 = heap_load param0 +16 : i64
+    t1 = heap_load param0 +24 : i64
+    t2 = Add t0, t1 : i64
+    ret t2
+  fun @scoop.Point.moveTo(ptr<managed>, i64) -> void
+  block entry
+    heap_store param0 +24 param1
+    ret
   fun @scoop.print(ptr<managed>) -> void
     local %0 $call.1: ptr<managed>
   block entry
@@ -509,16 +519,6 @@ Module
     t3 = aggregate () : {}
     native_call[native-borrowed] extern0(global0)
     t4 = aggregate () : {}
-    ret
-  fun @scoop.Point.sum(ptr<managed>) -> i64
-  block entry
-    t0 = heap_load param0 +16 : i64
-    t1 = heap_load param0 +24 : i64
-    t2 = Add t0, t1 : i64
-    ret t2
-  fun @scoop.Point.moveTo(ptr<managed>, i64) -> void
-  block entry
-    heap_store param0 +24 param1
     ret
   fun @scoop_main() -> void
     local %0 p: ptr<managed>

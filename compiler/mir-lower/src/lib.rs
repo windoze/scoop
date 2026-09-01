@@ -1567,6 +1567,7 @@ impl Lowerer {
             classes: &mut self.classes,
             shell: &mut self.shell,
             local_map: HashMap::new(),
+            constructor_param_map: HashMap::new(),
             locals: Arena::new(),
             hidden_count: 0,
             prelude: Vec::new(),
@@ -2533,6 +2534,7 @@ impl Lowerer {
             // Delegation arguments are closed (hir-lower M6 lowers
             // them in an empty scope), so no locals are visible.
             local_map: HashMap::new(),
+            constructor_param_map: HashMap::new(),
             locals: Arena::new(),
             hidden_count: 0,
             prelude: Vec::new(),
@@ -2568,6 +2570,7 @@ impl Lowerer {
                 ty,
                 local,
             });
+            lowerer.constructor_param_map.insert(field.parameter, local);
             own.push(smir::Expr::Local(local));
         }
         let args = flattened_ctor_args(&mut lowerer, module, hir_id, own);
@@ -2731,6 +2734,7 @@ impl Lowerer {
             classes: &mut self.classes,
             shell: &mut self.shell,
             local_map: HashMap::new(),
+            constructor_param_map: HashMap::new(),
             locals,
             hidden_count: 0,
             prelude: Vec::new(),
@@ -3811,6 +3815,9 @@ struct BodyLowerer<'a> {
     shell: &'a mut mir::Module,
     /// HIR local -> MIR local (same declaration order per body).
     local_map: HashMap<hir::LocalId, mir::LocalId>,
+    /// Constructor-parameter identities available while lowering one
+    /// generated class constructor's delegation expressions.
+    constructor_param_map: HashMap<hir::ConstructorParamId, mir::LocalId>,
     /// MIR locals, including the hidden ones created during lowering
     /// (`when` subjects, destructuring slots, `!!` temporaries).
     locals: Arena<mir::Local>,
@@ -4850,6 +4857,9 @@ impl BodyLowerer<'_> {
                         ty: Box::new(narrowed),
                     }
                 }
+            }
+            hir::ExprKind::ConstructorParam(parameter) => {
+                smir::Expr::Local(self.constructor_param_map[parameter])
             }
             hir::ExprKind::GlobalRead(global) => smir::Expr::GlobalRead(self.global_map[global]),
             hir::ExprKind::Capture(binding) => {
@@ -6589,9 +6599,20 @@ mod tests {
         extern_functions: Arena<hir::ExternFunction>,
         generic_functions: Arena<hir::GenericFunction>,
         structs: Arena<hir::StructDecl>,
+        struct_applications: Arena<hir::StructApplication>,
+        struct_applications_by_key:
+            HashMap<(hir::StructId, Vec<hir::TypeId>), hir::StructApplicationId>,
         enums: Arena<hir::EnumDecl>,
+        enum_applications: Arena<hir::EnumApplication>,
+        enum_applications_by_key: HashMap<(hir::EnumId, Vec<hir::TypeId>), hir::EnumApplicationId>,
         classes: Arena<hir::ClassDecl>,
+        class_applications: Arena<hir::ClassApplication>,
+        class_applications_by_key:
+            HashMap<(hir::ClassId, Vec<hir::TypeId>), hir::ClassApplicationId>,
         interfaces: Arena<hir::InterfaceDecl>,
+        interface_applications: Arena<hir::InterfaceApplication>,
+        interface_applications_by_key:
+            HashMap<(hir::InterfaceId, Vec<hir::TypeId>), hir::InterfaceApplicationId>,
         top_level: Vec<hir::FunctionId>,
         unit: hir::TypeId,
         int: hir::TypeId,
@@ -6642,8 +6663,8 @@ mod tests {
             let extern_functions = Arena::new();
             let int_to_string = functions.alloc(hir::Function {
                 name: "intToString".to_string(),
+                genericity: hir::FunctionGenericity::Plain,
                 is_suspend: false,
-                type_params: Vec::new(),
                 params: Vec::new(),
                 return_ty: string,
                 attributes: hir::FunctionAttributes::default(),
@@ -6653,8 +6674,8 @@ mod tests {
             });
             let bool_to_string = functions.alloc(hir::Function {
                 name: "boolToString".to_string(),
+                genericity: hir::FunctionGenericity::Plain,
                 is_suspend: false,
-                type_params: Vec::new(),
                 params: Vec::new(),
                 return_ty: string,
                 attributes: hir::FunctionAttributes::default(),
@@ -6665,8 +6686,11 @@ mod tests {
             // scoop.core's `enum Option<T> { Some(T), None }`.
             let t = types.alloc(hir::Type::Param(hir::TypeParamId::from_raw(0)));
             let mut enums = Arena::new();
+            let mut enum_applications = Arena::new();
+            let option_self_application = hir::EnumApplicationId::from_raw(0.into());
             let option_enum = enums.alloc(hir::EnumDecl {
                 name: "Option".to_string(),
+                self_application: option_self_application,
                 type_params: vec![type_param("T")],
                 no_gc: false,
                 variants: vec![
@@ -6685,17 +6709,38 @@ mod tests {
                     },
                 ],
                 interfaces: Vec::new(),
+                methods: Vec::new(),
                 span: SPAN,
             });
+            let option_self_type = hir::TypeId::from_raw((types.len() as u32).into());
+            let actual_option_self_application = enum_applications.alloc(hir::EnumApplication {
+                template: option_enum,
+                arguments: vec![t],
+                canonical_type: option_self_type,
+            });
+            assert_eq!(actual_option_self_application, option_self_application);
+            let actual_option_self_type =
+                types.alloc(hir::Type::Enum(actual_option_self_application));
+            assert_eq!(actual_option_self_type, option_self_type);
+            let mut enum_applications_by_key = HashMap::new();
+            enum_applications_by_key.insert((option_enum, vec![t]), actual_option_self_application);
             Harness {
                 types,
                 functions,
                 extern_functions,
                 generic_functions: Arena::new(),
                 structs: Arena::new(),
+                struct_applications: Arena::new(),
+                struct_applications_by_key: HashMap::new(),
                 enums,
+                enum_applications,
+                enum_applications_by_key,
                 classes: Arena::new(),
+                class_applications: Arena::new(),
+                class_applications_by_key: HashMap::new(),
                 interfaces: Arena::new(),
+                interface_applications: Arena::new(),
+                interface_applications_by_key: HashMap::new(),
                 top_level: vec![int_to_string, bool_to_string],
                 unit,
                 int,
@@ -6736,8 +6781,8 @@ mod tests {
             });
             let id = self.functions.alloc(hir::Function {
                 name: "write".to_string(),
+                genericity: hir::FunctionGenericity::Plain,
                 is_suspend: false,
-                type_params: Vec::new(),
                 params: Vec::new(),
                 return_ty: self.unit,
                 attributes: hir::FunctionAttributes::default(),
@@ -6937,8 +6982,8 @@ mod tests {
 
         /// `Option<inner>` (core's enum applied to one argument).
         fn option(&mut self, inner: hir::TypeId) -> hir::TypeId {
-            self.types
-                .alloc(hir::Type::Enum(self.option_enum, vec![inner]))
+            let application = self.enum_application(self.option_enum, vec![inner]);
+            self.enum_applications[application].canonical_type
         }
 
         fn any(&mut self) -> hir::TypeId {
@@ -6946,32 +6991,204 @@ mod tests {
         }
 
         fn class_ty(&mut self, id: hir::ClassId) -> hir::TypeId {
-            self.types.alloc(hir::Type::Class(id))
+            let application = self.class_application(id, Vec::new());
+            self.class_applications[application].canonical_type
         }
 
         fn interface_ty(&mut self, id: hir::InterfaceId) -> hir::TypeId {
-            self.types.alloc(hir::Type::Interface(id, Vec::new()))
+            self.interface_app(id, Vec::new())
+        }
+
+        fn interface_app(
+            &mut self,
+            id: hir::InterfaceId,
+            arguments: Vec<hir::TypeId>,
+        ) -> hir::TypeId {
+            assert_eq!(self.interfaces[id].type_params.len(), arguments.len());
+            let application = self.interface_application(id, arguments);
+            self.interface_applications[application].canonical_type
+        }
+
+        fn struct_ty(&mut self, id: hir::StructId) -> hir::TypeId {
+            self.struct_app(id, Vec::new())
+        }
+
+        fn enum_ty(&mut self, id: hir::EnumId) -> hir::TypeId {
+            assert!(self.enums[id].type_params.is_empty());
+            let application = self.enum_application(id, Vec::new());
+            self.enum_applications[application].canonical_type
+        }
+
+        fn struct_application_of(&self, ty: hir::TypeId) -> hir::StructApplicationId {
+            let hir::Type::Struct(application) = self.types[ty] else {
+                panic!("expected a struct application type")
+            };
+            application
+        }
+
+        fn enum_application_of(&self, ty: hir::TypeId) -> hir::EnumApplicationId {
+            let hir::Type::Enum(application) = self.types[ty] else {
+                panic!("expected an enum application type")
+            };
+            application
+        }
+
+        fn class_application_of(&self, ty: hir::TypeId) -> hir::ClassApplicationId {
+            let hir::Type::Class(application) = self.types[ty] else {
+                panic!("expected a class application type")
+            };
+            application
+        }
+
+        fn struct_application(
+            &mut self,
+            template: hir::StructId,
+            arguments: Vec<hir::TypeId>,
+        ) -> hir::StructApplicationId {
+            let key = (template, arguments);
+            if let Some(application) = self.struct_applications_by_key.get(&key) {
+                return *application;
+            }
+            let canonical_type = hir::TypeId::from_raw((self.types.len() as u32).into());
+            let application = self.struct_applications.alloc(hir::StructApplication {
+                template,
+                arguments: key.1.clone(),
+                canonical_type,
+            });
+            let actual_type = self.types.alloc(hir::Type::Struct(application));
+            assert_eq!(actual_type, canonical_type);
+            self.struct_applications_by_key.insert(key, application);
+            application
+        }
+
+        fn enum_application(
+            &mut self,
+            template: hir::EnumId,
+            arguments: Vec<hir::TypeId>,
+        ) -> hir::EnumApplicationId {
+            let key = (template, arguments);
+            if let Some(application) = self.enum_applications_by_key.get(&key) {
+                return *application;
+            }
+            let canonical_type = hir::TypeId::from_raw((self.types.len() as u32).into());
+            let application = self.enum_applications.alloc(hir::EnumApplication {
+                template,
+                arguments: key.1.clone(),
+                canonical_type,
+            });
+            let actual_type = self.types.alloc(hir::Type::Enum(application));
+            assert_eq!(actual_type, canonical_type);
+            self.enum_applications_by_key.insert(key, application);
+            application
+        }
+
+        fn declare_enum(
+            &mut self,
+            name: &str,
+            type_params: Vec<hir::TypeParamDecl>,
+            self_arguments: Vec<hir::TypeId>,
+            variants: Vec<hir::Variant>,
+        ) -> hir::EnumId {
+            assert_eq!(type_params.len(), self_arguments.len());
+            let self_application =
+                hir::EnumApplicationId::from_raw((self.enum_applications.len() as u32).into());
+            let enumeration = self.enums.alloc(hir::EnumDecl {
+                name: name.to_string(),
+                self_application,
+                type_params,
+                no_gc: false,
+                variants,
+                interfaces: Vec::new(),
+                methods: Vec::new(),
+                span: SPAN,
+            });
+            let actual = self.enum_application(enumeration, self_arguments);
+            assert_eq!(actual, self_application);
+            enumeration
+        }
+
+        fn class_application(
+            &mut self,
+            template: hir::ClassId,
+            arguments: Vec<hir::TypeId>,
+        ) -> hir::ClassApplicationId {
+            let key = (template, arguments);
+            if let Some(application) = self.class_applications_by_key.get(&key) {
+                return *application;
+            }
+            let canonical_type = hir::TypeId::from_raw((self.types.len() as u32).into());
+            let application = self.class_applications.alloc(hir::ClassApplication {
+                template,
+                arguments: key.1.clone(),
+                canonical_type,
+            });
+            let actual_type = self.types.alloc(hir::Type::Class(application));
+            assert_eq!(actual_type, canonical_type);
+            self.class_applications_by_key.insert(key, application);
+            application
+        }
+
+        fn interface_application(
+            &mut self,
+            template: hir::InterfaceId,
+            arguments: Vec<hir::TypeId>,
+        ) -> hir::InterfaceApplicationId {
+            let key = (template, arguments);
+            if let Some(application) = self.interface_applications_by_key.get(&key) {
+                return *application;
+            }
+            let canonical_type = hir::TypeId::from_raw((self.types.len() as u32).into());
+            let application = self
+                .interface_applications
+                .alloc(hir::InterfaceApplication {
+                    template,
+                    arguments: key.1.clone(),
+                    canonical_type,
+                });
+            let actual_type = self.types.alloc(hir::Type::Interface(application));
+            assert_eq!(actual_type, canonical_type);
+            self.interface_applications_by_key.insert(key, application);
+            application
+        }
+
+        fn declare_interface(
+            &mut self,
+            name: &str,
+            type_params: Vec<hir::TypeParamDecl>,
+            self_arguments: Vec<hir::TypeId>,
+            methods: Vec<hir::MethodSig>,
+        ) -> hir::InterfaceId {
+            assert_eq!(type_params.len(), self_arguments.len());
+            let self_application = hir::InterfaceApplicationId::from_raw(
+                (self.interface_applications.len() as u32).into(),
+            );
+            let interface = self.interfaces.alloc(hir::InterfaceDecl {
+                name: name.to_string(),
+                self_application,
+                type_params,
+                methods,
+                span: SPAN,
+            });
+            let actual = self.interface_application(interface, self_arguments);
+            assert_eq!(actual, self_application);
+            interface
         }
 
         fn interface(&mut self, name: &str, methods: &[&str]) -> hir::InterfaceId {
             let unit = self.unit;
-            self.interfaces.alloc(hir::InterfaceDecl {
-                name: name.to_string(),
-                type_params: Vec::new(),
-                methods: methods
-                    .iter()
-                    .map(|name| hir::MethodSig {
-                        name: name.to_string(),
-                        is_suspend: false,
-                        attributes: hir::FunctionAttributes::default(),
-                        type_params: Vec::new(),
-                        params: Vec::new(),
-                        return_ty: unit,
-                        span: SPAN,
-                    })
-                    .collect(),
-                span: SPAN,
-            })
+            let methods = methods
+                .iter()
+                .map(|name| hir::MethodSig {
+                    name: name.to_string(),
+                    is_suspend: false,
+                    attributes: hir::FunctionAttributes::default(),
+                    type_params: Vec::new(),
+                    params: Vec::new(),
+                    return_ty: unit,
+                    span: SPAN,
+                })
+                .collect();
+            self.declare_interface(name, Vec::new(), Vec::new(), methods)
         }
 
         #[allow(clippy::too_many_arguments)]
@@ -6987,20 +7204,43 @@ mod tests {
                 .iter()
                 .map(|&interface| self.interface_ty(interface))
                 .collect();
-            self.classes.alloc(hir::ClassDecl {
+            let base = base.map(|(base, arguments)| (self.class_ty(base), arguments));
+            self.declare_class(name, modifier, constructor, base, interfaces)
+        }
+
+        fn declare_class(
+            &mut self,
+            name: &str,
+            modifier: hir::ClassModifier,
+            constructor: &[(&str, hir::TypeId)],
+            base_class: Option<(hir::TypeId, Vec<hir::Expr>)>,
+            interfaces: Vec<hir::TypeId>,
+        ) -> hir::ClassId {
+            let self_application =
+                hir::ClassApplicationId::from_raw((self.class_applications.len() as u32).into());
+            let class = self.classes.alloc(hir::ClassDecl {
                 modifier,
                 name: name.to_string(),
+                self_application,
+                type_params: Vec::new(),
                 constructor: constructor
                     .iter()
-                    .map(|(name, ty)| hir::Field {
+                    .enumerate()
+                    .map(|(index, (name, ty))| hir::ConstructorField {
+                        parameter: hir::ConstructorParamId::from_raw(index as u32),
                         name: name.to_string(),
                         ty: *ty,
+                        mutable: false,
                     })
                     .collect(),
-                base_class: base,
+                base_class,
                 interfaces,
+                methods: Vec::new(),
                 span: SPAN,
-            })
+            });
+            let actual = self.class_application(class, Vec::new());
+            assert_eq!(actual, self_application);
+            class
         }
 
         /// core's built-in exception classes (throwable.scoop),
@@ -7026,8 +7266,8 @@ mod tests {
         ) -> hir::FunctionId {
             self.functions.alloc(hir::Function {
                 name: name.to_string(),
+                genericity: hir::FunctionGenericity::Plain,
                 is_suspend: false,
-                type_params: Vec::new(),
                 params,
                 return_ty,
                 attributes: hir::FunctionAttributes::default(),
@@ -7051,13 +7291,28 @@ mod tests {
             fields: &[(&str, hir::TypeId)],
             interfaces: &[hir::InterfaceId],
         ) -> hir::StructId {
+            self.declare_struct(name, Vec::new(), Vec::new(), fields, interfaces)
+        }
+
+        fn declare_struct(
+            &mut self,
+            name: &str,
+            type_params: Vec<hir::TypeParamDecl>,
+            self_arguments: Vec<hir::TypeId>,
+            fields: &[(&str, hir::TypeId)],
+            interfaces: &[hir::InterfaceId],
+        ) -> hir::StructId {
+            assert_eq!(type_params.len(), self_arguments.len());
             let interfaces: Vec<_> = interfaces
                 .iter()
                 .map(|&interface| self.interface_ty(interface))
                 .collect();
-            self.structs.alloc(hir::StructDecl {
+            let self_application =
+                hir::StructApplicationId::from_raw((self.struct_applications.len() as u32).into());
+            let strukt = self.structs.alloc(hir::StructDecl {
                 name: name.to_string(),
-                type_params: Vec::new(),
+                self_application,
+                type_params,
                 attributes: hir::StructAttributes::default(),
                 fields: fields
                     .iter()
@@ -7067,8 +7322,12 @@ mod tests {
                     })
                     .collect(),
                 interfaces,
+                methods: Vec::new(),
                 span: SPAN,
-            })
+            });
+            let actual = self.struct_application(strukt, self_arguments);
+            assert_eq!(actual, self_application);
+            strukt
         }
 
         /// The `UInt` well-known type (M9, spec 11.2), allocated on
@@ -7084,12 +7343,9 @@ mod tests {
 
         /// Intern a generic struct application type.
         fn struct_app(&mut self, struct_id: hir::StructId, args: Vec<hir::TypeId>) -> hir::TypeId {
-            if self.structs[struct_id].type_params.is_empty() {
-                self.structs[struct_id].type_params = (0..args.len())
-                    .map(|index| type_param(format!("T{index}")))
-                    .collect();
-            }
-            self.types.alloc(hir::Type::Struct(struct_id, args))
+            assert_eq!(self.structs[struct_id].type_params.len(), args.len());
+            let application = self.struct_application(struct_id, args);
+            self.struct_applications[application].canonical_type
         }
 
         /// core's GC facilities (M12): `PinnedPtr<T>` / `GcHandle<T>`
@@ -7099,13 +7355,24 @@ mod tests {
                 return core;
             }
             let uint = self.uint();
-            let pinned_ptr = self.strukt("PinnedPtr", &[("raw", uint)]);
-            let gc_handle = self.strukt("GcHandle", &[("raw", uint)]);
-            self.structs[pinned_ptr].type_params = vec![type_param("T")];
-            self.structs[gc_handle].type_params = vec![type_param("T")];
+            let unit = self.unit;
             let t = self
                 .types
                 .alloc(hir::Type::Param(hir::TypeParamId::from_raw(0)));
+            let pinned_ptr = self.declare_struct(
+                "PinnedPtr",
+                vec![type_param("T")],
+                vec![t],
+                &[("raw", uint)],
+                &[],
+            );
+            let gc_handle = self.declare_struct(
+                "GcHandle",
+                vec![type_param("T")],
+                vec![t],
+                &[("raw", uint)],
+                &[],
+            );
             let mut dummy_locals = Arena::new();
             let mut intrinsic = |name: &str,
                                  intrinsic: &str,
@@ -7116,8 +7383,8 @@ mod tests {
                 let type_params = type_params.into_iter().map(type_param).collect();
                 let id = self.functions.alloc(hir::Function {
                     name: name.to_string(),
+                    genericity: hir::FunctionGenericity::Plain,
                     is_suspend: false,
-                    type_params,
                     params: params
                         .into_iter()
                         .map(|(name, ty)| hir::Param {
@@ -7138,10 +7405,7 @@ mod tests {
                     span: SPAN,
                 });
                 if generic {
-                    self.generic_functions.alloc(hir::GenericFunction {
-                        function: id,
-                        no_gc_type_params: Vec::new(),
-                    });
+                    self.register_generic(id, type_params);
                 }
                 self.top_level.push(id);
                 id
@@ -7175,7 +7439,7 @@ mod tests {
                 vec![("raw", uint)],
                 t,
             );
-            let gc_collect = intrinsic("gcCollect", "rt_gc_collect", vec![], vec![], self.unit);
+            let gc_collect = intrinsic("gcCollect", "rt_gc_collect", vec![], vec![], unit);
             let gc_stats = intrinsic("gcStats", "rt_gc_stats", vec![], vec![], uint);
             let core = GcCore {
                 pinned_ptr,
@@ -7208,6 +7472,30 @@ mod tests {
             self.user_fn_full(name, Vec::new(), Vec::new(), unit, body)
         }
 
+        fn register_generic(
+            &mut self,
+            function: hir::FunctionId,
+            parameters: Vec<hir::TypeParamDecl>,
+        ) -> hir::GenericFunctionId {
+            if let hir::FunctionGenericity::Generic {
+                definition,
+                parameters: existing,
+            } = &self.functions[function].genericity
+            {
+                assert_eq!(existing, &parameters);
+                return *definition;
+            }
+            let generic = self.generic_functions.alloc(hir::GenericFunction {
+                function,
+                no_gc_type_params: Vec::new(),
+            });
+            self.functions[function].genericity = hir::FunctionGenericity::Generic {
+                definition: generic,
+                parameters,
+            };
+            generic
+        }
+
         fn user_fn_full(
             &mut self,
             name: &str,
@@ -7220,8 +7508,8 @@ mod tests {
             let type_params = type_params.into_iter().map(type_param).collect();
             let id = self.functions.alloc(hir::Function {
                 name: name.to_string(),
+                genericity: hir::FunctionGenericity::Plain,
                 is_suspend: false,
-                type_params,
                 params,
                 return_ty,
                 attributes: hir::FunctionAttributes::default(),
@@ -7230,10 +7518,7 @@ mod tests {
                 span: SPAN,
             });
             if generic {
-                self.generic_functions.alloc(hir::GenericFunction {
-                    function: id,
-                    no_gc_type_params: Vec::new(),
-                });
+                self.register_generic(id, type_params);
             }
             self.top_level.push(id);
             id
@@ -7244,11 +7529,9 @@ mod tests {
             function: hir::FunctionId,
             type_args: Vec<hir::TypeId>,
         ) -> hir::ResolvedGenericFunctionId {
-            let generic = self
-                .generic_functions
-                .iter()
-                .find_map(|(id, generic)| (generic.function == function).then_some(id))
-                .expect("generic test function must be registered");
+            let Some(generic) = self.functions[function].generic_definition() else {
+                panic!("generic test function must be registered")
+            };
             if let Some((id, _)) = self.instantiations.iter().find(|(_, resolved)| {
                 resolved.generic == generic && resolved.type_args == type_args
             }) {
@@ -7265,17 +7548,21 @@ mod tests {
                     self.exception("IllegalStateException"),
                 )
             } else {
-                let placeholder = |name: &str| hir::ClassDecl {
-                    modifier: hir::ClassModifier::Abstract,
-                    name: name.to_string(),
-                    constructor: Vec::new(),
-                    base_class: None,
-                    interfaces: Vec::new(),
-                    span: SPAN,
-                };
                 (
-                    self.classes.alloc(placeholder("$ThrowableProtocol")),
-                    self.classes.alloc(placeholder("$IllegalStateProtocol")),
+                    self.class(
+                        "$ThrowableProtocol",
+                        hir::ClassModifier::Abstract,
+                        &[],
+                        None,
+                        &[],
+                    ),
+                    self.class(
+                        "$IllegalStateProtocol",
+                        hir::ClassModifier::Abstract,
+                        &[],
+                        None,
+                        &[],
+                    ),
                 )
             };
             let throwable_ty = self.class_ty(throwable);
@@ -7288,21 +7575,17 @@ mod tests {
                 bounds: hir::TypeParamBounds::Unconstrained,
                 span: SPAN,
             };
-            let continuation = self.interfaces.alloc(hir::InterfaceDecl {
-                name: "Continuation".to_string(),
-                type_params: vec![type_param()],
-                methods: Vec::new(),
-                span: SPAN,
-            });
-            let continuation_ty = self
-                .types
-                .alloc(hir::Type::Interface(continuation, vec![t]));
+            let continuation =
+                self.declare_interface("Continuation", vec![type_param()], vec![t], Vec::new());
+            let continuation_ty = self.interface_applications
+                [self.interfaces[continuation].self_application]
+                .canonical_type;
             let mut resume_locals = Arena::new();
             let resume_value = resume_locals.alloc(local("value", t));
             let continuation_resume = self.functions.alloc(hir::Function {
                 name: "Continuation.resume".to_string(),
+                genericity: hir::FunctionGenericity::Plain,
                 is_suspend: false,
-                type_params: vec![type_param()],
                 params: vec![param("value", t, resume_value)],
                 return_ty: self.unit,
                 attributes: hir::FunctionAttributes::default(),
@@ -7321,8 +7604,8 @@ mod tests {
             let failure = failure_locals.alloc(local("exception", throwable_ty));
             let continuation_resume_with_exception = self.functions.alloc(hir::Function {
                 name: "Continuation.resumeWithException".to_string(),
+                genericity: hir::FunctionGenericity::Plain,
                 is_suspend: false,
-                type_params: vec![type_param()],
                 params: vec![param("exception", throwable_ty, failure)],
                 return_ty: self.unit,
                 attributes: hir::FunctionAttributes::default(),
@@ -7358,10 +7641,11 @@ mod tests {
                 },
             ];
 
-            let suspend_task = self.interfaces.alloc(hir::InterfaceDecl {
-                name: "SuspendTask".to_string(),
-                type_params: vec![type_param()],
-                methods: vec![hir::MethodSig {
+            let suspend_task = self.declare_interface(
+                "SuspendTask",
+                vec![type_param()],
+                vec![t],
+                vec![hir::MethodSig {
                     name: "run".to_string(),
                     is_suspend: true,
                     attributes: hir::FunctionAttributes::default(),
@@ -7370,15 +7654,14 @@ mod tests {
                     return_ty: t,
                     span: SPAN,
                 }],
-                span: SPAN,
-            });
-            let suspend_task_ty = self
-                .types
-                .alloc(hir::Type::Interface(suspend_task, vec![t]));
+            );
+            let suspend_task_ty = self.interface_applications
+                [self.interfaces[suspend_task].self_application]
+                .canonical_type;
             let suspend_task_run = self.functions.alloc(hir::Function {
                 name: "SuspendTask.run".to_string(),
+                genericity: hir::FunctionGenericity::Plain,
                 is_suspend: true,
-                type_params: vec![type_param()],
                 params: Vec::new(),
                 return_ty: t,
                 attributes: hir::FunctionAttributes::default(),
@@ -7394,10 +7677,11 @@ mod tests {
                 span: SPAN,
             });
 
-            let suspend_registration = self.interfaces.alloc(hir::InterfaceDecl {
-                name: "SuspendRegistration".to_string(),
-                type_params: vec![type_param()],
-                methods: vec![hir::MethodSig {
+            let suspend_registration = self.declare_interface(
+                "SuspendRegistration",
+                vec![type_param()],
+                vec![t],
+                vec![hir::MethodSig {
                     name: "register".to_string(),
                     is_suspend: false,
                     attributes: hir::FunctionAttributes::default(),
@@ -7406,15 +7690,14 @@ mod tests {
                     return_ty: self.unit,
                     span: SPAN,
                 }],
-                span: SPAN,
-            });
-            let suspend_registration_ty = self
-                .types
-                .alloc(hir::Type::Interface(suspend_registration, vec![t]));
+            );
+            let suspend_registration_ty = self.interface_applications
+                [self.interfaces[suspend_registration].self_application]
+                .canonical_type;
             let suspend_registration_register = self.functions.alloc(hir::Function {
                 name: "SuspendRegistration.register".to_string(),
+                genericity: hir::FunctionGenericity::Plain,
                 is_suspend: false,
-                type_params: vec![type_param()],
                 params: Vec::new(),
                 return_ty: self.unit,
                 attributes: hir::FunctionAttributes::default(),
@@ -7436,15 +7719,12 @@ mod tests {
                 suspend_task_run,
                 suspend_registration_register,
             ] {
-                self.generic_functions.alloc(hir::GenericFunction {
-                    function,
-                    no_gc_type_params: Vec::new(),
-                });
+                self.register_generic(function, vec![type_param()]);
             }
             let start_coroutine = self.functions.alloc(hir::Function {
                 name: "startCoroutine".to_string(),
+                genericity: hir::FunctionGenericity::Plain,
                 is_suspend: false,
-                type_params: vec![type_param()],
                 params: Vec::new(),
                 return_ty: self.unit,
                 attributes: hir::FunctionAttributes::default(),
@@ -7454,8 +7734,8 @@ mod tests {
             });
             let suspend_coroutine = self.functions.alloc(hir::Function {
                 name: "suspendCoroutine".to_string(),
+                genericity: hir::FunctionGenericity::Plain,
                 is_suspend: true,
-                type_params: vec![type_param()],
                 params: Vec::new(),
                 return_ty: t,
                 attributes: hir::FunctionAttributes::default(),
@@ -7464,10 +7744,7 @@ mod tests {
                 span: SPAN,
             });
             for function in [start_coroutine, suspend_coroutine] {
-                self.generic_functions.alloc(hir::GenericFunction {
-                    function,
-                    no_gc_type_params: Vec::new(),
-                });
+                self.register_generic(function, vec![type_param()]);
                 self.top_level.push(function);
             }
             hir::CoroutineCore {
@@ -7499,38 +7776,15 @@ mod tests {
             include_exceptions: bool,
         ) -> hir::Module {
             let coroutine_core = self.test_coroutine_core(include_exceptions);
-            let ptr = self.structs.alloc(hir::StructDecl {
-                name: "Ptr".to_string(),
-                type_params: vec![type_param("T")],
-                attributes: hir::StructAttributes::default(),
-                fields: Vec::new(),
-                interfaces: Vec::new(),
-                span: SPAN,
-            });
-            let fun_ptr = self.structs.alloc(hir::StructDecl {
-                name: "FunPtr".to_string(),
-                type_params: vec![type_param("F")],
-                attributes: hir::StructAttributes::default(),
-                fields: Vec::new(),
-                interfaces: Vec::new(),
-                span: SPAN,
-            });
-            let pinned_ptr = self.structs.alloc(hir::StructDecl {
-                name: "PinnedPtr".to_string(),
-                type_params: vec![type_param("T")],
-                attributes: hir::StructAttributes::default(),
-                fields: Vec::new(),
-                interfaces: Vec::new(),
-                span: SPAN,
-            });
-            let gc_handle = self.structs.alloc(hir::StructDecl {
-                name: "GcHandle".to_string(),
-                type_params: vec![type_param("T")],
-                attributes: hir::StructAttributes::default(),
-                fields: Vec::new(),
-                interfaces: Vec::new(),
-                span: SPAN,
-            });
+            let t = self
+                .types
+                .alloc(hir::Type::Param(hir::TypeParamId::from_raw(0)));
+            let ptr = self.declare_struct("Ptr", vec![type_param("T")], vec![t], &[], &[]);
+            let fun_ptr = self.declare_struct("FunPtr", vec![type_param("F")], vec![t], &[], &[]);
+            let pinned_ptr =
+                self.declare_struct("PinnedPtr", vec![type_param("T")], vec![t], &[], &[]);
+            let gc_handle =
+                self.declare_struct("GcHandle", vec![type_param("T")], vec![t], &[], &[]);
             let ffi_core = hir::FfiCore {
                 ptr,
                 fun_ptr,
@@ -7552,28 +7806,28 @@ mod tests {
                 gc_get_handle_raw: entry,
                 gc_release_handle_raw: entry,
             };
-            let unit_enum = |name: &str, variants: &[&str]| hir::EnumDecl {
-                name: name.to_string(),
-                type_params: Vec::new(),
-                no_gc: false,
-                variants: variants
+            let unit_variants = |variants: &[&str]| {
+                variants
                     .iter()
                     .map(|variant| hir::Variant {
                         name: (*variant).to_string(),
                         fields: Vec::new(),
                         defaults: Vec::new(),
                     })
-                    .collect(),
-                interfaces: Vec::new(),
-                span: SPAN,
+                    .collect()
             };
-            let callback_mode = self
-                .enums
-                .alloc(unit_enum("ForeignCallbackMode", &["Reusable", "OneShot"]));
-            let callback_state = self.enums.alloc(unit_enum(
+            let callback_mode = self.declare_enum(
+                "ForeignCallbackMode",
+                Vec::new(),
+                Vec::new(),
+                unit_variants(&["Reusable", "OneShot"]),
+            );
+            let callback_state = self.declare_enum(
                 "ForeignCallbackState",
-                &["Registered", "Active", "Completed", "Failed"],
-            ));
+                Vec::new(),
+                Vec::new(),
+                unit_variants(&["Registered", "Active", "Completed", "Failed"]),
+            );
             hir::Module {
                 types: self.types,
                 function_types: Arena::new(),
@@ -7588,9 +7842,13 @@ mod tests {
                 globals: Arena::new(),
                 generic_functions: self.generic_functions,
                 structs: self.structs,
+                struct_applications: self.struct_applications,
                 enums: self.enums,
+                enum_applications: self.enum_applications,
                 classes: self.classes,
+                class_applications: self.class_applications,
                 interfaces: self.interfaces,
+                interface_applications: self.interface_applications,
                 top_level: self.top_level,
                 unit: self.unit,
                 int: self.int,
@@ -7697,8 +7955,29 @@ mod tests {
         )
     }
 
-    fn struct_init(struct_id: hir::StructId, ty: hir::TypeId, args: Vec<hir::Expr>) -> hir::Expr {
-        expr(hir::ExprKind::StructInit { struct_id, args }, ty)
+    fn struct_init(h: &Harness, ty: hir::TypeId, args: Vec<hir::Expr>) -> hir::Expr {
+        let hir::Type::Struct(application) = h.types[ty] else {
+            panic!("struct construction requires a struct application type")
+        };
+        expr(hir::ExprKind::StructInit { application, args }, ty)
+    }
+
+    fn module_interface_application(
+        module: &mut hir::Module,
+        template: hir::InterfaceId,
+        arguments: Vec<hir::TypeId>,
+    ) -> hir::TypeId {
+        let canonical_type = hir::TypeId::from_raw((module.types.len() as u32).into());
+        let application = module
+            .interface_applications
+            .alloc(hir::InterfaceApplication {
+                template,
+                arguments,
+                canonical_type,
+            });
+        let actual_type = module.types.alloc(hir::Type::Interface(application));
+        assert_eq!(actual_type, canonical_type);
+        canonical_type
     }
 
     /// `main` calls `println("hello, world")` then `helper()`, which
@@ -7919,24 +8198,19 @@ mod tests {
         );
         let mut hir_module = h.finish_coroutines(main);
         let result = hir_module.int;
-        let task_ty = hir_module.types.alloc(hir::Type::Interface(
-            hir_module.coroutine_core.suspend_task,
-            vec![result],
-        ));
-        let completion_ty = hir_module.types.alloc(hir::Type::Interface(
-            hir_module.coroutine_core.continuation,
-            vec![result],
-        ));
+        let suspend_task = hir_module.coroutine_core.suspend_task;
+        let continuation = hir_module.coroutine_core.continuation;
+        let task_ty = module_interface_application(&mut hir_module, suspend_task, vec![result]);
+        let completion_ty =
+            module_interface_application(&mut hir_module, continuation, vec![result]);
         let mut locals = Arena::new();
         let task = locals.alloc(local("task", task_ty));
         let completion = locals.alloc(local("completion", completion_ty));
-        let start_generic = hir_module
-            .generic_functions
-            .iter()
-            .find_map(|(id, generic)| {
-                (generic.function == hir_module.coroutine_core.start_coroutine).then_some(id)
-            })
-            .expect("startCoroutine is generic");
+        let Some(start_generic) =
+            hir_module.functions[hir_module.coroutine_core.start_coroutine].generic_definition()
+        else {
+            panic!("startCoroutine is generic")
+        };
         let start = hir_module
             .instantiations
             .alloc(hir::ResolvedGenericFunction {
@@ -7945,8 +8219,8 @@ mod tests {
             });
         let launcher = hir_module.functions.alloc(hir::Function {
             name: "launcher".to_string(),
+            genericity: hir::FunctionGenericity::Plain,
             is_suspend: false,
-            type_params: Vec::new(),
             params: vec![
                 param("task", task_ty, task),
                 param("completion", completion_ty, completion),
@@ -8220,6 +8494,8 @@ Module
         let (string, uint) = (h.string, h.uint());
         let pinned_ptr_s = h.struct_app(gc.pinned_ptr, vec![string]);
         let gc_handle_s = h.struct_app(gc.gc_handle, vec![string]);
+        let pinned_ptr_s_application = h.struct_application_of(pinned_ptr_s);
+        let gc_handle_s_application = h.struct_application_of(gc_handle_s);
         let pin_raw = h.instantiate(gc.pin_raw, vec![string]);
         let unpin_raw = h.instantiate(gc.unpin_raw, vec![string]);
         let get_handle_raw = h.instantiate(gc.get_handle_raw, vec![string]);
@@ -8244,7 +8520,7 @@ Module
                     ),
                     val_decl(
                         ph,
-                        struct_init(gc.pinned_ptr, pinned_ptr_s, vec![local_ref(pin_word, uint)]),
+                        struct_init(&h, pinned_ptr_s, vec![local_ref(pin_word, uint)]),
                     ),
                     val_decl(
                         r,
@@ -8254,7 +8530,7 @@ Module
                                 hir::ExprKind::FieldAccess {
                                     receiver: Box::new(local_ref(ph, pinned_ptr_s)),
                                     field: hir::FieldRef::StructField {
-                                        struct_id: gc.pinned_ptr,
+                                        application: pinned_ptr_s_application,
                                         index: 0,
                                     },
                                 },
@@ -8269,11 +8545,7 @@ Module
                     ),
                     val_decl(
                         gh,
-                        struct_init(
-                            gc.gc_handle,
-                            gc_handle_s,
-                            vec![local_ref(handle_word, uint)],
-                        ),
+                        struct_init(&h, gc_handle_s, vec![local_ref(handle_word, uint)]),
                     ),
                     val_decl(
                         r2,
@@ -8283,7 +8555,7 @@ Module
                                 hir::ExprKind::FieldAccess {
                                     receiver: Box::new(local_ref(gh, gc_handle_s)),
                                     field: hir::FieldRef::StructField {
-                                        struct_id: gc.gc_handle,
+                                        application: gc_handle_s_application,
                                         index: 0,
                                     },
                                 },
@@ -8401,7 +8673,7 @@ Module
         let t = h
             .types
             .alloc(hir::Type::Param(hir::TypeParamId::from_raw(0)));
-        let box2 = h.strukt("Box2", &[("x", t)]);
+        let box2 = h.declare_struct("Box2", vec![type_param("T")], vec![t], &[("x", t)], &[]);
         let box2_s = h.struct_app(box2, vec![string]);
         let mut locals = Arena::new();
         let a = locals.alloc(local("a", pinned_ptr_v));
@@ -8413,19 +8685,10 @@ Module
             hir::Body {
                 locals,
                 statements: vec![
-                    val_decl(
-                        a,
-                        struct_init(gc.pinned_ptr, pinned_ptr_v, vec![int_lit(&h, 1)]),
-                    ),
-                    val_decl(
-                        b,
-                        struct_init(gc.pinned_ptr, pinned_ptr_s, vec![int_lit(&h, 2)]),
-                    ),
-                    val_decl(
-                        c,
-                        struct_init(gc.pinned_ptr, pinned_ptr_s, vec![int_lit(&h, 3)]),
-                    ),
-                    val_decl(d, struct_init(box2, box2_s, vec![str_lit(&h, "x")])),
+                    val_decl(a, struct_init(&h, pinned_ptr_v, vec![int_lit(&h, 1)])),
+                    val_decl(b, struct_init(&h, pinned_ptr_s, vec![int_lit(&h, 2)])),
+                    val_decl(c, struct_init(&h, pinned_ptr_s, vec![int_lit(&h, 3)])),
+                    val_decl(d, struct_init(&h, box2_s, vec![str_lit(&h, "x")])),
                 ],
             },
         );
@@ -8491,37 +8754,37 @@ Module
     #[test]
     fn generic_interface_applications_get_distinct_mir_identities() {
         let mut h = Harness::new();
-        let interface = h.interfaces.alloc(hir::InterfaceDecl {
-            name: "Channel".to_string(),
-            type_params: vec![hir::TypeParamDecl {
+        let t = h
+            .types
+            .alloc(hir::Type::Param(hir::TypeParamId::from_raw(0)));
+        let interface = h.declare_interface(
+            "Channel",
+            vec![hir::TypeParamDecl {
                 name: "T".to_string(),
                 variance: hir::Variance::Out,
                 bounds: hir::TypeParamBounds::Unconstrained,
                 span: SPAN,
             }],
-            methods: Vec::new(),
-            span: SPAN,
-        });
-        let int_channel = h.types.alloc(hir::Type::Interface(interface, vec![h.int]));
-        let string_channel = h
-            .types
-            .alloc(hir::Type::Interface(interface, vec![h.string]));
-        h.classes.alloc(hir::ClassDecl {
-            modifier: hir::ClassModifier::Final,
-            name: "Ints".to_string(),
-            constructor: Vec::new(),
-            base_class: None,
-            interfaces: vec![int_channel],
-            span: SPAN,
-        });
-        h.classes.alloc(hir::ClassDecl {
-            modifier: hir::ClassModifier::Final,
-            name: "Strings".to_string(),
-            constructor: Vec::new(),
-            base_class: None,
-            interfaces: vec![string_channel],
-            span: SPAN,
-        });
+            vec![t],
+            Vec::new(),
+        );
+        let (int, string) = (h.int, h.string);
+        let int_channel = h.interface_app(interface, vec![int]);
+        let string_channel = h.interface_app(interface, vec![string]);
+        h.declare_class(
+            "Ints",
+            hir::ClassModifier::Final,
+            &[],
+            None,
+            vec![int_channel],
+        );
+        h.declare_class(
+            "Strings",
+            hir::ClassModifier::Final,
+            &[],
+            None,
+            vec![string_channel],
+        );
         let main = h.user_fn(
             "main",
             hir::Body {
@@ -8890,26 +9153,22 @@ Module
     ) -> hir::InterfaceId {
         let unit = h.unit;
         let mut locals = Arena::new();
-        h.interfaces.alloc(hir::InterfaceDecl {
-            name: name.to_string(),
-            type_params: Vec::new(),
-            methods: methods
-                .iter()
-                .map(|(name, ty)| {
-                    let v = locals.alloc(local("v", *ty));
-                    hir::MethodSig {
-                        name: name.to_string(),
-                        is_suspend: false,
-                        attributes: hir::FunctionAttributes::default(),
-                        type_params: Vec::new(),
-                        params: vec![param("v", *ty, v)],
-                        return_ty: unit,
-                        span: SPAN,
-                    }
-                })
-                .collect(),
-            span: SPAN,
-        })
+        let methods = methods
+            .iter()
+            .map(|(name, ty)| {
+                let v = locals.alloc(local("v", *ty));
+                hir::MethodSig {
+                    name: name.to_string(),
+                    is_suspend: false,
+                    attributes: hir::FunctionAttributes::default(),
+                    type_params: Vec::new(),
+                    params: vec![param("v", *ty, v)],
+                    return_ty: unit,
+                    span: SPAN,
+                }
+            })
+            .collect();
+        h.declare_interface(name, Vec::new(), Vec::new(), methods)
     }
 
     #[test]
@@ -9008,7 +9267,7 @@ Module
         let multi = overloaded_interface(&mut h, "Multi", &[("m", int), ("m", string)]);
         let multi_ty = h.interface_ty(multi);
         let s = h.strukt_with("S", &[("x", int)], &[multi]);
-        let s_ty = h.types.alloc(hir::Type::Struct(s, Vec::new()));
+        let s_ty = h.struct_ty(s);
         int_method(&mut h, "S.m", s_ty, Some(int), 1);
         int_method(&mut h, "S.m", s_ty, Some(string), 2);
         let mut locals = Arena::new();
@@ -9020,7 +9279,7 @@ Module
                 statements: vec![val_decl(
                     d,
                     expr(
-                        hir::ExprKind::Box(Box::new(struct_init(s, s_ty, vec![int_lit(&h, 1)]))),
+                        hir::ExprKind::Box(Box::new(struct_init(&h, s_ty, vec![int_lit(&h, 1)]))),
                         multi_ty,
                     ),
                 )],
@@ -9402,6 +9661,7 @@ Module
         let mut h = Harness::new();
         let my_error = h.exception("MyError");
         let error_ty = h.class_ty(my_error);
+        let error_application = h.class_application_of(error_ty);
         let mut locals = Arena::new();
         let e = locals.alloc(local("e", error_ty));
         let main = h.user_fn(
@@ -9411,7 +9671,7 @@ Module
                 statements: vec![stmt(hir::StatementKind::Try(hir::Try {
                     body: vec![stmt(hir::StatementKind::Throw(expr(
                         hir::ExprKind::ClassInit {
-                            class_id: my_error,
+                            application: error_application,
                             args: Vec::new(),
                         },
                         error_ty,
@@ -9630,7 +9890,7 @@ Module
     fn struct_equality_expands_into_per_field_comparisons() {
         let mut h = Harness::new();
         let point = h.strukt("Point", &[("x", h.int), ("y", h.int)]);
-        let point_ty = h.types.alloc(hir::Type::Struct(point, Vec::new()));
+        let point_ty = h.struct_ty(point);
         let mut locals = Arena::new();
         let p = locals.alloc(local("p", point_ty));
         let q = locals.alloc(local("q", point_ty));
@@ -9642,11 +9902,11 @@ Module
                 statements: vec![
                     val_decl(
                         p,
-                        struct_init(point, point_ty, vec![int_lit(&h, 1), int_lit(&h, 2)]),
+                        struct_init(&h, point_ty, vec![int_lit(&h, 1), int_lit(&h, 2)]),
                     ),
                     val_decl(
                         q,
-                        struct_init(point, point_ty, vec![int_lit(&h, 3), int_lit(&h, 4)]),
+                        struct_init(&h, point_ty, vec![int_lit(&h, 3), int_lit(&h, 4)]),
                     ),
                     val_decl(
                         b,
@@ -9711,7 +9971,7 @@ Module
         let mut h = Harness::new();
         let pair = h.tuple(&[h.int, h.boolean]);
         let wrap = h.strukt("Wrap", &[("tag", h.string), ("pair", pair)]);
-        let wrap_ty = h.types.alloc(hir::Type::Struct(wrap, Vec::new()));
+        let wrap_ty = h.struct_ty(wrap);
         let mut locals = Arena::new();
         let w1 = locals.alloc(local("w1", wrap_ty));
         let w2 = locals.alloc(local("w2", wrap_ty));
@@ -9726,7 +9986,7 @@ Module
                     val_decl(
                         w1,
                         struct_init(
-                            wrap,
+                            &h,
                             wrap_ty,
                             vec![
                                 str_lit(&h, "a"),
@@ -9737,7 +9997,7 @@ Module
                     val_decl(
                         w2,
                         struct_init(
-                            wrap,
+                            &h,
                             wrap_ty,
                             vec![
                                 str_lit(&h, "b"),
@@ -9906,7 +10166,8 @@ Module
     fn field_access_uses_zero_based_indices() {
         let mut h = Harness::new();
         let point = h.strukt("Point", &[("x", h.int), ("y", h.int)]);
-        let point_ty = h.types.alloc(hir::Type::Struct(point, Vec::new()));
+        let point_ty = h.struct_ty(point);
+        let point_application = h.struct_application_of(point_ty);
         let pair = h.tuple(&[h.int, h.string]);
         let mut locals = Arena::new();
         let p = locals.alloc(local("p", point_ty));
@@ -9925,7 +10186,7 @@ Module
                             hir::ExprKind::FieldAccess {
                                 receiver: Box::new(local_ref(p, point_ty)),
                                 field: hir::FieldRef::StructField {
-                                    struct_id: point,
+                                    application: point_application,
                                     index: 1,
                                 },
                             },
@@ -10305,22 +10566,16 @@ Module
         let mut h = Harness::new();
         let (int, string) = (h.int, h.string);
         // A non-generic enum.
-        let color = h.enums.alloc(hir::EnumDecl {
-            name: "Color".to_string(),
-            type_params: Vec::new(),
-            no_gc: false,
-            variants: ["Red", "Green", "Blue"]
-                .iter()
-                .map(|name| hir::Variant {
-                    name: name.to_string(),
-                    fields: Vec::new(),
-                    defaults: Vec::new(),
-                })
-                .collect(),
-            interfaces: Vec::new(),
-            span: SPAN,
-        });
-        let color_ty = h.types.alloc(hir::Type::Enum(color, Vec::new()));
+        let color_variants = ["Red", "Green", "Blue"]
+            .iter()
+            .map(|name| hir::Variant {
+                name: name.to_string(),
+                fields: Vec::new(),
+                defaults: Vec::new(),
+            })
+            .collect();
+        let color = h.declare_enum("Color", Vec::new(), Vec::new(), color_variants);
+        let color_ty = h.enum_ty(color);
         let option_int = h.option(int);
         let option_string = h.option(string);
         // f1 holds Option<Int> and Color; f2 holds Option<Int> again
@@ -10731,8 +10986,8 @@ Module
         let print_int = h.print_int();
         let println_string = h.println_string();
         let int = h.int;
-        let option_enum = h.option_enum;
         let option_int = h.option(int);
+        let option_application = h.enum_application_of(option_int);
         let mut locals = Arena::new();
         let o = locals.alloc(local("o", option_int));
         let x = locals.alloc(local("x", int));
@@ -10753,7 +11008,7 @@ Module
                         vec![
                             arm(
                                 hir::Pattern::Variant {
-                                    enum_id: option_enum,
+                                    application: option_application,
                                     variant: 0,
                                     fields: vec![(0, hir::Pattern::Binding { local: x })],
                                 },
@@ -10762,7 +11017,7 @@ Module
                             ),
                             arm(
                                 hir::Pattern::Variant {
-                                    enum_id: option_enum,
+                                    application: option_application,
                                     variant: 1,
                                     fields: Vec::new(),
                                 },
@@ -10853,8 +11108,8 @@ Module
         let print_int = h.print_int();
         let println_string = h.println_string();
         let int = h.int;
-        let option_enum = h.option_enum;
         let option_int = h.option(int);
+        let option_application = h.enum_application_of(option_int);
         let mut locals = Arena::new();
         let o = locals.alloc(local("o", option_int));
         let x = locals.alloc(local("x", int));
@@ -10873,7 +11128,7 @@ Module
                     local_ref(o, option_int),
                     vec![arm(
                         hir::Pattern::Variant {
-                            enum_id: option_enum,
+                            application: option_application,
                             variant: 0,
                             fields: vec![(0, hir::Pattern::Binding { local: x })],
                         },
@@ -11011,7 +11266,8 @@ Module
         let mut h = Harness::new();
         let (int, string) = (h.int, h.string);
         let point = h.strukt("Point", &[("x", int), ("y", int)]);
-        let point_ty = h.types.alloc(hir::Type::Struct(point, Vec::new()));
+        let point_ty = h.struct_ty(point);
+        let point_application = h.struct_application_of(point_ty);
         let pair = h.tuple(&[int, string]);
         let mut locals = Arena::new();
         let a = locals.alloc(local("a", int));
@@ -11035,11 +11291,11 @@ Module
                     }),
                     val_decl(
                         p,
-                        struct_init(point, point_ty, vec![int_lit(&h, 3), int_lit(&h, 4)]),
+                        struct_init(&h, point_ty, vec![int_lit(&h, 3), int_lit(&h, 4)]),
                     ),
                     stmt(hir::StatementKind::ValDecl {
                         pattern: hir::Pattern::Struct {
-                            struct_id: point,
+                            application: point_application,
                             fields: vec![(0, hir::Pattern::Binding { local: x })],
                         },
                         init: local_ref(p, point_ty),
@@ -11382,6 +11638,7 @@ Module
             &[],
         );
         let derived_ty = h.class_ty(derived);
+        let derived_application = h.class_application_of(derived_ty);
         let mut locals = Arena::new();
         let d = locals.alloc(local("d", derived_ty));
         let b = locals.alloc(local("b", string));
@@ -11395,7 +11652,7 @@ Module
                         hir::ExprKind::FieldAccess {
                             receiver: Box::new(local_ref(d, derived_ty)),
                             field: hir::FieldRef::ClassField {
-                                class_id: derived,
+                                application: derived_application,
                                 index: 1,
                             },
                         },
@@ -11551,7 +11808,7 @@ Module
         // A value type method.
         let int = h.int;
         let s = h.strukt("S", &[("x", int)]);
-        let s_ty = h.types.alloc(hir::Type::Struct(s, Vec::new()));
+        let s_ty = h.struct_ty(s);
         let s_describe = empty_method(&mut h, "S", "describe", s_ty);
 
         let unit = h.unit;
@@ -11682,7 +11939,7 @@ Module
         let mut h = Harness::new();
         let int = h.int;
         let s = h.strukt("S", &[("x", int)]);
-        let s_ty = h.types.alloc(hir::Type::Struct(s, Vec::new()));
+        let s_ty = h.struct_ty(s);
         let any = h.any();
         let mut locals = Arena::new();
         let a = locals.alloc(local("a", any));
@@ -11693,7 +11950,7 @@ Module
                 statements: vec![val_decl(
                     a,
                     expr(
-                        hir::ExprKind::Box(Box::new(struct_init(s, s_ty, vec![int_lit(&h, 1)]))),
+                        hir::ExprKind::Box(Box::new(struct_init(&h, s_ty, vec![int_lit(&h, 1)]))),
                         any,
                     ),
                 )],
@@ -11854,7 +12111,7 @@ Module
         let iface = h.interface("Describable", &["describe"]);
         let iface_ty = h.interface_ty(iface);
         let s = h.strukt_with("S", &[("x", int)], &[iface]);
-        let s_ty = h.types.alloc(hir::Type::Struct(s, Vec::new()));
+        let s_ty = h.struct_ty(s);
         let _describe = empty_method(&mut h, "S", "describe", s_ty);
         // `val d: Describable = S(1)` — a Box whose target is the
         // interface.
@@ -11867,7 +12124,7 @@ Module
                 statements: vec![val_decl(
                     d,
                     expr(
-                        hir::ExprKind::Box(Box::new(struct_init(s, s_ty, vec![int_lit(&h, 1)]))),
+                        hir::ExprKind::Box(Box::new(struct_init(&h, s_ty, vec![int_lit(&h, 1)]))),
                         iface_ty,
                     ),
                 )],
@@ -11913,7 +12170,7 @@ Module
         h.exception("ClassCastException");
         let (int, boolean) = (h.int, h.boolean);
         let s = h.strukt("S", &[("x", int)]);
-        let s_ty = h.types.alloc(hir::Type::Struct(s, Vec::new()));
+        let s_ty = h.struct_ty(s);
         let any = h.any();
         let option_s = h.option(s_ty);
         let mut locals = Arena::new();
@@ -12118,6 +12375,7 @@ Module
             &[],
         );
         let point_ty = h.class_ty(point);
+        let point_application = h.class_application_of(point_ty);
         let mut locals = Arena::new();
         let p = locals.alloc(local("p", point_ty));
         let main = h.user_fn(
@@ -12128,7 +12386,7 @@ Module
                     p,
                     expr(
                         hir::ExprKind::ClassInit {
-                            class_id: point,
+                            application: point_application,
                             args: vec![int_lit(&h, 1)],
                         },
                         point_ty,
@@ -12208,6 +12466,7 @@ Module
             &[],
         );
         let c_ty = h.class_ty(c);
+        let c_application = h.class_application_of(c_ty);
         let mut locals = Arena::new();
         let p = locals.alloc(local("p", c_ty));
         let main = h.user_fn(
@@ -12218,7 +12477,7 @@ Module
                     target: hir::AssignTarget::Field {
                         receiver: Box::new(local_ref(p, c_ty)),
                         field: hir::FieldRef::ClassField {
-                            class_id: c,
+                            application: c_application,
                             index: 1,
                         },
                     },
@@ -12250,7 +12509,7 @@ Module
         let int = h.int;
         let iface = h.interface("Describable", &["describe"]);
         let s = h.strukt_with("S", &[("x", int)], &[iface]);
-        let s_ty = h.types.alloc(hir::Type::Struct(s, Vec::new()));
+        let s_ty = h.struct_ty(s);
         let _describe = empty_method(&mut h, "S", "describe", s_ty);
         let any = h.any();
         let mut locals = Arena::new();
@@ -12262,7 +12521,7 @@ Module
                 statements: vec![val_decl(
                     a,
                     expr(
-                        hir::ExprKind::Box(Box::new(struct_init(s, s_ty, vec![int_lit(&h, 1)]))),
+                        hir::ExprKind::Box(Box::new(struct_init(&h, s_ty, vec![int_lit(&h, 1)]))),
                         any,
                     ),
                 )],
@@ -12424,7 +12683,8 @@ Module
         let println_int = h.println_int();
         let (int, boolean) = (h.int, h.boolean);
         let s = h.strukt("S", &[("v", int)]);
-        let s_ty = h.types.alloc(hir::Type::Struct(s, Vec::new()));
+        let s_ty = h.struct_ty(s);
+        let s_application = h.struct_application_of(s_ty);
         let any = h.any();
         let mut locals = Arena::new();
         let a = locals.alloc(local("a", any));
@@ -12438,7 +12698,7 @@ Module
                             s_ty,
                         )),
                         field: hir::FieldRef::StructField {
-                            struct_id: s,
+                            application: s_application,
                             index: 0,
                         },
                     },
