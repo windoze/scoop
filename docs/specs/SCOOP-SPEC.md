@@ -1327,12 +1327,13 @@ struct GcHandle<T : ref>(val raw: UInt64)
 
 ### 14.2 调用约定
 
-Scoop ABI FFI 的 caller side（Scoop 托管代码一侧）必须生成 ordinary managed call 框架：
+Scoop ABI FFI 的 caller side（Scoop 托管代码一侧）必须生成 typed native-borrowed call 框架：
 
-- 按普通 managed call 保持所有 live ref，并把 direct-ref 实参纳入调用点根集合；
-- ordinary call site，由 statepoint rewrite 处理 safepoint；
+- 调用前把所有调用后live ref及direct-ref实参写入显式、可更新的caller-root frame；含ref返回值使用调用前已清零并一同发布的typed result storage；
+- machine call仍由statepoint rewrite处理并带唯一ID，但其`gc-live`/`gc.relocate`必须为空；冻结managed栈段只以caller-root frame为真相来源，不能同时从另一份statepoint spill恢复引用；
 - M12 单mutator实现不插线程状态转换；M13多mutator实现发布live caller roots并在调用期间进入`native-borrowed`，返回managed前检查GC epoch。它不得进入C ABI使用的`native-safe`，也不得省略direct-ref callee在显式runtime入口所需的native-root协议；
-- callee 默认不标记为 `gc-leaf-function`；只有签名与实现都满足 13.2、并显式声明 `@NoGC` 的 Scoop ABI extern 才可按 GC leaf 降低；
+- native返回含ref结果时，caller在仍处于`native-borrowed`且本线程尚不能被视为quiescent时立即写入已发布result storage；leave/epoch握手后只从caller-root/result slot reload，再移除root frame；
+- `@NoGC`只保证native callee不调用GC/runtime/managed callback；M15多mutator moving实现仍保留native-borrowed transition、caller-root publication与返回reload，不能把该边界降为无root的普通NoGC call；
 - machine callconv 初版使用 LLVM 默认 callconv `0`；
 - 调用点本身**不要求 unsafe context**（`abi = "scoop"` 的 extern 函数不是 unsafe function，见 13.4）。
 
@@ -1424,6 +1425,8 @@ void scoop_rt_write(const ScoopString *message)
 
 为方便实现者，以下内容 Scoop 不支持：
 
+其中GC finalizer是永久排除项，不是尚未实现：对象不可达时不会执行`finalize`、析构方法或任意managed回调，也不存在对象复活语义。native resource应显式`release`/`close`并用`try/finally`保证正常路径清理；未来只可能增加runtime spec 3.8所限定的GC-free release hook作为非及时、不可复活的兜底。该hook只能附着于具有唯一managed identity的`ref` owner；值类型的复制语义与隐式release ownership不兼容。
+
 | 排除项 | 替代方案 |
 |---|---|
 | `enum class` | `enum`（4.2） |
@@ -1435,6 +1438,7 @@ void scoop_rt_write(const ScoopString *message)
 | `expect` / `actual` | 无（单平台） |
 | JVM 互操作注解与 SAM 转换 | 无 |
 | 运行期反射 | 编译期/单态化机制 |
+| GC finalizer、析构回调与对象复活 | 显式 `release` / `close` + `try/finally`；未来仅有GC-free release hook兜底 |
 | struct 的 `init` 块 / `var` 字段 | 构造函数内逻辑 / `val` |
 | 对值类型使用 `===` | `==`（结构相等） |
 | `Array<T>` 的协变/逆变 | 显式转换或重新构造（见 10.4） |

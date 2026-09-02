@@ -17,7 +17,7 @@ Runtime 是编译产物的支撑层，职责包括：
 
 明确**不在**本文范围：
 
-- 第 3 章所定单代、非移动 Immix 基线之外的替代 GC 算法及优化；
+- 第 3 章所定单代、STW、单线程 moving Immix 基线之外的替代 GC 算法及优化；
 - 协程调度器、集合、IO 等标准库内容；
 - 普通 outbound C ABI callee 的内部实现；spec 14.3 的 managed callback 是经 runtime gateway 重新进入 Scoop 的独立反向边界；
 - 编译器 intrinsic（`@Intrinsic`，spec 13.1）由编译器生成实现，不经 runtime。
@@ -71,27 +71,32 @@ managed 函数值是普通引用对象，不是原生函数指针。每个 concr
 
 ## 3. GC 契约
 
-参考实现的M9基线是单代、非移动的Immix mark-region collector；M13在其上增加多mutator STW，collector仍为单线程。以下是编译器与runtime共同遵守的长期契约；后续分代、移动或parallel/concurrent实现可以替换算法，但不得破坏root、safepoint、native借用与handle语义。
+参考实现由M9的单代非移动Immix和M13的多mutator STW演进而来；M15基线为单代、STW、单线程collector的moving Immix。以下是编译器与runtime共同遵守的长期契约；后续分代或parallel/concurrent实现可以替换算法，但不得破坏root、safepoint、native借用、pin与handle语义。M15首个runtime target为macOS/AArch64；其他target在拥有等价的精确frame/location adapter前不得退回保守扫描运行moving collector。
 
 ### 3.1 分配入口
 
 分配分为两条通道：
 
-- **managed 快速通道**：编译器生成的代码**不使用 handle**，直接取得裸指针。标准形态是 TLAB 碰撞指针（bump pointer）内联序列；成功后由不含safepoint、不取得heap/world锁的GC-leaf `scoop_runtime_finish_tlab_alloc`完成清零、对象头与object-start登记，缓冲区耗尽时才落入 slow path（`scoop_runtime_alloc_slow`，可能触发 GC）。编译器必须在 safepoint保留完整live root信息；M13的非移动collector可用保守栈扫描消费它，M15 moving collector必须通过statepoint relocation更新引用（spec 14.2）。managed 分配是最高频操作，其成本必须保持摊销 O(1)，不经 handle 表。
+- **managed 快速通道**：编译器生成的代码**不使用 handle**，直接取得裸指针。标准形态是 TLAB 碰撞指针（bump pointer）内联序列；成功后由不含safepoint、不取得heap/world锁的GC-leaf `scoop_runtime_finish_tlab_alloc`完成清零、对象头与object-start/精确allocation-size side metadata登记，缓冲区耗尽时才落入 slow path（`scoop_runtime_alloc_slow`，可能触发 GC）。编译器必须在 safepoint保留完整live root信息；M15 moving collector精确消费statepoint stack map并更新其location，生成代码在调用后只使用`gc.relocate`结果（spec 14.2）。managed 分配是最高频操作，其成本必须保持摊销 O(1)，不经 handle 表。
 - **Scoop ABI native 通道**：外部实现没有 stack map；它可以直接借用传入的 managed ref，但在调用可能触发 GC 的 runtime入口前，必须先把仍需使用的引用登记为 native root slot（见 4.2）。需要把新对象长期带出 native frame时可使用 handle；需要稳定裸地址时使用 pinned allocation。
 
-M13 起每个已attach线程持有独立TLAB；slow path在同步的heap元数据下从Immix free-line run或新block切出互不重叠区间。STW开始后全部TLAB失效，GC结束后各线程在下一次分配时重新refill。内联bump与上述GC-leaf finish helper共同构成fast path，并必须在返回前清零完整对象、初始化对象头并以原子方式登记object-start metadata，保证多mutator分配与构造中途safepoint都可安全扫描。TLAB具体尺寸可调，但managed分配返回裸指针、摊销O(1)、不经handle表的契约不变。
+M13 起每个已attach线程持有独立TLAB；slow path在同步的heap元数据下从Immix free-line run或新block切出互不重叠区间。STW开始后全部TLAB失效，GC结束后各线程在下一次分配时重新refill。内联bump与上述GC-leaf finish helper共同构成fast path，并必须在返回前清零完整对象、初始化对象头，并以原子方式同时登记object-start与精确normalized allocation size，保证多mutator分配与构造中途safepoint都可安全扫描。只登记start而没有size不是合法的已发布对象状态。TLAB具体尺寸可调，但managed分配返回裸指针、摊销O(1)、不经handle表的契约不变。
 
 ### 3.2 safepoint 模型
 
-- managed（编译器生成）代码：statepoint poll（spec 14.2 的 LLVM 策略）；
+- managed（编译器生成）代码：statepoint poll（spec 14.2 的 LLVM 策略）。函数入口及每条循环回边在LIR中已经是带完备live-root plan的显式poll，不由codegen补插；managed ref在LLVM中使用address space 1，普通poll/call的活跃ref leaf由statepoint/`gc.relocate`描述。含ref aggregate必须先拆为独立leaf，不能把aggregate alloca当作隐式stack region；
+- managed `invoke`：LLVM当前异常边relocation不能作为语言实现基础。编译器在invoke前把normal/unwind后继仍活跃的ref leaf写入显式compiler root frame，两个后继都从slot reload并在继续控制流前pop；该invoke仍有statepoint frame record，但不得产生exceptional `gc.relocate`；
+- outbound native transition：native-safe/native-borrowed调用前发布完备caller-root frame，machine call保留statepoint record但`gc-live`/relocate为空；冻结managed segment不扫描该record。返回值含ref时使用调用前已清零并登记的result storage，在native-borrowed返回后、leave可能park前写入，回到managed后连同其他live root只从slot reload；
 - Scoop ABI FFI：函数体内**无** safepoint poll，GC 只能在其显式调用 runtime或回调 managed代码时于该入口内部发生；跨越这些入口的 direct ref必须位于 native root slot（spec 14.3）；
 - C ABI callee不接收 managed ref，也不得直接调用 Scoop GC；M12 单 mutator实现可把它视为纯 GC leaf。M13启用多mutator后，outbound caller必须在调用前发布live roots并进入native-safe，使其他线程发起的STW GC无需等待一个可能阻塞的C调用。C代码若持有4.3注册所得的静态trampoline与cookie，可以经这个**独立反向边界**进入managed callback；这不使原C callee获得direct ref或Scoop ABI能力，外层caller roots继续由native-safe transition保活。
 
+M15的macOS/AArch64 runtime只更新stack-resident managed roots。固定的LLVM 22.1 backend profile通过SelectionDAG默认spill与post-RA statepoint fixup保证每个GC base/derived location都是可写的8-byte `Indirect [SP/FP + offset]`；runtime不保存、unwind或改写register root。stackmap前三个constant location、deopt location与live-out不属于GC root pair；通用parser必须能区分这些区域，DarwinAArch64 profile只在GC root位置拒绝`Register`/`Direct`/constant等非约定形态。
+
 ### 3.3 根集合
 
-- 栈根：managed caller在statepoint处的live roots、Scoop ABI调用点保持的live roots，以及native callee显式登记的可更新root slot链。编译器始终发射statepoint metadata；M13按3.5以经过对象起点校验的保守managed栈段扫描覆盖这些根，M15 moving collector启用前必须改为精确消费stack map；
-- 全局根：`object` 单例等引用类型全局状态（全局 `var` 按 spec 13.6 必须 GC-free，不构成根）；
+- 栈根：managed caller在statepoint处的live root location、managed invoke显式compiler root frame、Scoop ABI调用点保持的caller roots，以及native callee显式登记的可更新root slot链。runtime以精确return PC查stack-map record并把每个location解析为可写slot；不存在保守栈扫描fallback；
+- 全局根：`object` 单例等引用类型全局状态（全局 `var` 按 spec 13.6 必须 GC-free，不构成根）。LIR/codegen为每个可能含ref的managed global输出非可选递归scan描述，runtime在managed执行前登记其可写storage；
+- stable/immortal对象：活跃的ABI exception buffer作为动态stable external object登记，其内部ref slot可更新；编译器生成的静态String等只读immortal object必须有精确地址/size/TD登记。M15只允许GC-free payload的只读immortal对象；未登记的heap外地址不能出现在managed slot；
 - handle 表与 pinned 对象（`GcHandle` 保活其引用对象；pinned 对象作为根被扫描，见 3.4）。
 
 ### 3.4 保活机制（两级）
@@ -103,29 +108,54 @@ M13 起每个已attach线程持有独立TLAB；slow path在同步的heap元数�
 
 ### 3.5 线程
 
-线程创建/销毁时向 GC 注册/注销。M13 的多 mutator基线使用带单调GC epoch的合作式 stop-the-world handshake，并至少区分 managed、native-safe、native-borrowed、parked与collector状态：managed线程在入口/回边 poll或runtime入口保存SP/寄存器后停顿；C ABI outbound call发布 caller roots并冻结当前managed栈段后进入 native-safe，collector扫描已发布roots且无需等待其返回；持有 direct ref的 Scoop ABI native code属于 native-borrowed，只在登记 native roots的显式 runtime/managed入口或返回边界参与协调。每次managed/native重入都在LIFO transition链中划分managed栈段，使collector扫描当前及已冻结managed段而跳过夹在其间的native栈。collector 不得在未握手的普通 native-borrowed指令之间移动对象或扫描仍在变化的native栈。进入协调点时，当前线程的managed栈段链、compiler caller-root frame与native root slot链必须可扫描、可更新。compiler caller-root entry由value storage地址和递归scan descriptor组成；tagged enum的固定ref偏移可直接扫描，因为inactive variant slot按spec 7.4恒为全0。含ref的Scoop ABI返回storage从push前的全零值开始登记，在native返回后、leave可能park前写入结果，并在恢复managed后reload。
+线程创建/销毁时向 GC 注册/注销。M13建立的多 mutator协议使用带单调GC epoch的合作式 stop-the-world handshake，并至少区分 managed、native-safe、native-borrowed、parked与collector状态：managed线程在入口/回边 poll或managed runtime入口发布平台定义的top managed anchor后停顿；C ABI outbound call发布 caller roots并冻结当前managed栈段后进入 native-safe，collector扫描已发布roots且无需等待其返回；持有 direct ref的 Scoop ABI native code属于 native-borrowed，只在登记 native roots的显式 runtime/managed入口或返回边界参与协调。每次managed/native重入都在LIFO transition链中划分managed栈段。M15只对当前活动managed段从anchor按精确stack map walk；冻结段完全由进入native前发布的caller roots表示，不扫描native-call statepoint location、其中的普通内存，也不跨native frame反向猜测。collector 不得在未握手的普通 native-borrowed指令之间移动对象或扫描仍在变化的native栈。进入协调点时，当前线程anchor、compiler caller-root frame与native root slot链必须可扫描、可更新。compiler caller-root entry由value storage地址和递归scan descriptor组成；tagged enum的固定ref偏移可直接扫描，因为inactive variant slot按spec 7.4恒为全0。含ref的Scoop ABI返回storage从push前的全零值开始登记，在native返回后、leave可能park前写入结果，并在恢复managed后reload。
 
 进入managed、离开native-safe或离开native-borrowed必须与epoch发布形成无丢失握手：转换方发布mode后复查phase/epoch，观察到`Stopping`或epoch变化时在执行第一条managed指令前park；collector先release发布`Stopping`再以acquire读取线程mode。不得把线程按native-safe计为quiescent后又允许它未经复查进入managed。
 
 foreign thread在进入任何 managed代码前必须 attach，建立 TLS thread state、栈边界、TLAB和空 native-root链；离开最后一个 managed callback后由拥有本次 attachment的入口 detach。重复使用的长期 foreign thread可以显式保持 attachment，但不得在 runtime shutdown后重新进入。
 
-M13 的collector仍是单线程、单代、非移动实现。parked线程只对transition链标出的当前/冻结managed栈段执行经heap-object-start校验的保守扫描，并跳过段间native栈；native-safe/native-borrowed路径同样只扫描冻结managed段和显式roots，不扫描活动native栈。精确消费statepoint stackmap仍是M15移动collector的前置条件，M13不得宣称已支持root relocation。
+M15的platform bundle由object-image、OS thread/VM与architecture/ABI frame三个完备组件组成；通用runtime只经该bundle把top anchor与每一帧return PC/stack-map location转换为可写root slot，不读取Mach-O/x29等平台细节。macOS/AArch64基线强制generated/runtime frame pointer、禁止managed tail call，并要求return PC原值精确命中record；不得使用`PC-4`、最近函数、symbol或地址范围猜测。任何缺失record、越界location、未知DWARF register或当前target不支持的GC-root location kind都是fatal metadata错误；生产编译器应已在object验证阶段把这种情况报告为compiler/toolchain invariant failure，runtime检查只防御错误链接、损坏或非Scoop产物。每个由generated managed code直接调用且可park/collect的managed runtime symbol必须通过薄入口先发布`{ return_pc, callsite_sp, frame_pointer }` opaque anchor，再调用平台无关实现；runtime内部不得重入该入口并把C frame冒充managed frame。Scoop ABI native实现调用的是另一组native-borrowed入口：它验证已发布的caller/native roots并参与握手，但不捕获C caller或伪造managed anchor。
 
 ### 3.6 屏障
 
-是否需要写/读屏障取决于 GC 算法；编译器侧预留插桩点（具体形式随 GC 方案确定）。M13 虽仍不消费card table，但多mutator对card的标记必须使用atomic monotonic store/RMW；多个线程写入同一个普通byte即使值都为1也不能视为无数据竞争。
+是否需要写/读屏障取决于 GC 算法；编译器侧预留插桩点（具体形式随 GC 方案确定）。M15的单代collector仍不消费card table，但多mutator对card的标记必须使用atomic monotonic store/RMW；多个线程写入同一个普通byte即使值都为1也不能视为无数据竞争。
+
+### 3.7 moving collection与side metadata
+
+M15 collector为选中的from-space对象建立arena外forwarding关系，把未pin live object复制到独立to-space，再通过统一可改写slot visitor更新全部root和heap字段。普通模式可按block占用率选择source，但只要存在可移动live object且to-space足够，一次显式full collection至少选择一个eligible source，不能退化为永久不移动的mark/sweep；stress模式必须移动全部未pin live object。pinned对象不移动但其出站ref仍更新；`GcHandle`只更新table entry，generation/slot identity不变。
+
+block state、object-start、每个对象的精确normalized allocation size、line/free-run信息与forwarding均位于GC arena外。block header、free-block node或hole node不得存放在可能poison/保护的arena内。可变长String/Array及large object的复制长度直接读取allocation metadata，不能从TypeDescriptor fixed size、block span或payload内容反推。
+
+collection在释放world前必须重新验证所有合法slot不再指向forwarded旧地址。stress mode在每次mutator-visible managed allocation前执行full moving collection；evacuation allocation不可递归触发collection。验证完成后poison旧副本；不再含live/pinned对象的source block整块`PROT_NONE`并永久quarantine，partial pinned block中的已搬span同样poison且在stress进程中不复用。
+
+### 3.8 finalizer与资源释放
+
+Scoop**永久不支持全功能GC finalizer**。不可达判定、mark/sweep、evacuation、旧副本poison或block quarantine都不得调用对象方法、lambda/closure或任意managed代码；对象不能在回收阶段取得`this`、重新发布自身、建立root/handle/pin或以其他形式复活。该限制不是当前实现缺口，也不能通过runtime内部开关、core专用能力或FFI旁路放宽。
+
+非GC资源首先必须由程序通过显式`release`/`close`及`try/finally`管理。未来可以增加一个仅用于遗漏显式释放时兜底的**GC-free release hook**，但其语法、core API与落地里程碑尚未确定，并且必须满足以下长期边界：
+
+- hook是静态、non-suspend、non-throw且GC-free的清理入口；它只可操作payload并调用经验证为`@NoGC`的native resource release primitive（例如`free`/`close`）。不得分配managed对象、触发GC、调用managed代码或callback，也不得操作root、`GcHandle`或pin；
+- hook只能附着在具有唯一managed identity的`ref`对象上；struct、enum、tuple及其他值类型会按值复制，不能携带隐式release ownership。需要兜底的native handle值必须由引用型owner封装；
+- hook不接收managed对象或`this`，只接收编译器验证为GC-free的typed release payload副本，例如raw native handle、整数与其他GC-free值。payload中直接或间接出现managed ref均为编译错误；
+- collector在逻辑对象死亡时至多claim一次armed release记录，并在回收对象存储前把payload复制到runtime拥有的非GC内存；hook不通过旧对象地址读取字段；
+- 显式资源释放必须能够原子地disarm对应记录；claim/disarm保证同一资源至多清理一次。moving只转移armed状态，from-space旧副本失效不表示逻辑对象死亡，不能触发hook；
+- hook的执行时间、不同hook之间的顺序以及进程正常或异常退出时是否执行均不保证。runtime shutdown不遍历全部live/uncollected对象执行finalization pass；程序正确性、锁释放、事务完成和稀缺资源的及时回收不能依赖hook。
+
+release policy在未来IR/runtime中必须是完备sum（概念上为`None | GcFreeRelease { payload layout, hook }`），不能用可缺失hook指针、类型名或对象字段形状让collector猜测。该受限机制不具备finalizer语义，也不得逐步扩展为finalizer。
 
 ---
 
 ## 4. Scoop ABI FFI runtime functions
 
-对应 spec 第 14 章。以下固定 runtime 必须提供的功能与语义；M13 已定稿的 thread state、handle 与 callback token 编码按本章执行，尚未列出的导出 C 函数签名在实现时由 runtime header 锁定。
+对应 spec 第 14 章。以下固定 runtime 必须提供的功能与语义；M13 已定稿的 thread state、handle 与 callback token 编码继续按本章执行，M15增加精确root更新与moving语义；尚未列出的导出 C 函数签名在实现时由 runtime header 锁定。
 
 ### 4.1 对象分配
 
+- runtime导出入口在类型和symbol上区分managed generated-code entry、Scoop ABI native-borrowed entry、runtime-only internal implementation与foreign-callback entry；不得由单一入口在运行期猜direct caller kind。以下本节分配API属于native-borrowed入口，managed TLAB slow path使用3.1所述独立managed入口；
 - `scoop_runtime_alloc_pinned(type_desc, size) -> ScoopObjectHeader*`：**分配即固定**，直接返回裸指针。它用于确实要求稳定裸地址的 native / C ABI 场景，不是 direct-ref Scoop ABI 的默认通道。pin 标志在分配返回前已设置，因此即使分配过程触发了 GC，返回的指针也可以直接使用；其所有权与 `unpin` 时机必须由具体 API 契约明确（spec 14.1）。
 - `scoop_runtime_alloc(type_desc, size) -> handle`：返回 GC handle（可移动），用于需要把新对象长期带出当前 native root frame的场景。
 - FFI 代码没有 stack map，无法使用 managed 快速通道（见 3.1）。若新对象只在本次 native调用内使用，可把当前引用写入 native root slot；pinned 分配与 handle仍分别服务于稳定地址和长期保活。
+- native-borrowed分配入口在第一个可能GC的动作前验证当前thread transition及root链。它触发collection时只扫描冻结managed segment的caller-root frame和native实现已登记的root slots，不捕获当前C return address，也不跨native frame反向unwind；返回后native代码从slot reload。
 
 ### 4.2 native root、pin 与 handle 操作
 
@@ -182,7 +212,7 @@ M13 的collector仍是单线程、单代、非移动实现。parked线程只对t
 
 - 进程启动：初始化 GC 与 handle 表，注册主线程，调用 `main`；
 - 线程：主线程启动时注册；runtime创建的线程及 foreign thread在首次进入 managed代码前 attach，在退出最后一个 managed入口且不再持有 runtime thread state时 detach（配合 3.5、4.3）；
-- 终止：`main` 返回后runtime先进入`ShuttingDown`并拒绝新attach/registration；只有主线程以外无attachment、无活动callback且token ownership均已释放时才销毁GC状态。存在迟到线程/token时报告计数并终止，不在其仍可能进入时释放runtime。
+- 终止：`main` 返回后runtime先进入`ShuttingDown`并拒绝新attach/registration；只有主线程以外无attachment、无活动callback且token ownership均已释放时才销毁GC状态。存在迟到线程/token时报告计数并终止，不在其仍可能进入时释放runtime。shutdown不运行GC finalizer，也不为未来release hook遍历全部live/uncollected对象；native resource仍须在正常控制流中显式释放。
 
 ## 8. 协程
 
@@ -200,6 +230,7 @@ M13 的collector仍是单线程、单代、非移动实现。parked线程只对t
 
 仍待后续里程碑补充：
 
-- moving evacuation与精确root relocation → M15；分代/晋升、parallel/concurrent collector及相应屏障消费策略仍待后续；
+- macOS/AArch64以外target的精确frame/location adapter；分代/晋升、parallel/concurrent collector及相应屏障消费策略仍待后续；
+- GC-free release hook的源码/API设计、typed payload描述、原子claim/disarm及非GC执行队列；全功能GC finalizer明确不在TBD中；
 - runtime functions 的完整签名表与错误处理矩阵；
 - 异常穿越 Scoop ABI frame 的最终规则。
