@@ -1,3 +1,4 @@
+use inkwell::targets::FileType;
 use la_arena::Arena;
 use scoop_lir::{
     BasicBlock, CallDestination, CallEffect, CallSite, CallTargets, DirectCallSignature,
@@ -1676,12 +1677,7 @@ fn typed_no_gc_effect_keeps_the_call_outside_statepoints() {
     let context = Context::create();
     let llvm = emit_llvm_module(&context, &module, &machine).expect("emit module");
     llvm.verify().expect("valid LLVM module");
-    llvm.run_passes(
-        "rewrite-statepoints-for-gc",
-        &machine,
-        PassBuilderOptions::create(),
-    )
-    .expect("rewrite-statepoints-for-gc pass");
+    statepoint::rewrite(&llvm, &machine).expect("rewrite-statepoints-for-gc pass");
     let rewritten = llvm.print_to_string().to_string();
     assert!(
         rewritten
@@ -1996,12 +1992,7 @@ fn closure_calls_preserve_hidden_abi_and_indirect_statepoints() {
     let context = Context::create();
     let llvm = emit_llvm_module(&context, &module, &machine).expect("emit module");
     llvm.verify().expect("valid LLVM module");
-    llvm.run_passes(
-        "rewrite-statepoints-for-gc",
-        &machine,
-        PassBuilderOptions::create(),
-    )
-    .expect("rewrite-statepoints-for-gc pass");
+    statepoint::rewrite(&llvm, &machine).expect("rewrite-statepoints-for-gc pass");
     let rewritten = llvm.print_to_string().to_string();
     assert_eq!(
         rewritten
@@ -2199,12 +2190,7 @@ fn statepoints_and_stackmaps_are_emitted() {
     llvm.verify().expect("valid LLVM module");
     // The same pass `emit_object` runs before writing the object
     // (the M0 spike's shape).
-    llvm.run_passes(
-        "rewrite-statepoints-for-gc",
-        &machine,
-        PassBuilderOptions::create(),
-    )
-    .expect("rewrite-statepoints-for-gc pass");
+    statepoint::rewrite(&llvm, &machine).expect("rewrite-statepoints-for-gc pass");
     let ir = llvm.print_to_string().to_string();
     assert!(
         ir.contains("gc.statepoint"),

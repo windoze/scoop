@@ -36,7 +36,6 @@ use std::path::Path;
 use inkwell::attributes::{Attribute, AttributeLoc};
 use inkwell::context::Context;
 use inkwell::module::Module as LlvmModule;
-use inkwell::passes::PassBuilderOptions;
 use inkwell::targets::{FileType, TargetMachine};
 use inkwell::types::{BasicMetadataTypeEnum, BasicType, BasicTypeEnum, StructType};
 use inkwell::values::{BasicValue, BasicValueEnum, GlobalValue, IntValue, PointerValue, ValueKind};
@@ -51,17 +50,6 @@ use scoop_lir::{
 
 const SCAN_ARRAY: u64 = u64::MAX;
 const SCAN_SEQUENCE: u64 = u64::MAX - 1;
-
-/// The GC strategy set on every generated function (M9, milestone9
-/// DESIGN 5.5): LLVM's built-in statepoint strategy, verified by the
-/// M0 spike. Runtime functions get no strategy — they are not managed
-/// code.
-const GC_STRATEGY: &str = "statepoint-example";
-
-/// Runtime safepoint poll (M9, milestone9 DESIGN 3.1): a `void()`
-/// call the GC can suspend the polling thread at; emitted at every
-/// function entry and loop header.
-const SAFEPOINT_SYMBOL: &str = "scoop_rt_safepoint";
 
 /// The write barrier's card table (M9, runtime spec 3.6): the runtime
 /// exports `extern unsigned char *scoop_gc_card_table` — a pointer
@@ -86,6 +74,7 @@ impl std::fmt::Display for CodegenError {
 impl std::error::Error for CodegenError {}
 
 mod c_bridge;
+mod statepoint;
 mod target;
 
 pub use c_bridge::{c_bridge_source, c_layout_assertions};
@@ -118,12 +107,7 @@ pub fn emit_object(
     // invoke in the GC-strategy functions into a `gc.statepoint`; the
     // object file's `__llvm_stackmaps` section is produced from them.
     // Runs after verification, right before object emission.
-    llvm.run_passes(
-        "rewrite-statepoints-for-gc",
-        &machine,
-        PassBuilderOptions::create(),
-    )
-    .map_err(|e| CodegenError(format!("rewrite-statepoints-for-gc failed: {e}")))?;
+    statepoint::rewrite(&llvm, &machine)?;
 
     machine
         .write_to_file(&llvm, FileType::Object, output)
@@ -2936,7 +2920,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
     /// exactly the spot where the GC can suspend the polling thread.
     fn safepoint_poll(&self) -> Result<(), CodegenError> {
         let safepoint = self.runtime_fn(
-            SAFEPOINT_SYMBOL,
+            statepoint::SAFEPOINT_SYMBOL,
             self.context.void_type().fn_type(&[], false),
         );
         self.builder.build_call(safepoint, &[], "").map_err(|e| {
@@ -3158,9 +3142,7 @@ fn declare_function<'ctx>(
 ) -> Result<(), CodegenError> {
     let fn_ty = fn_type_of(context, structs, enums, function)?;
     let llvm_function = llvm.add_function(&function.symbol, fn_ty, None);
-    if function.gc_effect == GcEffect::Managed {
-        llvm_function.set_gc(GC_STRATEGY);
-    }
+    statepoint::configure_function(llvm_function, function.gc_effect);
     Ok(())
 }
 
@@ -3245,88 +3227,6 @@ struct ModuleCtx<'a, 'ctx> {
     external_type_tds: &'a [GlobalValue<'ctx>],
     target_data: &'a inkwell::targets::TargetData,
     bounds_message: Option<GlobalValue<'ctx>>,
-}
-
-/// The loop-header blocks of `function`: targets of back edges, where
-/// an edge B -> T is a back edge when T dominates B. Computed over the
-/// full LIR control-flow graph (branch terminators plus the unwind
-/// edges of invokes) with the standard iterative dominator dataflow.
-/// lir-lower's only loop shape is `while`, whose condition block the
-/// body branches back to, so in practice the headers are exactly the
-/// `while.cond` blocks; a landing pad never dominates its invoke
-/// blocks, so no header is a pad (the extra check at the insertion
-/// site only restates LLVM's landingpad-first rule).
-fn loop_headers(function: &Function) -> Vec<bool> {
-    let len = function.blocks.len();
-    let mut successors: Vec<Vec<usize>> = vec![Vec::new(); len];
-    for (id, block) in function.blocks.iter() {
-        let from = arena_index(id);
-        match &block.terminator {
-            Terminator::Br(target) => successors[from].push(arena_index(*target)),
-            Terminator::CondBr {
-                then_block,
-                else_block,
-                ..
-            } => {
-                successors[from].push(arena_index(*then_block));
-                successors[from].push(arena_index(*else_block));
-            }
-            Terminator::Return { .. } | Terminator::Resume { .. } | Terminator::Unreachable => {}
-        }
-        // Invoke is terminator-like: the block's own
-        // terminator restates the normal successor (counted above), so
-        // only the unwind edge is extra.
-        if let Some(Instruction::Invoke { unwind, .. }) = block.instructions.last() {
-            successors[from].push(arena_index(*unwind));
-        }
-    }
-
-    let mut predecessors: Vec<Vec<usize>> = vec![Vec::new(); len];
-    for (from, targets) in successors.iter().enumerate() {
-        for &to in targets {
-            predecessors[to].push(from);
-        }
-    }
-    // dom(entry) = {entry}; dom(b) = {b} ∪ ⋂ dom(p) over preds p,
-    // iterated to a fixed point. Unreachable blocks keep just
-    // themselves, the usual treatment.
-    let entry = arena_index(function.entry);
-    let mut dominators: Vec<HashSet<usize>> = vec![(0..len).collect(); len];
-    dominators[entry] = [entry].into_iter().collect();
-    let mut changed = true;
-    while changed {
-        changed = false;
-        for block in 0..len {
-            if block == entry {
-                continue;
-            }
-            let mut dom: HashSet<usize> = match predecessors[block].as_slice() {
-                [] => [block].into_iter().collect(),
-                [first, rest @ ..] => {
-                    let mut dom = dominators[*first].clone();
-                    for pred in rest {
-                        dom.retain(|b| dominators[*pred].contains(b));
-                    }
-                    dom
-                }
-            };
-            dom.insert(block);
-            if dom != dominators[block] {
-                dominators[block] = dom;
-                changed = true;
-            }
-        }
-    }
-
-    let mut headers = vec![false; len];
-    for (from, targets) in successors.iter().enumerate() {
-        for &to in targets {
-            if dominators[from].contains(&to) {
-                headers[to] = true;
-            }
-        }
-    }
-    headers
 }
 
 fn emit_function<'ctx>(
@@ -3442,7 +3342,7 @@ fn emit_function<'ctx>(
         emitter.safepoint_poll()?;
     }
 
-    let headers = loop_headers(function);
+    let headers = statepoint::loop_headers(function);
     for (block_id, block) in function.blocks.iter() {
         builder.position_at_end(blocks[arena_index(block_id)]);
         // ... and every loop header polls at its top. The header set
