@@ -1,6 +1,7 @@
 #include "../../../runtime/include/scoop_rt.h"
 
 #include <stdbool.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -46,7 +47,11 @@ static bool stale_address_faults(const ScoopString *object) {
         return false;
     }
     int status = 0;
-    return waitpid(child, &status, 0) == child && WIFSIGNALED(status);
+    if (waitpid(child, &status, 0) != child || !WIFSIGNALED(status)) {
+        return false;
+    }
+    int signal = WTERMSIG(status);
+    return signal == SIGSEGV || signal == SIGBUS;
 }
 
 static bool exact_bytes_are_poisoned(const void *object, size_t size) {
