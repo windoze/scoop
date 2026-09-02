@@ -166,6 +166,21 @@ impl TargetProfile {
     }
 
     pub(crate) fn create_target_machine(self) -> Result<TargetMachine, CodegenError> {
+        self.create_target_machine_with_optimization(self.optimization)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn create_qualification_target_machine(
+        self,
+        optimization: OptimizationLevel,
+    ) -> Result<TargetMachine, CodegenError> {
+        self.create_target_machine_with_optimization(optimization)
+    }
+
+    fn create_target_machine_with_optimization(
+        self,
+        optimization: OptimizationLevel,
+    ) -> Result<TargetMachine, CodegenError> {
         debug_assert_eq!(self.id, TargetProfileId::DarwinAarch64);
         debug_assert_eq!(self.object_format, ObjectFormat::MachO64);
         debug_assert_eq!(self.instruction_selector, InstructionSelector::SelectionDag);
@@ -186,7 +201,7 @@ impl TargetProfile {
                 &triple,
                 self.cpu,
                 self.features,
-                self.optimization,
+                optimization,
                 self.relocation,
                 self.code_model,
             )

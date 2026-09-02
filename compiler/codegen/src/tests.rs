@@ -1,3 +1,4 @@
+use inkwell::OptimizationLevel;
 use inkwell::targets::FileType;
 use la_arena::Arena;
 use scoop_lir::{
@@ -2490,36 +2491,40 @@ fn heap_store_inside_the_object_header_is_rejected() {
 }
 
 #[test]
-fn statepoints_and_stackmaps_are_emitted() {
+fn statepoints_and_stackmaps_are_emitted_at_o0_and_o2() {
     let module = values_module();
-    let machine = host_target_machine().expect("target machine");
-    let context = Context::create();
-    let llvm = emit_llvm_module(&context, &module, &machine).expect("emit module");
-    llvm.verify().expect("valid LLVM module");
     let expected = statepoint::expectations(&module).expect("complete safepoint manifest");
-    // The same pass `emit_object` runs before writing the object
-    // (the M0 spike's shape).
-    statepoint::rewrite(&llvm, &machine).expect("rewrite-statepoints-for-gc pass");
-    llvm.verify().expect("valid post-RS4GC module");
-    statepoint::verify_rewritten(&llvm, &expected).expect("statepoint manifest matches");
-    let ir = llvm.print_to_string().to_string();
-    assert!(
-        ir.contains("gc.statepoint"),
-        "statepoint intrinsics missing after rewrite-statepoints-for-gc:\n{ir}"
-    );
+    let profile = host_profile();
+    for (name, optimization) in [
+        ("o0", OptimizationLevel::None),
+        ("o2", OptimizationLevel::Default),
+    ] {
+        let machine = profile
+            .create_qualification_target_machine(optimization)
+            .expect("qualified target machine");
+        let context = Context::create();
+        let llvm = emit_llvm_module(&context, &module, &machine).expect("emit module");
+        llvm.verify().expect("valid LLVM module");
+        statepoint::rewrite(&llvm, &machine).expect("rewrite-statepoints-for-gc pass");
+        llvm.verify().expect("valid post-RS4GC module");
+        statepoint::verify_rewritten(&llvm, &expected).expect("statepoint manifest matches");
+        let ir = llvm.print_to_string().to_string();
+        assert!(
+            ir.contains("gc.statepoint"),
+            "{name}: statepoint intrinsics missing after rewrite-statepoints-for-gc:\n{ir}"
+        );
 
-    let output =
-        std::env::temp_dir().join(format!("scoop_codegen_m9_test_{}.o", std::process::id()));
-    machine
-        .write_to_file(&llvm, FileType::Object, &output)
-        .expect("write object");
-    let bytes = std::fs::read(&output).expect("read object");
-    let text = String::from_utf8_lossy(&bytes);
-    assert!(
-        text.contains("__llvm_stackmaps"),
-        "object file lacks the __llvm_stackmaps section"
-    );
-    std::fs::remove_file(&output).ok();
+        let output = std::env::temp_dir().join(format!(
+            "scoop_codegen_statepoint_{name}_{}.o",
+            std::process::id()
+        ));
+        machine
+            .write_to_file(&llvm, FileType::Object, &output)
+            .expect("write object");
+        artifact::verify_macho_stackmaps(&output, &expected)
+            .unwrap_or_else(|error| panic!("{name}: {error}"));
+        std::fs::remove_file(&output).ok();
+    }
 }
 
 #[test]
