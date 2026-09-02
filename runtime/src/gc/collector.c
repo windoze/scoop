@@ -142,6 +142,16 @@ static void scan_caller_roots(const ScoopThreadState *thread) {
     }
 }
 
+static void scan_compiler_roots(const ScoopThreadState *thread) {
+    for (ScoopCompilerRootFrame *frame = thread->compiler_roots; frame != NULL;
+         frame = frame->previous) {
+        for (uint64_t index = 0; index < frame->count; index++) {
+            trace_descriptor(frame->entries[index].base,
+                             frame->entries[index].scan);
+        }
+    }
+}
+
 static void scan_frozen_managed_segments(const ScoopThreadState *thread) {
     for (ScoopThreadTransition *transition = thread->current_transition;
          transition != NULL; transition = transition->previous) {
@@ -187,6 +197,7 @@ static void scan_thread(const ScoopThreadState *thread) {
     }
     scan_frozen_managed_segments(thread);
     scan_caller_roots(thread);
+    scan_compiler_roots(thread);
     scan_native_roots(thread);
 }
 

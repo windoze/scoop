@@ -131,7 +131,8 @@ static void require_detachable(const ScoopThreadState *state,
     }
     if (state->managed_depth != (expected_kind == SCOOP_THREAD_MAIN ? 1 : 0) ||
         state->callback_depth != 0 || state->native_roots != NULL ||
-        state->caller_roots != NULL || state->current_transition != NULL ||
+        state->caller_roots != NULL || state->compiler_roots != NULL ||
+        state->current_transition != NULL ||
         state->allocation.cursor != NULL || state->allocation.limit != NULL) {
         thread_fatal(
             "thread detach with active managed frames, callbacks, roots, or transitions");
@@ -635,6 +636,52 @@ void scoop_rt_pop_caller_roots(ScoopCallerRootFrame *frame) {
     frame->count = 0;
 }
 
+void scoop_rt_push_compiler_roots(ScoopCompilerRootFrame *frame,
+                                  ScoopCallerRootEntry *entries,
+                                  uint64_t count) {
+    ScoopThreadState *state = scoop_thread_current_required();
+    scoop_thread_require_managed();
+    if (frame == NULL || (count != 0 && entries == NULL)) {
+        thread_fatal("invalid compiler root frame");
+    }
+    for (uint64_t i = 0; i < count; i++) {
+        if (entries[i].base == NULL || entries[i].scan == NULL) {
+            thread_fatal("invalid compiler root frame");
+        }
+    }
+    for (ScoopCompilerRootFrame *active = state->compiler_roots; active != NULL;
+         active = active->previous) {
+        if (active == frame) {
+            thread_fatal("compiler root frame is already active");
+        }
+    }
+    frame->previous = state->compiler_roots;
+    frame->entries = entries;
+    frame->count = count;
+    state->compiler_roots = frame;
+}
+
+void scoop_rt_pop_compiler_roots(ScoopCompilerRootFrame *frame) {
+    ScoopThreadState *state = scoop_thread_current_required();
+    scoop_thread_require_managed();
+    if (frame == NULL || state->compiler_roots != frame) {
+        thread_fatal("compiler root frames must be popped in LIFO order");
+    }
+    state->compiler_roots = frame->previous;
+    frame->previous = NULL;
+    frame->entries = NULL;
+    frame->count = 0;
+}
+
+void scoop_rt_pop_top_compiler_roots(void) {
+    ScoopThreadState *state = scoop_thread_current_required();
+    scoop_thread_require_managed();
+    if (state->compiler_roots == NULL) {
+        thread_fatal("unwind has no active compiler root frame");
+    }
+    scoop_rt_pop_compiler_roots(state->compiler_roots);
+}
+
 static void enter_native(ScoopThreadTransition *transition,
                          uintptr_t managed_stack_pointer,
                          ScoopThreadMode native_mode) {
@@ -798,6 +845,16 @@ uint64_t scoop_rt_thread_debug_caller_root_count(void) {
     ScoopThreadState *state = scoop_thread_current_required();
     uint64_t count = 0;
     for (ScoopCallerRootFrame *frame = state->caller_roots; frame != NULL;
+         frame = frame->previous) {
+        count += frame->count;
+    }
+    return count;
+}
+
+uint64_t scoop_rt_thread_debug_compiler_root_count(void) {
+    ScoopThreadState *state = scoop_thread_current_required();
+    uint64_t count = 0;
+    for (ScoopCompilerRootFrame *frame = state->compiler_roots; frame != NULL;
          frame = frame->previous) {
         count += frame->count;
     }

@@ -280,6 +280,16 @@ typedef struct ScoopCallerRootFrame {
     uint64_t count;
 } ScoopCallerRootFrame;
 
+/* Roots spilled around a managed invoke. This is deliberately a distinct
+ * frame family from outbound-native caller roots: pushing it does not enter
+ * a native transition, and unwinding pops the dynamic top frame after the
+ * landingpad has captured the exception record. */
+typedef struct ScoopCompilerRootFrame {
+    struct ScoopCompilerRootFrame *previous;
+    ScoopCallerRootEntry *entries;
+    uint64_t count;
+} ScoopCompilerRootFrame;
+
 /* Stack-owned outbound transition record. Its fields are runtime-managed;
  * generated code allocates the record, passes it to enter/leave, and must not
  * copy or inspect it while active. */
@@ -300,6 +310,11 @@ void scoop_rt_push_caller_roots(ScoopCallerRootFrame *frame,
                                 ScoopCallerRootEntry *entries,
                                 uint64_t count);
 void scoop_rt_pop_caller_roots(ScoopCallerRootFrame *frame);
+void scoop_rt_push_compiler_roots(ScoopCompilerRootFrame *frame,
+                                  ScoopCallerRootEntry *entries,
+                                  uint64_t count);
+void scoop_rt_pop_compiler_roots(ScoopCompilerRootFrame *frame);
+void scoop_rt_pop_top_compiler_roots(void);
 void scoop_rt_enter_native_safe(ScoopThreadTransition *transition,
                                 uintptr_t managed_stack_pointer);
 void scoop_rt_leave_native_safe(ScoopThreadTransition *transition);
@@ -413,6 +428,7 @@ uint64_t scoop_rt_thread_debug_gc_epoch(void);
 uint64_t scoop_rt_thread_debug_last_gc_parked_count(void);
 uint64_t scoop_rt_thread_debug_last_gc_native_safe_count(void);
 uint64_t scoop_rt_thread_debug_caller_root_count(void);
+uint64_t scoop_rt_thread_debug_compiler_root_count(void);
 uint64_t scoop_rt_thread_debug_transition_depth(void);
 
 /* M8 additions (milestone8 DESIGN section 4): exception support on top

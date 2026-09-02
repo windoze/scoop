@@ -55,6 +55,7 @@ typedef struct ScoopThreadState {
     ScoopThreadAttachmentKind attachment_kind;
     ScoopNativeRootFrame *native_roots;
     ScoopCallerRootFrame *caller_roots;
+    ScoopCompilerRootFrame *compiler_roots;
     ScoopThreadTransition *current_transition;
     /* Owner-only allocation cursor while managed. The STW collector retires
      * every pair before sweep; re-entry refills instead of reusing stale

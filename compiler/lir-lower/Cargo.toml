@@ -9,4 +9,5 @@ scoop-lir.workspace = true
 scoop-mir.workspace = true
 
 [dev-dependencies]
+insta.workspace = true
 scoop-ast.workspace = true

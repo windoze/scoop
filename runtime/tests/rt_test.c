@@ -318,6 +318,19 @@ static void *caller_root_lifo_violation(void *unused) {
     return NULL;
 }
 
+static void *compiler_root_lifo_violation(void *unused) {
+    (void)unused;
+    volatile char managed_stack_boundary = 0;
+    (void)scoop_rt_attach_foreign_thread();
+    scoop_rt_thread_debug_enter_managed((uintptr_t)&managed_stack_boundary);
+    ScoopCompilerRootFrame outer;
+    ScoopCompilerRootFrame inner;
+    scoop_rt_push_compiler_roots(&outer, NULL, 0);
+    scoop_rt_push_compiler_roots(&inner, NULL, 0);
+    scoop_rt_pop_compiler_roots(&outer);
+    return NULL;
+}
+
 static void leave_wrong_transition(void) {
     ScoopCallerRootFrame caller_frame;
     ScoopThreadTransition active = {0};
@@ -665,6 +678,7 @@ void scoop_main(void) {
     scoop_rt_println_boolean(thread_protocol_aborts(detach_with_native_root));
     scoop_rt_println_boolean(thread_protocol_aborts(detach_twice));
     scoop_rt_println_boolean(thread_protocol_aborts(caller_root_lifo_violation));
+    scoop_rt_println_boolean(thread_protocol_aborts(compiler_root_lifo_violation));
     scoop_rt_println_boolean(thread_protocol_aborts(transition_lifo_violation));
 
     /* M13 cooperative STW: main and a foreign managed requester race to
@@ -803,6 +817,22 @@ void scoop_main(void) {
     scoop_rt_println_boolean(native_safe_active &&
                              scoop_rt_thread_debug_transition_depth() == 0 &&
                              scoop_rt_thread_debug_caller_root_count() == 0);
+
+    ScoopNode *compiler_root_value = new_node(16180, NULL);
+    ScoopCallerRootEntry compiler_root_entries[] = {
+        {.base = &compiler_root_value, .scan = caller_root_scan},
+    };
+    ScoopCompilerRootFrame compiler_frame;
+    scoop_rt_push_compiler_roots(&compiler_frame, compiler_root_entries, 1);
+    scoop_rt_gc_collect();
+    bool compiler_root_survived =
+        scoop_rt_thread_debug_compiler_root_count() == 1 &&
+        scoop_rt_gc_debug_is_allocated(compiler_root_value) &&
+        compiler_root_value->value == 16180;
+    scoop_rt_pop_compiler_roots(&compiler_frame);
+    scoop_rt_println_boolean(
+        compiler_root_survived &&
+        scoop_rt_thread_debug_compiler_root_count() == 0);
 
     ScoopCallerRootFrame borrowed_caller_frame;
     ScoopThreadTransition borrowed_transition = {0};

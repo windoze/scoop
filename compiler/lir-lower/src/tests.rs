@@ -478,17 +478,21 @@ fn binary(op: mir::BinOp, lhs: mir::Expr, rhs: mir::Expr, ty: mir::Type) -> mir:
     )
 }
 
-fn call_symbol<'a>(
-    module: &'a lir::Module,
-    function: &lir::Function,
-    site: &lir::CallSite,
-) -> &'a str {
-    match site.destination(&function.call_targets) {
+fn call_symbol(module: &lir::Module, destination: lir::CallDestination) -> &str {
+    match destination {
         lir::CallDestination::Local(id) => &module.functions[id.into_u32() as usize].symbol,
         lir::CallDestination::Runtime(runtime) => runtime.symbol(),
         lir::CallDestination::Extern(id) => &module.extern_functions[id].native_symbol,
         lir::CallDestination::Dispatch { .. } => panic!("dispatch calls have no symbol"),
     }
+}
+
+fn instructions_without_polls(block: &lir::BasicBlock) -> Vec<&lir::Instruction> {
+    block
+        .instructions
+        .iter()
+        .filter(|instruction| !matches!(instruction, lir::Instruction::ManagedPoll { .. }))
+        .collect()
 }
 
 #[test]
@@ -626,29 +630,30 @@ fn lowers_hello_world() {
     }
 
     // Golden dump locks the output structure.
-    let expected = "\
+    insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
-  global @scoop.str.0 = \"hello, world\"
-  global @scoop.str.1 = \"!\"
+  global @scoop.str.0 = "hello, world"
+  global @scoop.str.1 = "!"
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
   fun @scoop.helper() -> void
   block entry
-    native_call void-target0 sig=void0 (ptr<managed>) effect=native-borrowed extern0(global1)
+    poll managed-target0 sp4 live=[]
+    call native-borrowed-target0 sp1 roots=[] sig=void0 (ptr<managed>) extern0(global1)
     t0 = aggregate () : {}
     ret
   fun @scoop_main() -> void
   block entry
-    native_call void-target0 sig=void0 (ptr<managed>) effect=native-borrowed extern0(global0)
+    poll managed-target1 sp5 live=[]
+    call native-borrowed-target0 sp2 roots=[] sig=void0 (ptr<managed>) extern0(global0)
     t0 = aggregate () : {}
-    call void-target1 sig=void1 () effect=managed-safepoint local-fn0()
+    call managed-target0 sp3 live=[] sig=void1 () local-fn0()
     t1 = aggregate () : {}
     ret
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   entry @scoop_main
-";
-    assert_eq!(lir::dump(&module), expected);
+"###);
 }
 
 #[test]
@@ -747,21 +752,18 @@ fn if_else_becomes_basic_blocks() {
     );
     let module = lower(&b.finish(main));
 
-    let expected = "\
+    insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
-  global @scoop.str.0 = \"ok\"
-  global @scoop.str.1 = \"ng\"
+  global @scoop.str.0 = "ok"
+  global @scoop.str.1 = "ng"
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
   fun @scoop_main() -> void
   block entry
-    cbr true then @if.then.1 else @if.else.2
+    poll managed-target0 sp3 live=[]
+    br @if.then.1
   block if.then.1
-    native_call void-target0 sig=void0 (ptr<managed>) effect=native-borrowed extern0(global0)
+    call native-borrowed-target0 sp1 roots=[] sig=void0 (ptr<managed>) extern0(global0)
     t0 = aggregate () : {}
-    br @if.merge.3
-  block if.else.2
-    native_call void-target1 sig=void1 (ptr<managed>) effect=native-borrowed extern0(global1)
-    t1 = aggregate () : {}
     br @if.merge.3
   block if.merge.3
     ret
@@ -769,8 +771,7 @@ Module
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   entry @scoop_main
-";
-    assert_eq!(lir::dump(&module), expected);
+"###);
 }
 
 #[test]
@@ -842,14 +843,16 @@ fn while_becomes_basic_blocks() {
     );
     let module = lower(&b.finish(main));
 
-    let expected = "\
+    insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
   fun @scoop_main() -> void
     local %0 n: i64
   block entry
+    poll managed-target0 sp1 live=[]
     store 0 -> local0
     br @while.cond.1
   block while.cond.1
+    poll managed-target0 sp2 live=[]
     t0 = Lt local0, 3 : i1
     cbr t0 then @while.body.2 else @while.exit.3
   block while.body.2
@@ -862,8 +865,7 @@ Module
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   entry @scoop_main
-";
-    assert_eq!(lir::dump(&module), expected);
+"###);
 }
 
 #[test]
@@ -939,23 +941,24 @@ fn and_short_circuits_through_blocks() {
     );
     let module = lower(&b.finish(main));
 
-    let expected = "\
+    insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
-  global @scoop.str.0 = \"a\"
-  global @scoop.str.1 = \"b\"
-  global @scoop.str.2 = \"c\"
-  global @scoop.str.3 = \"d\"
+  global @scoop.str.0 = "a"
+  global @scoop.str.1 = "b"
+  global @scoop.str.2 = "c"
+  global @scoop.str.3 = "d"
   extern ef0 coreStringEquals @scoop_rt_string_eq(ptr<managed>, ptr<managed>) -> i1 <scoop managed nounwind>
   fun @scoop_main() -> void
     local %0 $call.1: i1
     local %1 $call.2: i1
     local %2 b: i1
   block entry
-    native_call t0 = direct-target0 sig=direct0 (ptr<managed>, ptr<managed>) -> i1 effect=native-borrowed extern0(global0, global1)
+    poll managed-target0 sp3 live=[]
+    call native-borrowed-target0 sp1 roots=[] t0 = sig=direct0 (ptr<managed>, ptr<managed>) -> i1 extern0(global0, global1)
     store t0 -> local0
     cbr local0 then @logic.rhs.1 else @logic.short.2
   block logic.rhs.1
-    native_call t1 = direct-target1 sig=direct1 (ptr<managed>, ptr<managed>) -> i1 effect=native-borrowed extern0(global2, global3)
+    call native-borrowed-target1 sp2 roots=[] t1 = sig=direct1 (ptr<managed>, ptr<managed>) -> i1 extern0(global2, global3)
     store t1 -> local1
     store local1 -> local2
     br @logic.merge.3
@@ -968,8 +971,7 @@ Module
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   entry @scoop_main
-";
-    assert_eq!(lir::dump(&module), expected);
+"###);
 }
 
 #[test]
@@ -1033,13 +1035,14 @@ fn or_short_circuits_through_blocks() {
     );
     let module = lower(&b.finish(main));
 
-    let expected = "\
+    insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
   fun @scoop_main() -> void
     local %0 x: i1
     local %1 y: i1
     local %2 b: i1
   block entry
+    poll managed-target0 sp1 live=[]
     store true -> local0
     store false -> local1
     cbr local0 then @logic.short.2 else @logic.rhs.1
@@ -1055,8 +1058,7 @@ Module
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   entry @scoop_main
-";
-    assert_eq!(lir::dump(&module), expected);
+"###);
 }
 
 #[test]
@@ -1084,14 +1086,14 @@ fn compiler_runtime_calls_with_results_produce_typed_temps() {
 
     // top_level order: helper first, then main.
     let function = &module.functions[1];
-    let instructions = &function.blocks[function.entry].instructions;
+    let instructions = instructions_without_polls(&function.blocks[function.entry]);
 
-    let lir::Instruction::Call { site } = &instructions[0] else {
+    let lir::Instruction::Call { site } = instructions[0] else {
         panic!("string concat must produce a value")
     };
-    let concat_out = site.direct_out().expect("string concat result");
+    let concat_out = site.call().direct_out().expect("string concat result");
     assert_eq!(
-        call_symbol(&module, function, site),
+        call_symbol(&module, site.destination(&function.call_targets)),
         "scoop_rt_string_concat"
     );
     assert_eq!(function.temps[concat_out].ty, lir::MANAGED_PTR);
@@ -1099,12 +1101,15 @@ fn compiler_runtime_calls_with_results_produce_typed_temps() {
 
     // User calls return void; the Unit value is a fresh empty
     // aggregate.
-    let lir::Instruction::Call { site } = &instructions[2] else {
+    let lir::Instruction::Call { site } = instructions[2] else {
         panic!("user calls must return void")
     };
-    assert!(matches!(site, lir::CallSite::Void { .. }));
-    assert_eq!(call_symbol(&module, function, site), "scoop.helper");
-    let lir::Instruction::MakeAggregate { out, elements } = &instructions[3] else {
+    assert!(matches!(site.call(), lir::TypedCall::Void { .. }));
+    assert_eq!(
+        call_symbol(&module, site.destination(&function.call_targets)),
+        "scoop.helper"
+    );
+    let lir::Instruction::MakeAggregate { out, elements } = instructions[3] else {
         panic!("a void call's Unit value must be an empty aggregate")
     };
     assert!(elements.is_empty());
@@ -1213,11 +1218,11 @@ fn arithmetic_and_comparison_ops_map_to_lir_ops() {
     let ops: Vec<(lir::BinOp, lir::LirType)> = function.blocks[function.entry]
         .instructions
         .iter()
-        .map(|instruction| {
+        .filter_map(|instruction| {
             let lir::Instruction::BinOp { out, op, .. } = instruction else {
-                panic!("expected a binary instruction")
+                return None;
             };
-            (*op, function.temps[*out].ty.clone())
+            Some((*op, function.temps[*out].ty.clone()))
         })
         .collect();
     assert_eq!(ops, expected);
@@ -1251,11 +1256,11 @@ fn unary_ops_map_to_lir_unops() {
     let ops: Vec<(lir::UnOp, lir::LirType)> = function.blocks[function.entry]
         .instructions
         .iter()
-        .map(|instruction| {
+        .filter_map(|instruction| {
             let lir::Instruction::UnaryOp { out, op, .. } = instruction else {
-                panic!("expected a unary instruction")
+                return None;
             };
-            (*op, function.temps[*out].ty.clone())
+            Some((*op, function.temps[*out].ty.clone()))
         })
         .collect();
     assert_eq!(
@@ -1312,8 +1317,8 @@ fn struct_values_keep_named_lir_identity() {
         ]
     );
 
-    let instructions = &function.blocks[function.entry].instructions;
-    let lir::Instruction::MakeAggregate { out, elements } = &instructions[0] else {
+    let instructions = instructions_without_polls(&function.blocks[function.entry]);
+    let lir::Instruction::MakeAggregate { out, elements } = instructions[0] else {
         panic!("struct construction must build an aggregate")
     };
     assert_eq!(elements.len(), 2);
@@ -1322,7 +1327,7 @@ fn struct_values_keep_named_lir_identity() {
         lir::LirType::Struct(struct_def_id(point))
     );
     assert!(matches!(instructions[1], lir::Instruction::Store { .. }));
-    let lir::Instruction::ExtractValue { out, index, .. } = &instructions[2] else {
+    let lir::Instruction::ExtractValue { out, index, .. } = instructions[2] else {
         panic!("field access must extract from the aggregate")
     };
     assert_eq!(*index, 0);
@@ -1348,9 +1353,8 @@ fn unit_is_the_empty_aggregate() {
     let function = &module.functions[0];
     let (_, u_local) = function.locals.iter().next().expect("one local");
     assert_eq!(u_local.ty, lir::LirType::Aggregate(Vec::new()));
-    let lir::Instruction::MakeAggregate { out, elements } =
-        &function.blocks[function.entry].instructions[0]
-    else {
+    let instructions = instructions_without_polls(&function.blocks[function.entry]);
+    let lir::Instruction::MakeAggregate { out, elements } = instructions[0] else {
         panic!("Unit must be an empty aggregate")
     };
     assert!(elements.is_empty());
@@ -1710,24 +1714,25 @@ fn function_signatures_params_and_calls() {
     assert_eq!(add_fn.return_ty, lir::LirType::I64);
     assert_eq!(add_fn.locals.len(), 0);
 
-    let expected = "\
+    insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
   fun @scoop.add(i64, i64) -> i64
   block entry
+    poll managed-target0 sp2 live=[]
     t0 = Add param0, param1 : i64
     ret t0
   fun @scoop_main() -> void
     local %0 r: i64
   block entry
-    call t0 = direct-target0 sig=direct0 (i64, i64) -> i64 effect=managed-safepoint local-fn0(40, 2)
+    poll managed-target1 sp3 live=[]
+    call managed-target0 sp1 live=[] t0 = sig=direct0 (i64, i64) -> i64 local-fn0(40, 2)
     store t0 -> local0
     ret
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   entry @scoop_main
-";
-    assert_eq!(lir::dump(&module), expected);
+"###);
 }
 
 #[test]
@@ -1784,26 +1789,25 @@ fn return_inside_a_branch_seals_its_block() {
     let main = b.main(Arena::new(), vec![]);
     let module = lower(&b.finish(main));
 
-    // The `return` seals the then block: no branch to the merge
-    // block follows it.
-    let expected = "\
+    // The constant branch is folded and its unreachable merge path is
+    // removed; the `return` seals the remaining then block.
+    insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
   fun @scoop.f(i64) -> i64
   block entry
-    cbr true then @if.then.1 else @if.merge.2
+    poll managed-target0 sp1 live=[]
+    br @if.then.1
   block if.then.1
     ret param0
-  block if.merge.2
-    ret 0
   fun @scoop_main() -> void
   block entry
+    poll managed-target0 sp2 live=[]
     ret
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   entry @scoop_main
-";
-    assert_eq!(lir::dump(&module), expected);
+"###);
 }
 
 /// The LIR enum definition transposed from a MIR enum (the arenas
@@ -1876,7 +1880,7 @@ fn option_of_string_uses_the_niche_representation() {
     // the pointer itself with None = null (spec 7.4).
     let module = lower(&option_round_trip("Option$S", mir::Type::String));
 
-    let expected = "\
+    insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
   enum Option$S niche(payload_variant=0)
   fun @scoop_main() -> void
@@ -1885,6 +1889,7 @@ Module
     local %2 p: ptr<managed>
     local %3 o2: enum0
   block entry
+    poll managed-target0 sp1 live=[]
     t0 = enum_wrap e0 v1 () : enum0
     store t0 -> local0
     t1 = enum_tag e0 local0 : i64
@@ -1899,8 +1904,7 @@ Module
   layout Boolean size=1 align=1 refs=[]
   layout Option$S size=8 align=8 enum-scan=refs[0]
   entry @scoop_main
-";
-    assert_eq!(lir::dump(&module), expected);
+"###);
 }
 
 #[test]
@@ -1929,7 +1933,7 @@ fn option_of_int_uses_the_tagged_representation() {
     // form — size 16, align 8.
     let module = lower(&option_round_trip("Option$I", mir::Type::Int));
 
-    let expected = "\
+    insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
   enum Option$I tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
   fun @scoop_main() -> void
@@ -1938,6 +1942,7 @@ Module
     local %2 p: i64
     local %3 o2: enum0
   block entry
+    poll managed-target0 sp1 live=[]
     t0 = enum_wrap e0 v1 () : enum0
     store t0 -> local0
     t1 = enum_tag e0 local0 : i64
@@ -1952,8 +1957,7 @@ Module
   layout Boolean size=1 align=1 refs=[]
   layout Option$I size=16 align=8 enum-scan=none
   entry @scoop_main
-";
-    assert_eq!(lir::dump(&module), expected);
+"###);
 }
 
 #[test]
@@ -2467,15 +2471,16 @@ fn trap_calls_branch_to_a_shared_trap_block() {
     let module = lower(&b.finish(main));
 
     // Both `!!` share the one trap block of the function.
-    let expected = "\
+    insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
-  global @scoop.str.0 = \"unwrap on None (function f)\"
-  global @scoop.cstr.0 = c\"unwrap on None (function f)\"
+  global @scoop.str.0 = "unwrap on None (function f)"
+  global @scoop.cstr.0 = c"unwrap on None (function f)"
   enum Option$I tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
   fun @scoop.f(enum0) -> i64
     local %0 $uw.1: i64
     local %1 $uw.2: i64
   block entry
+    poll managed-target0 sp1 live=[]
     t0 = enum_tag e0 param0 : i64
     t1 = Eq t0, 0 : i1
     cbr t1 then @if.then.1 else @if.else.2
@@ -2499,18 +2504,18 @@ Module
     t6 = Add local0, local1 : i64
     ret t6
   block unwrap.trap.1
-    call void-target0 sig=void0 (ptr<raw>) effect=no-gc runtime @scoop_rt_trap(global1)
+    call no-gc-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global1)
     unreachable
   fun @scoop_main() -> void
   block entry
+    poll managed-target0 sp2 live=[]
     ret
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   layout Option$I size=16 align=8 enum-scan=none
   entry @scoop_main
-";
-    assert_eq!(lir::dump(&module), expected);
+"###);
 }
 
 #[test]
@@ -2588,7 +2593,7 @@ fn array_nodes_become_array_instructions() {
 
     // Both nominal applications have managed-pointer storage, while every
     // instruction references its complete typed metadata record.
-    let expected = "\
+    insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
   fun @scoop_main() -> void
     local %0 a: ptr<managed>
@@ -2596,13 +2601,14 @@ Module
     local %2 n: i64
     local %3 m: ptr<managed>
   block entry
-    t0 = array_alloc array0 (1, 2) : ptr<managed>
+    poll managed-target0 sp3 live=[]
+    t0 = array_alloc array0 (1, 2) sp1 live  : ptr<managed>
     store t0 -> local0
     t1 = array_get array0 local0 0 : i64
     store t1 -> local1
     t2 = array_len array0 local0 : i64
     store t2 -> local2
-    t3 = array_clone array1 local0 : ptr<managed>
+    t3 = array_clone array1 local0 sp2 live local0:ptr<managed>@0 : ptr<managed>
     store t3 -> local3
     array_set array1 local3 0 40
     ret
@@ -2612,8 +2618,7 @@ Module
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   entry @scoop_main
-";
-    assert_eq!(lir::dump(&module), expected);
+"###);
 }
 
 #[test]
@@ -2734,18 +2739,20 @@ fn virtual_calls_load_the_vtable_and_call_indirect() {
     // The receiver's object header (index 0) holds the TD; its
     // vtable pointer is ScoopTypeDescriptor field 5; the callee is
     // vtable[0].
-    let expected = "\
+    insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
   fun @scoop.C.m(ptr<managed>) -> i64
   block entry
+    poll managed-target0 sp2 live=[]
     ret 1
   fun @scoop_main() -> void
     local %0 p: ptr<managed>
     local %1 r: i64
   block entry
+    poll managed-target1 sp3 live=[local0:ptr<managed>@0]
     t0 = heap_load local0 +0 : ptr<metadata>
     t1 = heap_load t0 +40 : ptr<metadata>
-    call t2 = direct-target0 sig=direct0 (ptr<managed>) -> i64 effect=managed-safepoint dispatch[Virtual:0] t1(local0)
+    call managed-target0 sp1 live=[local0:ptr<managed>@0] t2 = sig=direct0 (ptr<managed>) -> i64 dispatch[Virtual:0] t1(local0)
     store t2 -> local1
     ret
   td td0 C @scoop_td_C type-id=2 size=16 parent=none vtable=[local-fn0] itables=[]
@@ -2754,8 +2761,7 @@ Module
   layout Boolean size=1 align=1 refs=[]
   layout C size=16 align=8 refs=[]
   entry @scoop_main
-";
-    assert_eq!(lir::dump(&module), expected);
+"###);
 }
 
 #[test]
@@ -2796,15 +2802,16 @@ fn interface_calls_look_up_the_itable() {
     // `scoop_rt_itable_lookup(td, iface_td)` finds the table; the
     // interface TD is a typed metadata reference, not an ordinary
     // globals-arena entry.
-    let expected = "\
+    insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
   fun @scoop_main() -> void
     local %0 i: ptr<managed>
     local %1 r: i64
   block entry
+    poll managed-target1 sp2 live=[local0:ptr<managed>@0]
     t0 = heap_load local0 +0 : ptr<metadata>
-    call t1 = direct-target0 sig=direct0 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> effect=no-gc runtime @scoop_rt_itable_lookup(t0, td0)
-    call t2 = direct-target1 sig=direct1 (ptr<managed>) -> i64 effect=managed-safepoint dispatch[Interface:1] t1(local0)
+    call no-gc-target0 t1 = sig=direct0 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t0, td0)
+    call managed-target0 sp1 live=[local0:ptr<managed>@0] t2 = sig=direct1 (ptr<managed>) -> i64 dispatch[Interface:1] t1(local0)
     store t2 -> local1
     ret
   td td0 Describable @scoop_td_Describable type-id=2 size=0 parent=none vtable=[] itables=[]
@@ -2812,8 +2819,7 @@ Module
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   entry @scoop_main
-";
-    assert_eq!(lir::dump(&module), expected);
+"###);
 }
 
 #[test]
@@ -3060,7 +3066,7 @@ fn box_unbox_and_is_instance_lower_to_runtime_calls() {
     // Box → `scoop_rt_box(td, payload, size)`; Unbox → the payload
     // field behind the header; `is` → `scoop_rt_is_instance(obj,
     // td)`. Both checks share one typed descriptor reference.
-    let expected = "\
+    insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
   fun @scoop_main() -> void
     local %0 a: ptr<managed>
@@ -3068,14 +3074,15 @@ Module
     local %2 chk: i1
     local %3 $sc.1: struct0
   block entry
+    poll managed-target1 sp2 live=[]
     t0 = aggregate (1) : struct0
     store t0 -> local3
     t1 = local_address local3 : ptr
-    call t2 = direct-target0 sig=direct0 (ptr<metadata>, ptr<raw>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_box(td0, t1, 8)
+    call managed-target0 sp1 live=[] t2 = sig=direct0 (ptr<metadata>, ptr<raw>, i64) -> ptr<managed> runtime @scoop_rt_box(td0, t1, 8)
     store t2 -> local0
     t3 = heap_load local0 +16 : struct0
     store t3 -> local1
-    call t4 = direct-target1 sig=direct1 (ptr<managed>, ptr<metadata>) -> i1 effect=no-gc runtime @scoop_rt_is_instance(local0, td0)
+    call no-gc-target0 t4 = sig=direct1 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local0, td0)
     store t4 -> local2
     ret
   td td0 box$D1_SX @scoop_td_box$D1_SX type-id=2 size=24 parent=none vtable=[] itables=[]
@@ -3085,8 +3092,7 @@ Module
   layout S size=8 align=8 refs=[]
   layout box$D1_SX size=24 align=8 refs=[]
   entry @scoop_main
-";
-    assert_eq!(lir::dump(&module), expected);
+"###);
 }
 
 #[test]
@@ -3178,7 +3184,7 @@ fn gc_intrinsics_exchange_words_with_the_runtime() {
     );
     let module = lower(&b.finish(main));
 
-    let expected = "\
+    insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
   fun @scoop_main() -> void
     local %0 v: ptr<managed>
@@ -3192,25 +3198,26 @@ Module
     local %8 p2: ptr<managed>
     local %9 n: i64
   block entry
-    call t0 = direct-target0 sig=direct0 (ptr<managed>) -> i64 effect=no-gc runtime @scoop_rt_pin(local0)
+    poll managed-target1 sp2 live=[local0:ptr<managed>@0]
+    call no-gc-target0 t0 = sig=direct0 (ptr<managed>) -> i64 runtime @scoop_rt_pin(local0)
     store t0 -> local1
     t1 = aggregate (local1) : struct0
     store t1 -> local2
     t2 = extract local2, 0 : i64
-    call t3 = direct-target1 sig=direct1 (i64) -> ptr<managed> effect=no-gc runtime @scoop_rt_unpin(t2)
+    call no-gc-target1 t3 = sig=direct1 (i64) -> ptr<managed> runtime @scoop_rt_unpin(t2)
     store t3 -> local3
     store local3 -> local4
-    call t4 = direct-target2 sig=direct2 (ptr<managed>) -> i64 effect=no-gc runtime @scoop_rt_get_handle(local0)
+    call no-gc-target2 t4 = sig=direct2 (ptr<managed>) -> i64 runtime @scoop_rt_get_handle(local0)
     store t4 -> local5
     t5 = aggregate (local5) : struct1
     store t5 -> local6
     t6 = extract local6, 0 : i64
-    call t7 = direct-target3 sig=direct3 (i64) -> ptr<managed> effect=no-gc runtime @scoop_rt_release_handle(t6)
+    call no-gc-target3 t7 = sig=direct3 (i64) -> ptr<managed> runtime @scoop_rt_release_handle(t6)
     store t7 -> local7
     store local7 -> local8
-    call void-target0 sig=void0 () effect=managed-safepoint runtime @scoop_rt_gc_collect()
+    call managed-target0 sp1 live=[] sig=void0 () runtime @scoop_rt_gc_collect()
     t8 = aggregate () : {}
-    call t9 = direct-target4 sig=direct4 () -> i64 effect=no-gc runtime @scoop_rt_gc_stats()
+    call no-gc-target4 t9 = sig=direct4 () -> i64 runtime @scoop_rt_gc_stats()
     store t9 -> local9
     ret
   layout String size=24 align=8 refs=[]
@@ -3219,8 +3226,7 @@ Module
   layout PinnedPtr$S size=8 align=8 refs=[]
   layout GcHandle$S size=8 align=8 refs=[]
   entry @scoop_main
-";
-    assert_eq!(lir::dump(&module), expected);
+"###);
 }
 
 #[test]
@@ -3254,8 +3260,8 @@ fn class_field_reads_are_heap_loads() {
     // The String field follows the 16-byte header and Int field,
     // so its natural byte offset is 24.
     let function = &module.functions[0];
-    let instructions = &function.blocks[function.entry].instructions;
-    let lir::Instruction::HeapLoad { out, offset, .. } = &instructions[0] else {
+    let instructions = instructions_without_polls(&function.blocks[function.entry]);
+    let lir::Instruction::HeapLoad { out, offset, .. } = instructions[0] else {
         panic!("a class field read must be a heap object load")
     };
     assert_eq!(*offset, 24);
@@ -3322,19 +3328,21 @@ fn class_init_allocates_and_stores_fields() {
     // `scoop_rt_alloc(td, size)` with the class layout size (16
     // header + Int @16 + String @24 = 32), then the fields at
     // those byte offsets.
-    let expected = "\
+    insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
-  global @scoop.str.0 = \"x\"
+  global @scoop.str.0 = "x"
   fun @scoop.ctor.Point(i64, ptr<managed>) -> ptr<managed>
   block entry
-    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td0, 32)
+    poll managed-target1 sp3 live=[param1:ptr<managed>@0]
+    call managed-target0 sp1 live=[param1:ptr<managed>@0] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td0, 32)
     heap_store t0 +16 param0
     heap_store t0 +24 param1
     ret t0
   fun @scoop_main() -> void
     local %0 p: ptr<managed>
   block entry
-    call t0 = direct-target0 sig=direct0 (i64, ptr<managed>) -> ptr<managed> effect=managed-safepoint local-fn0(1, global0)
+    poll managed-target1 sp4 live=[]
+    call managed-target0 sp2 live=[] t0 = sig=direct0 (i64, ptr<managed>) -> ptr<managed> local-fn0(1, global0)
     store t0 -> local0
     ret
   td td0 Point @scoop_td_Point type-id=2 size=32 parent=none vtable=[] itables=[]
@@ -3343,8 +3351,7 @@ Module
   layout Boolean size=1 align=1 refs=[]
   layout Point size=32 align=8 refs=[24]
   entry @scoop_main
-";
-    assert_eq!(lir::dump(&module), expected);
+"###);
 }
 
 #[test]
@@ -3372,12 +3379,12 @@ fn field_set_lowers_to_a_heap_store() {
     let module = lower(&b.finish(main));
 
     let function = &module.functions[0];
-    let instructions = &function.blocks[function.entry].instructions;
+    let instructions = instructions_without_polls(&function.blocks[function.entry]);
     let lir::Instruction::HeapStore {
         object,
         offset: 24,
         value,
-    } = &instructions[0]
+    } = instructions[0]
     else {
         panic!("a FieldSet must lower to a HeapStore")
     };
@@ -3458,13 +3465,15 @@ fn try_catch_lowers_to_invoke_landingpad_and_rethrow() {
     );
     let module = lower(&b.finish(main));
 
-    let expected = "\
+    insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
   fun @scoop.helper() -> void
   block entry
+    poll managed-target0 sp3 live=[]
     ret
   fun @scoop.handled() -> void
   block entry
+    poll managed-target0 sp4 live=[]
     ret
   fun @scoop_main() -> void
     local %0 e: ptr<managed>
@@ -3472,6 +3481,7 @@ Module
     local %2 $sc.2: ptr<raw>
     local %3 $sc.3: ptr<managed>
   block entry
+    poll managed-target2 sp5 live=[]
     br @try.body.8
   block try.unwind.1
     (t0, t1) = landingpad : (exception_record, ptr<raw>)
@@ -3481,7 +3491,7 @@ Module
   block try.dispatch.2
     t2 = begin_catch local2 : ptr<managed>
     store t2 -> local3
-    call t3 = direct-target0 sig=direct0 (ptr<managed>, ptr<metadata>) -> i1 effect=no-gc runtime @scoop_rt_is_instance(local3, td0)
+    call no-gc-target0 t3 = sig=direct0 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local3, td0)
     cbr t3 then @try.catch.9 else @try.next.10
   block try.handler_pad.3
     (t4, t5) = cleanup_pad : (exception_record, ptr<raw>)
@@ -3502,14 +3512,14 @@ Module
   block try.end.7
     ret
   block try.body.8
-    invoke void-target0 sig=void0 () effect=managed-safepoint local-fn0() normal @invoke.normal.1 unwind @try.unwind.1
+    invoke managed-target0 sp1 roots=[] sig=void0 () local-fn0() normal @invoke.normal.1 unwind @try.unwind.1
     br @invoke.normal.1
   block try.catch.9
     store local3 -> local0
-    invoke void-target1 sig=void1 () effect=managed-safepoint local-fn1() normal @invoke.normal.2 unwind @try.handler_pad.3
+    invoke managed-target1 sp2 roots=[] sig=void1 () local-fn1() normal @invoke.normal.2 unwind @try.handler_pad.3
     br @invoke.normal.2
   block try.next.10
-    invoke void-target2 sig=void2 () effect=no-gc runtime @scoop_rt_rethrow() normal @rethrow.normal.3 unwind @try.exit_pad.5
+    invoke no-gc-target1 sig=void2 () runtime @scoop_rt_rethrow() normal @rethrow.normal.3 unwind @try.exit_pad.5
     br @rethrow.normal.3
   block invoke.normal.1
     t8 = aggregate () : {}
@@ -3526,8 +3536,97 @@ Module
   layout Boolean size=1 align=1 refs=[]
   layout MyError size=16 align=8 refs=[]
   entry @scoop_main
-";
-    assert_eq!(lir::dump(&module), expected);
+"###);
+}
+
+#[test]
+fn managed_invoke_roots_have_complete_edge_roles_and_argument_coverage() {
+    let mut b = Builder::new();
+    let error_class = my_error(&mut b);
+    let reference_ty = mir::Type::Class(error_class);
+
+    let mut callee_locals = Arena::new();
+    let callee_first = callee_locals.alloc(local("first", reference_ty.clone()));
+    let callee_second = callee_locals.alloc(local("second", reference_ty.clone()));
+    let callee = b.user_fn_body(
+        "callee",
+        "scoop.callee",
+        vec![
+            param("first", reference_ty.clone(), callee_first),
+            param("second", reference_ty.clone(), callee_second),
+        ],
+        mir::Type::Unit,
+        body_with_terminator(
+            callee_locals,
+            Vec::new(),
+            mir::Terminator::Return { value: None },
+        ),
+    );
+
+    let mut locals = Arena::new();
+    let live_on_both_edges = locals.alloc(local("both", reference_ty.clone()));
+    let argument_only = locals.alloc(local("argumentOnly", reference_ty.clone()));
+    let caught = locals.alloc(local("caught", reference_ty.clone()));
+    let sink = locals.alloc(local("sink", reference_ty.clone()));
+    let call = mir::Call {
+        target: mir::CallTarget {
+            kind: mir::CallKind::Direct,
+            callee: mir::Callee::User(callee),
+        },
+        args: vec![
+            local_expr(live_on_both_edges, reference_ty.clone()),
+            local_expr(argument_only, reference_ty.clone()),
+        ],
+    };
+    let body = single_catch_body(
+        locals,
+        caught,
+        reference_ty.clone(),
+        vec![
+            call_stmt(call),
+            assign(sink, local_expr(live_on_both_edges, reference_ty.clone())),
+        ],
+        None,
+        vec![assign(
+            sink,
+            local_expr(live_on_both_edges, reference_ty.clone()),
+        )],
+    );
+    let main = b.user_fn_body(
+        "main",
+        mir::ENTRY_SYMBOL,
+        vec![
+            param("both", reference_ty.clone(), live_on_both_edges),
+            param("argumentOnly", reference_ty, argument_only),
+        ],
+        mir::Type::Unit,
+        body,
+    );
+    let module = lower(&b.finish(main));
+    let main = module
+        .functions
+        .iter()
+        .find(|function| function.symbol == mir::ENTRY_SYMBOL)
+        .expect("main function");
+    let roots = main
+        .blocks
+        .iter()
+        .flat_map(|(_, block)| &block.instructions)
+        .find_map(|instruction| match instruction {
+            lir::Instruction::Invoke {
+                site: lir::InvokeSite::Managed(site),
+            } => Some(site.roots.as_slice()),
+            _ => None,
+        })
+        .expect("managed invoke");
+
+    assert_eq!(roots.len(), 2);
+    assert_eq!(roots[0].root.source, lir::CallerRootSource::Param(0));
+    assert!(roots[0].normal_live);
+    assert!(roots[0].unwind_live);
+    assert_eq!(roots[1].root.source, lir::CallerRootSource::Param(1));
+    assert!(!roots[1].normal_live);
+    assert!(!roots[1].unwind_live);
 }
 
 #[test]
@@ -3708,19 +3807,22 @@ fn return_inside_try_runs_finally_before_returning() {
     let main = b.main(Arena::new(), vec![]);
     let module = lower(&b.finish(main));
 
-    // The finally copy runs before the return on the `return`
-    // path and before the rethrow on the unwind path; the merge
-    // block is dead (both paths leave the function).
-    let expected = "\
+    // This body cannot enter the unwind path, so final LIR prunes that
+    // detached copy together with the dead merge block. The reachable
+    // finally copy still runs before the return.
+    insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
   fun @scoop.helper() -> void
   block entry
+    poll managed-target0 sp3 live=[]
     ret
   fun @scoop.handled() -> void
   block entry
+    poll managed-target0 sp4 live=[]
     ret
   fun @scoop.cleanup() -> void
   block entry
+    poll managed-target0 sp5 live=[]
     ret
   fun @scoop.f() -> i64
     local %0 $return.1: i64
@@ -3728,51 +3830,24 @@ Module
     local %2 $sc.2: ptr<raw>
     local %3 $sc.3: ptr<managed>
   block entry
+    poll managed-target2 sp6 live=[]
     br @try.body.6
-  block try.unwind.1
-    (t0, t1) = landingpad : (exception_record, ptr<raw>)
-    store t0 -> local1
-    store t1 -> local2
-    br @try.dispatch.2
-  block try.dispatch.2
-    t2 = begin_catch local2 : ptr<managed>
-    store t2 -> local3
-    br @scope.8
-  block try.exit_pad.3
-    (t3, t4) = cleanup_pad : (exception_record, ptr<raw>)
-    store t3 -> local1
-    store t4 -> local2
-    br @try.exit_cleanup.4
-  block try.exit_cleanup.4
-    end_catch
-    resume local1
-  block try.end.5
-    unreachable
   block try.body.6
     store 1 -> local0
     br @scope.7
   block scope.7
-    call void-target0 sig=void0 () effect=managed-safepoint local-fn2()
+    call managed-target0 sp1 live=[] sig=void0 () local-fn2()
     t5 = aggregate () : {}
     ret local0
-  block scope.8
-    invoke void-target1 sig=void1 () effect=managed-safepoint local-fn2() normal @invoke.normal.1 unwind @try.exit_pad.3
-    br @invoke.normal.1
-  block invoke.normal.1
-    t6 = aggregate () : {}
-    invoke void-target2 sig=void2 () effect=no-gc runtime @scoop_rt_rethrow() normal @rethrow.normal.2 unwind @try.exit_pad.3
-    br @rethrow.normal.2
-  block rethrow.normal.2
-    unreachable
   fun @scoop_main() -> void
   block entry
+    poll managed-target0 sp7 live=[]
     ret
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
   entry @scoop_main
-";
-    assert_eq!(lir::dump(&module), expected);
+"###);
 }
 
 #[test]
@@ -3827,16 +3902,18 @@ fn throw_outside_try_is_a_throw_instruction() {
 
     // Outside a try the throw is the `Throw` instruction ending
     // the block; the callee stays a plain call.
-    let expected = "\
+    insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
   fun @scoop.makeError() -> ptr<managed>
   block entry
-    call t0 = direct-target0 sig=direct0 (ptr<metadata>, i64) -> ptr<managed> effect=managed-safepoint runtime @scoop_rt_alloc(td0, 16)
+    poll managed-target1 sp3 live=[]
+    call managed-target0 sp1 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td0, 16)
     ret t0
   fun @scoop_main() -> void
     local %0 $call.1: ptr<managed>
   block entry
-    call t0 = direct-target0 sig=direct0 () -> ptr<managed> effect=managed-safepoint local-fn0()
+    poll managed-target1 sp4 live=[]
+    call managed-target0 sp2 live=[] t0 = sig=direct0 () -> ptr<managed> local-fn0()
     store t0 -> local0
     throw local0
     unreachable
@@ -3846,8 +3923,7 @@ Module
   layout Boolean size=1 align=1 refs=[]
   layout MyError size=16 align=8 refs=[]
   entry @scoop_main
-";
-    assert_eq!(lir::dump(&module), expected);
+"###);
 }
 
 #[test]
@@ -3895,29 +3971,29 @@ fn throw_inside_try_invokes_to_the_own_landingpad() {
         .map(|(_, block)| block)
         .find(|block| block.name == "try.body.8")
         .expect("the try body");
-    let lir::Instruction::Invoke {
-        site,
-        normal,
-        unwind,
-        ..
-    } = entry.instructions.last().expect("the throw invoke")
+    let lir::Instruction::Invoke { site } = entry.instructions.last().expect("the throw invoke")
     else {
         panic!("a throw inside a try must be invoked")
     };
-    assert_eq!(call_symbol(&module, function, site), "scoop_rt_throw");
+    assert_eq!(
+        call_symbol(&module, site.destination(&function.call_targets)),
+        "scoop_rt_throw"
+    );
+    let normal = site.normal();
+    let unwind = site.unwind();
     assert!(matches!(
-        function.blocks[*unwind].instructions.first(),
+        function.blocks[unwind].instructions.first(),
         Some(lir::Instruction::LandingPad { .. })
     ));
     assert!(matches!(
-        function.blocks[*normal].terminator,
+        function.blocks[normal].terminator,
         lir::Terminator::Unreachable
     ));
     // The invoke block's terminator is the redundant `Br` to the
     // normal target (the codegen convention).
     assert!(matches!(
         entry.terminator,
-        lir::Terminator::Br(target) if target == *normal
+        lir::Terminator::Br(target) if target == normal
     ));
 }
 
@@ -4067,16 +4143,16 @@ fn nested_trys_unwind_to_their_own_pads() {
         .iter()
         .find(|f| f.symbol == mir::ENTRY_SYMBOL)
         .expect("the entry function");
-    // Two primary catch pads, one per try. Inner handler cleanup
-    // pads also carry catch-all clauses so they can forward to the
-    // outer dispatch; identify primaries by their block role.
+    // The outer primary pad has no incoming exceptional edge after the
+    // nested lowering is complete, so final LIR removes it. The inner
+    // primary pad remains, as do both handler cleanup pads.
     let pads: Vec<&str> = function
         .blocks
         .iter()
         .filter(|(_, block)| block.name.contains("try.unwind"))
         .map(|(_, block)| block.name.as_str())
         .collect();
-    assert_eq!(pads.len(), 2);
+    assert_eq!(pads.len(), 1);
     let cleanup_pad_count = function
         .blocks
         .iter()
@@ -4101,10 +4177,10 @@ fn nested_trys_unwind_to_their_own_pads() {
     let mut invokes = Vec::new();
     for (_, block) in function.blocks.iter() {
         for instruction in &block.instructions {
-            if let lir::Instruction::Invoke { site, unwind, .. } = instruction {
+            if let lir::Instruction::Invoke { site } = instruction {
                 invokes.push((
-                    call_symbol(&module, function, site),
-                    function.blocks[*unwind].name.as_str(),
+                    call_symbol(&module, site.destination(&function.call_targets)),
+                    function.blocks[site.unwind()].name.as_str(),
                 ));
             }
         }
@@ -4116,7 +4192,7 @@ fn nested_trys_unwind_to_their_own_pads() {
             .map(|(_, u)| *u)
             .unwrap_or_else(|| panic!("{symbol} must be invoked"))
     };
-    assert_eq!(unwind_of("scoop.a"), pads[1]);
+    assert_eq!(unwind_of("scoop.a"), pads[0]);
     assert_eq!(unwind_of("scoop.b"), handler_pads[1]);
     assert_eq!(unwind_of("scoop.c"), handler_pads[0]);
 }

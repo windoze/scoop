@@ -393,72 +393,200 @@ fn call_destination_name(function: &Function, destination: CallDestination) -> S
     }
 }
 
-fn call_site_name(function: &Function, site: &CallSite) -> String {
+fn typed_call_name(function: &Function, call: &TypedCall, destination: CallDestination) -> String {
     let targets = &function.call_targets;
-    let args = site
+    let args = call
         .args()
         .iter()
         .map(|arg| value_name(*arg))
         .collect::<Vec<_>>()
         .join(", ");
-    match *site {
-        CallSite::Void { target, .. } => {
-            let target_value = &targets.void_targets[target];
-            let signature = &targets.void_signatures[target_value.signature];
-            let params = signature
+    match *call {
+        TypedCall::Void { signature, .. } => {
+            let value = &targets.void_signatures[signature];
+            let params = value
                 .params
                 .iter()
                 .map(LirType::dump)
                 .collect::<Vec<_>>()
                 .join(", ");
             format!(
-                "void-target{} sig=void{} ({params}) effect={} {}({args})",
-                target.into_raw(),
-                target_value.signature.into_raw(),
-                target_value.effect.dump(),
-                call_destination_name(function, target_value.destination),
+                "sig=void{} ({params}) {}({args})",
+                signature.into_raw(),
+                call_destination_name(function, destination),
             )
         }
-        CallSite::Direct { target, out, .. } => {
-            let target_value = &targets.direct_targets[target];
-            let signature = &targets.direct_signatures[target_value.signature];
-            let params = signature
+        TypedCall::Direct { signature, out, .. } => {
+            let value = &targets.direct_signatures[signature];
+            let params = value
                 .params
                 .iter()
                 .map(LirType::dump)
                 .collect::<Vec<_>>()
                 .join(", ");
             format!(
-                "t{} = direct-target{} sig=direct{} ({params}) -> {} effect={} {}({args})",
+                "t{} = sig=direct{} ({params}) -> {} {}({args})",
                 out.into_raw(),
-                target.into_raw(),
-                target_value.signature.into_raw(),
-                signature.result.dump(),
-                target_value.effect.dump(),
-                call_destination_name(function, target_value.destination),
+                signature.into_raw(),
+                value.result.dump(),
+                call_destination_name(function, destination),
             )
         }
-        CallSite::IndirectResult {
-            target, storage, ..
+        TypedCall::IndirectResult {
+            signature, storage, ..
         } => {
-            let target_value = &targets.indirect_result_targets[target];
-            let signature = &targets.indirect_result_signatures[target_value.signature];
-            let params = signature
+            let value = &targets.indirect_result_signatures[signature];
+            let params = value
                 .params
                 .iter()
                 .map(LirType::dump)
                 .collect::<Vec<_>>()
                 .join(", ");
             format!(
-                "local{} = indirect-result-target{} sig=indirect{} (sret {}, {params}) effect={} {}({args})",
+                "local{} = sig=indirect{} (sret {}, {params}) {}({args})",
                 storage.into_raw(),
-                target.into_raw(),
-                target_value.signature.into_raw(),
-                signature.result.ty.dump(),
-                target_value.effect.dump(),
-                call_destination_name(function, target_value.destination),
+                signature.into_raw(),
+                value.result.ty.dump(),
+                call_destination_name(function, destination),
             )
         }
+    }
+}
+
+fn caller_roots_name(roots: &[CallerRoot]) -> String {
+    roots
+        .iter()
+        .map(|root| {
+            let source = root.source.dump();
+            match root.scan.as_ref_scan() {
+                RefScan::References(offsets) if offsets == &[0] => source,
+                scan => format!("{source}:{}", scan.dump()),
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+fn exceptional_roots_name(roots: &ExceptionalRootSet) -> String {
+    roots
+        .as_slice()
+        .iter()
+        .map(|root| {
+            let edge = match (root.normal_live, root.unwind_live) {
+                (true, true) => "normal+unwind",
+                (true, false) => "normal",
+                (false, true) => "unwind",
+                (false, false) => "argument",
+            };
+            format!(
+                "{}:{edge}",
+                caller_roots_name(std::slice::from_ref(&root.root))
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+fn live_set_name(live: &StatepointLiveSet) -> String {
+    live.as_slice()
+        .iter()
+        .map(|value| {
+            let offsets = value
+                .leaves
+                .as_slice()
+                .iter()
+                .map(|leaf| leaf.byte_offset.to_string())
+                .collect::<Vec<_>>()
+                .join("+");
+            format!("{}:{}@{offsets}", value.source.dump(), value.ty.dump())
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+fn call_site_name(function: &Function, site: &CallSite) -> String {
+    let targets = &function.call_targets;
+    match site {
+        CallSite::Managed(site) => format!(
+            "managed-target{} sp{} live=[{}] {}",
+            site.target.into_raw(),
+            site.safepoint.get(),
+            live_set_name(&site.live),
+            typed_call_name(
+                function,
+                &site.call,
+                targets.managed_targets[site.target].destination
+            )
+        ),
+        CallSite::NoGc(site) => format!(
+            "no-gc-target{} {}",
+            site.target.into_raw(),
+            typed_call_name(
+                function,
+                &site.call,
+                targets.no_gc_targets[site.target].destination
+            )
+        ),
+        CallSite::NativeSafe(site) => format!(
+            "native-safe-target{} sp{} roots=[{}] {}",
+            site.target.into_raw(),
+            site.safepoint.get(),
+            caller_roots_name(site.roots.as_slice()),
+            typed_call_name(
+                function,
+                &site.call,
+                targets.native_safe_targets[site.target].destination
+            )
+        ),
+        CallSite::NativeBorrowed(site) => {
+            let result = match &site.roots.result {
+                NativeBorrowedResultRoot::GcFree => String::new(),
+                NativeBorrowedResultRoot::Rooted { storage, scan } => {
+                    format!(" result-root=local{}:{}", storage.into_raw(), scan.dump())
+                }
+            };
+            format!(
+                "native-borrowed-target{} sp{} roots=[{}]{result} {}",
+                site.target.into_raw(),
+                site.safepoint.get(),
+                caller_roots_name(site.roots.as_slice()),
+                typed_call_name(
+                    function,
+                    &site.call,
+                    targets.native_borrowed_targets[site.target].destination
+                )
+            )
+        }
+    }
+}
+
+fn invoke_site_name(function: &Function, site: &InvokeSite) -> String {
+    let targets = &function.call_targets;
+    match site {
+        InvokeSite::Managed(site) => format!(
+            "managed-target{} sp{} roots=[{}] {} normal @{} unwind @{}",
+            site.target.into_raw(),
+            site.safepoint.get(),
+            exceptional_roots_name(&site.roots),
+            typed_call_name(
+                function,
+                &site.call,
+                targets.managed_targets[site.target].destination
+            ),
+            block_name(function, site.normal),
+            block_name(function, site.unwind)
+        ),
+        InvokeSite::NoGc(site) => format!(
+            "no-gc-target{} {} normal @{} unwind @{}",
+            site.target.into_raw(),
+            typed_call_name(
+                function,
+                &site.call,
+                targets.no_gc_targets[site.target].destination
+            ),
+            block_name(function, site.normal),
+            block_name(function, site.unwind)
+        ),
     }
 }
 
@@ -537,28 +665,42 @@ fn dump_instruction(function: &Function, instruction: &Instruction, buf: &mut St
             out.into_raw(),
             global.into_raw()
         )),
-        Instruction::NativeGlobalLoad { out, global, roots } => buf.push_str(&format!(
-            "    t{} = native_global_load ng{} roots={} : {}\n",
+        Instruction::NativeGlobalLoad {
+            out,
+            global,
+            safepoint,
+            roots,
+        } => buf.push_str(&format!(
+            "    t{} = native_global_load ng{} sp{} roots=[{}] : {}\n",
             out.into_raw(),
             global.into_raw(),
-            roots.len(),
+            safepoint.get(),
+            caller_roots_name(roots.as_slice()),
             function.temps[*out].ty.dump()
         )),
         Instruction::NativeGlobalStore {
             global,
             value,
+            safepoint,
             roots,
         } => buf.push_str(&format!(
-            "    native_global_store ng{}, {} roots={}\n",
+            "    native_global_store ng{}, {} sp{} roots=[{}]\n",
             global.into_raw(),
             value_name(*value),
-            roots.len()
+            safepoint.get(),
+            caller_roots_name(roots.as_slice())
         )),
-        Instruction::NativeGlobalAddress { out, global, roots } => buf.push_str(&format!(
-            "    t{} = native_global_address ng{} roots={}\n",
+        Instruction::NativeGlobalAddress {
+            out,
+            global,
+            safepoint,
+            roots,
+        } => buf.push_str(&format!(
+            "    t{} = native_global_address ng{} sp{} roots=[{}]\n",
             out.into_raw(),
             global.into_raw(),
-            roots.len()
+            safepoint.get(),
+            caller_roots_name(roots.as_slice())
         )),
         Instruction::HeapStore {
             object,
@@ -689,48 +831,19 @@ fn dump_instruction(function: &Function, instruction: &Instruction, buf: &mut St
             value_name(*value),
             local.into_raw()
         )),
-        Instruction::NativeCall { site, roots } => {
-            let roots = if roots.is_empty() {
-                String::new()
-            } else {
-                let roots = roots
-                    .iter()
-                    .map(|root| {
-                        let source = root.source.dump();
-                        match root.scan.as_ref_scan() {
-                            RefScan::References(offsets) if offsets == &[0] => source,
-                            scan => format!("{source}:{}", scan.dump()),
-                        }
-                    })
-                    .collect::<Vec<_>>();
-                format!(" roots=[{}]", roots.join(", "))
-            };
-            let result_scan = site.result_scan(&function.call_targets);
-            let result_root = if *result_scan == RefScan::None {
-                String::new()
-            } else {
-                format!(" result-root={}", result_scan.dump())
-            };
-            buf.push_str(&format!(
-                "    native_call {}{}{}\n",
-                call_site_name(function, site),
-                roots,
-                result_root
-            ));
-        }
         Instruction::Call { site } => {
             buf.push_str(&format!("    call {}\n", call_site_name(function, site)));
         }
-        Instruction::Invoke {
-            site,
-            normal,
-            unwind,
-        } => {
+        Instruction::ManagedPoll { site } => buf.push_str(&format!(
+            "    poll managed-target{} sp{} live=[{}]\n",
+            site.target.into_raw(),
+            site.safepoint.get(),
+            live_set_name(&site.live)
+        )),
+        Instruction::Invoke { site } => {
             buf.push_str(&format!(
-                "    invoke {} normal @{} unwind @{}\n",
-                call_site_name(function, site),
-                block_name(function, *normal),
-                block_name(function, *unwind)
+                "    invoke {}\n",
+                invoke_site_name(function, site)
             ));
         }
         Instruction::LandingPad { record, raw } => buf.push_str(&format!(
@@ -761,13 +874,17 @@ fn dump_instruction(function: &Function, instruction: &Instruction, buf: &mut St
             out,
             elements,
             array_type,
+            safepoint,
+            live,
         } => {
             let elements: Vec<String> = elements.iter().map(|e| value_name(*e)).collect();
             buf.push_str(&format!(
-                "    t{} = array_alloc array{} ({}) : {}\n",
+                "    t{} = array_alloc array{} ({}) sp{} live {} : {}\n",
                 out.into_raw(),
                 array_type.into_raw(),
                 elements.join(", "),
+                safepoint.get(),
+                live_set_name(live),
                 function.temps[*out].ty.dump()
             ))
         }
@@ -811,11 +928,15 @@ fn dump_instruction(function: &Function, instruction: &Instruction, buf: &mut St
             out,
             operand,
             array_type,
+            safepoint,
+            live,
         } => buf.push_str(&format!(
-            "    t{} = array_clone array{} {} : {}\n",
+            "    t{} = array_clone array{} {} sp{} live {} : {}\n",
             out.into_raw(),
             array_type.into_raw(),
             value_name(*operand),
+            safepoint.get(),
+            live_set_name(live),
             function.temps[*out].ty.dump()
         )),
         Instruction::EnumWrap {

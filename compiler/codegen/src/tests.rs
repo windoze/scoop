@@ -1,12 +1,12 @@
 use inkwell::targets::FileType;
 use la_arena::Arena;
 use scoop_lir::{
-    BasicBlock, CallDestination, CallEffect, CallSite, CallTargets, DirectCallSignature,
-    DirectCallTarget, DispatchKind, DispatchSlot, EnumDef, EnumFieldRepr, EnumRepr,
-    EnumVariantRepr, Global, GlobalInit, IndirectResultCallSignature, IndirectResultCallTarget,
-    ItableRecord, Layout, LayoutKind, LirMeta, Local, MANAGED_PTR, METADATA_PTR, PointerKind,
-    RAW_PTR, ResultStorage, Temp, TypeDescriptor, TypeDescriptorRef, TypeDescriptorScan,
-    VoidCallSignature, VoidCallTarget, WellKnownLayouts, WellKnownTypeDescriptors,
+    BasicBlock, CallDestination, CallSite, CallTargets, DirectCallSignature, DispatchKind,
+    DispatchSlot, EnumDef, EnumFieldRepr, EnumRepr, EnumVariantRepr, GcEffect, Global, GlobalInit,
+    IndirectResultCallSignature, ItableRecord, Layout, LayoutKind, LirMeta, Local, MANAGED_PTR,
+    METADATA_PTR, NativeBorrowedResultRoot, PointerKind, RAW_PTR, ResultStorage, Temp,
+    TypeDescriptor, TypeDescriptorRef, TypeDescriptorScan, TypedCall, VoidCallSignature,
+    WellKnownLayouts, WellKnownTypeDescriptors,
 };
 
 use super::*;
@@ -17,10 +17,103 @@ fn host_profile() -> TargetProfile {
         .expect("supported host target")
 }
 
+enum TestCallProtocol {
+    Managed(u64),
+    NoGc,
+    NativeSafe(u64),
+    NativeBorrowed {
+        safepoint: u64,
+        result: NativeBorrowedResultRoot,
+    },
+}
+
+fn test_safepoint(raw: u64) -> scoop_lir::SafepointId {
+    scoop_lir::SafepointId::new(raw).expect("test safepoint ids are non-zero")
+}
+
+fn statepoint_value(
+    source: scoop_lir::CallerRootSource,
+    ty: LirType,
+    offsets: &[u64],
+) -> scoop_lir::StatepointLiveValue {
+    scoop_lir::StatepointLiveValue {
+        source,
+        ty,
+        leaves: scoop_lir::ManagedLeafPaths::new(
+            offsets
+                .iter()
+                .copied()
+                .map(|byte_offset| scoop_lir::ManagedLeafPath { byte_offset })
+                .collect(),
+        )
+        .expect("test roots have at least one sorted managed leaf"),
+    }
+}
+
+fn statepoint_live(values: Vec<scoop_lir::StatepointLiveValue>) -> scoop_lir::StatepointLiveSet {
+    scoop_lir::StatepointLiveSet::new(values).expect("test roots are source ordered and unique")
+}
+
+fn set_managed_live(site: &mut CallSite, live: scoop_lir::StatepointLiveSet) {
+    let CallSite::Managed(site) = site else {
+        panic!("test root plan requires a managed call site")
+    };
+    site.live = live;
+}
+
+fn protocol_site(
+    targets: &mut CallTargets,
+    destination: CallDestination,
+    protocol: TestCallProtocol,
+    call: TypedCall,
+) -> CallSite {
+    match protocol {
+        TestCallProtocol::Managed(safepoint) => {
+            let target = targets
+                .managed_targets
+                .alloc(scoop_lir::ManagedTarget { destination });
+            CallSite::Managed(scoop_lir::ManagedCallSite {
+                target,
+                call,
+                safepoint: test_safepoint(safepoint),
+                live: scoop_lir::StatepointLiveSet::default(),
+            })
+        }
+        TestCallProtocol::NoGc => {
+            let target = targets
+                .no_gc_targets
+                .alloc(scoop_lir::NoGcTarget { destination });
+            CallSite::NoGc(scoop_lir::NoGcCallSite { target, call })
+        }
+        TestCallProtocol::NativeSafe(safepoint) => {
+            let target = targets
+                .native_safe_targets
+                .alloc(scoop_lir::NativeSafeTarget { destination });
+            CallSite::NativeSafe(scoop_lir::NativeSafeCallSite {
+                target,
+                call,
+                safepoint: test_safepoint(safepoint),
+                roots: scoop_lir::NativeSafeRootSet::default(),
+            })
+        }
+        TestCallProtocol::NativeBorrowed { safepoint, result } => {
+            let target = targets
+                .native_borrowed_targets
+                .alloc(scoop_lir::NativeBorrowedTarget { destination });
+            CallSite::NativeBorrowed(scoop_lir::NativeBorrowedCallSite {
+                target,
+                call,
+                safepoint: test_safepoint(safepoint),
+                roots: scoop_lir::NativeBorrowedRootSet::new(Vec::new(), result),
+            })
+        }
+    }
+}
+
 fn void_site(
     targets: &mut CallTargets,
     destination: CallDestination,
-    effect: CallEffect,
+    protocol: TestCallProtocol,
     params: Vec<LirType>,
     args: Vec<Value>,
 ) -> CallSite {
@@ -28,18 +121,18 @@ fn void_site(
         params,
         calling_convention: scoop_lir::CallingConvention::Cdecl,
     });
-    let target = targets.void_targets.alloc(VoidCallTarget {
+    protocol_site(
+        targets,
         destination,
-        signature,
-        effect,
-    });
-    CallSite::Void { target, args }
+        protocol,
+        TypedCall::Void { signature, args },
+    )
 }
 
 fn direct_site(
     targets: &mut CallTargets,
     destination: CallDestination,
-    effect: CallEffect,
+    protocol: TestCallProtocol,
     params: Vec<LirType>,
     result: (LirType, RefScan),
     out: TempId,
@@ -51,18 +144,22 @@ fn direct_site(
         result_scan: result.1,
         calling_convention: scoop_lir::CallingConvention::Cdecl,
     });
-    let target = targets.direct_targets.alloc(DirectCallTarget {
+    protocol_site(
+        targets,
         destination,
-        signature,
-        effect,
-    });
-    CallSite::Direct { target, out, args }
+        protocol,
+        TypedCall::Direct {
+            signature,
+            out,
+            args,
+        },
+    )
 }
 
 fn indirect_result_site(
     targets: &mut CallTargets,
     destination: CallDestination,
-    effect: CallEffect,
+    protocol: TestCallProtocol,
     params: Vec<LirType>,
     result: (LirType, RefScan),
     storage: scoop_lir::LocalId,
@@ -78,18 +175,34 @@ fn indirect_result_site(
             },
             calling_convention: scoop_lir::CallingConvention::Cdecl,
         });
-    let target = targets
-        .indirect_result_targets
-        .alloc(IndirectResultCallTarget {
-            destination,
+    protocol_site(
+        targets,
+        destination,
+        protocol,
+        TypedCall::IndirectResult {
             signature,
-            effect,
-        });
-    CallSite::IndirectResult {
-        target,
-        storage,
-        args,
-    }
+            storage,
+            args,
+        },
+    )
+}
+
+fn managed_invoke(
+    site: CallSite,
+    normal: scoop_lir::BlockId,
+    unwind: scoop_lir::BlockId,
+) -> scoop_lir::InvokeSite {
+    let CallSite::Managed(site) = site else {
+        panic!("test invoke helper requires a managed call site")
+    };
+    scoop_lir::InvokeSite::Managed(scoop_lir::ManagedInvokeSite {
+        target: site.target,
+        call: site.call,
+        safepoint: site.safepoint,
+        roots: scoop_lir::ExceptionalRootSet::default(),
+        normal,
+        unwind,
+    })
 }
 
 fn dispatch_destination(targets: &mut CallTargets, table: Value, index: u32) -> CallDestination {
@@ -228,7 +341,7 @@ fn values_module() -> Module {
     let concat = direct_site(
         &mut call_targets,
         CallDestination::Runtime(scoop_lir::RuntimeFunction::StringConcat),
-        CallEffect::ManagedSafepoint,
+        TestCallProtocol::Managed(1),
         vec![MANAGED_PTR, MANAGED_PTR],
         (MANAGED_PTR, RefScan::References(vec![0])),
         t6,
@@ -642,7 +755,7 @@ fn enum_module() -> Module {
     let trap_site = void_site(
         &mut trap_targets,
         CallDestination::Runtime(scoop_lir::RuntimeFunction::Trap),
-        CallEffect::NoGc,
+        TestCallProtocol::NoGc,
         vec![RAW_PTR],
         vec![Value::Global(trap_message)],
     );
@@ -706,7 +819,7 @@ fn enum_module() -> Module {
     let produce_site = indirect_result_site(
         &mut consume_targets,
         CallDestination::Local(scoop_lir::LocalFunctionId::from_u32(3)),
-        CallEffect::ManagedSafepoint,
+        TestCallProtocol::Managed(1),
         Vec::new(),
         (shape_ty.clone(), RefScan::References(vec![24])),
         received,
@@ -750,7 +863,7 @@ fn enum_module() -> Module {
     let indirect_site = indirect_result_site(
         &mut indirect_targets,
         dispatch,
-        CallEffect::ManagedSafepoint,
+        TestCallProtocol::Managed(2),
         Vec::new(),
         (shape_ty.clone(), RefScan::References(vec![24])),
         indirect_received,
@@ -812,8 +925,12 @@ fn emits_m4_enums() {
     let module = enum_module();
     let ir = ir_of(&module);
     assert!(
-        ir.contains("store { i64, [24 x i8] } zeroinitializer"),
+        ir.contains("store { i64, [16 x i8], ptr addrspace(1) } zeroinitializer"),
         "tagged enum construction must zero every inactive ref slot:\n{ir}"
+    );
+    assert!(
+        ir.contains("{ i64, [16 x i8], ptr addrspace(1) }"),
+        "tagged enum GC slots must remain typed AS1 fields through SROA:\n{ir}"
     );
     assert!(
         ir.contains("getelementptr i8, ptr %enum_wrap") && ir.contains("i64 24"),
@@ -900,6 +1017,8 @@ fn arrays_module() -> Module {
                 out: t0,
                 elements: vec![Value::IntConst(1), Value::IntConst(2), Value::IntConst(3)],
                 array_type: int_array,
+                safepoint: test_safepoint(1),
+                live: scoop_lir::StatepointLiveSet::default(),
             },
             Instruction::Store {
                 local: numbers,
@@ -926,6 +1045,12 @@ fn arrays_module() -> Module {
                 out: t3,
                 operand: Value::Local(numbers),
                 array_type: mutable_int_array,
+                safepoint: test_safepoint(2),
+                live: statepoint_live(vec![statepoint_value(
+                    scoop_lir::CallerRootSource::Local(numbers),
+                    MANAGED_PTR,
+                    &[0],
+                )]),
             },
             Instruction::MakeAggregate {
                 out: t4,
@@ -935,6 +1060,12 @@ fn arrays_module() -> Module {
                 out: t5,
                 elements: vec![Value::Temp(t4), Value::Temp(t4)],
                 array_type: point_array,
+                safepoint: test_safepoint(3),
+                live: statepoint_live(vec![statepoint_value(
+                    scoop_lir::CallerRootSource::Temp(t3),
+                    MANAGED_PTR,
+                    &[0],
+                )]),
             },
             Instruction::ArrayGet {
                 out: t6,
@@ -957,6 +1088,11 @@ fn arrays_module() -> Module {
                 out: t8,
                 operand: Value::Temp(t5),
                 array_type: mutable_point_array,
+                safepoint: test_safepoint(4),
+                live: statepoint_live(vec![
+                    statepoint_value(scoop_lir::CallerRootSource::Temp(t3), MANAGED_PTR, &[0]),
+                    statepoint_value(scoop_lir::CallerRootSource::Temp(t5), MANAGED_PTR, &[0]),
+                ]),
             },
             Instruction::BinOp {
                 out: t9,
@@ -1011,14 +1147,14 @@ fn emits_m5_arrays() {
     let ir = ir_of(&module);
     assert!(
         ir.lines().any(|line| {
-            line.contains("call ptr @scoop_rt_array_clone")
+            line.contains("call ptr addrspace(1) @scoop_rt_array_clone")
                 && line.contains("scoop_td_MutableArray<Int>")
         }),
         "Int clone must receive the target nominal descriptor:\n{ir}"
     );
     assert!(
         ir.lines().any(|line| {
-            line.contains("call ptr @scoop_rt_array_clone")
+            line.contains("call ptr addrspace(1) @scoop_rt_array_clone")
                 && line.contains("scoop_td_MutableArray<Point>")
         }),
         "Point clone must receive the target nominal descriptor:\n{ir}"
@@ -1071,22 +1207,37 @@ fn classes_module() -> Module {
     let t0 = temps.alloc(Temp { ty: MANAGED_PTR });
     let mut call_targets = CallTargets::default();
     let result_dispatch = dispatch_destination(&mut call_targets, Value::Param(0), 0);
-    let result_call = direct_site(
+    let mut result_call = direct_site(
         &mut call_targets,
         result_dispatch,
-        CallEffect::ManagedSafepoint,
+        TestCallProtocol::Managed(1),
         vec![MANAGED_PTR],
         (MANAGED_PTR, RefScan::References(vec![0])),
         t0,
         vec![Value::Param(1)],
     );
+    set_managed_live(
+        &mut result_call,
+        statepoint_live(vec![statepoint_value(
+            scoop_lir::CallerRootSource::Param(1),
+            MANAGED_PTR,
+            &[0],
+        )]),
+    );
     let void_dispatch = dispatch_destination(&mut call_targets, Value::Param(0), 1);
-    let void_call = void_site(
+    let mut void_call = void_site(
         &mut call_targets,
         void_dispatch,
-        CallEffect::ManagedSafepoint,
+        TestCallProtocol::Managed(2),
         vec![MANAGED_PTR],
         vec![Value::Param(1)],
+    );
+    set_managed_live(
+        &mut void_call,
+        statepoint_live(vec![
+            statepoint_value(scoop_lir::CallerRootSource::Param(1), MANAGED_PTR, &[0]),
+            statepoint_value(scoop_lir::CallerRootSource::Temp(t0), MANAGED_PTR, &[0]),
+        ]),
     );
     let mut blocks = Arena::default();
     let entry = blocks.alloc(BasicBlock {
@@ -1263,16 +1414,16 @@ fn heap_module() -> Module {
     let alloc_site = direct_site(
         &mut call_targets,
         CallDestination::Runtime(scoop_lir::RuntimeFunction::Alloc),
-        CallEffect::ManagedSafepoint,
+        TestCallProtocol::Managed(1),
         vec![METADATA_PTR, LirType::I64],
         (MANAGED_PTR, RefScan::References(vec![0])),
         t0,
         vec![Value::TypeDescriptor(point_descriptor), Value::IntConst(32)],
     );
-    let box_site = direct_site(
+    let mut box_site = direct_site(
         &mut call_targets,
         CallDestination::Runtime(scoop_lir::RuntimeFunction::Box),
-        CallEffect::ManagedSafepoint,
+        TestCallProtocol::Managed(2),
         vec![METADATA_PTR, RAW_PTR, LirType::I64],
         (MANAGED_PTR, RefScan::References(vec![0])),
         t6,
@@ -1282,22 +1433,38 @@ fn heap_module() -> Module {
             Value::IntConst(8),
         ],
     );
+    set_managed_live(
+        &mut box_site,
+        statepoint_live(vec![statepoint_value(
+            scoop_lir::CallerRootSource::Temp(t3),
+            MANAGED_PTR,
+            &[0],
+        )]),
+    );
     let is_instance_site = direct_site(
         &mut call_targets,
         CallDestination::Runtime(scoop_lir::RuntimeFunction::IsInstance),
-        CallEffect::NoGc,
+        TestCallProtocol::NoGc,
         vec![MANAGED_PTR, METADATA_PTR],
         (LirType::I1, RefScan::None),
         t7,
         vec![Value::Temp(t6), Value::TypeDescriptor(point_descriptor)],
     );
     let dispatch = dispatch_destination(&mut call_targets, Value::Temp(t4), 0);
-    let dispatch_site = void_site(
+    let mut dispatch_site = void_site(
         &mut call_targets,
         dispatch,
-        CallEffect::ManagedSafepoint,
+        TestCallProtocol::Managed(3),
         vec![MANAGED_PTR],
         vec![Value::Temp(t3)],
+    );
+    set_managed_live(
+        &mut dispatch_site,
+        statepoint_live(vec![statepoint_value(
+            scoop_lir::CallerRootSource::Temp(t3),
+            MANAGED_PTR,
+            &[0],
+        )]),
     );
     let mut blocks = Arena::default();
     let entry = blocks.alloc(BasicBlock {
@@ -1504,7 +1671,7 @@ fn exceptions_module() -> Module {
     let first_invoke = direct_site(
         &mut call_targets,
         dispatch,
-        CallEffect::ManagedSafepoint,
+        TestCallProtocol::Managed(1),
         Vec::new(),
         (LirType::I64, RefScan::None),
         t0,
@@ -1513,7 +1680,7 @@ fn exceptions_module() -> Module {
     let second_invoke = direct_site(
         &mut call_targets,
         CallDestination::Local(scoop_lir::LocalFunctionId::from_u32(1)),
-        CallEffect::ManagedSafepoint,
+        TestCallProtocol::Managed(2),
         Vec::new(),
         (LirType::I64, RefScan::None),
         t1,
@@ -1522,18 +1689,14 @@ fn exceptions_module() -> Module {
     blocks[entry] = BasicBlock {
         name: "entry".to_string(),
         instructions: vec![Instruction::Invoke {
-            site: first_invoke,
-            normal,
-            unwind: lpad,
+            site: managed_invoke(first_invoke, normal, lpad),
         }],
         terminator: Terminator::Br(normal),
     };
     blocks[normal] = BasicBlock {
         name: "normal".to_string(),
         instructions: vec![Instruction::Invoke {
-            site: second_invoke,
-            normal: done,
-            unwind: lpad,
+            site: managed_invoke(second_invoke, done, lpad),
         }],
         terminator: Terminator::Br(done),
     };
@@ -1648,6 +1811,18 @@ fn ir_of(module: &Module) -> String {
     llvm.print_to_string().to_string()
 }
 
+fn rewritten_ir_of(module: &Module) -> String {
+    let machine = host_target_machine().expect("target machine");
+    let context = Context::create();
+    let llvm = emit_llvm_module(&context, module, &machine).expect("emit module");
+    llvm.verify().expect("valid pre-statepoint module");
+    let expected = statepoint::expectations(module).expect("complete safepoint manifest");
+    statepoint::rewrite(&llvm, &machine).expect("rewrite statepoints");
+    llvm.verify().expect("valid relocated module");
+    statepoint::verify_rewritten(&llvm, &expected).expect("rewritten manifest agrees with LIR");
+    llvm.print_to_string().to_string()
+}
+
 #[test]
 fn typed_intrinsic_string_supplies_the_only_descriptor_definition() {
     let ir = ir_of(&values_module());
@@ -1692,8 +1867,8 @@ fn emits_complete_image_root_and_immortal_tables() {
     );
     assert!(
         ir.contains("@scoop_image_immortal_objects = constant [2 x { ptr, i64, ptr }]")
-            && ir.contains("ptr @scoop.string.0")
-            && ir.contains("ptr @scoop.string.1")
+            && ir.contains("ptr addrspacecast (ptr addrspace(1) @scoop.string.0 to ptr)")
+            && ir.contains("ptr addrspacecast (ptr addrspace(1) @scoop.string.1 to ptr)")
             && ir.contains("ptr @scoop_td_String"),
         "immortal object descriptor table is incomplete:\n{ir}"
     );
@@ -1805,23 +1980,24 @@ fn native_calls_publish_roots_transition_and_reload() {
     });
 
     let mut safe_targets = CallTargets::default();
-    let safe_site = void_site(
+    let mut safe_site = void_site(
         &mut safe_targets,
         CallDestination::Extern(c_call),
-        CallEffect::NativeSafe,
+        TestCallProtocol::NativeSafe(1),
         Vec::new(),
         Vec::new(),
     );
+    let CallSite::NativeSafe(site) = &mut safe_site else {
+        unreachable!()
+    };
+    site.roots = scoop_lir::NativeSafeRootSet::new(vec![scoop_lir::CallerRoot {
+        source: scoop_lir::CallerRootSource::Param(0),
+        scan: scoop_lir::NonEmptyRefScan::new(RefScan::References(vec![0])).unwrap(),
+    }]);
     let mut safe_blocks = Arena::default();
     let safe_entry = safe_blocks.alloc(BasicBlock {
         name: "entry".to_string(),
-        instructions: vec![Instruction::NativeCall {
-            site: safe_site,
-            roots: vec![scoop_lir::CallerRoot {
-                source: scoop_lir::CallerRootSource::Param(0),
-                scan: scoop_lir::NonEmptyRefScan::new(RefScan::References(vec![0])).unwrap(),
-            }],
-        }],
+        instructions: vec![Instruction::Call { site: safe_site }],
         terminator: Terminator::Return {
             value: Some(Value::Param(0)),
         },
@@ -1838,13 +2014,24 @@ fn native_calls_publish_roots_transition_and_reload() {
         entry: safe_entry,
     };
 
+    let mut borrowed_locals = Arena::default();
+    let result_root = borrowed_locals.alloc(Local {
+        name: "native_result_root".to_string(),
+        ty: MANAGED_PTR,
+    });
     let mut borrowed_temps = Arena::default();
     let result = borrowed_temps.alloc(Temp { ty: MANAGED_PTR });
     let mut borrowed_targets = CallTargets::default();
     let borrowed_site = direct_site(
         &mut borrowed_targets,
         CallDestination::Extern(borrowed),
-        CallEffect::NativeBorrowed,
+        TestCallProtocol::NativeBorrowed {
+            safepoint: 2,
+            result: NativeBorrowedResultRoot::Rooted {
+                storage: result_root,
+                scan: scoop_lir::NonEmptyRefScan::new(RefScan::References(vec![0])).unwrap(),
+            },
+        },
         Vec::new(),
         (MANAGED_PTR, RefScan::References(vec![0])),
         result,
@@ -1853,9 +2040,8 @@ fn native_calls_publish_roots_transition_and_reload() {
     let mut borrowed_blocks = Arena::default();
     let borrowed_entry = borrowed_blocks.alloc(BasicBlock {
         name: "entry".to_string(),
-        instructions: vec![Instruction::NativeCall {
+        instructions: vec![Instruction::Call {
             site: borrowed_site,
-            roots: Vec::new(),
         }],
         terminator: Terminator::Return {
             value: Some(Value::Temp(result)),
@@ -1867,7 +2053,7 @@ fn native_calls_publish_roots_transition_and_reload() {
         params: Vec::new(),
         return_ty: MANAGED_PTR,
         call_targets: borrowed_targets,
-        locals: Arena::default(),
+        locals: borrowed_locals,
         temps: borrowed_temps,
         blocks: borrowed_blocks,
         entry: borrowed_entry,
@@ -1895,12 +2081,15 @@ fn native_calls_publish_roots_transition_and_reload() {
     assert!(ir.contains("@scoop_rt_leave_native_borrowed"));
     assert!(ir.contains("@scoop_rt_pop_caller_roots"));
     assert!(
-        ir.contains("store ptr null, ptr %native_result"),
+        ir.contains("store ptr addrspace(1) null, ptr %native_result"),
         "managed native result storage must be zero before publication:\n{ir}"
     );
+    let safe_leave = ir
+        .find("call void @scoop_rt_leave_native_safe")
+        .expect("safe transition leaves native state");
     assert!(
-        ir.contains("%caller_root_reload = load ptr, ptr %caller_root_param"),
-        "published parameter roots must be reloaded after leave-native:\n{ir}"
+        ir[safe_leave..].contains("load ptr addrspace(1), ptr %managed_root_storage"),
+        "published parameter roots must be reloaded from canonical storage after leave-native:\n{ir}"
     );
 }
 
@@ -1961,15 +2150,16 @@ fn continuation_state_atomics_keep_their_llvm_orderings() {
 
     let ir = ir_of(&module);
     assert!(
-        ir.contains("load atomic i64, ptr %atomic_field_ptr acquire"),
+        ir.contains("load atomic i64, ptr addrspace(1) %atomic_field_ptr acquire"),
         "continuation state reads must be acquire loads:\n{ir}"
     );
     assert!(
-        ir.contains("store atomic i64 2, ptr %atomic_field_ptr1 release"),
+        ir.contains("store atomic i64 2, ptr addrspace(1) %atomic_field_ptr1 release"),
         "continuation state publication must be a release store:\n{ir}"
     );
     assert!(
-        ir.contains("cmpxchg ptr %atomic_field_ptr2") && ir.contains("acq_rel acquire"),
+        ir.contains("cmpxchg ptr addrspace(1) %atomic_field_ptr2")
+            && ir.contains("acq_rel acquire"),
         "continuation state claims must be acq_rel/acquire compare-exchange:\n{ir}"
     );
 }
@@ -1995,7 +2185,7 @@ fn closure_abi_module() -> Module {
     let ordinary_site = indirect_result_site(
         &mut call_targets,
         ordinary_dispatch,
-        CallEffect::ManagedSafepoint,
+        TestCallProtocol::Managed(1),
         vec![MANAGED_PTR, LirType::I64],
         (ordinary_result_ty, RefScan::References(vec![8])),
         ordinary_result,
@@ -2005,7 +2195,7 @@ fn closure_abi_module() -> Module {
     let suspend_site = indirect_result_site(
         &mut call_targets,
         suspend_dispatch,
-        CallEffect::ManagedSafepoint,
+        TestCallProtocol::Managed(2),
         vec![MANAGED_PTR, MANAGED_PTR],
         (suspend_result_ty, RefScan::None),
         suspend_result,
@@ -2053,26 +2243,27 @@ fn closure_calls_preserve_hidden_abi_and_indirect_statepoints() {
     let module = closure_abi_module();
     let ir = ir_of(&module);
     assert_eq!(
-        ir.matches("getelementptr ptr, ptr %0, i32 2").count(),
+        ir.matches("getelementptr ptr, ptr addrspace(1) %0, i32 2")
+            .count(),
         2,
         "closure calls must load invoke from slot 2:\n{ir}"
     );
     assert!(
         ir.lines().any(|line| {
             line.contains("call void %dispatch_function")
-                && line.contains("(ptr %ordinary_result, ptr %0, i64 %1)")
+                && line.contains("(ptr %ordinary_result, ptr addrspace(1) %0, i64 %1)")
         }),
         "ordinary closure ABI must be (result slot, closure, arguments):\n{ir}"
     );
     assert!(
         ir.lines().any(|line| {
             line.contains("call void %dispatch_function")
-                && line.contains("ptr %suspend_result, ptr %0, ptr %2")
+                && line.contains("ptr %suspend_result, ptr addrspace(1) %0, ptr addrspace(1) %2")
         }),
         "suspend closure ABI must keep continuation after the closure:\n{ir}"
     );
     assert!(
-        ir.contains("%ordinary_result = alloca { i64, ptr }")
+        ir.contains("%ordinary_result = alloca { i64, ptr addrspace(1) }")
             && ir.contains("%suspend_result = alloca { i64, i64 }"),
         "aggregate closure results must use typed return storage:\n{ir}"
     );
@@ -2118,12 +2309,17 @@ fn barrier_module() -> Module {
     let alloc_site = direct_site(
         &mut call_targets,
         CallDestination::Runtime(scoop_lir::RuntimeFunction::Alloc),
-        CallEffect::ManagedSafepoint,
+        TestCallProtocol::Managed(1),
         vec![METADATA_PTR, LirType::I64],
         (MANAGED_PTR, RefScan::References(vec![0])),
         t0,
         vec![Value::Param(0), Value::IntConst(24)],
     );
+    let poll_target = call_targets
+        .managed_targets
+        .alloc(scoop_lir::ManagedTarget {
+            destination: CallDestination::Runtime(scoop_lir::RuntimeFunction::Safepoint),
+        });
     let mut blocks = Arena::default();
     let entry = blocks.alloc(BasicBlock {
         name: "entry".to_string(),
@@ -2148,6 +2344,13 @@ fn barrier_module() -> Module {
     blocks[entry] = BasicBlock {
         name: "entry".to_string(),
         instructions: vec![
+            Instruction::ManagedPoll {
+                site: scoop_lir::ManagedPollSite {
+                    target: poll_target,
+                    safepoint: test_safepoint(2),
+                    live: scoop_lir::StatepointLiveSet::default(),
+                },
+            },
             Instruction::Call { site: alloc_site },
             Instruction::HeapStore {
                 object: Value::Temp(t0),
@@ -2165,7 +2368,13 @@ fn barrier_module() -> Module {
     };
     blocks[header] = BasicBlock {
         name: "while.cond".to_string(),
-        instructions: vec![],
+        instructions: vec![Instruction::ManagedPoll {
+            site: scoop_lir::ManagedPollSite {
+                target: poll_target,
+                safepoint: test_safepoint(3),
+                live: scoop_lir::StatepointLiveSet::default(),
+            },
+        }],
         terminator: Terminator::CondBr {
             cond: Value::BoolConst(true),
             then_block: body,
@@ -2218,6 +2427,11 @@ fn functions_carry_the_gc_strategy_and_poll_safepoints() {
 fn no_gc_functions_carry_neither_gc_strategy_nor_safepoint_polls() {
     let mut module = barrier_module();
     module.functions[0].gc_effect = GcEffect::NoGc;
+    for (_, block) in module.functions[0].blocks.iter_mut() {
+        block
+            .instructions
+            .retain(|instruction| !matches!(instruction, Instruction::ManagedPoll { .. }));
+    }
     let ir = ir_of(&module);
     assert!(
         !ir.contains("gc \"statepoint-example\""),
@@ -2255,7 +2469,7 @@ fn heap_store_inside_the_object_header_is_rejected() {
     let mut module = barrier_module();
     let function = &mut module.functions[0];
     let entry = function.entry;
-    function.blocks[entry].instructions[1] = Instruction::HeapStore {
+    function.blocks[entry].instructions[2] = Instruction::HeapStore {
         object: Value::IntConst(0),
         offset: 8,
         value: Value::IntConst(42),
@@ -2277,9 +2491,12 @@ fn statepoints_and_stackmaps_are_emitted() {
     let context = Context::create();
     let llvm = emit_llvm_module(&context, &module, &machine).expect("emit module");
     llvm.verify().expect("valid LLVM module");
+    let expected = statepoint::expectations(&module).expect("complete safepoint manifest");
     // The same pass `emit_object` runs before writing the object
     // (the M0 spike's shape).
     statepoint::rewrite(&llvm, &machine).expect("rewrite-statepoints-for-gc pass");
+    llvm.verify().expect("valid post-RS4GC module");
+    statepoint::verify_rewritten(&llvm, &expected).expect("statepoint manifest matches");
     let ir = llvm.print_to_string().to_string();
     assert!(
         ir.contains("gc.statepoint"),
@@ -2298,6 +2515,216 @@ fn statepoints_and_stackmaps_are_emitted() {
         "object file lacks the __llvm_stackmaps section"
     );
     std::fs::remove_file(&output).ok();
+}
+
+#[test]
+fn managed_live_plan_produces_as1_relocation() {
+    let leaves =
+        scoop_lir::ManagedLeafPaths::new(vec![scoop_lir::ManagedLeafPath { byte_offset: 0 }])
+            .unwrap();
+    let live = scoop_lir::StatepointLiveSet::new(vec![scoop_lir::StatepointLiveValue {
+        source: scoop_lir::CallerRootSource::Param(0),
+        ty: MANAGED_PTR,
+        leaves,
+    }])
+    .unwrap();
+    let mut targets = CallTargets::default();
+    let signature = targets.void_signatures.alloc(VoidCallSignature {
+        params: Vec::new(),
+        calling_convention: scoop_lir::CallingConvention::Cdecl,
+    });
+    let target = targets.managed_targets.alloc(scoop_lir::ManagedTarget {
+        destination: CallDestination::Runtime(scoop_lir::RuntimeFunction::Safepoint),
+    });
+    let mut blocks = Arena::default();
+    let entry = blocks.alloc(BasicBlock {
+        name: "entry".to_string(),
+        instructions: vec![Instruction::Call {
+            site: CallSite::Managed(scoop_lir::ManagedCallSite {
+                target,
+                call: TypedCall::Void {
+                    signature,
+                    args: Vec::new(),
+                },
+                safepoint: test_safepoint(1),
+                live,
+            }),
+        }],
+        terminator: Terminator::Return {
+            value: Some(Value::Param(0)),
+        },
+    });
+    let module = Module {
+        globals: Arena::default(),
+        structs: Arena::default(),
+        enums: Arena::default(),
+        extern_functions: Arena::default(),
+        native_globals: Arena::default(),
+        native_global_bridges: Default::default(),
+        callback_bridges: Arena::default(),
+        foreign_callback_bridges: Arena::default(),
+        functions: vec![Function {
+            gc_effect: GcEffect::Managed,
+            symbol: "scoop.live_root".to_string(),
+            params: vec![MANAGED_PTR],
+            return_ty: MANAGED_PTR,
+            call_targets: targets,
+            locals: Arena::default(),
+            temps: Arena::default(),
+            blocks,
+            entry,
+        }],
+        entry_symbol: "scoop.live_root".to_string(),
+        meta: string_metadata(),
+    };
+    let ir = rewritten_ir_of(&module);
+    assert!(
+        ir.contains("ptr addrspace(1)"),
+        "managed AS1 is absent:\n{ir}"
+    );
+    assert!(
+        ir.contains("@llvm.experimental.gc.relocate"),
+        "relocation is absent:\n{ir}"
+    );
+}
+
+#[test]
+fn managed_invoke_uses_explicit_compiler_roots_without_exceptional_relocation() {
+    let mut callee_blocks = Arena::default();
+    let callee_entry = callee_blocks.alloc(BasicBlock {
+        name: "entry".to_string(),
+        instructions: Vec::new(),
+        terminator: Terminator::Return {
+            value: Some(Value::Param(0)),
+        },
+    });
+    let callee = Function {
+        gc_effect: GcEffect::Managed,
+        symbol: "scoop.invoke_target".to_string(),
+        params: vec![MANAGED_PTR],
+        return_ty: MANAGED_PTR,
+        call_targets: CallTargets::default(),
+        locals: Arena::default(),
+        temps: Arena::default(),
+        blocks: callee_blocks,
+        entry: callee_entry,
+    };
+
+    let mut temps = Arena::default();
+    let result = temps.alloc(Temp { ty: MANAGED_PTR });
+    let record = temps.alloc(Temp {
+        ty: LirType::ExceptionRecord,
+    });
+    let raw = temps.alloc(Temp { ty: RAW_PTR });
+    let caught = temps.alloc(Temp { ty: MANAGED_PTR });
+    let mut targets = CallTargets::default();
+    let signature = targets.direct_signatures.alloc(DirectCallSignature {
+        params: vec![MANAGED_PTR],
+        result: MANAGED_PTR,
+        result_scan: RefScan::References(vec![0]),
+        calling_convention: scoop_lir::CallingConvention::Cdecl,
+    });
+    let target = targets.managed_targets.alloc(scoop_lir::ManagedTarget {
+        destination: CallDestination::Local(scoop_lir::LocalFunctionId::from_u32(0)),
+    });
+    let mut blocks = Arena::default();
+    let placeholder = |blocks: &mut Arena<BasicBlock>, name: &str| {
+        blocks.alloc(BasicBlock {
+            name: name.to_string(),
+            instructions: Vec::new(),
+            terminator: Terminator::Unreachable,
+        })
+    };
+    let entry = placeholder(&mut blocks, "entry");
+    let normal = placeholder(&mut blocks, "normal");
+    let unwind = placeholder(&mut blocks, "unwind");
+    blocks[entry] = BasicBlock {
+        name: "entry".to_string(),
+        instructions: vec![Instruction::Invoke {
+            site: scoop_lir::InvokeSite::Managed(scoop_lir::ManagedInvokeSite {
+                target,
+                call: TypedCall::Direct {
+                    signature,
+                    out: result,
+                    args: vec![Value::Param(0)],
+                },
+                safepoint: test_safepoint(1),
+                roots: scoop_lir::ExceptionalRootSet::new(vec![scoop_lir::ExceptionalRoot {
+                    root: scoop_lir::CallerRoot {
+                        source: scoop_lir::CallerRootSource::Param(0),
+                        scan: scoop_lir::NonEmptyRefScan::new(RefScan::References(vec![0]))
+                            .unwrap(),
+                    },
+                    normal_live: false,
+                    unwind_live: true,
+                }]),
+                normal,
+                unwind,
+            }),
+        }],
+        terminator: Terminator::Br(normal),
+    };
+    blocks[normal] = BasicBlock {
+        name: "normal".to_string(),
+        instructions: Vec::new(),
+        terminator: Terminator::Return {
+            value: Some(Value::Temp(result)),
+        },
+    };
+    blocks[unwind] = BasicBlock {
+        name: "unwind".to_string(),
+        instructions: vec![
+            Instruction::LandingPad { record, raw },
+            Instruction::BeginCatch {
+                out: caught,
+                raw: Value::Temp(raw),
+            },
+            Instruction::EndCatch,
+        ],
+        terminator: Terminator::Return {
+            value: Some(Value::Param(0)),
+        },
+    };
+    let caller = Function {
+        gc_effect: GcEffect::Managed,
+        symbol: "scoop.invoke_caller".to_string(),
+        params: vec![MANAGED_PTR],
+        return_ty: MANAGED_PTR,
+        call_targets: targets,
+        locals: Arena::default(),
+        temps,
+        blocks,
+        entry,
+    };
+    let module = Module {
+        globals: Arena::default(),
+        structs: Arena::default(),
+        enums: Arena::default(),
+        extern_functions: Arena::default(),
+        native_globals: Arena::default(),
+        native_global_bridges: Default::default(),
+        callback_bridges: Arena::default(),
+        foreign_callback_bridges: Arena::default(),
+        functions: vec![callee, caller],
+        entry_symbol: "scoop.invoke_caller".to_string(),
+        meta: string_metadata(),
+    };
+
+    let ir = rewritten_ir_of(&module);
+    assert!(
+        ir.contains("invoke token") && ir.contains("i64 1"),
+        "managed invoke is not an explicit statepoint:\n{ir}"
+    );
+    assert!(
+        !ir.contains("\"gc-live\"") && !ir.contains("@llvm.experimental.gc.relocate"),
+        "managed invoke must not rely on exceptional relocation:\n{ir}"
+    );
+    assert!(
+        ir.contains("@scoop_rt_push_compiler_roots")
+            && ir.contains("@scoop_rt_pop_compiler_roots")
+            && ir.contains("@scoop_rt_pop_top_compiler_roots"),
+        "normal and unwind edges do not clean the compiler root frame:\n{ir}"
+    );
 }
 
 #[test]
@@ -2347,11 +2774,15 @@ fn type_descriptors_carry_the_gc_scan_descriptors() {
                 out: array,
                 elements: vec![],
                 array_type: ref_array_type,
+                safepoint: test_safepoint(1),
+                live: scoop_lir::StatepointLiveSet::default(),
             },
             Instruction::ArrayAlloc {
                 out: nested_array,
                 elements: vec![],
                 array_type: nested_array_type,
+                safepoint: test_safepoint(2),
+                live: scoop_lir::StatepointLiveSet::default(),
             },
         ],
         terminator: Terminator::Return { value: None },
@@ -2572,6 +3003,8 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
                 out: array,
                 elements: vec![Value::Temp(outer_value)],
                 array_type: outer_array,
+                safepoint: test_safepoint(1),
+                live: scoop_lir::StatepointLiveSet::default(),
             },
             Instruction::ArrayGet {
                 out: loaded,
@@ -2735,12 +3168,12 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
 
     let ir = ir_of(&module);
     assert!(
-        ir.contains("getelementptr i8, ptr %managed_object, i32 32"),
+        ir.contains("getelementptr i8, ptr addrspace(1) %managed_object, i32 32"),
         "over-aligned array data must start at offset 32:\n{ir}"
     );
     assert!(
         ir.contains(
-            "@scoop_runtime_finish_tlab_alloc(ptr %tlab_object, ptr @scoop_td_ArrayOuter, i64 64)"
+            "@scoop_runtime_finish_tlab_alloc(ptr addrspace(1) %tlab_object, ptr @scoop_td_ArrayOuter, i64 64)"
         ) && ir.contains("@scoop_runtime_alloc_slow(ptr @scoop_td_ArrayOuter, i64 64)"),
         "one 32-byte element plus the aligned 32-byte header must flow through the 64-byte TLAB check:\n{ir}"
     );

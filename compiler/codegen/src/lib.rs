@@ -10,25 +10,20 @@
 //! never reconstructs a callee ABI from operands, result temporaries, or a
 //! symbol name.
 //!
-//! M9: GC support (milestone9 DESIGN section 3.1). Every heap object
-//! carries the 16-byte header `{ td, gc_word }`: class fields start at
-//! their natural byte offsets from 16, the boxed payload and array size
-//! live at offset 16, array elements at `align_up(24, element_align)`, and string constants get a zeroed GC word
-//! between the TD and the length. M13 allocation sites inline the per-thread
-//! TLAB bump and use a GC-leaf finish helper to initialize both header words;
-//! a failed bump calls the collecting slow path. Every managed function is
-//! declared with the `statepoint-example` GC strategy and the whole
-//! module runs through `rewrite-statepoints-for-gc` before object
-//! emission, so the `.o` carries the `__llvm_stackmaps` section the
-//! runtime's stack scan reads (impl spec 2.4's statepoint insertion
-//! happens here rather than in LIR: it is an instrumentation of the
-//! emitted LLVM, and keeping it out of LIR keeps the LIR dumps
-//! stable). Verified `@NoGC` functions carry no strategy or polls.
-//! Safepoint polls — plain calls to the runtime's `scoop_rt_safepoint` —
-//! are emitted at every managed function entry and at
-//! the loop-header blocks `loop_headers` finds. Every `HeapStore` /
-//! `ArraySet` is followed by the write-barrier card mark
-//! (`atomicrmw or scoop_gc_card_table[addr >> 9], 1 monotonic`, runtime spec 3.6).
+//! Every heap object carries the 16-byte header `{ td, gc_word }`; class
+//! fields start at byte 16, boxed payload and array size live at 16, and
+//! array elements start at `align_up(24, element_align)`. M13 allocation
+//! sites inline the per-thread TLAB bump and use a GC-leaf finish helper;
+//! only the slow path is a safepoint.
+//!
+//! M15 LIR already contains every entry/back-edge poll, image-unique
+//! `SafepointId`, and protocol-specific root plan. Managed pointers become
+//! LLVM AS1 while raw/code/metadata pointers stay AS0. Ordinary calls and
+//! polls go through RS4GC after SROA; managed invokes use explicit zero-live
+//! statepoints plus compiler-root frames because LLVM cannot relocate the
+//! exceptional edge. Codegen consumes these plans mechanically and never
+//! rediscovers CFG liveness. Every `HeapStore` / `ArraySet` still emits the
+//! monotonic card mark reserved for a future generational collector.
 
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
@@ -38,14 +33,16 @@ use inkwell::context::Context;
 use inkwell::module::Module as LlvmModule;
 use inkwell::targets::{FileType, TargetMachine};
 use inkwell::types::{BasicMetadataTypeEnum, BasicType, BasicTypeEnum, StructType};
-use inkwell::values::{BasicValue, BasicValueEnum, GlobalValue, IntValue, PointerValue, ValueKind};
+use inkwell::values::{
+    BasicValue, BasicValueEnum, GlobalValue, InstructionValue, IntValue, PointerValue, ValueKind,
+};
 use inkwell::{AddressSpace, AtomicOrdering, AtomicRMWBinOp, IntPredicate};
 use la_arena::{Arena, Idx};
 use scoop_lir::{
     ArrayType, ArrayTypeId, BinOp, CallableRef, ConstantValue, DispatchEntry, EnumDef, EnumRepr,
-    ExternFunction, ExternFunctionKind, Function, GcEffect, Global, GlobalInit, Instruction,
-    LirType, Module, NativeGlobal, RefScan, StructDef, TempId, Terminator, TypeDescriptor,
-    TypeDescriptorRef, TypeDescriptorScan, UnOp, Value,
+    ExternFunction, ExternFunctionKind, Function, Global, GlobalInit, Instruction, LirType, Module,
+    NativeGlobal, RefScan, StructDef, TempId, Terminator, TypeDescriptor, TypeDescriptorRef,
+    TypeDescriptorScan, UnOp, Value,
 };
 
 const SCAN_ARRAY: u64 = u64::MAX;
@@ -90,6 +87,19 @@ fn array_data_offset(element_align: u64) -> u64 {
     align_up(24, element_align)
 }
 
+fn mark_typed_managed_pointer_boundary(
+    context: &Context,
+    instruction: InstructionValue<'_>,
+    boundary: statepoint::TypedManagedPointerBoundary,
+) -> Result<(), CodegenError> {
+    instruction
+        .set_metadata(
+            context.metadata_node(&[context.metadata_string(boundary.name()).into()]),
+            context.get_kind_id(statepoint::TYPED_MANAGED_POINTER_BOUNDARY_METADATA),
+        )
+        .map_err(|error| CodegenError(format!("mark typed managed pointer boundary: {error}")))
+}
+
 /// Translate `module` to LLVM IR and emit an object file at `output` using the
 /// complete target profile selected by the driver.
 pub fn emit_object(
@@ -97,6 +107,7 @@ pub fn emit_object(
     output: &Path,
     profile: TargetProfile,
 ) -> Result<(), CodegenError> {
+    let expected_safepoints = statepoint::expectations(module)?;
     let machine = profile.create_target_machine()?;
     let context = Context::create();
     let llvm = emit_llvm_module(&context, module, &machine)?;
@@ -109,6 +120,9 @@ pub fn emit_object(
     // object file's `__llvm_stackmaps` section is produced from them.
     // Runs after verification, right before object emission.
     statepoint::rewrite(&llvm, &machine)?;
+    llvm.verify()
+        .map_err(|e| CodegenError(format!("invalid post-RS4GC LLVM module: {e}")))?;
+    statepoint::verify_rewritten(&llvm, &expected_safepoints)?;
 
     machine
         .write_to_file(&llvm, FileType::Object, output)
@@ -226,7 +240,8 @@ fn emit_llvm_module<'ctx>(
                     ],
                     false,
                 );
-                let llvm_global = llvm.add_global(ty, None, &global.symbol);
+                let llvm_global =
+                    llvm.add_global(ty, Some(AddressSpace::from(1u16)), &global.symbol);
                 llvm_global.set_constant(true);
                 llvm_global.set_initializer(&context.const_struct(
                     &[
@@ -342,7 +357,7 @@ fn basic_ty<'ctx>(
         }
         LirType::I1 => context.bool_type().into(),
         LirType::I64 => context.i64_type().into(),
-        LirType::Ptr(_) => context.ptr_type(AddressSpace::default()).into(),
+        LirType::Ptr(kind) => pointer_ty(context, *kind).into(),
         LirType::ExceptionRecord => context
             .struct_type(
                 &[
@@ -362,8 +377,16 @@ fn basic_ty<'ctx>(
         LirType::Struct(id) => struct_ty(context, structs, enums, *id)?.into(),
         LirType::Enum(id) => match &enums[*id].repr {
             // Niche optimization: the value is a bare pointer.
-            EnumRepr::Niche { .. } => context.ptr_type(AddressSpace::default()).into(),
-            EnumRepr::Tagged { size, align, .. } => tagged_ty(context, *size, *align)?.into(),
+            EnumRepr::Niche { .. } => {
+                if enums[*id].scan.contains_reference() {
+                    managed_ptr_ty(context).into()
+                } else {
+                    ptr_ty(context).into()
+                }
+            }
+            EnumRepr::Tagged { size, align, .. } => {
+                tagged_ty(context, *size, *align, &enums[*id].scan)?.into()
+            }
         },
     })
 }
@@ -381,7 +404,7 @@ fn llvm_constant<'ctx>(
             .bool_type()
             .const_int(u64::from(*value), false)
             .into(),
-        ConstantValue::NullPointer(_) => ptr_ty(context).const_null().into(),
+        ConstantValue::NullPointer(_) => ty.into_pointer_type().const_null().into(),
         ConstantValue::Struct { struct_id, fields } => {
             let definition = &structs[*struct_id];
             if fields.len() != definition.fields.len() {
@@ -562,24 +585,74 @@ fn uses_return_slot(enums: &Arena<EnumDef>, ty: &LirType) -> bool {
     }
 }
 
-/// Opaque physical storage for a tagged enum. LIR has already assigned
-/// the shared pure-value region and every disjoint ref-bearing slot.
-fn tagged_ty(
-    context: &Context,
+/// Physical storage for a tagged enum. Non-reference payload remains opaque,
+/// but every fixed GC slot is an AS1 pointer field so SROA cannot turn a
+/// managed reference into integer/byte fragments.
+fn tagged_ty<'ctx>(
+    context: &'ctx Context,
     size: u64,
     align: u64,
-) -> Result<inkwell::types::StructType<'_>, CodegenError> {
-    let bytes = size
-        .checked_sub(8)
-        .ok_or_else(|| CodegenError(format!("tagged enum size {size} is smaller than its tag")))?;
-    let mut fields: Vec<BasicTypeEnum> = vec![
-        context.i64_type().into(),
-        context.i8_type().array_type(bytes as u32).into(),
-    ];
+    scan: &RefScan,
+) -> Result<inkwell::types::StructType<'ctx>, CodegenError> {
+    if size < 8 || align < 8 || !align.is_power_of_two() || size % align != 0 {
+        return Err(CodegenError(format!(
+            "invalid tagged enum size/alignment {size}/{align}"
+        )));
+    }
+    let mut references = Vec::new();
+    flatten_ref_scan(scan, &mut references);
+    if references.windows(2).any(|pair| pair[0] >= pair[1]) {
+        return Err(CodegenError(
+            "tagged enum reference offsets are not strictly ordered".to_string(),
+        ));
+    }
+
+    let mut fields: Vec<BasicTypeEnum> = vec![context.i64_type().into()];
+    let mut cursor = 8u64;
+    for offset in references {
+        let end = offset.checked_add(8).ok_or_else(|| {
+            CodegenError("tagged enum reference offset overflows u64".to_string())
+        })?;
+        if offset < cursor || offset % 8 != 0 || end > size {
+            return Err(CodegenError(format!(
+                "invalid tagged enum reference slot [{offset}, {end}) for size {size}"
+            )));
+        }
+        push_byte_padding(context, &mut fields, offset - cursor)?;
+        fields.push(managed_ptr_ty(context).into());
+        cursor = end;
+    }
+    push_byte_padding(context, &mut fields, size - cursor)?;
     if align > 8 {
         fields.push(alignment_anchor(context, align)?);
     }
     Ok(context.struct_type(&fields, false))
+}
+
+fn flatten_ref_scan(scan: &RefScan, offsets: &mut Vec<u64>) {
+    match scan {
+        RefScan::None => {}
+        RefScan::References(references) => offsets.extend(references),
+        RefScan::Sequence(parts) => {
+            for part in parts {
+                flatten_ref_scan(part, offsets);
+            }
+        }
+    }
+}
+
+fn push_byte_padding<'ctx>(
+    context: &'ctx Context,
+    fields: &mut Vec<BasicTypeEnum<'ctx>>,
+    bytes: u64,
+) -> Result<(), CodegenError> {
+    if bytes == 0 {
+        return Ok(());
+    }
+    let bytes = u32::try_from(bytes)
+        .map_err(|_| CodegenError("tagged enum padding exceeds u32::MAX".to_string()))?;
+    fields.push(context.i8_type().array_type(bytes).into());
+    Ok(())
 }
 
 fn arena_index<T>(id: Idx<T>) -> usize {
@@ -603,9 +676,24 @@ fn module_uses_bounds_checks(module: &Module) -> bool {
     })
 }
 
-/// The (opaque) pointer type shared by all `LirType::Ptr` values.
+/// Native/code/metadata pointer type.
 fn ptr_ty(context: &Context) -> inkwell::types::PointerType<'_> {
     context.ptr_type(AddressSpace::default())
+}
+
+/// Moving-GC object-start pointer type. Address space 1 is part of the fixed
+/// LLVM 22.1 backend contract and is the only address space RS4GC traces.
+fn managed_ptr_ty(context: &Context) -> inkwell::types::PointerType<'_> {
+    context.ptr_type(AddressSpace::from(1u16))
+}
+
+fn pointer_ty(context: &Context, kind: scoop_lir::PointerKind) -> inkwell::types::PointerType<'_> {
+    match kind {
+        scoop_lir::PointerKind::Managed => managed_ptr_ty(context),
+        scoop_lir::PointerKind::Raw
+        | scoop_lir::PointerKind::Code
+        | scoop_lir::PointerKind::Metadata => ptr_ty(context),
+    }
 }
 
 mod type_descriptors;
@@ -620,6 +708,7 @@ struct FnEmitter<'a, 'ctx> {
     builder: &'a inkwell::builder::Builder<'ctx>,
     function: &'a Function,
     llvm_function: inkwell::values::FunctionValue<'ctx>,
+    current_block: scoop_lir::BlockId,
     /// Entry block; enum temporaries are alloca'd here (see
     /// `entry_alloca`).
     entry_block: inkwell::basic_block::BasicBlock<'ctx>,
@@ -648,11 +737,20 @@ struct FnEmitter<'a, 'ctx> {
     param_offset: u32,
     allocas: Vec<PointerValue<'ctx>>,
     temps: HashMap<TempId, BasicValueEnum<'ctx>>,
-    /// Parameters reloaded from compiler caller-root spills after a native
-    /// transition. Locals reload from their existing allocas; temp reloads
-    /// replace the corresponding entry in `temps`.
-    param_reloads: HashMap<u32, BasicValueEnum<'ctx>>,
+    /// Canonical addressable storage for every parameter/temporary named by
+    /// a complete LIR root plan. Locals reuse their ordinary alloca. All
+    /// post-safepoint uses reload from this storage, so values remain valid
+    /// across arbitrary CFG joins instead of relying on a block-global SSA
+    /// cache entry.
+    root_storage: HashMap<scoop_lir::CallerRootSource, RootStorage<'ctx>>,
+    /// Sources used by each unwind successor, transposed from the complete
+    /// per-invoke edge flags before LLVM block emission.
+    unwind_root_sources: HashMap<scoop_lir::BlockId, Vec<scoop_lir::CallerRootSource>>,
+    /// Every landingpad reached by an invoke has one dynamic compiler frame;
+    /// NoGc invokes publish an empty one so cleanup remains predecessor-free.
+    compiler_unwind_blocks: HashSet<scoop_lir::BlockId>,
     native_call_index: u32,
+    compiler_invoke_index: u32,
     allocation_index: u32,
     /// Lazily-created shared bounds-check trap block of this function
     /// (one per function, reused by every ArrayGet / ArraySet) and the
@@ -662,16 +760,67 @@ struct FnEmitter<'a, 'ctx> {
     bounds_message: Option<GlobalValue<'ctx>>,
 }
 
-struct PublishedRoot<'ctx> {
-    source: scoop_lir::CallerRootSource,
-    storage: PointerValue<'ctx>,
-    ty: BasicTypeEnum<'ctx>,
-}
-
 struct NativeTransition<'ctx> {
     frame: PointerValue<'ctx>,
     transition: PointerValue<'ctx>,
-    roots: Vec<PublishedRoot<'ctx>>,
+}
+
+#[derive(Clone, Copy)]
+struct RootStorage<'ctx> {
+    pointer: PointerValue<'ctx>,
+    ty: BasicTypeEnum<'ctx>,
+}
+
+struct CompilerRootFrame<'ctx> {
+    pointer: PointerValue<'ctx>,
+}
+
+struct StatepointLiveLeaf<'ctx> {
+    storage: PointerValue<'ctx>,
+    value: PointerValue<'ctx>,
+}
+
+struct MaterializedStatepointLive<'ctx> {
+    arguments: HashMap<scoop_lir::CallerRootSource, BasicValueEnum<'ctx>>,
+    leaves: Vec<StatepointLiveLeaf<'ctx>>,
+}
+
+#[derive(Clone, Copy)]
+enum NativeTransitionKind {
+    Safe,
+    Borrowed,
+}
+
+enum CallProtocol<'a> {
+    Managed {
+        safepoint: scoop_lir::SafepointId,
+        live: &'a scoop_lir::StatepointLiveSet,
+    },
+    ManagedInvoke {
+        safepoint: scoop_lir::SafepointId,
+        roots: &'a scoop_lir::ExceptionalRootSet,
+    },
+    NoGc,
+    NativeSafe {
+        safepoint: scoop_lir::SafepointId,
+        roots: &'a scoop_lir::NativeSafeRootSet,
+    },
+    NativeBorrowed {
+        safepoint: scoop_lir::SafepointId,
+        roots: &'a scoop_lir::NativeBorrowedRootSet,
+    },
+}
+
+impl CallProtocol<'_> {
+    fn safepoint(&self) -> Option<scoop_lir::SafepointId> {
+        match self {
+            Self::Managed { safepoint, .. }
+            | Self::ManagedInvoke { safepoint, .. }
+            | Self::NativeSafe { safepoint, .. }
+            | Self::NativeBorrowed { safepoint, .. } => Some(*safepoint),
+            Self::NoGc => None,
+        }
+    }
 }
 
 enum TypedCallResult<'a> {
@@ -688,6 +837,13 @@ enum TypedCallResult<'a> {
     },
 }
 
+fn result_scan<'a>(result: &TypedCallResult<'a>) -> &'a RefScan {
+    match result {
+        TypedCallResult::Void => &RefScan::None,
+        TypedCallResult::Direct { scan, .. } | TypedCallResult::Indirect { scan, .. } => scan,
+    }
+}
+
 impl<'ctx> FnEmitter<'_, 'ctx> {
     /// Materialize an operand as an LLVM value: locals are loaded from
     /// their stack slot, temps are SSA values, globals are addressed by
@@ -702,22 +858,43 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     .build_load(ty, self.allocas[arena_index(id)], &function.locals[id].name)
                     .map_err(|e| CodegenError(format!("load %{}: {e}", function.locals[id].name)))?
             }
-            Value::Param(index) => match self.param_reloads.get(&index) {
-                Some(value) => *value,
-                None => self
-                    .llvm_function
-                    .get_nth_param(index + self.param_offset)
-                    .ok_or_else(|| CodegenError(format!("param {index} out of range")))?,
-            },
-            Value::Temp(id) => *self.temps.get(&id).ok_or_else(|| {
-                CodegenError(format!(
-                    "temp t{} used before definition",
-                    id.into_raw().into_u32()
-                ))
-            })?,
+            Value::Param(index) => {
+                let source = scoop_lir::CallerRootSource::Param(index);
+                if let Some(storage) = self.root_storage.get(&source) {
+                    self.builder
+                        .build_load(storage.ty, storage.pointer, "root_param")
+                        .map_err(|error| {
+                            CodegenError(format!("load rooted param {index}: {error}"))
+                        })?
+                } else {
+                    self.llvm_function
+                        .get_nth_param(index + self.param_offset)
+                        .ok_or_else(|| CodegenError(format!("param {index} out of range")))?
+                }
+            }
+            Value::Temp(id) => {
+                let source = scoop_lir::CallerRootSource::Temp(id);
+                if let Some(storage) = self.root_storage.get(&source) {
+                    self.builder
+                        .build_load(storage.ty, storage.pointer, "root_temp")
+                        .map_err(|error| {
+                            CodegenError(format!(
+                                "load rooted temp t{}: {error}",
+                                id.into_raw().into_u32()
+                            ))
+                        })?
+                } else {
+                    *self.temps.get(&id).ok_or_else(|| {
+                        CodegenError(format!(
+                            "temp t{} used before definition",
+                            id.into_raw().into_u32()
+                        ))
+                    })?
+                }
+            }
             Value::IntConst(value) => context.i64_type().const_int(value as u64, true).into(),
             Value::BoolConst(value) => context.bool_type().const_int(value as u64, false).into(),
-            Value::NullPointer(_) => ptr_ty(context).const_null().into(),
+            Value::NullPointer(kind) => pointer_ty(context, kind).const_null().into(),
             Value::TypeDescriptor(reference) => {
                 type_descriptor_global(reference, self.type_tds, self.external_type_tds)?
                     .as_pointer_value()
@@ -730,6 +907,48 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         })
     }
 
+    fn statepoint_value(
+        &self,
+        value: Value,
+        live: &MaterializedStatepointLive<'ctx>,
+    ) -> Result<BasicValueEnum<'ctx>, CodegenError> {
+        let source = match value {
+            Value::Param(index) => Some(scoop_lir::CallerRootSource::Param(index)),
+            Value::Local(id) => Some(scoop_lir::CallerRootSource::Local(id)),
+            Value::Temp(id) => Some(scoop_lir::CallerRootSource::Temp(id)),
+            Value::IntConst(_)
+            | Value::BoolConst(_)
+            | Value::NullPointer(_)
+            | Value::TypeDescriptor(_)
+            | Value::Global(_) => None,
+        };
+        source
+            .and_then(|source| live.arguments.get(&source).copied())
+            .map_or_else(|| self.value(value), Ok)
+    }
+
+    fn sync_root_temp(&self, temp: TempId) -> Result<(), CodegenError> {
+        let source = scoop_lir::CallerRootSource::Temp(temp);
+        let Some(storage) = self.root_storage.get(&source) else {
+            return Ok(());
+        };
+        let value = self.temps.get(&temp).ok_or_else(|| {
+            CodegenError(format!(
+                "rooted temp t{} has no emitted definition",
+                temp.into_raw().into_u32()
+            ))
+        })?;
+        self.builder
+            .build_store(storage.pointer, *value)
+            .map_err(|error| {
+                CodegenError(format!(
+                    "store rooted temp t{}: {error}",
+                    temp.into_raw().into_u32()
+                ))
+            })?;
+        Ok(())
+    }
+
     fn instruction(&mut self, instruction: &Instruction) -> Result<(), CodegenError> {
         let context = self.context;
         let builder = self.builder;
@@ -738,34 +957,55 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             Instruction::BinOp { out, op, lhs, rhs } => {
                 let lhs = self.value(*lhs)?;
                 let rhs = self.value(*rhs)?;
-                // Reference equality (`===` / `!==` and `==` on
-                // reference types) compares pointers: normalize both
-                // sides to i64 before the integer compare.
-                let lhs = match lhs {
-                    BasicValueEnum::PointerValue(ptr) => builder
-                        .build_ptr_to_int(ptr, context.i64_type(), "ptr_as_i64")
-                        .map_err(|e| CodegenError(e.to_string()))?,
-                    other => other.into_int_value(),
-                };
-                let rhs = match rhs {
-                    BasicValueEnum::PointerValue(ptr) => builder
-                        .build_ptr_to_int(ptr, context.i64_type(), "ptr_as_i64")
-                        .map_err(|e| CodegenError(e.to_string()))?,
-                    other => other.into_int_value(),
-                };
                 let name = format!("t{}", out.into_raw().into_u32());
-                let result: IntValue = match op {
-                    BinOp::Add => builder.build_int_add(lhs, rhs, &name),
-                    BinOp::Sub => builder.build_int_sub(lhs, rhs, &name),
-                    BinOp::Mul => builder.build_int_mul(lhs, rhs, &name),
-                    BinOp::SDiv => builder.build_int_signed_div(lhs, rhs, &name),
-                    // Signed comparisons; icmp works for both i64 and i1 (== / !=).
-                    BinOp::Lt => builder.build_int_compare(IntPredicate::SLT, lhs, rhs, &name),
-                    BinOp::Le => builder.build_int_compare(IntPredicate::SLE, lhs, rhs, &name),
-                    BinOp::Gt => builder.build_int_compare(IntPredicate::SGT, lhs, rhs, &name),
-                    BinOp::Ge => builder.build_int_compare(IntPredicate::SGE, lhs, rhs, &name),
-                    BinOp::Eq => builder.build_int_compare(IntPredicate::EQ, lhs, rhs, &name),
-                    BinOp::Ne => builder.build_int_compare(IntPredicate::NE, lhs, rhs, &name),
+                let result: IntValue = match (lhs, rhs) {
+                    (BasicValueEnum::PointerValue(lhs), BasicValueEnum::PointerValue(rhs)) => {
+                        let predicate = match op {
+                            BinOp::Eq => IntPredicate::EQ,
+                            BinOp::Ne => IntPredicate::NE,
+                            _ => {
+                                return Err(CodegenError(format!(
+                                    "pointer operands only support equality in @{}",
+                                    function.symbol
+                                )));
+                            }
+                        };
+                        builder.build_int_compare(predicate, lhs, rhs, &name)
+                    }
+                    (BasicValueEnum::PointerValue(_), _) | (_, BasicValueEnum::PointerValue(_)) => {
+                        return Err(CodegenError(format!(
+                            "binary operands mix pointer and value types in @{}",
+                            function.symbol
+                        )));
+                    }
+                    (lhs, rhs) => {
+                        let lhs = lhs.into_int_value();
+                        let rhs = rhs.into_int_value();
+                        match op {
+                            BinOp::Add => builder.build_int_add(lhs, rhs, &name),
+                            BinOp::Sub => builder.build_int_sub(lhs, rhs, &name),
+                            BinOp::Mul => builder.build_int_mul(lhs, rhs, &name),
+                            BinOp::SDiv => builder.build_int_signed_div(lhs, rhs, &name),
+                            BinOp::Lt => {
+                                builder.build_int_compare(IntPredicate::SLT, lhs, rhs, &name)
+                            }
+                            BinOp::Le => {
+                                builder.build_int_compare(IntPredicate::SLE, lhs, rhs, &name)
+                            }
+                            BinOp::Gt => {
+                                builder.build_int_compare(IntPredicate::SGT, lhs, rhs, &name)
+                            }
+                            BinOp::Ge => {
+                                builder.build_int_compare(IntPredicate::SGE, lhs, rhs, &name)
+                            }
+                            BinOp::Eq => {
+                                builder.build_int_compare(IntPredicate::EQ, lhs, rhs, &name)
+                            }
+                            BinOp::Ne => {
+                                builder.build_int_compare(IntPredicate::NE, lhs, rhs, &name)
+                            }
+                        }
+                    }
                 }
                 .map_err(|e| {
                     CodegenError(format!("{op:?} @{symbol}: {e}", symbol = function.symbol))
@@ -1086,11 +1326,11 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     .get_global(&bridge.signature_symbol)
                     .expect("foreign callback signature descriptor is declared")
                     .as_pointer_value();
-                let register = self.runtime_fn(
+                let register = self.gc_leaf_fn(
                     "scoop_runtime_callback_register",
                     ptr_ty(context).fn_type(
                         &[
-                            ptr_ty(context).into(),
+                            managed_ptr_ty(context).into(),
                             ptr_ty(context).into(),
                             ptr_ty(context).into(),
                             context.i32_type().into(),
@@ -1155,7 +1395,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     .into_pointer_value();
                 match *operation {
                     scoop_lir::ForeignCallbackOperation::Retain { out, .. } => {
-                        let retain = self.runtime_fn(
+                        let retain = self.gc_leaf_fn(
                             "scoop_runtime_callback_retain",
                             ptr_ty(context).fn_type(&[ptr_ty(context).into()], false),
                         );
@@ -1192,7 +1432,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         self.temps.insert(out, value.into_struct_value().into());
                     }
                     scoop_lir::ForeignCallbackOperation::Release { .. } => {
-                        let release = self.runtime_fn(
+                        let release = self.gc_leaf_fn(
                             "scoop_runtime_callback_release",
                             context
                                 .void_type()
@@ -1205,9 +1445,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                             })?;
                     }
                     scoop_lir::ForeignCallbackOperation::Failure { out, .. } => {
-                        let failure = self.runtime_fn(
+                        let failure = self.gc_leaf_fn(
                             "scoop_runtime_callback_failure",
-                            ptr_ty(context).fn_type(&[ptr_ty(context).into()], false),
+                            managed_ptr_ty(context).fn_type(&[ptr_ty(context).into()], false),
                         );
                         let value = builder
                             .build_call(failure, &[callback_context.into()], "callback_failure")
@@ -1220,7 +1460,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         self.temps.insert(out, value);
                     }
                     scoop_lir::ForeignCallbackOperation::State { out, .. } => {
-                        let state = self.runtime_fn(
+                        let state = self.gc_leaf_fn(
                             "scoop_runtime_callback_state",
                             context.i32_type().fn_type(&[ptr_ty(context).into()], false),
                         );
@@ -1248,7 +1488,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                                 "callback state enum unexpectedly uses a niche".to_string(),
                             ));
                         };
-                        let ty = tagged_ty(context, *size, *align)?;
+                        let ty = tagged_ty(context, *size, *align, &self.enums[enum_id].scan)?;
                         let slot = self.entry_alloca(ty.into(), "callback_state_value")?;
                         builder
                             .build_store(slot, ty.const_zero())
@@ -1277,6 +1517,12 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             }
             Instruction::PtrToInt { out, value } => {
                 let value = self.value(*value)?.into_pointer_value();
+                if value.get_type().get_address_space() == AddressSpace::from(1u16) {
+                    return Err(CodegenError(format!(
+                        "managed pointer cannot be lowered by PtrToInt in @{}",
+                        function.symbol
+                    )));
+                }
                 let result = builder
                     .build_ptr_to_int(value, context.i64_type(), "raw_uint")
                     .map_err(|e| CodegenError(format!("ptrtoint @{}: {e}", function.symbol)))?;
@@ -1355,18 +1601,21 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 self.temps
                     .insert(*out, llvm_global.as_pointer_value().into());
             }
-            Instruction::NativeGlobalLoad { out, global, roots } => {
+            Instruction::NativeGlobalLoad {
+                out,
+                global,
+                safepoint,
+                roots,
+            } => {
                 let native = &self.native_globals[*global];
                 let ty = basic_ty(context, self.structs, self.enums, &native.ty)?;
                 let slot = self.entry_alloca(ty, "native_global_result")?;
                 let symbol = &self.native_global_bridges.gets[native.access.get()].symbol;
                 let callee = self.native_global_bridge(symbol);
                 let transition =
-                    self.publish_native_roots(roots, None, scoop_lir::CallEffect::NativeSafe)?;
-                builder
-                    .build_call(callee, &[slot.into()], "native_global_get")
-                    .map_err(|error| CodegenError(format!("native global read: {error}")))?;
-                self.finish_native_transition(transition, scoop_lir::CallEffect::NativeSafe)?;
+                    self.publish_native_roots(roots.as_slice(), None, NativeTransitionKind::Safe)?;
+                self.emit_native_global_call(callee, slot, *safepoint)?;
+                self.finish_native_transition(transition, NativeTransitionKind::Safe)?;
                 let value = builder
                     .build_load(ty, slot, "native_global_value")
                     .map_err(|error| CodegenError(format!("native global load: {error}")))?;
@@ -1375,6 +1624,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             Instruction::NativeGlobalStore {
                 global,
                 value,
+                safepoint,
                 roots,
             } => {
                 let native = &self.native_globals[*global];
@@ -1392,24 +1642,25 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 let symbol = &self.native_global_bridges.sets[set].symbol;
                 let callee = self.native_global_bridge(symbol);
                 let transition =
-                    self.publish_native_roots(roots, None, scoop_lir::CallEffect::NativeSafe)?;
-                builder
-                    .build_call(callee, &[slot.into()], "native_global_set")
-                    .map_err(|error| CodegenError(format!("native global write: {error}")))?;
-                self.finish_native_transition(transition, scoop_lir::CallEffect::NativeSafe)?;
+                    self.publish_native_roots(roots.as_slice(), None, NativeTransitionKind::Safe)?;
+                self.emit_native_global_call(callee, slot, *safepoint)?;
+                self.finish_native_transition(transition, NativeTransitionKind::Safe)?;
             }
-            Instruction::NativeGlobalAddress { out, global, roots } => {
+            Instruction::NativeGlobalAddress {
+                out,
+                global,
+                safepoint,
+                roots,
+            } => {
                 let native = &self.native_globals[*global];
                 let ty: BasicTypeEnum = ptr_ty(context).into();
                 let slot = self.entry_alloca(ty, "native_global_address")?;
                 let symbol = &self.native_global_bridges.addresses[native.access.address()].symbol;
                 let callee = self.native_global_bridge(symbol);
                 let transition =
-                    self.publish_native_roots(roots, None, scoop_lir::CallEffect::NativeSafe)?;
-                builder
-                    .build_call(callee, &[slot.into()], "native_global_address")
-                    .map_err(|error| CodegenError(format!("native global address: {error}")))?;
-                self.finish_native_transition(transition, scoop_lir::CallEffect::NativeSafe)?;
+                    self.publish_native_roots(roots.as_slice(), None, NativeTransitionKind::Safe)?;
+                self.emit_native_global_call(callee, slot, *safepoint)?;
+                self.finish_native_transition(transition, NativeTransitionKind::Safe)?;
                 let value = builder
                     .build_load(ty, slot, "native_global_pointer")
                     .map_err(|error| CodegenError(format!("native global pointer: {error}")))?;
@@ -1423,18 +1674,14 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         CodegenError(format!("store %{}: {e}", function.locals[*local].name))
                     })?;
             }
-            Instruction::NativeCall { site, roots } => {
-                self.emit_typed_call(site, Some(roots), None)?;
-            }
             Instruction::Call { site } => {
-                self.emit_typed_call(site, None, None)?;
+                self.emit_call_site(site)?;
             }
-            Instruction::Invoke {
-                site,
-                normal,
-                unwind,
-            } => {
-                self.emit_typed_call(site, None, Some((*normal, *unwind)))?;
+            Instruction::ManagedPoll { site } => {
+                self.safepoint_poll(site)?;
+            }
+            Instruction::Invoke { site } => {
+                self.emit_invoke_site(site)?;
             }
             Instruction::LandingPad { record, raw } => {
                 // Catch-all landing pad (M8, runtime spec 5). Keep the
@@ -1477,6 +1724,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     })?;
                 self.temps.insert(*record, landing_pad);
                 self.temps.insert(*raw, exception_ptr);
+                self.finish_unwind_compiler_roots()?;
             }
             Instruction::CleanupPad { record, raw } => {
                 // Cleanup-only landing pad for leaving an active catch
@@ -1520,11 +1768,12 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     })?;
                 self.temps.insert(*record, landing_pad);
                 self.temps.insert(*raw, exception_ptr);
+                self.finish_unwind_compiler_roots()?;
             }
             Instruction::BeginCatch { out, raw } => {
-                let begin_catch = self.runtime_fn(
+                let begin_catch = self.gc_leaf_fn(
                     "__cxa_begin_catch",
-                    ptr_ty(context).fn_type(&[ptr_ty(context).into()], false),
+                    managed_ptr_ty(context).fn_type(&[ptr_ty(context).into()], false),
                 );
                 let name = format!("t{}", out.into_raw().into_u32());
                 let object = builder
@@ -1542,7 +1791,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             }
             Instruction::EndCatch => {
                 let end_catch =
-                    self.runtime_fn("__cxa_end_catch", context.void_type().fn_type(&[], false));
+                    self.gc_leaf_fn("__cxa_end_catch", context.void_type().fn_type(&[], false));
                 builder
                     .build_call(end_catch, &[], "")
                     .map_err(|e| CodegenError(format!("end_catch @{}: {e}", function.symbol)))?;
@@ -1551,11 +1800,11 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 // `void scoop_rt_throw(ptr)` (noreturn; runtime spec 5).
                 // The block's Unreachable terminator emits the LLVM
                 // `unreachable` after the call, like the trap path.
-                let throw = self.runtime_fn(
+                let throw = self.gc_leaf_fn(
                     "scoop_rt_throw",
                     context
                         .void_type()
-                        .fn_type(&[ptr_ty(context).into()], false),
+                        .fn_type(&[managed_ptr_ty(context).into()], false),
                 );
                 throw.add_attribute(
                     AttributeLoc::Function,
@@ -1571,7 +1820,10 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 out,
                 elements,
                 array_type,
+                safepoint,
+                live,
             } => {
+                let live = self.materialize_statepoint_live(live, *safepoint)?;
                 // `{ ptr td, i64 gc_word, i64 size, [n x elem] }`
                 // (runtime spec 2.5; the 16-byte header is M9):
                 // allocate align_up(24, element_align) + n * stride
@@ -1585,8 +1837,12 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 let data_offset = array_data_offset(array_metadata.element_align);
                 let td = td.as_pointer_value();
                 let total = data_offset + elements.len() as u64 * stride;
-                let array =
-                    self.managed_alloc_value(td, context.i64_type().const_int(total, false))?;
+                let array = self.managed_alloc_value(
+                    td,
+                    context.i64_type().const_int(total, false),
+                    *safepoint,
+                    live,
+                )?;
                 let size_ptr = self.byte_gep(array, 16, "size_ptr")?;
                 builder
                     .build_store(
@@ -1684,7 +1940,11 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 out,
                 operand,
                 array_type,
+                safepoint,
+                live,
             } => {
+                let live = self.materialize_statepoint_live(live, *safepoint)?;
+                let operand = self.statepoint_value(*operand, &live)?;
                 // The target descriptor is explicit: converting Array<T> to
                 // MutableArray<T> (or back) changes nominal runtime identity.
                 let (array_metadata, target_td) = self.array_type(*array_type);
@@ -1692,9 +1952,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 let data_offset = array_data_offset(array_metadata.element_align);
                 let clone = self.runtime_fn(
                     scoop_lir::ARRAY_CLONE_SYMBOL,
-                    ptr_ty(context).fn_type(
+                    managed_ptr_ty(context).fn_type(
                         &[
-                            ptr_ty(context).into(),
+                            managed_ptr_ty(context).into(),
                             ptr_ty(context).into(),
                             context.i64_type().into(),
                             context.i64_type().into(),
@@ -1703,11 +1963,11 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     ),
                 );
                 let name = format!("t{}", out.into_raw().into_u32());
-                let result = builder
+                let call = builder
                     .build_call(
                         clone,
                         &[
-                            self.value(*operand)?.into(),
+                            operand.into(),
                             target_td.as_pointer_value().into(),
                             context.i64_type().const_int(stride, false).into(),
                             context.i64_type().const_int(data_offset, false).into(),
@@ -1719,15 +1979,15 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                             "array_clone @{symbol}: {e}",
                             symbol = function.symbol
                         ))
-                    })?
-                    .try_as_basic_value()
-                    .basic()
-                    .ok_or_else(|| {
-                        CodegenError(format!(
-                            "call @{} produced no value",
-                            scoop_lir::ARRAY_CLONE_SYMBOL
-                        ))
                     })?;
+                self.apply_safepoint_id(call, *safepoint);
+                let result = call.try_as_basic_value().basic().ok_or_else(|| {
+                    CodegenError(format!(
+                        "call @{} produced no value",
+                        scoop_lir::ARRAY_CLONE_SYMBOL
+                    ))
+                })?;
+                self.restore_statepoint_live(live, *safepoint)?;
                 self.temps.insert(*out, result);
             }
             Instruction::EnumWrap {
@@ -1745,7 +2005,10 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                             self.value(fields[0])?
                         } else {
                             // The payload-less variant is the null pointer.
-                            ptr_ty(context).const_null().into()
+                            basic_ty(context, self.structs, self.enums, &function.temps[*out].ty)?
+                                .into_pointer_type()
+                                .const_null()
+                                .into()
                         }
                     }
                     EnumRepr::Tagged {
@@ -1756,7 +2019,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         // The full value is zero before tag/payload writes,
                         // so every inactive ref-bearing slot is safe for
                         // unconditional GC scanning.
-                        let ty = tagged_ty(context, *size, *align)?;
+                        let ty = tagged_ty(context, *size, *align, &def.scan)?;
                         let slot = self.entry_alloca(ty.into(), "enum_wrap")?;
                         builder.build_store(slot, ty.const_zero()).map_err(|e| {
                             CodegenError(format!(
@@ -1811,11 +2074,12 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     // the payload-less variant, non-null ↔ the payload
                     // variant.
                     EnumRepr::Niche { payload_variant } => {
+                        let operand = operand.into_pointer_value();
                         let non_null = builder
                             .build_int_compare(
                                 IntPredicate::NE,
-                                operand.into_pointer_value(),
-                                ptr_ty(context).const_null(),
+                                operand,
+                                operand.get_type().const_null(),
                                 "non_null",
                             )
                             .map_err(|e| {
@@ -1872,7 +2136,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         // Reverse of EnumWrap: spill the aggregate into an
                         // entry-block alloca, then load the field out of
                         // the payload area.
-                        let ty = tagged_ty(context, *size, *align)?;
+                        let ty = tagged_ty(context, *size, *align, &def.scan)?;
                         let slot = self.entry_alloca(ty.into(), "enum_field")?;
                         builder.build_store(slot, operand).map_err(|e| {
                             CodegenError(format!(
@@ -1927,33 +2191,460 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         Ok(alloca)
     }
 
-    /// Emit one typed direct/dispatch call. Destination, physical signature,
-    /// return convention, and GC/native effect all come from the target entity
-    /// referenced by `site`; none are reconstructed from operands or symbols.
+    fn statepoint_source_type(
+        &self,
+        source: scoop_lir::CallerRootSource,
+    ) -> Result<&LirType, CodegenError> {
+        match source {
+            scoop_lir::CallerRootSource::Param(index) => {
+                self.function.params.get(index as usize).ok_or_else(|| {
+                    CodegenError(format!("statepoint param {index} is out of range"))
+                })
+            }
+            scoop_lir::CallerRootSource::Local(id) => Ok(&self.function.locals[id].ty),
+            scoop_lir::CallerRootSource::Temp(id) => Ok(&self.function.temps[id].ty),
+        }
+    }
+
+    fn root_source_storage(
+        &self,
+        source: scoop_lir::CallerRootSource,
+    ) -> Result<RootStorage<'ctx>, CodegenError> {
+        match source {
+            scoop_lir::CallerRootSource::Local(id) => Ok(RootStorage {
+                pointer: self.allocas[arena_index(id)],
+                ty: basic_ty(
+                    self.context,
+                    self.structs,
+                    self.enums,
+                    &self.function.locals[id].ty,
+                )?,
+            }),
+            scoop_lir::CallerRootSource::Param(_) | scoop_lir::CallerRootSource::Temp(_) => self
+                .root_storage
+                .get(&source)
+                .copied()
+                .ok_or_else(|| CodegenError("root source has no canonical storage".to_string())),
+        }
+    }
+
+    /// Turn the complete LIR live set into one independent AS1 SSA value per
+    /// managed leaf. The post-call stores in `restore_statepoint_live` are
+    /// deliberate uses: SROA exposes them to RS4GC, which rewrites each use to
+    /// the corresponding `gc.relocate` result.
+    fn materialize_statepoint_live(
+        &mut self,
+        live: &scoop_lir::StatepointLiveSet,
+        safepoint: scoop_lir::SafepointId,
+    ) -> Result<MaterializedStatepointLive<'ctx>, CodegenError> {
+        let mut arguments = HashMap::with_capacity(live.as_slice().len());
+        let mut leaves = Vec::new();
+        for item in live.as_slice() {
+            let source_ty = self.statepoint_source_type(item.source)?;
+            if source_ty != &item.ty {
+                return Err(CodegenError(format!(
+                    "statepoint {} source type is incomplete or inconsistent",
+                    safepoint.get()
+                )));
+            }
+            let llvm_ty = basic_ty(self.context, self.structs, self.enums, &item.ty)?;
+            let storage = match item.source {
+                scoop_lir::CallerRootSource::Local(id) => self.allocas[arena_index(id)],
+                scoop_lir::CallerRootSource::Param(_) | scoop_lir::CallerRootSource::Temp(_) => {
+                    let canonical = self.root_storage.get(&item.source).ok_or_else(|| {
+                        CodegenError(format!(
+                            "statepoint {} source lacks canonical root storage",
+                            safepoint.get()
+                        ))
+                    })?;
+                    if canonical.ty != llvm_ty {
+                        return Err(CodegenError(format!(
+                            "statepoint {} root storage disagrees with source type",
+                            safepoint.get()
+                        )));
+                    }
+                    canonical.pointer
+                }
+            };
+            let source_size = self.target_data.get_store_size(&llvm_ty);
+            for leaf in item.leaves.as_slice() {
+                if leaf
+                    .byte_offset
+                    .checked_add(8)
+                    .is_none_or(|end| end > source_size)
+                {
+                    return Err(CodegenError(format!(
+                        "statepoint {} managed leaf offset {} is outside its concrete type",
+                        safepoint.get(),
+                        leaf.byte_offset
+                    )));
+                }
+                // SAFETY: the LIR leaf path was computed from the concrete
+                // physical layout and was range-checked immediately above.
+                let leaf_storage = unsafe {
+                    self.builder.build_gep(
+                        self.context.i8_type(),
+                        storage,
+                        &[self.context.i64_type().const_int(leaf.byte_offset, false)],
+                        &format!("statepoint_{}_leaf", safepoint.get()),
+                    )
+                }
+                .map_err(|error| CodegenError(format!("address statepoint leaf: {error}")))?;
+                let source_value = self
+                    .builder
+                    .build_load(
+                        managed_ptr_ty(self.context),
+                        leaf_storage,
+                        &format!("statepoint_{}_source", safepoint.get()),
+                    )
+                    .map_err(|error| CodegenError(format!("load statepoint leaf: {error}")))?
+                    .into_pointer_value();
+                let identity_storage =
+                    self.entry_alloca(managed_ptr_ty(self.context).into(), "statepoint_root")?;
+                statepoint::mark_root_identity(
+                    self.context,
+                    identity_storage
+                        .as_instruction_value()
+                        .expect("entry_alloca returns an alloca instruction"),
+                    safepoint,
+                    item.source,
+                    leaf.byte_offset,
+                )?;
+                self.builder
+                    .build_store(identity_storage, source_value)
+                    .map_err(|error| {
+                        CodegenError(format!("initialize statepoint root: {error}"))
+                    })?;
+                let value = self
+                    .builder
+                    .build_load(
+                        managed_ptr_ty(self.context),
+                        identity_storage,
+                        &format!("statepoint_{}_live", safepoint.get()),
+                    )
+                    .map_err(|error| CodegenError(format!("load statepoint root: {error}")))?
+                    .into_pointer_value();
+                value
+                    .as_instruction_value()
+                    .expect("a statepoint leaf load is an instruction")
+                    .set_volatile(true)
+                    .map_err(|error| {
+                        CodegenError(format!("make statepoint leaf load volatile: {error}"))
+                    })?;
+                leaves.push(StatepointLiveLeaf {
+                    storage: leaf_storage,
+                    value,
+                });
+            }
+            let value = match llvm_ty {
+                BasicTypeEnum::PointerType(pointer)
+                    if pointer == managed_ptr_ty(self.context)
+                        && item.leaves.as_slice().len() == 1
+                        && item.leaves.as_slice()[0].byte_offset == 0 =>
+                {
+                    leaves
+                        .last()
+                        .expect("the single managed leaf was materialized")
+                        .value
+                        .into()
+                }
+                _ => self
+                    .builder
+                    .build_load(
+                        llvm_ty,
+                        storage,
+                        &format!("statepoint_{}_argument", safepoint.get()),
+                    )
+                    .map_err(|error| {
+                        CodegenError(format!("reload materialized statepoint source: {error}"))
+                    })?,
+            };
+            arguments.insert(item.source, value);
+        }
+        Ok(MaterializedStatepointLive { arguments, leaves })
+    }
+
+    fn restore_statepoint_live(
+        &mut self,
+        live: MaterializedStatepointLive<'ctx>,
+        safepoint: scoop_lir::SafepointId,
+    ) -> Result<(), CodegenError> {
+        for leaf in live.leaves {
+            let store = self
+                .builder
+                .build_store(leaf.storage, leaf.value)
+                .map_err(|error| {
+                    CodegenError(format!(
+                        "restore statepoint {} leaf: {error}",
+                        safepoint.get()
+                    ))
+                })?;
+            store.set_volatile(true).map_err(|error| {
+                CodegenError(format!(
+                    "make statepoint {} leaf store volatile: {error}",
+                    safepoint.get()
+                ))
+            })?;
+        }
+        Ok(())
+    }
+
+    fn prepare_root_storage(&mut self) -> Result<(), CodegenError> {
+        for source in root_storage_sources(self.function) {
+            if matches!(source, scoop_lir::CallerRootSource::Local(_)) {
+                continue;
+            }
+            let lir_type = self.statepoint_source_type(source)?.clone();
+            let ty = basic_ty(self.context, self.structs, self.enums, &lir_type)?;
+            let pointer = self.entry_alloca(ty, "managed_root_storage")?;
+            let initial = match source {
+                scoop_lir::CallerRootSource::Param(index) => self
+                    .llvm_function
+                    .get_nth_param(index + self.param_offset)
+                    .ok_or_else(|| CodegenError(format!("rooted param {index} is out of range")))?,
+                scoop_lir::CallerRootSource::Temp(_) => ty.const_zero(),
+                scoop_lir::CallerRootSource::Local(_) => unreachable!(),
+            };
+            self.builder
+                .build_store(pointer, initial)
+                .map_err(|error| {
+                    CodegenError(format!("initialize managed root storage: {error}"))
+                })?;
+            if self
+                .root_storage
+                .insert(source, RootStorage { pointer, ty })
+                .is_some()
+            {
+                return Err(CodegenError(
+                    "complete root plans repeat one canonical source".to_string(),
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    fn publish_compiler_roots(
+        &mut self,
+        roots: &[scoop_lir::ExceptionalRoot],
+    ) -> Result<CompilerRootFrame<'ctx>, CodegenError> {
+        let context = self.context;
+        let ptr = ptr_ty(context);
+        let i64_type = context.i64_type();
+        let index = self.compiler_invoke_index;
+        self.compiler_invoke_index += 1;
+        let mut entries = Vec::with_capacity(roots.len());
+        for (root_index, exceptional) in roots.iter().enumerate() {
+            let root = &exceptional.root;
+            let storage = self.root_source_storage(root.source)?;
+            let descriptor = emit_ref_scan(
+                context,
+                self.llvm,
+                &format!("{}.invoke.{index}.root.{root_index}", self.function.symbol),
+                root.scan.as_ref_scan(),
+            )
+            .expect("exceptional roots always carry a non-empty scan");
+            entries.push((storage.pointer, descriptor));
+        }
+
+        let entry_type = context.struct_type(&[ptr.into(), ptr.into()], false);
+        let entries_pointer = if entries.is_empty() {
+            ptr.const_null()
+        } else {
+            let entry_count = u32::try_from(entries.len()).map_err(|_| {
+                CodegenError("compiler-root entry count exceeds u32::MAX".to_string())
+            })?;
+            let array_type = entry_type.array_type(entry_count);
+            let array = self.entry_alloca(array_type.into(), "compiler_root_entries")?;
+            for (entry_index, (base, scan)) in entries.into_iter().enumerate() {
+                let entry_index = u64::try_from(entry_index).map_err(|_| {
+                    CodegenError("compiler-root entry index exceeds u64::MAX".to_string())
+                })?;
+                // SAFETY: `entry_index` is within the fixed entries array.
+                let entry = unsafe {
+                    self.builder.build_gep(
+                        array_type,
+                        array,
+                        &[
+                            context.i32_type().const_zero(),
+                            context.i32_type().const_int(entry_index, false),
+                        ],
+                        "compiler_root_entry",
+                    )
+                }
+                .map_err(|error| CodegenError(format!("compiler-root entry GEP: {error}")))?;
+                let base_field = self
+                    .builder
+                    .build_struct_gep(entry_type, entry, 0, "compiler_root_base")
+                    .map_err(|error| CodegenError(format!("compiler-root base GEP: {error}")))?;
+                let scan_field = self
+                    .builder
+                    .build_struct_gep(entry_type, entry, 1, "compiler_root_scan")
+                    .map_err(|error| CodegenError(format!("compiler-root scan GEP: {error}")))?;
+                self.builder
+                    .build_store(base_field, base)
+                    .and_then(|_| self.builder.build_store(scan_field, scan))
+                    .map_err(|error| {
+                        CodegenError(format!("publish compiler-root entry: {error}"))
+                    })?;
+            }
+            array
+        };
+        let frame_type = context.struct_type(&[ptr.into(), ptr.into(), i64_type.into()], false);
+        let frame = self.entry_alloca(frame_type.into(), "compiler_root_frame")?;
+        self.builder
+            .build_store(frame, frame_type.const_zero())
+            .map_err(|error| CodegenError(format!("zero compiler-root frame: {error}")))?;
+        let push = self.gc_leaf_fn(
+            "scoop_rt_push_compiler_roots",
+            context
+                .void_type()
+                .fn_type(&[ptr.into(), ptr.into(), i64_type.into()], false),
+        );
+        let root_count = u64::try_from(roots.len())
+            .map_err(|_| CodegenError("compiler-root count exceeds u64::MAX".to_string()))?;
+        self.builder
+            .build_call(
+                push,
+                &[
+                    frame.into(),
+                    entries_pointer.into(),
+                    i64_type.const_int(root_count, false).into(),
+                ],
+                "push_compiler_roots",
+            )
+            .map_err(|error| CodegenError(format!("push compiler roots: {error}")))?;
+        Ok(CompilerRootFrame { pointer: frame })
+    }
+
+    fn validate_compiler_root_sources(
+        &self,
+        sources: impl IntoIterator<Item = scoop_lir::CallerRootSource>,
+    ) -> Result<(), CodegenError> {
+        for source in sources {
+            if matches!(source, scoop_lir::CallerRootSource::Local(_)) {
+                continue;
+            }
+            if !self.root_storage.contains_key(&source) {
+                return Err(CodegenError(
+                    "compiler-root edge names a source without canonical storage".to_string(),
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    fn pop_compiler_roots(&self, frame: CompilerRootFrame<'ctx>) -> Result<(), CodegenError> {
+        let pop = self.gc_leaf_fn(
+            "scoop_rt_pop_compiler_roots",
+            self.context
+                .void_type()
+                .fn_type(&[ptr_ty(self.context).into()], false),
+        );
+        self.builder
+            .build_call(pop, &[frame.pointer.into()], "pop_compiler_roots")
+            .map_err(|error| CodegenError(format!("pop compiler roots: {error}")))?;
+        Ok(())
+    }
+
+    fn finish_unwind_compiler_roots(&mut self) -> Result<(), CodegenError> {
+        if !self.compiler_unwind_blocks.contains(&self.current_block) {
+            return Ok(());
+        }
+        let sources = self
+            .unwind_root_sources
+            .get(&self.current_block)
+            .cloned()
+            .unwrap_or_default();
+        self.validate_compiler_root_sources(sources)?;
+        let pop = self.gc_leaf_fn(
+            "scoop_rt_pop_top_compiler_roots",
+            self.context.void_type().fn_type(&[], false),
+        );
+        self.builder
+            .build_call(pop, &[], "pop_unwind_compiler_roots")
+            .map_err(|error| CodegenError(format!("pop unwind compiler roots: {error}")))?;
+        Ok(())
+    }
+
+    fn emit_call_site(&mut self, site: &scoop_lir::CallSite) -> Result<(), CodegenError> {
+        let targets = &self.function.call_targets;
+        match site {
+            scoop_lir::CallSite::Managed(site) => self.emit_typed_call(
+                &site.call,
+                targets.managed_targets[site.target].destination,
+                CallProtocol::Managed {
+                    safepoint: site.safepoint,
+                    live: &site.live,
+                },
+                None,
+            ),
+            scoop_lir::CallSite::NoGc(site) => self.emit_typed_call(
+                &site.call,
+                targets.no_gc_targets[site.target].destination,
+                CallProtocol::NoGc,
+                None,
+            ),
+            scoop_lir::CallSite::NativeSafe(site) => self.emit_typed_call(
+                &site.call,
+                targets.native_safe_targets[site.target].destination,
+                CallProtocol::NativeSafe {
+                    safepoint: site.safepoint,
+                    roots: &site.roots,
+                },
+                None,
+            ),
+            scoop_lir::CallSite::NativeBorrowed(site) => self.emit_typed_call(
+                &site.call,
+                targets.native_borrowed_targets[site.target].destination,
+                CallProtocol::NativeBorrowed {
+                    safepoint: site.safepoint,
+                    roots: &site.roots,
+                },
+                None,
+            ),
+        }
+    }
+
+    fn emit_invoke_site(&mut self, site: &scoop_lir::InvokeSite) -> Result<(), CodegenError> {
+        let targets = &self.function.call_targets;
+        match site {
+            scoop_lir::InvokeSite::Managed(site) => self.emit_typed_call(
+                &site.call,
+                targets.managed_targets[site.target].destination,
+                CallProtocol::ManagedInvoke {
+                    safepoint: site.safepoint,
+                    roots: &site.roots,
+                },
+                Some((site.normal, site.unwind)),
+            ),
+            scoop_lir::InvokeSite::NoGc(site) => self.emit_typed_call(
+                &site.call,
+                targets.no_gc_targets[site.target].destination,
+                CallProtocol::NoGc,
+                Some((site.normal, site.unwind)),
+            ),
+        }
+    }
+
+    /// Emit one typed direct/dispatch call. The protocol-specific LIR sum owns
+    /// destination, safepoint/root plan and physical call independently; this
+    /// routine receives one already-consistent arm and never infers an effect.
     fn emit_typed_call(
         &mut self,
-        site: &scoop_lir::CallSite,
-        native_roots: Option<&[scoop_lir::CallerRoot]>,
+        call: &scoop_lir::TypedCall,
+        destination: scoop_lir::CallDestination,
+        protocol: CallProtocol<'_>,
         invoke: Option<(scoop_lir::BlockId, scoop_lir::BlockId)>,
     ) -> Result<(), CodegenError> {
         let targets = &self.function.call_targets;
-        let (destination, effect, params, result) = match *site {
-            scoop_lir::CallSite::Void { target, .. } => {
-                let target = &targets.void_targets[target];
-                let signature = &targets.void_signatures[target.signature];
-                (
-                    target.destination,
-                    target.effect,
-                    signature.params.as_slice(),
-                    TypedCallResult::Void,
-                )
+        let (params, result) = match *call {
+            scoop_lir::TypedCall::Void { signature, .. } => {
+                let signature = &targets.void_signatures[signature];
+                (signature.params.as_slice(), TypedCallResult::Void)
             }
-            scoop_lir::CallSite::Direct { target, out, .. } => {
-                let target = &targets.direct_targets[target];
-                let signature = &targets.direct_signatures[target.signature];
+            scoop_lir::TypedCall::Direct { signature, out, .. } => {
+                let signature = &targets.direct_signatures[signature];
                 (
-                    target.destination,
-                    target.effect,
                     signature.params.as_slice(),
                     TypedCallResult::Direct {
                         out,
@@ -1962,14 +2653,11 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     },
                 )
             }
-            scoop_lir::CallSite::IndirectResult {
-                target, storage, ..
+            scoop_lir::TypedCall::IndirectResult {
+                signature, storage, ..
             } => {
-                let target = &targets.indirect_result_targets[target];
-                let signature = &targets.indirect_result_signatures[target.signature];
+                let signature = &targets.indirect_result_signatures[signature];
                 (
-                    target.destination,
-                    target.effect,
                     signature.params.as_slice(),
                     TypedCallResult::Indirect {
                         storage,
@@ -1981,27 +2669,21 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         };
 
         let is_native = matches!(
-            effect,
-            scoop_lir::CallEffect::NativeSafe | scoop_lir::CallEffect::NativeBorrowed
+            protocol,
+            CallProtocol::NativeSafe { .. } | CallProtocol::NativeBorrowed { .. }
         );
-        if is_native != native_roots.is_some() {
-            return Err(CodegenError(format!(
-                "typed call @{}: native instruction/effect mismatch",
-                self.function.symbol
-            )));
-        }
         if is_native && invoke.is_some() {
             return Err(CodegenError(format!(
                 "typed call @{}: native calls cannot unwind through managed code",
                 self.function.symbol
             )));
         }
-        if site.args().len() != params.len() {
+        if call.args().len() != params.len() {
             return Err(CodegenError(format!(
                 "typed call @{}: signature has {} parameters but call has {} arguments",
                 self.function.symbol,
                 params.len(),
-                site.args().len()
+                call.args().len()
             )));
         }
 
@@ -2025,6 +2707,16 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             }
         }
 
+        let managed_live = match &protocol {
+            CallProtocol::Managed { safepoint, live } => {
+                Some(self.materialize_statepoint_live(live, *safepoint)?)
+            }
+            CallProtocol::ManagedInvoke { .. }
+            | CallProtocol::NoGc
+            | CallProtocol::NativeSafe { .. }
+            | CallProtocol::NativeBorrowed { .. } => None,
+        };
+
         // Allocation is the one codegen-expanded runtime primitive. Its typed
         // identity selects the expansion; its symbol is not inspected.
         if destination == scoop_lir::CallDestination::Runtime(scoop_lir::RuntimeFunction::Alloc) {
@@ -2034,13 +2726,25 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     self.function.symbol
                 )));
             };
-            if effect != scoop_lir::CallEffect::ManagedSafepoint || invoke.is_some() {
+            let CallProtocol::Managed { safepoint, live: _ } = &protocol else {
                 return Err(CodegenError(format!(
-                    "typed allocation @{} has an invalid effect or unwind edge",
+                    "typed allocation @{} is not a managed call",
+                    self.function.symbol
+                )));
+            };
+            if invoke.is_some() {
+                return Err(CodegenError(format!(
+                    "typed allocation @{} cannot carry unwind edges",
                     self.function.symbol
                 )));
             }
-            return self.managed_alloc(out, site.args());
+            self.managed_alloc(
+                out,
+                call.args(),
+                *safepoint,
+                managed_live.expect("managed allocation prepared its live set"),
+            )?;
+            return Ok(());
         }
 
         let mut param_tys = params
@@ -2058,45 +2762,93 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             }
         };
 
-        let mut call_args = site
+        let mut call_args = call
             .args()
             .iter()
-            .map(|argument| self.value(*argument))
+            .map(|argument| match managed_live.as_ref() {
+                Some(live) => self.statepoint_value(*argument, live),
+                None => self.value(*argument),
+            })
             .collect::<Result<Vec<BasicValueEnum<'ctx>>, _>>()?;
         if let TypedCallResult::Indirect { storage, .. } = &result {
             call_args.insert(0, self.allocas[arena_index(*storage)].into());
         }
 
-        let native_result_storage = if native_roots.is_some() {
-            match &result {
-                TypedCallResult::Direct { ty, scan, .. } if **scan != RefScan::None => {
-                    let llvm_ty = basic_ty(self.context, self.structs, self.enums, ty)?;
-                    let storage = self.entry_alloca(llvm_ty, "native_result")?;
-                    self.builder
-                        .build_store(storage, llvm_ty.const_zero())
-                        .map_err(|error| CodegenError(format!("zero native result: {error}")))?;
-                    Some((storage, llvm_ty, *scan))
+        let native = match &protocol {
+            CallProtocol::NativeSafe { roots, .. } => {
+                if result_scan(&result) != &RefScan::None {
+                    return Err(CodegenError(format!(
+                        "native-safe call @{} has a managed result",
+                        self.function.symbol
+                    )));
                 }
-                TypedCallResult::Indirect { storage, ty, scan } if **scan != RefScan::None => {
-                    let llvm_ty = basic_ty(self.context, self.structs, self.enums, ty)?;
-                    let storage = self.allocas[arena_index(*storage)];
-                    self.builder
-                        .build_store(storage, llvm_ty.const_zero())
-                        .map_err(|error| CodegenError(format!("zero native result: {error}")))?;
-                    Some((storage, llvm_ty, *scan))
-                }
-                TypedCallResult::Void
-                | TypedCallResult::Direct { .. }
-                | TypedCallResult::Indirect { .. } => None,
+                Some((NativeTransitionKind::Safe, roots.as_slice(), None))
             }
-        } else {
-            None
+            CallProtocol::NativeBorrowed { roots, .. } => {
+                let result_root = match &roots.result {
+                    scoop_lir::NativeBorrowedResultRoot::GcFree => {
+                        if result_scan(&result) != &RefScan::None {
+                            return Err(CodegenError(format!(
+                                "native-borrowed call @{} is missing its result root",
+                                self.function.symbol
+                            )));
+                        }
+                        None
+                    }
+                    scoop_lir::NativeBorrowedResultRoot::Rooted { storage, scan } => {
+                        let (ty, indirect_storage) = match &result {
+                            TypedCallResult::Void => {
+                                return Err(CodegenError(format!(
+                                    "void native-borrowed call @{} has a result root",
+                                    self.function.symbol
+                                )));
+                            }
+                            TypedCallResult::Direct { ty, .. } => (*ty, None),
+                            TypedCallResult::Indirect { storage, ty, .. } => (*ty, Some(*storage)),
+                        };
+                        if indirect_storage.is_some_and(|call_storage| call_storage != *storage) {
+                            return Err(CodegenError(format!(
+                                "native-borrowed indirect result root @{} names different storage",
+                                self.function.symbol
+                            )));
+                        }
+                        if &self.function.locals[*storage].ty != ty
+                            || result_scan(&result) != scan.as_ref_scan()
+                        {
+                            return Err(CodegenError(format!(
+                                "native-borrowed result root @{} disagrees with the typed result",
+                                self.function.symbol
+                            )));
+                        }
+                        let llvm_ty = basic_ty(self.context, self.structs, self.enums, ty)?;
+                        let pointer = self.allocas[arena_index(*storage)];
+                        self.builder
+                            .build_store(pointer, llvm_ty.const_zero())
+                            .map_err(|error| {
+                                CodegenError(format!("zero native result: {error}"))
+                            })?;
+                        Some((pointer, llvm_ty, scan.as_ref_scan()))
+                    }
+                };
+                Some((
+                    NativeTransitionKind::Borrowed,
+                    roots.as_slice(),
+                    result_root,
+                ))
+            }
+            CallProtocol::Managed { .. } => None,
+            CallProtocol::ManagedInvoke { roots, .. } => {
+                let _ = roots;
+                None
+            }
+            CallProtocol::NoGc => None,
         };
-        let transition = if let Some(roots) = native_roots {
+        let native_result_storage = native.and_then(|(_, _, result)| result);
+        let transition = if let Some((kind, roots, _)) = native {
             self.publish_native_roots(
                 roots,
                 native_result_storage.map(|(storage, _, scan)| (storage, scan)),
-                effect,
+                kind,
             )
             .map(Some)?
         } else {
@@ -2107,70 +2859,95 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             scoop_lir::CallDestination::Dispatch { .. } => None,
             _ => Some(self.typed_callee(destination, fn_ty)?),
         };
-        let call = match (destination, invoke) {
-            (scoop_lir::CallDestination::Dispatch { table, slot }, None) => {
-                let pointer = self.dispatch_function_pointer(table, slot)?;
-                let arguments = call_args
-                    .iter()
-                    .copied()
-                    .map(Into::into)
-                    .collect::<Vec<_>>();
-                self.builder
-                    .build_indirect_call(fn_ty, pointer, &arguments, "typed_call")
-                    .map_err(|error| CodegenError(format!("typed dispatch call: {error}")))?
-            }
-            (scoop_lir::CallDestination::Dispatch { table, slot }, Some((normal, unwind))) => {
-                let pointer = self.dispatch_function_pointer(table, slot)?;
-                self.builder
-                    .build_indirect_invoke(
-                        fn_ty,
-                        pointer,
-                        &call_args,
-                        self.llvm_blocks[arena_index(normal)],
-                        self.llvm_blocks[arena_index(unwind)],
-                        "typed_invoke",
-                    )
-                    .map_err(|error| CodegenError(format!("typed dispatch invoke: {error}")))?
-            }
-            (_, None) => {
-                let arguments = call_args
-                    .iter()
-                    .copied()
-                    .map(Into::into)
-                    .collect::<Vec<_>>();
-                self.builder
-                    .build_call(
-                        callee.expect("direct destination has a callee"),
-                        &arguments,
-                        "typed_call",
-                    )
-                    .map_err(|error| CodegenError(format!("typed direct call: {error}")))?
-            }
-            (_, Some((normal, unwind))) => self
-                .builder
-                .build_invoke(
-                    callee.expect("direct destination has a callee"),
-                    &call_args,
-                    self.llvm_blocks[arena_index(normal)],
-                    self.llvm_blocks[arena_index(unwind)],
-                    "typed_invoke",
-                )
-                .map_err(|error| CodegenError(format!("typed direct invoke: {error}")))?,
-        };
-        self.apply_call_effect(call, destination, effect);
-
-        let direct_value = match &result {
-            TypedCallResult::Direct { .. } => match call.try_as_basic_value() {
-                ValueKind::Basic(value) => Some(value),
-                ValueKind::Instruction(_) => {
-                    return Err(CodegenError(format!(
-                        "typed call @{} produced no direct value",
-                        self.function.symbol
-                    )));
+        if let Some((normal, unwind)) = invoke {
+            return self.emit_typed_invoke(
+                destination,
+                fn_ty,
+                &call_args,
+                &result,
+                &protocol,
+                callee,
+                normal,
+                unwind,
+            );
+        }
+        let direct_value = if native.is_some() {
+            let actual_callee = match destination {
+                scoop_lir::CallDestination::Dispatch { table, slot } => {
+                    self.dispatch_function_pointer(table, slot)?
                 }
-            },
-            TypedCallResult::Void | TypedCallResult::Indirect { .. } => None,
+                _ => callee
+                    .expect("direct destination has a typed callee")
+                    .as_global_value()
+                    .as_pointer_value(),
+            };
+            let result_type = match &result {
+                TypedCallResult::Direct { ty, .. } => {
+                    Some(basic_ty(self.context, self.structs, self.enums, ty)?)
+                }
+                TypedCallResult::Void | TypedCallResult::Indirect { .. } => None,
+            };
+            let safepoint = protocol
+                .safepoint()
+                .expect("native protocol always carries a safepoint id");
+            statepoint::build_zero_live_call(
+                self.context,
+                self.llvm,
+                self.builder,
+                statepoint::ZeroLiveCall {
+                    callee: actual_callee,
+                    callee_type: fn_ty,
+                    call_args: &call_args,
+                    safepoint,
+                    result_type,
+                },
+            )?
+        } else {
+            let call = match destination {
+                scoop_lir::CallDestination::Dispatch { table, slot } => {
+                    let pointer = self.dispatch_function_pointer(table, slot)?;
+                    let arguments = call_args
+                        .iter()
+                        .copied()
+                        .map(Into::into)
+                        .collect::<Vec<_>>();
+                    self.builder
+                        .build_indirect_call(fn_ty, pointer, &arguments, "typed_call")
+                        .map_err(|error| CodegenError(format!("typed dispatch call: {error}")))?
+                }
+                _ => {
+                    let arguments = call_args
+                        .iter()
+                        .copied()
+                        .map(Into::into)
+                        .collect::<Vec<_>>();
+                    self.builder
+                        .build_call(
+                            callee.expect("direct destination has a callee"),
+                            &arguments,
+                            "typed_call",
+                        )
+                        .map_err(|error| CodegenError(format!("typed direct call: {error}")))?
+                }
+            };
+            self.apply_call_protocol(call, destination, &protocol);
+            match &result {
+                TypedCallResult::Direct { .. } => match call.try_as_basic_value() {
+                    ValueKind::Basic(value) => Some(value),
+                    ValueKind::Instruction(_) => {
+                        return Err(CodegenError(format!(
+                            "typed call @{} produced no direct value",
+                            self.function.symbol
+                        )));
+                    }
+                },
+                TypedCallResult::Void | TypedCallResult::Indirect { .. } => None,
+            }
         };
+
+        if let (Some(live), CallProtocol::Managed { safepoint, .. }) = (managed_live, &protocol) {
+            self.restore_statepoint_live(live, *safepoint)?;
+        }
 
         if let (Some(value), TypedCallResult::Direct { .. }, Some((storage, _, _))) =
             (direct_value, &result, native_result_storage)
@@ -2180,7 +2957,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 .map_err(|error| CodegenError(format!("store native result: {error}")))?;
         }
         if let Some(transition) = transition {
-            self.finish_native_transition(transition, effect)?;
+            let (kind, _, _) = native.expect("a native transition has its typed protocol");
+            self.finish_native_transition(transition, kind)?;
         }
 
         if let TypedCallResult::Direct { out, .. } = result {
@@ -2193,6 +2971,122 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             };
             self.temps.insert(out, value);
         }
+        Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn emit_typed_invoke(
+        &mut self,
+        destination: scoop_lir::CallDestination,
+        fn_type: inkwell::types::FunctionType<'ctx>,
+        call_args: &[BasicValueEnum<'ctx>],
+        result: &TypedCallResult<'_>,
+        protocol: &CallProtocol<'_>,
+        callee: Option<inkwell::values::FunctionValue<'ctx>>,
+        normal: scoop_lir::BlockId,
+        unwind: scoop_lir::BlockId,
+    ) -> Result<(), CodegenError> {
+        let roots = match protocol {
+            CallProtocol::ManagedInvoke { roots, .. } => roots.as_slice(),
+            CallProtocol::NoGc => &[],
+            CallProtocol::Managed { .. }
+            | CallProtocol::NativeSafe { .. }
+            | CallProtocol::NativeBorrowed { .. } => {
+                return Err(CodegenError(format!(
+                    "non-invoke protocol reached invoke emission in @{}",
+                    self.function.symbol
+                )));
+            }
+        };
+        let frame = self.publish_compiler_roots(roots)?;
+        let cleanup = self.context.append_basic_block(
+            self.llvm_function,
+            &format!("invoke.normal.cleanup.{}", self.compiler_invoke_index - 1),
+        );
+        let actual_callee = match destination {
+            scoop_lir::CallDestination::Dispatch { table, slot } => {
+                self.dispatch_function_pointer(table, slot)?
+            }
+            _ => callee
+                .expect("direct destination has a typed callee")
+                .as_global_value()
+                .as_pointer_value(),
+        };
+        let result_type = match result {
+            TypedCallResult::Direct { ty, .. } => {
+                Some(basic_ty(self.context, self.structs, self.enums, ty)?)
+            }
+            TypedCallResult::Void | TypedCallResult::Indirect { .. } => None,
+        };
+        let direct_value = match protocol {
+            CallProtocol::ManagedInvoke { safepoint, .. } => statepoint::build_managed_invoke(
+                self.context,
+                self.llvm,
+                self.builder,
+                statepoint::ManagedInvoke {
+                    callee: actual_callee,
+                    callee_type: fn_type,
+                    call_args,
+                    safepoint: *safepoint,
+                    normal: cleanup,
+                    unwind: self.llvm_blocks[arena_index(unwind)],
+                    result_type,
+                },
+            )?,
+            CallProtocol::NoGc => {
+                let call = match destination {
+                    scoop_lir::CallDestination::Dispatch { .. } => self
+                        .builder
+                        .build_indirect_invoke(
+                            fn_type,
+                            actual_callee,
+                            call_args,
+                            cleanup,
+                            self.llvm_blocks[arena_index(unwind)],
+                            "typed_invoke",
+                        )
+                        .map_err(|error| CodegenError(format!("typed dispatch invoke: {error}")))?,
+                    _ => self
+                        .builder
+                        .build_invoke(
+                            callee.expect("direct destination has a typed callee"),
+                            call_args,
+                            cleanup,
+                            self.llvm_blocks[arena_index(unwind)],
+                            "typed_invoke",
+                        )
+                        .map_err(|error| CodegenError(format!("typed direct invoke: {error}")))?,
+                };
+                self.apply_call_protocol(call, destination, protocol);
+                self.builder.position_at_end(cleanup);
+                match result {
+                    TypedCallResult::Direct { .. } => call.try_as_basic_value().basic(),
+                    TypedCallResult::Void | TypedCallResult::Indirect { .. } => None,
+                }
+            }
+            _ => unreachable!("protocol was checked above"),
+        };
+
+        self.validate_compiler_root_sources(
+            roots
+                .iter()
+                .filter(|root| root.normal_live)
+                .map(|root| root.root.source),
+        )?;
+        self.pop_compiler_roots(frame)?;
+        if let TypedCallResult::Direct { out, .. } = result {
+            let value = direct_value.ok_or_else(|| {
+                CodegenError(format!(
+                    "typed invoke @{} produced no direct result",
+                    self.function.symbol
+                ))
+            })?;
+            self.temps.insert(*out, value);
+            self.sync_root_temp(*out)?;
+        }
+        self.builder
+            .build_unconditional_branch(self.llvm_blocks[arena_index(normal)])
+            .map_err(|error| CodegenError(format!("leave invoke cleanup: {error}")))?;
         Ok(())
     }
 
@@ -2268,32 +3162,26 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .map_err(|error| CodegenError(format!("typed dispatch load: {error}")))
     }
 
-    fn apply_call_effect(
+    fn apply_call_protocol(
         &self,
         call: inkwell::values::CallSiteValue<'ctx>,
         destination: scoop_lir::CallDestination,
-        effect: scoop_lir::CallEffect,
+        protocol: &CallProtocol<'_>,
     ) {
-        if matches!(
-            effect,
-            scoop_lir::CallEffect::NoGc
-                | scoop_lir::CallEffect::NativeSafe
-                | scoop_lir::CallEffect::NativeBorrowed
-        ) {
+        if matches!(protocol, CallProtocol::NoGc) {
             call.add_attribute(
                 AttributeLoc::Function,
                 self.context.create_string_attribute("gc-leaf-function", ""),
             );
         }
         if matches!(
-            effect,
-            scoop_lir::CallEffect::NativeSafe | scoop_lir::CallEffect::NativeBorrowed
+            protocol,
+            CallProtocol::NativeSafe { .. } | CallProtocol::NativeBorrowed { .. }
         ) {
-            call.add_attribute(
-                AttributeLoc::Function,
-                self.context
-                    .create_enum_attribute(Attribute::get_named_enum_kind_id("nounwind"), 0),
-            );
+            self.apply_nounwind(call);
+        }
+        if let Some(safepoint) = protocol.safepoint() {
+            self.apply_safepoint_id(call, safepoint);
         }
         if matches!(
             destination,
@@ -2309,6 +3197,26 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     .create_enum_attribute(Attribute::get_named_enum_kind_id("noreturn"), 0),
             );
         }
+    }
+
+    fn apply_nounwind(&self, call: inkwell::values::CallSiteValue<'ctx>) {
+        call.add_attribute(
+            AttributeLoc::Function,
+            self.context
+                .create_enum_attribute(Attribute::get_named_enum_kind_id("nounwind"), 0),
+        );
+    }
+
+    fn apply_safepoint_id(
+        &self,
+        call: inkwell::values::CallSiteValue<'ctx>,
+        safepoint: scoop_lir::SafepointId,
+    ) {
+        call.add_attribute(
+            AttributeLoc::Function,
+            self.context
+                .create_string_attribute("statepoint-id", &safepoint.get().to_string()),
+        );
     }
 
     fn native_boundary_fn(
@@ -2333,7 +3241,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         &mut self,
         roots: &[scoop_lir::CallerRoot],
         result_root: Option<(PointerValue<'ctx>, &RefScan)>,
-        effect: scoop_lir::CallEffect,
+        kind: NativeTransitionKind,
     ) -> Result<NativeTransition<'ctx>, CodegenError> {
         let context = self.context;
         let builder = self.builder;
@@ -2342,50 +3250,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let call_index = self.native_call_index;
         self.native_call_index += 1;
 
-        let mut published = Vec::with_capacity(roots.len());
         let mut entries = Vec::with_capacity(roots.len() + usize::from(result_root.is_some()));
         for (index, root) in roots.iter().enumerate() {
-            let (storage, ty) = match root.source {
-                scoop_lir::CallerRootSource::Local(id) => (
-                    self.allocas[arena_index(id)],
-                    basic_ty(
-                        context,
-                        self.structs,
-                        self.enums,
-                        &self.function.locals[id].ty,
-                    )?,
-                ),
-                scoop_lir::CallerRootSource::Param(parameter) => {
-                    let ty = basic_ty(
-                        context,
-                        self.structs,
-                        self.enums,
-                        &self.function.params[parameter as usize],
-                    )?;
-                    let storage = self.entry_alloca(ty, "caller_root_param")?;
-                    builder
-                        .build_store(storage, self.value(Value::Param(parameter))?)
-                        .map_err(|error| {
-                            CodegenError(format!("spill caller-root parameter: {error}"))
-                        })?;
-                    (storage, ty)
-                }
-                scoop_lir::CallerRootSource::Temp(temp) => {
-                    let ty = basic_ty(
-                        context,
-                        self.structs,
-                        self.enums,
-                        &self.function.temps[temp].ty,
-                    )?;
-                    let storage = self.entry_alloca(ty, "caller_root_temp")?;
-                    builder
-                        .build_store(storage, self.value(Value::Temp(temp))?)
-                        .map_err(|error| {
-                            CodegenError(format!("spill caller-root temporary: {error}"))
-                        })?;
-                    (storage, ty)
-                }
-            };
+            let storage = self.root_source_storage(root.source)?;
             let descriptor = emit_ref_scan(
                 context,
                 self.llvm,
@@ -2393,12 +3260,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 root.scan.as_ref_scan(),
             )
             .expect("LIR caller roots always carry a non-empty scan");
-            entries.push((storage, descriptor));
-            published.push(PublishedRoot {
-                source: root.source,
-                storage,
-                ty,
-            });
+            entries.push((storage.pointer, descriptor));
         }
         if let Some((storage, scan)) = result_root {
             let descriptor = emit_ref_scan(
@@ -2415,9 +3277,15 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let entries_pointer = if entries.is_empty() {
             ptr.const_null()
         } else {
-            let array_ty = entry_ty.array_type(entries.len() as u32);
+            let entry_count = u32::try_from(entries.len()).map_err(|_| {
+                CodegenError("caller-root entry count exceeds u32::MAX".to_string())
+            })?;
+            let array_ty = entry_ty.array_type(entry_count);
             let array = self.entry_alloca(array_ty.into(), "caller_root_entries")?;
             for (index, (base, scan)) in entries.into_iter().enumerate() {
+                let index = u64::try_from(index).map_err(|_| {
+                    CodegenError("caller-root entry index exceeds u64::MAX".to_string())
+                })?;
                 // SAFETY: `index` is within the statically-sized entries array.
                 let entry = unsafe {
                     builder.build_gep(
@@ -2425,7 +3293,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         array,
                         &[
                             context.i32_type().const_zero(),
-                            context.i32_type().const_int(index as u64, false),
+                            context.i32_type().const_int(index, false),
                         ],
                         "caller_root_entry",
                     )
@@ -2458,18 +3326,18 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 .void_type()
                 .fn_type(&[ptr.into(), ptr.into(), i64_ty.into()], false),
         );
+        let root_count = roots
+            .len()
+            .checked_add(usize::from(result_root.is_some()))
+            .and_then(|count| u64::try_from(count).ok())
+            .ok_or_else(|| CodegenError("caller-root count exceeds u64::MAX".to_string()))?;
         builder
             .build_call(
                 push,
                 &[
                     frame.into(),
                     entries_pointer.into(),
-                    i64_ty
-                        .const_int(
-                            (roots.len() + usize::from(result_root.is_some())) as u64,
-                            false,
-                        )
-                        .into(),
+                    i64_ty.const_int(root_count, false).into(),
                 ],
                 "push_caller_roots",
             )
@@ -2493,12 +3361,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let stack_pointer = builder
             .build_ptr_to_int(transition, i64_ty, "managed_stack_pointer")
             .map_err(|error| CodegenError(format!("managed stack pointer: {error}")))?;
-        let enter_symbol = match effect {
-            scoop_lir::CallEffect::NativeSafe => "scoop_rt_enter_native_safe",
-            scoop_lir::CallEffect::NativeBorrowed => "scoop_rt_enter_native_borrowed",
-            scoop_lir::CallEffect::ManagedSafepoint | scoop_lir::CallEffect::NoGc => {
-                unreachable!("non-native effect cannot enter a native transition")
-            }
+        let enter_symbol = match kind {
+            NativeTransitionKind::Safe => "scoop_rt_enter_native_safe",
+            NativeTransitionKind::Borrowed => "scoop_rt_enter_native_borrowed",
         };
         let enter = self.native_boundary_fn(
             enter_symbol,
@@ -2514,26 +3379,19 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             )
             .map_err(|error| CodegenError(format!("enter native transition: {error}")))?;
 
-        Ok(NativeTransition {
-            frame,
-            transition,
-            roots: published,
-        })
+        Ok(NativeTransition { frame, transition })
     }
 
     fn finish_native_transition(
         &mut self,
         native: NativeTransition<'ctx>,
-        effect: scoop_lir::CallEffect,
+        kind: NativeTransitionKind,
     ) -> Result<(), CodegenError> {
         let context = self.context;
         let ptr = ptr_ty(context);
-        let leave_symbol = match effect {
-            scoop_lir::CallEffect::NativeSafe => "scoop_rt_leave_native_safe",
-            scoop_lir::CallEffect::NativeBorrowed => "scoop_rt_leave_native_borrowed",
-            scoop_lir::CallEffect::ManagedSafepoint | scoop_lir::CallEffect::NoGc => {
-                unreachable!("non-native effect cannot leave a native transition")
-            }
+        let leave_symbol = match kind {
+            NativeTransitionKind::Safe => "scoop_rt_leave_native_safe",
+            NativeTransitionKind::Borrowed => "scoop_rt_leave_native_borrowed",
         };
         let leave = self.native_boundary_fn(
             leave_symbol,
@@ -2542,30 +3400,6 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         self.builder
             .build_call(leave, &[native.transition.into()], "leave_native")
             .map_err(|error| CodegenError(format!("leave native transition: {error}")))?;
-
-        for root in native.roots {
-            match root.source {
-                scoop_lir::CallerRootSource::Local(_) => {}
-                scoop_lir::CallerRootSource::Param(parameter) => {
-                    let value = self
-                        .builder
-                        .build_load(root.ty, root.storage, "caller_root_reload")
-                        .map_err(|error| {
-                            CodegenError(format!("reload caller-root parameter: {error}"))
-                        })?;
-                    self.param_reloads.insert(parameter, value);
-                }
-                scoop_lir::CallerRootSource::Temp(temp) => {
-                    let value = self
-                        .builder
-                        .build_load(root.ty, root.storage, "caller_root_reload")
-                        .map_err(|error| {
-                            CodegenError(format!("reload caller-root temporary: {error}"))
-                        })?;
-                    self.temps.insert(temp, value);
-                }
-            }
-        }
 
         let pop = self.native_boundary_fn(
             "scoop_rt_pop_caller_roots",
@@ -2588,6 +3422,21 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .unwrap_or_else(|| self.llvm.add_function(symbol, ty, None))
     }
 
+    /// Declare a helper which is proven not to enter Scoop GC or park the
+    /// current managed segment. RS4GC must leave these calls untouched.
+    fn gc_leaf_fn(
+        &self,
+        symbol: &str,
+        ty: inkwell::types::FunctionType<'ctx>,
+    ) -> inkwell::values::FunctionValue<'ctx> {
+        let function = self.runtime_fn(symbol, ty);
+        function.add_attribute(
+            AttributeLoc::Function,
+            self.context.create_string_attribute("gc-leaf-function", ""),
+        );
+        function
+    }
+
     fn native_global_bridge(&self, symbol: &str) -> inkwell::values::FunctionValue<'ctx> {
         let function = self.runtime_fn(
             symbol,
@@ -2600,11 +3449,28 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             self.context
                 .create_enum_attribute(Attribute::get_named_enum_kind_id("nounwind"), 0),
         );
-        function.add_attribute(
-            AttributeLoc::Function,
-            self.context.create_string_attribute("gc-leaf-function", ""),
-        );
         function
+    }
+
+    fn emit_native_global_call(
+        &self,
+        callee: inkwell::values::FunctionValue<'ctx>,
+        storage: PointerValue<'ctx>,
+        safepoint: scoop_lir::SafepointId,
+    ) -> Result<(), CodegenError> {
+        statepoint::build_zero_live_call(
+            self.context,
+            self.llvm,
+            self.builder,
+            statepoint::ZeroLiveCall {
+                callee: callee.as_global_value().as_pointer_value(),
+                callee_type: callee.get_type(),
+                call_args: &[storage.into()],
+                safepoint,
+                result_type: None,
+            },
+        )?;
+        Ok(())
     }
 
     /// M13 managed allocation fast path. Small objects are bumped directly
@@ -2612,7 +3478,13 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
     /// failed bump calls the collecting slow path; a successful bump calls a
     /// GC-leaf helper that clears the object, initializes its header, and
     /// atomically records the object start.
-    fn managed_alloc(&mut self, out: TempId, args: &[Value]) -> Result<(), CodegenError> {
+    fn managed_alloc(
+        &mut self,
+        out: TempId,
+        args: &[Value],
+        safepoint: scoop_lir::SafepointId,
+        live: MaterializedStatepointLive<'ctx>,
+    ) -> Result<(), CodegenError> {
         let [descriptor, requested_size] = args else {
             return Err(CodegenError(format!(
                 "scoop_rt_alloc @{}: expected descriptor and size",
@@ -2621,7 +3493,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         };
         let descriptor = self.value(*descriptor)?.into_pointer_value();
         let requested_size = self.value(*requested_size)?.into_int_value();
-        let object = self.managed_alloc_value(descriptor, requested_size)?;
+        let object = self.managed_alloc_value(descriptor, requested_size, safepoint, live)?;
         self.temps.insert(out, object.into());
         Ok(())
     }
@@ -2630,10 +3502,13 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         &mut self,
         descriptor: PointerValue<'ctx>,
         requested_size: IntValue<'ctx>,
+        safepoint: scoop_lir::SafepointId,
+        live: MaterializedStatepointLive<'ctx>,
     ) -> Result<PointerValue<'ctx>, CodegenError> {
         let context = self.context;
         let builder = self.builder;
         let ptr = ptr_ty(context);
+        let managed_ptr = managed_ptr_ty(context);
         let i64_ty = context.i64_type();
 
         let below_header = builder
@@ -2767,8 +3642,15 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
 
         builder.position_at_end(fast_block);
         let object = builder
-            .build_int_to_ptr(object_int, ptr, "tlab_object")
+            .build_int_to_ptr(object_int, managed_ptr, "tlab_object")
             .map_err(|error| CodegenError(format!("materialize TLAB object: {error}")))?;
+        mark_typed_managed_pointer_boundary(
+            context,
+            object
+                .as_instruction_value()
+                .expect("a non-constant inttoptr is an instruction"),
+            statepoint::TypedManagedPointerBoundary::AllocationResult,
+        )?;
         let next = builder
             .build_int_to_ptr(next_int, ptr, "tlab_next")
             .map_err(|error| CodegenError(format!("materialize TLAB cursor: {error}")))?;
@@ -2779,7 +3661,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             "scoop_runtime_finish_tlab_alloc",
             context
                 .void_type()
-                .fn_type(&[ptr.into(), ptr.into(), i64_ty.into()], false),
+                .fn_type(&[managed_ptr.into(), ptr.into(), i64_ty.into()], false),
         );
         finish.add_attribute(
             AttributeLoc::Function,
@@ -2803,30 +3685,33 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         builder.position_at_end(slow_block);
         let slow = self.runtime_fn(
             "scoop_runtime_alloc_slow",
-            ptr.fn_type(&[ptr.into(), i64_ty.into()], false),
+            managed_ptr.fn_type(&[ptr.into(), i64_ty.into()], false),
         );
         slow.add_attribute(
             AttributeLoc::Function,
             context.create_enum_attribute(Attribute::get_named_enum_kind_id("nounwind"), 0),
         );
-        let slow_object = builder
+        let slow_call = builder
             .build_call(
                 slow,
                 &[descriptor.into(), aligned_size.into()],
                 "slow_object",
             )
-            .map_err(|error| CodegenError(format!("slow allocation: {error}")))?
+            .map_err(|error| CodegenError(format!("slow allocation: {error}")))?;
+        self.apply_safepoint_id(slow_call, safepoint);
+        let slow_object = slow_call
             .try_as_basic_value()
             .basic()
             .expect("allocation slow path returns an object")
             .into_pointer_value();
+        self.restore_statepoint_live(live, safepoint)?;
         builder
             .build_unconditional_branch(continue_block)
             .map_err(|error| CodegenError(format!("leave allocation slow path: {error}")))?;
 
         builder.position_at_end(continue_block);
         let phi = builder
-            .build_phi(ptr, "managed_object")
+            .build_phi(managed_ptr, "managed_object")
             .map_err(|error| CodegenError(format!("merge allocation result: {error}")))?;
         phi.add_incoming(&[(&object, fast_block), (&slow_object, slow_block)]);
         Ok(phi.as_basic_value().into_pointer_value())
@@ -2897,6 +3782,12 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let addr = builder
             .build_ptr_to_int(addr, context.i64_type(), "card_addr")
             .map_err(error)?;
+        mark_typed_managed_pointer_boundary(
+            context,
+            addr.as_instruction_value()
+                .expect("a non-constant ptrtoint is an instruction"),
+            statepoint::TypedManagedPointerBoundary::CardAddress,
+        )?;
         // Logical shift: the card index of the address.
         let card = builder
             .build_right_shift(
@@ -2923,21 +3814,29 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         Ok(())
     }
 
-    /// A safepoint poll (M9, milestone9 DESIGN 3.1): a plain call to
-    /// the runtime's `scoop_rt_safepoint`, which the
-    /// `rewrite-statepoints-for-gc` pass turns into a statepoint —
-    /// exactly the spot where the GC can suspend the polling thread.
-    fn safepoint_poll(&self) -> Result<(), CodegenError> {
+    /// Emit one explicit LIR poll. Its typed target, unique id and liveness
+    /// plan were fixed by lir-lower; codegen does not inspect the CFG.
+    fn safepoint_poll(&mut self, site: &scoop_lir::ManagedPollSite) -> Result<(), CodegenError> {
+        let target = self.function.call_targets.managed_targets[site.target].destination;
+        if target != scoop_lir::CallDestination::Runtime(scoop_lir::RuntimeFunction::Safepoint) {
+            return Err(CodegenError(format!(
+                "managed poll @{} has a non-safepoint target",
+                self.function.symbol
+            )));
+        }
+        let live = self.materialize_statepoint_live(&site.live, site.safepoint)?;
         let safepoint = self.runtime_fn(
-            statepoint::SAFEPOINT_SYMBOL,
+            scoop_lir::RuntimeFunction::Safepoint.symbol(),
             self.context.void_type().fn_type(&[], false),
         );
-        self.builder.build_call(safepoint, &[], "").map_err(|e| {
+        let call = self.builder.build_call(safepoint, &[], "").map_err(|e| {
             CodegenError(format!(
                 "safepoint poll @{symbol}: {e}",
                 symbol = self.function.symbol
             ))
         })?;
+        self.apply_safepoint_id(call, site.safepoint);
+        self.restore_statepoint_live(live, site.safepoint)?;
         Ok(())
     }
 
@@ -3030,7 +3929,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             })?
             .as_pointer_value();
 
-        let trap = self.runtime_fn(
+        let trap = self.gc_leaf_fn(
             scoop_lir::TRAP_SYMBOL,
             self.context
                 .void_type()
@@ -3151,7 +4050,7 @@ fn declare_function<'ctx>(
 ) -> Result<(), CodegenError> {
     let fn_ty = fn_type_of(context, structs, enums, function)?;
     let llvm_function = llvm.add_function(&function.symbol, fn_ty, None);
-    statepoint::configure_function(llvm_function, function.gc_effect);
+    statepoint::configure_function(context, llvm_function, function.gc_effect);
     Ok(())
 }
 
@@ -3238,6 +4137,148 @@ struct ModuleCtx<'a, 'ctx> {
     bounds_message: Option<GlobalValue<'ctx>>,
 }
 
+fn compiler_root_source_key(source: scoop_lir::CallerRootSource) -> (u8, u32) {
+    match source {
+        scoop_lir::CallerRootSource::Param(index) => (0, index),
+        scoop_lir::CallerRootSource::Local(id) => (1, id.into_raw().into_u32()),
+        scoop_lir::CallerRootSource::Temp(id) => (2, id.into_raw().into_u32()),
+    }
+}
+
+fn root_storage_sources(function: &Function) -> Vec<scoop_lir::CallerRootSource> {
+    let mut sources = HashSet::new();
+    for (_, block) in function.blocks.iter() {
+        for instruction in &block.instructions {
+            match instruction {
+                Instruction::ManagedPoll { site } => {
+                    sources.extend(site.live.as_slice().iter().map(|value| value.source));
+                }
+                Instruction::ArrayAlloc { live, .. } | Instruction::ArrayClone { live, .. } => {
+                    sources.extend(live.as_slice().iter().map(|value| value.source));
+                }
+                Instruction::Call { site } => match site {
+                    scoop_lir::CallSite::Managed(site) => {
+                        sources.extend(site.live.as_slice().iter().map(|value| value.source));
+                    }
+                    scoop_lir::CallSite::NativeSafe(site) => {
+                        sources.extend(site.roots.as_slice().iter().map(|root| root.source));
+                    }
+                    scoop_lir::CallSite::NativeBorrowed(site) => {
+                        sources.extend(site.roots.as_slice().iter().map(|root| root.source));
+                    }
+                    scoop_lir::CallSite::NoGc(_) => {}
+                },
+                Instruction::Invoke {
+                    site: scoop_lir::InvokeSite::Managed(site),
+                } => {
+                    sources.extend(site.roots.as_slice().iter().map(|root| root.root.source));
+                }
+                Instruction::Invoke {
+                    site: scoop_lir::InvokeSite::NoGc(_),
+                } => {}
+                Instruction::NativeGlobalLoad { roots, .. }
+                | Instruction::NativeGlobalStore { roots, .. }
+                | Instruction::NativeGlobalAddress { roots, .. } => {
+                    sources.extend(roots.as_slice().iter().map(|root| root.source));
+                }
+                _ => {}
+            }
+        }
+    }
+    let mut sources = sources.into_iter().collect::<Vec<_>>();
+    sources.sort_by_key(|source| compiler_root_source_key(*source));
+    sources
+}
+
+fn instruction_temp_defs(instruction: &Instruction) -> [Option<TempId>; 2] {
+    let first = match instruction {
+        Instruction::BinOp { out, .. }
+        | Instruction::UnaryOp { out, .. }
+        | Instruction::MakeAggregate { out, .. }
+        | Instruction::ExtractValue { out, .. }
+        | Instruction::HeapLoad { out, .. }
+        | Instruction::AtomicLoad { out, .. }
+        | Instruction::AtomicCompareExchange { out, .. }
+        | Instruction::GlobalLoad { out, .. }
+        | Instruction::GlobalAddress { out, .. }
+        | Instruction::NativeGlobalLoad { out, .. }
+        | Instruction::NativeGlobalAddress { out, .. }
+        | Instruction::FunctionAddress { out, .. }
+        | Instruction::ForeignCallbackRegister { out, .. }
+        | Instruction::IntToPtr { out, .. }
+        | Instruction::PtrToInt { out, .. }
+        | Instruction::RawLoad { out, .. }
+        | Instruction::PtrOffset { out, .. }
+        | Instruction::LocalAddress { out, .. }
+        | Instruction::BeginCatch { out, .. }
+        | Instruction::ArrayAlloc { out, .. }
+        | Instruction::ArrayLen { out, .. }
+        | Instruction::ArrayGet { out, .. }
+        | Instruction::ArrayClone { out, .. }
+        | Instruction::EnumWrap { out, .. }
+        | Instruction::EnumTag { out, .. }
+        | Instruction::EnumField { out, .. } => Some(*out),
+        Instruction::Call { site } => site.call().direct_out(),
+        Instruction::Invoke { site } => site.call().direct_out(),
+        Instruction::LandingPad { record, .. } | Instruction::CleanupPad { record, .. } => {
+            Some(*record)
+        }
+        Instruction::ForeignCallbackOperation(operation) => operation.out(),
+        Instruction::Store { .. }
+        | Instruction::GlobalStore { .. }
+        | Instruction::NativeGlobalStore { .. }
+        | Instruction::HeapStore { .. }
+        | Instruction::AtomicStore { .. }
+        | Instruction::RawStore { .. }
+        | Instruction::ManagedPoll { .. }
+        | Instruction::EndCatch
+        | Instruction::Throw { .. }
+        | Instruction::ArraySet { .. } => None,
+    };
+    let second = match instruction {
+        Instruction::LandingPad { raw, .. } | Instruction::CleanupPad { raw, .. } => Some(*raw),
+        _ => None,
+    };
+    [first, second]
+}
+
+fn compiler_unwind_plan(
+    function: &Function,
+) -> (
+    HashMap<scoop_lir::BlockId, Vec<scoop_lir::CallerRootSource>>,
+    HashSet<scoop_lir::BlockId>,
+) {
+    let mut sources = HashMap::<_, HashSet<_>>::new();
+    let mut blocks = HashSet::new();
+    for (_, block) in function.blocks.iter() {
+        for instruction in &block.instructions {
+            let Instruction::Invoke { site } = instruction else {
+                continue;
+            };
+            blocks.insert(site.unwind());
+            if let scoop_lir::InvokeSite::Managed(site) = site {
+                let entry = sources.entry(site.unwind).or_default();
+                entry.extend(
+                    site.roots
+                        .as_slice()
+                        .iter()
+                        .filter(|root| root.unwind_live)
+                        .map(|root| root.root.source),
+                );
+            }
+        }
+    }
+    let sources = sources
+        .into_iter()
+        .map(|(block, set)| {
+            let mut set = set.into_iter().collect::<Vec<_>>();
+            set.sort_by_key(|source| compiler_root_source_key(*source));
+            (block, set)
+        })
+        .collect();
+    (sources, blocks)
+}
+
 fn emit_function<'ctx>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
@@ -3298,6 +4339,7 @@ fn emit_function<'ctx>(
             .expect("return-slot function has its hidden parameter")
             .into_pointer_value()
     });
+    let (unwind_root_sources, compiler_unwind_blocks) = compiler_unwind_plan(function);
 
     let mut emitter = FnEmitter {
         context,
@@ -3305,6 +4347,7 @@ fn emit_function<'ctx>(
         builder,
         function,
         llvm_function,
+        current_block: function.entry,
         entry_block: blocks[arena_index(function.entry)],
         llvm_blocks: &blocks,
         functions: module_ctx.functions,
@@ -3325,8 +4368,11 @@ fn emit_function<'ctx>(
         param_offset,
         allocas: Vec::with_capacity(function.locals.len()),
         temps: HashMap::new(),
-        param_reloads: HashMap::new(),
+        root_storage: HashMap::new(),
+        unwind_root_sources,
+        compiler_unwind_blocks,
         native_call_index: 0,
+        compiler_invoke_index: 0,
         allocation_index: 0,
         bounds_trap_block: None,
         bounds_message: module_ctx.bounds_message,
@@ -3344,29 +4390,10 @@ fn emit_function<'ctx>(
                 .map_err(|e| CodegenError(format!("alloca %{}: {e}", local.name)))?,
         );
     }
-    // M9 safepoint poll (milestone9 DESIGN 3.1): every managed function
-    // polls at entry, right after the allocas. Verified `@NoGC` bodies
-    // deliberately carry neither statepoints nor polls.
-    if function.gc_effect == GcEffect::Managed {
-        emitter.safepoint_poll()?;
-    }
-
-    let headers = statepoint::loop_headers(function);
+    emitter.prepare_root_storage()?;
     for (block_id, block) in function.blocks.iter() {
+        emitter.current_block = block_id;
         builder.position_at_end(blocks[arena_index(block_id)]);
-        // ... and every loop header polls at its top. The header set
-        // provably never contains a landing pad (see `loop_headers`);
-        // the LandingPad check only restates LLVM's landingpad-first
-        // rule at the insertion site.
-        if function.gc_effect == GcEffect::Managed
-            && headers[arena_index(block_id)]
-            && !matches!(
-                block.instructions.first(),
-                Some(Instruction::LandingPad { .. } | Instruction::CleanupPad { .. })
-            )
-        {
-            emitter.safepoint_poll()?;
-        }
         // Invoke is an LLVM terminator even though it
         // are LIR instructions: one must be the last instruction of its
         // block, and the block's LIR terminator must be the redundant
@@ -3393,11 +4420,16 @@ fn emit_function<'ctx>(
                 )));
             }
             emitter.instruction(instruction)?;
+            if !is_invoke {
+                for temp in instruction_temp_defs(instruction).into_iter().flatten() {
+                    emitter.sync_root_temp(temp)?;
+                }
+            }
             invoke_terminated = is_invoke;
         }
         if invoke_terminated {
             let normal = match block.instructions.last() {
-                Some(Instruction::Invoke { normal, .. }) => *normal,
+                Some(Instruction::Invoke { site }) => site.normal(),
                 _ => continue,
             };
             match &block.terminator {

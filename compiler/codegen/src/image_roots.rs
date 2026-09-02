@@ -49,14 +49,19 @@ pub(super) fn emit<'ctx>(
             GlobalInit::StringConst(_) => {
                 require_global_shape(source, PointerKind::Managed, true)?;
                 let object_size = target_data.get_store_size(&emitted.get_value_type());
-                immortal.push(context.const_struct(
-                    &[
-                        emitted.as_pointer_value().into(),
-                        i64_ty.const_int(object_size, false).into(),
-                        string_td.as_pointer_value().into(),
-                    ],
-                    false,
-                ));
+                immortal.push(
+                    context.const_struct(
+                        &[
+                            emitted
+                                .as_pointer_value()
+                                .const_address_space_cast(ptr)
+                                .into(),
+                            i64_ty.const_int(object_size, false).into(),
+                            string_td.as_pointer_value().into(),
+                        ],
+                        false,
+                    ),
+                );
             }
             GlobalInit::CString(_) => {
                 require_global_shape(source, PointerKind::Raw, true)?;

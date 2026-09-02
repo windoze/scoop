@@ -79,7 +79,7 @@ M15 不能把 M9 已有的“statepoint section 存在”当作可移动 GC 基�
 | `Code` | `ptr addrspace(0)` | 函数入口/trampoline |
 | `Metadata` | `ptr addrspace(0)` | TypeDescriptor、scan program 等 immortal metadata |
 
-`Managed` 与其他三类不能因 LLVM opaque pointer 而合并。所有涉及AS1的`addrspacecast`、`ptrtoint`与`inttoptr`都必须来自完备的typed来源；M15正常LIR不提供managed-to-raw cast或managed `PtrToInt`。codegen自身只有三个封闭的internal boundary：TLAB地址发布为新object、write-barrier计算card index、C++ EH catch结果恢复为managed exception object；它们分别携带不同的非可选metadata witness，post verifier按operation kind精确匹配。该witness不能由源码/LIR构造，也不能把转换开放成通用pointer escape。pin返回的raw地址经现有`UInt`/`Ptr` boundary取得，不以任意addrspacecast冒充。
+`Managed` 与其他三类不能因 LLVM opaque pointer 而合并。所有涉及AS1的`addrspacecast`、`ptrtoint`与`inttoptr`都必须来自完备的typed来源；M15正常LIR不提供managed-to-raw cast或managed `PtrToInt`。codegen自身只有两个需要pointer-conversion witness的封闭internal boundary：TLAB地址发布为新object，以及write-barrier计算card index；它们分别携带不同的非可选metadata witness，post verifier按operation kind精确匹配。C++ EH的`BeginCatch`是独立的typed operation，其ABI声明直接产生已登记、稳定的AS1 exception ref，不经过address-space cast。witness不能由源码/LIR构造，也不能把转换开放成通用pointer escape。pin返回的raw地址经现有`UInt`/`Ptr` boundary取得，不以任意addrspacecast冒充。
 
 managed ref 的非 null 值只能指向：
 

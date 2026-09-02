@@ -386,6 +386,7 @@ dependencies = [
 name = "scoop-lir-lower"
 version = "0.0.0"
 dependencies = [
+ "insta",
  "la-arena",
  "scoop-ast",
  "scoop-lir",
