@@ -1,0 +1,67 @@
+interface MovingTextSource {
+    fun text(): String
+}
+
+class MovingTextNode(val value: String) : MovingTextSource {
+    final override fun text(): String = value
+}
+
+enum MovingChoice {
+    Selected(MovingTextNode, String),
+    Empty
+}
+
+struct MovingBundle(
+    val head: String,
+    val pair: (String, MovingTextNode),
+    val choice: MovingChoice,
+    val values: Array<String>
+)
+
+fun preserveThroughCalls(
+    initial: String,
+    bundle: MovingBundle,
+    source: MovingTextSource
+): String {
+    var current = initial
+    var index = 0
+    while (index < 2) {
+        gcCollect()
+        println(current)
+        println(bundle.head)
+        println(bundle.pair._1)
+        println(bundle.pair._2.value)
+        when (bundle.choice) {
+            Selected(node, label) -> {
+                println(node.value)
+                println(label)
+            }
+            Empty -> println("empty")
+        }
+        println(bundle.values[index])
+        println(source.text())
+        current = bundle.values[index]
+        index = index + 1
+    }
+    return current
+}
+
+fun passThroughMiddle(bundle: MovingBundle, source: MovingTextSource): String =
+    preserveThroughCalls(bundle.head, bundle, source)
+
+fun main() {
+    val head = "head-" + "alive"
+    val pairText = "pair-" + "alive"
+    val node = MovingTextNode("node-" + "alive")
+    val choiceText = "choice-" + "alive"
+    val first = "first-" + "alive"
+    val second = "second-" + "alive"
+    val bundle = MovingBundle(
+        head,
+        (pairText, node),
+        MovingChoice.Selected(node, choiceText),
+        [first, second]
+    )
+    val source: MovingTextSource = node
+    println(passThroughMiddle(bundle, source))
+}

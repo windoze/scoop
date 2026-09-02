@@ -62,15 +62,18 @@ fn runs_under_gc_stress(relative: &str) -> bool {
     matches!(
         relative,
         "m5-arrays/recursive-reference-scans.scoop"
+            | "m8-exceptions/handler-exits.scoop"
             | "m8-exceptions/custom-exception.scoop"
             | "m10-coroutines/gc-across-suspension.scoop"
             | "m11-functions/captures.scoop"
+            | "m11-functions/variance.scoop"
             | "m12-extern-scoop/extern-scoop.scoop"
             | "m13-callback/managed-callback.scoop"
             | "m13-callback/foreign-continuation.scoop"
             | "m14-generics/generic-exception.scoop"
             | "m15-moving/external-exception.scoop"
             | "m15-moving/handle-pin.scoop"
+            | "m15-moving/root-shapes.scoop"
     )
 }
 
