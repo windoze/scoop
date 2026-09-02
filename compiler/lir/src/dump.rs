@@ -394,18 +394,21 @@ fn call_destination_name(function: &Function, destination: CallDestination) -> S
     }
 }
 
-fn typed_call_name(function: &Function, call: &TypedCall, destination: CallDestination) -> String {
-    let targets = &function.call_targets;
+fn typed_call_name(function: &Function, call: &TypedCallView<'_>) -> String {
     let args = call
         .args()
         .iter()
         .map(|arg| value_name(*arg))
         .collect::<Vec<_>>()
         .join(", ");
-    match *call {
-        TypedCall::Void { signature, .. } => {
-            let value = &targets.void_signatures[signature];
-            let params = value
+    match call {
+        TypedCallView::Void {
+            signature_id,
+            destination,
+            signature,
+            ..
+        } => {
+            let params = signature
                 .params
                 .iter()
                 .map(LirType::dump)
@@ -413,13 +416,18 @@ fn typed_call_name(function: &Function, call: &TypedCall, destination: CallDesti
                 .join(", ");
             format!(
                 "sig=void{} ({params}) {}({args})",
-                signature.into_raw(),
-                call_destination_name(function, destination),
+                signature_id,
+                call_destination_name(function, *destination),
             )
         }
-        TypedCall::Direct { signature, out, .. } => {
-            let value = &targets.direct_signatures[signature];
-            let params = value
+        TypedCallView::Direct {
+            signature_id,
+            destination,
+            signature,
+            out,
+            ..
+        } => {
+            let params = signature
                 .params
                 .iter()
                 .map(LirType::dump)
@@ -428,16 +436,19 @@ fn typed_call_name(function: &Function, call: &TypedCall, destination: CallDesti
             format!(
                 "t{} = sig=direct{} ({params}) -> {} {}({args})",
                 out.into_raw(),
-                signature.into_raw(),
-                value.result.dump(),
-                call_destination_name(function, destination),
+                signature_id,
+                signature.result.dump(),
+                call_destination_name(function, *destination),
             )
         }
-        TypedCall::IndirectResult {
-            signature, storage, ..
+        TypedCallView::IndirectResult {
+            signature_id,
+            destination,
+            signature,
+            storage,
+            ..
         } => {
-            let value = &targets.indirect_result_signatures[signature];
-            let params = value
+            let params = signature
                 .params
                 .iter()
                 .map(LirType::dump)
@@ -446,12 +457,20 @@ fn typed_call_name(function: &Function, call: &TypedCall, destination: CallDesti
             format!(
                 "local{} = sig=indirect{} (sret {}, {params}) {}({args})",
                 storage.into_raw(),
-                signature.into_raw(),
-                value.result.ty.dump(),
-                call_destination_name(function, destination),
+                signature_id,
+                signature.result.ty.dump(),
+                call_destination_name(function, *destination),
             )
         }
     }
+}
+
+fn typed_target_name(protocol: &str, call: &TypedCallView<'_>) -> String {
+    format!(
+        "{protocol}-{}-target{}",
+        call.return_convention_name(),
+        call.target_raw()
+    )
 }
 
 fn caller_roots_name(roots: &[CallerRoot]) -> String {
@@ -508,38 +527,52 @@ fn live_set_name(live: &StatepointLiveSet) -> String {
 fn call_site_name(function: &Function, site: &CallSite) -> String {
     let targets = &function.call_targets;
     match site {
-        CallSite::Managed(site) => format!(
-            "managed-target{} sp{} live=[{}] {}",
-            site.target.into_raw(),
-            site.safepoint.get(),
-            live_set_name(&site.live),
-            typed_call_name(
-                function,
+        CallSite::Managed(site) => {
+            let call = targets.typed_call_view(
                 &site.call,
-                targets.managed_targets[site.target].destination
+                &targets.managed_targets,
+                ManagedCallDestination::view,
+            );
+            format!(
+                "{} sp{} live=[{}] {}",
+                typed_target_name("managed", &call),
+                site.safepoint.get(),
+                live_set_name(&site.live),
+                typed_call_name(function, &call)
             )
-        ),
-        CallSite::NoGc(site) => format!(
-            "no-gc-target{} {}",
-            site.target.into_raw(),
-            typed_call_name(
-                function,
+        }
+        CallSite::NoGc(site) => {
+            let call = targets.typed_call_view(
                 &site.call,
-                targets.no_gc_targets[site.target].destination
+                &targets.no_gc_targets,
+                NoGcCallDestination::view,
+            );
+            format!(
+                "{} {}",
+                typed_target_name("no-gc", &call),
+                typed_call_name(function, &call)
             )
-        ),
-        CallSite::NativeSafe(site) => format!(
-            "native-safe-target{} sp{} roots=[{}] {}",
-            site.target.into_raw(),
-            site.safepoint.get(),
-            caller_roots_name(site.roots.as_slice()),
-            typed_call_name(
-                function,
+        }
+        CallSite::NativeSafe(site) => {
+            let call = targets.typed_call_view(
                 &site.call,
-                targets.native_safe_targets[site.target].destination
+                &targets.native_safe_targets,
+                NativeSafeCallDestination::view,
+            );
+            format!(
+                "{} sp{} roots=[{}] {}",
+                typed_target_name("native-safe", &call),
+                site.safepoint.get(),
+                caller_roots_name(site.roots.as_slice()),
+                typed_call_name(function, &call)
             )
-        ),
+        }
         CallSite::NativeBorrowed(site) => {
+            let call = targets.typed_call_view(
+                &site.call,
+                &targets.native_borrowed_targets,
+                NativeBorrowedCallDestination::view,
+            );
             let result = match &site.roots.result {
                 NativeBorrowedResultRoot::GcFree => String::new(),
                 NativeBorrowedResultRoot::Rooted { storage, scan } => {
@@ -547,15 +580,11 @@ fn call_site_name(function: &Function, site: &CallSite) -> String {
                 }
             };
             format!(
-                "native-borrowed-target{} sp{} roots=[{}]{result} {}",
-                site.target.into_raw(),
+                "{} sp{} roots=[{}]{result} {}",
+                typed_target_name("native-borrowed", &call),
                 site.safepoint.get(),
                 caller_roots_name(site.roots.as_slice()),
-                typed_call_name(
-                    function,
-                    &site.call,
-                    targets.native_borrowed_targets[site.target].destination
-                )
+                typed_call_name(function, &call)
             )
         }
     }
@@ -564,30 +593,36 @@ fn call_site_name(function: &Function, site: &CallSite) -> String {
 fn invoke_site_name(function: &Function, site: &InvokeSite) -> String {
     let targets = &function.call_targets;
     match site {
-        InvokeSite::Managed(site) => format!(
-            "managed-target{} sp{} roots=[{}] {} normal @{} unwind @{}",
-            site.target.into_raw(),
-            site.safepoint.get(),
-            exceptional_roots_name(&site.roots),
-            typed_call_name(
-                function,
+        InvokeSite::Managed(site) => {
+            let call = targets.typed_call_view(
                 &site.call,
-                targets.managed_targets[site.target].destination
-            ),
-            block_name(function, site.normal),
-            block_name(function, site.unwind)
-        ),
-        InvokeSite::NoGc(site) => format!(
-            "no-gc-target{} {} normal @{} unwind @{}",
-            site.target.into_raw(),
-            typed_call_name(
-                function,
+                &targets.managed_targets,
+                ManagedCallDestination::view,
+            );
+            format!(
+                "{} sp{} roots=[{}] {} normal @{} unwind @{}",
+                typed_target_name("managed", &call),
+                site.safepoint.get(),
+                exceptional_roots_name(&site.roots),
+                typed_call_name(function, &call),
+                block_name(function, site.normal),
+                block_name(function, site.unwind)
+            )
+        }
+        InvokeSite::NoGc(site) => {
+            let call = targets.typed_call_view(
                 &site.call,
-                targets.no_gc_targets[site.target].destination
-            ),
-            block_name(function, site.normal),
-            block_name(function, site.unwind)
-        ),
+                &targets.no_gc_targets,
+                NoGcCallDestination::view,
+            );
+            format!(
+                "{} {} normal @{} unwind @{}",
+                typed_target_name("no-gc", &call),
+                typed_call_name(function, &call),
+                block_name(function, site.normal),
+                block_name(function, site.unwind)
+            )
+        }
     }
 }
 
@@ -836,7 +871,7 @@ fn dump_instruction(function: &Function, instruction: &Instruction, buf: &mut St
             buf.push_str(&format!("    call {}\n", call_site_name(function, site)));
         }
         Instruction::ManagedPoll { site } => buf.push_str(&format!(
-            "    poll managed-target{} sp{} live=[{}]\n",
+            "    poll managed-void-target{} sp{} live=[{}]\n",
             site.target.into_raw(),
             site.safepoint.get(),
             live_set_name(&site.live)

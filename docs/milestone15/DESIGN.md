@@ -228,44 +228,63 @@ LIR lowering 在 CFG、类型、layout 与 liveness 均完整后，为每个调�
 
 ```text
 ManagedPollSite {
-    target: ManagedTargetRef,
+    target: ManagedVoidTargetRef,
     safepoint: SafepointId,
     live: StatepointLiveSet,
 }
 
 ManagedCallSite {
-    target: ManagedTargetRef,
-    call: TypedCall,
+    call: ManagedTypedCall,
     safepoint: SafepointId,
     live: StatepointLiveSet,
 }
 
 ManagedInvokeSite {
-    target: ManagedTargetRef,
-    call: TypedCall,
+    call: ManagedTypedCall,
     safepoint: SafepointId,
     roots: ExceptionalRootSet,
     normal: BlockId,
     unwind: BlockId,
 }
 
-NoGcCallSite { target: NoGcTargetRef, call: TypedCall }
-NoGcInvokeSite { target: NoGcTargetRef, call: TypedCall, normal, unwind }
+NoGcCallSite { call: NoGcTypedCall }
+NoGcInvokeSite { call: NoGcTypedCall, normal, unwind }
 NativeSafeCallSite {
-    target: NativeSafeTargetRef,
-    call: TypedCall,
+    call: NativeSafeTypedCall,
     safepoint: SafepointId,
     roots: NativeSafeRootSet,
 }
 NativeBorrowedCallSite {
-    target: NativeBorrowedTargetRef,
-    call: TypedCall,
+    call: NativeBorrowedTypedCall,
     safepoint: SafepointId,
     roots: NativeBorrowedRootSet,
 }
+
+ProtocolTypedCall<Destination> =
+    Void {
+        target: VoidCallTargetRef<Destination>,
+        args,
+    }
+  | Direct {
+        target: DirectCallTargetRef<Destination>,
+        out: TempId,
+        args,
+    }
+  | IndirectResult {
+        target: IndirectResultCallTargetRef<Destination>,
+        storage: LocalId,
+        args,
+    }
+
+CallTarget<Destination, SignatureRef> {
+    destination: Destination,
+    signature: SignatureRef,
+}
 ```
 
-四种 target ref 使用不同 typed id；不能保留一份 `CallEffect` enum，再配一份可能矛盾或缺失的 `Option<RootPlan>`。这是M15对M14 `CallEffect`存储形态的显式修订：M14已经解析完成的四分语义保持不变，但LIR输出改为按protocol隔离的sum，不能同时保留旧enum供codegen任选。void/direct/indirect-result 的现有 typed return convention 作为各 callsite 内部互斥 sum 保留。native call 仍不允许 unwind 回 managed code。
+`ManagedTypedCall`、`NoGcTypedCall`、`NativeSafeTypedCall`与`NativeBorrowedTypedCall`分别用对应的protocol-typed destination实例化上述sum。四种protocol与void/direct/indirect-result三种return convention形成互不兼容的target ID家族；每个target原子保存destination和完整signature ref，callsite不能另选signature。dump名称必须同时显示protocol与return convention（例如`managed-direct-target0`），不能让不同arena中相同的raw index重新变成歧义。
+
+不能保留一份 `CallEffect` enum，再配一份可能矛盾或缺失的 `Option<RootPlan>`。这是M15对M14 `CallEffect`存储形态的显式修订：M14已经解析完成的四分语义保持不变，但LIR输出改为按protocol隔离的sum，不能同时保留旧enum供codegen任选。native call 仍不允许 unwind 回 managed code。
 
 函数入口与每条循环回边的poll由LIR lowering在CFG上显式插入为`ManagedPollSite`，并在同一次backward liveness中生成root plan；poll target是runtime registry给出的typed managed target。codegen不得自行寻找回边、添加poll或重新计算其live roots。入口poll的live set包含仍由callee持有的managed参数，因此caller只传入而call后不再活跃的参数仍在callee到达第一个park点前获得精确根。
 

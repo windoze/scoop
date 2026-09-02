@@ -183,11 +183,22 @@ fn insert_polls(function: &mut lir::Function, ids: &mut SafepointIds) {
         return;
     }
     let headers = loop_headers(function);
+    let signature = function
+        .call_targets
+        .void_signatures
+        .alloc(lir::VoidCallSignature {
+            params: Vec::new(),
+            calling_convention: lir::CallingConvention::Cdecl,
+        });
     let poll_target = function
         .call_targets
         .managed_targets
-        .alloc(lir::ManagedTarget {
-            destination: lir::CallDestination::Runtime(lir::RuntimeFunction::Safepoint),
+        .void
+        .alloc(lir::CallTarget {
+            destination: lir::ManagedCallDestination::runtime(
+                lir::ManagedRuntimeFunction::Safepoint,
+            ),
+            signature,
         });
     for (block_id, block) in function.blocks.iter_mut() {
         if block_id != function.entry && !headers[arena_index(block_id)] {
@@ -316,10 +327,10 @@ fn instruction_uses(instruction: &lir::Instruction, function: &lir::Function) ->
         | lir::Instruction::GlobalStore { value, .. }
         | lir::Instruction::NativeGlobalStore { value, .. } => vec![*value],
         lir::Instruction::Call { site } => {
-            call_uses(site.call(), site.destination(&function.call_targets))
+            call_uses(site.args(), site.destination(&function.call_targets))
         }
         lir::Instruction::Invoke { site } => {
-            call_uses(site.call(), site.destination(&function.call_targets))
+            call_uses(site.args(), site.destination(&function.call_targets))
         }
         lir::Instruction::HeapStore { object, value, .. }
         | lir::Instruction::AtomicStore { object, value, .. } => vec![*object, *value],
@@ -352,8 +363,8 @@ fn instruction_uses(instruction: &lir::Instruction, function: &lir::Function) ->
     }
 }
 
-fn call_uses(call: &lir::TypedCall, destination: lir::CallDestination) -> Vec<lir::Value> {
-    let mut values = call.args().to_vec();
+fn call_uses(args: &[lir::Value], destination: lir::CallDestination) -> Vec<lir::Value> {
+    let mut values = args.to_vec();
     if let lir::CallDestination::Dispatch { table, .. } = destination {
         values.push(table);
     }
@@ -388,8 +399,8 @@ fn instruction_defs(instruction: &lir::Instruction) -> Vec<LiveValue> {
         | lir::Instruction::EnumTag { out, .. }
         | lir::Instruction::EnumField { out, .. }
         | lir::Instruction::ForeignCallbackRegister { out, .. } => Some(*out),
-        lir::Instruction::Call { site } => return call_defs(site.call()),
-        lir::Instruction::Invoke { site } => return call_defs(site.call()),
+        lir::Instruction::Call { site } => return call_defs(site.result()),
+        lir::Instruction::Invoke { site } => return call_defs(site.result()),
         lir::Instruction::ForeignCallbackOperation(operation) => operation.out(),
         lir::Instruction::Store { local, .. } => return vec![LiveValue::Local(*local)],
         lir::Instruction::LandingPad { record, raw }
@@ -409,11 +420,11 @@ fn instruction_defs(instruction: &lir::Instruction) -> Vec<LiveValue> {
     out.map_or_else(Vec::new, |out| vec![LiveValue::Temp(out)])
 }
 
-fn call_defs(call: &lir::TypedCall) -> Vec<LiveValue> {
-    match *call {
-        lir::TypedCall::Void { .. } => Vec::new(),
-        lir::TypedCall::Direct { out, .. } => vec![LiveValue::Temp(out)],
-        lir::TypedCall::IndirectResult { storage, .. } => vec![LiveValue::Local(storage)],
+fn call_defs(result: lir::TypedCallResult) -> Vec<LiveValue> {
+    match result {
+        lir::TypedCallResult::Void => Vec::new(),
+        lir::TypedCallResult::Direct(out) => vec![LiveValue::Temp(out)],
+        lir::TypedCallResult::IndirectResult(storage) => vec![LiveValue::Local(storage)],
     }
 }
 
@@ -784,7 +795,7 @@ fn annotate_root_plans(
                         let mut roots = live.clone();
                         include_managed_operands(
                             &mut roots,
-                            site.call().args().iter().copied(),
+                            site.args().iter().copied(),
                             function,
                             structs,
                             enums,
