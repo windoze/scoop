@@ -551,6 +551,9 @@ pub struct Global {
     pub symbol: String,
     /// Provenance of the address produced by `Value::Global`.
     pub address_kind: PointerKind,
+    /// Complete recursive scan program for the writable global storage.
+    /// Immortal object and C-string globals explicitly carry `None`.
+    pub scan: RefScan,
     pub init: GlobalInit,
 }
 

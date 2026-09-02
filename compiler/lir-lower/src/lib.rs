@@ -139,6 +139,7 @@ pub fn lower(module: &mir::Module) -> lir::Module {
         let global = globals.alloc(lir::Global {
             symbol: string.symbol.clone(),
             address_kind: lir::PointerKind::Managed,
+            scan: lir::RefScan::None,
             init: lir::GlobalInit::StringConst(string.value.clone()),
         });
         string_global_map.insert(id, global);
@@ -152,7 +153,7 @@ pub fn lower(module: &mir::Module) -> lir::Module {
     let structs = lower_structs(module, &enums);
     let extern_functions = lower_extern_functions(module);
     let (storage_globals, native_globals, native_global_bridges) =
-        lower_globals(module, &mut globals);
+        lower_globals(module, &mut globals, &structs, &enums);
     let callback_bridges = lower_callback_bridges(module);
     let foreign_callback_bridges = lower_foreign_callback_bridges(module);
     let local_function_map = module
@@ -293,6 +294,8 @@ enum StorageGlobal {
 fn lower_globals(
     module: &mir::Module,
     globals: &mut Arena<lir::Global>,
+    structs: &Arena<lir::StructDef>,
+    enums: &Arena<lir::EnumDef>,
 ) -> (
     HashMap<mir::GlobalId, StorageGlobal>,
     Arena<lir::NativeGlobal>,
@@ -310,6 +313,7 @@ fn lower_globals(
                 let lir_id = globals.alloc(lir::Global {
                     symbol: global.symbol.clone(),
                     address_kind: lir::PointerKind::Raw,
+                    scan: lir_root_scan(&lir_type(&global.ty), structs, enums, 0),
                     init: lir::GlobalInit::Storage {
                         ty: lir_type(&global.ty),
                         initializer: lower_constant(initializer),
@@ -2110,6 +2114,7 @@ impl<'a> FunctionLowerer<'a> {
         let global = self.globals.alloc(lir::Global {
             symbol,
             address_kind: lir::PointerKind::Raw,
+            scan: lir::RefScan::None,
             init: lir::GlobalInit::CString(message.to_string()),
         });
         let block = self.new_block("unwrap.trap");

@@ -652,6 +652,41 @@ Module
 }
 
 #[test]
+fn globals_carry_complete_scans_from_their_concrete_storage_types() {
+    let mut module = hello_world();
+    module.globals.alloc(mir::Global {
+        name: "managedRoot".to_string(),
+        symbol: "scoop.global.managedRoot".to_string(),
+        ty: mir::Type::String,
+        mutable: true,
+        storage: mir::GlobalStorage::Local {
+            thread_local: false,
+            initializer: mir::ConstantValue::NullPtr,
+        },
+    });
+
+    let module = lower(&module);
+    let string_constant = module
+        .globals
+        .iter()
+        .map(|(_, global)| global)
+        .find(|global| matches!(global.init, lir::GlobalInit::StringConst(_)))
+        .expect("string constant");
+    assert_eq!(string_constant.scan, lir::RefScan::None);
+
+    let managed = module
+        .globals
+        .iter()
+        .map(|(_, global)| global)
+        .find(|global| global.symbol == "scoop.global.managedRoot")
+        .expect("managed storage global");
+    assert_eq!(managed.scan, lir::RefScan::References(vec![0]));
+    assert!(
+        lir::dump(&module).contains("global @scoop.global.managedRoot : ptr<managed> scan=refs[0]")
+    );
+}
+
+#[test]
 fn if_else_becomes_basic_blocks() {
     let mut b = Builder::new();
     let ok = b.string("ok");

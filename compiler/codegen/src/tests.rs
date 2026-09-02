@@ -179,11 +179,13 @@ fn values_module() -> Module {
     let hello = globals.alloc(Global {
         symbol: "scoop.string.0".to_string(),
         address_kind: PointerKind::Managed,
+        scan: RefScan::None,
         init: GlobalInit::StringConst("hello, ".to_string()),
     });
     let world = globals.alloc(Global {
         symbol: "scoop.string.1".to_string(),
         address_kind: PointerKind::Managed,
+        scan: RefScan::None,
         init: GlobalInit::StringConst("world".to_string()),
     });
 
@@ -367,6 +369,7 @@ fn enum_module() -> Module {
     let trap_message = globals.alloc(Global {
         symbol: "scoop.trap.0".to_string(),
         address_kind: PointerKind::Raw,
+        scan: RefScan::None,
         init: GlobalInit::CString("unwrap on None".to_string()),
     });
     let mut enums = Arena::default();

@@ -798,11 +798,11 @@ Module
   global @scoop.str.3 = "arithmetic error"
   global @scoop.str.4 = "array index out of bounds"
   global @scoop.str.5 = "illegal state"
-  global @scoop.global.scoopCounter : i64
-  thread_local @scoop.global.scoopTlsCounter : i64
-  global @scoop.global.pair : struct0
-  global @scoop.global.emptyPointer : ptr<raw>
-  global @scoop.global.emptyCallback : ptr<code>
+  global @scoop.global.scoopCounter : i64 scan=none
+  thread_local @scoop.global.scoopTlsCounter : i64 scan=none
+  global @scoop.global.pair : struct0 scan=none
+  global @scoop.global.emptyPointer : ptr<raw> scan=none
+  global @scoop.global.emptyCallback : ptr<code> scan=none
   native_global0 nativeCounter @native_counter : i64 mutable(get=ng-get0,set=ng-set0,address=ng-address0)
   native_global1 nativeTlsCounter @native_tls_counter : i64 mutable(get=ng-get1,set=ng-set1,address=ng-address1) thread_local
   native_global2 nativeLimit @native_limit : i64 readonly(get=ng-get2,address=ng-address2)

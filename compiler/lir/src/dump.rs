@@ -14,14 +14,15 @@ pub fn dump(module: &Module) -> String {
             GlobalInit::Storage {
                 ty, thread_local, ..
             } => out.push_str(&format!(
-                "  {} @{} : {}\n",
+                "  {} @{} : {} scan={}\n",
                 if *thread_local {
                     "thread_local"
                 } else {
                     "global"
                 },
                 global.symbol,
-                ty.dump()
+                ty.dump(),
+                global.scan.dump()
             )),
         }
     }
