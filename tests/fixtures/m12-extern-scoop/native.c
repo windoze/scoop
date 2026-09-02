@@ -132,6 +132,13 @@ const ScoopString *native_root_round_trip(const ScoopString *message) {
     }
     scoop_rt_unpin(parent);
 
+    /* The first collection quarantined `message`'s old, now-empty block.
+     * Later stress allocations and collections must never make it readable
+     * or eligible for arena reuse again. */
+    if (stress_move_enabled()) {
+        valid = valid && stale_address_faults(message);
+    }
+
     scoop_rt_pop_native_roots(&frame);
     return valid ? root : NULL;
 }
