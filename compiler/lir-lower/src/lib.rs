@@ -1507,9 +1507,9 @@ impl<'a> FunctionLowerer<'a> {
                 });
                 lir::Value::Temp(out)
             }
-            // `scoop_rt_box(td, payload, size)` (runtime spec 2.3): LIR
-            // materializes the payload storage, so the typed target contains
-            // the final physical pointer signature consumed by codegen.
+            // `scoop_rt_box(td, payload, size, scan)` (runtime spec 2.3): LIR
+            // materializes the payload storage and carries its complete
+            // recursive scan program into the managed runtime entry.
             mir::ExprKind::Box(operand) => {
                 let payload_ty = operand.ty.clone();
                 record_layout_types(&payload_ty, self.layout_types);
@@ -1528,15 +1528,27 @@ impl<'a> FunctionLowerer<'a> {
                 let td = self.td_ref(&payload_ty);
                 let enum_shape = |id: mir::EnumId| repr_shape(&self.enums[enum_def_id(id)].repr);
                 let (size, _) = size_align(self.module, &enum_shape, &payload_ty);
+                let payload_scan = self.call_targets.root_scans.alloc(ref_scan(
+                    self.module,
+                    self.enums,
+                    &payload_ty,
+                    0,
+                ));
                 self.emit_plain_call(
                     lir::CallDestination::Runtime(lir::RuntimeFunction::Box),
                     runtime_call_protocol(lir::RuntimeFunction::Box),
-                    vec![lir::METADATA_PTR, lir::RAW_PTR, lir::LirType::I64],
+                    vec![
+                        lir::METADATA_PTR,
+                        lir::RAW_PTR,
+                        lir::LirType::I64,
+                        lir::METADATA_PTR,
+                    ],
                     lir::MANAGED_PTR,
                     vec![
                         td,
                         lir::Value::Temp(payload_address),
                         lir::Value::IntConst(size as i64),
+                        lir::Value::RootScan(payload_scan),
                     ],
                 )
             }

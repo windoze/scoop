@@ -140,11 +140,14 @@ void scoop_runtime_finish_tlab_alloc(void *object,
                                      const ScoopTypeDescriptor *td,
                                      size_t size);
 
-/* Refill/allocate after the inline TLAB bump fails. May trigger GC. */
+/* ManagedEntry: refill/allocate after generated code's inline TLAB bump
+ * fails. The target anchor stub publishes the direct managed caller before
+ * this operation can park or collect. */
 void *scoop_runtime_alloc_slow(const ScoopTypeDescriptor *td, size_t size);
 
-/* Runtime-source compatibility entry. Generated M13 code uses the inline
- * allocation context and falls back to scoop_runtime_alloc_slow. */
+/* NativeBorrowedEntry for Scoop-ABI C implementations. Generated code uses
+ * the inline allocation context and falls back to the distinct managed entry
+ * above. The native caller must already have published caller/native roots. */
 void *scoop_rt_alloc(const ScoopTypeDescriptor *td, size_t size);
 
 /* M9 GC contracts (milestone9 DESIGN 3.1): write-barrier card table
@@ -192,7 +195,7 @@ void scoop_rt_println_boolean(bool value);
  * UnwrapException throw in M8. */
 _Noreturn void scoop_rt_trap(const char *message);
 
-/* M5 addition (milestone5 DESIGN section 3.1): `Array(m)` /
+/* ManagedEntry for `Array(m)` /
  * `MutableArray(a)` conversion (spec 10.4). Copies the whole object
  * (data_offset + size * elem_size bytes, including header/size/padding)
  * into a fresh GC allocation — a shallow snapshot: elements that are
@@ -203,9 +206,10 @@ const void *scoop_rt_array_clone(const void *obj,
 
 /* M6 additions (milestone6 DESIGN section 3): dispatch support. */
 
-/* Box a value type: allocate header + payload and copy the payload
- * (runtime spec 2.3). */
-void *scoop_rt_box(const ScoopTypeDescriptor *td, const void *payload, uint64_t payload_size);
+/* ManagedEntry: box an addressable value payload. `payload_scan` is complete,
+ * payload-relative metadata emitted by LIR/codegen; null means GC-free. */
+void *scoop_rt_box(const ScoopTypeDescriptor *td, const void *payload,
+                   uint64_t payload_size, const uint64_t *payload_scan);
 
 /* `is` check: walk the object's parent chain, then scan its itable
  * keys (runtime spec 2.2). */
@@ -264,6 +268,21 @@ typedef struct ScoopNativeRootFrame {
     uint64_t count;
 } ScoopNativeRootFrame;
 
+/* Addressable inline values held by managed runtime or Scoop-ABI native C
+ * code use a distinct recursive-region root chain. The scan is relative to
+ * `base`; unlike object TypeDescriptor scans, it contains no implicit object
+ * header offset. */
+typedef struct ScoopNativeRegionRootEntry {
+    void *base;
+    const uint64_t *scan;
+} ScoopNativeRegionRootEntry;
+
+typedef struct ScoopNativeRegionRootFrame {
+    struct ScoopNativeRegionRootFrame *previous;
+    ScoopNativeRegionRootEntry *entries;
+    uint64_t count;
+} ScoopNativeRegionRootFrame;
+
 /* Compiler-published roots that stay live across one outbound native call.
  * Each entry scans one addressable value using the same recursive descriptor
  * format as object payloads. Inline tagged enums expose fixed ref offsets;
@@ -305,6 +324,10 @@ typedef struct ScoopThreadTransition {
 void scoop_rt_push_native_roots(ScoopNativeRootFrame *frame, void ***slots,
                                 uint64_t count);
 void scoop_rt_pop_native_roots(ScoopNativeRootFrame *frame);
+void scoop_rt_push_native_region_roots(ScoopNativeRegionRootFrame *frame,
+                                       ScoopNativeRegionRootEntry *entries,
+                                       uint64_t count);
+void scoop_rt_pop_native_region_roots(ScoopNativeRegionRootFrame *frame);
 
 void scoop_rt_push_caller_roots(ScoopCallerRootFrame *frame,
                                 ScoopCallerRootEntry *entries,
@@ -381,8 +404,13 @@ uint64_t scoop_runtime_callback_debug_live_count(void);
 uint64_t scoop_runtime_callback_debug_owner_count(void *context);
 uint64_t scoop_runtime_callback_debug_active_count(void *context);
 
-/* Force a full collection. */
+/* ManagedEntry used by generated Scoop code to force a full collection. */
 void scoop_rt_gc_collect(void);
+
+/* NativeBorrowedEntry used by Scoop-ABI native implementations after their
+ * caller/native root frames have been published. It never captures a C frame
+ * as a managed anchor. */
+void scoop_runtime_gc_collect(void);
 
 /* Number of objects currently allocated from the GC heap. Includes
  * not-yet-collected garbage; right after scoop_rt_gc_collect() it is

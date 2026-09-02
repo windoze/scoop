@@ -19,6 +19,7 @@
 
 #include "scoop_rt.h"
 #include "gc/gc_internal.h"
+#include "managed_entries.h"
 #include "thread.h"
 
 #ifndef MAP_ANON
@@ -204,9 +205,8 @@ static void *gc_arena_carve(size_t map_size) {
 typedef struct ScoopGcBlock {
     struct ScoopGcBlock *next; /* all-blocks list */
     /* Object-start bitmap, one bit per 8-byte word of the block
-     * (4096 bits = 512B), side-allocated; small blocks only. It lets
-     * the conservative stack scan validate candidate roots without
-     * dereferencing arbitrary words. */
+     * (4096 bits = 512B), side-allocated; small blocks only. Exact root and
+     * handle validation uses it without dereferencing arbitrary pointers. */
     uint64_t *start_bits;
     /* Live-line table, one bit per line; small blocks only. */
     uint64_t line_marks[GC_LINES_PER_BLOCK / 64];
@@ -622,7 +622,7 @@ static void *gc_alloc_small(ScoopThreadState *thread, size_t size) {
         if (collected_for_arena) {
             gc_fatal("GC arena exhausted (fixed 1 GiB in v1; growth is in the backlog)");
         }
-        scoop_rt_gc_collect();
+        scoop_gc_collect_internal();
         collected_for_arena = true;
     }
 }
@@ -645,7 +645,7 @@ static void *gc_alloc_large(size_t size) {
         if (collected) {
             gc_fatal("GC arena exhausted (fixed 1 GiB in v1; growth is in the backlog)");
         }
-        scoop_rt_gc_collect();
+        scoop_gc_collect_internal();
         collected = true;
     }
 }
@@ -674,8 +674,7 @@ void scoop_runtime_finish_tlab_alloc(void *p,
     atomic_fetch_add_explicit(&gc_live_objects, 1, memory_order_relaxed);
 }
 
-void *scoop_runtime_alloc_slow(const ScoopTypeDescriptor *td, size_t size) {
-    scoop_thread_runtime_entry();
+void *scoop_gc_alloc_internal(const ScoopTypeDescriptor *td, size_t size) {
     ScoopThreadState *thread = scoop_thread_current_required();
     size = gc_normalize_allocation_size(size);
     void *p =
@@ -692,6 +691,20 @@ void *scoop_runtime_alloc_slow(const ScoopTypeDescriptor *td, size_t size) {
     return p;
 }
 
+void *scoop_runtime_alloc_slow_impl(const ScoopTypeDescriptor *td, size_t size,
+                                    uintptr_t return_pc,
+                                    uintptr_t stack_pointer,
+                                    uintptr_t frame_pointer) {
+    ScoopManagedAnchor anchor;
+    scoop_thread_push_managed_anchor(&anchor, return_pc, stack_pointer,
+                                     frame_pointer);
+    scoop_thread_poll();
+    void *object = scoop_gc_alloc_internal(td, size);
+    scoop_thread_pop_managed_anchor(&anchor);
+    return object;
+}
+
 void *scoop_rt_alloc(const ScoopTypeDescriptor *td, size_t size) {
-    return scoop_runtime_alloc_slow(td, size);
+    scoop_thread_native_borrowed_entry();
+    return scoop_gc_alloc_internal(td, size);
 }

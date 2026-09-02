@@ -34,6 +34,7 @@ pub type NoGcTargetId = Idx<NoGcTarget>;
 pub type NativeSafeTargetId = Idx<NativeSafeTarget>;
 pub type NativeBorrowedTargetId = Idx<NativeBorrowedTarget>;
 pub type DispatchSlotId = Idx<DispatchSlot>;
+pub type RootScanId = Idx<RefScan>;
 pub type LayoutId = Idx<Layout>;
 pub type TypeDescriptorId = Idx<TypeDescriptor>;
 pub type ExternalTypeDescriptorId = Idx<ExternalTypeDescriptor>;
@@ -694,6 +695,9 @@ pub struct CallTargets {
     pub native_safe_targets: Arena<NativeSafeTarget>,
     pub native_borrowed_targets: Arena<NativeBorrowedTarget>,
     pub dispatch_slots: Arena<DispatchSlot>,
+    /// Function-local recursive scan programs passed to runtime entries that
+    /// receive addressable inline values (currently boxing payloads).
+    pub root_scans: Arena<RefScan>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1148,6 +1152,7 @@ impl Function {
             Value::BoolConst(_) => LirType::I1,
             Value::NullPointer(kind) => LirType::Ptr(kind),
             Value::TypeDescriptor(_) => METADATA_PTR,
+            Value::RootScan(_) => METADATA_PTR,
             Value::Global(id) => LirType::Ptr(globals[id].address_kind),
         }
     }
@@ -1173,6 +1178,8 @@ pub enum Value {
     NullPointer(PointerKind),
     /// Address of a local or external TypeDescriptor.
     TypeDescriptor(TypeDescriptorRef),
+    /// Address of one complete function-local recursive root scan program.
+    RootScan(RootScanId),
     /// Address of a global constant.
     Global(GlobalId),
 }

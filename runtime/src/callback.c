@@ -327,9 +327,9 @@ uint32_t scoop_runtime_callback_invoke(
 
     bool attached_here = scoop_rt_attach_foreign_thread();
     ScoopCallbackThreadEntry entry = {0};
-    volatile char managed_stack_boundary = 0;
-    scoop_thread_enter_callback(&entry,
-                                 (const void *)&managed_stack_boundary);
+    /* This C gateway frame is the exclusive upper bound of the callback's
+     * managed segment; do not approximate it with a local-variable address. */
+    scoop_thread_enter_callback(&entry, __builtin_frame_address(0));
 
     const void *closure = scoop_rt_resolve_handle(closure_handle);
     void *exception = NULL;

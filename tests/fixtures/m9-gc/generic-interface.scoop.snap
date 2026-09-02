@@ -1222,7 +1222,7 @@ Module
     t20 = aggregate (8) : struct3
     store t20 -> local17
     t21 = local_address local17 : ptr
-    call managed-target12 sp27 live=[] t22 = sig=direct13 (ptr<metadata>, ptr<raw>, i64) -> ptr<managed> runtime @scoop_rt_box(td18, t21, 8)
+    call managed-target12 sp27 live=[] t22 = sig=direct13 (ptr<metadata>, ptr<raw>, i64, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_box(td18, t21, 8, root-scan0)
     call managed-target13 sp28 live=[t22:ptr<managed>@0] t23 = sig=direct14 (ptr<managed>) -> ptr<managed> local-fn19(t22)
     store t23 -> local9
     t24 = heap_load local9 +0 : ptr<metadata>
@@ -1235,7 +1235,7 @@ Module
     t29 = aggregate (10) : struct4
     store t29 -> local18
     t30 = local_address local18 : ptr
-    call managed-target16 sp31 live=[] t31 = sig=direct18 (ptr<metadata>, ptr<raw>, i64) -> ptr<managed> runtime @scoop_rt_box(td19, t30, 8)
+    call managed-target16 sp31 live=[] t31 = sig=direct18 (ptr<metadata>, ptr<raw>, i64, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_box(td19, t30, 8, root-scan1)
     call managed-target17 sp32 live=[t31:ptr<managed>@0] t32 = sig=direct19 (ptr<managed>) -> ptr<managed> local-fn19(t31)
     store t32 -> local11
     t33 = heap_load local11 +0 : ptr<metadata>
@@ -1424,7 +1424,7 @@ Module
     store t0 -> local0
     store local0 -> local1
     t1 = local_address local1 : ptr
-    call managed-target1 sp69 live=[] t2 = sig=direct1 (ptr<metadata>, ptr<raw>, i64) -> ptr<managed> runtime @scoop_rt_box(td17, t1, 8)
+    call managed-target1 sp69 live=[] t2 = sig=direct1 (ptr<metadata>, ptr<raw>, i64, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_box(td17, t1, 8, root-scan0)
     ret t2
   fun @scoop.variance.AnimalConsumer.Consumer$C3_DogX.put.0(ptr<managed>, ptr<managed>) -> void
   block entry
@@ -1450,7 +1450,7 @@ Module
     poll managed-target2 sp127 live=[param0:ptr<managed>@0]
     store param1 -> local0
     t0 = local_address local0 : ptr
-    call managed-target0 sp73 live=[param0:ptr<managed>@0] t1 = sig=direct0 (ptr<metadata>, ptr<raw>, i64) -> ptr<managed> runtime @scoop_rt_box(td17, t0, 8)
+    call managed-target0 sp73 live=[param0:ptr<managed>@0] t1 = sig=direct0 (ptr<metadata>, ptr<raw>, i64, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_box(td17, t0, 8, root-scan0)
     call managed-target1 sp74 live=[param0:ptr<managed>@0, t1:ptr<managed>@0] sig=void0 (ptr<managed>, ptr<managed>) local-fn16(param0, t1)
     t2 = aggregate () : {}
     ret
@@ -1463,7 +1463,7 @@ Module
     store t0 -> local0
     store local0 -> local1
     t1 = local_address local1 : ptr
-    call managed-target1 sp76 live=[] t2 = sig=direct1 (ptr<metadata>, ptr<raw>, i64) -> ptr<managed> runtime @scoop_rt_box(td17, t1, 8)
+    call managed-target1 sp76 live=[] t2 = sig=direct1 (ptr<metadata>, ptr<raw>, i64, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_box(td17, t1, 8, root-scan0)
     ret t2
   fun @scoop.variance.box$D7_Value$IX.Producer$Any.get.0(ptr<managed>) -> ptr<managed>
     local %0 $call.1: i64
@@ -1474,7 +1474,7 @@ Module
     store t0 -> local0
     store local0 -> local1
     t1 = local_address local1 : ptr
-    call managed-target1 sp78 live=[] t2 = sig=direct1 (ptr<metadata>, ptr<raw>, i64) -> ptr<managed> runtime @scoop_rt_box(td17, t1, 8)
+    call managed-target1 sp78 live=[] t2 = sig=direct1 (ptr<metadata>, ptr<raw>, i64, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_box(td17, t1, 8, root-scan0)
     ret t2
   td td0 ToString @scoop_td_ToString type-id=2 size=0 parent=none vtable=[] itables=[]
   td td1 Hash @scoop_td_Hash type-id=3 size=0 parent=none vtable=[] itables=[]

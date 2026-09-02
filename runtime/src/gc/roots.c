@@ -241,6 +241,53 @@ void scoop_rt_pop_native_roots(ScoopNativeRootFrame *frame) {
     frame->count = 0;
 }
 
+void scoop_rt_push_native_region_roots(ScoopNativeRegionRootFrame *frame,
+                                       ScoopNativeRegionRootEntry *entries,
+                                       uint64_t count) {
+    ScoopThreadState *thread = scoop_thread_current_required();
+    ScoopThreadMode mode =
+        atomic_load_explicit(&thread->mode, memory_order_acquire);
+    if (mode != SCOOP_THREAD_MANAGED && mode != SCOOP_THREAD_NATIVE_BORROWED) {
+        roots_fatal(
+            "native region roots may only change in managed or native-borrowed mode");
+    }
+    if (frame == NULL || count == 0 || entries == NULL) {
+        roots_fatal("invalid native region root frame");
+    }
+    for (uint64_t index = 0; index < count; index++) {
+        if (entries[index].base == NULL || entries[index].scan == NULL) {
+            roots_fatal("invalid native region root entry");
+        }
+    }
+    for (ScoopNativeRegionRootFrame *active = thread->native_region_roots;
+         active != NULL; active = active->previous) {
+        if (active == frame) {
+            roots_fatal("native region root frame is already active");
+        }
+    }
+    frame->previous = thread->native_region_roots;
+    frame->entries = entries;
+    frame->count = count;
+    thread->native_region_roots = frame;
+}
+
+void scoop_rt_pop_native_region_roots(ScoopNativeRegionRootFrame *frame) {
+    ScoopThreadState *thread = scoop_thread_current_required();
+    ScoopThreadMode mode =
+        atomic_load_explicit(&thread->mode, memory_order_acquire);
+    if (mode != SCOOP_THREAD_MANAGED && mode != SCOOP_THREAD_NATIVE_BORROWED) {
+        roots_fatal(
+            "native region roots may only change in managed or native-borrowed mode");
+    }
+    if (frame == NULL || thread->native_region_roots != frame) {
+        roots_fatal("native region root frames must be popped in LIFO order");
+    }
+    thread->native_region_roots = frame->previous;
+    frame->previous = NULL;
+    frame->entries = NULL;
+    frame->count = 0;
+}
+
 static uint64_t handle_encode(size_t index, uint32_t generation) {
     return ((uint64_t)generation << 32) | ((uint64_t)index + 1);
 }

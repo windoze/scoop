@@ -120,6 +120,7 @@ fn fixtures() {
                     "{relative}: native fixture library `{library}` compilation failed: {}",
                     String::from_utf8_lossy(&compile.stderr)
                 );
+                fs::remove_file(&native_archive).ok();
                 let archive = Command::new("ar")
                     .arg("rcs")
                     .arg(&native_archive)

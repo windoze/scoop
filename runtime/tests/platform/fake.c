@@ -9,7 +9,8 @@
 extern const ScoopThreadVmOps scoop_darwin_thread_vm_ops;
 extern const ScoopManagedFrameOps scoop_darwin_aarch64_managed_frame_ops;
 
-static uint8_t fake_stackmaps[104];
+static uint8_t fake_stackmaps[160];
+static size_t fake_stackmaps_size;
 static bool fake_stackmaps_initialized;
 
 static void write_u16(size_t *cursor, uint16_t value) {
@@ -36,6 +37,16 @@ static void write_constant_location(size_t *cursor) {
     write_u32(cursor, 0);
 }
 
+static void write_indirect_location(size_t *cursor, uint16_t dwarf_register,
+                                    int32_t offset) {
+    fake_stackmaps[(*cursor)++] = SCOOP_STACKMAP_INDIRECT;
+    fake_stackmaps[(*cursor)++] = 0;
+    write_u16(cursor, 8);
+    write_u16(cursor, dwarf_register);
+    write_u16(cursor, 0);
+    write_u32(cursor, (uint32_t)offset);
+}
+
 static void initialize_fake_stackmaps(void) {
     size_t cursor = 0;
     fake_stackmaps[cursor++] = 3;
@@ -45,15 +56,17 @@ static void initialize_fake_stackmaps(void) {
     write_u32(&cursor, 0);
     write_u32(&cursor, 1);
     write_u64(&cursor, 0x1000);
-    write_u64(&cursor, 16);
+    write_u64(&cursor, 32);
     write_u64(&cursor, 1);
     write_u64(&cursor, 1);
     write_u32(&cursor, 0x10);
     write_u16(&cursor, 0);
-    write_u16(&cursor, 3);
+    write_u16(&cursor, 5);
     write_constant_location(&cursor);
     write_constant_location(&cursor);
     write_constant_location(&cursor);
+    write_indirect_location(&cursor, 31, 0);
+    write_indirect_location(&cursor, 31, 0);
     while (cursor % 8 != 0) {
         fake_stackmaps[cursor++] = 0;
     }
@@ -62,10 +75,11 @@ static void initialize_fake_stackmaps(void) {
     while (cursor % 8 != 0) {
         fake_stackmaps[cursor++] = 0;
     }
-    if (cursor != sizeof fake_stackmaps) {
+    if (cursor > sizeof fake_stackmaps) {
         fprintf(stderr, "fake platform stackmap size drifted\n");
         abort();
     }
+    fake_stackmaps_size = cursor;
     fake_stackmaps_initialized = true;
 }
 
@@ -80,7 +94,7 @@ static bool fake_loaded_images(ScoopPlatformMetadataImages *images,
     }
     image = (ScoopStackMapImage){
         .section = fake_stackmaps,
-        .section_size = sizeof fake_stackmaps,
+        .section_size = fake_stackmaps_size,
         .text_start = 0x1000,
         .text_end = 0x2000,
     };

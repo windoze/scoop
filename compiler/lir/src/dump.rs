@@ -357,6 +357,7 @@ fn value_name(value: Value) -> String {
         Value::BoolConst(value) => format!("{value}"),
         Value::NullPointer(kind) => format!("null<{}>", kind.dump()),
         Value::TypeDescriptor(reference) => type_descriptor_ref_name(reference),
+        Value::RootScan(id) => format!("root-scan{}", id.into_raw()),
         Value::Global(id) => format!("global{}", id.into_raw()),
     }
 }

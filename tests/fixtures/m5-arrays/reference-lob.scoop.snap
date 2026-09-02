@@ -1063,12 +1063,12 @@ Module
     t14 = aggregate (global3) : struct3
     store t14 -> local14
     t15 = local_address local14 : ptr
-    call managed-target11 sp28 live=[] t16 = sig=direct8 (ptr<metadata>, ptr<raw>, i64) -> ptr<managed> runtime @scoop_rt_box(td11, t15, 8)
+    call managed-target11 sp28 live=[] t16 = sig=direct8 (ptr<metadata>, ptr<raw>, i64, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_box(td11, t15, 8, root-scan0)
     store t16 -> local3
     t17 = aggregate (global4) : struct3
     store t17 -> local15
     t18 = local_address local15 : ptr
-    call managed-target12 sp29 live=[local3:ptr<managed>@0] t19 = sig=direct9 (ptr<metadata>, ptr<raw>, i64) -> ptr<managed> runtime @scoop_rt_box(td11, t18, 8)
+    call managed-target12 sp29 live=[local3:ptr<managed>@0] t19 = sig=direct9 (ptr<metadata>, ptr<raw>, i64, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_box(td11, t18, 8, root-scan1)
     t20 = array_alloc array1 (local3, t19) sp30 live local3:ptr<managed>@0, t19:ptr<managed>@0 : ptr<managed>
     store t20 -> local4
     call managed-target13 sp31 live=[local4:ptr<managed>@0] t21 = sig=direct10 (ptr<managed>) -> ptr<managed> local-fn16(local4)

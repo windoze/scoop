@@ -20,6 +20,8 @@ typedef struct ScoopGcRootVisitor {
     void *context;
 } ScoopGcRootVisitor;
 
+struct ScoopThreadState;
+
 /* Heap metadata operations used by the pin registry. The `_locked` query
  * requires the caller to hold the heap lock acquired through this API. */
 void scoop_gc_heap_lock(void);
@@ -28,6 +30,7 @@ bool scoop_gc_is_object_start_locked(const void *object);
 bool scoop_gc_mark_object_locked(const void *object);
 void scoop_gc_heap_begin_collection_locked(void);
 void scoop_gc_heap_finish_collection_locked(uint64_t live_objects);
+void *scoop_gc_alloc_internal(const ScoopTypeDescriptor *td, size_t size);
 
 /* Collection holds this lock while it visits and rewrites root slots;
  * mutator root APIs use the same lock. */
@@ -45,5 +48,8 @@ void scoop_gc_visit_roots_locked(ScoopGcRootVisitor visitor);
  * every record through the selected target profile before managed code runs. */
 void scoop_gc_stackmaps_init(void);
 const ScoopStackMapRecord *scoop_gc_stackmap_lookup(uintptr_t return_pc);
+void scoop_gc_visit_managed_stack(const struct ScoopThreadState *thread,
+                                  ScoopGcRootVisitor visitor);
+void scoop_gc_collect_internal(void);
 
 #endif

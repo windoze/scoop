@@ -796,7 +796,7 @@ Module
     t9 = aggregate (9) : struct6
     store t9 -> local5
     t10 = local_address local5 : ptr
-    call managed-target4 sp16 live=[] t11 = sig=direct2 (ptr<metadata>, ptr<raw>, i64) -> ptr<managed> runtime @scoop_rt_box(td5, t10, 8)
+    call managed-target4 sp16 live=[] t11 = sig=direct2 (ptr<metadata>, ptr<raw>, i64, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_box(td5, t10, 8, root-scan0)
     store t11 -> local1
     t12 = heap_load local1 +0 : ptr<metadata>
     call no-gc-target0 t13 = sig=direct3 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t12, td2)

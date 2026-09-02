@@ -895,7 +895,7 @@ Module
     t0 = aggregate (9) : struct3
     store t0 -> local5
     t1 = local_address local5 : ptr
-    call managed-target0 sp12 live=[] t2 = sig=direct0 (ptr<metadata>, ptr<raw>, i64) -> ptr<managed> runtime @scoop_rt_box(td4, t1, 8)
+    call managed-target0 sp12 live=[] t2 = sig=direct0 (ptr<metadata>, ptr<raw>, i64, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_box(td4, t1, 8, root-scan0)
     store t2 -> local0
     call no-gc-target0 t3 = sig=direct1 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local0, td4)
     cbr t3 then @if.then.1 else @if.merge.2

@@ -113,6 +113,7 @@ impl TargetProfile {
             "runtime/src/platform/profiles/darwin_aarch64.c",
             "runtime/src/platform/image/macho.c",
             "runtime/src/platform/arch/aarch64.c",
+            "runtime/src/platform/arch/aarch64_anchor.S",
             "runtime/src/platform/os/darwin.c",
         ],
     };
@@ -287,6 +288,7 @@ mod tests {
                     "runtime/src/platform/profiles/darwin_aarch64.c",
                     "runtime/src/platform/image/macho.c",
                     "runtime/src/platform/arch/aarch64.c",
+                    "runtime/src/platform/arch/aarch64_anchor.S",
                     "runtime/src/platform/os/darwin.c",
                 ]
             );

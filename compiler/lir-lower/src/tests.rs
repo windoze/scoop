@@ -3063,7 +3063,7 @@ fn box_unbox_and_is_instance_lower_to_runtime_calls() {
         "TypeDescriptors must never be represented by ordinary globals"
     );
 
-    // Box → `scoop_rt_box(td, payload, size)`; Unbox → the payload
+    // Box → `scoop_rt_box(td, payload, size, scan)`; Unbox → the payload
     // field behind the header; `is` → `scoop_rt_is_instance(obj,
     // td)`. Both checks share one typed descriptor reference.
     insta::assert_snapshot!(lir::dump(&module), @r###"
@@ -3078,7 +3078,7 @@ Module
     t0 = aggregate (1) : struct0
     store t0 -> local3
     t1 = local_address local3 : ptr
-    call managed-target0 sp1 live=[] t2 = sig=direct0 (ptr<metadata>, ptr<raw>, i64) -> ptr<managed> runtime @scoop_rt_box(td0, t1, 8)
+    call managed-target0 sp1 live=[] t2 = sig=direct0 (ptr<metadata>, ptr<raw>, i64, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_box(td0, t1, 8, root-scan0)
     store t2 -> local0
     t3 = heap_load local0 +16 : struct0
     store t3 -> local1

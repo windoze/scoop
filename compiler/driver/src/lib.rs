@@ -386,6 +386,8 @@ fn build_runtime(
     build
         .include(root.join("runtime/include"))
         .flag_if_supported("-pthread")
+        .flag_if_supported("-fno-omit-frame-pointer")
+        .flag_if_supported("-fno-optimize-sibling-calls")
         .out_dir(&out_dir)
         // The driver is not a build script: cargo does not provide
         // TARGET/HOST here, so set them explicitly and silence cargo

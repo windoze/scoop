@@ -1202,7 +1202,8 @@ pub enum Callee {
 /// they do not acquire entries in this enum.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RuntimeFn {
-    /// `scoop_rt_box(td, payload, size)`
+    /// Box one value; LIR supplies the addressable payload and its complete
+    /// recursive scan program to the managed runtime entry.
     Box,
     /// `scoop_rt_is_instance(obj, td)`
     IsInstance,

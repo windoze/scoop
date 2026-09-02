@@ -289,7 +289,7 @@ const ScoopString *m13_borrowed_round_trip(
     /* This Scoop-ABI function is executing in native-borrowed mode. The
      * callback's collector cannot proceed until this explicit runtime call
      * parks the original thread and publishes the native root above. */
-    scoop_rt_gc_collect();
+    scoop_runtime_gc_collect();
     if (pthread_join(thread, NULL) != 0) {
         abort();
     }

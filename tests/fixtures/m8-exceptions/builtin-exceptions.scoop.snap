@@ -1224,7 +1224,7 @@ Module
   block try.body.42
     store 1 -> local23
     t39 = local_address local23 : ptr
-    call managed-target6 sp19 live=[] t40 = sig=direct5 (ptr<metadata>, ptr<raw>, i64) -> ptr<managed> runtime @scoop_rt_box(td5, t39, 8)
+    call managed-target6 sp19 live=[] t40 = sig=direct5 (ptr<metadata>, ptr<raw>, i64, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_box(td5, t39, 8, root-scan0)
     store t40 -> local4
     store local4 -> local12
     call no-gc-target7 t41 = sig=direct6 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local12, td3)

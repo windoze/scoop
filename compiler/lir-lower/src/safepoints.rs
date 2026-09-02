@@ -50,6 +50,7 @@ impl LiveValue {
             | lir::Value::BoolConst(_)
             | lir::Value::NullPointer(_)
             | lir::Value::TypeDescriptor(_)
+            | lir::Value::RootScan(_)
             | lir::Value::Global(_) => None,
         }
     }

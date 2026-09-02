@@ -6,6 +6,8 @@
 #include <unwind.h>
 
 #include "scoop_rt.h"
+#include "gc/gc_internal.h"
+#include "managed_entries.h"
 #include "thread.h"
 
 /* M8 (milestone8 DESIGN section 4): exception support on top of the
@@ -114,12 +116,25 @@ int64_t scoop_rt_string_hash(const ScoopString *s) {
     return (int64_t)hash;
 }
 
-const ScoopString *scoop_rt_string_concat(const ScoopString *a, const ScoopString *b) {
+const ScoopString *scoop_rt_string_concat_impl(
+    const ScoopString *a, const ScoopString *b, uintptr_t return_pc,
+    uintptr_t stack_pointer, uintptr_t frame_pointer) {
+    ScoopManagedAnchor anchor;
+    scoop_thread_push_managed_anchor(&anchor, return_pc, stack_pointer,
+                                     frame_pointer);
+    const ScoopString *rooted_a = a;
+    const ScoopString *rooted_b = b;
+    void **root_slots[] = {(void **)&rooted_a, (void **)&rooted_b};
+    ScoopNativeRootFrame roots;
+    scoop_rt_push_native_roots(&roots, root_slots, 2);
     ScoopString *result =
-        scoop_rt_alloc(&scoop_td_String, sizeof(ScoopString) + a->len + b->len);
-    result->len = a->len + b->len;
-    memcpy(result->data, a->data, a->len);
-    memcpy(result->data + a->len, b->data, b->len);
+        scoop_gc_alloc_internal(&scoop_td_String,
+                                sizeof(ScoopString) + rooted_a->len + rooted_b->len);
+    result->len = rooted_a->len + rooted_b->len;
+    memcpy(result->data, rooted_a->data, rooted_a->len);
+    memcpy(result->data + rooted_a->len, rooted_b->data, rooted_b->len);
+    scoop_rt_pop_native_roots(&roots);
+    scoop_thread_pop_managed_anchor(&anchor);
     return result;
 }
 
@@ -149,23 +164,55 @@ _Noreturn void scoop_rt_trap(const char *message) {
     abort();
 }
 
-const void *scoop_rt_array_clone(const void *obj,
-                                 const ScoopTypeDescriptor *target_td,
-                                 uint64_t elem_size, uint64_t data_offset) {
+const void *scoop_rt_array_clone_impl(const void *obj,
+                                      const ScoopTypeDescriptor *target_td,
+                                      uint64_t elem_size,
+                                      uint64_t data_offset,
+                                      uintptr_t return_pc,
+                                      uintptr_t stack_pointer,
+                                      uintptr_t frame_pointer) {
+    ScoopManagedAnchor anchor;
+    scoop_thread_push_managed_anchor(&anchor, return_pc, stack_pointer,
+                                     frame_pointer);
     const ScoopArray *src = obj;
+    void **root_slots[] = {(void **)&src};
+    ScoopNativeRootFrame roots;
+    scoop_rt_push_native_roots(&roots, root_slots, 1);
     size_t bytes = (size_t)data_offset + (size_t)(src->size * elem_size);
     /* The target nominal array application is fixed by MIR/LIR. Preserve the
      * fresh GC header and copy only size/padding/elements. */
-    void *copy = scoop_rt_alloc(target_td, bytes);
+    void *copy = scoop_gc_alloc_internal(target_td, bytes);
     memcpy((char *)copy + sizeof(ScoopObjectHeader),
-           (const char *)obj + sizeof(ScoopObjectHeader),
+           (const char *)src + sizeof(ScoopObjectHeader),
            bytes - sizeof(ScoopObjectHeader));
+    scoop_rt_pop_native_roots(&roots);
+    scoop_thread_pop_managed_anchor(&anchor);
     return copy;
 }
 
-void *scoop_rt_box(const ScoopTypeDescriptor *td, const void *payload, uint64_t payload_size) {
-    void *obj = scoop_rt_alloc(td, sizeof(ScoopObjectHeader) + (size_t)payload_size);
+void *scoop_rt_box_impl(const ScoopTypeDescriptor *td, const void *payload,
+                        uint64_t payload_size, const uint64_t *payload_scan,
+                        uintptr_t return_pc, uintptr_t stack_pointer,
+                        uintptr_t frame_pointer) {
+    ScoopManagedAnchor anchor;
+    scoop_thread_push_managed_anchor(&anchor, return_pc, stack_pointer,
+                                     frame_pointer);
+    ScoopNativeRegionRootEntry payload_entry;
+    ScoopNativeRegionRootFrame payload_roots;
+    if (payload_scan != NULL) {
+        payload_entry = (ScoopNativeRegionRootEntry){
+            .base = (void *)payload,
+            .scan = payload_scan,
+        };
+        scoop_rt_push_native_region_roots(&payload_roots, &payload_entry, 1);
+    }
+    void *obj = scoop_gc_alloc_internal(
+        td, sizeof(ScoopObjectHeader) + (size_t)payload_size);
     memcpy((char *)obj + sizeof(ScoopObjectHeader), payload, (size_t)payload_size);
+    if (payload_scan != NULL) {
+        scoop_rt_pop_native_region_roots(&payload_roots);
+    }
+    scoop_thread_pop_managed_anchor(&anchor);
     return obj;
 }
 
@@ -233,15 +280,22 @@ _Noreturn void scoop_rt_rethrow(void) {
     __cxa_rethrow();
 }
 
-void *scoop_rt_materialize_exception(const void *caught) {
+void *scoop_rt_materialize_exception_impl(const void *caught,
+                                          uintptr_t return_pc,
+                                          uintptr_t stack_pointer,
+                                          uintptr_t frame_pointer) {
+    ScoopManagedAnchor anchor;
+    scoop_thread_push_managed_anchor(&anchor, return_pc, stack_pointer,
+                                     frame_pointer);
     const ScoopObjectHeader *source = caught;
     size_t size = (size_t)source->td->size;
-    void *managed = scoop_rt_alloc(source->td, size);
+    void *managed = scoop_gc_alloc_internal(source->td, size);
     if (size > sizeof(ScoopObjectHeader)) {
         memcpy((char *)managed + sizeof(ScoopObjectHeader),
                (const char *)caught + sizeof(ScoopObjectHeader),
                size - sizeof(ScoopObjectHeader));
     }
+    scoop_thread_pop_managed_anchor(&anchor);
     return managed;
 }
 
@@ -276,12 +330,15 @@ void scoop_rt_init_eh(void) {
 }
 
 int main(void) {
-    volatile char managed_stack_boundary = 0;
     scoop_rt_init_eh();
     scoop_thread_runtime_init();
     scoop_callback_runtime_init();
     scoop_rt_gc_init();
-    scoop_thread_attach_main((const void *)&managed_stack_boundary);
+    /* The direct C gateway frame is the exclusive upper bound of the managed
+     * segment. Runtime sources are built with frame pointers enabled, so the
+     * generated frame chain reaches this exact address independently of C
+     * local-variable placement. */
+    scoop_thread_attach_main(__builtin_frame_address(0));
     scoop_main();
     scoop_callback_prepare_shutdown();
     scoop_thread_prepare_shutdown();

@@ -19533,7 +19533,7 @@ Module
     t0 = aggregate (param0) : struct4
     store t0 -> local0
     t1 = local_address local0 : ptr
-    call managed-target0 sp165 live=[param1:ptr<managed>@0] t2 = sig=direct0 (ptr<metadata>, ptr<raw>, i64) -> ptr<managed> runtime @scoop_rt_box(td26, t1, 8)
+    call managed-target0 sp165 live=[param1:ptr<managed>@0] t2 = sig=direct0 (ptr<metadata>, ptr<raw>, i64, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_box(td26, t1, 8, root-scan0)
     call managed-target1 sp166 live=[param1:ptr<managed>@0, t2:ptr<managed>@0] sig=void0 (ptr<managed>, ptr<managed>) local-fn93(t2, param1)
     t3 = aggregate () : {}
     ret
@@ -19555,7 +19555,7 @@ Module
     t0 = aggregate (param0) : struct5
     store t0 -> local0
     t1 = local_address local0 : ptr
-    call managed-target0 sp170 live=[param1:ptr<managed>@0] t2 = sig=direct0 (ptr<metadata>, ptr<raw>, i64) -> ptr<managed> runtime @scoop_rt_box(td27, t1, 8)
+    call managed-target0 sp170 live=[param1:ptr<managed>@0] t2 = sig=direct0 (ptr<metadata>, ptr<raw>, i64, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_box(td27, t1, 8, root-scan0)
     call managed-target1 sp171 live=[param1:ptr<managed>@0, t2:ptr<managed>@0] sig=void0 (ptr<managed>, ptr<managed>) local-fn94(t2, param1)
     t3 = aggregate () : {}
     ret
@@ -21971,7 +21971,7 @@ Module
     t1 = heap_load local0 +24 : ptr<managed>
     store local1 -> local10
     t2 = local_address local10 : ptr
-    call managed-target1 sp348 live=[param0:ptr<managed>@0, local4:ptr<managed>@0, t1:ptr<managed>@0] t3 = sig=direct1 (ptr<metadata>, ptr<raw>, i64) -> ptr<managed> runtime @scoop_rt_box(td24, t2, 8)
+    call managed-target1 sp348 live=[param0:ptr<managed>@0, local4:ptr<managed>@0, t1:ptr<managed>@0] t3 = sig=direct1 (ptr<metadata>, ptr<raw>, i64, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_box(td24, t2, 8, root-scan0)
     call managed-target2 sp349 live=[param0:ptr<managed>@0, local4:ptr<managed>@0, t1:ptr<managed>@0, t3:ptr<managed>@0] local11 = sig=indirect0 (sret enum2, ptr<managed>, ptr<managed>, ptr<managed>) dispatch[Closure:2] t1(t1, t3, local4)
     store local11 -> local5
     t4 = enum_tag e2 local5 : i64
@@ -21980,7 +21980,7 @@ Module
   block coroutine.post.1
     store local2 -> local12
     t6 = local_address local12 : ptr
-    call managed-target3 sp350 live=[] t7 = sig=direct2 (ptr<metadata>, ptr<raw>, i64) -> ptr<managed> runtime @scoop_rt_box(td24, t6, 8)
+    call managed-target3 sp350 live=[] t7 = sig=direct2 (ptr<metadata>, ptr<raw>, i64, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_box(td24, t6, 8, root-scan1)
     t8 = enum_wrap e4 v0 (t7) : enum4
     ret t8
   block coroutine.completed.1
@@ -26788,7 +26788,7 @@ Module
     t4 = aggregate (local0) : struct3
     store t4 -> local9
     t5 = local_address local9 : ptr
-    call managed-target1 sp656 live=[param0:ptr<managed>@0, local3:ptr<managed>@0] t6 = sig=direct1 (ptr<metadata>, ptr<raw>, i64) -> ptr<managed> runtime @scoop_rt_box(td25, t5, 8)
+    call managed-target1 sp656 live=[param0:ptr<managed>@0, local3:ptr<managed>@0] t6 = sig=direct1 (ptr<metadata>, ptr<raw>, i64, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_box(td25, t5, 8, root-scan0)
     t7 = heap_load t6 +0 : ptr<metadata>
     call no-gc-target0 t8 = sig=direct2 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t7, td5)
     invoke managed-target2 sp657 roots=[param0:normal+unwind, local3:normal+unwind, t6:argument] sig=void0 (ptr<managed>, ptr<managed>) dispatch[Interface:0] t8(t6, local3) normal @invoke.normal.1 unwind @coroutine.registration_failure.1
@@ -28028,7 +28028,7 @@ Module
   block coroutine.post.1
     store local1 -> local10
     t3 = local_address local10 : ptr
-    call managed-target2 sp729 live=[] t4 = sig=direct1 (ptr<metadata>, ptr<raw>, i64) -> ptr<managed> runtime @scoop_rt_box(td24, t3, 8)
+    call managed-target2 sp729 live=[] t4 = sig=direct1 (ptr<metadata>, ptr<raw>, i64, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_box(td24, t3, 8, root-scan0)
     t5 = enum_wrap e4 v0 (t4) : enum4
     ret t5
   block coroutine.completed.1
@@ -28260,7 +28260,7 @@ Module
     t3 = aggregate () : {}
     store t3 -> local9
     t4 = local_address local9 : ptr
-    call managed-target2 sp744 live=[] t5 = sig=direct1 (ptr<metadata>, ptr<raw>, i64) -> ptr<managed> runtime @scoop_rt_box(td28, t4, 0)
+    call managed-target2 sp744 live=[] t5 = sig=direct1 (ptr<metadata>, ptr<raw>, i64, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_box(td28, t4, 0, root-scan0)
     t6 = enum_wrap e4 v0 (t5) : enum4
     ret t6
   block coroutine.completed.1
@@ -28480,7 +28480,7 @@ Module
     store t0 -> local4
     store local1 -> local10
     t1 = local_address local10 : ptr
-    call managed-target1 sp758 live=[param0:ptr<managed>@0, local0:ptr<managed>@0, local4:ptr<managed>@0] t2 = sig=direct1 (ptr<metadata>, ptr<raw>, i64) -> ptr<managed> runtime @scoop_rt_box(td24, t1, 8)
+    call managed-target1 sp758 live=[param0:ptr<managed>@0, local0:ptr<managed>@0, local4:ptr<managed>@0] t2 = sig=direct1 (ptr<metadata>, ptr<raw>, i64, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_box(td24, t1, 8, root-scan0)
     call managed-target2 sp759 live=[param0:ptr<managed>@0, local0:ptr<managed>@0, local4:ptr<managed>@0, t2:ptr<managed>@0] local11 = sig=indirect0 (sret enum2, ptr<managed>, ptr<managed>, ptr<managed>) dispatch[Closure:2] local0(local0, t2, local4)
     store local11 -> local5
     t3 = enum_tag e2 local5 : i64
@@ -28489,7 +28489,7 @@ Module
   block coroutine.post.1
     store local2 -> local12
     t5 = local_address local12 : ptr
-    call managed-target3 sp760 live=[] t6 = sig=direct2 (ptr<metadata>, ptr<raw>, i64) -> ptr<managed> runtime @scoop_rt_box(td24, t5, 8)
+    call managed-target3 sp760 live=[] t6 = sig=direct2 (ptr<metadata>, ptr<raw>, i64, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_box(td24, t5, 8, root-scan1)
     t7 = enum_wrap e4 v0 (t6) : enum4
     ret t7
   block coroutine.completed.1
@@ -28720,7 +28720,7 @@ Module
     store t0 -> local4
     store local1 -> local10
     t1 = local_address local10 : ptr
-    call managed-target1 sp774 live=[param0:ptr<managed>@0, local0:ptr<managed>@0, local4:ptr<managed>@0] t2 = sig=direct1 (ptr<metadata>, ptr<raw>, i64) -> ptr<managed> runtime @scoop_rt_box(td24, t1, 8)
+    call managed-target1 sp774 live=[param0:ptr<managed>@0, local0:ptr<managed>@0, local4:ptr<managed>@0] t2 = sig=direct1 (ptr<metadata>, ptr<raw>, i64, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_box(td24, t1, 8, root-scan0)
     call managed-target2 sp775 live=[param0:ptr<managed>@0, local0:ptr<managed>@0, local4:ptr<managed>@0, t2:ptr<managed>@0] local11 = sig=indirect0 (sret enum2, ptr<managed>, ptr<managed>, ptr<managed>) dispatch[Closure:2] local0(local0, t2, local4)
     store local11 -> local5
     t3 = enum_tag e2 local5 : i64
@@ -28729,7 +28729,7 @@ Module
   block coroutine.post.1
     store local2 -> local12
     t5 = local_address local12 : ptr
-    call managed-target3 sp776 live=[] t6 = sig=direct2 (ptr<metadata>, ptr<raw>, i64) -> ptr<managed> runtime @scoop_rt_box(td24, t5, 8)
+    call managed-target3 sp776 live=[] t6 = sig=direct2 (ptr<metadata>, ptr<raw>, i64, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_box(td24, t5, 8, root-scan1)
     t7 = enum_wrap e4 v0 (t6) : enum4
     ret t7
   block coroutine.completed.1

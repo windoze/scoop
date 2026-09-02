@@ -5,9 +5,9 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include "scoop_rt.h"
+#include "../managed_entries.h"
 #include "../thread.h"
 #include "gc_internal.h"
 
@@ -110,24 +110,21 @@ static void visit_root_region(void *base, const uint64_t *scan,
     trace_descriptor(base, scan);
 }
 
-static void scan_range(const char *low, const char *high) {
-    uintptr_t cursor = ((uintptr_t)low + sizeof(void *) - 1) &
-                       ~(uintptr_t)(sizeof(void *) - 1);
-    for (; cursor + sizeof(void *) <= (uintptr_t)high;
-         cursor += sizeof(void *)) {
-        void *word;
-        memcpy(&word, (const void *)cursor, sizeof word);
-        if (scoop_gc_is_object_start_locked(word)) {
-            mark(word);
-        }
-    }
-}
-
 static void scan_native_roots(const ScoopThreadState *thread) {
     for (ScoopNativeRootFrame *frame = thread->native_roots; frame != NULL;
          frame = frame->previous) {
         for (uint64_t index = 0; index < frame->count; index++) {
             trace_slot(frame->slots[index]);
+        }
+    }
+}
+
+static void scan_native_region_roots(const ScoopThreadState *thread) {
+    for (ScoopNativeRegionRootFrame *frame = thread->native_region_roots;
+         frame != NULL; frame = frame->previous) {
+        for (uint64_t index = 0; index < frame->count; index++) {
+            trace_descriptor(frame->entries[index].base,
+                             frame->entries[index].scan);
         }
     }
 }
@@ -152,56 +149,26 @@ static void scan_compiler_roots(const ScoopThreadState *thread) {
     }
 }
 
-static void scan_frozen_managed_segments(const ScoopThreadState *thread) {
-    for (ScoopThreadTransition *transition = thread->current_transition;
-         transition != NULL; transition = transition->previous) {
-        uintptr_t low = transition->managed_stack_low;
-        uintptr_t high = transition->managed_stack_high;
-        if (low < (uintptr_t)thread->stack_low || low >= high ||
-            high > (uintptr_t)thread->stack_high) {
-            collector_fatal(
-                "native transition contains an invalid managed stack segment");
-        }
-        scan_range((const char *)low, (const char *)high);
-    }
-}
-
-/* M13 transition: parked managed threads publish a stable stack range.
- * M15 replaces these conservative ranges with exact stackmap slots while
- * retaining the root visitor below. */
-static void scan_thread(const ScoopThreadState *thread) {
+static void scan_thread(const ScoopThreadState *thread,
+                        ScoopGcRootVisitor root_visitor) {
     ScoopThreadMode mode =
         atomic_load_explicit(&thread->mode, memory_order_acquire);
     if (mode == SCOOP_THREAD_PARKED || mode == SCOOP_THREAD_COLLECTOR) {
         if (thread->parked_from == SCOOP_THREAD_MANAGED) {
-            uintptr_t stack_low = (uintptr_t)thread->stack_low;
-            uintptr_t stack_high = (uintptr_t)thread->stack_high;
-            uintptr_t parked_sp = (uintptr_t)thread->parked_sp;
-            uintptr_t managed_boundary =
-                (uintptr_t)thread->managed_stack_boundary;
-            if (parked_sp == 0 || parked_sp < stack_low ||
-                managed_boundary == 0 || managed_boundary > stack_high ||
-                parked_sp >= managed_boundary) {
-                collector_fatal(
-                    "parked thread published an invalid stack pointer");
-            }
-            scan_range((const char *)&thread->register_spill,
-                       (const char *)&thread->register_spill +
-                           sizeof thread->register_spill);
-            scan_range(thread->parked_sp, thread->managed_stack_boundary);
+            scoop_gc_visit_managed_stack(thread, root_visitor);
         } else if (thread->parked_from != SCOOP_THREAD_NATIVE_BORROWED) {
             collector_fatal("parked thread has an invalid source mode");
         }
     } else if (mode != SCOOP_THREAD_NATIVE_SAFE) {
         collector_fatal("collector observed a non-quiescent thread");
     }
-    scan_frozen_managed_segments(thread);
     scan_caller_roots(thread);
     scan_compiler_roots(thread);
+    scan_native_region_roots(thread);
     scan_native_roots(thread);
 }
 
-void scoop_rt_gc_collect(void) {
+void scoop_gc_collect_internal(void) {
     if (!scoop_thread_begin_collection()) {
         return;
     }
@@ -228,7 +195,7 @@ void scoop_rt_gc_collect(void) {
     scoop_gc_visit_roots_locked(root_visitor);
     for (ScoopThreadState *thread = scoop_thread_collection_registry_head();
          thread != NULL; thread = thread->registry_next) {
-        scan_thread(thread);
+        scan_thread(thread, root_visitor);
     }
 
     while (work_len > 0) {
@@ -241,6 +208,25 @@ void scoop_rt_gc_collect(void) {
     scoop_thread_end_collection();
 }
 
-void scoop_rt_safepoint(void) {
+void scoop_rt_gc_collect_impl(uintptr_t return_pc, uintptr_t stack_pointer,
+                              uintptr_t frame_pointer) {
+    ScoopManagedAnchor anchor;
+    scoop_thread_push_managed_anchor(&anchor, return_pc, stack_pointer,
+                                     frame_pointer);
+    scoop_gc_collect_internal();
+    scoop_thread_pop_managed_anchor(&anchor);
+}
+
+void scoop_runtime_gc_collect(void) {
+    scoop_thread_native_borrowed_entry();
+    scoop_gc_collect_internal();
+}
+
+void scoop_rt_safepoint_impl(uintptr_t return_pc, uintptr_t stack_pointer,
+                             uintptr_t frame_pointer) {
+    ScoopManagedAnchor anchor;
+    scoop_thread_push_managed_anchor(&anchor, return_pc, stack_pointer,
+                                     frame_pointer);
     scoop_thread_poll();
+    scoop_thread_pop_managed_anchor(&anchor);
 }

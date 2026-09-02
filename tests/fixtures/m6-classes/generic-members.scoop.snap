@@ -864,7 +864,7 @@ Module
     t3 = aggregate () : {}
     store local0 -> local8
     t4 = local_address local8 : ptr
-    call managed-target2 sp15 live=[] t5 = sig=direct1 (ptr<metadata>, ptr<raw>, i64) -> ptr<managed> runtime @scoop_rt_box(td7, t4, 8)
+    call managed-target2 sp15 live=[] t5 = sig=direct1 (ptr<metadata>, ptr<raw>, i64, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_box(td7, t4, 8, root-scan0)
     call managed-target3 sp16 live=[t5:ptr<managed>@0] t6 = sig=direct2 (ptr<managed>) -> i64 local-fn13(t5)
     store t6 -> local3
     call managed-target4 sp17 live=[] sig=void1 (i64) local-fn16(local3)

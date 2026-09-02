@@ -740,6 +740,7 @@ struct FnEmitter<'a, 'ctx> {
     array_tds: &'a [GlobalValue<'ctx>],
     type_tds: &'a [GlobalValue<'ctx>],
     external_type_tds: &'a [GlobalValue<'ctx>],
+    root_scans: Vec<PointerValue<'ctx>>,
     target_data: &'a inkwell::targets::TargetData,
     /// Hidden result pointer for a physically indirect aggregate return.
     return_slot: Option<PointerValue<'ctx>>,
@@ -910,6 +911,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     .as_pointer_value()
                     .into()
             }
+            Value::RootScan(id) => self.root_scans[arena_index(id)].into(),
             Value::Global(id) => self.globals[arena_index(id)]
                 .expect("ordinary globals are emitted")
                 .as_pointer_value()
@@ -930,6 +932,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             | Value::BoolConst(_)
             | Value::NullPointer(_)
             | Value::TypeDescriptor(_)
+            | Value::RootScan(_)
             | Value::Global(_) => None,
         };
         source
@@ -4350,6 +4353,20 @@ fn emit_function<'ctx>(
             .into_pointer_value()
     });
     let (unwind_root_sources, compiler_unwind_blocks) = compiler_unwind_plan(function);
+    let root_scans = function
+        .call_targets
+        .root_scans
+        .iter()
+        .map(|(id, scan)| {
+            emit_ref_scan(
+                context,
+                llvm,
+                &format!("{}.root_scan.{}", function.symbol, id.into_raw()),
+                scan,
+            )
+            .unwrap_or_else(|| ptr_ty(context).const_null())
+        })
+        .collect();
 
     let mut emitter = FnEmitter {
         context,
@@ -4373,6 +4390,7 @@ fn emit_function<'ctx>(
         array_tds: module_ctx.array_tds,
         type_tds: module_ctx.type_tds,
         external_type_tds: module_ctx.external_type_tds,
+        root_scans,
         target_data: module_ctx.target_data,
         return_slot,
         param_offset,

@@ -8,7 +8,7 @@ const ScoopString *native_root_round_trip(const ScoopString *message) {
     ScoopNativeRootFrame frame;
 
     scoop_rt_push_native_roots(&frame, slots, 1);
-    scoop_rt_gc_collect();
+    scoop_runtime_gc_collect();
 
     const ScoopString *reloaded = root;
     bool valid = scoop_rt_gc_debug_native_root_count() == 1 &&

@@ -916,7 +916,7 @@ Module
     store t7 -> local2
     store local2 -> local11
     t8 = local_address local11 : ptr
-    call managed-target5 sp17 live=[] t9 = sig=direct4 (ptr<metadata>, ptr<raw>, i64) -> ptr<managed> runtime @scoop_rt_box(td6, t8, 8)
+    call managed-target5 sp17 live=[] t9 = sig=direct4 (ptr<metadata>, ptr<raw>, i64, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_box(td6, t8, 8, root-scan0)
     store t9 -> local3
     t10 = heap_load local3 +0 : ptr<metadata>
     call no-gc-target1 t11 = sig=direct5 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t10, td2)
@@ -926,7 +926,7 @@ Module
     t13 = aggregate () : {}
     store local2 -> local12
     t14 = local_address local12 : ptr
-    call managed-target8 sp20 live=[] t15 = sig=direct7 (ptr<metadata>, ptr<raw>, i64) -> ptr<managed> runtime @scoop_rt_box(td6, t14, 8)
+    call managed-target8 sp20 live=[] t15 = sig=direct7 (ptr<metadata>, ptr<raw>, i64, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_box(td6, t14, 8, root-scan1)
     store t15 -> local4
     call no-gc-target2 t16 = sig=direct8 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local4, td6)
     call managed-target9 sp21 live=[local4:ptr<managed>@0] sig=void3 (i1) local-fn16(t16)
