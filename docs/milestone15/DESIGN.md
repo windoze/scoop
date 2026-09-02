@@ -35,7 +35,9 @@ M15 不能把 M9 已有的“statepoint section 存在”当作可移动 GC 基�
 7. 当前 block header、free-block node 和 free-line hole node 位于 GC arena 内。stress mode 对空源 block 执行 `mprotect(PROT_NONE)` 后，这些地址不能再作为 collector 元数据访问；
 8. 当前对象起点只记录 bit，不记录精确 allocation size。可变长 String/Array 及 large object 不能只靠 TypeDescriptor 固定 size 正确复制；
 9. 当前全局 managed storage 没有编译器生成的完备 root 描述登记，静态 String 等 immortal managed object 也没有精确地址域登记；保守扫描会掩盖其中一部分问题；
-10. runtime 中会再次分配的 Scoop ABI/native helper 必须在分配前发布输入 direct ref 或含 ref payload，并在 GC 后从 slot reload。把 C local 中碰巧存在的旧指针当作保活手段在 M15 中非法。
+10. runtime 中会再次分配的 Scoop ABI/native helper 必须在分配前发布输入 direct ref 或含 ref payload，并在 GC 后从 slot reload。把 C local 中碰巧存在的旧指针当作保活手段在 M15 中非法；
+11. LLVM 22.1 RS4GC 会把普通call的AS1直接实参加入`gc-live`，即使该source在caller continuation中已经死亡；它不会递归拆解含AS1 leaf的aggregate实参。LIR必须显式给出post-site live source与可移动实参载体的并集，post verifier不能只拿普通live-after数量猜最终root count；
+12. 同一行为使带AS1实参的普通LLVM `invoke`经RS4GC必然获得`gc-live`并触发不可用的exceptional relocation。managed invoke必须由codegen直接发射零`gc-live`的显式`gc.statepoint` invoke，不能先发射普通invoke再期待RS4GC自动得到设计要求的形态。
 
 这些不是独立 backlog，而是 M15 正确性闭环的一部分。
 
@@ -265,7 +267,12 @@ NativeBorrowedCallSite {
 
 ### 5.2 managed leaf 展开
 
-`StatepointLiveSet` 由 LIR backward liveness 产生，不由 codegen 扫描 LLVM use 或根据变量名补齐。每项同时携带：
+`StatepointLiveSet` 由 LIR backward liveness与同一callsite的typed operand信息共同产生，不由 codegen 扫描 LLVM use 或根据变量名补齐。它是以下两组source的去重并集：
+
+- 在statepoint后仍活跃、必须消费relocated值的source；
+- 普通managed call的可移动managed实参载体。LLVM 22.1会把直接AS1实参自动列入`gc-live`；aggregate实参则必须由本集合显式暴露其managed leaf。immortal常量地址不属于可移动载体；managed global storage中的值若先load为temp，则按该temp进入集合。
+
+每项同时携带：
 
 - typed source（parameter/local/temp）；
 - concrete LIR type/layout；
@@ -280,14 +287,14 @@ NativeBorrowedCallSite {
 
 普通 `ManagedCallSite` 与`ManagedPollSite`经以下顺序发射：
 
-1. materialize `StatepointLiveSet` 中的独立 AS1 leaf；
+1. materialize `StatepointLiveSet` 中的独立 AS1 leaf，并让call实参消费同一materialized source；
 2. 给原始 call 设置唯一 `statepoint-id`；
 3. 发射 call；
 4. 在 call 后使用每个 leaf 重建 source storage/SSA value；
 5. 完成 SSA/SROA/mem2reg 后运行 RS4GC；
 6. verifier 确认每个预期 leaf 有 `gc.relocate`，且调用后不再使用原地址值。
 
-direct ref / aggregate 参数若只被 callee 使用而不在 caller 后续活跃，不属于 caller live set。managed callee 在函数入口的显式`ManagedPollSite`建立自己的精确参数根；在到达该 poll 前，发起 STW 的线程仍必须等待该 mutator，不存在参数无人持有的 quiescent 窗口。
+direct ref / aggregate 参数即使只被callee使用而不在caller continuation活跃，也属于该call的`StatepointLiveSet`。这是LLVM 22.1实际statepoint模型的一部分：direct AS1参数会被RS4GC列入caller的`gc-live`，而含ref aggregate需要Scoop主动拆叶。callee入口poll仍建立callee自己的参数根，但它不能替代callsite参数根。
 
 含 ref 的 indirect return storage 遵守“callee 本地构造、无 safepoint epilogue 一次发布”规则：callee 在最后一个可能 safepoint 后才把完整结果复制到 caller storage，此后直接返回；异常路径不发布部分结果。不能让 partially initialized、未登记的 caller return storage 跨 callee safepoint。
 
@@ -295,14 +302,14 @@ direct ref / aggregate 参数若只被 callee 使用而不在 caller 后续活�
 
 不得把 LLVM exceptional relocation 当作可用能力。`ManagedInvokeSite` 在进入 invoke 前：
 
-1. 为 normal/unwind 任一后继仍活跃的全部 managed leaf 建立 addressable storage；
+1. 为 normal/unwind 任一后继仍活跃的全部 managed leaf及可移动实参leaf建立 addressable storage；
 2. 按 `ExceptionalRootSet` 写入 compiler root frame并 push；
 3. 调整调用后数据流，使原 AS1 SSA value在 invoke 后没有直接 use，两个后继都只从 frame storage reload；
-4. 仍允许 RS4GC 把 invoke 改写为 statepoint，但其 `gc-live` 必须为空，因此 stack map保留 frame/callsite定位记录而没有 exceptional `gc.relocate`；
+4. codegen直接发射带`SafepointId`的显式`gc.statepoint` invoke，并把原callee与实参放在statepoint的actual-call operand区；`gc-live`必须为空，因此 stack map保留 frame/callsite定位记录而没有 exceptional `gc.relocate`。RS4GC只跳过这个已显式化的invoke，不能负责从普通invoke生成该形态；
 5. normal edge reload并 pop；unwind landingpad 的第一段无 safepoint cleanup同样 reload并 pop，然后才进入 catch/finally/`resume`；
 6. 任何 rethrow/resume 路径都不得携带尚未 pop 的 compiler root frame。
 
-compiler root frame 使用与 native caller root 相同的递归 scan descriptor和统一 slot visitor，但用独立 frame kind，不能伪装成 native-safe transition。LIR 的 `ExceptionalRootSet` 是 normal/unwind successor liveness 的并集；result 在 normal edge定义，不进入 pre-call root set。
+compiler root frame 使用与 native caller root 相同的递归 scan descriptor和统一 slot visitor，但用独立 frame kind，不能伪装成 native-safe transition。LIR 的 `ExceptionalRootSet` 是 normal/unwind successor liveness与可移动实参载体的并集；每个entry还完备标出`normal_live`与`unwind_live`，使两个后继只reload自己需要的source，纯实参根可在两边都不reload。result 在 normal edge定义，不进入 pre-call root set。共享landingpad在捕获exception record后按动态LIFO栈pop；NoGc invoke可发布一个无entry的compiler frame，使同一landingpad不必根据前驱猜测是否存在frame。
 
 这样既保留每个 managed frame 的 statepoint record供精确 frame walk，又不生成 LLVM 当前不可验证的异常边 relocation。
 
@@ -494,7 +501,7 @@ Scoop ABI外部实现继续遵守runtime spec 4.2：native-borrowed代码在调�
 - AS1 direct ref跨call或poll产生`gc-live`与`gc.relocate`；post-site只使用relocated value；
 - 函数入口与每条循环回边都已有LIR `ManagedPollSite`及完备live set，codegen不会自行插入或漏掉poll；
 - struct/tuple/tagged enum/closure/coroutine aggregate每个ref leaf单独relocate；GC-free leaf不进入；
-- managed invoke有唯一statepoint ID、零gc-live、零exceptional relocate，normal/unwind均reload+pop显式frame；
+- managed invoke由codegen直接发射唯一ID的显式statepoint、零gc-live、零exceptional relocate，normal/unwind按各自edge flag reload并pop显式frame；
 - native-safe/native-borrowed call有唯一statepoint ID、零gc-live/relocate，transition前后root/result publication与reload顺序完整；
 - derived address跨safepoint、managed ptrtoint、非法addrspacecast为verifier negative；
 - Mach-O v3 parser golden覆盖所有location编码、alignment、constant pool和truncated/corrupt输入；Darwin profile对unsupported root shape给出确定错误；

@@ -77,15 +77,15 @@ managed 函数值是普通引用对象，不是原生函数指针。每个 concr
 
 分配分为两条通道：
 
-- **managed 快速通道**：编译器生成的代码**不使用 handle**，直接取得裸指针。标准形态是 TLAB 碰撞指针（bump pointer）内联序列；成功后由不含safepoint、不取得heap/world锁的GC-leaf `scoop_runtime_finish_tlab_alloc`完成清零、对象头与object-start/精确allocation-size side metadata登记，缓冲区耗尽时才落入 slow path（`scoop_runtime_alloc_slow`，可能触发 GC）。编译器必须在 safepoint保留完整live root信息；M15 moving collector精确消费statepoint stack map并更新其location，生成代码在调用后只使用`gc.relocate`结果（spec 14.2）。managed 分配是最高频操作，其成本必须保持摊销 O(1)，不经 handle 表。
+- **managed 快速通道**：编译器生成的代码**不使用 handle**，直接取得裸指针。标准形态是 TLAB 碰撞指针（bump pointer）内联序列；成功后由不含safepoint、不取得heap/world锁的GC-leaf `scoop_runtime_finish_tlab_alloc`完成清零、对象头与object-start/精确allocation-size side metadata登记，缓冲区耗尽时才落入 slow path（`scoop_runtime_alloc_slow`，可能触发 GC）。编译器必须在 safepoint保留完整root信息，包括post-site live leaf与普通managed call的可移动实参leaf；M15 moving collector精确消费statepoint stack map并更新其location，生成代码在调用后只使用`gc.relocate`结果（spec 14.2）。managed 分配是最高频操作，其成本必须保持摊销 O(1)，不经 handle 表。
 - **Scoop ABI native 通道**：外部实现没有 stack map；它可以直接借用传入的 managed ref，但在调用可能触发 GC 的 runtime入口前，必须先把仍需使用的引用登记为 native root slot（见 4.2）。需要把新对象长期带出 native frame时可使用 handle；需要稳定裸地址时使用 pinned allocation。
 
 M13 起每个已attach线程持有独立TLAB；slow path在同步的heap元数据下从Immix free-line run或新block切出互不重叠区间。STW开始后全部TLAB失效，GC结束后各线程在下一次分配时重新refill。内联bump与上述GC-leaf finish helper共同构成fast path，并必须在返回前清零完整对象、初始化对象头，并以原子方式同时登记object-start与精确normalized allocation size，保证多mutator分配与构造中途safepoint都可安全扫描。只登记start而没有size不是合法的已发布对象状态。TLAB具体尺寸可调，但managed分配返回裸指针、摊销O(1)、不经handle表的契约不变。
 
 ### 3.2 safepoint 模型
 
-- managed（编译器生成）代码：statepoint poll（spec 14.2 的 LLVM 策略）。函数入口及每条循环回边在LIR中已经是带完备live-root plan的显式poll，不由codegen补插；managed ref在LLVM中使用address space 1，普通poll/call的活跃ref leaf由statepoint/`gc.relocate`描述。含ref aggregate必须先拆为独立leaf，不能把aggregate alloca当作隐式stack region；
-- managed `invoke`：LLVM当前异常边relocation不能作为语言实现基础。编译器在invoke前把normal/unwind后继仍活跃的ref leaf写入显式compiler root frame，两个后继都从slot reload并在继续控制流前pop；该invoke仍有statepoint frame record，但不得产生exceptional `gc.relocate`；
+- managed（编译器生成）代码：statepoint poll（spec 14.2 的 LLVM 策略）。函数入口及每条循环回边在LIR中已经是带完备root plan的显式poll，不由codegen补插；managed ref在LLVM中使用address space 1，普通poll/call的post-site live leaf及可移动实参leaf由statepoint/`gc.relocate`描述。含ref aggregate必须先拆为独立leaf，不能把aggregate alloca当作隐式stack region；
+- managed `invoke`：LLVM当前异常边relocation不能作为语言实现基础。编译器在invoke前把normal/unwind后继仍活跃的ref leaf及可移动实参leaf写入独立compiler root frame，每项携带normal/unwind reload角色；codegen直接发射零`gc-live`的显式statepoint invoke，两个后继只从各自所需slot reload并在继续控制流前pop，不得产生exceptional `gc.relocate`；
 - outbound native transition：native-safe/native-borrowed调用前发布完备caller-root frame，machine call保留statepoint record但`gc-live`/relocate为空；冻结managed segment不扫描该record。返回值含ref时使用调用前已清零并登记的result storage，在native-borrowed返回后、leave可能park前写入，回到managed后连同其他live root只从slot reload；
 - Scoop ABI FFI：函数体内**无** safepoint poll，GC 只能在其显式调用 runtime或回调 managed代码时于该入口内部发生；跨越这些入口的 direct ref必须位于 native root slot（spec 14.3）；
 - C ABI callee不接收 managed ref，也不得直接调用 Scoop GC；M12 单 mutator实现可把它视为纯 GC leaf。M13启用多mutator后，outbound caller必须在调用前发布live roots并进入native-safe，使其他线程发起的STW GC无需等待一个可能阻塞的C调用。C代码若持有4.3注册所得的静态trampoline与cookie，可以经这个**独立反向边界**进入managed callback；这不使原C callee获得direct ref或Scoop ABI能力，外层caller roots继续由native-safe transition保活。
