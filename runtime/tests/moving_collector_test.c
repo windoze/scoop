@@ -92,6 +92,30 @@ static const ScoopTypeDescriptor large_td = {
     .name = "TestLarge",
 };
 
+static const ScoopTypeDescriptor string_td = {
+    .type_id = 5,
+    .size = sizeof(ScoopString),
+    .align = _Alignof(ScoopString),
+    .ref_offsets = NULL,
+    .parent = NULL,
+    .vtable = NULL,
+    .itables = NULL,
+    .itable_count = 0,
+    .name = "String",
+};
+
+static const ScoopTypeDescriptor array_i64_td = {
+    .type_id = 6,
+    .size = sizeof(uint64_t),
+    .align = _Alignof(uint64_t),
+    .ref_offsets = NULL,
+    .parent = NULL,
+    .vtable = NULL,
+    .itables = NULL,
+    .itable_count = 0,
+    .name = "Array<Int>",
+};
+
 static const TestLeaf immortal_leaf = {
     .header = {.td = &leaf_td, .gc_word = 0},
     .value = UINT64_C(0xfeedface),
@@ -149,6 +173,25 @@ static TestLarge *new_large(uint64_t value) {
     large->payload[0] = 0x12;
     large->payload[sizeof large->payload - 1] = 0x34;
     return large;
+}
+
+static ScoopString *new_string(uint64_t length, char fill) {
+    size_t size = sizeof(ScoopString) + (size_t)length;
+    ScoopString *string = scoop_gc_alloc_internal(&string_td, size);
+    string->len = length;
+    memset(string->data, fill, (size_t)length);
+    return string;
+}
+
+static ScoopArray *new_i64_array(uint64_t length) {
+    size_t size = sizeof(ScoopArray) + (size_t)length * sizeof(uint64_t);
+    ScoopArray *array = scoop_gc_alloc_internal(&array_i64_td, size);
+    array->size = length;
+    uint64_t *elements = (uint64_t *)array->elements;
+    for (uint64_t index = 0; index < length; index++) {
+        elements[index] = index * 3;
+    }
+    return array;
 }
 
 static void *collect_with_stack_root(void *root) {
@@ -374,6 +417,41 @@ static void test_large_exact_size_and_no_conservative_retention(void) {
         (const void *)heap_looking_integer));
 }
 
+static void test_variable_object_exact_sizes(void) {
+    ScoopString *short_string = new_string(5, 's');
+    ScoopString *moved_short_string =
+        collect_with_stack_root(short_string);
+    assert(moved_short_string != short_string);
+    assert(moved_short_string->len == 5);
+    assert(moved_short_string->data[0] == 's');
+    assert(moved_short_string->data[4] == 's');
+    assert(scoop_rt_gc_debug_allocation_size(moved_short_string) == 32);
+
+    ScoopString *long_string = new_string(200, 'l');
+    ScoopString *moved_long_string = collect_with_stack_root(long_string);
+    assert(moved_long_string != long_string);
+    assert(moved_long_string->len == 200);
+    assert(moved_long_string->data[0] == 'l');
+    assert(moved_long_string->data[199] == 'l');
+    assert(scoop_rt_gc_debug_allocation_size(moved_long_string) == 224);
+
+    ScoopArray *short_array = new_i64_array(2);
+    ScoopArray *moved_short_array = collect_with_stack_root(short_array);
+    assert(moved_short_array != short_array);
+    assert(moved_short_array->size == 2);
+    assert(((uint64_t *)moved_short_array->elements)[0] == 0);
+    assert(((uint64_t *)moved_short_array->elements)[1] == 3);
+    assert(scoop_rt_gc_debug_allocation_size(moved_short_array) == 40);
+
+    ScoopArray *long_array = new_i64_array(40);
+    ScoopArray *moved_long_array = collect_with_stack_root(long_array);
+    assert(moved_long_array != long_array);
+    assert(moved_long_array->size == 40);
+    assert(((uint64_t *)moved_long_array->elements)[0] == 0);
+    assert(((uint64_t *)moved_long_array->elements)[39] == 117);
+    assert(scoop_rt_gc_debug_allocation_size(moved_long_array) == 344);
+}
+
 int main(void) {
     uintptr_t managed_boundary_marker = 0;
     scoop_thread_runtime_init();
@@ -394,6 +472,7 @@ int main(void) {
     test_handle_external_and_immortal_roots();
     test_pin_partial_block_and_unpin();
     test_large_exact_size_and_no_conservative_retention();
+    test_variable_object_exact_sizes();
 
     scoop_thread_prepare_shutdown();
     scoop_thread_detach_main();
