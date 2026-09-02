@@ -1,5 +1,5 @@
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Output};
 
 fn workspace_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -9,10 +9,8 @@ fn workspace_root() -> PathBuf {
         .to_path_buf()
 }
 
-#[test]
-fn fake_platform_drives_the_real_moving_collector() {
-    let workspace = workspace_root();
-    let binary = std::env::temp_dir().join(format!("scoop_moving_gc_test_{}", std::process::id()));
+fn compile_and_run(workspace: &Path, test_name: &str, test_source: &str) -> Output {
+    let binary = std::env::temp_dir().join(format!("scoop_{test_name}_{}", std::process::id()));
     let mut compile = Command::new("cc");
     compile
         .args([
@@ -39,19 +37,19 @@ fn fake_platform_drives_the_real_moving_collector() {
         "runtime/src/platform/arch/aarch64.c",
         "runtime/src/platform/os/darwin.c",
         "runtime/tests/platform/fake.c",
-        "runtime/tests/moving_collector_test.c",
+        test_source,
     ] {
         compile.arg(workspace.join(source));
     }
-    let output = compile
+    let compile_output = compile
         .arg("-o")
         .arg(&binary)
         .output()
         .expect("compile fake-platform moving collector test");
     assert!(
-        output.status.success(),
-        "fake-platform moving collector test must compile cleanly:\n{}",
-        String::from_utf8_lossy(&output.stderr)
+        compile_output.status.success(),
+        "fake-platform {test_name} test must compile cleanly:\n{}",
+        String::from_utf8_lossy(&compile_output.stderr)
     );
 
     let output = Command::new(&binary)
@@ -59,6 +57,17 @@ fn fake_platform_drives_the_real_moving_collector() {
         .output()
         .expect("run fake-platform moving collector test");
     std::fs::remove_file(&binary).ok();
+    output
+}
+
+#[test]
+fn fake_platform_drives_the_real_moving_collector() {
+    let workspace = workspace_root();
+    let output = compile_and_run(
+        &workspace,
+        "moving_gc_test",
+        "runtime/tests/moving_collector_test.c",
+    );
     assert!(
         output.status.success(),
         "fake-platform moving collector test failed:\nstdout:\n{}\nstderr:\n{}",
@@ -68,5 +77,25 @@ fn fake_platform_drives_the_real_moving_collector() {
     assert_eq!(
         output.stdout,
         b"moving collector fake-platform tests passed\n"
+    );
+}
+
+#[test]
+fn moving_collector_updates_all_thread_protocol_roots() {
+    let workspace = workspace_root();
+    let output = compile_and_run(
+        &workspace,
+        "moving_thread_protocol_test",
+        "runtime/tests/moving_thread_protocol_test.c",
+    );
+    assert!(
+        output.status.success(),
+        "fake-platform moving thread-protocol test failed:\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        output.stdout,
+        b"moving collector thread-protocol tests passed\n"
     );
 }
