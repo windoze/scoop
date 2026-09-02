@@ -8,6 +8,7 @@
 
 static ScoopStackMapIndex stackmaps;
 static bool stackmaps_initialized;
+static const ScoopPlatformBundle *platform_bundle;
 
 static _Noreturn void stack_roots_fatal(const char *message) {
     fprintf(stderr, "scoop stackmap: %s\n", message);
@@ -36,6 +37,7 @@ void scoop_gc_stackmaps_init(void) {
     }
     const ScoopPlatformBundle *bundle = scoop_platform_bundle();
     require_complete_bundle(bundle);
+    platform_bundle = bundle;
 
     ScoopPlatformMetadataImages images;
     ScoopPlatformError platform_error = {0};
@@ -88,8 +90,9 @@ static void visit_managed_segment(const ScoopThreadState *thread,
                                   ScoopManagedAnchor cursor,
                                   uintptr_t boundary,
                                   ScoopGcRootVisitor visitor) {
-    const ScoopPlatformBundle *bundle = scoop_platform_bundle();
-    require_complete_bundle(bundle);
+    if (!stackmaps_initialized || platform_bundle == NULL) {
+        stack_roots_fatal("managed stack visit before platform initialization");
+    }
     if (thread == NULL || visitor.visit_slot == NULL ||
         cursor.return_pc == 0 || cursor.stack_pointer == 0 ||
         cursor.frame_pointer == 0 || cursor.previous != NULL ||
@@ -115,15 +118,15 @@ static void visit_managed_segment(const ScoopThreadState *thread,
 
         ScoopManagedFrame frame;
         ScoopPlatformError error = {0};
-        if (!bundle->managed_frames->frame_from_anchor(
+        if (!platform_bundle->managed_frames->frame_from_anchor(
                 &cursor, record, bounds, &frame, &error)) {
             managed_frame_fatal(error);
         }
         for (uint16_t index = 0; index < record->root_count; index++) {
             void **slot = NULL;
             error = (ScoopPlatformError){0};
-            if (!bundle->managed_frames->resolve_root(&frame, index, &slot,
-                                                      &error) ||
+            if (!platform_bundle->managed_frames->resolve_root(
+                    &frame, index, &slot, &error) ||
                 slot == NULL) {
                 managed_frame_fatal(error);
             }
@@ -135,7 +138,7 @@ static void visit_managed_segment(const ScoopThreadState *thread,
         uintptr_t frame_pointer = 0;
         bool has_next = false;
         error = (ScoopPlatformError){0};
-        if (!bundle->managed_frames->next_frame(
+        if (!platform_bundle->managed_frames->next_frame(
                 &frame, boundary, bounds, &return_pc, &stack_pointer,
                 &frame_pointer, &has_next, &error)) {
             managed_frame_fatal(error);
