@@ -342,6 +342,8 @@ compiler root frame 使用与 native caller root 相同的递归 scan descriptor
 
 两类outbound native call都划分冻结managed segment，不能再把它们当作普通`ManagedCallSite`。其root plan分别使用不同类型，但都完整列出调用后仍活跃的managed leaf；`NativeBorrowedRootSet`还包含全部direct-ref实参。若Scoop ABI返回值直接或间接含ref，root plan按return-convention sum携带一个调用前全零并一同发布的result storage及其scan，不使用`Option<ReturnRoot>`让codegen补齐。
 
+LIR可以保留统一的extern declaration arena供dump、bridge生成与最终发射使用，但extern identity在进入call target前必须细化为私有构造的`CExternFunctionRef`或`ScoopExternFunctionRef`。`NativeSafeCallDestination`只接受前者，`NativeBorrowedCallDestination`只接受后者；MIR→LIR lowering显式输出每个MIR extern id到对应ABI-refined ref的typed relation。严禁假定两个arena顺序相同后复制raw index，也严禁先构造普通`ExternFunctionId`、再由callsite protocol或symbol反向分类ABI。
+
 发射协议为：
 
 1. materialize并发布caller-root frame；含ref返回storage先清零；

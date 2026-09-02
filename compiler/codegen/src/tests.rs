@@ -26,9 +26,13 @@ fn host_managed_address_space() -> ManagedAddressSpace {
 enum TestCallProtocol {
     Managed(u64),
     NoGc,
-    NativeSafe(u64),
+    NativeSafe {
+        safepoint: u64,
+        destination: scoop_lir::NativeSafeCallDestination,
+    },
     NativeBorrowed {
         safepoint: u64,
+        destination: scoop_lir::NativeBorrowedCallDestination,
         result: NativeBorrowedResultRoot,
     },
 }
@@ -149,20 +153,29 @@ fn protocol_site(
                 call: bind_test_call(&mut targets.no_gc_targets, destination, call),
             })
         }
-        TestCallProtocol::NativeSafe(safepoint) => {
-            let destination = scoop_lir::NativeSafeCallDestination::from_view(destination)
-                .expect("native-safe test destination");
+        TestCallProtocol::NativeSafe {
+            safepoint,
+            destination: typed_destination,
+        } => {
+            assert_eq!(destination, typed_destination.view());
             CallSite::NativeSafe(scoop_lir::NativeSafeCallSite {
-                call: bind_test_call(&mut targets.native_safe_targets, destination, call),
+                call: bind_test_call(&mut targets.native_safe_targets, typed_destination, call),
                 safepoint: test_safepoint(safepoint),
                 roots: scoop_lir::NativeSafeRootSet::default(),
             })
         }
-        TestCallProtocol::NativeBorrowed { safepoint, result } => {
-            let destination = scoop_lir::NativeBorrowedCallDestination::from_view(destination)
-                .expect("native-borrowed test destination");
+        TestCallProtocol::NativeBorrowed {
+            safepoint,
+            destination: typed_destination,
+            result,
+        } => {
+            assert_eq!(destination, typed_destination.view());
             CallSite::NativeBorrowed(scoop_lir::NativeBorrowedCallSite {
-                call: bind_test_call(&mut targets.native_borrowed_targets, destination, call),
+                call: bind_test_call(
+                    &mut targets.native_borrowed_targets,
+                    typed_destination,
+                    call,
+                ),
                 safepoint: test_safepoint(safepoint),
                 roots: scoop_lir::NativeBorrowedRootSet::new(Vec::new(), result),
             })
@@ -507,7 +520,7 @@ fn values_module() -> Module {
         globals,
         structs: Arena::default(),
         enums: Arena::default(),
-        extern_functions: Arena::default(),
+        extern_functions: Default::default(),
         native_globals: Arena::default(),
         native_global_bridges: Default::default(),
         callback_bridges: Arena::default(),
@@ -969,7 +982,7 @@ fn enum_module() -> Module {
         globals,
         structs: Arena::default(),
         enums,
-        extern_functions: Arena::default(),
+        extern_functions: Default::default(),
         native_globals: Arena::default(),
         native_global_bridges: Default::default(),
         callback_bridges: Arena::default(),
@@ -1187,7 +1200,7 @@ fn arrays_module() -> Module {
         globals: Arena::default(),
         structs: Arena::default(),
         enums: Arena::default(),
-        extern_functions: Arena::default(),
+        extern_functions: Default::default(),
         native_globals: Arena::default(),
         native_global_bridges: Default::default(),
         callback_bridges: Arena::default(),
@@ -1377,7 +1390,7 @@ fn classes_module() -> Module {
         globals: Arena::default(),
         structs: Arena::default(),
         enums: Arena::default(),
-        extern_functions: Arena::default(),
+        extern_functions: Default::default(),
         native_globals: Arena::default(),
         native_global_bridges: Default::default(),
         callback_bridges: Arena::default(),
@@ -1608,7 +1621,7 @@ fn heap_module() -> Module {
         globals,
         structs: Arena::default(),
         enums: Arena::default(),
-        extern_functions: Arena::default(),
+        extern_functions: Default::default(),
         native_globals: Arena::default(),
         native_global_bridges: Default::default(),
         callback_bridges: Arena::default(),
@@ -1827,7 +1840,7 @@ fn exceptions_module() -> Module {
         globals: Arena::default(),
         structs: Arena::default(),
         enums: Arena::default(),
-        extern_functions: Arena::default(),
+        extern_functions: Default::default(),
         native_globals: Arena::default(),
         native_global_bridges: Default::default(),
         callback_bridges: Arena::default(),
@@ -2042,37 +2055,40 @@ fn typed_no_gc_effect_keeps_the_call_outside_statepoints() {
 
 #[test]
 fn native_calls_publish_roots_transition_and_reload() {
-    let mut extern_functions = Arena::default();
-    let c_call = extern_functions.alloc(ExternFunction {
-        source_name: "wait".to_string(),
-        native_symbol: "native_wait".to_string(),
-        library: "fixture".to_string(),
-        calling_convention: scoop_lir::CallingConvention::Cdecl,
-        params: Vec::new(),
-        return_type: LirType::Void,
-        kind: ExternFunctionKind::C {
-            bridge_symbol: "scoop_c_bridge_wait".to_string(),
+    let mut extern_functions = scoop_lir::ExternFunctions::default();
+    let c_call = extern_functions.alloc_c(scoop_lir::CExternFunction {
+        declaration: scoop_lir::ExternFunctionDeclaration {
+            source_name: "wait".to_string(),
+            native_symbol: "native_wait".to_string(),
+            library: "fixture".to_string(),
+            calling_convention: scoop_lir::CallingConvention::Cdecl,
             params: Vec::new(),
-            return_type: scoop_lir::CType::Unit,
+            return_type: LirType::Void,
         },
+        bridge_symbol: "scoop_c_bridge_wait".to_string(),
+        params: Vec::new(),
+        return_type: scoop_lir::CType::Unit,
     });
-    let borrowed = extern_functions.alloc(ExternFunction {
-        source_name: "borrowed".to_string(),
-        native_symbol: "native_borrowed".to_string(),
-        library: "fixture".to_string(),
-        calling_convention: scoop_lir::CallingConvention::Cdecl,
-        params: vec![MANAGED_PTR],
-        return_type: MANAGED_PTR,
-        kind: ExternFunctionKind::Scoop {
-            gc_effect: GcEffect::Managed,
+    let borrowed = extern_functions.alloc_scoop(scoop_lir::ScoopExternFunction {
+        declaration: scoop_lir::ExternFunctionDeclaration {
+            source_name: "borrowed".to_string(),
+            native_symbol: "native_borrowed".to_string(),
+            library: "fixture".to_string(),
+            calling_convention: scoop_lir::CallingConvention::Cdecl,
+            params: vec![MANAGED_PTR],
+            return_type: MANAGED_PTR,
         },
+        gc_effect: GcEffect::Managed,
     });
 
     let mut safe_targets = CallTargets::default();
     let mut safe_site = void_site(
         &mut safe_targets,
-        CallDestination::Extern(c_call),
-        TestCallProtocol::NativeSafe(1),
+        CallDestination::Extern(c_call.declaration()),
+        TestCallProtocol::NativeSafe {
+            safepoint: 1,
+            destination: scoop_lir::NativeSafeCallDestination::extern_function(c_call),
+        },
         Vec::new(),
         Vec::new(),
     );
@@ -2113,9 +2129,10 @@ fn native_calls_publish_roots_transition_and_reload() {
     let mut borrowed_targets = CallTargets::default();
     let mut borrowed_site = direct_site(
         &mut borrowed_targets,
-        CallDestination::Extern(borrowed),
+        CallDestination::Extern(borrowed.declaration()),
         TestCallProtocol::NativeBorrowed {
             safepoint: 2,
+            destination: scoop_lir::NativeBorrowedCallDestination::extern_function(borrowed),
             result: NativeBorrowedResultRoot::Rooted {
                 storage: result_root,
                 scan: scoop_lir::NonEmptyRefScan::new(RefScan::References(vec![0])).unwrap(),
@@ -2238,7 +2255,7 @@ fn continuation_state_atomics_keep_their_llvm_orderings() {
         globals: Arena::default(),
         structs: Arena::default(),
         enums: Arena::default(),
-        extern_functions: Arena::default(),
+        extern_functions: Default::default(),
         native_globals: Arena::default(),
         native_global_bridges: Default::default(),
         callback_bridges: Arena::default(),
@@ -2327,7 +2344,7 @@ fn closure_abi_module() -> Module {
         globals: Arena::default(),
         structs: Arena::default(),
         enums: Arena::default(),
-        extern_functions: Arena::default(),
+        extern_functions: Default::default(),
         native_globals: Arena::default(),
         native_global_bridges: Default::default(),
         callback_bridges: Arena::default(),
@@ -2508,7 +2525,7 @@ fn barrier_module() -> Module {
         globals: Arena::default(),
         structs: Arena::default(),
         enums: Arena::default(),
-        extern_functions: Arena::default(),
+        extern_functions: Default::default(),
         native_globals: Arena::default(),
         native_global_bridges: Default::default(),
         callback_bridges: Arena::default(),
@@ -2684,7 +2701,7 @@ fn managed_live_plan_produces_as1_relocation() {
         globals: Arena::default(),
         structs: Arena::default(),
         enums: Arena::default(),
-        extern_functions: Arena::default(),
+        extern_functions: Default::default(),
         native_globals: Arena::default(),
         native_global_bridges: Default::default(),
         callback_bridges: Arena::default(),
@@ -2828,7 +2845,7 @@ fn managed_invoke_uses_explicit_compiler_roots_without_exceptional_relocation() 
         globals: Arena::default(),
         structs: Arena::default(),
         enums: Arena::default(),
-        extern_functions: Arena::default(),
+        extern_functions: Default::default(),
         native_globals: Arena::default(),
         native_global_bridges: Default::default(),
         callback_bridges: Arena::default(),
@@ -2934,7 +2951,7 @@ fn type_descriptors_carry_the_gc_scan_descriptors() {
         globals: Arena::default(),
         structs: Arena::default(),
         enums: Arena::default(),
-        extern_functions: Arena::default(),
+        extern_functions: Default::default(),
         native_globals: Arena::default(),
         native_global_bridges: Default::default(),
         callback_bridges: Arena::default(),
@@ -3147,7 +3164,7 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
         globals: Arena::default(),
         structs,
         enums,
-        extern_functions: Arena::default(),
+        extern_functions: Default::default(),
         native_globals: Arena::default(),
         native_global_bridges: Default::default(),
         callback_bridges: Arena::default(),
@@ -3211,18 +3228,18 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
     std::fs::remove_file(&source).ok();
     assert!(status.success(), "generated C assertions must compile");
 
-    module.extern_functions.alloc(ExternFunction {
-        source_name: "swap".to_string(),
-        native_symbol: "native_swap".to_string(),
-        library: "fixture".to_string(),
-        calling_convention: scoop_lir::CallingConvention::Cdecl,
-        params: vec![LirType::Struct(outer)],
-        return_type: LirType::Struct(outer),
-        kind: ExternFunctionKind::C {
-            bridge_symbol: "scoop_c_bridge_0".to_string(),
-            params: vec![scoop_lir::CType::Struct(outer)],
-            return_type: scoop_lir::CType::Struct(outer),
+    module.extern_functions.alloc_c(scoop_lir::CExternFunction {
+        declaration: scoop_lir::ExternFunctionDeclaration {
+            source_name: "swap".to_string(),
+            native_symbol: "native_swap".to_string(),
+            library: "fixture".to_string(),
+            calling_convention: scoop_lir::CallingConvention::Cdecl,
+            params: vec![LirType::Struct(outer)],
+            return_type: LirType::Struct(outer),
         },
+        bridge_symbol: "scoop_c_bridge_0".to_string(),
+        params: vec![scoop_lir::CType::Struct(outer)],
+        return_type: scoop_lir::CType::Struct(outer),
     });
     module.callback_bridges.alloc(scoop_lir::CallbackBridge {
         source_name: "swapCallback".to_string(),
