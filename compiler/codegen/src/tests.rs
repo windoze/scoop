@@ -2,8 +2,8 @@ use inkwell::OptimizationLevel;
 use inkwell::targets::FileType;
 use la_arena::Arena;
 use scoop_lir::{
-    BasicBlock, CallDestination, CallSite, CallTargets, DirectCallSignature, DispatchKind,
-    DispatchSlot, EnumDef, EnumFieldRepr, EnumRepr, EnumVariantRepr, GcEffect, Global, GlobalInit,
+    BasicBlock, CallSite, CallTargets, DirectCallSignature, DispatchKind, DispatchSlot, EnumDef,
+    EnumFieldRepr, EnumRepr, EnumVariantRepr, GcEffect, Global, GlobalInit,
     IndirectResultCallSignature, ItableRecord, Layout, LayoutKind, LirMeta, Local, MANAGED_PTR,
     METADATA_PTR, NativeBorrowedResultRoot, PointerKind, RAW_PTR, ResultStorage, Temp,
     TypeDescriptor, TypeDescriptorRef, TypeDescriptorScan, TypedCall, VoidCallSignature,
@@ -24,8 +24,13 @@ fn host_managed_address_space() -> ManagedAddressSpace {
 }
 
 enum TestCallProtocol {
-    Managed(u64),
-    NoGc,
+    Managed {
+        safepoint: u64,
+        destination: scoop_lir::ManagedCallDestination,
+    },
+    NoGc {
+        destination: scoop_lir::NoGcCallDestination,
+    },
     NativeSafe {
         safepoint: u64,
         destination: scoop_lir::NativeSafeCallDestination,
@@ -132,49 +137,35 @@ fn set_managed_live(site: &mut CallSite, live: scoop_lir::StatepointLiveSet) {
 
 fn protocol_site(
     targets: &mut CallTargets,
-    destination: CallDestination,
     protocol: TestCallProtocol,
     call: TestTypedCall,
 ) -> CallSite {
     match protocol {
-        TestCallProtocol::Managed(safepoint) => {
-            let destination = scoop_lir::ManagedCallDestination::from_view(destination)
-                .expect("managed test destination");
-            CallSite::Managed(scoop_lir::ManagedCallSite {
-                call: bind_test_call(&mut targets.managed_targets, destination, call),
-                safepoint: test_safepoint(safepoint),
-                live: scoop_lir::StatepointLiveSet::default(),
-            })
-        }
-        TestCallProtocol::NoGc => {
-            let destination = scoop_lir::NoGcCallDestination::from_view(destination)
-                .expect("NoGC test destination");
-            CallSite::NoGc(scoop_lir::NoGcCallSite {
-                call: bind_test_call(&mut targets.no_gc_targets, destination, call),
-            })
-        }
+        TestCallProtocol::Managed {
+            safepoint,
+            destination,
+        } => CallSite::Managed(scoop_lir::ManagedCallSite {
+            call: bind_test_call(&mut targets.managed_targets, destination, call),
+            safepoint: test_safepoint(safepoint),
+            live: scoop_lir::StatepointLiveSet::default(),
+        }),
+        TestCallProtocol::NoGc { destination } => CallSite::NoGc(scoop_lir::NoGcCallSite {
+            call: bind_test_call(&mut targets.no_gc_targets, destination, call),
+        }),
         TestCallProtocol::NativeSafe {
             safepoint,
-            destination: typed_destination,
-        } => {
-            assert_eq!(destination, typed_destination.view());
-            CallSite::NativeSafe(scoop_lir::NativeSafeCallSite {
-                call: bind_test_call(&mut targets.native_safe_targets, typed_destination, call),
-                safepoint: test_safepoint(safepoint),
-                roots: scoop_lir::NativeSafeRootSet::default(),
-            })
-        }
+            destination,
+        } => CallSite::NativeSafe(scoop_lir::NativeSafeCallSite {
+            call: bind_test_call(&mut targets.native_safe_targets, destination, call),
+            safepoint: test_safepoint(safepoint),
+            roots: scoop_lir::NativeSafeRootSet::default(),
+        }),
         TestCallProtocol::NativeBorrowed {
             safepoint,
-            destination: typed_destination,
+            destination,
             result,
         } => {
-            assert_eq!(destination, typed_destination.view());
-            let call = bind_test_call(
-                &mut targets.native_borrowed_targets,
-                typed_destination,
-                call,
-            );
+            let call = bind_test_call(&mut targets.native_borrowed_targets, destination, call);
             let call = targets.bind_native_borrowed_call(call, result);
             CallSite::NativeBorrowed(scoop_lir::NativeBorrowedCallSite {
                 call,
@@ -187,7 +178,6 @@ fn protocol_site(
 
 fn void_site(
     targets: &mut CallTargets,
-    destination: CallDestination,
     protocol: TestCallProtocol,
     params: Vec<LirType>,
     args: Vec<Value>,
@@ -196,17 +186,11 @@ fn void_site(
         params,
         calling_convention: scoop_lir::CallingConvention::Cdecl,
     });
-    protocol_site(
-        targets,
-        destination,
-        protocol,
-        TestTypedCall::Void { signature, args },
-    )
+    protocol_site(targets, protocol, TestTypedCall::Void { signature, args })
 }
 
 fn direct_site(
     targets: &mut CallTargets,
-    destination: CallDestination,
     protocol: TestCallProtocol,
     params: Vec<LirType>,
     result: (LirType, RefScan),
@@ -221,7 +205,6 @@ fn direct_site(
     });
     protocol_site(
         targets,
-        destination,
         protocol,
         TestTypedCall::Direct {
             signature,
@@ -233,7 +216,6 @@ fn direct_site(
 
 fn indirect_result_site(
     targets: &mut CallTargets,
-    destination: CallDestination,
     protocol: TestCallProtocol,
     params: Vec<LirType>,
     result: (LirType, RefScan),
@@ -252,7 +234,6 @@ fn indirect_result_site(
         });
     protocol_site(
         targets,
-        destination,
         protocol,
         TestTypedCall::IndirectResult {
             signature,
@@ -279,20 +260,36 @@ fn managed_invoke(
     })
 }
 
-fn dispatch_destination(targets: &mut CallTargets, table: Value, index: u32) -> CallDestination {
-    let slot = targets.dispatch_slots.alloc(DispatchSlot {
+fn dispatch_destination(
+    targets: &mut CallTargets,
+    table: Value,
+    index: u32,
+) -> scoop_lir::ManagedCallDestination {
+    let slot = targets.dispatch_slots.alloc_managed(DispatchSlot {
         kind: DispatchKind::Virtual,
         index,
     });
-    CallDestination::Dispatch { table, slot }
+    scoop_lir::ManagedCallDestination::dispatch(table, slot)
 }
 
-fn managed_runtime(function: scoop_lir::ManagedRuntimeFunction) -> CallDestination {
-    CallDestination::Runtime(scoop_lir::RuntimeFunction::Managed(function))
+fn managed_runtime(
+    function: scoop_lir::ManagedRuntimeFunction,
+) -> scoop_lir::ManagedCallDestination {
+    scoop_lir::ManagedCallDestination::runtime(function)
 }
 
-fn no_gc_runtime(function: scoop_lir::NoGcRuntimeFunction) -> CallDestination {
-    CallDestination::Runtime(scoop_lir::RuntimeFunction::NoGc(function))
+fn no_gc_runtime(function: scoop_lir::NoGcRuntimeFunction) -> scoop_lir::NoGcCallDestination {
+    scoop_lir::NoGcCallDestination::runtime(function)
+}
+
+fn managed_local(index: u32) -> scoop_lir::ManagedCallDestination {
+    let mut identities = scoop_lir::LocalFunctionIdentities::default();
+    let mut reference = identities.alloc_managed();
+    for _ in 0..index {
+        reference = identities.alloc_managed();
+    }
+    assert_eq!(reference.declaration().into_u32(), index);
+    scoop_lir::ManagedCallDestination::local(reference)
 }
 
 fn string_metadata() -> LirMeta {
@@ -422,8 +419,10 @@ fn values_module() -> Module {
     let mut call_targets = CallTargets::default();
     let concat = direct_site(
         &mut call_targets,
-        managed_runtime(scoop_lir::ManagedRuntimeFunction::StringConcat),
-        TestCallProtocol::Managed(1),
+        TestCallProtocol::Managed {
+            safepoint: 1,
+            destination: managed_runtime(scoop_lir::ManagedRuntimeFunction::StringConcat),
+        },
         vec![MANAGED_PTR, MANAGED_PTR],
         (MANAGED_PTR, RefScan::References(vec![0])),
         t6,

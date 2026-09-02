@@ -15,7 +15,7 @@ pub struct CallTargets {
     pub no_gc_targets: ProtocolCallTargets<NoGcCallDestination>,
     pub native_safe_targets: ProtocolCallTargets<NativeSafeCallDestination>,
     pub native_borrowed_targets: ProtocolCallTargets<NativeBorrowedCallDestination>,
-    pub dispatch_slots: Arena<DispatchSlot>,
+    pub dispatch_slots: DispatchSlots,
     /// Function-local recursive scan programs passed to runtime entries that
     /// receive addressable inline values (currently boxing payloads).
     pub root_scans: Arena<RefScan>,
@@ -107,69 +107,140 @@ pub enum CallDestination {
     Dispatch { table: Value, slot: DispatchSlotId },
 }
 
+/// Effect-refined identities into `Module::functions`. The registry is the
+/// sole producer, so a call target cannot attach an independently selected GC
+/// effect to an untyped local function id.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ManagedLocalFunctionRef(LocalFunctionId);
+
+impl ManagedLocalFunctionRef {
+    pub fn declaration(self) -> LocalFunctionId {
+        self.0
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct NoGcLocalFunctionRef(LocalFunctionId);
+
+impl NoGcLocalFunctionRef {
+    pub fn declaration(self) -> LocalFunctionId {
+        self.0
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum LocalFunctionRef {
+    Managed(ManagedLocalFunctionRef),
+    NoGc(NoGcLocalFunctionRef),
+}
+
+impl LocalFunctionRef {
+    pub fn declaration(self) -> LocalFunctionId {
+        match self {
+            Self::Managed(reference) => reference.declaration(),
+            Self::NoGc(reference) => reference.declaration(),
+        }
+    }
+}
+
+/// Declaration-order registry and sole producer of effect-refined local
+/// function identities. LIR lowering registers each MIR top-level function
+/// exactly once before lowering any body, so recursive calls are typed without
+/// placeholders or later reclassification.
+#[derive(Debug, Default)]
+pub struct LocalFunctionIdentities {
+    next: u32,
+}
+
+impl LocalFunctionIdentities {
+    pub fn alloc_managed(&mut self) -> ManagedLocalFunctionRef {
+        ManagedLocalFunctionRef(self.alloc())
+    }
+
+    pub fn alloc_no_gc(&mut self) -> NoGcLocalFunctionRef {
+        NoGcLocalFunctionRef(self.alloc())
+    }
+
+    fn alloc(&mut self) -> LocalFunctionId {
+        let id = LocalFunctionId::from_u32(self.next);
+        self.next = self
+            .next
+            .checked_add(1)
+            .expect("the LIR local function identity space is exhausted");
+        id
+    }
+}
+
 /// A destination that can only be reached through a managed statepoint.
-/// The inner common representation is exposed only as a read-only view;
-/// construction is closed over the legal destination categories.
+/// Each variant carries an identity from the matching producer registry.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ManagedCallDestination(CallDestination);
+pub enum ManagedCallDestination {
+    Local(ManagedLocalFunctionRef),
+    Runtime(ManagedRuntimeFunction),
+    Dispatch {
+        table: Value,
+        slot: ManagedDispatchSlotRef,
+    },
+}
 
 impl ManagedCallDestination {
-    pub fn local(function: LocalFunctionId) -> Self {
-        Self(CallDestination::Local(function))
+    pub fn local(function: ManagedLocalFunctionRef) -> Self {
+        Self::Local(function)
     }
 
     pub fn runtime(function: ManagedRuntimeFunction) -> Self {
-        Self(CallDestination::Runtime(RuntimeFunction::Managed(function)))
+        Self::Runtime(function)
     }
 
-    pub fn dispatch(table: Value, slot: DispatchSlotId) -> Self {
-        Self(CallDestination::Dispatch { table, slot })
+    pub fn dispatch(table: Value, slot: ManagedDispatchSlotRef) -> Self {
+        Self::Dispatch { table, slot }
     }
 
     pub fn view(self) -> CallDestination {
-        self.0
-    }
-
-    pub fn from_view(destination: CallDestination) -> Option<Self> {
-        matches!(
-            destination,
-            CallDestination::Local(_)
-                | CallDestination::Runtime(RuntimeFunction::Managed(_))
-                | CallDestination::Dispatch { .. }
-        )
-        .then_some(Self(destination))
+        match self {
+            Self::Local(function) => CallDestination::Local(function.declaration()),
+            Self::Runtime(function) => CallDestination::Runtime(RuntimeFunction::Managed(function)),
+            Self::Dispatch { table, slot } => CallDestination::Dispatch {
+                table,
+                slot: slot.declaration(),
+            },
+        }
     }
 }
 
 /// A destination statically guaranteed not to safepoint or transition.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct NoGcCallDestination(CallDestination);
+pub enum NoGcCallDestination {
+    Local(NoGcLocalFunctionRef),
+    Runtime(NoGcRuntimeFunction),
+    Dispatch {
+        table: Value,
+        slot: NoGcDispatchSlotRef,
+    },
+}
 
 impl NoGcCallDestination {
-    pub fn local(function: LocalFunctionId) -> Self {
-        Self(CallDestination::Local(function))
+    pub fn local(function: NoGcLocalFunctionRef) -> Self {
+        Self::Local(function)
     }
 
     pub fn runtime(function: NoGcRuntimeFunction) -> Self {
-        Self(CallDestination::Runtime(RuntimeFunction::NoGc(function)))
+        Self::Runtime(function)
     }
 
-    pub fn dispatch(table: Value, slot: DispatchSlotId) -> Self {
-        Self(CallDestination::Dispatch { table, slot })
+    pub fn dispatch(table: Value, slot: NoGcDispatchSlotRef) -> Self {
+        Self::Dispatch { table, slot }
     }
 
     pub fn view(self) -> CallDestination {
-        self.0
-    }
-
-    pub fn from_view(destination: CallDestination) -> Option<Self> {
-        matches!(
-            destination,
-            CallDestination::Local(_)
-                | CallDestination::Runtime(RuntimeFunction::NoGc(_))
-                | CallDestination::Dispatch { .. }
-        )
-        .then_some(Self(destination))
+        match self {
+            Self::Local(function) => CallDestination::Local(function.declaration()),
+            Self::Runtime(function) => CallDestination::Runtime(RuntimeFunction::NoGc(function)),
+            Self::Dispatch { table, slot } => CallDestination::Dispatch {
+                table,
+                slot: slot.declaration(),
+            },
+        }
     }
 }
 
@@ -205,6 +276,50 @@ impl NativeBorrowedCallDestination {
 pub struct DispatchSlot {
     pub kind: DispatchKind,
     pub index: u32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ManagedDispatchSlotRef(DispatchSlotId);
+
+impl ManagedDispatchSlotRef {
+    pub fn declaration(self) -> DispatchSlotId {
+        self.0
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct NoGcDispatchSlotRef(DispatchSlotId);
+
+impl NoGcDispatchSlotRef {
+    pub fn declaration(self) -> DispatchSlotId {
+        self.0
+    }
+}
+
+/// Function-local declaration store and sole producer of effect-refined
+/// dispatch identities. The physical slot description remains shared because
+/// codegen consumes it only after the enclosing destination fixed the effect.
+#[derive(Debug, Default)]
+pub struct DispatchSlots {
+    declarations: Arena<DispatchSlot>,
+}
+
+impl DispatchSlots {
+    pub fn alloc_managed(&mut self, slot: DispatchSlot) -> ManagedDispatchSlotRef {
+        ManagedDispatchSlotRef(self.declarations.alloc(slot))
+    }
+
+    pub fn alloc_no_gc(&mut self, slot: DispatchSlot) -> NoGcDispatchSlotRef {
+        NoGcDispatchSlotRef(self.declarations.alloc(slot))
+    }
+}
+
+impl std::ops::Index<DispatchSlotId> for DispatchSlots {
+    type Output = DispatchSlot;
+
+    fn index(&self, index: DispatchSlotId) -> &Self::Output {
+        &self.declarations[index]
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -85,8 +85,10 @@ pub(super) fn exceptions_module() -> Module {
     let dispatch = dispatch_destination(&mut call_targets, Value::Param(0), 0);
     let first_invoke = direct_site(
         &mut call_targets,
-        dispatch,
-        TestCallProtocol::Managed(1),
+        TestCallProtocol::Managed {
+            safepoint: 1,
+            destination: dispatch,
+        },
         Vec::new(),
         (LirType::I64, RefScan::None),
         t0,
@@ -94,8 +96,10 @@ pub(super) fn exceptions_module() -> Module {
     );
     let second_invoke = direct_site(
         &mut call_targets,
-        CallDestination::Local(scoop_lir::LocalFunctionId::from_u32(1)),
-        TestCallProtocol::Managed(2),
+        TestCallProtocol::Managed {
+            safepoint: 2,
+            destination: managed_local(1),
+        },
         Vec::new(),
         (LirType::I64, RefScan::None),
         t1,

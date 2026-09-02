@@ -38,8 +38,10 @@ fn classes_module() -> Module {
     let result_dispatch = dispatch_destination(&mut call_targets, Value::Param(0), 0);
     let mut result_call = direct_site(
         &mut call_targets,
-        result_dispatch,
-        TestCallProtocol::Managed(1),
+        TestCallProtocol::Managed {
+            safepoint: 1,
+            destination: result_dispatch,
+        },
         vec![MANAGED_PTR],
         (MANAGED_PTR, RefScan::References(vec![0])),
         t0,
@@ -56,8 +58,10 @@ fn classes_module() -> Module {
     let void_dispatch = dispatch_destination(&mut call_targets, Value::Param(0), 1);
     let mut void_call = void_site(
         &mut call_targets,
-        void_dispatch,
-        TestCallProtocol::Managed(2),
+        TestCallProtocol::Managed {
+            safepoint: 2,
+            destination: void_dispatch,
+        },
         vec![MANAGED_PTR],
         vec![Value::Param(1)],
     );
@@ -242,8 +246,10 @@ pub(super) fn heap_module() -> Module {
     let mut call_targets = CallTargets::default();
     let alloc_site = direct_site(
         &mut call_targets,
-        managed_runtime(scoop_lir::ManagedRuntimeFunction::Alloc),
-        TestCallProtocol::Managed(1),
+        TestCallProtocol::Managed {
+            safepoint: 1,
+            destination: managed_runtime(scoop_lir::ManagedRuntimeFunction::Alloc),
+        },
         vec![METADATA_PTR, LirType::I64],
         (MANAGED_PTR, RefScan::References(vec![0])),
         t0,
@@ -252,8 +258,10 @@ pub(super) fn heap_module() -> Module {
     let payload_scan = call_targets.root_scans.alloc(RefScan::None);
     let mut box_site = direct_site(
         &mut call_targets,
-        managed_runtime(scoop_lir::ManagedRuntimeFunction::Box),
-        TestCallProtocol::Managed(2),
+        TestCallProtocol::Managed {
+            safepoint: 2,
+            destination: managed_runtime(scoop_lir::ManagedRuntimeFunction::Box),
+        },
         vec![METADATA_PTR, RAW_PTR, LirType::I64, METADATA_PTR],
         (MANAGED_PTR, RefScan::References(vec![0])),
         t6,
@@ -274,8 +282,9 @@ pub(super) fn heap_module() -> Module {
     );
     let is_instance_site = direct_site(
         &mut call_targets,
-        no_gc_runtime(scoop_lir::NoGcRuntimeFunction::IsInstance),
-        TestCallProtocol::NoGc,
+        TestCallProtocol::NoGc {
+            destination: no_gc_runtime(scoop_lir::NoGcRuntimeFunction::IsInstance),
+        },
         vec![MANAGED_PTR, METADATA_PTR],
         (LirType::I1, RefScan::None),
         t7,
@@ -284,8 +293,10 @@ pub(super) fn heap_module() -> Module {
     let dispatch = dispatch_destination(&mut call_targets, Value::Temp(t4), 0);
     let mut dispatch_site = void_site(
         &mut call_targets,
-        dispatch,
-        TestCallProtocol::Managed(3),
+        TestCallProtocol::Managed {
+            safepoint: 3,
+            destination: dispatch,
+        },
         vec![MANAGED_PTR],
         vec![Value::Temp(t3)],
     );

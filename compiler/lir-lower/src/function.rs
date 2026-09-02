@@ -3,10 +3,31 @@ use super::*;
 mod call;
 mod expression;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum CallProtocol {
-    Managed,
-    NoGc,
+#[derive(Clone, Copy)]
+enum LoweredCallDestination {
+    Managed(lir::ManagedCallDestination),
+    NoGc(lir::NoGcCallDestination),
+}
+
+impl LoweredCallDestination {
+    fn managed_runtime(function: lir::ManagedRuntimeFunction) -> Self {
+        Self::Managed(lir::ManagedCallDestination::runtime(function))
+    }
+
+    fn no_gc_runtime(function: lir::NoGcRuntimeFunction) -> Self {
+        Self::NoGc(lir::NoGcCallDestination::runtime(function))
+    }
+
+    fn local(function: lir::LocalFunctionRef) -> Self {
+        match function {
+            lir::LocalFunctionRef::Managed(function) => {
+                Self::Managed(lir::ManagedCallDestination::local(function))
+            }
+            lir::LocalFunctionRef::NoGc(function) => {
+                Self::NoGc(lir::NoGcCallDestination::local(function))
+            }
+        }
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -88,10 +109,12 @@ fn bind_typed_call<Destination: Copy>(
     }
 }
 
-fn runtime_call_protocol(function: lir::RuntimeFunction) -> CallProtocol {
+fn runtime_call_destination(function: lir::RuntimeFunction) -> LoweredCallDestination {
     match function {
-        lir::RuntimeFunction::Managed(_) => CallProtocol::Managed,
-        lir::RuntimeFunction::NoGc(_) => CallProtocol::NoGc,
+        lir::RuntimeFunction::Managed(function) => {
+            LoweredCallDestination::managed_runtime(function)
+        }
+        lir::RuntimeFunction::NoGc(function) => LoweredCallDestination::no_gc_runtime(function),
     }
 }
 
@@ -125,7 +148,7 @@ pub(super) fn lower_function<'a>(
     enums: &Arena<lir::EnumDef>,
     array_types: &'a HashMap<mir::ClassId, lir::ArrayTypeId>,
     type_descriptors: &'a TypeDescriptorRefs,
-    local_function_map: &'a HashMap<mir::FunctionId, lir::LocalFunctionId>,
+    local_function_map: &'a HashMap<mir::FunctionId, lir::LocalFunctionRef>,
     extern_function_refs: &'a HashMap<mir::ExternFunctionId, LoweredExternFunctionRef>,
     safepoint_ids: &'a mut safepoints::SafepointIds,
 ) -> lir::Function {
@@ -286,7 +309,7 @@ struct FunctionLowerer<'a> {
     array_types: &'a HashMap<mir::ClassId, lir::ArrayTypeId>,
     /// Complete typed TypeDescriptor graph built before body lowering.
     type_descriptors: &'a TypeDescriptorRefs,
-    local_function_map: &'a HashMap<mir::FunctionId, lir::LocalFunctionId>,
+    local_function_map: &'a HashMap<mir::FunctionId, lir::LocalFunctionRef>,
     extern_function_refs: &'a HashMap<mir::ExternFunctionId, LoweredExternFunctionRef>,
     safepoint_ids: &'a mut safepoints::SafepointIds,
     local_map: HashMap<mir::LocalId, LocalSlot>,
@@ -612,10 +635,7 @@ impl<'a> FunctionLowerer<'a> {
                     let (call, _) =
                         self.typed_call(vec![lir::MANAGED_PTR], lir::LirType::Void, vec![value]);
                     let site = self.invoke_site(
-                        lir::CallDestination::Runtime(lir::RuntimeFunction::NoGc(
-                            lir::NoGcRuntimeFunction::Throw,
-                        )),
-                        CallProtocol::NoGc,
+                        LoweredCallDestination::no_gc_runtime(lir::NoGcRuntimeFunction::Throw),
                         call,
                         normal,
                         self.block_map[unwind],
@@ -634,10 +654,7 @@ impl<'a> FunctionLowerer<'a> {
                     let normal = self.new_block("rethrow.normal");
                     let (call, _) = self.typed_call(Vec::new(), lir::LirType::Void, Vec::new());
                     let site = self.invoke_site(
-                        lir::CallDestination::Runtime(lir::RuntimeFunction::NoGc(
-                            lir::NoGcRuntimeFunction::Rethrow,
-                        )),
-                        CallProtocol::NoGc,
+                        LoweredCallDestination::no_gc_runtime(lir::NoGcRuntimeFunction::Rethrow),
                         call,
                         normal,
                         self.block_map[unwind],
@@ -649,10 +666,7 @@ impl<'a> FunctionLowerer<'a> {
                 }
                 None => {
                     self.emit_plain_call(
-                        lir::CallDestination::Runtime(lir::RuntimeFunction::NoGc(
-                            lir::NoGcRuntimeFunction::Rethrow,
-                        )),
-                        CallProtocol::NoGc,
+                        LoweredCallDestination::no_gc_runtime(lir::NoGcRuntimeFunction::Rethrow),
                         Vec::new(),
                         lir::LirType::Void,
                         Vec::new(),
