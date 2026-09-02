@@ -187,6 +187,11 @@ static void collect_invalid_root(const void *root) {
     (void)collect_with_stack_root((void *)root);
 }
 
+static void register_null_root(const void *unused) {
+    (void)unused;
+    scoop_rt_gc_add_root(NULL);
+}
+
 static void test_stack_root_and_invalid_addresses(void) {
     TestLeaf *old = new_leaf(10);
     TestLeaf *current = collect_with_stack_root(old);
@@ -202,6 +207,7 @@ static void test_stack_root_and_invalid_addresses(void) {
     expect_abort(collect_invalid_root, (const void *)(uintptr_t)0x1230);
     expect_abort(collect_invalid_root, &unregistered_external);
     expect_abort(collect_invalid_root, &unregistered_immortal);
+    expect_abort(register_null_root, NULL);
 }
 
 static void test_cycles_and_forwarding_identity(void) {

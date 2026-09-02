@@ -172,6 +172,9 @@ bool scoop_gc_is_external_object_locked(const void *object) {
 }
 
 void scoop_rt_gc_add_root(void **slot) {
+    if (slot == NULL) {
+        roots_fatal("process root has a null slot address");
+    }
     scoop_gc_roots_lock();
     root_push((ScoopGcRoot){
         .kind = SCOOP_GC_ROOT_SLOT,
