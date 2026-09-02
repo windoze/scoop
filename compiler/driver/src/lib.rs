@@ -361,8 +361,8 @@ fn validate_core_manifest(manifest: &str, path: &Path) -> Result<(), Vec<Diagnos
 }
 
 /// Compile the C runtime into a static library cached under
-/// `target/scoop-rt/`. M13 adds `thread.c` and `callback.c` beside
-/// `rt.c` + `gc.c`; rebuilding the four files is still cheap enough (see
+/// `target/scoop-rt/`. The complete source set comes from the selected target
+/// profile; rebuilding it is still cheap enough (see
 /// `docs/milestone1/DESIGN.md` section 2.7).
 fn build_runtime(
     file: usize,
@@ -379,11 +379,11 @@ fn build_runtime(
             ),
         )]
     })?;
-    cc::Build::new()
-        .file(root.join("runtime/src/rt.c"))
-        .file(root.join("runtime/src/gc.c"))
-        .file(root.join("runtime/src/thread.c"))
-        .file(root.join("runtime/src/callback.c"))
+    let mut build = cc::Build::new();
+    for source in target_profile.runtime_sources() {
+        build.file(root.join(source));
+    }
+    build
         .include(root.join("runtime/include"))
         .flag_if_supported("-pthread")
         .out_dir(&out_dir)

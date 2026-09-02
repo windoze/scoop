@@ -1,7 +1,3 @@
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
-
 #include <inttypes.h>
 #include <pthread.h>
 #include <stdatomic.h>
@@ -9,6 +5,7 @@
 #include <stdlib.h>
 
 #include "scoop_rt.h"
+#include "platform/platform.h"
 #include "thread.h"
 
 typedef enum ScoopRuntimeLifecycle {
@@ -73,35 +70,6 @@ static void wait_for_running_world(void) {
     }
 }
 
-static void read_stack_bounds(const char **low, const char **high) {
-#if defined(__APPLE__)
-    pthread_t self = pthread_self();
-    void *stack_high = pthread_get_stackaddr_np(self);
-    size_t stack_size = pthread_get_stacksize_np(self);
-    if (stack_high == NULL || stack_size == 0) {
-        thread_fatal("failed to read pthread stack bounds");
-    }
-    *high = stack_high;
-    *low = (const char *)stack_high - stack_size;
-#elif defined(__linux__)
-    pthread_attr_t attributes;
-    void *stack_low = NULL;
-    size_t stack_size = 0;
-    if (pthread_getattr_np(pthread_self(), &attributes) != 0) {
-        thread_fatal("failed to read pthread attributes");
-    }
-    int stack_result = pthread_attr_getstack(&attributes, &stack_low, &stack_size);
-    int destroy_result = pthread_attr_destroy(&attributes);
-    if (stack_result != 0 || destroy_result != 0 || stack_low == NULL || stack_size == 0) {
-        thread_fatal("failed to read pthread stack bounds");
-    }
-    *low = stack_low;
-    *high = (const char *)stack_low + stack_size;
-#else
-#error "M13 thread registration currently requires a POSIX pthread host"
-#endif
-}
-
 static ScoopThreadState *new_thread_state(ScoopThreadAttachmentKind kind,
                                           ScoopThreadMode mode,
                                           uint64_t managed_depth) {
@@ -110,7 +78,9 @@ static ScoopThreadState *new_thread_state(ScoopThreadAttachmentKind kind,
         thread_fatal("out of memory attaching a thread");
     }
     state->os_thread = pthread_self();
-    read_stack_bounds(&state->stack_low, &state->stack_high);
+    ScoopPlatformStackBounds bounds = scoop_platform_stack_bounds();
+    state->stack_low = bounds.low;
+    state->stack_high = bounds.high;
     atomic_init(&state->mode, mode);
     atomic_init(&state->observed_gc_epoch,
                 atomic_load_explicit(&gc_epoch, memory_order_acquire));

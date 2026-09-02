@@ -82,6 +82,7 @@ pub struct TargetProfile {
     statepoint_roots: StatepointRootPolicy,
     frame_pointers: FramePointerPolicy,
     tail_calls: TailCallPolicy,
+    runtime_sources: &'static [&'static str],
 }
 
 impl TargetProfile {
@@ -100,6 +101,13 @@ impl TargetProfile {
         statepoint_roots: StatepointRootPolicy::StackIndirectOnly,
         frame_pointers: FramePointerPolicy::All,
         tail_calls: TailCallPolicy::Disabled,
+        runtime_sources: &[
+            "runtime/src/rt.c",
+            "runtime/src/gc.c",
+            "runtime/src/thread.c",
+            "runtime/src/callback.c",
+            "runtime/src/platform/os/darwin.c",
+        ],
     };
 
     /// Resolve a user/host triple to the one target profile supported by M15.
@@ -138,6 +146,11 @@ impl TargetProfile {
 
     pub fn stack_map_version(self) -> u8 {
         self.stack_map_version
+    }
+
+    /// Runtime implementation files selected by this target profile.
+    pub fn runtime_sources(self) -> &'static [&'static str] {
+        self.runtime_sources
     }
 
     pub(crate) fn create_target_machine(self) -> Result<TargetMachine, CodegenError> {
@@ -253,6 +266,16 @@ mod tests {
             assert_eq!(profile.canonical_triple(), "aarch64-apple-darwin");
             assert_eq!(profile.managed_address_space(), 1);
             assert_eq!(profile.stack_map_version(), 3);
+            assert_eq!(
+                profile.runtime_sources(),
+                [
+                    "runtime/src/rt.c",
+                    "runtime/src/gc.c",
+                    "runtime/src/thread.c",
+                    "runtime/src/callback.c",
+                    "runtime/src/platform/os/darwin.c",
+                ]
+            );
         }
     }
 
