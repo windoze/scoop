@@ -2,6 +2,7 @@
 #define SCOOP_GC_INTERNAL_H
 
 #include <stdbool.h>
+#include <stdint.h>
 
 typedef void (*ScoopGcSlotVisitor)(void **slot, void *context);
 typedef void (*ScoopGcExternalObjectVisitor)(const void *object,
@@ -18,6 +19,9 @@ typedef struct ScoopGcRootVisitor {
 void scoop_gc_heap_lock(void);
 void scoop_gc_heap_unlock(void);
 bool scoop_gc_is_object_start_locked(const void *object);
+bool scoop_gc_mark_object_locked(const void *object);
+void scoop_gc_heap_begin_collection_locked(void);
+void scoop_gc_heap_finish_collection_locked(uint64_t live_objects);
 
 /* Collection holds this lock while it visits and rewrites root slots;
  * mutator root APIs use the same lock. */

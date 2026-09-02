@@ -1,57 +1,14 @@
-/* Scoop runtime: Immix-core garbage collector (M9, milestone9 DESIGN
- * section 2; runtime spec sections 3-4).
+/* Immix heap storage (runtime spec sections 3-4).
  *
- * M13 shape: single generation, non-moving, multiple mutators with one
- * stop-the-world collector, no evacuation/defrag. What it provides:
+ * This module owns the arena, block/object-start metadata, allocation, mark
+ * bits and reclamation. `gc/collector.c` owns graph traversal and thread-root
+ * enumeration; `gc/roots.c` owns every non-stack root source. Their internal
+ * API requires the global heap-before-roots lock order.
  *
- * - Heap organization (DESIGN 2.1): 32KB blocks cut into 128B lines.
- *   Blocks are carved out of one contiguous address-space ARENA
- *   (gc_arena_init below) reserved at startup, so every heap address
- *   falls in a known window — the write-barrier card table is indexed
- *   against that window (see scoop_gc_card_table). Small objects
- *   (<= half a line = 64B) are bump-allocated and never straddle a
- *   line (a too-small line tail is skipped); large objects (> 64B,
- *   DESIGN's "> line 的一半") own a whole block mapping. The 64B
- *   threshold makes a dedicated 32KB block per >64B object wasteful;
- *   it is kept per DESIGN and should be revisited together with the
- *   medium-object tier (DESIGN section 6).
- * - Free-line reuse: after a collection, runs of completely free lines
- *   in partially-live blocks become holes on a global free list, which
- *   allocation drains before carving a new block. Blocks with no live
- *   object are returned to the arena's free-block list (never munmap'd:
- *   the arena is one fixed reservation).
- * - Mark-region collection (DESIGN 2.2): roots (global root list,
- *   handle table, pinned objects, thread stack) are traced precisely
- *   through TypeDescriptor scan descriptors (scoop_rt.h); mark bits
- *   live in the object header (gc_word parity bit, so sweep never
- *   touches live objects), line liveness in per-block line tables.
- * - pin / GcHandle (DESIGN 2.3, runtime spec 3.4).
- *
- * Stack roots are found by a CONSERVATIVE scan of the current thread's
- * stack (transition, see gc_scan_stack): every aligned word that
- * validates as a heap object start is a root. This is replaced by
- * precise statepoint stackmap scanning once codegen emits stackmaps
- * (milestone9 DESIGN 3.2 — codegen-side task; gc_scan_stack is the
- * interface point).
- *
- * Scanners must never chase pointers into static or foreign memory:
- * every candidate pointer — from the stack, from object fields, from
- * root slots — is dereferenced only after is_heap_start() confirms it
- * is a recorded object start inside a known heap block. Static string
- * literals and ABI exception buffers therefore never get marked or
- * reclaimed by tracing through them; out-of-heap object-like regions
- * are scanned only via scoop_rt_gc_add_root_object().
- *
- * TypeDescriptors are immortal compiler-emitted globals, so tracing a
- * stale (dead but not yet reused) object is memory-safe: its td is
- * still valid and the pointers it yields are containment-checked in
- * turn. At worst, garbage is retained one extra cycle.
- *
- * M13 registers every OS thread in a TLS ScoopThreadState, moves
- * stack/native-root/TLAB ownership there, and coordinates collection with a
- * cooperative epoch handshake. Mutators allocate from disjoint owner-only
- * TLABs; heap and root registries use separate locks with heap-before-roots
- * ordering.
+ * The M13 heap remains single-generation and non-moving while the M15 module
+ * boundaries are established: 32KB blocks, 128B lines, owner-only TLABs and
+ * dedicated large-object blocks. Moving evacuation replaces this module's
+ * mark/sweep operations without leaking block internals into the collector.
  */
 #include <pthread.h>
 #include <stdatomic.h>
@@ -471,181 +428,35 @@ static void gc_hole_push(char *start, uint64_t lines) {
     gc_holes = hole;
 }
 
-/* --- marking ------------------------------------------------------------ */
+/* --- mark metadata ----------------------------------------------------- */
 
-static uint64_t gc_mark_color; /* parity value meaning "marked this cycle" */
-static const void **gc_work;
-static size_t gc_work_len;
-static size_t gc_work_cap;
-static uint64_t gc_marked_count; /* objects marked in the current cycle */
-static _Atomic(uint64_t) gc_live_objects; /* scoop_rt_gc_stats */
+static uint64_t gc_mark_color;
+static _Atomic(uint64_t) gc_live_objects;
 
-static void gc_work_push(const void *obj) {
-    if (gc_work_len == gc_work_cap) {
-        size_t new_cap = gc_work_cap == 0 ? 256 : gc_work_cap * 2;
-        const void **grown = realloc(gc_work, new_cap * sizeof *grown);
-        if (grown == NULL) {
-            gc_fatal("out of memory growing the mark worklist");
-        }
-        gc_work = grown;
-        gc_work_cap = new_cap;
-    }
-    gc_work[gc_work_len++] = obj;
-}
-
-/* Mark a validated heap object and queue it for tracing. */
-static void gc_mark(const void *obj) {
-    ScoopObjectHeader *header = (ScoopObjectHeader *)obj;
+bool scoop_gc_mark_object_locked(const void *object) {
+    ScoopObjectHeader *header = (ScoopObjectHeader *)object;
     uint64_t word = __atomic_load_n(&header->gc_word, __ATOMIC_RELAXED);
     if ((word & GC_MARK_BIT) == gc_mark_color) {
-        return; /* already marked this cycle */
+        return false;
     }
     __atomic_store_n(&header->gc_word, (word & ~GC_MARK_BIT) | gc_mark_color,
                      __ATOMIC_RELAXED);
-    ScoopGcBlock *block = gc_block_of(obj);
+    ScoopGcBlock *block = gc_block_of(object);
     if (block->kind == GC_SMALL) {
-        /* Small objects never straddle lines: one bit covers it. */
-        size_t line = ((uintptr_t)obj - (uintptr_t)block) / GC_LINE_SIZE;
+        size_t line =
+            ((uintptr_t)object - (uintptr_t)block) / GC_LINE_SIZE;
         block->line_marks[line / 64] |= UINT64_C(1) << (line % 64);
     }
-    /* Large blocks: sweep reads liveness off the object header. */
-    gc_marked_count++;
-    gc_work_push(obj);
+    return true;
 }
 
-static void gc_trace_slot(void **slot) {
-    const void *target = *slot;
-    if (is_heap_start(target)) {
-        gc_mark(target);
-    }
+void scoop_gc_heap_begin_collection_locked(void) {
+    gc_mark_color ^= 1;
 }
-
-/* Scan one inline value as directed by the recursive descriptor in
- * scoop_rt.h. Every plain reference offset is relative to base. */
-static void gc_trace_descriptor(const void *base, const uint64_t *table) {
-    if (table == NULL) {
-        return;
-    }
-    if (table[0] == SCOOP_REFS_ARRAY) {
-        uint64_t stride = table[1];
-        const uint64_t *element_scan = (const uint64_t *)(uintptr_t)table[2];
-        uint64_t count = *(const uint64_t *)((const char *)base + 16);
-        const char *elements = (const char *)base + 24;
-        for (uint64_t i = 0; i < count; i++) {
-            gc_trace_descriptor(elements + i * stride, element_scan);
-        }
-        return;
-    }
-    if (table[0] == SCOOP_REFS_SEQUENCE) {
-        uint64_t child_count = table[1];
-        for (uint64_t i = 0; i < child_count; i++) {
-            gc_trace_descriptor(base, (const uint64_t *)(uintptr_t)table[2 + i]);
-        }
-        return;
-    }
-    uint64_t count = table[0];
-    for (uint64_t i = 0; i < count; i++) {
-        gc_trace_slot((void **)((char *)base + table[1 + i]));
-    }
-}
-
-static void gc_trace_object(const void *obj) {
-    const uint64_t *refs = ((const ScoopObjectHeader *)obj)->td->ref_offsets;
-    gc_trace_descriptor(obj, refs);
-}
-
-static void gc_visit_root_slot(void **slot, void *context) {
-    (void)context;
-    gc_trace_slot(slot);
-}
-
-static void gc_visit_external_root(const void *object, void *context) {
-    (void)context;
-    gc_trace_object(object);
-}
-
-/* --- conservative stack scan (v1 transition) ---------------------------- */
 
 void scoop_rt_gc_init(void) {
     /* Reserve the heap arena and set up the card table at startup. */
     gc_arena_ensure();
-}
-
-static void gc_scan_range(const char *lo, const char *hi) {
-    uintptr_t p = ((uintptr_t)lo + sizeof(void *) - 1) & ~(uintptr_t)(sizeof(void *) - 1);
-    for (; p + sizeof(void *) <= (uintptr_t)hi; p += sizeof(void *)) {
-        /* memcpy: the stack is untyped storage; read words without
-         * tripping strict aliasing. */
-        const void *word;
-        memcpy(&word, (const void *)p, sizeof word);
-        if (is_heap_start(word)) {
-            gc_mark(word);
-        }
-    }
-}
-
-static void gc_scan_native_roots(const ScoopThreadState *thread) {
-    for (ScoopNativeRootFrame *frame = thread->native_roots; frame != NULL;
-         frame = frame->previous) {
-        for (uint64_t i = 0; i < frame->count; i++) {
-            gc_trace_slot(frame->slots[i]);
-        }
-    }
-}
-
-static void gc_scan_caller_roots(const ScoopThreadState *thread) {
-    for (ScoopCallerRootFrame *frame = thread->caller_roots; frame != NULL;
-         frame = frame->previous) {
-        for (uint64_t i = 0; i < frame->count; i++) {
-            gc_trace_descriptor(frame->entries[i].base, frame->entries[i].scan);
-        }
-    }
-}
-
-static void gc_scan_frozen_managed_segments(const ScoopThreadState *thread) {
-    for (ScoopThreadTransition *transition = thread->current_transition;
-         transition != NULL; transition = transition->previous) {
-        uintptr_t low = transition->managed_stack_low;
-        uintptr_t high = transition->managed_stack_high;
-        if (low < (uintptr_t)thread->stack_low || low >= high ||
-            high > (uintptr_t)thread->stack_high) {
-            gc_fatal("native transition contains an invalid managed stack segment");
-        }
-        gc_scan_range((const char *)low, (const char *)high);
-    }
-}
-
-/* M13 transition: each managed mutator publishes a stable SP and a setjmp
- * register spill before publishing parked/collector. The STW collector may
- * then conservatively scan those stable regions. Native-safe threads keep
- * running, so their active native stacks are deliberately skipped while the
- * LIFO transition chain contributes only frozen outer managed segments. M15
- * replaces these conservative ranges with precise stackmap locations. */
-static void gc_scan_thread(const ScoopThreadState *thread) {
-    ScoopThreadMode mode = atomic_load_explicit(&thread->mode, memory_order_acquire);
-    if (mode == SCOOP_THREAD_PARKED || mode == SCOOP_THREAD_COLLECTOR) {
-        if (thread->parked_from == SCOOP_THREAD_MANAGED) {
-            uintptr_t stack_low = (uintptr_t)thread->stack_low;
-            uintptr_t stack_high = (uintptr_t)thread->stack_high;
-            uintptr_t parked_sp = (uintptr_t)thread->parked_sp;
-            uintptr_t managed_boundary = (uintptr_t)thread->managed_stack_boundary;
-            if (parked_sp == 0 || parked_sp < stack_low || managed_boundary == 0 ||
-                managed_boundary > stack_high || parked_sp >= managed_boundary) {
-                gc_fatal("parked thread published an invalid stack pointer");
-            }
-            gc_scan_range((const char *)&thread->register_spill,
-                          (const char *)&thread->register_spill +
-                              sizeof thread->register_spill);
-            gc_scan_range(thread->parked_sp, thread->managed_stack_boundary);
-        } else if (thread->parked_from != SCOOP_THREAD_NATIVE_BORROWED) {
-            gc_fatal("parked thread has an invalid source mode");
-        }
-    } else if (mode != SCOOP_THREAD_NATIVE_SAFE) {
-        gc_fatal("collector observed a non-quiescent thread");
-    }
-    gc_scan_frozen_managed_segments(thread);
-    gc_scan_caller_roots(thread);
-    gc_scan_native_roots(thread);
 }
 
 /* --- sweep ---------------------------------------------------------------- */
@@ -718,53 +529,11 @@ static void gc_sweep(void) {
     }
 }
 
-/* --- collection entry points ---------------------------------------------- */
-
-void scoop_rt_gc_collect(void) {
-    if (!scoop_thread_begin_collection()) {
-        return;
-    }
-    /* The world is stopped before metadata locks are acquired. Native-safe
-     * threads may still run root APIs, so holding roots through sweep gives
-     * the collection one coherent root/pin snapshot. */
-    gc_lock(&gc_heap_lock, "failed to lock the heap");
-    scoop_gc_roots_lock();
-
-    for (ScoopThreadState *thread = scoop_thread_collection_registry_head();
-         thread != NULL; thread = thread->registry_next) {
-        thread->allocation.cursor = NULL;
-        thread->allocation.limit = NULL;
-    }
-    /* New cycle: with the parity flipped, every object starts unmarked
-     * (allocations set the bit to the *previous* color). */
-    gc_mark_color ^= 1;
-    gc_marked_count = 0;
-
-    /* External object roots are traced but never marked or reclaimed; all
-     * other root sources expose writable slots for the moving collector. */
-    ScoopGcRootVisitor root_visitor = {
-        .visit_slot = gc_visit_root_slot,
-        .visit_external_object = gc_visit_external_root,
-        .context = NULL,
-    };
-    scoop_gc_visit_roots_locked(root_visitor);
-    for (ScoopThreadState *thread = scoop_thread_collection_registry_head();
-         thread != NULL; thread = thread->registry_next) {
-        gc_scan_thread(thread);
-    }
-
-    /* Trace. */
-    while (gc_work_len > 0) {
-        gc_trace_object(gc_work[--gc_work_len]);
-    }
-
+void scoop_gc_heap_finish_collection_locked(uint64_t live_objects) {
     gc_sweep();
-    atomic_store_explicit(&gc_live_objects, gc_marked_count, memory_order_release);
+    atomic_store_explicit(&gc_live_objects, live_objects, memory_order_release);
     gc_threshold = gc_committed * 2 > GC_INITIAL_THRESHOLD ? gc_committed * 2
                                                            : GC_INITIAL_THRESHOLD;
-    scoop_gc_roots_unlock();
-    gc_unlock(&gc_heap_lock, "failed to unlock the heap");
-    scoop_thread_end_collection();
 }
 
 uint64_t scoop_rt_gc_stats(void) {
@@ -919,17 +688,4 @@ void *scoop_runtime_alloc_slow(const ScoopTypeDescriptor *td, size_t size) {
 
 void *scoop_rt_alloc(const ScoopTypeDescriptor *td, size_t size) {
     return scoop_runtime_alloc_slow(td, size);
-}
-
-/* ---- M9 compiler-side contracts (docs/milestone9/DESIGN.md 3.1) ---- */
-
-/* scoop_gc_card_table (write-barrier card table, spec 3.6) is defined
- * in the arena section above: a pointer variable pre-biased by
- * arena_base >> 9. */
-
-/* Safepoint poll: the fast path compares the current thread's observed
- * epoch with the global epoch. The slow path spills registers, publishes
- * its SP, parks, and waits for the single STW collector. */
-void scoop_rt_safepoint(void) {
-    scoop_thread_poll();
 }
