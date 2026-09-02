@@ -1,0 +1,442 @@
+use super::*;
+
+#[derive(Debug, Clone)]
+pub struct Module {
+    pub types: Arena<Type>,
+    /// Canonical function signatures in one-to-one correspondence with their
+    /// `FunctionType::canonical_type` entries in `types`.
+    pub function_types: Arena<FunctionType>,
+    /// Source callable-value entities. Their identities are intentionally
+    /// separate from the generated invoke functions they own.
+    pub lambdas: Arena<Lambda>,
+    pub anonymous_functions: Arena<AnonymousFunction>,
+    pub local_functions: Arena<LocalFunction>,
+    pub callable_references: Arena<CallableReference>,
+    /// Template-only calls through an interface upper bound. Each entry
+    /// names the exact receiver parameter, bound application and declaring
+    /// interface method; local-concrete HIR has no corresponding arena.
+    pub bound_callable_refs: Arena<BoundCallableRef>,
+    /// Source/target signatures of every explicit function-value variance
+    /// adaptation requested by HIR.
+    pub function_coercions: Arena<FunctionCoercion>,
+    pub foreign_callback_registrations: Arena<ForeignCallbackRegistration>,
+    pub functions: Arena<Function>,
+    /// Native functions imported by source declarations. They have no HIR
+    /// body and their identities never enter generic instantiation.
+    pub extern_functions: Arena<ExternFunction>,
+    /// Top-level storage declarations. Globals use an identity distinct from
+    /// functions and locals, and every entry carries a complete storage kind.
+    pub globals: Arena<Global>,
+    /// Generic function definitions. Their ids are distinct from
+    /// ordinary `FunctionId`s even though each entry points at the HIR
+    /// function that owns the parameterized body.
+    pub generic_functions: Arena<GenericFunction>,
+    /// Exact ordinary method applications and non-virtual generic method
+    /// templates/applications. Calls carry these typed identities directly;
+    /// concretization never reconstructs an owner from a function or a flat
+    /// argument vector.
+    pub method_applications: Arena<MethodApplication>,
+    pub generic_methods: Arena<GenericMethod>,
+    pub generic_method_applications: Arena<GenericMethodApplication>,
+    /// Fully typed compiler-derived equality bodies requested while lowering
+    /// source operators. Each body already names every nested member/derived
+    /// target; concretization substitutes it mechanically and never performs
+    /// member lookup or reconstructs aggregate semantics.
+    pub derived_equality_applications: Arena<DerivedEqualityApplication>,
+    pub structs: Arena<StructDecl>,
+    /// Canonical, fully applied export-side struct identities.  A type never
+    /// stores a declaration id and an unrelated argument vector.
+    pub struct_applications: Arena<StructApplication>,
+    pub enums: Arena<EnumDecl>,
+    pub enum_applications: Arena<EnumApplication>,
+    pub classes: Arena<ClassDecl>,
+    pub class_applications: Arena<ClassApplication>,
+    pub interfaces: Arena<InterfaceDecl>,
+    pub interface_applications: Arena<InterfaceApplication>,
+    /// Interface member declarations have their own identity domain. A
+    /// bound call never uses a general `FunctionId` as a substitute for the
+    /// declaring interface-member identity.
+    pub interface_methods: Arena<InterfaceMethod>,
+    /// Top-level functions in declaration order (core library first,
+    /// then user code).
+    pub top_level: Vec<FunctionId>,
+    /// Well-known types, allocated first by hir-lower.
+    pub unit: TypeId,
+    pub int: TypeId,
+    pub boolean: TypeId,
+    pub string: TypeId,
+    /// The `Option` enum from `scoop.core` (the desugar target of
+    /// `T?`, spec 7.1). Guaranteed present: a core library without a
+    /// suitable `Option` definition is a driver-level error.
+    pub option_enum: EnumId,
+    /// Compiler-generated exception construction targets. Every entry is a
+    /// validated, zero-argument class constructor; later stages never find
+    /// these entities by source or link name.
+    pub exception_core: CompilerExceptionCore,
+    /// Compiler-known coroutine protocol entities. HIR lowering validates
+    /// their exact declarations before constructing the module, so MIR never
+    /// falls back to textual lookup for protocol types or methods.
+    pub coroutine_core: CoroutineCore,
+    /// Compiler-known pointer/FFI core entities. HIR lowering validates the
+    /// unique source declarations and downstream stages use these typed ids,
+    /// never textual names.
+    pub ffi_core: FfiCore,
+    /// Compiler-validated managed callback protocol. Its ids are export-side
+    /// semantic identities and are concretized into a distinct local family.
+    pub foreign_callback_core: ForeignCallbackCore,
+    /// Source-validated nominal declarations for every compiler-represented
+    /// core type. These typed ids are the only bridge from primitive/family
+    /// semantics to source members and interfaces.
+    pub intrinsic_type_core: IntrinsicTypeCore,
+    /// Entry point: `fun main()`. Guaranteed present.
+    pub entry: FunctionId,
+    /// Resolved generic function applications, deduplicated in
+    /// first-use order. The arena id is carried directly by call
+    /// expressions and is the instantiation request consumed by MIR.
+    pub instantiations: Arena<ResolvedGenericFunction>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct FfiCore {
+    pub ptr: StructId,
+    pub fun_ptr: StructId,
+    pub pinned_ptr: StructId,
+    pub gc_handle: StructId,
+    pub ptr_to_uint: FunctionId,
+    pub ptr_cast: FunctionId,
+    pub ptr_load: FunctionId,
+    pub ptr_load_offset: FunctionId,
+    pub ptr_store: FunctionId,
+    pub ptr_store_offset: FunctionId,
+    pub ptr_plus: FunctionId,
+    pub ptr_minus: FunctionId,
+    pub address_of: FunctionId,
+    pub size_of: FunctionId,
+    pub align_of: FunctionId,
+    pub gc_pin_raw: FunctionId,
+    pub gc_unpin_raw: FunctionId,
+    pub gc_get_handle_raw: FunctionId,
+    pub gc_release_handle_raw: FunctionId,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ForeignCallbackCore {
+    pub callback: StructId,
+    pub mode: EnumId,
+    pub state: EnumId,
+    pub register: FunctionId,
+    pub retain: FunctionId,
+    pub release: FunctionId,
+    pub query_state: FunctionId,
+    pub failure: FunctionId,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct IntrinsicTypeCore {
+    pub int: StructId,
+    pub uint: StructId,
+    pub boolean: StructId,
+    pub string: ClassId,
+    pub array: ClassId,
+    pub mutable_array: ClassId,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ForeignCallbackMode {
+    Reusable,
+    OneShot,
+}
+
+#[derive(Debug, Clone)]
+pub struct ForeignCallbackRegistration {
+    pub native_function_type: FunctionTypeId,
+    pub managed_function_type: FunctionTypeId,
+    pub context_index: u32,
+    pub mode: ForeignCallbackMode,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ForeignCallbackOperation {
+    Retain,
+    Release,
+    State,
+    Failure,
+}
+
+#[derive(Debug, Clone)]
+pub struct Lambda {
+    pub function: FunctionId,
+    pub function_type: FunctionTypeId,
+    /// Type parameters inherited from the enclosing generic callable. The
+    /// generated invoke body is instantiated with this complete prefix.
+    pub owner_type_param_count: usize,
+    /// Structurally present even for no-capture lambdas; later M11 capture
+    /// analysis fills this list rather than changing the entity shape.
+    pub captures: Vec<Capture>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone)]
+pub struct AnonymousFunction {
+    pub function: FunctionId,
+    pub function_type: FunctionTypeId,
+    pub owner_type_param_count: usize,
+    pub captures: Vec<Capture>,
+    pub span: Span,
+}
+
+/// A block-local named function. `function` is its lifted body; direct calls
+/// pass `captures` as hidden parameters, while taking `::name` materializes a
+/// closure over the same body.
+#[derive(Debug, Clone)]
+pub struct LocalFunction {
+    pub function: FunctionId,
+    pub function_type: FunctionTypeId,
+    pub captures: Vec<Capture>,
+    /// Type parameters inherited from enclosing generic callables form the
+    /// prefix of the lifted function's combined type-parameter namespace.
+    pub owner_type_param_count: usize,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone)]
+pub struct CallableReference {
+    pub target: CallableReferenceTarget,
+    pub function_type: FunctionTypeId,
+    /// Type parameters of the callable containing this reference expression.
+    /// A non-zero value requires a concrete closure per enclosing instance.
+    pub owner_type_param_count: usize,
+    pub captures: Vec<Capture>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone)]
+pub enum CallableReferenceTarget {
+    Named(Callable),
+    Local {
+        local_function: LocalFunctionId,
+        callee: Callable,
+    },
+    /// A member reference whose receiver expression is evaluated when the
+    /// closure is created. The receiver's static type remains attached to the
+    /// expression so MIR can preserve direct / virtual / interface dispatch.
+    BoundMember {
+        receiver: Box<Expr>,
+        callee: MethodCallee,
+    },
+    /// A bound extension reference. Unlike a member reference its invoke
+    /// wrapper always direct-calls the extension body, prepending the saved
+    /// receiver to the ordinary source arguments.
+    BoundExtension {
+        receiver: Box<Expr>,
+        callee: Callable,
+    },
+}
+
+#[derive(Debug, Clone)]
+pub struct Capture {
+    pub binding: BindingId,
+    pub name: String,
+    pub ty: TypeId,
+    pub first_use_span: Span,
+    /// Expression evaluated in the immediately enclosing callable when the
+    /// closure object is created. It is either a local read or a transitive
+    /// capture read, and therefore preserves by-value creation-time semantics.
+    pub source: Expr,
+}
+
+#[derive(Debug, Clone)]
+pub struct FunctionCoercion {
+    pub source: FunctionTypeId,
+    pub target: FunctionTypeId,
+}
+
+/// A constructor target whose zero-argument signature is guaranteed by its
+/// type. The constructed exception type is exactly `class`; there is no
+/// parallel return-type field that could disagree with it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ZeroArgClassConstructor {
+    pub class: ClassId,
+}
+
+/// One compiler-known exception type together with its only construction
+/// target needed by compiler-generated control flow.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CompilerException {
+    pub constructor: ZeroArgClassConstructor,
+}
+
+impl CompilerException {
+    pub const fn class(self) -> ClassId {
+        self.constructor.class
+    }
+}
+
+/// Complete exception capabilities emitted by Export HIR. These ids belong
+/// exclusively to the export-side family and are concretized before MIR.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CompilerExceptionCore {
+    pub throwable: CompilerException,
+    pub unwrap_exception: CompilerException,
+    pub class_cast_exception: CompilerException,
+    pub arithmetic_exception: CompilerException,
+    pub index_out_of_bounds_exception: CompilerException,
+    pub illegal_state_exception: CompilerException,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CoroutineCore {
+    pub continuation: InterfaceId,
+    pub continuation_resume: FunctionId,
+    pub continuation_resume_with_exception: FunctionId,
+    pub suspend_task: InterfaceId,
+    pub suspend_task_run: FunctionId,
+    pub suspend_registration: InterfaceId,
+    pub suspend_registration_register: FunctionId,
+    pub start_coroutine: FunctionId,
+    pub suspend_coroutine: FunctionId,
+}
+
+impl Module {
+    pub fn callable_function(&self, callable: impl FunctionCallee) -> FunctionId {
+        callable.function(self)
+    }
+}
+
+pub trait FunctionCallee: Copy {
+    fn function(self, module: &Module) -> FunctionId;
+}
+
+impl FunctionCallee for Callable {
+    fn function(self, module: &Module) -> FunctionId {
+        callable_function(module, self)
+    }
+}
+
+impl FunctionCallee for MethodCallee {
+    fn function(self, module: &Module) -> FunctionId {
+        method_callee_function(module, self)
+    }
+}
+
+/// A generic HIR function definition. Generic identity is deliberately
+/// separate from the underlying function identity (AGENTS.md).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GenericFunction {
+    pub function: FunctionId,
+    /// Type parameters whose concrete arguments must be GC-free for this
+    /// generic definition to satisfy its `@NoGC` contract. The requirement
+    /// is inferred from the resolved signature/body and checked at every
+    /// instantiation; unused/representation-erased parameters are omitted.
+    pub no_gc_type_params: Vec<TypeParamId>,
+}
+
+/// A generic function with every call-site type argument resolved.
+/// MIR consumes this entity to produce a separate monomorphized
+/// function entity.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ResolvedGenericFunction {
+    pub generic: GenericFunctionId,
+    pub type_args: Vec<TypeId>,
+}
+
+/// Exact source-side owner of a method call. Parameter-free owners still use
+/// their canonical empty application, so every method application has one
+/// uniform and complete representation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum MethodOwnerApplication {
+    Class(ClassApplicationId),
+    Struct(StructApplicationId),
+    Enum(EnumApplicationId),
+    Interface(InterfaceApplicationId),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct MethodApplication {
+    pub function: FunctionId,
+    pub owner: MethodOwnerApplication,
+}
+
+/// Exact origin of one compiler-derived value-type equality method.
+/// Nominal declarations reuse their owner application; structural Unit/tuple
+/// methods carry their owner type directly because they have no declaration
+/// arena whose identity could stand in for that type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum DerivedEqualityOrigin {
+    Nominal(MethodOwnerApplication),
+    Structural(TypeId),
+}
+
+/// One application of a compiler-derived value-type equality method. The
+/// source method declaration supplies stable callable identity; every other
+/// property needed to materialize the concrete method is mandatory here.
+/// `body` is complete application-specific HIR, including exact nested
+/// callees, so concretization only substitutes types and callable identities.
+#[derive(Debug, Clone)]
+pub struct DerivedEqualityApplication {
+    pub function: FunctionId,
+    pub origin: DerivedEqualityOrigin,
+    pub owner_ty: TypeId,
+    pub attributes: FunctionAttributes,
+    pub span: Span,
+    pub body: Body,
+}
+
+/// A non-virtual generic method template. Its declaration identity is
+/// separate from every other generic callable family.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GenericMethod {
+    pub function: FunctionId,
+    pub no_gc_type_params: Vec<TypeParamId>,
+}
+
+/// Exact owner kinds accepted by non-interface generic methods.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum GenericMethodOwner {
+    Class(ClassApplicationId),
+    Struct(StructApplicationId),
+    Enum(EnumApplicationId),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct GenericMethodApplication {
+    pub method: GenericMethodId,
+    pub owner: GenericMethodOwner,
+    pub method_arguments: NonEmptyVec<TypeId>,
+}
+
+/// The fully-resolved callable stored on HIR calls. A generic call
+/// cannot be represented as a plain function plus an unrelated type
+/// argument vector: it must reference a resolved generic entity.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Callable {
+    Function(FunctionId),
+    Generic(ResolvedGenericFunctionId),
+    Method(MethodApplicationId),
+    GenericMethod(GenericMethodApplicationId),
+}
+
+pub(crate) fn callable_function(module: &Module, callable: Callable) -> FunctionId {
+    match callable {
+        Callable::Function(function) => function,
+        Callable::Generic(id) => {
+            module.generic_functions[module.instantiations[id].generic].function
+        }
+        Callable::Method(id) => module.method_applications[id].function,
+        Callable::GenericMethod(id) => {
+            module.generic_methods[module.generic_method_applications[id].method].function
+        }
+    }
+}
+
+pub(crate) fn method_callee_function(module: &Module, callee: MethodCallee) -> FunctionId {
+    match callee {
+        MethodCallee::Callable(callable) => callable_function(module, callable),
+        MethodCallee::Bound(bound) => {
+            module.interface_methods[module.bound_callable_refs[bound].member].function
+        }
+        MethodCallee::DerivedEquality(application) => {
+            module.derived_equality_applications[application].function
+        }
+    }
+}
