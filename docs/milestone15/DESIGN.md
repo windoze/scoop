@@ -79,7 +79,7 @@ M15 不能把 M9 已有的“statepoint section 存在”当作可移动 GC 基�
 | `Code` | `ptr addrspace(0)` | 函数入口/trampoline |
 | `Metadata` | `ptr addrspace(0)` | TypeDescriptor、scan program 等 immortal metadata |
 
-`Managed` 与其他三类不能因 LLVM opaque pointer 而合并。所有 `addrspacecast` 都必须由一个有语言/runtime 契约的 typed LIR operation 产生；M15 正常路径不提供 managed-to-raw cast。pin 返回的 raw 地址经现有 `UInt`/`Ptr` boundary 取得，不以任意 addrspacecast 冒充。
+`Managed` 与其他三类不能因 LLVM opaque pointer 而合并。所有涉及AS1的`addrspacecast`、`ptrtoint`与`inttoptr`都必须来自完备的typed来源；M15正常LIR不提供managed-to-raw cast或managed `PtrToInt`。codegen自身只有三个封闭的internal boundary：TLAB地址发布为新object、write-barrier计算card index、C++ EH catch结果恢复为managed exception object；它们分别携带不同的非可选metadata witness，post verifier按operation kind精确匹配。该witness不能由源码/LIR构造，也不能把转换开放成通用pointer escape。pin返回的raw地址经现有`UInt`/`Ptr` boundary取得，不以任意addrspacecast冒充。
 
 managed ref 的非 null 值只能指向：
 
@@ -281,7 +281,7 @@ NativeBorrowedCallSite {
 
 对含 ref aggregate，codegen 在 call 前把每个 leaf load 为独立 `ptr addrspace(1)` SSA value，并在 call 后形成对该值的显式使用，再写回原 storage/rebuild aggregate。这样 RS4GC 必须为每个 leaf 创建 relocate，并把调用后的 use 改为 relocated value。不能把 aggregate alloca 地址作为 stack region 交给 LLVM，也不能假设 RS4GC 会扫描 struct。
 
-普通 managed ref 是 offset 0 的单 leaf。tagged enum 直接消费 LIR 的固定 ref offset；不读取 tag。inactive slot 已由 M13/M14 契约保证为 0。
+普通 managed ref 是 offset 0 的单 leaf。tagged enum 直接消费 LIR 的固定 ref offset；不读取 tag。inactive slot 已由 M13/M14 契约保证为 0。codegen的tagged-enum LLVM物理类型必须把每个固定ref offset表达为真正的AS1 pointer field，只有GC-free间隙可用opaque byte array；把整个payload降成`[N x i8]`会使SROA把managed pointer拆成`ptrtoint`/字节片段，属于非法的provenance擦除。
 
 ### 5.3 普通 managed call与poll
 
@@ -340,7 +340,7 @@ post-RS4GC verifier 拒绝：
 
 - base/derived index不同的 `gc.relocate`；
 - AS1 GEP结果跨 safepoint；
-- managed `ptrtoint` 或未经 typed pin boundary 的 AS1→AS0 cast；
+- 没有与operation kind匹配的internal typed witness的AS1 `ptrtoint`/`inttoptr`/`addrspacecast`，以及任何由普通LIR `PtrToInt`产生的managed转换；
 - raw/code/metadata pointer进入 `gc-live`；
 - aggregate 内含 AS1 leaf却没有对应 `StatepointLiveSet` leaf。
 
@@ -356,7 +356,7 @@ post-RS4GC verifier 至少检查：
 - 普通call及入口/回边poll的root count/leaf identity/relocate dominance完整；
 - managed invoke 的 gc-live/relocate均为空，显式 root frame在两个edge对称清理；
 - native-safe/native-borrowed call的gc-live/relocate均为空，跨边界value与含ref result只从caller-root storage reload；
-- AS1/AS0 provenance与cast规则；
+- AS1/AS0 provenance、tagged-enum typed ref slot与封闭internal pointer-boundary witness规则；
 - 不存在未处理的 managed aggregate live-through。
 
 object-level test再解析Mach-O relocation与stack map，先验证前三个header location及deopt count，再锁定`3 + 2 * root_count` location数、每个GC pair的AArch64 stack-indirect location、stack size与return-PC offset。该测试必须经inkwell 0.10实际使用的LLVM 22.1 `TargetMachine::write_to_file`路径，在O0与项目优化配置下分别覆盖零/单个/多个AS1 root；仅搜索section name或只调用独立`llc`不算主线验收。若任一GC root成为`Register`，测试应将其归类为backend invariant failure，并证明不会把前三个constant或live-out误判为root。
@@ -503,7 +503,7 @@ Scoop ABI外部实现继续遵守runtime spec 4.2：native-borrowed代码在调�
 - struct/tuple/tagged enum/closure/coroutine aggregate每个ref leaf单独relocate；GC-free leaf不进入；
 - managed invoke由codegen直接发射唯一ID的显式statepoint、零gc-live、零exceptional relocate，normal/unwind按各自edge flag reload并pop显式frame；
 - native-safe/native-borrowed call有唯一statepoint ID、零gc-live/relocate，transition前后root/result publication与reload顺序完整；
-- derived address跨safepoint、managed ptrtoint、非法addrspacecast为verifier negative；
+- derived address跨safepoint、无typed witness或witness kind错误的managed pointer转换为verifier negative；
 - Mach-O v3 parser golden覆盖所有location编码、alignment、constant pool和truncated/corrupt输入；Darwin profile对unsupported root shape给出确定错误；
 - linked executable runtime检查dyld fixup后的function address和return PC均落在预期代码范围；离线测试用`dyld_info`/Mach-O parser确认chained fixup，而不把磁盘编码误读为指针；
 - AArch64反汇编锁定frame chain、return address等于stack-map PC、root为8-byte indirect SP/FP slot；O0与项目优化配置的真实AS1 fixture均不得产生GC register root。
