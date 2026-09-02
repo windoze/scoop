@@ -1,0 +1,404 @@
+use super::*;
+
+impl Lowerer {
+    pub(super) fn lower_field_access(
+        &mut self,
+        access: &ast::FieldAccess,
+        sink: &mut Vec<hir::Statement>,
+        expected: Option<TypeId>,
+    ) -> Option<hir::Expr> {
+        // `E.V` where `E` is an enum: a unit variant construction
+        // (`Color.Red`). Variants with fields are constructors and must
+        // be called (`E.V(...)`).
+        if let ast::Expr::Var(name) = &*access.receiver {
+            if let Some(&enum_id) = self.enums_by_name.get(&name.text) {
+                return self.lower_qualified_variant(enum_id, access, expected);
+            }
+        }
+        let receiver = self.lower_expr(&access.receiver, sink, None)?;
+        // `array.size` (spec 10.5): the pseudo-property resolves on
+        // both array kinds; any other receiver keeps the ordinary
+        // field rules (so `.size` on a non-array is the usual unknown
+        // field diagnostic).
+        if let ast::FieldSelector::Name(field) = &access.selector {
+            if field.text == "size" && self.array_element_ty(receiver.ty).is_some() {
+                return Some(hir::Expr {
+                    kind: ExprKind::ArrayLen(Box::new(receiver)),
+                    ty: self.int,
+                    span: access.span,
+                });
+            }
+        }
+        let (field, ty) = self.resolve_field(receiver.ty, &access.selector)?;
+        Some(hir::Expr {
+            kind: ExprKind::FieldAccess {
+                receiver: Box::new(receiver),
+                field,
+            },
+            ty,
+            span: access.span,
+        })
+    }
+
+    /// `E.V` with `E` an enum (see `lower_field_access`).
+    pub(super) fn lower_qualified_variant(
+        &mut self,
+        enum_id: hir::EnumId,
+        access: &ast::FieldAccess,
+        expected: Option<TypeId>,
+    ) -> Option<hir::Expr> {
+        let enum_name = self.enums[enum_id].name.clone();
+        let ast::FieldSelector::Name(variant_name) = &access.selector else {
+            self.error(
+                access.span,
+                format!("enum `{enum_name}` has no variants selected by index"),
+            );
+            return None;
+        };
+        let Some(variant) = self.find_variant(enum_id, &variant_name.text) else {
+            self.error(
+                variant_name.span,
+                format!("enum `{enum_name}` has no variant `{}`", variant_name.text),
+            );
+            return None;
+        };
+        let arity = self.enums[enum_id].variants[variant as usize].fields.len();
+        if arity != 0 {
+            let vname = &variant_name.text;
+            self.error(
+                access.span,
+                format!(
+                    "variant `{vname}` of `{enum_name}` takes {arity} argument(s); use `{enum_name}.{vname}(...)` to construct it"
+                ),
+            );
+            return None;
+        }
+        self.lower_unit_variant(variant_name, enum_id, variant, expected)
+    }
+
+    /// `receiver?.field`: the receiver must be an `Option<S>`; the
+    /// result is an `Option<F>` where `F` is the field type. Desugared
+    /// (see the module docs): `$opt.N = receiver`, then
+    /// `if isSome($opt.N) { $res.M = Some(unwrap($opt.N).field) } else { $res.M = None }`
+    /// and the expression evaluates to `$res.M`.
+    pub(super) fn lower_safe_field_access(
+        &mut self,
+        access: &ast::FieldAccess,
+        sink: &mut Vec<hir::Statement>,
+    ) -> Option<hir::Expr> {
+        let receiver = self.lower_expr(&access.receiver, sink, None)?;
+        let Some(inner) = self.as_option(receiver.ty) else {
+            let found = self.type_name(receiver.ty);
+            self.error(
+                access.span,
+                format!("`?.` requires an Option receiver, found {found}"),
+            );
+            return None;
+        };
+        let (field, field_ty) = self.resolve_field(inner, &access.selector)?;
+        let result_ty = self.option_type(field_ty);
+        let span = access.span;
+        let then_value = move |tmp: hir::Expr| {
+            let unwrapped = hir::Expr {
+                kind: ExprKind::Unwrap {
+                    operand: Box::new(tmp),
+                    trap_on_none: false,
+                },
+                ty: inner,
+                span,
+            };
+            let field_access = hir::Expr {
+                kind: ExprKind::FieldAccess {
+                    receiver: Box::new(unwrapped),
+                    field,
+                },
+                ty: field_ty,
+                span,
+            };
+            hir::Expr {
+                kind: ExprKind::SomeWrap(Box::new(field_access)),
+                ty: result_ty,
+                span,
+            }
+        };
+        let else_value = hir::Expr {
+            kind: ExprKind::NoneLiteral,
+            ty: result_ty,
+            span,
+        };
+        Some(self.desugar_option(
+            receiver,
+            result_ty,
+            span,
+            sink,
+            then_value,
+            ElseBranch {
+                statements: Vec::new(),
+                value: else_value,
+            },
+        ))
+    }
+
+    /// `lhs ?: rhs`: `lhs` must be an `Option<T>` and `rhs` a `T` (the
+    /// right-hand side gets `T` as its expected-type hint). Desugared:
+    /// `$opt.N = lhs`, then
+    /// `if isSome($opt.N) { $res.M = unwrap($opt.N) } else { $res.M = rhs }`
+    /// and the expression evaluates to `$res.M`. The right-hand side is
+    /// lowered into the else branch directly, so it (including its own
+    /// desugaring statements) is only evaluated on the `None` path.
+    pub(super) fn lower_elvis(
+        &mut self,
+        lhs: &ast::Expr,
+        rhs: &ast::Expr,
+        span: Span,
+        sink: &mut Vec<hir::Statement>,
+    ) -> Option<hir::Expr> {
+        let lhs = self.lower_expr(lhs, sink, None)?;
+        let Some(inner) = self.as_option(lhs.ty) else {
+            let found = self.type_name(lhs.ty);
+            self.error(
+                span,
+                format!("`?:` requires an Option left-hand side, found {found}"),
+            );
+            return None;
+        };
+        let mut else_body = Vec::new();
+        let rhs = self.lower_expr(rhs, &mut else_body, Some(inner))?;
+        if !self.types_equal(inner, rhs.ty) {
+            let expected = self.type_name(inner);
+            let found = self.type_name(rhs.ty);
+            self.error(
+                rhs.span,
+                format!("right-hand side of `?:` must be of type {expected}, found {found}"),
+            );
+            return None;
+        }
+        let then_value = move |tmp: hir::Expr| hir::Expr {
+            kind: ExprKind::Unwrap {
+                operand: Box::new(tmp),
+                trap_on_none: false,
+            },
+            ty: inner,
+            span,
+        };
+        Some(self.desugar_option(
+            lhs,
+            inner,
+            span,
+            sink,
+            then_value,
+            ElseBranch {
+                statements: else_body,
+                value: rhs,
+            },
+        ))
+    }
+
+    /// `operand!!`: the operand must be an `Option<T>`; the result is
+    /// `T`, trapping on `None` (M3: `scoop_rt_trap`; M8: a real
+    /// `UnwrapException`, DESIGN.md 5.2).
+    pub(super) fn lower_null_assert(
+        &mut self,
+        operand: &ast::Expr,
+        span: Span,
+        sink: &mut Vec<hir::Statement>,
+    ) -> Option<hir::Expr> {
+        let operand = self.lower_expr(operand, sink, None)?;
+        let Some(inner) = self.as_option(operand.ty) else {
+            let found = self.type_name(operand.ty);
+            self.error(
+                span,
+                format!("`!!` requires an Option operand, found {found}"),
+            );
+            return None;
+        };
+        Some(hir::Expr {
+            kind: ExprKind::Unwrap {
+                operand: Box::new(operand),
+                trap_on_none: true,
+            },
+            ty: inner,
+            span,
+        })
+    }
+
+    /// The shared `?.` / `?:` desugaring skeleton (see the module
+    /// docs): push `$opt.N = receiver` and an `if isSome($opt.N)` whose
+    /// branches each initialize the hidden `$res.N` result local —
+    /// `then_value($opt.N)` in the then-branch, the else branch's value
+    /// (preceded by its own statements) in the else-branch. Returns a
+    /// reference to `$res.N`.
+    pub(super) fn desugar_option(
+        &mut self,
+        receiver: hir::Expr,
+        result_ty: TypeId,
+        span: Span,
+        sink: &mut Vec<hir::Statement>,
+        then_value: impl FnOnce(hir::Expr) -> hir::Expr,
+        else_branch: ElseBranch,
+    ) -> hir::Expr {
+        let option_ty = receiver.ty;
+        let tmp = self.alloc_hidden("opt", option_ty);
+        sink.push(hir::Statement {
+            kind: hir::StatementKind::ValDecl {
+                pattern: hir::Pattern::Binding { local: tmp },
+                init: receiver,
+            },
+            span,
+        });
+        let tmp_expr = |span| hir::Expr {
+            kind: ExprKind::Local(tmp),
+            ty: option_ty,
+            span,
+        };
+        let cond = hir::Expr {
+            kind: ExprKind::IsSome(Box::new(tmp_expr(span))),
+            ty: self.boolean,
+            span,
+        };
+        let result = self.alloc_hidden("res", result_ty);
+        let then_body = vec![hir::Statement {
+            kind: hir::StatementKind::ValDecl {
+                pattern: hir::Pattern::Binding { local: result },
+                init: then_value(tmp_expr(span)),
+            },
+            span,
+        }];
+        let mut else_body = else_branch.statements;
+        else_body.push(hir::Statement {
+            kind: hir::StatementKind::ValDecl {
+                pattern: hir::Pattern::Binding { local: result },
+                init: else_branch.value,
+            },
+            span,
+        });
+        sink.push(hir::Statement {
+            kind: hir::StatementKind::If {
+                cond,
+                then_body,
+                else_body: Some(else_body),
+            },
+            span,
+        });
+        hir::Expr {
+            kind: ExprKind::Local(result),
+            ty: result_ty,
+            span,
+        }
+    }
+
+    /// Resolve a field selector against a receiver type: a struct field
+    /// by name, a class constructor property by name (base chain
+    /// included; the index is the absolute layout index — base fields
+    /// prefix, own fields consecutive), or a tuple element by (1-based)
+    /// index.
+    pub(super) fn resolve_field(
+        &mut self,
+        receiver_ty: TypeId,
+        selector: &ast::FieldSelector,
+    ) -> Option<(hir::FieldRef, TypeId)> {
+        match self.types[receiver_ty].clone() {
+            Type::Class(application) => {
+                let class_id = self.class_applications[application].template;
+                let class_name = self.classes[class_id].name.clone();
+                match selector {
+                    ast::FieldSelector::Name(field) => {
+                        let Some((declaring, index, ty, _)) =
+                            self.find_class_application_field(application, &field.text)
+                        else {
+                            self.error(
+                                field.span,
+                                format!("class `{class_name}` has no field `{}`", field.text),
+                            );
+                            return None;
+                        };
+                        Some((
+                            hir::FieldRef::ClassField {
+                                application: declaring,
+                                index,
+                            },
+                            ty,
+                        ))
+                    }
+                    ast::FieldSelector::Index(index, span) => {
+                        self.error(
+                            *span,
+                            format!("class `{class_name}` has no field `_{index}`"),
+                        );
+                        None
+                    }
+                }
+            }
+            Type::Struct(application) => {
+                let application_value = self.struct_applications[application].clone();
+                let struct_id = application_value.template;
+                let struct_name = self.structs[struct_id].name.clone();
+                match selector {
+                    ast::FieldSelector::Name(field) => {
+                        let fields = self.structs[struct_id].semantic_fields();
+                        let Some(index) = fields.iter().position(|f| f.name == field.text) else {
+                            self.error(
+                                field.span,
+                                format!("struct `{struct_name}` has no field `{}`", field.text),
+                            );
+                            return None;
+                        };
+                        let ty = fields[index].ty;
+                        let ty = self.instantiate_ty(ty, &application_value.arguments);
+                        Some((
+                            hir::FieldRef::StructField {
+                                application,
+                                index: index as u32,
+                            },
+                            ty,
+                        ))
+                    }
+                    ast::FieldSelector::Index(index, span) => {
+                        self.error(
+                            *span,
+                            format!("struct `{struct_name}` has no field `_{index}`"),
+                        );
+                        None
+                    }
+                }
+            }
+            Type::Tuple(elements) => match selector {
+                ast::FieldSelector::Index(index, span) => {
+                    // Tuple indices are 1-based (`._1` is the first
+                    // element); anything outside `1..=len` is an error.
+                    let ty = (1..=elements.len() as u32)
+                        .contains(index)
+                        .then(|| elements[*index as usize - 1]);
+                    match ty {
+                        Some(ty) => Some((hir::FieldRef::TupleIndex(index - 1), ty)),
+                        None => {
+                            let found = self.type_name(receiver_ty);
+                            self.error(
+                                *span,
+                                format!("tuple type `{found}` has no element `_{index}`"),
+                            );
+                            None
+                        }
+                    }
+                }
+                ast::FieldSelector::Name(field) => {
+                    let found = self.type_name(receiver_ty);
+                    self.error(
+                        field.span,
+                        format!("tuple type `{found}` has no field `{}`", field.text),
+                    );
+                    None
+                }
+            },
+            _ => {
+                let found = self.type_name(receiver_ty);
+                let span = match selector {
+                    ast::FieldSelector::Name(field) => field.span,
+                    ast::FieldSelector::Index(_, span) => *span,
+                };
+                self.error(span, format!("type `{found}` has no fields"));
+                None
+            }
+        }
+    }
+}
