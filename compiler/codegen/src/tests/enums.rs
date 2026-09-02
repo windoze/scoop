@@ -281,8 +281,9 @@ pub(super) fn enum_module() -> Module {
     let mut trap_targets = CallTargets::default();
     let trap_site = void_site(
         &mut trap_targets,
-        no_gc_runtime(scoop_lir::NoGcRuntimeFunction::Trap),
-        TestCallProtocol::NoGc,
+        TestCallProtocol::NoGc {
+            destination: no_gc_runtime(scoop_lir::NoGcRuntimeFunction::Trap),
+        },
         vec![RAW_PTR],
         vec![Value::Global(trap_message)],
     );
@@ -345,8 +346,10 @@ pub(super) fn enum_module() -> Module {
     let mut consume_targets = CallTargets::default();
     let produce_site = indirect_result_site(
         &mut consume_targets,
-        CallDestination::Local(scoop_lir::LocalFunctionId::from_u32(3)),
-        TestCallProtocol::Managed(1),
+        TestCallProtocol::Managed {
+            safepoint: 1,
+            destination: managed_local(3),
+        },
         Vec::new(),
         (shape_ty.clone(), RefScan::References(vec![24])),
         received,
@@ -389,8 +392,10 @@ pub(super) fn enum_module() -> Module {
     let dispatch = dispatch_destination(&mut indirect_targets, Value::Param(0), 0);
     let indirect_site = indirect_result_site(
         &mut indirect_targets,
-        dispatch,
-        TestCallProtocol::Managed(2),
+        TestCallProtocol::Managed {
+            safepoint: 2,
+            destination: dispatch,
+        },
         Vec::new(),
         (shape_ty.clone(), RefScan::References(vec![24])),
         indirect_received,

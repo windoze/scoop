@@ -983,7 +983,7 @@ mod tests {
     use super::{
         CExternFunction, CExternFunctionRef, CallDestination, CallTarget, CallTargets,
         CallingConvention, DirectCallSignature, ExternFunctionDeclaration, ExternFunctions,
-        GcEffect, LirType, ManagedCallDestination, ManagedRuntimeFunction,
+        GcEffect, LirType, LocalFunctionIdentities, ManagedCallDestination, ManagedRuntimeFunction,
         NativeBorrowedCallDestination, NativeBorrowedResultPublication, NativeBorrowedResultRoot,
         NativeSafeCallDestination, NonEmptyRefScan, RefScan, ResultStorage, ScoopExternFunction,
         ScoopExternFunctionRef, TypedCall, TypedCallView, Value, VoidCallSignature,
@@ -1020,6 +1020,24 @@ mod tests {
     }
 
     #[test]
+    fn local_function_registry_produces_effect_refined_identities() {
+        let mut functions = LocalFunctionIdentities::default();
+        let managed = functions.alloc_managed();
+        let no_gc = functions.alloc_no_gc();
+
+        assert_eq!(managed.declaration().into_u32(), 0);
+        assert_eq!(no_gc.declaration().into_u32(), 1);
+        assert!(matches!(
+            ManagedCallDestination::local(managed).view(),
+            CallDestination::Local(id) if id == managed.declaration()
+        ));
+        assert!(matches!(
+            super::NoGcCallDestination::local(no_gc).view(),
+            CallDestination::Local(id) if id == no_gc.declaration()
+        ));
+    }
+
+    #[test]
     fn typed_targets_atomically_bind_protocol_return_convention_and_signature() {
         let mut targets = CallTargets::default();
         let void_signature = targets.void_signatures.alloc(VoidCallSignature {
@@ -1041,8 +1059,13 @@ mod tests {
             result_scan: RefScan::None,
             calling_convention: CallingConvention::Cdecl,
         });
+        let mut local_functions = LocalFunctionIdentities::default();
+        let local_function = (0..=7)
+            .map(|_| local_functions.alloc_managed())
+            .last()
+            .expect("the test declares one local function");
         let direct_target = targets.managed_targets.direct.alloc(CallTarget {
-            destination: ManagedCallDestination::local(super::LocalFunctionId::from_u32(7)),
+            destination: ManagedCallDestination::local(local_function),
             signature: direct_signature,
         });
         let direct_call = TypedCall::Direct {

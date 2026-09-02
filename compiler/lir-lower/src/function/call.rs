@@ -65,14 +65,11 @@ impl<'a> FunctionLowerer<'a> {
 
     pub(super) fn call_site(
         &mut self,
-        destination: lir::CallDestination,
-        protocol: CallProtocol,
+        destination: LoweredCallDestination,
         call: PendingTypedCall,
     ) -> lir::CallSite {
-        match protocol {
-            CallProtocol::Managed => {
-                let destination = lir::ManagedCallDestination::from_view(destination)
-                    .expect("managed protocol requires a managed destination");
+        match destination {
+            LoweredCallDestination::Managed(destination) => {
                 lir::CallSite::Managed(lir::ManagedCallSite {
                     call: bind_typed_call(
                         &mut self.call_targets.managed_targets,
@@ -83,13 +80,9 @@ impl<'a> FunctionLowerer<'a> {
                     live: lir::StatepointLiveSet::default(),
                 })
             }
-            CallProtocol::NoGc => {
-                let destination = lir::NoGcCallDestination::from_view(destination)
-                    .expect("NoGC protocol requires a NoGC destination");
-                lir::CallSite::NoGc(lir::NoGcCallSite {
-                    call: bind_typed_call(&mut self.call_targets.no_gc_targets, destination, call),
-                })
-            }
+            LoweredCallDestination::NoGc(destination) => lir::CallSite::NoGc(lir::NoGcCallSite {
+                call: bind_typed_call(&mut self.call_targets.no_gc_targets, destination, call),
+            }),
         }
     }
 
@@ -152,16 +145,13 @@ impl<'a> FunctionLowerer<'a> {
 
     pub(super) fn invoke_site(
         &mut self,
-        destination: lir::CallDestination,
-        protocol: CallProtocol,
+        destination: LoweredCallDestination,
         call: PendingTypedCall,
         normal: lir::BlockId,
         unwind: lir::BlockId,
     ) -> lir::InvokeSite {
-        match protocol {
-            CallProtocol::Managed => {
-                let destination = lir::ManagedCallDestination::from_view(destination)
-                    .expect("managed protocol requires a managed destination");
+        match destination {
+            LoweredCallDestination::Managed(destination) => {
                 lir::InvokeSite::Managed(lir::ManagedInvokeSite {
                     call: bind_typed_call(
                         &mut self.call_targets.managed_targets,
@@ -174,9 +164,7 @@ impl<'a> FunctionLowerer<'a> {
                     unwind,
                 })
             }
-            CallProtocol::NoGc => {
-                let destination = lir::NoGcCallDestination::from_view(destination)
-                    .expect("NoGC protocol requires a NoGC destination");
+            LoweredCallDestination::NoGc(destination) => {
                 lir::InvokeSite::NoGc(lir::NoGcInvokeSite {
                     call: bind_typed_call(&mut self.call_targets.no_gc_targets, destination, call),
                     normal,
@@ -186,40 +174,60 @@ impl<'a> FunctionLowerer<'a> {
         }
     }
 
+    pub(super) fn managed_dispatch_destination(
+        &mut self,
+        table: lir::Value,
+        kind: lir::DispatchKind,
+        index: u32,
+    ) -> LoweredCallDestination {
+        let slot = self
+            .call_targets
+            .dispatch_slots
+            .alloc_managed(lir::DispatchSlot { kind, index });
+        LoweredCallDestination::Managed(lir::ManagedCallDestination::dispatch(table, slot))
+    }
+
     pub(super) fn dispatch_destination(
         &mut self,
         table: lir::Value,
         kind: lir::DispatchKind,
         index: u32,
-    ) -> lir::CallDestination {
-        let slot = self
-            .call_targets
-            .dispatch_slots
-            .alloc(lir::DispatchSlot { kind, index });
-        lir::CallDestination::Dispatch { table, slot }
+        effect: mir::GcEffect,
+    ) -> LoweredCallDestination {
+        match effect {
+            mir::GcEffect::Managed => {
+                let slot = self
+                    .call_targets
+                    .dispatch_slots
+                    .alloc_managed(lir::DispatchSlot { kind, index });
+                LoweredCallDestination::Managed(lir::ManagedCallDestination::dispatch(table, slot))
+            }
+            mir::GcEffect::NoGc => {
+                let slot = self
+                    .call_targets
+                    .dispatch_slots
+                    .alloc_no_gc(lir::DispatchSlot { kind, index });
+                LoweredCallDestination::NoGc(lir::NoGcCallDestination::dispatch(table, slot))
+            }
+        }
     }
 
-    pub(super) fn emit_managed_call(
+    pub(super) fn emit_non_native_call(
         &mut self,
-        destination: lir::CallDestination,
-        protocol: CallProtocol,
+        destination: LoweredCallDestination,
         parameter_types: Vec<lir::LirType>,
         result_type: lir::LirType,
         args: Vec<lir::Value>,
     ) -> lir::Value {
-        assert!(matches!(
-            protocol,
-            CallProtocol::Managed | CallProtocol::NoGc
-        ));
         let (call, value) = self.typed_call(parameter_types, result_type, args);
         if let Some(unwind) = self.current_unwind {
             let normal = self.new_block("invoke.normal");
-            let site = self.invoke_site(destination, protocol, call, normal, unwind);
+            let site = self.invoke_site(destination, call, normal, unwind);
             self.push(lir::Instruction::Invoke { site });
             self.seal(lir::Terminator::Br(normal));
             self.enter(normal);
         } else {
-            let site = self.call_site(destination, protocol, call);
+            let site = self.call_site(destination, call);
             self.push(lir::Instruction::Call { site });
         }
         value.unwrap_or_else(|| self.unit_value())
@@ -227,18 +235,13 @@ impl<'a> FunctionLowerer<'a> {
 
     pub(super) fn emit_plain_call(
         &mut self,
-        destination: lir::CallDestination,
-        protocol: CallProtocol,
+        destination: LoweredCallDestination,
         parameter_types: Vec<lir::LirType>,
         result_type: lir::LirType,
         args: Vec<lir::Value>,
     ) -> lir::Value {
-        assert!(matches!(
-            protocol,
-            CallProtocol::Managed | CallProtocol::NoGc
-        ));
         let (call, value) = self.typed_call(parameter_types, result_type, args);
-        let site = self.call_site(destination, protocol, call);
+        let site = self.call_site(destination, call);
         self.push(lir::Instruction::Call { site });
         value.unwrap_or_else(|| self.unit_value())
     }
@@ -372,19 +375,15 @@ impl<'a> FunctionLowerer<'a> {
                 let td = self.load_at_offset(args[0], 0, lir::METADATA_PTR);
                 let target_td = self.td_ref(&mir::Type::Function(function_type));
                 let table = self.emit_plain_call(
-                    lir::CallDestination::Runtime(lir::RuntimeFunction::NoGc(
-                        lir::NoGcRuntimeFunction::ITableLookup,
-                    )),
-                    CallProtocol::NoGc,
+                    LoweredCallDestination::no_gc_runtime(lir::NoGcRuntimeFunction::ITableLookup),
                     vec![lir::METADATA_PTR, lir::METADATA_PTR],
                     lir::METADATA_PTR,
                     vec![lir::Value::Temp(td), target_td],
                 );
                 let destination =
-                    self.dispatch_destination(table, lir::DispatchKind::FunctionBridge, 0);
+                    self.managed_dispatch_destination(table, lir::DispatchKind::FunctionBridge, 0);
                 self.finish_indirect(
                     destination,
-                    CallProtocol::Managed,
                     args,
                     parameter_types,
                     !signature.is_suspend && signature.return_type == mir::Type::Unit,
@@ -432,25 +431,15 @@ impl<'a> FunctionLowerer<'a> {
                 let param_types: Vec<mir::Type> =
                     callee.params.iter().map(|param| param.ty.clone()).collect();
                 let returns_unit = callee.return_ty == mir::Type::Unit;
-                let effect = match callee.gc_effect {
-                    mir::GcEffect::Managed => CallProtocol::Managed,
-                    mir::GcEffect::NoGc => CallProtocol::NoGc,
-                };
                 assert_eq!(call.args.len(), param_types.len(), "user call arity");
                 // Arguments are evaluated left to right, before the call.
                 let args: Vec<lir::Value> =
                     call.args.iter().map(|arg| self.lower_expr(arg)).collect();
                 match call.target.kind {
                     mir::CallKind::Direct => {
-                        let destination = lir::CallDestination::Local(self.local_function_map[&id]);
-                        self.finish_call(
-                            destination,
-                            effect,
-                            args,
-                            param_types,
-                            returns_unit,
-                            result_ty,
-                        )
+                        let destination =
+                            LoweredCallDestination::local(self.local_function_map[&id]);
+                        self.finish_call(destination, args, param_types, returns_unit, result_ty)
                     }
                     // vtable dispatch (impl spec 2.9): the receiver's
                     // object header holds the TypeDescriptor, whose
@@ -463,10 +452,10 @@ impl<'a> FunctionLowerer<'a> {
                             lir::Value::Temp(vtable),
                             lir::DispatchKind::Virtual,
                             slot,
+                            callee.gc_effect,
                         );
                         self.finish_indirect(
                             destination,
-                            effect,
                             args,
                             param_types,
                             returns_unit,
@@ -480,19 +469,21 @@ impl<'a> FunctionLowerer<'a> {
                         let td = self.load_at_offset(args[0], 0, lir::METADATA_PTR);
                         let iface_td = self.td_ref(&mir::Type::Interface(interface));
                         let table = self.emit_plain_call(
-                            lir::CallDestination::Runtime(lir::RuntimeFunction::NoGc(
+                            LoweredCallDestination::no_gc_runtime(
                                 lir::NoGcRuntimeFunction::ITableLookup,
-                            )),
-                            CallProtocol::NoGc,
+                            ),
                             vec![lir::METADATA_PTR, lir::METADATA_PTR],
                             lir::METADATA_PTR,
                             vec![lir::Value::Temp(td), iface_td],
                         );
-                        let destination =
-                            self.dispatch_destination(table, lir::DispatchKind::Interface, slot);
+                        let destination = self.dispatch_destination(
+                            table,
+                            lir::DispatchKind::Interface,
+                            slot,
+                            callee.gc_effect,
+                        );
                         self.finish_indirect(
                             destination,
-                            effect,
                             args,
                             param_types,
                             returns_unit,
@@ -589,8 +580,7 @@ impl<'a> FunctionLowerer<'a> {
                 };
                 let function = lower_runtime_function(function);
                 self.emit_plain_call(
-                    lir::CallDestination::Runtime(function),
-                    runtime_call_protocol(function),
+                    runtime_call_destination(function),
                     parameter_types,
                     result_type,
                     args,
@@ -623,8 +613,7 @@ impl<'a> FunctionLowerer<'a> {
     /// the normal successor.
     pub(super) fn finish_call(
         &mut self,
-        destination: lir::CallDestination,
-        protocol: CallProtocol,
+        destination: LoweredCallDestination,
         args: Vec<lir::Value>,
         parameter_types: Vec<mir::Type>,
         returns_unit: bool,
@@ -639,7 +628,7 @@ impl<'a> FunctionLowerer<'a> {
         } else {
             self.value_type(result_ty)
         };
-        self.emit_managed_call(destination, protocol, parameter_types, result_type, args)
+        self.emit_non_native_call(destination, parameter_types, result_type, args)
     }
 
     /// An indirect call through a function table (vtable / itable
@@ -647,21 +636,13 @@ impl<'a> FunctionLowerer<'a> {
     /// the innermost landing pad, like `finish_call`.
     pub(super) fn finish_indirect(
         &mut self,
-        destination: lir::CallDestination,
-        protocol: CallProtocol,
+        destination: LoweredCallDestination,
         args: Vec<lir::Value>,
         parameter_types: Vec<mir::Type>,
         returns_unit: bool,
         result_ty: &mir::Type,
     ) -> lir::Value {
-        self.finish_call(
-            destination,
-            protocol,
-            args,
-            parameter_types,
-            returns_unit,
-            result_ty,
-        )
+        self.finish_call(destination, args, parameter_types, returns_unit, result_ty)
     }
 
     /// A managed closure call through the code pointer already loaded from
@@ -675,14 +656,7 @@ impl<'a> FunctionLowerer<'a> {
         returns_unit: bool,
         result_ty: &mir::Type,
     ) -> lir::Value {
-        let destination = self.dispatch_destination(closure, lir::DispatchKind::Closure, 2);
-        self.finish_indirect(
-            destination,
-            CallProtocol::Managed,
-            args,
-            parameter_types,
-            returns_unit,
-            result_ty,
-        )
+        let destination = self.managed_dispatch_destination(closure, lir::DispatchKind::Closure, 2);
+        self.finish_indirect(destination, args, parameter_types, returns_unit, result_ty)
     }
 }

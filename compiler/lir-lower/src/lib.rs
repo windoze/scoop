@@ -156,17 +156,20 @@ pub fn lower(module: &mir::Module) -> lir::Module {
         lower_globals(module, &mut globals, &structs, &enums);
     let callback_bridges = lower_callback_bridges(module);
     let foreign_callback_bridges = lower_foreign_callback_bridges(module);
+    let mut local_function_identities = lir::LocalFunctionIdentities::default();
     let local_function_map = module
         .top_level
         .iter()
-        .enumerate()
-        .map(|(index, id)| {
-            (
-                *id,
-                lir::LocalFunctionId::from_u32(
-                    u32::try_from(index).expect("the LIR function list fits its typed id"),
-                ),
-            )
+        .map(|id| {
+            let reference = match module.functions[*id].gc_effect {
+                mir::GcEffect::Managed => {
+                    lir::LocalFunctionRef::Managed(local_function_identities.alloc_managed())
+                }
+                mir::GcEffect::NoGc => {
+                    lir::LocalFunctionRef::NoGc(local_function_identities.alloc_no_gc())
+                }
+            };
+            (*id, reference)
         })
         .collect::<HashMap<_, _>>();
     let (type_descriptors, type_descriptor_refs, well_known_type_descriptors) =

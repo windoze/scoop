@@ -180,7 +180,6 @@ fn native_calls_publish_roots_transition_and_reload() {
     let mut safe_targets = CallTargets::default();
     let mut safe_site = void_site(
         &mut safe_targets,
-        CallDestination::Extern(c_call.declaration()),
         TestCallProtocol::NativeSafe {
             safepoint: 1,
             destination: scoop_lir::NativeSafeCallDestination::extern_function(c_call),
@@ -225,7 +224,6 @@ fn native_calls_publish_roots_transition_and_reload() {
     let mut borrowed_targets = CallTargets::default();
     let mut borrowed_site = direct_site(
         &mut borrowed_targets,
-        CallDestination::Extern(borrowed.declaration()),
         TestCallProtocol::NativeBorrowed {
             safepoint: 2,
             destination: scoop_lir::NativeBorrowedCallDestination::extern_function(borrowed),

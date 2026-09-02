@@ -20,8 +20,10 @@ fn barrier_module() -> Module {
     let mut call_targets = CallTargets::default();
     let alloc_site = direct_site(
         &mut call_targets,
-        managed_runtime(scoop_lir::ManagedRuntimeFunction::Alloc),
-        TestCallProtocol::Managed(1),
+        TestCallProtocol::Managed {
+            safepoint: 1,
+            destination: managed_runtime(scoop_lir::ManagedRuntimeFunction::Alloc),
+        },
         vec![METADATA_PTR, LirType::I64],
         (MANAGED_PTR, RefScan::References(vec![0])),
         t0,
@@ -353,9 +355,7 @@ fn managed_invoke_uses_explicit_compiler_roots_without_exceptional_relocation() 
         calling_convention: scoop_lir::CallingConvention::Cdecl,
     });
     let target = targets.managed_targets.direct.alloc(scoop_lir::CallTarget {
-        destination: scoop_lir::ManagedCallDestination::local(
-            scoop_lir::LocalFunctionId::from_u32(0),
-        ),
+        destination: managed_local(0),
         signature,
     });
     let mut blocks = Arena::default();

@@ -20,8 +20,10 @@ fn closure_abi_module() -> Module {
     let ordinary_dispatch = dispatch_destination(&mut call_targets, Value::Param(0), 2);
     let ordinary_site = indirect_result_site(
         &mut call_targets,
-        ordinary_dispatch,
-        TestCallProtocol::Managed(1),
+        TestCallProtocol::Managed {
+            safepoint: 1,
+            destination: ordinary_dispatch,
+        },
         vec![MANAGED_PTR, LirType::I64],
         (ordinary_result_ty, RefScan::References(vec![8])),
         ordinary_result,
@@ -30,8 +32,10 @@ fn closure_abi_module() -> Module {
     let suspend_dispatch = dispatch_destination(&mut call_targets, Value::Param(0), 2);
     let suspend_site = indirect_result_site(
         &mut call_targets,
-        suspend_dispatch,
-        TestCallProtocol::Managed(2),
+        TestCallProtocol::Managed {
+            safepoint: 2,
+            destination: suspend_dispatch,
+        },
         vec![MANAGED_PTR, MANAGED_PTR],
         (suspend_result_ty, RefScan::None),
         suspend_result,

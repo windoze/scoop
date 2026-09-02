@@ -737,11 +737,13 @@ impl TypeDescriptorRefs {
 
 pub(super) fn dispatch_entry(
     slot: &mir::TableSlot,
-    local_functions: &HashMap<mir::FunctionId, lir::LocalFunctionId>,
+    local_functions: &HashMap<mir::FunctionId, lir::LocalFunctionRef>,
 ) -> lir::DispatchEntry {
     lir::DispatchEntry {
         callable: match slot {
-            mir::TableSlot::Function(id) => lir::CallableRef::Local(local_functions[id]),
+            mir::TableSlot::Function(id) => {
+                lir::CallableRef::Local(local_functions[id].declaration())
+            }
             mir::TableSlot::Runtime(function) => {
                 lir::CallableRef::Runtime(lower_runtime_function(*function))
             }
@@ -757,7 +759,7 @@ const FIRST_GENERATED_TD_TYPE_ID: u64 = 2;
 pub(super) fn type_descriptors(
     module: &mir::Module,
     enums: &Arena<lir::EnumDef>,
-    local_functions: &HashMap<mir::FunctionId, lir::LocalFunctionId>,
+    local_functions: &HashMap<mir::FunctionId, lir::LocalFunctionRef>,
 ) -> (
     Arena<lir::TypeDescriptor>,
     TypeDescriptorRefs,
@@ -871,7 +873,7 @@ pub(super) fn class_type_descriptor(
     id: mir::ClassId,
     runtime_type_id: u64,
     refs: &TypeDescriptorRefs,
-    local_functions: &HashMap<mir::FunctionId, lir::LocalFunctionId>,
+    local_functions: &HashMap<mir::FunctionId, lir::LocalFunctionRef>,
 ) -> lir::TypeDescriptor {
     let def = &module.classes[id];
     let (size, align, scan) = class_layout(module, enums, def);

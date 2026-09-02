@@ -46,10 +46,7 @@ impl<'a> FunctionLowerer<'a> {
                 );
                 let td = self.td_ref(&mir::Type::Class(*class_id));
                 let object = self.emit_plain_call(
-                    lir::CallDestination::Runtime(lir::RuntimeFunction::Managed(
-                        lir::ManagedRuntimeFunction::Alloc,
-                    )),
-                    CallProtocol::Managed,
+                    LoweredCallDestination::managed_runtime(lir::ManagedRuntimeFunction::Alloc),
                     vec![lir::METADATA_PTR, lir::LirType::I64],
                     lir::MANAGED_PTR,
                     vec![td, lir::Value::IntConst(size as i64)],
@@ -74,10 +71,7 @@ impl<'a> FunctionLowerer<'a> {
                 );
                 let td = lir::Value::TypeDescriptor(self.type_descriptors.for_closure(*class));
                 let object = self.emit_plain_call(
-                    lir::CallDestination::Runtime(lir::RuntimeFunction::Managed(
-                        lir::ManagedRuntimeFunction::Alloc,
-                    )),
-                    CallProtocol::Managed,
+                    LoweredCallDestination::managed_runtime(lir::ManagedRuntimeFunction::Alloc),
                     vec![lir::METADATA_PTR, lir::LirType::I64],
                     lir::MANAGED_PTR,
                     vec![td, lir::Value::IntConst(size as i64)],
@@ -475,10 +469,7 @@ impl<'a> FunctionLowerer<'a> {
                     0,
                 ));
                 self.emit_plain_call(
-                    lir::CallDestination::Runtime(lir::RuntimeFunction::Managed(
-                        lir::ManagedRuntimeFunction::Box,
-                    )),
-                    CallProtocol::Managed,
+                    LoweredCallDestination::managed_runtime(lir::ManagedRuntimeFunction::Box),
                     vec![
                         lir::METADATA_PTR,
                         lir::RAW_PTR,
@@ -507,10 +498,7 @@ impl<'a> FunctionLowerer<'a> {
                 let object = self.lower_expr(operand);
                 let td = self.td_ref(check_ty);
                 self.emit_plain_call(
-                    lir::CallDestination::Runtime(lir::RuntimeFunction::NoGc(
-                        lir::NoGcRuntimeFunction::IsInstance,
-                    )),
-                    CallProtocol::NoGc,
+                    LoweredCallDestination::no_gc_runtime(lir::NoGcRuntimeFunction::IsInstance),
                     vec![lir::MANAGED_PTR, lir::METADATA_PTR],
                     lir::LirType::I1,
                     vec![object, td],
@@ -681,10 +669,7 @@ impl<'a> FunctionLowerer<'a> {
         );
         assert!(result.is_none(), "trap has no value result");
         let site = self.call_site(
-            lir::CallDestination::Runtime(lir::RuntimeFunction::NoGc(
-                lir::NoGcRuntimeFunction::Trap,
-            )),
-            CallProtocol::NoGc,
+            LoweredCallDestination::no_gc_runtime(lir::NoGcRuntimeFunction::Trap),
             call,
         );
         self.push(lir::Instruction::Call { site });
