@@ -10,7 +10,6 @@ use super::{
     ExpectedRoot, ExpectedSafepoints, ExpectedSite, ExpectedStatepoint,
     TYPED_MANAGED_POINTER_BOUNDARY_METADATA, verify_rewritten as verify_rewritten_with_profile,
 };
-use crate::target::ManagedAddressSpace;
 use crate::{CodegenError, TargetProfile};
 
 fn verify_rewritten(
@@ -20,7 +19,7 @@ fn verify_rewritten(
     let triple = TargetMachine::get_default_triple();
     let profile = TargetProfile::resolve(triple.as_str().to_str().expect("UTF-8 host triple"))
         .expect("supported host target");
-    verify_rewritten_with_profile(module, expected, profile.managed_address_space_contract())
+    verify_rewritten_with_profile(module, expected, profile)
 }
 
 fn parse<'ctx>(context: &'ctx Context, ir: &str) -> Module<'ctx> {
@@ -100,7 +99,9 @@ fn verifier_consumes_the_profile_managed_address_space() {
     let error = verify_rewritten_with_profile(
         &module,
         &manifest(Some((7, one_root()))),
-        ManagedAddressSpace::for_test(7),
+        TargetProfile::resolve("aarch64-apple-darwin")
+            .expect("test profile")
+            .with_managed_address_space_for_test(7),
     )
     .expect_err("verifier must reject a root outside the profile address space");
     assert!(error.0.contains("not an AS7 managed pointer"), "{error}");

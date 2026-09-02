@@ -29,6 +29,7 @@ use la_arena::RawIdx;
 use scoop_lir::GcEffect;
 
 use crate::CodegenError;
+use crate::TargetProfile;
 use crate::target::ManagedAddressSpace;
 
 mod provenance;
@@ -489,17 +490,26 @@ fn insert_expectation(
     Ok(())
 }
 
-/// Apply the LLVM GC strategy and fixed frame policy selected by typed LIR.
-pub(crate) fn configure_function(context: &Context, function: FunctionValue<'_>, effect: GcEffect) {
+/// Apply the LLVM GC strategy from typed LIR and the frame policy from the
+/// complete target profile.
+pub(crate) fn configure_function(
+    context: &Context,
+    function: FunctionValue<'_>,
+    effect: GcEffect,
+    profile: TargetProfile,
+) {
     if effect == GcEffect::Managed {
         function.set_gc(GC_STRATEGY);
         function.add_attribute(
             AttributeLoc::Function,
-            context.create_string_attribute("frame-pointer", "all"),
+            context.create_string_attribute("frame-pointer", profile.frame_pointer_attribute()),
         );
         function.add_attribute(
             AttributeLoc::Function,
-            context.create_string_attribute("disable-tail-calls", "true"),
+            context.create_string_attribute(
+                "disable-tail-calls",
+                profile.disable_tail_calls_attribute(),
+            ),
         );
     }
 }
@@ -523,9 +533,10 @@ pub(crate) fn rewrite(
 pub(crate) fn verify_rewritten(
     module: &LlvmModule<'_>,
     expected: &ExpectedSafepoints,
-    managed_address_space: ManagedAddressSpace,
+    profile: TargetProfile,
 ) -> Result<(), CodegenError> {
-    verify_function_policies(module, expected)?;
+    verify_function_policies(module, expected, profile)?;
+    let managed_address_space = profile.managed_address_space_contract();
 
     let cast_metadata = module
         .get_context()
@@ -751,6 +762,7 @@ struct ObservedStatepoint<'ctx> {
 fn verify_function_policies(
     module: &LlvmModule<'_>,
     expected: &ExpectedSafepoints,
+    profile: TargetProfile,
 ) -> Result<(), CodegenError> {
     for (symbol, effect) in &expected.functions {
         let function = module.get_function(symbol).ok_or_else(|| {
@@ -766,8 +778,18 @@ fn verify_function_policies(
                         "managed function `{symbol}` has GC strategy `{gc}`, expected `{GC_STRATEGY}`"
                     )));
                 }
-                verify_string_attribute(function, symbol, "frame-pointer", "all")?;
-                verify_string_attribute(function, symbol, "disable-tail-calls", "true")?;
+                verify_string_attribute(
+                    function,
+                    symbol,
+                    "frame-pointer",
+                    profile.frame_pointer_attribute(),
+                )?;
+                verify_string_attribute(
+                    function,
+                    symbol,
+                    "disable-tail-calls",
+                    profile.disable_tail_calls_attribute(),
+                )?;
             }
             GcEffect::NoGc if !gc.is_empty() => {
                 return Err(CodegenError(format!(

@@ -110,9 +110,8 @@ pub fn emit_object(
 ) -> Result<(), CodegenError> {
     let expected_safepoints = statepoint::expectations(module)?;
     let machine = profile.create_target_machine()?;
-    let managed_address_space = profile.managed_address_space_contract();
     let context = Context::create();
-    let llvm = emit_llvm_module(&context, module, &machine, managed_address_space)?;
+    let llvm = emit_llvm_module(&context, module, &machine, profile)?;
 
     llvm.verify()
         .map_err(|e| CodegenError(format!("invalid LLVM module: {e}")))?;
@@ -124,7 +123,7 @@ pub fn emit_object(
     statepoint::rewrite(&llvm, &machine)?;
     llvm.verify()
         .map_err(|e| CodegenError(format!("invalid post-RS4GC LLVM module: {e}")))?;
-    statepoint::verify_rewritten(&llvm, &expected_safepoints, managed_address_space)?;
+    statepoint::verify_rewritten(&llvm, &expected_safepoints, profile)?;
 
     machine
         .write_to_file(&llvm, FileType::Object, output)
@@ -159,8 +158,9 @@ fn emit_llvm_module<'ctx>(
     context: &'ctx Context,
     module: &Module,
     machine: &TargetMachine,
-    managed_address_space: ManagedAddressSpace,
+    profile: TargetProfile,
 ) -> Result<LlvmModule<'ctx>, CodegenError> {
+    let managed_address_space = profile.managed_address_space_contract();
     let llvm = context.create_module("scoop");
     let builder = context.create_builder();
     let target_data = machine.get_target_data();
@@ -341,7 +341,7 @@ fn emit_llvm_module<'ctx>(
             &llvm,
             &module.structs,
             &module.enums,
-            managed_address_space,
+            profile,
             function,
         )?;
     }
@@ -4322,12 +4322,18 @@ fn declare_function<'ctx>(
     llvm: &LlvmModule<'ctx>,
     structs: &Arena<StructDef>,
     enums: &Arena<EnumDef>,
-    managed_address_space: ManagedAddressSpace,
+    profile: TargetProfile,
     function: &Function,
 ) -> Result<(), CodegenError> {
-    let fn_ty = fn_type_of(context, structs, enums, managed_address_space, function)?;
+    let fn_ty = fn_type_of(
+        context,
+        structs,
+        enums,
+        profile.managed_address_space_contract(),
+        function,
+    )?;
     let llvm_function = llvm.add_function(&function.symbol, fn_ty, None);
-    statepoint::configure_function(context, llvm_function, function.gc_effect);
+    statepoint::configure_function(context, llvm_function, function.gc_effect, profile);
     Ok(())
 }
 

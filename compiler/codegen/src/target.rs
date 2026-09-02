@@ -187,6 +187,24 @@ impl TargetProfile {
         self.managed_address_space
     }
 
+    pub(crate) fn frame_pointer_attribute(self) -> &'static str {
+        match self.frame_pointers {
+            FramePointerPolicy::All => "all",
+        }
+    }
+
+    pub(crate) fn disable_tail_calls_attribute(self) -> &'static str {
+        match self.tail_calls {
+            TailCallPolicy::Disabled => "true",
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_managed_address_space_for_test(mut self, value: u16) -> Self {
+        self.managed_address_space = ManagedAddressSpace::for_test(value);
+        self
+    }
+
     pub fn stack_map_version(self) -> u8 {
         self.stack_map_version
     }
