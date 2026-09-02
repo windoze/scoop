@@ -146,7 +146,8 @@ runtime/src/
     collector.c          mark/relocate/verify phases与线程root枚举
     heap.c               arena与block/object side metadata
     allocation.c         mutator TLAB与large-object allocator
-    evacuation.c         forwarding、to-space allocator与source回收
+    evacuation.c         forwarding、to-space allocator与current-object遍历
+    reclamation.c        source回收、普通模式复用与stress poison/quarantine
     roots.c              scan program与统一ManagedSlot visitor
     stackmap.c           平台无关LLVM v3 parser/index
     gc_internal.h
@@ -212,9 +213,9 @@ runtime registry与C header把入口分为互不兼容的四类：
 
 AArch64入口锚点用受控汇编实现并由反汇编测试锁定，不能依赖未经验证的`__builtin_return_address`/`__builtin_frame_address`优化行为。不同签名的入口可以共享汇编prologue模板，但其ABI转发必须由runtime header/生成表驱动，不按symbol猜参数。runtime ABI仍禁止异常穿过该薄入口；发生fatal metadata错误时不执行恢复性pop。
 
-最外层薄入口拥有当前active managed segment的top anchor。回调或native transition产生新的managed segment时，按M13 LIFO transition协议各自push新的anchor/boundary；collector只扫描每个active segment的anchor，冻结segment只扫描已发布caller root frame。
+最外层薄入口拥有当前active managed segment的top anchor。回调或native transition产生新的managed segment时，按M13 LIFO transition协议各自保存anchor/boundary。outbound native transition的caller-root frame只完备描述**发起transition的顶层generated frame**中跨边界的live值与result storage；它不可能描述任意外层managed caller。transition入口因此还必须保存一个零root stack-map anchor，使collector能够从该顶层frame继续沿精确frame chain扫描同一冻结managed segment中的外层frame。
 
-`NativeBorrowedEntry`在第一个可能GC/park的动作前验证当前transition确为native-borrowed且native-root链结构合法，然后参与epoch握手。该入口触发collection时，外层managed segment仍是冻结segment，只枚举进入native前的caller-root frame与callee登记的native-root slots；禁止捕获当前C return address、跨C frame unwind或回退到栈扫描。入口返回后，native实现必须从root slots reload。
+`NativeBorrowedEntry`在第一个可能GC/park的动作前验证当前transition确为native-borrowed、transition anchor/caller-root frame及callee native-root链结构合法，然后参与epoch握手。该入口触发collection时，先扫描caller-root与native-root slots，再从进入native前已捕获的transition anchor扫描冻结managed segment的外层managed frame；禁止临时捕获当前C return address、跨C frame反向unwind或回退到保守扫描。入口返回后，native实现必须从root slots reload。
 
 ## 5. LIR 与 statepoint 完备信息
 
@@ -322,13 +323,13 @@ compiler root frame 使用与 native caller root 相同的递归 scan descriptor
 发射协议为：
 
 1. materialize并发布caller-root frame；含ref返回storage先清零；
-2. 进入`native-safe`或`native-borrowed`transition；
-3. 给native machine call设置`SafepointId`并发射为零`gc-live` statepoint；所有跨调用AS1 SSA value在call后都不得再使用；
+2. 用该callsite的`SafepointId`把`native-safe`或`native-borrowed`transition入口发射为零`gc-live` statepoint；architecture薄入口在任何C prologue前捕获其`{ return_pc, callsite_sp, frame_pointer }`并写入transition record；
+3. 发射普通nounwind native machine call；所有跨调用AS1 SSA value在call后都不得再使用；
 4. `native-safe`的C ABI结果必为GC-free；`native-borrowed`若返回含ref值，在仍处于borrowed且collector不能把本线程视为quiescent时立即写入已发布result storage；
 5. leave transition并执行epoch握手；此时caller-root/result slot保持发布状态，若park/collect可被改写；
 6. 回到managed后只从这些slot reload，再pop caller-root frame。
 
-collector不扫描冻结segment中的native-call statepoint location；零`gc-live` record只保留调用边界的LLVM语义与artifact可审计性。让RS4GC同时生成普通relocate、再从另一份caller-root slot reload属于两个互相冲突的真相来源，必须由post-RS4GC verifier拒绝。
+transition入口的零`gc-live` record不承担顶层frame root更新：该frame只从caller-root storage reload，不能同时生成普通`gc.relocate`。record提供冻结managed segment的精确起点；walker跳过其零root顶层frame后继续扫描外层managed callsite record，直到该transition保存的segment boundary。native machine call及其C frames不在这条frame chain中，也不被反向unwind。
 
 `@Extern(abi = "scoop") @NoGC`只保证native函数体不会进入GC/runtime/managed callback，不把该边界改成`NoGcCallSite`：多mutator moving模式仍须进入native-borrowed、发布caller roots，并在返回epoch握手后reload。真正的`NoGcCallSite`只用于不离开generated managed segment且由typed target保证不触发GC/transition的调用。
 
@@ -394,7 +395,7 @@ key 是 dyld fixup 后的 `function_address + instruction_offset`。重复 PC、
 
 每个外层 managed frame都必须命中 stack map。未知 PC不是“可能是无根帧”，而是 metadata/codegen错误。runtime/native frame不在这条起点之后：managed runtime entry负责直接发布其 managed caller anchor。
 
-native-safe/native-borrowed transition冻结的外层 managed segment在 M15 不再扫描内存，也不再尝试从 native frame反向 unwind。进入 native前由 codegen发布的 caller root frame就是该段跨 boundary 的完整 live set；callback重新进入 managed后，活动 callback segment走 stack map，外层冻结段仍只走显式 root frame。
+native-safe/native-borrowed transition冻结的managed segment由两部分完备表示：顶层generated frame走显式caller-root storage；更外层managed frame从transition入口预先捕获的零root anchor按精确stack map继续walk到保存的segment boundary。collector不从当前native PC或C frame猜测入口，也不扫描native stack。callback重新进入managed后，活动callback segment走自己的top anchor；transition链中的每个冻结segment仍分别走对应caller roots与transition anchor，两段不重叠。
 
 `jmp_buf` 不能继续充当 opaque register/root描述；M15 thread state改持有 profile定义的 anchor/context。保守 `gc_scan_range` 与 heap-start过滤路径删除，而不是保留为 debug fallback。
 
@@ -472,7 +473,7 @@ stress mode规则：
 - 每次 mutator-visible managed heap allocation（含box、Array、closure、coroutine frame及runtime helper分配）在创建新对象前完成一次full moving collection；pinned allocation同样触发collection，但新分配对象自身按请求保持pin；
 - collector内部evacuation allocation设置不可重入状态，不触发stress；
 - 本轮所有live movable object必须移动，不能因occupancy heuristic留在原址；
-- 完成slot验证后，以固定pattern覆盖旧对象的完整exact size；
+- 完成slot验证后，以固定字节pattern `0xA5`覆盖旧对象的完整exact size；
 - 若source block不再含live/pinned object，整块设为`PROT_NONE`并标记quarantined，在该进程余下生命周期永不解除保护、永不重新分配；
 - 含pin对象的partial block不能整块保护，但所有已搬旧副本仍poison，相关span在stress进程中不复用，避免旧指针偶然命中新对象；
 - quarantine耗尽1 GiB测试arena时给出明确stress exhaustion fatal；stress fixture应控制规模，普通模式不承担永久quarantine成本。
@@ -504,7 +505,7 @@ Scoop ABI外部实现继续遵守runtime spec 4.2：native-borrowed代码在调�
 - 函数入口与每条循环回边都已有LIR `ManagedPollSite`及完备live set，codegen不会自行插入或漏掉poll；
 - struct/tuple/tagged enum/closure/coroutine aggregate每个ref leaf单独relocate；GC-free leaf不进入；
 - managed invoke由codegen直接发射唯一ID的显式statepoint、零gc-live、零exceptional relocate，normal/unwind按各自edge flag reload并pop显式frame；
-- native-safe/native-borrowed call有唯一statepoint ID、零gc-live/relocate，transition前后root/result publication与reload顺序完整；
+- native-safe/native-borrowed transition入口有唯一statepoint ID、零gc-live/relocate，平台薄入口捕获精确冻结段anchor，实际native call无statepoint；transition前后root/result publication与reload顺序完整；
 - derived address跨safepoint、无typed witness或witness kind错误的managed pointer转换为verifier negative；
 - Mach-O v3 parser golden覆盖所有location编码、alignment、constant pool和truncated/corrupt输入；Darwin profile对unsupported root shape给出确定错误；
 - linked executable runtime检查dyld fixup后的function address和return PC均落在预期代码范围；离线测试用`dyld_info`/Mach-O parser确认chained fixup，而不把磁盘编码误读为指针；

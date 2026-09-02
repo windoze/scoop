@@ -105,10 +105,10 @@ pub(crate) struct ZeroLiveCall<'a, 'ctx> {
     pub(crate) result_type: Option<BasicTypeEnum<'ctx>>,
 }
 
-/// Build a native transition's statepoint directly. Native roots are already
+/// Build a native transition entry's statepoint directly. The entry captures
+/// the frozen managed-segment anchor; current-frame roots are already
 /// published in addressable caller-root storage, so allowing RS4GC to infer
-/// roots from AS1 actual arguments would create a second competing update
-/// mechanism.
+/// roots would create a second competing update mechanism.
 pub(crate) fn build_zero_live_call<'ctx>(
     context: &'ctx Context,
     module: &LlvmModule<'ctx>,
@@ -341,7 +341,7 @@ impl ExpectedRoot {
 #[derive(Debug, PartialEq, Eq)]
 enum ExpectedStatepoint {
     Relocating(Vec<ExpectedRoot>),
-    ZeroLiveCall,
+    NativeTransition(&'static str),
     ZeroLiveInvoke,
 }
 
@@ -368,7 +368,7 @@ impl ExpectedSafepoints {
             .get(&safepoint)
             .map(|site| match &site.statepoint {
                 ExpectedStatepoint::Relocating(roots) => roots.len(),
-                ExpectedStatepoint::ZeroLiveCall | ExpectedStatepoint::ZeroLiveInvoke => 0,
+                ExpectedStatepoint::NativeTransition(_) | ExpectedStatepoint::ZeroLiveInvoke => 0,
             })
     }
 }
@@ -396,12 +396,14 @@ pub(crate) fn expectations(module: &scoop_lir::Module) -> Result<ExpectedSafepoi
                         scoop_lir::CallSite::Managed(site) => {
                             Some((site.safepoint, relocating_roots(&site.live)))
                         }
-                        scoop_lir::CallSite::NativeSafe(site) => {
-                            Some((site.safepoint, ExpectedStatepoint::ZeroLiveCall))
-                        }
-                        scoop_lir::CallSite::NativeBorrowed(site) => {
-                            Some((site.safepoint, ExpectedStatepoint::ZeroLiveCall))
-                        }
+                        scoop_lir::CallSite::NativeSafe(site) => Some((
+                            site.safepoint,
+                            ExpectedStatepoint::NativeTransition("scoop_rt_enter_native_safe"),
+                        )),
+                        scoop_lir::CallSite::NativeBorrowed(site) => Some((
+                            site.safepoint,
+                            ExpectedStatepoint::NativeTransition("scoop_rt_enter_native_borrowed"),
+                        )),
                         scoop_lir::CallSite::NoGc(_) => None,
                     },
                     scoop_lir::Instruction::Invoke { site } => match site {
@@ -412,9 +414,10 @@ pub(crate) fn expectations(module: &scoop_lir::Module) -> Result<ExpectedSafepoi
                     },
                     scoop_lir::Instruction::NativeGlobalLoad { safepoint, .. }
                     | scoop_lir::Instruction::NativeGlobalStore { safepoint, .. }
-                    | scoop_lir::Instruction::NativeGlobalAddress { safepoint, .. } => {
-                        Some((*safepoint, ExpectedStatepoint::ZeroLiveCall))
-                    }
+                    | scoop_lir::Instruction::NativeGlobalAddress { safepoint, .. } => Some((
+                        *safepoint,
+                        ExpectedStatepoint::NativeTransition("scoop_rt_enter_native_safe"),
+                    )),
                     scoop_lir::Instruction::ArrayAlloc {
                         safepoint, live, ..
                     }
@@ -707,7 +710,7 @@ pub(crate) fn verify_rewritten(
     for (id, site) in &observed {
         match &expected.sites[id].statepoint {
             ExpectedStatepoint::Relocating(_) => {}
-            ExpectedStatepoint::ZeroLiveCall | ExpectedStatepoint::ZeroLiveInvoke => {
+            ExpectedStatepoint::NativeTransition(_) | ExpectedStatepoint::ZeroLiveInvoke => {
                 if !site.relocations.is_empty() {
                     return Err(CodegenError(format!(
                         "zero-live statepoint {id} produced gc.relocate instructions"
@@ -984,7 +987,7 @@ fn verify_statepoint_shape(
 ) -> Result<(), CodegenError> {
     let expected_count = match expected {
         ExpectedStatepoint::Relocating(expected) => expected.len(),
-        ExpectedStatepoint::ZeroLiveCall | ExpectedStatepoint::ZeroLiveInvoke => 0,
+        ExpectedStatepoint::NativeTransition(_) | ExpectedStatepoint::ZeroLiveInvoke => 0,
     };
     if roots.len() != expected_count {
         // SAFETY: the statepoint shape check above has already validated the
@@ -995,6 +998,17 @@ fn verify_statepoint_shape(
             "statepoint {id} for `{actual_callee}` in `{function}` has a gc-live count that disagrees with complete LIR: expected {expected_count} from {expected:?}, observed {} ({roots:?})",
             roots.len(),
         )));
+    }
+    if let ExpectedStatepoint::NativeTransition(expected_callee) = expected {
+        // SAFETY: the statepoint shape check has validated operand 2 as the
+        // actual callee pointer.
+        let actual_callee =
+            llvm_value_name(unsafe { LLVMGetOperand(instruction.as_value_ref(), 2) })?;
+        if actual_callee != *expected_callee {
+            return Err(CodegenError(format!(
+                "native transition statepoint {id} in `{function}` targets `{actual_callee}`, expected `{expected_callee}`"
+            )));
+        }
     }
     if let ExpectedStatepoint::Relocating(expected_roots) = expected {
         let expected_identities = expected_roots
@@ -1018,7 +1032,7 @@ fn verify_statepoint_shape(
         )));
     }
     let expected_opcode = match expected {
-        ExpectedStatepoint::Relocating(_) | ExpectedStatepoint::ZeroLiveCall => {
+        ExpectedStatepoint::Relocating(_) | ExpectedStatepoint::NativeTransition(_) => {
             InstructionOpcode::Call
         }
         ExpectedStatepoint::ZeroLiveInvoke => InstructionOpcode::Invoke,

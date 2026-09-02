@@ -3308,6 +3308,14 @@ fn darwin_aarch64_managed_entries_preserve_the_direct_caller_anchor() {
             "_scoop_rt_array_clone:",
             ["mov\tx4, x30", "mov\tx5, sp", "mov\tx6, x29"],
         ),
+        (
+            "_scoop_rt_enter_native_safe:",
+            ["mov\tx2, x30", "mov\tx3, sp", "mov\tx4, x29"],
+        ),
+        (
+            "_scoop_rt_enter_native_borrowed:",
+            ["mov\tx2, x30", "mov\tx3, sp", "mov\tx4, x29"],
+        ),
     ];
     let lines: Vec<_> = text.lines().collect();
     for (label, moves) in entries {
@@ -3343,6 +3351,8 @@ fn darwin_aarch64_managed_entries_preserve_the_direct_caller_anchor() {
         "_scoop_rt_box_impl",
         "_scoop_rt_materialize_exception_impl",
         "_scoop_rt_array_clone_impl",
+        "_scoop_rt_enter_native_safe_impl",
+        "_scoop_rt_enter_native_borrowed_impl",
     ] {
         assert!(
             relocations
@@ -3351,5 +3361,5 @@ fn darwin_aarch64_managed_entries_preserve_the_direct_caller_anchor() {
             "missing tail-branch relocation for {implementation}:\n{relocations}"
         );
     }
-    assert_eq!(relocations.matches("BR26").count(), 7);
+    assert_eq!(relocations.matches("BR26").count(), 9);
 }

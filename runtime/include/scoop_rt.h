@@ -311,10 +311,15 @@ typedef struct ScoopCompilerRootFrame {
 
 /* Stack-owned outbound transition record. Its fields are runtime-managed;
  * generated code allocates the record, passes it to enter/leave, and must not
- * copy or inspect it while active. */
+ * copy or inspect it while active. The caller-root frame covers the generated
+ * transition caller itself; return_pc/stack_pointer/frame_pointer anchor exact
+ * stack-map traversal of the remaining frozen managed segment. */
 typedef struct ScoopThreadTransition {
     struct ScoopThreadTransition *previous;
     ScoopCallerRootFrame *caller_roots;
+    uintptr_t managed_return_pc;
+    uintptr_t managed_stack_pointer;
+    uintptr_t managed_frame_pointer;
     uintptr_t managed_stack_low;
     uintptr_t managed_stack_high;
     uint32_t previous_mode;
@@ -339,10 +344,10 @@ void scoop_rt_push_compiler_roots(ScoopCompilerRootFrame *frame,
 void scoop_rt_pop_compiler_roots(ScoopCompilerRootFrame *frame);
 void scoop_rt_pop_top_compiler_roots(void);
 void scoop_rt_enter_native_safe(ScoopThreadTransition *transition,
-                                uintptr_t managed_stack_pointer);
+                                uintptr_t managed_stack_low);
 void scoop_rt_leave_native_safe(ScoopThreadTransition *transition);
 void scoop_rt_enter_native_borrowed(ScoopThreadTransition *transition,
-                                    uintptr_t managed_stack_pointer);
+                                    uintptr_t managed_stack_low);
 void scoop_rt_leave_native_borrowed(ScoopThreadTransition *transition);
 
 /* pin / unpin (runtime spec 3.4): O(1) object-header flag mirrored in side

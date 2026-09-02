@@ -97,6 +97,8 @@ void scoop_gc_heap_init(void) {
     if (arena_ready) {
         heap_fatal("heap initialized more than once");
     }
+    const char *stress = getenv("SCOOP_GC_STRESS_MOVE");
+    stress_move = stress != NULL && strcmp(stress, "1") == 0;
     arena_init();
 }
 
@@ -104,6 +106,11 @@ static void require_arena(void) {
     if (!arena_ready) {
         heap_fatal("heap used before initialization");
     }
+}
+
+bool scoop_gc_stress_move_enabled(void) {
+    require_arena();
+    return stress_move;
 }
 
 bool pointer_block_index(const void *pointer, uint32_t *index) {

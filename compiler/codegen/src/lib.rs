@@ -1625,9 +1625,13 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 let slot = self.entry_alloca(ty, "native_global_result")?;
                 let symbol = &self.native_global_bridges.gets[native.access.get()].symbol;
                 let callee = self.native_global_bridge(symbol);
-                let transition =
-                    self.publish_native_roots(roots.as_slice(), None, NativeTransitionKind::Safe)?;
-                self.emit_native_global_call(callee, slot, *safepoint)?;
+                let transition = self.publish_native_roots(
+                    roots.as_slice(),
+                    None,
+                    NativeTransitionKind::Safe,
+                    *safepoint,
+                )?;
+                self.emit_native_global_call(callee, slot)?;
                 self.finish_native_transition(transition, NativeTransitionKind::Safe)?;
                 let value = builder
                     .build_load(ty, slot, "native_global_value")
@@ -1654,9 +1658,13 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 };
                 let symbol = &self.native_global_bridges.sets[set].symbol;
                 let callee = self.native_global_bridge(symbol);
-                let transition =
-                    self.publish_native_roots(roots.as_slice(), None, NativeTransitionKind::Safe)?;
-                self.emit_native_global_call(callee, slot, *safepoint)?;
+                let transition = self.publish_native_roots(
+                    roots.as_slice(),
+                    None,
+                    NativeTransitionKind::Safe,
+                    *safepoint,
+                )?;
+                self.emit_native_global_call(callee, slot)?;
                 self.finish_native_transition(transition, NativeTransitionKind::Safe)?;
             }
             Instruction::NativeGlobalAddress {
@@ -1670,9 +1678,13 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 let slot = self.entry_alloca(ty, "native_global_address")?;
                 let symbol = &self.native_global_bridges.addresses[native.access.address()].symbol;
                 let callee = self.native_global_bridge(symbol);
-                let transition =
-                    self.publish_native_roots(roots.as_slice(), None, NativeTransitionKind::Safe)?;
-                self.emit_native_global_call(callee, slot, *safepoint)?;
+                let transition = self.publish_native_roots(
+                    roots.as_slice(),
+                    None,
+                    NativeTransitionKind::Safe,
+                    *safepoint,
+                )?;
+                self.emit_native_global_call(callee, slot)?;
                 self.finish_native_transition(transition, NativeTransitionKind::Safe)?;
                 let value = builder
                     .build_load(ty, slot, "native_global_pointer")
@@ -2858,10 +2870,14 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         };
         let native_result_storage = native.and_then(|(_, _, result)| result);
         let transition = if let Some((kind, roots, _)) = native {
+            let safepoint = protocol
+                .safepoint()
+                .expect("native protocol always carries a safepoint id");
             self.publish_native_roots(
                 roots,
                 native_result_storage.map(|(storage, _, scan)| (storage, scan)),
                 kind,
+                safepoint,
             )
             .map(Some)?
         } else {
@@ -2894,27 +2910,32 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     .as_global_value()
                     .as_pointer_value(),
             };
-            let result_type = match &result {
-                TypedCallResult::Direct { ty, .. } => {
-                    Some(basic_ty(self.context, self.structs, self.enums, ty)?)
-                }
-                TypedCallResult::Void | TypedCallResult::Indirect { .. } => None,
-            };
-            let safepoint = protocol
-                .safepoint()
-                .expect("native protocol always carries a safepoint id");
-            statepoint::build_zero_live_call(
-                self.context,
-                self.llvm,
-                self.builder,
-                statepoint::ZeroLiveCall {
-                    callee: actual_callee,
-                    callee_type: fn_ty,
-                    call_args: &call_args,
-                    safepoint,
-                    result_type,
+            let arguments = call_args
+                .iter()
+                .copied()
+                .map(Into::into)
+                .collect::<Vec<_>>();
+            let call = self
+                .builder
+                .build_indirect_call(fn_ty, actual_callee, &arguments, "native_call")
+                .map_err(|error| CodegenError(format!("typed native call: {error}")))?;
+            self.apply_nounwind(call);
+            call.add_attribute(
+                AttributeLoc::Function,
+                self.context.create_string_attribute("gc-leaf-function", ""),
+            );
+            match &result {
+                TypedCallResult::Direct { .. } => match call.try_as_basic_value() {
+                    ValueKind::Basic(value) => Some(value),
+                    ValueKind::Instruction(_) => {
+                        return Err(CodegenError(format!(
+                            "typed native call @{} produced no direct value",
+                            self.function.symbol
+                        )));
+                    }
                 },
-            )?
+                TypedCallResult::Void | TypedCallResult::Indirect { .. } => None,
+            }
         } else {
             let call = match destination {
                 scoop_lir::CallDestination::Dispatch { table, slot } => {
@@ -3255,6 +3276,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         roots: &[scoop_lir::CallerRoot],
         result_root: Option<(PointerValue<'ctx>, &RefScan)>,
         kind: NativeTransitionKind,
+        safepoint: scoop_lir::SafepointId,
     ) -> Result<NativeTransition<'ctx>, CodegenError> {
         let context = self.context;
         let builder = self.builder;
@@ -3362,6 +3384,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 ptr.into(),
                 i64_ty.into(),
                 i64_ty.into(),
+                i64_ty.into(),
+                i64_ty.into(),
+                i64_ty.into(),
                 context.i32_type().into(),
                 context.i32_type().into(),
             ],
@@ -3384,13 +3409,19 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 .void_type()
                 .fn_type(&[ptr.into(), i64_ty.into()], false),
         );
-        builder
-            .build_call(
-                enter,
-                &[transition.into(), stack_pointer.into()],
-                "enter_native",
-            )
-            .map_err(|error| CodegenError(format!("enter native transition: {error}")))?;
+        let enter_args = [transition.into(), stack_pointer.into()];
+        statepoint::build_zero_live_call(
+            context,
+            self.llvm,
+            builder,
+            statepoint::ZeroLiveCall {
+                callee: enter.as_global_value().as_pointer_value(),
+                callee_type: enter.get_type(),
+                call_args: &enter_args,
+                safepoint,
+                result_type: None,
+            },
+        )?;
 
         Ok(NativeTransition { frame, transition })
     }
@@ -3462,6 +3493,10 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             self.context
                 .create_enum_attribute(Attribute::get_named_enum_kind_id("nounwind"), 0),
         );
+        function.add_attribute(
+            AttributeLoc::Function,
+            self.context.create_string_attribute("gc-leaf-function", ""),
+        );
         function
     }
 
@@ -3469,20 +3504,10 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         &self,
         callee: inkwell::values::FunctionValue<'ctx>,
         storage: PointerValue<'ctx>,
-        safepoint: scoop_lir::SafepointId,
     ) -> Result<(), CodegenError> {
-        statepoint::build_zero_live_call(
-            self.context,
-            self.llvm,
-            self.builder,
-            statepoint::ZeroLiveCall {
-                callee: callee.as_global_value().as_pointer_value(),
-                callee_type: callee.get_type(),
-                call_args: &[storage.into()],
-                safepoint,
-                result_type: None,
-            },
-        )?;
+        self.builder
+            .build_call(callee, &[storage.into()], "native_global_call")
+            .map_err(|error| CodegenError(format!("native global call: {error}")))?;
         Ok(())
     }
 

@@ -356,7 +356,11 @@ void scoop_thread_native_borrowed_entry(void) {
     }
     if (state->managed_anchor != NULL || state->managed_stack_boundary != NULL ||
         state->current_transition == NULL || state->caller_roots == NULL ||
-        state->current_transition->caller_roots != state->caller_roots) {
+        state->current_transition->caller_roots != state->caller_roots ||
+        state->current_transition->managed_return_pc == 0 ||
+        state->current_transition->managed_stack_pointer == 0 ||
+        state->current_transition->managed_frame_pointer == 0 ||
+        state->current_transition->managed_stack_high == 0) {
         thread_fatal("native-borrowed runtime entry has incomplete published roots");
     }
 
@@ -723,14 +727,21 @@ void scoop_rt_pop_top_compiler_roots(void) {
 }
 
 static void enter_native(ScoopThreadTransition *transition,
-                         uintptr_t managed_stack_pointer,
+                         uintptr_t managed_stack_low,
+                         uintptr_t return_pc,
+                         uintptr_t stack_pointer,
+                         uintptr_t frame_pointer,
                          ScoopThreadMode native_mode) {
     ScoopThreadState *state = scoop_thread_current_required();
     scoop_thread_require_managed();
     uintptr_t managed_boundary = (uintptr_t)state->managed_stack_boundary;
     if (transition == NULL || state->managed_anchor != NULL ||
-        managed_stack_pointer < (uintptr_t)state->stack_low ||
-        managed_stack_pointer >= managed_boundary ||
+        return_pc == 0 ||
+        managed_stack_low < (uintptr_t)state->stack_low ||
+        managed_stack_low >= managed_boundary ||
+        stack_pointer < (uintptr_t)state->stack_low ||
+        stack_pointer >= managed_boundary || frame_pointer < stack_pointer ||
+        frame_pointer >= managed_boundary ||
         managed_boundary > (uintptr_t)state->stack_high) {
         thread_fatal("native transition published an invalid managed stack segment");
     }
@@ -757,7 +768,10 @@ static void enter_native(ScoopThreadTransition *transition,
     }
     transition->previous = state->current_transition;
     transition->caller_roots = state->caller_roots;
-    transition->managed_stack_low = managed_stack_pointer;
+    transition->managed_return_pc = return_pc;
+    transition->managed_stack_pointer = stack_pointer;
+    transition->managed_frame_pointer = frame_pointer;
+    transition->managed_stack_low = managed_stack_low;
     transition->managed_stack_high = managed_boundary;
     transition->previous_mode = SCOOP_THREAD_MANAGED;
     transition->native_mode = native_mode;
@@ -810,6 +824,9 @@ static void leave_native(ScoopThreadTransition *transition,
     atomic_store_explicit(&state->mode, SCOOP_THREAD_MANAGED, memory_order_release);
     transition->previous = NULL;
     transition->caller_roots = NULL;
+    transition->managed_return_pc = 0;
+    transition->managed_stack_pointer = 0;
+    transition->managed_frame_pointer = 0;
     transition->managed_stack_low = 0;
     transition->managed_stack_high = 0;
     transition->previous_mode = 0;
@@ -818,18 +835,26 @@ static void leave_native(ScoopThreadTransition *transition,
     registry_unlock();
 }
 
-void scoop_rt_enter_native_safe(ScoopThreadTransition *transition,
-                                uintptr_t managed_stack_pointer) {
-    enter_native(transition, managed_stack_pointer, SCOOP_THREAD_NATIVE_SAFE);
+void scoop_rt_enter_native_safe_impl(ScoopThreadTransition *transition,
+                                     uintptr_t managed_stack_low,
+                                     uintptr_t return_pc,
+                                     uintptr_t stack_pointer,
+                                     uintptr_t frame_pointer) {
+    enter_native(transition, managed_stack_low, return_pc, stack_pointer,
+                 frame_pointer, SCOOP_THREAD_NATIVE_SAFE);
 }
 
 void scoop_rt_leave_native_safe(ScoopThreadTransition *transition) {
     leave_native(transition, SCOOP_THREAD_NATIVE_SAFE);
 }
 
-void scoop_rt_enter_native_borrowed(ScoopThreadTransition *transition,
-                                    uintptr_t managed_stack_pointer) {
-    enter_native(transition, managed_stack_pointer, SCOOP_THREAD_NATIVE_BORROWED);
+void scoop_rt_enter_native_borrowed_impl(ScoopThreadTransition *transition,
+                                         uintptr_t managed_stack_low,
+                                         uintptr_t return_pc,
+                                         uintptr_t stack_pointer,
+                                         uintptr_t frame_pointer) {
+    enter_native(transition, managed_stack_low, return_pc, stack_pointer,
+                 frame_pointer, SCOOP_THREAD_NATIVE_BORROWED);
 }
 
 void scoop_rt_leave_native_borrowed(ScoopThreadTransition *transition) {

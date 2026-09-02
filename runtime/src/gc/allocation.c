@@ -83,6 +83,22 @@ static void *allocate_small(ScoopThreadState *thread, size_t size) {
     }
 }
 
+static void *allocate_small_stress(size_t size) {
+    lock_heap();
+    uint32_t index = activate_small_block(SCOOP_BLOCK_MUTATOR);
+    unlock_heap();
+    if (index == UINT32_MAX) {
+        heap_fatal(
+            "stress arena exhausted by permanently quarantined blocks");
+    }
+    void *object = (char *)block_base(index) + GC_LINE_SIZE;
+    if ((char *)object + size >
+        (char *)block_base(index) + GC_BLOCK_SIZE) {
+        heap_fatal("stress small allocation exceeds its block");
+    }
+    return object;
+}
+
 static void *allocate_large(size_t size, uint32_t *block_index) {
     if (size > GC_ARENA_SIZE - GC_LINE_SIZE) {
         heap_fatal("large object exceeds the GC arena");
@@ -111,9 +127,25 @@ static void *allocate_large(size_t size, uint32_t *block_index) {
     }
 }
 
+static void *allocate_large_stress(size_t size, uint32_t *block_index) {
+    lock_heap();
+    uint32_t index =
+        activate_large_block(size, SCOOP_BLOCK_MUTATOR);
+    unlock_heap();
+    if (index == UINT32_MAX) {
+        heap_fatal(
+            "stress arena exhausted by permanently quarantined blocks");
+    }
+    *block_index = index;
+    return (char *)block_base(index) + GC_LINE_SIZE;
+}
+
 void scoop_runtime_finish_tlab_alloc(void *object,
                                      const ScoopTypeDescriptor *td,
                                      size_t size) {
+    if (scoop_gc_stress_move_enabled()) {
+        heap_fatal("inline TLAB allocation remained enabled in stress mode");
+    }
     size = normalize_allocation_size(size);
     uint32_t block_index;
     if (object == NULL || td == NULL || size > GC_SMALL_MAX ||
@@ -134,13 +166,39 @@ void *scoop_gc_alloc_internal(const ScoopTypeDescriptor *td, size_t size) {
     }
     ScoopThreadState *thread = scoop_thread_current_required();
     size = normalize_allocation_size(size);
+    bool stress = scoop_gc_stress_move_enabled();
+    if (stress) {
+        thread->allocation.cursor = NULL;
+        thread->allocation.limit = NULL;
+        scoop_gc_collect_internal();
+        if (thread->allocation.cursor != NULL ||
+            thread->allocation.limit != NULL) {
+            heap_fatal("stress collection published a mutator TLAB");
+        }
+    }
     if (size <= GC_SMALL_MAX) {
-        void *object = allocate_small(thread, size);
-        scoop_runtime_finish_tlab_alloc(object, td, size);
+        void *object = stress ? allocate_small_stress(size)
+                              : allocate_small(thread, size);
+        if (stress) {
+            memset(object, 0, size);
+            ScoopObjectHeader *header = object;
+            header->td = td;
+            header->gc_word = 0;
+            uint32_t block_index;
+            if (!pointer_block_index(object, &block_index)) {
+                heap_fatal("stress allocation lies outside the arena");
+            }
+            record_small_object(block_index, object, size, false);
+            atomic_fetch_add_explicit(&live_objects, 1,
+                                      memory_order_relaxed);
+        } else {
+            scoop_runtime_finish_tlab_alloc(object, td, size);
+        }
         return object;
     }
     uint32_t block_index;
-    void *object = allocate_large(size, &block_index);
+    void *object = stress ? allocate_large_stress(size, &block_index)
+                          : allocate_large(size, &block_index);
     memset(object, 0, size);
     ScoopObjectHeader *header = object;
     header->td = td;

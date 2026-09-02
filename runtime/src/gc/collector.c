@@ -198,6 +198,28 @@ static void scan_compiler_roots(const ScoopThreadState *thread,
     }
 }
 
+static void scan_frozen_managed_segments(
+    const ScoopThreadState *thread, ScoopGcVisitContext *context) {
+    ScoopGcRootVisitor visitor = root_visitor(context);
+    for (const ScoopThreadTransition *transition =
+             thread->current_transition;
+         transition != NULL; transition = transition->previous) {
+        if (transition->caller_roots == NULL ||
+            transition->managed_return_pc == 0 ||
+            transition->managed_stack_pointer == 0 ||
+            transition->managed_frame_pointer == 0 ||
+            transition->managed_stack_high == 0) {
+            collector_fatal(
+                "native transition has no exact frozen-segment publication");
+        }
+        scoop_gc_visit_managed_segment(
+            thread, transition->managed_return_pc,
+            transition->managed_stack_pointer,
+            transition->managed_frame_pointer,
+            transition->managed_stack_high, visitor);
+    }
+}
+
 static void scan_thread(const ScoopThreadState *thread,
                         ScoopGcVisitContext *context) {
     ScoopThreadMode mode =
@@ -216,6 +238,7 @@ static void scan_thread(const ScoopThreadState *thread,
     scan_compiler_roots(thread, context);
     scan_native_region_roots(thread, context);
     scan_native_roots(thread, context);
+    scan_frozen_managed_segments(thread, context);
 }
 
 static void scan_all_roots(ScoopGcVisitContext *context) {
@@ -271,6 +294,9 @@ void scoop_gc_collect_internal(void) {
     ScoopGcVisitContext verify = {.mode = SCOOP_GC_VISIT_VERIFY};
     scan_all_roots(&verify);
     scoop_gc_visit_current_objects_locked(verify_heap_object, &verify);
+    if (scoop_gc_stress_move_enabled()) {
+        scoop_gc_heap_verify_stress_moved_locked();
+    }
 
     scoop_gc_heap_finish_collection_locked(marked_count);
     scoop_gc_roots_unlock();

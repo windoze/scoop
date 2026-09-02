@@ -58,6 +58,19 @@ fn native_sources(dir: &Path) -> Vec<(PathBuf, String)> {
     sources
 }
 
+fn runs_under_gc_stress(relative: &str) -> bool {
+    matches!(
+        relative,
+        "m5-arrays/recursive-reference-scans.scoop"
+            | "m8-exceptions/custom-exception.scoop"
+            | "m10-coroutines/gc-across-suspension.scoop"
+            | "m11-functions/captures.scoop"
+            | "m12-extern-scoop/extern-scoop.scoop"
+            | "m13-callback/foreign-continuation.scoop"
+            | "m14-generics/generic-exception.scoop"
+    )
+}
+
 #[test]
 fn fixtures() {
     let root = fixture_root();
@@ -141,6 +154,27 @@ fn fixtures() {
                 let run = Command::new(&success.binary)
                     .output()
                     .unwrap_or_else(|e| panic!("cannot run {}: {e}", success.binary.display()));
+                if !expect_trap && runs_under_gc_stress(&relative) {
+                    let stress_run = Command::new(&success.binary)
+                        .env("SCOOP_GC_STRESS_MOVE", "1")
+                        .output()
+                        .unwrap_or_else(|e| {
+                            panic!(
+                                "cannot run {} in moving-GC stress mode: {e}",
+                                success.binary.display()
+                            )
+                        });
+                    assert!(
+                        stress_run.status.success(),
+                        "{relative}: moving-GC stress run exited with {}:\n{}",
+                        stress_run.status,
+                        String::from_utf8_lossy(&stress_run.stderr)
+                    );
+                    assert_eq!(
+                        stress_run.stdout, run.stdout,
+                        "{relative}: moving-GC stress changed observable output"
+                    );
+                }
                 let (run_section, output) = if expect_trap {
                     assert!(
                         !run.status.success(),

@@ -27,6 +27,7 @@ struct ScoopThreadState;
 /* Arena-external side metadata and moving-heap operations. Every `_locked`
  * operation requires the heap lock acquired through this API. */
 void scoop_gc_heap_init(void);
+bool scoop_gc_stress_move_enabled(void);
 void scoop_gc_heap_lock(void);
 void scoop_gc_heap_unlock(void);
 bool scoop_gc_is_object_start_locked(const void *object);
@@ -35,6 +36,7 @@ bool scoop_gc_update_pin_locked(const void *object, bool pinned);
 bool scoop_gc_mark_object_locked(const void *object);
 void scoop_gc_heap_begin_collection_locked(void);
 void scoop_gc_heap_plan_moving_locked(void);
+void scoop_gc_heap_verify_stress_moved_locked(void);
 void *scoop_gc_forward_object_locked(void *object);
 bool scoop_gc_claim_object_scan_locked(void *object);
 bool scoop_gc_object_was_scanned_locked(const void *object);
@@ -63,7 +65,13 @@ void scoop_gc_visit_roots_locked(ScoopGcRootVisitor visitor);
 void scoop_gc_stackmaps_init(void);
 const ScoopStackMapRecord *scoop_gc_stackmap_lookup(uintptr_t return_pc);
 void scoop_gc_visit_managed_stack(const struct ScoopThreadState *thread,
-                                  ScoopGcRootVisitor visitor);
+                                   ScoopGcRootVisitor visitor);
+void scoop_gc_visit_managed_segment(const struct ScoopThreadState *thread,
+                                    uintptr_t return_pc,
+                                    uintptr_t stack_pointer,
+                                    uintptr_t frame_pointer,
+                                    uintptr_t managed_boundary,
+                                    ScoopGcRootVisitor visitor);
 void scoop_gc_collect_internal(void);
 
 #endif

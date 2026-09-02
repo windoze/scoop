@@ -23,6 +23,7 @@
 #define GC_CARD_SHIFT 9
 #define GC_CARD_TABLE_SIZE ((size_t)4 << 20)
 #define GC_PIN_BIT UINT64_C(2)
+#define GC_POISON_BYTE ((unsigned char)0xA5)
 
 typedef enum ScoopGcBlockState {
     SCOOP_BLOCK_NEVER_USED,
@@ -92,6 +93,7 @@ typedef struct ScoopGcHeapState {
     _Atomic(uint64_t) live_objects;
     _Atomic(uint64_t) last_moved_objects;
     bool arena_ready;
+    bool stress_move;
     bool collection_active;
     uint32_t evacuation_block;
     char *evacuation_cursor;
@@ -116,6 +118,7 @@ extern ScoopGcHeapState scoop_gc_heap_state;
 #define live_objects (scoop_gc_heap_state.live_objects)
 #define last_moved_objects (scoop_gc_heap_state.last_moved_objects)
 #define arena_ready (scoop_gc_heap_state.arena_ready)
+#define stress_move (scoop_gc_heap_state.stress_move)
 #define collection_active (scoop_gc_heap_state.collection_active)
 #define evacuation_block (scoop_gc_heap_state.evacuation_block)
 #define evacuation_cursor (scoop_gc_heap_state.evacuation_cursor)

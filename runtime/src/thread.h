@@ -88,6 +88,16 @@ void scoop_thread_push_managed_anchor(ScoopManagedAnchor *anchor,
                                       uintptr_t stack_pointer,
                                       uintptr_t frame_pointer);
 void scoop_thread_pop_managed_anchor(ScoopManagedAnchor *anchor);
+void scoop_rt_enter_native_safe_impl(ScoopThreadTransition *transition,
+                                     uintptr_t managed_stack_low,
+                                     uintptr_t return_pc,
+                                     uintptr_t stack_pointer,
+                                     uintptr_t frame_pointer);
+void scoop_rt_enter_native_borrowed_impl(ScoopThreadTransition *transition,
+                                         uintptr_t managed_stack_low,
+                                         uintptr_t return_pc,
+                                         uintptr_t stack_pointer,
+                                         uintptr_t frame_pointer);
 
 /* Collection coordinator. begin returns false when this request joined an
  * already active epoch; only the true-returning collector may enumerate the
