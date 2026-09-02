@@ -1,0 +1,307 @@
+use super::*;
+
+// --- positive: enum declarations ---
+
+#[test]
+fn enum_declaration_all_variant_forms() {
+    let file = file(vec![
+        color_decl(),
+        shape_decl(),
+        fun(
+            "main",
+            vec![
+                val("c", field(var("Color"), "Red")),
+                val("s", call("Shape.Circle", vec![int_lit(1)])),
+                // Constructor-style default fills the trailing field.
+                val("w", call("Shape.WithDefault", vec![])),
+                // Named variants construct positionally in M4 (the AST
+                // has no named-argument form).
+                val("n", call("Shape.Named", vec![int_lit(2), int_lit(3)])),
+            ],
+        ),
+    ]);
+    let module = lower_user(file).expect("enum program must lower");
+    let expected = "\
+Module
+  enum Option<T>
+    Some(_1: T0)
+    None()
+  enum Color
+    Red()
+    Green()
+    Blue()
+  enum Shape
+    Circle(_1: Int)
+    Named(w: Int, h: Int)
+    WithDefault(d: Int)
+  open class Throwable()
+  open class Exception(message: Option<String>)
+  class UnwrapException()
+  class ClassCastException()
+  class ArithmeticException()
+  class IndexOutOfBoundsException()
+  class IllegalStateException()
+  interface ToString
+    fun toString(): String
+  interface Hash
+    fun hash(): Int
+  interface Continuation<in T>
+    fun resume(value: T0): Unit
+    fun resumeWithException(exception: Throwable): Unit
+  interface SuspendTask<out T>
+    suspend fun run(): T0
+  interface SuspendRegistration<out T>
+    fun register(continuation: Continuation<T0>): Unit
+  fun coreIntEquals(arg1: Int, arg2: Int): Boolean <extern0 abi=scoop symbol=scoop_rt_int_equals>
+  fun coreUIntEquals(arg1: UInt, arg2: UInt): Boolean <extern1 abi=scoop symbol=scoop_rt_uint_equals>
+  fun coreBooleanEquals(arg1: Boolean, arg2: Boolean): Boolean <extern2 abi=scoop symbol=scoop_rt_bool_equals>
+  fun coreStringEquals(arg1: String, arg2: String): Boolean <extern3 abi=scoop symbol=scoop_rt_string_eq>
+  fun coreIntToString(arg1: Int): String <extern4 abi=scoop symbol=scoop_rt_int_to_string>
+  fun coreUIntToString(arg1: UInt): String <extern5 abi=scoop symbol=scoop_rt_uint_to_string>
+  fun coreBooleanToString(arg1: Boolean): String <extern6 abi=scoop symbol=scoop_rt_bool_to_string>
+  fun coreIntHash(arg1: Int): Int <extern7 abi=scoop symbol=scoop_rt_int_hash>
+  fun coreUIntHash(arg1: UInt): Int <extern8 abi=scoop symbol=scoop_rt_uint_hash>
+  fun coreBooleanHash(arg1: Boolean): Int <extern9 abi=scoop symbol=scoop_rt_bool_hash>
+  fun coreStringHash(arg1: String): Int <extern10 abi=scoop symbol=scoop_rt_string_hash>
+  fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
+  suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
+  fun write(arg1: String): Unit <extern11 abi=scoop symbol=scoop_rt_write>
+  fun print<T : ToString>(value: T0): Unit
+    Call write : Unit
+      MethodCall bound T0 via ToString -> ToString.toString : String
+        Local value : T0
+    return
+  fun println<T : ToString>(value: T0): Unit
+    Call write : Unit
+      MethodCall bound T0 via ToString -> ToString.toString : String
+        Local value : T0
+    Call write : Unit
+      StringLiteral \"\\n\" : String
+  fun main(): Unit
+    val local0
+      VariantConstruct Color.Red : Color
+    val local1
+      VariantConstruct Shape.Circle : Shape
+        IntLiteral 1 : Int
+    val local2
+      VariantConstruct Shape.WithDefault : Shape
+        IntLiteral 0 : Int
+    val local3
+      VariantConstruct Shape.Named : Shape
+        IntLiteral 2 : Int
+        IntLiteral 3 : Int
+  entry main
+";
+    assert_eq!(hir::dump(&module), expected);
+}
+
+/// A generic enum with several instantiations coexisting; `T?`
+/// interning keeps `Option<Int>` a single `TypeId`.
+#[test]
+fn generic_enum_instantiations_and_interning() {
+    let file = file(vec![fun(
+        "main",
+        vec![
+            val_ty("a", Some(ty_nullable(ty_named("Int"))), some(int_lit(1))),
+            val_ty("b", Some(ty_nullable(ty_named("Int"))), none()),
+            val_ty(
+                "c",
+                Some(ty_nullable(ty_named("String"))),
+                some(str_lit("x")),
+            ),
+            // `==` on enum values of the same type is allowed (the
+            // expansion happens in MIR).
+            val("same", binary(BinOp::Eq, var("a"), var("b"))),
+        ],
+    )]);
+    let module = lower_user(file).expect("generic enum program must lower");
+    let body = match &module.functions[module.entry].kind {
+        FunctionKind::User(body) => body,
+        FunctionKind::Intrinsic(_) | FunctionKind::Extern(_) | FunctionKind::DerivedEquality => {
+            panic!("main is a user function")
+        }
+    };
+    // `val a` and `val b` share the interned `Option<Int>` type.
+    let locals: Vec<TypeId> = body.locals.iter().map(|(_, local)| local.ty).collect();
+    assert_eq!(locals[0], locals[1], "Option<Int> must be interned");
+    assert_ne!(locals[0], locals[2], "Option<String> is a different type");
+    let dump = hir::dump(&module);
+    assert!(
+        dump.contains("VariantConstruct Option.None<Int> : Option<Int>"),
+        "{dump}"
+    );
+    assert!(
+        dump.contains("MethodCall Option.equals <derived> : Boolean"),
+        "{dump}"
+    );
+}
+
+// --- negative: enum declarations ---
+
+#[test]
+fn duplicate_enum_is_an_error() {
+    let file = file(vec![color_decl(), color_decl(), fun("main", vec![])]);
+    let errors = lower_user(file).expect_err("duplicate enum must fail");
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].message, "duplicate enum `Color`");
+}
+
+#[test]
+fn enum_struct_name_collision_is_an_error() {
+    for decls in [
+        vec![
+            struct_decl("Point", vec![]),
+            enum_decl("Point", vec![], vec![]),
+        ],
+        vec![
+            enum_decl("Point", vec![], vec![]),
+            struct_decl("Point", vec![]),
+        ],
+    ] {
+        let mut decls = decls;
+        decls.push(fun("main", vec![]));
+        let errors = lower_user(file(decls)).expect_err("name collision must fail");
+        assert_eq!(errors.len(), 1);
+        assert!(
+            errors[0].message.starts_with("duplicate type `Point`"),
+            "{}",
+            errors[0].message
+        );
+    }
+}
+
+#[test]
+fn duplicate_variant_is_an_error() {
+    let file = file(vec![
+        enum_decl(
+            "Color",
+            vec![],
+            vec![variant_unit("Red"), variant_unit("Red")],
+        ),
+        fun("main", vec![]),
+    ]);
+    let errors = lower_user(file).expect_err("duplicate variant must fail");
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].message, "duplicate variant `Red` in enum `Color`");
+}
+
+#[test]
+fn duplicate_variant_field_is_an_error() {
+    let file = file(vec![
+        enum_decl(
+            "Shape",
+            vec![],
+            vec![variant_named(
+                "Named",
+                vec![("w", ty_named("Int")), ("w", ty_named("Int"))],
+            )],
+        ),
+        fun("main", vec![]),
+    ]);
+    let errors = lower_user(file).expect_err("duplicate field must fail");
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].message, "duplicate field `w` in variant `Named`");
+}
+
+#[test]
+fn duplicate_enum_type_parameter_is_an_error() {
+    let file = file(vec![
+        enum_decl("Pair", vec!["T", "T"], vec![]),
+        fun("main", vec![]),
+    ]);
+    let errors = lower_user(file).expect_err("duplicate type parameter must fail");
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].message, "duplicate type parameter `T`");
+}
+
+#[test]
+fn unknown_variant_field_type_is_an_error() {
+    let file = file(vec![
+        enum_decl(
+            "Shape",
+            vec![],
+            vec![variant_positional("Circle", vec![ty_named("Foo")])],
+        ),
+        fun("main", vec![]),
+    ]);
+    let errors = lower_user(file).expect_err("unknown field type must fail");
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].message, "unknown type `Foo`");
+}
+
+#[test]
+fn non_literal_variant_default_is_an_error() {
+    let file = file(vec![
+        enum_decl(
+            "Shape",
+            vec![],
+            vec![variant_constructor(
+                "WithDefault",
+                vec![("d", ty_named("Int"), Some(call("f", vec![])))],
+            )],
+        ),
+        fun("f", vec![]),
+        fun("main", vec![]),
+    ]);
+    let errors = lower_user(file).expect_err("non-literal default must fail");
+    assert_eq!(errors.len(), 1);
+    assert_eq!(
+        errors[0].message,
+        "default value of field `d` in variant `WithDefault` must be a literal"
+    );
+}
+
+#[test]
+fn variant_default_type_mismatch_is_an_error() {
+    let file = file(vec![
+        enum_decl(
+            "Shape",
+            vec![],
+            vec![variant_constructor(
+                "WithDefault",
+                vec![("d", ty_named("Int"), Some(str_lit("x")))],
+            )],
+        ),
+        fun("main", vec![]),
+    ]);
+    let errors = lower_user(file).expect_err("default mismatch must fail");
+    assert_eq!(errors.len(), 1);
+    assert_eq!(
+        errors[0].message,
+        "default value of field `d` in variant `WithDefault` must be of type Int, found String"
+    );
+}
+
+#[test]
+fn named_variant_default_is_an_error() {
+    // The parser only produces defaults on constructor-style variants;
+    // HIR rejects the shape too.
+    let file = file(vec![
+        Decl::Enum(ast::EnumDecl {
+            annotations: vec![],
+            name: ident("Shape"),
+            type_params: vec![],
+            methods: vec![],
+            interfaces: vec![],
+            where_clause: None,
+            variants: vec![VariantDecl {
+                name: ident("Named"),
+                kind: VariantDeclKind::Named(vec![VariantFieldDecl {
+                    name: ident("w"),
+                    ty: ty_named("Int"),
+                    default: Some(int_lit(0)),
+                    span: sp(),
+                }]),
+                span: sp(),
+            }],
+            span: sp(),
+        }),
+        fun("main", vec![]),
+    ]);
+    let errors = lower_user(file).expect_err("named-variant default must fail");
+    assert_eq!(errors.len(), 1);
+    assert_eq!(
+        errors[0].message,
+        "default value of field `w` in variant `Named` is only allowed on constructor-style variants"
+    );
+}
