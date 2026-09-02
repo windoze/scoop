@@ -7,14 +7,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/mman.h>
 
 #include "gc_internal.h"
 #include "heap_internal.h"
-
-#ifndef MAP_ANON
-#define MAP_ANON MAP_ANONYMOUS
-#endif
+#include "../platform/platform.h"
 
 unsigned char *scoop_gc_card_table;
 #undef collection_threshold
@@ -73,11 +69,11 @@ void free_run_nodes(void) {
 
 static void arena_init(void) {
     size_t reserve = GC_ARENA_SIZE + GC_BLOCK_SIZE;
-    void *mapping = mmap((void *)GC_ARENA_HINT, reserve,
-                         PROT_READ | PROT_WRITE,
-                         MAP_PRIVATE | MAP_ANON, -1, 0);
-    if (mapping == MAP_FAILED) {
-        heap_fatal("out of memory reserving the heap arena");
+    void *mapping = NULL;
+    ScoopPlatformError error = {0};
+    if (!scoop_platform_bundle()->thread_vm->reserve_read_write(
+            GC_ARENA_HINT, reserve, &mapping, &error)) {
+        heap_fatal(scoop_platform_error_message(error.code));
     }
     arena_base = ((uintptr_t)mapping + GC_BLOCK_SIZE - 1) &
                  ~(uintptr_t)(GC_BLOCK_SIZE - 1);

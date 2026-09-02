@@ -12,7 +12,7 @@
 - 使用 **LLVM landingpad** 作为 exception 的基础设施（Windows / catchpad 留待后续）；
 - runtime library 使用 **C 语言**，M15基线包含一个单代、STW、单线程collector的moving **Immix GC** 以及其他必须的 runtime 功能；分代及parallel/concurrent collector留待后续；
 - Scoop永久不支持执行managed代码、访问对象图或允许对象复活的GC finalizer。M15 collector在不可达判定、evacuation和reclaim中不调用用户代码；未来只能按runtime spec 3.8增加typed GC-free release hook；
-- M15首个可执行target固定为macOS/AArch64（Mach-O、LLVM stack map v3）。target profile必须在driver/codegen入口完整选择；其他target在拥有自己的platform adapter前明确诊断，不允许以M13保守扫描或非移动collector回退。section发现、frame/location解释、线程栈边界与虚拟内存保护均隔离在runtime platform层。
+- M15首个可执行target固定为macOS/AArch64（Mach-O、LLVM stack map v3）。target profile必须在driver/codegen入口完整选择；其他target在拥有自己的platform adapter前明确诊断，不允许以M13保守扫描或非移动collector回退。section发现、frame/location解释、线程栈边界、arena reservation与虚拟内存保护均隔离在runtime platform层。
 
 ## 2. 编译器 pipeline
 

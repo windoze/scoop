@@ -57,12 +57,6 @@ static void release_block(uint32_t index) {
 
 static void protect_quarantined_span(uint32_t index, uint32_t span) {
     const ScoopPlatformBundle *bundle = scoop_platform_bundle();
-    if (bundle == NULL || bundle->thread_vm == NULL ||
-        bundle->thread_vm->page_size == NULL ||
-        bundle->thread_vm->protect_none == NULL) {
-        heap_fatal(
-            "selected platform has no complete VM protection capability");
-    }
     size_t page_size = bundle->thread_vm->page_size();
     void *base = block_base(index);
     size_t size = (size_t)span * GC_BLOCK_SIZE;

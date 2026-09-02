@@ -19,6 +19,7 @@ static void require_complete_bundle(const ScoopPlatformBundle *bundle) {
         bundle->thread_vm == NULL || bundle->managed_frames == NULL ||
         bundle->metadata_images->loaded_images == NULL ||
         bundle->thread_vm->stack_bounds == NULL ||
+        bundle->thread_vm->reserve_read_write == NULL ||
         bundle->thread_vm->page_size == NULL ||
         bundle->thread_vm->protect_none == NULL ||
         bundle->managed_frames->validate_record == NULL ||

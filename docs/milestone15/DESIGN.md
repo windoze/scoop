@@ -170,6 +170,7 @@ runtime/tests/platform/
 ```text
 PlatformMetadataImages() -> [MetadataImage]
 PlatformThreadStackBounds() -> StackBounds
+PlatformReserveReadWrite(preferred_address, size) -> Mapping
 PlatformCaptureManagedAnchor() -> ManagedAnchor
 PlatformWalkManagedFrames(anchor, boundary, visitor)
 PlatformResolveStackMapLocation(frame, location) -> ManagedSlot
@@ -177,7 +178,7 @@ PlatformProtectNone(page_aligned_base, size)
 PlatformPageSize() -> usize
 ```
 
-通用 `stackmap.c` 解释 v3 字节格式；image 组件只发现进程内 metadata span，frame 组件只把 DWARF register number 与当前 frame 的 SP/FP/保存上下文映射为地址，OS 组件只提供 thread/VM primitive。通用 collector 不读取 x29、Mach-O header 或 `mprotect`。
+通用 `stackmap.c` 解释 v3 字节格式；image 组件只发现进程内 metadata span，frame 组件只把 DWARF register number 与当前 frame 的 SP/FP/保存上下文映射为地址，OS 组件只提供 thread/VM primitive（包括arena reservation与page protection）。通用 collector 不读取 x29、Mach-O header、`mmap`或`mprotect`。
 
 这种分解避免平台笛卡尔积复制：Linux/AArch64可复用AArch64 frame组件并新增ELF image/Linux OS组件；macOS/x86_64可复用Mach-O/Darwin组件并新增x86_64 frame组件。若某个ABI使同一CPU的frame规则不同，应新增architecture/ABI组件，而不是在已有组件中读取OS名称分支。
 

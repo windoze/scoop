@@ -35,6 +35,23 @@ static size_t darwin_page_size(void) {
     return size > 0 ? (size_t)size : 0;
 }
 
+static bool darwin_reserve_read_write(uintptr_t preferred_address,
+                                      size_t size, void **mapping,
+                                      ScoopPlatformError *error) {
+    if (size == 0 || mapping == NULL || error == NULL) {
+        return false;
+    }
+    void *reserved = mmap((void *)preferred_address, size,
+                          PROT_READ | PROT_WRITE,
+                          MAP_PRIVATE | MAP_ANON, -1, 0);
+    if (reserved == MAP_FAILED) {
+        error->code = SCOOP_PLATFORM_VM_OPERATION_FAILED;
+        return false;
+    }
+    *mapping = reserved;
+    return true;
+}
+
 static bool darwin_protect_none(void *base, size_t size,
                                 ScoopPlatformError *error) {
     size_t page_size = darwin_page_size();
@@ -52,6 +69,7 @@ static bool darwin_protect_none(void *base, size_t size,
 
 const ScoopThreadVmOps scoop_darwin_thread_vm_ops = {
     .stack_bounds = darwin_stack_bounds,
+    .reserve_read_write = darwin_reserve_read_write,
     .page_size = darwin_page_size,
     .protect_none = darwin_protect_none,
 };

@@ -59,6 +59,9 @@ typedef struct ScoopMetadataImageOps {
 typedef struct ScoopThreadVmOps {
     bool (*stack_bounds)(ScoopPlatformStackBounds *bounds,
                          ScoopPlatformError *error);
+    bool (*reserve_read_write)(uintptr_t preferred_address, size_t size,
+                               void **mapping,
+                               ScoopPlatformError *error);
     size_t (*page_size)(void);
     bool (*protect_none)(void *base, size_t size,
                          ScoopPlatformError *error);

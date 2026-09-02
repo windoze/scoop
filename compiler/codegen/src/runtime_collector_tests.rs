@@ -99,3 +99,37 @@ fn moving_collector_updates_all_thread_protocol_roots() {
         b"moving collector thread-protocol tests passed\n"
     );
 }
+
+#[test]
+fn generic_runtime_has_no_target_specific_vm_dependency() {
+    let workspace = workspace_root();
+    let generic_sources = [
+        "runtime/src/gc/allocation.c",
+        "runtime/src/gc/collector.c",
+        "runtime/src/gc/evacuation.c",
+        "runtime/src/gc/reclamation.c",
+        "runtime/src/gc/heap.c",
+        "runtime/src/gc/roots.c",
+        "runtime/src/gc/stackmap.c",
+        "runtime/src/gc/stack_roots.c",
+        "runtime/src/thread.c",
+    ];
+    let forbidden = [
+        "<mach-o/",
+        "<sys/mman.h>",
+        "__APPLE__",
+        "__aarch64__",
+        "mmap(",
+        "mprotect(",
+    ];
+    for source in generic_sources {
+        let contents = std::fs::read_to_string(workspace.join(source))
+            .unwrap_or_else(|error| panic!("read {source}: {error}"));
+        for token in forbidden {
+            assert!(
+                !contents.contains(token),
+                "generic runtime source {source} imports target VM detail {token:?}"
+            );
+        }
+    }
+}
