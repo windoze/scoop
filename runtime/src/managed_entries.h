@@ -4,7 +4,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "scoop_rt.h"
+#include "generated_entries.h"
 
 /* C implementations reached only through the target ABI's generated-code
  * entry stubs. The stubs append the direct managed caller's return PC,

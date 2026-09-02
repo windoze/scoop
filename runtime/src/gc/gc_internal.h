@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "scoop_rt.h"
+#include "../generated_entries.h"
 #include "stackmap.h"
 
 typedef void (*ScoopGcSlotVisitor)(void **slot, void *context);
