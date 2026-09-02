@@ -1,0 +1,203 @@
+use super::*;
+
+impl Concretizer<'_> {
+    pub(super) fn ensure_lambda(
+        &mut self,
+        source_id: export::LambdaId,
+        substitution: &[concrete::TypeId],
+        locals: &[concrete::LocalId],
+    ) -> concrete::LambdaId {
+        let key = (source_id, substitution.to_vec());
+        if let Some(&id) = self.lambda_by_key.get(&key) {
+            return id;
+        }
+        let source = self.source.lambdas[source_id].clone();
+        let value = concrete::Lambda {
+            function: self.request_function(source.function, substitution.to_vec()),
+            function_type: self.lower_function_type(source.function_type, substitution),
+            captures: source
+                .captures
+                .iter()
+                .map(|capture| self.lower_capture(capture, substitution, locals))
+                .collect(),
+            span: source.span,
+        };
+        let id = self.lambdas.alloc(value);
+        self.lambda_by_key.insert(key, id);
+        id
+    }
+
+    pub(super) fn ensure_anonymous(
+        &mut self,
+        source_id: export::AnonymousFunctionId,
+        substitution: &[concrete::TypeId],
+        locals: &[concrete::LocalId],
+    ) -> concrete::AnonymousFunctionId {
+        let key = (source_id, substitution.to_vec());
+        if let Some(&id) = self.anonymous_by_key.get(&key) {
+            return id;
+        }
+        let source = self.source.anonymous_functions[source_id].clone();
+        let value = concrete::AnonymousFunction {
+            function: self.request_function(source.function, substitution.to_vec()),
+            function_type: self.lower_function_type(source.function_type, substitution),
+            captures: source
+                .captures
+                .iter()
+                .map(|capture| self.lower_capture(capture, substitution, locals))
+                .collect(),
+            span: source.span,
+        };
+        let id = self.anonymous_functions.alloc(value);
+        self.anonymous_by_key.insert(key, id);
+        id
+    }
+
+    pub(super) fn ensure_local_function(
+        &mut self,
+        source_id: export::LocalFunctionId,
+        substitution: &[concrete::TypeId],
+        locals: &[concrete::LocalId],
+    ) -> concrete::LocalFunctionId {
+        let key = (source_id, substitution.to_vec());
+        if let Some(&id) = self.local_by_key.get(&key) {
+            return id;
+        }
+        let source = self.source.local_functions[source_id].clone();
+        let value = concrete::LocalFunction {
+            function: self.request_function(source.function, substitution.to_vec()),
+            function_type: self.lower_function_type(source.function_type, substitution),
+            captures: source
+                .captures
+                .iter()
+                .map(|capture| self.lower_capture(capture, substitution, locals))
+                .collect(),
+            span: source.span,
+        };
+        let id = self.local_functions.alloc(value);
+        self.local_by_key.insert(key, id);
+        id
+    }
+
+    pub(super) fn ensure_reference(
+        &mut self,
+        source_id: export::CallableReferenceId,
+        substitution: &[concrete::TypeId],
+        locals: &[concrete::LocalId],
+    ) -> concrete::CallableReferenceId {
+        let key = (source_id, substitution.to_vec());
+        if let Some(&id) = self.reference_by_key.get(&key) {
+            return id;
+        }
+        let source = self.source.callable_references[source_id].clone();
+        let target = match source.target {
+            export::CallableReferenceTarget::Named(callee) => {
+                concrete::CallableReferenceTarget::Named(self.lower_callable(callee, substitution))
+            }
+            export::CallableReferenceTarget::Local {
+                local_function,
+                callee,
+            } => {
+                let (callee, arguments) = self.lower_callable_with_arguments(callee, substitution);
+                concrete::CallableReferenceTarget::Local {
+                    local_function: self.ensure_local_function(local_function, &arguments, locals),
+                    callee,
+                }
+            }
+            export::CallableReferenceTarget::BoundMember { receiver, callee } => {
+                let mut receiver = self.lower_expr(&receiver, substitution, locals);
+                let callee = match callee {
+                    export::MethodCallee::Callable(callable) => {
+                        self.lower_callable(callable, substitution)
+                    }
+                    export::MethodCallee::Bound(bound) => {
+                        let (callee, interface) =
+                            self.resolve_bound_callee(bound, receiver.ty, substitution);
+                        if let Some(interface) = interface {
+                            receiver = self.adapt_receiver_to_interface(receiver, interface);
+                        }
+                        callee
+                    }
+                    export::MethodCallee::DerivedEquality(application) => {
+                        self.lower_derived_equality_application(application, substitution)
+                    }
+                };
+                concrete::CallableReferenceTarget::BoundMember {
+                    receiver: Box::new(receiver),
+                    callee,
+                }
+            }
+            export::CallableReferenceTarget::BoundExtension { receiver, callee } => {
+                concrete::CallableReferenceTarget::BoundExtension {
+                    receiver: Box::new(self.lower_expr(&receiver, substitution, locals)),
+                    callee: self.lower_callable(callee, substitution),
+                }
+            }
+        };
+        let value = concrete::CallableReference {
+            target,
+            function_type: self.lower_function_type(source.function_type, substitution),
+            captures: source
+                .captures
+                .iter()
+                .map(|capture| self.lower_capture(capture, substitution, locals))
+                .collect(),
+            span: source.span,
+        };
+        let id = self.callable_references.alloc(value);
+        self.reference_by_key.insert(key, id);
+        id
+    }
+
+    pub(super) fn ensure_coercion(
+        &mut self,
+        source_id: export::FunctionCoercionId,
+        substitution: &[concrete::TypeId],
+    ) -> concrete::FunctionCoercionId {
+        let key = (source_id, substitution.to_vec());
+        if let Some(&id) = self.coercion_by_key.get(&key) {
+            return id;
+        }
+        let source = self.source.function_coercions[source_id].clone();
+        let value = concrete::FunctionCoercion {
+            source: self.lower_function_type(source.source, substitution),
+            target: self.lower_function_type(source.target, substitution),
+        };
+        let id = self.function_coercions.alloc(value);
+        self.coercion_by_key.insert(key, id);
+        id
+    }
+
+    pub(super) fn ensure_foreign_callback(
+        &mut self,
+        source_id: export::ForeignCallbackRegistrationId,
+        substitution: &[concrete::TypeId],
+        callback: concrete::StructId,
+    ) -> concrete::ForeignCallbackRegistrationId {
+        let key = (source_id, substitution.to_vec());
+        if let Some(&id) = self.foreign_callback_by_key.get(&key) {
+            assert_eq!(self.foreign_callback_registrations[id].callback, callback);
+            return id;
+        }
+        let source = self.source.foreign_callback_registrations[source_id].clone();
+        let native_function_type =
+            self.lower_function_type(source.native_function_type, substitution);
+        let managed_function_type =
+            self.lower_function_type(source.managed_function_type, substitution);
+        let mode = match source.mode {
+            export::ForeignCallbackMode::Reusable => concrete::ForeignCallbackMode::Reusable,
+            export::ForeignCallbackMode::OneShot => concrete::ForeignCallbackMode::OneShot,
+        };
+        let id = self
+            .foreign_callback_registrations
+            .alloc(concrete::ForeignCallbackRegistration {
+                callback,
+                native_function_type,
+                managed_function_type,
+                context_index: source.context_index,
+                mode,
+            });
+        self.foreign_callback_by_key.insert(key, id);
+        id
+    }
+}
