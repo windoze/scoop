@@ -45,8 +45,47 @@ enum ObjectFormat {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum InstructionSelector {
-    SelectionDag,
+enum LlvmTargetBackend {
+    Aarch64,
+}
+
+impl LlvmTargetBackend {
+    fn initialize(self) {
+        match self {
+            Self::Aarch64 => Target::initialize_aarch64(&InitializationConfig::default()),
+        }
+    }
+}
+
+/// Closed LLVM machine pipeline whose statepoint behavior was qualified for
+/// this compiler.  The ordinary inkwell `Target::create_target_machine` API
+/// selects LLVM 22.1's standard SelectionDAG pipeline; keeping that operation
+/// behind this capability prevents callers from silently substituting another
+/// instruction selector or a custom machine-pass pipeline.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum MachinePipeline {
+    Llvm22SelectionDagStandard,
+}
+
+impl MachinePipeline {
+    fn create_target_machine(
+        self,
+        target: &Target,
+        triple: &TargetTriple,
+        profile: TargetProfile,
+        optimization: OptimizationLevel,
+    ) -> Option<TargetMachine> {
+        match self {
+            Self::Llvm22SelectionDagStandard => target.create_target_machine(
+                triple,
+                profile.cpu,
+                profile.features,
+                optimization,
+                profile.relocation,
+                profile.code_model,
+            ),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -103,7 +142,8 @@ pub struct TargetProfile {
     relocation: RelocMode,
     code_model: CodeModel,
     object_format: ObjectFormat,
-    instruction_selector: InstructionSelector,
+    llvm_target_backend: LlvmTargetBackend,
+    machine_pipeline: MachinePipeline,
     managed_address_space: ManagedAddressSpace,
     stack_map_version: u8,
     statepoint_roots: StatepointRootPolicy,
@@ -124,7 +164,8 @@ impl TargetProfile {
         relocation: RelocMode::PIC,
         code_model: CodeModel::Default,
         object_format: ObjectFormat::MachO64,
-        instruction_selector: InstructionSelector::SelectionDag,
+        llvm_target_backend: LlvmTargetBackend::Aarch64,
+        machine_pipeline: MachinePipeline::Llvm22SelectionDagStandard,
         managed_address_space: ManagedAddressSpace::MOVING_GC,
         stack_map_version: 3,
         statepoint_roots: StatepointRootPolicy::StackIndirectOnly,
@@ -275,30 +316,13 @@ impl TargetProfile {
         self,
         optimization: OptimizationLevel,
     ) -> Result<TargetMachine, CodegenError> {
-        debug_assert_eq!(self.id, TargetProfileId::DarwinAarch64);
-        debug_assert_eq!(self.object_format, ObjectFormat::MachO64);
-        debug_assert_eq!(self.instruction_selector, InstructionSelector::SelectionDag);
-        debug_assert_eq!(
-            self.statepoint_roots,
-            StatepointRootPolicy::StackIndirectOnly
-        );
-        debug_assert_eq!(self.frame_pointers, FramePointerPolicy::All);
-        debug_assert_eq!(self.tail_calls, TailCallPolicy::Disabled);
-
-        Target::initialize_aarch64(&InitializationConfig::default());
+        self.llvm_target_backend.initialize();
         let triple = TargetTriple::create(self.canonical_triple);
         let target = Target::from_triple(&triple).map_err(|error| {
             CodegenError(format!("no target for {}: {error}", self.canonical_triple))
         })?;
-        target
-            .create_target_machine(
-                &triple,
-                self.cpu,
-                self.features,
-                optimization,
-                self.relocation,
-                self.code_model,
-            )
+        self.machine_pipeline
+            .create_target_machine(&target, &triple, self, optimization)
             .ok_or_else(|| {
                 CodegenError(format!(
                     "failed to create target machine for {}",
