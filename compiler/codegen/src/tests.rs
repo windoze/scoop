@@ -33,6 +33,65 @@ enum TestCallProtocol {
     },
 }
 
+enum TestTypedCall {
+    Void {
+        signature: scoop_lir::VoidCallSignatureId,
+        args: Vec<Value>,
+    },
+    Direct {
+        signature: scoop_lir::DirectCallSignatureId,
+        out: TempId,
+        args: Vec<Value>,
+    },
+    IndirectResult {
+        signature: scoop_lir::IndirectResultCallSignatureId,
+        storage: scoop_lir::LocalId,
+        args: Vec<Value>,
+    },
+}
+
+fn bind_test_call<Destination: Copy>(
+    targets: &mut scoop_lir::ProtocolCallTargets<Destination>,
+    destination: Destination,
+    call: TestTypedCall,
+) -> scoop_lir::TypedCall<Destination> {
+    match call {
+        TestTypedCall::Void { signature, args } => {
+            let target = targets.void.alloc(scoop_lir::CallTarget {
+                destination,
+                signature,
+            });
+            scoop_lir::TypedCall::Void { target, args }
+        }
+        TestTypedCall::Direct {
+            signature,
+            out,
+            args,
+        } => {
+            let target = targets.direct.alloc(scoop_lir::CallTarget {
+                destination,
+                signature,
+            });
+            scoop_lir::TypedCall::Direct { target, out, args }
+        }
+        TestTypedCall::IndirectResult {
+            signature,
+            storage,
+            args,
+        } => {
+            let target = targets.indirect_result.alloc(scoop_lir::CallTarget {
+                destination,
+                signature,
+            });
+            scoop_lir::TypedCall::IndirectResult {
+                target,
+                storage,
+                args,
+            }
+        }
+    }
+}
+
 fn test_safepoint(raw: u64) -> scoop_lir::SafepointId {
     scoop_lir::SafepointId::new(raw).expect("test safepoint ids are non-zero")
 }
@@ -71,44 +130,39 @@ fn protocol_site(
     targets: &mut CallTargets,
     destination: CallDestination,
     protocol: TestCallProtocol,
-    call: TypedCall,
+    call: TestTypedCall,
 ) -> CallSite {
     match protocol {
         TestCallProtocol::Managed(safepoint) => {
-            let target = targets
-                .managed_targets
-                .alloc(scoop_lir::ManagedTarget { destination });
+            let destination = scoop_lir::ManagedCallDestination::from_view(destination)
+                .expect("managed test destination");
             CallSite::Managed(scoop_lir::ManagedCallSite {
-                target,
-                call,
+                call: bind_test_call(&mut targets.managed_targets, destination, call),
                 safepoint: test_safepoint(safepoint),
                 live: scoop_lir::StatepointLiveSet::default(),
             })
         }
         TestCallProtocol::NoGc => {
-            let target = targets
-                .no_gc_targets
-                .alloc(scoop_lir::NoGcTarget { destination });
-            CallSite::NoGc(scoop_lir::NoGcCallSite { target, call })
+            let destination = scoop_lir::NoGcCallDestination::from_view(destination)
+                .expect("NoGC test destination");
+            CallSite::NoGc(scoop_lir::NoGcCallSite {
+                call: bind_test_call(&mut targets.no_gc_targets, destination, call),
+            })
         }
         TestCallProtocol::NativeSafe(safepoint) => {
-            let target = targets
-                .native_safe_targets
-                .alloc(scoop_lir::NativeSafeTarget { destination });
+            let destination = scoop_lir::NativeSafeCallDestination::from_view(destination)
+                .expect("native-safe test destination");
             CallSite::NativeSafe(scoop_lir::NativeSafeCallSite {
-                target,
-                call,
+                call: bind_test_call(&mut targets.native_safe_targets, destination, call),
                 safepoint: test_safepoint(safepoint),
                 roots: scoop_lir::NativeSafeRootSet::default(),
             })
         }
         TestCallProtocol::NativeBorrowed { safepoint, result } => {
-            let target = targets
-                .native_borrowed_targets
-                .alloc(scoop_lir::NativeBorrowedTarget { destination });
+            let destination = scoop_lir::NativeBorrowedCallDestination::from_view(destination)
+                .expect("native-borrowed test destination");
             CallSite::NativeBorrowed(scoop_lir::NativeBorrowedCallSite {
-                target,
-                call,
+                call: bind_test_call(&mut targets.native_borrowed_targets, destination, call),
                 safepoint: test_safepoint(safepoint),
                 roots: scoop_lir::NativeBorrowedRootSet::new(Vec::new(), result),
             })
@@ -131,7 +185,7 @@ fn void_site(
         targets,
         destination,
         protocol,
-        TypedCall::Void { signature, args },
+        TestTypedCall::Void { signature, args },
     )
 }
 
@@ -154,7 +208,7 @@ fn direct_site(
         targets,
         destination,
         protocol,
-        TypedCall::Direct {
+        TestTypedCall::Direct {
             signature,
             out,
             args,
@@ -185,7 +239,7 @@ fn indirect_result_site(
         targets,
         destination,
         protocol,
-        TypedCall::IndirectResult {
+        TestTypedCall::IndirectResult {
             signature,
             storage,
             args,
@@ -202,7 +256,6 @@ fn managed_invoke(
         panic!("test invoke helper requires a managed call site")
     };
     scoop_lir::InvokeSite::Managed(scoop_lir::ManagedInvokeSite {
-        target: site.target,
         call: site.call,
         safepoint: site.safepoint,
         roots: scoop_lir::ExceptionalRootSet::default(),
@@ -217,6 +270,14 @@ fn dispatch_destination(targets: &mut CallTargets, table: Value, index: u32) -> 
         index,
     });
     CallDestination::Dispatch { table, slot }
+}
+
+fn managed_runtime(function: scoop_lir::ManagedRuntimeFunction) -> CallDestination {
+    CallDestination::Runtime(scoop_lir::RuntimeFunction::Managed(function))
+}
+
+fn no_gc_runtime(function: scoop_lir::NoGcRuntimeFunction) -> CallDestination {
+    CallDestination::Runtime(scoop_lir::RuntimeFunction::NoGc(function))
 }
 
 fn string_metadata() -> LirMeta {
@@ -346,7 +407,7 @@ fn values_module() -> Module {
     let mut call_targets = CallTargets::default();
     let concat = direct_site(
         &mut call_targets,
-        CallDestination::Runtime(scoop_lir::RuntimeFunction::StringConcat),
+        managed_runtime(scoop_lir::ManagedRuntimeFunction::StringConcat),
         TestCallProtocol::Managed(1),
         vec![MANAGED_PTR, MANAGED_PTR],
         (MANAGED_PTR, RefScan::References(vec![0])),
@@ -760,7 +821,7 @@ fn enum_module() -> Module {
     let mut trap_targets = CallTargets::default();
     let trap_site = void_site(
         &mut trap_targets,
-        CallDestination::Runtime(scoop_lir::RuntimeFunction::Trap),
+        no_gc_runtime(scoop_lir::NoGcRuntimeFunction::Trap),
         TestCallProtocol::NoGc,
         vec![RAW_PTR],
         vec![Value::Global(trap_message)],
@@ -1419,7 +1480,7 @@ fn heap_module() -> Module {
     let mut call_targets = CallTargets::default();
     let alloc_site = direct_site(
         &mut call_targets,
-        CallDestination::Runtime(scoop_lir::RuntimeFunction::Alloc),
+        managed_runtime(scoop_lir::ManagedRuntimeFunction::Alloc),
         TestCallProtocol::Managed(1),
         vec![METADATA_PTR, LirType::I64],
         (MANAGED_PTR, RefScan::References(vec![0])),
@@ -1429,7 +1490,7 @@ fn heap_module() -> Module {
     let payload_scan = call_targets.root_scans.alloc(RefScan::None);
     let mut box_site = direct_site(
         &mut call_targets,
-        CallDestination::Runtime(scoop_lir::RuntimeFunction::Box),
+        managed_runtime(scoop_lir::ManagedRuntimeFunction::Box),
         TestCallProtocol::Managed(2),
         vec![METADATA_PTR, RAW_PTR, LirType::I64, METADATA_PTR],
         (MANAGED_PTR, RefScan::References(vec![0])),
@@ -1451,7 +1512,7 @@ fn heap_module() -> Module {
     );
     let is_instance_site = direct_site(
         &mut call_targets,
-        CallDestination::Runtime(scoop_lir::RuntimeFunction::IsInstance),
+        no_gc_runtime(scoop_lir::NoGcRuntimeFunction::IsInstance),
         TestCallProtocol::NoGc,
         vec![MANAGED_PTR, METADATA_PTR],
         (LirType::I1, RefScan::None),
@@ -2357,17 +2418,25 @@ fn barrier_module() -> Module {
     let mut call_targets = CallTargets::default();
     let alloc_site = direct_site(
         &mut call_targets,
-        CallDestination::Runtime(scoop_lir::RuntimeFunction::Alloc),
+        managed_runtime(scoop_lir::ManagedRuntimeFunction::Alloc),
         TestCallProtocol::Managed(1),
         vec![METADATA_PTR, LirType::I64],
         (MANAGED_PTR, RefScan::References(vec![0])),
         t0,
         vec![Value::Param(0), Value::IntConst(24)],
     );
+    let poll_signature = call_targets.void_signatures.alloc(VoidCallSignature {
+        params: Vec::new(),
+        calling_convention: scoop_lir::CallingConvention::Cdecl,
+    });
     let poll_target = call_targets
         .managed_targets
-        .alloc(scoop_lir::ManagedTarget {
-            destination: CallDestination::Runtime(scoop_lir::RuntimeFunction::Safepoint),
+        .void
+        .alloc(scoop_lir::CallTarget {
+            destination: scoop_lir::ManagedCallDestination::runtime(
+                scoop_lir::ManagedRuntimeFunction::Safepoint,
+            ),
+            signature: poll_signature,
         });
     let mut blocks = Arena::default();
     let entry = blocks.alloc(BasicBlock {
@@ -2588,17 +2657,19 @@ fn managed_live_plan_produces_as1_relocation() {
         params: Vec::new(),
         calling_convention: scoop_lir::CallingConvention::Cdecl,
     });
-    let target = targets.managed_targets.alloc(scoop_lir::ManagedTarget {
-        destination: CallDestination::Runtime(scoop_lir::RuntimeFunction::Safepoint),
+    let target = targets.managed_targets.void.alloc(scoop_lir::CallTarget {
+        destination: scoop_lir::ManagedCallDestination::runtime(
+            scoop_lir::ManagedRuntimeFunction::Safepoint,
+        ),
+        signature,
     });
     let mut blocks = Arena::default();
     let entry = blocks.alloc(BasicBlock {
         name: "entry".to_string(),
         instructions: vec![Instruction::Call {
             site: CallSite::Managed(scoop_lir::ManagedCallSite {
-                target,
                 call: TypedCall::Void {
-                    signature,
+                    target,
                     args: Vec::new(),
                 },
                 safepoint: test_safepoint(1),
@@ -2679,8 +2750,11 @@ fn managed_invoke_uses_explicit_compiler_roots_without_exceptional_relocation() 
         result_scan: RefScan::References(vec![0]),
         calling_convention: scoop_lir::CallingConvention::Cdecl,
     });
-    let target = targets.managed_targets.alloc(scoop_lir::ManagedTarget {
-        destination: CallDestination::Local(scoop_lir::LocalFunctionId::from_u32(0)),
+    let target = targets.managed_targets.direct.alloc(scoop_lir::CallTarget {
+        destination: scoop_lir::ManagedCallDestination::local(
+            scoop_lir::LocalFunctionId::from_u32(0),
+        ),
+        signature,
     });
     let mut blocks = Arena::default();
     let placeholder = |blocks: &mut Arena<BasicBlock>, name: &str| {
@@ -2697,9 +2771,8 @@ fn managed_invoke_uses_explicit_compiler_roots_without_exceptional_relocation() 
         name: "entry".to_string(),
         instructions: vec![Instruction::Invoke {
             site: scoop_lir::InvokeSite::Managed(scoop_lir::ManagedInvokeSite {
-                target,
                 call: TypedCall::Direct {
-                    signature,
+                    target,
                     out: result,
                     args: vec![Value::Param(0)],
                 },

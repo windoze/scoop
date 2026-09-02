@@ -26,13 +26,6 @@ pub type NativeGlobalAddressBridgeId = Idx<NativeGlobalAddressBridge>;
 pub type CallbackBridgeId = Idx<CallbackBridge>;
 pub type ForeignCallbackBridgeId = Idx<ForeignCallbackBridge>;
 pub type ArrayTypeId = Idx<ArrayType>;
-pub type VoidCallSignatureId = Idx<VoidCallSignature>;
-pub type DirectCallSignatureId = Idx<DirectCallSignature>;
-pub type IndirectResultCallSignatureId = Idx<IndirectResultCallSignature>;
-pub type ManagedTargetId = Idx<ManagedTarget>;
-pub type NoGcTargetId = Idx<NoGcTarget>;
-pub type NativeSafeTargetId = Idx<NativeSafeTarget>;
-pub type NativeBorrowedTargetId = Idx<NativeBorrowedTarget>;
 pub type DispatchSlotId = Idx<DispatchSlot>;
 pub type RootScanId = Idx<RefScan>;
 pub type LayoutId = Idx<Layout>;
@@ -690,10 +683,10 @@ pub struct CallTargets {
     pub void_signatures: Arena<VoidCallSignature>,
     pub direct_signatures: Arena<DirectCallSignature>,
     pub indirect_result_signatures: Arena<IndirectResultCallSignature>,
-    pub managed_targets: Arena<ManagedTarget>,
-    pub no_gc_targets: Arena<NoGcTarget>,
-    pub native_safe_targets: Arena<NativeSafeTarget>,
-    pub native_borrowed_targets: Arena<NativeBorrowedTarget>,
+    pub managed_targets: ProtocolCallTargets<ManagedCallDestination>,
+    pub no_gc_targets: ProtocolCallTargets<NoGcCallDestination>,
+    pub native_safe_targets: ProtocolCallTargets<NativeSafeCallDestination>,
+    pub native_borrowed_targets: ProtocolCallTargets<NativeBorrowedCallDestination>,
     pub dispatch_slots: Arena<DispatchSlot>,
     /// Function-local recursive scan programs passed to runtime entries that
     /// receive addressable inline values (currently boxing payloads).
@@ -729,6 +722,55 @@ pub struct ResultStorage {
     pub scan: RefScan,
 }
 
+pub type VoidCallSignatureId = Idx<VoidCallSignature>;
+pub type DirectCallSignatureId = Idx<DirectCallSignature>;
+pub type IndirectResultCallSignatureId = Idx<IndirectResultCallSignature>;
+
+/// One protocol- and return-convention-specific call target.  Destination and
+/// signature are one atomic entity; a call site can no longer pair a target
+/// with a separately selected, potentially incompatible signature.
+#[derive(Debug)]
+pub struct CallTarget<Destination, Signature> {
+    pub destination: Destination,
+    pub signature: Signature,
+}
+
+pub type VoidCallTargetId<Destination> = Idx<CallTarget<Destination, VoidCallSignatureId>>;
+pub type DirectCallTargetId<Destination> = Idx<CallTarget<Destination, DirectCallSignatureId>>;
+pub type IndirectResultCallTargetId<Destination> =
+    Idx<CallTarget<Destination, IndirectResultCallSignatureId>>;
+
+pub type ManagedVoidTargetId = VoidCallTargetId<ManagedCallDestination>;
+pub type ManagedDirectTargetId = DirectCallTargetId<ManagedCallDestination>;
+pub type ManagedIndirectResultTargetId = IndirectResultCallTargetId<ManagedCallDestination>;
+pub type NoGcVoidTargetId = VoidCallTargetId<NoGcCallDestination>;
+pub type NoGcDirectTargetId = DirectCallTargetId<NoGcCallDestination>;
+pub type NoGcIndirectResultTargetId = IndirectResultCallTargetId<NoGcCallDestination>;
+pub type NativeSafeVoidTargetId = VoidCallTargetId<NativeSafeCallDestination>;
+pub type NativeSafeDirectTargetId = DirectCallTargetId<NativeSafeCallDestination>;
+pub type NativeSafeIndirectResultTargetId = IndirectResultCallTargetId<NativeSafeCallDestination>;
+pub type NativeBorrowedVoidTargetId = VoidCallTargetId<NativeBorrowedCallDestination>;
+pub type NativeBorrowedDirectTargetId = DirectCallTargetId<NativeBorrowedCallDestination>;
+pub type NativeBorrowedIndirectResultTargetId =
+    IndirectResultCallTargetId<NativeBorrowedCallDestination>;
+
+#[derive(Debug)]
+pub struct ProtocolCallTargets<Destination> {
+    pub void: Arena<CallTarget<Destination, VoidCallSignatureId>>,
+    pub direct: Arena<CallTarget<Destination, DirectCallSignatureId>>,
+    pub indirect_result: Arena<CallTarget<Destination, IndirectResultCallSignatureId>>,
+}
+
+impl<Destination> Default for ProtocolCallTargets<Destination> {
+    fn default() -> Self {
+        Self {
+            void: Arena::new(),
+            direct: Arena::new(),
+            indirect_result: Arena::new(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CallDestination {
     Local(LocalFunctionId),
@@ -737,24 +779,116 @@ pub enum CallDestination {
     Dispatch { table: Value, slot: DispatchSlotId },
 }
 
-#[derive(Debug)]
-pub struct ManagedTarget {
-    pub destination: CallDestination,
+/// A destination that can only be reached through a managed statepoint.
+/// The inner common representation is exposed only as a read-only view;
+/// construction is closed over the legal destination categories.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ManagedCallDestination(CallDestination);
+
+impl ManagedCallDestination {
+    pub fn local(function: LocalFunctionId) -> Self {
+        Self(CallDestination::Local(function))
+    }
+
+    pub fn runtime(function: ManagedRuntimeFunction) -> Self {
+        Self(CallDestination::Runtime(RuntimeFunction::Managed(function)))
+    }
+
+    pub fn dispatch(table: Value, slot: DispatchSlotId) -> Self {
+        Self(CallDestination::Dispatch { table, slot })
+    }
+
+    pub fn view(self) -> CallDestination {
+        self.0
+    }
+
+    pub fn from_view(destination: CallDestination) -> Option<Self> {
+        matches!(
+            destination,
+            CallDestination::Local(_)
+                | CallDestination::Runtime(RuntimeFunction::Managed(_))
+                | CallDestination::Dispatch { .. }
+        )
+        .then_some(Self(destination))
+    }
 }
 
-#[derive(Debug)]
-pub struct NoGcTarget {
-    pub destination: CallDestination,
+/// A destination statically guaranteed not to safepoint or transition.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct NoGcCallDestination(CallDestination);
+
+impl NoGcCallDestination {
+    pub fn local(function: LocalFunctionId) -> Self {
+        Self(CallDestination::Local(function))
+    }
+
+    pub fn runtime(function: NoGcRuntimeFunction) -> Self {
+        Self(CallDestination::Runtime(RuntimeFunction::NoGc(function)))
+    }
+
+    pub fn dispatch(table: Value, slot: DispatchSlotId) -> Self {
+        Self(CallDestination::Dispatch { table, slot })
+    }
+
+    pub fn view(self) -> CallDestination {
+        self.0
+    }
+
+    pub fn from_view(destination: CallDestination) -> Option<Self> {
+        matches!(
+            destination,
+            CallDestination::Local(_)
+                | CallDestination::Runtime(RuntimeFunction::NoGc(_))
+                | CallDestination::Dispatch { .. }
+        )
+        .then_some(Self(destination))
+    }
 }
 
-#[derive(Debug)]
-pub struct NativeSafeTarget {
-    pub destination: CallDestination,
+/// C-ABI outbound calls are the only native-safe destinations in LIR.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct NativeSafeCallDestination(ExternFunctionId);
+
+impl NativeSafeCallDestination {
+    pub fn extern_function(function: ExternFunctionId) -> Self {
+        Self(function)
+    }
+
+    pub fn view(self) -> CallDestination {
+        CallDestination::Extern(self.0)
+    }
+
+    pub fn from_view(destination: CallDestination) -> Option<Self> {
+        match destination {
+            CallDestination::Extern(function) => Some(Self(function)),
+            CallDestination::Local(_)
+            | CallDestination::Runtime(_)
+            | CallDestination::Dispatch { .. } => None,
+        }
+    }
 }
 
-#[derive(Debug)]
-pub struct NativeBorrowedTarget {
-    pub destination: CallDestination,
+/// Scoop-ABI outbound calls are the only native-borrowed destinations in LIR.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct NativeBorrowedCallDestination(ExternFunctionId);
+
+impl NativeBorrowedCallDestination {
+    pub fn extern_function(function: ExternFunctionId) -> Self {
+        Self(function)
+    }
+
+    pub fn view(self) -> CallDestination {
+        CallDestination::Extern(self.0)
+    }
+
+    pub fn from_view(destination: CallDestination) -> Option<Self> {
+        match destination {
+            CallDestination::Extern(function) => Some(Self(function)),
+            CallDestination::Local(_)
+            | CallDestination::Runtime(_)
+            | CallDestination::Dispatch { .. } => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -772,82 +906,99 @@ pub enum DispatchKind {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum RuntimeFunction {
+pub enum ManagedRuntimeFunction {
     Safepoint,
     Alloc,
     Box,
+    GcCollect,
+    MaterializeException,
+    StringConcat,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum NoGcRuntimeFunction {
     IsInstance,
     ITableLookup,
     Pin,
     Unpin,
     GetHandle,
     ReleaseHandle,
-    GcCollect,
     GcStats,
-    MaterializeException,
-    StringConcat,
     Trap,
     Throw,
     Rethrow,
 }
 
+/// Read-only common view used by mechanical dump/codegen logic. Runtime
+/// protocol classification is already fixed by the typed target destination;
+/// consumers must not reconstruct it from this enum.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum RuntimeFunction {
+    Managed(ManagedRuntimeFunction),
+    NoGc(NoGcRuntimeFunction),
+}
+
 impl RuntimeFunction {
     pub const fn symbol(self) -> &'static str {
         match self {
-            Self::Safepoint => "scoop_rt_safepoint",
-            Self::Alloc => "scoop_rt_alloc",
-            Self::Box => "scoop_rt_box",
-            Self::IsInstance => "scoop_rt_is_instance",
-            Self::ITableLookup => "scoop_rt_itable_lookup",
-            Self::Pin => "scoop_rt_pin",
-            Self::Unpin => "scoop_rt_unpin",
-            Self::GetHandle => "scoop_rt_get_handle",
-            Self::ReleaseHandle => "scoop_rt_release_handle",
-            Self::GcCollect => "scoop_rt_gc_collect",
-            Self::GcStats => "scoop_rt_gc_stats",
-            Self::MaterializeException => "scoop_rt_materialize_exception",
-            Self::StringConcat => "scoop_rt_string_concat",
-            Self::Trap => "scoop_rt_trap",
-            Self::Throw => "scoop_rt_throw",
-            Self::Rethrow => "scoop_rt_rethrow",
+            Self::Managed(ManagedRuntimeFunction::Safepoint) => "scoop_rt_safepoint",
+            Self::Managed(ManagedRuntimeFunction::Alloc) => "scoop_rt_alloc",
+            Self::Managed(ManagedRuntimeFunction::Box) => "scoop_rt_box",
+            Self::Managed(ManagedRuntimeFunction::GcCollect) => "scoop_rt_gc_collect",
+            Self::Managed(ManagedRuntimeFunction::MaterializeException) => {
+                "scoop_rt_materialize_exception"
+            }
+            Self::Managed(ManagedRuntimeFunction::StringConcat) => "scoop_rt_string_concat",
+            Self::NoGc(NoGcRuntimeFunction::IsInstance) => "scoop_rt_is_instance",
+            Self::NoGc(NoGcRuntimeFunction::ITableLookup) => "scoop_rt_itable_lookup",
+            Self::NoGc(NoGcRuntimeFunction::Pin) => "scoop_rt_pin",
+            Self::NoGc(NoGcRuntimeFunction::Unpin) => "scoop_rt_unpin",
+            Self::NoGc(NoGcRuntimeFunction::GetHandle) => "scoop_rt_get_handle",
+            Self::NoGc(NoGcRuntimeFunction::ReleaseHandle) => "scoop_rt_release_handle",
+            Self::NoGc(NoGcRuntimeFunction::GcStats) => "scoop_rt_gc_stats",
+            Self::NoGc(NoGcRuntimeFunction::Trap) => "scoop_rt_trap",
+            Self::NoGc(NoGcRuntimeFunction::Throw) => "scoop_rt_throw",
+            Self::NoGc(NoGcRuntimeFunction::Rethrow) => "scoop_rt_rethrow",
         }
     }
 }
 
 #[derive(Debug)]
-pub enum TypedCall {
+pub enum TypedCall<Destination> {
     Void {
-        signature: VoidCallSignatureId,
+        target: VoidCallTargetId<Destination>,
         args: Vec<Value>,
     },
     Direct {
-        signature: DirectCallSignatureId,
+        target: DirectCallTargetId<Destination>,
         out: TempId,
         args: Vec<Value>,
     },
     IndirectResult {
-        signature: IndirectResultCallSignatureId,
+        target: IndirectResultCallTargetId<Destination>,
         storage: LocalId,
         args: Vec<Value>,
     },
 }
 
-impl TypedCall {
+pub type ManagedTypedCall = TypedCall<ManagedCallDestination>;
+pub type NoGcTypedCall = TypedCall<NoGcCallDestination>;
+pub type NativeSafeTypedCall = TypedCall<NativeSafeCallDestination>;
+pub type NativeBorrowedTypedCall = TypedCall<NativeBorrowedCallDestination>;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TypedCallResult {
+    Void,
+    Direct(TempId),
+    IndirectResult(LocalId),
+}
+
+impl<Destination> TypedCall<Destination> {
     pub fn args(&self) -> &[Value] {
         match self {
             Self::Void { args, .. }
             | Self::Direct { args, .. }
             | Self::IndirectResult { args, .. } => args,
-        }
-    }
-
-    pub fn result_scan<'a>(&self, targets: &'a CallTargets) -> &'a RefScan {
-        match *self {
-            Self::Void { .. } => &RefScan::None,
-            Self::Direct { signature, .. } => &targets.direct_signatures[signature].result_scan,
-            Self::IndirectResult { signature, .. } => {
-                &targets.indirect_result_signatures[signature].result.scan
-            }
         }
     }
 
@@ -862,6 +1013,147 @@ impl TypedCall {
         match *self {
             Self::IndirectResult { storage, .. } => Some(storage),
             Self::Void { .. } | Self::Direct { .. } => None,
+        }
+    }
+
+    pub fn result(&self) -> TypedCallResult {
+        match *self {
+            Self::Void { .. } => TypedCallResult::Void,
+            Self::Direct { out, .. } => TypedCallResult::Direct(out),
+            Self::IndirectResult { storage, .. } => TypedCallResult::IndirectResult(storage),
+        }
+    }
+}
+
+/// Protocol-neutral read-only projection used by dump and codegen after the
+/// enclosing callsite arm has already selected the protocol-specific arena.
+pub enum TypedCallView<'a> {
+    Void {
+        target: u32,
+        signature_id: u32,
+        destination: CallDestination,
+        signature: &'a VoidCallSignature,
+        args: &'a [Value],
+    },
+    Direct {
+        target: u32,
+        signature_id: u32,
+        destination: CallDestination,
+        signature: &'a DirectCallSignature,
+        out: TempId,
+        args: &'a [Value],
+    },
+    IndirectResult {
+        target: u32,
+        signature_id: u32,
+        destination: CallDestination,
+        signature: &'a IndirectResultCallSignature,
+        storage: LocalId,
+        args: &'a [Value],
+    },
+}
+
+impl TypedCallView<'_> {
+    pub fn target_raw(&self) -> u32 {
+        match self {
+            Self::Void { target, .. }
+            | Self::Direct { target, .. }
+            | Self::IndirectResult { target, .. } => *target,
+        }
+    }
+
+    pub const fn return_convention_name(&self) -> &'static str {
+        match self {
+            Self::Void { .. } => "void",
+            Self::Direct { .. } => "direct",
+            Self::IndirectResult { .. } => "indirect",
+        }
+    }
+
+    pub fn destination(&self) -> CallDestination {
+        match self {
+            Self::Void { destination, .. }
+            | Self::Direct { destination, .. }
+            | Self::IndirectResult { destination, .. } => *destination,
+        }
+    }
+
+    pub fn args(&self) -> &[Value] {
+        match self {
+            Self::Void { args, .. }
+            | Self::Direct { args, .. }
+            | Self::IndirectResult { args, .. } => args,
+        }
+    }
+
+    pub fn result_scan(&self) -> &RefScan {
+        match self {
+            Self::Void { .. } => &RefScan::None,
+            Self::Direct { signature, .. } => &signature.result_scan,
+            Self::IndirectResult { signature, .. } => &signature.result.scan,
+        }
+    }
+
+    pub fn direct_out(&self) -> Option<TempId> {
+        match self {
+            Self::Direct { out, .. } => Some(*out),
+            Self::Void { .. } | Self::IndirectResult { .. } => None,
+        }
+    }
+
+    pub fn result(&self) -> TypedCallResult {
+        match self {
+            Self::Void { .. } => TypedCallResult::Void,
+            Self::Direct { out, .. } => TypedCallResult::Direct(*out),
+            Self::IndirectResult { storage, .. } => TypedCallResult::IndirectResult(*storage),
+        }
+    }
+}
+
+impl CallTargets {
+    pub fn typed_call_view<'a, Destination: Copy>(
+        &'a self,
+        call: &'a TypedCall<Destination>,
+        targets: &'a ProtocolCallTargets<Destination>,
+        destination_view: fn(Destination) -> CallDestination,
+    ) -> TypedCallView<'a> {
+        match call {
+            TypedCall::Void { target, args } => {
+                let target_value = &targets.void[*target];
+                TypedCallView::Void {
+                    target: target.into_raw().into_u32(),
+                    signature_id: target_value.signature.into_raw().into_u32(),
+                    destination: destination_view(target_value.destination),
+                    signature: &self.void_signatures[target_value.signature],
+                    args,
+                }
+            }
+            TypedCall::Direct { target, out, args } => {
+                let target_value = &targets.direct[*target];
+                TypedCallView::Direct {
+                    target: target.into_raw().into_u32(),
+                    signature_id: target_value.signature.into_raw().into_u32(),
+                    destination: destination_view(target_value.destination),
+                    signature: &self.direct_signatures[target_value.signature],
+                    out: *out,
+                    args,
+                }
+            }
+            TypedCall::IndirectResult {
+                target,
+                storage,
+                args,
+            } => {
+                let target_value = &targets.indirect_result[*target];
+                TypedCallView::IndirectResult {
+                    target: target.into_raw().into_u32(),
+                    signature_id: target_value.signature.into_raw().into_u32(),
+                    destination: destination_view(target_value.destination),
+                    signature: &self.indirect_result_signatures[target_value.signature],
+                    storage: *storage,
+                    args,
+                }
+            }
         }
     }
 }
@@ -997,37 +1289,33 @@ impl NativeBorrowedRootSet {
 
 #[derive(Debug)]
 pub struct ManagedPollSite {
-    pub target: ManagedTargetId,
+    pub target: ManagedVoidTargetId,
     pub safepoint: SafepointId,
     pub live: StatepointLiveSet,
 }
 
 #[derive(Debug)]
 pub struct ManagedCallSite {
-    pub target: ManagedTargetId,
-    pub call: TypedCall,
+    pub call: ManagedTypedCall,
     pub safepoint: SafepointId,
     pub live: StatepointLiveSet,
 }
 
 #[derive(Debug)]
 pub struct NoGcCallSite {
-    pub target: NoGcTargetId,
-    pub call: TypedCall,
+    pub call: NoGcTypedCall,
 }
 
 #[derive(Debug)]
 pub struct NativeSafeCallSite {
-    pub target: NativeSafeTargetId,
-    pub call: TypedCall,
+    pub call: NativeSafeTypedCall,
     pub safepoint: SafepointId,
     pub roots: NativeSafeRootSet,
 }
 
 #[derive(Debug)]
 pub struct NativeBorrowedCallSite {
-    pub target: NativeBorrowedTargetId,
-    pub call: TypedCall,
+    pub call: NativeBorrowedTypedCall,
     pub safepoint: SafepointId,
     pub roots: NativeBorrowedRootSet,
 }
@@ -1041,38 +1329,70 @@ pub enum CallSite {
 }
 
 impl CallSite {
-    pub fn call(&self) -> &TypedCall {
+    pub fn args(&self) -> &[Value] {
         match self {
-            Self::Managed(site) => &site.call,
-            Self::NoGc(site) => &site.call,
-            Self::NativeSafe(site) => &site.call,
-            Self::NativeBorrowed(site) => &site.call,
+            Self::Managed(site) => site.call.args(),
+            Self::NoGc(site) => site.call.args(),
+            Self::NativeSafe(site) => site.call.args(),
+            Self::NativeBorrowed(site) => site.call.args(),
         }
     }
 
-    pub fn call_mut(&mut self) -> &mut TypedCall {
+    pub fn direct_out(&self) -> Option<TempId> {
         match self {
-            Self::Managed(site) => &mut site.call,
-            Self::NoGc(site) => &mut site.call,
-            Self::NativeSafe(site) => &mut site.call,
-            Self::NativeBorrowed(site) => &mut site.call,
+            Self::Managed(site) => site.call.direct_out(),
+            Self::NoGc(site) => site.call.direct_out(),
+            Self::NativeSafe(site) => site.call.direct_out(),
+            Self::NativeBorrowed(site) => site.call.direct_out(),
+        }
+    }
+
+    pub fn result(&self) -> TypedCallResult {
+        match self {
+            Self::Managed(site) => site.call.result(),
+            Self::NoGc(site) => site.call.result(),
+            Self::NativeSafe(site) => site.call.result(),
+            Self::NativeBorrowed(site) => site.call.result(),
         }
     }
 
     pub fn destination(&self, targets: &CallTargets) -> CallDestination {
         match self {
-            Self::Managed(site) => targets.managed_targets[site.target].destination,
-            Self::NoGc(site) => targets.no_gc_targets[site.target].destination,
-            Self::NativeSafe(site) => targets.native_safe_targets[site.target].destination,
-            Self::NativeBorrowed(site) => targets.native_borrowed_targets[site.target].destination,
+            Self::Managed(site) => targets
+                .typed_call_view(
+                    &site.call,
+                    &targets.managed_targets,
+                    ManagedCallDestination::view,
+                )
+                .destination(),
+            Self::NoGc(site) => targets
+                .typed_call_view(
+                    &site.call,
+                    &targets.no_gc_targets,
+                    NoGcCallDestination::view,
+                )
+                .destination(),
+            Self::NativeSafe(site) => targets
+                .typed_call_view(
+                    &site.call,
+                    &targets.native_safe_targets,
+                    NativeSafeCallDestination::view,
+                )
+                .destination(),
+            Self::NativeBorrowed(site) => targets
+                .typed_call_view(
+                    &site.call,
+                    &targets.native_borrowed_targets,
+                    NativeBorrowedCallDestination::view,
+                )
+                .destination(),
         }
     }
 }
 
 #[derive(Debug)]
 pub struct ManagedInvokeSite {
-    pub target: ManagedTargetId,
-    pub call: TypedCall,
+    pub call: ManagedTypedCall,
     pub safepoint: SafepointId,
     pub roots: ExceptionalRootSet,
     pub normal: BlockId,
@@ -1081,8 +1401,7 @@ pub struct ManagedInvokeSite {
 
 #[derive(Debug)]
 pub struct NoGcInvokeSite {
-    pub target: NoGcTargetId,
-    pub call: TypedCall,
+    pub call: NoGcTypedCall,
     pub normal: BlockId,
     pub unwind: BlockId,
 }
@@ -1094,17 +1413,43 @@ pub enum InvokeSite {
 }
 
 impl InvokeSite {
-    pub fn call(&self) -> &TypedCall {
+    pub fn args(&self) -> &[Value] {
         match self {
-            Self::Managed(site) => &site.call,
-            Self::NoGc(site) => &site.call,
+            Self::Managed(site) => site.call.args(),
+            Self::NoGc(site) => site.call.args(),
+        }
+    }
+
+    pub fn direct_out(&self) -> Option<TempId> {
+        match self {
+            Self::Managed(site) => site.call.direct_out(),
+            Self::NoGc(site) => site.call.direct_out(),
+        }
+    }
+
+    pub fn result(&self) -> TypedCallResult {
+        match self {
+            Self::Managed(site) => site.call.result(),
+            Self::NoGc(site) => site.call.result(),
         }
     }
 
     pub fn destination(&self, targets: &CallTargets) -> CallDestination {
         match self {
-            Self::Managed(site) => targets.managed_targets[site.target].destination,
-            Self::NoGc(site) => targets.no_gc_targets[site.target].destination,
+            Self::Managed(site) => targets
+                .typed_call_view(
+                    &site.call,
+                    &targets.managed_targets,
+                    ManagedCallDestination::view,
+                )
+                .destination(),
+            Self::NoGc(site) => targets
+                .typed_call_view(
+                    &site.call,
+                    &targets.no_gc_targets,
+                    NoGcCallDestination::view,
+                )
+                .destination(),
         }
     }
 
@@ -1484,7 +1829,11 @@ pub use dump::dump;
 
 #[cfg(test)]
 mod tests {
-    use super::{NonEmptyRefScan, RefScan};
+    use super::{
+        CallDestination, CallTarget, CallTargets, CallingConvention, DirectCallSignature, LirType,
+        ManagedCallDestination, ManagedRuntimeFunction, NonEmptyRefScan, RefScan, TypedCall,
+        TypedCallView, Value, VoidCallSignature,
+    };
 
     #[test]
     fn non_empty_ref_scan_rejects_programs_without_references() {
@@ -1514,5 +1863,66 @@ mod tests {
                 RefScan::Sequence(vec![RefScan::References(vec![16])]),
             ])
         );
+    }
+
+    #[test]
+    fn typed_targets_atomically_bind_protocol_return_convention_and_signature() {
+        let mut targets = CallTargets::default();
+        let void_signature = targets.void_signatures.alloc(VoidCallSignature {
+            params: Vec::new(),
+            calling_convention: CallingConvention::Cdecl,
+        });
+        let void_target = targets.managed_targets.void.alloc(CallTarget {
+            destination: ManagedCallDestination::runtime(ManagedRuntimeFunction::GcCollect),
+            signature: void_signature,
+        });
+        let void_call = TypedCall::Void {
+            target: void_target,
+            args: Vec::new(),
+        };
+
+        let direct_signature = targets.direct_signatures.alloc(DirectCallSignature {
+            params: vec![LirType::I64],
+            result: LirType::I64,
+            result_scan: RefScan::None,
+            calling_convention: CallingConvention::Cdecl,
+        });
+        let direct_target = targets.managed_targets.direct.alloc(CallTarget {
+            destination: ManagedCallDestination::local(super::LocalFunctionId::from_u32(7)),
+            signature: direct_signature,
+        });
+        let direct_call = TypedCall::Direct {
+            target: direct_target,
+            out: super::TempId::from_raw(la_arena::RawIdx::from_u32(0)),
+            args: vec![Value::IntConst(1)],
+        };
+
+        let void_view = targets.typed_call_view(
+            &void_call,
+            &targets.managed_targets,
+            ManagedCallDestination::view,
+        );
+        let direct_view = targets.typed_call_view(
+            &direct_call,
+            &targets.managed_targets,
+            ManagedCallDestination::view,
+        );
+
+        assert!(matches!(
+            void_view,
+            TypedCallView::Void {
+                destination: CallDestination::Runtime(_),
+                signature: VoidCallSignature { params, .. },
+                ..
+            } if params.is_empty()
+        ));
+        assert!(matches!(
+            direct_view,
+            TypedCallView::Direct {
+                destination: CallDestination::Local(_),
+                signature: DirectCallSignature { params, result: LirType::I64, .. },
+                ..
+            } if params == &[LirType::I64]
+        ));
     }
 }

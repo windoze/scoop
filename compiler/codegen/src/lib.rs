@@ -2785,8 +2785,11 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let targets = &self.function.call_targets;
         match site {
             scoop_lir::CallSite::Managed(site) => self.emit_typed_call(
-                &site.call,
-                targets.managed_targets[site.target].destination,
+                targets.typed_call_view(
+                    &site.call,
+                    &targets.managed_targets,
+                    scoop_lir::ManagedCallDestination::view,
+                ),
                 CallProtocol::Managed {
                     safepoint: site.safepoint,
                     live: &site.live,
@@ -2794,14 +2797,20 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 None,
             ),
             scoop_lir::CallSite::NoGc(site) => self.emit_typed_call(
-                &site.call,
-                targets.no_gc_targets[site.target].destination,
+                targets.typed_call_view(
+                    &site.call,
+                    &targets.no_gc_targets,
+                    scoop_lir::NoGcCallDestination::view,
+                ),
                 CallProtocol::NoGc,
                 None,
             ),
             scoop_lir::CallSite::NativeSafe(site) => self.emit_typed_call(
-                &site.call,
-                targets.native_safe_targets[site.target].destination,
+                targets.typed_call_view(
+                    &site.call,
+                    &targets.native_safe_targets,
+                    scoop_lir::NativeSafeCallDestination::view,
+                ),
                 CallProtocol::NativeSafe {
                     safepoint: site.safepoint,
                     roots: &site.roots,
@@ -2809,8 +2818,11 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 None,
             ),
             scoop_lir::CallSite::NativeBorrowed(site) => self.emit_typed_call(
-                &site.call,
-                targets.native_borrowed_targets[site.target].destination,
+                targets.typed_call_view(
+                    &site.call,
+                    &targets.native_borrowed_targets,
+                    scoop_lir::NativeBorrowedCallDestination::view,
+                ),
                 CallProtocol::NativeBorrowed {
                     safepoint: site.safepoint,
                     roots: &site.roots,
@@ -2824,8 +2836,11 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let targets = &self.function.call_targets;
         match site {
             scoop_lir::InvokeSite::Managed(site) => self.emit_typed_call(
-                &site.call,
-                targets.managed_targets[site.target].destination,
+                targets.typed_call_view(
+                    &site.call,
+                    &targets.managed_targets,
+                    scoop_lir::ManagedCallDestination::view,
+                ),
                 CallProtocol::ManagedInvoke {
                     safepoint: site.safepoint,
                     roots: &site.roots,
@@ -2833,8 +2848,11 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 Some((site.normal, site.unwind)),
             ),
             scoop_lir::InvokeSite::NoGc(site) => self.emit_typed_call(
-                &site.call,
-                targets.no_gc_targets[site.target].destination,
+                targets.typed_call_view(
+                    &site.call,
+                    &targets.no_gc_targets,
+                    scoop_lir::NoGcCallDestination::view,
+                ),
                 CallProtocol::NoGc,
                 Some((site.normal, site.unwind)),
             ),
@@ -2846,41 +2864,33 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
     /// routine receives one already-consistent arm and never infers an effect.
     fn emit_typed_call(
         &mut self,
-        call: &scoop_lir::TypedCall,
-        destination: scoop_lir::CallDestination,
+        call: scoop_lir::TypedCallView<'_>,
         protocol: CallProtocol<'_>,
         invoke: Option<(scoop_lir::BlockId, scoop_lir::BlockId)>,
     ) -> Result<(), CodegenError> {
-        let targets = &self.function.call_targets;
-        let (params, result) = match *call {
-            scoop_lir::TypedCall::Void { signature, .. } => {
-                let signature = &targets.void_signatures[signature];
+        let destination = call.destination();
+        let (params, result) = match &call {
+            scoop_lir::TypedCallView::Void { signature, .. } => {
                 (signature.params.as_slice(), TypedCallResult::Void)
             }
-            scoop_lir::TypedCall::Direct { signature, out, .. } => {
-                let signature = &targets.direct_signatures[signature];
-                (
-                    signature.params.as_slice(),
-                    TypedCallResult::Direct {
-                        out,
-                        ty: &signature.result,
-                        scan: &signature.result_scan,
-                    },
-                )
-            }
-            scoop_lir::TypedCall::IndirectResult {
+            scoop_lir::TypedCallView::Direct { signature, out, .. } => (
+                signature.params.as_slice(),
+                TypedCallResult::Direct {
+                    out: *out,
+                    ty: &signature.result,
+                    scan: &signature.result_scan,
+                },
+            ),
+            scoop_lir::TypedCallView::IndirectResult {
                 signature, storage, ..
-            } => {
-                let signature = &targets.indirect_result_signatures[signature];
-                (
-                    signature.params.as_slice(),
-                    TypedCallResult::Indirect {
-                        storage,
-                        ty: &signature.result.ty,
-                        scan: &signature.result.scan,
-                    },
-                )
-            }
+            } => (
+                signature.params.as_slice(),
+                TypedCallResult::Indirect {
+                    storage: *storage,
+                    ty: &signature.result.ty,
+                    scan: &signature.result.scan,
+                },
+            ),
         };
 
         let is_native = matches!(
@@ -2934,7 +2944,11 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
 
         // Allocation is the one codegen-expanded runtime primitive. Its typed
         // identity selects the expansion; its symbol is not inspected.
-        if destination == scoop_lir::CallDestination::Runtime(scoop_lir::RuntimeFunction::Alloc) {
+        if destination
+            == scoop_lir::CallDestination::Runtime(scoop_lir::RuntimeFunction::Managed(
+                scoop_lir::ManagedRuntimeFunction::Alloc,
+            ))
+        {
             let TypedCallResult::Direct { out, .. } = result else {
                 return Err(CodegenError(format!(
                     "typed allocation @{} must have a direct result",
@@ -3450,11 +3464,11 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         }
         if matches!(
             destination,
-            scoop_lir::CallDestination::Runtime(
-                scoop_lir::RuntimeFunction::Trap
-                    | scoop_lir::RuntimeFunction::Throw
-                    | scoop_lir::RuntimeFunction::Rethrow
-            )
+            scoop_lir::CallDestination::Runtime(scoop_lir::RuntimeFunction::NoGc(
+                scoop_lir::NoGcRuntimeFunction::Trap
+                    | scoop_lir::NoGcRuntimeFunction::Throw
+                    | scoop_lir::NoGcRuntimeFunction::Rethrow
+            ))
         ) {
             call.add_attribute(
                 AttributeLoc::Function,
@@ -4086,8 +4100,12 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
     /// Emit one explicit LIR poll. Its typed target, unique id and liveness
     /// plan were fixed by lir-lower; codegen does not inspect the CFG.
     fn safepoint_poll(&mut self, site: &scoop_lir::ManagedPollSite) -> Result<(), CodegenError> {
-        let target = self.function.call_targets.managed_targets[site.target].destination;
-        if target != scoop_lir::CallDestination::Runtime(scoop_lir::RuntimeFunction::Safepoint) {
+        let target = self.function.call_targets.managed_targets.void[site.target].destination;
+        if target
+            != scoop_lir::ManagedCallDestination::runtime(
+                scoop_lir::ManagedRuntimeFunction::Safepoint,
+            )
+        {
             return Err(CodegenError(format!(
                 "managed poll @{} has a non-safepoint target",
                 self.function.symbol
@@ -4095,7 +4113,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         }
         let live = self.materialize_statepoint_live(&site.live, site.safepoint)?;
         let safepoint = self.runtime_fn(
-            scoop_lir::RuntimeFunction::Safepoint.symbol(),
+            scoop_lir::RuntimeFunction::Managed(scoop_lir::ManagedRuntimeFunction::Safepoint)
+                .symbol(),
             self.context.void_type().fn_type(&[], false),
         );
         let call = self.builder.build_call(safepoint, &[], "").map_err(|e| {
@@ -4516,8 +4535,8 @@ fn instruction_temp_defs(instruction: &Instruction) -> [Option<TempId>; 2] {
         | Instruction::EnumWrap { out, .. }
         | Instruction::EnumTag { out, .. }
         | Instruction::EnumField { out, .. } => Some(*out),
-        Instruction::Call { site } => site.call().direct_out(),
-        Instruction::Invoke { site } => site.call().direct_out(),
+        Instruction::Call { site } => site.direct_out(),
+        Instruction::Invoke { site } => site.direct_out(),
         Instruction::LandingPad { record, .. } | Instruction::CleanupPad { record, .. } => {
             Some(*record)
         }

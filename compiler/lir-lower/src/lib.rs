@@ -450,18 +450,32 @@ use metadata::*;
 
 fn lower_runtime_function(function: mir::RuntimeFn) -> lir::RuntimeFunction {
     match function {
-        mir::RuntimeFn::Box => lir::RuntimeFunction::Box,
-        mir::RuntimeFn::IsInstance => lir::RuntimeFunction::IsInstance,
-        mir::RuntimeFn::ITableLookup => lir::RuntimeFunction::ITableLookup,
-        mir::RuntimeFn::Pin => lir::RuntimeFunction::Pin,
-        mir::RuntimeFn::Unpin => lir::RuntimeFunction::Unpin,
-        mir::RuntimeFn::GetHandle => lir::RuntimeFunction::GetHandle,
-        mir::RuntimeFn::ReleaseHandle => lir::RuntimeFunction::ReleaseHandle,
-        mir::RuntimeFn::GcCollect => lir::RuntimeFunction::GcCollect,
-        mir::RuntimeFn::GcStats => lir::RuntimeFunction::GcStats,
-        mir::RuntimeFn::MaterializeException => lir::RuntimeFunction::MaterializeException,
-        mir::RuntimeFn::StringConcat => lir::RuntimeFunction::StringConcat,
-        mir::RuntimeFn::Trap => lir::RuntimeFunction::Trap,
+        mir::RuntimeFn::Box => lir::RuntimeFunction::Managed(lir::ManagedRuntimeFunction::Box),
+        mir::RuntimeFn::IsInstance => {
+            lir::RuntimeFunction::NoGc(lir::NoGcRuntimeFunction::IsInstance)
+        }
+        mir::RuntimeFn::ITableLookup => {
+            lir::RuntimeFunction::NoGc(lir::NoGcRuntimeFunction::ITableLookup)
+        }
+        mir::RuntimeFn::Pin => lir::RuntimeFunction::NoGc(lir::NoGcRuntimeFunction::Pin),
+        mir::RuntimeFn::Unpin => lir::RuntimeFunction::NoGc(lir::NoGcRuntimeFunction::Unpin),
+        mir::RuntimeFn::GetHandle => {
+            lir::RuntimeFunction::NoGc(lir::NoGcRuntimeFunction::GetHandle)
+        }
+        mir::RuntimeFn::ReleaseHandle => {
+            lir::RuntimeFunction::NoGc(lir::NoGcRuntimeFunction::ReleaseHandle)
+        }
+        mir::RuntimeFn::GcCollect => {
+            lir::RuntimeFunction::Managed(lir::ManagedRuntimeFunction::GcCollect)
+        }
+        mir::RuntimeFn::GcStats => lir::RuntimeFunction::NoGc(lir::NoGcRuntimeFunction::GcStats),
+        mir::RuntimeFn::MaterializeException => {
+            lir::RuntimeFunction::Managed(lir::ManagedRuntimeFunction::MaterializeException)
+        }
+        mir::RuntimeFn::StringConcat => {
+            lir::RuntimeFunction::Managed(lir::ManagedRuntimeFunction::StringConcat)
+        }
+        mir::RuntimeFn::Trap => lir::RuntimeFunction::NoGc(lir::NoGcRuntimeFunction::Trap),
     }
 }
 
@@ -473,24 +487,83 @@ enum CallProtocol {
     NativeBorrowed,
 }
 
+/// A fully typed call shape before its protocol-specific destination is bound.
+/// This is lowering-local scratch state and can never enter LIR output.
+enum PendingTypedCall {
+    Void {
+        signature: lir::VoidCallSignatureId,
+        args: Vec<lir::Value>,
+    },
+    Direct {
+        signature: lir::DirectCallSignatureId,
+        out: lir::TempId,
+        args: Vec<lir::Value>,
+    },
+    IndirectResult {
+        signature: lir::IndirectResultCallSignatureId,
+        storage: lir::LocalId,
+        args: Vec<lir::Value>,
+    },
+}
+
+impl PendingTypedCall {
+    fn result_scan<'a>(&self, targets: &'a lir::CallTargets) -> &'a lir::RefScan {
+        match self {
+            Self::Void { .. } => &lir::RefScan::None,
+            Self::Direct { signature, .. } => &targets.direct_signatures[*signature].result_scan,
+            Self::IndirectResult { signature, .. } => {
+                &targets.indirect_result_signatures[*signature].result.scan
+            }
+        }
+    }
+}
+
+fn bind_typed_call<Destination: Copy>(
+    targets: &mut lir::ProtocolCallTargets<Destination>,
+    destination: Destination,
+    call: PendingTypedCall,
+) -> lir::TypedCall<Destination> {
+    match call {
+        PendingTypedCall::Void { signature, args } => {
+            let target = targets.void.alloc(lir::CallTarget {
+                destination,
+                signature,
+            });
+            lir::TypedCall::Void { target, args }
+        }
+        PendingTypedCall::Direct {
+            signature,
+            out,
+            args,
+        } => {
+            let target = targets.direct.alloc(lir::CallTarget {
+                destination,
+                signature,
+            });
+            lir::TypedCall::Direct { target, out, args }
+        }
+        PendingTypedCall::IndirectResult {
+            signature,
+            storage,
+            args,
+        } => {
+            let target = targets.indirect_result.alloc(lir::CallTarget {
+                destination,
+                signature,
+            });
+            lir::TypedCall::IndirectResult {
+                target,
+                storage,
+                args,
+            }
+        }
+    }
+}
+
 fn runtime_call_protocol(function: lir::RuntimeFunction) -> CallProtocol {
     match function {
-        lir::RuntimeFunction::Safepoint => CallProtocol::Managed,
-        lir::RuntimeFunction::Alloc
-        | lir::RuntimeFunction::Box
-        | lir::RuntimeFunction::GcCollect
-        | lir::RuntimeFunction::MaterializeException
-        | lir::RuntimeFunction::StringConcat => CallProtocol::Managed,
-        lir::RuntimeFunction::IsInstance
-        | lir::RuntimeFunction::ITableLookup
-        | lir::RuntimeFunction::Pin
-        | lir::RuntimeFunction::Unpin
-        | lir::RuntimeFunction::GetHandle
-        | lir::RuntimeFunction::ReleaseHandle
-        | lir::RuntimeFunction::GcStats
-        | lir::RuntimeFunction::Trap
-        | lir::RuntimeFunction::Throw
-        | lir::RuntimeFunction::Rethrow => CallProtocol::NoGc,
+        lir::RuntimeFunction::Managed(_) => CallProtocol::Managed,
+        lir::RuntimeFunction::NoGc(_) => CallProtocol::NoGc,
     }
 }
 
@@ -1008,8 +1081,10 @@ impl<'a> FunctionLowerer<'a> {
                     let (call, _) =
                         self.typed_call(vec![lir::MANAGED_PTR], lir::LirType::Void, vec![value]);
                     let site = self.invoke_site(
-                        lir::CallDestination::Runtime(lir::RuntimeFunction::Throw),
-                        runtime_call_protocol(lir::RuntimeFunction::Throw),
+                        lir::CallDestination::Runtime(lir::RuntimeFunction::NoGc(
+                            lir::NoGcRuntimeFunction::Throw,
+                        )),
+                        CallProtocol::NoGc,
                         call,
                         normal,
                         self.block_map[unwind],
@@ -1028,8 +1103,10 @@ impl<'a> FunctionLowerer<'a> {
                     let normal = self.new_block("rethrow.normal");
                     let (call, _) = self.typed_call(Vec::new(), lir::LirType::Void, Vec::new());
                     let site = self.invoke_site(
-                        lir::CallDestination::Runtime(lir::RuntimeFunction::Rethrow),
-                        runtime_call_protocol(lir::RuntimeFunction::Rethrow),
+                        lir::CallDestination::Runtime(lir::RuntimeFunction::NoGc(
+                            lir::NoGcRuntimeFunction::Rethrow,
+                        )),
+                        CallProtocol::NoGc,
                         call,
                         normal,
                         self.block_map[unwind],
@@ -1041,8 +1118,10 @@ impl<'a> FunctionLowerer<'a> {
                 }
                 None => {
                     self.emit_plain_call(
-                        lir::CallDestination::Runtime(lir::RuntimeFunction::Rethrow),
-                        runtime_call_protocol(lir::RuntimeFunction::Rethrow),
+                        lir::CallDestination::Runtime(lir::RuntimeFunction::NoGc(
+                            lir::NoGcRuntimeFunction::Rethrow,
+                        )),
+                        CallProtocol::NoGc,
                         Vec::new(),
                         lir::LirType::Void,
                         Vec::new(),
@@ -1110,8 +1189,10 @@ impl<'a> FunctionLowerer<'a> {
                 );
                 let td = self.td_ref(&mir::Type::Class(*class_id));
                 let object = self.emit_plain_call(
-                    lir::CallDestination::Runtime(lir::RuntimeFunction::Alloc),
-                    runtime_call_protocol(lir::RuntimeFunction::Alloc),
+                    lir::CallDestination::Runtime(lir::RuntimeFunction::Managed(
+                        lir::ManagedRuntimeFunction::Alloc,
+                    )),
+                    CallProtocol::Managed,
                     vec![lir::METADATA_PTR, lir::LirType::I64],
                     lir::MANAGED_PTR,
                     vec![td, lir::Value::IntConst(size as i64)],
@@ -1136,8 +1217,10 @@ impl<'a> FunctionLowerer<'a> {
                 );
                 let td = lir::Value::TypeDescriptor(self.type_descriptors.for_closure(*class));
                 let object = self.emit_plain_call(
-                    lir::CallDestination::Runtime(lir::RuntimeFunction::Alloc),
-                    runtime_call_protocol(lir::RuntimeFunction::Alloc),
+                    lir::CallDestination::Runtime(lir::RuntimeFunction::Managed(
+                        lir::ManagedRuntimeFunction::Alloc,
+                    )),
+                    CallProtocol::Managed,
                     vec![lir::METADATA_PTR, lir::LirType::I64],
                     lir::MANAGED_PTR,
                     vec![td, lir::Value::IntConst(size as i64)],
@@ -1535,8 +1618,10 @@ impl<'a> FunctionLowerer<'a> {
                     0,
                 ));
                 self.emit_plain_call(
-                    lir::CallDestination::Runtime(lir::RuntimeFunction::Box),
-                    runtime_call_protocol(lir::RuntimeFunction::Box),
+                    lir::CallDestination::Runtime(lir::RuntimeFunction::Managed(
+                        lir::ManagedRuntimeFunction::Box,
+                    )),
+                    CallProtocol::Managed,
                     vec![
                         lir::METADATA_PTR,
                         lir::RAW_PTR,
@@ -1565,8 +1650,10 @@ impl<'a> FunctionLowerer<'a> {
                 let object = self.lower_expr(operand);
                 let td = self.td_ref(check_ty);
                 self.emit_plain_call(
-                    lir::CallDestination::Runtime(lir::RuntimeFunction::IsInstance),
-                    runtime_call_protocol(lir::RuntimeFunction::IsInstance),
+                    lir::CallDestination::Runtime(lir::RuntimeFunction::NoGc(
+                        lir::NoGcRuntimeFunction::IsInstance,
+                    )),
+                    CallProtocol::NoGc,
                     vec![lir::MANAGED_PTR, lir::METADATA_PTR],
                     lir::LirType::I1,
                     vec![object, td],
@@ -1737,8 +1824,10 @@ impl<'a> FunctionLowerer<'a> {
         );
         assert!(result.is_none(), "trap has no value result");
         let site = self.call_site(
-            lir::CallDestination::Runtime(lir::RuntimeFunction::Trap),
-            runtime_call_protocol(lir::RuntimeFunction::Trap),
+            lir::CallDestination::Runtime(lir::RuntimeFunction::NoGc(
+                lir::NoGcRuntimeFunction::Trap,
+            )),
+            CallProtocol::NoGc,
             call,
         );
         self.push(lir::Instruction::Call { site });
@@ -1778,7 +1867,7 @@ impl<'a> FunctionLowerer<'a> {
         parameter_types: Vec<lir::LirType>,
         result_type: lir::LirType,
         args: Vec<lir::Value>,
-    ) -> (lir::TypedCall, Option<lir::Value>) {
+    ) -> (PendingTypedCall, Option<lir::Value>) {
         assert_eq!(parameter_types.len(), args.len(), "typed call arity");
         let calling_convention = lir::CallingConvention::Cdecl;
         if result_type == lir::LirType::Void {
@@ -1789,7 +1878,7 @@ impl<'a> FunctionLowerer<'a> {
                     params: parameter_types,
                     calling_convention,
                 });
-            return (lir::TypedCall::Void { signature, args }, None);
+            return (PendingTypedCall::Void { signature, args }, None);
         }
 
         let result_scan = safepoints::root_scan(&result_type, self.structs, self.enums, 0);
@@ -1806,7 +1895,7 @@ impl<'a> FunctionLowerer<'a> {
             );
             let storage = self.new_hidden_local(result_type);
             return (
-                lir::TypedCall::IndirectResult {
+                PendingTypedCall::IndirectResult {
                     signature,
                     storage,
                     args,
@@ -1826,7 +1915,7 @@ impl<'a> FunctionLowerer<'a> {
             });
         let out = self.new_temp(result_type);
         (
-            lir::TypedCall::Direct {
+            PendingTypedCall::Direct {
                 signature,
                 out,
                 args,
@@ -1839,27 +1928,28 @@ impl<'a> FunctionLowerer<'a> {
         &mut self,
         destination: lir::CallDestination,
         protocol: CallProtocol,
-        call: lir::TypedCall,
+        call: PendingTypedCall,
     ) -> lir::CallSite {
         match protocol {
             CallProtocol::Managed => {
-                let target = self
-                    .call_targets
-                    .managed_targets
-                    .alloc(lir::ManagedTarget { destination });
+                let destination = lir::ManagedCallDestination::from_view(destination)
+                    .expect("managed protocol requires a managed destination");
                 lir::CallSite::Managed(lir::ManagedCallSite {
-                    target,
-                    call,
+                    call: bind_typed_call(
+                        &mut self.call_targets.managed_targets,
+                        destination,
+                        call,
+                    ),
                     safepoint: self.safepoint_ids.allocate(),
                     live: lir::StatepointLiveSet::default(),
                 })
             }
             CallProtocol::NoGc => {
-                let target = self
-                    .call_targets
-                    .no_gc_targets
-                    .alloc(lir::NoGcTarget { destination });
-                lir::CallSite::NoGc(lir::NoGcCallSite { target, call })
+                let destination = lir::NoGcCallDestination::from_view(destination)
+                    .expect("NoGC protocol requires a NoGC destination");
+                lir::CallSite::NoGc(lir::NoGcCallSite {
+                    call: bind_typed_call(&mut self.call_targets.no_gc_targets, destination, call),
+                })
             }
             CallProtocol::NativeSafe => {
                 assert_eq!(
@@ -1867,13 +1957,14 @@ impl<'a> FunctionLowerer<'a> {
                     &lir::RefScan::None,
                     "native-safe C ABI results must be GC-free"
                 );
-                let target = self
-                    .call_targets
-                    .native_safe_targets
-                    .alloc(lir::NativeSafeTarget { destination });
+                let destination = lir::NativeSafeCallDestination::from_view(destination)
+                    .expect("native-safe protocol requires a C extern destination");
                 lir::CallSite::NativeSafe(lir::NativeSafeCallSite {
-                    target,
-                    call,
+                    call: bind_typed_call(
+                        &mut self.call_targets.native_safe_targets,
+                        destination,
+                        call,
+                    ),
                     safepoint: self.safepoint_ids.allocate(),
                     roots: lir::NativeSafeRootSet::default(),
                 })
@@ -1884,27 +1975,28 @@ impl<'a> FunctionLowerer<'a> {
                     None => lir::NativeBorrowedResultRoot::GcFree,
                     Some(scan) => {
                         let storage = match &call {
-                            lir::TypedCall::Void { .. } => {
+                            PendingTypedCall::Void { .. } => {
                                 unreachable!("void native call cannot have a result root")
                             }
-                            lir::TypedCall::Direct { signature, .. } => {
+                            PendingTypedCall::Direct { signature, .. } => {
                                 let ty = self.call_targets.direct_signatures[*signature]
                                     .result
                                     .clone();
                                 self.new_hidden_local(ty)
                             }
-                            lir::TypedCall::IndirectResult { storage, .. } => *storage,
+                            PendingTypedCall::IndirectResult { storage, .. } => *storage,
                         };
                         lir::NativeBorrowedResultRoot::Rooted { storage, scan }
                     }
                 };
-                let target = self
-                    .call_targets
-                    .native_borrowed_targets
-                    .alloc(lir::NativeBorrowedTarget { destination });
+                let destination = lir::NativeBorrowedCallDestination::from_view(destination)
+                    .expect("native-borrowed protocol requires a Scoop extern destination");
                 lir::CallSite::NativeBorrowed(lir::NativeBorrowedCallSite {
-                    target,
-                    call,
+                    call: bind_typed_call(
+                        &mut self.call_targets.native_borrowed_targets,
+                        destination,
+                        call,
+                    ),
                     safepoint: self.safepoint_ids.allocate(),
                     roots: lir::NativeBorrowedRootSet::new(Vec::new(), result),
                 })
@@ -1916,19 +2008,20 @@ impl<'a> FunctionLowerer<'a> {
         &mut self,
         destination: lir::CallDestination,
         protocol: CallProtocol,
-        call: lir::TypedCall,
+        call: PendingTypedCall,
         normal: lir::BlockId,
         unwind: lir::BlockId,
     ) -> lir::InvokeSite {
         match protocol {
             CallProtocol::Managed => {
-                let target = self
-                    .call_targets
-                    .managed_targets
-                    .alloc(lir::ManagedTarget { destination });
+                let destination = lir::ManagedCallDestination::from_view(destination)
+                    .expect("managed protocol requires a managed destination");
                 lir::InvokeSite::Managed(lir::ManagedInvokeSite {
-                    target,
-                    call,
+                    call: bind_typed_call(
+                        &mut self.call_targets.managed_targets,
+                        destination,
+                        call,
+                    ),
                     safepoint: self.safepoint_ids.allocate(),
                     roots: lir::ExceptionalRootSet::default(),
                     normal,
@@ -1936,13 +2029,10 @@ impl<'a> FunctionLowerer<'a> {
                 })
             }
             CallProtocol::NoGc => {
-                let target = self
-                    .call_targets
-                    .no_gc_targets
-                    .alloc(lir::NoGcTarget { destination });
+                let destination = lir::NoGcCallDestination::from_view(destination)
+                    .expect("NoGC protocol requires a NoGC destination");
                 lir::InvokeSite::NoGc(lir::NoGcInvokeSite {
-                    target,
-                    call,
+                    call: bind_typed_call(&mut self.call_targets.no_gc_targets, destination, call),
                     normal,
                     unwind,
                 })
@@ -2051,7 +2141,7 @@ impl<'a> FunctionLowerer<'a> {
                     calling_convention: lir::CallingConvention::Cdecl,
                 });
         let storage = self.new_hidden_local(result_type);
-        let call = lir::TypedCall::IndirectResult {
+        let call = PendingTypedCall::IndirectResult {
             signature,
             storage,
             args,
@@ -2149,8 +2239,10 @@ impl<'a> FunctionLowerer<'a> {
                 let td = self.load_at_offset(args[0], 0, lir::METADATA_PTR);
                 let target_td = self.td_ref(&mir::Type::Function(function_type));
                 let table = self.emit_plain_call(
-                    lir::CallDestination::Runtime(lir::RuntimeFunction::ITableLookup),
-                    runtime_call_protocol(lir::RuntimeFunction::ITableLookup),
+                    lir::CallDestination::Runtime(lir::RuntimeFunction::NoGc(
+                        lir::NoGcRuntimeFunction::ITableLookup,
+                    )),
+                    CallProtocol::NoGc,
                     vec![lir::METADATA_PTR, lir::METADATA_PTR],
                     lir::METADATA_PTR,
                     vec![lir::Value::Temp(td), target_td],
@@ -2255,8 +2347,10 @@ impl<'a> FunctionLowerer<'a> {
                         let td = self.load_at_offset(args[0], 0, lir::METADATA_PTR);
                         let iface_td = self.td_ref(&mir::Type::Interface(interface));
                         let table = self.emit_plain_call(
-                            lir::CallDestination::Runtime(lir::RuntimeFunction::ITableLookup),
-                            runtime_call_protocol(lir::RuntimeFunction::ITableLookup),
+                            lir::CallDestination::Runtime(lir::RuntimeFunction::NoGc(
+                                lir::NoGcRuntimeFunction::ITableLookup,
+                            )),
+                            CallProtocol::NoGc,
                             vec![lir::METADATA_PTR, lir::METADATA_PTR],
                             lir::METADATA_PTR,
                             vec![lir::Value::Temp(td), iface_td],
