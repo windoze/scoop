@@ -3,12 +3,25 @@ use std::collections::BTreeMap;
 use inkwell::context::Context;
 use inkwell::memory_buffer::MemoryBuffer;
 use inkwell::module::Module;
+use inkwell::targets::TargetMachine;
 use scoop_lir::{CallerRootSource, GcEffect};
 
 use super::{
     ExpectedRoot, ExpectedSafepoints, ExpectedSite, ExpectedStatepoint,
-    TYPED_MANAGED_POINTER_BOUNDARY_METADATA, verify_rewritten,
+    TYPED_MANAGED_POINTER_BOUNDARY_METADATA, verify_rewritten as verify_rewritten_with_profile,
 };
+use crate::target::ManagedAddressSpace;
+use crate::{CodegenError, TargetProfile};
+
+fn verify_rewritten(
+    module: &Module<'_>,
+    expected: &ExpectedSafepoints,
+) -> Result<(), CodegenError> {
+    let triple = TargetMachine::get_default_triple();
+    let profile = TargetProfile::resolve(triple.as_str().to_str().expect("UTF-8 host triple"))
+        .expect("supported host target");
+    verify_rewritten_with_profile(module, expected, profile.managed_address_space_contract())
+}
 
 fn parse<'ctx>(context: &'ctx Context, ir: &str) -> Module<'ctx> {
     let buffer = MemoryBuffer::create_from_memory_range_copy(ir.as_bytes(), "statepoint-test");
@@ -78,6 +91,19 @@ fn verifier_rejects_an_unknown_safepoint_id() {
     let error = verify_rewritten(&module, &manifest(Some((8, one_root()))))
         .expect_err("unknown id must not be accepted as a complete manifest");
     assert!(error.0.contains("unexpected SafepointId 7"), "{error}");
+}
+
+#[test]
+fn verifier_consumes_the_profile_managed_address_space() {
+    let context = Context::create();
+    let module = parse(&context, &statepoint_ir(7, "", ""));
+    let error = verify_rewritten_with_profile(
+        &module,
+        &manifest(Some((7, one_root()))),
+        ManagedAddressSpace::for_test(7),
+    )
+    .expect_err("verifier must reject a root outside the profile address space");
+    assert!(error.0.contains("not an AS7 managed pointer"), "{error}");
 }
 
 #[test]

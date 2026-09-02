@@ -76,6 +76,7 @@ mod statepoint;
 mod target;
 
 pub use c_bridge::{c_bridge_source, c_layout_assertions};
+use target::ManagedAddressSpace;
 pub use target::{LlvmVersion, TargetProfile, TargetProfileId, linked_llvm_version};
 
 fn align_up(value: u64, align: u64) -> u64 {
@@ -109,8 +110,9 @@ pub fn emit_object(
 ) -> Result<(), CodegenError> {
     let expected_safepoints = statepoint::expectations(module)?;
     let machine = profile.create_target_machine()?;
+    let managed_address_space = profile.managed_address_space_contract();
     let context = Context::create();
-    let llvm = emit_llvm_module(&context, module, &machine)?;
+    let llvm = emit_llvm_module(&context, module, &machine, managed_address_space)?;
 
     llvm.verify()
         .map_err(|e| CodegenError(format!("invalid LLVM module: {e}")))?;
@@ -122,7 +124,7 @@ pub fn emit_object(
     statepoint::rewrite(&llvm, &machine)?;
     llvm.verify()
         .map_err(|e| CodegenError(format!("invalid post-RS4GC LLVM module: {e}")))?;
-    statepoint::verify_rewritten(&llvm, &expected_safepoints)?;
+    statepoint::verify_rewritten(&llvm, &expected_safepoints, managed_address_space)?;
 
     machine
         .write_to_file(&llvm, FileType::Object, output)
@@ -157,6 +159,7 @@ fn emit_llvm_module<'ctx>(
     context: &'ctx Context,
     module: &Module,
     machine: &TargetMachine,
+    managed_address_space: ManagedAddressSpace,
 ) -> Result<LlvmModule<'ctx>, CodegenError> {
     let llvm = context.create_module("scoop");
     let builder = context.create_builder();
@@ -250,7 +253,7 @@ fn emit_llvm_module<'ctx>(
                     false,
                 );
                 let llvm_global =
-                    llvm.add_global(ty, Some(AddressSpace::from(1u16)), &global.symbol);
+                    llvm.add_global(ty, Some(managed_address_space.inkwell()), &global.symbol);
                 llvm_global.set_constant(true);
                 llvm_global.set_initializer(&context.const_struct(
                     &[
@@ -279,9 +282,21 @@ fn emit_llvm_module<'ctx>(
                 initializer,
                 thread_local,
             } => {
-                let ty = basic_ty(context, &module.structs, &module.enums, ty)?;
-                let value =
-                    llvm_constant(context, &module.structs, &module.enums, ty, initializer)?;
+                let ty = basic_ty(
+                    context,
+                    &module.structs,
+                    &module.enums,
+                    managed_address_space,
+                    ty,
+                )?;
+                let value = llvm_constant(
+                    context,
+                    &module.structs,
+                    &module.enums,
+                    managed_address_space,
+                    ty,
+                    initializer,
+                )?;
                 let llvm_global = llvm.add_global(ty, None, &global.symbol);
                 llvm_global.set_initializer(&value);
                 llvm_global.set_thread_local(*thread_local);
@@ -303,6 +318,7 @@ fn emit_llvm_module<'ctx>(
     // otherwise declare the symbol as extern, and the later definition
     // would be renamed with a `.N` suffix by LLVM, breaking the link).
     let module_ctx = ModuleCtx {
+        managed_address_space,
         functions: &module.functions,
         structs: &module.structs,
         enums: &module.enums,
@@ -320,10 +336,24 @@ fn emit_llvm_module<'ctx>(
         bounds_message,
     };
     for function in &module.functions {
-        declare_function(context, &llvm, &module.structs, &module.enums, function)?;
+        declare_function(
+            context,
+            &llvm,
+            &module.structs,
+            &module.enums,
+            managed_address_space,
+            function,
+        )?;
     }
     for (_, callback) in module.callback_bridges.iter() {
-        declare_callback_trampoline(context, &llvm, &module.structs, &module.enums, callback)?;
+        declare_callback_trampoline(
+            context,
+            &llvm,
+            &module.structs,
+            &module.enums,
+            managed_address_space,
+            callback,
+        )?;
     }
     let mut declared_foreign_trampolines = HashSet::new();
     for (_, callback) in module.foreign_callback_bridges.iter() {
@@ -335,6 +365,7 @@ fn emit_llvm_module<'ctx>(
             &llvm,
             &module.structs,
             &module.enums,
+            managed_address_space,
             callback,
         )?;
         let descriptor = llvm.add_global(context.i8_type(), None, &callback.signature_symbol);
@@ -356,6 +387,7 @@ fn basic_ty<'ctx>(
     context: &'ctx Context,
     structs: &Arena<StructDef>,
     enums: &Arena<EnumDef>,
+    managed_address_space: ManagedAddressSpace,
     ty: &LirType,
 ) -> Result<BasicTypeEnum<'ctx>, CodegenError> {
     Ok(match ty {
@@ -366,7 +398,7 @@ fn basic_ty<'ctx>(
         }
         LirType::I1 => context.bool_type().into(),
         LirType::I64 => context.i64_type().into(),
-        LirType::Ptr(kind) => pointer_ty(context, *kind).into(),
+        LirType::Ptr(kind) => pointer_ty(context, managed_address_space, *kind).into(),
         LirType::ExceptionRecord => context
             .struct_type(
                 &[
@@ -379,23 +411,30 @@ fn basic_ty<'ctx>(
         LirType::Aggregate(elements) => {
             let fields: Vec<BasicTypeEnum> = elements
                 .iter()
-                .map(|element| basic_ty(context, structs, enums, element))
+                .map(|element| basic_ty(context, structs, enums, managed_address_space, element))
                 .collect::<Result<_, _>>()?;
             context.struct_type(&fields, false).into()
         }
-        LirType::Struct(id) => struct_ty(context, structs, enums, *id)?.into(),
+        LirType::Struct(id) => {
+            struct_ty(context, structs, enums, managed_address_space, *id)?.into()
+        }
         LirType::Enum(id) => match &enums[*id].repr {
             // Niche optimization: the value is a bare pointer.
             EnumRepr::Niche { .. } => {
                 if enums[*id].scan.contains_reference() {
-                    managed_ptr_ty(context).into()
+                    managed_ptr_ty(context, managed_address_space).into()
                 } else {
                     ptr_ty(context).into()
                 }
             }
-            EnumRepr::Tagged { size, align, .. } => {
-                tagged_ty(context, *size, *align, &enums[*id].scan)?.into()
-            }
+            EnumRepr::Tagged { size, align, .. } => tagged_ty(
+                context,
+                managed_address_space,
+                *size,
+                *align,
+                &enums[*id].scan,
+            )?
+            .into(),
         },
     })
 }
@@ -404,6 +443,7 @@ fn llvm_constant<'ctx>(
     context: &'ctx Context,
     structs: &Arena<StructDef>,
     enums: &Arena<EnumDef>,
+    managed_address_space: ManagedAddressSpace,
     ty: BasicTypeEnum<'ctx>,
     value: &ConstantValue,
 ) -> Result<BasicValueEnum<'ctx>, CodegenError> {
@@ -428,13 +468,15 @@ fn llvm_constant<'ctx>(
                     .iter()
                     .zip(&definition.fields)
                     .map(|(value, field)| {
-                        let ty = basic_ty(context, structs, enums, &field.ty)?;
-                        llvm_constant(context, structs, enums, ty, value)
+                        let ty =
+                            basic_ty(context, structs, enums, managed_address_space, &field.ty)?;
+                        llvm_constant(context, structs, enums, managed_address_space, ty, value)
                     })
                     .collect::<Result<Vec<_>, _>>()?;
                 struct_type.const_named_struct(&values).into()
             } else {
-                let payload_types = c_payload_fields(context, structs, enums, definition)?;
+                let payload_types =
+                    c_payload_fields(context, structs, enums, managed_address_space, definition)?;
                 let mut payload_values = Vec::with_capacity(payload_types.len());
                 let mut cursor = 0u64;
                 for (field, value) in definition.fields.iter().zip(fields) {
@@ -442,8 +484,16 @@ fn llvm_constant<'ctx>(
                         let ty = payload_types[payload_values.len()];
                         payload_values.push(ty.const_zero());
                     }
-                    let field_ty = basic_ty(context, structs, enums, &field.ty)?;
-                    payload_values.push(llvm_constant(context, structs, enums, field_ty, value)?);
+                    let field_ty =
+                        basic_ty(context, structs, enums, managed_address_space, &field.ty)?;
+                    payload_values.push(llvm_constant(
+                        context,
+                        structs,
+                        enums,
+                        managed_address_space,
+                        field_ty,
+                        value,
+                    )?);
                     cursor = field.layout.offset + c_field_size(structs, enums, &field.ty)?;
                 }
                 if payload_values.len() < payload_types.len() {
@@ -505,6 +555,7 @@ fn c_payload_fields<'ctx>(
     context: &'ctx Context,
     structs: &Arena<StructDef>,
     enums: &Arena<EnumDef>,
+    managed_address_space: ManagedAddressSpace,
     definition: &StructDef,
 ) -> Result<Vec<BasicTypeEnum<'ctx>>, CodegenError> {
     let mut physical = Vec::new();
@@ -519,7 +570,13 @@ fn c_payload_fields<'ctx>(
         if padding != 0 {
             physical.push(context.i8_type().array_type(padding as u32).into());
         }
-        physical.push(basic_ty(context, structs, enums, &field.ty)?);
+        physical.push(basic_ty(
+            context,
+            structs,
+            enums,
+            managed_address_space,
+            &field.ty,
+        )?);
         cursor = field.layout.offset + c_field_size(structs, enums, &field.ty)?;
     }
     let tail = definition
@@ -563,6 +620,7 @@ fn struct_ty<'ctx>(
     context: &'ctx Context,
     structs: &Arena<StructDef>,
     enums: &Arena<EnumDef>,
+    managed_address_space: ManagedAddressSpace,
     id: scoop_lir::StructDefId,
 ) -> Result<StructType<'ctx>, CodegenError> {
     let definition = &structs[id];
@@ -570,13 +628,13 @@ fn struct_ty<'ctx>(
         let fields = definition
             .fields
             .iter()
-            .map(|field| basic_ty(context, structs, enums, &field.ty))
+            .map(|field| basic_ty(context, structs, enums, managed_address_space, &field.ty))
             .collect::<Result<Vec<_>, _>>()?;
         return Ok(context.struct_type(&fields, false));
     }
     let anchor = alignment_anchor(context, definition.align)?;
     let payload = context.struct_type(
-        &c_payload_fields(context, structs, enums, definition)?,
+        &c_payload_fields(context, structs, enums, managed_address_space, definition)?,
         true,
     );
     Ok(context.struct_type(&[anchor, payload.into()], false))
@@ -599,6 +657,7 @@ fn uses_return_slot(enums: &Arena<EnumDef>, ty: &LirType) -> bool {
 /// managed reference into integer/byte fragments.
 fn tagged_ty<'ctx>(
     context: &'ctx Context,
+    managed_address_space: ManagedAddressSpace,
     size: u64,
     align: u64,
     scan: &RefScan,
@@ -628,7 +687,7 @@ fn tagged_ty<'ctx>(
             )));
         }
         push_byte_padding(context, &mut fields, offset - cursor)?;
-        fields.push(managed_ptr_ty(context).into());
+        fields.push(managed_ptr_ty(context, managed_address_space).into());
         cursor = end;
     }
     push_byte_padding(context, &mut fields, size - cursor)?;
@@ -692,13 +751,20 @@ fn ptr_ty(context: &Context) -> inkwell::types::PointerType<'_> {
 
 /// Moving-GC object-start pointer type. Address space 1 is part of the fixed
 /// LLVM 22.1 backend contract and is the only address space RS4GC traces.
-fn managed_ptr_ty(context: &Context) -> inkwell::types::PointerType<'_> {
-    context.ptr_type(AddressSpace::from(1u16))
+fn managed_ptr_ty(
+    context: &Context,
+    managed_address_space: ManagedAddressSpace,
+) -> inkwell::types::PointerType<'_> {
+    context.ptr_type(managed_address_space.inkwell())
 }
 
-fn pointer_ty(context: &Context, kind: scoop_lir::PointerKind) -> inkwell::types::PointerType<'_> {
+fn pointer_ty(
+    context: &Context,
+    managed_address_space: ManagedAddressSpace,
+    kind: scoop_lir::PointerKind,
+) -> inkwell::types::PointerType<'_> {
     match kind {
-        scoop_lir::PointerKind::Managed => managed_ptr_ty(context),
+        scoop_lir::PointerKind::Managed => managed_ptr_ty(context, managed_address_space),
         scoop_lir::PointerKind::Raw
         | scoop_lir::PointerKind::Code
         | scoop_lir::PointerKind::Metadata => ptr_ty(context),
@@ -714,6 +780,7 @@ use type_descriptors::{emit_ref_scan, emit_type_descriptors, type_descriptor_glo
 /// needs, bundled to keep signatures small.
 struct FnEmitter<'a, 'ctx> {
     context: &'ctx Context,
+    managed_address_space: ManagedAddressSpace,
     llvm: &'a LlvmModule<'ctx>,
     builder: &'a inkwell::builder::Builder<'ctx>,
     function: &'a Function,
@@ -864,7 +931,13 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let function = self.function;
         Ok(match value {
             Value::Local(id) => {
-                let ty = basic_ty(context, self.structs, self.enums, &function.locals[id].ty)?;
+                let ty = basic_ty(
+                    context,
+                    self.structs,
+                    self.enums,
+                    self.managed_address_space,
+                    &function.locals[id].ty,
+                )?;
                 self.builder
                     .build_load(ty, self.allocas[arena_index(id)], &function.locals[id].name)
                     .map_err(|e| CodegenError(format!("load %{}: {e}", function.locals[id].name)))?
@@ -905,7 +978,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             }
             Value::IntConst(value) => context.i64_type().const_int(value as u64, true).into(),
             Value::BoolConst(value) => context.bool_type().const_int(value as u64, false).into(),
-            Value::NullPointer(kind) => pointer_ty(context, kind).const_null().into(),
+            Value::NullPointer(kind) => pointer_ty(context, self.managed_address_space, kind)
+                .const_null()
+                .into(),
             Value::TypeDescriptor(reference) => {
                 type_descriptor_global(reference, self.type_tds, self.external_type_tds)?
                     .as_pointer_value()
@@ -1046,7 +1121,14 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             Instruction::MakeAggregate { out, elements } => {
                 let name = format!("t{}", out.into_raw().into_u32());
                 let lir_ty = &function.temps[*out].ty;
-                let ty = basic_ty(context, self.structs, self.enums, lir_ty)?.into_struct_type();
+                let ty = basic_ty(
+                    context,
+                    self.structs,
+                    self.enums,
+                    self.managed_address_space,
+                    lir_ty,
+                )?
+                .into_struct_type();
                 let aggregate = if let LirType::Struct(id) = lir_ty
                     && self.structs[*id].c_layout.is_some()
                 {
@@ -1158,8 +1240,13 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 let name = format!("t{}", out.into_raw().into_u32());
                 let object = self.value(*object)?.into_pointer_value();
                 let field_ptr = self.byte_gep(object, *offset, "field_ptr")?;
-                let field_ty =
-                    basic_ty(context, self.structs, self.enums, &function.temps[*out].ty)?;
+                let field_ty = basic_ty(
+                    context,
+                    self.structs,
+                    self.enums,
+                    self.managed_address_space,
+                    &function.temps[*out].ty,
+                )?;
                 let element = builder
                     .build_load(field_ty, field_ptr, &name)
                     .map_err(|e| {
@@ -1185,8 +1272,13 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 let name = format!("t{}", out.into_raw().into_u32());
                 let object = self.value(*object)?.into_pointer_value();
                 let field_ptr = self.byte_gep(object, *offset, "atomic_field_ptr")?;
-                let field_ty =
-                    basic_ty(context, self.structs, self.enums, &function.temps[*out].ty)?;
+                let field_ty = basic_ty(
+                    context,
+                    self.structs,
+                    self.enums,
+                    self.managed_address_space,
+                    &function.temps[*out].ty,
+                )?;
                 let element = builder
                     .build_load(field_ty, field_ptr, &name)
                     .map_err(|e| {
@@ -1343,7 +1435,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     "scoop_runtime_callback_register",
                     ptr_ty(context).fn_type(
                         &[
-                            managed_ptr_ty(context).into(),
+                            managed_ptr_ty(context, self.managed_address_space).into(),
                             ptr_ty(context).into(),
                             ptr_ty(context).into(),
                             context.i32_type().into(),
@@ -1379,8 +1471,14 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     .expect("foreign callback trampoline is declared")
                     .as_global_value()
                     .as_pointer_value();
-                let ty = basic_ty(context, self.structs, self.enums, &function.temps[*out].ty)?
-                    .into_struct_type();
+                let ty = basic_ty(
+                    context,
+                    self.structs,
+                    self.enums,
+                    self.managed_address_space,
+                    &function.temps[*out].ty,
+                )?
+                .into_struct_type();
                 let value = builder
                     .build_insert_value(ty.get_undef(), trampoline, 0, "callback_function")
                     .and_then(|value| {
@@ -1421,9 +1519,14 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                             .basic()
                             .expect("retain returns a context")
                             .into_pointer_value();
-                        let ty =
-                            basic_ty(context, self.structs, self.enums, &function.temps[out].ty)?
-                                .into_struct_type();
+                        let ty = basic_ty(
+                            context,
+                            self.structs,
+                            self.enums,
+                            self.managed_address_space,
+                            &function.temps[out].ty,
+                        )?
+                        .into_struct_type();
                         let value = builder
                             .build_insert_value(
                                 ty.get_undef(),
@@ -1460,7 +1563,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     scoop_lir::ForeignCallbackOperation::Failure { out, .. } => {
                         let failure = self.gc_leaf_fn(
                             "scoop_runtime_callback_failure",
-                            managed_ptr_ty(context).fn_type(&[ptr_ty(context).into()], false),
+                            managed_ptr_ty(context, self.managed_address_space)
+                                .fn_type(&[ptr_ty(context).into()], false),
                         );
                         let value = builder
                             .build_call(failure, &[callback_context.into()], "callback_failure")
@@ -1501,7 +1605,13 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                                 "callback state enum unexpectedly uses a niche".to_string(),
                             ));
                         };
-                        let ty = tagged_ty(context, *size, *align, &self.enums[enum_id].scan)?;
+                        let ty = tagged_ty(
+                            context,
+                            self.managed_address_space,
+                            *size,
+                            *align,
+                            &self.enums[enum_id].scan,
+                        )?;
                         let slot = self.entry_alloca(ty.into(), "callback_state_value")?;
                         builder
                             .build_store(slot, ty.const_zero())
@@ -1530,7 +1640,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             }
             Instruction::PtrToInt { out, value } => {
                 let value = self.value(*value)?.into_pointer_value();
-                if value.get_type().get_address_space() == AddressSpace::from(1u16) {
+                if value.get_type().get_address_space() == self.managed_address_space.inkwell() {
                     return Err(CodegenError(format!(
                         "managed pointer cannot be lowered by PtrToInt in @{}",
                         function.symbol
@@ -1547,7 +1657,13 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 align,
             } => {
                 let pointer = self.value(*pointer)?.into_pointer_value();
-                let ty = basic_ty(context, self.structs, self.enums, &function.temps[*out].ty)?;
+                let ty = basic_ty(
+                    context,
+                    self.structs,
+                    self.enums,
+                    self.managed_address_space,
+                    &function.temps[*out].ty,
+                )?;
                 let value = builder
                     .build_load(ty, pointer, "raw_load")
                     .map_err(|e| CodegenError(format!("raw load @{}: {e}", function.symbol)))?;
@@ -1595,7 +1711,13 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             Instruction::GlobalLoad { out, global } => {
                 let llvm_global =
                     self.globals[arena_index(*global)].expect("storage globals are emitted");
-                let ty = basic_ty(context, self.structs, self.enums, &function.temps[*out].ty)?;
+                let ty = basic_ty(
+                    context,
+                    self.structs,
+                    self.enums,
+                    self.managed_address_space,
+                    &function.temps[*out].ty,
+                )?;
                 let value = builder
                     .build_load(ty, llvm_global.as_pointer_value(), "global_load")
                     .map_err(|error| CodegenError(format!("global load: {error}")))?;
@@ -1621,7 +1743,13 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 roots,
             } => {
                 let native = &self.native_globals[*global];
-                let ty = basic_ty(context, self.structs, self.enums, &native.ty)?;
+                let ty = basic_ty(
+                    context,
+                    self.structs,
+                    self.enums,
+                    self.managed_address_space,
+                    &native.ty,
+                )?;
                 let slot = self.entry_alloca(ty, "native_global_result")?;
                 let symbol = &self.native_global_bridges.gets[native.access.get()].symbol;
                 let callee = self.native_global_bridge(symbol);
@@ -1645,7 +1773,13 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 roots,
             } => {
                 let native = &self.native_globals[*global];
-                let ty = basic_ty(context, self.structs, self.enums, &native.ty)?;
+                let ty = basic_ty(
+                    context,
+                    self.structs,
+                    self.enums,
+                    self.managed_address_space,
+                    &native.ty,
+                )?;
                 let slot = self.entry_alloca(ty, "native_global_argument")?;
                 builder
                     .build_store(slot, self.value(*value)?)
@@ -1766,9 +1900,14 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                                 symbol = function.symbol
                             ))
                         })?;
-                let exception_ty =
-                    basic_ty(context, self.structs, self.enums, &LirType::ExceptionRecord)?
-                        .into_struct_type();
+                let exception_ty = basic_ty(
+                    context,
+                    self.structs,
+                    self.enums,
+                    self.managed_address_space,
+                    &LirType::ExceptionRecord,
+                )?
+                .into_struct_type();
                 let landing_pad = builder
                     .build_landing_pad(
                         exception_ty,
@@ -1798,7 +1937,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             Instruction::BeginCatch { out, raw } => {
                 let begin_catch = self.gc_leaf_fn(
                     "__cxa_begin_catch",
-                    managed_ptr_ty(context).fn_type(&[ptr_ty(context).into()], false),
+                    managed_ptr_ty(context, self.managed_address_space)
+                        .fn_type(&[ptr_ty(context).into()], false),
                 );
                 let name = format!("t{}", out.into_raw().into_u32());
                 let object = builder
@@ -1827,9 +1967,10 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 // `unreachable` after the call, like the trap path.
                 let throw = self.gc_leaf_fn(
                     "scoop_rt_throw",
-                    context
-                        .void_type()
-                        .fn_type(&[managed_ptr_ty(context).into()], false),
+                    context.void_type().fn_type(
+                        &[managed_ptr_ty(context, self.managed_address_space).into()],
+                        false,
+                    ),
                 );
                 throw.add_attribute(
                     AttributeLoc::Function,
@@ -1856,8 +1997,13 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 // element in order. The rounded data offset is visible
                 // for over-aligned C-layout elements.
                 let (array_metadata, td) = self.array_type(*array_type);
-                let element_ty =
-                    basic_ty(context, self.structs, self.enums, &array_metadata.element)?;
+                let element_ty = basic_ty(
+                    context,
+                    self.structs,
+                    self.enums,
+                    self.managed_address_space,
+                    &array_metadata.element,
+                )?;
                 let stride = array_metadata.element_size;
                 let data_offset = array_data_offset(array_metadata.element_align);
                 let td = td.as_pointer_value();
@@ -1919,8 +2065,13 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 array_type,
             } => {
                 let (array_metadata, _) = self.array_type(*array_type);
-                let element_ty =
-                    basic_ty(context, self.structs, self.enums, &array_metadata.element)?;
+                let element_ty = basic_ty(
+                    context,
+                    self.structs,
+                    self.enums,
+                    self.managed_address_space,
+                    &array_metadata.element,
+                )?;
                 let array = self.value(*array)?.into_pointer_value();
                 let index = self.value(*index)?.into_int_value();
                 self.bounds_check(array, index)?;
@@ -1943,8 +2094,13 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 array_type,
             } => {
                 let (array_metadata, _) = self.array_type(*array_type);
-                let element_ty =
-                    basic_ty(context, self.structs, self.enums, &array_metadata.element)?;
+                let element_ty = basic_ty(
+                    context,
+                    self.structs,
+                    self.enums,
+                    self.managed_address_space,
+                    &array_metadata.element,
+                )?;
                 let array = self.value(*array)?.into_pointer_value();
                 let index = self.value(*index)?.into_int_value();
                 self.bounds_check(array, index)?;
@@ -1977,9 +2133,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 let data_offset = array_data_offset(array_metadata.element_align);
                 let clone = self.runtime_fn(
                     scoop_lir::ARRAY_CLONE_SYMBOL,
-                    managed_ptr_ty(context).fn_type(
+                    managed_ptr_ty(context, self.managed_address_space).fn_type(
                         &[
-                            managed_ptr_ty(context).into(),
+                            managed_ptr_ty(context, self.managed_address_space).into(),
                             ptr_ty(context).into(),
                             context.i64_type().into(),
                             context.i64_type().into(),
@@ -2030,10 +2186,16 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                             self.value(fields[0])?
                         } else {
                             // The payload-less variant is the null pointer.
-                            basic_ty(context, self.structs, self.enums, &function.temps[*out].ty)?
-                                .into_pointer_type()
-                                .const_null()
-                                .into()
+                            basic_ty(
+                                context,
+                                self.structs,
+                                self.enums,
+                                self.managed_address_space,
+                                &function.temps[*out].ty,
+                            )?
+                            .into_pointer_type()
+                            .const_null()
+                            .into()
                         }
                     }
                     EnumRepr::Tagged {
@@ -2044,7 +2206,13 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         // The full value is zero before tag/payload writes,
                         // so every inactive ref-bearing slot is safe for
                         // unconditional GC scanning.
-                        let ty = tagged_ty(context, *size, *align, &def.scan)?;
+                        let ty = tagged_ty(
+                            context,
+                            self.managed_address_space,
+                            *size,
+                            *align,
+                            &def.scan,
+                        )?;
                         let slot = self.entry_alloca(ty.into(), "enum_wrap")?;
                         builder.build_store(slot, ty.const_zero()).map_err(|e| {
                             CodegenError(format!(
@@ -2161,7 +2329,13 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         // Reverse of EnumWrap: spill the aggregate into an
                         // entry-block alloca, then load the field out of
                         // the payload area.
-                        let ty = tagged_ty(context, *size, *align, &def.scan)?;
+                        let ty = tagged_ty(
+                            context,
+                            self.managed_address_space,
+                            *size,
+                            *align,
+                            &def.scan,
+                        )?;
                         let slot = self.entry_alloca(ty.into(), "enum_field")?;
                         builder.build_store(slot, operand).map_err(|e| {
                             CodegenError(format!(
@@ -2172,7 +2346,13 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         let variant_repr = &variants[*variant as usize];
                         let field = &variant_repr.fields[*index as usize];
                         let field_ptr = self.enum_field_ptr(slot, field.offset, "field_ptr")?;
-                        let field_ty = basic_ty(context, self.structs, self.enums, &field.ty)?;
+                        let field_ty = basic_ty(
+                            context,
+                            self.structs,
+                            self.enums,
+                            self.managed_address_space,
+                            &field.ty,
+                        )?;
                         builder
                             .build_load(field_ty, field_ptr, &name)
                             .map_err(|e| {
@@ -2242,6 +2422,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     self.context,
                     self.structs,
                     self.enums,
+                    self.managed_address_space,
                     &self.function.locals[id].ty,
                 )?,
             }),
@@ -2272,7 +2453,13 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     safepoint.get()
                 )));
             }
-            let llvm_ty = basic_ty(self.context, self.structs, self.enums, &item.ty)?;
+            let llvm_ty = basic_ty(
+                self.context,
+                self.structs,
+                self.enums,
+                self.managed_address_space,
+                &item.ty,
+            )?;
             let storage = match item.source {
                 scoop_lir::CallerRootSource::Local(id) => self.allocas[arena_index(id)],
                 scoop_lir::CallerRootSource::Param(_) | scoop_lir::CallerRootSource::Temp(_) => {
@@ -2318,14 +2505,16 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 let source_value = self
                     .builder
                     .build_load(
-                        managed_ptr_ty(self.context),
+                        managed_ptr_ty(self.context, self.managed_address_space),
                         leaf_storage,
                         &format!("statepoint_{}_source", safepoint.get()),
                     )
                     .map_err(|error| CodegenError(format!("load statepoint leaf: {error}")))?
                     .into_pointer_value();
-                let identity_storage =
-                    self.entry_alloca(managed_ptr_ty(self.context).into(), "statepoint_root")?;
+                let identity_storage = self.entry_alloca(
+                    managed_ptr_ty(self.context, self.managed_address_space).into(),
+                    "statepoint_root",
+                )?;
                 statepoint::mark_root_identity(
                     self.context,
                     identity_storage
@@ -2343,7 +2532,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 let value = self
                     .builder
                     .build_load(
-                        managed_ptr_ty(self.context),
+                        managed_ptr_ty(self.context, self.managed_address_space),
                         identity_storage,
                         &format!("statepoint_{}_live", safepoint.get()),
                     )
@@ -2363,7 +2552,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             }
             let value = match llvm_ty {
                 BasicTypeEnum::PointerType(pointer)
-                    if pointer == managed_ptr_ty(self.context)
+                    if pointer == managed_ptr_ty(self.context, self.managed_address_space)
                         && item.leaves.as_slice().len() == 1
                         && item.leaves.as_slice()[0].byte_offset == 0 =>
                 {
@@ -2420,7 +2609,13 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 continue;
             }
             let lir_type = self.statepoint_source_type(source)?.clone();
-            let ty = basic_ty(self.context, self.structs, self.enums, &lir_type)?;
+            let ty = basic_ty(
+                self.context,
+                self.structs,
+                self.enums,
+                self.managed_address_space,
+                &lir_type,
+            )?;
             let pointer = self.entry_alloca(ty, "managed_root_storage")?;
             let initial = match source {
                 scoop_lir::CallerRootSource::Param(index) => self
@@ -2774,13 +2969,27 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
 
         let mut param_tys = params
             .iter()
-            .map(|ty| basic_ty(self.context, self.structs, self.enums, ty).map(Into::into))
+            .map(|ty| {
+                basic_ty(
+                    self.context,
+                    self.structs,
+                    self.enums,
+                    self.managed_address_space,
+                    ty,
+                )
+                .map(Into::into)
+            })
             .collect::<Result<Vec<BasicMetadataTypeEnum<'ctx>>, _>>()?;
         let fn_ty = match &result {
             TypedCallResult::Void => self.context.void_type().fn_type(&param_tys, false),
-            TypedCallResult::Direct { ty, .. } => {
-                basic_ty(self.context, self.structs, self.enums, ty)?.fn_type(&param_tys, false)
-            }
+            TypedCallResult::Direct { ty, .. } => basic_ty(
+                self.context,
+                self.structs,
+                self.enums,
+                self.managed_address_space,
+                ty,
+            )?
+            .fn_type(&param_tys, false),
             TypedCallResult::Indirect { .. } => {
                 param_tys.insert(0, ptr_ty(self.context).into());
                 self.context.void_type().fn_type(&param_tys, false)
@@ -2845,7 +3054,13 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                                 self.function.symbol
                             )));
                         }
-                        let llvm_ty = basic_ty(self.context, self.structs, self.enums, ty)?;
+                        let llvm_ty = basic_ty(
+                            self.context,
+                            self.structs,
+                            self.enums,
+                            self.managed_address_space,
+                            ty,
+                        )?;
                         let pointer = self.allocas[arena_index(*storage)];
                         self.builder
                             .build_store(pointer, llvm_ty.const_zero())
@@ -3064,9 +3279,13 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 .as_pointer_value(),
         };
         let result_type = match result {
-            TypedCallResult::Direct { ty, .. } => {
-                Some(basic_ty(self.context, self.structs, self.enums, ty)?)
-            }
+            TypedCallResult::Direct { ty, .. } => Some(basic_ty(
+                self.context,
+                self.structs,
+                self.enums,
+                self.managed_address_space,
+                ty,
+            )?),
             TypedCallResult::Void | TypedCallResult::Indirect { .. } => None,
         };
         let direct_value = match protocol {
@@ -3563,7 +3782,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let context = self.context;
         let builder = self.builder;
         let ptr = ptr_ty(context);
-        let managed_ptr = managed_ptr_ty(context);
+        let managed_ptr = managed_ptr_ty(context, self.managed_address_space);
         let i64_ty = context.i64_type();
 
         let below_header = builder
@@ -4073,12 +4292,13 @@ fn fn_type_of<'ctx>(
     context: &'ctx Context,
     structs: &Arena<StructDef>,
     enums: &Arena<EnumDef>,
+    managed_address_space: ManagedAddressSpace,
     function: &Function,
 ) -> Result<inkwell::types::FunctionType<'ctx>, CodegenError> {
     let mut param_tys: Vec<BasicMetadataTypeEnum> = function
         .params
         .iter()
-        .map(|ty| basic_ty(context, structs, enums, ty).map(Into::into))
+        .map(|ty| basic_ty(context, structs, enums, managed_address_space, ty).map(Into::into))
         .collect::<Result<_, _>>()?;
     if uses_return_slot(enums, &function.return_ty) {
         param_tys.insert(0, ptr_ty(context).into());
@@ -4086,7 +4306,8 @@ fn fn_type_of<'ctx>(
     }
     Ok(match &function.return_ty {
         LirType::Void => context.void_type().fn_type(&param_tys, false),
-        return_ty => basic_ty(context, structs, enums, return_ty)?.fn_type(&param_tys, false),
+        return_ty => basic_ty(context, structs, enums, managed_address_space, return_ty)?
+            .fn_type(&param_tys, false),
     })
 }
 
@@ -4101,9 +4322,10 @@ fn declare_function<'ctx>(
     llvm: &LlvmModule<'ctx>,
     structs: &Arena<StructDef>,
     enums: &Arena<EnumDef>,
+    managed_address_space: ManagedAddressSpace,
     function: &Function,
 ) -> Result<(), CodegenError> {
-    let fn_ty = fn_type_of(context, structs, enums, function)?;
+    let fn_ty = fn_type_of(context, structs, enums, managed_address_space, function)?;
     let llvm_function = llvm.add_function(&function.symbol, fn_ty, None);
     statepoint::configure_function(context, llvm_function, function.gc_effect);
     Ok(())
@@ -4113,6 +4335,7 @@ fn c_basic_ty<'ctx>(
     context: &'ctx Context,
     structs: &Arena<StructDef>,
     enums: &Arena<EnumDef>,
+    managed_address_space: ManagedAddressSpace,
     ty: &scoop_lir::CType,
 ) -> Result<BasicTypeEnum<'ctx>, CodegenError> {
     Ok(match ty {
@@ -4121,7 +4344,9 @@ fn c_basic_ty<'ctx>(
         scoop_lir::CType::Pointer | scoop_lir::CType::FunctionPointer { .. } => {
             ptr_ty(context).into()
         }
-        scoop_lir::CType::Struct(id) => struct_ty(context, structs, enums, *id)?.into(),
+        scoop_lir::CType::Struct(id) => {
+            struct_ty(context, structs, enums, managed_address_space, *id)?.into()
+        }
         scoop_lir::CType::Unit => {
             return Err(CodegenError(
                 "Unit cannot be a C callback parameter type".to_string(),
@@ -4135,17 +4360,25 @@ fn declare_callback_trampoline<'ctx>(
     llvm: &LlvmModule<'ctx>,
     structs: &Arena<StructDef>,
     enums: &Arena<EnumDef>,
+    managed_address_space: ManagedAddressSpace,
     callback: &scoop_lir::CallbackBridge,
 ) -> Result<(), CodegenError> {
     let params = callback
         .params
         .iter()
-        .map(|ty| c_basic_ty(context, structs, enums, ty).map(Into::into))
+        .map(|ty| c_basic_ty(context, structs, enums, managed_address_space, ty).map(Into::into))
         .collect::<Result<Vec<BasicMetadataTypeEnum<'ctx>>, _>>()?;
     let fn_ty = if callback.return_type == scoop_lir::CType::Unit {
         context.void_type().fn_type(&params, false)
     } else {
-        c_basic_ty(context, structs, enums, &callback.return_type)?.fn_type(&params, false)
+        c_basic_ty(
+            context,
+            structs,
+            enums,
+            managed_address_space,
+            &callback.return_type,
+        )?
+        .fn_type(&params, false)
     };
     llvm.add_function(&callback.trampoline_symbol, fn_ty, None);
     Ok(())
@@ -4156,17 +4389,25 @@ fn declare_foreign_callback_trampoline<'ctx>(
     llvm: &LlvmModule<'ctx>,
     structs: &Arena<StructDef>,
     enums: &Arena<EnumDef>,
+    managed_address_space: ManagedAddressSpace,
     callback: &scoop_lir::ForeignCallbackBridge,
 ) -> Result<(), CodegenError> {
     let params = callback
         .params
         .iter()
-        .map(|ty| c_basic_ty(context, structs, enums, ty).map(Into::into))
+        .map(|ty| c_basic_ty(context, structs, enums, managed_address_space, ty).map(Into::into))
         .collect::<Result<Vec<BasicMetadataTypeEnum<'ctx>>, _>>()?;
     let fn_ty = if callback.return_type == scoop_lir::CType::Unit {
         context.void_type().fn_type(&params, false)
     } else {
-        c_basic_ty(context, structs, enums, &callback.return_type)?.fn_type(&params, false)
+        c_basic_ty(
+            context,
+            structs,
+            enums,
+            managed_address_space,
+            &callback.return_type,
+        )?
+        .fn_type(&params, false)
     };
     llvm.add_function(&callback.trampoline_symbol, fn_ty, None);
     Ok(())
@@ -4175,6 +4416,7 @@ fn declare_foreign_callback_trampoline<'ctx>(
 /// Module-level data function emission needs, bundled to keep
 /// signatures small.
 struct ModuleCtx<'a, 'ctx> {
+    managed_address_space: ManagedAddressSpace,
     functions: &'a [Function],
     structs: &'a Arena<StructDef>,
     enums: &'a Arena<EnumDef>,
@@ -4412,6 +4654,7 @@ fn emit_function<'ctx>(
 
     let mut emitter = FnEmitter {
         context,
+        managed_address_space: module_ctx.managed_address_space,
         llvm,
         builder,
         function,
@@ -4453,7 +4696,13 @@ fn emit_function<'ctx>(
     // positioning at its end places the allocas before every instruction.
     builder.position_at_end(blocks[arena_index(function.entry)]);
     for (_, local) in function.locals.iter() {
-        let ty = basic_ty(context, module_ctx.structs, module_ctx.enums, &local.ty)?;
+        let ty = basic_ty(
+            context,
+            module_ctx.structs,
+            module_ctx.enums,
+            module_ctx.managed_address_space,
+            &local.ty,
+        )?;
         emitter.allocas.push(
             builder
                 .build_alloca(ty, &local.name)

@@ -29,11 +29,11 @@ use la_arena::RawIdx;
 use scoop_lir::GcEffect;
 
 use crate::CodegenError;
+use crate::target::ManagedAddressSpace;
 
 mod provenance;
 
 const GC_STRATEGY: &str = "statepoint-example";
-const MANAGED_ADDRESS_SPACE: u32 = 1;
 pub(crate) const TYPED_MANAGED_POINTER_BOUNDARY_METADATA: &str =
     "scoop.typed-managed-pointer-boundary";
 pub(crate) const STATEPOINT_ROOT_IDENTITY_METADATA: &str = "scoop.statepoint-root-identity";
@@ -523,6 +523,7 @@ pub(crate) fn rewrite(
 pub(crate) fn verify_rewritten(
     module: &LlvmModule<'_>,
     expected: &ExpectedSafepoints,
+    managed_address_space: ManagedAddressSpace,
 ) -> Result<(), CodegenError> {
     verify_function_policies(module, expected)?;
 
@@ -540,7 +541,12 @@ pub(crate) fn verify_rewritten(
         let function_name = llvm_value_name(function.as_value_ref())?;
         for block in function.get_basic_blocks() {
             for instruction in block.get_instructions() {
-                provenance::verify_pointer_instruction(instruction, cast_metadata, &function_name)?;
+                provenance::verify_pointer_instruction(
+                    instruction,
+                    cast_metadata,
+                    managed_address_space,
+                    &function_name,
+                )?;
                 if !matches!(
                     instruction.get_opcode(),
                     InstructionOpcode::Call | InstructionOpcode::Invoke | InstructionOpcode::CallBr
@@ -619,7 +625,7 @@ pub(crate) fn verify_rewritten(
                             "statepoint {id} has {argument_count} intrinsic arguments, expected {expected_argument_count}"
                         )));
                     }
-                    let roots = gc_live_roots(raw, id)?;
+                    let roots = gc_live_roots(raw, id, managed_address_space)?;
                     let identities = gc_live_root_identities(&roots, root_identity_metadata, id)?;
                     verify_statepoint_shape(
                         id,
@@ -706,7 +712,7 @@ pub(crate) fn verify_rewritten(
             "post-RS4GC statepoint ids disagree with complete LIR: missing {missing:?}, unexpected {unexpected:?}"
         )));
     }
-    provenance::verify_no_derived_live_through(&observed)?;
+    provenance::verify_no_derived_live_through(&observed, managed_address_space)?;
     for (id, site) in &observed {
         match &expected.sites[id].statepoint {
             ExpectedStatepoint::Relocating(_) => {}
@@ -829,6 +835,7 @@ fn verify_string_attribute(
 fn gc_live_roots<'ctx>(
     raw: inkwell::llvm_sys::prelude::LLVMValueRef,
     id: u64,
+    managed_address_space: ManagedAddressSpace,
 ) -> Result<Vec<BasicValueEnum<'ctx>>, CodegenError> {
     // SAFETY: the caller only passes a statepoint CallBase instruction.
     let call = unsafe { CallSiteValue::new(raw) };
@@ -854,9 +861,10 @@ fn gc_live_roots<'ctx>(
     let roots = roots.unwrap_or_default();
     let mut identities = BTreeSet::new();
     for (index, root) in roots.iter().enumerate() {
-        if !provenance::is_managed_pointer(root.as_value_ref()) {
+        if !provenance::is_managed_pointer(root.as_value_ref(), managed_address_space) {
             return Err(CodegenError(format!(
-                "statepoint {id} gc-live root {index} is not an AS1 managed pointer"
+                "statepoint {id} gc-live root {index} is not an AS{} managed pointer",
+                managed_address_space.llvm()
             )));
         }
         if root
@@ -864,7 +872,8 @@ fn gc_live_roots<'ctx>(
             .is_some_and(|instruction| instruction.get_opcode() == InstructionOpcode::GetElementPtr)
         {
             return Err(CodegenError(format!(
-                "statepoint {id} gc-live root {index} is a derived AS1 address"
+                "statepoint {id} gc-live root {index} is a derived AS{} address",
+                managed_address_space.llvm()
             )));
         }
         if !identities.insert(root.as_value_ref() as usize) {

@@ -21,6 +21,10 @@ fn host_profile() -> TargetProfile {
         .expect("supported host target")
 }
 
+fn host_managed_address_space() -> ManagedAddressSpace {
+    host_profile().managed_address_space_contract()
+}
+
 enum TestCallProtocol {
     Managed(u64),
     NoGc,
@@ -1812,7 +1816,8 @@ fn emits_m8_exceptions() {
 fn ir_of(module: &Module) -> String {
     let machine = host_target_machine().expect("target machine");
     let context = Context::create();
-    let llvm = emit_llvm_module(&context, module, &machine).expect("emit module");
+    let llvm = emit_llvm_module(&context, module, &machine, host_managed_address_space())
+        .expect("emit module");
     llvm.verify().expect("valid LLVM module");
     llvm.print_to_string().to_string()
 }
@@ -1820,13 +1825,34 @@ fn ir_of(module: &Module) -> String {
 fn rewritten_ir_of(module: &Module) -> String {
     let machine = host_target_machine().expect("target machine");
     let context = Context::create();
-    let llvm = emit_llvm_module(&context, module, &machine).expect("emit module");
+    let llvm = emit_llvm_module(&context, module, &machine, host_managed_address_space())
+        .expect("emit module");
     llvm.verify().expect("valid pre-statepoint module");
     let expected = statepoint::expectations(module).expect("complete safepoint manifest");
     statepoint::rewrite(&llvm, &machine).expect("rewrite statepoints");
     llvm.verify().expect("valid relocated module");
-    statepoint::verify_rewritten(&llvm, &expected).expect("rewritten manifest agrees with LIR");
+    statepoint::verify_rewritten(&llvm, &expected, host_managed_address_space())
+        .expect("rewritten manifest agrees with LIR");
     llvm.print_to_string().to_string()
+}
+
+#[test]
+fn llvm_lowering_consumes_the_profile_managed_address_space() {
+    let machine = host_target_machine().expect("target machine");
+    let context = Context::create();
+    let managed_address_space = ManagedAddressSpace::for_test(7);
+    let llvm = emit_llvm_module(&context, &values_module(), &machine, managed_address_space)
+        .expect("emit module with supplied managed address space");
+    llvm.verify().expect("valid LLVM module");
+    let ir = llvm.print_to_string().to_string();
+    assert!(
+        ir.contains("ptr addrspace(7)"),
+        "supplied managed address space is absent:\n{ir}"
+    );
+    assert!(
+        !ir.contains("ptr addrspace(1)"),
+        "lowering retained a hard-coded managed address space:\n{ir}"
+    );
 }
 
 #[test]
@@ -1916,7 +1942,7 @@ fn managed_thread_local_global_is_rejected_at_codegen_boundary() {
     });
     let machine = host_target_machine().expect("target machine");
     let context = Context::create();
-    let error = emit_llvm_module(&context, &module, &machine)
+    let error = emit_llvm_module(&context, &module, &machine, host_managed_address_space())
         .expect_err("managed TLS requires per-thread image-root registration");
     assert!(
         error
@@ -1932,7 +1958,7 @@ fn typed_local_call_signature_cannot_be_replaced_by_a_callsite_guess() {
     module.functions[1].params.push(LirType::I64);
     let machine = host_target_machine().expect("target machine");
     let context = Context::create();
-    let error = emit_llvm_module(&context, &module, &machine)
+    let error = emit_llvm_module(&context, &module, &machine, host_managed_address_space())
         .expect_err("the local declaration and typed call target disagree");
     assert!(
         error.0.contains("disagrees with its existing declaration"),
@@ -1945,7 +1971,8 @@ fn typed_no_gc_effect_keeps_the_call_outside_statepoints() {
     let module = heap_module();
     let machine = host_target_machine().expect("target machine");
     let context = Context::create();
-    let llvm = emit_llvm_module(&context, &module, &machine).expect("emit module");
+    let llvm = emit_llvm_module(&context, &module, &machine, host_managed_address_space())
+        .expect("emit module");
     llvm.verify().expect("valid LLVM module");
     statepoint::rewrite(&llvm, &machine).expect("rewrite-statepoints-for-gc pass");
     let rewritten = llvm.print_to_string().to_string();
@@ -2297,7 +2324,8 @@ fn closure_calls_preserve_hidden_abi_and_indirect_statepoints() {
 
     let machine = host_target_machine().expect("target machine");
     let context = Context::create();
-    let llvm = emit_llvm_module(&context, &module, &machine).expect("emit module");
+    let llvm = emit_llvm_module(&context, &module, &machine, host_managed_address_space())
+        .expect("emit module");
     llvm.verify().expect("valid LLVM module");
     statepoint::rewrite(&llvm, &machine).expect("rewrite-statepoints-for-gc pass");
     let rewritten = llvm.print_to_string().to_string();
@@ -2503,7 +2531,7 @@ fn heap_store_inside_the_object_header_is_rejected() {
     };
     let machine = host_target_machine().expect("target machine");
     let context = Context::create();
-    let error = emit_llvm_module(&context, &module, &machine)
+    let error = emit_llvm_module(&context, &module, &machine, host_managed_address_space())
         .expect_err("offset 8 is inside the object header, not a field");
     assert!(
         error.0.contains("object header"),
@@ -2524,11 +2552,13 @@ fn statepoints_and_stackmaps_are_emitted_at_o0_and_o2() {
             .create_qualification_target_machine(optimization)
             .expect("qualified target machine");
         let context = Context::create();
-        let llvm = emit_llvm_module(&context, &module, &machine).expect("emit module");
+        let llvm = emit_llvm_module(&context, &module, &machine, host_managed_address_space())
+            .expect("emit module");
         llvm.verify().expect("valid LLVM module");
         statepoint::rewrite(&llvm, &machine).expect("rewrite-statepoints-for-gc pass");
         llvm.verify().expect("valid post-RS4GC module");
-        statepoint::verify_rewritten(&llvm, &expected).expect("statepoint manifest matches");
+        statepoint::verify_rewritten(&llvm, &expected, host_managed_address_space())
+            .expect("statepoint manifest matches");
         let ir = llvm.print_to_string().to_string();
         assert!(
             ir.contains("gc.statepoint"),
@@ -3078,6 +3108,7 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
         &context,
         &module.structs,
         &module.enums,
+        host_managed_address_space(),
         &LirType::Struct(outer),
     )
     .expect("outer LLVM type");
@@ -3087,6 +3118,7 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
         &context,
         &module.structs,
         &module.enums,
+        host_managed_address_space(),
         &LirType::Enum(wrapped),
     )
     .expect("wrapped LLVM type");

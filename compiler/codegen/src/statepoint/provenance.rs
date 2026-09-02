@@ -14,11 +14,13 @@ use inkwell::values::{
     InstructionValue,
 };
 
-use super::{CodegenError, MANAGED_ADDRESS_SPACE, ObservedStatepoint, TypedManagedPointerBoundary};
+use super::{CodegenError, ObservedStatepoint, TypedManagedPointerBoundary};
+use crate::target::ManagedAddressSpace;
 
 pub(super) fn verify_pointer_instruction(
     instruction: InstructionValue<'_>,
     typed_cast_metadata: u32,
+    managed_address_space: ManagedAddressSpace,
     function: &str,
 ) -> Result<(), CodegenError> {
     let raw = instruction.as_value_ref();
@@ -26,7 +28,7 @@ pub(super) fn verify_pointer_instruction(
     match instruction.get_opcode() {
         InstructionOpcode::PtrToInt => {
             // SAFETY: ptrtoint has one pointer operand in verified LLVM IR.
-            if is_managed_pointer(unsafe { LLVMGetOperand(raw, 0) }) {
+            if is_managed_pointer(unsafe { LLVMGetOperand(raw, 0) }, managed_address_space) {
                 require_pointer_boundary(
                     witness,
                     TypedManagedPointerBoundary::CardAddress,
@@ -36,7 +38,7 @@ pub(super) fn verify_pointer_instruction(
             }
         }
         InstructionOpcode::IntToPtr => {
-            if is_managed_pointer(raw) {
+            if is_managed_pointer(raw, managed_address_space) {
                 require_pointer_boundary(
                     witness,
                     TypedManagedPointerBoundary::AllocationResult,
@@ -48,7 +50,9 @@ pub(super) fn verify_pointer_instruction(
         InstructionOpcode::AddrSpaceCast => {
             // SAFETY: addrspacecast has one pointer operand in verified LLVM IR.
             let source = unsafe { LLVMGetOperand(raw, 0) };
-            if is_managed_pointer(source) || is_managed_pointer(raw) {
+            if is_managed_pointer(source, managed_address_space)
+                || is_managed_pointer(raw, managed_address_space)
+            {
                 return Err(CodegenError(format!(
                     "managed address-space cast is not a supported typed boundary in `{function}`: {instruction}"
                 )));
@@ -108,7 +112,10 @@ fn require_pointer_boundary(
     Ok(())
 }
 
-pub(super) fn is_managed_pointer(value: inkwell::llvm_sys::prelude::LLVMValueRef) -> bool {
+pub(super) fn is_managed_pointer(
+    value: inkwell::llvm_sys::prelude::LLVMValueRef,
+    managed_address_space: ManagedAddressSpace,
+) -> bool {
     if value.is_null() {
         return false;
     }
@@ -117,7 +124,7 @@ pub(super) fn is_managed_pointer(value: inkwell::llvm_sys::prelude::LLVMValueRef
     let ty = unsafe { LLVMTypeOf(value) };
     unsafe {
         LLVMGetTypeKind(ty) == LLVMTypeKind::LLVMPointerTypeKind
-            && LLVMGetPointerAddressSpace(ty) == MANAGED_ADDRESS_SPACE
+            && LLVMGetPointerAddressSpace(ty) == managed_address_space.llvm()
     }
 }
 
@@ -165,20 +172,22 @@ pub(super) fn verify_no_stale_root_uses(
 
 pub(super) fn verify_no_derived_live_through(
     sites: &BTreeMap<u64, ObservedStatepoint<'_>>,
+    managed_address_space: ManagedAddressSpace,
 ) -> Result<(), CodegenError> {
     for (id, site) in sites {
         let function_name = site.function.get_name().to_string_lossy();
         for block in site.function.get_basic_blocks() {
             for derived in block.get_instructions().filter(|instruction| {
                 instruction.get_opcode() == InstructionOpcode::GetElementPtr
-                    && is_managed_pointer(instruction.as_value_ref())
+                    && is_managed_pointer(instruction.as_value_ref(), managed_address_space)
             }) {
                 if !instruction_can_reach(derived, site.instruction, site.function)? {
                     continue;
                 }
                 if instruction_uses_value(site.instruction, derived.as_value_ref())? {
                     return Err(CodegenError(format!(
-                        "derived AS1 address crosses statepoint {id} in `{function_name}` as a call operand; definition: {derived}"
+                        "derived AS{} address crosses statepoint {id} in `{function_name}` as a call operand; definition: {derived}",
+                        managed_address_space.llvm()
                     )));
                 }
                 for use_block in site.function.get_basic_blocks() {
@@ -196,7 +205,8 @@ pub(super) fn verify_no_derived_live_through(
                             site.function,
                         )? {
                             return Err(CodegenError(format!(
-                                "derived AS1 address crosses statepoint {id} in `{function_name}`; definition: {derived}; post-site use: {user}"
+                                "derived AS{} address crosses statepoint {id} in `{function_name}`; definition: {derived}; post-site use: {user}",
+                                managed_address_space.llvm()
                             )));
                         }
                     }

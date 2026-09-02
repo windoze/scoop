@@ -7,11 +7,11 @@
 use std::fmt;
 use std::path::Path;
 
-use inkwell::OptimizationLevel;
 use inkwell::llvm_sys::core::LLVMGetVersion;
 use inkwell::targets::{
     CodeModel, InitializationConfig, RelocMode, Target, TargetMachine, TargetTriple,
 };
+use inkwell::{AddressSpace, OptimizationLevel};
 
 use crate::statepoint::ExpectedSafepoints;
 use crate::{CodegenError, artifact};
@@ -64,6 +64,31 @@ enum TailCallPolicy {
     Disabled,
 }
 
+/// LLVM address space used for moving managed references.
+///
+/// Keeping the value in a dedicated type makes it impossible for mechanical
+/// lowering to substitute an unrelated integer or silently truncate a wider
+/// profile field when constructing an inkwell pointer type.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct ManagedAddressSpace(u16);
+
+impl ManagedAddressSpace {
+    const MOVING_GC: Self = Self(1);
+
+    #[cfg(test)]
+    pub(crate) const fn for_test(value: u16) -> Self {
+        Self(value)
+    }
+
+    pub(crate) fn inkwell(self) -> AddressSpace {
+        AddressSpace::from(self.0)
+    }
+
+    pub(crate) fn llvm(self) -> u32 {
+        u32::from(self.0)
+    }
+}
+
 /// A complete, immutable target/backend profile selected by the driver.
 ///
 /// Fields are private so callers cannot construct a contradictory partial
@@ -79,7 +104,7 @@ pub struct TargetProfile {
     code_model: CodeModel,
     object_format: ObjectFormat,
     instruction_selector: InstructionSelector,
-    managed_address_space: u32,
+    managed_address_space: ManagedAddressSpace,
     stack_map_version: u8,
     statepoint_roots: StatepointRootPolicy,
     frame_pointers: FramePointerPolicy,
@@ -98,7 +123,7 @@ impl TargetProfile {
         code_model: CodeModel::Default,
         object_format: ObjectFormat::MachO64,
         instruction_selector: InstructionSelector::SelectionDag,
-        managed_address_space: 1,
+        managed_address_space: ManagedAddressSpace::MOVING_GC,
         stack_map_version: 3,
         statepoint_roots: StatepointRootPolicy::StackIndirectOnly,
         frame_pointers: FramePointerPolicy::All,
@@ -155,6 +180,10 @@ impl TargetProfile {
     }
 
     pub fn managed_address_space(self) -> u32 {
+        self.managed_address_space.llvm()
+    }
+
+    pub(crate) fn managed_address_space_contract(self) -> ManagedAddressSpace {
         self.managed_address_space
     }
 
