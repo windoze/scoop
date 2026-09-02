@@ -68,6 +68,7 @@ fn runs_under_gc_stress(relative: &str) -> bool {
             | "m12-extern-scoop/extern-scoop.scoop"
             | "m13-callback/foreign-continuation.scoop"
             | "m14-generics/generic-exception.scoop"
+            | "m15-moving/handle-pin.scoop"
     )
 }
 

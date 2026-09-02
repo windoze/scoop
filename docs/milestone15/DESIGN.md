@@ -1,6 +1,6 @@
 # M15 设计：精确根、statepoint relocation 与 moving compaction
 
-状态：设计稿
+版本：1.0（已实现，2026-09-03）
 
 依赖：M9 的 Immix 堆与 statepoint 产出、M13 的多 mutator STW / native root / callback、M14 的完备 typed LIR 与无地址语义核心库。
 

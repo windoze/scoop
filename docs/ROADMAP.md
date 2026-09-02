@@ -101,7 +101,7 @@ M13 已将 M9 的单 mutator runtime升级为**多 mutator、stop-the-world、co
 - 受益方：M16 字符串插值的 `add<T : ToString>`；同时退役现有按对象地址实现的过渡 `Any.hashCode` / `toString`，避免把地址稳定性带入M15 moving collector。
 - 附加完成M13后发现的IR完备性整改：MIR expression携带非可选类型；intrinsic、compiler-generated exception与function type canonical mapping全部类型化；LIR call完整携带target/signature/result/effect，pointer null保留provenance，layout/TypeDescriptor/dispatch只用typed identity连接；用sum type消除native global、foreign callback、caller root与enum field中的非法组合。所有信息由上游结构化地产生，删除下游按context、arena反扫、FQN/symbol或并行字段猜测/补齐的路径。Any typed method/fixed-slot问题随本里程碑主线拆槽自然消失，不作为独立附加项重复实现。
 
-### M15 精确根、statepoint relocation 与 moving compaction（设计见 `docs/milestone15/DESIGN.md`）
+### M15 精确根、statepoint relocation 与 moving compaction ✅（2026-09-03 完成，设计见 `docs/milestone15/DESIGN.md`）
 
 M15在M13的多mutator STW与M14清理后的对象语义之上，把GC从“只会mark、地址永远不变”推进为**单代、STW、单线程collector的moving Immix**。本里程碑首先是正确性门：所有managed ref都必须来自可枚举、可更新的root/field slot，不能继续依赖“旧地址碰巧还能用”。分代、parallel/concurrent collection不与moving一起引入。
 

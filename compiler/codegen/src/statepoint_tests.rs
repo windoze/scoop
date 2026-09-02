@@ -124,6 +124,33 @@ fn verifier_rejects_a_gc_live_count_mismatch() {
 }
 
 #[test]
+fn verifier_rejects_the_wrong_native_transition_entry() {
+    let context = Context::create();
+    let ir = r#"
+declare void @scoop_rt_enter_native_safe(ptr, i64)
+declare void @scoop_rt_enter_native_borrowed(ptr, i64)
+declare token @llvm.experimental.gc.statepoint.p0(i64 immarg, i32 immarg, ptr, i32 immarg, i32 immarg, ...)
+
+define void @f() #0 gc "statepoint-example" {
+entry:
+  %token = call token (i64, i32, ptr, i32, i32, ...) @llvm.experimental.gc.statepoint.p0(i64 7, i32 0, ptr elementtype(void (ptr, i64)) @scoop_rt_enter_native_borrowed, i32 2, i32 0, ptr null, i64 0, i32 0, i32 0)
+  ret void
+}
+
+attributes #0 = { "disable-tail-calls"="true" "frame-pointer"="all" }
+"#;
+    let module = parse(&context, ir);
+    let expected = ExpectedStatepoint::NativeTransition("scoop_rt_enter_native_safe");
+    let error = verify_rewritten(&module, &manifest(Some((7, expected))))
+        .expect_err("native safepoint identity must select the typed transition entry");
+    assert!(
+        error.0.contains("targets `scoop_rt_enter_native_borrowed`")
+            && error.0.contains("expected `scoop_rt_enter_native_safe`"),
+        "{error}"
+    );
+}
+
+#[test]
 fn verifier_rejects_a_gc_live_root_without_typed_identity() {
     let context = Context::create();
     let ir = statepoint_ir(7, "", "").replace(", !scoop.statepoint-root-identity !0", "");

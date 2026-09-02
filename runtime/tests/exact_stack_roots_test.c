@@ -59,6 +59,16 @@ int main(void) {
     memcpy(&updated, &stack[0], sizeof updated);
     assert(state.visits == 1);
     assert(updated == replacement);
+
+    memcpy(&stack[0], &original, sizeof original);
+    state.visits = 0;
+    scoop_gc_visit_managed_segment(
+        &thread, anchor.return_pc, anchor.stack_pointer,
+        anchor.frame_pointer, boundary, visitor);
+    memcpy(&updated, &stack[0], sizeof updated);
+    assert(state.visits == 1);
+    assert(updated == replacement);
+
     puts("exact stack root walk passed");
     return 0;
 }
