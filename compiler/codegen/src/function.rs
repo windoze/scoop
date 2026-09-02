@@ -115,6 +115,7 @@ enum CallProtocol<'a> {
     NativeBorrowed {
         safepoint: scoop_lir::SafepointId,
         roots: &'a scoop_lir::NativeBorrowedRootSet,
+        result: scoop_lir::NativeBorrowedResultPublication<'a>,
     },
 }
 

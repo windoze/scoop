@@ -568,16 +568,16 @@ fn call_site_name(function: &Function, site: &CallSite) -> String {
             )
         }
         CallSite::NativeBorrowed(site) => {
-            let call = targets.typed_call_view(
-                &site.call,
-                &targets.native_borrowed_targets,
-                NativeBorrowedCallDestination::view,
-            );
-            let result = match &site.roots.result {
-                NativeBorrowedResultRoot::GcFree => String::new(),
-                NativeBorrowedResultRoot::Rooted { storage, scan } => {
+            let native = site.call.view(targets);
+            let call = native.call;
+            let result = match native.result {
+                NativeBorrowedResultPublication::DirectRooted { storage, scan }
+                | NativeBorrowedResultPublication::IndirectResultRooted { storage, scan } => {
                     format!(" result-root=local{}:{}", storage.into_raw(), scan.dump())
                 }
+                NativeBorrowedResultPublication::Void
+                | NativeBorrowedResultPublication::DirectGcFree
+                | NativeBorrowedResultPublication::IndirectResultGcFree => String::new(),
             };
             format!(
                 "{} sp{} roots=[{}]{result} {}",

@@ -40,18 +40,18 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 },
                 None,
             ),
-            scoop_lir::CallSite::NativeBorrowed(site) => self.emit_typed_call(
-                targets.typed_call_view(
-                    &site.call,
-                    &targets.native_borrowed_targets,
-                    scoop_lir::NativeBorrowedCallDestination::view,
-                ),
-                CallProtocol::NativeBorrowed {
-                    safepoint: site.safepoint,
-                    roots: &site.roots,
-                },
-                None,
-            ),
+            scoop_lir::CallSite::NativeBorrowed(site) => {
+                let call = site.call.view(targets);
+                self.emit_typed_call(
+                    call.call,
+                    CallProtocol::NativeBorrowed {
+                        safepoint: site.safepoint,
+                        roots: &site.roots,
+                        result: call.result,
+                    },
+                    None,
+                )
+            }
         }
     }
 
@@ -253,50 +253,25 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 }
                 Some((NativeTransitionKind::Safe, roots.as_slice(), None))
             }
-            CallProtocol::NativeBorrowed { roots, .. } => {
-                let result_root = match &roots.result {
-                    scoop_lir::NativeBorrowedResultRoot::GcFree => {
-                        if result_scan(&result) != &RefScan::None {
-                            return Err(CodegenError(format!(
-                                "native-borrowed call @{} is missing its result root",
-                                self.function.symbol
-                            )));
-                        }
-                        None
-                    }
-                    scoop_lir::NativeBorrowedResultRoot::Rooted { storage, scan } => {
-                        let (ty, indirect_storage) = match &result {
-                            TypedCallResult::Void => {
-                                return Err(CodegenError(format!(
-                                    "void native-borrowed call @{} has a result root",
-                                    self.function.symbol
-                                )));
-                            }
-                            TypedCallResult::Direct { ty, .. } => (*ty, None),
-                            TypedCallResult::Indirect { storage, ty, .. } => (*ty, Some(*storage)),
-                        };
-                        if indirect_storage.is_some_and(|call_storage| call_storage != *storage) {
-                            return Err(CodegenError(format!(
-                                "native-borrowed indirect result root @{} names different storage",
-                                self.function.symbol
-                            )));
-                        }
-                        if &self.function.locals[*storage].ty != ty
-                            || result_scan(&result) != scan.as_ref_scan()
-                        {
-                            return Err(CodegenError(format!(
-                                "native-borrowed result root @{} disagrees with the typed result",
-                                self.function.symbol
-                            )));
-                        }
+            CallProtocol::NativeBorrowed {
+                roots,
+                result: publication,
+                ..
+            } => {
+                let result_root = match *publication {
+                    scoop_lir::NativeBorrowedResultPublication::DirectRooted { storage, scan }
+                    | scoop_lir::NativeBorrowedResultPublication::IndirectResultRooted {
+                        storage,
+                        scan,
+                    } => {
                         let llvm_ty = basic_ty(
                             self.context,
                             self.structs,
                             self.enums,
                             self.managed_address_space,
-                            ty,
+                            &self.function.locals[storage].ty,
                         )?;
-                        let pointer = self.allocas[arena_index(*storage)];
+                        let pointer = self.allocas[arena_index(storage)];
                         self.builder
                             .build_store(pointer, llvm_ty.const_zero())
                             .map_err(|error| {
@@ -304,6 +279,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                             })?;
                         Some((pointer, llvm_ty, scan.as_ref_scan()))
                     }
+                    scoop_lir::NativeBorrowedResultPublication::Void
+                    | scoop_lir::NativeBorrowedResultPublication::DirectGcFree
+                    | scoop_lir::NativeBorrowedResultPublication::IndirectResultGcFree => None,
                 };
                 Some((
                     NativeTransitionKind::Borrowed,
