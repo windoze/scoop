@@ -340,7 +340,7 @@ compiler root frame 使用与 native caller root 相同的递归 scan descriptor
 
 ### 5.5 native-safe与native-borrowed调用
 
-两类outbound native call都划分冻结managed segment，不能再把它们当作普通`ManagedCallSite`。其root plan分别使用不同类型，但都完整列出调用后仍活跃的managed leaf；`NativeBorrowedRootSet`还包含全部direct-ref实参。若Scoop ABI返回值直接或间接含ref，root plan按return-convention sum携带一个调用前全零并一同发布的result storage及其scan，不使用`Option<ReturnRoot>`让codegen补齐。
+两类outbound native call都划分冻结managed segment，不能再把它们当作普通`ManagedCallSite`。其root plan分别使用不同类型，但都完整列出调用后仍活跃的managed leaf；`NativeBorrowedRootSet`只保存caller/direct-ref roots，结果发布不能作为与call平行的字段存在。`NativeBorrowedTypedCall`必须是私有构造的return-convention sum：void、direct GC-free、direct rooted、indirect-result GC-free、indirect-result rooted是互斥分支；rooted分支携带调用前全零并一同发布的result storage，且其`NonEmptyRefScan`只能在构造时从target signature的权威scan派生。这样无法表达“void call带结果根”“GC-free结果带根”“含ref结果缺根”或“indirect result登记另一块storage”，codegen也不使用`Option<ReturnRoot>`补齐。
 
 LIR可以保留统一的extern declaration arena供dump、bridge生成与最终发射使用，但extern identity在进入call target前必须细化为私有构造的`CExternFunctionRef`或`ScoopExternFunctionRef`。`NativeSafeCallDestination`只接受前者，`NativeBorrowedCallDestination`只接受后者；MIR→LIR lowering显式输出每个MIR extern id到对应ABI-refined ref的typed relation。严禁假定两个arena顺序相同后复制raw index，也严禁先构造普通`ExternFunctionId`、再由callsite protocol或symbol反向分类ABI。
 

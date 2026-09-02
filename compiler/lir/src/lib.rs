@@ -984,9 +984,9 @@ mod tests {
         CExternFunction, CExternFunctionRef, CallDestination, CallTarget, CallTargets,
         CallingConvention, DirectCallSignature, ExternFunctionDeclaration, ExternFunctions,
         GcEffect, LirType, ManagedCallDestination, ManagedRuntimeFunction,
-        NativeBorrowedCallDestination, NativeSafeCallDestination, NonEmptyRefScan, RefScan,
-        ScoopExternFunction, ScoopExternFunctionRef, TypedCall, TypedCallView, Value,
-        VoidCallSignature,
+        NativeBorrowedCallDestination, NativeBorrowedResultPublication, NativeBorrowedResultRoot,
+        NativeSafeCallDestination, NonEmptyRefScan, RefScan, ResultStorage, ScoopExternFunction,
+        ScoopExternFunctionRef, TypedCall, TypedCallView, Value, VoidCallSignature,
     };
 
     #[test]
@@ -1077,6 +1077,90 @@ mod tests {
                 signature: DirectCallSignature { params, result: LirType::I64, .. },
                 ..
             } if params == &[LirType::I64]
+        ));
+    }
+
+    #[test]
+    fn native_borrowed_result_publication_is_sealed_with_return_convention() {
+        let mut functions = ExternFunctions::default();
+        let function = functions.alloc_scoop(ScoopExternFunction {
+            declaration: ExternFunctionDeclaration {
+                source_name: "borrowed".to_string(),
+                native_symbol: "native_borrowed".to_string(),
+                library: "test".to_string(),
+                calling_convention: CallingConvention::Cdecl,
+                params: Vec::new(),
+                return_type: super::MANAGED_PTR,
+            },
+            gc_effect: GcEffect::Managed,
+        });
+        let destination = NativeBorrowedCallDestination::extern_function(function);
+        let mut targets = CallTargets::default();
+        let result_scan = RefScan::References(vec![0]);
+
+        let direct_signature = targets.direct_signatures.alloc(DirectCallSignature {
+            params: Vec::new(),
+            result: super::MANAGED_PTR,
+            result_scan: result_scan.clone(),
+            calling_convention: CallingConvention::Cdecl,
+        });
+        let direct_target = targets.native_borrowed_targets.direct.alloc(CallTarget {
+            destination,
+            signature: direct_signature,
+        });
+        let direct_storage = super::LocalId::from_raw(la_arena::RawIdx::from_u32(0));
+        let direct = targets.bind_native_borrowed_call(
+            TypedCall::Direct {
+                target: direct_target,
+                out: super::TempId::from_raw(la_arena::RawIdx::from_u32(0)),
+                args: Vec::new(),
+            },
+            NativeBorrowedResultRoot::Rooted {
+                storage: direct_storage,
+            },
+        );
+        let direct = direct.view(&targets);
+        assert!(matches!(direct.call, TypedCallView::Direct { .. }));
+        assert!(matches!(
+            direct.result,
+            NativeBorrowedResultPublication::DirectRooted { storage, scan }
+                if storage == direct_storage && scan.as_ref_scan() == &result_scan
+        ));
+
+        let indirect_storage = super::LocalId::from_raw(la_arena::RawIdx::from_u32(1));
+        let indirect_signature =
+            targets
+                .indirect_result_signatures
+                .alloc(super::IndirectResultCallSignature {
+                    params: Vec::new(),
+                    result: ResultStorage {
+                        ty: super::MANAGED_PTR,
+                        scan: result_scan.clone(),
+                    },
+                    calling_convention: CallingConvention::Cdecl,
+                });
+        let indirect_target = targets
+            .native_borrowed_targets
+            .indirect_result
+            .alloc(CallTarget {
+                destination,
+                signature: indirect_signature,
+            });
+        let indirect = targets.bind_native_borrowed_call(
+            TypedCall::IndirectResult {
+                target: indirect_target,
+                storage: indirect_storage,
+                args: Vec::new(),
+            },
+            NativeBorrowedResultRoot::Rooted {
+                storage: indirect_storage,
+            },
+        );
+        let indirect = indirect.view(&targets);
+        assert!(matches!(
+            indirect.result,
+            NativeBorrowedResultPublication::IndirectResultRooted { storage, scan }
+                if storage == indirect_storage && scan.as_ref_scan() == &result_scan
         ));
     }
 

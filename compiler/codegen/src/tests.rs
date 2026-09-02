@@ -170,14 +170,16 @@ fn protocol_site(
             result,
         } => {
             assert_eq!(destination, typed_destination.view());
+            let call = bind_test_call(
+                &mut targets.native_borrowed_targets,
+                typed_destination,
+                call,
+            );
+            let call = targets.bind_native_borrowed_call(call, result);
             CallSite::NativeBorrowed(scoop_lir::NativeBorrowedCallSite {
-                call: bind_test_call(
-                    &mut targets.native_borrowed_targets,
-                    typed_destination,
-                    call,
-                ),
+                call,
                 safepoint: test_safepoint(safepoint),
-                roots: scoop_lir::NativeBorrowedRootSet::new(Vec::new(), result),
+                roots: scoop_lir::NativeBorrowedRootSet::default(),
             })
         }
     }

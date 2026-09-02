@@ -231,7 +231,6 @@ fn native_calls_publish_roots_transition_and_reload() {
             destination: scoop_lir::NativeBorrowedCallDestination::extern_function(borrowed),
             result: NativeBorrowedResultRoot::Rooted {
                 storage: result_root,
-                scan: scoop_lir::NonEmptyRefScan::new(RefScan::References(vec![0])).unwrap(),
             },
         },
         vec![MANAGED_PTR],
@@ -242,13 +241,10 @@ fn native_calls_publish_roots_transition_and_reload() {
     let CallSite::NativeBorrowed(site) = &mut borrowed_site else {
         unreachable!()
     };
-    site.roots = scoop_lir::NativeBorrowedRootSet::new(
-        vec![scoop_lir::CallerRoot {
-            source: scoop_lir::CallerRootSource::Param(0),
-            scan: scoop_lir::NonEmptyRefScan::new(RefScan::References(vec![0])).unwrap(),
-        }],
-        site.roots.result.clone(),
-    );
+    site.roots = scoop_lir::NativeBorrowedRootSet::new(vec![scoop_lir::CallerRoot {
+        source: scoop_lir::CallerRootSource::Param(0),
+        scan: scoop_lir::NonEmptyRefScan::new(RefScan::References(vec![0])).unwrap(),
+    }]);
     let mut borrowed_blocks = Arena::default();
     let borrowed_entry = borrowed_blocks.alloc(BasicBlock {
         name: "entry".to_string(),

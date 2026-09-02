@@ -119,7 +119,7 @@ impl<'a> FunctionLowerer<'a> {
                 let result_scan = call.result_scan(&self.call_targets).clone();
                 let result = match lir::NonEmptyRefScan::new(result_scan) {
                     None => lir::NativeBorrowedResultRoot::GcFree,
-                    Some(scan) => {
+                    Some(_) => {
                         let storage = match &call {
                             PendingTypedCall::Void { .. } => {
                                 unreachable!("void native call cannot have a result root")
@@ -132,17 +132,19 @@ impl<'a> FunctionLowerer<'a> {
                             }
                             PendingTypedCall::IndirectResult { storage, .. } => *storage,
                         };
-                        lir::NativeBorrowedResultRoot::Rooted { storage, scan }
+                        lir::NativeBorrowedResultRoot::Rooted { storage }
                     }
                 };
+                let call = bind_typed_call(
+                    &mut self.call_targets.native_borrowed_targets,
+                    destination,
+                    call,
+                );
+                let call = self.call_targets.bind_native_borrowed_call(call, result);
                 lir::CallSite::NativeBorrowed(lir::NativeBorrowedCallSite {
-                    call: bind_typed_call(
-                        &mut self.call_targets.native_borrowed_targets,
-                        destination,
-                        call,
-                    ),
+                    call,
                     safepoint: self.safepoint_ids.allocate(),
-                    roots: lir::NativeBorrowedRootSet::new(Vec::new(), result),
+                    roots: lir::NativeBorrowedRootSet::default(),
                 })
             }
         }

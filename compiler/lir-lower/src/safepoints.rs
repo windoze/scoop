@@ -887,9 +887,7 @@ fn annotate_root_plans(
                         site: lir::CallSite::NativeBorrowed(site),
                     },
                     RootPlan::NativeBorrowed(roots),
-                ) => {
-                    site.roots = lir::NativeBorrowedRootSet::new(roots, site.roots.result.clone());
-                }
+                ) => site.roots = lir::NativeBorrowedRootSet::new(roots),
                 (
                     lir::Instruction::Invoke {
                         site: lir::InvokeSite::Managed(site),
