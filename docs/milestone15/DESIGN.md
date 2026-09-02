@@ -324,7 +324,7 @@ compiler root frame 使用与 native caller root 相同的递归 scan descriptor
 
 1. materialize并发布caller-root frame；含ref返回storage先清零；
 2. 用该callsite的`SafepointId`把`native-safe`或`native-borrowed`transition入口发射为零`gc-live` statepoint；architecture薄入口在任何C prologue前捕获其`{ return_pc, callsite_sp, frame_pointer }`并写入transition record；
-3. 发射普通nounwind native machine call；所有跨调用AS1 SSA value在call后都不得再使用；
+3. transition入口返回后，从已发布且可能被collector改写的caller-root storage重新装载所有含ref的direct/aggregate实参，再发射普通nounwind native machine call；进入transition前求值的AS1 SSA实参不得传给native callee，所有跨调用AS1 SSA value在call后也不得再使用；
 4. `native-safe`的C ABI结果必为GC-free；`native-borrowed`若返回含ref值，在仍处于borrowed且collector不能把本线程视为quiescent时立即写入已发布result storage；
 5. leave transition并执行epoch握手；此时caller-root/result slot保持发布状态，若park/collect可被改写；
 6. 回到managed后只从这些slot reload，再pop caller-root frame。
@@ -505,7 +505,7 @@ Scoop ABI外部实现继续遵守runtime spec 4.2：native-borrowed代码在调�
 - 函数入口与每条循环回边都已有LIR `ManagedPollSite`及完备live set，codegen不会自行插入或漏掉poll；
 - struct/tuple/tagged enum/closure/coroutine aggregate每个ref leaf单独relocate；GC-free leaf不进入；
 - managed invoke由codegen直接发射唯一ID的显式statepoint、零gc-live、零exceptional relocate，normal/unwind按各自edge flag reload并pop显式frame；
-- native-safe/native-borrowed transition入口有唯一statepoint ID、零gc-live/relocate，平台薄入口捕获精确冻结段anchor，实际native call无statepoint；transition前后root/result publication与reload顺序完整；
+- native-safe/native-borrowed transition入口有唯一statepoint ID、零gc-live/relocate，平台薄入口捕获精确冻结段anchor，实际native call无statepoint；含ref实参在入口返回后、native call之前从caller-root storage重建，transition前后root/result publication与reload顺序完整；
 - derived address跨safepoint、无typed witness或witness kind错误的managed pointer转换为verifier negative；
 - Mach-O v3 parser golden覆盖所有location编码、alignment、constant pool和truncated/corrupt输入；Darwin profile对unsupported root shape给出确定错误；
 - linked executable runtime检查dyld fixup后的function address和return PC均落在预期代码范围；离线测试用`dyld_info`/Mach-O parser确认chained fixup，而不把磁盘编码误读为指针；

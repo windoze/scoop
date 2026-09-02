@@ -1978,7 +1978,7 @@ fn native_calls_publish_roots_transition_and_reload() {
         native_symbol: "native_borrowed".to_string(),
         library: "fixture".to_string(),
         calling_convention: scoop_lir::CallingConvention::Cdecl,
-        params: Vec::new(),
+        params: vec![MANAGED_PTR],
         return_type: MANAGED_PTR,
         kind: ExternFunctionKind::Scoop {
             gc_effect: GcEffect::Managed,
@@ -2028,7 +2028,7 @@ fn native_calls_publish_roots_transition_and_reload() {
     let mut borrowed_temps = Arena::default();
     let result = borrowed_temps.alloc(Temp { ty: MANAGED_PTR });
     let mut borrowed_targets = CallTargets::default();
-    let borrowed_site = direct_site(
+    let mut borrowed_site = direct_site(
         &mut borrowed_targets,
         CallDestination::Extern(borrowed),
         TestCallProtocol::NativeBorrowed {
@@ -2038,10 +2038,20 @@ fn native_calls_publish_roots_transition_and_reload() {
                 scan: scoop_lir::NonEmptyRefScan::new(RefScan::References(vec![0])).unwrap(),
             },
         },
-        Vec::new(),
+        vec![MANAGED_PTR],
         (MANAGED_PTR, RefScan::References(vec![0])),
         result,
-        Vec::new(),
+        vec![Value::Param(0)],
+    );
+    let CallSite::NativeBorrowed(site) = &mut borrowed_site else {
+        unreachable!()
+    };
+    site.roots = scoop_lir::NativeBorrowedRootSet::new(
+        vec![scoop_lir::CallerRoot {
+            source: scoop_lir::CallerRootSource::Param(0),
+            scan: scoop_lir::NonEmptyRefScan::new(RefScan::References(vec![0])).unwrap(),
+        }],
+        site.roots.result.clone(),
     );
     let mut borrowed_blocks = Arena::default();
     let borrowed_entry = borrowed_blocks.alloc(BasicBlock {
@@ -2056,7 +2066,7 @@ fn native_calls_publish_roots_transition_and_reload() {
     let borrowed_function = Function {
         gc_effect: GcEffect::Managed,
         symbol: "borrowed_result".to_string(),
-        params: Vec::new(),
+        params: vec![MANAGED_PTR],
         return_ty: MANAGED_PTR,
         call_targets: borrowed_targets,
         locals: borrowed_locals,
@@ -2096,6 +2106,17 @@ fn native_calls_publish_roots_transition_and_reload() {
     assert!(
         ir[safe_leave..].contains("load ptr addrspace(1), ptr %managed_root_storage"),
         "published parameter roots must be reloaded from canonical storage after leave-native:\n{ir}"
+    );
+    let borrowed_call = ir
+        .find("native_call = call ptr addrspace(1)")
+        .expect("borrowed native call");
+    let borrowed_enter = ir[..borrowed_call]
+        .rfind("@scoop_rt_enter_native_borrowed")
+        .expect("borrowed transition enters native state");
+    assert!(
+        ir[borrowed_enter..borrowed_call]
+            .contains("load ptr addrspace(1), ptr %managed_root_storage"),
+        "native arguments must be reloaded after the transition can park:\n{ir}"
     );
 }
 

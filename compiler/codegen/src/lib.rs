@@ -2884,6 +2884,23 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             None
         };
 
+        if native.is_some() {
+            // Entering either native transition may park this thread. The
+            // collector then updates the published canonical storage, while
+            // any SSA arguments evaluated before the transition retain their
+            // old addresses. Rebuild the physical call arguments after the
+            // handshake so direct refs and managed leaves inside aggregates
+            // are loaded from the relocated caller-root storage.
+            call_args = call
+                .args()
+                .iter()
+                .map(|argument| self.value(*argument))
+                .collect::<Result<Vec<_>, _>>()?;
+            if let TypedCallResult::Indirect { storage, .. } = &result {
+                call_args.insert(0, self.allocas[arena_index(*storage)].into());
+            }
+        }
+
         let callee = match destination {
             scoop_lir::CallDestination::Dispatch { .. } => None,
             _ => Some(self.typed_callee(destination, fn_ty)?),
