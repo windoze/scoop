@@ -1,4 +1,4 @@
-/* Scoop runtime: object model and runtime entry points.
+/* Scoop runtime: object model and native FFI entry points.
  *
  * See docs/specs/SCOOP-RUNTIME-SPEC.md section 2 (object model) and
  * docs/milestone2/DESIGN.md section 3 (M2 runtime additions). M9
@@ -91,26 +91,6 @@ typedef struct ScoopString {
     char data[];
 } ScoopString;
 
-/* M15 image root metadata. Codegen emits exactly one instance of each table
- * and count symbol for the linked image. A zero-count table still has one
- * null sentinel record so its symbol is addressable. Runtime initialization
- * validates and registers both tables before any managed code executes. */
-typedef struct ScoopManagedGlobalDescriptor {
-    void *writable_base;
-    const uint64_t *scan;
-} ScoopManagedGlobalDescriptor;
-
-typedef struct ScoopImmortalObjectDescriptor {
-    const void *object_start;
-    uint64_t object_size;
-    const ScoopTypeDescriptor *td;
-} ScoopImmortalObjectDescriptor;
-
-extern const ScoopManagedGlobalDescriptor scoop_image_managed_globals[];
-extern const uint64_t scoop_image_managed_global_count;
-extern const ScoopImmortalObjectDescriptor scoop_image_immortal_objects[];
-extern const uint64_t scoop_image_immortal_object_count;
-
 /* Runtime spec 2.5 / spec 10.1. Array objects are variable-length:
  * header + element count + padding to the element alignment + inline
  * elements (stride = element layout size, known to codegen; elements
@@ -122,48 +102,10 @@ typedef struct ScoopArray {
     char elements[];
 } ScoopArray;
 
-/* Minimal per-thread allocation ABI exposed to generated code. The pointed
- * context belongs to the attached OS thread. Generated code may only read
- * and advance cursor while managed; the STW collector retires both fields
- * before sweep. */
-typedef struct ScoopAllocationContext {
-    char *cursor;
-    char *limit;
-} ScoopAllocationContext;
-
-extern _Thread_local ScoopAllocationContext *scoop_rt_allocation_context;
-
-/* Complete one successful inline TLAB allocation. This helper is a GC leaf:
- * it clears the object, initializes its header, atomically records the object
- * start, and updates statistics. */
-void scoop_runtime_finish_tlab_alloc(void *object,
-                                     const ScoopTypeDescriptor *td,
-                                     size_t size);
-
-/* ManagedEntry: refill/allocate after generated code's inline TLAB bump
- * fails. The target anchor stub publishes the direct managed caller before
- * this operation can park or collect. */
-void *scoop_runtime_alloc_slow(const ScoopTypeDescriptor *td, size_t size);
-
 /* NativeBorrowedEntry for Scoop-ABI C implementations. Generated code uses
  * the inline allocation context and falls back to the distinct managed entry
  * above. The native caller must already have published caller/native roots. */
 void *scoop_rt_alloc(const ScoopTypeDescriptor *td, size_t size);
-
-/* M9 GC contracts (milestone9 DESIGN 3.1): write-barrier card table
- * and the safepoint poll symbol emitted by the compiler.
- *
- * Card table (spec 3.6): generated code marks
- * `scoop_gc_card_table[addr >> 9] = 1` after heap stores. The symbol
- * is a POINTER VARIABLE — load it, then GEP — pre-biased by the
- * runtime with `arena_base >> 9`, so the formula lands in the backing
- * table (4 MiB, covering the 2 GiB window above the arena) as
- * `real[(addr - arena_base) >> 9]`. Blocks are carved from one
- * fixed-address arena (gc.c), so every heap address is in bounds.
- * The barrier is only emitted for heap stores; v1's collector ignores
- * the cards. */
-extern unsigned char *scoop_gc_card_table;
-void scoop_rt_safepoint(void);
 
 void scoop_rt_write(const ScoopString *s);
 void scoop_rt_println(const ScoopString *s);
@@ -183,7 +125,6 @@ int64_t scoop_rt_bool_hash(bool v);
 int64_t scoop_rt_string_hash(const ScoopString *s);
 
 /* String and primitive operations used by ordinary scoop.core declarations. */
-const ScoopString *scoop_rt_string_concat(const ScoopString *a, const ScoopString *b);
 bool scoop_rt_string_eq(const ScoopString *a, const ScoopString *b);
 void scoop_rt_print_int(int64_t value);
 void scoop_rt_println_int(int64_t value);
@@ -195,21 +136,7 @@ void scoop_rt_println_boolean(bool value);
  * UnwrapException throw in M8. */
 _Noreturn void scoop_rt_trap(const char *message);
 
-/* ManagedEntry for `Array(m)` /
- * `MutableArray(a)` conversion (spec 10.4). Copies the whole object
- * (data_offset + size * elem_size bytes, including header/size/padding)
- * into a fresh GC allocation — a shallow snapshot: elements that are
- * references are copied as pointers, not cloned. */
-const void *scoop_rt_array_clone(const void *obj,
-                                 const ScoopTypeDescriptor *target_td,
-                                 uint64_t elem_size, uint64_t data_offset);
-
 /* M6 additions (milestone6 DESIGN section 3): dispatch support. */
-
-/* ManagedEntry: box an addressable value payload. `payload_scan` is complete,
- * payload-relative metadata emitted by LIR/codegen; null means GC-free. */
-void *scoop_rt_box(const ScoopTypeDescriptor *td, const void *payload,
-                   uint64_t payload_size, const uint64_t *payload_scan);
 
 /* `is` check: walk the object's parent chain, then scan its itable
  * keys (runtime spec 2.2). */
@@ -225,11 +152,6 @@ const void *const *scoop_rt_itable_lookup(const ScoopTypeDescriptor *obj_td,
  * runtime/src/gc.c for the implementation and docs/specs/
  * SCOOP-RUNTIME-SPEC.md sections 3-4 for the contract. */
 
-/* Initialize the GC heap before the main thread enters Scoop code. Stack
- * bounds and per-thread roots belong to M13's attached thread state rather
- * than to a process-global main-thread variable. */
-void scoop_rt_gc_init(void);
-
 /* M13 thread registration baseline (runtime spec 3.5 / 7). A foreign
  * thread must attach before any later managed callback entry. The return
  * value is true only when this call created the attachment; nested users
@@ -238,23 +160,6 @@ void scoop_rt_gc_init(void);
  * callback gateway performs the managed transition. */
 bool scoop_rt_attach_foreign_thread(void);
 void scoop_rt_detach_foreign_thread(void);
-
-/* Register a process-lifetime writable root slot (runtime spec 3.3). The
- * collector re-reads and rewrites it at every collection. Its value must be
- * null, a current GC object start, or an exactly registered stable object;
- * every other address is fatal. There is deliberately no removal API. */
-void scoop_rt_gc_add_root(void **slot);
-
-/* Register an object-like region outside the GC heap as a root: its
- * outgoing references are traced at every collection, but the region
- * itself is neither marked nor reclaimed (used by scoop_rt_throw for
- * the ABI exception buffer, milestone9 DESIGN 3.4). */
-void scoop_rt_gc_add_root_object(const void *obj);
-
-/* Remove a previously registered external object root. The exact
- * pointer must be present once; used by the C++ ABI exception
- * destructor when a thrown buffer's lifetime ends. */
-void scoop_rt_gc_remove_root_object(const void *obj);
 
 /* M12 Scoop-ABI native roots (runtime spec 4.2). A native function that
  * keeps direct managed references across an allocation/collection stores
@@ -282,49 +187,6 @@ typedef struct ScoopNativeRegionRootFrame {
     uint64_t count;
 } ScoopNativeRegionRootFrame;
 
-/* Compiler-published roots that stay live across one outbound native call.
- * Each entry scans one addressable value using the same recursive descriptor
- * format as object payloads. Inline tagged enums expose fixed ref offsets;
- * their inactive ref-bearing slots are zero. The base remains updateable for
- * moving GC. */
-typedef struct ScoopCallerRootEntry {
-    void *base;
-    const uint64_t *scan;
-} ScoopCallerRootEntry;
-
-typedef struct ScoopCallerRootFrame {
-    struct ScoopCallerRootFrame *previous;
-    ScoopCallerRootEntry *entries;
-    uint64_t count;
-} ScoopCallerRootFrame;
-
-/* Roots spilled around a managed invoke. This is deliberately a distinct
- * frame family from outbound-native caller roots: pushing it does not enter
- * a native transition, and unwinding pops the dynamic top frame after the
- * landingpad has captured the exception record. */
-typedef struct ScoopCompilerRootFrame {
-    struct ScoopCompilerRootFrame *previous;
-    ScoopCallerRootEntry *entries;
-    uint64_t count;
-} ScoopCompilerRootFrame;
-
-/* Stack-owned outbound transition record. Its fields are runtime-managed;
- * generated code allocates the record, passes it to enter/leave, and must not
- * copy or inspect it while active. The caller-root frame covers the generated
- * transition caller itself; return_pc/stack_pointer/frame_pointer anchor exact
- * stack-map traversal of the remaining frozen managed segment. */
-typedef struct ScoopThreadTransition {
-    struct ScoopThreadTransition *previous;
-    ScoopCallerRootFrame *caller_roots;
-    uintptr_t managed_return_pc;
-    uintptr_t managed_stack_pointer;
-    uintptr_t managed_frame_pointer;
-    uintptr_t managed_stack_low;
-    uintptr_t managed_stack_high;
-    uint32_t previous_mode;
-    uint32_t native_mode;
-} ScoopThreadTransition;
-
 void scoop_rt_push_native_roots(ScoopNativeRootFrame *frame, void ***slots,
                                 uint64_t count);
 void scoop_rt_pop_native_roots(ScoopNativeRootFrame *frame);
@@ -332,22 +194,6 @@ void scoop_rt_push_native_region_roots(ScoopNativeRegionRootFrame *frame,
                                        ScoopNativeRegionRootEntry *entries,
                                        uint64_t count);
 void scoop_rt_pop_native_region_roots(ScoopNativeRegionRootFrame *frame);
-
-void scoop_rt_push_caller_roots(ScoopCallerRootFrame *frame,
-                                ScoopCallerRootEntry *entries,
-                                uint64_t count);
-void scoop_rt_pop_caller_roots(ScoopCallerRootFrame *frame);
-void scoop_rt_push_compiler_roots(ScoopCompilerRootFrame *frame,
-                                  ScoopCallerRootEntry *entries,
-                                  uint64_t count);
-void scoop_rt_pop_compiler_roots(ScoopCompilerRootFrame *frame);
-void scoop_rt_pop_top_compiler_roots(void);
-void scoop_rt_enter_native_safe(ScoopThreadTransition *transition,
-                                uintptr_t managed_stack_low);
-void scoop_rt_leave_native_safe(ScoopThreadTransition *transition);
-void scoop_rt_enter_native_borrowed(ScoopThreadTransition *transition,
-                                    uintptr_t managed_stack_low);
-void scoop_rt_leave_native_borrowed(ScoopThreadTransition *transition);
 
 /* pin / unpin (runtime spec 3.4): O(1) object-header flag mirrored in side
  * metadata, with no handle-table indirection. Returns the stable object
@@ -405,16 +251,13 @@ uint64_t scoop_runtime_callback_debug_live_count(void);
 uint64_t scoop_runtime_callback_debug_owner_count(void *context);
 uint64_t scoop_runtime_callback_debug_active_count(void *context);
 
-/* ManagedEntry used by generated Scoop code to force a full collection. */
-void scoop_rt_gc_collect(void);
-
 /* NativeBorrowedEntry used by Scoop-ABI native implementations after their
  * caller/native root frames have been published. It never captures a C frame
  * as a managed anchor. */
 void scoop_runtime_gc_collect(void);
 
 /* Number of objects currently allocated from the GC heap. Includes
- * not-yet-collected garbage; right after scoop_rt_gc_collect() it is
+ * not-yet-collected garbage; right after scoop_runtime_gc_collect() it is
  * the precise live count. Test/diagnostic hook (milestone9 DESIGN 1:
  * gcStats). */
 uint64_t scoop_rt_gc_stats(void);
@@ -476,24 +319,5 @@ _Noreturn void scoop_rt_throw(const void *obj);
 
 /* Rethrow the exception currently being handled; does not return. */
 _Noreturn void scoop_rt_rethrow(void);
-
-/* Copy an ABI exception buffer back into an ordinary GC-managed object.
- * The freshly allocated object's header is retained; only the payload
- * after ScoopObjectHeader is copied from `caught` (runtime spec 5). */
-void *scoop_rt_materialize_exception(const void *caught);
-
-/* Install the uncaught-exception terminate handler; called once from
- * the runtime's main before scoop_main. */
-void scoop_rt_init_eh(void);
-
-/* Personality function set on every generated function that contains a
- * landing pad. The arguments follow the Itanium personality protocol
- * (declared with plain C types to keep this header unwind.h-free); the
- * unwinder always passes all five. */
-int scoop_eh_personality(int version, unsigned int actions, unsigned long long exception_class,
-                         void *exception, void *context);
-
-/* Entry point provided by the compiled user program (its `fun main`). */
-void scoop_main(void);
 
 #endif /* SCOOP_RT_H */

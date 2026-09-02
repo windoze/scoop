@@ -71,6 +71,51 @@ fn runtime_walks_and_rewrites_only_exact_stackmap_slots() {
 }
 
 #[test]
+fn native_ffi_header_cannot_name_managed_entries() {
+    let workspace = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(std::path::Path::parent)
+        .expect("codegen crate is nested below the workspace root");
+    let output = std::process::Command::new("cc")
+        .args(["-std=c11", "-Wall", "-Wextra", "-Werror", "-fsyntax-only"])
+        .arg("-I")
+        .arg(workspace.join("runtime/include"))
+        .arg(workspace.join("runtime/tests/ffi_header_rejects_managed_entry.c"))
+        .output()
+        .expect("compile the invalid native FFI header probe");
+    assert!(
+        !output.status.success(),
+        "the public native FFI header must not declare ManagedEntry functions"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("scoop_rt_gc_collect"),
+        "negative header failure must identify the forbidden ManagedEntry:\n{stderr}"
+    );
+}
+
+#[test]
+fn generated_entry_header_exposes_the_compiler_runtime_abi() {
+    let workspace = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(std::path::Path::parent)
+        .expect("codegen crate is nested below the workspace root");
+    let status = std::process::Command::new("cc")
+        .args(["-std=c11", "-Wall", "-Wextra", "-Werror", "-fsyntax-only"])
+        .arg("-I")
+        .arg(workspace.join("runtime/include"))
+        .arg("-I")
+        .arg(workspace.join("runtime/src"))
+        .arg(workspace.join("runtime/tests/generated_entry_header_test.c"))
+        .status()
+        .expect("compile the generated-entry header probe");
+    assert!(
+        status.success(),
+        "the private generated-entry header must describe its complete ABI"
+    );
+}
+
+#[test]
 fn darwin_aarch64_managed_entries_preserve_the_direct_caller_anchor() {
     let workspace = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()

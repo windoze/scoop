@@ -210,7 +210,7 @@ runtime registry与C header把入口分为互不兼容的四类：
 - `RuntimeInternal`：只供runtime内部调用的`*_impl`，不导出给codegen或FFI author；
 - `ForeignCallbackEntry`：C trampoline反向进入managed的独立gateway，按M13执行attach/transition并建立新的managed segment。
 
-不同入口使用不同typed id/API声明，不能导出一个“自动判断direct caller是managed还是native”的万能symbol。codegen、runtime内部与FFI header都只能取得各自允许的入口集合。
+不同入口使用不同typed id/API声明，不能导出一个“自动判断direct caller是managed还是native”的万能symbol。codegen、runtime内部与FFI header都只能取得各自允许的入口集合。具体头文件边界为：`runtime/include/scoop_rt.h`只提供Scoop ABI native实现可见的对象布局、native root与native-borrowed API；`runtime/src/generated_entries.h`提供generated code/runtime之间的私有ABI（managed entry、编译器root frame、transition与image metadata）；`runtime/src/managed_entries.h`只提供runtime内部的`*_impl`。后两个头文件不是FFI author接口，public header不得通过include间接暴露它们。
 
 每个可 park/collect 的 `ManagedEntry` 都是一个直接观察 generated managed caller的、`noinline`薄入口；它不是通用 C 实现本体。入口必须在覆盖managed caller寄存器或建立普通C helper frame之前，经architecture/ABI组件捕获`{ return_pc, callsite_sp, frame_pointer }`，把anchor push到TLS transition链，然后调用平台无关的`*_impl`，最后在所有正常出口pop。runtime内部只调用`*_impl`，不得再次经过该入口并把C caller误记为managed caller。
 

@@ -6,8 +6,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "generated_entries.h"
 #include "platform/platform.h"
-#include "scoop_rt.h"
 
 typedef enum ScoopThreadMode {
     SCOOP_THREAD_NATIVE_SAFE,

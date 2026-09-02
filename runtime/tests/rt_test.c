@@ -36,7 +36,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#include "scoop_rt.h"
+#include "../src/generated_entries.h"
 
 /* Matches the layout of the @scoop_td_String global emitted by codegen.
  * Non-static: rt.c references it from scoop_rt_string_concat. size is
