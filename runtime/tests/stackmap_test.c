@@ -210,6 +210,10 @@ static void test_corrupt_sections_are_rejected(void) {
     expect_error(buffer, SCOOP_STACKMAP_INVALID_FUNCTION_COUNT);
 
     buffer = valid_section();
+    set_u64(&buffer, 16, 0x0ff0);
+    expect_error(buffer, SCOOP_STACKMAP_INVALID_FUNCTION_ADDRESS);
+
+    buffer = valid_section();
     buffer.bytes[buffer.first_record + 16] = 9;
     expect_error(buffer, SCOOP_STACKMAP_INVALID_LOCATION);
 

@@ -72,6 +72,31 @@ fn runs_under_gc_stress(relative: &str) -> bool {
     )
 }
 
+fn verify_linked_stackmap_fixups(binary: &Path, relative: &str) {
+    let output = Command::new("xcrun")
+        .arg("dyld_info")
+        .arg("-fixups")
+        .arg(binary)
+        .output()
+        .expect("run dyld_info for linked fixture binary");
+    assert!(
+        output.status.success(),
+        "{relative}: dyld_info failed for {}: {}",
+        binary.display(),
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let fixups = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        fixups.lines().any(|line| {
+            line.contains("__LLVM_STACKMAPS")
+                && line.contains("__llvm_stackmaps")
+                && line.contains("rebase")
+        }),
+        "{relative}: linked __llvm_stackmaps contains no dyld rebase fixup:\n{fixups}"
+    );
+}
+
 #[test]
 fn fixtures() {
     let root = fixture_root();
@@ -152,6 +177,9 @@ fn fixtures() {
 
         let snapshot = match scoopc::compile_file_with_options(&fixture, &out_dir, &options) {
             Ok(success) => {
+                if relative == "m15-moving/handle-pin.scoop" {
+                    verify_linked_stackmap_fixups(&success.binary, &relative);
+                }
                 let run = Command::new(&success.binary)
                     .output()
                     .unwrap_or_else(|e| panic!("cannot run {}: {e}", success.binary.display()));

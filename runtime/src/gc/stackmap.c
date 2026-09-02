@@ -225,7 +225,9 @@ static bool read_record(ScoopStackMapCursor *cursor,
     record->return_pc =
         (uintptr_t)function->address + (uintptr_t)instruction_offset;
     record->stack_size = function->stack_size;
-    if (record->return_pc < image->text_start ||
+    if (record->function_address < image->text_start ||
+        record->function_address >= image->text_end ||
+        record->return_pc < image->text_start ||
         record->return_pc >= image->text_end) {
         return fail(cursor, SCOOP_STACKMAP_INVALID_FUNCTION_ADDRESS);
     }
