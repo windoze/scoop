@@ -1,0 +1,451 @@
+//! Mach-O/LLVM-v3 artifact verification for the fixed M15 backend profile.
+//!
+//! LLVM IR verification proves the typed statepoint plan before instruction
+//! selection. This module checks the machine pipeline's final stack-only
+//! contract in the object that will actually be linked.
+
+use std::collections::BTreeSet;
+use std::path::Path;
+use std::slice;
+
+use inkwell::llvm_sys::object::LLVMGetSectionName;
+use inkwell::memory_buffer::MemoryBuffer;
+use inkwell::object_file::{LLVMBinaryType, Section};
+
+use crate::CodegenError;
+use crate::statepoint::ExpectedSafepoints;
+
+const STACKMAP_SECTION: &str = "__llvm_stackmaps";
+const STACKMAP_VERSION: u8 = 3;
+const LOCATION_REGISTER: u8 = 1;
+const LOCATION_INDIRECT: u8 = 3;
+const LOCATION_CONSTANT: u8 = 4;
+const LOCATION_CONSTANT_INDEX: u8 = 5;
+const AARCH64_DWARF_FP: u16 = 29;
+const AARCH64_DWARF_SP: u16 = 31;
+
+fn macho_section_name(section: &Section<'_>) -> Result<String, CodegenError> {
+    // Mach-O section names are fixed 16-byte fields. LLVM's C object API does
+    // not provide a length and a full-width name such as `__llvm_stackmaps`
+    // has no in-field NUL, so treating the result as a CStr reads into the
+    // following segment field. The selected profile proves this fixed-width
+    // representation.
+    let (raw, _) = unsafe { section.as_mut_ptr() };
+    let pointer = unsafe { LLVMGetSectionName(raw) };
+    if pointer.is_null() {
+        return Err(CodegenError("Mach-O section has no name".to_string()));
+    }
+    let bytes = unsafe { slice::from_raw_parts(pointer.cast::<u8>(), 16) };
+    let end = bytes
+        .iter()
+        .position(|byte| *byte == 0)
+        .unwrap_or(bytes.len());
+    String::from_utf8(bytes[..end].to_vec())
+        .map_err(|error| CodegenError(format!("Mach-O section name is not UTF-8: {error}")))
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct Location {
+    kind: u8,
+    size: u16,
+    register: u16,
+    offset: i32,
+    constant: u64,
+}
+
+struct Cursor<'a> {
+    bytes: &'a [u8],
+    offset: usize,
+}
+
+impl<'a> Cursor<'a> {
+    fn new(bytes: &'a [u8]) -> Self {
+        Self { bytes, offset: 0 }
+    }
+
+    fn position(&self) -> usize {
+        self.offset
+    }
+
+    fn take(&mut self, count: usize, what: &str) -> Result<&'a [u8], CodegenError> {
+        let end = self.offset.checked_add(count).ok_or_else(|| {
+            CodegenError(format!(
+                "LLVM stackmap {what} size overflows at offset {}",
+                self.offset
+            ))
+        })?;
+        let bytes = self.bytes.get(self.offset..end).ok_or_else(|| {
+            CodegenError(format!(
+                "LLVM stackmap is truncated while reading {what} at offset {}",
+                self.offset
+            ))
+        })?;
+        self.offset = end;
+        Ok(bytes)
+    }
+
+    fn u8(&mut self, what: &str) -> Result<u8, CodegenError> {
+        Ok(self.take(1, what)?[0])
+    }
+
+    fn u16(&mut self, what: &str) -> Result<u16, CodegenError> {
+        Ok(u16::from_le_bytes(
+            self.take(2, what)?.try_into().expect("two-byte slice"),
+        ))
+    }
+
+    fn u32(&mut self, what: &str) -> Result<u32, CodegenError> {
+        Ok(u32::from_le_bytes(
+            self.take(4, what)?.try_into().expect("four-byte slice"),
+        ))
+    }
+
+    fn i32(&mut self, what: &str) -> Result<i32, CodegenError> {
+        Ok(i32::from_le_bytes(
+            self.take(4, what)?.try_into().expect("four-byte slice"),
+        ))
+    }
+
+    fn u64(&mut self, what: &str) -> Result<u64, CodegenError> {
+        Ok(u64::from_le_bytes(
+            self.take(8, what)?.try_into().expect("eight-byte slice"),
+        ))
+    }
+
+    fn zero(&mut self, count: usize, what: &str) -> Result<(), CodegenError> {
+        let start = self.offset;
+        if let Some(index) = self.take(count, what)?.iter().position(|byte| *byte != 0) {
+            return Err(CodegenError(format!(
+                "LLVM stackmap {what} is non-zero at offset {}",
+                start + index
+            )));
+        }
+        Ok(())
+    }
+
+    fn align(&mut self, alignment: usize, what: &str) -> Result<(), CodegenError> {
+        let remainder = self.offset % alignment;
+        if remainder != 0 {
+            self.zero(alignment - remainder, what)?;
+        }
+        Ok(())
+    }
+}
+
+fn location(
+    cursor: &mut Cursor<'_>,
+    constants: &[u64],
+    safepoint: u64,
+) -> Result<Location, CodegenError> {
+    let kind = cursor.u8("location kind")?;
+    if !(LOCATION_REGISTER..=LOCATION_CONSTANT_INDEX).contains(&kind) {
+        return Err(CodegenError(format!(
+            "SafepointId {safepoint} has unknown stackmap location kind {kind}"
+        )));
+    }
+    cursor.zero(1, "location reserved byte")?;
+    let size = cursor.u16("location size")?;
+    let register = cursor.u16("location DWARF register")?;
+    cursor.zero(2, "location reserved word")?;
+    let offset = cursor.i32("location offset")?;
+    let constant = match kind {
+        LOCATION_CONSTANT => offset as i64 as u64,
+        LOCATION_CONSTANT_INDEX => {
+            let index = usize::try_from(offset).map_err(|_| {
+                CodegenError(format!(
+                    "SafepointId {safepoint} has negative constant-pool index {offset}"
+                ))
+            })?;
+            *constants.get(index).ok_or_else(|| {
+                CodegenError(format!(
+                    "SafepointId {safepoint} constant-pool index {index} is out of range"
+                ))
+            })?
+        }
+        _ => 0,
+    };
+    Ok(Location {
+        kind,
+        size,
+        register,
+        offset,
+        constant,
+    })
+}
+
+fn validate_header_location(
+    location: Location,
+    safepoint: u64,
+    name: &str,
+) -> Result<u64, CodegenError> {
+    if !matches!(location.kind, LOCATION_CONSTANT | LOCATION_CONSTANT_INDEX) || location.size != 8 {
+        return Err(CodegenError(format!(
+            "SafepointId {safepoint} {name} header is not an 8-byte constant"
+        )));
+    }
+    Ok(location.constant)
+}
+
+fn validate_root(
+    root: Location,
+    derived: Location,
+    stack_size: u64,
+    safepoint: u64,
+    index: usize,
+) -> Result<(), CodegenError> {
+    if root != derived {
+        return Err(CodegenError(format!(
+            "SafepointId {safepoint} root {index} has distinct base/derived machine locations"
+        )));
+    }
+    if root.kind != LOCATION_INDIRECT
+        || root.size != 8
+        || !matches!(root.register, AARCH64_DWARF_SP | AARCH64_DWARF_FP)
+    {
+        return Err(CodegenError(format!(
+            "SafepointId {safepoint} root {index} violates Darwin/AArch64 stack-indirect policy: {root:?}"
+        )));
+    }
+    let base = if root.register == AARCH64_DWARF_SP {
+        0i128
+    } else {
+        i128::from(stack_size) - 16
+    };
+    let frame_offset = base + i128::from(root.offset);
+    if frame_offset < 0 || frame_offset + 8 > i128::from(stack_size) {
+        return Err(CodegenError(format!(
+            "SafepointId {safepoint} root {index} lies outside its {stack_size}-byte frame"
+        )));
+    }
+    Ok(())
+}
+
+fn parse_stackmaps(
+    bytes: &[u8],
+    function_relocations: &BTreeSet<u64>,
+    expected: &ExpectedSafepoints,
+) -> Result<(), CodegenError> {
+    let mut cursor = Cursor::new(bytes);
+    let version = cursor.u8("version")?;
+    if version != STACKMAP_VERSION {
+        return Err(CodegenError(format!(
+            "LLVM emitted stackmap version {version}, expected {STACKMAP_VERSION}"
+        )));
+    }
+    cursor.zero(3, "header reserved bytes")?;
+    let function_count = usize::try_from(cursor.u32("function count")?)
+        .expect("u32 always fits usize on supported 64-bit targets");
+    let constant_count = usize::try_from(cursor.u32("constant count")?)
+        .expect("u32 always fits usize on supported 64-bit targets");
+    let record_count = usize::try_from(cursor.u32("record count")?)
+        .expect("u32 always fits usize on supported 64-bit targets");
+    if function_count == 0 || record_count == 0 {
+        return Err(CodegenError(
+            "LLVM emitted an empty stackmap for managed LIR".to_string(),
+        ));
+    }
+
+    let mut function_records = Vec::with_capacity(function_count);
+    let mut expected_relocations = BTreeSet::new();
+    let mut record_sum = 0u64;
+    for index in 0..function_count {
+        expected_relocations.insert(
+            u64::try_from(cursor.position()).map_err(|_| {
+                CodegenError("stackmap section offset exceeds u64::MAX".to_string())
+            })?,
+        );
+        let address = cursor.u64("function address")?;
+        let stack_size = cursor.u64("function stack size")?;
+        let records = cursor.u64("function record count")?;
+        if address != 0 {
+            return Err(CodegenError(format!(
+                "Mach-O stackmap function record {index} has a pre-relocated address {address:#x}"
+            )));
+        }
+        if stack_size < 16 || stack_size == u64::MAX || stack_size % 16 != 0 {
+            return Err(CodegenError(format!(
+                "Mach-O stackmap function record {index} has invalid stack size {stack_size}"
+            )));
+        }
+        record_sum = record_sum.checked_add(records).ok_or_else(|| {
+            CodegenError("stackmap function record count overflows u64".to_string())
+        })?;
+        function_records.push((stack_size, records));
+    }
+    if function_relocations != &expected_relocations {
+        return Err(CodegenError(format!(
+            "Mach-O stackmap function-address relocations disagree with its function table: expected {expected_relocations:?}, observed {function_relocations:?}"
+        )));
+    }
+    if record_sum != record_count as u64 {
+        return Err(CodegenError(format!(
+            "stackmap function records claim {record_sum} callsites, header says {record_count}"
+        )));
+    }
+
+    let mut constants = Vec::with_capacity(constant_count);
+    for _ in 0..constant_count {
+        constants.push(cursor.u64("large constant")?);
+    }
+
+    let mut observed = BTreeSet::new();
+    for (stack_size, function_record_count) in function_records {
+        for _ in 0..function_record_count {
+            let safepoint = cursor.u64("record SafepointId")?;
+            let _instruction_offset = cursor.u32("record instruction offset")?;
+            let flags = cursor.u16("record flags")?;
+            let location_count = usize::from(cursor.u16("record location count")?);
+            if safepoint == 0 || flags != 0 || location_count < 3 {
+                return Err(CodegenError(format!(
+                    "invalid stackmap record header for SafepointId {safepoint}"
+                )));
+            }
+            if !observed.insert(safepoint) {
+                return Err(CodegenError(format!(
+                    "Mach-O stackmap repeats SafepointId {safepoint}"
+                )));
+            }
+            let calling_convention = location(&mut cursor, &constants, safepoint)?;
+            let statepoint_flags = location(&mut cursor, &constants, safepoint)?;
+            let deopt_count = location(&mut cursor, &constants, safepoint)?;
+            let _calling_convention =
+                validate_header_location(calling_convention, safepoint, "calling-convention")?;
+            if validate_header_location(statepoint_flags, safepoint, "flags")? != 0 {
+                return Err(CodegenError(format!(
+                    "SafepointId {safepoint} has non-zero machine statepoint flags"
+                )));
+            }
+            if validate_header_location(deopt_count, safepoint, "deopt-count")? != 0 {
+                return Err(CodegenError(format!(
+                    "SafepointId {safepoint} unexpectedly has deopt locations"
+                )));
+            }
+            let root_location_count = location_count - 3;
+            if root_location_count % 2 != 0 {
+                return Err(CodegenError(format!(
+                    "SafepointId {safepoint} has an unpaired GC location"
+                )));
+            }
+            let root_count = root_location_count / 2;
+            let expected_root_count = expected.root_count(safepoint).ok_or_else(|| {
+                CodegenError(format!(
+                    "Mach-O stackmap contains unexpected SafepointId {safepoint}"
+                ))
+            })?;
+            if root_count != expected_root_count {
+                return Err(CodegenError(format!(
+                    "SafepointId {safepoint} machine root count disagrees with complete LIR: expected {expected_root_count}, observed {root_count}"
+                )));
+            }
+            for index in 0..root_count {
+                let root = location(&mut cursor, &constants, safepoint)?;
+                let derived = location(&mut cursor, &constants, safepoint)?;
+                validate_root(root, derived, stack_size, safepoint, index)?;
+            }
+            cursor.align(8, "post-location padding")?;
+            cursor.zero(2, "pre-live-out padding")?;
+            let live_out_count = usize::from(cursor.u16("live-out count")?);
+            for _ in 0..live_out_count {
+                let _register = cursor.u16("live-out DWARF register")?;
+                cursor.zero(1, "live-out reserved byte")?;
+                let _size = cursor.u8("live-out size")?;
+            }
+            cursor.align(8, "post-live-out padding")?;
+        }
+    }
+    if cursor.position() != bytes.len() {
+        return Err(CodegenError(format!(
+            "LLVM stackmap has {} trailing bytes",
+            bytes.len() - cursor.position()
+        )));
+    }
+    if observed.len() != expected.site_count() {
+        return Err(CodegenError(format!(
+            "Mach-O stackmap has {} SafepointIds, complete LIR requires {}",
+            observed.len(),
+            expected.site_count()
+        )));
+    }
+    Ok(())
+}
+
+pub(crate) fn verify_macho_stackmaps(
+    path: &Path,
+    expected: &ExpectedSafepoints,
+) -> Result<(), CodegenError> {
+    let memory = MemoryBuffer::create_from_file(path).map_err(|error| {
+        CodegenError(format!(
+            "read emitted object {} for stackmap verification: {error}",
+            path.display()
+        ))
+    })?;
+    let binary = memory.create_binary_file(None).map_err(|error| {
+        CodegenError(format!(
+            "parse emitted object {} for stackmap verification: {error}",
+            path.display()
+        ))
+    })?;
+    if !matches!(
+        binary.get_binary_type(),
+        LLVMBinaryType::LLVMBinaryTypeMachO64L
+    ) {
+        return Err(CodegenError(
+            "Darwin/AArch64 backend emitted a non-Mach-O64LE object".to_string(),
+        ));
+    }
+    let mut sections = binary
+        .get_sections()
+        .ok_or_else(|| CodegenError("emitted Mach-O has no section table".to_string()))?;
+    let mut stackmap = None;
+    let mut section_names = Vec::new();
+    while let Some(section) = sections.next_section() {
+        let name = macho_section_name(&section)?;
+        section_names.push(name.clone());
+        if name != STACKMAP_SECTION {
+            continue;
+        }
+        if stackmap.is_some() {
+            return Err(CodegenError(
+                "emitted Mach-O contains more than one __llvm_stackmaps section".to_string(),
+            ));
+        }
+        let contents = section.get_contents().to_vec();
+        let mut relocation_offsets = BTreeSet::new();
+        let mut relocations = section.get_relocations();
+        while let Some(relocation) = relocations.next_relocation() {
+            let (kind, name) = relocation.get_type();
+            let name = name.to_string();
+            if kind != 0 || name != "ARM64_RELOC_UNSIGNED" {
+                return Err(CodegenError(format!(
+                    "__llvm_stackmaps carries unsupported relocation {name} ({kind}) at offset {}",
+                    relocation.get_offset()
+                )));
+            }
+            if !relocation_offsets.insert(relocation.get_offset()) {
+                return Err(CodegenError(format!(
+                    "__llvm_stackmaps repeats relocation offset {}",
+                    relocation.get_offset()
+                )));
+            }
+        }
+        stackmap = Some((contents, relocation_offsets));
+    }
+    let Some((contents, relocations)) = stackmap else {
+        if expected.site_count() == 0 {
+            return Ok(());
+        }
+        return Err(CodegenError(format!(
+            "emitted Mach-O has no __llvm_stackmaps section; sections: {section_names:?}"
+        )));
+    };
+    if expected.site_count() == 0 {
+        return Err(CodegenError(
+            "emitted Mach-O has stackmap records but complete LIR has no safepoints".to_string(),
+        ));
+    }
+    parse_stackmaps(&contents, &relocations, expected).map_err(|error| {
+        CodegenError(format!(
+            "LLVM 22.1 Darwin/AArch64 stackmap invariant failed: {error}"
+        ))
+    })
+}

@@ -455,8 +455,10 @@ void scoop_gc_heap_begin_collection_locked(void) {
 }
 
 void scoop_rt_gc_init(void) {
-    /* Register the compiler-emitted exact image roots before reserving the
-     * heap. No managed code can run before both operations complete. */
+    /* Parse the dyld-fixed stack maps and register compiler-emitted image
+     * roots before reserving the heap. No managed code can run before all
+     * metadata has been validated. */
+    scoop_gc_stackmaps_init();
     scoop_gc_register_image_roots(
         scoop_image_managed_globals, scoop_image_managed_global_count,
         scoop_image_immortal_objects, scoop_image_immortal_object_count);

@@ -106,8 +106,13 @@ impl TargetProfile {
             "runtime/src/gc.c",
             "runtime/src/gc/collector.c",
             "runtime/src/gc/roots.c",
+            "runtime/src/gc/stackmap.c",
+            "runtime/src/gc/stack_roots.c",
             "runtime/src/thread.c",
             "runtime/src/callback.c",
+            "runtime/src/platform/profiles/darwin_aarch64.c",
+            "runtime/src/platform/image/macho.c",
+            "runtime/src/platform/arch/aarch64.c",
             "runtime/src/platform/os/darwin.c",
         ],
     };
@@ -275,8 +280,13 @@ mod tests {
                     "runtime/src/gc.c",
                     "runtime/src/gc/collector.c",
                     "runtime/src/gc/roots.c",
+                    "runtime/src/gc/stackmap.c",
+                    "runtime/src/gc/stack_roots.c",
                     "runtime/src/thread.c",
                     "runtime/src/callback.c",
+                    "runtime/src/platform/profiles/darwin_aarch64.c",
+                    "runtime/src/platform/image/macho.c",
+                    "runtime/src/platform/arch/aarch64.c",
                     "runtime/src/platform/os/darwin.c",
                 ]
             );

@@ -3178,3 +3178,36 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
         "one 32-byte element plus the aligned 32-byte header must flow through the 64-byte TLAB check:\n{ir}"
     );
 }
+
+#[test]
+fn runtime_stackmap_v3_parser_rejects_incomplete_metadata() {
+    let workspace = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(std::path::Path::parent)
+        .expect("codegen crate is nested below the workspace root");
+    let binary = std::env::temp_dir().join(format!("scoop_stackmap_test_{}", std::process::id()));
+    let status = std::process::Command::new("cc")
+        .args(["-std=c11", "-Wall", "-Wextra", "-Werror"])
+        .arg(workspace.join("runtime/src/gc/stackmap.c"))
+        .arg(workspace.join("runtime/src/platform/arch/aarch64.c"))
+        .arg(workspace.join("runtime/tests/stackmap_test.c"))
+        .arg("-o")
+        .arg(&binary)
+        .status()
+        .expect("run C compiler for stackmap parser tests");
+    assert!(
+        status.success(),
+        "stackmap parser tests must compile cleanly"
+    );
+    let output = std::process::Command::new(&binary)
+        .output()
+        .expect("run stackmap parser tests");
+    std::fs::remove_file(&binary).ok();
+    assert!(
+        output.status.success(),
+        "stackmap parser test failed:\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(output.stdout, b"stackmap parser tests passed\n");
+}

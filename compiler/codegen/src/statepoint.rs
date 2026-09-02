@@ -358,6 +358,21 @@ pub(crate) struct ExpectedSafepoints {
     functions: BTreeMap<String, GcEffect>,
 }
 
+impl ExpectedSafepoints {
+    pub(crate) fn site_count(&self) -> usize {
+        self.sites.len()
+    }
+
+    pub(crate) fn root_count(&self, safepoint: u64) -> Option<usize> {
+        self.sites
+            .get(&safepoint)
+            .map(|site| match &site.statepoint {
+                ExpectedStatepoint::Relocating(roots) => roots.len(),
+                ExpectedStatepoint::ZeroLiveCall | ExpectedStatepoint::ZeroLiveInvoke => 0,
+            })
+    }
+}
+
 pub(crate) fn expectations(module: &scoop_lir::Module) -> Result<ExpectedSafepoints, CodegenError> {
     let mut sites = BTreeMap::new();
     let mut functions = BTreeMap::new();

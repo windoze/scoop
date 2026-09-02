@@ -4,6 +4,9 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "scoop_rt.h"
+#include "stackmap.h"
+
 typedef void (*ScoopGcSlotVisitor)(void **slot, void *context);
 typedef void (*ScoopGcExternalObjectVisitor)(const void *object,
                                              void *context);
@@ -37,5 +40,10 @@ void scoop_gc_register_image_roots(
     uint64_t immortal_object_count);
 bool scoop_gc_is_immortal_object_locked(const void *object);
 void scoop_gc_visit_roots_locked(ScoopGcRootVisitor visitor);
+
+/* Immutable loaded-image stack-map index. Initialization parses and validates
+ * every record through the selected target profile before managed code runs. */
+void scoop_gc_stackmaps_init(void);
+const ScoopStackMapRecord *scoop_gc_stackmap_lookup(uintptr_t return_pc);
 
 #endif

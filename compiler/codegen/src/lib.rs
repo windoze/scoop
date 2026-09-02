@@ -127,6 +127,15 @@ pub fn emit_object(
     machine
         .write_to_file(&llvm, FileType::Object, output)
         .map_err(|e| CodegenError(format!("failed to write {}: {e}", output.display())))?;
+    if let Err(error) = artifact::verify_macho_stackmaps(output, &expected_safepoints) {
+        if let Err(remove_error) = std::fs::remove_file(output) {
+            return Err(CodegenError(format!(
+                "{error}; also failed to discard invalid object {}: {remove_error}",
+                output.display()
+            )));
+        }
+        return Err(error);
+    }
     Ok(())
 }
 
@@ -696,6 +705,7 @@ fn pointer_ty(context: &Context, kind: scoop_lir::PointerKind) -> inkwell::types
     }
 }
 
+mod artifact;
 mod type_descriptors;
 
 use type_descriptors::{emit_ref_scan, emit_type_descriptors, type_descriptor_global};
