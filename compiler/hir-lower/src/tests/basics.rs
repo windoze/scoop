@@ -1,0 +1,208 @@
+use super::*;
+
+/// `main` calls `println("hello, world")` then `helper()`, which
+/// calls `print("!")` — the M1 hello world shape (milestone1
+/// DESIGN.md 1).
+fn hello_world() -> SourceFile {
+    file(vec![
+        fun(
+            "main",
+            vec![
+                stmt(call("println", vec![str_lit("hello, world")])),
+                stmt(call("helper", vec![])),
+            ],
+        ),
+        fun("helper", vec![stmt(call("print", vec![str_lit("!")]))]),
+    ])
+}
+
+#[test]
+fn lowers_hello_world() {
+    let module = lower_user(hello_world()).expect("hello world must lower");
+
+    // Well-known types are allocated first, in a fixed order.
+    assert_eq!(module.types[module.unit], Type::Unit);
+    assert_eq!(module.types[module.int], Type::Int);
+    assert_eq!(module.types[module.boolean], Type::Boolean);
+    assert_eq!(module.types[module.string], Type::String);
+    // `Option` comes from the core library.
+    assert_eq!(module.enums[module.option_enum].name, "Option");
+
+    // Entry point is `main`.
+    assert_eq!(module.functions[module.entry].name, "main");
+
+    // Golden dump locks the output structure.
+    let expected = "\
+Module
+  enum Option<T>
+    Some(_1: T0)
+    None()
+  open class Throwable()
+  open class Exception(message: Option<String>)
+  class UnwrapException()
+  class ClassCastException()
+  class ArithmeticException()
+  class IndexOutOfBoundsException()
+  class IllegalStateException()
+  interface ToString
+    fun toString(): String
+  interface Hash
+    fun hash(): Int
+  interface Continuation<in T>
+    fun resume(value: T0): Unit
+    fun resumeWithException(exception: Throwable): Unit
+  interface SuspendTask<out T>
+    suspend fun run(): T0
+  interface SuspendRegistration<out T>
+    fun register(continuation: Continuation<T0>): Unit
+  fun coreIntEquals(arg1: Int, arg2: Int): Boolean <extern0 abi=scoop symbol=scoop_rt_int_equals>
+  fun coreUIntEquals(arg1: UInt, arg2: UInt): Boolean <extern1 abi=scoop symbol=scoop_rt_uint_equals>
+  fun coreBooleanEquals(arg1: Boolean, arg2: Boolean): Boolean <extern2 abi=scoop symbol=scoop_rt_bool_equals>
+  fun coreStringEquals(arg1: String, arg2: String): Boolean <extern3 abi=scoop symbol=scoop_rt_string_eq>
+  fun coreIntToString(arg1: Int): String <extern4 abi=scoop symbol=scoop_rt_int_to_string>
+  fun coreUIntToString(arg1: UInt): String <extern5 abi=scoop symbol=scoop_rt_uint_to_string>
+  fun coreBooleanToString(arg1: Boolean): String <extern6 abi=scoop symbol=scoop_rt_bool_to_string>
+  fun coreIntHash(arg1: Int): Int <extern7 abi=scoop symbol=scoop_rt_int_hash>
+  fun coreUIntHash(arg1: UInt): Int <extern8 abi=scoop symbol=scoop_rt_uint_hash>
+  fun coreBooleanHash(arg1: Boolean): Int <extern9 abi=scoop symbol=scoop_rt_bool_hash>
+  fun coreStringHash(arg1: String): Int <extern10 abi=scoop symbol=scoop_rt_string_hash>
+  fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
+  suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
+  fun write(arg1: String): Unit <extern11 abi=scoop symbol=scoop_rt_write>
+  fun print<T : ToString>(value: T0): Unit
+    Call write : Unit
+      MethodCall bound T0 via ToString -> ToString.toString : String
+        Local value : T0
+    return
+  fun println<T : ToString>(value: T0): Unit
+    Call write : Unit
+      MethodCall bound T0 via ToString -> ToString.toString : String
+        Local value : T0
+    Call write : Unit
+      StringLiteral \"\\n\" : String
+  fun main(): Unit
+    Call println<String> : Unit
+      StringLiteral \"hello, world\" : String
+    Call helper : Unit
+  fun helper(): Unit
+    Call print<String> : Unit
+      StringLiteral \"!\" : String
+  entry main
+  instance println<String>
+  instance print<String>
+";
+    assert_eq!(hir::dump(&module), expected);
+}
+
+#[test]
+fn duplicate_function_is_an_error() {
+    let file = file(vec![fun("main", vec![]), fun("main", vec![])]);
+    let errors = lower_user(file).expect_err("duplicate `main` must fail");
+    assert_eq!(errors.len(), 1);
+    assert_eq!(
+        errors[0].message,
+        "function `main` is already declared with the same signature"
+    );
+    // The duplicate is in the user file (index 1; core is index 0).
+    assert_eq!(errors[0].file, 1);
+}
+
+#[test]
+fn redeclaring_a_core_function_is_an_error() {
+    // The user file duplicates core's generic declaration exactly (overloads
+    // with different signatures would be legal).
+    let mut duplicate = fun_expr(
+        "print",
+        vec!["T"],
+        vec![("value", ty_named("T"))],
+        None,
+        unit_lit(),
+    );
+    let Decl::Function(function) = &mut duplicate else {
+        unreachable!()
+    };
+    function.type_params[0].inline_bound = Some(ast::TypeBound::Upper(ty_named("ToString")));
+    let file = file(vec![fun("main", vec![]), duplicate]);
+    let errors = lower_user(file).expect_err("redeclaring `print` must fail");
+    assert_eq!(errors.len(), 1);
+    assert_eq!(
+        errors[0].message,
+        "function `print` is already declared with the same signature"
+    );
+}
+
+#[test]
+fn unknown_function_is_an_error_with_callee_span() {
+    let callee_span = Span::new(10, 15);
+    let file = file(vec![fun(
+        "main",
+        vec![stmt(call_at("hello", vec![], callee_span))],
+    )]);
+    let errors = lower_user(file).expect_err("unknown callee must fail");
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].message, "unknown function `hello`");
+    assert_eq!(errors[0].span, Some(callee_span));
+}
+
+#[test]
+fn print_requires_exactly_one_argument() {
+    for args in [vec![], vec![str_lit("a"), str_lit("b")]] {
+        let supplied = args.len();
+        let file = file(vec![fun("main", vec![stmt(call("print", args))])]);
+        let errors = lower_user(file).expect_err("wrong arity must fail");
+        assert_eq!(errors.len(), 1);
+        assert_eq!(
+            errors[0].message,
+            format!("function `print` takes exactly 1 argument, but {supplied} were supplied")
+        );
+    }
+}
+
+#[test]
+fn user_function_arity_is_an_error() {
+    let file = file(vec![
+        fun("main", vec![stmt(call("helper", vec![str_lit("x")]))]),
+        fun("helper", vec![]),
+    ]);
+    let errors = lower_user(file).expect_err("argument to `helper` must fail");
+    assert_eq!(errors.len(), 1);
+    assert_eq!(
+        errors[0].message,
+        "function `helper` takes exactly 0 arguments, but 1 were supplied"
+    );
+}
+
+#[test]
+fn missing_main_is_an_error_with_file_span() {
+    let file = file(vec![fun("helper", vec![])]);
+    let errors = lower_user(file.clone()).expect_err("missing `main` must fail");
+    assert_eq!(errors.len(), 1);
+    assert_eq!(
+        errors[0].message,
+        "missing entry point: declare `fun main()`"
+    );
+    assert_eq!(errors[0].span, Some(file.span));
+}
+
+#[test]
+fn bare_literal_statement_is_an_error() {
+    let file = file(vec![fun("main", vec![stmt(str_lit("dangling"))])]);
+    let errors = lower_user(file).expect_err("literal statement must fail");
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].message, "statement must be a function call");
+}
+
+#[test]
+fn collects_multiple_diagnostics() {
+    let file = file(vec![fun(
+        "main",
+        vec![
+            stmt(call("missing_one", vec![])),
+            stmt(call("missing_two", vec![])),
+        ],
+    )]);
+    let errors = lower_user(file).expect_err("unknown callees must fail");
+    assert_eq!(errors.len(), 2);
+    assert_eq!(errors[0].message, "unknown function `missing_one`");
+    assert_eq!(errors[1].message, "unknown function `missing_two`");
+}
