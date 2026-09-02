@@ -104,6 +104,7 @@ impl TargetProfile {
         runtime_sources: &[
             "runtime/src/rt.c",
             "runtime/src/gc.c",
+            "runtime/src/gc/roots.c",
             "runtime/src/thread.c",
             "runtime/src/callback.c",
             "runtime/src/platform/os/darwin.c",
@@ -271,6 +272,7 @@ mod tests {
                 [
                     "runtime/src/rt.c",
                     "runtime/src/gc.c",
+                    "runtime/src/gc/roots.c",
                     "runtime/src/thread.c",
                     "runtime/src/callback.c",
                     "runtime/src/platform/os/darwin.c",

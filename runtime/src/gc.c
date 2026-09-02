@@ -61,6 +61,7 @@
 #include <sys/mman.h>
 
 #include "scoop_rt.h"
+#include "gc/gc_internal.h"
 #include "thread.h"
 
 #ifndef MAP_ANON
@@ -96,8 +97,6 @@
 
 /* gc_word bits (ScoopObjectHeader, runtime spec 2.1). */
 #define GC_MARK_BIT UINT64_C(1) /* parity of the cycle that marked it */
-#define GC_PIN_BIT UINT64_C(2) /* runtime spec 3.4 pin flag */
-
 #define GC_SMALL 0
 #define GC_LARGE 1
 
@@ -132,7 +131,6 @@ static int gc_arena_ready;
 static _Noreturn void gc_fatal(const char *message);
 
 static pthread_mutex_t gc_heap_lock = PTHREAD_MUTEX_INITIALIZER;
-static pthread_mutex_t gc_roots_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static void gc_lock(pthread_mutex_t *lock, const char *message) {
     if (pthread_mutex_lock(lock) != 0) {
@@ -144,6 +142,14 @@ static void gc_unlock(pthread_mutex_t *lock, const char *message) {
     if (pthread_mutex_unlock(lock) != 0) {
         gc_fatal(message);
     }
+}
+
+void scoop_gc_heap_lock(void) {
+    gc_lock(&gc_heap_lock, "failed to lock the heap");
+}
+
+void scoop_gc_heap_unlock(void) {
+    gc_unlock(&gc_heap_lock, "failed to unlock the heap");
 }
 
 static void gc_arena_init(void) {
@@ -435,6 +441,10 @@ static int is_heap_start(const void *p) {
     return (int)((bits >> (word % 64)) & 1);
 }
 
+bool scoop_gc_is_object_start_locked(const void *object) {
+    return is_heap_start(object) != 0;
+}
+
 static void gc_record_start(ScoopGcBlock *block, const void *p) {
     size_t word = ((uintptr_t)p - (uintptr_t)block) / sizeof(uint64_t);
     (void)__atomic_fetch_or(&block->start_bits[word / 64],
@@ -459,302 +469,6 @@ static void gc_hole_push(char *start, uint64_t lines) {
     hole->next = gc_holes;
     hole->lines = lines;
     gc_holes = hole;
-}
-
-/* --- roots ------------------------------------------------------------ */
-
-typedef struct ScoopGcRoot {
-    const void *base;
-    uint32_t is_external_object;
-    uint32_t reserved;
-} ScoopGcRoot;
-
-static ScoopGcRoot *gc_roots;
-static size_t gc_roots_len;
-static size_t gc_roots_cap;
-
-static void gc_root_push(const void *base, uint32_t is_external_object) {
-    if (gc_roots_len == gc_roots_cap) {
-        size_t new_cap = gc_roots_cap == 0 ? 16 : gc_roots_cap * 2;
-        ScoopGcRoot *grown = realloc(gc_roots, new_cap * sizeof *grown);
-        if (grown == NULL) {
-            gc_fatal("out of memory growing the root list");
-        }
-        gc_roots = grown;
-        gc_roots_cap = new_cap;
-    }
-    gc_roots[gc_roots_len].base = base;
-    gc_roots[gc_roots_len].is_external_object = is_external_object;
-    gc_roots[gc_roots_len].reserved = 0;
-    gc_roots_len++;
-}
-
-void scoop_rt_gc_add_root(void **slot) {
-    gc_lock(&gc_roots_lock, "failed to lock the root registry");
-    gc_root_push(slot, 0);
-    gc_unlock(&gc_roots_lock, "failed to unlock the root registry");
-}
-
-void scoop_rt_gc_add_root_object(const void *obj) {
-    gc_lock(&gc_roots_lock, "failed to lock the root registry");
-    gc_root_push(obj, 1);
-    gc_unlock(&gc_roots_lock, "failed to unlock the root registry");
-}
-
-void scoop_rt_gc_remove_root_object(const void *obj) {
-    gc_lock(&gc_roots_lock, "failed to lock the root registry");
-    for (size_t i = 0; i < gc_roots_len; i++) {
-        if (gc_roots[i].is_external_object && gc_roots[i].base == obj) {
-            gc_roots[i] = gc_roots[gc_roots_len - 1];
-            gc_roots_len--;
-            gc_unlock(&gc_roots_lock, "failed to unlock the root registry");
-            return;
-        }
-    }
-    gc_unlock(&gc_roots_lock, "failed to unlock the root registry");
-    gc_fatal("attempted to remove an unknown external object root");
-}
-
-void scoop_rt_push_native_roots(ScoopNativeRootFrame *frame, void ***slots,
-                                uint64_t count) {
-    ScoopThreadState *thread = scoop_thread_current_required();
-    ScoopThreadMode mode = atomic_load_explicit(&thread->mode, memory_order_acquire);
-    if (mode != SCOOP_THREAD_MANAGED && mode != SCOOP_THREAD_NATIVE_BORROWED) {
-        gc_fatal("native roots may only change in managed or native-borrowed mode");
-    }
-    if (frame == NULL || (count != 0 && slots == NULL)) {
-        gc_fatal("invalid native root frame");
-    }
-    for (ScoopNativeRootFrame *active = thread->native_roots; active != NULL;
-         active = active->previous) {
-        if (active == frame) {
-            gc_fatal("native root frame is already active");
-        }
-    }
-    for (uint64_t i = 0; i < count; i++) {
-        if (slots[i] == NULL) {
-            gc_fatal("native root frame contains a null slot address");
-        }
-    }
-    frame->previous = thread->native_roots;
-    frame->slots = slots;
-    frame->count = count;
-    thread->native_roots = frame;
-}
-
-void scoop_rt_pop_native_roots(ScoopNativeRootFrame *frame) {
-    ScoopThreadState *thread = scoop_thread_current_required();
-    ScoopThreadMode mode = atomic_load_explicit(&thread->mode, memory_order_acquire);
-    if (mode != SCOOP_THREAD_MANAGED && mode != SCOOP_THREAD_NATIVE_BORROWED) {
-        gc_fatal("native roots may only change in managed or native-borrowed mode");
-    }
-    if (frame == NULL || thread->native_roots != frame) {
-        gc_fatal("native root frames must be popped in LIFO order");
-    }
-    thread->native_roots = frame->previous;
-    frame->previous = NULL;
-    frame->slots = NULL;
-    frame->count = 0;
-}
-
-/* --- handles (runtime spec 3.4 GcHandle) ------------------------------ */
-
-typedef struct ScoopGcHandleSlot {
-    const void *object;
-    int64_t next_free;
-    uint32_t generation;
-    bool live;
-    bool retired;
-} ScoopGcHandleSlot;
-
-/* The low 32 bits encode slot+1 and the high 32 bits encode generation.
- * Generation 0 and handle 0 are invalid. A generation-exhausted slot is
- * permanently retired instead of permitting ABA. */
-static ScoopGcHandleSlot *gc_handles;
-static size_t gc_handles_len;
-static size_t gc_handles_cap;
-static int64_t gc_handles_free = -1; /* first free slot index or -1 */
-
-static uint64_t gc_handle_encode(size_t index, uint32_t generation) {
-    return ((uint64_t)generation << 32) | ((uint64_t)index + 1);
-}
-
-static ScoopGcHandleSlot *gc_handle_resolve_locked(uint64_t handle) {
-    uint32_t encoded_slot = (uint32_t)handle;
-    uint32_t generation = (uint32_t)(handle >> 32);
-    if (encoded_slot == 0 || generation == 0) {
-        return NULL;
-    }
-    size_t index = (size_t)encoded_slot - 1;
-    if (index >= gc_handles_len) {
-        return NULL;
-    }
-    ScoopGcHandleSlot *slot = &gc_handles[index];
-    if (!slot->live || slot->generation != generation) {
-        return NULL;
-    }
-    return slot;
-}
-
-uint64_t scoop_rt_get_handle(const void *obj) {
-    if (obj == NULL) {
-        return 0;
-    }
-    gc_lock(&gc_roots_lock, "failed to lock the root registry");
-    size_t index;
-    if (gc_handles_free >= 0) {
-        index = (size_t)gc_handles_free;
-        ScoopGcHandleSlot *slot = &gc_handles[index];
-        gc_handles_free = slot->next_free;
-        slot->generation++;
-        if (slot->generation == 0 || slot->retired) {
-            gc_unlock(&gc_roots_lock, "failed to unlock the root registry");
-            gc_fatal("GcHandle generation exhausted");
-        }
-        slot->object = obj;
-        slot->next_free = -1;
-        slot->live = true;
-    } else {
-        if (gc_handles_len == gc_handles_cap) {
-            size_t new_cap = gc_handles_cap == 0 ? 16 : gc_handles_cap * 2;
-            ScoopGcHandleSlot *grown =
-                realloc(gc_handles, new_cap * sizeof *grown);
-            if (grown == NULL) {
-                gc_unlock(&gc_roots_lock, "failed to unlock the root registry");
-                gc_fatal("out of memory growing the handle table");
-            }
-            gc_handles = grown;
-            gc_handles_cap = new_cap;
-        }
-        index = gc_handles_len++;
-        gc_handles[index] = (ScoopGcHandleSlot){
-            .object = obj,
-            .next_free = -1,
-            .generation = 1,
-            .live = true,
-            .retired = false,
-        };
-    }
-    uint64_t handle = gc_handle_encode(index, gc_handles[index].generation);
-    gc_unlock(&gc_roots_lock, "failed to unlock the root registry");
-    return handle;
-}
-
-const void *scoop_rt_release_handle(uint64_t handle) {
-    if (handle == 0) {
-        return NULL; /* niche */
-    }
-    gc_lock(&gc_roots_lock, "failed to lock the root registry");
-    ScoopGcHandleSlot *slot = gc_handle_resolve_locked(handle);
-    if (slot == NULL) {
-        gc_unlock(&gc_roots_lock, "failed to unlock the root registry");
-        gc_fatal("invalid or stale GcHandle");
-    }
-    const void *obj = slot->object;
-    slot->object = NULL;
-    slot->live = false;
-    size_t index = (size_t)((uint32_t)handle - 1);
-    if (slot->generation == UINT32_MAX) {
-        slot->retired = true;
-        slot->next_free = -1;
-    } else {
-        slot->next_free = gc_handles_free;
-        gc_handles_free = (int64_t)index;
-    }
-    gc_unlock(&gc_roots_lock, "failed to unlock the root registry");
-    return obj;
-}
-
-const void *scoop_rt_resolve_handle(uint64_t handle) {
-    if (handle == 0) {
-        return NULL;
-    }
-    gc_lock(&gc_roots_lock, "failed to lock the root registry");
-    ScoopGcHandleSlot *slot = gc_handle_resolve_locked(handle);
-    if (slot == NULL) {
-        gc_unlock(&gc_roots_lock, "failed to unlock the root registry");
-        gc_fatal("invalid or stale GcHandle");
-    }
-    const void *object = slot->object;
-    gc_unlock(&gc_roots_lock, "failed to unlock the root registry");
-    return object;
-}
-
-/* --- pinned objects (runtime spec 3.4 pin) ----------------------------- */
-
-/* Registry of pinned objects so the collector can find them without
- * walking the heap: pinned objects are roots (scanned, never
- * reclaimed) even when nothing else references them. */
-static const void **gc_pinned;
-static size_t gc_pinned_len;
-static size_t gc_pinned_cap;
-
-const void *scoop_rt_pin(const void *obj) {
-    if (obj == NULL) {
-        return NULL;
-    }
-    gc_lock(&gc_heap_lock, "failed to lock the heap");
-    if (!is_heap_start(obj)) {
-        gc_unlock(&gc_heap_lock, "failed to unlock the heap");
-        gc_fatal("scoop_rt_pin: not a GC heap object");
-    }
-    gc_lock(&gc_roots_lock, "failed to lock the root registry");
-    ScoopObjectHeader *header = (ScoopObjectHeader *)obj;
-    uint64_t old_word = __atomic_fetch_or(&header->gc_word, GC_PIN_BIT,
-                                          __ATOMIC_ACQ_REL);
-    if ((old_word & GC_PIN_BIT) == 0) {
-        if (gc_pinned_len == gc_pinned_cap) {
-            size_t new_cap = gc_pinned_cap == 0 ? 8 : gc_pinned_cap * 2;
-            const void **grown = realloc(gc_pinned, new_cap * sizeof *grown);
-            if (grown == NULL) {
-                gc_unlock(&gc_roots_lock, "failed to unlock the root registry");
-                gc_unlock(&gc_heap_lock, "failed to unlock the heap");
-                gc_fatal("out of memory growing the pinned list");
-            }
-            gc_pinned = grown;
-            gc_pinned_cap = new_cap;
-        }
-        gc_pinned[gc_pinned_len++] = obj;
-    }
-    gc_unlock(&gc_roots_lock, "failed to unlock the root registry");
-    gc_unlock(&gc_heap_lock, "failed to unlock the heap");
-    return obj;
-}
-
-const void *scoop_rt_unpin(const void *obj) {
-    if (obj == NULL) {
-        return NULL;
-    }
-    gc_lock(&gc_heap_lock, "failed to lock the heap");
-    if (!is_heap_start(obj)) {
-        gc_unlock(&gc_heap_lock, "failed to unlock the heap");
-        gc_fatal("scoop_rt_unpin: not a GC heap object");
-    }
-    gc_lock(&gc_roots_lock, "failed to lock the root registry");
-    ScoopObjectHeader *header = (ScoopObjectHeader *)obj;
-    uint64_t old_word = __atomic_fetch_and(&header->gc_word, ~GC_PIN_BIT,
-                                           __ATOMIC_ACQ_REL);
-    if ((old_word & GC_PIN_BIT) == 0) {
-        gc_unlock(&gc_roots_lock, "failed to unlock the root registry");
-        gc_unlock(&gc_heap_lock, "failed to unlock the heap");
-        gc_fatal("scoop_rt_unpin: object is not pinned");
-    }
-    bool found = false;
-    for (size_t i = 0; i < gc_pinned_len; i++) {
-        if (gc_pinned[i] == obj) {
-            gc_pinned[i] = gc_pinned[--gc_pinned_len];
-            found = true;
-            break;
-        }
-    }
-    if (!found) {
-        gc_unlock(&gc_roots_lock, "failed to unlock the root registry");
-        gc_unlock(&gc_heap_lock, "failed to unlock the heap");
-        gc_fatal("pinned registry is inconsistent");
-    }
-    gc_unlock(&gc_roots_lock, "failed to unlock the root registry");
-    gc_unlock(&gc_heap_lock, "failed to unlock the heap");
-    return obj;
 }
 
 /* --- marking ------------------------------------------------------------ */
@@ -799,7 +513,7 @@ static void gc_mark(const void *obj) {
     gc_work_push(obj);
 }
 
-static void gc_trace_slot(const void *const *slot) {
+static void gc_trace_slot(void **slot) {
     const void *target = *slot;
     if (is_heap_start(target)) {
         gc_mark(target);
@@ -831,13 +545,23 @@ static void gc_trace_descriptor(const void *base, const uint64_t *table) {
     }
     uint64_t count = table[0];
     for (uint64_t i = 0; i < count; i++) {
-        gc_trace_slot((const void *const *)((const char *)base + table[1 + i]));
+        gc_trace_slot((void **)((char *)base + table[1 + i]));
     }
 }
 
 static void gc_trace_object(const void *obj) {
     const uint64_t *refs = ((const ScoopObjectHeader *)obj)->td->ref_offsets;
     gc_trace_descriptor(obj, refs);
+}
+
+static void gc_visit_root_slot(void **slot, void *context) {
+    (void)context;
+    gc_trace_slot(slot);
+}
+
+static void gc_visit_external_root(const void *object, void *context) {
+    (void)context;
+    gc_trace_object(object);
 }
 
 /* --- conservative stack scan (v1 transition) ---------------------------- */
@@ -864,7 +588,7 @@ static void gc_scan_native_roots(const ScoopThreadState *thread) {
     for (ScoopNativeRootFrame *frame = thread->native_roots; frame != NULL;
          frame = frame->previous) {
         for (uint64_t i = 0; i < frame->count; i++) {
-            gc_trace_slot((const void *const *)frame->slots[i]);
+            gc_trace_slot(frame->slots[i]);
         }
     }
 }
@@ -1004,7 +728,7 @@ void scoop_rt_gc_collect(void) {
      * threads may still run root APIs, so holding roots through sweep gives
      * the collection one coherent root/pin snapshot. */
     gc_lock(&gc_heap_lock, "failed to lock the heap");
-    gc_lock(&gc_roots_lock, "failed to lock the root registry");
+    scoop_gc_roots_lock();
 
     for (ScoopThreadState *thread = scoop_thread_collection_registry_head();
          thread != NULL; thread = thread->registry_next) {
@@ -1016,27 +740,14 @@ void scoop_rt_gc_collect(void) {
     gc_mark_color ^= 1;
     gc_marked_count = 0;
 
-    /* Roots (runtime spec 3.3). */
-    for (size_t i = 0; i < gc_roots_len; i++) {
-        if (gc_roots[i].is_external_object) {
-            /* Object-like region outside the heap (ABI exception
-             * buffer): trace its references, never mark or reclaim it. */
-            gc_trace_object(gc_roots[i].base);
-        } else {
-            gc_trace_slot((const void *const *)gc_roots[i].base);
-        }
-    }
-    for (size_t i = 0; i < gc_handles_len; i++) {
-        if (gc_handles[i].live) {
-            const void *obj = gc_handles[i].object;
-            if (is_heap_start(obj)) {
-                gc_mark(obj);
-            }
-        }
-    }
-    for (size_t i = 0; i < gc_pinned_len; i++) {
-        gc_mark(gc_pinned[i]);
-    }
+    /* External object roots are traced but never marked or reclaimed; all
+     * other root sources expose writable slots for the moving collector. */
+    ScoopGcRootVisitor root_visitor = {
+        .visit_slot = gc_visit_root_slot,
+        .visit_external_object = gc_visit_external_root,
+        .context = NULL,
+    };
+    scoop_gc_visit_roots_locked(root_visitor);
     for (ScoopThreadState *thread = scoop_thread_collection_registry_head();
          thread != NULL; thread = thread->registry_next) {
         gc_scan_thread(thread);
@@ -1051,7 +762,7 @@ void scoop_rt_gc_collect(void) {
     atomic_store_explicit(&gc_live_objects, gc_marked_count, memory_order_release);
     gc_threshold = gc_committed * 2 > GC_INITIAL_THRESHOLD ? gc_committed * 2
                                                            : GC_INITIAL_THRESHOLD;
-    gc_unlock(&gc_roots_lock, "failed to unlock the root registry");
+    scoop_gc_roots_unlock();
     gc_unlock(&gc_heap_lock, "failed to unlock the heap");
     scoop_thread_end_collection();
 }
@@ -1071,31 +782,11 @@ uintptr_t scoop_rt_gc_debug_arena_base(void) {
     return gc_arena_base;
 }
 
-uint64_t scoop_rt_gc_debug_root_count(void) {
-    gc_lock(&gc_roots_lock, "failed to lock the root registry");
-    uint64_t count = (uint64_t)gc_roots_len;
-    gc_unlock(&gc_roots_lock, "failed to unlock the root registry");
-    return count;
-}
-
 bool scoop_rt_gc_debug_is_allocated(const void *obj) {
     gc_lock(&gc_heap_lock, "failed to lock the heap");
     bool allocated = is_heap_start(obj);
     gc_unlock(&gc_heap_lock, "failed to unlock the heap");
     return allocated;
-}
-
-uint64_t scoop_rt_gc_debug_native_root_count(void) {
-    ScoopThreadState *thread = scoop_thread_current();
-    if (thread == NULL) {
-        return 0;
-    }
-    uint64_t count = 0;
-    for (ScoopNativeRootFrame *frame = thread->native_roots; frame != NULL;
-         frame = frame->previous) {
-        count += frame->count;
-    }
-    return count;
 }
 
 /* --- allocation (runtime spec 3.1; the managed fast path is codegen's

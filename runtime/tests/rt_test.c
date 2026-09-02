@@ -22,7 +22,7 @@
  *
  * Build & run (M8: rt.c references the C++ ABI for exceptions, hence
  * -lc++abi):
- *   cc -std=c11 -Wall -Wextra -pthread -I runtime/include runtime/src/rt.c runtime/src/gc.c runtime/src/thread.c runtime/src/callback.c runtime/tests/rt_test.c -o /tmp/scoop_rt_test -lc++abi
+ *   cc -std=c11 -Wall -Wextra -pthread -I runtime/include runtime/src/rt.c runtime/src/gc.c runtime/src/gc/roots.c runtime/src/thread.c runtime/src/callback.c runtime/src/platform/os/darwin.c runtime/tests/rt_test.c -o /tmp/scoop_rt_test -lc++abi
  *   /tmp/scoop_rt_test
  */
 #include <pthread.h>
