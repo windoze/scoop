@@ -10,6 +10,12 @@ use scoop_lir::{
 
 use super::*;
 
+fn host_profile() -> TargetProfile {
+    let triple = TargetMachine::get_default_triple();
+    TargetProfile::resolve(triple.as_str().to_str().expect("UTF-8 host triple"))
+        .expect("supported host target")
+}
+
 fn void_site(
     targets: &mut CallTargets,
     destination: CallDestination,
@@ -343,7 +349,7 @@ fn values_module() -> Module {
 fn emits_non_empty_object_file() {
     let module = values_module();
     let output = std::env::temp_dir().join(format!("scoop_codegen_test_{}.o", std::process::id()));
-    emit_object(&module, &output).expect("emit object");
+    emit_object(&module, &output, host_profile()).expect("emit object");
     let len = std::fs::metadata(&output)
         .expect("object file exists")
         .len();
@@ -813,7 +819,7 @@ fn emits_m4_enums() {
         std::env::temp_dir().join(format!("scoop_codegen_m4_test_{}.o", std::process::id()));
     // `emit_object` verifies the LLVM module before writing, so a
     // successful return means `module.verify()` passed.
-    emit_object(&module, &output).expect("emit object");
+    emit_object(&module, &output, host_profile()).expect("emit object");
     let len = std::fs::metadata(&output)
         .expect("object file exists")
         .len();
@@ -1017,7 +1023,7 @@ fn emits_m5_arrays() {
         std::env::temp_dir().join(format!("scoop_codegen_m5_test_{}.o", std::process::id()));
     // `emit_object` verifies the LLVM module before writing, so a
     // successful return means `module.verify()` passed.
-    emit_object(&module, &output).expect("emit object");
+    emit_object(&module, &output, host_profile()).expect("emit object");
     let len = std::fs::metadata(&output)
         .expect("object file exists")
         .len();
@@ -1167,7 +1173,7 @@ fn emits_m6_type_descriptors_and_call_indirect() {
         std::env::temp_dir().join(format!("scoop_codegen_m6_test_{}.o", std::process::id()));
     // `emit_object` verifies the LLVM module before writing, so a
     // successful return means `module.verify()` passed.
-    emit_object(&module, &output).expect("emit object");
+    emit_object(&module, &output, host_profile()).expect("emit object");
     let len = std::fs::metadata(&output)
         .expect("object file exists")
         .len();
@@ -1400,7 +1406,7 @@ fn emits_m6_heap_access_and_typed_descriptors() {
     ));
     // `emit_object` verifies the LLVM module before writing, so a
     // successful return means `module.verify()` passed.
-    emit_object(&module, &output).expect("emit object");
+    emit_object(&module, &output, host_profile()).expect("emit object");
     let len = std::fs::metadata(&output)
         .expect("object file exists")
         .len();
@@ -1610,7 +1616,7 @@ fn emits_m8_exceptions() {
     // also proves invoke / landingpad and the GC strategy coexist
     // — every function carries `gc "statepoint-example"` and the
     // module goes through `rewrite-statepoints-for-gc`.
-    emit_object(&module, &output).expect("emit object");
+    emit_object(&module, &output, host_profile()).expect("emit object");
     let bytes = std::fs::read(&output).expect("read object");
     assert!(!bytes.is_empty(), "object file is empty");
     // The landing pad function must carry an exception table.

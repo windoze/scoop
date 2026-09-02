@@ -63,6 +63,8 @@ pub fn compile_file_with_options(
     out_dir: &Path,
     options: &CompileOptions,
 ) -> Result<CompileSuccess, Vec<Diagnostic>> {
+    let target_profile = scoop_codegen::TargetProfile::resolve(&host_triple())
+        .map_err(|error| vec![no_span(0, format!("target configuration failed: {error}"))])?;
     let inputs = load_inputs(path)?;
     let user_index = inputs.len() - 1;
 
@@ -128,7 +130,7 @@ pub fn compile_file_with_options(
     let object = out_dir.join(format!("{stem}.o"));
     let binary = out_dir.join(stem);
 
-    scoop_codegen::emit_object(&lir, &object)
+    scoop_codegen::emit_object(&lir, &object, target_profile)
         .map_err(|e| vec![no_span(user_index, format!("codegen failed: {e}"))])?;
 
     let bridge_object = match scoop_codegen::c_bridge_source(&lir).map_err(|e| {
@@ -152,7 +154,7 @@ pub fn compile_file_with_options(
         None => None,
     };
 
-    let runtime_lib = build_runtime(user_index)?;
+    let runtime_lib = build_runtime(user_index, target_profile)?;
     let mut libraries = Vec::new();
     for (_, extern_) in lir.extern_functions.iter() {
         if !extern_.library.is_empty() && !libraries.contains(&extern_.library) {
@@ -362,7 +364,10 @@ fn validate_core_manifest(manifest: &str, path: &Path) -> Result<(), Vec<Diagnos
 /// `target/scoop-rt/`. M13 adds `thread.c` and `callback.c` beside
 /// `rt.c` + `gc.c`; rebuilding the four files is still cheap enough (see
 /// `docs/milestone1/DESIGN.md` section 2.7).
-fn build_runtime(file: usize) -> Result<PathBuf, Vec<Diagnostic>> {
+fn build_runtime(
+    file: usize,
+    target_profile: scoop_codegen::TargetProfile,
+) -> Result<PathBuf, Vec<Diagnostic>> {
     let root = workspace_root();
     let out_dir = root.join("target/scoop-rt");
     std::fs::create_dir_all(&out_dir).map_err(|e| {
@@ -374,7 +379,6 @@ fn build_runtime(file: usize) -> Result<PathBuf, Vec<Diagnostic>> {
             ),
         )]
     })?;
-    let triple = host_triple();
     cc::Build::new()
         .file(root.join("runtime/src/rt.c"))
         .file(root.join("runtime/src/gc.c"))
@@ -386,8 +390,8 @@ fn build_runtime(file: usize) -> Result<PathBuf, Vec<Diagnostic>> {
         // The driver is not a build script: cargo does not provide
         // TARGET/HOST here, so set them explicitly and silence cargo
         // metadata output.
-        .target(&triple)
-        .host(&triple)
+        .target(target_profile.canonical_triple())
+        .host(target_profile.canonical_triple())
         .cargo_metadata(false)
         // Outside a build script there is no OPT_LEVEL/DEBUG either.
         .opt_level(0)

@@ -37,12 +37,10 @@ use inkwell::attributes::{Attribute, AttributeLoc};
 use inkwell::context::Context;
 use inkwell::module::Module as LlvmModule;
 use inkwell::passes::PassBuilderOptions;
-use inkwell::targets::{
-    CodeModel, FileType, InitializationConfig, RelocMode, Target, TargetMachine,
-};
+use inkwell::targets::{FileType, TargetMachine};
 use inkwell::types::{BasicMetadataTypeEnum, BasicType, BasicTypeEnum, StructType};
 use inkwell::values::{BasicValue, BasicValueEnum, GlobalValue, IntValue, PointerValue, ValueKind};
-use inkwell::{AddressSpace, AtomicOrdering, AtomicRMWBinOp, IntPredicate, OptimizationLevel};
+use inkwell::{AddressSpace, AtomicOrdering, AtomicRMWBinOp, IntPredicate};
 use la_arena::{Arena, Idx};
 use scoop_lir::{
     ArrayType, ArrayTypeId, BinOp, CallableRef, ConstantValue, DispatchEntry, EnumDef, EnumRepr,
@@ -88,8 +86,10 @@ impl std::fmt::Display for CodegenError {
 impl std::error::Error for CodegenError {}
 
 mod c_bridge;
+mod target;
 
 pub use c_bridge::{c_bridge_source, c_layout_assertions};
+pub use target::{LlvmVersion, TargetProfile, TargetProfileId, linked_llvm_version};
 
 fn align_up(value: u64, align: u64) -> u64 {
     debug_assert!(align.is_power_of_two());
@@ -100,10 +100,14 @@ fn array_data_offset(element_align: u64) -> u64 {
     align_up(24, element_align)
 }
 
-/// Translate `module` to LLVM IR and emit an object file at `output`
-/// using the host target.
-pub fn emit_object(module: &Module, output: &Path) -> Result<(), CodegenError> {
-    let machine = host_target_machine()?;
+/// Translate `module` to LLVM IR and emit an object file at `output` using the
+/// complete target profile selected by the driver.
+pub fn emit_object(
+    module: &Module,
+    output: &Path,
+    profile: TargetProfile,
+) -> Result<(), CodegenError> {
+    let machine = profile.create_target_machine()?;
     let context = Context::create();
     let llvm = emit_llvm_module(&context, module, &machine)?;
 
@@ -127,25 +131,16 @@ pub fn emit_object(module: &Module, output: &Path) -> Result<(), CodegenError> {
     Ok(())
 }
 
-/// The host target machine, created up front: array TypeDescriptors
-/// take element size/align from the target's data layout (the same
-/// layout GEP uses), keeping alloc size and element stride consistent.
+/// Test helper for constructing the one supported host profile. Production
+/// code receives a profile selected by the driver.
+#[cfg(test)]
 fn host_target_machine() -> Result<TargetMachine, CodegenError> {
-    Target::initialize_native(&InitializationConfig::default())
-        .map_err(|e| CodegenError(format!("failed to initialize native target: {e}")))?;
     let triple = TargetMachine::get_default_triple();
-    let target = Target::from_triple(&triple)
-        .map_err(|e| CodegenError(format!("no target for host triple: {e}")))?;
-    target
-        .create_target_machine(
-            &triple,
-            "generic",
-            "",
-            OptimizationLevel::None,
-            RelocMode::Default,
-            CodeModel::Default,
-        )
-        .ok_or_else(|| CodegenError("failed to create host target machine".to_string()))
+    let triple = triple
+        .as_str()
+        .to_str()
+        .map_err(|error| CodegenError(format!("host target triple is not UTF-8: {error}")))?;
+    TargetProfile::resolve(triple)?.create_target_machine()
 }
 
 /// Translate `module` to an (unverified) LLVM module: globals,
@@ -158,6 +153,8 @@ fn emit_llvm_module<'ctx>(
     let llvm = context.create_module("scoop");
     let builder = context.create_builder();
     let target_data = machine.get_target_data();
+    llvm.set_triple(&machine.get_triple());
+    llvm.set_data_layout(&target_data.get_data_layout());
 
     let ptr_ty = context.ptr_type(AddressSpace::default());
     let i8_ty = context.i8_type();
