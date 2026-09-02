@@ -4,7 +4,7 @@
 //! selection. This module checks the machine pipeline's final stack-only
 //! contract in the object that will actually be linked.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 use std::slice;
 
@@ -22,6 +22,18 @@ const LOCATION_CONSTANT: u8 = 4;
 const LOCATION_CONSTANT_INDEX: u8 = 5;
 const AARCH64_DWARF_FP: u16 = 29;
 const AARCH64_DWARF_SP: u16 = 31;
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct FunctionRelocation {
+    symbol: String,
+    address: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct TextSection {
+    address: u64,
+    bytes: Vec<u8>,
+}
 
 fn macho_section_name(section: &Section<'_>) -> Result<String, CodegenError> {
     // Mach-O section names are fixed 16-byte fields. LLVM's C object API does
@@ -219,9 +231,116 @@ fn validate_root(
     Ok(())
 }
 
+fn text_instruction(text: &TextSection, pc: u64, what: &str) -> Result<u32, CodegenError> {
+    let offset = pc.checked_sub(text.address).ok_or_else(|| {
+        CodegenError(format!(
+            "AArch64 {what} address {pc:#x} precedes __text at {:#x}",
+            text.address
+        ))
+    })?;
+    let offset = usize::try_from(offset)
+        .map_err(|_| CodegenError(format!("AArch64 {what} offset exceeds usize::MAX")))?;
+    let end = offset.checked_add(4).ok_or_else(|| {
+        CodegenError(format!(
+            "AArch64 {what} instruction range overflows usize::MAX"
+        ))
+    })?;
+    let bytes = text.bytes.get(offset..end).ok_or_else(|| {
+        CodegenError(format!(
+            "AArch64 {what} instruction at {pc:#x} lies outside __text"
+        ))
+    })?;
+    Ok(u32::from_le_bytes(
+        bytes.try_into().expect("four-byte instruction"),
+    ))
+}
+
+fn is_aarch64_call(instruction: u32) -> bool {
+    instruction & 0xfc00_0000 == 0x9400_0000 || instruction & 0xffff_fc1f == 0xd63f_0000
+}
+
+fn is_aarch64_frame_record_store(instruction: u32) -> bool {
+    let is_64_bit_pair = instruction >> 30 == 0b10;
+    let is_pair_instruction = instruction >> 27 & 0b111 == 0b101;
+    let is_integer_pair = instruction >> 26 & 1 == 0;
+    let is_store = instruction >> 22 & 1 == 0;
+    let first = instruction & 0x1f;
+    let base = instruction >> 5 & 0x1f;
+    let second = instruction >> 10 & 0x1f;
+    is_64_bit_pair
+        && is_pair_instruction
+        && is_integer_pair
+        && is_store
+        && first == 29
+        && second == 30
+        && base == 31
+}
+
+fn is_aarch64_frame_pointer_setup(instruction: u32) -> bool {
+    instruction & 0xffc0_03ff == 0x9100_03fd
+}
+
+fn validate_aarch64_frame_chain(
+    text: &TextSection,
+    function: &FunctionRelocation,
+    first_return_pc: u64,
+) -> Result<(), CodegenError> {
+    let mut pc = function.address;
+    let mut frame_record = false;
+    let mut frame_pointer = false;
+    while pc < first_return_pc {
+        let instruction = text_instruction(text, pc, "function prologue")?;
+        frame_record |= is_aarch64_frame_record_store(instruction);
+        frame_pointer |= is_aarch64_frame_pointer_setup(instruction);
+        pc = pc.checked_add(4).ok_or_else(|| {
+            CodegenError(format!(
+                "AArch64 function `{}` address overflows",
+                function.symbol
+            ))
+        })?;
+    }
+    if !frame_record || !frame_pointer {
+        return Err(CodegenError(format!(
+            "managed AArch64 function `{}` does not establish an x29/x30 frame chain before its first statepoint",
+            function.symbol
+        )));
+    }
+    Ok(())
+}
+
+fn validate_aarch64_return_pc(
+    text: &TextSection,
+    function: &FunctionRelocation,
+    instruction_offset: u32,
+    safepoint: u64,
+) -> Result<u64, CodegenError> {
+    if instruction_offset % 4 != 0 {
+        return Err(CodegenError(format!(
+            "SafepointId {safepoint} has unaligned AArch64 instruction offset {instruction_offset}"
+        )));
+    }
+    let return_pc = function
+        .address
+        .checked_add(u64::from(instruction_offset))
+        .ok_or_else(|| CodegenError(format!("SafepointId {safepoint} return PC overflows")))?;
+    let call_pc = return_pc.checked_sub(4).ok_or_else(|| {
+        CodegenError(format!(
+            "SafepointId {safepoint} instruction offset does not name an AArch64 return PC"
+        ))
+    })?;
+    let instruction = text_instruction(text, call_pc, "statepoint callsite")?;
+    if !is_aarch64_call(instruction) {
+        return Err(CodegenError(format!(
+            "SafepointId {safepoint} return PC {return_pc:#x} does not immediately follow an AArch64 bl/blr instruction"
+        )));
+    }
+    Ok(return_pc)
+}
+
 fn parse_stackmaps(
     bytes: &[u8],
-    function_relocations: &BTreeSet<u64>,
+    function_relocations: &BTreeMap<u64, FunctionRelocation>,
+    text: &TextSection,
     expected: &ExpectedSafepoints,
     expected_version: u8,
 ) -> Result<(), CodegenError> {
@@ -249,11 +368,17 @@ fn parse_stackmaps(
     let mut expected_relocations = BTreeSet::new();
     let mut record_sum = 0u64;
     for index in 0..function_count {
-        expected_relocations.insert(
-            u64::try_from(cursor.position()).map_err(|_| {
-                CodegenError("stackmap section offset exceeds u64::MAX".to_string())
-            })?,
-        );
+        let relocation_offset = u64::try_from(cursor.position())
+            .map_err(|_| CodegenError("stackmap section offset exceeds u64::MAX".to_string()))?;
+        expected_relocations.insert(relocation_offset);
+        let function = function_relocations
+            .get(&relocation_offset)
+            .ok_or_else(|| {
+                CodegenError(format!(
+                    "Mach-O stackmap function record {index} has no function-address relocation"
+                ))
+            })?
+            .clone();
         let address = cursor.u64("function address")?;
         let stack_size = cursor.u64("function stack size")?;
         let records = cursor.u64("function record count")?;
@@ -270,11 +395,15 @@ fn parse_stackmaps(
         record_sum = record_sum.checked_add(records).ok_or_else(|| {
             CodegenError("stackmap function record count overflows u64".to_string())
         })?;
-        function_records.push((stack_size, records));
+        function_records.push((function, stack_size, records));
     }
-    if function_relocations != &expected_relocations {
+    let observed_relocations = function_relocations
+        .keys()
+        .copied()
+        .collect::<BTreeSet<_>>();
+    if observed_relocations != expected_relocations {
         return Err(CodegenError(format!(
-            "Mach-O stackmap function-address relocations disagree with its function table: expected {expected_relocations:?}, observed {function_relocations:?}"
+            "Mach-O stackmap function-address relocations disagree with its function table: expected {expected_relocations:?}, observed {observed_relocations:?}"
         )));
     }
     if record_sum != record_count as u64 {
@@ -289,10 +418,17 @@ fn parse_stackmaps(
     }
 
     let mut observed = BTreeSet::new();
-    for (stack_size, function_record_count) in function_records {
+    for (function, stack_size, function_record_count) in function_records {
+        let mut frame_chain_validated = false;
         for _ in 0..function_record_count {
             let safepoint = cursor.u64("record SafepointId")?;
-            let _instruction_offset = cursor.u32("record instruction offset")?;
+            let instruction_offset = cursor.u32("record instruction offset")?;
+            let return_pc =
+                validate_aarch64_return_pc(text, &function, instruction_offset, safepoint)?;
+            if !frame_chain_validated {
+                validate_aarch64_frame_chain(text, &function, return_pc)?;
+                frame_chain_validated = true;
+            }
             let flags = cursor.u16("record flags")?;
             let location_count = usize::from(cursor.u16("record location count")?);
             if safepoint == 0 || flags != 0 || location_count < 3 {
@@ -398,10 +534,23 @@ pub(crate) fn verify_macho_stackmaps(
         .get_sections()
         .ok_or_else(|| CodegenError("emitted Mach-O has no section table".to_string()))?;
     let mut stackmap = None;
+    let mut text = None;
     let mut section_names = Vec::new();
     while let Some(section) = sections.next_section() {
         let name = macho_section_name(&section)?;
         section_names.push(name.clone());
+        if name == "__text" {
+            if text.is_some() {
+                return Err(CodegenError(
+                    "emitted Mach-O contains more than one __text section".to_string(),
+                ));
+            }
+            text = Some(TextSection {
+                address: section.get_address(),
+                bytes: section.get_contents().to_vec(),
+            });
+            continue;
+        }
         if name != STACKMAP_SECTION {
             continue;
         }
@@ -411,7 +560,7 @@ pub(crate) fn verify_macho_stackmaps(
             ));
         }
         let contents = section.get_contents().to_vec();
-        let mut relocation_offsets = BTreeSet::new();
+        let mut function_relocations = BTreeMap::new();
         let mut relocations = section.get_relocations();
         while let Some(relocation) = relocations.next_relocation() {
             let (kind, name) = relocation.get_type();
@@ -422,14 +571,25 @@ pub(crate) fn verify_macho_stackmaps(
                     relocation.get_offset()
                 )));
             }
-            if !relocation_offsets.insert(relocation.get_offset()) {
+            let symbol = relocation.get_symbol();
+            let function = FunctionRelocation {
+                symbol: symbol
+                    .get_name()
+                    .map(|name| name.to_string_lossy().into_owned())
+                    .unwrap_or_else(|| "<unnamed>".to_string()),
+                address: symbol.get_address(),
+            };
+            if function_relocations
+                .insert(relocation.get_offset(), function)
+                .is_some()
+            {
                 return Err(CodegenError(format!(
                     "__llvm_stackmaps repeats relocation offset {}",
                     relocation.get_offset()
                 )));
             }
         }
-        stackmap = Some((contents, relocation_offsets));
+        stackmap = Some((contents, function_relocations));
     }
     let Some((contents, relocations)) = stackmap else {
         if expected.site_count() == 0 {
@@ -444,7 +604,9 @@ pub(crate) fn verify_macho_stackmaps(
             "emitted Mach-O has stackmap records but complete LIR has no safepoints".to_string(),
         ));
     }
-    parse_stackmaps(&contents, &relocations, expected, expected_version).map_err(|error| {
+    let text =
+        text.ok_or_else(|| CodegenError("emitted Mach-O has no __text section".to_string()))?;
+    parse_stackmaps(&contents, &relocations, &text, expected, expected_version).map_err(|error| {
         CodegenError(format!(
             "LLVM 22.1 Darwin/AArch64 stackmap invariant failed: {error}"
         ))
