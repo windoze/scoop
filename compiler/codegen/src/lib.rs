@@ -144,12 +144,7 @@ pub fn emit_object(
 /// code receives a profile selected by the driver.
 #[cfg(test)]
 fn host_target_machine() -> Result<TargetMachine, CodegenError> {
-    let triple = TargetMachine::get_default_triple();
-    let triple = triple
-        .as_str()
-        .to_str()
-        .map_err(|error| CodegenError(format!("host target triple is not UTF-8: {error}")))?;
-    TargetProfile::resolve(triple)?.create_target_machine()
+    TargetProfile::resolve_host()?.create_target_machine()
 }
 
 /// Translate `module` to an (unverified) LLVM module: globals,

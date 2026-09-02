@@ -16,9 +16,7 @@ use super::*;
 mod runtime_collector_tests;
 
 fn host_profile() -> TargetProfile {
-    let triple = TargetMachine::get_default_triple();
-    TargetProfile::resolve(triple.as_str().to_str().expect("UTF-8 host triple"))
-        .expect("supported host target")
+    TargetProfile::resolve_host().expect("supported host target")
 }
 
 fn host_managed_address_space() -> ManagedAddressSpace {

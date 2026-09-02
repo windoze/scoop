@@ -3,7 +3,6 @@ use std::collections::BTreeMap;
 use inkwell::context::Context;
 use inkwell::memory_buffer::MemoryBuffer;
 use inkwell::module::Module;
-use inkwell::targets::TargetMachine;
 use scoop_lir::{CallerRootSource, GcEffect};
 
 use super::{
@@ -16,9 +15,7 @@ fn verify_rewritten(
     module: &Module<'_>,
     expected: &ExpectedSafepoints,
 ) -> Result<(), CodegenError> {
-    let triple = TargetMachine::get_default_triple();
-    let profile = TargetProfile::resolve(triple.as_str().to_str().expect("UTF-8 host triple"))
-        .expect("supported host target");
+    let profile = TargetProfile::resolve_host().expect("supported host target");
     verify_rewritten_with_profile(module, expected, profile)
 }
 

@@ -179,6 +179,18 @@ impl TargetProfile {
         }
     }
 
+    /// Resolve LLVM's canonical host triple through the same closed registry
+    /// used for explicit triples. The driver does not reconstruct target
+    /// identity from Rust host constants.
+    pub fn resolve_host() -> Result<Self, CodegenError> {
+        let triple = TargetMachine::get_default_triple();
+        let triple = triple
+            .as_str()
+            .to_str()
+            .map_err(|error| CodegenError(format!("host target triple is not UTF-8: {error}")))?;
+        Self::resolve(triple)
+    }
+
     pub fn id(self) -> TargetProfileId {
         self.id
     }
@@ -436,6 +448,14 @@ mod tests {
                 .to_str()
                 .expect("UTF-8 triple"),
             profile.canonical_triple()
+        );
+    }
+
+    #[test]
+    fn llvm_host_identity_resolves_through_the_target_registry() {
+        assert_eq!(
+            TargetProfile::resolve_host().expect("supported host profile"),
+            TargetProfile::DARWIN_AARCH64
         );
     }
 }

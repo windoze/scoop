@@ -63,7 +63,7 @@ pub fn compile_file_with_options(
     out_dir: &Path,
     options: &CompileOptions,
 ) -> Result<CompileSuccess, Vec<Diagnostic>> {
-    let target_profile = scoop_codegen::TargetProfile::resolve(&host_triple())
+    let target_profile = scoop_codegen::TargetProfile::resolve_host()
         .map_err(|error| vec![no_span(0, format!("target configuration failed: {error}"))])?;
     let inputs = load_inputs(path)?;
     let user_index = inputs.len() - 1;
@@ -414,18 +414,6 @@ fn build_runtime(
             )]
         })?;
     Ok(out_dir.join("libscoop_rt.a"))
-}
-
-/// Host target triple, derived from the platform the driver runs on.
-/// Cross-compilation is out of scope for M1.
-fn host_triple() -> String {
-    let arch = std::env::consts::ARCH;
-    match std::env::consts::OS {
-        "macos" => format!("{arch}-apple-darwin"),
-        "linux" => format!("{arch}-unknown-linux-gnu"),
-        "windows" => format!("{arch}-pc-windows-msvc"),
-        other => format!("{arch}-unknown-{other}"),
-    }
 }
 
 /// Link the object file and the runtime static library into an executable
