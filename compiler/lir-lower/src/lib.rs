@@ -151,7 +151,7 @@ pub fn lower(module: &mir::Module) -> lir::Module {
     // Struct ids also transpose 1:1. Their definitions retain the exact
     // physical layout needed by codegen and C bridge generation.
     let structs = lower_structs(module, &enums);
-    let extern_functions = lower_extern_functions(module);
+    let (extern_functions, extern_function_refs) = lower_extern_functions(module);
     let (storage_globals, native_globals, native_global_bridges) =
         lower_globals(module, &mut globals, &structs, &enums);
     let callback_bridges = lower_callback_bridges(module);
@@ -196,6 +196,7 @@ pub fn lower(module: &mir::Module) -> lir::Module {
                 &array_type_map,
                 &type_descriptor_refs,
                 &local_function_map,
+                &extern_function_refs,
                 &mut safepoint_ids,
             )
         })
@@ -374,41 +375,57 @@ fn lower_constant(value: &mir::ConstantValue) -> lir::ConstantValue {
     }
 }
 
-fn lower_extern_functions(module: &mir::Module) -> Arena<lir::ExternFunction> {
-    let mut functions = Arena::new();
+#[derive(Clone, Copy)]
+enum LoweredExternFunctionRef {
+    C(lir::CExternFunctionRef),
+    Scoop(lir::ScoopExternFunctionRef),
+}
+
+fn lower_extern_functions(
+    module: &mir::Module,
+) -> (
+    lir::ExternFunctions,
+    HashMap<mir::ExternFunctionId, LoweredExternFunctionRef>,
+) {
+    let mut functions = lir::ExternFunctions::default();
+    let mut references = HashMap::new();
     for (id, extern_) in module.extern_functions.iter() {
-        let params = extern_.params.iter().map(lir_type).collect::<Vec<_>>();
-        let return_type = lir_type(&extern_.return_type);
-        let kind = match extern_.abi {
-            mir::ExternAbi::C => lir::ExternFunctionKind::C {
-                bridge_symbol: format!("scoop_c_bridge_{}", id.into_raw().into_u32()),
-                params: extern_
-                    .params
-                    .iter()
-                    .map(|ty| c_ffi_type(module, ty))
-                    .collect(),
-                return_type: c_ffi_type(module, &extern_.return_type),
-            },
-            mir::ExternAbi::Scoop => lir::ExternFunctionKind::Scoop {
-                gc_effect: match extern_.gc_effect {
-                    mir::GcEffect::Managed => lir::GcEffect::Managed,
-                    mir::GcEffect::NoGc => lir::GcEffect::NoGc,
-                },
-            },
-        };
-        functions.alloc(lir::ExternFunction {
+        let declaration = lir::ExternFunctionDeclaration {
             source_name: extern_.source_name.clone(),
             native_symbol: extern_.native_symbol.clone(),
             library: extern_.library.clone(),
             calling_convention: match extern_.calling_convention {
                 mir::CallingConvention::Cdecl => lir::CallingConvention::Cdecl,
             },
-            params,
-            return_type,
-            kind,
-        });
+            params: extern_.params.iter().map(lir_type).collect(),
+            return_type: lir_type(&extern_.return_type),
+        };
+        let reference = match extern_.abi {
+            mir::ExternAbi::C => LoweredExternFunctionRef::C(
+                functions.alloc_c(lir::CExternFunction {
+                    declaration,
+                    bridge_symbol: format!("scoop_c_bridge_{}", id.into_raw().into_u32()),
+                    params: extern_
+                        .params
+                        .iter()
+                        .map(|ty| c_ffi_type(module, ty))
+                        .collect(),
+                    return_type: c_ffi_type(module, &extern_.return_type),
+                }),
+            ),
+            mir::ExternAbi::Scoop => {
+                LoweredExternFunctionRef::Scoop(functions.alloc_scoop(lir::ScoopExternFunction {
+                    declaration,
+                    gc_effect: match extern_.gc_effect {
+                        mir::GcEffect::Managed => lir::GcEffect::Managed,
+                        mir::GcEffect::NoGc => lir::GcEffect::NoGc,
+                    },
+                }))
+            }
+        };
+        references.insert(id, reference);
     }
-    functions
+    (functions, references)
 }
 
 fn c_ffi_type(module: &mir::Module, ty: &mir::Type) -> lir::CType {
@@ -483,8 +500,12 @@ fn lower_runtime_function(function: mir::RuntimeFn) -> lir::RuntimeFunction {
 enum CallProtocol {
     Managed,
     NoGc,
-    NativeSafe,
-    NativeBorrowed,
+}
+
+#[derive(Clone, Copy)]
+enum NativeCallDestination {
+    Safe(lir::NativeSafeCallDestination),
+    Borrowed(lir::NativeBorrowedCallDestination),
 }
 
 /// A fully typed call shape before its protocol-specific destination is bound.
@@ -598,6 +619,7 @@ fn lower_function<'a>(
     array_types: &'a HashMap<mir::ClassId, lir::ArrayTypeId>,
     type_descriptors: &'a TypeDescriptorRefs,
     local_function_map: &'a HashMap<mir::FunctionId, lir::LocalFunctionId>,
+    extern_function_refs: &'a HashMap<mir::ExternFunctionId, LoweredExternFunctionRef>,
     safepoint_ids: &'a mut safepoints::SafepointIds,
 ) -> lir::Function {
     // Parameters stay SSA values unless `addressOf` requires stable storage.
@@ -665,6 +687,7 @@ fn lower_function<'a>(
         array_types,
         type_descriptors,
         local_function_map,
+        extern_function_refs,
         safepoint_ids,
         local_map,
         locals,
@@ -757,6 +780,7 @@ struct FunctionLowerer<'a> {
     /// Complete typed TypeDescriptor graph built before body lowering.
     type_descriptors: &'a TypeDescriptorRefs,
     local_function_map: &'a HashMap<mir::FunctionId, lir::LocalFunctionId>,
+    extern_function_refs: &'a HashMap<mir::ExternFunctionId, LoweredExternFunctionRef>,
     safepoint_ids: &'a mut safepoints::SafepointIds,
     local_map: HashMap<mir::LocalId, LocalSlot>,
     locals: Arena<lir::Local>,
@@ -1951,14 +1975,21 @@ impl<'a> FunctionLowerer<'a> {
                     call: bind_typed_call(&mut self.call_targets.no_gc_targets, destination, call),
                 })
             }
-            CallProtocol::NativeSafe => {
+        }
+    }
+
+    fn native_call_site(
+        &mut self,
+        destination: NativeCallDestination,
+        call: PendingTypedCall,
+    ) -> lir::CallSite {
+        match destination {
+            NativeCallDestination::Safe(destination) => {
                 assert_eq!(
                     call.result_scan(&self.call_targets),
                     &lir::RefScan::None,
                     "native-safe C ABI results must be GC-free"
                 );
-                let destination = lir::NativeSafeCallDestination::from_view(destination)
-                    .expect("native-safe protocol requires a C extern destination");
                 lir::CallSite::NativeSafe(lir::NativeSafeCallSite {
                     call: bind_typed_call(
                         &mut self.call_targets.native_safe_targets,
@@ -1969,7 +2000,7 @@ impl<'a> FunctionLowerer<'a> {
                     roots: lir::NativeSafeRootSet::default(),
                 })
             }
-            CallProtocol::NativeBorrowed => {
+            NativeCallDestination::Borrowed(destination) => {
                 let result_scan = call.result_scan(&self.call_targets).clone();
                 let result = match lir::NonEmptyRefScan::new(result_scan) {
                     None => lir::NativeBorrowedResultRoot::GcFree,
@@ -1989,8 +2020,6 @@ impl<'a> FunctionLowerer<'a> {
                         lir::NativeBorrowedResultRoot::Rooted { storage, scan }
                     }
                 };
-                let destination = lir::NativeBorrowedCallDestination::from_view(destination)
-                    .expect("native-borrowed protocol requires a Scoop extern destination");
                 lir::CallSite::NativeBorrowed(lir::NativeBorrowedCallSite {
                     call: bind_typed_call(
                         &mut self.call_targets.native_borrowed_targets,
@@ -2036,9 +2065,6 @@ impl<'a> FunctionLowerer<'a> {
                     normal,
                     unwind,
                 })
-            }
-            CallProtocol::NativeSafe | CallProtocol::NativeBorrowed => {
-                unreachable!("native calls cannot unwind into managed code")
             }
         }
     }
@@ -2102,26 +2128,20 @@ impl<'a> FunctionLowerer<'a> {
 
     fn emit_native_call(
         &mut self,
-        destination: lir::CallDestination,
-        protocol: CallProtocol,
+        destination: NativeCallDestination,
         parameter_types: Vec<lir::LirType>,
         result_type: lir::LirType,
         args: Vec<lir::Value>,
     ) -> lir::Value {
-        assert!(matches!(
-            protocol,
-            CallProtocol::NativeSafe | CallProtocol::NativeBorrowed
-        ));
         let (call, value) = self.typed_call(parameter_types, result_type, args);
-        let site = self.call_site(destination, protocol, call);
+        let site = self.native_call_site(destination, call);
         self.push(lir::Instruction::Call { site });
         value.unwrap_or_else(|| self.unit_value())
     }
 
     fn emit_native_storage_call(
         &mut self,
-        destination: lir::CallDestination,
-        protocol: CallProtocol,
+        destination: NativeCallDestination,
         parameter_types: Vec<lir::LirType>,
         result_type: lir::LirType,
         result_scan: lir::RefScan,
@@ -2146,7 +2166,7 @@ impl<'a> FunctionLowerer<'a> {
             storage,
             args,
         };
-        let site = self.call_site(destination, protocol, call);
+        let site = self.native_call_site(destination, call);
         self.push(lir::Instruction::Call { site });
         lir::Value::Local(storage)
     }
@@ -2164,10 +2184,11 @@ impl<'a> FunctionLowerer<'a> {
                     .iter()
                     .map(|arg| self.lower_expr(arg))
                     .collect::<Vec<_>>();
-                let function = lir::ExternFunctionId::from_raw(id.into_raw());
-                let destination = lir::CallDestination::Extern(function);
-                match extern_.abi {
-                    mir::ExternAbi::C => {
+                match self.extern_function_refs[&id] {
+                    LoweredExternFunctionRef::C(function) => {
+                        let destination = NativeCallDestination::Safe(
+                            lir::NativeSafeCallDestination::extern_function(function),
+                        );
                         let mut bridge_args = Vec::with_capacity(args.len());
                         for (value, ty) in args.into_iter().zip(parameter_types) {
                             let ty = self.value_type(&ty);
@@ -2184,7 +2205,6 @@ impl<'a> FunctionLowerer<'a> {
                         if returns_unit {
                             self.emit_native_call(
                                 destination,
-                                CallProtocol::NativeSafe,
                                 bridge_parameter_types,
                                 lir::LirType::Void,
                                 bridge_args,
@@ -2193,7 +2213,6 @@ impl<'a> FunctionLowerer<'a> {
                             let result_type = self.value_type(result_ty);
                             self.emit_native_storage_call(
                                 destination,
-                                CallProtocol::NativeSafe,
                                 bridge_parameter_types,
                                 result_type,
                                 lir::RefScan::None,
@@ -2201,7 +2220,10 @@ impl<'a> FunctionLowerer<'a> {
                             )
                         }
                     }
-                    mir::ExternAbi::Scoop => {
+                    LoweredExternFunctionRef::Scoop(function) => {
+                        let destination = NativeCallDestination::Borrowed(
+                            lir::NativeBorrowedCallDestination::extern_function(function),
+                        );
                         let parameter_types = parameter_types
                             .iter()
                             .map(|ty| self.value_type(ty))
@@ -2211,13 +2233,7 @@ impl<'a> FunctionLowerer<'a> {
                         } else {
                             self.value_type(result_ty)
                         };
-                        self.emit_native_call(
-                            destination,
-                            CallProtocol::NativeBorrowed,
-                            parameter_types,
-                            result_type,
-                            args,
-                        )
+                        self.emit_native_call(destination, parameter_types, result_type, args)
                     }
                 }
             }

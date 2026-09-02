@@ -40,9 +40,9 @@ use inkwell::{AddressSpace, AtomicOrdering, AtomicRMWBinOp, IntPredicate};
 use la_arena::{Arena, Idx};
 use scoop_lir::{
     ArrayType, ArrayTypeId, BinOp, CallableRef, ConstantValue, DispatchEntry, EnumDef, EnumRepr,
-    ExternFunction, ExternFunctionKind, Function, Global, GlobalInit, Instruction, LirType, Module,
-    NativeGlobal, RefScan, StructDef, TempId, Terminator, TypeDescriptor, TypeDescriptorRef,
-    TypeDescriptorScan, UnOp, Value,
+    ExternFunctionKind, ExternFunctions, Function, Global, GlobalInit, Instruction, LirType,
+    Module, NativeGlobal, RefScan, StructDef, TempId, Terminator, TypeDescriptor,
+    TypeDescriptorRef, TypeDescriptorScan, UnOp, Value,
 };
 
 const SCAN_ARRAY: u64 = u64::MAX;
@@ -790,7 +790,7 @@ struct FnEmitter<'a, 'ctx> {
     functions: &'a [Function],
     structs: &'a Arena<StructDef>,
     enums: &'a Arena<EnumDef>,
-    extern_functions: &'a Arena<ExternFunction>,
+    extern_functions: &'a ExternFunctions,
     native_globals: &'a Arena<NativeGlobal>,
     native_global_bridges: &'a scoop_lir::NativeGlobalBridges,
     foreign_callback_bridges: &'a Arena<scoop_lir::ForeignCallbackBridge>,
@@ -4440,7 +4440,7 @@ struct ModuleCtx<'a, 'ctx> {
     functions: &'a [Function],
     structs: &'a Arena<StructDef>,
     enums: &'a Arena<EnumDef>,
-    extern_functions: &'a Arena<ExternFunction>,
+    extern_functions: &'a ExternFunctions,
     native_globals: &'a Arena<NativeGlobal>,
     native_global_bridges: &'a scoop_lir::NativeGlobalBridges,
     foreign_callback_bridges: &'a Arena<scoop_lir::ForeignCallbackBridge>,
