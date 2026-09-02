@@ -5,6 +5,7 @@
 //! the mechanical LIR-to-LLVM lowering.
 
 use std::fmt;
+use std::path::Path;
 
 use inkwell::OptimizationLevel;
 use inkwell::llvm_sys::core::LLVMGetVersion;
@@ -12,7 +13,8 @@ use inkwell::targets::{
     CodeModel, InitializationConfig, RelocMode, Target, TargetMachine, TargetTriple,
 };
 
-use crate::CodegenError;
+use crate::statepoint::ExpectedSafepoints;
+use crate::{CodegenError, artifact};
 
 const REQUIRED_LLVM_MAJOR: u32 = 22;
 const REQUIRED_LLVM_MINOR: u32 = 1;
@@ -167,6 +169,21 @@ impl TargetProfile {
 
     pub(crate) fn create_target_machine(self) -> Result<TargetMachine, CodegenError> {
         self.create_target_machine_with_optimization(self.optimization)
+    }
+
+    /// Validate the emitted object through the artifact contract selected by
+    /// this complete profile. Generic codegen never chooses an object format
+    /// or stack-map decoder on its own.
+    pub(crate) fn verify_object(
+        self,
+        path: &Path,
+        expected: &ExpectedSafepoints,
+    ) -> Result<(), CodegenError> {
+        match (self.object_format, self.statepoint_roots) {
+            (ObjectFormat::MachO64, StatepointRootPolicy::StackIndirectOnly) => {
+                artifact::verify_macho_stackmaps(path, expected, self.stack_map_version)
+            }
+        }
     }
 
     #[cfg(test)]

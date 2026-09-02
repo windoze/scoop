@@ -16,7 +16,6 @@ use crate::CodegenError;
 use crate::statepoint::ExpectedSafepoints;
 
 const STACKMAP_SECTION: &str = "__llvm_stackmaps";
-const STACKMAP_VERSION: u8 = 3;
 const LOCATION_REGISTER: u8 = 1;
 const LOCATION_INDIRECT: u8 = 3;
 const LOCATION_CONSTANT: u8 = 4;
@@ -224,12 +223,13 @@ fn parse_stackmaps(
     bytes: &[u8],
     function_relocations: &BTreeSet<u64>,
     expected: &ExpectedSafepoints,
+    expected_version: u8,
 ) -> Result<(), CodegenError> {
     let mut cursor = Cursor::new(bytes);
     let version = cursor.u8("version")?;
-    if version != STACKMAP_VERSION {
+    if version != expected_version {
         return Err(CodegenError(format!(
-            "LLVM emitted stackmap version {version}, expected {STACKMAP_VERSION}"
+            "LLVM emitted stackmap version {version}, expected {expected_version}"
         )));
     }
     cursor.zero(3, "header reserved bytes")?;
@@ -372,6 +372,7 @@ fn parse_stackmaps(
 pub(crate) fn verify_macho_stackmaps(
     path: &Path,
     expected: &ExpectedSafepoints,
+    expected_version: u8,
 ) -> Result<(), CodegenError> {
     let memory = MemoryBuffer::create_from_file(path).map_err(|error| {
         CodegenError(format!(
@@ -443,7 +444,7 @@ pub(crate) fn verify_macho_stackmaps(
             "emitted Mach-O has stackmap records but complete LIR has no safepoints".to_string(),
         ));
     }
-    parse_stackmaps(&contents, &relocations, expected).map_err(|error| {
+    parse_stackmaps(&contents, &relocations, expected, expected_version).map_err(|error| {
         CodegenError(format!(
             "LLVM 22.1 Darwin/AArch64 stackmap invariant failed: {error}"
         ))

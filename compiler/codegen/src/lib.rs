@@ -127,7 +127,7 @@ pub fn emit_object(
     machine
         .write_to_file(&llvm, FileType::Object, output)
         .map_err(|e| CodegenError(format!("failed to write {}: {e}", output.display())))?;
-    if let Err(error) = artifact::verify_macho_stackmaps(output, &expected_safepoints) {
+    if let Err(error) = profile.verify_object(output, &expected_safepoints) {
         if let Err(remove_error) = std::fs::remove_file(output) {
             return Err(CodegenError(format!(
                 "{error}; also failed to discard invalid object {}: {remove_error}",

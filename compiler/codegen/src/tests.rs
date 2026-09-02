@@ -2542,7 +2542,8 @@ fn statepoints_and_stackmaps_are_emitted_at_o0_and_o2() {
         machine
             .write_to_file(&llvm, FileType::Object, &output)
             .expect("write object");
-        artifact::verify_macho_stackmaps(&output, &expected)
+        profile
+            .verify_object(&output, &expected)
             .unwrap_or_else(|error| panic!("{name}: {error}"));
         std::fs::remove_file(&output).ok();
     }
