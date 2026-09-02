@@ -239,11 +239,10 @@ void scoop_rt_gc_init(void);
 bool scoop_rt_attach_foreign_thread(void);
 void scoop_rt_detach_foreign_thread(void);
 
-/* Register a global root (runtime spec 3.3): `slot` is the address of
- * a variable holding an object pointer (or null); it is re-read at
- * every collection. Values pointing outside the GC heap (e.g. static
- * string literals) are ignored. v1 has no removal API (conservative;
- * roots live as long as the process). */
+/* Register a process-lifetime writable root slot (runtime spec 3.3). The
+ * collector re-reads and rewrites it at every collection. Its value must be
+ * null, a current GC object start, or an exactly registered stable object;
+ * every other address is fatal. There is deliberately no removal API. */
 void scoop_rt_gc_add_root(void **slot);
 
 /* Register an object-like region outside the GC heap as a root: its

@@ -11,6 +11,9 @@ use scoop_lir::{
 
 use super::*;
 
+#[path = "runtime_collector_tests.rs"]
+mod runtime_collector_tests;
+
 fn host_profile() -> TargetProfile {
     let triple = TargetMachine::get_default_triple();
     TargetProfile::resolve(triple.as_str().to_str().expect("UTF-8 host triple"))
