@@ -110,6 +110,8 @@ pub struct TargetProfile {
     frame_pointers: FramePointerPolicy,
     tail_calls: TailCallPolicy,
     runtime_sources: &'static [&'static str],
+    runtime_c_flags: &'static [&'static str],
+    linker_args: &'static [&'static str],
 }
 
 impl TargetProfile {
@@ -147,6 +149,12 @@ impl TargetProfile {
             "runtime/src/platform/arch/aarch64_anchor.S",
             "runtime/src/platform/os/darwin.c",
         ],
+        runtime_c_flags: &[
+            "-pthread",
+            "-fno-omit-frame-pointer",
+            "-fno-optimize-sibling-calls",
+        ],
+        linker_args: &["-pthread", "-lc++abi"],
     };
 
     /// Resolve a user/host triple to the one target profile supported by M15.
@@ -212,6 +220,16 @@ impl TargetProfile {
     /// Runtime implementation files selected by this target profile.
     pub fn runtime_sources(self) -> &'static [&'static str] {
         self.runtime_sources
+    }
+
+    /// Mandatory C compiler flags for this profile's runtime source bundle.
+    pub fn runtime_c_flags(self) -> &'static [&'static str] {
+        self.runtime_c_flags
+    }
+
+    /// Mandatory target/platform arguments for the final system link.
+    pub fn linker_args(self) -> &'static [&'static str] {
+        self.linker_args
     }
 
     pub(crate) fn create_target_machine(self) -> Result<TargetMachine, CodegenError> {
@@ -357,6 +375,15 @@ mod tests {
             assert_eq!(profile.canonical_triple(), "aarch64-apple-darwin");
             assert_eq!(profile.managed_address_space(), 1);
             assert_eq!(profile.stack_map_version(), 3);
+            assert_eq!(
+                profile.runtime_c_flags(),
+                [
+                    "-pthread",
+                    "-fno-omit-frame-pointer",
+                    "-fno-optimize-sibling-calls",
+                ]
+            );
+            assert_eq!(profile.linker_args(), ["-pthread", "-lc++abi"]);
             assert_eq!(
                 profile.runtime_sources(),
                 [

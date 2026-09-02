@@ -136,6 +136,8 @@ codegen 不再直接使用一个无约束的 `host_target_machine()`。driver �
 
 profile 是 codegen 和 runtime build 的唯一平台选择入口。其字段是非可选 capability，不以 `Option` 表示“该平台也许支持”；registry 不能构造能力残缺的 profile。新增平台在 registry 增加 canonical triple 映射，复用已有组件并只实现缺失组件；pointer lowering、collector、thread handshake 等消费者只读取 profile 能力，不增加 target 判断。
 
+runtime source set、强制C编译flags与最终linker args同样属于profile。driver必须把C bridge、runtime archive和最终链接都显式绑定到profile的canonical target；关键frame/thread/ABI选项不得以`flag_if_supported`静默跳过，也不得在通用driver中写死某个平台的`-pthread`、C++ ABI库或同类参数。
+
 ### 4.2 runtime platform interface
 
 建议模块结构：

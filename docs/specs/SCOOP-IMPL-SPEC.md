@@ -120,7 +120,7 @@ M14还允许registry批准的core struct/class使用`@Intrinsic`省略源码repr
 只接收**本 Cone** 的 LIR output，负责：
 
 - 将 LIR output 机械翻译成目标 IR（本阶段为 LLVM IR），然后用 LLVM 编译成 `.o`；
-- 只从driver给出的opaque typed target profile创建TargetMachine。M15的`DarwinAarch64` profile完整给出canonical triple/data layout、resolved CPU/features、relocation/code model、deployment/link配置、managed address space=1、LLVM 22.1 SelectionDAG/标准TargetMachine pipeline、stack-only statepoint root policy、stack-map v3 location capability、`frame-pointer=all`、disable-tail-calls、Mach-O object format及runtime platform bundle/source set；除target registry外，codegen不得match profile identity或散布host OS/arch条件，只读取完备capability；
+- 只从driver给出的opaque typed target profile创建TargetMachine。M15的`DarwinAarch64` profile完整给出canonical triple/data layout、resolved CPU/features、relocation/code model、deployment/link配置、managed address space=1、LLVM 22.1 SelectionDAG/标准TargetMachine pipeline、stack-only statepoint root policy、stack-map v3 location capability、`frame-pointer=all`、disable-tail-calls、Mach-O object format、runtime platform bundle/source set、强制runtime C flags及最终linker args；C bridge、runtime archive和最终链接都显式使用该profile的canonical target，关键flag不允许以`flag_if_supported`静默省略。除target registry外，codegen/driver不得match profile identity或散布host OS/arch条件，只读取完备capability；
 - 生成每个具体类型的 `TypeDescriptor`（runtime spec 2.2：类型标识、实例大小、递归引用扫描描述、父类型与普通vtable/itable）；`Any`没有方法或固定槽，TypeDescriptor不含通用equals/hash/toString入口；
 - 展开登记表中归属 codegen 的 `@Intrinsic`（见 2.10）；
 - 普通（非 suspend）extern 声明的符号发射与 calling convention 属性（spec 13.4）、`addressOf` 的 lvalue 语义（spec 13.10）；C ABI生成/编译 storage bridge，Scoop ABI直接发射 managed external call并接受 direct ref。codegen 依赖 HIR 已排除 suspend extern，不识别或发射 hidden continuation FFI ABI。

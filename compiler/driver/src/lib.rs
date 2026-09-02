@@ -148,7 +148,7 @@ pub fn compile_file_with_options(
                     format!("cannot write C bridge {}: {error}", source_path.display()),
                 )]
             })?;
-            compile_c_bridge(&source_path, &object_path, user_index)?;
+            compile_c_bridge(&source_path, &object_path, target_profile, user_index)?;
             Some(object_path)
         }
         None => None,
@@ -166,15 +166,16 @@ pub fn compile_file_with_options(
             libraries.push(global.library.clone());
         }
     }
-    link(
-        &object,
-        bridge_object.as_deref(),
-        &runtime_lib,
-        &libraries,
-        &options.library_paths,
-        &binary,
-        user_index,
-    )?;
+    link(LinkRequest {
+        object: &object,
+        bridge_object: bridge_object.as_deref(),
+        runtime_lib: &runtime_lib,
+        libraries: &libraries,
+        library_paths: &options.library_paths,
+        binary: &binary,
+        target_profile,
+        file: user_index,
+    })?;
 
     Ok(CompileSuccess {
         dumps: StageDumps {
@@ -187,8 +188,15 @@ pub fn compile_file_with_options(
     })
 }
 
-fn compile_c_bridge(source: &Path, object: &Path, file: usize) -> Result<(), Vec<Diagnostic>> {
+fn compile_c_bridge(
+    source: &Path,
+    object: &Path,
+    target_profile: scoop_codegen::TargetProfile,
+    file: usize,
+) -> Result<(), Vec<Diagnostic>> {
     let output = Command::new("cc")
+        .arg("-target")
+        .arg(target_profile.canonical_triple())
         .arg("-std=c11")
         .arg("-c")
         .arg(source)
@@ -383,11 +391,11 @@ fn build_runtime(
     for source in target_profile.runtime_sources() {
         build.file(root.join(source));
     }
+    build.include(root.join("runtime/include"));
+    for flag in target_profile.runtime_c_flags() {
+        build.flag(flag);
+    }
     build
-        .include(root.join("runtime/include"))
-        .flag_if_supported("-pthread")
-        .flag_if_supported("-fno-omit-frame-pointer")
-        .flag_if_supported("-fno-optimize-sibling-calls")
         .out_dir(&out_dir)
         // The driver is not a build script: cargo does not provide
         // TARGET/HOST here, so set them explicitly and silence cargo
@@ -422,16 +430,32 @@ fn host_triple() -> String {
 
 /// Link the object file and the runtime static library into an executable
 /// using the system `cc` driver.
-fn link(
-    object: &Path,
-    bridge_object: Option<&Path>,
-    runtime_lib: &Path,
-    libraries: &[String],
-    library_paths: &[PathBuf],
-    binary: &Path,
+struct LinkRequest<'a> {
+    object: &'a Path,
+    bridge_object: Option<&'a Path>,
+    runtime_lib: &'a Path,
+    libraries: &'a [String],
+    library_paths: &'a [PathBuf],
+    binary: &'a Path,
+    target_profile: scoop_codegen::TargetProfile,
     file: usize,
-) -> Result<(), Vec<Diagnostic>> {
+}
+
+fn link(request: LinkRequest<'_>) -> Result<(), Vec<Diagnostic>> {
+    let LinkRequest {
+        object,
+        bridge_object,
+        runtime_lib,
+        libraries,
+        library_paths,
+        binary,
+        target_profile,
+        file,
+    } = request;
     let mut command = Command::new("cc");
+    command
+        .arg("-target")
+        .arg(target_profile.canonical_triple());
     command.arg(object);
     if let Some(bridge_object) = bridge_object {
         command.arg(bridge_object);
@@ -443,13 +467,8 @@ fn link(
     for library in libraries {
         command.arg(format!("-l{library}"));
     }
+    command.args(target_profile.linker_args());
     let output = command
-        // M13 thread registration, STW coordination and foreign callbacks use
-        // the host POSIX pthread runtime.
-        .arg("-pthread")
-        // M8 exceptions: the runtime and generated landing pads call
-        // the Itanium C++ ABI (`__cxa_*`, personality; runtime spec 5).
-        .arg("-lc++abi")
         .arg("-o")
         .arg(binary)
         .output()
