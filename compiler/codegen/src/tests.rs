@@ -1,19 +1,125 @@
+use inkwell::OptimizationLevel;
+use inkwell::targets::FileType;
 use la_arena::Arena;
 use scoop_lir::{
-    BasicBlock, CallDestination, CallEffect, CallSite, CallTargets, DirectCallSignature,
-    DirectCallTarget, DispatchKind, DispatchSlot, EnumDef, EnumFieldRepr, EnumRepr,
-    EnumVariantRepr, Global, GlobalInit, IndirectResultCallSignature, IndirectResultCallTarget,
-    ItableRecord, Layout, LayoutKind, LirMeta, Local, MANAGED_PTR, METADATA_PTR, PointerKind,
-    RAW_PTR, ResultStorage, Temp, TypeDescriptor, TypeDescriptorRef, TypeDescriptorScan,
-    VoidCallSignature, VoidCallTarget, WellKnownLayouts, WellKnownTypeDescriptors,
+    BasicBlock, CallDestination, CallSite, CallTargets, DirectCallSignature, DispatchKind,
+    DispatchSlot, EnumDef, EnumFieldRepr, EnumRepr, EnumVariantRepr, GcEffect, Global, GlobalInit,
+    IndirectResultCallSignature, ItableRecord, Layout, LayoutKind, LirMeta, Local, MANAGED_PTR,
+    METADATA_PTR, NativeBorrowedResultRoot, PointerKind, RAW_PTR, ResultStorage, Temp,
+    TypeDescriptor, TypeDescriptorRef, TypeDescriptorScan, TypedCall, VoidCallSignature,
+    WellKnownLayouts, WellKnownTypeDescriptors,
 };
 
 use super::*;
 
+#[path = "runtime_collector_tests.rs"]
+mod runtime_collector_tests;
+
+fn host_profile() -> TargetProfile {
+    TargetProfile::resolve_host().expect("supported host target")
+}
+
+fn host_managed_address_space() -> ManagedAddressSpace {
+    host_profile().managed_address_space_contract()
+}
+
+enum TestCallProtocol {
+    Managed(u64),
+    NoGc,
+    NativeSafe(u64),
+    NativeBorrowed {
+        safepoint: u64,
+        result: NativeBorrowedResultRoot,
+    },
+}
+
+fn test_safepoint(raw: u64) -> scoop_lir::SafepointId {
+    scoop_lir::SafepointId::new(raw).expect("test safepoint ids are non-zero")
+}
+
+fn statepoint_value(
+    source: scoop_lir::CallerRootSource,
+    ty: LirType,
+    offsets: &[u64],
+) -> scoop_lir::StatepointLiveValue {
+    scoop_lir::StatepointLiveValue {
+        source,
+        ty,
+        leaves: scoop_lir::ManagedLeafPaths::new(
+            offsets
+                .iter()
+                .copied()
+                .map(|byte_offset| scoop_lir::ManagedLeafPath { byte_offset })
+                .collect(),
+        )
+        .expect("test roots have at least one sorted managed leaf"),
+    }
+}
+
+fn statepoint_live(values: Vec<scoop_lir::StatepointLiveValue>) -> scoop_lir::StatepointLiveSet {
+    scoop_lir::StatepointLiveSet::new(values).expect("test roots are source ordered and unique")
+}
+
+fn set_managed_live(site: &mut CallSite, live: scoop_lir::StatepointLiveSet) {
+    let CallSite::Managed(site) = site else {
+        panic!("test root plan requires a managed call site")
+    };
+    site.live = live;
+}
+
+fn protocol_site(
+    targets: &mut CallTargets,
+    destination: CallDestination,
+    protocol: TestCallProtocol,
+    call: TypedCall,
+) -> CallSite {
+    match protocol {
+        TestCallProtocol::Managed(safepoint) => {
+            let target = targets
+                .managed_targets
+                .alloc(scoop_lir::ManagedTarget { destination });
+            CallSite::Managed(scoop_lir::ManagedCallSite {
+                target,
+                call,
+                safepoint: test_safepoint(safepoint),
+                live: scoop_lir::StatepointLiveSet::default(),
+            })
+        }
+        TestCallProtocol::NoGc => {
+            let target = targets
+                .no_gc_targets
+                .alloc(scoop_lir::NoGcTarget { destination });
+            CallSite::NoGc(scoop_lir::NoGcCallSite { target, call })
+        }
+        TestCallProtocol::NativeSafe(safepoint) => {
+            let target = targets
+                .native_safe_targets
+                .alloc(scoop_lir::NativeSafeTarget { destination });
+            CallSite::NativeSafe(scoop_lir::NativeSafeCallSite {
+                target,
+                call,
+                safepoint: test_safepoint(safepoint),
+                roots: scoop_lir::NativeSafeRootSet::default(),
+            })
+        }
+        TestCallProtocol::NativeBorrowed { safepoint, result } => {
+            let target = targets
+                .native_borrowed_targets
+                .alloc(scoop_lir::NativeBorrowedTarget { destination });
+            CallSite::NativeBorrowed(scoop_lir::NativeBorrowedCallSite {
+                target,
+                call,
+                safepoint: test_safepoint(safepoint),
+                roots: scoop_lir::NativeBorrowedRootSet::new(Vec::new(), result),
+            })
+        }
+    }
+}
+
 fn void_site(
     targets: &mut CallTargets,
     destination: CallDestination,
-    effect: CallEffect,
+    protocol: TestCallProtocol,
     params: Vec<LirType>,
     args: Vec<Value>,
 ) -> CallSite {
@@ -21,18 +127,18 @@ fn void_site(
         params,
         calling_convention: scoop_lir::CallingConvention::Cdecl,
     });
-    let target = targets.void_targets.alloc(VoidCallTarget {
+    protocol_site(
+        targets,
         destination,
-        signature,
-        effect,
-    });
-    CallSite::Void { target, args }
+        protocol,
+        TypedCall::Void { signature, args },
+    )
 }
 
 fn direct_site(
     targets: &mut CallTargets,
     destination: CallDestination,
-    effect: CallEffect,
+    protocol: TestCallProtocol,
     params: Vec<LirType>,
     result: (LirType, RefScan),
     out: TempId,
@@ -44,18 +150,22 @@ fn direct_site(
         result_scan: result.1,
         calling_convention: scoop_lir::CallingConvention::Cdecl,
     });
-    let target = targets.direct_targets.alloc(DirectCallTarget {
+    protocol_site(
+        targets,
         destination,
-        signature,
-        effect,
-    });
-    CallSite::Direct { target, out, args }
+        protocol,
+        TypedCall::Direct {
+            signature,
+            out,
+            args,
+        },
+    )
 }
 
 fn indirect_result_site(
     targets: &mut CallTargets,
     destination: CallDestination,
-    effect: CallEffect,
+    protocol: TestCallProtocol,
     params: Vec<LirType>,
     result: (LirType, RefScan),
     storage: scoop_lir::LocalId,
@@ -71,18 +181,34 @@ fn indirect_result_site(
             },
             calling_convention: scoop_lir::CallingConvention::Cdecl,
         });
-    let target = targets
-        .indirect_result_targets
-        .alloc(IndirectResultCallTarget {
-            destination,
+    protocol_site(
+        targets,
+        destination,
+        protocol,
+        TypedCall::IndirectResult {
             signature,
-            effect,
-        });
-    CallSite::IndirectResult {
-        target,
-        storage,
-        args,
-    }
+            storage,
+            args,
+        },
+    )
+}
+
+fn managed_invoke(
+    site: CallSite,
+    normal: scoop_lir::BlockId,
+    unwind: scoop_lir::BlockId,
+) -> scoop_lir::InvokeSite {
+    let CallSite::Managed(site) = site else {
+        panic!("test invoke helper requires a managed call site")
+    };
+    scoop_lir::InvokeSite::Managed(scoop_lir::ManagedInvokeSite {
+        target: site.target,
+        call: site.call,
+        safepoint: site.safepoint,
+        roots: scoop_lir::ExceptionalRootSet::default(),
+        normal,
+        unwind,
+    })
 }
 
 fn dispatch_destination(targets: &mut CallTargets, table: Value, index: u32) -> CallDestination {
@@ -172,11 +298,13 @@ fn values_module() -> Module {
     let hello = globals.alloc(Global {
         symbol: "scoop.string.0".to_string(),
         address_kind: PointerKind::Managed,
+        scan: RefScan::None,
         init: GlobalInit::StringConst("hello, ".to_string()),
     });
     let world = globals.alloc(Global {
         symbol: "scoop.string.1".to_string(),
         address_kind: PointerKind::Managed,
+        scan: RefScan::None,
         init: GlobalInit::StringConst("world".to_string()),
     });
 
@@ -219,7 +347,7 @@ fn values_module() -> Module {
     let concat = direct_site(
         &mut call_targets,
         CallDestination::Runtime(scoop_lir::RuntimeFunction::StringConcat),
-        CallEffect::ManagedSafepoint,
+        TestCallProtocol::Managed(1),
         vec![MANAGED_PTR, MANAGED_PTR],
         (MANAGED_PTR, RefScan::References(vec![0])),
         t6,
@@ -343,7 +471,7 @@ fn values_module() -> Module {
 fn emits_non_empty_object_file() {
     let module = values_module();
     let output = std::env::temp_dir().join(format!("scoop_codegen_test_{}.o", std::process::id()));
-    emit_object(&module, &output).expect("emit object");
+    emit_object(&module, &output, host_profile()).expect("emit object");
     let len = std::fs::metadata(&output)
         .expect("object file exists")
         .len();
@@ -360,6 +488,7 @@ fn enum_module() -> Module {
     let trap_message = globals.alloc(Global {
         symbol: "scoop.trap.0".to_string(),
         address_kind: PointerKind::Raw,
+        scan: RefScan::None,
         init: GlobalInit::CString("unwrap on None".to_string()),
     });
     let mut enums = Arena::default();
@@ -632,7 +761,7 @@ fn enum_module() -> Module {
     let trap_site = void_site(
         &mut trap_targets,
         CallDestination::Runtime(scoop_lir::RuntimeFunction::Trap),
-        CallEffect::NoGc,
+        TestCallProtocol::NoGc,
         vec![RAW_PTR],
         vec![Value::Global(trap_message)],
     );
@@ -696,7 +825,7 @@ fn enum_module() -> Module {
     let produce_site = indirect_result_site(
         &mut consume_targets,
         CallDestination::Local(scoop_lir::LocalFunctionId::from_u32(3)),
-        CallEffect::ManagedSafepoint,
+        TestCallProtocol::Managed(1),
         Vec::new(),
         (shape_ty.clone(), RefScan::References(vec![24])),
         received,
@@ -740,7 +869,7 @@ fn enum_module() -> Module {
     let indirect_site = indirect_result_site(
         &mut indirect_targets,
         dispatch,
-        CallEffect::ManagedSafepoint,
+        TestCallProtocol::Managed(2),
         Vec::new(),
         (shape_ty.clone(), RefScan::References(vec![24])),
         indirect_received,
@@ -802,8 +931,12 @@ fn emits_m4_enums() {
     let module = enum_module();
     let ir = ir_of(&module);
     assert!(
-        ir.contains("store { i64, [24 x i8] } zeroinitializer"),
+        ir.contains("store { i64, [16 x i8], ptr addrspace(1) } zeroinitializer"),
         "tagged enum construction must zero every inactive ref slot:\n{ir}"
+    );
+    assert!(
+        ir.contains("{ i64, [16 x i8], ptr addrspace(1) }"),
+        "tagged enum GC slots must remain typed AS1 fields through SROA:\n{ir}"
     );
     assert!(
         ir.contains("getelementptr i8, ptr %enum_wrap") && ir.contains("i64 24"),
@@ -813,7 +946,7 @@ fn emits_m4_enums() {
         std::env::temp_dir().join(format!("scoop_codegen_m4_test_{}.o", std::process::id()));
     // `emit_object` verifies the LLVM module before writing, so a
     // successful return means `module.verify()` passed.
-    emit_object(&module, &output).expect("emit object");
+    emit_object(&module, &output, host_profile()).expect("emit object");
     let len = std::fs::metadata(&output)
         .expect("object file exists")
         .len();
@@ -890,6 +1023,8 @@ fn arrays_module() -> Module {
                 out: t0,
                 elements: vec![Value::IntConst(1), Value::IntConst(2), Value::IntConst(3)],
                 array_type: int_array,
+                safepoint: test_safepoint(1),
+                live: scoop_lir::StatepointLiveSet::default(),
             },
             Instruction::Store {
                 local: numbers,
@@ -916,6 +1051,12 @@ fn arrays_module() -> Module {
                 out: t3,
                 operand: Value::Local(numbers),
                 array_type: mutable_int_array,
+                safepoint: test_safepoint(2),
+                live: statepoint_live(vec![statepoint_value(
+                    scoop_lir::CallerRootSource::Local(numbers),
+                    MANAGED_PTR,
+                    &[0],
+                )]),
             },
             Instruction::MakeAggregate {
                 out: t4,
@@ -925,6 +1066,12 @@ fn arrays_module() -> Module {
                 out: t5,
                 elements: vec![Value::Temp(t4), Value::Temp(t4)],
                 array_type: point_array,
+                safepoint: test_safepoint(3),
+                live: statepoint_live(vec![statepoint_value(
+                    scoop_lir::CallerRootSource::Temp(t3),
+                    MANAGED_PTR,
+                    &[0],
+                )]),
             },
             Instruction::ArrayGet {
                 out: t6,
@@ -947,6 +1094,11 @@ fn arrays_module() -> Module {
                 out: t8,
                 operand: Value::Temp(t5),
                 array_type: mutable_point_array,
+                safepoint: test_safepoint(4),
+                live: statepoint_live(vec![
+                    statepoint_value(scoop_lir::CallerRootSource::Temp(t3), MANAGED_PTR, &[0]),
+                    statepoint_value(scoop_lir::CallerRootSource::Temp(t5), MANAGED_PTR, &[0]),
+                ]),
             },
             Instruction::BinOp {
                 out: t9,
@@ -1001,14 +1153,14 @@ fn emits_m5_arrays() {
     let ir = ir_of(&module);
     assert!(
         ir.lines().any(|line| {
-            line.contains("call ptr @scoop_rt_array_clone")
+            line.contains("call ptr addrspace(1) @scoop_rt_array_clone")
                 && line.contains("scoop_td_MutableArray<Int>")
         }),
         "Int clone must receive the target nominal descriptor:\n{ir}"
     );
     assert!(
         ir.lines().any(|line| {
-            line.contains("call ptr @scoop_rt_array_clone")
+            line.contains("call ptr addrspace(1) @scoop_rt_array_clone")
                 && line.contains("scoop_td_MutableArray<Point>")
         }),
         "Point clone must receive the target nominal descriptor:\n{ir}"
@@ -1017,7 +1169,7 @@ fn emits_m5_arrays() {
         std::env::temp_dir().join(format!("scoop_codegen_m5_test_{}.o", std::process::id()));
     // `emit_object` verifies the LLVM module before writing, so a
     // successful return means `module.verify()` passed.
-    emit_object(&module, &output).expect("emit object");
+    emit_object(&module, &output, host_profile()).expect("emit object");
     let len = std::fs::metadata(&output)
         .expect("object file exists")
         .len();
@@ -1061,22 +1213,37 @@ fn classes_module() -> Module {
     let t0 = temps.alloc(Temp { ty: MANAGED_PTR });
     let mut call_targets = CallTargets::default();
     let result_dispatch = dispatch_destination(&mut call_targets, Value::Param(0), 0);
-    let result_call = direct_site(
+    let mut result_call = direct_site(
         &mut call_targets,
         result_dispatch,
-        CallEffect::ManagedSafepoint,
+        TestCallProtocol::Managed(1),
         vec![MANAGED_PTR],
         (MANAGED_PTR, RefScan::References(vec![0])),
         t0,
         vec![Value::Param(1)],
     );
+    set_managed_live(
+        &mut result_call,
+        statepoint_live(vec![statepoint_value(
+            scoop_lir::CallerRootSource::Param(1),
+            MANAGED_PTR,
+            &[0],
+        )]),
+    );
     let void_dispatch = dispatch_destination(&mut call_targets, Value::Param(0), 1);
-    let void_call = void_site(
+    let mut void_call = void_site(
         &mut call_targets,
         void_dispatch,
-        CallEffect::ManagedSafepoint,
+        TestCallProtocol::Managed(2),
         vec![MANAGED_PTR],
         vec![Value::Param(1)],
+    );
+    set_managed_live(
+        &mut void_call,
+        statepoint_live(vec![
+            statepoint_value(scoop_lir::CallerRootSource::Param(1), MANAGED_PTR, &[0]),
+            statepoint_value(scoop_lir::CallerRootSource::Temp(t0), MANAGED_PTR, &[0]),
+        ]),
     );
     let mut blocks = Arena::default();
     let entry = blocks.alloc(BasicBlock {
@@ -1167,7 +1334,7 @@ fn emits_m6_type_descriptors_and_call_indirect() {
         std::env::temp_dir().join(format!("scoop_codegen_m6_test_{}.o", std::process::id()));
     // `emit_object` verifies the LLVM module before writing, so a
     // successful return means `module.verify()` passed.
-    emit_object(&module, &output).expect("emit object");
+    emit_object(&module, &output, host_profile()).expect("emit object");
     let len = std::fs::metadata(&output)
         .expect("object file exists")
         .len();
@@ -1229,7 +1396,7 @@ fn heap_module() -> Module {
     //   t3 = heap_load t0 +24 : ptr  (field 2)
     //   t4 = heap_load t1 +40 : ptr  (TD field 5: the vtable pointer)
     //   t5 = aggregate (t2) : {i64}
-    //   t6 = scoop_rt_box(@scoop_td_Point, t5, 8)  (by-value payload)
+    //   t6 = scoop_rt_box(@scoop_td_Point, t5, 8, none)  (by-value payload)
     //   t7 = scoop_rt_is_instance(t6, @scoop_td_Point) : i1
     //   call_indirect t4[0](t3); println_int t2; println_boolean t7
     let mut temps = Arena::default();
@@ -1253,41 +1420,59 @@ fn heap_module() -> Module {
     let alloc_site = direct_site(
         &mut call_targets,
         CallDestination::Runtime(scoop_lir::RuntimeFunction::Alloc),
-        CallEffect::ManagedSafepoint,
+        TestCallProtocol::Managed(1),
         vec![METADATA_PTR, LirType::I64],
         (MANAGED_PTR, RefScan::References(vec![0])),
         t0,
         vec![Value::TypeDescriptor(point_descriptor), Value::IntConst(32)],
     );
-    let box_site = direct_site(
+    let payload_scan = call_targets.root_scans.alloc(RefScan::None);
+    let mut box_site = direct_site(
         &mut call_targets,
         CallDestination::Runtime(scoop_lir::RuntimeFunction::Box),
-        CallEffect::ManagedSafepoint,
-        vec![METADATA_PTR, RAW_PTR, LirType::I64],
+        TestCallProtocol::Managed(2),
+        vec![METADATA_PTR, RAW_PTR, LirType::I64, METADATA_PTR],
         (MANAGED_PTR, RefScan::References(vec![0])),
         t6,
         vec![
             Value::TypeDescriptor(point_descriptor),
             Value::Temp(t8),
             Value::IntConst(8),
+            Value::RootScan(payload_scan),
         ],
+    );
+    set_managed_live(
+        &mut box_site,
+        statepoint_live(vec![statepoint_value(
+            scoop_lir::CallerRootSource::Temp(t3),
+            MANAGED_PTR,
+            &[0],
+        )]),
     );
     let is_instance_site = direct_site(
         &mut call_targets,
         CallDestination::Runtime(scoop_lir::RuntimeFunction::IsInstance),
-        CallEffect::NoGc,
+        TestCallProtocol::NoGc,
         vec![MANAGED_PTR, METADATA_PTR],
         (LirType::I1, RefScan::None),
         t7,
         vec![Value::Temp(t6), Value::TypeDescriptor(point_descriptor)],
     );
     let dispatch = dispatch_destination(&mut call_targets, Value::Temp(t4), 0);
-    let dispatch_site = void_site(
+    let mut dispatch_site = void_site(
         &mut call_targets,
         dispatch,
-        CallEffect::ManagedSafepoint,
+        TestCallProtocol::Managed(3),
         vec![MANAGED_PTR],
         vec![Value::Temp(t3)],
+    );
+    set_managed_live(
+        &mut dispatch_site,
+        statepoint_live(vec![statepoint_value(
+            scoop_lir::CallerRootSource::Temp(t3),
+            MANAGED_PTR,
+            &[0],
+        )]),
     );
     let mut blocks = Arena::default();
     let entry = blocks.alloc(BasicBlock {
@@ -1400,7 +1585,7 @@ fn emits_m6_heap_access_and_typed_descriptors() {
     ));
     // `emit_object` verifies the LLVM module before writing, so a
     // successful return means `module.verify()` passed.
-    emit_object(&module, &output).expect("emit object");
+    emit_object(&module, &output, host_profile()).expect("emit object");
     let len = std::fs::metadata(&output)
         .expect("object file exists")
         .len();
@@ -1494,7 +1679,7 @@ fn exceptions_module() -> Module {
     let first_invoke = direct_site(
         &mut call_targets,
         dispatch,
-        CallEffect::ManagedSafepoint,
+        TestCallProtocol::Managed(1),
         Vec::new(),
         (LirType::I64, RefScan::None),
         t0,
@@ -1503,7 +1688,7 @@ fn exceptions_module() -> Module {
     let second_invoke = direct_site(
         &mut call_targets,
         CallDestination::Local(scoop_lir::LocalFunctionId::from_u32(1)),
-        CallEffect::ManagedSafepoint,
+        TestCallProtocol::Managed(2),
         Vec::new(),
         (LirType::I64, RefScan::None),
         t1,
@@ -1512,18 +1697,14 @@ fn exceptions_module() -> Module {
     blocks[entry] = BasicBlock {
         name: "entry".to_string(),
         instructions: vec![Instruction::Invoke {
-            site: first_invoke,
-            normal,
-            unwind: lpad,
+            site: managed_invoke(first_invoke, normal, lpad),
         }],
         terminator: Terminator::Br(normal),
     };
     blocks[normal] = BasicBlock {
         name: "normal".to_string(),
         instructions: vec![Instruction::Invoke {
-            site: second_invoke,
-            normal: done,
-            unwind: lpad,
+            site: managed_invoke(second_invoke, done, lpad),
         }],
         terminator: Terminator::Br(done),
     };
@@ -1610,7 +1791,7 @@ fn emits_m8_exceptions() {
     // also proves invoke / landingpad and the GC strategy coexist
     // — every function carries `gc "statepoint-example"` and the
     // module goes through `rewrite-statepoints-for-gc`.
-    emit_object(&module, &output).expect("emit object");
+    emit_object(&module, &output, host_profile()).expect("emit object");
     let bytes = std::fs::read(&output).expect("read object");
     assert!(!bytes.is_empty(), "object file is empty");
     // The landing pad function must carry an exception table.
@@ -1633,9 +1814,41 @@ fn emits_m8_exceptions() {
 fn ir_of(module: &Module) -> String {
     let machine = host_target_machine().expect("target machine");
     let context = Context::create();
-    let llvm = emit_llvm_module(&context, module, &machine).expect("emit module");
+    let llvm = emit_llvm_module(&context, module, &machine, host_profile()).expect("emit module");
     llvm.verify().expect("valid LLVM module");
     llvm.print_to_string().to_string()
+}
+
+fn rewritten_ir_of(module: &Module) -> String {
+    let machine = host_target_machine().expect("target machine");
+    let context = Context::create();
+    let llvm = emit_llvm_module(&context, module, &machine, host_profile()).expect("emit module");
+    llvm.verify().expect("valid pre-statepoint module");
+    let expected = statepoint::expectations(module).expect("complete safepoint manifest");
+    statepoint::rewrite(&llvm, &machine).expect("rewrite statepoints");
+    llvm.verify().expect("valid relocated module");
+    statepoint::verify_rewritten(&llvm, &expected, host_profile())
+        .expect("rewritten manifest agrees with LIR");
+    llvm.print_to_string().to_string()
+}
+
+#[test]
+fn llvm_lowering_consumes_the_profile_managed_address_space() {
+    let machine = host_target_machine().expect("target machine");
+    let context = Context::create();
+    let profile = host_profile().with_managed_address_space_for_test(7);
+    let llvm = emit_llvm_module(&context, &values_module(), &machine, profile)
+        .expect("emit module with supplied managed address space");
+    llvm.verify().expect("valid LLVM module");
+    let ir = llvm.print_to_string().to_string();
+    assert!(
+        ir.contains("ptr addrspace(7)"),
+        "supplied managed address space is absent:\n{ir}"
+    );
+    assert!(
+        !ir.contains("ptr addrspace(1)"),
+        "lowering retained a hard-coded managed address space:\n{ir}"
+    );
 }
 
 #[test]
@@ -1650,12 +1863,98 @@ fn typed_intrinsic_string_supplies_the_only_descriptor_definition() {
 }
 
 #[test]
+fn emits_complete_image_root_and_immortal_tables() {
+    let mut module = values_module();
+    module.globals.alloc(Global {
+        symbol: "scoop.global.managed".to_string(),
+        address_kind: PointerKind::Raw,
+        scan: RefScan::References(vec![0]),
+        init: GlobalInit::Storage {
+            ty: MANAGED_PTR,
+            initializer: ConstantValue::NullPointer(PointerKind::Managed),
+            thread_local: false,
+        },
+    });
+
+    let ir = ir_of(&module);
+    assert!(
+        ir.contains(
+            "@scoop.global.managed.global_refs = private constant [2 x i64] [i64 1, i64 0]"
+        ),
+        "managed global scan is missing:\n{ir}"
+    );
+    assert!(
+        ir.contains("@scoop_image_managed_globals = constant [1 x { ptr, ptr }]")
+            && ir.contains("ptr @scoop.global.managed")
+            && ir.contains("ptr @scoop.global.managed.global_refs"),
+        "managed global descriptor table is incomplete:\n{ir}"
+    );
+    assert!(
+        ir.contains("@scoop_image_managed_global_count = constant i64 1"),
+        "managed global count is wrong:\n{ir}"
+    );
+    assert!(
+        ir.contains("@scoop_image_immortal_objects = constant [2 x { ptr, i64, ptr }]")
+            && ir.contains("ptr addrspacecast (ptr addrspace(1) @scoop.string.0 to ptr)")
+            && ir.contains("ptr addrspacecast (ptr addrspace(1) @scoop.string.1 to ptr)")
+            && ir.contains("ptr @scoop_td_String"),
+        "immortal object descriptor table is incomplete:\n{ir}"
+    );
+    assert!(
+        ir.contains("@scoop_image_immortal_object_count = constant i64 2"),
+        "immortal object count is wrong:\n{ir}"
+    );
+}
+
+#[test]
+fn emits_addressable_zero_count_image_tables() {
+    let module = enum_module();
+    let ir = ir_of(&module);
+    assert!(
+        ir.contains("@scoop_image_managed_globals = constant [1 x { ptr, ptr }] zeroinitializer")
+            && ir.contains("@scoop_image_managed_global_count = constant i64 0"),
+        "empty managed-global table lacks its sentinel/count:\n{ir}"
+    );
+    assert!(
+        ir.contains(
+            "@scoop_image_immortal_objects = constant [1 x { ptr, i64, ptr }] zeroinitializer"
+        ) && ir.contains("@scoop_image_immortal_object_count = constant i64 0"),
+        "empty immortal table lacks its sentinel/count:\n{ir}"
+    );
+}
+
+#[test]
+fn managed_thread_local_global_is_rejected_at_codegen_boundary() {
+    let mut module = values_module();
+    module.globals.alloc(Global {
+        symbol: "scoop.tls.managed".to_string(),
+        address_kind: PointerKind::Raw,
+        scan: RefScan::References(vec![0]),
+        init: GlobalInit::Storage {
+            ty: MANAGED_PTR,
+            initializer: ConstantValue::NullPointer(PointerKind::Managed),
+            thread_local: true,
+        },
+    });
+    let machine = host_target_machine().expect("target machine");
+    let context = Context::create();
+    let error = emit_llvm_module(&context, &module, &machine, host_profile())
+        .expect_err("managed TLS requires per-thread image-root registration");
+    assert!(
+        error
+            .0
+            .contains("thread-local global `@scoop.tls.managed` contains managed references"),
+        "unexpected error: {error}"
+    );
+}
+
+#[test]
 fn typed_local_call_signature_cannot_be_replaced_by_a_callsite_guess() {
     let mut module = exceptions_module();
     module.functions[1].params.push(LirType::I64);
     let machine = host_target_machine().expect("target machine");
     let context = Context::create();
-    let error = emit_llvm_module(&context, &module, &machine)
+    let error = emit_llvm_module(&context, &module, &machine, host_profile())
         .expect_err("the local declaration and typed call target disagree");
     assert!(
         error.0.contains("disagrees with its existing declaration"),
@@ -1668,14 +1967,9 @@ fn typed_no_gc_effect_keeps_the_call_outside_statepoints() {
     let module = heap_module();
     let machine = host_target_machine().expect("target machine");
     let context = Context::create();
-    let llvm = emit_llvm_module(&context, &module, &machine).expect("emit module");
+    let llvm = emit_llvm_module(&context, &module, &machine, host_profile()).expect("emit module");
     llvm.verify().expect("valid LLVM module");
-    llvm.run_passes(
-        "rewrite-statepoints-for-gc",
-        &machine,
-        PassBuilderOptions::create(),
-    )
-    .expect("rewrite-statepoints-for-gc pass");
+    statepoint::rewrite(&llvm, &machine).expect("rewrite-statepoints-for-gc pass");
     let rewritten = llvm.print_to_string().to_string();
     assert!(
         rewritten
@@ -1706,7 +2000,7 @@ fn native_calls_publish_roots_transition_and_reload() {
         native_symbol: "native_borrowed".to_string(),
         library: "fixture".to_string(),
         calling_convention: scoop_lir::CallingConvention::Cdecl,
-        params: Vec::new(),
+        params: vec![MANAGED_PTR],
         return_type: MANAGED_PTR,
         kind: ExternFunctionKind::Scoop {
             gc_effect: GcEffect::Managed,
@@ -1714,23 +2008,24 @@ fn native_calls_publish_roots_transition_and_reload() {
     });
 
     let mut safe_targets = CallTargets::default();
-    let safe_site = void_site(
+    let mut safe_site = void_site(
         &mut safe_targets,
         CallDestination::Extern(c_call),
-        CallEffect::NativeSafe,
+        TestCallProtocol::NativeSafe(1),
         Vec::new(),
         Vec::new(),
     );
+    let CallSite::NativeSafe(site) = &mut safe_site else {
+        unreachable!()
+    };
+    site.roots = scoop_lir::NativeSafeRootSet::new(vec![scoop_lir::CallerRoot {
+        source: scoop_lir::CallerRootSource::Param(0),
+        scan: scoop_lir::NonEmptyRefScan::new(RefScan::References(vec![0])).unwrap(),
+    }]);
     let mut safe_blocks = Arena::default();
     let safe_entry = safe_blocks.alloc(BasicBlock {
         name: "entry".to_string(),
-        instructions: vec![Instruction::NativeCall {
-            site: safe_site,
-            roots: vec![scoop_lir::CallerRoot {
-                source: scoop_lir::CallerRootSource::Param(0),
-                scan: scoop_lir::NonEmptyRefScan::new(RefScan::References(vec![0])).unwrap(),
-            }],
-        }],
+        instructions: vec![Instruction::Call { site: safe_site }],
         terminator: Terminator::Return {
             value: Some(Value::Param(0)),
         },
@@ -1747,24 +2042,44 @@ fn native_calls_publish_roots_transition_and_reload() {
         entry: safe_entry,
     };
 
+    let mut borrowed_locals = Arena::default();
+    let result_root = borrowed_locals.alloc(Local {
+        name: "native_result_root".to_string(),
+        ty: MANAGED_PTR,
+    });
     let mut borrowed_temps = Arena::default();
     let result = borrowed_temps.alloc(Temp { ty: MANAGED_PTR });
     let mut borrowed_targets = CallTargets::default();
-    let borrowed_site = direct_site(
+    let mut borrowed_site = direct_site(
         &mut borrowed_targets,
         CallDestination::Extern(borrowed),
-        CallEffect::NativeBorrowed,
-        Vec::new(),
+        TestCallProtocol::NativeBorrowed {
+            safepoint: 2,
+            result: NativeBorrowedResultRoot::Rooted {
+                storage: result_root,
+                scan: scoop_lir::NonEmptyRefScan::new(RefScan::References(vec![0])).unwrap(),
+            },
+        },
+        vec![MANAGED_PTR],
         (MANAGED_PTR, RefScan::References(vec![0])),
         result,
-        Vec::new(),
+        vec![Value::Param(0)],
+    );
+    let CallSite::NativeBorrowed(site) = &mut borrowed_site else {
+        unreachable!()
+    };
+    site.roots = scoop_lir::NativeBorrowedRootSet::new(
+        vec![scoop_lir::CallerRoot {
+            source: scoop_lir::CallerRootSource::Param(0),
+            scan: scoop_lir::NonEmptyRefScan::new(RefScan::References(vec![0])).unwrap(),
+        }],
+        site.roots.result.clone(),
     );
     let mut borrowed_blocks = Arena::default();
     let borrowed_entry = borrowed_blocks.alloc(BasicBlock {
         name: "entry".to_string(),
-        instructions: vec![Instruction::NativeCall {
+        instructions: vec![Instruction::Call {
             site: borrowed_site,
-            roots: Vec::new(),
         }],
         terminator: Terminator::Return {
             value: Some(Value::Temp(result)),
@@ -1773,10 +2088,10 @@ fn native_calls_publish_roots_transition_and_reload() {
     let borrowed_function = Function {
         gc_effect: GcEffect::Managed,
         symbol: "borrowed_result".to_string(),
-        params: Vec::new(),
+        params: vec![MANAGED_PTR],
         return_ty: MANAGED_PTR,
         call_targets: borrowed_targets,
-        locals: Arena::default(),
+        locals: borrowed_locals,
         temps: borrowed_temps,
         blocks: borrowed_blocks,
         entry: borrowed_entry,
@@ -1804,12 +2119,26 @@ fn native_calls_publish_roots_transition_and_reload() {
     assert!(ir.contains("@scoop_rt_leave_native_borrowed"));
     assert!(ir.contains("@scoop_rt_pop_caller_roots"));
     assert!(
-        ir.contains("store ptr null, ptr %native_result"),
+        ir.contains("store ptr addrspace(1) null, ptr %native_result"),
         "managed native result storage must be zero before publication:\n{ir}"
     );
+    let safe_leave = ir
+        .find("call void @scoop_rt_leave_native_safe")
+        .expect("safe transition leaves native state");
     assert!(
-        ir.contains("%caller_root_reload = load ptr, ptr %caller_root_param"),
-        "published parameter roots must be reloaded after leave-native:\n{ir}"
+        ir[safe_leave..].contains("load ptr addrspace(1), ptr %managed_root_storage"),
+        "published parameter roots must be reloaded from canonical storage after leave-native:\n{ir}"
+    );
+    let borrowed_call = ir
+        .find("native_call = call ptr addrspace(1)")
+        .expect("borrowed native call");
+    let borrowed_enter = ir[..borrowed_call]
+        .rfind("@scoop_rt_enter_native_borrowed")
+        .expect("borrowed transition enters native state");
+    assert!(
+        ir[borrowed_enter..borrowed_call]
+            .contains("load ptr addrspace(1), ptr %managed_root_storage"),
+        "native arguments must be reloaded after the transition can park:\n{ir}"
     );
 }
 
@@ -1870,15 +2199,16 @@ fn continuation_state_atomics_keep_their_llvm_orderings() {
 
     let ir = ir_of(&module);
     assert!(
-        ir.contains("load atomic i64, ptr %atomic_field_ptr acquire"),
+        ir.contains("load atomic i64, ptr addrspace(1) %atomic_field_ptr acquire"),
         "continuation state reads must be acquire loads:\n{ir}"
     );
     assert!(
-        ir.contains("store atomic i64 2, ptr %atomic_field_ptr1 release"),
+        ir.contains("store atomic i64 2, ptr addrspace(1) %atomic_field_ptr1 release"),
         "continuation state publication must be a release store:\n{ir}"
     );
     assert!(
-        ir.contains("cmpxchg ptr %atomic_field_ptr2") && ir.contains("acq_rel acquire"),
+        ir.contains("cmpxchg ptr addrspace(1) %atomic_field_ptr2")
+            && ir.contains("acq_rel acquire"),
         "continuation state claims must be acq_rel/acquire compare-exchange:\n{ir}"
     );
 }
@@ -1904,7 +2234,7 @@ fn closure_abi_module() -> Module {
     let ordinary_site = indirect_result_site(
         &mut call_targets,
         ordinary_dispatch,
-        CallEffect::ManagedSafepoint,
+        TestCallProtocol::Managed(1),
         vec![MANAGED_PTR, LirType::I64],
         (ordinary_result_ty, RefScan::References(vec![8])),
         ordinary_result,
@@ -1914,7 +2244,7 @@ fn closure_abi_module() -> Module {
     let suspend_site = indirect_result_site(
         &mut call_targets,
         suspend_dispatch,
-        CallEffect::ManagedSafepoint,
+        TestCallProtocol::Managed(2),
         vec![MANAGED_PTR, MANAGED_PTR],
         (suspend_result_ty, RefScan::None),
         suspend_result,
@@ -1962,40 +2292,36 @@ fn closure_calls_preserve_hidden_abi_and_indirect_statepoints() {
     let module = closure_abi_module();
     let ir = ir_of(&module);
     assert_eq!(
-        ir.matches("getelementptr ptr, ptr %0, i32 2").count(),
+        ir.matches("getelementptr ptr, ptr addrspace(1) %0, i32 2")
+            .count(),
         2,
         "closure calls must load invoke from slot 2:\n{ir}"
     );
     assert!(
         ir.lines().any(|line| {
             line.contains("call void %dispatch_function")
-                && line.contains("(ptr %ordinary_result, ptr %0, i64 %1)")
+                && line.contains("(ptr %ordinary_result, ptr addrspace(1) %0, i64 %1)")
         }),
         "ordinary closure ABI must be (result slot, closure, arguments):\n{ir}"
     );
     assert!(
         ir.lines().any(|line| {
             line.contains("call void %dispatch_function")
-                && line.contains("ptr %suspend_result, ptr %0, ptr %2")
+                && line.contains("ptr %suspend_result, ptr addrspace(1) %0, ptr addrspace(1) %2")
         }),
         "suspend closure ABI must keep continuation after the closure:\n{ir}"
     );
     assert!(
-        ir.contains("%ordinary_result = alloca { i64, ptr }")
+        ir.contains("%ordinary_result = alloca { i64, ptr addrspace(1) }")
             && ir.contains("%suspend_result = alloca { i64, i64 }"),
         "aggregate closure results must use typed return storage:\n{ir}"
     );
 
     let machine = host_target_machine().expect("target machine");
     let context = Context::create();
-    let llvm = emit_llvm_module(&context, &module, &machine).expect("emit module");
+    let llvm = emit_llvm_module(&context, &module, &machine, host_profile()).expect("emit module");
     llvm.verify().expect("valid LLVM module");
-    llvm.run_passes(
-        "rewrite-statepoints-for-gc",
-        &machine,
-        PassBuilderOptions::create(),
-    )
-    .expect("rewrite-statepoints-for-gc pass");
+    statepoint::rewrite(&llvm, &machine).expect("rewrite-statepoints-for-gc pass");
     let rewritten = llvm.print_to_string().to_string();
     assert_eq!(
         rewritten
@@ -2032,12 +2358,17 @@ fn barrier_module() -> Module {
     let alloc_site = direct_site(
         &mut call_targets,
         CallDestination::Runtime(scoop_lir::RuntimeFunction::Alloc),
-        CallEffect::ManagedSafepoint,
+        TestCallProtocol::Managed(1),
         vec![METADATA_PTR, LirType::I64],
         (MANAGED_PTR, RefScan::References(vec![0])),
         t0,
         vec![Value::Param(0), Value::IntConst(24)],
     );
+    let poll_target = call_targets
+        .managed_targets
+        .alloc(scoop_lir::ManagedTarget {
+            destination: CallDestination::Runtime(scoop_lir::RuntimeFunction::Safepoint),
+        });
     let mut blocks = Arena::default();
     let entry = blocks.alloc(BasicBlock {
         name: "entry".to_string(),
@@ -2062,6 +2393,13 @@ fn barrier_module() -> Module {
     blocks[entry] = BasicBlock {
         name: "entry".to_string(),
         instructions: vec![
+            Instruction::ManagedPoll {
+                site: scoop_lir::ManagedPollSite {
+                    target: poll_target,
+                    safepoint: test_safepoint(2),
+                    live: scoop_lir::StatepointLiveSet::default(),
+                },
+            },
             Instruction::Call { site: alloc_site },
             Instruction::HeapStore {
                 object: Value::Temp(t0),
@@ -2079,7 +2417,13 @@ fn barrier_module() -> Module {
     };
     blocks[header] = BasicBlock {
         name: "while.cond".to_string(),
-        instructions: vec![],
+        instructions: vec![Instruction::ManagedPoll {
+            site: scoop_lir::ManagedPollSite {
+                target: poll_target,
+                safepoint: test_safepoint(3),
+                live: scoop_lir::StatepointLiveSet::default(),
+            },
+        }],
         terminator: Terminator::CondBr {
             cond: Value::BoolConst(true),
             then_block: body,
@@ -2132,6 +2476,11 @@ fn functions_carry_the_gc_strategy_and_poll_safepoints() {
 fn no_gc_functions_carry_neither_gc_strategy_nor_safepoint_polls() {
     let mut module = barrier_module();
     module.functions[0].gc_effect = GcEffect::NoGc;
+    for (_, block) in module.functions[0].blocks.iter_mut() {
+        block
+            .instructions
+            .retain(|instruction| !matches!(instruction, Instruction::ManagedPoll { .. }));
+    }
     let ir = ir_of(&module);
     assert!(
         !ir.contains("gc \"statepoint-example\""),
@@ -2169,14 +2518,14 @@ fn heap_store_inside_the_object_header_is_rejected() {
     let mut module = barrier_module();
     let function = &mut module.functions[0];
     let entry = function.entry;
-    function.blocks[entry].instructions[1] = Instruction::HeapStore {
+    function.blocks[entry].instructions[2] = Instruction::HeapStore {
         object: Value::IntConst(0),
         offset: 8,
         value: Value::IntConst(42),
     };
     let machine = host_target_machine().expect("target machine");
     let context = Context::create();
-    let error = emit_llvm_module(&context, &module, &machine)
+    let error = emit_llvm_module(&context, &module, &machine, host_profile())
         .expect_err("offset 8 is inside the object header, not a field");
     assert!(
         error.0.contains("object header"),
@@ -2185,38 +2534,252 @@ fn heap_store_inside_the_object_header_is_rejected() {
 }
 
 #[test]
-fn statepoints_and_stackmaps_are_emitted() {
+fn statepoints_and_stackmaps_are_emitted_at_o0_and_o2() {
     let module = values_module();
-    let machine = host_target_machine().expect("target machine");
-    let context = Context::create();
-    let llvm = emit_llvm_module(&context, &module, &machine).expect("emit module");
-    llvm.verify().expect("valid LLVM module");
-    // The same pass `emit_object` runs before writing the object
-    // (the M0 spike's shape).
-    llvm.run_passes(
-        "rewrite-statepoints-for-gc",
-        &machine,
-        PassBuilderOptions::create(),
-    )
-    .expect("rewrite-statepoints-for-gc pass");
-    let ir = llvm.print_to_string().to_string();
-    assert!(
-        ir.contains("gc.statepoint"),
-        "statepoint intrinsics missing after rewrite-statepoints-for-gc:\n{ir}"
-    );
+    let expected = statepoint::expectations(&module).expect("complete safepoint manifest");
+    let profile = host_profile();
+    for (name, optimization) in [
+        ("o0", OptimizationLevel::None),
+        ("o2", OptimizationLevel::Default),
+    ] {
+        let machine = profile
+            .create_qualification_target_machine(optimization)
+            .expect("qualified target machine");
+        let context = Context::create();
+        let llvm = emit_llvm_module(&context, &module, &machine, profile).expect("emit module");
+        llvm.verify().expect("valid LLVM module");
+        statepoint::rewrite(&llvm, &machine).expect("rewrite-statepoints-for-gc pass");
+        llvm.verify().expect("valid post-RS4GC module");
+        statepoint::verify_rewritten(&llvm, &expected, profile)
+            .expect("statepoint manifest matches");
+        let ir = llvm.print_to_string().to_string();
+        assert!(
+            ir.contains("gc.statepoint"),
+            "{name}: statepoint intrinsics missing after rewrite-statepoints-for-gc:\n{ir}"
+        );
 
-    let output =
-        std::env::temp_dir().join(format!("scoop_codegen_m9_test_{}.o", std::process::id()));
-    machine
-        .write_to_file(&llvm, FileType::Object, &output)
-        .expect("write object");
-    let bytes = std::fs::read(&output).expect("read object");
-    let text = String::from_utf8_lossy(&bytes);
+        let output = std::env::temp_dir().join(format!(
+            "scoop_codegen_statepoint_{name}_{}.o",
+            std::process::id()
+        ));
+        machine
+            .write_to_file(&llvm, FileType::Object, &output)
+            .expect("write object");
+        profile
+            .verify_object(&output, &expected)
+            .unwrap_or_else(|error| panic!("{name}: {error}"));
+        std::fs::remove_file(&output).ok();
+    }
+}
+
+#[test]
+fn managed_live_plan_produces_as1_relocation() {
+    let leaves =
+        scoop_lir::ManagedLeafPaths::new(vec![scoop_lir::ManagedLeafPath { byte_offset: 0 }])
+            .unwrap();
+    let live = scoop_lir::StatepointLiveSet::new(vec![scoop_lir::StatepointLiveValue {
+        source: scoop_lir::CallerRootSource::Param(0),
+        ty: MANAGED_PTR,
+        leaves,
+    }])
+    .unwrap();
+    let mut targets = CallTargets::default();
+    let signature = targets.void_signatures.alloc(VoidCallSignature {
+        params: Vec::new(),
+        calling_convention: scoop_lir::CallingConvention::Cdecl,
+    });
+    let target = targets.managed_targets.alloc(scoop_lir::ManagedTarget {
+        destination: CallDestination::Runtime(scoop_lir::RuntimeFunction::Safepoint),
+    });
+    let mut blocks = Arena::default();
+    let entry = blocks.alloc(BasicBlock {
+        name: "entry".to_string(),
+        instructions: vec![Instruction::Call {
+            site: CallSite::Managed(scoop_lir::ManagedCallSite {
+                target,
+                call: TypedCall::Void {
+                    signature,
+                    args: Vec::new(),
+                },
+                safepoint: test_safepoint(1),
+                live,
+            }),
+        }],
+        terminator: Terminator::Return {
+            value: Some(Value::Param(0)),
+        },
+    });
+    let module = Module {
+        globals: Arena::default(),
+        structs: Arena::default(),
+        enums: Arena::default(),
+        extern_functions: Arena::default(),
+        native_globals: Arena::default(),
+        native_global_bridges: Default::default(),
+        callback_bridges: Arena::default(),
+        foreign_callback_bridges: Arena::default(),
+        functions: vec![Function {
+            gc_effect: GcEffect::Managed,
+            symbol: "scoop.live_root".to_string(),
+            params: vec![MANAGED_PTR],
+            return_ty: MANAGED_PTR,
+            call_targets: targets,
+            locals: Arena::default(),
+            temps: Arena::default(),
+            blocks,
+            entry,
+        }],
+        entry_symbol: "scoop.live_root".to_string(),
+        meta: string_metadata(),
+    };
+    let ir = rewritten_ir_of(&module);
     assert!(
-        text.contains("__llvm_stackmaps"),
-        "object file lacks the __llvm_stackmaps section"
+        ir.contains("ptr addrspace(1)"),
+        "managed AS1 is absent:\n{ir}"
     );
-    std::fs::remove_file(&output).ok();
+    assert!(
+        ir.contains("@llvm.experimental.gc.relocate"),
+        "relocation is absent:\n{ir}"
+    );
+}
+
+#[test]
+fn managed_invoke_uses_explicit_compiler_roots_without_exceptional_relocation() {
+    let mut callee_blocks = Arena::default();
+    let callee_entry = callee_blocks.alloc(BasicBlock {
+        name: "entry".to_string(),
+        instructions: Vec::new(),
+        terminator: Terminator::Return {
+            value: Some(Value::Param(0)),
+        },
+    });
+    let callee = Function {
+        gc_effect: GcEffect::Managed,
+        symbol: "scoop.invoke_target".to_string(),
+        params: vec![MANAGED_PTR],
+        return_ty: MANAGED_PTR,
+        call_targets: CallTargets::default(),
+        locals: Arena::default(),
+        temps: Arena::default(),
+        blocks: callee_blocks,
+        entry: callee_entry,
+    };
+
+    let mut temps = Arena::default();
+    let result = temps.alloc(Temp { ty: MANAGED_PTR });
+    let record = temps.alloc(Temp {
+        ty: LirType::ExceptionRecord,
+    });
+    let raw = temps.alloc(Temp { ty: RAW_PTR });
+    let caught = temps.alloc(Temp { ty: MANAGED_PTR });
+    let mut targets = CallTargets::default();
+    let signature = targets.direct_signatures.alloc(DirectCallSignature {
+        params: vec![MANAGED_PTR],
+        result: MANAGED_PTR,
+        result_scan: RefScan::References(vec![0]),
+        calling_convention: scoop_lir::CallingConvention::Cdecl,
+    });
+    let target = targets.managed_targets.alloc(scoop_lir::ManagedTarget {
+        destination: CallDestination::Local(scoop_lir::LocalFunctionId::from_u32(0)),
+    });
+    let mut blocks = Arena::default();
+    let placeholder = |blocks: &mut Arena<BasicBlock>, name: &str| {
+        blocks.alloc(BasicBlock {
+            name: name.to_string(),
+            instructions: Vec::new(),
+            terminator: Terminator::Unreachable,
+        })
+    };
+    let entry = placeholder(&mut blocks, "entry");
+    let normal = placeholder(&mut blocks, "normal");
+    let unwind = placeholder(&mut blocks, "unwind");
+    blocks[entry] = BasicBlock {
+        name: "entry".to_string(),
+        instructions: vec![Instruction::Invoke {
+            site: scoop_lir::InvokeSite::Managed(scoop_lir::ManagedInvokeSite {
+                target,
+                call: TypedCall::Direct {
+                    signature,
+                    out: result,
+                    args: vec![Value::Param(0)],
+                },
+                safepoint: test_safepoint(1),
+                roots: scoop_lir::ExceptionalRootSet::new(vec![scoop_lir::ExceptionalRoot {
+                    root: scoop_lir::CallerRoot {
+                        source: scoop_lir::CallerRootSource::Param(0),
+                        scan: scoop_lir::NonEmptyRefScan::new(RefScan::References(vec![0]))
+                            .unwrap(),
+                    },
+                    normal_live: false,
+                    unwind_live: true,
+                }]),
+                normal,
+                unwind,
+            }),
+        }],
+        terminator: Terminator::Br(normal),
+    };
+    blocks[normal] = BasicBlock {
+        name: "normal".to_string(),
+        instructions: Vec::new(),
+        terminator: Terminator::Return {
+            value: Some(Value::Temp(result)),
+        },
+    };
+    blocks[unwind] = BasicBlock {
+        name: "unwind".to_string(),
+        instructions: vec![
+            Instruction::LandingPad { record, raw },
+            Instruction::BeginCatch {
+                out: caught,
+                raw: Value::Temp(raw),
+            },
+            Instruction::EndCatch,
+        ],
+        terminator: Terminator::Return {
+            value: Some(Value::Param(0)),
+        },
+    };
+    let caller = Function {
+        gc_effect: GcEffect::Managed,
+        symbol: "scoop.invoke_caller".to_string(),
+        params: vec![MANAGED_PTR],
+        return_ty: MANAGED_PTR,
+        call_targets: targets,
+        locals: Arena::default(),
+        temps,
+        blocks,
+        entry,
+    };
+    let module = Module {
+        globals: Arena::default(),
+        structs: Arena::default(),
+        enums: Arena::default(),
+        extern_functions: Arena::default(),
+        native_globals: Arena::default(),
+        native_global_bridges: Default::default(),
+        callback_bridges: Arena::default(),
+        foreign_callback_bridges: Arena::default(),
+        functions: vec![callee, caller],
+        entry_symbol: "scoop.invoke_caller".to_string(),
+        meta: string_metadata(),
+    };
+
+    let ir = rewritten_ir_of(&module);
+    assert!(
+        ir.contains("invoke token") && ir.contains("i64 1"),
+        "managed invoke is not an explicit statepoint:\n{ir}"
+    );
+    assert!(
+        !ir.contains("\"gc-live\"") && !ir.contains("@llvm.experimental.gc.relocate"),
+        "managed invoke must not rely on exceptional relocation:\n{ir}"
+    );
+    assert!(
+        ir.contains("@scoop_rt_push_compiler_roots")
+            && ir.contains("@scoop_rt_pop_compiler_roots")
+            && ir.contains("@scoop_rt_pop_top_compiler_roots"),
+        "normal and unwind edges do not clean the compiler root frame:\n{ir}"
+    );
 }
 
 #[test]
@@ -2266,11 +2829,15 @@ fn type_descriptors_carry_the_gc_scan_descriptors() {
                 out: array,
                 elements: vec![],
                 array_type: ref_array_type,
+                safepoint: test_safepoint(1),
+                live: scoop_lir::StatepointLiveSet::default(),
             },
             Instruction::ArrayAlloc {
                 out: nested_array,
                 elements: vec![],
                 array_type: nested_array_type,
+                safepoint: test_safepoint(2),
+                live: scoop_lir::StatepointLiveSet::default(),
             },
         ],
         terminator: Terminator::Return { value: None },
@@ -2491,6 +3058,8 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
                 out: array,
                 elements: vec![Value::Temp(outer_value)],
                 array_type: outer_array,
+                safepoint: test_safepoint(1),
+                live: scoop_lir::StatepointLiveSet::default(),
             },
             Instruction::ArrayGet {
                 out: loaded,
@@ -2532,6 +3101,7 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
         &context,
         &module.structs,
         &module.enums,
+        host_managed_address_space(),
         &LirType::Struct(outer),
     )
     .expect("outer LLVM type");
@@ -2541,6 +3111,7 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
         &context,
         &module.structs,
         &module.enums,
+        host_managed_address_space(),
         &LirType::Enum(wrapped),
     )
     .expect("wrapped LLVM type");
@@ -2654,13 +3225,196 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
 
     let ir = ir_of(&module);
     assert!(
-        ir.contains("getelementptr i8, ptr %managed_object, i32 32"),
+        ir.contains("getelementptr i8, ptr addrspace(1) %managed_object, i32 32"),
         "over-aligned array data must start at offset 32:\n{ir}"
     );
     assert!(
         ir.contains(
-            "@scoop_runtime_finish_tlab_alloc(ptr %tlab_object, ptr @scoop_td_ArrayOuter, i64 64)"
+            "@scoop_runtime_finish_tlab_alloc(ptr addrspace(1) %tlab_object, ptr @scoop_td_ArrayOuter, i64 64)"
         ) && ir.contains("@scoop_runtime_alloc_slow(ptr @scoop_td_ArrayOuter, i64 64)"),
         "one 32-byte element plus the aligned 32-byte header must flow through the 64-byte TLAB check:\n{ir}"
     );
+}
+
+#[test]
+fn runtime_stackmap_v3_parser_rejects_incomplete_metadata() {
+    let workspace = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(std::path::Path::parent)
+        .expect("codegen crate is nested below the workspace root");
+    let binary = std::env::temp_dir().join(format!("scoop_stackmap_test_{}", std::process::id()));
+    let status = std::process::Command::new("cc")
+        .args(["-std=c11", "-Wall", "-Wextra", "-Werror"])
+        .arg(workspace.join("runtime/src/gc/stackmap.c"))
+        .arg(workspace.join("runtime/src/platform/arch/aarch64.c"))
+        .arg(workspace.join("runtime/tests/stackmap_test.c"))
+        .arg("-o")
+        .arg(&binary)
+        .status()
+        .expect("run C compiler for stackmap parser tests");
+    assert!(
+        status.success(),
+        "stackmap parser tests must compile cleanly"
+    );
+    let output = std::process::Command::new(&binary)
+        .output()
+        .expect("run stackmap parser tests");
+    std::fs::remove_file(&binary).ok();
+    assert!(
+        output.status.success(),
+        "stackmap parser test failed:\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(output.stdout, b"stackmap parser tests passed\n");
+}
+
+#[test]
+fn runtime_walks_and_rewrites_only_exact_stackmap_slots() {
+    let workspace = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(std::path::Path::parent)
+        .expect("codegen crate is nested below the workspace root");
+    let binary =
+        std::env::temp_dir().join(format!("scoop_exact_roots_test_{}", std::process::id()));
+    let status = std::process::Command::new("cc")
+        .args(["-std=c11", "-Wall", "-Wextra", "-Werror", "-pthread"])
+        .arg("-I")
+        .arg(workspace.join("runtime/include"))
+        .arg(workspace.join("runtime/src/gc/stackmap.c"))
+        .arg(workspace.join("runtime/src/gc/stack_roots.c"))
+        .arg(workspace.join("runtime/src/platform/arch/aarch64.c"))
+        .arg(workspace.join("runtime/src/platform/os/darwin.c"))
+        .arg(workspace.join("runtime/tests/platform/fake.c"))
+        .arg(workspace.join("runtime/tests/exact_stack_roots_test.c"))
+        .arg("-o")
+        .arg(&binary)
+        .status()
+        .expect("compile exact stack-root test");
+    assert!(
+        status.success(),
+        "exact stack-root test must compile cleanly"
+    );
+    let output = std::process::Command::new(&binary)
+        .output()
+        .expect("run exact stack-root test");
+    std::fs::remove_file(&binary).ok();
+    assert!(
+        output.status.success(),
+        "exact stack-root test failed:\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(output.stdout, b"exact stack root walk passed\n");
+}
+
+#[test]
+fn darwin_aarch64_managed_entries_preserve_the_direct_caller_anchor() {
+    let workspace = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(std::path::Path::parent)
+        .expect("codegen crate is nested below the workspace root");
+    let object = std::env::temp_dir().join(format!(
+        "scoop_aarch64_managed_entries_{}.o",
+        std::process::id()
+    ));
+    let status = std::process::Command::new("cc")
+        .args(["-c", "-target", "arm64-apple-darwin"])
+        .arg(workspace.join("runtime/src/platform/arch/aarch64_anchor.S"))
+        .arg("-o")
+        .arg(&object)
+        .status()
+        .expect("assemble Darwin AArch64 managed entries");
+    assert!(status.success(), "managed entries must assemble cleanly");
+
+    let disassembly = std::process::Command::new("otool")
+        .arg("-tvV")
+        .arg(&object)
+        .output()
+        .expect("disassemble managed entries");
+    assert!(disassembly.status.success());
+    let text = String::from_utf8_lossy(&disassembly.stdout);
+    let entries = [
+        (
+            "_scoop_rt_safepoint:",
+            ["mov\tx0, x30", "mov\tx1, sp", "mov\tx2, x29"],
+        ),
+        (
+            "_scoop_runtime_alloc_slow:",
+            ["mov\tx2, x30", "mov\tx3, sp", "mov\tx4, x29"],
+        ),
+        (
+            "_scoop_rt_gc_collect:",
+            ["mov\tx0, x30", "mov\tx1, sp", "mov\tx2, x29"],
+        ),
+        (
+            "_scoop_rt_string_concat:",
+            ["mov\tx2, x30", "mov\tx3, sp", "mov\tx4, x29"],
+        ),
+        (
+            "_scoop_rt_box:",
+            ["mov\tx4, x30", "mov\tx5, sp", "mov\tx6, x29"],
+        ),
+        (
+            "_scoop_rt_materialize_exception:",
+            ["mov\tx1, x30", "mov\tx2, sp", "mov\tx3, x29"],
+        ),
+        (
+            "_scoop_rt_array_clone:",
+            ["mov\tx4, x30", "mov\tx5, sp", "mov\tx6, x29"],
+        ),
+        (
+            "_scoop_rt_enter_native_safe:",
+            ["mov\tx2, x30", "mov\tx3, sp", "mov\tx4, x29"],
+        ),
+        (
+            "_scoop_rt_enter_native_borrowed:",
+            ["mov\tx2, x30", "mov\tx3, sp", "mov\tx4, x29"],
+        ),
+    ];
+    let lines: Vec<_> = text.lines().collect();
+    for (label, moves) in entries {
+        let start = lines
+            .iter()
+            .position(|line| *line == label)
+            .unwrap_or_else(|| panic!("missing {label} in:\n{text}"));
+        for (offset, expected) in moves.iter().enumerate() {
+            assert!(
+                lines[start + offset + 1].ends_with(expected),
+                "{label} must preserve the direct caller context:\n{text}"
+            );
+        }
+        assert!(
+            lines[start + 4].contains("\tb\t"),
+            "{label} must tail-branch without creating a frame:\n{text}"
+        );
+    }
+
+    let relocations = std::process::Command::new("otool")
+        .arg("-rv")
+        .arg(&object)
+        .output()
+        .expect("read managed-entry relocations");
+    std::fs::remove_file(&object).ok();
+    assert!(relocations.status.success());
+    let relocations = String::from_utf8_lossy(&relocations.stdout);
+    for implementation in [
+        "_scoop_rt_safepoint_impl",
+        "_scoop_runtime_alloc_slow_impl",
+        "_scoop_rt_gc_collect_impl",
+        "_scoop_rt_string_concat_impl",
+        "_scoop_rt_box_impl",
+        "_scoop_rt_materialize_exception_impl",
+        "_scoop_rt_array_clone_impl",
+        "_scoop_rt_enter_native_safe_impl",
+        "_scoop_rt_enter_native_borrowed_impl",
+    ] {
+        assert!(
+            relocations
+                .lines()
+                .any(|line| { line.contains("BR26") && line.ends_with(implementation) }),
+            "missing tail-branch relocation for {implementation}:\n{relocations}"
+        );
+    }
+    assert_eq!(relocations.matches("BR26").count(), 9);
 }

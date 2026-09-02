@@ -58,6 +58,50 @@ fn native_sources(dir: &Path) -> Vec<(PathBuf, String)> {
     sources
 }
 
+fn runs_under_gc_stress(relative: &str) -> bool {
+    matches!(
+        relative,
+        "m5-arrays/recursive-reference-scans.scoop"
+            | "m8-exceptions/handler-exits.scoop"
+            | "m8-exceptions/custom-exception.scoop"
+            | "m10-coroutines/gc-across-suspension.scoop"
+            | "m11-functions/captures.scoop"
+            | "m11-functions/variance.scoop"
+            | "m12-extern-scoop/extern-scoop.scoop"
+            | "m13-callback/managed-callback.scoop"
+            | "m13-callback/foreign-continuation.scoop"
+            | "m14-generics/generic-exception.scoop"
+            | "m15-moving/external-exception.scoop"
+            | "m15-moving/handle-pin.scoop"
+            | "m15-moving/root-shapes.scoop"
+    )
+}
+
+fn verify_linked_stackmap_fixups(binary: &Path, relative: &str) {
+    let output = Command::new("xcrun")
+        .arg("dyld_info")
+        .arg("-fixups")
+        .arg(binary)
+        .output()
+        .expect("run dyld_info for linked fixture binary");
+    assert!(
+        output.status.success(),
+        "{relative}: dyld_info failed for {}: {}",
+        binary.display(),
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let fixups = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        fixups.lines().any(|line| {
+            line.contains("__LLVM_STACKMAPS")
+                && line.contains("__llvm_stackmaps")
+                && line.contains("rebase")
+        }),
+        "{relative}: linked __llvm_stackmaps contains no dyld rebase fixup:\n{fixups}"
+    );
+}
+
 #[test]
 fn fixtures() {
     let root = fixture_root();
@@ -120,6 +164,7 @@ fn fixtures() {
                     "{relative}: native fixture library `{library}` compilation failed: {}",
                     String::from_utf8_lossy(&compile.stderr)
                 );
+                fs::remove_file(&native_archive).ok();
                 let archive = Command::new("ar")
                     .arg("rcs")
                     .arg(&native_archive)
@@ -137,9 +182,33 @@ fn fixtures() {
 
         let snapshot = match scoopc::compile_file_with_options(&fixture, &out_dir, &options) {
             Ok(success) => {
+                if relative == "m15-moving/handle-pin.scoop" {
+                    verify_linked_stackmap_fixups(&success.binary, &relative);
+                }
                 let run = Command::new(&success.binary)
                     .output()
                     .unwrap_or_else(|e| panic!("cannot run {}: {e}", success.binary.display()));
+                if !expect_trap && runs_under_gc_stress(&relative) {
+                    let stress_run = Command::new(&success.binary)
+                        .env("SCOOP_GC_STRESS_MOVE", "1")
+                        .output()
+                        .unwrap_or_else(|e| {
+                            panic!(
+                                "cannot run {} in moving-GC stress mode: {e}",
+                                success.binary.display()
+                            )
+                        });
+                    assert!(
+                        stress_run.status.success(),
+                        "{relative}: moving-GC stress run exited with {}:\n{}",
+                        stress_run.status,
+                        String::from_utf8_lossy(&stress_run.stderr)
+                    );
+                    assert_eq!(
+                        stress_run.stdout, run.stdout,
+                        "{relative}: moving-GC stress changed observable output"
+                    );
+                }
                 let (run_section, output) = if expect_trap {
                     assert!(
                         !run.status.success(),

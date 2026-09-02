@@ -55,8 +55,9 @@ typedef struct ScoopItableEntry {
  *   each ref-bearing variant has a disjoint slot and inactive slots are
  *   zero, so scanning never reads the tag.
  *
- * A scanned slot whose value is null or points outside the GC heap is
- * ignored. Niche `None` and inactive tagged-enum slots must be null.
+ * A scanned slot must contain null, a GC-heap object start, or a registered
+ * immortal object start. Any other value is a malformed managed reference
+ * and is fatal. Niche `None` and inactive tagged-enum slots must be null.
  */
 #define SCOOP_REFS_ARRAY UINT64_MAX
 #define SCOOP_REFS_SEQUENCE (UINT64_MAX - 1)
@@ -73,10 +74,10 @@ struct ScoopTypeDescriptor {
     const char *name; /* stable NUL-terminated UTF-8 diagnostic name */
 };
 
-/* Runtime spec 2.1, M9 form (milestone9 DESIGN section 0): 16 bytes.
- * `gc_word` belongs to the GC (runtime/src/gc.c): mark parity bit and
- * pin bit; the remaining bits are reserved (hash cache etc.). Mutator
- * code must not touch it. All field payloads start at offset 16. */
+/* Runtime spec 2.1: 16 bytes. `gc_word` belongs to the GC and currently
+ * carries the pin bit; mark, exact size and forwarding state live in the
+ * arena-external side table. The remaining bits are reserved (hash cache
+ * etc.). Mutator code must not touch it. All payloads start at offset 16. */
 typedef struct ScoopObjectHeader {
     const ScoopTypeDescriptor *td;
     uint64_t gc_word;
@@ -89,6 +90,26 @@ typedef struct ScoopString {
     uint64_t len;
     char data[];
 } ScoopString;
+
+/* M15 image root metadata. Codegen emits exactly one instance of each table
+ * and count symbol for the linked image. A zero-count table still has one
+ * null sentinel record so its symbol is addressable. Runtime initialization
+ * validates and registers both tables before any managed code executes. */
+typedef struct ScoopManagedGlobalDescriptor {
+    void *writable_base;
+    const uint64_t *scan;
+} ScoopManagedGlobalDescriptor;
+
+typedef struct ScoopImmortalObjectDescriptor {
+    const void *object_start;
+    uint64_t object_size;
+    const ScoopTypeDescriptor *td;
+} ScoopImmortalObjectDescriptor;
+
+extern const ScoopManagedGlobalDescriptor scoop_image_managed_globals[];
+extern const uint64_t scoop_image_managed_global_count;
+extern const ScoopImmortalObjectDescriptor scoop_image_immortal_objects[];
+extern const uint64_t scoop_image_immortal_object_count;
 
 /* Runtime spec 2.5 / spec 10.1. Array objects are variable-length:
  * header + element count + padding to the element alignment + inline
@@ -119,11 +140,14 @@ void scoop_runtime_finish_tlab_alloc(void *object,
                                      const ScoopTypeDescriptor *td,
                                      size_t size);
 
-/* Refill/allocate after the inline TLAB bump fails. May trigger GC. */
+/* ManagedEntry: refill/allocate after generated code's inline TLAB bump
+ * fails. The target anchor stub publishes the direct managed caller before
+ * this operation can park or collect. */
 void *scoop_runtime_alloc_slow(const ScoopTypeDescriptor *td, size_t size);
 
-/* Runtime-source compatibility entry. Generated M13 code uses the inline
- * allocation context and falls back to scoop_runtime_alloc_slow. */
+/* NativeBorrowedEntry for Scoop-ABI C implementations. Generated code uses
+ * the inline allocation context and falls back to the distinct managed entry
+ * above. The native caller must already have published caller/native roots. */
 void *scoop_rt_alloc(const ScoopTypeDescriptor *td, size_t size);
 
 /* M9 GC contracts (milestone9 DESIGN 3.1): write-barrier card table
@@ -171,7 +195,7 @@ void scoop_rt_println_boolean(bool value);
  * UnwrapException throw in M8. */
 _Noreturn void scoop_rt_trap(const char *message);
 
-/* M5 addition (milestone5 DESIGN section 3.1): `Array(m)` /
+/* ManagedEntry for `Array(m)` /
  * `MutableArray(a)` conversion (spec 10.4). Copies the whole object
  * (data_offset + size * elem_size bytes, including header/size/padding)
  * into a fresh GC allocation — a shallow snapshot: elements that are
@@ -182,9 +206,10 @@ const void *scoop_rt_array_clone(const void *obj,
 
 /* M6 additions (milestone6 DESIGN section 3): dispatch support. */
 
-/* Box a value type: allocate header + payload and copy the payload
- * (runtime spec 2.3). */
-void *scoop_rt_box(const ScoopTypeDescriptor *td, const void *payload, uint64_t payload_size);
+/* ManagedEntry: box an addressable value payload. `payload_scan` is complete,
+ * payload-relative metadata emitted by LIR/codegen; null means GC-free. */
+void *scoop_rt_box(const ScoopTypeDescriptor *td, const void *payload,
+                   uint64_t payload_size, const uint64_t *payload_scan);
 
 /* `is` check: walk the object's parent chain, then scan its itable
  * keys (runtime spec 2.2). */
@@ -214,11 +239,10 @@ void scoop_rt_gc_init(void);
 bool scoop_rt_attach_foreign_thread(void);
 void scoop_rt_detach_foreign_thread(void);
 
-/* Register a global root (runtime spec 3.3): `slot` is the address of
- * a variable holding an object pointer (or null); it is re-read at
- * every collection. Values pointing outside the GC heap (e.g. static
- * string literals) are ignored. v1 has no removal API (conservative;
- * roots live as long as the process). */
+/* Register a process-lifetime writable root slot (runtime spec 3.3). The
+ * collector re-reads and rewrites it at every collection. Its value must be
+ * null, a current GC object start, or an exactly registered stable object;
+ * every other address is fatal. There is deliberately no removal API. */
 void scoop_rt_gc_add_root(void **slot);
 
 /* Register an object-like region outside the GC heap as a root: its
@@ -243,6 +267,21 @@ typedef struct ScoopNativeRootFrame {
     uint64_t count;
 } ScoopNativeRootFrame;
 
+/* Addressable inline values held by managed runtime or Scoop-ABI native C
+ * code use a distinct recursive-region root chain. The scan is relative to
+ * `base`; unlike object TypeDescriptor scans, it contains no implicit object
+ * header offset. */
+typedef struct ScoopNativeRegionRootEntry {
+    void *base;
+    const uint64_t *scan;
+} ScoopNativeRegionRootEntry;
+
+typedef struct ScoopNativeRegionRootFrame {
+    struct ScoopNativeRegionRootFrame *previous;
+    ScoopNativeRegionRootEntry *entries;
+    uint64_t count;
+} ScoopNativeRegionRootFrame;
+
 /* Compiler-published roots that stay live across one outbound native call.
  * Each entry scans one addressable value using the same recursive descriptor
  * format as object payloads. Inline tagged enums expose fixed ref offsets;
@@ -259,12 +298,27 @@ typedef struct ScoopCallerRootFrame {
     uint64_t count;
 } ScoopCallerRootFrame;
 
+/* Roots spilled around a managed invoke. This is deliberately a distinct
+ * frame family from outbound-native caller roots: pushing it does not enter
+ * a native transition, and unwinding pops the dynamic top frame after the
+ * landingpad has captured the exception record. */
+typedef struct ScoopCompilerRootFrame {
+    struct ScoopCompilerRootFrame *previous;
+    ScoopCallerRootEntry *entries;
+    uint64_t count;
+} ScoopCompilerRootFrame;
+
 /* Stack-owned outbound transition record. Its fields are runtime-managed;
  * generated code allocates the record, passes it to enter/leave, and must not
- * copy or inspect it while active. */
+ * copy or inspect it while active. The caller-root frame covers the generated
+ * transition caller itself; return_pc/stack_pointer/frame_pointer anchor exact
+ * stack-map traversal of the remaining frozen managed segment. */
 typedef struct ScoopThreadTransition {
     struct ScoopThreadTransition *previous;
     ScoopCallerRootFrame *caller_roots;
+    uintptr_t managed_return_pc;
+    uintptr_t managed_stack_pointer;
+    uintptr_t managed_frame_pointer;
     uintptr_t managed_stack_low;
     uintptr_t managed_stack_high;
     uint32_t previous_mode;
@@ -274,23 +328,30 @@ typedef struct ScoopThreadTransition {
 void scoop_rt_push_native_roots(ScoopNativeRootFrame *frame, void ***slots,
                                 uint64_t count);
 void scoop_rt_pop_native_roots(ScoopNativeRootFrame *frame);
+void scoop_rt_push_native_region_roots(ScoopNativeRegionRootFrame *frame,
+                                       ScoopNativeRegionRootEntry *entries,
+                                       uint64_t count);
+void scoop_rt_pop_native_region_roots(ScoopNativeRegionRootFrame *frame);
 
 void scoop_rt_push_caller_roots(ScoopCallerRootFrame *frame,
                                 ScoopCallerRootEntry *entries,
                                 uint64_t count);
 void scoop_rt_pop_caller_roots(ScoopCallerRootFrame *frame);
+void scoop_rt_push_compiler_roots(ScoopCompilerRootFrame *frame,
+                                  ScoopCallerRootEntry *entries,
+                                  uint64_t count);
+void scoop_rt_pop_compiler_roots(ScoopCompilerRootFrame *frame);
+void scoop_rt_pop_top_compiler_roots(void);
 void scoop_rt_enter_native_safe(ScoopThreadTransition *transition,
-                                uintptr_t managed_stack_pointer);
+                                uintptr_t managed_stack_low);
 void scoop_rt_leave_native_safe(ScoopThreadTransition *transition);
 void scoop_rt_enter_native_borrowed(ScoopThreadTransition *transition,
-                                    uintptr_t managed_stack_pointer);
+                                    uintptr_t managed_stack_low);
 void scoop_rt_leave_native_borrowed(ScoopThreadTransition *transition);
 
-/* pin / unpin (runtime spec 3.4): O(1) object-header flag, no handle
- * table. Returns the object so the Scoop-level intrinsics can forward
- * it. null is a no-op returning null; a non-null pointer that is not a
- * GC-heap object start aborts. Pinning is not ref-counted: one unpin
- * clears any number of pins. */
+/* pin / unpin (runtime spec 3.4): O(1) object-header flag mirrored in side
+ * metadata, with no handle-table indirection. Returns the stable object
+ * address. Pinning is not ref-counted: one unpin clears any number of pins. */
 const void *scoop_rt_pin(const void *obj);
 const void *scoop_rt_unpin(const void *obj);
 
@@ -298,8 +359,7 @@ const void *scoop_rt_unpin(const void *obj);
  * pinning. A nonzero 64-bit value encodes generation and slot+1, so stale
  * handles cannot alias a reused slot; 0 remains the null niche.
  * release/resolve validate both components and abort for stale handles.
- * Entries are not relocated by M13's non-moving collector; M15 updates
- * live entries during relocation. */
+ * M15 updates live entries in place during relocation. */
 uint64_t scoop_rt_get_handle(const void *obj);
 const void *scoop_rt_release_handle(uint64_t handle);
 const void *scoop_rt_resolve_handle(uint64_t handle);
@@ -345,8 +405,13 @@ uint64_t scoop_runtime_callback_debug_live_count(void);
 uint64_t scoop_runtime_callback_debug_owner_count(void *context);
 uint64_t scoop_runtime_callback_debug_active_count(void *context);
 
-/* Force a full collection. */
+/* ManagedEntry used by generated Scoop code to force a full collection. */
 void scoop_rt_gc_collect(void);
+
+/* NativeBorrowedEntry used by Scoop-ABI native implementations after their
+ * caller/native root frames have been published. It never captures a C frame
+ * as a managed anchor. */
+void scoop_runtime_gc_collect(void);
 
 /* Number of objects currently allocated from the GC heap. Includes
  * not-yet-collected garbage; right after scoop_rt_gc_collect() it is
@@ -356,6 +421,8 @@ uint64_t scoop_rt_gc_stats(void);
 
 /* Test hook: number of heap blocks currently live in the arena. */
 uint64_t scoop_rt_gc_debug_block_count(void);
+uint64_t scoop_rt_gc_debug_last_moved_count(void);
+uint64_t scoop_rt_gc_debug_allocation_size(const void *obj);
 
 /* Test hook: base address of the heap arena the blocks are carved
  * from (0 before the first allocation / gc init). */
@@ -392,6 +459,7 @@ uint64_t scoop_rt_thread_debug_gc_epoch(void);
 uint64_t scoop_rt_thread_debug_last_gc_parked_count(void);
 uint64_t scoop_rt_thread_debug_last_gc_native_safe_count(void);
 uint64_t scoop_rt_thread_debug_caller_root_count(void);
+uint64_t scoop_rt_thread_debug_compiler_root_count(void);
 uint64_t scoop_rt_thread_debug_transition_depth(void);
 
 /* M8 additions (milestone8 DESIGN section 4): exception support on top

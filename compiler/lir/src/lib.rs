@@ -8,6 +8,8 @@
 //! translates them mechanically. All locals are stack slots (alloca);
 //! SSA construction is left to LLVM's mem2reg.
 
+use std::num::NonZeroU64;
+
 use la_arena::{Arena, Idx};
 
 pub type GlobalId = Idx<Global>;
@@ -27,10 +29,12 @@ pub type ArrayTypeId = Idx<ArrayType>;
 pub type VoidCallSignatureId = Idx<VoidCallSignature>;
 pub type DirectCallSignatureId = Idx<DirectCallSignature>;
 pub type IndirectResultCallSignatureId = Idx<IndirectResultCallSignature>;
-pub type VoidCallTargetId = Idx<VoidCallTarget>;
-pub type DirectCallTargetId = Idx<DirectCallTarget>;
-pub type IndirectResultCallTargetId = Idx<IndirectResultCallTarget>;
+pub type ManagedTargetId = Idx<ManagedTarget>;
+pub type NoGcTargetId = Idx<NoGcTarget>;
+pub type NativeSafeTargetId = Idx<NativeSafeTarget>;
+pub type NativeBorrowedTargetId = Idx<NativeBorrowedTarget>;
 pub type DispatchSlotId = Idx<DispatchSlot>;
+pub type RootScanId = Idx<RefScan>;
 pub type LayoutId = Idx<Layout>;
 pub type TypeDescriptorId = Idx<TypeDescriptor>;
 pub type ExternalTypeDescriptorId = Idx<ExternalTypeDescriptor>;
@@ -48,6 +52,20 @@ impl LocalFunctionId {
 
     pub const fn into_u32(self) -> u32 {
         self.0
+    }
+}
+
+/// Deterministic, nonzero, image-wide identity of one actual safepoint.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct SafepointId(NonZeroU64);
+
+impl SafepointId {
+    pub fn new(raw: u64) -> Option<Self> {
+        NonZeroU64::new(raw).map(Self)
+    }
+
+    pub const fn get(self) -> u64 {
+        self.0.get()
     }
 }
 
@@ -518,7 +536,7 @@ impl RefScan {
         }
     }
 
-    fn contains_reference(&self) -> bool {
+    pub fn contains_reference(&self) -> bool {
         match self {
             Self::None => false,
             Self::References(offsets) => !offsets.is_empty(),
@@ -551,6 +569,9 @@ pub struct Global {
     pub symbol: String,
     /// Provenance of the address produced by `Value::Global`.
     pub address_kind: PointerKind,
+    /// Complete recursive scan program for the writable global storage.
+    /// Immortal object and C-string globals explicitly carry `None`.
+    pub scan: RefScan,
     pub init: GlobalInit,
 }
 
@@ -641,7 +662,8 @@ pub struct Temp {
 
 #[derive(Debug)]
 pub struct Function {
-    /// Whether codegen must attach the GC strategy and safepoint polls.
+    /// Whether codegen must attach the GC strategy. Polls are explicit LIR
+    /// instructions with their own typed root plans.
     pub gc_effect: GcEffect,
     pub symbol: String,
     /// Parameter types; arguments are SSA values (`Value::Param`).
@@ -663,23 +685,19 @@ pub enum GcEffect {
     NoGc,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CallEffect {
-    ManagedSafepoint,
-    NoGc,
-    NativeSafe,
-    NativeBorrowed,
-}
-
 #[derive(Debug, Default)]
 pub struct CallTargets {
     pub void_signatures: Arena<VoidCallSignature>,
     pub direct_signatures: Arena<DirectCallSignature>,
     pub indirect_result_signatures: Arena<IndirectResultCallSignature>,
-    pub void_targets: Arena<VoidCallTarget>,
-    pub direct_targets: Arena<DirectCallTarget>,
-    pub indirect_result_targets: Arena<IndirectResultCallTarget>,
+    pub managed_targets: Arena<ManagedTarget>,
+    pub no_gc_targets: Arena<NoGcTarget>,
+    pub native_safe_targets: Arena<NativeSafeTarget>,
+    pub native_borrowed_targets: Arena<NativeBorrowedTarget>,
     pub dispatch_slots: Arena<DispatchSlot>,
+    /// Function-local recursive scan programs passed to runtime entries that
+    /// receive addressable inline values (currently boxing payloads).
+    pub root_scans: Arena<RefScan>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -720,24 +738,23 @@ pub enum CallDestination {
 }
 
 #[derive(Debug)]
-pub struct VoidCallTarget {
+pub struct ManagedTarget {
     pub destination: CallDestination,
-    pub signature: VoidCallSignatureId,
-    pub effect: CallEffect,
 }
 
 #[derive(Debug)]
-pub struct DirectCallTarget {
+pub struct NoGcTarget {
     pub destination: CallDestination,
-    pub signature: DirectCallSignatureId,
-    pub effect: CallEffect,
 }
 
 #[derive(Debug)]
-pub struct IndirectResultCallTarget {
+pub struct NativeSafeTarget {
     pub destination: CallDestination,
-    pub signature: IndirectResultCallSignatureId,
-    pub effect: CallEffect,
+}
+
+#[derive(Debug)]
+pub struct NativeBorrowedTarget {
+    pub destination: CallDestination,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -756,6 +773,7 @@ pub enum DispatchKind {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum RuntimeFunction {
+    Safepoint,
     Alloc,
     Box,
     IsInstance,
@@ -776,6 +794,7 @@ pub enum RuntimeFunction {
 impl RuntimeFunction {
     pub const fn symbol(self) -> &'static str {
         match self {
+            Self::Safepoint => "scoop_rt_safepoint",
             Self::Alloc => "scoop_rt_alloc",
             Self::Box => "scoop_rt_box",
             Self::IsInstance => "scoop_rt_is_instance",
@@ -796,24 +815,24 @@ impl RuntimeFunction {
 }
 
 #[derive(Debug)]
-pub enum CallSite {
+pub enum TypedCall {
     Void {
-        target: VoidCallTargetId,
+        signature: VoidCallSignatureId,
         args: Vec<Value>,
     },
     Direct {
-        target: DirectCallTargetId,
+        signature: DirectCallSignatureId,
         out: TempId,
         args: Vec<Value>,
     },
     IndirectResult {
-        target: IndirectResultCallTargetId,
+        signature: IndirectResultCallSignatureId,
         storage: LocalId,
         args: Vec<Value>,
     },
 }
 
-impl CallSite {
+impl TypedCall {
     pub fn args(&self) -> &[Value] {
         match self {
             Self::Void { args, .. }
@@ -822,33 +841,11 @@ impl CallSite {
         }
     }
 
-    pub fn destination(&self, targets: &CallTargets) -> CallDestination {
-        match *self {
-            Self::Void { target, .. } => targets.void_targets[target].destination,
-            Self::Direct { target, .. } => targets.direct_targets[target].destination,
-            Self::IndirectResult { target, .. } => {
-                targets.indirect_result_targets[target].destination
-            }
-        }
-    }
-
-    pub fn effect(&self, targets: &CallTargets) -> CallEffect {
-        match *self {
-            Self::Void { target, .. } => targets.void_targets[target].effect,
-            Self::Direct { target, .. } => targets.direct_targets[target].effect,
-            Self::IndirectResult { target, .. } => targets.indirect_result_targets[target].effect,
-        }
-    }
-
     pub fn result_scan<'a>(&self, targets: &'a CallTargets) -> &'a RefScan {
         match *self {
             Self::Void { .. } => &RefScan::None,
-            Self::Direct { target, .. } => {
-                let signature = targets.direct_targets[target].signature;
-                &targets.direct_signatures[signature].result_scan
-            }
-            Self::IndirectResult { target, .. } => {
-                let signature = targets.indirect_result_targets[target].signature;
+            Self::Direct { signature, .. } => &targets.direct_signatures[signature].result_scan,
+            Self::IndirectResult { signature, .. } => {
                 &targets.indirect_result_signatures[signature].result.scan
             }
         }
@@ -869,6 +866,57 @@ impl CallSite {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ManagedLeafPath {
+    pub byte_offset: u64,
+}
+
+/// A non-empty, flattened, sorted and deduplicated set of managed leaves in
+/// one concrete source value.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ManagedLeafPaths(Vec<ManagedLeafPath>);
+
+impl ManagedLeafPaths {
+    pub fn new(paths: Vec<ManagedLeafPath>) -> Option<Self> {
+        let strictly_sorted = paths
+            .windows(2)
+            .all(|pair| pair[0].byte_offset < pair[1].byte_offset);
+        (!paths.is_empty() && strictly_sorted).then_some(Self(paths))
+    }
+
+    pub fn as_slice(&self) -> &[ManagedLeafPath] {
+        &self.0
+    }
+}
+
+/// One source whose managed leaves must be present at a statepoint. The set
+/// includes values live after the site and movable call operands: LLVM treats
+/// direct AS1 operands as roots even if their source dies at the call, while
+/// aggregate operands require explicit leaf exposure.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StatepointLiveValue {
+    pub source: CallerRootSource,
+    pub ty: LirType,
+    pub leaves: ManagedLeafPaths,
+}
+
+/// The complete, source-ordered root set for one ordinary statepoint.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct StatepointLiveSet(Vec<StatepointLiveValue>);
+
+impl StatepointLiveSet {
+    pub fn new(values: Vec<StatepointLiveValue>) -> Option<Self> {
+        let strictly_sorted = values
+            .windows(2)
+            .all(|pair| pair[0].source.sort_key() < pair[1].source.sort_key());
+        strictly_sorted.then_some(Self(values))
+    }
+
+    pub fn as_slice(&self) -> &[StatepointLiveValue] {
+        &self.0
+    }
+}
+
 /// A value whose address is published in a compiler caller-root frame.
 /// Constants and globals cannot appear here: constants have no storage and
 /// managed globals are already roots in their own right.
@@ -886,23 +934,209 @@ pub struct CallerRoot {
     pub scan: NonEmptyRefScan,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExceptionalRoot {
+    pub root: CallerRoot,
+    /// The pre-invoke value is used from the normal successor. A direct
+    /// result is defined by the invoke and cannot be a pre-invoke root.
+    pub normal_live: bool,
+    /// The pre-invoke value is used from the unwind successor.
+    pub unwind_live: bool,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ExceptionalRootSet(Vec<ExceptionalRoot>);
+
+impl ExceptionalRootSet {
+    pub fn new(roots: Vec<ExceptionalRoot>) -> Self {
+        Self(roots)
+    }
+
+    pub fn as_slice(&self) -> &[ExceptionalRoot] {
+        &self.0
+    }
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct NativeSafeRootSet(Vec<CallerRoot>);
+
+impl NativeSafeRootSet {
+    pub fn new(roots: Vec<CallerRoot>) -> Self {
+        Self(roots)
+    }
+
+    pub fn as_slice(&self) -> &[CallerRoot] {
+        &self.0
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum NativeBorrowedResultRoot {
+    GcFree,
+    Rooted {
+        storage: LocalId,
+        scan: NonEmptyRefScan,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NativeBorrowedRootSet {
+    roots: Vec<CallerRoot>,
+    pub result: NativeBorrowedResultRoot,
+}
+
+impl NativeBorrowedRootSet {
+    pub fn new(roots: Vec<CallerRoot>, result: NativeBorrowedResultRoot) -> Self {
+        Self { roots, result }
+    }
+
+    pub fn as_slice(&self) -> &[CallerRoot] {
+        &self.roots
+    }
+}
+
+#[derive(Debug)]
+pub struct ManagedPollSite {
+    pub target: ManagedTargetId,
+    pub safepoint: SafepointId,
+    pub live: StatepointLiveSet,
+}
+
+#[derive(Debug)]
+pub struct ManagedCallSite {
+    pub target: ManagedTargetId,
+    pub call: TypedCall,
+    pub safepoint: SafepointId,
+    pub live: StatepointLiveSet,
+}
+
+#[derive(Debug)]
+pub struct NoGcCallSite {
+    pub target: NoGcTargetId,
+    pub call: TypedCall,
+}
+
+#[derive(Debug)]
+pub struct NativeSafeCallSite {
+    pub target: NativeSafeTargetId,
+    pub call: TypedCall,
+    pub safepoint: SafepointId,
+    pub roots: NativeSafeRootSet,
+}
+
+#[derive(Debug)]
+pub struct NativeBorrowedCallSite {
+    pub target: NativeBorrowedTargetId,
+    pub call: TypedCall,
+    pub safepoint: SafepointId,
+    pub roots: NativeBorrowedRootSet,
+}
+
+#[derive(Debug)]
+pub enum CallSite {
+    Managed(ManagedCallSite),
+    NoGc(NoGcCallSite),
+    NativeSafe(NativeSafeCallSite),
+    NativeBorrowed(NativeBorrowedCallSite),
+}
+
+impl CallSite {
+    pub fn call(&self) -> &TypedCall {
+        match self {
+            Self::Managed(site) => &site.call,
+            Self::NoGc(site) => &site.call,
+            Self::NativeSafe(site) => &site.call,
+            Self::NativeBorrowed(site) => &site.call,
+        }
+    }
+
+    pub fn call_mut(&mut self) -> &mut TypedCall {
+        match self {
+            Self::Managed(site) => &mut site.call,
+            Self::NoGc(site) => &mut site.call,
+            Self::NativeSafe(site) => &mut site.call,
+            Self::NativeBorrowed(site) => &mut site.call,
+        }
+    }
+
+    pub fn destination(&self, targets: &CallTargets) -> CallDestination {
+        match self {
+            Self::Managed(site) => targets.managed_targets[site.target].destination,
+            Self::NoGc(site) => targets.no_gc_targets[site.target].destination,
+            Self::NativeSafe(site) => targets.native_safe_targets[site.target].destination,
+            Self::NativeBorrowed(site) => targets.native_borrowed_targets[site.target].destination,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct ManagedInvokeSite {
+    pub target: ManagedTargetId,
+    pub call: TypedCall,
+    pub safepoint: SafepointId,
+    pub roots: ExceptionalRootSet,
+    pub normal: BlockId,
+    pub unwind: BlockId,
+}
+
+#[derive(Debug)]
+pub struct NoGcInvokeSite {
+    pub target: NoGcTargetId,
+    pub call: TypedCall,
+    pub normal: BlockId,
+    pub unwind: BlockId,
+}
+
+#[derive(Debug)]
+pub enum InvokeSite {
+    Managed(ManagedInvokeSite),
+    NoGc(NoGcInvokeSite),
+}
+
+impl InvokeSite {
+    pub fn call(&self) -> &TypedCall {
+        match self {
+            Self::Managed(site) => &site.call,
+            Self::NoGc(site) => &site.call,
+        }
+    }
+
+    pub fn destination(&self, targets: &CallTargets) -> CallDestination {
+        match self {
+            Self::Managed(site) => targets.managed_targets[site.target].destination,
+            Self::NoGc(site) => targets.no_gc_targets[site.target].destination,
+        }
+    }
+
+    pub fn normal(&self) -> BlockId {
+        match self {
+            Self::Managed(site) => site.normal,
+            Self::NoGc(site) => site.normal,
+        }
+    }
+
+    pub fn unwind(&self) -> BlockId {
+        match self {
+            Self::Managed(site) => site.unwind,
+            Self::NoGc(site) => site.unwind,
+        }
+    }
+}
+
 impl CallerRootSource {
+    fn sort_key(self) -> (u8, u32) {
+        match self {
+            Self::Param(index) => (0, index),
+            Self::Local(id) => (1, id.into_raw().into_u32()),
+            Self::Temp(id) => (2, id.into_raw().into_u32()),
+        }
+    }
+
     fn dump(self) -> String {
         match self {
             Self::Param(index) => format!("param{index}"),
             Self::Local(id) => format!("local{}", id.into_raw()),
             Self::Temp(id) => format!("t{}", id.into_raw()),
-        }
-    }
-}
-
-impl CallEffect {
-    fn dump(self) -> &'static str {
-        match self {
-            Self::ManagedSafepoint => "managed-safepoint",
-            Self::NoGc => "no-gc",
-            Self::NativeSafe => "native-safe",
-            Self::NativeBorrowed => "native-borrowed",
         }
     }
 }
@@ -918,6 +1152,7 @@ impl Function {
             Value::BoolConst(_) => LirType::I1,
             Value::NullPointer(kind) => LirType::Ptr(kind),
             Value::TypeDescriptor(_) => METADATA_PTR,
+            Value::RootScan(_) => METADATA_PTR,
             Value::Global(id) => LirType::Ptr(globals[id].address_kind),
         }
     }
@@ -943,6 +1178,8 @@ pub enum Value {
     NullPointer(PointerKind),
     /// Address of a local or external TypeDescriptor.
     TypeDescriptor(TypeDescriptorRef),
+    /// Address of one complete function-local recursive root scan program.
+    RootScan(RootScanId),
     /// Address of a global constant.
     Global(GlobalId),
 }
@@ -1009,25 +1246,20 @@ pub enum Instruction {
     NativeGlobalLoad {
         out: TempId,
         global: NativeGlobalId,
-        roots: Vec<CallerRoot>,
+        safepoint: SafepointId,
+        roots: NativeSafeRootSet,
     },
     NativeGlobalStore {
         global: NativeGlobalId,
         value: Value,
-        roots: Vec<CallerRoot>,
+        safepoint: SafepointId,
+        roots: NativeSafeRootSet,
     },
     NativeGlobalAddress {
         out: TempId,
         global: NativeGlobalId,
-        roots: Vec<CallerRoot>,
-    },
-    /// A nounwind native call. C ABI operands are storage pointers to the
-    /// generated bridge; Scoop ABI operands retain their ordinary typed ABI.
-    NativeCall {
-        site: CallSite,
-        /// Values live across this native transition. Codegen spills SSA
-        /// sources and publishes each storage with its recursive scan.
-        roots: Vec<CallerRoot>,
+        safepoint: SafepointId,
+        roots: NativeSafeRootSet,
     },
     /// Store a typed value at the byte address `object + offset`.
     /// Class fields use their natural layout offsets, base-class fields
@@ -1098,6 +1330,10 @@ pub enum Instruction {
     Call {
         site: CallSite,
     },
+    /// Explicit entry/back-edge poll. NoGC functions cannot contain one.
+    ManagedPoll {
+        site: ManagedPollSite,
+    },
     /// Call that may throw (inside a `try`): control transfers to
     /// `normal` on success and to the `unwind` landing pad on a
     /// thrown exception (spec 11.7, runtime spec 5). Terminator-like:
@@ -1107,9 +1343,7 @@ pub enum Instruction {
     /// this instruction as the LLVM terminator without emitting the
     /// branch.
     Invoke {
-        site: CallSite,
-        normal: BlockId,
-        unwind: BlockId,
+        site: InvokeSite,
     },
     /// Catch-all landing pad. It captures the opaque unwind record and
     /// raw exception pointer but does not begin the catch; `BeginCatch`
@@ -1145,6 +1379,8 @@ pub enum Instruction {
         out: TempId,
         elements: Vec<Value>,
         array_type: ArrayTypeId,
+        safepoint: SafepointId,
+        live: StatepointLiveSet,
     },
     /// `array.size` (result `I64`).
     ArrayLen {
@@ -1172,6 +1408,8 @@ pub enum Instruction {
         operand: Value,
         /// Target array application (`Array<T>` or `MutableArray<T>`).
         array_type: ArrayTypeId,
+        safepoint: SafepointId,
+        live: StatepointLiveSet,
     },
     /// Enum operations. The representation (niche pointer or tagged
     /// union) is fixed by `EnumDef::repr`, so codegen translates these

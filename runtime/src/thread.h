@@ -1,12 +1,12 @@
 #ifndef SCOOP_RT_THREAD_H
 #define SCOOP_RT_THREAD_H
 
-#include <setjmp.h>
 #include <pthread.h>
 #include <stdatomic.h>
 #include <stddef.h>
 #include <stdint.h>
 
+#include "platform/platform.h"
 #include "scoop_rt.h"
 
 typedef enum ScoopThreadMode {
@@ -47,14 +47,15 @@ typedef struct ScoopThreadState {
     _Atomic(ScoopThreadMode) mode;
     _Atomic(uint64_t) observed_gc_epoch;
     const char *managed_stack_boundary;
-    const char *parked_sp;
-    jmp_buf register_spill;
+    ScoopManagedAnchor *managed_anchor;
     ScoopThreadMode parked_from;
     uint64_t managed_depth;
     uint64_t callback_depth;
     ScoopThreadAttachmentKind attachment_kind;
     ScoopNativeRootFrame *native_roots;
+    ScoopNativeRegionRootFrame *native_region_roots;
     ScoopCallerRootFrame *caller_roots;
+    ScoopCompilerRootFrame *compiler_roots;
     ScoopThreadTransition *current_transition;
     /* Owner-only allocation cursor while managed. The STW collector retires
      * every pair before sweep; re-entry refills instead of reusing stale
@@ -81,7 +82,22 @@ ScoopThreadState *scoop_thread_current(void);
 ScoopThreadState *scoop_thread_current_required(void);
 void scoop_thread_require_managed(void);
 void scoop_thread_poll(void);
-void scoop_thread_runtime_entry(void);
+void scoop_thread_native_borrowed_entry(void);
+void scoop_thread_push_managed_anchor(ScoopManagedAnchor *anchor,
+                                      uintptr_t return_pc,
+                                      uintptr_t stack_pointer,
+                                      uintptr_t frame_pointer);
+void scoop_thread_pop_managed_anchor(ScoopManagedAnchor *anchor);
+void scoop_rt_enter_native_safe_impl(ScoopThreadTransition *transition,
+                                     uintptr_t managed_stack_low,
+                                     uintptr_t return_pc,
+                                     uintptr_t stack_pointer,
+                                     uintptr_t frame_pointer);
+void scoop_rt_enter_native_borrowed_impl(ScoopThreadTransition *transition,
+                                         uintptr_t managed_stack_low,
+                                         uintptr_t return_pc,
+                                         uintptr_t stack_pointer,
+                                         uintptr_t frame_pointer);
 
 /* Collection coordinator. begin returns false when this request joined an
  * already active epoch; only the true-returning collector may enumerate the

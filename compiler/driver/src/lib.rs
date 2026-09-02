@@ -63,6 +63,8 @@ pub fn compile_file_with_options(
     out_dir: &Path,
     options: &CompileOptions,
 ) -> Result<CompileSuccess, Vec<Diagnostic>> {
+    let target_profile = scoop_codegen::TargetProfile::resolve_host()
+        .map_err(|error| vec![no_span(0, format!("target configuration failed: {error}"))])?;
     let inputs = load_inputs(path)?;
     let user_index = inputs.len() - 1;
 
@@ -128,7 +130,7 @@ pub fn compile_file_with_options(
     let object = out_dir.join(format!("{stem}.o"));
     let binary = out_dir.join(stem);
 
-    scoop_codegen::emit_object(&lir, &object)
+    scoop_codegen::emit_object(&lir, &object, target_profile)
         .map_err(|e| vec![no_span(user_index, format!("codegen failed: {e}"))])?;
 
     let bridge_object = match scoop_codegen::c_bridge_source(&lir).map_err(|e| {
@@ -146,13 +148,13 @@ pub fn compile_file_with_options(
                     format!("cannot write C bridge {}: {error}", source_path.display()),
                 )]
             })?;
-            compile_c_bridge(&source_path, &object_path, user_index)?;
+            compile_c_bridge(&source_path, &object_path, target_profile, user_index)?;
             Some(object_path)
         }
         None => None,
     };
 
-    let runtime_lib = build_runtime(user_index)?;
+    let runtime_lib = build_runtime(user_index, target_profile)?;
     let mut libraries = Vec::new();
     for (_, extern_) in lir.extern_functions.iter() {
         if !extern_.library.is_empty() && !libraries.contains(&extern_.library) {
@@ -164,15 +166,16 @@ pub fn compile_file_with_options(
             libraries.push(global.library.clone());
         }
     }
-    link(
-        &object,
-        bridge_object.as_deref(),
-        &runtime_lib,
-        &libraries,
-        &options.library_paths,
-        &binary,
-        user_index,
-    )?;
+    link(LinkRequest {
+        object: &object,
+        bridge_object: bridge_object.as_deref(),
+        runtime_lib: &runtime_lib,
+        libraries: &libraries,
+        library_paths: &options.library_paths,
+        binary: &binary,
+        target_profile,
+        file: user_index,
+    })?;
 
     Ok(CompileSuccess {
         dumps: StageDumps {
@@ -185,8 +188,15 @@ pub fn compile_file_with_options(
     })
 }
 
-fn compile_c_bridge(source: &Path, object: &Path, file: usize) -> Result<(), Vec<Diagnostic>> {
+fn compile_c_bridge(
+    source: &Path,
+    object: &Path,
+    target_profile: scoop_codegen::TargetProfile,
+    file: usize,
+) -> Result<(), Vec<Diagnostic>> {
     let output = Command::new("cc")
+        .arg("-target")
+        .arg(target_profile.canonical_triple())
         .arg("-std=c11")
         .arg("-c")
         .arg(source)
@@ -359,10 +369,13 @@ fn validate_core_manifest(manifest: &str, path: &Path) -> Result<(), Vec<Diagnos
 }
 
 /// Compile the C runtime into a static library cached under
-/// `target/scoop-rt/`. M13 adds `thread.c` and `callback.c` beside
-/// `rt.c` + `gc.c`; rebuilding the four files is still cheap enough (see
+/// `target/scoop-rt/`. The complete source set comes from the selected target
+/// profile; rebuilding it is still cheap enough (see
 /// `docs/milestone1/DESIGN.md` section 2.7).
-fn build_runtime(file: usize) -> Result<PathBuf, Vec<Diagnostic>> {
+fn build_runtime(
+    file: usize,
+    target_profile: scoop_codegen::TargetProfile,
+) -> Result<PathBuf, Vec<Diagnostic>> {
     let root = workspace_root();
     let out_dir = root.join("target/scoop-rt");
     std::fs::create_dir_all(&out_dir).map_err(|e| {
@@ -374,20 +387,21 @@ fn build_runtime(file: usize) -> Result<PathBuf, Vec<Diagnostic>> {
             ),
         )]
     })?;
-    let triple = host_triple();
-    cc::Build::new()
-        .file(root.join("runtime/src/rt.c"))
-        .file(root.join("runtime/src/gc.c"))
-        .file(root.join("runtime/src/thread.c"))
-        .file(root.join("runtime/src/callback.c"))
-        .include(root.join("runtime/include"))
-        .flag_if_supported("-pthread")
+    let mut build = cc::Build::new();
+    for source in target_profile.runtime_sources() {
+        build.file(root.join(source));
+    }
+    build.include(root.join("runtime/include"));
+    for flag in target_profile.runtime_c_flags() {
+        build.flag(flag);
+    }
+    build
         .out_dir(&out_dir)
         // The driver is not a build script: cargo does not provide
         // TARGET/HOST here, so set them explicitly and silence cargo
         // metadata output.
-        .target(&triple)
-        .host(&triple)
+        .target(target_profile.canonical_triple())
+        .host(target_profile.canonical_triple())
         .cargo_metadata(false)
         // Outside a build script there is no OPT_LEVEL/DEBUG either.
         .opt_level(0)
@@ -402,30 +416,34 @@ fn build_runtime(file: usize) -> Result<PathBuf, Vec<Diagnostic>> {
     Ok(out_dir.join("libscoop_rt.a"))
 }
 
-/// Host target triple, derived from the platform the driver runs on.
-/// Cross-compilation is out of scope for M1.
-fn host_triple() -> String {
-    let arch = std::env::consts::ARCH;
-    match std::env::consts::OS {
-        "macos" => format!("{arch}-apple-darwin"),
-        "linux" => format!("{arch}-unknown-linux-gnu"),
-        "windows" => format!("{arch}-pc-windows-msvc"),
-        other => format!("{arch}-unknown-{other}"),
-    }
-}
-
 /// Link the object file and the runtime static library into an executable
 /// using the system `cc` driver.
-fn link(
-    object: &Path,
-    bridge_object: Option<&Path>,
-    runtime_lib: &Path,
-    libraries: &[String],
-    library_paths: &[PathBuf],
-    binary: &Path,
+struct LinkRequest<'a> {
+    object: &'a Path,
+    bridge_object: Option<&'a Path>,
+    runtime_lib: &'a Path,
+    libraries: &'a [String],
+    library_paths: &'a [PathBuf],
+    binary: &'a Path,
+    target_profile: scoop_codegen::TargetProfile,
     file: usize,
-) -> Result<(), Vec<Diagnostic>> {
+}
+
+fn link(request: LinkRequest<'_>) -> Result<(), Vec<Diagnostic>> {
+    let LinkRequest {
+        object,
+        bridge_object,
+        runtime_lib,
+        libraries,
+        library_paths,
+        binary,
+        target_profile,
+        file,
+    } = request;
     let mut command = Command::new("cc");
+    command
+        .arg("-target")
+        .arg(target_profile.canonical_triple());
     command.arg(object);
     if let Some(bridge_object) = bridge_object {
         command.arg(bridge_object);
@@ -437,13 +455,8 @@ fn link(
     for library in libraries {
         command.arg(format!("-l{library}"));
     }
+    command.args(target_profile.linker_args());
     let output = command
-        // M13 thread registration, STW coordination and foreign callbacks use
-        // the host POSIX pthread runtime.
-        .arg("-pthread")
-        // M8 exceptions: the runtime and generated landing pads call
-        // the Itanium C++ ABI (`__cxa_*`, personality; runtime spec 5).
-        .arg("-lc++abi")
         .arg("-o")
         .arg(binary)
         .output()

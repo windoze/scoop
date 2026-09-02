@@ -67,6 +67,26 @@ const char string_type_name[] = "String";
 extern "C" const ScoopTypeDescriptorLayout scoop_td_String = {
     {1, 24, 8, 0, 0, 0, 0, 0, (unsigned long long)&string_type_name[0]}};
 
+/* This standalone runtime test has no compiler-emitted writable globals or
+ * immortal Scoop objects, but it must provide the image metadata symbols
+ * that every generated image defines. Counts, rather than sentinel records,
+ * are authoritative. */
+struct ScoopManagedGlobalDescriptorLayout {
+    void *writable_base;
+    const unsigned long long *scan;
+};
+struct ScoopImmortalObjectDescriptorLayout {
+    const void *object_start;
+    unsigned long long object_size;
+    const ScoopTypeDescriptorLayout *td;
+};
+extern "C" const ScoopManagedGlobalDescriptorLayout
+    scoop_image_managed_globals[1] = {{nullptr, nullptr}};
+extern "C" const unsigned long long scoop_image_managed_global_count = 0;
+extern "C" const ScoopImmortalObjectDescriptorLayout
+    scoop_image_immortal_objects[1] = {{nullptr, 0, nullptr}};
+extern "C" const unsigned long long scoop_image_immortal_object_count = 0;
+
 namespace {
 
 /* Test exception type: instance size 24 = 16-byte object header + one

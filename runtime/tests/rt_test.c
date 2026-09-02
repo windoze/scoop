@@ -22,7 +22,7 @@
  *
  * Build & run (M8: rt.c references the C++ ABI for exceptions, hence
  * -lc++abi):
- *   cc -std=c11 -Wall -Wextra -pthread -I runtime/include runtime/src/rt.c runtime/src/gc.c runtime/src/thread.c runtime/src/callback.c runtime/tests/rt_test.c -o /tmp/scoop_rt_test -lc++abi
+ *   cc -std=c11 -Wall -Wextra -pthread -I runtime/include runtime/src/rt.c runtime/src/gc.c runtime/src/gc/collector.c runtime/src/gc/roots.c runtime/src/thread.c runtime/src/callback.c runtime/src/platform/os/darwin.c runtime/tests/rt_test.c -o /tmp/scoop_rt_test -lc++abi
  *   /tmp/scoop_rt_test
  */
 #include <pthread.h>
@@ -85,6 +85,21 @@ typedef struct ScoopNode {
 static const uint64_t node_refs[] = {1, 24};
 static const ScoopTypeDescriptor node_td = {
     2000, 32, 8, node_refs, NULL, NULL, NULL, 0, "Node"};
+
+/* Exact image metadata normally emitted by codegen. The managed global uses
+ * an inline-value scan rooted at its writable pointer slot; String literals
+ * are immutable, GC-free-payload managed objects with stable addresses. */
+static ScoopNode *image_global_rooted;
+static void *image_immortal_rooted;
+static const uint64_t image_global_scan[] = {1, 0};
+const ScoopManagedGlobalDescriptor scoop_image_managed_globals[] = {
+    {&image_global_rooted, image_global_scan}};
+const uint64_t scoop_image_managed_global_count = 1;
+const ScoopImmortalObjectDescriptor scoop_image_immortal_objects[] = {
+    {&hello, sizeof hello, &scoop_td_String},
+    {&world, sizeof world, &scoop_td_String},
+};
+const uint64_t scoop_image_immortal_object_count = 2;
 
 /* 64-byte plain object without references: exactly two per line, for
  * the free-line reuse test. */
@@ -300,6 +315,19 @@ static void *caller_root_lifo_violation(void *unused) {
     scoop_rt_push_caller_roots(&outer, NULL, 0);
     scoop_rt_push_caller_roots(&inner, NULL, 0);
     scoop_rt_pop_caller_roots(&outer);
+    return NULL;
+}
+
+static void *compiler_root_lifo_violation(void *unused) {
+    (void)unused;
+    volatile char managed_stack_boundary = 0;
+    (void)scoop_rt_attach_foreign_thread();
+    scoop_rt_thread_debug_enter_managed((uintptr_t)&managed_stack_boundary);
+    ScoopCompilerRootFrame outer;
+    ScoopCompilerRootFrame inner;
+    scoop_rt_push_compiler_roots(&outer, NULL, 0);
+    scoop_rt_push_compiler_roots(&inner, NULL, 0);
+    scoop_rt_pop_compiler_roots(&outer);
     return NULL;
 }
 
@@ -650,6 +678,7 @@ void scoop_main(void) {
     scoop_rt_println_boolean(thread_protocol_aborts(detach_with_native_root));
     scoop_rt_println_boolean(thread_protocol_aborts(detach_twice));
     scoop_rt_println_boolean(thread_protocol_aborts(caller_root_lifo_violation));
+    scoop_rt_println_boolean(thread_protocol_aborts(compiler_root_lifo_violation));
     scoop_rt_println_boolean(thread_protocol_aborts(transition_lifo_violation));
 
     /* M13 cooperative STW: main and a foreign managed requester race to
@@ -788,6 +817,22 @@ void scoop_main(void) {
     scoop_rt_println_boolean(native_safe_active &&
                              scoop_rt_thread_debug_transition_depth() == 0 &&
                              scoop_rt_thread_debug_caller_root_count() == 0);
+
+    ScoopNode *compiler_root_value = new_node(16180, NULL);
+    ScoopCallerRootEntry compiler_root_entries[] = {
+        {.base = &compiler_root_value, .scan = caller_root_scan},
+    };
+    ScoopCompilerRootFrame compiler_frame;
+    scoop_rt_push_compiler_roots(&compiler_frame, compiler_root_entries, 1);
+    scoop_rt_gc_collect();
+    bool compiler_root_survived =
+        scoop_rt_thread_debug_compiler_root_count() == 1 &&
+        scoop_rt_gc_debug_is_allocated(compiler_root_value) &&
+        compiler_root_value->value == 16180;
+    scoop_rt_pop_compiler_roots(&compiler_frame);
+    scoop_rt_println_boolean(
+        compiler_root_survived &&
+        scoop_rt_thread_debug_compiler_root_count() == 0);
 
     ScoopCallerRootFrame borrowed_caller_frame;
     ScoopThreadTransition borrowed_transition = {0};
@@ -1357,6 +1402,35 @@ void scoop_main(void) {
     clobber_stack();
     scoop_rt_gc_collect();
     scoop_rt_println_boolean(global_rooted != NULL && global_rooted->value == 13);
+
+    /* Compiler-emitted managed-global metadata is registered by GC init; no
+     * dynamic add_root call is needed for this writable storage. */
+    image_global_rooted = new_node(14, NULL);
+    clobber_stack();
+    scoop_rt_gc_collect();
+    scoop_rt_println_boolean(image_global_rooted != NULL &&
+                             image_global_rooted->value == 14);
+
+    /* An exact managed slot may point at a compiler-registered immortal
+     * object start; it neither enters the mark worklist nor fails validation. */
+    image_immortal_rooted = (void *)&hello;
+    scoop_rt_gc_add_root(&image_immortal_rooted);
+    scoop_rt_gc_collect();
+    scoop_rt_println_boolean(image_immortal_rooted == (void *)&hello);
+
+    /* Exact roots reject every heap-external pointer that is not an
+     * explicitly registered immortal object start. */
+    fflush(stdout);
+    pid_t invalid_root_pid = fork();
+    if (invalid_root_pid == 0) {
+        void *invalid_root = (void *)(uintptr_t)16;
+        scoop_rt_gc_add_root(&invalid_root);
+        scoop_rt_gc_collect();
+        _exit(0);
+    }
+    int invalid_root_status = 0;
+    waitpid(invalid_root_pid, &invalid_root_status, 0);
+    scoop_rt_println_boolean(WIFSIGNALED(invalid_root_status));
 
     /* Scoop ABI native-root frame: the only visible object pointer is in
      * foreign heap storage, which the conservative C-stack scan cannot see.
