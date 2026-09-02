@@ -7,10 +7,13 @@
 typedef void (*ScoopGcSlotVisitor)(void **slot, void *context);
 typedef void (*ScoopGcExternalObjectVisitor)(const void *object,
                                              void *context);
+typedef void (*ScoopGcRegionVisitor)(void *base, const uint64_t *scan,
+                                    void *context);
 
 typedef struct ScoopGcRootVisitor {
     ScoopGcSlotVisitor visit_slot;
     ScoopGcExternalObjectVisitor visit_external_object;
+    ScoopGcRegionVisitor visit_region;
     void *context;
 } ScoopGcRootVisitor;
 
@@ -27,6 +30,12 @@ void scoop_gc_heap_finish_collection_locked(uint64_t live_objects);
  * mutator root APIs use the same lock. */
 void scoop_gc_roots_lock(void);
 void scoop_gc_roots_unlock(void);
+void scoop_gc_register_image_roots(
+    const ScoopManagedGlobalDescriptor *managed_globals,
+    uint64_t managed_global_count,
+    const ScoopImmortalObjectDescriptor *immortal_objects,
+    uint64_t immortal_object_count);
+bool scoop_gc_is_immortal_object_locked(const void *object);
 void scoop_gc_visit_roots_locked(ScoopGcRootVisitor visitor);
 
 #endif

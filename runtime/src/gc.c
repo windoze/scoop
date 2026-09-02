@@ -455,7 +455,11 @@ void scoop_gc_heap_begin_collection_locked(void) {
 }
 
 void scoop_rt_gc_init(void) {
-    /* Reserve the heap arena and set up the card table at startup. */
+    /* Register the compiler-emitted exact image roots before reserving the
+     * heap. No managed code can run before both operations complete. */
+    scoop_gc_register_image_roots(
+        scoop_image_managed_globals, scoop_image_managed_global_count,
+        scoop_image_immortal_objects, scoop_image_immortal_object_count);
     gc_arena_ensure();
 }
 

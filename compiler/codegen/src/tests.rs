@@ -1660,6 +1660,92 @@ fn typed_intrinsic_string_supplies_the_only_descriptor_definition() {
 }
 
 #[test]
+fn emits_complete_image_root_and_immortal_tables() {
+    let mut module = values_module();
+    module.globals.alloc(Global {
+        symbol: "scoop.global.managed".to_string(),
+        address_kind: PointerKind::Raw,
+        scan: RefScan::References(vec![0]),
+        init: GlobalInit::Storage {
+            ty: MANAGED_PTR,
+            initializer: ConstantValue::NullPointer(PointerKind::Managed),
+            thread_local: false,
+        },
+    });
+
+    let ir = ir_of(&module);
+    assert!(
+        ir.contains(
+            "@scoop.global.managed.global_refs = private constant [2 x i64] [i64 1, i64 0]"
+        ),
+        "managed global scan is missing:\n{ir}"
+    );
+    assert!(
+        ir.contains("@scoop_image_managed_globals = constant [1 x { ptr, ptr }]")
+            && ir.contains("ptr @scoop.global.managed")
+            && ir.contains("ptr @scoop.global.managed.global_refs"),
+        "managed global descriptor table is incomplete:\n{ir}"
+    );
+    assert!(
+        ir.contains("@scoop_image_managed_global_count = constant i64 1"),
+        "managed global count is wrong:\n{ir}"
+    );
+    assert!(
+        ir.contains("@scoop_image_immortal_objects = constant [2 x { ptr, i64, ptr }]")
+            && ir.contains("ptr @scoop.string.0")
+            && ir.contains("ptr @scoop.string.1")
+            && ir.contains("ptr @scoop_td_String"),
+        "immortal object descriptor table is incomplete:\n{ir}"
+    );
+    assert!(
+        ir.contains("@scoop_image_immortal_object_count = constant i64 2"),
+        "immortal object count is wrong:\n{ir}"
+    );
+}
+
+#[test]
+fn emits_addressable_zero_count_image_tables() {
+    let module = enum_module();
+    let ir = ir_of(&module);
+    assert!(
+        ir.contains("@scoop_image_managed_globals = constant [1 x { ptr, ptr }] zeroinitializer")
+            && ir.contains("@scoop_image_managed_global_count = constant i64 0"),
+        "empty managed-global table lacks its sentinel/count:\n{ir}"
+    );
+    assert!(
+        ir.contains(
+            "@scoop_image_immortal_objects = constant [1 x { ptr, i64, ptr }] zeroinitializer"
+        ) && ir.contains("@scoop_image_immortal_object_count = constant i64 0"),
+        "empty immortal table lacks its sentinel/count:\n{ir}"
+    );
+}
+
+#[test]
+fn managed_thread_local_global_is_rejected_at_codegen_boundary() {
+    let mut module = values_module();
+    module.globals.alloc(Global {
+        symbol: "scoop.tls.managed".to_string(),
+        address_kind: PointerKind::Raw,
+        scan: RefScan::References(vec![0]),
+        init: GlobalInit::Storage {
+            ty: MANAGED_PTR,
+            initializer: ConstantValue::NullPointer(PointerKind::Managed),
+            thread_local: true,
+        },
+    });
+    let machine = host_target_machine().expect("target machine");
+    let context = Context::create();
+    let error = emit_llvm_module(&context, &module, &machine)
+        .expect_err("managed TLS requires per-thread image-root registration");
+    assert!(
+        error
+            .0
+            .contains("thread-local global `@scoop.tls.managed` contains managed references"),
+        "unexpected error: {error}"
+    );
+}
+
+#[test]
 fn typed_local_call_signature_cannot_be_replaced_by_a_callsite_guess() {
     let mut module = exceptions_module();
     module.functions[1].params.push(LirType::I64);

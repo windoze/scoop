@@ -393,8 +393,10 @@ native-safe/native-borrowed transition冻结的外层 managed segment在 M15 不
 
 LIR 的 managed global storage直接携带完整 `RefScan`；codegen不能根据 initializer或symbol判断是否为root。单 image产物发射：
 
-- managed global storage descriptor table：`{ writable_base, scan }`；
-- immortal managed object table：`{ object_start, object_size, td }`。
+- managed global storage descriptor table `scoop_image_managed_globals`及其`u64` count `scoop_image_managed_global_count`，record为`{ writable_base, scan }`；
+- immortal managed object table `scoop_image_immortal_objects`及其`u64` count `scoop_image_immortal_object_count`，record为`{ object_start, object_size, td }`。
+
+count是表长度的唯一权威；零长度表仍发射一个全零sentinel record，使每个image都从结构上定义四个symbol，而不是让runtime用weak symbol或“symbol不存在”猜测表是否存在。
 
 runtime init在任何 managed代码执行前登记两张表。GC-free global保留显式 `RefScan::None`，不进入 visitor；不能用缺失字段表达“可能无root”。M17 多 Cone时把同一记录并入 image registration，不改变 collector接口。
 

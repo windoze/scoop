@@ -45,8 +45,16 @@ static void mark(void *object) {
 
 static void trace_slot(void **slot) {
     void *target = *slot;
+    if (target == NULL) {
+        return;
+    }
     if (scoop_gc_is_object_start_locked(target)) {
         mark(target);
+        return;
+    }
+    if (!scoop_gc_is_immortal_object_locked(target)) {
+        collector_fatal(
+            "managed slot points outside the heap and immortal object table");
     }
 }
 
@@ -94,6 +102,12 @@ static void visit_root_slot(void **slot, void *context) {
 static void visit_external_root(const void *object, void *context) {
     (void)context;
     trace_object((void *)object);
+}
+
+static void visit_root_region(void *base, const uint64_t *scan,
+                              void *context) {
+    (void)context;
+    trace_descriptor(base, scan);
 }
 
 static void scan_range(const char *low, const char *high) {
@@ -197,6 +211,7 @@ void scoop_rt_gc_collect(void) {
     ScoopGcRootVisitor root_visitor = {
         .visit_slot = visit_root_slot,
         .visit_external_object = visit_external_root,
+        .visit_region = visit_root_region,
         .context = NULL,
     };
     scoop_gc_visit_roots_locked(root_visitor);

@@ -55,8 +55,9 @@ typedef struct ScoopItableEntry {
  *   each ref-bearing variant has a disjoint slot and inactive slots are
  *   zero, so scanning never reads the tag.
  *
- * A scanned slot whose value is null or points outside the GC heap is
- * ignored. Niche `None` and inactive tagged-enum slots must be null.
+ * A scanned slot must contain null, a GC-heap object start, or a registered
+ * immortal object start. Any other value is a malformed managed reference
+ * and is fatal. Niche `None` and inactive tagged-enum slots must be null.
  */
 #define SCOOP_REFS_ARRAY UINT64_MAX
 #define SCOOP_REFS_SEQUENCE (UINT64_MAX - 1)
@@ -89,6 +90,26 @@ typedef struct ScoopString {
     uint64_t len;
     char data[];
 } ScoopString;
+
+/* M15 image root metadata. Codegen emits exactly one instance of each table
+ * and count symbol for the linked image. A zero-count table still has one
+ * null sentinel record so its symbol is addressable. Runtime initialization
+ * validates and registers both tables before any managed code executes. */
+typedef struct ScoopManagedGlobalDescriptor {
+    void *writable_base;
+    const uint64_t *scan;
+} ScoopManagedGlobalDescriptor;
+
+typedef struct ScoopImmortalObjectDescriptor {
+    const void *object_start;
+    uint64_t object_size;
+    const ScoopTypeDescriptor *td;
+} ScoopImmortalObjectDescriptor;
+
+extern const ScoopManagedGlobalDescriptor scoop_image_managed_globals[];
+extern const uint64_t scoop_image_managed_global_count;
+extern const ScoopImmortalObjectDescriptor scoop_image_immortal_objects[];
+extern const uint64_t scoop_image_immortal_object_count;
 
 /* Runtime spec 2.5 / spec 10.1. Array objects are variable-length:
  * header + element count + padding to the element alignment + inline

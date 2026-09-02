@@ -74,6 +74,7 @@ impl std::fmt::Display for CodegenError {
 impl std::error::Error for CodegenError {}
 
 mod c_bridge;
+mod image_roots;
 mod statepoint;
 mod target;
 
@@ -264,6 +265,14 @@ fn emit_llvm_module<'ctx>(
             }
         }
     }
+    image_roots::emit(
+        context,
+        &llvm,
+        &target_data,
+        &module.globals,
+        &globals,
+        string_td,
+    )?;
 
     // Two passes: declare every function first so call sites never
     // create shadow extern declarations (a forward call would

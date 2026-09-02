@@ -43,6 +43,11 @@ static int64_t handles_free = -1;
 static void **pinned;
 static size_t pinned_len;
 static size_t pinned_cap;
+static const ScoopManagedGlobalDescriptor *image_managed_globals;
+static uint64_t image_managed_global_count;
+static const ScoopImmortalObjectDescriptor *image_immortal_objects;
+static uint64_t image_immortal_object_count;
+static bool image_roots_registered;
 
 static _Noreturn void roots_fatal(const char *message) {
     fprintf(stderr, "scoop gc: %s\n", message);
@@ -72,6 +77,90 @@ static void root_push(ScoopGcRoot root) {
         roots_cap = new_cap;
     }
     roots[roots_len++] = root;
+}
+
+static bool ranges_overlap(uintptr_t left_start, uint64_t left_size,
+                           uintptr_t right_start, uint64_t right_size) {
+    if (left_size > UINTPTR_MAX - left_start ||
+        right_size > UINTPTR_MAX - right_start) {
+        roots_fatal("immortal object range overflows uintptr_t");
+    }
+    uintptr_t left_end = left_start + (uintptr_t)left_size;
+    uintptr_t right_end = right_start + (uintptr_t)right_size;
+    return left_start < right_end && right_start < left_end;
+}
+
+void scoop_gc_register_image_roots(
+    const ScoopManagedGlobalDescriptor *managed_globals,
+    uint64_t managed_global_count,
+    const ScoopImmortalObjectDescriptor *immortal_objects,
+    uint64_t immortal_object_count) {
+    scoop_gc_roots_lock();
+    if (image_roots_registered) {
+        scoop_gc_roots_unlock();
+        roots_fatal("image roots were registered more than once");
+    }
+    if (managed_globals == NULL || immortal_objects == NULL) {
+        scoop_gc_roots_unlock();
+        roots_fatal("image root table symbol is null");
+    }
+    for (uint64_t index = 0; index < managed_global_count; index++) {
+        if (managed_globals[index].writable_base == NULL ||
+            managed_globals[index].scan == NULL) {
+            scoop_gc_roots_unlock();
+            roots_fatal("managed global descriptor is incomplete");
+        }
+        for (uint64_t previous = 0; previous < index; previous++) {
+            if (managed_globals[index].writable_base ==
+                managed_globals[previous].writable_base) {
+                scoop_gc_roots_unlock();
+                roots_fatal("managed global storage is registered twice");
+            }
+        }
+    }
+    for (uint64_t index = 0; index < immortal_object_count; index++) {
+        const ScoopImmortalObjectDescriptor *entry =
+            &immortal_objects[index];
+        if (entry->object_start == NULL || entry->td == NULL ||
+            entry->object_size < sizeof(ScoopObjectHeader) ||
+            entry->object_size < entry->td->size) {
+            scoop_gc_roots_unlock();
+            roots_fatal("immortal object descriptor is incomplete");
+        }
+        const ScoopObjectHeader *header = entry->object_start;
+        if (header->td != entry->td) {
+            scoop_gc_roots_unlock();
+            roots_fatal("immortal object TypeDescriptor does not match header");
+        }
+        if (entry->td->ref_offsets != NULL) {
+            scoop_gc_roots_unlock();
+            roots_fatal("read-only immortal object contains managed references");
+        }
+        for (uint64_t previous = 0; previous < index; previous++) {
+            if (ranges_overlap(
+                    (uintptr_t)entry->object_start, entry->object_size,
+                    (uintptr_t)immortal_objects[previous].object_start,
+                    immortal_objects[previous].object_size)) {
+                scoop_gc_roots_unlock();
+                roots_fatal("immortal object ranges overlap");
+            }
+        }
+    }
+    image_managed_globals = managed_globals;
+    image_managed_global_count = managed_global_count;
+    image_immortal_objects = immortal_objects;
+    image_immortal_object_count = immortal_object_count;
+    image_roots_registered = true;
+    scoop_gc_roots_unlock();
+}
+
+bool scoop_gc_is_immortal_object_locked(const void *object) {
+    for (uint64_t index = 0; index < image_immortal_object_count; index++) {
+        if (image_immortal_objects[index].object_start == object) {
+            return true;
+        }
+    }
+    return false;
 }
 
 void scoop_rt_gc_add_root(void **slot) {
@@ -326,8 +415,17 @@ const void *scoop_rt_unpin(const void *object) {
 }
 
 void scoop_gc_visit_roots_locked(ScoopGcRootVisitor visitor) {
-    if (visitor.visit_slot == NULL || visitor.visit_external_object == NULL) {
+    if (visitor.visit_slot == NULL || visitor.visit_external_object == NULL ||
+        visitor.visit_region == NULL) {
         roots_fatal("collector supplied an incomplete root visitor");
+    }
+    if (!image_roots_registered) {
+        roots_fatal("collector ran before image roots were registered");
+    }
+    for (uint64_t index = 0; index < image_managed_global_count; index++) {
+        visitor.visit_region(image_managed_globals[index].writable_base,
+                             image_managed_globals[index].scan,
+                             visitor.context);
     }
     for (size_t index = 0; index < roots_len; index++) {
         switch (roots[index].kind) {

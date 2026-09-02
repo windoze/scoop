@@ -86,6 +86,21 @@ static const uint64_t node_refs[] = {1, 24};
 static const ScoopTypeDescriptor node_td = {
     2000, 32, 8, node_refs, NULL, NULL, NULL, 0, "Node"};
 
+/* Exact image metadata normally emitted by codegen. The managed global uses
+ * an inline-value scan rooted at its writable pointer slot; String literals
+ * are immutable, GC-free-payload managed objects with stable addresses. */
+static ScoopNode *image_global_rooted;
+static void *image_immortal_rooted;
+static const uint64_t image_global_scan[] = {1, 0};
+const ScoopManagedGlobalDescriptor scoop_image_managed_globals[] = {
+    {&image_global_rooted, image_global_scan}};
+const uint64_t scoop_image_managed_global_count = 1;
+const ScoopImmortalObjectDescriptor scoop_image_immortal_objects[] = {
+    {&hello, sizeof hello, &scoop_td_String},
+    {&world, sizeof world, &scoop_td_String},
+};
+const uint64_t scoop_image_immortal_object_count = 2;
+
 /* 64-byte plain object without references: exactly two per line, for
  * the free-line reuse test. */
 typedef struct {
@@ -1357,6 +1372,35 @@ void scoop_main(void) {
     clobber_stack();
     scoop_rt_gc_collect();
     scoop_rt_println_boolean(global_rooted != NULL && global_rooted->value == 13);
+
+    /* Compiler-emitted managed-global metadata is registered by GC init; no
+     * dynamic add_root call is needed for this writable storage. */
+    image_global_rooted = new_node(14, NULL);
+    clobber_stack();
+    scoop_rt_gc_collect();
+    scoop_rt_println_boolean(image_global_rooted != NULL &&
+                             image_global_rooted->value == 14);
+
+    /* An exact managed slot may point at a compiler-registered immortal
+     * object start; it neither enters the mark worklist nor fails validation. */
+    image_immortal_rooted = (void *)&hello;
+    scoop_rt_gc_add_root(&image_immortal_rooted);
+    scoop_rt_gc_collect();
+    scoop_rt_println_boolean(image_immortal_rooted == (void *)&hello);
+
+    /* Exact roots reject every heap-external pointer that is not an
+     * explicitly registered immortal object start. */
+    fflush(stdout);
+    pid_t invalid_root_pid = fork();
+    if (invalid_root_pid == 0) {
+        void *invalid_root = (void *)(uintptr_t)16;
+        scoop_rt_gc_add_root(&invalid_root);
+        scoop_rt_gc_collect();
+        _exit(0);
+    }
+    int invalid_root_status = 0;
+    waitpid(invalid_root_pid, &invalid_root_status, 0);
+    scoop_rt_println_boolean(WIFSIGNALED(invalid_root_status));
 
     /* Scoop ABI native-root frame: the only visible object pointer is in
      * foreign heap storage, which the conservative C-stack scan cannot see.

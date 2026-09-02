@@ -203,7 +203,7 @@ fn emit_type_descriptor<'ctx>(
 }
 
 /// A private constant global holding `value`; returns its address.
-fn private_const_global<'ctx>(
+pub(super) fn private_const_global<'ctx>(
     llvm: &LlvmModule<'ctx>,
     name: &str,
     value: BasicValueEnum<'ctx>,

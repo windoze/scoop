@@ -99,6 +99,8 @@ M15的macOS/AArch64 runtime只更新stack-resident managed roots。固定的LLVM
 - stable/immortal对象：活跃的ABI exception buffer作为动态stable external object登记，其内部ref slot可更新；编译器生成的静态String等只读immortal object必须有精确地址/size/TD登记。M15只允许GC-free payload的只读immortal对象；未登记的heap外地址不能出现在managed slot；
 - handle 表与 pinned 对象（`GcHandle` 保活其引用对象；pinned 对象作为根被扫描，见 3.4）。
 
+单image ABI固定导出`ScoopManagedGlobalDescriptor scoop_image_managed_globals[]`、`u64 scoop_image_managed_global_count`、`ScoopImmortalObjectDescriptor scoop_image_immortal_objects[]`、`u64 scoop_image_immortal_object_count`。两个record分别为`{ void *writable_base; const u64 *scan; }`与`{ const void *object_start; u64 object_size; const TypeDescriptor *td; }`。count是唯一权威；count为零时数组仍含一个全零sentinel。runtime在GC heap初始化前验证并登记两张表；重复storage、重叠immortal range、TD/header不匹配、含managed出站引用的只读immortal object均为fatal metadata error。
+
 ### 3.4 保活机制（两级）
 
 - **pin（对象头标志）**：保活且阻止移动。pin 标志位于对象头，`PinnedPtr.raw` 即对象地址（spec 14.1），pin/unpin 是 O(1) 的对象头读写，**不经 handle 表**。带 pin 标志的对象作为 GC 根被扫描（其出站引用必须被追踪），但自身不移动。
