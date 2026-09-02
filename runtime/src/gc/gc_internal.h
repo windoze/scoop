@@ -20,15 +20,28 @@ typedef struct ScoopGcRootVisitor {
     void *context;
 } ScoopGcRootVisitor;
 
+typedef void (*ScoopGcHeapObjectVisitor)(void *object, void *context);
+
 struct ScoopThreadState;
 
-/* Heap metadata operations used by the pin registry. The `_locked` query
- * requires the caller to hold the heap lock acquired through this API. */
+/* Arena-external side metadata and moving-heap operations. Every `_locked`
+ * operation requires the heap lock acquired through this API. */
+void scoop_gc_heap_init(void);
 void scoop_gc_heap_lock(void);
 void scoop_gc_heap_unlock(void);
 bool scoop_gc_is_object_start_locked(const void *object);
+size_t scoop_gc_object_size_locked(const void *object);
+bool scoop_gc_update_pin_locked(const void *object, bool pinned);
 bool scoop_gc_mark_object_locked(const void *object);
 void scoop_gc_heap_begin_collection_locked(void);
+void scoop_gc_heap_plan_moving_locked(void);
+void *scoop_gc_forward_object_locked(void *object);
+bool scoop_gc_claim_object_scan_locked(void *object);
+bool scoop_gc_object_was_scanned_locked(const void *object);
+bool scoop_gc_is_forwarded_old_locked(const void *object);
+bool scoop_gc_is_current_live_object_locked(const void *object);
+void scoop_gc_visit_current_objects_locked(ScoopGcHeapObjectVisitor visitor,
+                                            void *context);
 void scoop_gc_heap_finish_collection_locked(uint64_t live_objects);
 void *scoop_gc_alloc_internal(const ScoopTypeDescriptor *td, size_t size);
 
@@ -42,6 +55,7 @@ void scoop_gc_register_image_roots(
     const ScoopImmortalObjectDescriptor *immortal_objects,
     uint64_t immortal_object_count);
 bool scoop_gc_is_immortal_object_locked(const void *object);
+bool scoop_gc_is_external_object_locked(const void *object);
 void scoop_gc_visit_roots_locked(ScoopGcRootVisitor visitor);
 
 /* Immutable loaded-image stack-map index. Initialization parses and validates

@@ -9,8 +9,6 @@
 #include "../thread.h"
 #include "gc_internal.h"
 
-#define GC_PIN_BIT UINT64_C(2)
-
 typedef enum ScoopGcRootKind {
     SCOOP_GC_ROOT_SLOT,
     SCOOP_GC_ROOT_EXTERNAL_OBJECT,
@@ -157,6 +155,16 @@ void scoop_gc_register_image_roots(
 bool scoop_gc_is_immortal_object_locked(const void *object) {
     for (uint64_t index = 0; index < image_immortal_object_count; index++) {
         if (image_immortal_objects[index].object_start == object) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool scoop_gc_is_external_object_locked(const void *object) {
+    for (size_t index = 0; index < roots_len; index++) {
+        if (roots[index].kind == SCOOP_GC_ROOT_EXTERNAL_OBJECT &&
+            roots[index].source.external_object == object) {
             return true;
         }
     }
@@ -403,10 +411,8 @@ const void *scoop_rt_pin(const void *object) {
         roots_fatal("scoop_rt_pin: not a GC heap object");
     }
     scoop_gc_roots_lock();
-    ScoopObjectHeader *header = (ScoopObjectHeader *)object;
-    uint64_t old_word = __atomic_fetch_or(&header->gc_word, GC_PIN_BIT,
-                                          __ATOMIC_ACQ_REL);
-    if ((old_word & GC_PIN_BIT) == 0) {
+    bool was_pinned = scoop_gc_update_pin_locked(object, true);
+    if (!was_pinned) {
         if (pinned_len == pinned_cap) {
             size_t new_cap = pinned_cap == 0 ? 8 : pinned_cap * 2;
             void **grown = realloc(pinned, new_cap * sizeof *grown);
@@ -435,10 +441,8 @@ const void *scoop_rt_unpin(const void *object) {
         roots_fatal("scoop_rt_unpin: not a GC heap object");
     }
     scoop_gc_roots_lock();
-    ScoopObjectHeader *header = (ScoopObjectHeader *)object;
-    uint64_t old_word = __atomic_fetch_and(&header->gc_word, ~GC_PIN_BIT,
-                                           __ATOMIC_ACQ_REL);
-    if ((old_word & GC_PIN_BIT) == 0) {
+    bool was_pinned = scoop_gc_update_pin_locked(object, false);
+    if (!was_pinned) {
         scoop_gc_roots_unlock();
         scoop_gc_heap_unlock();
         roots_fatal("scoop_rt_unpin: object is not pinned");

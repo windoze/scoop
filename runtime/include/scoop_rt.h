@@ -74,10 +74,10 @@ struct ScoopTypeDescriptor {
     const char *name; /* stable NUL-terminated UTF-8 diagnostic name */
 };
 
-/* Runtime spec 2.1, M9 form (milestone9 DESIGN section 0): 16 bytes.
- * `gc_word` belongs to the GC (runtime/src/gc.c): mark parity bit and
- * pin bit; the remaining bits are reserved (hash cache etc.). Mutator
- * code must not touch it. All field payloads start at offset 16. */
+/* Runtime spec 2.1: 16 bytes. `gc_word` belongs to the GC and currently
+ * carries the pin bit; mark, exact size and forwarding state live in the
+ * arena-external side table. The remaining bits are reserved (hash cache
+ * etc.). Mutator code must not touch it. All payloads start at offset 16. */
 typedef struct ScoopObjectHeader {
     const ScoopTypeDescriptor *td;
     uint64_t gc_word;
@@ -345,11 +345,9 @@ void scoop_rt_enter_native_borrowed(ScoopThreadTransition *transition,
                                     uintptr_t managed_stack_pointer);
 void scoop_rt_leave_native_borrowed(ScoopThreadTransition *transition);
 
-/* pin / unpin (runtime spec 3.4): O(1) object-header flag, no handle
- * table. Returns the object so the Scoop-level intrinsics can forward
- * it. null is a no-op returning null; a non-null pointer that is not a
- * GC-heap object start aborts. Pinning is not ref-counted: one unpin
- * clears any number of pins. */
+/* pin / unpin (runtime spec 3.4): O(1) object-header flag mirrored in side
+ * metadata, with no handle-table indirection. Returns the stable object
+ * address. Pinning is not ref-counted: one unpin clears any number of pins. */
 const void *scoop_rt_pin(const void *obj);
 const void *scoop_rt_unpin(const void *obj);
 
@@ -357,8 +355,7 @@ const void *scoop_rt_unpin(const void *obj);
  * pinning. A nonzero 64-bit value encodes generation and slot+1, so stale
  * handles cannot alias a reused slot; 0 remains the null niche.
  * release/resolve validate both components and abort for stale handles.
- * Entries are not relocated by M13's non-moving collector; M15 updates
- * live entries during relocation. */
+ * M15 updates live entries in place during relocation. */
 uint64_t scoop_rt_get_handle(const void *obj);
 const void *scoop_rt_release_handle(uint64_t handle);
 const void *scoop_rt_resolve_handle(uint64_t handle);
@@ -420,6 +417,8 @@ uint64_t scoop_rt_gc_stats(void);
 
 /* Test hook: number of heap blocks currently live in the arena. */
 uint64_t scoop_rt_gc_debug_block_count(void);
+uint64_t scoop_rt_gc_debug_last_moved_count(void);
+uint64_t scoop_rt_gc_debug_allocation_size(const void *obj);
 
 /* Test hook: base address of the heap arena the blocks are carved
  * from (0 before the first allocation / gc init). */

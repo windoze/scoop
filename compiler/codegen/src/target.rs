@@ -104,7 +104,10 @@ impl TargetProfile {
         runtime_sources: &[
             "runtime/src/rt.c",
             "runtime/src/gc.c",
+            "runtime/src/gc/allocation.c",
             "runtime/src/gc/collector.c",
+            "runtime/src/gc/evacuation.c",
+            "runtime/src/gc/heap.c",
             "runtime/src/gc/roots.c",
             "runtime/src/gc/stackmap.c",
             "runtime/src/gc/stack_roots.c",
@@ -279,7 +282,10 @@ mod tests {
                 [
                     "runtime/src/rt.c",
                     "runtime/src/gc.c",
+                    "runtime/src/gc/allocation.c",
                     "runtime/src/gc/collector.c",
+                    "runtime/src/gc/evacuation.c",
+                    "runtime/src/gc/heap.c",
                     "runtime/src/gc/roots.c",
                     "runtime/src/gc/stackmap.c",
                     "runtime/src/gc/stack_roots.c",

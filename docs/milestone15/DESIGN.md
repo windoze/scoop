@@ -143,8 +143,10 @@ profile 是 codegen 和 runtime build 的唯一平台选择入口。其字段是
 ```text
 runtime/src/
   gc/
-    collector.c          forwarding、evacuation、collection phases
-    heap.c               arena、block side metadata、mutator/GC allocator
+    collector.c          mark/relocate/verify phases与线程root枚举
+    heap.c               arena与block/object side metadata
+    allocation.c         mutator TLAB与large-object allocator
+    evacuation.c         forwarding、to-space allocator与source回收
     roots.c              scan program与统一ManagedSlot visitor
     stackmap.c           平台无关LLVM v3 parser/index
     gc_internal.h
