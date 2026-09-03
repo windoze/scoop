@@ -203,17 +203,16 @@ impl Lowerer {
                 sink,
             )?;
             debug_assert_eq!(resolved.return_ty, self.boolean);
-            self.check_call_effects(resolved.callee, span);
-            let function = self.callable_function_id(resolved.callee);
+            let function = resolved.function();
+            self.check_call_effects(hir::Callable::Function(function), span);
             let callee = match derived {
                 Some((derived_function, application)) if function == derived_function => {
                     hir::MethodCallee::DerivedEquality(application)
                 }
-                _ => self.materialize_method_callee(
-                    resolved.source,
-                    resolved.callee,
-                    &resolved.type_args,
-                ),
+                _ => {
+                    let callee = self.materialize_resolved_callee(&resolved);
+                    self.materialize_method_callee(resolved.source, callee, &resolved.type_args)
+                }
             };
             let call = hir::Expr {
                 kind: ExprKind::MethodCall {
@@ -289,9 +288,9 @@ impl Lowerer {
             sink.is_empty(),
             "literal equality with identical static types needs no temporary"
         );
-        self.check_call_effects(resolved.callee, span);
-        let callee =
-            self.materialize_method_callee(resolved.source, resolved.callee, &resolved.type_args);
+        let callable = self.materialize_resolved_callee(&resolved);
+        self.check_call_effects(callable, span);
+        let callee = self.materialize_method_callee(resolved.source, callable, &resolved.type_args);
         let hir::MethodCallee::Callable(callee) = callee else {
             unreachable!("literal core equality is an ordinary concrete member")
         };

@@ -23,10 +23,11 @@ impl Lowerer {
             },
             sink,
         )?;
-        self.check_call_effects(resolved.callee, call.span);
+        let callee = self.materialize_resolved_callee(&resolved);
+        self.check_call_effects(callee, call.span);
         Some(hir::Expr {
             kind: ExprKind::Call {
-                callee: resolved.callee,
+                callee,
                 args: resolved.args,
             },
             ty: resolved.return_ty,

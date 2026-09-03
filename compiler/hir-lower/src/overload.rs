@@ -31,13 +31,19 @@ mod specificity;
 /// The winner of overload resolution, ready to be wrapped in an
 /// `ExprKind::Call` / `ExprKind::MethodCall` by the caller.
 pub(crate) struct ResolvedCallee {
-    pub(crate) callee: hir::Callable,
+    target: CallableCandidate,
     pub(crate) source: CallableCandidateSource,
     pub(crate) type_args: Vec<TypeId>,
     /// The arguments, lowered once and adapted (boxed where needed) to
     /// the winner's parameter types.
     pub(crate) args: Vec<hir::Expr>,
     pub(crate) return_ty: TypeId,
+}
+
+impl ResolvedCallee {
+    pub(crate) fn function(&self) -> FunctionId {
+        self.target.function
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -98,6 +104,16 @@ enum OverloadReceiver {
 }
 
 impl Lowerer {
+    /// Materialize the already selected declaration target. Callers invoke
+    /// this only after any winner-specific intrinsic normalization has had a
+    /// chance to consume the typed target directly.
+    pub(crate) fn materialize_resolved_callee(
+        &mut self,
+        resolved: &ResolvedCallee,
+    ) -> hir::Callable {
+        self.materialize_candidate_callable(&resolved.target, &resolved.type_args)
+    }
+
     /// Resolve one candidate layer. `receiver_type_args` are the already fixed
     /// owner arguments (empty for top-level functions). On success the unique
     /// winner is committed into this layer transaction; on failure a stable
@@ -387,9 +403,8 @@ impl Lowerer {
             owner,
             source,
         };
-        let callee = self.materialize_candidate_callable(&resolved_candidate, &type_args);
         Some(ResolvedCallee {
-            callee,
+            target: resolved_candidate,
             source,
             type_args,
             args,

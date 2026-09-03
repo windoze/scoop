@@ -156,14 +156,15 @@ impl Lowerer {
             },
             sink,
         )?;
-        let function = self.callable_function_id(resolved.callee);
+        let function = resolved.function();
         let local_function = self.local_function_by_function[&function];
         let captures = self.local_call_capture_args(local_function, call.span)?;
-        self.check_call_effects(resolved.callee, call.span);
+        let callee = self.materialize_resolved_callee(&resolved);
+        self.check_call_effects(callee, call.span);
         Some(hir::Expr {
             kind: ExprKind::LocalFunctionCall {
                 local_function,
-                callee: resolved.callee,
+                callee,
                 captures,
                 args: resolved.args,
             },
@@ -180,18 +181,6 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
-        if let [function] = candidates
-            && self.ffi_core.is_some_and(|core| {
-                *function == core.address_of
-                    || *function == core.size_of
-                    || *function == core.align_of
-            })
-        {
-            // These operations still need the source lvalue/type syntax. The
-            // winner-first intrinsic commit replaces this temporary boundary
-            // in the dedicated M16 commit slice.
-            return self.lower_pointer_top_level_intrinsic(*function, call);
-        }
         let explicit_type_args = self.resolve_call_type_args(&call.type_args)?;
         let resolved = self.resolve_overload(
             name,
@@ -205,11 +194,18 @@ impl Lowerer {
             },
             sink,
         )?;
+        let function = resolved.function();
+        if self.ffi_core.is_some_and(|core| {
+            function == core.address_of || function == core.size_of || function == core.align_of
+        }) {
+            return self.lower_pointer_top_level_intrinsic(function, call, resolved);
+        }
         let ty = resolved.return_ty;
-        self.check_call_effects(resolved.callee, call.span);
+        let callee = self.materialize_resolved_callee(&resolved);
+        self.check_call_effects(callee, call.span);
         Some(hir::Expr {
             kind: ExprKind::Call {
-                callee: resolved.callee,
+                callee,
                 args: resolved.args,
             },
             ty,

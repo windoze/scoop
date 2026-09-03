@@ -3,14 +3,13 @@ use super::*;
 impl Lowerer {
     pub(in crate::expr) fn normalize_pointer_method_call(
         &self,
-        callee: hir::Callable,
+        function: hir::FunctionId,
         receiver: hir::Expr,
         args: Vec<hir::Expr>,
         ty: TypeId,
         span: Span,
     ) -> Option<hir::Expr> {
         let core = self.ffi_core?;
-        let function = self.callable_function_id(callee);
         let kind = if function == core.ptr_to_uint {
             hir::PointerIntrinsic::ToUInt
         } else if function == core.ptr_cast {

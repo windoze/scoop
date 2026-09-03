@@ -27,9 +27,10 @@ impl Lowerer {
             sink,
         )?;
         let ty = resolved.return_ty;
-        self.check_call_effects(resolved.callee, call.span);
+        let function = resolved.function();
+        self.check_call_effects(hir::Callable::Function(function), call.span);
         if let Some(expr) = self.normalize_pointer_method_call(
-            resolved.callee,
+            function,
             receiver.clone(),
             resolved.args.clone(),
             ty,
@@ -37,8 +38,9 @@ impl Lowerer {
         ) {
             return Some(expr);
         }
+        let callee = self.materialize_resolved_callee(&resolved);
         let method_callee =
-            self.materialize_method_callee(resolved.source, resolved.callee, &resolved.type_args);
+            self.materialize_method_callee(resolved.source, callee, &resolved.type_args);
         Some(hir::Expr {
             kind: ExprKind::MethodCall {
                 receiver: Box::new(receiver),
