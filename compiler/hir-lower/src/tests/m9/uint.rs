@@ -84,7 +84,7 @@ fn uint_mixed_equality_is_an_error() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "no overload of `equals` matches argument types (Int)"
+        "no applicable candidate for `equals` in member candidate layer:\n  - fun UInt.equals(other: UInt): Boolean — argument for `other` has type Int, which is not a subtype of UInt"
     );
 }
 

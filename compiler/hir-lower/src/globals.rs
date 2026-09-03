@@ -4,6 +4,9 @@ use scoop_ast as ast;
 use scoop_hir as hir;
 
 use crate::Lowerer;
+use crate::call_resolution::applicability::NominalApplicabilityInput;
+use crate::call_resolution::arguments::CandidateArgumentMap;
+use crate::call_resolution::candidates::{NominalConstructorSource, NominalConstructorView};
 
 impl Lowerer {
     pub(crate) fn resolve_globals(&mut self, pending: &[(&ast::GlobalDecl, usize)]) {
@@ -113,46 +116,39 @@ impl Lowerer {
             (hir::Type::Boolean, ast::Expr::BoolLiteral { value, .. }) => {
                 Some(hir::ConstantValue::Bool(*value))
             }
-            (hir::Type::Ptr(pointee), ast::Expr::Call(call))
-                if call.callee.text == "Ptr"
-                    && call.args.len() == 1
-                    && matches!(call.args[0], ast::Expr::IntLiteral { value: 0, .. }) =>
-            {
-                if self.explicit_global_type_arg_matches(&call.type_args, &[pointee]) {
-                    Some(hir::ConstantValue::NullPtr)
-                } else {
-                    None
+            (hir::Type::Ptr(pointee), ast::Expr::Call(call)) => {
+                let structure = self.global_struct_callee(call)?;
+                if Some(structure) != self.ffi_ptr {
+                    return None;
                 }
+                let view =
+                    self.nominal_constructor_view(NominalConstructorSource::Struct(structure));
+                let (values, _) = self.global_nominal_constant(&view, call, &[pointee])?;
+                matches!(values.as_slice(), [hir::ConstantValue::Int(0)])
+                    .then_some(hir::ConstantValue::NullPtr)
             }
-            (hir::Type::FunPtr(signature), ast::Expr::Call(call))
-                if call.callee.text == "FunPtr" && call.args.is_empty() =>
-            {
+            (hir::Type::FunPtr(signature), ast::Expr::Call(call)) => {
+                let structure = self.global_struct_callee(call)?;
+                if Some(structure) != self.ffi_fun_ptr {
+                    return None;
+                }
+                let mut view =
+                    self.nominal_constructor_view(NominalConstructorSource::Struct(structure));
+                view.value_parameters.clear();
                 let function_ty = self.function_types[signature].canonical_type;
-                if self.explicit_global_type_arg_matches(&call.type_args, &[function_ty]) {
-                    Some(hir::ConstantValue::NullFunPtr)
-                } else {
-                    None
-                }
+                self.global_nominal_constant(&view, call, &[function_ty])?;
+                Some(hir::ConstantValue::NullFunPtr)
             }
-            (hir::Type::Struct(application), ast::Expr::Call(call))
-                if call.callee.text
-                    == self.structs[self.struct_applications[application].template].name =>
-            {
+            (hir::Type::Struct(application), ast::Expr::Call(call)) => {
                 let application_value = self.struct_applications[application].clone();
                 let struct_id = application_value.template;
-                let type_args = application_value.arguments;
-                if !self.explicit_global_type_arg_matches(&call.type_args, &type_args) {
+                if self.global_struct_callee(call) != Some(struct_id) {
                     return None;
                 }
-                let fields = self.structs[struct_id].semantic_fields().to_vec();
-                if call.args.len() != fields.len() {
-                    return None;
-                }
-                let mut values = Vec::with_capacity(fields.len());
-                for (argument, field) in call.args.iter().zip(fields) {
-                    let field_ty = self.instantiate_ty(field.ty, &type_args);
-                    values.push(self.global_constant(argument, field_ty)?);
-                }
+                let view =
+                    self.nominal_constructor_view(NominalConstructorSource::Struct(struct_id));
+                let (values, _) =
+                    self.global_nominal_constant(&view, call, &application_value.arguments)?;
                 Some(hir::ConstantValue::Struct {
                     application,
                     fields: values,
@@ -162,20 +158,61 @@ impl Lowerer {
         }
     }
 
-    fn explicit_global_type_arg_matches(
+    fn global_struct_callee(&self, call: &ast::CallExpr) -> Option<hir::StructId> {
+        self.structs_by_name
+            .get(&call.callee.text)
+            .map(|&(structure, _)| structure)
+    }
+
+    fn global_nominal_constant(
         &mut self,
-        refs: &[ast::TypeRef],
-        expected: &[hir::TypeId],
-    ) -> bool {
-        if refs.is_empty() {
-            return true;
+        view: &NominalConstructorView,
+        call: &ast::CallExpr,
+        expected_arguments: &[hir::TypeId],
+    ) -> Option<(Vec<hir::ConstantValue>, Vec<hir::TypeId>)> {
+        if expected_arguments.len() != view.owner_parameters.len() {
+            return None;
         }
-        if refs.len() != expected.len() {
-            return false;
+        let argument_map = CandidateArgumentMap::exact_nominal(view, call.args.len()).ok()?;
+        let explicit_arguments = self.resolve_call_type_args(&call.type_args)?;
+        if !explicit_arguments.is_empty() && explicit_arguments.len() != view.owner_parameters.len()
+        {
+            return None;
         }
-        refs.iter().zip(expected).all(|(reference, &expected)| {
-            self.resolve_type_ref(reference)
-                .is_some_and(|actual| self.types_equal(actual, expected))
-        })
+        let seed = if explicit_arguments.is_empty() {
+            expected_arguments
+        } else {
+            &explicit_arguments
+        };
+        let parameter_types = view
+            .value_parameters
+            .iter()
+            .map(|parameter| self.instantiate_ty(parameter.ty, seed))
+            .collect::<Vec<_>>();
+        let values = call
+            .args
+            .iter()
+            .zip(&parameter_types)
+            .map(|(argument, &parameter)| self.global_constant(argument, parameter))
+            .collect::<Option<Vec<_>>>()?;
+        let argument_types = parameter_types
+            .iter()
+            .copied()
+            .map(Some)
+            .collect::<Vec<_>>();
+        let solution = self
+            .solve_nominal_applicability(NominalApplicabilityInput {
+                view,
+                argument_map: &argument_map,
+                explicit_arguments: &explicit_arguments,
+                expected_arguments: Some(expected_arguments),
+                argument_types: &argument_types,
+            })
+            .ok()?;
+        solution
+            .iter()
+            .zip(expected_arguments)
+            .all(|(&actual, &expected)| self.types_equal(actual, expected))
+            .then_some((values, solution))
     }
 }

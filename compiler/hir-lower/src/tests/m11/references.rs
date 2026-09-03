@@ -68,6 +68,52 @@ fn top_level_reference_is_a_distinct_typed_entity() {
 }
 
 #[test]
+fn inapplicable_local_reference_layer_falls_through_to_top_level() {
+    let signature = ty_function(false, vec![ty_named("String")], ty_named("String"));
+    let reference = ast::Expr::CallableReference {
+        id: ast::CallableReferenceId(0),
+        receiver: None,
+        name: ident("choose"),
+        span: sp(),
+    };
+    let module = lower_user(file(vec![
+        fun_expr(
+            "choose",
+            vec![],
+            vec![("value", ty_named("String"))],
+            Some(ty_named("String")),
+            var("value"),
+        ),
+        fun(
+            "main",
+            vec![
+                local_fun_sig(
+                    "choose",
+                    vec![],
+                    vec![("value", ty_named("Int"))],
+                    Some(ty_named("Int")),
+                    vec![ret(Some(var("value")))],
+                ),
+                val_ty("operation", Some(signature), reference),
+            ],
+        ),
+    ]))
+    .expect("an inapplicable local reference layer must be skipped");
+
+    let (_, reference) = module
+        .callable_references
+        .iter()
+        .next()
+        .expect("reference entity");
+    let hir::CallableReferenceTarget::Named(callee) = reference.target else {
+        panic!("the top-level reference layer must win")
+    };
+    let function = module.callable_function(callee);
+    assert_eq!(module.functions[function].name, "choose");
+    assert_eq!(module.functions[function].params[0].ty, module.string);
+}
+
+#[test]
 fn generic_top_level_reference_is_fixed_by_its_expected_type() {
     let signature = ty_function(false, vec![ty_named("Int")], ty_named("Int"));
     let reference = ast::Expr::CallableReference {
@@ -238,4 +284,58 @@ fn bound_extension_reference_has_a_distinct_direct_target() {
         module.functions[module.callable_function(*callee)].name,
         "decorate"
     );
+}
+
+#[test]
+fn inapplicable_bound_member_reference_falls_through_to_extension() {
+    let operation_ty = ty_function(false, vec![ty_named("String")], ty_named("String"));
+    let reference = ast::Expr::CallableReference {
+        id: ast::CallableReferenceId(0),
+        receiver: Some(Box::new(var("host"))),
+        name: ident("choose"),
+        span: sp(),
+    };
+    let module = lower_user(file(vec![
+        class_decl(
+            ast::ClassModifier::Final,
+            "Host",
+            vec![],
+            None,
+            vec![],
+            vec![method_expr(
+                "choose",
+                vec![("value", ty_named("Int"))],
+                Some(ty_named("Int")),
+                var("value"),
+            )],
+        ),
+        extension_expr(
+            ty_named("Host"),
+            "choose",
+            vec![],
+            vec![("value", ty_named("String"))],
+            Some(ty_named("String")),
+            var("value"),
+        ),
+        fun(
+            "main",
+            vec![
+                val("host", struct_init("Host", vec![])),
+                val_ty("operation", Some(operation_ty), reference),
+            ],
+        ),
+    ]))
+    .expect("an inapplicable member reference layer must be skipped");
+
+    let (_, reference) = module
+        .callable_references
+        .iter()
+        .next()
+        .expect("reference entity");
+    let hir::CallableReferenceTarget::BoundExtension { callee, .. } = reference.target else {
+        panic!("the extension reference layer must win")
+    };
+    let function = module.callable_function(callee);
+    assert_eq!(module.functions[function].name, "choose");
+    assert_eq!(module.functions[function].params.len(), 2);
 }

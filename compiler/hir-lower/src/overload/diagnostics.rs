@@ -1,99 +1,197 @@
 use super::*;
 
+use crate::call_resolution::constraints::{ConstraintFailure, ConstraintOrigin};
+use crate::call_resolution::diagnostics::{
+    callable_layer_name, callable_source_signature, render_callable_constraint_failure,
+};
+use crate::overload::probe::{
+    CandidateProbeFailure, CandidateProbeFailureKind, CandidateShapeFailure,
+};
+
 impl Lowerer {
-    pub(super) fn contextual_no_applicable_diagnostic(
-        &mut self,
-        name: &str,
-        arg_exprs: &[ast::Expr],
-        failures: &[(usize, TypeId, String)],
-    ) -> bool {
-        let Some(argument) = failures.iter().map(|failure| failure.0).min() else {
-            return false;
-        };
-        let mut details = Vec::new();
-        for (_, expected, reason) in failures.iter().filter(|failure| failure.0 == argument) {
-            let detail = format!("{}: {reason}", self.type_name(*expected));
-            if !details.contains(&detail) {
-                details.push(detail);
-            }
-        }
-        self.error(
-            arg_exprs[argument].span(),
-            format!(
-                "{} does not match any overload of `{name}`; candidate expectations: {}",
-                contextual_expr_name(&arg_exprs[argument]),
-                details.join("; ")
-            ),
-        );
-        true
-    }
-    /// No applicable candidate: when every overload shares one arity
-    /// and the call supplies a different count, report it as an arity
-    /// error against the name (the shape arity diagnostics had before
-    /// overloading — this keeps the `print` / `println` arity messages
-    /// intact); otherwise report the unmatched argument types.
-    pub(super) fn no_applicable_diagnostic(
+    pub(super) fn candidate_failures_diagnostic(
         &mut self,
         name: &str,
         prepared: &[Candidate],
-        arg_tys: &[Option<TypeId>],
-        arg_exprs: Option<&[ast::Expr]>,
-        extension_receiver: Option<TypeId>,
+        failures: &mut [CandidateProbeFailure],
+        arguments: &OverloadArguments<'_>,
+        extension_receiver: Option<&hir::Expr>,
         span: Span,
     ) {
-        let hidden_argument_count = usize::from(extension_receiver.is_some());
-        let supplied = arg_tys.len();
-        let uniform_arity = prepared[0].params.len() - hidden_argument_count;
-        if prepared
-            .iter()
-            .all(|candidate| candidate.params.len() - hidden_argument_count == uniform_arity)
-            && uniform_arity != supplied
-        {
-            let noun = if uniform_arity == 1 {
-                "argument"
-            } else {
-                "arguments"
-            };
-            self.error(
-                span,
-                format!(
-                    "`{name}` takes exactly {uniform_arity} {noun}, but {supplied} were supplied"
-                ),
-            );
-            return;
-        }
-        let found: Vec<String> = arg_tys
-            .iter()
-            .enumerate()
-            .map(|(index, ty)| match ty {
-                Some(ty) => self.type_name(*ty),
-                None => contextual_expr_name(
-                    &arg_exprs.expect("only source arguments can remain contextual")[index],
-                ),
+        debug_assert_eq!(failures.len(), prepared.len());
+        failures.sort_by_key(|failure| failure.candidate);
+        if failures.iter().all(|failure| {
+            matches!(
+                failure.kind,
+                CandidateProbeFailureKind::Expression { expected: None, .. }
+            )
+        }) && failures
+            .windows(2)
+            .all(|pair| match (&pair[0].kind, &pair[1].kind) {
+                (
+                    CandidateProbeFailureKind::Expression {
+                        span: left_span,
+                        reason: left_reason,
+                        ..
+                    },
+                    CandidateProbeFailureKind::Expression {
+                        span: right_span,
+                        reason: right_reason,
+                        ..
+                    },
+                ) => left_span == right_span && left_reason == right_reason,
+                _ => false,
             })
-            .collect();
-        let message = match extension_receiver {
-            Some(receiver) => format!(
-                "no overload of extension `{name}` matches receiver type {} and argument types ({})",
-                self.type_name(receiver),
-                found.join(", ")
+        {
+            let baseline = self.diagnostics.len();
+            let diagnostics = failures[0].state.diagnostics[baseline..].to_vec();
+            if !diagnostics.is_empty() {
+                self.diagnostics.extend(diagnostics);
+                return;
+            }
+        }
+        let diagnostic_span = common_failure_span(failures, arguments, extension_receiver, span);
+        let views = prepared
+            .iter()
+            .map(|candidate| candidate.view.clone())
+            .collect::<Vec<_>>();
+        let layer = callable_layer_name(self, &views);
+        let mut traces = Vec::with_capacity(failures.len());
+        for failure in failures {
+            let candidate = &prepared[failure.candidate];
+            let signature = callable_source_signature(self, name, &candidate.view);
+            let reason = render_candidate_failure(candidate, failure);
+            traces.push(format!("  - {signature} — {reason}"));
+        }
+        self.error(
+            diagnostic_span,
+            format!(
+                "no applicable candidate for `{name}` in {layer} layer:\n{}",
+                traces.join("\n")
             ),
-            None => format!(
-                "no overload of `{name}` matches argument types ({})",
-                found.join(", ")
-            ),
-        };
-        self.error(span, message);
+        );
+    }
+
+    pub(super) fn ambiguity_diagnostic(
+        &mut self,
+        name: &str,
+        prepared: &[Candidate],
+        tied: &[usize],
+        span: Span,
+    ) {
+        let views = prepared
+            .iter()
+            .map(|candidate| candidate.view.clone())
+            .collect::<Vec<_>>();
+        let layer = callable_layer_name(self, &views);
+        let traces = tied
+            .iter()
+            .map(|&index| {
+                format!(
+                    "  - {} — tied after pairwise declaration forwarding",
+                    callable_source_signature(self, name, &prepared[index].view)
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+        self.error(
+            span,
+            format!("call to `{name}` is ambiguous in {layer} layer:\n{traces}"),
+        );
     }
 }
 
-fn contextual_expr_name(expr: &ast::Expr) -> String {
-    match expr {
-        ast::Expr::Var(name) if name.text == "None" => "None".to_string(),
-        ast::Expr::ArrayLiteral { elements, .. } if elements.is_empty() => "[]".to_string(),
-        ast::Expr::Lambda { .. } => "lambda".to_string(),
-        ast::Expr::AnonymousFunction { .. } => "anonymous function".to_string(),
-        ast::Expr::CallableReference { .. } => "callable reference".to_string(),
-        _ => "context-dependent expression".to_string(),
+fn render_candidate_failure(candidate: &Candidate, failure: &CandidateProbeFailure) -> String {
+    match &failure.kind {
+        CandidateProbeFailureKind::Shape(CandidateShapeFailure::TypeArgumentArity {
+            expected,
+            supplied,
+        }) => format!("expects {expected} explicit type argument(s), but {supplied} were supplied"),
+        CandidateProbeFailureKind::Shape(CandidateShapeFailure::ArgumentArity {
+            expected,
+            supplied,
+        }) => format!("expects {expected} argument(s), but {supplied} were supplied"),
+        CandidateProbeFailureKind::Expression {
+            source_index,
+            expected,
+            reason,
+            ..
+        } => {
+            let parameter = candidate
+                .view
+                .value_parameters
+                .get(*source_index)
+                .map(|parameter| format!("argument for `{}`", parameter.name))
+                .unwrap_or_else(|| format!("argument {}", source_index + 1));
+            match expected {
+                Some(expected) => format!(
+                    "{parameter} (expected {}): {reason}",
+                    failure.state.type_name(*expected)
+                ),
+                None => format!("{parameter}: {reason}"),
+            }
+        }
+        CandidateProbeFailureKind::Intrinsic { reason, .. } => reason.clone(),
+        CandidateProbeFailureKind::Constraint(constraint) => render_callable_constraint_failure(
+            &failure.state,
+            &candidate.view,
+            &failure.arguments,
+            constraint,
+        ),
+    }
+}
+
+fn common_failure_span(
+    failures: &[CandidateProbeFailure],
+    arguments: &OverloadArguments<'_>,
+    extension_receiver: Option<&hir::Expr>,
+    fallback: Span,
+) -> Span {
+    let Some(first) = failures.first() else {
+        return fallback;
+    };
+    let first = candidate_failure_span(first, arguments, extension_receiver, fallback);
+    if failures[1..].iter().all(|failure| {
+        candidate_failure_span(failure, arguments, extension_receiver, fallback) == first
+    }) {
+        first
+    } else {
+        fallback
+    }
+}
+
+fn candidate_failure_span(
+    failure: &CandidateProbeFailure,
+    arguments: &OverloadArguments<'_>,
+    extension_receiver: Option<&hir::Expr>,
+    fallback: Span,
+) -> Span {
+    match &failure.kind {
+        CandidateProbeFailureKind::Shape(_) => fallback,
+        CandidateProbeFailureKind::Intrinsic { span, .. } => *span,
+        CandidateProbeFailureKind::Expression { span, .. } => *span,
+        CandidateProbeFailureKind::Constraint(failure) => {
+            constraint_failure_span(arguments, extension_receiver, failure, fallback)
+        }
+    }
+}
+
+fn constraint_failure_span(
+    arguments: &OverloadArguments<'_>,
+    extension_receiver: Option<&hir::Expr>,
+    failure: &ConstraintFailure,
+    fallback: Span,
+) -> Span {
+    match failure.origin {
+        ConstraintOrigin::Argument(input) => match arguments {
+            OverloadArguments::Source(arguments) => arguments
+                .get(input.index())
+                .map_or(fallback, ast::Expr::span),
+            OverloadArguments::Lowered(arguments) => arguments
+                .get(input.index())
+                .map_or(fallback, |arg| arg.span),
+        },
+        ConstraintOrigin::Receiver => extension_receiver.map_or(fallback, |receiver| receiver.span),
+        _ => fallback,
     }
 }

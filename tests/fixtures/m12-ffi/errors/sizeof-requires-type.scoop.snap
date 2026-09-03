@@ -3,4 +3,5 @@ source: compiler/driver/tests/fixtures.rs
 expression: snapshot
 ---
 == diagnostics ==
-m12-ffi/errors/sizeof-requires-type.scoop:2:17: error: function `sizeOf` requires exactly 1 explicit type argument, but 0 were supplied
+m12-ffi/errors/sizeof-requires-type.scoop:2:17: error: no applicable candidate for `sizeOf` in implicit-import candidate layer:
+  - fun sizeOf<T : value>(): UInt — cannot infer a unique type argument for `T`

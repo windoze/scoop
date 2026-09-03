@@ -3,4 +3,5 @@ source: compiler/driver/tests/fixtures.rs
 expression: snapshot
 ---
 == diagnostics ==
-m11-functions/errors/extension-wrong-receiver.scoop:4:13: error: no overload of extension `bump` matches receiver type String and argument types ()
+m11-functions/errors/extension-wrong-receiver.scoop:4:13: error: no applicable candidate for `bump` in extension candidate layer:
+  - fun Int.bump(): Int — String is not a subtype of Int

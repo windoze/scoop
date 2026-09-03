@@ -74,7 +74,7 @@ fn no_applicable_overload_lists_argument_types() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "no overload of `f` matches argument types (Boolean)"
+        "no applicable candidate for `f` in current-unit top-level candidate layer:\n  - fun f(x: Int): Unit — argument for `x` has type Boolean, which is not a subtype of Int\n  - fun f(s: String): Unit — argument for `s` has type Boolean, which is not a subtype of String"
     );
 }
 
@@ -100,12 +100,12 @@ fn mixed_arity_no_match_lists_argument_types() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "no overload of `f` matches argument types (String)"
+        "no applicable candidate for `f` in current-unit top-level candidate layer:\n  - fun f(x: Int): Unit — argument for `x` has type String, which is not a subtype of Int\n  - fun f(x: Int, y: Int): Unit — expects 2 argument(s), but 1 were supplied"
     );
 }
 
 #[test]
-fn uniform_arity_mismatch_keeps_the_arity_message() {
+fn uniform_arity_mismatch_traces_each_candidate() {
     let overloads = vec![
         fun_expr("f", vec![], vec![("x", ty_named("Int"))], None, unit_lit()),
         fun_expr(
@@ -126,6 +126,34 @@ fn uniform_arity_mismatch_keeps_the_arity_message() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "`f` takes exactly 1 argument, but 0 were supplied"
+        "no applicable candidate for `f` in current-unit top-level candidate layer:\n  - fun f(x: Int): Unit — expects 1 argument(s), but 0 were supplied\n  - fun f(s: String): Unit — expects 1 argument(s), but 0 were supplied"
     );
+}
+
+#[test]
+fn single_candidate_accepts_a_subclass_argument() {
+    let file = file(vec![
+        class_decl(Open, "Base", vec![], None, vec![], vec![]),
+        class_decl(
+            Final,
+            "Derived",
+            vec![],
+            Some(("Base", vec![])),
+            vec![],
+            vec![],
+        ),
+        fun_expr(
+            "accept",
+            vec![],
+            vec![("value", ty_named("Base"))],
+            None,
+            unit_lit(),
+        ),
+        fun(
+            "main",
+            vec![stmt(call("accept", vec![call("Derived", vec![])]))],
+        ),
+    ]);
+
+    lower_user(file).expect("subclass values are applicable to base parameters");
 }

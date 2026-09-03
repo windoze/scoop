@@ -20,7 +20,7 @@ fn conversion_takes_exactly_one_argument() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "`Array` takes exactly 1 argument, but 0 were supplied"
+        "no applicable candidate for constructor `Array` in nominal constructor candidate layer:\n  - class Array<T>(source: MutableArray<T>) — expects 1 argument(s), but 0 were supplied"
     );
     // Two arguments.
     let file2 = super::file(vec![fun(
@@ -31,7 +31,7 @@ fn conversion_takes_exactly_one_argument() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "`Array` takes exactly 1 argument, but 2 were supplied"
+        "no applicable candidate for constructor `Array` in nominal constructor candidate layer:\n  - class Array<T>(source: MutableArray<T>) — expects 1 argument(s), but 2 were supplied"
     );
 }
 
@@ -51,7 +51,7 @@ fn conversion_methods_take_no_arguments_and_only_exist_on_the_source_kind() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "method `toMutableArray` takes exactly 0 arguments, but 1 were supplied"
+        "no applicable candidate for `toMutableArray` in member candidate layer:\n  - fun Array<T>.toMutableArray(): MutableArray<T> — expects 0 argument(s), but 1 were supplied"
     );
 
     let file2 = super::file(vec![fun(
@@ -83,7 +83,7 @@ fn conversion_needs_the_other_array_kind() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "use the value directly; conversion is only between Array and MutableArray"
+        "no applicable candidate for constructor `Array` in nominal constructor candidate layer:\n  - class Array<T>(source: MutableArray<T>) — argument for `source` has type Array<Int>, which is not a subtype of MutableArray<T>"
     );
 
     // `MutableArray(x)` where `x` is already a `MutableArray`.
@@ -102,7 +102,7 @@ fn conversion_needs_the_other_array_kind() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "use the value directly; conversion is only between Array and MutableArray"
+        "no applicable candidate for constructor `MutableArray` in nominal constructor candidate layer:\n  - class MutableArray<T>(source: Array<T>) — argument for `source` has type MutableArray<Int>, which is not a subtype of Array<T>"
     );
 }
 
@@ -116,7 +116,7 @@ fn conversion_argument_must_be_an_array() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "argument of `Array` conversion must be a MutableArray, found Int"
+        "no applicable candidate for constructor `Array` in nominal constructor candidate layer:\n  - class Array<T>(source: MutableArray<T>) — argument for `source` has type Int, which is not a subtype of MutableArray<T>"
     );
 
     let file2 = super::file(vec![fun(
@@ -127,6 +127,76 @@ fn conversion_argument_must_be_an_array() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "argument of `MutableArray` conversion must be an Array, found Int"
+        "no applicable candidate for constructor `MutableArray` in nominal constructor candidate layer:\n  - class MutableArray<T>(source: Array<T>) — argument for `source` has type Int, which is not a subtype of Array<T>"
     );
+}
+
+#[test]
+fn conversion_explicit_type_arguments_participate_in_constraints() {
+    let file = file(vec![fun(
+        "main",
+        vec![
+            val_ty(
+                "m",
+                Some(ty_mutable_int_array()),
+                array_lit(vec![int_lit(1)]),
+            ),
+            val(
+                "a",
+                typed_call("Array", vec![ty_named("String")], vec![var("m")]),
+            ),
+        ],
+    )]);
+    let errors = lower_user(file).expect_err("the explicit element type must constrain the source");
+    assert_eq!(errors.len(), 1);
+    assert_eq!(
+        errors[0].message,
+        "no applicable candidate for constructor `Array` in nominal constructor candidate layer:\n  - class Array<T>(source: MutableArray<T>) — conflicting types for `T`: String and Int"
+    );
+}
+
+#[test]
+fn array_conversion_intrinsics_are_required_and_shape_checked() {
+    let user = || file(vec![fun("main", vec![])]);
+
+    let mut missing = core_file();
+    let array = missing
+        .declarations
+        .iter_mut()
+        .find_map(|declaration| match declaration {
+            Decl::Class(class) if class.name.text == "Array" => Some(class),
+            _ => None,
+        })
+        .expect("test core declares Array");
+    array
+        .methods
+        .retain(|method| method.name.text != "toMutableArray");
+    let errors = lower(&[missing, user()]).expect_err("the array conversion intrinsic is required");
+    assert!(errors.iter().any(|error| {
+        error
+            .message
+            .contains("scoop.core must define exactly one `array_to_mutable` intrinsic")
+    }));
+
+    let mut malformed = core_file();
+    let mutable_array = malformed
+        .declarations
+        .iter_mut()
+        .find_map(|declaration| match declaration {
+            Decl::Class(class) if class.name.text == "MutableArray" => Some(class),
+            _ => None,
+        })
+        .expect("test core declares MutableArray");
+    mutable_array
+        .methods
+        .iter_mut()
+        .find(|method| method.name.text == "toArray")
+        .expect("test core declares MutableArray.toArray")
+        .return_ty = Some(ty_named("String"));
+    let errors = lower(&[malformed, user()]).expect_err("the array conversion signature is fixed");
+    assert!(errors.iter().any(|error| {
+        error
+            .message
+            .contains("malformed core array conversion intrinsic `array_to_immutable`")
+    }));
 }

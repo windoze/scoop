@@ -3,4 +3,5 @@ source: compiler/driver/tests/fixtures.rs
 expression: snapshot
 ---
 == diagnostics ==
-m11-functions/errors/bound-reference-no-match.scoop:6:41: error: no overload of bound callable reference `receiver::choose` matches the expected function type
+m11-functions/errors/bound-reference-no-match.scoop:6:41: error: no applicable candidate for bound callable reference `receiver::choose` in member candidate layer:
+  - fun Selector.choose(value: Int): Int — Int is not equal to String

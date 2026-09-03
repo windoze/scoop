@@ -94,6 +94,7 @@
 //! are ordinary test-only intrinsics.
 
 mod annotations;
+mod call_resolution;
 mod class;
 mod concretize;
 mod core_contract;

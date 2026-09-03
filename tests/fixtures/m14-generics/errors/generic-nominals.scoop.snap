@@ -10,5 +10,7 @@ m14-generics/errors/generic-nominals.scoop:22:21: error: generic class `Empty` r
 m14-generics/errors/generic-nominals.scoop:24:22: error: generic struct `Pair` requires 1 type argument(s)
 m14-generics/errors/generic-nominals.scoop:26:20: error: generic enum `Choice` requires 1 type argument(s)
 m14-generics/errors/generic-nominals.scoop:28:25: error: generic interface `Cell` requires 1 type argument(s)
-m14-generics/errors/generic-nominals.scoop:31:5: error: cannot infer type argument `T` for class `Empty`
-m14-generics/errors/generic-nominals.scoop:32:5: error: class `Empty` takes exactly 1 type argument(s), but 2 were supplied
+m14-generics/errors/generic-nominals.scoop:31:5: error: no applicable candidate for constructor `Empty` in nominal constructor candidate layer:
+  - class Empty<T>() — cannot infer a unique type argument for `T`
+m14-generics/errors/generic-nominals.scoop:32:5: error: no applicable candidate for constructor `Empty` in nominal constructor candidate layer:
+  - class Empty<T>() — expects 1 explicit type argument(s), but 2 were supplied

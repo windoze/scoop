@@ -3,4 +3,5 @@ source: compiler/driver/tests/fixtures.rs
 expression: snapshot
 ---
 == diagnostics ==
-m1-hello/errors/print-arity.scoop:2:5: error: function `print` takes exactly 1 argument, but 2 were supplied
+m1-hello/errors/print-arity.scoop:2:5: error: no applicable candidate for `print` in implicit-import candidate layer:
+  - fun print<T : ToString>(value: T): Unit — expects 1 argument(s), but 2 were supplied

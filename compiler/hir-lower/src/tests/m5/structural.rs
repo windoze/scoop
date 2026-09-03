@@ -185,6 +185,33 @@ fn conversion_resolves_before_user_functions() {
 }
 
 #[test]
+fn conversion_uses_the_expected_result_to_type_its_source_literal() {
+    let file = file(vec![fun(
+        "main",
+        vec![val_ty(
+            "a",
+            Some(ty_int_array()),
+            call("Array", vec![array_lit(vec![int_lit(1)])]),
+        )],
+    )]);
+    let module = lower_user(file).expect("conversion expectation must reach its source");
+    let body = match &module.functions[module.entry].kind {
+        FunctionKind::User(body) => body,
+        FunctionKind::Intrinsic(_) | FunctionKind::Extern(_) | FunctionKind::DerivedEquality => {
+            panic!("main is a user function")
+        }
+    };
+    let hir::StatementKind::ValDecl { init, .. } = &body.statements[0].kind else {
+        panic!("expected a val declaration")
+    };
+    let hir::ExprKind::ArrayClone(source) = &init.kind else {
+        panic!("expected an array conversion")
+    };
+    assert_eq!(hir::type_name(&module, init.ty), "Array<Int>");
+    assert_eq!(hir::type_name(&module, source.ty), "MutableArray<Int>");
+}
+
+#[test]
 fn conversion_method_forms_clone_to_the_opposite_kind() {
     let file = file(vec![fun(
         "main",
@@ -213,4 +240,41 @@ fn conversion_method_forms_clone_to_the_opposite_kind() {
         assert!(matches!(init.kind, hir::ExprKind::ArrayClone(_)));
         assert_eq!(hir::type_name(&module, init.ty), expected);
     }
+}
+
+#[test]
+fn inapplicable_array_intrinsic_method_falls_through_to_an_extension() {
+    let file = file(vec![
+        extension_expr(
+            ty_int_array(),
+            "toMutableArray",
+            vec![],
+            vec![("fallback", ty_named("Int"))],
+            Some(ty_named("Int")),
+            var("fallback"),
+        ),
+        fun(
+            "main",
+            vec![
+                val("a", array_lit(vec![int_lit(1)])),
+                val(
+                    "result",
+                    method_call(var("a"), "toMutableArray", vec![int_lit(7)]),
+                ),
+            ],
+        ),
+    ]);
+    let module =
+        lower_user(file).expect("an inapplicable intrinsic member must not shadow extensions");
+    let body = match &module.functions[module.entry].kind {
+        FunctionKind::User(body) => body,
+        FunctionKind::Intrinsic(_) | FunctionKind::Extern(_) | FunctionKind::DerivedEquality => {
+            panic!("main is a user function")
+        }
+    };
+    let hir::StatementKind::ValDecl { init, .. } = &body.statements[1].kind else {
+        panic!("expected a val declaration")
+    };
+    assert!(matches!(init.kind, hir::ExprKind::Call { .. }));
+    assert_eq!(hir::type_name(&module, init.ty), "Int");
 }

@@ -51,38 +51,8 @@ impl Lowerer {
         // opposite-family snapshot conversion. The class namespace resolves
         // the source name; the typed declaration kind selects the operation.
         if let Some(&(class, _)) = self.classes_by_name.get(&call.callee.text) {
-            let target_kind = match self.classes[class].representation {
-                hir::ClassRepresentation::Intrinsic(hir::IntrinsicTypeDeclaration {
-                    kind: hir::IntrinsicTypeKind::Array,
-                    ..
-                }) => Some(ArrayKind::Immutable),
-                hir::ClassRepresentation::Intrinsic(hir::IntrinsicTypeDeclaration {
-                    kind: hir::IntrinsicTypeKind::MutableArray,
-                    ..
-                }) => Some(ArrayKind::Mutable),
-                hir::ClassRepresentation::Declared(_) | hir::ClassRepresentation::Intrinsic(_) => {
-                    None
-                }
-            };
-            if let Some(target_kind) = target_kind {
-                return self.lower_array_conversion(call, sink, target_kind);
-            }
-        }
-        if let Some(core) = self.foreign_callback_core
-            && !self
-                .functions_by_name
-                .get(&call.callee.text)
-                .is_some_and(|functions| {
-                    functions
-                        .iter()
-                        .any(|function| self.function_files[function] == self.user_file_index)
-                })
-        {
-            if call.callee.text == "foreignCallback" {
-                return self.lower_foreign_callback_registration(core, call, sink);
-            }
-            if let Some(operation) = self.foreign_callback_operation(core, &call.callee.text) {
-                return self.lower_foreign_callback_call(core, operation, call, sink);
+            if let Some(target_kind) = self.array_class_kind(class) {
+                return self.lower_array_conversion(call, sink, class, target_kind, expected);
             }
         }
         match self.classify_constructor(&call.callee)? {
@@ -127,7 +97,7 @@ impl Lowerer {
                 sink,
                 expected,
             ),
-            Constructor::Unmatched => self.lower_function_call(call, sink),
+            Constructor::Unmatched => self.lower_function_call(call, sink, expected),
         }
     }
 

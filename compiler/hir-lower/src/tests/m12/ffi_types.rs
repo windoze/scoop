@@ -57,6 +57,40 @@ fn pointer_core_normalizes_construction_memory_ops_and_layout_queries() {
     assert!(module.types.iter().any(
         |(_, ty)| matches!(ty, hir::Type::Ptr(pointee) if module.types[*pointee] == hir::Type::Int)
     ));
+    let top_level_intrinsics = [
+        module.ffi_core.address_of,
+        module.ffi_core.size_of,
+        module.ffi_core.align_of,
+    ];
+    assert!(module.instantiations.iter().all(|(_, application)| {
+        let function = module.generic_functions[application.generic].function;
+        !top_level_intrinsics.contains(&function)
+    }));
+    let pointer_methods = [
+        module.ffi_core.ptr_to_uint,
+        module.ffi_core.ptr_cast,
+        module.ffi_core.ptr_load,
+        module.ffi_core.ptr_load_offset,
+        module.ffi_core.ptr_store,
+        module.ffi_core.ptr_store_offset,
+        module.ffi_core.ptr_plus,
+        module.ffi_core.ptr_minus,
+    ];
+    assert!(
+        module
+            .method_applications
+            .iter()
+            .all(|(_, application)| { !pointer_methods.contains(&application.function) })
+    );
+    assert!(
+        module
+            .generic_method_applications
+            .iter()
+            .all(|(_, application)| {
+                let function = module.generic_methods[application.method].function;
+                !pointer_methods.contains(&function)
+            })
+    );
 }
 
 #[test]
@@ -280,6 +314,6 @@ fn fun_ptr_null_and_native_function_reference_are_distinct_from_managed_values()
     assert!(
         errors
             .iter()
-            .any(|message| message.contains("no eligible `@NoGC` top-level function"))
+            .any(|message| message.contains("native callbacks must be declared `@NoGC`"))
     );
 }

@@ -3,4 +3,6 @@ source: compiler/driver/tests/fixtures.rs
 expression: snapshot
 ---
 == diagnostics ==
-m11-functions/errors/lambda-overload-no-match.scoop:5:20: error: lambda does not match any overload of `select`; candidate expectations: (Int) -> Int: lambda result must be of type Int, found Boolean; (String) -> String: lambda result must be of type String, found Boolean
+m11-functions/errors/lambda-overload-no-match.scoop:5:20: error: no applicable candidate for `select` in current-unit top-level candidate layer:
+  - fun select(operation: (Int) -> Int): Int — argument for `operation` (expected (Int) -> Int): lambda result must be of type Int, found Boolean
+  - fun select(operation: (String) -> String): String — argument for `operation` (expected (String) -> String): lambda result must be of type String, found Boolean

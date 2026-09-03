@@ -1,6 +1,12 @@
 use super::*;
 
+mod native;
 mod resolution;
+
+enum BoundReferenceLayer<'a> {
+    Members(&'a [crate::CallableCandidate]),
+    Extensions(&'a [hir::FunctionId]),
+}
 
 impl Lowerer {
     pub(super) fn lower_callable_reference(
@@ -12,7 +18,7 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
         if let Some(expected) = expected
-            && let Type::FunPtr(signature) = self.types[expected]
+            && let Type::FunPtr(_) = self.types[expected]
         {
             if receiver.is_some() {
                 self.error(
@@ -22,7 +28,7 @@ impl Lowerer {
                 );
                 return None;
             }
-            return self.lower_native_function_reference(name, span, expected, signature);
+            return self.lower_native_function_reference(name, span, expected);
         }
         if let Some(receiver) = receiver {
             return self.lower_bound_callable_reference(receiver, name, span, expected, sink);
@@ -40,11 +46,17 @@ impl Lowerer {
             return None;
         }
         let local_candidates = self.local_function_scopes.lookup(&name.text);
+        let mut first_failure = None;
         if !local_candidates.is_empty() {
-            return self.lower_local_callable_reference(local_candidates, name, span, expected);
+            match self.probe_expr_layer(|state, _| {
+                state.lower_local_callable_reference(local_candidates.clone(), name, span, expected)
+            }) {
+                Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
+                Err(failure) => first_failure = Some(failure),
+            }
         }
-        let candidates = self.named_reference_candidate_layer(&name.text);
-        if candidates.is_empty() {
+        let candidate_layers = self.named_reference_candidate_layers(&name.text);
+        if candidate_layers.is_empty() && first_failure.is_none() {
             if self.is_declared_type_name(&name.text) {
                 self.error(
                     span,
@@ -60,19 +72,38 @@ impl Lowerer {
         }
         let expected_signature = self.expected_function_signature(expected);
         let display = format!("callable reference `::{}`", name.text);
-        let resolved = self.resolve_reference_candidates(
-            &candidates,
-            &[],
-            expected_signature.as_ref(),
-            &display,
-            span,
-            ReferenceExtensionMode::IncludeUnbound,
-        )?;
+        for candidates in candidate_layers {
+            match self.probe_expr_layer(|state, _| {
+                let resolved = state.resolve_reference_candidates(
+                    &candidates,
+                    &[],
+                    ReferenceResolutionContext {
+                        expected: expected_signature.as_ref(),
+                        name: &name.text,
+                        display: &display,
+                        span,
+                        extension_mode: ReferenceExtensionMode::IncludeUnbound,
+                    },
+                )?;
+                state.finish_named_callable_reference(resolved, span)
+            }) {
+                Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
+                Err(failure) => {
+                    first_failure.get_or_insert(failure);
+                }
+            }
+        }
+        self.commit_layer_diagnostics(*first_failure.expect("at least one reference layer failed"));
+        None
+    }
+
+    fn finish_named_callable_reference(
+        &mut self,
+        resolved: ResolvedReference,
+        span: Span,
+    ) -> Option<hir::Expr> {
         let callee = resolved.callable;
         let ty = resolved.ty;
-        if !self.managed_reference_target_is_safe(callee, span) {
-            return None;
-        }
         let Type::Function(function_type) = self.types[ty] else {
             unreachable!("a callable reference has a function type")
         };
@@ -86,81 +117,6 @@ impl Lowerer {
         Some(hir::Expr {
             kind: ExprKind::CallableReference(id),
             ty,
-            span,
-        })
-    }
-
-    pub(super) fn lower_native_function_reference(
-        &mut self,
-        name: &ast::Ident,
-        span: Span,
-        expected: TypeId,
-        signature: hir::FunctionTypeId,
-    ) -> Option<hir::Expr> {
-        if self.scopes.lookup(&name.text).is_some()
-            || !self.local_function_scopes.lookup(&name.text).is_empty()
-        {
-            self.error(
-                span,
-                "a native `FunPtr` address cannot target a local function or function value"
-                    .to_string(),
-            );
-            return None;
-        }
-        let expected_signature = self.function_types[signature].clone();
-        let candidates = self.named_reference_candidate_layer(&name.text);
-        let mut matching = Vec::new();
-        for function in candidates {
-            let declaration = &self.functions[function];
-            let sig = &self.signatures[&function];
-            if declaration.method.is_some()
-                || self.extension_receivers.contains_key(&function)
-                || !sig.type_params.is_empty()
-                || sig.is_suspend
-                || declaration.attributes.gc_effect != hir::GcEffect::NoGc
-                || !matches!(declaration.kind, hir::FunctionKind::User(_))
-                || sig.params.len() != expected_signature.parameter_types.len()
-            {
-                continue;
-            }
-            let params_match = sig
-                .params
-                .iter()
-                .zip(&expected_signature.parameter_types)
-                .all(|(parameter, expected)| self.types_equal(parameter.ty, *expected));
-            if params_match && self.types_equal(sig.return_ty, expected_signature.return_type) {
-                matching.push(function);
-            }
-        }
-        let function = match matching.as_slice() {
-            [function] => *function,
-            [] => {
-                self.error(
-                    span,
-                    format!(
-                        "no eligible `@NoGC` top-level function `::{}` exactly matches the expected FunPtr signature",
-                        name.text
-                    ),
-                );
-                return None;
-            }
-            _ => {
-                self.error(
-                    span,
-                    format!(
-                        "native function reference `::{}` is ambiguous for the expected FunPtr signature",
-                        name.text
-                    ),
-                );
-                return None;
-            }
-        };
-        if self.functions[function].attributes.safety == hir::Safety::Unsafe {
-            self.require_unsafe_operation(span, "taking the address of an unsafe callback");
-        }
-        Some(hir::Expr {
-            kind: ExprKind::FunctionAddress(function),
-            ty: expected,
             span,
         })
     }
@@ -196,22 +152,8 @@ impl Lowerer {
         // once at reference creation, including when it reads a mutable local.
         let receiver = self.lower_expr(receiver, sink, None)?;
         let mut member_candidates = self.methods_by_name(receiver.ty, &name.text);
-        let is_extension = member_candidates.is_empty();
-        let extension_candidates = if is_extension {
-            let candidates = self.extension_candidate_layer(&name.text);
-            if candidates.is_empty() {
-                let found = self.type_name(receiver.ty);
-                self.error(
-                    name.span,
-                    format!("type `{found}` has no method `{}`", name.text),
-                );
-                return None;
-            }
-            candidates
-        } else {
-            Vec::new()
-        };
-        if !is_extension && matches!(self.types[receiver.ty], Type::Interface(..)) {
+        let mut first_failure = None;
+        if !member_candidates.is_empty() && matches!(self.types[receiver.ty], Type::Interface(..)) {
             let before = member_candidates.len();
             member_candidates.retain(|candidate| {
                 let sig = &self.signatures[&candidate.function];
@@ -219,40 +161,98 @@ impl Lowerer {
             });
             if member_candidates.is_empty() && before != 0 {
                 let found = self.type_name(receiver.ty);
-                self.error(
+                let mut failure = self.clone();
+                failure.error(
                     name.span,
                     format!(
                         "generic member function `{}` cannot be referenced through interface type `{found}`",
                         name.text
                     ),
                 );
-                return None;
+                first_failure = Some(Box::new(failure));
             }
         }
         let expected_signature = self.expected_function_signature(expected);
         let display = format!("bound callable reference `receiver::{}`", name.text);
-        let resolved = if is_extension {
-            self.resolve_reference_candidates(
-                &extension_candidates,
-                &[],
-                expected_signature.as_ref(),
-                &display,
-                span,
-                ReferenceExtensionMode::Bound(receiver.ty),
-            )?
+        if !member_candidates.is_empty() {
+            match self.probe_expr_layer(|state, _| {
+                state.finish_bound_callable_reference(
+                    BoundReferenceLayer::Members(&member_candidates),
+                    receiver.clone(),
+                    expected_signature.as_ref(),
+                    &name.text,
+                    &display,
+                    span,
+                )
+            }) {
+                Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
+                Err(failure) => first_failure = Some(failure),
+            }
+        }
+        for extensions in self.extension_candidate_layers(&name.text) {
+            match self.probe_expr_layer(|state, _| {
+                state.finish_bound_callable_reference(
+                    BoundReferenceLayer::Extensions(&extensions),
+                    receiver.clone(),
+                    expected_signature.as_ref(),
+                    &name.text,
+                    &display,
+                    span,
+                )
+            }) {
+                Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
+                Err(failure) => {
+                    first_failure.get_or_insert(failure);
+                }
+            }
+        }
+        if let Some(failure) = first_failure {
+            self.commit_layer_diagnostics(*failure);
         } else {
-            self.resolve_member_reference_candidates(
-                &member_candidates,
-                expected_signature.as_ref(),
-                &display,
-                span,
-            )?
+            let found = self.type_name(receiver.ty);
+            self.error(
+                name.span,
+                format!("type `{found}` has no method `{}`", name.text),
+            );
+        }
+        None
+    }
+
+    fn finish_bound_callable_reference(
+        &mut self,
+        layer: BoundReferenceLayer<'_>,
+        receiver: hir::Expr,
+        expected: Option<&(TypeId, hir::FunctionType)>,
+        name: &str,
+        display: &str,
+        span: Span,
+    ) -> Option<hir::Expr> {
+        let is_extension = matches!(layer, BoundReferenceLayer::Extensions(_));
+        let resolved = match layer {
+            BoundReferenceLayer::Members(candidates) => self.resolve_member_reference_candidates(
+                candidates,
+                ReferenceResolutionContext {
+                    expected,
+                    name,
+                    display,
+                    span,
+                    extension_mode: ReferenceExtensionMode::Exclude,
+                },
+            )?,
+            BoundReferenceLayer::Extensions(candidates) => self.resolve_reference_candidates(
+                candidates,
+                &[],
+                ReferenceResolutionContext {
+                    expected,
+                    name,
+                    display,
+                    span,
+                    extension_mode: ReferenceExtensionMode::Bound(receiver.ty),
+                },
+            )?,
         };
         let callee = resolved.callable;
         let ty = resolved.ty;
-        if !self.managed_reference_target_is_safe(callee, span) {
-            return None;
-        }
         let Type::Function(function_type) = self.types[ty] else {
             unreachable!("a callable reference has a function type")
         };
@@ -292,123 +292,29 @@ impl Lowerer {
         span: Span,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
-        let expected_signature = expected.and_then(|ty| match self.types[ty] {
-            Type::Function(id) => Some((ty, self.function_types[id].clone())),
-            _ => None,
-        });
-        let mut applicable = Vec::new();
-        for local_function in candidates {
-            let function = self.local_functions[local_function].function;
-            let sig = self.signatures[&function].clone();
-            let mut bindings = vec![None; sig.type_params.len()];
-            for (binding, ty) in bindings
-                .iter_mut()
-                .zip(self.ambient_type_args(sig.owner_type_param_count))
-            {
-                *binding = Some(ty);
-            }
-            match &expected_signature {
-                Some((_, expected)) => {
-                    if sig.is_suspend != expected.is_suspend
-                        || sig.params.len() != expected.parameter_types.len()
-                    {
-                        continue;
-                    }
-                    let mut matches = true;
-                    for (parameter, expected) in sig.params.iter().zip(&expected.parameter_types) {
-                        matches &= self.try_bind(parameter.ty, *expected, &mut bindings);
-                    }
-                    matches &= self.try_bind(sig.return_ty, expected.return_type, &mut bindings);
-                    if !matches || bindings.iter().any(Option::is_none) {
-                        continue;
-                    }
-                    let type_args: Vec<_> = bindings.into_iter().flatten().collect();
-                    if !self.type_arguments_satisfy_kinds(&sig.type_params, &type_args) {
-                        continue;
-                    }
-                    let instantiated_params: Vec<_> = sig
-                        .params
-                        .iter()
-                        .map(|parameter| self.instantiate_ty(parameter.ty, &type_args))
-                        .collect();
-                    let instantiated_return = self.instantiate_ty(sig.return_ty, &type_args);
-                    let exact = instantiated_params
-                        .iter()
-                        .zip(&expected.parameter_types)
-                        .all(|(parameter, expected)| self.types_equal(*parameter, *expected))
-                        && self.types_equal(instantiated_return, expected.return_type);
-                    if exact {
-                        let own_type_param_count =
-                            sig.type_params.len() - sig.owner_type_param_count;
-                        applicable.push((local_function, type_args, own_type_param_count));
-                    }
-                }
-                None => {
-                    if sig.type_params.len() != sig.owner_type_param_count {
-                        continue;
-                    }
-                    applicable.push((local_function, bindings.into_iter().flatten().collect(), 0));
-                }
-            }
-        }
-        let selected = match applicable.len() {
-            0 => {
-                self.error(
-                    span,
-                    format!(
-                        "no local overload of `::{}` matches the expected function type",
-                        name.text
-                    ),
-                );
-                return None;
-            }
-            1 => 0,
-            _ if expected_signature.is_some() => {
-                let concrete: Vec<_> = applicable
-                    .iter()
-                    .enumerate()
-                    .filter_map(|(index, candidate)| (candidate.2 == 0).then_some(index))
-                    .collect();
-                if let [index] = concrete.as_slice() {
-                    *index
-                } else {
-                    self.error(
-                        span,
-                        format!(
-                            "local callable reference `::{}` is ambiguous for the expected function type",
-                            name.text
-                        ),
-                    );
-                    return None;
-                }
-            }
-            _ => {
-                self.error(
-                    span,
-                    format!(
-                        "local callable reference `::{}` is ambiguous; provide an expected function type",
-                        name.text
-                    ),
-                );
-                return None;
-            }
-        };
-        let (local_function, type_args, _) = applicable.swap_remove(selected);
-        let local = &self.local_functions[local_function];
-        let function = local.function;
-        let ty = expected_signature.map_or_else(
-            || {
-                let signature = self.signatures[&function].clone();
-                let parameters = signature
-                    .params
-                    .iter()
-                    .map(|parameter| self.instantiate_ty(parameter.ty, &type_args))
-                    .collect();
-                let return_ty = self.instantiate_ty(signature.return_ty, &type_args);
-                self.intern_function_type(signature.is_suspend, parameters, return_ty)
+        let expected_signature = self.expected_function_signature(expected);
+        let owner_type_param_count =
+            self.signatures[&self.local_functions[candidates[0]].function].owner_type_param_count;
+        let owner_type_args = self.ambient_type_args(owner_type_param_count);
+        let functions = candidates
+            .iter()
+            .map(|candidate| self.local_functions[*candidate].function)
+            .collect::<Vec<_>>();
+        let display = format!("local callable reference `::{}`", name.text);
+        let resolved = self.resolve_reference_candidates(
+            &functions,
+            &owner_type_args,
+            ReferenceResolutionContext {
+                expected: expected_signature.as_ref(),
+                name: &name.text,
+                display: &display,
+                span,
+                extension_mode: ReferenceExtensionMode::Exclude,
             },
-            |(ty, _)| ty,
-        );
+        )?;
+        let function = self.callable_function_id(resolved.callable);
+        let local_function = self.local_function_by_function[&function];
+        let ty = resolved.ty;
         let Type::Function(function_type) = self.types[ty] else {
             unreachable!("a callable reference has a function type")
         };
@@ -432,21 +338,16 @@ impl Lowerer {
                 |((binding, name, ty, first_use_span), source)| hir::Capture {
                     binding,
                     name,
-                    ty: self.instantiate_ty(ty, &type_args),
+                    ty: self.instantiate_ty(ty, &resolved.type_args),
                     first_use_span,
                     source,
                 },
             )
             .collect();
-        let callee = if type_args.is_empty() {
-            hir::Callable::Function(function)
-        } else {
-            hir::Callable::Generic(self.record_instantiation(function, type_args))
-        };
         let id = self.callable_references.alloc(hir::CallableReference {
             target: hir::CallableReferenceTarget::Local {
                 local_function,
-                callee,
+                callee: resolved.callable,
             },
             function_type,
             owner_type_param_count: self.type_params_in_scope.len(),

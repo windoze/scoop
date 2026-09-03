@@ -74,6 +74,50 @@ fn enum_method_overloads_instantiate_with_the_receiver() {
     assert!(has_method_application(&module, pick_int, &[module.int]));
 }
 
+#[test]
+fn receiver_owner_parameters_irrelevant_to_forwarding_may_remain_unconstrained() {
+    let file = file(vec![
+        enum_decl_methods(
+            "Box",
+            vec!["T"],
+            vec![variant_positional("V", vec![ty_named("T")])],
+            vec![
+                method_expr(
+                    "rank",
+                    vec![("x", ty_named("Int"))],
+                    Some(ty_named("String")),
+                    str_lit("int"),
+                ),
+                method_expr(
+                    "rank",
+                    vec![("x", ty_named("Any"))],
+                    Some(ty_named("String")),
+                    str_lit("any"),
+                ),
+            ],
+        ),
+        fun(
+            "main",
+            vec![
+                val("box", struct_init("Box.V", vec![str_lit("value")])),
+                stmt(method_call(var("box"), "rank", vec![int_lit(1)])),
+            ],
+        ),
+    ]);
+    let module = lower_user(file).expect("unused owner variables do not block MSC");
+    let body = body_of(&module, module.entry);
+    let hir::StatementKind::Expr(call) = &body.statements[1].kind else {
+        panic!("rank call is an expression statement")
+    };
+    let hir::ExprKind::MethodCall { callee, .. } = &call.kind else {
+        panic!("rank resolves to a method call")
+    };
+    assert_eq!(
+        module.callable_function(*callee),
+        method_fn(&module, "Box", "rank", &["Int"])
+    );
+}
+
 // --- entry point ---
 
 /// Overloads of `main` are ordinary functions; the zero-parameter one

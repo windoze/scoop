@@ -179,8 +179,10 @@ SourceFile
     fun hash
     @Intrinsic("core_array")
   class Array<T>()
+    fun toMutableArray
     @Intrinsic("core_mutable_array")
   class MutableArray<T>()
+    fun toArray
     @Extern(name = "scoop_rt_int_equals", abi = "scoop")
   fun coreIntEquals(left: Int, right: Int): Boolean
     @Extern(name = "scoop_rt_uint_equals", abi = "scoop")

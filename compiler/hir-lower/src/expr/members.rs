@@ -20,10 +20,10 @@ impl Lowerer {
 
     /// `receiver.name(args)` (M6/M7): the method overloads are
     /// collected from the receiver's static type — class members (base
-    /// chain included), interface methods, or struct / enum methods —
-    /// and resolved by the M7 overload algorithm (`resolve_overload`;
-    /// an explicit-receiver call has only this member layer). A single
-    /// candidate keeps the pre-M7 path so its diagnostics stay intact.
+    /// chain included), interface methods, or struct / enum methods — and
+    /// resolved by the unified M16 algorithm. If that layer has no applicable
+    /// candidate, visible extensions are probed in import priority order.
+    /// Single and multiple candidates use the same entry.
     /// The dispatch kind (direct / virtual / interface) is decided at
     /// MIR from the receiver's static type (hir docs).
     ///
@@ -35,10 +35,9 @@ impl Lowerer {
     /// variant path and goes through variant construction (M4 rules:
     /// variant existence, per-field argument checks, type-argument
     /// inference, constructor-style defaults). Variables and host
-    /// properties shadow enum names. The two compiler-built-in array
-    /// conversion methods are recognized after lowering the receiver
-    /// and produce the same `ArrayClone` node as their constructor
-    /// forms (spec 10.4).
+    /// properties shadow enum names. Core array conversion methods enter the
+    /// ordinary member candidate layer and are normalized only after their
+    /// typed intrinsic target wins (spec 10.4).
     pub(super) fn lower_method_call(
         &mut self,
         receiver: &ast::Expr,
@@ -74,51 +73,9 @@ impl Lowerer {
             }
             return self.lower_callable_call(receiver, call.args, call.span, sink);
         }
-        let array_conversion = match (self.array_type_info(receiver.ty), name.text.as_str()) {
-            (
-                Some(ArrayType {
-                    kind: ArrayKind::Mutable,
-                    element,
-                }),
-                "toArray",
-            ) => Some((ArrayKind::Immutable, element)),
-            (
-                Some(ArrayType {
-                    kind: ArrayKind::Immutable,
-                    element,
-                }),
-                "toMutableArray",
-            ) => Some((ArrayKind::Mutable, element)),
-            _ => None,
-        };
-        if let Some((target_kind, element)) = array_conversion {
-            if !call.type_args.is_empty() {
-                self.error(name.span, format!("method `{}` is not generic", name.text));
-                return None;
-            }
-            return self.lower_array_method_conversion(
-                receiver,
-                name,
-                call.args,
-                call.span,
-                target_kind,
-                element,
-            );
-        }
         let mut candidates = self.methods_by_name(receiver.ty, &name.text);
-        if candidates.is_empty() {
-            let extensions = self.extension_candidate_layer(&name.text);
-            if extensions.is_empty() {
-                let found = self.type_name(receiver.ty);
-                self.error(
-                    name.span,
-                    format!("type `{found}` has no method `{}`", name.text),
-                );
-                return None;
-            }
-            return self.finish_extension_call(&extensions, &name.text, receiver, call, sink);
-        }
-        if matches!(self.types[receiver.ty], Type::Interface(..)) {
+        let mut first_failure = None;
+        if !candidates.is_empty() && matches!(self.types[receiver.ty], Type::Interface(..)) {
             let before = candidates.len();
             candidates.retain(|candidate| {
                 let sig = &self.signatures[&candidate.function];
@@ -126,19 +83,60 @@ impl Lowerer {
             });
             if candidates.is_empty() && before != 0 {
                 let found = self.type_name(receiver.ty);
-                self.error(
+                let mut failure = self.clone();
+                failure.error(
                     name.span,
                     format!(
                         "generic member function `{}` cannot be called through interface type `{found}`",
                         name.text
                     ),
                 );
-                return None;
+                first_failure = Some(Box::new(failure));
             }
         }
-        if candidates.len() == 1 {
-            return self.finish_method_call(candidates.remove(0), receiver, call, sink);
+        if !candidates.is_empty() {
+            match self.probe_expr_layer(|state, layer_sink| {
+                state.finish_overloaded_method_call(
+                    candidates,
+                    &name.text,
+                    receiver.clone(),
+                    call,
+                    layer_sink,
+                    expected,
+                )
+            }) {
+                Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
+                Err(failure) => first_failure = Some(failure),
+            }
         }
-        self.finish_overloaded_method_call(candidates, &name.text, receiver, call, sink)
+
+        for extensions in self.extension_candidate_layers(&name.text) {
+            match self.probe_expr_layer(|state, layer_sink| {
+                state.finish_extension_call(
+                    &extensions,
+                    &name.text,
+                    receiver.clone(),
+                    call,
+                    layer_sink,
+                    expected,
+                )
+            }) {
+                Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
+                Err(failure) => {
+                    first_failure.get_or_insert(failure);
+                }
+            }
+        }
+
+        if let Some(failure) = first_failure {
+            self.commit_layer_diagnostics(*failure);
+        } else {
+            let found = self.type_name(receiver.ty);
+            self.error(
+                name.span,
+                format!("type `{found}` has no method `{}`", name.text),
+            );
+        }
+        None
     }
 }

@@ -2,6 +2,35 @@
 
 use super::*;
 
+use crate::call_resolution::applicability::CallableReferenceApplicabilityInput;
+use crate::call_resolution::candidates::CallableView;
+use crate::call_resolution::constraints::ConstraintFailure;
+use crate::call_resolution::diagnostics::{
+    callable_layer_name, callable_source_signature, render_callable_constraint_failure,
+};
+
+struct ApplicableReference {
+    state: Box<Lowerer>,
+    candidate: crate::CallableCandidate,
+    view: CallableView,
+    type_args: Vec<TypeId>,
+    ty: TypeId,
+    own_type_param_count: usize,
+}
+
+struct ReferenceFailure {
+    state: Box<Lowerer>,
+    view: CallableView,
+    kind: ReferenceFailureKind,
+}
+
+enum ReferenceFailureKind {
+    MissingExpectedType,
+    IncompleteOwnerArguments,
+    UnsafeManagedTarget,
+    Constraint(ConstraintFailure),
+}
+
 impl Lowerer {
     pub(super) fn is_declared_type_name(&self, name: &str) -> bool {
         self.classes_by_name.contains_key(name)
@@ -24,145 +53,134 @@ impl Lowerer {
         &mut self,
         candidates: &[hir::FunctionId],
         owner_type_args: &[TypeId],
-        expected: Option<&(TypeId, hir::FunctionType)>,
-        display: &str,
-        span: Span,
-        extension_mode: ReferenceExtensionMode,
+        context: ReferenceResolutionContext<'_>,
     ) -> Option<ResolvedReference> {
         let candidates = candidates
             .iter()
             .copied()
             .map(|function| crate::CallableCandidate::function(function, owner_type_args.to_vec()))
             .collect::<Vec<_>>();
-        self.resolve_reference_candidate_set(&candidates, expected, display, span, extension_mode)
+        self.resolve_reference_candidate_set(&candidates, context)
     }
 
     pub(super) fn resolve_member_reference_candidates(
         &mut self,
         candidates: &[crate::CallableCandidate],
-        expected: Option<&(TypeId, hir::FunctionType)>,
-        display: &str,
-        span: Span,
+        context: ReferenceResolutionContext<'_>,
     ) -> Option<ResolvedReference> {
-        self.resolve_reference_candidate_set(
-            candidates,
-            expected,
-            display,
-            span,
-            ReferenceExtensionMode::Exclude,
-        )
+        debug_assert!(matches!(
+            context.extension_mode,
+            ReferenceExtensionMode::Exclude
+        ));
+        self.resolve_reference_candidate_set(candidates, context)
     }
 
     fn resolve_reference_candidate_set(
         &mut self,
         candidates: &[crate::CallableCandidate],
-        expected: Option<&(TypeId, hir::FunctionType)>,
-        display: &str,
-        span: Span,
-        extension_mode: ReferenceExtensionMode,
+        context: ReferenceResolutionContext<'_>,
     ) -> Option<ResolvedReference> {
+        let ReferenceResolutionContext {
+            expected,
+            name,
+            display,
+            span,
+            extension_mode,
+        } = context;
         let mut applicable = Vec::new();
+        let mut failures = Vec::new();
         for candidate in candidates {
+            let mut state = self.clone();
             let function = candidate.function;
-            let owner_type_args = self.callable_candidate_owner_arguments(candidate);
-            let sig = self.signatures[&function].clone();
-            if sig.owner_type_param_count != owner_type_args.len() {
-                continue;
-            }
-            let mut bindings = vec![None; sig.type_params.len()];
-            for (binding, &ty) in bindings.iter_mut().zip(&owner_type_args) {
-                *binding = Some(ty);
-            }
-            let extension_receiver = self.extension_receivers.get(&function).copied();
-            let bound_extension_receiver = match extension_mode {
+            let owner_type_args = state.callable_candidate_owner_arguments(candidate);
+            let extension_receiver = state.extension_receivers.get(&function).copied();
+            let bound_receiver = match extension_mode {
                 ReferenceExtensionMode::Exclude if extension_receiver.is_some() => continue,
                 ReferenceExtensionMode::Bound(_) if extension_receiver.is_none() => continue,
                 ReferenceExtensionMode::Bound(receiver) => Some(receiver),
                 ReferenceExtensionMode::Exclude | ReferenceExtensionMode::IncludeUnbound => None,
             };
-            if let (Some(declared), Some(actual)) = (extension_receiver, bound_extension_receiver)
-                && !self.try_bind(declared, actual, &mut bindings)
-            {
+            let view = state.callable_view(candidate, extension_receiver.is_some());
+            if view.owner_parameters.len() != owner_type_args.len() {
+                failures.push(ReferenceFailure {
+                    state: Box::new(state),
+                    view,
+                    kind: ReferenceFailureKind::IncompleteOwnerArguments,
+                });
                 continue;
             }
-            let mut reference_params: Vec<_> =
-                sig.params.iter().map(|parameter| parameter.ty).collect();
+            let own_type_param_count = view.callable_parameters.len();
+            if expected.is_none() && own_type_param_count != 0 {
+                failures.push(ReferenceFailure {
+                    state: Box::new(state),
+                    view,
+                    kind: ReferenceFailureKind::MissingExpectedType,
+                });
+                continue;
+            }
+            if state.functions[function].attributes.safety == hir::Safety::Unsafe {
+                failures.push(ReferenceFailure {
+                    state: Box::new(state),
+                    view,
+                    kind: ReferenceFailureKind::UnsafeManagedTarget,
+                });
+                continue;
+            }
+
+            let mut reference_params: Vec<_> = view
+                .value_parameters
+                .iter()
+                .map(|parameter| parameter.ty)
+                .collect();
             if matches!(extension_mode, ReferenceExtensionMode::IncludeUnbound)
                 && let Some(receiver) = extension_receiver
             {
                 reference_params.insert(0, receiver);
             }
-            match expected {
-                Some((_, expected)) => {
-                    if sig.is_suspend != expected.is_suspend
-                        || reference_params.len() != expected.parameter_types.len()
-                    {
-                        continue;
-                    }
-                    let parameters_match = reference_params
+
+            let expected_type = expected.map_or_else(
+                || {
+                    let parameters = reference_params
                         .iter()
-                        .zip(&expected.parameter_types)
-                        .all(|(&parameter, &expected)| {
-                            self.try_bind(parameter, expected, &mut bindings)
-                        });
-                    if !parameters_match
-                        || !self.try_bind(sig.return_ty, expected.return_type, &mut bindings)
-                        || bindings.iter().any(Option::is_none)
-                    {
-                        continue;
-                    }
-                }
-                None if sig.type_params.len() != sig.owner_type_param_count => continue,
-                None => {}
-            }
-            let type_args: Vec<_> = bindings.into_iter().flatten().collect();
-            if !self.type_arguments_satisfy_kinds(&sig.type_params, &type_args) {
-                continue;
-            }
-            let parameter_types: Vec<_> = reference_params
-                .iter()
-                .map(|&parameter| self.instantiate_ty(parameter, &type_args))
-                .collect();
-            let return_type = self.instantiate_ty(sig.return_ty, &type_args);
-            if let (Some(declared), Some(actual)) = (extension_receiver, bound_extension_receiver) {
-                let declared = self.instantiate_ty(declared, &type_args);
-                if !self.is_subtype(actual, declared) {
+                        .map(|&parameter| state.instantiate_ty(parameter, &owner_type_args))
+                        .collect();
+                    let return_type = state.instantiate_ty(view.return_type, &owner_type_args);
+                    state.intern_function_type(view.effects.is_suspend, parameters, return_type)
+                },
+                |(ty, _)| *ty,
+            );
+            let type_args = match state.solve_callable_reference_applicability(
+                CallableReferenceApplicabilityInput {
+                    view: &view,
+                    owner_arguments: &owner_type_args,
+                    bound_receiver,
+                    parameter_types: &reference_params,
+                    expected_type,
+                },
+            ) {
+                Ok(type_args) => type_args,
+                Err(failure) => {
+                    failures.push(ReferenceFailure {
+                        state: Box::new(state),
+                        view,
+                        kind: ReferenceFailureKind::Constraint(failure),
+                    });
                     continue;
                 }
-            }
-            if let Some((_, expected)) = expected {
-                let exact = parameter_types
-                    .iter()
-                    .zip(&expected.parameter_types)
-                    .all(|(&parameter, &expected)| self.types_equal(parameter, expected))
-                    && self.types_equal(return_type, expected.return_type);
-                if !exact {
-                    continue;
-                }
-            }
-            let own_type_param_count = sig.type_params.len() - sig.owner_type_param_count;
-            applicable.push((
-                function,
-                candidate.source,
-                candidate.owner.clone(),
+            };
+            applicable.push(ApplicableReference {
+                state: Box::new(state),
+                candidate: candidate.clone(),
+                view,
                 type_args,
-                parameter_types,
-                return_type,
-                sig.is_suspend,
+                ty: expected_type,
                 own_type_param_count,
-            ));
+            });
         }
 
         let selected = match applicable.len() {
             0 => {
-                let message = if expected.is_some() {
-                    format!("no overload of {display} matches the expected function type")
-                } else {
-                    format!(
-                        "cannot determine {display} without an expected function type; no unique non-generic candidate exists"
-                    )
-                };
-                self.error(span, message);
+                self.reference_failures_diagnostic(name, display, &failures, span);
                 return None;
             }
             1 => 0,
@@ -170,77 +188,147 @@ impl Lowerer {
                 let concrete: Vec<_> = applicable
                     .iter()
                     .enumerate()
-                    .filter_map(|(index, candidate)| (candidate.7 == 0).then_some(index))
+                    .filter_map(|(index, candidate)| {
+                        (candidate.own_type_param_count == 0).then_some(index)
+                    })
                     .collect();
                 if let [index] = concrete.as_slice() {
                     *index
                 } else {
-                    self.error(
+                    self.reference_ambiguity_diagnostic(
+                        name,
+                        display,
+                        &applicable,
+                        expected.is_some(),
                         span,
-                        format!("{display} is ambiguous for the expected function type"),
                     );
                     return None;
                 }
             }
             _ => {
-                self.error(
+                self.reference_ambiguity_diagnostic(
+                    name,
+                    display,
+                    &applicable,
+                    expected.is_some(),
                     span,
-                    format!("{display} is ambiguous; provide an expected function type"),
                 );
                 return None;
             }
         };
-        let (function, source, owner, type_args, parameter_types, return_type, is_suspend, _) =
-            applicable.swap_remove(selected);
-        let ty = match expected {
-            Some((ty, _)) => *ty,
-            None => self.intern_function_type(is_suspend, parameter_types, return_type),
-        };
-        let selected_candidate = crate::CallableCandidate {
-            function,
-            owner,
-            source,
-        };
-        let callee = self.materialize_candidate_callable(&selected_candidate, &type_args);
-        if !self.managed_reference_target_is_safe(callee, span) {
-            return None;
-        }
+        let selected = applicable.swap_remove(selected);
+        *self = *selected.state;
+        let source = selected.candidate.source;
+        let callee = self.materialize_candidate_callable(&selected.candidate, &selected.type_args);
         Some(ResolvedReference {
             callable: callee,
             source,
-            type_args,
-            ty,
+            type_args: selected.type_args,
+            ty: selected.ty,
         })
     }
 
-    pub(in crate::expr) fn top_level_candidate_layer(&self, name: &str) -> Vec<hir::FunctionId> {
-        self.candidate_layer(self.functions_by_name.get(name))
-    }
-
-    pub(super) fn managed_reference_target_is_safe(
+    fn reference_failures_diagnostic(
         &mut self,
-        callee: hir::Callable,
+        name: &str,
+        display: &str,
+        failures: &[ReferenceFailure],
         span: Span,
-    ) -> bool {
-        let function = self.callable_function_id(callee);
-        if self.functions[function].attributes.safety == hir::Safety::Safe {
-            return true;
+    ) {
+        if failures.is_empty() {
+            self.error(
+                span,
+                format!("no declaration candidate has a permitted form for {display}"),
+            );
+            return;
         }
+        let views = failures
+            .iter()
+            .map(|failure| failure.view.clone())
+            .collect::<Vec<_>>();
+        let layer = callable_layer_name(self, &views);
+        let traces = failures
+            .iter()
+            .map(|failure| {
+                let signature = callable_source_signature(self, name, &failure.view);
+                let reason = match &failure.kind {
+                    ReferenceFailureKind::MissingExpectedType => {
+                        "generic callable references require an expected function type".to_string()
+                    }
+                    ReferenceFailureKind::IncompleteOwnerArguments => {
+                        "receiver does not provide complete owner type arguments".to_string()
+                    }
+                    ReferenceFailureKind::UnsafeManagedTarget => {
+                        "unsafe functions cannot be stored in a managed function type because safety is not part of function-type identity".to_string()
+                    }
+                    ReferenceFailureKind::Constraint(constraint) => {
+                        render_callable_constraint_failure(
+                            &failure.state,
+                            &failure.view,
+                            &[],
+                            constraint,
+                        )
+                    }
+                };
+                format!("  - {signature} — {reason}")
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
         self.error(
             span,
-            format!(
-                "unsafe function `{}` cannot be stored in a managed function type because safety is not part of function-type identity",
-                self.functions[function].name
-            ),
+            format!("no applicable candidate for {display} in {layer} layer:\n{traces}"),
         );
-        false
     }
 
-    pub(in crate::expr) fn extension_candidate_layer(&self, name: &str) -> Vec<hir::FunctionId> {
-        self.candidate_layer(self.extensions_by_name.get(name))
+    fn reference_ambiguity_diagnostic(
+        &mut self,
+        name: &str,
+        display: &str,
+        applicable: &[ApplicableReference],
+        has_expected_type: bool,
+        span: Span,
+    ) {
+        let views = applicable
+            .iter()
+            .map(|candidate| candidate.view.clone())
+            .collect::<Vec<_>>();
+        let layer = callable_layer_name(self, &views);
+        let reason = if has_expected_type {
+            "matches the expected function type"
+        } else {
+            "forms a complete non-generic function type"
+        };
+        let traces = applicable
+            .iter()
+            .map(|candidate| {
+                format!(
+                    "  - {} — {reason}",
+                    callable_source_signature(self, name, &candidate.view)
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+        self.error(
+            span,
+            format!("{display} is ambiguous in {layer} layer:\n{traces}"),
+        );
     }
 
-    fn candidate_layer(&self, ids: Option<&Vec<hir::FunctionId>>) -> Vec<hir::FunctionId> {
+    pub(in crate::expr) fn top_level_candidate_layers(
+        &self,
+        name: &str,
+    ) -> Vec<Vec<hir::FunctionId>> {
+        self.candidate_layers(self.functions_by_name.get(name))
+    }
+
+    pub(in crate::expr) fn extension_candidate_layers(
+        &self,
+        name: &str,
+    ) -> Vec<Vec<hir::FunctionId>> {
+        self.candidate_layers(self.extensions_by_name.get(name))
+    }
+
+    fn candidate_layers(&self, ids: Option<&Vec<hir::FunctionId>>) -> Vec<Vec<hir::FunctionId>> {
         let Some(ids) = ids else {
             return Vec::new();
         };
@@ -250,17 +338,18 @@ impl Lowerer {
             .copied()
             .filter(|id| (self.function_files[id] < self.user_file_index) == call_site_is_core)
             .collect();
-        if same_side.is_empty() {
-            ids.iter()
-                .copied()
-                .filter(|id| (self.function_files[id] < self.user_file_index) != call_site_is_core)
-                .collect()
-        } else {
-            same_side
-        }
+        let imported = ids
+            .iter()
+            .copied()
+            .filter(|id| (self.function_files[id] < self.user_file_index) != call_site_is_core)
+            .collect::<Vec<_>>();
+        [same_side, imported]
+            .into_iter()
+            .filter(|layer| !layer.is_empty())
+            .collect()
     }
 
-    pub(super) fn named_reference_candidate_layer(&self, name: &str) -> Vec<hir::FunctionId> {
+    pub(super) fn named_reference_candidate_layers(&self, name: &str) -> Vec<Vec<hir::FunctionId>> {
         let mut ids = Vec::new();
         ids.extend(
             self.functions_by_name
@@ -282,14 +371,17 @@ impl Lowerer {
             .copied()
             .filter(|id| (self.function_files[id] < self.user_file_index) == call_site_is_core)
             .collect();
-        let mut selected = if same_side.is_empty() {
-            ids.into_iter()
-                .filter(|id| (self.function_files[id] < self.user_file_index) != call_site_is_core)
-                .collect::<Vec<_>>()
-        } else {
-            same_side
-        };
-        selected.sort_by_key(|id| id.into_raw().into_u32());
-        selected
+        let imported = ids
+            .into_iter()
+            .filter(|id| (self.function_files[id] < self.user_file_index) != call_site_is_core)
+            .collect::<Vec<_>>();
+        [same_side, imported]
+            .into_iter()
+            .filter(|layer| !layer.is_empty())
+            .map(|mut layer| {
+                layer.sort_by_key(|id| id.into_raw().into_u32());
+                layer
+            })
+            .collect()
     }
 }

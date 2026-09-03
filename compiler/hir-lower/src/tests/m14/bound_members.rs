@@ -263,11 +263,11 @@ fn unrelated_bounds_with_the_same_member_are_ambiguous() {
         fun("main", Vec::new()),
     ]))
     .expect_err("unrelated bounds retain distinct member identities");
-    assert!(
-        errors
-            .iter()
-            .any(|error| error.message == "call to `value` is ambiguous")
-    );
+    assert!(errors.iter().any(|error| {
+        error
+            .message
+            .starts_with("call to `value` is ambiguous in member candidate layer:")
+    }));
 }
 
 #[test]

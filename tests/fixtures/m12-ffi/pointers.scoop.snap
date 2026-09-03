@@ -179,8 +179,10 @@ SourceFile
     fun hash
     @Intrinsic("core_array")
   class Array<T>()
+    fun toMutableArray
     @Intrinsic("core_mutable_array")
   class MutableArray<T>()
+    fun toArray
     @Extern(name = "scoop_rt_int_equals", abi = "scoop")
   fun coreIntEquals(left: Int, right: Int): Boolean
     @Extern(name = "scoop_rt_uint_equals", abi = "scoop")
@@ -516,10 +518,6 @@ Module
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>
   instance println<Int>
-  method instance Ptr.cast<owner=[Int], method=[Boolean]>
-  method instance Ptr.cast<owner=[Boolean], method=[Int]>
-  method instance Ptr.cast<owner=[Unit], method=[Int]>
-  method instance Ptr.cast<owner=[Int], method=[Unit]>
 
 == mir ==
 Module

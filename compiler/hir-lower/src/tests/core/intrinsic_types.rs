@@ -103,6 +103,38 @@ pub(super) fn intrinsic_type_declarations() -> Vec<Decl> {
     );
     string_decl.methods = vec![string_equals, string_to_string, string_hash];
 
+    let mut array = class("Array", "core_array", vec!["T"]);
+    let Decl::Class(array_decl) = &mut array else {
+        unreachable!()
+    };
+    let mut to_mutable = method_full(
+        false,
+        false,
+        "toMutableArray",
+        Vec::new(),
+        Some(ty_generic("MutableArray", vec![ty_named("T")])),
+        FunctionBody::None,
+    );
+    to_mutable.annotations.push(annotation("array_to_mutable"));
+    array_decl.methods.push(to_mutable);
+
+    let mut mutable_array = class("MutableArray", "core_mutable_array", vec!["T"]);
+    let Decl::Class(mutable_array_decl) = &mut mutable_array else {
+        unreachable!()
+    };
+    let mut to_immutable = method_full(
+        false,
+        false,
+        "toArray",
+        Vec::new(),
+        Some(ty_generic("Array", vec![ty_named("T")])),
+        FunctionBody::None,
+    );
+    to_immutable
+        .annotations
+        .push(annotation("array_to_immutable"));
+    mutable_array_decl.methods.push(to_immutable);
+
     let mut declarations = vec![
         strukt(
             "Int",
@@ -125,8 +157,8 @@ pub(super) fn intrinsic_type_declarations() -> Vec<Decl> {
             ),
         ),
         string,
-        class("Array", "core_array", vec!["T"]),
-        class("MutableArray", "core_mutable_array", vec!["T"]),
+        array,
+        mutable_array,
     ];
     declarations.extend([
         scoop_extern_fun(

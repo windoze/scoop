@@ -57,7 +57,7 @@ fn class_construction_arity_is_an_error() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "class `C` takes exactly 1 argument, but 0 were supplied"
+        "no applicable candidate for constructor `C` in nominal constructor candidate layer:\n  - class C(x: Int) — expects 1 argument(s), but 0 were supplied"
     );
 }
 
@@ -78,6 +78,6 @@ fn class_construction_argument_types_are_checked() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "argument for field `x` of `C` must be of type Int, found String"
+        "no applicable candidate for constructor `C` in nominal constructor candidate layer:\n  - class C(x: Int) — argument for `x` has type String, which is not a subtype of Int"
     );
 }

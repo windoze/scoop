@@ -1,7 +1,7 @@
 use super::*;
 
 impl Lowerer {
-    pub(crate) fn array_type(&mut self, kind: ArrayKind, element: TypeId) -> TypeId {
+    pub(crate) fn array_class(&self, kind: ArrayKind) -> hir::ClassId {
         let intrinsic = match kind {
             ArrayKind::Immutable => hir::IntrinsicTypeKind::Array,
             ArrayKind::Mutable => hir::IntrinsicTypeKind::MutableArray,
@@ -10,9 +10,36 @@ impl Lowerer {
             .intrinsic_type_owners
             .get(&intrinsic)
             .expect("the intrinsic core contract is validated before type resolution");
-        let IntrinsicTypeOwner::Class(template) = owner else {
+        let IntrinsicTypeOwner::Class(class) = owner else {
             unreachable!("the intrinsic registry fixes array declarations as classes")
         };
+        class
+    }
+
+    pub(crate) fn array_class_kind(&self, class: hir::ClassId) -> Option<ArrayKind> {
+        match self.classes[class].representation {
+            hir::ClassRepresentation::Intrinsic(hir::IntrinsicTypeDeclaration {
+                kind: hir::IntrinsicTypeKind::Array,
+                ..
+            }) => Some(ArrayKind::Immutable),
+            hir::ClassRepresentation::Intrinsic(hir::IntrinsicTypeDeclaration {
+                kind: hir::IntrinsicTypeKind::MutableArray,
+                ..
+            }) => Some(ArrayKind::Mutable),
+            hir::ClassRepresentation::Declared(_)
+            | hir::ClassRepresentation::Intrinsic(hir::IntrinsicTypeDeclaration {
+                kind:
+                    hir::IntrinsicTypeKind::Int
+                    | hir::IntrinsicTypeKind::UInt
+                    | hir::IntrinsicTypeKind::Boolean
+                    | hir::IntrinsicTypeKind::String,
+                ..
+            }) => None,
+        }
+    }
+
+    pub(crate) fn array_type(&mut self, kind: ArrayKind, element: TypeId) -> TypeId {
+        let template = self.array_class(kind);
         self.class_application(template, vec![element])
     }
 

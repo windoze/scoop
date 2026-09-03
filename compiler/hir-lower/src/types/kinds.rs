@@ -49,27 +49,7 @@ impl Lowerer {
         valid
     }
 
-    pub(crate) fn type_arguments_satisfy_kinds(
-        &mut self,
-        params: &[hir::TypeParamDecl],
-        args: &[TypeId],
-    ) -> bool {
-        for (param, &arg) in params.iter().zip(args) {
-            if !self.type_satisfies_kind(arg, param.kind()) {
-                return false;
-            }
-            for bound in param.interface_bounds() {
-                let bound = self.interface_applications[bound.application].canonical_type;
-                let required = self.instantiate_ty(bound, args);
-                if !self.is_subtype(arg, required) {
-                    return false;
-                }
-            }
-        }
-        true
-    }
-
-    fn type_satisfies_kind(&self, ty: TypeId, required: hir::TypeParamKind) -> bool {
+    pub(crate) fn type_satisfies_kind(&self, ty: TypeId, required: hir::TypeParamKind) -> bool {
         if required == hir::TypeParamKind::Any {
             return true;
         }

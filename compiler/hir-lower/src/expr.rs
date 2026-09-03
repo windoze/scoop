@@ -54,7 +54,7 @@ use hir::{ExprKind, Type, TypeId};
 use crate::patterns::PatternCtx;
 use crate::scope::Scopes;
 use crate::stmt::statements_can_fall_through;
-use crate::types::{ArrayKind, ArrayType};
+use crate::types::ArrayKind;
 use crate::{
     AvailableCapture, CaptureContext, CaptureSource, ForbiddenSuspendContext, Lowerer,
     PendingCapture, ReturnInference, SuspensionContext,
@@ -81,10 +81,18 @@ mod type_checks;
 use analysis::*;
 use support::*;
 
-struct InferredArguments {
-    args: Vec<Option<hir::Expr>>,
-    bindings: Vec<Option<TypeId>>,
-    sinks: Vec<Vec<hir::Statement>>,
+struct NominalArguments {
+    args: Vec<hir::Expr>,
+    type_args: Vec<TypeId>,
+}
+
+struct NominalArgumentInput<'a> {
+    view: &'a crate::call_resolution::candidates::NominalConstructorView,
+    argument_map: &'a crate::call_resolution::arguments::CandidateArgumentMap,
+    expressions: &'a [ast::Expr],
+    explicit_type_args: &'a [TypeId],
+    expected_type_args: Option<&'a [TypeId]>,
+    span: Span,
 }
 
 #[derive(Clone, Copy)]
@@ -101,6 +109,15 @@ enum ReferenceExtensionMode {
     Bound(TypeId),
 }
 
+#[derive(Clone, Copy)]
+struct ReferenceResolutionContext<'a> {
+    expected: Option<&'a (TypeId, hir::FunctionType)>,
+    name: &'a str,
+    display: &'a str,
+    span: Span,
+    extension_mode: ReferenceExtensionMode,
+}
+
 struct ResolvedReference {
     callable: hir::Callable,
     source: crate::CallableCandidateSource,
@@ -108,18 +125,46 @@ struct ResolvedReference {
     ty: TypeId,
 }
 
-impl InferredArguments {
-    fn finish(self, sink: &mut Vec<hir::Statement>) -> Vec<hir::Expr> {
-        let mut args = Vec::with_capacity(self.args.len());
-        for (arg, mut arg_sink) in self.args.into_iter().zip(self.sinks) {
-            sink.append(&mut arg_sink);
-            args.push(arg.expect("complete type bindings type every deferred argument"));
-        }
-        args
-    }
+struct SuccessfulExprLayer {
+    state: Box<Lowerer>,
+    expression: hir::Expr,
+    sink: Vec<hir::Statement>,
 }
 
 impl Lowerer {
+    fn probe_expr_layer(
+        &self,
+        lower: impl FnOnce(&mut Lowerer, &mut Vec<hir::Statement>) -> Option<hir::Expr>,
+    ) -> Result<SuccessfulExprLayer, Box<Lowerer>> {
+        let mut state = self.clone();
+        let mut sink = Vec::new();
+        match lower(&mut state, &mut sink) {
+            Some(expression) => Ok(SuccessfulExprLayer {
+                state: Box::new(state),
+                expression,
+                sink,
+            }),
+            None => Err(Box::new(state)),
+        }
+    }
+
+    fn commit_expr_layer(
+        &mut self,
+        layer: SuccessfulExprLayer,
+        sink: &mut Vec<hir::Statement>,
+    ) -> hir::Expr {
+        *self = *layer.state;
+        sink.extend(layer.sink);
+        layer.expression
+    }
+
+    fn commit_layer_diagnostics(&mut self, failed: Lowerer) {
+        let baseline = self.diagnostics.len();
+        debug_assert!(failed.diagnostics.len() > baseline);
+        self.diagnostics
+            .extend(failed.diagnostics.into_iter().skip(baseline));
+    }
+
     /// Lower an expression, recording a diagnostic and returning `None`
     /// on error. See the module docs for the `sink` / `expected`
     /// mechanisms.

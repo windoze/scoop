@@ -62,7 +62,7 @@ fn variant_arity_is_an_error() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "variant `Circle` of `Shape` takes exactly 1 argument, but 2 were supplied"
+        "no applicable candidate for constructor `Shape.Circle` in nominal constructor candidate layer:\n  - variant Shape.Circle(_1: Int) — expects 1 argument(s), but 2 were supplied"
     );
 }
 
@@ -79,7 +79,7 @@ fn variant_missing_argument_without_default_is_an_error() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "variant `Named` of `Shape` takes exactly 2 arguments, but 1 were supplied"
+        "no applicable candidate for constructor `Shape.Named` in nominal constructor candidate layer:\n  - variant Shape.Named(w: Int, h: Int) — expects 2 argument(s), but 1 were supplied"
     );
 }
 
@@ -96,7 +96,7 @@ fn variant_argument_type_mismatch_is_an_error() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "argument for field `_1` of `Shape.Circle` must be of type Int, found String"
+        "no applicable candidate for constructor `Shape.Circle` in nominal constructor candidate layer:\n  - variant Shape.Circle(_1: Int) — argument for `_1` has type String, which is not a subtype of Int"
     );
 }
 
@@ -110,7 +110,10 @@ fn qualified_none_needs_an_expected_type() {
     )]);
     let errors = lower_user(file).expect_err("unhinted `Option.None` must fail");
     assert_eq!(errors.len(), 1);
-    assert_eq!(errors[0].message, "cannot infer the type of `None`");
+    assert_eq!(
+        errors[0].message,
+        "no applicable candidate for constructor `Option.None` in nominal constructor candidate layer:\n  - variant Option<T>.None() — cannot infer a unique type argument for `T`"
+    );
 }
 
 #[test]

@@ -192,6 +192,7 @@ impl Lowerer {
         // Declaration-site variance is a property of the fully resolved
         // interface signatures, so validate it after every signature exists.
         self.check_interface_variance();
+        self.validate_array_conversion_intrinsics(files);
 
         // M10's coroutine protocol is compiler-known: MIR generation needs
         // these exact generic interfaces and intrinsic signatures rather than
