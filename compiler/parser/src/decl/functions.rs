@@ -103,15 +103,40 @@ impl Parser {
         let name = self.expect_ident("function name")?;
         self.expect("`(`", |k| matches!(k, TokenKind::LParen))?;
         let mut params = Vec::new();
+        let mut vararg_span = None;
         if !matches!(self.peek().kind, TokenKind::RParen) {
             loop {
+                let modifier_span = if matches!(self.peek().kind, TokenKind::Vararg) {
+                    let modifier = self.bump();
+                    if matches!(self.peek().kind, TokenKind::Vararg) {
+                        return Err(Diagnostic::at(
+                            self.peek().span,
+                            "duplicate `vararg` modifier on parameter",
+                        ));
+                    }
+                    if vararg_span.is_some() {
+                        return Err(Diagnostic::at(
+                            modifier.span,
+                            "a parameter list may declare at most one `vararg` parameter",
+                        ));
+                    }
+                    vararg_span = Some(modifier.span);
+                    Some(modifier.span)
+                } else {
+                    None
+                };
                 let param_name = self.expect_ident("parameter name")?;
                 self.expect("`:`", |k| matches!(k, TokenKind::Colon))?;
                 let ty = self.parse_type_ref()?;
+                let (syntax, end) = self.parse_parameter_syntax(modifier_span, ty.span.end)?;
                 params.push(Param {
-                    span: Span::new(param_name.span.start, ty.span.end),
+                    span: Span::new(
+                        modifier_span.map_or(param_name.span.start, |span| span.start),
+                        end,
+                    ),
                     name: param_name,
                     ty,
+                    syntax,
                 });
                 if matches!(self.peek().kind, TokenKind::Comma) {
                     self.bump();
@@ -196,6 +221,50 @@ impl Parser {
             where_clause,
             body,
             span: Span::new(start, end),
+        })
+    }
+
+    /// Parses the optional default following a parameter type and combines
+    /// it with an already-consumed `vararg` modifier.
+    pub(super) fn parse_parameter_syntax(
+        &mut self,
+        modifier_span: Option<Span>,
+        type_end: u32,
+    ) -> Result<(ParameterSyntax, u32), Diagnostic> {
+        let explicit_default = if matches!(self.peek().kind, TokenKind::Equal) {
+            let equals = self.bump();
+            let expression = self.parse_expr()?;
+            let end = expression.span().end;
+            Some((expression, equals.span, end))
+        } else {
+            None
+        };
+        Ok(match (modifier_span, explicit_default) {
+            (None, None) => (ParameterSyntax::Required, type_end),
+            (None, Some((expression, equals_span, end))) => (
+                ParameterSyntax::Default {
+                    expression,
+                    equals_span,
+                },
+                end,
+            ),
+            (Some(modifier_span), None) => (
+                ParameterSyntax::Vararg {
+                    modifier_span,
+                    default: VarargDefaultSyntax::EmptyWhenOmitted,
+                },
+                type_end,
+            ),
+            (Some(modifier_span), Some((expression, equals_span, end))) => (
+                ParameterSyntax::Vararg {
+                    modifier_span,
+                    default: VarargDefaultSyntax::Expression {
+                        expression,
+                        equals_span,
+                    },
+                },
+                end,
+            ),
         })
     }
 }

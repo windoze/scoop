@@ -89,7 +89,7 @@ struct NominalArguments {
 struct NominalArgumentInput<'a> {
     view: &'a crate::call_resolution::candidates::NominalConstructorView,
     argument_map: &'a crate::call_resolution::arguments::CandidateArgumentMap,
-    expressions: &'a [ast::Expr],
+    expressions: &'a [ast::CallArgument],
     explicit_type_args: &'a [TypeId],
     expected_type_args: Option<&'a [TypeId]>,
     span: Span,
@@ -98,7 +98,7 @@ struct NominalArgumentInput<'a> {
 #[derive(Clone, Copy)]
 struct CallSite<'a> {
     type_args: &'a [ast::TypeRef],
-    args: &'a [ast::Expr],
+    args: &'a [ast::CallArgument],
     span: Span,
 }
 

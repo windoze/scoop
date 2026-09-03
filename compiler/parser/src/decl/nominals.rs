@@ -17,8 +17,10 @@ impl Parser {
         let (fields, mut end) = if matches!(self.peek().kind, TokenKind::LParen) {
             self.bump();
             let mut fields = Vec::new();
+            let mut vararg_span = None;
             if !matches!(self.peek().kind, TokenKind::RParen) {
                 loop {
+                    let modifier_span = self.parse_vararg_modifier(&mut vararg_span)?;
                     if matches!(self.peek().kind, TokenKind::Var) {
                         return Err(Diagnostic::at(
                             self.peek().span,
@@ -29,16 +31,15 @@ impl Parser {
                     let field_name = self.expect_ident("field name")?;
                     self.expect("`:`", |k| matches!(k, TokenKind::Colon))?;
                     let ty = self.parse_type_ref()?;
-                    if matches!(self.peek().kind, TokenKind::Equal) {
-                        return Err(Diagnostic::at(
-                            self.peek().span,
-                            "field default values are not supported yet (milestone M3)",
-                        ));
-                    }
+                    let (syntax, end) = self.parse_parameter_syntax(modifier_span, ty.span.end)?;
                     fields.push(FieldDecl {
-                        span: Span::new(val.span.start, ty.span.end),
+                        span: Span::new(
+                            modifier_span.map_or(val.span.start, |span| span.start),
+                            end,
+                        ),
                         name: field_name,
                         ty,
+                        syntax,
                     });
                     if matches!(self.peek().kind, TokenKind::Comma) {
                         self.bump();
@@ -95,8 +96,10 @@ impl Parser {
         let constructor = if matches!(self.peek().kind, TokenKind::LParen) {
             self.bump(); // `(`
             let mut properties = Vec::new();
+            let mut vararg_span = None;
             if !matches!(self.peek().kind, TokenKind::RParen) {
                 loop {
+                    let modifier_span = self.parse_vararg_modifier(&mut vararg_span)?;
                     let prop_keyword = self.peek().clone();
                     let mutable = match prop_keyword.kind {
                         TokenKind::Val => false,
@@ -112,11 +115,16 @@ impl Parser {
                     let prop_name = self.expect_ident("property name")?;
                     self.expect("`:`", |k| matches!(k, TokenKind::Colon))?;
                     let ty = self.parse_type_ref()?;
+                    let (syntax, end) = self.parse_parameter_syntax(modifier_span, ty.span.end)?;
                     properties.push(ConstructorProp {
                         mutable,
-                        span: Span::new(prop_keyword.span.start, ty.span.end),
+                        span: Span::new(
+                            modifier_span.map_or(prop_keyword.span.start, |span| span.start),
+                            end,
+                        ),
                         name: prop_name,
                         ty,
+                        syntax,
                     });
                     if matches!(self.peek().kind, TokenKind::Comma) {
                         self.bump();
@@ -160,6 +168,30 @@ impl Parser {
             methods,
             span: Span::new(start, end),
         })
+    }
+
+    pub(super) fn parse_vararg_modifier(
+        &mut self,
+        existing: &mut Option<Span>,
+    ) -> Result<Option<Span>, Diagnostic> {
+        if !matches!(self.peek().kind, TokenKind::Vararg) {
+            return Ok(None);
+        }
+        let modifier = self.bump();
+        if matches!(self.peek().kind, TokenKind::Vararg) {
+            return Err(Diagnostic::at(
+                self.peek().span,
+                "duplicate `vararg` modifier on parameter",
+            ));
+        }
+        if existing.is_some() {
+            return Err(Diagnostic::at(
+                modifier.span,
+                "a parameter list may declare at most one `vararg` parameter",
+            ));
+        }
+        *existing = Some(modifier.span);
+        Ok(Some(modifier.span))
     }
 
     /// `: Base(args), I1, I2` — a no-op when the next token is not `:`.

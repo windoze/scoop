@@ -28,7 +28,7 @@ pub enum Expr {
     /// `Name(arg, ...)` where `Name` resolves to a struct.
     StructInit {
         name: Ident,
-        args: Vec<Expr>,
+        args: Vec<CallArgument>,
         span: Span,
     },
     Var(Ident),
@@ -66,7 +66,7 @@ pub enum Expr {
     /// falling back to named overload resolution.
     Invoke {
         callee: Box<Expr>,
-        args: Vec<Expr>,
+        args: Vec<CallArgument>,
         span: Span,
     },
     Binary {
@@ -102,7 +102,7 @@ pub enum Expr {
         name: Ident,
         /// Explicit call-site type arguments (`receiver.name<T>(...)`).
         type_args: Vec<TypeRef>,
-        args: Vec<Expr>,
+        args: Vec<CallArgument>,
         span: Span,
     },
     /// `expr is T` / `expr !is T`.
@@ -203,8 +203,60 @@ pub struct CallExpr {
     pub callee: Ident,
     /// Explicit call-site type arguments (`callee<T>(...)`).
     pub type_args: Vec<TypeRef>,
-    pub args: Vec<Expr>,
+    pub args: Vec<CallArgument>,
     pub span: Span,
+}
+
+/// One explicit source argument. Name and spread are independent closed sums:
+/// `name = *value` is represented without overloading expression syntax.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CallArgument {
+    pub name: CallArgumentName,
+    pub spread: SpreadSyntax,
+    pub expression: Expr,
+    pub span: Span,
+}
+
+impl CallArgument {
+    pub fn positional(expression: Expr) -> Self {
+        let span = expression.span();
+        Self {
+            name: CallArgumentName::Positional,
+            spread: SpreadSyntax::Plain,
+            expression,
+            span,
+        }
+    }
+
+    pub const fn span(&self) -> Span {
+        self.span
+    }
+}
+
+impl std::ops::Deref for CallArgument {
+    type Target = Expr;
+
+    fn deref(&self) -> &Self::Target {
+        &self.expression
+    }
+}
+
+impl std::ops::DerefMut for CallArgument {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.expression
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CallArgumentName {
+    Positional,
+    Named(Ident),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SpreadSyntax {
+    Plain,
+    Spread(Span),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

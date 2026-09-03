@@ -49,7 +49,7 @@ impl ResolvedCallee {
 #[derive(Clone, Copy)]
 pub(crate) struct OverloadCall<'a> {
     pub(crate) explicit_type_args: &'a [TypeId],
-    pub(crate) arg_exprs: &'a [ast::Expr],
+    pub(crate) arg_exprs: &'a [ast::CallArgument],
     pub(crate) span: Span,
     pub(crate) expected_result: Option<TypeId>,
 }
@@ -66,7 +66,7 @@ pub(crate) struct LoweredOverloadCall {
 }
 
 enum OverloadArguments<'a> {
-    Source(&'a [ast::Expr]),
+    Source(&'a [ast::CallArgument]),
     Lowered(Vec<hir::Expr>),
 }
 

@@ -104,7 +104,7 @@ impl Lowerer {
     pub(super) fn lower_callable_call(
         &mut self,
         callee: hir::Expr,
-        args: &[ast::Expr],
+        args: &[ast::CallArgument],
         span: Span,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
@@ -152,12 +152,12 @@ impl Lowerer {
         }
         let mut lowered = Vec::with_capacity(args.len());
         for (arg, &parameter_ty) in args.iter().zip(&signature.parameter_types) {
-            let value = self.lower_expr(arg, sink, Some(parameter_ty))?;
+            let value = self.lower_expr(&arg.expression, sink, Some(parameter_ty))?;
             if !self.is_subtype(value.ty, parameter_ty) {
                 let expected = self.type_name(parameter_ty);
                 let found = self.type_name(value.ty);
                 self.error(
-                    arg.span(),
+                    arg.span,
                     format!("function argument must be of type {expected}, found {found}"),
                 );
                 return None;

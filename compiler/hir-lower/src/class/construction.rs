@@ -64,7 +64,7 @@ impl Lowerer {
         self.current_fn_name = format!("<init {base_name}>");
         for (arg, (prop_name, prop_ty)) in args.iter().zip(&props) {
             let mut sink = Vec::new();
-            let Some(arg) = self.lower_expr(arg, &mut sink, Some(*prop_ty)) else {
+            let Some(arg) = self.lower_expr(&arg.expression, &mut sink, Some(*prop_ty)) else {
                 ok = false;
                 break;
             };

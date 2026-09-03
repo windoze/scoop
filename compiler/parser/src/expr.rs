@@ -5,7 +5,10 @@
 //! `- !` < postfix `.name` / `.name(args)` / `._n` / `?.name` / `!!` /
 //! `[index]` < atoms. All other binary operators are left-associative.
 
-use scoop_ast::{BinOp, CallExpr, Diagnostic, Expr, FieldAccess, FieldSelector, Ident, Span, UnOp};
+use scoop_ast::{
+    BinOp, CallArgument, CallArgumentName, CallExpr, Diagnostic, Expr, FieldAccess, FieldSelector,
+    Ident, Span, SpreadSyntax, UnOp,
+};
 
 use crate::lexer::TokenKind;
 use crate::parser::Parser;
@@ -193,11 +196,11 @@ impl Parser {
                     let end = lambda.span().end;
                     match &mut receiver {
                         Expr::Call(call) => {
-                            call.args.push(lambda);
+                            call.args.push(scoop_ast::CallArgument::positional(lambda));
                             call.span.end = end;
                         }
                         Expr::MethodCall { args, span, .. } | Expr::Invoke { args, span, .. } => {
-                            args.push(lambda);
+                            args.push(scoop_ast::CallArgument::positional(lambda));
                             span.end = end;
                         }
                         _ => unreachable!("the trailing-lambda guard accepts only calls"),

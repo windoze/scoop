@@ -11,7 +11,7 @@ pub(crate) fn method_call(receiver: Expr, name: &str, args: Vec<Expr>) -> Expr {
         receiver: Box::new(receiver),
         name: ident(name),
         type_args: Vec::new(),
-        args,
+        args: call_arguments(args),
         span: sp(),
     }
 }
@@ -26,7 +26,7 @@ pub(crate) fn typed_method_call(
         receiver: Box::new(receiver),
         name: ident(name),
         type_args,
-        args,
+        args: call_arguments(args),
         span: sp(),
     }
 }

@@ -304,12 +304,12 @@ fn trailing_lambda_is_the_last_positional_argument() {
         panic!("expected named call");
     };
     assert_eq!(call.args.len(), 2);
-    assert!(matches!(call.args[1], Expr::Lambda { .. }));
+    assert!(matches!(call.args[1].expression, Expr::Lambda { .. }));
     let StatementKind::Expr(Expr::MethodCall { args, .. }) = &body.statements[1].kind else {
         panic!("expected method call");
     };
     assert_eq!(args.len(), 1);
-    assert!(matches!(args[0], Expr::Lambda { .. }));
+    assert!(matches!(args[0].expression, Expr::Lambda { .. }));
 }
 
 #[test]

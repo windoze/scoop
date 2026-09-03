@@ -44,11 +44,16 @@ impl Lowerer {
             let source_index = input.input.index();
             let parameter = view.value_parameters[input.parameter.index()].ty;
             let hint = self.try_substitute(parameter, &seed);
-            if hint.is_none() && self.expr_requires_expected_type(&arg_exprs[source_index]) {
+            if hint.is_none()
+                && self.expr_requires_expected_type(&arg_exprs[source_index].expression)
+            {
                 continue;
             }
-            lowered[source_index] =
-                Some(self.lower_expr(&arg_exprs[source_index], &mut sinks[source_index], hint)?);
+            lowered[source_index] = Some(self.lower_expr(
+                &arg_exprs[source_index].expression,
+                &mut sinks[source_index],
+                hint,
+            )?);
         }
 
         let mut type_args = loop {
@@ -76,7 +81,7 @@ impl Lowerer {
                         .position(Option::is_none)
                         .expect("a postponed nominal argument remains");
                     lowered[source_index] = Some(self.lower_expr(
-                        &arg_exprs[source_index],
+                        &arg_exprs[source_index].expression,
                         &mut sinks[source_index],
                         None,
                     )?);
@@ -96,7 +101,7 @@ impl Lowerer {
             let parameter = view.value_parameters[input.parameter.index()].ty;
             let expected = self.instantiate_ty(parameter, &type_args);
             lowered[source_index] = Some(self.lower_expr(
-                &arg_exprs[source_index],
+                &arg_exprs[source_index].expression,
                 &mut sinks[source_index],
                 Some(expected),
             )?);
@@ -244,7 +249,7 @@ impl Lowerer {
     pub(super) fn constructor_requires_expected(
         &self,
         name: &ast::Ident,
-        args: &[ast::Expr],
+        args: &[ast::CallArgument],
     ) -> bool {
         if let Some(&(class, _)) = self.classes_by_name.get(&name.text)
             && self.array_class_kind(class).is_some()
@@ -252,7 +257,7 @@ impl Lowerer {
             let [source] = args else {
                 return false;
             };
-            return self.expr_requires_expected_type(source);
+            return self.expr_requires_expected_type(&source.expression);
         }
         let Some((type_param_count, fields)) = self.constructor_inference_shape(&name.text) else {
             return false;
@@ -262,7 +267,7 @@ impl Lowerer {
         }
         let mut bound = vec![false; type_param_count];
         for (arg, field) in args.iter().zip(fields) {
-            if !self.expr_requires_expected_type(arg) {
+            if !self.expr_requires_expected_type(&arg.expression) {
                 self.mark_type_params(field, &mut bound);
             }
         }
@@ -273,7 +278,7 @@ impl Lowerer {
         &self,
         receiver: &ast::Expr,
         name: &ast::Ident,
-        args: &[ast::Expr],
+        args: &[ast::CallArgument],
     ) -> bool {
         let ast::Expr::Var(enum_name) = receiver else {
             return false;

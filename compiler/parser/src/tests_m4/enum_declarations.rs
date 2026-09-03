@@ -101,7 +101,7 @@ fn enum_named_field_variant() {
     };
     assert_eq!(fields.len(), 2);
     assert_eq!(fields[0].name.text, "w");
-    assert!(fields[0].default.is_none());
+    assert!(matches!(fields[0].syntax, ParameterSyntax::Required));
     assert!(matches!(&fields[1].ty.kind, TypeRefKind::Named(name) if name.text == "Int"));
 }
 
@@ -128,10 +128,15 @@ fn enum_constructor_variant_with_constant_defaults() {
     };
     assert_eq!(fields.len(), 2);
     assert!(matches!(
-        fields[0].default,
-        Some(Expr::IntLiteral { value: 0, .. })
+        fields[0].syntax,
+        ParameterSyntax::Default {
+            expression: Expr::IntLiteral { value: 0, .. },
+            ..
+        }
     ));
-    assert!(matches!(&fields[1].default, Some(Expr::StringLiteral { value, .. }) if value == "x"));
+    assert!(
+        matches!(&fields[1].syntax, ParameterSyntax::Default { expression: Expr::StringLiteral { value, .. }, .. } if value == "x")
+    );
     assert_eq!(
         scoop_ast::dump(&file),
         "SourceFile\n  enum E\n    WithDefault <ctor>\n      d: Int = <expr>\n      s: String = <expr>\n"

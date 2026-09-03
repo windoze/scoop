@@ -1,17 +1,5 @@
 use super::*;
 
-/// M4 variant field defaults are literal constant expressions only
-/// (DESIGN.md 5.4).
-fn is_constant(expr: &Expr) -> bool {
-    matches!(
-        expr,
-        Expr::IntLiteral { .. }
-            | Expr::StringLiteral { .. }
-            | Expr::BoolLiteral { .. }
-            | Expr::UnitLiteral { .. }
-    )
-}
-
 impl Parser {
     /// `enum <name><T, ...>? (: <interface>, ...)? { <variant>, ...
     /// (<fun>, ...)? }` (spec 4.2). The interface list (spec 4.4.3) sits
@@ -110,7 +98,7 @@ impl Parser {
             TokenKind::LParen
                 if matches!(
                     self.tokens.get(self.pos + 1).map(|token| &token.kind),
-                    Some(TokenKind::Val | TokenKind::Var)
+                    Some(TokenKind::Val | TokenKind::Var | TokenKind::Vararg)
                 ) =>
             {
                 let (fields, end) = self.parse_constructor_fields()?;
@@ -148,7 +136,9 @@ impl Parser {
     fn parse_constructor_fields(&mut self) -> Result<(Vec<VariantFieldDecl>, u32), Diagnostic> {
         self.bump(); // `(`
         let mut fields = Vec::new();
+        let mut vararg_span = None;
         loop {
+            let modifier_span = self.parse_vararg_modifier(&mut vararg_span)?;
             if matches!(self.peek().kind, TokenKind::Var) {
                 return Err(Diagnostic::at(
                     self.peek().span,
@@ -159,26 +149,12 @@ impl Parser {
             let field_name = self.expect_ident("field name")?;
             self.expect("`:`", |k| matches!(k, TokenKind::Colon))?;
             let ty = self.parse_type_ref()?;
-            let mut end = ty.span.end;
-            let default = if matches!(self.peek().kind, TokenKind::Equal) {
-                self.bump();
-                let expr = self.parse_expr()?;
-                if !is_constant(&expr) {
-                    return Err(Diagnostic::at(
-                        expr.span(),
-                        "only constant expressions are allowed as variant field defaults (milestone M4)",
-                    ));
-                }
-                end = expr.span().end;
-                Some(expr)
-            } else {
-                None
-            };
+            let (syntax, end) = self.parse_parameter_syntax(modifier_span, ty.span.end)?;
             fields.push(VariantFieldDecl {
-                span: Span::new(val.span.start, end),
+                span: Span::new(modifier_span.map_or(val.span.start, |span| span.start), end),
                 name: field_name,
                 ty,
-                default,
+                syntax,
             });
             if matches!(self.peek().kind, TokenKind::Comma) {
                 self.bump();
@@ -214,7 +190,7 @@ impl Parser {
                 span: Span::new(field_name.span.start, ty.span.end),
                 name: field_name,
                 ty,
-                default: None,
+                syntax: ParameterSyntax::Required,
             });
             if matches!(self.peek().kind, TokenKind::Comma) {
                 self.bump();

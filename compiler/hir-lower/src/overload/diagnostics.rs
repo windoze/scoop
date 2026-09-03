@@ -186,7 +186,7 @@ fn constraint_failure_span(
         ConstraintOrigin::Argument(input) => match arguments {
             OverloadArguments::Source(arguments) => arguments
                 .get(input.index())
-                .map_or(fallback, ast::Expr::span),
+                .map_or(fallback, ast::CallArgument::span),
             OverloadArguments::Lowered(arguments) => arguments
                 .get(input.index())
                 .map_or(fallback, |arg| arg.span),

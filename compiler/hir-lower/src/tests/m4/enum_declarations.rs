@@ -289,7 +289,10 @@ fn named_variant_default_is_an_error() {
                 kind: VariantDeclKind::Named(vec![VariantFieldDecl {
                     name: ident("w"),
                     ty: ty_named("Int"),
-                    default: Some(int_lit(0)),
+                    syntax: ast::ParameterSyntax::Default {
+                        expression: int_lit(0),
+                        equals_span: sp(),
+                    },
                     span: sp(),
                 }]),
                 span: sp(),

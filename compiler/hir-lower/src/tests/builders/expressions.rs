@@ -37,7 +37,7 @@ pub(crate) fn tuple_lit(elements: Vec<Expr>) -> Expr {
 pub(crate) fn struct_init(name: &str, args: Vec<Expr>) -> Expr {
     Expr::StructInit {
         name: ident(name),
-        args,
+        args: call_arguments(args),
         span: sp(),
     }
 }
@@ -46,7 +46,7 @@ pub(crate) fn call(name: &str, args: Vec<Expr>) -> Expr {
     Expr::Call(CallExpr {
         callee: ident(name),
         type_args: Vec::new(),
-        args,
+        args: call_arguments(args),
         span: sp(),
     })
 }
@@ -55,7 +55,7 @@ pub(crate) fn typed_call(name: &str, type_args: Vec<TypeRef>, args: Vec<Expr>) -
     Expr::Call(CallExpr {
         callee: ident(name),
         type_args,
-        args,
+        args: call_arguments(args),
         span: sp(),
     })
 }
@@ -67,9 +67,15 @@ pub(crate) fn call_at(name: &str, args: Vec<Expr>, callee_span: Span) -> Expr {
             span: callee_span,
         },
         type_args: Vec::new(),
-        args,
+        args: call_arguments(args),
         span: sp(),
     })
+}
+
+pub(crate) fn call_arguments(args: Vec<Expr>) -> Vec<ast::CallArgument> {
+    args.into_iter()
+        .map(ast::CallArgument::positional)
+        .collect()
 }
 
 pub(crate) fn field(receiver: Expr, name: &str) -> Expr {

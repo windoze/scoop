@@ -58,13 +58,15 @@ fn var_struct_field_not_supported() {
 }
 
 #[test]
-fn field_default_value_not_supported() {
-    let (span, message) = err("struct S(val x: Int = 0)");
-    assert_eq!(span, Span::new(20, 21));
-    assert_eq!(
-        message,
-        "field default values are not supported yet (milestone M3)"
-    );
+fn struct_field_default_is_preserved_for_hir() {
+    let file = ok("struct S(val x: Int = 0)");
+    let Decl::Struct(structure) = &file.declarations[0] else {
+        panic!("expected struct")
+    };
+    assert!(matches!(
+        structure.fields[0].syntax,
+        scoop_ast::ParameterSyntax::Default { .. }
+    ));
 }
 
 #[test]

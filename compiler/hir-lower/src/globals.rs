@@ -193,7 +193,7 @@ impl Lowerer {
             .args
             .iter()
             .zip(&parameter_types)
-            .map(|(argument, &parameter)| self.global_constant(argument, parameter))
+            .map(|(argument, &parameter)| self.global_constant(&argument.expression, parameter))
             .collect::<Option<Vec<_>>>()?;
         let argument_types = parameter_types
             .iter()

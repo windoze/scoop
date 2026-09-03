@@ -247,7 +247,10 @@ fn generic_class_base_application_and_delegation_keep_typed_sources() {
     let Decl::Class(derived_class) = &mut derived else {
         unreachable!()
     };
-    derived_class.base_class = Some((ty_generic("Base", vec![ty_named("T")]), vec![var("item")]));
+    derived_class.base_class = Some((
+        ty_generic("Base", vec![ty_named("T")]),
+        call_arguments(vec![var("item")]),
+    ));
 
     let output = lower_user_output(file(vec![
         base,
@@ -310,7 +313,7 @@ fn generic_base_substitution_preserves_nested_application_identity() {
     };
     derived_class.base_class = Some((
         ty_generic("Base", vec![ty_generic("Wrapper", vec![ty_named("T")])]),
-        vec![call("Wrapper", vec![var("item")])],
+        call_arguments(vec![call("Wrapper", vec![var("item")])]),
     ));
 
     let output = lower_user_output(file(vec![

@@ -4,8 +4,8 @@
 //! destructuring `val` / `var` declarations.
 
 use scoop_ast::{
-    Decl, Expr, FieldSelector, FunctionBody, Pattern, Span, StatementKind, TypeRefKind,
-    VariantDeclKind, When,
+    Decl, Expr, FieldSelector, FunctionBody, ParameterSyntax, Pattern, Span, StatementKind,
+    TypeRefKind, VariantDeclKind, When,
 };
 
 use crate::tests::{block_body, err, ok, only_function};

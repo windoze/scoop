@@ -38,7 +38,7 @@ pub(crate) fn variant_named(name: &str, fields: Vec<(&str, TypeRef)>) -> Variant
                 .map(|(name, ty)| VariantFieldDecl {
                     name: ident(name),
                     ty,
-                    default: None,
+                    syntax: ast::ParameterSyntax::Required,
                     span: sp(),
                 })
                 .collect(),
@@ -59,7 +59,12 @@ pub(crate) fn variant_constructor(
                 .map(|(name, ty, default)| VariantFieldDecl {
                     name: ident(name),
                     ty,
-                    default,
+                    syntax: default.map_or(ast::ParameterSyntax::Required, |expression| {
+                        ast::ParameterSyntax::Default {
+                            expression,
+                            equals_span: sp(),
+                        }
+                    }),
                     span: sp(),
                 })
                 .collect(),

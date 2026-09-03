@@ -362,6 +362,7 @@ impl<'a> Lexer<'a> {
         }
         let kind = match text {
             "suspend" => TokenKind::Suspend,
+            "vararg" => TokenKind::Vararg,
             "fun" => TokenKind::Fun,
             "struct" => TokenKind::Struct,
             "enum" => TokenKind::Enum,

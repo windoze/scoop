@@ -10,7 +10,7 @@ impl Lowerer {
         &mut self,
         function: hir::FunctionId,
         explicit_type_args: &[TypeId],
-        args: &[ast::Expr],
+        args: &[ast::CallArgument],
         span: Span,
     ) -> Result<Option<TypeId>, ()> {
         let Some(core) = self.foreign_callback_core else {
@@ -43,10 +43,10 @@ impl Lowerer {
         let ast::Expr::IntLiteral {
             value: context_index,
             span: context_span,
-        } = context_index
+        } = &context_index.expression
         else {
             self.error(
-                context_index.span(),
+                context_index.span,
                 "foreign callback `contextIndex` must be a compile-time integer literal"
                     .to_string(),
             );

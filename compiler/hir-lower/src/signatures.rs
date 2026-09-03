@@ -119,14 +119,20 @@ impl Lowerer {
                         return None;
                     }
                     let ty = self.resolve_type_ref(&field.ty)?;
-                    let default = match &field.default {
-                        Some(default) if constructor => {
+                    let default = match &field.syntax {
+                        ast::ParameterSyntax::Default {
+                            expression: default,
+                            ..
+                        } if constructor => {
                             Some(self.resolve_variant_default(variant, field, ty, default)?)
                         }
                         // The parser only produces defaults on
                         // constructor-style variants; reject the shape
                         // here so every AST form is handled.
-                        Some(_) => {
+                        ast::ParameterSyntax::Default { .. }
+                        | ast::ParameterSyntax::Vararg { .. }
+                            if !constructor =>
+                        {
                             self.error(
                                 field.span,
                                 format!(
@@ -136,7 +142,12 @@ impl Lowerer {
                             );
                             return None;
                         }
-                        None => None,
+                        ast::ParameterSyntax::Default { .. } => {
+                            unreachable!("constructor default handled by the first arm")
+                        }
+                        ast::ParameterSyntax::Required | ast::ParameterSyntax::Vararg { .. } => {
+                            None
+                        }
                     };
                     resolved.fields.push(hir::Field {
                         name: field.name.text.clone(),

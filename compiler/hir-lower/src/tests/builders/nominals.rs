@@ -34,10 +34,11 @@ pub(crate) fn class_decl(
                 mutable,
                 name: ident(name),
                 ty,
+                syntax: ast::ParameterSyntax::Required,
                 span: sp(),
             })
             .collect(),
-        base_class: base.map(|(name, args)| (ty_named(name), args)),
+        base_class: base.map(|(name, args)| (ty_named(name), call_arguments(args))),
         interfaces: interfaces.into_iter().map(ty_named).collect(),
         where_clause: None,
         methods,
@@ -111,6 +112,7 @@ pub(crate) fn method_full(
             .map(|(name, ty)| Param {
                 name: ident(name),
                 ty,
+                syntax: ast::ParameterSyntax::Required,
                 span: sp(),
             })
             .collect(),
@@ -234,6 +236,7 @@ pub(crate) fn generic_struct_decl_full(
             .map(|(name, ty)| FieldDecl {
                 name: ident(name),
                 ty,
+                syntax: ast::ParameterSyntax::Required,
                 span: sp(),
             })
             .collect(),
