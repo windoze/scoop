@@ -1,0 +1,196 @@
+use super::*;
+
+// --- negative: declarations and inheritance ---
+
+#[test]
+fn inheriting_a_final_class_is_an_error() {
+    let file = file(vec![
+        class_decl(Final, "A", vec![], None, vec![], vec![]),
+        class_decl(Final, "B", vec![], Some(("A", vec![])), vec![], vec![]),
+        fun("main", vec![]),
+    ]);
+    let errors = lower_user(file).expect_err("inheriting a final class must fail");
+    assert_eq!(errors.len(), 1);
+    assert_eq!(
+        errors[0].message,
+        "class `A` is final and cannot be inherited"
+    );
+}
+
+#[test]
+fn base_clause_requires_a_class() {
+    let file = file(vec![
+        describable(),
+        class_decl(
+            Final,
+            "B",
+            vec![],
+            Some(("Describable", vec![])),
+            vec![],
+            vec![],
+        ),
+        fun("main", vec![]),
+    ]);
+    let errors = lower_user(file).expect_err("a non-class base must fail");
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].message, "`Describable` is not a class");
+}
+
+#[test]
+fn interface_list_requires_interfaces() {
+    let file = file(vec![
+        class_decl(Final, "A", vec![], None, vec![], vec![]),
+        class_decl(Open, "B", vec![], None, vec!["A"], vec![]),
+        fun("main", vec![]),
+    ]);
+    let errors = lower_user(file).expect_err("a non-interface in the list must fail");
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].message, "`A` is not an interface");
+}
+
+#[test]
+fn duplicate_constructor_property_is_an_error() {
+    let file = file(vec![
+        class_decl(
+            Final,
+            "C",
+            vec![(false, "x", ty_named("Int")), (true, "x", ty_named("Int"))],
+            None,
+            vec![],
+            vec![],
+        ),
+        fun("main", vec![]),
+    ]);
+    let errors = lower_user(file).expect_err("duplicate properties must fail");
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].message, "duplicate property `x` in class `C`");
+}
+
+#[test]
+fn duplicate_method_is_an_error() {
+    let file = file(vec![
+        class_decl(
+            Final,
+            "C",
+            vec![],
+            None,
+            vec![],
+            vec![
+                method("m", vec![], None, vec![]),
+                method("m", vec![], None, vec![]),
+            ],
+        ),
+        fun("main", vec![]),
+    ]);
+    let errors = lower_user(file).expect_err("duplicate methods must fail");
+    assert_eq!(errors.len(), 1);
+    assert_eq!(
+        errors[0].message,
+        "function `m` in class `C` is already declared with the same signature"
+    );
+}
+
+#[test]
+fn cyclic_inheritance_is_an_error() {
+    let file = file(vec![
+        class_decl(Open, "A", vec![], Some(("B", vec![])), vec![], vec![]),
+        class_decl(Open, "B", vec![], Some(("A", vec![])), vec![], vec![]),
+        fun("main", vec![]),
+    ]);
+    let errors = lower_user(file).expect_err("cyclic inheritance must fail");
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.message == "class `A` directly or indirectly inherits from itself"),
+        "unexpected diagnostics: {errors:?}"
+    );
+}
+
+#[test]
+fn property_shadowing_is_an_error() {
+    let file = file(vec![
+        class_decl(
+            Open,
+            "A",
+            vec![(false, "x", ty_named("Int"))],
+            None,
+            vec![],
+            vec![],
+        ),
+        class_decl(
+            Final,
+            "B",
+            vec![(false, "x", ty_named("Int"))],
+            Some(("A", vec![int_lit(1)])),
+            vec![],
+            vec![],
+        ),
+        fun("main", vec![]),
+    ]);
+    let errors = lower_user(file).expect_err("shadowing properties must fail");
+    assert_eq!(errors.len(), 1);
+    assert_eq!(
+        errors[0].message,
+        "property `x` of class `B` shadows a property of base class `A`"
+    );
+}
+
+#[test]
+fn base_constructor_arity_is_checked() {
+    let file = file(vec![
+        class_decl(
+            Open,
+            "A",
+            vec![(false, "x", ty_named("Int"))],
+            None,
+            vec![],
+            vec![],
+        ),
+        class_decl(
+            Final,
+            "B",
+            vec![],
+            Some(("A", vec![int_lit(1), int_lit(2)])),
+            vec![],
+            vec![],
+        ),
+        fun("main", vec![]),
+    ]);
+    let errors = lower_user(file).expect_err("wrong arity must fail");
+    assert_eq!(errors.len(), 1);
+    assert_eq!(
+        errors[0].message,
+        "constructor of class `A` takes exactly 1 argument, but 2 were supplied"
+    );
+}
+
+#[test]
+fn base_constructor_argument_types_are_checked() {
+    let file = file(vec![
+        class_decl(
+            Open,
+            "A",
+            vec![(false, "x", ty_named("Int"))],
+            None,
+            vec![],
+            vec![],
+        ),
+        class_decl(
+            Final,
+            "B",
+            vec![],
+            Some(("A", vec![str_lit("s")])),
+            vec![],
+            vec![],
+        ),
+        fun("main", vec![]),
+    ]);
+    let errors = lower_user(file).expect_err("wrong argument type must fail");
+    assert_eq!(errors.len(), 1);
+    assert_eq!(
+        errors[0].message,
+        "argument for constructor property `x` of class `A` must be of type Int, found String"
+    );
+}
+
+// --- negative: override and implementation ---
