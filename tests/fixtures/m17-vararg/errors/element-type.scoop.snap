@@ -1,0 +1,7 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m17-vararg/errors/element-type.scoop:4:16: error: no applicable candidate for `collect` in current-unit top-level candidate layer:
+  - fun collect(values: Array<Int>): Int — argument for `values` has type String, which is not a subtype of Int

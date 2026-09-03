@@ -74,6 +74,7 @@ fn runs_under_gc_stress(relative: &str) -> bool {
             | "m15-moving/external-exception.scoop"
             | "m15-moving/handle-pin.scoop"
             | "m15-moving/root-shapes.scoop"
+            | "m17-vararg/vararg-semantics.scoop"
     )
 }
 

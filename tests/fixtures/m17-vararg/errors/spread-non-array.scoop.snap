@@ -1,0 +1,7 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m17-vararg/errors/spread-non-array.scoop:4:13: error: no applicable candidate for `collect` in current-unit top-level candidate layer:
+  - fun collect(values: Array<Int>): Int — argument for `values` has type Int, which is not equal to Array<Int>

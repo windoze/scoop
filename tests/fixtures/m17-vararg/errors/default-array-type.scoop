@@ -1,0 +1,3 @@
+fun invalid(vararg values: Int = ["wrong"]): Int = values.size
+
+fun main() {}

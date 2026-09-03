@@ -1,0 +1,5 @@
+fun collect(vararg values: Int): Int = values.size
+
+fun main() {
+    collect(*1)
+}

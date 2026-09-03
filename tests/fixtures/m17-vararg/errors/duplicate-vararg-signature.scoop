@@ -1,0 +1,4 @@
+fun duplicate(vararg values: Int): Int = values.size
+fun duplicate(values: Array<Int>): Int = values.size
+
+fun main() {}

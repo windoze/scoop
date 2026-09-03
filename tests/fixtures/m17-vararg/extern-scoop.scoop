@@ -1,0 +1,13 @@
+@Extern(lib = "fixture_native", name = "m17_native_sum", abi = "scoop")
+fun nativeSum(vararg values: Int): Int
+
+@Extern(lib = "fixture_native", name = "m17_native_add", abi = "scoop")
+fun nativeAdd(value: Int, delta: Int = 2): Int
+
+fun main() {
+    println(nativeSum(1, *[2, 3], 4))
+    val values = [5, 6]
+    println(nativeSum(values = values))
+    println(nativeAdd(40))
+    println(nativeAdd(40, 3))
+}
