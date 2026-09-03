@@ -1,0 +1,371 @@
+//! MIR module fixture builder shared by LIR lowering tests.
+
+use super::*;
+
+/// MIR module shell as mir-lower produces it.
+pub(in crate::tests) struct Builder {
+    pub(in crate::tests) functions: Arena<mir::Function>,
+    pub(in crate::tests) extern_functions: Arena<mir::ExternFunction>,
+    pub(in crate::tests) strings: Arena<mir::StringConst>,
+    pub(in crate::tests) structs: Arena<mir::StructDef>,
+    pub(in crate::tests) enums: Arena<mir::EnumDef>,
+    pub(in crate::tests) classes: Arena<mir::ClassDef>,
+    pub(in crate::tests) interfaces: Arena<mir::InterfaceDef>,
+    pub(in crate::tests) top_level: Vec<mir::FunctionId>,
+}
+
+impl Builder {
+    pub(in crate::tests) fn new() -> Self {
+        Builder {
+            functions: Arena::new(),
+            extern_functions: Arena::new(),
+            strings: Arena::new(),
+            structs: Arena::new(),
+            enums: Arena::new(),
+            classes: Arena::new(),
+            interfaces: Arena::new(),
+            top_level: Vec::new(),
+        }
+    }
+
+    /// `enum Option<T> { Some(T), None }` instantiated at
+    /// `payload`, named as mir-lower names its instances.
+    pub(in crate::tests) fn option_enum(&mut self, name: &str, payload: mir::Type) -> mir::EnumId {
+        let payload_gc_free = self.type_gc_free(&payload);
+        self.enums.alloc(mir::EnumDef {
+            name: name.to_string(),
+            gc_free: payload_gc_free,
+            variants: vec![
+                mir::VariantDef {
+                    name: "Some".to_string(),
+                    gc_free: payload_gc_free,
+                    fields: vec![mir::Field {
+                        name: "_1".to_string(),
+                        ty: payload,
+                    }],
+                },
+                mir::VariantDef {
+                    name: "None".to_string(),
+                    gc_free: true,
+                    fields: Vec::new(),
+                },
+            ],
+        })
+    }
+
+    pub(in crate::tests) fn type_gc_free(&self, ty: &mir::Type) -> bool {
+        match ty {
+            mir::Type::Unit
+            | mir::Type::Int
+            | mir::Type::UInt
+            | mir::Type::Boolean
+            | mir::Type::Ptr(_)
+            | mir::Type::FunPtr(_) => true,
+            mir::Type::String
+            | mir::Type::Class(_)
+            | mir::Type::Interface(_)
+            | mir::Type::Any
+            | mir::Type::Function(_) => false,
+            mir::Type::Struct(id) => self.structs[*id].gc_free,
+            mir::Type::Enum(id, _) => self.enums[*id].gc_free,
+            mir::Type::Tuple(elements) => elements.iter().all(|element| self.type_gc_free(element)),
+        }
+    }
+
+    pub(in crate::tests) fn string(&mut self, value: &str) -> mir::StringConstId {
+        let symbol = format!("scoop.str.{}", self.strings.len());
+        self.strings.alloc(mir::StringConst {
+            value: value.to_string(),
+            symbol,
+        })
+    }
+
+    pub(in crate::tests) fn managed_scoop_extern(
+        &mut self,
+        source_name: &str,
+        native_symbol: &str,
+        params: Vec<mir::Type>,
+        return_type: mir::Type,
+    ) -> mir::ExternFunctionId {
+        self.extern_functions.alloc(mir::ExternFunction {
+            source_name: source_name.to_string(),
+            native_symbol: native_symbol.to_string(),
+            library: String::new(),
+            abi: mir::ExternAbi::Scoop,
+            calling_convention: mir::CallingConvention::Cdecl,
+            gc_effect: mir::GcEffect::Managed,
+            params,
+            return_type,
+        })
+    }
+
+    pub(in crate::tests) fn strukt(
+        &mut self,
+        name: &str,
+        fields: &[(&str, mir::Type)],
+    ) -> mir::StructId {
+        let gc_free = fields.iter().all(|(_, ty)| self.type_gc_free(ty));
+        self.structs.alloc(mir::StructDef {
+            name: name.to_string(),
+            gc_free,
+            representation: mir::StructRepresentation::Declared {
+                c_layout: None,
+                interior_mutable: false,
+                fields: fields
+                    .iter()
+                    .map(|(name, ty)| mir::Field {
+                        name: name.to_string(),
+                        ty: ty.clone(),
+                    })
+                    .collect(),
+            },
+        })
+    }
+
+    pub(in crate::tests) fn c_strukt(
+        &mut self,
+        name: &str,
+        aligned: u8,
+        packed: u8,
+        interior_mutable: bool,
+        fields: &[(&str, mir::Type)],
+    ) -> mir::StructId {
+        let gc_free = fields.iter().all(|(_, ty)| self.type_gc_free(ty));
+        self.structs.alloc(mir::StructDef {
+            name: name.to_string(),
+            gc_free,
+            representation: mir::StructRepresentation::Declared {
+                c_layout: Some(mir::CLayout { aligned, packed }),
+                interior_mutable,
+                fields: fields
+                    .iter()
+                    .map(|(name, ty)| mir::Field {
+                        name: name.to_string(),
+                        ty: ty.clone(),
+                    })
+                    .collect(),
+            },
+        })
+    }
+
+    pub(in crate::tests) fn interface(&mut self, name: &str, methods: &[&str]) -> mir::InterfaceId {
+        let methods = methods
+            .iter()
+            .map(|method| {
+                self.functions.alloc(mir::Function {
+                    gc_effect: mir::GcEffect::Managed,
+                    name: format!("{name}.{method}"),
+                    symbol: format!("test.{name}.{method}"),
+                    params: Vec::new(),
+                    return_ty: mir::Type::Unit,
+                    body: mir::Body::unreachable(Arena::new()),
+                })
+            })
+            .collect();
+        self.interfaces.alloc(mir::InterfaceDef {
+            name: name.to_string(),
+            methods,
+        })
+    }
+
+    pub(in crate::tests) fn class(
+        &mut self,
+        name: &str,
+        base: Option<mir::ClassId>,
+        fields: &[(&str, mir::Type)],
+        vtable: Vec<mir::TableSlot>,
+        itables: Vec<mir::ItableRecord>,
+    ) -> mir::ClassId {
+        self.classes.alloc(mir::ClassDef {
+            modifier: mir::ClassModifier::Final,
+            name: name.to_string(),
+            representation: mir::ClassRepresentation::Declared {
+                fields: fields
+                    .iter()
+                    .map(|(name, ty)| mir::Field {
+                        name: name.to_string(),
+                        ty: ty.clone(),
+                    })
+                    .collect(),
+                base_class: base,
+            },
+            interfaces: Vec::new(),
+            vtable,
+            itables,
+        })
+    }
+
+    pub(in crate::tests) fn array_class(
+        &mut self,
+        name: &str,
+        kind: mir::ArrayKind,
+        element: mir::Type,
+    ) -> mir::ClassId {
+        self.classes.alloc(mir::ClassDef {
+            modifier: mir::ClassModifier::Final,
+            name: name.to_string(),
+            representation: mir::ClassRepresentation::Intrinsic(match kind {
+                mir::ArrayKind::Immutable => mir::IntrinsicTypeRepresentation::Array { element },
+                mir::ArrayKind::Mutable => {
+                    mir::IntrinsicTypeRepresentation::MutableArray { element }
+                }
+            }),
+            interfaces: Vec::new(),
+            vtable: Vec::new(),
+            itables: Vec::new(),
+        })
+    }
+
+    pub(in crate::tests) fn array(&mut self, name: &str, element: mir::Type) -> mir::Type {
+        mir::Type::Class(self.array_class(name, mir::ArrayKind::Immutable, element))
+    }
+
+    pub(in crate::tests) fn mutable_array(&mut self, name: &str, element: mir::Type) -> mir::Type {
+        mir::Type::Class(self.array_class(name, mir::ArrayKind::Mutable, element))
+    }
+
+    /// A function that exists only as a signature (e.g. an
+    /// interface method shell): not pushed to `top_level`, so it
+    /// is never emitted.
+    pub(in crate::tests) fn decl_fn(
+        &mut self,
+        name: &str,
+        symbol: &str,
+        params: Vec<mir::Param>,
+        return_ty: mir::Type,
+    ) -> mir::FunctionId {
+        self.functions.alloc(mir::Function {
+            gc_effect: mir::GcEffect::Managed,
+            name: name.to_string(),
+            symbol: symbol.to_string(),
+            params,
+            return_ty,
+            body: mir::Body::unreachable(Arena::new()),
+        })
+    }
+
+    pub(in crate::tests) fn user_fn(
+        &mut self,
+        name: &str,
+        symbol: &str,
+        locals: Arena<mir::Local>,
+        statements: Vec<mir::Statement>,
+    ) -> mir::FunctionId {
+        self.user_fn_full(
+            name,
+            symbol,
+            Vec::new(),
+            mir::Type::Unit,
+            locals,
+            statements,
+        )
+    }
+
+    pub(in crate::tests) fn user_fn_full(
+        &mut self,
+        name: &str,
+        symbol: &str,
+        params: Vec<mir::Param>,
+        return_ty: mir::Type,
+        locals: Arena<mir::Local>,
+        statements: Vec<mir::Statement>,
+    ) -> mir::FunctionId {
+        let mut blocks = Arena::new();
+        let terminator = if return_ty == mir::Type::Unit {
+            mir::Terminator::Return { value: None }
+        } else {
+            mir::Terminator::Unreachable
+        };
+        let entry = blocks.alloc(mir::BasicBlock {
+            name: "entry".to_string(),
+            statements,
+            terminator,
+            unwind: None,
+        });
+        let id = self.functions.alloc(mir::Function {
+            gc_effect: mir::GcEffect::Managed,
+            name: name.to_string(),
+            symbol: symbol.to_string(),
+            params,
+            return_ty,
+            body: mir::Body {
+                locals,
+                blocks,
+                entry,
+            },
+        });
+        self.top_level.push(id);
+        id
+    }
+
+    pub(in crate::tests) fn user_fn_body(
+        &mut self,
+        name: &str,
+        symbol: &str,
+        params: Vec<mir::Param>,
+        return_ty: mir::Type,
+        body: mir::Body,
+    ) -> mir::FunctionId {
+        let id = self.functions.alloc(mir::Function {
+            gc_effect: mir::GcEffect::Managed,
+            name: name.to_string(),
+            symbol: symbol.to_string(),
+            params,
+            return_ty,
+            body,
+        });
+        self.top_level.push(id);
+        id
+    }
+
+    pub(in crate::tests) fn main(
+        &mut self,
+        locals: Arena<mir::Local>,
+        statements: Vec<mir::Statement>,
+    ) -> mir::FunctionId {
+        self.user_fn("main", mir::ENTRY_SYMBOL, locals, statements)
+    }
+
+    pub(in crate::tests) fn finish(mut self, entry: mir::FunctionId) -> mir::Module {
+        for (name, representation) in [
+            ("Int", mir::IntrinsicTypeRepresentation::Int),
+            ("UInt", mir::IntrinsicTypeRepresentation::UInt),
+            ("Boolean", mir::IntrinsicTypeRepresentation::Boolean),
+        ] {
+            self.structs.alloc(mir::StructDef {
+                name: name.to_string(),
+                gc_free: true,
+                representation: mir::StructRepresentation::Intrinsic(representation),
+            });
+        }
+        self.classes.alloc(mir::ClassDef {
+            modifier: mir::ClassModifier::Final,
+            name: "String".to_string(),
+            representation: mir::ClassRepresentation::Intrinsic(
+                mir::IntrinsicTypeRepresentation::String,
+            ),
+            interfaces: Vec::new(),
+            vtable: Vec::new(),
+            itables: Vec::new(),
+        });
+        mir::Module {
+            functions: self.functions,
+            extern_functions: self.extern_functions,
+            globals: Arena::new(),
+            callback_bridges: Arena::new(),
+            foreign_callback_adapters: Arena::new(),
+            foreign_callback_bridges: Arena::new(),
+            function_types: Arena::new(),
+            closure_classes: Arena::new(),
+            closure_invoke_functions: Arena::new(),
+            top_level: self.top_level,
+            strings: self.strings,
+            structs: self.structs,
+            enums: self.enums,
+            classes: self.classes,
+            interfaces: self.interfaces,
+            entry,
+            meta: mir::MirMeta::default(),
+        }
+    }
+}
