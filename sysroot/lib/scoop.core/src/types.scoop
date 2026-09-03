@@ -43,10 +43,16 @@ class String : ToString, Hash {
 }
 
 @Intrinsic("core_array")
-class Array<T>
+class Array<T> {
+    @Intrinsic("array_to_mutable")
+    fun toMutableArray(): MutableArray<T>
+}
 
 @Intrinsic("core_mutable_array")
-class MutableArray<T>
+class MutableArray<T> {
+    @Intrinsic("array_to_immutable")
+    fun toArray(): Array<T>
+}
 
 // Representation-level operations used by the ordinary source methods above.
 // They are regular Scoop-ABI FFI declarations, not compiler capability hooks.

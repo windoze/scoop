@@ -191,6 +191,20 @@ pub const INTRINSIC_REGISTRY: &[IntrinsicSpec] = &[
         effects: IntrinsicEffects::NO_GC,
     },
     IntrinsicSpec {
+        name: "array_to_immutable",
+        stage: IntrinsicStage::Hir,
+        kind: IntrinsicFunctionKind::Array(ArrayIntrinsic::ToImmutable),
+        target: IntrinsicTarget::Member,
+        effects: IntrinsicEffects::NONE,
+    },
+    IntrinsicSpec {
+        name: "array_to_mutable",
+        stage: IntrinsicStage::Hir,
+        kind: IntrinsicFunctionKind::Array(ArrayIntrinsic::ToMutable),
+        target: IntrinsicTarget::Member,
+        effects: IntrinsicEffects::NONE,
+    },
+    IntrinsicSpec {
         name: "foreign_callback_register",
         stage: IntrinsicStage::Hir,
         kind: IntrinsicFunctionKind::ForeignCallbackRegister,
@@ -257,6 +271,7 @@ pub enum IntrinsicFunctionKind {
     ForeignCallbackRelease,
     ForeignCallbackState,
     ForeignCallbackFailure,
+    Array(ArrayIntrinsic),
     Pointer(PointerIntrinsic),
 }
 
@@ -276,7 +291,23 @@ impl IntrinsicFunctionKind {
             Self::ForeignCallbackRelease => "foreign_callback_release",
             Self::ForeignCallbackState => "foreign_callback_state",
             Self::ForeignCallbackFailure => "foreign_callback_failure",
+            Self::Array(kind) => kind.name(),
             Self::Pointer(kind) => kind.name(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ArrayIntrinsic {
+    ToImmutable,
+    ToMutable,
+}
+
+impl ArrayIntrinsic {
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::ToImmutable => "array_to_immutable",
+            Self::ToMutable => "array_to_mutable",
         }
     }
 }

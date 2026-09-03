@@ -179,8 +179,10 @@ SourceFile
     fun hash
     @Intrinsic("core_array")
   class Array<T>()
+    fun toMutableArray
     @Intrinsic("core_mutable_array")
   class MutableArray<T>()
+    fun toArray
     @Extern(name = "scoop_rt_int_equals", abi = "scoop")
   fun coreIntEquals(left: Int, right: Int): Boolean
     @Extern(name = "scoop_rt_uint_equals", abi = "scoop")
@@ -457,7 +459,7 @@ Module
         Local $call.1
   fun main @scoop_main() -> Unit
     bb0 entry
-      call $call.1: Int = @scoop.choose$I.g65 direct
+      call $call.1: Int = @scoop.choose$I.g67 direct
         Type Int
         IntLiteral 11
         Type Int
@@ -465,7 +467,7 @@ Module
       call @scoop.println$I direct
         Type Int
         Local $call.1
-      call $call.2: Int = @scoop.choose$I.g66 direct
+      call $call.2: Int = @scoop.choose$I.g68 direct
         Type Int
         IntLiteral 22
         Type String
@@ -474,7 +476,7 @@ Module
         Type Int
         Local $call.2
       return
-  fun choose @scoop.choose$I.g65(value: Int, marker: Int) -> Int
+  fun choose @scoop.choose$I.g67(value: Int, marker: Int) -> Int
     bb0 entry
       return
         Type Int
@@ -491,7 +493,7 @@ Module
         Type String
         StringConst @scoop.str.1
       return
-  fun choose @scoop.choose$I.g66(value: Int, marker: String) -> Int
+  fun choose @scoop.choose$I.g68(value: Int, marker: String) -> Int
     bb0 entry
       return
         Type Int
@@ -553,9 +555,9 @@ Module
           VariantConstruct Option$S<String> v0
             Type String
             StringConst @scoop.str.6
-  instance @scoop.choose$I.g65 <- choose
+  instance @scoop.choose$I.g67 <- choose
   instance @scoop.println$I <- println
-  instance @scoop.choose$I.g66 <- choose
+  instance @scoop.choose$I.g68 <- choose
   str @scoop.str.0 "string marker"
   str @scoop.str.1 "\n"
   str @scoop.str.2 "unwrap on None"
@@ -685,7 +687,7 @@ Module
     call managed-void-target1 sp15 live=[] sig=void1 (i64) local-fn14(local1)
     t3 = aggregate () : {}
     ret
-  fun @scoop.choose$I.g65(i64, i64) -> i64
+  fun @scoop.choose$I.g67(i64, i64) -> i64
   block entry
     poll managed-void-target0 sp39 live=[]
     ret param0
@@ -700,7 +702,7 @@ Module
     call native-borrowed-void-target1 sp18 roots=[] sig=void1 (ptr<managed>) extern0(global1)
     t2 = aggregate () : {}
     ret
-  fun @scoop.choose$I.g66(i64, ptr<managed>) -> i64
+  fun @scoop.choose$I.g68(i64, ptr<managed>) -> i64
   block entry
     poll managed-void-target0 sp41 live=[]
     ret param0

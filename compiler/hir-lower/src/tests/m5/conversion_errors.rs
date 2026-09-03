@@ -51,7 +51,7 @@ fn conversion_methods_take_no_arguments_and_only_exist_on_the_source_kind() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "method `toMutableArray` takes exactly 0 arguments, but 1 were supplied"
+        "no applicable candidate for `toMutableArray` in member candidate layer:\n  - fun Array<T>.toMutableArray(): MutableArray<T> — expects 0 argument(s), but 1 were supplied"
     );
 
     let file2 = super::file(vec![fun(
@@ -153,4 +153,50 @@ fn conversion_explicit_type_arguments_participate_in_constraints() {
         errors[0].message,
         "no applicable candidate for constructor `Array` in nominal constructor candidate layer:\n  - class Array<T>(source: MutableArray<T>) — conflicting types for `T`: String and Int"
     );
+}
+
+#[test]
+fn array_conversion_intrinsics_are_required_and_shape_checked() {
+    let user = || file(vec![fun("main", vec![])]);
+
+    let mut missing = core_file();
+    let array = missing
+        .declarations
+        .iter_mut()
+        .find_map(|declaration| match declaration {
+            Decl::Class(class) if class.name.text == "Array" => Some(class),
+            _ => None,
+        })
+        .expect("test core declares Array");
+    array
+        .methods
+        .retain(|method| method.name.text != "toMutableArray");
+    let errors = lower(&[missing, user()]).expect_err("the array conversion intrinsic is required");
+    assert!(errors.iter().any(|error| {
+        error
+            .message
+            .contains("scoop.core must define exactly one `array_to_mutable` intrinsic")
+    }));
+
+    let mut malformed = core_file();
+    let mutable_array = malformed
+        .declarations
+        .iter_mut()
+        .find_map(|declaration| match declaration {
+            Decl::Class(class) if class.name.text == "MutableArray" => Some(class),
+            _ => None,
+        })
+        .expect("test core declares MutableArray");
+    mutable_array
+        .methods
+        .iter_mut()
+        .find(|method| method.name.text == "toArray")
+        .expect("test core declares MutableArray.toArray")
+        .return_ty = Some(ty_named("String"));
+    let errors = lower(&[malformed, user()]).expect_err("the array conversion signature is fixed");
+    assert!(errors.iter().any(|error| {
+        error
+            .message
+            .contains("malformed core array conversion intrinsic `array_to_immutable`")
+    }));
 }

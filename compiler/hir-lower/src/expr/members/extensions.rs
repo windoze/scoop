@@ -35,30 +35,36 @@ impl Lowerer {
         })
     }
 
-    /// `m.toArray()` / `a.toMutableArray()` (spec 10.4). The receiver and
-    /// result use exact intrinsic class applications; only the clone operation
-    /// itself remains compiler-lowered.
-    pub(in crate::expr) fn lower_array_method_conversion(
-        &mut self,
+    /// Normalize a winning core `m.toArray()` / `a.toMutableArray()` target
+    /// after ordinary member applicability and specificity have completed.
+    pub(in crate::expr) fn normalize_array_method_call(
+        &self,
+        function: hir::FunctionId,
         receiver: hir::Expr,
-        name: &ast::Ident,
-        args: &[ast::Expr],
+        args: &[hir::Expr],
+        ty: TypeId,
         span: Span,
-        target_kind: ArrayKind,
-        element: TypeId,
     ) -> Option<hir::Expr> {
-        if !args.is_empty() {
-            self.error(
-                span,
-                format!(
-                    "method `{}` takes exactly 0 arguments, but {} were supplied",
-                    name.text,
-                    args.len()
-                ),
-            );
+        let hir::FunctionKind::Intrinsic(intrinsic) = self.functions[function].kind else {
             return None;
-        }
-        let ty = self.array_type(target_kind, element);
+        };
+        let hir::IntrinsicFunctionKind::Array(kind) = intrinsic.kind else {
+            return None;
+        };
+        debug_assert!(args.is_empty());
+        let (source_kind, target_kind) = match kind {
+            hir::ArrayIntrinsic::ToImmutable => (ArrayKind::Mutable, ArrayKind::Immutable),
+            hir::ArrayIntrinsic::ToMutable => (ArrayKind::Immutable, ArrayKind::Mutable),
+        };
+        let source = self
+            .array_type_info(receiver.ty)
+            .expect("validated array intrinsic has an array receiver");
+        let target = self
+            .array_type_info(ty)
+            .expect("validated array intrinsic has an array result");
+        debug_assert_eq!(source.kind, source_kind);
+        debug_assert_eq!(target.kind, target_kind);
+        debug_assert!(self.types_equal(source.element, target.element));
         Some(hir::Expr {
             kind: ExprKind::ArrayClone(Box::new(receiver)),
             ty,

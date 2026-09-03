@@ -29,6 +29,15 @@ impl Lowerer {
         let ty = resolved.return_ty;
         let function = resolved.function();
         self.check_call_effects(hir::Callable::Function(function), call.span);
+        if let Some(expr) = self.normalize_array_method_call(
+            function,
+            receiver.clone(),
+            &resolved.args,
+            ty,
+            call.span,
+        ) {
+            return Some(expr);
+        }
         if let Some(expr) = self.normalize_pointer_method_call(
             function,
             receiver.clone(),

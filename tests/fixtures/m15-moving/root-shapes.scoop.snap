@@ -179,8 +179,10 @@ SourceFile
     fun hash
     @Intrinsic("core_array")
   class Array<T>()
+    fun toMutableArray
     @Intrinsic("core_mutable_array")
   class MutableArray<T>()
+    fun toArray
     @Extern(name = "scoop_rt_int_equals", abi = "scoop")
   fun coreIntEquals(left: Int, right: Int): Boolean
     @Extern(name = "scoop_rt_uint_equals", abi = "scoop")
@@ -1386,41 +1388,41 @@ Module
   fun @scoop.ctor.Exception(enum1) -> ptr<managed>
   block entry
     poll managed-void-target0 sp67 live=[param0:enum1@0]
-    call managed-direct-target0 sp41 live=[param0:enum1@0] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td7, 24)
+    call managed-direct-target0 sp41 live=[param0:enum1@0] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td8, 24)
     heap_store t0 +16 param0
     ret t0
   fun @scoop.ctor.UnwrapException() -> ptr<managed>
   block entry
     poll managed-void-target0 sp68 live=[]
-    call managed-direct-target0 sp42 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td8, 24)
+    call managed-direct-target0 sp42 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td9, 24)
     t1 = enum_wrap e1 v0 (global14) : enum1
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.ClassCastException() -> ptr<managed>
   block entry
     poll managed-void-target0 sp69 live=[]
-    call managed-direct-target0 sp43 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td9, 24)
+    call managed-direct-target0 sp43 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td10, 24)
     t1 = enum_wrap e1 v0 (global15) : enum1
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.ArithmeticException() -> ptr<managed>
   block entry
     poll managed-void-target0 sp70 live=[]
-    call managed-direct-target0 sp44 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td10, 24)
+    call managed-direct-target0 sp44 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td11, 24)
     t1 = enum_wrap e1 v0 (global16) : enum1
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.IndexOutOfBoundsException() -> ptr<managed>
   block entry
     poll managed-void-target0 sp71 live=[]
-    call managed-direct-target0 sp45 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td11, 24)
+    call managed-direct-target0 sp45 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td12, 24)
     t1 = enum_wrap e1 v0 (global17) : enum1
     heap_store t0 +16 t1
     ret t0
   fun @scoop.ctor.IllegalStateException() -> ptr<managed>
   block entry
     poll managed-void-target0 sp72 live=[]
-    call managed-direct-target0 sp46 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td12, 24)
+    call managed-direct-target0 sp46 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td13, 24)
     t1 = enum_wrap e1 v0 (global18) : enum1
     heap_store t0 +16 t1
     ret t0
@@ -1429,13 +1431,14 @@ Module
   td td2 MovingTextSource @scoop_td_MovingTextSource type-id=4 size=0 parent=none vtable=[] itables=[]
   td td3 MovingTextNode @scoop_td_MovingTextNode type-id=5 size=24 parent=none vtable=[] itables=[td2:[local-fn9]]
   td td5 Throwable @scoop_td_Throwable type-id=7 size=16 parent=none vtable=[] itables=[]
-  td td7 Exception @scoop_td_Exception type-id=8 size=24 parent=td5 vtable=[] itables=[]
-  td td8 UnwrapException @scoop_td_UnwrapException type-id=9 size=24 parent=td7 vtable=[] itables=[]
-  td td9 ClassCastException @scoop_td_ClassCastException type-id=10 size=24 parent=td7 vtable=[] itables=[]
-  td td10 ArithmeticException @scoop_td_ArithmeticException type-id=11 size=24 parent=td7 vtable=[] itables=[]
-  td td11 IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException type-id=12 size=24 parent=td7 vtable=[] itables=[]
-  td td12 IllegalStateException @scoop_td_IllegalStateException type-id=13 size=24 parent=td7 vtable=[] itables=[]
+  td td8 Exception @scoop_td_Exception type-id=9 size=24 parent=td5 vtable=[] itables=[]
+  td td9 UnwrapException @scoop_td_UnwrapException type-id=10 size=24 parent=td8 vtable=[] itables=[]
+  td td10 ClassCastException @scoop_td_ClassCastException type-id=11 size=24 parent=td8 vtable=[] itables=[]
+  td td11 ArithmeticException @scoop_td_ArithmeticException type-id=12 size=24 parent=td8 vtable=[] itables=[]
+  td td12 IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException type-id=13 size=24 parent=td8 vtable=[] itables=[]
+  td td13 IllegalStateException @scoop_td_IllegalStateException type-id=14 size=24 parent=td8 vtable=[] itables=[]
   array-type array0 Array$S kind=immutable element=ptr<managed> size=8 align=8 scan=refs[0] td=td4
+  array-type array1 MutableArray$S kind=mutable element=ptr<managed> size=8 align=8 scan=refs[0] td=td7
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]

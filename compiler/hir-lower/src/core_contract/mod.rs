@@ -6,6 +6,7 @@
 
 use super::*;
 
+mod arrays;
 mod callbacks;
 mod common;
 mod coroutines;

@@ -35,10 +35,9 @@ impl Lowerer {
     /// variant path and goes through variant construction (M4 rules:
     /// variant existence, per-field argument checks, type-argument
     /// inference, constructor-style defaults). Variables and host
-    /// properties shadow enum names. The two compiler-built-in array
-    /// conversion methods are recognized after lowering the receiver
-    /// and produce the same `ArrayClone` node as their constructor
-    /// forms (spec 10.4).
+    /// properties shadow enum names. Core array conversion methods enter the
+    /// ordinary member candidate layer and are normalized only after their
+    /// typed intrinsic target wins (spec 10.4).
     pub(super) fn lower_method_call(
         &mut self,
         receiver: &ast::Expr,
@@ -73,37 +72,6 @@ impl Lowerer {
                 return None;
             }
             return self.lower_callable_call(receiver, call.args, call.span, sink);
-        }
-        let array_conversion = match (self.array_type_info(receiver.ty), name.text.as_str()) {
-            (
-                Some(ArrayType {
-                    kind: ArrayKind::Mutable,
-                    element,
-                }),
-                "toArray",
-            ) => Some((ArrayKind::Immutable, element)),
-            (
-                Some(ArrayType {
-                    kind: ArrayKind::Immutable,
-                    element,
-                }),
-                "toMutableArray",
-            ) => Some((ArrayKind::Mutable, element)),
-            _ => None,
-        };
-        if let Some((target_kind, element)) = array_conversion {
-            if !call.type_args.is_empty() {
-                self.error(name.span, format!("method `{}` is not generic", name.text));
-                return None;
-            }
-            return self.lower_array_method_conversion(
-                receiver,
-                name,
-                call.args,
-                call.span,
-                target_kind,
-                element,
-            );
         }
         let mut candidates = self.methods_by_name(receiver.ty, &name.text);
         let mut first_failure = None;

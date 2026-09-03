@@ -207,7 +207,8 @@ impl BodyLowerer<'_> {
             | hir::IntrinsicFunctionKind::CoroutineSuspend => {
                 unreachable!("coroutine intrinsics are lowered through the typed protocol")
             }
-            hir::IntrinsicFunctionKind::Pointer(_)
+            hir::IntrinsicFunctionKind::Array(_)
+            | hir::IntrinsicFunctionKind::Pointer(_)
             | hir::IntrinsicFunctionKind::ForeignCallbackRegister
             | hir::IntrinsicFunctionKind::ForeignCallbackRetain
             | hir::IntrinsicFunctionKind::ForeignCallbackRelease
