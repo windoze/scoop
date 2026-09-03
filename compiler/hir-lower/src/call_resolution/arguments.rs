@@ -1,6 +1,6 @@
 //! Candidate-specific source-to-parameter mapping.
 
-use super::candidates::{CallableView, ReceiverShape};
+use super::candidates::{CallableView, NominalConstructorView, ReceiverShape};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) struct SourceInputId(u32);
@@ -76,6 +76,17 @@ impl CandidateArgumentMap {
         ))
     }
 
+    pub(crate) fn exact_nominal(
+        view: &NominalConstructorView,
+        supplied: usize,
+    ) -> Result<Self, ArityMismatch> {
+        let expected = view.value_parameters.len();
+        if expected != supplied {
+            return Err(ArityMismatch { expected, supplied });
+        }
+        Ok(Self::positional(expected, ReceiverInput::Absent))
+    }
+
     /// Build the positional prefix selected by a constructor after its own
     /// required/default arity rules have accepted the source call.
     pub(crate) fn positional(parameter_count: usize, receiver: ReceiverInput) -> Self {
@@ -99,7 +110,7 @@ impl CandidateArgumentMap {
 mod tests {
     use super::*;
     use crate::call_resolution::candidates::{
-        CallableEffects, CallableSource, SourceDispatch, ValueParameter,
+        CallableEffects, CallableSource, NominalConstructorSource, SourceDispatch, ValueParameter,
     };
     use scoop_ast::Span;
     use scoop_hir as hir;
@@ -152,6 +163,37 @@ mod tests {
     fn exact_mapping_reports_candidate_arity() {
         assert_eq!(
             CandidateArgumentMap::exact(&view(2, ReceiverShape::None), 1),
+            Err(ArityMismatch {
+                expected: 2,
+                supplied: 1,
+            })
+        );
+    }
+
+    #[test]
+    fn exact_nominal_mapping_uses_constructor_fields() {
+        let view = NominalConstructorView {
+            target: NominalConstructorSource::Struct(hir::StructId::from_raw(0_u32.into())),
+            owner_parameters: Vec::new(),
+            value_parameters: vec![
+                ValueParameter {
+                    name: "left".to_string(),
+                    ty: hir::TypeId::from_raw(0_u32.into()),
+                },
+                ValueParameter {
+                    name: "right".to_string(),
+                    ty: hir::TypeId::from_raw(0_u32.into()),
+                },
+            ],
+            result_type: hir::TypeId::from_raw(0_u32.into()),
+            declaration_span: Span::new(0, 0),
+        };
+
+        let mapping = CandidateArgumentMap::exact_nominal(&view, 2).expect("matching arity");
+        assert_eq!(mapping.parameters[0].input.index(), 0);
+        assert_eq!(mapping.parameters[1].parameter.index(), 1);
+        assert_eq!(
+            CandidateArgumentMap::exact_nominal(&view, 1),
             Err(ArityMismatch {
                 expected: 2,
                 supplied: 1,

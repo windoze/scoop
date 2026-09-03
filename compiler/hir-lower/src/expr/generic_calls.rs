@@ -229,39 +229,6 @@ impl Lowerer {
             .collect()
     }
 
-    /// Seed the call's own generic suffix. Receiver/lexical-owner type
-    /// parameters occupy the prefix and are never repeated at the call site.
-    /// Scoop requires either no explicit arguments (infer the whole suffix)
-    /// or the complete suffix; partial explicit lists are intentionally not
-    /// ambiguous with inference.
-    pub(super) fn bind_explicit_type_args(
-        &mut self,
-        bindings: &mut [Option<TypeId>],
-        owner_type_param_count: usize,
-        explicit: &[TypeId],
-        span: Span,
-        target: &str,
-    ) -> bool {
-        if explicit.is_empty() {
-            return true;
-        }
-        let expected = bindings.len() - owner_type_param_count;
-        if explicit.len() != expected {
-            self.error(
-                span,
-                format!(
-                    "{target} takes exactly {expected} type argument(s), but {} were supplied",
-                    explicit.len()
-                ),
-            );
-            return false;
-        }
-        for (binding, &ty) in bindings[owner_type_param_count..].iter_mut().zip(explicit) {
-            *binding = Some(ty);
-        }
-        true
-    }
-
     pub(super) fn local_call_capture_args(
         &mut self,
         local_function: hir::LocalFunctionId,

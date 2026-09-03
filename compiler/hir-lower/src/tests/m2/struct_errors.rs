@@ -59,7 +59,7 @@ fn struct_init_arity_is_an_error() {
         assert_eq!(
             errors[0].message,
             format!(
-                "struct `Point` takes exactly {expected} arguments, but {supplied} were supplied"
+                "no applicable candidate for constructor `Point` in nominal constructor candidate layer:\n  - struct Point(x: Int, y: Int) — expects {expected} argument(s), but {supplied} were supplied"
             )
         );
     }
@@ -75,7 +75,7 @@ fn struct_init_arity_singular_noun() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "struct `Box` takes exactly 1 argument, but 0 were supplied"
+        "no applicable candidate for constructor `Box` in nominal constructor candidate layer:\n  - struct Box(v: Int) — expects 1 argument(s), but 0 were supplied"
     );
 }
 
@@ -95,7 +95,7 @@ fn struct_init_field_type_is_an_error() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "argument for field `y` of `Point` must be of type Int, found String"
+        "no applicable candidate for constructor `Point` in nominal constructor candidate layer:\n  - struct Point(x: Int, y: Int) — argument for `y` has type String, which is not a subtype of Int"
     );
 }
 

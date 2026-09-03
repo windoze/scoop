@@ -99,8 +99,10 @@ fn generic_class_constructor_requires_complete_unique_arguments_and_bounds() {
     ];
     let errors = lower_user(file(declarations)).expect_err("Int cannot satisfy Marker");
     assert!(errors.iter().any(|error| {
-        error.message
-            == "type argument `Int` for `T` of class `Bounded` must satisfy interface upper bound `Marker`"
+        error.message.contains("class Bounded<T : Marker>()")
+            && error
+                .message
+                .contains("type argument `Int` for `T` must satisfy interface upper bound `Marker`")
     }));
 
     let errors = lower_user(file(vec![
@@ -108,11 +110,12 @@ fn generic_class_constructor_requires_complete_unique_arguments_and_bounds() {
         fun("main", vec![stmt(call("Empty", Vec::new()))]),
     ]))
     .expect_err("an unconstrained constructor cannot invent a type argument");
-    assert!(
-        errors
-            .iter()
-            .any(|error| { error.message == "cannot infer type argument `T` for class `Empty`" })
-    );
+    assert!(errors.iter().any(|error| {
+        error.message.contains("class Empty<T>()")
+            && error
+                .message
+                .contains("cannot infer a unique type argument for `T`")
+    }));
 }
 
 #[test]

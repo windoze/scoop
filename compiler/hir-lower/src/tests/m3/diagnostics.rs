@@ -301,7 +301,10 @@ fn none_without_expected_type_is_an_error() {
         let file = file(vec![fun("main", vec![val("x", init)])]);
         let errors = lower_user(file).expect_err("untyped `None` must fail");
         assert_eq!(errors.len(), 1);
-        assert_eq!(errors[0].message, "cannot infer the type of `None`");
+        assert_eq!(
+            errors[0].message,
+            "no applicable candidate for constructor `Option.None` in nominal constructor candidate layer:\n  - variant Option<T>.None() — cannot infer a unique type argument for `T`"
+        );
     }
 }
 
@@ -312,7 +315,7 @@ fn some_arity_is_an_error() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "variant `Some` of `Option` takes exactly 1 argument, but 0 were supplied"
+        "no applicable candidate for constructor `Option.Some` in nominal constructor candidate layer:\n  - variant Option<T>.Some(_1: T) — expects 1 argument(s), but 0 were supplied"
     );
 }
 

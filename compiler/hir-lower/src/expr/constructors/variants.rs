@@ -21,13 +21,6 @@ impl Lowerer {
             }
             _ => None,
         });
-        if arity != 0 && expected_arguments.is_none() {
-            self.error(
-                name.span,
-                format!("cannot infer the type of `{}`", name.text),
-            );
-            return None;
-        }
         let view = self.nominal_constructor_view(
             crate::call_resolution::candidates::NominalConstructorSource::Variant {
                 enumeration: enum_id,
@@ -48,11 +41,8 @@ impl Lowerer {
             },
         ) {
             Ok(type_args) => type_args,
-            Err(_) => {
-                self.error(
-                    name.span,
-                    format!("cannot infer the type of `{}`", name.text),
-                );
+            Err(failure) => {
+                self.diagnose_nominal_failure(&view, &[], failure, name.span);
                 return None;
             }
         };
@@ -89,49 +79,45 @@ impl Lowerer {
             args,
             span,
         } = call;
-        let enum_name = self.enums[enum_id].name.clone();
-        let type_params = self.enums[enum_id].type_params.clone();
-        let variant_name = self.enums[enum_id].variants[variant as usize].name.clone();
-        let fields: Vec<(String, TypeId)> = self.enums[enum_id].variants[variant as usize]
-            .fields
-            .iter()
-            .map(|field| (field.name.clone(), field.ty))
-            .collect();
-        let total = fields.len();
+        let view = self.nominal_constructor_view(
+            crate::call_resolution::candidates::NominalConstructorSource::Variant {
+                enumeration: enum_id,
+                variant,
+            },
+        );
+        let total = view.value_parameters.len();
         let supplied = args.len();
         if supplied > total {
-            self.error(
+            self.diagnose_nominal_shape_failure(
+                &view,
                 span,
-                format!(
-                    "variant `{variant_name}` of `{enum_name}` takes exactly {total} {}, but {supplied} were supplied",
-                    if total == 1 { "argument" } else { "arguments" }
-                ),
+                format!("expects {total} argument(s), but {supplied} were supplied"),
             );
             return None;
         }
         // Missing trailing fields must have constructor-style defaults.
         for index in supplied..total {
             if self.enums[enum_id].variants[variant as usize].defaults[index].is_none() {
-                self.error(
+                self.diagnose_nominal_shape_failure(
+                    &view,
                     span,
-                    format!(
-                        "variant `{variant_name}` of `{enum_name}` takes exactly {total} {}, but {supplied} were supplied",
-                        if total == 1 { "argument" } else { "arguments" }
-                    ),
+                    format!("expects {total} argument(s), but {supplied} were supplied"),
                 );
                 return None;
             }
         }
 
         let explicit_type_args = self.resolve_call_type_args(type_arg_refs)?;
-        let mut explicit_shape = vec![None; type_params.len()];
-        if !self.bind_explicit_type_args(
-            &mut explicit_shape,
-            0,
-            &explicit_type_args,
-            span,
-            &format!("enum `{enum_name}`"),
-        ) {
+        let type_param_count = view.owner_parameters.len();
+        if !explicit_type_args.is_empty() && explicit_type_args.len() != type_param_count {
+            self.diagnose_nominal_shape_failure(
+                &view,
+                span,
+                format!(
+                    "expects {type_param_count} explicit type argument(s), but {} were supplied",
+                    explicit_type_args.len()
+                ),
+            );
             return None;
         }
         let expected_arguments = expected.and_then(|expected| {
@@ -139,15 +125,9 @@ impl Lowerer {
                 return None;
             };
             let application = &self.enum_applications[application];
-            (application.template == enum_id && application.arguments.len() == type_params.len())
+            (application.template == enum_id && application.arguments.len() == type_param_count)
                 .then(|| application.arguments.clone())
         });
-        let view = self.nominal_constructor_view(
-            crate::call_resolution::candidates::NominalConstructorSource::Variant {
-                enumeration: enum_id,
-                variant,
-            },
-        );
         let argument_map = crate::call_resolution::arguments::CandidateArgumentMap::positional(
             supplied,
             crate::call_resolution::arguments::ReceiverInput::Absent,
@@ -167,19 +147,9 @@ impl Lowerer {
         let mut lowered = inferred.args;
 
         // Argument types must match the instantiated field types.
-        for ((field_name, field_ty), arg) in fields.iter().zip(&mut lowered) {
-            let expected = self.instantiate_ty(*field_ty, &type_args);
-            if !self.is_subtype(arg.ty, expected) {
-                let expected_name = self.type_name(expected);
-                let found = self.type_name(arg.ty);
-                self.error(
-                    arg.span,
-                    format!(
-                        "argument for field `{field_name}` of `{enum_name}.{variant_name}` must be of type {expected_name}, found {found}"
-                    ),
-                );
-                return None;
-            }
+        for (field, arg) in view.value_parameters.iter().zip(&mut lowered) {
+            let expected = self.instantiate_ty(field.ty, &type_args);
+            debug_assert!(self.is_subtype(arg.ty, expected));
             *arg = self.adapt_to(arg.clone(), expected);
         }
 

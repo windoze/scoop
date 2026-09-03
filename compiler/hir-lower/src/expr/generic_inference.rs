@@ -7,6 +7,9 @@ use crate::call_resolution::candidates::{NominalConstructorSource, NominalConstr
 use crate::call_resolution::constraints::{
     ConstraintFailure, ConstraintFailureKind, ConstraintOrigin,
 };
+use crate::call_resolution::diagnostics::{
+    nominal_source_signature, render_nominal_constraint_failure,
+};
 
 impl Lowerer {
     pub(super) fn lower_nominal_arguments(
@@ -125,128 +128,47 @@ impl Lowerer {
         Some(NominalArguments { args, type_args })
     }
 
-    fn diagnose_nominal_failure(
+    pub(super) fn diagnose_nominal_failure(
         &mut self,
         view: &NominalConstructorView,
         arguments: &[Option<hir::Expr>],
         failure: ConstraintFailure,
         span: Span,
     ) {
-        let parameter = |variable: crate::call_resolution::constraints::InferenceVariableId| {
-            &view.owner_parameters[variable.group_index()]
+        let diagnostic_span = match failure.origin {
+            ConstraintOrigin::Argument(input) => arguments
+                .get(input.index())
+                .and_then(Option::as_ref)
+                .map_or(span, |argument| argument.span),
+            _ => span,
         };
-        match failure.kind {
-            ConstraintFailureKind::Kind {
-                variable,
-                solution,
-                required,
-            } => {
-                let parameter = parameter(variable);
-                let required = match required {
-                    hir::TypeParamKind::Any => return,
-                    hir::TypeParamKind::Value => "value",
-                    hir::TypeParamKind::Ref => "ref",
-                };
-                let found = self.type_name(solution);
-                self.error(
-                    span,
-                    format!(
-                        "type argument `{found}` for `{}` of {} must satisfy `{required}`",
-                        parameter.name,
-                        self.nominal_bound_target(view.target),
-                    ),
-                );
-            }
-            ConstraintFailureKind::InterfaceBound {
-                variable,
-                solution,
-                required,
-            } => {
-                let parameter = parameter(variable);
-                let found = self.type_name(solution);
-                let required = self.type_name(required);
-                self.error(
-                    span,
-                    format!(
-                        "type argument `{found}` for `{}` of {} must satisfy interface upper bound `{required}`",
-                        parameter.name,
-                        self.nominal_bound_target(view.target),
-                    ),
-                );
-            }
-            ConstraintFailureKind::Relation { .. }
-                if matches!(failure.origin, ConstraintOrigin::Argument(_)) =>
-            {
-                let ConstraintOrigin::Argument(input) = failure.origin else {
-                    unreachable!()
-                };
-                let index = input.index();
-                let argument = arguments[index]
-                    .as_ref()
-                    .expect("a relation failure has a typed source argument");
-                let field = &view.value_parameters[index];
-                let expected = self.type_name(field.ty);
-                let found = self.type_name(argument.ty);
-                self.error(
-                    argument.span,
-                    format!(
-                        "argument for field `{}` of `{}` must be of type {expected}, found {found}",
-                        field.name,
-                        self.nominal_value_name(view.target),
-                    ),
-                );
-            }
-            ConstraintFailureKind::NoUniqueSolution { variable, .. }
-            | ConstraintFailureKind::ConflictingExactBounds { variable, .. }
-            | ConstraintFailureKind::UnresolvedTerm(
-                crate::call_resolution::constraints::TypeTerm::Variable(variable),
-            ) => {
-                let parameter = parameter(variable);
-                self.error(
-                    span,
-                    format!(
-                        "cannot infer type argument `{}` for {}",
-                        parameter.name,
-                        self.nominal_inference_target(view.target),
-                    ),
-                );
-            }
-            _ => self.error(
-                span,
-                format!(
-                    "constructor constraints for {} are not satisfied",
-                    self.nominal_inference_target(view.target)
-                ),
-            ),
-        }
+        let reason = render_nominal_constraint_failure(self, view, arguments, &failure);
+        self.nominal_candidate_diagnostic(view, diagnostic_span, &reason);
     }
 
-    fn nominal_bound_target(&self, target: NominalConstructorSource) -> String {
-        match target {
-            NominalConstructorSource::Struct(structure) => {
-                format!("struct `{}`", self.structs[structure].name)
-            }
-            NominalConstructorSource::Class(class) => {
-                format!("class `{}`", self.classes[class].name)
-            }
-            NominalConstructorSource::Variant { enumeration, .. } => {
-                format!("enum `{}`", self.enums[enumeration].name)
-            }
-        }
+    pub(super) fn diagnose_nominal_shape_failure(
+        &mut self,
+        view: &NominalConstructorView,
+        span: Span,
+        reason: String,
+    ) {
+        self.nominal_candidate_diagnostic(view, span, &reason);
     }
 
-    fn nominal_inference_target(&self, target: NominalConstructorSource) -> String {
-        match target {
-            NominalConstructorSource::Variant {
-                enumeration,
-                variant,
-            } => format!(
-                "`{}.{}`",
-                self.enums[enumeration].name,
-                self.enums[enumeration].variants[variant as usize].name,
+    fn nominal_candidate_diagnostic(
+        &mut self,
+        view: &NominalConstructorView,
+        span: Span,
+        reason: &str,
+    ) {
+        let target = self.nominal_value_name(view.target);
+        let signature = nominal_source_signature(self, view);
+        self.error(
+            span,
+            format!(
+                "no applicable candidate for constructor `{target}` in nominal constructor candidate layer:\n  - {signature} — {reason}"
             ),
-            _ => self.nominal_bound_target(target),
-        }
+        );
     }
 
     fn nominal_value_name(&self, target: NominalConstructorSource) -> String {

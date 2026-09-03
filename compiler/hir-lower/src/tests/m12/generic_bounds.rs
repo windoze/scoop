@@ -156,10 +156,10 @@ fn kind_bounds_check_concrete_function_and_struct_instantiations() {
         message.contains("fun refIdentity<T : ref>(value: T): T")
             && message.contains("type argument `Int` for `T` must satisfy `ref`")
     }));
-    assert!(
-        errors.iter().any(|message| message
-            == "type argument `Int` for `T` of struct `RefBox` must satisfy `ref`")
-    );
+    assert!(errors.iter().any(|message| {
+        message.contains("struct RefBox<T : ref>(value: T)")
+            && message.contains("type argument `Int` for `T` must satisfy `ref`")
+    }));
 }
 
 #[test]

@@ -97,7 +97,7 @@ fn pinned_ptr_construction_checks_the_raw_field() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "argument for field `raw` of `PinnedPtr` must be of type UInt, found Int"
+        "no applicable candidate for constructor `PinnedPtr` in nominal constructor candidate layer:\n  - struct PinnedPtr<T : ref>(raw: UInt) — argument for `raw` has type Int, which is not a subtype of UInt"
     );
 }
 

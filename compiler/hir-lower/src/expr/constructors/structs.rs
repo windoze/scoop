@@ -28,37 +28,38 @@ impl Lowerer {
             );
             return None;
         }
-        let fields: Vec<(String, TypeId)> = self.structs[struct_id]
-            .semantic_fields()
-            .iter()
-            .map(|field| (field.name.clone(), field.ty))
-            .collect();
-        if args.len() != fields.len() {
-            let expected = fields.len();
-            let supplied = args.len();
-            let noun = if expected == 1 {
-                "argument"
-            } else {
-                "arguments"
+        let view = self.nominal_constructor_view(
+            crate::call_resolution::candidates::NominalConstructorSource::Struct(struct_id),
+        );
+        let argument_map =
+            match crate::call_resolution::arguments::CandidateArgumentMap::exact_nominal(
+                &view,
+                args.len(),
+            ) {
+                Ok(argument_map) => argument_map,
+                Err(mismatch) => {
+                    self.diagnose_nominal_shape_failure(
+                        &view,
+                        span,
+                        format!(
+                            "expects {} argument(s), but {} were supplied",
+                            mismatch.expected, mismatch.supplied
+                        ),
+                    );
+                    return None;
+                }
             };
-            self.error(
+        let explicit_type_args = self.resolve_call_type_args(type_arg_refs)?;
+        let type_param_count = view.owner_parameters.len();
+        if !explicit_type_args.is_empty() && explicit_type_args.len() != type_param_count {
+            self.diagnose_nominal_shape_failure(
+                &view,
                 span,
                 format!(
-                    "struct `{name}` takes exactly {expected} {noun}, but {supplied} were supplied"
+                    "expects {type_param_count} explicit type argument(s), but {} were supplied",
+                    explicit_type_args.len()
                 ),
             );
-            return None;
-        }
-        let explicit_type_args = self.resolve_call_type_args(type_arg_refs)?;
-        let type_param_count = self.structs[struct_id].type_params.len();
-        let mut explicit_shape = vec![None; type_param_count];
-        if !self.bind_explicit_type_args(
-            &mut explicit_shape,
-            0,
-            &explicit_type_args,
-            span,
-            &format!("struct `{name}`"),
-        ) {
             return None;
         }
         let expected_arguments = expected.and_then(|expected| {
@@ -69,13 +70,6 @@ impl Lowerer {
             (application.template == struct_id && application.arguments.len() == type_param_count)
                 .then(|| application.arguments.clone())
         });
-        let view = self.nominal_constructor_view(
-            crate::call_resolution::candidates::NominalConstructorSource::Struct(struct_id),
-        );
-        let argument_map = crate::call_resolution::arguments::CandidateArgumentMap::positional(
-            args.len(),
-            crate::call_resolution::arguments::ReceiverInput::Absent,
-        );
         let inferred = self.lower_nominal_arguments(
             NominalArgumentInput {
                 view: &view,
@@ -91,19 +85,9 @@ impl Lowerer {
         let lowered = inferred.args;
 
         let mut adapted = Vec::with_capacity(lowered.len());
-        for ((field_name, field_ty), arg) in fields.iter().zip(lowered) {
-            let field_ty = self.instantiate_ty(*field_ty, &type_args);
-            if !self.is_subtype(arg.ty, field_ty) {
-                let expected = self.type_name(field_ty);
-                let found = self.type_name(arg.ty);
-                self.error(
-                    arg.span,
-                    format!(
-                        "argument for field `{field_name}` of `{name}` must be of type {expected}, found {found}"
-                    ),
-                );
-                return None;
-            }
+        for (field, arg) in view.value_parameters.iter().zip(lowered) {
+            let field_ty = self.instantiate_ty(field.ty, &type_args);
+            debug_assert!(self.is_subtype(arg.ty, field_ty));
             adapted.push(self.adapt_to(arg, field_ty));
         }
         let application = self.struct_application_id(struct_id, type_args);

@@ -38,41 +38,38 @@ impl Lowerer {
             );
             return None;
         }
-        let props: Vec<(String, TypeId)> = self.classes[class_id]
-            .semantic_constructor()
-            .iter()
-            .map(|field| (field.name.clone(), field.ty))
-            .collect();
-        if args.len() != props.len() {
-            let expected = props.len();
-            let supplied = args.len();
-            let noun = if expected == 1 {
-                "argument"
-            } else {
-                "arguments"
+        let view = self.nominal_constructor_view(
+            crate::call_resolution::candidates::NominalConstructorSource::Class(class_id),
+        );
+        let argument_map =
+            match crate::call_resolution::arguments::CandidateArgumentMap::exact_nominal(
+                &view,
+                args.len(),
+            ) {
+                Ok(argument_map) => argument_map,
+                Err(mismatch) => {
+                    self.diagnose_nominal_shape_failure(
+                        &view,
+                        span,
+                        format!(
+                            "expects {} argument(s), but {} were supplied",
+                            mismatch.expected, mismatch.supplied
+                        ),
+                    );
+                    return None;
+                }
             };
-            self.error(
+        let explicit_type_args = self.resolve_call_type_args(type_arg_refs)?;
+        let type_param_count = view.owner_parameters.len();
+        if !explicit_type_args.is_empty() && explicit_type_args.len() != type_param_count {
+            self.diagnose_nominal_shape_failure(
+                &view,
                 span,
                 format!(
-                    "class `{name}` takes exactly {expected} {noun}, but {supplied} were supplied"
+                    "expects {type_param_count} explicit type argument(s), but {} were supplied",
+                    explicit_type_args.len()
                 ),
             );
-            return None;
-        }
-        let explicit_type_args = self.resolve_call_type_args(type_arg_refs)?;
-        let type_param_count = self.classes[class_id].type_params.len();
-        if type_param_count == 0 && !explicit_type_args.is_empty() {
-            self.error(span, format!("class `{name}` is not generic"));
-            return None;
-        }
-        let mut explicit_shape = vec![None; type_param_count];
-        if !self.bind_explicit_type_args(
-            &mut explicit_shape,
-            0,
-            &explicit_type_args,
-            span,
-            &format!("class `{name}`"),
-        ) {
             return None;
         }
         let expected_arguments = expected.and_then(|expected| {
@@ -83,13 +80,6 @@ impl Lowerer {
             (application.template == class_id && application.arguments.len() == type_param_count)
                 .then(|| application.arguments.clone())
         });
-        let view = self.nominal_constructor_view(
-            crate::call_resolution::candidates::NominalConstructorSource::Class(class_id),
-        );
-        let argument_map = crate::call_resolution::arguments::CandidateArgumentMap::positional(
-            args.len(),
-            crate::call_resolution::arguments::ReceiverInput::Absent,
-        );
         let inferred = self.lower_nominal_arguments(
             NominalArgumentInput {
                 view: &view,
@@ -104,19 +94,9 @@ impl Lowerer {
         let type_args = inferred.type_args;
         let lowered = inferred.args;
         let mut adapted = Vec::with_capacity(lowered.len());
-        for ((prop_name, prop_ty), arg) in props.iter().zip(lowered) {
-            let prop_ty = self.instantiate_ty(*prop_ty, &type_args);
-            if !self.is_subtype(arg.ty, prop_ty) {
-                let expected = self.type_name(prop_ty);
-                let found = self.type_name(arg.ty);
-                self.error(
-                    arg.span,
-                    format!(
-                        "argument for field `{prop_name}` of `{name}` must be of type {expected}, found {found}"
-                    ),
-                );
-                return None;
-            }
+        for (property, arg) in view.value_parameters.iter().zip(lowered) {
+            let prop_ty = self.instantiate_ty(property.ty, &type_args);
+            debug_assert!(self.is_subtype(arg.ty, prop_ty));
             adapted.push(self.adapt_to(arg, prop_ty));
         }
         let application = self.class_application_id(class_id, type_args);

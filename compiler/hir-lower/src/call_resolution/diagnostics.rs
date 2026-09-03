@@ -8,6 +8,10 @@ use super::constraints::{
 };
 use crate::Lowerer;
 
+mod nominal;
+
+pub(crate) use nominal::{nominal_source_signature, render_nominal_constraint_failure};
+
 pub(crate) fn callable_layer_name(lowerer: &Lowerer, views: &[CallableView]) -> &'static str {
     if views
         .iter()
@@ -218,7 +222,7 @@ fn render_type_term(lowerer: &Lowerer, view: &CallableView, term: TypeTerm) -> S
     }
 }
 
-fn render_type_parameters(
+pub(super) fn render_type_parameters(
     lowerer: &Lowerer,
     parameters: &[hir::TypeParamDecl],
     all_parameters: &[hir::TypeParamDecl],
