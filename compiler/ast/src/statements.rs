@@ -1,4 +1,4 @@
-use crate::{Expr, FunctionDecl, Ident, Span, TypeRef};
+use crate::{Expr, FunctionDecl, Ident, NonEmptyVec, Span, TypeRef};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Block {
@@ -142,18 +142,19 @@ pub struct ValDecl {
 /// `MutableArray` element (spec 10.5).
 #[derive(Debug, Clone, PartialEq)]
 pub struct Assign {
-    pub target: AssignTarget,
+    pub target: PlaceExpr,
+    pub op: AssignmentOp,
     pub value: Expr,
     pub span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum AssignTarget {
-    Local(Ident),
+pub enum PlaceExpr {
+    Name(Ident),
     /// `receiver[index] = value`
     Index {
         receiver: Box<Expr>,
-        index: Box<Expr>,
+        indices: NonEmptyVec<Expr>,
         span: Span,
     },
     /// `receiver.field = value` (only `var` properties of classes).
@@ -162,6 +163,25 @@ pub enum AssignTarget {
         name: Ident,
         span: Span,
     },
+}
+
+/// Compatibility name for clients that treat every assignment target as a
+/// place. New code should prefer [`PlaceExpr`].
+pub type AssignTarget = PlaceExpr;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AssignmentOp {
+    Assign,
+    Compound(CompoundAssignOp),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CompoundAssignOp {
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Rem,
 }
 
 #[derive(Debug, Clone, PartialEq)]

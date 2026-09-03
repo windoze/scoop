@@ -127,7 +127,11 @@ impl<'a> Lexer<'a> {
             '.' => {
                 self.pos += 1;
                 if self.eat('.') {
-                    TokenKind::DotDot
+                    if self.eat('<') {
+                        TokenKind::DotDotLess
+                    } else {
+                        TokenKind::DotDot
+                    }
                 } else {
                     TokenKind::Dot
                 }
@@ -144,7 +148,13 @@ impl<'a> Lexer<'a> {
             }
             '+' => {
                 self.pos += 1;
-                TokenKind::Plus
+                if self.eat('+') {
+                    TokenKind::PlusPlus
+                } else if self.eat('=') {
+                    TokenKind::PlusEqual
+                } else {
+                    TokenKind::Plus
+                }
             }
             '-' => {
                 self.pos += 1;
@@ -152,23 +162,51 @@ impl<'a> Lexer<'a> {
                 // No valid expression has `-` immediately before `>`.
                 if self.eat('>') {
                     TokenKind::Arrow
+                } else if self.eat('-') {
+                    TokenKind::MinusMinus
+                } else if self.eat('=') {
+                    TokenKind::MinusEqual
                 } else {
                     TokenKind::Minus
                 }
             }
             '*' => {
                 self.pos += 1;
-                TokenKind::Star
+                if self.eat('=') {
+                    TokenKind::StarEqual
+                } else {
+                    TokenKind::Star
+                }
             }
             // No `/*` ambiguity: comment openers are consumed by
             // `skip_trivia`, so a `/` reaching here is always division.
             '/' => {
                 self.pos += 1;
-                TokenKind::Slash
+                if self.eat('=') {
+                    TokenKind::SlashEqual
+                } else {
+                    TokenKind::Slash
+                }
+            }
+            '%' => {
+                self.pos += 1;
+                if self.eat('=') {
+                    TokenKind::PercentEqual
+                } else {
+                    TokenKind::Percent
+                }
             }
             '!' => {
                 self.pos += 1;
-                if self.eat('=') {
+                if self.source[self.pos..].starts_with("in")
+                    && self.source[self.pos + 2..]
+                        .chars()
+                        .next()
+                        .is_none_or(|next| !is_ident_continue(next))
+                {
+                    self.pos += 2;
+                    TokenKind::BangIn
+                } else if self.eat('=') {
                     if self.eat('=') {
                         TokenKind::BangEqualEqual
                     } else {
@@ -379,6 +417,8 @@ impl<'a> Lexer<'a> {
             "false" => TokenKind::False,
             "this" => TokenKind::This,
             "is" => TokenKind::Is,
+            "in" => TokenKind::In,
+            "infix" => TokenKind::Infix,
             "as" => TokenKind::As,
             _ => TokenKind::Ident(text.to_string()),
         };

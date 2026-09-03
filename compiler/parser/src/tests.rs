@@ -369,10 +369,10 @@ fn trailing_comma_is_an_error() {
 
 #[test]
 fn statements_on_one_line_need_semicolon() {
-    let (span, message) = err("fun main() { print(\"a\") print(\"b\") }");
-    assert_eq!(span, Span::new(24, 29));
+    let (span, message) = err("fun main() { print(\"a\") val x = 1 }");
+    assert_eq!(span, Span::new(24, 27));
     assert_eq!(
         message,
-        "expected `;` or newline after statement, found `print`"
+        "expected `;` or newline after statement, found `val`"
     );
 }

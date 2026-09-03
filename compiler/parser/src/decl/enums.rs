@@ -29,7 +29,7 @@ impl Parser {
             }
             let start = self.pos;
             let parsed = match &self.peek().kind {
-                TokenKind::Fun | TokenKind::Suspend | TokenKind::At => self
+                TokenKind::Fun | TokenKind::Suspend | TokenKind::Infix | TokenKind::At => self
                     .parse_member_function(FunctionContext::TypeBody)
                     .map(|method| methods.push(method))
                     .and_then(|()| self.expect_statement_end()),

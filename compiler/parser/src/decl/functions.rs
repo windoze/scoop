@@ -40,11 +40,22 @@ impl Parser {
                     modifiers.operator = Some(OperatorModifier { span: token.span });
                     modifiers.start = modifiers.start.or(Some(token.span.start));
                 }
+                TokenKind::Infix => {
+                    if modifiers.infix.is_some() {
+                        return Err(Diagnostic::at(
+                            token.span,
+                            "duplicate `infix` modifier on function",
+                        ));
+                    }
+                    self.bump();
+                    modifiers.infix = Some(InfixModifier { span: token.span });
+                    modifiers.start = modifiers.start.or(Some(token.span.start));
+                }
                 _ => break,
             }
         }
         if !matches!(self.peek().kind, TokenKind::Fun) {
-            if modifiers.is_suspend && modifiers.operator.is_none() {
+            if modifiers.is_suspend && modifiers.operator.is_none() && modifiers.infix.is_none() {
                 return Err(Diagnostic::at(
                     modifiers
                         .suspend_span
@@ -55,6 +66,7 @@ impl Parser {
             let span = modifiers
                 .suspend_span
                 .or(modifiers.operator.map(|modifier| modifier.span))
+                .or(modifiers.infix.map(|modifier| modifier.span))
                 .unwrap_or(self.peek().span);
             return Err(Diagnostic::at(
                 span,
@@ -212,6 +224,7 @@ impl Parser {
             is_suspend: modifiers.is_suspend,
             is_override: modifiers.is_override,
             operator: modifiers.operator,
+            infix: modifiers.infix,
             modifier,
             receiver_ty,
             name,

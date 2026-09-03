@@ -119,8 +119,9 @@ pub fn dump(file: &SourceFile) -> String {
                     } else {
                         ""
                     };
+                    let infix = if method.infix.is_some() { "infix " } else { "" };
                     out.push_str(&format!(
-                        "    {operator}{suspend}fun {}\n",
+                        "    {operator}{infix}{suspend}fun {}\n",
                         method.name.text
                     ));
                 }
@@ -157,8 +158,9 @@ pub fn dump(file: &SourceFile) -> String {
                     } else {
                         ""
                     };
+                    let infix = if method.infix.is_some() { "infix " } else { "" };
                     out.push_str(&format!(
-                        "    {operator}{suspend}fun {}\n",
+                        "    {operator}{infix}{suspend}fun {}\n",
                         method.name.text
                     ));
                 }
@@ -206,8 +208,9 @@ pub fn dump(file: &SourceFile) -> String {
                     } else {
                         ""
                     };
+                    let infix = if method.infix.is_some() { "infix " } else { "" };
                     out.push_str(&format!(
-                        "    {operator}{suspend}fun {}\n",
+                        "    {operator}{infix}{suspend}fun {}\n",
                         method.name.text
                     ));
                 }
@@ -246,7 +249,7 @@ pub fn dump(file: &SourceFile) -> String {
                     (MethodModifier::Abstract, _) => "abstract ",
                 };
                 let flags = format!(
-                    "{}{}{}{}",
+                    "{}{}{}{}{}",
                     modifier,
                     if f.is_override { "override " } else { "" },
                     if f.operator.is_some() {
@@ -254,6 +257,7 @@ pub fn dump(file: &SourceFile) -> String {
                     } else {
                         ""
                     },
+                    if f.infix.is_some() { "infix " } else { "" },
                     if f.is_suspend { "suspend " } else { "" }
                 );
                 let receiver = f

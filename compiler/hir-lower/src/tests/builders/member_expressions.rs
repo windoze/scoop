@@ -10,6 +10,7 @@ pub(crate) fn method_call(receiver: Expr, name: &str, args: Vec<Expr>) -> Expr {
     Expr::MethodCall {
         receiver: Box::new(receiver),
         name: ident(name),
+        navigation: ast::Navigation::Direct,
         type_args: Vec::new(),
         args: call_arguments(args),
         span: sp(),
@@ -20,6 +21,7 @@ pub(crate) fn source_method_call(receiver: Expr, name: &str, args: Vec<ast::Call
     Expr::MethodCall {
         receiver: Box::new(receiver),
         name: ident(name),
+        navigation: ast::Navigation::Direct,
         type_args: Vec::new(),
         args,
         span: sp(),
@@ -35,6 +37,7 @@ pub(crate) fn typed_method_call(
     Expr::MethodCall {
         receiver: Box::new(receiver),
         name: ident(name),
+        navigation: ast::Navigation::Direct,
         type_args,
         args: call_arguments(args),
         span: sp(),

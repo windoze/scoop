@@ -133,10 +133,20 @@ impl Lowerer {
     pub(super) fn lower_index_read(
         &mut self,
         receiver: &ast::Expr,
-        index: &ast::Expr,
+        indices: &[ast::Expr],
         span: Span,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
+        let [index] = indices else {
+            self.error(
+                span,
+                format!(
+                    "array subscript takes exactly one index, but {} were supplied",
+                    indices.len()
+                ),
+            );
+            return None;
+        };
         let receiver = self.lower_expr(receiver, sink, None)?;
         let Some(element_ty) = self.array_element_ty(receiver.ty) else {
             let found = self.type_name(receiver.ty);

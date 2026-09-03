@@ -122,7 +122,7 @@ pub(crate) fn field(receiver: Expr, name: &str) -> Expr {
     Expr::FieldAccess(FieldAccess {
         receiver: Box::new(receiver),
         selector: FieldSelector::Name(ident(name)),
-        safe: false,
+        navigation: ast::Navigation::Direct,
         span: sp(),
     })
 }
@@ -132,7 +132,7 @@ pub(crate) fn safe_field(receiver: Expr, name: &str) -> Expr {
     Expr::FieldAccess(FieldAccess {
         receiver: Box::new(receiver),
         selector: FieldSelector::Name(ident(name)),
-        safe: true,
+        navigation: ast::Navigation::Safe,
         span: sp(),
     })
 }
@@ -141,7 +141,7 @@ pub(crate) fn index(receiver: Expr, n: u32) -> Expr {
     Expr::FieldAccess(FieldAccess {
         receiver: Box::new(receiver),
         selector: FieldSelector::Index(n, sp()),
-        safe: false,
+        navigation: ast::Navigation::Direct,
         span: sp(),
     })
 }
@@ -201,7 +201,7 @@ pub(crate) fn array_lit(elements: Vec<Expr>) -> Expr {
 pub(crate) fn subscript(receiver: Expr, index: Expr) -> Expr {
     Expr::Index {
         receiver: Box::new(receiver),
-        index: Box::new(index),
+        indices: ast::NonEmptyVec::new(index, Vec::new()),
         span: sp(),
     }
 }

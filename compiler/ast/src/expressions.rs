@@ -1,6 +1,6 @@
 use crate::{
-    AnonymousFunctionId, Block, CallableReferenceId, Ident, If, LambdaId, Param, Pattern, Span,
-    Try, TypeRef, When,
+    AnonymousFunctionId, Block, CallableReferenceId, Ident, If, LambdaId, Param, Pattern,
+    PlaceExpr, Span, Try, TypeRef, When,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -66,7 +66,15 @@ pub enum Expr {
     /// falling back to named overload resolution.
     Invoke {
         callee: Box<Expr>,
+        type_args: Vec<TypeRef>,
         args: Vec<CallArgument>,
+        span: Span,
+    },
+    /// `lhs name rhs`; HIR validates the selected callable's infix role.
+    InfixCall {
+        lhs: Box<Expr>,
+        name: Ident,
+        rhs: Box<Expr>,
         span: Span,
     },
     Binary {
@@ -78,6 +86,14 @@ pub enum Expr {
     Unary {
         op: UnOp,
         operand: Box<Expr>,
+        span: Span,
+    },
+    /// Prefix/postfix `++` / `--`. The parser accepts only a syntactic place,
+    /// so HIR never has to recover lvalue shape from an arbitrary expression.
+    Update {
+        place: PlaceExpr,
+        op: UpdateOp,
+        notation: UpdateNotation,
         span: Span,
     },
     /// `expr!!` — unwrap an `Option`, trapping on `None` (M3; real
@@ -100,6 +116,7 @@ pub enum Expr {
     MethodCall {
         receiver: Box<Expr>,
         name: Ident,
+        navigation: Navigation,
         /// Explicit call-site type arguments (`receiver.name<T>(...)`).
         type_args: Vec<TypeRef>,
         args: Vec<CallArgument>,
@@ -127,7 +144,7 @@ pub enum Expr {
     /// `receiver[index]` — subscript read (spec 10.5).
     Index {
         receiver: Box<Expr>,
-        index: Box<Expr>,
+        indices: NonEmptyVec<Expr>,
         span: Span,
     },
     /// Structured control expressions. Their branch blocks use the same
@@ -151,8 +168,10 @@ impl Expr {
             | Expr::AnonymousFunction { span, .. }
             | Expr::CallableReference { span, .. }
             | Expr::Invoke { span, .. }
+            | Expr::InfixCall { span, .. }
             | Expr::Binary { span, .. }
             | Expr::Unary { span, .. }
+            | Expr::Update { span, .. }
             | Expr::NullAssert { span, .. }
             | Expr::Elvis { span, .. }
             | Expr::This { span }
@@ -184,9 +203,48 @@ pub struct LambdaParam {
 pub struct FieldAccess {
     pub receiver: Box<Expr>,
     pub selector: FieldSelector,
-    /// `?.` (spec 7.3) instead of `.`.
-    pub safe: bool,
+    pub navigation: Navigation,
     pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Navigation {
+    Direct,
+    Safe,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct NonEmptyVec<T> {
+    values: Vec<T>,
+}
+
+impl<T> NonEmptyVec<T> {
+    pub fn new(first: T, rest: Vec<T>) -> Self {
+        let mut values = Vec::with_capacity(1 + rest.len());
+        values.push(first);
+        values.extend(rest);
+        Self { values }
+    }
+
+    pub fn len(&self) -> usize {
+        self.values.len()
+    }
+
+    pub const fn is_empty(&self) -> bool {
+        false
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &T> {
+        self.values.iter()
+    }
+
+    pub fn as_slice(&self) -> &[T] {
+        &self.values
+    }
+
+    pub fn first(&self) -> &T {
+        &self.values[0]
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -265,6 +323,11 @@ pub enum BinOp {
     Sub,
     Mul,
     Div,
+    Rem,
+    RangeTo,
+    RangeUntil,
+    Contains,
+    NotContains,
     Lt,
     Le,
     Gt,
@@ -281,6 +344,19 @@ pub enum BinOp {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UnOp {
+    Plus,
     Neg,
     Not,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UpdateOp {
+    Increment,
+    Decrement,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UpdateNotation {
+    Prefix,
+    Postfix,
 }

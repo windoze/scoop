@@ -1,4 +1,4 @@
-use scoop_ast::{Expr, Span, TypeRefKind};
+use scoop_ast::{Expr, Navigation, Span, TypeRefKind};
 
 use crate::tests::err;
 use crate::tests_m2::{init_expr, stmt_dump};
@@ -100,7 +100,7 @@ fn safe_cast_after_safe_navigation() {
     let Expr::FieldAccess(access) = operand.as_ref() else {
         panic!("expected a field access operand");
     };
-    assert!(access.safe);
+    assert_eq!(access.navigation, Navigation::Safe);
 }
 
 #[test]

@@ -1,6 +1,70 @@
 use super::*;
 
 impl Lowerer {
+    pub(super) fn lower_conventional_binary(
+        &mut self,
+        op: ast::BinOp,
+        lhs: &ast::Expr,
+        rhs: &ast::Expr,
+        span: Span,
+        sink: &mut Vec<hir::Statement>,
+    ) -> Option<hir::Expr> {
+        let (kind, name, receiver, argument, negate) = match op {
+            ast::BinOp::Rem => (hir::OperatorKind::Rem, "rem", lhs, rhs, false),
+            ast::BinOp::RangeTo => (hir::OperatorKind::RangeTo, "rangeTo", lhs, rhs, false),
+            ast::BinOp::RangeUntil => {
+                (hir::OperatorKind::RangeUntil, "rangeUntil", lhs, rhs, false)
+            }
+            ast::BinOp::Contains => (hir::OperatorKind::Contains, "contains", rhs, lhs, false),
+            ast::BinOp::NotContains => (hir::OperatorKind::Contains, "contains", rhs, lhs, true),
+            _ => unreachable!("only conventional binary operators enter this path"),
+        };
+        let receiver = self.lower_expr(receiver, sink, None)?;
+        let name = ast::Ident {
+            text: name.to_string(),
+            span,
+        };
+        let args = [ast::CallArgument::positional(argument.clone())];
+        let value = self.lower_named_call_on_receiver(
+            receiver,
+            &name,
+            CallSite {
+                type_args: &[],
+                args: &args,
+                span,
+            },
+            sink,
+            None,
+            RequiredCallableModifiers {
+                operator: Some(kind),
+                infix: false,
+            },
+        )?;
+        if matches!(kind, hir::OperatorKind::Contains) && value.ty != self.boolean {
+            self.error(
+                span,
+                format!(
+                    "operator `contains` must return Boolean, found {}",
+                    self.type_name(value.ty)
+                ),
+            );
+            return None;
+        }
+        Some(if negate {
+            hir::Expr {
+                kind: ExprKind::Unary {
+                    op: hir::UnOp::Not,
+                    operand: Box::new(value),
+                },
+                ty: self.boolean,
+                span,
+                origin: self.expression_origin(span),
+            }
+        } else {
+            value
+        })
+    }
+
     pub(super) fn lower_binary(
         &mut self,
         op: ast::BinOp,
@@ -9,6 +73,16 @@ impl Lowerer {
         span: Span,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
+        if matches!(
+            op,
+            ast::BinOp::Rem
+                | ast::BinOp::RangeTo
+                | ast::BinOp::RangeUntil
+                | ast::BinOp::Contains
+                | ast::BinOp::NotContains
+        ) {
+            return self.lower_conventional_binary(op, lhs, rhs, span, sink);
+        }
         // `===` / `!==` (spec 4.4.2): reference identity, only on
         // reference types; on value types it is a compile error.
         if matches!(op, ast::BinOp::RefEq | ast::BinOp::RefNe) {
@@ -395,8 +469,31 @@ impl Lowerer {
         span: Span,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
+        if op == ast::UnOp::Plus {
+            let receiver = self.lower_expr(operand, sink, None)?;
+            let name = ast::Ident {
+                text: "unaryPlus".to_string(),
+                span,
+            };
+            return self.lower_named_call_on_receiver(
+                receiver,
+                &name,
+                CallSite {
+                    type_args: &[],
+                    args: &[],
+                    span,
+                },
+                sink,
+                None,
+                RequiredCallableModifiers {
+                    operator: Some(hir::OperatorKind::UnaryPlus),
+                    infix: false,
+                },
+            );
+        }
         let operand = self.lower_expr(operand, sink, None)?;
         let (op, symbol, expected, ty) = match op {
+            ast::UnOp::Plus => unreachable!("unary plus uses the conventional call path"),
             ast::UnOp::Neg => (hir::UnOp::Neg, "-", self.int, self.int),
             ast::UnOp::Not => (hir::UnOp::Not, "!", self.boolean, self.boolean),
         };

@@ -19,6 +19,13 @@ pub(super) fn convert_bin_op(op: ast::BinOp) -> (hir::BinOp, &'static str) {
         ast::BinOp::Sub => (hir::BinOp::Sub, "-"),
         ast::BinOp::Mul => (hir::BinOp::Mul, "*"),
         ast::BinOp::Div => (hir::BinOp::Div, "/"),
+        ast::BinOp::Rem
+        | ast::BinOp::RangeTo
+        | ast::BinOp::RangeUntil
+        | ast::BinOp::Contains
+        | ast::BinOp::NotContains => {
+            unreachable!("conventional operators are lowered before primitive conversion")
+        }
         ast::BinOp::Lt => (hir::BinOp::Lt, "<"),
         ast::BinOp::Le => (hir::BinOp::Le, "<="),
         ast::BinOp::Gt => (hir::BinOp::Gt, ">"),

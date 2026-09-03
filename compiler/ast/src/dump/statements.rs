@@ -13,6 +13,16 @@ fn dump_statement(statement: &Statement, indent: usize, out: &mut String) {
         StatementKind::Expr(expr) => dump_expr(expr, indent, out),
         StatementKind::LocalFunction(function) => {
             let suspend = if function.is_suspend { "suspend " } else { "" };
+            let operator = if function.operator.is_some() {
+                "operator "
+            } else {
+                ""
+            };
+            let infix = if function.infix.is_some() {
+                "infix "
+            } else {
+                ""
+            };
             let type_params = if function.type_params.is_empty() {
                 String::new()
             } else {
@@ -30,7 +40,7 @@ fn dump_statement(statement: &Statement, indent: usize, out: &mut String) {
                 .map(|ty| format!(": {}", dump_type_ref(ty)))
                 .unwrap_or_default();
             out.push_str(&format!(
-                "{pad}{suspend}fun {}{}({}){return_ty}\n",
+                "{pad}{operator}{infix}{suspend}fun {}{}({}){return_ty}\n",
                 function.name.text,
                 type_params,
                 params.join(", ")
@@ -79,24 +89,31 @@ fn dump_statement(statement: &Statement, indent: usize, out: &mut String) {
             }
         }
         StatementKind::Assign(assign) => {
-            match &assign.target {
-                AssignTarget::Local(name) => out.push_str(&format!("{pad}assign {}\n", name.text)),
-                AssignTarget::Index { .. } => out.push_str(&format!("{pad}assign []\n")),
-                AssignTarget::Field { name, .. } => {
-                    out.push_str(&format!("{pad}assign .{}\n", name.text))
+            match (assign.op, &assign.target) {
+                (AssignmentOp::Assign, PlaceExpr::Name(name)) => {
+                    out.push_str(&format!("{pad}assign {}\n", name.text));
+                }
+                (AssignmentOp::Assign, PlaceExpr::Index { .. }) => {
+                    out.push_str(&format!("{pad}assign []\n"));
+                }
+                (AssignmentOp::Assign, PlaceExpr::Field { name, .. }) => {
+                    out.push_str(&format!("{pad}assign .{}\n", name.text));
+                }
+                (AssignmentOp::Compound(op), _) => {
+                    out.push_str(&format!("{pad}compound-assign {op:?}\n"));
                 }
             }
             match &assign.target {
-                AssignTarget::Index {
-                    receiver, index, ..
+                PlaceExpr::Name(_) => {}
+                PlaceExpr::Field { receiver, .. } => dump_expr(receiver, indent + 1, out),
+                PlaceExpr::Index {
+                    receiver, indices, ..
                 } => {
                     dump_expr(receiver, indent + 1, out);
-                    dump_expr(index, indent + 1, out);
+                    for index in indices.iter() {
+                        dump_expr(index, indent + 1, out);
+                    }
                 }
-                AssignTarget::Field { receiver, .. } => {
-                    dump_expr(receiver, indent + 1, out);
-                }
-                AssignTarget::Local(_) => {}
             }
             dump_expr(&assign.value, indent + 1, out);
         }

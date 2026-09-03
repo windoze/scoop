@@ -12,7 +12,7 @@ impl Lowerer {
     /// narrowed value type unboxes on access. Inside a member function
     /// a name that is no local falls back to a property of the host
     /// (`x` meaning `this.x`, milestone6 DESIGN.md 1).
-    pub(super) fn lower_var(
+    pub(crate) fn lower_var(
         &mut self,
         name: &ast::Ident,
         expected: Option<TypeId>,
