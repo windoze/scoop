@@ -242,7 +242,7 @@ impl Lowerer {
             .collect()
     }
 
-    pub(super) fn resolve_call_type_args(&mut self, refs: &[ast::TypeRef]) -> Option<Vec<TypeId>> {
+    pub(crate) fn resolve_call_type_args(&mut self, refs: &[ast::TypeRef]) -> Option<Vec<TypeId>> {
         refs.iter()
             .map(|type_ref| self.resolve_type_ref(type_ref))
             .collect()
