@@ -12,7 +12,7 @@ impl Lowerer {
     /// narrowed value type unboxes on access. Inside a member function
     /// a name that is no local falls back to a property of the host
     /// (`x` meaning `this.x`, milestone6 DESIGN.md 1).
-    pub(super) fn lower_var(
+    pub(crate) fn lower_var(
         &mut self,
         name: &ast::Ident,
         expected: Option<TypeId>,
@@ -116,7 +116,6 @@ impl Lowerer {
     /// chain). Methods are not values in M6, so only fields resolve.
     pub(super) fn bare_member_fallback(&mut self, name: &ast::Ident) -> Option<hir::Expr> {
         let receiver_ty = self.current_this_ty()?;
-        let receiver = self.lower_current_this(name.span)?;
         let (field, ty) = match self.types[receiver_ty].clone() {
             Type::Class(application) => {
                 let (declaring, index, ty, _) =
@@ -151,6 +150,10 @@ impl Lowerer {
             // reachable through patterns.
             _ => return None,
         };
+        // Resolve the property identity before materializing `this`. In a
+        // nested callable, `lower_current_this` records a capture; a failed
+        // property probe must not mutate the winning candidate's closure.
+        let receiver = self.lower_current_this(name.span)?;
         Some(hir::Expr {
             kind: ExprKind::FieldAccess {
                 receiver: Box::new(receiver),

@@ -41,8 +41,8 @@ SourceFile
     fun load
     fun store
     fun store
-    fun plus
-    fun minus
+    operator fun plus
+    operator fun minus
   struct FunPtr<F>
     field _rawPointer: UInt
     @Unsafe
@@ -169,28 +169,53 @@ SourceFile
     @Intrinsic("core_int")
   struct Int <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun unaryMinus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_uint")
   struct UInt <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_boolean")
   struct Boolean <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun not
     fun toString
     fun hash
     @Intrinsic("core_string")
   class String(), ToString, Hash
     operator fun equals
+    operator fun plus
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_array")
   class Array<T>()
+    operator fun get
     fun toMutableArray
     @Intrinsic("core_mutable_array")
   class MutableArray<T>()
+    operator fun get
+    operator fun set
     fun toArray
     @Extern(name = "scoop_rt_int_equals", abi = "scoop")
   fun coreIntEquals(left: Int, right: Int): Boolean
@@ -425,20 +450,26 @@ Module
     Call println<Int> : Unit
       Local $parameter.value : Int
     val local6
+      IntLiteral 0 : Int
+    val local7
+      IntLiteral 7 : Int
+    val local8
+      Local $argument.0 : Int
+    val local9
       CallableCall function_type4 : Int
         Local operation : (Int) -> Int
-        Binary Sub : Int
-          IntLiteral 0 : Int
-          IntLiteral 7 : Int
-    val local7
+        PrimitiveBinary IntSub : Int
+          Local $receiver : Int
+          Local $parameter.other : Int
+    val local10
       Local $argument.0 : Int
     Call println<Int> : Unit
       Local $parameter.value : Int
-    val local8
+    val local11
       CallableCall function_type4 : Int
         Local inferred : (Int) -> Int
         IntLiteral 41 : Int
-    val local9
+    val local12
       Local $argument.0 : Int
     Call println<Int> : Unit
       Local $parameter.value : Int
@@ -700,15 +731,24 @@ Module
       call @scoop.println$I direct
         Type Int
         Local $parameter.value
+      val $receiver: Int
+        Type Int
+        IntLiteral 0
+      val $argument.0: Int
+        Type Int
+        IntLiteral 7
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       call $argument.0: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
         Local operation
         Type Int
         Binary IntSub
           Type Int
-          IntLiteral 0
+          Local $receiver
           Type Int
-          IntLiteral 7
+          Local $parameter.other
       val $parameter.value: Int
         Type Int
         Local $argument.0
@@ -729,40 +769,80 @@ Module
       return
   fun $anonymous.0 @scoop.$anonymous.0($closure: (Int) -> Int, value: Int) -> Int
     bb0 entry
+      val $receiver: Int
+        Type Int
+        Local value
+      val $argument.0: Int
+        Type Int
+        IntLiteral 0
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       branch bb1 bb2
         Type Boolean
         Binary IntLt
           Type Int
-          Local value
+          Binary IntCompareTo
+            Type Int
+            Local $receiver
+            Type Int
+            Local $parameter.other
           Type Int
           IntLiteral 0
     bb1 if.then.1
+      val $receiver: Int
+        Type Int
+        IntLiteral 0
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       return
         Type Int
         Binary IntSub
           Type Int
-          IntLiteral 0
+          Local $receiver
           Type Int
-          Local value
+          Local $parameter.other
     bb2 if.merge.2
+      val $receiver: Int
+        Type Int
+        Local value
+      val $argument.0: Int
+        Type Int
+        ClosureCapture cc0 0
+          Type (Int) -> Int
+          Local $closure
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       return
         Type Int
         Binary IntAdd
           Type Int
-          Local value
+          Local $receiver
           Type Int
-          ClosureCapture cc0 0
-            Type (Int) -> Int
-            Local $closure
+          Local $parameter.other
   fun $anonymous.1 @scoop.$anonymous.1($closure: (Int) -> Int, value: Int) -> Int
     bb0 entry
+      val $receiver: Int
+        Type Int
+        Local value
+      val $argument.0: Int
+        Type Int
+        IntLiteral 1
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       return
         Type Int
         Binary IntAdd
           Type Int
-          Local value
+          Local $receiver
           Type Int
-          IntLiteral 1
+          Local $parameter.other
   fun println @scoop.println$I(value: Int) -> Unit
     bb0 entry
       val $receiver: Int
@@ -1093,10 +1173,13 @@ Module
     local %3 inferred: ptr<managed>
     local %4 $argument.0: i64
     local %5 $parameter.value: i64
-    local %6 $argument.0: i64
-    local %7 $parameter.value: i64
-    local %8 $argument.0: i64
-    local %9 $parameter.value: i64
+    local %6 $receiver: i64
+    local %7 $argument.0: i64
+    local %8 $parameter.other: i64
+    local %9 $argument.0: i64
+    local %10 $parameter.value: i64
+    local %11 $argument.0: i64
+    local %12 $parameter.value: i64
   block entry
     poll managed-void-target4 sp45 live=[]
     store 2 -> local0
@@ -1114,34 +1197,62 @@ Module
     store local4 -> local5
     call managed-void-target1 sp17 live=[local2:ptr<managed>@0, local3:ptr<managed>@0] sig=void1 (i64) local-fn16(local5)
     t5 = aggregate () : {}
-    t6 = Sub 0, 7 : i64
+    store 0 -> local6
+    store 7 -> local7
+    store local7 -> local8
+    t6 = Sub local6, local8 : i64
     call managed-direct-target3 sp18 live=[local2:ptr<managed>@0, local3:ptr<managed>@0] t7 = sig=direct3 (ptr<managed>, i64) -> i64 dispatch[Closure:2] local2(local2, t6)
-    store t7 -> local6
-    store local6 -> local7
-    call managed-void-target2 sp19 live=[local3:ptr<managed>@0] sig=void2 (i64) local-fn16(local7)
+    store t7 -> local9
+    store local9 -> local10
+    call managed-void-target2 sp19 live=[local3:ptr<managed>@0] sig=void2 (i64) local-fn16(local10)
     t8 = aggregate () : {}
     call managed-direct-target4 sp20 live=[local3:ptr<managed>@0] t9 = sig=direct4 (ptr<managed>, i64) -> i64 dispatch[Closure:2] local3(local3, 41)
-    store t9 -> local8
-    store local8 -> local9
-    call managed-void-target3 sp21 live=[] sig=void3 (i64) local-fn16(local9)
+    store t9 -> local11
+    store local11 -> local12
+    call managed-void-target3 sp21 live=[] sig=void3 (i64) local-fn16(local12)
     t10 = aggregate () : {}
     ret
   fun @scoop.$anonymous.0(ptr<managed>, i64) -> i64
+    local %0 $receiver: i64
+    local %1 $argument.0: i64
+    local %2 $parameter.other: i64
+    local %3 $receiver: i64
+    local %4 $argument.0: i64
+    local %5 $parameter.other: i64
+    local %6 $receiver: i64
+    local %7 $argument.0: i64
+    local %8 $parameter.other: i64
   block entry
     poll managed-void-target0 sp46 live=[param0:ptr<managed>@0]
-    t0 = Lt param1, 0 : i1
-    cbr t0 then @if.then.1 else @if.merge.2
+    store param1 -> local0
+    store 0 -> local1
+    store local1 -> local2
+    t0 = SCompareTo local0, local2 : i64
+    t1 = Lt t0, 0 : i1
+    cbr t1 then @if.then.1 else @if.merge.2
   block if.then.1
-    t1 = Sub 0, param1 : i64
-    ret t1
+    store 0 -> local3
+    store param1 -> local4
+    store local4 -> local5
+    t2 = Sub local3, local5 : i64
+    ret t2
   block if.merge.2
-    t2 = heap_load param0 +24 : i64
-    t3 = Add param1, t2 : i64
-    ret t3
+    store param1 -> local6
+    t3 = heap_load param0 +24 : i64
+    store t3 -> local7
+    store local7 -> local8
+    t4 = Add local6, local8 : i64
+    ret t4
   fun @scoop.$anonymous.1(ptr<managed>, i64) -> i64
+    local %0 $receiver: i64
+    local %1 $argument.0: i64
+    local %2 $parameter.other: i64
   block entry
     poll managed-void-target0 sp47 live=[]
-    t0 = Add param1, 1 : i64
+    store param1 -> local0
+    store 1 -> local1
+    store local1 -> local2
+    t0 = Add local0, local2 : i64
     ret t0
   fun @scoop.println$I(i64) -> void
     local %0 $receiver: i64

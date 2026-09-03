@@ -41,8 +41,8 @@ SourceFile
     fun load
     fun store
     fun store
-    fun plus
-    fun minus
+    operator fun plus
+    operator fun minus
   struct FunPtr<F>
     field _rawPointer: UInt
     @Unsafe
@@ -169,28 +169,53 @@ SourceFile
     @Intrinsic("core_int")
   struct Int <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun unaryMinus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_uint")
   struct UInt <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_boolean")
   struct Boolean <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun not
     fun toString
     fun hash
     @Intrinsic("core_string")
   class String(), ToString, Hash
     operator fun equals
+    operator fun plus
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_array")
   class Array<T>()
+    operator fun get
     fun toMutableArray
     @Intrinsic("core_mutable_array")
   class MutableArray<T>()
+    operator fun get
+    operator fun set
     fun toArray
     @Extern(name = "scoop_rt_int_equals", abi = "scoop")
   fun coreIntEquals(left: Int, right: Int): Boolean
@@ -543,18 +568,24 @@ Module
       BoolLiteral true : Boolean
       val local0
         IntLiteral 40 : Int
+      val local1
+        Local base : Int
+      val local2
+        IntLiteral 2 : Int
+      val local3
+        Local $argument.0 : Int
       assign $result.2
-        Binary Add : Int
-          Local base : Int
-          IntLiteral 2 : Int
+        PrimitiveBinary IntAdd : Int
+          Local $receiver : Int
+          Local $parameter.other : Int
     else
       assign $result.2
         IntLiteral 0 : Int
-    val local2
+    val local5
       Local $result.2 : Int
-    val local3
+    val local6
       Local branch : Int
-    val local4
+    val local7
       Local $argument.0 : Int
     Call println<Int> : Unit
       Local $parameter.value : Int
@@ -572,11 +603,11 @@ Module
     else
       assign $result.4
         IntLiteral 3 : Int
-    val local7
+    val local10
       Local $result.4 : Int
-    val local8
+    val local11
       Local nested : Int
-    val local9
+    val local12
       Local $argument.0 : Int
     Call println<Int> : Unit
       Local $parameter.value : Int
@@ -588,12 +619,12 @@ Module
     else
       assign $result.5
         StringLiteral "mixed" : Any
-    val local11
+    val local14
       Local $result.5 : Any
-    val local12
+    val local15
       IsInstance Int : Boolean
         Local mixed : Any
-    val local13
+    val local16
       Local $argument.0 : Boolean
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
@@ -602,19 +633,19 @@ Module
       assign $result.6
         VariantConstruct Option.None<Int> : Option<Int>
     else
-      val local14
+      val local17
         IntLiteral 4 : Int
-      val local15
+      val local18
         Local $argument.0 : Int
       assign $result.6
         VariantConstruct Option.Some<Int> : Option<Int>
           Local $parameter._1 : Int
-    val local17
+    val local20
       Local $result.6 : Option<Int>
-    val local18
+    val local21
       Unwrap trap=true : Int
         Local inferred : Option<Int>
-    val local19
+    val local22
       Local $argument.0 : Int
     Call println<Int> : Unit
       Local $parameter.value : Int
@@ -623,23 +654,23 @@ Module
       assign $result.7
         ClassInit Dog : Animal
     else
-      val local20
+      val local23
         StringLiteral "animal" : String
-      val local21
+      val local24
         Local $argument.0 : String
       assign $result.7
         ClassInit Animal : Animal
           Local $parameter.name : String
-    val local23
+    val local26
       Local $result.7 : Animal
-    val local24
+    val local27
       FieldAccess class field 0 : String
         Local animal : Animal
-    val local25
+    val local28
       Local $argument.0 : String
     Call println<String> : Unit
       Local $parameter.value : String
-    val local26
+    val local29
       Local animal : Any
     if
       IsInstance Dog : Boolean
@@ -650,27 +681,35 @@ Module
     else
       assign $result.8
         StringLiteral "unknown" : String
-    val local28
+    val local31
       Local $result.8 : String
-    val local29
+    val local32
       Local smartName : String
-    val local30
+    val local33
       Local $argument.0 : String
     Call println<String> : Unit
       Local $parameter.value : String
-    val local31
+    val local34
       IntLiteral 7 : Int
-    val local32
+    val local35
       Local $argument.0 : Int
-    val local33
+    val local36
       VariantConstruct Input.Number : Input
         Local $parameter._1 : Int
     when
       Local input : Input
-      arm variant0(0: local34)
+      arm variant0(0: local37)
+        val local38
+          Local value : Int
+        val local39
+          IntLiteral 0 : Int
+        val local40
+          Local $argument.0 : Int
         if
           Binary Gt : Boolean
-            Local value : Int
+            PrimitiveBinary IntCompareTo : Int
+              Local $receiver : Int
+              Local $parameter.other : Int
             IntLiteral 0 : Int
           assign $result.9
             StringLiteral "positive" : String
@@ -682,11 +721,11 @@ Module
       arm variant1()
         assign $result.10
           StringLiteral "empty" : String
-    val local37
+    val local43
       Local $result.10 : String
-    val local38
+    val local44
       Local text : String
-    val local39
+    val local45
       Local $argument.0 : String
     Call println<String> : Unit
       Local $parameter.value : String
@@ -695,20 +734,20 @@ Module
       arm variant1()
         assign $result.11
           VariantConstruct Option.None<Int> : Option<Int>
-      arm variant0(0: local40)
-        val local41
+      arm variant0(0: local46)
+        val local47
           Local value : Int
-        val local42
+        val local48
           Local $argument.0 : Int
         assign $result.11
           VariantConstruct Option.Some<Int> : Option<Int>
             Local $parameter._1 : Int
-    val local44
+    val local50
       Local $result.11 : Option<Int>
-    val local45
+    val local51
       Unwrap trap=true : Int
         Local maybeWhen : Option<Int>
-    val local46
+    val local52
       Local $argument.0 : Int
     Call println<Int> : Unit
       Local $parameter.value : Int
@@ -716,17 +755,17 @@ Module
       assign $result.12
         StringLiteral "normal" : String
     finally
-      val local48
+      val local54
         StringLiteral "normal-finally" : String
-      val local49
+      val local55
         Local $argument.0 : String
       Call println<String> : Unit
         Local $parameter.value : String
-    val local50
+    val local56
       Local $result.12 : String
-    val local51
+    val local57
       Local normal : String
-    val local52
+    val local58
       Local $argument.0 : String
     Call println<String> : Unit
       Local $parameter.value : String
@@ -737,24 +776,24 @@ Module
       assign $result.13
         StringLiteral "caught" : String
     finally
-      val local55
+      val local61
         StringLiteral "caught-finally" : String
-      val local56
+      val local62
         Local $argument.0 : String
       Call println<String> : Unit
         Local $parameter.value : String
-    val local57
+    val local63
       Local $result.13 : String
-    val local58
+    val local64
       Local recovered : String
-    val local59
+    val local65
       Local $argument.0 : String
     Call println<String> : Unit
       Local $parameter.value : String
     try
-      val local61
+      val local67
         IntLiteral 9 : Int
-      val local62
+      val local68
         Local $argument.0 : Int
       assign $result.14
         VariantConstruct Option.Some<Int> : Option<Int>
@@ -762,40 +801,40 @@ Module
     catch e: UnwrapException
       assign $result.14
         VariantConstruct Option.None<Int> : Option<Int>
-    val local64
+    val local70
       Local $result.14 : Option<Int>
-    val local65
+    val local71
       Unwrap trap=true : Int
         Local maybeTry : Option<Int>
-    val local66
-      Local $argument.0 : Int
-    Call println<Int> : Unit
-      Local $parameter.value : Int
-    val local67
-      BoolLiteral true : Boolean
-    val local68
-      Local $argument.0 : Boolean
-    val local69
-      Call branchReturn : Int
-        Local $parameter.flag : Boolean
-    val local70
-      Local $argument.0 : Int
-    Call println<Int> : Unit
-      Local $parameter.value : Int
-    val local71
-      BoolLiteral false : Boolean
     val local72
-      Local $argument.0 : Boolean
-    val local73
-      Call branchReturn : Int
-        Local $parameter.flag : Boolean
-    val local74
       Local $argument.0 : Int
     Call println<Int> : Unit
       Local $parameter.value : Int
+    val local73
+      BoolLiteral true : Boolean
+    val local74
+      Local $argument.0 : Boolean
     val local75
-      Call finallyReturn : Int
+      Call branchReturn : Int
+        Local $parameter.flag : Boolean
     val local76
+      Local $argument.0 : Int
+    Call println<Int> : Unit
+      Local $parameter.value : Int
+    val local77
+      BoolLiteral false : Boolean
+    val local78
+      Local $argument.0 : Boolean
+    val local79
+      Call branchReturn : Int
+        Local $parameter.flag : Boolean
+    val local80
+      Local $argument.0 : Int
+    Call println<Int> : Unit
+      Local $parameter.value : Int
+    val local81
+      Call finallyReturn : Int
+    val local82
       Local $argument.0 : Int
     Call println<Int> : Unit
       Local $parameter.value : Int
@@ -1094,13 +1133,22 @@ Module
       val base: Int
         Type Int
         IntLiteral 40
+      val $receiver: Int
+        Type Int
+        Local base
+      val $argument.0: Int
+        Type Int
+        IntLiteral 2
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       assign $result.2
         Type Int
         Binary IntAdd
           Type Int
-          Local base
+          Local $receiver
           Type Int
-          IntLiteral 2
+          Local $parameter.other
       goto bb3
     bb2 if.else.2
       assign $result.2
@@ -1355,23 +1403,31 @@ Module
         EnumField v0 f0
           Type Input
           Local $when.3
+      val $receiver: Int
+        Type Int
+        Local value
+      val $argument.0: Int
+        Type Int
+        IntLiteral 0
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       branch bb28 bb29
         Type Boolean
         Binary IntGt
           Type Int
-          Local value
+          Binary IntCompareTo
+            Type Int
+            Local $receiver
+            Type Int
+            Local $parameter.other
           Type Int
           IntLiteral 0
     bb26 if.else.26
-      branch bb31 bb32
-        Type Boolean
-        Binary IntEq
-          Type Int
-          EnumTag
-            Type Input
-            Local $when.3
-          Type Int
-          IntLiteral 1
+      assign $result.10
+        Type String
+        StringConst @scoop.str.5
+      goto bb27
     bb27 if.merge.27
       val text: String
         Type String
@@ -1388,7 +1444,7 @@ Module
       val $when.4: Input
         Type Input
         Local input
-      branch bb33 bb34
+      branch bb31 bb32
         Type Boolean
         Binary IntEq
           Type Int
@@ -1413,44 +1469,11 @@ Module
         Local $result.9
       goto bb27
     bb31 if.then.31
-      assign $result.10
-        Type String
-        StringConst @scoop.str.5
-      goto bb32
-    bb32 if.merge.32
-      goto bb27
-    bb33 if.then.33
       assign $result.11
         Type Option$I<Int>
         VariantConstruct Option$I<Int> v1
-      goto bb35
-    bb34 if.else.34
-      branch bb36 bb37
-        Type Boolean
-        Binary IntEq
-          Type Int
-          EnumTag
-            Type Input
-            Local $when.4
-          Type Int
-          IntLiteral 0
-    bb35 if.merge.35
-      val maybeWhen: Option$I<Int>
-        Type Option$I<Int>
-        Local $result.11
-      val $opt.5: Option$I<Int>
-        Type Option$I<Int>
-        Local maybeWhen
-      branch bb38 bb39
-        Type Boolean
-        Binary IntEq
-          Type Int
-          EnumTag
-            Type Option$I<Int>
-            Local $opt.5
-          Type Int
-          IntLiteral 0
-    bb36 if.then.36
+      goto bb33
+    bb32 if.else.32
       val value: Int
         Type Int
         EnumField v0 f0
@@ -1467,22 +1490,36 @@ Module
         VariantConstruct Option$I<Int> v0
           Type Int
           Local $parameter._1
-      goto bb37
-    bb37 if.merge.37
-      goto bb35
-    bb38 if.then.38
+      goto bb33
+    bb33 if.merge.33
+      val maybeWhen: Option$I<Int>
+        Type Option$I<Int>
+        Local $result.11
+      val $opt.5: Option$I<Int>
+        Type Option$I<Int>
+        Local maybeWhen
+      branch bb34 bb35
+        Type Boolean
+        Binary IntEq
+          Type Int
+          EnumTag
+            Type Option$I<Int>
+            Local $opt.5
+          Type Int
+          IntLiteral 0
+    bb34 if.then.34
       val $uw.6: Int
         Type Int
         EnumField v0 f0
           Type Option$I<Int>
           Local $opt.5
-      goto bb40
-    bb39 if.else.39
+      goto bb36
+    bb35 if.else.35
       call $call.4: UnwrapException = @scoop.ctor.UnwrapException direct
       throw
         Type UnwrapException
         Local $call.4
-    bb40 if.merge.40
+    bb36 if.merge.36
       val $argument.0: Int
         Type Int
         Local $uw.6
@@ -1492,20 +1529,20 @@ Module
       call @scoop.println$I direct
         Type Int
         Local $parameter.value
-      goto bb46
-    bb41 try.unwind.41
-      landing_pad cleanup=false
       goto bb42
-    bb42 try.dispatch.42
+    bb37 try.unwind.37
+      landing_pad cleanup=false
+      goto bb38
+    bb38 try.dispatch.38
       begin_catch
-      goto bb48
-    bb43 try.exit_pad.43
-      landing_pad cleanup=true
       goto bb44
-    bb44 try.exit_cleanup.44
+    bb39 try.exit_pad.39
+      landing_pad cleanup=true
+      goto bb40
+    bb40 try.exit_cleanup.40
       end_catch
       resume
-    bb45 try.end.45
+    bb41 try.end.41
       val normal: String
         Type String
         Local $result.12
@@ -1518,13 +1555,13 @@ Module
       call @scoop.println$S direct
         Type String
         Local $parameter.value
-      goto bb56
-    bb46 try.body.46 unwind bb41
+      goto bb52
+    bb42 try.body.42 unwind bb37
       assign $result.12
         Type String
         StringConst @scoop.str.6
-      goto bb47
-    bb47 scope.47
+      goto bb43
+    bb43 scope.43
       val $argument.0: String
         Type String
         StringConst @scoop.str.7
@@ -1534,8 +1571,8 @@ Module
       call @scoop.println$S direct
         Type String
         Local $parameter.value
-      goto bb45
-    bb48 scope.48 unwind bb43
+      goto bb41
+    bb44 scope.44 unwind bb39
       val $argument.0: String
         Type String
         StringConst @scoop.str.7
@@ -1545,21 +1582,21 @@ Module
       call @scoop.println$S direct
         Type String
         Local $parameter.value
-      rethrow unwind bb43
-    bb49 try.unwind.49
+      rethrow unwind bb39
+    bb45 try.unwind.45
       landing_pad cleanup=false
-      goto bb50
-    bb50 try.dispatch.50
+      goto bb46
+    bb46 try.dispatch.46
       begin_catch
-      branch bb57 bb58
+      branch bb53 bb54
         Type Boolean
         IsInstance UnwrapException
           Type Any
           CaughtException
-    bb51 try.handler_pad.51
+    bb47 try.handler_pad.47
       landing_pad cleanup=true
-      goto bb52
-    bb52 try.handler_cleanup.52
+      goto bb48
+    bb48 try.handler_cleanup.48
       end_catch
       val $argument.0: String
         Type String
@@ -1571,13 +1608,13 @@ Module
         Type String
         Local $parameter.value
       resume
-    bb53 try.exit_pad.53
+    bb49 try.exit_pad.49
       landing_pad cleanup=true
-      goto bb54
-    bb54 try.exit_cleanup.54
+      goto bb50
+    bb50 try.exit_cleanup.50
       end_catch
       resume
-    bb55 try.end.55
+    bb51 try.end.51
       val recovered: String
         Type String
         Local $result.13
@@ -1590,20 +1627,20 @@ Module
       call @scoop.println$S direct
         Type String
         Local $parameter.value
-      goto bb68
-    bb56 try.body.56 unwind bb49
+      goto bb64
+    bb52 try.body.52 unwind bb45
       call $call.5: UnwrapException = @scoop.ctor.UnwrapException direct
-      throw unwind bb49
+      throw unwind bb45
         Type UnwrapException
         Local $call.5
-    bb57 try.catch.57
+    bb53 try.catch.53
       val e: UnwrapException
         Type UnwrapException
         Retype UnwrapException
           Type Any
           CaughtException
-      goto bb59
-    bb58 try.next.58 unwind bb53
+      goto bb55
+    bb54 try.next.54 unwind bb49
       val $argument.0: String
         Type String
         StringConst @scoop.str.9
@@ -1613,13 +1650,13 @@ Module
       call @scoop.println$S direct
         Type String
         Local $parameter.value
-      rethrow unwind bb53
-    bb59 scope.59 unwind bb51
+      rethrow unwind bb49
+    bb55 scope.55 unwind bb47
       assign $result.13
         Type String
         StringConst @scoop.str.8
-      goto bb60
-    bb60 scope.60
+      goto bb56
+    bb56 scope.56
       end_catch
       val $argument.0: String
         Type String
@@ -1630,37 +1667,37 @@ Module
       call @scoop.println$S direct
         Type String
         Local $parameter.value
-      goto bb55
-    bb61 try.unwind.61
+      goto bb51
+    bb57 try.unwind.57
       landing_pad cleanup=false
-      goto bb62
-    bb62 try.dispatch.62
+      goto bb58
+    bb58 try.dispatch.58
       begin_catch
-      branch bb70 bb71
+      branch bb66 bb67
         Type Boolean
         IsInstance UnwrapException
           Type Any
           CaughtException
-    bb63 try.handler_pad.63
+    bb59 try.handler_pad.59
       landing_pad cleanup=true
-      goto bb64
-    bb64 try.handler_cleanup.64
+      goto bb60
+    bb60 try.handler_cleanup.60
       end_catch
       resume
-    bb65 try.exit_pad.65
+    bb61 try.exit_pad.61
       landing_pad cleanup=true
-      goto bb66
-    bb66 try.exit_cleanup.66
+      goto bb62
+    bb62 try.exit_cleanup.62
       end_catch
       resume
-    bb67 try.end.67
+    bb63 try.end.63
       val maybeTry: Option$I<Int>
         Type Option$I<Int>
         Local $result.14
       val $opt.7: Option$I<Int>
         Type Option$I<Int>
         Local maybeTry
-      branch bb74 bb75
+      branch bb70 bb71
         Type Boolean
         Binary IntEq
           Type Int
@@ -1669,7 +1706,7 @@ Module
             Local $opt.7
           Type Int
           IntLiteral 0
-    bb68 try.body.68 unwind bb61
+    bb64 try.body.64 unwind bb57
       val $argument.0: Int
         Type Int
         IntLiteral 9
@@ -1681,39 +1718,39 @@ Module
         VariantConstruct Option$I<Int> v0
           Type Int
           Local $parameter._1
-      goto bb69
-    bb69 scope.69
-      goto bb67
-    bb70 try.catch.70
+      goto bb65
+    bb65 scope.65
+      goto bb63
+    bb66 try.catch.66
       val e: UnwrapException
         Type UnwrapException
         Retype UnwrapException
           Type Any
           CaughtException
-      goto bb72
-    bb71 try.next.71
-      rethrow unwind bb65
-    bb72 scope.72 unwind bb63
+      goto bb68
+    bb67 try.next.67
+      rethrow unwind bb61
+    bb68 scope.68 unwind bb59
       assign $result.14
         Type Option$I<Int>
         VariantConstruct Option$I<Int> v1
-      goto bb73
-    bb73 scope.73
+      goto bb69
+    bb69 scope.69
       end_catch
-      goto bb67
-    bb74 if.then.74
+      goto bb63
+    bb70 if.then.70
       val $uw.8: Int
         Type Int
         EnumField v0 f0
           Type Option$I<Int>
           Local $opt.7
-      goto bb76
-    bb75 if.else.75
+      goto bb72
+    bb71 if.else.71
       call $call.6: UnwrapException = @scoop.ctor.UnwrapException direct
       throw
         Type UnwrapException
         Local $call.6
-    bb76 if.merge.76
+    bb72 if.merge.72
       val $argument.0: Int
         Type Int
         Local $uw.8
@@ -2202,398 +2239,399 @@ Module
     ret 13
   fun @scoop_main() -> void
     local %0 base: i64
-    local %1 $result.2: i64
-    local %2 branch: i64
-    local %3 $argument.0: i64
-    local %4 $parameter.value: i64
-    local %5 $result.3: i64
-    local %6 $result.4: i64
-    local %7 nested: i64
-    local %8 $argument.0: i64
-    local %9 $parameter.value: i64
-    local %10 $result.5: ptr<managed>
-    local %11 mixed: ptr<managed>
-    local %12 $argument.0: i1
-    local %13 $parameter.value: i1
-    local %14 $argument.0: i64
-    local %15 $parameter._1: i64
-    local %16 $result.6: enum1
-    local %17 inferred: enum1
-    local %18 $argument.0: i64
-    local %19 $parameter.value: i64
-    local %20 $argument.0: ptr<managed>
-    local %21 $parameter.name: ptr<managed>
-    local %22 $result.7: ptr<managed>
-    local %23 animal: ptr<managed>
-    local %24 $argument.0: ptr<managed>
-    local %25 $parameter.value: ptr<managed>
-    local %26 erased: ptr<managed>
-    local %27 $result.8: ptr<managed>
-    local %28 smartName: ptr<managed>
-    local %29 $argument.0: ptr<managed>
-    local %30 $parameter.value: ptr<managed>
-    local %31 $argument.0: i64
-    local %32 $parameter._1: i64
-    local %33 input: enum2
-    local %34 value: i64
-    local %35 $result.9: ptr<managed>
-    local %36 $result.10: ptr<managed>
-    local %37 text: ptr<managed>
-    local %38 $argument.0: ptr<managed>
-    local %39 $parameter.value: ptr<managed>
-    local %40 value: i64
-    local %41 $argument.0: i64
-    local %42 $parameter._1: i64
-    local %43 $result.11: enum1
-    local %44 maybeWhen: enum1
-    local %45 $argument.0: i64
-    local %46 $parameter.value: i64
-    local %47 $result.12: ptr<managed>
-    local %48 $argument.0: ptr<managed>
-    local %49 $parameter.value: ptr<managed>
-    local %50 normal: ptr<managed>
-    local %51 $argument.0: ptr<managed>
-    local %52 $parameter.value: ptr<managed>
-    local %53 e: ptr<managed>
-    local %54 $result.13: ptr<managed>
-    local %55 $argument.0: ptr<managed>
-    local %56 $parameter.value: ptr<managed>
-    local %57 recovered: ptr<managed>
-    local %58 $argument.0: ptr<managed>
-    local %59 $parameter.value: ptr<managed>
-    local %60 e: ptr<managed>
-    local %61 $argument.0: i64
-    local %62 $parameter._1: i64
-    local %63 $result.14: enum1
-    local %64 maybeTry: enum1
-    local %65 $argument.0: i64
-    local %66 $parameter.value: i64
-    local %67 $argument.0: i1
-    local %68 $parameter.flag: i1
-    local %69 $argument.0: i64
-    local %70 $parameter.value: i64
-    local %71 $argument.0: i1
-    local %72 $parameter.flag: i1
-    local %73 $argument.0: i64
-    local %74 $parameter.value: i64
+    local %1 $receiver: i64
+    local %2 $argument.0: i64
+    local %3 $parameter.other: i64
+    local %4 $result.2: i64
+    local %5 branch: i64
+    local %6 $argument.0: i64
+    local %7 $parameter.value: i64
+    local %8 $result.3: i64
+    local %9 $result.4: i64
+    local %10 nested: i64
+    local %11 $argument.0: i64
+    local %12 $parameter.value: i64
+    local %13 $result.5: ptr<managed>
+    local %14 mixed: ptr<managed>
+    local %15 $argument.0: i1
+    local %16 $parameter.value: i1
+    local %17 $argument.0: i64
+    local %18 $parameter._1: i64
+    local %19 $result.6: enum1
+    local %20 inferred: enum1
+    local %21 $argument.0: i64
+    local %22 $parameter.value: i64
+    local %23 $argument.0: ptr<managed>
+    local %24 $parameter.name: ptr<managed>
+    local %25 $result.7: ptr<managed>
+    local %26 animal: ptr<managed>
+    local %27 $argument.0: ptr<managed>
+    local %28 $parameter.value: ptr<managed>
+    local %29 erased: ptr<managed>
+    local %30 $result.8: ptr<managed>
+    local %31 smartName: ptr<managed>
+    local %32 $argument.0: ptr<managed>
+    local %33 $parameter.value: ptr<managed>
+    local %34 $argument.0: i64
+    local %35 $parameter._1: i64
+    local %36 input: enum2
+    local %37 value: i64
+    local %38 $receiver: i64
+    local %39 $argument.0: i64
+    local %40 $parameter.other: i64
+    local %41 $result.9: ptr<managed>
+    local %42 $result.10: ptr<managed>
+    local %43 text: ptr<managed>
+    local %44 $argument.0: ptr<managed>
+    local %45 $parameter.value: ptr<managed>
+    local %46 value: i64
+    local %47 $argument.0: i64
+    local %48 $parameter._1: i64
+    local %49 $result.11: enum1
+    local %50 maybeWhen: enum1
+    local %51 $argument.0: i64
+    local %52 $parameter.value: i64
+    local %53 $result.12: ptr<managed>
+    local %54 $argument.0: ptr<managed>
+    local %55 $parameter.value: ptr<managed>
+    local %56 normal: ptr<managed>
+    local %57 $argument.0: ptr<managed>
+    local %58 $parameter.value: ptr<managed>
+    local %59 e: ptr<managed>
+    local %60 $result.13: ptr<managed>
+    local %61 $argument.0: ptr<managed>
+    local %62 $parameter.value: ptr<managed>
+    local %63 recovered: ptr<managed>
+    local %64 $argument.0: ptr<managed>
+    local %65 $parameter.value: ptr<managed>
+    local %66 e: ptr<managed>
+    local %67 $argument.0: i64
+    local %68 $parameter._1: i64
+    local %69 $result.14: enum1
+    local %70 maybeTry: enum1
+    local %71 $argument.0: i64
+    local %72 $parameter.value: i64
+    local %73 $argument.0: i1
+    local %74 $parameter.flag: i1
     local %75 $argument.0: i64
     local %76 $parameter.value: i64
-    local %77 $opt.1: enum1
-    local %78 $uw.2: i64
-    local %79 $when.3: enum2
-    local %80 $when.4: enum2
-    local %81 $opt.5: enum1
-    local %82 $uw.6: i64
-    local %83 $opt.7: enum1
-    local %84 $uw.8: i64
-    local %85 $call.1: ptr<managed>
-    local %86 $call.2: ptr<managed>
-    local %87 $call.3: ptr<managed>
-    local %88 $call.4: ptr<managed>
-    local %89 $call.5: ptr<managed>
-    local %90 $call.6: ptr<managed>
-    local %91 $sc.1: i64
-    local %92 $sc.2: exception_record
-    local %93 $sc.3: ptr<raw>
-    local %94 $sc.4: ptr<managed>
+    local %77 $argument.0: i1
+    local %78 $parameter.flag: i1
+    local %79 $argument.0: i64
+    local %80 $parameter.value: i64
+    local %81 $argument.0: i64
+    local %82 $parameter.value: i64
+    local %83 $opt.1: enum1
+    local %84 $uw.2: i64
+    local %85 $when.3: enum2
+    local %86 $when.4: enum2
+    local %87 $opt.5: enum1
+    local %88 $uw.6: i64
+    local %89 $opt.7: enum1
+    local %90 $uw.8: i64
+    local %91 $call.1: ptr<managed>
+    local %92 $call.2: ptr<managed>
+    local %93 $call.3: ptr<managed>
+    local %94 $call.4: ptr<managed>
+    local %95 $call.5: ptr<managed>
+    local %96 $call.6: ptr<managed>
+    local %97 $sc.1: i64
+    local %98 $sc.2: exception_record
+    local %99 $sc.3: ptr<raw>
+    local %100 $sc.4: ptr<managed>
   block entry
-    poll managed-void-target19 sp73 live=[local36:ptr<managed>@0]
+    poll managed-void-target19 sp73 live=[]
     br @if.then.1
   block if.then.1
     store 40 -> local0
-    t0 = Add local0, 2 : i64
-    store t0 -> local1
+    store local0 -> local1
+    store 2 -> local2
+    store local2 -> local3
+    t0 = Add local1, local3 : i64
+    store t0 -> local4
     br @if.merge.3
   block if.merge.3
-    store local1 -> local2
-    store local2 -> local3
-    store local3 -> local4
-    call managed-void-target0 sp12 live=[local36:ptr<managed>@0] sig=void0 (i64) local-fn15(local4)
+    store local4 -> local5
+    store local5 -> local6
+    store local6 -> local7
+    call managed-void-target0 sp12 live=[] sig=void0 (i64) local-fn15(local7)
     t1 = aggregate () : {}
     br @if.then.4
   block if.then.4
     br @if.else.8
   block if.merge.6
-    store local6 -> local7
-    store local7 -> local8
-    store local8 -> local9
-    call managed-void-target1 sp13 live=[local36:ptr<managed>@0] sig=void1 (i64) local-fn15(local9)
+    store local9 -> local10
+    store local10 -> local11
+    store local11 -> local12
+    call managed-void-target1 sp13 live=[] sig=void1 (i64) local-fn15(local12)
     t2 = aggregate () : {}
     br @if.then.10
   block if.else.8
-    store 2 -> local5
+    store 2 -> local8
     br @if.merge.9
   block if.merge.9
-    store local5 -> local6
+    store local8 -> local9
     br @if.merge.6
   block if.then.10
-    store 5 -> local91
-    t3 = local_address local91 : ptr
-    call managed-direct-target0 sp14 live=[local36:ptr<managed>@0] t4 = sig=direct0 (ptr<metadata>, ptr<raw>, i64, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_box(td5, t3, 8, root-scan0)
-    store t4 -> local10
+    store 5 -> local97
+    t3 = local_address local97 : ptr
+    call managed-direct-target0 sp14 live=[] t4 = sig=direct0 (ptr<metadata>, ptr<raw>, i64, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_box(td5, t3, 8, root-scan0)
+    store t4 -> local13
     br @if.merge.12
   block if.merge.12
-    store local10 -> local11
-    call no-gc-direct-target0 t5 = sig=direct1 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local11, td5)
-    store t5 -> local12
-    store local12 -> local13
-    call managed-void-target2 sp15 live=[local36:ptr<managed>@0] sig=void2 (i1) local-fn16(local13)
+    store local13 -> local14
+    call no-gc-direct-target0 t5 = sig=direct1 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local14, td5)
+    store t5 -> local15
+    store local15 -> local16
+    call managed-void-target2 sp15 live=[] sig=void2 (i1) local-fn16(local16)
     t6 = aggregate () : {}
     br @if.else.14
   block if.else.14
-    store 4 -> local14
-    store local14 -> local15
-    t8 = enum_wrap e1 v0 (local15) : enum1
-    store t8 -> local16
+    store 4 -> local17
+    store local17 -> local18
+    t8 = enum_wrap e1 v0 (local18) : enum1
+    store t8 -> local19
     br @if.merge.15
   block if.merge.15
-    store local16 -> local17
-    store local17 -> local77
-    t9 = enum_tag e1 local77 : i64
+    store local19 -> local20
+    store local20 -> local83
+    t9 = enum_tag e1 local83 : i64
     t10 = Eq t9, 0 : i1
     cbr t10 then @if.then.16 else @if.else.17
   block if.then.16
-    t11 = enum_field e1 v0 f0 local77 : i64
-    store t11 -> local78
+    t11 = enum_field e1 v0 f0 local83 : i64
+    store t11 -> local84
     br @if.merge.18
   block if.else.17
     call managed-direct-target1 sp16 live=[] t12 = sig=direct2 () -> ptr<managed> local-fn20()
-    store t12 -> local85
-    throw local85
+    store t12 -> local91
+    throw local91
     unreachable
   block if.merge.18
-    store local78 -> local18
-    store local18 -> local19
-    call managed-void-target3 sp17 live=[local36:ptr<managed>@0] sig=void3 (i64) local-fn15(local19)
+    store local84 -> local21
+    store local21 -> local22
+    call managed-void-target3 sp17 live=[] sig=void3 (i64) local-fn15(local22)
     t13 = aggregate () : {}
     br @if.then.19
   block if.then.19
-    call managed-direct-target2 sp18 live=[local36:ptr<managed>@0] t14 = sig=direct3 () -> ptr<managed> local-fn26()
-    store t14 -> local86
-    store local86 -> local22
+    call managed-direct-target2 sp18 live=[] t14 = sig=direct3 () -> ptr<managed> local-fn26()
+    store t14 -> local92
+    store local92 -> local25
     br @if.merge.21
   block if.merge.21
-    store local22 -> local23
-    t16 = heap_load local23 +16 : ptr<managed>
-    store t16 -> local24
-    store local24 -> local25
-    call managed-void-target4 sp20 live=[local23:ptr<managed>@0, local25:ptr<managed>@0, local36:ptr<managed>@0] sig=void4 (ptr<managed>) local-fn17(local25)
+    store local25 -> local26
+    t16 = heap_load local26 +16 : ptr<managed>
+    store t16 -> local27
+    store local27 -> local28
+    call managed-void-target4 sp20 live=[local26:ptr<managed>@0, local28:ptr<managed>@0] sig=void4 (ptr<managed>) local-fn17(local28)
     t17 = aggregate () : {}
-    store local23 -> local26
-    call no-gc-direct-target1 t18 = sig=direct5 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local26, td7)
+    store local26 -> local29
+    call no-gc-direct-target1 t18 = sig=direct5 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local29, td7)
     cbr t18 then @if.then.22 else @if.else.23
   block if.then.22
-    t19 = heap_load local26 +16 : ptr<managed>
-    store t19 -> local27
+    t19 = heap_load local29 +16 : ptr<managed>
+    store t19 -> local30
     br @if.merge.24
   block if.else.23
-    store global2 -> local27
+    store global2 -> local30
     br @if.merge.24
   block if.merge.24
-    store local27 -> local28
-    store local28 -> local29
-    store local29 -> local30
-    call managed-void-target5 sp21 live=[local30:ptr<managed>@0, local36:ptr<managed>@0] sig=void5 (ptr<managed>) local-fn17(local30)
-    t20 = aggregate () : {}
-    store 7 -> local31
+    store local30 -> local31
     store local31 -> local32
-    t21 = enum_wrap e2 v0 (local32) : enum2
-    store t21 -> local33
-    store local33 -> local79
-    t22 = enum_tag e2 local79 : i64
+    store local32 -> local33
+    call managed-void-target5 sp21 live=[local33:ptr<managed>@0] sig=void5 (ptr<managed>) local-fn17(local33)
+    t20 = aggregate () : {}
+    store 7 -> local34
+    store local34 -> local35
+    t21 = enum_wrap e2 v0 (local35) : enum2
+    store t21 -> local36
+    store local36 -> local85
+    t22 = enum_tag e2 local85 : i64
     t23 = Eq t22, 0 : i1
     cbr t23 then @if.then.25 else @if.else.26
   block if.then.25
-    t24 = enum_field e2 v0 f0 local79 : i64
-    store t24 -> local34
-    t25 = Gt local34, 0 : i1
-    cbr t25 then @if.then.28 else @if.else.29
-  block if.else.26
-    t26 = enum_tag e2 local79 : i64
-    t27 = Eq t26, 1 : i1
-    cbr t27 then @if.then.31 else @if.merge.32
-  block if.merge.27
-    store local36 -> local37
+    t24 = enum_field e2 v0 f0 local85 : i64
+    store t24 -> local37
     store local37 -> local38
-    store local38 -> local39
-    call managed-void-target6 sp22 live=[local39:ptr<managed>@0] sig=void6 (ptr<managed>) local-fn17(local39)
-    t28 = aggregate () : {}
-    store local33 -> local80
-    t29 = enum_tag e2 local80 : i64
-    t30 = Eq t29, 1 : i1
-    cbr t30 then @if.then.33 else @if.else.34
+    store 0 -> local39
+    store local39 -> local40
+    t25 = SCompareTo local38, local40 : i64
+    t26 = Gt t25, 0 : i1
+    cbr t26 then @if.then.28 else @if.else.29
+  block if.else.26
+    store global5 -> local42
+    br @if.merge.27
+  block if.merge.27
+    store local42 -> local43
+    store local43 -> local44
+    store local44 -> local45
+    call managed-void-target6 sp22 live=[local45:ptr<managed>@0] sig=void6 (ptr<managed>) local-fn17(local45)
+    t27 = aggregate () : {}
+    store local36 -> local86
+    t28 = enum_tag e2 local86 : i64
+    t29 = Eq t28, 1 : i1
+    cbr t29 then @if.then.31 else @if.else.32
   block if.then.28
-    store global3 -> local35
+    store global3 -> local41
     br @if.merge.30
   block if.else.29
-    store global4 -> local35
+    store global4 -> local41
     br @if.merge.30
   block if.merge.30
-    store local35 -> local36
+    store local41 -> local42
     br @if.merge.27
   block if.then.31
-    store global5 -> local36
-    br @if.merge.32
-  block if.merge.32
-    br @if.merge.27
-  block if.then.33
-    t31 = enum_wrap e1 v1 () : enum1
-    store t31 -> local43
-    br @if.merge.35
-  block if.else.34
-    t32 = enum_tag e2 local80 : i64
-    t33 = Eq t32, 0 : i1
-    cbr t33 then @if.then.36 else @if.merge.37
-  block if.merge.35
-    store local43 -> local44
-    store local44 -> local81
-    t34 = enum_tag e1 local81 : i64
-    t35 = Eq t34, 0 : i1
-    cbr t35 then @if.then.38 else @if.else.39
-  block if.then.36
-    t36 = enum_field e2 v0 f0 local80 : i64
-    store t36 -> local40
-    store local40 -> local41
-    store local41 -> local42
-    t37 = enum_wrap e1 v0 (local42) : enum1
-    store t37 -> local43
-    br @if.merge.37
-  block if.merge.37
-    br @if.merge.35
-  block if.then.38
-    t38 = enum_field e1 v0 f0 local81 : i64
-    store t38 -> local82
-    br @if.merge.40
-  block if.else.39
-    call managed-direct-target4 sp23 live=[] t39 = sig=direct6 () -> ptr<managed> local-fn20()
-    store t39 -> local88
-    throw local88
+    t30 = enum_wrap e1 v1 () : enum1
+    store t30 -> local49
+    br @if.merge.33
+  block if.else.32
+    t31 = enum_field e2 v0 f0 local86 : i64
+    store t31 -> local46
+    store local46 -> local47
+    store local47 -> local48
+    t32 = enum_wrap e1 v0 (local48) : enum1
+    store t32 -> local49
+    br @if.merge.33
+  block if.merge.33
+    store local49 -> local50
+    store local50 -> local87
+    t33 = enum_tag e1 local87 : i64
+    t34 = Eq t33, 0 : i1
+    cbr t34 then @if.then.34 else @if.else.35
+  block if.then.34
+    t35 = enum_field e1 v0 f0 local87 : i64
+    store t35 -> local88
+    br @if.merge.36
+  block if.else.35
+    call managed-direct-target4 sp23 live=[] t36 = sig=direct6 () -> ptr<managed> local-fn20()
+    store t36 -> local94
+    throw local94
     unreachable
-  block if.merge.40
-    store local82 -> local45
-    store local45 -> local46
-    call managed-void-target7 sp24 live=[] sig=void7 (i64) local-fn15(local46)
-    t40 = aggregate () : {}
-    br @try.body.46
-  block try.end.45
-    store local47 -> local50
-    store local50 -> local51
+  block if.merge.36
+    store local88 -> local51
     store local51 -> local52
-    call managed-void-target8 sp25 live=[local52:ptr<managed>@0] sig=void8 (ptr<managed>) local-fn17(local52)
-    t46 = aggregate () : {}
-    br @try.body.56
-  block try.body.46
-    store global6 -> local47
-    br @scope.47
-  block scope.47
-    store global7 -> local48
-    store local48 -> local49
-    call managed-void-target9 sp26 live=[local47:ptr<managed>@0, local49:ptr<managed>@0] sig=void9 (ptr<managed>) local-fn17(local49)
-    t47 = aggregate () : {}
-    br @try.end.45
-  block try.unwind.49
-    (t49, t50) = landingpad : (exception_record, ptr<raw>)
-    store t49 -> local92
-    store t50 -> local93
-    br @try.dispatch.50
-  block try.dispatch.50
-    t51 = begin_catch local93 : ptr<managed>
-    store t51 -> local94
-    call no-gc-direct-target2 t52 = sig=direct7 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local94, td8)
-    cbr t52 then @try.catch.57 else @try.next.58
-  block try.exit_pad.53
-    (t56, t57) = cleanup_pad : (exception_record, ptr<raw>)
-    store t56 -> local92
-    store t57 -> local93
-    br @try.exit_cleanup.54
-  block try.exit_cleanup.54
-    end_catch
-    resume local92
-  block try.end.55
-    store local54 -> local57
+    call managed-void-target7 sp24 live=[] sig=void7 (i64) local-fn15(local52)
+    t37 = aggregate () : {}
+    br @try.body.42
+  block try.end.41
+    store local53 -> local56
+    store local56 -> local57
     store local57 -> local58
-    store local58 -> local59
-    call managed-void-target12 sp29 live=[local59:ptr<managed>@0] sig=void13 (ptr<managed>) local-fn17(local59)
-    t58 = aggregate () : {}
-    br @try.body.68
-  block try.body.56
-    invoke managed-direct-target5 sp30 roots=[] t59 = sig=direct8 () -> ptr<managed> local-fn20() normal @invoke.normal.3 unwind @try.unwind.49
-    br @invoke.normal.3
-  block try.catch.57
-    store local94 -> local53
-    br @scope.59
-  block try.next.58
-    store global9 -> local55
-    store local55 -> local56
-    invoke managed-void-target13 sp31 roots=[local56:argument] sig=void15 (ptr<managed>) local-fn17(local56) normal @invoke.normal.5 unwind @try.exit_pad.53
-    br @invoke.normal.5
-  block scope.59
-    store global8 -> local54
-    br @scope.60
-  block scope.60
+    call managed-void-target8 sp25 live=[local58:ptr<managed>@0] sig=void8 (ptr<managed>) local-fn17(local58)
+    t43 = aggregate () : {}
+    br @try.body.52
+  block try.body.42
+    store global6 -> local53
+    br @scope.43
+  block scope.43
+    store global7 -> local54
+    store local54 -> local55
+    call managed-void-target9 sp26 live=[local53:ptr<managed>@0, local55:ptr<managed>@0] sig=void9 (ptr<managed>) local-fn17(local55)
+    t44 = aggregate () : {}
+    br @try.end.41
+  block try.unwind.45
+    (t46, t47) = landingpad : (exception_record, ptr<raw>)
+    store t46 -> local98
+    store t47 -> local99
+    br @try.dispatch.46
+  block try.dispatch.46
+    t48 = begin_catch local99 : ptr<managed>
+    store t48 -> local100
+    call no-gc-direct-target2 t49 = sig=direct7 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local100, td8)
+    cbr t49 then @try.catch.53 else @try.next.54
+  block try.exit_pad.49
+    (t53, t54) = cleanup_pad : (exception_record, ptr<raw>)
+    store t53 -> local98
+    store t54 -> local99
+    br @try.exit_cleanup.50
+  block try.exit_cleanup.50
     end_catch
-    store global9 -> local55
-    store local55 -> local56
-    call managed-void-target14 sp32 live=[local54:ptr<managed>@0, local56:ptr<managed>@0] sig=void17 (ptr<managed>) local-fn17(local56)
-    t61 = aggregate () : {}
-    br @try.end.55
-  block try.end.67
+    resume local98
+  block try.end.51
+    store local60 -> local63
     store local63 -> local64
-    store local64 -> local83
-    t70 = enum_tag e1 local83 : i64
-    t71 = Eq t70, 0 : i1
-    cbr t71 then @if.then.74 else @if.else.75
-  block try.body.68
-    store 9 -> local61
+    store local64 -> local65
+    call managed-void-target12 sp29 live=[local65:ptr<managed>@0] sig=void13 (ptr<managed>) local-fn17(local65)
+    t55 = aggregate () : {}
+    br @try.body.64
+  block try.body.52
+    invoke managed-direct-target5 sp30 roots=[] t56 = sig=direct8 () -> ptr<managed> local-fn20() normal @invoke.normal.3 unwind @try.unwind.45
+    br @invoke.normal.3
+  block try.catch.53
+    store local100 -> local59
+    br @scope.55
+  block try.next.54
+    store global9 -> local61
     store local61 -> local62
-    t72 = enum_wrap e1 v0 (local62) : enum1
-    store t72 -> local63
-    br @scope.69
-  block scope.69
-    br @try.end.67
-  block if.then.74
-    t74 = enum_field e1 v0 f0 local83 : i64
-    store t74 -> local84
-    br @if.merge.76
-  block if.else.75
-    call managed-direct-target6 sp33 live=[] t75 = sig=direct10 () -> ptr<managed> local-fn20()
-    store t75 -> local90
-    throw local90
-    unreachable
-  block if.merge.76
-    store local84 -> local65
-    store local65 -> local66
-    call managed-void-target15 sp34 live=[] sig=void19 (i64) local-fn15(local66)
-    t76 = aggregate () : {}
-    store true -> local67
-    store local67 -> local68
-    call managed-direct-target7 sp35 live=[] t77 = sig=direct11 (i1) -> i64 local-fn12(local68)
-    store t77 -> local69
+    invoke managed-void-target13 sp31 roots=[local62:argument] sig=void15 (ptr<managed>) local-fn17(local62) normal @invoke.normal.5 unwind @try.exit_pad.49
+    br @invoke.normal.5
+  block scope.55
+    store global8 -> local60
+    br @scope.56
+  block scope.56
+    end_catch
+    store global9 -> local61
+    store local61 -> local62
+    call managed-void-target14 sp32 live=[local60:ptr<managed>@0, local62:ptr<managed>@0] sig=void17 (ptr<managed>) local-fn17(local62)
+    t58 = aggregate () : {}
+    br @try.end.51
+  block try.end.63
     store local69 -> local70
-    call managed-void-target16 sp36 live=[] sig=void20 (i64) local-fn15(local70)
-    t78 = aggregate () : {}
-    store false -> local71
+    store local70 -> local89
+    t67 = enum_tag e1 local89 : i64
+    t68 = Eq t67, 0 : i1
+    cbr t68 then @if.then.70 else @if.else.71
+  block try.body.64
+    store 9 -> local67
+    store local67 -> local68
+    t69 = enum_wrap e1 v0 (local68) : enum1
+    store t69 -> local69
+    br @scope.65
+  block scope.65
+    br @try.end.63
+  block if.then.70
+    t71 = enum_field e1 v0 f0 local89 : i64
+    store t71 -> local90
+    br @if.merge.72
+  block if.else.71
+    call managed-direct-target6 sp33 live=[] t72 = sig=direct10 () -> ptr<managed> local-fn20()
+    store t72 -> local96
+    throw local96
+    unreachable
+  block if.merge.72
+    store local90 -> local71
     store local71 -> local72
-    call managed-direct-target8 sp37 live=[] t79 = sig=direct12 (i1) -> i64 local-fn12(local72)
-    store t79 -> local73
+    call managed-void-target15 sp34 live=[] sig=void19 (i64) local-fn15(local72)
+    t73 = aggregate () : {}
+    store true -> local73
     store local73 -> local74
-    call managed-void-target17 sp38 live=[] sig=void21 (i64) local-fn15(local74)
-    t80 = aggregate () : {}
-    call managed-direct-target9 sp39 live=[] t81 = sig=direct13 () -> i64 local-fn13()
-    store t81 -> local75
+    call managed-direct-target7 sp35 live=[] t74 = sig=direct11 (i1) -> i64 local-fn12(local74)
+    store t74 -> local75
     store local75 -> local76
-    call managed-void-target18 sp40 live=[] sig=void22 (i64) local-fn15(local76)
-    t82 = aggregate () : {}
+    call managed-void-target16 sp36 live=[] sig=void20 (i64) local-fn15(local76)
+    t75 = aggregate () : {}
+    store false -> local77
+    store local77 -> local78
+    call managed-direct-target8 sp37 live=[] t76 = sig=direct12 (i1) -> i64 local-fn12(local78)
+    store t76 -> local79
+    store local79 -> local80
+    call managed-void-target17 sp38 live=[] sig=void21 (i64) local-fn15(local80)
+    t77 = aggregate () : {}
+    call managed-direct-target9 sp39 live=[] t78 = sig=direct13 () -> i64 local-fn13()
+    store t78 -> local81
+    store local81 -> local82
+    call managed-void-target18 sp40 live=[] sig=void22 (i64) local-fn15(local82)
+    t79 = aggregate () : {}
     ret
   block invoke.normal.3
-    store t59 -> local89
-    invoke no-gc-void-target1 sig=void14 (ptr<managed>) runtime @scoop_rt_throw(local89) normal @throw.normal.4 unwind @try.unwind.49
+    store t56 -> local95
+    invoke no-gc-void-target1 sig=void14 (ptr<managed>) runtime @scoop_rt_throw(local95) normal @throw.normal.4 unwind @try.unwind.45
     br @throw.normal.4
   block throw.normal.4
     unreachable
   block invoke.normal.5
-    t60 = aggregate () : {}
-    invoke no-gc-void-target2 sig=void16 () runtime @scoop_rt_rethrow() normal @rethrow.normal.6 unwind @try.exit_pad.53
+    t57 = aggregate () : {}
+    invoke no-gc-void-target2 sig=void16 () runtime @scoop_rt_rethrow() normal @rethrow.normal.6 unwind @try.exit_pad.49
     br @rethrow.normal.6
   block rethrow.normal.6
     unreachable

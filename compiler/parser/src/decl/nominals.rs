@@ -350,6 +350,18 @@ impl Parser {
                 modifiers.start = modifiers.start.or(Some(keyword.span.start));
                 continue;
             }
+            if matches!(token.kind, TokenKind::Infix) {
+                if modifiers.infix.is_some() {
+                    return Err(Diagnostic::at(
+                        token.span,
+                        "duplicate `infix` modifier on member function",
+                    ));
+                }
+                let keyword = self.bump();
+                modifiers.infix = Some(InfixModifier { span: keyword.span });
+                modifiers.start = modifiers.start.or(Some(keyword.span.start));
+                continue;
+            }
             let TokenKind::Ident(text) = &token.kind else {
                 break;
             };

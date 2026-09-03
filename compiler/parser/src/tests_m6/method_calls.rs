@@ -68,13 +68,16 @@ fn dot_name_without_parens_stays_a_field_access() {
 }
 
 #[test]
-fn method_call_after_safe_navigation_not_supported() {
-    let (span, message) = err("fun main() { a?.m() }");
-    assert_eq!(span, Span::new(17, 18));
-    assert_eq!(
-        message,
-        "method calls with `?.` are not supported yet (milestone M6)"
-    );
+fn method_call_after_safe_navigation_is_preserved() {
+    let expr = init_expr("a?.m()");
+    let Expr::MethodCall {
+        navigation, name, ..
+    } = expr
+    else {
+        panic!("expected a method call");
+    };
+    assert_eq!(navigation, scoop_ast::Navigation::Safe);
+    assert_eq!(name.text, "m");
 }
 
 #[test]

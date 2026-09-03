@@ -65,7 +65,8 @@ pub(super) fn patch_local_function_calls(
                 for arm in &mut when.arms {
                     patch_local_function_call_pattern(&mut arm.pattern, target, captures);
                     if let Some(guard) = &mut arm.guard {
-                        patch_local_function_call_expr(guard, target, captures);
+                        patch_local_function_calls(&mut guard.setup, target, captures);
+                        patch_local_function_call_expr(&mut guard.condition, target, captures);
                     }
                     patch_local_function_calls(&mut arm.body, target, captures);
                 }
@@ -184,6 +185,9 @@ fn patch_local_function_call_expr(
         | hir::ExprKind::Unary {
             operand: receiver, ..
         }
+        | hir::ExprKind::PrimitiveUnary {
+            operand: receiver, ..
+        }
         | hir::ExprKind::SomeWrap(receiver)
         | hir::ExprKind::IsSome(receiver)
         | hir::ExprKind::Unwrap {
@@ -205,13 +209,26 @@ fn patch_local_function_call_expr(
                 patch_local_function_call_expr(arg, target, target_captures);
             }
         }
-        hir::ExprKind::Index { receiver, index } => {
+        hir::ExprKind::Index {
+            receiver, index, ..
+        } => {
             patch_local_function_call_expr(receiver, target, target_captures);
             patch_local_function_call_expr(index, target, target_captures);
         }
-        hir::ExprKind::Binary { lhs, rhs, .. } => {
+        hir::ExprKind::PrimitiveBinary { lhs, rhs, .. }
+        | hir::ExprKind::Binary { lhs, rhs, .. } => {
             patch_local_function_call_expr(lhs, target, target_captures);
             patch_local_function_call_expr(rhs, target, target_captures);
+        }
+        hir::ExprKind::ArraySet {
+            receiver,
+            index,
+            value,
+            ..
+        } => {
+            patch_local_function_call_expr(receiver, target, target_captures);
+            patch_local_function_call_expr(index, target, target_captures);
+            patch_local_function_call_expr(value, target, target_captures);
         }
         hir::ExprKind::PtrLoad { pointer, offset } => {
             patch_local_function_call_expr(pointer, target, target_captures);

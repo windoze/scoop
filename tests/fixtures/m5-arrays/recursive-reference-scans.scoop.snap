@@ -41,8 +41,8 @@ SourceFile
     fun load
     fun store
     fun store
-    fun plus
-    fun minus
+    operator fun plus
+    operator fun minus
   struct FunPtr<F>
     field _rawPointer: UInt
     @Unsafe
@@ -169,28 +169,53 @@ SourceFile
     @Intrinsic("core_int")
   struct Int <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun unaryMinus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_uint")
   struct UInt <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_boolean")
   struct Boolean <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun not
     fun toString
     fun hash
     @Intrinsic("core_string")
   class String(), ToString, Hash
     operator fun equals
+    operator fun plus
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_array")
   class Array<T>()
+    operator fun get
     fun toMutableArray
     @Intrinsic("core_mutable_array")
   class MutableArray<T>()
+    operator fun get
+    operator fun set
     fun toArray
     @Extern(name = "scoop_rt_int_equals", abi = "scoop")
   fun coreIntEquals(left: Int, right: Int): Boolean
@@ -430,37 +455,55 @@ Module
   fun coreStringHash(arg1: String): Int <extern11 abi=scoop symbol=scoop_rt_string_hash>
   fun makeItems(): Array<Item>
     val local0
-      Binary Add : String
-        StringLiteral "en" : String
-        StringLiteral "um" : String
+      StringLiteral "en" : String
     val local1
-      Binary Add : String
-        StringLiteral "ta" : String
-        StringLiteral "il" : String
+      StringLiteral "um" : String
     val local2
-      Binary Add : String
-        StringLiteral "em" : String
-        StringLiteral "pty" : String
-    val local3
-      Local payload : String
-    val local4
       Local $argument.0 : String
+    val local3
+      PrimitiveBinary StringConcat : String
+        Local $receiver : String
+        Local $parameter.other : String
+    val local4
+      StringLiteral "ta" : String
     val local5
+      StringLiteral "il" : String
+    val local6
+      Local $argument.0 : String
+    val local7
+      PrimitiveBinary StringConcat : String
+        Local $receiver : String
+        Local $parameter.other : String
+    val local8
+      StringLiteral "em" : String
+    val local9
+      StringLiteral "pty" : String
+    val local10
+      Local $argument.0 : String
+    val local11
+      PrimitiveBinary StringConcat : String
+        Local $receiver : String
+        Local $parameter.other : String
+    val local12
+      Local payload : String
+    val local13
+      Local $argument.0 : String
+    val local14
       VariantConstruct Payload.Text : Payload
         Local $parameter._1 : String
-    val local6
+    val local15
       Local firstTail : String
-    val local7
+    val local16
       Local $argument.0 : Payload
-    val local8
+    val local17
       Local $argument.1 : String
-    val local9
+    val local18
       VariantConstruct Payload.Empty : Payload
-    val local10
+    val local19
       Local secondTail : String
-    val local11
+    val local20
       Local $argument.0 : Payload
-    val local12
+    val local21
       Local $argument.1 : String
     return
       ArrayLiteral : Array<Item>
@@ -474,47 +517,65 @@ Module
     val local0
       Call makeItems : Array<Item>
     Call gcCollect : Unit
+    val local1
+      Local items : Array<Item>
+    val local2
+      IntLiteral 0 : Int
+    val local3
+      Local $argument.0 : Int
     when
       FieldAccess field 0 : Payload
-        Index : Item
-          Local items : Array<Item>
-          IntLiteral 0 : Int
-      arm variant0(0: local1)
-        val local2
+        Index ImmutableGet : Item
+          Local $receiver : Array<Item>
+          Local $parameter.index : Int
+      arm variant0(0: local4)
+        val local5
           Local value : String
-        val local3
+        val local6
           Local $argument.0 : String
         Call println<String> : Unit
           Local $parameter.value : String
-      arm variant1(0: local4)
-        val local5
+      arm variant1(0: local7)
+        val local8
           Local value : Int
-        val local6
+        val local9
           Local $argument.0 : Int
         Call println<Int> : Unit
           Local $parameter.value : Int
       arm variant2()
-        val local7
+        val local10
           StringLiteral "missing" : String
-        val local8
+        val local11
           Local $argument.0 : String
         Call println<String> : Unit
           Local $parameter.value : String
-    val local9
+    val local12
+      Local items : Array<Item>
+    val local13
+      IntLiteral 0 : Int
+    val local14
+      Local $argument.0 : Int
+    val local15
       FieldAccess field 1 : String
-        Index : Item
-          Local items : Array<Item>
-          IntLiteral 0 : Int
-    val local10
+        Index ImmutableGet : Item
+          Local $receiver : Array<Item>
+          Local $parameter.index : Int
+    val local16
       Local $argument.0 : String
     Call println<String> : Unit
       Local $parameter.value : String
-    val local11
+    val local17
+      Local items : Array<Item>
+    val local18
+      IntLiteral 1 : Int
+    val local19
+      Local $argument.0 : Int
+    val local20
       FieldAccess field 1 : String
-        Index : Item
-          Local items : Array<Item>
-          IntLiteral 1 : Int
-    val local12
+        Index ImmutableGet : Item
+          Local $receiver : Array<Item>
+          Local $parameter.index : Int
+    val local21
       Local $argument.0 : String
     Call println<String> : Unit
       Local $parameter.value : String
@@ -749,21 +810,48 @@ Module
         Local $call.1
   fun makeItems @scoop.makeItems() -> Array<Item>
     bb0 entry
-      call payload: String = @scoop_rt_string_concat direct
+      val $receiver: String
         Type String
         StringConst @scoop.str.0
+      val $argument.0: String
         Type String
         StringConst @scoop.str.1
-      call firstTail: String = @scoop_rt_string_concat direct
+      val $parameter.other: String
+        Type String
+        Local $argument.0
+      call payload: String = @scoop_rt_string_concat direct
+        Type String
+        Local $receiver
+        Type String
+        Local $parameter.other
+      val $receiver: String
         Type String
         StringConst @scoop.str.2
+      val $argument.0: String
         Type String
         StringConst @scoop.str.3
-      call secondTail: String = @scoop_rt_string_concat direct
+      val $parameter.other: String
+        Type String
+        Local $argument.0
+      call firstTail: String = @scoop_rt_string_concat direct
+        Type String
+        Local $receiver
+        Type String
+        Local $parameter.other
+      val $receiver: String
         Type String
         StringConst @scoop.str.4
+      val $argument.0: String
         Type String
         StringConst @scoop.str.5
+      val $parameter.other: String
+        Type String
+        Local $argument.0
+      call secondTail: String = @scoop_rt_string_concat direct
+        Type String
+        Local $receiver
+        Type String
+        Local $parameter.other
       val $argument.0: String
         Type String
         Local payload
@@ -815,12 +903,21 @@ Module
     bb0 entry
       call items: Array<Item> = @scoop.makeItems direct
       call @scoop_rt_gc_collect direct
-      val $arr.1: Array<Item>
+      val $receiver: Array<Item>
         Type Array<Item>
         Local items
-      val $idx.2: Int
+      val $argument.0: Int
         Type Int
         IntLiteral 0
+      val $parameter.index: Int
+        Type Int
+        Local $argument.0
+      val $arr.1: Array<Item>
+        Type Array<Item>
+        Local $receiver
+      val $idx.2: Int
+        Type Int
+        Local $parameter.index
       branch bb2 bb1
         Type Boolean
         Binary IntLt
@@ -899,13 +996,22 @@ Module
           Type Int
           IntLiteral 1
     bb8 if.merge.8
-      val $arr.4: Array<Item>
+      val $receiver: Array<Item>
         Type Array<Item>
         Local items
-      val $idx.5: Int
+      val $argument.0: Int
         Type Int
         IntLiteral 0
-      branch bb15 bb14
+      val $parameter.index: Int
+        Type Int
+        Local $argument.0
+      val $arr.4: Array<Item>
+        Type Array<Item>
+        Local $receiver
+      val $idx.5: Int
+        Type Int
+        Local $parameter.index
+      branch bb13 bb12
         Type Boolean
         Binary IntLt
           Type Int
@@ -929,18 +1035,6 @@ Module
         Local $parameter.value
       goto bb11
     bb10 if.else.10
-      branch bb12 bb13
-        Type Boolean
-        Binary IntEq
-          Type Int
-          EnumTag
-            Type Payload
-            Local $when.3
-          Type Int
-          IntLiteral 2
-    bb11 if.merge.11
-      goto bb8
-    bb12 if.then.12
       val $argument.0: String
         Type String
         StringConst @scoop.str.6
@@ -950,10 +1044,10 @@ Module
       call @scoop.println$S direct
         Type String
         Local $parameter.value
-      goto bb13
-    bb13 if.merge.13
       goto bb11
-    bb14 logic.rhs.14
+    bb11 if.merge.11
+      goto bb8
+    bb12 logic.rhs.12
       assign $logic.3
         Type Boolean
         Binary IntGe
@@ -963,22 +1057,22 @@ Module
           ArrayLen Array$D4_ItemX
             Type Array<Item>
             Local $arr.4
-      goto bb16
-    bb15 logic.short.15
+      goto bb14
+    bb13 logic.short.13
       assign $logic.3
         Type Boolean
         BoolLiteral true
-      goto bb16
-    bb16 logic.merge.16
-      branch bb17 bb18
+      goto bb14
+    bb14 logic.merge.14
+      branch bb15 bb16
         Type Boolean
         Local $logic.3
-    bb17 if.then.17
+    bb15 if.then.15
       call $call.4: IndexOutOfBoundsException = @scoop.ctor.IndexOutOfBoundsException direct
       throw
         Type IndexOutOfBoundsException
         Local $call.4
-    bb18 if.merge.18
+    bb16 if.merge.16
       val $argument.0: String
         Type String
         FieldAccess 1
@@ -994,20 +1088,29 @@ Module
       call @scoop.println$S direct
         Type String
         Local $parameter.value
-      val $arr.6: Array<Item>
+      val $receiver: Array<Item>
         Type Array<Item>
         Local items
-      val $idx.7: Int
+      val $argument.0: Int
         Type Int
         IntLiteral 1
-      branch bb20 bb19
+      val $parameter.index: Int
+        Type Int
+        Local $argument.0
+      val $arr.6: Array<Item>
+        Type Array<Item>
+        Local $receiver
+      val $idx.7: Int
+        Type Int
+        Local $parameter.index
+      branch bb18 bb17
         Type Boolean
         Binary IntLt
           Type Int
           Local $idx.7
           Type Int
           IntLiteral 0
-    bb19 logic.rhs.19
+    bb17 logic.rhs.17
       assign $logic.5
         Type Boolean
         Binary IntGe
@@ -1017,22 +1120,22 @@ Module
           ArrayLen Array$D4_ItemX
             Type Array<Item>
             Local $arr.6
-      goto bb21
-    bb20 logic.short.20
+      goto bb19
+    bb18 logic.short.18
       assign $logic.5
         Type Boolean
         BoolLiteral true
-      goto bb21
-    bb21 logic.merge.21
-      branch bb22 bb23
+      goto bb19
+    bb19 logic.merge.19
+      branch bb20 bb21
         Type Boolean
         Local $logic.5
-    bb22 if.then.22
+    bb20 if.then.20
       call $call.6: IndexOutOfBoundsException = @scoop.ctor.IndexOutOfBoundsException direct
       throw
         Type IndexOutOfBoundsException
         Local $call.6
-    bb23 if.merge.23
+    bb21 if.merge.21
       val $argument.0: String
         Type String
         FieldAccess 1
@@ -1407,189 +1510,219 @@ Module
     store t0 -> local2
     ret local2
   fun @scoop.makeItems() -> ptr<managed>
-    local %0 payload: ptr<managed>
-    local %1 firstTail: ptr<managed>
-    local %2 secondTail: ptr<managed>
-    local %3 $argument.0: ptr<managed>
-    local %4 $parameter._1: ptr<managed>
-    local %5 $argument.0: enum0
-    local %6 $argument.1: ptr<managed>
-    local %7 $parameter.payload: enum0
-    local %8 $parameter.tail: ptr<managed>
-    local %9 $argument.0: enum0
-    local %10 $argument.1: ptr<managed>
-    local %11 $parameter.payload: enum0
-    local %12 $parameter.tail: ptr<managed>
+    local %0 $receiver: ptr<managed>
+    local %1 $argument.0: ptr<managed>
+    local %2 $parameter.other: ptr<managed>
+    local %3 payload: ptr<managed>
+    local %4 $receiver: ptr<managed>
+    local %5 $argument.0: ptr<managed>
+    local %6 $parameter.other: ptr<managed>
+    local %7 firstTail: ptr<managed>
+    local %8 $receiver: ptr<managed>
+    local %9 $argument.0: ptr<managed>
+    local %10 $parameter.other: ptr<managed>
+    local %11 secondTail: ptr<managed>
+    local %12 $argument.0: ptr<managed>
+    local %13 $parameter._1: ptr<managed>
+    local %14 $argument.0: enum0
+    local %15 $argument.1: ptr<managed>
+    local %16 $parameter.payload: enum0
+    local %17 $parameter.tail: ptr<managed>
+    local %18 $argument.0: enum0
+    local %19 $argument.1: ptr<managed>
+    local %20 $parameter.payload: enum0
+    local %21 $parameter.tail: ptr<managed>
   block entry
     poll managed-void-target0 sp51 live=[]
-    call managed-direct-target0 sp12 live=[] t0 = sig=direct0 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(global0, global1)
-    store t0 -> local0
-    call managed-direct-target1 sp13 live=[local0:ptr<managed>@0] t1 = sig=direct1 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(global2, global3)
-    store t1 -> local1
-    call managed-direct-target2 sp14 live=[local0:ptr<managed>@0, local1:ptr<managed>@0] t2 = sig=direct2 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(global4, global5)
-    store t2 -> local2
-    store local0 -> local3
-    store local3 -> local4
-    t3 = enum_wrap e0 v0 (local4) : enum0
-    store t3 -> local5
-    store local1 -> local6
-    store local5 -> local7
-    store local6 -> local8
+    store global0 -> local0
+    store global1 -> local1
+    store local1 -> local2
+    call managed-direct-target0 sp12 live=[local0:ptr<managed>@0, local2:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(local0, local2)
+    store t0 -> local3
+    store global2 -> local4
+    store global3 -> local5
+    store local5 -> local6
+    call managed-direct-target1 sp13 live=[local3:ptr<managed>@0, local4:ptr<managed>@0, local6:ptr<managed>@0] t1 = sig=direct1 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(local4, local6)
+    store t1 -> local7
+    store global4 -> local8
+    store global5 -> local9
+    store local9 -> local10
+    call managed-direct-target2 sp14 live=[local3:ptr<managed>@0, local7:ptr<managed>@0, local8:ptr<managed>@0, local10:ptr<managed>@0] t2 = sig=direct2 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(local8, local10)
+    store t2 -> local11
+    store local3 -> local12
+    store local12 -> local13
+    t3 = enum_wrap e0 v0 (local13) : enum0
+    store t3 -> local14
+    store local7 -> local15
+    store local14 -> local16
+    store local15 -> local17
     t4 = enum_wrap e0 v2 () : enum0
-    store t4 -> local9
-    store local2 -> local10
-    store local9 -> local11
-    store local10 -> local12
-    t5 = aggregate (local7, local8) : struct4
-    t6 = aggregate (local11, local12) : struct4
+    store t4 -> local18
+    store local11 -> local19
+    store local18 -> local20
+    store local19 -> local21
+    t5 = aggregate (local16, local17) : struct4
+    t6 = aggregate (local20, local21) : struct4
     t7 = array_alloc array0 (t5, t6) sp15 live t5:struct4@16+24, t6:struct4@16+24 : ptr<managed>
     ret t7
   fun @scoop_main() -> void
     local %0 items: ptr<managed>
-    local %1 value: ptr<managed>
-    local %2 $argument.0: ptr<managed>
-    local %3 $parameter.value: ptr<managed>
-    local %4 value: i64
-    local %5 $argument.0: i64
-    local %6 $parameter.value: i64
-    local %7 $argument.0: ptr<managed>
-    local %8 $parameter.value: ptr<managed>
-    local %9 $argument.0: ptr<managed>
-    local %10 $parameter.value: ptr<managed>
-    local %11 $argument.0: ptr<managed>
-    local %12 $parameter.value: ptr<managed>
-    local %13 $arr.1: ptr<managed>
-    local %14 $idx.2: i64
-    local %15 $when.3: enum0
-    local %16 $arr.4: ptr<managed>
-    local %17 $idx.5: i64
-    local %18 $arr.6: ptr<managed>
-    local %19 $idx.7: i64
-    local %20 $logic.1: i1
-    local %21 $call.2: ptr<managed>
-    local %22 $logic.3: i1
-    local %23 $call.4: ptr<managed>
-    local %24 $logic.5: i1
-    local %25 $call.6: ptr<managed>
+    local %1 $receiver: ptr<managed>
+    local %2 $argument.0: i64
+    local %3 $parameter.index: i64
+    local %4 value: ptr<managed>
+    local %5 $argument.0: ptr<managed>
+    local %6 $parameter.value: ptr<managed>
+    local %7 value: i64
+    local %8 $argument.0: i64
+    local %9 $parameter.value: i64
+    local %10 $argument.0: ptr<managed>
+    local %11 $parameter.value: ptr<managed>
+    local %12 $receiver: ptr<managed>
+    local %13 $argument.0: i64
+    local %14 $parameter.index: i64
+    local %15 $argument.0: ptr<managed>
+    local %16 $parameter.value: ptr<managed>
+    local %17 $receiver: ptr<managed>
+    local %18 $argument.0: i64
+    local %19 $parameter.index: i64
+    local %20 $argument.0: ptr<managed>
+    local %21 $parameter.value: ptr<managed>
+    local %22 $arr.1: ptr<managed>
+    local %23 $idx.2: i64
+    local %24 $when.3: enum0
+    local %25 $arr.4: ptr<managed>
+    local %26 $idx.5: i64
+    local %27 $arr.6: ptr<managed>
+    local %28 $idx.7: i64
+    local %29 $logic.1: i1
+    local %30 $call.2: ptr<managed>
+    local %31 $logic.3: i1
+    local %32 $call.4: ptr<managed>
+    local %33 $logic.5: i1
+    local %34 $call.6: ptr<managed>
   block entry
     poll managed-void-target6 sp52 live=[]
     call managed-direct-target0 sp16 live=[] t0 = sig=direct0 () -> ptr<managed> local-fn12()
     store t0 -> local0
     call managed-void-target0 sp17 live=[local0:ptr<managed>@0] sig=void0 () runtime @scoop_rt_gc_collect()
     t1 = aggregate () : {}
-    store local0 -> local13
-    store 0 -> local14
-    t2 = Lt local14, 0 : i1
+    store local0 -> local1
+    store 0 -> local2
+    store local2 -> local3
+    store local1 -> local22
+    store local3 -> local23
+    t2 = Lt local23, 0 : i1
     cbr t2 then @logic.short.2 else @logic.rhs.1
   block logic.rhs.1
-    t3 = array_len array0 local13 : i64
-    t4 = Ge local14, t3 : i1
-    store t4 -> local20
+    t3 = array_len array0 local22 : i64
+    t4 = Ge local23, t3 : i1
+    store t4 -> local29
     br @logic.merge.3
   block logic.short.2
-    store true -> local20
+    store true -> local29
     br @logic.merge.3
   block logic.merge.3
-    cbr local20 then @if.then.4 else @if.merge.5
+    cbr local29 then @if.then.4 else @if.merge.5
   block if.then.4
     call managed-direct-target1 sp18 live=[] t5 = sig=direct1 () -> ptr<managed> local-fn21()
-    store t5 -> local21
-    throw local21
+    store t5 -> local30
+    throw local30
     unreachable
   block if.merge.5
-    t6 = array_get array0 local13 local14 : struct4
+    t6 = array_get array0 local22 local23 : struct4
     t7 = extract t6, 0 : enum0
-    store t7 -> local15
-    t8 = enum_tag e0 local15 : i64
+    store t7 -> local24
+    t8 = enum_tag e0 local24 : i64
     t9 = Eq t8, 0 : i1
     cbr t9 then @if.then.6 else @if.else.7
   block if.then.6
-    t10 = enum_field e0 v0 f0 local15 : ptr<managed>
-    store t10 -> local1
-    store local1 -> local2
-    store local2 -> local3
-    call managed-void-target1 sp19 live=[local0:ptr<managed>@0, local3:ptr<managed>@0] sig=void1 (ptr<managed>) local-fn14(local3)
+    t10 = enum_field e0 v0 f0 local24 : ptr<managed>
+    store t10 -> local4
+    store local4 -> local5
+    store local5 -> local6
+    call managed-void-target1 sp19 live=[local0:ptr<managed>@0, local6:ptr<managed>@0] sig=void1 (ptr<managed>) local-fn14(local6)
     t11 = aggregate () : {}
     br @if.merge.8
   block if.else.7
-    t12 = enum_tag e0 local15 : i64
+    t12 = enum_tag e0 local24 : i64
     t13 = Eq t12, 1 : i1
     cbr t13 then @if.then.9 else @if.else.10
   block if.merge.8
-    store local0 -> local16
-    store 0 -> local17
-    t14 = Lt local17, 0 : i1
-    cbr t14 then @logic.short.15 else @logic.rhs.14
+    store local0 -> local12
+    store 0 -> local13
+    store local13 -> local14
+    store local12 -> local25
+    store local14 -> local26
+    t14 = Lt local26, 0 : i1
+    cbr t14 then @logic.short.13 else @logic.rhs.12
   block if.then.9
-    t15 = enum_field e0 v1 f0 local15 : i64
-    store t15 -> local4
-    store local4 -> local5
-    store local5 -> local6
-    call managed-void-target2 sp20 live=[local0:ptr<managed>@0] sig=void2 (i64) local-fn15(local6)
+    t15 = enum_field e0 v1 f0 local24 : i64
+    store t15 -> local7
+    store local7 -> local8
+    store local8 -> local9
+    call managed-void-target2 sp20 live=[local0:ptr<managed>@0] sig=void2 (i64) local-fn15(local9)
     t16 = aggregate () : {}
     br @if.merge.11
   block if.else.10
-    t17 = enum_tag e0 local15 : i64
-    t18 = Eq t17, 2 : i1
-    cbr t18 then @if.then.12 else @if.merge.13
+    store global6 -> local10
+    store local10 -> local11
+    call managed-void-target3 sp21 live=[local0:ptr<managed>@0, local11:ptr<managed>@0] sig=void3 (ptr<managed>) local-fn14(local11)
+    t17 = aggregate () : {}
+    br @if.merge.11
   block if.merge.11
     br @if.merge.8
-  block if.then.12
-    store global6 -> local7
-    store local7 -> local8
-    call managed-void-target3 sp21 live=[local0:ptr<managed>@0, local8:ptr<managed>@0] sig=void3 (ptr<managed>) local-fn14(local8)
-    t19 = aggregate () : {}
-    br @if.merge.13
-  block if.merge.13
-    br @if.merge.11
-  block logic.rhs.14
-    t20 = array_len array0 local16 : i64
-    t21 = Ge local17, t20 : i1
-    store t21 -> local22
-    br @logic.merge.16
-  block logic.short.15
-    store true -> local22
-    br @logic.merge.16
-  block logic.merge.16
-    cbr local22 then @if.then.17 else @if.merge.18
-  block if.then.17
-    call managed-direct-target2 sp22 live=[] t22 = sig=direct2 () -> ptr<managed> local-fn21()
-    store t22 -> local23
-    throw local23
+  block logic.rhs.12
+    t18 = array_len array0 local25 : i64
+    t19 = Ge local26, t18 : i1
+    store t19 -> local31
+    br @logic.merge.14
+  block logic.short.13
+    store true -> local31
+    br @logic.merge.14
+  block logic.merge.14
+    cbr local31 then @if.then.15 else @if.merge.16
+  block if.then.15
+    call managed-direct-target2 sp22 live=[] t20 = sig=direct2 () -> ptr<managed> local-fn21()
+    store t20 -> local32
+    throw local32
     unreachable
-  block if.merge.18
-    t23 = array_get array0 local16 local17 : struct4
-    t24 = extract t23, 1 : ptr<managed>
-    store t24 -> local9
-    store local9 -> local10
-    call managed-void-target4 sp23 live=[local0:ptr<managed>@0, local10:ptr<managed>@0] sig=void4 (ptr<managed>) local-fn14(local10)
-    t25 = aggregate () : {}
-    store local0 -> local18
-    store 1 -> local19
-    t26 = Lt local19, 0 : i1
-    cbr t26 then @logic.short.20 else @logic.rhs.19
-  block logic.rhs.19
-    t27 = array_len array0 local18 : i64
-    t28 = Ge local19, t27 : i1
-    store t28 -> local24
-    br @logic.merge.21
-  block logic.short.20
-    store true -> local24
-    br @logic.merge.21
-  block logic.merge.21
-    cbr local24 then @if.then.22 else @if.merge.23
-  block if.then.22
-    call managed-direct-target3 sp24 live=[] t29 = sig=direct3 () -> ptr<managed> local-fn21()
-    store t29 -> local25
-    throw local25
+  block if.merge.16
+    t21 = array_get array0 local25 local26 : struct4
+    t22 = extract t21, 1 : ptr<managed>
+    store t22 -> local15
+    store local15 -> local16
+    call managed-void-target4 sp23 live=[local0:ptr<managed>@0, local16:ptr<managed>@0] sig=void4 (ptr<managed>) local-fn14(local16)
+    t23 = aggregate () : {}
+    store local0 -> local17
+    store 1 -> local18
+    store local18 -> local19
+    store local17 -> local27
+    store local19 -> local28
+    t24 = Lt local28, 0 : i1
+    cbr t24 then @logic.short.18 else @logic.rhs.17
+  block logic.rhs.17
+    t25 = array_len array0 local27 : i64
+    t26 = Ge local28, t25 : i1
+    store t26 -> local33
+    br @logic.merge.19
+  block logic.short.18
+    store true -> local33
+    br @logic.merge.19
+  block logic.merge.19
+    cbr local33 then @if.then.20 else @if.merge.21
+  block if.then.20
+    call managed-direct-target3 sp24 live=[] t27 = sig=direct3 () -> ptr<managed> local-fn21()
+    store t27 -> local34
+    throw local34
     unreachable
-  block if.merge.23
-    t30 = array_get array0 local18 local19 : struct4
-    t31 = extract t30, 1 : ptr<managed>
-    store t31 -> local11
-    store local11 -> local12
-    call managed-void-target5 sp25 live=[local12:ptr<managed>@0] sig=void5 (ptr<managed>) local-fn14(local12)
-    t32 = aggregate () : {}
+  block if.merge.21
+    t28 = array_get array0 local27 local28 : struct4
+    t29 = extract t28, 1 : ptr<managed>
+    store t29 -> local20
+    store local20 -> local21
+    call managed-void-target5 sp25 live=[local21:ptr<managed>@0] sig=void5 (ptr<managed>) local-fn14(local21)
+    t30 = aggregate () : {}
     ret
   fun @scoop.println$S(ptr<managed>) -> void
     local %0 $receiver: ptr<managed>

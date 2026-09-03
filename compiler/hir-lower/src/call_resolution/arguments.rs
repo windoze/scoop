@@ -165,6 +165,40 @@ impl CandidateArgumentMap {
         )
     }
 
+    /// Operator-set syntax reserves the final source input for the final
+    /// non-vararg value parameter. Prefix inputs retain the ordinary M17
+    /// default/vararg mapping rules.
+    pub(crate) fn source_operator_set(
+        view: &CallableView,
+        arguments: &[ast::CallArgument],
+    ) -> Result<Self, ArgumentShapeFailure> {
+        let Some(value_parameter) = view.value_parameters.last() else {
+            return Err(ArgumentShapeFailure::Arity {
+                expected: 1,
+                supplied: arguments.len(),
+            });
+        };
+        let mut arguments = arguments.to_vec();
+        let Some(value) = arguments.last_mut() else {
+            return Err(ArgumentShapeFailure::MissingRequired {
+                name: value_parameter.name.clone(),
+            });
+        };
+        value.name = ast::CallArgumentName::Named(ast::Ident {
+            text: value_parameter.name.clone(),
+            span: value.span,
+        });
+        Self::map(
+            &view.value_parameters,
+            ArgumentMode::Mixed,
+            &arguments,
+            match view.receiver {
+                ReceiverShape::None | ReceiverShape::Instance => ReceiverInput::Absent,
+                ReceiverShape::Extension(_) => ReceiverInput::Present,
+            },
+        )
+    }
+
     pub(crate) fn source_nominal(
         view: &NominalConstructorView,
         arguments: &[ast::CallArgument],

@@ -16,7 +16,10 @@ fn when_stmt(
 fn arm(pattern: hir::Pattern, guard: Option<hir::Expr>, body: Vec<hir::Statement>) -> hir::WhenArm {
     hir::WhenArm {
         pattern,
-        guard,
+        guard: guard.map(|condition| hir::WhenGuard {
+            setup: Vec::new(),
+            condition,
+        }),
         body,
         span: SPAN,
     }
@@ -139,24 +142,12 @@ Module
         Local x
       goto bb3
     bb2 if.else.2
-      branch bb4 bb5
-        Type Boolean
-        Binary IntEq
-          Type Int
-          EnumTag
-            Type Option$I<Int>
-            Local $when.1
-          Type Int
-          IntLiteral 1
-    bb3 if.merge.3
-      return
-    bb4 if.then.4
       call @scoop.println direct
         Type String
         StringConst @scoop.str.1
-      goto bb5
-    bb5 if.merge.5
       goto bb3
+    bb3 if.merge.3
+      return
   str @scoop.str.0 \"\\n\"
   str @scoop.str.1 \"none\"
   entry @scoop_main
@@ -176,6 +167,27 @@ fn a_failed_guard_falls_through_to_the_next_arm() {
     let mut locals = Arena::new();
     let o = locals.alloc(local("o", option_int));
     let x = locals.alloc(local("x", int));
+    let threshold = locals.alloc(local("threshold", int));
+    let mut guarded_arm = arm(
+        hir::Pattern::Variant {
+            application: option_application,
+            variant: 0,
+            fields: vec![(0, hir::Pattern::Binding { local: x })],
+        },
+        Some(binary(
+            hir::BinOp::Gt,
+            local_ref(x, int),
+            local_ref(threshold, int),
+            h.boolean,
+        )),
+        vec![expr_stmt(call(&h, print_int, vec![local_ref(x, int)]))],
+    );
+    guarded_arm
+        .guard
+        .as_mut()
+        .expect("guard")
+        .setup
+        .push(val_decl(threshold, int_lit(&h, 0)));
     let else_body = || {
         vec![expr_stmt(call(
             &h,
@@ -189,20 +201,7 @@ fn a_failed_guard_falls_through_to_the_next_arm() {
             locals,
             statements: vec![when_stmt(
                 local_ref(o, option_int),
-                vec![arm(
-                    hir::Pattern::Variant {
-                        application: option_application,
-                        variant: 0,
-                        fields: vec![(0, hir::Pattern::Binding { local: x })],
-                    },
-                    Some(binary(
-                        hir::BinOp::Gt,
-                        local_ref(x, int),
-                        int_lit(&h, 0),
-                        h.boolean,
-                    )),
-                    vec![expr_stmt(call(&h, print_int, vec![local_ref(x, int)]))],
-                )],
+                vec![guarded_arm],
                 Some(else_body()),
             )],
         },
@@ -257,13 +256,16 @@ Module
         EnumField v0 f0
           Type Option$I<Int>
           Local $when.1
+      val threshold: Int
+        Type Int
+        IntLiteral 0
       branch bb4 bb5
         Type Boolean
         Binary IntGt
           Type Int
           Local x
           Type Int
-          IntLiteral 0
+          Local threshold
     bb2 if.else.2
       call @scoop.println direct
         Type String

@@ -97,6 +97,7 @@ pub(crate) fn method_full(
         is_suspend: false,
         is_override,
         operator: None,
+        infix: None,
         modifier: if is_abstract {
             ast::MethodModifier::Abstract
         } else if is_override {

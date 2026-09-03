@@ -9,26 +9,20 @@ impl Lowerer {
         ty: TypeId,
         span: Span,
     ) -> Option<hir::Expr> {
-        let core = self.ffi_core?;
-        let kind = if function == core.ptr_to_uint {
-            hir::PointerIntrinsic::ToUInt
-        } else if function == core.ptr_cast {
-            hir::PointerIntrinsic::Cast
-        } else if function == core.ptr_load {
-            hir::PointerIntrinsic::Load
-        } else if function == core.ptr_load_offset {
-            hir::PointerIntrinsic::LoadOffset
-        } else if function == core.ptr_store {
-            hir::PointerIntrinsic::Store
-        } else if function == core.ptr_store_offset {
-            hir::PointerIntrinsic::StoreOffset
-        } else if function == core.ptr_plus {
-            hir::PointerIntrinsic::Plus
-        } else if function == core.ptr_minus {
-            hir::PointerIntrinsic::Minus
-        } else {
+        let hir::FunctionKind::Intrinsic(intrinsic) = self.functions[function].kind else {
             return None;
         };
+        let hir::IntrinsicFunctionKind::Pointer(kind) = intrinsic.kind else {
+            return None;
+        };
+        if matches!(
+            kind,
+            hir::PointerIntrinsic::AddressOf
+                | hir::PointerIntrinsic::SizeOf
+                | hir::PointerIntrinsic::AlignOf
+        ) {
+            return None;
+        }
         let mut args = args.into_iter();
         let pointer = Box::new(receiver);
         let expr = match kind {

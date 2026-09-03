@@ -12,7 +12,13 @@ impl Lowerer {
         if let Some(operator) = decl.operator {
             self.error(
                 operator.span,
-                "`operator` is only allowed on member functions".to_string(),
+                "`operator` requires a member or extension receiver".to_string(),
+            );
+        }
+        if let Some(infix) = decl.infix {
+            self.error(
+                infix.span,
+                "`infix` requires a member or extension receiver".to_string(),
             );
         }
         let outer_type_params = self.type_params_in_scope.clone();
@@ -64,6 +70,7 @@ impl Lowerer {
             name: format!("$local.{local_number}.{}", decl.name.text),
             genericity: hir::FunctionGenericity::Plain,
             is_suspend: decl.is_suspend,
+            modifiers: hir::CallableModifiers::default(),
             params: Vec::new(),
             return_ty,
             attributes,
@@ -78,7 +85,7 @@ impl Lowerer {
             function,
             FnSig {
                 is_suspend: decl.is_suspend,
-                operator: None,
+                modifiers: hir::CallableModifiers::default(),
                 attributes,
                 owner_type_param_count,
                 type_params: type_params.clone(),

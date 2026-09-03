@@ -11,6 +11,11 @@ pub struct Function {
     pub genericity: FunctionGenericity,
     /// Whether calls use the coroutine ABI rather than the ordinary ABI.
     pub is_suspend: bool,
+    /// Language-level calling conventions shared by free functions,
+    /// extensions, local functions and members. Keeping these on the
+    /// callable (rather than on `Method`) lets every declaration kind expose
+    /// the same closed operator/infix contract.
+    pub modifiers: CallableModifiers,
     pub params: Vec<Param>,
     pub return_ty: TypeId,
     pub attributes: FunctionAttributes,
@@ -19,6 +24,12 @@ pub struct Function {
     /// `params` (named `this`). Top-level functions have `None`.
     pub method: Option<Method>,
     pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct CallableModifiers {
+    pub operator: Option<OperatorKind>,
+    pub is_infix: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

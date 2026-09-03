@@ -57,6 +57,13 @@ pub(crate) struct OverloadCall<'a> {
     pub(crate) arg_exprs: &'a [ast::CallArgument],
     pub(crate) span: Span,
     pub(crate) expected_result: Option<TypeId>,
+    pub(crate) argument_protocol: CallArgumentProtocol,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum CallArgumentProtocol {
+    Ordinary,
+    OperatorSet,
 }
 
 /// A member-overload call whose arguments have already been lowered in source
@@ -81,6 +88,7 @@ struct OverloadResolution<'a> {
     arguments: OverloadArguments<'a>,
     span: Span,
     expected_result: Option<TypeId>,
+    argument_protocol: CallArgumentProtocol,
 }
 
 /// A candidate prepared for resolution: parameter and return types
@@ -147,6 +155,7 @@ impl Lowerer {
                 arguments: OverloadArguments::Source(call.arg_exprs),
                 span: call.span,
                 expected_result: call.expected_result,
+                argument_protocol: call.argument_protocol,
             },
             sink,
         )
@@ -169,6 +178,7 @@ impl Lowerer {
                 arguments: OverloadArguments::Source(call.arg_exprs),
                 span: call.span,
                 expected_result: call.expected_result,
+                argument_protocol: call.argument_protocol,
             },
             sink,
         )
@@ -196,6 +206,7 @@ impl Lowerer {
                 arguments: OverloadArguments::Lowered(args),
                 span,
                 expected_result,
+                argument_protocol: CallArgumentProtocol::Ordinary,
             },
             sink,
         )
@@ -226,6 +237,7 @@ impl Lowerer {
                 arguments: OverloadArguments::Source(call.arg_exprs),
                 span: call.span,
                 expected_result: call.expected_result,
+                argument_protocol: call.argument_protocol,
             },
             sink,
         )
@@ -244,6 +256,7 @@ impl Lowerer {
             arguments,
             span,
             expected_result,
+            argument_protocol,
         } = resolution;
         let (evaluation_receiver, extension) = match receiver {
             OverloadReceiver::Ordinary => (None, false),
@@ -266,9 +279,14 @@ impl Lowerer {
                 let view = self.callable_view(source, receiver_offset != 0);
                 let function = view.function();
                 let argument_map = match &arguments {
-                    OverloadArguments::Source(arguments) => {
-                        CandidateArgumentMap::source(&view, arguments)
-                    }
+                    OverloadArguments::Source(arguments) => match argument_protocol {
+                        CallArgumentProtocol::Ordinary => {
+                            CandidateArgumentMap::source(&view, arguments)
+                        }
+                        CallArgumentProtocol::OperatorSet => {
+                            CandidateArgumentMap::source_operator_set(&view, arguments)
+                        }
+                    },
                     OverloadArguments::Lowered(arguments) => {
                         CandidateArgumentMap::exact_lowered(&view, arguments.len())
                     }

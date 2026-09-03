@@ -41,8 +41,8 @@ SourceFile
     fun load
     fun store
     fun store
-    fun plus
-    fun minus
+    operator fun plus
+    operator fun minus
   struct FunPtr<F>
     field _rawPointer: UInt
     @Unsafe
@@ -169,28 +169,53 @@ SourceFile
     @Intrinsic("core_int")
   struct Int <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun unaryMinus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_uint")
   struct UInt <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_boolean")
   struct Boolean <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun not
     fun toString
     fun hash
     @Intrinsic("core_string")
   class String(), ToString, Hash
     operator fun equals
+    operator fun plus
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_array")
   class Array<T>()
+    operator fun get
     fun toMutableArray
     @Intrinsic("core_mutable_array")
   class MutableArray<T>()
+    operator fun get
+    operator fun set
     fun toArray
     @Extern(name = "scoop_rt_int_equals", abi = "scoop")
   fun coreIntEquals(left: Int, right: Int): Boolean
@@ -418,91 +443,97 @@ Module
   fun joinMany(arg1: Ptr<Unit>): Int <unsafe no-gc cdecl> <extern13 abi=c symbol=m13_join_many lib=fixture_native>
   fun main(): Unit
     val local0
-      Binary Sub : UInt
-        SizeOf Int : UInt
-        SizeOf Int : UInt
+      SizeOf Int : UInt
     val local1
-      Local $argument.0 : UInt
+      SizeOf Int : UInt
     val local2
+      Local $argument.0 : UInt
+    val local3
+      PrimitiveBinary UIntSub : UInt
+        Local $receiver : UInt
+        Local $parameter.other : UInt
+    val local4
+      Local $argument.0 : UInt
+    val local5
       PtrFromUInt : Ptr<Unit>
         Local $parameter._rawPointer : UInt
-    val local3
-      VariantConstruct Option.None<ForeignCallback<(Int, Ptr<Unit>) -> Int>> : Option<ForeignCallback<(Int, Ptr<Unit>) -> Int>>
-    val local4
-      Local $argument.0 : Ptr<Unit>
-    val local5
-      Local $argument.1 : Option<ForeignCallback<(Int, Ptr<Unit>) -> Int>>
     val local6
+      VariantConstruct Option.None<ForeignCallback<(Int, Ptr<Unit>) -> Int>> : Option<ForeignCallback<(Int, Ptr<Unit>) -> Int>>
+    val local7
+      Local $argument.0 : Ptr<Unit>
+    val local8
+      Local $argument.1 : Option<ForeignCallback<(Int, Ptr<Unit>) -> Int>>
+    val local9
       ClassInit RaceGate : RaceGate
         Local $parameter.group : Ptr<Unit>
         Local $parameter.callback : Option<ForeignCallback<(Int, Ptr<Unit>) -> Int>>
-    val local7
+    val local10
       Local gate : RaceGate
-    val local8
+    val local11
       Local $argument.0 : RaceGate
-    val local9
+    val local12
       ClassInit RaceTask : SuspendTask<Int>
         Local $parameter.gate : RaceGate
-    val local10
+    val local13
       ClassInit RaceCompletion : Continuation<Int>
-    val local11
+    val local14
       Local $argument.0 : SuspendTask<Int>
-    val local12
+    val local15
       Local $argument.1 : Continuation<Int>
     Call startCoroutine<Int> : Unit
       Local $parameter.task : SuspendTask<Int>
       Local $parameter.completion : Continuation<Int>
-    val local13
+    val local16
       StringLiteral "suspended" : String
-    val local14
+    val local17
       Local $argument.0 : String
     Call println<String> : Unit
       Local $parameter.value : String
-    val local15
+    val local18
       FieldAccess class field 0 : Ptr<Unit>
         Local gate : RaceGate
-    val local16
+    val local19
       Local $argument.0 : Ptr<Unit>
-    val local17
+    val local20
       Call joinMany : Int
         Local $parameter.group : Ptr<Unit>
-    val local18
+    val local21
       Local $argument.0 : Int
     Call println<Int> : Unit
       Local $parameter.value : Int
-    val local19
+    val local22
       Unwrap trap=true : ForeignCallback<(Int, Ptr<Unit>) -> Int>
         FieldAccess class field 1 : Option<ForeignCallback<(Int, Ptr<Unit>) -> Int>>
           Local gate : RaceGate
-    val local20
+    val local23
       Local callback : ForeignCallback<(Int, Ptr<Unit>) -> Int>
-    val local21
+    val local24
       Local $argument.0 : ForeignCallback<(Int, Ptr<Unit>) -> Int>
-    val local22
+    val local25
       MethodCall ForeignCallbackState.equals <derived> : Boolean
         ForeignCallbackState : ForeignCallbackState
           Local $parameter.callback : ForeignCallback<(Int, Ptr<Unit>) -> Int>
         VariantConstruct ForeignCallbackState.Failed : ForeignCallbackState
-    val local23
+    val local26
       Local $argument.0 : Boolean
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
-    val local24
+    val local27
       Local callback : ForeignCallback<(Int, Ptr<Unit>) -> Int>
-    val local25
+    val local28
       Local $argument.0 : ForeignCallback<(Int, Ptr<Unit>) -> Int>
-    val local26
+    val local29
       IsInstance IllegalStateException : Boolean
         Unwrap trap=true : Throwable
           ForeignCallbackFailure : Option<Throwable>
             Local $parameter.callback : ForeignCallback<(Int, Ptr<Unit>) -> Int>
-    val local27
+    val local30
       Local $argument.0 : Boolean
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
-    val local28
+    val local31
       Local callback : ForeignCallback<(Int, Ptr<Unit>) -> Int>
-    val local29
+    val local32
       Local $argument.0 : ForeignCallback<(Int, Ptr<Unit>) -> Int>
     ForeignCallbackRelease : Unit
       Local $parameter.callback : ForeignCallback<(Int, Ptr<Unit>) -> Int>
@@ -910,13 +941,22 @@ Module
       return
   fun main @scoop_main() -> Unit
     bb0 entry
+      val $receiver: UInt
+        Type UInt
+        SizeOf Int
+      val $argument.0: UInt
+        Type UInt
+        SizeOf Int
+      val $parameter.other: UInt
+        Type UInt
+        Local $argument.0
       val $argument.0: UInt
         Type UInt
         Binary IntSub
           Type UInt
-          SizeOf Int
+          Local $receiver
           Type UInt
-          SizeOf Int
+          Local $parameter.other
       val $parameter._rawPointer: UInt
         Type UInt
         Local $argument.0
@@ -1291,13 +1331,16 @@ Module
           Type Int
           IntLiteral 2
     bb14 if.else.14
+      val $when.5: ForeignCallbackState
+        Type ForeignCallbackState
+        Local other
       branch bb19 bb20
         Type Boolean
         Binary IntEq
           Type Int
           EnumTag
             Type ForeignCallbackState
-            Local $when.1
+            Local $when.5
           Type Int
           IntLiteral 3
     bb15 if.merge.15
@@ -1313,30 +1356,15 @@ Module
     bb18 if.merge.18
       goto bb15
     bb19 if.then.19
-      val $when.5: ForeignCallbackState
-        Type ForeignCallbackState
-        Local other
-      branch bb21 bb22
-        Type Boolean
-        Binary IntEq
-          Type Int
-          EnumTag
-            Type ForeignCallbackState
-            Local $when.5
-          Type Int
-          IntLiteral 3
-    bb20 if.merge.20
-      goto bb15
-    bb21 if.then.21
       return
         Type Boolean
         BoolLiteral true
-    bb22 if.else.22
+    bb20 if.else.20
       return
         Type Boolean
         BoolLiteral false
-    bb23 if.merge.23
-      goto bb20
+    bb21 if.merge.21
+      goto bb15
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
     bb0 entry
       return
@@ -2530,135 +2558,141 @@ Module
     t0 = aggregate () : {}
     ret
   fun @scoop_main() -> void
-    local %0 $argument.0: i64
-    local %1 $parameter._rawPointer: i64
-    local %2 $argument.0: ptr<raw>
-    local %3 $argument.1: enum0
-    local %4 $parameter.group: ptr<raw>
-    local %5 $parameter.callback: enum0
-    local %6 gate: ptr<managed>
-    local %7 $argument.0: ptr<managed>
-    local %8 $parameter.gate: ptr<managed>
-    local %9 $argument.0: ptr<managed>
-    local %10 $argument.1: ptr<managed>
-    local %11 $parameter.task: ptr<managed>
-    local %12 $parameter.completion: ptr<managed>
-    local %13 $argument.0: ptr<managed>
-    local %14 $parameter.value: ptr<managed>
-    local %15 $argument.0: ptr<raw>
-    local %16 $parameter.group: ptr<raw>
-    local %17 $argument.0: i64
-    local %18 $parameter.value: i64
-    local %19 callback: struct4
-    local %20 $argument.0: struct4
-    local %21 $parameter.callback: struct4
-    local %22 $argument.0: i1
-    local %23 $parameter.value: i1
-    local %24 $argument.0: struct4
-    local %25 $parameter.callback: struct4
-    local %26 $argument.0: i1
-    local %27 $parameter.value: i1
-    local %28 $argument.0: struct4
-    local %29 $parameter.callback: struct4
-    local %30 $opt.1: enum0
-    local %31 $uw.2: struct4
-    local %32 $opt.3: enum5
-    local %33 $uw.4: ptr<managed>
-    local %34 $call.1: ptr<managed>
-    local %35 $call.2: ptr<managed>
-    local %36 $call.3: ptr<managed>
-    local %37 $call.4: ptr<managed>
-    local %38 $sc.1: ptr<raw>
-    local %39 $sc.2: i64
+    local %0 $receiver: i64
+    local %1 $argument.0: i64
+    local %2 $parameter.other: i64
+    local %3 $argument.0: i64
+    local %4 $parameter._rawPointer: i64
+    local %5 $argument.0: ptr<raw>
+    local %6 $argument.1: enum0
+    local %7 $parameter.group: ptr<raw>
+    local %8 $parameter.callback: enum0
+    local %9 gate: ptr<managed>
+    local %10 $argument.0: ptr<managed>
+    local %11 $parameter.gate: ptr<managed>
+    local %12 $argument.0: ptr<managed>
+    local %13 $argument.1: ptr<managed>
+    local %14 $parameter.task: ptr<managed>
+    local %15 $parameter.completion: ptr<managed>
+    local %16 $argument.0: ptr<managed>
+    local %17 $parameter.value: ptr<managed>
+    local %18 $argument.0: ptr<raw>
+    local %19 $parameter.group: ptr<raw>
+    local %20 $argument.0: i64
+    local %21 $parameter.value: i64
+    local %22 callback: struct4
+    local %23 $argument.0: struct4
+    local %24 $parameter.callback: struct4
+    local %25 $argument.0: i1
+    local %26 $parameter.value: i1
+    local %27 $argument.0: struct4
+    local %28 $parameter.callback: struct4
+    local %29 $argument.0: i1
+    local %30 $parameter.value: i1
+    local %31 $argument.0: struct4
+    local %32 $parameter.callback: struct4
+    local %33 $opt.1: enum0
+    local %34 $uw.2: struct4
+    local %35 $opt.3: enum5
+    local %36 $uw.4: ptr<managed>
+    local %37 $call.1: ptr<managed>
+    local %38 $call.2: ptr<managed>
+    local %39 $call.3: ptr<managed>
+    local %40 $call.4: ptr<managed>
+    local %41 $sc.1: ptr<raw>
+    local %42 $sc.2: i64
   block entry
     poll managed-void-target5 sp89 live=[]
-    t0 = Sub 8, 8 : i64
-    store t0 -> local0
-    store local0 -> local1
-    t1 = int_to_ptr local1 : ptr
-    store t1 -> local2
+    store 8 -> local0
+    store 8 -> local1
+    store local1 -> local2
+    t0 = Sub local0, local2 : i64
+    store t0 -> local3
+    store local3 -> local4
+    t1 = int_to_ptr local4 : ptr
+    store t1 -> local5
     t2 = enum_wrap e0 v1 () : enum0
-    store t2 -> local3
-    store local2 -> local4
-    store local3 -> local5
-    call managed-direct-target0 sp18 live=[] t3 = sig=direct0 (ptr<raw>, enum0) -> ptr<managed> local-fn29(local4, local5)
-    store t3 -> local6
-    store local6 -> local7
-    store local7 -> local8
-    call managed-direct-target1 sp19 live=[local6:ptr<managed>@0, local8:ptr<managed>@0] t4 = sig=direct1 (ptr<managed>) -> ptr<managed> local-fn31(local8)
-    store t4 -> local34
-    store local34 -> local9
-    call managed-direct-target2 sp20 live=[local6:ptr<managed>@0, local9:ptr<managed>@0] t5 = sig=direct2 () -> ptr<managed> local-fn32()
-    store t5 -> local35
-    store local35 -> local10
-    store local9 -> local11
-    store local10 -> local12
-    call managed-void-target0 sp21 live=[local6:ptr<managed>@0, local11:ptr<managed>@0, local12:ptr<managed>@0] sig=void0 (ptr<managed>, ptr<managed>) local-fn34(local11, local12)
+    store t2 -> local6
+    store local5 -> local7
+    store local6 -> local8
+    call managed-direct-target0 sp18 live=[] t3 = sig=direct0 (ptr<raw>, enum0) -> ptr<managed> local-fn29(local7, local8)
+    store t3 -> local9
+    store local9 -> local10
+    store local10 -> local11
+    call managed-direct-target1 sp19 live=[local9:ptr<managed>@0, local11:ptr<managed>@0] t4 = sig=direct1 (ptr<managed>) -> ptr<managed> local-fn31(local11)
+    store t4 -> local37
+    store local37 -> local12
+    call managed-direct-target2 sp20 live=[local9:ptr<managed>@0, local12:ptr<managed>@0] t5 = sig=direct2 () -> ptr<managed> local-fn32()
+    store t5 -> local38
+    store local38 -> local13
+    store local12 -> local14
+    store local13 -> local15
+    call managed-void-target0 sp21 live=[local9:ptr<managed>@0, local14:ptr<managed>@0, local15:ptr<managed>@0] sig=void0 (ptr<managed>, ptr<managed>) local-fn34(local14, local15)
     t6 = aggregate () : {}
-    store global2 -> local13
-    store local13 -> local14
-    call managed-void-target1 sp22 live=[local6:ptr<managed>@0, local14:ptr<managed>@0] sig=void1 (ptr<managed>) local-fn18(local14)
+    store global2 -> local16
+    store local16 -> local17
+    call managed-void-target1 sp22 live=[local9:ptr<managed>@0, local17:ptr<managed>@0] sig=void1 (ptr<managed>) local-fn18(local17)
     t7 = aggregate () : {}
-    t8 = heap_load local6 +16 : ptr<raw>
-    store t8 -> local15
-    store local15 -> local16
-    store local16 -> local38
-    t9 = local_address local38 : ptr
-    call native-safe-indirect-target0 sp23 roots=[local6] local39 = sig=indirect0 (sret i64, ptr<raw>) extern13(t9)
-    store local39 -> local17
-    store local17 -> local18
-    call managed-void-target2 sp24 live=[local6:ptr<managed>@0] sig=void2 (i64) local-fn19(local18)
+    t8 = heap_load local9 +16 : ptr<raw>
+    store t8 -> local18
+    store local18 -> local19
+    store local19 -> local41
+    t9 = local_address local41 : ptr
+    call native-safe-indirect-target0 sp23 roots=[local9] local42 = sig=indirect0 (sret i64, ptr<raw>) extern13(t9)
+    store local42 -> local20
+    store local20 -> local21
+    call managed-void-target2 sp24 live=[local9:ptr<managed>@0] sig=void2 (i64) local-fn19(local21)
     t10 = aggregate () : {}
-    t11 = heap_load local6 +24 : enum0
-    store t11 -> local30
-    t12 = enum_tag e0 local30 : i64
+    t11 = heap_load local9 +24 : enum0
+    store t11 -> local33
+    t12 = enum_tag e0 local33 : i64
     t13 = Eq t12, 0 : i1
     cbr t13 then @if.then.1 else @if.else.2
   block if.then.1
-    t14 = enum_field e0 v0 f0 local30 : struct4
-    store t14 -> local31
+    t14 = enum_field e0 v0 f0 local33 : struct4
+    store t14 -> local34
     br @if.merge.3
   block if.else.2
     call managed-direct-target3 sp25 live=[] t15 = sig=direct3 () -> ptr<managed> local-fn24()
-    store t15 -> local36
-    throw local36
+    store t15 -> local39
+    throw local39
     unreachable
   block if.merge.3
-    store local31 -> local19
-    store local19 -> local20
-    store local20 -> local21
-    t16 = foreign_callback_State local21 : enum4
+    store local34 -> local22
+    store local22 -> local23
+    store local23 -> local24
+    t16 = foreign_callback_State local24 : enum4
     t17 = enum_wrap e4 v3 () : enum4
     call managed-direct-target4 sp26 live=[] t18 = sig=direct4 (enum4, enum4) -> i1 local-fn21(t16, t17)
-    store t18 -> local22
-    store local22 -> local23
-    call managed-void-target3 sp27 live=[] sig=void3 (i1) local-fn20(local23)
+    store t18 -> local25
+    store local25 -> local26
+    call managed-void-target3 sp27 live=[] sig=void3 (i1) local-fn20(local26)
     t19 = aggregate () : {}
-    store local19 -> local24
-    store local24 -> local25
-    t20 = foreign_callback_Failure local25 : enum5
-    store t20 -> local32
-    t21 = enum_tag e5 local32 : i64
+    store local22 -> local27
+    store local27 -> local28
+    t20 = foreign_callback_Failure local28 : enum5
+    store t20 -> local35
+    t21 = enum_tag e5 local35 : i64
     t22 = Eq t21, 0 : i1
     cbr t22 then @if.then.4 else @if.else.5
   block if.then.4
-    t23 = enum_field e5 v0 f0 local32 : ptr<managed>
-    store t23 -> local33
+    t23 = enum_field e5 v0 f0 local35 : ptr<managed>
+    store t23 -> local36
     br @if.merge.6
   block if.else.5
     call managed-direct-target5 sp28 live=[] t24 = sig=direct5 () -> ptr<managed> local-fn24()
-    store t24 -> local37
-    throw local37
+    store t24 -> local40
+    throw local40
     unreachable
   block if.merge.6
-    call no-gc-direct-target0 t25 = sig=direct6 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local33, td20)
-    store t25 -> local26
-    store local26 -> local27
-    call managed-void-target4 sp29 live=[] sig=void4 (i1) local-fn20(local27)
+    call no-gc-direct-target0 t25 = sig=direct6 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local36, td20)
+    store t25 -> local29
+    store local29 -> local30
+    call managed-void-target4 sp29 live=[] sig=void4 (i1) local-fn20(local30)
     t26 = aggregate () : {}
-    store local19 -> local28
-    store local28 -> local29
-    foreign_callback_Release local29
+    store local22 -> local31
+    store local31 -> local32
+    foreign_callback_Release local32
     t27 = aggregate () : {}
     ret
   fun @scoop.$lambda.0(ptr<managed>, i64) -> i64
@@ -2754,8 +2788,6 @@ Module
     t4 = enum_tag e4 local0 : i64
     t5 = Eq t4, 1 : i1
     cbr t5 then @if.then.7 else @if.else.8
-  block if.merge.3
-    unreachable
   block if.then.4
     ret true
   block if.else.5
@@ -2769,8 +2801,6 @@ Module
     t8 = enum_tag e4 local0 : i64
     t9 = Eq t8, 2 : i1
     cbr t9 then @if.then.13 else @if.else.14
-  block if.merge.9
-    br @if.merge.3
   block if.then.10
     ret true
   block if.else.11
@@ -2781,25 +2811,17 @@ Module
     t11 = Eq t10, 2 : i1
     cbr t11 then @if.then.16 else @if.else.17
   block if.else.14
-    t12 = enum_tag e4 local0 : i64
+    store param1 -> local4
+    t12 = enum_tag e4 local4 : i64
     t13 = Eq t12, 3 : i1
-    cbr t13 then @if.then.19 else @if.merge.20
-  block if.merge.15
-    br @if.merge.9
+    cbr t13 then @if.then.19 else @if.else.20
   block if.then.16
     ret true
   block if.else.17
     ret false
   block if.then.19
-    store param1 -> local4
-    t14 = enum_tag e4 local4 : i64
-    t15 = Eq t14, 3 : i1
-    cbr t15 then @if.then.21 else @if.else.22
-  block if.merge.20
-    br @if.merge.15
-  block if.then.21
     ret true
-  block if.else.22
+  block if.else.20
     ret false
   fun @scoop.ctor.Throwable() -> ptr<managed>
   block entry

@@ -86,6 +86,7 @@ pub enum RuntimeFn {
     /// ABI exception buffer -> ordinary managed object (runtime spec 5).
     MaterializeException,
     StringConcat,
+    StringCompare,
     /// Noreturn runtime trap, called with a message string constant
     /// (M4: `!!` on `None`; M8: real exceptions).
     Trap,
@@ -105,6 +106,7 @@ impl RuntimeFn {
             RuntimeFn::GcStats => "scoop_rt_gc_stats",
             RuntimeFn::MaterializeException => "scoop_rt_materialize_exception",
             RuntimeFn::StringConcat => "scoop_rt_string_concat",
+            RuntimeFn::StringCompare => "scoop_rt_string_compare",
             RuntimeFn::Trap => "scoop_rt_trap",
         }
     }

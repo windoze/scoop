@@ -203,7 +203,15 @@ impl BodyLowerer<'_> {
             // into hidden locals, then `IndexOutOfBoundsException`
             // throws when the index is out of range (the prelude
             // mechanism `!!` uses).
-            hir::ExprKind::Index { receiver, index } => {
+            hir::ExprKind::Index {
+                access,
+                receiver,
+                index,
+            } => {
+                debug_assert!(matches!(
+                    access,
+                    hir::ArrayAccessKind::ImmutableGet | hir::ArrayAccessKind::MutableGet
+                ));
                 let array_ty = self.lower_type(receiver.ty);
                 let mir::Type::Class(array_type) = array_ty else {
                     unreachable!("an array subscript has an intrinsic class receiver")
@@ -226,6 +234,45 @@ impl BodyLowerer<'_> {
                     array: Box::new(smir::Expr::local(array_slot, mir::Type::Class(array_type))),
                     index: Box::new(smir::Expr::local(index_slot, mir::Type::Int)),
                 }
+            }
+            hir::ExprKind::ArraySet {
+                access,
+                receiver,
+                index,
+                value,
+            } => {
+                debug_assert_eq!(*access, hir::ArrayAccessKind::MutableSet);
+                let array_ty = self.lower_type(receiver.ty);
+                let mir::Type::Class(array_type) = array_ty else {
+                    unreachable!("an array store has an intrinsic class receiver")
+                };
+                let array_slot = self.new_hidden("arr", mir::Type::Class(array_type), false);
+                let index_slot = self.new_hidden("idx", mir::Type::Int, false);
+                let value_ty = self.lower_type(value.ty);
+                let value_slot = self.new_hidden("value", value_ty.clone(), false);
+                let array = self.lower_expr(receiver);
+                self.prelude.push(smir::StatementKind::ValDecl {
+                    local: array_slot,
+                    init: array,
+                });
+                let index = self.lower_expr(index);
+                self.prelude.push(smir::StatementKind::ValDecl {
+                    local: index_slot,
+                    init: index,
+                });
+                let value = self.lower_expr(value);
+                self.prelude.push(smir::StatementKind::ValDecl {
+                    local: value_slot,
+                    init: value,
+                });
+                self.bounds_check(array_type, array_slot, index_slot, expr.span);
+                self.prelude.push(smir::StatementKind::ArraySet {
+                    array_type,
+                    array: smir::Expr::local(array_slot, mir::Type::Class(array_type)),
+                    index: smir::Expr::local(index_slot, mir::Type::Int),
+                    value: smir::Expr::local(value_slot, value_ty),
+                });
+                smir::ExprKind::UnitLiteral
             }
             hir::ExprKind::ArrayLen(operand) => {
                 let mir::Type::Class(array_type) = self.lower_type(operand.ty) else {
@@ -453,13 +500,18 @@ impl BodyLowerer<'_> {
                     return_ty: self.lower_type(expr.ty),
                 })
             }
+            hir::ExprKind::PrimitiveBinary { kind, lhs, rhs } => {
+                return self.lower_primitive_binary(*kind, lhs, rhs, expr.span);
+            }
+            hir::ExprKind::PrimitiveUnary { kind, operand } => {
+                return self.lower_primitive_unary(*kind, operand);
+            }
             hir::ExprKind::Binary { op, lhs, rhs } => {
-                return self.lower_binary(*op, lhs, rhs, expr.span);
+                return self.lower_binary(*op, lhs, rhs);
             }
             hir::ExprKind::Unary { op, operand } => {
                 let operand = Box::new(self.lower_expr(operand));
                 let op = match op {
-                    hir::UnOp::Neg => mir::UnOp::IntNeg,
                     hir::UnOp::Not => mir::UnOp::BoolNot,
                 };
                 smir::ExprKind::Unary { op, operand }

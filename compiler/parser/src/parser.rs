@@ -111,6 +111,7 @@ impl Parser {
     fn is_top_level_start(&self) -> bool {
         match &self.peek().kind {
             TokenKind::Suspend
+            | TokenKind::Infix
             | TokenKind::Fun
             | TokenKind::Struct
             | TokenKind::Enum

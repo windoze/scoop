@@ -344,6 +344,10 @@ impl Concretizer<'_> {
                         specialization: concrete::MethodSpecialization::Plain,
                     }),
                     is_suspend: false,
+                    modifiers: export::CallableModifiers {
+                        operator: Some(export::OperatorKind::Equals),
+                        is_infix: false,
+                    },
                     params,
                     return_ty: self.lower_type(source_function.return_ty, substitution),
                     attributes: application.attributes,
@@ -352,7 +356,6 @@ impl Concretizer<'_> {
                         owner: owner_ty,
                         modifier: concrete::MethodModifier::Final,
                         dispatch: concrete::MethodDispatch::Direct,
-                        operator: Some(export::OperatorKind::Equals),
                     }),
                     span: application.span,
                 };

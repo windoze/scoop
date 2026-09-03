@@ -3,35 +3,109 @@ use super::*;
 #[test]
 fn arithmetic_and_comparison_ops_map_to_lir_ops() {
     let mut b = Builder::new();
-    let int_cases = [
-        (mir::BinOp::IntAdd, lir::BinOp::Add, lir::LirType::I64),
-        (mir::BinOp::IntSub, lir::BinOp::Sub, lir::LirType::I64),
-        (mir::BinOp::IntMul, lir::BinOp::Mul, lir::LirType::I64),
-        (mir::BinOp::IntDiv, lir::BinOp::SDiv, lir::LirType::I64),
-        (mir::BinOp::IntLt, lir::BinOp::Lt, lir::LirType::I1),
-        (mir::BinOp::IntLe, lir::BinOp::Le, lir::LirType::I1),
-        (mir::BinOp::IntGt, lir::BinOp::Gt, lir::LirType::I1),
-        (mir::BinOp::IntGe, lir::BinOp::Ge, lir::LirType::I1),
-        (mir::BinOp::IntEq, lir::BinOp::Eq, lir::LirType::I1),
-        (mir::BinOp::IntNe, lir::BinOp::Ne, lir::LirType::I1),
+    let integer_cases = [
+        (
+            mir::BinOp::IntAdd,
+            lir::BinOp::Add,
+            mir::Type::Int,
+            lir::LirType::I64,
+        ),
+        (
+            mir::BinOp::IntSub,
+            lir::BinOp::Sub,
+            mir::Type::Int,
+            lir::LirType::I64,
+        ),
+        (
+            mir::BinOp::IntMul,
+            lir::BinOp::Mul,
+            mir::Type::Int,
+            lir::LirType::I64,
+        ),
+        (
+            mir::BinOp::IntDiv,
+            lir::BinOp::SDiv,
+            mir::Type::Int,
+            lir::LirType::I64,
+        ),
+        (
+            mir::BinOp::IntRem,
+            lir::BinOp::SRem,
+            mir::Type::Int,
+            lir::LirType::I64,
+        ),
+        (
+            mir::BinOp::IntCompareTo,
+            lir::BinOp::SCompareTo,
+            mir::Type::Int,
+            lir::LirType::I64,
+        ),
+        (
+            mir::BinOp::UIntDiv,
+            lir::BinOp::UDiv,
+            mir::Type::UInt,
+            lir::LirType::I64,
+        ),
+        (
+            mir::BinOp::UIntRem,
+            lir::BinOp::URem,
+            mir::Type::UInt,
+            lir::LirType::I64,
+        ),
+        (
+            mir::BinOp::UIntCompareTo,
+            lir::BinOp::UCompareTo,
+            mir::Type::UInt,
+            lir::LirType::I64,
+        ),
+        (
+            mir::BinOp::IntLt,
+            lir::BinOp::Lt,
+            mir::Type::Int,
+            lir::LirType::I1,
+        ),
+        (
+            mir::BinOp::IntLe,
+            lir::BinOp::Le,
+            mir::Type::Int,
+            lir::LirType::I1,
+        ),
+        (
+            mir::BinOp::IntGt,
+            lir::BinOp::Gt,
+            mir::Type::Int,
+            lir::LirType::I1,
+        ),
+        (
+            mir::BinOp::IntGe,
+            lir::BinOp::Ge,
+            mir::Type::Int,
+            lir::LirType::I1,
+        ),
+        (
+            mir::BinOp::IntEq,
+            lir::BinOp::Eq,
+            mir::Type::Int,
+            lir::LirType::I1,
+        ),
+        (
+            mir::BinOp::IntNe,
+            lir::BinOp::Ne,
+            mir::Type::Int,
+            lir::LirType::I1,
+        ),
     ];
-    let mut statements: Vec<mir::Statement> = int_cases
+    let mut statements: Vec<mir::Statement> = integer_cases
         .iter()
-        .map(|(mir_op, _, _)| {
+        .map(|(mir_op, _, operand_ty, result_ty)| {
             expr_stmt(binary(
                 *mir_op,
-                mir::Expr::int(1),
-                mir::Expr::int(2),
-                if matches!(
-                    mir_op,
-                    mir::BinOp::IntAdd
-                        | mir::BinOp::IntSub
-                        | mir::BinOp::IntMul
-                        | mir::BinOp::IntDiv
-                ) {
-                    mir::Type::Int
-                } else {
+                expr(operand_ty.clone(), mir::ExprKind::IntLiteral(1)),
+                expr(operand_ty.clone(), mir::ExprKind::IntLiteral(2)),
+                if *result_ty == lir::LirType::I1 {
                     mir::Type::Boolean
+                } else {
+                    mir::Type::Int
                 },
             ))
         })
@@ -51,11 +125,15 @@ fn arithmetic_and_comparison_ops_map_to_lir_ops() {
     let main = b.main(Arena::new(), statements);
     let module = lower(&b.finish(main));
 
-    let expected: Vec<(lir::BinOp, lir::LirType)> = int_cases
+    let mut expected: Vec<(lir::BinOp, lir::LirType)> = integer_cases
         .iter()
-        .chain(bool_cases.iter())
-        .map(|(_, lir_op, ty)| (*lir_op, ty.clone()))
+        .map(|(_, lir_op, _, ty)| (*lir_op, ty.clone()))
         .collect();
+    expected.extend(
+        bool_cases
+            .iter()
+            .map(|(_, lir_op, ty)| (*lir_op, ty.clone())),
+    );
     let function = &module.functions[0];
     let ops: Vec<(lir::BinOp, lir::LirType)> = function.blocks[function.entry]
         .instructions

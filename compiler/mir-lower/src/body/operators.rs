@@ -6,70 +6,13 @@ impl BodyLowerer<'_> {
         op: hir::BinOp,
         lhs: &hir::Expr,
         rhs: &hir::Expr,
-        span: Span,
     ) -> smir::Expr {
         use mir::BinOp::*;
         match op {
-            // String `+` is runtime concatenation (DESIGN 2.3); hir-lower
-            // type checking makes both operands String here.
-            hir::BinOp::Add if matches!(self.module.types[lhs.ty].kind, hir::TypeKind::String) => {
-                self.call(
-                    mir::Callee::Runtime(mir::RuntimeFn::StringConcat),
-                    &[lhs, rhs],
-                    mir::Type::String,
-                )
-            }
-            hir::BinOp::Add => self.primitive(IntAdd, lhs, rhs),
-            hir::BinOp::Sub => self.primitive(IntSub, lhs, rhs),
-            hir::BinOp::Mul => self.primitive(IntMul, lhs, rhs),
-            // M8 (DESIGN section 1): integer division checks the
-            // divisor — a zero divisor throws `ArithmeticException`
-            // instead of hitting LLVM `sdiv` UB. Both operands are
-            // evaluated once into hidden locals (left to right), so
-            // the check and the division share one evaluation.
-            hir::BinOp::Div => {
-                let lhs_slot = self.new_hidden("div", mir::Type::Int, false);
-                let rhs_slot = self.new_hidden("div", mir::Type::Int, false);
-                let lhs = self.lower_expr(lhs);
-                self.prelude.push(smir::StatementKind::ValDecl {
-                    local: lhs_slot,
-                    init: lhs,
-                });
-                let rhs = self.lower_expr(rhs);
-                self.prelude.push(smir::StatementKind::ValDecl {
-                    local: rhs_slot,
-                    init: rhs,
-                });
-                let throw =
-                    self.throw_builtin(self.module.exception_core.arithmetic_exception, span);
-                self.prelude.push(smir::StatementKind::If {
-                    cond: smir::Expr::new(
-                        mir::Type::Boolean,
-                        smir::ExprKind::Binary {
-                            op: mir::BinOp::IntEq,
-                            lhs: Box::new(smir::Expr::local(rhs_slot, mir::Type::Int)),
-                            rhs: Box::new(smir::Expr::int(0)),
-                        },
-                    ),
-                    then_body: vec![throw],
-                    else_body: None,
-                });
-                smir::Expr::new(
-                    mir::Type::Int,
-                    smir::ExprKind::Binary {
-                        op: IntDiv,
-                        lhs: Box::new(smir::Expr::local(lhs_slot, mir::Type::Int)),
-                        rhs: Box::new(smir::Expr::local(rhs_slot, mir::Type::Int)),
-                    },
-                )
-            }
             hir::BinOp::Lt => self.primitive(IntLt, lhs, rhs),
             hir::BinOp::Le => self.primitive(IntLe, lhs, rhs),
             hir::BinOp::Gt => self.primitive(IntGt, lhs, rhs),
             hir::BinOp::Ge => self.primitive(IntGe, lhs, rhs),
-            hir::BinOp::Eq | hir::BinOp::Ne => {
-                unreachable!("HIR resolves == and != to exact method calls")
-            }
             // `===` / `!==`: reference identity — the primitive
             // comparison on the two pointers.
             hir::BinOp::RefEq => self.primitive(IntEq, lhs, rhs),
@@ -79,6 +22,150 @@ impl BodyLowerer<'_> {
             hir::BinOp::And => self.short_circuit(smir::LogicOp::And, lhs, rhs),
             hir::BinOp::Or => self.short_circuit(smir::LogicOp::Or, lhs, rhs),
         }
+    }
+
+    pub(super) fn lower_primitive_binary(
+        &mut self,
+        kind: hir::PrimitiveBinaryKind,
+        lhs: &hir::Expr,
+        rhs: &hir::Expr,
+        span: Span,
+    ) -> smir::Expr {
+        use hir::PrimitiveBinaryKind as K;
+        use mir::BinOp as M;
+        match kind {
+            K::StringConcat => self.call(
+                mir::Callee::Runtime(mir::RuntimeFn::StringConcat),
+                &[lhs, rhs],
+                mir::Type::String,
+            ),
+            K::StringCompareTo => self.call(
+                mir::Callee::Runtime(mir::RuntimeFn::StringCompare),
+                &[lhs, rhs],
+                mir::Type::Int,
+            ),
+            K::IntDiv | K::IntRem => self.checked_integer_division(
+                if kind == K::IntDiv {
+                    M::IntDiv
+                } else {
+                    M::IntRem
+                },
+                lhs,
+                rhs,
+                mir::Type::Int,
+                span,
+            ),
+            K::UIntDiv | K::UIntRem => self.checked_integer_division(
+                if kind == K::UIntDiv {
+                    M::UIntDiv
+                } else {
+                    M::UIntRem
+                },
+                lhs,
+                rhs,
+                mir::Type::UInt,
+                span,
+            ),
+            K::IntAdd | K::UIntAdd => self.primitive(M::IntAdd, lhs, rhs),
+            K::IntSub | K::UIntSub => self.primitive(M::IntSub, lhs, rhs),
+            K::IntMul | K::UIntMul => self.primitive(M::IntMul, lhs, rhs),
+            K::IntCompareTo => self.primitive(M::IntCompareTo, lhs, rhs),
+            K::UIntCompareTo => self.primitive(M::UIntCompareTo, lhs, rhs),
+        }
+    }
+
+    pub(super) fn lower_primitive_unary(
+        &mut self,
+        kind: hir::PrimitiveUnaryKind,
+        operand: &hir::Expr,
+    ) -> smir::Expr {
+        use hir::PrimitiveUnaryKind as K;
+        match kind {
+            K::IntUnaryPlus | K::UIntUnaryPlus => self.lower_expr(operand),
+            K::IntUnaryMinus => {
+                let operand = Box::new(self.lower_expr(operand));
+                smir::Expr::new(
+                    mir::Type::Int,
+                    smir::ExprKind::Unary {
+                        op: mir::UnOp::IntNeg,
+                        operand,
+                    },
+                )
+            }
+            K::BooleanNot => {
+                let operand = Box::new(self.lower_expr(operand));
+                smir::Expr::new(
+                    mir::Type::Boolean,
+                    smir::ExprKind::Unary {
+                        op: mir::UnOp::BoolNot,
+                        operand,
+                    },
+                )
+            }
+            K::IntInc | K::IntDec | K::UIntInc | K::UIntDec => {
+                let ty = if matches!(kind, K::IntInc | K::IntDec) {
+                    mir::Type::Int
+                } else {
+                    mir::Type::UInt
+                };
+                let op = if matches!(kind, K::IntInc | K::UIntInc) {
+                    mir::BinOp::IntAdd
+                } else {
+                    mir::BinOp::IntSub
+                };
+                smir::Expr::new(
+                    ty.clone(),
+                    smir::ExprKind::Binary {
+                        op,
+                        lhs: Box::new(self.lower_expr(operand)),
+                        rhs: Box::new(smir::Expr::new(ty, smir::ExprKind::IntLiteral(1))),
+                    },
+                )
+            }
+        }
+    }
+
+    fn checked_integer_division(
+        &mut self,
+        op: mir::BinOp,
+        lhs: &hir::Expr,
+        rhs: &hir::Expr,
+        ty: mir::Type,
+        span: Span,
+    ) -> smir::Expr {
+        let lhs_slot = self.new_hidden("div", ty.clone(), false);
+        let rhs_slot = self.new_hidden("div", ty.clone(), false);
+        let lhs = self.lower_expr(lhs);
+        self.prelude.push(smir::StatementKind::ValDecl {
+            local: lhs_slot,
+            init: lhs,
+        });
+        let rhs = self.lower_expr(rhs);
+        self.prelude.push(smir::StatementKind::ValDecl {
+            local: rhs_slot,
+            init: rhs,
+        });
+        let throw = self.throw_builtin(self.module.exception_core.arithmetic_exception, span);
+        self.prelude.push(smir::StatementKind::If {
+            cond: smir::Expr::new(
+                mir::Type::Boolean,
+                smir::ExprKind::Binary {
+                    op: mir::BinOp::IntEq,
+                    lhs: Box::new(smir::Expr::local(rhs_slot, ty.clone())),
+                    rhs: Box::new(smir::Expr::new(ty.clone(), smir::ExprKind::IntLiteral(0))),
+                },
+            ),
+            then_body: vec![throw],
+            else_body: None,
+        });
+        smir::Expr::new(
+            ty.clone(),
+            smir::ExprKind::Binary {
+                op,
+                lhs: Box::new(smir::Expr::local(lhs_slot, ty.clone())),
+                rhs: Box::new(smir::Expr::local(rhs_slot, ty)),
+            },
+        )
     }
 
     pub(super) fn primitive(
@@ -96,9 +183,14 @@ impl BodyLowerer<'_> {
             | mir::BinOp::IntNe
             | mir::BinOp::BoolEq
             | mir::BinOp::BoolNe => mir::Type::Boolean,
-            mir::BinOp::IntAdd | mir::BinOp::IntSub | mir::BinOp::IntMul | mir::BinOp::IntDiv => {
-                self.lower_type(lhs.ty)
-            }
+            mir::BinOp::IntAdd
+            | mir::BinOp::IntSub
+            | mir::BinOp::IntMul
+            | mir::BinOp::IntDiv
+            | mir::BinOp::IntRem
+            | mir::BinOp::UIntDiv
+            | mir::BinOp::UIntRem => self.lower_type(lhs.ty),
+            mir::BinOp::IntCompareTo | mir::BinOp::UIntCompareTo => mir::Type::Int,
         };
         let lhs = Box::new(self.lower_expr(lhs));
         let rhs = Box::new(self.lower_expr(rhs));

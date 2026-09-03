@@ -41,8 +41,8 @@ SourceFile
     fun load
     fun store
     fun store
-    fun plus
-    fun minus
+    operator fun plus
+    operator fun minus
   struct FunPtr<F>
     field _rawPointer: UInt
     @Unsafe
@@ -169,28 +169,53 @@ SourceFile
     @Intrinsic("core_int")
   struct Int <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun unaryMinus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_uint")
   struct UInt <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_boolean")
   struct Boolean <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun not
     fun toString
     fun hash
     @Intrinsic("core_string")
   class String(), ToString, Hash
     operator fun equals
+    operator fun plus
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_array")
   class Array<T>()
+    operator fun get
     fun toMutableArray
     @Intrinsic("core_mutable_array")
   class MutableArray<T>()
+    operator fun get
+    operator fun set
     fun toArray
     @Extern(name = "scoop_rt_int_equals", abi = "scoop")
   fun coreIntEquals(left: Int, right: Int): Boolean
@@ -502,10 +527,16 @@ Module
   fun coreBooleanHash(arg1: Boolean): Int <extern10 abi=scoop symbol=scoop_rt_bool_hash>
   fun coreStringHash(arg1: String): Int <extern11 abi=scoop symbol=scoop_rt_string_hash>
   fun increment(value: Int): Int
+    val local1
+      Local value : Int
+    val local2
+      IntLiteral 1 : Int
+    val local3
+      Local $argument.0 : Int
     return
-      Binary Add : Int
-        Local value : Int
-        IntLiteral 1 : Int
+      PrimitiveBinary IntAdd : Int
+        Local $receiver : Int
+        Local $parameter.other : Int
   fun identity<T>(value: T0): T0
     return
       Local value : T0
@@ -909,15 +940,24 @@ Module
         Local $call.1
   fun ValueMapper.map @scoop.ValueMapper.map(this: ValueMapper, value: Int) -> Int
     bb0 entry
+      val $receiver: Int
+        Type Int
+        Local value
+      val $argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type ValueMapper
+          Local this
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       return
         Type Int
         Binary IntAdd
           Type Int
-          Local value
+          Local $receiver
           Type Int
-          FieldAccess 0
-            Type ValueMapper
-            Local this
+          Local $parameter.other
   fun String.equals @scoop.String.equals(this: String, other: String) -> Boolean
     bb0 entry
       val $argument.0: String
@@ -966,35 +1006,62 @@ Module
         Local value
   fun TimesTwo.map @scoop.TimesTwo.map(this: TimesTwo, value: Int) -> Int
     bb0 entry
+      val $receiver: Int
+        Type Int
+        Local value
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       return
         Type Int
         Binary IntAdd
           Type Int
-          Local value
+          Local $receiver
           Type Int
-          Local value
+          Local $parameter.other
   fun PlusHundred.map @scoop.PlusHundred.map(this: PlusHundred, value: Int) -> Int
     bb0 entry
+      val $receiver: Int
+        Type Int
+        Local value
+      val $argument.0: Int
+        Type Int
+        IntLiteral 100
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       return
         Type Int
         Binary IntAdd
           Type Int
-          Local value
+          Local $receiver
           Type Int
-          IntLiteral 100
+          Local $parameter.other
   fun MapperFactory.make @scoop.MapperFactory.make(this: MapperFactory) -> BaseMapper
     bb0 entry
+      val $receiver: Int
+        Type Int
+        FieldAccess 0
+          Type MapperFactory
+          Local this
+      val $argument.0: Int
+        Type Int
+        IntLiteral 1
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       field_set 0
         Type MapperFactory
         Local this
         Type Int
         Binary IntAdd
           Type Int
-          FieldAccess 0
-            Type MapperFactory
-            Local this
+          Local $receiver
           Type Int
-          IntLiteral 1
+          Local $parameter.other
       call $call.1: TimesTwo = @scoop.ctor.TimesTwo direct
       return
         Type BaseMapper
@@ -1003,13 +1070,22 @@ Module
           Local $call.1
   fun PrefixMapper.map @scoop.PrefixMapper.map(this: PrefixMapper, value: String) -> String
     bb0 entry
-      call $call.1: String = @scoop_rt_string_concat direct
+      val $receiver: String
         Type String
         FieldAccess 0
           Type PrefixMapper
           Local this
+      val $argument.0: String
         Type String
         Local value
+      val $parameter.other: String
+        Type String
+        Local $argument.0
+      call $call.1: String = @scoop_rt_string_concat direct
+        Type String
+        Local $receiver
+        Type String
+        Local $parameter.other
       return
         Type String
         Local $call.1
@@ -1039,13 +1115,22 @@ Module
         Local value
   fun increment @scoop.increment(value: Int) -> Int
     bb0 entry
+      val $receiver: Int
+        Type Int
+        Local value
+      val $argument.0: Int
+        Type Int
+        IntLiteral 1
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       return
         Type Int
         Binary IntAdd
           Type Int
-          Local value
+          Local $receiver
           Type Int
-          IntLiteral 1
+          Local $parameter.other
   fun describe @scoop.describe.I(value: Int) -> String
     bb0 entry
       return
@@ -1871,10 +1956,16 @@ Module
     store t0 -> local2
     ret local2
   fun @scoop.ValueMapper.map(struct4, i64) -> i64
+    local %0 $receiver: i64
+    local %1 $argument.0: i64
+    local %2 $parameter.other: i64
   block entry
     poll managed-void-target0 sp101 live=[]
+    store param1 -> local0
     t0 = extract param0, 0 : i64
-    t1 = Add param1, t0 : i64
+    store t0 -> local1
+    store local1 -> local2
+    t1 = Add local0, local2 : i64
     ret t1
   fun @scoop.String.equals(ptr<managed>, ptr<managed>) -> i1
     local %0 $argument.0: ptr<managed>
@@ -1911,33 +2002,57 @@ Module
     poll managed-void-target0 sp105 live=[]
     ret param1
   fun @scoop.TimesTwo.map(ptr<managed>, i64) -> i64
+    local %0 $receiver: i64
+    local %1 $argument.0: i64
+    local %2 $parameter.other: i64
   block entry
     poll managed-void-target0 sp106 live=[]
-    t0 = Add param1, param1 : i64
+    store param1 -> local0
+    store param1 -> local1
+    store local1 -> local2
+    t0 = Add local0, local2 : i64
     ret t0
   fun @scoop.PlusHundred.map(ptr<managed>, i64) -> i64
+    local %0 $receiver: i64
+    local %1 $argument.0: i64
+    local %2 $parameter.other: i64
   block entry
     poll managed-void-target0 sp107 live=[]
-    t0 = Add param1, 100 : i64
+    store param1 -> local0
+    store 100 -> local1
+    store local1 -> local2
+    t0 = Add local0, local2 : i64
     ret t0
   fun @scoop.MapperFactory.make(ptr<managed>) -> ptr<managed>
-    local %0 $call.1: ptr<managed>
+    local %0 $receiver: i64
+    local %1 $argument.0: i64
+    local %2 $parameter.other: i64
+    local %3 $call.1: ptr<managed>
   block entry
     poll managed-void-target0 sp108 live=[param0:ptr<managed>@0]
     t0 = heap_load param0 +16 : i64
-    t1 = Add t0, 1 : i64
+    store t0 -> local0
+    store 1 -> local1
+    store local1 -> local2
+    t1 = Add local0, local2 : i64
     heap_store param0 +16 t1
     call managed-direct-target0 sp12 live=[] t2 = sig=direct0 () -> ptr<managed> local-fn46()
-    store t2 -> local0
-    ret local0
+    store t2 -> local3
+    ret local3
   fun @scoop.PrefixMapper.map(ptr<managed>, ptr<managed>) -> ptr<managed>
-    local %0 $call.1: ptr<managed>
+    local %0 $receiver: ptr<managed>
+    local %1 $argument.0: ptr<managed>
+    local %2 $parameter.other: ptr<managed>
+    local %3 $call.1: ptr<managed>
   block entry
     poll managed-void-target0 sp109 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
     t0 = heap_load param0 +16 : ptr<managed>
-    call managed-direct-target0 sp13 live=[param1:ptr<managed>@0, t0:ptr<managed>@0] t1 = sig=direct0 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(t0, param1)
-    store t1 -> local0
-    ret local0
+    store t0 -> local0
+    store param1 -> local1
+    store local1 -> local2
+    call managed-direct-target0 sp13 live=[local0:ptr<managed>@0, local2:ptr<managed>@0] t1 = sig=direct0 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(local0, local2)
+    store t1 -> local3
+    ret local3
   fun @scoop.OverloadedMapper.choose(ptr<managed>, i64) -> i64
   block entry
     poll managed-void-target0 sp110 live=[]
@@ -1958,9 +2073,15 @@ Module
   block if.merge.2
     ret param1
   fun @scoop.increment(i64) -> i64
+    local %0 $receiver: i64
+    local %1 $argument.0: i64
+    local %2 $parameter.other: i64
   block entry
     poll managed-void-target0 sp112 live=[]
-    t0 = Add param0, 1 : i64
+    store param0 -> local0
+    store 1 -> local1
+    store local1 -> local2
+    t0 = Add local0, local2 : i64
     ret t0
   fun @scoop.describe.I(i64) -> ptr<managed>
   block entry

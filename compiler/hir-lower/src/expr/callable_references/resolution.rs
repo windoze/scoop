@@ -329,6 +329,21 @@ impl Lowerer {
         self.candidate_layers(self.extensions_by_name.get(name))
     }
 
+    pub(in crate::expr) fn extension_operator_candidate_layers(
+        &self,
+        operator: hir::OperatorKind,
+    ) -> Vec<Vec<hir::FunctionId>> {
+        let mut ids = self
+            .extensions_by_name
+            .values()
+            .flatten()
+            .copied()
+            .filter(|function| self.signatures[function].modifiers.operator == Some(operator))
+            .collect::<Vec<_>>();
+        ids.sort_by_key(|id| id.into_raw().into_u32());
+        self.candidate_layers(Some(&ids))
+    }
+
     fn candidate_layers(&self, ids: Option<&Vec<hir::FunctionId>>) -> Vec<Vec<hir::FunctionId>> {
         let Some(ids) = ids else {
             return Vec::new();

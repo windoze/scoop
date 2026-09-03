@@ -41,8 +41,8 @@ SourceFile
     fun load
     fun store
     fun store
-    fun plus
-    fun minus
+    operator fun plus
+    operator fun minus
   struct FunPtr<F>
     field _rawPointer: UInt
     @Unsafe
@@ -169,28 +169,53 @@ SourceFile
     @Intrinsic("core_int")
   struct Int <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun unaryMinus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_uint")
   struct UInt <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_boolean")
   struct Boolean <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun not
     fun toString
     fun hash
     @Intrinsic("core_string")
   class String(), ToString, Hash
     operator fun equals
+    operator fun plus
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_array")
   class Array<T>()
+    operator fun get
     fun toMutableArray
     @Intrinsic("core_mutable_array")
   class MutableArray<T>()
+    operator fun get
+    operator fun set
     fun toArray
     @Extern(name = "scoop_rt_int_equals", abi = "scoop")
   fun coreIntEquals(left: Int, right: Int): Boolean
@@ -403,40 +428,78 @@ Module
     val local2
       ArrayClone : MutableArray<Int>
         Local $receiver : Array<Int>
-    assign []
-      Local mutable : MutableArray<Int>
-      IntLiteral 0 : Int
-      IntLiteral 40 : Int
     val local3
-      Index : Int
-        Local immutable : Array<Int>
-        IntLiteral 0 : Int
+      Local mutable : MutableArray<Int>
     val local4
+      IntLiteral 0 : Int
+    val local5
+      IntLiteral 40 : Int
+    val local6
+      Local $argument.0 : Int
+    val local7
+      Local $argument.1 : Int
+    ArraySet MutableSet : Unit
+      Local $receiver : MutableArray<Int>
+      Local $parameter.index : Int
+      Local $parameter.value : Int
+    val local8
+      Local immutable : Array<Int>
+    val local9
+      IntLiteral 0 : Int
+    val local10
+      Local $argument.0 : Int
+    val local11
+      Index ImmutableGet : Int
+        Local $receiver : Array<Int>
+        Local $parameter.index : Int
+    val local12
       Local $argument.0 : Int
     Call println<Int> : Unit
       Local $parameter.value : Int
-    val local5
+    val local13
       Local mutable : MutableArray<Int>
-    val local6
+    val local14
       ArrayClone : Array<Int>
         Local $receiver : MutableArray<Int>
-    assign []
+    val local15
       Local mutable : MutableArray<Int>
+    val local16
       IntLiteral 0 : Int
+    val local17
       IntLiteral 99 : Int
-    val local7
-      Index : Int
-        Local snapshot : Array<Int>
-        IntLiteral 0 : Int
-    val local8
+    val local18
+      Local $argument.0 : Int
+    val local19
+      Local $argument.1 : Int
+    ArraySet MutableSet : Unit
+      Local $receiver : MutableArray<Int>
+      Local $parameter.index : Int
+      Local $parameter.value : Int
+    val local20
+      Local snapshot : Array<Int>
+    val local21
+      IntLiteral 0 : Int
+    val local22
+      Local $argument.0 : Int
+    val local23
+      Index ImmutableGet : Int
+        Local $receiver : Array<Int>
+        Local $parameter.index : Int
+    val local24
       Local $argument.0 : Int
     Call println<Int> : Unit
       Local $parameter.value : Int
-    val local9
-      Index : Int
-        Local mutable : MutableArray<Int>
-        IntLiteral 0 : Int
-    val local10
+    val local25
+      Local mutable : MutableArray<Int>
+    val local26
+      IntLiteral 0 : Int
+    val local27
+      Local $argument.0 : Int
+    val local28
+      Index MutableGet : Int
+        Local $receiver : MutableArray<Int>
+        Local $parameter.index : Int
+    val local29
       Local $argument.0 : Int
     Call println<Int> : Unit
       Local $parameter.value : Int
@@ -680,12 +743,30 @@ Module
         ArrayClone Array$I -> MutableArray$I
           Type Array<Int>
           Local $receiver
-      val $arr.1: MutableArray<Int>
+      val $receiver: MutableArray<Int>
         Type MutableArray<Int>
         Local mutable
-      val $idx.2: Int
+      val $argument.0: Int
         Type Int
         IntLiteral 0
+      val $argument.1: Int
+        Type Int
+        IntLiteral 40
+      val $parameter.index: Int
+        Type Int
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.1
+      val $arr.1: MutableArray<Int>
+        Type MutableArray<Int>
+        Local $receiver
+      val $idx.2: Int
+        Type Int
+        Local $parameter.index
+      val $value.3: Int
+        Type Int
+        Local $parameter.value
       branch bb2 bb1
         Type Boolean
         Binary IntLt
@@ -725,18 +806,27 @@ Module
         Type Int
         Local $idx.2
         Type Int
-        IntLiteral 40
-      val $arr.3: Array<Int>
+        Local $value.3
+      val $receiver: Array<Int>
         Type Array<Int>
         Local immutable
-      val $idx.4: Int
+      val $argument.0: Int
         Type Int
         IntLiteral 0
+      val $parameter.index: Int
+        Type Int
+        Local $argument.0
+      val $arr.4: Array<Int>
+        Type Array<Int>
+        Local $receiver
+      val $idx.5: Int
+        Type Int
+        Local $parameter.index
       branch bb7 bb6
         Type Boolean
         Binary IntLt
           Type Int
-          Local $idx.4
+          Local $idx.5
           Type Int
           IntLiteral 0
     bb6 logic.rhs.6
@@ -744,11 +834,11 @@ Module
         Type Boolean
         Binary IntGe
           Type Int
-          Local $idx.4
+          Local $idx.5
           Type Int
           ArrayLen Array$I
             Type Array<Int>
-            Local $arr.3
+            Local $arr.4
       goto bb8
     bb7 logic.short.7
       assign $logic.3
@@ -769,9 +859,9 @@ Module
         Type Int
         ArrayGet Array$I
           Type Array<Int>
-          Local $arr.3
+          Local $arr.4
           Type Int
-          Local $idx.4
+          Local $idx.5
       val $parameter.value: Int
         Type Int
         Local $argument.0
@@ -786,17 +876,35 @@ Module
         ArrayClone MutableArray$I -> Array$I
           Type MutableArray<Int>
           Local $receiver
-      val $arr.5: MutableArray<Int>
+      val $receiver: MutableArray<Int>
         Type MutableArray<Int>
         Local mutable
-      val $idx.6: Int
+      val $argument.0: Int
         Type Int
         IntLiteral 0
+      val $argument.1: Int
+        Type Int
+        IntLiteral 99
+      val $parameter.index: Int
+        Type Int
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.1
+      val $arr.6: MutableArray<Int>
+        Type MutableArray<Int>
+        Local $receiver
+      val $idx.7: Int
+        Type Int
+        Local $parameter.index
+      val $value.8: Int
+        Type Int
+        Local $parameter.value
       branch bb12 bb11
         Type Boolean
         Binary IntLt
           Type Int
-          Local $idx.6
+          Local $idx.7
           Type Int
           IntLiteral 0
     bb11 logic.rhs.11
@@ -804,11 +912,11 @@ Module
         Type Boolean
         Binary IntGe
           Type Int
-          Local $idx.6
+          Local $idx.7
           Type Int
           ArrayLen MutableArray$I
             Type MutableArray<Int>
-            Local $arr.5
+            Local $arr.6
       goto bb13
     bb12 logic.short.12
       assign $logic.5
@@ -827,22 +935,31 @@ Module
     bb15 if.merge.15
       array_set MutableArray$I
         Type MutableArray<Int>
-        Local $arr.5
+        Local $arr.6
         Type Int
-        Local $idx.6
+        Local $idx.7
         Type Int
-        IntLiteral 99
-      val $arr.7: Array<Int>
+        Local $value.8
+      val $receiver: Array<Int>
         Type Array<Int>
         Local snapshot
-      val $idx.8: Int
+      val $argument.0: Int
         Type Int
         IntLiteral 0
+      val $parameter.index: Int
+        Type Int
+        Local $argument.0
+      val $arr.9: Array<Int>
+        Type Array<Int>
+        Local $receiver
+      val $idx.10: Int
+        Type Int
+        Local $parameter.index
       branch bb17 bb16
         Type Boolean
         Binary IntLt
           Type Int
-          Local $idx.8
+          Local $idx.10
           Type Int
           IntLiteral 0
     bb16 logic.rhs.16
@@ -850,11 +967,11 @@ Module
         Type Boolean
         Binary IntGe
           Type Int
-          Local $idx.8
+          Local $idx.10
           Type Int
           ArrayLen Array$I
             Type Array<Int>
-            Local $arr.7
+            Local $arr.9
       goto bb18
     bb17 logic.short.17
       assign $logic.7
@@ -875,26 +992,35 @@ Module
         Type Int
         ArrayGet Array$I
           Type Array<Int>
-          Local $arr.7
+          Local $arr.9
           Type Int
-          Local $idx.8
+          Local $idx.10
       val $parameter.value: Int
         Type Int
         Local $argument.0
       call @scoop.println$I direct
         Type Int
         Local $parameter.value
-      val $arr.9: MutableArray<Int>
+      val $receiver: MutableArray<Int>
         Type MutableArray<Int>
         Local mutable
-      val $idx.10: Int
+      val $argument.0: Int
         Type Int
         IntLiteral 0
+      val $parameter.index: Int
+        Type Int
+        Local $argument.0
+      val $arr.11: MutableArray<Int>
+        Type MutableArray<Int>
+        Local $receiver
+      val $idx.12: Int
+        Type Int
+        Local $parameter.index
       branch bb22 bb21
         Type Boolean
         Binary IntLt
           Type Int
-          Local $idx.10
+          Local $idx.12
           Type Int
           IntLiteral 0
     bb21 logic.rhs.21
@@ -902,11 +1028,11 @@ Module
         Type Boolean
         Binary IntGe
           Type Int
-          Local $idx.10
+          Local $idx.12
           Type Int
           ArrayLen MutableArray$I
             Type MutableArray<Int>
-            Local $arr.9
+            Local $arr.11
       goto bb23
     bb22 logic.short.22
       assign $logic.9
@@ -927,9 +1053,9 @@ Module
         Type Int
         ArrayGet MutableArray$I
           Type MutableArray<Int>
-          Local $arr.9
+          Local $arr.11
           Type Int
-          Local $idx.10
+          Local $idx.12
       val $parameter.value: Int
         Type Int
         Local $argument.0
@@ -1256,34 +1382,55 @@ Module
     local %0 immutable: ptr<managed>
     local %1 $receiver: ptr<managed>
     local %2 mutable: ptr<managed>
-    local %3 $argument.0: i64
-    local %4 $parameter.value: i64
-    local %5 $receiver: ptr<managed>
-    local %6 snapshot: ptr<managed>
-    local %7 $argument.0: i64
-    local %8 $parameter.value: i64
+    local %3 $receiver: ptr<managed>
+    local %4 $argument.0: i64
+    local %5 $argument.1: i64
+    local %6 $parameter.index: i64
+    local %7 $parameter.value: i64
+    local %8 $receiver: ptr<managed>
     local %9 $argument.0: i64
-    local %10 $parameter.value: i64
-    local %11 $arr.1: ptr<managed>
-    local %12 $idx.2: i64
-    local %13 $arr.3: ptr<managed>
-    local %14 $idx.4: i64
-    local %15 $arr.5: ptr<managed>
-    local %16 $idx.6: i64
-    local %17 $arr.7: ptr<managed>
-    local %18 $idx.8: i64
-    local %19 $arr.9: ptr<managed>
-    local %20 $idx.10: i64
-    local %21 $logic.1: i1
-    local %22 $call.2: ptr<managed>
-    local %23 $logic.3: i1
-    local %24 $call.4: ptr<managed>
-    local %25 $logic.5: i1
-    local %26 $call.6: ptr<managed>
-    local %27 $logic.7: i1
-    local %28 $call.8: ptr<managed>
-    local %29 $logic.9: i1
-    local %30 $call.10: ptr<managed>
+    local %10 $parameter.index: i64
+    local %11 $argument.0: i64
+    local %12 $parameter.value: i64
+    local %13 $receiver: ptr<managed>
+    local %14 snapshot: ptr<managed>
+    local %15 $receiver: ptr<managed>
+    local %16 $argument.0: i64
+    local %17 $argument.1: i64
+    local %18 $parameter.index: i64
+    local %19 $parameter.value: i64
+    local %20 $receiver: ptr<managed>
+    local %21 $argument.0: i64
+    local %22 $parameter.index: i64
+    local %23 $argument.0: i64
+    local %24 $parameter.value: i64
+    local %25 $receiver: ptr<managed>
+    local %26 $argument.0: i64
+    local %27 $parameter.index: i64
+    local %28 $argument.0: i64
+    local %29 $parameter.value: i64
+    local %30 $arr.1: ptr<managed>
+    local %31 $idx.2: i64
+    local %32 $value.3: i64
+    local %33 $arr.4: ptr<managed>
+    local %34 $idx.5: i64
+    local %35 $arr.6: ptr<managed>
+    local %36 $idx.7: i64
+    local %37 $value.8: i64
+    local %38 $arr.9: ptr<managed>
+    local %39 $idx.10: i64
+    local %40 $arr.11: ptr<managed>
+    local %41 $idx.12: i64
+    local %42 $logic.1: i1
+    local %43 $call.2: ptr<managed>
+    local %44 $logic.3: i1
+    local %45 $call.4: ptr<managed>
+    local %46 $logic.5: i1
+    local %47 $call.6: ptr<managed>
+    local %48 $logic.7: i1
+    local %49 $call.8: ptr<managed>
+    local %50 $logic.9: i1
+    local %51 $call.10: ptr<managed>
   block entry
     poll managed-void-target3 sp45 live=[]
     t0 = array_alloc array0 (1, 2) sp12 live  : ptr<managed>
@@ -1291,125 +1438,146 @@ Module
     store local0 -> local1
     t1 = array_clone array1 local1 sp13 live local0:ptr<managed>@0, local1:ptr<managed>@0 : ptr<managed>
     store t1 -> local2
-    store local2 -> local11
-    store 0 -> local12
-    t2 = Lt local12, 0 : i1
+    store local2 -> local3
+    store 0 -> local4
+    store 40 -> local5
+    store local4 -> local6
+    store local5 -> local7
+    store local3 -> local30
+    store local6 -> local31
+    store local7 -> local32
+    t2 = Lt local31, 0 : i1
     cbr t2 then @logic.short.2 else @logic.rhs.1
   block logic.rhs.1
-    t3 = array_len array1 local11 : i64
-    t4 = Ge local12, t3 : i1
-    store t4 -> local21
+    t3 = array_len array1 local30 : i64
+    t4 = Ge local31, t3 : i1
+    store t4 -> local42
     br @logic.merge.3
   block logic.short.2
-    store true -> local21
+    store true -> local42
     br @logic.merge.3
   block logic.merge.3
-    cbr local21 then @if.then.4 else @if.merge.5
+    cbr local42 then @if.then.4 else @if.merge.5
   block if.then.4
     call managed-direct-target0 sp14 live=[] t5 = sig=direct0 () -> ptr<managed> local-fn19()
-    store t5 -> local22
-    throw local22
+    store t5 -> local43
+    throw local43
     unreachable
   block if.merge.5
-    array_set array1 local11 local12 40
-    store local0 -> local13
-    store 0 -> local14
-    t6 = Lt local14, 0 : i1
+    array_set array1 local30 local31 local32
+    store local0 -> local8
+    store 0 -> local9
+    store local9 -> local10
+    store local8 -> local33
+    store local10 -> local34
+    t6 = Lt local34, 0 : i1
     cbr t6 then @logic.short.7 else @logic.rhs.6
   block logic.rhs.6
-    t7 = array_len array0 local13 : i64
-    t8 = Ge local14, t7 : i1
-    store t8 -> local23
+    t7 = array_len array0 local33 : i64
+    t8 = Ge local34, t7 : i1
+    store t8 -> local44
     br @logic.merge.8
   block logic.short.7
-    store true -> local23
+    store true -> local44
     br @logic.merge.8
   block logic.merge.8
-    cbr local23 then @if.then.9 else @if.merge.10
+    cbr local44 then @if.then.9 else @if.merge.10
   block if.then.9
     call managed-direct-target1 sp15 live=[] t9 = sig=direct1 () -> ptr<managed> local-fn19()
-    store t9 -> local24
-    throw local24
+    store t9 -> local45
+    throw local45
     unreachable
   block if.merge.10
-    t10 = array_get array0 local13 local14 : i64
-    store t10 -> local3
-    store local3 -> local4
-    call managed-void-target0 sp16 live=[local2:ptr<managed>@0] sig=void0 (i64) local-fn13(local4)
+    t10 = array_get array0 local33 local34 : i64
+    store t10 -> local11
+    store local11 -> local12
+    call managed-void-target0 sp16 live=[local2:ptr<managed>@0] sig=void0 (i64) local-fn13(local12)
     t11 = aggregate () : {}
-    store local2 -> local5
-    t12 = array_clone array0 local5 sp17 live local2:ptr<managed>@0, local5:ptr<managed>@0 : ptr<managed>
-    store t12 -> local6
+    store local2 -> local13
+    t12 = array_clone array0 local13 sp17 live local2:ptr<managed>@0, local13:ptr<managed>@0 : ptr<managed>
+    store t12 -> local14
     store local2 -> local15
     store 0 -> local16
-    t13 = Lt local16, 0 : i1
+    store 99 -> local17
+    store local16 -> local18
+    store local17 -> local19
+    store local15 -> local35
+    store local18 -> local36
+    store local19 -> local37
+    t13 = Lt local36, 0 : i1
     cbr t13 then @logic.short.12 else @logic.rhs.11
   block logic.rhs.11
-    t14 = array_len array1 local15 : i64
-    t15 = Ge local16, t14 : i1
-    store t15 -> local25
+    t14 = array_len array1 local35 : i64
+    t15 = Ge local36, t14 : i1
+    store t15 -> local46
     br @logic.merge.13
   block logic.short.12
-    store true -> local25
+    store true -> local46
     br @logic.merge.13
   block logic.merge.13
-    cbr local25 then @if.then.14 else @if.merge.15
+    cbr local46 then @if.then.14 else @if.merge.15
   block if.then.14
     call managed-direct-target2 sp18 live=[] t16 = sig=direct2 () -> ptr<managed> local-fn19()
-    store t16 -> local26
-    throw local26
+    store t16 -> local47
+    throw local47
     unreachable
   block if.merge.15
-    array_set array1 local15 local16 99
-    store local6 -> local17
-    store 0 -> local18
-    t17 = Lt local18, 0 : i1
+    array_set array1 local35 local36 local37
+    store local14 -> local20
+    store 0 -> local21
+    store local21 -> local22
+    store local20 -> local38
+    store local22 -> local39
+    t17 = Lt local39, 0 : i1
     cbr t17 then @logic.short.17 else @logic.rhs.16
   block logic.rhs.16
-    t18 = array_len array0 local17 : i64
-    t19 = Ge local18, t18 : i1
-    store t19 -> local27
+    t18 = array_len array0 local38 : i64
+    t19 = Ge local39, t18 : i1
+    store t19 -> local48
     br @logic.merge.18
   block logic.short.17
-    store true -> local27
+    store true -> local48
     br @logic.merge.18
   block logic.merge.18
-    cbr local27 then @if.then.19 else @if.merge.20
+    cbr local48 then @if.then.19 else @if.merge.20
   block if.then.19
     call managed-direct-target3 sp19 live=[] t20 = sig=direct3 () -> ptr<managed> local-fn19()
-    store t20 -> local28
-    throw local28
+    store t20 -> local49
+    throw local49
     unreachable
   block if.merge.20
-    t21 = array_get array0 local17 local18 : i64
-    store t21 -> local7
-    store local7 -> local8
-    call managed-void-target1 sp20 live=[local2:ptr<managed>@0] sig=void1 (i64) local-fn13(local8)
+    t21 = array_get array0 local38 local39 : i64
+    store t21 -> local23
+    store local23 -> local24
+    call managed-void-target1 sp20 live=[local2:ptr<managed>@0] sig=void1 (i64) local-fn13(local24)
     t22 = aggregate () : {}
-    store local2 -> local19
-    store 0 -> local20
-    t23 = Lt local20, 0 : i1
+    store local2 -> local25
+    store 0 -> local26
+    store local26 -> local27
+    store local25 -> local40
+    store local27 -> local41
+    t23 = Lt local41, 0 : i1
     cbr t23 then @logic.short.22 else @logic.rhs.21
   block logic.rhs.21
-    t24 = array_len array1 local19 : i64
-    t25 = Ge local20, t24 : i1
-    store t25 -> local29
+    t24 = array_len array1 local40 : i64
+    t25 = Ge local41, t24 : i1
+    store t25 -> local50
     br @logic.merge.23
   block logic.short.22
-    store true -> local29
+    store true -> local50
     br @logic.merge.23
   block logic.merge.23
-    cbr local29 then @if.then.24 else @if.merge.25
+    cbr local50 then @if.then.24 else @if.merge.25
   block if.then.24
     call managed-direct-target4 sp21 live=[] t26 = sig=direct4 () -> ptr<managed> local-fn19()
-    store t26 -> local30
-    throw local30
+    store t26 -> local51
+    throw local51
     unreachable
   block if.merge.25
-    t27 = array_get array1 local19 local20 : i64
-    store t27 -> local9
-    store local9 -> local10
-    call managed-void-target2 sp22 live=[] sig=void2 (i64) local-fn13(local10)
+    t27 = array_get array1 local40 local41 : i64
+    store t27 -> local28
+    store local28 -> local29
+    call managed-void-target2 sp22 live=[] sig=void2 (i64) local-fn13(local29)
     t28 = aggregate () : {}
     ret
   fun @scoop.println$I(i64) -> void

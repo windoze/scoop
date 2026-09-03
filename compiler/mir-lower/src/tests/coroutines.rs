@@ -94,8 +94,8 @@ fn suspend_call_generates_a_liveness_based_frame_and_resume_point() {
             statements: vec![
                 val_decl(value, call_typed(leaf, Vec::new(), h.int)),
                 stmt(hir::StatementKind::Return {
-                    value: Some(binary(
-                        hir::BinOp::Add,
+                    value: Some(primitive_binary(
+                        hir::PrimitiveBinaryKind::IntAdd,
                         local_ref(value, h.int),
                         int_lit(&h, 1),
                         h.int,
@@ -213,6 +213,7 @@ fn start_coroutine_resumes_only_an_immediately_completed_task() {
         name: "launcher".to_string(),
         genericity: hir::FunctionGenericity::Plain,
         is_suspend: false,
+        modifiers: hir::CallableModifiers::default(),
         params: vec![
             param("task", task_ty, task),
             param("completion", completion_ty, completion),

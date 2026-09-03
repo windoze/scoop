@@ -41,8 +41,8 @@ SourceFile
     fun load
     fun store
     fun store
-    fun plus
-    fun minus
+    operator fun plus
+    operator fun minus
   struct FunPtr<F>
     field _rawPointer: UInt
     @Unsafe
@@ -169,28 +169,53 @@ SourceFile
     @Intrinsic("core_int")
   struct Int <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun unaryMinus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_uint")
   struct UInt <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_boolean")
   struct Boolean <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun not
     fun toString
     fun hash
     @Intrinsic("core_string")
   class String(), ToString, Hash
     operator fun equals
+    operator fun plus
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_array")
   class Array<T>()
+    operator fun get
     fun toMutableArray
     @Intrinsic("core_mutable_array")
   class MutableArray<T>()
+    operator fun get
+    operator fun set
     fun toArray
     @Extern(name = "scoop_rt_int_equals", abi = "scoop")
   fun coreIntEquals(left: Int, right: Int): Boolean
@@ -1229,17 +1254,26 @@ Module
           Type Int
           IntLiteral 0
     bb1 coroutine.post.1
+      val $receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Box
+          Local box
+      val $argument.0: Int
+        Type Int
+        IntLiteral 1
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       return
         Type CoroutineStep$I
         VariantConstruct CoroutineStep$I v0
           Type Int
           Binary IntAdd
             Type Int
-            FieldAccess 0
-              Type Box
-              Local box
+            Local $receiver
             Type Int
-            IntLiteral 1
+            Local $parameter.other
     bb2 coroutine.completed.1
       val box: Box
         Type Box
@@ -2834,13 +2868,16 @@ Module
     local %1 $argument.0: ptr<managed>
     local %2 $parameter.gate: ptr<managed>
     local %3 box: ptr<managed>
-    local %4 $completion: ptr<managed>
-    local %5 $adapter.1: ptr<managed>
-    local %6 $step.1: enum3
-    local %7 $protocol_error: ptr<managed>
-    local %8 $completed_adapter_claim.1: i64
-    local %9 $completed_frame_claim.1: i64
+    local %4 $receiver: i64
+    local %5 $argument.0: i64
+    local %6 $parameter.other: i64
+    local %7 $completion: ptr<managed>
+    local %8 $adapter.1: ptr<managed>
+    local %9 $step.1: enum3
     local %10 $protocol_error: ptr<managed>
+    local %11 $completed_adapter_claim.1: i64
+    local %12 $completed_frame_claim.1: i64
+    local %13 $protocol_error: ptr<managed>
   block entry
     t0 = heap_load local0 +16 : ptr<managed>
     store t0 -> local1
@@ -2849,35 +2886,38 @@ Module
     call managed-direct-target0 sp49 live=[param0:ptr<managed>@0, local2:ptr<managed>@0] t1 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td16, 32)
     heap_store t1 +16 param0
     heap_store t1 +24 1
-    store t1 -> local5
-    call managed-direct-target1 sp50 live=[param0:ptr<managed>@0, local2:ptr<managed>@0, local5:ptr<managed>@0] t2 = sig=direct1 (ptr<managed>, ptr<managed>) -> enum3 local-fn17(local2, local5)
-    store t2 -> local6
-    t3 = enum_tag e3 local6 : i64
+    store t1 -> local8
+    call managed-direct-target1 sp50 live=[param0:ptr<managed>@0, local2:ptr<managed>@0, local8:ptr<managed>@0] t2 = sig=direct1 (ptr<managed>, ptr<managed>) -> enum3 local-fn17(local2, local8)
+    store t2 -> local9
+    t3 = enum_tag e3 local9 : i64
     t4 = Eq t3, 0 : i1
     cbr t4 then @coroutine.completed_claim_adapter.1 else @coroutine.suspended.1
   block coroutine.post.1
     t5 = heap_load local3 +16 : i64
-    t6 = Add t5, 1 : i64
+    store t5 -> local4
+    store 1 -> local5
+    store local5 -> local6
+    t6 = Add local4, local6 : i64
     t7 = enum_wrap e2 v0 (t6) : enum2
     ret t7
   block coroutine.completed.1
-    t8 = enum_field e3 v0 f0 local6 : ptr<managed>
+    t8 = enum_field e3 v0 f0 local9 : ptr<managed>
     store t8 -> local3
     br @coroutine.post.1
   block coroutine.protocol_error
     call managed-direct-target2 sp51 live=[] t9 = sig=direct2 () -> ptr<managed> local-fn27()
-    store t9 -> local7
-    throw local7
+    store t9 -> local10
+    throw local10
     unreachable
   block coroutine.completed_claim_frame.1
     t10 = atomic_cmpxchg acq_rel/acquire param0 +16 expected=1 replacement=-1 : i64
-    store t10 -> local9
-    t11 = Eq local9, 1 : i1
+    store t10 -> local12
+    t11 = Eq local12, 1 : i1
     cbr t11 then @coroutine.completed.1 else @coroutine.protocol_error
   block coroutine.completed_claim_adapter.1
-    t12 = atomic_cmpxchg acq_rel/acquire local5 +24 expected=1 replacement=6 : i64
-    store t12 -> local8
-    t13 = Eq local8, 1 : i1
+    t12 = atomic_cmpxchg acq_rel/acquire local8 +24 expected=1 replacement=6 : i64
+    store t12 -> local11
+    t13 = Eq local11, 1 : i1
     cbr t13 then @coroutine.completed_claim_frame.1 else @coroutine.protocol_error
   block coroutine.suspended.1
     t14 = enum_wrap e2 v1 () : enum2
@@ -2900,8 +2940,8 @@ Module
     br @entry
   block coroutine.protocol_error
     call managed-direct-target3 sp52 live=[] t21 = sig=direct3 () -> ptr<managed> local-fn27()
-    store t21 -> local10
-    throw local10
+    store t21 -> local13
+    throw local13
     unreachable
   block coroutine.dispatch.1
     t22 = Eq param1, 1 : i1

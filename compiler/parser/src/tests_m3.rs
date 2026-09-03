@@ -3,7 +3,9 @@
 //! bodies, `return`, nullable type annotations (`T?`), and the `?.` /
 //! `!!` / `?:` operators.
 
-use scoop_ast::{Decl, Expr, FieldSelector, FunctionBody, Span, StatementKind, TypeRefKind, UnOp};
+use scoop_ast::{
+    Decl, Expr, FieldSelector, FunctionBody, Navigation, Span, StatementKind, TypeRefKind, UnOp,
+};
 
 use crate::tests::{block_body, err, ok, only_function};
 use crate::tests_m2::{init_expr, stmt_dump};
@@ -199,7 +201,7 @@ fn safe_field_access() {
     let Expr::FieldAccess(access) = init_expr("p?.x") else {
         panic!("expected a field access");
     };
-    assert!(access.safe);
+    assert_eq!(access.navigation, Navigation::Safe);
     assert_eq!(access.span, Span::new(25, 29));
     let FieldSelector::Name(name) = &access.selector else {
         panic!("expected a named selector");
@@ -213,7 +215,7 @@ fn safe_field_access_chains() {
     let Expr::FieldAccess(outer) = init_expr("a?.b?.c") else {
         panic!("expected a field access");
     };
-    assert!(outer.safe);
+    assert_eq!(outer.navigation, Navigation::Safe);
     let FieldSelector::Name(name) = &outer.selector else {
         panic!("expected a named selector");
     };
@@ -221,7 +223,7 @@ fn safe_field_access_chains() {
     let Expr::FieldAccess(inner) = &*outer.receiver else {
         panic!("expected a field access receiver");
     };
-    assert!(inner.safe);
+    assert_eq!(inner.navigation, Navigation::Safe);
 }
 
 #[test]
@@ -230,7 +232,7 @@ fn safe_field_access_allows_whitespace_before_the_dot() {
     let Expr::FieldAccess(access) = init_expr("a?. x") else {
         panic!("expected a field access");
     };
-    assert!(access.safe);
+    assert_eq!(access.navigation, Navigation::Safe);
 }
 
 #[test]
@@ -320,14 +322,14 @@ fn elvis_is_right_associative() {
 }
 
 #[test]
-fn elvis_binds_looser_than_or() {
+fn elvis_binds_tighter_than_boolean_operators() {
     assert_eq!(
         stmt_dump("val x = a || b ?: c"),
-        "val x\n  Elvis\n    Binary Or\n      Var a\n      Var b\n    Var c\n"
+        "val x\n  Binary Or\n    Var a\n    Elvis\n      Var b\n      Var c\n"
     );
     assert_eq!(
         stmt_dump("val x = a ?: b || c"),
-        "val x\n  Elvis\n    Var a\n    Binary Or\n      Var b\n      Var c\n"
+        "val x\n  Binary Or\n    Elvis\n      Var a\n      Var b\n    Var c\n"
     );
 }
 

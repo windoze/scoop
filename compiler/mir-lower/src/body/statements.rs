@@ -405,7 +405,8 @@ impl BodyLowerer<'_> {
             })
             .collect();
         if let Some(guard) = &arm.guard {
-            let guard_cond = self.lower_expr(guard);
+            then.extend(self.lower_statements(&guard.setup));
+            let guard_cond = self.lower_expr(&guard.condition);
             let guard_prelude = std::mem::take(&mut self.prelude);
             then.extend(guard_prelude.into_iter().map(|kind| smir::Statement {
                 kind,
@@ -423,6 +424,14 @@ impl BodyLowerer<'_> {
             });
         } else {
             then.extend(self.lower_statements(&arm.body));
+        }
+        if rest.is_empty() && else_body.is_none() && arm.guard.is_none() {
+            // HIR has already proved the complete arm sequence exhaustive.
+            // Reaching its final unguarded arm therefore proves this pattern,
+            // even when the pattern itself is refutable in isolation. Keeping
+            // an impossible false edge would make values defined by every arm
+            // appear live before their definitions at a suspend site.
+            return then;
         }
         let Some(cond) = cond else {
             // Matches unconditionally; `rest` is unreachable.

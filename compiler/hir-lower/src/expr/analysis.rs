@@ -112,7 +112,9 @@ fn expr_contains_return(expr: &ast::Expr) -> bool {
                     .iter()
                     .any(|argument| expr_contains_return(&argument.expression))
         }
-        ast::Expr::Binary { lhs, rhs, .. } | ast::Expr::Elvis { lhs, rhs, .. } => {
+        ast::Expr::InfixCall { lhs, rhs, .. }
+        | ast::Expr::Binary { lhs, rhs, .. }
+        | ast::Expr::Elvis { lhs, rhs, .. } => {
             expr_contains_return(lhs) || expr_contains_return(rhs)
         }
         ast::Expr::Unary { operand, .. }
@@ -126,8 +128,9 @@ fn expr_contains_return(expr: &ast::Expr) -> bool {
                     .any(|argument| expr_contains_return(&argument.expression))
         }
         ast::Expr::Index {
-            receiver, index, ..
-        } => expr_contains_return(receiver) || expr_contains_return(index),
+            receiver, indices, ..
+        } => expr_contains_return(receiver) || indices.iter().any(expr_contains_return),
+        ast::Expr::Update { place, .. } => place_contains_return(place),
         ast::Expr::If(if_) => {
             expr_contains_return(&if_.cond)
                 || block_contains_return(&if_.then_block)
@@ -158,5 +161,15 @@ fn expr_contains_return(expr: &ast::Expr) -> bool {
         | ast::Expr::UnitLiteral { .. }
         | ast::Expr::Var(_)
         | ast::Expr::This { .. } => false,
+    }
+}
+
+fn place_contains_return(place: &ast::PlaceExpr) -> bool {
+    match place {
+        ast::PlaceExpr::Name(_) => false,
+        ast::PlaceExpr::Field { receiver, .. } => expr_contains_return(receiver),
+        ast::PlaceExpr::Index {
+            receiver, indices, ..
+        } => expr_contains_return(receiver) || indices.iter().any(expr_contains_return),
     }
 }

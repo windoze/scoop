@@ -103,18 +103,16 @@ Module
 }
 
 #[test]
-fn unary_operators_map_to_mir_unops() {
+fn typed_and_builtin_unary_operators_map_to_mir_unops() {
     let mut h = Harness::new();
     let main = h.user_fn(
         "main",
         hir::Body {
             locals: Arena::new(),
             statements: vec![
-                expr_stmt(expr(
-                    hir::ExprKind::Unary {
-                        op: hir::UnOp::Neg,
-                        operand: Box::new(int_lit(&h, 1)),
-                    },
+                expr_stmt(primitive_unary(
+                    hir::PrimitiveUnaryKind::IntUnaryMinus,
+                    int_lit(&h, 1),
                     h.int,
                 )),
                 expr_stmt(expr(

@@ -85,7 +85,11 @@ pub(super) fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
                 FieldSelector::Name(name) => name.text.clone(),
                 FieldSelector::Index(index, _) => format!("_{index}"),
             };
-            let marker = if access.safe { "?" } else { "" };
+            let marker = if access.navigation == Navigation::Safe {
+                "?"
+            } else {
+                ""
+            };
             out.push_str(&format!("{pad}FieldAccess {marker}{selector}\n"));
             dump_expr(&access.receiver, indent + 1, out);
         }
@@ -96,12 +100,29 @@ pub(super) fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
                 dump_call_argument(arg, indent + 1, out);
             }
         }
-        Expr::Invoke { callee, args, .. } => {
-            out.push_str(&format!("{pad}Invoke\n"));
+        Expr::Invoke {
+            callee,
+            type_args,
+            args,
+            ..
+        } => {
+            let type_args = dump_call_type_args(type_args);
+            out.push_str(&format!("{pad}Invoke{type_args}\n"));
             dump_expr(callee, indent + 1, out);
             for arg in args {
                 dump_call_argument(arg, indent + 1, out);
             }
+        }
+        Expr::InfixCall {
+            lhs, target, rhs, ..
+        } => {
+            let target = match target {
+                InfixTarget::Named(name) => name.text.as_str(),
+                InfixTarget::Invoke => "<invoke>",
+            };
+            out.push_str(&format!("{pad}InfixCall {target}\n"));
+            dump_expr(lhs, indent + 1, out);
+            dump_expr(rhs, indent + 1, out);
         }
         Expr::Binary { op, lhs, rhs, .. } => {
             out.push_str(&format!("{pad}Binary {op:?}\n"));
@@ -111,6 +132,15 @@ pub(super) fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
         Expr::Unary { op, operand, .. } => {
             out.push_str(&format!("{pad}Unary {op:?}\n"));
             dump_expr(operand, indent + 1, out);
+        }
+        Expr::Update {
+            place,
+            op,
+            notation,
+            ..
+        } => {
+            out.push_str(&format!("{pad}Update {notation:?} {op:?}\n"));
+            dump_place(place, indent + 1, out);
         }
         Expr::NullAssert { operand, .. } => {
             out.push_str(&format!("{pad}NullAssert\n"));
@@ -125,12 +155,21 @@ pub(super) fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
         Expr::MethodCall {
             receiver,
             name,
+            navigation,
             type_args,
             args,
             ..
         } => {
             let type_args = dump_call_type_args(type_args);
-            out.push_str(&format!("{pad}MethodCall {}{type_args}\n", name.text));
+            let marker = if *navigation == Navigation::Safe {
+                "?"
+            } else {
+                ""
+            };
+            out.push_str(&format!(
+                "{pad}MethodCall {marker}{}{type_args}\n",
+                name.text
+            ));
             dump_expr(receiver, indent + 1, out);
             for arg in args {
                 dump_call_argument(arg, indent + 1, out);
@@ -164,11 +203,13 @@ pub(super) fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
             }
         }
         Expr::Index {
-            receiver, index, ..
+            receiver, indices, ..
         } => {
             out.push_str(&format!("{pad}Index\n"));
             dump_expr(receiver, indent + 1, out);
-            dump_expr(index, indent + 1, out);
+            for index in indices.iter() {
+                dump_expr(index, indent + 1, out);
+            }
         }
         Expr::If(if_) => {
             out.push_str(&format!("{pad}IfExpression\n"));
@@ -205,6 +246,26 @@ pub(super) fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
             if let Some(finally_body) = &try_.finally_body {
                 out.push_str(&format!("{pad}  finally\n"));
                 dump_block(finally_body, indent + 2, out);
+            }
+        }
+    }
+}
+
+pub(super) fn dump_place(place: &PlaceExpr, indent: usize, out: &mut String) {
+    let pad = "  ".repeat(indent);
+    match place {
+        PlaceExpr::Name(name) => out.push_str(&format!("{pad}Place {}\n", name.text)),
+        PlaceExpr::Field { receiver, name, .. } => {
+            out.push_str(&format!("{pad}Place .{}\n", name.text));
+            dump_expr(receiver, indent + 1, out);
+        }
+        PlaceExpr::Index {
+            receiver, indices, ..
+        } => {
+            out.push_str(&format!("{pad}Place []\n"));
+            dump_expr(receiver, indent + 1, out);
+            for index in indices.iter() {
+                dump_expr(index, indent + 1, out);
             }
         }
     }

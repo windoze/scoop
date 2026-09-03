@@ -12,7 +12,7 @@ impl Parser {
         loop {
             let variance_token = self.peek().clone();
             let variance = match &variance_token.kind {
-                TokenKind::Ident(text) if text == "in" => {
+                TokenKind::In => {
                     self.bump();
                     Variance::In
                 }

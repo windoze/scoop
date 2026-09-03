@@ -41,8 +41,8 @@ SourceFile
     fun load
     fun store
     fun store
-    fun plus
-    fun minus
+    operator fun plus
+    operator fun minus
   struct FunPtr<F>
     field _rawPointer: UInt
     @Unsafe
@@ -169,28 +169,53 @@ SourceFile
     @Intrinsic("core_int")
   struct Int <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun unaryMinus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_uint")
   struct UInt <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_boolean")
   struct Boolean <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun not
     fun toString
     fun hash
     @Intrinsic("core_string")
   class String(), ToString, Hash
     operator fun equals
+    operator fun plus
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_array")
   class Array<T>()
+    operator fun get
     fun toMutableArray
     @Intrinsic("core_mutable_array")
   class MutableArray<T>()
+    operator fun get
+    operator fun set
     fun toArray
     @Extern(name = "scoop_rt_int_equals", abi = "scoop")
   fun coreIntEquals(left: Int, right: Int): Boolean
@@ -1172,13 +1197,16 @@ Module
           Type Int
           IntLiteral 2
     bb14 if.else.14
+      val $when.5: ForeignCallbackState
+        Type ForeignCallbackState
+        Local other
       branch bb19 bb20
         Type Boolean
         Binary IntEq
           Type Int
           EnumTag
             Type ForeignCallbackState
-            Local $when.1
+            Local $when.5
           Type Int
           IntLiteral 3
     bb15 if.merge.15
@@ -1194,30 +1222,15 @@ Module
     bb18 if.merge.18
       goto bb15
     bb19 if.then.19
-      val $when.5: ForeignCallbackState
-        Type ForeignCallbackState
-        Local other
-      branch bb21 bb22
-        Type Boolean
-        Binary IntEq
-          Type Int
-          EnumTag
-            Type ForeignCallbackState
-            Local $when.5
-          Type Int
-          IntLiteral 3
-    bb20 if.merge.20
-      goto bb15
-    bb21 if.then.21
       return
         Type Boolean
         BoolLiteral true
-    bb22 if.else.22
+    bb20 if.else.20
       return
         Type Boolean
         BoolLiteral false
-    bb23 if.merge.23
-      goto bb20
+    bb21 if.merge.21
+      goto bb15
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
     bb0 entry
       return
@@ -1866,8 +1879,6 @@ Module
     t4 = enum_tag e2 local0 : i64
     t5 = Eq t4, 1 : i1
     cbr t5 then @if.then.7 else @if.else.8
-  block if.merge.3
-    unreachable
   block if.then.4
     ret true
   block if.else.5
@@ -1881,8 +1892,6 @@ Module
     t8 = enum_tag e2 local0 : i64
     t9 = Eq t8, 2 : i1
     cbr t9 then @if.then.13 else @if.else.14
-  block if.merge.9
-    br @if.merge.3
   block if.then.10
     ret true
   block if.else.11
@@ -1893,25 +1902,17 @@ Module
     t11 = Eq t10, 2 : i1
     cbr t11 then @if.then.16 else @if.else.17
   block if.else.14
-    t12 = enum_tag e2 local0 : i64
+    store param1 -> local4
+    t12 = enum_tag e2 local4 : i64
     t13 = Eq t12, 3 : i1
-    cbr t13 then @if.then.19 else @if.merge.20
-  block if.merge.15
-    br @if.merge.9
+    cbr t13 then @if.then.19 else @if.else.20
   block if.then.16
     ret true
   block if.else.17
     ret false
   block if.then.19
-    store param1 -> local4
-    t14 = enum_tag e2 local4 : i64
-    t15 = Eq t14, 3 : i1
-    cbr t15 then @if.then.21 else @if.else.22
-  block if.merge.20
-    br @if.merge.15
-  block if.then.21
     ret true
-  block if.else.22
+  block if.else.20
     ret false
   fun @scoop.ctor.Throwable() -> ptr<managed>
   block entry

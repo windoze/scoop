@@ -1,0 +1,7 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m18-invoke/errors/fun-ptr.scoop:3:18: error: FunPtr values are not callable in Scoop
+m18-invoke/errors/fun-ptr.scoop:4:20: error: FunPtr values are not callable in Scoop

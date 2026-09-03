@@ -10,38 +10,115 @@ pub(super) fn intrinsic_type_declarations() -> Vec<Decl> {
         }],
         span: sp(),
     };
-    let primitive_methods =
-        |type_name: &str, equals_helper: &str, to_string_helper: &str, hash_helper: &str| {
-            let mut equals_method = method_full(
+    let intrinsic_operator =
+        |name: &str, intrinsic: &str, params: Vec<(&str, TypeRef)>, return_ty: TypeRef| {
+            let mut method = method_full(
                 false,
                 false,
-                "equals",
-                vec![("other", ty_named(type_name))],
-                Some(ty_named("Boolean")),
-                FunctionBody::Expr(Box::new(call(
-                    equals_helper,
-                    vec![this_expr(), var("other")],
-                ))),
+                name,
+                params,
+                Some(return_ty),
+                FunctionBody::None,
             );
-            equals_method.operator = Some(ast::OperatorModifier { span: sp() });
-            let to_string_method = method_full(
-                true,
-                false,
-                "toString",
-                Vec::new(),
-                Some(ty_named("String")),
-                FunctionBody::Expr(Box::new(call(to_string_helper, vec![this_expr()]))),
-            );
-            let hash_method = method_full(
-                true,
-                false,
-                "hash",
-                Vec::new(),
-                Some(ty_named("Int")),
-                FunctionBody::Expr(Box::new(call(hash_helper, vec![this_expr()]))),
-            );
-            vec![equals_method, to_string_method, hash_method]
+            method.annotations.push(annotation(intrinsic));
+            method.operator = Some(ast::OperatorModifier { span: sp() });
+            method
         };
+    let primitive_methods = |type_name: &str,
+                             equals_helper: &str,
+                             to_string_helper: &str,
+                             hash_helper: &str| {
+        let mut equals_method = method_full(
+            false,
+            false,
+            "equals",
+            vec![("other", ty_named(type_name))],
+            Some(ty_named("Boolean")),
+            FunctionBody::Expr(Box::new(call(
+                equals_helper,
+                vec![this_expr(), var("other")],
+            ))),
+        );
+        equals_method.operator = Some(ast::OperatorModifier { span: sp() });
+        let to_string_method = method_full(
+            true,
+            false,
+            "toString",
+            Vec::new(),
+            Some(ty_named("String")),
+            FunctionBody::Expr(Box::new(call(to_string_helper, vec![this_expr()]))),
+        );
+        let hash_method = method_full(
+            true,
+            false,
+            "hash",
+            Vec::new(),
+            Some(ty_named("Int")),
+            FunctionBody::Expr(Box::new(call(hash_helper, vec![this_expr()]))),
+        );
+        let mut methods = vec![equals_method];
+        match type_name {
+            "Int" => {
+                methods.extend([
+                    intrinsic_operator("unaryPlus", "int_unary_plus", vec![], ty_named("Int")),
+                    intrinsic_operator("unaryMinus", "int_unary_minus", vec![], ty_named("Int")),
+                    intrinsic_operator("inc", "int_inc", vec![], ty_named("Int")),
+                    intrinsic_operator("dec", "int_dec", vec![], ty_named("Int")),
+                ]);
+                for (name, intrinsic) in [
+                    ("plus", "int_add"),
+                    ("minus", "int_sub"),
+                    ("times", "int_mul"),
+                    ("div", "int_div"),
+                    ("rem", "int_rem"),
+                    ("compareTo", "int_compare_to"),
+                ] {
+                    methods.push(intrinsic_operator(
+                        name,
+                        intrinsic,
+                        vec![("other", ty_named("Int"))],
+                        ty_named("Int"),
+                    ));
+                }
+            }
+            "UInt" => {
+                methods.extend([
+                    intrinsic_operator("unaryPlus", "uint_unary_plus", vec![], ty_named("UInt")),
+                    intrinsic_operator("inc", "uint_inc", vec![], ty_named("UInt")),
+                    intrinsic_operator("dec", "uint_dec", vec![], ty_named("UInt")),
+                ]);
+                for (name, intrinsic) in [
+                    ("plus", "uint_add"),
+                    ("minus", "uint_sub"),
+                    ("times", "uint_mul"),
+                    ("div", "uint_div"),
+                    ("rem", "uint_rem"),
+                ] {
+                    methods.push(intrinsic_operator(
+                        name,
+                        intrinsic,
+                        vec![("other", ty_named("UInt"))],
+                        ty_named("UInt"),
+                    ));
+                }
+                methods.push(intrinsic_operator(
+                    "compareTo",
+                    "uint_compare_to",
+                    vec![("other", ty_named("UInt"))],
+                    ty_named("Int"),
+                ));
+            }
+            "Boolean" => methods.push(intrinsic_operator(
+                "not",
+                "boolean_not",
+                vec![],
+                ty_named("Boolean"),
+            )),
+            _ => unreachable!("the primitive core helper has a closed type set"),
+        }
+        methods.extend([to_string_method, hash_method]);
+        methods
+    };
     let strukt = |name: &str, intrinsic: &str, methods: Vec<ast::FunctionDecl>| {
         Decl::Struct(AstStructDecl {
             annotations: vec![annotation(intrinsic)],
@@ -101,7 +178,23 @@ pub(super) fn intrinsic_type_declarations() -> Vec<Decl> {
         Some(ty_named("Int")),
         FunctionBody::Expr(Box::new(call("coreStringHash", vec![this_expr()]))),
     );
-    string_decl.methods = vec![string_equals, string_to_string, string_hash];
+    string_decl.methods = vec![
+        string_equals,
+        intrinsic_operator(
+            "plus",
+            "string_concat",
+            vec![("other", ty_named("String"))],
+            ty_named("String"),
+        ),
+        intrinsic_operator(
+            "compareTo",
+            "string_compare_to",
+            vec![("other", ty_named("String"))],
+            ty_named("Int"),
+        ),
+        string_to_string,
+        string_hash,
+    ];
 
     let mut array = class("Array", "core_array", vec!["T"]);
     let Decl::Class(array_decl) = &mut array else {
@@ -116,7 +209,15 @@ pub(super) fn intrinsic_type_declarations() -> Vec<Decl> {
         FunctionBody::None,
     );
     to_mutable.annotations.push(annotation("array_to_mutable"));
-    array_decl.methods.push(to_mutable);
+    array_decl.methods.extend([
+        intrinsic_operator(
+            "get",
+            "array_get",
+            vec![("index", ty_named("Int"))],
+            ty_named("T"),
+        ),
+        to_mutable,
+    ]);
 
     let mut mutable_array = class("MutableArray", "core_mutable_array", vec!["T"]);
     let Decl::Class(mutable_array_decl) = &mut mutable_array else {
@@ -133,7 +234,21 @@ pub(super) fn intrinsic_type_declarations() -> Vec<Decl> {
     to_immutable
         .annotations
         .push(annotation("array_to_immutable"));
-    mutable_array_decl.methods.push(to_immutable);
+    mutable_array_decl.methods.extend([
+        intrinsic_operator(
+            "get",
+            "mutable_array_get",
+            vec![("index", ty_named("Int"))],
+            ty_named("T"),
+        ),
+        intrinsic_operator(
+            "set",
+            "mutable_array_set",
+            vec![("index", ty_named("Int")), ("value", ty_named("T"))],
+            ty_named("Unit"),
+        ),
+        to_immutable,
+    ]);
 
     let mut declarations = vec![
         strukt(

@@ -3,4 +3,5 @@ source: compiler/driver/tests/fixtures.rs
 expression: snapshot
 ---
 == diagnostics ==
-m5-arrays/errors/index-not-int.scoop:3:15: error: array index must be Int, found String
+m5-arrays/errors/index-not-int.scoop:3:15: error: no applicable candidate for `get` in member candidate layer:
+  - fun Array<T>.get(index: Int): T — argument for `index` has type String, which is not a subtype of Int

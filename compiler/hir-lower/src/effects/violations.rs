@@ -67,7 +67,12 @@ impl Lowerer {
                     self.collect_no_gc_expr_violations(&when.subject, out, requirements);
                     for arm in &when.arms {
                         if let Some(guard) = &arm.guard {
-                            self.collect_no_gc_expr_violations(guard, out, requirements);
+                            self.collect_no_gc_statement_violations(
+                                &guard.setup,
+                                out,
+                                requirements,
+                            );
+                            self.collect_no_gc_expr_violations(&guard.condition, out, requirements);
                         }
                         self.collect_no_gc_statement_violations(&arm.body, out, requirements);
                     }
@@ -215,13 +220,29 @@ impl Lowerer {
                 ));
                 self.collect_no_gc_expr_violations(operand, out, requirements);
             }
-            ExprKind::Index { receiver, index } => {
+            ExprKind::Index {
+                receiver, index, ..
+            } => {
                 out.push((
                     expr.span,
                     "array indexing is not allowed in `@NoGC` code".to_string(),
                 ));
                 self.collect_no_gc_expr_violations(receiver, out, requirements);
                 self.collect_no_gc_expr_violations(index, out, requirements);
+            }
+            ExprKind::ArraySet {
+                receiver,
+                index,
+                value,
+                ..
+            } => {
+                out.push((
+                    expr.span,
+                    "array operations are not allowed in `@NoGC` code".to_string(),
+                ));
+                self.collect_no_gc_expr_violations(receiver, out, requirements);
+                self.collect_no_gc_expr_violations(index, out, requirements);
+                self.collect_no_gc_expr_violations(value, out, requirements);
             }
             ExprKind::ArrayLen(operand) | ExprKind::ArrayClone(operand) => {
                 out.push((
@@ -271,18 +292,34 @@ impl Lowerer {
                 ));
                 self.collect_no_gc_expr_violations(callback, out, requirements);
             }
-            ExprKind::Binary { op, lhs, rhs } => {
-                if *op == hir::BinOp::Div {
+            ExprKind::PrimitiveBinary { kind, lhs, rhs } => {
+                if matches!(
+                    kind,
+                    hir::PrimitiveBinaryKind::IntDiv
+                        | hir::PrimitiveBinaryKind::IntRem
+                        | hir::PrimitiveBinaryKind::UIntDiv
+                        | hir::PrimitiveBinaryKind::UIntRem
+                ) {
                     out.push((
                         expr.span,
                         "integer division is not allowed in `@NoGC` code because it may throw"
                             .to_string(),
                     ));
+                } else if *kind == hir::PrimitiveBinaryKind::StringConcat {
+                    out.push((
+                        expr.span,
+                        "string concatenation is not allowed in `@NoGC` code".to_string(),
+                    ));
                 }
                 self.collect_no_gc_expr_violations(lhs, out, requirements);
                 self.collect_no_gc_expr_violations(rhs, out, requirements);
             }
+            ExprKind::Binary { lhs, rhs, .. } => {
+                self.collect_no_gc_expr_violations(lhs, out, requirements);
+                self.collect_no_gc_expr_violations(rhs, out, requirements);
+            }
             ExprKind::Unary { operand, .. }
+            | ExprKind::PrimitiveUnary { operand, .. }
             | ExprKind::SomeWrap(operand)
             | ExprKind::IsSome(operand)
             | ExprKind::PtrFromUInt(operand)

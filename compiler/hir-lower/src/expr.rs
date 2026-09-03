@@ -21,9 +21,8 @@
 //! The caller (a statement lowering) drains `sink` into the enclosing
 //! statement list right before the statement that owns the expression,
 //! so sink statements execute exactly where the owning statement does.
-//! (`while` conditions are the one place where this would change
-//! semantics — they re-evaluate per iteration — and are rejected by
-//! the while-statement lowering; `when` guards reject them too.)
+//! Loop conditions and `when` guards retain their setup explicitly so
+//! it executes at each condition/arm attempt rather than being hoisted.
 //!
 //! **Expected-type hint.** `lower_expr` receives the type the context
 //! expects, when known: `val` annotations, assignment targets, function
@@ -97,10 +96,16 @@ pub(crate) struct NominalArgumentInput<'a> {
 }
 
 #[derive(Clone, Copy)]
-struct CallSite<'a> {
-    type_args: &'a [ast::TypeRef],
-    args: &'a [ast::CallArgument],
-    span: Span,
+pub(crate) struct CallSite<'a> {
+    pub(crate) type_args: &'a [ast::TypeRef],
+    pub(crate) args: &'a [ast::CallArgument],
+    pub(crate) span: Span,
+}
+
+#[derive(Clone, Copy, Default)]
+pub(crate) struct RequiredCallableModifiers {
+    pub(crate) operator: Option<hir::OperatorKind>,
+    pub(crate) infix: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -273,39 +278,71 @@ impl Lowerer {
                 span,
                 ..
             } => self.lower_callable_reference(receiver.as_deref(), name, *span, expected, sink),
-            ast::Expr::FieldAccess(access) if access.safe => {
+            ast::Expr::FieldAccess(access) if access.navigation == ast::Navigation::Safe => {
                 self.lower_safe_field_access(access, sink)
             }
             ast::Expr::FieldAccess(access) => self.lower_field_access(access, sink, expected),
             ast::Expr::Call(call) => self.lower_call(call, sink, expected),
-            ast::Expr::Invoke { callee, args, span } => {
+            ast::Expr::Invoke {
+                callee,
+                type_args,
+                args,
+                span,
+            } => {
                 let callee = self.lower_expr(callee, sink, None)?;
-                self.lower_callable_call(callee, args, *span, sink)
+                self.lower_value_invoke(
+                    callee,
+                    CallSite {
+                        type_args,
+                        args,
+                        span: *span,
+                    },
+                    sink,
+                    expected,
+                    false,
+                )
             }
+            ast::Expr::InfixCall {
+                lhs,
+                target,
+                rhs,
+                span,
+            } => self.lower_infix_call(lhs, target, rhs, *span, sink, expected),
             ast::Expr::Binary { op, lhs, rhs, span } => {
                 self.lower_binary(*op, lhs, rhs, *span, sink)
             }
             ast::Expr::Unary { op, operand, span } => self.lower_unary(*op, operand, *span, sink),
+            ast::Expr::Update {
+                place,
+                op,
+                notation,
+                span,
+            } => self.lower_update(place, *op, *notation, *span, sink),
             ast::Expr::NullAssert { operand, span } => self.lower_null_assert(operand, *span, sink),
             ast::Expr::Elvis { lhs, rhs, span } => self.lower_elvis(lhs, rhs, *span, sink),
             ast::Expr::This { span } => self.lower_this(*span),
             ast::Expr::MethodCall {
                 receiver,
                 name,
+                navigation,
                 type_args,
                 args,
                 span,
-            } => self.lower_method_call(
-                receiver,
-                name,
-                CallSite {
+            } => {
+                let call = CallSite {
                     type_args,
                     args,
                     span: *span,
-                },
-                sink,
-                expected,
-            ),
+                };
+                match navigation {
+                    ast::Navigation::Direct => {
+                        self.lower_method_call(receiver, name, call, sink, expected)
+                    }
+                    ast::Navigation::Safe => {
+                        self.lower_safe_method_call(receiver, name, call, sink, expected)
+                    }
+                }
+            }
             ast::Expr::Is {
                 operand,
                 ty,
@@ -323,9 +360,9 @@ impl Lowerer {
             }
             ast::Expr::Index {
                 receiver,
-                index,
+                indices,
                 span,
-            } => self.lower_index_read(receiver, index, *span, sink),
+            } => self.lower_index_read(receiver, indices.as_slice(), *span, sink),
             ast::Expr::If(if_) => self.lower_if_expression(if_, sink, expected),
             ast::Expr::When(when) => self.lower_when_expression(when, sink, expected),
             ast::Expr::Try(try_) => self.lower_try_expression(try_, sink, expected),

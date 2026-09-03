@@ -1,4 +1,5 @@
 use super::*;
+use crate::expr::{CallSite, RequiredCallableModifiers};
 
 impl Lowerer {
     /// Assignment. A `Local` target names a declared, mutable local; an
@@ -13,11 +14,14 @@ impl Lowerer {
         assign: &ast::Assign,
         out: &mut Vec<hir::Statement>,
     ) -> Option<hir::StatementKind> {
+        if let ast::AssignmentOp::Compound(op) = assign.op {
+            return self.lower_compound_assign(assign, op, out);
+        }
         match &assign.target {
-            ast::AssignTarget::Local(name) => self.lower_local_assign(assign, name, out),
+            ast::AssignTarget::Name(name) => self.lower_local_assign(assign, name, out),
             ast::AssignTarget::Index {
-                receiver, index, ..
-            } => self.lower_index_assign(assign, receiver, index, out),
+                receiver, indices, ..
+            } => self.lower_index_assign(assign, receiver, indices.as_slice(), out),
             ast::AssignTarget::Field { receiver, name, .. } => {
                 let mut sink = Vec::new();
                 let Some(receiver) = self.lower_expr(receiver, &mut sink, None) else {
@@ -237,67 +241,43 @@ impl Lowerer {
         })
     }
 
-    /// `array[index] = value` (spec 10.5, milestone5 DESIGN.md 2.2):
-    /// only `MutableArray<T>` is assignable (an `Array<T>` receiver
-    /// gets its own diagnostic), the index must be `Int` and the value
-    /// exactly `T`.
+    /// Indexed assignment uses the same typed `operator set` resolver as user
+    /// types. A winning MutableArray core declaration is normalized to the
+    /// dedicated array store expression after applicability succeeds.
     fn lower_index_assign(
         &mut self,
         assign: &ast::Assign,
         receiver: &ast::Expr,
-        index: &ast::Expr,
+        indices: &[ast::Expr],
         out: &mut Vec<hir::Statement>,
     ) -> Option<hir::StatementKind> {
         let mut sink = Vec::new();
         let array = self.lower_expr(receiver, &mut sink, None)?;
-        let element_ty = match self.array_type_info(array.ty) {
-            Some(array) if array.kind == ArrayKind::Mutable => array.element,
-            Some(_) => {
-                let found = self.type_name(array.ty);
-                self.error(
-                    receiver.span(),
-                    format!("cannot assign to an element of immutable {found}"),
-                );
-                return None;
-            }
-            _ => {
-                let found = self.type_name(array.ty);
-                self.error(
-                    receiver.span(),
-                    format!("subscript is only supported on arrays, found {found}"),
-                );
-                return None;
-            }
-        };
-        let index = self.lower_expr(index, &mut sink, Some(self.int))?;
-        if index.ty != self.int {
-            let found = self.type_name(index.ty);
-            self.error(
-                index.span,
-                format!("array index must be Int, found {found}"),
-            );
-            return None;
-        }
-        let value = self.lower_expr(&assign.value, &mut sink, Some(element_ty))?;
-        if !self.is_subtype(value.ty, element_ty) {
-            let expected = self.type_name(element_ty);
-            let found = self.type_name(value.ty);
-            self.error(
-                assign.value.span(),
-                format!(
-                    "cannot assign value of type {found} to an array element of type {expected}"
-                ),
-            );
-            return None;
-        }
-        let value = self.adapt_to(value, element_ty);
-        out.extend(sink);
-        Some(hir::StatementKind::Assign {
-            target: hir::AssignTarget::Index {
-                array: Box::new(array),
-                index: Box::new(index),
+        let mut arguments = indices
+            .iter()
+            .cloned()
+            .map(ast::CallArgument::positional)
+            .collect::<Vec<_>>();
+        arguments.push(ast::CallArgument::positional(assign.value.clone()));
+        let call = self.lower_named_call_on_receiver(
+            array,
+            &ast::Ident {
+                text: "set".to_string(),
+                span: assign.span,
             },
-            value,
-        })
+            CallSite {
+                type_args: &[],
+                args: &arguments,
+                span: assign.span,
+            },
+            &mut sink,
+            Some(self.unit),
+            RequiredCallableModifiers {
+                operator: Some(hir::OperatorKind::Set),
+                infix: false,
+            },
+        )?;
+        out.extend(sink);
+        Some(hir::StatementKind::Expr(call))
     }
 }

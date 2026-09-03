@@ -41,8 +41,8 @@ SourceFile
     fun load
     fun store
     fun store
-    fun plus
-    fun minus
+    operator fun plus
+    operator fun minus
   struct FunPtr<F>
     field _rawPointer: UInt
     @Unsafe
@@ -169,28 +169,53 @@ SourceFile
     @Intrinsic("core_int")
   struct Int <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun unaryMinus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_uint")
   struct UInt <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_boolean")
   struct Boolean <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun not
     fun toString
     fun hash
     @Intrinsic("core_string")
   class String(), ToString, Hash
     operator fun equals
+    operator fun plus
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_array")
   class Array<T>()
+    operator fun get
     fun toMutableArray
     @Intrinsic("core_mutable_array")
   class MutableArray<T>()
+    operator fun get
+    operator fun set
     fun toArray
     @Extern(name = "scoop_rt_int_equals", abi = "scoop")
   fun coreIntEquals(left: Int, right: Int): Boolean
@@ -576,20 +601,32 @@ Module
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
     val local45
-      Binary Add : String
-        StringLiteral "x" : String
-        StringLiteral "y" : String
+      StringLiteral "x" : String
     val local46
+      StringLiteral "y" : String
+    val local47
+      Local $argument.0 : String
+    val local48
+      PrimitiveBinary StringConcat : String
+        Local $receiver : String
+        Local $parameter.other : String
+    val local49
       Local $argument.0 : String
     Call println<String> : Unit
       Local $parameter.value : String
-    val local47
+    val local50
+      StringLiteral "x" : String
+    val local51
+      StringLiteral "y" : String
+    val local52
+      Local $argument.0 : String
+    val local53
       MethodCall String.equals : Boolean
-        Binary Add : String
-          StringLiteral "x" : String
-          StringLiteral "y" : String
+        PrimitiveBinary StringConcat : String
+          Local $receiver : String
+          Local $parameter.other : String
         StringLiteral "xy" : String
-    val local48
+    val local54
       Local $argument.0 : Boolean
     Call println<Boolean> : Unit
       Local $parameter.value : Boolean
@@ -1031,22 +1068,40 @@ Module
       call @scoop.println$B direct
         Type Boolean
         Local $parameter.value
-      call $argument.0: String = @scoop_rt_string_concat direct
+      val $receiver: String
         Type String
         StringConst @scoop.str.3
+      val $argument.0: String
         Type String
         StringConst @scoop.str.4
+      val $parameter.other: String
+        Type String
+        Local $argument.0
+      call $argument.0: String = @scoop_rt_string_concat direct
+        Type String
+        Local $receiver
+        Type String
+        Local $parameter.other
       val $parameter.value: String
         Type String
         Local $argument.0
       call @scoop.println$S direct
         Type String
         Local $parameter.value
-      call $call.2: String = @scoop_rt_string_concat direct
+      val $receiver: String
         Type String
         StringConst @scoop.str.5
+      val $argument.0: String
         Type String
         StringConst @scoop.str.6
+      val $parameter.other: String
+        Type String
+        Local $argument.0
+      call $call.2: String = @scoop_rt_string_concat direct
+        Type String
+        Local $receiver
+        Type String
+        Local $parameter.other
       call $argument.0: Boolean = @scoop.String.equals direct
         Type String
         Local $call.2
@@ -1574,12 +1629,18 @@ Module
     local %42 $parameter.value: i1
     local %43 $argument.0: i1
     local %44 $parameter.value: i1
-    local %45 $argument.0: ptr<managed>
-    local %46 $parameter.value: ptr<managed>
-    local %47 $argument.0: i1
-    local %48 $parameter.value: i1
-    local %49 $call.1: i1
-    local %50 $call.2: ptr<managed>
+    local %45 $receiver: ptr<managed>
+    local %46 $argument.0: ptr<managed>
+    local %47 $parameter.other: ptr<managed>
+    local %48 $argument.0: ptr<managed>
+    local %49 $parameter.value: ptr<managed>
+    local %50 $receiver: ptr<managed>
+    local %51 $argument.0: ptr<managed>
+    local %52 $parameter.other: ptr<managed>
+    local %53 $argument.0: i1
+    local %54 $parameter.value: i1
+    local %55 $call.1: i1
+    local %56 $call.2: ptr<managed>
   block entry
     poll managed-void-target8 sp60 live=[]
     store 1 -> local0
@@ -1610,8 +1671,8 @@ Module
     call managed-void-target1 sp15 live=[] sig=void1 (i1) local-fn13(local17)
     t6 = aggregate () : {}
     call managed-direct-target2 sp16 live=[] t7 = sig=direct2 (struct4, struct4) -> i1 local-fn15(local4, local9)
-    store t7 -> local49
-    t8 = Not local49 : i1
+    store t7 -> local55
+    t8 = Not local55 : i1
     store t8 -> local18
     store local18 -> local19
     call managed-void-target2 sp17 live=[] sig=void2 (i1) local-fn13(local19)
@@ -1657,17 +1718,23 @@ Module
     store local43 -> local44
     call managed-void-target5 sp23 live=[] sig=void5 (i1) local-fn13(local44)
     t22 = aggregate () : {}
-    call managed-direct-target6 sp24 live=[] t23 = sig=direct6 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(global3, global4)
-    store t23 -> local45
-    store local45 -> local46
-    call managed-void-target6 sp25 live=[local46:ptr<managed>@0] sig=void6 (ptr<managed>) local-fn14(local46)
+    store global3 -> local45
+    store global4 -> local46
+    store local46 -> local47
+    call managed-direct-target6 sp24 live=[local45:ptr<managed>@0, local47:ptr<managed>@0] t23 = sig=direct6 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(local45, local47)
+    store t23 -> local48
+    store local48 -> local49
+    call managed-void-target6 sp25 live=[local49:ptr<managed>@0] sig=void6 (ptr<managed>) local-fn14(local49)
     t24 = aggregate () : {}
-    call managed-direct-target7 sp26 live=[] t25 = sig=direct7 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(global5, global6)
-    store t25 -> local50
-    call managed-direct-target8 sp27 live=[local50:ptr<managed>@0] t26 = sig=direct8 (ptr<managed>, ptr<managed>) -> i1 local-fn9(local50, global7)
-    store t26 -> local47
-    store local47 -> local48
-    call managed-void-target7 sp28 live=[] sig=void7 (i1) local-fn13(local48)
+    store global5 -> local50
+    store global6 -> local51
+    store local51 -> local52
+    call managed-direct-target7 sp26 live=[local50:ptr<managed>@0, local52:ptr<managed>@0] t25 = sig=direct7 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(local50, local52)
+    store t25 -> local56
+    call managed-direct-target8 sp27 live=[local56:ptr<managed>@0] t26 = sig=direct8 (ptr<managed>, ptr<managed>) -> i1 local-fn9(local56, global7)
+    store t26 -> local53
+    store local53 -> local54
+    call managed-void-target7 sp28 live=[] sig=void7 (i1) local-fn13(local54)
     t27 = aggregate () : {}
     ret
   fun @scoop.println$B(i1) -> void

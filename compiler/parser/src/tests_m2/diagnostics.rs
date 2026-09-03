@@ -40,11 +40,8 @@ fn tuple_element_assignment_not_supported() {
     // Tuple elements are value-type fields; named field assignment
     // (`a.b = 1`) parses since M6 (HIR rejects value-type receivers).
     let (span, message) = err("fun main() {\n    a._1 = 1\n}\n");
-    assert_eq!(span, Span::new(22, 23));
-    assert_eq!(
-        message,
-        "field assignment is not supported (value types are immutable)"
-    );
+    assert_eq!(span, Span::new(17, 21));
+    assert_eq!(message, "assignment target must be an assignable place");
 }
 
 #[test]

@@ -139,6 +139,23 @@ impl Lowerer {
         ctx: PatternCtx,
     ) -> Option<Vec<(u32, hir::Pattern)>> {
         let total = field_types.len();
+        let indices = self.positional_pattern_indices(elements, rest, total, owner, span)?;
+        let mut fields = Vec::with_capacity(elements.len());
+        for (element, field_index) in elements.iter().zip(indices) {
+            let sub = self.lower_pattern(element, field_types[field_index], ctx)?;
+            fields.push((field_index as u32, sub));
+        }
+        Some(fields)
+    }
+
+    pub(crate) fn positional_pattern_indices(
+        &mut self,
+        elements: &[ast::Pattern],
+        rest: Option<Span>,
+        total: usize,
+        owner: &str,
+        span: Span,
+    ) -> Option<Vec<usize>> {
         let count = elements.len();
         if (rest.is_none() && count != total) || (rest.is_some() && count > total) {
             self.error(
@@ -154,17 +171,17 @@ impl Lowerer {
                 .count(),
             None => count,
         };
-        let mut fields = Vec::with_capacity(count);
-        for (position, element) in elements.iter().enumerate() {
-            let field_index = if position < leading {
-                position
-            } else {
-                total - (count - position)
-            };
-            let sub = self.lower_pattern(element, field_types[field_index], ctx)?;
-            fields.push((field_index as u32, sub));
-        }
-        Some(fields)
+        Some(
+            (0..count)
+                .map(|position| {
+                    if position < leading {
+                        position
+                    } else {
+                        total - (count - position)
+                    }
+                })
+                .collect(),
+        )
     }
 
     pub(super) fn lower_named_fields(

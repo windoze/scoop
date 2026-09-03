@@ -1,0 +1,68 @@
+struct Handler(val prefix: String) {
+    operator fun invoke(value: Int, suffix: String = "!"): String =
+        prefix + value.toString() + suffix
+}
+
+class Service(val handler: Handler)
+
+@Global
+var globalHandler: GlobalHandler = GlobalHandler(40)
+
+struct GlobalHandler(val base: Int) {
+    operator fun invoke(value: Int): Int = base + value
+}
+
+class Host(val handler: Handler) {
+    fun run(): String = handler(3)
+}
+
+struct ExtensionHandler(val base: Int)
+
+operator fun ExtensionHandler.invoke(value: Int): Int = base + value
+
+struct Command() {
+    operator infix fun invoke(argument: String): String = "command:" + argument
+}
+
+struct Mapper() {
+    operator fun <T> invoke(
+        value: T,
+        transform: (T) -> String,
+        suffix: String = "!"
+    ): String = transform(value) + suffix
+}
+
+struct Collector() {
+    operator fun invoke(prefix: Int, vararg values: Int): Int =
+        prefix + values.size
+}
+
+fun applyParameter(handler: Handler): String = handler(5)
+
+fun main() {
+    val handler = Handler("local-")
+    println(handler(1))
+    println(Handler("temporary-")(2, suffix = "?"))
+
+    val service = Service(Handler("field-"))
+    println(service.handler(3))
+    println(Host(Handler("member-")).run())
+    println(applyParameter(Handler("parameter-")))
+    println(globalHandler(2))
+
+    val captured: () -> String = { handler(6) }
+    println(captured())
+
+    println(ExtensionHandler(40)(2))
+    println(Command() "build")
+
+    val mapper = Mapper()
+    println(mapper<Int>(41) { value: Int -> value.toString() })
+
+    val collector = Collector()
+    println(collector(10, 1, *[2, 3]))
+
+    val function: (Int) -> Int = { value: Int -> value + 1 }
+    println(function(41))
+    println(function.invoke(42))
+}

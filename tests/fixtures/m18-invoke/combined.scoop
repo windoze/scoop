@@ -1,0 +1,84 @@
+class InvokeFailure : Exception(None)
+
+class InvokePayload(val text: String)
+
+class InvokeGate(var waiter: Continuation<Int>?) {
+    fun complete(value: Int) {
+        val continuation = waiter!!
+        waiter = None
+        continuation.resume(value)
+    }
+}
+
+class InvokeRegistration(val gate: InvokeGate) : SuspendRegistration<Int> {
+    final override fun register(continuation: Continuation<Int>) {
+        gate.waiter = Some(continuation)
+    }
+}
+
+suspend fun awaitInvoke(gate: InvokeGate): Int =
+    suspendCoroutine(InvokeRegistration(gate))
+
+fun invokeDefault(): String {
+    println("invoke-default")
+    return "!"
+}
+
+class AsyncInvoker<T>(
+    val gate: InvokeGate,
+    val payload: T,
+    val label: String
+) {
+    suspend operator fun invoke(
+        transform: (T) -> String,
+        suffix: String = invokeDefault()
+    ): String {
+        val signal = awaitInvoke(gate)
+        gcCollect()
+        if (signal == 0) {
+            throw InvokeFailure()
+        }
+        return transform(payload) + label + suffix
+    }
+}
+
+class InvokeHolder<T>(val action: AsyncInvoker<T>)
+
+class InvokeTask(
+    val holder: InvokeHolder<InvokePayload>
+) : SuspendTask<String> {
+    final override suspend fun run(): String {
+        val captured = "captured-"
+        return try {
+            holder.action({ value: InvokePayload -> captured + value.text })
+        } catch (error: InvokeFailure) {
+            "invoke-caught"
+        }
+    }
+}
+
+class InvokeCompletion(val label: String) : Continuation<String> {
+    final override fun resume(value: String) {
+        println(label)
+        println(value)
+    }
+
+    final override fun resumeWithException(exception: Throwable) {
+        println("invoke-unexpected-failure")
+    }
+}
+
+fun main() {
+    val successGate = InvokeGate(None)
+    val failureGate = InvokeGate(None)
+    val payload = InvokePayload("payload")
+    val success = InvokeHolder(AsyncInvoker(successGate, payload, "-success"))
+    val failure = InvokeHolder(AsyncInvoker(failureGate, payload, "-failure"))
+
+    startCoroutine(InvokeTask(success), InvokeCompletion("invoke-success"))
+    startCoroutine(InvokeTask(failure), InvokeCompletion("invoke-failure"))
+    println("invoke-suspended")
+    gcCollect()
+    successGate.complete(1)
+    failureGate.complete(0)
+}

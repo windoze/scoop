@@ -98,9 +98,15 @@ pub struct When {
 #[derive(Debug, Clone)]
 pub struct WhenArm {
     pub pattern: Pattern,
-    pub guard: Option<Expr>,
+    pub guard: Option<WhenGuard>,
     pub body: Vec<Statement>,
     pub span: Span,
+}
+
+#[derive(Debug, Clone)]
+pub struct WhenGuard {
+    pub setup: Vec<Statement>,
+    pub condition: Expr,
 }
 
 /// A fully resolved pattern (spec 4.6 / 5): variant/field positions
@@ -260,8 +266,17 @@ pub enum ExprKind {
     ArrayAssembly(ArrayAssembly),
     /// Subscript read `receiver[index]`; result is the element type.
     Index {
+        access: ArrayAccessKind,
         receiver: Box<Expr>,
         index: Box<Expr>,
+    },
+    /// A winning `MutableArray.set` intrinsic. It remains an expression
+    /// because explicit method syntax has the ordinary `Unit` result.
+    ArraySet {
+        access: ArrayAccessKind,
+        receiver: Box<Expr>,
+        index: Box<Expr>,
+        value: Box<Expr>,
     },
     /// `array.size` (spec 10.5); result is `Int`.
     ArrayLen(Box<Expr>),
@@ -288,6 +303,15 @@ pub enum ExprKind {
         callee: Box<Expr>,
         function_type: FunctionTypeId,
         args: Vec<Expr>,
+    },
+    PrimitiveBinary {
+        kind: PrimitiveBinaryKind,
+        lhs: Box<Expr>,
+        rhs: Box<Expr>,
+    },
+    PrimitiveUnary {
+        kind: PrimitiveUnaryKind,
+        operand: Box<Expr>,
     },
     Binary {
         op: BinOp,
@@ -371,16 +395,10 @@ pub enum FieldRef {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BinOp {
-    Add,
-    Sub,
-    Mul,
-    Div,
     Lt,
     Le,
     Gt,
     Ge,
-    Eq,
-    Ne,
     /// `===` / `!==` — reference identity (spec 4.4.2).
     RefEq,
     RefNe,
@@ -390,6 +408,5 @@ pub enum BinOp {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UnOp {
-    Neg,
     Not,
 }

@@ -4,8 +4,8 @@
 use scoop_ast::{
     Annotation, AnnotationArg, AnnotationLiteral, CallArgument, ClassConstructorDecl, ClassDecl,
     ClassModifier, ConstructorProp, Decl, Diagnostic, EnumDecl, FieldDecl, FunctionBody,
-    FunctionDecl, GlobalDecl, InterfaceDecl, MethodModifier, OperatorModifier, Param,
-    ParameterSyntax, Span, StructDecl, StructRepresentationDecl, TypeBound, TypeConstraint,
+    FunctionDecl, GlobalDecl, InfixModifier, InterfaceDecl, MethodModifier, OperatorModifier,
+    Param, ParameterSyntax, Span, StructDecl, StructRepresentationDecl, TypeBound, TypeConstraint,
     TypeParamDecl, TypeParamKindBound, VarargDefaultSyntax, Variance, VariantDecl, VariantDeclKind,
     VariantFieldDecl, WhereClause,
 };
@@ -38,6 +38,7 @@ pub(crate) struct Modifiers {
     pub suspend_span: Option<Span>,
     pub is_override: bool,
     pub operator: Option<OperatorModifier>,
+    pub infix: Option<InfixModifier>,
     pub method_modifier: Option<MethodModifier>,
     pub method_modifier_span: Option<Span>,
     pub start: Option<u32>,
@@ -73,7 +74,7 @@ mod nominals;
 impl Parser {
     pub(crate) fn parse_decl(&mut self) -> Result<Decl, Diagnostic> {
         match &self.peek().kind {
-            TokenKind::Suspend | TokenKind::Fun => Ok(Decl::Function(
+            TokenKind::Suspend | TokenKind::Infix | TokenKind::Fun => Ok(Decl::Function(
                 self.parse_non_member_function(Vec::new(), FunctionContext::TopLevel)?,
             )),
             TokenKind::Val | TokenKind::Var => Ok(Decl::Global(self.parse_global(Vec::new())?)),
@@ -104,7 +105,7 @@ impl Parser {
             TokenKind::At => {
                 let annotations = self.parse_annotations()?;
                 match &self.peek().kind {
-                    TokenKind::Fun | TokenKind::Suspend => Ok(Decl::Function(
+                    TokenKind::Fun | TokenKind::Suspend | TokenKind::Infix => Ok(Decl::Function(
                         self.parse_non_member_function(annotations, FunctionContext::TopLevel)?,
                     )),
                     TokenKind::Ident(text) if text == "operator" => Ok(Decl::Function(

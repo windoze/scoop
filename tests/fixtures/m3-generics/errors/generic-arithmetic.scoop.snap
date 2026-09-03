@@ -3,4 +3,4 @@ source: compiler/driver/tests/fixtures.rs
 expression: snapshot
 ---
 == diagnostics ==
-m3-generics/errors/generic-arithmetic.scoop:1:22: error: operator `+` requires Int operands, found T and Int
+m3-generics/errors/generic-arithmetic.scoop:1:22: error: type `T` has no method `plus`

@@ -105,7 +105,7 @@ fn subscript_read() {
     let expr = init_expr("a[0]");
     let Expr::Index {
         receiver,
-        index,
+        indices,
         span,
     } = &expr
     else {
@@ -118,7 +118,7 @@ fn subscript_read() {
     assert_eq!(name.text, "a");
     assert_eq!(name.span, Span::new(25, 26));
     assert!(matches!(
-        index.as_ref(),
+        indices.first(),
         Expr::IntLiteral {
             value: 0,
             span: Span { start: 27, end: 28 }
@@ -130,15 +130,15 @@ fn subscript_read() {
 fn subscript_chains_left() {
     let expr = init_expr("a[0][1]");
     let Expr::Index {
-        receiver, index, ..
+        receiver, indices, ..
     } = &expr
     else {
         panic!("expected an index expression");
     };
-    assert!(matches!(index.as_ref(), Expr::IntLiteral { value: 1, .. }));
+    assert!(matches!(indices.first(), Expr::IntLiteral { value: 1, .. }));
     let Expr::Index {
         receiver: inner_receiver,
-        index: inner_index,
+        indices: inner_indices,
         ..
     } = receiver.as_ref()
     else {
@@ -146,7 +146,7 @@ fn subscript_chains_left() {
     };
     assert!(matches!(inner_receiver.as_ref(), Expr::Var(name) if name.text == "a"));
     assert!(matches!(
-        inner_index.as_ref(),
+        inner_indices.first(),
         Expr::IntLiteral { value: 0, .. }
     ));
     assert_eq!(
@@ -199,13 +199,16 @@ fn bracket_at_line_start_is_a_new_literal_expression() {
 }
 
 #[test]
-fn space_before_bracket_is_not_a_subscript() {
-    let (span, message) = err("fun main() { a [0] }");
-    assert_eq!(span, Span::new(15, 16));
-    assert_eq!(
-        message,
-        "expected `;` or newline after statement, found `[`"
-    );
+fn space_before_bracket_is_property_like_infix_not_subscript() {
+    let file = ok("fun main() { a [0] }");
+    let statement = &block_body(only_function(&file)).statements[0];
+    assert!(matches!(
+        statement.kind,
+        StatementKind::Expr(Expr::InfixCall {
+            target: scoop_ast::InfixTarget::Invoke,
+            ..
+        })
+    ));
 }
 
 // --- subscript assignment ---------------------------------------------------
@@ -222,7 +225,7 @@ fn subscript_assignment() {
     assert_eq!(assign.span, Span::new(17, 26));
     let AssignTarget::Index {
         receiver,
-        index,
+        indices,
         span,
     } = &assign.target
     else {
@@ -231,7 +234,7 @@ fn subscript_assignment() {
     assert_eq!(*span, Span::new(17, 21));
     assert!(matches!(receiver.as_ref(), Expr::Var(name) if name.text == "m"));
     assert!(matches!(
-        index.as_ref(),
+        indices.first(),
         Expr::IntLiteral {
             value: 0,
             span: Span { start: 19, end: 20 }
@@ -262,26 +265,26 @@ fn nested_subscript_assignment() {
 fn call_result_assignment_is_rejected() {
     // Only a plain local or a subscript is a valid assignment target.
     let (span, message) = err("fun main() { f() = 1 }");
-    assert_eq!(span, Span::new(17, 18));
-    assert_eq!(
-        message,
-        "expected `;` or newline after statement, found `=`"
-    );
+    assert_eq!(span, Span::new(13, 16));
+    assert_eq!(message, "assignment target must be an assignable place");
 }
 
 // --- M5 "not supported" diagnostics ------------------------------------------
 
 #[test]
-fn range_not_supported() {
-    let (span, message) = err("fun main() { val r = a..b }");
-    assert_eq!(span, Span::new(22, 24));
-    assert_eq!(message, "ranges are not supported yet (milestone M5)");
+fn range_is_a_binary_expression() {
+    assert_eq!(
+        stmt_dump("val r = a..b"),
+        "val r\n  Binary RangeTo\n    Var a\n    Var b\n"
+    );
 }
 
 #[test]
-fn range_after_binary_operand_not_supported() {
-    let (_, message) = err("fun main() { val r = a + b..c }");
-    assert_eq!(message, "ranges are not supported yet (milestone M5)");
+fn range_binds_looser_than_addition() {
+    assert_eq!(
+        stmt_dump("val r = a + b..c"),
+        "val r\n  Binary RangeTo\n    Binary Add\n      Var a\n      Var b\n    Var c\n"
+    );
 }
 
 #[test]

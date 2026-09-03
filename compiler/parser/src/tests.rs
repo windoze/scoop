@@ -350,9 +350,18 @@ fn local_function_missing_name() {
 }
 
 #[test]
-fn missing_comma_between_args() {
-    let (_, message) = err("fun main() { print(\"a\" \"b\") }");
-    assert_eq!(message, "expected `)`, found string literal");
+fn adjacent_arguments_form_one_property_like_infix_expression() {
+    let file = ok("fun main() { print(command \"build\") }");
+    let StatementKind::Expr(Expr::Call(call)) = &only_stmt(&file).kind else {
+        panic!("expected outer call");
+    };
+    assert!(matches!(
+        call.args[0].expression,
+        Expr::InfixCall {
+            target: scoop_ast::InfixTarget::Invoke,
+            ..
+        }
+    ));
 }
 
 #[test]
@@ -369,10 +378,10 @@ fn trailing_comma_is_an_error() {
 
 #[test]
 fn statements_on_one_line_need_semicolon() {
-    let (span, message) = err("fun main() { print(\"a\") print(\"b\") }");
-    assert_eq!(span, Span::new(24, 29));
+    let (span, message) = err("fun main() { print(\"a\") val x = 1 }");
+    assert_eq!(span, Span::new(24, 27));
     assert_eq!(
         message,
-        "expected `;` or newline after statement, found `print`"
+        "expected `;` or newline after statement, found `val`"
     );
 }

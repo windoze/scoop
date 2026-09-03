@@ -41,8 +41,8 @@ SourceFile
     fun load
     fun store
     fun store
-    fun plus
-    fun minus
+    operator fun plus
+    operator fun minus
   struct FunPtr<F>
     field _rawPointer: UInt
     @Unsafe
@@ -169,28 +169,53 @@ SourceFile
     @Intrinsic("core_int")
   struct Int <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun unaryMinus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_uint")
   struct UInt <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_boolean")
   struct Boolean <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun not
     fun toString
     fun hash
     @Intrinsic("core_string")
   class String(), ToString, Hash
     operator fun equals
+    operator fun plus
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_array")
   class Array<T>()
+    operator fun get
     fun toMutableArray
     @Intrinsic("core_mutable_array")
   class MutableArray<T>()
+    operator fun get
+    operator fun set
     fun toArray
     @Extern(name = "scoop_rt_int_equals", abi = "scoop")
   fun coreIntEquals(left: Int, right: Int): Boolean
@@ -416,57 +441,75 @@ Module
     val (local1, _, _, local2)
       Local t : (Int, Int, Int, Int)
     val local3
-      Binary Add : Int
-        Local x : Int
-        Local y : Int
+      Local x : Int
     val local4
+      Local y : Int
+    val local5
+      Local $argument.0 : Int
+    val local6
+      PrimitiveBinary IntAdd : Int
+        Local $receiver : Int
+        Local $parameter.other : Int
+    val local7
       Local $argument.0 : Int
     Call println<Int> : Unit
       Local $parameter.value : Int
-    val local5
-      IntLiteral 1 : Int
-    val local6
-      IntLiteral 2 : Int
-    val local7
-      IntLiteral 3 : Int
     val local8
-      Local $argument.0 : Int
+      IntLiteral 1 : Int
     val local9
-      Local $argument.1 : Int
+      IntLiteral 2 : Int
     val local10
-      Local $argument.2 : Int
+      IntLiteral 3 : Int
     val local11
+      Local $argument.0 : Int
+    val local12
+      Local $argument.1 : Int
+    val local13
+      Local $argument.2 : Int
+    val local14
       StructInit S : S
         Local $parameter.f1 : Int
         Local $parameter.f2 : Int
         Local $parameter.f3 : Int
-    val struct(0: local12)
+    val struct(0: local15)
       Local s : S
-    val local13
+    val local16
       Local f1 : Int
-    val local14
+    val local17
       Local $argument.0 : Int
     Call println<Int> : Unit
       Local $parameter.value : Int
-    val (local15, struct(1: local16))
+    val (local18, struct(1: local19))
       TupleLiteral : (Int, S)
         IntLiteral 9 : Int
         Local s : S
-    val local17
-      Binary Add : Int
-        Local n : Int
-        Local f2 : Int
-    val local18
+    val local20
+      Local n : Int
+    val local21
+      Local f2 : Int
+    val local22
+      Local $argument.0 : Int
+    val local23
+      PrimitiveBinary IntAdd : Int
+        Local $receiver : Int
+        Local $parameter.other : Int
+    val local24
       Local $argument.0 : Int
     Call println<Int> : Unit
       Local $parameter.value : Int
-    val struct(0: local19, 1: _, 2: local20)
+    val struct(0: local25, 1: _, 2: local26)
       Local s : S
-    val local21
-      Binary Add : Int
-        Local a : Int
-        Local c : Int
-    val local22
+    val local27
+      Local a : Int
+    val local28
+      Local c : Int
+    val local29
+      Local $argument.0 : Int
+    val local30
+      PrimitiveBinary IntAdd : Int
+        Local $receiver : Int
+        Local $parameter.other : Int
+    val local31
       Local $argument.0 : Int
     Call println<Int> : Unit
       Local $parameter.value : Int
@@ -720,13 +763,22 @@ Module
         FieldAccess 3
           Type (Int, Int, Int, Int)
           Local $bind.1
+      val $receiver: Int
+        Type Int
+        Local x
+      val $argument.0: Int
+        Type Int
+        Local y
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       val $argument.0: Int
         Type Int
         Binary IntAdd
           Type Int
-          Local x
+          Local $receiver
           Type Int
-          Local y
+          Local $parameter.other
       val $parameter.value: Int
         Type Int
         Local $argument.0
@@ -796,13 +848,22 @@ Module
           FieldAccess 1
             Type (Int, S)
             Local $bind.3
+      val $receiver: Int
+        Type Int
+        Local n
+      val $argument.0: Int
+        Type Int
+        Local f2
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       val $argument.0: Int
         Type Int
         Binary IntAdd
           Type Int
-          Local n
+          Local $receiver
           Type Int
-          Local f2
+          Local $parameter.other
       val $parameter.value: Int
         Type Int
         Local $argument.0
@@ -822,13 +883,22 @@ Module
         FieldAccess 2
           Type S
           Local $bind.4
+      val $receiver: Int
+        Type Int
+        Local a
+      val $argument.0: Int
+        Type Int
+        Local c
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       val $argument.0: Int
         Type Int
         Binary IntAdd
           Type Int
-          Local a
+          Local $receiver
           Type Int
-          Local c
+          Local $parameter.other
       val $parameter.value: Int
         Type Int
         Local $argument.0
@@ -1155,80 +1225,98 @@ Module
     local %0 t: {i64, i64, i64, i64}
     local %1 x: i64
     local %2 y: i64
-    local %3 $argument.0: i64
-    local %4 $parameter.value: i64
-    local %5 $argument.0: i64
-    local %6 $argument.1: i64
-    local %7 $argument.2: i64
-    local %8 $parameter.f1: i64
-    local %9 $parameter.f2: i64
-    local %10 $parameter.f3: i64
-    local %11 s: struct4
-    local %12 f1: i64
-    local %13 $argument.0: i64
-    local %14 $parameter.value: i64
-    local %15 n: i64
-    local %16 f2: i64
-    local %17 $argument.0: i64
-    local %18 $parameter.value: i64
-    local %19 a: i64
-    local %20 c: i64
+    local %3 $receiver: i64
+    local %4 $argument.0: i64
+    local %5 $parameter.other: i64
+    local %6 $argument.0: i64
+    local %7 $parameter.value: i64
+    local %8 $argument.0: i64
+    local %9 $argument.1: i64
+    local %10 $argument.2: i64
+    local %11 $parameter.f1: i64
+    local %12 $parameter.f2: i64
+    local %13 $parameter.f3: i64
+    local %14 s: struct4
+    local %15 f1: i64
+    local %16 $argument.0: i64
+    local %17 $parameter.value: i64
+    local %18 n: i64
+    local %19 f2: i64
+    local %20 $receiver: i64
     local %21 $argument.0: i64
-    local %22 $parameter.value: i64
-    local %23 $bind.1: {i64, i64, i64, i64}
-    local %24 $bind.2: struct4
-    local %25 $bind.3: {i64, struct4}
-    local %26 $bind.4: struct4
+    local %22 $parameter.other: i64
+    local %23 $argument.0: i64
+    local %24 $parameter.value: i64
+    local %25 a: i64
+    local %26 c: i64
+    local %27 $receiver: i64
+    local %28 $argument.0: i64
+    local %29 $parameter.other: i64
+    local %30 $argument.0: i64
+    local %31 $parameter.value: i64
+    local %32 $bind.1: {i64, i64, i64, i64}
+    local %33 $bind.2: struct4
+    local %34 $bind.3: {i64, struct4}
+    local %35 $bind.4: struct4
   block entry
     poll managed-void-target4 sp38 live=[]
     t0 = aggregate (1, 2, 3, 4) : {i64, i64, i64, i64}
     store t0 -> local0
-    store local0 -> local23
-    t1 = extract local23, 0 : i64
+    store local0 -> local32
+    t1 = extract local32, 0 : i64
     store t1 -> local1
-    t2 = extract local23, 3 : i64
+    t2 = extract local32, 3 : i64
     store t2 -> local2
-    t3 = Add local1, local2 : i64
-    store t3 -> local3
-    store local3 -> local4
-    call managed-void-target0 sp12 live=[] sig=void0 (i64) local-fn13(local4)
+    store local1 -> local3
+    store local2 -> local4
+    store local4 -> local5
+    t3 = Add local3, local5 : i64
+    store t3 -> local6
+    store local6 -> local7
+    call managed-void-target0 sp12 live=[] sig=void0 (i64) local-fn13(local7)
     t4 = aggregate () : {}
-    store 1 -> local5
-    store 2 -> local6
-    store 3 -> local7
-    store local5 -> local8
-    store local6 -> local9
-    store local7 -> local10
-    t5 = aggregate (local8, local9, local10) : struct4
-    store t5 -> local11
-    store local11 -> local24
-    t6 = extract local24, 0 : i64
-    store t6 -> local12
-    store local12 -> local13
-    store local13 -> local14
-    call managed-void-target1 sp13 live=[] sig=void1 (i64) local-fn13(local14)
+    store 1 -> local8
+    store 2 -> local9
+    store 3 -> local10
+    store local8 -> local11
+    store local9 -> local12
+    store local10 -> local13
+    t5 = aggregate (local11, local12, local13) : struct4
+    store t5 -> local14
+    store local14 -> local33
+    t6 = extract local33, 0 : i64
+    store t6 -> local15
+    store local15 -> local16
+    store local16 -> local17
+    call managed-void-target1 sp13 live=[] sig=void1 (i64) local-fn13(local17)
     t7 = aggregate () : {}
-    t8 = aggregate (9, local11) : {i64, struct4}
-    store t8 -> local25
-    t9 = extract local25, 0 : i64
-    store t9 -> local15
-    t10 = extract local25, 1 : struct4
+    t8 = aggregate (9, local14) : {i64, struct4}
+    store t8 -> local34
+    t9 = extract local34, 0 : i64
+    store t9 -> local18
+    t10 = extract local34, 1 : struct4
     t11 = extract t10, 1 : i64
-    store t11 -> local16
-    t12 = Add local15, local16 : i64
-    store t12 -> local17
-    store local17 -> local18
-    call managed-void-target2 sp14 live=[] sig=void2 (i64) local-fn13(local18)
-    t13 = aggregate () : {}
-    store local11 -> local26
-    t14 = extract local26, 0 : i64
-    store t14 -> local19
-    t15 = extract local26, 2 : i64
-    store t15 -> local20
-    t16 = Add local19, local20 : i64
-    store t16 -> local21
+    store t11 -> local19
+    store local18 -> local20
+    store local19 -> local21
     store local21 -> local22
-    call managed-void-target3 sp15 live=[] sig=void3 (i64) local-fn13(local22)
+    t12 = Add local20, local22 : i64
+    store t12 -> local23
+    store local23 -> local24
+    call managed-void-target2 sp14 live=[] sig=void2 (i64) local-fn13(local24)
+    t13 = aggregate () : {}
+    store local14 -> local35
+    t14 = extract local35, 0 : i64
+    store t14 -> local25
+    t15 = extract local35, 2 : i64
+    store t15 -> local26
+    store local25 -> local27
+    store local26 -> local28
+    store local28 -> local29
+    t16 = Add local27, local29 : i64
+    store t16 -> local30
+    store local30 -> local31
+    call managed-void-target3 sp15 live=[] sig=void3 (i64) local-fn13(local31)
     t17 = aggregate () : {}
     ret
   fun @scoop.println$I(i64) -> void

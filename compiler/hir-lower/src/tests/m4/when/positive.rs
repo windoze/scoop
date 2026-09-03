@@ -244,23 +244,36 @@ fn when_over_option_with_guard() {
     when
       Local o : Option<Int>
       arm variant0(0: local3) if <guard>
-        val local4
-          Local x : Int
-        val local5
-          Local $argument.0 : Int
-        Call println<Int> : Unit
-          Local $parameter.value : Int
-      arm variant0(0: local6)
+        guard setup
+          val local4
+            Local x : Int
+          val local5
+            IntLiteral 0 : Int
+          val local6
+            Local $argument.0 : Int
+        guard condition
+          Binary Gt : Boolean
+            PrimitiveBinary IntCompareTo : Int
+              Local $receiver : Int
+              Local $parameter.other : Int
+            IntLiteral 0 : Int
         val local7
-          IntLiteral 0 : Int
+          Local x : Int
         val local8
           Local $argument.0 : Int
         Call println<Int> : Unit
           Local $parameter.value : Int
-      arm variant1()
-        val local9
-          StringLiteral "none" : String
+      arm variant0(0: local9)
         val local10
+          IntLiteral 0 : Int
+        val local11
+          Local $argument.0 : Int
+        Call println<Int> : Unit
+          Local $parameter.value : Int
+      arm variant1()
+        val local12
+          StringLiteral "none" : String
+        val local13
           Local $argument.0 : String
         Call println<String> : Unit
           Local $parameter.value : String
@@ -428,6 +441,10 @@ fn when_over_tuple_and_struct() {
     when
       Local p : Point
       arm struct(0: local11, 1: local12) if <guard>
+        guard condition
+          MethodCall Int.equals : Boolean
+            Local x : Int
+            Local yy : Int
         val local13
           StringLiteral "eq" : String
         val local14

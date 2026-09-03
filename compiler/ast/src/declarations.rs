@@ -289,6 +289,8 @@ pub struct FunctionDecl {
     /// Present exactly when the declaration has an `operator` modifier; the
     /// modifier span is retained for HIR signature/target diagnostics.
     pub operator: Option<OperatorModifier>,
+    /// Present exactly when the declaration has an `infix` modifier.
+    pub infix: Option<InfixModifier>,
     /// Effective member modality. It is `Final` for top-level
     /// functions, where member modality is not applicable.
     pub modifier: MethodModifier,
@@ -309,6 +311,11 @@ pub struct FunctionDecl {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct OperatorModifier {
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct InfixModifier {
     pub span: Span,
 }
 

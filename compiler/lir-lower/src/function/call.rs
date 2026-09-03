@@ -234,7 +234,7 @@ impl<'a> FunctionLowerer<'a> {
             }
             mir::Callee::Runtime(function) => {
                 let expected_arg_count = match function {
-                    mir::RuntimeFn::StringConcat => 2,
+                    mir::RuntimeFn::StringConcat | mir::RuntimeFn::StringCompare => 2,
                     // The GC intrinsics (M9, runtime spec 3.4): the
                     // pin / handle operations speak raw machine words
                     // — the object reference in, the word out (or the
@@ -262,6 +262,9 @@ impl<'a> FunctionLowerer<'a> {
                 let (parameter_types, result_type) = match function {
                     mir::RuntimeFn::StringConcat => {
                         (vec![lir::MANAGED_PTR, lir::MANAGED_PTR], lir::MANAGED_PTR)
+                    }
+                    mir::RuntimeFn::StringCompare => {
+                        (vec![lir::MANAGED_PTR, lir::MANAGED_PTR], lir::LirType::I64)
                     }
                     // The pin / handle intrinsics exchange a word with
                     // the runtime: `pin` / `getGcHandle` yield the raw

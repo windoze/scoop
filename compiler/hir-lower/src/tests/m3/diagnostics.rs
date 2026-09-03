@@ -225,10 +225,7 @@ fn arithmetic_on_a_type_parameter_is_an_error() {
     ]);
     let errors = lower_user(file).expect_err("arithmetic on `T` must fail");
     assert_eq!(errors.len(), 1);
-    assert_eq!(
-        errors[0].message,
-        "operator `+` requires Int operands, found T and Int"
-    );
+    assert_eq!(errors[0].message, "type `T` has no method `plus`");
 }
 
 // --- negative: Option ---

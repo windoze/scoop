@@ -166,10 +166,10 @@ impl Concretizer<'_> {
             .iter()
             .map(|arm| concrete::WhenArm {
                 pattern: self.lower_pattern(&arm.pattern, subject.ty, substitution, locals),
-                guard: arm
-                    .guard
-                    .as_ref()
-                    .map(|guard| self.lower_expr(guard, substitution, locals)),
+                guard: arm.guard.as_ref().map(|guard| concrete::WhenGuard {
+                    setup: self.lower_statements(&guard.setup, substitution, locals),
+                    condition: self.lower_expr(&guard.condition, substitution, locals),
+                }),
                 body: self.lower_statements(&arm.body, substitution, locals),
                 span: arm.span,
             })

@@ -60,6 +60,7 @@ impl Harness {
                 name: name.to_string(),
                 genericity: hir::FunctionGenericity::Plain,
                 is_suspend: false,
+                modifiers: hir::CallableModifiers::default(),
                 params: params
                     .into_iter()
                     .map(|(name, ty)| hir::Param {

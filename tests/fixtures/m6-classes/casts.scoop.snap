@@ -41,8 +41,8 @@ SourceFile
     fun load
     fun store
     fun store
-    fun plus
-    fun minus
+    operator fun plus
+    operator fun minus
   struct FunPtr<F>
     field _rawPointer: UInt
     @Unsafe
@@ -169,28 +169,53 @@ SourceFile
     @Intrinsic("core_int")
   struct Int <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun unaryMinus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_uint")
   struct UInt <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_boolean")
   struct Boolean <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun not
     fun toString
     fun hash
     @Intrinsic("core_string")
   class String(), ToString, Hash
     operator fun equals
+    operator fun plus
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_array")
   class Array<T>()
+    operator fun get
     fun toMutableArray
     @Intrinsic("core_mutable_array")
   class MutableArray<T>()
+    operator fun get
+    operator fun set
     fun toArray
     @Extern(name = "scoop_rt_int_equals", abi = "scoop")
   fun coreIntEquals(left: Int, right: Int): Boolean
@@ -931,13 +956,16 @@ Module
           Type Int
           IntLiteral 0
     bb2 if.else.2
+      val $when.3: Option$I<Int>
+        Type Option$I<Int>
+        Local other
       branch bb7 bb8
         Type Boolean
         Binary IntEq
           Type Int
           EnumTag
             Type Option$I<Int>
-            Local $when.1
+            Local $when.3
           Type Int
           IntLiteral 1
     bb3 if.merge.3
@@ -963,30 +991,15 @@ Module
     bb6 if.merge.6
       goto bb3
     bb7 if.then.7
-      val $when.3: Option$I<Int>
-        Type Option$I<Int>
-        Local other
-      branch bb9 bb10
-        Type Boolean
-        Binary IntEq
-          Type Int
-          EnumTag
-            Type Option$I<Int>
-            Local $when.3
-          Type Int
-          IntLiteral 1
-    bb8 if.merge.8
-      goto bb3
-    bb9 if.then.9
       return
         Type Boolean
         BoolLiteral true
-    bb10 if.else.10
+    bb8 if.else.8
       return
         Type Boolean
         BoolLiteral false
-    bb11 if.merge.11
-      goto bb8
+    bb9 if.merge.9
+      goto bb3
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
     bb0 entry
       return
@@ -1465,11 +1478,10 @@ Module
     t4 = Eq t3, 0 : i1
     cbr t4 then @if.then.4 else @if.else.5
   block if.else.2
-    t5 = enum_tag e1 local2 : i64
+    store param1 -> local4
+    t5 = enum_tag e1 local4 : i64
     t6 = Eq t5, 1 : i1
-    cbr t6 then @if.then.7 else @if.merge.8
-  block if.merge.3
-    unreachable
+    cbr t6 then @if.then.7 else @if.else.8
   block if.then.4
     t7 = enum_field e1 v0 f0 local3 : i64
     store t7 -> local1
@@ -1479,15 +1491,8 @@ Module
   block if.else.5
     ret false
   block if.then.7
-    store param1 -> local4
-    t9 = enum_tag e1 local4 : i64
-    t10 = Eq t9, 1 : i1
-    cbr t10 then @if.then.9 else @if.else.10
-  block if.merge.8
-    br @if.merge.3
-  block if.then.9
     ret true
-  block if.else.10
+  block if.else.8
     ret false
   fun @scoop.ctor.Throwable() -> ptr<managed>
   block entry

@@ -32,12 +32,7 @@ fn operator_equals_is_a_typed_hir_contract() {
         .functions
         .iter()
         .filter(|(_, function)| matches!(function.name.as_str(), "EqualTo.equals" | "Value.equals"))
-        .map(|(_, function)| {
-            function
-                .method
-                .expect("equals declarations are methods")
-                .operator
-        })
+        .map(|(_, function)| function.modifiers.operator)
         .collect::<Vec<_>>();
     assert_eq!(
         methods,
@@ -49,9 +44,7 @@ fn operator_equals_is_a_typed_hir_contract() {
     assert!(hir::dump(&output.export).contains("operator fun equals(other: EqualTo): Boolean"));
     assert!(output.local.functions.iter().any(|(_, function)| {
         function.name == "Value.equals"
-            && function
-                .method
-                .is_some_and(|method| method.operator == Some(hir::OperatorKind::Equals))
+            && function.modifiers.operator == Some(hir::OperatorKind::Equals)
     }));
     let dump = hir::dump(&output.export);
     assert!(dump.contains("MethodCall Value.equals : Boolean"), "{dump}");
@@ -212,7 +205,7 @@ fn operator_equals_legality_is_checked_at_its_declaration() {
     ]))
     .expect_err("every invalid operator shape must be rejected before HIR output");
     for expected in [
-        "operator member `compare` is not supported; M14 only defines `equals`",
+        "unknown operator role `compare`",
         "operator `equals` must have exactly one parameter, found 2",
         "operator `equals` must return Boolean, found Int",
         "operator `equals` must not declare type parameters",
@@ -220,23 +213,23 @@ fn operator_equals_legality_is_checked_at_its_declaration() {
     ] {
         assert!(
             errors.iter().any(|error| error.message == expected),
-            "missing diagnostic: {expected}"
+            "missing diagnostic: {expected}; found {errors:?}"
         );
     }
 }
 
 #[test]
-fn operator_modifier_is_rejected_outside_members() {
+fn operator_modifier_requires_a_dispatch_or_extension_receiver() {
     let mut top = fun("top", Vec::new());
     let Decl::Function(function) = &mut top else {
         unreachable!()
     };
     function.operator = Some(ast::OperatorModifier { span: sp() });
     let errors = lower_user(file(vec![top, fun("main", Vec::new())]))
-        .expect_err("top-level operator functions are not member capabilities");
+        .expect_err("a free operator function has no receiver capability");
     assert!(
         errors
             .iter()
-            .any(|error| error.message == "`operator` is only allowed on member functions")
+            .any(|error| error.message == "`operator` requires a member or extension receiver")
     );
 }

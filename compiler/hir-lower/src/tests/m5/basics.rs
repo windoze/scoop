@@ -112,34 +112,50 @@ fn array_basics_golden() {
     val local2
       ArrayLiteral : Array<Int>
     val local3
-      Index : Int
-        Local a : Array<Int>
-        IntLiteral 0 : Int
+      Local a : Array<Int>
     val local4
+      IntLiteral 0 : Int
+    val local5
+      Local $argument.0 : Int
+    val local6
+      Index ImmutableGet : Int
+        Local $receiver : Array<Int>
+        Local $parameter.index : Int
+    val local7
       ArrayLen : Int
         Local a : Array<Int>
-    val local5
+    val local8
       ArrayLen : Int
         Local m : MutableArray<Int>
-    assign []
+    val local9
       Local m : MutableArray<Int>
+    val local10
       IntLiteral 0 : Int
+    val local11
       IntLiteral 40 : Int
-    val local6
+    val local12
+      Local $argument.0 : Int
+    val local13
+      Local $argument.1 : Int
+    ArraySet MutableSet : Unit
+      Local $receiver : MutableArray<Int>
+      Local $parameter.index : Int
+      Local $parameter.value : Int
+    val local14
       Local m : MutableArray<Int>
-    val local7
+    val local15
       Local $argument.0 : MutableArray<Int>
-    val local8
+    val local16
       ArrayClone : Array<Int>
         Local $parameter.source : MutableArray<Int>
-    val local9
+    val local17
       Local a : Array<Int>
-    val local10
+    val local18
       Local $argument.0 : Array<Int>
-    val local11
+    val local19
       ArrayClone : MutableArray<Int>
         Local $parameter.source : Array<Int>
-    val local12
+    val local20
       ArrayLiteral : Array<Array<Int>>
         ArrayLiteral : Array<Int>
           IntLiteral 1 : Int
@@ -236,10 +252,16 @@ fn generic_function_over_array_elements() {
     Call write : Unit
       Local $parameter.message : String
   fun first<T>(a: Array<T0>): T0
+    val local1
+      Local a : Array<T0>
+    val local2
+      IntLiteral 0 : Int
+    val local3
+      Local $argument.0 : Int
     return
-      Index : T0
-        Local a : Array<T0>
-        IntLiteral 0 : Int
+      Index ImmutableGet : T0
+        Local $receiver : Array<T0>
+        Local $parameter.index : Int
   fun main(): Unit
     val local0
       ArrayLiteral : Array<Int>

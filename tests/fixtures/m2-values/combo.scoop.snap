@@ -41,8 +41,8 @@ SourceFile
     fun load
     fun store
     fun store
-    fun plus
-    fun minus
+    operator fun plus
+    operator fun minus
   struct FunPtr<F>
     field _rawPointer: UInt
     @Unsafe
@@ -169,28 +169,53 @@ SourceFile
     @Intrinsic("core_int")
   struct Int <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun unaryMinus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_uint")
   struct UInt <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_boolean")
   struct Boolean <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun not
     fun toString
     fun hash
     @Intrinsic("core_string")
   class String(), ToString, Hash
     operator fun equals
+    operator fun plus
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_array")
   class Array<T>()
+    operator fun get
     fun toMutableArray
     @Intrinsic("core_mutable_array")
   class MutableArray<T>()
+    operator fun get
+    operator fun set
     fun toArray
     @Extern(name = "scoop_rt_int_equals", abi = "scoop")
   fun coreIntEquals(left: Int, right: Int): Boolean
@@ -450,20 +475,35 @@ Module
     val local14
       IntLiteral 0 : Int
     while
+      condition setup
+        val local15
+          Local count : Int
+        val local16
+          IntLiteral 2 : Int
+        val local17
+          Local $argument.0 : Int
       Binary Lt : Boolean
-        Local count : Int
-        IntLiteral 2 : Int
-      val local15
+        PrimitiveBinary IntCompareTo : Int
+          Local $receiver : Int
+          Local $parameter.other : Int
+        IntLiteral 0 : Int
+      val local18
         FieldAccess field 0 : String
           Local a : Tagged
-      val local16
+      val local19
         Local $argument.0 : String
       Call println<String> : Unit
         Local $parameter.value : String
+      val local20
+        Local count : Int
+      val local21
+        IntLiteral 1 : Int
+      val local22
+        Local $argument.0 : Int
       assign count
-        Binary Add : Int
-          Local count : Int
-          IntLiteral 1 : Int
+        PrimitiveBinary IntAdd : Int
+          Local $receiver : Int
+          Local $parameter.other : Int
   entry main
   instance startCoroutine<T0>
   instance suspendCoroutine<T0>
@@ -764,15 +804,31 @@ Module
       var count: Int
         Type Int
         IntLiteral 0
+      val $receiver: Int
+        Type Int
+        Local count
+      val $argument.0: Int
+        Type Int
+        IntLiteral 2
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
+      var $cond.1: Boolean
+        Type Boolean
+        Binary IntLt
+          Type Int
+          Binary IntCompareTo
+            Type Int
+            Local $receiver
+            Type Int
+            Local $parameter.other
+          Type Int
+          IntLiteral 0
       goto bb1
     bb1 while.cond.1
       branch bb2 bb3
         Type Boolean
-        Binary IntLt
-          Type Int
-          Local count
-          Type Int
-          IntLiteral 2
+        Local $cond.1
     bb2 while.body.2
       val $argument.0: String
         Type String
@@ -785,13 +841,42 @@ Module
       call @scoop.println$S direct
         Type String
         Local $parameter.value
+      val $receiver: Int
+        Type Int
+        Local count
+      val $argument.0: Int
+        Type Int
+        IntLiteral 1
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       assign count
         Type Int
         Binary IntAdd
           Type Int
-          Local count
+          Local $receiver
           Type Int
-          IntLiteral 1
+          Local $parameter.other
+      val $receiver: Int
+        Type Int
+        Local count
+      val $argument.0: Int
+        Type Int
+        IntLiteral 2
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
+      assign $cond.1
+        Type Boolean
+        Binary IntLt
+          Type Int
+          Binary IntCompareTo
+            Type Int
+            Local $receiver
+            Type Int
+            Local $parameter.other
+          Type Int
+          IntLiteral 0
       goto bb1
     bb3 while.exit.3
       return
@@ -1235,8 +1320,15 @@ Module
     local %12 $argument.0: ptr<managed>
     local %13 $parameter.value: ptr<managed>
     local %14 count: i64
-    local %15 $argument.0: ptr<managed>
-    local %16 $parameter.value: ptr<managed>
+    local %15 $receiver: i64
+    local %16 $argument.0: i64
+    local %17 $parameter.other: i64
+    local %18 $argument.0: ptr<managed>
+    local %19 $parameter.value: ptr<managed>
+    local %20 $receiver: i64
+    local %21 $argument.0: i64
+    local %22 $parameter.other: i64
+    local %23 $cond.1: i1
   block entry
     poll managed-void-target3 sp45 live=[]
     store global0 -> local0
@@ -1265,19 +1357,33 @@ Module
     call managed-void-target1 sp14 live=[local4:struct4@0+16, local13:ptr<managed>@0] sig=void1 (ptr<managed>) local-fn14(local13)
     t8 = aggregate () : {}
     store 0 -> local14
+    store local14 -> local15
+    store 2 -> local16
+    store local16 -> local17
+    t9 = SCompareTo local15, local17 : i64
+    t10 = Lt t9, 0 : i1
+    store t10 -> local23
     br @while.cond.1
   block while.cond.1
     poll managed-void-target3 sp46 live=[local4:struct4@0+16]
-    t9 = Lt local14, 2 : i1
-    cbr t9 then @while.body.2 else @while.exit.3
+    cbr local23 then @while.body.2 else @while.exit.3
   block while.body.2
-    t10 = extract local4, 0 : ptr<managed>
-    store t10 -> local15
-    store local15 -> local16
-    call managed-void-target2 sp15 live=[local4:struct4@0+16, local16:ptr<managed>@0] sig=void2 (ptr<managed>) local-fn14(local16)
-    t11 = aggregate () : {}
-    t12 = Add local14, 1 : i64
-    store t12 -> local14
+    t11 = extract local4, 0 : ptr<managed>
+    store t11 -> local18
+    store local18 -> local19
+    call managed-void-target2 sp15 live=[local4:struct4@0+16, local19:ptr<managed>@0] sig=void2 (ptr<managed>) local-fn14(local19)
+    t12 = aggregate () : {}
+    store local14 -> local20
+    store 1 -> local21
+    store local21 -> local22
+    t13 = Add local20, local22 : i64
+    store t13 -> local14
+    store local14 -> local15
+    store 2 -> local16
+    store local16 -> local17
+    t14 = SCompareTo local15, local17 : i64
+    t15 = Lt t14, 0 : i1
+    store t15 -> local23
     br @while.cond.1
   block while.exit.3
     ret

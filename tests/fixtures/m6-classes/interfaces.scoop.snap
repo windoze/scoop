@@ -41,8 +41,8 @@ SourceFile
     fun load
     fun store
     fun store
-    fun plus
-    fun minus
+    operator fun plus
+    operator fun minus
   struct FunPtr<F>
     field _rawPointer: UInt
     @Unsafe
@@ -169,28 +169,53 @@ SourceFile
     @Intrinsic("core_int")
   struct Int <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun unaryMinus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_uint")
   struct UInt <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_boolean")
   struct Boolean <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun not
     fun toString
     fun hash
     @Intrinsic("core_string")
   class String(), ToString, Hash
     operator fun equals
+    operator fun plus
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_array")
   class Array<T>()
+    operator fun get
     fun toMutableArray
     @Intrinsic("core_mutable_array")
   class MutableArray<T>()
+    operator fun get
+    operator fun set
     fun toArray
     @Extern(name = "scoop_rt_int_equals", abi = "scoop")
   fun coreIntEquals(left: Int, right: Int): Boolean
@@ -926,26 +951,14 @@ Module
         BoolLiteral true
       goto bb3
     bb2 if.else.2
-      branch bb4 bb5
+      assign $result.0
         Type Boolean
-        Binary IntEq
-          Type Int
-          EnumTag
-            Type Option$J11_DescribableX<Describable>
-            Local $when.1
-          Type Int
-          IntLiteral 1
+        BoolLiteral false
+      goto bb3
     bb3 if.merge.3
       return
         Type Boolean
         Local $result.0
-    bb4 if.then.4
-      assign $result.0
-        Type Boolean
-        BoolLiteral false
-      goto bb5
-    bb5 if.merge.5
-      goto bb3
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
     bb0 entry
       return
@@ -1418,16 +1431,10 @@ Module
     store true -> local0
     br @if.merge.3
   block if.else.2
-    t2 = enum_tag e1 local1 : i64
-    t3 = Eq t2, 1 : i1
-    cbr t3 then @if.then.4 else @if.merge.5
+    store false -> local0
+    br @if.merge.3
   block if.merge.3
     ret local0
-  block if.then.4
-    store false -> local0
-    br @if.merge.5
-  block if.merge.5
-    br @if.merge.3
   fun @scoop.ctor.Throwable() -> ptr<managed>
   block entry
     poll managed-void-target0 sp57 live=[]

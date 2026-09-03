@@ -23,6 +23,9 @@ pub(super) fn ffi_core_declarations() -> Vec<Decl> {
         let mut method = method_full(false, false, name, params, return_ty, FunctionBody::None);
         method.annotations = vec![marker("NoGC"), marker("Unsafe"), intrinsic(intrinsic_name)];
         method.type_params = type_params.into_iter().map(type_param).collect();
+        if matches!(name, "plus" | "minus") {
+            method.operator = Some(ast::OperatorModifier { span: sp() });
+        }
         for param in &mut method.type_params {
             param.inline_bound = Some(ast::TypeBound::Kind(ast::TypeParamKindBound::Value));
         }

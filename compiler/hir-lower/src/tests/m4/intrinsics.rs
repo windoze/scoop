@@ -204,6 +204,7 @@ fn unknown_annotation_is_an_error() {
         is_suspend: false,
         is_override: false,
         operator: None,
+        infix: None,
         modifier: ast::MethodModifier::Final,
         receiver_ty: None,
         name: ident("pure_fn"),

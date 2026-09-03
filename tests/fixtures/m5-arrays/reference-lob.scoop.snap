@@ -41,8 +41,8 @@ SourceFile
     fun load
     fun store
     fun store
-    fun plus
-    fun minus
+    operator fun plus
+    operator fun minus
   struct FunPtr<F>
     field _rawPointer: UInt
     @Unsafe
@@ -169,28 +169,53 @@ SourceFile
     @Intrinsic("core_int")
   struct Int <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun unaryMinus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_uint")
   struct UInt <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_boolean")
   struct Boolean <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun not
     fun toString
     fun hash
     @Intrinsic("core_string")
   class String(), ToString, Hash
     operator fun equals
+    operator fun plus
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_array")
   class Array<T>()
+    operator fun get
     fun toMutableArray
     @Intrinsic("core_mutable_array")
   class MutableArray<T>()
+    operator fun get
+    operator fun set
     fun toArray
     @Extern(name = "scoop_rt_int_equals", abi = "scoop")
   fun coreIntEquals(left: Int, right: Int): Boolean
@@ -437,9 +462,15 @@ Module
         Local values : Array<Base>
   fun secondName(values: Array<Named>): String
     val local1
-      Index : Named
-        Local values : Array<Named>
-        IntLiteral 1 : Int
+      Local values : Array<Named>
+    val local2
+      IntLiteral 1 : Int
+    val local3
+      Local $argument.0 : Int
+    val local4
+      Index ImmutableGet : Named
+        Local $receiver : Array<Named>
+        Local $parameter.index : Int
     return
       MethodCall Named.name : String
         Local $receiver : Named
@@ -780,12 +811,21 @@ Module
           Local values
   fun secondName @scoop.secondName(values: Array<Named>) -> String
     bb0 entry
-      val $arr.1: Array<Named>
+      val $receiver: Array<Named>
         Type Array<Named>
         Local values
-      val $idx.2: Int
+      val $argument.0: Int
         Type Int
         IntLiteral 1
+      val $parameter.index: Int
+        Type Int
+        Local $argument.0
+      val $arr.1: Array<Named>
+        Type Array<Named>
+        Local $receiver
+      val $idx.2: Int
+        Type Int
+        Local $parameter.index
       branch bb2 bb1
         Type Boolean
         Binary IntLt
@@ -1375,40 +1415,46 @@ Module
     ret t0
   fun @scoop.secondName(ptr<managed>) -> ptr<managed>
     local %0 $receiver: ptr<managed>
-    local %1 $arr.1: ptr<managed>
-    local %2 $idx.2: i64
-    local %3 $logic.1: i1
-    local %4 $call.2: ptr<managed>
-    local %5 $call.3: ptr<managed>
+    local %1 $argument.0: i64
+    local %2 $parameter.index: i64
+    local %3 $receiver: ptr<managed>
+    local %4 $arr.1: ptr<managed>
+    local %5 $idx.2: i64
+    local %6 $logic.1: i1
+    local %7 $call.2: ptr<managed>
+    local %8 $call.3: ptr<managed>
   block entry
     poll managed-void-target0 sp68 live=[param0:ptr<managed>@0]
-    store param0 -> local1
-    store 1 -> local2
-    t0 = Lt local2, 0 : i1
+    store param0 -> local0
+    store 1 -> local1
+    store local1 -> local2
+    store local0 -> local4
+    store local2 -> local5
+    t0 = Lt local5, 0 : i1
     cbr t0 then @logic.short.2 else @logic.rhs.1
   block logic.rhs.1
-    t1 = array_len array1 local1 : i64
-    t2 = Ge local2, t1 : i1
-    store t2 -> local3
+    t1 = array_len array1 local4 : i64
+    t2 = Ge local5, t1 : i1
+    store t2 -> local6
     br @logic.merge.3
   block logic.short.2
-    store true -> local3
+    store true -> local6
     br @logic.merge.3
   block logic.merge.3
-    cbr local3 then @if.then.4 else @if.merge.5
+    cbr local6 then @if.then.4 else @if.merge.5
   block if.then.4
     call managed-direct-target0 sp12 live=[] t3 = sig=direct0 () -> ptr<managed> local-fn26()
-    store t3 -> local4
-    throw local4
+    store t3 -> local7
+    throw local7
     unreachable
   block if.merge.5
-    t4 = array_get array1 local1 local2 : ptr<managed>
-    store t4 -> local0
-    t5 = heap_load local0 +0 : ptr<metadata>
+    t4 = array_get array1 local4 local5 : ptr<managed>
+    store t4 -> local3
+    t5 = heap_load local3 +0 : ptr<metadata>
     call no-gc-direct-target0 t6 = sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t5, td0)
-    call managed-direct-target1 sp13 live=[local0:ptr<managed>@0] t7 = sig=direct2 (ptr<managed>) -> ptr<managed> dispatch[Interface:0] t6(local0)
-    store t7 -> local5
-    ret local5
+    call managed-direct-target1 sp13 live=[local3:ptr<managed>@0] t7 = sig=direct2 (ptr<managed>) -> ptr<managed> dispatch[Interface:0] t6(local3)
+    store t7 -> local8
+    ret local8
   fun @scoop.anyCount(ptr<managed>) -> i64
   block entry
     poll managed-void-target0 sp69 live=[param0:ptr<managed>@0]

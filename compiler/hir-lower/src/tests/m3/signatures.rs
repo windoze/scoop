@@ -85,10 +85,16 @@ fn expression_body_and_parameters() {
     Call write : Unit
       Local $parameter.message : String
   fun double(x: Int): Int
+    val local1
+      Local x : Int
+    val local2
+      IntLiteral 2 : Int
+    val local3
+      Local $argument.0 : Int
     return
-      Binary Mul : Int
-        Local x : Int
-        IntLiteral 2 : Int
+      PrimitiveBinary IntMul : Int
+        Local $receiver : Int
+        Local $parameter.other : Int
   fun main(): Unit
     val local0
       IntLiteral 21 : Int

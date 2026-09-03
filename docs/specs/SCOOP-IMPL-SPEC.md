@@ -1,6 +1,6 @@
 # Scoop 实现大纲
 
-版本：0.2（草案）
+版本：0.3（草案）
 
 配套文档：`SCOOP-SPEC.md`（语言规范）、`SCOOP-RUNTIME-SPEC.md`（运行时规范）。本文引用其章节号。
 
@@ -41,7 +41,7 @@ HIR 负责解析所有type parameter：确定每个generic调用的具体类型�
 
 每个`ConcreteTypeId`索引的实体都必须携带非可选的`gc_free: bool`。concrete enum实体还必须为声明顺序中的每个concrete variant携带非可选的`gc_free: bool`，enum自身的flag恒等于全部variant flag的逻辑AND。不存在“未知”的concrete类型，也不得使用`Option<bool>`、默认false、延迟回填或MIR/LIR递归字段来补齐该属性。尚未特化的generic template不是concrete type，可以在`ExportHir`中携带类型化GC-free条件，但该条件不是flag。导出的param-free concrete语义类型可在`ExportHir`中复制同样完备的属性供下游类型检查；它使用export侧id，不与本Cone的`ConcreteTypeId`共享身份。
 
-M16起，所有命名调用、成员/扩展调用、generic nominal构造、enum variant构造、operator调用和callable reference resolution共用一个HIR调用决议内核。候选层先做显式type-argument arity、receiver与调用形态等不依赖表达式类型的预过滤，再对该层逐候选检查applicability并选择第一个至少含一个可应用候选的层；每个候选独立拥有source-argument mapping、fresh inference variables、constraint set、postponed arguments及失败原因。single-candidate调用也必须进入同一可应用性管线，不能保留一条按元数直接lower的捷径。
+M16起，所有命名调用、成员/扩展调用、generic nominal构造、enum variant构造、operator调用和callable reference resolution共用一个HIR调用决议内核；M18把property-like `invoke`作为同一内核的新typed candidate组合。词法/receiver/import层内还要执行function-like与property-like的c-level分区。每个最终分区先做显式type-argument arity、receiver与调用形态等不依赖表达式类型的预过滤，再逐候选检查applicability并选择第一个至少含一个可应用候选的分区；每个候选独立拥有source-argument mapping、fresh inference variables、constraint set、postponed arguments及失败原因。single-candidate调用也必须进入同一可应用性管线，不能保留一条按元数直接lower的捷径。
 
 调用与值构造的泛型推导对整组已映射实参执行constraint固定点求解，不得按从左到右的一次遍历决定成败。constraint递归穿过invariant nominal application、interface variance与function type variance，并同时检查kind/interface bound；lambda、callable reference、`None`、空数组及依赖expected type的嵌套构造可以postpone到其他约束推进后检查。MSC使用与本次实际推断结果隔离的pairwise fresh-variable forwarding system，不能比较两个候选已经推断出的concrete type arguments。solver内部状态可以暂时含未固定变量，但任何成功结果必须原子地产生全部concrete arguments、完整实参映射和唯一typed callee；未解、多解或bound失败只能形成HIR诊断/候选失败，不能输出到`ExportHir`/`LocalConcreteHir`等待下游补齐。
 
@@ -69,17 +69,17 @@ M14还允许registry批准的core struct/class使用`@Intrinsic`省略源码repr
 
 此外归属 HIR 的语义工作：
 
-- 字符串插值脱糖（spec 6.2）、`?.` / `?:` 脱糖（spec 7.3）、`for` 脱糖（spec 11.8）等；
+- 字符串插值脱糖（spec 6.2）、`?.` / `?:` 脱糖（spec 7.3）、完整operator/infix及只求值一次的place展开（spec 9.3）、`for` 脱糖（spec 11.8）等。安全方法调用的实参/default sink必须只位于`Some`分支；若callee返回`Option<R>`不得展平为单层Option。复合赋值与自增/自减先产生包含typed read/write能力的临时place plan，再正规化为普通call/assignment；MIR不能接收source operator token、候选或待重放operand；
 - 把普通/挂起函数类型正规化为全局唯一的类型化 `FunctionTypeId`，完整保留挂起性、参数与返回类型；每个 lambda、匿名函数、局部函数及 managed callable reference 都有独立的类型化实体 id。AST 的 `::name` / `receiver::name` 保持中性的函数声明引用表达式，不提前编码 managed/native 运行时类别；HIR 完成双向类型检查、局部函数可见性、重载目标选择与捕获分析，再由期望类型类别直接构造 managed callable reference 或 `FunctionAddress`，不能先构造前者再转换为后者。capture 列表只允许不可重新绑定的 binding，对外层词法局部 `var` 的任何引用直接诊断。captured value type保持 concrete layout并内联进入 closure environment，不生成 hidden box/shared cell，也不把 closure 擦除为 `Any`、裸函数符号或无类型代码指针；
 - 所有成员方法/计算属性 getter 的 `this` 及扩展函数的 extension receiver，在 HIR 中都是隐含的、不可重新绑定的按值参数（spec 3.3），不得用指向调用方 binding 的 place 表示其语义。value receiver 复制完整值，ref receiver 复制 ref value；后者的 HIR 类型仍是完整 ref type，不降级成 raw pointer。捕获 `this` 时捕获的就是该参数值；对 value-type `this` 执行 `addressOf(this)` 则对该 method activation 内物化的私有副本取址；
-- 函数值调用解析为独立的 callable-value call target；命名调用、函数声明引用表达式的 managed resolution 与 `FunPtr` native-address contextual resolution 是三个不同的决议入口。没有期望类型时只允许进入 managed 分支；只有 spec 13.10 允许的顶层 `@NoGC` 普通函数引用能在明确的 `FunPtr<F>` 期望类型下直接解析为 `FunctionAddress`，普通函数值之间的型变转换则保留为显式 typed coercion；
+- 函数值调用解析为独立的 callable-value call target；非函数值的任意表达式调用与property-like name call则选择唯一typed `operator invoke`并正规化为普通成员/extension call，两者不得混为“看名称像invoke”的分支或递归套用invoke convention。命名调用、函数声明引用表达式的 managed resolution 与 `FunPtr` native-address contextual resolution 是不同的决议入口。没有期望类型时只允许进入 managed 分支；只有 spec 13.10 允许的顶层 `@NoGC` 普通函数引用能在明确的 `FunPtr<F>` 期望类型下直接解析为 `FunctionAddress`，普通函数值之间的型变转换则保留为显式 typed coercion；
 - 在 callable 签名、调用目标与 override / interface 实现关系中保留 `suspend` 标志；以显式、可嵌套的上下文状态检查挂起调用只出现在挂起函数或已登记的协程构建器中，不能把“当前无函数”当作默认允许。进入顶层属性、object/companion、实例属性、delegate、`init`、构造函数/构造委托及普通属性访问器等声明自身拥有的初始化/访问体时，必须压入带原因的 forbidden context；离开后恢复调用者上下文，所以 suspend caller 的显式构造实参仍可挂起。MIR 不为这些初始化入口或属性访问器生成 frame / continuation ABI；
 - 完成 FFI 注解的目标与共存检查：`@Extern` 与 `suspend` 互斥，无论 `abi` 取值为何都在 HIR 报编译错误；函数声明引用表达式的 `FunPtr` contextual resolution 同样拒绝挂起函数及一切只能产生 managed closure 的形态。该检查必须发生在单态化、closure 转换、协程变换及 extern 符号发射之前；
 - FFI 类型检查必须按 ABI 分流：`classify_c_ffi_type` 只接受具有稳定 C 表示的 GC-free 类型；`classify_scoop_abi_type` 复用普通 Scoop typed ABI，并允许规范支持的 direct ref。`String` 等 ref出现在 C ABI 是诊断，出现在 Scoop ABI 不能被偷偷改写为 `PinnedPtr`、handle或 byte storage；两种 classifier及 `is_gc_free` 使用不同缓存/结果类型，不能合并成一个布尔值。extern global 只进入 C data ABI 分支，不能伪装成 Scoop ABI direct call；
 - M13 的 managed callback registration是独立的类型化决议入口，不复用 `FunPtr` native-address resolution：HIR验证唯一`ForeignCallbackCore`，并仅在该core contract内部允许其deferred callback-signature参数`F`出现在`FunPtr<F>`字段/辅助签名；每个实际应用仍要求native函数类型显式、ordinary、非suspend且完全具体化，不形成通用`function` kind bound。context index和`Reusable`/`OneShot` mode必须为编译期常量，被选参数精确为`Ptr<Unit>`，全部native参数/返回值C-FFI-safe。删除context参数后得到的ordinary concrete `FunctionTypeId`是closure的真实expected type；core声明中的`callback: Any`不产生装箱。输出使用独立 `ForeignCallbackRegistrationId`，不能把 closure改写成 `FunPtr`、`Ptr<Unit>`或无类型 runtime call；
 - `const val` 在 HIR 做常量表达式求值与依赖环检查；其值进入可供下游 Cone 使用的 HIR meta，不生成 runtime initializer。普通/挂起 call、构造、分配及普通属性读取均不能进入 const expression IR；
 - 对非 `Unit` 块体执行组合式控制流分析，证明所有可达路径均以有值 `return` 或 `throw` 结束；`finally` 的必退出路径覆盖 try/catch 的待执行结果（spec 第 8 章）；
-- 按上述M16/M17契约完成候选独立的调用决议、统一的默认template调用处实例化、vararg物化与源码求值顺序；为所有concrete expression完备地产生definition/evaluation origin，source-sensitive设施只通过普通expression lowering读取evaluation origin（spec 8.5、8.6）；
+- 按上述M16/M17及M18契约完成候选独立的调用决议、property-like c-level分区、统一的默认template调用处实例化、vararg物化与源码求值顺序；为所有concrete expression完备地产生definition/evaluation origin，source-sensitive设施只通过普通expression lowering读取evaluation origin（spec 8.5、8.6、9.3）；
 - 装箱/拆箱的插入（spec 4.4.4 的 O(1) 规则）；
 - `when` 的穷尽性检查（spec 第 5 章）。
 
@@ -202,7 +202,7 @@ M15起driver还负责把host triple规范化为opaque typed `TargetProfileId`，
 
 - **expression type**：HIR与MIR的每个expression都直接携带非可选type id，包含Unit/Nothing、synthetic、box/unbox、array/enum、closure/callback/coroutine节点。LIR lowering不得提供`expr_ty`反推器或用expected type替代缺失类型；
 - **function type canonical identity**：每个`FunctionTypeId`实体直接保存唯一`canonical_type: TypeId`，interning保证二者一一对应。Export与LocalConcrete使用各自id家族；消费者不得扫描type arena寻找反向映射或重新intern同形type；
-- **compiler core identity**：只有编译器会脱离普通源码引用主动构造或调用的well-known实体，才在HIR一次验证并输出非可选typed结构。intrinsic type与function intrinsic分别使用封闭typed kind；provider authority只影响声明是否可进入HIR，不成为输出中的可选语义。`CompilerExceptionCore`至少完整给出`Throwable`及编译器主动生成的`UnwrapException`、`ClassCastException`、`ArithmeticException`、`IndexOutOfBoundsException`、`IllegalStateException`类型/constructor。缺项不能进入MIR。普通core能力不得因为由intrinsic type实现就建立专用旁路：`ToString`、`Hash`、operator equals、`print` / `println`及其实现全部使用普通interface、method、generic callable、conformance与call target实体；新增可由Scoop表达的intrinsic-type能力只修改core源码，不增加`FormattingCore` / `HashCore` / `EqualityCore`之类的编译器结构；
+- **compiler core identity**：只有编译器会脱离普通源码引用主动构造或调用的well-known实体，才在HIR一次验证并输出非可选typed结构。intrinsic type与function intrinsic分别使用封闭typed kind；provider authority只影响声明是否可进入HIR，不成为输出中的可选语义。`CompilerExceptionCore`至少完整给出`Throwable`及编译器主动生成的`UnwrapException`、`ClassCastException`、`ArithmeticException`、`IndexOutOfBoundsException`、`IllegalStateException`类型/constructor。缺项不能进入MIR。普通core能力不得因为由intrinsic type实现就建立专用旁路：`ToString`、`Hash`、全部普通operator、`print` / `println`及其实现都使用普通interface/member/extension、generic callable、conformance与call target实体；primitive/array/pointer operator可以在winner确定后按其typed intrinsic kind正规化，但候选能力只能来自源码声明。新增可由Scoop表达的intrinsic-type能力只修改core源码，不增加`FormattingCore` / `HashCore` / `EqualityCore` / `OperatorCore`之类的编译器结构；
 - **call**：LIR call/invoke必须统一引用typed target。signature在layout完成后明确全部参数、calling convention及return convention；void/direct/indirect-result使用不同target/signature id家族和对应callsite variant，使缺失/多余out、storage或scan在类型上不可构造。M15进一步把Managed、NoGc、NativeSafe、NativeBorrowed target/callsite ref按Rust类型隔离：ManagedPoll/ManagedCall必带`SafepointId + StatepointLiveSet`，ManagedInvoke必带`SafepointId + ExceptionalRootSet`，NoGc无root plan，两类Native必带`SafepointId`、各自caller-root set及按return sum决定的result publication；不能保留`effect enum + Option<root plan>`让下游补齐。direct、runtime、extern及dispatch slot遵守同一规则；codegen只机械声明/调用，不按symbol或callsite推导签名/root；
 - **pointer provenance**：所有LIR pointer value（包括null）都携带`Managed`/`Raw`/`Code`/`Metadata` kind；不同kind间转换必须是显式instruction。opaque LLVM `ptr`不构成在LIR中擦除kind的理由；
 - **layout/metadata连接**：layout、well-known String layout、TypeDescriptor parent/interface、vtable/itable entry及callable全部使用typed id/ref。跨Cone实体用区分local/external的typed引用，link symbol只是external entity的发射属性；名称只用于显示/诊断；

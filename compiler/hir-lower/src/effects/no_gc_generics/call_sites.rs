@@ -158,7 +158,8 @@ impl Lowerer {
                     for arm in &when.arms {
                         self.collect_generic_calls_in_pattern(caller, &arm.pattern, out);
                         if let Some(guard) = &arm.guard {
-                            self.collect_generic_calls_in_expr(caller, guard, out);
+                            self.collect_generic_calls_in_statements(caller, &guard.setup, out);
+                            self.collect_generic_calls_in_expr(caller, &guard.condition, out);
                         }
                         self.collect_generic_calls_in_statements(caller, &arm.body, out);
                     }
@@ -289,6 +290,9 @@ impl Lowerer {
             | ExprKind::Unary {
                 operand: source, ..
             }
+            | ExprKind::PrimitiveUnary {
+                operand: source, ..
+            }
             | ExprKind::SomeWrap(source)
             | ExprKind::IsSome(source)
             | ExprKind::Unwrap {
@@ -317,6 +321,12 @@ impl Lowerer {
             | ExprKind::Index {
                 receiver: pointer,
                 index: offset,
+                ..
+            }
+            | ExprKind::PrimitiveBinary {
+                lhs: pointer,
+                rhs: offset,
+                ..
             }
             | ExprKind::Binary {
                 lhs: pointer,
@@ -325,6 +335,16 @@ impl Lowerer {
             } => {
                 self.collect_generic_calls_in_expr(caller, pointer, out);
                 self.collect_generic_calls_in_expr(caller, offset, out);
+            }
+            ExprKind::ArraySet {
+                receiver,
+                index,
+                value,
+                ..
+            } => {
+                self.collect_generic_calls_in_expr(caller, receiver, out);
+                self.collect_generic_calls_in_expr(caller, index, out);
+                self.collect_generic_calls_in_expr(caller, value, out);
             }
             ExprKind::FieldAccess { receiver, .. } => {
                 self.collect_generic_calls_in_expr(caller, receiver, out);

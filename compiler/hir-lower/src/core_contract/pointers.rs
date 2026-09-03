@@ -194,13 +194,13 @@ impl Lowerer {
                         && sig.return_ty == self.unit
                 }
                 hir::PointerIntrinsic::Plus | hir::PointerIntrinsic::Minus => {
-                    function
-                        .name
-                        .ends_with(if kind == hir::PointerIntrinsic::Plus {
-                            ".plus"
+                    sig.modifiers.operator
+                        == Some(if kind == hir::PointerIntrinsic::Plus {
+                            hir::OperatorKind::Plus
                         } else {
-                            ".minus"
+                            hir::OperatorKind::Minus
                         })
+                        && !sig.modifiers.is_infix
                         && sig.type_params.len() == 1
                         && matches!(sig.params.as_slice(), [param] if param.ty == self.int)
                         && self.is_ptr_param(sig.return_ty, 0)

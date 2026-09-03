@@ -71,7 +71,7 @@ fn unit_returning_lambda_discards_its_tail_value_explicitly() {
     assert!(body.statements.iter().any(|statement| matches!(
         statement.kind,
         hir::StatementKind::Expr(hir::Expr {
-            kind: hir::ExprKind::Binary { .. },
+            kind: hir::ExprKind::PrimitiveBinary { .. },
             ..
         })
     )));

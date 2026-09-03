@@ -41,8 +41,8 @@ SourceFile
     fun load
     fun store
     fun store
-    fun plus
-    fun minus
+    operator fun plus
+    operator fun minus
   struct FunPtr<F>
     field _rawPointer: UInt
     @Unsafe
@@ -169,28 +169,53 @@ SourceFile
     @Intrinsic("core_int")
   struct Int <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun unaryMinus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_uint")
   struct UInt <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_boolean")
   struct Boolean <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun not
     fun toString
     fun hash
     @Intrinsic("core_string")
   class String(), ToString, Hash
     operator fun equals
+    operator fun plus
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_array")
   class Array<T>()
+    operator fun get
     fun toMutableArray
     @Intrinsic("core_mutable_array")
   class MutableArray<T>()
+    operator fun get
+    operator fun set
     fun toArray
     @Extern(name = "scoop_rt_int_equals", abi = "scoop")
   fun coreIntEquals(left: Int, right: Int): Boolean
@@ -400,33 +425,72 @@ Module
     val local1
       IntLiteral 0 : Int
     while
-      Binary Lt : Boolean
-        Local n : Int
-        IntLiteral 5 : Int
-      assign n
-        Binary Add : Int
+      condition setup
+        val local2
           Local n : Int
-          IntLiteral 1 : Int
+        val local3
+          IntLiteral 5 : Int
+        val local4
+          Local $argument.0 : Int
+      Binary Lt : Boolean
+        PrimitiveBinary IntCompareTo : Int
+          Local $receiver : Int
+          Local $parameter.other : Int
+        IntLiteral 0 : Int
+      val local5
+        Local n : Int
+      val local6
+        IntLiteral 1 : Int
+      val local7
+        Local $argument.0 : Int
+      assign n
+        PrimitiveBinary IntAdd : Int
+          Local $receiver : Int
+          Local $parameter.other : Int
+      val local8
+        Local n : Int
+      val local9
+        IntLiteral 2 : Int
+      val local10
+        Local $argument.0 : Int
+      val local11
+        PrimitiveBinary IntDiv : Int
+          Local $receiver : Int
+          Local $parameter.other : Int
+      val local12
+        IntLiteral 2 : Int
+      val local13
+        Local $argument.0 : Int
       if
         MethodCall Int.equals : Boolean
-          Binary Mul : Int
-            Binary Div : Int
-              Local n : Int
-              IntLiteral 2 : Int
-            IntLiteral 2 : Int
+          PrimitiveBinary IntMul : Int
+            Local $receiver : Int
+            Local $parameter.other : Int
           Local n : Int
+        val local14
+          Local sum : Int
+        val local15
+          Local n : Int
+        val local16
+          Local $argument.0 : Int
         assign sum
-          Binary Add : Int
-            Local sum : Int
-            Local n : Int
+          PrimitiveBinary IntAdd : Int
+            Local $receiver : Int
+            Local $parameter.other : Int
       else
+        val local17
+          Local sum : Int
+        val local18
+          IntLiteral 1 : Int
+        val local19
+          Local $argument.0 : Int
         assign sum
-          Binary Sub : Int
-            Local sum : Int
-            IntLiteral 1 : Int
-    val local2
+          PrimitiveBinary IntSub : Int
+            Local $receiver : Int
+            Local $parameter.other : Int
+    val local20
       Local sum : Int
-    val local3
+    val local21
       Local $argument.0 : Int
     Call println<Int> : Unit
       Local $parameter.value : Int
@@ -661,34 +725,68 @@ Module
       var sum: Int
         Type Int
         IntLiteral 0
+      val $receiver: Int
+        Type Int
+        Local n
+      val $argument.0: Int
+        Type Int
+        IntLiteral 5
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
+      var $cond.1: Boolean
+        Type Boolean
+        Binary IntLt
+          Type Int
+          Binary IntCompareTo
+            Type Int
+            Local $receiver
+            Type Int
+            Local $parameter.other
+          Type Int
+          IntLiteral 0
       goto bb1
     bb1 while.cond.1
       branch bb2 bb3
         Type Boolean
-        Binary IntLt
-          Type Int
-          Local n
-          Type Int
-          IntLiteral 5
+        Local $cond.1
     bb2 while.body.2
+      val $receiver: Int
+        Type Int
+        Local n
+      val $argument.0: Int
+        Type Int
+        IntLiteral 1
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       assign n
         Type Int
         Binary IntAdd
           Type Int
-          Local n
+          Local $receiver
           Type Int
-          IntLiteral 1
-      val $div.1: Int
+          Local $parameter.other
+      val $receiver: Int
         Type Int
         Local n
-      val $div.2: Int
+      val $argument.0: Int
         Type Int
         IntLiteral 2
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
+      val $div.2: Int
+        Type Int
+        Local $receiver
+      val $div.3: Int
+        Type Int
+        Local $parameter.other
       branch bb4 bb5
         Type Boolean
         Binary IntEq
           Type Int
-          Local $div.2
+          Local $div.3
           Type Int
           IntLiteral 0
     bb3 while.exit.3
@@ -708,41 +806,88 @@ Module
         Type ArithmeticException
         Local $call.1
     bb5 if.merge.5
+      val $receiver: Int
+        Type Int
+        Binary IntDiv
+          Type Int
+          Local $div.2
+          Type Int
+          Local $div.3
+      val $argument.0: Int
+        Type Int
+        IntLiteral 2
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       call $call.2: Boolean = @scoop.Int.equals direct
         Type Int
         Binary IntMul
           Type Int
-          Binary IntDiv
-            Type Int
-            Local $div.1
-            Type Int
-            Local $div.2
+          Local $receiver
           Type Int
-          IntLiteral 2
+          Local $parameter.other
         Type Int
         Local n
       branch bb6 bb7
         Type Boolean
         Local $call.2
     bb6 if.then.6
+      val $receiver: Int
+        Type Int
+        Local sum
+      val $argument.0: Int
+        Type Int
+        Local n
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       assign sum
         Type Int
         Binary IntAdd
           Type Int
-          Local sum
+          Local $receiver
           Type Int
-          Local n
+          Local $parameter.other
       goto bb8
     bb7 if.else.7
+      val $receiver: Int
+        Type Int
+        Local sum
+      val $argument.0: Int
+        Type Int
+        IntLiteral 1
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       assign sum
         Type Int
         Binary IntSub
           Type Int
-          Local sum
+          Local $receiver
           Type Int
-          IntLiteral 1
+          Local $parameter.other
       goto bb8
     bb8 if.merge.8
+      val $receiver: Int
+        Type Int
+        Local n
+      val $argument.0: Int
+        Type Int
+        IntLiteral 5
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
+      assign $cond.1
+        Type Boolean
+        Binary IntLt
+          Type Int
+          Binary IntCompareTo
+            Type Int
+            Local $receiver
+            Type Int
+            Local $parameter.other
+          Type Int
+          IntLiteral 0
       goto bb1
   fun println @scoop.println$I(value: Int) -> Unit
     bb0 entry
@@ -1062,54 +1207,99 @@ Module
   fun @scoop_main() -> void
     local %0 n: i64
     local %1 sum: i64
-    local %2 $argument.0: i64
-    local %3 $parameter.value: i64
-    local %4 $div.1: i64
-    local %5 $div.2: i64
-    local %6 $call.1: ptr<managed>
-    local %7 $call.2: i1
+    local %2 $receiver: i64
+    local %3 $argument.0: i64
+    local %4 $parameter.other: i64
+    local %5 $receiver: i64
+    local %6 $argument.0: i64
+    local %7 $parameter.other: i64
+    local %8 $receiver: i64
+    local %9 $argument.0: i64
+    local %10 $parameter.other: i64
+    local %11 $receiver: i64
+    local %12 $argument.0: i64
+    local %13 $parameter.other: i64
+    local %14 $receiver: i64
+    local %15 $argument.0: i64
+    local %16 $parameter.other: i64
+    local %17 $receiver: i64
+    local %18 $argument.0: i64
+    local %19 $parameter.other: i64
+    local %20 $argument.0: i64
+    local %21 $parameter.value: i64
+    local %22 $cond.1: i1
+    local %23 $div.2: i64
+    local %24 $div.3: i64
+    local %25 $call.1: ptr<managed>
+    local %26 $call.2: i1
   block entry
     poll managed-void-target1 sp37 live=[]
     store 0 -> local0
     store 0 -> local1
+    store local0 -> local2
+    store 5 -> local3
+    store local3 -> local4
+    t0 = SCompareTo local2, local4 : i64
+    t1 = Lt t0, 0 : i1
+    store t1 -> local22
     br @while.cond.1
   block while.cond.1
     poll managed-void-target1 sp38 live=[]
-    t0 = Lt local0, 5 : i1
-    cbr t0 then @while.body.2 else @while.exit.3
+    cbr local22 then @while.body.2 else @while.exit.3
   block while.body.2
-    t1 = Add local0, 1 : i64
-    store t1 -> local0
-    store local0 -> local4
-    store 2 -> local5
-    t2 = Eq local5, 0 : i1
-    cbr t2 then @if.then.4 else @if.merge.5
+    store local0 -> local5
+    store 1 -> local6
+    store local6 -> local7
+    t2 = Add local5, local7 : i64
+    store t2 -> local0
+    store local0 -> local8
+    store 2 -> local9
+    store local9 -> local10
+    store local8 -> local23
+    store local10 -> local24
+    t3 = Eq local24, 0 : i1
+    cbr t3 then @if.then.4 else @if.merge.5
   block while.exit.3
-    store local1 -> local2
-    store local2 -> local3
-    call managed-void-target0 sp12 live=[] sig=void0 (i64) local-fn13(local3)
-    t3 = aggregate () : {}
+    store local1 -> local20
+    store local20 -> local21
+    call managed-void-target0 sp12 live=[] sig=void0 (i64) local-fn13(local21)
+    t4 = aggregate () : {}
     ret
   block if.then.4
-    call managed-direct-target0 sp13 live=[] t4 = sig=direct0 () -> ptr<managed> local-fn18()
-    store t4 -> local6
-    throw local6
+    call managed-direct-target0 sp13 live=[] t5 = sig=direct0 () -> ptr<managed> local-fn18()
+    store t5 -> local25
+    throw local25
     unreachable
   block if.merge.5
-    t5 = SDiv local4, local5 : i64
-    t6 = Mul t5, 2 : i64
-    call managed-direct-target1 sp14 live=[] t7 = sig=direct1 (i64, i64) -> i1 local-fn0(t6, local0)
-    store t7 -> local7
-    cbr local7 then @if.then.6 else @if.else.7
+    t6 = SDiv local23, local24 : i64
+    store t6 -> local11
+    store 2 -> local12
+    store local12 -> local13
+    t7 = Mul local11, local13 : i64
+    call managed-direct-target1 sp14 live=[] t8 = sig=direct1 (i64, i64) -> i1 local-fn0(t7, local0)
+    store t8 -> local26
+    cbr local26 then @if.then.6 else @if.else.7
   block if.then.6
-    t8 = Add local1, local0 : i64
-    store t8 -> local1
-    br @if.merge.8
-  block if.else.7
-    t9 = Sub local1, 1 : i64
+    store local1 -> local14
+    store local0 -> local15
+    store local15 -> local16
+    t9 = Add local14, local16 : i64
     store t9 -> local1
     br @if.merge.8
+  block if.else.7
+    store local1 -> local17
+    store 1 -> local18
+    store local18 -> local19
+    t10 = Sub local17, local19 : i64
+    store t10 -> local1
+    br @if.merge.8
   block if.merge.8
+    store local0 -> local2
+    store 5 -> local3
+    store local3 -> local4
+    t11 = SCompareTo local2, local4 : i64
+    t12 = Lt t11, 0 : i1
+    store t12 -> local22
     br @while.cond.1
   fun @scoop.println$I(i64) -> void
     local %0 $receiver: i64

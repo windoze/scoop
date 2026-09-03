@@ -13,10 +13,7 @@ fn subscript_requires_an_array_receiver() {
     )]);
     let errors = lower_user(file).expect_err("subscript on Int must fail");
     assert_eq!(errors.len(), 1);
-    assert_eq!(
-        errors[0].message,
-        "subscript is only supported on arrays, found Int"
-    );
+    assert_eq!(errors[0].message, "type `Int` has no method `get`");
 }
 
 #[test]
@@ -30,7 +27,10 @@ fn subscript_index_must_be_int() {
     )]);
     let errors = lower_user(file).expect_err("non-Int index must fail");
     assert_eq!(errors.len(), 1);
-    assert_eq!(errors[0].message, "array index must be Int, found String");
+    assert_eq!(
+        errors[0].message,
+        "no applicable candidate for `get` in member candidate layer:\n  - fun Array<T>.get(index: Int): T — argument for `index` has type String, which is not a subtype of Int"
+    );
 }
 
 #[test]
@@ -78,10 +78,7 @@ fn subscript_write_requires_a_mutable_array() {
         )]);
         let errors = lower_user(file).expect_err("write to `Array` must fail");
         assert_eq!(errors.len(), 1);
-        assert_eq!(
-            errors[0].message,
-            "cannot assign to an element of immutable Array<Int>"
-        );
+        assert_eq!(errors[0].message, "type `Array<Int>` has no method `set`");
     }
 }
 
@@ -96,10 +93,7 @@ fn subscript_write_on_a_non_array_is_an_error() {
     )]);
     let errors = lower_user(file).expect_err("write through Int must fail");
     assert_eq!(errors.len(), 1);
-    assert_eq!(
-        errors[0].message,
-        "subscript is only supported on arrays, found Int"
-    );
+    assert_eq!(errors[0].message, "type `Int` has no method `set`");
 }
 
 #[test]
@@ -117,7 +111,10 @@ fn subscript_write_index_must_be_int() {
     )]);
     let errors = lower_user(file).expect_err("non-Int write index must fail");
     assert_eq!(errors.len(), 1);
-    assert_eq!(errors[0].message, "array index must be Int, found String");
+    assert_eq!(
+        errors[0].message,
+        "no applicable candidate for `set` in member candidate layer:\n  - fun MutableArray<T>.set(index: Int, value: T): Unit — argument for `index` has type String, which is not a subtype of Int"
+    );
 }
 
 #[test]
@@ -137,6 +134,6 @@ fn subscript_write_value_must_match_the_element_type() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "cannot assign value of type String to an array element of type Int"
+        "no applicable candidate for `set` in member candidate layer:\n  - fun MutableArray<T>.set(index: Int, value: T): Unit — argument for `value` has type String, which is not a subtype of Int"
     );
 }

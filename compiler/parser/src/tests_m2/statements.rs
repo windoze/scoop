@@ -47,7 +47,7 @@ fn assign_statement() {
     let StatementKind::Assign(assign) = &stmt.kind else {
         panic!("expected an assignment");
     };
-    let AssignTarget::Local(target) = &assign.target else {
+    let AssignTarget::Name(target) = &assign.target else {
         panic!("expected a local assignment target");
     };
     assert_eq!(target.text, "n");

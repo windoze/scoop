@@ -123,8 +123,8 @@ pub fn dump(module: &Module) -> String {
                 .collect();
             out.push_str(&format!(
                 "    {}{}fun {}({}): {}{}\n",
-                match function.method.and_then(|method| method.operator) {
-                    Some(OperatorKind::Equals) => "operator ",
+                match function.modifiers.operator {
+                    Some(_) => "operator ",
                     None => "",
                 },
                 if function.is_suspend { "suspend " } else { "" },
@@ -214,8 +214,8 @@ pub fn dump(module: &Module) -> String {
             type_name(module, function.return_ty)
         );
         let suspend = if function.is_suspend { "suspend " } else { "" };
-        let operator = match function.method.and_then(|method| method.operator) {
-            Some(OperatorKind::Equals) => "operator ",
+        let operator = match function.modifiers.operator {
+            Some(_) => "operator ",
             None => "",
         };
         let attributes = dump_function_attributes(function.attributes);

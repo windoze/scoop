@@ -58,10 +58,7 @@ fn when_single_expression_arm_body_needs_a_separator() {
     let (_, message) = err(
         "fun main() {\n    when (s) {\n        Red -> println(\"r\") Green -> println(\"g\")\n    }\n}\n",
     );
-    assert_eq!(
-        message,
-        "expected `;` or newline after statement, found `Green`"
-    );
+    assert_eq!(message, "expected expression, found `->`");
 }
 
 #[test]

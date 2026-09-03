@@ -2,7 +2,7 @@ use super::*;
 
 struct ValueArm {
     pattern: hir::Pattern,
-    guard: Option<hir::Expr>,
+    guard: Option<hir::WhenGuard>,
     body: ValueBlock,
     span: Span,
 }
@@ -200,7 +200,7 @@ impl Lowerer {
         &mut self,
         arm: &ast::WhenArm,
         subject_ty: TypeId,
-    ) -> Option<(hir::Pattern, Option<hir::Expr>)> {
+    ) -> Option<(hir::Pattern, Option<hir::WhenGuard>)> {
         let pattern = self.lower_pattern(
             &arm.pattern,
             subject_ty,
@@ -213,17 +213,6 @@ impl Lowerer {
             Some(guard) => {
                 let mut sink = Vec::new();
                 let guard_expr = self.lower_expr(guard, &mut sink, None)?;
-                // A guard is evaluated once per arm attempt, but sink
-                // statements would execute unconditionally before the
-                // arm body; reject desugaring operators (same rule as
-                // while conditions).
-                if !sink.is_empty() {
-                    self.error(
-                        guard.span(),
-                        "`?.` and `?:` are not allowed in a when guard".to_string(),
-                    );
-                    return None;
-                }
                 if guard_expr.ty != self.boolean {
                     let found = self.type_name(guard_expr.ty);
                     self.error(
@@ -232,7 +221,12 @@ impl Lowerer {
                     );
                     return None;
                 }
-                Some(guard_expr)
+                Some(hir::WhenGuard {
+                    // Setup executes after the pattern binds its locals and
+                    // before the condition, once for this arm attempt.
+                    setup: sink,
+                    condition: guard_expr,
+                })
             }
             None => None,
         };

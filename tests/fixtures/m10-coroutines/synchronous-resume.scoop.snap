@@ -41,8 +41,8 @@ SourceFile
     fun load
     fun store
     fun store
-    fun plus
-    fun minus
+    operator fun plus
+    operator fun minus
   struct FunPtr<F>
     field _rawPointer: UInt
     @Unsafe
@@ -169,28 +169,53 @@ SourceFile
     @Intrinsic("core_int")
   struct Int <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun unaryMinus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_uint")
   struct UInt <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_boolean")
   struct Boolean <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun not
     fun toString
     fun hash
     @Intrinsic("core_string")
   class String(), ToString, Hash
     operator fun equals
+    operator fun plus
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_array")
   class Array<T>()
+    operator fun get
     fun toMutableArray
     @Intrinsic("core_mutable_array")
   class MutableArray<T>()
+    operator fun get
+    operator fun set
     fun toArray
     @Extern(name = "scoop_rt_int_equals", abi = "scoop")
   fun coreIntEquals(left: Int, right: Int): Boolean
@@ -1045,15 +1070,24 @@ Module
           VariantConstruct CoroutineSlot$C9_ThrowableX v0
       goto bb2
     bb1 coroutine.post.1
+      val $receiver: Int
+        Type Int
+        Local value
+      val $argument.0: Int
+        Type Int
+        IntLiteral 2
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       return
         Type CoroutineStep$I
         VariantConstruct CoroutineStep$I v0
           Type Int
           Binary IntAdd
             Type Int
-            Local value
+            Local $receiver
             Type Int
-            IntLiteral 2
+            Local $parameter.other
     bb2 coroutine.register.1 unwind bb22
       call @scoop.SuspendRegistration.register$I interface SuspendRegistration$I[0]
         Type SuspendRegistration$I
@@ -2143,23 +2177,26 @@ Module
     local %4 $argument.0: ptr<managed>
     local %5 $parameter.registration: ptr<managed>
     local %6 value: i64
-    local %7 $call.1: ptr<managed>
-    local %8 $completion: ptr<managed>
-    local %9 $safe_adapter.1: ptr<managed>
-    local %10 $resume_exception.1: ptr<managed>
-    local %11 $registration_claim.1: i64
-    local %12 $registration_frame_claim.1: i64
-    local %13 $protocol_error: ptr<managed>
-    local %14 $protocol_error: ptr<managed>
-    local %15 $sc.1: exception_record
-    local %16 $sc.2: ptr<raw>
-    local %17 $sc.3: ptr<managed>
+    local %7 $receiver: i64
+    local %8 $argument.0: i64
+    local %9 $parameter.other: i64
+    local %10 $call.1: ptr<managed>
+    local %11 $completion: ptr<managed>
+    local %12 $safe_adapter.1: ptr<managed>
+    local %13 $resume_exception.1: ptr<managed>
+    local %14 $registration_claim.1: i64
+    local %15 $registration_frame_claim.1: i64
+    local %16 $protocol_error: ptr<managed>
+    local %17 $protocol_error: ptr<managed>
+    local %18 $sc.1: exception_record
+    local %19 $sc.2: ptr<raw>
+    local %20 $sc.3: ptr<managed>
   block entry
     store 40 -> local1
     store local1 -> local2
     call managed-direct-target0 sp42 live=[param0:ptr<managed>@0] t0 = sig=direct0 (i64) -> ptr<managed> local-fn27(local2)
-    store t0 -> local7
-    store local7 -> local3
+    store t0 -> local10
+    store local10 -> local3
     store local3 -> local4
     store local4 -> local5
     atomic_store release param0 +16 1
@@ -2170,111 +2207,114 @@ Module
     heap_store t1 +32 t2
     t3 = enum_wrap e4 v0 () : enum4
     heap_store t1 +48 t3
-    store t1 -> local9
+    store t1 -> local12
     br @coroutine.register.1
   block coroutine.post.1
-    t4 = Add local6, 2 : i64
+    store local6 -> local7
+    store 2 -> local8
+    store local8 -> local9
+    t4 = Add local7, local9 : i64
     t5 = enum_wrap e1 v0 (t4) : enum1
     ret t5
   block coroutine.register.1
     t6 = heap_load local5 +0 : ptr<metadata>
     call no-gc-direct-target0 t7 = sig=direct2 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t6, td2)
-    invoke managed-void-target0 sp44 roots=[param0:normal+unwind, local5:argument, local9:normal+unwind] sig=void0 (ptr<managed>, ptr<managed>) dispatch[Interface:0] t7(local5, local9) normal @invoke.normal.1 unwind @coroutine.registration_failure.1
+    invoke managed-void-target0 sp44 roots=[param0:normal+unwind, local5:argument, local12:normal+unwind] sig=void0 (ptr<managed>, ptr<managed>) dispatch[Interface:0] t7(local5, local12) normal @invoke.normal.1 unwind @coroutine.registration_failure.1
     br @invoke.normal.1
   block coroutine.registered_success.1
-    atomic_store release local9 +24 6
-    t9 = heap_load local9 +32 : enum3
+    atomic_store release local12 +24 6
+    t9 = heap_load local12 +32 : enum3
     t10 = enum_field e3 v1 f0 t9 : i64
     store t10 -> local6
     br @coroutine.post.1
   block coroutine.registered_failure.1
-    atomic_store release local9 +24 6
-    t11 = heap_load local9 +48 : enum4
+    atomic_store release local12 +24 6
+    t11 = heap_load local12 +48 : enum4
     t12 = enum_field e4 v1 f0 t11 : ptr<managed>
-    store t12 -> local10
-    throw local10
+    store t12 -> local13
+    throw local13
     unreachable
   block coroutine.registered_suspend.1
     t13 = enum_wrap e1 v1 () : enum1
     ret t13
   block coroutine.protocol_error
     call managed-direct-target2 sp45 live=[] t14 = sig=direct3 () -> ptr<managed> local-fn26()
-    store t14 -> local13
-    throw local13
+    store t14 -> local16
+    throw local16
     unreachable
   block coroutine.claim_success_frame.1
     t15 = atomic_cmpxchg acq_rel/acquire param0 +16 expected=1 replacement=-1 : i64
-    store t15 -> local12
-    t16 = Eq local12, 1 : i1
+    store t15 -> local15
+    t16 = Eq local15, 1 : i1
     cbr t16 then @coroutine.registered_success.1 else @coroutine.protocol_error
   block coroutine.claim_failure_frame.1
     t17 = atomic_cmpxchg acq_rel/acquire param0 +16 expected=1 replacement=-1 : i64
-    store t17 -> local12
-    t18 = Eq local12, 1 : i1
+    store t17 -> local15
+    t18 = Eq local15, 1 : i1
     cbr t18 then @coroutine.registered_failure.1 else @coroutine.protocol_error
   block coroutine.check_latched_failure.1
-    t19 = atomic_load acquire local9 +24 : i64
+    t19 = atomic_load acquire local12 +24 : i64
     t20 = Eq t19, 5 : i1
     cbr t20 then @coroutine.claim_failure_frame.1 else @coroutine.protocol_error
   block coroutine.check_latched_success.1
-    t21 = atomic_load acquire local9 +24 : i64
+    t21 = atomic_load acquire local12 +24 : i64
     t22 = Eq t21, 4 : i1
     cbr t22 then @coroutine.claim_success_frame.1 else @coroutine.check_latched_failure.1
   block coroutine.completion_backoff.1
     br @coroutine.completion_wait.1
   block coroutine.check_completing_failure.1
-    t23 = atomic_load acquire local9 +24 : i64
+    t23 = atomic_load acquire local12 +24 : i64
     t24 = Eq t23, 3 : i1
     cbr t24 then @coroutine.completion_backoff.1 else @coroutine.check_latched_success.1
   block coroutine.completion_wait.1
-    poll managed-void-target1 sp89 live=[param0:ptr<managed>@0, local9:ptr<managed>@0]
-    t25 = atomic_load acquire local9 +24 : i64
+    poll managed-void-target1 sp89 live=[param0:ptr<managed>@0, local12:ptr<managed>@0]
+    t25 = atomic_load acquire local12 +24 : i64
     t26 = Eq t25, 2 : i1
     cbr t26 then @coroutine.completion_backoff.1 else @coroutine.check_completing_failure.1
   block coroutine.register_return.1
-    t27 = atomic_cmpxchg acq_rel/acquire local9 +24 expected=0 replacement=1 : i64
-    store t27 -> local11
-    t28 = Eq local11, 0 : i1
+    t27 = atomic_cmpxchg acq_rel/acquire local12 +24 expected=0 replacement=1 : i64
+    store t27 -> local14
+    t28 = Eq local14, 0 : i1
     cbr t28 then @coroutine.registered_suspend.1 else @coroutine.completion_wait.1
   block coroutine.registration_propagate.1
-    throw local10
+    throw local13
     unreachable
   block coroutine.registration_claim_frame.1
     t29 = atomic_cmpxchg acq_rel/acquire param0 +16 expected=1 replacement=-1 : i64
-    store t29 -> local12
-    t30 = Eq local12, 1 : i1
+    store t29 -> local15
+    t30 = Eq local15, 1 : i1
     cbr t30 then @coroutine.registration_propagate.1 else @coroutine.protocol_error
   block coroutine.registration_protocol.1
-    atomic_store release local9 +24 6
+    atomic_store release local12 +24 6
     br @coroutine.protocol_error
   block coroutine.registration_protocol_claim_frame.1
     t31 = atomic_cmpxchg acq_rel/acquire param0 +16 expected=1 replacement=-1 : i64
-    store t31 -> local12
-    t32 = Eq local12, 1 : i1
+    store t31 -> local15
+    t32 = Eq local15, 1 : i1
     cbr t32 then @coroutine.registration_protocol.1 else @coroutine.protocol_error
   block coroutine.registration_backoff.1
     br @coroutine.registration_wait.1
   block coroutine.registration_check_completing_failure.1
-    t33 = atomic_load acquire local9 +24 : i64
+    t33 = atomic_load acquire local12 +24 : i64
     t34 = Eq t33, 3 : i1
     cbr t34 then @coroutine.registration_backoff.1 else @coroutine.registration_protocol_claim_frame.1
   block coroutine.registration_wait.1
-    poll managed-void-target1 sp90 live=[param0:ptr<managed>@0, local9:ptr<managed>@0]
-    t35 = atomic_load acquire local9 +24 : i64
+    poll managed-void-target1 sp90 live=[param0:ptr<managed>@0, local12:ptr<managed>@0]
+    t35 = atomic_load acquire local12 +24 : i64
     t36 = Eq t35, 2 : i1
     cbr t36 then @coroutine.registration_backoff.1 else @coroutine.registration_check_completing_failure.1
   block coroutine.registration_failure.1
     (t37, t38) = landingpad : (exception_record, ptr<raw>)
-    store t37 -> local15
-    store t38 -> local16
-    t39 = begin_catch local16 : ptr<managed>
-    store t39 -> local17
-    call managed-direct-target3 sp46 live=[param0:ptr<managed>@0, local9:ptr<managed>@0, local17:ptr<managed>@0] t40 = sig=direct4 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local17)
-    store t40 -> local10
+    store t37 -> local18
+    store t38 -> local19
+    t39 = begin_catch local19 : ptr<managed>
+    store t39 -> local20
+    call managed-direct-target3 sp46 live=[param0:ptr<managed>@0, local12:ptr<managed>@0, local20:ptr<managed>@0] t40 = sig=direct4 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local20)
+    store t40 -> local13
     end_catch
-    t41 = atomic_cmpxchg acq_rel/acquire local9 +24 expected=0 replacement=6 : i64
-    store t41 -> local11
-    t42 = Eq local11, 0 : i1
+    t41 = atomic_cmpxchg acq_rel/acquire local12 +24 expected=0 replacement=6 : i64
+    store t41 -> local14
+    t42 = Eq local14, 0 : i1
     cbr t42 then @coroutine.registration_claim_frame.1 else @coroutine.registration_wait.1
   block coroutine.resume.1
     t43 = heap_load param0 +40 : enum3
@@ -2294,8 +2334,8 @@ Module
     br @entry
   block coroutine.protocol_error
     call managed-direct-target4 sp47 live=[] t49 = sig=direct5 () -> ptr<managed> local-fn26()
-    store t49 -> local14
-    throw local14
+    store t49 -> local17
+    throw local17
     unreachable
   block coroutine.dispatch.1
     t50 = Eq param1, 1 : i1

@@ -1,5 +1,5 @@
 use scoop_ast::{
-    Assign, AssignTarget, Block, Diagnostic, Expr, FieldSelector, SafetyMode, Span, Statement,
+    Assign, AssignmentOp, Block, CompoundAssignOp, Diagnostic, SafetyMode, Span, Statement,
     StatementKind, ValDecl,
 };
 
@@ -89,6 +89,14 @@ impl Parser {
                     kind: StatementKind::LocalFunction(function),
                 })
             }
+            TokenKind::Infix => {
+                let function = self
+                    .parse_non_member_function(Vec::new(), crate::decl::FunctionContext::Local)?;
+                Ok(Statement {
+                    span: function.span,
+                    kind: StatementKind::LocalFunction(function),
+                })
+            }
             TokenKind::Ident(text)
                 if text == "operator"
                     && !matches!(self.tokens[self.pos + 1].kind, TokenKind::LParen) =>
@@ -121,71 +129,23 @@ impl Parser {
             // stay identifiers everywhere except statement position.
             TokenKind::Ident(text) if text == "try" => self.parse_try(),
             TokenKind::Ident(text) if text == "throw" => self.parse_throw(),
-            // `name = ...` (a single `=`, not `==`) assigns to a local `var`.
-            TokenKind::Ident(_) if matches!(self.tokens[self.pos + 1].kind, TokenKind::Equal) => {
-                self.parse_assign()
-            }
             _ => {
                 let expr = self.parse_expr()?;
-                if matches!(self.peek().kind, TokenKind::Equal) {
-                    match expr {
-                        // `m[i] = v` — subscript assignment (M5).
-                        Expr::Index {
-                            receiver,
-                            index,
+                if let Some(op) = assignment_op(&self.peek().kind) {
+                    let target = Parser::expr_into_place(expr, "assignment target")?;
+                    let start = place_span(&target).start;
+                    self.bump();
+                    let value = self.parse_expr()?;
+                    let span = Span::new(start, value.span().end);
+                    return Ok(Statement {
+                        span,
+                        kind: StatementKind::Assign(Assign {
+                            target,
+                            op,
+                            value,
                             span,
-                        } => {
-                            self.bump(); // `=`
-                            let value = self.parse_expr()?;
-                            let assign_span = Span::new(span.start, value.span().end);
-                            return Ok(Statement {
-                                span: assign_span,
-                                kind: StatementKind::Assign(Assign {
-                                    target: AssignTarget::Index {
-                                        receiver,
-                                        index,
-                                        span,
-                                    },
-                                    value,
-                                    span: assign_span,
-                                }),
-                            });
-                        }
-                        // `obj.field = v` — a field assignment (M6). The
-                        // parser cannot tell class `var` properties from
-                        // value-type fields; HIR rejects the latter.
-                        Expr::FieldAccess(access) => {
-                            if access.safe {
-                                return Err(Diagnostic::at(
-                                    access.span,
-                                    "assignments through `?.` are not allowed",
-                                ));
-                            }
-                            let FieldSelector::Name(name) = access.selector else {
-                                // Tuple elements are value-type fields.
-                                return Err(Diagnostic::at(
-                                    self.peek().span,
-                                    "field assignment is not supported (value types are immutable)",
-                                ));
-                            };
-                            self.bump(); // `=`
-                            let value = self.parse_expr()?;
-                            let assign_span = Span::new(access.span.start, value.span().end);
-                            return Ok(Statement {
-                                span: assign_span,
-                                kind: StatementKind::Assign(Assign {
-                                    target: AssignTarget::Field {
-                                        receiver: access.receiver,
-                                        name,
-                                        span: access.span,
-                                    },
-                                    value,
-                                    span: assign_span,
-                                }),
-                            });
-                        }
-                        _ => return self.unexpected("`;` or newline after statement"),
-                    }
+                        }),
+                    });
                 }
                 Ok(Statement {
                     span: expr.span(),
@@ -273,24 +233,6 @@ impl Parser {
         })
     }
 
-    /// `<name> = <expr>` — assigns to a plain local `var`. Subscript
-    /// assignment (`m[i] = v`) is handled in `parse_statement`, where the
-    /// target is a full expression.
-    fn parse_assign(&mut self) -> Result<Statement, Diagnostic> {
-        let target = self.expect_ident("assignment target")?;
-        self.bump(); // `=`
-        let value = self.parse_expr()?;
-        let span = Span::new(target.span.start, value.span().end);
-        Ok(Statement {
-            span,
-            kind: StatementKind::Assign(Assign {
-                target: AssignTarget::Local(target),
-                value,
-                span,
-            }),
-        })
-    }
-
     /// `return <expr>?` — a bare `return` (for `Unit` functions) ends at a
     /// newline, `;`, `}`, or end of file; anything else is the return value.
     fn parse_return(&mut self) -> Result<Statement, Diagnostic> {
@@ -326,5 +268,26 @@ impl Parser {
             span,
             kind: StatementKind::Throw(value),
         })
+    }
+}
+
+fn assignment_op(kind: &TokenKind) -> Option<AssignmentOp> {
+    Some(match kind {
+        TokenKind::Equal => AssignmentOp::Assign,
+        TokenKind::PlusEqual => AssignmentOp::Compound(CompoundAssignOp::Add),
+        TokenKind::MinusEqual => AssignmentOp::Compound(CompoundAssignOp::Sub),
+        TokenKind::StarEqual => AssignmentOp::Compound(CompoundAssignOp::Mul),
+        TokenKind::SlashEqual => AssignmentOp::Compound(CompoundAssignOp::Div),
+        TokenKind::PercentEqual => AssignmentOp::Compound(CompoundAssignOp::Rem),
+        _ => return None,
+    })
+}
+
+fn place_span(place: &scoop_ast::PlaceExpr) -> Span {
+    match place {
+        scoop_ast::PlaceExpr::Name(name) => name.span,
+        scoop_ast::PlaceExpr::Field { span, .. } | scoop_ast::PlaceExpr::Index { span, .. } => {
+            *span
+        }
     }
 }

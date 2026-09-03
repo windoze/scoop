@@ -42,12 +42,12 @@ struct Ptr<T : value>(val _rawPointer: UInt) {
     @NoGC
     @Unsafe
     @Intrinsic("ptr_plus")
-    fun plus(offset: Int): Ptr<T>
+    operator fun plus(offset: Int): Ptr<T>
 
     @NoGC
     @Unsafe
     @Intrinsic("ptr_minus")
-    fun minus(offset: Int): Ptr<T>
+    operator fun minus(offset: Int): Ptr<T>
 }
 
 struct FunPtr<F>(val _rawPointer: UInt)

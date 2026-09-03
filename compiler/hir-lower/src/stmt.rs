@@ -21,7 +21,6 @@ use hir::{FunctionId, Type, TypeId};
 
 use crate::patterns::PatternCtx;
 use crate::scope::Scopes;
-use crate::types::ArrayKind;
 use crate::{CaptureContext, FnSig, ForbiddenSuspendContext, Lowerer, SuspensionContext};
 
 pub(crate) struct ValueBlock {
@@ -33,9 +32,11 @@ pub(crate) struct ValueBlock {
 mod assignments;
 mod blocks;
 mod body;
+mod compound_assignments;
 mod exceptions;
 mod flow;
 mod local_functions;
+mod places;
 mod statements;
 mod when;
 

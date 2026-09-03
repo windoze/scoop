@@ -47,6 +47,7 @@ impl Harness {
             name: format!("{}.{}", declaration.name, method.name),
             genericity: hir::FunctionGenericity::Plain,
             is_suspend: method.is_suspend,
+            modifiers: hir::CallableModifiers::default(),
             params,
             return_ty: method.return_ty,
             attributes: method.attributes,
@@ -58,7 +59,6 @@ impl Harness {
                 owner,
                 modifier: hir::MethodModifier::Abstract,
                 dispatch: hir::MethodDispatch::Direct,
-                operator: None,
             }),
             span: method.span,
         });

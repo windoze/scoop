@@ -63,7 +63,7 @@ impl Lowerer {
         };
         methods.iter().copied().any(|function| {
             let signature = &self.signatures[&function];
-            signature.operator == Some(hir::OperatorKind::Equals)
+            signature.modifiers.operator == Some(hir::OperatorKind::Equals)
                 && matches!(signature.params.as_slice(), [parameter] if self.types_equal(parameter.ty, owner_ty))
         })
     }
@@ -91,6 +91,10 @@ impl Lowerer {
             name: format!("{}.equals", owner.describe_name(self)),
             genericity: hir::FunctionGenericity::Plain,
             is_suspend: false,
+            modifiers: hir::CallableModifiers {
+                operator: Some(hir::OperatorKind::Equals),
+                is_infix: false,
+            },
             params: vec![
                 hir::Param {
                     name: "this".to_string(),
@@ -110,7 +114,6 @@ impl Lowerer {
                 owner: owner_ty,
                 modifier: hir::MethodModifier::Final,
                 dispatch: hir::MethodDispatch::Direct,
-                operator: Some(hir::OperatorKind::Equals),
             }),
             span,
         });
@@ -127,7 +130,10 @@ impl Lowerer {
             function,
             FnSig {
                 is_suspend: false,
-                operator: Some(hir::OperatorKind::Equals),
+                modifiers: hir::CallableModifiers {
+                    operator: Some(hir::OperatorKind::Equals),
+                    is_infix: false,
+                },
                 attributes,
                 owner_type_param_count: owner_parameters.len(),
                 type_params: owner_parameters,
@@ -228,6 +234,10 @@ impl Lowerer {
             name: format!("{}.equals", self.type_name(owner_ty)),
             genericity: hir::FunctionGenericity::Plain,
             is_suspend: false,
+            modifiers: hir::CallableModifiers {
+                operator: Some(hir::OperatorKind::Equals),
+                is_infix: false,
+            },
             params: vec![
                 hir::Param {
                     name: "this".to_string(),
@@ -247,7 +257,6 @@ impl Lowerer {
                 owner: owner_ty,
                 modifier: hir::MethodModifier::Final,
                 dispatch: hir::MethodDispatch::Direct,
-                operator: Some(hir::OperatorKind::Equals),
             }),
             span,
         });
@@ -256,7 +265,10 @@ impl Lowerer {
             function,
             FnSig {
                 is_suspend: false,
-                operator: Some(hir::OperatorKind::Equals),
+                modifiers: hir::CallableModifiers {
+                    operator: Some(hir::OperatorKind::Equals),
+                    is_infix: false,
+                },
                 attributes,
                 owner_type_param_count: 0,
                 type_params: Vec::new(),

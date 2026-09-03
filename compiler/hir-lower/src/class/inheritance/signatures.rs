@@ -15,9 +15,7 @@ impl Lowerer {
     pub(super) fn same_signature(&self, candidate: FunctionId, name: &str, sig: &FnSig) -> bool {
         self.same_signature_shape(candidate, name, sig)
             && self.functions[candidate].is_suspend == sig.is_suspend
-            && self.functions[candidate]
-                .method
-                .is_some_and(|method| method.operator == sig.operator)
+            && self.functions[candidate].modifiers == sig.modifiers
             && self.functions[candidate].attributes == sig.attributes
     }
 
@@ -90,7 +88,7 @@ impl Lowerer {
         );
         FnSig {
             is_suspend: sig.is_suspend,
-            operator: sig.operator,
+            modifiers: sig.modifiers,
             attributes: sig.attributes,
             owner_type_param_count: 0,
             type_params: target_method_parameters.to_vec(),
@@ -136,9 +134,7 @@ impl Lowerer {
     ) -> bool {
         self.same_instantiated_signature_shape(candidate, name, sig, args)
             && self.functions[candidate].is_suspend == sig.is_suspend
-            && self.functions[candidate]
-                .method
-                .is_some_and(|method| method.operator == sig.operator)
+            && self.functions[candidate].modifiers == sig.modifiers
     }
 
     pub(super) fn same_instantiated_signature_shape(

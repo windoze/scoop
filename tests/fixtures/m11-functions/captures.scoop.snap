@@ -41,8 +41,8 @@ SourceFile
     fun load
     fun store
     fun store
-    fun plus
-    fun minus
+    operator fun plus
+    operator fun minus
   struct FunPtr<F>
     field _rawPointer: UInt
     @Unsafe
@@ -169,28 +169,53 @@ SourceFile
     @Intrinsic("core_int")
   struct Int <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun unaryMinus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_uint")
   struct UInt <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_boolean")
   struct Boolean <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun not
     fun toString
     fun hash
     @Intrinsic("core_string")
   class String(), ToString, Hash
     operator fun equals
+    operator fun plus
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_array")
   class Array<T>()
+    operator fun get
     fun toMutableArray
     @Intrinsic("core_mutable_array")
   class MutableArray<T>()
+    operator fun get
+    operator fun set
     fun toArray
     @Extern(name = "scoop_rt_int_equals", abi = "scoop")
   fun coreIntEquals(left: Int, right: Int): Boolean
@@ -465,11 +490,11 @@ Module
   fun makeNested(base: Int): () -> () -> Int
     return
       Lambda lambda2 invoke=$lambda.1 captures=1 : () -> () -> Int
-        capture base binding71 : Int
+        capture base binding74 : Int
   fun labelReader(label: Label): () -> String
     return
       Lambda lambda3 invoke=$lambda.3 captures=1 : () -> String
-        capture label binding74 : Label
+        capture label binding77 : Label
   fun snapshot(): () -> Int
     val local0
       IntLiteral 41 : Int
@@ -477,7 +502,7 @@ Module
       Local value : Int
     val local2
       Lambda lambda4 invoke=$lambda.4 captures=1 : () -> Int
-        capture captured binding77 : Int
+        capture captured binding80 : Int
     assign value
       IntLiteral 0 : Int
     return
@@ -1055,15 +1080,24 @@ Module
       return
   fun $lambda.0 @scoop.$lambda.0($closure: (Int) -> Int, value: Int) -> Int
     bb0 entry
+      val $receiver: Int
+        Type Int
+        Local value
+      val $argument.0: Int
+        Type Int
+        ClosureCapture cc2 0
+          Type (Int) -> Int
+          Local $closure
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       return
         Type Int
         Binary IntAdd
           Type Int
-          Local value
+          Local $receiver
           Type Int
-          ClosureCapture cc2 0
-            Type (Int) -> Int
-            Local $closure
+          Local $parameter.other
   fun $lambda.2 @scoop.$lambda.2($closure: () -> Int) -> Int
     bb0 entry
       return
@@ -1091,15 +1125,24 @@ Module
             Local $closure
   fun $lambda.4 @scoop.$lambda.4($closure: () -> Int) -> Int
     bb0 entry
+      val $receiver: Int
+        Type Int
+        ClosureCapture cc5 0
+          Type () -> Int
+          Local $closure
+      val $argument.0: Int
+        Type Int
+        IntLiteral 1
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       return
         Type Int
         Binary IntAdd
           Type Int
-          ClosureCapture cc5 0
-            Type () -> Int
-            Local $closure
+          Local $receiver
           Type Int
-          IntLiteral 1
+          Local $parameter.other
   fun $lambda.5 @scoop.$lambda.5($closure: () -> Int) -> Int
     bb0 entry
       return
@@ -1111,6 +1154,19 @@ Module
             Local $closure
   fun $lambda.6 @scoop.$lambda.6($closure: () -> Int) -> Int
     bb0 entry
+      val $receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Counter
+          ClosureCapture cc1 0
+            Type () -> Int
+            Local $closure
+      val $argument.0: Int
+        Type Int
+        IntLiteral 1
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       field_set 0
         Type Counter
         ClosureCapture cc1 0
@@ -1119,13 +1175,9 @@ Module
         Type Int
         Binary IntAdd
           Type Int
-          FieldAccess 0
-            Type Counter
-            ClosureCapture cc1 0
-              Type () -> Int
-              Local $closure
+          Local $receiver
           Type Int
-          IntLiteral 1
+          Local $parameter.other
       return
         Type Int
         FieldAccess 0
@@ -1664,10 +1716,16 @@ Module
     t27 = aggregate () : {}
     ret
   fun @scoop.$lambda.0(ptr<managed>, i64) -> i64
+    local %0 $receiver: i64
+    local %1 $argument.0: i64
+    local %2 $parameter.other: i64
   block entry
     poll managed-void-target0 sp75 live=[param0:ptr<managed>@0]
+    store param1 -> local0
     t0 = heap_load param0 +24 : i64
-    t1 = Add param1, t0 : i64
+    store t0 -> local1
+    store local1 -> local2
+    t1 = Add local0, local2 : i64
     ret t1
   fun @scoop.$lambda.2(ptr<managed>) -> i64
   block entry
@@ -1690,10 +1748,16 @@ Module
     t1 = extract t0, 0 : ptr<managed>
     ret t1
   fun @scoop.$lambda.4(ptr<managed>) -> i64
+    local %0 $receiver: i64
+    local %1 $argument.0: i64
+    local %2 $parameter.other: i64
   block entry
     poll managed-void-target0 sp79 live=[param0:ptr<managed>@0]
     t0 = heap_load param0 +24 : i64
-    t1 = Add t0, 1 : i64
+    store t0 -> local0
+    store 1 -> local1
+    store local1 -> local2
+    t1 = Add local0, local2 : i64
     ret t1
   fun @scoop.$lambda.5(ptr<managed>) -> i64
   block entry
@@ -1702,13 +1766,19 @@ Module
     t1 = extract t0, 0 : i64
     ret t1
   fun @scoop.$lambda.6(ptr<managed>) -> i64
+    local %0 $receiver: i64
+    local %1 $argument.0: i64
+    local %2 $parameter.other: i64
   block entry
     poll managed-void-target0 sp81 live=[param0:ptr<managed>@0]
     t0 = heap_load param0 +24 : ptr<managed>
-    t1 = heap_load param0 +24 : ptr<managed>
-    t2 = heap_load t1 +16 : i64
-    t3 = Add t2, 1 : i64
-    heap_store t0 +16 t3
+    t1 = heap_load t0 +16 : i64
+    store t1 -> local0
+    store 1 -> local1
+    store local1 -> local2
+    t2 = heap_load param0 +24 : ptr<managed>
+    t3 = Add local0, local2 : i64
+    heap_store t2 +16 t3
     t4 = heap_load param0 +24 : ptr<managed>
     t5 = heap_load t4 +16 : i64
     ret t5

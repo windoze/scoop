@@ -8,6 +8,7 @@ pub struct Function {
     /// argument vector, function name, or the optional `method` field.
     pub origin: FunctionOrigin,
     pub is_suspend: bool,
+    pub modifiers: CallableModifiers,
     pub params: Vec<Param>,
     pub return_ty: TypeId,
     pub attributes: FunctionAttributes,
@@ -74,7 +75,6 @@ pub struct Method {
     pub owner: TypeId,
     pub modifier: MethodModifier,
     pub dispatch: MethodDispatch,
-    pub operator: Option<OperatorKind>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

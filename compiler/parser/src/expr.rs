@@ -7,7 +7,8 @@
 
 use scoop_ast::{
     BinOp, CallArgument, CallArgumentName, CallExpr, Diagnostic, Expr, FieldAccess, FieldSelector,
-    Ident, Span, SpreadSyntax, UnOp,
+    Ident, InfixTarget, Navigation, NonEmptyVec, PlaceExpr, Span, SpreadSyntax, UnOp,
+    UpdateNotation, UpdateOp,
 };
 
 use crate::lexer::TokenKind;
@@ -20,26 +21,41 @@ mod primary;
 /// operators `is` / `!is` / `as` / `as?` (M6), which are handled outside
 /// `binary_op` because their right-hand side is a type, not an
 /// expression.
+const OR_PRECEDENCE: u8 = 1;
+const AND_PRECEDENCE: u8 = 2;
+const EQUALITY_PRECEDENCE: u8 = 3;
 const COMPARISON_PRECEDENCE: u8 = 4;
+const MEMBERSHIP_PRECEDENCE: u8 = 5;
+const ELVIS_PRECEDENCE: u8 = 6;
+const INFIX_PRECEDENCE: u8 = 7;
+const RANGE_PRECEDENCE: u8 = 8;
+const ADDITIVE_PRECEDENCE: u8 = 9;
+const MULTIPLICATIVE_PRECEDENCE: u8 = 10;
+const CAST_PRECEDENCE: u8 = 11;
 
 /// Maps an infix operator token to its AST operator and precedence level
 /// (higher binds tighter); `None` for non-operator tokens.
 fn binary_op(kind: &TokenKind) -> Option<(BinOp, u8)> {
     let (op, precedence) = match kind {
-        TokenKind::PipePipe => (BinOp::Or, 1),
-        TokenKind::AmpAmp => (BinOp::And, 2),
-        TokenKind::EqualEqual => (BinOp::Eq, 3),
-        TokenKind::BangEqual => (BinOp::Ne, 3),
-        TokenKind::EqualEqualEqual => (BinOp::RefEq, 3),
-        TokenKind::BangEqualEqual => (BinOp::RefNe, 3),
+        TokenKind::PipePipe => (BinOp::Or, OR_PRECEDENCE),
+        TokenKind::AmpAmp => (BinOp::And, AND_PRECEDENCE),
+        TokenKind::EqualEqual => (BinOp::Eq, EQUALITY_PRECEDENCE),
+        TokenKind::BangEqual => (BinOp::Ne, EQUALITY_PRECEDENCE),
+        TokenKind::EqualEqualEqual => (BinOp::RefEq, EQUALITY_PRECEDENCE),
+        TokenKind::BangEqualEqual => (BinOp::RefNe, EQUALITY_PRECEDENCE),
         TokenKind::Less => (BinOp::Lt, COMPARISON_PRECEDENCE),
         TokenKind::LessEqual => (BinOp::Le, COMPARISON_PRECEDENCE),
         TokenKind::Greater => (BinOp::Gt, COMPARISON_PRECEDENCE),
         TokenKind::GreaterEqual => (BinOp::Ge, COMPARISON_PRECEDENCE),
-        TokenKind::Plus => (BinOp::Add, 5),
-        TokenKind::Minus => (BinOp::Sub, 5),
-        TokenKind::Star => (BinOp::Mul, 6),
-        TokenKind::Slash => (BinOp::Div, 6),
+        TokenKind::In => (BinOp::Contains, MEMBERSHIP_PRECEDENCE),
+        TokenKind::BangIn => (BinOp::NotContains, MEMBERSHIP_PRECEDENCE),
+        TokenKind::DotDot => (BinOp::RangeTo, RANGE_PRECEDENCE),
+        TokenKind::DotDotLess => (BinOp::RangeUntil, RANGE_PRECEDENCE),
+        TokenKind::Plus => (BinOp::Add, ADDITIVE_PRECEDENCE),
+        TokenKind::Minus => (BinOp::Sub, ADDITIVE_PRECEDENCE),
+        TokenKind::Star => (BinOp::Mul, MULTIPLICATIVE_PRECEDENCE),
+        TokenKind::Slash => (BinOp::Div, MULTIPLICATIVE_PRECEDENCE),
+        TokenKind::Percent => (BinOp::Rem, MULTIPLICATIVE_PRECEDENCE),
         _ => return None,
     };
     Some((op, precedence))
@@ -63,23 +79,14 @@ impl Parser {
     fn parse_binary(&mut self, min_precedence: u8) -> Result<Expr, Diagnostic> {
         let mut lhs = self.parse_unary()?;
         loop {
-            // `..` is the range operator in expression position (the
-            // pattern rest marker never reaches here); out of the M5
-            // subset, with a dedicated diagnostic.
-            if matches!(self.peek().kind, TokenKind::DotDot) {
-                return Err(Diagnostic::at(
-                    self.peek().span,
-                    "ranges are not supported yet (milestone M5)",
-                ));
-            }
-            // `?:` sits one level below `||` (level 0) and is
-            // right-associative, so it is handled outside `binary_op`.
+            // Elvis is right-associative; every other binary/infix source
+            // form in this table is left-associative.
             if matches!(self.peek().kind, TokenKind::QuestionColon) {
-                if min_precedence > 0 {
+                if ELVIS_PRECEDENCE < min_precedence {
                     break;
                 }
                 self.bump();
-                let rhs = self.parse_binary(0)?;
+                let rhs = self.parse_binary(ELVIS_PRECEDENCE)?;
                 lhs = Expr::Elvis {
                     span: Span::new(lhs.span().start, rhs.span().end),
                     lhs: Box::new(lhs),
@@ -88,13 +95,11 @@ impl Parser {
                 continue;
             }
             let Some((op, precedence)) = binary_op(&self.peek().kind) else {
-                // `is` / `!is` / `as` / `as?` take a type on the right, so
-                // they live outside `binary_op` (same tier, left
-                // associative).
-                if COMPARISON_PRECEDENCE < min_precedence {
-                    break;
-                }
+                // `is` / `!is` and `as` / `as?` take a type on the right.
                 if matches!(self.peek().kind, TokenKind::Is) || self.at_bang_is() {
+                    if MEMBERSHIP_PRECEDENCE < min_precedence {
+                        break;
+                    }
                     let negated = self.at_bang_is();
                     self.bump(); // `is` or `!`
                     if negated {
@@ -110,6 +115,9 @@ impl Parser {
                     continue;
                 }
                 if matches!(self.peek().kind, TokenKind::As) {
+                    if CAST_PRECEDENCE < min_precedence {
+                        break;
+                    }
                     let as_token = self.bump();
                     // `as?` (safe cast) is `as` directly followed by `?`.
                     let optional = matches!(self.peek().kind, TokenKind::Question)
@@ -123,6 +131,30 @@ impl Parser {
                         operand: Box::new(lhs),
                         ty,
                         optional,
+                    };
+                    continue;
+                }
+                if let TokenKind::Ident(_) = &self.peek().kind {
+                    if INFIX_PRECEDENCE < min_precedence || self.peek().newline_before {
+                        break;
+                    }
+                    let name = self.expect_ident("infix function name")?;
+                    let rhs = self.parse_binary(INFIX_PRECEDENCE + 1)?;
+                    lhs = Expr::InfixCall {
+                        span: Span::new(lhs.span().start, rhs.span().end),
+                        lhs: Box::new(lhs),
+                        target: InfixTarget::Named(name),
+                        rhs: Box::new(rhs),
+                    };
+                    continue;
+                }
+                if INFIX_PRECEDENCE >= min_precedence && self.starts_infix_invoke_rhs() {
+                    let rhs = self.parse_binary(INFIX_PRECEDENCE + 1)?;
+                    lhs = Expr::InfixCall {
+                        span: Span::new(lhs.span().start, rhs.span().end),
+                        lhs: Box::new(lhs),
+                        target: InfixTarget::Invoke,
+                        rhs: Box::new(rhs),
                     };
                     continue;
                 }
@@ -143,11 +175,48 @@ impl Parser {
         Ok(lhs)
     }
 
+    /// Property-like infix invoke has no name token between its two values.
+    /// Identifier-led right operands remain reserved for named infix syntax;
+    /// callers can parenthesize such an operand to make the boundary explicit.
+    fn starts_infix_invoke_rhs(&self) -> bool {
+        !self.peek().newline_before
+            && matches!(
+                self.peek().kind,
+                TokenKind::Str(_)
+                    | TokenKind::Int(_)
+                    | TokenKind::True
+                    | TokenKind::False
+                    | TokenKind::This
+                    | TokenKind::LParen
+                    | TokenKind::LBracket
+                    | TokenKind::LBrace
+                    | TokenKind::Fun
+                    | TokenKind::Suspend
+            )
+    }
+
     fn parse_unary(&mut self) -> Result<Expr, Diagnostic> {
         let token = self.peek().clone();
         let op = match token.kind {
+            TokenKind::Plus => UnOp::Plus,
             TokenKind::Minus => UnOp::Neg,
             TokenKind::Bang => UnOp::Not,
+            TokenKind::PlusPlus | TokenKind::MinusMinus => {
+                self.pos += 1;
+                let operand = self.parse_unary()?;
+                let end = operand.span().end;
+                let place = Self::expr_into_place(operand, "update operand")?;
+                return Ok(Expr::Update {
+                    place,
+                    op: if matches!(token.kind, TokenKind::PlusPlus) {
+                        UpdateOp::Increment
+                    } else {
+                        UpdateOp::Decrement
+                    },
+                    notation: UpdateNotation::Prefix,
+                    span: Span::new(token.span.start, end),
+                });
+            }
             _ => return self.parse_postfix(),
         };
         self.pos += 1;
@@ -181,6 +250,7 @@ impl Parser {
                     let (args, end) = self.parse_args()?;
                     receiver = Expr::Invoke {
                         callee: Box::new(receiver),
+                        type_args: Vec::new(),
                         args,
                         span: Span::new(start, end),
                     };
@@ -213,6 +283,20 @@ impl Parser {
                 TokenKind::LBracket if self.peek().span.start == receiver.span().end => {
                     receiver = self.parse_index(receiver)?;
                 }
+                TokenKind::Less if !self.peek().newline_before => {
+                    let type_args = self.parse_explicit_call_type_args();
+                    if type_args.is_empty() {
+                        break;
+                    }
+                    let start = receiver.span().start;
+                    let (args, end) = self.parse_args()?;
+                    receiver = Expr::Invoke {
+                        callee: Box::new(receiver),
+                        type_args,
+                        args,
+                        span: Span::new(start, end),
+                    };
+                }
                 // `a!!` lexes as two adjacent `Bang` tokens — a single
                 // `!!` token would break the double negation `!!flag`,
                 // which is valid prefix syntax since M1.
@@ -222,6 +306,21 @@ impl Parser {
                     receiver = Expr::NullAssert {
                         span: Span::new(receiver.span().start, second.span.end),
                         operand: Box::new(receiver),
+                    };
+                }
+                TokenKind::PlusPlus | TokenKind::MinusMinus => {
+                    let token = self.bump();
+                    let start = receiver.span().start;
+                    let place = Self::expr_into_place(receiver, "update operand")?;
+                    receiver = Expr::Update {
+                        place,
+                        op: if matches!(token.kind, TokenKind::PlusPlus) {
+                            UpdateOp::Increment
+                        } else {
+                            UpdateOp::Decrement
+                        },
+                        notation: UpdateNotation::Postfix,
+                        span: Span::new(start, token.span.end),
                     };
                 }
                 _ => break,
@@ -234,18 +333,26 @@ impl Parser {
     /// index expression is a slice, out of the M5 subset.
     fn parse_index(&mut self, receiver: Expr) -> Result<Expr, Diagnostic> {
         self.bump(); // `[`
-        let index = self.parse_expr()?;
+        let first = self.parse_expr()?;
         if matches!(self.peek().kind, TokenKind::Colon) {
             return Err(Diagnostic::at(
                 self.peek().span,
                 "array slices are not supported yet (milestone M5)",
             ));
         }
+        let mut rest = Vec::new();
+        while matches!(self.peek().kind, TokenKind::Comma) {
+            self.bump();
+            if matches!(self.peek().kind, TokenKind::RBracket) {
+                return self.unexpected("index expression after `,`");
+            }
+            rest.push(self.parse_expr()?);
+        }
         let close = self.expect("`]`", |k| matches!(k, TokenKind::RBracket))?;
         Ok(Expr::Index {
             span: Span::new(receiver.span().start, close.span.end),
             receiver: Box::new(receiver),
-            index: Box::new(index),
+            indices: NonEmptyVec::new(first, rest),
         })
     }
 
@@ -287,7 +394,7 @@ impl Parser {
                 span: Span::new(receiver.span().start, token.span.end),
                 receiver: Box::new(receiver),
                 selector: FieldSelector::Index(index, token.span),
-                safe,
+                navigation: Navigation::Direct,
             }));
         }
         self.pos += 1;
@@ -297,17 +404,16 @@ impl Parser {
         };
         let type_args = self.parse_explicit_call_type_args();
         if matches!(self.peek().kind, TokenKind::LParen) {
-            if safe {
-                return Err(Diagnostic::at(
-                    self.peek().span,
-                    "method calls with `?.` are not supported yet (milestone M6)",
-                ));
-            }
             let (args, end) = self.parse_args()?;
             return Ok(Expr::MethodCall {
                 span: Span::new(receiver.span().start, end),
                 receiver: Box::new(receiver),
                 name,
+                navigation: if safe {
+                    Navigation::Safe
+                } else {
+                    Navigation::Direct
+                },
                 type_args,
                 args,
             });
@@ -316,7 +422,46 @@ impl Parser {
             span: Span::new(receiver.span().start, token.span.end),
             receiver: Box::new(receiver),
             selector: FieldSelector::Name(name),
-            safe,
+            navigation: if safe {
+                Navigation::Safe
+            } else {
+                Navigation::Direct
+            },
         }))
+    }
+
+    pub(crate) fn expr_into_place(expr: Expr, context: &str) -> Result<PlaceExpr, Diagnostic> {
+        let span = expr.span();
+        match expr {
+            Expr::Var(name) => Ok(PlaceExpr::Name(name)),
+            Expr::FieldAccess(access) => match (access.navigation, access.selector) {
+                (Navigation::Direct, FieldSelector::Name(name)) => Ok(PlaceExpr::Field {
+                    receiver: access.receiver,
+                    name,
+                    span: access.span,
+                }),
+                (Navigation::Safe, _) if context == "assignment target" => Err(Diagnostic::at(
+                    span,
+                    "assignments through `?.` are not allowed",
+                )),
+                _ => Err(Diagnostic::at(
+                    span,
+                    format!("{context} must be an assignable place"),
+                )),
+            },
+            Expr::Index {
+                receiver,
+                indices,
+                span,
+            } => Ok(PlaceExpr::Index {
+                receiver,
+                indices,
+                span,
+            }),
+            _ => Err(Diagnostic::at(
+                span,
+                format!("{context} must be an assignable place"),
+            )),
+        }
     }
 }
