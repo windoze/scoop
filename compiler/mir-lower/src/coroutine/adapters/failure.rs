@@ -1,0 +1,201 @@
+//! Exceptional continuation callback generation.
+
+use super::*;
+
+#[allow(clippy::too_many_arguments)]
+pub(super) fn generate_failure_method(
+    lowerer: &mut Lowerer,
+    module: &hir::Module,
+    adapter: mir::ClassId,
+    frame_class: mir::ClassId,
+    failure_slot: FrameSlot,
+    outer_step: &mir::Type,
+    outer_continuation: mir::InterfaceId,
+    outer_resume: mir::FunctionId,
+    outer_failure: mir::FunctionId,
+    driver: mir::FunctionId,
+    source_symbol: &str,
+    state: u32,
+    failure_state: i64,
+    latch: Option<FrameSlot>,
+) -> mir::FunctionId {
+    let throwable = mir::Type::Class(lowerer.class_map[&module.exception_core.throwable.class()]);
+    let mut locals = Arena::new();
+    let this = locals.alloc(local("this", mir::Type::Class(adapter)));
+    let exception = locals.alloc(local("exception", throwable.clone()));
+    let step = locals.alloc(local("$step", outer_step.clone()));
+    let adapter_claim = locals.alloc(local("$adapter_claim", mir::Type::Int));
+    let frame_claim = locals.alloc(local("$frame_claim", mir::Type::Int));
+    let mut blocks = Arena::new();
+    let invalid = protocol_error_block(lowerer, module, &mut locals, &mut blocks, None);
+    let exits = drive_exit_blocks(
+        lowerer,
+        module,
+        &mut locals,
+        &mut blocks,
+        this,
+        step,
+        adapter,
+        frame_class,
+        outer_step,
+        outer_continuation,
+        outer_resume,
+        outer_failure,
+    );
+    let valid = blocks.alloc(mir::BasicBlock {
+        name: "valid".to_string(),
+        statements: vec![
+            field_set(
+                adapter_frame(this, adapter, frame_class),
+                failure_slot.field,
+                slot_value(
+                    &failure_slot,
+                    mir::Expr::local(exception, throwable.clone()),
+                ),
+            ),
+            atomic_field_store(
+                mir::Expr::local(this, mir::Type::Class(adapter)),
+                1,
+                mir::Expr::int(ADAPTER_CONSUMED),
+            ),
+            statement(mir::StatementKind::Call(mir::CallEffect::Value {
+                destination: step,
+                call: mir::Call {
+                    target: mir::CallTarget {
+                        kind: mir::CallKind::Direct,
+                        callee: mir::Callee::User(driver),
+                    },
+                    args: vec![
+                        adapter_frame(this, adapter, frame_class),
+                        mir::Expr::int(failure_state),
+                    ],
+                },
+            })),
+        ],
+        terminator: mir::Terminator::Branch {
+            cond: is_completed(step, outer_step.clone()),
+            then_block: exits.completed,
+            else_block: exits.suspended,
+        },
+        unwind: Some(exits.catch_pad),
+    });
+    let invalid_frame = blocks.alloc(mir::BasicBlock {
+        name: "invalid_frame".to_string(),
+        statements: vec![atomic_field_store(
+            mir::Expr::local(this, mir::Type::Class(adapter)),
+            1,
+            mir::Expr::int(ADAPTER_CONSUMED),
+        )],
+        terminator: mir::Terminator::Goto(invalid),
+        unwind: None,
+    });
+    let claim_frame = blocks.alloc(mir::BasicBlock {
+        name: "claim_frame".to_string(),
+        statements: vec![statement(mir::StatementKind::ValDecl {
+            local: frame_claim,
+            init: atomic_field_compare_exchange(
+                adapter_frame(this, adapter, frame_class),
+                0,
+                i64::from(state),
+                STATE_RUNNING,
+            ),
+        })],
+        terminator: mir::Terminator::Branch {
+            cond: int_eq(
+                mir::Expr::local(frame_claim, mir::Type::Int),
+                i64::from(state),
+            ),
+            then_block: valid,
+            else_block: invalid_frame,
+        },
+        unwind: None,
+    });
+    let claim_waiting = blocks.alloc(mir::BasicBlock {
+        name: "claim_waiting".to_string(),
+        statements: vec![statement(mir::StatementKind::ValDecl {
+            local: adapter_claim,
+            init: atomic_field_compare_exchange(
+                mir::Expr::local(this, mir::Type::Class(adapter)),
+                1,
+                ADAPTER_WAITING,
+                ADAPTER_COMPLETING_FAILURE,
+            ),
+        })],
+        terminator: mir::Terminator::Branch {
+            cond: int_eq(
+                mir::Expr::local(adapter_claim, mir::Type::Int),
+                ADAPTER_WAITING,
+            ),
+            then_block: claim_frame,
+            else_block: invalid,
+        },
+        unwind: None,
+    });
+    let entry = if let Some(latch) = latch.as_ref() {
+        let latched = blocks.alloc(mir::BasicBlock {
+            name: "latched".to_string(),
+            statements: vec![
+                field_set(
+                    mir::Expr::local(this, mir::Type::Class(adapter)),
+                    latch.field,
+                    slot_value(latch, mir::Expr::local(exception, throwable.clone())),
+                ),
+                atomic_field_store(
+                    mir::Expr::local(this, mir::Type::Class(adapter)),
+                    1,
+                    mir::Expr::int(ADAPTER_LATCHED_FAILURE),
+                ),
+            ],
+            terminator: mir::Terminator::Return { value: None },
+            unwind: None,
+        });
+        blocks.alloc(mir::BasicBlock {
+            name: "entry".to_string(),
+            statements: vec![statement(mir::StatementKind::ValDecl {
+                local: adapter_claim,
+                init: atomic_field_compare_exchange(
+                    mir::Expr::local(this, mir::Type::Class(adapter)),
+                    1,
+                    ADAPTER_REGISTERING,
+                    ADAPTER_COMPLETING_FAILURE,
+                ),
+            })],
+            terminator: mir::Terminator::Branch {
+                cond: int_eq(
+                    mir::Expr::local(adapter_claim, mir::Type::Int),
+                    ADAPTER_REGISTERING,
+                ),
+                then_block: latched,
+                else_block: claim_waiting,
+            },
+            unwind: None,
+        })
+    } else {
+        claim_waiting
+    };
+    let function = lowerer.functions.alloc(mir::Function {
+        gc_effect: mir::GcEffect::Managed,
+        name: format!("CoroutineAdapter.resumeWithException${state}"),
+        symbol: format!("{source_symbol}$resume_exception${state}"),
+        params: vec![
+            mir::Param {
+                name: "this".to_string(),
+                ty: mir::Type::Class(adapter),
+                local: this,
+            },
+            mir::Param {
+                name: "exception".to_string(),
+                ty: throwable,
+                local: exception,
+            },
+        ],
+        return_ty: mir::Type::Unit,
+        body: mir::Body {
+            locals,
+            blocks,
+            entry,
+        },
+    });
+    lowerer.top_level.push(function);
+    function
+}

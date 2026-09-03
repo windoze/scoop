@@ -6,6 +6,7 @@ mod casts;
 mod expressions;
 mod function;
 mod operators;
+mod patterns;
 mod statements;
 
 /// Per-function-body lowering state.
