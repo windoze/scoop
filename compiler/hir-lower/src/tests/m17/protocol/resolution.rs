@@ -156,10 +156,10 @@ fn inherited_default_carries_the_parent_to_child_type_relation() {
         unreachable!()
     };
     child.type_params = vec![type_param("T")];
-    child.interfaces = vec![ty_generic(
+    child.supertypes = vec![bare_supertype(ty_generic(
         "Parent",
         vec![ty_generic("Array", vec![ty_named("T")])],
-    )];
+    ))];
 
     let output = lower_user_output(file(vec![
         generic_interface_decl(

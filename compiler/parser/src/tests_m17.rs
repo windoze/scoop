@@ -108,7 +108,10 @@ fn member_invoke_and_base_constructor_keep_call_arguments() {
     let Decl::Class(derived) = &file.declarations[1] else {
         panic!("expected derived class")
     };
-    let (_, base_args) = derived.base_class.as_ref().expect("base constructor");
+    let base_args = derived.supertypes[0]
+        .constructor_arguments
+        .as_ref()
+        .expect("base constructor");
     assert!(matches!(&base_args[0].name, CallArgumentName::Named(name) if name.text == "x"));
     let Decl::Function(main) = &file.declarations[2] else {
         panic!("expected main")

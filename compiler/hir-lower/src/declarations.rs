@@ -134,7 +134,7 @@ impl Lowerer {
         if let hir::StructRepresentation::Intrinsic(intrinsic) = self.structs[id].representation {
             self.register_intrinsic_type(intrinsic, IntrinsicTypeOwner::Struct(id), decl.span);
         }
-        for method in &decl.methods {
+        for method in decl.functions() {
             self.declare_method(method, Owner::Struct(id), pending_methods, file_index);
         }
         pending.push((id, decl, file_index));
@@ -274,7 +274,11 @@ impl Lowerer {
                         "an intrinsic class declaration must be final".to_string(),
                     );
                 }
-                if decl.base_class.is_some() {
+                if decl
+                    .supertypes
+                    .iter()
+                    .any(|supertype| supertype.constructor_arguments.is_some())
+                {
                     self.error(
                         decl.span,
                         "an intrinsic class declaration cannot have a base class".to_string(),
@@ -325,7 +329,7 @@ impl Lowerer {
         if is_core && decl.name.text == "Throwable" {
             self.throwable_candidates.push((id, ty));
         }
-        for method in &decl.methods {
+        for method in decl.functions() {
             self.declare_method(method, Owner::Class(id), pending_methods, file_index);
         }
         pending.push((id, decl, file_index));

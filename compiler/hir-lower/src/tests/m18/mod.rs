@@ -666,7 +666,9 @@ fn core_operator_intrinsics_are_required_and_shape_checked() {
             _ => None,
         })
         .expect("test core declares Int");
-    int.methods.retain(|method| method.name.text != "plus");
+    int.members.retain(|member| {
+        !matches!(member, ast::StructMember::Function(method) if method.name.text == "plus")
+    });
     let errors = lower(&[missing, user()]).expect_err("Int.plus is a required core contract");
     assert!(errors.iter().any(|error| {
         error.message == "scoop.core must define exactly one `int_add` intrinsic"
@@ -682,8 +684,12 @@ fn core_operator_intrinsics_are_required_and_shape_checked() {
         })
         .expect("test core declares String");
     string
-        .methods
+        .members
         .iter_mut()
+        .filter_map(|member| match member {
+            ast::ClassMember::Function(method) => Some(method),
+            _ => None,
+        })
         .find(|method| method.name.text == "compareTo")
         .expect("test core declares String.compareTo")
         .operator = None;

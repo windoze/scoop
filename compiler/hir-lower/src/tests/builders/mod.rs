@@ -34,6 +34,25 @@ pub(crate) fn ident_at(text: &str, span: Span) -> Ident {
     }
 }
 
+pub(crate) fn bare_supertype(ty: TypeRef) -> ast::SupertypeSpec {
+    ast::SupertypeSpec {
+        ty,
+        constructor_arguments: None,
+        span: sp(),
+    }
+}
+
+pub(crate) fn constructor_supertype(
+    ty: TypeRef,
+    arguments: Vec<ast::CallArgument>,
+) -> ast::SupertypeSpec {
+    ast::SupertypeSpec {
+        ty,
+        constructor_arguments: Some(arguments),
+        span: sp(),
+    }
+}
+
 mod enums;
 mod expressions;
 mod functions;

@@ -28,7 +28,11 @@ fn generic_class_preserves_complete_host_and_supertype_syntax() {
         class.constructor,
         ClassConstructorDecl::Declared(_)
     ));
-    let (base, args) = class.base_class.as_ref().expect("generic base");
+    let base = &class.supertypes[0].ty;
+    let args = class.supertypes[0]
+        .constructor_arguments
+        .as_ref()
+        .expect("generic base arguments");
     assert!(matches!(
         &base.kind,
         TypeRefKind::Generic(name, arguments)
@@ -36,14 +40,21 @@ fn generic_class_preserves_complete_host_and_supertype_syntax() {
     ));
     assert_eq!(args.len(), 1);
     assert!(matches!(
-        &class.interfaces[0].kind,
+        &class.supertypes[1].ty.kind,
         TypeRefKind::Generic(name, arguments)
             if name.text == "Render" && arguments.len() == 1
     ));
     let clause = class.where_clause.as_ref().expect("where clause");
     assert_eq!(clause.constraints.len(), 1);
     assert_eq!(clause.constraints[0].parameter.text, "T");
-    assert!(class.methods[0].operator.is_some());
+    assert!(
+        class
+            .functions()
+            .next()
+            .expect("class method")
+            .operator
+            .is_some()
+    );
 
     let dump = scoop_ast::dump(&file);
     assert!(dump.contains(
@@ -86,7 +97,7 @@ fn where_clauses_are_structured_on_every_generic_declaration_kind() {
     };
     assert!(interface.where_clause.is_some());
     assert!(matches!(
-        &interface.parents[0].kind,
+        &interface.supertypes[0].ty.kind,
         TypeRefKind::Generic(name, arguments)
             if name.text == "Parent" && arguments.len() == 1
     ));
@@ -147,7 +158,14 @@ fn operator_modifier_is_preserved_on_all_function_locations() {
     let Decl::Class(class) = &file.declarations[1] else {
         panic!("expected class");
     };
-    assert!(class.methods[0].operator.is_some());
+    assert!(
+        class
+            .functions()
+            .next()
+            .expect("class method")
+            .operator
+            .is_some()
+    );
     let Decl::Function(main) = &file.declarations[2] else {
         panic!("expected main");
     };

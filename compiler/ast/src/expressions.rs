@@ -123,6 +123,15 @@ pub enum Expr {
         args: Vec<CallArgument>,
         span: Span,
     },
+    /// `super.name<TypeArgs>(arguments...)`. `super` itself never becomes an
+    /// expression; HIR resolves this dedicated form against the direct base.
+    SuperMethodCall {
+        super_span: Span,
+        name: Ident,
+        type_args: Vec<TypeRef>,
+        args: Vec<CallArgument>,
+        span: Span,
+    },
     /// `expr is T` / `expr !is T`.
     Is {
         operand: Box<Expr>,
@@ -184,6 +193,7 @@ impl Expr {
             | Expr::Elvis { span, .. }
             | Expr::This { span }
             | Expr::MethodCall { span, .. }
+            | Expr::SuperMethodCall { span, .. }
             | Expr::Is { span, .. }
             | Expr::Cast { span, .. }
             | Expr::ArrayLiteral { span, .. }

@@ -122,7 +122,7 @@ impl Lowerer {
         for &(id, decl, file_index) in &pending_interfaces {
             self.current_file = file_index;
             self.type_params_in_scope = self.interfaces[id].type_params.clone();
-            let parents = self.resolve_interface_list(&decl.parents);
+            let parents = self.resolve_supertype_interface_list(&decl.supertypes);
             self.type_params_in_scope.clear();
             self.interfaces[id].parents = parents
                 .into_iter()
@@ -158,7 +158,7 @@ impl Lowerer {
             self.resolve_fields(id, decl);
             self.allow_deferred_fun_ptr = false;
             self.type_params_in_scope = self.structs[id].type_params.clone();
-            let interfaces = self.resolve_interface_list(&decl.interfaces);
+            let interfaces = self.resolve_supertype_interface_list(&decl.supertypes);
             self.type_params_in_scope.clear();
             self.structs[id].interfaces = interfaces;
         }

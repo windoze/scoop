@@ -262,11 +262,8 @@ fn inheriting_a_final_exception_subclass_is_an_error() {
     );
 }
 
-/// A bare supertype naming a class (`class E : Throwable`, no
-/// constructor parentheses) is an interface-list entry and fails
-/// because the name is a class — the Kotlin behavior.
 #[test]
-fn bare_class_supertype_is_not_an_interface() {
+fn bare_class_supertype_is_classified_as_the_base() {
     let file = file(vec![
         class_decl(
             ast::ClassModifier::Final,
@@ -278,9 +275,16 @@ fn bare_class_supertype_is_not_an_interface() {
         ),
         fun("main", vec![]),
     ]);
-    let errors = lower_user_with_exceptions(file).expect_err("a bare class supertype must fail");
-    assert_eq!(errors.len(), 1);
-    assert_eq!(errors[0].message, "`Throwable` is not an interface");
+    let module = lower_user_with_exceptions(file).expect("a bare class supertype must lower");
+    let (_, class) = module
+        .classes
+        .iter()
+        .find(|(_, class)| class.name == "E")
+        .expect("E is declared");
+    let (base, delegation) = class.base_class.as_ref().expect("E has a base class");
+    assert!(matches!(module.types[*base], hir::Type::Class(application)
+        if module.classes[module.class_applications[application].template].name == "Throwable"));
+    assert!(delegation.args.is_empty());
 }
 
 // --- negative: throw ---

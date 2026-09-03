@@ -54,14 +54,37 @@ pub struct ClassDecl {
     pub name: Ident,
     /// Generic host parameters (`class Name<T, U> ...`).
     pub type_params: Vec<TypeParamDecl>,
-    /// Primary-constructor properties (`val` / `var`).
+    /// Source primary constructor. Omission is distinct from `()` because a
+    /// class that declares secondary constructors may have no primary.
     pub constructor: ClassConstructorDecl,
-    /// Base class and its constructor arguments (`: Base(args)`).
-    pub base_class: Option<(TypeRef, Vec<CallArgument>)>,
-    pub interfaces: Vec<TypeRef>,
+    /// Supertypes in source order. Nominal kind is resolved by HIR; parser
+    /// deliberately does not equate parentheses with "base class".
+    pub supertypes: Vec<SupertypeSpec>,
     pub where_clause: Option<WhereClause>,
-    pub methods: Vec<FunctionDecl>,
+    /// Class body items in source order so property initializers and `init`
+    /// blocks keep their observable interleaving.
+    pub members: Vec<ClassMember>,
     pub span: Span,
+}
+
+impl ClassDecl {
+    pub fn functions(&self) -> impl Iterator<Item = &FunctionDecl> {
+        self.members.iter().filter_map(|member| match member {
+            ClassMember::Function(function) => Some(function),
+            ClassMember::StoredProperty(_)
+            | ClassMember::InitBlock(_)
+            | ClassMember::SecondaryConstructor(_) => None,
+        })
+    }
+
+    pub fn secondary_constructors(&self) -> impl Iterator<Item = &SecondaryConstructorDecl> {
+        self.members.iter().filter_map(|member| match member {
+            ClassMember::SecondaryConstructor(constructor) => Some(constructor),
+            ClassMember::StoredProperty(_)
+            | ClassMember::InitBlock(_)
+            | ClassMember::Function(_) => None,
+        })
+    }
 }
 
 /// The source form of a class primary constructor. Keeping omission distinct
@@ -70,7 +93,7 @@ pub struct ClassDecl {
 #[derive(Debug, Clone, PartialEq)]
 pub enum ClassConstructorDecl {
     Omitted,
-    Declared(Vec<ConstructorProp>),
+    Declared(Vec<PrimaryClassParameter>),
 }
 
 impl ClassConstructorDecl {
@@ -80,7 +103,7 @@ impl ClassConstructorDecl {
 }
 
 impl std::ops::Deref for ClassConstructorDecl {
-    type Target = [ConstructorProp];
+    type Target = [PrimaryClassParameter];
 
     fn deref(&self) -> &Self::Target {
         match self {
@@ -91,27 +114,139 @@ impl std::ops::Deref for ClassConstructorDecl {
 }
 
 impl<'a> IntoIterator for &'a ClassConstructorDecl {
-    type Item = &'a ConstructorProp;
-    type IntoIter = std::slice::Iter<'a, ConstructorProp>;
+    type Item = &'a PrimaryClassParameter;
+    type IntoIter = std::slice::Iter<'a, PrimaryClassParameter>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
     }
 }
 
-impl FromIterator<ConstructorProp> for ClassConstructorDecl {
-    fn from_iter<T: IntoIterator<Item = ConstructorProp>>(iter: T) -> Self {
+impl FromIterator<PrimaryClassParameter> for ClassConstructorDecl {
+    fn from_iter<T: IntoIterator<Item = PrimaryClassParameter>>(iter: T) -> Self {
         Self::Declared(iter.into_iter().collect())
     }
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct ConstructorProp {
-    pub mutable: bool,
+pub struct PrimaryClassParameter {
+    pub property: PrimaryParameterProperty,
     pub name: Ident,
     pub ty: TypeRef,
     pub syntax: ParameterSyntax,
     pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PrimaryParameterProperty {
+    Plain,
+    Val,
+    Var,
+}
+
+impl PrimaryParameterProperty {
+    pub const fn is_property(self) -> bool {
+        matches!(self, Self::Val | Self::Var)
+    }
+
+    pub const fn is_mutable(self) -> bool {
+        matches!(self, Self::Var)
+    }
+}
+
+/// One syntactic entry after `:` on a nominal declaration. Parentheses are
+/// retained even when empty; HIR resolves whether the target is a class or
+/// interface and applies the corresponding legality rules.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SupertypeSpec {
+    pub ty: TypeRef,
+    pub constructor_arguments: Option<Vec<CallArgument>>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ClassMember {
+    StoredProperty(StoredPropertyDecl),
+    InitBlock(InitBlockDecl),
+    SecondaryConstructor(SecondaryConstructorDecl),
+    Function(FunctionDecl),
+}
+
+impl ClassMember {
+    pub fn span(&self) -> Span {
+        match self {
+            Self::StoredProperty(property) => property.span,
+            Self::InitBlock(init) => init.span,
+            Self::SecondaryConstructor(constructor) => constructor.span,
+            Self::Function(function) => function.span,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum StructMember {
+    SecondaryConstructor(SecondaryConstructorDecl),
+    Function(Box<FunctionDecl>),
+}
+
+impl StructMember {
+    pub fn span(&self) -> Span {
+        match self {
+            Self::SecondaryConstructor(constructor) => constructor.span,
+            Self::Function(function) => function.span,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct StoredPropertyDecl {
+    pub mutable: bool,
+    pub name: Ident,
+    pub ty: TypeRef,
+    pub initializer: Expr,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct InitBlockDecl {
+    pub body: Block,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct SecondaryConstructorDecl {
+    pub params: Vec<Param>,
+    pub delegation: Option<ConstructorDelegation>,
+    pub body: Block,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ConstructorDelegation {
+    This {
+        target_span: Span,
+        arguments: Vec<CallArgument>,
+        span: Span,
+    },
+    Super {
+        target_span: Span,
+        arguments: Vec<CallArgument>,
+        span: Span,
+    },
+}
+
+impl ConstructorDelegation {
+    pub fn span(&self) -> Span {
+        match self {
+            Self::This { span, .. } | Self::Super { span, .. } => *span,
+        }
+    }
+
+    pub fn arguments(&self) -> &[CallArgument] {
+        match self {
+            Self::This { arguments, .. } | Self::Super { arguments, .. } => arguments,
+        }
+    }
 }
 
 /// `interface I { fun m(x: Int): String ... }` — method signatures
@@ -121,7 +256,7 @@ pub struct InterfaceDecl {
     pub annotations: Vec<Annotation>,
     pub name: Ident,
     pub type_params: Vec<TypeParamDecl>,
-    pub parents: Vec<TypeRef>,
+    pub supertypes: Vec<SupertypeSpec>,
     pub where_clause: Option<WhereClause>,
     pub methods: Vec<FunctionDecl>,
     pub span: Span,
@@ -221,12 +356,28 @@ pub struct StructDecl {
     /// non-generic structs.
     pub type_params: Vec<TypeParamDecl>,
     pub fields: StructRepresentationDecl,
-    /// Implemented interfaces (`struct S(...) : I1, I2`, spec 4.4.3).
-    pub interfaces: Vec<TypeRef>,
+    /// Syntactic supertypes. HIR requires every resolved target to be an
+    /// interface and rejects constructor argument lists.
+    pub supertypes: Vec<SupertypeSpec>,
     pub where_clause: Option<WhereClause>,
-    /// Member functions (value receiver, spec 4.1/4.4.3).
-    pub methods: Vec<FunctionDecl>,
+    pub members: Vec<StructMember>,
     pub span: Span,
+}
+
+impl StructDecl {
+    pub fn functions(&self) -> impl Iterator<Item = &FunctionDecl> {
+        self.members.iter().filter_map(|member| match member {
+            StructMember::Function(function) => Some(function.as_ref()),
+            StructMember::SecondaryConstructor(_) => None,
+        })
+    }
+
+    pub fn secondary_constructors(&self) -> impl Iterator<Item = &SecondaryConstructorDecl> {
+        self.members.iter().filter_map(|member| match member {
+            StructMember::SecondaryConstructor(constructor) => Some(constructor),
+            StructMember::Function(_) => None,
+        })
+    }
 }
 
 /// The representation syntax of a struct declaration. Only a registry-approved

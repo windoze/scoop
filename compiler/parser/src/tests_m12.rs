@@ -73,8 +73,9 @@ fn annotations_precede_member_modifiers() {
     let Decl::Struct(decl) = &file.declarations[0] else {
         panic!("expected struct");
     };
-    assert_eq!(decl.methods[0].annotations[0].name.text, "NoGC");
-    assert!(decl.methods[0].is_override);
+    let method = decl.functions().next().expect("struct method");
+    assert_eq!(method.annotations[0].name.text, "NoGC");
+    assert!(method.is_override);
 }
 
 #[test]

@@ -18,7 +18,7 @@ fn inheriting_a_final_class_is_an_error() {
 }
 
 #[test]
-fn base_clause_requires_a_class() {
+fn interface_supertype_cannot_have_constructor_arguments() {
     let file = file(vec![
         describable(),
         class_decl(
@@ -31,21 +31,27 @@ fn base_clause_requires_a_class() {
         ),
         fun("main", vec![]),
     ]);
-    let errors = lower_user(file).expect_err("a non-class base must fail");
+    let errors = lower_user(file).expect_err("interface constructor arguments must fail");
     assert_eq!(errors.len(), 1);
-    assert_eq!(errors[0].message, "`Describable` is not a class");
+    assert_eq!(
+        errors[0].message,
+        "interfaces cannot have constructor arguments"
+    );
 }
 
 #[test]
-fn interface_list_requires_interfaces() {
+fn bare_class_supertype_is_classified_as_the_base() {
     let file = file(vec![
         class_decl(Final, "A", vec![], None, vec![], vec![]),
         class_decl(Open, "B", vec![], None, vec!["A"], vec![]),
         fun("main", vec![]),
     ]);
-    let errors = lower_user(file).expect_err("a non-interface in the list must fail");
+    let errors = lower_user(file).expect_err("inheriting a final bare class must fail");
     assert_eq!(errors.len(), 1);
-    assert_eq!(errors[0].message, "`A` is not an interface");
+    assert_eq!(
+        errors[0].message,
+        "class `A` is final and cannot be inherited"
+    );
 }
 
 #[test]

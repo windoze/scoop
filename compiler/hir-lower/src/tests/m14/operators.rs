@@ -103,7 +103,10 @@ fn generic_equality_resolves_the_exact_operator_bound_member() {
     let Decl::Struct(value_decl) = &mut value else {
         unreachable!()
     };
-    value_decl.interfaces = vec![ty_generic("Equality", vec![ty_named("Value")])];
+    value_decl.supertypes = vec![bare_supertype(ty_generic(
+        "Equality",
+        vec![ty_named("Value")],
+    ))];
 
     let mut equal = fun_expr(
         "equal",

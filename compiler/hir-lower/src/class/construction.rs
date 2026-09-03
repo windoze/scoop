@@ -6,9 +6,18 @@ impl Lowerer {
     /// delegation is already positional and carries its complete evaluation
     /// plan, so downstream stages never recover named/default/vararg state.
     pub(crate) fn lower_base_args(&mut self, id: ClassId, decl: &ast::ClassDecl) {
-        let Some((base_ref, source_args)) = &decl.base_class else {
+        let Some(base_spec) = decl
+            .supertypes
+            .iter()
+            .find(|spec| spec.constructor_arguments.is_some())
+        else {
             return;
         };
+        let base_ref = &base_spec.ty;
+        let source_args = base_spec
+            .constructor_arguments
+            .as_ref()
+            .expect("selected an argument-bearing supertype");
         let resolved_base = match self.classes[id].base_class.as_ref() {
             Some((base, _)) => *base,
             None => return,

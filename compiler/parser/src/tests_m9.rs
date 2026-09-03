@@ -84,11 +84,11 @@ fn generic_struct_with_interfaces_and_methods() {
         panic!("expected a struct declaration");
     };
     assert_eq!(decl.type_params.len(), 1);
-    assert_eq!(decl.interfaces.len(), 1);
+    assert_eq!(decl.supertypes.len(), 1);
     assert!(
-        matches!(&decl.interfaces[0].kind, TypeRefKind::Named(name) if name.text == "Describable")
+        matches!(&decl.supertypes[0].ty.kind, TypeRefKind::Named(name) if name.text == "Describable")
     );
-    assert_eq!(decl.methods.len(), 1);
+    assert_eq!(decl.functions().count(), 1);
 }
 
 #[test]

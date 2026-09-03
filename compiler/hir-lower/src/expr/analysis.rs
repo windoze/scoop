@@ -127,6 +127,9 @@ fn expr_contains_return(expr: &ast::Expr) -> bool {
                     .iter()
                     .any(|argument| expr_contains_return(&argument.expression))
         }
+        ast::Expr::SuperMethodCall { args, .. } => args
+            .iter()
+            .any(|argument| expr_contains_return(&argument.expression)),
         ast::Expr::Index {
             receiver, indices, ..
         } => expr_contains_return(receiver) || indices.iter().any(expr_contains_return),

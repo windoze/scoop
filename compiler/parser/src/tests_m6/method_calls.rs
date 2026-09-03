@@ -81,13 +81,12 @@ fn method_call_after_safe_navigation_is_preserved() {
 }
 
 #[test]
-fn super_call_not_supported() {
-    let (span, message) = err("fun main() { super.foo() }");
-    assert_eq!(span, Span::new(13, 18));
-    assert_eq!(
-        message,
-        "`super` calls are not supported yet (milestone M6)"
-    );
+fn super_call_is_a_dedicated_expression() {
+    let expr = init_expr("super.foo()");
+    assert!(matches!(
+        expr,
+        Expr::SuperMethodCall { name, .. } if name.text == "foo"
+    ));
 }
 
 #[test]
@@ -95,6 +94,6 @@ fn bare_super_not_supported() {
     let (_, message) = err("fun main() { super }");
     assert_eq!(
         message,
-        "`super` calls are not supported yet (milestone M6)"
+        "`super` is only valid as the receiver of a direct base method call"
     );
 }
