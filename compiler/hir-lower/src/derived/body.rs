@@ -16,25 +16,28 @@ impl Lowerer {
         let mut locals = Arena::new();
         let this = self.alloc_derived_local(&mut locals, "this", ty);
         let other = self.alloc_derived_local(&mut locals, "other", ty);
-        let this_expr = local_expr(this, ty, span);
-        let other_expr = local_expr(other, ty, span);
+        let this_expr = self.local_expr(this, ty, span);
+        let other_expr = self.local_expr(other, ty, span);
         let statements = match self.types[ty].clone() {
-            Type::Unit => vec![return_statement(bool_expr(true, self.boolean, span), span)],
+            Type::Unit => vec![return_statement(
+                self.bool_expr(true, self.boolean, span),
+                span,
+            )],
             Type::Tuple(elements) => {
                 let mut comparisons = Vec::with_capacity(elements.len());
                 for (index, element) in elements.into_iter().enumerate() {
                     let field = hir::FieldRef::TupleIndex(index as u32);
                     comparisons.push(self.build_derived_field_comparison(
                         element,
-                        field_expr(this_expr.clone(), field, element, span),
-                        field_expr(other_expr.clone(), field, element, span),
+                        self.field_expr(this_expr.clone(), field, element, span),
+                        self.field_expr(other_expr.clone(), field, element, span),
                         &format!("{}._{}", self.type_name(ty), index + 1),
                         span,
                         stack,
                     )?);
                 }
                 vec![return_statement(
-                    fold_conjunction(comparisons, self.boolean, span),
+                    self.fold_conjunction(comparisons, self.boolean, span),
                     span,
                 )]
             }
@@ -48,15 +51,15 @@ impl Lowerer {
                         application,
                         index: index as u32,
                     };
-                    let left = field_expr(this_expr.clone(), field_ref, field_ty, span);
-                    let right = field_expr(other_expr.clone(), field_ref, field_ty, span);
+                    let left = self.field_expr(this_expr.clone(), field_ref, field_ty, span);
+                    let right = self.field_expr(other_expr.clone(), field_ref, field_ty, span);
                     let path = format!("{}.{}", self.structs[value.template].name, field.name);
                     comparisons.push(self.build_derived_field_comparison(
                         field_ty, left, right, &path, span, stack,
                     )?);
                 }
                 vec![return_statement(
-                    fold_conjunction(comparisons, self.boolean, span),
+                    self.fold_conjunction(comparisons, self.boolean, span),
                     span,
                 )]
             }
@@ -92,14 +95,14 @@ impl Lowerer {
                         let path = format!("{}.{}.{}", declaration.name, variant.name, field_name);
                         comparisons.push(self.build_derived_field_comparison(
                             field_ty,
-                            local_expr(left, field_ty, span),
-                            local_expr(right, field_ty, span),
+                            self.local_expr(left, field_ty, span),
+                            self.local_expr(right, field_ty, span),
                             &path,
                             span,
                             stack,
                         )?);
                     }
-                    let equal = fold_conjunction(comparisons, self.boolean, span);
+                    let equal = self.fold_conjunction(comparisons, self.boolean, span);
                     let inner = hir::Statement {
                         kind: hir::StatementKind::When(hir::When {
                             subject: other_expr.clone(),
@@ -114,7 +117,7 @@ impl Lowerer {
                                 span,
                             }],
                             else_body: Some(vec![return_statement(
-                                bool_expr(false, self.boolean, span),
+                                self.bool_expr(false, self.boolean, span),
                                 span,
                             )]),
                         }),
@@ -158,7 +161,7 @@ impl Lowerer {
             Type::Unit | Type::Tuple(_) => {
                 let (_, application) =
                     self.ensure_structural_derived_equality_application(ty, span, stack)?;
-                Ok(derived_call(lhs, rhs, application, self.boolean, span))
+                Ok(self.derived_call(lhs, rhs, application, self.boolean, span))
             }
             Type::Struct(application) => {
                 let function =
@@ -173,7 +176,13 @@ impl Lowerer {
                         stack,
                     ) {
                         Ok(application) => {
-                            return Ok(derived_call(lhs, rhs, application, self.boolean, span));
+                            return Ok(self.derived_call(
+                                lhs,
+                                rhs,
+                                application,
+                                self.boolean,
+                                span,
+                            ));
                         }
                         Err(reason) => {
                             return self
@@ -197,7 +206,13 @@ impl Lowerer {
                         stack,
                     ) {
                         Ok(application) => {
-                            return Ok(derived_call(lhs, rhs, application, self.boolean, span));
+                            return Ok(self.derived_call(
+                                lhs,
+                                rhs,
+                                application,
+                                self.boolean,
+                                span,
+                            ));
                         }
                         Err(reason) => {
                             return self
@@ -274,6 +289,7 @@ impl Lowerer {
             },
             ty: self.boolean,
             span,
+            origin: self.expression_origin(span),
         })
     }
 
@@ -292,73 +308,83 @@ impl Lowerer {
     }
 }
 
-fn derived_call(
-    receiver: hir::Expr,
-    other: hir::Expr,
-    application: hir::DerivedEqualityApplicationId,
-    boolean: hir::TypeId,
-    span: ast::Span,
-) -> hir::Expr {
-    hir::Expr {
-        kind: hir::ExprKind::MethodCall {
-            receiver: Box::new(receiver),
-            callee: hir::MethodCallee::DerivedEquality(application),
-            args: vec![other],
-        },
-        ty: boolean,
-        span,
-    }
-}
-
-fn local_expr(local: hir::LocalId, ty: hir::TypeId, span: ast::Span) -> hir::Expr {
-    hir::Expr {
-        kind: hir::ExprKind::Local(local),
-        ty,
-        span,
-    }
-}
-
-fn field_expr(
-    receiver: hir::Expr,
-    field: hir::FieldRef,
-    ty: hir::TypeId,
-    span: ast::Span,
-) -> hir::Expr {
-    hir::Expr {
-        kind: hir::ExprKind::FieldAccess {
-            receiver: Box::new(receiver),
-            field,
-        },
-        ty,
-        span,
-    }
-}
-
-fn bool_expr(value: bool, boolean: hir::TypeId, span: ast::Span) -> hir::Expr {
-    hir::Expr {
-        kind: hir::ExprKind::BoolLiteral(value),
-        ty: boolean,
-        span,
-    }
-}
-
-fn fold_conjunction(
-    comparisons: Vec<hir::Expr>,
-    boolean: hir::TypeId,
-    span: ast::Span,
-) -> hir::Expr {
-    comparisons
-        .into_iter()
-        .reduce(|lhs, rhs| hir::Expr {
-            kind: hir::ExprKind::Binary {
-                op: hir::BinOp::And,
-                lhs: Box::new(lhs),
-                rhs: Box::new(rhs),
+impl Lowerer {
+    fn derived_call(
+        &self,
+        receiver: hir::Expr,
+        other: hir::Expr,
+        application: hir::DerivedEqualityApplicationId,
+        boolean: hir::TypeId,
+        span: ast::Span,
+    ) -> hir::Expr {
+        hir::Expr {
+            kind: hir::ExprKind::MethodCall {
+                receiver: Box::new(receiver),
+                callee: hir::MethodCallee::DerivedEquality(application),
+                args: vec![other],
             },
             ty: boolean,
             span,
-        })
-        .unwrap_or_else(|| bool_expr(true, boolean, span))
+            origin: self.expression_origin(span),
+        }
+    }
+
+    fn local_expr(&self, local: hir::LocalId, ty: hir::TypeId, span: ast::Span) -> hir::Expr {
+        hir::Expr {
+            kind: hir::ExprKind::Local(local),
+            ty,
+            span,
+            origin: self.expression_origin(span),
+        }
+    }
+
+    fn field_expr(
+        &self,
+        receiver: hir::Expr,
+        field: hir::FieldRef,
+        ty: hir::TypeId,
+        span: ast::Span,
+    ) -> hir::Expr {
+        hir::Expr {
+            kind: hir::ExprKind::FieldAccess {
+                receiver: Box::new(receiver),
+                field,
+            },
+            ty,
+            span,
+            origin: self.expression_origin(span),
+        }
+    }
+
+    fn bool_expr(&self, value: bool, boolean: hir::TypeId, span: ast::Span) -> hir::Expr {
+        hir::Expr {
+            kind: hir::ExprKind::BoolLiteral(value),
+            ty: boolean,
+            span,
+            origin: self.expression_origin(span),
+        }
+    }
+
+    fn fold_conjunction(
+        &self,
+        comparisons: Vec<hir::Expr>,
+        boolean: hir::TypeId,
+        span: ast::Span,
+    ) -> hir::Expr {
+        comparisons
+            .into_iter()
+            .reduce(|lhs, rhs| hir::Expr {
+                kind: hir::ExprKind::Binary {
+                    op: hir::BinOp::And,
+                    lhs: Box::new(lhs),
+                    rhs: Box::new(rhs),
+                },
+                ty: boolean,
+                span,
+                origin: self.expression_origin(span),
+            })
+            .unwrap_or_else(|| self.bool_expr(true, boolean, span))
+    }
 }
 
 fn return_statement(value: hir::Expr, span: ast::Span) -> hir::Statement {

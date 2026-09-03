@@ -118,6 +118,7 @@ impl Lowerer {
             kind: ExprKind::CallableReference(id),
             ty,
             span,
+            origin: self.expression_origin(span),
         })
     }
 
@@ -282,6 +283,7 @@ impl Lowerer {
             kind: ExprKind::CallableReference(id),
             ty,
             span,
+            origin: self.expression_origin(span),
         })
     }
 
@@ -358,6 +360,7 @@ impl Lowerer {
             kind: ExprKind::CallableReference(id),
             ty,
             span,
+            origin: self.expression_origin(span),
         })
     }
 }

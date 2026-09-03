@@ -77,6 +77,7 @@ impl Lowerer {
             export_vararg_parameter_types: Arena::new(),
             local_default_exprs: Arena::new(),
             default_templates: HashMap::new(),
+            lowering_default_template: false,
             function_coercion_by_types: HashMap::new(),
             structs: Arena::new(),
             struct_applications: Arena::new(),

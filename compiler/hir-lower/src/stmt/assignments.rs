@@ -293,7 +293,10 @@ impl Lowerer {
         let value = self.adapt_to(value, element_ty);
         out.extend(sink);
         Some(hir::StatementKind::Assign {
-            target: hir::AssignTarget::Index { array, index },
+            target: hir::AssignTarget::Index {
+                array: Box::new(array),
+                index: Box::new(index),
+            },
             value,
         })
     }

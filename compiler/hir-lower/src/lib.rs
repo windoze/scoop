@@ -263,6 +263,10 @@ pub(crate) struct Lowerer {
     pub(crate) local_default_exprs: Arena<defaults::LocalDefaultExpr>,
     pub(crate) default_templates:
         HashMap<(defaults::SourceParameterOwner, u32), defaults::DefaultExprTemplateRef>,
+    /// True only while constructing a declaration-bound default template.
+    /// Nested omissions remain definition-only until the outer template is
+    /// instantiated at an actual call site.
+    pub(crate) lowering_default_template: bool,
     pub(crate) function_coercion_by_types:
         HashMap<(hir::FunctionTypeId, hir::FunctionTypeId), hir::FunctionCoercionId>,
     pub(crate) structs: Arena<StructDecl>,

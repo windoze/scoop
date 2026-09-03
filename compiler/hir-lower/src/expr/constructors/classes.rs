@@ -115,6 +115,7 @@ impl Lowerer {
             },
             ty,
             span,
+            origin: self.expression_origin(span),
         })
     }
 }

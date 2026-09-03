@@ -55,8 +55,8 @@ pub enum AssignTarget {
     Local(LocalId),
     Global(GlobalId),
     Index {
-        array: Expr,
-        index: Expr,
+        array: Box<Expr>,
+        index: Box<Expr>,
     },
     Field {
         receiver: Box<Expr>,
@@ -110,6 +110,7 @@ pub struct Expr {
     pub kind: ExprKind,
     pub ty: TypeId,
     pub span: Span,
+    pub origin: ConcreteExpressionOrigin,
 }
 
 #[derive(Debug, Clone)]

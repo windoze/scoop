@@ -110,6 +110,7 @@ fn patch_local_function_call_expr(
     target_captures: &[hir::Capture],
 ) {
     let span = expr.span;
+    let origin = expr.origin;
     match &mut expr.kind {
         hir::ExprKind::LocalFunctionCall {
             local_function,
@@ -130,6 +131,7 @@ fn patch_local_function_call_expr(
                         kind: hir::ExprKind::Capture(capture.binding),
                         ty: capture.ty,
                         span,
+                        origin,
                     })
                     .collect();
             }

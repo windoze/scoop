@@ -171,6 +171,7 @@ impl Lowerer {
             },
             ty: resolved.return_ty,
             span: call.span,
+            origin: self.expression_origin(call.span),
         })
     }
 
@@ -211,6 +212,7 @@ impl Lowerer {
             },
             ty: resolved.return_ty,
             span: call.span,
+            origin: self.expression_origin(call.span),
         })
     }
 }

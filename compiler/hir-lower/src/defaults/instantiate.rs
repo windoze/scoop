@@ -8,6 +8,7 @@ struct InstantiationContext {
     bindings: Vec<(hir::TypeParamId, hir::TypeId)>,
     locals: Vec<hir::Expr>,
     captures: HashMap<hir::BindingId, hir::Expr>,
+    evaluation: Option<hir::EvaluationOrigin>,
 }
 
 impl Lowerer {
@@ -17,6 +18,7 @@ impl Lowerer {
         bindings: &[(hir::TypeParamId, hir::TypeId)],
         receiver: Option<&hir::Expr>,
         value_parameters: &[hir::Expr],
+        call_span: scoop_ast::Span,
         sink: &mut Vec<hir::Statement>,
     ) -> hir::Expr {
         let (template, captures, template_bindings) = match template {
@@ -64,6 +66,7 @@ impl Lowerer {
                 kind: hir::ExprKind::Local(local),
                 ty,
                 span: template.origin.span,
+                origin: hir::ExpressionOrigin::Definition(template.origin),
             });
         }
         let mut context = InstantiationContext {
@@ -85,6 +88,8 @@ impl Lowerer {
                     (capture.binding, value)
                 })
                 .collect(),
+            evaluation: (!self.lowering_default_template)
+                .then(|| self.definition_origin(call_span).into()),
         };
         for statement in &template.statements {
             sink.push(self.instantiate_default_statement(statement, &mut context));
@@ -212,8 +217,8 @@ impl Lowerer {
             }
             hir::AssignTarget::Global(global) => hir::AssignTarget::Global(*global),
             hir::AssignTarget::Index { array, index } => hir::AssignTarget::Index {
-                array: self.instantiate_default_expr(array, context),
-                index: self.instantiate_default_expr(index, context),
+                array: Box::new(self.instantiate_default_expr(array, context)),
+                index: Box::new(self.instantiate_default_expr(index, context)),
             },
             hir::AssignTarget::Field { receiver, field } => hir::AssignTarget::Field {
                 receiver: Box::new(self.instantiate_default_expr(receiver, context)),
@@ -282,12 +287,18 @@ impl Lowerer {
         context: &mut InstantiationContext,
     ) -> hir::Expr {
         if let hir::ExprKind::Local(local) = source.kind {
-            return context.locals[arena_index(local)].clone();
+            let mut value = context.locals[arena_index(local)].clone();
+            value.span = source.span;
+            value.origin = source.origin.instantiate(context.evaluation);
+            return value;
         }
         if let hir::ExprKind::Capture(binding) = source.kind
             && let Some(value) = context.captures.get(&binding)
         {
-            return value.clone();
+            let mut value = value.clone();
+            value.span = source.span;
+            value.origin = source.origin.instantiate(context.evaluation);
+            return value;
         }
         let kind = match &source.kind {
             hir::ExprKind::StringLiteral(value) => hir::ExprKind::StringLiteral(value.clone()),
@@ -518,6 +529,7 @@ impl Lowerer {
             kind,
             ty: self.instantiate_method_ty(source.ty, &context.bindings),
             span: source.span,
+            origin: source.origin.instantiate(context.evaluation),
         }
     }
 

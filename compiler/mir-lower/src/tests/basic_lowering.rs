@@ -99,10 +99,12 @@ fn repeated_literals_get_separate_constants_deterministically() {
                     kind: hir::ExprKind::StringLiteral("hello, world".to_string()),
                     ty: string,
                     span: SPAN,
+                    origin: expression_origin(),
                 }],
             },
             ty: unit,
             span: SPAN,
+            origin: expression_origin(),
         }),
         span: SPAN,
     });

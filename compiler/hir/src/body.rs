@@ -77,8 +77,8 @@ pub enum AssignTarget {
     Global(GlobalId),
     /// `array[index] = value` (only `MutableArray`, checked at HIR).
     Index {
-        array: Expr,
-        index: Expr,
+        array: Box<Expr>,
+        index: Box<Expr>,
     },
     /// `obj.field = value` (only `var` properties of classes).
     Field {
@@ -139,6 +139,7 @@ pub struct Expr {
     pub kind: ExprKind,
     pub ty: TypeId,
     pub span: Span,
+    pub origin: ExpressionOrigin,
 }
 
 #[derive(Debug, Clone)]

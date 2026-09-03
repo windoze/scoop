@@ -335,6 +335,7 @@ impl Concretizer<'_> {
             kind,
             ty,
             span: source.span,
+            origin: source.origin.concrete(),
         }
     }
 }

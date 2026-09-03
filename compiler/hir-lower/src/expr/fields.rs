@@ -26,6 +26,7 @@ impl Lowerer {
                     kind: ExprKind::ArrayLen(Box::new(receiver)),
                     ty: self.int,
                     span: access.span,
+                    origin: self.expression_origin(access.span),
                 });
             }
         }
@@ -37,6 +38,7 @@ impl Lowerer {
             },
             ty,
             span: access.span,
+            origin: self.expression_origin(access.span),
         })
     }
 
@@ -98,6 +100,7 @@ impl Lowerer {
         let (field, field_ty) = self.resolve_field(inner, &access.selector)?;
         let result_ty = self.option_type(field_ty);
         let span = access.span;
+        let origin = self.expression_origin(span);
         let then_value = move |tmp: hir::Expr| {
             let unwrapped = hir::Expr {
                 kind: ExprKind::Unwrap {
@@ -106,6 +109,7 @@ impl Lowerer {
                 },
                 ty: inner,
                 span,
+                origin,
             };
             let field_access = hir::Expr {
                 kind: ExprKind::FieldAccess {
@@ -114,17 +118,20 @@ impl Lowerer {
                 },
                 ty: field_ty,
                 span,
+                origin,
             };
             hir::Expr {
                 kind: ExprKind::SomeWrap(Box::new(field_access)),
                 ty: result_ty,
                 span,
+                origin,
             }
         };
         let else_value = hir::Expr {
             kind: ExprKind::NoneLiteral,
             ty: result_ty,
             span,
+            origin,
         };
         Some(self.desugar_option(
             receiver,
@@ -173,6 +180,7 @@ impl Lowerer {
             );
             return None;
         }
+        let origin = self.expression_origin(span);
         let then_value = move |tmp: hir::Expr| hir::Expr {
             kind: ExprKind::Unwrap {
                 operand: Box::new(tmp),
@@ -180,6 +188,7 @@ impl Lowerer {
             },
             ty: inner,
             span,
+            origin,
         };
         Some(self.desugar_option(
             lhs,
@@ -219,6 +228,7 @@ impl Lowerer {
             },
             ty: inner,
             span,
+            origin: self.expression_origin(span),
         })
     }
 
@@ -238,6 +248,7 @@ impl Lowerer {
         else_branch: ElseBranch,
     ) -> hir::Expr {
         let option_ty = receiver.ty;
+        let origin = self.expression_origin(span);
         let tmp = self.alloc_hidden("opt", option_ty);
         sink.push(hir::Statement {
             kind: hir::StatementKind::ValDecl {
@@ -250,11 +261,13 @@ impl Lowerer {
             kind: ExprKind::Local(tmp),
             ty: option_ty,
             span,
+            origin,
         };
         let cond = hir::Expr {
             kind: ExprKind::IsSome(Box::new(tmp_expr(span))),
             ty: self.boolean,
             span,
+            origin,
         };
         let result = self.alloc_hidden("res", result_ty);
         let then_body = vec![hir::Statement {
@@ -284,6 +297,7 @@ impl Lowerer {
             kind: ExprKind::Local(result),
             ty: result_ty,
             span,
+            origin,
         }
     }
 

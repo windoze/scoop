@@ -674,7 +674,9 @@ impl Lowerer {
         }
 
         let mut statements = Vec::new();
+        let outer_default_template = std::mem::replace(&mut self.lowering_default_template, true);
         let value = self.lower_expr(expression, &mut statements, Some(parameter.ty));
+        self.lowering_default_template = outer_default_template;
         let value = value.and_then(|value| {
             if self.is_subtype(value.ty, parameter.ty) {
                 Some(self.adapt_to(value, parameter.ty))
@@ -736,12 +738,16 @@ impl Lowerer {
         })
     }
 
-    fn definition_origin(&self, span: ast::Span) -> hir::DefinitionOrigin {
+    pub(crate) fn definition_origin(&self, span: ast::Span) -> hir::DefinitionOrigin {
         hir::DefinitionOrigin {
             provider: self.current_intrinsic_provider(),
             file: u32::try_from(self.current_file).expect("source file index exceeds u32"),
             span,
         }
+    }
+
+    pub(crate) fn expression_origin(&self, span: ast::Span) -> hir::ExpressionOrigin {
+        hir::ExpressionOrigin::Definition(self.definition_origin(span))
     }
 
     pub(crate) fn source_parameter_calling(

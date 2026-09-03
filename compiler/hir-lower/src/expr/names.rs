@@ -37,6 +37,7 @@ impl Lowerer {
                     kind: ExprKind::ConstructorParam(parameter),
                     ty,
                     span: name.span,
+                    origin: self.expression_origin(name.span),
                 });
             }
             if self.available_capture(&name.text).is_some() {
@@ -56,6 +57,7 @@ impl Lowerer {
                     kind: ExprKind::GlobalRead(global),
                     ty: self.globals[global].ty,
                     span: name.span,
+                    origin: self.expression_origin(name.span),
                 });
             }
             if !self.local_function_scopes.lookup(&name.text).is_empty()
@@ -81,6 +83,7 @@ impl Lowerer {
                     kind: ExprKind::Local(local),
                     ty: declared,
                     span: name.span,
+                    origin: self.expression_origin(name.span),
                 };
                 if self.is_value_ty(narrowed) {
                     // A boxed value narrowed to its value type unboxes.
@@ -88,6 +91,7 @@ impl Lowerer {
                         kind: ExprKind::Unbox(Box::new(local_expr)),
                         ty: narrowed,
                         span: name.span,
+                        origin: self.expression_origin(name.span),
                     });
                 }
                 // A reference narrowed to a subtype: zero-cost retype.
@@ -95,6 +99,7 @@ impl Lowerer {
                     kind: ExprKind::Local(local),
                     ty: narrowed,
                     span: name.span,
+                    origin: self.expression_origin(name.span),
                 });
             }
         }
@@ -102,6 +107,7 @@ impl Lowerer {
             kind: ExprKind::Local(local),
             ty: declared,
             span: name.span,
+            origin: self.expression_origin(name.span),
         })
     }
 
@@ -152,6 +158,7 @@ impl Lowerer {
             },
             ty,
             span: name.span,
+            origin: self.expression_origin(name.span),
         })
     }
 

@@ -144,6 +144,7 @@ impl Lowerer {
         });
         self.push_safety_context(attributes.safety);
         self.push_scope();
+        let outer_default_template = std::mem::replace(&mut self.lowering_default_template, false);
 
         let lowered = {
             let mut params = Vec::with_capacity(sig_params.len());
@@ -228,6 +229,7 @@ impl Lowerer {
             let body_locals = std::mem::take(&mut self.locals);
             Some((statements, captures, abi_params, body_locals))
         };
+        self.lowering_default_template = outer_default_template;
 
         self.pop_scope();
         self.pop_safety_context();

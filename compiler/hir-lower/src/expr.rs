@@ -180,21 +180,25 @@ impl Lowerer {
                 kind: ExprKind::StringLiteral(value.clone()),
                 ty: self.string,
                 span: *span,
+                origin: self.expression_origin(*span),
             }),
             ast::Expr::IntLiteral { value, span } => Some(hir::Expr {
                 kind: ExprKind::IntLiteral(*value),
                 ty: self.int,
                 span: *span,
+                origin: self.expression_origin(*span),
             }),
             ast::Expr::BoolLiteral { value, span } => Some(hir::Expr {
                 kind: ExprKind::BoolLiteral(*value),
                 ty: self.boolean,
                 span: *span,
+                origin: self.expression_origin(*span),
             }),
             ast::Expr::UnitLiteral { span } => Some(hir::Expr {
                 kind: ExprKind::UnitLiteral,
                 ty: self.unit,
                 span: *span,
+                origin: self.expression_origin(*span),
             }),
             ast::Expr::TupleLiteral { elements, span } => {
                 self.lower_tuple_literal(elements, *span, sink, expected)

@@ -91,6 +91,7 @@ impl Lowerer {
                 kind: ExprKind::PtrFromUInt(Box::new(raw)),
                 ty,
                 span: call.span,
+                origin: self.expression_origin(call.span),
             });
         }
 
@@ -142,6 +143,7 @@ impl Lowerer {
             kind: ExprKind::FunPtrNull,
             ty,
             span: call.span,
+            origin: self.expression_origin(call.span),
         })
     }
 }

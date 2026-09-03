@@ -182,6 +182,7 @@ impl Lowerer {
                     context.bindings,
                     context.receiver,
                     &materialized,
+                    context.call_span,
                     context.sink,
                 ),
                 ResolvedParameterInput::Vararg(input) => {
@@ -234,6 +235,7 @@ impl Lowerer {
                             context.bindings,
                             context.receiver,
                             &materialized,
+                            context.call_span,
                             context.sink,
                         ),
                     }
@@ -268,6 +270,7 @@ impl Lowerer {
             }),
             ty: array_type,
             span,
+            origin: self.expression_origin(span),
         }
     }
 
@@ -291,6 +294,7 @@ impl Lowerer {
             kind: hir::ExprKind::Local(local),
             ty,
             span,
+            origin: self.expression_origin(span),
         }
     }
 }

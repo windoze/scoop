@@ -98,6 +98,7 @@ impl Lowerer {
             kind: ExprKind::Capture(available.binding),
             ty: available.ty,
             span: name.span,
+            origin: self.expression_origin(name.span),
         })
     }
 
@@ -129,6 +130,7 @@ impl Lowerer {
             kind: ExprKind::Capture(available.binding),
             ty: available.ty,
             span,
+            origin: self.expression_origin(span),
         })
     }
 
@@ -140,6 +142,8 @@ impl Lowerer {
     }
 
     pub(crate) fn finish_current_captures(&mut self) -> Vec<hir::Capture> {
+        let provider = self.current_intrinsic_provider();
+        let file = u32::try_from(self.current_file).expect("source file index exceeds u32");
         let context = self
             .capture_contexts
             .last_mut()
@@ -160,11 +164,21 @@ impl Lowerer {
                         kind: ExprKind::Local(local),
                         ty: capture.ty,
                         span: capture.first_use_span,
+                        origin: hir::ExpressionOrigin::Definition(hir::DefinitionOrigin {
+                            provider,
+                            file,
+                            span: capture.first_use_span,
+                        }),
                     },
                     CaptureSource::Capture(binding) => hir::Expr {
                         kind: ExprKind::Capture(binding),
                         ty: capture.ty,
                         span: capture.first_use_span,
+                        origin: hir::ExpressionOrigin::Definition(hir::DefinitionOrigin {
+                            provider,
+                            file,
+                            span: capture.first_use_span,
+                        }),
                     },
                 };
                 hir::Capture {
@@ -184,6 +198,7 @@ impl Lowerer {
                 kind: ExprKind::Local(local),
                 ty,
                 span,
+                origin: self.expression_origin(span),
             });
         }
         if self.available_capture("this").is_some() {

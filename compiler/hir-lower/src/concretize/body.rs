@@ -135,8 +135,8 @@ impl Concretizer<'_> {
                 concrete::AssignTarget::Global(self.global_map[global])
             }
             export::AssignTarget::Index { array, index } => concrete::AssignTarget::Index {
-                array: self.lower_expr(array, substitution, locals),
-                index: self.lower_expr(index, substitution, locals),
+                array: Box::new(self.lower_expr(array, substitution, locals)),
+                index: Box::new(self.lower_expr(index, substitution, locals)),
             },
             export::AssignTarget::Field { receiver, field } => {
                 let receiver = self.lower_expr(receiver, substitution, locals);

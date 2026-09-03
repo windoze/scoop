@@ -152,6 +152,7 @@ impl Lowerer {
             kind: ExprKind::FunctionAddress(function),
             ty: expected,
             span,
+            origin: self.expression_origin(span),
         })
     }
 

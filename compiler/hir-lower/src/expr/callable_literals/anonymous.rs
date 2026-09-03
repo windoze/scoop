@@ -102,6 +102,7 @@ impl Lowerer {
         });
         self.push_safety_context(hir::Safety::Safe);
         self.push_scope();
+        let outer_default_template = std::mem::replace(&mut self.lowering_default_template, false);
 
         let lowered = (|| {
             let mut params = Vec::with_capacity(source_params.len());
@@ -212,8 +213,10 @@ impl Lowerer {
                 kind: ExprKind::AnonymousFunction(id),
                 ty: function_ty,
                 span,
+                origin: self.expression_origin(span),
             })
         })();
+        self.lowering_default_template = outer_default_template;
 
         self.pop_scope();
         self.pop_safety_context();

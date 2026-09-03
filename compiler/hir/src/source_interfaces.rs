@@ -9,6 +9,69 @@ pub struct DefinitionOrigin {
     pub span: Span,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct EvaluationOrigin {
+    pub provider: IntrinsicProviderId,
+    pub file: u32,
+    pub span: Span,
+}
+
+impl From<DefinitionOrigin> for EvaluationOrigin {
+    fn from(origin: DefinitionOrigin) -> Self {
+        Self {
+            provider: origin.provider,
+            file: origin.file,
+            span: origin.span,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ConcreteExpressionOrigin {
+    pub definition: DefinitionOrigin,
+    pub evaluation: EvaluationOrigin,
+}
+
+/// Export HIR contains both declaration-bound expression bodies and default
+/// instances embedded in ordinary bodies. A template node has definition
+/// provenance only; the concrete product closes the first branch by using its
+/// own definition as the evaluation source.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExpressionOrigin {
+    Definition(DefinitionOrigin),
+    Instantiated(ConcreteExpressionOrigin),
+}
+
+impl ExpressionOrigin {
+    pub const fn definition(self) -> DefinitionOrigin {
+        match self {
+            Self::Definition(definition)
+            | Self::Instantiated(ConcreteExpressionOrigin { definition, .. }) => definition,
+        }
+    }
+
+    pub fn concrete(self) -> ConcreteExpressionOrigin {
+        match self {
+            Self::Definition(definition) => ConcreteExpressionOrigin {
+                definition,
+                evaluation: definition.into(),
+            },
+            Self::Instantiated(origin) => origin,
+        }
+    }
+
+    pub const fn instantiate(self, evaluation: Option<EvaluationOrigin>) -> Self {
+        let definition = self.definition();
+        match evaluation {
+            Some(evaluation) => Self::Instantiated(ConcreteExpressionOrigin {
+                definition,
+                evaluation,
+            }),
+            None => Self::Definition(definition),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ExportValueParameter {
     pub name: String,

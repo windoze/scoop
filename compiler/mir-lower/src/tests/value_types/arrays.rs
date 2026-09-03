@@ -56,8 +56,8 @@ fn array_nodes_translate_one_to_one() {
                 ),
                 stmt(hir::StatementKind::Assign {
                     target: hir::AssignTarget::Index {
-                        array: local_ref(m, mutable_int),
-                        index: int_lit(&h, 0),
+                        array: Box::new(local_ref(m, mutable_int)),
+                        index: Box::new(int_lit(&h, 0)),
                     },
                     value: int_lit(&h, 40),
                 }),

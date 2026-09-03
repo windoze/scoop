@@ -170,6 +170,7 @@ impl Lowerer {
             },
             ty: resolved.return_ty,
             span: call.span,
+            origin: self.expression_origin(call.span),
         })
     }
 
@@ -229,6 +230,7 @@ impl Lowerer {
             },
             ty,
             span: call.span,
+            origin: self.expression_origin(call.span),
         })
     }
 
@@ -269,6 +271,7 @@ impl Lowerer {
                     kind: ExprKind::Local(local),
                     ty,
                     span,
+                    origin: self.expression_origin(span),
                 });
                 continue;
             }

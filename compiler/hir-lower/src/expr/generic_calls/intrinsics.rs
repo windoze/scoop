@@ -90,6 +90,7 @@ impl Lowerer {
                 kind: ExprKind::AddressOf(place),
                 ty,
                 span: call.span,
+                origin: self.expression_origin(call.span),
             });
         }
 
@@ -119,6 +120,7 @@ impl Lowerer {
             kind,
             ty: self.uint,
             span: call.span,
+            origin: self.expression_origin(call.span),
         })
     }
 }

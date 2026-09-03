@@ -69,6 +69,7 @@ impl Lowerer {
                     kind: hir::ExprKind::UnitLiteral,
                     ty: self.unit,
                     span: block.span,
+                    origin: self.expression_origin(block.span),
                 }))
             } else {
                 None
@@ -140,6 +141,7 @@ impl Lowerer {
                 kind: hir::ExprKind::UnitLiteral,
                 ty: self.unit,
                 span,
+                origin: self.expression_origin(span),
             });
         }
 
@@ -160,6 +162,7 @@ impl Lowerer {
             kind: hir::ExprKind::Local(result),
             ty: result_ty,
             span,
+            origin: self.expression_origin(span),
         })
     }
 

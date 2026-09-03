@@ -12,6 +12,33 @@ fn function_body<'module>(module: &'module hir::Module, name: &str) -> &'module 
     body
 }
 
+fn concrete_function_body<'module>(
+    module: &'module hir::LocalConcreteHir,
+    name: &str,
+) -> &'module hir::concrete::Body {
+    let (_, function) = module
+        .functions
+        .iter()
+        .find(|(_, function)| function.name == name)
+        .expect("concrete test function");
+    let hir::concrete::FunctionKind::User(body) = &function.kind else {
+        unreachable!("test function has a concrete source body")
+    };
+    body
+}
+
+fn call_with_span(name: &str, span: ast::Span) -> Expr {
+    Expr::Call(ast::CallExpr {
+        callee: ast::Ident {
+            text: name.to_string(),
+            span,
+        },
+        type_args: Vec::new(),
+        args: Vec::new(),
+        span,
+    })
+}
+
 fn with_default(mut declaration: Decl, parameter: usize, expression: Expr) -> Decl {
     let Decl::Function(function) = &mut declaration else {
         unreachable!("the test helper accepts a function declaration")
@@ -618,6 +645,169 @@ fn inherited_default_carries_the_parent_to_child_type_relation() {
         .map(|(_, local)| local)
         .expect("selected local");
     assert_eq!(hir::type_name(&output.export, selected.ty), "Array<Int>");
+}
+
+#[test]
+fn concrete_default_origins_keep_definition_and_outermost_evaluation_sites() {
+    let inner_definition = ast::Span::new(10, 12);
+    let nested_call_definition = ast::Span::new(20, 25);
+    let outer_call_site = ast::Span::new(100, 107);
+    let inner = with_default(
+        fun_sig(
+            "inner",
+            vec![],
+            vec![("value", ty_named("Int"))],
+            Some(ty_named("Int")),
+            vec![ret(Some(var("value")))],
+        ),
+        0,
+        Expr::IntLiteral {
+            value: 41,
+            span: inner_definition,
+        },
+    );
+    let outer = with_default(
+        fun_sig(
+            "outer",
+            vec![],
+            vec![("value", ty_named("Int"))],
+            Some(ty_named("Int")),
+            vec![ret(Some(var("value")))],
+        ),
+        0,
+        call_with_span("inner", nested_call_definition),
+    );
+    let output = lower_user_output(file(vec![
+        inner,
+        outer,
+        fun(
+            "main",
+            vec![val("result", call_with_span("outer", outer_call_site))],
+        ),
+    ]))
+    .expect("nested defaults must preserve complete expression origins");
+
+    assert!(
+        output
+            .export
+            .export_default_exprs
+            .iter()
+            .all(|(_, template)| {
+                matches!(template.value.origin, hir::ExpressionOrigin::Definition(_))
+                    && template.statements.iter().all(|statement| {
+                        !matches!(
+                            &statement.kind,
+                            hir::StatementKind::ValDecl {
+                                init: hir::Expr {
+                                    origin: hir::ExpressionOrigin::Instantiated(_),
+                                    ..
+                                },
+                                ..
+                            }
+                        )
+                    })
+            })
+    );
+
+    let main = concrete_function_body(&output.local, "main");
+    let origin = main
+        .statements
+        .iter()
+        .find_map(|statement| match &statement.kind {
+            hir::concrete::StatementKind::ValDecl {
+                init:
+                    hir::concrete::Expr {
+                        kind: hir::concrete::ExprKind::IntLiteral(41),
+                        origin,
+                        ..
+                    },
+                ..
+            } => Some(*origin),
+            _ => None,
+        })
+        .expect("instantiated inner default literal");
+    assert_eq!(origin.definition.span, inner_definition);
+    assert_eq!(origin.evaluation.span, outer_call_site);
+}
+
+#[test]
+fn a_lambda_body_establishes_its_own_default_evaluation_boundary() {
+    let inner_definition = ast::Span::new(10, 12);
+    let lambda_call_site = ast::Span::new(40, 47);
+    let factory_call_site = ast::Span::new(100, 109);
+    let inner = with_default(
+        fun_sig(
+            "inner",
+            vec![],
+            vec![("value", ty_named("Int"))],
+            Some(ty_named("Int")),
+            vec![ret(Some(var("value")))],
+        ),
+        0,
+        Expr::IntLiteral {
+            value: 42,
+            span: inner_definition,
+        },
+    );
+    let callback_type = ty_function(false, vec![], ty_named("Int"));
+    let factory = with_default(
+        fun_sig(
+            "factory",
+            vec![],
+            vec![("callback", callback_type.clone())],
+            Some(callback_type),
+            vec![ret(Some(var("callback")))],
+        ),
+        0,
+        Expr::Lambda {
+            id: ast::LambdaId(0),
+            is_suspend: false,
+            parameters: Some(Vec::new()),
+            body: block(vec![stmt(call_with_span("inner", lambda_call_site))]),
+            span: ast::Span::new(30, 50),
+        },
+    );
+    let output = lower_user_output(file(vec![
+        inner,
+        factory,
+        fun(
+            "main",
+            vec![val(
+                "callback",
+                call_with_span("factory", factory_call_site),
+            )],
+        ),
+    ]))
+    .expect("default-instantiated lambdas must retain their body origin boundary");
+
+    let (_, lambda) = output
+        .local
+        .functions
+        .iter()
+        .find(|(_, function)| function.name.starts_with("$lambda"))
+        .expect("lambda body");
+    let hir::concrete::FunctionKind::User(body) = &lambda.kind else {
+        unreachable!()
+    };
+    let origin = body
+        .statements
+        .iter()
+        .find_map(|statement| match &statement.kind {
+            hir::concrete::StatementKind::ValDecl {
+                init:
+                    hir::concrete::Expr {
+                        kind: hir::concrete::ExprKind::IntLiteral(42),
+                        origin,
+                        ..
+                    },
+                ..
+            } => Some(*origin),
+            _ => None,
+        })
+        .expect("inner default in lambda body");
+    assert_eq!(origin.definition.span, inner_definition);
+    assert_eq!(origin.evaluation.span, lambda_call_site);
+    assert_ne!(origin.evaluation.span, factory_call_site);
 }
 
 #[test]
