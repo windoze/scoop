@@ -94,7 +94,7 @@ impl Lowerer {
                 .get(&local)
                 .copied()
                 .unwrap_or(self.locals[local].ty);
-            if self.type_exposes_invoke(ty, false) {
+            if self.type_exposes_invoke(ty, false) || matches!(self.types[ty], Type::FunPtr(_)) {
                 let callee = hir::Expr {
                     kind: ExprKind::Local(local),
                     ty,
@@ -115,7 +115,8 @@ impl Lowerer {
             }
         }
         if let Some(capture) = self.available_capture(&call.callee.text)
-            && self.type_exposes_invoke(capture.ty, false)
+            && (self.type_exposes_invoke(capture.ty, false)
+                || matches!(self.types[capture.ty], Type::FunPtr(_)))
         {
             let callee = self.lower_capture(&call.callee)?;
             return self.lower_value_invoke(
@@ -132,7 +133,7 @@ impl Lowerer {
         }
         if let Some(&global) = self.globals_by_name.get(&call.callee.text) {
             let ty = self.globals[global].ty;
-            if self.type_exposes_invoke(ty, false) {
+            if self.type_exposes_invoke(ty, false) || matches!(self.types[ty], Type::FunPtr(_)) {
                 if matches!(
                     self.globals[global].storage,
                     hir::GlobalStorage::Extern { .. }

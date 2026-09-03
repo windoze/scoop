@@ -224,15 +224,13 @@ impl Lowerer {
             &pending_enums,
             &pending_methods,
         );
-        if self.diagnostics.is_empty() {
-            self.lower_export_parameter_interfaces(
-                &pending_functions,
-                &pending_methods,
-                &pending_structs,
-                &pending_classes,
-                &pending_enums,
-            );
-        }
+        self.lower_export_parameter_interfaces(
+            &pending_functions,
+            &pending_methods,
+            &pending_structs,
+            &pending_classes,
+            &pending_enums,
+        );
         self.declare_derived_equality_methods();
         // Compiler-generated exception edges receive complete typed class /
         // zero-argument-constructor identities after inheritance has been

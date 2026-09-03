@@ -740,15 +740,10 @@ Module
           Type Int
           IntLiteral 0
     bb2 if.else.2
-      branch bb7 bb8
-        Type Boolean
-        Binary IntEq
-          Type Int
-          EnumTag
-            Type Choice
-            Local $when.1
-          Type Int
-          IntLiteral 1
+      assign $result.1
+        Type String
+        StringConst @scoop.str.2
+      goto bb3
     bb3 if.merge.3
       return
         Type String
@@ -767,13 +762,6 @@ Module
       assign $result.1
         Type String
         Local $result.0
-      goto bb3
-    bb7 if.then.7
-      assign $result.1
-        Type String
-        StringConst @scoop.str.2
-      goto bb8
-    bb8 if.merge.8
       goto bb3
   fun main @scoop_main() -> Unit
     bb0 entry
@@ -1147,7 +1135,7 @@ Module
     local %5 $result.1: ptr<managed>
     local %6 $when.1: enum1
   block entry
-    poll managed-void-target0 sp38 live=[local5:ptr<managed>@0]
+    poll managed-void-target0 sp38 live=[]
     store param0 -> local6
     t0 = enum_tag e1 local6 : i64
     t1 = Eq t0, 0 : i1
@@ -1162,9 +1150,8 @@ Module
     t4 = Gt t3, 0 : i1
     cbr t4 then @if.then.4 else @if.else.5
   block if.else.2
-    t5 = enum_tag e1 local6 : i64
-    t6 = Eq t5, 1 : i1
-    cbr t6 then @if.then.7 else @if.merge.8
+    store global2 -> local5
+    br @if.merge.3
   block if.merge.3
     ret local5
   block if.then.4
@@ -1175,11 +1162,6 @@ Module
     br @if.merge.6
   block if.merge.6
     store local4 -> local5
-    br @if.merge.3
-  block if.then.7
-    store global2 -> local5
-    br @if.merge.8
-  block if.merge.8
     br @if.merge.3
   fun @scoop_main() -> void
     local %0 $argument.0: i64

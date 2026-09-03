@@ -925,16 +925,6 @@ Module
       val $when.1: Duo$I<Int>
         Type Duo$I<Int>
         Local duo
-      branch bb1 bb2
-        Type Boolean
-        Binary IntEq
-          Type Int
-          EnumTag
-            Type Duo$I<Int>
-            Local $when.1
-          Type Int
-          IntLiteral 0
-    bb1 if.then.1
       val value: Int
         Type Int
         EnumField v0 f1
@@ -949,8 +939,6 @@ Module
       call @scoop.println$I direct
         Type Int
         Local $parameter.value
-      goto bb2
-    bb2 if.merge.2
       val $argument.0: Option$I<Int>
         Type Option$I<Int>
         VariantConstruct Option$I<Int> v1
@@ -1487,62 +1475,56 @@ Module
     t8 = enum_wrap e2 v0 (local15, local16) : enum2
     store t8 -> local17
     store local17 -> local47
-    t9 = enum_tag e2 local47 : i64
-    t10 = Eq t9, 0 : i1
-    cbr t10 then @if.then.1 else @if.merge.2
-  block if.then.1
-    t11 = enum_field e2 v0 f1 local47 : i64
-    store t11 -> local18
+    t9 = enum_field e2 v0 f1 local47 : i64
+    store t9 -> local18
     store local18 -> local19
     store local19 -> local20
     call managed-void-target2 sp15 live=[] sig=void2 (i64) local-fn16(local20)
-    t12 = aggregate () : {}
-    br @if.merge.2
-  block if.merge.2
-    t13 = enum_wrap e0 v1 () : enum0
-    store t13 -> local21
+    t10 = aggregate () : {}
+    t11 = enum_wrap e0 v1 () : enum0
+    store t11 -> local21
     store 10 -> local22
     store local21 -> local23
     store local22 -> local24
-    call managed-direct-target1 sp16 live=[] t14 = sig=direct1 (enum0, i64) -> i64 local-fn12(local23, local24)
-    store t14 -> local25
+    call managed-direct-target1 sp16 live=[] t12 = sig=direct1 (enum0, i64) -> i64 local-fn12(local23, local24)
+    store t12 -> local25
     store local25 -> local26
     call managed-void-target3 sp17 live=[] sig=void3 (i64) local-fn16(local26)
-    t15 = aggregate () : {}
-    t16 = enum_wrap e0 v1 () : enum0
-    store t16 -> local27
+    t13 = aggregate () : {}
+    t14 = enum_wrap e0 v1 () : enum0
+    store t14 -> local27
     store local27 -> local28
-    t17 = enum_wrap e3 v0 (local28) : enum3
-    store t17 -> local29
+    t15 = enum_wrap e3 v0 (local28) : enum3
+    store t15 -> local29
     store 11 -> local30
     store local29 -> local31
     store local30 -> local32
-    call managed-direct-target2 sp18 live=[] t18 = sig=direct2 (enum3, i64) -> i64 local-fn17(local31, local32)
-    store t18 -> local33
+    call managed-direct-target2 sp18 live=[] t16 = sig=direct2 (enum3, i64) -> i64 local-fn17(local31, local32)
+    store t16 -> local33
     store local33 -> local34
     call managed-void-target4 sp19 live=[] sig=void4 (i64) local-fn16(local34)
-    t19 = aggregate () : {}
-    t20 = array_alloc array0 () sp20 live  : ptr<managed>
-    store t20 -> local35
+    t17 = aggregate () : {}
+    t18 = array_alloc array0 () sp20 live  : ptr<managed>
+    store t18 -> local35
     store 12 -> local36
     store local35 -> local37
     store local36 -> local38
-    call managed-direct-target3 sp21 live=[local37:ptr<managed>@0] t21 = sig=direct3 (ptr<managed>, i64) -> i64 local-fn18(local37, local38)
-    store t21 -> local39
+    call managed-direct-target3 sp21 live=[local37:ptr<managed>@0] t19 = sig=direct3 (ptr<managed>, i64) -> i64 local-fn18(local37, local38)
+    store t19 -> local39
     store local39 -> local40
     call managed-void-target5 sp22 live=[] sig=void5 (i64) local-fn16(local40)
-    t22 = aggregate () : {}
-    t23 = enum_wrap e0 v1 () : enum0
-    t24 = aggregate (t23, 13) : {enum0, i64}
-    store t24 -> local41
+    t20 = aggregate () : {}
+    t21 = enum_wrap e0 v1 () : enum0
+    t22 = aggregate (t21, 13) : {enum0, i64}
+    store t22 -> local41
     store 14 -> local42
     store local41 -> local43
     store local42 -> local44
-    call managed-direct-target4 sp23 live=[] t25 = sig=direct4 ({enum0, i64}, i64) -> i64 local-fn19(local43, local44)
-    store t25 -> local45
+    call managed-direct-target4 sp23 live=[] t23 = sig=direct4 ({enum0, i64}, i64) -> i64 local-fn19(local43, local44)
+    store t23 -> local45
     store local45 -> local46
     call managed-void-target6 sp24 live=[] sig=void6 (i64) local-fn16(local46)
-    t26 = aggregate () : {}
+    t24 = aggregate () : {}
     ret
   fun @scoop.choose$I(enum0, i64) -> i64
   block entry

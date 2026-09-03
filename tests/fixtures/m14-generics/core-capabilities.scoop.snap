@@ -1188,26 +1188,14 @@ Module
         Local $call.1
       goto bb3
     bb2 if.else.2
-      branch bb4 bb5
-        Type Boolean
-        Binary IntEq
-          Type Int
-          EnumTag
-            Type RenderState$D5_PointX<Point>
-            Local $when.1
-          Type Int
-          IntLiteral 1
+      assign $result.0
+        Type String
+        StringConst @scoop.str.7
+      goto bb3
     bb3 if.merge.3
       return
         Type String
         Local $result.0
-    bb4 if.then.4
-      assign $result.0
-        Type String
-        StringConst @scoop.str.7
-      goto bb5
-    bb5 if.merge.5
-      goto bb3
   fun println @scoop.println$E21_RenderState$D5_PointXAD5_PointXX(value: RenderState$D5_PointX<Point>) -> Unit
     bb0 entry
       val $receiver: RenderState$D5_PointX<Point>
@@ -1869,7 +1857,7 @@ Module
     local %3 $when.1: enum1
     local %4 $call.1: ptr<managed>
   block entry
-    poll managed-void-target0 sp89 live=[local2:ptr<managed>@0]
+    poll managed-void-target0 sp89 live=[]
     store param0 -> local3
     t0 = enum_tag e1 local3 : i64
     t1 = Eq t0, 0 : i1
@@ -1883,16 +1871,10 @@ Module
     store local4 -> local2
     br @if.merge.3
   block if.else.2
-    t4 = enum_tag e1 local3 : i64
-    t5 = Eq t4, 1 : i1
-    cbr t5 then @if.then.4 else @if.merge.5
+    store global7 -> local2
+    br @if.merge.3
   block if.merge.3
     ret local2
-  block if.then.4
-    store global7 -> local2
-    br @if.merge.5
-  block if.merge.5
-    br @if.merge.3
   fun @scoop.println$E21_RenderState$D5_PointXAD5_PointXX(enum1) -> void
     local %0 $receiver: enum1
     local %1 $argument.0: ptr<managed>

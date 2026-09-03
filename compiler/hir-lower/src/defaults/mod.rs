@@ -111,16 +111,17 @@ impl Lowerer {
                 self.structs[structure].representation,
                 hir::StructRepresentation::Declared(_)
             ) {
-                let callings = self.struct_parameter_calling[&structure].clone();
+                let Some(callings) = self.struct_parameter_calling.get(&structure).cloned() else {
+                    continue;
+                };
+                let fields = self.structs[structure].semantic_fields();
+                if declaration.fields.len() != fields.len() || fields.len() != callings.len() {
+                    continue;
+                }
                 let sources = declaration
                     .fields
                     .iter()
-                    .zip(
-                        self.structs[structure]
-                            .semantic_fields()
-                            .iter()
-                            .zip(callings),
-                    )
+                    .zip(fields.iter().zip(callings))
                     .map(|(source, (field, calling))| ParameterSource {
                         name: source.name.clone(),
                         ty: field.ty,
@@ -147,16 +148,17 @@ impl Lowerer {
                 self.classes[class].representation,
                 hir::ClassRepresentation::Declared(_)
             ) {
-                let callings = self.class_parameter_calling[&class].clone();
+                let Some(callings) = self.class_parameter_calling.get(&class).cloned() else {
+                    continue;
+                };
+                let fields = self.classes[class].semantic_constructor();
+                if declaration.constructor.len() != fields.len() || fields.len() != callings.len() {
+                    continue;
+                }
                 let sources = declaration
                     .constructor
                     .iter()
-                    .zip(
-                        self.classes[class]
-                            .semantic_constructor()
-                            .iter()
-                            .zip(callings),
-                    )
+                    .zip(fields.iter().zip(callings))
                     .map(|(source, (field, calling))| ParameterSource {
                         name: source.name.clone(),
                         ty: field.ty,
@@ -179,16 +181,29 @@ impl Lowerer {
         }
         for &(enumeration, declaration, file) in enums {
             self.current_file = file;
+            if declaration.variants.len() != self.enums[enumeration].variants.len() {
+                continue;
+            }
             for (variant_index, source_variant) in declaration.variants.iter().enumerate() {
                 let variant_index = variant_index as u32;
-                let callings =
-                    self.variant_parameter_calling[&(enumeration, variant_index)].clone();
+                let Some(callings) = self
+                    .variant_parameter_calling
+                    .get(&(enumeration, variant_index))
+                    .cloned()
+                else {
+                    continue;
+                };
                 let source_fields = match &source_variant.kind {
                     ast::VariantDeclKind::Unit | ast::VariantDeclKind::Positional(_) => None,
                     ast::VariantDeclKind::Named(fields)
                     | ast::VariantDeclKind::Constructor(fields) => Some(fields.as_slice()),
                 };
                 let fields = &self.enums[enumeration].variants[variant_index as usize].fields;
+                if fields.len() != callings.len()
+                    || source_fields.is_some_and(|source| source.len() != fields.len())
+                {
+                    continue;
+                }
                 let sources = fields
                     .iter()
                     .zip(callings)

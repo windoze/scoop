@@ -1,0 +1,86 @@
+fun safeDefault(): Int {
+    println("safe-default")
+    return 7
+}
+
+fun safeArgument(): Int {
+    println("safe-argument")
+    return 5
+}
+
+fun makeProbe(): Probe? {
+    println("safe-receiver")
+    return Some(Probe("made-"))
+}
+
+class Probe(val prefix: String) {
+    fun send(value: Int = safeDefault()): String {
+        println("send-body")
+        return prefix + value.toString()
+    }
+
+    fun nested(): String? = Some(prefix + "nested")
+
+    fun touch() {
+        println("touch-body")
+    }
+}
+
+fun Probe.extend(value: Int): String = prefix + value.toString()
+
+struct Handler(val prefix: String) {
+    operator fun invoke(value: Int): String = prefix + value.toString()
+}
+
+class Service(val handler: Handler)
+
+fun printStringOption(value: String?) {
+    when (value) {
+        Some(text) -> println(text)
+        None -> println("none")
+    }
+}
+
+fun main() {
+    val some: Probe? = Some(Probe("some-"))
+    val none: Probe? = None
+
+    val explicit = some?.send(safeArgument())
+    printStringOption(explicit)
+    val skippedArgument = none?.send(safeArgument())
+    printStringOption(skippedArgument)
+
+    val defaulted = some?.send()
+    printStringOption(defaulted)
+    val skippedDefault = none?.send()
+    printStringOption(skippedDefault)
+
+    val made = makeProbe()?.send(8)
+    printStringOption(made)
+
+    val extension = some?.extend(9)
+    printStringOption(extension)
+    val skippedExtension = none?.extend(9)
+    printStringOption(skippedExtension)
+
+    val nested: String?? = some?.nested()
+    when (nested) {
+        Some(inner) -> printStringOption(inner)
+        None -> println("outer-none")
+    }
+
+    val unitResult: Unit? = some?.touch()
+    when (unitResult) {
+        Some(value) -> println("unit-some")
+        None -> println("unit-none")
+    }
+
+    val maybeService: Service? = Some(Service(Handler("field-")))
+    printStringOption(maybeService?.handler(10))
+
+    val maybeFunction: ((Int) -> Int)? = Some({ value: Int -> value + 1 })
+    when (maybeFunction?.invoke(41)) {
+        Some(value) -> println(value)
+        None -> println(0)
+    }
+}

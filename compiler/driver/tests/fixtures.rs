@@ -75,6 +75,9 @@ fn runs_under_gc_stress(relative: &str) -> bool {
             | "m15-moving/handle-pin.scoop"
             | "m15-moving/root-shapes.scoop"
             | "m17-vararg/vararg-semantics.scoop"
+            | "m18-invoke/combined.scoop"
+            | "m18-operators/combined.scoop"
+            | "m18-safe-call/combined.scoop"
     )
 }
 

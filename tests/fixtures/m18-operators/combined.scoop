@@ -1,0 +1,101 @@
+class OperatorFailure : Exception(None)
+
+class Payload(val text: String)
+
+class OperatorGate(var waiter: Continuation<Int>?) {
+    fun complete(value: Int) {
+        val continuation = waiter!!
+        waiter = None
+        continuation.resume(value)
+    }
+}
+
+class OperatorRegistration(val gate: OperatorGate) : SuspendRegistration<Int> {
+    final override fun register(continuation: Continuation<Int>) {
+        gate.waiter = Some(continuation)
+    }
+}
+
+suspend fun awaitOperator(gate: OperatorGate): Int =
+    suspendCoroutine(OperatorRegistration(gate))
+
+fun operatorDefault(): Int {
+    println("operator-default")
+    return 2
+}
+
+class GenericIndex<T>(val value: T) {
+    operator fun get(index: Int, scale: Int = operatorDefault()): T = value
+}
+
+class AsyncNumber<T>(
+    val gate: OperatorGate,
+    val payload: T,
+    val label: String,
+    val amount: Int
+) {
+    suspend operator fun plus(other: AsyncNumber<T>): AsyncNumber<T> {
+        val bonus = awaitOperator(gate)
+        val joined = label + other.label
+        gcCollect()
+        if (bonus == 0) {
+            throw OperatorFailure()
+        }
+        return AsyncNumber(gate, payload, joined, amount + other.amount + bonus)
+    }
+}
+
+class OperatorTask(
+    val gate: OperatorGate,
+    val left: AsyncNumber<Payload>,
+    val right: AsyncNumber<Payload>
+) : SuspendTask<String> {
+    final override suspend fun run(): String {
+        return try {
+            val total = left + right
+            val selected = GenericIndex(total.payload)[0]
+            val render: () -> String = {
+                selected.text + ":" + total.label
+            }
+            gcCollect()
+            println(total.amount)
+            render()
+        } catch (error: OperatorFailure) {
+            "operator-caught"
+        }
+    }
+}
+
+class OperatorCompletion(val label: String) : Continuation<String> {
+    final override fun resume(value: String) {
+        println(label)
+        println(value)
+    }
+
+    final override fun resumeWithException(exception: Throwable) {
+        println("operator-unexpected-failure")
+    }
+}
+
+fun main() {
+    val successGate = OperatorGate(None)
+    val failureGate = OperatorGate(None)
+    val payload = Payload("payload")
+    val successLeft = AsyncNumber(successGate, payload, "left", 20)
+    val successRight = AsyncNumber(successGate, payload, "-right", 21)
+    val failureLeft = AsyncNumber(failureGate, payload, "bad", 1)
+    val failureRight = AsyncNumber(failureGate, payload, "-path", 2)
+
+    startCoroutine(
+        OperatorTask(successGate, successLeft, successRight),
+        OperatorCompletion("operator-success")
+    )
+    startCoroutine(
+        OperatorTask(failureGate, failureLeft, failureRight),
+        OperatorCompletion("operator-failure")
+    )
+    println("operator-suspended")
+    gcCollect()
+    successGate.complete(1)
+    failureGate.complete(0)
+}

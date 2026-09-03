@@ -1,0 +1,9 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m18-invoke/errors/not-callable.scoop:17:18: error: value of type Plain is not callable
+m18-invoke/errors/not-callable.scoop:20:21: error: no applicable candidate for `invoke` in member candidate layer:
+  - fun Outer.invoke(): Inner — expects 0 argument(s), but 1 were supplied
+m18-invoke/errors/not-callable.scoop:23:26: error: function argument must be of type String, found Int

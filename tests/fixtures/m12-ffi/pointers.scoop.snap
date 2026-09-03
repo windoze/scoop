@@ -1428,18 +1428,6 @@ Module
         Local $parameter.value
       goto bb3
     bb2 if.else.2
-      branch bb4 bb5
-        Type Boolean
-        Binary IntEq
-          Type Int
-          EnumTag
-            Type Option$PIX<Ptr<Int>>
-            Local $when.1
-          Type Int
-          IntLiteral 1
-    bb3 if.merge.3
-      return
-    bb4 if.then.4
       val $argument.0: Int
         Type Int
         IntLiteral 0
@@ -1449,9 +1437,9 @@ Module
       call @scoop.println$I direct
         Type Int
         Local $parameter.value
-      goto bb5
-    bb5 if.merge.5
       goto bb3
+    bb3 if.merge.3
+      return
   fun println @scoop.println$I(value: Int) -> Unit
     bb0 entry
       val $receiver: Int
@@ -2075,19 +2063,13 @@ Module
     t41 = aggregate () : {}
     br @if.merge.3
   block if.else.2
-    t42 = enum_tag e2 local82 : i64
-    t43 = Eq t42, 1 : i1
-    cbr t43 then @if.then.4 else @if.merge.5
-  block if.merge.3
-    ret
-  block if.then.4
     store 0 -> local80
     store local80 -> local81
     call managed-void-target9 sp23 live=[] sig=void10 (i64) local-fn16(local81)
-    t44 = aggregate () : {}
-    br @if.merge.5
-  block if.merge.5
+    t42 = aggregate () : {}
     br @if.merge.3
+  block if.merge.3
+    ret
   fun @scoop.println$I(i64) -> void
     local %0 $receiver: i64
     local %1 $argument.0: ptr<managed>

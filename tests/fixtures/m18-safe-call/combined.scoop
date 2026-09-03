@@ -1,0 +1,95 @@
+class SafeFailure : Exception(None)
+
+class SafePayload(val text: String)
+
+class SafeGate(var waiter: Continuation<Int>?) {
+    fun complete(value: Int) {
+        val continuation = waiter!!
+        waiter = None
+        continuation.resume(value)
+    }
+}
+
+class SafeRegistration(val gate: SafeGate) : SuspendRegistration<Int> {
+    final override fun register(continuation: Continuation<Int>) {
+        gate.waiter = Some(continuation)
+    }
+}
+
+suspend fun awaitSafe(gate: SafeGate): Int =
+    suspendCoroutine(SafeRegistration(gate))
+
+fun safeCombinedDefault(): String {
+    println("safe-combined-default")
+    return "!"
+}
+
+fun makeSafeTransform(prefix: String): (SafePayload) -> String {
+    println("safe-transform-created")
+    return { payload: SafePayload -> prefix + payload.text }
+}
+
+class AsyncSafeBox<T>(
+    val gate: SafeGate,
+    val payload: T,
+    val label: String
+) {
+    suspend fun apply(
+        transform: (T) -> String,
+        suffix: String = safeCombinedDefault()
+    ): String {
+        val signal = awaitSafe(gate)
+        gcCollect()
+        if (signal == 0) {
+            throw SafeFailure()
+        }
+        return transform(payload) + label + suffix
+    }
+}
+
+class SafeTask(
+    val maybe: AsyncSafeBox<SafePayload>?,
+    val prefix: String
+) : SuspendTask<String> {
+    final override suspend fun run(): String {
+        return try {
+            val result = maybe?.apply(makeSafeTransform(prefix))
+            when (result) {
+                Some(value) -> value
+                None -> "safe-none"
+            }
+        } catch (error: SafeFailure) {
+            "safe-caught"
+        }
+    }
+}
+
+class SafeCompletion(val label: String) : Continuation<String> {
+    final override fun resume(value: String) {
+        println(label)
+        println(value)
+    }
+
+    final override fun resumeWithException(exception: Throwable) {
+        println("safe-unexpected-failure")
+    }
+}
+
+fun main() {
+    val successGate = SafeGate(None)
+    val failureGate = SafeGate(None)
+    val payload = SafePayload("payload")
+    val success: AsyncSafeBox<SafePayload>? =
+        Some(AsyncSafeBox(successGate, payload, "-success"))
+    val failure: AsyncSafeBox<SafePayload>? =
+        Some(AsyncSafeBox(failureGate, payload, "-failure"))
+    val absent: AsyncSafeBox<SafePayload>? = None
+
+    startCoroutine(SafeTask(success, "captured-"), SafeCompletion("safe-success"))
+    startCoroutine(SafeTask(failure, "captured-"), SafeCompletion("safe-failure"))
+    startCoroutine(SafeTask(absent, "unused-"), SafeCompletion("safe-absent"))
+    println("safe-suspended")
+    gcCollect()
+    successGate.complete(1)
+    failureGate.complete(0)
+}

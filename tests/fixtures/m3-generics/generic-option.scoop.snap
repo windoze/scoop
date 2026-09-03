@@ -913,26 +913,14 @@ Module
         BoolLiteral false
       goto bb3
     bb2 if.else.2
-      branch bb4 bb5
+      assign $result.2
         Type Boolean
-        Binary IntEq
-          Type Int
-          EnumTag
-            Type Option$S<String>
-            Local $when.1
-          Type Int
-          IntLiteral 0
+        BoolLiteral true
+      goto bb3
     bb3 if.merge.3
       return
         Type Boolean
         Local $result.2
-    bb4 if.then.4
-      assign $result.2
-        Type Boolean
-        BoolLiteral true
-      goto bb5
-    bb5 if.merge.5
-      goto bb3
   fun println @scoop.println$B(value: Boolean) -> Unit
     bb0 entry
       val $receiver: Boolean
@@ -977,26 +965,14 @@ Module
         BoolLiteral false
       goto bb3
     bb2 if.else.2
-      branch bb4 bb5
+      assign $result.2
         Type Boolean
-        Binary IntEq
-          Type Int
-          EnumTag
-            Type Option$I<Int>
-            Local $when.1
-          Type Int
-          IntLiteral 0
+        BoolLiteral true
+      goto bb3
     bb3 if.merge.3
       return
         Type Boolean
         Local $result.2
-    bb4 if.then.4
-      assign $result.2
-        Type Boolean
-        BoolLiteral true
-      goto bb5
-    bb5 if.merge.5
-      goto bb3
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
     bb0 entry
       return
@@ -1416,16 +1392,10 @@ Module
     store false -> local0
     br @if.merge.3
   block if.else.2
-    t2 = enum_tag e0 local1 : i64
-    t3 = Eq t2, 0 : i1
-    cbr t3 then @if.then.4 else @if.merge.5
+    store true -> local0
+    br @if.merge.3
   block if.merge.3
     ret local0
-  block if.then.4
-    store true -> local0
-    br @if.merge.5
-  block if.merge.5
-    br @if.merge.3
   fun @scoop.println$B(i1) -> void
     local %0 $receiver: i1
     local %1 $argument.0: ptr<managed>
@@ -1458,16 +1428,10 @@ Module
     store false -> local0
     br @if.merge.3
   block if.else.2
-    t2 = enum_tag e1 local1 : i64
-    t3 = Eq t2, 0 : i1
-    cbr t3 then @if.then.4 else @if.merge.5
+    store true -> local0
+    br @if.merge.3
   block if.merge.3
     ret local0
-  block if.then.4
-    store true -> local0
-    br @if.merge.5
-  block if.merge.5
-    br @if.merge.3
   fun @scoop.ctor.Throwable() -> ptr<managed>
   block entry
     poll managed-void-target0 sp51 live=[]

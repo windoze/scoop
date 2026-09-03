@@ -142,24 +142,12 @@ Module
         Local x
       goto bb3
     bb2 if.else.2
-      branch bb4 bb5
-        Type Boolean
-        Binary IntEq
-          Type Int
-          EnumTag
-            Type Option$I<Int>
-            Local $when.1
-          Type Int
-          IntLiteral 1
-    bb3 if.merge.3
-      return
-    bb4 if.then.4
       call @scoop.println direct
         Type String
         StringConst @scoop.str.1
-      goto bb5
-    bb5 if.merge.5
       goto bb3
+    bb3 if.merge.3
+      return
   str @scoop.str.0 \"\\n\"
   str @scoop.str.1 \"none\"
   entry @scoop_main

@@ -951,26 +951,14 @@ Module
         BoolLiteral true
       goto bb3
     bb2 if.else.2
-      branch bb4 bb5
+      assign $result.0
         Type Boolean
-        Binary IntEq
-          Type Int
-          EnumTag
-            Type Option$J11_DescribableX<Describable>
-            Local $when.1
-          Type Int
-          IntLiteral 1
+        BoolLiteral false
+      goto bb3
     bb3 if.merge.3
       return
         Type Boolean
         Local $result.0
-    bb4 if.then.4
-      assign $result.0
-        Type Boolean
-        BoolLiteral false
-      goto bb5
-    bb5 if.merge.5
-      goto bb3
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
     bb0 entry
       return
@@ -1443,16 +1431,10 @@ Module
     store true -> local0
     br @if.merge.3
   block if.else.2
-    t2 = enum_tag e1 local1 : i64
-    t3 = Eq t2, 1 : i1
-    cbr t3 then @if.then.4 else @if.merge.5
+    store false -> local0
+    br @if.merge.3
   block if.merge.3
     ret local0
-  block if.then.4
-    store false -> local0
-    br @if.merge.5
-  block if.merge.5
-    br @if.merge.3
   fun @scoop.ctor.Throwable() -> ptr<managed>
   block entry
     poll managed-void-target0 sp57 live=[]

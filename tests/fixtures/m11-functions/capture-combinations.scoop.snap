@@ -1114,15 +1114,10 @@ Module
         Local value
       goto bb3
     bb2 if.else.2
-      branch bb4 bb5
-        Type Boolean
-        Binary IntEq
-          Type Int
-          EnumTag
-            Type CapturedChoice
-            Local $when.1
-          Type Int
-          IntLiteral 1
+      assign $result.0
+        Type String
+        StringConst @scoop.str.2
+      goto bb3
     bb3 if.merge.3
       val prefix: String
         Type String
@@ -1159,13 +1154,6 @@ Module
       return
         Type String
         Local $call.1
-    bb4 if.then.4
-      assign $result.0
-        Type String
-        StringConst @scoop.str.2
-      goto bb5
-    bb5 if.merge.5
-      goto bb3
   fun $lambda.1 @scoop.$lambda.1($closure: () -> Int) -> Int
     bb0 entry
       val $receiver: Int
@@ -1764,7 +1752,7 @@ Module
     local %9 $when.1: enum1
     local %10 $call.1: ptr<managed>
   block entry
-    poll managed-void-target0 sp66 live=[param0:ptr<managed>@0, local1:ptr<managed>@0]
+    poll managed-void-target0 sp66 live=[param0:ptr<managed>@0]
     t0 = heap_load param0 +24 : enum1
     store t0 -> local9
     t1 = enum_tag e1 local9 : i64
@@ -1776,28 +1764,22 @@ Module
     store local0 -> local1
     br @if.merge.3
   block if.else.2
-    t4 = enum_tag e1 local9 : i64
-    t5 = Eq t4, 1 : i1
-    cbr t5 then @if.then.4 else @if.merge.5
+    store global2 -> local1
+    br @if.merge.3
   block if.merge.3
     store local1 -> local2
     store local2 -> local3
     store global3 -> local4
     store local4 -> local5
-    call managed-direct-target0 sp33 live=[param0:ptr<managed>@0, local3:ptr<managed>@0, local5:ptr<managed>@0] t6 = sig=direct0 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(local3, local5)
-    store t6 -> local6
-    t7 = heap_load param0 +32 : {i64, ptr<managed>}
-    t8 = extract t7, 1 : ptr<managed>
-    store t8 -> local7
+    call managed-direct-target0 sp33 live=[param0:ptr<managed>@0, local3:ptr<managed>@0, local5:ptr<managed>@0] t4 = sig=direct0 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(local3, local5)
+    store t4 -> local6
+    t5 = heap_load param0 +32 : {i64, ptr<managed>}
+    t6 = extract t5, 1 : ptr<managed>
+    store t6 -> local7
     store local7 -> local8
-    call managed-direct-target1 sp34 live=[local6:ptr<managed>@0, local8:ptr<managed>@0] t9 = sig=direct1 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(local6, local8)
-    store t9 -> local10
+    call managed-direct-target1 sp34 live=[local6:ptr<managed>@0, local8:ptr<managed>@0] t7 = sig=direct1 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(local6, local8)
+    store t7 -> local10
     ret local10
-  block if.then.4
-    store global2 -> local1
-    br @if.merge.5
-  block if.merge.5
-    br @if.merge.3
   fun @scoop.$lambda.1(ptr<managed>) -> i64
     local %0 $receiver: i64
     local %1 $argument.0: i64

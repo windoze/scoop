@@ -1644,7 +1644,7 @@ Module
         Local $parameter.payload
         Type CoroutineAdapter$scoop_GcTask_run_suspend$1
         Local $adapter.1
-      branch bb10 bb11
+      branch bb8 bb9
         Type Boolean
         Binary IntEq
           Type Int
@@ -1685,15 +1685,16 @@ Module
         Local $parameter.value
       goto bb3
     bb2 if.else.2
-      branch bb4 bb5
-        Type Boolean
-        Binary IntEq
-          Type Int
-          EnumTag
-            Type Payload
-            Local $when.1
-          Type Int
-          IntLiteral 1
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.6
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call @scoop.println$S direct
+        Type String
+        Local $parameter.value
+      goto bb3
     bb3 if.merge.3
       val $receiver: Int
         Type Int
@@ -1713,20 +1714,7 @@ Module
             Local $receiver
             Type Int
             Local $parameter.other
-    bb4 if.then.4
-      val $argument.0: String
-        Type String
-        StringConst @scoop.str.6
-      val $parameter.value: String
-        Type String
-        Local $argument.0
-      call @scoop.println$S direct
-        Type String
-        Local $parameter.value
-      goto bb5
-    bb5 if.merge.5
-      goto bb3
-    bb6 coroutine.post.1
+    bb4 coroutine.post.1
       val $argument.0: String
         Type String
         Local taskText
@@ -1770,19 +1758,19 @@ Module
             Local $when.1
           Type Int
           IntLiteral 0
-    bb7 coroutine.completed.1
+    bb5 coroutine.completed.1
       val value: Int
         Type Int
         EnumField v0 f0
           Type CoroutineStep$I
           Local $step.1
-      goto bb6
-    bb8 coroutine.protocol_error
+      goto bb4
+    bb6 coroutine.protocol_error
       call $protocol_error: IllegalStateException = @scoop.ctor.IllegalStateException direct
       throw
         Type IllegalStateException
         Local $protocol_error
-    bb9 coroutine.completed_claim_frame.1
+    bb7 coroutine.completed_claim_frame.1
       val $completed_frame_claim.1: Int
         Type Int
         AtomicCompareExchange field=0 success=acq_rel failure=acquire
@@ -1792,14 +1780,14 @@ Module
           IntLiteral 1
           Type Int
           IntLiteral -1
-      branch bb7 bb8
+      branch bb5 bb6
         Type Boolean
         Binary IntEq
           Type Int
           Local $completed_frame_claim.1
           Type Int
           IntLiteral 1
-    bb10 coroutine.completed_claim_adapter.1
+    bb8 coroutine.completed_claim_adapter.1
       val $completed_adapter_claim.1: Int
         Type Int
         AtomicCompareExchange field=1 success=acq_rel failure=acquire
@@ -1809,18 +1797,18 @@ Module
           IntLiteral 1
           Type Int
           IntLiteral 6
-      branch bb9 bb8
+      branch bb7 bb6
         Type Boolean
         Binary IntEq
           Type Int
           Local $completed_adapter_claim.1
           Type Int
           IntLiteral 1
-    bb11 coroutine.suspended.1
+    bb9 coroutine.suspended.1
       return
         Type CoroutineStep$I
         VariantConstruct CoroutineStep$I v1
-    bb12 coroutine.resume.1
+    bb10 coroutine.resume.1
       assign taskText
         Type String
         EnumField v1 f0
@@ -1856,8 +1844,8 @@ Module
           FieldAccess 7
             Type CoroutineFrame$scoop_GcTask_run_suspend
             Local $frame
-      goto bb6
-    bb13 coroutine.failure.1
+      goto bb4
+    bb11 coroutine.failure.1
       assign taskText
         Type String
         EnumField v1 f0
@@ -1893,7 +1881,7 @@ Module
           FieldAccess 8
             Type CoroutineFrame$scoop_GcTask_run_suspend
             Local $frame
-    bb14 coroutine.initial
+    bb12 coroutine.initial
       assign this
         Type GcTask
         EnumField v1 f0
@@ -1907,29 +1895,29 @@ Module
         Type Int
         IntLiteral -1
       goto bb0
-    bb15 coroutine.protocol_error
+    bb13 coroutine.protocol_error
       call $protocol_error: IllegalStateException = @scoop.ctor.IllegalStateException direct
       throw
         Type IllegalStateException
         Local $protocol_error
-    bb16 coroutine.dispatch.1
-      branch bb12 bb15
+    bb14 coroutine.dispatch.1
+      branch bb10 bb13
         Type Boolean
         Binary IntEq
           Type Int
           Local $dispatch_state
           Type Int
           IntLiteral 1
-    bb17 coroutine.dispatch.-3
-      branch bb13 bb16
+    bb15 coroutine.dispatch.-3
+      branch bb11 bb14
         Type Boolean
         Binary IntEq
           Type Int
           Local $dispatch_state
           Type Int
           IntLiteral -3
-    bb18 coroutine.dispatch.0
-      branch bb14 bb17
+    bb16 coroutine.dispatch.0
+      branch bb12 bb15
         Type Boolean
         Binary IntEq
           Type Int
@@ -2894,7 +2882,7 @@ Module
         Local $parameter.gate
         Type CoroutineAdapter$scoop_middle_suspend$1
         Local $adapter.1
-      branch bb10 bb11
+      branch bb8 bb9
         Type Boolean
         Binary IntEq
           Type Int
@@ -2935,15 +2923,16 @@ Module
         Local $parameter.value
       goto bb3
     bb2 if.else.2
-      branch bb4 bb5
-        Type Boolean
-        Binary IntEq
-          Type Int
-          EnumTag
-            Type Payload
-            Local $when.1
-          Type Int
-          IntLiteral 1
+      val $argument.0: String
+        Type String
+        StringConst @scoop.str.10
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call @scoop.println$S direct
+        Type String
+        Local $parameter.value
+      goto bb3
     bb3 if.merge.3
       val $receiver: Int
         Type Int
@@ -2963,20 +2952,7 @@ Module
             Local $receiver
             Type Int
             Local $parameter.other
-    bb4 if.then.4
-      val $argument.0: String
-        Type String
-        StringConst @scoop.str.10
-      val $parameter.value: String
-        Type String
-        Local $argument.0
-      call @scoop.println$S direct
-        Type String
-        Local $parameter.value
-      goto bb5
-    bb5 if.merge.5
-      goto bb3
-    bb6 coroutine.post.1
+    bb4 coroutine.post.1
       val $argument.0: String
         Type String
         Local marker
@@ -2998,19 +2974,19 @@ Module
             Local $when.1
           Type Int
           IntLiteral 0
-    bb7 coroutine.completed.1
+    bb5 coroutine.completed.1
       val value: Int
         Type Int
         EnumField v0 f0
           Type CoroutineStep$I
           Local $step.1
-      goto bb6
-    bb8 coroutine.protocol_error
+      goto bb4
+    bb6 coroutine.protocol_error
       call $protocol_error: IllegalStateException = @scoop.ctor.IllegalStateException direct
       throw
         Type IllegalStateException
         Local $protocol_error
-    bb9 coroutine.completed_claim_frame.1
+    bb7 coroutine.completed_claim_frame.1
       val $completed_frame_claim.1: Int
         Type Int
         AtomicCompareExchange field=0 success=acq_rel failure=acquire
@@ -3020,14 +2996,14 @@ Module
           IntLiteral 1
           Type Int
           IntLiteral -1
-      branch bb7 bb8
+      branch bb5 bb6
         Type Boolean
         Binary IntEq
           Type Int
           Local $completed_frame_claim.1
           Type Int
           IntLiteral 1
-    bb10 coroutine.completed_claim_adapter.1
+    bb8 coroutine.completed_claim_adapter.1
       val $completed_adapter_claim.1: Int
         Type Int
         AtomicCompareExchange field=1 success=acq_rel failure=acquire
@@ -3037,18 +3013,18 @@ Module
           IntLiteral 1
           Type Int
           IntLiteral 6
-      branch bb9 bb8
+      branch bb7 bb6
         Type Boolean
         Binary IntEq
           Type Int
           Local $completed_adapter_claim.1
           Type Int
           IntLiteral 1
-    bb11 coroutine.suspended.1
+    bb9 coroutine.suspended.1
       return
         Type CoroutineStep$I
         VariantConstruct CoroutineStep$I v1
-    bb12 coroutine.resume.1
+    bb10 coroutine.resume.1
       assign payload
         Type Payload
         EnumField v1 f0
@@ -3070,8 +3046,8 @@ Module
           FieldAccess 5
             Type CoroutineFrame$scoop_middle_suspend
             Local $frame
-      goto bb6
-    bb13 coroutine.failure.1
+      goto bb4
+    bb11 coroutine.failure.1
       assign payload
         Type Payload
         EnumField v1 f0
@@ -3093,7 +3069,7 @@ Module
           FieldAccess 6
             Type CoroutineFrame$scoop_middle_suspend
             Local $frame
-    bb14 coroutine.initial
+    bb12 coroutine.initial
       assign gate
         Type Gate
         EnumField v1 f0
@@ -3114,29 +3090,29 @@ Module
         Type Int
         IntLiteral -1
       goto bb0
-    bb15 coroutine.protocol_error
+    bb13 coroutine.protocol_error
       call $protocol_error: IllegalStateException = @scoop.ctor.IllegalStateException direct
       throw
         Type IllegalStateException
         Local $protocol_error
-    bb16 coroutine.dispatch.1
-      branch bb12 bb15
+    bb14 coroutine.dispatch.1
+      branch bb10 bb13
         Type Boolean
         Binary IntEq
           Type Int
           Local $dispatch_state
           Type Int
           IntLiteral 1
-    bb17 coroutine.dispatch.-3
-      branch bb13 bb16
+    bb15 coroutine.dispatch.-3
+      branch bb11 bb14
         Type Boolean
         Binary IntEq
           Type Int
           Local $dispatch_state
           Type Int
           IntLiteral -3
-    bb18 coroutine.dispatch.0
-      branch bb14 bb17
+    bb16 coroutine.dispatch.0
+      branch bb12 bb15
         Type Boolean
         Binary IntEq
           Type Int
@@ -4201,120 +4177,114 @@ Module
     t19 = aggregate () : {}
     br @if.merge.3
   block if.else.2
-    t20 = enum_tag e2 local43 : i64
-    t21 = Eq t20, 1 : i1
-    cbr t21 then @if.then.4 else @if.merge.5
+    store global6 -> local38
+    store local38 -> local39
+    call managed-void-target2 sp64 live=[local39:ptr<managed>@0] sig=void2 (ptr<managed>) local-fn21(local39)
+    t20 = aggregate () : {}
+    br @if.merge.3
   block if.merge.3
     store local26 -> local40
     store 1 -> local41
     store local41 -> local42
-    t22 = Add local40, local42 : i64
-    t23 = enum_wrap e3 v0 (t22) : enum3
-    ret t23
-  block if.then.4
-    store global6 -> local38
-    store local38 -> local39
-    call managed-void-target2 sp64 live=[local39:ptr<managed>@0] sig=void2 (ptr<managed>) local-fn21(local39)
-    t24 = aggregate () : {}
-    br @if.merge.5
-  block if.merge.5
-    br @if.merge.3
+    t21 = Add local40, local42 : i64
+    t22 = enum_wrap e3 v0 (t21) : enum3
+    ret t22
   block coroutine.post.1
     store local4 -> local27
     store local27 -> local28
     call managed-void-target3 sp65 live=[local10:ptr<managed>@0, local18:struct4@0+8, local21:enum2@8+16, local28:ptr<managed>@0] sig=void3 (ptr<managed>) local-fn21(local28)
-    t25 = aggregate () : {}
-    t26 = heap_load local10 +16 : ptr<managed>
-    store t26 -> local29
+    t23 = aggregate () : {}
+    t24 = heap_load local10 +16 : ptr<managed>
+    store t24 -> local29
     store local29 -> local30
     call managed-void-target4 sp66 live=[local18:struct4@0+8, local21:enum2@8+16, local30:ptr<managed>@0] sig=void4 (ptr<managed>) local-fn21(local30)
-    t27 = aggregate () : {}
-    t28 = extract local18, 0 : ptr<managed>
-    store t28 -> local31
+    t25 = aggregate () : {}
+    t26 = extract local18, 0 : ptr<managed>
+    store t26 -> local31
     store local31 -> local32
     call managed-void-target5 sp67 live=[local21:enum2@8+16, local32:ptr<managed>@0] sig=void5 (ptr<managed>) local-fn21(local32)
-    t29 = aggregate () : {}
+    t27 = aggregate () : {}
     store local21 -> local43
-    t30 = enum_tag e2 local43 : i64
-    t31 = Eq t30, 0 : i1
-    cbr t31 then @if.then.1 else @if.else.2
+    t28 = enum_tag e2 local43 : i64
+    t29 = Eq t28, 0 : i1
+    cbr t29 then @if.then.1 else @if.else.2
   block coroutine.completed.1
-    t32 = enum_field e3 v0 f0 local46 : i64
-    store t32 -> local26
+    t30 = enum_field e3 v0 f0 local46 : i64
+    store t30 -> local26
     br @coroutine.post.1
   block coroutine.protocol_error
-    call managed-direct-target5 sp68 live=[] t33 = sig=direct5 () -> ptr<managed> local-fn30()
-    store t33 -> local47
+    call managed-direct-target5 sp68 live=[] t31 = sig=direct5 () -> ptr<managed> local-fn30()
+    store t31 -> local47
     throw local47
     unreachable
   block coroutine.completed_claim_frame.1
-    t34 = atomic_cmpxchg acq_rel/acquire param0 +16 expected=1 replacement=-1 : i64
-    store t34 -> local49
-    t35 = Eq local49, 1 : i1
-    cbr t35 then @coroutine.completed.1 else @coroutine.protocol_error
+    t32 = atomic_cmpxchg acq_rel/acquire param0 +16 expected=1 replacement=-1 : i64
+    store t32 -> local49
+    t33 = Eq local49, 1 : i1
+    cbr t33 then @coroutine.completed.1 else @coroutine.protocol_error
   block coroutine.completed_claim_adapter.1
-    t36 = atomic_cmpxchg acq_rel/acquire local45 +24 expected=1 replacement=6 : i64
-    store t36 -> local48
-    t37 = Eq local48, 1 : i1
-    cbr t37 then @coroutine.completed_claim_frame.1 else @coroutine.protocol_error
+    t34 = atomic_cmpxchg acq_rel/acquire local45 +24 expected=1 replacement=6 : i64
+    store t34 -> local48
+    t35 = Eq local48, 1 : i1
+    cbr t35 then @coroutine.completed_claim_frame.1 else @coroutine.protocol_error
   block coroutine.suspended.1
-    t38 = enum_wrap e3 v1 () : enum3
-    ret t38
+    t36 = enum_wrap e3 v1 () : enum3
+    ret t36
   block coroutine.resume.1
-    t39 = heap_load param0 +40 : enum5
-    t40 = enum_field e5 v1 f0 t39 : ptr<managed>
-    store t40 -> local4
-    t41 = heap_load param0 +48 : enum6
-    t42 = enum_field e6 v1 f0 t41 : ptr<managed>
-    store t42 -> local10
-    t43 = heap_load param0 +56 : enum7
-    t44 = enum_field e7 v1 f0 t43 : struct4
-    store t44 -> local18
-    t45 = heap_load param0 +80 : enum8
-    t46 = enum_field e8 v1 f0 t45 : enum2
-    store t46 -> local21
-    t47 = heap_load param0 +112 : enum9
-    t48 = enum_field e9 v1 f0 t47 : i64
-    store t48 -> local26
+    t37 = heap_load param0 +40 : enum5
+    t38 = enum_field e5 v1 f0 t37 : ptr<managed>
+    store t38 -> local4
+    t39 = heap_load param0 +48 : enum6
+    t40 = enum_field e6 v1 f0 t39 : ptr<managed>
+    store t40 -> local10
+    t41 = heap_load param0 +56 : enum7
+    t42 = enum_field e7 v1 f0 t41 : struct4
+    store t42 -> local18
+    t43 = heap_load param0 +80 : enum8
+    t44 = enum_field e8 v1 f0 t43 : enum2
+    store t44 -> local21
+    t45 = heap_load param0 +112 : enum9
+    t46 = enum_field e9 v1 f0 t45 : i64
+    store t46 -> local26
     br @coroutine.post.1
   block coroutine.failure.1
-    t49 = heap_load param0 +40 : enum5
-    t50 = enum_field e5 v1 f0 t49 : ptr<managed>
-    store t50 -> local4
-    t51 = heap_load param0 +48 : enum6
-    t52 = enum_field e6 v1 f0 t51 : ptr<managed>
-    store t52 -> local10
-    t53 = heap_load param0 +56 : enum7
-    t54 = enum_field e7 v1 f0 t53 : struct4
-    store t54 -> local18
-    t55 = heap_load param0 +80 : enum8
-    t56 = enum_field e8 v1 f0 t55 : enum2
-    store t56 -> local21
-    t57 = heap_load param0 +128 : enum10
-    t58 = enum_field e10 v1 f0 t57 : ptr<managed>
-    throw t58
+    t47 = heap_load param0 +40 : enum5
+    t48 = enum_field e5 v1 f0 t47 : ptr<managed>
+    store t48 -> local4
+    t49 = heap_load param0 +48 : enum6
+    t50 = enum_field e6 v1 f0 t49 : ptr<managed>
+    store t50 -> local10
+    t51 = heap_load param0 +56 : enum7
+    t52 = enum_field e7 v1 f0 t51 : struct4
+    store t52 -> local18
+    t53 = heap_load param0 +80 : enum8
+    t54 = enum_field e8 v1 f0 t53 : enum2
+    store t54 -> local21
+    t55 = heap_load param0 +128 : enum10
+    t56 = enum_field e10 v1 f0 t55 : ptr<managed>
+    throw t56
     unreachable
   block coroutine.initial
-    t59 = heap_load param0 +32 : enum4
-    t60 = enum_field e4 v1 f0 t59 : ptr<managed>
-    store t60 -> local0
+    t57 = heap_load param0 +32 : enum4
+    t58 = enum_field e4 v1 f0 t57 : ptr<managed>
+    store t58 -> local0
     atomic_store release param0 +16 -1
     br @entry
   block coroutine.protocol_error
-    call managed-direct-target6 sp69 live=[] t61 = sig=direct6 () -> ptr<managed> local-fn30()
-    store t61 -> local50
+    call managed-direct-target6 sp69 live=[] t59 = sig=direct6 () -> ptr<managed> local-fn30()
+    store t59 -> local50
     throw local50
     unreachable
   block coroutine.dispatch.1
-    t62 = Eq param1, 1 : i1
-    cbr t62 then @coroutine.resume.1 else @coroutine.protocol_error
+    t60 = Eq param1, 1 : i1
+    cbr t60 then @coroutine.resume.1 else @coroutine.protocol_error
   block coroutine.dispatch.-3
-    t63 = Eq param1, -3 : i1
-    cbr t63 then @coroutine.failure.1 else @coroutine.dispatch.1
+    t61 = Eq param1, -3 : i1
+    cbr t61 then @coroutine.failure.1 else @coroutine.dispatch.1
   block coroutine.dispatch.0
     poll managed-void-target6 sp152 live=[param0:ptr<managed>@0]
-    t64 = Eq param1, 0 : i1
-    cbr t64 then @coroutine.initial else @coroutine.dispatch.-3
+    t62 = Eq param1, 0 : i1
+    cbr t62 then @coroutine.initial else @coroutine.dispatch.-3
   fun @scoop.GcTask.run$suspend$resume$1(ptr<managed>, i64) -> void
     local %0 $step: enum3
     local %1 $adapter_claim: i64
@@ -4880,101 +4850,95 @@ Module
     t11 = aggregate () : {}
     br @if.merge.3
   block if.else.2
-    t12 = enum_tag e2 local21 : i64
-    t13 = Eq t12, 1 : i1
-    cbr t13 then @if.then.4 else @if.merge.5
+    store global10 -> local16
+    store local16 -> local17
+    call managed-void-target2 sp101 live=[local17:ptr<managed>@0] sig=void2 (ptr<managed>) local-fn21(local17)
+    t12 = aggregate () : {}
+    br @if.merge.3
   block if.merge.3
     store local8 -> local18
     store 1 -> local19
     store local19 -> local20
-    t14 = Add local18, local20 : i64
-    t15 = enum_wrap e3 v0 (t14) : enum3
-    ret t15
-  block if.then.4
-    store global10 -> local16
-    store local16 -> local17
-    call managed-void-target2 sp101 live=[local17:ptr<managed>@0] sig=void2 (ptr<managed>) local-fn21(local17)
-    t16 = aggregate () : {}
-    br @if.merge.5
-  block if.merge.5
-    br @if.merge.3
+    t13 = Add local18, local20 : i64
+    t14 = enum_wrap e3 v0 (t13) : enum3
+    ret t14
   block coroutine.post.1
     store local5 -> local9
     store local9 -> local10
     call managed-void-target3 sp102 live=[local1:enum2@8+16, local10:ptr<managed>@0] sig=void3 (ptr<managed>) local-fn21(local10)
-    t17 = aggregate () : {}
+    t15 = aggregate () : {}
     store local1 -> local21
-    t18 = enum_tag e2 local21 : i64
-    t19 = Eq t18, 0 : i1
-    cbr t19 then @if.then.1 else @if.else.2
+    t16 = enum_tag e2 local21 : i64
+    t17 = Eq t16, 0 : i1
+    cbr t17 then @if.then.1 else @if.else.2
   block coroutine.completed.1
-    t20 = enum_field e3 v0 f0 local24 : i64
-    store t20 -> local8
+    t18 = enum_field e3 v0 f0 local24 : i64
+    store t18 -> local8
     br @coroutine.post.1
   block coroutine.protocol_error
-    call managed-direct-target2 sp103 live=[] t21 = sig=direct2 () -> ptr<managed> local-fn30()
-    store t21 -> local25
+    call managed-direct-target2 sp103 live=[] t19 = sig=direct2 () -> ptr<managed> local-fn30()
+    store t19 -> local25
     throw local25
     unreachable
   block coroutine.completed_claim_frame.1
-    t22 = atomic_cmpxchg acq_rel/acquire param0 +16 expected=1 replacement=-1 : i64
-    store t22 -> local27
-    t23 = Eq local27, 1 : i1
-    cbr t23 then @coroutine.completed.1 else @coroutine.protocol_error
+    t20 = atomic_cmpxchg acq_rel/acquire param0 +16 expected=1 replacement=-1 : i64
+    store t20 -> local27
+    t21 = Eq local27, 1 : i1
+    cbr t21 then @coroutine.completed.1 else @coroutine.protocol_error
   block coroutine.completed_claim_adapter.1
-    t24 = atomic_cmpxchg acq_rel/acquire local23 +24 expected=1 replacement=6 : i64
-    store t24 -> local26
-    t25 = Eq local26, 1 : i1
-    cbr t25 then @coroutine.completed_claim_frame.1 else @coroutine.protocol_error
+    t22 = atomic_cmpxchg acq_rel/acquire local23 +24 expected=1 replacement=6 : i64
+    store t22 -> local26
+    t23 = Eq local26, 1 : i1
+    cbr t23 then @coroutine.completed_claim_frame.1 else @coroutine.protocol_error
   block coroutine.suspended.1
-    t26 = enum_wrap e3 v1 () : enum3
-    ret t26
+    t24 = enum_wrap e3 v1 () : enum3
+    ret t24
   block coroutine.resume.1
-    t27 = heap_load param0 +40 : enum8
-    t28 = enum_field e8 v1 f0 t27 : enum2
-    store t28 -> local1
-    t29 = heap_load param0 +72 : enum5
-    t30 = enum_field e5 v1 f0 t29 : ptr<managed>
-    store t30 -> local5
-    t31 = heap_load param0 +80 : enum9
-    t32 = enum_field e9 v1 f0 t31 : i64
-    store t32 -> local8
+    t25 = heap_load param0 +40 : enum8
+    t26 = enum_field e8 v1 f0 t25 : enum2
+    store t26 -> local1
+    t27 = heap_load param0 +72 : enum5
+    t28 = enum_field e5 v1 f0 t27 : ptr<managed>
+    store t28 -> local5
+    t29 = heap_load param0 +80 : enum9
+    t30 = enum_field e9 v1 f0 t29 : i64
+    store t30 -> local8
     br @coroutine.post.1
   block coroutine.failure.1
-    t33 = heap_load param0 +40 : enum8
-    t34 = enum_field e8 v1 f0 t33 : enum2
-    store t34 -> local1
-    t35 = heap_load param0 +72 : enum5
-    t36 = enum_field e5 v1 f0 t35 : ptr<managed>
-    store t36 -> local5
-    t37 = heap_load param0 +96 : enum10
-    t38 = enum_field e10 v1 f0 t37 : ptr<managed>
-    throw t38
+    t31 = heap_load param0 +40 : enum8
+    t32 = enum_field e8 v1 f0 t31 : enum2
+    store t32 -> local1
+    t33 = heap_load param0 +72 : enum5
+    t34 = enum_field e5 v1 f0 t33 : ptr<managed>
+    store t34 -> local5
+    t35 = heap_load param0 +96 : enum10
+    t36 = enum_field e10 v1 f0 t35 : ptr<managed>
+    throw t36
     unreachable
   block coroutine.initial
-    t39 = heap_load param0 +32 : enum11
-    t40 = enum_field e11 v1 f0 t39 : ptr<managed>
-    store t40 -> local0
-    t41 = heap_load param0 +40 : enum8
-    t42 = enum_field e8 v1 f0 t41 : enum2
-    store t42 -> local1
+    t37 = heap_load param0 +32 : enum11
+    t38 = enum_field e11 v1 f0 t37 : ptr<managed>
+    store t38 -> local0
+    t39 = heap_load param0 +40 : enum8
+    t40 = enum_field e8 v1 f0 t39 : enum2
+    store t40 -> local1
     atomic_store release param0 +16 -1
     br @entry
   block coroutine.protocol_error
-    call managed-direct-target3 sp104 live=[] t43 = sig=direct3 () -> ptr<managed> local-fn30()
-    store t43 -> local28
+    call managed-direct-target3 sp104 live=[] t41 = sig=direct3 () -> ptr<managed> local-fn30()
+    store t41 -> local28
     throw local28
     unreachable
   block coroutine.dispatch.1
-    t44 = Eq param1, 1 : i1
-    cbr t44 then @coroutine.resume.1 else @coroutine.protocol_error
+    t42 = Eq param1, 1 : i1
+    cbr t42 then @coroutine.resume.1 else @coroutine.protocol_error
   block coroutine.dispatch.-3
-    t45 = Eq param1, -3 : i1
-    cbr t45 then @coroutine.failure.1 else @coroutine.dispatch.1
+    t43 = Eq param1, -3 : i1
+    cbr t43 then @coroutine.failure.1 else @coroutine.dispatch.1
   block coroutine.dispatch.0
     poll managed-void-target4 sp160 live=[param0:ptr<managed>@0]
-    t46 = Eq param1, 0 : i1
-    cbr t46 then @coroutine.initial else @coroutine.dispatch.-3
+    t44 = Eq param1, 0 : i1
+    cbr t44 then @coroutine.initial else @coroutine.dispatch.-3
   fun @scoop.middle$suspend$resume$1(ptr<managed>, i64) -> void
     local %0 $step: enum3
     local %1 $adapter_claim: i64

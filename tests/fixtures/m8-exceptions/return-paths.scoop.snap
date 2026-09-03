@@ -875,23 +875,11 @@ Module
         Type Int
         IntLiteral 20
     bb2 if.else.2
-      branch bb4 bb5
-        Type Boolean
-        Binary IntEq
-          Type Int
-          EnumTag
-            Type Choice
-            Local $when.1
-          Type Int
-          IntLiteral 1
-    bb3 if.merge.3
-      unreachable
-    bb4 if.then.4
       return
         Type Int
         IntLiteral 21
-    bb5 if.merge.5
-      goto bb3
+    bb3 if.merge.3
+      unreachable
   fun fromFinally @scoop.fromFinally() -> Int
     bb0 entry
       goto bb6
@@ -1506,15 +1494,7 @@ Module
   block if.then.1
     ret 20
   block if.else.2
-    t2 = enum_tag e1 local0 : i64
-    t3 = Eq t2, 1 : i1
-    cbr t3 then @if.then.4 else @if.merge.5
-  block if.merge.3
-    unreachable
-  block if.then.4
     ret 21
-  block if.merge.5
-    br @if.merge.3
   fun @scoop.fromFinally() -> i64
     local %0 $return.1: i64
     local %1 $return.2: i64

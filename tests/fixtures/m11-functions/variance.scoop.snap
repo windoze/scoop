@@ -1794,26 +1794,14 @@ Module
         BoolLiteral false
       goto bb3
     bb2 if.else.2
-      branch bb4 bb5
+      assign $result.0
         Type Boolean
-        Binary IntEq
-          Type Int
-          EnumTag
-            Type Option$FAnyRSX<(Any) -> String>
-            Local $when.1
-          Type Int
-          IntLiteral 1
+        BoolLiteral true
+      goto bb3
     bb3 if.merge.3
       return
         Type Boolean
         Local $result.0
-    bb4 if.then.4
-      assign $result.0
-        Type Boolean
-        BoolLiteral true
-      goto bb5
-    bb5 if.merge.5
-      goto bb3
   fun $reference.0 @scoop.$reference.0($closure: (Any) -> Int, arg0: Any) -> Int
     bb0 entry
       call $call.1: Int = @scoop.acceptAny direct
@@ -3053,16 +3041,10 @@ Module
     store false -> local0
     br @if.merge.3
   block if.else.2
-    t2 = enum_tag e1 local1 : i64
-    t3 = Eq t2, 1 : i1
-    cbr t3 then @if.then.4 else @if.merge.5
+    store true -> local0
+    br @if.merge.3
   block if.merge.3
     ret local0
-  block if.then.4
-    store true -> local0
-    br @if.merge.5
-  block if.merge.5
-    br @if.merge.3
   fun @scoop.$reference.0(ptr<managed>, ptr<managed>) -> i64
     local %0 $call.1: i64
   block entry

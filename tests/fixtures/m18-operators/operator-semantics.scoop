@@ -1,0 +1,105 @@
+struct Score(val value: Int) {
+    operator fun unaryPlus(): Score = this
+    operator fun unaryMinus(): Score = Score(-value)
+    operator fun inc(): Score = Score(value + 1)
+    operator fun dec(): Score = Score(value - 1)
+    operator fun plus(other: Score): Score = Score(value + other.value)
+    operator fun minus(other: Score): Score = Score(value - other.value)
+    operator fun times(other: Score): Score = Score(value * other.value)
+    operator fun div(other: Score): Score = Score(value / other.value)
+    operator fun rem(other: Score): Score = Score(value % other.value)
+    operator fun rangeTo(other: Score): Score = Score(other.value - value)
+    operator fun rangeUntil(other: Score): Score = Score(other.value - value - 1)
+    operator fun compareTo(other: Score): Int = value - other.value
+}
+
+operator fun Score.times(scale: Int): Score = Score(value * scale)
+
+infix fun Score.merge(other: Score): Score = this + other
+
+class Bag(val expected: Int) {
+    operator fun contains(item: Score): Boolean = item.value == expected
+}
+
+class Cell(var value: Int) {
+    operator fun get(row: Int, column: Int = 0): Int = value + row + column
+
+    operator fun set(row: Int, column: Int, newValue: Int) {
+        value = newValue + row + column
+    }
+
+    operator fun plusAssign(delta: Int) {
+        value = value + delta
+    }
+}
+
+class Coordinates(val x: Int, val y: Int) {
+    operator fun component1(): Int = x
+    operator fun component2(): Int = y
+}
+
+fun markScore(label: String, value: Int): Score {
+    println(label)
+    return Score(value)
+}
+
+fun markBag(label: String, expected: Int): Bag {
+    println(label)
+    return Bag(expected)
+}
+
+fun makeCell(): Cell {
+    println("cell-receiver")
+    return Cell(0)
+}
+
+fun markIndex(label: String, value: Int): Int {
+    println(label)
+    return value
+}
+
+fun main() {
+    val positive = +Score(2)
+    val negative = -positive
+    println(positive.value)
+    println(negative.value)
+
+    var updated = Score(5)
+    println((updated++).value)
+    println(updated.value)
+    println((++updated).value)
+    println((updated--).value)
+    println(updated.value)
+
+    println((Score(9) - Score(4)).value)
+    println((Score(3) * Score(4)).value)
+    println((Score(12) / Score(3)).value)
+    println((Score(14) % Score(4)).value)
+    println((Score(3) * 5).value)
+    println((Score(3)..Score(8)).value)
+    println((Score(3)..<Score(8)).value)
+    println(Score(2) < Score(3))
+    println(Score(3) >= Score(3))
+    println(Score(7) in Bag(7))
+    println(Score(8) !in Bag(7))
+    println((Score(1) merge Score(2) merge Score(3)).value)
+
+    println((markScore("left", 1) + markScore("right", 2)).value)
+    println(markScore("item", 7) in markBag("container", 7))
+
+    updated += Score(10)
+    println(updated.value)
+
+    val cell = Cell(1)
+    cell += 4
+    cell[1, 2] = 10
+    println(cell[1])
+    makeCell()[markIndex("row", 1), markIndex("column", 2)] =
+        markIndex("set-value", 10)
+
+    val (x, y) = Coordinates(20, 22)
+    println(x + y)
+
+    println("alpha" < "beta")
+    println(!false)
+}

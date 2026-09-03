@@ -1275,26 +1275,14 @@ Module
         BoolLiteral false
       goto bb3
     bb2 if.else.2
-      branch bb4 bb5
+      assign $result.0
         Type Boolean
-        Binary IntEq
-          Type Int
-          EnumTag
-            Type Option$C9_ThrowableX<Throwable>
-            Local $when.1
-          Type Int
-          IntLiteral 1
+        BoolLiteral true
+      goto bb3
     bb3 if.merge.3
       return
         Type Boolean
         Local $result.0
-    bb4 if.then.4
-      assign $result.0
-        Type Boolean
-        BoolLiteral true
-      goto bb5
-    bb5 if.merge.5
-      goto bb3
   fun ForeignCallbackState.equals @scoop.ForeignCallbackState.equals(this: ForeignCallbackState, other: ForeignCallbackState) -> Boolean
     bb0 entry
       val $when.1: ForeignCallbackState
@@ -1393,13 +1381,16 @@ Module
           Type Int
           IntLiteral 2
     bb14 if.else.14
+      val $when.5: ForeignCallbackState
+        Type ForeignCallbackState
+        Local other
       branch bb19 bb20
         Type Boolean
         Binary IntEq
           Type Int
           EnumTag
             Type ForeignCallbackState
-            Local $when.1
+            Local $when.5
           Type Int
           IntLiteral 3
     bb15 if.merge.15
@@ -1415,30 +1406,15 @@ Module
     bb18 if.merge.18
       goto bb15
     bb19 if.then.19
-      val $when.5: ForeignCallbackState
-        Type ForeignCallbackState
-        Local other
-      branch bb21 bb22
-        Type Boolean
-        Binary IntEq
-          Type Int
-          EnumTag
-            Type ForeignCallbackState
-            Local $when.5
-          Type Int
-          IntLiteral 3
-    bb20 if.merge.20
-      goto bb15
-    bb21 if.then.21
       return
         Type Boolean
         BoolLiteral true
-    bb22 if.else.22
+    bb20 if.else.20
       return
         Type Boolean
         BoolLiteral false
-    bb23 if.merge.23
-      goto bb20
+    bb21 if.merge.21
+      goto bb15
   fun ctor.Throwable @scoop.ctor.Throwable() -> Throwable
     bb0 entry
       return
@@ -2851,16 +2827,10 @@ Module
     store false -> local0
     br @if.merge.3
   block if.else.2
-    t2 = enum_tag e3 local1 : i64
-    t3 = Eq t2, 1 : i1
-    cbr t3 then @if.then.4 else @if.merge.5
+    store true -> local0
+    br @if.merge.3
   block if.merge.3
     ret local0
-  block if.then.4
-    store true -> local0
-    br @if.merge.5
-  block if.merge.5
-    br @if.merge.3
   fun @scoop.ForeignCallbackState.equals(enum5, enum5) -> i1
     local %0 $when.1: enum5
     local %1 $when.2: enum5
@@ -2882,8 +2852,6 @@ Module
     t4 = enum_tag e5 local0 : i64
     t5 = Eq t4, 1 : i1
     cbr t5 then @if.then.7 else @if.else.8
-  block if.merge.3
-    unreachable
   block if.then.4
     ret true
   block if.else.5
@@ -2897,8 +2865,6 @@ Module
     t8 = enum_tag e5 local0 : i64
     t9 = Eq t8, 2 : i1
     cbr t9 then @if.then.13 else @if.else.14
-  block if.merge.9
-    br @if.merge.3
   block if.then.10
     ret true
   block if.else.11
@@ -2909,25 +2875,17 @@ Module
     t11 = Eq t10, 2 : i1
     cbr t11 then @if.then.16 else @if.else.17
   block if.else.14
-    t12 = enum_tag e5 local0 : i64
+    store param1 -> local4
+    t12 = enum_tag e5 local4 : i64
     t13 = Eq t12, 3 : i1
-    cbr t13 then @if.then.19 else @if.merge.20
-  block if.merge.15
-    br @if.merge.9
+    cbr t13 then @if.then.19 else @if.else.20
   block if.then.16
     ret true
   block if.else.17
     ret false
   block if.then.19
-    store param1 -> local4
-    t14 = enum_tag e5 local4 : i64
-    t15 = Eq t14, 3 : i1
-    cbr t15 then @if.then.21 else @if.else.22
-  block if.merge.20
-    br @if.merge.15
-  block if.then.21
     ret true
-  block if.else.22
+  block if.else.20
     ret false
   fun @scoop.ctor.Throwable() -> ptr<managed>
   block entry
