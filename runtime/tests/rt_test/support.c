@@ -1,0 +1,173 @@
+#include "support.h"
+
+/* Matches the layout of the @scoop_td_String global emitted by codegen.
+ * Non-static: rt.c references it from scoop_rt_string_concat. size is
+ * the fixed part (16-byte header + len); Strings have no references,
+ * so the scan descriptor is NULL. */
+const ScoopTypeDescriptor scoop_td_String = {1, 24, 8, NULL, NULL, NULL, NULL, 0, "String"};
+
+/* Same layout codegen uses for StringConst globals:
+ * { td, gc_word, len, data } (16-byte header, runtime spec 2.4). */
+
+
+const FiveCharConst hello = {&scoop_td_String, 0, 5, {'h', 'e', 'l', 'l', 'o'}};
+const FiveCharConst world = {&scoop_td_String, 0, 5, {'w', 'o', 'r', 'l', 'd'}};
+
+/* M6 dispatch fixtures: interface Describable; class Shape; class
+ * Point : Shape, Describable (vtable contains its ordinary describe method). Sizes
+ * include the 16-byte header. */
+static int64_t point_describe(const void *self) {
+    (void)self;
+    return 7;
+}
+
+const ScoopTypeDescriptor describable_td = {
+    1002, 0, 8, NULL, NULL, NULL, NULL, 0, "Describable"};
+const void *const point_describable_slots[] = {(const void *)&point_describe};
+static const ScoopItableEntry point_itables[] = {{&describable_td, point_describable_slots}};
+static const void *const point_vtable[] = {(const void *)&point_describe};
+const ScoopTypeDescriptor shape_td = {1000, 24, 8, NULL, NULL, NULL, NULL, 0, "Shape"};
+const ScoopTypeDescriptor point_td = {
+    1001, 32, 8, NULL, &shape_td, point_vtable, point_itables, 1, "Point"};
+
+/* M9 GC fixtures. */
+
+/* class Node { value: i64, next: Node? } — plain layout, one reference
+ * at object offset 24. */
+
+static const uint64_t node_refs[] = {1, 24};
+const ScoopTypeDescriptor node_td = {
+    2000, 32, 8, node_refs, NULL, NULL, NULL, 0, "Node"};
+
+/* Exact image metadata normally emitted by codegen. The managed global uses
+ * an inline-value scan rooted at its writable pointer slot; String literals
+ * are immutable, GC-free-payload managed objects with stable addresses. */
+ScoopNode *image_global_rooted;
+void *image_immortal_rooted;
+static const uint64_t image_global_scan[] = {1, 0};
+const ScoopManagedGlobalDescriptor scoop_image_managed_globals[] = {
+    {&image_global_rooted, image_global_scan}};
+const uint64_t scoop_image_managed_global_count = 1;
+const ScoopImmortalObjectDescriptor scoop_image_immortal_objects[] = {
+    {&hello, sizeof hello, &scoop_td_String},
+    {&world, sizeof world, &scoop_td_String},
+};
+const uint64_t scoop_image_immortal_object_count = 2;
+
+/* 64-byte plain object without references: exactly two per line, for
+ * the free-line reuse test. */
+
+const ScoopTypeDescriptor big64_td = {2001, 64, 8, NULL, NULL, NULL, NULL, 0, "Big64"};
+
+/* Array with reference elements (recursive SCOOP_REFS_ARRAY scan);
+ * `size` in the TD is the element stride (pointer). */
+static const uint64_t ref_element_scan[] = {1, 0};
+static const uint64_t ref_array_scan[] = {
+    SCOOP_REFS_ARRAY, 8, (uint64_t)(uintptr_t)ref_element_scan};
+static const ScoopTypeDescriptor ref_array_td = {
+    2100, 8, 8, ref_array_scan, NULL, NULL, NULL, 0, "Array<String>"};
+
+/* Boxed tagged enum E { A(String), B(i64) }: B uses the shared pure
+ * slot; A has its own ref-bearing slot. */
+
+static const uint64_t enum_scan[] = {1, 32};
+static const ScoopTypeDescriptor enum_td = {
+    2002, 40, 8, enum_scan, NULL, NULL, NULL, 0, "E"};
+
+/* Array<Nested>, where each inline element is
+ * { tagged enum E, tail: String }. The sequence combines the
+ * unconditional tail reference with a tag-selected payload scan;
+ * the array wrapper repeats that recursive element scan by stride. */
+
+static const uint64_t nested_element_scan[] = {2, 16, 24};
+static const uint64_t nested_array_scan[] = {
+    SCOOP_REFS_ARRAY, sizeof(ScoopNestedElement),
+    (uint64_t)(uintptr_t)nested_element_scan};
+static const ScoopTypeDescriptor nested_array_td = {
+    2101, sizeof(ScoopNestedElement), 8, nested_array_scan,
+    NULL, NULL, NULL, 0, "Array<Nested>"};
+
+ScoopNode *new_node(int64_t value, ScoopNode *next) {
+    ScoopNode *node = scoop_rt_alloc(&node_td, sizeof(ScoopNode));
+    node->value = value;
+    node->next = next;
+    return node;
+}
+
+/* Garbage is created inside helpers so the only references live in
+ * the helper's (dead) frame after it returns. */
+void make_garbage_nodes(int count) {
+    for (int i = 0; i < count; i++) {
+        ScoopNode *junk = new_node(i, NULL);
+        (void)junk;
+    }
+}
+
+void make_garbage_big64(void) {
+    for (int i = 0; i < 4; i++) {
+        ScoopBig64 *victim = scoop_rt_alloc(&big64_td, sizeof(ScoopBig64));
+        victim->words[0] = -1;
+    }
+}
+
+/* Enough 64B garbage to overrun one 32KB block and spill into the
+ * next (600 * 64B > 255 usable lines). */
+void make_garbage_big64_many(void) {
+    for (int i = 0; i < 600; i++) {
+        ScoopBig64 *victim = scoop_rt_alloc(&big64_td, sizeof(ScoopBig64));
+        victim->words[0] = -1;
+    }
+}
+
+ScoopArray *make_ref_array(void) {
+    ScoopArray *array = scoop_rt_alloc(&ref_array_td, sizeof(ScoopArray) + 2 * sizeof(uint64_t));
+    array->size = 2;
+    const ScoopString **elements = (const ScoopString **)array->elements;
+    elements[0] = scoop_rt_int_to_string(1001);
+    elements[1] = scoop_rt_int_to_string(1002);
+    return array;
+}
+
+ScoopBoxedEnum *make_boxed_enum_a(void) {
+    ScoopBoxedEnum *e = scoop_rt_alloc(&enum_td, sizeof(ScoopBoxedEnum));
+    e->tag = 0;
+    e->a_ref = scoop_rt_int_to_string(1003);
+    return e;
+}
+
+ScoopBoxedEnum *make_boxed_enum_b(void) {
+    ScoopBoxedEnum *e = scoop_rt_alloc(&enum_td, sizeof(ScoopBoxedEnum));
+    e->tag = 1;
+    e->pure_payload = 0xDEADBEEF0; /* pure-value payload is not scanned */
+    return e;
+}
+
+ScoopArray *make_nested_array(void) {
+    ScoopArray *array = scoop_rt_alloc(
+        &nested_array_td,
+        sizeof(ScoopArray) + 2 * sizeof(ScoopNestedElement));
+    array->size = 2;
+    ScoopNestedElement *elements = (ScoopNestedElement *)array->elements;
+    elements[0].tag = 0;
+    elements[0].a_ref = scoop_rt_int_to_string(1004);
+    elements[0].tail = scoop_rt_int_to_string(1005);
+    elements[1].tag = 1;
+    elements[1].pure_payload = UINT64_C(0xDEADBEEF0);
+    elements[1].tail = scoop_rt_int_to_string(1006);
+    return array;
+}
+
+/* Overwrite the dead stack region below the current frame so the
+ * conservative stack scan no longer finds stale object pointers left
+ * behind by helpers that have returned (v1 transition-era helper; see
+ * the file header comment). */
+void clobber_stack(void) {
+    volatile uint64_t buf[2048];
+    for (size_t i = 0; i < 2048; i++) {
+        buf[i] = 0;
+    }
+}
+
+/* Static slot registered as a global root (not on the stack, so only
+ * the root registration keeps its value alive). */
+ScoopNode *global_rooted;
