@@ -204,6 +204,7 @@ impl Lowerer {
                 function,
                 function_type,
                 owner_type_param_count: type_params.len(),
+                body_type_arguments: hir::CallableBodyTypeArguments::Lexical,
                 captures,
                 span,
             });

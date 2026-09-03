@@ -159,6 +159,16 @@ fn rewrite_expr(expr: &mut mir::Expr, managed: mir::LocalId, managed_ty: &mir::T
                 rewrite_expr(element, managed, managed_ty);
             }
         }
+        mir::ExprKind::ArrayAssembly { parts, .. } => {
+            for part in parts {
+                match part {
+                    mir::ArrayAssemblyPart::Element(value)
+                    | mir::ArrayAssemblyPart::CopyArray(value) => {
+                        rewrite_expr(value, managed, managed_ty)
+                    }
+                }
+            }
+        }
         mir::ExprKind::Retype { operand, .. }
         | mir::ExprKind::ClosureCapture {
             closure: operand, ..

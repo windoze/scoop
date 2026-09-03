@@ -351,7 +351,6 @@ impl Harness {
                 .map(|variant| hir::Variant {
                     name: (*variant).to_string(),
                     fields: Vec::new(),
-                    defaults: Vec::new(),
                 })
                 .collect()
         };
@@ -397,6 +396,9 @@ impl Harness {
             bound_callable_refs: Arena::new(),
             function_coercions: Arena::new(),
             foreign_callback_registrations: Arena::new(),
+            source_parameter_interfaces: Vec::new(),
+            export_default_exprs: Arena::new(),
+            export_vararg_parameter_types: Arena::new(),
             functions: self.functions,
             extern_functions: self.extern_functions,
             globals: Arena::new(),

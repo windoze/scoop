@@ -233,6 +233,16 @@ impl Lowerer {
                     self.collect_generic_calls_in_expr(caller, element, out);
                 }
             }
+            ExprKind::ArrayAssembly(assembly) => {
+                for part in &assembly.parts {
+                    match part {
+                        hir::ArrayAssemblyPart::Element(value)
+                        | hir::ArrayAssemblyPart::CopyArray(value) => {
+                            self.collect_generic_calls_in_expr(caller, value, out)
+                        }
+                    }
+                }
+            }
             ExprKind::StructInit { args, .. }
             | ExprKind::ClassInit { args, .. }
             | ExprKind::VariantConstruct { args, .. } => {

@@ -120,6 +120,8 @@ impl Lowerer {
                 .declare(decl.name.text.clone(), local);
         }
 
+        self.lower_local_parameter_interface(function);
+
         let capture_environment = self.capture_environment();
         let outer_locals = std::mem::take(&mut self.locals);
         let outer_scopes = std::mem::replace(&mut self.scopes, Scopes::new());

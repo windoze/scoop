@@ -173,7 +173,7 @@ impl Lowerer {
         if expected_arguments.len() != view.owner_parameters.len() {
             return None;
         }
-        let argument_map = CandidateArgumentMap::exact_nominal(view, call.args.len()).ok()?;
+        let argument_map = CandidateArgumentMap::source_nominal(view, &call.args).ok()?;
         let explicit_arguments = self.resolve_call_type_args(&call.type_args)?;
         if !explicit_arguments.is_empty() && explicit_arguments.len() != view.owner_parameters.len()
         {

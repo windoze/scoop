@@ -18,6 +18,7 @@ impl Lowerer {
         let resolved = self.resolve_member_overload(
             name,
             &candidates,
+            receiver,
             crate::overload::OverloadCall {
                 explicit_type_args: &explicit_type_args,
                 arg_exprs: call.args,
@@ -27,6 +28,10 @@ impl Lowerer {
             sink,
         )?;
         let ty = resolved.return_ty;
+        let receiver = resolved
+            .receiver
+            .clone()
+            .expect("an instance call returns its materialized receiver");
         let function = resolved.function();
         self.check_call_effects(hir::Callable::Function(function), call.span);
         if let Some(expr) = self.normalize_array_method_call(

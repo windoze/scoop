@@ -108,6 +108,25 @@ pub(super) fn annotate_root_plans(
                         enums,
                     ))
                 }
+                lir::Instruction::ArrayAssembly { parts, .. } => {
+                    let mut allocation_live = live.clone();
+                    include_managed_operands(
+                        &mut allocation_live,
+                        parts.iter().map(|part| match part {
+                            lir::ArrayAssemblyPart::Element(value)
+                            | lir::ArrayAssemblyPart::CopyArray(value) => *value,
+                        }),
+                        function,
+                        structs,
+                        enums,
+                    );
+                    RootPlan::Statepoint(statepoint_live_set(
+                        &allocation_live,
+                        function,
+                        structs,
+                        enums,
+                    ))
+                }
                 lir::Instruction::ArrayClone { operand, .. } => {
                     let mut roots = live.clone();
                     include_managed_operands(&mut roots, [*operand], function, structs, enums);
@@ -184,6 +203,10 @@ pub(super) fn annotate_root_plans(
                 }
                 (
                     lir::Instruction::ArrayAlloc {
+                        live: instruction_live,
+                        ..
+                    }
+                    | lir::Instruction::ArrayAssembly {
                         live: instruction_live,
                         ..
                     }

@@ -117,6 +117,26 @@ impl Lowerer {
             return None;
         };
         let signature = self.function_types[function_type].clone();
+        if let Some(argument) = args
+            .iter()
+            .find(|argument| !matches!(argument.name, ast::CallArgumentName::Positional))
+        {
+            self.error(
+                argument.span,
+                "function values do not accept named arguments".to_string(),
+            );
+            return None;
+        }
+        if let Some(argument) = args
+            .iter()
+            .find(|argument| matches!(argument.spread, ast::SpreadSyntax::Spread(_)))
+        {
+            self.error(
+                argument.span,
+                "function values do not accept spread arguments".to_string(),
+            );
+            return None;
+        }
         if signature.parameter_types.len() != args.len() {
             self.error(
                 span,

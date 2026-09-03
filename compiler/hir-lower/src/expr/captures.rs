@@ -101,7 +101,7 @@ impl Lowerer {
         })
     }
 
-    pub(super) fn lower_capture_binding(
+    pub(crate) fn lower_capture_binding(
         &mut self,
         binding: hir::BindingId,
         fallback_name: &str,

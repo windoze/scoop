@@ -203,6 +203,7 @@ impl Lowerer {
                         render_callable_constraint_failure(
                             &failure.state,
                             &failure.view,
+                            None,
                             &[],
                             constraint,
                         )

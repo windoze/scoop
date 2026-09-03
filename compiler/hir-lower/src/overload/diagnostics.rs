@@ -107,10 +107,9 @@ fn render_candidate_failure(candidate: &Candidate, failure: &CandidateProbeFailu
             expected,
             supplied,
         }) => format!("expects {expected} explicit type argument(s), but {supplied} were supplied"),
-        CandidateProbeFailureKind::Shape(CandidateShapeFailure::ArgumentArity {
-            expected,
-            supplied,
-        }) => format!("expects {expected} argument(s), but {supplied} were supplied"),
+        CandidateProbeFailureKind::Shape(CandidateShapeFailure::Argument(failure)) => {
+            failure.describe()
+        }
         CandidateProbeFailureKind::Expression {
             source_index,
             expected,
@@ -118,9 +117,16 @@ fn render_candidate_failure(candidate: &Candidate, failure: &CandidateProbeFailu
             ..
         } => {
             let parameter = candidate
-                .view
-                .value_parameters
-                .get(*source_index)
+                .argument_map
+                .as_ref()
+                .ok()
+                .map(|mapping| {
+                    let (parameter, _) = mapping.source_binding(
+                        crate::call_resolution::arguments::SourceInputId::from_index(*source_index),
+                    );
+                    parameter.index()
+                })
+                .and_then(|index| candidate.view.value_parameters.get(index))
                 .map(|parameter| format!("argument for `{}`", parameter.name))
                 .unwrap_or_else(|| format!("argument {}", source_index + 1));
             match expected {
@@ -135,6 +141,7 @@ fn render_candidate_failure(candidate: &Candidate, failure: &CandidateProbeFailu
         CandidateProbeFailureKind::Constraint(constraint) => render_callable_constraint_failure(
             &failure.state,
             &candidate.view,
+            candidate.argument_map.as_ref().ok(),
             &failure.arguments,
             constraint,
         ),

@@ -194,6 +194,7 @@ pub enum ExprKind {
         optional: bool,
     },
     ArrayLiteral(Vec<Expr>),
+    ArrayAssembly(ArrayAssembly),
     Index {
         receiver: Box<Expr>,
         index: Box<Expr>,
@@ -231,6 +232,19 @@ pub enum ExprKind {
         operand: Box<Expr>,
         trap_on_none: bool,
     },
+}
+
+#[derive(Debug, Clone)]
+pub struct ArrayAssembly {
+    pub element_type: TypeId,
+    pub parts: Vec<ArrayAssemblyPart>,
+    pub result_type: ClassId,
+}
+
+#[derive(Debug, Clone)]
+pub enum ArrayAssemblyPart {
+    Element(Expr),
+    CopyArray(Expr),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

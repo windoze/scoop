@@ -26,24 +26,17 @@ impl Lowerer {
         let source_ty = self.class_application(self.array_class(source_kind), vec![parameter_ty]);
         view.value_parameters = vec![crate::call_resolution::candidates::ValueParameter {
             name: "source".to_string(),
+            calling: crate::defaults::SourceParameterCalling::Required,
             ty: source_ty,
         }];
 
         let argument_map =
-            match crate::call_resolution::arguments::CandidateArgumentMap::exact_nominal(
-                &view,
-                call.args.len(),
+            match crate::call_resolution::arguments::CandidateArgumentMap::source_nominal(
+                &view, &call.args,
             ) {
                 Ok(argument_map) => argument_map,
-                Err(mismatch) => {
-                    self.diagnose_nominal_shape_failure(
-                        &view,
-                        call.span,
-                        format!(
-                            "expects {} argument(s), but {} were supplied",
-                            mismatch.expected, mismatch.supplied
-                        ),
-                    );
+                Err(failure) => {
+                    self.diagnose_nominal_shape_failure(&view, call.span, failure.describe());
                     return None;
                 }
             };

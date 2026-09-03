@@ -175,7 +175,6 @@ pub struct Variant {
     pub name: String,
     pub gc_free: bool,
     pub fields: Vec<Field>,
-    pub defaults: Vec<Option<Expr>>,
 }
 
 #[derive(Debug, Clone)]

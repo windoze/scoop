@@ -144,6 +144,16 @@ fn patch_local_function_call_expr(
                 patch_local_function_call_expr(element, target, target_captures);
             }
         }
+        hir::ExprKind::ArrayAssembly(assembly) => {
+            for part in &mut assembly.parts {
+                match part {
+                    hir::ArrayAssemblyPart::Element(value)
+                    | hir::ArrayAssemblyPart::CopyArray(value) => {
+                        patch_local_function_call_expr(value, target, target_captures)
+                    }
+                }
+            }
+        }
         hir::ExprKind::FieldAccess { receiver, .. }
         | hir::ExprKind::ForeignCallbackRegister {
             closure: receiver, ..

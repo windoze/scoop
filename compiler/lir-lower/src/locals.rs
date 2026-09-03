@@ -27,6 +27,14 @@ pub(super) fn address_taken(function: &mir::Function) -> HashSet<mir::LocalId> {
                     collect_expr(value, out);
                 }
             }
+            mir::ExprKind::ArrayAssembly { parts, .. } => {
+                for part in parts {
+                    match part {
+                        mir::ArrayAssemblyPart::Element(value)
+                        | mir::ArrayAssemblyPart::CopyArray(value) => collect_expr(value, out),
+                    }
+                }
+            }
             mir::ExprKind::Retype { operand, .. }
             | mir::ExprKind::ClosureCapture {
                 closure: operand, ..

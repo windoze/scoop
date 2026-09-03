@@ -51,6 +51,15 @@ pub(crate) fn call(name: &str, args: Vec<Expr>) -> Expr {
     })
 }
 
+pub(crate) fn source_call(name: &str, args: Vec<ast::CallArgument>) -> Expr {
+    Expr::Call(CallExpr {
+        callee: ident(name),
+        type_args: Vec::new(),
+        args,
+        span: sp(),
+    })
+}
+
 pub(crate) fn typed_call(name: &str, type_args: Vec<TypeRef>, args: Vec<Expr>) -> Expr {
     Expr::Call(CallExpr {
         callee: ident(name),
@@ -76,6 +85,24 @@ pub(crate) fn call_arguments(args: Vec<Expr>) -> Vec<ast::CallArgument> {
     args.into_iter()
         .map(ast::CallArgument::positional)
         .collect()
+}
+
+pub(crate) fn named_argument(name: &str, expression: Expr) -> ast::CallArgument {
+    ast::CallArgument {
+        name: ast::CallArgumentName::Named(ident(name)),
+        spread: ast::SpreadSyntax::Plain,
+        expression,
+        span: sp(),
+    }
+}
+
+pub(crate) fn spread_argument(expression: Expr) -> ast::CallArgument {
+    ast::CallArgument {
+        name: ast::CallArgumentName::Positional,
+        spread: ast::SpreadSyntax::Spread(sp()),
+        expression,
+        span: sp(),
+    }
 }
 
 pub(crate) fn field(receiver: Expr, name: &str) -> Expr {

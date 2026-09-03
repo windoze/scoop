@@ -16,6 +16,16 @@ pub(crate) fn method_call(receiver: Expr, name: &str, args: Vec<Expr>) -> Expr {
     }
 }
 
+pub(crate) fn source_method_call(receiver: Expr, name: &str, args: Vec<ast::CallArgument>) -> Expr {
+    Expr::MethodCall {
+        receiver: Box::new(receiver),
+        name: ident(name),
+        type_args: Vec::new(),
+        args,
+        span: sp(),
+    }
+}
+
 pub(crate) fn typed_method_call(
     receiver: Expr,
     name: &str,

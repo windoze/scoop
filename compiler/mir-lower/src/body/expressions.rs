@@ -174,6 +174,27 @@ impl BodyLowerer<'_> {
                     elements: elements.iter().map(|e| self.lower_expr(e)).collect(),
                 }
             }
+            hir::ExprKind::ArrayAssembly(assembly) => {
+                let mir::Type::Class(array_type) = self.lower_type(expr.ty) else {
+                    unreachable!("an array assembly has an intrinsic class type")
+                };
+                debug_assert_eq!(array_type, self.class_map[&assembly.result_type]);
+                smir::ExprKind::ArrayAssembly {
+                    array_type,
+                    parts: assembly
+                        .parts
+                        .iter()
+                        .map(|part| match part {
+                            hir::ArrayAssemblyPart::Element(value) => {
+                                smir::ArrayAssemblyPart::Element(self.lower_expr(value))
+                            }
+                            hir::ArrayAssemblyPart::CopyArray(value) => {
+                                smir::ArrayAssemblyPart::CopyArray(self.lower_expr(value))
+                            }
+                        })
+                        .collect(),
+                }
+            }
             // Subscript read. M8: the bounds check moved here from
             // codegen — the array and the index are evaluated once
             // into hidden locals, then `IndexOutOfBoundsException`

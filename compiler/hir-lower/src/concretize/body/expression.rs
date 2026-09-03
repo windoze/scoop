@@ -227,6 +227,32 @@ impl Concretizer<'_> {
                     .map(|element| self.lower_expr(element, substitution, locals))
                     .collect(),
             ),
+            export::ExprKind::ArrayAssembly(assembly) => {
+                concrete::ExprKind::ArrayAssembly(concrete::ArrayAssembly {
+                    element_type: self.lower_type(assembly.element_type, substitution),
+                    parts: assembly
+                        .parts
+                        .iter()
+                        .map(|part| match part {
+                            export::ArrayAssemblyPart::Element(value) => {
+                                concrete::ArrayAssemblyPart::Element(self.lower_expr(
+                                    value,
+                                    substitution,
+                                    locals,
+                                ))
+                            }
+                            export::ArrayAssemblyPart::CopyArray(value) => {
+                                concrete::ArrayAssemblyPart::CopyArray(self.lower_expr(
+                                    value,
+                                    substitution,
+                                    locals,
+                                ))
+                            }
+                        })
+                        .collect(),
+                    result_type: self.lower_class_application(assembly.result_type, substitution),
+                })
+            }
             export::ExprKind::Index { receiver, index } => concrete::ExprKind::Index {
                 receiver: Box::new(self.lower_expr(receiver, substitution, locals)),
                 index: Box::new(self.lower_expr(index, substitution, locals)),

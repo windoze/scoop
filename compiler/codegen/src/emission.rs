@@ -128,6 +128,17 @@ pub(crate) fn emit_llvm_module<'ctx>(
     } else {
         None
     };
+    let array_size_message = if module_uses_array_assembly(module) {
+        let bytes = b"array size overflow";
+        let ty = i8_ty.array_type(bytes.len() as u32 + 1);
+        let global = llvm.add_global(ty, None, "scoop.trap.array_size");
+        global.set_constant(true);
+        global.set_linkage(inkwell::module::Linkage::Private);
+        global.set_initializer(&context.const_string(bytes, true));
+        Some(global)
+    } else {
+        None
+    };
 
     // Ordinary globals are disjoint from descriptor identities.
     let mut globals: Vec<Option<GlobalValue>> = Vec::with_capacity(module.globals.len());
@@ -228,6 +239,7 @@ pub(crate) fn emit_llvm_module<'ctx>(
         external_type_tds: &external_type_tds,
         target_data: &target_data,
         bounds_message,
+        array_size_message,
     };
     for function in &module.functions {
         declare_function(

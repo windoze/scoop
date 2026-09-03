@@ -252,6 +252,10 @@ pub enum ExprKind {
     },
     /// `[e1, ...]`; the kind (Array vs MutableArray) is in `Expr::ty`.
     ArrayLiteral(Vec<Expr>),
+    /// Fresh immutable-array assembly used by positional `vararg` calls.
+    /// Every part is an already evaluated temporary read; `CopyArray` always
+    /// copies, including the single-spread case.
+    ArrayAssembly(ArrayAssembly),
     /// Subscript read `receiver[index]`; result is the element type.
     Index {
         receiver: Box<Expr>,
@@ -307,6 +311,19 @@ pub enum ExprKind {
         operand: Box<Expr>,
         trap_on_none: bool,
     },
+}
+
+#[derive(Debug, Clone)]
+pub struct ArrayAssembly {
+    pub element_type: TypeId,
+    pub parts: Vec<ArrayAssemblyPart>,
+    pub result_type: ClassApplicationId,
+}
+
+#[derive(Debug, Clone)]
+pub enum ArrayAssemblyPart {
+    Element(Expr),
+    CopyArray(Expr),
 }
 
 /// Source-level method target. Ordinary receivers already name a resolved

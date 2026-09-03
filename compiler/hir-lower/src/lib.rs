@@ -94,11 +94,13 @@
 //! are ordinary test-only intrinsics.
 
 mod annotations;
+mod argument_materialization;
 mod call_resolution;
 mod class;
 mod concretize;
 mod core_contract;
 mod declarations;
+mod defaults;
 mod derived;
 mod effects;
 mod expr;
@@ -254,6 +256,12 @@ pub(crate) struct Lowerer {
     pub(crate) bound_callable_refs: Arena<hir::BoundCallableRef>,
     pub(crate) function_coercions: Arena<hir::FunctionCoercion>,
     pub(crate) foreign_callback_registrations: Arena<hir::ForeignCallbackRegistration>,
+    pub(crate) source_parameter_interfaces: Vec<hir::ExportParameterInterface>,
+    pub(crate) export_default_exprs: Arena<hir::ExportDefaultExpr>,
+    pub(crate) export_vararg_parameter_types: Arena<hir::ExportVarargParameterType>,
+    pub(crate) local_default_exprs: Arena<defaults::LocalDefaultExpr>,
+    pub(crate) default_templates:
+        HashMap<(defaults::SourceParameterOwner, u32), defaults::DefaultExprTemplateRef>,
     pub(crate) function_coercion_by_types:
         HashMap<(hir::FunctionTypeId, hir::FunctionTypeId), hir::FunctionCoercionId>,
     pub(crate) structs: Arena<StructDecl>,
@@ -365,6 +373,7 @@ pub(crate) struct Lowerer {
     pub(crate) interface_method_entities: Arena<hir::InterfaceMethod>,
     /// The owner of every member function.
     pub(crate) function_owner: HashMap<FunctionId, Owner>,
+    pub(crate) override_sources: HashMap<FunctionId, Vec<FunctionId>>,
     /// Enums named `Option` declared in core files:
     /// (declaration, file index, span, type parameter count). Validated
     /// after pass 1 (`validate_option_enum`).
@@ -386,6 +395,12 @@ pub(crate) struct Lowerer {
     pub(crate) throwable: Option<(ClassId, TypeId)>,
     /// Surface form of every variant, for pattern shape checks.
     pub(crate) variant_styles: HashMap<(EnumId, u32), VariantStyle>,
+    /// Source-call protocols for nominal constructor parameters. Layout
+    /// fields intentionally do not carry call syntax; these typed owner maps
+    /// preserve it until complete Export HIR parameter entities are built.
+    pub(crate) struct_parameter_calling: HashMap<StructId, Vec<FnParamCalling>>,
+    pub(crate) class_parameter_calling: HashMap<ClassId, Vec<FnParamCalling>>,
+    pub(crate) variant_parameter_calling: HashMap<(EnumId, u32), Vec<FnParamCalling>>,
     /// Resolved signatures of all functions (pass 2.5), consulted by
     /// call lowering and body lowering. Method signatures exclude the
     /// implicit `this` parameter.

@@ -224,6 +224,15 @@ pub enum Instruction {
         safepoint: SafepointId,
         live: StatepointLiveSet,
     },
+    /// Allocate one fresh array and fill it from already evaluated element
+    /// values and source arrays. Source arrays are copied in order.
+    ArrayAssembly {
+        out: TempId,
+        parts: Vec<ArrayAssemblyPart>,
+        array_type: ArrayTypeId,
+        safepoint: SafepointId,
+        live: StatepointLiveSet,
+    },
     /// `array.size` (result `I64`).
     ArrayLen {
         out: TempId,
@@ -278,6 +287,12 @@ pub enum Instruction {
         index: u32,
         operand: Value,
     },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ArrayAssemblyPart {
+    Element(Value),
+    CopyArray(Value),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

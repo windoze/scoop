@@ -12,8 +12,15 @@ impl Concretizer<'_> {
             return id;
         }
         let source = self.source.lambdas[source_id].clone();
+        let body_arguments = match &source.body_type_arguments {
+            export::CallableBodyTypeArguments::Lexical => substitution.to_vec(),
+            export::CallableBodyTypeArguments::Explicit(arguments) => arguments
+                .iter()
+                .map(|&argument| self.lower_type(argument, substitution))
+                .collect(),
+        };
         let value = concrete::Lambda {
-            function: self.request_function(source.function, substitution.to_vec()),
+            function: self.request_function(source.function, body_arguments),
             function_type: self.lower_function_type(source.function_type, substitution),
             captures: source
                 .captures
@@ -38,8 +45,15 @@ impl Concretizer<'_> {
             return id;
         }
         let source = self.source.anonymous_functions[source_id].clone();
+        let body_arguments = match &source.body_type_arguments {
+            export::CallableBodyTypeArguments::Lexical => substitution.to_vec(),
+            export::CallableBodyTypeArguments::Explicit(arguments) => arguments
+                .iter()
+                .map(|&argument| self.lower_type(argument, substitution))
+                .collect(),
+        };
         let value = concrete::AnonymousFunction {
-            function: self.request_function(source.function, substitution.to_vec()),
+            function: self.request_function(source.function, body_arguments),
             function_type: self.lower_function_type(source.function_type, substitution),
             captures: source
                 .captures

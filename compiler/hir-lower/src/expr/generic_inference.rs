@@ -3,6 +3,7 @@
 use super::*;
 
 use crate::call_resolution::applicability::NominalApplicabilityInput;
+use crate::call_resolution::arguments::SourceInputKind;
 use crate::call_resolution::candidates::{NominalConstructorSource, NominalConstructorView};
 use crate::call_resolution::constraints::{
     ConstraintFailure, ConstraintFailureKind, ConstraintOrigin,
@@ -25,7 +26,7 @@ impl Lowerer {
             expected_type_args: expected_arguments,
             span,
         } = input;
-        debug_assert_eq!(argument_map.parameters.len(), arg_exprs.len());
+        debug_assert_eq!(argument_map.source_order.len(), arg_exprs.len());
         let mut seed = vec![None; view.owner_parameters.len()];
         if !explicit_arguments.is_empty() {
             for (binding, &argument) in seed.iter_mut().zip(explicit_arguments) {
@@ -40,9 +41,29 @@ impl Lowerer {
         let mut lowered = vec![None; arg_exprs.len()];
         let mut sinks: Vec<Vec<hir::Statement>> =
             (0..arg_exprs.len()).map(|_| Vec::new()).collect();
-        for input in &argument_map.parameters {
-            let source_index = input.input.index();
-            let parameter = view.value_parameters[input.parameter.index()].ty;
+        for input in &argument_map.source_order {
+            let source_index = input.index();
+            let (parameter, kind) = argument_map.source_binding(*input);
+            let parameter = &view.value_parameters[parameter.index()];
+            let parameter = match (&parameter.calling, kind) {
+                (
+                    crate::defaults::SourceParameterCalling::Vararg {
+                        element_type: element_ty,
+                        ..
+                    },
+                    SourceInputKind::VarargElement,
+                ) => *element_ty,
+                (
+                    crate::defaults::SourceParameterCalling::Vararg { .. },
+                    SourceInputKind::VarargArray,
+                )
+                | (
+                    crate::defaults::SourceParameterCalling::Required
+                    | crate::defaults::SourceParameterCalling::Default(_),
+                    SourceInputKind::Value,
+                ) => parameter.ty,
+                _ => unreachable!("argument mapping fixes each input shape"),
+            };
             let hint = self.try_substitute(parameter, &seed);
             if hint.is_none()
                 && self.expr_requires_expected_type(&arg_exprs[source_index].expression)
@@ -87,18 +108,38 @@ impl Lowerer {
                     )?);
                 }
                 Err(failure) => {
-                    self.diagnose_nominal_failure(view, &lowered, failure, span);
+                    self.diagnose_nominal_failure(view, argument_map, &lowered, failure, span);
                     return None;
                 }
             }
         };
 
-        for input in &argument_map.parameters {
-            let source_index = input.input.index();
+        for input in &argument_map.source_order {
+            let source_index = input.index();
             if lowered[source_index].is_some() {
                 continue;
             }
-            let parameter = view.value_parameters[input.parameter.index()].ty;
+            let (parameter, kind) = argument_map.source_binding(*input);
+            let parameter = &view.value_parameters[parameter.index()];
+            let parameter = match (&parameter.calling, kind) {
+                (
+                    crate::defaults::SourceParameterCalling::Vararg {
+                        element_type: element_ty,
+                        ..
+                    },
+                    SourceInputKind::VarargElement,
+                ) => *element_ty,
+                (
+                    crate::defaults::SourceParameterCalling::Vararg { .. },
+                    SourceInputKind::VarargArray,
+                )
+                | (
+                    crate::defaults::SourceParameterCalling::Required
+                    | crate::defaults::SourceParameterCalling::Default(_),
+                    SourceInputKind::Value,
+                ) => parameter.ty,
+                _ => unreachable!("argument mapping fixes each input shape"),
+            };
             let expected = self.instantiate_ty(parameter, &type_args);
             lowered[source_index] = Some(self.lower_expr(
                 &arg_exprs[source_index].expression,
@@ -120,7 +161,7 @@ impl Lowerer {
         }) {
             Ok(arguments) => arguments,
             Err(failure) => {
-                self.diagnose_nominal_failure(view, &lowered, failure, span);
+                self.diagnose_nominal_failure(view, argument_map, &lowered, failure, span);
                 return None;
             }
         };
@@ -136,6 +177,7 @@ impl Lowerer {
     pub(super) fn diagnose_nominal_failure(
         &mut self,
         view: &NominalConstructorView,
+        argument_map: &crate::call_resolution::arguments::CandidateArgumentMap,
         arguments: &[Option<hir::Expr>],
         failure: ConstraintFailure,
         span: Span,
@@ -147,7 +189,8 @@ impl Lowerer {
                 .map_or(span, |argument| argument.span),
             _ => span,
         };
-        let reason = render_nominal_constraint_failure(self, view, arguments, &failure);
+        let reason =
+            render_nominal_constraint_failure(self, view, argument_map, arguments, &failure);
         self.nominal_candidate_diagnostic(view, diagnostic_span, &reason);
     }
 

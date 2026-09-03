@@ -20,6 +20,11 @@ pub struct Module {
     /// adaptation requested by HIR.
     pub function_coercions: Arena<FunctionCoercion>,
     pub foreign_callback_registrations: Arena<ForeignCallbackRegistration>,
+    /// Source-call interfaces are export metadata. Concrete HIR consumes only
+    /// the fully materialized runtime argument list.
+    pub source_parameter_interfaces: Vec<ExportParameterInterface>,
+    pub export_default_exprs: Arena<ExportDefaultExpr>,
+    pub export_vararg_parameter_types: Arena<ExportVarargParameterType>,
     pub functions: Arena<Function>,
     /// Native functions imported by source declarations. They have no HIR
     /// body and their identities never enter generic instantiation.
@@ -170,6 +175,7 @@ pub struct Lambda {
     /// Type parameters inherited from the enclosing generic callable. The
     /// generated invoke body is instantiated with this complete prefix.
     pub owner_type_param_count: usize,
+    pub body_type_arguments: CallableBodyTypeArguments,
     /// Structurally present even for no-capture lambdas; later M11 capture
     /// analysis fills this list rather than changing the entity shape.
     pub captures: Vec<Capture>,
@@ -181,8 +187,19 @@ pub struct AnonymousFunction {
     pub function: FunctionId,
     pub function_type: FunctionTypeId,
     pub owner_type_param_count: usize,
+    pub body_type_arguments: CallableBodyTypeArguments,
     pub captures: Vec<Capture>,
     pub span: Span,
+}
+
+#[derive(Debug, Clone)]
+pub enum CallableBodyTypeArguments {
+    /// Substitute the type arguments of the ordinary enclosing body.
+    Lexical,
+    /// A hygienically expanded default fixes the generated body's original
+    /// lexical parameters even though the expression now belongs to a
+    /// different caller body.
+    Explicit(Vec<TypeId>),
 }
 
 /// A block-local named function. `function` is its lifted body; direct calls

@@ -128,6 +128,20 @@ impl Lowerer {
                     self.collect_no_gc_expr_violations(element, out, requirements);
                 }
             }
+            ExprKind::ArrayAssembly(assembly) => {
+                out.push((
+                    expr.span,
+                    "array allocation is not allowed in `@NoGC` code".to_string(),
+                ));
+                for part in &assembly.parts {
+                    match part {
+                        hir::ArrayAssemblyPart::Element(value)
+                        | hir::ArrayAssemblyPart::CopyArray(value) => {
+                            self.collect_no_gc_expr_violations(value, out, requirements)
+                        }
+                    }
+                }
+            }
             ExprKind::StructInit { args, .. } | ExprKind::VariantConstruct { args, .. } => {
                 for arg in args {
                     self.collect_no_gc_expr_violations(arg, out, requirements);

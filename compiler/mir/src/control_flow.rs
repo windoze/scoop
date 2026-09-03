@@ -353,6 +353,11 @@ pub enum ExprKind {
         array_type: ClassId,
         elements: Vec<Expr>,
     },
+    /// Fresh array formed from individual elements and copied source arrays.
+    ArrayAssembly {
+        array_type: ClassId,
+        parts: Vec<ArrayAssemblyPart>,
+    },
     /// Subscript read; result is the element type.
     ArrayGet {
         array_type: ClassId,
@@ -395,6 +400,12 @@ pub enum ExprKind {
         variant: u32,
         index: u32,
     },
+}
+
+#[derive(Debug, Clone)]
+pub enum ArrayAssemblyPart {
+    Element(Expr),
+    CopyArray(Expr),
 }
 
 /// Primitive operations only: aggregate equality has been expanded by

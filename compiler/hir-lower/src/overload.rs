@@ -19,7 +19,9 @@ use scoop_hir as hir;
 use ast::Span;
 use hir::{FunctionId, TypeId};
 
-use crate::call_resolution::arguments::CandidateArgumentMap;
+use crate::call_resolution::arguments::{
+    ArgumentShapeFailure, CandidateArgumentMap, SourceInputKind,
+};
 use crate::call_resolution::candidates::CallableView;
 use crate::{CallableCandidate, CallableCandidateSource, Lowerer};
 
@@ -37,6 +39,9 @@ pub(crate) struct ResolvedCallee {
     /// The arguments, lowered once and adapted (boxed where needed) to
     /// the winner's parameter types.
     pub(crate) args: Vec<hir::Expr>,
+    /// Materialized instance receiver. Extension receivers are normalized to
+    /// the hidden first direct-call argument instead.
+    pub(crate) receiver: Option<hir::Expr>,
     pub(crate) return_ty: TypeId,
 }
 
@@ -84,7 +89,7 @@ struct OverloadResolution<'a> {
 /// method suffix and substitutes the complete vector.
 struct Candidate {
     view: CallableView,
-    argument_map: Result<CandidateArgumentMap, crate::call_resolution::arguments::ArityMismatch>,
+    argument_map: Result<CandidateArgumentMap, ArgumentShapeFailure>,
     function: FunctionId,
     owner: crate::CallableCandidateOwner,
     source: CallableCandidateSource,
@@ -101,6 +106,7 @@ struct Candidate {
 
 enum OverloadReceiver {
     Ordinary,
+    Instance(hir::Expr),
     Extension(hir::Expr),
 }
 
@@ -150,6 +156,7 @@ impl Lowerer {
         &mut self,
         name: &str,
         candidates: &[CallableCandidate],
+        receiver: hir::Expr,
         call: OverloadCall<'_>,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<ResolvedCallee> {
@@ -157,7 +164,7 @@ impl Lowerer {
             name,
             candidates,
             OverloadResolution {
-                receiver: OverloadReceiver::Ordinary,
+                receiver: OverloadReceiver::Instance(receiver),
                 explicit_type_args: call.explicit_type_args,
                 arguments: OverloadArguments::Source(call.arg_exprs),
                 span: call.span,
@@ -238,29 +245,60 @@ impl Lowerer {
             span,
             expected_result,
         } = resolution;
-        let arg_count = match &arguments {
-            OverloadArguments::Source(args) => args.len(),
-            OverloadArguments::Lowered(args) => args.len(),
+        let (evaluation_receiver, extension) = match receiver {
+            OverloadReceiver::Ordinary => (None, false),
+            OverloadReceiver::Instance(receiver) => (Some(receiver), false),
+            OverloadReceiver::Extension(receiver) => (Some(receiver), true),
         };
-        let receiver = match receiver {
-            OverloadReceiver::Ordinary => None,
-            OverloadReceiver::Extension(receiver) => Some(receiver),
+        let inference_receiver = if extension {
+            Some(
+                evaluation_receiver
+                    .as_ref()
+                    .expect("an extension call has a receiver"),
+            )
+        } else {
+            None
         };
-        let receiver_offset = usize::from(receiver.is_some());
+        let receiver_offset = usize::from(extension);
         let prepared: Vec<Candidate> = candidates
             .iter()
             .map(|source| {
                 let view = self.callable_view(source, receiver_offset != 0);
                 let function = view.function();
-                let argument_map = CandidateArgumentMap::exact(&view, arg_count);
+                let argument_map = match &arguments {
+                    OverloadArguments::Source(arguments) => {
+                        CandidateArgumentMap::source(&view, arguments)
+                    }
+                    OverloadArguments::Lowered(arguments) => {
+                        CandidateArgumentMap::exact_lowered(&view, arguments.len())
+                    }
+                };
                 let mut params: Vec<_> = match &argument_map {
                     Ok(argument_map) => argument_map
-                        .parameters
+                        .source_order
                         .iter()
                         .map(|input| {
-                            let parameter = &view.value_parameters[input.parameter.index()];
-                            debug_assert_eq!(input.input.index(), input.parameter.index());
-                            parameter.ty
+                            let (parameter, kind) = argument_map.source_binding(*input);
+                            let parameter = &view.value_parameters[parameter.index()];
+                            match (&parameter.calling, kind) {
+                                (
+                                    crate::defaults::SourceParameterCalling::Vararg {
+                                        element_type: element_ty,
+                                        ..
+                                    },
+                                    SourceInputKind::VarargElement,
+                                ) => *element_ty,
+                                (
+                                    crate::defaults::SourceParameterCalling::Vararg { .. },
+                                    SourceInputKind::VarargArray,
+                                )
+                                | (
+                                    crate::defaults::SourceParameterCalling::Required
+                                    | crate::defaults::SourceParameterCalling::Default(_),
+                                    SourceInputKind::Value,
+                                ) => parameter.ty,
+                                _ => unreachable!("argument mapping fixes each input shape"),
+                            }
                         })
                         .collect(),
                     Err(_) => view
@@ -328,16 +366,13 @@ impl Lowerer {
                 });
                 continue;
             }
-            if let Err(mismatch) = &candidate.argument_map {
+            if let Err(failure) = &candidate.argument_map {
                 failures.push(probe::CandidateProbeFailure {
                     candidate: index,
                     state: Box::new(self.clone()),
                     arguments: Vec::new(),
                     kind: probe::CandidateProbeFailureKind::Shape(
-                        probe::CandidateShapeFailure::ArgumentArity {
-                            expected: mismatch.expected,
-                            supplied: mismatch.supplied,
-                        },
+                        probe::CandidateShapeFailure::Argument(failure.clone()),
                     ),
                 });
                 continue;
@@ -345,7 +380,7 @@ impl Lowerer {
             match self.probe_overload_candidate(
                 index,
                 candidate,
-                receiver.as_ref(),
+                inference_receiver,
                 explicit_type_args,
                 &arguments,
                 expected_result,
@@ -362,7 +397,7 @@ impl Lowerer {
                     &prepared,
                     &mut failures,
                     &arguments,
-                    receiver.as_ref(),
+                    inference_receiver,
                     span,
                 );
                 return None;
@@ -389,15 +424,55 @@ impl Lowerer {
         let probe::ApplicableCandidate {
             state,
             type_args,
-            args,
+            mut args,
             argument_sinks,
             return_ty,
             ..
         } = transaction;
         *self = *state;
-        for mut arg_sink in argument_sinks {
-            sink.append(&mut arg_sink);
-        }
+        let argument_map = candidate
+            .argument_map
+            .as_ref()
+            .expect("the winner has a complete argument map");
+        let (instance_receiver, args) = if matches!(arguments, OverloadArguments::Source(_))
+            && !argument_map.is_identity_explicit()
+        {
+            let receiver = if extension {
+                Some(args.remove(0))
+            } else {
+                evaluation_receiver
+            };
+            let (materialized_receiver, mut args) = self.materialize_callable_arguments(
+                crate::argument_materialization::CallableArgumentMaterialization {
+                    function,
+                    argument_map,
+                    type_args: &type_args,
+                    receiver,
+                    source_args: args,
+                    argument_sinks,
+                    call_span: span,
+                },
+                sink,
+            );
+            if extension {
+                args.insert(
+                    0,
+                    materialized_receiver.expect("an extension receiver is materialized"),
+                );
+                (None, args)
+            } else {
+                (materialized_receiver, args)
+            }
+        } else {
+            for mut argument_sink in argument_sinks {
+                sink.append(&mut argument_sink);
+            }
+            if extension {
+                (None, args)
+            } else {
+                (evaluation_receiver, args)
+            }
+        };
         // The complete owner-prefix plus method-suffix vector identifies
         // the resolved generic entity stored on the HIR call.
         let resolved_candidate = CallableCandidate {
@@ -410,6 +485,7 @@ impl Lowerer {
             source,
             type_args,
             args,
+            receiver: instance_receiver,
             return_ty,
         })
     }

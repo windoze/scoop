@@ -19,6 +19,7 @@ pub(crate) struct ModuleCtx<'a, 'ctx> {
     pub(crate) external_type_tds: &'a [GlobalValue<'ctx>],
     pub(crate) target_data: &'a inkwell::targets::TargetData,
     pub(crate) bounds_message: Option<GlobalValue<'ctx>>,
+    pub(crate) array_size_message: Option<GlobalValue<'ctx>>,
 }
 
 fn compiler_root_source_key(source: scoop_lir::CallerRootSource) -> (u8, u32) {
@@ -37,7 +38,9 @@ pub(crate) fn root_storage_sources(function: &Function) -> Vec<scoop_lir::Caller
                 Instruction::ManagedPoll { site } => {
                     sources.extend(site.live.as_slice().iter().map(|value| value.source));
                 }
-                Instruction::ArrayAlloc { live, .. } | Instruction::ArrayClone { live, .. } => {
+                Instruction::ArrayAlloc { live, .. }
+                | Instruction::ArrayAssembly { live, .. }
+                | Instruction::ArrayClone { live, .. } => {
                     sources.extend(live.as_slice().iter().map(|value| value.source));
                 }
                 Instruction::Call { site } => match site {
@@ -96,6 +99,7 @@ pub(crate) fn instruction_temp_defs(instruction: &Instruction) -> [Option<TempId
         | Instruction::LocalAddress { out, .. }
         | Instruction::BeginCatch { out, .. }
         | Instruction::ArrayAlloc { out, .. }
+        | Instruction::ArrayAssembly { out, .. }
         | Instruction::ArrayLen { out, .. }
         | Instruction::ArrayGet { out, .. }
         | Instruction::ArrayClone { out, .. }

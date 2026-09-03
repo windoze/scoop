@@ -132,6 +132,30 @@ impl<'a> FunctionLowerer<'a> {
                 });
                 lir::Value::Temp(out)
             }
+            mir::ExprKind::ArrayAssembly { array_type, parts } => {
+                let parts = parts
+                    .iter()
+                    .map(|part| match part {
+                        mir::ArrayAssemblyPart::Element(value) => {
+                            lir::ArrayAssemblyPart::Element(self.lower_expr(value))
+                        }
+                        mir::ArrayAssemblyPart::CopyArray(value) => {
+                            lir::ArrayAssemblyPart::CopyArray(self.lower_expr(value))
+                        }
+                    })
+                    .collect();
+                let out_ty = self.value_type(ty);
+                let out = self.new_temp(out_ty);
+                let safepoint = self.next_safepoint();
+                self.push(lir::Instruction::ArrayAssembly {
+                    out,
+                    parts,
+                    array_type: self.array_type_id(*array_type),
+                    safepoint,
+                    live: lir::StatepointLiveSet::default(),
+                });
+                lir::Value::Temp(out)
+            }
             mir::ExprKind::ArrayGet {
                 array_type,
                 array,

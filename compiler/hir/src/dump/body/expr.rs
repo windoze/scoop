@@ -398,6 +398,21 @@ pub(super) fn dump_expr(
                 dump_expr(module, locals, element, indent + 1, out);
             }
         }
+        ExprKind::ArrayAssembly(assembly) => {
+            out.push_str(&format!("{pad}ArrayAssembly : {ty}\n"));
+            for part in &assembly.parts {
+                match part {
+                    ArrayAssemblyPart::Element(value) => {
+                        out.push_str(&format!("{pad}  Element\n"));
+                        dump_expr(module, locals, value, indent + 2, out);
+                    }
+                    ArrayAssemblyPart::CopyArray(value) => {
+                        out.push_str(&format!("{pad}  CopyArray\n"));
+                        dump_expr(module, locals, value, indent + 2, out);
+                    }
+                }
+            }
+        }
         ExprKind::Index { receiver, index } => {
             out.push_str(&format!("{pad}Index : {ty}\n"));
             dump_expr(module, locals, receiver, indent + 1, out);

@@ -38,17 +38,22 @@ fn qualified_variant_construction_in_method_call_shape() {
         },
         other => panic!("expected a val decl, found {other:?}"),
     }
-    match &main.statements[1].kind {
-        hir::StatementKind::ValDecl { init, .. } => match &init.kind {
-            hir::ExprKind::VariantConstruct { variant, args, .. } => {
-                assert_eq!(*variant, 1);
-                assert_eq!(args.len(), 1);
-                assert!(matches!(args[0].kind, hir::ExprKind::IntLiteral(7)));
-            }
-            other => panic!("expected a variant construction, found {other:?}"),
-        },
-        other => panic!("expected a val decl, found {other:?}"),
-    }
+    let named = main
+        .statements
+        .iter()
+        .filter_map(|statement| match &statement.kind {
+            hir::StatementKind::ValDecl { init, .. } => match &init.kind {
+                hir::ExprKind::VariantConstruct {
+                    variant: 1, args, ..
+                } => Some(args),
+                _ => None,
+            },
+            _ => None,
+        })
+        .next()
+        .expect("defaulted Named construction");
+    assert_eq!(named.len(), 1);
+    assert!(matches!(named[0].kind, hir::ExprKind::Local(_)));
 }
 
 #[test]

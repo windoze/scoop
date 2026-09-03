@@ -15,20 +15,12 @@ impl Lowerer {
         );
         if Some(struct_id) == self.ffi_ptr {
             let argument_map =
-                match crate::call_resolution::arguments::CandidateArgumentMap::exact_nominal(
-                    &view,
-                    call.args.len(),
+                match crate::call_resolution::arguments::CandidateArgumentMap::source_nominal(
+                    &view, call.args,
                 ) {
                     Ok(argument_map) => argument_map,
-                    Err(mismatch) => {
-                        self.diagnose_nominal_shape_failure(
-                            &view,
-                            call.span,
-                            format!(
-                                "expects {} argument(s), but {} were supplied",
-                                mismatch.expected, mismatch.supplied
-                            ),
-                        );
+                    Err(failure) => {
+                        self.diagnose_nominal_shape_failure(&view, call.span, failure.describe());
                         return None;
                     }
                 };
@@ -93,20 +85,12 @@ impl Lowerer {
         debug_assert_eq!(Some(struct_id), self.ffi_fun_ptr);
         view.value_parameters.clear();
         let argument_map =
-            match crate::call_resolution::arguments::CandidateArgumentMap::exact_nominal(
-                &view,
-                call.args.len(),
+            match crate::call_resolution::arguments::CandidateArgumentMap::source_nominal(
+                &view, call.args,
             ) {
                 Ok(argument_map) => argument_map,
-                Err(mismatch) => {
-                    self.diagnose_nominal_shape_failure(
-                        &view,
-                        call.span,
-                        format!(
-                            "expects {} argument(s), but {} were supplied",
-                            mismatch.expected, mismatch.supplied
-                        ),
-                    );
+                Err(failure) => {
+                    self.diagnose_nominal_shape_failure(&view, call.span, failure.describe());
                     return None;
                 }
             };

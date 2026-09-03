@@ -16,6 +16,7 @@ impl Lowerer {
         }
         let mut seen = std::collections::HashSet::new();
         let mut props = Vec::new();
+        let mut parameter_calling = Vec::new();
         for prop in &decl.constructor {
             if !seen.insert(prop.name.text.clone()) {
                 self.error(
@@ -27,7 +28,7 @@ impl Lowerer {
                 );
                 continue;
             }
-            let Some(ty) = self.resolve_parameter_type(&prop.ty, &prop.syntax) else {
+            let Some((ty, calling)) = self.resolve_parameter(&prop.ty, &prop.syntax) else {
                 continue; // diagnostic already recorded
             };
             props.push(hir::ConstructorField {
@@ -36,8 +37,10 @@ impl Lowerer {
                 ty,
                 mutable: prop.mutable,
             });
+            parameter_calling.push(calling);
         }
         self.classes[id].representation = hir::ClassRepresentation::Declared(props);
+        self.class_parameter_calling.insert(id, parameter_calling);
 
         if let Some((base_ref, _)) = &decl.base_class
             && let Some(base_ty) = self.resolve_type_ref(base_ref)

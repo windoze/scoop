@@ -53,12 +53,46 @@ impl Lowerer {
         };
         let sig = self.signatures[&id].clone();
         let short = decl.name.text.clone();
-        let overrides = candidates
+        let matching_overrides = candidates
             .iter()
-            .find(|(candidate, args)| {
+            .filter(|(candidate, args)| {
                 self.same_instantiated_signature(*candidate, &short, &sig, args)
             })
-            .cloned();
+            .cloned()
+            .collect::<Vec<_>>();
+        let overrides = matching_overrides.first().cloned();
+        if !matching_overrides.is_empty() {
+            self.override_sources.insert(
+                id,
+                matching_overrides
+                    .iter()
+                    .map(|(candidate, _)| *candidate)
+                    .collect(),
+            );
+            for (candidate, arguments) in &matching_overrides {
+                let inherited = self.instantiated_signature(
+                    *candidate,
+                    arguments,
+                    &sig.type_params[sig.owner_type_param_count..],
+                );
+                let mismatch = sig.params.iter().zip(&inherited.params).position(
+                    |(implementation, declaration)| {
+                        matches!(implementation.calling, crate::FnParamCalling::Vararg { .. })
+                            != matches!(declaration.calling, crate::FnParamCalling::Vararg { .. })
+                    },
+                );
+                if let Some(index) = mismatch {
+                    self.error(
+                        decl.params[index].span,
+                        format!(
+                            "parameter `{}` of `{short}` must have the same `vararg` shape as `{}`",
+                            decl.params[index].name.text, self.functions[*candidate].name
+                        ),
+                    );
+                    break;
+                }
+            }
+        }
         if overrides.is_none()
             && let Some((candidate, _)) = candidates.iter().find(|(candidate, args)| {
                 self.same_instantiated_signature_shape(*candidate, &short, &sig, args)

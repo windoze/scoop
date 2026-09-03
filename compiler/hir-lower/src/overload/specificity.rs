@@ -56,6 +56,60 @@ impl Lowerer {
         } else {
             non_generic
         };
+        let mutually_forwarding = pool.iter().all(|&source| {
+            pool.iter()
+                .all(|&target| forwards[source][target] && forwards[target][source])
+        });
+        let pool = if mutually_forwarding {
+            let minimum_defaults = pool
+                .iter()
+                .map(|&candidate| {
+                    prepared[applicable[candidate]]
+                        .argument_map
+                        .as_ref()
+                        .expect("an applicable candidate has an argument map")
+                        .explicit_default_count()
+                })
+                .min()
+                .expect("MSC receives at least two applicable candidates");
+            pool.into_iter()
+                .filter(|&candidate| {
+                    prepared[applicable[candidate]]
+                        .argument_map
+                        .as_ref()
+                        .expect("an applicable candidate has an argument map")
+                        .explicit_default_count()
+                        == minimum_defaults
+                })
+                .collect::<Vec<_>>()
+        } else {
+            pool
+        };
+        let pool = if mutually_forwarding && pool.len() > 1 {
+            let non_vararg = pool
+                .iter()
+                .copied()
+                .filter(|&candidate| {
+                    !prepared[applicable[candidate]]
+                        .view
+                        .value_parameters
+                        .iter()
+                        .any(|parameter| {
+                            matches!(
+                                parameter.calling,
+                                crate::defaults::SourceParameterCalling::Vararg { .. }
+                            )
+                        })
+                })
+                .collect::<Vec<_>>();
+            if non_vararg.is_empty() {
+                pool
+            } else {
+                non_vararg
+            }
+        } else {
+            pool
+        };
         if pool.len() == 1 {
             Some(applicable[pool[0]])
         } else {

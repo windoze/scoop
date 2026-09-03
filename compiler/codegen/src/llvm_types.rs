@@ -364,6 +364,17 @@ pub(crate) fn module_uses_bounds_checks(module: &Module) -> bool {
     })
 }
 
+pub(crate) fn module_uses_array_assembly(module: &Module) -> bool {
+    module.functions.iter().any(|function| {
+        function.blocks.iter().any(|(_, block)| {
+            block
+                .instructions
+                .iter()
+                .any(|instruction| matches!(instruction, Instruction::ArrayAssembly { .. }))
+        })
+    })
+}
+
 /// Native/code/metadata pointer type.
 pub(crate) fn ptr_ty(context: &Context) -> inkwell::types::PointerType<'_> {
     context.ptr_type(AddressSpace::default())

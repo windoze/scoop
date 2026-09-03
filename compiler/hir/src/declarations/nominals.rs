@@ -294,11 +294,9 @@ pub struct ConstructorField {
 pub struct Variant {
     pub name: String,
     /// Fields in declaration order; unit variants have none. Named and
-    /// constructor-style fields carry their names (and defaults),
-    /// positional fields have generated `_1`-style names.
+    /// constructor-style fields carry their names, positional fields have
+    /// generated `_1`-style names.
     pub fields: Vec<Field>,
-    /// Constructor-style default values (constant expressions in M4).
-    pub defaults: Vec<Option<Expr>>,
 }
 
 #[derive(Debug, Clone)]

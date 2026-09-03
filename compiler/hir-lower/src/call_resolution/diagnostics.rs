@@ -2,6 +2,7 @@
 
 use scoop_hir as hir;
 
+use super::arguments::CandidateArgumentMap;
 use super::candidates::{CallableSource, CallableView, ReceiverShape};
 use super::constraints::{
     ConstraintFailure, ConstraintFailureKind, ConstraintOrigin, InferenceVariableId, TypeTerm,
@@ -87,6 +88,7 @@ pub(crate) fn callable_source_signature(
 pub(crate) fn render_callable_constraint_failure(
     lowerer: &Lowerer,
     view: &CallableView,
+    argument_map: Option<&CandidateArgumentMap>,
     arguments: &[Option<hir::Expr>],
     failure: &ConstraintFailure,
 ) -> String {
@@ -155,6 +157,9 @@ pub(crate) fn render_callable_constraint_failure(
             };
             let receiver_offset = usize::from(matches!(view.receiver, ReceiverShape::Extension(_)));
             let source_index = input.index();
+            let parameter_index = argument_map.map_or(source_index, |mapping| {
+                mapping.source_binding(input).0.index()
+            });
             let found = arguments
                 .get(receiver_offset + source_index)
                 .and_then(Option::as_ref)
@@ -162,7 +167,7 @@ pub(crate) fn render_callable_constraint_failure(
                 .unwrap_or_else(|| render_type_term(lowerer, view, *left));
             format!(
                 "argument for `{}` has type {found}, which {} {}",
-                view.value_parameters[source_index].name,
+                view.value_parameters[parameter_index].name,
                 relation_failure_phrase(*relation),
                 render_type_term(lowerer, view, *right),
             )

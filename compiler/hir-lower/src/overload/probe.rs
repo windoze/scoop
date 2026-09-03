@@ -35,7 +35,7 @@ pub(super) enum CandidateProbeFailureKind {
 
 pub(super) enum CandidateShapeFailure {
     TypeArgumentArity { expected: usize, supplied: usize },
-    ArgumentArity { expected: usize, supplied: usize },
+    Argument(crate::call_resolution::arguments::ArgumentShapeFailure),
 }
 
 impl Lowerer {

@@ -226,6 +226,24 @@ pub(super) fn dump_expr(
                 dump_expr(module, locals, element, indent + 1, out);
             }
         }
+        ExprKind::ArrayAssembly { array_type, parts } => {
+            out.push_str(&format!(
+                "{pad}ArrayAssembly {}\n",
+                module.classes[*array_type].name
+            ));
+            for part in parts {
+                match part {
+                    ArrayAssemblyPart::Element(value) => {
+                        out.push_str(&format!("{pad}  Element\n"));
+                        dump_expr(module, locals, value, indent + 2, out);
+                    }
+                    ArrayAssemblyPart::CopyArray(value) => {
+                        out.push_str(&format!("{pad}  CopyArray\n"));
+                        dump_expr(module, locals, value, indent + 2, out);
+                    }
+                }
+            }
+        }
         ExprKind::ArrayGet {
             array_type,
             array,
