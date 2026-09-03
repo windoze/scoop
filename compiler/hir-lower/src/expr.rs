@@ -68,13 +68,18 @@ mod generic_calls;
 mod generic_inference;
 
 mod aggregates;
+mod analysis;
 mod captures;
 mod constructors;
 mod fields;
 mod members;
 mod names;
 mod operators;
+mod support;
 mod type_checks;
+
+use analysis::*;
+use support::*;
 
 struct InferredArguments {
     args: Vec<Option<hir::Expr>>,
@@ -299,208 +304,4 @@ enum Constructor {
         class_id: hir::ClassId,
     },
     Unmatched,
-}
-
-/// Collect the `x is T` facts established by `cond` evaluating to
-/// `outcome` (see `resolve_smart_casts`).
-fn collect_smart_cast_candidates<'a>(
-    cond: &'a ast::Expr,
-    outcome: bool,
-    out: &mut Vec<(&'a ast::Ident, &'a ast::TypeRef)>,
-) {
-    match cond {
-        // `x is T` holds exactly when the check is not negated and the
-        // condition is true (or it is negated and the condition is
-        // false).
-        ast::Expr::Is {
-            operand,
-            ty,
-            negated,
-            ..
-        } => {
-            if outcome == !negated {
-                if let ast::Expr::Var(name) = &**operand {
-                    out.push((name, ty));
-                }
-            }
-        }
-        ast::Expr::Unary {
-            op: ast::UnOp::Not,
-            operand,
-            ..
-        } => collect_smart_cast_candidates(operand, !outcome, out),
-        // `a && b` is true only when both hold; a false conjunction
-        // establishes nothing (M6: no `||` support).
-        ast::Expr::Binary {
-            op: ast::BinOp::And,
-            lhs,
-            rhs,
-            ..
-        } if outcome => {
-            collect_smart_cast_candidates(lhs, true, out);
-            collect_smart_cast_candidates(rhs, true, out);
-        }
-        _ => {}
-    }
-}
-
-fn block_contains_return(block: &ast::Block) -> bool {
-    block.statements.iter().any(statement_contains_return)
-}
-
-fn statement_contains_return(statement: &ast::Statement) -> bool {
-    match &statement.kind {
-        ast::StatementKind::Return { .. } => true,
-        ast::StatementKind::LocalFunction(_) => false,
-        ast::StatementKind::Expr(expr) | ast::StatementKind::Throw(expr) => {
-            expr_contains_return(expr)
-        }
-        ast::StatementKind::ValDecl(decl) => expr_contains_return(&decl.init),
-        ast::StatementKind::Assign(assign) => expr_contains_return(&assign.value),
-        ast::StatementKind::If(if_) => {
-            expr_contains_return(&if_.cond)
-                || block_contains_return(&if_.then_block)
-                || if_.else_block.as_ref().is_some_and(block_contains_return)
-        }
-        ast::StatementKind::While(while_) => {
-            expr_contains_return(&while_.cond) || block_contains_return(&while_.body)
-        }
-        ast::StatementKind::Block(block) | ast::StatementKind::SafetyBlock { block, .. } => {
-            block_contains_return(block)
-        }
-        ast::StatementKind::When(when) => {
-            expr_contains_return(&when.subject)
-                || when.arms.iter().any(|arm| {
-                    arm.guard.as_ref().is_some_and(expr_contains_return)
-                        || block_contains_return(&arm.body)
-                })
-                || when.else_body.as_ref().is_some_and(block_contains_return)
-        }
-        ast::StatementKind::Try(try_) => {
-            block_contains_return(&try_.body)
-                || try_
-                    .catches
-                    .iter()
-                    .any(|catch| block_contains_return(&catch.body))
-                || try_
-                    .finally_body
-                    .as_ref()
-                    .is_some_and(block_contains_return)
-        }
-    }
-}
-
-fn expr_contains_return(expr: &ast::Expr) -> bool {
-    match expr {
-        // A nested callable owns its own return target.
-        ast::Expr::Lambda { .. }
-        | ast::Expr::AnonymousFunction { .. }
-        | ast::Expr::CallableReference { .. } => false,
-        ast::Expr::TupleLiteral { elements, .. } | ast::Expr::ArrayLiteral { elements, .. } => {
-            elements.iter().any(expr_contains_return)
-        }
-        ast::Expr::StructInit { args, .. } => args.iter().any(expr_contains_return),
-        ast::Expr::FieldAccess(access) => expr_contains_return(&access.receiver),
-        ast::Expr::Call(call) => call.args.iter().any(expr_contains_return),
-        ast::Expr::Invoke { callee, args, .. } => {
-            expr_contains_return(callee) || args.iter().any(expr_contains_return)
-        }
-        ast::Expr::Binary { lhs, rhs, .. } | ast::Expr::Elvis { lhs, rhs, .. } => {
-            expr_contains_return(lhs) || expr_contains_return(rhs)
-        }
-        ast::Expr::Unary { operand, .. }
-        | ast::Expr::NullAssert { operand, .. }
-        | ast::Expr::Is { operand, .. }
-        | ast::Expr::Cast { operand, .. } => expr_contains_return(operand),
-        ast::Expr::MethodCall { receiver, args, .. } => {
-            expr_contains_return(receiver) || args.iter().any(expr_contains_return)
-        }
-        ast::Expr::Index {
-            receiver, index, ..
-        } => expr_contains_return(receiver) || expr_contains_return(index),
-        ast::Expr::If(if_) => {
-            expr_contains_return(&if_.cond)
-                || block_contains_return(&if_.then_block)
-                || if_.else_block.as_ref().is_some_and(block_contains_return)
-        }
-        ast::Expr::When(when) => {
-            expr_contains_return(&when.subject)
-                || when.arms.iter().any(|arm| {
-                    arm.guard.as_ref().is_some_and(expr_contains_return)
-                        || block_contains_return(&arm.body)
-                })
-                || when.else_body.as_ref().is_some_and(block_contains_return)
-        }
-        ast::Expr::Try(try_) => {
-            block_contains_return(&try_.body)
-                || try_
-                    .catches
-                    .iter()
-                    .any(|catch| block_contains_return(&catch.body))
-                || try_
-                    .finally_body
-                    .as_ref()
-                    .is_some_and(block_contains_return)
-        }
-        ast::Expr::StringLiteral { .. }
-        | ast::Expr::IntLiteral { .. }
-        | ast::Expr::BoolLiteral { .. }
-        | ast::Expr::UnitLiteral { .. }
-        | ast::Expr::Var(_)
-        | ast::Expr::This { .. } => false,
-    }
-}
-
-/// The else half of a `?.` / `?:` desugaring: the statements evaluating
-/// the fallback (lazily, inside the branch), then the fallback value.
-struct ElseBranch {
-    statements: Vec<hir::Statement>,
-    value: hir::Expr,
-}
-
-/// Whether the expression is the `None` construction (see
-/// `lower_binary`).
-fn is_none_literal(expr: &ast::Expr) -> bool {
-    matches!(expr, ast::Expr::Var(name) if name.text == "None")
-}
-
-/// Copy a variant field default. Defaults are literals
-/// (`resolve_variant_default` enforces this), so copying is trivial.
-fn clone_literal(expr: &hir::Expr) -> hir::Expr {
-    let kind = match &expr.kind {
-        ExprKind::IntLiteral(value) => ExprKind::IntLiteral(*value),
-        ExprKind::StringLiteral(value) => ExprKind::StringLiteral(value.clone()),
-        ExprKind::BoolLiteral(value) => ExprKind::BoolLiteral(*value),
-        ExprKind::Unary { op, operand } => ExprKind::Unary {
-            op: *op,
-            operand: Box::new(clone_literal(operand)),
-        },
-        _ => unreachable!("variant defaults are literals (resolve_variant_default)"),
-    };
-    hir::Expr {
-        kind,
-        ty: expr.ty,
-        span: expr.span,
-    }
-}
-
-fn convert_bin_op(op: ast::BinOp) -> (hir::BinOp, &'static str) {
-    match op {
-        ast::BinOp::Add => (hir::BinOp::Add, "+"),
-        ast::BinOp::Sub => (hir::BinOp::Sub, "-"),
-        ast::BinOp::Mul => (hir::BinOp::Mul, "*"),
-        ast::BinOp::Div => (hir::BinOp::Div, "/"),
-        ast::BinOp::Lt => (hir::BinOp::Lt, "<"),
-        ast::BinOp::Le => (hir::BinOp::Le, "<="),
-        ast::BinOp::Gt => (hir::BinOp::Gt, ">"),
-        ast::BinOp::Ge => (hir::BinOp::Ge, ">="),
-        ast::BinOp::Eq => (hir::BinOp::Eq, "=="),
-        ast::BinOp::Ne => (hir::BinOp::Ne, "!="),
-        // Intercepted by `lower_ref_eq` before `convert_bin_op` is
-        // reached; mapped here for completeness.
-        ast::BinOp::RefEq => (hir::BinOp::RefEq, "==="),
-        ast::BinOp::RefNe => (hir::BinOp::RefNe, "!=="),
-        ast::BinOp::And => (hir::BinOp::And, "&&"),
-        ast::BinOp::Or => (hir::BinOp::Or, "||"),
-    }
 }

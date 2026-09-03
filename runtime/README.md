@@ -9,8 +9,9 @@ The C runtime implements M15's exact moving Immix collector:
 - `src/gc/reclamation.c` owns source retirement, ordinary free-space reuse and
   stress-mode poisoning/quarantine;
 - `src/gc/collector.c` owns exact mark/relocate/verify traversal;
-- `src/gc/roots.c`, `stackmap.c` and `stack_roots.c` own explicit roots and
-  LLVM stack-map consumption;
+- `src/gc/roots.c` owns process/image roots, `root_frames.c` owns native
+  root frames, `handles.c` owns handles and pins, while `stackmap.c` and
+  `stack_roots.c` own LLVM stack-map consumption;
 - `src/thread.c` owns thread attachment and registry lifecycle; `src/thread/`
   separates STW collection, managed/native transitions, root frames, and
   debug queries;
