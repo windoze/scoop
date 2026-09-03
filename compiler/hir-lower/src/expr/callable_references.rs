@@ -1,7 +1,6 @@
 use super::*;
 
-use crate::call_resolution::constraints::CallableCategory;
-
+mod native;
 mod resolution;
 
 enum BoundReferenceLayer<'a> {
@@ -19,7 +18,7 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
         if let Some(expected) = expected
-            && let Type::FunPtr(signature) = self.types[expected]
+            && let Type::FunPtr(_) = self.types[expected]
         {
             if receiver.is_some() {
                 self.error(
@@ -29,7 +28,7 @@ impl Lowerer {
                 );
                 return None;
             }
-            return self.lower_native_function_reference(name, span, expected, signature);
+            return self.lower_native_function_reference(name, span, expected);
         }
         if let Some(receiver) = receiver {
             return self.lower_bound_callable_reference(receiver, name, span, expected, sink);
@@ -78,10 +77,13 @@ impl Lowerer {
                 let resolved = state.resolve_reference_candidates(
                     &candidates,
                     &[],
-                    expected_signature.as_ref(),
-                    &display,
-                    span,
-                    ReferenceExtensionMode::IncludeUnbound,
+                    ReferenceResolutionContext {
+                        expected: expected_signature.as_ref(),
+                        name: &name.text,
+                        display: &display,
+                        span,
+                        extension_mode: ReferenceExtensionMode::IncludeUnbound,
+                    },
                 )?;
                 state.finish_named_callable_reference(resolved, span)
             }) {
@@ -115,128 +117,6 @@ impl Lowerer {
         Some(hir::Expr {
             kind: ExprKind::CallableReference(id),
             ty,
-            span,
-        })
-    }
-
-    pub(super) fn lower_native_function_reference(
-        &mut self,
-        name: &ast::Ident,
-        span: Span,
-        expected: TypeId,
-        signature: hir::FunctionTypeId,
-    ) -> Option<hir::Expr> {
-        if self.scopes.lookup(&name.text).is_some()
-            || !self.local_function_scopes.lookup(&name.text).is_empty()
-        {
-            self.error(
-                span,
-                "a native `FunPtr` address cannot target a local function or function value"
-                    .to_string(),
-            );
-            return None;
-        }
-        let expected_signature = self.function_types[signature].clone();
-        let candidate_layers = self.named_reference_candidate_layers(&name.text);
-        if candidate_layers.is_empty() {
-            return self.lower_native_function_reference_layer(
-                name,
-                span,
-                expected,
-                &expected_signature,
-                &[],
-            );
-        }
-        let mut first_failure = None;
-        for candidates in candidate_layers {
-            match self.probe_expr_layer(|state, _| {
-                state.lower_native_function_reference_layer(
-                    name,
-                    span,
-                    expected,
-                    &expected_signature,
-                    &candidates,
-                )
-            }) {
-                Ok(layer) => {
-                    let mut sink = Vec::new();
-                    return Some(self.commit_expr_layer(layer, &mut sink));
-                }
-                Err(failure) => {
-                    first_failure.get_or_insert(failure);
-                }
-            }
-        }
-        self.commit_layer_diagnostics(*first_failure.expect("at least one native layer failed"));
-        None
-    }
-
-    fn lower_native_function_reference_layer(
-        &mut self,
-        name: &ast::Ident,
-        span: Span,
-        expected: TypeId,
-        expected_signature: &hir::FunctionType,
-        candidates: &[hir::FunctionId],
-    ) -> Option<hir::Expr> {
-        let mut matching = Vec::new();
-        for &function in candidates {
-            let declaration = &self.functions[function];
-            let sig = &self.signatures[&function];
-            if declaration.method.is_some()
-                || self.extension_receivers.contains_key(&function)
-                || !sig.type_params.is_empty()
-                || sig.is_suspend
-                || declaration.attributes.gc_effect != hir::GcEffect::NoGc
-                || !matches!(declaration.kind, hir::FunctionKind::User(_))
-                || sig.params.len() != expected_signature.parameter_types.len()
-            {
-                continue;
-            }
-            let parameters = sig
-                .params
-                .iter()
-                .map(|parameter| parameter.ty)
-                .collect::<Vec<_>>();
-            if self.concrete_callable_signature_matches(
-                CallableCategory::Native,
-                sig.is_suspend,
-                &parameters,
-                sig.return_ty,
-                expected,
-            ) {
-                matching.push(function);
-            }
-        }
-        let function = match matching.as_slice() {
-            [function] => *function,
-            [] => {
-                self.error(
-                    span,
-                    format!(
-                        "no eligible `@NoGC` top-level function `::{}` exactly matches the expected FunPtr signature",
-                        name.text
-                    ),
-                );
-                return None;
-            }
-            _ => {
-                self.error(
-                    span,
-                    format!(
-                        "native function reference `::{}` is ambiguous for the expected FunPtr signature",
-                        name.text
-                    ),
-                );
-                return None;
-            }
-        };
-        if self.functions[function].attributes.safety == hir::Safety::Unsafe {
-            self.require_unsafe_operation(span, "taking the address of an unsafe callback");
-        }
-        Some(hir::Expr {
-            kind: ExprKind::FunctionAddress(function),
-            ty: expected,
             span,
         })
     }
@@ -300,6 +180,7 @@ impl Lowerer {
                     BoundReferenceLayer::Members(&member_candidates),
                     receiver.clone(),
                     expected_signature.as_ref(),
+                    &name.text,
                     &display,
                     span,
                 )
@@ -314,6 +195,7 @@ impl Lowerer {
                     BoundReferenceLayer::Extensions(&extensions),
                     receiver.clone(),
                     expected_signature.as_ref(),
+                    &name.text,
                     &display,
                     span,
                 )
@@ -341,21 +223,32 @@ impl Lowerer {
         layer: BoundReferenceLayer<'_>,
         receiver: hir::Expr,
         expected: Option<&(TypeId, hir::FunctionType)>,
+        name: &str,
         display: &str,
         span: Span,
     ) -> Option<hir::Expr> {
         let is_extension = matches!(layer, BoundReferenceLayer::Extensions(_));
         let resolved = match layer {
-            BoundReferenceLayer::Members(candidates) => {
-                self.resolve_member_reference_candidates(candidates, expected, display, span)?
-            }
+            BoundReferenceLayer::Members(candidates) => self.resolve_member_reference_candidates(
+                candidates,
+                ReferenceResolutionContext {
+                    expected,
+                    name,
+                    display,
+                    span,
+                    extension_mode: ReferenceExtensionMode::Exclude,
+                },
+            )?,
             BoundReferenceLayer::Extensions(candidates) => self.resolve_reference_candidates(
                 candidates,
                 &[],
-                expected,
-                display,
-                span,
-                ReferenceExtensionMode::Bound(receiver.ty),
+                ReferenceResolutionContext {
+                    expected,
+                    name,
+                    display,
+                    span,
+                    extension_mode: ReferenceExtensionMode::Bound(receiver.ty),
+                },
             )?,
         };
         let callee = resolved.callable;
@@ -411,10 +304,13 @@ impl Lowerer {
         let resolved = self.resolve_reference_candidates(
             &functions,
             &owner_type_args,
-            expected_signature.as_ref(),
-            &display,
-            span,
-            ReferenceExtensionMode::Exclude,
+            ReferenceResolutionContext {
+                expected: expected_signature.as_ref(),
+                name: &name.text,
+                display: &display,
+                span,
+                extension_mode: ReferenceExtensionMode::Exclude,
+            },
         )?;
         let function = self.callable_function_id(resolved.callable);
         let local_function = self.local_function_by_function[&function];

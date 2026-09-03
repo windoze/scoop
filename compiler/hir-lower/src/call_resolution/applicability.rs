@@ -42,32 +42,26 @@ pub(crate) struct CallableReferenceApplicabilityInput<'a> {
 }
 
 impl Lowerer {
-    pub(crate) fn concrete_callable_signature_matches(
+    pub(crate) fn check_concrete_callable_signature(
         &mut self,
         category: CallableCategory,
         is_suspend: bool,
         parameter_types: &[hir::TypeId],
         return_type: hir::TypeId,
         expected_type: hir::TypeId,
-    ) -> bool {
+    ) -> Result<(), ConstraintFailure> {
         let mut session = InferenceSession::new();
-        session.push(
-            Constraint::CallableShape(
-                CallableShape {
-                    category,
-                    is_suspend,
-                    parameters: parameter_types
-                        .iter()
-                        .copied()
-                        .map(TypeTerm::Rigid)
-                        .map(CallableParameter::Explicit)
-                        .collect(),
-                    return_type: CallableReturn::Explicit(TypeTerm::Rigid(return_type)),
-                },
-                TypeTerm::Rigid(expected_type),
-            ),
-            ConstraintOrigin::ExpectedResult,
-        );
+        let shape = CallableShape {
+            category,
+            is_suspend,
+            parameters: parameter_types
+                .iter()
+                .copied()
+                .map(TypeTerm::Rigid)
+                .map(CallableParameter::Explicit)
+                .collect(),
+            return_type: CallableReturn::Explicit(TypeTerm::Rigid(return_type)),
+        };
         let expected_signature = match (category, &self.types[expected_type]) {
             (CallableCategory::Managed, Type::Function(signature))
             | (CallableCategory::Native, Type::FunPtr(signature)) => {
@@ -92,7 +86,11 @@ impl Lowerer {
                 ConstraintOrigin::ExpectedResult,
             );
         }
-        self.solve_constraints(&session).is_ok()
+        session.push(
+            Constraint::CallableShape(shape, TypeTerm::Rigid(expected_type)),
+            ConstraintOrigin::ExpectedResult,
+        );
+        self.solve_constraints(&session).map(|_| ())
     }
 
     pub(crate) fn solve_callable_reference_applicability(
@@ -152,11 +150,6 @@ impl Lowerer {
                 .collect(),
             return_type: CallableReturn::Explicit(TypeTerm::Type(view.return_type)),
         };
-        session.push(
-            Constraint::CallableShape(shape, TypeTerm::Rigid(expected_type)),
-            ConstraintOrigin::ExpectedResult,
-        );
-
         // A declaration reference denotes its exact instantiated signature.
         // Function variance is represented by later value coercions, not by
         // choosing a different declaration instantiation here.
@@ -179,6 +172,10 @@ impl Lowerer {
                 ConstraintOrigin::ExpectedResult,
             );
         }
+        session.push(
+            Constraint::CallableShape(shape, TypeTerm::Rigid(expected_type)),
+            ConstraintOrigin::ExpectedResult,
+        );
 
         let solution = self.solve_constraints(&session)?;
         let arguments = solution.arguments_for(&session, environment);

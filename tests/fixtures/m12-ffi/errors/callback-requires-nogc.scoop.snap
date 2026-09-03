@@ -3,4 +3,5 @@ source: compiler/driver/tests/fixtures.rs
 expression: snapshot
 ---
 == diagnostics ==
-m12-ffi/errors/callback-requires-nogc.scoop:4:42: error: no eligible `@NoGC` top-level function `::increment` exactly matches the expected FunPtr signature
+m12-ffi/errors/callback-requires-nogc.scoop:4:42: error: no applicable candidate for native function reference `::increment` in current-unit top-level candidate layer:
+  - fun increment(value: Int): Int — native callbacks must be declared `@NoGC`

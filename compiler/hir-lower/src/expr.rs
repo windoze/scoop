@@ -109,6 +109,15 @@ enum ReferenceExtensionMode {
     Bound(TypeId),
 }
 
+#[derive(Clone, Copy)]
+struct ReferenceResolutionContext<'a> {
+    expected: Option<&'a (TypeId, hir::FunctionType)>,
+    name: &'a str,
+    display: &'a str,
+    span: Span,
+    extension_mode: ReferenceExtensionMode,
+}
+
 struct ResolvedReference {
     callable: hir::Callable,
     source: crate::CallableCandidateSource,

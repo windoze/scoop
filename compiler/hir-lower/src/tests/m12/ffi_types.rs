@@ -280,6 +280,6 @@ fn fun_ptr_null_and_native_function_reference_are_distinct_from_managed_values()
     assert!(
         errors
             .iter()
-            .any(|message| message.contains("no eligible `@NoGC` top-level function"))
+            .any(|message| message.contains("native callbacks must be declared `@NoGC`"))
     );
 }

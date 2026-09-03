@@ -1,0 +1,14 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m16-call-resolution/errors/reference-candidate-traces.scoop:15:41: error: no applicable candidate for callable reference `::convert` in current-unit top-level candidate layer:
+  - fun convert<T : Marker>(value: T): T — type argument `String` for `T` must satisfy interface upper bound `Marker`
+  - fun convert(value: Int): Int — Int is not equal to String
+m16-call-resolution/errors/reference-candidate-traces.scoop:16:21: error: callable reference `::choose` is ambiguous in current-unit top-level candidate layer:
+  - fun choose(value: Int): Int — forms a complete non-generic function type
+  - fun choose(value: String): String — forms a complete non-generic function type
+m16-call-resolution/errors/reference-candidate-traces.scoop:17:48: error: no applicable candidate for native function reference `::callback` in current-unit top-level candidate layer:
+  - fun callback(value: Int): Int — native callbacks must be declared `@NoGC`
+  - fun callback(value: UInt): UInt — UInt is not equal to Boolean

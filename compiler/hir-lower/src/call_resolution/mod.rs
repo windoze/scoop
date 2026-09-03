@@ -7,6 +7,7 @@
 pub(crate) mod applicability;
 pub(crate) mod arguments;
 pub(crate) mod candidates;
+pub(crate) mod diagnostics;
 // The resolver is landing dependency-first. These modules are exercised by
 // their solver tests now and become production-reachable as applicability and
 // specificity migrate in the following M16 slices.

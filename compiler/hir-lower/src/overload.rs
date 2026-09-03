@@ -20,7 +20,7 @@ use ast::Span;
 use hir::{FunctionId, TypeId};
 
 use crate::call_resolution::arguments::CandidateArgumentMap;
-use crate::call_resolution::candidates::{CallableSource, CallableView};
+use crate::call_resolution::candidates::CallableView;
 use crate::{CallableCandidate, CallableCandidateSource, Lowerer};
 
 mod diagnostics;
@@ -79,7 +79,6 @@ struct OverloadResolution<'a> {
 struct Candidate {
     view: CallableView,
     argument_map: Result<CandidateArgumentMap, crate::call_resolution::arguments::ArityMismatch>,
-    target: CallableSource,
     function: FunctionId,
     owner: crate::CallableCandidateOwner,
     source: CallableCandidateSource,
@@ -278,7 +277,6 @@ impl Lowerer {
                     || explicit_type_args.len() == own_type_param_count;
                 Candidate {
                     argument_map,
-                    target: view.target,
                     function,
                     owner: source.owner.clone(),
                     source: view.dispatch,
