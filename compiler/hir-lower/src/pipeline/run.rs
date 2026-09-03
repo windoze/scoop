@@ -193,6 +193,7 @@ impl Lowerer {
         // interface signatures, so validate it after every signature exists.
         self.check_interface_variance();
         self.validate_array_conversion_intrinsics(files);
+        let source_location_core = self.validate_source_location_core(files);
 
         // M10's coroutine protocol is compiler-known: MIR generation needs
         // these exact generic interfaces and intrinsic signatures rather than
@@ -340,7 +341,19 @@ impl Lowerer {
             .expect("a missing or invalid compiler exception core is always diagnosed");
         let ffi_core =
             ffi_core.expect("a missing or invalid FFI core protocol is always diagnosed");
+        let source_location_core = source_location_core
+            .expect("a missing or invalid source location core is always diagnosed");
         Ok(hir::Module {
+            source_files: self
+                .intrinsic_sources
+                .into_iter()
+                .map(|source| hir::SourceFileMetadata {
+                    provider: source.provider,
+                    name: source.name,
+                    source: source.source,
+                })
+                .collect(),
+            source_contexts: self.source_contexts,
             types: self.types,
             function_types: self.function_types,
             lambdas: self.lambdas,
@@ -384,6 +397,7 @@ impl Lowerer {
                 .expect("a missing or invalid foreign callback core protocol is always diagnosed"),
             intrinsic_type_core: intrinsic_type_core
                 .expect("missing or invalid intrinsic core types are always diagnosed"),
+            source_location_core,
             entry,
             instantiations: self.instantiations,
         })

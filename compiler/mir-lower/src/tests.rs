@@ -70,6 +70,7 @@ fn expression_origin() -> hir::ExpressionOrigin {
         provider: hir::IntrinsicProviderId::from_raw(0),
         file: 0,
         span: SPAN,
+        context: hir::SourceContextId::from_raw(0.into()),
     })
 }
 

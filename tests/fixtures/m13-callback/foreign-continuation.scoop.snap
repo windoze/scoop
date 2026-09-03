@@ -145,6 +145,15 @@ SourceFile
     Some(T)
     None
 SourceFile
+  struct SourceLocation
+    field file: String
+    field line: Int
+    field column: Int
+    field functionName: String
+    field typeName: String
+    @Intrinsic("current_source_location")
+  fun getCurrentSourceLocation(): SourceLocation
+SourceFile
   open class Throwable()
   open class Exception(val message: String?) : Throwable(<0 args>)
   class UnwrapException() : Exception(<1 args>)
@@ -424,6 +433,7 @@ Module
   extern ef11 coreStringHash @scoop_rt_string_hash(String) -> Int <abi=scoop managed>
   extern ef12 startOne @m13_start_one(FunPtr<(Int, Ptr<Unit>) -> Int>, Ptr<Unit>, Int) -> Ptr<Unit> <abi=c no-gc lib=fixture_native>
   extern ef13 joinOne @m13_join_one(Ptr<Unit>) -> Int <abi=c no-gc lib=fixture_native>
+  struct SourceLocation (file: String, line: Int, column: Int, functionName: String, typeName: String)
   struct ForeignCallback$FI_PUXRIX (function: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>)
   enum Option$D25_ForeignCallback$FI_PUXRIXX
     Some(_1: ForeignCallback$FI_PUXRIX)
@@ -1857,7 +1867,7 @@ Module
   global @scoop.str.7 = "arithmetic error"
   global @scoop.str.8 = "array index out of bounds"
   global @scoop.str.9 = "illegal state"
-  enum Option$D25_ForeignCallback$FI_PUXRIXX tagged size=24 align=8 variants=(struct3)@8+16 ()@8+0
+  enum Option$D25_ForeignCallback$FI_PUXRIXX tagged size=24 align=8 variants=(struct4)@8+16 ()@8+0
   enum Option$S niche(payload_variant=0)
   enum CoroutineStep$I tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
   enum ForeignCallbackState tagged size=8 align=8 variants=()@8+0 ()@8+0 ()@8+0 ()@8+0
@@ -1965,7 +1975,7 @@ Module
     ret local0
   fun @scoop.ForeignRegistration.register(ptr<managed>, ptr<managed>) -> void
     local %0 adjustment: i64
-    local %1 worker: struct3
+    local %1 worker: struct4
     local %2 $call.1: ptr<raw>
     local %3 $sc.1: ptr<code>
     local %4 $sc.2: ptr<raw>
@@ -1979,10 +1989,10 @@ Module
     heap_store t0 +16 t1
     heap_store t0 +24 param1
     heap_store t0 +32 local0
-    t2 = foreign_callback_register fcb0 t0 : struct3
+    t2 = foreign_callback_register fcb0 t0 : struct4
     store t2 -> local1
     t3 = heap_load param0 +16 : ptr<managed>
-    t4 = foreign_callback_Retain local1 : struct3
+    t4 = foreign_callback_Retain local1 : struct4
     t5 = enum_wrap e0 v0 (t4) : enum0
     heap_store t3 +24 t5
     t6 = extract local1, 0 : ptr<code>
@@ -2031,9 +2041,9 @@ Module
     ret
   fun @scoop_main() -> void
     local %0 gate: ptr<managed>
-    local %1 observer: struct3
+    local %1 observer: struct4
     local %2 $opt.1: enum0
-    local %3 $uw.2: struct3
+    local %3 $uw.2: struct4
     local %4 $call.1: ptr<managed>
     local %5 $call.2: ptr<managed>
     local %6 $call.3: i64
@@ -2070,7 +2080,7 @@ Module
     t13 = Eq t12, 0 : i1
     cbr t13 then @if.then.1 else @if.else.2
   block if.then.1
-    t14 = enum_field e0 v0 f0 local2 : struct3
+    t14 = enum_field e0 v0 f0 local2 : struct4
     store t14 -> local3
     br @if.merge.3
   block if.else.2
@@ -2756,6 +2766,7 @@ Module
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
+  layout SourceLocation size=40 align=8 refs=[0, 24, 32]
   layout ForeignCallback$FI_PUXRIX size=16 align=8 refs=[]
   layout Option$D25_ForeignCallback$FI_PUXRIXX size=24 align=8 enum-scan=none
   layout Option$S size=8 align=8 enum-scan=refs[0]

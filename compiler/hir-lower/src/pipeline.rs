@@ -55,8 +55,14 @@ impl Lowerer {
         let boolean = types.alloc(Type::Boolean);
         let string = types.alloc(Type::String);
         let any = types.alloc(Type::Any);
+        let mut source_contexts = Arena::new();
+        let root_source_context = source_contexts.alloc(hir::SourceContext {
+            function_name: String::new(),
+            type_name: String::new(),
+        });
 
         Lowerer {
+            source_contexts,
             types,
             function_types: Arena::new(),
             lambdas: Arena::new(),
@@ -154,6 +160,7 @@ impl Lowerer {
             current_return_ty: unit,
             return_inference: None,
             current_fn_name: String::new(),
+            current_source_context: root_source_context,
             suspension_contexts: vec![SuspensionContext::Forbidden(
                 ForbiddenSuspendContext::TopLevel,
             )],
@@ -191,7 +198,7 @@ impl Lowerer {
     }
 
     pub(crate) fn current_provider_may_declare_intrinsics(&self) -> bool {
-        let source = self.intrinsic_sources[self.current_file];
+        let source = &self.intrinsic_sources[self.current_file];
         source.core
             || matches!(
                 &self.intrinsic_policy,

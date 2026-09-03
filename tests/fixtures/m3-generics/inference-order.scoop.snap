@@ -145,6 +145,15 @@ SourceFile
     Some(T)
     None
 SourceFile
+  struct SourceLocation
+    field file: String
+    field line: Int
+    field column: Int
+    field functionName: String
+    field typeName: String
+    @Intrinsic("current_source_location")
+  fun getCurrentSourceLocation(): SourceLocation
+SourceFile
   open class Throwable()
   open class Exception(val message: String?) : Throwable(<0 args>)
   class UnwrapException() : Exception(<1 args>)
@@ -443,6 +452,7 @@ Module
   extern ef9 coreUIntHash @scoop_rt_uint_hash(UInt) -> Int <abi=scoop managed>
   extern ef10 coreBooleanHash @scoop_rt_bool_hash(Boolean) -> Int <abi=scoop managed>
   extern ef11 coreStringHash @scoop_rt_string_hash(String) -> Int <abi=scoop managed>
+  struct SourceLocation (file: String, line: Int, column: Int, functionName: String, typeName: String)
   struct Pair$I (maybe: Option$I<Int>, value: Int)
   enum Option$I
     Some(_1: Int)
@@ -915,7 +925,7 @@ Module
     poll managed-void-target0 sp48 live=[param1:ptr<managed>@0]
     ret param1
   fun @scoop_main() -> void
-    local %0 pair: struct3
+    local %0 pair: struct4
     local %1 duo: enum2
     local %2 value: i64
     local %3 $when.1: enum2
@@ -932,7 +942,7 @@ Module
     call managed-void-target0 sp13 live=[] sig=void0 (i64) local-fn16(local4)
     t2 = aggregate () : {}
     t3 = enum_wrap e0 v1 () : enum0
-    t4 = aggregate (t3, 8) : struct3
+    t4 = aggregate (t3, 8) : struct4
     store t4 -> local0
     t5 = extract local0, 1 : i64
     call managed-void-target1 sp14 live=[] sig=void1 (i64) local-fn16(t5)
@@ -1081,6 +1091,7 @@ Module
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
+  layout SourceLocation size=40 align=8 refs=[0, 24, 32]
   layout Pair$I size=24 align=8 refs=[]
   layout Option$I size=16 align=8 enum-scan=none
   layout Option$S size=8 align=8 enum-scan=refs[0]

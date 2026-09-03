@@ -144,6 +144,7 @@ impl Lowerer {
     pub(crate) fn finish_current_captures(&mut self) -> Vec<hir::Capture> {
         let provider = self.current_intrinsic_provider();
         let file = u32::try_from(self.current_file).expect("source file index exceeds u32");
+        let source_context = self.current_source_context;
         let context = self
             .capture_contexts
             .last_mut()
@@ -168,6 +169,7 @@ impl Lowerer {
                             provider,
                             file,
                             span: capture.first_use_span,
+                            context: source_context,
                         }),
                     },
                     CaptureSource::Capture(binding) => hir::Expr {
@@ -178,6 +180,7 @@ impl Lowerer {
                             provider,
                             file,
                             span: capture.first_use_span,
+                            context: source_context,
                         }),
                     },
                 };

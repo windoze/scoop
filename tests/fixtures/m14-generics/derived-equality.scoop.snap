@@ -145,6 +145,15 @@ SourceFile
     Some(T)
     None
 SourceFile
+  struct SourceLocation
+    field file: String
+    field line: Int
+    field column: Int
+    field functionName: String
+    field typeName: String
+    @Intrinsic("current_source_location")
+  fun getCurrentSourceLocation(): SourceLocation
+SourceFile
   open class Throwable()
   open class Exception(val message: String?) : Throwable(<0 args>)
   class UnwrapException() : Exception(<1 args>)
@@ -385,6 +394,7 @@ Module
   extern ef9 coreUIntHash @scoop_rt_uint_hash(UInt) -> Int <abi=scoop managed>
   extern ef10 coreBooleanHash @scoop_rt_bool_hash(Boolean) -> Int <abi=scoop managed>
   extern ef11 coreStringHash @scoop_rt_string_hash(String) -> Int <abi=scoop managed>
+  struct SourceLocation (file: String, line: Int, column: Int, functionName: String, typeName: String)
   struct Pair$I (first: Int, second: Int)
   enum Option$S
     Some(_1: String)
@@ -916,15 +926,15 @@ Module
     local %3 $call.4: i1
   block entry
     poll managed-void-target4 sp45 live=[]
-    t0 = aggregate (1, 2) : struct3
-    t1 = aggregate (1, 2) : struct3
-    call managed-direct-target0 sp12 live=[] t2 = sig=direct0 (struct3, struct3) -> i1 local-fn14(t0, t1)
+    t0 = aggregate (1, 2) : struct4
+    t1 = aggregate (1, 2) : struct4
+    call managed-direct-target0 sp12 live=[] t2 = sig=direct0 (struct4, struct4) -> i1 local-fn14(t0, t1)
     store t2 -> local0
     call managed-void-target0 sp13 live=[] sig=void0 (i1) local-fn13(local0)
     t3 = aggregate () : {}
-    t4 = aggregate (1, 2) : struct3
-    t5 = aggregate (1, 3) : struct3
-    call managed-direct-target1 sp14 live=[] t6 = sig=direct1 (struct3, struct3) -> i1 local-fn14(t4, t5)
+    t4 = aggregate (1, 2) : struct4
+    t5 = aggregate (1, 3) : struct4
+    call managed-direct-target1 sp14 live=[] t6 = sig=direct1 (struct4, struct4) -> i1 local-fn14(t4, t5)
     store t6 -> local1
     t7 = Not local1 : i1
     call managed-void-target1 sp15 live=[] sig=void1 (i1) local-fn13(t7)
@@ -953,7 +963,7 @@ Module
     call native-borrowed-void-target1 sp22 roots=[] sig=void1 (ptr<managed>) extern0(global3)
     t2 = aggregate () : {}
     ret
-  fun @scoop.Pair.equals$I(struct3, struct3) -> i1
+  fun @scoop.Pair.equals$I(struct4, struct4) -> i1
     local %0 $call.1: i1
     local %1 $logic.2: i1
     local %2 $call.3: i1
@@ -1099,6 +1109,7 @@ Module
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
+  layout SourceLocation size=40 align=8 refs=[0, 24, 32]
   layout Pair$I size=16 align=8 refs=[]
   layout Option$S size=8 align=8 enum-scan=refs[0]
   layout Maybe$S size=8 align=8 enum-scan=refs[0]

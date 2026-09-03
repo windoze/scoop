@@ -145,6 +145,15 @@ SourceFile
     Some(T)
     None
 SourceFile
+  struct SourceLocation
+    field file: String
+    field line: Int
+    field column: Int
+    field functionName: String
+    field typeName: String
+    @Intrinsic("current_source_location")
+  fun getCurrentSourceLocation(): SourceLocation
+SourceFile
   open class Throwable()
   open class Exception(val message: String?) : Throwable(<0 args>)
   class UnwrapException() : Exception(<1 args>)
@@ -569,6 +578,7 @@ Module
   extern ef9 coreUIntHash @scoop_rt_uint_hash(UInt) -> Int <abi=scoop managed>
   extern ef10 coreBooleanHash @scoop_rt_bool_hash(Boolean) -> Int <abi=scoop managed>
   extern ef11 coreStringHash @scoop_rt_string_hash(String) -> Int <abi=scoop managed>
+  struct SourceLocation (file: String, line: Int, column: Int, functionName: String, typeName: String)
   struct ValueMapper (offset: Int)
   enum Option$S
     Some(_1: String)
@@ -1429,7 +1439,7 @@ Module
     call native-borrowed-direct-target0 sp9 roots=[] t0 = sig=direct0 (i1) -> i64 extern10(param0)
     store t0 -> local0
     ret local0
-  fun @scoop.ValueMapper.map(struct3, i64) -> i64
+  fun @scoop.ValueMapper.map(struct4, i64) -> i64
   block entry
     poll managed-void-target0 sp101 live=[]
     t0 = extract param0, 0 : i64
@@ -1527,7 +1537,7 @@ Module
     local %6 virtual: ptr<managed>
     local %7 mapper: ptr<managed>
     local %8 interfaceReference: ptr<managed>
-    local %9 valueMapper: struct3
+    local %9 valueMapper: struct4
     local %10 valueReference: ptr<managed>
     local %11 genericMember: ptr<managed>
     local %12 concreteWins: ptr<managed>
@@ -1600,14 +1610,14 @@ Module
     heap_store t17 +16 t18
     heap_store t17 +24 local7
     store t17 -> local8
-    t19 = aggregate (2) : struct3
+    t19 = aggregate (2) : struct4
     store t19 -> local9
     call managed-direct-target11 sp28 live=[local0:ptr<managed>@0, local1:ptr<managed>@0, local2:ptr<managed>@0, local4:ptr<managed>@0, local5:ptr<managed>@0, local6:ptr<managed>@0, local8:ptr<managed>@0] t20 = sig=direct11 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td27, 32)
     t21 = function_address @scoop.$reference.6 : ptr
     heap_store t20 +16 t21
     heap_store t20 +24 local9
     store t20 -> local10
-    t22 = aggregate (100) : struct3
+    t22 = aggregate (100) : struct4
     store t22 -> local9
     call managed-direct-target12 sp29 live=[local0:ptr<managed>@0, local1:ptr<managed>@0, local2:ptr<managed>@0, local4:ptr<managed>@0, local5:ptr<managed>@0, local6:ptr<managed>@0, local8:ptr<managed>@0, local10:ptr<managed>@0] t23 = sig=direct12 () -> ptr<managed> local-fn50()
     store t23 -> local19
@@ -1666,7 +1676,7 @@ Module
     store t49 -> local29
     call managed-void-target9 sp51 live=[local11:ptr<managed>@0, local12:ptr<managed>@0, local13:ptr<managed>@0] sig=void9 (i64) local-fn25(local29)
     t50 = aggregate () : {}
-    call managed-direct-target26 sp52 live=[local11:ptr<managed>@0, local12:ptr<managed>@0, local13:ptr<managed>@0] t51 = sig=direct26 (struct3, i64) -> i64 local-fn9(local9, 40)
+    call managed-direct-target26 sp52 live=[local11:ptr<managed>@0, local12:ptr<managed>@0, local13:ptr<managed>@0] t51 = sig=direct26 (struct4, i64) -> i64 local-fn9(local9, 40)
     store t51 -> local30
     call managed-void-target10 sp53 live=[local11:ptr<managed>@0, local12:ptr<managed>@0, local13:ptr<managed>@0] sig=void10 (i64) local-fn25(local30)
     t52 = aggregate () : {}
@@ -1821,8 +1831,8 @@ Module
     local %0 $call.1: i64
   block entry
     poll managed-void-target0 sp126 live=[param0:ptr<managed>@0]
-    t0 = heap_load param0 +24 : struct3
-    call managed-direct-target0 sp73 live=[] t1 = sig=direct0 (struct3, i64) -> i64 local-fn9(t0, param1)
+    t0 = heap_load param0 +24 : struct4
+    call managed-direct-target0 sp73 live=[] t1 = sig=direct0 (struct4, i64) -> i64 local-fn9(t0, param1)
     store t1 -> local0
     ret local0
   fun @scoop.$reference.7(ptr<managed>, ptr<managed>) -> ptr<managed>
@@ -1990,6 +2000,7 @@ Module
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
+  layout SourceLocation size=40 align=8 refs=[0, 24, 32]
   layout ValueMapper size=8 align=8 refs=[]
   layout Option$S size=8 align=8 enum-scan=refs[0]
   layout Throwable size=16 align=8 refs=[]

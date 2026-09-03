@@ -145,6 +145,15 @@ SourceFile
     Some(T)
     None
 SourceFile
+  struct SourceLocation
+    field file: String
+    field line: Int
+    field column: Int
+    field functionName: String
+    field typeName: String
+    @Intrinsic("current_source_location")
+  fun getCurrentSourceLocation(): SourceLocation
+SourceFile
   open class Throwable()
   open class Exception(val message: String?) : Throwable(<0 args>)
   class UnwrapException() : Exception(<1 args>)
@@ -850,6 +859,7 @@ Module
   extern ef9 coreUIntHash @scoop_rt_uint_hash(UInt) -> Int <abi=scoop managed>
   extern ef10 coreBooleanHash @scoop_rt_bool_hash(Boolean) -> Int <abi=scoop managed>
   extern ef11 coreStringHash @scoop_rt_string_hash(String) -> Int <abi=scoop managed>
+  struct SourceLocation (file: String, line: Int, column: Int, functionName: String, typeName: String)
   struct FunctionSuspendRegistration$I (registration: (Continuation$I) -> Unit)
   struct FunctionSuspendTask$I (task: suspend () -> Int)
   struct FunctionSuspendTask$U (task: suspend () -> Unit)
@@ -18523,8 +18533,8 @@ Module
   enum CoroutineSlot$S niche(payload_variant=1)
   enum CoroutineSlot$C4_GateX niche(payload_variant=1)
   enum CoroutineSlot$FJ14_Continuation$IXRUX niche(payload_variant=1)
-  enum CoroutineSlot$D21_FunctionSuspendTask$IX tagged size=16 align=8 variants=()@8+0 (struct4)@8+8:refs
-  enum CoroutineSlot$D21_FunctionSuspendTask$UX tagged size=16 align=8 variants=()@8+0 (struct5)@8+8:refs
+  enum CoroutineSlot$D21_FunctionSuspendTask$IX tagged size=16 align=8 variants=()@8+0 (struct5)@8+8:refs
+  enum CoroutineSlot$D21_FunctionSuspendTask$UX tagged size=16 align=8 variants=()@8+0 (struct6)@8+8:refs
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
   extern ef1 coreIntEquals @scoop_rt_int_equals(i64, i64) -> i1 <scoop managed nounwind>
   extern ef2 coreUIntEquals @scoop_rt_uint_equals(i64, i64) -> i1 <scoop managed nounwind>
@@ -19559,10 +19569,10 @@ Module
     t2 = aggregate () : {}
     ret
   fun @scoop.startCoroutine$I.g8(ptr<managed>, ptr<managed>) -> void
-    local %0 $sc.1: struct4
+    local %0 $sc.1: struct5
   block entry
     poll managed-void-target1 sp852 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
-    t0 = aggregate (param0) : struct4
+    t0 = aggregate (param0) : struct5
     store t0 -> local0
     t1 = local_address local0 : ptr
     call managed-direct-target0 sp165 live=[param1:ptr<managed>@0] t2 = sig=direct0 (ptr<metadata>, ptr<raw>, i64, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_box(td26, t1, 8, root-scan0)
@@ -19581,10 +19591,10 @@ Module
     t2 = aggregate () : {}
     ret
   fun @scoop.startCoroutine$U.g8(ptr<managed>, ptr<managed>) -> void
-    local %0 $sc.1: struct5
+    local %0 $sc.1: struct6
   block entry
     poll managed-void-target1 sp854 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
-    t0 = aggregate (param0) : struct5
+    t0 = aggregate (param0) : struct6
     store t0 -> local0
     t1 = local_address local0 : ptr
     call managed-direct-target0 sp170 live=[param1:ptr<managed>@0] t2 = sig=direct0 (ptr<metadata>, ptr<raw>, i64, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_box(td27, t1, 8, root-scan0)
@@ -19610,20 +19620,20 @@ Module
     call native-borrowed-void-target1 sp175 roots=[] sig=void1 (ptr<managed>) extern0(global12)
     t2 = aggregate () : {}
     ret
-  fun @scoop.FunctionSuspendRegistration.register$I(struct3, ptr<managed>) -> void
+  fun @scoop.FunctionSuspendRegistration.register$I(struct4, ptr<managed>) -> void
   block entry
-    poll managed-void-target1 sp857 live=[param0:struct3@0, param1:ptr<managed>@0]
+    poll managed-void-target1 sp857 live=[param0:struct4@0, param1:ptr<managed>@0]
     t0 = extract param0, 0 : ptr<managed>
     call managed-void-target0 sp176 live=[param1:ptr<managed>@0, t0:ptr<managed>@0] sig=void0 (ptr<managed>, ptr<managed>) dispatch[Closure:2] t0(t0, param1)
     t1 = aggregate () : {}
     ret
-  fun @scoop.FunctionSuspendTask.run$I$suspend(struct4, ptr<managed>) -> enum2
+  fun @scoop.FunctionSuspendTask.run$I$suspend(struct5, ptr<managed>) -> enum2
     local %0 $frame: ptr<managed>
     local %1 $step: enum2
     local %2 $sc.1: enum2
   block entry
-    poll managed-void-target0 sp858 live=[param0:struct4@0, param1:ptr<managed>@0]
-    call managed-direct-target0 sp177 live=[param0:struct4@0, param1:ptr<managed>@0] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td87, 72)
+    poll managed-void-target0 sp858 live=[param0:struct5@0, param1:ptr<managed>@0]
+    call managed-direct-target0 sp177 live=[param0:struct5@0, param1:ptr<managed>@0] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td87, 72)
     heap_store t0 +16 0
     heap_store t0 +24 param1
     t1 = enum_wrap e16 v1 (param0) : enum16
@@ -19636,13 +19646,13 @@ Module
     call managed-indirect-target0 sp178 live=[local0:ptr<managed>@0] local2 = sig=indirect0 (sret enum2, ptr<managed>, i64) local-fn190(local0, 0)
     store local2 -> local1
     ret local1
-  fun @scoop.FunctionSuspendTask.run$U$suspend(struct5, ptr<managed>) -> enum3
+  fun @scoop.FunctionSuspendTask.run$U$suspend(struct6, ptr<managed>) -> enum3
     local %0 $frame: ptr<managed>
     local %1 $step: enum3
     local %2 $sc.1: enum3
   block entry
-    poll managed-void-target0 sp859 live=[param0:struct5@0, param1:ptr<managed>@0]
-    call managed-direct-target0 sp179 live=[param0:struct5@0, param1:ptr<managed>@0] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td89, 56)
+    poll managed-void-target0 sp859 live=[param0:struct6@0, param1:ptr<managed>@0]
+    call managed-direct-target0 sp179 live=[param0:struct6@0, param1:ptr<managed>@0] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td89, 56)
     heap_store t0 +16 0
     heap_store t0 +24 param1
     t1 = enum_wrap e17 v1 (param0) : enum17
@@ -20019,8 +20029,8 @@ Module
   fun @scoop.thunk.D29_FunctionSuspendRegistration$IX.SuspendRegistration$I.register(ptr<managed>, ptr<managed>) -> void
   block entry
     poll managed-void-target1 sp884 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
-    t0 = heap_load param0 +16 : struct3
-    call managed-void-target0 sp219 live=[param1:ptr<managed>@0, t0:struct3@0] sig=void0 (struct3, ptr<managed>) local-fn68(t0, param1)
+    t0 = heap_load param0 +16 : struct4
+    call managed-void-target0 sp219 live=[param1:ptr<managed>@0, t0:struct4@0] sig=void0 (struct4, ptr<managed>) local-fn68(t0, param1)
     t1 = aggregate () : {}
     ret
   fun @scoop.thunk.D21_FunctionSuspendTask$IX.SuspendTask$I.run$suspend(ptr<managed>, ptr<managed>) -> enum2
@@ -26818,7 +26828,7 @@ Module
     local %6 $registration_frame_claim.1: i64
     local %7 $protocol_error: ptr<managed>
     local %8 $protocol_error: ptr<managed>
-    local %9 $sc.1: struct3
+    local %9 $sc.1: struct4
     local %10 $sc.2: exception_record
     local %11 $sc.3: ptr<raw>
     local %12 $sc.4: ptr<managed>
@@ -26837,7 +26847,7 @@ Module
     t3 = enum_wrap e2 v0 (local1) : enum2
     ret t3
   block coroutine.register.1
-    t4 = aggregate (local0) : struct3
+    t4 = aggregate (local0) : struct4
     store t4 -> local9
     t5 = local_address local9 : ptr
     call managed-direct-target1 sp656 live=[param0:ptr<managed>@0, local3:ptr<managed>@0] t6 = sig=direct1 (ptr<metadata>, ptr<raw>, i64, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_box(td25, t5, 8, root-scan0)
@@ -27147,7 +27157,7 @@ Module
     t22 = Eq t21, 0 : i1
     cbr t22 then @completed else @suspended
   fun @scoop.FunctionSuspendTask.run$I$suspend$drive(ptr<managed>, i64) -> enum2
-    local %0 this: struct4
+    local %0 this: struct5
     local %1 $call.1: i64
     local %2 $completion: ptr<managed>
     local %3 $adapter.1: ptr<managed>
@@ -27159,7 +27169,7 @@ Module
     local %9 $sc.1: enum2
   block entry
     atomic_store release param0 +16 1
-    call managed-direct-target0 sp671 live=[param0:ptr<managed>@0, local0:struct4@0] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td88, 32)
+    call managed-direct-target0 sp671 live=[param0:ptr<managed>@0, local0:struct5@0] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td88, 32)
     heap_store t0 +16 param0
     heap_store t0 +24 1
     store t0 -> local3
@@ -27206,7 +27216,7 @@ Module
     unreachable
   block coroutine.initial
     t16 = heap_load param0 +32 : enum16
-    t17 = enum_field e16 v1 f0 t16 : struct4
+    t17 = enum_field e16 v1 f0 t16 : struct5
     store t17 -> local0
     atomic_store release param0 +16 -1
     br @entry
@@ -27378,7 +27388,7 @@ Module
     t22 = Eq t21, 0 : i1
     cbr t22 then @completed else @suspended
   fun @scoop.FunctionSuspendTask.run$U$suspend$drive(ptr<managed>, i64) -> enum3
-    local %0 this: struct5
+    local %0 this: struct6
     local %1 $completion: ptr<managed>
     local %2 $adapter.1: ptr<managed>
     local %3 $step.1: enum3
@@ -27389,7 +27399,7 @@ Module
     local %8 $sc.1: enum3
   block entry
     atomic_store release param0 +16 1
-    call managed-direct-target0 sp685 live=[param0:ptr<managed>@0, local0:struct5@0] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td90, 32)
+    call managed-direct-target0 sp685 live=[param0:ptr<managed>@0, local0:struct6@0] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td90, 32)
     heap_store t0 +16 param0
     heap_store t0 +24 1
     store t0 -> local2
@@ -27432,7 +27442,7 @@ Module
     unreachable
   block coroutine.initial
     t14 = heap_load param0 +32 : enum17
-    t15 = enum_field e17 v1 f0 t14 : struct5
+    t15 = enum_field e17 v1 f0 t14 : struct6
     store t15 -> local0
     atomic_store release param0 +16 -1
     br @entry
@@ -27617,8 +27627,8 @@ Module
     heap_store t0 +16 param0
     heap_store t0 +24 1
     store t0 -> local3
-    t1 = heap_load local0 +16 : struct4
-    call managed-indirect-target0 sp700 live=[param0:ptr<managed>@0, local3:ptr<managed>@0, t1:struct4@0] local9 = sig=indirect0 (sret enum2, struct4, ptr<managed>) local-fn69(t1, local3)
+    t1 = heap_load local0 +16 : struct5
+    call managed-indirect-target0 sp700 live=[param0:ptr<managed>@0, local3:ptr<managed>@0, t1:struct5@0] local9 = sig=indirect0 (sret enum2, struct5, ptr<managed>) local-fn69(t1, local3)
     store local9 -> local4
     t2 = enum_tag e2 local4 : i64
     t3 = Eq t2, 0 : i1
@@ -27847,8 +27857,8 @@ Module
     heap_store t0 +16 param0
     heap_store t0 +24 1
     store t0 -> local2
-    t1 = heap_load local0 +16 : struct5
-    call managed-indirect-target0 sp714 live=[param0:ptr<managed>@0, local2:ptr<managed>@0, t1:struct5@0] local8 = sig=indirect0 (sret enum3, struct5, ptr<managed>) local-fn70(t1, local2)
+    t1 = heap_load local0 +16 : struct6
+    call managed-indirect-target0 sp714 live=[param0:ptr<managed>@0, local2:ptr<managed>@0, t1:struct6@0] local8 = sig=indirect0 (sret enum3, struct6, ptr<managed>) local-fn70(t1, local2)
     store local8 -> local3
     t2 = enum_tag e3 local3 : i64
     t3 = Eq t2, 0 : i1
@@ -29137,6 +29147,7 @@ Module
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
+  layout SourceLocation size=40 align=8 refs=[0, 24, 32]
   layout FunctionSuspendRegistration$I size=8 align=8 refs=[0]
   layout FunctionSuspendTask$I size=8 align=8 refs=[0]
   layout FunctionSuspendTask$U size=8 align=8 refs=[0]

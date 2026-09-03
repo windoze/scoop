@@ -145,6 +145,15 @@ SourceFile
     Some(T)
     None
 SourceFile
+  struct SourceLocation
+    field file: String
+    field line: Int
+    field column: Int
+    field functionName: String
+    field typeName: String
+    @Intrinsic("current_source_location")
+  fun getCurrentSourceLocation(): SourceLocation
+SourceFile
   open class Throwable()
   open class Exception(val message: String?) : Throwable(<0 args>)
   class UnwrapException() : Exception(<1 args>)
@@ -466,6 +475,7 @@ Module
   extern ef9 coreUIntHash @scoop_rt_uint_hash(UInt) -> Int <abi=scoop managed>
   extern ef10 coreBooleanHash @scoop_rt_bool_hash(Boolean) -> Int <abi=scoop managed>
   extern ef11 coreStringHash @scoop_rt_string_hash(String) -> Int <abi=scoop managed>
+  struct SourceLocation (file: String, line: Int, column: Int, functionName: String, typeName: String)
   struct Point (x: Int, y: Int)
   enum Option$S
     Some(_1: String)
@@ -953,7 +963,7 @@ Module
   global @scoop.str.5 = "illegal state"
   enum Option$S niche(payload_variant=0)
   enum Option$I tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
-  enum Option$D5_PointX tagged size=24 align=8 variants=(struct3)@8+16 ()@8+0
+  enum Option$D5_PointX tagged size=24 align=8 variants=(struct4)@8+16 ()@8+0
   extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
   extern ef1 coreIntEquals @scoop_rt_int_equals(i64, i64) -> i1 <scoop managed nounwind>
   extern ef2 coreUIntEquals @scoop_rt_uint_equals(i64, i64) -> i1 <scoop managed nounwind>
@@ -1116,7 +1126,7 @@ Module
     store local8 -> local9
     call managed-void-target1 sp13 live=[] sig=void1 (i64) local-fn13(local9)
     t9 = aggregate () : {}
-    t10 = aggregate (10, 20) : struct3
+    t10 = aggregate (10, 20) : struct4
     t11 = enum_wrap e2 v0 (t10) : enum2
     store t11 -> local10
     store local10 -> local11
@@ -1124,7 +1134,7 @@ Module
     t13 = Eq t12, 0 : i1
     cbr t13 then @if.then.7 else @if.else.8
   block if.then.7
-    t14 = enum_field e2 v0 f0 local11 : struct3
+    t14 = enum_field e2 v0 f0 local11 : struct4
     t15 = extract t14, 0 : i64
     t16 = enum_wrap e1 v0 (t15) : enum1
     store t16 -> local12
@@ -1157,7 +1167,7 @@ Module
     t24 = Eq t23, 0 : i1
     cbr t24 then @if.then.13 else @if.else.14
   block if.then.13
-    t25 = enum_field e2 v0 f0 local18 : struct3
+    t25 = enum_field e2 v0 f0 local18 : struct4
     t26 = extract t25, 0 : i64
     t27 = enum_wrap e1 v0 (t26) : enum1
     store t27 -> local19
@@ -1290,6 +1300,7 @@ Module
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
+  layout SourceLocation size=40 align=8 refs=[0, 24, 32]
   layout Point size=16 align=8 refs=[]
   layout Option$S size=8 align=8 enum-scan=refs[0]
   layout Option$I size=16 align=8 enum-scan=none

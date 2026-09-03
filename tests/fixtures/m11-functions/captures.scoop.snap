@@ -145,6 +145,15 @@ SourceFile
     Some(T)
     None
 SourceFile
+  struct SourceLocation
+    field file: String
+    field line: Int
+    field column: Int
+    field functionName: String
+    field typeName: String
+    @Intrinsic("current_source_location")
+  fun getCurrentSourceLocation(): SourceLocation
+SourceFile
   open class Throwable()
   open class Exception(val message: String?) : Throwable(<0 args>)
   class UnwrapException() : Exception(<1 args>)
@@ -488,6 +497,7 @@ Module
   extern ef9 coreUIntHash @scoop_rt_uint_hash(UInt) -> Int <abi=scoop managed>
   extern ef10 coreBooleanHash @scoop_rt_bool_hash(Boolean) -> Int <abi=scoop managed>
   extern ef11 coreStringHash @scoop_rt_string_hash(String) -> Int <abi=scoop managed>
+  struct SourceLocation (file: String, line: Int, column: Int, functionName: String, typeName: String)
   struct Label (text: String)
   struct Snapshot (value: Int)
   enum Option$S
@@ -1050,7 +1060,7 @@ Module
     call native-borrowed-direct-target0 sp9 roots=[] t0 = sig=direct0 (i1) -> i64 extern10(param0)
     store t0 -> local0
     ret local0
-  fun @scoop.Snapshot.getter(struct4) -> ptr<managed>
+  fun @scoop.Snapshot.getter(struct5) -> ptr<managed>
   block entry
     poll managed-void-target0 sp65 live=[]
     call managed-direct-target0 sp10 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td15, 32)
@@ -1100,10 +1110,10 @@ Module
     heap_store t0 +16 t1
     heap_store t0 +24 param0
     ret t0
-  fun @scoop.labelReader(struct3) -> ptr<managed>
+  fun @scoop.labelReader(struct4) -> ptr<managed>
   block entry
-    poll managed-void-target0 sp72 live=[param0:struct3@0]
-    call managed-direct-target0 sp16 live=[param0:struct3@0] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td19, 32)
+    poll managed-void-target0 sp72 live=[param0:struct4@0]
+    call managed-direct-target0 sp16 live=[param0:struct4@0] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td19, 32)
     t1 = function_address @scoop.$lambda.3 : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 param0
@@ -1128,7 +1138,7 @@ Module
     local %1 outer: ptr<managed>
     local %2 inner: ptr<managed>
     local %3 reader: ptr<managed>
-    local %4 source: struct4
+    local %4 source: struct5
     local %5 getter: ptr<managed>
     local %6 counter: ptr<managed>
     local %7 increment: ptr<managed>
@@ -1147,14 +1157,14 @@ Module
     store t1 -> local1
     call managed-direct-target2 sp20 live=[local0:ptr<managed>@0, local1:ptr<managed>@0] t2 = sig=direct2 (ptr<managed>) -> ptr<managed> dispatch[Closure:2] local1(local1)
     store t2 -> local2
-    t3 = aggregate (global0) : struct3
-    call managed-direct-target3 sp21 live=[local0:ptr<managed>@0, local2:ptr<managed>@0, t3:struct3@0] t4 = sig=direct3 (struct3) -> ptr<managed> local-fn16(t3)
+    t3 = aggregate (global0) : struct4
+    call managed-direct-target3 sp21 live=[local0:ptr<managed>@0, local2:ptr<managed>@0, t3:struct4@0] t4 = sig=direct3 (struct4) -> ptr<managed> local-fn16(t3)
     store t4 -> local3
-    t5 = aggregate (1) : struct4
+    t5 = aggregate (1) : struct5
     store t5 -> local4
-    call managed-direct-target4 sp22 live=[local0:ptr<managed>@0, local2:ptr<managed>@0, local3:ptr<managed>@0] t6 = sig=direct4 (struct4) -> ptr<managed> local-fn9(local4)
+    call managed-direct-target4 sp22 live=[local0:ptr<managed>@0, local2:ptr<managed>@0, local3:ptr<managed>@0] t6 = sig=direct4 (struct5) -> ptr<managed> local-fn9(local4)
     store t6 -> local5
-    t7 = aggregate (2) : struct4
+    t7 = aggregate (2) : struct5
     store t7 -> local4
     call managed-direct-target5 sp23 live=[local0:ptr<managed>@0, local2:ptr<managed>@0, local3:ptr<managed>@0, local5:ptr<managed>@0] t8 = sig=direct5 (i64) -> ptr<managed> local-fn35(40)
     store t8 -> local6
@@ -1218,7 +1228,7 @@ Module
   fun @scoop.$lambda.3(ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp78 live=[param0:ptr<managed>@0]
-    t0 = heap_load param0 +24 : struct3
+    t0 = heap_load param0 +24 : struct4
     t1 = extract t0, 0 : ptr<managed>
     ret t1
   fun @scoop.$lambda.4(ptr<managed>) -> i64
@@ -1230,7 +1240,7 @@ Module
   fun @scoop.$lambda.5(ptr<managed>) -> i64
   block entry
     poll managed-void-target0 sp80 live=[param0:ptr<managed>@0]
-    t0 = heap_load param0 +24 : struct4
+    t0 = heap_load param0 +24 : struct5
     t1 = extract t0, 0 : i64
     ret t1
   fun @scoop.$lambda.6(ptr<managed>) -> i64
@@ -1362,6 +1372,7 @@ Module
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
+  layout SourceLocation size=40 align=8 refs=[0, 24, 32]
   layout Label size=8 align=8 refs=[0]
   layout Snapshot size=8 align=8 refs=[]
   layout Option$S size=8 align=8 enum-scan=refs[0]

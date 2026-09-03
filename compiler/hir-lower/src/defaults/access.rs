@@ -421,6 +421,7 @@ impl ReferenceCollector {
             provider: self.fallback_origin.provider,
             file: self.fallback_origin.file,
             span,
+            context: self.fallback_origin.context,
         }
     }
 }

@@ -44,8 +44,13 @@ impl Lowerer {
         self.push_suspension_context(SuspensionContext::Forbidden(
             ForbiddenSuspendContext::ConstructorDelegation,
         ));
+        let outer_fn_name = std::mem::take(&mut self.current_fn_name);
+        let outer_owner = self.current_owner;
+        let outer_source_context = self.current_source_context;
         self.current_return_ty = self.unit;
         self.current_fn_name = format!("<init {}>", self.classes[id].name);
+        self.current_owner = Some(Owner::Class(id));
+        self.set_source_context(self.current_fn_name.clone());
 
         let inferred = self.lower_nominal_arguments(crate::expr::NominalArgumentInput {
             view: &view,
@@ -74,6 +79,9 @@ impl Lowerer {
 
         self.pop_suspension_context();
         self.pop_scope();
+        self.current_fn_name = outer_fn_name;
+        self.current_owner = outer_owner;
+        self.current_source_context = outer_source_context;
         self.constructor_params_in_scope.clear();
         self.type_params_in_scope.clear();
 

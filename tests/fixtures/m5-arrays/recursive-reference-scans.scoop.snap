@@ -145,6 +145,15 @@ SourceFile
     Some(T)
     None
 SourceFile
+  struct SourceLocation
+    field file: String
+    field line: Int
+    field column: Int
+    field functionName: String
+    field typeName: String
+    @Intrinsic("current_source_location")
+  fun getCurrentSourceLocation(): SourceLocation
+SourceFile
   open class Throwable()
   open class Exception(val message: String?) : Throwable(<0 args>)
   class UnwrapException() : Exception(<1 args>)
@@ -429,6 +438,7 @@ Module
   extern ef9 coreUIntHash @scoop_rt_uint_hash(UInt) -> Int <abi=scoop managed>
   extern ef10 coreBooleanHash @scoop_rt_bool_hash(Boolean) -> Int <abi=scoop managed>
   extern ef11 coreStringHash @scoop_rt_string_hash(String) -> Int <abi=scoop managed>
+  struct SourceLocation (file: String, line: Int, column: Int, functionName: String, typeName: String)
   struct Item (payload: Payload, tail: String)
   enum Payload
     Text(_1: String)
@@ -1045,10 +1055,10 @@ Module
     call managed-direct-target2 sp14 live=[local0:ptr<managed>@0, local1:ptr<managed>@0] t2 = sig=direct2 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(global4, global5)
     store t2 -> local2
     t3 = enum_wrap e0 v0 (local0) : enum0
-    t4 = aggregate (t3, local1) : struct3
+    t4 = aggregate (t3, local1) : struct4
     t5 = enum_wrap e0 v2 () : enum0
-    t6 = aggregate (t5, local2) : struct3
-    t7 = array_alloc array0 (t4, t6) sp15 live t4:struct3@16+24, t6:struct3@16+24 : ptr<managed>
+    t6 = aggregate (t5, local2) : struct4
+    t7 = array_alloc array0 (t4, t6) sp15 live t4:struct4@16+24, t6:struct4@16+24 : ptr<managed>
     ret t7
   fun @scoop_main() -> void
     local %0 items: ptr<managed>
@@ -1093,7 +1103,7 @@ Module
     throw local11
     unreachable
   block if.merge.5
-    t6 = array_get array0 local3 local4 : struct3
+    t6 = array_get array0 local3 local4 : struct4
     t7 = extract t6, 0 : enum0
     store t7 -> local5
     t8 = enum_tag e0 local5 : i64
@@ -1148,7 +1158,7 @@ Module
     throw local13
     unreachable
   block if.merge.18
-    t23 = array_get array0 local6 local7 : struct3
+    t23 = array_get array0 local6 local7 : struct4
     t24 = extract t23, 1 : ptr<managed>
     call managed-void-target4 sp23 live=[local0:ptr<managed>@0, t24:ptr<managed>@0] sig=void4 (ptr<managed>) local-fn14(t24)
     t25 = aggregate () : {}
@@ -1172,7 +1182,7 @@ Module
     throw local15
     unreachable
   block if.merge.23
-    t30 = array_get array0 local8 local9 : struct3
+    t30 = array_get array0 local8 local9 : struct4
     t31 = extract t30, 1 : ptr<managed>
     call managed-void-target5 sp25 live=[t31:ptr<managed>@0] sig=void5 (ptr<managed>) local-fn14(t31)
     t32 = aggregate () : {}
@@ -1274,11 +1284,12 @@ Module
   td td9 ArithmeticException @scoop_td_ArithmeticException type-id=10 size=24 parent=td6 vtable=[] itables=[]
   td td10 IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException type-id=11 size=24 parent=td6 vtable=[] itables=[]
   td td11 IllegalStateException @scoop_td_IllegalStateException type-id=12 size=24 parent=td6 vtable=[] itables=[]
-  array-type array0 Array$D4_ItemX kind=immutable element=struct3 size=32 align=8 scan=refs[16, 24] td=td4
-  array-type array1 MutableArray$D4_ItemX kind=mutable element=struct3 size=32 align=8 scan=refs[16, 24] td=td5
+  array-type array0 Array$D4_ItemX kind=immutable element=struct4 size=32 align=8 scan=refs[16, 24] td=td4
+  array-type array1 MutableArray$D4_ItemX kind=mutable element=struct4 size=32 align=8 scan=refs[16, 24] td=td5
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
+  layout SourceLocation size=40 align=8 refs=[0, 24, 32]
   layout Item size=32 align=8 refs=[16, 24]
   layout Payload size=24 align=8 enum-scan=refs[16]
   layout Option$S size=8 align=8 enum-scan=refs[0]

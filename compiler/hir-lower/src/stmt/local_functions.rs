@@ -128,6 +128,7 @@ impl Lowerer {
         let outer_return_ty = self.current_return_ty;
         let outer_return_inference = self.return_inference.take();
         let outer_fn_name = std::mem::take(&mut self.current_fn_name);
+        let outer_source_context = self.current_source_context;
         let outer_this = self.current_this.take();
         let outer_smart_casts = std::mem::take(&mut self.smart_casts);
         self.capture_contexts.push(CaptureContext {
@@ -137,6 +138,7 @@ impl Lowerer {
         });
         self.current_return_ty = return_ty;
         self.current_fn_name = self.functions[function].name.clone();
+        self.set_source_context(decl.name.text.clone());
         self.push_suspension_context(if decl.is_suspend {
             SuspensionContext::SuspendFunction
         } else {
@@ -240,6 +242,7 @@ impl Lowerer {
         self.current_return_ty = outer_return_ty;
         self.return_inference = outer_return_inference;
         self.current_fn_name = outer_fn_name;
+        self.current_source_context = outer_source_context;
         self.current_this = outer_this;
         self.smart_casts = outer_smart_casts;
         self.type_params_in_scope = outer_type_params;

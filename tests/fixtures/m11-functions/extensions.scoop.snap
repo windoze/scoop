@@ -145,6 +145,15 @@ SourceFile
     Some(T)
     None
 SourceFile
+  struct SourceLocation
+    field file: String
+    field line: Int
+    field column: Int
+    field functionName: String
+    field typeName: String
+    @Intrinsic("current_source_location")
+  fun getCurrentSourceLocation(): SourceLocation
+SourceFile
   open class Throwable()
   open class Exception(val message: String?) : Throwable(<0 args>)
   class UnwrapException() : Exception(<1 args>)
@@ -680,6 +689,7 @@ Module
   extern ef9 coreUIntHash @scoop_rt_uint_hash(UInt) -> Int <abi=scoop managed>
   extern ef10 coreBooleanHash @scoop_rt_bool_hash(Boolean) -> Int <abi=scoop managed>
   extern ef11 coreStringHash @scoop_rt_string_hash(String) -> Int <abi=scoop managed>
+  struct SourceLocation (file: String, line: Int, column: Int, functionName: String, typeName: String)
   struct Offset (amount: Int)
   enum Option$S
     Some(_1: String)
@@ -1665,7 +1675,7 @@ Module
     heap_store param0 +16 param1
     t0 = heap_load param0 +16 : ptr<managed>
     ret t0
-  fun @scoop.$extension.apply(struct3, i64) -> i64
+  fun @scoop.$extension.apply(struct4, i64) -> i64
   block entry
     poll managed-void-target0 sp119 live=[]
     t0 = extract param0, 0 : i64
@@ -1697,7 +1707,7 @@ Module
     local %7 capturedReceiver: ptr<managed>
     local %8 factory: ptr<managed>
     local %9 once: ptr<managed>
-    local %10 offset: struct3
+    local %10 offset: struct4
     local %11 snapshot: ptr<managed>
     local %12 throwing: ptr<managed>
     local %13 exception: ptr<managed>
@@ -1767,8 +1777,8 @@ Module
     store t18 -> local21
     call managed-void-target7 sp35 live=[local21:ptr<managed>@0] sig=void7 (ptr<managed>) local-fn29(local21)
     t19 = aggregate () : {}
-    t20 = aggregate (2) : struct3
-    call managed-direct-target11 sp36 live=[] t21 = sig=direct11 (struct3, i64) -> i64 local-fn23(t20, 40)
+    t20 = aggregate (2) : struct4
+    call managed-direct-target11 sp36 live=[] t21 = sig=direct11 (struct4, i64) -> i64 local-fn23(t20, 40)
     store t21 -> local22
     call managed-void-target8 sp37 live=[] sig=void8 (i64) local-fn27(local22)
     t22 = aggregate () : {}
@@ -1804,14 +1814,14 @@ Module
     t36 = heap_load local8 +16 : i64
     call managed-void-target9 sp46 live=[local3:ptr<managed>@0, local4:ptr<managed>@0, local5:ptr<managed>@0, local6:ptr<managed>@0, local7:ptr<managed>@0, local9:ptr<managed>@0] sig=void9 (i64) local-fn27(t36)
     t37 = aggregate () : {}
-    t38 = aggregate (2) : struct3
+    t38 = aggregate (2) : struct4
     store t38 -> local10
     call managed-direct-target20 sp47 live=[local3:ptr<managed>@0, local4:ptr<managed>@0, local5:ptr<managed>@0, local6:ptr<managed>@0, local7:ptr<managed>@0, local9:ptr<managed>@0] t39 = sig=direct20 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td25, 32)
     t40 = function_address @scoop.$reference.6 : ptr
     heap_store t39 +16 t40
     heap_store t39 +24 local10
     store t39 -> local11
-    t41 = aggregate (100) : struct3
+    t41 = aggregate (100) : struct4
     store t41 -> local10
     call managed-direct-target21 sp48 live=[local3:ptr<managed>@0, local4:ptr<managed>@0, local5:ptr<managed>@0, local6:ptr<managed>@0, local7:ptr<managed>@0, local9:ptr<managed>@0, local11:ptr<managed>@0] t42 = sig=direct21 () -> ptr<managed> local-fn49()
     store t42 -> local24
@@ -1850,7 +1860,7 @@ Module
     store t58 -> local31
     call managed-void-target17 sp64 live=[local12:ptr<managed>@0] sig=void17 (i64) local-fn27(local31)
     t59 = aggregate () : {}
-    call managed-direct-target30 sp65 live=[local12:ptr<managed>@0] t60 = sig=direct30 (struct3, i64) -> i64 local-fn23(local10, 40)
+    call managed-direct-target30 sp65 live=[local12:ptr<managed>@0] t60 = sig=direct30 (struct4, i64) -> i64 local-fn23(local10, 40)
     store t60 -> local32
     call managed-void-target18 sp66 live=[local12:ptr<managed>@0] sig=void18 (i64) local-fn27(local32)
     t61 = aggregate () : {}
@@ -2000,8 +2010,8 @@ Module
     local %0 $call.1: i64
   block entry
     poll managed-void-target0 sp133 live=[param0:ptr<managed>@0]
-    t0 = heap_load param0 +24 : struct3
-    call managed-direct-target0 sp83 live=[] t1 = sig=direct0 (struct3, i64) -> i64 local-fn23(t0, param1)
+    t0 = heap_load param0 +24 : struct4
+    call managed-direct-target0 sp83 live=[] t1 = sig=direct0 (struct4, i64) -> i64 local-fn23(t0, param1)
     store t1 -> local0
     ret local0
   fun @scoop.$reference.7(ptr<managed>, i64) -> i64
@@ -2130,6 +2140,7 @@ Module
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
+  layout SourceLocation size=40 align=8 refs=[0, 24, 32]
   layout Offset size=8 align=8 refs=[]
   layout Option$S size=8 align=8 enum-scan=refs[0]
   layout Throwable size=16 align=8 refs=[]

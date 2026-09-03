@@ -145,6 +145,15 @@ SourceFile
     Some(T)
     None
 SourceFile
+  struct SourceLocation
+    field file: String
+    field line: Int
+    field column: Int
+    field functionName: String
+    field typeName: String
+    @Intrinsic("current_source_location")
+  fun getCurrentSourceLocation(): SourceLocation
+SourceFile
   open class Throwable()
   open class Exception(val message: String?) : Throwable(<0 args>)
   class UnwrapException() : Exception(<1 args>)
@@ -584,6 +593,7 @@ Module
   extern ef9 coreUIntHash @scoop_rt_uint_hash(UInt) -> Int <abi=scoop managed>
   extern ef10 coreBooleanHash @scoop_rt_bool_hash(Boolean) -> Int <abi=scoop managed>
   extern ef11 coreStringHash @scoop_rt_string_hash(String) -> Int <abi=scoop managed>
+  struct SourceLocation (file: String, line: Int, column: Int, functionName: String, typeName: String)
   struct GenericBox$I (value: Int)
   struct GenericBox$S (value: String)
   enum Option$S
@@ -1626,10 +1636,10 @@ Module
     heap_store t0 +24 param0
     ret t0
   fun @scoop.makeBoxReader$I(i64) -> ptr<managed>
-    local %0 box: struct3
+    local %0 box: struct4
   block entry
     poll managed-void-target0 sp117 live=[]
-    t0 = aggregate (param0) : struct3
+    t0 = aggregate (param0) : struct4
     store t0 -> local0
     call managed-direct-target0 sp69 live=[] t1 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td18, 32)
     t2 = function_address @scoop.$lambda.2$I : ptr
@@ -1637,12 +1647,12 @@ Module
     heap_store t1 +24 local0
     ret t1
   fun @scoop.makeBoxReader$S(ptr<managed>) -> ptr<managed>
-    local %0 box: struct4
+    local %0 box: struct5
   block entry
     poll managed-void-target0 sp118 live=[param0:ptr<managed>@0]
-    t0 = aggregate (param0) : struct4
+    t0 = aggregate (param0) : struct5
     store t0 -> local0
-    call managed-direct-target0 sp70 live=[local0:struct4@0] t1 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td19, 32)
+    call managed-direct-target0 sp70 live=[local0:struct5@0] t1 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td19, 32)
     t2 = function_address @scoop.$lambda.2$S : ptr
     heap_store t1 +16 t2
     heap_store t1 +24 local0
@@ -1734,13 +1744,13 @@ Module
   fun @scoop.$lambda.2$I(ptr<managed>) -> i64
   block entry
     poll managed-void-target0 sp133 live=[param0:ptr<managed>@0]
-    t0 = heap_load param0 +24 : struct3
+    t0 = heap_load param0 +24 : struct4
     t1 = extract t0, 0 : i64
     ret t1
   fun @scoop.$lambda.2$S(ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp134 live=[param0:ptr<managed>@0]
-    t0 = heap_load param0 +24 : struct4
+    t0 = heap_load param0 +24 : struct5
     t1 = extract t0, 0 : ptr<managed>
     ret t1
   fun @scoop.$lambda.1$I(ptr<managed>) -> i64
@@ -1899,6 +1909,7 @@ Module
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
+  layout SourceLocation size=40 align=8 refs=[0, 24, 32]
   layout GenericBox$I size=8 align=8 refs=[]
   layout GenericBox$S size=8 align=8 refs=[0]
   layout Option$S size=8 align=8 enum-scan=refs[0]

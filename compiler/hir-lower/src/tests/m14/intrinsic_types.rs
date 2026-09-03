@@ -128,10 +128,14 @@ fn allowlisted_type_provider_preserves_provenance_without_relaxing_shape() {
         core: vec![ProviderSource {
             source: &core,
             provider: core_provider,
+            name: "core.scoop",
+            source_text: "",
         }],
         user: ProviderSource {
             source: &user,
             provider: test_provider,
+            name: "user.scoop",
+            source_text: "",
         },
     };
     let output = lower_compilation_unit(

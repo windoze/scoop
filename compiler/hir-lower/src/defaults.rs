@@ -616,7 +616,6 @@ impl Lowerer {
         context: &DefaultContext,
         lexical_captures: bool,
     ) -> Option<(hir::ExportDefaultExpr, Vec<hir::Capture>)> {
-        let origin = self.definition_origin(expression.span());
         let capture_environment = lexical_captures.then(|| self.capture_environment());
         let outer_locals = std::mem::take(&mut self.locals);
         let outer_scopes = std::mem::replace(&mut self.scopes, Scopes::new());
@@ -640,6 +639,7 @@ impl Lowerer {
                 context.callable_name, parameter.name.text
             ),
         );
+        let outer_source_context = self.current_source_context;
         let outer_this = self.current_this.take();
         let outer_owner = self.current_owner;
         let outer_constructor_parameters = std::mem::take(&mut self.constructor_params_in_scope);
@@ -654,6 +654,8 @@ impl Lowerer {
 
         self.current_return_ty = parameter.ty;
         self.current_owner = context.receiver.and_then(|(_, owner)| owner);
+        self.set_source_context(context.callable_name.clone());
+        let origin = self.definition_origin(expression.span());
         self.push_suspension_context(if context.is_suspend {
             SuspensionContext::SuspendFunction
         } else {
@@ -718,6 +720,7 @@ impl Lowerer {
         self.current_return_ty = outer_return_ty;
         self.return_inference = outer_return_inference;
         self.current_fn_name = outer_fn_name;
+        self.current_source_context = outer_source_context;
         self.current_this = outer_this;
         self.current_owner = outer_owner;
         self.constructor_params_in_scope = outer_constructor_parameters;
@@ -749,6 +752,7 @@ impl Lowerer {
             provider: self.current_intrinsic_provider(),
             file: u32::try_from(self.current_file).expect("source file index exceeds u32"),
             span,
+            context: self.current_source_context,
         }
     }
 

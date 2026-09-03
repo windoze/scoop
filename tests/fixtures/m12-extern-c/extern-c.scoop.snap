@@ -145,6 +145,15 @@ SourceFile
     Some(T)
     None
 SourceFile
+  struct SourceLocation
+    field file: String
+    field line: Int
+    field column: Int
+    field functionName: String
+    field typeName: String
+    @Intrinsic("current_source_location")
+  fun getCurrentSourceLocation(): SourceLocation
+SourceFile
   open class Throwable()
   open class Exception(val message: String?) : Throwable(<0 args>)
   class UnwrapException() : Exception(<1 args>)
@@ -666,6 +675,7 @@ Module
   struct NativePair (left: Int, right: Int) <c-layout aligned=0 packed=0>
   struct NativeEnvelope (tag: Boolean, packed: NativePacked, tail: UInt) <c-layout aligned=16 packed=0>
   struct NativePacked (flag: Boolean, value: Int) <c-layout aligned=8 packed=1>
+  struct SourceLocation (file: String, line: Int, column: Int, functionName: String, typeName: String)
   enum Option$S
     Some(_1: String)
     None()
@@ -1722,6 +1732,7 @@ Module
   layout-meta NativeEnvelope c-layout(aligned=16,packed=0) fields=[0@1,8@8,24@8] interior-mutable=false
   layout NativePacked size=16 align=8 refs=[]
   layout-meta NativePacked c-layout(aligned=8,packed=1) fields=[0@1,1@1] interior-mutable=false
+  layout SourceLocation size=40 align=8 refs=[0, 24, 32]
   layout Option$S size=8 align=8 enum-scan=refs[0]
   layout Option$NIRIX size=8 align=8 enum-scan=none
   layout CoroutineStep$I size=16 align=8 enum-scan=none

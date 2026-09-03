@@ -145,6 +145,15 @@ SourceFile
     Some(T)
     None
 SourceFile
+  struct SourceLocation
+    field file: String
+    field line: Int
+    field column: Int
+    field functionName: String
+    field typeName: String
+    @Intrinsic("current_source_location")
+  fun getCurrentSourceLocation(): SourceLocation
+SourceFile
   open class Throwable()
   open class Exception(val message: String?) : Throwable(<0 args>)
   class UnwrapException() : Exception(<1 args>)
@@ -376,6 +385,7 @@ Module
   extern ef9 coreUIntHash @scoop_rt_uint_hash(UInt) -> Int <abi=scoop managed>
   extern ef10 coreBooleanHash @scoop_rt_bool_hash(Boolean) -> Int <abi=scoop managed>
   extern ef11 coreStringHash @scoop_rt_string_hash(String) -> Int <abi=scoop managed>
+  struct SourceLocation (file: String, line: Int, column: Int, functionName: String, typeName: String)
   struct Box$I (value: Int)
   struct Box$S (value: String)
   struct Pair$D5_Box$IX_D5_Box$SX (first: Box$I, second: Box$S)
@@ -803,29 +813,29 @@ Module
     store t0 -> local0
     ret local0
   fun @scoop_main() -> void
-    local %0 pair: struct5
+    local %0 pair: struct6
     local %1 readable: ptr<managed>
     local %2 $call.1: i64
     local %3 $call.2: ptr<managed>
     local %4 $call.3: ptr<managed>
-    local %5 $sc.1: struct6
+    local %5 $sc.1: struct7
   block entry
     poll managed-void-target3 sp45 live=[]
-    t0 = aggregate (7) : struct3
-    t1 = aggregate (global0) : struct4
-    t2 = aggregate (t0, t1) : struct5
+    t0 = aggregate (7) : struct4
+    t1 = aggregate (global0) : struct5
+    t2 = aggregate (t0, t1) : struct6
     store t2 -> local0
-    t3 = extract local0, 0 : struct3
-    call managed-direct-target0 sp12 live=[local0:struct5@8] t4 = sig=direct0 (struct3) -> i64 local-fn15(t3)
+    t3 = extract local0, 0 : struct4
+    call managed-direct-target0 sp12 live=[local0:struct6@8] t4 = sig=direct0 (struct4) -> i64 local-fn15(t3)
     store t4 -> local2
-    call managed-void-target0 sp13 live=[local0:struct5@8] sig=void0 (i64) local-fn13(local2)
+    call managed-void-target0 sp13 live=[local0:struct6@8] sig=void0 (i64) local-fn13(local2)
     t5 = aggregate () : {}
-    t6 = extract local0, 1 : struct4
-    call managed-direct-target1 sp14 live=[t6:struct4@0] t7 = sig=direct1 (struct4) -> ptr<managed> local-fn16(t6)
+    t6 = extract local0, 1 : struct5
+    call managed-direct-target1 sp14 live=[t6:struct5@0] t7 = sig=direct1 (struct5) -> ptr<managed> local-fn16(t6)
     store t7 -> local3
     call managed-void-target1 sp15 live=[local3:ptr<managed>@0] sig=void1 (ptr<managed>) local-fn14(local3)
     t8 = aggregate () : {}
-    t9 = aggregate (9) : struct6
+    t9 = aggregate (9) : struct7
     store t9 -> local5
     t10 = local_address local5 : ptr
     call managed-direct-target2 sp16 live=[] t11 = sig=direct2 (ptr<metadata>, ptr<raw>, i64, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_box(td5, t10, 8, root-scan0)
@@ -859,17 +869,17 @@ Module
     call native-borrowed-void-target1 sp24 roots=[] sig=void1 (ptr<managed>) extern0(global2)
     t2 = aggregate () : {}
     ret
-  fun @scoop.Box.get$I(struct3) -> i64
+  fun @scoop.Box.get$I(struct4) -> i64
   block entry
     poll managed-void-target0 sp48 live=[]
     t0 = extract param0, 0 : i64
     ret t0
-  fun @scoop.Box.get$S(struct4) -> ptr<managed>
+  fun @scoop.Box.get$S(struct5) -> ptr<managed>
   block entry
-    poll managed-void-target0 sp49 live=[param0:struct4@0]
+    poll managed-void-target0 sp49 live=[param0:struct5@0]
     t0 = extract param0, 0 : ptr<managed>
     ret t0
-  fun @scoop.Holder.read$I(struct6) -> ptr<managed>
+  fun @scoop.Holder.read$I(struct7) -> ptr<managed>
   block entry
     poll managed-void-target0 sp50 live=[]
     ret global3
@@ -943,8 +953,8 @@ Module
     local %0 $call.1: ptr<managed>
   block entry
     poll managed-void-target0 sp58 live=[param0:ptr<managed>@0]
-    t0 = heap_load param0 +16 : struct6
-    call managed-direct-target0 sp32 live=[] t1 = sig=direct0 (struct6) -> ptr<managed> local-fn17(t0)
+    t0 = heap_load param0 +16 : struct7
+    call managed-direct-target0 sp32 live=[] t1 = sig=direct0 (struct7) -> ptr<managed> local-fn17(t0)
     store t1 -> local0
     ret local0
   td td0 ToString @scoop_td_ToString type-id=2 size=0 parent=none vtable=[] itables=[]
@@ -961,6 +971,7 @@ Module
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
+  layout SourceLocation size=40 align=8 refs=[0, 24, 32]
   layout Box$I size=8 align=8 refs=[]
   layout Box$S size=8 align=8 refs=[0]
   layout Pair$D5_Box$IX_D5_Box$SX size=16 align=8 refs=[8]

@@ -160,11 +160,15 @@ pub fn lower(files: &[ast::SourceFile]) -> Result<hir::Output, Vec<Diagnostic>> 
             .map(|source| ProviderSource {
                 source,
                 provider: core_provider,
+                name: "<core>",
+                source_text: "",
             })
             .collect(),
         user: ProviderSource {
             source: &files[files.len() - 1],
             provider: user_provider,
+            name: "<user>",
+            source_text: "",
         },
     };
     lower_compilation_unit(&unit, IntrinsicDeclarationPolicy::CoreOnly)
@@ -176,6 +180,8 @@ pub fn lower(files: &[ast::SourceFile]) -> Result<hir::Output, Vec<Diagnostic>> 
 pub struct ProviderSource<'a> {
     pub source: &'a ast::SourceFile,
     pub provider: hir::IntrinsicProviderId,
+    pub name: &'a str,
+    pub source_text: &'a str,
 }
 
 /// Structurally complete single-Cone compilation input. Core and user sources
@@ -208,12 +214,16 @@ pub fn lower_compilation_unit(
         sources.push(SourceProvider {
             provider: input.provider,
             core: true,
+            name: input.name.to_string(),
+            source: input.source_text.to_string(),
         });
     }
     files.push(unit.user.source.clone());
     sources.push(SourceProvider {
         provider: unit.user.provider,
         core: false,
+        name: unit.user.name.to_string(),
+        source: unit.user.source_text.to_string(),
     });
     let export = Lowerer::new()
         .with_intrinsic_sources(sources, policy)
@@ -222,10 +232,12 @@ pub fn lower_compilation_unit(
     Ok(hir::Output { export, local })
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 struct SourceProvider {
     provider: hir::IntrinsicProviderId,
     core: bool,
+    name: String,
+    source: String,
 }
 
 /// Convert an already checked export-side graph into the local concrete graph.
@@ -237,6 +249,7 @@ pub fn concretize_export(export: &hir::ExportHir) -> hir::LocalConcreteHir {
 
 #[derive(Clone)]
 pub(crate) struct Lowerer {
+    pub(crate) source_contexts: Arena<hir::SourceContext>,
     pub(crate) types: Arena<Type>,
     pub(crate) function_types: Arena<hir::FunctionType>,
     pub(crate) lambdas: Arena<hir::Lambda>,
@@ -424,6 +437,8 @@ pub(crate) struct Lowerer {
     pub(crate) return_inference: Option<ReturnInference>,
     /// Name of the function whose body is being lowered (diagnostics).
     pub(crate) current_fn_name: String,
+    /// Typed lexical context attached to every expression origin.
+    pub(crate) current_source_context: hir::SourceContextId,
     /// Explicit suspension-permission stack; it is never empty.
     pub(crate) suspension_contexts: Vec<SuspensionContext>,
     /// Lexical permission for unsafe operations; independent of suspension.

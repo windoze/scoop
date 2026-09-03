@@ -145,6 +145,15 @@ SourceFile
     Some(T)
     None
 SourceFile
+  struct SourceLocation
+    field file: String
+    field line: Int
+    field column: Int
+    field functionName: String
+    field typeName: String
+    @Intrinsic("current_source_location")
+  fun getCurrentSourceLocation(): SourceLocation
+SourceFile
   open class Throwable()
   open class Exception(val message: String?) : Throwable(<0 args>)
   class UnwrapException() : Exception(<1 args>)
@@ -436,6 +445,7 @@ Module
   extern ef9 coreUIntHash @scoop_rt_uint_hash(UInt) -> Int <abi=scoop managed>
   extern ef10 coreBooleanHash @scoop_rt_bool_hash(Boolean) -> Int <abi=scoop managed>
   extern ef11 coreStringHash @scoop_rt_string_hash(String) -> Int <abi=scoop managed>
+  struct SourceLocation (file: String, line: Int, column: Int, functionName: String, typeName: String)
   struct FunctionBox$I (operation: (Int) -> Int)
   enum Option$S
     Some(_1: String)
@@ -1031,7 +1041,7 @@ Module
     local %1 operation: ptr<managed>
     local %2 optional: enum1
     local %3 operations: ptr<managed>
-    local %4 box: struct3
+    local %4 box: struct4
     local %5 sum: ptr<managed>
     local %6 selected: ptr<managed>
     local %7 $when.1: enum1
@@ -1063,13 +1073,13 @@ Module
     heap_store t3 +16 t4
     t5 = array_alloc array0 (local1, t3) sp14 live local1:ptr<managed>@0, local2:enum1@0, t3:ptr<managed>@0 : ptr<managed>
     store t5 -> local3
-    t6 = aggregate (local1) : struct3
+    t6 = aggregate (local1) : struct4
     store t6 -> local4
-    call managed-direct-target2 sp15 live=[local2:enum1@0, local3:ptr<managed>@0, local4:struct3@0] t7 = sig=direct2 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td15, 24)
+    call managed-direct-target2 sp15 live=[local2:enum1@0, local3:ptr<managed>@0, local4:struct4@0] t7 = sig=direct2 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td15, 24)
     t8 = function_address @scoop.$lambda.1 : ptr
     heap_store t7 +16 t8
     store t7 -> local5
-    call managed-void-target0 sp16 live=[local2:enum1@0, local3:ptr<managed>@0, local4:struct3@0, local5:ptr<managed>@0] sig=void0 () runtime @scoop_rt_gc_collect()
+    call managed-void-target0 sp16 live=[local2:enum1@0, local3:ptr<managed>@0, local4:struct4@0, local5:ptr<managed>@0] sig=void0 () runtime @scoop_rt_gc_collect()
     t9 = aggregate () : {}
     store local2 -> local7
     t10 = enum_tag e1 local7 : i64
@@ -1078,9 +1088,9 @@ Module
   block if.then.1
     t12 = enum_field e1 v0 f0 local7 : ptr<managed>
     store t12 -> local6
-    call managed-direct-target3 sp17 live=[local3:ptr<managed>@0, local4:struct3@0, local5:ptr<managed>@0, local6:ptr<managed>@0] t13 = sig=direct3 (ptr<managed>, i64) -> i64 dispatch[Closure:2] local6(local6, 40)
+    call managed-direct-target3 sp17 live=[local3:ptr<managed>@0, local4:struct4@0, local5:ptr<managed>@0, local6:ptr<managed>@0] t13 = sig=direct3 (ptr<managed>, i64) -> i64 dispatch[Closure:2] local6(local6, 40)
     store t13 -> local12
-    call managed-void-target1 sp18 live=[local3:ptr<managed>@0, local4:struct3@0, local5:ptr<managed>@0] sig=void1 (i64) local-fn16(local12)
+    call managed-void-target1 sp18 live=[local3:ptr<managed>@0, local4:struct4@0, local5:ptr<managed>@0] sig=void1 (i64) local-fn16(local12)
     t14 = aggregate () : {}
     br @if.merge.3
   block if.else.2
@@ -1093,7 +1103,7 @@ Module
     t17 = Lt local9, 0 : i1
     cbr t17 then @logic.short.7 else @logic.rhs.6
   block if.then.4
-    call managed-void-target2 sp19 live=[local3:ptr<managed>@0, local4:struct3@0, local5:ptr<managed>@0] sig=void2 (i64) local-fn16(0)
+    call managed-void-target2 sp19 live=[local3:ptr<managed>@0, local4:struct4@0, local5:ptr<managed>@0] sig=void2 (i64) local-fn16(0)
     t18 = aggregate () : {}
     br @if.merge.5
   block if.merge.5
@@ -1115,9 +1125,9 @@ Module
     unreachable
   block if.merge.10
     t22 = array_get array0 local8 local9 : ptr<managed>
-    call managed-direct-target5 sp21 live=[local3:ptr<managed>@0, local4:struct3@0, local5:ptr<managed>@0, t22:ptr<managed>@0] t23 = sig=direct5 (ptr<managed>, i64) -> i64 dispatch[Closure:2] t22(t22, 40)
+    call managed-direct-target5 sp21 live=[local3:ptr<managed>@0, local4:struct4@0, local5:ptr<managed>@0, t22:ptr<managed>@0] t23 = sig=direct5 (ptr<managed>, i64) -> i64 dispatch[Closure:2] t22(t22, 40)
     store t23 -> local15
-    call managed-void-target3 sp22 live=[local3:ptr<managed>@0, local4:struct3@0, local5:ptr<managed>@0] sig=void3 (i64) local-fn16(local15)
+    call managed-void-target3 sp22 live=[local3:ptr<managed>@0, local4:struct4@0, local5:ptr<managed>@0] sig=void3 (i64) local-fn16(local15)
     t24 = aggregate () : {}
     store local3 -> local10
     store 1 -> local11
@@ -1140,9 +1150,9 @@ Module
     unreachable
   block if.merge.15
     t29 = array_get array0 local10 local11 : ptr<managed>
-    call managed-direct-target7 sp24 live=[local4:struct3@0, local5:ptr<managed>@0, t29:ptr<managed>@0] t30 = sig=direct7 (ptr<managed>, i64) -> i64 dispatch[Closure:2] t29(t29, 40)
+    call managed-direct-target7 sp24 live=[local4:struct4@0, local5:ptr<managed>@0, t29:ptr<managed>@0] t30 = sig=direct7 (ptr<managed>, i64) -> i64 dispatch[Closure:2] t29(t29, 40)
     store t30 -> local18
-    call managed-void-target4 sp25 live=[local4:struct3@0, local5:ptr<managed>@0] sig=void4 (i64) local-fn16(local18)
+    call managed-void-target4 sp25 live=[local4:struct4@0, local5:ptr<managed>@0] sig=void4 (i64) local-fn16(local18)
     t31 = aggregate () : {}
     t32 = extract local4, 0 : ptr<managed>
     call managed-direct-target8 sp26 live=[local5:ptr<managed>@0, t32:ptr<managed>@0] t33 = sig=direct8 (ptr<managed>, i64) -> i64 dispatch[Closure:2] t32(t32, 40)
@@ -1277,6 +1287,7 @@ Module
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
+  layout SourceLocation size=40 align=8 refs=[0, 24, 32]
   layout FunctionBox$I size=8 align=8 refs=[0]
   layout Option$S size=8 align=8 enum-scan=refs[0]
   layout Option$FIRIX size=8 align=8 enum-scan=refs[0]

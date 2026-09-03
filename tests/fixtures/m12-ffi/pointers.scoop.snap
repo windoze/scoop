@@ -145,6 +145,15 @@ SourceFile
     Some(T)
     None
 SourceFile
+  struct SourceLocation
+    field file: String
+    field line: Int
+    field column: Int
+    field functionName: String
+    field typeName: String
+    @Intrinsic("current_source_location")
+  fun getCurrentSourceLocation(): SourceLocation
+SourceFile
   open class Throwable()
   open class Exception(val message: String?) : Throwable(<0 args>)
   class UnwrapException() : Exception(<1 args>)
@@ -536,6 +545,7 @@ Module
   extern ef12 malloc @malloc(UInt) -> Ptr<Unit> <abi=c no-gc>
   extern ef13 free @free(Ptr<Unit>) -> Unit <abi=c no-gc>
   callback cb0 @scoop.increment -> @scoop_callback_bridge_0 function_type0
+  struct SourceLocation (file: String, line: Int, column: Int, functionName: String, typeName: String)
   struct Slot (value: Int)
   enum Option$S
     Some(_1: String)
@@ -1094,14 +1104,14 @@ Module
     call native-borrowed-direct-target0 sp9 roots=[] t0 = sig=direct0 (i1) -> i64 extern10(param0)
     store t0 -> local0
     ret local0
-  fun @scoop.Slot.rewriteThis(struct3) -> i64 <no-gc>
-    local %0 this: struct3
+  fun @scoop.Slot.rewriteThis(struct4) -> i64 <no-gc>
+    local %0 this: struct4
     local %1 pointer: ptr<raw>
   block entry
     store param0 -> local0
     t0 = local_address local0 : ptr
     store t0 -> local1
-    t1 = aggregate (13) : struct3
+    t1 = aggregate (13) : struct4
     raw_store local1 t1 align 8
     t2 = aggregate () : {}
     t3 = extract local0, 0 : i64
@@ -1212,8 +1222,8 @@ Module
     store t25 -> local16
     call managed-void-target5 sp17 live=[] sig=void5 (i64) local-fn16(local16)
     t26 = aggregate () : {}
-    t27 = aggregate (0) : struct3
-    call no-gc-direct-target1 t28 = sig=direct1 (struct3) -> i64 local-fn9(t27)
+    t27 = aggregate (0) : struct4
+    call no-gc-direct-target1 t28 = sig=direct1 (struct4) -> i64 local-fn9(t27)
     store t28 -> local17
     call managed-void-target6 sp18 live=[] sig=void6 (i64) local-fn16(local17)
     t29 = aggregate () : {}
@@ -1355,6 +1365,7 @@ Module
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
+  layout SourceLocation size=40 align=8 refs=[0, 24, 32]
   layout Slot size=8 align=8 refs=[]
   layout Option$S size=8 align=8 enum-scan=refs[0]
   layout Option$NIRIX size=8 align=8 enum-scan=none

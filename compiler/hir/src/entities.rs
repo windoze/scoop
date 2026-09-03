@@ -2,6 +2,14 @@ use super::*;
 
 #[derive(Debug, Clone)]
 pub struct Module {
+    /// Driver-provided display names and source text indexed by every typed
+    /// expression origin. Keeping this relation in Export HIR lets generic
+    /// concretization consume source provenance without consulting the
+    /// parser or filesystem again.
+    pub source_files: Vec<SourceFileMetadata>,
+    /// Lexical source contexts referenced by expression origins. The typed id
+    /// keeps function/type names out of every individual expression node.
+    pub source_contexts: Arena<SourceContext>,
     pub types: Arena<Type>,
     /// Canonical function signatures in one-to-one correspondence with their
     /// `FunctionType::canonical_type` entries in `types`.
@@ -96,6 +104,8 @@ pub struct Module {
     /// core type. These typed ids are the only bridge from primitive/family
     /// semantics to source members and interfaces.
     pub intrinsic_type_core: IntrinsicTypeCore,
+    /// Compiler-validated source-location value shape and its HIR intrinsic.
+    pub source_location_core: SourceLocationCore,
     /// Entry point: `fun main()`. Guaranteed present.
     pub entry: FunctionId,
     /// Resolved generic function applications, deduplicated in
@@ -147,6 +157,12 @@ pub struct IntrinsicTypeCore {
     pub string: ClassId,
     pub array: ClassId,
     pub mutable_array: ClassId,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct SourceLocationCore {
+    pub location: StructId,
+    pub current: FunctionId,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

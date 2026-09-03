@@ -14,6 +14,24 @@ use super::{
 pub(crate) fn core_file() -> SourceFile {
     let mut declarations = capability_interfaces();
     declarations.extend(intrinsic_type_declarations());
+    declarations.extend([
+        struct_decl(
+            "SourceLocation",
+            vec![
+                ("file", ty_named("String")),
+                ("line", ty_named("Int")),
+                ("column", ty_named("Int")),
+                ("functionName", ty_named("String")),
+                ("typeName", ty_named("String")),
+            ],
+        ),
+        intrinsic_fun(
+            "getCurrentSourceLocation",
+            "current_source_location",
+            Vec::new(),
+            Some(ty_named("SourceLocation")),
+        ),
+    ]);
     declarations.push(enum_decl(
         "Option",
         vec!["T"],

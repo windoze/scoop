@@ -145,6 +145,15 @@ SourceFile
     Some(T)
     None
 SourceFile
+  struct SourceLocation
+    field file: String
+    field line: Int
+    field column: Int
+    field functionName: String
+    field typeName: String
+    @Intrinsic("current_source_location")
+  fun getCurrentSourceLocation(): SourceLocation
+SourceFile
   open class Throwable()
   open class Exception(val message: String?) : Throwable(<0 args>)
   class UnwrapException() : Exception(<1 args>)
@@ -396,6 +405,7 @@ Module
   extern ef9 coreUIntHash @scoop_rt_uint_hash(UInt) -> Int <abi=scoop managed>
   extern ef10 coreBooleanHash @scoop_rt_bool_hash(Boolean) -> Int <abi=scoop managed>
   extern ef11 coreStringHash @scoop_rt_string_hash(String) -> Int <abi=scoop managed>
+  struct SourceLocation (file: String, line: Int, column: Int, functionName: String, typeName: String)
   struct Box$I (value: Int)
   enum Option$S
     Some(_1: String)
@@ -876,7 +886,7 @@ Module
     store t2 -> local0
     ret local0
   fun @scoop_main() -> void
-    local %0 box: struct3
+    local %0 box: struct4
     local %1 overloads: ptr<managed>
     local %2 $call.1: ptr<managed>
     local %3 $call.2: i64
@@ -884,13 +894,13 @@ Module
     local %5 $call.4: ptr<managed>
     local %6 $call.5: i64
     local %7 $call.6: ptr<managed>
-    local %8 $sc.1: struct3
+    local %8 $sc.1: struct4
   block entry
     poll managed-void-target5 sp56 live=[]
-    t0 = aggregate (7) : struct3
+    t0 = aggregate (7) : struct4
     store t0 -> local0
     t1 = enum_wrap e0 v1 () : enum0
-    call managed-direct-target0 sp13 live=[t1:enum0@0] t2 = sig=direct0 (struct3, i64, enum0, ptr<managed>) -> ptr<managed> local-fn18(local0, 7, t1, global0)
+    call managed-direct-target0 sp13 live=[t1:enum0@0] t2 = sig=direct0 (struct4, i64, enum0, ptr<managed>) -> ptr<managed> local-fn18(local0, 7, t1, global0)
     store t2 -> local2
     call managed-void-target0 sp14 live=[local2:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn15(local2)
     t3 = aggregate () : {}
@@ -940,12 +950,12 @@ Module
     call native-borrowed-void-target1 sp31 roots=[] sig=void1 (ptr<managed>) extern0(global4)
     t2 = aggregate () : {}
     ret
-  fun @scoop.Box.current$I(struct3) -> i64
+  fun @scoop.Box.current$I(struct4) -> i64
   block entry
     poll managed-void-target0 sp59 live=[]
     t0 = extract param0, 0 : i64
     ret t0
-  fun @scoop.Box.exchange$I_S(struct3, i64, enum0, ptr<managed>) -> ptr<managed>
+  fun @scoop.Box.exchange$I_S(struct4, i64, enum0, ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp60 live=[param3:ptr<managed>@0]
     ret param3
@@ -1037,8 +1047,8 @@ Module
     local %0 $call.1: i64
   block entry
     poll managed-void-target0 sp72 live=[param0:ptr<managed>@0]
-    t0 = heap_load param0 +16 : struct3
-    call managed-direct-target0 sp41 live=[] t1 = sig=direct0 (struct3) -> i64 local-fn17(t0)
+    t0 = heap_load param0 +16 : struct4
+    call managed-direct-target0 sp41 live=[] t1 = sig=direct0 (struct4) -> i64 local-fn17(t0)
     store t1 -> local0
     ret local0
   td td0 ToString @scoop_td_ToString type-id=2 size=0 parent=none vtable=[] itables=[]
@@ -1057,6 +1067,7 @@ Module
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
+  layout SourceLocation size=40 align=8 refs=[0, 24, 32]
   layout Box$I size=8 align=8 refs=[]
   layout Option$S size=8 align=8 enum-scan=refs[0]
   layout Throwable size=16 align=8 refs=[]

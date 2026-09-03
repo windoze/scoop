@@ -145,6 +145,15 @@ SourceFile
     Some(T)
     None
 SourceFile
+  struct SourceLocation
+    field file: String
+    field line: Int
+    field column: Int
+    field functionName: String
+    field typeName: String
+    @Intrinsic("current_source_location")
+  fun getCurrentSourceLocation(): SourceLocation
+SourceFile
   open class Throwable()
   open class Exception(val message: String?) : Throwable(<0 args>)
   class UnwrapException() : Exception(<1 args>)
@@ -675,6 +684,7 @@ Module
   extern ef16 callbackBarrier @m13_callback_barrier() -> Unit <abi=c no-gc lib=fixture_native>
   extern ef17 attachedThreadCount @m13_attached_thread_count() -> Int <abi=c no-gc lib=fixture_native>
   extern ef18 borrowedRoundTrip @m13_borrowed_round_trip(String, FunPtr<(Ptr<Unit>) -> Unit>, Ptr<Unit>) -> String <abi=scoop managed lib=fixture_native>
+  struct SourceLocation (file: String, line: Int, column: Int, functionName: String, typeName: String)
   struct ForeignCallback$FI_PUXRIX (function: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>)
   struct ForeignCallback$FPUXRUX (function: FunPtr<(Ptr<Unit>) -> Unit>, context: Ptr<Unit>)
   enum ManagedPayload
@@ -1803,15 +1813,15 @@ Module
     ret local0
   fun @scoop_main() -> void
     local %0 offset: i64
-    local %1 oneShot: struct3
-    local %2 observer: struct3
+    local %1 oneShot: struct4
+    local %2 observer: struct4
     local %3 callerRoot: ptr<managed>
     local %4 job: ptr<raw>
-    local %5 failedStart: struct3
-    local %6 failedObserver: struct3
-    local %7 reusable: struct3
-    local %8 collector: struct4
-    local %9 collectorObserver: struct4
+    local %5 failedStart: struct4
+    local %6 failedObserver: struct4
+    local %7 reusable: struct4
+    local %8 collector: struct5
+    local %9 collectorObserver: struct5
     local %10 borrowedMessage: ptr<managed>
     local %11 $call.1: i64
     local %12 $call.2: i1
@@ -1856,9 +1866,9 @@ Module
     t1 = function_address @scoop.$lambda.0 : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 local0
-    t2 = foreign_callback_register fcb0 t0 : struct3
+    t2 = foreign_callback_register fcb0 t0 : struct4
     store t2 -> local1
-    t3 = foreign_callback_Retain local1 : struct3
+    t3 = foreign_callback_Retain local1 : struct4
     store t3 -> local2
     call managed-direct-target1 sp13 live=[] t4 = sig=direct1 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(global0, global1)
     store t4 -> local3
@@ -1896,9 +1906,9 @@ Module
     call managed-direct-target4 sp22 live=[] t21 = sig=direct4 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td17, 24)
     t22 = function_address @scoop.$lambda.1 : ptr
     heap_store t21 +16 t22
-    t23 = foreign_callback_register fcb1 t21 : struct3
+    t23 = foreign_callback_register fcb1 t21 : struct4
     store t23 -> local5
-    t24 = foreign_callback_Retain local5 : struct3
+    t24 = foreign_callback_Retain local5 : struct4
     store t24 -> local6
     t25 = extract local5, 0 : ptr<code>
     t26 = extract local5, 1 : ptr<raw>
@@ -1920,7 +1930,7 @@ Module
     call managed-direct-target6 sp26 live=[] t34 = sig=direct6 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td18, 24)
     t35 = function_address @scoop.$lambda.2 : ptr
     heap_store t34 +16 t35
-    t36 = foreign_callback_register fcb2 t34 : struct3
+    t36 = foreign_callback_register fcb2 t34 : struct4
     store t36 -> local7
     t37 = extract local7, 0 : ptr<code>
     t38 = extract local7, 1 : ptr<raw>
@@ -1972,9 +1982,9 @@ Module
     call managed-direct-target10 sp38 live=[] t61 = sig=direct10 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td19, 24)
     t62 = function_address @scoop.$lambda.3 : ptr
     heap_store t61 +16 t62
-    t63 = foreign_callback_register fcb3 t61 : struct4
+    t63 = foreign_callback_register fcb3 t61 : struct5
     store t63 -> local8
-    t64 = foreign_callback_Retain local8 : struct4
+    t64 = foreign_callback_Retain local8 : struct5
     store t64 -> local9
     call managed-direct-target11 sp39 live=[] t65 = sig=direct11 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(global2, global3)
     store t65 -> local10
@@ -2439,6 +2449,7 @@ Module
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
+  layout SourceLocation size=40 align=8 refs=[0, 24, 32]
   layout ForeignCallback$FI_PUXRIX size=16 align=8 refs=[]
   layout ForeignCallback$FPUXRUX size=16 align=8 refs=[]
   layout ManagedPayload size=8 align=8 enum-scan=refs[0]

@@ -10,6 +10,7 @@ pub fn dump(module: &Module) -> String {
             || id == module.ffi_core.pinned_ptr
             || id == module.ffi_core.gc_handle
             || id == module.foreign_callback_core.callback
+            || id == module.source_location_core.location
         {
             continue;
         }
@@ -179,6 +180,7 @@ pub fn dump(module: &Module) -> String {
             module.foreign_callback_core.release,
             module.foreign_callback_core.query_state,
             module.foreign_callback_core.failure,
+            module.source_location_core.current,
         ]
         .contains(&id)
         {

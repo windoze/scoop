@@ -145,6 +145,15 @@ SourceFile
     Some(T)
     None
 SourceFile
+  struct SourceLocation
+    field file: String
+    field line: Int
+    field column: Int
+    field functionName: String
+    field typeName: String
+    @Intrinsic("current_source_location")
+  fun getCurrentSourceLocation(): SourceLocation
+SourceFile
   open class Throwable()
   open class Exception(val message: String?) : Throwable(<0 args>)
   class UnwrapException() : Exception(<1 args>)
@@ -474,6 +483,7 @@ Module
   extern ef9 coreUIntHash @scoop_rt_uint_hash(UInt) -> Int <abi=scoop managed>
   extern ef10 coreBooleanHash @scoop_rt_bool_hash(Boolean) -> Int <abi=scoop managed>
   extern ef11 coreStringHash @scoop_rt_string_hash(String) -> Int <abi=scoop managed>
+  struct SourceLocation (file: String, line: Int, column: Int, functionName: String, typeName: String)
   struct Bundle (text: String, node: Node)
   enum Option$J14_Continuation$IX
     Some(_1: Continuation$I)
@@ -2849,12 +2859,12 @@ Module
   global @scoop.str.21 = "illegal state"
   enum Option$J14_Continuation$IX niche(payload_variant=0)
   enum Option$S niche(payload_variant=0)
-  enum Payload tagged size=24 align=8 variants=(struct3)@8+16:refs ()@8+0
+  enum Payload tagged size=24 align=8 variants=(struct4)@8+16:refs ()@8+0
   enum CoroutineStep$I tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
   enum CoroutineSlot$C6_GcTaskX niche(payload_variant=1)
   enum CoroutineSlot$S niche(payload_variant=1)
   enum CoroutineSlot$C4_NodeX niche(payload_variant=1)
-  enum CoroutineSlot$D6_BundleX tagged size=24 align=8 variants=()@8+0 (struct3)@8+16:refs
+  enum CoroutineSlot$D6_BundleX tagged size=24 align=8 variants=()@8+0 (struct4)@8+16:refs
   enum CoroutineSlot$E7_PayloadX tagged size=32 align=8 variants=()@8+0 (enum2)@8+24:refs
   enum CoroutineSlot$I tagged size=16 align=8 variants=()@8+0 (i64)@8+8
   enum CoroutineSlot$C9_ThrowableX niche(payload_variant=1)
@@ -3287,10 +3297,10 @@ Module
     local %0 this: ptr<managed>
     local %1 taskText: ptr<managed>
     local %2 node: ptr<managed>
-    local %3 bundle: struct3
+    local %3 bundle: struct4
     local %4 payload: enum2
     local %5 value: i64
-    local %6 saved: struct3
+    local %6 saved: struct4
     local %7 $when.1: enum2
     local %8 $call.1: ptr<managed>
     local %9 $call.2: ptr<managed>
@@ -3311,7 +3321,7 @@ Module
     store t2 -> local2
     call managed-direct-target3 sp59 live=[param0:ptr<managed>@0, local0:ptr<managed>@0, local1:ptr<managed>@0, local2:ptr<managed>@0] t3 = sig=direct3 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(global4, global5)
     store t3 -> local9
-    t4 = aggregate (local9, local2) : struct3
+    t4 = aggregate (local9, local2) : struct4
     store t4 -> local3
     t5 = enum_wrap e2 v0 (local3) : enum2
     store t5 -> local4
@@ -3324,21 +3334,21 @@ Module
     t9 = enum_wrap e8 v1 (local4) : enum8
     heap_store param0 +80 t9
     atomic_store release param0 +16 1
-    call managed-direct-target4 sp60 live=[param0:ptr<managed>@0, local0:ptr<managed>@0, local1:ptr<managed>@0, local2:ptr<managed>@0, local3:struct3@0+8, local4:enum2@8+16] t10 = sig=direct4 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td13, 32)
+    call managed-direct-target4 sp60 live=[param0:ptr<managed>@0, local0:ptr<managed>@0, local1:ptr<managed>@0, local2:ptr<managed>@0, local3:struct4@0+8, local4:enum2@8+16] t10 = sig=direct4 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td13, 32)
     heap_store t10 +16 param0
     heap_store t10 +24 1
     store t10 -> local11
     t11 = heap_load local0 +16 : ptr<managed>
-    call managed-indirect-target0 sp61 live=[param0:ptr<managed>@0, local1:ptr<managed>@0, local2:ptr<managed>@0, local3:struct3@0+8, local4:enum2@8+16, local11:ptr<managed>@0, t11:ptr<managed>@0] local17 = sig=indirect0 (sret enum3, ptr<managed>, enum2, ptr<managed>) local-fn18(t11, local4, local11)
+    call managed-indirect-target0 sp61 live=[param0:ptr<managed>@0, local1:ptr<managed>@0, local2:ptr<managed>@0, local3:struct4@0+8, local4:enum2@8+16, local11:ptr<managed>@0, t11:ptr<managed>@0] local17 = sig=indirect0 (sret enum3, ptr<managed>, enum2, ptr<managed>) local-fn18(t11, local4, local11)
     store local17 -> local12
     t12 = enum_tag e3 local12 : i64
     t13 = Eq t12, 0 : i1
     cbr t13 then @coroutine.completed_claim_adapter.1 else @coroutine.suspended.1
   block if.then.1
-    t14 = enum_field e2 v0 f0 local7 : struct3
+    t14 = enum_field e2 v0 f0 local7 : struct4
     store t14 -> local6
     t15 = extract local6, 0 : ptr<managed>
-    call managed-void-target0 sp62 live=[local6:struct3@0+8, t15:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn21(t15)
+    call managed-void-target0 sp62 live=[local6:struct4@0+8, t15:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn21(t15)
     t16 = aggregate () : {}
     t17 = extract local6, 1 : ptr<managed>
     t18 = heap_load t17 +16 : ptr<managed>
@@ -3360,10 +3370,10 @@ Module
   block if.merge.5
     br @if.merge.3
   block coroutine.post.1
-    call managed-void-target3 sp65 live=[local1:ptr<managed>@0, local2:ptr<managed>@0, local3:struct3@0+8, local4:enum2@8+16] sig=void3 (ptr<managed>) local-fn21(local1)
+    call managed-void-target3 sp65 live=[local1:ptr<managed>@0, local2:ptr<managed>@0, local3:struct4@0+8, local4:enum2@8+16] sig=void3 (ptr<managed>) local-fn21(local1)
     t25 = aggregate () : {}
     t26 = heap_load local2 +16 : ptr<managed>
-    call managed-void-target4 sp66 live=[local3:struct3@0+8, local4:enum2@8+16, t26:ptr<managed>@0] sig=void4 (ptr<managed>) local-fn21(t26)
+    call managed-void-target4 sp66 live=[local3:struct4@0+8, local4:enum2@8+16, t26:ptr<managed>@0] sig=void4 (ptr<managed>) local-fn21(t26)
     t27 = aggregate () : {}
     t28 = extract local3, 0 : ptr<managed>
     call managed-void-target5 sp67 live=[local4:enum2@8+16, t28:ptr<managed>@0] sig=void5 (ptr<managed>) local-fn21(t28)
@@ -3402,7 +3412,7 @@ Module
     t42 = enum_field e6 v1 f0 t41 : ptr<managed>
     store t42 -> local2
     t43 = heap_load param0 +56 : enum7
-    t44 = enum_field e7 v1 f0 t43 : struct3
+    t44 = enum_field e7 v1 f0 t43 : struct4
     store t44 -> local3
     t45 = heap_load param0 +80 : enum8
     t46 = enum_field e8 v1 f0 t45 : enum2
@@ -3419,7 +3429,7 @@ Module
     t52 = enum_field e6 v1 f0 t51 : ptr<managed>
     store t52 -> local2
     t53 = heap_load param0 +56 : enum7
-    t54 = enum_field e7 v1 f0 t53 : struct3
+    t54 = enum_field e7 v1 f0 t53 : struct4
     store t54 -> local3
     t55 = heap_load param0 +80 : enum8
     t56 = enum_field e8 v1 f0 t55 : enum2
@@ -3942,7 +3952,7 @@ Module
     local %1 payload: enum2
     local %2 marker: ptr<managed>
     local %3 value: i64
-    local %4 bundle: struct3
+    local %4 bundle: struct4
     local %5 $when.1: enum2
     local %6 $completion: ptr<managed>
     local %7 $adapter.1: ptr<managed>
@@ -3970,10 +3980,10 @@ Module
     t5 = Eq t4, 0 : i1
     cbr t5 then @coroutine.completed_claim_adapter.1 else @coroutine.suspended.1
   block if.then.1
-    t6 = enum_field e2 v0 f0 local5 : struct3
+    t6 = enum_field e2 v0 f0 local5 : struct4
     store t6 -> local4
     t7 = extract local4, 0 : ptr<managed>
-    call managed-void-target0 sp99 live=[local4:struct3@0+8, t7:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn21(t7)
+    call managed-void-target0 sp99 live=[local4:struct4@0+8, t7:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn21(t7)
     t8 = aggregate () : {}
     t9 = extract local4, 1 : ptr<managed>
     t10 = heap_load t9 +16 : ptr<managed>
@@ -4247,6 +4257,7 @@ Module
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
+  layout SourceLocation size=40 align=8 refs=[0, 24, 32]
   layout Bundle size=16 align=8 refs=[0, 8]
   layout Option$J14_Continuation$IX size=8 align=8 enum-scan=refs[0]
   layout Option$S size=8 align=8 enum-scan=refs[0]

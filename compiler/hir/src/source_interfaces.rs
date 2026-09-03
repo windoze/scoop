@@ -2,11 +2,25 @@
 
 use super::*;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SourceFileMetadata {
+    pub provider: IntrinsicProviderId,
+    pub name: String,
+    pub source: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SourceContext {
+    pub function_name: String,
+    pub type_name: String,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct DefinitionOrigin {
     pub provider: IntrinsicProviderId,
     pub file: u32,
     pub span: Span,
+    pub context: SourceContextId,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -14,6 +28,7 @@ pub struct EvaluationOrigin {
     pub provider: IntrinsicProviderId,
     pub file: u32,
     pub span: Span,
+    pub context: SourceContextId,
 }
 
 impl From<DefinitionOrigin> for EvaluationOrigin {
@@ -22,6 +37,7 @@ impl From<DefinitionOrigin> for EvaluationOrigin {
             provider: origin.provider,
             file: origin.file,
             span: origin.span,
+            context: origin.context,
         }
     }
 }

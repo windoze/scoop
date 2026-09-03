@@ -1,6 +1,23 @@
 use super::*;
 
 impl Lowerer {
+    /// Establish one lexical source boundary for expression provenance.
+    /// Contexts are arena-backed so origins stay Copy while function/type
+    /// names remain typed HIR data rather than duplicated strings.
+    pub(crate) fn set_source_context(&mut self, function_name: impl Into<String>) {
+        let type_name = match self.current_owner {
+            Some(Owner::Class(id)) => self.classes[id].name.clone(),
+            Some(Owner::Interface(id)) => self.interfaces[id].name.clone(),
+            Some(Owner::Struct(id)) => self.structs[id].name.clone(),
+            Some(Owner::Enum(id)) => self.enums[id].name.clone(),
+            None => String::new(),
+        };
+        self.current_source_context = self.source_contexts.alloc(hir::SourceContext {
+            function_name: function_name.into(),
+            type_name,
+        });
+    }
+
     /// Allocate a hidden desugaring temporary (`$opt.N` / `$res.N`).
     /// The `$` prefix keeps it out of the source namespace (the parser
     /// never produces `$` identifiers), so it is not registered in

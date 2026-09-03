@@ -145,6 +145,15 @@ SourceFile
     Some(T)
     None
 SourceFile
+  struct SourceLocation
+    field file: String
+    field line: Int
+    field column: Int
+    field functionName: String
+    field typeName: String
+    @Intrinsic("current_source_location")
+  fun getCurrentSourceLocation(): SourceLocation
+SourceFile
   open class Throwable()
   open class Exception(val message: String?) : Throwable(<0 args>)
   class UnwrapException() : Exception(<1 args>)
@@ -471,6 +480,7 @@ Module
   extern ef9 coreUIntHash @scoop_rt_uint_hash(UInt) -> Int <abi=scoop managed>
   extern ef10 coreBooleanHash @scoop_rt_bool_hash(Boolean) -> Int <abi=scoop managed>
   extern ef11 coreStringHash @scoop_rt_string_hash(String) -> Int <abi=scoop managed>
+  struct SourceLocation (file: String, line: Int, column: Int, functionName: String, typeName: String)
   struct Point (x: Int, y: Int)
   enum E
     Empty()
@@ -1287,8 +1297,8 @@ Module
     local %37 $call.12: ptr<managed>
   block entry
     poll managed-void-target6 sp55 live=[]
-    t0 = aggregate (1, 2) : struct3
-    t1 = aggregate (3, 4) : struct3
+    t0 = aggregate (1, 2) : struct4
+    t1 = aggregate (3, 4) : struct4
     t2 = array_alloc array0 (t0, t1) sp12 live  : ptr<managed>
     store t2 -> local0
     store local0 -> local13
@@ -1311,7 +1321,7 @@ Module
     throw local27
     unreachable
   block if.merge.5
-    t7 = array_get array0 local13 local14 : struct3
+    t7 = array_get array0 local13 local14 : struct4
     t8 = extract t7, 0 : i64
     call managed-void-target0 sp14 live=[] sig=void0 (i64) local-fn13(t8)
     t9 = aggregate () : {}
@@ -1585,12 +1595,12 @@ Module
   td td17 ArithmeticException @scoop_td_ArithmeticException type-id=18 size=24 parent=td14 vtable=[] itables=[]
   td td18 IndexOutOfBoundsException @scoop_td_IndexOutOfBoundsException type-id=19 size=24 parent=td14 vtable=[] itables=[]
   td td19 IllegalStateException @scoop_td_IllegalStateException type-id=20 size=24 parent=td14 vtable=[] itables=[]
-  array-type array0 Array$D5_PointX kind=immutable element=struct3 size=16 align=8 scan=none td=td4
+  array-type array0 Array$D5_PointX kind=immutable element=struct4 size=16 align=8 scan=none td=td4
   array-type array1 Array$I kind=immutable element=i64 size=8 align=8 scan=none td=td5
   array-type array2 Array$AIX kind=immutable element=ptr<managed> size=8 align=8 scan=refs[0] td=td6
   array-type array3 Array$E1_EX kind=immutable element=enum0 size=16 align=8 scan=none td=td7
   array-type array4 Array$E8_Option$IX kind=immutable element=enum1 size=16 align=8 scan=none td=td8
-  array-type array5 MutableArray$D5_PointX kind=mutable element=struct3 size=16 align=8 scan=none td=td9
+  array-type array5 MutableArray$D5_PointX kind=mutable element=struct4 size=16 align=8 scan=none td=td9
   array-type array6 MutableArray$I kind=mutable element=i64 size=8 align=8 scan=none td=td10
   array-type array7 MutableArray$AIX kind=mutable element=ptr<managed> size=8 align=8 scan=refs[0] td=td11
   array-type array8 MutableArray$E1_EX kind=mutable element=enum0 size=16 align=8 scan=none td=td12
@@ -1598,6 +1608,7 @@ Module
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
+  layout SourceLocation size=40 align=8 refs=[0, 24, 32]
   layout Point size=16 align=8 refs=[]
   layout E size=16 align=8 enum-scan=none
   layout Option$I size=16 align=8 enum-scan=none

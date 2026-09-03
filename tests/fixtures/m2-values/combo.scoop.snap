@@ -145,6 +145,15 @@ SourceFile
     Some(T)
     None
 SourceFile
+  struct SourceLocation
+    field file: String
+    field line: Int
+    field column: Int
+    field functionName: String
+    field typeName: String
+    @Intrinsic("current_source_location")
+  fun getCurrentSourceLocation(): SourceLocation
+SourceFile
   open class Throwable()
   open class Exception(val message: String?) : Throwable(<0 args>)
   class UnwrapException() : Exception(<1 args>)
@@ -387,6 +396,7 @@ Module
   extern ef9 coreUIntHash @scoop_rt_uint_hash(UInt) -> Int <abi=scoop managed>
   extern ef10 coreBooleanHash @scoop_rt_bool_hash(Boolean) -> Int <abi=scoop managed>
   extern ef11 coreStringHash @scoop_rt_string_hash(String) -> Int <abi=scoop managed>
+  struct SourceLocation (file: String, line: Int, column: Int, functionName: String, typeName: String)
   struct Tagged (tag: String, pair: (Int, String))
   enum Option$S
     Some(_1: String)
@@ -879,35 +889,35 @@ Module
     store t0 -> local0
     ret local0
   fun @scoop_main() -> void
-    local %0 a: struct3
-    local %1 b: struct3
+    local %0 a: struct4
+    local %1 b: struct4
     local %2 count: i64
     local %3 $call.1: i1
   block entry
     poll managed-void-target3 sp45 live=[]
     t0 = aggregate (1, global1) : {i64, ptr<managed>}
-    t1 = aggregate (global0, t0) : struct3
+    t1 = aggregate (global0, t0) : struct4
     store t1 -> local0
     t2 = aggregate (1, global3) : {i64, ptr<managed>}
-    t3 = aggregate (global2, t2) : struct3
+    t3 = aggregate (global2, t2) : struct4
     store t3 -> local1
-    call managed-direct-target0 sp12 live=[local0:struct3@0+16, local1:struct3@0+16] t4 = sig=direct0 (struct3, struct3) -> i1 local-fn16(local0, local1)
+    call managed-direct-target0 sp12 live=[local0:struct4@0+16, local1:struct4@0+16] t4 = sig=direct0 (struct4, struct4) -> i1 local-fn16(local0, local1)
     store t4 -> local3
-    call managed-void-target0 sp13 live=[local0:struct3@0+16] sig=void0 (i1) local-fn13(local3)
+    call managed-void-target0 sp13 live=[local0:struct4@0+16] sig=void0 (i1) local-fn13(local3)
     t5 = aggregate () : {}
     t6 = extract local0, 1 : {i64, ptr<managed>}
     t7 = extract t6, 1 : ptr<managed>
-    call managed-void-target1 sp14 live=[local0:struct3@0+16, t7:ptr<managed>@0] sig=void1 (ptr<managed>) local-fn14(t7)
+    call managed-void-target1 sp14 live=[local0:struct4@0+16, t7:ptr<managed>@0] sig=void1 (ptr<managed>) local-fn14(t7)
     t8 = aggregate () : {}
     store 0 -> local2
     br @while.cond.1
   block while.cond.1
-    poll managed-void-target3 sp46 live=[local0:struct3@0+16]
+    poll managed-void-target3 sp46 live=[local0:struct4@0+16]
     t9 = Lt local2, 2 : i1
     cbr t9 then @while.body.2 else @while.exit.3
   block while.body.2
     t10 = extract local0, 0 : ptr<managed>
-    call managed-void-target2 sp15 live=[local0:struct3@0+16, t10:ptr<managed>@0] sig=void2 (ptr<managed>) local-fn14(t10)
+    call managed-void-target2 sp15 live=[local0:struct4@0+16, t10:ptr<managed>@0] sig=void2 (ptr<managed>) local-fn14(t10)
     t11 = aggregate () : {}
     t12 = Add local2, 1 : i64
     store t12 -> local2
@@ -959,15 +969,15 @@ Module
     br @logic.merge.3
   block logic.merge.3
     ret local1
-  fun @scoop.Tagged.equals(struct3, struct3) -> i1
+  fun @scoop.Tagged.equals(struct4, struct4) -> i1
     local %0 $call.1: i1
     local %1 $logic.2: i1
     local %2 $call.3: i1
   block entry
-    poll managed-void-target0 sp50 live=[param0:struct3@0+16, param1:struct3@0+16]
+    poll managed-void-target0 sp50 live=[param0:struct4@0+16, param1:struct4@0+16]
     t0 = extract param0, 0 : ptr<managed>
     t1 = extract param1, 0 : ptr<managed>
-    call managed-direct-target0 sp24 live=[param0:struct3@0+16, param1:struct3@0+16, t0:ptr<managed>@0, t1:ptr<managed>@0] t2 = sig=direct0 (ptr<managed>, ptr<managed>) -> i1 local-fn9(t0, t1)
+    call managed-direct-target0 sp24 live=[param0:struct4@0+16, param1:struct4@0+16, t0:ptr<managed>@0, t1:ptr<managed>@0] t2 = sig=direct0 (ptr<managed>, ptr<managed>) -> i1 local-fn9(t0, t1)
     store t2 -> local0
     cbr local0 then @logic.rhs.1 else @logic.short.2
   block logic.rhs.1
@@ -1060,6 +1070,7 @@ Module
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
+  layout SourceLocation size=40 align=8 refs=[0, 24, 32]
   layout Tagged size=24 align=8 refs=[0, 16]
   layout Option$S size=8 align=8 enum-scan=refs[0]
   layout Throwable size=16 align=8 refs=[]

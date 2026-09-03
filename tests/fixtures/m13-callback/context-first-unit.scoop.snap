@@ -145,6 +145,15 @@ SourceFile
     Some(T)
     None
 SourceFile
+  struct SourceLocation
+    field file: String
+    field line: Int
+    field column: Int
+    field functionName: String
+    field typeName: String
+    @Intrinsic("current_source_location")
+  fun getCurrentSourceLocation(): SourceLocation
+SourceFile
   open class Throwable()
   open class Exception(val message: String?) : Throwable(<0 args>)
   class UnwrapException() : Exception(<1 args>)
@@ -367,6 +376,7 @@ Module
   extern ef10 coreBooleanHash @scoop_rt_bool_hash(Boolean) -> Int <abi=scoop managed>
   extern ef11 coreStringHash @scoop_rt_string_hash(String) -> Int <abi=scoop managed>
   extern ef12 callContextFirst @m13_call_context_first(FunPtr<(Ptr<Unit>, Int) -> Unit>, Ptr<Unit>, Int) -> Unit <abi=c no-gc lib=fixture_native>
+  struct SourceLocation (file: String, line: Int, column: Int, functionName: String, typeName: String)
   struct ForeignCallback$FPUX_IRUX (function: FunPtr<(Ptr<Unit>, Int) -> Unit>, context: Ptr<Unit>)
   enum Option$S
     Some(_1: String)
@@ -963,7 +973,7 @@ Module
     ret local0
   fun @scoop_main() -> void
     local %0 captured: ptr<managed>
-    local %1 callback: struct3
+    local %1 callback: struct4
     local %2 $call.1: i1
     local %3 $sc.1: ptr<code>
     local %4 $sc.2: ptr<raw>
@@ -975,7 +985,7 @@ Module
     t1 = function_address @scoop.$lambda.0 : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 local0
-    t2 = foreign_callback_register fcb0 t0 : struct3
+    t2 = foreign_callback_register fcb0 t0 : struct4
     store t2 -> local1
     t3 = extract local1, 0 : ptr<code>
     t4 = extract local1, 1 : ptr<raw>
@@ -1215,6 +1225,7 @@ Module
   layout String size=24 align=8 refs=[]
   layout Int size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
+  layout SourceLocation size=40 align=8 refs=[0, 24, 32]
   layout ForeignCallback$FPUX_IRUX size=16 align=8 refs=[]
   layout Option$S size=8 align=8 enum-scan=refs[0]
   layout ForeignCallbackState size=8 align=8 enum-scan=none
