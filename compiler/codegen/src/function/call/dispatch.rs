@@ -1,0 +1,159 @@
+use super::*;
+
+impl<'ctx> FnEmitter<'_, 'ctx> {
+    pub(in crate::function) fn emit_call_site(
+        &mut self,
+        site: &scoop_lir::CallSite,
+    ) -> Result<(), CodegenError> {
+        let targets = &self.function.call_targets;
+        match site {
+            scoop_lir::CallSite::Managed(site) => self.emit_typed_call(
+                targets.typed_call_view(
+                    &site.call,
+                    &targets.managed_targets,
+                    scoop_lir::ManagedCallDestination::view,
+                ),
+                CallProtocol::Managed {
+                    safepoint: site.safepoint,
+                    live: &site.live,
+                },
+                None,
+            ),
+            scoop_lir::CallSite::NoGc(site) => self.emit_typed_call(
+                targets.typed_call_view(
+                    &site.call,
+                    &targets.no_gc_targets,
+                    scoop_lir::NoGcCallDestination::view,
+                ),
+                CallProtocol::NoGc,
+                None,
+            ),
+            scoop_lir::CallSite::NativeSafe(site) => self.emit_typed_call(
+                targets.typed_call_view(
+                    &site.call,
+                    &targets.native_safe_targets,
+                    scoop_lir::NativeSafeCallDestination::view,
+                ),
+                CallProtocol::NativeSafe {
+                    safepoint: site.safepoint,
+                    roots: &site.roots,
+                },
+                None,
+            ),
+            scoop_lir::CallSite::NativeBorrowed(site) => {
+                let call = site.call.view(targets);
+                self.emit_typed_call(
+                    call.call,
+                    CallProtocol::NativeBorrowed {
+                        safepoint: site.safepoint,
+                        roots: &site.roots,
+                        result: call.result,
+                    },
+                    None,
+                )
+            }
+        }
+    }
+
+    pub(in crate::function) fn emit_invoke_site(
+        &mut self,
+        site: &scoop_lir::InvokeSite,
+    ) -> Result<(), CodegenError> {
+        let targets = &self.function.call_targets;
+        match site {
+            scoop_lir::InvokeSite::Managed(site) => self.emit_typed_call(
+                targets.typed_call_view(
+                    &site.call,
+                    &targets.managed_targets,
+                    scoop_lir::ManagedCallDestination::view,
+                ),
+                CallProtocol::ManagedInvoke {
+                    safepoint: site.safepoint,
+                    roots: &site.roots,
+                },
+                Some((site.normal, site.unwind)),
+            ),
+            scoop_lir::InvokeSite::NoGc(site) => self.emit_typed_call(
+                targets.typed_call_view(
+                    &site.call,
+                    &targets.no_gc_targets,
+                    scoop_lir::NoGcCallDestination::view,
+                ),
+                CallProtocol::NoGc,
+                Some((site.normal, site.unwind)),
+            ),
+        }
+    }
+
+    pub(in crate::function) fn typed_callee(
+        &self,
+        destination: scoop_lir::CallDestination,
+        fn_ty: inkwell::types::FunctionType<'ctx>,
+    ) -> Result<inkwell::values::FunctionValue<'ctx>, CodegenError> {
+        let symbol = match destination {
+            scoop_lir::CallDestination::Local(id) => {
+                let symbol = self
+                    .functions
+                    .get(id.into_u32() as usize)
+                    .ok_or_else(|| {
+                        CodegenError(format!("invalid local function id {}", id.into_u32()))
+                    })?
+                    .symbol
+                    .as_str();
+                let function = self.llvm.get_function(symbol).ok_or_else(|| {
+                    CodegenError(format!(
+                        "typed local target `{symbol}` was not declared in the module pass"
+                    ))
+                })?;
+                if function.get_type() != fn_ty {
+                    return Err(CodegenError(format!(
+                        "typed target `{symbol}` disagrees with its existing declaration"
+                    )));
+                }
+                return Ok(function);
+            }
+            scoop_lir::CallDestination::Runtime(function) => function.symbol(),
+            scoop_lir::CallDestination::Extern(id) => match &self.extern_functions[id].kind {
+                ExternFunctionKind::C { bridge_symbol, .. } => bridge_symbol,
+                ExternFunctionKind::Scoop { .. } => &self.extern_functions[id].native_symbol,
+            },
+            scoop_lir::CallDestination::Dispatch { .. } => {
+                unreachable!("dispatch destinations have no direct callee")
+            }
+        };
+        if let Some(function) = self.llvm.get_function(symbol) {
+            if function.get_type() != fn_ty {
+                return Err(CodegenError(format!(
+                    "typed target `{symbol}` disagrees with its existing declaration"
+                )));
+            }
+            Ok(function)
+        } else {
+            Ok(self.llvm.add_function(symbol, fn_ty, None))
+        }
+    }
+
+    pub(in crate::function) fn dispatch_function_pointer(
+        &self,
+        table: Value,
+        slot: scoop_lir::DispatchSlotId,
+    ) -> Result<PointerValue<'ctx>, CodegenError> {
+        let table = self.value(table)?.into_pointer_value();
+        let slot = self.function.call_targets.dispatch_slots[slot];
+        // SAFETY: the typed dispatch slot is assigned by lir-lower from the
+        // complete vtable/itable/closure layout.
+        let slot_pointer = unsafe {
+            self.builder.build_gep(
+                ptr_ty(self.context),
+                table,
+                &[self.context.i32_type().const_int(slot.index.into(), false)],
+                "dispatch_slot",
+            )
+        }
+        .map_err(|error| CodegenError(format!("typed dispatch slot: {error}")))?;
+        self.builder
+            .build_load(ptr_ty(self.context), slot_pointer, "dispatch_function")
+            .map(BasicValueEnum::into_pointer_value)
+            .map_err(|error| CodegenError(format!("typed dispatch load: {error}")))
+    }
+}
