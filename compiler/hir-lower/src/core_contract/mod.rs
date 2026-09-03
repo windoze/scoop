@@ -1,0 +1,16 @@
+//! Validation and typed registration of compiler-required core declarations.
+//!
+//! This is the sole HIR boundary that recognizes well-known intrinsic and
+//! runtime-facing core contracts. Successful validation emits typed identities;
+//! later stages never recover them from declaration names.
+
+use super::*;
+
+mod callbacks;
+mod common;
+mod coroutines;
+mod exceptions;
+mod ffi;
+mod intrinsics;
+mod option;
+mod pointers;
