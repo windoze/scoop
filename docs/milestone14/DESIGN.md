@@ -28,7 +28,7 @@ M14 完成后，class/struct/enum/interface都使用同一原则下、按declara
 | 能力 | M14处理 |
 | --- | --- |
 | top-level generic function、显式/推导type argument、重载 | 既有能力；M14加入interface bound/`where`并迁入新Export/LocalConcrete边界 |
-| local/extension generic function与concrete callable reference | 既有能力；M14加入bound并回归closure/suspend组合，默认参数仍属M7通用callable backlog |
+| local/extension generic function与concrete callable reference | 既有能力；M14加入bound并回归closure/suspend组合，默认参数进入M17统一callable协议 |
 | class/struct/enum generic method | M14补齐为2.8的non-virtual完整模型 |
 | interface method-level type parameter | 当前定义处拒绝；动态分派与跨Cone ABI进入backlog |
 | generic class/struct/enum/interface及generic继承/实现 | M14统一template/application/concrete identity并完成layout/dispatch |
@@ -44,7 +44,7 @@ M14 完成后，class/struct/enum/interface都使用同一原则下、按declara
 | generic extension property | backlog，依赖property基础能力 |
 | nested/inner generic type与generic class companion作用域 | backlog，依赖nested/object基础能力 |
 | 显式实参`_`占位/部分推断 | backlog；M14仍为整组省略或整组给出 |
-| fresh-variable、postponed argument及projection参与的完整constraint solver | backlog；M14只扩展当前固定点求解器 |
+| fresh-variable与postponed argument的统一constraint solver | M16；projection参与的MSC/LUB在后续projection里程碑扩展同一solver |
 | runtime dictionary/shared generic body | backlog中的可选未来优化，不得作为correctness fallback |
 | polymorphic function value、generic lambda、HKT、associated type、const generic、用户specialization | 当前语言明确不引入 |
 
@@ -362,7 +362,7 @@ struct Pair<T>(val first: T, val second: T) {
 - class generic method必须语义为final。显式`open`、`abstract`、`override`以及隐含open的override形态均在声明处报错；struct/enum method本来即为final。generic method不能占据或覆盖vtable/itable slot，也不能作为某个非generic interface method的“每次调用再选一个实例”的实现；
 - 通过base静态类型调用继承到的generic method时，直接调用声明该final method的concrete实例。运行期对象的派生class不能替换该目标，因此不会出现“generic virtual dispatch”；
 - receiver先确定全部宿主实参；调用处的显式`<...>`只对应method自身参数，并且仍须全部给出或全部推导。推导器随后以“宿主substitution + method实参 + 全部bound”为一个固定点求解问题；method参数不得与宿主参数重名；
-- method默认参数表达式、closure body、suspend transform与`@NoGC`条件若引用两组参数，均在同一个concrete application中完成替换。默认参数/`vararg`本身仍受M7通用callable backlog约束；M14不为generic method另造一个缩水版调用协议；
+- method默认参数表达式、closure body、suspend transform与`@NoGC`条件若引用两组参数，均在同一个concrete application中完成替换。默认参数/`vararg`由M17统一callable协议实现；M14不为generic method另造一个缩水版调用协议；
 - generic method的callable reference必须由期望函数类型唯一确定method全部实参。绑定reference按值保存receiver，未绑定member reference仍不在当前语言子集；结果总是一个concrete函数值，不存在携带未解析type parameter的polymorphic function value；
 - overload resolution先以宿主substitution后的source signature和fresh method parameter参与候选比较，再产生唯一concrete application。不得先按某个猜测实例生成符号后再用碰撞结果决定overload；两个source declaration即使特化后machine signature相同，仍有不同semantic identity和稳定discriminator。
 
@@ -443,7 +443,7 @@ IntrinsicDeclarationPolicy =
 ```
 
 - 默认始终为`CoreOnly`；该policy由driver/test harness通过内部`CompileOptions`传入HIR，不是Scoop源码注解、`Cone.toml`字段、环境变量或稳定用户CLI选项；
-- `IntrinsicProviderId`是driver为每个编译输入provider分配的typed identity：M14区分sysroot与当前用户输入，M17扩展为每个Cone；它不是路径、包名或可由源码伪造的字符串；
+- `IntrinsicProviderId`是driver为每个编译输入provider分配的typed identity：M14区分sysroot与当前用户输入，后续多Cone里程碑扩展为每个Cone；它不是路径、包名或可由源码伪造的字符串；
 - 测试模式按该identity精确授权provider，不是一个“允许所有用户文件”的全局bool；授权不经import或dependency传递；
 - 开关只跳过“provider必须是sysroot”这一项。intrinsic name必须在typed registry中、annotation target与完整声明shape/signature必须匹配、每个intrinsic kind的provider必须唯一、注解共存与body规则全部照常验证；
 - HIR output和后续IR不保存“测试模式”布尔值，合法声明在两种authority下产生完全相同的typed实体。由测试provider产生的`.slib`若被使用，消费编译也必须显式授权同一provider；普通生产编译拒绝它，避免test authority泄漏为依赖能力。
@@ -805,12 +805,12 @@ M14 只有在以下条件同时满足时完成：普通用户generic class/struc
 6. generic extension property，以及nested/inner generic type、generic class companion对宿主参数的可见性。这些依赖尚未实现的property、nested type与object/companion基础能力；普通property本身不能凭空拥有每次访问才实例化的method type parameter。object/companion声明自身不形成generic nominal application，也不能声明宿主type parameter，但其中的普通method未来可以按2.8声明自己的non-virtual参数；
 7. 显式类型实参中的`_`占位与“部分写出、其余推导”；M14继续只允许整组省略或整组完整写出；
 8. 比2.9更一般的polymorphic recursion及termination proof；资源上限、worklist深度或编译超时不能充当语言规则；
-9. 完整Kotlin fresh-variable/postponed-argument constraint system，以及加入projection后的MSC、LUB和overload比较；M14只扩展当前固定点求解器以处理宿主参数、method参数与upper bound，M7已有的简化比较backlog继续有效；
+9. 当前完整application范围的fresh-variable/postponed-argument constraint system及MSC由M16替换；加入projection后的MSC、LUB和overload比较随projection里程碑扩展同一solver。M14自身只扩展当时固定点求解器以处理宿主参数、method参数与upper bound；
 10. runtime generic dictionary、witness参数、反射式bound调用或以代码体积为目标的共享泛型body；M14仅实现单态化，不能把这些机制作为缺失concrete信息的fallback；
 11. first-class polymorphic function value、generic lambda/匿名函数、higher-kinded type、associated type、const generic或用户可控specialization。它们不属于当前Kotlin核心兼容范围，也不因M14使用“完整泛型”一词而被隐式引入；
 12. 自动派生ToString/Hash、identity hash、`Any`默认字符串化/相等；
 13. extension equals参与 `==`，或把 `===` 开放重载；
-14. locale/format specifier与StringBuilder优化（进入M16）；
+14. locale/format specifier与StringBuilder优化（原M16设计已撤回，待后续重新排期）；
 15. 为旧固定三槽提供ABI兼容层；
 16. M15的精确stackmap、`gc.relocate`与moving compaction；M14只确保其上游IR不再依赖地址语义并为完整call/root信息打好基础；
 17. 让普通用户Cone声明自定义intrinsic，或把测试authority作为稳定CLI/manifest能力公开。

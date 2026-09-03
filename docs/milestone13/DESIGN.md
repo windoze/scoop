@@ -23,7 +23,7 @@ M13 交付以下闭环：主线程注册普通、非挂起 closure，runtime 用
 
 M13新增的enum GC布局与callback concrete signature使早期单一`hir::Module`同时容纳generic template和concrete实例的问题不可继续保留。按impl spec 2.2，HIR输出必须先按消费者拆为互不兼容的`ExportHir`与`LocalConcreteHir`：
 
-- `ExportHir`供下游Cone的HIR使用，包含导出的非generic语义接口、generic template、const/default metadata及template依赖闭包；
+- `ExportHir`供下游Cone的HIR使用，包含导出的非generic语义接口、generic template及其依赖闭包、const/default metadata；M17进一步约束default interface template只引用export/re-export实体，不携带hidden dependency closure；
 - `LocalConcreteHir`只供本Cone MIR使用，所有type parameter均已替换，所有non-generic/instantiated body与type均为concrete；
 - 两侧的type/function/callable/variant id使用不同Rust类型。MIR API不能接收`ExportHir`，`.slib`也不打包`LocalConcreteHir`；
 - 每个`ConcreteTypeId`必有`gc_free: bool`。concrete enum的每个variant也必有`gc_free: bool`，enum自身flag为逐variant AND。禁止`Option<bool>`、默认值、后续全模块扫描或LIR字段递归补齐；
@@ -511,7 +511,7 @@ M13不新增语言语法。显式type argument、函数类型、lambda、`FunPtr
 - codegen发射TLS TLAB fast path、atomic card mark、safepoint slow path调用、native-safe/borrowed prologue/epilogue和callback managed entry；
 - C bridge生成器复用M12 CType/layout设施，新增foreign trampoline和signature descriptor；
 - driver/runtime构建加入pthread编译与链接选项，fixture继续把API-specific wrapper编成独立native archive，不把测试函数塞入runtime；
-- callback adapter/trampoline描述必须进入对应IR/meta；跨Cone实际导出的closure注册在M17前仍只验证单Cone，但实体格式不能依赖源码文件局部索引。
+- callback adapter/trampoline描述必须进入对应IR/meta；跨Cone实际导出的closure注册在多Cone里程碑前仍只验证单Cone，但实体格式不能依赖源码文件局部索引。
 
 ### 8.5 runtime
 

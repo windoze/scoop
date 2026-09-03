@@ -60,7 +60,7 @@ fun main() {
 - 泛型函数只**定义处检查一次**（参数化类型下）：对类型参数不允许任何具体操作（不能比较相等之外的运算、不能 print——print 只接受 String/Int/Boolean，`T` 无约束无法证明，定义处即报诊断）。`==`/`!=` 对任意两侧同类型允许（含 `T` 与 `T`、`Option<T>` 与 `None` 的比较——M3 中 `== None` 靠此实现）。
 - **调用处推断**：按实参类型逐一绑定类型参数；无法绑定（未在参数中出现的类型参数）或绑定冲突（同一参数推出两个不同类型）是诊断。
 - HIR输出按impl spec 2.2分为两个不同类型的消费者视图（M13期间补正早期单`Module`实现）：
-  - **`ExportHir`**：由`ExportGenericFunctionId`标识带类型参数的template body，同时包含下游类型检查所需的非generic导出声明、const/default metadata及template依赖闭包；
+  - **`ExportHir`**：由`ExportGenericFunctionId`标识带类型参数的template body，同时包含下游类型检查所需的非generic导出声明、const/default metadata及generic template依赖闭包；M17进一步约束default作为interface template只能引用export/re-export实体，不携带hidden dependency closure；
   - **`LocalConcreteHir`**：HIR对`(ExportGenericFunctionId, concrete type args)`需求做固定点闭包并完成`Param(i)`替换，生成由`ConcreteFunctionId`/`ConcreteTypeId`标识的完整实例体；普通非generic函数也正规化为该侧实体；
   - export侧调用目标、实例化请求与local-concrete侧调用目标使用不同enum/id类型。禁止以共享`FunctionId + Vec<TypeId>`、共享arena或optional type argument表达两个阶段。
 - `?.` / `?:` 脱糖为 HIR 控制流：引入隐藏临时局部变量保存接收者（只求值一次），`a?.f` → `if isSome(tmp) then Some(tmp.unwrap.f) else None`；`a ?: b` → `if isSome(tmp) then tmp.unwrap else b`。因此 HIR 需要内部 expr 节点 `IsSome` / `Unwrap` / `SomeWrap` / `NoneLiteral`（不经由源码语法）。

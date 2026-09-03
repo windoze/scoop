@@ -98,7 +98,7 @@ M13 已将 M9 的单 mutator runtime升级为**多 mutator、stop-the-world、co
 - `@Intrinsic`扩展到compiler-represented core type：Int/UInt/Boolean/String在core源码中显式声明ToString/Hash/equals等nominal能力；`Array<T>` / `MutableArray<T>`迁移为使用普通generic class身份的generic intrinsic representation family，删除独立built-in array type identity。固定表示与表示族都由typed kind/application提供，不伪装成零字段普通类型。生产模式只允许sysroot provider；compiler test可通过内部`CompileOptions`按input/Cone allowlist授权，且只放宽来源检查；
 - `ToString` / `Hash` 接口落地（spec 11.11）：所有类型都通过普通implements/override显式adopt，不生成值类型派生conformance；`print` / `println` 改造为 `fun <T : ToString> print(v: T)`（单态化静态分发，退役 M7 的 `Any.toString()` 分发形态）；
 - equals 的 operator fun 化（成员限定，spec 11.11）：class 的 `==` 走 `equals` 运算符，值类型的条件派生 `==`；vtable 前三槽（Any 方法）拆除；
-- 受益方：M16 字符串插值的 `add<T : ToString>`；同时退役现有按对象地址实现的过渡 `Any.hashCode` / `toString`，避免把地址稳定性带入M15 moving collector。
+- 受益方：后续字符串插值可直接使用普通`add<T : ToString>`；同时退役现有按对象地址实现的过渡`Any.hashCode`/`toString`，避免把地址稳定性带入M15 moving collector。
 - 附加完成M13后发现的IR完备性整改：MIR expression携带非可选类型；intrinsic、compiler-generated exception与function type canonical mapping全部类型化；LIR call完整携带target/signature/result/effect，pointer null保留provenance，layout/TypeDescriptor/dispatch只用typed identity连接；用sum type消除native global、foreign callback、caller root与enum field中的非法组合。所有信息由上游结构化地产生，删除下游按context、arena反扫、FQN/symbol或并行字段猜测/补齐的路径。Any typed method/fixed-slot问题随本里程碑主线拆槽自然消失，不作为独立附加项重复实现。
 
 ### M15 精确根、statepoint relocation 与 moving compaction ✅（2026-09-03 完成，设计见 `docs/milestone15/DESIGN.md`）
@@ -120,13 +120,32 @@ M15在M13的多mutator STW与M14清理后的对象语义之上，把GC从“只�
 - 验收强制覆盖：普通local/parameter/phi、含ref aggregate、递归对象图、数组/tagged enum、异常catch/materialize、closure与interface dispatch、协程挂起frame、`GcHandle`、pin/unpin、Scoop ABI native root reload，以及M13 foreign-thread callback/多mutator组合。测试必须断言未pin对象地址确实改变、所有合法引用仍指向同一identity，并以poison/`PROT_NONE`使故意保留的旧裸地址确定性失败；
 - M1–M14全部fixture必须在普通moving模式下回归；选定的GC/FFI/closure/coroutine组合fixture必须在“每次allocation compact”的stress mode下通过。只有能生成stackmap、但runtime不消费或不更新root，不算完成M15。
 
-### M16 字符串插值
+### M16 统一约束系统与重载决议（设计见 `docs/milestone16/DESIGN.md`）
 
-f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone16/DESIGN.md`）。低优先级语法糖；`add<T : ToString>` 由 M14 支撑。
+- 统一普通/local/member/extension函数、generic nominal构造、enum variant、operator与callable reference的候选及applicability入口；single-candidate不再绕过统一检查；
+- 以candidate-local fresh variables、结构化equality/subtyping/kind/interface bound及postponed arguments替换M3/M7/M14分散的固定点绑定；lambda/callable reference/`None`/空数组/嵌套generic构造在同一session完成；
+- MSC改为与本次actual inference隔离的pairwise fresh-variable forwarding constraint system，删除“比较推断后concrete type arguments”的简化；
+- 失败候选不产生永久HIR实体，winner原子地产生唯一typed callee、完整owner/callable concrete arguments和argument adaptation；`LocalConcreteHir`不得含inference variable、constraint或export placeholder；
+- 完成当前invariant generic application、interface/function variance与bound范围；projection、context parameter、整数literal widen分别在其语言能力落地时扩展同一solver。
 
-### M17 多 Cone 与 `.slib`
+### M17 命名参数、默认参数与 `vararg`（设计见 `docs/milestone17/DESIGN.md`）
 
-`Cone.toml`、依赖图、`.slib` 打包与reader、三层meta（impl spec 2.6）、re-export（`public import`）。在接入多Cone之前先落实HIR消费者边界：`ExportHir`供下游HIR，包含导出的concrete语义接口与generic template；`LocalConcreteHir`只供本Cone MIR，包含完全特化的类型与函数体。两侧使用不同的typed id，`.slib`不得打包或暴露`LocalConcreteHir`。
+- AST/parser正式区分位置、命名、spread与尾随lambda实参，以及required/default/vararg parameter；所有callable/constructor按候选独立映射；
+- 默认表达式作为callable source interface在定义处完成绑定、类型检查及调用域覆盖检查，导出default只能引用export/re-export实体而不携带private/internal hidden dependency closure；winner及完整type arguments确定后，只在实际缺省处经同一实例化器hygienic展开。receiver先求值，显式实参按源码顺序求值，随后default按声明顺序求值；所有concrete expression都具有完备、类型隔离的definition/evaluation origin，default机制不识别具体intrinsic；
+- `vararg T`的实际参数类型是`Array<T>`；位置element/spread产生fresh array，命名whole-array直接使用；当前invariant Array要求spread精确匹配`Array<T>`；
+- 重载补齐候选参数名shape filter、“更少实际default”与“无vararg”优先规则；default/empty vararg不为generic inference虚构约束；
+- `ExportHir`完整携带parameter calling shape、hygienic default template、definition origin及带非可选调用域覆盖证明的kind-specific export-interface reference；local/export default使用不同id且不向下游stage泄漏，winner commit后`LocalConcreteHir`/MIR只见完整位置参数与普通typed array assembly；
+- 覆盖普通/local/member/extension/generic function与method、class/struct主构造、constructor-style enum variant、abstract/interface/default inheritance及Scoop ABI extern；C `...`仍不支持。
+
+### 后续顺序（待逐项设计与编号）
+
+1. callable表面补齐：完整operator/infix、context parameters、`?.method()`与property-like `invoke`；
+2. 构造与初始化：次构造函数、`init`、body property、`super`调用及完整初始化顺序；
+3. 泛型类型系统第二阶段：non-interface variance、use-site/star projection、capture conversion、class upper bound、部分type argument；
+4. 属性/object/companion/`const val`、全局初始化、interface property/default implementation及可见性；
+5. `for`/`break`/`continue`、副本更新、模式完备性、定宽整数/溢出等其他基础backlog；
+6. 多Cone与`.slib`：`Cone.toml`、依赖图、import/re-export、meta打包/reader及跨image登记；M16/M17的resolver和default template格式必须原样跨Cone工作；
+7. UInt8/Byte、String byte API及普通class StringBuilder的底层能力完成后，再重新设计字符串插值。原M16字符串设计已删除，不作为后续实现依据。
 
 ## 3. 备注
 
@@ -136,6 +155,7 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 - 2026-08-31 顺序调整：在 FFI 前新增 M11“函数类型、函数值与 closure”，先完成 lambda/callable reference/closure conversion，使 FFI 直接复用正式函数类型；原 M11–M14 顺延为 M12–M15。
 - 2026-08-31 顺序调整：在 FFI 后新增 M13“多线程 GC 与 foreign-thread managed callback”，补完 managed closure反向回调和 foreign-thread runtime入口；原 M13–M15 顺延为 M14–M16。
 - 2026-09-01 顺序调整：在接口化之后新增M15“精确根、statepoint relocation与moving compaction”，以强制relocation stress mode前置验证managed ref/root契约；字符串插值与多Cone顺延为M16/M17。
+- 2026-09-03 顺序调整：撤回原M16字符串插值设计并延后原M17多Cone；新M16先统一fresh-variable constraint solving与overload resolution，新M17再落地命名/default/vararg完整实参协议。其余M2/M4/M6/M7/M14基础backlog及多Cone、字符串能力按上节后续顺序重新排期。
 
 ## 4. 待补齐清单（backlog）
 
@@ -145,11 +165,11 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 
 - ~~always-leak GC → M9 替换~~（已完成）；
 - ~~parser 错误恢复~~（已完成：lexer 收集多个可恢复词法错误；parser 按顶层声明、类型成员和块内语句同步，存在诊断时丢弃残缺 AST）；
-- 单文件单 Cone 编译 → M17。
+- 单文件单 Cone 编译 → 后续多Cone与`.slib`里程碑（待编号）。
 
 ### 来自 M2
 
-- struct 字段默认值、命名参数调用、次构造函数（spec 4.1）；
+- struct字段默认值与命名参数调用 → M17；次构造函数 → 后续构造与初始化里程碑；
 - 副本更新表达式 `s.{ f: v }`（spec 4.5）；
 - `break` / `continue` / `for` 循环（`for` 与区间见 M5 行）；
 - 定宽整数族 `Int8/16/32/64`、`UInt*`（spec 11.2；`Int` 已固定 i64）；
@@ -169,9 +189,9 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 
 ### 来自 M4
 
-- core 与用户代码同单元编译 → M17 的 `.slib` 与 Cone 隔离；
+- core与用户代码同单元编译 → 后续多Cone与`.slib`里程碑（待编号）；
 - ~~注解仅 `@Intrinsic` 且仅 sysroot~~（M12 已扩展为类型化 FFI 注解族，并统一完成参数、目标和共存检查）；
-- 构造函数式变体的默认值只支持常量表达式（完整 spec 8.5"定义处解析、调用处求值"随函数默认参数一起做）；
+- 构造函数式变体的默认值只支持常量表达式 → M17改为完整spec 8.5“定义处解析、调用处实例化”；
 - ~~`when` 的表达式形态（产生值）~~（已完成：模式绑定、守卫与穷尽检查沿用语句形态，正常分支尾值统一定型，支持嵌套控制表达式）；
 - 命名字段模式的子模式（`S { f1: 0, .. }` 字面量匹配——ast::FieldPattern 需扩展）；
 - 表达式位的裸变体名解析推广到所有 enum（当前仅 `Option` 的 `Some`/`None`；spec 4.2/5.1 的"上下文可确定类型时可省略前缀"在表达式位只对 Option 生效）；
@@ -197,7 +217,7 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 - companion object、`object` 声明、`sealed`、委托（`by`）；object/companion 的初始化与属性委托协议不得隐式挂起（spec 8.2、9.1.1）；
 - 顶层属性与 object/companion 的精确初始化时机、跨文件顺序及循环初始化诊断（M12 只设计 GC-free 常量初始化的显式 `@Global` / `@ThreadLocal` 存储与无 initializer 的 extern global；通用属性语义仍需按 spec 9.1.1 在实现前定稿）；
 - `const val`（仅顶层/object/companion，HIR 编译期常量求值与依赖环检查，不生成 runtime initializer；spec 9.1.2）；
-- 可见性修饰符（`internal` 语义 → M17 多 Cone 前）；
+- 可见性修饰符（`internal`语义在后续多Cone之前完成）；
 - `?.` 后随方法调用（`a?.foo()`）；
 - smart cast 完整 flow analysis（当前简化：仅不可变局部变量、仅 `is`/`!is` 与 `&&`）；
 - 基类构造委托实参不可引用构造函数属性（`class B(val x: Int) : A(x)` 中 `x` 暂不可用于委托实参——hir-lower 在空作用域降级）；
@@ -208,12 +228,12 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 ### 来自 M7
 
 - ~~两个泛型重载推导出相同类型实参时，单态化实例按符号错误合并~~（已修复：以 `GenericFunctionId + concrete type args` 为实体键，重载实例符号带定义 discriminator）；
-- 候选集分层的完整层级：局部函数层 → M11；显式 import / 星号 import 分层随 import 机制落地后插入（当前为“成员 → 调用点同侧顶层 → 对侧隐式导入”三层）；
-- 泛型候选的MSC比较改用Kotlin式fresh-variable约束系统（当前为“推断后类型实参参与比较”的简化）；与postponed argument、projection参与的LUB/overload一起汇总到“M14设计预留”的完整constraint solver项；
+- 候选集分层：局部函数层已由M11落地；M16统一当前local/member/extension/top-level/core层的applicability，显式import/星号import层随多Cone机制插入；
+- 泛型候选MSC改用fresh-variable约束系统、统一postponed argument与候选诊断 → M16；projection参与的LUB/overload在后续projection里程碑扩展同一solver；
 - ~~`write` 的 `@Intrinsic` 退役~~（M12 已直接声明 `@Extern(abi = "scoop") fun write(String)`，作为 managed ABI direct-ref入口）；
 - ~~`print` / `println` 的 `Any.toString()` 过渡分发~~（M14 已改为 `fun <T : ToString> ...` 的普通generic bound调用，并拆除Any固定槽）；
-- 歧义/无匹配诊断的候选明细展示（首版只报主消息）；
-- 默认参数/vararg 的决议规则、运算符重载（`operator fun`）、`context` 参数（spec 8.3）——随各自特性落地时补齐。
+- 歧义/无匹配诊断的候选明细展示 → M16；
+- 默认参数/vararg的决议规则 → M17；完整运算符重载与`context`参数（spec 8.3）→ 后续callable表面里程碑。
 
 ### 来自 M8
 
@@ -262,7 +282,7 @@ f-string 与 `StringBuilder` 脱糖（spec 第 6 章，设计见 `docs/milestone
 - nested/inner generic type与generic class companion的参数作用域：static nested type不隐式继承外层参数，`inner` type必须携带outer application与outer ref；object/companion声明自身没有type parameter、不按每个宿主application复制，也不能隐式使用宿主type parameter，其中的generic method仍必须non-virtual；
 - 显式type argument中的`_`占位及部分推断；当前只允许“整组省略并推断”或“整组完整写出”；
 - 更一般的polymorphic recursion。M14只接受generic callable递归SCC中环上参数替换合成为identity的可判定子集，并在参数增长/变化的递归环上定义处诊断；未来放宽必须提供结构化termination proof，不能以worklist深度、实例数或超时充当语义；
-- 完整Kotlin fresh-variable/postponed-argument constraint system，以及projection参与后的MSC、LUB与overload比较；M7“推断后实参比较”的简化backlog并入此项；
+- 当前完整application范围内的fresh-variable/postponed-argument constraint system与MSC → M16；projection参与后的MSC、LUB与overload比较随projection里程碑扩展同一solver；
 - runtime generic dictionary、witness参数、反射式bound调用或共享generic body；M14仅实现单态化，后续只有在代码体积、动态加载或其他明确需求出现时再设计，不能作为缺失concrete信息的fallback；
 
 ### 来自 M15（设计预留）

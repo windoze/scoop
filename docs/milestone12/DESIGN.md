@@ -12,7 +12,7 @@ M12 交付以下闭环：Scoop 声明一个外部函数并链接原生库；在�
 - 支持 `T : value` / `T : ref` 两种 kind bound，满足 `Ptr<T>` 与 GC handle API 的需要；interface 上界和 `where` 子句仍属于 M14；
 - 支持 `Ptr<T>`、`Option<Ptr<T>>`、`FunPtr<(A...) -> R>`、`Option<FunPtr<F>>`，并复用 M11 的函数类型与中性函数声明引用语法：在明确的 `FunPtr<F>` 期望类型下，合格的顶层 `::name` 直接解析为 native callback 地址；在 managed 函数类型上下文或无期望类型时，同一语法仍产生 M11 callable reference。managed 函数值/lambda/closure 不是 C-FFI-safe，不能一般性转换为 `FunPtr`；`FunPtr` 本身不提供 `invoke`。M12 只交付同步同线程的 `@NoGC` callback，不导出 managed closure、不建立 callback token，也不允许 foreign thread进入 managed代码；这些能力由 M13 完成；
 - 支持 M12 所需的最小顶层存储声明：extern `val` / `var` 无 initializer；本 Cone 的 `@Global` / `@ThreadLocal var` 只接受 GC-free 编译期常量 initializer。普通顶层属性、引用类型全局根、动态初始化顺序与 `const val` 仍在既有 backlog；
-- `@Extern` 只支持顶层、非泛型、非挂起函数。外部方法、泛型 extern、C varargs 和运行期动态装载均给正式的不支持诊断；
+- `@Extern`只支持顶层、非泛型、非挂起函数。外部方法、generic extern、C `...` varargs和运行期动态装载均给正式的不支持诊断；普通Scoop default/language `vararg`在M12尚无语法，M17加入后default只在call site展开，vararg仅按其实际`Array<T>`参数通过ABI classifier判断；
 - **现阶段不支持 suspend FFI**：`@Extern` 与 `suspend` 互斥，挂起函数声明引用不能在 `FunPtr` 上下文中解析为原生地址，`@NoGC suspend fun` 也非法；不生成同步/挂起 wrapper，不暴露 M10 hidden continuation ABI；
 - M12 只支持 64 位 host 编译，以及默认/显式 `cdecl`。`stdcall`、Windows SEH/catchpad 与 cross compilation 不在本里程碑；未知或当前 target 不支持的 calling convention 在 HIR 诊断；
 - 不手写 SysV AMD64 / AArch64 等聚合 ABI 分类器。C ABI extern 由 codegen 根据已经定型的 LIR FFI 描述生成小型 C bridge，再由系统 C 编译器完成真实 C ABI lowering；bridge 用 `_Static_assert` 校验每个 `@CLayout` 的 size / alignment / field offset。Scoop ABI extern 不经过该 bridge，直接复用 Scoop typed machine ABI；
@@ -288,8 +288,8 @@ Scoop ABI extern 不进入这条 bridge链。编译器按普通 direct managed c
 ### 3.4 库解析与 driver
 
 - driver 收集 LIR 中去重且保持首次出现顺序的非空 library 名，最终以独立参数 `-l<name>` 交给系统 linker；参数不经 shell；
-- CLI 临时增加可重复的 `-L` / `--library-path`，供 M12 单 Cone 构建与 fixture 使用。M17 落地 `Cone.toml` / `.slib` 后，库依赖进入 Cone metadata，此临时入口可保留为命令行覆盖；
-- M12 不支持 `dlopen` / `dlsym`、版本化符号、framework、任意 link args 或由 `lib` 注入路径。需要这些能力时由 M17 的结构化 native dependency 配置设计；
+- CLI 临时增加可重复的`-L`/`--library-path`，供M12单Cone构建与fixture使用。后续多Cone里程碑落地`Cone.toml`/`.slib`后，库依赖进入Cone metadata，此临时入口可保留为命令行覆盖；
+- M12不支持`dlopen`/`dlsym`、版本化符号、framework、任意link args或由`lib`注入路径。需要这些能力时由后续多Cone里程碑的结构化native dependency配置设计；
 - 链接顺序固定为 Scoop object、FFI bridge object、runtime archive、extern libraries、C++ ABI 支持库，保证静态库符号按声明顺序可解析。
 
 ### 3.5 M12 的全局存储子集
@@ -428,7 +428,7 @@ fixture runner 约定同目录可带 `native.c`（需要 foreign unwind 的未�
 - NoGC body分配/装箱/字符串/异常/检查型操作/managed call，NoGC class method；
 - addressOf rvalue/field/array element，Ptr pointee非 GC-free，非空 FunPtr直接构造；
 - `FunPtr` native-address resolution 的目标为 generic/local/member/extension/suspend/non-NoGC，向 `FunPtr` 位置传入 lambda/匿名函数/绑定引用、已有 managed 函数值或无 expected type时已经推导出的 `::name`；把 M12 callback 保存后异步调用、从 foreign thread调用，或把 managed closure直接交给 C 均不是合法 fixture，并明确指向 M13 managed callback协议；
-- extern 有 body、generic、method、suspend、varargs、unsupported stdcall；global缺 annotation、动态 initializer或 ref type。
+- extern有body、generic、method、suspend、M12阶段尚未支持的language vararg、C `...` varargs、unsupported stdcall；M17后保留C ABI language vararg/C `...` negative，并允许实际`Array<T>`参数合法的Scoop ABI vararg。global缺annotation、动态initializer或ref type。
 
 ## 7. 实现顺序与验收门
 

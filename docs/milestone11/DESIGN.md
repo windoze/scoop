@@ -336,7 +336,7 @@ CallTarget = Direct | Virtual | Interface | CallableValue(FunctionTypeId)
 
 `CallableValue` 节点保存 callee 表达式、concrete function type、普通/挂起属性及实参数组；不能伪装成无接收者 direct call。显式 `.invoke` 在 HIR 名称解析后正规化为同一节点，不进入普通成员重载表。
 
-重载候选含 lambda 时采用“非 lambda 约束固定点 → 候选 expected type → lambda body 检查 → 既有 most-specific 比较”的流程。lambda return 只判定候选可应用性，不新增按返回值选重载的优先级。失败诊断必须指出 lambda 参数元数、挂起性或返回类型的具体不匹配，而不是统一报无候选。
+重载候选含lambda时采用“非lambda约束固定点 → 候选expected type → lambda body检查 → 既有most-specific比较”的流程。lambda return只判定候选可应用性，不新增按返回值选重载的优先级。失败诊断必须指出lambda参数元数、挂起性或返回类型的具体不匹配，而不是统一报无候选。M16将该流程纳入每个候选独立的fresh-variable/postponed-argument session，并替换M11调用既有MSC的实现细节，不改变本节lambda语义。
 
 ### 4.4 为 M12 预留的正式接口
 

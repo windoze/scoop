@@ -28,7 +28,7 @@ lexer 对坏字符及可恢复的字面量错误继续扫描；parser 分别以�
 
 负责 desugaring、type check 和 overload resolution；综合上游 Cone 的 HIR export representation；解析每个表达式/子表达式的 type，解析每个 callable 的 target。输出不是一个同时容纳parameterized与concrete节点的`Module`，而是按消费者严格隔离的两个IR：
 
-- **`ExportHir`**：只供下游Cone的HIR阶段消费。它包含源码可见的导出语义表面（包括非generic concrete声明的签名/成员/属性）、generic声明与template body、导出的`const val`、调用处实例化的默认表达式，以及这些template所引用但不一定源码可见的类型化依赖闭包。它不包含本Cone局部产生的concrete实例体；
+- **`ExportHir`**：只供下游Cone的HIR阶段消费。它包含源码可见的导出语义表面（包括非generic concrete声明的签名/成员/属性）、generic声明与template body及其类型化依赖闭包、导出的`const val`，以及作为callable接口在调用处展开的hygienic typed default template。default template的节点只能使用带非可选调用域覆盖证明的kind-specific export-interface reference，不携带private/internal hidden dependency closure；普通`Export*Id`仍可能索引generic hidden dependency，不能直接代替这种refined reference。它不包含本Cone局部产生的concrete实例体；
 - **`LocalConcreteHir`**：只供本Cone的MIR阶段消费。它包含本Cone需要发射的全部non-generic及fully instantiated type/function/body；其中不允许出现type parameter、parameterized type/body或待完成的实例化请求。
 
 二者必须是不同的Rust输出类型，并使用互不兼容的实体id家族，例如`ExportTypeId`/`ExportFunctionId`与`ConcreteTypeId`/`ConcreteFunctionId`。禁止用同一个arena index、type alias、共享`TypeId`或运行期tag区分两侧实体。一个源码声明同时需要导出语义接口和本地实现时，HIR显式生成两个实体并保存类型化映射；不能让两个消费者读取同一节点的不同字段。
@@ -41,7 +41,19 @@ HIR 负责解析所有type parameter：确定每个generic调用的具体类型�
 
 每个`ConcreteTypeId`索引的实体都必须携带非可选的`gc_free: bool`。concrete enum实体还必须为声明顺序中的每个concrete variant携带非可选的`gc_free: bool`，enum自身的flag恒等于全部variant flag的逻辑AND。不存在“未知”的concrete类型，也不得使用`Option<bool>`、默认false、延迟回填或MIR/LIR递归字段来补齐该属性。尚未特化的generic template不是concrete type，可以在`ExportHir`中携带类型化GC-free条件，但该条件不是flag。导出的param-free concrete语义类型可在`ExportHir`中复制同样完备的属性供下游类型检查；它使用export侧id，不与本Cone的`ConcreteTypeId`共享身份。
 
-调用与值构造的泛型推导对整组实参执行固定点约束求解，不得按从左到右的一次遍历决定成败。依赖期望类型的实参可延迟到其他实参完成绑定后再检查；为每个实参产生的 desugaring 语句必须分开缓存并最终按源码实参顺序拼接，类型检查顺序不得改变运行期求值顺序。
+M16起，所有命名调用、成员/扩展调用、generic nominal构造、enum variant构造、operator调用和callable reference resolution共用一个HIR调用决议内核。候选层先做显式type-argument arity、receiver与调用形态等不依赖表达式类型的预过滤，再对该层逐候选检查applicability并选择第一个至少含一个可应用候选的层；每个候选独立拥有source-argument mapping、fresh inference variables、constraint set、postponed arguments及失败原因。single-candidate调用也必须进入同一可应用性管线，不能保留一条按元数直接lower的捷径。
+
+调用与值构造的泛型推导对整组已映射实参执行constraint固定点求解，不得按从左到右的一次遍历决定成败。constraint递归穿过invariant nominal application、interface variance与function type variance，并同时检查kind/interface bound；lambda、callable reference、`None`、空数组及依赖expected type的嵌套构造可以postpone到其他约束推进后检查。MSC使用与本次实际推断结果隔离的pairwise fresh-variable forwarding system，不能比较两个候选已经推断出的concrete type arguments。solver内部状态可以暂时含未固定变量，但任何成功结果必须原子地产生全部concrete arguments、完整实参映射和唯一typed callee；未解、多解或bound失败只能形成HIR诊断/候选失败，不能输出到`ExportHir`/`LocalConcreteHir`等待下游补齐。
+
+M17起，AST保留位置、命名、spread及尾随lambda的源码顺序；HIR按候选分别映射而不先公共重排。目标选定后，receiver先求值，所有显式实参各自保存独立desugaring sink并按源码顺序拼接；随后按形参声明顺序构造vararg值及实例化实际使用的缺省表达式，最后才产生按形参顺序排列的call arguments。类型检查/constraint求解顺序不得改变这套运行期顺序。跨挂起点存活的已求值显式实参和部分物化参数使用普通M10 frame规则，不能在恢复后重新求值。
+
+默认表达式在定义方HIR环境中完成名称解析、overload选择和类型检查，成为callable source interface中的hygienic typed template。HIR在const folding/desugaring前收集其直接绑定实体，并结构化检查`CallDomain(callable) ⊆ AccessDomain(entity)`；exported `public` default只能引用export/re-export实体，不能通过携带private/internal实体、保留未解析名称或调用方重查overload来绕过。成功结果为callable/type/property等每种实体分别生成refined export-interface reference；该reference非可选地携带目标typed id及`ExportDefaultAccessWitness`，普通`Export*Id`不能无检查转换为它。generic function body仍可按既有规则拥有自身的private/internal typed dependency closure；该能力不扩展到default template。
+
+导出default使用`ExportDefaultExprId`及逐节点definition origin，非导出callable使用类型不兼容的`LocalDefaultExprId`；HIR内部只能通过封闭的`DefaultExprTemplateRef::{Local, Export}`把二者交给同一个实例化器，任何一类id都不得进入`LocalConcreteHir`。导出callable的参数metadata以封闭sum区分required、default template、vararg-empty与vararg-default，不用`Option<Expr>`加旁路布尔值拼出状态。template尚未对应一次具体求值，因此template类型不含可选evaluation origin；winner commit后的每个concrete expression则必须携带由不同类型组成、两个字段都不可缺失的`ConcreteExpressionOrigin { definition, evaluation }`。普通表达式的evaluation来自自身源码求值点；default实例保留template节点的definition，并统一使用发生缺省的call expression已有的evaluation。若该call也来自default实例，这一规则自然沿实例化链传播；进入独立callee或延后执行的lambda/local-function body时恢复该body自身的普通来源。
+
+默认template实例化器只在winner与完整type arguments已经确定后执行完整type substitution、前置parameter value绑定与上述通用origin构造，然后把展开结果作为调用处普通concrete expression交给统一lowering；它不得重新做名称/import/extension/overload决议，也不得依赖intrinsic registry、匹配callee identity或按expression kind建立专用分支。需要观察求值位置的语言设施统一读取所在concrete expression的evaluation origin。`current_source_location`只是普通HIR intrinsic consumer之一，不是default实例化协议的一部分；definition/evaluation也不能以覆盖节点span、`Option`缺失后回退或consumer反推的方式互相冒充。
+
+`LocalConcreteHir`中的函数/构造签名只保留callee执行所需的实际参数类型；每个call已经具有唯一typed target、完整concrete type arguments及按形参顺序排列的全量参数表达式。命名参数、遗漏参数、spread、default template、未物化vararg和inference variable一律不得进入`LocalConcreteHir`，因此MIR不知道也不重新实现源码调用协议。函数值调用从一开始就是函数类型元数对应的精确位置参数调用，不经过default/vararg declaration metadata。
 
 泛型 interface 的 HIR 类型必须同时携带 interface id 与完整类型实参；实现列表同样保存已解析的 interface 应用而非裸 id。HIR 按声明点 `in` / `out` 计算子类型关系并递归校验类型参数的使用位置。MIR 为每个实际使用的具体 interface 应用建立独立的单态化 interface 实体、TypeDescriptor 与 itable 身份；不得把不同类型实参的应用擦除到同一个 interface id。
 
@@ -67,7 +79,7 @@ M14还允许registry批准的core struct/class使用`@Intrinsic`省略源码repr
 - M13 的 managed callback registration是独立的类型化决议入口，不复用 `FunPtr` native-address resolution：HIR验证唯一`ForeignCallbackCore`，并仅在该core contract内部允许其deferred callback-signature参数`F`出现在`FunPtr<F>`字段/辅助签名；每个实际应用仍要求native函数类型显式、ordinary、非suspend且完全具体化，不形成通用`function` kind bound。context index和`Reusable`/`OneShot` mode必须为编译期常量，被选参数精确为`Ptr<Unit>`，全部native参数/返回值C-FFI-safe。删除context参数后得到的ordinary concrete `FunctionTypeId`是closure的真实expected type；core声明中的`callback: Any`不产生装箱。输出使用独立 `ForeignCallbackRegistrationId`，不能把 closure改写成 `FunPtr`、`Ptr<Unit>`或无类型 runtime call；
 - `const val` 在 HIR 做常量表达式求值与依赖环检查；其值进入可供下游 Cone 使用的 HIR meta，不生成 runtime initializer。普通/挂起 call、构造、分配及普通属性读取均不能进入 const expression IR；
 - 对非 `Unit` 块体执行组合式控制流分析，证明所有可达路径均以有值 `return` 或 `throw` 结束；`finally` 的必退出路径覆盖 try/catch 的待执行结果（spec 第 8 章）；
-- 默认参数值的调用处实例化（spec 8.5）；`getCurrentSourceLocation` 在缺省参数中的常量化（spec 11.12）；
+- 按上述M16/M17契约完成候选独立的调用决议、统一的默认template调用处实例化、vararg物化与源码求值顺序；为所有concrete expression完备地产生definition/evaluation origin，source-sensitive设施只通过普通expression lowering读取evaluation origin（spec 8.5、8.6）；
 - 装箱/拆箱的插入（spec 4.4.4 的 O(1) 规则）；
 - `when` 的穷尽性检查（spec 第 5 章）。
 
@@ -132,11 +144,11 @@ M14还允许registry批准的core struct/class使用`@Intrinsic`省略源码repr
 codegen **不需要任何上游 meta**：上游信息已逐层吸收进本 Cone 的 LIR（布局经 LIR meta、符号经 MIR meta），对上游函数/TypeDescriptor 的引用一律发射为外部符号，链接期解析。两个链接层规则：
 
 - **重复实例去重**：不同 Cone 可能各自单态化出同一个实例（如两个 Cone 都实例化上游的 `foo<Int>`），同名实例符号必须以 `linkonce_odr` / COMDAT 形式发射，由 linker 去重（前提是 name mangling 全程序一致）；
-- **符号可见性**：`internal` 符号可本地化，但被导出的泛型体 / 默认参数表达式引用的 `internal` 符号必须保留可链接名字（spec 8.5、12.5）。
+- **符号可见性**：`internal`符号可本地化；被导出的generic body通过其既有typed dependency closure保留必要的可链接名字。导出default在HIR已被限制为只引用export/re-export实体，不得以强制导出内部符号补救非法可见性（spec 8.5、12.5）。
 
 ### 2.6 `.slib` 打包
 
-把 codegen 产出的 `.o` 与 metadata 打包成 `.slib`（spec 12.5）。metadata 包括三层：`ExportHir`（供下游HIR，既含导出的concrete语义接口，也含generic template及其依赖闭包）、MIR meta（供下游MIR，见2.3）、LIR meta（供下游LIR，见2.4）。`LocalConcreteHir`是本Cone内的瞬时stage输出，绝不写入`.slib`，下游也不能反序列化它。reader对三层metadata分别返回不同的输入类型，不提供把export id直接转换成本地concrete id的无检查接口。
+把 codegen 产出的 `.o` 与 metadata 打包成 `.slib`（spec 12.5）。metadata 包括三层：`ExportHir`（供下游HIR，既含导出的concrete语义接口、generic template及其依赖闭包，也含只使用refined export-interface reference的default interface template）、MIR meta（供下游MIR，见2.3）、LIR meta（供下游LIR，见2.4）。`LocalConcreteHir`是本Cone内的瞬时stage输出，绝不写入`.slib`，下游也不能反序列化它。reader对三层metadata分别返回不同的输入类型，不提供把export id直接转换成本地concrete id或default-interface reference的无检查接口。
 
 ### 2.7 build driver
 
@@ -146,7 +158,7 @@ codegen **不需要任何上游 meta**：上游信息已逐层吸收进本 Cone 
 - 上游 `.slib` metadata 变化时触发下游重编译（spec 12.5）；
 - 调度各 Cone 的编译与最终链接。
 
-driver还拥有intrinsic声明的authority配置，默认且生产模式只能是`CoreOnly`。driver为sysroot及每个编译输入provider分配不可由源码伪造的typed `IntrinsicProviderId`；M17接入多Cone后该id显式映射到Cone identity，不使用路径或包名充当身份。compiler unit/golden/fixture测试可通过内部`CompileOptions`传入`AllowListedForTesting { providers: Set<IntrinsicProviderId> }`：只对列出的provider跳过“必须来自sysroot”检查，不授权其依赖或其他输入，也不放宽registry name、target、shape/signature、annotation共存及provider唯一性。该配置不来自源码、环境变量、`Cone.toml`或稳定CLI，并且不写入HIR作为可影响语义的bool；intrinsic实体本身仍携带定义provider的typed relation，测试provider产出的`.slib`只能在消费方显式授权同一provider时加载，普通编译拒绝。
+driver还拥有intrinsic声明的authority配置，默认且生产模式只能是`CoreOnly`。driver为sysroot及每个编译输入provider分配不可由源码伪造的typed `IntrinsicProviderId`；后续接入多Cone后该id显式映射到Cone identity，不使用路径或包名充当身份。compiler unit/golden/fixture测试可通过内部`CompileOptions`传入`AllowListedForTesting { providers: Set<IntrinsicProviderId> }`：只对列出的provider跳过“必须来自sysroot”检查，不授权其依赖或其他输入，也不放宽registry name、target、shape/signature、annotation共存及provider唯一性。该配置不来自源码、环境变量、`Cone.toml`或稳定CLI，并且不写入HIR作为可影响语义的bool；intrinsic实体本身仍携带定义provider的typed relation，测试provider产出的`.slib`只能在消费方显式授权同一provider时加载，普通编译拒绝。
 
 M15起driver还负责把host triple规范化为opaque typed `TargetProfileId`，从唯一registry取得完备profile并选择匹配的runtime platform source set。当前只有`DarwinAarch64`；unsupported target在任何LLVM IR/object/runtime构建前诊断。driver同时验证编译器实际链接的LLVM为22.1，并选择封闭的LLVM 22.1 statepoint backend profile；这两项不是从host triple、`llvm-config`路径或已生成object反推。runtime profile由Mach-O image、Darwin thread/VM及AArch64 frame/anchor三个正交组件组成；Linux/AArch64或macOS/x86_64等新target复用已有维度，只补缺失组件。通用runtime不能用C预处理器选择多套平台行为，也不能用可空operation表示残缺platform bundle。新增target的允许改动面限定为registry映射、profile组合、缺失平台组件、build source set及artifact测试；通用codegen/collector通过依赖边界测试禁止导入具体profile，runtime单元测试使用fake platform bundle。
 
@@ -178,7 +190,7 @@ M15起driver还负责把host triple规范化为opaque typed `TargetProfileId`，
 | 展开 stage | intrinsic | 理由 |
 |---|---|---|
 | HIR→LIR typed contract | intrinsic type declaration | HIR把源码nominal surface绑定到`IntrinsicTypeKind`；MIR原样传播typed kind，LIR按target穷尽生成representation/layout，不存在按名字展开的单一stage |
-| HIR | `current_source_location` | 编译期常量，直接折叠为 `SourceLocation` 值实例（spec 11.12） |
+| HIR | `current_source_location` | 读取所在concrete expression通用的evaluation origin并折叠为`SourceLocation`值实例；不读取default metadata，也没有default专用展开路径（spec 11.12） |
 | HIR | `Ptr` / `FunPtr` 构造、`ptr_*` / `address_of` / `size_of` / `align_of` 的源码调用 | 在 core contract 验证、重载决议和 unsafe / lvalue / 类型约束检查后正规化为类型化专用节点，不把 intrinsic 函数名传给下游 |
 | HIR | `foreign_callback_register`及callback token retain/release/state/failure | 验证`ForeignCallbackCore`后直接生成类型化registration/token操作；registration以native函数类型和context index派生managed closure expected type，不按`Any`普通调用lower |
 | LIR | `size_of` / `align_of`、`ptr_load` / `ptr_store` / 指针算术、`address_of` | 依赖 2.4 的具体布局以及 address-taken local / parameter 的稳定存储；降为布局常量、带对齐的 raw memory 指令和局部地址 |

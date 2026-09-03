@@ -82,7 +82,7 @@ Scoop 的类型分为两大类：
 - 泛型在编译期**单态化**实例化：每个具体类型实参生成一份专门的代码。
 - function、class、struct、enum与interface都可以声明类型参数。generic class/struct/enum的constructor或variant、base/interface application、字段与成员都可以使用宿主类型参数，generic interface的父interface与成员也可以使用宿主类型参数。每个fully specialized nominal application生成独立的concrete identity和成员实现；class还生成对象布局、TypeDescriptor与分派表，struct/enum生成完整value layout与GC-free/扫描信息，interface生成独立TypeDescriptor与itable key identity。
 - Scoop没有预定义`Self`类型、associated type或“当前实现者类型”的隐式占位符；`Self`也不是关键字，若出现在源码中只按普通名称解析。generic/interface契约若需要表达某个类型关系，必须用显式nominal type application或显式type parameter表示，编译器不执行`Self := 实现类型`替换。
-- 泛型调用与泛型值构造的类型实参由整组实参共同约束，推导结果不得依赖实参声明顺序。依赖期望类型的实参（如 `None`、空数组或嵌套泛型构造）可以由任意其他实参先绑定类型参数后再完成检查；运行期求值顺序仍严格保持源码顺序。
+- 泛型调用与泛型值构造的类型实参由整组实参共同约束，推导结果不得依赖实参声明顺序。依赖期望类型的实参（如 `None`、空数组或嵌套泛型构造）可以由任意其他实参先绑定类型参数后再完成检查；类型检查顺序不决定运行期求值顺序，显式实参与缺省表达式严格按 8.5.3 求值。
 - 调用点可以写出完整的显式类型实参：`f<Int>(value)`、`Box<String>(value)`、`Enum.Some<Int>(value)` 与 `receiver.convert<String>()`。显式列表必须覆盖 callee 自己声明的全部类型参数，不支持部分写出后继续推断；泛型宿主的方法调用只写方法自己的类型参数，宿主前缀仍由 receiver 静态类型确定。没有显式列表时继续使用上一条的整组推断规则。
 - generic type application在类型位置必须携带完整类型实参；不支持裸generic type或部分应用。generic class/struct constructor及enum variant构造可以在调用位置省略显式实参并由整组构造实参和期望类型推导，但推导结束后的类型仍是完整application。
 - primary/secondary constructor与enum variant constructor不声明独立type parameter；构造调用中的显式/推导实参只对应nominal host。只有普通callable可以在generic owner参数之外再拥有一组callable参数。
@@ -637,18 +637,64 @@ fun references() {
 - 编译器自行决定内联策略，`inline` / `noinline` / `crossinline` 被接受但可忽略（允许作为提示，但不保证语义）；
 - 不依赖语义内联的 Kotlin 代码可以保留这些关键字而无需修改；依赖 inline lambda non-local return 的代码不兼容，必须按 8.1.2 改为匿名函数或重写控制流。
 
-### 8.5 默认参数值
+### 8.5 调用实参、默认参数与 `vararg`
 
-- 默认参数值表达式在**定义处完成解析**（名称解析、类型检查、可见性检查都在定义处的上下文中进行），在**调用处求值**：每次调用缺省该参数时，表达式在调用点重新求值并生成代码。
-- 这与单态化一致：缺省表达式可能依赖类型参数（如 `fun <T> f(x: T, y: Array<T> = [])`），只有在调用处实例化时才能确定其具体代码。
-- 推论：
-  - 每次调用都重新求值，副作用随调用重复（与 Kotlin 一致；不同于 Python 的定义时一次求值）。
-  - 求值顺序：按参数声明顺序，缺省表达式在其参数位置上与显式实参交错求值，全部求值完成后进入函数体；缺省表达式可以引用在它之前声明的参数。
-  - 可见性按定义处检查：缺省表达式可以引用定义方的 `private` / `internal` 符号，即使代码在调用处生成；这些符号必须随 `.slib` 以可链接的形式导出（见 12.5），缺省表达式的代码体也因此进入 `.slib` metadata（与导出泛型同理）。
-  - 修改一个 Cone 导出函数的缺省值会改变其 `.slib` metadata，下游 Cone 随之重编译（见 12.5）。
-  - `suspend` 函数的缺省表达式可以包含挂起调用：调用 `suspend` 函数本来就要求调用处具备挂起上下文，因此无额外限制。
-  - 普通函数与构造函数的缺省表达式不能包含挂起调用。构造函数默认参数仍遵循本节其他“定义处解析、调用处求值”的规则，但构造协议本身是同步的；suspend caller 显式写出的构造实参不受此限制（见 8.2）。
-  - 典型应用：`getCurrentSourceLocation()` 作为缺省参数实现廉价的诊断/tracing（见 11.12）。
+#### 8.5.1 参数声明
+
+- 普通value parameter可以是必需参数、带缺省表达式的默认参数，或`vararg`参数；一个参数列表至多有一个`vararg`。class/struct主构造参数及构造函数式enum variant字段使用同一规则；`vararg val x: T`在构造结果中声明的属性/字段类型是`Array<T>`。
+- `vararg x: T`中的`T`是**元素类型**；在函数体、构造体及函数签名的实际参数类型中，`x`的类型是`Array<T>`。因此只相差`vararg x: T`与普通`x: Array<T>`的两个声明具有相同参数类型，不能据此形成重载。函数类型同样只保留实际参数类型`Array<T>`，不保留`vararg`调用约定（见8.1.1）。
+- `vararg`可以有显式缺省表达式，其类型必须是`Array<T>`；没有显式缺省且调用处没有提供任何vararg元素时，产生一个新的空`Array<T>`。
+- 参数名、默认值及是否具有默认值不属于函数签名，不能仅靠它们区分重载；但参数名和`vararg`调用约定属于源码调用接口，必须保留到调用决议完成。
+- 默认参数值表达式是callable源码接口的一部分，并在**定义处完成解析**：名称解析、overload选择、类型检查、可见性检查、挂起性检查及所引用实体身份都使用声明方上下文。它可以使用当前callable的类型参数、隐含receiver以及此前声明的参数，不能引用自身或后声明的参数。
+- default直接绑定的每个实体都必须在该callable的**全部合法调用位置**可访问，即callable调用域必须是该实体可访问域的子集。对导出的`public` callable，这意味着只能引用下游可见的`public`或经`public import` re-export的实体，不能引用声明Cone的`private`/`internal`实现；`internal`、private/member及local callable可以引用覆盖各自完整调用域的实体。该检查适用于已选择的callable/overload、constructor、property accessor、operator目标及nominal type，并在const folding与desugaring之前执行；不能靠编译期折叠绕过可见性。
+- `abstract`函数和interface方法可以声明默认值。`override`声明不得重新声明默认值；它按静态可见的override关系继承唯一的默认来源。若一个override位置从互不相关的父声明继承到无法唯一确定的默认来源，必须在类型定义处诊断，不能任选一个表达式。override的`vararg`形态必须与被覆写声明一致。
+- override参数名不参与签名匹配；命名调用使用调用点静态接收者所见声明的参数名，动态分派只选择函数体，不重新映射实参或替换默认来源。
+
+#### 8.5.2 调用处实参映射
+
+- 调用实参有位置实参`expr`、命名实参`name = expr`、vararg展开实参`*expr`和命名vararg实参`name = expr` / `name = *expr`。尾随lambda是语法上位于圆括号之后的最后一个显式实参，进入同一映射与求值过程。
+- 实参到形参的映射针对每个overload候选独立完成。未知参数名、重复绑定、spread映射到非`vararg`、遗漏必需参数或多余实参都会使该候选不可应用；不能先按任意候选重排一份公共参数表。
+- 在尚未进入“仅命名实参”尾部时，第`i`个实参可以是映射到第`i`个形参的位置实参，也可以写出该形参本来的名字。某个命名实参一旦跳过声明位置、或通过名字绑定到其他位置，后续实参必须全部使用名字。默认参数不能在一串位置实参中间被隐式跳过。
+- 位置实参到达`vararg`位置后，后续未命名的普通/spread实参都属于该`vararg`；若其后还有其他形参，这些形参只能用命名实参提供。
+- 命名实参直接映射到同名形参。对`vararg x: T`，`x = array`与`x = *array`都提供完整的`Array<T>`参数值，不能再为`x`提供其他元素；未命名位置中的多个普通元素和多个spread则可以混合。
+- 函数值调用不具有声明参数名、默认值或`vararg`调用约定，只接受与函数类型元数完全相同的位置实参；需要保留声明侧便利语义时必须显式创建适配lambda（见8.1.1）。
+
+#### 8.5.3 求值顺序与调用处实例化
+
+一次已经选定目标的调用严格执行：
+
+1. 若有显式receiver，先求值receiver且只求值一次；
+2. 所有**显式实参表达式**按它们在调用源码中出现的顺序从左到右求值且各一次，不受命名映射后的形参顺序影响；尾随lambda位于圆括号内实参之后；
+3. 按形参声明顺序物化完整参数值：复用已求值的显式结果、构造vararg数组，并对缺失参数在其声明位置实例化和求值缺省表达式；显式缺省表达式只在对应参数确实缺失时执行；
+4. 按形参声明顺序把完整值传给callee，再进入函数体。
+
+因此所有显式实参都先于任何缺省表达式求值；多个实际使用的缺省表达式按参数声明顺序求值。命名实参只改变“值属于哪个参数”，不改变其源码求值顺序。例如`f(y = n(), x = m())`先执行`n()`再执行`m()`，随后以`x = m()`的结果、`y = n()`的结果调用`f`；若只写`f(y = n())`且`x`有默认值，则先执行`n()`，再执行`x`的缺省表达式。
+
+- 调用目标与完整type arguments确定后，缺省表达式在每个发生缺省的调用处以已经绑定的typed template进行hygienic展开并求值，不是在声明时计算或缓存；调用方显式提供参数时，对应缺省表达式完全不展开。展开结果进入普通表达式编译流程，但调用方不会对template中的名称、extension或overload重新做决议，因而调用方import、同名局部声明或后来新增的overload不能改变其含义。
+- 这与单态化一致：缺省表达式可能依赖类型参数（如`fun <T> f(x: T, y: Array<T> = [])`），只有在调用目标与全部类型实参确定后才能生成具体代码。缺省表达式自身不能作为“猜出”尚未确定类型实参的来源；若显式实参、receiver、允许的期望类型及声明约束仍不能唯一确定实参，调用不成立。
+- 缺省表达式可以引用此前参数，因为完整参数值按声明顺序物化；此前参数无论来自显式实参、vararg构造还是另一个缺省表达式都已经可用。
+- 导出callable的default template只引用已经导出或re-export的typed实体，不携带private/internal hidden dependency closure。修改参数名、default body、绑定目标或vararg形态会改变其`.slib`接口metadata并使下游重新编译；被引用实体的可见域收窄到不再覆盖callable调用域时，声明方必须重新编译并报错。
+- `suspend`函数的缺省表达式可以包含挂起调用；它在挂起调用点实例化，此前已经求值的receiver与显式实参必须按8.2保存。普通函数及所有构造器/variant的缺省表达式不能包含挂起调用；suspend caller显式写出的普通构造实参仍按8.2合法。
+- 所有缺省表达式采用相同的实例化语义，不因表达式是literal、普通调用、构造、intrinsic或其他kind而改变。实例化后的每个表达式同时具有声明节点的**定义来源**和发生缺省的call expression的**求值来源**；前者用于定义处诊断与源码归属，后者供任何需要观察求值位置的语言设施使用，二者都必须存在且不能互相回退或覆盖。若该call expression本身来自另一个缺省表达式实例，其已有求值来源继续传入内层实例，因此无需识别具体表达式内容即可得到最外层实际调用来源。
+
+#### 8.5.4 `vararg`值
+
+- 普通位置元素`e`为`vararg x: T`贡献一个满足`type(e) <: T`的元素；spread表达式当前必须具有精确的`Array<T>`类型。Scoop的`Array`保持invariant，在use-site projection落地前不以`Array<S>`模拟`Array<out T>`；未来放宽必须显式定义逐元素转换、装箱与表示成本。
+- 未命名vararg元素（包括spread）先各自按8.5.3求值，随后在形参物化阶段构造一个新的`Array<T>`；spread按元素顺序复制，可以与普通元素混合。即使唯一输入是`*array`也不与来源数组共享identity。
+- 命名形式`x = array`或`x = *array`直接提供完整`Array<T>`值，不额外复制；它与“若干位置元素组成新数组”是两种不同的源码调用形态。
+- 没有元素且没有显式默认值时构造新的空数组；有显式默认值时按普通缺省表达式求值并直接使用其结果。实现可以在identity不可观察时消除分配或复制，但不能改变`===`、异常、挂起点或求值顺序可观察到的结果。
+
+### 8.6 调用决议与泛型约束求解
+
+- 调用决议先按词法/成员/import优先级建立候选层，对每层完成调用形态预过滤与候选各自的类型可应用性检查，再只在第一个含有至少一个可应用候选的层中求最具体候选。显式类型实参数量、命名参数是否存在、spread/receiver形态等不依赖表达式类型的检查属于预过滤；某个更高层仅有同名但形态、类型或bound不适用的声明时，不得无条件遮蔽合法的下一层候选。多Cone及显式/星号import加入时只扩展候选层，不改变后续算法。
+- 每个候选拥有独立的实参映射、fresh inference variables和constraint system。receiver、非postponed实参、完整显式类型实参、函数/nominal声明约束及upper bound共同产生等式/子类型约束；generic owner参数与callable自身参数保持不同identity，不能压平成一组后再按长度反推。
+- 依赖候选期望类型的lambda、匿名函数、callable reference、`None`、空数组和嵌套generic构造作为postponed argument处理。求解器先用其余约束推进固定点，再用候选给出的完整期望类型检查postponed argument；lambda body结果只决定候选是否适用，不提供额外的“按lambda返回类型优先”规则。
+- constraint system必须同时满足声明点kind/interface bound、函数类型型变、interface声明点型变、普通subtyping及装箱规则。一个候选只有在所有必需类型实参得到唯一、可表达且满足bound的具体解，全部显式与postponed实参都可赋给对应参数时才可应用；不得用`Any`、bound、默认false或任意首个类型补齐无解/多解变量。
+- 外层期望类型可以在唯一callable目标已经不依赖返回类型选择时帮助固定只出现在返回结果中的类型参数，也可以为generic nominal构造提供宿主application；它不能使两个仅靠结果类型才能区分的overload变得合法或在多个候选间充当MSC比较项。普通函数签名仍不含返回类型，返回类型不同不能单独形成重载。
+- 最具体候选使用独立于本次实际推断结果的pairwise forwarding constraint system：比较`A`是否至少与`B`同样具体时，把`A`的声明参数替换为fresh variables，再检查其每个由调用提供的参数（extension receiver也算）是否可转发给`B`的对应参数，并同时加入双方声明bound。不能比较两边已经为当前调用猜出的concrete type arguments。
+- 若唯一候选能转发给所有其他候选而反向不成立，则它胜出；互相可转发或互相都不能转发时，依次应用规范已有的附加规则：非参数化候选优先；M17起，在互相可转发的集合中实际使用更少默认值者优先，仍相同时无`vararg`者优先。命名/位置写法本身不参与优先级。仍不唯一即为歧义。
+- 整数字面量专用widen规则在定宽整数及其字面量类型正式落地前不生效；当前`Int`字面量只有`Int`类型。use-site/star projection及capture conversion进入类型系统后必须扩展同一个constraint/subtyping框架，不能另建一套projection-only overload resolver。
+- 无匹配与歧义都是HIR编译错误。诊断必须列出所在候选层、每个相关候选的完整签名及其失败原因（形态映射、类型实参数量、未解变量、bound、实参类型或MSC并列），不能只报告“unknown function”或由下游根据缺失callee猜测失败原因。
 
 ---
 
@@ -944,7 +990,7 @@ struct SourceLocation(
 fun getCurrentSourceLocation(): SourceLocation
 ```
 
-- `getCurrentSourceLocation()` 返回其**求值点**的源码位置（文件、行、列）与所处函数、类型的名称。该信息在编译期已知，不依赖调试信息。
+- `getCurrentSourceLocation()` 返回所在表达式的标准**求值来源**所指示的源码位置（文件、行、列）与所处函数、类型的名称。该信息在编译期已知，不依赖调试信息；本intrinsic不建立独立的调用处传播机制。
 - 典型用法是与 8.5 的缺省参数规则组合，在调试信息与诊断设施落地前提供廉价的 runtime diagnostic / tracing 机制：
 
 ```
@@ -953,7 +999,7 @@ fun trace(msg: String, loc: SourceLocation = getCurrentSourceLocation()) {
 }
 ```
 
-- 出现在缺省参数表达式中时，按 8.5 在调用处求值，因此返回**最外层调用处**的位置。多层函数转发时，每一层都必须以缺省参数继续转发 `loc`（`fun warn(msg: String, loc: SourceLocation = getCurrentSourceLocation()) = trace(msg, loc)`），否则记录的是中间层的位置。
+- 作为普通表达式出现在缺省参数template中时，它与template内其他表达式一样按8.5取得定义来源和求值来源；随后普通intrinsic语义读取求值来源，因而返回**最外层调用处**的位置，而不是default机制识别并重写本函数。多层函数转发时，每一层都必须以缺省参数继续转发`loc`（`fun warn(msg: String, loc: SourceLocation = getCurrentSourceLocation()) = trace(msg, loc)`），否则记录的是中间层的位置。
 - 内联等优化（见 8.4）不得改变其结果：结果按源码中的调用处确定，与代码生成决策无关。
 
 ---
@@ -1017,7 +1063,7 @@ public import org.foo.bar.SomeType     // SomeType 成为 A 的导出表面的�
 泛型是单态化的（见 3.2），泛型定义必须能导出给下游 Cone、在下游完成实例化，因此 Cone 的编译输出不是纯 `.o` / `.a`，而是 **`.slib`**（类似 Rust 的 `.rlib`），包含：
 
 - 二进制编译结果（`.o`）：已编译的非泛型代码，以及在编译本 Cone 时已产生的单态化实例；
-- 下游HIR所需的export metadata：导出的非泛型声明语义接口、泛型声明与template body、`const val`值、调用处实例化的默认表达式，以及这些template引用的类型化依赖闭包；
+- 下游HIR所需的export metadata：导出的非泛型声明语义接口、泛型声明与template body及其类型化依赖闭包、`const val`值，以及作为callable接口在调用处展开的hygienic typed default template。default template只引用已导出/re-export实体，不携带private/internal hidden dependency closure；
 - 后续stage所需的MIR/LIR metadata：符号表、各导出类型的分派表结构（vtable / itable）、TypeDescriptor符号与类型布局（供下游建表、继承与嵌套布局）等。
 
 本Cone为了生成`.o`而建立的fully concrete HIR函数体和类型实例只供本Cone的MIR消费，不属于`.slib` export metadata。下游HIR需要的“concrete信息”是导出的非泛型语义接口，而不是上游本地实例体；两者必须具有不同的实体身份，不能共享Cone内arena id。
@@ -1129,7 +1175,7 @@ annotation class Extern(val lib: String = "", val name: String = "", val abi: St
 annotation class CallingConvention(val name: String)
 ```
 
-- `@Extern` 用于 function：指明该函数是位于 `lib` 所指库中的 FFI function，符号名由 `name` 指定，`abi` 指定 ABI（见 13.8）。函数体必须省略。缺省参数的解析规则由实现定义。
+- `@Extern` 用于 function：指明该函数是位于 `lib` 所指库中的 FFI function，符号名由 `name` 指定，`abi` 指定 ABI（见 13.8）。函数体必须省略。声明可以带普通Scoop默认参数；缺省表达式按8.5在定义处解析、调用处实例化，不进入native symbol的ABI，native调用始终接收完整参数列表。`vararg`在ABI中表现为一个普通`Array<T>`参数，因此只有该实际参数类型满足对应ABI classifier时才合法：C ABI因ref不安全而拒绝，Scoop ABI可以接受；这不表示支持C的`...`可变参数。
 - `@Extern` 与 `suspend` **互斥**：无论 `abi` 取值为何，`@Extern suspend fun` 都是编译错误。编译器不为这种声明生成 continuation 参数、`CoroutineStep` 返回值或同步/挂起 wrapper；M10 的 hidden continuation ABI 不得作为外部符号 ABI 暴露。
 - `@Extern` 也可用于**全局变量**（`val` / `var`），访问库中的全局符号；全局 `var` 的约束不变（仍须带 `@Global` / `@ThreadLocal` 且 GC-free，见 13.6），注解可以组合。extern 变量当前只支持 C data ABI，显式写 `abi = "scoop"` 是编译错误；Scoop ABI 只定义函数调用边界。
 - **按 ABI 分类的边界类型约束**：`abi = "c"` 的函数签名及 extern 变量必须满足 13.8 的 C-FFI-safe 约束，因而全部 GC-free；ref type 出现在这些边界上是编译错误。`abi = "scoop"` 的函数复用普通 Scoop typed ABI，可以按第 14 章直接传递 managed ref，不套用 C-FFI-safe classifier。
