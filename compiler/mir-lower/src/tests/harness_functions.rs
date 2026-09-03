@@ -398,6 +398,7 @@ impl Harness {
             foreign_callback_registrations: Arena::new(),
             source_parameter_interfaces: Vec::new(),
             export_default_exprs: Arena::new(),
+            export_default_sources: Arena::new(),
             export_vararg_parameter_types: Arena::new(),
             functions: self.functions,
             extern_functions: self.extern_functions,

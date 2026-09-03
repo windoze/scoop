@@ -23,7 +23,7 @@ pub enum ExportParameterCalling {
     },
     Default {
         value_type: TypeId,
-        expression: ExportDefaultExprId,
+        source: ExportDefaultSourceId,
     },
     Vararg {
         parameter_type: ExportVarargParameterTypeId,
@@ -34,7 +34,7 @@ pub enum ExportParameterCalling {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExportVarargOmission {
     EmptyArray,
-    Default(ExportDefaultExprId),
+    Default(ExportDefaultSourceId),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -66,9 +66,22 @@ pub struct ExportDefaultExpr {
     pub statements: Vec<Statement>,
     pub value: Expr,
     pub result_type: TypeId,
+    /// The exact declaration identities referenced by `Type::Param` nodes in
+    /// the template. An inherited source relates these to its own static view
+    /// through `ExportDefaultSource::type_arguments`.
+    pub type_parameters: Vec<TypeParamId>,
     pub receiver: Option<ExportDefaultReceiver>,
     pub value_parameters: Vec<ExportDefaultValueParameter>,
     pub origin: DefinitionOrigin,
+}
+
+/// A typed inheritance/application edge for one default source. The argument
+/// at each position corresponds to the template parameter at the same
+/// position and is expressed in the consuming declaration's type scope.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExportDefaultSource {
+    pub expression: ExportDefaultExprId,
+    pub type_arguments: Vec<TypeId>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

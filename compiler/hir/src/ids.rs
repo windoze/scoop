@@ -29,6 +29,7 @@ pub type InterfaceMethodId = Idx<InterfaceMethod>;
 pub type BoundCallableRefId = Idx<BoundCallableRef>;
 pub type LocalId = Idx<Local>;
 pub type ExportDefaultExprId = Idx<ExportDefaultExpr>;
+pub type ExportDefaultSourceId = Idx<ExportDefaultSource>;
 pub type ExportVarargParameterTypeId = Idx<ExportVarargParameterType>;
 
 /// Export-side identity of one class virtual-dispatch family. Every override

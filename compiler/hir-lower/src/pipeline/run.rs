@@ -352,6 +352,7 @@ impl Lowerer {
             foreign_callback_registrations: self.foreign_callback_registrations,
             source_parameter_interfaces: self.source_parameter_interfaces,
             export_default_exprs: self.export_default_exprs,
+            export_default_sources: self.export_default_sources,
             export_vararg_parameter_types: self.export_vararg_parameter_types,
             functions: self.functions,
             extern_functions: self.extern_functions,

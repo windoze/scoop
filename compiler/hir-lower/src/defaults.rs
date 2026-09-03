@@ -7,6 +7,7 @@ use scoop_hir as hir;
 use crate::scope::{LocalFunctionScopes, Scopes};
 use crate::{
     FnParamCalling, FnVarargOmission, ForbiddenSuspendContext, Lowerer, Owner, SuspensionContext,
+    Type,
 };
 
 mod instantiate;
@@ -22,7 +23,16 @@ pub(crate) type LocalDefaultExprId = Idx<LocalDefaultExpr>;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum DefaultExprTemplateRef {
     Local(LocalDefaultExprId),
-    Export(hir::ExportDefaultExprId),
+    Export(hir::ExportDefaultSourceId),
+}
+
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
+enum InheritedDefaultSource {
+    Local(LocalDefaultExprId),
+    Export {
+        expression: hir::ExportDefaultExprId,
+        type_arguments: Vec<hir::TypeId>,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -237,19 +247,17 @@ impl Lowerer {
                 }
                 let mut visiting = Vec::new();
                 let mut sources = self.inherited_default_sources(function, index, &mut visiting);
-                sources.sort_by_key(|source| match source {
-                    DefaultExprTemplateRef::Local(id) => (0, id.into_raw().into_u32()),
-                    DefaultExprTemplateRef::Export(id) => (1, id.into_raw().into_u32()),
-                });
+                sources.sort();
                 sources.dedup();
                 match sources.as_slice() {
                     [] => {}
                     [source] => {
+                        let source = self.record_inherited_default_source(source.clone());
                         self.default_templates.insert(
                             (SourceParameterOwner::Function(function), index as u32),
-                            *source,
+                            source,
                         );
-                        self.patch_export_override_parameter(function, index, *source);
+                        self.patch_export_override_parameter(function, index, source);
                     }
                     _ => {
                         self.error(
@@ -266,11 +274,11 @@ impl Lowerer {
     }
 
     fn inherited_default_sources(
-        &self,
+        &mut self,
         function: hir::FunctionId,
         parameter: usize,
         visiting: &mut Vec<hir::FunctionId>,
-    ) -> Vec<DefaultExprTemplateRef> {
+    ) -> Vec<InheritedDefaultSource> {
         if visiting.contains(&function) {
             return Vec::new();
         }
@@ -278,18 +286,78 @@ impl Lowerer {
             .default_templates
             .get(&(SourceParameterOwner::Function(function), parameter as u32))
         {
-            return vec![source];
+            return vec![self.inherited_default_source(source)];
         }
         visiting.push(function);
-        let sources = self
+        let parents = self
             .override_sources
             .get(&function)
             .into_iter()
             .flatten()
-            .flat_map(|&source| self.inherited_default_sources(source, parameter, visiting))
-            .collect();
+            .copied()
+            .collect::<Vec<_>>();
+        let mut sources = Vec::new();
+        for parent in parents {
+            let parent_parameters = self.signatures[&parent]
+                .type_params
+                .iter()
+                .map(|parameter| parameter.id)
+                .collect::<Vec<_>>();
+            let parent_arguments =
+                self.override_default_type_arguments[&(function, parent)].clone();
+            let bindings = parent_parameters
+                .into_iter()
+                .zip(parent_arguments)
+                .collect::<Vec<_>>();
+            for source in self.inherited_default_sources(parent, parameter, visiting) {
+                sources.push(match source {
+                    InheritedDefaultSource::Local(local) => InheritedDefaultSource::Local(local),
+                    InheritedDefaultSource::Export {
+                        expression,
+                        type_arguments,
+                    } => InheritedDefaultSource::Export {
+                        expression,
+                        type_arguments: type_arguments
+                            .into_iter()
+                            .map(|argument| self.instantiate_method_ty(argument, &bindings))
+                            .collect(),
+                    },
+                });
+            }
+        }
         visiting.pop();
         sources
+    }
+
+    fn inherited_default_source(&self, source: DefaultExprTemplateRef) -> InheritedDefaultSource {
+        match source {
+            DefaultExprTemplateRef::Local(local) => InheritedDefaultSource::Local(local),
+            DefaultExprTemplateRef::Export(source) => {
+                let source = &self.export_default_sources[source];
+                InheritedDefaultSource::Export {
+                    expression: source.expression,
+                    type_arguments: source.type_arguments.clone(),
+                }
+            }
+        }
+    }
+
+    fn record_inherited_default_source(
+        &mut self,
+        source: InheritedDefaultSource,
+    ) -> DefaultExprTemplateRef {
+        match source {
+            InheritedDefaultSource::Local(local) => DefaultExprTemplateRef::Local(local),
+            InheritedDefaultSource::Export {
+                expression,
+                type_arguments,
+            } => DefaultExprTemplateRef::Export(self.export_default_sources.alloc(
+                hir::ExportDefaultSource {
+                    expression,
+                    type_arguments,
+                },
+            )),
+        }
     }
 
     fn patch_export_override_parameter(
@@ -298,7 +366,7 @@ impl Lowerer {
         index: usize,
         source: DefaultExprTemplateRef,
     ) {
-        let DefaultExprTemplateRef::Export(expression) = source else {
+        let DefaultExprTemplateRef::Export(source) = source else {
             unreachable!("exported overrides inherit only exported default templates")
         };
         let interface = self
@@ -309,17 +377,14 @@ impl Lowerer {
         let parameter = &mut interface.parameters[index];
         parameter.calling = match parameter.calling {
             hir::ExportParameterCalling::Required { value_type } => {
-                hir::ExportParameterCalling::Default {
-                    value_type,
-                    expression,
-                }
+                hir::ExportParameterCalling::Default { value_type, source }
             }
             hir::ExportParameterCalling::Vararg {
                 parameter_type,
                 omission: hir::ExportVarargOmission::EmptyArray,
             } => hir::ExportParameterCalling::Vararg {
                 parameter_type,
-                omission: hir::ExportVarargOmission::Default(expression),
+                omission: hir::ExportVarargOmission::Default(source),
             },
             calling @ (hir::ExportParameterCalling::Default { .. }
             | hir::ExportParameterCalling::Vararg {
@@ -424,9 +489,9 @@ impl Lowerer {
                 }),
                 FnParamCalling::Default { expression } => self
                     .lower_export_default(expression, source, index, sources, context)
-                    .map(|expression| hir::ExportParameterCalling::Default {
+                    .map(|default_source| hir::ExportParameterCalling::Default {
                         value_type: source.ty,
-                        expression,
+                        source: default_source,
                     }),
                 FnParamCalling::Vararg {
                     element_ty,
@@ -455,13 +520,13 @@ impl Lowerer {
                 continue;
             };
             let template = match calling {
-                hir::ExportParameterCalling::Default { expression, .. } => {
-                    Some(DefaultExprTemplateRef::Export(expression))
+                hir::ExportParameterCalling::Default { source, .. } => {
+                    Some(DefaultExprTemplateRef::Export(source))
                 }
                 hir::ExportParameterCalling::Vararg {
-                    omission: hir::ExportVarargOmission::Default(expression),
+                    omission: hir::ExportVarargOmission::Default(source),
                     ..
-                } => Some(DefaultExprTemplateRef::Export(expression)),
+                } => Some(DefaultExprTemplateRef::Export(source)),
                 hir::ExportParameterCalling::Required { .. }
                 | hir::ExportParameterCalling::Vararg {
                     omission: hir::ExportVarargOmission::EmptyArray,
@@ -491,7 +556,7 @@ impl Lowerer {
         parameter_index: usize,
         sources: &[ParameterSource],
         context: &DefaultContext,
-    ) -> Option<hir::ExportDefaultExprId> {
+    ) -> Option<hir::ExportDefaultSourceId> {
         self.lower_default_template(
             expression,
             parameter,
@@ -502,7 +567,16 @@ impl Lowerer {
         )
         .map(|(body, captures)| {
             debug_assert!(captures.is_empty());
-            self.export_default_exprs.alloc(body)
+            let type_arguments = body
+                .type_parameters
+                .iter()
+                .map(|&parameter| self.intern_type(Type::Param(parameter)))
+                .collect();
+            let expression = self.export_default_exprs.alloc(body);
+            self.export_default_sources.alloc(hir::ExportDefaultSource {
+                expression,
+                type_arguments,
+            })
         })
     }
 
@@ -648,6 +722,11 @@ impl Lowerer {
                     statements,
                     value,
                     result_type: parameter.ty,
+                    type_parameters: context
+                        .type_parameters
+                        .iter()
+                        .map(|parameter| parameter.id)
+                        .collect(),
                     receiver,
                     value_parameters,
                     origin,

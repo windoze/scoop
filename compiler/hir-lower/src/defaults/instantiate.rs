@@ -19,13 +19,27 @@ impl Lowerer {
         value_parameters: &[hir::Expr],
         sink: &mut Vec<hir::Statement>,
     ) -> hir::Expr {
-        let (template, captures) = match template {
+        let (template, captures, template_bindings) = match template {
             DefaultExprTemplateRef::Local(template) => {
                 let template = self.local_default_exprs[template].clone();
-                (template.body, template.captures)
+                (template.body, template.captures, bindings.to_vec())
             }
-            DefaultExprTemplateRef::Export(template) => {
-                (self.export_default_exprs[template].clone(), Vec::new())
+            DefaultExprTemplateRef::Export(source) => {
+                let source = self.export_default_sources[source].clone();
+                let template = self.export_default_exprs[source.expression].clone();
+                assert_eq!(template.type_parameters.len(), source.type_arguments.len());
+                let arguments = source
+                    .type_arguments
+                    .into_iter()
+                    .map(|argument| self.instantiate_method_ty(argument, bindings))
+                    .collect::<Vec<_>>();
+                let template_bindings = template
+                    .type_parameters
+                    .iter()
+                    .copied()
+                    .zip(arguments)
+                    .collect();
+                (template, Vec::new(), template_bindings)
             }
         };
         let mut mapped = vec![None; template.locals.len()];
@@ -44,7 +58,7 @@ impl Lowerer {
             if mapped[arena_index(source_id)].is_some() {
                 continue;
             }
-            let ty = self.instantiate_method_ty(source.ty, bindings);
+            let ty = self.instantiate_method_ty(source.ty, &template_bindings);
             let local = self.alloc_local(source.name.clone(), ty, source.mutable);
             mapped[arena_index(source_id)] = Some(hir::Expr {
                 kind: hir::ExprKind::Local(local),
@@ -53,7 +67,7 @@ impl Lowerer {
             });
         }
         let mut context = InstantiationContext {
-            bindings: bindings.to_vec(),
+            bindings: template_bindings,
             locals: mapped
                 .into_iter()
                 .map(|local| local.expect("every default-template local is mapped"))

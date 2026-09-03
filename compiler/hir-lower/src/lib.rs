@@ -258,6 +258,7 @@ pub(crate) struct Lowerer {
     pub(crate) foreign_callback_registrations: Arena<hir::ForeignCallbackRegistration>,
     pub(crate) source_parameter_interfaces: Vec<hir::ExportParameterInterface>,
     pub(crate) export_default_exprs: Arena<hir::ExportDefaultExpr>,
+    pub(crate) export_default_sources: Arena<hir::ExportDefaultSource>,
     pub(crate) export_vararg_parameter_types: Arena<hir::ExportVarargParameterType>,
     pub(crate) local_default_exprs: Arena<defaults::LocalDefaultExpr>,
     pub(crate) default_templates:
@@ -374,6 +375,10 @@ pub(crate) struct Lowerer {
     /// The owner of every member function.
     pub(crate) function_owner: HashMap<FunctionId, Owner>,
     pub(crate) override_sources: HashMap<FunctionId, Vec<FunctionId>>,
+    /// Exact parent-parameter applications for every validated override edge.
+    /// The values are ordered like the parent signature's type parameters and
+    /// are expressed in the overriding declaration's type scope.
+    pub(crate) override_default_type_arguments: HashMap<(FunctionId, FunctionId), Vec<TypeId>>,
     /// Enums named `Option` declared in core files:
     /// (declaration, file index, span, type parameter count). Validated
     /// after pass 1 (`validate_option_enum`).

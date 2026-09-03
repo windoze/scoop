@@ -553,6 +553,74 @@ fn override_inherits_default_but_each_static_view_keeps_its_parameter_name() {
 }
 
 #[test]
+fn inherited_default_carries_the_parent_to_child_type_relation() {
+    let inherited = method_with_default(
+        bodyless_method(
+            false,
+            "choose",
+            vec![("seed", ty_named("P")), ("value", ty_named("P"))],
+            Some(ty_named("P")),
+        ),
+        1,
+        var("seed"),
+    );
+    let implementation = override_method_expr(
+        "choose",
+        vec![
+            ("seed", ty_generic("Array", vec![ty_named("T")])),
+            ("value", ty_generic("Array", vec![ty_named("T")])),
+        ],
+        Some(ty_generic("Array", vec![ty_named("T")])),
+        var("value"),
+    );
+    let mut child_declaration = class_decl(
+        ast::ClassModifier::Final,
+        "Child",
+        vec![],
+        None,
+        vec![],
+        vec![implementation],
+    );
+    let Decl::Class(child) = &mut child_declaration else {
+        unreachable!()
+    };
+    child.type_params = vec![type_param("T")];
+    child.interfaces = vec![ty_generic(
+        "Parent",
+        vec![ty_generic("Array", vec![ty_named("T")])],
+    )];
+
+    let output = lower_user_output(file(vec![
+        generic_interface_decl(
+            "Parent",
+            vec![(ast::Variance::Invariant, "P")],
+            vec![inherited],
+        ),
+        child_declaration,
+        fun(
+            "main",
+            vec![
+                val("child", typed_call("Child", vec![ty_named("Int")], vec![])),
+                val(
+                    "selected",
+                    method_call(var("child"), "choose", vec![array_lit(vec![int_lit(1)])]),
+                ),
+            ],
+        ),
+    ]))
+    .expect("the inherited template parameter must map through Array<T>");
+
+    let main = function_body(&output.export, "main");
+    let selected = main
+        .locals
+        .iter()
+        .find(|(_, local)| local.name == "selected")
+        .map(|(_, local)| local)
+        .expect("selected local");
+    assert_eq!(hir::type_name(&output.export, selected.ty), "Array<Int>");
+}
+
+#[test]
 fn override_rejects_new_defaults_vararg_mismatch_and_conflicting_sources() {
     let explicit_default = method_with_default(
         override_method_expr(

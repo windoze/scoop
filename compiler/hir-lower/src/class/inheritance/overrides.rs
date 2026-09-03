@@ -70,6 +70,16 @@ impl Lowerer {
                     .collect(),
             );
             for (candidate, arguments) in &matching_overrides {
+                let mut default_type_arguments = arguments.clone();
+                for parameter in &sig.type_params[sig.owner_type_param_count..] {
+                    default_type_arguments.push(self.intern_type(Type::Param(parameter.id)));
+                }
+                assert_eq!(
+                    default_type_arguments.len(),
+                    self.signatures[candidate].type_params.len()
+                );
+                self.override_default_type_arguments
+                    .insert((id, *candidate), default_type_arguments);
                 let inherited = self.instantiated_signature(
                     *candidate,
                     arguments,

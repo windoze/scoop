@@ -470,7 +470,7 @@ mod tests {
     }
 
     fn template(index: u32) -> DefaultExprTemplateRef {
-        DefaultExprTemplateRef::Export(hir::ExportDefaultExprId::from_raw(index.into()))
+        DefaultExprTemplateRef::Export(hir::ExportDefaultSourceId::from_raw(index.into()))
     }
 
     #[test]
