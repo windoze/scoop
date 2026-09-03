@@ -41,8 +41,8 @@ SourceFile
     fun load
     fun store
     fun store
-    fun plus
-    fun minus
+    operator fun plus
+    operator fun minus
   struct FunPtr<F>
     field _rawPointer: UInt
     @Unsafe
@@ -169,28 +169,53 @@ SourceFile
     @Intrinsic("core_int")
   struct Int <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun unaryMinus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_uint")
   struct UInt <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_boolean")
   struct Boolean <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun not
     fun toString
     fun hash
     @Intrinsic("core_string")
   class String(), ToString, Hash
     operator fun equals
+    operator fun plus
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_array")
   class Array<T>()
+    operator fun get
     fun toMutableArray
     @Intrinsic("core_mutable_array")
   class MutableArray<T>()
+    operator fun get
+    operator fun set
     fun toArray
     @Extern(name = "scoop_rt_int_equals", abi = "scoop")
   fun coreIntEquals(left: Int, right: Int): Boolean
@@ -510,16 +535,40 @@ Module
     return
       Local value : Int
   fun arrange(first: Int, second: Int, third: Int): Int
+    val local3
+      Local first : Int
+    val local4
+      IntLiteral 100 : Int
+    val local5
+      Local $argument.0 : Int
+    val local9
+      PrimitiveBinary IntMul : Int
+        Local $receiver : Int
+        Local $parameter.other : Int
+    val local6
+      Local second : Int
+    val local7
+      IntLiteral 10 : Int
+    val local8
+      Local $argument.0 : Int
+    val local10
+      PrimitiveBinary IntMul : Int
+        Local $receiver : Int
+        Local $parameter.other : Int
+    val local11
+      Local $argument.0 : Int
+    val local12
+      PrimitiveBinary IntAdd : Int
+        Local $receiver : Int
+        Local $parameter.other : Int
+    val local13
+      Local third : Int
+    val local14
+      Local $argument.0 : Int
     return
-      Binary Add : Int
-        Binary Add : Int
-          Binary Mul : Int
-            Local first : Int
-            IntLiteral 100 : Int
-          Binary Mul : Int
-            Local second : Int
-            IntLiteral 10 : Int
-        Local third : Int
+      PrimitiveBinary IntAdd : Int
+        Local $receiver : Int
+        Local $parameter.other : Int
   fun makeReceiver(): Receiver
     val local0
       StringLiteral "receiver" : String
@@ -710,123 +759,141 @@ Module
         Local $parameter.x : Int
         Local $parameter.y : Int
     val local67
-      Binary Add : Int
-        FieldAccess field 0 : Int
-          Local coordinate : Coordinate
-        FieldAccess field 1 : Int
-          Local coordinate : Coordinate
+      FieldAccess field 0 : Int
+        Local coordinate : Coordinate
     val local68
+      FieldAccess field 1 : Int
+        Local coordinate : Coordinate
+    val local69
+      Local $argument.0 : Int
+    val local70
+      PrimitiveBinary IntAdd : Int
+        Local $receiver : Int
+        Local $parameter.other : Int
+    val local71
       Local $argument.0 : Int
     Call println<Int> : Unit
       Local $parameter.value : Int
-    val local69
-      StringLiteral "class-right" : String
-    val local70
-      IntLiteral 4 : Int
-    val local71
-      Local $argument.0 : String
     val local72
-      Local $argument.1 : Int
-    val local77
-      Call mark : Int
-        Local $parameter.label : String
-        Local $parameter.value : Int
+      StringLiteral "class-right" : String
     val local73
-      StringLiteral "class-left" : String
+      IntLiteral 4 : Int
     val local74
-      IntLiteral 3 : Int
-    val local75
       Local $argument.0 : String
-    val local76
-      Local $argument.1 : Int
-    val local78
-      Call mark : Int
-        Local $parameter.label : String
-        Local $parameter.value : Int
-    val local79
+    val local75
       Local $argument.1 : Int
     val local80
-      Local $argument.0 : Int
+      Call mark : Int
+        Local $parameter.label : String
+        Local $parameter.value : Int
+    val local76
+      StringLiteral "class-left" : String
+    val local77
+      IntLiteral 3 : Int
+    val local78
+      Local $argument.0 : String
+    val local79
+      Local $argument.1 : Int
     val local81
+      Call mark : Int
+        Local $parameter.label : String
+        Local $parameter.value : Int
+    val local82
+      Local $argument.1 : Int
+    val local83
+      Local $argument.0 : Int
+    val local84
       ClassInit Box : Box
         Local $parameter.left : Int
         Local $parameter.right : Int
-    val local82
-      Binary Add : Int
-        FieldAccess class field 0 : Int
-          Local box : Box
-        FieldAccess class field 1 : Int
-          Local box : Box
-    val local83
+    val local85
+      FieldAccess class field 0 : Int
+        Local box : Box
+    val local86
+      FieldAccess class field 1 : Int
+        Local box : Box
+    val local87
+      Local $argument.0 : Int
+    val local88
+      PrimitiveBinary IntAdd : Int
+        Local $receiver : Int
+        Local $parameter.other : Int
+    val local89
       Local $argument.0 : Int
     Call println<Int> : Unit
       Local $parameter.value : Int
-    val local84
-      StringLiteral "variant-right" : String
-    val local85
-      IntLiteral 6 : Int
-    val local86
-      Local $argument.0 : String
-    val local87
-      Local $argument.1 : Int
-    val local92
-      Call mark : Int
-        Local $parameter.label : String
-        Local $parameter.value : Int
-    val local88
-      StringLiteral "variant-left" : String
-    val local89
-      IntLiteral 5 : Int
     val local90
-      Local $argument.0 : String
+      StringLiteral "variant-right" : String
     val local91
-      Local $argument.1 : Int
+      IntLiteral 6 : Int
+    val local92
+      Local $argument.0 : String
     val local93
+      Local $argument.1 : Int
+    val local98
       Call mark : Int
         Local $parameter.label : String
         Local $parameter.value : Int
     val local94
-      Local $argument.1 : Int
+      StringLiteral "variant-left" : String
     val local95
-      Local $argument.0 : Int
+      IntLiteral 5 : Int
     val local96
+      Local $argument.0 : String
+    val local97
+      Local $argument.1 : Int
+    val local99
+      Call mark : Int
+        Local $parameter.label : String
+        Local $parameter.value : Int
+    val local100
+      Local $argument.1 : Int
+    val local101
+      Local $argument.0 : Int
+    val local102
       VariantConstruct Payload.Record : Payload
         Local $parameter.left : Int
         Local $parameter.right : Int
     when
       Local payload : Payload
-      arm variant0(0: local97, 1: local98)
-        val local99
-          Binary Add : Int
-            Local left : Int
-            Local right : Int
-        val local100
+      arm variant0(0: local103, 1: local104)
+        val local105
+          Local left : Int
+        val local106
+          Local right : Int
+        val local107
+          Local $argument.0 : Int
+        val local108
+          PrimitiveBinary IntAdd : Int
+            Local $receiver : Int
+            Local $parameter.other : Int
+        val local109
           Local $argument.0 : Int
         Call println<Int> : Unit
           Local $parameter.value : Int
       else
-        val local101
+        val local110
           IntLiteral 0 : Int
-        val local102
+        val local111
           Local $argument.0 : Int
         Call println<Int> : Unit
           Local $parameter.value : Int
-    val local103
+    val local112
       StringLiteral "receiver" : String
-    val local104
+    val local113
       StringLiteral "result" : String
-    val local105
+    val local114
       StringLiteral "ignored" : String
-    val local106
+    val local115
       Local $argument.1 : String
-    val local107
+    val local116
       Local $argument.0 : String
-    val local108
+    val local117
       Call replace<String> : String
         Local $receiver : String
         Local $parameter.original : String
         Local $parameter.replacement : String
-    val local109
+    val local118
       Local $argument.0 : String
     Call println<String> : Unit
       Local $parameter.value : String
@@ -1063,19 +1130,37 @@ Module
         Local $call.1
   fun Receiver.combine @scoop.Receiver.combine(this: Receiver, first: Int, second: Int) -> Int
     bb0 entry
+      val $receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Receiver
+          Local this
+      val $argument.0: Int
+        Type Int
+        Local first
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
+      val $receiver: Int
+        Type Int
+        Binary IntAdd
+          Type Int
+          Local $receiver
+          Type Int
+          Local $parameter.other
+      val $argument.0: Int
+        Type Int
+        Local second
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       return
         Type Int
         Binary IntAdd
           Type Int
-          Binary IntAdd
-            Type Int
-            FieldAccess 0
-              Type Receiver
-              Local this
-            Type Int
-            Local first
+          Local $receiver
           Type Int
-          Local second
+          Local $parameter.other
   fun mark @scoop.mark(label: String, value: Int) -> Int
     bb0 entry
       val $argument.0: String
@@ -1092,25 +1177,61 @@ Module
         Local value
   fun arrange @scoop.arrange(first: Int, second: Int, third: Int) -> Int
     bb0 entry
+      val $receiver: Int
+        Type Int
+        Local first
+      val $argument.0: Int
+        Type Int
+        IntLiteral 100
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
+      val $receiver: Int
+        Type Int
+        Binary IntMul
+          Type Int
+          Local $receiver
+          Type Int
+          Local $parameter.other
+      val $receiver: Int
+        Type Int
+        Local second
+      val $argument.0: Int
+        Type Int
+        IntLiteral 10
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
+      val $argument.0: Int
+        Type Int
+        Binary IntMul
+          Type Int
+          Local $receiver
+          Type Int
+          Local $parameter.other
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
+      val $receiver: Int
+        Type Int
+        Binary IntAdd
+          Type Int
+          Local $receiver
+          Type Int
+          Local $parameter.other
+      val $argument.0: Int
+        Type Int
+        Local third
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       return
         Type Int
         Binary IntAdd
           Type Int
-          Binary IntAdd
-            Type Int
-            Binary IntMul
-              Type Int
-              Local first
-              Type Int
-              IntLiteral 100
-            Type Int
-            Binary IntMul
-              Type Int
-              Local second
-              Type Int
-              IntLiteral 10
+          Local $receiver
           Type Int
-          Local third
+          Local $parameter.other
   fun makeReceiver @scoop.makeReceiver() -> Receiver
     bb0 entry
       val $argument.0: String
@@ -1380,17 +1501,26 @@ Module
           Local $parameter.x
           Type Int
           Local $parameter.y
+      val $receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Coordinate
+          Local coordinate
+      val $argument.0: Int
+        Type Int
+        FieldAccess 1
+          Type Coordinate
+          Local coordinate
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       val $argument.0: Int
         Type Int
         Binary IntAdd
           Type Int
-          FieldAccess 0
-            Type Coordinate
-            Local coordinate
+          Local $receiver
           Type Int
-          FieldAccess 1
-            Type Coordinate
-            Local coordinate
+          Local $parameter.other
       val $parameter.value: Int
         Type Int
         Local $argument.0
@@ -1442,17 +1572,26 @@ Module
         Local $parameter.left
         Type Int
         Local $parameter.right
+      val $receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Box
+          Local box
+      val $argument.0: Int
+        Type Int
+        FieldAccess 1
+          Type Box
+          Local box
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       val $argument.0: Int
         Type Int
         Binary IntAdd
           Type Int
-          FieldAccess 0
-            Type Box
-            Local box
+          Local $receiver
           Type Int
-          FieldAccess 1
-            Type Box
-            Local box
+          Local $parameter.other
       val $parameter.value: Int
         Type Int
         Local $argument.0
@@ -1529,13 +1668,22 @@ Module
         EnumField v0 f1
           Type Payload
           Local $when.1
+      val $receiver: Int
+        Type Int
+        Local left
+      val $argument.0: Int
+        Type Int
+        Local right
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       val $argument.0: Int
         Type Int
         Binary IntAdd
           Type Int
-          Local left
+          Local $receiver
           Type Int
-          Local right
+          Local $parameter.other
       val $parameter.value: Int
         Type Int
         Local $argument.0
@@ -1986,11 +2134,23 @@ Module
     store t0 -> local2
     ret local2
   fun @scoop.Receiver.combine(ptr<managed>, i64, i64) -> i64
+    local %0 $receiver: i64
+    local %1 $argument.0: i64
+    local %2 $parameter.other: i64
+    local %3 $receiver: i64
+    local %4 $argument.0: i64
+    local %5 $parameter.other: i64
   block entry
     poll managed-void-target0 sp70 live=[param0:ptr<managed>@0]
     t0 = heap_load param0 +16 : i64
-    t1 = Add t0, param1 : i64
-    t2 = Add t1, param2 : i64
+    store t0 -> local0
+    store param1 -> local1
+    store local1 -> local2
+    t1 = Add local0, local2 : i64
+    store t1 -> local3
+    store param2 -> local4
+    store local4 -> local5
+    t2 = Add local3, local5 : i64
     ret t2
   fun @scoop.mark(ptr<managed>, i64) -> i64
     local %0 $argument.0: ptr<managed>
@@ -2003,12 +2163,36 @@ Module
     t0 = aggregate () : {}
     ret param1
   fun @scoop.arrange(i64, i64, i64) -> i64
+    local %0 $receiver: i64
+    local %1 $argument.0: i64
+    local %2 $parameter.other: i64
+    local %3 $receiver: i64
+    local %4 $argument.0: i64
+    local %5 $parameter.other: i64
+    local %6 $receiver: i64
+    local %7 $argument.0: i64
+    local %8 $parameter.other: i64
+    local %9 $receiver: i64
+    local %10 $argument.0: i64
+    local %11 $parameter.other: i64
   block entry
     poll managed-void-target0 sp72 live=[]
-    t0 = Mul param0, 100 : i64
-    t1 = Mul param1, 10 : i64
-    t2 = Add t0, t1 : i64
-    t3 = Add t2, param2 : i64
+    store param0 -> local0
+    store 100 -> local1
+    store local1 -> local2
+    t0 = Mul local0, local2 : i64
+    store t0 -> local6
+    store param1 -> local3
+    store 10 -> local4
+    store local4 -> local5
+    t1 = Mul local3, local5 : i64
+    store t1 -> local7
+    store local7 -> local8
+    t2 = Add local6, local8 : i64
+    store t2 -> local9
+    store param2 -> local10
+    store local10 -> local11
+    t3 = Add local9, local11 : i64
     ret t3
   fun @scoop.makeReceiver() -> ptr<managed>
     local %0 $argument.0: ptr<managed>
@@ -2095,50 +2279,59 @@ Module
     local %64 $parameter.x: i64
     local %65 $parameter.y: i64
     local %66 coordinate: struct4
-    local %67 $argument.0: i64
-    local %68 $parameter.value: i64
-    local %69 $argument.0: ptr<managed>
-    local %70 $argument.1: i64
-    local %71 $parameter.label: ptr<managed>
-    local %72 $parameter.value: i64
-    local %73 $argument.0: ptr<managed>
-    local %74 $argument.1: i64
-    local %75 $parameter.label: ptr<managed>
-    local %76 $parameter.value: i64
-    local %77 $argument.0: i64
-    local %78 $argument.1: i64
-    local %79 $parameter.left: i64
-    local %80 $parameter.right: i64
-    local %81 box: ptr<managed>
-    local %82 $argument.0: i64
-    local %83 $parameter.value: i64
-    local %84 $argument.0: ptr<managed>
-    local %85 $argument.1: i64
-    local %86 $parameter.label: ptr<managed>
-    local %87 $parameter.value: i64
-    local %88 $argument.0: ptr<managed>
-    local %89 $argument.1: i64
-    local %90 $parameter.label: ptr<managed>
-    local %91 $parameter.value: i64
-    local %92 $argument.0: i64
-    local %93 $argument.1: i64
-    local %94 $parameter.left: i64
-    local %95 $parameter.right: i64
-    local %96 payload: enum1
-    local %97 left: i64
-    local %98 right: i64
-    local %99 $argument.0: i64
-    local %100 $parameter.value: i64
-    local %101 $argument.0: i64
-    local %102 $parameter.value: i64
-    local %103 $receiver: ptr<managed>
-    local %104 $argument.0: ptr<managed>
-    local %105 $argument.1: ptr<managed>
-    local %106 $parameter.original: ptr<managed>
-    local %107 $parameter.replacement: ptr<managed>
-    local %108 $argument.0: ptr<managed>
-    local %109 $parameter.value: ptr<managed>
-    local %110 $when.1: enum1
+    local %67 $receiver: i64
+    local %68 $argument.0: i64
+    local %69 $parameter.other: i64
+    local %70 $argument.0: i64
+    local %71 $parameter.value: i64
+    local %72 $argument.0: ptr<managed>
+    local %73 $argument.1: i64
+    local %74 $parameter.label: ptr<managed>
+    local %75 $parameter.value: i64
+    local %76 $argument.0: ptr<managed>
+    local %77 $argument.1: i64
+    local %78 $parameter.label: ptr<managed>
+    local %79 $parameter.value: i64
+    local %80 $argument.0: i64
+    local %81 $argument.1: i64
+    local %82 $parameter.left: i64
+    local %83 $parameter.right: i64
+    local %84 box: ptr<managed>
+    local %85 $receiver: i64
+    local %86 $argument.0: i64
+    local %87 $parameter.other: i64
+    local %88 $argument.0: i64
+    local %89 $parameter.value: i64
+    local %90 $argument.0: ptr<managed>
+    local %91 $argument.1: i64
+    local %92 $parameter.label: ptr<managed>
+    local %93 $parameter.value: i64
+    local %94 $argument.0: ptr<managed>
+    local %95 $argument.1: i64
+    local %96 $parameter.label: ptr<managed>
+    local %97 $parameter.value: i64
+    local %98 $argument.0: i64
+    local %99 $argument.1: i64
+    local %100 $parameter.left: i64
+    local %101 $parameter.right: i64
+    local %102 payload: enum1
+    local %103 left: i64
+    local %104 right: i64
+    local %105 $receiver: i64
+    local %106 $argument.0: i64
+    local %107 $parameter.other: i64
+    local %108 $argument.0: i64
+    local %109 $parameter.value: i64
+    local %110 $argument.0: i64
+    local %111 $parameter.value: i64
+    local %112 $receiver: ptr<managed>
+    local %113 $argument.0: ptr<managed>
+    local %114 $argument.1: ptr<managed>
+    local %115 $parameter.original: ptr<managed>
+    local %116 $parameter.replacement: ptr<managed>
+    local %117 $argument.0: ptr<managed>
+    local %118 $parameter.value: ptr<managed>
+    local %119 $when.1: enum1
   block entry
     poll managed-void-target8 sp74 live=[]
     store global1 -> local0
@@ -2230,82 +2423,91 @@ Module
     t17 = aggregate (local64, local65) : struct4
     store t17 -> local66
     t18 = extract local66, 0 : i64
+    store t18 -> local67
     t19 = extract local66, 1 : i64
-    t20 = Add t18, t19 : i64
-    store t20 -> local67
-    store local67 -> local68
-    call managed-void-target3 sp32 live=[] sig=void3 (i64) local-fn18(local68)
+    store t19 -> local68
+    store local68 -> local69
+    t20 = Add local67, local69 : i64
+    store t20 -> local70
+    store local70 -> local71
+    call managed-void-target3 sp32 live=[] sig=void3 (i64) local-fn18(local71)
     t21 = aggregate () : {}
-    store global11 -> local69
-    store 4 -> local70
-    store local69 -> local71
-    store local70 -> local72
-    call managed-direct-target14 sp33 live=[local71:ptr<managed>@0] t22 = sig=direct14 (ptr<managed>, i64) -> i64 local-fn13(local71, local72)
-    store t22 -> local77
-    store global12 -> local73
-    store 3 -> local74
+    store global11 -> local72
+    store 4 -> local73
+    store local72 -> local74
     store local73 -> local75
-    store local74 -> local76
-    call managed-direct-target15 sp34 live=[local75:ptr<managed>@0] t23 = sig=direct15 (ptr<managed>, i64) -> i64 local-fn13(local75, local76)
-    store t23 -> local78
-    store local78 -> local79
-    store local77 -> local80
-    call managed-direct-target16 sp35 live=[] t24 = sig=direct16 (i64, i64) -> ptr<managed> local-fn28(local79, local80)
-    store t24 -> local81
-    t25 = heap_load local81 +16 : i64
-    t26 = heap_load local81 +24 : i64
-    t27 = Add t25, t26 : i64
-    store t27 -> local82
-    store local82 -> local83
-    call managed-void-target4 sp36 live=[] sig=void4 (i64) local-fn18(local83)
+    call managed-direct-target14 sp33 live=[local74:ptr<managed>@0] t22 = sig=direct14 (ptr<managed>, i64) -> i64 local-fn13(local74, local75)
+    store t22 -> local80
+    store global12 -> local76
+    store 3 -> local77
+    store local76 -> local78
+    store local77 -> local79
+    call managed-direct-target15 sp34 live=[local78:ptr<managed>@0] t23 = sig=direct15 (ptr<managed>, i64) -> i64 local-fn13(local78, local79)
+    store t23 -> local81
+    store local81 -> local82
+    store local80 -> local83
+    call managed-direct-target16 sp35 live=[] t24 = sig=direct16 (i64, i64) -> ptr<managed> local-fn28(local82, local83)
+    store t24 -> local84
+    t25 = heap_load local84 +16 : i64
+    store t25 -> local85
+    t26 = heap_load local84 +24 : i64
+    store t26 -> local86
+    store local86 -> local87
+    t27 = Add local85, local87 : i64
+    store t27 -> local88
+    store local88 -> local89
+    call managed-void-target4 sp36 live=[] sig=void4 (i64) local-fn18(local89)
     t28 = aggregate () : {}
-    store global13 -> local84
-    store 6 -> local85
-    store local84 -> local86
-    store local85 -> local87
-    call managed-direct-target17 sp37 live=[local86:ptr<managed>@0] t29 = sig=direct17 (ptr<managed>, i64) -> i64 local-fn13(local86, local87)
-    store t29 -> local92
-    store global14 -> local88
-    store 5 -> local89
-    store local88 -> local90
-    store local89 -> local91
-    call managed-direct-target18 sp38 live=[local90:ptr<managed>@0] t30 = sig=direct18 (ptr<managed>, i64) -> i64 local-fn13(local90, local91)
-    store t30 -> local93
-    store local93 -> local94
-    store local92 -> local95
-    t31 = enum_wrap e1 v0 (local94, local95) : enum1
-    store t31 -> local96
-    store local96 -> local110
-    t32 = enum_tag e1 local110 : i64
+    store global13 -> local90
+    store 6 -> local91
+    store local90 -> local92
+    store local91 -> local93
+    call managed-direct-target17 sp37 live=[local92:ptr<managed>@0] t29 = sig=direct17 (ptr<managed>, i64) -> i64 local-fn13(local92, local93)
+    store t29 -> local98
+    store global14 -> local94
+    store 5 -> local95
+    store local94 -> local96
+    store local95 -> local97
+    call managed-direct-target18 sp38 live=[local96:ptr<managed>@0] t30 = sig=direct18 (ptr<managed>, i64) -> i64 local-fn13(local96, local97)
+    store t30 -> local99
+    store local99 -> local100
+    store local98 -> local101
+    t31 = enum_wrap e1 v0 (local100, local101) : enum1
+    store t31 -> local102
+    store local102 -> local119
+    t32 = enum_tag e1 local119 : i64
     t33 = Eq t32, 0 : i1
     cbr t33 then @if.then.1 else @if.else.2
   block if.then.1
-    t34 = enum_field e1 v0 f0 local110 : i64
-    store t34 -> local97
-    t35 = enum_field e1 v0 f1 local110 : i64
-    store t35 -> local98
-    t36 = Add local97, local98 : i64
-    store t36 -> local99
-    store local99 -> local100
-    call managed-void-target5 sp39 live=[] sig=void5 (i64) local-fn18(local100)
+    t34 = enum_field e1 v0 f0 local119 : i64
+    store t34 -> local103
+    t35 = enum_field e1 v0 f1 local119 : i64
+    store t35 -> local104
+    store local103 -> local105
+    store local104 -> local106
+    store local106 -> local107
+    t36 = Add local105, local107 : i64
+    store t36 -> local108
+    store local108 -> local109
+    call managed-void-target5 sp39 live=[] sig=void5 (i64) local-fn18(local109)
     t37 = aggregate () : {}
     br @if.merge.3
   block if.else.2
-    store 0 -> local101
-    store local101 -> local102
-    call managed-void-target6 sp40 live=[] sig=void6 (i64) local-fn18(local102)
+    store 0 -> local110
+    store local110 -> local111
+    call managed-void-target6 sp40 live=[] sig=void6 (i64) local-fn18(local111)
     t38 = aggregate () : {}
     br @if.merge.3
   block if.merge.3
-    store global15 -> local103
-    store global16 -> local104
-    store global17 -> local105
-    store local105 -> local106
-    store local104 -> local107
-    call managed-direct-target19 sp41 live=[local103:ptr<managed>@0, local106:ptr<managed>@0, local107:ptr<managed>@0] t39 = sig=direct19 (ptr<managed>, ptr<managed>, ptr<managed>) -> ptr<managed> local-fn19(local103, local106, local107)
-    store t39 -> local108
-    store local108 -> local109
-    call managed-void-target7 sp42 live=[local109:ptr<managed>@0] sig=void7 (ptr<managed>) local-fn17(local109)
+    store global15 -> local112
+    store global16 -> local113
+    store global17 -> local114
+    store local114 -> local115
+    store local113 -> local116
+    call managed-direct-target19 sp41 live=[local112:ptr<managed>@0, local115:ptr<managed>@0, local116:ptr<managed>@0] t39 = sig=direct19 (ptr<managed>, ptr<managed>, ptr<managed>) -> ptr<managed> local-fn19(local112, local115, local116)
+    store t39 -> local117
+    store local117 -> local118
+    call managed-void-target7 sp42 live=[local118:ptr<managed>@0] sig=void7 (ptr<managed>) local-fn17(local118)
     t40 = aggregate () : {}
     ret
   fun @scoop.println$S(ptr<managed>) -> void

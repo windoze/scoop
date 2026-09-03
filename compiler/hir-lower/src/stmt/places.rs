@@ -172,51 +172,6 @@ impl Lowerer {
             } => {
                 let receiver = self.lower_expr(receiver, sink, None)?;
                 let receiver = self.materialize_place_expr(receiver, "place", *span, sink);
-                if let Some(array) = self.array_type_info(receiver.ty) {
-                    let [index] = indices.as_slice() else {
-                        self.error(
-                            *span,
-                            format!(
-                                "array subscript takes exactly one index, but {} were supplied",
-                                indices.len()
-                            ),
-                        );
-                        return None;
-                    };
-                    let index = self.lower_expr(index, sink, Some(self.int))?;
-                    if index.ty != self.int {
-                        let found = self.type_name(index.ty);
-                        self.error(
-                            index.span,
-                            format!("array index must be Int, found {found}"),
-                        );
-                        return None;
-                    }
-                    let index = self.materialize_place_expr(index, "index", *span, sink);
-                    let read = hir::Expr {
-                        kind: hir::ExprKind::Index {
-                            receiver: Box::new(receiver.clone()),
-                            index: Box::new(index.clone()),
-                        },
-                        ty: array.element,
-                        span: *span,
-                        origin: self.expression_origin(*span),
-                    };
-                    let write = if array.kind == ArrayKind::Mutable {
-                        WriteCapability::Direct(hir::AssignTarget::Index {
-                            array: Box::new(receiver),
-                            index: Box::new(index),
-                        })
-                    } else {
-                        WriteCapability::ReadOnly
-                    };
-                    return Some(ResolvedPlacePlan {
-                        read,
-                        write,
-                        ty: array.element,
-                    });
-                }
-
                 let arguments = indices
                     .iter()
                     .cloned()

@@ -41,8 +41,8 @@ SourceFile
     fun load
     fun store
     fun store
-    fun plus
-    fun minus
+    operator fun plus
+    operator fun minus
   struct FunPtr<F>
     field _rawPointer: UInt
     @Unsafe
@@ -169,28 +169,53 @@ SourceFile
     @Intrinsic("core_int")
   struct Int <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun unaryMinus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_uint")
   struct UInt <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_boolean")
   struct Boolean <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun not
     fun toString
     fun hash
     @Intrinsic("core_string")
   class String(), ToString, Hash
     operator fun equals
+    operator fun plus
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_array")
   class Array<T>()
+    operator fun get
     fun toMutableArray
     @Intrinsic("core_mutable_array")
   class MutableArray<T>()
+    operator fun get
+    operator fun set
     fun toArray
     @Extern(name = "scoop_rt_int_equals", abi = "scoop")
   fun coreIntEquals(left: Int, right: Int): Boolean
@@ -528,11 +553,17 @@ Module
     Call println<Int> : Unit
       Local $parameter.value : Int
     val local32
-      Binary Add : Int
-        Unwrap trap=true : Int
-          Local a : Option<Int>
-        IntLiteral 1 : Int
+      Unwrap trap=true : Int
+        Local a : Option<Int>
     val local33
+      IntLiteral 1 : Int
+    val local34
+      Local $argument.0 : Int
+    val local35
+      PrimitiveBinary IntAdd : Int
+        Local $receiver : Int
+        Local $parameter.other : Int
+    val local36
       Local $argument.0 : Int
     Call println<Int> : Unit
       Local $parameter.value : Int
@@ -1031,13 +1062,22 @@ Module
         Type UnwrapException
         Local $call.1
     bb21 if.merge.21
+      val $receiver: Int
+        Type Int
+        Local $uw.2
+      val $argument.0: Int
+        Type Int
+        IntLiteral 1
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       val $argument.0: Int
         Type Int
         Binary IntAdd
           Type Int
-          Local $uw.2
+          Local $receiver
           Type Int
-          IntLiteral 1
+          Local $parameter.other
       val $parameter.value: Int
         Type Int
         Local $argument.0
@@ -1395,11 +1435,14 @@ Module
     local %29 $res.11: i64
     local %30 $argument.0: i64
     local %31 $parameter.value: i64
-    local %32 $argument.0: i64
-    local %33 $parameter.value: i64
-    local %34 $opt.1: enum1
-    local %35 $uw.2: i64
-    local %36 $call.1: ptr<managed>
+    local %32 $receiver: i64
+    local %33 $argument.0: i64
+    local %34 $parameter.other: i64
+    local %35 $argument.0: i64
+    local %36 $parameter.value: i64
+    local %37 $opt.1: enum1
+    local %38 $uw.2: i64
+    local %39 $call.1: ptr<managed>
   block entry
     poll managed-void-target5 sp40 live=[]
     store 41 -> local0
@@ -1513,24 +1556,27 @@ Module
     store local30 -> local31
     call managed-void-target3 sp15 live=[] sig=void3 (i64) local-fn13(local31)
     t32 = aggregate () : {}
-    store local2 -> local34
-    t33 = enum_tag e1 local34 : i64
+    store local2 -> local37
+    t33 = enum_tag e1 local37 : i64
     t34 = Eq t33, 0 : i1
     cbr t34 then @if.then.19 else @if.else.20
   block if.then.19
-    t35 = enum_field e1 v0 f0 local34 : i64
-    store t35 -> local35
+    t35 = enum_field e1 v0 f0 local37 : i64
+    store t35 -> local38
     br @if.merge.21
   block if.else.20
     call managed-direct-target0 sp16 live=[] t36 = sig=direct0 () -> ptr<managed> local-fn16()
-    store t36 -> local36
-    throw local36
+    store t36 -> local39
+    throw local39
     unreachable
   block if.merge.21
-    t37 = Add local35, 1 : i64
-    store t37 -> local32
-    store local32 -> local33
-    call managed-void-target4 sp17 live=[] sig=void4 (i64) local-fn13(local33)
+    store local38 -> local32
+    store 1 -> local33
+    store local33 -> local34
+    t37 = Add local32, local34 : i64
+    store t37 -> local35
+    store local35 -> local36
+    call managed-void-target4 sp17 live=[] sig=void4 (i64) local-fn13(local36)
     t38 = aggregate () : {}
     ret
   fun @scoop.println$I(i64) -> void

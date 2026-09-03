@@ -41,8 +41,8 @@ SourceFile
     fun load
     fun store
     fun store
-    fun plus
-    fun minus
+    operator fun plus
+    operator fun minus
   struct FunPtr<F>
     field _rawPointer: UInt
     @Unsafe
@@ -169,28 +169,53 @@ SourceFile
     @Intrinsic("core_int")
   struct Int <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun unaryMinus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_uint")
   struct UInt <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_boolean")
   struct Boolean <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun not
     fun toString
     fun hash
     @Intrinsic("core_string")
   class String(), ToString, Hash
     operator fun equals
+    operator fun plus
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_array")
   class Array<T>()
+    operator fun get
     fun toMutableArray
     @Intrinsic("core_mutable_array")
   class MutableArray<T>()
+    operator fun get
+    operator fun set
     fun toArray
     @Extern(name = "scoop_rt_int_equals", abi = "scoop")
   fun coreIntEquals(left: Int, right: Int): Boolean
@@ -449,10 +474,16 @@ Module
       Local $argument.0 : String
     Call println<String> : Unit
       Local $parameter.value : String
+    val local5
+      Local value : Int
+    val local6
+      Local tail : Int
+    val local7
+      Local $argument.0 : Int
     return
-      Binary Add : Int
-        Local value : Int
-        Local tail : Int
+      PrimitiveBinary IntAdd : Int
+        Local $receiver : Int
+        Local $parameter.other : Int
   fun main(): Unit
     val local0
       VariantConstruct Option.None<Continuation<Int>> : Option<Continuation<Int>>
@@ -1019,15 +1050,24 @@ Module
       call @scoop.println$S direct
         Type String
         Local $parameter.value
+      val $receiver: Int
+        Type Int
+        Local value
+      val $argument.0: Int
+        Type Int
+        Local tail
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       return
         Type CoroutineStep$I
         VariantConstruct CoroutineStep$I v0
           Type Int
           Binary IntAdd
             Type Int
-            Local value
+            Local $receiver
             Type Int
-            Local tail
+            Local $parameter.other
   fun main @scoop_main() -> Unit
     bb0 entry
       val $argument.0: Option$J14_Continuation$IX<Continuation$I>
@@ -4051,13 +4091,19 @@ Module
   fun @scoop.calculate$suspend(ptr<managed>, i64, i64, ptr<managed>) -> enum2
     local %0 $argument.0: ptr<managed>
     local %1 $parameter.value: ptr<managed>
+    local %2 $receiver: i64
+    local %3 $argument.0: i64
+    local %4 $parameter.other: i64
   block entry
     poll managed-void-target1 sp151 live=[]
     store global3 -> local0
     store local0 -> local1
     call managed-void-target0 sp25 live=[local1:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn22(local1)
     t0 = aggregate () : {}
-    t1 = Add param1, param2 : i64
+    store param1 -> local2
+    store param2 -> local3
+    store local3 -> local4
+    t1 = Add local2, local4 : i64
     t2 = enum_wrap e2 v0 (t1) : enum2
     ret t2
   fun @scoop_main() -> void

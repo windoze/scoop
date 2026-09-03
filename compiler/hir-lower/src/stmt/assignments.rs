@@ -241,10 +241,9 @@ impl Lowerer {
         })
     }
 
-    /// `array[index] = value` (spec 10.5, milestone5 DESIGN.md 2.2):
-    /// only `MutableArray<T>` is assignable (an `Array<T>` receiver
-    /// gets its own diagnostic), the index must be `Int` and the value
-    /// exactly `T`.
+    /// Indexed assignment uses the same typed `operator set` resolver as user
+    /// types. A winning MutableArray core declaration is normalized to the
+    /// dedicated array store expression after applicability succeeds.
     fn lower_index_assign(
         &mut self,
         assign: &ast::Assign,
@@ -254,60 +253,6 @@ impl Lowerer {
     ) -> Option<hir::StatementKind> {
         let mut sink = Vec::new();
         let array = self.lower_expr(receiver, &mut sink, None)?;
-        let element_ty = match self.array_type_info(array.ty) {
-            Some(array_info) if array_info.kind == ArrayKind::Mutable => {
-                let [index] = indices else {
-                    self.error(
-                        assign.span,
-                        format!(
-                            "array assignment takes exactly one index, but {} were supplied",
-                            indices.len()
-                        ),
-                    );
-                    return None;
-                };
-                let index = self.lower_expr(index, &mut sink, Some(self.int))?;
-                if index.ty != self.int {
-                    let found = self.type_name(index.ty);
-                    self.error(
-                        index.span,
-                        format!("array index must be Int, found {found}"),
-                    );
-                    return None;
-                }
-                let value = self.lower_expr(&assign.value, &mut sink, Some(array_info.element))?;
-                if !self.is_subtype(value.ty, array_info.element) {
-                    let expected = self.type_name(array_info.element);
-                    let found = self.type_name(value.ty);
-                    self.error(
-                        assign.value.span(),
-                        format!(
-                            "cannot assign value of type {found} to an array element of type {expected}"
-                        ),
-                    );
-                    return None;
-                }
-                let value = self.adapt_to(value, array_info.element);
-                out.extend(sink);
-                return Some(hir::StatementKind::Assign {
-                    target: hir::AssignTarget::Index {
-                        array: Box::new(array),
-                        index: Box::new(index),
-                    },
-                    value,
-                });
-            }
-            Some(_) => {
-                let found = self.type_name(array.ty);
-                self.error(
-                    receiver.span(),
-                    format!("cannot assign to an element of immutable {found}"),
-                );
-                return None;
-            }
-            _ => self.unit,
-        };
-        debug_assert_eq!(element_ty, self.unit);
         let mut arguments = indices
             .iter()
             .cloned()

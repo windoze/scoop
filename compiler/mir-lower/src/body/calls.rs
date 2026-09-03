@@ -208,6 +208,9 @@ impl BodyLowerer<'_> {
                 unreachable!("coroutine intrinsics are lowered through the typed protocol")
             }
             hir::IntrinsicFunctionKind::Array(_)
+            | hir::IntrinsicFunctionKind::ArrayAccess(_)
+            | hir::IntrinsicFunctionKind::PrimitiveUnary(_)
+            | hir::IntrinsicFunctionKind::PrimitiveBinary(_)
             | hir::IntrinsicFunctionKind::Pointer(_)
             | hir::IntrinsicFunctionKind::CurrentSourceLocation
             | hir::IntrinsicFunctionKind::ForeignCallbackRegister

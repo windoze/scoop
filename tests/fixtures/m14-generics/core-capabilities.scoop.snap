@@ -41,8 +41,8 @@ SourceFile
     fun load
     fun store
     fun store
-    fun plus
-    fun minus
+    operator fun plus
+    operator fun minus
   struct FunPtr<F>
     field _rawPointer: UInt
     @Unsafe
@@ -169,28 +169,53 @@ SourceFile
     @Intrinsic("core_int")
   struct Int <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun unaryMinus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_uint")
   struct UInt <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_boolean")
   struct Boolean <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun not
     fun toString
     fun hash
     @Intrinsic("core_string")
   class String(), ToString, Hash
     operator fun equals
+    operator fun plus
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_array")
   class Array<T>()
+    operator fun get
     fun toMutableArray
     @Intrinsic("core_mutable_array")
   class MutableArray<T>()
+    operator fun get
+    operator fun set
     fun toArray
     @Extern(name = "scoop_rt_int_equals", abi = "scoop")
   fun coreIntEquals(left: Int, right: Int): Boolean
@@ -1086,25 +1111,28 @@ Module
         FieldAccess 0
           Type RenderPair$D5_PointX
           Local this
+      call $receiver: String = @scoop.Point.toString direct
+        Type Point
+        Local $receiver
       val $receiver: Point
         Type Point
         FieldAccess 1
           Type RenderPair$D5_PointX
           Local this
-      call $call.1: String = @scoop.Point.toString direct
+      call $argument.0: String = @scoop.Point.toString direct
         Type Point
         Local $receiver
-      call $call.2: String = @scoop.Point.toString direct
-        Type Point
+      val $parameter.other: String
+        Type String
+        Local $argument.0
+      call $call.1: String = @scoop_rt_string_concat direct
+        Type String
         Local $receiver
-      call $call.3: String = @scoop_rt_string_concat direct
         Type String
-        Local $call.1
-        Type String
-        Local $call.2
+        Local $parameter.other
       return
         Type String
-        Local $call.3
+        Local $call.1
   fun println @scoop.println$D20_RenderPair$D5_PointXX(value: RenderPair$D5_PointX) -> Unit
     bb0 entry
       val $receiver: RenderPair$D5_PointX
@@ -1797,22 +1825,24 @@ Module
   fun @scoop.RenderPair.toString$D5_PointX(struct5) -> ptr<managed>
     local %0 $receiver: struct4
     local %1 $receiver: struct4
-    local %2 $call.1: ptr<managed>
-    local %3 $call.2: ptr<managed>
-    local %4 $call.3: ptr<managed>
+    local %2 $receiver: ptr<managed>
+    local %3 $argument.0: ptr<managed>
+    local %4 $parameter.other: ptr<managed>
+    local %5 $call.1: ptr<managed>
   block entry
     poll managed-void-target0 sp87 live=[]
     t0 = extract param0, 0 : struct4
     store t0 -> local0
-    t1 = extract param0, 1 : struct4
-    store t1 -> local1
-    call managed-direct-target0 sp40 live=[] t2 = sig=direct0 (struct4) -> ptr<managed> local-fn9(local0)
-    store t2 -> local2
+    call managed-direct-target0 sp40 live=[] t1 = sig=direct0 (struct4) -> ptr<managed> local-fn9(local0)
+    store t1 -> local2
+    t2 = extract param0, 1 : struct4
+    store t2 -> local1
     call managed-direct-target1 sp41 live=[local2:ptr<managed>@0] t3 = sig=direct1 (struct4) -> ptr<managed> local-fn9(local1)
     store t3 -> local3
-    call managed-direct-target2 sp42 live=[local2:ptr<managed>@0, local3:ptr<managed>@0] t4 = sig=direct2 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(local2, local3)
-    store t4 -> local4
-    ret local4
+    store local3 -> local4
+    call managed-direct-target2 sp42 live=[local2:ptr<managed>@0, local4:ptr<managed>@0] t4 = sig=direct2 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(local2, local4)
+    store t4 -> local5
+    ret local5
   fun @scoop.println$D20_RenderPair$D5_PointXX(struct5) -> void
     local %0 $receiver: struct5
     local %1 $argument.0: ptr<managed>

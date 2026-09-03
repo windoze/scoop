@@ -344,22 +344,27 @@ fn smart_cast_applies_in_negated_else_and_and_rhs() {
 
     let g = body_of(&module, "g");
     match &g.statements[0].kind {
-        hir::StatementKind::If { cond, .. } => match &cond.kind {
-            hir::ExprKind::Binary {
-                op: hir::BinOp::And,
-                rhs,
-                ..
-            } => match &rhs.kind {
-                hir::ExprKind::Binary { lhs, .. } => match &lhs.kind {
-                    hir::ExprKind::FieldAccess { receiver, .. } => {
-                        assert!(matches!(receiver.kind, hir::ExprKind::Unbox(_)));
+        hir::StatementKind::If { then_body, .. } => {
+            let field = then_body
+                .iter()
+                .find_map(|statement| match &statement.kind {
+                    hir::StatementKind::ValDecl { init, .. }
+                        if matches!(init.kind, hir::ExprKind::FieldAccess { .. }) =>
+                    {
+                        Some(init)
                     }
-                    other => panic!("expected a field access, found {other:?}"),
-                },
-                other => panic!("expected a comparison, found {other:?}"),
-            },
-            other => panic!("expected a conjunction, found {other:?}"),
-        },
-        other => panic!("expected an if, found {other:?}"),
+                    _ => None,
+                })
+                .expect("short-circuit RHS field access");
+            let hir::ExprKind::FieldAccess { receiver, .. } = &field.kind else {
+                unreachable!("the selected expression is a field access")
+            };
+            assert!(matches!(receiver.kind, hir::ExprKind::Unbox(_)));
+        }
+        other => panic!("expected short-circuit setup, found {other:?}"),
     }
+    assert!(matches!(
+        g.statements[1].kind,
+        hir::StatementKind::If { .. }
+    ));
 }

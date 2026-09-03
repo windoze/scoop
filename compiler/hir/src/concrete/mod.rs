@@ -8,10 +8,11 @@ use la_arena::{Arena, Idx};
 use scoop_ast::Span;
 
 pub use super::{
-    BinOp, CLayout, CallableModifiers, CallingConvention, ClassModifier, ConcreteExpressionOrigin,
-    DefinitionOrigin, EvaluationOrigin, ExternAbi, FunctionAttributes, GcEffect, IntrinsicFunction,
-    IntrinsicFunctionKind, IntrinsicProviderId, IntrinsicTypeDeclaration, IntrinsicTypeKind,
-    MethodModifier, OperatorKind, Safety, StructAttributes, UnOp, Variance,
+    ArrayAccessKind, BinOp, CLayout, CallableModifiers, CallingConvention, ClassModifier,
+    ConcreteExpressionOrigin, DefinitionOrigin, EvaluationOrigin, ExternAbi, FunctionAttributes,
+    GcEffect, IntrinsicFunction, IntrinsicFunctionKind, IntrinsicProviderId,
+    IntrinsicTypeDeclaration, IntrinsicTypeKind, MethodModifier, OperatorKind, PrimitiveBinaryKind,
+    PrimitiveUnaryKind, Safety, StructAttributes, UnOp, Variance,
 };
 
 mod types;

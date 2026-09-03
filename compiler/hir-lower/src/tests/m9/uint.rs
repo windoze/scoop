@@ -43,6 +43,8 @@ fn uint_arithmetic_comparison_and_equality() {
             val("b", call("gcStats", vec![])),
             val("sum", binary(BinOp::Add, var("a"), var("b"))),
             val("product", binary(BinOp::Mul, var("a"), var("b"))),
+            val("quotient", binary(BinOp::Div, var("a"), var("b"))),
+            val("remainder", binary(BinOp::Rem, var("a"), var("b"))),
             val("less", binary(BinOp::Lt, var("a"), var("b"))),
             val("same", binary(BinOp::Eq, var("a"), var("b"))),
         ],
@@ -50,8 +52,34 @@ fn uint_arithmetic_comparison_and_equality() {
     let module = lower_user_with_gc(file).expect("UInt arithmetic must lower");
     assert_eq!(local_ty(&module, "sum"), "UInt");
     assert_eq!(local_ty(&module, "product"), "UInt");
+    assert_eq!(local_ty(&module, "quotient"), "UInt");
+    assert_eq!(local_ty(&module, "remainder"), "UInt");
     assert_eq!(local_ty(&module, "less"), "Boolean");
     assert_eq!(local_ty(&module, "same"), "Boolean");
+    let hir::FunctionKind::User(body) = &module.functions[module.entry].kind else {
+        panic!("main body")
+    };
+    for (name, kind) in [
+        ("sum", hir::PrimitiveBinaryKind::UIntAdd),
+        ("product", hir::PrimitiveBinaryKind::UIntMul),
+        ("quotient", hir::PrimitiveBinaryKind::UIntDiv),
+        ("remainder", hir::PrimitiveBinaryKind::UIntRem),
+    ] {
+        assert!(matches!(
+            &local_init(body, name).kind,
+            hir::ExprKind::PrimitiveBinary { kind: actual, .. } if *actual == kind
+        ));
+    }
+    let hir::ExprKind::Binary { lhs, .. } = &local_init(body, "less").kind else {
+        panic!("comparison must consume compareTo")
+    };
+    assert!(matches!(
+        lhs.kind,
+        hir::ExprKind::PrimitiveBinary {
+            kind: hir::PrimitiveBinaryKind::UIntCompareTo,
+            ..
+        }
+    ));
 }
 
 #[test]
@@ -67,7 +95,7 @@ fn uint_mixed_arithmetic_is_an_error() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "operator `+` requires Int or UInt operands of the same type, found UInt and Int"
+        "no applicable candidate for `plus` in member candidate layer:\n  - fun UInt.plus(other: UInt): UInt — argument for `other` has type Int, which is not a subtype of UInt"
     );
 }
 

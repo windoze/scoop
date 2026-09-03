@@ -10,6 +10,36 @@ interface Hash {
 struct Int : ToString, Hash {
     operator fun equals(other: Int): Boolean = coreIntEquals(this, other)
 
+    @Intrinsic("int_unary_plus")
+    operator fun unaryPlus(): Int
+
+    @Intrinsic("int_unary_minus")
+    operator fun unaryMinus(): Int
+
+    @Intrinsic("int_inc")
+    operator fun inc(): Int
+
+    @Intrinsic("int_dec")
+    operator fun dec(): Int
+
+    @Intrinsic("int_add")
+    operator fun plus(other: Int): Int
+
+    @Intrinsic("int_sub")
+    operator fun minus(other: Int): Int
+
+    @Intrinsic("int_mul")
+    operator fun times(other: Int): Int
+
+    @Intrinsic("int_div")
+    operator fun div(other: Int): Int
+
+    @Intrinsic("int_rem")
+    operator fun rem(other: Int): Int
+
+    @Intrinsic("int_compare_to")
+    operator fun compareTo(other: Int): Int
+
     override fun toString(): String = coreIntToString(this)
 
     override fun hash(): Int = coreIntHash(this)
@@ -18,6 +48,33 @@ struct Int : ToString, Hash {
 @Intrinsic("core_uint")
 struct UInt : ToString, Hash {
     operator fun equals(other: UInt): Boolean = coreUIntEquals(this, other)
+
+    @Intrinsic("uint_unary_plus")
+    operator fun unaryPlus(): UInt
+
+    @Intrinsic("uint_inc")
+    operator fun inc(): UInt
+
+    @Intrinsic("uint_dec")
+    operator fun dec(): UInt
+
+    @Intrinsic("uint_add")
+    operator fun plus(other: UInt): UInt
+
+    @Intrinsic("uint_sub")
+    operator fun minus(other: UInt): UInt
+
+    @Intrinsic("uint_mul")
+    operator fun times(other: UInt): UInt
+
+    @Intrinsic("uint_div")
+    operator fun div(other: UInt): UInt
+
+    @Intrinsic("uint_rem")
+    operator fun rem(other: UInt): UInt
+
+    @Intrinsic("uint_compare_to")
+    operator fun compareTo(other: UInt): Int
 
     override fun toString(): String = coreUIntToString(this)
 
@@ -28,6 +85,9 @@ struct UInt : ToString, Hash {
 struct Boolean : ToString, Hash {
     operator fun equals(other: Boolean): Boolean = coreBooleanEquals(this, other)
 
+    @Intrinsic("boolean_not")
+    operator fun not(): Boolean
+
     override fun toString(): String = coreBooleanToString(this)
 
     override fun hash(): Int = coreBooleanHash(this)
@@ -37,6 +97,12 @@ struct Boolean : ToString, Hash {
 class String : ToString, Hash {
     operator fun equals(other: String): Boolean = coreStringEquals(this, other)
 
+    @Intrinsic("string_concat")
+    operator fun plus(other: String): String
+
+    @Intrinsic("string_compare_to")
+    operator fun compareTo(other: String): Int
+
     override fun toString(): String = this
 
     override fun hash(): Int = coreStringHash(this)
@@ -44,12 +110,21 @@ class String : ToString, Hash {
 
 @Intrinsic("core_array")
 class Array<T> {
+    @Intrinsic("array_get")
+    operator fun get(index: Int): T
+
     @Intrinsic("array_to_mutable")
     fun toMutableArray(): MutableArray<T>
 }
 
 @Intrinsic("core_mutable_array")
 class MutableArray<T> {
+    @Intrinsic("mutable_array_get")
+    operator fun get(index: Int): T
+
+    @Intrinsic("mutable_array_set")
+    operator fun set(index: Int, value: T)
+
     @Intrinsic("array_to_immutable")
     fun toArray(): Array<T>
 }

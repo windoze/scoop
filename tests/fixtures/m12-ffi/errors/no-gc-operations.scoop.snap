@@ -7,8 +7,10 @@ m12-ffi/errors/no-gc-operations.scoop:5:1: error: `@NoGC` function `allocatesCla
 m12-ffi/errors/no-gc-operations.scoop:7:20: error: value of non-GC-free type ManagedObject is not allowed in `@NoGC` code
 m12-ffi/errors/no-gc-operations.scoop:7:20: error: class allocation is not allowed in `@NoGC` code
 m12-ffi/errors/no-gc-operations.scoop:11:1: error: `@NoGC` function `allocatesArray` has local `values` of non-GC-free type Array<Int>
+m12-ffi/errors/no-gc-operations.scoop:11:1: error: `@NoGC` function `allocatesArray` has local `$receiver` of non-GC-free type Array<Int>
 m12-ffi/errors/no-gc-operations.scoop:13:18: error: value of non-GC-free type Array<Int> is not allowed in `@NoGC` code
 m12-ffi/errors/no-gc-operations.scoop:13:18: error: array allocation is not allowed in `@NoGC` code
+m12-ffi/errors/no-gc-operations.scoop:14:12: error: value of non-GC-free type Array<Int> is not allowed in `@NoGC` code
 m12-ffi/errors/no-gc-operations.scoop:14:12: error: array indexing is not allowed in `@NoGC` code
 m12-ffi/errors/no-gc-operations.scoop:14:12: error: value of non-GC-free type Array<Int> is not allowed in `@NoGC` code
 m12-ffi/errors/no-gc-operations.scoop:17:1: error: `@NoGC` function `createsString` has local `text` of non-GC-free type String

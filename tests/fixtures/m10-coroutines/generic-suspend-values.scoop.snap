@@ -41,8 +41,8 @@ SourceFile
     fun load
     fun store
     fun store
-    fun plus
-    fun minus
+    operator fun plus
+    operator fun minus
   struct FunPtr<F>
     field _rawPointer: UInt
     @Unsafe
@@ -169,28 +169,53 @@ SourceFile
     @Intrinsic("core_int")
   struct Int <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun unaryMinus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_uint")
   struct UInt <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_boolean")
   struct Boolean <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun not
     fun toString
     fun hash
     @Intrinsic("core_string")
   class String(), ToString, Hash
     operator fun equals
+    operator fun plus
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_array")
   class Array<T>()
+    operator fun get
     fun toMutableArray
     @Intrinsic("core_mutable_array")
   class MutableArray<T>()
+    operator fun get
+    operator fun set
     fun toArray
     @Extern(name = "scoop_rt_int_equals", abi = "scoop")
   fun coreIntEquals(left: Int, right: Int): Boolean
@@ -1920,19 +1945,37 @@ Module
     bb5 if.merge.5
       goto bb3
     bb6 if.then.6
+      val $receiver: Int
+        Type Int
+        Local number
+      val $argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Pair
+          Local pair
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
+      val $receiver: Int
+        Type Int
+        Binary IntAdd
+          Type Int
+          Local $receiver
+          Type Int
+          Local $parameter.other
+      val $argument.0: Int
+        Type Int
+        Local selected
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       assign $result.1
         Type Int
         Binary IntAdd
           Type Int
-          Binary IntAdd
-            Type Int
-            Local number
-            Type Int
-            FieldAccess 0
-              Type Pair
-              Local pair
+          Local $receiver
           Type Int
-          Local selected
+          Local $parameter.other
       goto bb8
     bb7 if.else.7
       assign $result.1
@@ -7309,45 +7352,51 @@ Module
     local %27 text: ptr<managed>
     local %28 $result.0: i64
     local %29 selected: i64
-    local %30 $result.1: i64
-    local %31 $when.1: enum0
-    local %32 $call.1: ptr<managed>
-    local %33 $call.2: ptr<managed>
-    local %34 $call.3: ptr<managed>
-    local %35 $call.4: ptr<managed>
-    local %36 $completion: ptr<managed>
-    local %37 $adapter.4: ptr<managed>
-    local %38 $step.4: enum9
-    local %39 $protocol_error: ptr<managed>
-    local %40 $completed_adapter_claim.4: i64
-    local %41 $completed_frame_claim.4: i64
-    local %42 $adapter.3: ptr<managed>
-    local %43 $step.3: enum8
-    local %44 $protocol_error: ptr<managed>
-    local %45 $completed_adapter_claim.3: i64
-    local %46 $completed_frame_claim.3: i64
-    local %47 $adapter.2: ptr<managed>
-    local %48 $step.2: enum7
-    local %49 $protocol_error: ptr<managed>
-    local %50 $completed_adapter_claim.2: i64
-    local %51 $completed_frame_claim.2: i64
-    local %52 $adapter.1: ptr<managed>
-    local %53 $step.1: enum6
-    local %54 $protocol_error: ptr<managed>
-    local %55 $completed_adapter_claim.1: i64
-    local %56 $completed_frame_claim.1: i64
-    local %57 $protocol_error: ptr<managed>
-    local %58 $sc.1: enum6
-    local %59 $sc.2: enum9
-    local %60 $sc.3: enum8
-    local %61 $sc.4: enum7
+    local %30 $receiver: i64
+    local %31 $argument.0: i64
+    local %32 $parameter.other: i64
+    local %33 $receiver: i64
+    local %34 $argument.0: i64
+    local %35 $parameter.other: i64
+    local %36 $result.1: i64
+    local %37 $when.1: enum0
+    local %38 $call.1: ptr<managed>
+    local %39 $call.2: ptr<managed>
+    local %40 $call.3: ptr<managed>
+    local %41 $call.4: ptr<managed>
+    local %42 $completion: ptr<managed>
+    local %43 $adapter.4: ptr<managed>
+    local %44 $step.4: enum9
+    local %45 $protocol_error: ptr<managed>
+    local %46 $completed_adapter_claim.4: i64
+    local %47 $completed_frame_claim.4: i64
+    local %48 $adapter.3: ptr<managed>
+    local %49 $step.3: enum8
+    local %50 $protocol_error: ptr<managed>
+    local %51 $completed_adapter_claim.3: i64
+    local %52 $completed_frame_claim.3: i64
+    local %53 $adapter.2: ptr<managed>
+    local %54 $step.2: enum7
+    local %55 $protocol_error: ptr<managed>
+    local %56 $completed_adapter_claim.2: i64
+    local %57 $completed_frame_claim.2: i64
+    local %58 $adapter.1: ptr<managed>
+    local %59 $step.1: enum6
+    local %60 $protocol_error: ptr<managed>
+    local %61 $completed_adapter_claim.1: i64
+    local %62 $completed_frame_claim.1: i64
+    local %63 $protocol_error: ptr<managed>
+    local %64 $sc.1: enum6
+    local %65 $sc.2: enum9
+    local %66 $sc.3: enum8
+    local %67 $sc.4: enum7
   block entry
     t0 = heap_load local0 +16 : ptr<managed>
     store t0 -> local1
     store local1 -> local2
     call managed-direct-target0 sp72 live=[param0:ptr<managed>@0, local0:ptr<managed>@0, local2:ptr<managed>@0] t1 = sig=direct0 (ptr<managed>) -> ptr<managed> local-fn41(local2)
-    store t1 -> local32
-    store local32 -> local3
+    store t1 -> local38
+    store local38 -> local3
     store local3 -> local4
     t2 = enum_wrap e10 v1 (local0) : enum10
     heap_store param0 +32 t2
@@ -7357,42 +7406,48 @@ Module
     call managed-direct-target1 sp73 live=[param0:ptr<managed>@0, local0:ptr<managed>@0, local4:ptr<managed>@0] t4 = sig=direct1 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td31, 32)
     heap_store t4 +16 param0
     heap_store t4 +24 1
-    store t4 -> local52
-    call managed-indirect-target0 sp74 live=[param0:ptr<managed>@0, local0:ptr<managed>@0, local4:ptr<managed>@0, local52:ptr<managed>@0] local58 = sig=indirect0 (sret enum6, ptr<managed>, ptr<managed>) local-fn25(local4, local52)
-    store local58 -> local53
-    t5 = enum_tag e6 local53 : i64
+    store t4 -> local58
+    call managed-indirect-target0 sp74 live=[param0:ptr<managed>@0, local0:ptr<managed>@0, local4:ptr<managed>@0, local58:ptr<managed>@0] local64 = sig=indirect0 (sret enum6, ptr<managed>, ptr<managed>) local-fn25(local4, local58)
+    store local64 -> local59
+    t5 = enum_tag e6 local59 : i64
     t6 = Eq t5, 0 : i1
     cbr t6 then @coroutine.completed_claim_adapter.1 else @coroutine.suspended.1
   block if.then.1
-    t7 = enum_field e0 v0 f0 local31 : i64
+    t7 = enum_field e0 v0 f0 local37 : i64
     store t7 -> local26
     store local26 -> local28
     br @if.merge.3
   block if.else.2
-    t8 = enum_tag e0 local31 : i64
+    t8 = enum_tag e0 local37 : i64
     t9 = Eq t8, 1 : i1
     cbr t9 then @if.then.4 else @if.merge.5
   block if.merge.3
     store local28 -> local29
     cbr local17 then @if.then.6 else @if.else.7
   block if.then.4
-    t10 = enum_field e0 v1 f0 local31 : ptr<managed>
+    t10 = enum_field e0 v1 f0 local37 : ptr<managed>
     store t10 -> local27
     store 0 -> local28
     br @if.merge.5
   block if.merge.5
     br @if.merge.3
   block if.then.6
+    store local5 -> local30
     t11 = extract local10, 0 : i64
-    t12 = Add local5, t11 : i64
-    t13 = Add t12, local29 : i64
-    store t13 -> local30
+    store t11 -> local31
+    store local31 -> local32
+    t12 = Add local30, local32 : i64
+    store t12 -> local33
+    store local29 -> local34
+    store local34 -> local35
+    t13 = Add local33, local35 : i64
+    store t13 -> local36
     br @if.merge.8
   block if.else.7
-    store 0 -> local30
+    store 0 -> local36
     br @if.merge.8
   block if.merge.8
-    t14 = enum_wrap e6 v0 (local30) : enum6
+    t14 = enum_wrap e6 v0 (local36) : enum6
     ret t14
   block coroutine.post.4
     t15 = extract local10, 1 : ptr<managed>
@@ -7400,28 +7455,28 @@ Module
     store local24 -> local25
     call managed-void-target0 sp75 live=[local10:struct4@8, local23:enum0@16, local25:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn24(local25)
     t16 = aggregate () : {}
-    store local23 -> local31
-    t17 = enum_tag e0 local31 : i64
+    store local23 -> local37
+    t17 = enum_tag e0 local37 : i64
     t18 = Eq t17, 0 : i1
     cbr t18 then @if.then.1 else @if.else.2
   block coroutine.completed.4
-    t19 = enum_field e9 v0 f0 local38 : enum0
+    t19 = enum_field e9 v0 f0 local44 : enum0
     store t19 -> local23
     br @coroutine.post.4
   block coroutine.protocol_error
     call managed-direct-target2 sp76 live=[] t20 = sig=direct2 () -> ptr<managed> local-fn36()
-    store t20 -> local39
-    throw local39
+    store t20 -> local45
+    throw local45
     unreachable
   block coroutine.completed_claim_frame.4
     t21 = atomic_cmpxchg acq_rel/acquire param0 +16 expected=4 replacement=-1 : i64
-    store t21 -> local41
-    t22 = Eq local41, 4 : i1
+    store t21 -> local47
+    t22 = Eq local47, 4 : i1
     cbr t22 then @coroutine.completed.4 else @coroutine.protocol_error
   block coroutine.completed_claim_adapter.4
-    t23 = atomic_cmpxchg acq_rel/acquire local37 +24 expected=1 replacement=6 : i64
-    store t23 -> local40
-    t24 = Eq local40, 1 : i1
+    t23 = atomic_cmpxchg acq_rel/acquire local43 +24 expected=1 replacement=6 : i64
+    store t23 -> local46
+    t24 = Eq local46, 1 : i1
     cbr t24 then @coroutine.completed_claim_frame.4 else @coroutine.protocol_error
   block coroutine.suspended.4
     t25 = enum_wrap e6 v1 () : enum6
@@ -7466,8 +7521,8 @@ Module
     store t46 -> local18
     store local18 -> local19
     call managed-direct-target3 sp77 live=[param0:ptr<managed>@0, local10:struct4@8, local19:ptr<managed>@0, local20:ptr<managed>@0] t47 = sig=direct3 (ptr<managed>) -> ptr<managed> local-fn44(local19)
-    store t47 -> local35
-    store local35 -> local21
+    store t47 -> local41
+    store local41 -> local21
     store local21 -> local22
     t48 = enum_wrap e11 v1 (local5) : enum11
     heap_store param0 +40 t48
@@ -7481,30 +7536,30 @@ Module
     call managed-direct-target4 sp78 live=[param0:ptr<managed>@0, local10:struct4@8, local20:ptr<managed>@0, local22:ptr<managed>@0] t52 = sig=direct4 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td28, 32)
     heap_store t52 +16 param0
     heap_store t52 +24 1
-    store t52 -> local37
-    call managed-indirect-target1 sp79 live=[param0:ptr<managed>@0, local10:struct4@8, local20:ptr<managed>@0, local22:ptr<managed>@0, local37:ptr<managed>@0] local59 = sig=indirect1 (sret enum9, ptr<managed>, ptr<managed>, ptr<managed>) local-fn29(local20, local22, local37)
-    store local59 -> local38
-    t53 = enum_tag e9 local38 : i64
+    store t52 -> local43
+    call managed-indirect-target1 sp79 live=[param0:ptr<managed>@0, local10:struct4@8, local20:ptr<managed>@0, local22:ptr<managed>@0, local43:ptr<managed>@0] local65 = sig=indirect1 (sret enum9, ptr<managed>, ptr<managed>, ptr<managed>) local-fn29(local20, local22, local43)
+    store local65 -> local44
+    t53 = enum_tag e9 local44 : i64
     t54 = Eq t53, 0 : i1
     cbr t54 then @coroutine.completed_claim_adapter.4 else @coroutine.suspended.4
   block coroutine.completed.3
-    t55 = enum_field e8 v0 f0 local43 : i1
+    t55 = enum_field e8 v0 f0 local49 : i1
     store t55 -> local17
     br @coroutine.post.3
   block coroutine.protocol_error
     call managed-direct-target5 sp80 live=[] t56 = sig=direct5 () -> ptr<managed> local-fn36()
-    store t56 -> local44
-    throw local44
+    store t56 -> local50
+    throw local50
     unreachable
   block coroutine.completed_claim_frame.3
     t57 = atomic_cmpxchg acq_rel/acquire param0 +16 expected=3 replacement=-1 : i64
-    store t57 -> local46
-    t58 = Eq local46, 3 : i1
+    store t57 -> local52
+    t58 = Eq local52, 3 : i1
     cbr t58 then @coroutine.completed.3 else @coroutine.protocol_error
   block coroutine.completed_claim_adapter.3
-    t59 = atomic_cmpxchg acq_rel/acquire local42 +24 expected=1 replacement=6 : i64
-    store t59 -> local45
-    t60 = Eq local45, 1 : i1
+    t59 = atomic_cmpxchg acq_rel/acquire local48 +24 expected=1 replacement=6 : i64
+    store t59 -> local51
+    t60 = Eq local51, 1 : i1
     cbr t60 then @coroutine.completed_claim_frame.3 else @coroutine.protocol_error
   block coroutine.suspended.3
     t61 = enum_wrap e6 v1 () : enum6
@@ -7557,8 +7612,8 @@ Module
     store t87 -> local12
     store local12 -> local13
     call managed-direct-target7 sp82 live=[param0:ptr<managed>@0, local0:ptr<managed>@0, local10:struct4@8, local11:ptr<managed>@0, local13:ptr<managed>@0, local14:ptr<managed>@0] t88 = sig=direct7 (ptr<managed>) -> ptr<managed> local-fn43(local13)
-    store t88 -> local34
-    store local34 -> local15
+    store t88 -> local40
+    store local40 -> local15
     store local15 -> local16
     t89 = enum_wrap e10 v1 (local0) : enum10
     heap_store param0 +32 t89
@@ -7574,30 +7629,30 @@ Module
     call managed-direct-target8 sp83 live=[param0:ptr<managed>@0, local0:ptr<managed>@0, local10:struct4@8, local11:ptr<managed>@0, local14:ptr<managed>@0, local16:ptr<managed>@0] t94 = sig=direct8 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td29, 32)
     heap_store t94 +16 param0
     heap_store t94 +24 1
-    store t94 -> local42
-    call managed-indirect-target2 sp84 live=[param0:ptr<managed>@0, local0:ptr<managed>@0, local10:struct4@8, local11:ptr<managed>@0, local14:ptr<managed>@0, local16:ptr<managed>@0, local42:ptr<managed>@0] local60 = sig=indirect2 (sret enum8, ptr<managed>, ptr<managed>, ptr<managed>) local-fn28(local14, local16, local42)
-    store local60 -> local43
-    t95 = enum_tag e8 local43 : i64
+    store t94 -> local48
+    call managed-indirect-target2 sp84 live=[param0:ptr<managed>@0, local0:ptr<managed>@0, local10:struct4@8, local11:ptr<managed>@0, local14:ptr<managed>@0, local16:ptr<managed>@0, local48:ptr<managed>@0] local66 = sig=indirect2 (sret enum8, ptr<managed>, ptr<managed>, ptr<managed>) local-fn28(local14, local16, local48)
+    store local66 -> local49
+    t95 = enum_tag e8 local49 : i64
     t96 = Eq t95, 0 : i1
     cbr t96 then @coroutine.completed_claim_adapter.3 else @coroutine.suspended.3
   block coroutine.completed.2
-    t97 = enum_field e7 v0 f0 local48 : struct4
+    t97 = enum_field e7 v0 f0 local54 : struct4
     store t97 -> local10
     br @coroutine.post.2
   block coroutine.protocol_error
     call managed-direct-target9 sp85 live=[] t98 = sig=direct9 () -> ptr<managed> local-fn36()
-    store t98 -> local49
-    throw local49
+    store t98 -> local55
+    throw local55
     unreachable
   block coroutine.completed_claim_frame.2
     t99 = atomic_cmpxchg acq_rel/acquire param0 +16 expected=2 replacement=-1 : i64
-    store t99 -> local51
-    t100 = Eq local51, 2 : i1
+    store t99 -> local57
+    t100 = Eq local57, 2 : i1
     cbr t100 then @coroutine.completed.2 else @coroutine.protocol_error
   block coroutine.completed_claim_adapter.2
-    t101 = atomic_cmpxchg acq_rel/acquire local47 +24 expected=1 replacement=6 : i64
-    store t101 -> local50
-    t102 = Eq local50, 1 : i1
+    t101 = atomic_cmpxchg acq_rel/acquire local53 +24 expected=1 replacement=6 : i64
+    store t101 -> local56
+    t102 = Eq local56, 1 : i1
     cbr t102 then @coroutine.completed_claim_frame.2 else @coroutine.protocol_error
   block coroutine.suspended.2
     t103 = enum_wrap e6 v1 () : enum6
@@ -7635,8 +7690,8 @@ Module
     store t120 -> local6
     store local6 -> local7
     call managed-direct-target10 sp86 live=[param0:ptr<managed>@0, local0:ptr<managed>@0, local7:ptr<managed>@0] t121 = sig=direct10 (ptr<managed>) -> ptr<managed> local-fn42(local7)
-    store t121 -> local33
-    store local33 -> local8
+    store t121 -> local39
+    store local39 -> local8
     store local8 -> local9
     t122 = enum_wrap e10 v1 (local0) : enum10
     heap_store param0 +32 t122
@@ -7648,30 +7703,30 @@ Module
     call managed-direct-target11 sp87 live=[param0:ptr<managed>@0, local0:ptr<managed>@0, local9:ptr<managed>@0] t125 = sig=direct11 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td30, 32)
     heap_store t125 +16 param0
     heap_store t125 +24 1
-    store t125 -> local47
-    call managed-indirect-target3 sp88 live=[param0:ptr<managed>@0, local0:ptr<managed>@0, local9:ptr<managed>@0, local47:ptr<managed>@0] local61 = sig=indirect3 (sret enum7, ptr<managed>, ptr<managed>) local-fn26(local9, local47)
-    store local61 -> local48
-    t126 = enum_tag e7 local48 : i64
+    store t125 -> local53
+    call managed-indirect-target3 sp88 live=[param0:ptr<managed>@0, local0:ptr<managed>@0, local9:ptr<managed>@0, local53:ptr<managed>@0] local67 = sig=indirect3 (sret enum7, ptr<managed>, ptr<managed>) local-fn26(local9, local53)
+    store local67 -> local54
+    t126 = enum_tag e7 local54 : i64
     t127 = Eq t126, 0 : i1
     cbr t127 then @coroutine.completed_claim_adapter.2 else @coroutine.suspended.2
   block coroutine.completed.1
-    t128 = enum_field e6 v0 f0 local53 : i64
+    t128 = enum_field e6 v0 f0 local59 : i64
     store t128 -> local5
     br @coroutine.post.1
   block coroutine.protocol_error
     call managed-direct-target12 sp89 live=[] t129 = sig=direct12 () -> ptr<managed> local-fn36()
-    store t129 -> local54
-    throw local54
+    store t129 -> local60
+    throw local60
     unreachable
   block coroutine.completed_claim_frame.1
     t130 = atomic_cmpxchg acq_rel/acquire param0 +16 expected=1 replacement=-1 : i64
-    store t130 -> local56
-    t131 = Eq local56, 1 : i1
+    store t130 -> local62
+    t131 = Eq local62, 1 : i1
     cbr t131 then @coroutine.completed.1 else @coroutine.protocol_error
   block coroutine.completed_claim_adapter.1
-    t132 = atomic_cmpxchg acq_rel/acquire local52 +24 expected=1 replacement=6 : i64
-    store t132 -> local55
-    t133 = Eq local55, 1 : i1
+    t132 = atomic_cmpxchg acq_rel/acquire local58 +24 expected=1 replacement=6 : i64
+    store t132 -> local61
+    t133 = Eq local61, 1 : i1
     cbr t133 then @coroutine.completed_claim_frame.1 else @coroutine.protocol_error
   block coroutine.suspended.1
     t134 = enum_wrap e6 v1 () : enum6
@@ -7706,8 +7761,8 @@ Module
     br @entry
   block coroutine.protocol_error
     call managed-direct-target13 sp90 live=[] t149 = sig=direct13 () -> ptr<managed> local-fn36()
-    store t149 -> local57
-    throw local57
+    store t149 -> local63
+    throw local63
     unreachable
   block coroutine.dispatch.4
     t150 = Eq param1, 4 : i1

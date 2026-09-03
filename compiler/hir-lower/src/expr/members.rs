@@ -2,6 +2,7 @@ use super::*;
 
 mod extensions;
 mod pointers;
+mod primitives;
 mod resolution;
 
 impl Lowerer {

@@ -41,8 +41,8 @@ SourceFile
     fun load
     fun store
     fun store
-    fun plus
-    fun minus
+    operator fun plus
+    operator fun minus
   struct FunPtr<F>
     field _rawPointer: UInt
     @Unsafe
@@ -169,28 +169,53 @@ SourceFile
     @Intrinsic("core_int")
   struct Int <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun unaryMinus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_uint")
   struct UInt <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_boolean")
   struct Boolean <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun not
     fun toString
     fun hash
     @Intrinsic("core_string")
   class String(), ToString, Hash
     operator fun equals
+    operator fun plus
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_array")
   class Array<T>()
+    operator fun get
     fun toMutableArray
     @Intrinsic("core_mutable_array")
   class MutableArray<T>()
+    operator fun get
+    operator fun set
     fun toArray
     @Extern(name = "scoop_rt_int_equals", abi = "scoop")
   fun coreIntEquals(left: Int, right: Int): Boolean
@@ -470,71 +495,104 @@ Module
         Local $parameter.registration : SuspendRegistration<Int>
   suspend fun middle(gate: Gate, payload: Payload): Int
     val local2
-      Binary Add : String
-        StringLiteral "middle-" : String
-        StringLiteral "alive" : String
+      StringLiteral "middle-" : String
     val local3
-      Local gate : Gate
+      StringLiteral "alive" : String
     val local4
-      Local $argument.0 : Gate
+      Local $argument.0 : String
     val local5
+      PrimitiveBinary StringConcat : String
+        Local $receiver : String
+        Local $parameter.other : String
+    val local6
+      Local gate : Gate
+    val local7
+      Local $argument.0 : Gate
+    val local8
       Call deepest : Int
         Local $parameter.gate : Gate
-    val local6
+    val local9
       Local marker : String
-    val local7
+    val local10
       Local $argument.0 : String
     Call println<String> : Unit
       Local $parameter.value : String
     when
       Local payload : Payload
-      arm variant0(0: local8)
-        val local9
+      arm variant0(0: local11)
+        val local12
           FieldAccess field 0 : String
             Local bundle : Bundle
-        val local10
+        val local13
           Local $argument.0 : String
         Call println<String> : Unit
           Local $parameter.value : String
-        val local11
+        val local14
           FieldAccess class field 0 : String
             FieldAccess field 1 : Node
               Local bundle : Bundle
-        val local12
+        val local15
           Local $argument.0 : String
         Call println<String> : Unit
           Local $parameter.value : String
       arm variant1()
-        val local13
+        val local16
           StringLiteral "empty" : String
-        val local14
+        val local17
           Local $argument.0 : String
         Call println<String> : Unit
           Local $parameter.value : String
+    val local18
+      Local value : Int
+    val local19
+      IntLiteral 1 : Int
+    val local20
+      Local $argument.0 : Int
     return
-      Binary Add : Int
-        Local value : Int
-        IntLiteral 1 : Int
+      PrimitiveBinary IntAdd : Int
+        Local $receiver : Int
+        Local $parameter.other : Int
   fun makeGarbage(): Unit
     val local0
       IntLiteral 0 : Int
     while
+      condition setup
+        val local1
+          Local index : Int
+        val local2
+          IntLiteral 1000 : Int
+        val local3
+          Local $argument.0 : Int
       Binary Lt : Boolean
-        Local index : Int
-        IntLiteral 1000 : Int
-      val local1
-        Binary Add : String
-          StringLiteral "garbage-" : String
-          StringLiteral "node" : String
-      val local2
+        PrimitiveBinary IntCompareTo : Int
+          Local $receiver : Int
+          Local $parameter.other : Int
+        IntLiteral 0 : Int
+      val local4
+        StringLiteral "garbage-" : String
+      val local5
+        StringLiteral "node" : String
+      val local6
         Local $argument.0 : String
-      val local3
+      val local7
+        PrimitiveBinary StringConcat : String
+          Local $receiver : String
+          Local $parameter.other : String
+      val local8
+        Local $argument.0 : String
+      val local9
         ClassInit Node : Node
           Local $parameter.name : String
+      val local10
+        Local index : Int
+      val local11
+        IntLiteral 1 : Int
+      val local12
+        Local $argument.0 : Int
       assign index
-        Binary Add : Int
-          Local index : Int
-          IntLiteral 1 : Int
+        PrimitiveBinary IntAdd : Int
+          Local $receiver : Int
+          Local $parameter.other : Int
   fun main(): Unit
     val local0
       VariantConstruct Option.None<Continuation<Int>> : Option<Continuation<Int>>
@@ -1045,34 +1103,88 @@ Module
       var index: Int
         Type Int
         IntLiteral 0
+      val $receiver: Int
+        Type Int
+        Local index
+      val $argument.0: Int
+        Type Int
+        IntLiteral 1000
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
+      var $cond.1: Boolean
+        Type Boolean
+        Binary IntLt
+          Type Int
+          Binary IntCompareTo
+            Type Int
+            Local $receiver
+            Type Int
+            Local $parameter.other
+          Type Int
+          IntLiteral 0
       goto bb1
     bb1 while.cond.1
       branch bb2 bb3
         Type Boolean
-        Binary IntLt
-          Type Int
-          Local index
-          Type Int
-          IntLiteral 1000
+        Local $cond.1
     bb2 while.body.2
-      call $argument.0: String = @scoop_rt_string_concat direct
+      val $receiver: String
         Type String
         StringConst @scoop.str.11
+      val $argument.0: String
         Type String
         StringConst @scoop.str.12
+      val $parameter.other: String
+        Type String
+        Local $argument.0
+      call $argument.0: String = @scoop_rt_string_concat direct
+        Type String
+        Local $receiver
+        Type String
+        Local $parameter.other
       val $parameter.name: String
         Type String
         Local $argument.0
       call garbage: Node = @scoop.ctor.Node direct
         Type String
         Local $parameter.name
+      val $receiver: Int
+        Type Int
+        Local index
+      val $argument.0: Int
+        Type Int
+        IntLiteral 1
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       assign index
         Type Int
         Binary IntAdd
           Type Int
-          Local index
+          Local $receiver
           Type Int
-          IntLiteral 1
+          Local $parameter.other
+      val $receiver: Int
+        Type Int
+        Local index
+      val $argument.0: Int
+        Type Int
+        IntLiteral 1000
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
+      assign $cond.1
+        Type Boolean
+        Binary IntLt
+          Type Int
+          Binary IntCompareTo
+            Type Int
+            Local $receiver
+            Type Int
+            Local $parameter.other
+          Type Int
+          IntLiteral 0
       goto bb1
     bb3 while.exit.3
       return
@@ -1396,27 +1508,54 @@ Module
           IntLiteral 0
   fun GcTask.run$drive @scoop.GcTask.run$suspend$drive($frame: CoroutineFrame$scoop_GcTask_run_suspend, $dispatch_state: Int) -> CoroutineStep$I
     bb0 entry
-      call taskText: String = @scoop_rt_string_concat direct
+      val $receiver: String
         Type String
         StringConst @scoop.str.0
+      val $argument.0: String
         Type String
         StringConst @scoop.str.1
-      call $argument.0: String = @scoop_rt_string_concat direct
+      val $parameter.other: String
+        Type String
+        Local $argument.0
+      call taskText: String = @scoop_rt_string_concat direct
+        Type String
+        Local $receiver
+        Type String
+        Local $parameter.other
+      val $receiver: String
         Type String
         StringConst @scoop.str.2
+      val $argument.0: String
         Type String
         StringConst @scoop.str.3
+      val $parameter.other: String
+        Type String
+        Local $argument.0
+      call $argument.0: String = @scoop_rt_string_concat direct
+        Type String
+        Local $receiver
+        Type String
+        Local $parameter.other
       val $parameter.name: String
         Type String
         Local $argument.0
       call node: Node = @scoop.ctor.Node direct
         Type String
         Local $parameter.name
-      call $argument.0: String = @scoop_rt_string_concat direct
+      val $receiver: String
         Type String
         StringConst @scoop.str.4
+      val $argument.0: String
         Type String
         StringConst @scoop.str.5
+      val $parameter.other: String
+        Type String
+        Local $argument.0
+      call $argument.0: String = @scoop_rt_string_concat direct
+        Type String
+        Local $receiver
+        Type String
+        Local $parameter.other
       val $argument.1: Node
         Type Node
         Local node
@@ -1556,15 +1695,24 @@ Module
           Type Int
           IntLiteral 1
     bb3 if.merge.3
+      val $receiver: Int
+        Type Int
+        Local value
+      val $argument.0: Int
+        Type Int
+        IntLiteral 1
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       return
         Type CoroutineStep$I
         VariantConstruct CoroutineStep$I v0
           Type Int
           Binary IntAdd
             Type Int
-            Local value
+            Local $receiver
             Type Int
-            IntLiteral 1
+            Local $parameter.other
     bb4 if.then.4
       val $argument.0: String
         Type String
@@ -2695,11 +2843,20 @@ Module
           IntLiteral 0
   fun middle$drive @scoop.middle$suspend$drive($frame: CoroutineFrame$scoop_middle_suspend, $dispatch_state: Int) -> CoroutineStep$I
     bb0 entry
-      call marker: String = @scoop_rt_string_concat direct
+      val $receiver: String
         Type String
         StringConst @scoop.str.8
+      val $argument.0: String
         Type String
         StringConst @scoop.str.9
+      val $parameter.other: String
+        Type String
+        Local $argument.0
+      call marker: String = @scoop_rt_string_concat direct
+        Type String
+        Local $receiver
+        Type String
+        Local $parameter.other
       val $argument.0: Gate
         Type Gate
         Local gate
@@ -2788,15 +2945,24 @@ Module
           Type Int
           IntLiteral 1
     bb3 if.merge.3
+      val $receiver: Int
+        Type Int
+        Local value
+      val $argument.0: Int
+        Type Int
+        IntLiteral 1
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       return
         Type CoroutineStep$I
         VariantConstruct CoroutineStep$I v0
           Type Int
           Binary IntAdd
             Type Int
-            Local value
+            Local $receiver
             Type Int
-            IntLiteral 1
+            Local $parameter.other
     bb4 if.then.4
       val $argument.0: String
         Type String
@@ -3612,25 +3778,52 @@ Module
     ret local1
   fun @scoop.makeGarbage() -> void
     local %0 index: i64
-    local %1 $argument.0: ptr<managed>
-    local %2 $parameter.name: ptr<managed>
-    local %3 garbage: ptr<managed>
+    local %1 $receiver: i64
+    local %2 $argument.0: i64
+    local %3 $parameter.other: i64
+    local %4 $receiver: ptr<managed>
+    local %5 $argument.0: ptr<managed>
+    local %6 $parameter.other: ptr<managed>
+    local %7 $argument.0: ptr<managed>
+    local %8 $parameter.name: ptr<managed>
+    local %9 garbage: ptr<managed>
+    local %10 $receiver: i64
+    local %11 $argument.0: i64
+    local %12 $parameter.other: i64
+    local %13 $cond.1: i1
   block entry
     poll managed-void-target0 sp134 live=[]
     store 0 -> local0
+    store local0 -> local1
+    store 1000 -> local2
+    store local2 -> local3
+    t0 = SCompareTo local1, local3 : i64
+    t1 = Lt t0, 0 : i1
+    store t1 -> local13
     br @while.cond.1
   block while.cond.1
     poll managed-void-target0 sp135 live=[]
-    t0 = Lt local0, 1000 : i1
-    cbr t0 then @while.body.2 else @while.exit.3
+    cbr local13 then @while.body.2 else @while.exit.3
   block while.body.2
-    call managed-direct-target0 sp22 live=[] t1 = sig=direct0 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(global11, global12)
-    store t1 -> local1
-    store local1 -> local2
-    call managed-direct-target1 sp23 live=[local2:ptr<managed>@0] t2 = sig=direct1 (ptr<managed>) -> ptr<managed> local-fn23(local2)
-    store t2 -> local3
-    t3 = Add local0, 1 : i64
-    store t3 -> local0
+    store global11 -> local4
+    store global12 -> local5
+    store local5 -> local6
+    call managed-direct-target0 sp22 live=[local4:ptr<managed>@0, local6:ptr<managed>@0] t2 = sig=direct0 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(local4, local6)
+    store t2 -> local7
+    store local7 -> local8
+    call managed-direct-target1 sp23 live=[local8:ptr<managed>@0] t3 = sig=direct1 (ptr<managed>) -> ptr<managed> local-fn23(local8)
+    store t3 -> local9
+    store local0 -> local10
+    store 1 -> local11
+    store local11 -> local12
+    t4 = Add local10, local12 : i64
+    store t4 -> local0
+    store local0 -> local1
+    store 1000 -> local2
+    store local2 -> local3
+    t5 = SCompareTo local1, local3 : i64
+    t6 = Lt t5, 0 : i1
+    store t6 -> local13
     br @while.cond.1
   block while.exit.3
     ret
@@ -3890,155 +4083,179 @@ Module
     cbr t14 then @completed else @suspended
   fun @scoop.GcTask.run$suspend$drive(ptr<managed>, i64) -> enum3
     local %0 this: ptr<managed>
-    local %1 taskText: ptr<managed>
+    local %1 $receiver: ptr<managed>
     local %2 $argument.0: ptr<managed>
-    local %3 $parameter.name: ptr<managed>
-    local %4 node: ptr<managed>
-    local %5 $argument.0: ptr<managed>
-    local %6 $argument.1: ptr<managed>
-    local %7 $parameter.text: ptr<managed>
-    local %8 $parameter.node: ptr<managed>
-    local %9 bundle: struct4
-    local %10 $argument.0: struct4
-    local %11 $parameter._1: struct4
-    local %12 payload: enum2
-    local %13 $argument.0: ptr<managed>
-    local %14 $argument.1: enum2
-    local %15 $parameter.gate: ptr<managed>
-    local %16 $parameter.payload: enum2
-    local %17 value: i64
-    local %18 $argument.0: ptr<managed>
-    local %19 $parameter.value: ptr<managed>
-    local %20 $argument.0: ptr<managed>
-    local %21 $parameter.value: ptr<managed>
+    local %3 $parameter.other: ptr<managed>
+    local %4 taskText: ptr<managed>
+    local %5 $receiver: ptr<managed>
+    local %6 $argument.0: ptr<managed>
+    local %7 $parameter.other: ptr<managed>
+    local %8 $argument.0: ptr<managed>
+    local %9 $parameter.name: ptr<managed>
+    local %10 node: ptr<managed>
+    local %11 $receiver: ptr<managed>
+    local %12 $argument.0: ptr<managed>
+    local %13 $parameter.other: ptr<managed>
+    local %14 $argument.0: ptr<managed>
+    local %15 $argument.1: ptr<managed>
+    local %16 $parameter.text: ptr<managed>
+    local %17 $parameter.node: ptr<managed>
+    local %18 bundle: struct4
+    local %19 $argument.0: struct4
+    local %20 $parameter._1: struct4
+    local %21 payload: enum2
     local %22 $argument.0: ptr<managed>
-    local %23 $parameter.value: ptr<managed>
-    local %24 saved: struct4
-    local %25 $argument.0: ptr<managed>
-    local %26 $parameter.value: ptr<managed>
+    local %23 $argument.1: enum2
+    local %24 $parameter.gate: ptr<managed>
+    local %25 $parameter.payload: enum2
+    local %26 value: i64
     local %27 $argument.0: ptr<managed>
     local %28 $parameter.value: ptr<managed>
     local %29 $argument.0: ptr<managed>
     local %30 $parameter.value: ptr<managed>
-    local %31 $when.1: enum2
-    local %32 $completion: ptr<managed>
-    local %33 $adapter.1: ptr<managed>
-    local %34 $step.1: enum3
-    local %35 $protocol_error: ptr<managed>
-    local %36 $completed_adapter_claim.1: i64
-    local %37 $completed_frame_claim.1: i64
-    local %38 $protocol_error: ptr<managed>
-    local %39 $sc.1: enum3
+    local %31 $argument.0: ptr<managed>
+    local %32 $parameter.value: ptr<managed>
+    local %33 saved: struct4
+    local %34 $argument.0: ptr<managed>
+    local %35 $parameter.value: ptr<managed>
+    local %36 $argument.0: ptr<managed>
+    local %37 $parameter.value: ptr<managed>
+    local %38 $argument.0: ptr<managed>
+    local %39 $parameter.value: ptr<managed>
+    local %40 $receiver: i64
+    local %41 $argument.0: i64
+    local %42 $parameter.other: i64
+    local %43 $when.1: enum2
+    local %44 $completion: ptr<managed>
+    local %45 $adapter.1: ptr<managed>
+    local %46 $step.1: enum3
+    local %47 $protocol_error: ptr<managed>
+    local %48 $completed_adapter_claim.1: i64
+    local %49 $completed_frame_claim.1: i64
+    local %50 $protocol_error: ptr<managed>
+    local %51 $sc.1: enum3
   block entry
-    call managed-direct-target0 sp56 live=[param0:ptr<managed>@0, local0:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(global0, global1)
-    store t0 -> local1
-    call managed-direct-target1 sp57 live=[param0:ptr<managed>@0, local0:ptr<managed>@0, local1:ptr<managed>@0] t1 = sig=direct1 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(global2, global3)
-    store t1 -> local2
+    store global0 -> local1
+    store global1 -> local2
     store local2 -> local3
-    call managed-direct-target2 sp58 live=[param0:ptr<managed>@0, local0:ptr<managed>@0, local1:ptr<managed>@0, local3:ptr<managed>@0] t2 = sig=direct2 (ptr<managed>) -> ptr<managed> local-fn23(local3)
-    store t2 -> local4
-    call managed-direct-target3 sp59 live=[param0:ptr<managed>@0, local0:ptr<managed>@0, local1:ptr<managed>@0, local4:ptr<managed>@0] t3 = sig=direct3 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(global4, global5)
-    store t3 -> local5
-    store local4 -> local6
-    store local5 -> local7
-    store local6 -> local8
-    t4 = aggregate (local7, local8) : struct4
-    store t4 -> local9
-    store local9 -> local10
-    store local10 -> local11
-    t5 = enum_wrap e2 v0 (local11) : enum2
-    store t5 -> local12
-    t6 = heap_load local0 +16 : ptr<managed>
-    store t6 -> local13
-    store local12 -> local14
-    store local13 -> local15
+    call managed-direct-target0 sp56 live=[param0:ptr<managed>@0, local0:ptr<managed>@0, local1:ptr<managed>@0, local3:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(local1, local3)
+    store t0 -> local4
+    store global2 -> local5
+    store global3 -> local6
+    store local6 -> local7
+    call managed-direct-target1 sp57 live=[param0:ptr<managed>@0, local0:ptr<managed>@0, local4:ptr<managed>@0, local5:ptr<managed>@0, local7:ptr<managed>@0] t1 = sig=direct1 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(local5, local7)
+    store t1 -> local8
+    store local8 -> local9
+    call managed-direct-target2 sp58 live=[param0:ptr<managed>@0, local0:ptr<managed>@0, local4:ptr<managed>@0, local9:ptr<managed>@0] t2 = sig=direct2 (ptr<managed>) -> ptr<managed> local-fn23(local9)
+    store t2 -> local10
+    store global4 -> local11
+    store global5 -> local12
+    store local12 -> local13
+    call managed-direct-target3 sp59 live=[param0:ptr<managed>@0, local0:ptr<managed>@0, local4:ptr<managed>@0, local10:ptr<managed>@0, local11:ptr<managed>@0, local13:ptr<managed>@0] t3 = sig=direct3 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(local11, local13)
+    store t3 -> local14
+    store local10 -> local15
     store local14 -> local16
-    t7 = enum_wrap e5 v1 (local1) : enum5
+    store local15 -> local17
+    t4 = aggregate (local16, local17) : struct4
+    store t4 -> local18
+    store local18 -> local19
+    store local19 -> local20
+    t5 = enum_wrap e2 v0 (local20) : enum2
+    store t5 -> local21
+    t6 = heap_load local0 +16 : ptr<managed>
+    store t6 -> local22
+    store local21 -> local23
+    store local22 -> local24
+    store local23 -> local25
+    t7 = enum_wrap e5 v1 (local4) : enum5
     heap_store param0 +40 t7
-    t8 = enum_wrap e6 v1 (local4) : enum6
+    t8 = enum_wrap e6 v1 (local10) : enum6
     heap_store param0 +48 t8
-    t9 = enum_wrap e7 v1 (local9) : enum7
+    t9 = enum_wrap e7 v1 (local18) : enum7
     heap_store param0 +56 t9
-    t10 = enum_wrap e8 v1 (local12) : enum8
+    t10 = enum_wrap e8 v1 (local21) : enum8
     heap_store param0 +80 t10
     atomic_store release param0 +16 1
-    call managed-direct-target4 sp60 live=[param0:ptr<managed>@0, local1:ptr<managed>@0, local4:ptr<managed>@0, local9:struct4@0+8, local12:enum2@8+16, local15:ptr<managed>@0, local16:enum2@8+16] t11 = sig=direct4 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td13, 32)
+    call managed-direct-target4 sp60 live=[param0:ptr<managed>@0, local4:ptr<managed>@0, local10:ptr<managed>@0, local18:struct4@0+8, local21:enum2@8+16, local24:ptr<managed>@0, local25:enum2@8+16] t11 = sig=direct4 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td13, 32)
     heap_store t11 +16 param0
     heap_store t11 +24 1
-    store t11 -> local33
-    call managed-indirect-target0 sp61 live=[param0:ptr<managed>@0, local1:ptr<managed>@0, local4:ptr<managed>@0, local9:struct4@0+8, local12:enum2@8+16, local15:ptr<managed>@0, local16:enum2@8+16, local33:ptr<managed>@0] local39 = sig=indirect0 (sret enum3, ptr<managed>, enum2, ptr<managed>) local-fn18(local15, local16, local33)
-    store local39 -> local34
-    t12 = enum_tag e3 local34 : i64
+    store t11 -> local45
+    call managed-indirect-target0 sp61 live=[param0:ptr<managed>@0, local4:ptr<managed>@0, local10:ptr<managed>@0, local18:struct4@0+8, local21:enum2@8+16, local24:ptr<managed>@0, local25:enum2@8+16, local45:ptr<managed>@0] local51 = sig=indirect0 (sret enum3, ptr<managed>, enum2, ptr<managed>) local-fn18(local24, local25, local45)
+    store local51 -> local46
+    t12 = enum_tag e3 local46 : i64
     t13 = Eq t12, 0 : i1
     cbr t13 then @coroutine.completed_claim_adapter.1 else @coroutine.suspended.1
   block if.then.1
-    t14 = enum_field e2 v0 f0 local31 : struct4
-    store t14 -> local24
-    t15 = extract local24, 0 : ptr<managed>
-    store t15 -> local25
-    store local25 -> local26
-    call managed-void-target0 sp62 live=[local24:struct4@0+8, local26:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn21(local26)
+    t14 = enum_field e2 v0 f0 local43 : struct4
+    store t14 -> local33
+    t15 = extract local33, 0 : ptr<managed>
+    store t15 -> local34
+    store local34 -> local35
+    call managed-void-target0 sp62 live=[local33:struct4@0+8, local35:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn21(local35)
     t16 = aggregate () : {}
-    t17 = extract local24, 1 : ptr<managed>
+    t17 = extract local33, 1 : ptr<managed>
     t18 = heap_load t17 +16 : ptr<managed>
-    store t18 -> local27
-    store local27 -> local28
-    call managed-void-target1 sp63 live=[local28:ptr<managed>@0] sig=void1 (ptr<managed>) local-fn21(local28)
+    store t18 -> local36
+    store local36 -> local37
+    call managed-void-target1 sp63 live=[local37:ptr<managed>@0] sig=void1 (ptr<managed>) local-fn21(local37)
     t19 = aggregate () : {}
     br @if.merge.3
   block if.else.2
-    t20 = enum_tag e2 local31 : i64
+    t20 = enum_tag e2 local43 : i64
     t21 = Eq t20, 1 : i1
     cbr t21 then @if.then.4 else @if.merge.5
   block if.merge.3
-    t22 = Add local17, 1 : i64
+    store local26 -> local40
+    store 1 -> local41
+    store local41 -> local42
+    t22 = Add local40, local42 : i64
     t23 = enum_wrap e3 v0 (t22) : enum3
     ret t23
   block if.then.4
-    store global6 -> local29
-    store local29 -> local30
-    call managed-void-target2 sp64 live=[local30:ptr<managed>@0] sig=void2 (ptr<managed>) local-fn21(local30)
+    store global6 -> local38
+    store local38 -> local39
+    call managed-void-target2 sp64 live=[local39:ptr<managed>@0] sig=void2 (ptr<managed>) local-fn21(local39)
     t24 = aggregate () : {}
     br @if.merge.5
   block if.merge.5
     br @if.merge.3
   block coroutine.post.1
-    store local1 -> local18
-    store local18 -> local19
-    call managed-void-target3 sp65 live=[local4:ptr<managed>@0, local9:struct4@0+8, local12:enum2@8+16, local19:ptr<managed>@0] sig=void3 (ptr<managed>) local-fn21(local19)
+    store local4 -> local27
+    store local27 -> local28
+    call managed-void-target3 sp65 live=[local10:ptr<managed>@0, local18:struct4@0+8, local21:enum2@8+16, local28:ptr<managed>@0] sig=void3 (ptr<managed>) local-fn21(local28)
     t25 = aggregate () : {}
-    t26 = heap_load local4 +16 : ptr<managed>
-    store t26 -> local20
-    store local20 -> local21
-    call managed-void-target4 sp66 live=[local9:struct4@0+8, local12:enum2@8+16, local21:ptr<managed>@0] sig=void4 (ptr<managed>) local-fn21(local21)
+    t26 = heap_load local10 +16 : ptr<managed>
+    store t26 -> local29
+    store local29 -> local30
+    call managed-void-target4 sp66 live=[local18:struct4@0+8, local21:enum2@8+16, local30:ptr<managed>@0] sig=void4 (ptr<managed>) local-fn21(local30)
     t27 = aggregate () : {}
-    t28 = extract local9, 0 : ptr<managed>
-    store t28 -> local22
-    store local22 -> local23
-    call managed-void-target5 sp67 live=[local12:enum2@8+16, local23:ptr<managed>@0] sig=void5 (ptr<managed>) local-fn21(local23)
+    t28 = extract local18, 0 : ptr<managed>
+    store t28 -> local31
+    store local31 -> local32
+    call managed-void-target5 sp67 live=[local21:enum2@8+16, local32:ptr<managed>@0] sig=void5 (ptr<managed>) local-fn21(local32)
     t29 = aggregate () : {}
-    store local12 -> local31
-    t30 = enum_tag e2 local31 : i64
+    store local21 -> local43
+    t30 = enum_tag e2 local43 : i64
     t31 = Eq t30, 0 : i1
     cbr t31 then @if.then.1 else @if.else.2
   block coroutine.completed.1
-    t32 = enum_field e3 v0 f0 local34 : i64
-    store t32 -> local17
+    t32 = enum_field e3 v0 f0 local46 : i64
+    store t32 -> local26
     br @coroutine.post.1
   block coroutine.protocol_error
     call managed-direct-target5 sp68 live=[] t33 = sig=direct5 () -> ptr<managed> local-fn30()
-    store t33 -> local35
-    throw local35
+    store t33 -> local47
+    throw local47
     unreachable
   block coroutine.completed_claim_frame.1
     t34 = atomic_cmpxchg acq_rel/acquire param0 +16 expected=1 replacement=-1 : i64
-    store t34 -> local37
-    t35 = Eq local37, 1 : i1
+    store t34 -> local49
+    t35 = Eq local49, 1 : i1
     cbr t35 then @coroutine.completed.1 else @coroutine.protocol_error
   block coroutine.completed_claim_adapter.1
-    t36 = atomic_cmpxchg acq_rel/acquire local33 +24 expected=1 replacement=6 : i64
-    store t36 -> local36
-    t37 = Eq local36, 1 : i1
+    t36 = atomic_cmpxchg acq_rel/acquire local45 +24 expected=1 replacement=6 : i64
+    store t36 -> local48
+    t37 = Eq local48, 1 : i1
     cbr t37 then @coroutine.completed_claim_frame.1 else @coroutine.protocol_error
   block coroutine.suspended.1
     t38 = enum_wrap e3 v1 () : enum3
@@ -4046,33 +4263,33 @@ Module
   block coroutine.resume.1
     t39 = heap_load param0 +40 : enum5
     t40 = enum_field e5 v1 f0 t39 : ptr<managed>
-    store t40 -> local1
+    store t40 -> local4
     t41 = heap_load param0 +48 : enum6
     t42 = enum_field e6 v1 f0 t41 : ptr<managed>
-    store t42 -> local4
+    store t42 -> local10
     t43 = heap_load param0 +56 : enum7
     t44 = enum_field e7 v1 f0 t43 : struct4
-    store t44 -> local9
+    store t44 -> local18
     t45 = heap_load param0 +80 : enum8
     t46 = enum_field e8 v1 f0 t45 : enum2
-    store t46 -> local12
+    store t46 -> local21
     t47 = heap_load param0 +112 : enum9
     t48 = enum_field e9 v1 f0 t47 : i64
-    store t48 -> local17
+    store t48 -> local26
     br @coroutine.post.1
   block coroutine.failure.1
     t49 = heap_load param0 +40 : enum5
     t50 = enum_field e5 v1 f0 t49 : ptr<managed>
-    store t50 -> local1
+    store t50 -> local4
     t51 = heap_load param0 +48 : enum6
     t52 = enum_field e6 v1 f0 t51 : ptr<managed>
-    store t52 -> local4
+    store t52 -> local10
     t53 = heap_load param0 +56 : enum7
     t54 = enum_field e7 v1 f0 t53 : struct4
-    store t54 -> local9
+    store t54 -> local18
     t55 = heap_load param0 +80 : enum8
     t56 = enum_field e8 v1 f0 t55 : enum2
-    store t56 -> local12
+    store t56 -> local21
     t57 = heap_load param0 +128 : enum10
     t58 = enum_field e10 v1 f0 t57 : ptr<managed>
     throw t58
@@ -4085,8 +4302,8 @@ Module
     br @entry
   block coroutine.protocol_error
     call managed-direct-target6 sp69 live=[] t61 = sig=direct6 () -> ptr<managed> local-fn30()
-    store t61 -> local38
-    throw local38
+    store t61 -> local50
+    throw local50
     unreachable
   block coroutine.dispatch.1
     t62 = Eq param1, 1 : i1
@@ -4597,105 +4814,117 @@ Module
   fun @scoop.middle$suspend$drive(ptr<managed>, i64) -> enum3
     local %0 gate: ptr<managed>
     local %1 payload: enum2
-    local %2 marker: ptr<managed>
+    local %2 $receiver: ptr<managed>
     local %3 $argument.0: ptr<managed>
-    local %4 $parameter.gate: ptr<managed>
-    local %5 value: i64
+    local %4 $parameter.other: ptr<managed>
+    local %5 marker: ptr<managed>
     local %6 $argument.0: ptr<managed>
-    local %7 $parameter.value: ptr<managed>
-    local %8 bundle: struct4
+    local %7 $parameter.gate: ptr<managed>
+    local %8 value: i64
     local %9 $argument.0: ptr<managed>
     local %10 $parameter.value: ptr<managed>
-    local %11 $argument.0: ptr<managed>
-    local %12 $parameter.value: ptr<managed>
-    local %13 $argument.0: ptr<managed>
-    local %14 $parameter.value: ptr<managed>
-    local %15 $when.1: enum2
-    local %16 $completion: ptr<managed>
-    local %17 $adapter.1: ptr<managed>
-    local %18 $step.1: enum3
-    local %19 $protocol_error: ptr<managed>
-    local %20 $completed_adapter_claim.1: i64
-    local %21 $completed_frame_claim.1: i64
-    local %22 $protocol_error: ptr<managed>
-    local %23 $sc.1: enum3
+    local %11 bundle: struct4
+    local %12 $argument.0: ptr<managed>
+    local %13 $parameter.value: ptr<managed>
+    local %14 $argument.0: ptr<managed>
+    local %15 $parameter.value: ptr<managed>
+    local %16 $argument.0: ptr<managed>
+    local %17 $parameter.value: ptr<managed>
+    local %18 $receiver: i64
+    local %19 $argument.0: i64
+    local %20 $parameter.other: i64
+    local %21 $when.1: enum2
+    local %22 $completion: ptr<managed>
+    local %23 $adapter.1: ptr<managed>
+    local %24 $step.1: enum3
+    local %25 $protocol_error: ptr<managed>
+    local %26 $completed_adapter_claim.1: i64
+    local %27 $completed_frame_claim.1: i64
+    local %28 $protocol_error: ptr<managed>
+    local %29 $sc.1: enum3
   block entry
-    call managed-direct-target0 sp96 live=[param0:ptr<managed>@0, local0:ptr<managed>@0, local1:enum2@8+16] t0 = sig=direct0 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(global8, global9)
-    store t0 -> local2
-    store local0 -> local3
+    store global8 -> local2
+    store global9 -> local3
     store local3 -> local4
+    call managed-direct-target0 sp96 live=[param0:ptr<managed>@0, local0:ptr<managed>@0, local1:enum2@8+16, local2:ptr<managed>@0, local4:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(local2, local4)
+    store t0 -> local5
+    store local0 -> local6
+    store local6 -> local7
     t1 = enum_wrap e8 v1 (local1) : enum8
     heap_store param0 +40 t1
-    t2 = enum_wrap e5 v1 (local2) : enum5
+    t2 = enum_wrap e5 v1 (local5) : enum5
     heap_store param0 +72 t2
     atomic_store release param0 +16 1
-    call managed-direct-target1 sp97 live=[param0:ptr<managed>@0, local1:enum2@8+16, local2:ptr<managed>@0, local4:ptr<managed>@0] t3 = sig=direct1 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td17, 32)
+    call managed-direct-target1 sp97 live=[param0:ptr<managed>@0, local1:enum2@8+16, local5:ptr<managed>@0, local7:ptr<managed>@0] t3 = sig=direct1 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td17, 32)
     heap_store t3 +16 param0
     heap_store t3 +24 1
-    store t3 -> local17
-    call managed-indirect-target0 sp98 live=[param0:ptr<managed>@0, local1:enum2@8+16, local2:ptr<managed>@0, local4:ptr<managed>@0, local17:ptr<managed>@0] local23 = sig=indirect0 (sret enum3, ptr<managed>, ptr<managed>) local-fn17(local4, local17)
-    store local23 -> local18
-    t4 = enum_tag e3 local18 : i64
+    store t3 -> local23
+    call managed-indirect-target0 sp98 live=[param0:ptr<managed>@0, local1:enum2@8+16, local5:ptr<managed>@0, local7:ptr<managed>@0, local23:ptr<managed>@0] local29 = sig=indirect0 (sret enum3, ptr<managed>, ptr<managed>) local-fn17(local7, local23)
+    store local29 -> local24
+    t4 = enum_tag e3 local24 : i64
     t5 = Eq t4, 0 : i1
     cbr t5 then @coroutine.completed_claim_adapter.1 else @coroutine.suspended.1
   block if.then.1
-    t6 = enum_field e2 v0 f0 local15 : struct4
-    store t6 -> local8
-    t7 = extract local8, 0 : ptr<managed>
-    store t7 -> local9
-    store local9 -> local10
-    call managed-void-target0 sp99 live=[local8:struct4@0+8, local10:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn21(local10)
+    t6 = enum_field e2 v0 f0 local21 : struct4
+    store t6 -> local11
+    t7 = extract local11, 0 : ptr<managed>
+    store t7 -> local12
+    store local12 -> local13
+    call managed-void-target0 sp99 live=[local11:struct4@0+8, local13:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn21(local13)
     t8 = aggregate () : {}
-    t9 = extract local8, 1 : ptr<managed>
+    t9 = extract local11, 1 : ptr<managed>
     t10 = heap_load t9 +16 : ptr<managed>
-    store t10 -> local11
-    store local11 -> local12
-    call managed-void-target1 sp100 live=[local12:ptr<managed>@0] sig=void1 (ptr<managed>) local-fn21(local12)
+    store t10 -> local14
+    store local14 -> local15
+    call managed-void-target1 sp100 live=[local15:ptr<managed>@0] sig=void1 (ptr<managed>) local-fn21(local15)
     t11 = aggregate () : {}
     br @if.merge.3
   block if.else.2
-    t12 = enum_tag e2 local15 : i64
+    t12 = enum_tag e2 local21 : i64
     t13 = Eq t12, 1 : i1
     cbr t13 then @if.then.4 else @if.merge.5
   block if.merge.3
-    t14 = Add local5, 1 : i64
+    store local8 -> local18
+    store 1 -> local19
+    store local19 -> local20
+    t14 = Add local18, local20 : i64
     t15 = enum_wrap e3 v0 (t14) : enum3
     ret t15
   block if.then.4
-    store global10 -> local13
-    store local13 -> local14
-    call managed-void-target2 sp101 live=[local14:ptr<managed>@0] sig=void2 (ptr<managed>) local-fn21(local14)
+    store global10 -> local16
+    store local16 -> local17
+    call managed-void-target2 sp101 live=[local17:ptr<managed>@0] sig=void2 (ptr<managed>) local-fn21(local17)
     t16 = aggregate () : {}
     br @if.merge.5
   block if.merge.5
     br @if.merge.3
   block coroutine.post.1
-    store local2 -> local6
-    store local6 -> local7
-    call managed-void-target3 sp102 live=[local1:enum2@8+16, local7:ptr<managed>@0] sig=void3 (ptr<managed>) local-fn21(local7)
+    store local5 -> local9
+    store local9 -> local10
+    call managed-void-target3 sp102 live=[local1:enum2@8+16, local10:ptr<managed>@0] sig=void3 (ptr<managed>) local-fn21(local10)
     t17 = aggregate () : {}
-    store local1 -> local15
-    t18 = enum_tag e2 local15 : i64
+    store local1 -> local21
+    t18 = enum_tag e2 local21 : i64
     t19 = Eq t18, 0 : i1
     cbr t19 then @if.then.1 else @if.else.2
   block coroutine.completed.1
-    t20 = enum_field e3 v0 f0 local18 : i64
-    store t20 -> local5
+    t20 = enum_field e3 v0 f0 local24 : i64
+    store t20 -> local8
     br @coroutine.post.1
   block coroutine.protocol_error
     call managed-direct-target2 sp103 live=[] t21 = sig=direct2 () -> ptr<managed> local-fn30()
-    store t21 -> local19
-    throw local19
+    store t21 -> local25
+    throw local25
     unreachable
   block coroutine.completed_claim_frame.1
     t22 = atomic_cmpxchg acq_rel/acquire param0 +16 expected=1 replacement=-1 : i64
-    store t22 -> local21
-    t23 = Eq local21, 1 : i1
+    store t22 -> local27
+    t23 = Eq local27, 1 : i1
     cbr t23 then @coroutine.completed.1 else @coroutine.protocol_error
   block coroutine.completed_claim_adapter.1
-    t24 = atomic_cmpxchg acq_rel/acquire local17 +24 expected=1 replacement=6 : i64
-    store t24 -> local20
-    t25 = Eq local20, 1 : i1
+    t24 = atomic_cmpxchg acq_rel/acquire local23 +24 expected=1 replacement=6 : i64
+    store t24 -> local26
+    t25 = Eq local26, 1 : i1
     cbr t25 then @coroutine.completed_claim_frame.1 else @coroutine.protocol_error
   block coroutine.suspended.1
     t26 = enum_wrap e3 v1 () : enum3
@@ -4706,10 +4935,10 @@ Module
     store t28 -> local1
     t29 = heap_load param0 +72 : enum5
     t30 = enum_field e5 v1 f0 t29 : ptr<managed>
-    store t30 -> local2
+    store t30 -> local5
     t31 = heap_load param0 +80 : enum9
     t32 = enum_field e9 v1 f0 t31 : i64
-    store t32 -> local5
+    store t32 -> local8
     br @coroutine.post.1
   block coroutine.failure.1
     t33 = heap_load param0 +40 : enum8
@@ -4717,7 +4946,7 @@ Module
     store t34 -> local1
     t35 = heap_load param0 +72 : enum5
     t36 = enum_field e5 v1 f0 t35 : ptr<managed>
-    store t36 -> local2
+    store t36 -> local5
     t37 = heap_load param0 +96 : enum10
     t38 = enum_field e10 v1 f0 t37 : ptr<managed>
     throw t38
@@ -4733,8 +4962,8 @@ Module
     br @entry
   block coroutine.protocol_error
     call managed-direct-target3 sp104 live=[] t43 = sig=direct3 () -> ptr<managed> local-fn30()
-    store t43 -> local22
-    throw local22
+    store t43 -> local28
+    throw local28
     unreachable
   block coroutine.dispatch.1
     t44 = Eq param1, 1 : i1

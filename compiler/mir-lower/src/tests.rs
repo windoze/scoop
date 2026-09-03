@@ -237,6 +237,36 @@ fn binary(op: hir::BinOp, lhs: hir::Expr, rhs: hir::Expr, ty: hir::TypeId) -> hi
     )
 }
 
+fn primitive_binary(
+    kind: hir::PrimitiveBinaryKind,
+    lhs: hir::Expr,
+    rhs: hir::Expr,
+    ty: hir::TypeId,
+) -> hir::Expr {
+    expr(
+        hir::ExprKind::PrimitiveBinary {
+            kind,
+            lhs: Box::new(lhs),
+            rhs: Box::new(rhs),
+        },
+        ty,
+    )
+}
+
+fn primitive_unary(
+    kind: hir::PrimitiveUnaryKind,
+    operand: hir::Expr,
+    ty: hir::TypeId,
+) -> hir::Expr {
+    expr(
+        hir::ExprKind::PrimitiveUnary {
+            kind,
+            operand: Box::new(operand),
+        },
+        ty,
+    )
+}
+
 fn call(h: &Harness, function: hir::FunctionId, args: Vec<hir::Expr>) -> hir::Expr {
     expr(
         hir::ExprKind::Call {

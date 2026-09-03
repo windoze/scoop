@@ -41,8 +41,8 @@ SourceFile
     fun load
     fun store
     fun store
-    fun plus
-    fun minus
+    operator fun plus
+    operator fun minus
   struct FunPtr<F>
     field _rawPointer: UInt
     @Unsafe
@@ -169,28 +169,53 @@ SourceFile
     @Intrinsic("core_int")
   struct Int <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun unaryMinus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_uint")
   struct UInt <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_boolean")
   struct Boolean <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun not
     fun toString
     fun hash
     @Intrinsic("core_string")
   class String(), ToString, Hash
     operator fun equals
+    operator fun plus
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_array")
   class Array<T>()
+    operator fun get
     fun toMutableArray
     @Intrinsic("core_mutable_array")
   class MutableArray<T>()
+    operator fun get
+    operator fun set
     fun toArray
     @Extern(name = "scoop_rt_int_equals", abi = "scoop")
   fun coreIntEquals(left: Int, right: Int): Boolean
@@ -407,30 +432,63 @@ Module
   fun coreBooleanHash(arg1: Boolean): Int <extern10 abi=scoop symbol=scoop_rt_bool_hash>
   fun coreStringHash(arg1: String): Int <extern11 abi=scoop symbol=scoop_rt_string_hash>
   fun firstOf<T>(a: Array<T0>): T0
+    val local1
+      Local a : Array<T0>
+    val local2
+      IntLiteral 0 : Int
+    val local3
+      Local $argument.0 : Int
     return
-      Index : T0
-        Local a : Array<T0>
-        IntLiteral 0 : Int
+      Index ImmutableGet : T0
+        Local $receiver : Array<T0>
+        Local $parameter.index : Int
   fun sum(a: Array<Int>): Int
     val local1
       IntLiteral 0 : Int
     val local2
       IntLiteral 0 : Int
     while
-      Binary Lt : Boolean
-        Local i : Int
-        ArrayLen : Int
-          Local a : Array<Int>
-      assign total
-        Binary Add : Int
-          Local total : Int
-          Index : Int
-            Local a : Array<Int>
-            Local i : Int
-      assign i
-        Binary Add : Int
+      condition setup
+        val local3
           Local i : Int
-          IntLiteral 1 : Int
+        val local4
+          ArrayLen : Int
+            Local a : Array<Int>
+        val local5
+          Local $argument.0 : Int
+      Binary Lt : Boolean
+        PrimitiveBinary IntCompareTo : Int
+          Local $receiver : Int
+          Local $parameter.other : Int
+        IntLiteral 0 : Int
+      val local9
+        Local total : Int
+      val local6
+        Local a : Array<Int>
+      val local7
+        Local i : Int
+      val local8
+        Local $argument.0 : Int
+      val local10
+        Index ImmutableGet : Int
+          Local $receiver : Array<Int>
+          Local $parameter.index : Int
+      val local11
+        Local $argument.0 : Int
+      assign total
+        PrimitiveBinary IntAdd : Int
+          Local $receiver : Int
+          Local $parameter.other : Int
+      val local12
+        Local i : Int
+      val local13
+        IntLiteral 1 : Int
+      val local14
+        Local $argument.0 : Int
+      assign i
+        PrimitiveBinary IntAdd : Int
+          Local $receiver : Int
+          Local $parameter.other : Int
     return
       Local total : Int
   fun main(): Unit
@@ -708,29 +766,57 @@ Module
       var i: Int
         Type Int
         IntLiteral 0
+      val $receiver: Int
+        Type Int
+        Local i
+      val $argument.0: Int
+        Type Int
+        ArrayLen Array$I
+          Type Array<Int>
+          Local a
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
+      var $cond.1: Boolean
+        Type Boolean
+        Binary IntLt
+          Type Int
+          Binary IntCompareTo
+            Type Int
+            Local $receiver
+            Type Int
+            Local $parameter.other
+          Type Int
+          IntLiteral 0
       goto bb1
     bb1 while.cond.1
       branch bb2 bb3
         Type Boolean
-        Binary IntLt
-          Type Int
-          Local i
-          Type Int
-          ArrayLen Array$I
-            Type Array<Int>
-            Local a
+        Local $cond.1
     bb2 while.body.2
-      val $arr.1: Array<Int>
+      val $receiver: Int
+        Type Int
+        Local total
+      val $receiver: Array<Int>
         Type Array<Int>
         Local a
-      val $idx.2: Int
+      val $argument.0: Int
         Type Int
         Local i
+      val $parameter.index: Int
+        Type Int
+        Local $argument.0
+      val $arr.2: Array<Int>
+        Type Array<Int>
+        Local $receiver
+      val $idx.3: Int
+        Type Int
+        Local $parameter.index
       branch bb5 bb4
         Type Boolean
         Binary IntLt
           Type Int
-          Local $idx.2
+          Local $idx.3
           Type Int
           IntLiteral 0
     bb3 while.exit.3
@@ -742,11 +828,11 @@ Module
         Type Boolean
         Binary IntGe
           Type Int
-          Local $idx.2
+          Local $idx.3
           Type Int
           ArrayLen Array$I
             Type Array<Int>
-            Local $arr.1
+            Local $arr.2
       goto bb6
     bb5 logic.short.5
       assign $logic.1
@@ -763,24 +849,61 @@ Module
         Type IndexOutOfBoundsException
         Local $call.2
     bb8 if.merge.8
+      val $argument.0: Int
+        Type Int
+        ArrayGet Array$I
+          Type Array<Int>
+          Local $arr.2
+          Type Int
+          Local $idx.3
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       assign total
         Type Int
         Binary IntAdd
           Type Int
-          Local total
+          Local $receiver
           Type Int
-          ArrayGet Array$I
-            Type Array<Int>
-            Local $arr.1
-            Type Int
-            Local $idx.2
+          Local $parameter.other
+      val $receiver: Int
+        Type Int
+        Local i
+      val $argument.0: Int
+        Type Int
+        IntLiteral 1
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       assign i
         Type Int
         Binary IntAdd
           Type Int
-          Local i
+          Local $receiver
           Type Int
-          IntLiteral 1
+          Local $parameter.other
+      val $receiver: Int
+        Type Int
+        Local i
+      val $argument.0: Int
+        Type Int
+        ArrayLen Array$I
+          Type Array<Int>
+          Local a
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
+      assign $cond.1
+        Type Boolean
+        Binary IntLt
+          Type Int
+          Binary IntCompareTo
+            Type Int
+            Local $receiver
+            Type Int
+            Local $parameter.other
+          Type Int
+          IntLiteral 0
       goto bb1
   fun main @scoop_main() -> Unit
     bb0 entry
@@ -846,12 +969,21 @@ Module
       return
   fun firstOf @scoop.firstOf$I(a: Array<Int>) -> Int
     bb0 entry
-      val $arr.1: Array<Int>
+      val $receiver: Array<Int>
         Type Array<Int>
         Local a
-      val $idx.2: Int
+      val $argument.0: Int
         Type Int
         IntLiteral 0
+      val $parameter.index: Int
+        Type Int
+        Local $argument.0
+      val $arr.1: Array<Int>
+        Type Array<Int>
+        Local $receiver
+      val $idx.2: Int
+        Type Int
+        Local $parameter.index
       branch bb2 bb1
         Type Boolean
         Binary IntLt
@@ -918,12 +1050,21 @@ Module
       return
   fun firstOf @scoop.firstOf$S(a: Array<String>) -> String
     bb0 entry
-      val $arr.1: Array<String>
+      val $receiver: Array<String>
         Type Array<String>
         Local a
-      val $idx.2: Int
+      val $argument.0: Int
         Type Int
         IntLiteral 0
+      val $parameter.index: Int
+        Type Int
+        Local $argument.0
+      val $arr.1: Array<String>
+        Type Array<String>
+        Local $receiver
+      val $idx.2: Int
+        Type Int
+        Local $parameter.index
       branch bb2 bb1
         Type Boolean
         Binary IntLt
@@ -1291,48 +1432,82 @@ Module
   fun @scoop.sum(ptr<managed>) -> i64
     local %0 total: i64
     local %1 i: i64
-    local %2 $arr.1: ptr<managed>
-    local %3 $idx.2: i64
-    local %4 $logic.1: i1
-    local %5 $call.2: ptr<managed>
+    local %2 $receiver: i64
+    local %3 $argument.0: i64
+    local %4 $parameter.other: i64
+    local %5 $receiver: ptr<managed>
+    local %6 $argument.0: i64
+    local %7 $parameter.index: i64
+    local %8 $receiver: i64
+    local %9 $argument.0: i64
+    local %10 $parameter.other: i64
+    local %11 $receiver: i64
+    local %12 $argument.0: i64
+    local %13 $parameter.other: i64
+    local %14 $cond.1: i1
+    local %15 $arr.2: ptr<managed>
+    local %16 $idx.3: i64
+    local %17 $logic.1: i1
+    local %18 $call.2: ptr<managed>
   block entry
     poll managed-void-target0 sp49 live=[param0:ptr<managed>@0]
     store 0 -> local0
     store 0 -> local1
+    store local1 -> local2
+    t0 = array_len array0 param0 : i64
+    store t0 -> local3
+    store local3 -> local4
+    t1 = SCompareTo local2, local4 : i64
+    t2 = Lt t1, 0 : i1
+    store t2 -> local14
     br @while.cond.1
   block while.cond.1
     poll managed-void-target0 sp50 live=[param0:ptr<managed>@0]
-    t0 = array_len array0 param0 : i64
-    t1 = Lt local1, t0 : i1
-    cbr t1 then @while.body.2 else @while.exit.3
+    cbr local14 then @while.body.2 else @while.exit.3
   block while.body.2
-    store param0 -> local2
-    store local1 -> local3
-    t2 = Lt local3, 0 : i1
-    cbr t2 then @logic.short.5 else @logic.rhs.4
+    store local0 -> local8
+    store param0 -> local5
+    store local1 -> local6
+    store local6 -> local7
+    store local5 -> local15
+    store local7 -> local16
+    t3 = Lt local16, 0 : i1
+    cbr t3 then @logic.short.5 else @logic.rhs.4
   block while.exit.3
     ret local0
   block logic.rhs.4
-    t3 = array_len array0 local2 : i64
-    t4 = Ge local3, t3 : i1
-    store t4 -> local4
+    t4 = array_len array0 local15 : i64
+    t5 = Ge local16, t4 : i1
+    store t5 -> local17
     br @logic.merge.6
   block logic.short.5
-    store true -> local4
+    store true -> local17
     br @logic.merge.6
   block logic.merge.6
-    cbr local4 then @if.then.7 else @if.merge.8
+    cbr local17 then @if.then.7 else @if.merge.8
   block if.then.7
-    call managed-direct-target0 sp12 live=[] t5 = sig=direct0 () -> ptr<managed> local-fn23()
-    store t5 -> local5
-    throw local5
+    call managed-direct-target0 sp12 live=[] t6 = sig=direct0 () -> ptr<managed> local-fn23()
+    store t6 -> local18
+    throw local18
     unreachable
   block if.merge.8
-    t6 = array_get array0 local2 local3 : i64
-    t7 = Add local0, t6 : i64
-    store t7 -> local0
-    t8 = Add local1, 1 : i64
-    store t8 -> local1
+    t7 = array_get array0 local15 local16 : i64
+    store t7 -> local9
+    store local9 -> local10
+    t8 = Add local8, local10 : i64
+    store t8 -> local0
+    store local1 -> local11
+    store 1 -> local12
+    store local12 -> local13
+    t9 = Add local11, local13 : i64
+    store t9 -> local1
+    store local1 -> local2
+    t10 = array_len array0 param0 : i64
+    store t10 -> local3
+    store local3 -> local4
+    t11 = SCompareTo local2, local4 : i64
+    t12 = Lt t11, 0 : i1
+    store t12 -> local14
     br @while.cond.1
   fun @scoop_main() -> void
     local %0 $argument.0: ptr<managed>
@@ -1375,33 +1550,39 @@ Module
     t8 = aggregate () : {}
     ret
   fun @scoop.firstOf$I(ptr<managed>) -> i64
-    local %0 $arr.1: ptr<managed>
-    local %1 $idx.2: i64
-    local %2 $logic.1: i1
-    local %3 $call.2: ptr<managed>
+    local %0 $receiver: ptr<managed>
+    local %1 $argument.0: i64
+    local %2 $parameter.index: i64
+    local %3 $arr.1: ptr<managed>
+    local %4 $idx.2: i64
+    local %5 $logic.1: i1
+    local %6 $call.2: ptr<managed>
   block entry
     poll managed-void-target0 sp52 live=[param0:ptr<managed>@0]
     store param0 -> local0
     store 0 -> local1
-    t0 = Lt local1, 0 : i1
+    store local1 -> local2
+    store local0 -> local3
+    store local2 -> local4
+    t0 = Lt local4, 0 : i1
     cbr t0 then @logic.short.2 else @logic.rhs.1
   block logic.rhs.1
-    t1 = array_len array0 local0 : i64
-    t2 = Ge local1, t1 : i1
-    store t2 -> local2
+    t1 = array_len array0 local3 : i64
+    t2 = Ge local4, t1 : i1
+    store t2 -> local5
     br @logic.merge.3
   block logic.short.2
-    store true -> local2
+    store true -> local5
     br @logic.merge.3
   block logic.merge.3
-    cbr local2 then @if.then.4 else @if.merge.5
+    cbr local5 then @if.then.4 else @if.merge.5
   block if.then.4
     call managed-direct-target0 sp22 live=[] t3 = sig=direct0 () -> ptr<managed> local-fn23()
-    store t3 -> local3
-    throw local3
+    store t3 -> local6
+    throw local6
     unreachable
   block if.merge.5
-    t4 = array_get array0 local0 local1 : i64
+    t4 = array_get array0 local3 local4 : i64
     ret t4
   fun @scoop.println$I(i64) -> void
     local %0 $receiver: i64
@@ -1423,33 +1604,39 @@ Module
     t2 = aggregate () : {}
     ret
   fun @scoop.firstOf$S(ptr<managed>) -> ptr<managed>
-    local %0 $arr.1: ptr<managed>
-    local %1 $idx.2: i64
-    local %2 $logic.1: i1
-    local %3 $call.2: ptr<managed>
+    local %0 $receiver: ptr<managed>
+    local %1 $argument.0: i64
+    local %2 $parameter.index: i64
+    local %3 $arr.1: ptr<managed>
+    local %4 $idx.2: i64
+    local %5 $logic.1: i1
+    local %6 $call.2: ptr<managed>
   block entry
     poll managed-void-target0 sp54 live=[param0:ptr<managed>@0]
     store param0 -> local0
     store 0 -> local1
-    t0 = Lt local1, 0 : i1
+    store local1 -> local2
+    store local0 -> local3
+    store local2 -> local4
+    t0 = Lt local4, 0 : i1
     cbr t0 then @logic.short.2 else @logic.rhs.1
   block logic.rhs.1
-    t1 = array_len array1 local0 : i64
-    t2 = Ge local1, t1 : i1
-    store t2 -> local2
+    t1 = array_len array1 local3 : i64
+    t2 = Ge local4, t1 : i1
+    store t2 -> local5
     br @logic.merge.3
   block logic.short.2
-    store true -> local2
+    store true -> local5
     br @logic.merge.3
   block logic.merge.3
-    cbr local2 then @if.then.4 else @if.merge.5
+    cbr local5 then @if.then.4 else @if.merge.5
   block if.then.4
     call managed-direct-target0 sp26 live=[] t3 = sig=direct0 () -> ptr<managed> local-fn23()
-    store t3 -> local3
-    throw local3
+    store t3 -> local6
+    throw local6
     unreachable
   block if.merge.5
-    t4 = array_get array1 local0 local1 : ptr<managed>
+    t4 = array_get array1 local3 local4 : ptr<managed>
     ret t4
   fun @scoop.println$S(ptr<managed>) -> void
     local %0 $receiver: ptr<managed>

@@ -134,11 +134,6 @@ impl Lowerer {
             _ => unreachable!("only conventional binary operators enter this path"),
         };
         let receiver = self.lower_expr(receiver, sink, None)?;
-        if self.uses_legacy_binary_operator(op, receiver.ty)
-            && !self.type_exposes_operator(receiver.ty, kind)
-        {
-            return self.lower_legacy_conventional_binary(op, receiver, argument, span, sink);
-        }
         let name = ast::Ident {
             text: name.to_string(),
             span,
@@ -192,120 +187,6 @@ impl Lowerer {
         })
     }
 
-    fn type_exposes_operator(&mut self, ty: TypeId, kind: hir::OperatorKind) -> bool {
-        let name = operator_source_name(kind);
-        if self
-            .methods_by_name(ty, name)
-            .into_iter()
-            .any(|candidate| self.signatures[&candidate.function].modifiers.operator == Some(kind))
-        {
-            return true;
-        }
-        self.extension_candidate_layers(name)
-            .into_iter()
-            .flatten()
-            .any(|function| self.signatures[&function].modifiers.operator == Some(kind))
-    }
-
-    /// Compatibility bridge for the core declarations migrated in slice 7.
-    /// User-defined capability never enters this branch: it is selected above
-    /// through the typed operator role and the ordinary overload resolver.
-    fn lower_legacy_conventional_binary(
-        &mut self,
-        op: ast::BinOp,
-        receiver: hir::Expr,
-        argument: &ast::Expr,
-        span: Span,
-        sink: &mut Vec<hir::Statement>,
-    ) -> Option<hir::Expr> {
-        let pointer = matches!(self.types[receiver.ty], Type::Ptr(_));
-        let argument = self.lower_expr(argument, sink, None)?;
-        let (hir_op, symbol) = match op {
-            ast::BinOp::Add => (hir::BinOp::Add, "+"),
-            ast::BinOp::Sub => (hir::BinOp::Sub, "-"),
-            ast::BinOp::Mul => (hir::BinOp::Mul, "*"),
-            ast::BinOp::Div => (hir::BinOp::Div, "/"),
-            ast::BinOp::Rem => (hir::BinOp::Rem, "%"),
-            ast::BinOp::Lt => (hir::BinOp::Lt, "<"),
-            ast::BinOp::Le => (hir::BinOp::Le, "<="),
-            ast::BinOp::Gt => (hir::BinOp::Gt, ">"),
-            ast::BinOp::Ge => (hir::BinOp::Ge, ">="),
-            _ => unreachable!("the compatibility bridge accepts a closed operator set"),
-        };
-        if pointer {
-            if argument.ty != self.int {
-                self.error(
-                    span,
-                    format!(
-                        "pointer operator `{symbol}` requires an Int offset, found {}",
-                        self.type_name(argument.ty)
-                    ),
-                );
-                return None;
-            }
-            self.require_unsafe_operation(span, "pointer arithmetic");
-            let ty = receiver.ty;
-            return Some(hir::Expr {
-                kind: ExprKind::PtrOffset {
-                    pointer: Box::new(receiver),
-                    offset: Box::new(argument),
-                    subtract: op == ast::BinOp::Sub,
-                },
-                ty,
-                span,
-                origin: self.expression_origin(span),
-            });
-        }
-        let ty = if hir_op == hir::BinOp::Add
-            && receiver.ty == self.string
-            && argument.ty == self.string
-        {
-            self.string
-        } else {
-            self.expect_numeric_operands(symbol, &receiver, &argument, span)?;
-            if matches!(
-                hir_op,
-                hir::BinOp::Lt | hir::BinOp::Le | hir::BinOp::Gt | hir::BinOp::Ge
-            ) {
-                self.boolean
-            } else {
-                receiver.ty
-            }
-        };
-        Some(hir::Expr {
-            kind: ExprKind::Binary {
-                op: hir_op,
-                lhs: Box::new(receiver),
-                rhs: Box::new(argument),
-            },
-            ty,
-            span,
-            origin: self.expression_origin(span),
-        })
-    }
-
-    fn uses_legacy_binary_operator(&self, op: ast::BinOp, receiver: TypeId) -> bool {
-        let scalar_or_parameter = matches!(
-            self.types[receiver],
-            Type::Int | Type::UInt | Type::Boolean | Type::String | Type::Param(_)
-        );
-        scalar_or_parameter
-            && matches!(
-                op,
-                ast::BinOp::Add
-                    | ast::BinOp::Sub
-                    | ast::BinOp::Mul
-                    | ast::BinOp::Div
-                    | ast::BinOp::Rem
-                    | ast::BinOp::Lt
-                    | ast::BinOp::Le
-                    | ast::BinOp::Gt
-                    | ast::BinOp::Ge
-            )
-            || matches!(self.types[receiver], Type::Ptr(_))
-                && matches!(op, ast::BinOp::Add | ast::BinOp::Sub)
-    }
-
     pub(super) fn lower_binary(
         &mut self,
         op: ast::BinOp,
@@ -314,6 +195,9 @@ impl Lowerer {
         span: Span,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
+        if matches!(op, ast::BinOp::And | ast::BinOp::Or) {
+            return self.lower_short_circuit(op, lhs, rhs, span, sink);
+        }
         if matches!(
             op,
             ast::BinOp::Add
@@ -337,36 +221,20 @@ impl Lowerer {
         if matches!(op, ast::BinOp::RefEq | ast::BinOp::RefNe) {
             return self.lower_ref_eq(op, lhs, rhs, span, sink);
         }
-        let (op, symbol) = convert_bin_op(op);
+        debug_assert!(matches!(op, ast::BinOp::Eq | ast::BinOp::Ne));
+        let negate = op == ast::BinOp::Ne;
+        let symbol = if negate { "!=" } else { "==" };
         // `x == None` / `None == x`: the `None` construction takes its
         // type from the other operand (expected-type hint), so the
         // other side is lowered first. (`None` itself is side-effect
         // free, so lowering order is unobservable here.)
-        let (lhs, rhs) = if matches!(op, hir::BinOp::Eq | hir::BinOp::Ne)
-            && is_none_literal(lhs)
-            && !is_none_literal(rhs)
-        {
+        let (lhs, rhs) = if is_none_literal(lhs) && !is_none_literal(rhs) {
             let rhs = self.lower_expr(rhs, sink, None)?;
             let lhs = self.lower_expr(lhs, sink, Some(rhs.ty))?;
             (lhs, rhs)
-        } else if op == hir::BinOp::And {
-            // `x is T && ...`: the right side is only evaluated when
-            // the left holds, so its smart-cast narrowings apply there
-            // (milestone6 DESIGN.md 5.4).
-            let lhs_ast = lhs;
-            let before = self.diagnostics.len();
-            let lhs = self.lower_expr(lhs_ast, sink, None)?;
-            let narrowings = if self.diagnostics.len() == before {
-                self.resolve_smart_casts(lhs_ast, true)
-            } else {
-                Vec::new()
-            };
-            let rhs = self.with_smart_casts(narrowings, |this| this.lower_expr(rhs, sink, None))?;
-            (lhs, rhs)
         } else {
             let lhs = self.lower_expr(lhs, sink, None)?;
-            let rhs_hint = if matches!(op, hir::BinOp::Eq | hir::BinOp::Ne) && is_none_literal(rhs)
-            {
+            let rhs_hint = if is_none_literal(rhs) {
                 Some(lhs.ty)
             } else {
                 None
@@ -374,46 +242,96 @@ impl Lowerer {
             let rhs = self.lower_expr(rhs, sink, rhs_hint)?;
             (lhs, rhs)
         };
-        if matches!(op, hir::BinOp::Eq | hir::BinOp::Ne) {
-            return self.lower_equality_operator(op, lhs, rhs, symbol, span, sink);
-        }
-        let ty = match op {
-            hir::BinOp::Add
-            | hir::BinOp::Sub
-            | hir::BinOp::Mul
-            | hir::BinOp::Div
-            | hir::BinOp::Rem
-            | hir::BinOp::Lt
-            | hir::BinOp::Le
-            | hir::BinOp::Gt
-            | hir::BinOp::Ge => {
-                unreachable!("overloadable operators use the conventional call path")
-            }
-            hir::BinOp::Eq | hir::BinOp::Ne | hir::BinOp::RefEq | hir::BinOp::RefNe => {
-                unreachable!("equality operators are lowered before primitive binary operators")
-            }
-            hir::BinOp::And | hir::BinOp::Or => {
-                if lhs.ty != self.boolean || rhs.ty != self.boolean {
-                    let lhs_ty = self.type_name(lhs.ty);
-                    let rhs_ty = self.type_name(rhs.ty);
-                    self.error(
-                        span,
-                        format!(
-                            "operator `{symbol}` requires Boolean operands, found {lhs_ty} and {rhs_ty}"
-                        ),
-                    );
-                    return None;
-                }
-                self.boolean
-            }
+        self.lower_equality_operator(negate, lhs, rhs, symbol, span, sink)
+    }
+
+    fn lower_short_circuit(
+        &mut self,
+        source_op: ast::BinOp,
+        lhs: &ast::Expr,
+        rhs: &ast::Expr,
+        span: Span,
+        sink: &mut Vec<hir::Statement>,
+    ) -> Option<hir::Expr> {
+        let lhs_ast = lhs;
+        let before = self.diagnostics.len();
+        let lhs = self.lower_expr(lhs_ast, sink, None)?;
+        let rhs_outcome = source_op == ast::BinOp::And;
+        let narrowings = if self.diagnostics.len() == before {
+            self.resolve_smart_casts(lhs_ast, rhs_outcome)
+        } else {
+            Vec::new()
         };
-        Some(hir::Expr {
-            kind: ExprKind::Binary {
-                op,
-                lhs: Box::new(lhs),
-                rhs: Box::new(rhs),
+        let mut rhs_setup = Vec::new();
+        let rhs = self.with_smart_casts(narrowings, |this| {
+            this.lower_expr(rhs, &mut rhs_setup, None)
+        })?;
+        let symbol = if source_op == ast::BinOp::And {
+            "&&"
+        } else {
+            "||"
+        };
+        if lhs.ty != self.boolean || rhs.ty != self.boolean {
+            let lhs_ty = self.type_name(lhs.ty);
+            let rhs_ty = self.type_name(rhs.ty);
+            self.error(
+                span,
+                format!(
+                    "operator `{symbol}` requires Boolean operands, found {lhs_ty} and {rhs_ty}"
+                ),
+            );
+            return None;
+        }
+        let op = if source_op == ast::BinOp::And {
+            hir::BinOp::And
+        } else {
+            hir::BinOp::Or
+        };
+        if rhs_setup.is_empty() {
+            return Some(hir::Expr {
+                kind: ExprKind::Binary {
+                    op,
+                    lhs: Box::new(lhs),
+                    rhs: Box::new(rhs),
+                },
+                ty: self.boolean,
+                span,
+                origin: self.expression_origin(span),
+            });
+        }
+
+        let result = self.alloc_hidden("shortCircuit", self.boolean);
+        let result_decl = |value| hir::Statement {
+            kind: hir::StatementKind::ValDecl {
+                pattern: hir::Pattern::Binding { local: result },
+                init: value,
             },
-            ty,
+            span,
+        };
+        let literal = |value| hir::Expr {
+            kind: ExprKind::BoolLiteral(value),
+            ty: self.boolean,
+            span,
+            origin: self.expression_origin(span),
+        };
+        let mut rhs_branch = rhs_setup;
+        rhs_branch.push(result_decl(rhs));
+        let (then_body, else_body) = if op == hir::BinOp::And {
+            (rhs_branch, vec![result_decl(literal(false))])
+        } else {
+            (vec![result_decl(literal(true))], rhs_branch)
+        };
+        sink.push(hir::Statement {
+            kind: hir::StatementKind::If {
+                cond: lhs,
+                then_body,
+                else_body: Some(else_body),
+            },
+            span,
+        });
+        Some(hir::Expr {
+            kind: ExprKind::Local(result),
+            ty: self.boolean,
             span,
             origin: self.expression_origin(span),
         })
@@ -427,7 +345,7 @@ impl Lowerer {
     /// candidate whose application carries its complete ordinary HIR body.
     pub(super) fn lower_equality_operator(
         &mut self,
-        op: hir::BinOp,
+        negate: bool,
         lhs: hir::Expr,
         rhs: hir::Expr,
         symbol: &str,
@@ -472,7 +390,7 @@ impl Lowerer {
                 span,
                 origin: self.expression_origin(span),
             };
-            return Some(if op == hir::BinOp::Ne {
+            return Some(if negate {
                 hir::Expr {
                     kind: ExprKind::Unary {
                         op: hir::UnOp::Not,
@@ -520,7 +438,7 @@ impl Lowerer {
                 span,
                 origin: self.expression_origin(span),
             };
-            return Some(if op == hir::BinOp::Ne {
+            return Some(if negate {
                 hir::Expr {
                     kind: ExprKind::Unary {
                         op: hir::UnOp::Not,
@@ -642,43 +560,6 @@ impl Lowerer {
         })
     }
 
-    /// Arithmetic and comparison operators require both operands to
-    /// share one numeric type and return it (`Int` or — M9,
-    /// milestone9 DESIGN.md section 1 — `UInt`, under the same rules;
-    /// comparisons yield `Boolean` at the call site). Mixing `Int`
-    /// and `UInt` is an error: the types are distinct and there is no
-    /// implicit conversion (spec 11.2). Type parameters are rejected
-    /// too: `T` is unconstrained, so no operation beyond `==` / `!=`
-    /// can be proven valid at the definition site (DESIGN.md 2.2).
-    /// The unsigned semantics risks of `UInt` arithmetic (subtraction
-    /// underflow, signed-vs-unsigned comparison) are deferred to a
-    /// later milestone; the machine word wraps for now.
-    pub(super) fn expect_numeric_operands(
-        &mut self,
-        symbol: &str,
-        lhs: &hir::Expr,
-        rhs: &hir::Expr,
-        span: Span,
-    ) -> Option<TypeId> {
-        if lhs.ty == self.int && rhs.ty == self.int {
-            return Some(self.int);
-        }
-        if lhs.ty == self.uint && rhs.ty == self.uint {
-            return Some(self.uint);
-        }
-        let lhs_ty = self.type_name(lhs.ty);
-        let rhs_ty = self.type_name(rhs.ty);
-        let message = if lhs.ty == self.uint || rhs.ty == self.uint {
-            format!(
-                "operator `{symbol}` requires Int or UInt operands of the same type, found {lhs_ty} and {rhs_ty}"
-            )
-        } else {
-            format!("operator `{symbol}` requires Int operands, found {lhs_ty} and {rhs_ty}")
-        };
-        self.error(span, message);
-        None
-    }
-
     pub(super) fn lower_unary(
         &mut self,
         op: ast::UnOp,
@@ -687,56 +568,11 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
         let receiver = self.lower_expr(operand, sink, None)?;
-        let (kind, name, legacy) = match op {
-            ast::UnOp::Plus => (
-                hir::OperatorKind::UnaryPlus,
-                "unaryPlus",
-                (receiver.ty == self.int || receiver.ty == self.uint).then_some(None),
-            ),
-            ast::UnOp::Neg => (
-                hir::OperatorKind::UnaryMinus,
-                "unaryMinus",
-                (receiver.ty == self.int).then_some(Some(hir::UnOp::Neg)),
-            ),
-            ast::UnOp::Not => (
-                hir::OperatorKind::Not,
-                "not",
-                (receiver.ty == self.boolean).then_some(Some(hir::UnOp::Not)),
-            ),
+        let (kind, name) = match op {
+            ast::UnOp::Plus => (hir::OperatorKind::UnaryPlus, "unaryPlus"),
+            ast::UnOp::Neg => (hir::OperatorKind::UnaryMinus, "unaryMinus"),
+            ast::UnOp::Not => (hir::OperatorKind::Not, "not"),
         };
-        if matches!(
-            self.types[receiver.ty],
-            Type::Int | Type::UInt | Type::Boolean | Type::String | Type::Param(_)
-        ) && !self.type_exposes_operator(receiver.ty, kind)
-        {
-            if let Some(legacy) = legacy {
-                return Some(match legacy {
-                    None => receiver,
-                    Some(op) => hir::Expr {
-                        ty: receiver.ty,
-                        kind: ExprKind::Unary {
-                            op,
-                            operand: Box::new(receiver),
-                        },
-                        span,
-                        origin: self.expression_origin(span),
-                    },
-                });
-            }
-            let (symbol, expected, article) = match op {
-                ast::UnOp::Plus => ("+", "Int", "an"),
-                ast::UnOp::Neg => ("-", "Int", "an"),
-                ast::UnOp::Not => ("!", "Boolean", "a"),
-            };
-            self.error(
-                span,
-                format!(
-                    "operator `{symbol}` requires {article} {expected} operand, found {}",
-                    self.type_name(receiver.ty)
-                ),
-            );
-            return None;
-        }
         self.lower_named_call_on_receiver(
             receiver,
             &ast::Ident {
@@ -755,35 +591,5 @@ impl Lowerer {
                 infix: false,
             },
         )
-    }
-}
-
-fn operator_source_name(kind: hir::OperatorKind) -> &'static str {
-    match kind {
-        hir::OperatorKind::UnaryPlus => "unaryPlus",
-        hir::OperatorKind::UnaryMinus => "unaryMinus",
-        hir::OperatorKind::Not => "not",
-        hir::OperatorKind::Inc => "inc",
-        hir::OperatorKind::Dec => "dec",
-        hir::OperatorKind::Plus => "plus",
-        hir::OperatorKind::Minus => "minus",
-        hir::OperatorKind::Times => "times",
-        hir::OperatorKind::Div => "div",
-        hir::OperatorKind::Rem => "rem",
-        hir::OperatorKind::RangeTo => "rangeTo",
-        hir::OperatorKind::RangeUntil => "rangeUntil",
-        hir::OperatorKind::Contains => "contains",
-        hir::OperatorKind::Get => "get",
-        hir::OperatorKind::Set => "set",
-        hir::OperatorKind::Invoke => "invoke",
-        hir::OperatorKind::PlusAssign => "plusAssign",
-        hir::OperatorKind::MinusAssign => "minusAssign",
-        hir::OperatorKind::TimesAssign => "timesAssign",
-        hir::OperatorKind::DivAssign => "divAssign",
-        hir::OperatorKind::RemAssign => "remAssign",
-        hir::OperatorKind::CompareTo => "compareTo",
-        hir::OperatorKind::Equals => "equals",
-        hir::OperatorKind::Component { .. } => "componentN",
-        hir::OperatorKind::Iterator => "iterator",
     }
 }

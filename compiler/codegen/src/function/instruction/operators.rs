@@ -41,6 +41,42 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                             BinOp::Mul => builder.build_int_mul(lhs, rhs, &name),
                             BinOp::SDiv => builder.build_int_signed_div(lhs, rhs, &name),
                             BinOp::SRem => builder.build_int_signed_rem(lhs, rhs, &name),
+                            BinOp::UDiv => builder.build_int_unsigned_div(lhs, rhs, &name),
+                            BinOp::URem => builder.build_int_unsigned_rem(lhs, rhs, &name),
+                            BinOp::SCompareTo | BinOp::UCompareTo => (|| {
+                                let (less, greater) = if *op == BinOp::SCompareTo {
+                                    (IntPredicate::SLT, IntPredicate::SGT)
+                                } else {
+                                    (IntPredicate::ULT, IntPredicate::UGT)
+                                };
+                                let less = builder.build_int_compare(
+                                    less,
+                                    lhs,
+                                    rhs,
+                                    &format!("{name}.lt"),
+                                )?;
+                                let greater = builder.build_int_compare(
+                                    greater,
+                                    lhs,
+                                    rhs,
+                                    &format!("{name}.gt"),
+                                )?;
+                                let ty = lhs.get_type();
+                                let positive = builder
+                                    .build_select(
+                                        greater,
+                                        ty.const_int(1, false),
+                                        ty.const_zero(),
+                                        &format!("{name}.positive"),
+                                    )?
+                                    .into_int_value();
+                                Ok::<_, inkwell::builder::BuilderError>(
+                                    builder
+                                        .build_select(less, ty.const_all_ones(), positive, &name)?
+                                        .into_int_value(),
+                                )
+                            })(
+                            ),
                             BinOp::Lt => {
                                 builder.build_int_compare(IntPredicate::SLT, lhs, rhs, &name)
                             }

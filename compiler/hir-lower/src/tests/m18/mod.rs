@@ -558,11 +558,190 @@ fn overloadable_expressions_select_only_typed_operator_roles() {
     assert_eq!(direct_method_name(&module, operand), "Bag.contains");
     assert!(matches!(
         local_init(body, "remainder").kind,
-        hir::ExprKind::Binary {
-            op: hir::BinOp::Rem,
+        hir::ExprKind::PrimitiveBinary {
+            kind: hir::PrimitiveBinaryKind::IntRem,
             ..
         }
     ));
+}
+
+#[test]
+fn core_operator_winners_normalize_to_closed_typed_intrinsics() {
+    let module = lower_user(file(vec![fun(
+        "main",
+        vec![
+            val("positive", unary(UnOp::Plus, int_lit(1))),
+            val("negative", unary(UnOp::Neg, int_lit(1))),
+            val("sum", binary(BinOp::Add, int_lit(1), int_lit(2))),
+            val("difference", binary(BinOp::Sub, int_lit(3), int_lit(2))),
+            val("product", binary(BinOp::Mul, int_lit(3), int_lit(2))),
+            val("quotient", binary(BinOp::Div, int_lit(6), int_lit(2))),
+            val("remainder", binary(BinOp::Rem, int_lit(7), int_lit(3))),
+            val("ordered", binary(BinOp::Lt, int_lit(1), int_lit(2))),
+            val("negated", unary(UnOp::Not, bool_lit(false))),
+            val("text", binary(BinOp::Add, str_lit("a"), str_lit("b"))),
+            val(
+                "text_ordered",
+                binary(BinOp::Lt, str_lit("a"), str_lit("b")),
+            ),
+            val("array", array_lit(vec![int_lit(1)])),
+            val("first", subscript(var("array"), int_lit(0))),
+            val_ty(
+                "mutable",
+                Some(ty_generic("MutableArray", vec![ty_named("Int")])),
+                array_lit(vec![int_lit(1)]),
+            ),
+            assign_index(var("mutable"), int_lit(0), int_lit(2)),
+        ],
+    )]))
+    .expect("validated core operators must normalize after overload selection");
+    let body = function_body(&module, "main");
+    for (name, kind) in [
+        ("positive", hir::PrimitiveUnaryKind::IntUnaryPlus),
+        ("negative", hir::PrimitiveUnaryKind::IntUnaryMinus),
+        ("negated", hir::PrimitiveUnaryKind::BooleanNot),
+    ] {
+        assert!(matches!(
+            &local_init(body, name).kind,
+            hir::ExprKind::PrimitiveUnary { kind: actual, .. } if *actual == kind
+        ));
+    }
+    for (name, kind) in [
+        ("sum", hir::PrimitiveBinaryKind::IntAdd),
+        ("difference", hir::PrimitiveBinaryKind::IntSub),
+        ("product", hir::PrimitiveBinaryKind::IntMul),
+        ("quotient", hir::PrimitiveBinaryKind::IntDiv),
+        ("remainder", hir::PrimitiveBinaryKind::IntRem),
+        ("text", hir::PrimitiveBinaryKind::StringConcat),
+    ] {
+        assert!(matches!(
+            &local_init(body, name).kind,
+            hir::ExprKind::PrimitiveBinary { kind: actual, .. } if *actual == kind
+        ));
+    }
+    for (name, kind) in [
+        ("ordered", hir::PrimitiveBinaryKind::IntCompareTo),
+        ("text_ordered", hir::PrimitiveBinaryKind::StringCompareTo),
+    ] {
+        let hir::ExprKind::Binary { lhs, .. } = &local_init(body, name).kind else {
+            panic!("comparison must compare a typed compareTo result")
+        };
+        assert!(matches!(
+            &lhs.kind,
+            hir::ExprKind::PrimitiveBinary { kind: actual, .. } if *actual == kind
+        ));
+    }
+    assert!(matches!(
+        local_init(body, "first").kind,
+        hir::ExprKind::Index {
+            access: hir::ArrayAccessKind::ImmutableGet,
+            ..
+        }
+    ));
+    assert!(body.statements.iter().any(|statement| matches!(
+        statement.kind,
+        hir::StatementKind::Expr(hir::Expr {
+            kind: hir::ExprKind::ArraySet {
+                access: hir::ArrayAccessKind::MutableSet,
+                ..
+            },
+            ..
+        })
+    )));
+    let dump = hir::dump(&module);
+    assert!(!dump.contains("MethodCall Int.plus"), "{dump}");
+    assert!(!dump.contains("MethodCall String.compareTo"), "{dump}");
+}
+
+#[test]
+fn core_operator_intrinsics_are_required_and_shape_checked() {
+    let user = || file(vec![fun("main", vec![])]);
+
+    let mut missing = core_file();
+    let int = missing
+        .declarations
+        .iter_mut()
+        .find_map(|declaration| match declaration {
+            Decl::Struct(strukt) if strukt.name.text == "Int" => Some(strukt),
+            _ => None,
+        })
+        .expect("test core declares Int");
+    int.methods.retain(|method| method.name.text != "plus");
+    let errors = lower(&[missing, user()]).expect_err("Int.plus is a required core contract");
+    assert!(errors.iter().any(|error| {
+        error.message == "scoop.core must define exactly one `int_add` intrinsic"
+    }));
+
+    let mut malformed = core_file();
+    let string = malformed
+        .declarations
+        .iter_mut()
+        .find_map(|declaration| match declaration {
+            Decl::Class(class) if class.name.text == "String" => Some(class),
+            _ => None,
+        })
+        .expect("test core declares String");
+    string
+        .methods
+        .iter_mut()
+        .find(|method| method.name.text == "compareTo")
+        .expect("test core declares String.compareTo")
+        .operator = None;
+    let errors =
+        lower(&[malformed, user()]).expect_err("String.compareTo has an exact intrinsic signature");
+    assert!(
+        errors.iter().any(|error| {
+            error.message == "malformed core operator intrinsic `string_compare_to`"
+        })
+    );
+}
+
+#[test]
+fn operator_argument_materialization_stays_on_the_short_circuit_rhs() {
+    let module = lower_user(file(vec![
+        fun_expr("next", vec![], vec![], Some(ty_named("Int")), int_lit(1)),
+        fun(
+            "main",
+            vec![val(
+                "result",
+                binary(
+                    BinOp::And,
+                    bool_lit(false),
+                    binary(BinOp::Gt, call("next", vec![]), int_lit(0)),
+                ),
+            )],
+        ),
+    ]))
+    .expect("RHS operator calls must preserve Boolean short-circuiting");
+    let body = function_body(&module, "main");
+    let hir::StatementKind::If {
+        then_body,
+        else_body: Some(_),
+        ..
+    } = &body.statements[0].kind
+    else {
+        panic!("operator setup must be represented by a short-circuit branch")
+    };
+    assert!(then_body.iter().any(|statement| match &statement.kind {
+        hir::StatementKind::ValDecl { init, .. }
+            if matches!(init.kind, hir::ExprKind::Call { .. }) =>
+        {
+            direct_callable_name(&module, init) == "next"
+        }
+        _ => false,
+    }));
+    assert!(
+        !body.statements[1..]
+            .iter()
+            .any(|statement| match &statement.kind {
+                hir::StatementKind::ValDecl { init, .. }
+                    if matches!(init.kind, hir::ExprKind::Call { .. }) =>
+                {
+                    direct_callable_name(&module, init) == "next"
+                }
+                _ => false,
+            })
+    );
 }
 
 #[test]

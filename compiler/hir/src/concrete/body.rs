@@ -1,4 +1,5 @@
 use super::*;
+use crate::{ArrayAccessKind, PrimitiveBinaryKind, PrimitiveUnaryKind};
 
 #[derive(Debug, Clone)]
 pub struct Statement {
@@ -75,9 +76,15 @@ pub struct When {
 #[derive(Debug, Clone)]
 pub struct WhenArm {
     pub pattern: Pattern,
-    pub guard: Option<Expr>,
+    pub guard: Option<WhenGuard>,
     pub body: Vec<Statement>,
     pub span: Span,
+}
+
+#[derive(Debug, Clone)]
+pub struct WhenGuard {
+    pub setup: Vec<Statement>,
+    pub condition: Expr,
 }
 
 #[derive(Debug, Clone)]
@@ -198,8 +205,15 @@ pub enum ExprKind {
     ArrayLiteral(Vec<Expr>),
     ArrayAssembly(ArrayAssembly),
     Index {
+        access: ArrayAccessKind,
         receiver: Box<Expr>,
         index: Box<Expr>,
+    },
+    ArraySet {
+        access: ArrayAccessKind,
+        receiver: Box<Expr>,
+        index: Box<Expr>,
+        value: Box<Expr>,
     },
     ArrayLen(Box<Expr>),
     ArrayClone(Box<Expr>),
@@ -217,6 +231,15 @@ pub enum ExprKind {
         callee: Box<Expr>,
         function_type: FunctionTypeId,
         args: Vec<Expr>,
+    },
+    PrimitiveBinary {
+        kind: PrimitiveBinaryKind,
+        lhs: Box<Expr>,
+        rhs: Box<Expr>,
+    },
+    PrimitiveUnary {
+        kind: PrimitiveUnaryKind,
+        operand: Box<Expr>,
     },
     Binary {
         op: BinOp,

@@ -41,8 +41,8 @@ SourceFile
     fun load
     fun store
     fun store
-    fun plus
-    fun minus
+    operator fun plus
+    operator fun minus
   struct FunPtr<F>
     field _rawPointer: UInt
     @Unsafe
@@ -169,28 +169,53 @@ SourceFile
     @Intrinsic("core_int")
   struct Int <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun unaryMinus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_uint")
   struct UInt <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_boolean")
   struct Boolean <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun not
     fun toString
     fun hash
     @Intrinsic("core_string")
   class String(), ToString, Hash
     operator fun equals
+    operator fun plus
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_array")
   class Array<T>()
+    operator fun get
     fun toMutableArray
     @Intrinsic("core_mutable_array")
   class MutableArray<T>()
+    operator fun get
+    operator fun set
     fun toArray
     @Extern(name = "scoop_rt_int_equals", abi = "scoop")
   fun coreIntEquals(left: Int, right: Int): Boolean
@@ -506,112 +531,124 @@ Module
           Local $parameter.value : Int
       arm variant1(0: local13, 1: local14)
         val local15
-          Binary Add : Int
-            Local w : Int
-            Local h : Int
-        val local16
-          Local $argument.0 : Int
-        Call println<Int> : Unit
-          Local $parameter.value : Int
-      arm variant2(0: local17)
-        val local18
           Local w : Int
+        val local16
+          Local h : Int
+        val local17
+          Local $argument.0 : Int
+        val local18
+          PrimitiveBinary IntAdd : Int
+            Local $receiver : Int
+            Local $parameter.other : Int
         val local19
           Local $argument.0 : Int
         Call println<Int> : Unit
           Local $parameter.value : Int
-      arm variant3(0: local20)
+      arm variant2(0: local20)
         val local21
-          Local d : Int
+          Local w : Int
         val local22
           Local $argument.0 : Int
         Call println<Int> : Unit
           Local $parameter.value : Int
-    val local23
-      IntLiteral 3 : Int
-    val local24
-      IntLiteral 4 : Int
-    val local25
-      Local $argument.0 : Int
+      arm variant3(0: local23)
+        val local24
+          Local d : Int
+        val local25
+          Local $argument.0 : Int
+        Call println<Int> : Unit
+          Local $parameter.value : Int
     val local26
-      Local $argument.1 : Int
+      IntLiteral 3 : Int
     val local27
+      IntLiteral 4 : Int
+    val local28
+      Local $argument.0 : Int
+    val local29
+      Local $argument.1 : Int
+    val local30
       VariantConstruct Shape.Rect : Shape
         Local $parameter._1 : Int
         Local $parameter._2 : Int
     when
       Local r : Shape
-      arm variant0(0: local28)
-        val local29
+      arm variant0(0: local31)
+        val local32
           Local x : Int
-        val local30
-          Local $argument.0 : Int
-        Call println<Int> : Unit
-          Local $parameter.value : Int
-      arm variant1(0: local31, 1: local32)
         val local33
-          Binary Add : Int
-            Local w : Int
-            Local h : Int
-        val local34
           Local $argument.0 : Int
         Call println<Int> : Unit
           Local $parameter.value : Int
-      arm variant2(0: local35)
+      arm variant1(0: local34, 1: local35)
         val local36
           Local w : Int
         val local37
+          Local h : Int
+        val local38
           Local $argument.0 : Int
-        Call println<Int> : Unit
-          Local $parameter.value : Int
-      arm variant3(0: local38)
         val local39
-          Local d : Int
+          PrimitiveBinary IntAdd : Int
+            Local $receiver : Int
+            Local $parameter.other : Int
         val local40
           Local $argument.0 : Int
         Call println<Int> : Unit
           Local $parameter.value : Int
-    val local41
+      arm variant2(0: local41)
+        val local42
+          Local w : Int
+        val local43
+          Local $argument.0 : Int
+        Call println<Int> : Unit
+          Local $parameter.value : Int
+      arm variant3(0: local44)
+        val local45
+          Local d : Int
+        val local46
+          Local $argument.0 : Int
+        Call println<Int> : Unit
+          Local $parameter.value : Int
+    val local47
       IntLiteral 7 : Int
-    val local42
+    val local48
       VariantConstruct Shape.WithDefault : Shape
         Local $parameter.d : Int
     when
       Local d : Shape
-      arm variant3(0: local43)
-        val local44
+      arm variant3(0: local49)
+        val local50
           Local x : Int
-        val local45
+        val local51
           Local $argument.0 : Int
         Call println<Int> : Unit
           Local $parameter.value : Int
       else
-        val local46
+        val local52
           StringLiteral "other" : String
-        val local47
+        val local53
           Local $argument.0 : String
         Call println<String> : Unit
           Local $parameter.value : String
-    val local48
+    val local54
       IntLiteral 3 : Int
-    val local49
+    val local55
       Local $argument.0 : Int
-    val local50
+    val local56
       VariantConstruct Shape.WithDefault : Shape
         Local $parameter.d : Int
     when
       Local d2 : Shape
-      arm variant3(0: local51)
-        val local52
+      arm variant3(0: local57)
+        val local58
           Local x : Int
-        val local53
+        val local59
           Local $argument.0 : Int
         Call println<Int> : Unit
           Local $parameter.value : Int
       else
-        val local54
+        val local60
           StringLiteral "other" : String
-        val local55
+        val local61
           Local $argument.0 : String
         Call println<String> : Unit
           Local $parameter.value : String
@@ -1015,13 +1052,22 @@ Module
         EnumField v1 f1
           Type Shape
           Local $when.2
+      val $receiver: Int
+        Type Int
+        Local w
+      val $argument.0: Int
+        Type Int
+        Local h
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       val $argument.0: Int
         Type Int
         Binary IntAdd
           Type Int
-          Local w
+          Local $receiver
           Type Int
-          Local h
+          Local $parameter.other
       val $parameter.value: Int
         Type Int
         Local $argument.0
@@ -1145,13 +1191,22 @@ Module
         EnumField v1 f1
           Type Shape
           Local $when.3
+      val $receiver: Int
+        Type Int
+        Local w
+      val $argument.0: Int
+        Type Int
+        Local h
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       val $argument.0: Int
         Type Int
         Binary IntAdd
           Type Int
-          Local w
+          Local $receiver
           Type Int
-          Local h
+          Local $parameter.other
       val $parameter.value: Int
         Type Int
         Local $argument.0
@@ -1667,58 +1722,64 @@ Module
     local %12 $parameter.value: i64
     local %13 w: i64
     local %14 h: i64
-    local %15 $argument.0: i64
-    local %16 $parameter.value: i64
-    local %17 w: i64
+    local %15 $receiver: i64
+    local %16 $argument.0: i64
+    local %17 $parameter.other: i64
     local %18 $argument.0: i64
     local %19 $parameter.value: i64
-    local %20 d: i64
+    local %20 w: i64
     local %21 $argument.0: i64
     local %22 $parameter.value: i64
-    local %23 $argument.0: i64
-    local %24 $argument.1: i64
-    local %25 $parameter._1: i64
-    local %26 $parameter._2: i64
-    local %27 r: enum2
-    local %28 x: i64
-    local %29 $argument.0: i64
-    local %30 $parameter.value: i64
-    local %31 w: i64
-    local %32 h: i64
-    local %33 $argument.0: i64
-    local %34 $parameter.value: i64
-    local %35 w: i64
-    local %36 $argument.0: i64
-    local %37 $parameter.value: i64
-    local %38 d: i64
+    local %23 d: i64
+    local %24 $argument.0: i64
+    local %25 $parameter.value: i64
+    local %26 $argument.0: i64
+    local %27 $argument.1: i64
+    local %28 $parameter._1: i64
+    local %29 $parameter._2: i64
+    local %30 r: enum2
+    local %31 x: i64
+    local %32 $argument.0: i64
+    local %33 $parameter.value: i64
+    local %34 w: i64
+    local %35 h: i64
+    local %36 $receiver: i64
+    local %37 $argument.0: i64
+    local %38 $parameter.other: i64
     local %39 $argument.0: i64
     local %40 $parameter.value: i64
-    local %41 $parameter.d: i64
-    local %42 d: enum2
-    local %43 x: i64
-    local %44 $argument.0: i64
-    local %45 $parameter.value: i64
-    local %46 $argument.0: ptr<managed>
-    local %47 $parameter.value: ptr<managed>
-    local %48 $argument.0: i64
-    local %49 $parameter.d: i64
-    local %50 d2: enum2
-    local %51 x: i64
-    local %52 $argument.0: i64
-    local %53 $parameter.value: i64
-    local %54 $argument.0: ptr<managed>
-    local %55 $parameter.value: ptr<managed>
-    local %56 $when.1: enum1
-    local %57 $when.2: enum2
-    local %58 $when.3: enum2
-    local %59 $when.4: enum2
-    local %60 $when.5: enum2
+    local %41 w: i64
+    local %42 $argument.0: i64
+    local %43 $parameter.value: i64
+    local %44 d: i64
+    local %45 $argument.0: i64
+    local %46 $parameter.value: i64
+    local %47 $parameter.d: i64
+    local %48 d: enum2
+    local %49 x: i64
+    local %50 $argument.0: i64
+    local %51 $parameter.value: i64
+    local %52 $argument.0: ptr<managed>
+    local %53 $parameter.value: ptr<managed>
+    local %54 $argument.0: i64
+    local %55 $parameter.d: i64
+    local %56 d2: enum2
+    local %57 x: i64
+    local %58 $argument.0: i64
+    local %59 $parameter.value: i64
+    local %60 $argument.0: ptr<managed>
+    local %61 $parameter.value: ptr<managed>
+    local %62 $when.1: enum1
+    local %63 $when.2: enum2
+    local %64 $when.3: enum2
+    local %65 $when.4: enum2
+    local %66 $when.5: enum2
   block entry
     poll managed-void-target15 sp52 live=[]
     t0 = enum_wrap e1 v0 () : enum1
     store t0 -> local0
-    store local0 -> local56
-    t1 = enum_tag e1 local56 : i64
+    store local0 -> local62
+    t1 = enum_tag e1 local62 : i64
     t2 = Eq t1, 0 : i1
     cbr t2 then @if.then.1 else @if.else.2
   block if.then.1
@@ -1728,7 +1789,7 @@ Module
     t3 = aggregate () : {}
     br @if.merge.3
   block if.else.2
-    t4 = enum_tag e1 local56 : i64
+    t4 = enum_tag e1 local62 : i64
     t5 = Eq t4, 1 : i1
     cbr t5 then @if.then.4 else @if.else.5
   block if.merge.3
@@ -1736,8 +1797,8 @@ Module
     store local7 -> local8
     t6 = enum_wrap e2 v0 (local8) : enum2
     store t6 -> local9
-    store local9 -> local57
-    t7 = enum_tag e2 local57 : i64
+    store local9 -> local63
+    t7 = enum_tag e2 local63 : i64
     t8 = Eq t7, 0 : i1
     cbr t8 then @if.then.9 else @if.else.10
   block if.then.4
@@ -1747,7 +1808,7 @@ Module
     t9 = aggregate () : {}
     br @if.merge.6
   block if.else.5
-    t10 = enum_tag e1 local56 : i64
+    t10 = enum_tag e1 local62 : i64
     t11 = Eq t10, 2 : i1
     cbr t11 then @if.then.7 else @if.merge.8
   block if.merge.6
@@ -1761,7 +1822,7 @@ Module
   block if.merge.8
     br @if.merge.6
   block if.then.9
-    t13 = enum_field e2 v0 f0 local57 : i64
+    t13 = enum_field e2 v0 f0 local63 : i64
     store t13 -> local10
     store local10 -> local11
     store local11 -> local12
@@ -1769,157 +1830,163 @@ Module
     t14 = aggregate () : {}
     br @if.merge.11
   block if.else.10
-    t15 = enum_tag e2 local57 : i64
+    t15 = enum_tag e2 local63 : i64
     t16 = Eq t15, 1 : i1
     cbr t16 then @if.then.12 else @if.else.13
   block if.merge.11
-    store 3 -> local23
-    store 4 -> local24
-    store local23 -> local25
-    store local24 -> local26
-    t17 = enum_wrap e2 v1 (local25, local26) : enum2
-    store t17 -> local27
-    store local27 -> local58
-    t18 = enum_tag e2 local58 : i64
+    store 3 -> local26
+    store 4 -> local27
+    store local26 -> local28
+    store local27 -> local29
+    t17 = enum_wrap e2 v1 (local28, local29) : enum2
+    store t17 -> local30
+    store local30 -> local64
+    t18 = enum_tag e2 local64 : i64
     t19 = Eq t18, 0 : i1
     cbr t19 then @if.then.20 else @if.else.21
   block if.then.12
-    t20 = enum_field e2 v1 f0 local57 : i64
+    t20 = enum_field e2 v1 f0 local63 : i64
     store t20 -> local13
-    t21 = enum_field e2 v1 f1 local57 : i64
+    t21 = enum_field e2 v1 f1 local63 : i64
     store t21 -> local14
-    t22 = Add local13, local14 : i64
-    store t22 -> local15
-    store local15 -> local16
-    call managed-void-target4 sp16 live=[] sig=void4 (i64) local-fn14(local16)
+    store local13 -> local15
+    store local14 -> local16
+    store local16 -> local17
+    t22 = Add local15, local17 : i64
+    store t22 -> local18
+    store local18 -> local19
+    call managed-void-target4 sp16 live=[] sig=void4 (i64) local-fn14(local19)
     t23 = aggregate () : {}
     br @if.merge.14
   block if.else.13
-    t24 = enum_tag e2 local57 : i64
+    t24 = enum_tag e2 local63 : i64
     t25 = Eq t24, 2 : i1
     cbr t25 then @if.then.15 else @if.else.16
   block if.merge.14
     br @if.merge.11
   block if.then.15
-    t26 = enum_field e2 v2 f0 local57 : i64
-    store t26 -> local17
-    store local17 -> local18
-    store local18 -> local19
-    call managed-void-target5 sp17 live=[] sig=void5 (i64) local-fn14(local19)
+    t26 = enum_field e2 v2 f0 local63 : i64
+    store t26 -> local20
+    store local20 -> local21
+    store local21 -> local22
+    call managed-void-target5 sp17 live=[] sig=void5 (i64) local-fn14(local22)
     t27 = aggregate () : {}
     br @if.merge.17
   block if.else.16
-    t28 = enum_tag e2 local57 : i64
+    t28 = enum_tag e2 local63 : i64
     t29 = Eq t28, 3 : i1
     cbr t29 then @if.then.18 else @if.merge.19
   block if.merge.17
     br @if.merge.14
   block if.then.18
-    t30 = enum_field e2 v3 f0 local57 : i64
-    store t30 -> local20
-    store local20 -> local21
-    store local21 -> local22
-    call managed-void-target6 sp18 live=[] sig=void6 (i64) local-fn14(local22)
+    t30 = enum_field e2 v3 f0 local63 : i64
+    store t30 -> local23
+    store local23 -> local24
+    store local24 -> local25
+    call managed-void-target6 sp18 live=[] sig=void6 (i64) local-fn14(local25)
     t31 = aggregate () : {}
     br @if.merge.19
   block if.merge.19
     br @if.merge.17
   block if.then.20
-    t32 = enum_field e2 v0 f0 local58 : i64
-    store t32 -> local28
-    store local28 -> local29
-    store local29 -> local30
-    call managed-void-target7 sp19 live=[] sig=void7 (i64) local-fn14(local30)
+    t32 = enum_field e2 v0 f0 local64 : i64
+    store t32 -> local31
+    store local31 -> local32
+    store local32 -> local33
+    call managed-void-target7 sp19 live=[] sig=void7 (i64) local-fn14(local33)
     t33 = aggregate () : {}
     br @if.merge.22
   block if.else.21
-    t34 = enum_tag e2 local58 : i64
+    t34 = enum_tag e2 local64 : i64
     t35 = Eq t34, 1 : i1
     cbr t35 then @if.then.23 else @if.else.24
   block if.merge.22
-    store 7 -> local41
-    t36 = enum_wrap e2 v3 (local41) : enum2
-    store t36 -> local42
-    store local42 -> local59
-    t37 = enum_tag e2 local59 : i64
+    store 7 -> local47
+    t36 = enum_wrap e2 v3 (local47) : enum2
+    store t36 -> local48
+    store local48 -> local65
+    t37 = enum_tag e2 local65 : i64
     t38 = Eq t37, 3 : i1
     cbr t38 then @if.then.31 else @if.else.32
   block if.then.23
-    t39 = enum_field e2 v1 f0 local58 : i64
-    store t39 -> local31
-    t40 = enum_field e2 v1 f1 local58 : i64
-    store t40 -> local32
-    t41 = Add local31, local32 : i64
-    store t41 -> local33
-    store local33 -> local34
-    call managed-void-target8 sp20 live=[] sig=void8 (i64) local-fn14(local34)
+    t39 = enum_field e2 v1 f0 local64 : i64
+    store t39 -> local34
+    t40 = enum_field e2 v1 f1 local64 : i64
+    store t40 -> local35
+    store local34 -> local36
+    store local35 -> local37
+    store local37 -> local38
+    t41 = Add local36, local38 : i64
+    store t41 -> local39
+    store local39 -> local40
+    call managed-void-target8 sp20 live=[] sig=void8 (i64) local-fn14(local40)
     t42 = aggregate () : {}
     br @if.merge.25
   block if.else.24
-    t43 = enum_tag e2 local58 : i64
+    t43 = enum_tag e2 local64 : i64
     t44 = Eq t43, 2 : i1
     cbr t44 then @if.then.26 else @if.else.27
   block if.merge.25
     br @if.merge.22
   block if.then.26
-    t45 = enum_field e2 v2 f0 local58 : i64
-    store t45 -> local35
-    store local35 -> local36
-    store local36 -> local37
-    call managed-void-target9 sp21 live=[] sig=void9 (i64) local-fn14(local37)
+    t45 = enum_field e2 v2 f0 local64 : i64
+    store t45 -> local41
+    store local41 -> local42
+    store local42 -> local43
+    call managed-void-target9 sp21 live=[] sig=void9 (i64) local-fn14(local43)
     t46 = aggregate () : {}
     br @if.merge.28
   block if.else.27
-    t47 = enum_tag e2 local58 : i64
+    t47 = enum_tag e2 local64 : i64
     t48 = Eq t47, 3 : i1
     cbr t48 then @if.then.29 else @if.merge.30
   block if.merge.28
     br @if.merge.25
   block if.then.29
-    t49 = enum_field e2 v3 f0 local58 : i64
-    store t49 -> local38
-    store local38 -> local39
-    store local39 -> local40
-    call managed-void-target10 sp22 live=[] sig=void10 (i64) local-fn14(local40)
+    t49 = enum_field e2 v3 f0 local64 : i64
+    store t49 -> local44
+    store local44 -> local45
+    store local45 -> local46
+    call managed-void-target10 sp22 live=[] sig=void10 (i64) local-fn14(local46)
     t50 = aggregate () : {}
     br @if.merge.30
   block if.merge.30
     br @if.merge.28
   block if.then.31
-    t51 = enum_field e2 v3 f0 local59 : i64
-    store t51 -> local43
-    store local43 -> local44
-    store local44 -> local45
-    call managed-void-target11 sp23 live=[] sig=void11 (i64) local-fn14(local45)
+    t51 = enum_field e2 v3 f0 local65 : i64
+    store t51 -> local49
+    store local49 -> local50
+    store local50 -> local51
+    call managed-void-target11 sp23 live=[] sig=void11 (i64) local-fn14(local51)
     t52 = aggregate () : {}
     br @if.merge.33
   block if.else.32
-    store global3 -> local46
-    store local46 -> local47
-    call managed-void-target12 sp24 live=[local47:ptr<managed>@0] sig=void12 (ptr<managed>) local-fn13(local47)
+    store global3 -> local52
+    store local52 -> local53
+    call managed-void-target12 sp24 live=[local53:ptr<managed>@0] sig=void12 (ptr<managed>) local-fn13(local53)
     t53 = aggregate () : {}
     br @if.merge.33
   block if.merge.33
-    store 3 -> local48
-    store local48 -> local49
-    t54 = enum_wrap e2 v3 (local49) : enum2
-    store t54 -> local50
-    store local50 -> local60
-    t55 = enum_tag e2 local60 : i64
+    store 3 -> local54
+    store local54 -> local55
+    t54 = enum_wrap e2 v3 (local55) : enum2
+    store t54 -> local56
+    store local56 -> local66
+    t55 = enum_tag e2 local66 : i64
     t56 = Eq t55, 3 : i1
     cbr t56 then @if.then.34 else @if.else.35
   block if.then.34
-    t57 = enum_field e2 v3 f0 local60 : i64
-    store t57 -> local51
-    store local51 -> local52
-    store local52 -> local53
-    call managed-void-target13 sp25 live=[] sig=void13 (i64) local-fn14(local53)
+    t57 = enum_field e2 v3 f0 local66 : i64
+    store t57 -> local57
+    store local57 -> local58
+    store local58 -> local59
+    call managed-void-target13 sp25 live=[] sig=void13 (i64) local-fn14(local59)
     t58 = aggregate () : {}
     br @if.merge.36
   block if.else.35
-    store global4 -> local54
-    store local54 -> local55
-    call managed-void-target14 sp26 live=[local55:ptr<managed>@0] sig=void14 (ptr<managed>) local-fn13(local55)
+    store global4 -> local60
+    store local60 -> local61
+    call managed-void-target14 sp26 live=[local61:ptr<managed>@0] sig=void14 (ptr<managed>) local-fn13(local61)
     t59 = aggregate () : {}
     br @if.merge.36
   block if.merge.36

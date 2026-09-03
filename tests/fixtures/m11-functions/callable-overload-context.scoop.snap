@@ -41,8 +41,8 @@ SourceFile
     fun load
     fun store
     fun store
-    fun plus
-    fun minus
+    operator fun plus
+    operator fun minus
   struct FunPtr<F>
     field _rawPointer: UInt
     @Unsafe
@@ -169,28 +169,53 @@ SourceFile
     @Intrinsic("core_int")
   struct Int <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun unaryMinus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_uint")
   struct UInt <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_boolean")
   struct Boolean <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun not
     fun toString
     fun hash
     @Intrinsic("core_string")
   class String(), ToString, Hash
     operator fun equals
+    operator fun plus
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_array")
   class Array<T>()
+    operator fun get
     fun toMutableArray
     @Intrinsic("core_mutable_array")
   class MutableArray<T>()
+    operator fun get
+    operator fun set
     fun toArray
     @Extern(name = "scoop_rt_int_equals", abi = "scoop")
   fun coreIntEquals(left: Int, right: Int): Boolean
@@ -803,11 +828,20 @@ Module
         StringConst @scoop.str.1
   fun $anonymous.0 @scoop.$anonymous.0($closure: (String) -> String, value: String) -> String
     bb0 entry
-      call $call.1: String = @scoop_rt_string_concat direct
+      val $receiver: String
         Type String
         Local value
+      val $argument.0: String
         Type String
         StringConst @scoop.str.2
+      val $parameter.other: String
+        Type String
+        Local $argument.0
+      call $call.1: String = @scoop_rt_string_concat direct
+        Type String
+        Local $receiver
+        Type String
+        Local $parameter.other
       return
         Type String
         Local $call.1
@@ -1256,12 +1290,18 @@ Module
     poll managed-void-target0 sp58 live=[]
     ret global1
   fun @scoop.$anonymous.0(ptr<managed>, ptr<managed>) -> ptr<managed>
-    local %0 $call.1: ptr<managed>
+    local %0 $receiver: ptr<managed>
+    local %1 $argument.0: ptr<managed>
+    local %2 $parameter.other: ptr<managed>
+    local %3 $call.1: ptr<managed>
   block entry
     poll managed-void-target0 sp59 live=[param1:ptr<managed>@0]
-    call managed-direct-target0 sp25 live=[param1:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(param1, global2)
-    store t0 -> local0
-    ret local0
+    store param1 -> local0
+    store global2 -> local1
+    store local1 -> local2
+    call managed-direct-target0 sp25 live=[local0:ptr<managed>@0, local2:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(local0, local2)
+    store t0 -> local3
+    ret local3
   fun @scoop.println$S(ptr<managed>) -> void
     local %0 $receiver: ptr<managed>
     local %1 $argument.0: ptr<managed>

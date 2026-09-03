@@ -34,6 +34,7 @@ fn array_nodes_translate_one_to_one() {
                     x,
                     expr(
                         hir::ExprKind::Index {
+                            access: hir::ArrayAccessKind::ImmutableGet,
                             receiver: Box::new(local_ref(a, array_int)),
                             index: Box::new(int_lit(&h, 0)),
                         },

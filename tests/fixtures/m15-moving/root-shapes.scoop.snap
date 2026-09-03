@@ -41,8 +41,8 @@ SourceFile
     fun load
     fun store
     fun store
-    fun plus
-    fun minus
+    operator fun plus
+    operator fun minus
   struct FunPtr<F>
     field _rawPointer: UInt
     @Unsafe
@@ -169,28 +169,53 @@ SourceFile
     @Intrinsic("core_int")
   struct Int <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun unaryMinus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_uint")
   struct UInt <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_boolean")
   struct Boolean <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun not
     fun toString
     fun hash
     @Intrinsic("core_string")
   class String(), ToString, Hash
     operator fun equals
+    operator fun plus
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_array")
   class Array<T>()
+    operator fun get
     fun toMutableArray
     @Intrinsic("core_mutable_array")
   class MutableArray<T>()
+    operator fun get
+    operator fun set
     fun toArray
     @Extern(name = "scoop_rt_int_equals", abi = "scoop")
   fun coreIntEquals(left: Int, right: Int): Boolean
@@ -498,91 +523,118 @@ Module
     val local4
       IntLiteral 0 : Int
     while
+      condition setup
+        val local5
+          Local index : Int
+        val local6
+          IntLiteral 2 : Int
+        val local7
+          Local $argument.0 : Int
       Binary Lt : Boolean
-        Local index : Int
-        IntLiteral 2 : Int
+        PrimitiveBinary IntCompareTo : Int
+          Local $receiver : Int
+          Local $parameter.other : Int
+        IntLiteral 0 : Int
       Call gcCollect : Unit
-      val local5
+      val local8
         Local current : String
-      val local6
+      val local9
         Local $argument.0 : String
       Call println<String> : Unit
         Local $parameter.value : String
-      val local7
+      val local10
         FieldAccess field 0 : String
           Local bundle : MovingBundle
-      val local8
+      val local11
         Local $argument.0 : String
       Call println<String> : Unit
         Local $parameter.value : String
-      val local9
+      val local12
         FieldAccess _1 : String
           FieldAccess field 1 : (String, MovingTextNode)
             Local bundle : MovingBundle
-      val local10
+      val local13
         Local $argument.0 : String
       Call println<String> : Unit
         Local $parameter.value : String
-      val local11
+      val local14
         FieldAccess class field 0 : String
           FieldAccess _2 : MovingTextNode
             FieldAccess field 1 : (String, MovingTextNode)
               Local bundle : MovingBundle
-      val local12
+      val local15
         Local $argument.0 : String
       Call println<String> : Unit
         Local $parameter.value : String
       when
         FieldAccess field 2 : MovingChoice
           Local bundle : MovingBundle
-        arm variant0(0: local13, 1: local14)
-          val local15
+        arm variant0(0: local16, 1: local17)
+          val local18
             FieldAccess class field 0 : String
               Local node : MovingTextNode
-          val local16
+          val local19
             Local $argument.0 : String
           Call println<String> : Unit
             Local $parameter.value : String
-          val local17
+          val local20
             Local label : String
-          val local18
+          val local21
             Local $argument.0 : String
           Call println<String> : Unit
             Local $parameter.value : String
         arm variant1()
-          val local19
+          val local22
             StringLiteral "empty" : String
-          val local20
+          val local23
             Local $argument.0 : String
           Call println<String> : Unit
             Local $parameter.value : String
-      val local21
-        Index : String
-          FieldAccess field 3 : Array<String>
-            Local bundle : MovingBundle
-          Local index : Int
-      val local22
+      val local24
+        FieldAccess field 3 : Array<String>
+          Local bundle : MovingBundle
+      val local25
+        Local index : Int
+      val local26
+        Local $argument.0 : Int
+      val local27
+        Index ImmutableGet : String
+          Local $receiver : Array<String>
+          Local $parameter.index : Int
+      val local28
         Local $argument.0 : String
       Call println<String> : Unit
         Local $parameter.value : String
-      val local23
+      val local29
         Local source : MovingTextSource
-      val local24
+      val local30
         MethodCall MovingTextSource.text : String
           Local $receiver : MovingTextSource
-      val local25
+      val local31
         Local $argument.0 : String
       Call println<String> : Unit
         Local $parameter.value : String
+      val local32
+        FieldAccess field 3 : Array<String>
+          Local bundle : MovingBundle
+      val local33
+        Local index : Int
+      val local34
+        Local $argument.0 : Int
       assign current
-        Index : String
-          FieldAccess field 3 : Array<String>
-            Local bundle : MovingBundle
-          Local index : Int
+        Index ImmutableGet : String
+          Local $receiver : Array<String>
+          Local $parameter.index : Int
+      val local35
+        Local index : Int
+      val local36
+        IntLiteral 1 : Int
+      val local37
+        Local $argument.0 : Int
       assign index
-        Binary Add : Int
-          Local index : Int
-          IntLiteral 1 : Int
+        PrimitiveBinary IntAdd : Int
+          Local $receiver : Int
+          Local $parameter.other : Int
     return
       Local current : String
   fun passThroughMiddle(bundle: MovingBundle, source: MovingTextSource): String
@@ -606,85 +658,121 @@ Module
         Local $parameter.source : MovingTextSource
   fun main(): Unit
     val local0
-      Binary Add : String
-        StringLiteral "head-" : String
-        StringLiteral "alive" : String
+      StringLiteral "head-" : String
     val local1
-      Binary Add : String
-        StringLiteral "pair-" : String
-        StringLiteral "alive" : String
+      StringLiteral "alive" : String
     val local2
-      Binary Add : String
-        StringLiteral "node-" : String
-        StringLiteral "alive" : String
-    val local3
       Local $argument.0 : String
+    val local3
+      PrimitiveBinary StringConcat : String
+        Local $receiver : String
+        Local $parameter.other : String
     val local4
+      StringLiteral "pair-" : String
+    val local5
+      StringLiteral "alive" : String
+    val local6
+      Local $argument.0 : String
+    val local7
+      PrimitiveBinary StringConcat : String
+        Local $receiver : String
+        Local $parameter.other : String
+    val local8
+      StringLiteral "node-" : String
+    val local9
+      StringLiteral "alive" : String
+    val local10
+      Local $argument.0 : String
+    val local11
+      PrimitiveBinary StringConcat : String
+        Local $receiver : String
+        Local $parameter.other : String
+    val local12
+      Local $argument.0 : String
+    val local13
       ClassInit MovingTextNode : MovingTextNode
         Local $parameter.value : String
-    val local5
-      Binary Add : String
-        StringLiteral "choice-" : String
-        StringLiteral "alive" : String
-    val local6
-      Binary Add : String
-        StringLiteral "first-" : String
-        StringLiteral "alive" : String
-    val local7
-      Binary Add : String
-        StringLiteral "second-" : String
-        StringLiteral "alive" : String
-    val local12
-      Local head : String
-    val local13
-      TupleLiteral : (String, MovingTextNode)
-        Local pairText : String
-        Local node : MovingTextNode
-    val local8
-      Local node : MovingTextNode
-    val local9
-      Local choiceText : String
-    val local10
-      Local $argument.0 : MovingTextNode
-    val local11
-      Local $argument.1 : String
     val local14
-      VariantConstruct MovingChoice.Selected : MovingChoice
-        Local $parameter._1 : MovingTextNode
-        Local $parameter._2 : String
+      StringLiteral "choice-" : String
     val local15
-      ArrayLiteral : Array<String>
-        Local first : String
-        Local second : String
+      StringLiteral "alive" : String
     val local16
       Local $argument.0 : String
     val local17
-      Local $argument.1 : (String, MovingTextNode)
+      PrimitiveBinary StringConcat : String
+        Local $receiver : String
+        Local $parameter.other : String
     val local18
-      Local $argument.2 : MovingChoice
+      StringLiteral "first-" : String
     val local19
-      Local $argument.3 : Array<String>
+      StringLiteral "alive" : String
     val local20
+      Local $argument.0 : String
+    val local21
+      PrimitiveBinary StringConcat : String
+        Local $receiver : String
+        Local $parameter.other : String
+    val local22
+      StringLiteral "second-" : String
+    val local23
+      StringLiteral "alive" : String
+    val local24
+      Local $argument.0 : String
+    val local25
+      PrimitiveBinary StringConcat : String
+        Local $receiver : String
+        Local $parameter.other : String
+    val local30
+      Local head : String
+    val local31
+      TupleLiteral : (String, MovingTextNode)
+        Local pairText : String
+        Local node : MovingTextNode
+    val local26
+      Local node : MovingTextNode
+    val local27
+      Local choiceText : String
+    val local28
+      Local $argument.0 : MovingTextNode
+    val local29
+      Local $argument.1 : String
+    val local32
+      VariantConstruct MovingChoice.Selected : MovingChoice
+        Local $parameter._1 : MovingTextNode
+        Local $parameter._2 : String
+    val local33
+      ArrayLiteral : Array<String>
+        Local first : String
+        Local second : String
+    val local34
+      Local $argument.0 : String
+    val local35
+      Local $argument.1 : (String, MovingTextNode)
+    val local36
+      Local $argument.2 : MovingChoice
+    val local37
+      Local $argument.3 : Array<String>
+    val local38
       StructInit MovingBundle : MovingBundle
         Local $parameter.head : String
         Local $parameter.pair : (String, MovingTextNode)
         Local $parameter.choice : MovingChoice
         Local $parameter.values : Array<String>
-    val local21
+    val local39
       Local node : MovingTextSource
-    val local22
+    val local40
       Local bundle : MovingBundle
-    val local23
+    val local41
       Local source : MovingTextSource
-    val local24
+    val local42
       Local $argument.0 : MovingBundle
-    val local25
+    val local43
       Local $argument.1 : MovingTextSource
-    val local26
+    val local44
       Call passThroughMiddle : String
         Local $parameter.bundle : MovingBundle
         Local $parameter.source : MovingTextSource
-    val local27
+    val local45
       Local $argument.0 : String
     Call println<String> : Unit
       Local $parameter.value : String
@@ -932,15 +1020,31 @@ Module
       var index: Int
         Type Int
         IntLiteral 0
+      val $receiver: Int
+        Type Int
+        Local index
+      val $argument.0: Int
+        Type Int
+        IntLiteral 2
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
+      var $cond.1: Boolean
+        Type Boolean
+        Binary IntLt
+          Type Int
+          Binary IntCompareTo
+            Type Int
+            Local $receiver
+            Type Int
+            Local $parameter.other
+          Type Int
+          IntLiteral 0
       goto bb1
     bb1 while.cond.1
       branch bb2 bb3
         Type Boolean
-        Binary IntLt
-          Type Int
-          Local index
-          Type Int
-          IntLiteral 2
+        Local $cond.1
     bb2 while.body.2
       call @scoop_rt_gc_collect direct
       val $argument.0: String
@@ -991,7 +1095,7 @@ Module
       call @scoop.println$S direct
         Type String
         Local $parameter.value
-      val $when.1: MovingChoice
+      val $when.2: MovingChoice
         Type MovingChoice
         FieldAccess 2
           Type MovingBundle
@@ -1002,7 +1106,7 @@ Module
           Type Int
           EnumTag
             Type MovingChoice
-            Local $when.1
+            Local $when.2
           Type Int
           IntLiteral 0
     bb3 while.exit.3
@@ -1014,12 +1118,12 @@ Module
         Type MovingTextNode
         EnumField v0 f0
           Type MovingChoice
-          Local $when.1
+          Local $when.2
       val label: String
         Type String
         EnumField v0 f1
           Type MovingChoice
-          Local $when.1
+          Local $when.2
       val $argument.0: String
         Type String
         FieldAccess 0
@@ -1048,23 +1152,32 @@ Module
           Type Int
           EnumTag
             Type MovingChoice
-            Local $when.1
+            Local $when.2
           Type Int
           IntLiteral 1
     bb6 if.merge.6
-      val $arr.2: Array<String>
+      val $receiver: Array<String>
         Type Array<String>
         FieldAccess 3
           Type MovingBundle
           Local bundle
-      val $idx.3: Int
+      val $argument.0: Int
         Type Int
         Local index
+      val $parameter.index: Int
+        Type Int
+        Local $argument.0
+      val $arr.3: Array<String>
+        Type Array<String>
+        Local $receiver
+      val $idx.4: Int
+        Type Int
+        Local $parameter.index
       branch bb10 bb9
         Type Boolean
         Binary IntLt
           Type Int
-          Local $idx.3
+          Local $idx.4
           Type Int
           IntLiteral 0
     bb7 if.then.7
@@ -1085,11 +1198,11 @@ Module
         Type Boolean
         Binary IntGe
           Type Int
-          Local $idx.3
+          Local $idx.4
           Type Int
           ArrayLen Array$S
             Type Array<String>
-            Local $arr.2
+            Local $arr.3
       goto bb11
     bb10 logic.short.10
       assign $logic.1
@@ -1110,9 +1223,9 @@ Module
         Type String
         ArrayGet Array$S
           Type Array<String>
-          Local $arr.2
+          Local $arr.3
           Type Int
-          Local $idx.3
+          Local $idx.4
       val $parameter.value: String
         Type String
         Local $argument.0
@@ -1131,19 +1244,28 @@ Module
       call @scoop.println$S direct
         Type String
         Local $parameter.value
-      val $arr.4: Array<String>
+      val $receiver: Array<String>
         Type Array<String>
         FieldAccess 3
           Type MovingBundle
           Local bundle
-      val $idx.5: Int
+      val $argument.0: Int
         Type Int
         Local index
+      val $parameter.index: Int
+        Type Int
+        Local $argument.0
+      val $arr.5: Array<String>
+        Type Array<String>
+        Local $receiver
+      val $idx.6: Int
+        Type Int
+        Local $parameter.index
       branch bb15 bb14
         Type Boolean
         Binary IntLt
           Type Int
-          Local $idx.5
+          Local $idx.6
           Type Int
           IntLiteral 0
     bb14 logic.rhs.14
@@ -1151,11 +1273,11 @@ Module
         Type Boolean
         Binary IntGe
           Type Int
-          Local $idx.5
+          Local $idx.6
           Type Int
           ArrayLen Array$S
             Type Array<String>
-            Local $arr.4
+            Local $arr.5
       goto bb16
     bb15 logic.short.15
       assign $logic.3
@@ -1176,16 +1298,45 @@ Module
         Type String
         ArrayGet Array$S
           Type Array<String>
-          Local $arr.4
+          Local $arr.5
           Type Int
-          Local $idx.5
+          Local $idx.6
+      val $receiver: Int
+        Type Int
+        Local index
+      val $argument.0: Int
+        Type Int
+        IntLiteral 1
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       assign index
         Type Int
         Binary IntAdd
           Type Int
-          Local index
+          Local $receiver
           Type Int
-          IntLiteral 1
+          Local $parameter.other
+      val $receiver: Int
+        Type Int
+        Local index
+      val $argument.0: Int
+        Type Int
+        IntLiteral 2
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
+      assign $cond.1
+        Type Boolean
+        Binary IntLt
+          Type Int
+          Binary IntCompareTo
+            Type Int
+            Local $receiver
+            Type Int
+            Local $parameter.other
+          Type Int
+          IntLiteral 0
       goto bb1
   fun passThroughMiddle @scoop.passThroughMiddle(bundle: MovingBundle, source: MovingTextSource) -> String
     bb0 entry
@@ -1221,42 +1372,96 @@ Module
         Local $call.1
   fun main @scoop_main() -> Unit
     bb0 entry
-      call head: String = @scoop_rt_string_concat direct
+      val $receiver: String
         Type String
         StringConst @scoop.str.1
+      val $argument.0: String
         Type String
         StringConst @scoop.str.2
-      call pairText: String = @scoop_rt_string_concat direct
+      val $parameter.other: String
+        Type String
+        Local $argument.0
+      call head: String = @scoop_rt_string_concat direct
+        Type String
+        Local $receiver
+        Type String
+        Local $parameter.other
+      val $receiver: String
         Type String
         StringConst @scoop.str.3
+      val $argument.0: String
         Type String
         StringConst @scoop.str.4
-      call $argument.0: String = @scoop_rt_string_concat direct
+      val $parameter.other: String
+        Type String
+        Local $argument.0
+      call pairText: String = @scoop_rt_string_concat direct
+        Type String
+        Local $receiver
+        Type String
+        Local $parameter.other
+      val $receiver: String
         Type String
         StringConst @scoop.str.5
+      val $argument.0: String
         Type String
         StringConst @scoop.str.6
+      val $parameter.other: String
+        Type String
+        Local $argument.0
+      call $argument.0: String = @scoop_rt_string_concat direct
+        Type String
+        Local $receiver
+        Type String
+        Local $parameter.other
       val $parameter.value: String
         Type String
         Local $argument.0
       call node: MovingTextNode = @scoop.ctor.MovingTextNode direct
         Type String
         Local $parameter.value
-      call choiceText: String = @scoop_rt_string_concat direct
+      val $receiver: String
         Type String
         StringConst @scoop.str.7
+      val $argument.0: String
         Type String
         StringConst @scoop.str.8
-      call first: String = @scoop_rt_string_concat direct
+      val $parameter.other: String
+        Type String
+        Local $argument.0
+      call choiceText: String = @scoop_rt_string_concat direct
+        Type String
+        Local $receiver
+        Type String
+        Local $parameter.other
+      val $receiver: String
         Type String
         StringConst @scoop.str.9
+      val $argument.0: String
         Type String
         StringConst @scoop.str.10
-      call second: String = @scoop_rt_string_concat direct
+      val $parameter.other: String
+        Type String
+        Local $argument.0
+      call first: String = @scoop_rt_string_concat direct
+        Type String
+        Local $receiver
+        Type String
+        Local $parameter.other
+      val $receiver: String
         Type String
         StringConst @scoop.str.11
+      val $argument.0: String
         Type String
         StringConst @scoop.str.12
+      val $parameter.other: String
+        Type String
+        Local $argument.0
+      call second: String = @scoop_rt_string_concat direct
+        Type String
+        Local $receiver
+        Type String
+        Local $parameter.other
       val $argument.0: String
         Type String
         Local head
@@ -1702,164 +1907,197 @@ Module
   fun @scoop.preserveThroughCalls(ptr<managed>, struct4, ptr<managed>) -> ptr<managed>
     local %0 current: ptr<managed>
     local %1 index: i64
-    local %2 $argument.0: ptr<managed>
-    local %3 $parameter.value: ptr<managed>
-    local %4 $argument.0: ptr<managed>
-    local %5 $parameter.value: ptr<managed>
-    local %6 $argument.0: ptr<managed>
-    local %7 $parameter.value: ptr<managed>
-    local %8 $argument.0: ptr<managed>
-    local %9 $parameter.value: ptr<managed>
-    local %10 node: ptr<managed>
-    local %11 label: ptr<managed>
-    local %12 $argument.0: ptr<managed>
-    local %13 $parameter.value: ptr<managed>
-    local %14 $argument.0: ptr<managed>
-    local %15 $parameter.value: ptr<managed>
-    local %16 $argument.0: ptr<managed>
-    local %17 $parameter.value: ptr<managed>
-    local %18 $argument.0: ptr<managed>
-    local %19 $parameter.value: ptr<managed>
-    local %20 $receiver: ptr<managed>
-    local %21 $argument.0: ptr<managed>
-    local %22 $parameter.value: ptr<managed>
-    local %23 $when.1: enum0
-    local %24 $arr.2: ptr<managed>
-    local %25 $idx.3: i64
-    local %26 $arr.4: ptr<managed>
-    local %27 $idx.5: i64
-    local %28 $logic.1: i1
-    local %29 $call.2: ptr<managed>
-    local %30 $logic.3: i1
-    local %31 $call.4: ptr<managed>
+    local %2 $receiver: i64
+    local %3 $argument.0: i64
+    local %4 $parameter.other: i64
+    local %5 $argument.0: ptr<managed>
+    local %6 $parameter.value: ptr<managed>
+    local %7 $argument.0: ptr<managed>
+    local %8 $parameter.value: ptr<managed>
+    local %9 $argument.0: ptr<managed>
+    local %10 $parameter.value: ptr<managed>
+    local %11 $argument.0: ptr<managed>
+    local %12 $parameter.value: ptr<managed>
+    local %13 node: ptr<managed>
+    local %14 label: ptr<managed>
+    local %15 $argument.0: ptr<managed>
+    local %16 $parameter.value: ptr<managed>
+    local %17 $argument.0: ptr<managed>
+    local %18 $parameter.value: ptr<managed>
+    local %19 $argument.0: ptr<managed>
+    local %20 $parameter.value: ptr<managed>
+    local %21 $receiver: ptr<managed>
+    local %22 $argument.0: i64
+    local %23 $parameter.index: i64
+    local %24 $argument.0: ptr<managed>
+    local %25 $parameter.value: ptr<managed>
+    local %26 $receiver: ptr<managed>
+    local %27 $argument.0: ptr<managed>
+    local %28 $parameter.value: ptr<managed>
+    local %29 $receiver: ptr<managed>
+    local %30 $argument.0: i64
+    local %31 $parameter.index: i64
+    local %32 $receiver: i64
+    local %33 $argument.0: i64
+    local %34 $parameter.other: i64
+    local %35 $cond.1: i1
+    local %36 $when.2: enum0
+    local %37 $arr.3: ptr<managed>
+    local %38 $idx.4: i64
+    local %39 $arr.5: ptr<managed>
+    local %40 $idx.6: i64
+    local %41 $logic.1: i1
+    local %42 $call.2: ptr<managed>
+    local %43 $logic.3: i1
+    local %44 $call.4: ptr<managed>
   block entry
     poll managed-void-target10 sp60 live=[param0:ptr<managed>@0, param1:struct4@0+8+16+32+40+48, param2:ptr<managed>@0]
     store param0 -> local0
     store 0 -> local1
+    store local1 -> local2
+    store 2 -> local3
+    store local3 -> local4
+    t0 = SCompareTo local2, local4 : i64
+    t1 = Lt t0, 0 : i1
+    store t1 -> local35
     br @while.cond.1
   block while.cond.1
     poll managed-void-target10 sp61 live=[param1:struct4@0+8+16+32+40+48, param2:ptr<managed>@0, local0:ptr<managed>@0]
-    t0 = Lt local1, 2 : i1
-    cbr t0 then @while.body.2 else @while.exit.3
+    cbr local35 then @while.body.2 else @while.exit.3
   block while.body.2
     call managed-void-target0 sp12 live=[param1:struct4@0+8+16+32+40+48, param2:ptr<managed>@0, local0:ptr<managed>@0] sig=void0 () runtime @scoop_rt_gc_collect()
-    t1 = aggregate () : {}
-    store local0 -> local2
-    store local2 -> local3
-    call managed-void-target1 sp13 live=[param1:struct4@0+8+16+32+40+48, param2:ptr<managed>@0, local3:ptr<managed>@0] sig=void1 (ptr<managed>) local-fn16(local3)
     t2 = aggregate () : {}
-    t3 = extract param1, 0 : ptr<managed>
-    store t3 -> local4
-    store local4 -> local5
-    call managed-void-target2 sp14 live=[param1:struct4@0+8+16+32+40+48, param2:ptr<managed>@0, local5:ptr<managed>@0] sig=void2 (ptr<managed>) local-fn16(local5)
-    t4 = aggregate () : {}
-    t5 = extract param1, 1 : {ptr<managed>, ptr<managed>}
-    t6 = extract t5, 0 : ptr<managed>
-    store t6 -> local6
-    store local6 -> local7
-    call managed-void-target3 sp15 live=[param1:struct4@0+8+16+32+40+48, param2:ptr<managed>@0, local7:ptr<managed>@0] sig=void3 (ptr<managed>) local-fn16(local7)
-    t7 = aggregate () : {}
-    t8 = extract param1, 1 : {ptr<managed>, ptr<managed>}
-    t9 = extract t8, 1 : ptr<managed>
-    t10 = heap_load t9 +16 : ptr<managed>
-    store t10 -> local8
-    store local8 -> local9
-    call managed-void-target4 sp16 live=[param1:struct4@0+8+16+32+40+48, param2:ptr<managed>@0, local9:ptr<managed>@0] sig=void4 (ptr<managed>) local-fn16(local9)
-    t11 = aggregate () : {}
-    t12 = extract param1, 2 : enum0
-    store t12 -> local23
-    t13 = enum_tag e0 local23 : i64
-    t14 = Eq t13, 0 : i1
-    cbr t14 then @if.then.4 else @if.else.5
+    store local0 -> local5
+    store local5 -> local6
+    call managed-void-target1 sp13 live=[param1:struct4@0+8+16+32+40+48, param2:ptr<managed>@0, local6:ptr<managed>@0] sig=void1 (ptr<managed>) local-fn16(local6)
+    t3 = aggregate () : {}
+    t4 = extract param1, 0 : ptr<managed>
+    store t4 -> local7
+    store local7 -> local8
+    call managed-void-target2 sp14 live=[param1:struct4@0+8+16+32+40+48, param2:ptr<managed>@0, local8:ptr<managed>@0] sig=void2 (ptr<managed>) local-fn16(local8)
+    t5 = aggregate () : {}
+    t6 = extract param1, 1 : {ptr<managed>, ptr<managed>}
+    t7 = extract t6, 0 : ptr<managed>
+    store t7 -> local9
+    store local9 -> local10
+    call managed-void-target3 sp15 live=[param1:struct4@0+8+16+32+40+48, param2:ptr<managed>@0, local10:ptr<managed>@0] sig=void3 (ptr<managed>) local-fn16(local10)
+    t8 = aggregate () : {}
+    t9 = extract param1, 1 : {ptr<managed>, ptr<managed>}
+    t10 = extract t9, 1 : ptr<managed>
+    t11 = heap_load t10 +16 : ptr<managed>
+    store t11 -> local11
+    store local11 -> local12
+    call managed-void-target4 sp16 live=[param1:struct4@0+8+16+32+40+48, param2:ptr<managed>@0, local12:ptr<managed>@0] sig=void4 (ptr<managed>) local-fn16(local12)
+    t12 = aggregate () : {}
+    t13 = extract param1, 2 : enum0
+    store t13 -> local36
+    t14 = enum_tag e0 local36 : i64
+    t15 = Eq t14, 0 : i1
+    cbr t15 then @if.then.4 else @if.else.5
   block while.exit.3
     ret local0
   block if.then.4
-    t15 = enum_field e0 v0 f0 local23 : ptr<managed>
-    store t15 -> local10
-    t16 = enum_field e0 v0 f1 local23 : ptr<managed>
-    store t16 -> local11
-    t17 = heap_load local10 +16 : ptr<managed>
-    store t17 -> local12
-    store local12 -> local13
-    call managed-void-target5 sp17 live=[param1:struct4@0+8+16+32+40+48, param2:ptr<managed>@0, local11:ptr<managed>@0, local13:ptr<managed>@0] sig=void5 (ptr<managed>) local-fn16(local13)
-    t18 = aggregate () : {}
-    store local11 -> local14
-    store local14 -> local15
-    call managed-void-target6 sp18 live=[param1:struct4@0+8+16+32+40+48, param2:ptr<managed>@0, local15:ptr<managed>@0] sig=void6 (ptr<managed>) local-fn16(local15)
+    t16 = enum_field e0 v0 f0 local36 : ptr<managed>
+    store t16 -> local13
+    t17 = enum_field e0 v0 f1 local36 : ptr<managed>
+    store t17 -> local14
+    t18 = heap_load local13 +16 : ptr<managed>
+    store t18 -> local15
+    store local15 -> local16
+    call managed-void-target5 sp17 live=[param1:struct4@0+8+16+32+40+48, param2:ptr<managed>@0, local14:ptr<managed>@0, local16:ptr<managed>@0] sig=void5 (ptr<managed>) local-fn16(local16)
     t19 = aggregate () : {}
+    store local14 -> local17
+    store local17 -> local18
+    call managed-void-target6 sp18 live=[param1:struct4@0+8+16+32+40+48, param2:ptr<managed>@0, local18:ptr<managed>@0] sig=void6 (ptr<managed>) local-fn16(local18)
+    t20 = aggregate () : {}
     br @if.merge.6
   block if.else.5
-    t20 = enum_tag e0 local23 : i64
-    t21 = Eq t20, 1 : i1
-    cbr t21 then @if.then.7 else @if.merge.8
+    t21 = enum_tag e0 local36 : i64
+    t22 = Eq t21, 1 : i1
+    cbr t22 then @if.then.7 else @if.merge.8
   block if.merge.6
-    t22 = extract param1, 3 : ptr<managed>
-    store t22 -> local24
-    store local1 -> local25
-    t23 = Lt local25, 0 : i1
-    cbr t23 then @logic.short.10 else @logic.rhs.9
+    t23 = extract param1, 3 : ptr<managed>
+    store t23 -> local21
+    store local1 -> local22
+    store local22 -> local23
+    store local21 -> local37
+    store local23 -> local38
+    t24 = Lt local38, 0 : i1
+    cbr t24 then @logic.short.10 else @logic.rhs.9
   block if.then.7
-    store global0 -> local16
-    store local16 -> local17
-    call managed-void-target7 sp19 live=[param1:struct4@0+8+16+32+40+48, param2:ptr<managed>@0, local17:ptr<managed>@0] sig=void7 (ptr<managed>) local-fn16(local17)
-    t24 = aggregate () : {}
+    store global0 -> local19
+    store local19 -> local20
+    call managed-void-target7 sp19 live=[param1:struct4@0+8+16+32+40+48, param2:ptr<managed>@0, local20:ptr<managed>@0] sig=void7 (ptr<managed>) local-fn16(local20)
+    t25 = aggregate () : {}
     br @if.merge.8
   block if.merge.8
     br @if.merge.6
   block logic.rhs.9
-    t25 = array_len array0 local24 : i64
-    t26 = Ge local25, t25 : i1
-    store t26 -> local28
+    t26 = array_len array0 local37 : i64
+    t27 = Ge local38, t26 : i1
+    store t27 -> local41
     br @logic.merge.11
   block logic.short.10
-    store true -> local28
+    store true -> local41
     br @logic.merge.11
   block logic.merge.11
-    cbr local28 then @if.then.12 else @if.merge.13
+    cbr local41 then @if.then.12 else @if.merge.13
   block if.then.12
-    call managed-direct-target0 sp20 live=[] t27 = sig=direct0 () -> ptr<managed> local-fn23()
-    store t27 -> local29
-    throw local29
+    call managed-direct-target0 sp20 live=[] t28 = sig=direct0 () -> ptr<managed> local-fn23()
+    store t28 -> local42
+    throw local42
     unreachable
   block if.merge.13
-    t28 = array_get array0 local24 local25 : ptr<managed>
-    store t28 -> local18
-    store local18 -> local19
-    call managed-void-target8 sp21 live=[param1:struct4@0+8+16+32+40+48, param2:ptr<managed>@0, local19:ptr<managed>@0] sig=void8 (ptr<managed>) local-fn16(local19)
-    t29 = aggregate () : {}
-    store param2 -> local20
-    t30 = heap_load local20 +0 : ptr<metadata>
-    call no-gc-direct-target0 t31 = sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t30, td2)
-    call managed-direct-target1 sp22 live=[param1:struct4@0+8+16+32+40+48, param2:ptr<managed>@0, local20:ptr<managed>@0] t32 = sig=direct2 (ptr<managed>) -> ptr<managed> dispatch[Interface:0] t31(local20)
-    store t32 -> local21
-    store local21 -> local22
-    call managed-void-target9 sp23 live=[param1:struct4@0+8+16+32+40+48, param2:ptr<managed>@0, local22:ptr<managed>@0] sig=void9 (ptr<managed>) local-fn16(local22)
-    t33 = aggregate () : {}
-    t34 = extract param1, 3 : ptr<managed>
-    store t34 -> local26
-    store local1 -> local27
-    t35 = Lt local27, 0 : i1
-    cbr t35 then @logic.short.15 else @logic.rhs.14
+    t29 = array_get array0 local37 local38 : ptr<managed>
+    store t29 -> local24
+    store local24 -> local25
+    call managed-void-target8 sp21 live=[param1:struct4@0+8+16+32+40+48, param2:ptr<managed>@0, local25:ptr<managed>@0] sig=void8 (ptr<managed>) local-fn16(local25)
+    t30 = aggregate () : {}
+    store param2 -> local26
+    t31 = heap_load local26 +0 : ptr<metadata>
+    call no-gc-direct-target0 t32 = sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t31, td2)
+    call managed-direct-target1 sp22 live=[param1:struct4@0+8+16+32+40+48, param2:ptr<managed>@0, local26:ptr<managed>@0] t33 = sig=direct2 (ptr<managed>) -> ptr<managed> dispatch[Interface:0] t32(local26)
+    store t33 -> local27
+    store local27 -> local28
+    call managed-void-target9 sp23 live=[param1:struct4@0+8+16+32+40+48, param2:ptr<managed>@0, local28:ptr<managed>@0] sig=void9 (ptr<managed>) local-fn16(local28)
+    t34 = aggregate () : {}
+    t35 = extract param1, 3 : ptr<managed>
+    store t35 -> local29
+    store local1 -> local30
+    store local30 -> local31
+    store local29 -> local39
+    store local31 -> local40
+    t36 = Lt local40, 0 : i1
+    cbr t36 then @logic.short.15 else @logic.rhs.14
   block logic.rhs.14
-    t36 = array_len array0 local26 : i64
-    t37 = Ge local27, t36 : i1
-    store t37 -> local30
+    t37 = array_len array0 local39 : i64
+    t38 = Ge local40, t37 : i1
+    store t38 -> local43
     br @logic.merge.16
   block logic.short.15
-    store true -> local30
+    store true -> local43
     br @logic.merge.16
   block logic.merge.16
-    cbr local30 then @if.then.17 else @if.merge.18
+    cbr local43 then @if.then.17 else @if.merge.18
   block if.then.17
-    call managed-direct-target2 sp24 live=[] t38 = sig=direct3 () -> ptr<managed> local-fn23()
-    store t38 -> local31
-    throw local31
+    call managed-direct-target2 sp24 live=[] t39 = sig=direct3 () -> ptr<managed> local-fn23()
+    store t39 -> local44
+    throw local44
     unreachable
   block if.merge.18
-    t39 = array_get array0 local26 local27 : ptr<managed>
-    store t39 -> local0
-    t40 = Add local1, 1 : i64
-    store t40 -> local1
+    t40 = array_get array0 local39 local40 : ptr<managed>
+    store t40 -> local0
+    store local1 -> local32
+    store 1 -> local33
+    store local33 -> local34
+    t41 = Add local32, local34 : i64
+    store t41 -> local1
+    store local1 -> local2
+    store 2 -> local3
+    store local3 -> local4
+    t42 = SCompareTo local2, local4 : i64
+    t43 = Lt t42, 0 : i1
+    store t43 -> local35
     br @while.cond.1
   fun @scoop.passThroughMiddle(struct4, ptr<managed>) -> ptr<managed>
     local %0 $argument.0: ptr<managed>
@@ -1882,77 +2120,113 @@ Module
     store t1 -> local6
     ret local6
   fun @scoop_main() -> void
-    local %0 head: ptr<managed>
-    local %1 pairText: ptr<managed>
-    local %2 $argument.0: ptr<managed>
-    local %3 $parameter.value: ptr<managed>
-    local %4 node: ptr<managed>
-    local %5 choiceText: ptr<managed>
-    local %6 first: ptr<managed>
-    local %7 second: ptr<managed>
-    local %8 $argument.0: ptr<managed>
-    local %9 $argument.1: ptr<managed>
-    local %10 $parameter._1: ptr<managed>
-    local %11 $parameter._2: ptr<managed>
-    local %12 $argument.0: ptr<managed>
-    local %13 $argument.1: {ptr<managed>, ptr<managed>}
-    local %14 $argument.2: enum0
-    local %15 $argument.3: ptr<managed>
-    local %16 $parameter.head: ptr<managed>
-    local %17 $parameter.pair: {ptr<managed>, ptr<managed>}
-    local %18 $parameter.choice: enum0
-    local %19 $parameter.values: ptr<managed>
-    local %20 bundle: struct4
-    local %21 source: ptr<managed>
-    local %22 $argument.0: struct4
-    local %23 $argument.1: ptr<managed>
-    local %24 $parameter.bundle: struct4
-    local %25 $parameter.source: ptr<managed>
+    local %0 $receiver: ptr<managed>
+    local %1 $argument.0: ptr<managed>
+    local %2 $parameter.other: ptr<managed>
+    local %3 head: ptr<managed>
+    local %4 $receiver: ptr<managed>
+    local %5 $argument.0: ptr<managed>
+    local %6 $parameter.other: ptr<managed>
+    local %7 pairText: ptr<managed>
+    local %8 $receiver: ptr<managed>
+    local %9 $argument.0: ptr<managed>
+    local %10 $parameter.other: ptr<managed>
+    local %11 $argument.0: ptr<managed>
+    local %12 $parameter.value: ptr<managed>
+    local %13 node: ptr<managed>
+    local %14 $receiver: ptr<managed>
+    local %15 $argument.0: ptr<managed>
+    local %16 $parameter.other: ptr<managed>
+    local %17 choiceText: ptr<managed>
+    local %18 $receiver: ptr<managed>
+    local %19 $argument.0: ptr<managed>
+    local %20 $parameter.other: ptr<managed>
+    local %21 first: ptr<managed>
+    local %22 $receiver: ptr<managed>
+    local %23 $argument.0: ptr<managed>
+    local %24 $parameter.other: ptr<managed>
+    local %25 second: ptr<managed>
     local %26 $argument.0: ptr<managed>
-    local %27 $parameter.value: ptr<managed>
+    local %27 $argument.1: ptr<managed>
+    local %28 $parameter._1: ptr<managed>
+    local %29 $parameter._2: ptr<managed>
+    local %30 $argument.0: ptr<managed>
+    local %31 $argument.1: {ptr<managed>, ptr<managed>}
+    local %32 $argument.2: enum0
+    local %33 $argument.3: ptr<managed>
+    local %34 $parameter.head: ptr<managed>
+    local %35 $parameter.pair: {ptr<managed>, ptr<managed>}
+    local %36 $parameter.choice: enum0
+    local %37 $parameter.values: ptr<managed>
+    local %38 bundle: struct4
+    local %39 source: ptr<managed>
+    local %40 $argument.0: struct4
+    local %41 $argument.1: ptr<managed>
+    local %42 $parameter.bundle: struct4
+    local %43 $parameter.source: ptr<managed>
+    local %44 $argument.0: ptr<managed>
+    local %45 $parameter.value: ptr<managed>
   block entry
     poll managed-void-target1 sp63 live=[]
-    call managed-direct-target0 sp26 live=[] t0 = sig=direct0 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(global1, global2)
-    store t0 -> local0
-    call managed-direct-target1 sp27 live=[local0:ptr<managed>@0] t1 = sig=direct1 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(global3, global4)
-    store t1 -> local1
-    call managed-direct-target2 sp28 live=[local0:ptr<managed>@0, local1:ptr<managed>@0] t2 = sig=direct2 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(global5, global6)
-    store t2 -> local2
-    store local2 -> local3
-    call managed-direct-target3 sp29 live=[local0:ptr<managed>@0, local1:ptr<managed>@0, local3:ptr<managed>@0] t3 = sig=direct3 (ptr<managed>) -> ptr<managed> local-fn17(local3)
-    store t3 -> local4
-    call managed-direct-target4 sp30 live=[local0:ptr<managed>@0, local1:ptr<managed>@0, local4:ptr<managed>@0] t4 = sig=direct4 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(global7, global8)
-    store t4 -> local5
-    call managed-direct-target5 sp31 live=[local0:ptr<managed>@0, local1:ptr<managed>@0, local4:ptr<managed>@0, local5:ptr<managed>@0] t5 = sig=direct5 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(global9, global10)
-    store t5 -> local6
-    call managed-direct-target6 sp32 live=[local0:ptr<managed>@0, local1:ptr<managed>@0, local4:ptr<managed>@0, local5:ptr<managed>@0, local6:ptr<managed>@0] t6 = sig=direct6 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(global11, global12)
-    store t6 -> local7
-    store local0 -> local12
-    t7 = aggregate (local1, local4) : {ptr<managed>, ptr<managed>}
-    store t7 -> local13
-    store local4 -> local8
-    store local5 -> local9
-    store local8 -> local10
-    store local9 -> local11
-    t8 = enum_wrap e0 v0 (local10, local11) : enum0
-    store t8 -> local14
-    t9 = array_alloc array0 (local6, local7) sp33 live local4:ptr<managed>@0, local6:ptr<managed>@0, local7:ptr<managed>@0, local12:ptr<managed>@0, local13:{ptr<managed>, ptr<managed>}@0+8, local14:enum0@8+16 : ptr<managed>
-    store t9 -> local15
-    store local12 -> local16
-    store local13 -> local17
-    store local14 -> local18
-    store local15 -> local19
-    t10 = aggregate (local16, local17, local18, local19) : struct4
-    store t10 -> local20
-    store local4 -> local21
-    store local20 -> local22
-    store local21 -> local23
-    store local22 -> local24
-    store local23 -> local25
-    call managed-direct-target7 sp34 live=[local24:struct4@0+8+16+32+40+48, local25:ptr<managed>@0] t11 = sig=direct7 (struct4, ptr<managed>) -> ptr<managed> local-fn14(local24, local25)
-    store t11 -> local26
-    store local26 -> local27
-    call managed-void-target0 sp35 live=[local27:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn16(local27)
+    store global1 -> local0
+    store global2 -> local1
+    store local1 -> local2
+    call managed-direct-target0 sp26 live=[local0:ptr<managed>@0, local2:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(local0, local2)
+    store t0 -> local3
+    store global3 -> local4
+    store global4 -> local5
+    store local5 -> local6
+    call managed-direct-target1 sp27 live=[local3:ptr<managed>@0, local4:ptr<managed>@0, local6:ptr<managed>@0] t1 = sig=direct1 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(local4, local6)
+    store t1 -> local7
+    store global5 -> local8
+    store global6 -> local9
+    store local9 -> local10
+    call managed-direct-target2 sp28 live=[local3:ptr<managed>@0, local7:ptr<managed>@0, local8:ptr<managed>@0, local10:ptr<managed>@0] t2 = sig=direct2 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(local8, local10)
+    store t2 -> local11
+    store local11 -> local12
+    call managed-direct-target3 sp29 live=[local3:ptr<managed>@0, local7:ptr<managed>@0, local12:ptr<managed>@0] t3 = sig=direct3 (ptr<managed>) -> ptr<managed> local-fn17(local12)
+    store t3 -> local13
+    store global7 -> local14
+    store global8 -> local15
+    store local15 -> local16
+    call managed-direct-target4 sp30 live=[local3:ptr<managed>@0, local7:ptr<managed>@0, local13:ptr<managed>@0, local14:ptr<managed>@0, local16:ptr<managed>@0] t4 = sig=direct4 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(local14, local16)
+    store t4 -> local17
+    store global9 -> local18
+    store global10 -> local19
+    store local19 -> local20
+    call managed-direct-target5 sp31 live=[local3:ptr<managed>@0, local7:ptr<managed>@0, local13:ptr<managed>@0, local17:ptr<managed>@0, local18:ptr<managed>@0, local20:ptr<managed>@0] t5 = sig=direct5 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(local18, local20)
+    store t5 -> local21
+    store global11 -> local22
+    store global12 -> local23
+    store local23 -> local24
+    call managed-direct-target6 sp32 live=[local3:ptr<managed>@0, local7:ptr<managed>@0, local13:ptr<managed>@0, local17:ptr<managed>@0, local21:ptr<managed>@0, local22:ptr<managed>@0, local24:ptr<managed>@0] t6 = sig=direct6 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(local22, local24)
+    store t6 -> local25
+    store local3 -> local30
+    t7 = aggregate (local7, local13) : {ptr<managed>, ptr<managed>}
+    store t7 -> local31
+    store local13 -> local26
+    store local17 -> local27
+    store local26 -> local28
+    store local27 -> local29
+    t8 = enum_wrap e0 v0 (local28, local29) : enum0
+    store t8 -> local32
+    t9 = array_alloc array0 (local21, local25) sp33 live local13:ptr<managed>@0, local21:ptr<managed>@0, local25:ptr<managed>@0, local30:ptr<managed>@0, local31:{ptr<managed>, ptr<managed>}@0+8, local32:enum0@8+16 : ptr<managed>
+    store t9 -> local33
+    store local30 -> local34
+    store local31 -> local35
+    store local32 -> local36
+    store local33 -> local37
+    t10 = aggregate (local34, local35, local36, local37) : struct4
+    store t10 -> local38
+    store local13 -> local39
+    store local38 -> local40
+    store local39 -> local41
+    store local40 -> local42
+    store local41 -> local43
+    call managed-direct-target7 sp34 live=[local42:struct4@0+8+16+32+40+48, local43:ptr<managed>@0] t11 = sig=direct7 (struct4, ptr<managed>) -> ptr<managed> local-fn14(local42, local43)
+    store t11 -> local44
+    store local44 -> local45
+    call managed-void-target0 sp35 live=[local45:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn16(local45)
     t12 = aggregate () : {}
     ret
   fun @scoop.println$S(ptr<managed>) -> void

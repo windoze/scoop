@@ -13,6 +13,7 @@ mod coroutines;
 mod exceptions;
 mod ffi;
 mod intrinsics;
+mod operators;
 mod option;
 mod pointers;
 mod source_location;

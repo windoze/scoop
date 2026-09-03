@@ -41,8 +41,8 @@ SourceFile
     fun load
     fun store
     fun store
-    fun plus
-    fun minus
+    operator fun plus
+    operator fun minus
   struct FunPtr<F>
     field _rawPointer: UInt
     @Unsafe
@@ -169,28 +169,53 @@ SourceFile
     @Intrinsic("core_int")
   struct Int <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun unaryMinus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_uint")
   struct UInt <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_boolean")
   struct Boolean <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun not
     fun toString
     fun hash
     @Intrinsic("core_string")
   class String(), ToString, Hash
     operator fun equals
+    operator fun plus
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_array")
   class Array<T>()
+    operator fun get
     fun toMutableArray
     @Intrinsic("core_mutable_array")
   class MutableArray<T>()
+    operator fun get
+    operator fun set
     fun toArray
     @Extern(name = "scoop_rt_int_equals", abi = "scoop")
   fun coreIntEquals(left: Int, right: Int): Boolean
@@ -445,10 +470,16 @@ Module
   fun coreBooleanHash(arg1: Boolean): Int <extern10 abi=scoop symbol=scoop_rt_bool_hash>
   fun coreStringHash(arg1: String): Int <extern11 abi=scoop symbol=scoop_rt_string_hash>
   fun increment(value: Int): Int
+    val local1
+      Local value : Int
+    val local2
+      IntLiteral 1 : Int
+    val local3
+      Local $argument.0 : Int
     return
-      Binary Add : Int
-        Local value : Int
-        IntLiteral 1 : Int
+      PrimitiveBinary IntAdd : Int
+        Local $receiver : Int
+        Local $parameter.other : Int
   fun apply(value: Int, operation: (Int) -> Int): Int
     return
       CallableCall function_type4 : Int
@@ -786,13 +817,22 @@ Module
         Local $call.1
   fun increment @scoop.increment(value: Int) -> Int
     bb0 entry
+      val $receiver: Int
+        Type Int
+        Local value
+      val $argument.0: Int
+        Type Int
+        IntLiteral 1
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       return
         Type Int
         Binary IntAdd
           Type Int
-          Local value
+          Local $receiver
           Type Int
-          IntLiteral 1
+          Local $parameter.other
   fun apply @scoop.apply(value: Int, operation: (Int) -> Int) -> Int
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
@@ -944,31 +984,58 @@ Module
       return
   fun $lambda.0 @scoop.$lambda.0($closure: (Int) -> Int, value: Int) -> Int
     bb0 entry
+      val $receiver: Int
+        Type Int
+        Local value
+      val $argument.0: Int
+        Type Int
+        IntLiteral 1
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       return
         Type Int
         Binary IntAdd
           Type Int
-          Local value
+          Local $receiver
           Type Int
-          IntLiteral 1
+          Local $parameter.other
   fun $lambda.1 @scoop.$lambda.1($closure: (Int) -> Int, value: Int) -> Int
     bb0 entry
+      val $receiver: Int
+        Type Int
+        Local value
+      val $argument.0: Int
+        Type Int
+        IntLiteral 3
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       return
         Type Int
         Binary IntAdd
           Type Int
-          Local value
+          Local $receiver
           Type Int
-          IntLiteral 3
+          Local $parameter.other
   fun $lambda.2 @scoop.$lambda.2($closure: (Int) -> Int, it: Int) -> Int
     bb0 entry
+      val $receiver: Int
+        Type Int
+        Local it
+      val $argument.0: Int
+        Type Int
+        IntLiteral 1
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       return
         Type Int
         Binary IntAdd
           Type Int
-          Local it
+          Local $receiver
           Type Int
-          IntLiteral 1
+          Local $parameter.other
   fun $lambda.3 @scoop.$lambda.3($closure: () -> Int) -> Int
     bb0 entry
       return
@@ -976,31 +1043,58 @@ Module
         IntLiteral 42
   fun $lambda.4 @scoop.$lambda.4($closure: (Int) -> Unit, value: Int) -> Unit
     bb0 entry
+      val $receiver: Int
+        Type Int
+        Local value
+      val $argument.0: Int
+        Type Int
+        IntLiteral 1
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       Type Int
       Binary IntAdd
         Type Int
-        Local value
+        Local $receiver
         Type Int
-        IntLiteral 1
+        Local $parameter.other
       return
   fun $lambda.5 @scoop.$lambda.5($closure: (Int) -> Int, value: Int) -> Int
     bb0 entry
+      val $receiver: Int
+        Type Int
+        Local value
+      val $argument.0: Int
+        Type Int
+        IntLiteral 2
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       return
         Type Int
         Binary IntAdd
           Type Int
-          Local value
+          Local $receiver
           Type Int
-          IntLiteral 2
+          Local $parameter.other
   fun $lambda.6 @scoop.$lambda.6($closure: (Int) -> Int, value: Int) -> Int
     bb0 entry
+      val $receiver: Int
+        Type Int
+        Local value
+      val $argument.0: Int
+        Type Int
+        IntLiteral 1
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       return
         Type Int
         Binary IntAdd
           Type Int
-          Local value
+          Local $receiver
           Type Int
-          IntLiteral 1
+          Local $parameter.other
   fun println @scoop.println$I(value: Int) -> Unit
     bb0 entry
       val $receiver: Int
@@ -1389,9 +1483,15 @@ Module
     store t0 -> local2
     ret local2
   fun @scoop.increment(i64) -> i64
+    local %0 $receiver: i64
+    local %1 $argument.0: i64
+    local %2 $parameter.other: i64
   block entry
     poll managed-void-target0 sp70 live=[]
-    t0 = Add param0, 1 : i64
+    store param0 -> local0
+    store 1 -> local1
+    store local1 -> local2
+    t0 = Add local0, local2 : i64
     ret t0
   fun @scoop.apply(i64, ptr<managed>) -> i64
     local %0 $call.1: i64
@@ -1520,38 +1620,74 @@ Module
     t36 = aggregate () : {}
     ret
   fun @scoop.$lambda.0(ptr<managed>, i64) -> i64
+    local %0 $receiver: i64
+    local %1 $argument.0: i64
+    local %2 $parameter.other: i64
   block entry
     poll managed-void-target0 sp73 live=[]
-    t0 = Add param1, 1 : i64
+    store param1 -> local0
+    store 1 -> local1
+    store local1 -> local2
+    t0 = Add local0, local2 : i64
     ret t0
   fun @scoop.$lambda.1(ptr<managed>, i64) -> i64
+    local %0 $receiver: i64
+    local %1 $argument.0: i64
+    local %2 $parameter.other: i64
   block entry
     poll managed-void-target0 sp74 live=[]
-    t0 = Add param1, 3 : i64
+    store param1 -> local0
+    store 3 -> local1
+    store local1 -> local2
+    t0 = Add local0, local2 : i64
     ret t0
   fun @scoop.$lambda.2(ptr<managed>, i64) -> i64
+    local %0 $receiver: i64
+    local %1 $argument.0: i64
+    local %2 $parameter.other: i64
   block entry
     poll managed-void-target0 sp75 live=[]
-    t0 = Add param1, 1 : i64
+    store param1 -> local0
+    store 1 -> local1
+    store local1 -> local2
+    t0 = Add local0, local2 : i64
     ret t0
   fun @scoop.$lambda.3(ptr<managed>) -> i64
   block entry
     poll managed-void-target0 sp76 live=[]
     ret 42
   fun @scoop.$lambda.4(ptr<managed>, i64) -> void
+    local %0 $receiver: i64
+    local %1 $argument.0: i64
+    local %2 $parameter.other: i64
   block entry
     poll managed-void-target0 sp77 live=[]
-    t0 = Add param1, 1 : i64
+    store param1 -> local0
+    store 1 -> local1
+    store local1 -> local2
+    t0 = Add local0, local2 : i64
     ret
   fun @scoop.$lambda.5(ptr<managed>, i64) -> i64
+    local %0 $receiver: i64
+    local %1 $argument.0: i64
+    local %2 $parameter.other: i64
   block entry
     poll managed-void-target0 sp78 live=[]
-    t0 = Add param1, 2 : i64
+    store param1 -> local0
+    store 2 -> local1
+    store local1 -> local2
+    t0 = Add local0, local2 : i64
     ret t0
   fun @scoop.$lambda.6(ptr<managed>, i64) -> i64
+    local %0 $receiver: i64
+    local %1 $argument.0: i64
+    local %2 $parameter.other: i64
   block entry
     poll managed-void-target0 sp79 live=[]
-    t0 = Add param1, 1 : i64
+    store param1 -> local0
+    store 1 -> local1
+    store local1 -> local2
+    t0 = Add local0, local2 : i64
     ret t0
   fun @scoop.println$I(i64) -> void
     local %0 $receiver: i64

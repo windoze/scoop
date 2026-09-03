@@ -41,8 +41,8 @@ SourceFile
     fun load
     fun store
     fun store
-    fun plus
-    fun minus
+    operator fun plus
+    operator fun minus
   struct FunPtr<F>
     field _rawPointer: UInt
     @Unsafe
@@ -169,28 +169,53 @@ SourceFile
     @Intrinsic("core_int")
   struct Int <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun unaryMinus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_uint")
   struct UInt <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_boolean")
   struct Boolean <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun not
     fun toString
     fun hash
     @Intrinsic("core_string")
   class String(), ToString, Hash
     operator fun equals
+    operator fun plus
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_array")
   class Array<T>()
+    operator fun get
     fun toMutableArray
     @Intrinsic("core_mutable_array")
   class MutableArray<T>()
+    operator fun get
+    operator fun set
     fun toArray
     @Extern(name = "scoop_rt_int_equals", abi = "scoop")
   fun coreIntEquals(left: Int, right: Int): Boolean
@@ -480,10 +505,16 @@ Module
   fun coreBooleanHash(arg1: Boolean): Int <extern10 abi=scoop symbol=scoop_rt_bool_hash>
   fun coreStringHash(arg1: String): Int <extern11 abi=scoop symbol=scoop_rt_string_hash>
   fun increment(value: Int): Int <no-gc cdecl>
+    val local1
+      Local value : Int
+    val local2
+      IntLiteral 1 : Int
+    val local3
+      Local $argument.0 : Int
     return
-      Binary Add : Int
-        Local value : Int
-        IntLiteral 1 : Int
+      PrimitiveBinary IntAdd : Int
+        Local $receiver : Int
+        Local $parameter.other : Int
   fun malloc(arg1: UInt): Ptr<Unit> <unsafe no-gc cdecl> <extern12 abi=c symbol=malloc>
   fun free(arg1: Ptr<Unit>): Unit <unsafe no-gc cdecl> <extern13 abi=c symbol=free>
   fun rewriteParameter(value: Int): Int <unsafe no-gc cdecl>
@@ -542,176 +573,188 @@ Module
     Call println<Int> : Unit
       Local $parameter.value : Int
     val local15
-      PtrOffset subtract=false : Ptr<Int>
-        Local pointer : Ptr<Int>
-        IntLiteral 0 : Int
+      Local pointer : Ptr<Int>
     val local16
-      Local shifted : Ptr<Int>
+      IntLiteral 0 : Int
     val local17
+      Local $argument.0 : Int
+    val local18
+      PtrOffset subtract=false : Ptr<Int>
+        Local $receiver : Ptr<Int>
+        Local $parameter.offset : Int
+    val local19
+      Local shifted : Ptr<Int>
+    val local20
       PtrToUInt : UInt
         Local $receiver : Ptr<Int>
-    val local18
+    val local21
       Local raw : UInt
-    val local19
+    val local22
       Local $argument.0 : UInt
-    val local20
+    val local23
       PtrFromUInt : Ptr<Int>
         Local $parameter._rawPointer : UInt
-    val local21
-      Local reconstructed : Ptr<Int>
-    val local22
-      IntLiteral 0 : Int
-    val local23
-      Local $argument.0 : Int
     val local24
+      Local reconstructed : Ptr<Int>
+    val local25
+      IntLiteral 0 : Int
+    val local26
+      Local $argument.0 : Int
+    val local27
       PtrLoad : Int
         Local $receiver : Ptr<Int>
         Local $parameter.offset : Int
-    val local25
+    val local28
       Local $argument.0 : Int
     Call println<Int> : Unit
       Local $parameter.value : Int
-    val local26
+    val local29
       Local reconstructed : Ptr<Int>
-    val local27
+    val local30
       PtrCast : Ptr<Boolean>
         Local $receiver : Ptr<Int>
-    val local28
+    val local31
       PtrCast : Ptr<Int>
         Local $receiver : Ptr<Boolean>
-    val local29
+    val local32
       Local retyped : Ptr<Int>
-    val local30
+    val local33
       IntLiteral 10 : Int
-    val local31
+    val local34
       Local $argument.0 : Int
     PtrStore : Unit
       Local $receiver : Ptr<Int>
       Local $parameter.value : Int
-    val local32
+    val local35
       Local value : Int
-    val local33
+    val local36
       Local $argument.0 : Int
     Call println<Int> : Unit
       Local $parameter.value : Int
-    val local34
-      Local pointer : Ptr<Int>
-    val local35
-      IntLiteral 0 : Int
-    val local36
-      IntLiteral 11 : Int
     val local37
-      Local $argument.0 : Int
+      Local pointer : Ptr<Int>
     val local38
+      IntLiteral 0 : Int
+    val local39
+      IntLiteral 11 : Int
+    val local40
+      Local $argument.0 : Int
+    val local41
       Local $argument.1 : Int
     PtrStore : Unit
       Local $receiver : Ptr<Int>
       Local $parameter.offset : Int
       Local $parameter.value : Int
-    val local39
-      PtrOffset subtract=true : Ptr<Int>
-        Local pointer : Ptr<Int>
-        IntLiteral 0 : Int
-    val local40
-      Local previous : Ptr<Int>
-    val local41
-      PtrLoad : Int
-        Local $receiver : Ptr<Int>
     val local42
-      Local $argument.0 : Int
-    Call println<Int> : Unit
-      Local $parameter.value : Int
+      Local pointer : Ptr<Int>
     val local43
-      Local value : Int
+      IntLiteral 0 : Int
     val local44
       Local $argument.0 : Int
-    Call println<Int> : Unit
-      Local $parameter.value : Int
     val local45
-      IntLiteral 0 : Int
+      PtrOffset subtract=true : Ptr<Int>
+        Local $receiver : Ptr<Int>
+        Local $parameter.offset : Int
     val local46
-      Local $argument.0 : Int
+      Local previous : Ptr<Int>
     val local47
-      Call rewriteParameter : Int
-        Local $parameter.value : Int
+      PtrLoad : Int
+        Local $receiver : Ptr<Int>
     val local48
       Local $argument.0 : Int
     Call println<Int> : Unit
       Local $parameter.value : Int
     val local49
-      IntLiteral 0 : Int
+      Local value : Int
     val local50
-      Local $argument.0 : Int
-    val local51
-      StructInit Slot : Slot
-        Local $parameter.value : Int
-    val local52
-      MethodCall Slot.rewriteThis : Int
-        Local $receiver : Slot
-    val local53
       Local $argument.0 : Int
     Call println<Int> : Unit
       Local $parameter.value : Int
+    val local51
+      IntLiteral 0 : Int
+    val local52
+      Local $argument.0 : Int
+    val local53
+      Call rewriteParameter : Int
+        Local $parameter.value : Int
     val local54
-      SizeOf Int : UInt
+      Local $argument.0 : Int
+    Call println<Int> : Unit
+      Local $parameter.value : Int
     val local55
-      Local $argument.0 : UInt
+      IntLiteral 0 : Int
     val local56
+      Local $argument.0 : Int
+    val local57
+      StructInit Slot : Slot
+        Local $parameter.value : Int
+    val local58
+      MethodCall Slot.rewriteThis : Int
+        Local $receiver : Slot
+    val local59
+      Local $argument.0 : Int
+    Call println<Int> : Unit
+      Local $parameter.value : Int
+    val local60
+      SizeOf Int : UInt
+    val local61
+      Local $argument.0 : UInt
+    val local62
       Call malloc : Ptr<Unit>
         Local $parameter.size : UInt
-    val local57
+    val local63
       PtrCast : Ptr<Int>
         Local $receiver : Ptr<Unit>
-    val local58
+    val local64
       Local allocated : Ptr<Int>
-    val local59
+    val local65
       IntLiteral 14 : Int
-    val local60
+    val local66
       Local $argument.0 : Int
     PtrStore : Unit
       Local $receiver : Ptr<Int>
       Local $parameter.value : Int
-    val local61
+    val local67
       Local allocated : Ptr<Int>
-    val local62
+    val local68
       PtrLoad : Int
         Local $receiver : Ptr<Int>
-    val local63
+    val local69
       Local $argument.0 : Int
     Call println<Int> : Unit
       Local $parameter.value : Int
-    val local64
+    val local70
       Local allocated : Ptr<Int>
-    val local65
+    val local71
       PtrCast : Ptr<Unit>
         Local $receiver : Ptr<Int>
-    val local66
+    val local72
       Local $argument.0 : Ptr<Unit>
     Call free : Unit
       Local $parameter.pointer : Ptr<Unit>
-    val local67
+    val local73
       Local pointer : Ptr<Int>
-    val local68
+    val local74
       Local $argument.0 : Ptr<Int>
-    val local69
+    val local75
       VariantConstruct Option.Some<Ptr<Int>> : Option<Ptr<Int>>
         Local $parameter._1 : Ptr<Int>
     when
       Local optional : Option<Ptr<Int>>
-      arm variant0(0: local70)
-        val local71
+      arm variant0(0: local76)
+        val local77
           Local present : Ptr<Int>
-        val local72
+        val local78
           PtrLoad : Int
             Local $receiver : Ptr<Int>
-        val local73
+        val local79
           Local $argument.0 : Int
         Call println<Int> : Unit
           Local $parameter.value : Int
       arm variant1()
-        val local74
+        val local80
           IntLiteral 0 : Int
-        val local75
+        val local81
           Local $argument.0 : Int
         Call println<Int> : Unit
           Local $parameter.value : Int
@@ -989,13 +1032,22 @@ Module
         Local $call.1
   fun increment @scoop.increment(value: Int) -> Int <no-gc>
     bb0 entry
+      val $receiver: Int
+        Type Int
+        Local value
+      val $argument.0: Int
+        Type Int
+        IntLiteral 1
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       return
         Type Int
         Binary IntAdd
           Type Int
-          Local value
+          Local $receiver
           Type Int
-          IntLiteral 1
+          Local $parameter.other
   fun rewriteParameter @scoop.rewriteParameter(value: Int) -> Int <no-gc>
     bb0 entry
       val $argument.0: Int
@@ -1083,13 +1135,22 @@ Module
       call @scoop.println$I direct
         Type Int
         Local $parameter.value
+      val $receiver: Ptr<Int>
+        Type Ptr<Int>
+        Local pointer
+      val $argument.0: Int
+        Type Int
+        IntLiteral 0
+      val $parameter.offset: Int
+        Type Int
+        Local $argument.0
       val shifted: Ptr<Int>
         Type Ptr<Int>
         PtrOffset Int subtract=false
           Type Ptr<Int>
-          Local pointer
+          Local $receiver
           Type Int
-          IntLiteral 0
+          Local $parameter.offset
       val $receiver: Ptr<Int>
         Type Ptr<Int>
         Local shifted
@@ -1191,13 +1252,22 @@ Module
         Local $parameter.offset
         Type Int
         Local $parameter.value
+      val $receiver: Ptr<Int>
+        Type Ptr<Int>
+        Local pointer
+      val $argument.0: Int
+        Type Int
+        IntLiteral 0
+      val $parameter.offset: Int
+        Type Int
+        Local $argument.0
       val previous: Ptr<Int>
         Type Ptr<Int>
         PtrOffset Int subtract=true
           Type Ptr<Int>
-          Local pointer
+          Local $receiver
           Type Int
-          IntLiteral 0
+          Local $parameter.offset
       val $receiver: Ptr<Int>
         Type Ptr<Int>
         Local previous
@@ -1743,8 +1813,14 @@ Module
     store t0 -> local2
     ret local2
   fun @scoop.increment(i64) -> i64 <no-gc>
+    local %0 $receiver: i64
+    local %1 $argument.0: i64
+    local %2 $parameter.other: i64
   block entry
-    t0 = Add param0, 1 : i64
+    store param0 -> local0
+    store 1 -> local1
+    store local1 -> local2
+    t0 = Add local0, local2 : i64
     ret t0
   fun @scoop.rewriteParameter(i64) -> i64 <no-gc>
     local %0 value: i64
@@ -1782,71 +1858,77 @@ Module
     local %12 $receiver: ptr<raw>
     local %13 $argument.0: i64
     local %14 $parameter.value: i64
-    local %15 shifted: ptr<raw>
-    local %16 $receiver: ptr<raw>
-    local %17 raw: i64
-    local %18 $argument.0: i64
-    local %19 $parameter._rawPointer: i64
-    local %20 reconstructed: ptr<raw>
-    local %21 $receiver: ptr<raw>
-    local %22 $argument.0: i64
-    local %23 $parameter.offset: i64
-    local %24 $argument.0: i64
-    local %25 $parameter.value: i64
-    local %26 $receiver: ptr<raw>
-    local %27 $receiver: ptr<raw>
-    local %28 retyped: ptr<raw>
+    local %15 $receiver: ptr<raw>
+    local %16 $argument.0: i64
+    local %17 $parameter.offset: i64
+    local %18 shifted: ptr<raw>
+    local %19 $receiver: ptr<raw>
+    local %20 raw: i64
+    local %21 $argument.0: i64
+    local %22 $parameter._rawPointer: i64
+    local %23 reconstructed: ptr<raw>
+    local %24 $receiver: ptr<raw>
+    local %25 $argument.0: i64
+    local %26 $parameter.offset: i64
+    local %27 $argument.0: i64
+    local %28 $parameter.value: i64
     local %29 $receiver: ptr<raw>
-    local %30 $argument.0: i64
-    local %31 $parameter.value: i64
-    local %32 $argument.0: i64
-    local %33 $parameter.value: i64
-    local %34 $receiver: ptr<raw>
+    local %30 $receiver: ptr<raw>
+    local %31 retyped: ptr<raw>
+    local %32 $receiver: ptr<raw>
+    local %33 $argument.0: i64
+    local %34 $parameter.value: i64
     local %35 $argument.0: i64
-    local %36 $argument.1: i64
-    local %37 $parameter.offset: i64
-    local %38 $parameter.value: i64
-    local %39 previous: ptr<raw>
-    local %40 $receiver: ptr<raw>
-    local %41 $argument.0: i64
-    local %42 $parameter.value: i64
+    local %36 $parameter.value: i64
+    local %37 $receiver: ptr<raw>
+    local %38 $argument.0: i64
+    local %39 $argument.1: i64
+    local %40 $parameter.offset: i64
+    local %41 $parameter.value: i64
+    local %42 $receiver: ptr<raw>
     local %43 $argument.0: i64
-    local %44 $parameter.value: i64
-    local %45 $argument.0: i64
-    local %46 $parameter.value: i64
+    local %44 $parameter.offset: i64
+    local %45 previous: ptr<raw>
+    local %46 $receiver: ptr<raw>
     local %47 $argument.0: i64
     local %48 $parameter.value: i64
     local %49 $argument.0: i64
     local %50 $parameter.value: i64
-    local %51 $receiver: struct4
-    local %52 $argument.0: i64
-    local %53 $parameter.value: i64
-    local %54 $argument.0: i64
-    local %55 $parameter.size: i64
-    local %56 $receiver: ptr<raw>
-    local %57 allocated: ptr<raw>
-    local %58 $receiver: ptr<raw>
-    local %59 $argument.0: i64
-    local %60 $parameter.value: i64
-    local %61 $receiver: ptr<raw>
-    local %62 $argument.0: i64
-    local %63 $parameter.value: i64
+    local %51 $argument.0: i64
+    local %52 $parameter.value: i64
+    local %53 $argument.0: i64
+    local %54 $parameter.value: i64
+    local %55 $argument.0: i64
+    local %56 $parameter.value: i64
+    local %57 $receiver: struct4
+    local %58 $argument.0: i64
+    local %59 $parameter.value: i64
+    local %60 $argument.0: i64
+    local %61 $parameter.size: i64
+    local %62 $receiver: ptr<raw>
+    local %63 allocated: ptr<raw>
     local %64 $receiver: ptr<raw>
-    local %65 $argument.0: ptr<raw>
-    local %66 $parameter.pointer: ptr<raw>
-    local %67 $argument.0: ptr<raw>
-    local %68 $parameter._1: ptr<raw>
-    local %69 optional: enum2
-    local %70 present: ptr<raw>
-    local %71 $receiver: ptr<raw>
-    local %72 $argument.0: i64
-    local %73 $parameter.value: i64
-    local %74 $argument.0: i64
-    local %75 $parameter.value: i64
-    local %76 $when.1: enum2
-    local %77 $sc.1: i64
-    local %78 $sc.2: ptr<raw>
-    local %79 $sc.3: ptr<raw>
+    local %65 $argument.0: i64
+    local %66 $parameter.value: i64
+    local %67 $receiver: ptr<raw>
+    local %68 $argument.0: i64
+    local %69 $parameter.value: i64
+    local %70 $receiver: ptr<raw>
+    local %71 $argument.0: ptr<raw>
+    local %72 $parameter.pointer: ptr<raw>
+    local %73 $argument.0: ptr<raw>
+    local %74 $parameter._1: ptr<raw>
+    local %75 optional: enum2
+    local %76 present: ptr<raw>
+    local %77 $receiver: ptr<raw>
+    local %78 $argument.0: i64
+    local %79 $parameter.value: i64
+    local %80 $argument.0: i64
+    local %81 $parameter.value: i64
+    local %82 $when.1: enum2
+    local %83 $sc.1: i64
+    local %84 $sc.2: ptr<raw>
+    local %85 $sc.3: ptr<raw>
   block entry
     poll managed-void-target10 sp46 live=[]
     store 8 -> local0
@@ -1872,130 +1954,136 @@ Module
     store local13 -> local14
     call managed-void-target0 sp12 live=[] sig=void0 (i64) local-fn16(local14)
     t5 = aggregate () : {}
-    t6 = Mul 0, 8 : i64
-    t7 = ptr_offset local8 t6 : ptr
-    store t7 -> local15
-    store local15 -> local16
-    t8 = ptr_to_int local16 : i64
-    store t8 -> local17
-    store local17 -> local18
+    store local8 -> local15
+    store 0 -> local16
+    store local16 -> local17
+    t6 = Mul local17, 8 : i64
+    t7 = ptr_offset local15 t6 : ptr
+    store t7 -> local18
     store local18 -> local19
-    t9 = int_to_ptr local19 : ptr
-    store t9 -> local20
+    t8 = ptr_to_int local19 : i64
+    store t8 -> local20
     store local20 -> local21
-    store 0 -> local22
-    store local22 -> local23
-    t10 = Mul local23, 8 : i64
-    t11 = ptr_offset local21 t10 : ptr
+    store local21 -> local22
+    t9 = int_to_ptr local22 : ptr
+    store t9 -> local23
+    store local23 -> local24
+    store 0 -> local25
+    store local25 -> local26
+    t10 = Mul local26, 8 : i64
+    t11 = ptr_offset local24 t10 : ptr
     t12 = raw_load t11 align 8 : i64
-    store t12 -> local24
-    store local24 -> local25
-    call managed-void-target1 sp13 live=[] sig=void1 (i64) local-fn16(local25)
-    t13 = aggregate () : {}
-    store local20 -> local26
-    store local26 -> local27
+    store t12 -> local27
     store local27 -> local28
-    store local28 -> local29
-    store 10 -> local30
+    call managed-void-target1 sp13 live=[] sig=void1 (i64) local-fn16(local28)
+    t13 = aggregate () : {}
+    store local23 -> local29
+    store local29 -> local30
     store local30 -> local31
-    raw_store local29 local31 align 8
+    store local31 -> local32
+    store 10 -> local33
+    store local33 -> local34
+    raw_store local32 local34 align 8
     t14 = aggregate () : {}
-    store local5 -> local32
-    store local32 -> local33
-    call managed-void-target2 sp14 live=[] sig=void2 (i64) local-fn16(local33)
+    store local5 -> local35
+    store local35 -> local36
+    call managed-void-target2 sp14 live=[] sig=void2 (i64) local-fn16(local36)
     t15 = aggregate () : {}
-    store local8 -> local34
-    store 0 -> local35
-    store 11 -> local36
-    store local35 -> local37
-    store local36 -> local38
-    t16 = Mul local37, 8 : i64
-    t17 = ptr_offset local34 t16 : ptr
-    raw_store t17 local38 align 8
+    store local8 -> local37
+    store 0 -> local38
+    store 11 -> local39
+    store local38 -> local40
+    store local39 -> local41
+    t16 = Mul local40, 8 : i64
+    t17 = ptr_offset local37 t16 : ptr
+    raw_store t17 local41 align 8
     t18 = aggregate () : {}
-    t19 = Mul 0, 8 : i64
-    t20 = Neg t19 : i64
-    t21 = ptr_offset local8 t20 : ptr
-    store t21 -> local39
-    store local39 -> local40
-    t22 = raw_load local40 align 8 : i64
-    store t22 -> local41
-    store local41 -> local42
-    call managed-void-target3 sp15 live=[] sig=void3 (i64) local-fn16(local42)
-    t23 = aggregate () : {}
-    store local5 -> local43
+    store local8 -> local42
+    store 0 -> local43
     store local43 -> local44
-    call managed-void-target4 sp16 live=[] sig=void4 (i64) local-fn16(local44)
-    t24 = aggregate () : {}
-    store 0 -> local45
+    t19 = Mul local44, 8 : i64
+    t20 = Neg t19 : i64
+    t21 = ptr_offset local42 t20 : ptr
+    store t21 -> local45
     store local45 -> local46
-    call no-gc-direct-target0 t25 = sig=direct0 (i64) -> i64 local-fn14(local46)
-    store t25 -> local47
+    t22 = raw_load local46 align 8 : i64
+    store t22 -> local47
     store local47 -> local48
-    call managed-void-target5 sp17 live=[] sig=void5 (i64) local-fn16(local48)
-    t26 = aggregate () : {}
-    store 0 -> local49
+    call managed-void-target3 sp15 live=[] sig=void3 (i64) local-fn16(local48)
+    t23 = aggregate () : {}
+    store local5 -> local49
     store local49 -> local50
-    t27 = aggregate (local50) : struct4
-    store t27 -> local51
-    call no-gc-direct-target1 t28 = sig=direct1 (struct4) -> i64 local-fn9(local51)
-    store t28 -> local52
-    store local52 -> local53
-    call managed-void-target6 sp18 live=[] sig=void6 (i64) local-fn16(local53)
+    call managed-void-target4 sp16 live=[] sig=void4 (i64) local-fn16(local50)
+    t24 = aggregate () : {}
+    store 0 -> local51
+    store local51 -> local52
+    call no-gc-direct-target0 t25 = sig=direct0 (i64) -> i64 local-fn14(local52)
+    store t25 -> local53
+    store local53 -> local54
+    call managed-void-target5 sp17 live=[] sig=void5 (i64) local-fn16(local54)
+    t26 = aggregate () : {}
+    store 0 -> local55
+    store local55 -> local56
+    t27 = aggregate (local56) : struct4
+    store t27 -> local57
+    call no-gc-direct-target1 t28 = sig=direct1 (struct4) -> i64 local-fn9(local57)
+    store t28 -> local58
+    store local58 -> local59
+    call managed-void-target6 sp18 live=[] sig=void6 (i64) local-fn16(local59)
     t29 = aggregate () : {}
-    store 8 -> local54
-    store local54 -> local55
-    store local55 -> local77
-    t30 = local_address local77 : ptr
-    call native-safe-indirect-target0 sp19 roots=[] local78 = sig=indirect0 (sret ptr<raw>, ptr<raw>) extern12(t30)
-    store local78 -> local56
-    store local56 -> local57
-    store local57 -> local58
-    store 14 -> local59
-    store local59 -> local60
-    raw_store local58 local60 align 8
-    t31 = aggregate () : {}
-    store local57 -> local61
-    t32 = raw_load local61 align 8 : i64
-    store t32 -> local62
+    store 8 -> local60
+    store local60 -> local61
+    store local61 -> local83
+    t30 = local_address local83 : ptr
+    call native-safe-indirect-target0 sp19 roots=[] local84 = sig=indirect0 (sret ptr<raw>, ptr<raw>) extern12(t30)
+    store local84 -> local62
     store local62 -> local63
-    call managed-void-target7 sp20 live=[] sig=void7 (i64) local-fn16(local63)
-    t33 = aggregate () : {}
-    store local57 -> local64
-    store local64 -> local65
+    store local63 -> local64
+    store 14 -> local65
     store local65 -> local66
-    store local66 -> local79
-    t34 = local_address local79 : ptr
+    raw_store local64 local66 align 8
+    t31 = aggregate () : {}
+    store local63 -> local67
+    t32 = raw_load local67 align 8 : i64
+    store t32 -> local68
+    store local68 -> local69
+    call managed-void-target7 sp20 live=[] sig=void7 (i64) local-fn16(local69)
+    t33 = aggregate () : {}
+    store local63 -> local70
+    store local70 -> local71
+    store local71 -> local72
+    store local72 -> local85
+    t34 = local_address local85 : ptr
     call native-safe-void-target0 sp21 roots=[] sig=void8 (ptr<raw>) extern13(t34)
     t35 = aggregate () : {}
-    store local8 -> local67
-    store local67 -> local68
-    t36 = enum_wrap e2 v0 (local68) : enum2
-    store t36 -> local69
-    store local69 -> local76
-    t37 = enum_tag e2 local76 : i64
+    store local8 -> local73
+    store local73 -> local74
+    t36 = enum_wrap e2 v0 (local74) : enum2
+    store t36 -> local75
+    store local75 -> local82
+    t37 = enum_tag e2 local82 : i64
     t38 = Eq t37, 0 : i1
     cbr t38 then @if.then.1 else @if.else.2
   block if.then.1
-    t39 = enum_field e2 v0 f0 local76 : ptr<raw>
-    store t39 -> local70
-    store local70 -> local71
-    t40 = raw_load local71 align 8 : i64
-    store t40 -> local72
-    store local72 -> local73
-    call managed-void-target8 sp22 live=[] sig=void9 (i64) local-fn16(local73)
+    t39 = enum_field e2 v0 f0 local82 : ptr<raw>
+    store t39 -> local76
+    store local76 -> local77
+    t40 = raw_load local77 align 8 : i64
+    store t40 -> local78
+    store local78 -> local79
+    call managed-void-target8 sp22 live=[] sig=void9 (i64) local-fn16(local79)
     t41 = aggregate () : {}
     br @if.merge.3
   block if.else.2
-    t42 = enum_tag e2 local76 : i64
+    t42 = enum_tag e2 local82 : i64
     t43 = Eq t42, 1 : i1
     cbr t43 then @if.then.4 else @if.merge.5
   block if.merge.3
     ret
   block if.then.4
-    store 0 -> local74
-    store local74 -> local75
-    call managed-void-target9 sp23 live=[] sig=void10 (i64) local-fn16(local75)
+    store 0 -> local80
+    store local80 -> local81
+    call managed-void-target9 sp23 live=[] sig=void10 (i64) local-fn16(local81)
     t44 = aggregate () : {}
     br @if.merge.5
   block if.merge.5

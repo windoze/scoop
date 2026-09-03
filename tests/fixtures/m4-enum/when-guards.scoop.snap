@@ -41,8 +41,8 @@ SourceFile
     fun load
     fun store
     fun store
-    fun plus
-    fun minus
+    operator fun plus
+    operator fun minus
   struct FunPtr<F>
     field _rawPointer: UInt
     @Unsafe
@@ -169,28 +169,53 @@ SourceFile
     @Intrinsic("core_int")
   struct Int <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun unaryMinus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_uint")
   struct UInt <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_boolean")
   struct Boolean <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun not
     fun toString
     fun hash
     @Intrinsic("core_string")
   class String(), ToString, Hash
     operator fun equals
+    operator fun plus
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_array")
   class Array<T>()
+    operator fun get
     fun toMutableArray
     @Intrinsic("core_mutable_array")
   class MutableArray<T>()
+    operator fun get
+    operator fun set
     fun toArray
     @Extern(name = "scoop_rt_int_equals", abi = "scoop")
   fun coreIntEquals(left: Int, right: Int): Boolean
@@ -429,85 +454,117 @@ Module
     when
       Local v : E
       arm variant0(0: local3) if <guard>
-        val local4
+        guard setup
+          val local4
+            Local n : Int
+          val local5
+            IntLiteral 100 : Int
+          val local6
+            Local $argument.0 : Int
+        guard condition
+          Binary Gt : Boolean
+            PrimitiveBinary IntCompareTo : Int
+              Local $receiver : Int
+              Local $parameter.other : Int
+            IntLiteral 0 : Int
+        val local7
           StringLiteral "big" : String
-        val local5
+        val local8
           Local $argument.0 : String
         Call println<String> : Unit
           Local $parameter.value : String
-      arm variant0(0: local6)
-        val local7
+      arm variant0(0: local9)
+        val local10
           Local n : Int
-        val local8
+        val local11
           Local $argument.0 : Int
         Call println<Int> : Unit
           Local $parameter.value : Int
-      arm variant1(0: local9, 1: local10)
-        val local11
-          Binary Add : Int
-            Local a : Int
-            Local b : Int
-        val local12
+      arm variant1(0: local12, 1: local13)
+        val local14
+          Local a : Int
+        val local15
+          Local b : Int
+        val local16
+          Local $argument.0 : Int
+        val local17
+          PrimitiveBinary IntAdd : Int
+            Local $receiver : Int
+            Local $parameter.other : Int
+        val local18
           Local $argument.0 : Int
         Call println<Int> : Unit
           Local $parameter.value : Int
       arm variant2()
-        val local13
+        val local19
           StringLiteral "empty" : String
-        val local14
+        val local20
           Local $argument.0 : String
         Call println<String> : Unit
           Local $parameter.value : String
-    val local15
+    val local21
       IntLiteral 3 : Int
-    val local16
+    val local22
       IntLiteral 4 : Int
-    val local17
+    val local23
       Local $argument.0 : Int
-    val local18
+    val local24
       Local $argument.1 : Int
-    val local19
+    val local25
       VariantConstruct E.Pair : E
         Local $parameter._1 : Int
         Local $parameter._2 : Int
     when
       Local w : E
-      arm variant0(0: local20)
-        val local21
+      arm variant0(0: local26)
+        val local27
           Local n : Int
-        val local22
+        val local28
           Local $argument.0 : Int
         Call println<Int> : Unit
           Local $parameter.value : Int
-      arm variant1(0: local23, 1: _) if <guard>
-        val local24
+      arm variant1(0: local29, 1: _) if <guard>
+        guard setup
+          val local30
+            Local a : Int
+          val local31
+            IntLiteral 10 : Int
+          val local32
+            Local $argument.0 : Int
+        guard condition
+          Binary Gt : Boolean
+            PrimitiveBinary IntCompareTo : Int
+              Local $receiver : Int
+              Local $parameter.other : Int
+            IntLiteral 0 : Int
+        val local33
           StringLiteral "big pair" : String
-        val local25
+        val local34
           Local $argument.0 : String
         Call println<String> : Unit
           Local $parameter.value : String
       else
-        val local26
+        val local35
           StringLiteral "other" : String
-        val local27
+        val local36
           Local $argument.0 : String
         Call println<String> : Unit
           Local $parameter.value : String
-    val local28
+    val local37
       VariantConstruct E.Empty : E
     when
       Local e : E
       arm variant2()
-        val local29
+        val local38
           StringLiteral "empty" : String
-        val local30
+        val local39
           Local $argument.0 : String
         Call println<String> : Unit
           Local $parameter.value : String
       else
-        val local31
+        val local40
           StringLiteral "not empty" : String
-        val local32
+        val local41
           Local $argument.0 : String
         Call println<String> : Unit
           Local $parameter.value : String
@@ -770,13 +827,26 @@ Module
         EnumField v0 f0
           Type E
           Local $when.1
+      val $receiver: Int
+        Type Int
+        Local n
+      val $argument.0: Int
+        Type Int
+        IntLiteral 100
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       branch bb4 bb5
         Type Boolean
         Binary IntGt
           Type Int
-          Local n
+          Binary IntCompareTo
+            Type Int
+            Local $receiver
+            Type Int
+            Local $parameter.other
           Type Int
-          IntLiteral 100
+          IntLiteral 0
     bb2 if.else.2
       branch bb15 bb16
         Type Boolean
@@ -881,13 +951,22 @@ Module
         EnumField v1 f1
           Type E
           Local $when.1
+      val $receiver: Int
+        Type Int
+        Local a
+      val $argument.0: Int
+        Type Int
+        Local b
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       val $argument.0: Int
         Type Int
         Binary IntAdd
           Type Int
-          Local a
+          Local $receiver
           Type Int
-          Local b
+          Local $parameter.other
       val $parameter.value: Int
         Type Int
         Local $argument.0
@@ -959,13 +1038,22 @@ Module
         EnumField v1 f1
           Type E
           Local $when.1
+      val $receiver: Int
+        Type Int
+        Local a
+      val $argument.0: Int
+        Type Int
+        Local b
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       val $argument.0: Int
         Type Int
         Binary IntAdd
           Type Int
-          Local a
+          Local $receiver
           Type Int
-          Local b
+          Local $parameter.other
       val $parameter.value: Int
         Type Int
         Local $argument.0
@@ -1046,13 +1134,26 @@ Module
         EnumField v1 f0
           Type E
           Local $when.2
+      val $receiver: Int
+        Type Int
+        Local a
+      val $argument.0: Int
+        Type Int
+        IntLiteral 10
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       branch bb29 bb30
         Type Boolean
         Binary IntGt
           Type Int
-          Local a
+          Binary IntCompareTo
+            Type Int
+            Local $receiver
+            Type Int
+            Local $parameter.other
           Type Int
-          IntLiteral 10
+          IntLiteral 0
     bb27 if.else.27
       val $argument.0: String
         Type String
@@ -1478,215 +1579,238 @@ Module
     local %1 $parameter._1: i64
     local %2 v: enum1
     local %3 n: i64
-    local %4 $argument.0: ptr<managed>
-    local %5 $parameter.value: ptr<managed>
-    local %6 n: i64
-    local %7 $argument.0: i64
-    local %8 $parameter.value: i64
-    local %9 a: i64
-    local %10 b: i64
-    local %11 $argument.0: i64
-    local %12 $parameter.value: i64
-    local %13 $argument.0: ptr<managed>
-    local %14 $parameter.value: ptr<managed>
+    local %4 $receiver: i64
+    local %5 $argument.0: i64
+    local %6 $parameter.other: i64
+    local %7 $argument.0: ptr<managed>
+    local %8 $parameter.value: ptr<managed>
+    local %9 n: i64
+    local %10 $argument.0: i64
+    local %11 $parameter.value: i64
+    local %12 a: i64
+    local %13 b: i64
+    local %14 $receiver: i64
     local %15 $argument.0: i64
-    local %16 $argument.1: i64
-    local %17 $parameter._1: i64
-    local %18 $parameter._2: i64
-    local %19 w: enum1
-    local %20 n: i64
+    local %16 $parameter.other: i64
+    local %17 $argument.0: i64
+    local %18 $parameter.value: i64
+    local %19 $argument.0: ptr<managed>
+    local %20 $parameter.value: ptr<managed>
     local %21 $argument.0: i64
-    local %22 $parameter.value: i64
-    local %23 a: i64
-    local %24 $argument.0: ptr<managed>
-    local %25 $parameter.value: ptr<managed>
-    local %26 $argument.0: ptr<managed>
-    local %27 $parameter.value: ptr<managed>
-    local %28 e: enum1
-    local %29 $argument.0: ptr<managed>
-    local %30 $parameter.value: ptr<managed>
-    local %31 $argument.0: ptr<managed>
-    local %32 $parameter.value: ptr<managed>
-    local %33 $when.1: enum1
-    local %34 $when.2: enum1
-    local %35 $when.3: enum1
+    local %22 $argument.1: i64
+    local %23 $parameter._1: i64
+    local %24 $parameter._2: i64
+    local %25 w: enum1
+    local %26 n: i64
+    local %27 $argument.0: i64
+    local %28 $parameter.value: i64
+    local %29 a: i64
+    local %30 $receiver: i64
+    local %31 $argument.0: i64
+    local %32 $parameter.other: i64
+    local %33 $argument.0: ptr<managed>
+    local %34 $parameter.value: ptr<managed>
+    local %35 $argument.0: ptr<managed>
+    local %36 $parameter.value: ptr<managed>
+    local %37 e: enum1
+    local %38 $argument.0: ptr<managed>
+    local %39 $parameter.value: ptr<managed>
+    local %40 $argument.0: ptr<managed>
+    local %41 $parameter.value: ptr<managed>
+    local %42 $when.1: enum1
+    local %43 $when.2: enum1
+    local %44 $when.3: enum1
   block entry
     poll managed-void-target13 sp50 live=[]
     store 42 -> local0
     store local0 -> local1
     t0 = enum_wrap e1 v0 (local1) : enum1
     store t0 -> local2
-    store local2 -> local33
-    t1 = enum_tag e1 local33 : i64
+    store local2 -> local42
+    t1 = enum_tag e1 local42 : i64
     t2 = Eq t1, 0 : i1
     cbr t2 then @if.then.1 else @if.else.2
   block if.then.1
-    t3 = enum_field e1 v0 f0 local33 : i64
+    t3 = enum_field e1 v0 f0 local42 : i64
     store t3 -> local3
-    t4 = Gt local3, 100 : i1
-    cbr t4 then @if.then.4 else @if.else.5
+    store local3 -> local4
+    store 100 -> local5
+    store local5 -> local6
+    t4 = SCompareTo local4, local6 : i64
+    t5 = Gt t4, 0 : i1
+    cbr t5 then @if.then.4 else @if.else.5
   block if.else.2
-    t5 = enum_tag e1 local33 : i64
-    t6 = Eq t5, 0 : i1
-    cbr t6 then @if.then.15 else @if.else.16
+    t6 = enum_tag e1 local42 : i64
+    t7 = Eq t6, 0 : i1
+    cbr t7 then @if.then.15 else @if.else.16
   block if.merge.3
-    store 3 -> local15
-    store 4 -> local16
-    store local15 -> local17
-    store local16 -> local18
-    t7 = enum_wrap e1 v1 (local17, local18) : enum1
-    store t7 -> local19
-    store local19 -> local34
-    t8 = enum_tag e1 local34 : i64
-    t9 = Eq t8, 0 : i1
-    cbr t9 then @if.then.23 else @if.else.24
+    store 3 -> local21
+    store 4 -> local22
+    store local21 -> local23
+    store local22 -> local24
+    t8 = enum_wrap e1 v1 (local23, local24) : enum1
+    store t8 -> local25
+    store local25 -> local43
+    t9 = enum_tag e1 local43 : i64
+    t10 = Eq t9, 0 : i1
+    cbr t10 then @if.then.23 else @if.else.24
   block if.then.4
-    store global0 -> local4
-    store local4 -> local5
-    call managed-void-target0 sp12 live=[local5:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn13(local5)
-    t10 = aggregate () : {}
+    store global0 -> local7
+    store local7 -> local8
+    call managed-void-target0 sp12 live=[local8:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn13(local8)
+    t11 = aggregate () : {}
     br @if.merge.6
   block if.else.5
-    t11 = enum_tag e1 local33 : i64
-    t12 = Eq t11, 0 : i1
-    cbr t12 then @if.then.7 else @if.else.8
+    t12 = enum_tag e1 local42 : i64
+    t13 = Eq t12, 0 : i1
+    cbr t13 then @if.then.7 else @if.else.8
   block if.merge.6
     br @if.merge.3
   block if.then.7
-    t13 = enum_field e1 v0 f0 local33 : i64
-    store t13 -> local6
-    store local6 -> local7
-    store local7 -> local8
-    call managed-void-target1 sp13 live=[] sig=void1 (i64) local-fn14(local8)
-    t14 = aggregate () : {}
+    t14 = enum_field e1 v0 f0 local42 : i64
+    store t14 -> local9
+    store local9 -> local10
+    store local10 -> local11
+    call managed-void-target1 sp13 live=[] sig=void1 (i64) local-fn14(local11)
+    t15 = aggregate () : {}
     br @if.merge.9
   block if.else.8
-    t15 = enum_tag e1 local33 : i64
-    t16 = Eq t15, 1 : i1
-    cbr t16 then @if.then.10 else @if.else.11
+    t16 = enum_tag e1 local42 : i64
+    t17 = Eq t16, 1 : i1
+    cbr t17 then @if.then.10 else @if.else.11
   block if.merge.9
     br @if.merge.6
   block if.then.10
-    t17 = enum_field e1 v1 f0 local33 : i64
-    store t17 -> local9
-    t18 = enum_field e1 v1 f1 local33 : i64
-    store t18 -> local10
-    t19 = Add local9, local10 : i64
-    store t19 -> local11
-    store local11 -> local12
-    call managed-void-target2 sp14 live=[] sig=void2 (i64) local-fn14(local12)
-    t20 = aggregate () : {}
+    t18 = enum_field e1 v1 f0 local42 : i64
+    store t18 -> local12
+    t19 = enum_field e1 v1 f1 local42 : i64
+    store t19 -> local13
+    store local12 -> local14
+    store local13 -> local15
+    store local15 -> local16
+    t20 = Add local14, local16 : i64
+    store t20 -> local17
+    store local17 -> local18
+    call managed-void-target2 sp14 live=[] sig=void2 (i64) local-fn14(local18)
+    t21 = aggregate () : {}
     br @if.merge.12
   block if.else.11
-    t21 = enum_tag e1 local33 : i64
-    t22 = Eq t21, 2 : i1
-    cbr t22 then @if.then.13 else @if.merge.14
+    t22 = enum_tag e1 local42 : i64
+    t23 = Eq t22, 2 : i1
+    cbr t23 then @if.then.13 else @if.merge.14
   block if.merge.12
     br @if.merge.9
   block if.then.13
-    store global1 -> local13
-    store local13 -> local14
-    call managed-void-target3 sp15 live=[local14:ptr<managed>@0] sig=void3 (ptr<managed>) local-fn13(local14)
-    t23 = aggregate () : {}
+    store global1 -> local19
+    store local19 -> local20
+    call managed-void-target3 sp15 live=[local20:ptr<managed>@0] sig=void3 (ptr<managed>) local-fn13(local20)
+    t24 = aggregate () : {}
     br @if.merge.14
   block if.merge.14
     br @if.merge.12
   block if.then.15
-    t24 = enum_field e1 v0 f0 local33 : i64
-    store t24 -> local6
-    store local6 -> local7
-    store local7 -> local8
-    call managed-void-target4 sp16 live=[] sig=void4 (i64) local-fn14(local8)
-    t25 = aggregate () : {}
+    t25 = enum_field e1 v0 f0 local42 : i64
+    store t25 -> local9
+    store local9 -> local10
+    store local10 -> local11
+    call managed-void-target4 sp16 live=[] sig=void4 (i64) local-fn14(local11)
+    t26 = aggregate () : {}
     br @if.merge.17
   block if.else.16
-    t26 = enum_tag e1 local33 : i64
-    t27 = Eq t26, 1 : i1
-    cbr t27 then @if.then.18 else @if.else.19
+    t27 = enum_tag e1 local42 : i64
+    t28 = Eq t27, 1 : i1
+    cbr t28 then @if.then.18 else @if.else.19
   block if.merge.17
     br @if.merge.3
   block if.then.18
-    t28 = enum_field e1 v1 f0 local33 : i64
-    store t28 -> local9
-    t29 = enum_field e1 v1 f1 local33 : i64
-    store t29 -> local10
-    t30 = Add local9, local10 : i64
-    store t30 -> local11
-    store local11 -> local12
-    call managed-void-target5 sp17 live=[] sig=void5 (i64) local-fn14(local12)
-    t31 = aggregate () : {}
+    t29 = enum_field e1 v1 f0 local42 : i64
+    store t29 -> local12
+    t30 = enum_field e1 v1 f1 local42 : i64
+    store t30 -> local13
+    store local12 -> local14
+    store local13 -> local15
+    store local15 -> local16
+    t31 = Add local14, local16 : i64
+    store t31 -> local17
+    store local17 -> local18
+    call managed-void-target5 sp17 live=[] sig=void5 (i64) local-fn14(local18)
+    t32 = aggregate () : {}
     br @if.merge.20
   block if.else.19
-    t32 = enum_tag e1 local33 : i64
-    t33 = Eq t32, 2 : i1
-    cbr t33 then @if.then.21 else @if.merge.22
+    t33 = enum_tag e1 local42 : i64
+    t34 = Eq t33, 2 : i1
+    cbr t34 then @if.then.21 else @if.merge.22
   block if.merge.20
     br @if.merge.17
   block if.then.21
-    store global2 -> local13
-    store local13 -> local14
-    call managed-void-target6 sp18 live=[local14:ptr<managed>@0] sig=void6 (ptr<managed>) local-fn13(local14)
-    t34 = aggregate () : {}
+    store global2 -> local19
+    store local19 -> local20
+    call managed-void-target6 sp18 live=[local20:ptr<managed>@0] sig=void6 (ptr<managed>) local-fn13(local20)
+    t35 = aggregate () : {}
     br @if.merge.22
   block if.merge.22
     br @if.merge.20
   block if.then.23
-    t35 = enum_field e1 v0 f0 local34 : i64
-    store t35 -> local20
-    store local20 -> local21
-    store local21 -> local22
-    call managed-void-target7 sp19 live=[] sig=void7 (i64) local-fn14(local22)
-    t36 = aggregate () : {}
+    t36 = enum_field e1 v0 f0 local43 : i64
+    store t36 -> local26
+    store local26 -> local27
+    store local27 -> local28
+    call managed-void-target7 sp19 live=[] sig=void7 (i64) local-fn14(local28)
+    t37 = aggregate () : {}
     br @if.merge.25
   block if.else.24
-    t37 = enum_tag e1 local34 : i64
-    t38 = Eq t37, 1 : i1
-    cbr t38 then @if.then.26 else @if.else.27
+    t38 = enum_tag e1 local43 : i64
+    t39 = Eq t38, 1 : i1
+    cbr t39 then @if.then.26 else @if.else.27
   block if.merge.25
-    t39 = enum_wrap e1 v2 () : enum1
-    store t39 -> local28
-    store local28 -> local35
-    t40 = enum_tag e1 local35 : i64
-    t41 = Eq t40, 2 : i1
-    cbr t41 then @if.then.32 else @if.else.33
+    t40 = enum_wrap e1 v2 () : enum1
+    store t40 -> local37
+    store local37 -> local44
+    t41 = enum_tag e1 local44 : i64
+    t42 = Eq t41, 2 : i1
+    cbr t42 then @if.then.32 else @if.else.33
   block if.then.26
-    t42 = enum_field e1 v1 f0 local34 : i64
-    store t42 -> local23
-    t43 = Gt local23, 10 : i1
-    cbr t43 then @if.then.29 else @if.else.30
+    t43 = enum_field e1 v1 f0 local43 : i64
+    store t43 -> local29
+    store local29 -> local30
+    store 10 -> local31
+    store local31 -> local32
+    t44 = SCompareTo local30, local32 : i64
+    t45 = Gt t44, 0 : i1
+    cbr t45 then @if.then.29 else @if.else.30
   block if.else.27
-    store global5 -> local26
-    store local26 -> local27
-    call managed-void-target8 sp20 live=[local27:ptr<managed>@0] sig=void8 (ptr<managed>) local-fn13(local27)
-    t44 = aggregate () : {}
+    store global5 -> local35
+    store local35 -> local36
+    call managed-void-target8 sp20 live=[local36:ptr<managed>@0] sig=void8 (ptr<managed>) local-fn13(local36)
+    t46 = aggregate () : {}
     br @if.merge.28
   block if.merge.28
     br @if.merge.25
   block if.then.29
-    store global3 -> local24
-    store local24 -> local25
-    call managed-void-target9 sp21 live=[local25:ptr<managed>@0] sig=void9 (ptr<managed>) local-fn13(local25)
-    t45 = aggregate () : {}
+    store global3 -> local33
+    store local33 -> local34
+    call managed-void-target9 sp21 live=[local34:ptr<managed>@0] sig=void9 (ptr<managed>) local-fn13(local34)
+    t47 = aggregate () : {}
     br @if.merge.31
   block if.else.30
-    store global4 -> local26
-    store local26 -> local27
-    call managed-void-target10 sp22 live=[local27:ptr<managed>@0] sig=void10 (ptr<managed>) local-fn13(local27)
-    t46 = aggregate () : {}
+    store global4 -> local35
+    store local35 -> local36
+    call managed-void-target10 sp22 live=[local36:ptr<managed>@0] sig=void10 (ptr<managed>) local-fn13(local36)
+    t48 = aggregate () : {}
     br @if.merge.31
   block if.merge.31
     br @if.merge.28
   block if.then.32
-    store global6 -> local29
-    store local29 -> local30
-    call managed-void-target11 sp23 live=[local30:ptr<managed>@0] sig=void11 (ptr<managed>) local-fn13(local30)
-    t47 = aggregate () : {}
+    store global6 -> local38
+    store local38 -> local39
+    call managed-void-target11 sp23 live=[local39:ptr<managed>@0] sig=void11 (ptr<managed>) local-fn13(local39)
+    t49 = aggregate () : {}
     br @if.merge.34
   block if.else.33
-    store global7 -> local31
-    store local31 -> local32
-    call managed-void-target12 sp24 live=[local32:ptr<managed>@0] sig=void12 (ptr<managed>) local-fn13(local32)
-    t48 = aggregate () : {}
+    store global7 -> local40
+    store local40 -> local41
+    call managed-void-target12 sp24 live=[local41:ptr<managed>@0] sig=void12 (ptr<managed>) local-fn13(local41)
+    t50 = aggregate () : {}
     br @if.merge.34
   block if.merge.34
     ret

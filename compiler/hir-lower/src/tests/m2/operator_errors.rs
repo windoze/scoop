@@ -12,21 +12,21 @@ fn arithmetic_requires_int_operands() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "operator `+` requires Int operands, found Int and String"
+        "no applicable candidate for `plus` in member candidate layer:\n  - fun Int.plus(other: Int): Int — argument for `other` has type String, which is not a subtype of Int"
     );
 }
 
 #[test]
-fn comparison_requires_int_operands() {
+fn comparison_requires_a_compare_to_operator() {
     let file = file(vec![fun(
         "main",
-        vec![val("x", binary(BinOp::Lt, str_lit("a"), str_lit("b")))],
+        vec![val("x", binary(BinOp::Lt, bool_lit(false), bool_lit(true)))],
     )]);
-    let errors = lower_user(file).expect_err("non-Int comparison must fail");
+    let errors = lower_user(file).expect_err("a type without compareTo must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "operator `<` requires Int operands, found String and String"
+        "type `Boolean` has no method `compareTo`"
     );
 }
 
@@ -68,7 +68,7 @@ fn negation_requires_an_int_operand() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "operator `-` requires an Int operand, found String"
+        "type `String` has no method `unaryMinus`"
     );
 }
 
@@ -80,10 +80,7 @@ fn logical_not_requires_a_boolean_operand() {
     )]);
     let errors = lower_user(file).expect_err("non-Boolean `!` must fail");
     assert_eq!(errors.len(), 1);
-    assert_eq!(
-        errors[0].message,
-        "operator `!` requires a Boolean operand, found Int"
-    );
+    assert_eq!(errors[0].message, "type `Int` has no method `not`");
 }
 
 // --- negative: conditions ---

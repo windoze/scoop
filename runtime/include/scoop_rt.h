@@ -126,6 +126,7 @@ int64_t scoop_rt_string_hash(const ScoopString *s);
 
 /* String and primitive operations used by ordinary scoop.core declarations. */
 bool scoop_rt_string_eq(const ScoopString *a, const ScoopString *b);
+int64_t scoop_rt_string_compare(const ScoopString *a, const ScoopString *b);
 void scoop_rt_print_int(int64_t value);
 void scoop_rt_println_int(int64_t value);
 void scoop_rt_print_boolean(bool value);

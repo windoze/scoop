@@ -41,8 +41,8 @@ SourceFile
     fun load
     fun store
     fun store
-    fun plus
-    fun minus
+    operator fun plus
+    operator fun minus
   struct FunPtr<F>
     field _rawPointer: UInt
     @Unsafe
@@ -169,28 +169,53 @@ SourceFile
     @Intrinsic("core_int")
   struct Int <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun unaryMinus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_uint")
   struct UInt <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_boolean")
   struct Boolean <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun not
     fun toString
     fun hash
     @Intrinsic("core_string")
   class String(), ToString, Hash
     operator fun equals
+    operator fun plus
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_array")
   class Array<T>()
+    operator fun get
     fun toMutableArray
     @Intrinsic("core_mutable_array")
   class MutableArray<T>()
+    operator fun get
+    operator fun set
     fun toArray
     @Extern(name = "scoop_rt_int_equals", abi = "scoop")
   fun coreIntEquals(left: Int, right: Int): Boolean
@@ -548,22 +573,34 @@ Module
   fun coreBooleanHash(arg1: Boolean): Int <extern10 abi=scoop symbol=scoop_rt_bool_hash>
   fun coreStringHash(arg1: String): Int <extern11 abi=scoop symbol=scoop_rt_string_hash>
   fun bump(this: Int, delta: Int): Int
+    val local2
+      Local this : Int
+    val local3
+      Local delta : Int
+    val local4
+      Local $argument.0 : Int
     return
-      Binary Add : Int
-        Local this : Int
-        Local delta : Int
+      PrimitiveBinary IntAdd : Int
+        Local $receiver : Int
+        Local $parameter.other : Int
   fun keep<T>(this: T0): T0
     return
       Local this : T0
   fun decorate(this: String, suffix: String): String
+    val local2
+      Local this : String
+    val local3
+      Local suffix : String
+    val local4
+      Local $argument.0 : String
     return
-      Binary Add : String
-        Local this : String
-        Local suffix : String
+      PrimitiveBinary StringConcat : String
+        Local $receiver : String
+        Local $parameter.other : String
   fun suffixer(this: String): (String) -> String
     return
       Lambda lambda0 invoke=$lambda.0 captures=1 : (String) -> String
-        capture this binding73 : String
+        capture this binding79 : String
   fun echo<T>(this: T0, value: T0): T0
     return
       Local value : T0
@@ -574,15 +611,27 @@ Module
     return
       StringLiteral "string" : String
   fun collide(value: Int): Int
+    val local1
+      Local value : Int
+    val local2
+      IntLiteral 1 : Int
+    val local3
+      Local $argument.0 : Int
     return
-      Binary Add : Int
-        Local value : Int
-        IntLiteral 1 : Int
+      PrimitiveBinary IntAdd : Int
+        Local $receiver : Int
+        Local $parameter.other : Int
   fun collide(this: Int): Int
+    val local1
+      Local this : Int
+    val local2
+      IntLiteral 2 : Int
+    val local3
+      Local $argument.0 : Int
     return
-      Binary Add : Int
-        Local this : Int
-        IntLiteral 2 : Int
+      PrimitiveBinary IntAdd : Int
+        Local $receiver : Int
+        Local $parameter.other : Int
   fun label(this: Named): String
     return
       StringLiteral "extension" : String
@@ -594,11 +643,17 @@ Module
       FieldAccess class field 0 : String
         Local this : MutableName
   fun apply(this: Offset, value: Int): Int
+    val local2
+      Local value : Int
+    val local3
+      FieldAccess field 0 : Int
+        Local this : Offset
+    val local4
+      Local $argument.0 : Int
     return
-      Binary Add : Int
-        Local value : Int
-        FieldAccess field 0 : Int
-          Local this : Offset
+      PrimitiveBinary IntAdd : Int
+        Local $receiver : Int
+        Local $parameter.other : Int
   fun run(this: ThrowingExtension, value: Int): Int
     if
       MethodCall Int.equals : Boolean
@@ -1113,48 +1168,84 @@ Module
         Local $call.1
   fun Named.label @scoop.Named.label(this: Named) -> String
     bb0 entry
-      call $call.1: String = @scoop_rt_string_concat direct
+      val $receiver: String
         Type String
         StringConst @scoop.str.0
+      val $argument.0: String
         Type String
         FieldAccess 0
           Type Named
           Local this
+      val $parameter.other: String
+        Type String
+        Local $argument.0
+      call $call.1: String = @scoop_rt_string_concat direct
+        Type String
+        Local $receiver
+        Type String
+        Local $parameter.other
       return
         Type String
         Local $call.1
   fun ReceiverFactory.make @scoop.ReceiverFactory.make(this: ReceiverFactory) -> String
     bb0 entry
+      val $receiver: Int
+        Type Int
+        FieldAccess 0
+          Type ReceiverFactory
+          Local this
+      val $argument.0: Int
+        Type Int
+        IntLiteral 1
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       field_set 0
         Type ReceiverFactory
         Local this
         Type Int
         Binary IntAdd
           Type Int
-          FieldAccess 0
-            Type ReceiverFactory
-            Local this
+          Local $receiver
           Type Int
-          IntLiteral 1
+          Local $parameter.other
       return
         Type String
         StringConst @scoop.str.1
   fun $extension.bump @scoop.$extension.bump(this: Int, delta: Int) -> Int
     bb0 entry
+      val $receiver: Int
+        Type Int
+        Local this
+      val $argument.0: Int
+        Type Int
+        Local delta
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       return
         Type Int
         Binary IntAdd
           Type Int
-          Local this
+          Local $receiver
           Type Int
-          Local delta
+          Local $parameter.other
   fun $extension.decorate @scoop.$extension.decorate(this: String, suffix: String) -> String
     bb0 entry
-      call $call.1: String = @scoop_rt_string_concat direct
+      val $receiver: String
         Type String
         Local this
+      val $argument.0: String
         Type String
         Local suffix
+      val $parameter.other: String
+        Type String
+        Local $argument.0
+      call $call.1: String = @scoop_rt_string_concat direct
+        Type String
+        Local $receiver
+        Type String
+        Local $parameter.other
       return
         Type String
         Local $call.1
@@ -1177,22 +1268,40 @@ Module
         StringConst @scoop.str.3
   fun collide @scoop.collide(value: Int) -> Int
     bb0 entry
+      val $receiver: Int
+        Type Int
+        Local value
+      val $argument.0: Int
+        Type Int
+        IntLiteral 1
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       return
         Type Int
         Binary IntAdd
           Type Int
-          Local value
+          Local $receiver
           Type Int
-          IntLiteral 1
+          Local $parameter.other
   fun $extension.collide @scoop.$extension.collide(this: Int) -> Int
     bb0 entry
+      val $receiver: Int
+        Type Int
+        Local this
+      val $argument.0: Int
+        Type Int
+        IntLiteral 2
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       return
         Type Int
         Binary IntAdd
           Type Int
-          Local this
+          Local $receiver
           Type Int
-          IntLiteral 2
+          Local $parameter.other
   fun $extension.label @scoop.$extension.label(this: Named) -> String
     bb0 entry
       return
@@ -1212,15 +1321,24 @@ Module
           Local this
   fun $extension.apply @scoop.$extension.apply(this: Offset, value: Int) -> Int
     bb0 entry
+      val $receiver: Int
+        Type Int
+        Local value
+      val $argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Offset
+          Local this
+      val $parameter.other: Int
+        Type Int
+        Local $argument.0
       return
         Type Int
         Binary IntAdd
           Type Int
-          Local value
+          Local $receiver
           Type Int
-          FieldAccess 0
-            Type Offset
-            Local this
+          Local $parameter.other
   fun $extension.run @scoop.$extension.run(this: ThrowingExtension, value: Int) -> Int
     bb0 entry
       call $call.1: Boolean = @scoop.Int.equals direct
@@ -1658,13 +1776,22 @@ Module
       goto bb7
   fun $lambda.0 @scoop.$lambda.0($closure: (String) -> String, suffix: String) -> String
     bb0 entry
-      call $call.1: String = @scoop_rt_string_concat direct
+      val $receiver: String
         Type String
         ClosureCapture cc0 0
           Type (String) -> String
           Local $closure
+      val $argument.0: String
         Type String
         Local suffix
+      val $parameter.other: String
+        Type String
+        Local $argument.0
+      call $call.1: String = @scoop_rt_string_concat direct
+        Type String
+        Local $receiver
+        Type String
+        Local $parameter.other
       return
         Type String
         Local $call.1
@@ -2183,32 +2310,56 @@ Module
     store t0 -> local2
     ret local2
   fun @scoop.Named.label(ptr<managed>) -> ptr<managed>
-    local %0 $call.1: ptr<managed>
+    local %0 $receiver: ptr<managed>
+    local %1 $argument.0: ptr<managed>
+    local %2 $parameter.other: ptr<managed>
+    local %3 $call.1: ptr<managed>
   block entry
     poll managed-void-target0 sp108 live=[param0:ptr<managed>@0]
+    store global0 -> local0
     t0 = heap_load param0 +16 : ptr<managed>
-    call managed-direct-target0 sp12 live=[t0:ptr<managed>@0] t1 = sig=direct0 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(global0, t0)
-    store t1 -> local0
-    ret local0
+    store t0 -> local1
+    store local1 -> local2
+    call managed-direct-target0 sp12 live=[local0:ptr<managed>@0, local2:ptr<managed>@0] t1 = sig=direct0 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(local0, local2)
+    store t1 -> local3
+    ret local3
   fun @scoop.ReceiverFactory.make(ptr<managed>) -> ptr<managed>
+    local %0 $receiver: i64
+    local %1 $argument.0: i64
+    local %2 $parameter.other: i64
   block entry
     poll managed-void-target0 sp109 live=[param0:ptr<managed>@0]
     t0 = heap_load param0 +16 : i64
-    t1 = Add t0, 1 : i64
+    store t0 -> local0
+    store 1 -> local1
+    store local1 -> local2
+    t1 = Add local0, local2 : i64
     heap_store param0 +16 t1
     ret global1
   fun @scoop.$extension.bump(i64, i64) -> i64
+    local %0 $receiver: i64
+    local %1 $argument.0: i64
+    local %2 $parameter.other: i64
   block entry
     poll managed-void-target0 sp110 live=[]
-    t0 = Add param0, param1 : i64
+    store param0 -> local0
+    store param1 -> local1
+    store local1 -> local2
+    t0 = Add local0, local2 : i64
     ret t0
   fun @scoop.$extension.decorate(ptr<managed>, ptr<managed>) -> ptr<managed>
-    local %0 $call.1: ptr<managed>
+    local %0 $receiver: ptr<managed>
+    local %1 $argument.0: ptr<managed>
+    local %2 $parameter.other: ptr<managed>
+    local %3 $call.1: ptr<managed>
   block entry
     poll managed-void-target0 sp111 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
-    call managed-direct-target0 sp13 live=[param0:ptr<managed>@0, param1:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(param0, param1)
-    store t0 -> local0
-    ret local0
+    store param0 -> local0
+    store param1 -> local1
+    store local1 -> local2
+    call managed-direct-target0 sp13 live=[local0:ptr<managed>@0, local2:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(local0, local2)
+    store t0 -> local3
+    ret local3
   fun @scoop.$extension.suffixer(ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp112 live=[param0:ptr<managed>@0]
@@ -2226,14 +2377,26 @@ Module
     poll managed-void-target0 sp114 live=[]
     ret global3
   fun @scoop.collide(i64) -> i64
+    local %0 $receiver: i64
+    local %1 $argument.0: i64
+    local %2 $parameter.other: i64
   block entry
     poll managed-void-target0 sp115 live=[]
-    t0 = Add param0, 1 : i64
+    store param0 -> local0
+    store 1 -> local1
+    store local1 -> local2
+    t0 = Add local0, local2 : i64
     ret t0
   fun @scoop.$extension.collide(i64) -> i64
+    local %0 $receiver: i64
+    local %1 $argument.0: i64
+    local %2 $parameter.other: i64
   block entry
     poll managed-void-target0 sp116 live=[]
-    t0 = Add param0, 2 : i64
+    store param0 -> local0
+    store 2 -> local1
+    store local1 -> local2
+    t0 = Add local0, local2 : i64
     ret t0
   fun @scoop.$extension.label(ptr<managed>) -> ptr<managed>
   block entry
@@ -2246,10 +2409,16 @@ Module
     t0 = heap_load param0 +16 : ptr<managed>
     ret t0
   fun @scoop.$extension.apply(struct4, i64) -> i64
+    local %0 $receiver: i64
+    local %1 $argument.0: i64
+    local %2 $parameter.other: i64
   block entry
     poll managed-void-target0 sp119 live=[]
+    store param1 -> local0
     t0 = extract param0, 0 : i64
-    t1 = Add param1, t0 : i64
+    store t0 -> local1
+    store local1 -> local2
+    t1 = Add local0, local2 : i64
     ret t1
   fun @scoop.$extension.run(ptr<managed>, i64) -> i64
     local %0 $call.1: i1
@@ -2601,13 +2770,19 @@ Module
     t72 = aggregate () : {}
     br @scope.13
   fun @scoop.$lambda.0(ptr<managed>, ptr<managed>) -> ptr<managed>
-    local %0 $call.1: ptr<managed>
+    local %0 $receiver: ptr<managed>
+    local %1 $argument.0: ptr<managed>
+    local %2 $parameter.other: ptr<managed>
+    local %3 $call.1: ptr<managed>
   block entry
     poll managed-void-target0 sp122 live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
     t0 = heap_load param0 +24 : ptr<managed>
-    call managed-direct-target0 sp70 live=[param1:ptr<managed>@0, t0:ptr<managed>@0] t1 = sig=direct0 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(t0, param1)
-    store t1 -> local0
-    ret local0
+    store t0 -> local0
+    store param1 -> local1
+    store local1 -> local2
+    call managed-direct-target0 sp70 live=[local0:ptr<managed>@0, local2:ptr<managed>@0] t1 = sig=direct0 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(local0, local2)
+    store t1 -> local3
+    ret local3
   fun @scoop.println$I(i64) -> void
     local %0 $receiver: i64
     local %1 $argument.0: ptr<managed>

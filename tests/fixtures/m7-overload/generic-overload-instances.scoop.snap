@@ -41,8 +41,8 @@ SourceFile
     fun load
     fun store
     fun store
-    fun plus
-    fun minus
+    operator fun plus
+    operator fun minus
   struct FunPtr<F>
     field _rawPointer: UInt
     @Unsafe
@@ -169,28 +169,53 @@ SourceFile
     @Intrinsic("core_int")
   struct Int <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun unaryMinus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_uint")
   struct UInt <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun unaryPlus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_boolean")
   struct Boolean <representation omitted> : ToString, Hash
     operator fun equals
+    operator fun not
     fun toString
     fun hash
     @Intrinsic("core_string")
   class String(), ToString, Hash
     operator fun equals
+    operator fun plus
+    operator fun compareTo
     fun toString
     fun hash
     @Intrinsic("core_array")
   class Array<T>()
+    operator fun get
     fun toMutableArray
     @Intrinsic("core_mutable_array")
   class MutableArray<T>()
+    operator fun get
+    operator fun set
     fun toArray
     @Extern(name = "scoop_rt_int_equals", abi = "scoop")
   fun coreIntEquals(left: Int, right: Int): Boolean
@@ -655,7 +680,7 @@ Module
       val $parameter.marker: Int
         Type Int
         Local $argument.1
-      call $argument.0: Int = @scoop.choose$I.g68 direct
+      call $argument.0: Int = @scoop.choose$I.g93 direct
         Type Int
         Local $parameter.value
         Type Int
@@ -678,7 +703,7 @@ Module
       val $parameter.marker: String
         Type String
         Local $argument.1
-      call $argument.0: Int = @scoop.choose$I.g69 direct
+      call $argument.0: Int = @scoop.choose$I.g94 direct
         Type Int
         Local $parameter.value
         Type String
@@ -690,7 +715,7 @@ Module
         Type Int
         Local $parameter.value
       return
-  fun choose @scoop.choose$I.g68(value: Int, marker: Int) -> Int
+  fun choose @scoop.choose$I.g93(value: Int, marker: Int) -> Int
     bb0 entry
       return
         Type Int
@@ -719,7 +744,7 @@ Module
         Type String
         Local $parameter.message
       return
-  fun choose @scoop.choose$I.g69(value: Int, marker: String) -> Int
+  fun choose @scoop.choose$I.g94(value: Int, marker: String) -> Int
     bb0 entry
       return
         Type Int
@@ -841,9 +866,9 @@ Module
         ClassInit IllegalStateException
           Type Option$S<String>
           Local $parameter.message
-  instance @scoop.choose$I.g68 <- choose
+  instance @scoop.choose$I.g93 <- choose
   instance @scoop.println$I <- println
-  instance @scoop.choose$I.g69 <- choose
+  instance @scoop.choose$I.g94 <- choose
   str @scoop.str.0 "string marker"
   str @scoop.str.1 "\n"
   str @scoop.str.2 "unwrap on None"
@@ -1053,7 +1078,7 @@ Module
     call managed-void-target1 sp15 live=[] sig=void1 (i64) local-fn14(local11)
     t3 = aggregate () : {}
     ret
-  fun @scoop.choose$I.g68(i64, i64) -> i64
+  fun @scoop.choose$I.g93(i64, i64) -> i64
   block entry
     poll managed-void-target0 sp39 live=[]
     ret param0
@@ -1076,7 +1101,7 @@ Module
     call native-borrowed-void-target1 sp18 roots=[local4] sig=void1 (ptr<managed>) extern0(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop.choose$I.g69(i64, ptr<managed>) -> i64
+  fun @scoop.choose$I.g94(i64, ptr<managed>) -> i64
   block entry
     poll managed-void-target0 sp41 live=[]
     ret param0

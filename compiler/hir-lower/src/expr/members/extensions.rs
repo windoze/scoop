@@ -56,25 +56,45 @@ impl Lowerer {
         let hir::FunctionKind::Intrinsic(intrinsic) = self.functions[function].kind else {
             return None;
         };
-        let hir::IntrinsicFunctionKind::Array(kind) = intrinsic.kind else {
-            return None;
+        let kind = match intrinsic.kind {
+            hir::IntrinsicFunctionKind::Array(kind) => {
+                debug_assert!(args.is_empty());
+                let (source_kind, target_kind) = match kind {
+                    hir::ArrayIntrinsic::ToImmutable => (ArrayKind::Mutable, ArrayKind::Immutable),
+                    hir::ArrayIntrinsic::ToMutable => (ArrayKind::Immutable, ArrayKind::Mutable),
+                };
+                let source = self
+                    .array_type_info(receiver.ty)
+                    .expect("validated array intrinsic has an array receiver");
+                let target = self
+                    .array_type_info(ty)
+                    .expect("validated array intrinsic has an array result");
+                debug_assert_eq!(source.kind, source_kind);
+                debug_assert_eq!(target.kind, target_kind);
+                debug_assert!(self.types_equal(source.element, target.element));
+                ExprKind::ArrayClone(Box::new(receiver))
+            }
+            hir::IntrinsicFunctionKind::ArrayAccess(access) => match (access, args) {
+                (
+                    hir::ArrayAccessKind::ImmutableGet | hir::ArrayAccessKind::MutableGet,
+                    [index],
+                ) => ExprKind::Index {
+                    access,
+                    receiver: Box::new(receiver),
+                    index: Box::new(index.clone()),
+                },
+                (hir::ArrayAccessKind::MutableSet, [index, value]) => ExprKind::ArraySet {
+                    access,
+                    receiver: Box::new(receiver),
+                    index: Box::new(index.clone()),
+                    value: Box::new(value.clone()),
+                },
+                _ => unreachable!("validated array access intrinsic has a fixed argument shape"),
+            },
+            _ => return None,
         };
-        debug_assert!(args.is_empty());
-        let (source_kind, target_kind) = match kind {
-            hir::ArrayIntrinsic::ToImmutable => (ArrayKind::Mutable, ArrayKind::Immutable),
-            hir::ArrayIntrinsic::ToMutable => (ArrayKind::Immutable, ArrayKind::Mutable),
-        };
-        let source = self
-            .array_type_info(receiver.ty)
-            .expect("validated array intrinsic has an array receiver");
-        let target = self
-            .array_type_info(ty)
-            .expect("validated array intrinsic has an array result");
-        debug_assert_eq!(source.kind, source_kind);
-        debug_assert_eq!(target.kind, target_kind);
-        debug_assert!(self.types_equal(source.element, target.element));
         Some(hir::Expr {
-            kind: ExprKind::ArrayClone(Box::new(receiver)),
+            kind,
             ty,
             span,
             origin: self.expression_origin(span),

@@ -120,6 +120,106 @@ pub const INTRINSIC_REGISTRY: &[IntrinsicSpec] = &[
         target: IntrinsicTarget::TopLevel,
         effects: IntrinsicEffects::NONE,
     },
+    intrinsic_method(
+        PrimitiveUnaryKind::IntUnaryPlus.name(),
+        IntrinsicFunctionKind::PrimitiveUnary(PrimitiveUnaryKind::IntUnaryPlus),
+    ),
+    intrinsic_method(
+        PrimitiveUnaryKind::IntUnaryMinus.name(),
+        IntrinsicFunctionKind::PrimitiveUnary(PrimitiveUnaryKind::IntUnaryMinus),
+    ),
+    intrinsic_method(
+        PrimitiveUnaryKind::IntInc.name(),
+        IntrinsicFunctionKind::PrimitiveUnary(PrimitiveUnaryKind::IntInc),
+    ),
+    intrinsic_method(
+        PrimitiveUnaryKind::IntDec.name(),
+        IntrinsicFunctionKind::PrimitiveUnary(PrimitiveUnaryKind::IntDec),
+    ),
+    intrinsic_method(
+        PrimitiveUnaryKind::UIntUnaryPlus.name(),
+        IntrinsicFunctionKind::PrimitiveUnary(PrimitiveUnaryKind::UIntUnaryPlus),
+    ),
+    intrinsic_method(
+        PrimitiveUnaryKind::UIntInc.name(),
+        IntrinsicFunctionKind::PrimitiveUnary(PrimitiveUnaryKind::UIntInc),
+    ),
+    intrinsic_method(
+        PrimitiveUnaryKind::UIntDec.name(),
+        IntrinsicFunctionKind::PrimitiveUnary(PrimitiveUnaryKind::UIntDec),
+    ),
+    intrinsic_method(
+        PrimitiveUnaryKind::BooleanNot.name(),
+        IntrinsicFunctionKind::PrimitiveUnary(PrimitiveUnaryKind::BooleanNot),
+    ),
+    intrinsic_method(
+        PrimitiveBinaryKind::IntAdd.name(),
+        IntrinsicFunctionKind::PrimitiveBinary(PrimitiveBinaryKind::IntAdd),
+    ),
+    intrinsic_method(
+        PrimitiveBinaryKind::IntSub.name(),
+        IntrinsicFunctionKind::PrimitiveBinary(PrimitiveBinaryKind::IntSub),
+    ),
+    intrinsic_method(
+        PrimitiveBinaryKind::IntMul.name(),
+        IntrinsicFunctionKind::PrimitiveBinary(PrimitiveBinaryKind::IntMul),
+    ),
+    intrinsic_method(
+        PrimitiveBinaryKind::IntDiv.name(),
+        IntrinsicFunctionKind::PrimitiveBinary(PrimitiveBinaryKind::IntDiv),
+    ),
+    intrinsic_method(
+        PrimitiveBinaryKind::IntRem.name(),
+        IntrinsicFunctionKind::PrimitiveBinary(PrimitiveBinaryKind::IntRem),
+    ),
+    intrinsic_method(
+        PrimitiveBinaryKind::IntCompareTo.name(),
+        IntrinsicFunctionKind::PrimitiveBinary(PrimitiveBinaryKind::IntCompareTo),
+    ),
+    intrinsic_method(
+        PrimitiveBinaryKind::UIntAdd.name(),
+        IntrinsicFunctionKind::PrimitiveBinary(PrimitiveBinaryKind::UIntAdd),
+    ),
+    intrinsic_method(
+        PrimitiveBinaryKind::UIntSub.name(),
+        IntrinsicFunctionKind::PrimitiveBinary(PrimitiveBinaryKind::UIntSub),
+    ),
+    intrinsic_method(
+        PrimitiveBinaryKind::UIntMul.name(),
+        IntrinsicFunctionKind::PrimitiveBinary(PrimitiveBinaryKind::UIntMul),
+    ),
+    intrinsic_method(
+        PrimitiveBinaryKind::UIntDiv.name(),
+        IntrinsicFunctionKind::PrimitiveBinary(PrimitiveBinaryKind::UIntDiv),
+    ),
+    intrinsic_method(
+        PrimitiveBinaryKind::UIntRem.name(),
+        IntrinsicFunctionKind::PrimitiveBinary(PrimitiveBinaryKind::UIntRem),
+    ),
+    intrinsic_method(
+        PrimitiveBinaryKind::UIntCompareTo.name(),
+        IntrinsicFunctionKind::PrimitiveBinary(PrimitiveBinaryKind::UIntCompareTo),
+    ),
+    intrinsic_method(
+        PrimitiveBinaryKind::StringConcat.name(),
+        IntrinsicFunctionKind::PrimitiveBinary(PrimitiveBinaryKind::StringConcat),
+    ),
+    intrinsic_method(
+        PrimitiveBinaryKind::StringCompareTo.name(),
+        IntrinsicFunctionKind::PrimitiveBinary(PrimitiveBinaryKind::StringCompareTo),
+    ),
+    intrinsic_method(
+        ArrayAccessKind::ImmutableGet.name(),
+        IntrinsicFunctionKind::ArrayAccess(ArrayAccessKind::ImmutableGet),
+    ),
+    intrinsic_method(
+        ArrayAccessKind::MutableGet.name(),
+        IntrinsicFunctionKind::ArrayAccess(ArrayAccessKind::MutableGet),
+    ),
+    intrinsic_method(
+        ArrayAccessKind::MutableSet.name(),
+        IntrinsicFunctionKind::ArrayAccess(ArrayAccessKind::MutableSet),
+    ),
     IntrinsicSpec {
         name: "ptr_to_uint",
         stage: IntrinsicStage::Hir,
@@ -257,6 +357,16 @@ pub struct IntrinsicSpec {
     pub effects: IntrinsicEffects,
 }
 
+const fn intrinsic_method(name: &'static str, kind: IntrinsicFunctionKind) -> IntrinsicSpec {
+    IntrinsicSpec {
+        name,
+        stage: IntrinsicStage::Hir,
+        kind,
+        target: IntrinsicTarget::Member,
+        effects: IntrinsicEffects::NONE,
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum IntrinsicStage {
     Hir,
@@ -279,6 +389,9 @@ pub enum IntrinsicFunctionKind {
     ForeignCallbackRelease,
     ForeignCallbackState,
     ForeignCallbackFailure,
+    PrimitiveUnary(PrimitiveUnaryKind),
+    PrimitiveBinary(PrimitiveBinaryKind),
+    ArrayAccess(ArrayAccessKind),
     Array(ArrayIntrinsic),
     Pointer(PointerIntrinsic),
 }
@@ -300,8 +413,124 @@ impl IntrinsicFunctionKind {
             Self::ForeignCallbackRelease => "foreign_callback_release",
             Self::ForeignCallbackState => "foreign_callback_state",
             Self::ForeignCallbackFailure => "foreign_callback_failure",
+            Self::PrimitiveUnary(kind) => kind.name(),
+            Self::PrimitiveBinary(kind) => kind.name(),
+            Self::ArrayAccess(kind) => kind.name(),
             Self::Array(kind) => kind.name(),
             Self::Pointer(kind) => kind.name(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum PrimitiveUnaryKind {
+    IntUnaryPlus,
+    IntUnaryMinus,
+    IntInc,
+    IntDec,
+    UIntUnaryPlus,
+    UIntInc,
+    UIntDec,
+    BooleanNot,
+}
+
+impl PrimitiveUnaryKind {
+    pub const ALL: [Self; 8] = [
+        Self::IntUnaryPlus,
+        Self::IntUnaryMinus,
+        Self::IntInc,
+        Self::IntDec,
+        Self::UIntUnaryPlus,
+        Self::UIntInc,
+        Self::UIntDec,
+        Self::BooleanNot,
+    ];
+
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::IntUnaryPlus => "int_unary_plus",
+            Self::IntUnaryMinus => "int_unary_minus",
+            Self::IntInc => "int_inc",
+            Self::IntDec => "int_dec",
+            Self::UIntUnaryPlus => "uint_unary_plus",
+            Self::UIntInc => "uint_inc",
+            Self::UIntDec => "uint_dec",
+            Self::BooleanNot => "boolean_not",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum PrimitiveBinaryKind {
+    IntAdd,
+    IntSub,
+    IntMul,
+    IntDiv,
+    IntRem,
+    IntCompareTo,
+    UIntAdd,
+    UIntSub,
+    UIntMul,
+    UIntDiv,
+    UIntRem,
+    UIntCompareTo,
+    StringConcat,
+    StringCompareTo,
+}
+
+impl PrimitiveBinaryKind {
+    pub const ALL: [Self; 14] = [
+        Self::IntAdd,
+        Self::IntSub,
+        Self::IntMul,
+        Self::IntDiv,
+        Self::IntRem,
+        Self::IntCompareTo,
+        Self::UIntAdd,
+        Self::UIntSub,
+        Self::UIntMul,
+        Self::UIntDiv,
+        Self::UIntRem,
+        Self::UIntCompareTo,
+        Self::StringConcat,
+        Self::StringCompareTo,
+    ];
+
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::IntAdd => "int_add",
+            Self::IntSub => "int_sub",
+            Self::IntMul => "int_mul",
+            Self::IntDiv => "int_div",
+            Self::IntRem => "int_rem",
+            Self::IntCompareTo => "int_compare_to",
+            Self::UIntAdd => "uint_add",
+            Self::UIntSub => "uint_sub",
+            Self::UIntMul => "uint_mul",
+            Self::UIntDiv => "uint_div",
+            Self::UIntRem => "uint_rem",
+            Self::UIntCompareTo => "uint_compare_to",
+            Self::StringConcat => "string_concat",
+            Self::StringCompareTo => "string_compare_to",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ArrayAccessKind {
+    ImmutableGet,
+    MutableGet,
+    MutableSet,
+}
+
+impl ArrayAccessKind {
+    pub const ALL: [Self; 3] = [Self::ImmutableGet, Self::MutableGet, Self::MutableSet];
+
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::ImmutableGet => "array_get",
+            Self::MutableGet => "mutable_array_get",
+            Self::MutableSet => "mutable_array_set",
         }
     }
 }

@@ -14,6 +14,11 @@ void run_core_runtime_tests(void) {
     scoop_rt_println_boolean(scoop_rt_string_eq(concat, copy));
     scoop_rt_println_boolean(scoop_rt_string_eq(a, b));
     scoop_rt_println_boolean(scoop_rt_string_eq(a, concat));
+    if (scoop_rt_string_compare(a, b) >= 0 ||
+        scoop_rt_string_compare(b, a) <= 0 ||
+        scoop_rt_string_compare(a, a) != 0) {
+        abort();
+    }
 
     /* int / boolean output (print variants run into the println line) */
     scoop_rt_print_int(42);

@@ -21,7 +21,6 @@ use hir::{FunctionId, Type, TypeId};
 
 use crate::patterns::PatternCtx;
 use crate::scope::Scopes;
-use crate::types::ArrayKind;
 use crate::{CaptureContext, FnSig, ForbiddenSuspendContext, Lowerer, SuspensionContext};
 
 pub(crate) struct ValueBlock {

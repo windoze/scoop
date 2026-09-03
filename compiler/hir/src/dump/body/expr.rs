@@ -336,6 +336,15 @@ pub(super) fn dump_expr(
                 dump_expr(module, locals, arg, indent + 1, out);
             }
         }
+        ExprKind::PrimitiveBinary { kind, lhs, rhs } => {
+            out.push_str(&format!("{pad}PrimitiveBinary {kind:?} : {ty}\n"));
+            dump_expr(module, locals, lhs, indent + 1, out);
+            dump_expr(module, locals, rhs, indent + 1, out);
+        }
+        ExprKind::PrimitiveUnary { kind, operand } => {
+            out.push_str(&format!("{pad}PrimitiveUnary {kind:?} : {ty}\n"));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
         ExprKind::Binary { op, lhs, rhs } => {
             out.push_str(&format!("{pad}Binary {op:?} : {ty}\n"));
             dump_expr(module, locals, lhs, indent + 1, out);
@@ -413,10 +422,25 @@ pub(super) fn dump_expr(
                 }
             }
         }
-        ExprKind::Index { receiver, index } => {
-            out.push_str(&format!("{pad}Index : {ty}\n"));
+        ExprKind::Index {
+            access,
+            receiver,
+            index,
+        } => {
+            out.push_str(&format!("{pad}Index {access:?} : {ty}\n"));
             dump_expr(module, locals, receiver, indent + 1, out);
             dump_expr(module, locals, index, indent + 1, out);
+        }
+        ExprKind::ArraySet {
+            access,
+            receiver,
+            index,
+            value,
+        } => {
+            out.push_str(&format!("{pad}ArraySet {access:?} : {ty}\n"));
+            dump_expr(module, locals, receiver, indent + 1, out);
+            dump_expr(module, locals, index, indent + 1, out);
+            dump_expr(module, locals, value, indent + 1, out);
         }
         ExprKind::ArrayLen(operand) => {
             out.push_str(&format!("{pad}ArrayLen : {ty}\n"));

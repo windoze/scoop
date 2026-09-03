@@ -22,7 +22,7 @@ fn when_guard_must_be_boolean() {
 }
 
 #[test]
-fn desugaring_in_when_guard_is_an_error() {
+fn desugaring_in_when_guard_is_retained_as_guard_setup() {
     let file = file(vec![fun(
         "main",
         vec![
@@ -42,11 +42,24 @@ fn desugaring_in_when_guard_is_an_error() {
             ),
         ],
     )]);
-    let errors = lower_user(file).expect_err("elvis in guard must fail");
-    assert_eq!(errors.len(), 1);
-    assert_eq!(
-        errors[0].message,
-        "`?.` and `?:` are not allowed in a when guard"
+    let module = lower_user(file).expect("elvis setup must stay inside the guard path");
+    let hir::FunctionKind::User(main) = &module.functions[module.entry].kind else {
+        panic!("main body")
+    };
+    let when = main
+        .statements
+        .iter()
+        .find_map(|statement| match &statement.kind {
+            hir::StatementKind::When(when) => Some(when),
+            _ => None,
+        })
+        .expect("when statement");
+    let guard = when.arms[0].guard.as_ref().expect("guard");
+    assert!(
+        guard
+            .setup
+            .iter()
+            .any(|statement| matches!(statement.kind, hir::StatementKind::If { .. }))
     );
 }
 

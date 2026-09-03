@@ -142,6 +142,18 @@ bool scoop_rt_string_eq(const ScoopString *a, const ScoopString *b) {
     return a->len == b->len && memcmp(a->data, b->data, a->len) == 0;
 }
 
+int64_t scoop_rt_string_compare(const ScoopString *a, const ScoopString *b) {
+    const uint64_t common = a->len < b->len ? a->len : b->len;
+    const int order = memcmp(a->data, b->data, (size_t)common);
+    if (order < 0) {
+        return -1;
+    }
+    if (order > 0) {
+        return 1;
+    }
+    return (a->len > b->len) - (a->len < b->len);
+}
+
 void scoop_rt_print_int(int64_t value) {
     printf("%" PRId64, value);
 }

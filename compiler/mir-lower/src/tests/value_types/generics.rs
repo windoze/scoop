@@ -16,8 +16,8 @@ fn params_and_return_translate() {
         hir::Body {
             locals,
             statements: vec![stmt(hir::StatementKind::Return {
-                value: Some(binary(
-                    hir::BinOp::Add,
+                value: Some(primitive_binary(
+                    hir::PrimitiveBinaryKind::IntAdd,
                     local_ref(x, int),
                     local_ref(y, int),
                     int,

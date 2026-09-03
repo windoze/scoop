@@ -21,9 +21,8 @@
 //! The caller (a statement lowering) drains `sink` into the enclosing
 //! statement list right before the statement that owns the expression,
 //! so sink statements execute exactly where the owning statement does.
-//! (`while` conditions are the one place where this would change
-//! semantics — they re-evaluate per iteration — and are rejected by
-//! the while-statement lowering; `when` guards reject them too.)
+//! Loop conditions and `when` guards retain their setup explicitly so
+//! it executes at each condition/arm attempt rather than being hoisted.
 //!
 //! **Expected-type hint.** `lower_expr` receives the type the context
 //! expects, when known: `val` annotations, assignment targets, function

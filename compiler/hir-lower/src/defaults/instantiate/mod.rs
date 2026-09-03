@@ -171,10 +171,16 @@ impl Lowerer {
                     .iter()
                     .map(|arm| hir::WhenArm {
                         pattern: self.instantiate_default_pattern(&arm.pattern, context),
-                        guard: arm
-                            .guard
-                            .as_ref()
-                            .map(|guard| self.instantiate_default_expr(guard, context)),
+                        guard: arm.guard.as_ref().map(|guard| hir::WhenGuard {
+                            setup: guard
+                                .setup
+                                .iter()
+                                .map(|statement| {
+                                    self.instantiate_default_statement(statement, context)
+                                })
+                                .collect(),
+                            condition: self.instantiate_default_expr(&guard.condition, context),
+                        }),
                         body: arm
                             .body
                             .iter()
@@ -486,9 +492,25 @@ impl Lowerer {
                         .instantiate_default_class_application(assembly.result_type, context),
                 })
             }
-            hir::ExprKind::Index { receiver, index } => hir::ExprKind::Index {
+            hir::ExprKind::Index {
+                access,
+                receiver,
+                index,
+            } => hir::ExprKind::Index {
+                access: *access,
                 receiver: Box::new(self.instantiate_default_expr(receiver, context)),
                 index: Box::new(self.instantiate_default_expr(index, context)),
+            },
+            hir::ExprKind::ArraySet {
+                access,
+                receiver,
+                index,
+                value,
+            } => hir::ExprKind::ArraySet {
+                access: *access,
+                receiver: Box::new(self.instantiate_default_expr(receiver, context)),
+                index: Box::new(self.instantiate_default_expr(index, context)),
+                value: Box::new(self.instantiate_default_expr(value, context)),
             },
             hir::ExprKind::ArrayLen(value) => {
                 hir::ExprKind::ArrayLen(Box::new(self.instantiate_default_expr(value, context)))
@@ -519,6 +541,15 @@ impl Lowerer {
                 callee: Box::new(self.instantiate_default_expr(callee, context)),
                 function_type: self.instantiate_default_function_type(*function_type, context),
                 args: self.instantiate_default_exprs(args, context),
+            },
+            hir::ExprKind::PrimitiveBinary { kind, lhs, rhs } => hir::ExprKind::PrimitiveBinary {
+                kind: *kind,
+                lhs: Box::new(self.instantiate_default_expr(lhs, context)),
+                rhs: Box::new(self.instantiate_default_expr(rhs, context)),
+            },
+            hir::ExprKind::PrimitiveUnary { kind, operand } => hir::ExprKind::PrimitiveUnary {
+                kind: *kind,
+                operand: Box::new(self.instantiate_default_expr(operand, context)),
             },
             hir::ExprKind::Binary { op, lhs, rhs } => hir::ExprKind::Binary {
                 op: *op,

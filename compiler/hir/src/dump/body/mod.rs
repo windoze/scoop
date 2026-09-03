@@ -114,6 +114,14 @@ pub(super) fn dump_statements(
                             ""
                         }
                     ));
+                    if let Some(guard) = &arm.guard {
+                        if !guard.setup.is_empty() {
+                            out.push_str(&format!("{}    guard setup\n", pad));
+                            dump_statements(module, locals, &guard.setup, indent + 3, out);
+                        }
+                        out.push_str(&format!("{}    guard condition\n", pad));
+                        dump_expr(module, locals, &guard.condition, indent + 3, out);
+                    }
                     dump_statements(module, locals, &arm.body, indent + 2, out);
                 }
                 if let Some(else_body) = &when.else_body {

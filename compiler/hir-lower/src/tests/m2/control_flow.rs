@@ -91,29 +91,44 @@ fn var_rebinding_and_control_flow() {
     val local0
       IntLiteral 0 : Int
     while
-      Binary Lt : Boolean
-        Local n : Int
-        IntLiteral 3 : Int
-      assign n
-        Binary Add : Int
+      condition setup
+        val local1
           Local n : Int
-          IntLiteral 1 : Int
+        val local2
+          IntLiteral 3 : Int
+        val local3
+          Local $argument.0 : Int
+      Binary Lt : Boolean
+        PrimitiveBinary IntCompareTo : Int
+          Local $receiver : Int
+          Local $parameter.other : Int
+        IntLiteral 0 : Int
+      val local4
+        Local n : Int
+      val local5
+        IntLiteral 1 : Int
+      val local6
+        Local $argument.0 : Int
+      assign n
+        PrimitiveBinary IntAdd : Int
+          Local $receiver : Int
+          Local $parameter.other : Int
     if
       Binary And : Boolean
         MethodCall Int.equals : Boolean
           Local n : Int
           IntLiteral 3 : Int
         BoolLiteral true : Boolean
-      val local1
+      val local7
         StringLiteral "ok" : String
-      val local2
+      val local8
         Local $argument.0 : String
       Call println<String> : Unit
         Local $parameter.value : String
     else
-      val local3
+      val local9
         StringLiteral "ng" : String
-      val local4
+      val local10
         Local $argument.0 : String
       Call println<String> : Unit
         Local $parameter.value : String

@@ -83,7 +83,8 @@ impl ReferenceCollector {
                 for arm in &value.arms {
                     self.pattern(&arm.pattern);
                     if let Some(guard) = &arm.guard {
-                        self.expression(guard);
+                        self.statements(&guard.setup);
+                        self.expression(&guard.condition);
                     }
                     self.statements(&arm.body);
                 }
@@ -267,6 +268,12 @@ impl ReferenceCollector {
             | hir::ExprKind::Index {
                 receiver: pointer,
                 index: offset,
+                ..
+            }
+            | hir::ExprKind::PrimitiveBinary {
+                lhs: pointer,
+                rhs: offset,
+                ..
             }
             | hir::ExprKind::Binary {
                 lhs: pointer,
@@ -275,6 +282,16 @@ impl ReferenceCollector {
             } => {
                 self.expression(pointer);
                 self.expression(offset);
+            }
+            hir::ExprKind::ArraySet {
+                receiver,
+                index,
+                value,
+                ..
+            } => {
+                self.expression(receiver);
+                self.expression(index);
+                self.expression(value);
             }
             hir::ExprKind::AddressOf(place) => {
                 if let hir::Place::Global(global) = place {
@@ -309,6 +326,7 @@ impl ReferenceCollector {
             }
             hir::ExprKind::Cast { operand, .. }
             | hir::ExprKind::Unary { operand, .. }
+            | hir::ExprKind::PrimitiveUnary { operand, .. }
             | hir::ExprKind::Unwrap { operand, .. } => self.expression(operand),
             hir::ExprKind::ArrayAssembly(assembly) => {
                 self.type_reference(assembly.element_type, origin);

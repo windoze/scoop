@@ -27,6 +27,9 @@ pub(super) fn lower_runtime_function(function: mir::RuntimeFn) -> lir::RuntimeFu
         mir::RuntimeFn::StringConcat => {
             lir::RuntimeFunction::Managed(lir::ManagedRuntimeFunction::StringConcat)
         }
+        mir::RuntimeFn::StringCompare => {
+            lir::RuntimeFunction::NoGc(lir::NoGcRuntimeFunction::StringCompare)
+        }
         mir::RuntimeFn::Trap => lir::RuntimeFunction::NoGc(lir::NoGcRuntimeFunction::Trap),
     }
 }

@@ -127,9 +127,9 @@ impl Lowerer {
         })
     }
 
-    /// `receiver[index]` (spec 10.5): the receiver must be an
-    /// `Array<T>` / `MutableArray<T>` and the index an `Int`; the
-    /// result is the element type `T`.
+    /// `receiver[indices]` enters the ordinary typed `operator get`
+    /// resolver. Core arrays participate through source declarations and are
+    /// normalized only after their registered intrinsic target wins.
     pub(super) fn lower_index_read(
         &mut self,
         receiver: &ast::Expr,
@@ -138,37 +138,6 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
         let receiver = self.lower_expr(receiver, sink, None)?;
-        if let Some(element_ty) = self.array_element_ty(receiver.ty) {
-            let [index] = indices else {
-                self.error(
-                    span,
-                    format!(
-                        "array subscript takes exactly one index, but {} were supplied",
-                        indices.len()
-                    ),
-                );
-                return None;
-            };
-            let index = self.lower_expr(index, sink, Some(self.int))?;
-            if index.ty != self.int {
-                let found = self.type_name(index.ty);
-                self.error(
-                    index.span,
-                    format!("array index must be Int, found {found}"),
-                );
-                return None;
-            }
-            return Some(hir::Expr {
-                kind: ExprKind::Index {
-                    receiver: Box::new(receiver),
-                    index: Box::new(index),
-                },
-                ty: element_ty,
-                span,
-                origin: self.expression_origin(span),
-            });
-        }
-
         let arguments = indices
             .iter()
             .cloned()

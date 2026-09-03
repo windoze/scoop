@@ -405,7 +405,8 @@ impl BodyLowerer<'_> {
             })
             .collect();
         if let Some(guard) = &arm.guard {
-            let guard_cond = self.lower_expr(guard);
+            then.extend(self.lower_statements(&guard.setup));
+            let guard_cond = self.lower_expr(&guard.condition);
             let guard_prelude = std::mem::take(&mut self.prelude);
             then.extend(guard_prelude.into_iter().map(|kind| smir::Statement {
                 kind,
