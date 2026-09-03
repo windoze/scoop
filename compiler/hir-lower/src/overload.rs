@@ -32,8 +32,9 @@ use scoop_hir as hir;
 use ast::Span;
 use hir::{FunctionId, Type, TypeId};
 
+use crate::call_resolution::applicability::CallableApplicabilityInput;
 use crate::call_resolution::arguments::CandidateArgumentMap;
-use crate::call_resolution::candidates::CallableSource;
+use crate::call_resolution::candidates::{CallableSource, CallableView};
 use crate::{CallableCandidate, CallableCandidateSource, Lowerer};
 
 mod diagnostics;
@@ -86,6 +87,7 @@ struct OverloadResolution<'a> {
 /// receiver pre-binds the owner prefix; applicability infers the remaining
 /// method suffix and substitutes the complete vector.
 struct Candidate {
+    view: CallableView,
     argument_map: Result<CandidateArgumentMap, crate::call_resolution::arguments::ArityMismatch>,
     target: CallableSource,
     function: FunctionId,
@@ -98,6 +100,7 @@ struct Candidate {
     /// MSC tie-breaking.
     own_type_param_count: usize,
     initial_bindings: Vec<Option<TypeId>>,
+    owner_arguments: Vec<TypeId>,
     explicit_arity_match: bool,
     /// Whether the candidate's declared (pre-instantiation) parameter
     /// types mention type parameters — its own or its host's. Such
@@ -362,8 +365,10 @@ impl Lowerer {
                     return_ty: view.return_type,
                     own_type_param_count,
                     initial_bindings,
+                    owner_arguments,
                     explicit_arity_match,
                     parameterized,
+                    view,
                 }
             })
             .collect();
@@ -466,26 +471,42 @@ impl Lowerer {
         let mut applicable: Vec<(usize, Vec<TypeId>)> = Vec::new();
         let mut kind_failures: Vec<(usize, Vec<TypeId>)> = Vec::new();
         let mut contextual_failures: Vec<(usize, TypeId, String)> = Vec::new();
+        let mut _constraint_failures = Vec::new();
         for (index, candidate) in prepared.iter().enumerate() {
             if !candidate.explicit_arity_match {
                 continue;
             }
-            if candidate.argument_map.is_err() {
-                continue;
-            }
-            let Some(type_args) = self.try_infer_type_args(candidate, &arg_tys) else {
+            let Ok(argument_map) = &candidate.argument_map else {
                 continue;
             };
-            let ordinary_args_match = candidate.params.iter().zip(&arg_tys).all(|(&param, arg)| {
-                let expected = self.substitute_call_level(param, &type_args);
-                match arg {
-                    Some(arg) => self.is_subtype(*arg, expected),
-                    None => true,
+            let type_args = match self.solve_callable_applicability(CallableApplicabilityInput {
+                view: &candidate.view,
+                argument_map,
+                owner_arguments: &candidate.owner_arguments,
+                explicit_arguments: explicit_type_args,
+                receiver_type: (receiver_offset != 0).then(|| arg_tys[0]).flatten(),
+                argument_types: &arg_tys[receiver_offset..],
+            }) {
+                Ok(type_args) => type_args,
+                Err(failure) => {
+                    _constraint_failures.push((index, failure));
+                    if let Some(type_args) = self.try_infer_type_args(candidate, &arg_tys) {
+                        let ordinary_args_match =
+                            candidate.params.iter().zip(&arg_tys).all(|(&param, arg)| {
+                                let expected = self.substitute_call_level(param, &type_args);
+                                arg.is_none_or(|arg| self.is_subtype(arg, expected))
+                            });
+                        if ordinary_args_match {
+                            let type_params =
+                                self.signatures[&candidate.function].type_params.clone();
+                            if !self.type_arguments_satisfy_kinds(&type_params, &type_args) {
+                                kind_failures.push((index, type_args));
+                            }
+                        }
+                    }
+                    continue;
                 }
-            });
-            if !ordinary_args_match {
-                continue;
-            }
+            };
             let mut contextual_args_match = true;
             for (argument, (&param, arg)) in candidate.params.iter().zip(&arg_tys).enumerate() {
                 if argument < receiver_offset {
@@ -506,12 +527,7 @@ impl Lowerer {
                 }
             }
             if contextual_args_match {
-                let type_params = self.signatures[&candidate.function].type_params.clone();
-                if self.type_arguments_satisfy_kinds(&type_params, &type_args) {
-                    applicable.push((index, type_args));
-                } else {
-                    kind_failures.push((index, type_args));
-                }
+                applicable.push((index, type_args));
             }
         }
 

@@ -4,6 +4,7 @@
 //! but all declaration candidates are normalized through [`CallableView`]
 //! and receive their own semantic argument map before that engine runs.
 
+pub(crate) mod applicability;
 pub(crate) mod arguments;
 pub(crate) mod candidates;
 // The resolver is landing dependency-first. These modules are exercised by

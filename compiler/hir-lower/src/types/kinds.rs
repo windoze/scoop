@@ -69,7 +69,7 @@ impl Lowerer {
         true
     }
 
-    fn type_satisfies_kind(&self, ty: TypeId, required: hir::TypeParamKind) -> bool {
+    pub(crate) fn type_satisfies_kind(&self, ty: TypeId, required: hir::TypeParamKind) -> bool {
         if required == hir::TypeParamKind::Any {
             return true;
         }

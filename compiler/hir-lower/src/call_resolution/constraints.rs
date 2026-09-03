@@ -70,13 +70,18 @@ impl From<CallableInferenceVariableId> for InferenceVariableId {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum TypeTerm {
+    /// A declaration template. Every `Type::Param` reached through this term
+    /// must belong to the current inference session and becomes a variable.
     Type(hir::TypeId),
+    /// A type synthesized in the surrounding semantic context. Its type
+    /// parameters are rigid inputs, even when nested in an application.
+    Rigid(hir::TypeId),
     Variable(InferenceVariableId),
 }
 
 impl From<hir::TypeId> for TypeTerm {
     fn from(value: hir::TypeId) -> Self {
-        Self::Type(value)
+        Self::Rigid(value)
     }
 }
 
@@ -190,7 +195,7 @@ pub(crate) enum ConstraintFailureKind {
         variable: InferenceVariableId,
         lower_bounds: Vec<hir::TypeId>,
         upper_bounds: Vec<hir::TypeId>,
-        minimal_solutions: Vec<hir::TypeId>,
+        solution_frontier: Vec<hir::TypeId>,
     },
     Kind {
         variable: InferenceVariableId,

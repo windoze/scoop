@@ -6,7 +6,7 @@ use super::candidates::{CallableView, ReceiverShape};
 pub(crate) struct SourceInputId(u32);
 
 impl SourceInputId {
-    fn from_index(index: usize) -> Self {
+    pub(crate) fn from_index(index: usize) -> Self {
         Self(u32::try_from(index).expect("source argument index exceeds u32"))
     }
 

@@ -190,15 +190,15 @@ fn incomparable_minimal_upper_bounds_are_not_collapsed_to_any() {
         .solve_constraints(&session)
         .expect_err("two incomparable interface minima are ambiguous");
     let ConstraintFailureKind::NoUniqueSolution {
-        minimal_solutions, ..
+        solution_frontier, ..
     } = failure.kind
     else {
         panic!("expected a no-unique-solution failure")
     };
-    assert_eq!(minimal_solutions.len(), 2);
-    assert!(minimal_solutions.contains(&left_parent));
-    assert!(minimal_solutions.contains(&right_parent));
-    assert!(!minimal_solutions.contains(&lowerer.any));
+    assert_eq!(solution_frontier.len(), 2);
+    assert!(solution_frontier.contains(&left_parent));
+    assert!(solution_frontier.contains(&right_parent));
+    assert!(!solution_frontier.contains(&lowerer.any));
 }
 
 #[test]
@@ -212,7 +212,7 @@ fn function_variance_generates_bidirectional_bounds() {
     let environment = session.add_environment(&[], std::slice::from_ref(&callable));
     let variable = session.callable_variables(environment)[0];
     session.push(
-        Constraint::Subtype(actual.into(), expected.into()),
+        Constraint::Subtype(actual.into(), TypeTerm::Type(expected)),
         ConstraintOrigin::Argument(super::arguments::SourceInputId::from_test_index(0)),
     );
 
@@ -220,6 +220,94 @@ fn function_variance_generates_bidirectional_bounds() {
         .solve_constraints(&session)
         .expect("function parameter and return variance agree on Int");
     assert_eq!(solution.type_for(variable), lowerer.int);
+}
+
+#[test]
+fn duplicate_lower_bounds_are_complete_constraints() {
+    let mut lowerer = Lowerer::new();
+    let callable = parameter(51, 0);
+    let mut session = InferenceSession::new();
+    let environment = session.add_environment(&[], std::slice::from_ref(&callable));
+    let variable = session.callable_variables(environment)[0];
+    for index in 0..2 {
+        session.push(
+            Constraint::Subtype(lowerer.string.into(), variable.into()),
+            ConstraintOrigin::Argument(super::arguments::SourceInputId::from_test_index(index)),
+        );
+    }
+
+    let solution = lowerer
+        .solve_constraints(&session)
+        .expect("duplicate materialized bounds do not mean an unresolved bound");
+    assert_eq!(solution.type_for(variable), lowerer.string);
+}
+
+#[test]
+fn an_upper_only_constraint_chooses_its_unique_greatest_solution() {
+    let mut lowerer = Lowerer::new();
+    let callable = parameter(55, 0);
+    let mut session = InferenceSession::new();
+    let environment = session.add_environment(&[], std::slice::from_ref(&callable));
+    let variable = session.callable_variables(environment)[0];
+    session.push(
+        Constraint::Subtype(variable.into(), lowerer.int.into()),
+        ConstraintOrigin::Argument(super::arguments::SourceInputId::from_test_index(0)),
+    );
+
+    let solution = lowerer
+        .solve_constraints(&session)
+        .expect("a contravariant occurrence can determine its upper bound");
+    assert_eq!(solution.type_for(variable), lowerer.int);
+}
+
+#[test]
+fn rigid_outer_parameters_survive_nested_application_inference() {
+    let mut lowerer = Lowerer::new();
+    let callable = parameter(52, 0);
+    let outer = parameter(53, 0);
+    lowerer.type_params_in_scope = vec![outer.clone()];
+    let structure = add_generic_struct(&mut lowerer, "Box", callable.clone());
+    let expected = lowerer.structs[structure].self_application;
+    let expected = lowerer.struct_applications[expected].canonical_type;
+    let outer_ty = lowerer.intern_type(Type::Param(outer.id));
+    let actual = lowerer.struct_application(structure, vec![outer_ty]);
+    let mut session = InferenceSession::new();
+    let environment = session.add_environment(&[], std::slice::from_ref(&callable));
+    let variable = session.callable_variables(environment)[0];
+    session.push(
+        Constraint::Subtype(TypeTerm::Rigid(actual), TypeTerm::Type(expected)),
+        ConstraintOrigin::Argument(super::arguments::SourceInputId::from_test_index(0)),
+    );
+
+    let solution = lowerer
+        .solve_constraints(&session)
+        .expect("an outer parameter is a rigid input, not the candidate variable");
+    assert_eq!(solution.type_for(variable), outer_ty);
+}
+
+#[test]
+fn lower_bound_solution_is_not_widened_to_satisfy_a_kind() {
+    let mut lowerer = Lowerer::new();
+    let callable = parameter(54, 0);
+    let mut session = InferenceSession::new();
+    let environment = session.add_environment(&[], std::slice::from_ref(&callable));
+    let variable = session.callable_variables(environment)[0];
+    session.push(
+        Constraint::Subtype(lowerer.int.into(), variable.into()),
+        ConstraintOrigin::Argument(super::arguments::SourceInputId::from_test_index(0)),
+    );
+    session.push(
+        Constraint::Kind(variable.into(), hir::TypeParamKind::Ref),
+        ConstraintOrigin::TypeParameterBound(callable.id),
+    );
+
+    let failure = lowerer
+        .solve_constraints(&session)
+        .expect_err("a value argument cannot infer boxed Any for a ref parameter");
+    assert!(matches!(
+        failure.kind,
+        ConstraintFailureKind::Kind { solution, .. } if solution == lowerer.int
+    ));
 }
 
 #[test]

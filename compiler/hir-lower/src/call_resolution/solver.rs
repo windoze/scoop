@@ -9,7 +9,9 @@ use super::constraints::{
     ConstraintFailure, ConstraintFailureKind, ConstraintOrigin, InferenceEnvironmentId,
     InferenceSession, InferenceSessionId, InferenceVariableId, RelationKind, TypeTerm,
 };
-use super::relations::{AtomicConstraint, AtomicConstraintKind, reduce_constraints};
+use super::relations::{
+    AtomicConstraint, AtomicConstraintKind, reduce_constraints, type_contains_session_parameter,
+};
 use crate::{Lowerer, Type};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -189,17 +191,23 @@ impl Lowerer {
         }
 
         let lower = self.materialized_bounds(session, bindings, &state.lower)?;
-        if lower.len() != state.lower.len() || lower.is_empty() {
+        if lower.len() != state.lower.len() {
             return Ok(None);
         }
         let upper = self.materialized_bounds(session, bindings, &state.upper)?;
-        let interfaces = self.materialized_bounds(session, bindings, &state.interfaces)?;
-        if upper.len() != state.upper.len() || interfaces.len() != state.interfaces.len() {
+        if upper.len() != state.upper.len() {
+            return Ok(None);
+        }
+        if lower.is_empty() && upper.is_empty() {
             return Ok(None);
         }
 
-        let minimal = self.minimal_solutions(&lower, &upper, &interfaces, &state.kinds);
-        Ok((minimal.len() == 1).then_some(minimal[0]))
+        // Infer the unique representable relation frontier before checking
+        // declaration bounds. A value argument must not silently widen to
+        // boxed `Any` merely to satisfy `T : ref`; kind and interface bounds
+        // validate the inferred concrete application below.
+        let frontier = self.solution_frontier(session, &lower, &upper);
+        Ok((frontier.len() == 1).then(|| frontier[0]))
     }
 
     fn no_unique_failure(
@@ -214,15 +222,11 @@ impl Lowerer {
         let upper = self
             .materialized_bounds(session, bindings, &state.upper)
             .unwrap_or_default();
-        let interfaces = self
-            .materialized_bounds(session, bindings, &state.interfaces)
-            .unwrap_or_default();
-        let minimal = if lower.len() == state.lower.len()
+        let solution_frontier = if lower.len() == state.lower.len()
             && upper.len() == state.upper.len()
-            && interfaces.len() == state.interfaces.len()
-            && !lower.is_empty()
+            && (!lower.is_empty() || !upper.is_empty())
         {
-            self.minimal_solutions(&lower, &upper, &interfaces, &state.kinds)
+            self.solution_frontier(session, &lower, &upper)
         } else {
             Vec::new()
         };
@@ -232,35 +236,28 @@ impl Lowerer {
                 variable: state.variable,
                 lower_bounds: lower,
                 upper_bounds: upper,
-                minimal_solutions: minimal,
+                solution_frontier,
             },
         }
     }
 
-    fn minimal_solutions(
+    fn solution_frontier(
         &mut self,
+        session: &InferenceSession,
         lower: &[hir::TypeId],
         upper: &[hir::TypeId],
-        interfaces: &[hir::TypeId],
-        kinds: &[(hir::TypeParamKind, ConstraintOrigin)],
     ) -> Vec<hir::TypeId> {
         let mut candidates = Vec::new();
         loop {
             let before = self.types.len();
             let type_ids: Vec<_> = self.types.iter().map(|(id, _)| id).collect();
             for candidate in type_ids {
-                if self.type_contains_param(candidate)
+                if type_contains_session_parameter(self, session, candidate)
                     || candidates
                         .iter()
                         .any(|&existing| self.types_equal(existing, candidate))
                     || !lower.iter().all(|&bound| self.is_subtype(bound, candidate))
                     || !upper.iter().all(|&bound| self.is_subtype(candidate, bound))
-                    || !interfaces
-                        .iter()
-                        .all(|&bound| self.is_subtype(candidate, bound))
-                    || !kinds
-                        .iter()
-                        .all(|&(kind, _)| self.solution_satisfies_kind(candidate, kind))
                 {
                     continue;
                 }
@@ -271,20 +268,30 @@ impl Lowerer {
             }
         }
 
-        let mut minimal = Vec::new();
+        // Lower bounds request their unique least common supertype. With only
+        // upper bounds, inference is dual: select the unique greatest type
+        // below every bound. This lets contravariant positions fix a variable
+        // (for example `Continuation<in T>`) without inventing a bottom type.
+        let prefer_minimal = !lower.is_empty();
+        let mut frontier = Vec::new();
         for &candidate in &candidates {
-            let mut has_strictly_smaller = false;
+            let mut dominated = false;
             for &other in &candidates {
-                if !self.types_equal(other, candidate) && self.is_subtype(other, candidate) {
-                    has_strictly_smaller = true;
+                let is_better = if prefer_minimal {
+                    self.is_subtype(other, candidate)
+                } else {
+                    self.is_subtype(candidate, other)
+                };
+                if !self.types_equal(other, candidate) && is_better {
+                    dominated = true;
                     break;
                 }
             }
-            if !has_strictly_smaller {
-                minimal.push(candidate);
+            if !dominated {
+                frontier.push(candidate);
             }
         }
-        minimal
+        frontier
     }
 
     fn validate_variable(
@@ -452,11 +459,7 @@ impl Lowerer {
     }
 
     fn solution_satisfies_kind(&self, solution: hir::TypeId, kind: hir::TypeParamKind) -> bool {
-        match kind {
-            hir::TypeParamKind::Any => true,
-            hir::TypeParamKind::Value => self.is_value_ty(solution),
-            hir::TypeParamKind::Ref => self.is_ref_ty(solution),
-        }
+        self.type_satisfies_kind(solution, kind)
     }
 }
 

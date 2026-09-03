@@ -127,78 +127,99 @@ impl RelationReducer<'_> {
             self.lowerer.types[left_ty].clone(),
             self.lowerer.types[right_ty].clone(),
         ) {
-            (Type::Struct(left), Type::Struct(right)) => {
-                let left = self.lowerer.struct_applications[left].clone();
-                let right = self.lowerer.struct_applications[right].clone();
+            (Type::Struct(left_id), Type::Struct(right_id)) => {
+                let left_application = self.lowerer.struct_applications[left_id].clone();
+                let right_application = self.lowerer.struct_applications[right_id].clone();
                 self.equal_nominal_arguments(
-                    left.template == right.template,
-                    left.arguments,
-                    right.arguments,
+                    left_application.template == right_application.template,
+                    left,
+                    right,
+                    left_application.arguments,
+                    right_application.arguments,
                     origin,
-                    left_ty,
-                    right_ty,
                 )
             }
-            (Type::Class(left), Type::Class(right)) => {
-                let left = self.lowerer.class_applications[left].clone();
-                let right = self.lowerer.class_applications[right].clone();
+            (Type::Class(left_id), Type::Class(right_id)) => {
+                let left_application = self.lowerer.class_applications[left_id].clone();
+                let right_application = self.lowerer.class_applications[right_id].clone();
                 self.equal_nominal_arguments(
-                    left.template == right.template,
-                    left.arguments,
-                    right.arguments,
+                    left_application.template == right_application.template,
+                    left,
+                    right,
+                    left_application.arguments,
+                    right_application.arguments,
                     origin,
-                    left_ty,
-                    right_ty,
                 )
             }
-            (Type::Interface(left), Type::Interface(right)) => {
-                let left = self.lowerer.interface_applications[left].clone();
-                let right = self.lowerer.interface_applications[right].clone();
+            (Type::Interface(left_id), Type::Interface(right_id)) => {
+                let left_application = self.lowerer.interface_applications[left_id].clone();
+                let right_application = self.lowerer.interface_applications[right_id].clone();
                 self.equal_nominal_arguments(
-                    left.template == right.template,
-                    left.arguments,
-                    right.arguments,
+                    left_application.template == right_application.template,
+                    left,
+                    right,
+                    left_application.arguments,
+                    right_application.arguments,
                     origin,
-                    left_ty,
-                    right_ty,
                 )
             }
-            (Type::Enum(left), Type::Enum(right)) => {
-                let left = self.lowerer.enum_applications[left].clone();
-                let right = self.lowerer.enum_applications[right].clone();
+            (Type::Enum(left_id), Type::Enum(right_id)) => {
+                let left_application = self.lowerer.enum_applications[left_id].clone();
+                let right_application = self.lowerer.enum_applications[right_id].clone();
                 self.equal_nominal_arguments(
-                    left.template == right.template,
-                    left.arguments,
-                    right.arguments,
+                    left_application.template == right_application.template,
+                    left,
+                    right,
+                    left_application.arguments,
+                    right_application.arguments,
                     origin,
-                    left_ty,
-                    right_ty,
                 )
             }
-            (Type::Tuple(left), Type::Tuple(right)) if left.len() == right.len() => left
-                .into_iter()
-                .zip(right)
-                .try_for_each(|(left, right)| self.equal(left.into(), right.into(), origin)),
-            (Type::Function(left), Type::Function(right))
-            | (Type::FunPtr(left), Type::FunPtr(right)) => {
-                let left = self.lowerer.function_types[left].clone();
-                let right = self.lowerer.function_types[right].clone();
-                if left.is_suspend != right.is_suspend
-                    || left.parameter_types.len() != right.parameter_types.len()
+            (Type::Tuple(left_types), Type::Tuple(right_types))
+                if left_types.len() == right_types.len() =>
+            {
+                left_types
+                    .into_iter()
+                    .zip(right_types)
+                    .try_for_each(|(left_ty, right_ty)| {
+                        self.equal(
+                            nested_term(left, left_ty),
+                            nested_term(right, right_ty),
+                            origin,
+                        )
+                    })
+            }
+            (Type::Function(left_id), Type::Function(right_id))
+            | (Type::FunPtr(left_id), Type::FunPtr(right_id)) => {
+                let left_signature = self.lowerer.function_types[left_id].clone();
+                let right_signature = self.lowerer.function_types[right_id].clone();
+                if left_signature.is_suspend != right_signature.is_suspend
+                    || left_signature.parameter_types.len() != right_signature.parameter_types.len()
                 {
-                    return Err(self.relation_failure(
-                        RelationKind::Equal,
-                        TypeTerm::Type(left_ty),
-                        TypeTerm::Type(right_ty),
+                    return Err(self.relation_failure(RelationKind::Equal, left, right, origin));
+                }
+                for (left_ty, right_ty) in left_signature
+                    .parameter_types
+                    .into_iter()
+                    .zip(right_signature.parameter_types)
+                {
+                    self.equal(
+                        nested_term(left, left_ty),
+                        nested_term(right, right_ty),
                         origin,
-                    ));
+                    )?;
                 }
-                for (left, right) in left.parameter_types.into_iter().zip(right.parameter_types) {
-                    self.equal(left.into(), right.into(), origin)?;
-                }
-                self.equal(left.return_type.into(), right.return_type.into(), origin)
+                self.equal(
+                    nested_term(left, left_signature.return_type),
+                    nested_term(right, right_signature.return_type),
+                    origin,
+                )
             }
-            (Type::Ptr(left), Type::Ptr(right)) => self.equal(left.into(), right.into(), origin),
+            (Type::Ptr(left_ty), Type::Ptr(right_ty)) => self.equal(
+                nested_term(left, left_ty),
+                nested_term(right, right_ty),
+                origin,
+            ),
             _ if self.lowerer.types_equal(left_ty, right_ty) => Ok(()),
             _ => Err(self.relation_failure(RelationKind::Equal, left, right, origin)),
         }
@@ -208,23 +229,25 @@ impl RelationReducer<'_> {
     fn equal_nominal_arguments(
         &mut self,
         same_template: bool,
-        left: Vec<hir::TypeId>,
-        right: Vec<hir::TypeId>,
+        left_term: TypeTerm,
+        right_term: TypeTerm,
+        left_arguments: Vec<hir::TypeId>,
+        right_arguments: Vec<hir::TypeId>,
         origin: ConstraintOrigin,
-        left_ty: hir::TypeId,
-        right_ty: hir::TypeId,
     ) -> Result<(), ConstraintFailure> {
-        if !same_template || left.len() != right.len() {
-            return Err(self.relation_failure(
-                RelationKind::Equal,
-                left_ty.into(),
-                right_ty.into(),
-                origin,
-            ));
+        if !same_template || left_arguments.len() != right_arguments.len() {
+            return Err(self.relation_failure(RelationKind::Equal, left_term, right_term, origin));
         }
-        left.into_iter()
-            .zip(right)
-            .try_for_each(|(left, right)| self.equal(left.into(), right.into(), origin))
+        left_arguments
+            .into_iter()
+            .zip(right_arguments)
+            .try_for_each(|(left, right)| {
+                self.equal(
+                    nested_term(left_term, left),
+                    nested_term(right_term, right),
+                    origin,
+                )
+            })
     }
 
     fn subtype(
@@ -266,16 +289,16 @@ impl RelationReducer<'_> {
             self.lowerer.types[left_ty].clone(),
             self.lowerer.types[right_ty].clone(),
         ) {
-            (Type::Struct(left), Type::Struct(right)) => {
-                let left = self.lowerer.struct_applications[left].clone();
-                let right = self.lowerer.struct_applications[right].clone();
+            (Type::Struct(left_id), Type::Struct(right_id)) => {
+                let left_application = self.lowerer.struct_applications[left_id].clone();
+                let right_application = self.lowerer.struct_applications[right_id].clone();
                 self.equal_nominal_arguments(
-                    left.template == right.template,
-                    left.arguments,
-                    right.arguments,
+                    left_application.template == right_application.template,
+                    left,
+                    right,
+                    left_application.arguments,
+                    right_application.arguments,
                     origin,
-                    left_ty,
-                    right_ty,
                 )
             }
             (Type::Class(left_application_id), Type::Class(right_application_id)) => {
@@ -285,11 +308,11 @@ impl RelationReducer<'_> {
                 if left_application.template == right_application.template {
                     return self.equal_nominal_arguments(
                         true,
+                        left,
+                        right,
                         left_application.arguments,
                         right_application.arguments,
                         origin,
-                        left_ty,
-                        right_ty,
                     );
                 }
                 let Some((base, _)) = self.lowerer.classes[left_application.template]
@@ -301,18 +324,18 @@ impl RelationReducer<'_> {
                 let base = self
                     .lowerer
                     .instantiate_ty(base, &left_application.arguments);
-                self.subtype(base.into(), right, origin)
+                self.subtype(nested_term(left, base), right, origin)
             }
-            (Type::Enum(left), Type::Enum(right)) => {
-                let left = self.lowerer.enum_applications[left].clone();
-                let right = self.lowerer.enum_applications[right].clone();
+            (Type::Enum(left_id), Type::Enum(right_id)) => {
+                let left_application = self.lowerer.enum_applications[left_id].clone();
+                let right_application = self.lowerer.enum_applications[right_id].clone();
                 self.equal_nominal_arguments(
-                    left.template == right.template,
-                    left.arguments,
-                    right.arguments,
+                    left_application.template == right_application.template,
+                    left,
+                    right,
+                    left_application.arguments,
+                    right_application.arguments,
                     origin,
-                    left_ty,
-                    right_ty,
                 )
             }
             (Type::Interface(left_application_id), Type::Interface(right_application_id)) => {
@@ -322,6 +345,7 @@ impl RelationReducer<'_> {
                     self.lowerer.interface_applications[right_application_id].clone();
                 if left_application.template != right_application.template {
                     return self.subtype_via_interface(
+                        left,
                         left_ty,
                         right_application.template,
                         right,
@@ -333,73 +357,106 @@ impl RelationReducer<'_> {
                     .iter()
                     .map(|parameter| parameter.variance)
                     .collect();
-                for ((variance, left), right) in variances
+                for ((variance, left_argument), right_argument) in variances
                     .into_iter()
                     .zip(left_application.arguments)
                     .zip(right_application.arguments)
                 {
                     match variance {
-                        hir::Variance::Invariant => {
-                            self.equal(left.into(), right.into(), origin)?
-                        }
-                        hir::Variance::Out => self.subtype(left.into(), right.into(), origin)?,
-                        hir::Variance::In => self.subtype(right.into(), left.into(), origin)?,
+                        hir::Variance::Invariant => self.equal(
+                            nested_term(left, left_argument),
+                            nested_term(right, right_argument),
+                            origin,
+                        )?,
+                        hir::Variance::Out => self.subtype(
+                            nested_term(left, left_argument),
+                            nested_term(right, right_argument),
+                            origin,
+                        )?,
+                        hir::Variance::In => self.subtype(
+                            nested_term(right, right_argument),
+                            nested_term(left, left_argument),
+                            origin,
+                        )?,
                     }
                 }
                 Ok(())
             }
-            (Type::Function(left), Type::Function(right)) => {
-                let left = self.lowerer.function_types[left].clone();
-                let right = self.lowerer.function_types[right].clone();
-                if left.is_suspend != right.is_suspend
-                    || left.parameter_types.len() != right.parameter_types.len()
+            (Type::Function(left_id), Type::Function(right_id)) => {
+                let left_signature = self.lowerer.function_types[left_id].clone();
+                let right_signature = self.lowerer.function_types[right_id].clone();
+                if left_signature.is_suspend != right_signature.is_suspend
+                    || left_signature.parameter_types.len() != right_signature.parameter_types.len()
                 {
-                    return Err(self.relation_failure(
-                        RelationKind::Subtype,
-                        TypeTerm::Type(left_ty),
-                        TypeTerm::Type(right_ty),
-                        origin,
-                    ));
+                    return Err(self.relation_failure(RelationKind::Subtype, left, right, origin));
                 }
-                for (left, right) in left.parameter_types.into_iter().zip(right.parameter_types) {
-                    self.subtype(right.into(), left.into(), origin)?;
-                }
-                self.subtype(left.return_type.into(), right.return_type.into(), origin)
-            }
-            (Type::FunPtr(left), Type::FunPtr(right)) => {
-                let left = self.lowerer.function_types[left].clone();
-                let right = self.lowerer.function_types[right].clone();
-                if left.is_suspend != right.is_suspend
-                    || left.parameter_types.len() != right.parameter_types.len()
+                for (left_parameter, right_parameter) in left_signature
+                    .parameter_types
+                    .into_iter()
+                    .zip(right_signature.parameter_types)
                 {
-                    return Err(self.relation_failure(
-                        RelationKind::Subtype,
-                        left_ty.into(),
-                        right_ty.into(),
+                    self.subtype(
+                        nested_term(right, right_parameter),
+                        nested_term(left, left_parameter),
                         origin,
-                    ));
+                    )?;
                 }
-                for (left, right) in left.parameter_types.into_iter().zip(right.parameter_types) {
-                    self.equal(left.into(), right.into(), origin)?;
-                }
-                self.equal(left.return_type.into(), right.return_type.into(), origin)
-            }
-            (Type::Ptr(left), Type::Ptr(right)) => self.equal(left.into(), right.into(), origin),
-            (Type::Tuple(left), Type::Tuple(right)) if left.len() == right.len() => left
-                .into_iter()
-                .zip(right)
-                .try_for_each(|(left, right)| self.equal(left.into(), right.into(), origin)),
-            (_, Type::Interface(right)) => {
-                let right_application = self.lowerer.interface_applications[right].clone();
-                self.subtype_via_interface(
-                    left_ty,
-                    right_application.template,
-                    TypeTerm::Type(right_ty),
+                self.subtype(
+                    nested_term(left, left_signature.return_type),
+                    nested_term(right, right_signature.return_type),
                     origin,
                 )
             }
-            _ if !self.lowerer.type_contains_param(left_ty)
-                && !self.lowerer.type_contains_param(right_ty)
+            (Type::FunPtr(left_id), Type::FunPtr(right_id)) => {
+                let left_signature = self.lowerer.function_types[left_id].clone();
+                let right_signature = self.lowerer.function_types[right_id].clone();
+                if left_signature.is_suspend != right_signature.is_suspend
+                    || left_signature.parameter_types.len() != right_signature.parameter_types.len()
+                {
+                    return Err(self.relation_failure(RelationKind::Subtype, left, right, origin));
+                }
+                for (left_parameter, right_parameter) in left_signature
+                    .parameter_types
+                    .into_iter()
+                    .zip(right_signature.parameter_types)
+                {
+                    self.equal(
+                        nested_term(left, left_parameter),
+                        nested_term(right, right_parameter),
+                        origin,
+                    )?;
+                }
+                self.equal(
+                    nested_term(left, left_signature.return_type),
+                    nested_term(right, right_signature.return_type),
+                    origin,
+                )
+            }
+            (Type::Ptr(left_ty), Type::Ptr(right_ty)) => self.equal(
+                nested_term(left, left_ty),
+                nested_term(right, right_ty),
+                origin,
+            ),
+            (Type::Tuple(left_types), Type::Tuple(right_types))
+                if left_types.len() == right_types.len() =>
+            {
+                left_types
+                    .into_iter()
+                    .zip(right_types)
+                    .try_for_each(|(left_ty, right_ty)| {
+                        self.equal(
+                            nested_term(left, left_ty),
+                            nested_term(right, right_ty),
+                            origin,
+                        )
+                    })
+            }
+            (_, Type::Interface(right_id)) => {
+                let right_application = self.lowerer.interface_applications[right_id].clone();
+                self.subtype_via_interface(left, left_ty, right_application.template, right, origin)
+            }
+            _ if !term_contains_session_parameter(self.lowerer, self.session, left)
+                && !term_contains_session_parameter(self.lowerer, self.session, right)
                 && self.lowerer.is_subtype(left_ty, right_ty) =>
             {
                 Ok(())
@@ -410,16 +467,17 @@ impl RelationReducer<'_> {
 
     fn subtype_via_interface(
         &mut self,
+        left_term: TypeTerm,
         left: hir::TypeId,
         target: hir::InterfaceId,
         right: TypeTerm,
         origin: ConstraintOrigin,
     ) -> Result<(), ConstraintFailure> {
         let Some(arguments) = self.interface_application_as(left, target) else {
-            return Err(self.relation_failure(RelationKind::Subtype, left.into(), right, origin));
+            return Err(self.relation_failure(RelationKind::Subtype, left_term, right, origin));
         };
         let implemented = self.lowerer.intern_interface_application(target, arguments);
-        self.subtype(implemented.into(), right, origin)
+        self.subtype(nested_term(left_term, implemented), right, origin)
     }
 
     fn interface_application_as(
@@ -524,13 +582,13 @@ impl RelationReducer<'_> {
                 }),
             });
         }
-        for (actual, expected) in shape.parameters.iter().zip(signature.parameter_types) {
+        for (actual, expected_parameter) in shape.parameters.iter().zip(signature.parameter_types) {
             if let CallableParameter::Explicit(actual) = actual {
-                self.subtype(expected.into(), *actual, origin)?;
+                self.subtype(nested_term(expected, expected_parameter), *actual, origin)?;
             }
         }
         if let CallableReturn::Explicit(actual) = shape.return_type {
-            self.subtype(actual, signature.return_type.into(), origin)?;
+            self.subtype(actual, nested_term(expected, signature.return_type), origin)?;
         }
         Ok(())
     }
@@ -556,6 +614,7 @@ impl RelationReducer<'_> {
                     }),
                 _ => Ok(RelationRoot::Type(ty)),
             },
+            TypeTerm::Rigid(ty) => Ok(RelationRoot::Type(ty)),
         }
     }
 
@@ -600,4 +659,55 @@ impl RelationReducer<'_> {
 enum RelationRoot {
     Variable(InferenceVariableId),
     Type(hir::TypeId),
+}
+
+fn nested_term(parent: TypeTerm, ty: hir::TypeId) -> TypeTerm {
+    match parent {
+        TypeTerm::Type(_) => TypeTerm::Type(ty),
+        TypeTerm::Rigid(_) => TypeTerm::Rigid(ty),
+        TypeTerm::Variable(_) => {
+            unreachable!("a variable relation is reduced before structural decomposition")
+        }
+    }
+}
+
+fn term_contains_session_parameter(
+    lowerer: &Lowerer,
+    session: &InferenceSession,
+    term: TypeTerm,
+) -> bool {
+    match term {
+        TypeTerm::Type(ty) => type_contains_session_parameter(lowerer, session, ty),
+        TypeTerm::Rigid(_) | TypeTerm::Variable(_) => false,
+    }
+}
+
+pub(super) fn type_contains_session_parameter(
+    lowerer: &Lowerer,
+    session: &InferenceSession,
+    ty: hir::TypeId,
+) -> bool {
+    let children: Vec<hir::TypeId> = match &lowerer.types[ty] {
+        Type::Param(parameter) => return session.variable_for(*parameter).is_some(),
+        Type::Struct(application) => lowerer.struct_applications[*application].arguments.clone(),
+        Type::Class(application) => lowerer.class_applications[*application].arguments.clone(),
+        Type::Interface(application) => lowerer.interface_applications[*application]
+            .arguments
+            .clone(),
+        Type::Enum(application) => lowerer.enum_applications[*application].arguments.clone(),
+        Type::Tuple(elements) => elements.clone(),
+        Type::Function(signature) | Type::FunPtr(signature) => {
+            let signature = &lowerer.function_types[*signature];
+            let mut children = signature.parameter_types.clone();
+            children.push(signature.return_type);
+            children
+        }
+        Type::Ptr(pointee) => vec![*pointee],
+        Type::Unit | Type::Int | Type::UInt | Type::Boolean | Type::String | Type::Any => {
+            Vec::new()
+        }
+    };
+    children
+        .into_iter()
+        .any(|child| type_contains_session_parameter(lowerer, session, child))
 }

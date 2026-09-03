@@ -19,9 +19,10 @@ impl Lowerer {
         let mut result = Vec::new();
         for bound in bounds {
             if let Some(ty) = self.materialize_term(session, bindings, bound.term, bound.origin)? {
-                if !result.iter().any(|&other| self.types_equal(other, ty)) {
-                    result.push(ty);
-                }
+                // Keep one output per source bound: callers compare lengths to
+                // distinguish a fully materialized set from one that still
+                // depends on an unsolved variable. Duplicate bounds are valid.
+                result.push(ty);
             }
         }
         Ok(result)
@@ -50,6 +51,7 @@ impl Lowerer {
         match term {
             TypeTerm::Variable(variable) => self.binding_for(session, bindings, variable, origin),
             TypeTerm::Type(ty) => self.materialize_type(session, bindings, ty, origin),
+            TypeTerm::Rigid(ty) => Ok(Some(ty)),
         }
     }
 
