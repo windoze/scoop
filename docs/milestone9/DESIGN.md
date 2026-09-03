@@ -4,6 +4,8 @@
 
 对应 `docs/ROADMAP.md` 的 M9。目标：用真正的 GC 替换 always-leak——打开 statepoint、落地 Immix 核心（块/行结构、bump 分配、标记-区域回收）与 pin/handle 设施（runtime spec 第 3、4 章）。**分代（nursery/remembered set/晋升）与 evacuation/defrag 不在本里程碑**（见 5.1 与第 6 章）。
 
+> M25 更新：异常 payload 作为 stable external object root 的 GC 契约继续有效；其最终撤销入口由 libc++abi exception destructor 改为 Scoop record 的 `_Unwind_Exception.exception_cleanup`，详见 `docs/milestone25/DESIGN.md`。
+
 ## 0. 范围说明（分阶段的理由）
 
 完整"Immix 分代式"包含三件大事：精确栈根、Immix 堆组织与回收、分代+写屏障+晋升。本里程碑交付 Immix 回收闭环与 statepoint / stackmap 产出通道；runtime精确消费stackmap与evacuation/defrag进入M15，分代和并行/并发协调继续留在backlog（第6章）。关键约束（ROADMAP）：M1–M8 的全部 fixture 必须在真 GC 下原样通过。

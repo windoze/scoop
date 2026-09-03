@@ -144,9 +144,13 @@ M15在M13的多mutator STW与M14清理后的对象语义之上，把GC从“只�
 - `?.method()`按Option分支lower，实参/default/vararg只在Some分支执行；结果始终再包一层Option，不展平`Option<Option<T>>`；
 - `componentN`支持class位置解构并导出typed role；`iterator`与range operator表面进入M18，`for`/range core类型仍由M22消费。属性委托operator随M21定义reflection-free协议。
 
-### M19 构造与初始化（待设计）
+### M19 构造与初始化（设计见 `docs/milestone19/DESIGN.md`）
 
-次构造函数、`init`、body property、`super` 调用及完整初始化顺序。
+- class primary constructor补齐普通参数；class body加入带显式类型/initializer的stored property与按源码交错执行的`init`，并以field readiness和受限`InitializingThis`禁止读取未初始化字段或发布半初始化对象；
+- class/struct secondary constructor复用M16/M17的候选、generic host推导与完整参数协议，委托图在HIR验证唯一typed target、termination和cycle；
+- class构造改为一次exact allocation后在同一receiver上依次执行base、primary field、body initializer / `init`与secondary body；废除递归拼接继承字段的flattened constructor捷径；
+- `super.method()`只在direct base member层决议并强制direct dispatch；constructor / initializer保持非挂起，普通suspend caller的显式构造实参仍可挂起；
+- moving GC下initializing receiver和已写ref字段沿普通root/relocation传播，未写payload在首个safepoint前全零。
 
 ### M20 泛型类型系统第二阶段（待设计）
 
@@ -154,7 +158,7 @@ non-interface variance、use-site/star projection、capture conversion、class u
 
 ### M21 属性、对象与可见性（待设计）
 
-属性、object/companion、`const val`、全局初始化、interface property/default implementation及可见性。
+计算/extension/interface/delegated property与accessor、无initializer/`lateinit`，object/companion、`const val`、全局初始化、interface default implementation及可见性。class stored body property的初始化基线已由M19定义。
 
 ### M22 基础语言能力补齐（待设计）
 
@@ -168,6 +172,14 @@ non-interface variance、use-site/star projection、capture conversion、class u
 
 在 M22 完成 UInt8/Byte 后，补齐 String byte API 与普通 class StringBuilder 的底层能力，再重新设计字符串插值。原 M16 字符串设计已删除，不作为后续实现依据。
 
+### M25 自有异常 ABI 与 libc++abi 退役（设计见 `docs/milestone25/DESIGN.md`）
+
+- 以 Scoop 私有 exception record、稳定 `exception_class`、per-thread caught 栈和 begin/end/rethrow 协议替换 `__cxa_*`，异常 payload 继续按值复制并作为 stable external object root 接受 moving GC 更新；
+- 实现只接受 LLVM 22.1 catch-all/cleanup 封闭 LSDA 子集的 `scoop_eh_personality`，直接通过 Itanium Level I `_Unwind_*` 完成 search、landing-pad install、resume 与 record 删除，不借用 C/C++ personality；
+- HIR/MIR/LIR 的异常语义与显式 CFG 保持不变，codegen只替换personality和runtime symbol；suspend handler继续先物化为managed `Throwable`并结束native catch，record不可跨线程或挂起点；
+- Darwin/AArch64最终链接删除`-lc++abi`且不添加显式`-lunwind`，由默认`libSystem`解析unwind接口；C ABI/Scoop ABI FFI的异常边界不扩大；
+- 以decoder/runtime/GC/协程组合测试及Mach-O依赖/导入符号检查验收，最终程序不得出现`__cxa_*`、gxx/gcc personality、C++ terminate或`libc++abi.dylib`依赖。
+
 ## 3. 备注
 
 - 里程碑内的特性验收标准：独立 fixture + 组合 fixture + 相关编译错误规则的 negative fixture + 各 stage 的 golden dump（见 AGENTS.md 编码准则）。
@@ -178,6 +190,7 @@ non-interface variance、use-site/star projection、capture conversion、class u
 - 2026-09-01 顺序调整：在接口化之后新增M15“精确根、statepoint relocation与moving compaction”，以强制relocation stress mode前置验证managed ref/root契约；字符串插值与多Cone顺延为M16/M17。
 - 2026-09-03 顺序调整：撤回原M16字符串插值设计并延后原M17多Cone；新M16先统一fresh-variable constraint solving与overload resolution，新M17再落地命名/default/vararg完整实参协议。其余M2/M4/M6/M7/M14基础backlog及多Cone、字符串能力按上节后续顺序重新排期。
 - 2026-09-04 编号确定：原“后续顺序”七项依次编号为 M18 callable表面、M19构造与初始化、M20泛型类型系统第二阶段、M21属性/对象/可见性、M22基础语言能力、M23多Cone与`.slib`、M24字符串底层与插值；各项详细范围仍须spec先行并单独设计。
+- 2026-09-04 新增M25“自有异常ABI与libc++abi退役”：保留LLVM landingpad与Level I unwinder，以Scoop record/personality/catch状态替换C++ ABI层；M8–M10对应实现选择由M25设计取代。
 
 ## 4. 待补齐清单（backlog）
 
@@ -262,6 +275,7 @@ non-interface variance、use-site/star projection、capture conversion、class u
 - ~~try 的表达式形态（`val x = try {...}`）~~（已完成：try body / catch body 共同定型，结果写入发生在 finally 前，finally 值丢弃且 return / throw 仍覆盖待定结果）；
 - catch 遮蔽降级为警告（当前为错误；待警告级别诊断基础设施）；
 - ~~finally 内的路径分析~~（已完成：必退出的 finally 覆盖 try/catch 的返回、异常与正常继续路径；可落空 finally 保留原路径结果）；
+- libc++abi异常实现依赖、自有Level I personality与catch状态 → M25；
 - 异常穿越 Scoop ABI FFI frame 的规则（维持 runtime spec 第 5 章的暂定“初版禁止”）。
 
 ### 来自 M9

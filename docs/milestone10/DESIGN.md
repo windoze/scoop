@@ -4,6 +4,8 @@
 
 对应 `docs/ROADMAP.md` 的 M10。目标：实现命名 `suspend` 函数/方法、完全类型化的状态机变换、`Continuation` 与最小启动/挂起原语（spec 8.2、11.9；impl spec 2.3），并保证异常、`finally` 与 M9 GC 在真实挂起后仍保持源码语义。
 
+> M25 更新：handler 在挂起前物化异常并结束 native catch 的语义保持不变；native record、begin/end/rethrow 与生命周期实现改由 Scoop 自有异常 ABI 提供，详见 `docs/milestone25/DESIGN.md`。
+
 ## 0. 范围与关键决策
 
 M10 交付以下闭环：普通 `main` 通过 `startCoroutine` 启动 task；task 调用 `suspendCoroutine` 保存 continuation 并真正返回；普通代码稍后调用 `resume` / `resumeWithException`；协程从原调用点继续并最终通知 completion。只编译从不挂起的 `suspend` 函数不算完成 M10。
