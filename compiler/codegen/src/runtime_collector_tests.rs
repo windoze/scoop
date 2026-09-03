@@ -34,6 +34,10 @@ fn compile_and_run(workspace: &Path, test_name: &str, test_source: &str) -> Outp
         "runtime/src/gc/stackmap.c",
         "runtime/src/gc/stack_roots.c",
         "runtime/src/thread.c",
+        "runtime/src/thread/collection.c",
+        "runtime/src/thread/debug.c",
+        "runtime/src/thread/roots.c",
+        "runtime/src/thread/transitions.c",
         "runtime/src/platform/arch/aarch64.c",
         "runtime/src/platform/os/darwin.c",
         "runtime/tests/platform/fake.c",
@@ -113,6 +117,10 @@ fn generic_runtime_has_no_target_specific_vm_dependency() {
         "runtime/src/gc/stackmap.c",
         "runtime/src/gc/stack_roots.c",
         "runtime/src/thread.c",
+        "runtime/src/thread/collection.c",
+        "runtime/src/thread/debug.c",
+        "runtime/src/thread/roots.c",
+        "runtime/src/thread/transitions.c",
     ];
     let forbidden = [
         "<mach-o/",
