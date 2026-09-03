@@ -199,13 +199,16 @@ fn bracket_at_line_start_is_a_new_literal_expression() {
 }
 
 #[test]
-fn space_before_bracket_is_not_a_subscript() {
-    let (span, message) = err("fun main() { a [0] }");
-    assert_eq!(span, Span::new(15, 16));
-    assert_eq!(
-        message,
-        "expected `;` or newline after statement, found `[`"
-    );
+fn space_before_bracket_is_property_like_infix_not_subscript() {
+    let file = ok("fun main() { a [0] }");
+    let statement = &block_body(only_function(&file)).statements[0];
+    assert!(matches!(
+        statement.kind,
+        StatementKind::Expr(Expr::InfixCall {
+            target: scoop_ast::InfixTarget::Invoke,
+            ..
+        })
+    ));
 }
 
 // --- subscript assignment ---------------------------------------------------

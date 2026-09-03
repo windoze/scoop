@@ -70,10 +70,11 @@ pub enum Expr {
         args: Vec<CallArgument>,
         span: Span,
     },
-    /// `lhs name rhs`; HIR validates the selected callable's infix role.
+    /// `lhs name rhs` or property-like `lhs rhs`; HIR validates the
+    /// selected callable's typed infix role.
     InfixCall {
         lhs: Box<Expr>,
-        name: Ident,
+        target: InfixTarget,
         rhs: Box<Expr>,
         span: Span,
     },
@@ -153,6 +154,13 @@ pub enum Expr {
     If(Box<If>),
     When(Box<When>),
     Try(Box<Try>),
+}
+
+/// The two source forms that share the infix precedence tier.
+#[derive(Debug, Clone, PartialEq)]
+pub enum InfixTarget {
+    Named(Ident),
+    Invoke,
 }
 
 impl Expr {

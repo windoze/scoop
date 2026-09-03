@@ -3,8 +3,8 @@ source: compiler/driver/tests/fixtures.rs
 expression: snapshot
 ---
 == diagnostics ==
-m14-generics/errors/operator-equals.scoop:27:1: error: `operator` is only allowed on member functions
-m14-generics/errors/operator-equals.scoop:2:5: error: operator member `compare` is not supported; M14 only defines `equals`
+m14-generics/errors/operator-equals.scoop:27:1: error: `operator` requires a member or extension receiver
+m14-generics/errors/operator-equals.scoop:2:5: error: unknown operator role `compare`
 m14-generics/errors/operator-equals.scoop:6:18: error: operator `equals` must have exactly one parameter, found 2
 m14-generics/errors/operator-equals.scoop:10:18: error: operator `equals` must return Boolean, found Int
 m14-generics/errors/operator-equals.scoop:14:22: error: operator `equals` must not declare type parameters

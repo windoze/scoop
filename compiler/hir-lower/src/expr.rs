@@ -291,21 +291,24 @@ impl Lowerer {
                 span,
             } => {
                 let callee = self.lower_expr(callee, sink, None)?;
-                if !type_args.is_empty() {
-                    self.error(
-                        *span,
-                        "function values do not accept explicit type arguments".to_string(),
-                    );
-                    return None;
-                }
-                self.lower_callable_call(callee, args, *span, sink)
+                self.lower_value_invoke(
+                    callee,
+                    CallSite {
+                        type_args,
+                        args,
+                        span: *span,
+                    },
+                    sink,
+                    expected,
+                    false,
+                )
             }
             ast::Expr::InfixCall {
                 lhs,
-                name,
+                target,
                 rhs,
                 span,
-            } => self.lower_infix_call(lhs, name, rhs, *span, sink, expected),
+            } => self.lower_infix_call(lhs, target, rhs, *span, sink, expected),
             ast::Expr::Binary { op, lhs, rhs, span } => {
                 self.lower_binary(*op, lhs, rhs, *span, sink)
             }

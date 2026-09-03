@@ -12,7 +12,13 @@ impl Lowerer {
         if let Some(operator) = decl.operator {
             self.error(
                 operator.span,
-                "`operator` is only allowed on member functions".to_string(),
+                "`operator` requires a member or extension receiver".to_string(),
+            );
+        }
+        if let Some(infix) = decl.infix {
+            self.error(
+                infix.span,
+                "`infix` requires a member or extension receiver".to_string(),
             );
         }
         let outer_type_params = self.type_params_in_scope.clone();

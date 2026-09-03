@@ -43,13 +43,7 @@ impl Lowerer {
             name: format!("{}.{}", owner.describe_name(self), decl.name.text),
             genericity: hir::FunctionGenericity::Plain,
             is_suspend: decl.is_suspend,
-            modifiers: hir::CallableModifiers {
-                operator: match (&decl.operator, decl.name.text.as_str()) {
-                    (Some(_), "equals") => Some(hir::OperatorKind::Equals),
-                    _ => None,
-                },
-                is_infix: false,
-            },
+            modifiers: hir::CallableModifiers::default(),
             params: Vec::new(),
             return_ty: self.unit,
             attributes: checked.attributes,
@@ -98,12 +92,6 @@ impl Lowerer {
         pending: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize)>,
         file_index: usize,
     ) {
-        if let Some(operator) = decl.operator {
-            self.error(
-                operator.span,
-                "`operator` is only allowed on member functions".to_string(),
-            );
-        }
         let checked = self.check_function_annotations(decl, FunctionTarget::TopLevel);
         let kind = match (checked.intrinsic, checked.extern_) {
             (Some(intrinsic), _) => FunctionKind::Intrinsic(intrinsic),

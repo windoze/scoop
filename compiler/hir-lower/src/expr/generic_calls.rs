@@ -72,31 +72,82 @@ impl Lowerer {
             };
         }
 
+        // Reading an implicit `this` property can register a closure capture.
+        // Keep that mutation inside the candidate state until its invoke wins.
+        let property_candidate = {
+            let mut state = self.clone();
+            state
+                .bare_member_fallback(&call.callee)
+                .map(|property| (state, property))
+        };
+        if let Some((property_state, property)) = &property_candidate
+            && let Some(layer) = property_state.clone().probe_property_member_invoke(
+                property.clone(),
+                CallSite {
+                    type_args: &call.type_args,
+                    args: &call.args,
+                    span: call.span,
+                },
+                expected,
+                false,
+            )
+        {
+            match layer {
+                Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
+                Err(failure) => {
+                    first_failure.get_or_insert(failure);
+                }
+            }
+        }
+
         // An extension body has a lexical `this` just like a member body.
         // If no real member wins, another visible extension may use it as
         // the implicit receiver before ordinary top-level functions.
         if self.current_this_ty().is_some() {
-            for extensions in self.extension_candidate_layers(&name) {
-                match self.probe_expr_layer(|state, layer_sink| {
-                    let receiver = state
-                        .lower_current_this(call.callee.span)
-                        .expect("a lexical receiver has a `this` value");
-                    state.finish_extension_call(
-                        &extensions,
-                        &name,
-                        receiver,
+            for same_side in [true, false] {
+                let extensions = self.extension_candidates_on_side(&name, same_side);
+                if !extensions.is_empty() {
+                    match self.probe_expr_layer(|state, layer_sink| {
+                        let receiver = state
+                            .lower_current_this(call.callee.span)
+                            .expect("a lexical receiver has a `this` value");
+                        state.finish_extension_call(
+                            &extensions,
+                            &name,
+                            receiver,
+                            CallSite {
+                                type_args: &call.type_args,
+                                args: &call.args,
+                                span: call.span,
+                            },
+                            layer_sink,
+                            expected,
+                        )
+                    }) {
+                        Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
+                        Err(failure) => {
+                            first_failure.get_or_insert(failure);
+                        }
+                    }
+                }
+                if let Some((property_state, property)) = &property_candidate
+                    && let Some(layer) = property_state.probe_property_extension_invoke(
+                        property.clone(),
                         CallSite {
                             type_args: &call.type_args,
                             args: &call.args,
                             span: call.span,
                         },
-                        layer_sink,
                         expected,
+                        false,
+                        same_side,
                     )
-                }) {
-                    Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
-                    Err(failure) => {
-                        first_failure.get_or_insert(failure);
+                {
+                    match layer {
+                        Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
+                        Err(failure) => {
+                            first_failure.get_or_insert(failure);
+                        }
                     }
                 }
             }

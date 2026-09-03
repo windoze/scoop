@@ -75,14 +75,17 @@ impl Lowerer {
         };
         self.type_params_in_scope.clear();
 
-        self.validate_operator_contract(decl, owner, &params, return_ty);
+        let receiver_ty = self.owner_ty(owner);
+        let modifiers =
+            self.validate_callable_modifiers(decl, Some(receiver_ty), true, &params, return_ty);
 
         self.functions[id].return_ty = return_ty;
+        self.functions[id].modifiers = modifiers;
         self.signatures.insert(
             id,
             FnSig {
                 is_suspend: decl.is_suspend,
-                modifiers: self.functions[id].modifiers,
+                modifiers,
                 attributes: self.functions[id].attributes,
                 owner_type_param_count,
                 type_params,
@@ -97,62 +100,6 @@ impl Lowerer {
         if decl.modifier == ast::MethodModifier::Abstract || matches!(owner, Owner::Interface(_)) {
             let (body, _) = self.build_params_only_body(id, host_ty);
             self.functions[id].kind = hir::FunctionKind::User(body);
-        }
-    }
-
-    /// Validate the complete language contract at the stage that owns the
-    /// resolved declaration. A successful HIR method carries a closed
-    /// `OperatorKind`; expression lowering never infers operator capability
-    /// from a textual name and a coincidental signature.
-    fn validate_operator_contract(
-        &mut self,
-        decl: &ast::FunctionDecl,
-        _owner: Owner,
-        params: &[FnParam],
-        return_ty: TypeId,
-    ) {
-        let Some(operator) = decl.operator else {
-            return;
-        };
-        if decl.name.text != "equals" {
-            self.error(
-                operator.span,
-                format!(
-                    "operator member `{}` is not supported; M14 only defines `equals`",
-                    decl.name.text
-                ),
-            );
-            return;
-        }
-        if params.len() != 1 {
-            self.error(
-                decl.name.span,
-                format!(
-                    "operator `equals` must have exactly one parameter, found {}",
-                    params.len()
-                ),
-            );
-        }
-        if return_ty != self.boolean {
-            self.error(
-                decl.name.span,
-                format!(
-                    "operator `equals` must return Boolean, found {}",
-                    self.type_name(return_ty)
-                ),
-            );
-        }
-        if decl.is_suspend {
-            self.error(
-                decl.name.span,
-                "operator `equals` must not be suspend".to_string(),
-            );
-        }
-        if !decl.type_params.is_empty() {
-            self.error(
-                decl.name.span,
-                "operator `equals` must not declare type parameters".to_string(),
-            );
         }
     }
 

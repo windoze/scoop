@@ -7,7 +7,8 @@
 
 use scoop_ast::{
     BinOp, CallArgument, CallArgumentName, CallExpr, Diagnostic, Expr, FieldAccess, FieldSelector,
-    Ident, Navigation, NonEmptyVec, PlaceExpr, Span, SpreadSyntax, UnOp, UpdateNotation, UpdateOp,
+    Ident, InfixTarget, Navigation, NonEmptyVec, PlaceExpr, Span, SpreadSyntax, UnOp,
+    UpdateNotation, UpdateOp,
 };
 
 use crate::lexer::TokenKind;
@@ -142,7 +143,17 @@ impl Parser {
                     lhs = Expr::InfixCall {
                         span: Span::new(lhs.span().start, rhs.span().end),
                         lhs: Box::new(lhs),
-                        name,
+                        target: InfixTarget::Named(name),
+                        rhs: Box::new(rhs),
+                    };
+                    continue;
+                }
+                if INFIX_PRECEDENCE >= min_precedence && self.starts_infix_invoke_rhs() {
+                    let rhs = self.parse_binary(INFIX_PRECEDENCE + 1)?;
+                    lhs = Expr::InfixCall {
+                        span: Span::new(lhs.span().start, rhs.span().end),
+                        lhs: Box::new(lhs),
+                        target: InfixTarget::Invoke,
                         rhs: Box::new(rhs),
                     };
                     continue;
@@ -162,6 +173,26 @@ impl Parser {
             };
         }
         Ok(lhs)
+    }
+
+    /// Property-like infix invoke has no name token between its two values.
+    /// Identifier-led right operands remain reserved for named infix syntax;
+    /// callers can parenthesize such an operand to make the boundary explicit.
+    fn starts_infix_invoke_rhs(&self) -> bool {
+        !self.peek().newline_before
+            && matches!(
+                self.peek().kind,
+                TokenKind::Str(_)
+                    | TokenKind::Int(_)
+                    | TokenKind::True
+                    | TokenKind::False
+                    | TokenKind::This
+                    | TokenKind::LParen
+                    | TokenKind::LBracket
+                    | TokenKind::LBrace
+                    | TokenKind::Fun
+                    | TokenKind::Suspend
+            )
     }
 
     fn parse_unary(&mut self) -> Result<Expr, Diagnostic> {

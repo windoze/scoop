@@ -63,7 +63,7 @@ impl Lowerer {
             }
         }
         let receiver = self.lower_expr(receiver, sink, None)?;
-        self.lower_named_call_on_receiver(
+        self.lower_explicit_named_call(
             receiver,
             name,
             call,
@@ -71,6 +71,275 @@ impl Lowerer {
             expected,
             RequiredCallableModifiers::default(),
         )
+    }
+
+    fn lower_explicit_named_call(
+        &mut self,
+        receiver: hir::Expr,
+        name: &ast::Ident,
+        call: CallSite<'_>,
+        sink: &mut Vec<hir::Statement>,
+        expected: Option<TypeId>,
+        direct_required: RequiredCallableModifiers,
+    ) -> Option<hir::Expr> {
+        if name.text == "invoke" && matches!(self.types[receiver.ty], Type::Function(_)) {
+            return self.lower_named_call_on_receiver(
+                receiver,
+                name,
+                call,
+                sink,
+                expected,
+                direct_required,
+            );
+        }
+        if name.text == "invoke" && matches!(self.types[receiver.ty], Type::FunPtr(_)) {
+            self.error(
+                call.span,
+                "FunPtr values are not callable in Scoop".to_string(),
+            );
+            return None;
+        }
+        let property = self.member_property_read(receiver.clone(), name);
+        let mut first_failure = None;
+        let mut members = self.methods_by_name(receiver.ty, &name.text);
+        members.retain(|candidate| {
+            Self::matches_required_modifiers(
+                self.signatures[&candidate.function].modifiers,
+                direct_required,
+            )
+        });
+        if !members.is_empty() && matches!(self.types[receiver.ty], Type::Interface(..)) {
+            let before = members.len();
+            members.retain(|candidate| {
+                let signature = &self.signatures[&candidate.function];
+                signature.type_params.len() == signature.owner_type_param_count
+            });
+            if members.is_empty() && before != 0 {
+                let found = self.type_name(receiver.ty);
+                let mut failure = self.clone();
+                failure.error(
+                    name.span,
+                    format!(
+                        "generic member function `{}` cannot be called through interface type `{found}`",
+                        name.text
+                    ),
+                );
+                first_failure = Some(Box::new(failure));
+            }
+        }
+        if !members.is_empty() {
+            match self.probe_expr_layer(|state, layer_sink| {
+                state.finish_overloaded_method_call(
+                    members,
+                    &name.text,
+                    receiver.clone(),
+                    call,
+                    layer_sink,
+                    expected,
+                )
+            }) {
+                Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
+                Err(failure) => first_failure = Some(failure),
+            }
+        }
+
+        if let Some(property) = &property
+            && let Some(layer) = self.probe_property_member_invoke(
+                property.clone(),
+                call,
+                expected,
+                direct_required.infix,
+            )
+        {
+            match layer {
+                Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
+                Err(failure) => {
+                    first_failure.get_or_insert(failure);
+                }
+            }
+        }
+
+        for same_side in [true, false] {
+            let mut extensions = self.extension_candidates_on_side(&name.text, same_side);
+            extensions.retain(|function| {
+                Self::matches_required_modifiers(
+                    self.signatures[function].modifiers,
+                    direct_required,
+                )
+            });
+            if !extensions.is_empty() {
+                match self.probe_expr_layer(|state, layer_sink| {
+                    state.finish_extension_call(
+                        &extensions,
+                        &name.text,
+                        receiver.clone(),
+                        call,
+                        layer_sink,
+                        expected,
+                    )
+                }) {
+                    Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
+                    Err(failure) => {
+                        first_failure.get_or_insert(failure);
+                    }
+                }
+            }
+            if let Some(property) = &property
+                && let Some(layer) = self.probe_property_extension_invoke(
+                    property.clone(),
+                    call,
+                    expected,
+                    direct_required.infix,
+                    same_side,
+                )
+            {
+                match layer {
+                    Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
+                    Err(failure) => {
+                        first_failure.get_or_insert(failure);
+                    }
+                }
+            }
+        }
+
+        if let Some(failure) = first_failure {
+            self.commit_layer_diagnostics(*failure);
+        } else {
+            let found = self.type_name(receiver.ty);
+            let capability = if direct_required.infix {
+                "infix callable"
+            } else {
+                "method"
+            };
+            self.error(
+                name.span,
+                format!("type `{found}` has no {capability} `{}`", name.text),
+            );
+        }
+        None
+    }
+
+    fn matches_required_modifiers(
+        modifiers: hir::CallableModifiers,
+        required: RequiredCallableModifiers,
+    ) -> bool {
+        required
+            .operator
+            .is_none_or(|operator| modifiers.operator == Some(operator))
+            && (!required.infix || modifiers.is_infix)
+    }
+
+    pub(in crate::expr) fn extension_candidates_on_side(
+        &self,
+        name: &str,
+        same_side: bool,
+    ) -> Vec<hir::FunctionId> {
+        let call_site_is_core = self.current_file < self.user_file_index;
+        self.extensions_by_name
+            .get(name)
+            .into_iter()
+            .flatten()
+            .copied()
+            .filter(|function| {
+                let candidate_is_core = self.function_files[function] < self.user_file_index;
+                (candidate_is_core == call_site_is_core) == same_side
+            })
+            .collect()
+    }
+
+    pub(in crate::expr) fn member_property_read(
+        &mut self,
+        receiver: hir::Expr,
+        name: &ast::Ident,
+    ) -> Option<hir::Expr> {
+        let (field, ty) = match self.types[receiver.ty].clone() {
+            Type::Class(application) => {
+                let (application, index, ty, _) =
+                    self.find_class_application_field(application, &name.text)?;
+                (hir::FieldRef::ClassField { application, index }, ty)
+            }
+            Type::Struct(application) => {
+                let value = self.struct_applications[application].clone();
+                let index = self.structs[value.template]
+                    .semantic_fields()
+                    .iter()
+                    .position(|field| field.name == name.text)?;
+                let ty = self.instantiate_ty(
+                    self.structs[value.template].semantic_fields()[index].ty,
+                    &value.arguments,
+                );
+                (
+                    hir::FieldRef::StructField {
+                        application,
+                        index: index as u32,
+                    },
+                    ty,
+                )
+            }
+            _ => return None,
+        };
+        Some(hir::Expr {
+            kind: ExprKind::FieldAccess {
+                receiver: Box::new(receiver),
+                field,
+            },
+            ty,
+            span: name.span,
+            origin: self.expression_origin(name.span),
+        })
+    }
+
+    pub(in crate::expr) fn probe_property_member_invoke(
+        &mut self,
+        property: hir::Expr,
+        call: CallSite<'_>,
+        expected: Option<TypeId>,
+        require_infix: bool,
+    ) -> Option<Result<SuccessfulExprLayer, Box<Lowerer>>> {
+        let mut candidates = self.methods_by_name(property.ty, "invoke");
+        candidates.retain(|candidate| {
+            Self::matches_required_modifiers(
+                self.signatures[&candidate.function].modifiers,
+                RequiredCallableModifiers {
+                    operator: Some(hir::OperatorKind::Invoke),
+                    infix: require_infix,
+                },
+            )
+        });
+        if candidates.is_empty() {
+            return None;
+        }
+        Some(self.probe_expr_layer(|state, layer_sink| {
+            state.finish_overloaded_method_call(
+                candidates, "invoke", property, call, layer_sink, expected,
+            )
+        }))
+    }
+
+    pub(in crate::expr) fn probe_property_extension_invoke(
+        &self,
+        property: hir::Expr,
+        call: CallSite<'_>,
+        expected: Option<TypeId>,
+        require_infix: bool,
+        same_side: bool,
+    ) -> Option<Result<SuccessfulExprLayer, Box<Lowerer>>> {
+        let mut candidates = self.extension_candidates_on_side("invoke", same_side);
+        candidates.retain(|function| {
+            Self::matches_required_modifiers(
+                self.signatures[function].modifiers,
+                RequiredCallableModifiers {
+                    operator: Some(hir::OperatorKind::Invoke),
+                    infix: require_infix,
+                },
+            )
+        });
+        if candidates.is_empty() {
+            return None;
+        }
+        Some(self.probe_expr_layer(|state, layer_sink| {
+            state.finish_extension_call(&candidates, "invoke", property, call, layer_sink, expected)
+        }))
     }
 
     pub(crate) fn lower_named_call_on_receiver(
@@ -106,10 +375,7 @@ impl Lowerer {
         let mut candidates = self.methods_by_name(receiver.ty, &name.text);
         candidates.retain(|candidate| {
             let modifiers = self.signatures[&candidate.function].modifiers;
-            required
-                .operator
-                .is_none_or(|operator| modifiers.operator == Some(operator))
-                && (!required.infix || modifiers.is_infix)
+            Self::matches_required_modifiers(modifiers, required)
         });
         let mut first_failure = None;
         if !candidates.is_empty() && matches!(self.types[receiver.ty], Type::Interface(..)) {
@@ -150,10 +416,7 @@ impl Lowerer {
         for mut extensions in self.extension_candidate_layers(&name.text) {
             extensions.retain(|function| {
                 let modifiers = self.signatures[function].modifiers;
-                required
-                    .operator
-                    .is_none_or(|operator| modifiers.operator == Some(operator))
-                    && (!required.infix || modifiers.is_infix)
+                Self::matches_required_modifiers(modifiers, required)
             });
             if extensions.is_empty() {
                 continue;
@@ -190,7 +453,7 @@ impl Lowerer {
     pub(super) fn lower_infix_call(
         &mut self,
         lhs: &ast::Expr,
-        name: &ast::Ident,
+        target: &ast::InfixTarget,
         rhs: &ast::Expr,
         span: Span,
         sink: &mut Vec<hir::Statement>,
@@ -198,21 +461,27 @@ impl Lowerer {
     ) -> Option<hir::Expr> {
         let receiver = self.lower_expr(lhs, sink, None)?;
         let args = [ast::CallArgument::positional(rhs.clone())];
-        self.lower_named_call_on_receiver(
-            receiver,
-            name,
-            CallSite {
-                type_args: &[],
-                args: &args,
-                span,
-            },
-            sink,
-            expected,
-            RequiredCallableModifiers {
-                operator: None,
-                infix: true,
-            },
-        )
+        let call = CallSite {
+            type_args: &[],
+            args: &args,
+            span,
+        };
+        match target {
+            ast::InfixTarget::Named(name) => self.lower_explicit_named_call(
+                receiver,
+                name,
+                call,
+                sink,
+                expected,
+                RequiredCallableModifiers {
+                    operator: None,
+                    infix: true,
+                },
+            ),
+            ast::InfixTarget::Invoke => {
+                self.lower_value_invoke(receiver, call, sink, expected, true)
+            }
+        }
     }
 
     pub(super) fn lower_safe_method_call(

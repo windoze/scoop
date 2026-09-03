@@ -113,8 +113,14 @@ pub(super) fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
                 dump_call_argument(arg, indent + 1, out);
             }
         }
-        Expr::InfixCall { lhs, name, rhs, .. } => {
-            out.push_str(&format!("{pad}InfixCall {}\n", name.text));
+        Expr::InfixCall {
+            lhs, target, rhs, ..
+        } => {
+            let target = match target {
+                InfixTarget::Named(name) => name.text.as_str(),
+                InfixTarget::Invoke => "<invoke>",
+            };
+            out.push_str(&format!("{pad}InfixCall {target}\n"));
             dump_expr(lhs, indent + 1, out);
             dump_expr(rhs, indent + 1, out);
         }

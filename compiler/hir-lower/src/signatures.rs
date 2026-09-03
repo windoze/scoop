@@ -233,14 +233,22 @@ impl Lowerer {
             Some(ty_ref) => self.resolve_type_ref(ty_ref).unwrap_or(self.unit),
             None => self.unit,
         };
+        let modifiers = self.validate_callable_modifiers(
+            decl,
+            self.extension_receivers.get(&id).copied(),
+            false,
+            &params,
+            return_ty,
+        );
         self.type_params_in_scope.clear();
 
         self.functions[id].return_ty = return_ty;
+        self.functions[id].modifiers = modifiers;
         self.signatures.insert(
             id,
             FnSig {
                 is_suspend: decl.is_suspend,
-                modifiers: hir::CallableModifiers::default(),
+                modifiers,
                 attributes: self.functions[id].attributes,
                 owner_type_param_count: 0,
                 type_params,

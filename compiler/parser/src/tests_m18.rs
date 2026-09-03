@@ -180,6 +180,10 @@ fn infix_is_left_associative_and_stops_at_newline() {
     );
     let file = ok("fun main() {\n    a\n    b\n}\n");
     assert_eq!(block_body(only_function(&file)).statements.len(), 2);
+    assert_eq!(
+        stmt_dump("val result = command \"build\""),
+        "val result\n  InfixCall <invoke>\n    Var command\n    StringLiteral \"build\"\n"
+    );
 }
 
 #[test]

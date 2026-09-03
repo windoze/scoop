@@ -350,9 +350,18 @@ fn local_function_missing_name() {
 }
 
 #[test]
-fn missing_comma_between_args() {
-    let (_, message) = err("fun main() { print(\"a\" \"b\") }");
-    assert_eq!(message, "expected `)`, found string literal");
+fn adjacent_arguments_form_one_property_like_infix_expression() {
+    let file = ok("fun main() { print(command \"build\") }");
+    let StatementKind::Expr(Expr::Call(call)) = &only_stmt(&file).kind else {
+        panic!("expected outer call");
+    };
+    assert!(matches!(
+        call.args[0].expression,
+        Expr::InfixCall {
+            target: scoop_ast::InfixTarget::Invoke,
+            ..
+        }
+    ));
 }
 
 #[test]

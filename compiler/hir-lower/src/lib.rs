@@ -96,6 +96,7 @@
 mod annotations;
 mod argument_materialization;
 mod call_resolution;
+mod callable_modifiers;
 mod class;
 mod concretize;
 mod core_contract;
