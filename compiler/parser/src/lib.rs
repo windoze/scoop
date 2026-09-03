@@ -10,6 +10,7 @@ mod expr;
 mod lexer;
 mod parser;
 mod pattern;
+mod stmt;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
@@ -34,6 +35,7 @@ mod tests_m6;
 mod tests_m8;
 #[cfg(test)]
 mod tests_m9;
+mod ty;
 
 /// Parses a whole source file into an AST.
 ///
