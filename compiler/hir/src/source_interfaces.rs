@@ -135,6 +135,90 @@ pub struct ExportDefaultExpr {
     pub type_parameters: Vec<TypeParamId>,
     pub receiver: Option<ExportDefaultReceiver>,
     pub value_parameters: Vec<ExportDefaultValueParameter>,
+    /// Direct declaration-bound dependencies of the typed template. Each
+    /// category has its own identity domain and every entry carries the
+    /// access-domain proof produced before this export entity is committed.
+    pub references: ExportDefaultReferences,
+    pub origin: DefinitionOrigin,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct ExportDefaultReferences {
+    pub callables: Vec<ExportDefaultCallableRef>,
+    pub constructors: Vec<ExportDefaultConstructorRef>,
+    pub types: Vec<ExportDefaultTypeRef>,
+    pub globals: Vec<ExportDefaultGlobalRef>,
+    pub fields: Vec<ExportDefaultFieldRef>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ExportDefaultAccessWitness {
+    pub owner: ExportParameterOwner,
+    pub coverage: ExportDefaultAccessCoverage,
+}
+
+/// M17 prepares the cross-Cone boundary before visibility syntax exists. All
+/// currently exportable declarations are Cone-wide; future visibility work
+/// extends this closed proof kind rather than making the witness optional.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExportDefaultAccessCoverage {
+    ConeWide,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ExportDefaultCallableRef {
+    pub target: ExportDefaultCallableTarget,
+    pub witness: ExportDefaultAccessWitness,
+    pub origin: DefinitionOrigin,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExportDefaultCallableTarget {
+    Callable(Callable),
+    Bound(BoundCallableRefId),
+    DerivedEquality(DerivedEqualityApplicationId),
+    LocalFunction(LocalFunctionId),
+    Lambda(LambdaId),
+    AnonymousFunction(AnonymousFunctionId),
+    CallableReference(CallableReferenceId),
+    FunctionAddress(FunctionId),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ExportDefaultConstructorRef {
+    pub target: ExportDefaultConstructorTarget,
+    pub witness: ExportDefaultAccessWitness,
+    pub origin: DefinitionOrigin,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExportDefaultConstructorTarget {
+    Struct(StructApplicationId),
+    Class(ClassApplicationId),
+    Variant {
+        application: EnumApplicationId,
+        variant: u32,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ExportDefaultTypeRef {
+    pub target: TypeId,
+    pub witness: ExportDefaultAccessWitness,
+    pub origin: DefinitionOrigin,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ExportDefaultGlobalRef {
+    pub target: GlobalId,
+    pub witness: ExportDefaultAccessWitness,
+    pub origin: DefinitionOrigin,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ExportDefaultFieldRef {
+    pub target: FieldRef,
+    pub witness: ExportDefaultAccessWitness,
     pub origin: DefinitionOrigin,
 }
 

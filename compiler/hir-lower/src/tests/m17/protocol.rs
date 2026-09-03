@@ -811,6 +811,66 @@ fn a_lambda_body_establishes_its_own_default_evaluation_boundary() {
 }
 
 #[test]
+fn exported_defaults_carry_kind_typed_references_and_access_witnesses() {
+    let consume = with_default(
+        fun_sig(
+            "consume",
+            vec![],
+            vec![("token", ty_named("Token"))],
+            Some(ty_named("Int")),
+            vec![ret(Some(field(var("token"), "value")))],
+        ),
+        0,
+        struct_init("Token", vec![call("produce", vec![])]),
+    );
+    let output = lower_user_output(file(vec![
+        struct_decl("Token", vec![("value", ty_named("Int"))]),
+        fun_expr("produce", vec![], vec![], Some(ty_named("Int")), int_lit(7)),
+        consume,
+        fun("main", vec![stmt(call("consume", vec![]))]),
+    ]))
+    .expect("an exported default must normalize every direct dependency");
+
+    let (consume, _) = output
+        .export
+        .functions
+        .iter()
+        .find(|(_, function)| function.name == "consume")
+        .expect("consume function");
+    let interface = output
+        .export
+        .source_parameter_interfaces
+        .iter()
+        .find(|interface| interface.owner == hir::ExportParameterOwner::Function(consume))
+        .expect("consume source interface");
+    let hir::ExportParameterCalling::Default { source, .. } = interface.parameters[0].calling
+    else {
+        unreachable!()
+    };
+    let template = &output.export.export_default_exprs
+        [output.export.export_default_sources[source].expression];
+    assert_eq!(template.references.callables.len(), 1);
+    assert_eq!(template.references.constructors.len(), 1);
+    assert!(!template.references.types.is_empty());
+    let expected_owner = hir::ExportParameterOwner::Function(consume);
+    assert!(template.references.callables.iter().all(|reference| {
+        reference.witness.owner == expected_owner
+            && reference.witness.coverage == hir::ExportDefaultAccessCoverage::ConeWide
+    }));
+    assert!(template.references.constructors.iter().all(|reference| {
+        reference.witness.owner == expected_owner
+            && reference.witness.coverage == hir::ExportDefaultAccessCoverage::ConeWide
+    }));
+    assert!(
+        template
+            .references
+            .types
+            .iter()
+            .all(|reference| reference.witness.owner == expected_owner)
+    );
+}
+
+#[test]
 fn override_rejects_new_defaults_vararg_mismatch_and_conflicting_sources() {
     let explicit_default = method_with_default(
         override_method_expr(

@@ -10,6 +10,7 @@ use crate::{
     Type,
 };
 
+mod access;
 mod instantiate;
 
 #[derive(Clone)]
@@ -488,7 +489,7 @@ impl Lowerer {
                     value_type: source.ty,
                 }),
                 FnParamCalling::Default { expression } => self
-                    .lower_export_default(expression, source, index, sources, context)
+                    .lower_export_default(owner, expression, source, index, sources, context)
                     .map(|default_source| hir::ExportParameterCalling::Default {
                         value_type: source.ty,
                         source: default_source,
@@ -506,7 +507,9 @@ impl Lowerer {
                     let omission = match omission {
                         FnVarargOmission::EmptyArray => Some(hir::ExportVarargOmission::EmptyArray),
                         FnVarargOmission::Default { expression } => self
-                            .lower_export_default(expression, source, index, sources, context)
+                            .lower_export_default(
+                                owner, expression, source, index, sources, context,
+                            )
                             .map(hir::ExportVarargOmission::Default),
                     };
                     omission.map(|omission| hir::ExportParameterCalling::Vararg {
@@ -551,6 +554,7 @@ impl Lowerer {
 
     fn lower_export_default(
         &mut self,
+        owner: hir::ExportParameterOwner,
         expression: &ast::Expr,
         parameter: &ParameterSource,
         parameter_index: usize,
@@ -565,8 +569,9 @@ impl Lowerer {
             context,
             false,
         )
-        .map(|(body, captures)| {
+        .map(|(mut body, captures)| {
             debug_assert!(captures.is_empty());
+            body.references = self.collect_export_default_references(owner, &body);
             let type_arguments = body
                 .type_parameters
                 .iter()
@@ -731,6 +736,7 @@ impl Lowerer {
                         .collect(),
                     receiver,
                     value_parameters,
+                    references: hir::ExportDefaultReferences::default(),
                     origin,
                 },
                 captures,
