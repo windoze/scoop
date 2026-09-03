@@ -19,6 +19,51 @@ fn invoke_expr(callee: Expr, argument: Expr) -> Expr {
     }
 }
 
+fn multi_index(receiver: Expr, indices: Vec<Expr>) -> Expr {
+    let mut indices = indices.into_iter();
+    Expr::Index {
+        receiver: Box::new(receiver),
+        indices: ast::NonEmptyVec::new(
+            indices.next().expect("test index must be non-empty"),
+            indices.collect(),
+        ),
+        span: sp(),
+    }
+}
+
+fn assignment(target: ast::PlaceExpr, op: ast::AssignmentOp, value: Expr) -> Statement {
+    Statement {
+        kind: StatementKind::Assign(ast::Assign {
+            target,
+            op,
+            value,
+            span: sp(),
+        }),
+        span: sp(),
+    }
+}
+
+fn index_place(receiver: Expr, indices: Vec<Expr>) -> ast::PlaceExpr {
+    let mut indices = indices.into_iter();
+    ast::PlaceExpr::Index {
+        receiver: Box::new(receiver),
+        indices: ast::NonEmptyVec::new(
+            indices.next().expect("test index must be non-empty"),
+            indices.collect(),
+        ),
+        span: sp(),
+    }
+}
+
+fn update(place: ast::PlaceExpr, op: ast::UpdateOp, notation: ast::UpdateNotation) -> Expr {
+    Expr::Update {
+        place,
+        op,
+        notation,
+        span: sp(),
+    }
+}
+
 fn direct_method_name<'a>(module: &'a hir::Module, expr: &hir::Expr) -> &'a str {
     let hir::ExprKind::MethodCall { callee, .. } = &expr.kind else {
         panic!("expected a method call, found {expr:?}");
@@ -749,6 +794,247 @@ fn class_destructuring_uses_typed_components_and_materializes_subject_once() {
             .iter()
             .any(|error| { error.message == "pattern has 1 element(s), but class `Plain` has 0" })
     );
+}
+
+#[test]
+fn multi_index_get_and_set_use_typed_roles_and_set_reserves_its_value() {
+    let get = operator(method_expr(
+        "get",
+        vec![("row", ty_named("Int")), ("column", ty_named("Int"))],
+        Some(ty_named("Int")),
+        var("row"),
+    ));
+    let mut set = operator(method_expr(
+        "set",
+        vec![("indices", ty_named("Int")), ("value", ty_named("Int"))],
+        None,
+        unit_lit(),
+    ));
+    set.params[0].syntax = ast::ParameterSyntax::Vararg {
+        modifier_span: sp(),
+        default: ast::VarargDefaultSyntax::EmptyWhenOmitted,
+    };
+    let module = lower_user(file(vec![
+        struct_decl_methods("Grid", vec![], vec![get, set]),
+        fun(
+            "main",
+            vec![
+                val("grid", call("Grid", vec![])),
+                val(
+                    "read",
+                    multi_index(var("grid"), vec![int_lit(1), int_lit(2)]),
+                ),
+                assignment(
+                    index_place(var("grid"), vec![int_lit(3), int_lit(4)]),
+                    ast::AssignmentOp::Assign,
+                    int_lit(5),
+                ),
+            ],
+        ),
+    ]))
+    .expect("multi-index get/set must use ordinary typed operator calls");
+    let body = function_body(&module, "main");
+    assert_eq!(
+        direct_method_name(&module, local_init(body, "read")),
+        "Grid.get"
+    );
+    let set_call = body
+        .statements
+        .iter()
+        .filter_map(|statement| match &statement.kind {
+            hir::StatementKind::Expr(expr) => Some(expr),
+            _ => None,
+        })
+        .find(|expr| direct_method_name(&module, expr) == "Grid.set")
+        .expect("set call statement");
+    let hir::ExprKind::MethodCall { args, .. } = &set_call.kind else {
+        unreachable!("direct_method_name already checked the method shape")
+    };
+    assert_eq!(args.len(), 2, "vararg indices plus the reserved value");
+    assert!(matches!(args[0].kind, hir::ExprKind::Local(_)));
+    assert_eq!(args[1].ty, module.int);
+}
+
+#[test]
+fn update_and_compound_assignment_normalize_to_calls_and_writes() {
+    let inc = operator(method_expr(
+        "inc",
+        vec![],
+        Some(ty_named("Counter")),
+        this_expr(),
+    ));
+    let plus = operator(method_expr(
+        "plus",
+        vec![("other", ty_named("Counter"))],
+        Some(ty_named("Counter")),
+        this_expr(),
+    ));
+    let plus_assign = operator(method_expr(
+        "plusAssign",
+        vec![("other", ty_named("Accumulator"))],
+        None,
+        unit_lit(),
+    ));
+    let module = lower_user(file(vec![
+        struct_decl_methods("Counter", vec![], vec![inc, plus]),
+        struct_decl_methods("Accumulator", vec![], vec![plus_assign]),
+        fun(
+            "main",
+            vec![
+                var_("counter", call("Counter", vec![])),
+                val(
+                    "postfix",
+                    update(
+                        ast::PlaceExpr::Name(ident("counter")),
+                        ast::UpdateOp::Increment,
+                        ast::UpdateNotation::Postfix,
+                    ),
+                ),
+                val(
+                    "prefix",
+                    update(
+                        ast::PlaceExpr::Name(ident("counter")),
+                        ast::UpdateOp::Increment,
+                        ast::UpdateNotation::Prefix,
+                    ),
+                ),
+                assignment(
+                    ast::PlaceExpr::Name(ident("counter")),
+                    ast::AssignmentOp::Compound(ast::CompoundAssignOp::Add),
+                    call("Counter", vec![]),
+                ),
+                val("accumulator", call("Accumulator", vec![])),
+                assignment(
+                    ast::PlaceExpr::Name(ident("accumulator")),
+                    ast::AssignmentOp::Compound(ast::CompoundAssignOp::Add),
+                    call("Accumulator", vec![]),
+                ),
+            ],
+        ),
+    ]))
+    .expect("update, fallback and opAssign-only paths must all lower");
+    let body = function_body(&module, "main");
+    let dump = hir::dump(&module);
+    assert_eq!(dump.matches("MethodCall Counter.inc").count(), 2, "{dump}");
+    assert_eq!(dump.matches("MethodCall Counter.plus").count(), 1, "{dump}");
+    assert_eq!(
+        dump.matches("MethodCall Accumulator.plusAssign").count(),
+        1,
+        "{dump}"
+    );
+    assert_eq!(
+        body.statements
+            .iter()
+            .filter(|statement| matches!(
+                statement.kind,
+                hir::StatementKind::Assign {
+                    target: hir::AssignTarget::Local(local),
+                    ..
+                } if body.locals[local].name == "counter"
+            ))
+            .count(),
+        3
+    );
+    assert!(matches!(
+        local_init(body, "postfix").kind,
+        hir::ExprKind::Local(_)
+    ));
+    assert!(matches!(
+        local_init(body, "prefix").kind,
+        hir::ExprKind::Local(_)
+    ));
+}
+
+#[test]
+fn compound_assignment_probes_both_roles_and_reuses_index_sources() {
+    let plus = operator(method_expr(
+        "plus",
+        vec![("other", ty_named("Number"))],
+        Some(ty_named("Number")),
+        this_expr(),
+    ));
+    let plus_assign = operator(method_expr(
+        "plusAssign",
+        vec![("other", ty_named("Number"))],
+        None,
+        unit_lit(),
+    ));
+    let get = operator(method_expr(
+        "get",
+        vec![("index", ty_named("Int"))],
+        Some(ty_named("Number")),
+        call("Number", vec![]),
+    ));
+    let set = operator(method_expr(
+        "set",
+        vec![("index", ty_named("Int")), ("value", ty_named("Number"))],
+        None,
+        unit_lit(),
+    ));
+    let module = lower_user(file(vec![
+        struct_decl_methods("Number", vec![], vec![plus.clone()]),
+        struct_decl_methods("Table", vec![], vec![get.clone(), set]),
+        fun_expr(
+            "makeTable",
+            vec![],
+            vec![],
+            Some(ty_named("Table")),
+            call("Table", vec![]),
+        ),
+        fun_expr(
+            "nextIndex",
+            vec![],
+            vec![],
+            Some(ty_named("Int")),
+            int_lit(0),
+        ),
+        fun_expr(
+            "rhs",
+            vec![],
+            vec![],
+            Some(ty_named("Number")),
+            call("Number", vec![]),
+        ),
+        fun(
+            "main",
+            vec![assignment(
+                index_place(call("makeTable", vec![]), vec![call("nextIndex", vec![])]),
+                ast::AssignmentOp::Compound(ast::CompoundAssignOp::Add),
+                call("rhs", vec![]),
+            )],
+        ),
+    ]))
+    .expect("indexed fallback must share receiver and source-index temporaries");
+    let dump = hir::dump(&module);
+    for call_name in ["makeTable", "nextIndex", "rhs"] {
+        assert_eq!(
+            dump.matches(&format!("Call {call_name}")).count(),
+            1,
+            "{call_name} must execute once:\n{dump}"
+        );
+    }
+    assert_eq!(dump.matches("MethodCall Table.get").count(), 1, "{dump}");
+    assert_eq!(dump.matches("MethodCall Table.set").count(), 1, "{dump}");
+
+    let errors = lower_user(file(vec![
+        struct_decl_methods("Number", vec![], vec![plus, plus_assign]),
+        fun(
+            "main",
+            vec![
+                var_("number", call("Number", vec![])),
+                assignment(
+                    ast::PlaceExpr::Name(ident("number")),
+                    ast::AssignmentOp::Compound(ast::CompoundAssignOp::Add),
+                    call("Number", vec![]),
+                ),
+            ],
+        ),
+    ]))
+    .expect_err("simultaneously applicable operator groups must be ambiguous");
+    assert!(errors.iter().any(|error| {
+        error.message
+            == "compound assignment is ambiguous: both `plusAssign` and `plus` are applicable"
+    }));
 }
 
 #[test]

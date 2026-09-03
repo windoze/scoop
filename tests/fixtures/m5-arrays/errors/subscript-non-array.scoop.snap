@@ -3,4 +3,4 @@ source: compiler/driver/tests/fixtures.rs
 expression: snapshot
 ---
 == diagnostics ==
-m5-arrays/errors/subscript-non-array.scoop:3:13: error: subscript is only supported on arrays, found Int
+m5-arrays/errors/subscript-non-array.scoop:3:13: error: type `Int` has no method `get`

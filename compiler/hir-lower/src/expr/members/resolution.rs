@@ -5,6 +5,7 @@ impl Lowerer {
     /// `m(...)`): `resolve_overload` picks the winner among the
     /// receiver type's methods and the call becomes a resolved
     /// `MethodCall`.
+    #[allow(clippy::too_many_arguments)]
     pub(in crate::expr) fn finish_overloaded_method_call(
         &mut self,
         candidates: Vec<crate::CallableCandidate>,
@@ -13,6 +14,7 @@ impl Lowerer {
         call: CallSite<'_>,
         sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
+        operator_set: bool,
     ) -> Option<hir::Expr> {
         let explicit_type_args = self.resolve_call_type_args(call.type_args)?;
         let resolved = self.resolve_member_overload(
@@ -24,6 +26,11 @@ impl Lowerer {
                 arg_exprs: call.args,
                 span: call.span,
                 expected_result: expected,
+                argument_protocol: if operator_set {
+                    crate::overload::CallArgumentProtocol::OperatorSet
+                } else {
+                    crate::overload::CallArgumentProtocol::Ordinary
+                },
             },
             sink,
         )?;

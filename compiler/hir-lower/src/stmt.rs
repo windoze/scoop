@@ -33,9 +33,11 @@ pub(crate) struct ValueBlock {
 mod assignments;
 mod blocks;
 mod body;
+mod compound_assignments;
 mod exceptions;
 mod flow;
 mod local_functions;
+mod places;
 mod statements;
 mod when;
 

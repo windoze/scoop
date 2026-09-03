@@ -13,10 +13,7 @@ fn subscript_requires_an_array_receiver() {
     )]);
     let errors = lower_user(file).expect_err("subscript on Int must fail");
     assert_eq!(errors.len(), 1);
-    assert_eq!(
-        errors[0].message,
-        "subscript is only supported on arrays, found Int"
-    );
+    assert_eq!(errors[0].message, "type `Int` has no method `get`");
 }
 
 #[test]
@@ -96,10 +93,7 @@ fn subscript_write_on_a_non_array_is_an_error() {
     )]);
     let errors = lower_user(file).expect_err("write through Int must fail");
     assert_eq!(errors.len(), 1);
-    assert_eq!(
-        errors[0].message,
-        "subscript is only supported on arrays, found Int"
-    );
+    assert_eq!(errors[0].message, "type `Int` has no method `set`");
 }
 
 #[test]

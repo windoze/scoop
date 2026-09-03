@@ -137,42 +137,60 @@ impl Lowerer {
         span: Span,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
-        let [index] = indices else {
-            self.error(
-                span,
-                format!(
-                    "array subscript takes exactly one index, but {} were supplied",
-                    indices.len()
-                ),
-            );
-            return None;
-        };
         let receiver = self.lower_expr(receiver, sink, None)?;
-        let Some(element_ty) = self.array_element_ty(receiver.ty) else {
-            let found = self.type_name(receiver.ty);
-            self.error(
-                receiver.span,
-                format!("subscript is only supported on arrays, found {found}"),
-            );
-            return None;
-        };
-        let index = self.lower_expr(index, sink, Some(self.int))?;
-        if index.ty != self.int {
-            let found = self.type_name(index.ty);
-            self.error(
-                index.span,
-                format!("array index must be Int, found {found}"),
-            );
-            return None;
+        if let Some(element_ty) = self.array_element_ty(receiver.ty) {
+            let [index] = indices else {
+                self.error(
+                    span,
+                    format!(
+                        "array subscript takes exactly one index, but {} were supplied",
+                        indices.len()
+                    ),
+                );
+                return None;
+            };
+            let index = self.lower_expr(index, sink, Some(self.int))?;
+            if index.ty != self.int {
+                let found = self.type_name(index.ty);
+                self.error(
+                    index.span,
+                    format!("array index must be Int, found {found}"),
+                );
+                return None;
+            }
+            return Some(hir::Expr {
+                kind: ExprKind::Index {
+                    receiver: Box::new(receiver),
+                    index: Box::new(index),
+                },
+                ty: element_ty,
+                span,
+                origin: self.expression_origin(span),
+            });
         }
-        Some(hir::Expr {
-            kind: ExprKind::Index {
-                receiver: Box::new(receiver),
-                index: Box::new(index),
+
+        let arguments = indices
+            .iter()
+            .cloned()
+            .map(ast::CallArgument::positional)
+            .collect::<Vec<_>>();
+        self.lower_named_call_on_receiver(
+            receiver,
+            &ast::Ident {
+                text: "get".to_string(),
+                span,
             },
-            ty: element_ty,
-            span,
-            origin: self.expression_origin(span),
-        })
+            CallSite {
+                type_args: &[],
+                args: &arguments,
+                span,
+            },
+            sink,
+            None,
+            RequiredCallableModifiers {
+                operator: Some(hir::OperatorKind::Get),
+                infix: false,
+            },
+        )
     }
 }

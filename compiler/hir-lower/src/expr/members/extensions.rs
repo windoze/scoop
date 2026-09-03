@@ -1,6 +1,7 @@
 use super::*;
 
 impl Lowerer {
+    #[allow(clippy::too_many_arguments)]
     pub(in crate::expr) fn finish_extension_call(
         &mut self,
         candidates: &[hir::FunctionId],
@@ -9,6 +10,7 @@ impl Lowerer {
         call: CallSite<'_>,
         sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
+        operator_set: bool,
     ) -> Option<hir::Expr> {
         let explicit_type_args = self.resolve_call_type_args(call.type_args)?;
         let resolved = self.resolve_extension_overload(
@@ -20,6 +22,11 @@ impl Lowerer {
                 arg_exprs: call.args,
                 span: call.span,
                 expected_result: expected,
+                argument_protocol: if operator_set {
+                    crate::overload::CallArgumentProtocol::OperatorSet
+                } else {
+                    crate::overload::CallArgumentProtocol::Ordinary
+                },
             },
             sink,
         )?;

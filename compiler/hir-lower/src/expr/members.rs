@@ -136,6 +136,7 @@ impl Lowerer {
                     call,
                     layer_sink,
                     expected,
+                    false,
                 )
             }) {
                 Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
@@ -176,6 +177,7 @@ impl Lowerer {
                         call,
                         layer_sink,
                         expected,
+                        false,
                     )
                 }) {
                     Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
@@ -311,7 +313,7 @@ impl Lowerer {
         }
         Some(self.probe_expr_layer(|state, layer_sink| {
             state.finish_overloaded_method_call(
-                candidates, "invoke", property, call, layer_sink, expected,
+                candidates, "invoke", property, call, layer_sink, expected, false,
             )
         }))
     }
@@ -338,7 +340,15 @@ impl Lowerer {
             return None;
         }
         Some(self.probe_expr_layer(|state, layer_sink| {
-            state.finish_extension_call(&candidates, "invoke", property, call, layer_sink, expected)
+            state.finish_extension_call(
+                &candidates,
+                "invoke",
+                property,
+                call,
+                layer_sink,
+                expected,
+                false,
+            )
         }))
     }
 
@@ -409,6 +419,7 @@ impl Lowerer {
                     call,
                     layer_sink,
                     expected,
+                    required.operator == Some(hir::OperatorKind::Set),
                 )
             }) {
                 Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
@@ -436,6 +447,7 @@ impl Lowerer {
                     call,
                     layer_sink,
                     expected,
+                    required.operator == Some(hir::OperatorKind::Set),
                 )
             }) {
                 Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),

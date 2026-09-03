@@ -65,6 +65,7 @@ impl Lowerer {
                     },
                     layer_sink,
                     expected,
+                    false,
                 )
             }) {
                 Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
@@ -122,6 +123,7 @@ impl Lowerer {
                             },
                             layer_sink,
                             expected,
+                            false,
                         )
                     }) {
                         Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
@@ -204,6 +206,7 @@ impl Lowerer {
                 arg_exprs: &call.args,
                 span: call.span,
                 expected_result: expected,
+                argument_protocol: crate::overload::CallArgumentProtocol::Ordinary,
             },
             sink,
         )?;
@@ -243,6 +246,7 @@ impl Lowerer {
                 arg_exprs: &call.args,
                 span: call.span,
                 expected_result: expected,
+                argument_protocol: crate::overload::CallArgumentProtocol::Ordinary,
             },
             sink,
         )?;
