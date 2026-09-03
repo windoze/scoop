@@ -1,0 +1,130 @@
+use super::*;
+
+#[test]
+fn type_descriptors_carry_the_gc_scan_descriptors() {
+    // A class's plain table is count-prefixed (`[N, off0, ..]`,
+    // runtime/include/scoop_rt.h's M9 scan-descriptor contract).
+    let ir = ir_of(&heap_module());
+    assert!(
+        ir.contains("@scoop_td_Point.refs = private constant [2 x i64] [i64 1, i64 24]"),
+        "plain scan table must be count-prefixed:\n{ir}"
+    );
+
+    // A reference-element array's TD carries the SCOOP_REFS_ARRAY
+    // sentinel (u64::MAX, printed -1), its stride, and a pointer
+    // to the recursive scan for one inline element.
+    let nested_element_scan = RefScan::Sequence(vec![
+        RefScan::References(vec![16]),
+        RefScan::References(vec![8]),
+    ]);
+    let mut meta = string_metadata();
+    let ref_array_type = array_type(
+        &mut meta,
+        "ArrayRef",
+        scoop_lir::ArrayKind::Immutable,
+        MANAGED_PTR,
+        8,
+        8,
+        RefScan::References(vec![0]),
+    );
+    let nested_array_type = array_type(
+        &mut meta,
+        "ArrayNested",
+        scoop_lir::ArrayKind::Immutable,
+        LirType::Aggregate(vec![LirType::I64, MANAGED_PTR, MANAGED_PTR]),
+        24,
+        8,
+        nested_element_scan,
+    );
+    let mut temps = Arena::default();
+    let array = temps.alloc(Temp { ty: MANAGED_PTR });
+    let nested_array = temps.alloc(Temp { ty: MANAGED_PTR });
+    let mut blocks = Arena::default();
+    let entry = blocks.alloc(BasicBlock {
+        name: "entry".to_string(),
+        instructions: vec![
+            Instruction::ArrayAlloc {
+                out: array,
+                elements: vec![],
+                array_type: ref_array_type,
+                safepoint: test_safepoint(1),
+                live: scoop_lir::StatepointLiveSet::default(),
+            },
+            Instruction::ArrayAlloc {
+                out: nested_array,
+                elements: vec![],
+                array_type: nested_array_type,
+                safepoint: test_safepoint(2),
+                live: scoop_lir::StatepointLiveSet::default(),
+            },
+        ],
+        terminator: Terminator::Return { value: None },
+    });
+    let runtime_type_id = meta.type_descriptors.len() as u64 + 1;
+    meta.type_descriptors.alloc(TypeDescriptor {
+        name: "Holder".to_string(),
+        symbol: "scoop_td_Holder".to_string(),
+        runtime_type_id,
+        size: 56,
+        align: 8,
+        scan: TypeDescriptorScan::Fixed(RefScan::Sequence(vec![
+            RefScan::References(vec![16]),
+            RefScan::References(vec![40, 48]),
+        ])),
+        parent: None,
+        vtable: vec![],
+        itables: vec![],
+    });
+    let module = Module {
+        globals: Arena::default(),
+        structs: Arena::default(),
+        enums: Arena::default(),
+        extern_functions: Default::default(),
+        native_globals: Arena::default(),
+        native_global_bridges: Default::default(),
+        callback_bridges: Arena::default(),
+        foreign_callback_bridges: Arena::default(),
+        functions: vec![Function {
+            gc_effect: GcEffect::Managed,
+            symbol: "scoop_main".to_string(),
+            params: vec![],
+            return_ty: LirType::Void,
+            call_targets: CallTargets::default(),
+            locals: Arena::default(),
+            temps,
+            blocks,
+            entry,
+        }],
+        entry_symbol: "scoop_main".to_string(),
+        meta,
+    };
+    let ir = ir_of(&module);
+    assert!(
+            ir.contains(
+                "@scoop_td_ArrayRef.element = private constant [2 x i64] [i64 1, i64 0]"
+            ) && ir.contains(
+                "@scoop_td_ArrayRef.refs = private constant [3 x i64] [i64 -1, i64 8, i64 ptrtoint (ptr @scoop_td_ArrayRef.element to i64)]"
+            ),
+            "reference-element array TD must carry SCOOP_REFS_ARRAY:\n{ir}"
+        );
+    assert!(
+            ir.contains(
+                "@scoop_td_ArrayNested.element.part.1 = private constant [2 x i64] [i64 1, i64 8]"
+            ) && ir.contains(
+                "@scoop_td_ArrayNested.element = private constant [4 x i64] [i64 -2, i64 2"
+            ) && ir.contains(
+                "@scoop_td_ArrayNested.refs = private constant [3 x i64] [i64 -1, i64 24, i64 ptrtoint (ptr @scoop_td_ArrayNested.element to i64)]"
+            ),
+            "aggregate array TD must wrap the recursive element scan:\n{ir}"
+        );
+    assert!(
+        ir.contains(
+            "@scoop_td_Holder.refs.part.1 = private constant [3 x i64] [i64 2, i64 40, i64 48]"
+        ),
+        "nested tagged enum scan must use fixed ref offsets:\n{ir}"
+    );
+    assert!(
+        ir.contains("@scoop_td_Holder.refs = private constant [4 x i64] [i64 -2, i64 2"),
+        "aggregate scan must compose fixed scans:\n{ir}"
+    );
+}
