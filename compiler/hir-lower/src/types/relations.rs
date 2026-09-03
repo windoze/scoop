@@ -136,54 +136,6 @@ impl Lowerer {
         }
     }
 
-    /// View a concrete argument type through one exact implemented
-    /// interface. Generic-call inference uses this before binding the
-    /// interface's type arguments, so `C : I<Int>` can constrain a
-    /// parameter declared as `I<T>` without an explicit upcast first.
-    pub(crate) fn implemented_interface_application(
-        &mut self,
-        ty: TypeId,
-        target: hir::InterfaceId,
-    ) -> Option<Vec<TypeId>> {
-        let candidates = match self.types[ty].clone() {
-            Type::Interface(application) => {
-                let application = self.interface_applications[application].clone();
-                return (application.template == target).then_some(application.arguments);
-            }
-            Type::Int => self.intrinsic_type_interfaces(hir::IntrinsicTypeKind::Int),
-            Type::UInt => self.intrinsic_type_interfaces(hir::IntrinsicTypeKind::UInt),
-            Type::Boolean => self.intrinsic_type_interfaces(hir::IntrinsicTypeKind::Boolean),
-            Type::String => self.intrinsic_type_interfaces(hir::IntrinsicTypeKind::String),
-            Type::Class(application) => self.class_interfaces_for_application(application),
-            Type::Struct(application) => {
-                let application = self.struct_applications[application].clone();
-                self.structs[application.template]
-                    .interfaces
-                    .clone()
-                    .into_iter()
-                    .map(|implemented| self.instantiate_ty(implemented, &application.arguments))
-                    .collect()
-            }
-            Type::Enum(application) => {
-                let application = self.enum_applications[application].clone();
-                self.enums[application.template]
-                    .interfaces
-                    .clone()
-                    .into_iter()
-                    .map(|implemented| self.instantiate_ty(implemented, &application.arguments))
-                    .collect()
-            }
-            _ => Vec::new(),
-        };
-        candidates.into_iter().find_map(|candidate| {
-            let Type::Interface(application) = self.types[candidate] else {
-                return None;
-            };
-            let application = &self.interface_applications[application];
-            (application.template == target).then(|| application.arguments.clone())
-        })
-    }
-
     /// Fully substitute every interface reached from one class application,
     /// including interfaces inherited through its concrete generic base
     /// application. Applications, rather than declaration ids, are the

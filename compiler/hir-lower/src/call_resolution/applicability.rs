@@ -7,9 +7,10 @@ use super::candidates::{
     CallableView, NominalConstructorSource, NominalConstructorView, ReceiverShape,
 };
 use super::constraints::{
-    Constraint, ConstraintFailure, ConstraintOrigin, InferenceSession, NominalApplication, TypeTerm,
+    CallableCategory, CallableParameter, CallableReturn, CallableShape, Constraint,
+    ConstraintFailure, ConstraintOrigin, InferenceSession, NominalApplication, TypeTerm,
 };
-use crate::Lowerer;
+use crate::{Lowerer, Type};
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct CallableApplicabilityInput<'a> {
@@ -31,7 +32,163 @@ pub(crate) struct NominalApplicabilityInput<'a> {
     pub(crate) argument_types: &'a [Option<hir::TypeId>],
 }
 
+#[derive(Debug, Clone)]
+pub(crate) struct CallableReferenceApplicabilityInput<'a> {
+    pub(crate) view: &'a CallableView,
+    pub(crate) owner_arguments: &'a [hir::TypeId],
+    pub(crate) bound_receiver: Option<hir::TypeId>,
+    pub(crate) parameter_types: &'a [hir::TypeId],
+    pub(crate) expected_type: hir::TypeId,
+}
+
 impl Lowerer {
+    pub(crate) fn concrete_callable_signature_matches(
+        &mut self,
+        category: CallableCategory,
+        is_suspend: bool,
+        parameter_types: &[hir::TypeId],
+        return_type: hir::TypeId,
+        expected_type: hir::TypeId,
+    ) -> bool {
+        let mut session = InferenceSession::new();
+        session.push(
+            Constraint::CallableShape(
+                CallableShape {
+                    category,
+                    is_suspend,
+                    parameters: parameter_types
+                        .iter()
+                        .copied()
+                        .map(TypeTerm::Rigid)
+                        .map(CallableParameter::Explicit)
+                        .collect(),
+                    return_type: CallableReturn::Explicit(TypeTerm::Rigid(return_type)),
+                },
+                TypeTerm::Rigid(expected_type),
+            ),
+            ConstraintOrigin::ExpectedResult,
+        );
+        let expected_signature = match (category, &self.types[expected_type]) {
+            (CallableCategory::Managed, Type::Function(signature))
+            | (CallableCategory::Native, Type::FunPtr(signature)) => {
+                Some(self.function_types[*signature].clone())
+            }
+            _ => None,
+        };
+        if let Some(expected) = expected_signature
+            && expected.parameter_types.len() == parameter_types.len()
+        {
+            for (&parameter, &expected) in parameter_types.iter().zip(&expected.parameter_types) {
+                session.push(
+                    Constraint::Equal(TypeTerm::Rigid(parameter), TypeTerm::Rigid(expected)),
+                    ConstraintOrigin::ExpectedResult,
+                );
+            }
+            session.push(
+                Constraint::Equal(
+                    TypeTerm::Rigid(return_type),
+                    TypeTerm::Rigid(expected.return_type),
+                ),
+                ConstraintOrigin::ExpectedResult,
+            );
+        }
+        self.solve_constraints(&session).is_ok()
+    }
+
+    pub(crate) fn solve_callable_reference_applicability(
+        &mut self,
+        input: CallableReferenceApplicabilityInput<'_>,
+    ) -> Result<Vec<hir::TypeId>, ConstraintFailure> {
+        let CallableReferenceApplicabilityInput {
+            view,
+            owner_arguments,
+            bound_receiver,
+            parameter_types,
+            expected_type,
+        } = input;
+        debug_assert_eq!(view.owner_parameters.len(), owner_arguments.len());
+
+        let mut session = InferenceSession::new();
+        let environment =
+            session.add_environment(&view.owner_parameters, &view.callable_parameters);
+        for (&variable, &argument) in session
+            .owner_variables(environment)
+            .to_vec()
+            .iter()
+            .zip(owner_arguments)
+        {
+            session.push(
+                Constraint::Equal(variable.into(), TypeTerm::Rigid(argument)),
+                ConstraintOrigin::Receiver,
+            );
+        }
+        self.add_declaration_bounds(
+            &mut session,
+            view.owner_parameters
+                .iter()
+                .chain(&view.callable_parameters),
+        );
+
+        match (view.receiver, bound_receiver) {
+            (ReceiverShape::Extension(declared), Some(actual)) => session.push(
+                Constraint::Subtype(TypeTerm::Rigid(actual), TypeTerm::Type(declared)),
+                ConstraintOrigin::Receiver,
+            ),
+            (ReceiverShape::Extension(_), None)
+            | (ReceiverShape::None | ReceiverShape::Instance, None) => {}
+            (ReceiverShape::None | ReceiverShape::Instance, Some(_)) => {
+                unreachable!("only an extension reference has a separately constrained receiver")
+            }
+        }
+
+        let shape = CallableShape {
+            category: CallableCategory::Managed,
+            is_suspend: view.effects.is_suspend,
+            parameters: parameter_types
+                .iter()
+                .copied()
+                .map(TypeTerm::Type)
+                .map(CallableParameter::Explicit)
+                .collect(),
+            return_type: CallableReturn::Explicit(TypeTerm::Type(view.return_type)),
+        };
+        session.push(
+            Constraint::CallableShape(shape, TypeTerm::Rigid(expected_type)),
+            ConstraintOrigin::ExpectedResult,
+        );
+
+        // A declaration reference denotes its exact instantiated signature.
+        // Function variance is represented by later value coercions, not by
+        // choosing a different declaration instantiation here.
+        if let Type::Function(expected) = self.types[expected_type] {
+            let expected = self.function_types[expected].clone();
+            if parameter_types.len() == expected.parameter_types.len() {
+                for (&parameter, &expected) in parameter_types.iter().zip(&expected.parameter_types)
+                {
+                    session.push(
+                        Constraint::Equal(TypeTerm::Type(parameter), TypeTerm::Rigid(expected)),
+                        ConstraintOrigin::ExpectedResult,
+                    );
+                }
+            }
+            session.push(
+                Constraint::Equal(
+                    TypeTerm::Type(view.return_type),
+                    TypeTerm::Rigid(expected.return_type),
+                ),
+                ConstraintOrigin::ExpectedResult,
+            );
+        }
+
+        let solution = self.solve_constraints(&session)?;
+        let arguments = solution.arguments_for(&session, environment);
+        Ok(arguments
+            .owner
+            .into_iter()
+            .chain(arguments.callable)
+            .collect())
+    }
+
     pub(crate) fn solve_callable_applicability(
         &mut self,
         input: CallableApplicabilityInput<'_>,

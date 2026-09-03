@@ -1,5 +1,7 @@
 use super::*;
 
+use crate::call_resolution::constraints::CallableCategory;
+
 mod resolution;
 
 impl Lowerer {
@@ -123,12 +125,18 @@ impl Lowerer {
             {
                 continue;
             }
-            let params_match = sig
+            let parameters = sig
                 .params
                 .iter()
-                .zip(&expected_signature.parameter_types)
-                .all(|(parameter, expected)| self.types_equal(parameter.ty, *expected));
-            if params_match && self.types_equal(sig.return_ty, expected_signature.return_type) {
+                .map(|parameter| parameter.ty)
+                .collect::<Vec<_>>();
+            if self.concrete_callable_signature_matches(
+                CallableCategory::Native,
+                sig.is_suspend,
+                &parameters,
+                sig.return_ty,
+                expected,
+            ) {
                 matching.push(function);
             }
         }
@@ -292,123 +300,26 @@ impl Lowerer {
         span: Span,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
-        let expected_signature = expected.and_then(|ty| match self.types[ty] {
-            Type::Function(id) => Some((ty, self.function_types[id].clone())),
-            _ => None,
-        });
-        let mut applicable = Vec::new();
-        for local_function in candidates {
-            let function = self.local_functions[local_function].function;
-            let sig = self.signatures[&function].clone();
-            let mut bindings = vec![None; sig.type_params.len()];
-            for (binding, ty) in bindings
-                .iter_mut()
-                .zip(self.ambient_type_args(sig.owner_type_param_count))
-            {
-                *binding = Some(ty);
-            }
-            match &expected_signature {
-                Some((_, expected)) => {
-                    if sig.is_suspend != expected.is_suspend
-                        || sig.params.len() != expected.parameter_types.len()
-                    {
-                        continue;
-                    }
-                    let mut matches = true;
-                    for (parameter, expected) in sig.params.iter().zip(&expected.parameter_types) {
-                        matches &= self.try_bind(parameter.ty, *expected, &mut bindings);
-                    }
-                    matches &= self.try_bind(sig.return_ty, expected.return_type, &mut bindings);
-                    if !matches || bindings.iter().any(Option::is_none) {
-                        continue;
-                    }
-                    let type_args: Vec<_> = bindings.into_iter().flatten().collect();
-                    if !self.type_arguments_satisfy_kinds(&sig.type_params, &type_args) {
-                        continue;
-                    }
-                    let instantiated_params: Vec<_> = sig
-                        .params
-                        .iter()
-                        .map(|parameter| self.instantiate_ty(parameter.ty, &type_args))
-                        .collect();
-                    let instantiated_return = self.instantiate_ty(sig.return_ty, &type_args);
-                    let exact = instantiated_params
-                        .iter()
-                        .zip(&expected.parameter_types)
-                        .all(|(parameter, expected)| self.types_equal(*parameter, *expected))
-                        && self.types_equal(instantiated_return, expected.return_type);
-                    if exact {
-                        let own_type_param_count =
-                            sig.type_params.len() - sig.owner_type_param_count;
-                        applicable.push((local_function, type_args, own_type_param_count));
-                    }
-                }
-                None => {
-                    if sig.type_params.len() != sig.owner_type_param_count {
-                        continue;
-                    }
-                    applicable.push((local_function, bindings.into_iter().flatten().collect(), 0));
-                }
-            }
-        }
-        let selected = match applicable.len() {
-            0 => {
-                self.error(
-                    span,
-                    format!(
-                        "no local overload of `::{}` matches the expected function type",
-                        name.text
-                    ),
-                );
-                return None;
-            }
-            1 => 0,
-            _ if expected_signature.is_some() => {
-                let concrete: Vec<_> = applicable
-                    .iter()
-                    .enumerate()
-                    .filter_map(|(index, candidate)| (candidate.2 == 0).then_some(index))
-                    .collect();
-                if let [index] = concrete.as_slice() {
-                    *index
-                } else {
-                    self.error(
-                        span,
-                        format!(
-                            "local callable reference `::{}` is ambiguous for the expected function type",
-                            name.text
-                        ),
-                    );
-                    return None;
-                }
-            }
-            _ => {
-                self.error(
-                    span,
-                    format!(
-                        "local callable reference `::{}` is ambiguous; provide an expected function type",
-                        name.text
-                    ),
-                );
-                return None;
-            }
-        };
-        let (local_function, type_args, _) = applicable.swap_remove(selected);
-        let local = &self.local_functions[local_function];
-        let function = local.function;
-        let ty = expected_signature.map_or_else(
-            || {
-                let signature = self.signatures[&function].clone();
-                let parameters = signature
-                    .params
-                    .iter()
-                    .map(|parameter| self.instantiate_ty(parameter.ty, &type_args))
-                    .collect();
-                let return_ty = self.instantiate_ty(signature.return_ty, &type_args);
-                self.intern_function_type(signature.is_suspend, parameters, return_ty)
-            },
-            |(ty, _)| ty,
-        );
+        let expected_signature = self.expected_function_signature(expected);
+        let owner_type_param_count =
+            self.signatures[&self.local_functions[candidates[0]].function].owner_type_param_count;
+        let owner_type_args = self.ambient_type_args(owner_type_param_count);
+        let functions = candidates
+            .iter()
+            .map(|candidate| self.local_functions[*candidate].function)
+            .collect::<Vec<_>>();
+        let display = format!("local callable reference `::{}`", name.text);
+        let resolved = self.resolve_reference_candidates(
+            &functions,
+            &owner_type_args,
+            expected_signature.as_ref(),
+            &display,
+            span,
+            ReferenceExtensionMode::Exclude,
+        )?;
+        let function = self.callable_function_id(resolved.callable);
+        let local_function = self.local_function_by_function[&function];
+        let ty = resolved.ty;
         let Type::Function(function_type) = self.types[ty] else {
             unreachable!("a callable reference has a function type")
         };
@@ -432,21 +343,16 @@ impl Lowerer {
                 |((binding, name, ty, first_use_span), source)| hir::Capture {
                     binding,
                     name,
-                    ty: self.instantiate_ty(ty, &type_args),
+                    ty: self.instantiate_ty(ty, &resolved.type_args),
                     first_use_span,
                     source,
                 },
             )
             .collect();
-        let callee = if type_args.is_empty() {
-            hir::Callable::Function(function)
-        } else {
-            hir::Callable::Generic(self.record_instantiation(function, type_args))
-        };
         let id = self.callable_references.alloc(hir::CallableReference {
             target: hir::CallableReferenceTarget::Local {
                 local_function,
-                callee,
+                callee: resolved.callable,
             },
             function_type,
             owner_type_param_count: self.type_params_in_scope.len(),
