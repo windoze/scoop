@@ -298,6 +298,24 @@ impl Lowerer {
         expected: Option<TypeId>,
         require_infix: bool,
     ) -> Option<Result<SuccessfulExprLayer, Box<Lowerer>>> {
+        if matches!(self.types[property.ty], Type::Function(_)) {
+            if require_infix {
+                return None;
+            }
+            return Some(self.probe_expr_layer(|state, layer_sink| {
+                state.lower_named_call_on_receiver(
+                    property,
+                    &ast::Ident {
+                        text: "invoke".to_string(),
+                        span: call.span,
+                    },
+                    call,
+                    layer_sink,
+                    expected,
+                    RequiredCallableModifiers::default(),
+                )
+            }));
+        }
         let mut candidates = self.methods_by_name(property.ty, "invoke");
         candidates.retain(|candidate| {
             Self::matches_required_modifiers(
@@ -548,7 +566,7 @@ impl Lowerer {
             origin,
         };
         let mut then_body = Vec::new();
-        let value = self.lower_named_call_on_receiver(
+        let value = self.lower_explicit_named_call(
             payload,
             name,
             call,

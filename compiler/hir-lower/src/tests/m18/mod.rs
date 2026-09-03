@@ -64,6 +64,31 @@ fn update(place: ast::PlaceExpr, op: ast::UpdateOp, notation: ast::UpdateNotatio
     }
 }
 
+fn safe_method_call(receiver: Expr, name: &str, args: Vec<Expr>) -> Expr {
+    Expr::MethodCall {
+        receiver: Box::new(receiver),
+        name: ident(name),
+        navigation: ast::Navigation::Safe,
+        type_args: Vec::new(),
+        args: call_arguments(args),
+        span: sp(),
+    }
+}
+
+fn int_identity_lambda() -> Expr {
+    Expr::Lambda {
+        id: ast::LambdaId(0),
+        is_suspend: false,
+        parameters: Some(vec![ast::LambdaParam {
+            target: pat_bind("value"),
+            ty: None,
+            span: sp(),
+        }]),
+        body: block(vec![stmt(var("value"))]),
+        span: sp(),
+    }
+}
+
 fn direct_method_name<'a>(module: &'a hir::Module, expr: &hir::Expr) -> &'a str {
     let hir::ExprKind::MethodCall { callee, .. } = &expr.kind else {
         panic!("expected a method call, found {expr:?}");
@@ -1035,6 +1060,220 @@ fn compound_assignment_probes_both_roles_and_reuses_index_sources() {
         error.message
             == "compound assignment is ambiguous: both `plusAssign` and `plus` are applicable"
     }));
+}
+
+#[test]
+fn safe_methods_keep_calls_defaults_and_property_invoke_inside_some_branch() {
+    let invoke = operator(method_expr(
+        "invoke",
+        vec![("value", ty_named("Int"))],
+        Some(ty_named("Int")),
+        var("value"),
+    ));
+    let maybe = method_expr(
+        "maybe",
+        vec![],
+        Some(ty_nullable(ty_named("Int"))),
+        some(int_lit(1)),
+    );
+    let ping = method_expr("ping", vec![], None, unit_lit());
+    let mut send = method_expr(
+        "send",
+        vec![("value", ty_named("Int"))],
+        Some(ty_named("Int")),
+        var("value"),
+    );
+    send.params[0].syntax = ast::ParameterSyntax::Default {
+        expression: call("defaultValue", vec![]),
+        equals_span: sp(),
+    };
+    let module = lower_user(file(vec![
+        struct_decl_methods("Handler", vec![], vec![invoke]),
+        class_decl(
+            ast::ClassModifier::Final,
+            "Client",
+            vec![
+                (false, "handler", ty_named("Handler")),
+                (
+                    false,
+                    "callback",
+                    ty_function(false, vec![ty_named("Int")], ty_named("Int")),
+                ),
+            ],
+            None,
+            vec![],
+            vec![maybe, ping, send],
+        ),
+        fun_expr(
+            "defaultValue",
+            vec![],
+            vec![],
+            Some(ty_named("Int")),
+            int_lit(2),
+        ),
+        fun(
+            "main",
+            vec![
+                val_ty(
+                    "client",
+                    Some(ty_nullable(ty_named("Client"))),
+                    some(call(
+                        "Client",
+                        vec![call("Handler", vec![]), int_identity_lambda()],
+                    )),
+                ),
+                val("nested", safe_method_call(var("client"), "maybe", vec![])),
+                val("unit", safe_method_call(var("client"), "ping", vec![])),
+                val("defaulted", safe_method_call(var("client"), "send", vec![])),
+                val(
+                    "property",
+                    safe_method_call(var("client"), "handler", vec![int_lit(3)]),
+                ),
+                val(
+                    "function_property",
+                    safe_method_call(var("client"), "callback", vec![int_lit(4)]),
+                ),
+            ],
+        ),
+    ]))
+    .expect("safe calls must reuse ordinary method/property-like resolution in the Some branch");
+    let body = function_body(&module, "main");
+    let dump = hir::dump(&module);
+    assert!(dump.contains("SomeWrap : Option<Option<Int>>"), "{dump}");
+    assert!(dump.contains("SomeWrap : Option<Unit>"), "{dump}");
+    assert!(dump.contains("MethodCall Handler.invoke"), "{dump}");
+    assert!(dump.contains("CallableCall function_type"), "{dump}");
+    assert_eq!(dump.matches("Call defaultValue").count(), 1, "{dump}");
+    assert_eq!(
+        body.statements
+            .iter()
+            .filter(|statement| matches!(statement.kind, hir::StatementKind::If { .. }))
+            .count(),
+        5
+    );
+    assert!(matches!(
+        local_init(body, "nested").kind,
+        hir::ExprKind::Local(_)
+    ));
+    assert!(matches!(
+        local_init(body, "property").kind,
+        hir::ExprKind::Local(_)
+    ));
+}
+
+#[test]
+fn safe_suspend_call_keeps_the_call_in_the_suspend_branch() {
+    let fetch = with_suspend(method_expr(
+        "fetch",
+        vec![],
+        Some(ty_named("Int")),
+        int_lit(1),
+    ));
+    let Decl::Function(mut run) = fun(
+        "run",
+        vec![
+            val_ty(
+                "worker",
+                Some(ty_nullable(ty_named("Worker"))),
+                some(call("Worker", vec![])),
+            ),
+            val("result", safe_method_call(var("worker"), "fetch", vec![])),
+        ],
+    ) else {
+        unreachable!("fun builds a function")
+    };
+    run.is_suspend = true;
+    let module = lower_user(file(vec![
+        class_decl(
+            ast::ClassModifier::Final,
+            "Worker",
+            vec![],
+            None,
+            vec![],
+            vec![fetch],
+        ),
+        Decl::Function(run),
+        fun("main", vec![]),
+    ]))
+    .expect("a safe suspend call is valid in a suspend body");
+    let dump = hir::dump(&module);
+    assert!(dump.contains("suspend fun run()"), "{dump}");
+    assert!(dump.contains("MethodCall Worker.fetch"), "{dump}");
+    let body = function_body(&module, "run");
+    assert!(
+        body.statements
+            .iter()
+            .any(|statement| matches!(statement.kind, hir::StatementKind::If { .. }))
+    );
+}
+
+#[test]
+fn safe_extension_in_while_stays_in_the_repeated_condition_setup() {
+    let extension = extension_expr(
+        ty_named("Client"),
+        "ready",
+        Vec::new(),
+        vec![],
+        Some(ty_named("Boolean")),
+        bool_lit(true),
+    );
+    let module = lower_user(file(vec![
+        class_decl(
+            ast::ClassModifier::Final,
+            "Client",
+            vec![],
+            None,
+            vec![],
+            vec![],
+        ),
+        extension,
+        fun(
+            "main",
+            vec![
+                val_ty(
+                    "client",
+                    Some(ty_nullable(ty_named("Client"))),
+                    some(call("Client", vec![])),
+                ),
+                while_stmt(
+                    elvis(
+                        safe_method_call(var("client"), "ready", vec![]),
+                        bool_lit(false),
+                    ),
+                    vec![],
+                ),
+            ],
+        ),
+    ]))
+    .expect("safe extension setup must be evaluated on every loop condition");
+    let body = function_body(&module, "main");
+    let hir::StatementKind::While {
+        condition_setup,
+        cond,
+        ..
+    } = &body
+        .statements
+        .iter()
+        .find(|statement| matches!(statement.kind, hir::StatementKind::While { .. }))
+        .expect("while statement")
+        .kind
+    else {
+        unreachable!("the matching statement is a while")
+    };
+    assert!(!condition_setup.is_empty());
+    assert_eq!(cond.ty, module.boolean);
+    assert!(hir::dump(&module).contains("Call ready"));
+
+    let errors = lower_user(file(vec![fun(
+        "main",
+        vec![stmt(safe_method_call(int_lit(1), "ready", vec![]))],
+    )]))
+    .expect_err("safe navigation requires an exact Option receiver");
+    assert!(
+        errors
+            .iter()
+            .any(|error| { error.message == "`?.` requires an Option receiver, found Int" })
+    );
 }
 
 #[test]
