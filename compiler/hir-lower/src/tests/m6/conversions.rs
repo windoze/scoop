@@ -32,22 +32,26 @@ fn boxing_at_subtype_crossings() {
     let module = lower_user(file).expect("boxing must lower");
 
     let main = body_of(&module, "main");
-    match &main.statements[0].kind {
-        hir::StatementKind::ValDecl { init, .. } => {
-            assert!(matches!(init.kind, hir::ExprKind::Box(_)));
-            assert_eq!(module.types[init.ty], hir::Type::Any);
-        }
-        other => panic!("expected a val decl, found {other:?}"),
-    }
-    match &main.statements[1].kind {
-        hir::StatementKind::Expr(expr) => match &expr.kind {
-            hir::ExprKind::Call { args, .. } => {
-                assert!(matches!(args[0].kind, hir::ExprKind::Box(_)));
-            }
-            other => panic!("expected a call, found {other:?}"),
-        },
-        other => panic!("expected a statement, found {other:?}"),
-    }
+    let annotated = local_init(main, "a");
+    assert!(matches!(annotated.kind, hir::ExprKind::Box(_)));
+    assert_eq!(module.types[annotated.ty], hir::Type::Any);
+    assert_eq!(
+        main.statements
+            .iter()
+            .filter(|statement| matches!(
+                statement.kind,
+                hir::StatementKind::ValDecl {
+                    init: hir::Expr {
+                        kind: hir::ExprKind::Box(_),
+                        ..
+                    },
+                    ..
+                }
+            ))
+            .count(),
+        2,
+        "the annotation and the call argument each box once"
+    );
     assert!(matches!(
         returned(body_of(&module, "give")).kind,
         hir::ExprKind::Box(_)
@@ -219,10 +223,7 @@ fn smart_cast_narrows_value_types_with_unbox() {
     let f = body_of(&module, "f");
     match &f.statements[0].kind {
         hir::StatementKind::If { then_body, .. } => {
-            let value = match &then_body[0].kind {
-                hir::StatementKind::Return { value: Some(value) } => value,
-                other => panic!("expected a return, found {other:?}"),
-            };
+            let value = return_value(then_body);
             match &value.kind {
                 hir::ExprKind::FieldAccess { receiver, field } => {
                     assert!(matches!(field, hir::FieldRef::StructField { index: 0, .. }));
@@ -262,10 +263,7 @@ fn smart_cast_narrows_class_references_for_free() {
     let f = body_of(&module, "f");
     match &f.statements[0].kind {
         hir::StatementKind::If { then_body, .. } => {
-            let value = match &then_body[0].kind {
-                hir::StatementKind::Return { value: Some(value) } => value,
-                other => panic!("expected a return, found {other:?}"),
-            };
+            let value = return_value(then_body);
             match &value.kind {
                 hir::ExprKind::MethodCall {
                     receiver, callee, ..

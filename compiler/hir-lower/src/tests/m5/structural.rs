@@ -43,15 +43,21 @@ fn literal_inference_in_argument_and_return_positions() {
             panic!("main is a user function")
         }
     };
-    for statement in &main_body.statements[..2] {
-        let hir::StatementKind::Expr(expr) = &statement.kind else {
-            panic!("expected an expression statement");
-        };
-        let hir::ExprKind::Call { args, .. } = &expr.kind else {
-            panic!("expected a call");
-        };
-        assert!(matches!(args[0].kind, hir::ExprKind::ArrayLiteral(_)));
-        assert_eq!(hir::type_name(&module, args[0].ty), "MutableArray<Int>");
+    let argument_literals: Vec<_> = main_body
+        .statements
+        .iter()
+        .filter_map(|statement| match &statement.kind {
+            hir::StatementKind::ValDecl { init, .. }
+                if matches!(init.kind, hir::ExprKind::ArrayLiteral(_)) =>
+            {
+                Some(init)
+            }
+            _ => None,
+        })
+        .collect();
+    assert_eq!(argument_literals.len(), 2);
+    for literal in argument_literals {
+        assert_eq!(hir::type_name(&module, literal.ty), "MutableArray<Int>");
     }
 
     // The literal at `return` takes the function's return type.
@@ -107,6 +113,7 @@ fn struct_elements_and_field_through_subscript() {
     let locals: Vec<String> = body
         .locals
         .iter()
+        .filter(|(_, local)| !local.name.starts_with('$'))
         .map(|(_, local)| hir::type_name(&module, local.ty))
         .collect();
     assert_eq!(locals, ["Array<Point>", "Int"]);
@@ -174,9 +181,7 @@ fn conversion_resolves_before_user_functions() {
             panic!("main is a user function")
         }
     };
-    let hir::StatementKind::ValDecl { init, .. } = &body.statements[1].kind else {
-        panic!("expected a val declaration");
-    };
+    let init = local_init(body, "b");
     assert!(
         matches!(init.kind, hir::ExprKind::ArrayClone(_)),
         "`Array(m)` must be the conversion, not the user function"
@@ -201,9 +206,7 @@ fn conversion_uses_the_expected_result_to_type_its_source_literal() {
             panic!("main is a user function")
         }
     };
-    let hir::StatementKind::ValDecl { init, .. } = &body.statements[0].kind else {
-        panic!("expected a val declaration")
-    };
+    let init = local_init(body, "a");
     let hir::ExprKind::ArrayClone(source) = &init.kind else {
         panic!("expected an array conversion")
     };
@@ -233,10 +236,11 @@ fn conversion_method_forms_clone_to_the_opposite_kind() {
             panic!("main is a user function")
         }
     };
-    for (index, expected) in [(2, "Array<Int>"), (3, "MutableArray<Int>")] {
-        let hir::StatementKind::ValDecl { init, .. } = &body.statements[index].kind else {
-            panic!("expected a val declaration")
-        };
+    for (name, expected) in [
+        ("immutable", "Array<Int>"),
+        ("mutable", "MutableArray<Int>"),
+    ] {
+        let init = local_init(body, name);
         assert!(matches!(init.kind, hir::ExprKind::ArrayClone(_)));
         assert_eq!(hir::type_name(&module, init.ty), expected);
     }
@@ -272,9 +276,7 @@ fn inapplicable_array_intrinsic_method_falls_through_to_an_extension() {
             panic!("main is a user function")
         }
     };
-    let hir::StatementKind::ValDecl { init, .. } = &body.statements[1].kind else {
-        panic!("expected a val declaration")
-    };
+    let init = local_init(body, "result");
     assert!(matches!(init.kind, hir::ExprKind::Call { .. }));
     assert_eq!(hir::type_name(&module, init.ty), "Int");
 }

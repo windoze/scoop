@@ -49,8 +49,7 @@ fn try_catch_finally_golden() {
         ),
     ]);
     let module = lower_user_with_exceptions(file).expect("the exception program must lower");
-    let expected = "\
-Module
+    let expected = r#"Module
   enum Option<T>
     Some(_1: T0)
     None()
@@ -88,16 +87,32 @@ Module
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
   fun write(arg1: String): Unit <extern11 abi=scoop symbol=scoop_rt_write>
   fun print<T : ToString>(value: T0): Unit
-    Call write : Unit
+    val local1
+      Local value : T0
+    val local2
       MethodCall bound T0 via ToString -> ToString.toString : String
-        Local value : T0
+        Local $receiver : T0
+    val local3
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
     return
   fun println<T : ToString>(value: T0): Unit
-    Call write : Unit
+    val local1
+      Local value : T0
+    val local2
       MethodCall bound T0 via ToString -> ToString.toString : String
-        Local value : T0
+        Local $receiver : T0
+    val local3
+      Local $argument.0 : String
     Call write : Unit
-      StringLiteral \"\\n\" : String
+      Local $parameter.message : String
+    val local4
+      StringLiteral "\n" : String
+    val local5
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
   fun read(): Int
     throw
       ClassInit UnwrapException : UnwrapException
@@ -106,32 +121,60 @@ Module
   fun main(): Unit
     try
       Call read : Int
+      val local0
+        StringLiteral "unreachable" : String
+      val local1
+        Local $argument.0 : String
       Call println<String> : Unit
-        StringLiteral \"unreachable\" : String
+        Local $parameter.value : String
     catch e: UnwrapException
+      val local3
+        StringLiteral "caught unwrap" : String
+      val local4
+        Local $argument.0 : String
       Call println<String> : Unit
-        StringLiteral \"caught unwrap\" : String
+        Local $parameter.value : String
     catch e: Exception
+      val local6
+        StringLiteral "caught other" : String
+      val local7
+        Local $argument.0 : String
       Call println<String> : Unit
-        StringLiteral \"caught other\" : String
+        Local $parameter.value : String
     finally
+      val local8
+        StringLiteral "finally" : String
+      val local9
+        Local $argument.0 : String
       Call println<String> : Unit
-        StringLiteral \"finally\" : String
+        Local $parameter.value : String
     try
+      val local10
+        IntLiteral 42 : Int
+      val local11
+        Local $argument.0 : Int
       throw
         ClassInit MyError : MyError
-          IntLiteral 42 : Int
+          Local $parameter.code : Int
     catch e: MyError
-      Call println<Int> : Unit
+      val local13
         FieldAccess class field 1 : Int
           Local e : MyError
+      val local14
+        Local $argument.0 : Int
+      Call println<Int> : Unit
+        Local $parameter.value : Int
     finally
+      val local15
+        StringLiteral "done" : String
+      val local16
+        Local $argument.0 : String
       Call println<String> : Unit
-        StringLiteral \"done\" : String
+        Local $parameter.value : String
   entry main
   instance println<String>
   instance println<Int>
-";
+"#;
     assert_eq!(hir::dump(&module), expected);
 }
 

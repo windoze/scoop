@@ -50,32 +50,47 @@ fn body_of(module: &hir::Module, function: hir::FunctionId) -> &hir::Body {
     }
 }
 
-/// The call inside `main`'s `index`-th statement (`f(...)` as a
-/// statement, or `println(inner)` where `inner` is the interesting
-/// call when `unnest` is set).
+/// The call inside `main`'s `index`-th source expression statement. When
+/// `unnest` is set, the interesting inner call is found in its preceding
+/// argument-evaluation temporary.
 fn call_in_main(
     module: &hir::Module,
     index: usize,
     unnest: bool,
 ) -> (hir::FunctionId, &[hir::Expr]) {
     let body = body_of(module, module.entry);
-    let hir::StatementKind::Expr(expr) = &body.statements[index].kind else {
-        panic!("statement {index} is not an expression statement")
+    let statement_index = body
+        .statements
+        .iter()
+        .enumerate()
+        .filter(|(_, statement)| matches!(statement.kind, hir::StatementKind::Expr(_)))
+        .nth(index)
+        .map(|(statement_index, _)| statement_index)
+        .unwrap_or_else(|| panic!("source expression statement {index} must exist"));
+    let hir::StatementKind::Expr(expr) = &body.statements[statement_index].kind else {
+        unreachable!()
     };
     let hir::ExprKind::Call { callee, args } = &expr.kind else {
         panic!("statement {index} is not a call")
     };
     if unnest {
-        // Keep this helper usable for older boxing-oriented overload cases as
-        // well as the generic core output functions, whose arguments retain
-        // their concrete types.
-        let inner = match &args[0].kind {
-            hir::ExprKind::Box(operand) => &operand.kind,
-            kind => kind,
-        };
-        let hir::ExprKind::Call { callee, args } = inner else {
-            panic!("the argument of statement {index} is not a call")
-        };
+        let (callee, args) = body.statements[..statement_index]
+            .iter()
+            .rev()
+            .find_map(|statement| {
+                let hir::StatementKind::ValDecl { init, .. } = &statement.kind else {
+                    return None;
+                };
+                let inner = match &init.kind {
+                    hir::ExprKind::Box(operand) => &operand.kind,
+                    kind => kind,
+                };
+                let hir::ExprKind::Call { callee, args } = inner else {
+                    return None;
+                };
+                Some((callee, args.as_slice()))
+            })
+            .unwrap_or_else(|| panic!("the argument of statement {index} is not a call"));
         (module.callable_function(*callee), args)
     } else {
         (module.callable_function(*callee), args)

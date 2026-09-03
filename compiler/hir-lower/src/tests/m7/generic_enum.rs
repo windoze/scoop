@@ -50,23 +50,28 @@ fn enum_method_overloads_instantiate_with_the_receiver() {
 
     let method_target = |index: usize| {
         let body = body_of(&module, module.entry);
-        let hir::StatementKind::Expr(outer) = &body.statements[index].kind else {
-            panic!("expected a call statement")
-        };
-        let hir::ExprKind::Call { args, .. } = &outer.kind else {
-            panic!("expected a call")
-        };
-        let inner = match &args[0].kind {
-            hir::ExprKind::Box(operand) => &operand.kind,
-            kind => kind,
-        };
-        let hir::ExprKind::MethodCall { callee, .. } = inner else {
-            panic!("expected a method call")
-        };
+        let callee = body
+            .statements
+            .iter()
+            .filter_map(|statement| {
+                let hir::StatementKind::ValDecl { init, .. } = &statement.kind else {
+                    return None;
+                };
+                let inner = match &init.kind {
+                    hir::ExprKind::Box(operand) => &operand.kind,
+                    kind => kind,
+                };
+                let hir::ExprKind::MethodCall { callee, .. } = inner else {
+                    return None;
+                };
+                Some(callee)
+            })
+            .nth(index)
+            .expect("expected a materialized method call");
         module.callable_function(*callee)
     };
-    assert_eq!(method_target(1), pick_t);
-    assert_eq!(method_target(3), pick_int);
+    assert_eq!(method_target(0), pick_t);
+    assert_eq!(method_target(1), pick_int);
 
     // The chosen enum methods request instantiations with the
     // receiver's type arguments.
@@ -106,9 +111,7 @@ fn receiver_owner_parameters_irrelevant_to_forwarding_may_remain_unconstrained()
     ]);
     let module = lower_user(file).expect("unused owner variables do not block MSC");
     let body = body_of(&module, module.entry);
-    let hir::StatementKind::Expr(call) = &body.statements[1].kind else {
-        panic!("rank call is an expression statement")
-    };
+    let call = expression_statement(body, 0);
     let hir::ExprKind::MethodCall { callee, .. } = &call.kind else {
         panic!("rank resolves to a method call")
     };

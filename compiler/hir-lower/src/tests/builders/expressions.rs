@@ -69,6 +69,19 @@ pub(crate) fn typed_call(name: &str, type_args: Vec<TypeRef>, args: Vec<Expr>) -
     })
 }
 
+pub(crate) fn typed_source_call(
+    name: &str,
+    type_args: Vec<TypeRef>,
+    args: Vec<ast::CallArgument>,
+) -> Expr {
+    Expr::Call(CallExpr {
+        callee: ident(name),
+        type_args,
+        args,
+        span: sp(),
+    })
+}
+
 pub(crate) fn call_at(name: &str, args: Vec<Expr>, callee_span: Span) -> Expr {
     Expr::Call(CallExpr {
         callee: Ident {

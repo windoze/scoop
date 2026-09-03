@@ -27,16 +27,14 @@ fn qualified_variant_construction_in_method_call_shape() {
     ]);
     let module = lower_user(file).expect("qualified variants must lower");
     let main = body_of(&module, "main");
-    match &main.statements[0].kind {
-        hir::StatementKind::ValDecl { init, .. } => match &init.kind {
-            hir::ExprKind::VariantConstruct { variant, args, .. } => {
-                assert_eq!(*variant, 0);
-                assert_eq!(args.len(), 1);
-                assert!(matches!(args[0].kind, hir::ExprKind::IntLiteral(5)));
-            }
-            other => panic!("expected a variant construction, found {other:?}"),
-        },
-        other => panic!("expected a val decl, found {other:?}"),
+    match &local_init(main, "s").kind {
+        hir::ExprKind::VariantConstruct { variant, args, .. } => {
+            assert_eq!(*variant, 0);
+            assert_eq!(args.len(), 1);
+            assert_eq!(args[0].ty, module.int);
+            assert!(matches!(args[0].kind, hir::ExprKind::Local(_)));
+        }
+        other => panic!("expected a variant construction, found {other:?}"),
     }
     let named = main
         .statements
@@ -75,16 +73,13 @@ fn qualified_generic_variant_infers_type_arguments() {
     ]);
     let module = lower_user(file).expect("generic variant construction must lower");
     let main = body_of(&module, "main");
-    match &main.statements[0].kind {
-        hir::StatementKind::ValDecl { init, .. } => match &init.kind {
-            hir::ExprKind::VariantConstruct { application, .. } => {
-                let arguments = &module.enum_applications[*application].arguments;
-                assert_eq!(arguments.len(), 1);
-                assert_eq!(module.types[arguments[0]], hir::Type::Int);
-            }
-            other => panic!("expected a variant construction, found {other:?}"),
-        },
-        other => panic!("expected a val decl, found {other:?}"),
+    match &local_init(main, "b").kind {
+        hir::ExprKind::VariantConstruct { application, .. } => {
+            let arguments = &module.enum_applications[*application].arguments;
+            assert_eq!(arguments.len(), 1);
+            assert_eq!(module.types[arguments[0]], hir::Type::Int);
+        }
+        other => panic!("expected a variant construction, found {other:?}"),
     }
 }
 

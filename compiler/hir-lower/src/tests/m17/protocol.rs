@@ -181,6 +181,120 @@ fn named_inputs_run_in_source_order_before_declaration_order_defaults() {
 }
 
 #[test]
+fn every_source_callable_and_constructor_uses_explicit_temporaries() {
+    let output = lower_user_output(file(vec![
+        fun_sig(
+            "accept",
+            vec![],
+            vec![("value", ty_named("Int"))],
+            None,
+            vec![],
+        ),
+        struct_decl("Box", vec![("item", ty_named("Int"))]),
+        class_decl(
+            ast::ClassModifier::Final,
+            "Holder",
+            vec![(false, "content", ty_named("Int"))],
+            None,
+            vec![],
+            vec![],
+        ),
+        enum_decl(
+            "Choice",
+            vec![],
+            vec![variant_constructor(
+                "Item",
+                vec![("selected", ty_named("Int"), None)],
+            )],
+        ),
+        fun(
+            "main",
+            vec![
+                stmt(call("accept", vec![int_lit(1)])),
+                val("boxed", call("Box", vec![int_lit(2)])),
+                val("held", call("Holder", vec![int_lit(3)])),
+                val(
+                    "choice",
+                    method_call(var("Choice"), "Item", vec![int_lit(4)]),
+                ),
+            ],
+        ),
+    ]))
+    .expect("all source call shapes should share argument materialization");
+
+    let body = function_body(&output.export, "main");
+    let names = body
+        .locals
+        .iter()
+        .map(|(_, local)| local.name.as_str())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        names.iter().filter(|name| **name == "$argument.0").count(),
+        4
+    );
+    for parameter in ["value", "item", "content", "selected"] {
+        assert!(
+            names.contains(&format!("$parameter.{parameter}").as_str()),
+            "missing parameter temporary for {parameter}: {names:?}"
+        );
+    }
+}
+
+#[test]
+fn callback_intrinsic_reads_named_constants_through_materialized_temporaries() {
+    let native_signature = ty_function(
+        false,
+        vec![ty_named("Int"), ty_generic("Ptr", vec![ty_named("Unit")])],
+        ty_named("Int"),
+    );
+    let callback = ast::Expr::Lambda {
+        id: ast::LambdaId(0),
+        is_suspend: false,
+        parameters: Some(vec![ast::LambdaParam {
+            target: pat_bind("value"),
+            ty: Some(ty_named("Int")),
+            span: sp(),
+        }]),
+        body: block(vec![stmt(var("value"))]),
+        span: sp(),
+    };
+    let registration = typed_source_call(
+        "foreignCallback",
+        vec![native_signature],
+        vec![
+            named_argument(
+                "mode",
+                struct_init("ForeignCallbackMode.Reusable", Vec::new()),
+            ),
+            named_argument("callback", callback),
+            named_argument("contextIndex", int_lit(1)),
+        ],
+    );
+    let module = lower_user(file(vec![fun(
+        "main",
+        vec![unsafe_block(vec![val("registered", registration)])],
+    )]))
+    .expect("named callback arguments should survive explicit materialization");
+
+    let (_, registration) = module
+        .foreign_callback_registrations
+        .iter()
+        .next()
+        .expect("one callback registration");
+    assert_eq!(registration.context_index, 1);
+    assert_eq!(registration.mode, hir::ForeignCallbackMode::Reusable);
+    let hir::FunctionKind::User(main) = &module.functions[module.entry].kind else {
+        panic!("main has a user body")
+    };
+    let dump = hir::dump(&module);
+    assert!(dump.contains("Local $parameter.callback"), "{dump}");
+    assert!(matches!(
+        local_init(main, "registered").kind,
+        hir::ExprKind::ForeignCallbackRegister { .. }
+    ));
+}
+
+#[test]
 fn local_default_uses_definition_binding_and_prior_parameter() {
     let mut local = local_fun_sig(
         "choose",

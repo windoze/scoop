@@ -231,9 +231,7 @@ fn extension_receiver_is_a_typed_this_parameter_and_direct_call_argument() {
     let hir::FunctionKind::User(main) = &module.functions[module.entry].kind else {
         panic!("main body")
     };
-    let hir::StatementKind::ValDecl { init, .. } = &main.statements[0].kind else {
-        panic!("result declaration")
-    };
+    let init = local_init(main, "result");
     let hir::ExprKind::Call { callee, args } = &init.kind else {
         panic!("extension invocation must be a direct call")
     };

@@ -45,6 +45,7 @@ pub enum StatementKind {
         else_body: Option<Vec<Statement>>,
     },
     While {
+        condition_setup: Vec<Statement>,
         cond: Expr,
         body: Vec<Statement>,
     },

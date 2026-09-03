@@ -65,8 +65,7 @@ fn destructuring_declarations() {
         ),
     ]);
     let module = lower_user(file).expect("destructuring must lower");
-    let expected = "\
-Module
+    let expected = r#"Module
   struct Point
     field x: Int
     field y: Int
@@ -106,16 +105,32 @@ Module
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
   fun write(arg1: String): Unit <extern11 abi=scoop symbol=scoop_rt_write>
   fun print<T : ToString>(value: T0): Unit
-    Call write : Unit
+    val local1
+      Local value : T0
+    val local2
       MethodCall bound T0 via ToString -> ToString.toString : String
-        Local value : T0
+        Local $receiver : T0
+    val local3
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
     return
   fun println<T : ToString>(value: T0): Unit
-    Call write : Unit
+    val local1
+      Local value : T0
+    val local2
       MethodCall bound T0 via ToString -> ToString.toString : String
-        Local value : T0
+        Local $receiver : T0
+    val local3
+      Local $argument.0 : String
     Call write : Unit
-      StringLiteral \"\\n\" : String
+      Local $parameter.message : String
+    val local4
+      StringLiteral "\n" : String
+    val local5
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
   fun main(): Unit
     val local0
       TupleLiteral : (Int, Int, Int, Int)
@@ -126,32 +141,56 @@ Module
     val (local1, _, _, local2)
       Local t : (Int, Int, Int, Int)
     val local3
-      StructInit Point : Point
-        IntLiteral 1 : Int
-        IntLiteral 2 : Int
-    val struct(0: local4)
-      Local p : Point
-    val struct(0: local5, 1: _)
-      Local p : Point
+      IntLiteral 1 : Int
+    val local4
+      IntLiteral 2 : Int
+    val local5
+      Local $argument.0 : Int
     val local6
+      Local $argument.1 : Int
+    val local7
+      StructInit Point : Point
+        Local $parameter.x : Int
+        Local $parameter.y : Int
+    val struct(0: local8)
+      Local p : Point
+    val struct(0: local9, 1: _)
+      Local p : Point
+    val local10
       TupleLiteral : ((Int, Int), String)
         TupleLiteral : (Int, Int)
           IntLiteral 1 : Int
           IntLiteral 2 : Int
-        StringLiteral \"s\" : String
-    val ((local7, local8), _)
+        StringLiteral "s" : String
+    val ((local11, local12), _)
       Local nested : ((Int, Int), String)
-    Call println<Int> : Unit
+    val local13
       Local a : Int
+    val local14
+      Local $argument.0 : Int
     Call println<Int> : Unit
+      Local $parameter.value : Int
+    val local15
       Local b : Int
+    val local16
+      Local $argument.0 : Int
     Call println<Int> : Unit
+      Local $parameter.value : Int
+    val local17
       Local px : Int
+    val local18
+      Local $argument.0 : Int
     Call println<Int> : Unit
+      Local $parameter.value : Int
+    val local19
       Local m : Int
+    val local20
+      Local $argument.0 : Int
+    Call println<Int> : Unit
+      Local $parameter.value : Int
   entry main
   instance println<Int>
-";
+"#;
     assert_eq!(hir::dump(&module), expected);
 }
 

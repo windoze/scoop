@@ -138,7 +138,15 @@ impl Lowerer {
                         .collect()
                 }),
             },
-            hir::StatementKind::While { cond, body } => hir::StatementKind::While {
+            hir::StatementKind::While {
+                condition_setup,
+                cond,
+                body,
+            } => hir::StatementKind::While {
+                condition_setup: condition_setup
+                    .iter()
+                    .map(|statement| self.instantiate_default_statement(statement, context))
+                    .collect(),
                 cond: self.instantiate_default_expr(cond, context),
                 body: body
                     .iter()

@@ -51,7 +51,12 @@ pub(super) fn patch_local_function_calls(
                     patch_local_function_calls(else_body, target, captures);
                 }
             }
-            hir::StatementKind::While { cond, body } => {
+            hir::StatementKind::While {
+                condition_setup,
+                cond,
+                body,
+            } => {
+                patch_local_function_calls(condition_setup, target, captures);
                 patch_local_function_call_expr(cond, target, captures);
                 patch_local_function_calls(body, target, captures);
             }

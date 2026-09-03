@@ -219,6 +219,7 @@ fn control_flow_becomes_cfg() {
                     else_body: Some(vec![expr_stmt(call(&h, println, vec![str_lit(&h, "b")]))]),
                 }),
                 stmt(hir::StatementKind::While {
+                    condition_setup: Vec::new(),
                     cond: bool_lit(&h, false),
                     body: vec![],
                 }),
@@ -239,4 +240,39 @@ fn control_flow_becomes_cfg() {
         mir::Terminator::Branch { .. }
     ));
     assert!(block_named(body, "while.body").statements.is_empty());
+}
+
+#[test]
+fn while_condition_setup_runs_before_the_first_check_and_on_the_backedge() {
+    let mut h = Harness::new();
+    let mut locals = Arena::new();
+    let condition_value = locals.alloc(local("$argument.0", h.boolean));
+    let main = h.user_fn(
+        "main",
+        hir::Body {
+            locals,
+            statements: vec![stmt(hir::StatementKind::While {
+                condition_setup: vec![val_decl(condition_value, bool_lit(&h, false))],
+                cond: local_ref(condition_value, h.boolean),
+                body: Vec::new(),
+            })],
+        },
+    );
+    let module = lower(&h.finish(main));
+    let body = &module.functions[module.entry].body;
+
+    assert!(entry_statements(body).iter().any(|statement| matches!(
+        statement.kind,
+        mir::StatementKind::ValDecl { local, .. } if body.locals[local].name == "$argument.0"
+    )));
+    assert!(
+        block_named(body, "while.body")
+            .statements
+            .iter()
+            .any(|statement| matches!(
+                statement.kind,
+                mir::StatementKind::ValDecl { local, .. }
+                    if body.locals[local].name == "$argument.0"
+            ))
+    );
 }

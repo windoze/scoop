@@ -45,7 +45,7 @@ M16起，所有命名调用、成员/扩展调用、generic nominal构造、enum
 
 调用与值构造的泛型推导对整组已映射实参执行constraint固定点求解，不得按从左到右的一次遍历决定成败。constraint递归穿过invariant nominal application、interface variance与function type variance，并同时检查kind/interface bound；lambda、callable reference、`None`、空数组及依赖expected type的嵌套构造可以postpone到其他约束推进后检查。MSC使用与本次实际推断结果隔离的pairwise fresh-variable forwarding system，不能比较两个候选已经推断出的concrete type arguments。solver内部状态可以暂时含未固定变量，但任何成功结果必须原子地产生全部concrete arguments、完整实参映射和唯一typed callee；未解、多解或bound失败只能形成HIR诊断/候选失败，不能输出到`ExportHir`/`LocalConcreteHir`等待下游补齐。
 
-M17起，AST保留位置、命名、spread及尾随lambda的源码顺序；HIR按候选分别映射而不先公共重排。目标选定后，receiver先求值，所有显式实参各自保存独立desugaring sink并按源码顺序拼接；随后按形参声明顺序构造vararg值及实例化实际使用的缺省表达式，最后才产生按形参顺序排列的call arguments。类型检查/constraint求解顺序不得改变这套运行期顺序。跨挂起点存活的已求值显式实参和部分物化参数使用普通M10 frame规则，不能在恢复后重新求值。
+M17起，AST保留位置、命名、spread及尾随lambda的源码顺序；HIR按候选分别映射而不先公共重排。目标选定后，receiver先求值，所有显式实参各自保存独立desugaring sink并按源码顺序拼接；随后按形参声明顺序构造vararg值及实例化实际使用的缺省表达式，最后才产生按形参顺序排列的call arguments。类型检查/constraint求解顺序不得改变这套运行期顺序。若这些temporary/sink位于`while`条件，HIR必须把它们保存在随条件重复执行的typed condition-setup区域，MIR在每次条件检查前执行该区域；不得把它提升到循环外，也不得因sink非空而拒绝普通调用或空安全脱糖。跨挂起点存活的已求值显式实参和部分物化参数使用普通M10 frame规则，不能在恢复后重新求值。
 
 默认表达式在定义方HIR环境中完成名称解析、overload选择和类型检查，成为callable source interface中的hygienic typed template。HIR在const folding/desugaring前收集其直接绑定实体，并结构化检查`CallDomain(callable) ⊆ AccessDomain(entity)`；exported `public` default只能引用export/re-export实体，不能通过携带private/internal实体、保留未解析名称或调用方重查overload来绕过。成功结果为callable/type/property等每种实体分别生成refined export-interface reference；该reference非可选地携带目标typed id及`ExportDefaultAccessWitness`，普通`Export*Id`不能无检查转换为它。generic function body仍可按既有规则拥有自身的private/internal typed dependency closure；该能力不扩展到default template。
 

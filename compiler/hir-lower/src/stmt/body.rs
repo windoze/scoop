@@ -34,8 +34,13 @@ impl Lowerer {
                         else_body: else_body.map(|body| self.adapt_inferred_returns(body, target)),
                     };
                 }
-                hir::StatementKind::While { cond, body } => {
+                hir::StatementKind::While {
+                    condition_setup,
+                    cond,
+                    body,
+                } => {
                     statement.kind = hir::StatementKind::While {
+                        condition_setup: self.adapt_inferred_returns(condition_setup, target),
                         cond,
                         body: self.adapt_inferred_returns(body, target),
                     };

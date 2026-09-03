@@ -24,8 +24,7 @@ fn var_rebinding_and_control_flow() {
         ],
     )]);
     let module = lower_user(file).expect("control flow program must lower");
-    let expected = "\
-Module
+    let expected = r#"Module
   enum Option<T>
     Some(_1: T0)
     None()
@@ -62,16 +61,32 @@ Module
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
   fun write(arg1: String): Unit <extern11 abi=scoop symbol=scoop_rt_write>
   fun print<T : ToString>(value: T0): Unit
-    Call write : Unit
+    val local1
+      Local value : T0
+    val local2
       MethodCall bound T0 via ToString -> ToString.toString : String
-        Local value : T0
+        Local $receiver : T0
+    val local3
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
     return
   fun println<T : ToString>(value: T0): Unit
-    Call write : Unit
+    val local1
+      Local value : T0
+    val local2
       MethodCall bound T0 via ToString -> ToString.toString : String
-        Local value : T0
+        Local $receiver : T0
+    val local3
+      Local $argument.0 : String
     Call write : Unit
-      StringLiteral \"\\n\" : String
+      Local $parameter.message : String
+    val local4
+      StringLiteral "\n" : String
+    val local5
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
   fun main(): Unit
     val local0
       IntLiteral 0 : Int
@@ -89,14 +104,22 @@ Module
           Local n : Int
           IntLiteral 3 : Int
         BoolLiteral true : Boolean
+      val local1
+        StringLiteral "ok" : String
+      val local2
+        Local $argument.0 : String
       Call println<String> : Unit
-        StringLiteral \"ok\" : String
+        Local $parameter.value : String
     else
+      val local3
+        StringLiteral "ng" : String
+      val local4
+        Local $argument.0 : String
       Call println<String> : Unit
-        StringLiteral \"ng\" : String
+        Local $parameter.value : String
   entry main
   instance println<String>
-";
+"#;
     assert_eq!(hir::dump(&module), expected);
 }
 
@@ -153,8 +176,7 @@ fn inner_scopes_shadow_and_do_not_leak() {
         ],
     )]);
     let module = lower_user(file).expect("shadowing program must lower");
-    let expected = "\
-Module
+    let expected = r#"Module
   enum Option<T>
     Some(_1: T0)
     None()
@@ -191,34 +213,62 @@ Module
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
   fun write(arg1: String): Unit <extern11 abi=scoop symbol=scoop_rt_write>
   fun print<T : ToString>(value: T0): Unit
-    Call write : Unit
+    val local1
+      Local value : T0
+    val local2
       MethodCall bound T0 via ToString -> ToString.toString : String
-        Local value : T0
+        Local $receiver : T0
+    val local3
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
     return
   fun println<T : ToString>(value: T0): Unit
-    Call write : Unit
+    val local1
+      Local value : T0
+    val local2
       MethodCall bound T0 via ToString -> ToString.toString : String
-        Local value : T0
+        Local $receiver : T0
+    val local3
+      Local $argument.0 : String
     Call write : Unit
-      StringLiteral \"\\n\" : String
+      Local $parameter.message : String
+    val local4
+      StringLiteral "\n" : String
+    val local5
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
   fun main(): Unit
     val local0
       IntLiteral 1 : Int
     if
       BoolLiteral true : Boolean
       val local1
-        StringLiteral \"inner\" : String
-      Call println<String> : Unit
+        StringLiteral "inner" : String
+      val local2
         Local x : String
-    Call println<Int> : Unit
+      val local3
+        Local $argument.0 : String
+      Call println<String> : Unit
+        Local $parameter.value : String
+    val local4
       Local x : Int
-    val local2
-      IntLiteral 2 : Int
+    val local5
+      Local $argument.0 : Int
     Call println<Int> : Unit
+      Local $parameter.value : Int
+    val local6
+      IntLiteral 2 : Int
+    val local7
       Local y : Int
+    val local8
+      Local $argument.0 : Int
+    Call println<Int> : Unit
+      Local $parameter.value : Int
   entry main
   instance println<String>
   instance println<Int>
-";
+"#;
     assert_eq!(hir::dump(&module), expected);
 }

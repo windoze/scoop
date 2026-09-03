@@ -54,7 +54,12 @@ impl Lowerer {
                         self.collect_no_gc_statement_violations(else_body, out, requirements);
                     }
                 }
-                hir::StatementKind::While { cond, body } => {
+                hir::StatementKind::While {
+                    condition_setup,
+                    cond,
+                    body,
+                } => {
+                    self.collect_no_gc_statement_violations(condition_setup, out, requirements);
                     self.collect_no_gc_expr_violations(cond, out, requirements);
                     self.collect_no_gc_statement_violations(body, out, requirements);
                 }

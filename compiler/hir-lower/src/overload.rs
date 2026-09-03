@@ -434,10 +434,7 @@ impl Lowerer {
             .argument_map
             .as_ref()
             .expect("the winner has a complete argument map");
-        let (instance_receiver, args) = if matches!(arguments, OverloadArguments::Source(_))
-            && (!argument_map.is_identity_explicit()
-                || argument_sinks.iter().any(|sink| !sink.is_empty()))
-        {
+        let (instance_receiver, args) = if matches!(arguments, OverloadArguments::Source(_)) {
             let receiver = if extension {
                 Some(args.remove(0))
             } else {

@@ -66,21 +66,17 @@ impl Lowerer {
                 return None;
             }
             self.require_unsafe_operation(call.span, "constructing `Ptr` from a raw integer");
-            let arguments = if inferred.argument_sinks.iter().all(Vec::is_empty) {
-                inferred.args
-            } else {
-                self.materialize_nominal_arguments(
-                    crate::argument_materialization::NominalArgumentMaterialization {
-                        view: &view,
-                        argument_map: &argument_map,
-                        type_args: &inferred.type_args,
-                        source_args: inferred.args,
-                        argument_sinks: inferred.argument_sinks,
-                        call_span: call.span,
-                    },
-                    sink,
-                )
-            };
+            let arguments = self.materialize_nominal_arguments(
+                crate::argument_materialization::NominalArgumentMaterialization {
+                    view: &view,
+                    argument_map: &argument_map,
+                    type_args: &inferred.type_args,
+                    source_args: inferred.args,
+                    argument_sinks: inferred.argument_sinks,
+                    call_span: call.span,
+                },
+                sink,
+            );
             let [raw]: [hir::Expr; 1] = arguments
                 .try_into()
                 .expect("validated Ptr constructor has one argument");

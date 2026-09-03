@@ -144,7 +144,12 @@ impl Lowerer {
                         self.collect_generic_calls_in_statements(caller, else_body, out);
                     }
                 }
-                hir::StatementKind::While { cond, body } => {
+                hir::StatementKind::While {
+                    condition_setup,
+                    cond,
+                    body,
+                } => {
+                    self.collect_generic_calls_in_statements(caller, condition_setup, out);
                     self.collect_generic_calls_in_expr(caller, cond, out);
                     self.collect_generic_calls_in_statements(caller, body, out);
                 }

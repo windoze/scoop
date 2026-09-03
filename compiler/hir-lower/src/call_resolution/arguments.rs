@@ -137,18 +137,6 @@ impl ArgumentShapeFailure {
 }
 
 impl CandidateArgumentMap {
-    pub(crate) fn is_identity_explicit(&self) -> bool {
-        self.parameters
-            .iter()
-            .enumerate()
-            .all(|(index, parameter)| {
-                matches!(
-                    parameter.input,
-                    ResolvedParameterInput::Explicit(input) if input.index() == index
-                )
-            })
-    }
-
     pub(crate) fn explicit_default_count(&self) -> usize {
         self.parameters
             .iter()

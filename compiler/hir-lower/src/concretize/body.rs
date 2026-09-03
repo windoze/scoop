@@ -75,7 +75,12 @@ impl Concretizer<'_> {
                     .as_ref()
                     .map(|body| self.lower_statements(body, substitution, locals)),
             },
-            export::StatementKind::While { cond, body } => concrete::StatementKind::While {
+            export::StatementKind::While {
+                condition_setup,
+                cond,
+                body,
+            } => concrete::StatementKind::While {
+                condition_setup: self.lower_statements(condition_setup, substitution, locals),
                 cond: self.lower_expr(cond, substitution, locals),
                 body: self.lower_statements(body, substitution, locals),
             },

@@ -366,6 +366,8 @@ f(z = ez(), y = ey())
 
 运行顺序固定为`ez()`、`ey()`、`dx()`，然后调用`f(x=dx结果, y=ey结果, z=ez结果)`；`dz()`不执行。
 
+若两阶段求值发生在`while`条件中，产生的temporary/sink属于条件的typed setup区域，并在每次条件检查前重新执行；不得提升到循环外，也不能把普通调用产生的sink误判为空安全脱糖而拒绝。
+
 ### 5.2 vararg array assembly
 
 HIR增加一个完全类型化的普通array物化操作，而不是未决call argument：

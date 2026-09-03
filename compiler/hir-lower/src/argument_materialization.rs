@@ -70,7 +70,24 @@ impl Lowerer {
         let parameters = signature
             .params
             .iter()
-            .map(|parameter| (parameter.name.text.clone(), parameter.ty))
+            .enumerate()
+            .map(|(index, parameter)| {
+                let ty = if index == 0
+                    && self
+                        .foreign_callback_core
+                        .is_some_and(|core| core.register == request.function)
+                {
+                    let ResolvedParameterInput::Explicit(source) =
+                        request.argument_map.parameters[index].input
+                    else {
+                        unreachable!("foreign callback input is required")
+                    };
+                    source_args[source.index()].ty
+                } else {
+                    parameter.ty
+                };
+                (parameter.name.text.clone(), ty)
+            })
             .collect::<Vec<_>>();
         let callings = signature
             .params

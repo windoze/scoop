@@ -198,7 +198,8 @@ impl Lowerer {
         let function = resolved.function();
         if let Some(core) = self.foreign_callback_core {
             if function == core.register {
-                return self.lower_foreign_callback_registration(core, function, call, resolved);
+                return self
+                    .lower_foreign_callback_registration(core, function, call, resolved, sink);
             }
             let operation = if function == core.retain {
                 Some(hir::ForeignCallbackOperation::Retain)

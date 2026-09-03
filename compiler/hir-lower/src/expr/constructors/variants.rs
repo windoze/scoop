@@ -127,31 +127,17 @@ impl Lowerer {
             span,
         })?;
         let type_args = inferred.type_args;
-        let lowered = if argument_map.is_identity_explicit()
-            && inferred.argument_sinks.iter().all(Vec::is_empty)
-        {
-            view.value_parameters
-                .iter()
-                .zip(inferred.args)
-                .map(|(parameter, argument)| {
-                    let expected = self.instantiate_ty(parameter.ty, &type_args);
-                    debug_assert!(self.is_subtype(argument.ty, expected));
-                    self.adapt_to(argument, expected)
-                })
-                .collect()
-        } else {
-            self.materialize_nominal_arguments(
-                crate::argument_materialization::NominalArgumentMaterialization {
-                    view: &view,
-                    argument_map: &argument_map,
-                    type_args: &type_args,
-                    source_args: inferred.args,
-                    argument_sinks: inferred.argument_sinks,
-                    call_span: span,
-                },
-                sink,
-            )
-        };
+        let lowered = self.materialize_nominal_arguments(
+            crate::argument_materialization::NominalArgumentMaterialization {
+                view: &view,
+                argument_map: &argument_map,
+                type_args: &type_args,
+                source_args: inferred.args,
+                argument_sinks: inferred.argument_sinks,
+                call_span: span,
+            },
+            sink,
+        );
 
         let application = self.enum_application_id(enum_id, type_args);
         let ty = self.enum_applications[application].canonical_type;

@@ -32,8 +32,7 @@ fn lowers_hello_world() {
     assert_eq!(module.functions[module.entry].name, "main");
 
     // Golden dump locks the output structure.
-    let expected = "\
-Module
+    let expected = r#"Module
   enum Option<T>
     Some(_1: T0)
     None()
@@ -70,27 +69,51 @@ Module
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
   fun write(arg1: String): Unit <extern11 abi=scoop symbol=scoop_rt_write>
   fun print<T : ToString>(value: T0): Unit
-    Call write : Unit
+    val local1
+      Local value : T0
+    val local2
       MethodCall bound T0 via ToString -> ToString.toString : String
-        Local value : T0
+        Local $receiver : T0
+    val local3
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
     return
   fun println<T : ToString>(value: T0): Unit
-    Call write : Unit
+    val local1
+      Local value : T0
+    val local2
       MethodCall bound T0 via ToString -> ToString.toString : String
-        Local value : T0
+        Local $receiver : T0
+    val local3
+      Local $argument.0 : String
     Call write : Unit
-      StringLiteral \"\\n\" : String
+      Local $parameter.message : String
+    val local4
+      StringLiteral "\n" : String
+    val local5
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
   fun main(): Unit
+    val local0
+      StringLiteral "hello, world" : String
+    val local1
+      Local $argument.0 : String
     Call println<String> : Unit
-      StringLiteral \"hello, world\" : String
+      Local $parameter.value : String
     Call helper : Unit
   fun helper(): Unit
+    val local0
+      StringLiteral "!" : String
+    val local1
+      Local $argument.0 : String
     Call print<String> : Unit
-      StringLiteral \"!\" : String
+      Local $parameter.value : String
   entry main
   instance println<String>
   instance print<String>
-";
+"#;
     assert_eq!(hir::dump(&module), expected);
 }
 

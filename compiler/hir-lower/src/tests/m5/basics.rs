@@ -36,8 +36,7 @@ fn array_basics_golden() {
         ],
     )]);
     let module = lower_user(file).expect("array program must lower");
-    let expected = "\
-Module
+    let expected = r#"Module
   enum Option<T>
     Some(_1: T0)
     None()
@@ -74,16 +73,32 @@ Module
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
   fun write(arg1: String): Unit <extern11 abi=scoop symbol=scoop_rt_write>
   fun print<T : ToString>(value: T0): Unit
-    Call write : Unit
+    val local1
+      Local value : T0
+    val local2
       MethodCall bound T0 via ToString -> ToString.toString : String
-        Local value : T0
+        Local $receiver : T0
+    val local3
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
     return
   fun println<T : ToString>(value: T0): Unit
-    Call write : Unit
+    val local1
+      Local value : T0
+    val local2
       MethodCall bound T0 via ToString -> ToString.toString : String
-        Local value : T0
+        Local $receiver : T0
+    val local3
+      Local $argument.0 : String
     Call write : Unit
-      StringLiteral \"\\n\" : String
+      Local $parameter.message : String
+    val local4
+      StringLiteral "\n" : String
+    val local5
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
   fun main(): Unit
     val local0
       ArrayLiteral : Array<Int>
@@ -111,12 +126,20 @@ Module
       IntLiteral 0 : Int
       IntLiteral 40 : Int
     val local6
-      ArrayClone : Array<Int>
-        Local m : MutableArray<Int>
+      Local m : MutableArray<Int>
     val local7
-      ArrayClone : MutableArray<Int>
-        Local a : Array<Int>
+      Local $argument.0 : MutableArray<Int>
     val local8
+      ArrayClone : Array<Int>
+        Local $parameter.source : MutableArray<Int>
+    val local9
+      Local a : Array<Int>
+    val local10
+      Local $argument.0 : Array<Int>
+    val local11
+      ArrayClone : MutableArray<Int>
+        Local $parameter.source : Array<Int>
+    val local12
       ArrayLiteral : Array<Array<Int>>
         ArrayLiteral : Array<Int>
           IntLiteral 1 : Int
@@ -124,7 +147,7 @@ Module
         ArrayLiteral : Array<Int>
           IntLiteral 3 : Int
   entry main
-";
+"#;
     assert_eq!(hir::dump(&module), expected);
 }
 
@@ -149,8 +172,7 @@ fn generic_function_over_array_elements() {
         ),
     ]);
     let module = lower_user(file).expect("generic array program must lower");
-    let expected = "\
-Module
+    let expected = r#"Module
   enum Option<T>
     Some(_1: T0)
     None()
@@ -187,16 +209,32 @@ Module
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
   fun write(arg1: String): Unit <extern11 abi=scoop symbol=scoop_rt_write>
   fun print<T : ToString>(value: T0): Unit
-    Call write : Unit
+    val local1
+      Local value : T0
+    val local2
       MethodCall bound T0 via ToString -> ToString.toString : String
-        Local value : T0
+        Local $receiver : T0
+    val local3
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
     return
   fun println<T : ToString>(value: T0): Unit
-    Call write : Unit
+    val local1
+      Local value : T0
+    val local2
       MethodCall bound T0 via ToString -> ToString.toString : String
-        Local value : T0
+        Local $receiver : T0
+    val local3
+      Local $argument.0 : String
     Call write : Unit
-      StringLiteral \"\\n\" : String
+      Local $parameter.message : String
+    val local4
+      StringLiteral "\n" : String
+    val local5
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
   fun first<T>(a: Array<T0>): T0
     return
       Index : T0
@@ -204,12 +242,16 @@ Module
         IntLiteral 0 : Int
   fun main(): Unit
     val local0
+      ArrayLiteral : Array<Int>
+        IntLiteral 1 : Int
+        IntLiteral 2 : Int
+    val local1
+      Local $argument.0 : Array<Int>
+    val local2
       Call first<Int> : Int
-        ArrayLiteral : Array<Int>
-          IntLiteral 1 : Int
-          IntLiteral 2 : Int
+        Local $parameter.a : Array<Int>
   entry main
   instance first<Int>
-";
+"#;
     assert_eq!(hir::dump(&module), expected);
 }

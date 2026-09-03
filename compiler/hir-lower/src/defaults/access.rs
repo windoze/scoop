@@ -69,7 +69,12 @@ impl ReferenceCollector {
                     self.statements(else_body);
                 }
             }
-            hir::StatementKind::While { cond, body } => {
+            hir::StatementKind::While {
+                condition_setup,
+                cond,
+                body,
+            } => {
+                self.statements(condition_setup);
                 self.expression(cond);
                 self.statements(body);
             }

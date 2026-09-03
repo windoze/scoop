@@ -22,8 +22,7 @@ fn struct_construction_and_field_access() {
 
     // The struct type is allocated right after the well-known types.
     assert!(matches!(module.types[module.int], Type::Int));
-    let expected = "\
-Module
+    let expected = r#"Module
   struct Point
     field x: Int
     field y: Int
@@ -63,29 +62,57 @@ Module
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
   fun write(arg1: String): Unit <extern11 abi=scoop symbol=scoop_rt_write>
   fun print<T : ToString>(value: T0): Unit
-    Call write : Unit
+    val local1
+      Local value : T0
+    val local2
       MethodCall bound T0 via ToString -> ToString.toString : String
-        Local value : T0
+        Local $receiver : T0
+    val local3
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
     return
   fun println<T : ToString>(value: T0): Unit
-    Call write : Unit
+    val local1
+      Local value : T0
+    val local2
       MethodCall bound T0 via ToString -> ToString.toString : String
-        Local value : T0
+        Local $receiver : T0
+    val local3
+      Local $argument.0 : String
     Call write : Unit
-      StringLiteral \"\\n\" : String
+      Local $parameter.message : String
+    val local4
+      StringLiteral "\n" : String
+    val local5
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
   fun main(): Unit
     val local0
-      StructInit Point : Point
-        IntLiteral 1 : Int
-        IntLiteral 2 : Int
+      IntLiteral 1 : Int
     val local1
+      IntLiteral 2 : Int
+    val local2
+      Local $argument.0 : Int
+    val local3
+      Local $argument.1 : Int
+    val local4
+      StructInit Point : Point
+        Local $parameter.x : Int
+        Local $parameter.y : Int
+    val local5
       FieldAccess field 0 : Int
         Local p : Point
-    Call println<Int> : Unit
+    val local6
       Local x : Int
+    val local7
+      Local $argument.0 : Int
+    Call println<Int> : Unit
+      Local $parameter.value : Int
   entry main
   instance println<Int>
-";
+"#;
     assert_eq!(hir::dump(&module), expected);
 }
 

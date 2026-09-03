@@ -51,15 +51,19 @@ fn method_overloads_resolve() {
 
     // `c.m("a")` picks the `String` overload.
     let body = body_of(&module, module.entry);
-    let hir::StatementKind::Expr(outer) = &body.statements[0].kind else {
-        panic!("expected a call statement")
-    };
-    let hir::ExprKind::Call { args, .. } = &outer.kind else {
-        panic!("expected a call")
-    };
-    let hir::ExprKind::MethodCall { callee, .. } = &args[0].kind else {
-        panic!("expected a method call")
-    };
+    let callee = body
+        .statements
+        .iter()
+        .find_map(|statement| {
+            let hir::StatementKind::ValDecl { init, .. } = &statement.kind else {
+                return None;
+            };
+            let hir::ExprKind::MethodCall { callee, .. } = &init.kind else {
+                return None;
+            };
+            Some(callee)
+        })
+        .expect("expected a materialized method call");
     assert_eq!(
         module.callable_function(*callee),
         method_fn(&module, "C", "m", &["String"])
@@ -69,9 +73,7 @@ fn method_overloads_resolve() {
     // `Int` overload.
     let probe = method_fn(&module, "C", "probe", &[]);
     let body = body_of(&module, probe);
-    let hir::StatementKind::Return { value: Some(value) } = &body.statements[0].kind else {
-        panic!("expected a return")
-    };
+    let value = return_value(&body.statements);
     let hir::ExprKind::MethodCall {
         callee, receiver, ..
     } = &value.kind
@@ -113,9 +115,7 @@ fn member_layer_shadows_top_level() {
     let module = lower_user(file).expect("member shadowing must resolve");
     let probe = method_fn(&module, "C", "probe", &[]);
     let body = body_of(&module, probe);
-    let hir::StatementKind::Return { value: Some(value) } = &body.statements[0].kind else {
-        panic!("expected a return")
-    };
+    let value = return_value(&body.statements);
     let hir::ExprKind::MethodCall { callee, .. } = &value.kind else {
         panic!(
             "the bare call must resolve to the member, found {:?}",
@@ -157,9 +157,7 @@ fn inapplicable_local_layer_falls_through_to_top_level() {
     ]);
     let module = lower_user(file).expect("an inapplicable local layer must be skipped");
     let body = body_of(&module, module.entry);
-    let hir::StatementKind::ValDecl { init, .. } = &body.statements[1].kind else {
-        panic!("expected the result declaration")
-    };
+    let init = local_init(body, "result");
     let hir::ExprKind::Call { callee, .. } = &init.kind else {
         panic!("the top-level layer must win")
     };
@@ -207,9 +205,7 @@ fn inapplicable_member_layer_falls_through_to_top_level() {
     let module = lower_user(file).expect("an inapplicable member layer must be skipped");
     let probe = method_fn(&module, "Host", "probe", &[]);
     let body = body_of(&module, probe);
-    let hir::StatementKind::Return { value: Some(value) } = &body.statements[0].kind else {
-        panic!("expected a return")
-    };
+    let value = return_value(&body.statements);
     let hir::ExprKind::Call { callee, .. } = &value.kind else {
         panic!("the top-level layer must win")
     };
@@ -259,9 +255,7 @@ fn inapplicable_member_layer_falls_through_to_extension() {
     ]);
     let module = lower_user(file).expect("an applicable extension layer must be reached");
     let body = body_of(&module, module.entry);
-    let hir::StatementKind::ValDecl { init, .. } = &body.statements[0].kind else {
-        panic!("expected the result declaration")
-    };
+    let init = local_init(body, "result");
     let hir::ExprKind::Call { callee, args } = &init.kind else {
         panic!("an extension is emitted as a direct call")
     };
@@ -360,9 +354,7 @@ fn layering_is_relative_to_the_call_site_file() {
         .expect("core declares the write extern");
     let core_print = top_level_fn(&module, "print", &["T0"]);
     let body = body_of(&module, core_print);
-    let hir::StatementKind::Expr(value) = &body.statements[0].kind else {
-        panic!("expected the call statement")
-    };
+    let value = expression_statement(body, 0);
     let hir::ExprKind::Call { callee, .. } = &value.kind else {
         panic!("expected a call")
     };
@@ -372,10 +364,12 @@ fn layering_is_relative_to_the_call_site_file() {
     // `write` calls target the core extern.
     let core_println = top_level_fn(&module, "println", &["T0"]);
     let body = body_of(&module, core_println);
-    for statement in &body.statements {
+    for value in body.statements.iter().filter_map(|statement| {
         let hir::StatementKind::Expr(value) = &statement.kind else {
-            panic!("expected a call statement")
+            return None;
         };
+        Some(value)
+    }) {
         let hir::ExprKind::Call { callee, .. } = &value.kind else {
             panic!("expected a call")
         };

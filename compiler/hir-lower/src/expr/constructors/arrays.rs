@@ -81,21 +81,17 @@ impl Lowerer {
         let expected_source = self.array_type(source_kind, *element_ty);
         debug_assert!(self.types_equal(arg.ty, expected_source));
         let ty = self.array_type(target_kind, *element_ty);
-        let mut args = if argument_sinks.iter().all(Vec::is_empty) {
-            args
-        } else {
-            self.materialize_nominal_arguments(
-                crate::argument_materialization::NominalArgumentMaterialization {
-                    view: &view,
-                    argument_map: &argument_map,
-                    type_args: &type_args,
-                    source_args: args,
-                    argument_sinks,
-                    call_span: call.span,
-                },
-                sink,
-            )
-        };
+        let mut args = self.materialize_nominal_arguments(
+            crate::argument_materialization::NominalArgumentMaterialization {
+                view: &view,
+                argument_map: &argument_map,
+                type_args: &type_args,
+                source_args: args,
+                argument_sinks,
+                call_span: call.span,
+            },
+            sink,
+        );
         Some(hir::Expr {
             kind: ExprKind::ArrayClone(Box::new(
                 args.pop()

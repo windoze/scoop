@@ -28,8 +28,7 @@ fn enum_declaration_all_variant_forms() {
         ),
     ]);
     let module = lower_user(file).expect("enum program must lower");
-    let expected = "\
-Module
+    let expected = r#"Module
   enum Option<T>
     Some(_1: T0)
     None()
@@ -74,33 +73,61 @@ Module
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
   fun write(arg1: String): Unit <extern11 abi=scoop symbol=scoop_rt_write>
   fun print<T : ToString>(value: T0): Unit
-    Call write : Unit
+    val local1
+      Local value : T0
+    val local2
       MethodCall bound T0 via ToString -> ToString.toString : String
-        Local value : T0
+        Local $receiver : T0
+    val local3
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
     return
   fun println<T : ToString>(value: T0): Unit
-    Call write : Unit
+    val local1
+      Local value : T0
+    val local2
       MethodCall bound T0 via ToString -> ToString.toString : String
-        Local value : T0
+        Local $receiver : T0
+    val local3
+      Local $argument.0 : String
     Call write : Unit
-      StringLiteral \"\\n\" : String
+      Local $parameter.message : String
+    val local4
+      StringLiteral "\n" : String
+    val local5
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
   fun main(): Unit
     val local0
       VariantConstruct Color.Red : Color
     val local1
-      VariantConstruct Shape.Circle : Shape
-        IntLiteral 1 : Int
+      IntLiteral 1 : Int
     val local2
-      IntLiteral 0 : Int
+      Local $argument.0 : Int
     val local3
+      VariantConstruct Shape.Circle : Shape
+        Local $parameter._1 : Int
+    val local4
+      IntLiteral 0 : Int
+    val local5
       VariantConstruct Shape.WithDefault : Shape
         Local $parameter.d : Int
-    val local4
+    val local6
+      IntLiteral 2 : Int
+    val local7
+      IntLiteral 3 : Int
+    val local8
+      Local $argument.0 : Int
+    val local9
+      Local $argument.1 : Int
+    val local10
       VariantConstruct Shape.Named : Shape
-        IntLiteral 2 : Int
-        IntLiteral 3 : Int
+        Local $parameter.w : Int
+        Local $parameter.h : Int
   entry main
-";
+"#;
     assert_eq!(hir::dump(&module), expected);
 }
 
