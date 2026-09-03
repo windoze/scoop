@@ -18,25 +18,34 @@ fn class_construction_lowers_to_class_init() {
     ]);
     let module = lower_user(file).expect("class construction must lower");
     let main = body_of(&module, "main");
-    match &main.statements[0].kind {
-        hir::StatementKind::ValDecl { init, .. } => match &init.kind {
-            hir::ExprKind::ClassInit {
-                application, args, ..
-            } => {
-                let class_id = module.class_applications[*application].template;
-                assert_eq!(module.classes[class_id].name, "C");
-                assert!(matches!(
-                    module.types[init.ty],
-                    hir::Type::Class(found) if found == *application
-                ));
-                assert_eq!(args.len(), 2);
-                // The Int argument crossing into the `Any` property boxes.
-                assert!(matches!(args[0].kind, hir::ExprKind::IntLiteral(1)));
-                assert!(matches!(args[1].kind, hir::ExprKind::Box(_)));
-            }
-            other => panic!("expected a ClassInit, found {other:?}"),
-        },
-        other => panic!("expected a val decl, found {other:?}"),
+    match &local_init(main, "c").kind {
+        hir::ExprKind::ClassInit {
+            application, args, ..
+        } => {
+            let class_id = module.class_applications[*application].template;
+            assert_eq!(module.classes[class_id].name, "C");
+            assert!(matches!(
+                module.types[local_init(main, "c").ty],
+                hir::Type::Class(found) if found == *application
+            ));
+            assert_eq!(args.len(), 2);
+            assert!(
+                args.iter()
+                    .all(|argument| matches!(argument.kind, hir::ExprKind::Local(_)))
+            );
+            // The Int argument crossing into the `Any` property boxes.
+            assert!(main.statements.iter().any(|statement| matches!(
+                &statement.kind,
+                hir::StatementKind::ValDecl {
+                    init: hir::Expr {
+                        kind: hir::ExprKind::Box(_),
+                        ..
+                    },
+                    ..
+                }
+            )));
+        }
+        other => panic!("expected a ClassInit, found {other:?}"),
     }
 }
 

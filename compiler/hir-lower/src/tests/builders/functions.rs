@@ -43,6 +43,7 @@ pub(crate) fn fun_sig(
             .map(|(name, ty)| Param {
                 name: ident(name),
                 ty,
+                syntax: ast::ParameterSyntax::Required,
                 span: sp(),
             })
             .collect(),
@@ -91,6 +92,7 @@ pub(crate) fn fun_expr(
             .map(|(name, ty)| Param {
                 name: ident(name),
                 ty,
+                syntax: ast::ParameterSyntax::Required,
                 span: sp(),
             })
             .collect(),
@@ -157,6 +159,7 @@ pub(crate) fn intrinsic_generic_fun(
             .map(|(name, ty)| Param {
                 name: ident(name),
                 ty,
+                syntax: ast::ParameterSyntax::Required,
                 span: sp(),
             })
             .collect(),

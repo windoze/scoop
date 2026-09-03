@@ -56,8 +56,8 @@ fn array_nodes_translate_one_to_one() {
                 ),
                 stmt(hir::StatementKind::Assign {
                     target: hir::AssignTarget::Index {
-                        array: local_ref(m, mutable_int),
-                        index: int_lit(&h, 0),
+                        array: Box::new(local_ref(m, mutable_int)),
+                        index: Box::new(int_lit(&h, 0)),
                     },
                     value: int_lit(&h, 40),
                 }),
@@ -194,6 +194,50 @@ Module
   entry @scoop_main
 ";
     assert_eq!(dump(&module), expected);
+}
+
+#[test]
+fn array_assembly_preserves_typed_element_and_copy_parts() {
+    let mut h = Harness::new();
+    let int = h.int;
+    let array_int = h.array(int);
+    let hir::Type::Class(array_application) = h.types[array_int] else {
+        unreachable!("Array<Int> has a class application")
+    };
+    let mut locals = Arena::new();
+    let source = locals.alloc(local("source", array_int));
+    let assembled = locals.alloc(local("assembled", array_int));
+    let main = h.user_fn(
+        "main",
+        hir::Body {
+            locals,
+            statements: vec![
+                val_decl(
+                    source,
+                    expr(hir::ExprKind::ArrayLiteral(vec![int_lit(&h, 2)]), array_int),
+                ),
+                val_decl(
+                    assembled,
+                    expr(
+                        hir::ExprKind::ArrayAssembly(hir::ArrayAssembly {
+                            element_type: int,
+                            parts: vec![
+                                hir::ArrayAssemblyPart::Element(int_lit(&h, 1)),
+                                hir::ArrayAssemblyPart::CopyArray(local_ref(source, array_int)),
+                            ],
+                            result_type: array_application,
+                        }),
+                        array_int,
+                    ),
+                ),
+            ],
+        },
+    );
+    let module = lower(&h.finish(main));
+    let dump = dump(&module);
+    assert!(dump.contains("ArrayAssembly Array$I"), "{dump}");
+    assert!(dump.contains("Element\n"), "{dump}");
+    assert!(dump.contains("CopyArray\n"), "{dump}");
 }
 
 #[test]

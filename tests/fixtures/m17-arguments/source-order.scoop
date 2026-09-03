@@ -1,0 +1,76 @@
+fun mark(label: String, value: Int): Int {
+    println(label)
+    return value
+}
+
+fun arrange(
+    first: Int = mark("default-first", 1),
+    second: Int,
+    third: Int = mark("default-third", 3)
+): Int = first * 100 + second * 10 + third
+
+class Receiver(val base: Int) {
+    fun combine(first: Int, second: Int = mark("member-default", 2)): Int =
+        base + first + second
+}
+
+fun makeReceiver(): Receiver {
+    println("receiver")
+    return Receiver(100)
+}
+
+struct Coordinate(val x: Int, val y: Int = mark("struct-default", 20))
+
+class Box(val left: Int, val right: Int = mark("class-default", 40))
+
+enum Payload {
+    Record(val left: Int, val right: Int = mark("variant-default", 60)),
+    Pair(Int, Int)
+}
+
+fun <T> T.replace(original: T, replacement: T = original): T = replacement
+
+fun main() {
+    println(
+        arrange(
+            third = mark("explicit-third", 3),
+            second = mark("explicit-second", 2)
+        )
+    )
+    println(
+        arrange(
+            mark("mixed-first", 4),
+            second = mark("mixed-second", 5),
+            mark("mixed-third", 6)
+        )
+    )
+    println(
+        makeReceiver().combine(
+            second = mark("member-second", 20),
+            first = mark("member-first", 1)
+        )
+    )
+
+    val coordinate = Coordinate(
+        y = mark("struct-y", 2),
+        x = mark("struct-x", 1)
+    )
+    println(coordinate.x + coordinate.y)
+
+    val box = Box(
+        right = mark("class-right", 4),
+        left = mark("class-left", 3)
+    )
+    println(box.left + box.right)
+
+    val payload = Payload.Record(
+        right = mark("variant-right", 6),
+        left = mark("variant-left", 5)
+    )
+    when (payload) {
+        Record(left, right) -> println(left + right)
+        else -> println(0)
+    }
+
+    println("receiver".replace(replacement = "result", original = "ignored"))
+}

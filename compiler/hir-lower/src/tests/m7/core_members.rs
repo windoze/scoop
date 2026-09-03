@@ -47,40 +47,42 @@ fn print_and_println_use_the_ordinary_to_string_bound() {
 
     // Arguments keep their exact types; formatting no longer crosses Any.
     let body = body_of(&module, module.entry);
-    let hir::StatementKind::Expr(first) = &body.statements[0].kind else {
-        panic!("expected a call statement")
-    };
+    let first = expression_statement(body, 0);
     let hir::ExprKind::Call { args, .. } = &first.kind else {
         panic!("expected a call")
     };
-    assert!(matches!(args[0].kind, hir::ExprKind::IntLiteral(42)));
     assert_eq!(args[0].ty, module.int);
-    let hir::StatementKind::Expr(second) = &body.statements[1].kind else {
-        panic!("expected a call statement")
-    };
+    let second = expression_statement(body, 1);
     let hir::ExprKind::Call { args, .. } = &second.kind else {
         panic!("expected a call")
     };
-    assert!(matches!(args[0].kind, hir::ExprKind::StringLiteral(_)));
     assert_eq!(args[0].ty, module.string);
 
     // Core's template body calls the managed write extern and carries an
     // exact bound-member identity for `ToString.toString`.
     let write = core_write(&module);
     let body = body_of(&module, print);
-    let hir::StatementKind::Expr(value) = &body.statements[0].kind else {
-        panic!("expected a call statement")
-    };
-    let hir::ExprKind::Call { callee, args } = &value.kind else {
+    let value = expression_statement(body, 0);
+    let hir::ExprKind::Call { callee, .. } = &value.kind else {
         panic!("expected a call")
     };
     assert_eq!(module.callable_function(*callee), write);
-    let hir::ExprKind::MethodCall {
-        callee, receiver, ..
-    } = &args[0].kind
-    else {
-        panic!("expected a `toString()` method call")
-    };
+    let (callee, receiver) = body
+        .statements
+        .iter()
+        .find_map(|statement| {
+            let hir::StatementKind::ValDecl { init, .. } = &statement.kind else {
+                return None;
+            };
+            let hir::ExprKind::MethodCall {
+                callee, receiver, ..
+            } = &init.kind
+            else {
+                return None;
+            };
+            Some((callee, receiver.as_ref()))
+        })
+        .expect("print must evaluate `toString()` once");
     let hir::MethodCallee::Bound(bound) = callee else {
         panic!("generic print must retain a typed bound call")
     };
@@ -150,21 +152,27 @@ fn intrinsic_value_members_resolve_from_their_source_declaration() {
     )]);
     let module = lower_user(file).expect("Int.toString is declared in core source");
     let body = body_of(&module, module.entry);
-    let hir::StatementKind::Expr(outer) = &body.statements[0].kind else {
+    let outer = expression_statement(body, 0);
+    let hir::ExprKind::Call { .. } = &outer.kind else {
         panic!("expected print call")
     };
-    let hir::ExprKind::Call { args, .. } = &outer.kind else {
-        panic!("expected print call")
-    };
-    let hir::ExprKind::MethodCall { callee, .. } = &args[0].kind else {
-        panic!("expected Int.toString call")
-    };
+    let callee = body
+        .statements
+        .iter()
+        .find_map(|statement| {
+            let hir::StatementKind::ValDecl { init, .. } = &statement.kind else {
+                return None;
+            };
+            let hir::ExprKind::MethodCall { callee, .. } = &init.kind else {
+                return None;
+            };
+            Some(callee)
+        })
+        .expect("expected Int.toString call");
     let target = module.callable_function(*callee);
     assert_eq!(module.functions[target].name, "Int.toString");
     let body = body_of(&module, target);
-    let hir::StatementKind::Return { value: Some(value) } = &body.statements[0].kind else {
-        panic!("the ordinary core method must return its source expression")
-    };
+    let value = return_value(&body.statements);
     let hir::ExprKind::Call { callee, .. } = value.kind else {
         panic!("the core method body must call its representation helper")
     };

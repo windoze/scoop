@@ -319,11 +319,8 @@ fn some_arity_is_an_error() {
     );
 }
 
-/// A while condition is re-evaluated per iteration, but the `?.`/`?:`
-/// desugaring statements would execute once before the loop — rejected
-/// instead of silently changing evaluation semantics.
 #[test]
-fn desugaring_in_while_condition_is_an_error() {
+fn desugaring_in_while_condition_has_a_repeated_setup_region() {
     let file = file(vec![fun(
         "main",
         vec![
@@ -335,10 +332,23 @@ fn desugaring_in_while_condition_is_an_error() {
             while_stmt(elvis(var("a"), bool_lit(false)), vec![]),
         ],
     )]);
-    let errors = lower_user(file).expect_err("elvis in while condition must fail");
-    assert_eq!(errors.len(), 1);
-    assert_eq!(
-        errors[0].message,
-        "`?.` and `?:` are not allowed in a while condition"
-    );
+    let module = lower_user(file).expect("elvis setup must remain inside the loop condition");
+    let hir::FunctionKind::User(main) = &module.functions[module.entry].kind else {
+        panic!("main has a user body")
+    };
+    let hir::StatementKind::While {
+        condition_setup,
+        cond,
+        ..
+    } = &main
+        .statements
+        .iter()
+        .find(|statement| matches!(statement.kind, hir::StatementKind::While { .. }))
+        .expect("main contains a while statement")
+        .kind
+    else {
+        panic!("main contains a while statement")
+    };
+    assert!(!condition_setup.is_empty());
+    assert_eq!(cond.ty, module.boolean);
 }

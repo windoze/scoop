@@ -14,15 +14,21 @@ fn enum_declaration_all_variant_forms() {
                 val("s", call("Shape.Circle", vec![int_lit(1)])),
                 // Constructor-style default fills the trailing field.
                 val("w", call("Shape.WithDefault", vec![])),
-                // Named variants construct positionally in M4 (the AST
-                // has no named-argument form).
-                val("n", call("Shape.Named", vec![int_lit(2), int_lit(3)])),
+                val(
+                    "n",
+                    source_call(
+                        "Shape.Named",
+                        vec![
+                            named_argument("w", int_lit(2)),
+                            named_argument("h", int_lit(3)),
+                        ],
+                    ),
+                ),
             ],
         ),
     ]);
     let module = lower_user(file).expect("enum program must lower");
-    let expected = "\
-Module
+    let expected = r#"Module
   enum Option<T>
     Some(_1: T0)
     None()
@@ -67,31 +73,61 @@ Module
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
   fun write(arg1: String): Unit <extern11 abi=scoop symbol=scoop_rt_write>
   fun print<T : ToString>(value: T0): Unit
-    Call write : Unit
+    val local1
+      Local value : T0
+    val local2
       MethodCall bound T0 via ToString -> ToString.toString : String
-        Local value : T0
+        Local $receiver : T0
+    val local3
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
     return
   fun println<T : ToString>(value: T0): Unit
-    Call write : Unit
+    val local1
+      Local value : T0
+    val local2
       MethodCall bound T0 via ToString -> ToString.toString : String
-        Local value : T0
+        Local $receiver : T0
+    val local3
+      Local $argument.0 : String
     Call write : Unit
-      StringLiteral \"\\n\" : String
+      Local $parameter.message : String
+    val local4
+      StringLiteral "\n" : String
+    val local5
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
   fun main(): Unit
     val local0
       VariantConstruct Color.Red : Color
     val local1
-      VariantConstruct Shape.Circle : Shape
-        IntLiteral 1 : Int
+      IntLiteral 1 : Int
     val local2
-      VariantConstruct Shape.WithDefault : Shape
-        IntLiteral 0 : Int
+      Local $argument.0 : Int
     val local3
+      VariantConstruct Shape.Circle : Shape
+        Local $parameter._1 : Int
+    val local4
+      IntLiteral 0 : Int
+    val local5
+      VariantConstruct Shape.WithDefault : Shape
+        Local $parameter.d : Int
+    val local6
+      IntLiteral 2 : Int
+    val local7
+      IntLiteral 3 : Int
+    val local8
+      Local $argument.0 : Int
+    val local9
+      Local $argument.1 : Int
+    val local10
       VariantConstruct Shape.Named : Shape
-        IntLiteral 2 : Int
-        IntLiteral 3 : Int
+        Local $parameter.w : Int
+        Local $parameter.h : Int
   entry main
-";
+"#;
     assert_eq!(hir::dump(&module), expected);
 }
 
@@ -230,7 +266,7 @@ fn unknown_variant_field_type_is_an_error() {
 }
 
 #[test]
-fn non_literal_variant_default_is_an_error() {
+fn non_literal_variant_default_is_typed_at_the_definition() {
     let file = file(vec![
         enum_decl(
             "Shape",
@@ -240,14 +276,18 @@ fn non_literal_variant_default_is_an_error() {
                 vec![("d", ty_named("Int"), Some(call("f", vec![])))],
             )],
         ),
-        fun("f", vec![]),
-        fun("main", vec![]),
+        fun_expr("f", vec![], vec![], Some(ty_named("Int")), int_lit(9)),
+        fun(
+            "main",
+            vec![val("shape", call("Shape.WithDefault", vec![]))],
+        ),
     ]);
-    let errors = lower_user(file).expect_err("non-literal default must fail");
-    assert_eq!(errors.len(), 1);
-    assert_eq!(
-        errors[0].message,
-        "default value of field `d` in variant `WithDefault` must be a literal"
+    let module = lower_user(file).expect("a typed call is a valid variant default");
+    let dump = hir::dump(&module);
+    assert!(dump.contains("Call f : Int"), "{dump}");
+    assert!(
+        dump.contains("VariantConstruct Shape.WithDefault : Shape"),
+        "{dump}"
     );
 }
 
@@ -268,7 +308,7 @@ fn variant_default_type_mismatch_is_an_error() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "default value of field `d` in variant `WithDefault` must be of type Int, found String"
+        "default value of parameter `d` in `Shape.WithDefault` must be of type Int, found String"
     );
 }
 
@@ -289,7 +329,10 @@ fn named_variant_default_is_an_error() {
                 kind: VariantDeclKind::Named(vec![VariantFieldDecl {
                     name: ident("w"),
                     ty: ty_named("Int"),
-                    default: Some(int_lit(0)),
+                    syntax: ast::ParameterSyntax::Default {
+                        expression: int_lit(0),
+                        equals_span: sp(),
+                    },
                     span: sp(),
                 }]),
                 span: sp(),

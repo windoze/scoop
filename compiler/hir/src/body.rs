@@ -45,6 +45,7 @@ pub enum StatementKind {
         else_body: Option<Vec<Statement>>,
     },
     While {
+        condition_setup: Vec<Statement>,
         cond: Expr,
         body: Vec<Statement>,
     },
@@ -77,8 +78,8 @@ pub enum AssignTarget {
     Global(GlobalId),
     /// `array[index] = value` (only `MutableArray`, checked at HIR).
     Index {
-        array: Expr,
-        index: Expr,
+        array: Box<Expr>,
+        index: Box<Expr>,
     },
     /// `obj.field = value` (only `var` properties of classes).
     Field {
@@ -139,6 +140,7 @@ pub struct Expr {
     pub kind: ExprKind,
     pub ty: TypeId,
     pub span: Span,
+    pub origin: ExpressionOrigin,
 }
 
 #[derive(Debug, Clone)]
@@ -252,6 +254,10 @@ pub enum ExprKind {
     },
     /// `[e1, ...]`; the kind (Array vs MutableArray) is in `Expr::ty`.
     ArrayLiteral(Vec<Expr>),
+    /// Fresh immutable-array assembly used by positional `vararg` calls.
+    /// Every part is an already evaluated temporary read; `CopyArray` always
+    /// copies, including the single-spread case.
+    ArrayAssembly(ArrayAssembly),
     /// Subscript read `receiver[index]`; result is the element type.
     Index {
         receiver: Box<Expr>,
@@ -307,6 +313,19 @@ pub enum ExprKind {
         operand: Box<Expr>,
         trap_on_none: bool,
     },
+}
+
+#[derive(Debug, Clone)]
+pub struct ArrayAssembly {
+    pub element_type: TypeId,
+    pub parts: Vec<ArrayAssemblyPart>,
+    pub result_type: ClassApplicationId,
+}
+
+#[derive(Debug, Clone)]
+pub enum ArrayAssemblyPart {
+    Element(Expr),
+    CopyArray(Expr),
 }
 
 /// Source-level method target. Ordinary receivers already name a resolved

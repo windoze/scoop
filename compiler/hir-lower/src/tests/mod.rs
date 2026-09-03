@@ -14,6 +14,7 @@ mod m10;
 mod m11;
 mod m12;
 mod m14;
+mod m17;
 mod m2;
 mod m3;
 mod m4;
@@ -32,3 +33,45 @@ use ast::{
 
 pub(crate) use builders::*;
 pub(crate) use core::*;
+
+fn binding_local(pattern: &hir::Pattern) -> Option<hir::LocalId> {
+    match pattern {
+        hir::Pattern::Binding { local } => Some(*local),
+        _ => None,
+    }
+}
+
+fn local_init<'body>(body: &'body hir::Body, name: &str) -> &'body hir::Expr {
+    body.statements
+        .iter()
+        .find_map(|statement| {
+            let hir::StatementKind::ValDecl { pattern, init } = &statement.kind else {
+                return None;
+            };
+            let local = binding_local(pattern)?;
+            (body.locals[local].name == name).then_some(init)
+        })
+        .unwrap_or_else(|| panic!("local `{name}` must have an initializer"))
+}
+
+fn expression_statement(body: &hir::Body, index: usize) -> &hir::Expr {
+    body.statements
+        .iter()
+        .filter_map(|statement| match &statement.kind {
+            hir::StatementKind::Expr(expr) => Some(expr),
+            _ => None,
+        })
+        .nth(index)
+        .unwrap_or_else(|| panic!("source expression statement {index} must exist"))
+}
+
+fn return_value(statements: &[hir::Statement]) -> &hir::Expr {
+    statements
+        .iter()
+        .rev()
+        .find_map(|statement| match &statement.kind {
+            hir::StatementKind::Return { value: Some(value) } => Some(value),
+            _ => None,
+        })
+        .expect("a return with a value must exist")
+}

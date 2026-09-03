@@ -65,6 +65,8 @@ struct FnEmitter<'a, 'ctx> {
     /// references (`Some` whenever the module uses arrays).
     bounds_trap_block: Option<inkwell::basic_block::BasicBlock<'ctx>>,
     bounds_message: Option<GlobalValue<'ctx>>,
+    array_size_trap_block: Option<inkwell::basic_block::BasicBlock<'ctx>>,
+    array_size_message: Option<GlobalValue<'ctx>>,
 }
 
 struct NativeTransition<'ctx> {
@@ -265,6 +267,8 @@ pub(super) fn emit_function<'ctx>(
         allocation_index: 0,
         bounds_trap_block: None,
         bounds_message: module_ctx.bounds_message,
+        array_size_trap_block: None,
+        array_size_message: module_ctx.array_size_message,
     };
 
     // All locals are stack slots allocated at the top of the entry block;

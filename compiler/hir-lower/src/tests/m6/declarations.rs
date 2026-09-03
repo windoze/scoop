@@ -6,8 +6,7 @@ use super::*;
 fn class_hierarchy_golden() {
     let file = file(vec![describable(), shape(), point(), fun("main", vec![])]);
     let module = lower_user(file).expect("the hierarchy must lower");
-    let expected = "\
-Module
+    let expected = r#"Module
   enum Option<T>
     Some(_1: T0)
     None()
@@ -48,20 +47,36 @@ Module
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
   fun write(arg1: String): Unit <extern11 abi=scoop symbol=scoop_rt_write>
   fun print<T : ToString>(value: T0): Unit
-    Call write : Unit
+    val local1
+      Local value : T0
+    val local2
       MethodCall bound T0 via ToString -> ToString.toString : String
-        Local value : T0
+        Local $receiver : T0
+    val local3
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
     return
   fun println<T : ToString>(value: T0): Unit
-    Call write : Unit
+    val local1
+      Local value : T0
+    val local2
       MethodCall bound T0 via ToString -> ToString.toString : String
-        Local value : T0
+        Local $receiver : T0
+    val local3
+      Local $argument.0 : String
     Call write : Unit
-      StringLiteral \"\\n\" : String
+      Local $parameter.message : String
+    val local4
+      StringLiteral "\n" : String
+    val local5
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
   fun main(): Unit
   entry main
   instance println<Int>
-";
+"#;
     assert_eq!(hir::dump(&module), expected);
 }
 
@@ -83,12 +98,21 @@ fn class_and_interface_structure() {
 
     // Base-class clause with the lowered delegation arguments.
     let point = &module.classes[point_id];
-    let (base, args) = point.base_class.as_ref().expect("Point has a base");
+    let (base, delegation) = point.base_class.as_ref().expect("Point has a base");
     assert!(matches!(module.types[*base], hir::Type::Class(application)
         if module.class_applications[application].template == shape_id
             && module.class_applications[application].arguments.is_empty()));
-    assert_eq!(args.len(), 1);
-    assert!(matches!(args[0].kind, hir::ExprKind::StringLiteral(_)));
+    assert_eq!(delegation.args.len(), 1);
+    assert!(delegation.statements.iter().any(|statement| matches!(
+        statement.kind,
+        hir::StatementKind::ValDecl {
+            init: hir::Expr {
+                kind: hir::ExprKind::StringLiteral(_),
+                ..
+            },
+            ..
+        }
+    )));
 
     // Methods carry owner/modality metadata and `this` as parameter 0.
     let describe = &module.functions[find_fn(&module, "Shape.describe")];

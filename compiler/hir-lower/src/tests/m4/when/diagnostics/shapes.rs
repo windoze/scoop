@@ -254,7 +254,16 @@ fn positional_pattern_on_named_variant_is_an_error() {
         fun(
             "main",
             vec![
-                val("s", call("Shape.Named", vec![int_lit(1), int_lit(2)])),
+                val(
+                    "s",
+                    source_call(
+                        "Shape.Named",
+                        vec![
+                            named_argument("w", int_lit(1)),
+                            named_argument("h", int_lit(2)),
+                        ],
+                    ),
+                ),
                 when_stmt(
                     var("s"),
                     vec![

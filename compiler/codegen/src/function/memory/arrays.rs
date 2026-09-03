@@ -33,6 +33,27 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         })
     }
 
+    pub(in crate::function) fn array_size_check(
+        &mut self,
+        overflow: inkwell::values::IntValue<'ctx>,
+        continuation_name: &str,
+    ) -> Result<(), CodegenError> {
+        let continuation = self
+            .context
+            .append_basic_block(self.llvm_function, continuation_name);
+        let trap = self.array_size_trap_block()?;
+        self.builder
+            .build_conditional_branch(overflow, trap, continuation)
+            .map_err(|error| {
+                CodegenError(format!(
+                    "array size check @{symbol}: {error}",
+                    symbol = self.function.symbol
+                ))
+            })?;
+        self.builder.position_at_end(continuation);
+        Ok(())
+    }
+
     /// Emit the array bounds check: trap when `(u64)index >= (u64)size`
     /// (the unsigned comparison also rejects negative indexes, which
     /// wrap above every in-range size). On return the builder is
@@ -125,6 +146,51 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         })?;
         builder.position_at_end(current);
         self.bounds_trap_block = Some(block);
+        Ok(block)
+    }
+
+    pub(in crate::function) fn array_size_trap_block(
+        &mut self,
+    ) -> Result<inkwell::basic_block::BasicBlock<'ctx>, CodegenError> {
+        if let Some(block) = self.array_size_trap_block {
+            return Ok(block);
+        }
+        let builder = self.builder;
+        let current = builder
+            .get_insert_block()
+            .ok_or_else(|| CodegenError("builder has no insertion block".to_string()))?;
+        let message = self
+            .array_size_message
+            .ok_or_else(|| {
+                CodegenError("array assembly in a module without its trap message".to_string())
+            })?
+            .as_pointer_value();
+        let trap = self.gc_leaf_fn(
+            scoop_lir::TRAP_SYMBOL,
+            self.context
+                .void_type()
+                .fn_type(&[ptr_ty(self.context).into()], false),
+        );
+        let block = self
+            .context
+            .append_basic_block(self.llvm_function, "array_size_trap");
+        builder.position_at_end(block);
+        builder
+            .build_call(trap, &[message.into()], "trap")
+            .map_err(|error| {
+                CodegenError(format!(
+                    "array size trap @{symbol}: {error}",
+                    symbol = self.function.symbol
+                ))
+            })?;
+        builder.build_unreachable().map_err(|error| {
+            CodegenError(format!(
+                "array size trap @{symbol}: {error}",
+                symbol = self.function.symbol
+            ))
+        })?;
+        builder.position_at_end(current);
+        self.array_size_trap_block = Some(block);
         Ok(block)
     }
 }

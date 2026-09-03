@@ -15,20 +15,12 @@ impl Lowerer {
         );
         if Some(struct_id) == self.ffi_ptr {
             let argument_map =
-                match crate::call_resolution::arguments::CandidateArgumentMap::exact_nominal(
-                    &view,
-                    call.args.len(),
+                match crate::call_resolution::arguments::CandidateArgumentMap::source_nominal(
+                    &view, call.args,
                 ) {
                     Ok(argument_map) => argument_map,
-                    Err(mismatch) => {
-                        self.diagnose_nominal_shape_failure(
-                            &view,
-                            call.span,
-                            format!(
-                                "expects {} argument(s), but {} were supplied",
-                                mismatch.expected, mismatch.supplied
-                            ),
-                        );
+                    Err(failure) => {
+                        self.diagnose_nominal_shape_failure(&view, call.span, failure.describe());
                         return None;
                     }
                 };
@@ -49,25 +41,23 @@ impl Lowerer {
                 Type::Ptr(pointee) => Some(vec![pointee]),
                 _ => None,
             });
-            let inferred = self.lower_nominal_arguments(
-                NominalArgumentInput {
-                    view: &view,
-                    argument_map: &argument_map,
-                    expressions: call.args,
-                    explicit_type_args: &explicit,
-                    expected_type_args: expected_arguments.as_deref(),
-                    span: call.span,
-                },
-                sink,
-            )?;
+            let inferred = self.lower_nominal_arguments(NominalArgumentInput {
+                view: &view,
+                argument_map: &argument_map,
+                expressions: call.args,
+                explicit_type_args: &explicit,
+                expected_type_args: expected_arguments.as_deref(),
+                span: call.span,
+            })?;
             let [pointee] = inferred.type_args.as_slice() else {
                 unreachable!("validated Ptr has one concrete pointee type")
             };
-            if !self.is_value_ty(*pointee)
-                || self.type_contains_param(*pointee)
-                || !self.is_gc_free(*pointee)
+            let pointee = *pointee;
+            if !self.is_value_ty(pointee)
+                || self.type_contains_param(pointee)
+                || !self.is_gc_free(pointee)
             {
-                let found = self.type_name(*pointee);
+                let found = self.type_name(pointee);
                 self.diagnose_nominal_shape_failure(
                     &view,
                     call.span,
@@ -76,37 +66,40 @@ impl Lowerer {
                 return None;
             }
             self.require_unsafe_operation(call.span, "constructing `Ptr` from a raw integer");
-            let [raw]: [hir::Expr; 1] = inferred
-                .args
+            let arguments = self.materialize_nominal_arguments(
+                crate::argument_materialization::NominalArgumentMaterialization {
+                    view: &view,
+                    argument_map: &argument_map,
+                    type_args: &inferred.type_args,
+                    source_args: inferred.args,
+                    argument_sinks: inferred.argument_sinks,
+                    call_span: call.span,
+                },
+                sink,
+            );
+            let [raw]: [hir::Expr; 1] = arguments
                 .try_into()
                 .expect("validated Ptr constructor has one argument");
             debug_assert!(self.is_subtype(raw.ty, self.uint));
             let raw = self.adapt_to(raw, self.uint);
-            let ty = self.intern_type(Type::Ptr(*pointee));
+            let ty = self.intern_type(Type::Ptr(pointee));
             return Some(hir::Expr {
                 kind: ExprKind::PtrFromUInt(Box::new(raw)),
                 ty,
                 span: call.span,
+                origin: self.expression_origin(call.span),
             });
         }
 
         debug_assert_eq!(Some(struct_id), self.ffi_fun_ptr);
         view.value_parameters.clear();
         let argument_map =
-            match crate::call_resolution::arguments::CandidateArgumentMap::exact_nominal(
-                &view,
-                call.args.len(),
+            match crate::call_resolution::arguments::CandidateArgumentMap::source_nominal(
+                &view, call.args,
             ) {
                 Ok(argument_map) => argument_map,
-                Err(mismatch) => {
-                    self.diagnose_nominal_shape_failure(
-                        &view,
-                        call.span,
-                        format!(
-                            "expects {} argument(s), but {} were supplied",
-                            mismatch.expected, mismatch.supplied
-                        ),
-                    );
+                Err(failure) => {
+                    self.diagnose_nominal_shape_failure(&view, call.span, failure.describe());
                     return None;
                 }
             };
@@ -127,17 +120,14 @@ impl Lowerer {
             Type::FunPtr(signature) => Some(vec![self.function_types[signature].canonical_type]),
             _ => None,
         });
-        let inferred = self.lower_nominal_arguments(
-            NominalArgumentInput {
-                view: &view,
-                argument_map: &argument_map,
-                expressions: call.args,
-                explicit_type_args: &explicit,
-                expected_type_args: expected_arguments.as_deref(),
-                span: call.span,
-            },
-            sink,
-        )?;
+        let inferred = self.lower_nominal_arguments(NominalArgumentInput {
+            view: &view,
+            argument_map: &argument_map,
+            expressions: call.args,
+            explicit_type_args: &explicit,
+            expected_type_args: expected_arguments.as_deref(),
+            span: call.span,
+        })?;
         let [function] = inferred.type_args.as_slice() else {
             unreachable!("validated FunPtr has one concrete function type")
         };
@@ -149,6 +139,7 @@ impl Lowerer {
             kind: ExprKind::FunPtrNull,
             ty,
             span: call.span,
+            origin: self.expression_origin(call.span),
         })
     }
 }

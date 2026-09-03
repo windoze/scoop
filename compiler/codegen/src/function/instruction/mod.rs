@@ -51,6 +51,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             | Instruction::EndCatch
             | Instruction::Throw { .. } => self.emit_exception_instruction(instruction),
             Instruction::ArrayAlloc { .. }
+            | Instruction::ArrayAssembly { .. }
             | Instruction::ArrayLen { .. }
             | Instruction::ArrayGet { .. }
             | Instruction::ArraySet { .. }

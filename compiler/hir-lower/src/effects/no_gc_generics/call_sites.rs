@@ -144,7 +144,12 @@ impl Lowerer {
                         self.collect_generic_calls_in_statements(caller, else_body, out);
                     }
                 }
-                hir::StatementKind::While { cond, body } => {
+                hir::StatementKind::While {
+                    condition_setup,
+                    cond,
+                    body,
+                } => {
+                    self.collect_generic_calls_in_statements(caller, condition_setup, out);
                     self.collect_generic_calls_in_expr(caller, cond, out);
                     self.collect_generic_calls_in_statements(caller, body, out);
                 }
@@ -231,6 +236,16 @@ impl Lowerer {
             ExprKind::TupleLiteral(elements) | ExprKind::ArrayLiteral(elements) => {
                 for element in elements {
                     self.collect_generic_calls_in_expr(caller, element, out);
+                }
+            }
+            ExprKind::ArrayAssembly(assembly) => {
+                for part in &assembly.parts {
+                    match part {
+                        hir::ArrayAssemblyPart::Element(value)
+                        | hir::ArrayAssemblyPart::CopyArray(value) => {
+                            self.collect_generic_calls_in_expr(caller, value, out)
+                        }
+                    }
                 }
             }
             ExprKind::StructInit { args, .. }

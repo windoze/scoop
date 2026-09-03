@@ -27,6 +27,7 @@ pub enum StatementKind {
         else_body: Option<Vec<Statement>>,
     },
     While {
+        condition_setup: Vec<Statement>,
         cond: Expr,
         body: Vec<Statement>,
     },
@@ -55,8 +56,8 @@ pub enum AssignTarget {
     Local(LocalId),
     Global(GlobalId),
     Index {
-        array: Expr,
-        index: Expr,
+        array: Box<Expr>,
+        index: Box<Expr>,
     },
     Field {
         receiver: Box<Expr>,
@@ -110,6 +111,7 @@ pub struct Expr {
     pub kind: ExprKind,
     pub ty: TypeId,
     pub span: Span,
+    pub origin: ConcreteExpressionOrigin,
 }
 
 #[derive(Debug, Clone)]
@@ -194,6 +196,7 @@ pub enum ExprKind {
         optional: bool,
     },
     ArrayLiteral(Vec<Expr>),
+    ArrayAssembly(ArrayAssembly),
     Index {
         receiver: Box<Expr>,
         index: Box<Expr>,
@@ -231,6 +234,19 @@ pub enum ExprKind {
         operand: Box<Expr>,
         trap_on_none: bool,
     },
+}
+
+#[derive(Debug, Clone)]
+pub struct ArrayAssembly {
+    pub element_type: TypeId,
+    pub parts: Vec<ArrayAssemblyPart>,
+    pub result_type: ClassId,
+}
+
+#[derive(Debug, Clone)]
+pub enum ArrayAssemblyPart {
+    Element(Expr),
+    CopyArray(Expr),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

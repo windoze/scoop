@@ -72,14 +72,17 @@ fn variant_missing_argument_without_default_is_an_error() {
         shape_decl(),
         fun(
             "main",
-            vec![val("s", call("Shape.Named", vec![int_lit(1)]))],
+            vec![val(
+                "s",
+                source_call("Shape.Named", vec![named_argument("w", int_lit(1))]),
+            )],
         ),
     ]);
     let errors = lower_user(file).expect_err("missing argument must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "no applicable candidate for constructor `Shape.Named` in nominal constructor candidate layer:\n  - variant Shape.Named(w: Int, h: Int) — expects 2 argument(s), but 1 were supplied"
+        "no applicable candidate for constructor `Shape.Named` in nominal constructor candidate layer:\n  - variant Shape.Named(w: Int, h: Int) — required parameter `h` has no argument"
     );
 }
 

@@ -77,12 +77,20 @@ pub struct ClassConstructor {
 pub enum ClassRepresentation {
     Declared {
         constructor: Vec<ConstructorField>,
-        base_class: Option<(ClassId, Vec<Expr>)>,
+        base_class: Option<(ClassId, ConstructorDelegation)>,
     },
     Intrinsic {
         declaration: IntrinsicTypeDeclaration,
         application: IntrinsicTypeRepresentation,
     },
+}
+
+/// Concrete, closed evaluation plan for a primary-constructor delegation.
+#[derive(Debug, Clone)]
+pub struct ConstructorDelegation {
+    pub locals: Arena<Local>,
+    pub statements: Vec<Statement>,
+    pub args: Vec<Expr>,
 }
 
 impl ClassDef {
@@ -95,7 +103,7 @@ impl ClassDef {
         }
     }
 
-    pub fn base_class(&self) -> Option<&(ClassId, Vec<Expr>)> {
+    pub fn base_class(&self) -> Option<&(ClassId, ConstructorDelegation)> {
         match &self.representation {
             ClassRepresentation::Declared { base_class, .. } => base_class.as_ref(),
             ClassRepresentation::Intrinsic { .. } => None,
@@ -175,7 +183,6 @@ pub struct Variant {
     pub name: String,
     pub gc_free: bool,
     pub fields: Vec<Field>,
-    pub defaults: Vec<Option<Expr>>,
 }
 
 #[derive(Debug, Clone)]

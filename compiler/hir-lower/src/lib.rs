@@ -94,11 +94,13 @@
 //! are ordinary test-only intrinsics.
 
 mod annotations;
+mod argument_materialization;
 mod call_resolution;
 mod class;
 mod concretize;
 mod core_contract;
 mod declarations;
+mod defaults;
 mod derived;
 mod effects;
 mod expr;
@@ -158,11 +160,15 @@ pub fn lower(files: &[ast::SourceFile]) -> Result<hir::Output, Vec<Diagnostic>> 
             .map(|source| ProviderSource {
                 source,
                 provider: core_provider,
+                name: "<core>",
+                source_text: "",
             })
             .collect(),
         user: ProviderSource {
             source: &files[files.len() - 1],
             provider: user_provider,
+            name: "<user>",
+            source_text: "",
         },
     };
     lower_compilation_unit(&unit, IntrinsicDeclarationPolicy::CoreOnly)
@@ -174,6 +180,8 @@ pub fn lower(files: &[ast::SourceFile]) -> Result<hir::Output, Vec<Diagnostic>> 
 pub struct ProviderSource<'a> {
     pub source: &'a ast::SourceFile,
     pub provider: hir::IntrinsicProviderId,
+    pub name: &'a str,
+    pub source_text: &'a str,
 }
 
 /// Structurally complete single-Cone compilation input. Core and user sources
@@ -206,12 +214,16 @@ pub fn lower_compilation_unit(
         sources.push(SourceProvider {
             provider: input.provider,
             core: true,
+            name: input.name.to_string(),
+            source: input.source_text.to_string(),
         });
     }
     files.push(unit.user.source.clone());
     sources.push(SourceProvider {
         provider: unit.user.provider,
         core: false,
+        name: unit.user.name.to_string(),
+        source: unit.user.source_text.to_string(),
     });
     let export = Lowerer::new()
         .with_intrinsic_sources(sources, policy)
@@ -220,10 +232,12 @@ pub fn lower_compilation_unit(
     Ok(hir::Output { export, local })
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 struct SourceProvider {
     provider: hir::IntrinsicProviderId,
     core: bool,
+    name: String,
+    source: String,
 }
 
 /// Convert an already checked export-side graph into the local concrete graph.
@@ -235,6 +249,7 @@ pub fn concretize_export(export: &hir::ExportHir) -> hir::LocalConcreteHir {
 
 #[derive(Clone)]
 pub(crate) struct Lowerer {
+    pub(crate) source_contexts: Arena<hir::SourceContext>,
     pub(crate) types: Arena<Type>,
     pub(crate) function_types: Arena<hir::FunctionType>,
     pub(crate) lambdas: Arena<hir::Lambda>,
@@ -254,6 +269,17 @@ pub(crate) struct Lowerer {
     pub(crate) bound_callable_refs: Arena<hir::BoundCallableRef>,
     pub(crate) function_coercions: Arena<hir::FunctionCoercion>,
     pub(crate) foreign_callback_registrations: Arena<hir::ForeignCallbackRegistration>,
+    pub(crate) source_parameter_interfaces: Vec<hir::ExportParameterInterface>,
+    pub(crate) export_default_exprs: Arena<hir::ExportDefaultExpr>,
+    pub(crate) export_default_sources: Arena<hir::ExportDefaultSource>,
+    pub(crate) export_vararg_parameter_types: Arena<hir::ExportVarargParameterType>,
+    pub(crate) local_default_exprs: Arena<defaults::LocalDefaultExpr>,
+    pub(crate) default_templates:
+        HashMap<(defaults::SourceParameterOwner, u32), defaults::DefaultExprTemplateRef>,
+    /// True only while constructing a declaration-bound default template.
+    /// Nested omissions remain definition-only until the outer template is
+    /// instantiated at an actual call site.
+    pub(crate) lowering_default_template: bool,
     pub(crate) function_coercion_by_types:
         HashMap<(hir::FunctionTypeId, hir::FunctionTypeId), hir::FunctionCoercionId>,
     pub(crate) structs: Arena<StructDecl>,
@@ -365,6 +391,11 @@ pub(crate) struct Lowerer {
     pub(crate) interface_method_entities: Arena<hir::InterfaceMethod>,
     /// The owner of every member function.
     pub(crate) function_owner: HashMap<FunctionId, Owner>,
+    pub(crate) override_sources: HashMap<FunctionId, Vec<FunctionId>>,
+    /// Exact parent-parameter applications for every validated override edge.
+    /// The values are ordered like the parent signature's type parameters and
+    /// are expressed in the overriding declaration's type scope.
+    pub(crate) override_default_type_arguments: HashMap<(FunctionId, FunctionId), Vec<TypeId>>,
     /// Enums named `Option` declared in core files:
     /// (declaration, file index, span, type parameter count). Validated
     /// after pass 1 (`validate_option_enum`).
@@ -386,6 +417,12 @@ pub(crate) struct Lowerer {
     pub(crate) throwable: Option<(ClassId, TypeId)>,
     /// Surface form of every variant, for pattern shape checks.
     pub(crate) variant_styles: HashMap<(EnumId, u32), VariantStyle>,
+    /// Source-call protocols for nominal constructor parameters. Layout
+    /// fields intentionally do not carry call syntax; these typed owner maps
+    /// preserve it until complete Export HIR parameter entities are built.
+    pub(crate) struct_parameter_calling: HashMap<StructId, Vec<FnParamCalling>>,
+    pub(crate) class_parameter_calling: HashMap<ClassId, Vec<FnParamCalling>>,
+    pub(crate) variant_parameter_calling: HashMap<(EnumId, u32), Vec<FnParamCalling>>,
     /// Resolved signatures of all functions (pass 2.5), consulted by
     /// call lowering and body lowering. Method signatures exclude the
     /// implicit `this` parameter.
@@ -400,6 +437,8 @@ pub(crate) struct Lowerer {
     pub(crate) return_inference: Option<ReturnInference>,
     /// Name of the function whose body is being lowered (diagnostics).
     pub(crate) current_fn_name: String,
+    /// Typed lexical context attached to every expression origin.
+    pub(crate) current_source_context: hir::SourceContextId,
     /// Explicit suspension-permission stack; it is never empty.
     pub(crate) suspension_contexts: Vec<SuspensionContext>,
     /// Lexical permission for unsafe operations; independent of suspension.

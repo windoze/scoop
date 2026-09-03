@@ -1,4 +1,5 @@
 use super::*;
+use crate::types::ArrayKind;
 
 impl Lowerer {
     /// Resolve the field types of a struct declaration. Fields with
@@ -15,6 +16,7 @@ impl Lowerer {
         }
         let mut seen = HashSet::new();
         let mut fields = Vec::new();
+        let mut parameter_calling = Vec::new();
         if decl.fields.is_omitted() {
             self.error(
                 decl.name.span,
@@ -33,23 +35,24 @@ impl Lowerer {
                 );
                 continue;
             }
-            let Some(ty) = self.resolve_type_ref(&field.ty) else {
+            let Some((ty, calling)) = self.resolve_parameter(&field.ty, &field.syntax) else {
                 continue; // diagnostic already recorded
             };
             fields.push(hir::Field {
                 name: field.name.text.clone(),
                 ty,
             });
+            parameter_calling.push(calling);
         }
         self.structs[id].representation = hir::StructRepresentation::Declared(fields);
+        self.struct_parameter_calling.insert(id, parameter_calling);
         self.type_params_in_scope.clear();
     }
 
     /// Resolve the variants of an enum declaration (pass 2): duplicate
     /// variant and field names are diagnosed, field types resolve in
-    /// the enum's type-parameter scope, and constructor-style defaults
-    /// must be literals matching the field type (milestone4 DESIGN.md
-    /// 5.4).
+    /// the enum's type-parameter scope. Constructor-style defaults are
+    /// type-checked into hygienic templates by the source-interface pass.
     pub(super) fn resolve_variants(&mut self, id: EnumId, decl: &ast::EnumDecl) {
         self.type_params_in_scope = self.enums[id].type_params.clone();
         let mut seen = HashSet::new();
@@ -75,17 +78,18 @@ impl Lowerer {
                 continue; // diagnostic already recorded
             };
             self.variant_styles.insert((id, index as u32), style);
+            self.variant_parameter_calling
+                .insert((id, index as u32), resolved.calling);
             variants.push(hir::Variant {
                 name: variant.name.text.clone(),
                 fields: resolved.fields,
-                defaults: resolved.defaults,
             });
         }
         self.enums[id].variants = variants;
         self.type_params_in_scope.clear();
     }
 
-    /// The fields (and constructor-style defaults) of one variant.
+    /// The fields of one variant.
     /// Returns `None` after recording a diagnostic.
     fn resolve_variant_fields(&mut self, variant: &ast::VariantDecl) -> Option<ResolvedFields> {
         match &variant.kind {
@@ -99,7 +103,7 @@ impl Lowerer {
                         name: format!("_{}", index + 1),
                         ty,
                     });
-                    resolved.defaults.push(None);
+                    resolved.calling.push(FnParamCalling::Required);
                 }
                 Some(resolved)
             }
@@ -118,108 +122,32 @@ impl Lowerer {
                         );
                         return None;
                     }
-                    let ty = self.resolve_type_ref(&field.ty)?;
-                    let default = match &field.default {
-                        Some(default) if constructor => {
-                            Some(self.resolve_variant_default(variant, field, ty, default)?)
-                        }
-                        // The parser only produces defaults on
-                        // constructor-style variants; reject the shape
-                        // here so every AST form is handled.
-                        Some(_) => {
-                            self.error(
-                                field.span,
-                                format!(
-                                    "default value of field `{}` in variant `{}` is only allowed on constructor-style variants",
-                                    field.name.text, variant.name.text
-                                ),
-                            );
-                            return None;
-                        }
-                        None => None,
-                    };
+                    let (ty, calling) = self.resolve_parameter(&field.ty, &field.syntax)?;
+                    if !constructor
+                        && matches!(
+                            field.syntax,
+                            ast::ParameterSyntax::Default { .. }
+                                | ast::ParameterSyntax::Vararg { .. }
+                        )
+                    {
+                        self.error(
+                            field.span,
+                            format!(
+                                "default value of field `{}` in variant `{}` is only allowed on constructor-style variants",
+                                field.name.text, variant.name.text
+                            ),
+                        );
+                        return None;
+                    }
                     resolved.fields.push(hir::Field {
                         name: field.name.text.clone(),
                         ty,
                     });
-                    resolved.defaults.push(default);
+                    resolved.calling.push(calling);
                 }
                 Some(resolved)
             }
         }
-    }
-
-    /// A constructor-style variant field default (M4: literals only,
-    /// milestone4 DESIGN.md 5.4), checked against the field type.
-    pub(super) fn resolve_variant_default(
-        &mut self,
-        variant: &ast::VariantDecl,
-        field: &ast::VariantFieldDecl,
-        field_ty: TypeId,
-        default: &ast::Expr,
-    ) -> Option<hir::Expr> {
-        let span = default.span();
-        let (kind, ty) = match default {
-            ast::Expr::IntLiteral { value, .. } => (hir::ExprKind::IntLiteral(*value), self.int),
-            ast::Expr::StringLiteral { value, .. } => {
-                (hir::ExprKind::StringLiteral(value.clone()), self.string)
-            }
-            ast::Expr::BoolLiteral { value, .. } => {
-                (hir::ExprKind::BoolLiteral(*value), self.boolean)
-            }
-            // A negative integer literal (`-1`) parses as unary minus.
-            ast::Expr::Unary {
-                op: ast::UnOp::Neg,
-                operand,
-                ..
-            } => match &**operand {
-                ast::Expr::IntLiteral { value, span } => {
-                    let operand = Box::new(hir::Expr {
-                        kind: hir::ExprKind::IntLiteral(*value),
-                        ty: self.int,
-                        span: *span,
-                    });
-                    (
-                        hir::ExprKind::Unary {
-                            op: hir::UnOp::Neg,
-                            operand,
-                        },
-                        self.int,
-                    )
-                }
-                _ => return self.invalid_variant_default(variant, field, span),
-            },
-            _ => return self.invalid_variant_default(variant, field, span),
-        };
-        if !self.types_equal(field_ty, ty) {
-            let expected = self.type_name(field_ty);
-            let found = self.type_name(ty);
-            self.error(
-                span,
-                format!(
-                    "default value of field `{}` in variant `{}` must be of type {expected}, found {found}",
-                    field.name.text, variant.name.text
-                ),
-            );
-            return None;
-        }
-        Some(hir::Expr { kind, ty, span })
-    }
-
-    pub(super) fn invalid_variant_default(
-        &mut self,
-        variant: &ast::VariantDecl,
-        field: &ast::VariantFieldDecl,
-        span: Span,
-    ) -> Option<hir::Expr> {
-        self.error(
-            span,
-            format!(
-                "default value of field `{}` in variant `{}` must be a literal",
-                field.name.text, variant.name.text
-            ),
-        );
-        None
     }
 
     /// Resolve a function signature: typed parameters, value parameters
@@ -297,11 +225,8 @@ impl Lowerer {
         for param in &decl.params {
             // On failure the diagnostic is already recorded and the
             // module is rejected; the parameter is simply dropped.
-            if let Some(ty) = self.resolve_type_ref(&param.ty) {
-                params.push(FnParam {
-                    name: param.name.clone(),
-                    ty,
-                });
+            if let Some(param) = self.resolve_fn_param(param) {
+                params.push(param);
             }
         }
         let return_ty = match &decl.return_ty {
@@ -330,11 +255,56 @@ impl Lowerer {
             self.extern_functions[extern_id].return_type = return_ty;
         }
     }
+
+    pub(crate) fn resolve_fn_param(&mut self, param: &ast::Param) -> Option<FnParam> {
+        let (ty, calling) = self.resolve_parameter(&param.ty, &param.syntax)?;
+        Some(FnParam {
+            name: param.name.clone(),
+            calling,
+            ty,
+        })
+    }
+
+    pub(crate) fn resolve_parameter(
+        &mut self,
+        ty: &ast::TypeRef,
+        syntax: &ast::ParameterSyntax,
+    ) -> Option<(TypeId, FnParamCalling)> {
+        let declared_ty = self.resolve_type_ref(ty)?;
+        let resolved = match syntax {
+            ast::ParameterSyntax::Required => (declared_ty, FnParamCalling::Required),
+            ast::ParameterSyntax::Default { expression, .. } => (
+                declared_ty,
+                FnParamCalling::Default {
+                    expression: expression.clone(),
+                },
+            ),
+            ast::ParameterSyntax::Vararg { default, .. } => {
+                let ty = self.array_type(ArrayKind::Immutable, declared_ty);
+                let omission = match default {
+                    ast::VarargDefaultSyntax::EmptyWhenOmitted => FnVarargOmission::EmptyArray,
+                    ast::VarargDefaultSyntax::Expression { expression, .. } => {
+                        FnVarargOmission::Default {
+                            expression: expression.clone(),
+                        }
+                    }
+                };
+                (
+                    ty,
+                    FnParamCalling::Vararg {
+                        element_ty: declared_ty,
+                        omission,
+                    },
+                )
+            }
+        };
+        Some(resolved)
+    }
 }
 
 /// Intermediate result of variant field resolution.
 #[derive(Default)]
 struct ResolvedFields {
     fields: Vec<hir::Field>,
-    defaults: Vec<Option<hir::Expr>>,
+    calling: Vec<FnParamCalling>,
 }

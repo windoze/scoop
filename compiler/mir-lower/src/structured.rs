@@ -197,6 +197,10 @@ pub(crate) enum ExprKind {
         array_type: mir::ClassId,
         elements: Vec<Expr>,
     },
+    ArrayAssembly {
+        array_type: mir::ClassId,
+        parts: Vec<ArrayAssemblyPart>,
+    },
     ArrayGet {
         array_type: mir::ClassId,
         array: Box<Expr>,
@@ -235,6 +239,12 @@ pub(crate) enum ExprKind {
         variant: u32,
         index: u32,
     },
+}
+
+#[derive(Debug, Clone)]
+pub enum ArrayAssemblyPart {
+    Element(Expr),
+    CopyArray(Expr),
 }
 
 #[derive(Debug, Clone, Copy)]

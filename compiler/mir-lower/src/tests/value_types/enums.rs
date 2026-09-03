@@ -10,7 +10,6 @@ fn enum_instances_are_created_once_with_substituted_fields() {
         .map(|name| hir::Variant {
             name: name.to_string(),
             fields: Vec::new(),
-            defaults: Vec::new(),
         })
         .collect();
     let color = h.declare_enum("Color", Vec::new(), Vec::new(), color_variants);

@@ -42,11 +42,7 @@ impl Lowerer {
         self.type_params_in_scope = type_params.clone();
         let mut sig_params = Vec::with_capacity(decl.params.len());
         for param in &decl.params {
-            let ty = self.resolve_type_ref(&param.ty)?;
-            sig_params.push(FnParam {
-                name: param.name.clone(),
-                ty,
-            });
+            sig_params.push(self.resolve_fn_param(param)?);
         }
         let return_ty = match &decl.return_ty {
             Some(ty) => self.resolve_type_ref(ty)?,
@@ -124,12 +120,15 @@ impl Lowerer {
                 .declare(decl.name.text.clone(), local);
         }
 
+        self.lower_local_parameter_interface(function);
+
         let capture_environment = self.capture_environment();
         let outer_locals = std::mem::take(&mut self.locals);
         let outer_scopes = std::mem::replace(&mut self.scopes, Scopes::new());
         let outer_return_ty = self.current_return_ty;
         let outer_return_inference = self.return_inference.take();
         let outer_fn_name = std::mem::take(&mut self.current_fn_name);
+        let outer_source_context = self.current_source_context;
         let outer_this = self.current_this.take();
         let outer_smart_casts = std::mem::take(&mut self.smart_casts);
         self.capture_contexts.push(CaptureContext {
@@ -139,6 +138,7 @@ impl Lowerer {
         });
         self.current_return_ty = return_ty;
         self.current_fn_name = self.functions[function].name.clone();
+        self.set_source_context(decl.name.text.clone());
         self.push_suspension_context(if decl.is_suspend {
             SuspensionContext::SuspendFunction
         } else {
@@ -146,6 +146,7 @@ impl Lowerer {
         });
         self.push_safety_context(attributes.safety);
         self.push_scope();
+        let outer_default_template = std::mem::replace(&mut self.lowering_default_template, false);
 
         let lowered = {
             let mut params = Vec::with_capacity(sig_params.len());
@@ -230,6 +231,7 @@ impl Lowerer {
             let body_locals = std::mem::take(&mut self.locals);
             Some((statements, captures, abi_params, body_locals))
         };
+        self.lowering_default_template = outer_default_template;
 
         self.pop_scope();
         self.pop_safety_context();
@@ -240,6 +242,7 @@ impl Lowerer {
         self.current_return_ty = outer_return_ty;
         self.return_inference = outer_return_inference;
         self.current_fn_name = outer_fn_name;
+        self.current_source_context = outer_source_context;
         self.current_this = outer_this;
         self.smart_casts = outer_smart_casts;
         self.type_params_in_scope = outer_type_params;

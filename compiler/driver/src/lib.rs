@@ -99,14 +99,19 @@ pub fn compile_file_with_options(
     let hir_unit = scoop_hir_lower::CompilationUnit {
         core: files[..user_index]
             .iter()
-            .map(|source| scoop_hir_lower::ProviderSource {
+            .zip(&inputs[..user_index])
+            .map(|(source, input)| scoop_hir_lower::ProviderSource {
                 source,
                 provider: core_provider,
+                name: &input.name,
+                source_text: &input.source,
             })
             .collect(),
         user: scoop_hir_lower::ProviderSource {
             source: &files[user_index],
             provider: user_provider,
+            name: &inputs[user_index].name,
+            source_text: &inputs[user_index].source,
         },
     };
     let hir = scoop_hir_lower::lower_compilation_unit(

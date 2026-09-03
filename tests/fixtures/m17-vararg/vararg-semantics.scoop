@@ -1,0 +1,107 @@
+fun markElement(label: String, value: Int): Int {
+    println(label)
+    return value
+}
+
+fun markArray(label: String, values: Array<Int>): Array<Int> {
+    println(label)
+    return values
+}
+
+fun collect(vararg values: Int): Array<Int> = values
+
+fun collectDefault(vararg values: Int = [9, 10]): Array<Int> = values
+
+fun fromSeed(seed: Int, vararg values: Int = [seed]): Array<Int> = values
+
+fun <T> pack(vararg values: T): Array<T> = values
+
+fun frame(prefix: String, vararg values: Int, suffix: String = "!"): Int =
+    values.size
+
+fun prefer(value: Int): String = "regular"
+fun prefer(vararg values: Int): String = "vararg"
+
+struct Values(vararg val values: Int)
+
+class BoxedValues(vararg val values: Int)
+
+enum Event {
+    Batch(vararg val values: Int)
+}
+
+class Token(val value: Int)
+
+fun gather(vararg values: Token): Array<Token> = values
+
+class MemberCollector() {
+    final fun count(vararg values: Int): Int = values.size
+}
+
+fun Int.withValues(vararg values: Int): Int = this + values.size
+
+fun localCount(): Int {
+    fun count(vararg values: Int): Int = values.size
+    return count(1, 2, 3)
+}
+
+fun printInts(values: Array<Int>) {
+    println(values.size)
+    var index = 0
+    while (index < values.size) {
+        println(values[index])
+        index = index + 1
+    }
+}
+
+fun main() {
+    val assembled = collect(
+        markElement("element-one", 1),
+        *markArray("spread-two-three", [2, 3]),
+        markElement("element-four", 4),
+        *markArray("spread-five", [5])
+    )
+    printInts(assembled)
+
+    val original = [7, 8]
+    val copied = collect(*original)
+    println(copied === original)
+    printInts(copied)
+
+    val whole = collect(values = original)
+    println(whole === original)
+    val spreadWhole = collect(values = *original)
+    println(spreadWhole === original)
+
+    println(collect().size)
+    printInts(collectDefault())
+    printInts(collectDefault(11))
+    printInts(fromSeed(15))
+
+    val inferred: Array<String> = pack()
+    println(inferred.size)
+    println(pack("a", "b").size)
+
+    println(frame("[", 1, 2, suffix = "]"))
+    println(prefer(1))
+    println(MemberCollector().count(1, *[2, 3]))
+    println(10.withValues(1, 2))
+    println(localCount())
+
+    val values = Values(1, *[2, 3])
+    printInts(values.values)
+    val boxed = BoxedValues(*[4, 5])
+    printInts(boxed.values)
+    val event = Event.Batch(6, 7)
+    when (event) {
+        Batch(items) -> printInts(items)
+    }
+
+    val complete: (Array<Int>) -> Array<Int> = ::collect
+    println(complete(original) === original)
+
+    val tokens = gather(Token(12), *[Token(13)], Token(14))
+    println(tokens[0].value)
+    println(tokens[1].value)
+    println(tokens[2].value)
+}

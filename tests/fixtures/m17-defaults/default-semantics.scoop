@@ -1,0 +1,92 @@
+fun markDefault(label: String, value: Int): Int {
+    println(label)
+    return value
+}
+
+fun preserve(value: Int, copy: Int = value): Int = copy
+
+fun sum(left: Int, right: Int = 2): Int = left + right
+
+fun <T> empty(values: Array<T> = []): Array<T> = values
+
+fun select(value: Int): String = "exact"
+fun select(value: Int, extra: Int = 0): String = "defaulted"
+
+struct Settings(val value: Int = markDefault("struct-default", 10))
+
+class Holder(val value: Int = markDefault("class-default", 20))
+
+enum Choice {
+    Value(val value: Int = markDefault("variant-default", 30))
+}
+
+interface Drawable {
+    fun draw(width: Int = 40): Int
+}
+
+class Shape : Drawable {
+    final override fun draw(size: Int): Int = size
+}
+
+class Scale(val base: Int) {
+    fun apply(value: Int = base): Int = value
+}
+
+fun localDefault(): Int {
+    val seed = markDefault("local-seed", 50)
+    fun read(value: Int = seed): Int = value
+    return read()
+}
+
+fun failBeforeDefault(): Int {
+    println("explicit-throws")
+    throw UnwrapException()
+}
+
+fun neverEntered(
+    first: Int,
+    second: Int = markDefault("unreachable-default", 1)
+): Int {
+    println("unreachable-body")
+    return first + second
+}
+
+fun main() {
+    println(preserve(markDefault("prior-once", 7)))
+
+    println(Settings().value)
+    println(Settings(11).value)
+    println(Holder().value)
+    println(Holder(21).value)
+
+    val choice = Choice.Value()
+    when (choice) {
+        Value(value) -> println(value)
+    }
+
+    val supplied = Choice.Value(31)
+    when (supplied) {
+        Value(value) -> println(value)
+    }
+
+    val values: Array<Int> = empty()
+    println(values.size)
+    println(select(1))
+
+    val complete: (Int, Int) -> Int = ::sum
+    println(complete(40, 2))
+
+    val drawable: Drawable = Shape()
+    println(drawable.draw())
+    val shape = Shape()
+    println(shape.draw())
+    println(shape.draw(size = 41))
+    println(Scale(42).apply())
+    println(localDefault())
+
+    try {
+        neverEntered(failBeforeDefault())
+    } catch (exception: UnwrapException) {
+        println("caught")
+    }
+}

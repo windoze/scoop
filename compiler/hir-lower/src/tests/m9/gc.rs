@@ -20,8 +20,7 @@ fn gc_intrinsics_golden() {
     assert_eq!(local_ty(&module, "s2"), "String");
     assert_eq!(local_ty(&module, "s3"), "String");
     assert_eq!(local_ty(&module, "n"), "UInt");
-    let expected = "\
-Module
+    let expected = r#"Module
   enum Option<T>
     Some(_1: T0)
     None()
@@ -58,61 +57,117 @@ Module
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
   fun write(arg1: String): Unit <extern11 abi=scoop symbol=scoop_rt_write>
   fun print<T : ToString>(value: T0): Unit
-    Call write : Unit
+    val local1
+      Local value : T0
+    val local2
       MethodCall bound T0 via ToString -> ToString.toString : String
-        Local value : T0
+        Local $receiver : T0
+    val local3
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
     return
   fun println<T : ToString>(value: T0): Unit
-    Call write : Unit
+    val local1
+      Local value : T0
+    val local2
       MethodCall bound T0 via ToString -> ToString.toString : String
-        Local value : T0
+        Local $receiver : T0
+    val local3
+      Local $argument.0 : String
     Call write : Unit
-      StringLiteral \"\\n\" : String
+      Local $parameter.message : String
+    val local4
+      StringLiteral "\n" : String
+    val local5
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
   fun pin<T : ref>(v: T0): PinnedPtr<T0> <unsafe>
+    val local1
+      Local v : T0
+    val local2
+      Local $argument.0 : T0
+    val local3
+      Call _pin<T0> : UInt
+        Local $parameter.v : T0
+    val local4
+      Local $argument.0 : UInt
     return
       StructInit PinnedPtr : PinnedPtr<T0>
-        Call _pin<T0> : UInt
-          Local v : T0
+        Local $parameter.raw : UInt
   fun unpin<T : ref>(p: PinnedPtr<T0>): T0 <unsafe>
+    val local1
+      FieldAccess field 0 : UInt
+        Local p : PinnedPtr<T0>
+    val local2
+      Local $argument.0 : UInt
     return
       Call _unpin<T0> : T0
-        FieldAccess field 0 : UInt
-          Local p : PinnedPtr<T0>
+        Local $parameter.raw : UInt
   fun getGcHandle<T : ref>(v: T0): GcHandle<T0> <unsafe>
+    val local1
+      Local v : T0
+    val local2
+      Local $argument.0 : T0
+    val local3
+      Call _getGcHandle<T0> : UInt
+        Local $parameter.v : T0
+    val local4
+      Local $argument.0 : UInt
     return
       StructInit GcHandle : GcHandle<T0>
-        Call _getGcHandle<T0> : UInt
-          Local v : T0
+        Local $parameter.raw : UInt
   fun releaseGcHandle<T : ref>(h: GcHandle<T0>): T0 <unsafe>
+    val local1
+      FieldAccess field 0 : UInt
+        Local h : GcHandle<T0>
+    val local2
+      Local $argument.0 : UInt
     return
       Call _releaseGcHandle<T0> : T0
-        FieldAccess field 0 : UInt
-          Local h : GcHandle<T0>
+        Local $parameter.raw : UInt
   fun gcCollect(): Unit <intrinsic rt_gc_collect>
   fun gcStats(): UInt <intrinsic rt_gc_stats>
   fun main(): Unit
     val local0
-      StringLiteral \"hello\" : String
+      StringLiteral "hello" : String
     val local1
-      Call pin<String> : PinnedPtr<String>
-        Local s : String
+      Local s : String
     val local2
-      Call unpin<String> : String
-        Local h : PinnedPtr<String>
+      Local $argument.0 : String
     val local3
-      Call getGcHandle<String> : GcHandle<String>
-        Local s : String
+      Call pin<String> : PinnedPtr<String>
+        Local $parameter.v : String
     val local4
-      Call releaseGcHandle<String> : String
-        Local g : GcHandle<String>
-    Call gcCollect : Unit
+      Local h : PinnedPtr<String>
     val local5
+      Local $argument.0 : PinnedPtr<String>
+    val local6
+      Call unpin<String> : String
+        Local $parameter.p : PinnedPtr<String>
+    val local7
+      Local s : String
+    val local8
+      Local $argument.0 : String
+    val local9
+      Call getGcHandle<String> : GcHandle<String>
+        Local $parameter.v : String
+    val local10
+      Local g : GcHandle<String>
+    val local11
+      Local $argument.0 : GcHandle<String>
+    val local12
+      Call releaseGcHandle<String> : String
+        Local $parameter.h : GcHandle<String>
+    Call gcCollect : Unit
+    val local13
       Call gcStats : UInt
   entry main
   instance pin<String>
   instance unpin<String>
   instance getGcHandle<String>
   instance releaseGcHandle<String>
-";
+"#;
     assert_eq!(hir::dump(&module), expected);
 }

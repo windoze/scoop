@@ -108,10 +108,14 @@ fn allowlisted_test_provider_carries_typed_intrinsic_provenance() {
         core: vec![ProviderSource {
             source: &core,
             provider: core_provider,
+            name: "core.scoop",
+            source_text: "",
         }],
         user: ProviderSource {
             source: &user,
             provider: test_provider,
+            name: "user.scoop",
+            source_text: "",
         },
     };
     let output = lower_compilation_unit(
@@ -164,10 +168,14 @@ fn a_typed_intrinsic_kind_has_one_defining_provider() {
         core: vec![ProviderSource {
             source: &core,
             provider: core_provider,
+            name: "core.scoop",
+            source_text: "",
         }],
         user: ProviderSource {
             source: &user,
             provider: test_provider,
+            name: "user.scoop",
+            source_text: "",
         },
     };
     let errors = lower_compilation_unit(

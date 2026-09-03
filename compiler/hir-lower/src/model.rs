@@ -30,7 +30,29 @@ pub(crate) struct FnSig {
 #[derive(Clone)]
 pub(crate) struct FnParam {
     pub(crate) name: ast::Ident,
+    /// Source-call protocol. The runtime type stays on `ty`; a vararg keeps
+    /// its element type separately so argument mapping never reconstructs it
+    /// from the `Array<T>` application.
+    pub(crate) calling: FnParamCalling,
     pub(crate) ty: TypeId,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) enum FnParamCalling {
+    Required,
+    Default {
+        expression: ast::Expr,
+    },
+    Vararg {
+        element_ty: TypeId,
+        omission: FnVarargOmission,
+    },
+}
+
+#[derive(Debug, Clone)]
+pub(crate) enum FnVarargOmission {
+    EmptyArray,
+    Default { expression: ast::Expr },
 }
 
 /// How a variant was declared (spec 4.2). `hir::Variant` normalizes
@@ -120,6 +142,7 @@ pub(crate) enum SuspensionContext {
 pub(crate) enum ForbiddenSuspendContext {
     TopLevel,
     Function,
+    DefaultExpression,
     ConstructorDelegation,
 }
 

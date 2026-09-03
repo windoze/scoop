@@ -2,6 +2,9 @@ use super::*;
 
 impl BodyLowerer<'_> {
     pub(crate) fn lower_expr(&mut self, expr: &hir::Expr) -> smir::Expr {
+        if let hir::ExprKind::ConstructorParam(parameter) = expr.kind {
+            return self.constructor_param_map[&parameter].clone();
+        }
         let ty = self.lower_type(expr.ty);
         let kind = match &expr.kind {
             hir::ExprKind::StringLiteral(value) => {
@@ -72,8 +75,8 @@ impl BodyLowerer<'_> {
                     }
                 }
             }
-            hir::ExprKind::ConstructorParam(parameter) => {
-                smir::ExprKind::Local(self.constructor_param_map[parameter])
+            hir::ExprKind::ConstructorParam(_) => {
+                unreachable!("constructor parameters return before expression lowering")
             }
             hir::ExprKind::GlobalRead(global) => {
                 smir::ExprKind::GlobalRead(self.global_map[global])
@@ -172,6 +175,27 @@ impl BodyLowerer<'_> {
                 smir::ExprKind::ArrayLiteral {
                     array_type,
                     elements: elements.iter().map(|e| self.lower_expr(e)).collect(),
+                }
+            }
+            hir::ExprKind::ArrayAssembly(assembly) => {
+                let mir::Type::Class(array_type) = self.lower_type(expr.ty) else {
+                    unreachable!("an array assembly has an intrinsic class type")
+                };
+                debug_assert_eq!(array_type, self.class_map[&assembly.result_type]);
+                smir::ExprKind::ArrayAssembly {
+                    array_type,
+                    parts: assembly
+                        .parts
+                        .iter()
+                        .map(|part| match part {
+                            hir::ArrayAssemblyPart::Element(value) => {
+                                smir::ArrayAssemblyPart::Element(self.lower_expr(value))
+                            }
+                            hir::ArrayAssemblyPart::CopyArray(value) => {
+                                smir::ArrayAssemblyPart::CopyArray(self.lower_expr(value))
+                            }
+                        })
+                        .collect(),
                 }
             }
             // Subscript read. M8: the bounds check moved here from

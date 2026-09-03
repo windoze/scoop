@@ -1,0 +1,4 @@
+@Extern(name = "m17_c_values", abi = "c")
+fun nativeValues(vararg values: Int)
+
+fun main() {}

@@ -12,6 +12,7 @@ use scoop_ast::Span;
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum TokenKind {
     Suspend,
+    Vararg,
     Fun,
     Struct,
     Enum,
@@ -84,6 +85,7 @@ impl Token {
     pub fn describe(&self) -> String {
         match &self.kind {
             TokenKind::Suspend => "`suspend`".to_string(),
+            TokenKind::Vararg => "`vararg`".to_string(),
             TokenKind::Fun => "`fun`".to_string(),
             TokenKind::Struct => "`struct`".to_string(),
             TokenKind::Enum => "`enum`".to_string(),

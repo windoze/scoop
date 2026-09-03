@@ -189,6 +189,7 @@ fn operator_equals_legality_is_checked_at_its_declaration() {
     wrong_arity.params.push(ast::Param {
         name: ident("extra"),
         ty: ty_named("Bad"),
+        syntax: ast::ParameterSyntax::Required,
         span: sp(),
     });
     let mut wrong_result = operator_equals(false, false, ty_named("Bad"));

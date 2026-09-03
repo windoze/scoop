@@ -85,6 +85,7 @@ impl Lowerer {
                 },
                 ty: target,
                 span,
+                origin: self.expression_origin(span),
             };
         }
         if self.is_value_ty(expr.ty) {
@@ -92,12 +93,14 @@ impl Lowerer {
                 kind: hir::ExprKind::Box(Box::new(expr)),
                 ty: target,
                 span,
+                origin: self.expression_origin(span),
             }
         } else {
             hir::Expr {
                 kind: expr.kind,
                 ty: target,
                 span,
+                origin: self.expression_origin(span),
             }
         }
     }

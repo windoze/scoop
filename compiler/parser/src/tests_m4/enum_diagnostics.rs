@@ -35,13 +35,21 @@ fn enum_var_field_not_supported() {
 }
 
 #[test]
-fn enum_non_constant_default_is_an_error() {
-    let (span, message) = err("enum E { V(val x: Int = f()) }");
-    assert_eq!(span, Span::new(24, 27));
-    assert_eq!(
-        message,
-        "only constant expressions are allowed as variant field defaults (milestone M4)"
-    );
+fn enum_expression_default_is_preserved_for_hir() {
+    let file = ok("enum E { V(val x: Int = f()) }");
+    let Decl::Enum(enumeration) = &file.declarations[0] else {
+        panic!("expected enum")
+    };
+    let VariantDeclKind::Constructor(fields) = &enumeration.variants[0].kind else {
+        panic!("expected constructor variant")
+    };
+    assert!(matches!(
+        fields[0].syntax,
+        scoop_ast::ParameterSyntax::Default {
+            expression: Expr::Call(_),
+            ..
+        }
+    ));
 }
 
 #[test]

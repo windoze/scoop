@@ -54,7 +54,12 @@ impl Lowerer {
                         self.collect_no_gc_statement_violations(else_body, out, requirements);
                     }
                 }
-                hir::StatementKind::While { cond, body } => {
+                hir::StatementKind::While {
+                    condition_setup,
+                    cond,
+                    body,
+                } => {
+                    self.collect_no_gc_statement_violations(condition_setup, out, requirements);
                     self.collect_no_gc_expr_violations(cond, out, requirements);
                     self.collect_no_gc_statement_violations(body, out, requirements);
                 }
@@ -126,6 +131,20 @@ impl Lowerer {
                 }
                 for element in elements {
                     self.collect_no_gc_expr_violations(element, out, requirements);
+                }
+            }
+            ExprKind::ArrayAssembly(assembly) => {
+                out.push((
+                    expr.span,
+                    "array allocation is not allowed in `@NoGC` code".to_string(),
+                ));
+                for part in &assembly.parts {
+                    match part {
+                        hir::ArrayAssemblyPart::Element(value)
+                        | hir::ArrayAssemblyPart::CopyArray(value) => {
+                            self.collect_no_gc_expr_violations(value, out, requirements)
+                        }
+                    }
                 }
             }
             ExprKind::StructInit { args, .. } | ExprKind::VariantConstruct { args, .. } => {

@@ -26,12 +26,10 @@ impl Harness {
                         name: "_1".to_string(),
                         ty: t,
                     }],
-                    defaults: vec![None],
                 },
                 hir::Variant {
                     name: "None".to_string(),
                     fields: Vec::new(),
-                    defaults: Vec::new(),
                 },
             ],
             interfaces: Vec::new(),

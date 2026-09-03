@@ -19,7 +19,7 @@ pub(super) fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
         Expr::StructInit { name, args, .. } => {
             out.push_str(&format!("{pad}StructInit {}\n", name.text));
             for arg in args {
-                dump_expr(arg, indent + 1, out);
+                dump_call_argument(arg, indent + 1, out);
             }
         }
         Expr::Var(ident) => out.push_str(&format!("{pad}Var {}\n", ident.text)),
@@ -93,14 +93,14 @@ pub(super) fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
             let type_args = dump_call_type_args(&call.type_args);
             out.push_str(&format!("{pad}Call {}{type_args}\n", call.callee.text));
             for arg in &call.args {
-                dump_expr(arg, indent + 1, out);
+                dump_call_argument(arg, indent + 1, out);
             }
         }
         Expr::Invoke { callee, args, .. } => {
             out.push_str(&format!("{pad}Invoke\n"));
             dump_expr(callee, indent + 1, out);
             for arg in args {
-                dump_expr(arg, indent + 1, out);
+                dump_call_argument(arg, indent + 1, out);
             }
         }
         Expr::Binary { op, lhs, rhs, .. } => {
@@ -133,7 +133,7 @@ pub(super) fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
             out.push_str(&format!("{pad}MethodCall {}{type_args}\n", name.text));
             dump_expr(receiver, indent + 1, out);
             for arg in args {
-                dump_expr(arg, indent + 1, out);
+                dump_call_argument(arg, indent + 1, out);
             }
         }
         Expr::Is {
@@ -208,6 +208,27 @@ pub(super) fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
             }
         }
     }
+}
+
+fn dump_call_argument(argument: &CallArgument, indent: usize, out: &mut String) {
+    if matches!(argument.name, CallArgumentName::Positional)
+        && matches!(argument.spread, SpreadSyntax::Plain)
+    {
+        dump_expr(&argument.expression, indent, out);
+        return;
+    }
+    let pad = "  ".repeat(indent);
+    let name = match &argument.name {
+        CallArgumentName::Positional => String::new(),
+        CallArgumentName::Named(name) => format!("{}=", name.text),
+    };
+    let spread = if matches!(argument.spread, SpreadSyntax::Spread(_)) {
+        "*"
+    } else {
+        ""
+    };
+    out.push_str(&format!("{pad}Argument {name}{spread}\n"));
+    dump_expr(&argument.expression, indent + 1, out);
 }
 
 fn dump_call_type_args(type_args: &[TypeRef]) -> String {

@@ -1,0 +1,7 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m17-arguments/errors/positional-variant-named.scoop:6:5: error: no applicable candidate for constructor `Payload.Pair` in nominal constructor candidate layer:
+  - variant Payload.Pair(_1: Int, _2: Int) — positional variants do not accept named arguments

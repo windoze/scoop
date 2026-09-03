@@ -161,12 +161,12 @@ impl Parser {
     /// `(arg, ...)` — the `(` is the current token. Shared by calls,
     /// method calls, and base-class constructor delegation. Returns the
     /// arguments and the closing paren's end offset.
-    pub(crate) fn parse_args(&mut self) -> Result<(Vec<Expr>, u32), Diagnostic> {
+    pub(crate) fn parse_args(&mut self) -> Result<(Vec<CallArgument>, u32), Diagnostic> {
         self.expect("`(`", |k| matches!(k, TokenKind::LParen))?;
         let mut args = Vec::new();
         if !matches!(self.peek().kind, TokenKind::RParen) {
             loop {
-                args.push(self.parse_expr()?);
+                args.push(self.parse_call_argument()?);
                 if matches!(self.peek().kind, TokenKind::Comma) {
                     self.bump();
                 } else {
@@ -176,6 +176,33 @@ impl Parser {
         }
         let close = self.expect("`)`", |k| matches!(k, TokenKind::RParen))?;
         Ok((args, close.span.end))
+    }
+
+    fn parse_call_argument(&mut self) -> Result<CallArgument, Diagnostic> {
+        let start = self.peek().span.start;
+        let name = if let TokenKind::Ident(_) = &self.peek().kind
+            && matches!(
+                self.tokens.get(self.pos + 1).map(|token| &token.kind),
+                Some(TokenKind::Equal)
+            ) {
+            let name = self.expect_ident("argument name")?;
+            self.bump(); // `=` verified above
+            CallArgumentName::Named(name)
+        } else {
+            CallArgumentName::Positional
+        };
+        let spread = if matches!(self.peek().kind, TokenKind::Star) {
+            SpreadSyntax::Spread(self.bump().span)
+        } else {
+            SpreadSyntax::Plain
+        };
+        let expression = self.parse_expr()?;
+        Ok(CallArgument {
+            span: Span::new(start, expression.span().end),
+            name,
+            spread,
+            expression,
+        })
     }
 
     /// `( ... )` disambiguation (spec section 4.3): `()` is the unit

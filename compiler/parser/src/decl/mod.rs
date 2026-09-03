@@ -2,11 +2,12 @@
 //! classes and interfaces.
 
 use scoop_ast::{
-    Annotation, AnnotationArg, AnnotationLiteral, ClassConstructorDecl, ClassDecl, ClassModifier,
-    ConstructorProp, Decl, Diagnostic, EnumDecl, Expr, FieldDecl, FunctionBody, FunctionDecl,
-    GlobalDecl, InterfaceDecl, MethodModifier, OperatorModifier, Param, Span, StructDecl,
-    StructRepresentationDecl, TypeBound, TypeConstraint, TypeParamDecl, TypeParamKindBound,
-    Variance, VariantDecl, VariantDeclKind, VariantFieldDecl, WhereClause,
+    Annotation, AnnotationArg, AnnotationLiteral, CallArgument, ClassConstructorDecl, ClassDecl,
+    ClassModifier, ConstructorProp, Decl, Diagnostic, EnumDecl, FieldDecl, FunctionBody,
+    FunctionDecl, GlobalDecl, InterfaceDecl, MethodModifier, OperatorModifier, Param,
+    ParameterSyntax, Span, StructDecl, StructRepresentationDecl, TypeBound, TypeConstraint,
+    TypeParamDecl, TypeParamKindBound, VarargDefaultSyntax, Variance, VariantDecl, VariantDeclKind,
+    VariantFieldDecl, WhereClause,
 };
 
 use crate::lexer::TokenKind;
@@ -46,7 +47,7 @@ pub(crate) struct Modifiers {
 /// constructor arguments (`: Base(args)`) plus the implemented interfaces.
 #[derive(Debug, Default)]
 pub(crate) struct Supertypes {
-    pub base_class: Option<(scoop_ast::TypeRef, Vec<Expr>)>,
+    pub base_class: Option<(scoop_ast::TypeRef, Vec<CallArgument>)>,
     pub interfaces: Vec<scoop_ast::TypeRef>,
 }
 

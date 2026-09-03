@@ -34,8 +34,13 @@ impl Lowerer {
                         else_body: else_body.map(|body| self.adapt_inferred_returns(body, target)),
                     };
                 }
-                hir::StatementKind::While { cond, body } => {
+                hir::StatementKind::While {
+                    condition_setup,
+                    cond,
+                    body,
+                } => {
                     statement.kind = hir::StatementKind::While {
+                        condition_setup: self.adapt_inferred_returns(condition_setup, target),
                         cond,
                         body: self.adapt_inferred_returns(body, target),
                     };
@@ -71,6 +76,7 @@ impl Lowerer {
     }
 
     pub(crate) fn lower_body(&mut self, id: FunctionId, decl: &ast::FunctionDecl) -> hir::Body {
+        let outer_source_context = self.current_source_context;
         let sig = self.signatures[&id].clone();
         // Member functions (M6): `this` is parameter 0, an immutable
         // local of the host type; bare property / method names in the
@@ -90,6 +96,7 @@ impl Lowerer {
 
         self.current_owner = owner;
         self.current_this = None;
+        self.set_source_context(decl.name.text.clone());
 
         // Parameters are immutable locals in the function's outermost
         // scope; the body block nests inside it, so body locals may
@@ -187,6 +194,7 @@ impl Lowerer {
         self.type_params_in_scope.clear();
         self.current_this = None;
         self.current_owner = None;
+        self.current_source_context = outer_source_context;
         self.pop_safety_context();
         self.pop_suspension_context();
 

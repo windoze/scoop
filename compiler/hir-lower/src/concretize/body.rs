@@ -8,9 +8,23 @@ impl Concretizer<'_> {
         source: &export::Body,
         substitution: &[concrete::TypeId],
     ) -> (concrete::Body, Vec<concrete::LocalId>) {
+        let (locals, local_map) = self.lower_locals(&source.locals, substitution);
+        let statements = source
+            .statements
+            .iter()
+            .filter_map(|statement| self.lower_statement(statement, substitution, &local_map))
+            .collect();
+        (concrete::Body { locals, statements }, local_map)
+    }
+
+    pub(super) fn lower_locals(
+        &mut self,
+        source: &Arena<export::Local>,
+        substitution: &[concrete::TypeId],
+    ) -> (Arena<concrete::Local>, Vec<concrete::LocalId>) {
         let mut locals = Arena::new();
-        let mut local_map = Vec::with_capacity(source.locals.len());
-        for (source_id, source_local) in source.locals.iter() {
+        let mut local_map = Vec::with_capacity(source.len());
+        for (source_id, source_local) in source.iter() {
             let id = locals.alloc(concrete::Local {
                 binding: concrete::BindingId::from_raw(source_local.binding.into_raw()),
                 name: source_local.name.clone(),
@@ -20,12 +34,7 @@ impl Concretizer<'_> {
             assert_eq!(id.into_raw(), source_id.into_raw());
             local_map.push(id);
         }
-        let statements = source
-            .statements
-            .iter()
-            .filter_map(|statement| self.lower_statement(statement, substitution, &local_map))
-            .collect();
-        (concrete::Body { locals, statements }, local_map)
+        (locals, local_map)
     }
 
     pub(super) fn lower_statement(
@@ -66,7 +75,12 @@ impl Concretizer<'_> {
                     .as_ref()
                     .map(|body| self.lower_statements(body, substitution, locals)),
             },
-            export::StatementKind::While { cond, body } => concrete::StatementKind::While {
+            export::StatementKind::While {
+                condition_setup,
+                cond,
+                body,
+            } => concrete::StatementKind::While {
+                condition_setup: self.lower_statements(condition_setup, substitution, locals),
                 cond: self.lower_expr(cond, substitution, locals),
                 body: self.lower_statements(body, substitution, locals),
             },
@@ -126,8 +140,8 @@ impl Concretizer<'_> {
                 concrete::AssignTarget::Global(self.global_map[global])
             }
             export::AssignTarget::Index { array, index } => concrete::AssignTarget::Index {
-                array: self.lower_expr(array, substitution, locals),
-                index: self.lower_expr(index, substitution, locals),
+                array: Box::new(self.lower_expr(array, substitution, locals)),
+                index: Box::new(self.lower_expr(index, substitution, locals)),
             },
             export::AssignTarget::Field { receiver, field } => {
                 let receiver = self.lower_expr(receiver, substitution, locals);

@@ -1,0 +1,461 @@
+use super::*;
+
+#[test]
+fn named_inputs_run_in_source_order_before_declaration_order_defaults() {
+    let target = with_default(
+        with_default(
+            fun_sig(
+                "target",
+                vec![],
+                vec![
+                    ("x", ty_named("Int")),
+                    ("y", ty_named("Int")),
+                    ("z", ty_named("Int")),
+                ],
+                Some(ty_named("Int")),
+                vec![ret(Some(var("x")))],
+            ),
+            0,
+            call("defaultX", vec![]),
+        ),
+        2,
+        call("defaultZ", vec![]),
+    );
+    let call = source_call(
+        "target",
+        vec![
+            named_argument("z", call("explicitZ", vec![])),
+            named_argument("y", call("explicitY", vec![])),
+        ],
+    );
+    let module = lower_user(file(vec![
+        fun_expr(
+            "defaultX",
+            vec![],
+            vec![],
+            Some(ty_named("Int")),
+            int_lit(1),
+        ),
+        fun_expr(
+            "defaultZ",
+            vec![],
+            vec![],
+            Some(ty_named("Int")),
+            int_lit(2),
+        ),
+        fun_expr(
+            "explicitZ",
+            vec![],
+            vec![],
+            Some(ty_named("Int")),
+            int_lit(3),
+        ),
+        fun_expr(
+            "explicitY",
+            vec![],
+            vec![],
+            Some(ty_named("Int")),
+            int_lit(4),
+        ),
+        target,
+        fun("main", vec![val("result", call)]),
+    ]))
+    .expect("named/default call must lower");
+
+    let dump = hir::dump(&module);
+    let explicit_z = dump.find("Call explicitZ").expect("explicit z call");
+    let explicit_y = dump.find("Call explicitY").expect("explicit y call");
+    let default_x = dump.find("Call defaultX").expect("default x call");
+    assert!(explicit_z < explicit_y && explicit_y < default_x, "{dump}");
+    assert!(!dump.contains("Call defaultZ"), "{dump}");
+}
+
+#[test]
+fn every_source_callable_and_constructor_uses_explicit_temporaries() {
+    let output = lower_user_output(file(vec![
+        fun_sig(
+            "accept",
+            vec![],
+            vec![("value", ty_named("Int"))],
+            None,
+            vec![],
+        ),
+        struct_decl("Box", vec![("item", ty_named("Int"))]),
+        class_decl(
+            ast::ClassModifier::Final,
+            "Holder",
+            vec![(false, "content", ty_named("Int"))],
+            None,
+            vec![],
+            vec![],
+        ),
+        enum_decl(
+            "Choice",
+            vec![],
+            vec![variant_constructor(
+                "Item",
+                vec![("selected", ty_named("Int"), None)],
+            )],
+        ),
+        fun(
+            "main",
+            vec![
+                stmt(call("accept", vec![int_lit(1)])),
+                val("boxed", call("Box", vec![int_lit(2)])),
+                val("held", call("Holder", vec![int_lit(3)])),
+                val(
+                    "choice",
+                    method_call(var("Choice"), "Item", vec![int_lit(4)]),
+                ),
+            ],
+        ),
+    ]))
+    .expect("all source call shapes should share argument materialization");
+
+    let body = function_body(&output.export, "main");
+    let names = body
+        .locals
+        .iter()
+        .map(|(_, local)| local.name.as_str())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        names.iter().filter(|name| **name == "$argument.0").count(),
+        4
+    );
+    for parameter in ["value", "item", "content", "selected"] {
+        assert!(
+            names.contains(&format!("$parameter.{parameter}").as_str()),
+            "missing parameter temporary for {parameter}: {names:?}"
+        );
+    }
+}
+
+#[test]
+fn callback_intrinsic_reads_named_constants_through_materialized_temporaries() {
+    let native_signature = ty_function(
+        false,
+        vec![ty_named("Int"), ty_generic("Ptr", vec![ty_named("Unit")])],
+        ty_named("Int"),
+    );
+    let callback = ast::Expr::Lambda {
+        id: ast::LambdaId(0),
+        is_suspend: false,
+        parameters: Some(vec![ast::LambdaParam {
+            target: pat_bind("value"),
+            ty: Some(ty_named("Int")),
+            span: sp(),
+        }]),
+        body: block(vec![stmt(var("value"))]),
+        span: sp(),
+    };
+    let registration = typed_source_call(
+        "foreignCallback",
+        vec![native_signature],
+        vec![
+            named_argument(
+                "mode",
+                struct_init("ForeignCallbackMode.Reusable", Vec::new()),
+            ),
+            named_argument("callback", callback),
+            named_argument("contextIndex", int_lit(1)),
+        ],
+    );
+    let module = lower_user(file(vec![fun(
+        "main",
+        vec![unsafe_block(vec![val("registered", registration)])],
+    )]))
+    .expect("named callback arguments should survive explicit materialization");
+
+    let (_, registration) = module
+        .foreign_callback_registrations
+        .iter()
+        .next()
+        .expect("one callback registration");
+    assert_eq!(registration.context_index, 1);
+    assert_eq!(registration.mode, hir::ForeignCallbackMode::Reusable);
+    let hir::FunctionKind::User(main) = &module.functions[module.entry].kind else {
+        panic!("main has a user body")
+    };
+    let dump = hir::dump(&module);
+    assert!(dump.contains("Local $parameter.callback"), "{dump}");
+    assert!(matches!(
+        local_init(main, "registered").kind,
+        hir::ExprKind::ForeignCallbackRegister { .. }
+    ));
+}
+
+#[test]
+fn local_default_uses_definition_binding_and_prior_parameter() {
+    let mut local = local_fun_sig(
+        "choose",
+        vec![],
+        vec![("first", ty_named("Int")), ("second", ty_named("Int"))],
+        Some(ty_named("Int")),
+        vec![ret(Some(var("second")))],
+    );
+    let ast::StatementKind::LocalFunction(function) = &mut local.kind else {
+        unreachable!("local_fun_sig creates a local function")
+    };
+    function.params[0].syntax = ast::ParameterSyntax::Default {
+        expression: var("base"),
+        equals_span: sp(),
+    };
+    function.params[1].syntax = ast::ParameterSyntax::Default {
+        expression: var("first"),
+        equals_span: sp(),
+    };
+    let module = lower_user(file(vec![fun(
+        "main",
+        vec![
+            val("base", int_lit(11)),
+            local,
+            val("result", call("choose", vec![])),
+        ],
+    )]))
+    .expect("local defaults may capture lexical vals and reference prior parameters");
+    let dump = hir::dump(&module);
+    assert!(dump.contains("Local base : Int"), "{dump}");
+    assert!(dump.contains("Local $parameter.first : Int"), "{dump}");
+    assert!(
+        dump.contains("LocalFunctionCall local0 $local.0.choose"),
+        "{dump}"
+    );
+}
+
+#[test]
+fn a_default_does_not_infer_an_unconstrained_type_parameter() {
+    let declaration = with_default(
+        fun_sig(
+            "empty",
+            vec!["T"],
+            vec![("values", ty_generic("Array", vec![ty_named("T")]))],
+            Some(ty_generic("Array", vec![ty_named("T")])),
+            vec![ret(Some(var("values")))],
+        ),
+        0,
+        array_lit(vec![]),
+    );
+    let errors = lower_user(file(vec![
+        declaration,
+        fun("main", vec![val("values", call("empty", vec![]))]),
+    ]))
+    .expect_err("the omitted default contributes no inference constraint");
+    assert!(errors.iter().any(|diagnostic| {
+        diagnostic
+            .message
+            .contains("cannot infer a unique type argument for `T`")
+    }));
+}
+
+#[test]
+fn a_generic_default_callable_body_keeps_the_callee_application() {
+    let function_type = ty_function(false, vec![ty_named("T")], ty_named("T"));
+    let factory = with_default(
+        fun_sig(
+            "factory",
+            vec!["T"],
+            vec![("callback", function_type.clone())],
+            Some(function_type),
+            vec![ret(Some(var("callback")))],
+        ),
+        0,
+        identity_lambda(),
+    );
+    let output = lower_user_output(file(vec![
+        factory,
+        fun(
+            "main",
+            vec![val(
+                "callback",
+                typed_call("factory", vec![ty_named("Int")], vec![]),
+            )],
+        ),
+    ]))
+    .expect("a default lambda from a generic callee must concretize at Int");
+    assert!(output.local.functions.iter().any(|(_, function)| {
+        function.name.starts_with("$lambda")
+            && matches!(
+                output.local.types[function.return_ty].kind,
+                hir::concrete::TypeKind::Int
+            )
+    }));
+}
+
+#[test]
+fn positional_vararg_assembles_fresh_array_but_named_vararg_keeps_identity() {
+    let collect = with_vararg(
+        fun_sig(
+            "collect",
+            vec![],
+            vec![("values", ty_named("Int"))],
+            Some(ty_generic("Array", vec![ty_named("Int")])),
+            vec![ret(Some(var("values")))],
+        ),
+        0,
+    );
+    let mixed = source_call(
+        "collect",
+        vec![
+            ast::CallArgument::positional(int_lit(1)),
+            spread_argument(var("existing")),
+        ],
+    );
+    let whole = source_call("collect", vec![named_argument("values", var("existing"))]);
+    let module = lower_user(file(vec![
+        collect,
+        fun(
+            "main",
+            vec![
+                val("existing", array_lit(vec![int_lit(2), int_lit(3)])),
+                val("mixed", mixed),
+                val("whole", whole),
+                val("empty", call("collect", vec![])),
+            ],
+        ),
+    ]))
+    .expect("all vararg source forms must lower");
+    let dump = hir::dump(&module);
+    assert_eq!(
+        dump.matches("ArrayAssembly : Array<Int>").count(),
+        2,
+        "{dump}"
+    );
+    assert!(
+        dump.contains("CopyArray\n          Local $argument.1"),
+        "{dump}"
+    );
+}
+
+#[test]
+fn base_constructor_delegation_uses_the_complete_source_protocol() {
+    let base = with_constructor_syntax(
+        with_constructor_syntax(
+            with_constructor_syntax(
+                class_decl(
+                    ast::ClassModifier::Open,
+                    "Base",
+                    vec![
+                        (false, "head", ty_named("Int")),
+                        (false, "values", ty_named("Int")),
+                        (false, "tail", ty_named("Int")),
+                    ],
+                    None,
+                    vec![],
+                    vec![],
+                ),
+                0,
+                ast::ParameterSyntax::Default {
+                    expression: int_lit(10),
+                    equals_span: sp(),
+                },
+            ),
+            1,
+            ast::ParameterSyntax::Vararg {
+                modifier_span: sp(),
+                default: ast::VarargDefaultSyntax::EmptyWhenOmitted,
+            },
+        ),
+        2,
+        ast::ParameterSyntax::Default {
+            expression: int_lit(30),
+            equals_span: sp(),
+        },
+    );
+    let mut derived = class_decl(
+        ast::ClassModifier::Final,
+        "Derived",
+        vec![(false, "more", ty_generic("Array", vec![ty_named("Int")]))],
+        Some(("Base", vec![])),
+        vec![],
+        vec![],
+    );
+    let Decl::Class(class) = &mut derived else {
+        unreachable!()
+    };
+    class.base_class = Some((
+        ty_named("Base"),
+        vec![
+            ast::CallArgument::positional(int_lit(1)),
+            ast::CallArgument::positional(int_lit(2)),
+            spread_argument(var("more")),
+        ],
+    ));
+    let mut whole = class_decl(
+        ast::ClassModifier::Final,
+        "Whole",
+        vec![
+            (false, "more", ty_generic("Array", vec![ty_named("Int")])),
+            (false, "last", ty_named("Int")),
+        ],
+        Some(("Base", vec![])),
+        vec![],
+        vec![],
+    );
+    let Decl::Class(class) = &mut whole else {
+        unreachable!()
+    };
+    class.base_class = Some((
+        ty_named("Base"),
+        vec![
+            named_argument("values", var("more")),
+            named_argument("tail", var("last")),
+        ],
+    ));
+
+    let module = lower_user(file(vec![base, derived, whole, fun("main", vec![])]))
+        .expect("base delegation must support defaults and positional vararg parts");
+    let (_, derived) = module
+        .classes
+        .iter()
+        .find(|(_, class)| class.name == "Derived")
+        .expect("derived class");
+    let (_, delegation) = derived.base_class.as_ref().expect("base delegation");
+    assert_eq!(delegation.args.len(), 3);
+    assert!(delegation.statements.iter().any(|statement| matches!(
+        statement.kind,
+        hir::StatementKind::ValDecl {
+            init: hir::Expr {
+                kind: hir::ExprKind::ArrayAssembly(_),
+                ..
+            },
+            ..
+        }
+    )));
+    assert!(delegation.statements.iter().any(|statement| matches!(
+        statement.kind,
+        hir::StatementKind::ValDecl {
+            init: hir::Expr {
+                kind: hir::ExprKind::IntLiteral(30),
+                ..
+            },
+            ..
+        }
+    )));
+
+    let (_, whole) = module
+        .classes
+        .iter()
+        .find(|(_, class)| class.name == "Whole")
+        .expect("whole-array derived class");
+    let (_, delegation) = whole.base_class.as_ref().expect("named base delegation");
+    assert!(!delegation.statements.iter().any(|statement| matches!(
+        statement.kind,
+        hir::StatementKind::ValDecl {
+            init: hir::Expr {
+                kind: hir::ExprKind::ArrayAssembly(_),
+                ..
+            },
+            ..
+        }
+    )));
+    assert!(delegation.statements.iter().any(|statement| matches!(
+        statement.kind,
+        hir::StatementKind::ValDecl {
+            init: hir::Expr {
+                kind: hir::ExprKind::IntLiteral(10),
+                ..
+            },
+            ..
+        }
+    )));
+}

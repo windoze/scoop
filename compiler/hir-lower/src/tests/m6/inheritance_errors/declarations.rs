@@ -160,7 +160,7 @@ fn base_constructor_arity_is_checked() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "constructor of class `A` takes exactly 1 argument, but 2 were supplied"
+        "no applicable candidate for constructor `A` in nominal constructor candidate layer:\n  - class A(x: Int) — expects 1 argument(s), but 2 were supplied"
     );
 }
 
@@ -189,7 +189,7 @@ fn base_constructor_argument_types_are_checked() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "argument for constructor property `x` of class `A` must be of type Int, found String"
+        "no applicable candidate for constructor `A` in nominal constructor candidate layer:\n  - class A(x: Int) — argument for `x` has type String, which is not a subtype of Int"
     );
 }
 

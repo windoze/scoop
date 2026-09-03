@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m17-defaults/errors/function-value-omitted-default.scoop:5:5: error: function value takes exactly 2 argument(s), but 1 were supplied

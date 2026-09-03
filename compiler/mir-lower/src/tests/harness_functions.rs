@@ -351,7 +351,6 @@ impl Harness {
                 .map(|variant| hir::Variant {
                     name: (*variant).to_string(),
                     fields: Vec::new(),
-                    defaults: Vec::new(),
                 })
                 .collect()
         };
@@ -387,7 +386,18 @@ impl Harness {
         let intrinsic_array = self.intrinsic_array_class(hir::IntrinsicTypeKind::Array);
         let intrinsic_mutable_array =
             self.intrinsic_array_class(hir::IntrinsicTypeKind::MutableArray);
+        let mut source_contexts = Arena::new();
+        source_contexts.alloc(hir::SourceContext {
+            function_name: String::new(),
+            type_name: String::new(),
+        });
         hir::Module {
+            source_files: vec![hir::SourceFileMetadata {
+                provider: hir::IntrinsicProviderId::from_raw(0),
+                name: "<test>".to_string(),
+                source: String::new(),
+            }],
+            source_contexts,
             types: self.types,
             function_types: Arena::new(),
             lambdas: Arena::new(),
@@ -397,6 +407,10 @@ impl Harness {
             bound_callable_refs: Arena::new(),
             function_coercions: Arena::new(),
             foreign_callback_registrations: Arena::new(),
+            source_parameter_interfaces: Vec::new(),
+            export_default_exprs: Arena::new(),
+            export_default_sources: Arena::new(),
+            export_vararg_parameter_types: Arena::new(),
             functions: self.functions,
             extern_functions: self.extern_functions,
             globals: Arena::new(),
@@ -440,6 +454,10 @@ impl Harness {
                 string: intrinsic_string,
                 array: intrinsic_array,
                 mutable_array: intrinsic_mutable_array,
+            },
+            source_location_core: hir::SourceLocationCore {
+                location: ptr,
+                current: entry,
             },
             entry,
             instantiations: self.instantiations,

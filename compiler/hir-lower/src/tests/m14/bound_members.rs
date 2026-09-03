@@ -119,13 +119,16 @@ fn bounded_receiver_call_records_exact_interface_member_identity() {
     let hir::concrete::FunctionKind::User(body) = &read.kind else {
         panic!("read specialization must have a user body")
     };
-    let hir::concrete::StatementKind::Return {
-        value:
-            Some(hir::concrete::Expr {
-                kind: hir::concrete::ExprKind::MethodCall { callee, .. },
-                ..
-            }),
-    } = &body.statements[0].kind
+    let hir::concrete::ExprKind::MethodCall { callee, .. } = &body
+        .statements
+        .iter()
+        .rev()
+        .find_map(|statement| match &statement.kind {
+            hir::concrete::StatementKind::Return { value: Some(value) } => Some(value),
+            _ => None,
+        })
+        .expect("read specialization must return a value")
+        .kind
     else {
         panic!("read specialization must return its bound call")
     };

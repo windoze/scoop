@@ -177,6 +177,7 @@ impl Concretizer<'_> {
             return receiver;
         }
         let span = receiver.span;
+        let origin = receiver.origin;
         let value = matches!(
             self.types[receiver.ty].kind,
             concrete::TypeKind::Unit
@@ -194,12 +195,14 @@ impl Concretizer<'_> {
                 kind: concrete::ExprKind::Box(Box::new(receiver)),
                 ty: target,
                 span,
+                origin,
             }
         } else {
             concrete::Expr {
                 kind: receiver.kind,
                 ty: target,
                 span,
+                origin,
             }
         }
     }

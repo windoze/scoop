@@ -2,7 +2,7 @@
 
 use scoop_hir as hir;
 
-use super::arguments::{CandidateArgumentMap, SourceInputId};
+use super::arguments::{CandidateArgumentMap, SourceInputKind};
 use super::candidates::{
     CallableView, NominalConstructorSource, NominalConstructorView, ReceiverShape,
 };
@@ -231,7 +231,7 @@ impl Lowerer {
             explicit_arguments.is_empty()
                 || view.callable_parameters.len() == explicit_arguments.len()
         );
-        debug_assert_eq!(argument_map.parameters.len(), argument_types.len());
+        debug_assert_eq!(argument_map.source_order.len(), argument_types.len());
 
         let mut session = InferenceSession::new();
         let environment =
@@ -275,16 +275,41 @@ impl Lowerer {
             debug_assert!(receiver_type.is_none());
         }
 
-        for input in &argument_map.parameters {
-            let source_index = input.input.index();
+        for input in &argument_map.source_order {
+            let source_index = input.index();
             let Some(actual) = argument_types[source_index] else {
                 continue;
             };
-            let expected = view.value_parameters[input.parameter.index()].ty;
-            session.push(
-                Constraint::Subtype(TypeTerm::Rigid(actual), TypeTerm::Type(expected)),
-                ConstraintOrigin::Argument(SourceInputId::from_index(source_index)),
-            );
+            let (parameter, kind) = argument_map.source_binding(*input);
+            let parameter = &view.value_parameters[parameter.index()];
+            let expected = match (&parameter.calling, kind) {
+                (
+                    crate::defaults::SourceParameterCalling::Vararg {
+                        element_type: element_ty,
+                        ..
+                    },
+                    SourceInputKind::VarargElement,
+                ) => *element_ty,
+                (
+                    crate::defaults::SourceParameterCalling::Vararg { .. },
+                    SourceInputKind::VarargArray,
+                )
+                | (
+                    crate::defaults::SourceParameterCalling::Required
+                    | crate::defaults::SourceParameterCalling::Default(_),
+                    SourceInputKind::Value,
+                ) => parameter.ty,
+                _ => unreachable!("argument mapping fixes each input shape"),
+            };
+            let constraint = match kind {
+                SourceInputKind::Value | SourceInputKind::VarargElement => {
+                    Constraint::Subtype(TypeTerm::Rigid(actual), TypeTerm::Type(expected))
+                }
+                SourceInputKind::VarargArray => {
+                    Constraint::Equal(TypeTerm::Rigid(actual), TypeTerm::Type(expected))
+                }
+            };
+            session.push(constraint, ConstraintOrigin::Argument(*input));
         }
         if let Some(expected) = expected_result {
             session.push(
@@ -314,7 +339,7 @@ impl Lowerer {
             expected_arguments
                 .is_none_or(|arguments| arguments.len() == view.owner_parameters.len())
         );
-        debug_assert_eq!(argument_map.parameters.len(), argument_types.len());
+        debug_assert_eq!(argument_map.source_order.len(), argument_types.len());
         let (declaration_span, result_type) = match view.target {
             NominalConstructorSource::Struct(structure) => {
                 let declaration = &self.structs[structure];
@@ -367,16 +392,41 @@ impl Lowerer {
         }
 
         self.add_declaration_bounds(&mut session, view.owner_parameters.iter());
-        for input in &argument_map.parameters {
-            let source_index = input.input.index();
+        for input in &argument_map.source_order {
+            let source_index = input.index();
             let Some(actual) = argument_types[source_index] else {
                 continue;
             };
-            let expected = view.value_parameters[input.parameter.index()].ty;
-            session.push(
-                Constraint::Subtype(TypeTerm::Rigid(actual), TypeTerm::Type(expected)),
-                ConstraintOrigin::Argument(SourceInputId::from_index(source_index)),
-            );
+            let (parameter, kind) = argument_map.source_binding(*input);
+            let parameter = &view.value_parameters[parameter.index()];
+            let expected = match (&parameter.calling, kind) {
+                (
+                    crate::defaults::SourceParameterCalling::Vararg {
+                        element_type: element_ty,
+                        ..
+                    },
+                    SourceInputKind::VarargElement,
+                ) => *element_ty,
+                (
+                    crate::defaults::SourceParameterCalling::Vararg { .. },
+                    SourceInputKind::VarargArray,
+                )
+                | (
+                    crate::defaults::SourceParameterCalling::Required
+                    | crate::defaults::SourceParameterCalling::Default(_),
+                    SourceInputKind::Value,
+                ) => parameter.ty,
+                _ => unreachable!("argument mapping fixes each input shape"),
+            };
+            let constraint = match kind {
+                SourceInputKind::Value | SourceInputKind::VarargElement => {
+                    Constraint::Subtype(TypeTerm::Rigid(actual), TypeTerm::Type(expected))
+                }
+                SourceInputKind::VarargArray => {
+                    Constraint::Equal(TypeTerm::Rigid(actual), TypeTerm::Type(expected))
+                }
+            };
+            session.push(constraint, ConstraintOrigin::Argument(*input));
         }
 
         let application_arguments = owner_variables

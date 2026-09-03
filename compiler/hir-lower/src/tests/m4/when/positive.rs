@@ -37,8 +37,7 @@ fn when_over_enum_with_bare_and_qualified_variants() {
         ),
     ]);
     let module = lower_user(file).expect("when over Color must lower");
-    let expected = "\
-Module
+    let expected = r#"Module
   enum Option<T>
     Some(_1: T0)
     None()
@@ -79,33 +78,61 @@ Module
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
   fun write(arg1: String): Unit <extern11 abi=scoop symbol=scoop_rt_write>
   fun print<T : ToString>(value: T0): Unit
-    Call write : Unit
+    val local1
+      Local value : T0
+    val local2
       MethodCall bound T0 via ToString -> ToString.toString : String
-        Local value : T0
+        Local $receiver : T0
+    val local3
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
     return
   fun println<T : ToString>(value: T0): Unit
-    Call write : Unit
+    val local1
+      Local value : T0
+    val local2
       MethodCall bound T0 via ToString -> ToString.toString : String
-        Local value : T0
+        Local $receiver : T0
+    val local3
+      Local $argument.0 : String
     Call write : Unit
-      StringLiteral \"\\n\" : String
+      Local $parameter.message : String
+    val local4
+      StringLiteral "\n" : String
+    val local5
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
   fun main(): Unit
     val local0
       VariantConstruct Color.Red : Color
     when
       Local c : Color
       arm variant0()
+        val local1
+          StringLiteral "red" : String
+        val local2
+          Local $argument.0 : String
         Call println<String> : Unit
-          StringLiteral \"red\" : String
+          Local $parameter.value : String
       arm variant1()
+        val local3
+          StringLiteral "green" : String
+        val local4
+          Local $argument.0 : String
         Call println<String> : Unit
-          StringLiteral \"green\" : String
+          Local $parameter.value : String
       arm variant2()
+        val local5
+          StringLiteral "blue" : String
+        val local6
+          Local $argument.0 : String
         Call println<String> : Unit
-          StringLiteral \"blue\" : String
+          Local $parameter.value : String
   entry main
   instance println<String>
-";
+"#;
     assert_eq!(hir::dump(&module), expected);
 }
 
@@ -143,8 +170,7 @@ fn when_over_option_with_guard() {
         ],
     )]);
     let module = lower_user(file).expect("when over Option must lower");
-    let expected = "\
-Module
+    let expected = r#"Module
   enum Option<T>
     Some(_1: T0)
     None()
@@ -181,35 +207,67 @@ Module
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
   fun write(arg1: String): Unit <extern11 abi=scoop symbol=scoop_rt_write>
   fun print<T : ToString>(value: T0): Unit
-    Call write : Unit
+    val local1
+      Local value : T0
+    val local2
       MethodCall bound T0 via ToString -> ToString.toString : String
-        Local value : T0
+        Local $receiver : T0
+    val local3
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
     return
   fun println<T : ToString>(value: T0): Unit
-    Call write : Unit
+    val local1
+      Local value : T0
+    val local2
       MethodCall bound T0 via ToString -> ToString.toString : String
-        Local value : T0
+        Local $receiver : T0
+    val local3
+      Local $argument.0 : String
     Call write : Unit
-      StringLiteral \"\\n\" : String
+      Local $parameter.message : String
+    val local4
+      StringLiteral "\n" : String
+    val local5
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
   fun main(): Unit
     val local0
+      IntLiteral 41 : Int
+    val local1
+      Local $argument.0 : Int
+    val local2
       VariantConstruct Option.Some<Int> : Option<Int>
-        IntLiteral 41 : Int
+        Local $parameter._1 : Int
     when
       Local o : Option<Int>
-      arm variant0(0: local1) if <guard>
-        Call println<Int> : Unit
+      arm variant0(0: local3) if <guard>
+        val local4
           Local x : Int
-      arm variant0(0: local2)
+        val local5
+          Local $argument.0 : Int
         Call println<Int> : Unit
+          Local $parameter.value : Int
+      arm variant0(0: local6)
+        val local7
           IntLiteral 0 : Int
+        val local8
+          Local $argument.0 : Int
+        Call println<Int> : Unit
+          Local $parameter.value : Int
       arm variant1()
+        val local9
+          StringLiteral "none" : String
+        val local10
+          Local $argument.0 : String
         Call println<String> : Unit
-          StringLiteral \"none\" : String
+          Local $parameter.value : String
   entry main
   instance println<Int>
   instance println<String>
-";
+"#;
     assert_eq!(hir::dump(&module), expected);
 }
 
@@ -268,8 +326,7 @@ fn when_over_tuple_and_struct() {
         ),
     ]);
     let module = lower_user(file).expect("tuple/struct when must lower");
-    let expected = "\
-Module
+    let expected = r#"Module
   struct Point
     field x: Int
     field y: Int
@@ -309,45 +366,85 @@ Module
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
   fun write(arg1: String): Unit <extern11 abi=scoop symbol=scoop_rt_write>
   fun print<T : ToString>(value: T0): Unit
-    Call write : Unit
+    val local1
+      Local value : T0
+    val local2
       MethodCall bound T0 via ToString -> ToString.toString : String
-        Local value : T0
+        Local $receiver : T0
+    val local3
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
     return
   fun println<T : ToString>(value: T0): Unit
-    Call write : Unit
+    val local1
+      Local value : T0
+    val local2
       MethodCall bound T0 via ToString -> ToString.toString : String
-        Local value : T0
+        Local $receiver : T0
+    val local3
+      Local $argument.0 : String
     Call write : Unit
-      StringLiteral \"\\n\" : String
+      Local $parameter.message : String
+    val local4
+      StringLiteral "\n" : String
+    val local5
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
   fun main(): Unit
     val local0
       TupleLiteral : (Int, String)
         IntLiteral 1 : Int
-        StringLiteral \"a\" : String
+        StringLiteral "a" : String
     when
       Local t : (Int, String)
       arm (<lit IntLiteral(0)>, _)
+        val local1
+          StringLiteral "zero" : String
+        val local2
+          Local $argument.0 : String
         Call println<String> : Unit
-          StringLiteral \"zero\" : String
-      arm (local1, _)
-        Call println<Int> : Unit
+          Local $parameter.value : String
+      arm (local3, _)
+        val local4
           Local n : Int
-    val local2
+        val local5
+          Local $argument.0 : Int
+        Call println<Int> : Unit
+          Local $parameter.value : Int
+    val local6
+      IntLiteral 1 : Int
+    val local7
+      IntLiteral 2 : Int
+    val local8
+      Local $argument.0 : Int
+    val local9
+      Local $argument.1 : Int
+    val local10
       StructInit Point : Point
-        IntLiteral 1 : Int
-        IntLiteral 2 : Int
+        Local $parameter.x : Int
+        Local $parameter.y : Int
     when
       Local p : Point
-      arm struct(0: local3, 1: local4) if <guard>
+      arm struct(0: local11, 1: local12) if <guard>
+        val local13
+          StringLiteral "eq" : String
+        val local14
+          Local $argument.0 : String
         Call println<String> : Unit
-          StringLiteral \"eq\" : String
-      arm struct(0: local5, 1: local6)
-        Call println<Int> : Unit
+          Local $parameter.value : String
+      arm struct(0: local15, 1: local16)
+        val local17
           Local a : Int
+        val local18
+          Local $argument.0 : Int
+        Call println<Int> : Unit
+          Local $parameter.value : Int
   entry main
   instance println<String>
   instance println<Int>
-";
+"#;
     assert_eq!(hir::dump(&module), expected);
 }
 

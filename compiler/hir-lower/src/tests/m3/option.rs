@@ -19,8 +19,7 @@ fn some_none_and_nullable_annotations() {
         ],
     )]);
     let module = lower_user(file).expect("Option constructors must lower");
-    let expected = "\
-Module
+    let expected = r#"Module
   enum Option<T>
     Some(_1: T0)
     None()
@@ -57,27 +56,51 @@ Module
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
   fun write(arg1: String): Unit <extern11 abi=scoop symbol=scoop_rt_write>
   fun print<T : ToString>(value: T0): Unit
-    Call write : Unit
+    val local1
+      Local value : T0
+    val local2
       MethodCall bound T0 via ToString -> ToString.toString : String
-        Local value : T0
+        Local $receiver : T0
+    val local3
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
     return
   fun println<T : ToString>(value: T0): Unit
-    Call write : Unit
+    val local1
+      Local value : T0
+    val local2
       MethodCall bound T0 via ToString -> ToString.toString : String
-        Local value : T0
+        Local $receiver : T0
+    val local3
+      Local $argument.0 : String
     Call write : Unit
-      StringLiteral \"\\n\" : String
+      Local $parameter.message : String
+    val local4
+      StringLiteral "\n" : String
+    val local5
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
   fun main(): Unit
     val local0
-      VariantConstruct Option.Some<Int> : Option<Int>
-        IntLiteral 41 : Int
+      IntLiteral 41 : Int
     val local1
-      VariantConstruct Option.None<Int> : Option<Int>
+      Local $argument.0 : Int
     val local2
+      VariantConstruct Option.Some<Int> : Option<Int>
+        Local $parameter._1 : Int
+    val local3
+      VariantConstruct Option.None<Int> : Option<Int>
+    val local4
+      VariantConstruct Option.None<Int> : Option<Int>
+    val local5
+      Local $argument.0 : Option<Int>
+    val local6
       VariantConstruct Option.Some<Option<Int>> : Option<Option<Int>>
-        VariantConstruct Option.None<Int> : Option<Int>
+        Local $parameter._1 : Option<Int>
   entry main
-";
+"#;
     assert_eq!(hir::dump(&module), expected);
 }
 
@@ -101,8 +124,7 @@ fn safe_field_access_desugars_to_hidden_locals() {
         ),
     ]);
     let module = lower_user(file).expect("safe field access must lower");
-    let expected = "\
-Module
+    let expected = r#"Module
   struct Point
     field x: Int
     field y: Int
@@ -142,39 +164,67 @@ Module
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
   fun write(arg1: String): Unit <extern11 abi=scoop symbol=scoop_rt_write>
   fun print<T : ToString>(value: T0): Unit
-    Call write : Unit
+    val local1
+      Local value : T0
+    val local2
       MethodCall bound T0 via ToString -> ToString.toString : String
-        Local value : T0
+        Local $receiver : T0
+    val local3
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
     return
   fun println<T : ToString>(value: T0): Unit
-    Call write : Unit
+    val local1
+      Local value : T0
+    val local2
       MethodCall bound T0 via ToString -> ToString.toString : String
-        Local value : T0
+        Local $receiver : T0
+    val local3
+      Local $argument.0 : String
     Call write : Unit
-      StringLiteral \"\\n\" : String
+      Local $parameter.message : String
+    val local4
+      StringLiteral "\n" : String
+    val local5
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
   fun main(): Unit
     val local0
-      VariantConstruct Option.Some<Point> : Option<Point>
-        StructInit Point : Point
-          IntLiteral 1 : Int
-          IntLiteral 2 : Int
+      IntLiteral 1 : Int
     val local1
+      IntLiteral 2 : Int
+    val local2
+      Local $argument.0 : Int
+    val local3
+      Local $argument.1 : Int
+    val local4
+      StructInit Point : Point
+        Local $parameter.x : Int
+        Local $parameter.y : Int
+    val local5
+      Local $argument.0 : Point
+    val local6
+      VariantConstruct Option.Some<Point> : Option<Point>
+        Local $parameter._1 : Point
+    val local7
       Local p : Option<Point>
     if
       IsSome : Boolean
         Local $opt.0 : Option<Point>
-      val local2
+      val local8
         SomeWrap : Option<Int>
           FieldAccess field 0 : Int
             Unwrap trap=false : Point
               Local $opt.0 : Option<Point>
     else
-      val local2
+      val local8
         NoneLiteral : Option<Int>
-    val local3
+    val local9
       Local $res.1 : Option<Int>
   entry main
-";
+"#;
     assert_eq!(hir::dump(&module), expected);
 }
 
@@ -188,8 +238,7 @@ fn elvis_desugars_to_hidden_locals() {
         ],
     )]);
     let module = lower_user(file).expect("elvis must lower");
-    let expected = "\
-Module
+    let expected = r#"Module
   enum Option<T>
     Some(_1: T0)
     None()
@@ -226,35 +275,55 @@ Module
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
   fun write(arg1: String): Unit <extern11 abi=scoop symbol=scoop_rt_write>
   fun print<T : ToString>(value: T0): Unit
-    Call write : Unit
+    val local1
+      Local value : T0
+    val local2
       MethodCall bound T0 via ToString -> ToString.toString : String
-        Local value : T0
+        Local $receiver : T0
+    val local3
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
     return
   fun println<T : ToString>(value: T0): Unit
-    Call write : Unit
+    val local1
+      Local value : T0
+    val local2
       MethodCall bound T0 via ToString -> ToString.toString : String
-        Local value : T0
+        Local $receiver : T0
+    val local3
+      Local $argument.0 : String
     Call write : Unit
-      StringLiteral \"\\n\" : String
+      Local $parameter.message : String
+    val local4
+      StringLiteral "\n" : String
+    val local5
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
   fun main(): Unit
     val local0
-      VariantConstruct Option.Some<Int> : Option<Int>
-        IntLiteral 41 : Int
+      IntLiteral 41 : Int
     val local1
+      Local $argument.0 : Int
+    val local2
+      VariantConstruct Option.Some<Int> : Option<Int>
+        Local $parameter._1 : Int
+    val local3
       Local a : Option<Int>
     if
       IsSome : Boolean
         Local $opt.0 : Option<Int>
-      val local2
+      val local4
         Unwrap trap=false : Int
           Local $opt.0 : Option<Int>
     else
-      val local2
+      val local4
         IntLiteral 0 : Int
-    val local3
+    val local5
       Local $res.1 : Int
   entry main
-";
+"#;
     assert_eq!(hir::dump(&module), expected);
 }
 
@@ -279,24 +348,13 @@ fn chained_safe_field_access() {
     ]);
     let module = lower_user(file).expect("chained safe access must lower");
     let dump = hir::dump(&module);
-    // w?.p : Option<Point>, then ?.x : Option<Int>. Hidden locals are
-    // numbered per body: w, $opt.0, $res.1, $opt.2, $res.3, x.
-    assert!(
-        dump.contains("val local1\n      Local w : Option<Wrap>"),
-        "{dump}"
-    );
-    assert!(
-        dump.contains("val local2\n        SomeWrap : Option<Point>"),
-        "{dump}"
-    );
-    assert!(
-        dump.contains("val local3\n      Local $res.1 : Option<Point>"),
-        "{dump}"
-    );
-    assert!(
-        dump.contains("val local5\n      Local $res.3 : Option<Int>"),
-        "{dump}"
-    );
+    // w?.p : Option<Point>, then ?.x : Option<Int>. Call materialization may
+    // add locals before these desugaring sinks, so their typed names are the
+    // stable part of this contract.
+    assert!(dump.contains("Local w : Option<Wrap>"), "{dump}");
+    assert!(dump.contains("SomeWrap : Option<Point>"), "{dump}");
+    assert!(dump.contains("Local $res.1 : Option<Point>"), "{dump}");
+    assert!(dump.contains("Local $res.3 : Option<Int>"), "{dump}");
 }
 
 #[test]
@@ -312,7 +370,7 @@ fn null_assert_unwraps_with_trap() {
     let module = lower_user(file).expect("null assert must lower");
     let dump = hir::dump(&module);
     assert!(
-        dump.contains("val local1\n      Unwrap trap=true : Int\n        Local a : Option<Int>"),
+        dump.contains("Unwrap trap=true : Int\n        Local a : Option<Int>"),
         "{dump}"
     );
 }

@@ -104,16 +104,26 @@ impl Concretizer<'_> {
             .iter()
             .map(|implementation| self.interface_type[&implementation.interface])
             .collect();
-        let base_class = source.base_class.map(|(base, args)| {
+        let base_class = source.base_class.map(|(base, delegation)| {
             let base = self.lower_type(base, &arguments);
             let concrete::TypeKind::Class(base) = self.types[base].kind else {
                 unreachable!("class bases concretize to class identities")
             };
-            let args = args
+            let (locals, local_map) = self.lower_locals(&delegation.locals, &arguments);
+            let statements = self.lower_statements(&delegation.statements, &arguments, &local_map);
+            let args = delegation
+                .args
                 .iter()
-                .map(|argument| self.lower_expr(argument, &arguments, &[]))
+                .map(|argument| self.lower_expr(argument, &arguments, &local_map))
                 .collect();
-            (base, args)
+            (
+                base,
+                concrete::ConstructorDelegation {
+                    locals,
+                    statements,
+                    args,
+                },
+            )
         });
         self.classes[id].interfaces = interfaces;
         self.classes[id].interface_implementations = interface_implementations;

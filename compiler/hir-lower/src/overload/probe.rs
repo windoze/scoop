@@ -35,7 +35,7 @@ pub(super) enum CandidateProbeFailureKind {
 
 pub(super) enum CandidateShapeFailure {
     TypeArgumentArity { expected: usize, supplied: usize },
-    ArgumentArity { expected: usize, supplied: usize },
+    Argument(crate::call_resolution::arguments::ArgumentShapeFailure),
 }
 
 impl Lowerer {
@@ -65,6 +65,10 @@ impl Lowerer {
                 match state.foreign_callback_argument_expected(
                     candidate.function,
                     explicit_type_args,
+                    candidate
+                        .argument_map
+                        .as_ref()
+                        .expect("only shape-applicable candidates are probed"),
                     expressions,
                     candidate.call_span,
                 ) {
@@ -94,7 +98,8 @@ impl Lowerer {
                     .source_order
                 {
                     let source_index = input.index();
-                    if (source_index == 0 && intrinsic_argument_expected.is_some())
+                    if intrinsic_argument_expected
+                        .is_some_and(|(expected_source, _)| source_index == expected_source)
                         || state.expr_requires_expected_type(&expressions[source_index])
                     {
                         continue;
@@ -172,11 +177,10 @@ impl Lowerer {
                     if lowered[parameter_index].is_some() {
                         continue;
                     }
-                    let expected = if source_index == 0 {
-                        intrinsic_argument_expected
-                    } else {
-                        None
-                    };
+                    let expected =
+                        intrinsic_argument_expected.and_then(|(expected_source, expected)| {
+                            (source_index == expected_source).then_some(expected)
+                        });
                     let Some(expected) = expected.or_else(|| {
                         state.try_substitute(candidate.params[parameter_index], &partial)
                     }) else {
@@ -318,17 +322,16 @@ impl Lowerer {
                 if lowered[parameter_index].is_some() {
                     continue;
                 }
-                let expected = if source_index == 0 {
-                    intrinsic_argument_expected
-                } else {
-                    None
-                }
-                .unwrap_or_else(|| {
-                    state.substitute_call_level(
-                        candidate.params[parameter_index],
-                        &provisional_type_args,
-                    )
-                });
+                let expected = intrinsic_argument_expected
+                    .and_then(|(expected_source, expected)| {
+                        (source_index == expected_source).then_some(expected)
+                    })
+                    .unwrap_or_else(|| {
+                        state.substitute_call_level(
+                            candidate.params[parameter_index],
+                            &provisional_type_args,
+                        )
+                    });
                 let diagnostics_before = state.diagnostics.len();
                 let argument = state.lower_expr(
                     &expressions[source_index],
@@ -405,12 +408,15 @@ impl Lowerer {
         for (index, argument) in lowered.into_iter().enumerate() {
             let argument = argument.expect("a successful candidate types every argument");
             let source_index = index.saturating_sub(receiver_offset);
-            let expected = if receiver_offset == 0 && source_index == 0 {
-                intrinsic_argument_expected
-            } else {
-                None
-            }
-            .unwrap_or_else(|| state.substitute_call_level(candidate.params[index], &type_args));
+            let expected = (receiver_offset == 0)
+                .then_some(intrinsic_argument_expected)
+                .flatten()
+                .and_then(|(expected_source, expected)| {
+                    (source_index == expected_source).then_some(expected)
+                })
+                .unwrap_or_else(|| {
+                    state.substitute_call_level(candidate.params[index], &type_args)
+                });
             if !state.is_subtype(argument.ty, expected) {
                 let reason = format!(
                     "expression has type {}, expected {}",

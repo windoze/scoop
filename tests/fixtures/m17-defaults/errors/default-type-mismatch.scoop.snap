@@ -1,0 +1,6 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m17-defaults/errors/default-type-mismatch.scoop:1:26: error: default value of parameter `value` in `invalid` must be of type Int, found String

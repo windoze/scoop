@@ -33,6 +33,13 @@ pub(super) fn instruction_uses(
         lir::Instruction::ForeignCallbackOperation(operation) => vec![operation.callback()],
         lir::Instruction::MakeAggregate { elements, .. }
         | lir::Instruction::ArrayAlloc { elements, .. } => elements.clone(),
+        lir::Instruction::ArrayAssembly { parts, .. } => parts
+            .iter()
+            .map(|part| match part {
+                lir::ArrayAssemblyPart::Element(value)
+                | lir::ArrayAssemblyPart::CopyArray(value) => *value,
+            })
+            .collect(),
         lir::Instruction::Store { value, .. }
         | lir::Instruction::GlobalStore { value, .. }
         | lir::Instruction::NativeGlobalStore { value, .. } => vec![*value],
@@ -102,6 +109,7 @@ pub(super) fn instruction_defs(instruction: &lir::Instruction) -> Vec<LiveValue>
         | lir::Instruction::LocalAddress { out, .. }
         | lir::Instruction::BeginCatch { out, .. }
         | lir::Instruction::ArrayAlloc { out, .. }
+        | lir::Instruction::ArrayAssembly { out, .. }
         | lir::Instruction::ArrayLen { out, .. }
         | lir::Instruction::ArrayGet { out, .. }
         | lir::Instruction::ArrayClone { out, .. }

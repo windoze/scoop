@@ -1,0 +1,9 @@
+interface Base {
+    fun value(input: Int = 1): Int
+}
+
+class Derived : Base {
+    final override fun value(input: Int = 2): Int = input
+}
+
+fun main() {}

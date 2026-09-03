@@ -67,8 +67,16 @@ pub(super) fn dump_statements(
                     dump_statements(module, locals, else_body, indent + 1, out);
                 }
             }
-            StatementKind::While { cond, body } => {
+            StatementKind::While {
+                condition_setup,
+                cond,
+                body,
+            } => {
                 out.push_str(&format!("{pad}while\n"));
+                if !condition_setup.is_empty() {
+                    out.push_str(&format!("{pad}  condition setup\n"));
+                    dump_statements(module, locals, condition_setup, indent + 2, out);
+                }
                 dump_expr(module, locals, cond, indent + 1, out);
                 dump_statements(module, locals, body, indent + 1, out);
             }

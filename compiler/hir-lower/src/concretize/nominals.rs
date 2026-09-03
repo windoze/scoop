@@ -148,7 +148,6 @@ impl Concretizer<'_> {
                     name: variant.name.clone(),
                     gc_free,
                     fields,
-                    defaults: Vec::new(),
                 }
             })
             .collect();

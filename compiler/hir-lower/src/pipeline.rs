@@ -55,8 +55,14 @@ impl Lowerer {
         let boolean = types.alloc(Type::Boolean);
         let string = types.alloc(Type::String);
         let any = types.alloc(Type::Any);
+        let mut source_contexts = Arena::new();
+        let root_source_context = source_contexts.alloc(hir::SourceContext {
+            function_name: String::new(),
+            type_name: String::new(),
+        });
 
         Lowerer {
+            source_contexts,
             types,
             function_types: Arena::new(),
             lambdas: Arena::new(),
@@ -71,6 +77,13 @@ impl Lowerer {
             bound_callable_refs: Arena::new(),
             function_coercions: Arena::new(),
             foreign_callback_registrations: Arena::new(),
+            source_parameter_interfaces: Vec::new(),
+            export_default_exprs: Arena::new(),
+            export_default_sources: Arena::new(),
+            export_vararg_parameter_types: Arena::new(),
+            local_default_exprs: Arena::new(),
+            default_templates: HashMap::new(),
+            lowering_default_template: false,
             function_coercion_by_types: HashMap::new(),
             structs: Arena::new(),
             struct_applications: Arena::new(),
@@ -132,16 +145,22 @@ impl Lowerer {
             interface_methods: HashMap::new(),
             interface_method_entities: Arena::new(),
             function_owner: HashMap::new(),
+            override_sources: HashMap::new(),
+            override_default_type_arguments: HashMap::new(),
             option_candidates: Vec::new(),
             option_enum: None,
             throwable_candidates: Vec::new(),
             throwable: None,
             variant_styles: HashMap::new(),
+            struct_parameter_calling: HashMap::new(),
+            class_parameter_calling: HashMap::new(),
+            variant_parameter_calling: HashMap::new(),
             signatures: HashMap::new(),
             type_params_in_scope: Vec::new(),
             current_return_ty: unit,
             return_inference: None,
             current_fn_name: String::new(),
+            current_source_context: root_source_context,
             suspension_contexts: vec![SuspensionContext::Forbidden(
                 ForbiddenSuspendContext::TopLevel,
             )],
@@ -179,7 +198,7 @@ impl Lowerer {
     }
 
     pub(crate) fn current_provider_may_declare_intrinsics(&self) -> bool {
-        let source = self.intrinsic_sources[self.current_file];
+        let source = &self.intrinsic_sources[self.current_file];
         source.core
             || matches!(
                 &self.intrinsic_policy,

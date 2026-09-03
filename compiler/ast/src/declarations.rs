@@ -1,4 +1,4 @@
-use crate::{Block, Expr, Ident, Span, TypeRef};
+use crate::{Block, CallArgument, Expr, Ident, Span, TypeRef};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SourceFile {
@@ -57,7 +57,7 @@ pub struct ClassDecl {
     /// Primary-constructor properties (`val` / `var`).
     pub constructor: ClassConstructorDecl,
     /// Base class and its constructor arguments (`: Base(args)`).
-    pub base_class: Option<(TypeRef, Vec<Expr>)>,
+    pub base_class: Option<(TypeRef, Vec<CallArgument>)>,
     pub interfaces: Vec<TypeRef>,
     pub where_clause: Option<WhereClause>,
     pub methods: Vec<FunctionDecl>,
@@ -110,6 +110,7 @@ pub struct ConstructorProp {
     pub mutable: bool,
     pub name: Ident,
     pub ty: TypeRef,
+    pub syntax: ParameterSyntax,
     pub span: Span,
 }
 
@@ -206,8 +207,9 @@ pub enum VariantDeclKind {
 pub struct VariantFieldDecl {
     pub name: Ident,
     pub ty: TypeRef,
-    /// Constructor-style variants only.
-    pub default: Option<Expr>,
+    /// Constructor-style variants use the full source parameter protocol;
+    /// block-style named variants always use [`ParameterSyntax::Required`].
+    pub syntax: ParameterSyntax,
     pub span: Span,
 }
 
@@ -272,6 +274,7 @@ impl FromIterator<FieldDecl> for StructRepresentationDecl {
 pub struct FieldDecl {
     pub name: Ident,
     pub ty: TypeRef,
+    pub syntax: ParameterSyntax,
     pub span: Span,
 }
 
@@ -335,7 +338,30 @@ pub enum AnnotationLiteral {
 pub struct Param {
     pub name: Ident,
     pub ty: TypeRef,
+    pub syntax: ParameterSyntax,
     pub span: Span,
+}
+
+/// Source calling shape of one declared value parameter. The variants keep
+/// impossible combinations (for example, a required parameter carrying a
+/// default expression) out of the AST.
+#[derive(Debug, Clone, PartialEq)]
+pub enum ParameterSyntax {
+    Required,
+    Default {
+        expression: Expr,
+        equals_span: Span,
+    },
+    Vararg {
+        modifier_span: Span,
+        default: VarargDefaultSyntax,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum VarargDefaultSyntax {
+    EmptyWhenOmitted,
+    Expression { expression: Expr, equals_span: Span },
 }
 
 #[derive(Debug, Clone, PartialEq)]

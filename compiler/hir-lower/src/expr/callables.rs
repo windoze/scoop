@@ -30,6 +30,7 @@ impl Lowerer {
                     kind: ExprKind::Local(local),
                     ty,
                     span: call.callee.span,
+                    origin: self.expression_origin(call.callee.span),
                 };
                 return self.lower_callable_call(callee, &call.args, call.span, sink);
             }
@@ -104,7 +105,7 @@ impl Lowerer {
     pub(super) fn lower_callable_call(
         &mut self,
         callee: hir::Expr,
-        args: &[ast::Expr],
+        args: &[ast::CallArgument],
         span: Span,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<hir::Expr> {
@@ -117,6 +118,26 @@ impl Lowerer {
             return None;
         };
         let signature = self.function_types[function_type].clone();
+        if let Some(argument) = args
+            .iter()
+            .find(|argument| !matches!(argument.name, ast::CallArgumentName::Positional))
+        {
+            self.error(
+                argument.span,
+                "function values do not accept named arguments".to_string(),
+            );
+            return None;
+        }
+        if let Some(argument) = args
+            .iter()
+            .find(|argument| matches!(argument.spread, ast::SpreadSyntax::Spread(_)))
+        {
+            self.error(
+                argument.span,
+                "function values do not accept spread arguments".to_string(),
+            );
+            return None;
+        }
         if signature.parameter_types.len() != args.len() {
             self.error(
                 span,
@@ -139,6 +160,9 @@ impl Lowerer {
                     ForbiddenSuspendContext::Function => {
                         format!("non-suspend function `{}`", self.current_fn_name)
                     }
+                    ForbiddenSuspendContext::DefaultExpression => {
+                        format!("non-suspend default expression {}", self.current_fn_name)
+                    }
                     ForbiddenSuspendContext::ConstructorDelegation => {
                         "constructor delegation".to_string()
                     }
@@ -152,12 +176,12 @@ impl Lowerer {
         }
         let mut lowered = Vec::with_capacity(args.len());
         for (arg, &parameter_ty) in args.iter().zip(&signature.parameter_types) {
-            let value = self.lower_expr(arg, sink, Some(parameter_ty))?;
+            let value = self.lower_expr(&arg.expression, sink, Some(parameter_ty))?;
             if !self.is_subtype(value.ty, parameter_ty) {
                 let expected = self.type_name(parameter_ty);
                 let found = self.type_name(value.ty);
                 self.error(
-                    arg.span(),
+                    arg.span,
                     format!("function argument must be of type {expected}, found {found}"),
                 );
                 return None;
@@ -172,6 +196,7 @@ impl Lowerer {
             },
             ty: signature.return_type,
             span,
+            origin: self.expression_origin(span),
         })
     }
 }

@@ -1,0 +1,7 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m17-vararg/errors/c-abi-vararg.scoop:1:1: error: C ABI extern function `nativeValues` cannot declare a language `vararg` parameter
+m17-vararg/errors/c-abi-vararg.scoop:1:1: error: extern parameter is not ABI-safe: nativeValues.parameter1: ref type `Array<Int>` is managed

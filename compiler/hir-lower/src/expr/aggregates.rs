@@ -33,6 +33,7 @@ impl Lowerer {
             kind: ExprKind::TupleLiteral(lowered),
             ty,
             span,
+            origin: self.expression_origin(span),
         })
     }
 
@@ -76,6 +77,7 @@ impl Lowerer {
                 kind: ExprKind::ArrayLiteral(lowered),
                 ty: array_ty,
                 span,
+                origin: self.expression_origin(span),
             });
         }
         if elements.is_empty() {
@@ -121,6 +123,7 @@ impl Lowerer {
             kind: ExprKind::ArrayLiteral(lowered),
             ty,
             span,
+            origin: self.expression_origin(span),
         })
     }
 
@@ -159,6 +162,7 @@ impl Lowerer {
             },
             ty: element_ty,
             span,
+            origin: self.expression_origin(span),
         })
     }
 }

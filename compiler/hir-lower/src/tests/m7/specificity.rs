@@ -95,11 +95,12 @@ fn boxing_candidate_is_naturally_less_specific() {
         ),
     ]);
     let module = lower_user(file).expect("boxing resolution must succeed");
-    let (first, args) = call_in_main(&module, 1, true);
+    let (first, args) = call_in_main(&module, 0, true);
     assert_eq!(first, top_level_fn(&module, "f", &["Int"]));
     // The exact-match overload takes the literal unboxed.
-    assert!(matches!(args[0].kind, hir::ExprKind::IntLiteral(1)));
-    let (second, _) = call_in_main(&module, 2, true);
+    assert_eq!(args[0].ty, module.int);
+    assert!(!matches!(args[0].kind, hir::ExprKind::Box(_)));
+    let (second, _) = call_in_main(&module, 1, true);
     assert_eq!(second, top_level_fn(&module, "f", &["Any"]));
 }
 
@@ -177,18 +178,6 @@ fn non_generic_wins_ties_against_generic() {
     // arguments, no instantiation request.
     let (first, _) = call_in_main(&module, 0, true);
     assert_eq!(first, concrete);
-    let body = body_of(&module, module.entry);
-    let hir::StatementKind::Expr(outer) = &body.statements[0].kind else {
-        panic!("expected a call statement")
-    };
-    let hir::ExprKind::Call { args, .. } = &outer.kind else {
-        panic!("expected a call")
-    };
-    let hir::ExprKind::Call { callee, .. } = &args[0].kind else {
-        panic!("expected a nested call")
-    };
-    assert!(matches!(callee, hir::Callable::Function(id) if *id == concrete));
-
     // `id("s")`: only the generic candidate is applicable, with
     // `T = String` inferred and recorded.
     let (second, _) = call_in_main(&module, 1, true);

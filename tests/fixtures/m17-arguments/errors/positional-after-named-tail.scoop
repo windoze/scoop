@@ -1,0 +1,5 @@
+fun combine(left: Int, middle: Int = 0, right: Int): Int = left + middle + right
+
+fun main() {
+    combine(right = 3, 1)
+}

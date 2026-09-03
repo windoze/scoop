@@ -10,9 +10,10 @@ impl Lowerer {
         &mut self,
         function: hir::FunctionId,
         explicit_type_args: &[TypeId],
-        args: &[ast::Expr],
+        argument_map: &crate::call_resolution::arguments::CandidateArgumentMap,
+        args: &[ast::CallArgument],
         span: Span,
-    ) -> Result<Option<TypeId>, ()> {
+    ) -> Result<Option<(usize, TypeId)>, ()> {
         let Some(core) = self.foreign_callback_core else {
             return Ok(None);
         };
@@ -37,16 +38,19 @@ impl Lowerer {
         if !self.validate_foreign_callback_signature(native_function_type, span) {
             return Err(());
         }
-        let [_, context_index, _] = args else {
-            unreachable!("registration candidate shape requires exactly three arguments")
+        let crate::call_resolution::arguments::ResolvedParameterInput::Explicit(context_source) =
+            argument_map.parameters[1].input
+        else {
+            unreachable!("registration context index is a required explicit argument")
         };
+        let context_index = &args[context_source.index()];
         let ast::Expr::IntLiteral {
             value: context_index,
             span: context_span,
-        } = context_index
+        } = &context_index.expression
         else {
             self.error(
-                context_index.span(),
+                context_index.span,
                 "foreign callback `contextIndex` must be a compile-time integer literal"
                     .to_string(),
             );
@@ -75,11 +79,14 @@ impl Lowerer {
             .enumerate()
             .filter_map(|(index, ty)| (index != *context_index as usize).then_some(*ty))
             .collect();
-        Ok(Some(self.intern_function_type(
-            false,
-            managed_parameters,
-            native_signature.return_type,
-        )))
+        let crate::call_resolution::arguments::ResolvedParameterInput::Explicit(callback_source) =
+            argument_map.parameters[0].input
+        else {
+            unreachable!("registration callback is a required explicit argument")
+        };
+        let expected =
+            self.intern_function_type(false, managed_parameters, native_signature.return_type);
+        Ok(Some((callback_source.index(), expected)))
     }
 
     pub(super) fn lower_foreign_callback_registration(
@@ -88,6 +95,7 @@ impl Lowerer {
         function: hir::FunctionId,
         call: &ast::CallExpr,
         resolved: crate::overload::ResolvedCallee,
+        sink: &[hir::Statement],
     ) -> Option<hir::Expr> {
         debug_assert_eq!(function, core.register);
         let [native_ty] = resolved.type_args.as_slice() else {
@@ -101,7 +109,8 @@ impl Lowerer {
             .args
             .try_into()
             .expect("validated registration intrinsic has three arguments");
-        let ExprKind::IntLiteral(context_index) = context_index.kind else {
+        let ExprKind::IntLiteral(context_index) = materialized_source(&context_index, sink).kind
+        else {
             unreachable!("registration candidate validation requires a literal context index")
         };
 
@@ -132,7 +141,7 @@ impl Lowerer {
             application,
             variant,
             args,
-        } = mode.kind
+        } = &materialized_source(&mode, sink).kind
         else {
             self.error(
                 mode.span,
@@ -140,9 +149,9 @@ impl Lowerer {
             );
             return None;
         };
-        if self.enum_applications[application].template != core.mode
+        if self.enum_applications[*application].template != core.mode
             || !args.is_empty()
-            || variant > 1
+            || *variant > 1
         {
             self.error(
                 mode.span,
@@ -150,7 +159,7 @@ impl Lowerer {
             );
             return None;
         }
-        let mode = if variant == 0 {
+        let mode = if *variant == 0 {
             hir::ForeignCallbackMode::Reusable
         } else {
             hir::ForeignCallbackMode::OneShot
@@ -171,6 +180,7 @@ impl Lowerer {
             },
             ty: resolved.return_ty,
             span: call.span,
+            origin: self.expression_origin(call.span),
         })
     }
 
@@ -211,6 +221,27 @@ impl Lowerer {
             },
             ty: resolved.return_ty,
             span: call.span,
+            origin: self.expression_origin(call.span),
         })
     }
+}
+
+fn materialized_source<'expr>(
+    expr: &'expr hir::Expr,
+    sink: &'expr [hir::Statement],
+) -> &'expr hir::Expr {
+    let mut current = expr;
+    while let ExprKind::Local(local) = current.kind {
+        let Some(init) = sink.iter().find_map(|statement| {
+            let hir::StatementKind::ValDecl { pattern, init } = &statement.kind else {
+                return None;
+            };
+            matches!(pattern, hir::Pattern::Binding { local: bound } if *bound == local)
+                .then_some(init)
+        }) else {
+            break;
+        };
+        current = init;
+    }
+    current
 }

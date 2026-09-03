@@ -8,6 +8,10 @@ impl Concretizer<'_> {
         locals: &[concrete::LocalId],
     ) -> concrete::Expr {
         let ty = self.lower_type(source.ty, substitution);
+        if let Some(location) = self.lower_current_source_location(source, substitution, locals, ty)
+        {
+            return location;
+        }
         let kind = match &source.kind {
             export::ExprKind::StringLiteral(value) => {
                 concrete::ExprKind::StringLiteral(value.clone())
@@ -227,6 +231,32 @@ impl Concretizer<'_> {
                     .map(|element| self.lower_expr(element, substitution, locals))
                     .collect(),
             ),
+            export::ExprKind::ArrayAssembly(assembly) => {
+                concrete::ExprKind::ArrayAssembly(concrete::ArrayAssembly {
+                    element_type: self.lower_type(assembly.element_type, substitution),
+                    parts: assembly
+                        .parts
+                        .iter()
+                        .map(|part| match part {
+                            export::ArrayAssemblyPart::Element(value) => {
+                                concrete::ArrayAssemblyPart::Element(self.lower_expr(
+                                    value,
+                                    substitution,
+                                    locals,
+                                ))
+                            }
+                            export::ArrayAssemblyPart::CopyArray(value) => {
+                                concrete::ArrayAssemblyPart::CopyArray(self.lower_expr(
+                                    value,
+                                    substitution,
+                                    locals,
+                                ))
+                            }
+                        })
+                        .collect(),
+                    result_type: self.lower_class_application(assembly.result_type, substitution),
+                })
+            }
             export::ExprKind::Index { receiver, index } => concrete::ExprKind::Index {
                 receiver: Box::new(self.lower_expr(receiver, substitution, locals)),
                 index: Box::new(self.lower_expr(index, substitution, locals)),
@@ -309,6 +339,87 @@ impl Concretizer<'_> {
             kind,
             ty,
             span: source.span,
+            origin: source.origin.concrete(),
         }
     }
+
+    fn lower_current_source_location(
+        &mut self,
+        source: &export::Expr,
+        substitution: &[concrete::TypeId],
+        _locals: &[concrete::LocalId],
+        ty: concrete::TypeId,
+    ) -> Option<concrete::Expr> {
+        let export::ExprKind::Call { callee, args } = &source.kind else {
+            return None;
+        };
+        if !args.is_empty()
+            || self.source.callable_function(*callee) != self.source.source_location_core.current
+        {
+            return None;
+        }
+
+        let origin = source.origin.concrete();
+        let evaluation = origin.evaluation;
+        let file = &self.source.source_files[evaluation.file as usize];
+        assert_eq!(
+            file.provider, evaluation.provider,
+            "evaluation origin provider must match its source file"
+        );
+        let (line, column) = source_line_column(&file.source, evaluation.span.start);
+        let file_name = file.name.clone();
+        let context = &self.source.source_contexts[evaluation.context];
+        let function_name = context.function_name.clone();
+        let type_name = context.type_name.clone();
+        let location_application =
+            self.source.structs[self.source.source_location_core.location].self_application;
+        let location = self.lower_struct_application(location_application, substitution);
+        let string_type = self.lower_type(self.source.string, substitution);
+        let int_type = self.lower_type(self.source.int, substitution);
+        assert_eq!(
+            self.struct_type[&location], ty,
+            "current_source_location return type must be SourceLocation"
+        );
+        let literal = |kind, ty| concrete::Expr {
+            kind,
+            ty,
+            span: source.span,
+            origin,
+        };
+        Some(concrete::Expr {
+            kind: concrete::ExprKind::StructInit {
+                struct_id: location,
+                args: vec![
+                    literal(concrete::ExprKind::StringLiteral(file_name), string_type),
+                    literal(concrete::ExprKind::IntLiteral(line), int_type),
+                    literal(concrete::ExprKind::IntLiteral(column), int_type),
+                    literal(
+                        concrete::ExprKind::StringLiteral(function_name),
+                        string_type,
+                    ),
+                    literal(concrete::ExprKind::StringLiteral(type_name), string_type),
+                ],
+            },
+            ty,
+            span: source.span,
+            origin,
+        })
+    }
+}
+
+fn source_line_column(source: &str, offset: u32) -> (i64, i64) {
+    let mut line = 1_i64;
+    let mut column = 1_i64;
+    for (index, character) in source.char_indices() {
+        if index as u32 >= offset {
+            break;
+        }
+        if character == '\n' {
+            line += 1;
+            column = 1;
+        } else {
+            column += 1;
+        }
+    }
+    (line, column)
 }

@@ -41,6 +41,7 @@ impl Parser {
                     span: Span::new(name.span.start, ty.span.end),
                     name,
                     ty,
+                    syntax: scoop_ast::ParameterSyntax::Required,
                 });
                 if matches!(self.peek().kind, TokenKind::Comma) {
                     self.bump();

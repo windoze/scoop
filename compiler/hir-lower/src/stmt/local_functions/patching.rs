@@ -51,7 +51,12 @@ pub(super) fn patch_local_function_calls(
                     patch_local_function_calls(else_body, target, captures);
                 }
             }
-            hir::StatementKind::While { cond, body } => {
+            hir::StatementKind::While {
+                condition_setup,
+                cond,
+                body,
+            } => {
+                patch_local_function_calls(condition_setup, target, captures);
                 patch_local_function_call_expr(cond, target, captures);
                 patch_local_function_calls(body, target, captures);
             }
@@ -110,6 +115,7 @@ fn patch_local_function_call_expr(
     target_captures: &[hir::Capture],
 ) {
     let span = expr.span;
+    let origin = expr.origin;
     match &mut expr.kind {
         hir::ExprKind::LocalFunctionCall {
             local_function,
@@ -130,6 +136,7 @@ fn patch_local_function_call_expr(
                         kind: hir::ExprKind::Capture(capture.binding),
                         ty: capture.ty,
                         span,
+                        origin,
                     })
                     .collect();
             }
@@ -142,6 +149,16 @@ fn patch_local_function_call_expr(
         | hir::ExprKind::Call { args: elements, .. } => {
             for element in elements {
                 patch_local_function_call_expr(element, target, target_captures);
+            }
+        }
+        hir::ExprKind::ArrayAssembly(assembly) => {
+            for part in &mut assembly.parts {
+                match part {
+                    hir::ArrayAssemblyPart::Element(value)
+                    | hir::ArrayAssemblyPart::CopyArray(value) => {
+                        patch_local_function_call_expr(value, target, target_captures)
+                    }
+                }
             }
         }
         hir::ExprKind::FieldAccess { receiver, .. }

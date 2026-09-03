@@ -65,6 +65,15 @@ fn boxed_class<'a>(module: &'a mir::Module, name: &str) -> &'a mir::ClassDef {
 
 const SPAN: Span = Span { start: 0, end: 0 };
 
+fn expression_origin() -> hir::ExpressionOrigin {
+    hir::ExpressionOrigin::Definition(hir::DefinitionOrigin {
+        provider: hir::IntrinsicProviderId::from_raw(0),
+        file: 0,
+        span: SPAN,
+        context: hir::SourceContextId::from_raw(0.into()),
+    })
+}
+
 fn type_param(name: impl Into<String>) -> hir::TypeParamDecl {
     hir::TypeParamDecl {
         id: hir::TypeParamId::from_raw(0),
@@ -182,6 +191,7 @@ fn expr(kind: hir::ExprKind, ty: hir::TypeId) -> hir::Expr {
         kind,
         ty,
         span: SPAN,
+        origin: expression_origin(),
     }
 }
 

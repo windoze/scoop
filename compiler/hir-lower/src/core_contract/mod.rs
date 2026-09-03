@@ -15,3 +15,4 @@ mod ffi;
 mod intrinsics;
 mod option;
 mod pointers;
+mod source_location;

@@ -1,0 +1,7 @@
+---
+source: compiler/driver/tests/fixtures.rs
+expression: snapshot
+---
+== diagnostics ==
+m17-arguments/errors/named-variant-positional.scoop:6:5: error: no applicable candidate for constructor `Payload.Record` in nominal constructor candidate layer:
+  - variant Payload.Record(left: Int, right: Int) — named-field variants require every argument to be named

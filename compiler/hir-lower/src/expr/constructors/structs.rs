@@ -32,20 +32,12 @@ impl Lowerer {
             crate::call_resolution::candidates::NominalConstructorSource::Struct(struct_id),
         );
         let argument_map =
-            match crate::call_resolution::arguments::CandidateArgumentMap::exact_nominal(
-                &view,
-                args.len(),
+            match crate::call_resolution::arguments::CandidateArgumentMap::source_nominal(
+                &view, args,
             ) {
                 Ok(argument_map) => argument_map,
-                Err(mismatch) => {
-                    self.diagnose_nominal_shape_failure(
-                        &view,
-                        span,
-                        format!(
-                            "expects {} argument(s), but {} were supplied",
-                            mismatch.expected, mismatch.supplied
-                        ),
-                    );
+                Err(failure) => {
+                    self.diagnose_nominal_shape_failure(&view, span, failure.describe());
                     return None;
                 }
             };
@@ -70,26 +62,26 @@ impl Lowerer {
             (application.template == struct_id && application.arguments.len() == type_param_count)
                 .then(|| application.arguments.clone())
         });
-        let inferred = self.lower_nominal_arguments(
-            NominalArgumentInput {
+        let inferred = self.lower_nominal_arguments(NominalArgumentInput {
+            view: &view,
+            argument_map: &argument_map,
+            expressions: args,
+            explicit_type_args: &explicit_type_args,
+            expected_type_args: expected_arguments.as_deref(),
+            span,
+        })?;
+        let type_args = inferred.type_args;
+        let adapted = self.materialize_nominal_arguments(
+            crate::argument_materialization::NominalArgumentMaterialization {
                 view: &view,
                 argument_map: &argument_map,
-                expressions: args,
-                explicit_type_args: &explicit_type_args,
-                expected_type_args: expected_arguments.as_deref(),
-                span,
+                type_args: &type_args,
+                source_args: inferred.args,
+                argument_sinks: inferred.argument_sinks,
+                call_span: span,
             },
             sink,
-        )?;
-        let type_args = inferred.type_args;
-        let lowered = inferred.args;
-
-        let mut adapted = Vec::with_capacity(lowered.len());
-        for (field, arg) in view.value_parameters.iter().zip(lowered) {
-            let field_ty = self.instantiate_ty(field.ty, &type_args);
-            debug_assert!(self.is_subtype(arg.ty, field_ty));
-            adapted.push(self.adapt_to(arg, field_ty));
-        }
+        );
         let application = self.struct_application_id(struct_id, type_args);
         let ty = self.struct_applications[application].canonical_type;
         debug_assert!(
@@ -102,6 +94,7 @@ impl Lowerer {
             },
             ty,
             span,
+            origin: self.expression_origin(span),
         })
     }
 }

@@ -167,6 +167,19 @@ impl Lowerer {
             self.current_file = self.function_files[function_id];
             let function = self.functions[*function_id].clone();
             let extern_ = self.extern_functions[*extern_id].clone();
+            if extern_.abi == hir::ExternAbi::C
+                && self.signatures[function_id].params.iter().any(|parameter| {
+                    matches!(parameter.calling, crate::FnParamCalling::Vararg { .. })
+                })
+            {
+                self.error(
+                    function.span,
+                    format!(
+                        "C ABI extern function `{}` cannot declare a language `vararg` parameter",
+                        function.name
+                    ),
+                );
+            }
             for (index, parameter) in extern_.params.iter().copied().enumerate() {
                 let path = vec![function.name.clone(), format!("parameter{}", index + 1)];
                 let result = match extern_.abi {

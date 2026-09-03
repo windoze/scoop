@@ -1,0 +1,6 @@
+fun collect(vararg values: Int): Int = values.size
+
+fun main() {
+    val reference: (Array<Int>) -> Int = ::collect
+    reference(1, 2)
+}

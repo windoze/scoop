@@ -170,6 +170,7 @@ impl Lowerer {
             },
             ty: resolved.return_ty,
             span: call.span,
+            origin: self.expression_origin(call.span),
         })
     }
 
@@ -197,7 +198,8 @@ impl Lowerer {
         let function = resolved.function();
         if let Some(core) = self.foreign_callback_core {
             if function == core.register {
-                return self.lower_foreign_callback_registration(core, function, call, resolved);
+                return self
+                    .lower_foreign_callback_registration(core, function, call, resolved, sink);
             }
             let operation = if function == core.retain {
                 Some(hir::ForeignCallbackOperation::Retain)
@@ -229,6 +231,7 @@ impl Lowerer {
             },
             ty,
             span: call.span,
+            origin: self.expression_origin(call.span),
         })
     }
 
@@ -269,6 +272,7 @@ impl Lowerer {
                     kind: ExprKind::Local(local),
                     ty,
                     span,
+                    origin: self.expression_origin(span),
                 });
                 continue;
             }

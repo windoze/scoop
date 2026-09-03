@@ -48,5 +48,8 @@ pub use body::*;
 mod intrinsics;
 pub use intrinsics::*;
 
+mod source_interfaces;
+pub use source_interfaces::*;
+
 mod dump;
 pub use dump::{dump, dump_pattern};

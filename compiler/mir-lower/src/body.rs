@@ -50,7 +50,7 @@ pub(super) struct BodyLowerer<'a> {
     pub(super) local_map: HashMap<hir::LocalId, mir::LocalId>,
     /// Constructor-parameter identities available while lowering one
     /// generated class constructor's delegation expressions.
-    pub(super) constructor_param_map: HashMap<hir::ConstructorParamId, mir::LocalId>,
+    pub(super) constructor_param_map: HashMap<hir::ConstructorParamId, smir::Expr>,
     /// MIR locals, including the hidden ones created during lowering
     /// (`when` subjects, destructuring slots, `!!` temporaries).
     pub(super) locals: Arena<mir::Local>,

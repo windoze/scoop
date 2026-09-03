@@ -188,19 +188,12 @@ impl Lowerer {
                 let Some(cond) = self.lower_condition(&while_.cond, "while", &mut sink) else {
                     return;
                 };
-                // A while condition is re-evaluated once per iteration,
-                // but sink statements would execute once before the
-                // loop; reject desugaring operators here instead of
-                // silently changing evaluation semantics.
-                if !sink.is_empty() {
-                    self.error(
-                        while_.span,
-                        "`?.` and `?:` are not allowed in a while condition".to_string(),
-                    );
-                    return;
-                }
                 let body = self.lower_block(&while_.body);
-                hir::StatementKind::While { cond, body }
+                hir::StatementKind::While {
+                    condition_setup: sink,
+                    cond,
+                    body,
+                }
             }
             ast::StatementKind::Block(block) => {
                 self.push_scope();

@@ -64,16 +64,9 @@ pub fn dump(file: &SourceFile) -> String {
                             };
                             out.push_str(&format!("    {} <{}>\n", variant.name.text, kind));
                             for field in fields {
-                                let default = field
-                                    .default
-                                    .as_ref()
-                                    .map(|_| " = <expr>")
-                                    .unwrap_or_default();
                                 out.push_str(&format!(
-                                    "      {}: {}{}\n",
-                                    field.name.text,
-                                    dump_type_ref(&field.ty),
-                                    default
+                                    "      {}\n",
+                                    dump_parameter(&field.name.text, &field.ty, &field.syntax)
                                 ));
                             }
                         }
@@ -95,10 +88,9 @@ pub fn dump(file: &SourceFile) -> String {
                         properties
                             .iter()
                             .map(|p| format!(
-                                "{}{}: {}",
+                                "{}{}",
                                 if p.mutable { "var " } else { "val " },
-                                p.name.text,
-                                dump_type_ref(&p.ty)
+                                dump_parameter(&p.name.text, &p.ty, &p.syntax)
                             ))
                             .collect::<Vec<_>>()
                             .join(", ")
@@ -203,9 +195,8 @@ pub fn dump(file: &SourceFile) -> String {
                 ));
                 for field in &s.fields {
                     out.push_str(&format!(
-                        "    field {}: {}\n",
-                        field.name.text,
-                        dump_type_ref(&field.ty)
+                        "    field {}\n",
+                        dump_parameter(&field.name.text, &field.ty, &field.syntax)
                     ));
                 }
                 for method in &s.methods {
@@ -238,7 +229,7 @@ pub fn dump(file: &SourceFile) -> String {
                 let params: Vec<String> = f
                     .params
                     .iter()
-                    .map(|p| format!("{}: {}", p.name.text, dump_type_ref(&p.ty)))
+                    .map(|p| dump_parameter(&p.name.text, &p.ty, &p.syntax))
                     .collect();
                 let ret = f
                     .return_ty
@@ -293,4 +284,20 @@ pub fn dump(file: &SourceFile) -> String {
         }
     }
     out
+}
+
+fn dump_parameter(name: &str, ty: &TypeRef, syntax: &ParameterSyntax) -> String {
+    let ty = dump_type_ref(ty);
+    match syntax {
+        ParameterSyntax::Required => format!("{name}: {ty}"),
+        ParameterSyntax::Default { .. } => format!("{name}: {ty} = <expr>"),
+        ParameterSyntax::Vararg {
+            default: VarargDefaultSyntax::EmptyWhenOmitted,
+            ..
+        } => format!("vararg {name}: {ty}"),
+        ParameterSyntax::Vararg {
+            default: VarargDefaultSyntax::Expression { .. },
+            ..
+        } => format!("vararg {name}: {ty} = <expr>"),
+    }
 }

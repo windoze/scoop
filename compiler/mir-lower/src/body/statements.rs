@@ -1,7 +1,7 @@
 use super::*;
 
 impl BodyLowerer<'_> {
-    pub(super) fn lower_statements(
+    pub(crate) fn lower_statements(
         &mut self,
         statements: &[hir::Statement],
     ) -> Vec<smir::Statement> {
@@ -112,8 +112,12 @@ impl BodyLowerer<'_> {
                     else_body,
                 }
             }
-            hir::StatementKind::While { cond, body } => {
-                self.lower_while(cond, body, span, out);
+            hir::StatementKind::While {
+                condition_setup,
+                cond,
+                body,
+            } => {
+                self.lower_while(condition_setup, cond, body, span, out);
                 return;
             }
             hir::StatementKind::When(when) => {
@@ -282,50 +286,57 @@ impl BodyLowerer<'_> {
 
     pub(super) fn lower_while(
         &mut self,
+        condition_setup: &[hir::Statement],
         cond: &hir::Expr,
         body: &[hir::Statement],
         span: Span,
         out: &mut Vec<smir::Statement>,
     ) {
-        let cond_mir = self.lower_expr(cond);
-        if self.prelude.is_empty() {
+        let mut initial_setup = self.lower_statements(condition_setup);
+        let initial_cond = self.lower_expr(cond);
+        initial_setup.extend(
+            std::mem::take(&mut self.prelude)
+                .into_iter()
+                .map(|kind| smir::Statement { kind, span }),
+        );
+        if initial_setup.is_empty() {
             let body = self.lower_statements(body);
             out.push(smir::Statement {
                 kind: smir::StatementKind::While {
-                    cond: cond_mir,
+                    cond: initial_cond,
                     body,
                 },
                 span,
             });
             return;
         }
-        // The condition contains a trap test (`!!`), which is a
-        // statement sequence and must run on every iteration:
+        // The condition contains explicit HIR setup and/or an expression
+        // prelude such as a trap test (`!!`), all of which must run on every
+        // iteration:
         // `P; while (C) B` becomes `P; var $c = C; while ($c) { B; P;
-        // $c = C }`. The condition and its prelude are lowered twice;
-        // each execution path still evaluates them exactly once per
-        // iteration.
-        self.drain_prelude(span, out);
+        // $c = C }`.
+        out.extend(initial_setup);
         let cond_local = self.new_hidden("cond", mir::Type::Boolean, true);
         out.push(smir::Statement {
             kind: smir::StatementKind::ValDecl {
                 local: cond_local,
-                init: cond_mir,
+                init: initial_cond,
             },
             span,
         });
         let mut body = self.lower_statements(body);
-        let cond_again = self.lower_expr(cond);
-        let prelude_again = std::mem::take(&mut self.prelude);
-        body.extend(
-            prelude_again
+        let mut repeated_setup = self.lower_statements(condition_setup);
+        let repeated_cond = self.lower_expr(cond);
+        repeated_setup.extend(
+            std::mem::take(&mut self.prelude)
                 .into_iter()
                 .map(|kind| smir::Statement { kind, span }),
         );
+        body.extend(repeated_setup);
         body.push(smir::Statement {
             kind: smir::StatementKind::Assign {
                 local: cond_local,
-                value: cond_again,
+                value: repeated_cond,
             },
             span,
         });

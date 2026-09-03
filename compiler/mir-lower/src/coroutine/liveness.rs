@@ -241,6 +241,14 @@ fn expr_uses(expr: &mir::Expr, uses: &mut HashSet<mir::LocalId>) {
                 expr_uses(element, uses);
             }
         }
+        mir::ExprKind::ArrayAssembly { parts, .. } => {
+            for part in parts {
+                match part {
+                    mir::ArrayAssemblyPart::Element(value)
+                    | mir::ArrayAssemblyPart::CopyArray(value) => expr_uses(value, uses),
+                }
+            }
+        }
         mir::ExprKind::Retype { operand, .. }
         | mir::ExprKind::ClosureCapture {
             closure: operand, ..

@@ -77,11 +77,13 @@ impl Lowerer {
         let known_return = explicit_return.or(expected_return);
 
         let capture_environment = self.capture_environment();
+        let literal_origin = self.expression_origin(span);
         let outer_locals = std::mem::take(&mut self.locals);
         let outer_scopes = std::mem::replace(&mut self.scopes, Scopes::new());
         let outer_return_ty = self.current_return_ty;
         let outer_return_inference = self.return_inference.take();
         let outer_fn_name = std::mem::take(&mut self.current_fn_name);
+        let outer_source_context = self.current_source_context;
         let outer_owner = self.current_owner;
         let outer_this = self.current_this.take();
         let outer_smart_casts = std::mem::take(&mut self.smart_casts);
@@ -93,6 +95,7 @@ impl Lowerer {
         let function_number = self.next_anonymous_function;
         self.next_anonymous_function += 1;
         self.current_fn_name = format!("$anonymous.{function_number}");
+        self.set_source_context(self.current_fn_name.clone());
         self.current_return_ty = known_return.unwrap_or(self.unit);
         self.return_inference = known_return.is_none().then(ReturnInference::default);
         self.push_suspension_context(if is_suspend {
@@ -102,6 +105,7 @@ impl Lowerer {
         });
         self.push_safety_context(hir::Safety::Safe);
         self.push_scope();
+        let outer_default_template = std::mem::replace(&mut self.lowering_default_template, false);
 
         let lowered = (|| {
             let mut params = Vec::with_capacity(source_params.len());
@@ -204,6 +208,7 @@ impl Lowerer {
                 function,
                 function_type,
                 owner_type_param_count: type_params.len(),
+                body_type_arguments: hir::CallableBodyTypeArguments::Lexical,
                 captures,
                 span,
             });
@@ -211,8 +216,10 @@ impl Lowerer {
                 kind: ExprKind::AnonymousFunction(id),
                 ty: function_ty,
                 span,
+                origin: literal_origin,
             })
         })();
+        self.lowering_default_template = outer_default_template;
 
         self.pop_scope();
         self.pop_safety_context();
@@ -223,6 +230,7 @@ impl Lowerer {
         self.current_return_ty = outer_return_ty;
         self.return_inference = outer_return_inference;
         self.current_fn_name = outer_fn_name;
+        self.current_source_context = outer_source_context;
         self.current_owner = outer_owner;
         self.current_this = outer_this;
         self.smart_casts = outer_smart_casts;

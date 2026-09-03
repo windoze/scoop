@@ -81,24 +81,25 @@ mod type_checks;
 use analysis::*;
 use support::*;
 
-struct NominalArguments {
-    args: Vec<hir::Expr>,
-    type_args: Vec<TypeId>,
+pub(crate) struct NominalArguments {
+    pub(crate) args: Vec<hir::Expr>,
+    pub(crate) argument_sinks: Vec<Vec<hir::Statement>>,
+    pub(crate) type_args: Vec<TypeId>,
 }
 
-struct NominalArgumentInput<'a> {
-    view: &'a crate::call_resolution::candidates::NominalConstructorView,
-    argument_map: &'a crate::call_resolution::arguments::CandidateArgumentMap,
-    expressions: &'a [ast::Expr],
-    explicit_type_args: &'a [TypeId],
-    expected_type_args: Option<&'a [TypeId]>,
-    span: Span,
+pub(crate) struct NominalArgumentInput<'a> {
+    pub(crate) view: &'a crate::call_resolution::candidates::NominalConstructorView,
+    pub(crate) argument_map: &'a crate::call_resolution::arguments::CandidateArgumentMap,
+    pub(crate) expressions: &'a [ast::CallArgument],
+    pub(crate) explicit_type_args: &'a [TypeId],
+    pub(crate) expected_type_args: Option<&'a [TypeId]>,
+    pub(crate) span: Span,
 }
 
 #[derive(Clone, Copy)]
 struct CallSite<'a> {
     type_args: &'a [ast::TypeRef],
-    args: &'a [ast::Expr],
+    args: &'a [ast::CallArgument],
     span: Span,
 }
 
@@ -179,21 +180,25 @@ impl Lowerer {
                 kind: ExprKind::StringLiteral(value.clone()),
                 ty: self.string,
                 span: *span,
+                origin: self.expression_origin(*span),
             }),
             ast::Expr::IntLiteral { value, span } => Some(hir::Expr {
                 kind: ExprKind::IntLiteral(*value),
                 ty: self.int,
                 span: *span,
+                origin: self.expression_origin(*span),
             }),
             ast::Expr::BoolLiteral { value, span } => Some(hir::Expr {
                 kind: ExprKind::BoolLiteral(*value),
                 ty: self.boolean,
                 span: *span,
+                origin: self.expression_origin(*span),
             }),
             ast::Expr::UnitLiteral { span } => Some(hir::Expr {
                 kind: ExprKind::UnitLiteral,
                 ty: self.unit,
                 span: *span,
+                origin: self.expression_origin(*span),
             }),
             ast::Expr::TupleLiteral { elements, span } => {
                 self.lower_tuple_literal(elements, *span, sink, expected)

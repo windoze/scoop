@@ -104,6 +104,54 @@ Module
 }
 
 #[test]
+fn array_assembly_becomes_one_typed_allocation_instruction() {
+    let mut b = Builder::new();
+    let array_int = b.array("Array<Int>", mir::Type::Int);
+    let mir::Type::Class(array_class) = array_int else {
+        unreachable!("Array<Int> is a class application")
+    };
+    let mut locals = Arena::new();
+    let source = locals.alloc(local("source", mir::Type::Class(array_class)));
+    let assembled = locals.alloc(local("assembled", mir::Type::Class(array_class)));
+    let main = b.main(
+        locals,
+        vec![
+            val_decl(
+                source,
+                expr(
+                    mir::Type::Class(array_class),
+                    mir::ExprKind::ArrayLiteral {
+                        array_type: array_class,
+                        elements: vec![mir::Expr::int(2)],
+                    },
+                ),
+            ),
+            val_decl(
+                assembled,
+                expr(
+                    mir::Type::Class(array_class),
+                    mir::ExprKind::ArrayAssembly {
+                        array_type: array_class,
+                        parts: vec![
+                            mir::ArrayAssemblyPart::Element(mir::Expr::int(1)),
+                            mir::ArrayAssemblyPart::CopyArray(local_expr(
+                                source,
+                                mir::Type::Class(array_class),
+                            )),
+                        ],
+                    },
+                ),
+            ),
+        ],
+    );
+    let module = lower(&b.finish(main));
+    let dump = lir::dump(&module);
+    assert!(dump.contains("array_assembly array0"), "{dump}");
+    assert!(dump.contains("element 1"), "{dump}");
+    assert!(dump.contains("copy local0"), "{dump}");
+}
+
+#[test]
 fn array_layouts_mark_reference_elements() {
     let mut b = Builder::new();
     let option_s = b.option_enum("Option$S", mir::Type::String);

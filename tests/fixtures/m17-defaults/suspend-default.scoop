@@ -1,0 +1,60 @@
+class DefaultGate(var waiter: Continuation<Int>?) {
+    fun complete(value: Int) {
+        val continuation = waiter!!
+        waiter = None
+        continuation.resume(value)
+    }
+}
+
+class DefaultRegistration(val gate: DefaultGate) : SuspendRegistration<Int> {
+    final override fun register(continuation: Continuation<Int>) {
+        println("registered")
+        gate.waiter = Some(continuation)
+    }
+}
+
+suspend fun awaitDefault(gate: DefaultGate): Int =
+    suspendCoroutine(DefaultRegistration(gate))
+
+fun afterResume(): Int {
+    println("after-resume")
+    return 1
+}
+
+suspend fun calculate(
+    gate: DefaultGate,
+    value: Int = awaitDefault(gate),
+    tail: Int = afterResume()
+): Int {
+    println("callee")
+    return value + tail
+}
+
+class DefaultTask(val gate: DefaultGate) : SuspendTask<Int> {
+    final override suspend fun run(): Int = calculate(gate)
+}
+
+class ExplicitTask(val gate: DefaultGate) : SuspendTask<Int> {
+    final override suspend fun run(): Int = calculate(gate, awaitDefault(gate))
+}
+
+class NumberCompletion(val label: String) : Continuation<Int> {
+    final override fun resume(value: Int) {
+        println(label)
+        println(value)
+    }
+
+    final override fun resumeWithException(exception: Throwable) {
+        println("failed")
+    }
+}
+
+fun main() {
+    val defaultGate = DefaultGate(None)
+    val explicitGate = DefaultGate(None)
+    startCoroutine(DefaultTask(defaultGate), NumberCompletion("default-result"))
+    startCoroutine(ExplicitTask(explicitGate), NumberCompletion("explicit-result"))
+    println("returned")
+    defaultGate.complete(40)
+    explicitGate.complete(41)
+}

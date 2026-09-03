@@ -152,6 +152,7 @@ impl Lowerer {
             kind: ExprKind::FunctionAddress(function),
             ty: expected,
             span,
+            origin: self.expression_origin(span),
         })
     }
 
@@ -203,6 +204,7 @@ impl Lowerer {
                         render_callable_constraint_failure(
                             &failure.state,
                             &failure.view,
+                            None,
                             &[],
                             constraint,
                         )

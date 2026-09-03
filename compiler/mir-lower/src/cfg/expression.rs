@@ -155,6 +155,20 @@ impl<'a> CfgLowerer<'a> {
                     .map(|element| self.lower_expr(element, span))
                     .collect(),
             },
+            smir::ExprKind::ArrayAssembly { array_type, parts } => mir::ExprKind::ArrayAssembly {
+                array_type: *array_type,
+                parts: parts
+                    .iter()
+                    .map(|part| match part {
+                        smir::ArrayAssemblyPart::Element(value) => {
+                            mir::ArrayAssemblyPart::Element(self.lower_expr(value, span))
+                        }
+                        smir::ArrayAssemblyPart::CopyArray(value) => {
+                            mir::ArrayAssemblyPart::CopyArray(self.lower_expr(value, span))
+                        }
+                    })
+                    .collect(),
+            },
             smir::ExprKind::ArrayGet {
                 array_type,
                 array,

@@ -4,6 +4,7 @@ use scoop_hir as hir;
 
 use super::render_type_parameters;
 use crate::Lowerer;
+use crate::call_resolution::arguments::CandidateArgumentMap;
 use crate::call_resolution::candidates::{NominalConstructorSource, NominalConstructorView};
 use crate::call_resolution::constraints::{
     CallableShapeMismatch, ConstraintFailure, ConstraintFailureKind, ConstraintOrigin,
@@ -52,6 +53,7 @@ pub(crate) fn nominal_source_signature(lowerer: &Lowerer, view: &NominalConstruc
 pub(crate) fn render_nominal_constraint_failure(
     lowerer: &Lowerer,
     view: &NominalConstructorView,
+    argument_map: &CandidateArgumentMap,
     arguments: &[Option<hir::Expr>],
     failure: &ConstraintFailure,
 ) -> String {
@@ -119,6 +121,7 @@ pub(crate) fn render_nominal_constraint_failure(
                 unreachable!()
             };
             let source_index = input.index();
+            let parameter_index = argument_map.source_binding(input).0.index();
             let found = arguments
                 .get(source_index)
                 .and_then(Option::as_ref)
@@ -126,7 +129,7 @@ pub(crate) fn render_nominal_constraint_failure(
                 .unwrap_or_else(|| render_type_term(lowerer, view, *left));
             format!(
                 "argument for `{}` has type {found}, which {} {}",
-                view.value_parameters[source_index].name,
+                view.value_parameters[parameter_index].name,
                 relation_failure_phrase(*relation),
                 render_type_term(lowerer, view, *right),
             )

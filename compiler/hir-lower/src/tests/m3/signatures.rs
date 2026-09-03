@@ -21,8 +21,7 @@ fn expression_body_and_parameters() {
         ),
     ]);
     let module = lower_user(file).expect("expression body must lower");
-    let expected = "\
-Module
+    let expected = r#"Module
   enum Option<T>
     Some(_1: T0)
     None()
@@ -59,28 +58,52 @@ Module
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
   fun write(arg1: String): Unit <extern11 abi=scoop symbol=scoop_rt_write>
   fun print<T : ToString>(value: T0): Unit
-    Call write : Unit
+    val local1
+      Local value : T0
+    val local2
       MethodCall bound T0 via ToString -> ToString.toString : String
-        Local value : T0
+        Local $receiver : T0
+    val local3
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
     return
   fun println<T : ToString>(value: T0): Unit
-    Call write : Unit
+    val local1
+      Local value : T0
+    val local2
       MethodCall bound T0 via ToString -> ToString.toString : String
-        Local value : T0
+        Local $receiver : T0
+    val local3
+      Local $argument.0 : String
     Call write : Unit
-      StringLiteral \"\\n\" : String
+      Local $parameter.message : String
+    val local4
+      StringLiteral "\n" : String
+    val local5
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
   fun double(x: Int): Int
     return
       Binary Mul : Int
         Local x : Int
         IntLiteral 2 : Int
   fun main(): Unit
-    Call println<Int> : Unit
+    val local0
+      IntLiteral 21 : Int
+    val local1
+      Local $argument.0 : Int
+    val local2
       Call double : Int
-        IntLiteral 21 : Int
+        Local $parameter.x : Int
+    val local3
+      Local $argument.0 : Int
+    Call println<Int> : Unit
+      Local $parameter.value : Int
   entry main
   instance println<Int>
-";
+"#;
     assert_eq!(hir::dump(&module), expected);
 }
 
@@ -118,8 +141,7 @@ fn return_with_unit_value_is_a_bare_return() {
         fun("f", vec![ret(Some(call("println", vec![str_lit("x")])))]),
     ]);
     let module = lower_user(file).expect("Unit return with value must lower");
-    let expected = "\
-Module
+    let expected = r#"Module
   enum Option<T>
     Some(_1: T0)
     None()
@@ -156,24 +178,44 @@ Module
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
   fun write(arg1: String): Unit <extern11 abi=scoop symbol=scoop_rt_write>
   fun print<T : ToString>(value: T0): Unit
-    Call write : Unit
+    val local1
+      Local value : T0
+    val local2
       MethodCall bound T0 via ToString -> ToString.toString : String
-        Local value : T0
+        Local $receiver : T0
+    val local3
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
     return
   fun println<T : ToString>(value: T0): Unit
-    Call write : Unit
+    val local1
+      Local value : T0
+    val local2
       MethodCall bound T0 via ToString -> ToString.toString : String
-        Local value : T0
+        Local $receiver : T0
+    val local3
+      Local $argument.0 : String
     Call write : Unit
-      StringLiteral \"\\n\" : String
+      Local $parameter.message : String
+    val local4
+      StringLiteral "\n" : String
+    val local5
+      Local $argument.0 : String
+    Call write : Unit
+      Local $parameter.message : String
   fun main(): Unit
     Call f : Unit
   fun f(): Unit
+    val local0
+      StringLiteral "x" : String
+    val local1
+      Local $argument.0 : String
     Call println<String> : Unit
-      StringLiteral \"x\" : String
+      Local $parameter.value : String
     return
   entry main
   instance println<String>
-";
+"#;
     assert_eq!(hir::dump(&module), expected);
 }

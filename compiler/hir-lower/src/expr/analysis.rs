@@ -98,11 +98,19 @@ fn expr_contains_return(expr: &ast::Expr) -> bool {
         ast::Expr::TupleLiteral { elements, .. } | ast::Expr::ArrayLiteral { elements, .. } => {
             elements.iter().any(expr_contains_return)
         }
-        ast::Expr::StructInit { args, .. } => args.iter().any(expr_contains_return),
+        ast::Expr::StructInit { args, .. } => args
+            .iter()
+            .any(|argument| expr_contains_return(&argument.expression)),
         ast::Expr::FieldAccess(access) => expr_contains_return(&access.receiver),
-        ast::Expr::Call(call) => call.args.iter().any(expr_contains_return),
+        ast::Expr::Call(call) => call
+            .args
+            .iter()
+            .any(|argument| expr_contains_return(&argument.expression)),
         ast::Expr::Invoke { callee, args, .. } => {
-            expr_contains_return(callee) || args.iter().any(expr_contains_return)
+            expr_contains_return(callee)
+                || args
+                    .iter()
+                    .any(|argument| expr_contains_return(&argument.expression))
         }
         ast::Expr::Binary { lhs, rhs, .. } | ast::Expr::Elvis { lhs, rhs, .. } => {
             expr_contains_return(lhs) || expr_contains_return(rhs)
@@ -112,7 +120,10 @@ fn expr_contains_return(expr: &ast::Expr) -> bool {
         | ast::Expr::Is { operand, .. }
         | ast::Expr::Cast { operand, .. } => expr_contains_return(operand),
         ast::Expr::MethodCall { receiver, args, .. } => {
-            expr_contains_return(receiver) || args.iter().any(expr_contains_return)
+            expr_contains_return(receiver)
+                || args
+                    .iter()
+                    .any(|argument| expr_contains_return(&argument.expression))
         }
         ast::Expr::Index {
             receiver, index, ..

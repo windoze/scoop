@@ -77,6 +77,7 @@ impl Lowerer {
                 },
                 ty,
                 span,
+                origin: self.expression_origin(span),
             });
         }
         let ty = match op {
@@ -123,6 +124,7 @@ impl Lowerer {
             },
             ty,
             span,
+            origin: self.expression_origin(span),
         })
     }
 
@@ -176,6 +178,7 @@ impl Lowerer {
                 },
                 ty: self.boolean,
                 span,
+                origin: self.expression_origin(span),
             };
             return Some(if op == hir::BinOp::Ne {
                 hir::Expr {
@@ -185,6 +188,7 @@ impl Lowerer {
                     },
                     ty: self.boolean,
                     span,
+                    origin: self.expression_origin(span),
                 }
             } else {
                 call
@@ -222,6 +226,7 @@ impl Lowerer {
                 },
                 ty: self.boolean,
                 span,
+                origin: self.expression_origin(span),
             };
             return Some(if op == hir::BinOp::Ne {
                 hir::Expr {
@@ -231,6 +236,7 @@ impl Lowerer {
                     },
                     ty: self.boolean,
                     span,
+                    origin: self.expression_origin(span),
                 }
             } else {
                 call
@@ -339,6 +345,7 @@ impl Lowerer {
             },
             ty: self.boolean,
             span,
+            origin: self.expression_origin(span),
         })
     }
 
@@ -410,6 +417,7 @@ impl Lowerer {
             },
             ty,
             span,
+            origin: self.expression_origin(span),
         })
     }
 }

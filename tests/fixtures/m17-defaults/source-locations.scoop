@@ -1,0 +1,55 @@
+fun printLocation(label: String, location: SourceLocation, expectedFile: String) {
+    println(label)
+    println(location.file == expectedFile)
+    println(location.line)
+    println(location.column)
+    println(location.functionName)
+    println(location.typeName)
+}
+
+fun trace(location: SourceLocation = getCurrentSourceLocation()): SourceLocation = location
+
+fun warn(location: SourceLocation = getCurrentSourceLocation()): SourceLocation =
+    trace(location)
+
+fun relay(location: SourceLocation = getCurrentSourceLocation()): SourceLocation =
+    warn(location)
+
+fun <T> genericBody(value: T): SourceLocation = getCurrentSourceLocation()
+
+class Reporter() {
+    final fun bodyLocation(): SourceLocation = getCurrentSourceLocation()
+
+    final fun defaultLocation(
+        location: SourceLocation = getCurrentSourceLocation()
+    ): SourceLocation = location
+}
+
+class LocationTask() : SuspendTask<SourceLocation> {
+    final override suspend fun run(): SourceLocation = getCurrentSourceLocation()
+}
+
+class LocationCompletion(val expectedFile: String) : Continuation<SourceLocation> {
+    final override fun resume(value: SourceLocation) {
+        printLocation("suspend-body", value, expectedFile)
+    }
+
+    final override fun resumeWithException(exception: Throwable) {
+        println("failed")
+    }
+}
+
+fun main() {
+    val direct = getCurrentSourceLocation()
+    printLocation("direct", direct, direct.file)
+    printLocation("default", trace(), direct.file)
+    printLocation("explicit", trace(direct), direct.file)
+    printLocation("forwarded", relay(), direct.file)
+    printLocation("generic-body", genericBody(1), direct.file)
+
+    val reporter = Reporter()
+    printLocation("member-body", reporter.bodyLocation(), direct.file)
+    printLocation("member-default", reporter.defaultLocation(), direct.file)
+
+    startCoroutine(LocationTask(), LocationCompletion(direct.file))
+}

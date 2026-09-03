@@ -44,7 +44,7 @@ fn class_with_base_and_interfaces() {
         TypeRefKind::Named(name) if name.text == "Shape"
     ));
     assert_eq!(args.len(), 1);
-    assert!(matches!(&args[0], Expr::StringLiteral { value, .. } if value == "point"));
+    assert!(matches!(&args[0].expression, Expr::StringLiteral { value, .. } if value == "point"));
     assert_eq!(decl.interfaces.len(), 1);
     assert!(
         matches!(&decl.interfaces[0].kind, TypeRefKind::Named(name) if name.text == "Describable")

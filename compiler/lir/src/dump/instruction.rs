@@ -298,6 +298,34 @@ pub(super) fn dump_instruction(function: &Function, instruction: &Instruction, b
                 function.temps[*out].ty.dump()
             ))
         }
+        Instruction::ArrayAssembly {
+            out,
+            parts,
+            array_type,
+            safepoint,
+            live,
+        } => {
+            let parts = parts
+                .iter()
+                .map(|part| match part {
+                    ArrayAssemblyPart::Element(value) => {
+                        format!("element {}", value_name(*value))
+                    }
+                    ArrayAssemblyPart::CopyArray(value) => {
+                        format!("copy {}", value_name(*value))
+                    }
+                })
+                .collect::<Vec<_>>();
+            buf.push_str(&format!(
+                "    t{} = array_assembly array{} ({}) sp{} live {} : {}\n",
+                out.into_raw(),
+                array_type.into_raw(),
+                parts.join(", "),
+                safepoint.get(),
+                live_set_name(live),
+                function.temps[*out].ty.dump()
+            ))
+        }
         Instruction::ArrayLen {
             out,
             operand,

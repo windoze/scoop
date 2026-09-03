@@ -60,6 +60,8 @@ fn arrays_module() -> Module {
     let t7 = temps.alloc(Temp { ty: LirType::I64 }); // extract t6.1
     let t8 = temps.alloc(Temp { ty: MANAGED_PTR }); // array_clone t5
     let t9 = temps.alloc(Temp { ty: LirType::I64 }); // t1 + t7
+    let t10 = temps.alloc(Temp { ty: MANAGED_PTR }); // [9, *numbers]
+    let t11 = temps.alloc(Temp { ty: LirType::I64 }); // array_len t10
 
     let mut blocks = Arena::default();
     let entry = blocks.alloc(BasicBlock {
@@ -164,6 +166,25 @@ fn arrays_module() -> Module {
                 value: Value::Temp(t6),
                 array_type: mutable_point_array,
             },
+            Instruction::ArrayAssembly {
+                out: t10,
+                parts: vec![
+                    scoop_lir::ArrayAssemblyPart::Element(Value::IntConst(9)),
+                    scoop_lir::ArrayAssemblyPart::CopyArray(Value::Local(numbers)),
+                ],
+                array_type: int_array,
+                safepoint: test_safepoint(5),
+                live: statepoint_live(vec![statepoint_value(
+                    scoop_lir::CallerRootSource::Local(numbers),
+                    MANAGED_PTR,
+                    &[0],
+                )]),
+            },
+            Instruction::ArrayLen {
+                out: t11,
+                operand: Value::Temp(t10),
+                array_type: int_array,
+            },
         ],
         terminator: Terminator::Return { value: None },
     });
@@ -203,6 +224,12 @@ fn emits_m5_arrays() {
                 && line.contains("scoop_td_MutableArray<Int>")
         }),
         "Int clone must receive the target nominal descriptor:\n{ir}"
+    );
+    assert!(
+        ir.contains("assembly_total_overflow")
+            && ir.contains("assembly.copy.cond.1")
+            && ir.contains("array size overflow"),
+        "ArrayAssembly must check its dynamic size and copy spread elements:\n{ir}"
     );
     assert!(
         ir.lines().any(|line| {

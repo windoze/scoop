@@ -16,7 +16,7 @@ impl Lowerer {
             debug_assert_eq!(call.args.len(), 1);
             debug_assert_eq!(resolved.args.len(), 1);
             debug_assert_eq!(resolved.type_args.len(), 1);
-            let place = match &call.args[0] {
+            let place = match &call.args[0].expression {
                 ast::Expr::Var(name) => self
                     .scopes
                     .lookup(&name.text)
@@ -44,7 +44,7 @@ impl Lowerer {
             };
             let Some((place, place_ty, place_span)) = place else {
                 self.error(
-                    call.args[0].span(),
+                    call.args[0].span,
                     "`addressOf` argument must be an addressable local, parameter, global, or value-type `this`"
                         .to_string(),
                 );
@@ -90,6 +90,7 @@ impl Lowerer {
                 kind: ExprKind::AddressOf(place),
                 ty,
                 span: call.span,
+                origin: self.expression_origin(call.span),
             });
         }
 
@@ -119,6 +120,7 @@ impl Lowerer {
             kind,
             ty: self.uint,
             span: call.span,
+            origin: self.expression_origin(call.span),
         })
     }
 }

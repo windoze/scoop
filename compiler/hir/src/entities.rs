@@ -2,6 +2,14 @@ use super::*;
 
 #[derive(Debug, Clone)]
 pub struct Module {
+    /// Driver-provided display names and source text indexed by every typed
+    /// expression origin. Keeping this relation in Export HIR lets generic
+    /// concretization consume source provenance without consulting the
+    /// parser or filesystem again.
+    pub source_files: Vec<SourceFileMetadata>,
+    /// Lexical source contexts referenced by expression origins. The typed id
+    /// keeps function/type names out of every individual expression node.
+    pub source_contexts: Arena<SourceContext>,
     pub types: Arena<Type>,
     /// Canonical function signatures in one-to-one correspondence with their
     /// `FunctionType::canonical_type` entries in `types`.
@@ -20,6 +28,14 @@ pub struct Module {
     /// adaptation requested by HIR.
     pub function_coercions: Arena<FunctionCoercion>,
     pub foreign_callback_registrations: Arena<ForeignCallbackRegistration>,
+    /// Source-call interfaces are export metadata. Concrete HIR consumes only
+    /// the fully materialized runtime argument list.
+    pub source_parameter_interfaces: Vec<ExportParameterInterface>,
+    pub export_default_exprs: Arena<ExportDefaultExpr>,
+    /// Declaration-view-specific relations from a default template's type
+    /// parameters to the type parameters exposed by that source interface.
+    pub export_default_sources: Arena<ExportDefaultSource>,
+    pub export_vararg_parameter_types: Arena<ExportVarargParameterType>,
     pub functions: Arena<Function>,
     /// Native functions imported by source declarations. They have no HIR
     /// body and their identities never enter generic instantiation.
@@ -88,6 +104,8 @@ pub struct Module {
     /// core type. These typed ids are the only bridge from primitive/family
     /// semantics to source members and interfaces.
     pub intrinsic_type_core: IntrinsicTypeCore,
+    /// Compiler-validated source-location value shape and its HIR intrinsic.
+    pub source_location_core: SourceLocationCore,
     /// Entry point: `fun main()`. Guaranteed present.
     pub entry: FunctionId,
     /// Resolved generic function applications, deduplicated in
@@ -141,6 +159,12 @@ pub struct IntrinsicTypeCore {
     pub mutable_array: ClassId,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct SourceLocationCore {
+    pub location: StructId,
+    pub current: FunctionId,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ForeignCallbackMode {
     Reusable,
@@ -170,6 +194,7 @@ pub struct Lambda {
     /// Type parameters inherited from the enclosing generic callable. The
     /// generated invoke body is instantiated with this complete prefix.
     pub owner_type_param_count: usize,
+    pub body_type_arguments: CallableBodyTypeArguments,
     /// Structurally present even for no-capture lambdas; later M11 capture
     /// analysis fills this list rather than changing the entity shape.
     pub captures: Vec<Capture>,
@@ -181,8 +206,19 @@ pub struct AnonymousFunction {
     pub function: FunctionId,
     pub function_type: FunctionTypeId,
     pub owner_type_param_count: usize,
+    pub body_type_arguments: CallableBodyTypeArguments,
     pub captures: Vec<Capture>,
     pub span: Span,
+}
+
+#[derive(Debug, Clone)]
+pub enum CallableBodyTypeArguments {
+    /// Substitute the type arguments of the ordinary enclosing body.
+    Lexical,
+    /// A hygienically expanded default fixes the generated body's original
+    /// lexical parameters even though the expression now belongs to a
+    /// different caller body.
+    Explicit(Vec<TypeId>),
 }
 
 /// A block-local named function. `function` is its lifted body; direct calls

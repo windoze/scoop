@@ -43,6 +43,7 @@ fn anonymous(
             .map(|(name, ty)| ast::Param {
                 name: ident(name),
                 ty,
+                syntax: ast::ParameterSyntax::Required,
                 span: sp(),
             })
             .collect(),

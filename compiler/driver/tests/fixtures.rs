@@ -74,6 +74,7 @@ fn runs_under_gc_stress(relative: &str) -> bool {
             | "m15-moving/external-exception.scoop"
             | "m15-moving/handle-pin.scoop"
             | "m15-moving/root-shapes.scoop"
+            | "m17-vararg/vararg-semantics.scoop"
     )
 }
 
@@ -104,6 +105,8 @@ fn verify_linked_stackmap_fixups(binary: &Path, relative: &str) {
 
 #[test]
 fn fixtures() {
+    let workspace = workspace_root();
+    std::env::set_current_dir(&workspace).expect("fixture runner enters the workspace root");
     let root = fixture_root();
     let mut fixtures = Vec::new();
     collect_fixtures(&root, &mut fixtures);
@@ -131,6 +134,7 @@ fn fixtures() {
             .to_string_lossy()
             .to_string();
         let snapshot_dir = fixture.parent().expect("fixture dir").to_path_buf();
+        let compile_path = Path::new("tests/fixtures").join(&relative);
         let out_dir = workspace_root()
             .join("target/fixtures-out")
             .join(relative.trim_end_matches(".scoop").replace('/', "__"));
@@ -180,7 +184,7 @@ fn fixtures() {
             options.library_paths.push(out_dir.clone());
         }
 
-        let snapshot = match scoopc::compile_file_with_options(&fixture, &out_dir, &options) {
+        let snapshot = match scoopc::compile_file_with_options(&compile_path, &out_dir, &options) {
             Ok(success) => {
                 if relative == "m15-moving/handle-pin.scoop" {
                     verify_linked_stackmap_fixups(&success.binary, &relative);
@@ -239,7 +243,7 @@ fn fixtures() {
                 // Diagnostics carry the index of their input file (core
                 // files first, the user fixture last). Name the fixture
                 // relative to `tests/fixtures` so snapshots stay portable.
-                let mut inputs = scoopc::load_inputs(&fixture).unwrap_or_default();
+                let mut inputs = scoopc::load_inputs(&compile_path).unwrap_or_default();
                 if let Some(user) = inputs.last_mut() {
                     user.name = relative.clone();
                     user.source = source.clone();

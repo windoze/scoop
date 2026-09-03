@@ -1,4 +1,5 @@
 use super::*;
+use crate::{FnParamCalling, FnVarargOmission};
 
 impl Lowerer {
     /// Whether the method is `abstract` (bodyless class method).
@@ -96,9 +97,30 @@ impl Lowerer {
             params: sig
                 .params
                 .into_iter()
-                .map(|param| FnParam {
-                    name: param.name,
-                    ty: self.instantiate_method_ty(param.ty, &bindings),
+                .map(|param| {
+                    let calling = match param.calling {
+                        FnParamCalling::Required => FnParamCalling::Required,
+                        FnParamCalling::Default { expression } => {
+                            FnParamCalling::Default { expression }
+                        }
+                        FnParamCalling::Vararg {
+                            element_ty,
+                            omission,
+                        } => FnParamCalling::Vararg {
+                            element_ty: self.instantiate_method_ty(element_ty, &bindings),
+                            omission: match omission {
+                                FnVarargOmission::EmptyArray => FnVarargOmission::EmptyArray,
+                                FnVarargOmission::Default { expression } => {
+                                    FnVarargOmission::Default { expression }
+                                }
+                            },
+                        },
+                    };
+                    FnParam {
+                        name: param.name,
+                        calling,
+                        ty: self.instantiate_method_ty(param.ty, &bindings),
+                    }
                 })
                 .collect(),
             return_ty: self.instantiate_method_ty(sig.return_ty, &bindings),

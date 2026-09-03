@@ -182,7 +182,10 @@ fn string_escapes() {
     let StatementKind::Expr(Expr::Call(call)) = &stmt.kind else {
         panic!("expected a call statement");
     };
-    let [Expr::StringLiteral { value, .. }] = &call.args[..] else {
+    let [argument] = &call.args[..] else {
+        panic!("expected one string argument");
+    };
+    let Expr::StringLiteral { value, .. } = &argument.expression else {
         panic!("expected one string argument");
     };
     assert_eq!(value, "a\nb\tc\\d\"e");
@@ -195,7 +198,7 @@ fn unicode_string_contents() {
     let StatementKind::Expr(Expr::Call(call)) = &stmt.kind else {
         panic!("expected a call statement");
     };
-    let Expr::StringLiteral { value, .. } = &call.args[0] else {
+    let Expr::StringLiteral { value, .. } = &call.args[0].expression else {
         panic!("expected a string argument");
     };
     assert_eq!(value, "héllo，世界");
@@ -248,7 +251,7 @@ fn spans_are_byte_offsets() {
     };
     assert_eq!(call.callee.span, Span::new(17, 22));
     assert_eq!(call.span, Span::new(17, 28));
-    let Expr::StringLiteral { span, .. } = &call.args[0] else {
+    let Expr::StringLiteral { span, .. } = &call.args[0].expression else {
         panic!("expected a string argument");
     };
     assert_eq!(*span, Span::new(23, 27));

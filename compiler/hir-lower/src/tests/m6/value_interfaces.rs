@@ -58,13 +58,9 @@ fn struct_implements_interface_and_boxes() {
     );
 
     let main = body_of(&module, "main");
-    match &main.statements[0].kind {
-        hir::StatementKind::ValDecl { init, .. } => {
-            assert!(matches!(init.kind, hir::ExprKind::Box(_)));
-            assert!(matches!(module.types[init.ty], hir::Type::Interface(..)));
-        }
-        other => panic!("expected a val decl, found {other:?}"),
-    }
+    let init = local_init(main, "d");
+    assert!(matches!(init.kind, hir::ExprKind::Box(_)));
+    assert!(matches!(module.types[init.ty], hir::Type::Interface(..)));
     match &returned(body_of(&module, "show")).kind {
         hir::ExprKind::MethodCall { callee, .. } => {
             assert_eq!(

@@ -32,6 +32,7 @@ impl Lowerer {
             },
             ty: resolved.return_ty,
             span: call.span,
+            origin: self.expression_origin(call.span),
         })
     }
 
@@ -69,6 +70,7 @@ impl Lowerer {
             kind: ExprKind::ArrayClone(Box::new(receiver)),
             ty,
             span,
+            origin: self.expression_origin(span),
         })
     }
 }

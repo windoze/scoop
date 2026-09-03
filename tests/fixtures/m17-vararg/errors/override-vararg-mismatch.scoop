@@ -1,0 +1,9 @@
+interface Base {
+    fun collect(vararg values: Int): Int
+}
+
+class Derived : Base {
+    final override fun collect(values: Array<Int>): Int = values.size
+}
+
+fun main() {}

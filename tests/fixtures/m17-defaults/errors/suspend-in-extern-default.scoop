@@ -1,0 +1,6 @@
+suspend fun awaitValue(): Int = 1
+
+@Extern(name = "m17_invalid_default", abi = "scoop")
+fun invalid(value: Int = awaitValue()): Int
+
+fun main() {}

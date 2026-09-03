@@ -79,9 +79,7 @@ fn local_function_has_typed_identity_capture_and_lifted_direct_call() {
         main_body.statements[1].kind,
         hir::StatementKind::LocalFunction(id) if id == local_id
     ));
-    let hir::StatementKind::ValDecl { init, .. } = &main_body.statements[2].kind else {
-        panic!("result declaration")
-    };
+    let init = local_init(main_body, "result");
     assert!(matches!(
         init.kind,
         hir::ExprKind::LocalFunctionCall {
@@ -137,9 +135,7 @@ fn overload_probes_lambda_candidates_transactionally() {
     let hir::FunctionKind::User(main) = &module.functions[module.entry].kind else {
         panic!("main body")
     };
-    let hir::StatementKind::ValDecl { init, .. } = &main.statements[0].kind else {
-        panic!("result declaration")
-    };
+    let init = local_init(main, "result");
     let hir::ExprKind::Call { callee, .. } = &init.kind else {
         panic!("resolved overload call")
     };

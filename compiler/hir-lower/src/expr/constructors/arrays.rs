@@ -26,24 +26,17 @@ impl Lowerer {
         let source_ty = self.class_application(self.array_class(source_kind), vec![parameter_ty]);
         view.value_parameters = vec![crate::call_resolution::candidates::ValueParameter {
             name: "source".to_string(),
+            calling: crate::defaults::SourceParameterCalling::Required,
             ty: source_ty,
         }];
 
         let argument_map =
-            match crate::call_resolution::arguments::CandidateArgumentMap::exact_nominal(
-                &view,
-                call.args.len(),
+            match crate::call_resolution::arguments::CandidateArgumentMap::source_nominal(
+                &view, &call.args,
             ) {
                 Ok(argument_map) => argument_map,
-                Err(mismatch) => {
-                    self.diagnose_nominal_shape_failure(
-                        &view,
-                        call.span,
-                        format!(
-                            "expects {} argument(s), but {} were supplied",
-                            mismatch.expected, mismatch.supplied
-                        ),
-                    );
+                Err(failure) => {
+                    self.diagnose_nominal_shape_failure(&view, call.span, failure.describe());
                     return None;
                 }
             };
@@ -66,19 +59,17 @@ impl Lowerer {
                 .filter(|array| array.kind == target_kind)
                 .map(|array| vec![array.element])
         });
-        let inferred = self.lower_nominal_arguments(
-            NominalArgumentInput {
-                view: &view,
-                argument_map: &argument_map,
-                expressions: &call.args,
-                explicit_type_args: &explicit_type_args,
-                expected_type_args: expected_arguments.as_deref(),
-                span: call.span,
-            },
-            sink,
-        )?;
+        let inferred = self.lower_nominal_arguments(NominalArgumentInput {
+            view: &view,
+            argument_map: &argument_map,
+            expressions: &call.args,
+            explicit_type_args: &explicit_type_args,
+            expected_type_args: expected_arguments.as_deref(),
+            span: call.span,
+        })?;
         let NominalArguments {
-            mut args,
+            args,
+            argument_sinks,
             type_args,
         } = inferred;
         let [element_ty] = type_args.as_slice() else {
@@ -90,6 +81,17 @@ impl Lowerer {
         let expected_source = self.array_type(source_kind, *element_ty);
         debug_assert!(self.types_equal(arg.ty, expected_source));
         let ty = self.array_type(target_kind, *element_ty);
+        let mut args = self.materialize_nominal_arguments(
+            crate::argument_materialization::NominalArgumentMaterialization {
+                view: &view,
+                argument_map: &argument_map,
+                type_args: &type_args,
+                source_args: args,
+                argument_sinks,
+                call_span: call.span,
+            },
+            sink,
+        );
         Some(hir::Expr {
             kind: ExprKind::ArrayClone(Box::new(
                 args.pop()
@@ -97,6 +99,7 @@ impl Lowerer {
             )),
             ty,
             span: call.span,
+            origin: self.expression_origin(call.span),
         })
     }
 }

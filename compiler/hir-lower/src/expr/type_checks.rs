@@ -30,6 +30,7 @@ impl Lowerer {
             },
             ty: self.boolean,
             span,
+            origin: self.expression_origin(span),
         };
         if negated {
             Some(hir::Expr {
@@ -39,6 +40,7 @@ impl Lowerer {
                 },
                 ty: self.boolean,
                 span,
+                origin: self.expression_origin(span),
             })
         } else {
             Some(is_expr)
@@ -84,6 +86,7 @@ impl Lowerer {
                     kind: ExprKind::SomeWrap(Box::new(adapted)),
                     ty,
                     span,
+                    origin: self.expression_origin(span),
                 });
             }
             return Some(adapted);
@@ -97,6 +100,7 @@ impl Lowerer {
                 },
                 ty,
                 span,
+                origin: self.expression_origin(span),
             });
         }
         let cast = hir::Expr {
@@ -106,12 +110,14 @@ impl Lowerer {
             },
             ty: target,
             span,
+            origin: self.expression_origin(span),
         };
         if self.is_value_ty(target) {
             Some(hir::Expr {
                 kind: ExprKind::Unbox(Box::new(cast)),
                 ty: target,
                 span,
+                origin: self.expression_origin(span),
             })
         } else {
             Some(cast)
