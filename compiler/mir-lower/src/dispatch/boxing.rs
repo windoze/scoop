@@ -1,0 +1,295 @@
+use super::*;
+
+impl Lowerer {
+    /// Generate boxed value types' ordinary interface dispatch. A box has no
+    /// universal vtable entries; every interface the value type implements
+    /// gets an itable whose slots point at adjust thunks. The thunk's
+    /// `this` is the boxed object; it unboxes and tail-calls the real
+    /// value method. Concrete HIR supplies the exact implementation function
+    /// for each typed interface slot.
+    pub(crate) fn finalize_boxed(&mut self, module: &hir::Module, index: usize) {
+        let class_id = self.boxed.order[index];
+        let payload = self.classes[class_id].declared_fields()[0].ty.clone();
+        let encoded = mir::encode_type(&self.shell, &payload);
+        debug_assert!(self.classes[class_id].vtable.is_empty());
+        let interfaces = self.classes[class_id].interfaces.clone();
+        for iface in interfaces {
+            let (hir_iface, _) = self.interfaces.source(iface);
+            let method_indices: Vec<_> = module.interfaces[hir_iface]
+                .methods
+                .iter()
+                .enumerate()
+                .map(|(index, _)| index)
+                .collect();
+            let mut slots = Vec::new();
+            for index in method_indices {
+                let thunk = self.build_thunk(module, &payload, &encoded, iface, index);
+                slots.push(mir::TableSlot::Function(thunk));
+            }
+            self.classes[class_id].itables.push(mir::ItableRecord {
+                interface: iface,
+                slots,
+            });
+        }
+    }
+
+    /// The adjust thunk for one (boxed value type, interface method)
+    /// pair (impl spec 2.9): `this` is the boxed object; the thunk
+    /// unboxes it and tail-calls the real value method (value-type
+    /// methods take `this` by value at MIR; the pointer convention
+    /// of the receiver is a codegen ABI matter). The implementation
+    /// is selected by its typed concrete-HIR conformance entry, so overloads
+    /// never require a name/signature search. The thunk symbol carries the
+    /// parameter encoding when the interface overloads the name.
+    pub(crate) fn build_thunk(
+        &mut self,
+        module: &hir::Module,
+        payload: &mir::Type,
+        encoded: &str,
+        iface: mir::InterfaceId,
+        method_index: usize,
+    ) -> mir::FunctionId {
+        let (hir_iface, _) = self.interfaces.source(iface);
+        let signature = &module.interfaces[hir_iface].methods[method_index];
+        let types = Types {
+            module,
+            struct_map: &self.struct_map,
+            class_map: &self.class_map,
+        };
+        let mut locals = Arena::new();
+        let this = locals.alloc(mir::Local {
+            name: "this".to_string(),
+            ty: mir::Type::Any,
+            mutable: false,
+        });
+        let mut params = vec![mir::Param {
+            name: "this".to_string(),
+            ty: mir::Type::Any,
+            local: this,
+        }];
+        let mut args = vec![smir::Expr::new(
+            payload.clone(),
+            smir::ExprKind::Unbox(Box::new(smir::Expr::local(this, mir::Type::Any))),
+        )];
+        let mut target_params = Vec::new();
+        let mut argument_locals = Vec::new();
+        for param in &signature.params {
+            let ty = types.lower(
+                param.ty,
+                &mut self.enums,
+                &mut self.structs,
+                &mut self.interfaces,
+                &mut self.shell,
+            );
+            target_params.push(ty.clone());
+            let local = locals.alloc(mir::Local {
+                name: param.name.clone(),
+                ty: ty.clone(),
+                mutable: false,
+            });
+            params.push(mir::Param {
+                name: param.name.clone(),
+                ty,
+                local,
+            });
+            argument_locals.push(local);
+        }
+        let return_ty = types.lower(
+            signature.return_ty,
+            &mut self.enums,
+            &mut self.structs,
+            &mut self.interfaces,
+            &mut self.shell,
+        );
+        let implementations = self
+            .value_interface_implementations(module, payload)
+            .to_vec();
+        let source_implementation = implementations
+            .into_iter()
+            .find(|implementation| {
+                let source = self.interfaces.mir_id(implementation.interface);
+                self.interface_is_subtype(module, source, iface)
+            })
+            .expect("concrete HIR supplies the boxed value's target conformance");
+        let implementation = source_implementation
+            .methods
+            .into_iter()
+            .find(|implementation| implementation.slot.into_raw() as usize == method_index)
+            .expect("concrete HIR supplies every boxed itable slot");
+        let implementation = match implementation.target {
+            hir::InterfaceImplementationTarget::Method(function) => function,
+            hir::InterfaceImplementationTarget::Abstract { .. } => {
+                unreachable!("value-type interface implementations are always concrete")
+            }
+        };
+        let implementation_function = &module.functions[implementation];
+        let source_types = Types {
+            module,
+            struct_map: &self.struct_map,
+            class_map: &self.class_map,
+        };
+        let source_params = implementation_function
+            .params
+            .iter()
+            .skip(1)
+            .map(|param| {
+                source_types.lower(
+                    param.ty,
+                    &mut self.enums,
+                    &mut self.structs,
+                    &mut self.interfaces,
+                    &mut self.shell,
+                )
+            })
+            .collect::<Vec<_>>();
+        let implementation_return = source_types.lower(
+            implementation_function.return_ty,
+            &mut self.enums,
+            &mut self.structs,
+            &mut self.interfaces,
+            &mut self.shell,
+        );
+        for ((local, target_ty), source_ty) in argument_locals
+            .into_iter()
+            .zip(&target_params)
+            .zip(&source_params)
+        {
+            args.push(self.adapt_variance_bridge(
+                smir::Expr::local(local, target_ty.clone()),
+                target_ty,
+                source_ty,
+            ));
+        }
+        let call = smir::Expr::new(
+            implementation_return.clone(),
+            smir::ExprKind::Call(smir::Call {
+                target: mir::CallTarget {
+                    kind: mir::CallKind::Direct,
+                    callee: mir::Callee::User(self.function_map[&implementation]),
+                },
+                args,
+                return_ty: implementation_return.clone(),
+            }),
+        );
+        let kind = if return_ty == mir::Type::Unit {
+            smir::StatementKind::Expr(call)
+        } else {
+            smir::StatementKind::Return {
+                value: Some(self.adapt_variance_bridge(call, &implementation_return, &return_ty)),
+            }
+        };
+        let encoding = mir::encode_params(&self.shell, &target_params);
+        let iface_name = self.interfaces.defs[iface].name.clone();
+        // An interface overloading the method name needs the parameter
+        // encoding to keep the thunk symbols distinct.
+        let overloaded = module.interfaces[hir_iface]
+            .methods
+            .iter()
+            .filter(|sig| sig.name == signature.name)
+            .count()
+            > 1;
+        let name = if overloaded {
+            format!("thunk.{encoded}.{iface_name}.{}.{encoding}", signature.name)
+        } else {
+            format!("thunk.{encoded}.{iface_name}.{}", signature.name)
+        };
+        let body = cfg::lower(
+            smir::Body {
+                locals,
+                statements: vec![smir::Statement {
+                    kind,
+                    span: signature.span,
+                }],
+            },
+            return_ty.clone(),
+        );
+        let id = self.functions.alloc(mir::Function {
+            gc_effect: mir::GcEffect::Managed,
+            symbol: format!("scoop.{name}"),
+            name,
+            params,
+            return_ty: return_ty.clone(),
+            body,
+        });
+        self.top_level.push(id);
+        if signature.is_suspend {
+            self.suspend_sources.push(SuspendSource {
+                function: id,
+                source_return: return_ty,
+                instance: None,
+            });
+        }
+        id
+    }
+
+    pub(crate) fn value_interfaces(
+        &mut self,
+        module: &hir::Module,
+        payload: &mir::Type,
+    ) -> Vec<mir::InterfaceId> {
+        let declared = match self.value_struct_source(module, payload) {
+            Some(hir_id) => module.structs[hir_id].interfaces.clone(),
+            None => match payload {
+                mir::Type::Enum(mir_id, _) => {
+                    let hir_id = self.enums.hir_ids[mir_id];
+                    module.enums[hir_id].interfaces.clone()
+                }
+                _ => return Vec::new(),
+            },
+        };
+        let types = Types {
+            module,
+            struct_map: &self.struct_map,
+            class_map: &self.class_map,
+        };
+        declared
+            .into_iter()
+            .map(|ty| {
+                let lowered = types.lower(
+                    ty,
+                    &mut self.enums,
+                    &mut self.structs,
+                    &mut self.interfaces,
+                    &mut self.shell,
+                );
+                let mir::Type::Interface(interface) = lowered else {
+                    unreachable!()
+                };
+                interface
+            })
+            .collect()
+    }
+
+    pub(crate) fn value_interface_implementations<'a>(
+        &self,
+        module: &'a hir::Module,
+        payload: &mir::Type,
+    ) -> &'a [hir::InterfaceImplementation] {
+        match self.value_struct_source(module, payload) {
+            Some(source) => &module.structs[source].interface_implementations,
+            None => match payload {
+                mir::Type::Enum(id, _) => {
+                    &module.enums[self.enums.hir_ids[id]].interface_implementations
+                }
+                _ => unreachable!("only value types receive boxed interface adapters"),
+            },
+        }
+    }
+
+    /// Exact source declaration for a MIR struct-like payload. Primitive
+    /// representations use the typed relation emitted by HIR; ordinary
+    /// struct instances use the mandatory MIR→HIR provenance map.
+    pub(crate) fn value_struct_source(
+        &self,
+        module: &hir::Module,
+        payload: &mir::Type,
+    ) -> Option<hir::StructId> {
+        match payload {
+            mir::Type::Int => Some(module.intrinsic_type_core.int),
+            mir::Type::UInt => Some(module.intrinsic_type_core.uint),
+            mir::Type::Boolean => Some(module.intrinsic_type_core.boolean),
+            mir::Type::Struct(mir_id) => Some(self.structs.hir_ids[mir_id]),
+            _ => None,
+        }
+    }
+}
