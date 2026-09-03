@@ -118,7 +118,10 @@ impl Lowerer {
     /// erase their source declaration: `intrinsic_type_owners` is the typed
     /// declaration relation established in pass 1, and all capability checks
     /// consume that relation instead of maintaining a second built-in list.
-    fn intrinsic_type_interfaces(&mut self, kind: hir::IntrinsicTypeKind) -> Vec<TypeId> {
+    pub(crate) fn intrinsic_type_interfaces(
+        &mut self,
+        kind: hir::IntrinsicTypeKind,
+    ) -> Vec<TypeId> {
         let Some(&(owner, _provider)) = self.intrinsic_type_owners.get(&kind) else {
             // A missing intrinsic owner is diagnosed by the core-contract
             // validator and prevents HIR output.  During recovery there is no

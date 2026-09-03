@@ -84,6 +84,7 @@ impl Lowerer {
             && let Some(arg_exprs) = arg_exprs
         {
             let candidate = &prepared[0];
+            let diagnostic_name = self.functions[candidate.function].name.clone();
             let type_params = self.signatures[&candidate.function].type_params.clone();
             let mut bindings = candidate.initial_bindings.clone();
             for ((&parameter, argument), expression) in
@@ -111,7 +112,7 @@ impl Lowerer {
                 self.error(
                     span,
                     format!(
-                        "cannot infer type argument `{}` for `{name}`",
+                        "cannot infer type argument `{}` for `{diagnostic_name}`",
                         parameter.name
                     ),
                 );
@@ -138,7 +139,7 @@ impl Lowerer {
                     self.error(
                         expression.span(),
                         format!(
-                            "argument for parameter `{}` of `{name}` must be of type {}, found {}",
+                            "argument for parameter `{}` of `{diagnostic_name}` must be of type {}, found {}",
                             parameter_name,
                             self.type_name(expected),
                             self.type_name(argument)

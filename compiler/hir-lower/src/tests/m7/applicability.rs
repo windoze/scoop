@@ -129,3 +129,31 @@ fn uniform_arity_mismatch_keeps_the_arity_message() {
         "`f` takes exactly 1 argument, but 0 were supplied"
     );
 }
+
+#[test]
+fn single_candidate_accepts_a_subclass_argument() {
+    let file = file(vec![
+        class_decl(Open, "Base", vec![], None, vec![], vec![]),
+        class_decl(
+            Final,
+            "Derived",
+            vec![],
+            Some(("Base", vec![])),
+            vec![],
+            vec![],
+        ),
+        fun_expr(
+            "accept",
+            vec![],
+            vec![("value", ty_named("Base"))],
+            None,
+            unit_lit(),
+        ),
+        fun(
+            "main",
+            vec![stmt(call("accept", vec![call("Derived", vec![])]))],
+        ),
+    ]);
+
+    lower_user(file).expect("subclass values are applicable to base parameters");
+}

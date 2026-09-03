@@ -293,11 +293,6 @@ impl Lowerer {
                 lowered.extend(args.iter().cloned().map(Some));
             }
         }
-        let arg_tys: Vec<Option<TypeId>> = lowered
-            .iter()
-            .map(|arg| arg.as_ref().map(|arg| arg.ty))
-            .collect();
-
         let prepared: Vec<Candidate> = candidates
             .iter()
             .map(|source| {
@@ -398,6 +393,73 @@ impl Lowerer {
             }
             return None;
         }
+
+        // Preserve the single-candidate fixed point while all declarations
+        // migrate to the new candidate solver. In particular, a unique
+        // non-generic callable reference can synthesize its type without a
+        // hint and then bind a surrounding generic parameter.
+        if prepared.len() == 1
+            && prepared[0].explicit_arity_match
+            && prepared[0].argument_map.is_ok()
+            && let OverloadArguments::Source(arg_exprs) = &arguments
+        {
+            let candidate = &prepared[0];
+            let type_params = self.signatures[&candidate.function].type_params.clone();
+            let mut bindings = candidate.initial_bindings.clone();
+            loop {
+                for (&parameter, argument) in candidate.params.iter().zip(&lowered) {
+                    let Some(argument) = argument else {
+                        continue;
+                    };
+                    if !self.bind_type_args(
+                        parameter,
+                        argument.ty,
+                        &mut bindings,
+                        &type_params,
+                        argument.span,
+                    ) {
+                        return None;
+                    }
+                }
+                if lowered.iter().all(Option::is_some) {
+                    break;
+                }
+
+                let mut progress = false;
+                for (source_index, argument) in arg_exprs.iter().enumerate() {
+                    let parameter_index = receiver_offset + source_index;
+                    if lowered[parameter_index].is_some() {
+                        continue;
+                    }
+                    let hint = self.try_substitute(candidate.params[parameter_index], &bindings);
+                    if hint.is_none() && self.expr_requires_expected_type(argument) {
+                        continue;
+                    }
+                    lowered[parameter_index] =
+                        Some(self.lower_expr(argument, &mut arg_sinks[source_index], hint)?);
+                    progress = true;
+                }
+                if progress {
+                    continue;
+                }
+
+                let parameter_index = lowered
+                    .iter()
+                    .position(Option::is_none)
+                    .expect("a postponed source argument remains");
+                let source_index = parameter_index - receiver_offset;
+                lowered[parameter_index] = Some(self.lower_expr(
+                    &arg_exprs[source_index],
+                    &mut arg_sinks[source_index],
+                    None,
+                )?);
+            }
+        }
+
+        let arg_tys: Vec<Option<TypeId>> = lowered
+            .iter()
+            .map(|arg| arg.as_ref().map(|arg| arg.ty))
+            .collect();
 
         // Applicability (step 1): each entry pairs a prepared-candidate
         // index with its inferred call-level type arguments.

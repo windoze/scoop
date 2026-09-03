@@ -88,46 +88,52 @@ impl Lowerer {
             (Type::Enum(param), Type::Enum(arg)) => {
                 let param = self.enum_applications[param].clone();
                 let arg = self.enum_applications[arg].clone();
-                param.template == arg.template
-                    && param.arguments.len() == arg.arguments.len()
-                    && param
-                        .arguments
-                        .iter()
-                        .zip(arg.arguments)
-                        .all(|(param, arg)| self.try_bind(*param, arg, bindings))
+                param.template != arg.template
+                    || (param.arguments.len() == arg.arguments.len()
+                        && param
+                            .arguments
+                            .iter()
+                            .zip(arg.arguments)
+                            .all(|(param, arg)| self.try_bind(*param, arg, bindings)))
             }
             (Type::Struct(param), Type::Struct(arg)) => {
                 let param = self.struct_applications[param].clone();
                 let arg = self.struct_applications[arg].clone();
-                param.template == arg.template
-                    && param.arguments.len() == arg.arguments.len()
-                    && param
-                        .arguments
-                        .iter()
-                        .zip(arg.arguments)
-                        .all(|(param, arg)| self.try_bind(*param, arg, bindings))
+                param.template != arg.template
+                    || (param.arguments.len() == arg.arguments.len()
+                        && param
+                            .arguments
+                            .iter()
+                            .zip(arg.arguments)
+                            .all(|(param, arg)| self.try_bind(*param, arg, bindings)))
             }
             (Type::Class(param), Type::Class(arg)) => {
                 let param = self.class_applications[param].clone();
                 let arg = self.class_applications[arg].clone();
-                param.template == arg.template
-                    && param.arguments.len() == arg.arguments.len()
-                    && param
-                        .arguments
-                        .iter()
-                        .zip(arg.arguments)
-                        .all(|(param, arg)| self.try_bind(*param, arg, bindings))
+                param.template != arg.template
+                    || (param.arguments.len() == arg.arguments.len()
+                        && param
+                            .arguments
+                            .iter()
+                            .zip(arg.arguments)
+                            .all(|(param, arg)| self.try_bind(*param, arg, bindings)))
             }
             (Type::Interface(param), Type::Interface(arg)) => {
                 let param = self.interface_applications[param].clone();
                 let arg = self.interface_applications[arg].clone();
-                param.template == arg.template
-                    && param.arguments.len() == arg.arguments.len()
-                    && param
-                        .arguments
-                        .iter()
-                        .zip(arg.arguments)
-                        .all(|(param, arg)| self.try_bind(*param, arg, bindings))
+                let arg_args = if param.template == arg.template {
+                    Some(arg.arguments)
+                } else {
+                    self.implemented_interface_application(arg.canonical_type, param.template)
+                };
+                arg_args.is_none_or(|arg_args| {
+                    param.arguments.len() == arg_args.len()
+                        && param
+                            .arguments
+                            .iter()
+                            .zip(arg_args)
+                            .all(|(param, arg)| self.try_bind(*param, arg, bindings))
+                })
             }
             (Type::Interface(param), _) => {
                 let param = self.interface_applications[param].clone();

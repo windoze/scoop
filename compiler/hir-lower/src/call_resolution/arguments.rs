@@ -13,6 +13,11 @@ impl SourceInputId {
     pub(crate) const fn index(self) -> usize {
         self.0 as usize
     }
+
+    #[cfg(test)]
+    pub(super) fn from_test_index(index: usize) -> Self {
+        Self::from_index(index)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
