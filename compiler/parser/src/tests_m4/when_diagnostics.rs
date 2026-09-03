@@ -1,0 +1,86 @@
+use super::*;
+
+// --- when diagnostics -----------------------------------------------------------
+
+#[test]
+fn when_rest_twice_in_positional_pattern() {
+    let (span, message) =
+        err("fun main() {\n    when (s) {\n        V(a, .., ..) -> { }\n    }\n}\n");
+    assert_eq!(span, Span::new(45, 47));
+    assert_eq!(message, "`..` may appear at most once in a pattern");
+}
+
+#[test]
+fn when_rest_twice_in_tuple_pattern() {
+    let (span, message) =
+        err("fun main() {\n    when (s) {\n        (a, .., b, ..) -> { }\n    }\n}\n");
+    assert_eq!(span, Span::new(47, 49));
+    assert_eq!(message, "`..` may appear at most once in a pattern");
+}
+
+#[test]
+fn when_rest_must_be_last_in_field_pattern() {
+    let (span, message) =
+        err("fun main() {\n    when (s) {\n        S { .., x } -> { }\n    }\n}\n");
+    assert_eq!(span, Span::new(44, 45));
+    assert_eq!(message, "`..` must be the last element in a field pattern");
+}
+
+#[test]
+fn when_rest_twice_in_field_pattern() {
+    let (_, message) = err("fun main() {\n    when (s) {\n        S { .., .. } -> { }\n    }\n}\n");
+    assert_eq!(message, "`..` must be the last element in a field pattern");
+}
+
+#[test]
+fn when_wildcard_is_not_a_field_name() {
+    let (span, message) = err("fun main() {\n    when (s) {\n        S { _ } -> { }\n    }\n}\n");
+    assert_eq!(span, Span::new(40, 41));
+    assert_eq!(message, "`_` is not allowed in a field pattern");
+}
+
+#[test]
+fn when_wildcard_is_not_a_field_rename() {
+    let (span, message) =
+        err("fun main() {\n    when (s) {\n        S { x: _ } -> { }\n    }\n}\n");
+    assert_eq!(span, Span::new(43, 44));
+    assert_eq!(message, "`_` is not allowed in a field pattern");
+}
+
+#[test]
+fn when_arm_needs_an_arrow() {
+    let (span, message) = err("fun main() {\n    when (s) {\n        Red\n    }\n}\n");
+    assert_eq!(span, Span::new(44, 45));
+    assert_eq!(message, "expected `->`, found `}`");
+}
+
+#[test]
+fn when_else_must_be_the_last_arm() {
+    let (span, message) =
+        err("fun main() {\n    when (s) {\n        else -> { }\n        Red -> { }\n    }\n}\n");
+    assert_eq!(span, Span::new(56, 59));
+    assert_eq!(message, "expected `}`, found `Red`");
+}
+
+#[test]
+fn when_guard_must_be_parenthesized() {
+    let (span, message) = err("fun main() {\n    when (s) {\n        Red if x -> { }\n    }\n}\n");
+    assert_eq!(span, Span::new(43, 44));
+    assert_eq!(message, "expected `(`, found `x`");
+}
+
+#[test]
+fn when_bare_rest_is_not_a_pattern() {
+    let (span, message) = err("fun main() {\n    when (s) {\n        .. -> { }\n    }\n}\n");
+    assert_eq!(span, Span::new(36, 38));
+    assert_eq!(message, "expected pattern, found `..`");
+}
+
+#[test]
+fn when_range_is_not_a_pattern() {
+    // The `..` in the pattern position is the rest marker; a range
+    // expression therefore cannot appear there (spec 4.6 disambiguation).
+    let (span, message) = err("fun main() {\n    when (s) {\n        1..4 -> { }\n    }\n}\n");
+    assert_eq!(span, Span::new(37, 39));
+    assert_eq!(message, "expected `->`, found `..`");
+}
