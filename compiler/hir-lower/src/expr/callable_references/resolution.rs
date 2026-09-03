@@ -184,8 +184,11 @@ impl Lowerer {
         })
     }
 
-    pub(in crate::expr) fn top_level_candidate_layer(&self, name: &str) -> Vec<hir::FunctionId> {
-        self.candidate_layer(self.functions_by_name.get(name))
+    pub(in crate::expr) fn top_level_candidate_layers(
+        &self,
+        name: &str,
+    ) -> Vec<Vec<hir::FunctionId>> {
+        self.candidate_layers(self.functions_by_name.get(name))
     }
 
     pub(super) fn managed_reference_target_is_safe(
@@ -207,11 +210,14 @@ impl Lowerer {
         false
     }
 
-    pub(in crate::expr) fn extension_candidate_layer(&self, name: &str) -> Vec<hir::FunctionId> {
-        self.candidate_layer(self.extensions_by_name.get(name))
+    pub(in crate::expr) fn extension_candidate_layers(
+        &self,
+        name: &str,
+    ) -> Vec<Vec<hir::FunctionId>> {
+        self.candidate_layers(self.extensions_by_name.get(name))
     }
 
-    fn candidate_layer(&self, ids: Option<&Vec<hir::FunctionId>>) -> Vec<hir::FunctionId> {
+    fn candidate_layers(&self, ids: Option<&Vec<hir::FunctionId>>) -> Vec<Vec<hir::FunctionId>> {
         let Some(ids) = ids else {
             return Vec::new();
         };
@@ -221,17 +227,18 @@ impl Lowerer {
             .copied()
             .filter(|id| (self.function_files[id] < self.user_file_index) == call_site_is_core)
             .collect();
-        if same_side.is_empty() {
-            ids.iter()
-                .copied()
-                .filter(|id| (self.function_files[id] < self.user_file_index) != call_site_is_core)
-                .collect()
-        } else {
-            same_side
-        }
+        let imported = ids
+            .iter()
+            .copied()
+            .filter(|id| (self.function_files[id] < self.user_file_index) != call_site_is_core)
+            .collect::<Vec<_>>();
+        [same_side, imported]
+            .into_iter()
+            .filter(|layer| !layer.is_empty())
+            .collect()
     }
 
-    pub(super) fn named_reference_candidate_layer(&self, name: &str) -> Vec<hir::FunctionId> {
+    pub(super) fn named_reference_candidate_layers(&self, name: &str) -> Vec<Vec<hir::FunctionId>> {
         let mut ids = Vec::new();
         ids.extend(
             self.functions_by_name
@@ -253,14 +260,17 @@ impl Lowerer {
             .copied()
             .filter(|id| (self.function_files[id] < self.user_file_index) == call_site_is_core)
             .collect();
-        let mut selected = if same_side.is_empty() {
-            ids.into_iter()
-                .filter(|id| (self.function_files[id] < self.user_file_index) != call_site_is_core)
-                .collect::<Vec<_>>()
-        } else {
-            same_side
-        };
-        selected.sort_by_key(|id| id.into_raw().into_u32());
-        selected
+        let imported = ids
+            .into_iter()
+            .filter(|id| (self.function_files[id] < self.user_file_index) != call_site_is_core)
+            .collect::<Vec<_>>();
+        [same_side, imported]
+            .into_iter()
+            .filter(|layer| !layer.is_empty())
+            .map(|mut layer| {
+                layer.sort_by_key(|id| id.into_raw().into_u32());
+                layer
+            })
+            .collect()
     }
 }

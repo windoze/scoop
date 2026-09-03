@@ -4,6 +4,11 @@ use crate::call_resolution::constraints::CallableCategory;
 
 mod resolution;
 
+enum BoundReferenceLayer<'a> {
+    Members(&'a [crate::CallableCandidate]),
+    Extensions(&'a [hir::FunctionId]),
+}
+
 impl Lowerer {
     pub(super) fn lower_callable_reference(
         &mut self,
@@ -42,11 +47,17 @@ impl Lowerer {
             return None;
         }
         let local_candidates = self.local_function_scopes.lookup(&name.text);
+        let mut first_failure = None;
         if !local_candidates.is_empty() {
-            return self.lower_local_callable_reference(local_candidates, name, span, expected);
+            match self.probe_expr_layer(|state, _| {
+                state.lower_local_callable_reference(local_candidates.clone(), name, span, expected)
+            }) {
+                Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
+                Err(failure) => first_failure = Some(failure),
+            }
         }
-        let candidates = self.named_reference_candidate_layer(&name.text);
-        if candidates.is_empty() {
+        let candidate_layers = self.named_reference_candidate_layers(&name.text);
+        if candidate_layers.is_empty() && first_failure.is_none() {
             if self.is_declared_type_name(&name.text) {
                 self.error(
                     span,
@@ -62,19 +73,35 @@ impl Lowerer {
         }
         let expected_signature = self.expected_function_signature(expected);
         let display = format!("callable reference `::{}`", name.text);
-        let resolved = self.resolve_reference_candidates(
-            &candidates,
-            &[],
-            expected_signature.as_ref(),
-            &display,
-            span,
-            ReferenceExtensionMode::IncludeUnbound,
-        )?;
+        for candidates in candidate_layers {
+            match self.probe_expr_layer(|state, _| {
+                let resolved = state.resolve_reference_candidates(
+                    &candidates,
+                    &[],
+                    expected_signature.as_ref(),
+                    &display,
+                    span,
+                    ReferenceExtensionMode::IncludeUnbound,
+                )?;
+                state.finish_named_callable_reference(resolved, span)
+            }) {
+                Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
+                Err(failure) => {
+                    first_failure.get_or_insert(failure);
+                }
+            }
+        }
+        self.commit_layer_diagnostics(*first_failure.expect("at least one reference layer failed"));
+        None
+    }
+
+    fn finish_named_callable_reference(
+        &mut self,
+        resolved: ResolvedReference,
+        span: Span,
+    ) -> Option<hir::Expr> {
         let callee = resolved.callable;
         let ty = resolved.ty;
-        if !self.managed_reference_target_is_safe(callee, span) {
-            return None;
-        }
         let Type::Function(function_type) = self.types[ty] else {
             unreachable!("a callable reference has a function type")
         };
@@ -110,9 +137,50 @@ impl Lowerer {
             return None;
         }
         let expected_signature = self.function_types[signature].clone();
-        let candidates = self.named_reference_candidate_layer(&name.text);
+        let candidate_layers = self.named_reference_candidate_layers(&name.text);
+        if candidate_layers.is_empty() {
+            return self.lower_native_function_reference_layer(
+                name,
+                span,
+                expected,
+                &expected_signature,
+                &[],
+            );
+        }
+        let mut first_failure = None;
+        for candidates in candidate_layers {
+            match self.probe_expr_layer(|state, _| {
+                state.lower_native_function_reference_layer(
+                    name,
+                    span,
+                    expected,
+                    &expected_signature,
+                    &candidates,
+                )
+            }) {
+                Ok(layer) => {
+                    let mut sink = Vec::new();
+                    return Some(self.commit_expr_layer(layer, &mut sink));
+                }
+                Err(failure) => {
+                    first_failure.get_or_insert(failure);
+                }
+            }
+        }
+        self.commit_layer_diagnostics(*first_failure.expect("at least one native layer failed"));
+        None
+    }
+
+    fn lower_native_function_reference_layer(
+        &mut self,
+        name: &ast::Ident,
+        span: Span,
+        expected: TypeId,
+        expected_signature: &hir::FunctionType,
+        candidates: &[hir::FunctionId],
+    ) -> Option<hir::Expr> {
         let mut matching = Vec::new();
-        for function in candidates {
+        for &function in candidates {
             let declaration = &self.functions[function];
             let sig = &self.signatures[&function];
             if declaration.method.is_some()
@@ -204,22 +272,8 @@ impl Lowerer {
         // once at reference creation, including when it reads a mutable local.
         let receiver = self.lower_expr(receiver, sink, None)?;
         let mut member_candidates = self.methods_by_name(receiver.ty, &name.text);
-        let is_extension = member_candidates.is_empty();
-        let extension_candidates = if is_extension {
-            let candidates = self.extension_candidate_layer(&name.text);
-            if candidates.is_empty() {
-                let found = self.type_name(receiver.ty);
-                self.error(
-                    name.span,
-                    format!("type `{found}` has no method `{}`", name.text),
-                );
-                return None;
-            }
-            candidates
-        } else {
-            Vec::new()
-        };
-        if !is_extension && matches!(self.types[receiver.ty], Type::Interface(..)) {
+        let mut first_failure = None;
+        if !member_candidates.is_empty() && matches!(self.types[receiver.ty], Type::Interface(..)) {
             let before = member_candidates.len();
             member_candidates.retain(|candidate| {
                 let sig = &self.signatures[&candidate.function];
@@ -227,40 +281,85 @@ impl Lowerer {
             });
             if member_candidates.is_empty() && before != 0 {
                 let found = self.type_name(receiver.ty);
-                self.error(
+                let mut failure = self.clone();
+                failure.error(
                     name.span,
                     format!(
                         "generic member function `{}` cannot be referenced through interface type `{found}`",
                         name.text
                     ),
                 );
-                return None;
+                first_failure = Some(Box::new(failure));
             }
         }
         let expected_signature = self.expected_function_signature(expected);
         let display = format!("bound callable reference `receiver::{}`", name.text);
-        let resolved = if is_extension {
-            self.resolve_reference_candidates(
-                &extension_candidates,
+        if !member_candidates.is_empty() {
+            match self.probe_expr_layer(|state, _| {
+                state.finish_bound_callable_reference(
+                    BoundReferenceLayer::Members(&member_candidates),
+                    receiver.clone(),
+                    expected_signature.as_ref(),
+                    &display,
+                    span,
+                )
+            }) {
+                Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
+                Err(failure) => first_failure = Some(failure),
+            }
+        }
+        for extensions in self.extension_candidate_layers(&name.text) {
+            match self.probe_expr_layer(|state, _| {
+                state.finish_bound_callable_reference(
+                    BoundReferenceLayer::Extensions(&extensions),
+                    receiver.clone(),
+                    expected_signature.as_ref(),
+                    &display,
+                    span,
+                )
+            }) {
+                Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
+                Err(failure) => {
+                    first_failure.get_or_insert(failure);
+                }
+            }
+        }
+        if let Some(failure) = first_failure {
+            self.commit_layer_diagnostics(*failure);
+        } else {
+            let found = self.type_name(receiver.ty);
+            self.error(
+                name.span,
+                format!("type `{found}` has no method `{}`", name.text),
+            );
+        }
+        None
+    }
+
+    fn finish_bound_callable_reference(
+        &mut self,
+        layer: BoundReferenceLayer<'_>,
+        receiver: hir::Expr,
+        expected: Option<&(TypeId, hir::FunctionType)>,
+        display: &str,
+        span: Span,
+    ) -> Option<hir::Expr> {
+        let is_extension = matches!(layer, BoundReferenceLayer::Extensions(_));
+        let resolved = match layer {
+            BoundReferenceLayer::Members(candidates) => {
+                self.resolve_member_reference_candidates(candidates, expected, display, span)?
+            }
+            BoundReferenceLayer::Extensions(candidates) => self.resolve_reference_candidates(
+                candidates,
                 &[],
-                expected_signature.as_ref(),
-                &display,
+                expected,
+                display,
                 span,
                 ReferenceExtensionMode::Bound(receiver.ty),
-            )?
-        } else {
-            self.resolve_member_reference_candidates(
-                &member_candidates,
-                expected_signature.as_ref(),
-                &display,
-                span,
-            )?
+            )?,
         };
         let callee = resolved.callable;
         let ty = resolved.ty;
-        if !self.managed_reference_target_is_safe(callee, span) {
-            return None;
-        }
         let Type::Function(function_type) = self.types[ty] else {
             unreachable!("a callable reference has a function type")
         };

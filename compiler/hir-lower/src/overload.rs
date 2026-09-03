@@ -1,30 +1,17 @@
-//! Overload resolution (M7, docs/milestone7 DESIGN.md 1.2), aligned
-//! with the Kotlin overload-resolution two-step: the caller picks the
-//! candidate layer (host members → the call site's own side of the
-//! core/user boundary → the other, implicitly imported side; the first
-//! layer containing any candidate wins whole; an explicit-receiver
-//! call has only the member layer), and this module selects the winner
-//! inside one layer:
+//! Unified declaration-call resolution (M16, `docs/milestone16/DESIGN.md`).
+//! The caller probes lexical/member/import layers in priority order and stops
+//! at the first layer containing at least one applicable candidate. This
+//! module resolves one such layer:
 //!
-//! 1. **Applicability.** Exact arity (no default arguments / varargs),
-//!    type-argument inference for generic candidates (the M3 binding
-//!    rules, run quietly — a conflict or an unbound parameter simply
-//!    makes the candidate inapplicable), and every argument a subtype
-//!    of its parameter (`is_subtype`, boxing included).
-//! 2. **Most specific candidate (MSC).** Candidate A dominates B when
-//!    every parameter type of A is a subtype of B's (generic candidates
-//!    compare with their inferred type arguments — the simplification
-//!    of Kotlin's fresh-variable constraint system documented in
-//!    DESIGN.md 1.2). Exactly one dominator wins; on a tie (mutual or
-//!    no dominance) non-generic candidates are preferred; anything
-//!    still tied is an ambiguity diagnostic. Boxing needs no dedicated
-//!    rule: `Any` is a supertype, so the unboxed candidate is naturally
-//!    more specific.
-//!
-//! Single-candidate layers never reach here: the call sites keep the
-//! pre-M7 code path so its diagnostics (arity and argument-type
-//! messages naming the function, parameter types as expected-type
-//! hints) stay exactly as they were.
+//! 1. **Applicability.** Every candidate owns its argument map, fresh
+//!    inference session, constraints, postponed arguments and failure trace.
+//!    Single-candidate layers use exactly this path too.
+//! 2. **Most specific candidate (MSC).** Pairwise declaration forwarding uses
+//!    fresh variables and declaration bounds; it never compares type arguments
+//!    inferred from this call. A unique dominator wins, with the specified
+//!    non-generic tie-break, otherwise the call is ambiguous.
+//! 3. **Commit.** Candidate probes are scratch transactions. Only the winner's
+//!    expressions, coercions, entities, captures and instantiations survive.
 
 use scoop_ast as ast;
 use scoop_hir as hir;
@@ -112,11 +99,10 @@ enum OverloadReceiver {
 }
 
 impl Lowerer {
-    /// Resolve a call over one candidate layer. `receiver_type_args`
-    /// are the receiver's enum type arguments for method calls (empty
-    /// for top-level functions and non-enum receivers). Records the
-    /// winner's instantiation request and returns it; on failure the
-    /// diagnostic is recorded and `None` comes back.
+    /// Resolve one candidate layer. `receiver_type_args` are the already fixed
+    /// owner arguments (empty for top-level functions). On success the unique
+    /// winner is committed into this layer transaction; on failure a stable
+    /// diagnostic is recorded for the caller to retain or discard with it.
     pub(crate) fn resolve_overload(
         &mut self,
         name: &str,

@@ -5,18 +5,18 @@ use super::*;
 mod intrinsics;
 
 impl Lowerer {
-    /// A bare call `f(args)` (M7): the candidate layers are, in order,
+    /// A bare call `f(args)`: the candidate layers are, in order,
     /// the current host's methods (inside a member function, where
-    /// `f(...)` means `this.f(...)`), the top-level functions declared
-    /// on the call site's own side of the core/user boundary (its
-    /// "same package" layer), and the other side (the implicitly
-    /// imported layer) — the first layer containing any candidate currently
-    /// wins whole (milestone7 DESIGN.md 1.2). The layering is relative to
+    /// `f(...)` means `this.f(...)`), extensions callable on a lexical `this`,
+    /// top-level functions declared on the call site's own side of the
+    /// core/user boundary, and the other side (the implicitly imported
+    /// layer). The first layer containing an applicable candidate wins whole
+    /// (M16 DESIGN 2.2). The import layering is relative to
     /// the call site's file: for a user-file call that is user
-    /// top-level → core, for a core-file call core → user, so a user
-    /// declaration shadows core overloads for user code without
-    /// breaking the core library's own internal calls. A single candidate and
-    /// an overload set both enter the same M16 resolver.
+    /// top-level → core, for a core-file call core → user. An applicable user
+    /// declaration therefore shadows core overloads without breaking the core
+    /// library's own internal calls. A single candidate and an overload set
+    /// both enter the same M16 resolver.
     pub(super) fn lower_function_call(
         &mut self,
         call: &ast::CallExpr,
@@ -24,45 +24,24 @@ impl Lowerer {
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
         let name = call.callee.text.clone();
+        let mut first_failure = None;
 
         // Layer 1: the nearest lexical block containing local functions of
-        // this name. The whole overload set shadows members and top-level
-        // functions, and declarations enter it only as they are encountered.
+        // this name. Declarations enter it only as they are encountered.
         let local_candidates = self.local_function_scopes.lookup(&name);
         if !local_candidates.is_empty() {
-            let functions: Vec<_> = local_candidates
-                .iter()
-                .map(|id| self.local_functions[*id].function)
-                .collect();
-            let owner_count = self.local_functions[local_candidates[0]].owner_type_param_count;
-            let owner_type_args = self.ambient_type_args(owner_count);
-            let explicit_type_args = self.resolve_call_type_args(&call.type_args)?;
-            let resolved = self.resolve_overload(
-                &name,
-                &functions,
-                &owner_type_args,
-                crate::overload::OverloadCall {
-                    explicit_type_args: &explicit_type_args,
-                    arg_exprs: &call.args,
-                    span: call.span,
-                    expected_result: expected,
-                },
-                sink,
-            )?;
-            let function = self.callable_function_id(resolved.callee);
-            let local_function = self.local_function_by_function[&function];
-            let captures = self.local_call_capture_args(local_function, call.span)?;
-            self.check_call_effects(resolved.callee, call.span);
-            return Some(hir::Expr {
-                kind: ExprKind::LocalFunctionCall {
-                    local_function,
-                    callee: resolved.callee,
-                    captures,
-                    args: resolved.args,
-                },
-                ty: resolved.return_ty,
-                span: call.span,
-            });
+            match self.probe_expr_layer(|state, layer_sink| {
+                state.lower_local_function_layer(
+                    &name,
+                    &local_candidates,
+                    call,
+                    layer_sink,
+                    expected,
+                )
+            }) {
+                Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
+                Err(failure) => first_failure = Some(failure),
+            }
         }
 
         // Layer 2: members of the current host.
@@ -71,34 +50,12 @@ impl Lowerer {
             .map(|host_ty| self.methods_by_name(host_ty, &name))
             .unwrap_or_default();
         if !members.is_empty() {
-            let receiver = self
-                .lower_current_this(call.callee.span)
-                .expect("a member callable body always has a lexical `this`");
-            return self.finish_overloaded_method_call(
-                members,
-                &name,
-                receiver,
-                CallSite {
-                    type_args: &call.type_args,
-                    args: &call.args,
-                    span: call.span,
-                },
-                sink,
-                expected,
-            );
-        }
-
-        // An extension body has a lexical `this` just like a member body.
-        // If no real member wins, another visible extension may use it as
-        // the implicit receiver before ordinary top-level functions.
-        if self.current_this_ty().is_some() {
-            let extensions = self.extension_candidate_layer(&name);
-            if !extensions.is_empty() {
-                let receiver = self
+            match self.probe_expr_layer(|state, layer_sink| {
+                let receiver = state
                     .lower_current_this(call.callee.span)
-                    .expect("a lexical receiver has a `this` value");
-                return self.finish_extension_call(
-                    &extensions,
+                    .expect("a member callable body always has a lexical `this`");
+                state.finish_overloaded_method_call(
+                    members,
                     &name,
                     receiver,
                     CallSite {
@@ -106,25 +63,124 @@ impl Lowerer {
                         args: &call.args,
                         span: call.span,
                     },
-                    sink,
+                    layer_sink,
                     expected,
-                );
+                )
+            }) {
+                Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
+                Err(failure) => first_failure.get_or_insert(failure),
+            };
+        }
+
+        // An extension body has a lexical `this` just like a member body.
+        // If no real member wins, another visible extension may use it as
+        // the implicit receiver before ordinary top-level functions.
+        if self.current_this_ty().is_some() {
+            for extensions in self.extension_candidate_layers(&name) {
+                match self.probe_expr_layer(|state, layer_sink| {
+                    let receiver = state
+                        .lower_current_this(call.callee.span)
+                        .expect("a lexical receiver has a `this` value");
+                    state.finish_extension_call(
+                        &extensions,
+                        &name,
+                        receiver,
+                        CallSite {
+                            type_args: &call.type_args,
+                            args: &call.args,
+                            span: call.span,
+                        },
+                        layer_sink,
+                        expected,
+                    )
+                }) {
+                    Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
+                    Err(failure) => {
+                        first_failure.get_or_insert(failure);
+                    }
+                }
             }
         }
 
-        // Layers 2 and 3, relative to the call site's file: the
+        // Final two layers, relative to the call site's file: the
         // declarations on the call site's own side of the core/user
         // boundary come first, the other side is the implicitly
         // imported layer.
-        let candidates = self.top_level_candidate_layer(&name);
-        if candidates.is_empty() {
+        let top_level_layers = self.top_level_candidate_layers(&name);
+        if top_level_layers.is_empty() && first_failure.is_none() {
             self.error(
                 call.callee.span,
                 format!("unknown function `{}`", call.callee.text),
             );
             return None;
         }
-        if let [function] = candidates.as_slice()
+        for candidates in top_level_layers {
+            match self.probe_expr_layer(|state, layer_sink| {
+                state.lower_top_level_function_layer(&name, &candidates, call, layer_sink, expected)
+            }) {
+                Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
+                Err(failure) => {
+                    first_failure.get_or_insert(failure);
+                }
+            }
+        }
+
+        self.commit_layer_diagnostics(*first_failure.expect("at least one callable layer failed"));
+        None
+    }
+
+    fn lower_local_function_layer(
+        &mut self,
+        name: &str,
+        candidates: &[hir::LocalFunctionId],
+        call: &ast::CallExpr,
+        sink: &mut Vec<hir::Statement>,
+        expected: Option<TypeId>,
+    ) -> Option<hir::Expr> {
+        let functions: Vec<_> = candidates
+            .iter()
+            .map(|id| self.local_functions[*id].function)
+            .collect();
+        let owner_count = self.local_functions[candidates[0]].owner_type_param_count;
+        let owner_type_args = self.ambient_type_args(owner_count);
+        let explicit_type_args = self.resolve_call_type_args(&call.type_args)?;
+        let resolved = self.resolve_overload(
+            name,
+            &functions,
+            &owner_type_args,
+            crate::overload::OverloadCall {
+                explicit_type_args: &explicit_type_args,
+                arg_exprs: &call.args,
+                span: call.span,
+                expected_result: expected,
+            },
+            sink,
+        )?;
+        let function = self.callable_function_id(resolved.callee);
+        let local_function = self.local_function_by_function[&function];
+        let captures = self.local_call_capture_args(local_function, call.span)?;
+        self.check_call_effects(resolved.callee, call.span);
+        Some(hir::Expr {
+            kind: ExprKind::LocalFunctionCall {
+                local_function,
+                callee: resolved.callee,
+                captures,
+                args: resolved.args,
+            },
+            ty: resolved.return_ty,
+            span: call.span,
+        })
+    }
+
+    fn lower_top_level_function_layer(
+        &mut self,
+        name: &str,
+        candidates: &[hir::FunctionId],
+        call: &ast::CallExpr,
+        sink: &mut Vec<hir::Statement>,
+        expected: Option<TypeId>,
+    ) -> Option<hir::Expr> {
+        if let [function] = candidates
             && self.ffi_core.is_some_and(|core| {
                 *function == core.address_of
                     || *function == core.size_of
@@ -138,8 +194,8 @@ impl Lowerer {
         }
         let explicit_type_args = self.resolve_call_type_args(&call.type_args)?;
         let resolved = self.resolve_overload(
-            &name,
-            &candidates,
+            name,
+            candidates,
             &[],
             crate::overload::OverloadCall {
                 explicit_type_args: &explicit_type_args,

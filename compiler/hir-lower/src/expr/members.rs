@@ -20,10 +20,10 @@ impl Lowerer {
 
     /// `receiver.name(args)` (M6/M7): the method overloads are
     /// collected from the receiver's static type — class members (base
-    /// chain included), interface methods, or struct / enum methods —
-    /// and resolved by the unified M16 algorithm (`resolve_overload`;
-    /// an explicit-receiver call has only this member layer). Single and
-    /// multiple candidates use the same entry.
+    /// chain included), interface methods, or struct / enum methods — and
+    /// resolved by the unified M16 algorithm. If that layer has no applicable
+    /// candidate, visible extensions are probed in import priority order.
+    /// Single and multiple candidates use the same entry.
     /// The dispatch kind (direct / virtual / interface) is decided at
     /// MIR from the receiver's static type (hir docs).
     ///
@@ -106,26 +106,8 @@ impl Lowerer {
             );
         }
         let mut candidates = self.methods_by_name(receiver.ty, &name.text);
-        if candidates.is_empty() {
-            let extensions = self.extension_candidate_layer(&name.text);
-            if extensions.is_empty() {
-                let found = self.type_name(receiver.ty);
-                self.error(
-                    name.span,
-                    format!("type `{found}` has no method `{}`", name.text),
-                );
-                return None;
-            }
-            return self.finish_extension_call(
-                &extensions,
-                &name.text,
-                receiver,
-                call,
-                sink,
-                expected,
-            );
-        }
-        if matches!(self.types[receiver.ty], Type::Interface(..)) {
+        let mut first_failure = None;
+        if !candidates.is_empty() && matches!(self.types[receiver.ty], Type::Interface(..)) {
             let before = candidates.len();
             candidates.retain(|candidate| {
                 let sig = &self.signatures[&candidate.function];
@@ -133,16 +115,60 @@ impl Lowerer {
             });
             if candidates.is_empty() && before != 0 {
                 let found = self.type_name(receiver.ty);
-                self.error(
+                let mut failure = self.clone();
+                failure.error(
                     name.span,
                     format!(
                         "generic member function `{}` cannot be called through interface type `{found}`",
                         name.text
                     ),
                 );
-                return None;
+                first_failure = Some(Box::new(failure));
             }
         }
-        self.finish_overloaded_method_call(candidates, &name.text, receiver, call, sink, expected)
+        if !candidates.is_empty() {
+            match self.probe_expr_layer(|state, layer_sink| {
+                state.finish_overloaded_method_call(
+                    candidates,
+                    &name.text,
+                    receiver.clone(),
+                    call,
+                    layer_sink,
+                    expected,
+                )
+            }) {
+                Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
+                Err(failure) => first_failure = Some(failure),
+            }
+        }
+
+        for extensions in self.extension_candidate_layers(&name.text) {
+            match self.probe_expr_layer(|state, layer_sink| {
+                state.finish_extension_call(
+                    &extensions,
+                    &name.text,
+                    receiver.clone(),
+                    call,
+                    layer_sink,
+                    expected,
+                )
+            }) {
+                Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
+                Err(failure) => {
+                    first_failure.get_or_insert(failure);
+                }
+            }
+        }
+
+        if let Some(failure) = first_failure {
+            self.commit_layer_diagnostics(*failure);
+        } else {
+            let found = self.type_name(receiver.ty);
+            self.error(
+                name.span,
+                format!("type `{found}` has no method `{}`", name.text),
+            );
+        }
+        None
     }
 }

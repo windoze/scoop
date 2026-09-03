@@ -5,5 +5,5 @@ class Host {
 fun Host.choose(value: String): String = value
 
 fun main() {
-    println(Host().choose("extension"))
+    val selected: Int = Host().choose("extension")
 }

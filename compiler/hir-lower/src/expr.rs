@@ -116,7 +116,46 @@ struct ResolvedReference {
     ty: TypeId,
 }
 
+struct SuccessfulExprLayer {
+    state: Box<Lowerer>,
+    expression: hir::Expr,
+    sink: Vec<hir::Statement>,
+}
+
 impl Lowerer {
+    fn probe_expr_layer(
+        &self,
+        lower: impl FnOnce(&mut Lowerer, &mut Vec<hir::Statement>) -> Option<hir::Expr>,
+    ) -> Result<SuccessfulExprLayer, Box<Lowerer>> {
+        let mut state = self.clone();
+        let mut sink = Vec::new();
+        match lower(&mut state, &mut sink) {
+            Some(expression) => Ok(SuccessfulExprLayer {
+                state: Box::new(state),
+                expression,
+                sink,
+            }),
+            None => Err(Box::new(state)),
+        }
+    }
+
+    fn commit_expr_layer(
+        &mut self,
+        layer: SuccessfulExprLayer,
+        sink: &mut Vec<hir::Statement>,
+    ) -> hir::Expr {
+        *self = *layer.state;
+        sink.extend(layer.sink);
+        layer.expression
+    }
+
+    fn commit_layer_diagnostics(&mut self, failed: Lowerer) {
+        let baseline = self.diagnostics.len();
+        debug_assert!(failed.diagnostics.len() > baseline);
+        self.diagnostics
+            .extend(failed.diagnostics.into_iter().skip(baseline));
+    }
+
     /// Lower an expression, recording a diagnostic and returning `None`
     /// on error. See the module docs for the `sink` / `expected`
     /// mechanisms.
