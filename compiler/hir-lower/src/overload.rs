@@ -32,6 +32,8 @@ use scoop_hir as hir;
 use ast::Span;
 use hir::{FunctionId, Type, TypeId};
 
+use crate::call_resolution::arguments::CandidateArgumentMap;
+use crate::call_resolution::candidates::CallableSource;
 use crate::{CallableCandidate, CallableCandidateSource, Lowerer};
 
 mod diagnostics;
@@ -84,6 +86,8 @@ struct OverloadResolution<'a> {
 /// receiver pre-binds the owner prefix; applicability infers the remaining
 /// method suffix and substitutes the complete vector.
 struct Candidate {
+    argument_map: Result<CandidateArgumentMap, crate::call_resolution::arguments::ArityMismatch>,
+    target: CallableSource,
     function: FunctionId,
     owner: crate::CallableCandidateOwner,
     source: CallableCandidateSource,
@@ -240,6 +244,32 @@ impl Lowerer {
             OverloadReceiver::Extension(receiver) => Some(receiver),
         };
         let receiver_offset = usize::from(receiver.is_some());
+        let single_hints = candidates
+            .first()
+            .filter(|_| candidates.len() == 1)
+            .map(|candidate| {
+                let signature = self.signatures[&candidate.function].clone();
+                let owner_arguments = self.callable_candidate_owner_arguments(candidate);
+                let mut bindings = vec![None; signature.type_params.len()];
+                for (binding, &argument) in bindings.iter_mut().zip(&owner_arguments) {
+                    *binding = Some(argument);
+                }
+                if explicit_type_args.len()
+                    == signature.type_params.len() - signature.owner_type_param_count
+                {
+                    for (binding, &argument) in bindings[signature.owner_type_param_count..]
+                        .iter_mut()
+                        .zip(explicit_type_args)
+                    {
+                        *binding = Some(argument);
+                    }
+                }
+                signature
+                    .params
+                    .iter()
+                    .map(|parameter| self.try_substitute(parameter.ty, &bindings))
+                    .collect::<Vec<_>>()
+            });
         let mut lowered: Vec<Option<hir::Expr>> = Vec::with_capacity(receiver_offset + arg_count);
         if let Some(receiver) = receiver {
             lowered.push(Some(receiver));
@@ -249,11 +279,14 @@ impl Lowerer {
             OverloadArguments::Source(arg_exprs) => {
                 lowered.extend((0..arg_exprs.len()).map(|_| None));
                 for (index, arg) in arg_exprs.iter().enumerate() {
-                    if self.expr_requires_expected_type(arg) {
+                    let hint = single_hints
+                        .as_ref()
+                        .and_then(|hints| hints.get(index).copied().flatten());
+                    if hint.is_none() && self.expr_requires_expected_type(arg) {
                         continue;
                     }
                     lowered[receiver_offset + index] =
-                        Some(self.lower_expr(arg, &mut arg_sinks[index], None)?);
+                        Some(self.lower_expr(arg, &mut arg_sinks[index], hint)?);
                 }
             }
             OverloadArguments::Lowered(args) => {
@@ -268,30 +301,56 @@ impl Lowerer {
         let prepared: Vec<Candidate> = candidates
             .iter()
             .map(|source| {
-                let function = source.function;
-                let sig = self.signatures[&function].clone();
-                let mut params: Vec<_> = sig.params.iter().map(|param| param.ty).collect();
+                let view = self.callable_view(source, receiver_offset != 0);
+                let function = view.function();
+                let argument_map = CandidateArgumentMap::exact(&view, arg_count);
+                let mut params: Vec<_> = match &argument_map {
+                    Ok(argument_map) => argument_map
+                        .parameters
+                        .iter()
+                        .map(|input| {
+                            let parameter = &view.value_parameters[input.parameter.index()];
+                            debug_assert_eq!(input.input.index(), input.parameter.index());
+                            parameter.ty
+                        })
+                        .collect(),
+                    Err(_) => view
+                        .value_parameters
+                        .iter()
+                        .map(|parameter| parameter.ty)
+                        .collect(),
+                };
+                let signature = &self.signatures[&function];
+                debug_assert_eq!(view.effects.is_suspend, signature.is_suspend);
+                debug_assert_eq!(view.effects.attributes, signature.attributes);
+                debug_assert_eq!(view.declaration_span, self.functions[function].span);
+                debug_assert!(
+                    view.value_parameters
+                        .iter()
+                        .zip(&signature.params)
+                        .all(|(view, declaration)| view.name == declaration.name.text)
+                );
                 if receiver_offset != 0 {
-                    params.insert(
-                        0,
-                        *self
-                            .extension_receivers
-                            .get(&function)
-                            .expect("extension candidate has a receiver type"),
-                    );
+                    let crate::call_resolution::candidates::ReceiverShape::Extension(receiver) =
+                        view.receiver
+                    else {
+                        unreachable!("extension resolution builds extension callable views")
+                    };
+                    params.insert(0, receiver);
                 }
                 let parameterized = params.iter().any(|&ty| self.mentions_type_param(ty));
                 let owner_arguments = self.callable_candidate_owner_arguments(source);
-                debug_assert_eq!(sig.owner_type_param_count, owner_arguments.len());
-                let mut initial_bindings = vec![None; sig.type_params.len()];
+                debug_assert_eq!(view.owner_parameters.len(), owner_arguments.len());
+                let mut initial_bindings =
+                    vec![None; view.owner_parameters.len() + view.callable_parameters.len()];
                 for (binding, &ty) in initial_bindings.iter_mut().zip(&owner_arguments) {
                     *binding = Some(ty);
                 }
-                let own_type_param_count = sig.type_params.len() - sig.owner_type_param_count;
+                let own_type_param_count = view.callable_parameters.len();
                 let explicit_arity_match = explicit_type_args.is_empty()
                     || explicit_type_args.len() == own_type_param_count;
                 if explicit_arity_match && !explicit_type_args.is_empty() {
-                    for (binding, &ty) in initial_bindings[sig.owner_type_param_count..]
+                    for (binding, &ty) in initial_bindings[view.owner_parameters.len()..]
                         .iter_mut()
                         .zip(explicit_type_args)
                     {
@@ -299,11 +358,13 @@ impl Lowerer {
                     }
                 }
                 Candidate {
+                    argument_map,
+                    target: view.target,
                     function,
                     owner: source.owner.clone(),
-                    source: source.source,
+                    source: view.dispatch,
                     params,
-                    return_ty: sig.return_ty,
+                    return_ty: view.return_type,
                     own_type_param_count,
                     initial_bindings,
                     explicit_arity_match,
@@ -347,7 +408,7 @@ impl Lowerer {
             if !candidate.explicit_arity_match {
                 continue;
             }
-            if candidate.params.len() != receiver_offset + arg_count {
+            if candidate.argument_map.is_err() {
                 continue;
             }
             let Some(type_args) = self.try_infer_type_args(candidate, &arg_tys) else {

@@ -97,7 +97,7 @@ pub(crate) enum CallableCandidateOwner {
     Method(hir::MethodOwnerApplication),
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum CallableCandidateSource {
     Direct,
     Bound {

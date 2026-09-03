@@ -54,13 +54,99 @@ impl Lowerer {
             } else {
                 "arguments"
             };
+            let target = if prepared.len() == 1 {
+                match prepared[0].target {
+                    crate::call_resolution::candidates::CallableSource::Free(_) => {
+                        format!("function `{name}`")
+                    }
+                    crate::call_resolution::candidates::CallableSource::Local { .. } => {
+                        format!("local function `{name}`")
+                    }
+                    crate::call_resolution::candidates::CallableSource::Method(_) => {
+                        format!("method `{name}`")
+                    }
+                }
+            } else {
+                format!("`{name}`")
+            };
             self.error(
                 span,
                 format!(
-                    "`{name}` takes exactly {uniform_arity} {noun}, but {supplied} were supplied"
+                    "{target} takes exactly {uniform_arity} {noun}, but {supplied} were supplied"
                 ),
             );
             return;
+        }
+        if prepared.len() == 1
+            && extension_receiver.is_none()
+            && prepared[0].explicit_arity_match
+            && prepared[0].params.len() == arg_tys.len()
+            && let Some(arg_exprs) = arg_exprs
+        {
+            let candidate = &prepared[0];
+            let type_params = self.signatures[&candidate.function].type_params.clone();
+            let mut bindings = candidate.initial_bindings.clone();
+            for ((&parameter, argument), expression) in
+                candidate.params.iter().zip(arg_tys).zip(arg_exprs)
+            {
+                let Some(argument) = *argument else {
+                    continue;
+                };
+                if !self.bind_type_args(
+                    parameter,
+                    argument,
+                    &mut bindings,
+                    &type_params,
+                    expression.span(),
+                ) {
+                    return;
+                }
+            }
+            if let Some((index, parameter)) =
+                bindings.iter().zip(&type_params).enumerate().find_map(
+                    |(index, (binding, parameter))| binding.is_none().then_some((index, parameter)),
+                )
+            {
+                debug_assert!(index < type_params.len());
+                self.error(
+                    span,
+                    format!(
+                        "cannot infer type argument `{}` for `{name}`",
+                        parameter.name
+                    ),
+                );
+                return;
+            }
+            let type_arguments: Vec<_> = bindings.into_iter().flatten().collect();
+            let parameter_names: Vec<_> = self.signatures[&candidate.function]
+                .params
+                .iter()
+                .map(|parameter| parameter.name.text.clone())
+                .collect();
+            for (((parameter, argument), expression), parameter_name) in candidate
+                .params
+                .iter()
+                .zip(arg_tys)
+                .zip(arg_exprs)
+                .zip(&parameter_names)
+            {
+                let Some(argument) = *argument else {
+                    continue;
+                };
+                let expected = self.substitute_call_level(*parameter, &type_arguments);
+                if !self.is_subtype(argument, expected) {
+                    self.error(
+                        expression.span(),
+                        format!(
+                            "argument for parameter `{}` of `{name}` must be of type {}, found {}",
+                            parameter_name,
+                            self.type_name(expected),
+                            self.type_name(argument)
+                        ),
+                    );
+                    return;
+                }
+            }
         }
         let found: Vec<String> = arg_tys
             .iter()

@@ -21,9 +21,9 @@ impl Lowerer {
     /// `receiver.name(args)` (M6/M7): the method overloads are
     /// collected from the receiver's static type — class members (base
     /// chain included), interface methods, or struct / enum methods —
-    /// and resolved by the M7 overload algorithm (`resolve_overload`;
-    /// an explicit-receiver call has only this member layer). A single
-    /// candidate keeps the pre-M7 path so its diagnostics stay intact.
+    /// and resolved by the unified M16 algorithm (`resolve_overload`;
+    /// an explicit-receiver call has only this member layer). Single and
+    /// multiple candidates use the same entry.
     /// The dispatch kind (direct / virtual / interface) is decided at
     /// MIR from the receiver's static type (hir docs).
     ///
@@ -135,9 +135,6 @@ impl Lowerer {
                 );
                 return None;
             }
-        }
-        if candidates.len() == 1 {
-            return self.finish_method_call(candidates.remove(0), receiver, call, sink);
         }
         self.finish_overloaded_method_call(candidates, &name.text, receiver, call, sink)
     }

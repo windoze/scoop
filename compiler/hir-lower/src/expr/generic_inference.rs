@@ -330,7 +330,7 @@ impl Lowerer {
     /// argument lists, and tuples match elementwise. Anything
     /// else is left to the argument type check. Returns `false` after
     /// recording a conflict diagnostic.
-    pub(super) fn bind_type_args(
+    pub(crate) fn bind_type_args(
         &mut self,
         param_ty: TypeId,
         arg_ty: TypeId,
