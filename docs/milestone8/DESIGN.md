@@ -4,6 +4,8 @@
 
 对应 `docs/ROADMAP.md` 的 M8。目标：`try` / `catch` / `finally` / `throw`（spec 11.7、runtime spec 第 5 章，基于 LLVM landingpad），并把 M3 以来的 trap 路径（`!!`、数组越界、`as` 失败）改接真实异常。
 
+> M25 更新：本设计确定的语言语义、MIR/LIR CFG 与 LLVM landingpad 形态继续有效；3.4、3.5、4 中依赖 `__cxa_*` / `__gxx_personality_v0` 的实现选择已由 `docs/milestone25/DESIGN.md` 的 Scoop exception record、personality 与 catch 状态协议取代。
+
 ## 0. 范围说明
 
 - **try 只做语句形态**（Kotlin 的 try 表达式 `val x = try {...}` 缓做，见第 6 章）；

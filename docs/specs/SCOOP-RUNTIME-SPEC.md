@@ -30,6 +30,10 @@ Runtime 是编译产物的支撑层，职责包括：
 
 每个引用类型对象带有对象头 `ScoopObjectHeader`，其中包含指向 `TypeDescriptor` 的指针（类似 vpointer，spec 10.4）。对象头中其余字段（标记位、哈希缓存等）由 GC 实现决定。
 
+对象分配与语言构造是两个层次。M19 class construction只分配一次exact concrete对象；header从分配完成起始终指向最派生TypeDescriptor，base/`this` constructor initializer在同一对象上执行，不分配base子对象或替换header。runtime不运行constructor、不保存“正在初始化”状态位，也不根据TypeDescriptor补字段默认值；初始化顺序与访问限制完全由编译器静态保证。
+
+分配入口在返回managed pointer前必须清零完整payload并原子登记header、object-start与精确size。constructor中途发生safepoint时，collector按完整class扫描描述处理该对象：已写field包含合法值，未写managed leaf保持全0并不形成引用。构造失败后对象只按普通可达性回收，不调用析构、rollback或用户代码。
+
 ### 2.2 TypeDescriptor
 
 每个具体类型（含每个单态化实例，spec 3.2）有一份编译器生成的 `TypeDescriptor`，至少包含：
@@ -94,9 +98,9 @@ M15的macOS/AArch64 runtime只更新stack-resident managed roots。固定的LLVM
 
 ### 3.3 根集合
 
-- 栈根：managed caller在statepoint处的live root location、managed invoke显式compiler root frame、Scoop ABI调用点保持的caller roots，以及native callee显式登记的可更新root slot链。runtime以精确return PC查stack-map record并把每个location解析为可写slot；不存在保守栈扫描fallback；
+- 栈根：managed caller在statepoint处的live root location、managed invoke显式compiler root frame、Scoop ABI调用点保持的caller roots，以及native callee显式登记的可更新root slot链。M19的initializing receiver从class allocation返回起就是普通managed root，跨base/`this` initializer、property/`init` managed call与异常边时按同一规则relocate；不存在constructor专用handle或不可移动区。runtime以精确return PC查stack-map record并把每个location解析为可写slot；不存在保守栈扫描fallback；
 - 全局根：`object` 单例等引用类型全局状态（全局 `var` 按 spec 13.6 必须 GC-free，不构成根）。LIR/codegen为每个可能含ref的managed global输出非可选递归scan描述，runtime在managed执行前登记其可写storage；
-- stable/immortal对象：活跃的ABI exception buffer作为动态stable external object登记，其内部ref slot可更新；编译器生成的静态String等只读immortal object必须有精确地址/size/TD登记。M15只允许GC-free payload的只读immortal对象；未登记的heap外地址不能出现在managed slot；
+- stable/immortal对象：活跃的Scoop exception record中按值复制的对象payload作为动态stable external object登记，其内部ref slot可更新；编译器生成的静态String等只读immortal object必须有精确地址/size/TD登记。M15只允许GC-free payload的只读immortal对象；未登记的heap外地址不能出现在managed slot；
 - handle 表与 pinned 对象（`GcHandle` 保活其引用对象；pinned 对象作为根被扫描，见 3.4）。
 
 单image ABI固定导出`ScoopManagedGlobalDescriptor scoop_image_managed_globals[]`、`u64 scoop_image_managed_global_count`、`ScoopImmortalObjectDescriptor scoop_image_immortal_objects[]`、`u64 scoop_image_immortal_object_count`。两个record分别为`{ void *writable_base; const u64 *scan; }`与`{ const void *object_start; u64 object_size; const TypeDescriptor *td; }`。count是唯一权威；count为零时数组仍含一个全零sentinel。runtime在GC heap初始化前验证并登记两张表；重复storage、重叠immortal range、TD/header不匹配、含managed出站引用的只读immortal object均为fatal metadata error。
@@ -194,11 +198,37 @@ release policy在未来IR/runtime中必须是完备sum（概念上为`None | GcF
 
 ## 5. 异常
 
-- 抛出入口 `scoop_rt_throw(obj)`（M8 起）：从对象头的 TypeDescriptor 读 `size`，调 `__cxa_allocate_exception(size)` 分配 ABI 异常缓冲并把对象内容拷贝进去，再对该缓冲调 `__cxa_throw(buffer, NULL, destructor)`（throw-by-value：catch 侧取得的是缓冲指针，拷贝即异常对象本尊）。`__cxa_throw` 会把异常头写到抛出指针紧前方，因此用户对象绝不可原地抛出。ABI 缓冲作为外部对象根登记；其 destructor 在异常生命周期结束时移除该根，原对象无需 pin。
-- 栈展开机制为 landing pad + personality function（`scoop_eh_personality`，M8 最小实现委托 `__gxx_personality_v0`）。landing pad 先捕获 ABI record/raw pointer，再由普通 dispatch 块调 `__cxa_begin_catch` 取得异常对象；每条正常离开 handler 的路径必须调一次 `__cxa_end_catch`。handler 内的新异常及 `__cxa_rethrow` 先进入 cleanup chain：保存替代异常、结束当前 catch，再转交同函数外层 handler/cleanup；没有同函数外层时以 `resume` 继续传播，保证 begin/end 严格配对且重抛保持异常身份。
-- 内置异常的抛出点：除零（`ArithmeticException`）、`as` 失败（`ClassCastException`）、`!!` 失败（`UnwrapException`）、数组越界等（spec 10.5、11.7）。
-- M10 的 suspend handler 不允许把 `__cxa_begin_catch` 建立的原生 EH 状态跨挂起点保存。选中 catch 或进入可能挂起的 finally 前，生成代码调用 `scoop_rt_materialize_exception(caught)`：按 caught 的 TypeDescriptor 分配 managed 对象，保留新对象已初始化的 `td` / `gc_word`，只复制对象头之后的 payload。复制期间 ABI 缓冲仍登记为外部根。随后立即 `__cxa_end_catch`，catch local / pending exception 改指向 managed 副本。恢复失败时重新从该 managed 对象抛出，因此在源码语义上仍等价于异常发生在原挂起调用点。
-- **边界规则**：异常不得穿越 C ABI frame（行为未定义）；能否穿越 Scoop ABI FFI frame 取决于实现（FFI 函数无 landing pad，穿越意味着跳过外部语言代码——初版建议禁止，行为定为终止进程）。
+### 5.1 Scoop exception record 与抛出
+
+- M25起异常runtime只建立在Itanium Level I unwind接口上，不使用C++ ABI。runtime私有的`ScoopExceptionRecord`包含恰好一个满足目标对齐要求的`_Unwind_Exception`、catch/rethrow/lifetime元数据，以及按对象TypeDescriptor大小和对齐保存的Scoop对象payload；各部分的具体offset不属于生成代码ABI，raw unwind pointer与payload之间只能经runtime入口转换。
+- 每条新异常记录使用Scoop专属且稳定的`exception_class = 0x53434f4f50000000`（`"SCOOP\0\0\0"`）。`_Unwind_Exception.exception_cleanup`负责在记录最终删除时先撤销payload的stable external object root，再释放整条记录；unwinder私有字段只由unwind library读写，runtime和personality不得挪作catch状态。
+- 抛出入口`scoop_rt_throw(obj)`从对象头的TypeDescriptor读取精确size/alignment，分配record并把完整对象按值复制到payload，随后在任何可能展开或触发GC的动作前登记该payload为stable external object root，再调用`_Unwind_RaiseException`。catch取得的payload copy是本次异常对象本尊，原managed对象无需pin；绝不能把原managed对象或普通GC heap地址直接解释成`_Unwind_Exception`抛出。
+- `_Unwind_RaiseException`只会在没有handler或unwind错误时返回。runtime必须在仍可读取payload时打印稳定的`uncaught exception: <type name>`或unwind-failure诊断，删除异常记录并终止进程；不注册或调用C++ `std::terminate`。
+
+### 5.2 Personality 与 landing pad
+
+- 栈展开使用LLVM `invoke` / `landingpad` / `resume`和runtime自有`scoop_eh_personality`。M25的personality直接消费LLVM 22.1为当前Itanium target生成的LSDA，只接受编译器封闭输出的两类action：Scoop catch-all与cleanup；Scoop源码catch类型继续由landing pad之后的普通`scoop_rt_is_instance`分派完成，LSDA不携带C++ RTTI或Scoop TypeDescriptor类型表。
+- search phase只允许Scoop `exception_class`的catch-all action成为handler；cleanup-only action不能提前终止search。cleanup phase在匹配call-site range时按ABI设置exception/selector数据寄存器与landing-pad IP：中间cleanup进入cleanup pad，`_UA_HANDLER_FRAME`进入已选中的catch pad。`resume`保持LLVM生成的`_Unwind_Resume`，不能用它实现源码重抛。
+- personality必须验证version、action flag、LSDA header、pointer encoding、call-site范围和action链；当前target profile没有声明的encoding、typed catch/filter、损坏或越界表项均为fatal unwind错误，不能退回`__gxx_personality_v0`、`__gcc_personality_v0`或把任意非零action当作合法Scoop handler。
+- 非Scoop exception不得被Scoop catch解释为managed对象。它进入生成Scoop EH区域属于不受支持的foreign unwind边界，runtime必须终止而不是交给`BeginCatch`；本条不改变5.5的FFI边界限制。
+
+### 5.3 Catch 状态、结束与重抛
+
+- landing pad先捕获opaque exception record/raw pointer，再由普通dispatch块调`scoop_rt_begin_catch(raw)`验证`exception_class`、把对应record压入当前`ScoopThreadState`的caught-exception栈并返回其payload managed ref。该ref指向heap外稳定对象，但其对象头、TypeDescriptor和出站引用遵守普通Scoop对象与3.3 stable external root契约。
+- 每条正常离开handler的路径必须调一次`scoop_rt_end_catch()`。入口只操作当前线程栈顶并弹栈：普通caught record立即调`_Unwind_DeleteException`，标记为rethrow的record则恢复为in-flight而不删除；同一active record不得重复`BeginCatch`。cleanup callback是撤销root和释放record的唯一最终出口。begin/end/rethrow都不得分配managed对象、触发GC或把异常记录地址暴露给Scoop源码。
+- `scoop_rt_rethrow()`只在存在active catch时合法。它在当前record上标记rethrow并对同一个`_Unwind_Exception`重新调用`_Unwind_RaiseException`；随后原handler的cleanup chain调用`EndCatch`时只弹出catch状态而不得删除record，外层`BeginCatch`重新接管同一payload identity。handler内抛出另一异常时，cleanup chain先结束旧catch，再以LLVM `resume`传播新record。
+- Scoop不提供`exception_ptr`、跨线程exception record共享或C++式公开引用计数；语言可跨线程/挂起保存的是managed `Throwable`，不是native unwind record。
+
+### 5.4 Suspend handler 物化
+
+- M10 的suspend handler不允许把`scoop_rt_begin_catch`建立的native catch状态跨挂起点保存。选中catch或进入可能挂起的finally前，生成代码调用`scoop_rt_materialize_exception(caught)`：按caught payload的TypeDescriptor分配managed对象，保留新对象已初始化的`td` / `gc_word`，只复制对象头之后的payload。复制期间exception payload仍登记为stable external root；复制完成后立即`scoop_rt_end_catch()`，catch local / pending exception改指向managed副本。
+- 恢复失败或物化后的继续传播从该managed对象重新调用`scoop_rt_throw`，因而创建新的native record。Scoop的throw-by-value语义不承诺两个native record相同；同一次未物化rethrow则按5.3保持原record/payload identity。
+
+### 5.5 依赖与边界
+
+- 生产runtime与生成对象的异常依赖只允许Itanium Level I `_Unwind_*`接口；不得导入`__cxa_*`、`__gxx_personality_v0`、`__gcc_personality_v0`或C++ terminate符号。每个target profile必须显式选择兼容的unwind provider并以产物级符号检查验收；Darwin/AArch64由系统`libSystem`重导出libunwind接口，不添加`-lc++abi`，也不要求当前SDK不提供的独立`-lunwind`链接名。
+- 内置异常的抛出点：除零（`ArithmeticException`）、`as`失败（`ClassCastException`）、`!!`失败（`UnwrapException`）、数组越界等（spec 10.5、11.7）。
+- **边界规则**：异常不得穿越C ABI frame（行为未定义）；能否穿越Scoop ABI FFI frame取决于实现（FFI函数无landing pad，穿越意味着跳过外部语言代码——初版禁止，行为定为终止进程）。M25只替换Scoop进程内的异常runtime，不扩大FFI可展开边界。
 
 ## 6. 核心类型的运行时后备
 
