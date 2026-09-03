@@ -8,6 +8,7 @@ fn arithmetic_and_comparison_ops_map_to_lir_ops() {
         (mir::BinOp::IntSub, lir::BinOp::Sub, lir::LirType::I64),
         (mir::BinOp::IntMul, lir::BinOp::Mul, lir::LirType::I64),
         (mir::BinOp::IntDiv, lir::BinOp::SDiv, lir::LirType::I64),
+        (mir::BinOp::IntRem, lir::BinOp::SRem, lir::LirType::I64),
         (mir::BinOp::IntLt, lir::BinOp::Lt, lir::LirType::I1),
         (mir::BinOp::IntLe, lir::BinOp::Le, lir::LirType::I1),
         (mir::BinOp::IntGt, lir::BinOp::Gt, lir::LirType::I1),
@@ -28,6 +29,7 @@ fn arithmetic_and_comparison_ops_map_to_lir_ops() {
                         | mir::BinOp::IntSub
                         | mir::BinOp::IntMul
                         | mir::BinOp::IntDiv
+                        | mir::BinOp::IntRem
                 ) {
                     mir::Type::Int
                 } else {

@@ -372,7 +372,10 @@ impl Lowerer {
             }
             return self.lower_callable_call(receiver, call.args, call.span, sink);
         }
-        let mut candidates = self.methods_by_name(receiver.ty, &name.text);
+        let mut candidates = match required.operator {
+            Some(operator) => self.methods_by_operator(receiver.ty, operator),
+            None => self.methods_by_name(receiver.ty, &name.text),
+        };
         candidates.retain(|candidate| {
             let modifiers = self.signatures[&candidate.function].modifiers;
             Self::matches_required_modifiers(modifiers, required)
@@ -413,7 +416,11 @@ impl Lowerer {
             }
         }
 
-        for mut extensions in self.extension_candidate_layers(&name.text) {
+        let extension_layers = match required.operator {
+            Some(operator) => self.extension_operator_candidate_layers(operator),
+            None => self.extension_candidate_layers(&name.text),
+        };
+        for mut extensions in extension_layers {
             extensions.retain(|function| {
                 let modifiers = self.signatures[function].modifiers;
                 Self::matches_required_modifiers(modifiers, required)

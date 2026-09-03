@@ -366,6 +366,427 @@ fn property_like_infix_requires_operator_and_infix_and_invoke_is_not_recursive()
     assert_eq!(direct_method_name(&module, once), "Handler.invoke");
 }
 
+#[test]
+fn overloadable_expressions_select_only_typed_operator_roles() {
+    let unary_minus = operator(method_expr(
+        "unaryMinus",
+        vec![],
+        Some(ty_named("Number")),
+        this_expr(),
+    ));
+    let plus = operator(method_expr(
+        "plus",
+        vec![("other", ty_named("Number"))],
+        Some(ty_named("Number")),
+        this_expr(),
+    ));
+    let range_to = operator(method_expr(
+        "rangeTo",
+        vec![("other", ty_named("Number"))],
+        Some(ty_named("Number")),
+        this_expr(),
+    ));
+    let compare_to = operator(method_expr(
+        "compareTo",
+        vec![("other", ty_named("Number"))],
+        Some(ty_named("Int")),
+        int_lit(0),
+    ));
+    let contains = operator(method_expr(
+        "contains",
+        vec![("item", ty_named("Number"))],
+        Some(ty_named("Boolean")),
+        bool_lit(true),
+    ));
+    let times = operator_extension(
+        ty_named("Number"),
+        "times",
+        vec![("scale", ty_named("Int"))],
+        ty_named("Number"),
+        this_expr(),
+    );
+    let module = lower_user(file(vec![
+        struct_decl_methods(
+            "Number",
+            vec![],
+            vec![unary_minus, plus, range_to, compare_to],
+        ),
+        struct_decl_methods("Bag", vec![], vec![contains]),
+        times,
+        fun(
+            "main",
+            vec![
+                val("negated", unary(UnOp::Neg, call("Number", vec![]))),
+                val(
+                    "sum",
+                    binary(BinOp::Add, call("Number", vec![]), call("Number", vec![])),
+                ),
+                val(
+                    "scaled",
+                    binary(BinOp::Mul, call("Number", vec![]), int_lit(2)),
+                ),
+                val(
+                    "range",
+                    binary(
+                        BinOp::RangeTo,
+                        call("Number", vec![]),
+                        call("Number", vec![]),
+                    ),
+                ),
+                val(
+                    "ordered",
+                    binary(BinOp::Lt, call("Number", vec![]), call("Number", vec![])),
+                ),
+                val(
+                    "present",
+                    binary(BinOp::Contains, call("Number", vec![]), call("Bag", vec![])),
+                ),
+                val(
+                    "absent",
+                    binary(
+                        BinOp::NotContains,
+                        call("Number", vec![]),
+                        call("Bag", vec![]),
+                    ),
+                ),
+                val("remainder", binary(BinOp::Rem, int_lit(7), int_lit(3))),
+            ],
+        ),
+    ]))
+    .expect("every mapped expression must use its typed operator role");
+    let body = function_body(&module, "main");
+    assert_eq!(
+        direct_method_name(&module, local_init(body, "negated")),
+        "Number.unaryMinus"
+    );
+    assert_eq!(
+        direct_method_name(&module, local_init(body, "sum")),
+        "Number.plus"
+    );
+    assert_eq!(
+        direct_callable_name(&module, local_init(body, "scaled")),
+        "times"
+    );
+    assert_eq!(
+        direct_method_name(&module, local_init(body, "range")),
+        "Number.rangeTo"
+    );
+    let hir::ExprKind::Binary {
+        lhs: comparison, ..
+    } = &local_init(body, "ordered").kind
+    else {
+        panic!("comparison must compare the typed compareTo result with zero")
+    };
+    assert_eq!(direct_method_name(&module, comparison), "Number.compareTo");
+    assert_eq!(
+        direct_method_name(&module, local_init(body, "present")),
+        "Bag.contains"
+    );
+    let hir::ExprKind::Unary { operand, .. } = &local_init(body, "absent").kind else {
+        panic!("!in must negate the exact Boolean contains result")
+    };
+    assert_eq!(direct_method_name(&module, operand), "Bag.contains");
+    assert!(matches!(
+        local_init(body, "remainder").kind,
+        hir::ExprKind::Binary {
+            op: hir::BinOp::Rem,
+            ..
+        }
+    ));
+}
+
+#[test]
+fn ordinary_same_name_function_does_not_gain_an_operator_role() {
+    let plain = method_expr(
+        "plus",
+        vec![("other", ty_named("Plain"))],
+        Some(ty_named("Plain")),
+        this_expr(),
+    );
+    let errors = lower_user(file(vec![
+        struct_decl_methods("Plain", vec![], vec![plain]),
+        fun(
+            "main",
+            vec![stmt(binary(
+                BinOp::Add,
+                call("Plain", vec![]),
+                call("Plain", vec![]),
+            ))],
+        ),
+    ]))
+    .expect_err("a matching source name is not an operator capability");
+    assert!(
+        errors
+            .iter()
+            .any(|error| { error.message == "type `Plain` has no method `plus`" })
+    );
+}
+
+#[test]
+fn declaration_validation_rejects_incomplete_operator_and_infix_contracts() {
+    let get = operator(method_expr(
+        "get",
+        vec![],
+        Some(ty_named("Int")),
+        int_lit(0),
+    ));
+    let set = operator(method_expr(
+        "set",
+        vec![("index", ty_named("Int"))],
+        None,
+        unit_lit(),
+    ));
+    let contains = operator(method_expr(
+        "contains",
+        vec![("item", ty_named("Int"))],
+        Some(ty_named("Int")),
+        int_lit(0),
+    ));
+    let inc = operator(method_expr(
+        "inc",
+        vec![],
+        Some(ty_named("Other")),
+        call("Other", vec![]),
+    ));
+    let mut invalid_set_vararg = operator(method_expr(
+        "set",
+        vec![("index", ty_named("Int")), ("value", ty_named("Int"))],
+        None,
+        unit_lit(),
+    ));
+    invalid_set_vararg.params[1].syntax = ast::ParameterSyntax::Vararg {
+        modifier_span: sp(),
+        default: ast::VarargDefaultSyntax::EmptyWhenOmitted,
+    };
+    let mut invalid_infix = infix(method_expr(
+        "merge",
+        vec![("other", ty_named("Broken"))],
+        Some(ty_named("Broken")),
+        this_expr(),
+    ));
+    invalid_infix.params[0].syntax = ast::ParameterSyntax::Default {
+        expression: call("Broken", vec![]),
+        equals_span: sp(),
+    };
+    let component_zero = operator(method_expr(
+        "component0",
+        vec![],
+        Some(ty_named("Int")),
+        int_lit(0),
+    ));
+    let component_overflow = operator(method_expr(
+        "component4294967296",
+        vec![],
+        Some(ty_named("Int")),
+        int_lit(0),
+    ));
+    let errors = lower_user(file(vec![
+        struct_decl("Other", vec![]),
+        struct_decl_methods(
+            "Broken",
+            vec![],
+            vec![
+                get,
+                set,
+                contains,
+                inc,
+                invalid_set_vararg,
+                invalid_infix,
+                component_zero,
+                component_overflow,
+            ],
+        ),
+        fun("main", vec![]),
+    ]))
+    .expect_err("invalid callable modifiers must be rejected in signature lowering");
+    for expected in [
+        "operator `get` must have at least one parameter",
+        "operator `set` must have at least two parameters, found 1",
+        "operator `contains` must return Boolean, found Int",
+        "operator `inc` must return a subtype of receiver type Broken, found Other",
+        "operator `set` value parameter must not be `vararg`",
+        "infix function `merge` requires one required, non-vararg parameter",
+        "operator `component0` is not valid",
+        "operator `component4294967296` must use a positive decimal component index",
+    ] {
+        assert!(
+            errors.iter().any(|error| error.message == expected),
+            "missing diagnostic {expected:?}; found {errors:?}"
+        );
+    }
+}
+
+#[test]
+fn component_and_iterator_roles_are_exported_as_typed_identities() {
+    let component = operator(method_expr(
+        "component12",
+        vec![],
+        Some(ty_named("Int")),
+        int_lit(12),
+    ));
+    let iterator = operator(method_expr(
+        "iterator",
+        vec![],
+        Some(ty_named("Cursor")),
+        call("Cursor", vec![]),
+    ));
+    let module = lower_user(file(vec![
+        struct_decl("Cursor", vec![]),
+        struct_decl_methods("Sequence", vec![], vec![component, iterator]),
+        fun("main", vec![]),
+    ]))
+    .expect("conventional roles not consumed until later milestones still cross HIR");
+    let roles = module
+        .functions
+        .iter()
+        .filter(|(_, function)| {
+            matches!(
+                function.name.as_str(),
+                "Sequence.component12" | "Sequence.iterator"
+            )
+        })
+        .map(|(_, function)| function.modifiers.operator)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        roles,
+        vec![
+            Some(hir::OperatorKind::Component {
+                index: std::num::NonZeroU32::new(12).expect("nonzero")
+            }),
+            Some(hir::OperatorKind::Iterator),
+        ]
+    );
+}
+
+#[test]
+fn class_destructuring_uses_typed_components_and_materializes_subject_once() {
+    let first = operator(method_expr(
+        "component1",
+        vec![],
+        Some(ty_named("Int")),
+        int_lit(1),
+    ));
+    let second = operator(method_expr(
+        "component2",
+        vec![],
+        Some(ty_named("String")),
+        str_lit("second"),
+    ));
+    let module = lower_user(file(vec![
+        class_decl(
+            ast::ClassModifier::Final,
+            "Pair",
+            vec![],
+            None,
+            vec![],
+            vec![first, second],
+        ),
+        fun(
+            "main",
+            vec![val_pat(
+                false,
+                pat_tuple(vec![pat_bind("left"), pat_bind("right")], None),
+                None,
+                call("Pair", vec![]),
+            )],
+        ),
+    ]))
+    .expect("class positional destructuring must resolve component roles");
+    let body = function_body(&module, "main");
+    assert_eq!(
+        body.statements
+            .iter()
+            .filter(|statement| matches!(
+                statement.kind,
+                hir::StatementKind::ValDecl {
+                    init: hir::Expr {
+                        kind: hir::ExprKind::ClassInit { .. },
+                        ..
+                    },
+                    ..
+                }
+            ))
+            .count(),
+        1,
+        "the destructuring subject must be evaluated once"
+    );
+    assert_eq!(
+        direct_method_name(&module, local_init(body, "left")),
+        "Pair.component1"
+    );
+    assert_eq!(
+        direct_method_name(&module, local_init(body, "right")),
+        "Pair.component2"
+    );
+
+    let errors = lower_user(file(vec![
+        class_decl(
+            ast::ClassModifier::Final,
+            "Plain",
+            vec![],
+            None,
+            vec![],
+            vec![method_expr(
+                "component1",
+                vec![],
+                Some(ty_named("Int")),
+                int_lit(1),
+            )],
+        ),
+        fun(
+            "main",
+            vec![val_pat(
+                false,
+                pat_tuple(vec![pat_bind("value")], None),
+                None,
+                call("Plain", vec![]),
+            )],
+        ),
+    ]))
+    .expect_err("an ordinary component-like name must not enable class destructuring");
+    assert!(
+        errors
+            .iter()
+            .any(|error| { error.message == "pattern has 1 element(s), but class `Plain` has 0" })
+    );
+}
+
+#[test]
+fn override_must_preserve_the_infix_contract() {
+    let declaration = infix(method_full(
+        false,
+        true,
+        "merge",
+        vec![("other", ty_named("Joinable"))],
+        Some(ty_named("Joinable")),
+        FunctionBody::None,
+    ));
+    let implementation = method_full(
+        true,
+        false,
+        "merge",
+        vec![("other", ty_named("Joinable"))],
+        Some(ty_named("Joinable")),
+        FunctionBody::Expr(Box::new(var("other"))),
+    );
+    let errors = lower_user(file(vec![
+        interface_decl("Joinable", vec![declaration]),
+        class_decl(
+            ast::ClassModifier::Final,
+            "Joiner",
+            vec![],
+            None,
+            vec!["Joinable"],
+            vec![implementation],
+        ),
+        fun("main", vec![]),
+    ]))
+    .expect_err("override signatures include their infix identity");
+    assert!(errors.iter().any(|error| {
+        error.message == "`merge` must have the same `infix` modifier as `Joinable.merge`"
+    }));
+}
+
 fn body_contains_field_read(body: &hir::Body) -> bool {
     body.statements.iter().any(|statement| {
         matches!(

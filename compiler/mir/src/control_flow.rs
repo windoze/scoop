@@ -416,6 +416,7 @@ pub enum BinOp {
     IntSub,
     IntMul,
     IntDiv,
+    IntRem,
     IntLt,
     IntLe,
     IntGt,

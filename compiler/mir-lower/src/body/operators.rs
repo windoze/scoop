@@ -27,7 +27,7 @@ impl BodyLowerer<'_> {
             // instead of hitting LLVM `sdiv` UB. Both operands are
             // evaluated once into hidden locals (left to right), so
             // the check and the division share one evaluation.
-            hir::BinOp::Div => {
+            hir::BinOp::Div | hir::BinOp::Rem => {
                 let lhs_slot = self.new_hidden("div", mir::Type::Int, false);
                 let rhs_slot = self.new_hidden("div", mir::Type::Int, false);
                 let lhs = self.lower_expr(lhs);
@@ -57,7 +57,11 @@ impl BodyLowerer<'_> {
                 smir::Expr::new(
                     mir::Type::Int,
                     smir::ExprKind::Binary {
-                        op: IntDiv,
+                        op: if op == hir::BinOp::Div {
+                            IntDiv
+                        } else {
+                            IntRem
+                        },
                         lhs: Box::new(smir::Expr::local(lhs_slot, mir::Type::Int)),
                         rhs: Box::new(smir::Expr::local(rhs_slot, mir::Type::Int)),
                     },
@@ -96,9 +100,11 @@ impl BodyLowerer<'_> {
             | mir::BinOp::IntNe
             | mir::BinOp::BoolEq
             | mir::BinOp::BoolNe => mir::Type::Boolean,
-            mir::BinOp::IntAdd | mir::BinOp::IntSub | mir::BinOp::IntMul | mir::BinOp::IntDiv => {
-                self.lower_type(lhs.ty)
-            }
+            mir::BinOp::IntAdd
+            | mir::BinOp::IntSub
+            | mir::BinOp::IntMul
+            | mir::BinOp::IntDiv
+            | mir::BinOp::IntRem => self.lower_type(lhs.ty),
         };
         let lhs = Box::new(self.lower_expr(lhs));
         let rhs = Box::new(self.lower_expr(rhs));

@@ -375,6 +375,7 @@ pub enum BinOp {
     Sub,
     Mul,
     Div,
+    Rem,
     Lt,
     Le,
     Gt,

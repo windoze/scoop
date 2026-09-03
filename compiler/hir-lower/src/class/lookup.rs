@@ -15,6 +15,27 @@ impl Lowerer {
         ty: TypeId,
         name: &str,
     ) -> Vec<crate::CallableCandidate> {
+        let declared = self.method_candidates(ty);
+        self.visible_method_candidates(declared, |this, candidate| {
+            this.functions[candidate.function].name.rsplit('.').next() == Some(name)
+        })
+    }
+
+    /// All visible methods carrying one exact, declaration-validated operator
+    /// identity. Operator consumers use this index instead of recovering a
+    /// role from the source function name (notably for `componentN`).
+    pub(crate) fn methods_by_operator(
+        &mut self,
+        ty: TypeId,
+        operator: hir::OperatorKind,
+    ) -> Vec<crate::CallableCandidate> {
+        let declared = self.method_candidates(ty);
+        self.visible_method_candidates(declared, |this, candidate| {
+            this.signatures[&candidate.function].modifiers.operator == Some(operator)
+        })
+    }
+
+    fn method_candidates(&mut self, ty: TypeId) -> Vec<(crate::CallableCandidate, usize, usize)> {
         let mut declared = Vec::<(crate::CallableCandidate, usize, usize)>::new();
         match self.types[ty].clone() {
             Type::Int => {
@@ -142,16 +163,24 @@ impl Lowerer {
             _ => {}
         }
 
+        declared
+    }
+
+    fn visible_method_candidates(
+        &mut self,
+        declared: Vec<(crate::CallableCandidate, usize, usize)>,
+        mut matches: impl FnMut(&Self, &crate::CallableCandidate) -> bool,
+    ) -> Vec<crate::CallableCandidate> {
         let mut visible = Vec::new();
         for (candidate, depth, root) in declared {
-            if self.functions[candidate.function].name.rsplit('.').next() != Some(name) {
+            if !matches(self, &candidate) {
                 continue;
             }
             let mut duplicate = false;
             for (existing, existing_depth, existing_root) in &visible {
                 if *existing_root == root
                     && *existing_depth < depth
-                    && self.same_applied_method_signature(existing, &candidate, name)
+                    && self.same_applied_method_signature(existing, &candidate)
                 {
                     duplicate = true;
                     break;
@@ -284,7 +313,6 @@ impl Lowerer {
         &mut self,
         left: &crate::CallableCandidate,
         right: &crate::CallableCandidate,
-        name: &str,
     ) -> bool {
         if self.functions[left.function].method_type_param_count()
             != self.functions[right.function].method_type_param_count()
@@ -323,9 +351,7 @@ impl Lowerer {
             &right_arguments,
             &canonical_method_parameters,
         );
-        self.functions[left.function].name.rsplit('.').next() == Some(name)
-            && self.functions[right.function].name.rsplit('.').next() == Some(name)
-            && left_sig.is_suspend == right_sig.is_suspend
+        left_sig.is_suspend == right_sig.is_suspend
             && left_sig.attributes == right_sig.attributes
             && left_sig.type_params.len() == right_sig.type_params.len()
             && left_sig.params.len() == right_sig.params.len()

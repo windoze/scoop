@@ -326,3 +326,53 @@ Module
 ";
     assert_eq!(dump(&module), expected);
 }
+
+#[test]
+fn remainder_uses_the_same_zero_guard_as_division() {
+    let mut h = Harness::new();
+    h.exception("ArithmeticException");
+    let int = h.int;
+    let main = h.user_fn(
+        "main",
+        hir::Body {
+            locals: Arena::new(),
+            statements: vec![expr_stmt(binary(
+                hir::BinOp::Rem,
+                int_lit(&h, 10),
+                int_lit(&h, 3),
+                int,
+            ))],
+        },
+    );
+    let module = lower(&h.finish(main));
+    let body = &module.functions[module.entry].body;
+    assert!(body.blocks.iter().any(|(_, block)| {
+        block.statements.iter().any(|statement| {
+            matches!(
+                statement.kind,
+                mir::StatementKind::Expr(mir::Expr {
+                    kind: mir::ExprKind::Binary {
+                        op: mir::BinOp::IntRem,
+                        ..
+                    },
+                    ..
+                })
+            )
+        })
+    }));
+    assert!(body.blocks.iter().any(|(_, block)| {
+        matches!(
+            block.terminator,
+            mir::Terminator::Branch {
+                cond: mir::Expr {
+                    kind: mir::ExprKind::Binary {
+                        op: mir::BinOp::IntEq,
+                        ..
+                    },
+                    ..
+                },
+                ..
+            }
+        )
+    }));
+}

@@ -114,10 +114,15 @@ impl Lowerer {
                     decl.name.span,
                     format!("`{short}` must have the same `suspend` modifier as `{target}`"),
                 );
-            } else {
+            } else if self.functions[*candidate].modifiers.operator != sig.modifiers.operator {
                 self.error(
                     decl.name.span,
                     format!("`{short}` must have the same `operator` modifier as `{target}`"),
+                );
+            } else if self.functions[*candidate].modifiers.is_infix != sig.modifiers.is_infix {
+                self.error(
+                    decl.name.span,
+                    format!("`{short}` must have the same `infix` modifier as `{target}`"),
                 );
             }
             return;

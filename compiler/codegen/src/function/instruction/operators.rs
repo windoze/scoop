@@ -40,6 +40,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                             BinOp::Sub => builder.build_int_sub(lhs, rhs, &name),
                             BinOp::Mul => builder.build_int_mul(lhs, rhs, &name),
                             BinOp::SDiv => builder.build_int_signed_div(lhs, rhs, &name),
+                            BinOp::SRem => builder.build_int_signed_rem(lhs, rhs, &name),
                             BinOp::Lt => {
                                 builder.build_int_compare(IntPredicate::SLT, lhs, rhs, &name)
                             }

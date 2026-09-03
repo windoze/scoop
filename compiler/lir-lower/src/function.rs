@@ -14,6 +14,7 @@ fn binary_op(op: mir::BinOp) -> lir::BinOp {
         mir::BinOp::IntSub => lir::BinOp::Sub,
         mir::BinOp::IntMul => lir::BinOp::Mul,
         mir::BinOp::IntDiv => lir::BinOp::SDiv,
+        mir::BinOp::IntRem => lir::BinOp::SRem,
         mir::BinOp::IntLt => lir::BinOp::Lt,
         mir::BinOp::IntLe => lir::BinOp::Le,
         mir::BinOp::IntGt => lir::BinOp::Gt,
