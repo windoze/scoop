@@ -43,6 +43,13 @@ impl Lowerer {
             name: format!("{}.{}", owner.describe_name(self), decl.name.text),
             genericity: hir::FunctionGenericity::Plain,
             is_suspend: decl.is_suspend,
+            modifiers: hir::CallableModifiers {
+                operator: match (&decl.operator, decl.name.text.as_str()) {
+                    (Some(_), "equals") => Some(hir::OperatorKind::Equals),
+                    _ => None,
+                },
+                is_infix: false,
+            },
             params: Vec::new(),
             return_ty: self.unit,
             attributes: checked.attributes,
@@ -51,10 +58,6 @@ impl Lowerer {
                 owner: host_ty,
                 modifier,
                 dispatch: hir::MethodDispatch::Direct,
-                operator: match (&decl.operator, decl.name.text.as_str()) {
-                    (Some(_), "equals") => Some(hir::OperatorKind::Equals),
-                    _ => None,
-                },
             }),
             span: decl.span,
         });
@@ -127,6 +130,7 @@ impl Lowerer {
             name: decl.name.text.clone(),
             genericity: hir::FunctionGenericity::Plain,
             is_suspend: decl.is_suspend,
+            modifiers: hir::CallableModifiers::default(),
             params: Vec::new(),
             return_ty: self.unit,
             attributes: checked.attributes,

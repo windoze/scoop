@@ -64,6 +64,7 @@ impl Lowerer {
             name: format!("$local.{local_number}.{}", decl.name.text),
             genericity: hir::FunctionGenericity::Plain,
             is_suspend: decl.is_suspend,
+            modifiers: hir::CallableModifiers::default(),
             params: Vec::new(),
             return_ty,
             attributes,
@@ -78,7 +79,7 @@ impl Lowerer {
             function,
             FnSig {
                 is_suspend: decl.is_suspend,
-                operator: None,
+                modifiers: hir::CallableModifiers::default(),
                 attributes,
                 owner_type_param_count,
                 type_params: type_params.clone(),

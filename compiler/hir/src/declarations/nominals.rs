@@ -122,10 +122,6 @@ pub struct Method {
     /// Complete source-level dispatch identity. Overrides share a typed
     /// virtual family; interface declarations name their exact member.
     pub dispatch: MethodDispatch,
-    /// Language-level operator identity validated at the declaration site.
-    /// `None` is an ordinary method; downstream consumers never recover an
-    /// operator role from the method name or signature.
-    pub operator: Option<OperatorKind>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -138,12 +134,36 @@ pub enum MethodDispatch {
     Interface(InterfaceMethodId),
 }
 
-/// Closed set of operator member contracts implemented by the current
-/// language milestone. Unsupported source modifiers are rejected before HIR
-/// output, so an unknown operator cannot enter the pipeline as a string.
+/// Closed language-level identity assigned to a successfully validated
+/// `operator` declaration. Consumers match this role directly and never
+/// recover it from a source name, nominal owner or intrinsic symbol.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum OperatorKind {
+    UnaryPlus,
+    UnaryMinus,
+    Not,
+    Inc,
+    Dec,
+    Plus,
+    Minus,
+    Times,
+    Div,
+    Rem,
+    RangeTo,
+    RangeUntil,
+    Contains,
+    Get,
+    Set,
+    Invoke,
+    PlusAssign,
+    MinusAssign,
+    TimesAssign,
+    DivAssign,
+    RemAssign,
+    CompareTo,
     Equals,
+    Component { index: std::num::NonZeroU32 },
+    Iterator,
 }
 
 #[derive(Debug, Clone)]

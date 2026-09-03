@@ -240,7 +240,7 @@ impl Lowerer {
             id,
             FnSig {
                 is_suspend: decl.is_suspend,
-                operator: None,
+                modifiers: hir::CallableModifiers::default(),
                 attributes: self.functions[id].attributes,
                 owner_type_param_count: 0,
                 type_params,

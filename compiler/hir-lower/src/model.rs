@@ -18,7 +18,7 @@ pub(crate) struct FnSig {
     pub(crate) is_suspend: bool,
     /// Validated language-level operator role. It participates in override
     /// and interface matching instead of being inferred from the name.
-    pub(crate) operator: Option<hir::OperatorKind>,
+    pub(crate) modifiers: hir::CallableModifiers,
     pub(crate) attributes: hir::FunctionAttributes,
     /// Number of owner parameters at the front of `type_params`.
     pub(crate) owner_type_param_count: usize,

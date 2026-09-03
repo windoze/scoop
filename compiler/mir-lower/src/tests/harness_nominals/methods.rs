@@ -101,6 +101,7 @@ impl Harness {
             name: name.to_string(),
             genericity,
             is_suspend: false,
+            modifiers: hir::CallableModifiers::default(),
             params,
             return_ty,
             attributes: hir::FunctionAttributes::default(),
@@ -109,7 +110,6 @@ impl Harness {
                 owner: method_of,
                 modifier: hir::MethodModifier::Open,
                 dispatch,
-                operator: None,
             }),
             span: SPAN,
         });

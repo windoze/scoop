@@ -109,13 +109,13 @@ impl Concretizer<'_> {
             owner: self.lower_type(method.owner, &arguments),
             modifier: method.modifier,
             dispatch: self.lower_method_dispatch(method.dispatch, key),
-            operator: method.operator,
         });
         let origin = self.function_origin(key, &source);
         concrete::Function {
             name: source.name,
             origin,
             is_suspend: source.is_suspend,
+            modifiers: source.modifiers,
             params,
             return_ty,
             attributes: source.attributes,

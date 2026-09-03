@@ -213,6 +213,7 @@ fn start_coroutine_resumes_only_an_immediately_completed_task() {
         name: "launcher".to_string(),
         genericity: hir::FunctionGenericity::Plain,
         is_suspend: false,
+        modifiers: hir::CallableModifiers::default(),
         params: vec![
             param("task", task_ty, task),
             param("completion", completion_ty, completion),

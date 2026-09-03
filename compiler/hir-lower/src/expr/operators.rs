@@ -145,7 +145,8 @@ impl Lowerer {
     ) -> Option<hir::Expr> {
         let mut candidates = self.methods_by_name(lhs.ty, "equals");
         candidates.retain(|candidate| {
-            self.signatures[&candidate.function].operator == Some(hir::OperatorKind::Equals)
+            self.signatures[&candidate.function].modifiers.operator
+                == Some(hir::OperatorKind::Equals)
         });
         let mut derived = None;
         let mut structural_derived = None;
@@ -275,7 +276,8 @@ impl Lowerer {
             .methods_by_name(subject_ty, "equals")
             .into_iter()
             .filter(|candidate| {
-                self.signatures[&candidate.function].operator == Some(hir::OperatorKind::Equals)
+                self.signatures[&candidate.function].modifiers.operator
+                    == Some(hir::OperatorKind::Equals)
             })
             .collect::<Vec<_>>();
         let mut sink = Vec::new();

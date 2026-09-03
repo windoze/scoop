@@ -82,10 +82,7 @@ impl Lowerer {
             id,
             FnSig {
                 is_suspend: decl.is_suspend,
-                operator: self.functions[id]
-                    .method
-                    .expect("member declarations carry method metadata")
-                    .operator,
+                modifiers: self.functions[id].modifiers,
                 attributes: self.functions[id].attributes,
                 owner_type_param_count,
                 type_params,

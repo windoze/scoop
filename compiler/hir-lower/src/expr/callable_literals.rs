@@ -251,6 +251,7 @@ impl Lowerer {
                 name: self.current_fn_name.clone(),
                 genericity: hir::FunctionGenericity::Plain,
                 is_suspend,
+                modifiers: hir::CallableModifiers::default(),
                 params,
                 return_ty,
                 attributes: hir::FunctionAttributes::default(),

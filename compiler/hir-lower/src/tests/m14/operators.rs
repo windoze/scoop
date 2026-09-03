@@ -32,12 +32,7 @@ fn operator_equals_is_a_typed_hir_contract() {
         .functions
         .iter()
         .filter(|(_, function)| matches!(function.name.as_str(), "EqualTo.equals" | "Value.equals"))
-        .map(|(_, function)| {
-            function
-                .method
-                .expect("equals declarations are methods")
-                .operator
-        })
+        .map(|(_, function)| function.modifiers.operator)
         .collect::<Vec<_>>();
     assert_eq!(
         methods,
@@ -49,9 +44,7 @@ fn operator_equals_is_a_typed_hir_contract() {
     assert!(hir::dump(&output.export).contains("operator fun equals(other: EqualTo): Boolean"));
     assert!(output.local.functions.iter().any(|(_, function)| {
         function.name == "Value.equals"
-            && function
-                .method
-                .is_some_and(|method| method.operator == Some(hir::OperatorKind::Equals))
+            && function.modifiers.operator == Some(hir::OperatorKind::Equals)
     }));
     let dump = hir::dump(&output.export);
     assert!(dump.contains("MethodCall Value.equals : Boolean"), "{dump}");
