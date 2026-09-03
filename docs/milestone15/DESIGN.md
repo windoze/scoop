@@ -64,7 +64,7 @@ M15 不能把 M9 已有的“statepoint section 存在”当作可移动 GC 基�
 - pinned interior pointer 的新语言能力；`PinnedPtr.raw` 继续只由既有 pin 契约产生；
 - 新异常 ABI、suspend FFI 或异常跨 C frame；
 - Linux/x86_64/Windows runtime backend；
-- M17 之前的多 Cone、动态 library image stack-map discovery。
+- 后续多Cone与动态library image stack-map discovery。
 
 ## 3. 不变量
 
@@ -432,7 +432,7 @@ LIR 的 managed global storage直接携带完整 `RefScan`；codegen不能根据
 
 count是表长度的唯一权威；零长度表仍发射一个全零sentinel record，使每个image都从结构上定义四个symbol，而不是让runtime用weak symbol或“symbol不存在”猜测表是否存在。
 
-runtime init在任何 managed代码执行前登记两张表。GC-free global保留显式 `RefScan::None`，不进入 visitor；不能用缺失字段表达“可能无root”。M17 多 Cone时把同一记录并入 image registration，不改变 collector接口。
+runtime init在任何managed代码执行前登记两张表。GC-free global保留显式`RefScan::None`，不进入visitor；不能用缺失字段表达“可能无root”。后续多Cone里程碑把同一记录并入image registration，不改变collector接口。
 
 immortal object地址稳定且不进入 forwarding。M15只允许没有 managed出站引用的只读 immortal object；若未来要支持含 ref 静态 closure/object，必须先增加可写 relocation storage或启动期堆物化，不能把只读 section中的 ref slot交给 collector写入。
 
