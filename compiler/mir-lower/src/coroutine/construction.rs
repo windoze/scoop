@@ -87,33 +87,25 @@ pub(super) fn wrapper_body(
     }
     args.push(slot_empty(&failure_slot));
     let mut blocks = Arena::new();
+    let mut statements = initialized_generated_class(frame, frame_class, args);
+    statements.push(statement(mir::StatementKind::Call(
+        mir::CallEffect::Value {
+            destination: step,
+            call: mir::Call {
+                target: mir::CallTarget {
+                    kind: mir::CallKind::Direct,
+                    callee: mir::Callee::User(driver),
+                },
+                args: vec![
+                    mir::Expr::local(frame, mir::Type::Class(frame_class)),
+                    mir::Expr::int(STATE_INITIAL),
+                ],
+            },
+        },
+    )));
     let entry = blocks.alloc(mir::BasicBlock {
         name: "entry".to_string(),
-        statements: vec![
-            statement(mir::StatementKind::ValDecl {
-                local: frame,
-                init: mir::Expr::new(
-                    mir::Type::Class(frame_class),
-                    mir::ExprKind::ClassInit {
-                        class_id: frame_class,
-                        args,
-                    },
-                ),
-            }),
-            statement(mir::StatementKind::Call(mir::CallEffect::Value {
-                destination: step,
-                call: mir::Call {
-                    target: mir::CallTarget {
-                        kind: mir::CallKind::Direct,
-                        callee: mir::Callee::User(driver),
-                    },
-                    args: vec![
-                        mir::Expr::local(frame, mir::Type::Class(frame_class)),
-                        mir::Expr::int(STATE_INITIAL),
-                    ],
-                },
-            })),
-        ],
+        statements,
         terminator: mir::Terminator::Return {
             value: Some(mir::Expr::local(step, step_ty.clone())),
         },
@@ -158,18 +150,24 @@ pub(super) fn protocol_error_block(
     let exception = locals.alloc(local("$protocol_error", mir::Type::Class(mir_class)));
     blocks.alloc(mir::BasicBlock {
         name: "coroutine.protocol_error".to_string(),
-        statements: vec![statement(mir::StatementKind::Call(
-            mir::CallEffect::Value {
-                destination: exception,
-                call: mir::Call {
-                    target: mir::CallTarget {
-                        kind: mir::CallKind::Direct,
-                        callee: mir::Callee::User(lowerer.ctors[&constructor]),
+        statements: vec![
+            statement(mir::StatementKind::ValDecl {
+                local: exception,
+                init: mir::Expr::new(
+                    mir::Type::Class(mir_class),
+                    mir::ExprKind::ClassAlloc {
+                        class_id: mir_class,
                     },
-                    args: Vec::new(),
+                ),
+            }),
+            statement(mir::StatementKind::Call(mir::CallEffect::Unit(mir::Call {
+                target: mir::CallTarget {
+                    kind: mir::CallKind::Direct,
+                    callee: mir::Callee::User(lowerer.ctors[&constructor]),
                 },
-            },
-        ))],
+                args: vec![mir::Expr::local(exception, mir::Type::Class(mir_class))],
+            }))),
+        ],
         terminator: mir::Terminator::Throw {
             exception: mir::Expr::local(exception, mir::Type::Class(mir_class)),
             unwind,
@@ -278,6 +276,29 @@ pub(super) fn field_set(object: mir::Expr, index: u32, value: mir::Expr) -> mir:
         index,
         value,
     })
+}
+
+/// Allocate and initialize a compiler-generated class whose fields are already
+/// represented as an ordered concrete payload. Source classes always run their
+/// typed initializer functions instead.
+pub(super) fn initialized_generated_class(
+    local: mir::LocalId,
+    class: mir::ClassId,
+    fields: Vec<mir::Expr>,
+) -> Vec<mir::Statement> {
+    let ty = mir::Type::Class(class);
+    let mut statements = vec![statement(mir::StatementKind::ValDecl {
+        local,
+        init: mir::Expr::new(ty.clone(), mir::ExprKind::ClassAlloc { class_id: class }),
+    })];
+    statements.extend(fields.into_iter().enumerate().map(|(index, value)| {
+        field_set(
+            mir::Expr::local(local, ty.clone()),
+            u32::try_from(index).expect("generated class field index fits u32"),
+            value,
+        )
+    }));
+    statements
 }
 
 pub(super) fn atomic_field_load(object: mir::Expr, index: u32) -> mir::Expr {

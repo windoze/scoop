@@ -262,19 +262,12 @@ fn gc_wrappers_use_explicit_raw_word_marshalling() {
     ));
     assert!(matches!(call.args.as_slice(), [arg] if matches!(arg.kind, mir::ExprKind::Local(_))));
     let pin_result = pin_result.expect("_pin returns a raw word");
-    let mir::StatementKind::ValDecl { init, .. } = &entry_statements(body)[1].kind else {
-        panic!("PinnedPtr construction is a val decl")
-    };
-    let mir::ExprKind::StructInit { struct_id, args } = &init.kind else {
-        panic!("the raw result is wrapped into PinnedPtr")
-    };
-    assert_eq!(module.structs[*struct_id].name, "PinnedPtr$S");
-    assert_eq!(
-        module.structs[*struct_id].declared_fields()[0].ty,
-        mir::Type::UInt
-    );
-    assert!(matches!(args.as_slice(), [arg]
+    let (constructor, wrapped) = statement_call(&entry_statements(body)[1]);
+    let wrapped = wrapped.expect("PinnedPtr constructor returns the wrapper");
+    assert!(matches!(constructor.target.callee, mir::Callee::User(_)));
+    assert!(matches!(constructor.args.as_slice(), [arg]
             if matches!(arg.kind, mir::ExprKind::Local(local) if local == pin_result)));
+    assert_eq!(body.locals[wrapped].name, "ph");
 
     // `_unpin(ph.raw)` directly initializes the source result local.
     let (call, hidden) = statement_call(&entry_statements(body)[2]);
@@ -299,15 +292,12 @@ fn gc_wrappers_use_explicit_raw_word_marshalling() {
         mir::Callee::Runtime(mir::RuntimeFn::GetHandle)
     ));
     let handle_result = handle_result.expect("getGcHandle returns a raw word");
-    let mir::StatementKind::ValDecl { init, .. } = &entry_statements(body)[4].kind else {
-        panic!("getGcHandle's statement is a val decl")
-    };
-    let mir::ExprKind::StructInit { struct_id, args } = &init.kind else {
-        panic!("getGcHandle's result is wrapped into the handle struct")
-    };
-    assert_eq!(module.structs[*struct_id].name, "GcHandle$S");
-    assert!(matches!(args.as_slice(), [arg]
+    let (constructor, wrapped) = statement_call(&entry_statements(body)[4]);
+    let wrapped = wrapped.expect("GcHandle constructor returns the wrapper");
+    assert!(matches!(constructor.target.callee, mir::Callee::User(_)));
+    assert!(matches!(constructor.args.as_slice(), [arg]
             if matches!(arg.kind, mir::ExprKind::Local(local) if local == handle_result)));
+    assert_eq!(body.locals[wrapped].name, "gh");
     let (call, _) = statement_call(&entry_statements(body)[5]);
     assert!(matches!(
         call.target.callee,

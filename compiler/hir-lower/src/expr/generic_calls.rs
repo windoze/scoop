@@ -44,6 +44,17 @@ impl Lowerer {
             }
         }
 
+        if let Some(receiver_ty) = self.initializing_receiver_type() {
+            let members = self.methods_by_name(receiver_ty, &name);
+            if !members.is_empty() {
+                self.error(
+                    call.span,
+                    "initializing receiver cannot escape before construction completes".into(),
+                );
+                return None;
+            }
+        }
+
         // Layer 2: members of the current host.
         let members = self
             .current_this_ty()
@@ -77,9 +88,15 @@ impl Lowerer {
         // Keep that mutation inside the candidate state until its invoke wins.
         let property_candidate = {
             let mut state = self.clone();
-            state
-                .bare_member_fallback(&call.callee)
-                .map(|property| (state, property))
+            if state.initialization_context.is_none()
+                || state.initializing_receiver_has_field(&call.callee.text)
+            {
+                state
+                    .bare_member_fallback(&call.callee)
+                    .map(|property| (state, property))
+            } else {
+                None
+            }
         };
         if let Some((property_state, property)) = &property_candidate
             && let Some(layer) = property_state.clone().probe_property_member_invoke(

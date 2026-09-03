@@ -29,7 +29,7 @@ impl Lowerer {
                 }),
             (Type::Class(application), Type::Class(..)) => {
                 let application = self.class_applications[application].clone();
-                let Some((base, _)) = self.classes[application.template].base_class.clone() else {
+                let Some(base) = self.classes[application.template].base_class else {
                     return false;
                 };
                 let base = self.instantiate_ty(base, &application.arguments);
@@ -153,7 +153,7 @@ impl Lowerer {
                 let interface = self.instantiate_ty(interface, &application_value.arguments);
                 self.append_interface_closure(interface, &mut result);
             }
-            if let Some((base, _)) = self.classes[application_value.template].base_class.clone() {
+            if let Some(base) = self.classes[application_value.template].base_class {
                 let base = self.instantiate_ty(base, &application_value.arguments);
                 let Type::Class(base_application) = self.types[base] else {
                     unreachable!("class bases are resolved class applications")

@@ -33,6 +33,7 @@ pub(super) struct BodyLowerer<'a> {
         &'a mut HashMap<hir::ForeignCallbackRegistrationId, mir::ForeignCallbackBridgeId>,
     /// Local-concrete constructor callable -> MIR function.
     pub(super) ctors: &'a HashMap<hir::ClassConstructorId, mir::FunctionId>,
+    pub(super) struct_ctors: &'a HashMap<hir::StructConstructorId, mir::FunctionId>,
     pub(super) strings: &'a mut Arena<mir::StringConst>,
     pub(super) functions: &'a mut Arena<mir::Function>,
     pub(super) top_level: &'a mut Vec<mir::FunctionId>,
@@ -51,6 +52,9 @@ pub(super) struct BodyLowerer<'a> {
     /// Constructor-parameter identities available while lowering one
     /// generated class constructor's delegation expressions.
     pub(super) constructor_param_map: HashMap<hir::ConstructorParamId, smir::Expr>,
+    /// Hidden initializer receiver. It is an ordinary MIR local; the source
+    /// non-escaping capability has already been eliminated by concretization.
+    pub(super) constructor_receiver: Option<smir::Expr>,
     /// MIR locals, including the hidden ones created during lowering
     /// (`when` subjects, destructuring slots, `!!` temporaries).
     pub(super) locals: Arena<mir::Local>,

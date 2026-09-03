@@ -106,6 +106,7 @@ impl Lowerer {
             type_params: type_params.clone(),
             attributes: checked.attributes,
             representation,
+            constructors: Vec::new(),
             // Filled in pass 2 together with the fields.
             interfaces: Vec::new(),
             interface_implementations: Vec::new(),
@@ -289,7 +290,7 @@ impl Lowerer {
                     provider: self.current_intrinsic_provider(),
                 })
             }
-            None => hir::ClassRepresentation::Declared(Vec::new()),
+            None => hir::ClassRepresentation::Declared,
         };
         let id = self.classes.alloc(ClassDecl {
             modifier,
@@ -299,6 +300,8 @@ impl Lowerer {
             // Filled in pass 2; resolution failures are diagnosed, so
             // these never reach the output unfinished.
             representation,
+            fields: Vec::new(),
+            constructors: Vec::new(),
             base_class: None,
             interfaces: Vec::new(),
             interface_implementations: Vec::new(),
@@ -316,7 +319,7 @@ impl Lowerer {
         let ty = self.class_application(id, type_args);
         if matches!(
             self.classes[id].representation,
-            hir::ClassRepresentation::Declared(_)
+            hir::ClassRepresentation::Declared
         ) {
             assert_eq!(self.types[ty], Type::Class(self_application));
         }

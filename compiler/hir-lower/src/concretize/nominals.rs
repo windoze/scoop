@@ -65,6 +65,21 @@ impl Concretizer<'_> {
             }
         };
         self.struct_type.insert(id, ty);
+        if matches!(
+            source.representation,
+            export::StructRepresentation::Declared(_)
+        ) {
+            for &constructor in &source.constructors {
+                let raw = self.struct_constructor_slots.len() as u32;
+                self.struct_constructor_slots.push(None);
+                let concrete = concrete::StructConstructorId::from_raw(raw.into());
+                assert!(
+                    self.struct_constructor_by_key
+                        .insert((constructor, id), concrete)
+                        .is_none()
+                );
+            }
+        }
         let fields: Vec<_> = source
             .semantic_fields()
             .iter()
@@ -100,7 +115,93 @@ impl Concretizer<'_> {
             }
         }
         self.structs[id].methods = methods;
+        for &constructor in &source.constructors {
+            let concrete = self.lower_struct_constructor(constructor, id, &arguments);
+            let target = self.struct_constructor_by_key[&(constructor, id)];
+            let slot = target.into_raw().into_u32() as usize;
+            assert!(
+                self.struct_constructor_slots[slot]
+                    .replace(concrete)
+                    .is_none()
+            );
+        }
         id
+    }
+
+    fn lower_struct_constructor(
+        &mut self,
+        source_id: export::StructConstructorId,
+        structure: concrete::StructId,
+        substitution: &[concrete::TypeId],
+    ) -> concrete::StructConstructor {
+        let source = self.source.struct_constructors[source_id].clone();
+        let parameters = source
+            .parameters
+            .iter()
+            .map(|parameter| concrete::ConstructorParameter {
+                id: concrete::ConstructorParamId::from_raw(parameter.id.into_raw()),
+                name: parameter.name.clone(),
+                ty: self.lower_type(parameter.ty, substitution),
+            })
+            .collect();
+        let kind = match &source.kind {
+            export::StructConstructorKind::Primary => concrete::StructConstructorKind::Primary,
+            export::StructConstructorKind::Secondary { delegation, body } => {
+                let target =
+                    self.lower_struct_constructor_application(delegation.target, substitution);
+                let (argument_body, locals) =
+                    self.lower_constructor_argument_plan(&delegation.arguments, substitution);
+                let (body, _) = self.lower_body(body, substitution);
+                debug_assert_eq!(argument_body.locals.len(), locals.len());
+                concrete::StructConstructorKind::Secondary {
+                    target,
+                    arguments: argument_body,
+                    body,
+                }
+            }
+        };
+        concrete::StructConstructor {
+            structure,
+            source_discriminator: source_id.into_raw().into_u32(),
+            parameters,
+            kind,
+        }
+    }
+
+    pub(super) fn lower_struct_constructor_application(
+        &mut self,
+        source: export::StructConstructorApplicationId,
+        substitution: &[concrete::TypeId],
+    ) -> concrete::StructConstructorId {
+        let application = &self.source.struct_constructor_applications[source];
+        let structure = self.lower_struct_application(application.owner, substitution);
+        self.struct_constructor_by_key[&(application.constructor, structure)]
+    }
+
+    fn lower_constructor_argument_plan(
+        &mut self,
+        source: &export::ConstructorArguments,
+        substitution: &[concrete::TypeId],
+    ) -> (concrete::ConstructorArguments, Vec<concrete::LocalId>) {
+        let (locals, local_map) = self.lower_locals(&source.locals, substitution);
+        let statements = source
+            .statements
+            .iter()
+            .filter_map(|statement| self.lower_statement(statement, substitution, &local_map))
+            .collect();
+        let args = source
+            .args
+            .iter()
+            .map(|argument| self.lower_expr(argument, substitution, &local_map))
+            .collect();
+        (
+            concrete::ConstructorArguments {
+                locals,
+                statements,
+                args,
+            },
+            local_map,
+        )
     }
 
     pub(super) fn ensure_enum(

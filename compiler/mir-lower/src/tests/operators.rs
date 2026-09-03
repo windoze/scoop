@@ -409,10 +409,15 @@ Module
           Type Int
           IntLiteral 0
     bb1 if.then.1
-      call $call.1: ArithmeticException = @scoop.ctor.ArithmeticException direct
+      assign $new.1
+        Type ArithmeticException
+        ClassAlloc ArithmeticException
+      call @scoop.init.ArithmeticException.$c0 direct
+        Type ArithmeticException
+        Local $new.1
       throw
         Type ArithmeticException
-        Local $call.1
+        Local $new.1
     bb2 if.merge.2
       val q: Int
         Type Int
@@ -422,11 +427,9 @@ Module
           Type Int
           Local $div.2
       return
-  fun ctor.ArithmeticException @scoop.ctor.ArithmeticException() -> ArithmeticException
+  fun init.ArithmeticException.$c0 @scoop.init.ArithmeticException.$c0(this: ArithmeticException) -> Unit
     bb0 entry
       return
-        Type ArithmeticException
-        ClassInit ArithmeticException
   entry @scoop_main
 ";
     assert_eq!(dump(&module), expected);

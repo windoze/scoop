@@ -20,13 +20,14 @@ fn class_construction_lowers_to_class_init() {
     let main = body_of(&module, "main");
     match &local_init(main, "c").kind {
         hir::ExprKind::ClassInit {
-            application, args, ..
+            constructor, args, ..
         } => {
-            let class_id = module.class_applications[*application].template;
+            let application = module.class_constructor_applications[*constructor].owner;
+            let class_id = module.class_applications[application].template;
             assert_eq!(module.classes[class_id].name, "C");
             assert!(matches!(
                 module.types[local_init(main, "c").ty],
-                hir::Type::Class(found) if found == *application
+                hir::Type::Class(found) if found == application
             ));
             assert_eq!(args.len(), 2);
             assert!(

@@ -409,7 +409,17 @@ fn base_constructor_delegation_uses_the_complete_source_protocol() {
         .iter()
         .find(|(_, class)| class.name == "Derived")
         .expect("derived class");
-    let (_, delegation) = derived.base_class.as_ref().expect("base delegation");
+    let hir::ClassConstructorKind::Primary {
+        base:
+            hir::BaseInitialization::Super {
+                arguments: delegation,
+                ..
+            },
+        ..
+    } = &module.class_constructors[derived.constructors[0]].kind
+    else {
+        panic!("derived primary constructor delegates to its base")
+    };
     assert_eq!(delegation.args.len(), 3);
     assert!(delegation.statements.iter().any(|statement| matches!(
         statement.kind,
@@ -437,7 +447,17 @@ fn base_constructor_delegation_uses_the_complete_source_protocol() {
         .iter()
         .find(|(_, class)| class.name == "Whole")
         .expect("whole-array derived class");
-    let (_, delegation) = whole.base_class.as_ref().expect("named base delegation");
+    let hir::ClassConstructorKind::Primary {
+        base:
+            hir::BaseInitialization::Super {
+                arguments: delegation,
+                ..
+            },
+        ..
+    } = &module.class_constructors[whole.constructors[0]].kind
+    else {
+        panic!("whole primary constructor delegates to its base")
+    };
     assert!(!delegation.statements.iter().any(|statement| matches!(
         statement.kind,
         hir::StatementKind::ValDecl {

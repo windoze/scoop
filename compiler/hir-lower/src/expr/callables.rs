@@ -277,6 +277,9 @@ impl Lowerer {
                     ForbiddenSuspendContext::ConstructorDelegation => {
                         "constructor delegation".to_string()
                     }
+                    ForbiddenSuspendContext::ConstructorInitialization => {
+                        "constructor initialization".to_string()
+                    }
                 };
                 self.error(
                     span,

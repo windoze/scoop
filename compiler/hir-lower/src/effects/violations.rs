@@ -40,6 +40,10 @@ impl Lowerer {
                             ));
                             self.collect_no_gc_expr_violations(receiver, out, requirements);
                         }
+                        hir::AssignTarget::InitializingClassField { .. } => out.push((
+                            statement.span,
+                            "managed field assignment is not allowed in `@NoGC` code".to_string(),
+                        )),
                     }
                     self.collect_no_gc_expr_violations(value, out, requirements);
                 }
@@ -126,6 +130,7 @@ impl Lowerer {
             | ExprKind::ConstructorParam(_)
             | ExprKind::GlobalRead(_)
             | ExprKind::Capture(_)
+            | ExprKind::InitializingStructFieldAccess { .. }
             | ExprKind::NoneLiteral => {}
             ExprKind::TupleLiteral(elements) | ExprKind::ArrayLiteral(elements) => {
                 if matches!(&expr.kind, ExprKind::ArrayLiteral(_)) {
@@ -182,7 +187,16 @@ impl Lowerer {
                 }
                 self.collect_no_gc_expr_violations(receiver, out, requirements);
             }
+            ExprKind::InitializingClassFieldAccess { .. } => out.push((
+                expr.span,
+                "managed field access is not allowed in `@NoGC` code".to_string(),
+            )),
             ExprKind::MethodCall {
+                receiver,
+                callee,
+                args,
+            }
+            | ExprKind::DirectSuperMethodCall {
                 receiver,
                 callee,
                 args,

@@ -78,7 +78,10 @@ fn bare_var_property_assignment_in_a_method_stores_through_this() {
             match target {
                 hir::AssignTarget::Field { receiver, field } => {
                     assert!(matches!(receiver.kind, hir::ExprKind::Local(_)));
-                    assert!(matches!(field, hir::FieldRef::ClassField { index: 0, .. }));
+                    let hir::FieldRef::ClassField { field, .. } = field else {
+                        panic!("class assignment carries a typed class field")
+                    };
+                    assert_eq!(*field, module.classes[class_id(&module, "C")].fields[0]);
                 }
                 other => panic!("expected a field store, found {other:?}"),
             }
@@ -171,7 +174,7 @@ fn field_assignment_on_a_var_property() {
                         *field,
                         hir::FieldRef::ClassField {
                             application: class_application(&module, class_id(&module, "Point")),
-                            index: 2
+                            field: module.classes[class_id(&module, "Point")].fields[1]
                         }
                     );
                 }

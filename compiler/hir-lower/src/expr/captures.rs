@@ -24,6 +24,18 @@ impl Lowerer {
             })
             .unwrap_or_default();
         let declaration_depth = self.capture_contexts.len();
+        for (name, &(parameter, ty, binding)) in &self.constructor_params_in_scope {
+            available.insert(
+                name.clone(),
+                AvailableCapture {
+                    binding,
+                    ty,
+                    mutable: false,
+                    source: CaptureSource::ConstructorParam(parameter),
+                    declaration_depth,
+                },
+            );
+        }
         for (name, local) in self.scopes.visible() {
             let local_def = &self.locals[local];
             available.insert(
@@ -174,6 +186,17 @@ impl Lowerer {
                     },
                     CaptureSource::Capture(binding) => hir::Expr {
                         kind: ExprKind::Capture(binding),
+                        ty: capture.ty,
+                        span: capture.first_use_span,
+                        origin: hir::ExpressionOrigin::Definition(hir::DefinitionOrigin {
+                            provider,
+                            file,
+                            span: capture.first_use_span,
+                            context: source_context,
+                        }),
+                    },
+                    CaptureSource::ConstructorParam(parameter) => hir::Expr {
+                        kind: ExprKind::ConstructorParam(parameter),
                         ty: capture.ty,
                         span: capture.first_use_span,
                         origin: hir::ExpressionOrigin::Definition(hir::DefinitionOrigin {

@@ -9,46 +9,157 @@ impl Lowerer {
             self.classes[id].representation,
             hir::ClassRepresentation::Intrinsic(_)
         ) {
+            for member in &decl.members {
+                if !matches!(member, ast::ClassMember::Function(_)) {
+                    self.error(
+                        member.span(),
+                        "an intrinsic class cannot declare stored properties, init blocks, or constructors"
+                            .into(),
+                    );
+                }
+            }
             let interfaces = self.resolve_supertype_interface_list(&decl.supertypes);
             self.classes[id].interfaces = interfaces;
             self.type_params_in_scope.clear();
             return;
         }
-        let mut seen = std::collections::HashSet::new();
-        let mut props = Vec::new();
+        let mut seen = std::collections::HashMap::new();
+        let mut parameters = Vec::new();
+        let mut fields = Vec::new();
+        let mut field_names = std::collections::HashSet::new();
         let mut parameter_calling = Vec::new();
-        for prop in &decl.constructor {
-            if !seen.insert(prop.name.text.clone()) {
-                self.error(
-                    prop.name.span,
+        for parameter in &decl.constructor {
+            if let Some(previous) = seen.insert(parameter.name.text.clone(), parameter.property) {
+                let message = if previous != ast::PrimaryParameterProperty::Plain
+                    && parameter.property != ast::PrimaryParameterProperty::Plain
+                {
                     format!(
                         "duplicate property `{}` in class `{}`",
-                        prop.name.text, decl.name.text
+                        parameter.name.text, decl.name.text
+                    )
+                } else {
+                    format!(
+                        "duplicate primary constructor parameter `{}` in class `{}`",
+                        parameter.name.text, decl.name.text
+                    )
+                };
+                self.error(parameter.name.span, message);
+                continue;
+            }
+            let Some((ty, calling)) = self.resolve_parameter(&parameter.ty, &parameter.syntax)
+            else {
+                continue; // diagnostic already recorded
+            };
+            let parameter_id = self.fresh_constructor_parameter();
+            parameters.push(hir::ConstructorParameter {
+                id: parameter_id,
+                name: parameter.name.text.clone(),
+                ty,
+            });
+            if parameter.property != ast::PrimaryParameterProperty::Plain {
+                field_names.insert(parameter.name.text.clone());
+                let field = self.class_fields.alloc(hir::ClassField {
+                    owner: id,
+                    name: parameter.name.text.clone(),
+                    ty,
+                    mutable: parameter.property.is_mutable(),
+                    source: hir::ClassFieldSource::PrimaryParameter(parameter_id),
+                    span: parameter.span,
+                });
+                fields.push(field);
+            }
+            parameter_calling.push(calling);
+        }
+        for property in decl.members.iter().filter_map(|member| match member {
+            ast::ClassMember::StoredProperty(property) => Some(property),
+            _ => None,
+        }) {
+            if !field_names.insert(property.name.text.clone()) {
+                self.error(
+                    property.name.span,
+                    format!(
+                        "duplicate field `{}` in class `{}`",
+                        property.name.text, decl.name.text
                     ),
                 );
                 continue;
             }
-            let Some((ty, calling)) = self.resolve_parameter(&prop.ty, &prop.syntax) else {
-                continue; // diagnostic already recorded
-            };
-            if prop.property == ast::PrimaryParameterProperty::Plain {
-                self.error(
-                    prop.span,
-                    "ordinary primary constructor parameters require M19 constructor lowering"
-                        .to_string(),
-                );
+            let Some(ty) = self.resolve_type_ref(&property.ty) else {
                 continue;
-            }
-            props.push(hir::ConstructorField {
-                parameter: hir::ConstructorParamId::from_raw(props.len() as u32),
-                name: prop.name.text.clone(),
+            };
+            let field = self.class_fields.alloc(hir::ClassField {
+                owner: id,
+                name: property.name.text.clone(),
                 ty,
-                mutable: prop.property.is_mutable(),
+                mutable: property.mutable,
+                source: hir::ClassFieldSource::Body,
+                span: property.span,
             });
-            parameter_calling.push(calling);
+            fields.push(field);
         }
-        self.classes[id].representation = hir::ClassRepresentation::Declared(props);
-        self.class_parameter_calling.insert(id, parameter_calling);
+        self.classes[id].representation = hir::ClassRepresentation::Declared;
+        self.classes[id].fields = fields;
+        let has_explicit_primary = !decl.constructor.is_omitted();
+        let should_synthesize_primary =
+            decl.constructor.is_omitted() && decl.secondary_constructors().next().is_none();
+        if has_explicit_primary || should_synthesize_primary {
+            let constructor = self.class_constructors.alloc(hir::ClassConstructor {
+                owner: id,
+                parameters,
+                kind: hir::ClassConstructorKind::Primary {
+                    base: hir::BaseInitialization::Root,
+                    primary_stores: Vec::new(),
+                    common_initialization: Vec::new(),
+                },
+                span: decl.span,
+                origin: self.definition_origin(decl.span),
+            });
+            self.classes[id].constructors.push(constructor);
+            self.class_parameter_calling
+                .insert(constructor, parameter_calling);
+        }
+
+        for source in decl.secondary_constructors() {
+            let mut parameters = Vec::with_capacity(source.params.len());
+            let mut callings = Vec::with_capacity(source.params.len());
+            let mut names = std::collections::HashSet::new();
+            for parameter in &source.params {
+                if !names.insert(parameter.name.text.clone()) {
+                    self.error(
+                        parameter.name.span,
+                        format!("duplicate constructor parameter `{}`", parameter.name.text),
+                    );
+                    continue;
+                }
+                let Some(resolved) = self.resolve_fn_param(parameter) else {
+                    continue;
+                };
+                parameters.push(hir::ConstructorParameter {
+                    id: self.fresh_constructor_parameter(),
+                    name: resolved.name.text,
+                    ty: resolved.ty,
+                });
+                callings.push(resolved.calling);
+            }
+            let constructor = self.class_constructors.alloc(hir::ClassConstructor {
+                owner: id,
+                parameters,
+                kind: hir::ClassConstructorKind::Secondary {
+                    delegation: hir::ClassSecondaryDelegation::Terminal {
+                        base: hir::BaseInitialization::Root,
+                        common_initialization: Vec::new(),
+                    },
+                    body: hir::Body {
+                        locals: la_arena::Arena::new(),
+                        statements: Vec::new(),
+                    },
+                },
+                span: source.span,
+                origin: self.definition_origin(source.span),
+            });
+            self.classes[id].constructors.push(constructor);
+            self.class_parameter_calling.insert(constructor, callings);
+        }
 
         self.resolve_class_supertypes(id, &decl.supertypes);
         self.type_params_in_scope.clear();
@@ -81,14 +192,7 @@ impl Lowerer {
                         );
                         continue;
                     }
-                    base = Some((
-                        ty,
-                        hir::ConstructorDelegation {
-                            locals: la_arena::Arena::new(),
-                            statements: Vec::new(),
-                            args: Vec::new(),
-                        },
-                    ));
+                    base = Some(ty);
                 }
                 Type::Interface(_) => {
                     if spec.constructor_arguments.is_some() {

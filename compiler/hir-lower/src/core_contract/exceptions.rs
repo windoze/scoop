@@ -21,12 +21,15 @@ impl Lowerer {
         };
         self.current_file = self.class_files[&id];
         let declaration = &self.classes[id];
+        let zero_arg = declaration
+            .constructors
+            .iter()
+            .copied()
+            .find(|constructor| self.class_constructors[*constructor].parameters.is_empty());
         let valid = declaration.modifier == hir::ClassModifier::Final
             && declaration.type_params.is_empty()
-            && matches!(
-                &declaration.representation,
-                hir::ClassRepresentation::Declared(constructor) if constructor.is_empty()
-            )
+            && declaration.is_declared()
+            && zero_arg.is_some()
             && self.class_descends_from(id, throwable);
         if !valid {
             self.error(
@@ -36,8 +39,11 @@ impl Lowerer {
                 ),
             );
         }
-        Some(hir::CompilerException {
-            constructor: hir::ZeroArgClassConstructor { class: id },
+        zero_arg.map(|constructor| hir::CompilerException {
+            constructor: hir::ZeroArgClassConstructor {
+                class: id,
+                constructor,
+            },
         })
     }
 
@@ -48,12 +54,15 @@ impl Lowerer {
         let throwable = self.throwable.map(|(id, _)| id)?;
         self.current_file = self.class_files[&throwable];
         let declaration = &self.classes[throwable];
+        let zero_arg = declaration
+            .constructors
+            .iter()
+            .copied()
+            .find(|constructor| self.class_constructors[*constructor].parameters.is_empty());
         let valid_throwable = declaration.modifier == hir::ClassModifier::Open
             && declaration.type_params.is_empty()
-            && matches!(
-                &declaration.representation,
-                hir::ClassRepresentation::Declared(constructor) if constructor.is_empty()
-            );
+            && declaration.is_declared()
+            && zero_arg.is_some();
         if !valid_throwable {
             self.error(
                 declaration.span,
@@ -62,7 +71,10 @@ impl Lowerer {
             );
         }
         let throwable = hir::CompilerException {
-            constructor: hir::ZeroArgClassConstructor { class: throwable },
+            constructor: hir::ZeroArgClassConstructor {
+                class: throwable,
+                constructor: zero_arg?,
+            },
         };
         Some(hir::CompilerExceptionCore {
             throwable,

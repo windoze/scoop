@@ -65,7 +65,7 @@ impl Lowerer {
                             0,
                         )
                     }));
-                    let Some((base, _)) = self.classes[class].base_class.clone() else {
+                    let Some(base) = self.classes[class].base_class else {
                         break;
                     };
                     let base = self.instantiate_ty(base, &application_value.arguments);

@@ -15,6 +15,7 @@ pub type StructId = Idx<StructDef>;
 pub type EnumId = Idx<EnumDef>;
 pub type ClassId = Idx<ClassDef>;
 pub type ClassConstructorId = Idx<ClassConstructor>;
+pub type StructConstructorId = Idx<StructConstructor>;
 pub type InterfaceId = Idx<InterfaceDef>;
 pub type LocalId = Idx<Local>;
 

@@ -15,6 +15,20 @@ impl Lowerer {
                 return self.lower_qualified_variant(enum_id, access, expected);
             }
         }
+        if matches!(&*access.receiver, ast::Expr::This { .. })
+            && self.initialization_context.is_some()
+        {
+            let ast::FieldSelector::Name(name) = &access.selector else {
+                self.error(
+                    access.span,
+                    "an initializing receiver only supports direct named field access".into(),
+                );
+                return None;
+            };
+            return self
+                .initializing_field(name, access.span)
+                .map(|field| field.read);
+        }
         let receiver = self.lower_expr(&access.receiver, sink, None)?;
         // `array.size` (spec 10.5): the pseudo-property resolves on
         // both array kinds; any other receiver keeps the ordinary
@@ -317,7 +331,7 @@ impl Lowerer {
                 let class_name = self.classes[class_id].name.clone();
                 match selector {
                     ast::FieldSelector::Name(field) => {
-                        let Some((declaring, index, ty, _)) =
+                        let Some((declaring, field, ty, _)) =
                             self.find_class_application_field(application, &field.text)
                         else {
                             self.error(
@@ -329,7 +343,7 @@ impl Lowerer {
                         Some((
                             hir::FieldRef::ClassField {
                                 application: declaring,
-                                index,
+                                field,
                             },
                             ty,
                         ))

@@ -112,6 +112,20 @@ impl Lowerer {
                 name,
                 span,
             } => {
+                if matches!(&**receiver, ast::Expr::This { .. })
+                    && self.initialization_context.is_some()
+                {
+                    let field = self.initializing_field(name, *span)?;
+                    let write = field
+                        .write
+                        .map(WriteCapability::Direct)
+                        .unwrap_or(WriteCapability::ReadOnly);
+                    return Some(ResolvedPlacePlan {
+                        ty: field.read.ty,
+                        read: field.read,
+                        write,
+                    });
+                }
                 let receiver = self.lower_expr(receiver, sink, None)?;
                 let receiver = self.materialize_place_expr(receiver, "place", *span, sink);
                 let application = match self.types[receiver.ty] {
@@ -130,7 +144,7 @@ impl Lowerer {
                         return None;
                     }
                 };
-                let Some((declaring, index, ty, mutable)) =
+                let Some((declaring, field_id, ty, mutable)) =
                     self.find_class_application_field(application, &name.text)
                 else {
                     let class = self.classes[self.class_applications[application].template]
@@ -144,7 +158,7 @@ impl Lowerer {
                 };
                 let field = hir::FieldRef::ClassField {
                     application: declaring,
-                    index,
+                    field: field_id,
                 };
                 let read = hir::Expr {
                     kind: hir::ExprKind::FieldAccess {
@@ -232,15 +246,28 @@ impl Lowerer {
                 write: WriteCapability::ReadOnly,
             });
         }
+        if self.initialization_context.is_some() && self.initializing_receiver_has_field(&name.text)
+        {
+            let field = self.initializing_field(name, name.span)?;
+            let write = field
+                .write
+                .map(WriteCapability::Direct)
+                .unwrap_or(WriteCapability::ReadOnly);
+            return Some(ResolvedPlacePlan {
+                ty: field.read.ty,
+                read: field.read,
+                write,
+            });
+        }
         if let Some(Type::Class(application)) =
             self.current_this_ty().map(|ty| self.types[ty].clone())
-            && let Some((declaring, index, ty, mutable)) =
+            && let Some((declaring, field_id, ty, mutable)) =
                 self.find_class_application_field(application, &name.text)
         {
             let receiver = self.lower_current_this(name.span)?;
             let field = hir::FieldRef::ClassField {
                 application: declaring,
-                index,
+                field: field_id,
             };
             let read = hir::Expr {
                 kind: hir::ExprKind::FieldAccess {

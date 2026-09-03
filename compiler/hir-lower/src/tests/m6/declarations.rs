@@ -93,15 +93,31 @@ fn class_and_interface_structure() {
 
     let shape = &module.classes[shape_id];
     assert_eq!(shape.modifier, hir::ClassModifier::Open);
-    assert_eq!(shape.semantic_constructor().len(), 1);
+    assert_eq!(
+        module.class_constructors[shape.constructors[0]]
+            .parameters
+            .len(),
+        1
+    );
     assert_eq!(shape.interfaces, vec![interface_ty(&module, "Describable")]);
 
     // Base-class clause with the lowered delegation arguments.
     let point = &module.classes[point_id];
-    let (base, delegation) = point.base_class.as_ref().expect("Point has a base");
+    let base = point.base_class.as_ref().expect("Point has a base");
     assert!(matches!(module.types[*base], hir::Type::Class(application)
         if module.class_applications[application].template == shape_id
             && module.class_applications[application].arguments.is_empty()));
+    let hir::ClassConstructorKind::Primary {
+        base:
+            hir::BaseInitialization::Super {
+                arguments: delegation,
+                ..
+            },
+        ..
+    } = &module.class_constructors[point.constructors[0]].kind
+    else {
+        panic!("Point primary constructor delegates to Shape")
+    };
     assert_eq!(delegation.args.len(), 1);
     assert!(delegation.statements.iter().any(|statement| matches!(
         statement.kind,
@@ -234,13 +250,16 @@ fn class_field_layout_is_base_prefix_then_own() {
     let point_id = class_id(&module, "Point");
     let shape_id = class_id(&module, "Shape");
 
-    // Layout: Shape.name = 0, Point.x = 1, Point.y = 2.
+    let y_field = module.classes[point_id].fields[1];
+    let name_field = module.classes[shape_id].fields[0];
+    // Export HIR preserves declaration identities; concrete layout assigns
+    // the inherited prefix later.
     match &returned(body_of(&module, "get_y")).kind {
         hir::ExprKind::FieldAccess { field, .. } => assert_eq!(
             *field,
             hir::FieldRef::ClassField {
                 application: class_application(&module, point_id),
-                index: 2
+                field: y_field
             }
         ),
         other => panic!("expected a field access, found {other:?}"),
@@ -250,7 +269,7 @@ fn class_field_layout_is_base_prefix_then_own() {
             *field,
             hir::FieldRef::ClassField {
                 application: class_application(&module, shape_id),
-                index: 0
+                field: name_field
             }
         ),
         other => panic!("expected a field access, found {other:?}"),

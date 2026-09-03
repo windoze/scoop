@@ -28,32 +28,9 @@ impl Lowerer {
             );
             return None;
         }
-        let view = self.nominal_constructor_view(
-            crate::call_resolution::candidates::NominalConstructorSource::Struct(struct_id),
-        );
-        let argument_map =
-            match crate::call_resolution::arguments::CandidateArgumentMap::source_nominal(
-                &view, args,
-            ) {
-                Ok(argument_map) => argument_map,
-                Err(failure) => {
-                    self.diagnose_nominal_shape_failure(&view, span, failure.describe());
-                    return None;
-                }
-            };
+        let constructors = self.structs[struct_id].constructors.clone();
         let explicit_type_args = self.resolve_call_type_args(type_arg_refs)?;
-        let type_param_count = view.owner_parameters.len();
-        if !explicit_type_args.is_empty() && explicit_type_args.len() != type_param_count {
-            self.diagnose_nominal_shape_failure(
-                &view,
-                span,
-                format!(
-                    "expects {type_param_count} explicit type argument(s), but {} were supplied",
-                    explicit_type_args.len()
-                ),
-            );
-            return None;
-        }
+        let type_param_count = self.structs[struct_id].type_params.len();
         let expected_arguments = expected.and_then(|expected| {
             let Type::Struct(application) = self.types[expected] else {
                 return None;
@@ -62,35 +39,39 @@ impl Lowerer {
             (application.template == struct_id && application.arguments.len() == type_param_count)
                 .then(|| application.arguments.clone())
         });
-        let inferred = self.lower_nominal_arguments(NominalArgumentInput {
-            view: &view,
-            argument_map: &argument_map,
-            expressions: args,
-            explicit_type_args: &explicit_type_args,
-            expected_type_args: expected_arguments.as_deref(),
-            span,
-        })?;
-        let type_args = inferred.type_args;
-        let adapted = self.materialize_nominal_arguments(
-            crate::argument_materialization::NominalArgumentMaterialization {
-                view: &view,
-                argument_map: &argument_map,
-                type_args: &type_args,
-                source_args: inferred.args,
-                argument_sinks: inferred.argument_sinks,
-                call_span: span,
+        let candidates = constructors
+            .iter()
+            .copied()
+            .map(crate::call_resolution::candidates::NominalConstructorSource::Struct)
+            .collect::<Vec<_>>();
+        let resolved = self.resolve_nominal_constructor_overload(
+            &name,
+            &candidates,
+            crate::constructor_resolution::NominalConstructorCall {
+                explicit_type_args: &explicit_type_args,
+                expected_type_args: expected_arguments.as_deref(),
+                arguments: args,
+                span,
             },
             sink,
-        );
+        )?;
+        let crate::call_resolution::candidates::NominalConstructorSource::Struct(
+            source_constructor,
+        ) = resolved.source
+        else {
+            unreachable!("struct construction has only struct constructor candidates")
+        };
+        let type_args = resolved.type_args;
         let application = self.struct_application_id(struct_id, type_args);
+        let constructor = self.struct_constructor_application(source_constructor, application);
         let ty = self.struct_applications[application].canonical_type;
         debug_assert!(
             !self.structs[struct_id].type_params.is_empty() || self.types_equal(ty, definition_ty)
         );
         Some(hir::Expr {
             kind: ExprKind::StructInit {
-                application,
-                args: adapted,
+                constructor,
+                args: resolved.args,
             },
             ty,
             span,

@@ -80,7 +80,8 @@
 //! receiver's static type: class receiver → `Virtual`, interface
 //! receiver → `Interface`, value type → `Direct`; member functions
 //! are mangled qualified (`scoop.Point.describe`) so same-named
-//! methods never collide. Every value type that reaches `Any` / an
+//! methods never collide. A direct `super` call carries a distinct HIR proof
+//! and always becomes `CallKind::Direct`. Every value type that reaches `Any` / an
 //! interface (`Box`, `is`, `as`) gets a boxed `ClassDef` (`box$<ty>`):
 //! its vtable contains only ordinary virtual methods, and its itable
 //! slots point at adjust thunks that unbox `this` and
@@ -89,16 +90,11 @@
 //! boxed to. `as` throws `ClassCastException` on failure (M8); `as?`
 //! wraps in `Option` like `!!` does. Reference identity is expressed
 //! only by `===` / `!==` (`RefEq` / `RefNe`) and maps to a primitive
-//! pointer comparison. Class construction is function-ized: every
-//! non-abstract class gets a `scoop.ctor.<Class>` function whose
-//! parameters are the constructor properties and whose body returns a
-//! raw `smir::ExprKind::ClassInit` over the flattened field values (the
-//! base delegation arguments are evaluated in the ctor context —
-//! hir-lower M6 lowers them in an empty scope — and expanded
-//! recursively down the base chain; base ctors are never called, so
-//! the object identity is a single allocation). A
-//! `hir::ExprKind::ClassInit` at a use site becomes a plain `Direct`
-//! call to that function.
+//! pointer comparison. M19 class construction evaluates all arguments, emits
+//! one exact `ClassAlloc`, and direct-calls a Unit initializer with the new
+//! object as its hidden first parameter. Base and `this` initializer edges
+//! call another typed initializer on that same object. Struct constructors
+//! are separate value-returning hidden callables.
 
 use std::collections::{HashMap, HashSet};
 
@@ -160,6 +156,7 @@ pub fn lower(module: &hir::Module) -> mir::Module {
         enums: EnumRegistry::default(),
         boxed: BoxedRegistry::default(),
         ctors: HashMap::new(),
+        struct_ctors: HashMap::new(),
         shell: mangling_shell(&Arena::new(), &Arena::new(), &Arena::new(), &Arena::new()),
         overloaded: overloaded_names(module),
         option_variants: (0, 0),
@@ -217,6 +214,8 @@ struct Lowerer {
     boxed: BoxedRegistry,
     /// Local-concrete hidden constructor callable -> MIR function.
     ctors: HashMap<hir::ClassConstructorId, mir::FunctionId>,
+    /// Local-concrete value constructor -> MIR hidden callable.
+    struct_ctors: HashMap<hir::StructConstructorId, mir::FunctionId>,
     /// Mangling shell: the struct / enum / class / interface names
     /// `mir::encode_type` reads, kept in sync with the real arenas
     /// (same ids).

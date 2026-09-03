@@ -158,7 +158,7 @@ fn try_catch_finally_golden() {
           Local $parameter.code : Int
     catch e: MyError
       val local13
-        FieldAccess class field 1 : Int
+        FieldAccess class field code : Int
           Local e : MyError
       val local14
         Local $argument.0 : Int
@@ -281,9 +281,20 @@ fn bare_class_supertype_is_classified_as_the_base() {
         .iter()
         .find(|(_, class)| class.name == "E")
         .expect("E is declared");
-    let (base, delegation) = class.base_class.as_ref().expect("E has a base class");
+    let base = class.base_class.as_ref().expect("E has a base class");
     assert!(matches!(module.types[*base], hir::Type::Class(application)
         if module.classes[module.class_applications[application].template].name == "Throwable"));
+    let hir::ClassConstructorKind::Primary {
+        base:
+            hir::BaseInitialization::Super {
+                arguments: delegation,
+                ..
+            },
+        ..
+    } = &module.class_constructors[class.constructors[0]].kind
+    else {
+        panic!("E delegates to Throwable")
+    };
     assert!(delegation.args.is_empty());
 }
 

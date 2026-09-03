@@ -164,29 +164,36 @@ fn generic_structs_instantiate_per_argument_list() {
         };
         module.structs[*id].name.as_str()
     };
-    let mir::StatementKind::ValDecl { local: la, .. } = entry_statements(body)[0].kind else {
-        panic!()
-    };
-    let mir::StatementKind::ValDecl { local: lb, .. } = entry_statements(body)[1].kind else {
-        panic!()
-    };
-    let mir::StatementKind::ValDecl { local: lc, .. } = entry_statements(body)[2].kind else {
-        panic!()
-    };
-    let mir::StatementKind::ValDecl { local: ld, .. } = entry_statements(body)[3].kind else {
-        panic!()
-    };
+    let (first_constructor, la) = statement_call(&entry_statements(body)[0]);
+    let (_, lb) = statement_call(&entry_statements(body)[1]);
+    let (_, lc) = statement_call(&entry_statements(body)[2]);
+    let (_, ld) = statement_call(&entry_statements(body)[3]);
+    let (la, lb, lc, ld) = (
+        la.expect("struct constructor returns its value"),
+        lb.expect("struct constructor returns its value"),
+        lc.expect("struct constructor returns its value"),
+        ld.expect("struct constructor returns its value"),
+    );
     assert_eq!(instance_of(la), "PinnedPtr$V");
     assert_eq!(instance_of(lb), "PinnedPtr$S");
     assert_eq!(instance_of(lc), "PinnedPtr$S");
     assert_eq!(instance_of(ld), "Box2$S");
-    let mir::StatementKind::ValDecl { init, .. } = &entry_statements(body)[0].kind else {
-        panic!()
+    let mir::Callee::User(first_constructor) = first_constructor.target.callee else {
+        panic!("a struct constructor is a direct user function")
     };
-    let mir::ExprKind::StructInit { struct_id, .. } = init.kind else {
-        panic!("a struct construction")
+    let mir::Terminator::Return {
+        value:
+            Some(mir::Expr {
+                kind: mir::ExprKind::StructInit { struct_id, .. },
+                ..
+            }),
+    } = &module.functions[first_constructor].body.blocks
+        [module.functions[first_constructor].body.entry]
+        .terminator
+    else {
+        panic!("a primary struct constructor returns a StructInit")
     };
-    assert_eq!(module.structs[struct_id].name, "PinnedPtr$V");
+    assert_eq!(module.structs[*struct_id].name, "PinnedPtr$V");
 }
 
 #[test]

@@ -42,6 +42,7 @@ mod construction;
 mod declarations;
 mod hierarchy;
 mod inheritance;
+mod initialization;
 mod lookup;
 mod methods;
 mod variance;

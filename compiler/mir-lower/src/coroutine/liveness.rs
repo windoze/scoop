@@ -230,7 +230,6 @@ fn expr_uses(expr: &mir::Expr, uses: &mut HashSet<mir::LocalId>) {
         mir::ExprKind::TupleLiteral(elements)
         | mir::ExprKind::ArrayLiteral { elements, .. }
         | mir::ExprKind::StructInit { args: elements, .. }
-        | mir::ExprKind::ClassInit { args: elements, .. }
         | mir::ExprKind::ClosureAlloc {
             captures: elements, ..
         }
@@ -328,7 +327,8 @@ fn expr_uses(expr: &mir::Expr, uses: &mut HashSet<mir::LocalId>) {
         mir::ExprKind::AddressOf { local, .. } => {
             uses.insert(*local);
         }
-        mir::ExprKind::StringConst(_)
+        mir::ExprKind::ClassAlloc { .. }
+        | mir::ExprKind::StringConst(_)
         | mir::ExprKind::IntLiteral(_)
         | mir::ExprKind::BoolLiteral(_)
         | mir::ExprKind::UnitLiteral

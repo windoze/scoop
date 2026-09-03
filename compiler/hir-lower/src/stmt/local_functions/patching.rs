@@ -37,6 +37,7 @@ pub(super) fn patch_local_function_calls(
                     hir::AssignTarget::Field { receiver, .. } => {
                         patch_local_function_call_expr(receiver, target, captures);
                     }
+                    hir::AssignTarget::InitializingClassField { .. } => {}
                 }
                 patch_local_function_call_expr(value, target, captures);
             }
@@ -199,6 +200,7 @@ fn patch_local_function_call_expr(
             patch_local_function_call_expr(receiver, target, target_captures)
         }
         hir::ExprKind::MethodCall { receiver, args, .. }
+        | hir::ExprKind::DirectSuperMethodCall { receiver, args, .. }
         | hir::ExprKind::CallableCall {
             callee: receiver,
             args,
@@ -259,6 +261,8 @@ fn patch_local_function_call_expr(
         | hir::ExprKind::UnitLiteral
         | hir::ExprKind::Local(_)
         | hir::ExprKind::ConstructorParam(_)
+        | hir::ExprKind::InitializingClassFieldAccess { .. }
+        | hir::ExprKind::InitializingStructFieldAccess { .. }
         | hir::ExprKind::GlobalRead(_)
         | hir::ExprKind::Capture(_)
         | hir::ExprKind::Lambda(_)

@@ -223,8 +223,15 @@ impl Lowerer {
 
     fn nominal_value_name(&self, target: NominalConstructorSource) -> String {
         match target {
-            NominalConstructorSource::Struct(structure) => self.structs[structure].name.clone(),
-            NominalConstructorSource::Class(class) => self.classes[class].name.clone(),
+            NominalConstructorSource::Struct(constructor) => self.structs
+                [self.struct_constructors[constructor].owner]
+                .name
+                .clone(),
+            NominalConstructorSource::Class(constructor) => self.classes
+                [self.class_constructors[constructor].owner]
+                .name
+                .clone(),
+            NominalConstructorSource::IntrinsicClass(class) => self.classes[class].name.clone(),
             NominalConstructorSource::Variant {
                 enumeration,
                 variant,
@@ -377,13 +384,18 @@ impl Lowerer {
             })
             .or_else(|| {
                 self.classes_by_name.get(name).map(|(class_id, _)| {
+                    let constructor = self.classes[*class_id].constructors.first().copied();
                     (
                         self.classes[*class_id].type_params.len(),
-                        self.classes[*class_id]
-                            .semantic_constructor()
-                            .iter()
-                            .map(|field| field.ty)
-                            .collect(),
+                        constructor
+                            .map(|constructor| {
+                                self.class_constructors[constructor]
+                                    .parameters
+                                    .iter()
+                                    .map(|parameter| parameter.ty)
+                                    .collect()
+                            })
+                            .unwrap_or_default(),
                     )
                 })
             })

@@ -69,15 +69,69 @@ pub struct ClassDef {
 #[derive(Debug, Clone)]
 pub struct ClassConstructor {
     pub class: ClassId,
-    pub params: Vec<TypeId>,
-    pub return_type: TypeId,
+    pub source_discriminator: u32,
+    pub parameters: Vec<ConstructorParameter>,
+    pub kind: ClassConstructorKind,
+}
+
+#[derive(Debug, Clone)]
+pub struct ConstructorParameter {
+    pub id: ConstructorParamId,
+    pub name: String,
+    pub ty: TypeId,
+}
+
+#[derive(Debug, Clone)]
+pub enum ClassConstructorKind {
+    This {
+        target: ClassConstructorId,
+        body: Body,
+    },
+    Terminal {
+        body: Body,
+    },
+}
+
+impl ClassConstructor {
+    pub fn body(&self) -> &Body {
+        match &self.kind {
+            ClassConstructorKind::This { body, .. } | ClassConstructorKind::Terminal { body } => {
+                body
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct StructConstructor {
+    pub structure: StructId,
+    pub source_discriminator: u32,
+    pub parameters: Vec<ConstructorParameter>,
+    pub kind: StructConstructorKind,
+}
+
+#[derive(Debug, Clone)]
+pub enum StructConstructorKind {
+    Primary,
+    Secondary {
+        target: StructConstructorId,
+        arguments: ConstructorArguments,
+        body: Body,
+    },
+}
+
+#[derive(Debug, Clone)]
+pub struct ConstructorArguments {
+    pub locals: Arena<Local>,
+    pub statements: Vec<Statement>,
+    pub args: Vec<Expr>,
 }
 
 #[derive(Debug, Clone)]
 pub enum ClassRepresentation {
     Declared {
-        constructor: Vec<ConstructorField>,
-        base_class: Option<(ClassId, ConstructorDelegation)>,
+        fields: Vec<Field>,
+        base_class: Option<ClassId>,
     },
     Intrinsic {
         declaration: IntrinsicTypeDeclaration,
@@ -85,27 +139,19 @@ pub enum ClassRepresentation {
     },
 }
 
-/// Concrete, closed evaluation plan for a primary-constructor delegation.
-#[derive(Debug, Clone)]
-pub struct ConstructorDelegation {
-    pub locals: Arena<Local>,
-    pub statements: Vec<Statement>,
-    pub args: Vec<Expr>,
-}
-
 impl ClassDef {
-    pub fn declared_constructor(&self) -> &[ConstructorField] {
+    pub fn declared_fields(&self) -> &[Field] {
         match &self.representation {
-            ClassRepresentation::Declared { constructor, .. } => constructor,
+            ClassRepresentation::Declared { fields, .. } => fields,
             ClassRepresentation::Intrinsic { .. } => {
                 panic!("an intrinsic class has no source constructor representation")
             }
         }
     }
 
-    pub fn base_class(&self) -> Option<&(ClassId, ConstructorDelegation)> {
+    pub fn base_class(&self) -> Option<ClassId> {
         match &self.representation {
-            ClassRepresentation::Declared { base_class, .. } => base_class.as_ref(),
+            ClassRepresentation::Declared { base_class, .. } => *base_class,
             ClassRepresentation::Intrinsic { .. } => None,
         }
     }
@@ -121,14 +167,6 @@ pub enum IntrinsicTypeRepresentation {
     String,
     Array { element: TypeId },
     MutableArray { element: TypeId },
-}
-
-#[derive(Debug, Clone)]
-pub struct ConstructorField {
-    pub parameter: ConstructorParamId,
-    pub name: String,
-    pub ty: TypeId,
-    pub mutable: bool,
 }
 
 #[derive(Debug, Clone)]

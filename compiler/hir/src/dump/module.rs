@@ -70,10 +70,20 @@ pub fn dump(module: &Module) -> String {
             ClassModifier::Abstract => "abstract ",
         };
         let ctor: Vec<String> = decl
-            .semantic_constructor()
+            .constructors
             .iter()
-            .map(|f| format!("{}: {}", f.name, type_name(module, f.ty)))
-            .collect();
+            .map(|constructor| &module.class_constructors[*constructor])
+            .find(|constructor| matches!(constructor.kind, ClassConstructorKind::Primary { .. }))
+            .map(|constructor| {
+                constructor
+                    .parameters
+                    .iter()
+                    .map(|parameter| {
+                        format!("{}: {}", parameter.name, type_name(module, parameter.ty))
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
         let type_params = if decl.type_params.is_empty() {
             String::new()
         } else {

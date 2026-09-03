@@ -121,8 +121,8 @@ pub struct ExportVarargParameterType {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExportParameterOwner {
     Function(FunctionId),
-    StructConstructor(StructId),
-    ClassConstructor(ClassId),
+    StructConstructor(StructConstructorId),
+    ClassConstructor(ClassConstructorId),
     VariantConstructor { enumeration: EnumId, variant: u32 },
 }
 
@@ -205,8 +205,8 @@ pub struct ExportDefaultConstructorRef {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExportDefaultConstructorTarget {
-    Struct(StructApplicationId),
-    Class(ClassApplicationId),
+    Struct(StructConstructorApplicationId),
+    Class(ClassConstructorApplicationId),
     Variant {
         application: EnumApplicationId,
         variant: u32,

@@ -31,35 +31,19 @@ impl<'a> FunctionLowerer<'a> {
                 let args: Vec<lir::Value> = args.iter().map(|arg| self.lower_expr(arg)).collect();
                 self.make_aggregate(ty, args)
             }
-            // Raw class construction (only ever inside mir-lower's
-            // generated ctor functions): `scoop_rt_alloc(td, size)`,
-            // then one heap store per flattened field (the header is
-            // followed by naturally aligned fields at fixed byte
-            // offsets).
-            mir::ExprKind::ClassInit { class_id, args } => {
+            // Exact class allocation. The allocator returns only after the
+            // complete payload has been zeroed and registered for precise
+            // scanning; typed initializer calls perform all field stores.
+            mir::ExprKind::ClassAlloc { class_id } => {
                 let def = &self.module.classes[*class_id];
-                let (field_offsets, size, _) = class_shape(self.module, self.enums, def);
-                assert_eq!(
-                    args.len(),
-                    def.declared_fields().len(),
-                    "a ClassInit initializes every flattened field"
-                );
+                let (_, size, _) = class_shape(self.module, self.enums, def);
                 let td = self.td_ref(&mir::Type::Class(*class_id));
-                let object = self.emit_plain_call(
+                self.emit_plain_call(
                     LoweredCallDestination::managed_runtime(lir::ManagedRuntimeFunction::Alloc),
                     vec![lir::METADATA_PTR, lir::LirType::I64],
                     lir::MANAGED_PTR,
                     vec![td, lir::Value::IntConst(size as i64)],
-                );
-                for (arg, offset) in args.iter().zip(field_offsets) {
-                    let value = self.lower_expr(arg);
-                    self.push(lir::Instruction::HeapStore {
-                        object,
-                        offset,
-                        value,
-                    });
-                }
-                object
+                )
             }
             mir::ExprKind::ClosureAlloc { class, captures } => {
                 let def = &self.module.closure_classes[*class];

@@ -130,6 +130,7 @@ impl Lowerer {
                         hir::AssignTarget::Field { receiver, .. } => {
                             self.collect_generic_calls_in_expr(caller, receiver, out);
                         }
+                        hir::AssignTarget::InitializingClassField { .. } => {}
                     }
                     self.collect_generic_calls_in_expr(caller, value, out);
                 }
@@ -224,6 +225,8 @@ impl Lowerer {
             | ExprKind::UnitLiteral
             | ExprKind::Local(_)
             | ExprKind::ConstructorParam(_)
+            | ExprKind::InitializingClassFieldAccess { .. }
+            | ExprKind::InitializingStructFieldAccess { .. }
             | ExprKind::GlobalRead(_)
             | ExprKind::Capture(_)
             | ExprKind::Lambda(_)
@@ -350,6 +353,11 @@ impl Lowerer {
                 self.collect_generic_calls_in_expr(caller, receiver, out);
             }
             ExprKind::MethodCall {
+                receiver,
+                callee,
+                args,
+            }
+            | ExprKind::DirectSuperMethodCall {
                 receiver,
                 callee,
                 args,

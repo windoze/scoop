@@ -42,11 +42,9 @@ fn class_field_reads_are_heap_loads() {
 }
 
 #[test]
-fn class_init_allocates_and_stores_fields() {
-    // The ctor body mir-lower generates for
-    // `class Point(val x: Int, val s: String)`:
-    // `return ClassInit Point [x, s]` — allocation plus one heap
-    // store per flattened field.
+fn class_allocation_and_initializer_store_fields() {
+    // M19 splits class construction into an exact allocation at the use site
+    // and a Unit-returning initializer call on the same receiver.
     let mut b = Builder::new();
     let str_x = b.string("x");
     let point = b.class(
@@ -57,44 +55,59 @@ fn class_init_allocates_and_stores_fields() {
         vec![],
     );
     let mut ctor_locals = Arena::new();
+    let this = ctor_locals.alloc(local("this", mir::Type::Class(point)));
     let x = ctor_locals.alloc(local("x", mir::Type::Int));
     let s = ctor_locals.alloc(local("s", mir::Type::String));
     let ctor = b.user_fn_body(
-        "ctor.Point",
-        "scoop.ctor.Point",
+        "init.Point.$c0",
+        "scoop.init.Point.$c0",
         vec![
+            param("this", mir::Type::Class(point), this),
             param("x", mir::Type::Int, x),
             param("s", mir::Type::String, s),
         ],
-        mir::Type::Class(point),
-        returning_body(
+        mir::Type::Unit,
+        body_with_terminator(
             ctor_locals,
-            expr(
-                mir::Type::Class(point),
-                mir::ExprKind::ClassInit {
-                    class_id: point,
-                    args: vec![
-                        local_expr(x, mir::Type::Int),
-                        local_expr(s, mir::Type::String),
-                    ],
-                },
-            ),
+            vec![
+                stmt(mir::StatementKind::FieldSet {
+                    object: local_expr(this, mir::Type::Class(point)),
+                    index: 0,
+                    value: local_expr(x, mir::Type::Int),
+                }),
+                stmt(mir::StatementKind::FieldSet {
+                    object: local_expr(this, mir::Type::Class(point)),
+                    index: 1,
+                    value: local_expr(s, mir::Type::String),
+                }),
+            ],
+            mir::Terminator::Return { value: None },
         ),
     );
     let mut locals = Arena::new();
     let p = locals.alloc(local("p", mir::Type::Class(point)));
     let main = b.main(
         locals,
-        vec![call_value(
-            p,
-            mir::Call {
+        vec![
+            val_decl(
+                p,
+                expr(
+                    mir::Type::Class(point),
+                    mir::ExprKind::ClassAlloc { class_id: point },
+                ),
+            ),
+            call_stmt(mir::Call {
                 target: mir::CallTarget {
                     kind: mir::CallKind::Direct,
                     callee: mir::Callee::User(ctor),
                 },
-                args: vec![mir::Expr::int(1), string_expr(str_x)],
-            },
-        )],
+                args: vec![
+                    local_expr(p, mir::Type::Class(point)),
+                    mir::Expr::int(1),
+                    string_expr(str_x),
+                ],
+            }),
+        ],
     );
     let module = lower(&b.finish(main));
 
@@ -104,19 +117,20 @@ fn class_init_allocates_and_stores_fields() {
     insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
   global @scoop.str.0 = "x"
-  fun @scoop.ctor.Point(i64, ptr<managed>) -> ptr<managed>
+  fun @scoop.init.Point.$c0(ptr<managed>, i64, ptr<managed>) -> void
   block entry
-    poll managed-void-target0 sp3 live=[param1:ptr<managed>@0]
-    call managed-direct-target0 sp1 live=[param1:ptr<managed>@0] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td0, 32)
-    heap_store t0 +16 param0
-    heap_store t0 +24 param1
-    ret t0
+    poll managed-void-target0 sp3 live=[param0:ptr<managed>@0, param2:ptr<managed>@0]
+    heap_store param0 +16 param1
+    heap_store param0 +24 param2
+    ret
   fun @scoop_main() -> void
     local %0 p: ptr<managed>
   block entry
-    poll managed-void-target0 sp4 live=[]
-    call managed-direct-target0 sp2 live=[] t0 = sig=direct0 (i64, ptr<managed>) -> ptr<managed> local-fn0(1, global0)
+    poll managed-void-target1 sp4 live=[]
+    call managed-direct-target0 sp1 live=[] t0 = sig=direct0 (ptr<metadata>, i64) -> ptr<managed> runtime @scoop_rt_alloc(td0, 32)
     store t0 -> local0
+    call managed-void-target0 sp2 live=[local0:ptr<managed>@0] sig=void0 (ptr<managed>, i64, ptr<managed>) local-fn0(local0, 1, global0)
+    t1 = aggregate () : {}
     ret
   td td0 Point @scoop_td_Point type-id=2 size=32 parent=none vtable=[] itables=[]
   layout String size=24 align=8 refs=[]

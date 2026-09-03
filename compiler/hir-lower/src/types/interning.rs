@@ -170,7 +170,7 @@ impl Lowerer {
             return application;
         }
         let intrinsic = match self.classes[template].representation {
-            hir::ClassRepresentation::Declared(_) => None,
+            hir::ClassRepresentation::Declared => None,
             hir::ClassRepresentation::Intrinsic(intrinsic) => Some(intrinsic),
         };
         let representation =
@@ -221,6 +221,48 @@ impl Lowerer {
     ) -> TypeId {
         let application = self.class_application_id(template, arguments);
         self.class_applications[application].canonical_type
+    }
+
+    pub(crate) fn class_constructor_application(
+        &mut self,
+        constructor: hir::ClassConstructorId,
+        owner: hir::ClassApplicationId,
+    ) -> hir::ClassConstructorApplicationId {
+        let key = (constructor, owner);
+        if let Some(&application) = self.class_constructor_application_by_key.get(&key) {
+            return application;
+        }
+        debug_assert_eq!(
+            self.class_constructors[constructor].owner,
+            self.class_applications[owner].template
+        );
+        let application = self
+            .class_constructor_applications
+            .alloc(hir::ClassConstructorApplication { constructor, owner });
+        self.class_constructor_application_by_key
+            .insert(key, application);
+        application
+    }
+
+    pub(crate) fn struct_constructor_application(
+        &mut self,
+        constructor: hir::StructConstructorId,
+        owner: hir::StructApplicationId,
+    ) -> hir::StructConstructorApplicationId {
+        let key = (constructor, owner);
+        if let Some(&application) = self.struct_constructor_application_by_key.get(&key) {
+            return application;
+        }
+        debug_assert_eq!(
+            self.struct_constructors[constructor].owner,
+            self.struct_applications[owner].template
+        );
+        let application = self
+            .struct_constructor_applications
+            .alloc(hir::StructConstructorApplication { constructor, owner });
+        self.struct_constructor_application_by_key
+            .insert(key, application);
+        application
     }
 
     pub(crate) fn interface_application_id(

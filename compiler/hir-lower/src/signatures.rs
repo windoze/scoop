@@ -45,7 +45,76 @@ impl Lowerer {
             parameter_calling.push(calling);
         }
         self.structs[id].representation = hir::StructRepresentation::Declared(fields);
-        self.struct_parameter_calling.insert(id, parameter_calling);
+        let fields = self.structs[id]
+            .semantic_fields()
+            .iter()
+            .map(|field| (field.name.clone(), field.ty))
+            .collect::<Vec<_>>();
+        let parameters = fields
+            .into_iter()
+            .map(|(name, ty)| hir::ConstructorParameter {
+                id: self.fresh_constructor_parameter(),
+                name,
+                ty,
+            })
+            .collect();
+        let constructor = self.struct_constructors.alloc(hir::StructConstructor {
+            owner: id,
+            parameters,
+            kind: hir::StructConstructorKind::Primary,
+            span: decl.span,
+            origin: self.definition_origin(decl.span),
+        });
+        self.structs[id].constructors.push(constructor);
+        self.struct_parameter_calling
+            .insert(constructor, parameter_calling);
+        let primary_application =
+            self.struct_constructor_application(constructor, self.structs[id].self_application);
+        for source in decl.secondary_constructors() {
+            let mut parameters = Vec::with_capacity(source.params.len());
+            let mut callings = Vec::with_capacity(source.params.len());
+            let mut names = HashSet::new();
+            for parameter in &source.params {
+                if !names.insert(parameter.name.text.clone()) {
+                    self.error(
+                        parameter.name.span,
+                        format!("duplicate constructor parameter `{}`", parameter.name.text),
+                    );
+                    continue;
+                }
+                let Some(resolved) = self.resolve_fn_param(parameter) else {
+                    continue;
+                };
+                parameters.push(hir::ConstructorParameter {
+                    id: self.fresh_constructor_parameter(),
+                    name: resolved.name.text,
+                    ty: resolved.ty,
+                });
+                callings.push(resolved.calling);
+            }
+            let constructor = self.struct_constructors.alloc(hir::StructConstructor {
+                owner: id,
+                parameters,
+                kind: hir::StructConstructorKind::Secondary {
+                    delegation: hir::StructConstructorDelegation {
+                        target: primary_application,
+                        arguments: hir::ConstructorArguments {
+                            locals: la_arena::Arena::new(),
+                            statements: Vec::new(),
+                            args: Vec::new(),
+                        },
+                    },
+                    body: hir::Body {
+                        locals: la_arena::Arena::new(),
+                        statements: Vec::new(),
+                    },
+                },
+                span: source.span,
+                origin: self.definition_origin(source.span),
+            });
+            self.structs[id].constructors.push(constructor);
+            self.struct_parameter_calling.insert(constructor, callings);
+        }
         self.type_params_in_scope.clear();
     }
 

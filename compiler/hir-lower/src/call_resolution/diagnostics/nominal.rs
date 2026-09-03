@@ -27,13 +27,21 @@ pub(crate) fn nominal_source_signature(lowerer: &Lowerer, view: &NominalConstruc
         .collect::<Vec<_>>()
         .join(", ");
     match view.target {
-        NominalConstructorSource::Struct(structure) => {
+        NominalConstructorSource::Struct(constructor) => {
+            let structure = lowerer.struct_constructors[constructor].owner;
             format!(
                 "struct {}{parameters}({fields})",
                 lowerer.structs[structure].name
             )
         }
-        NominalConstructorSource::Class(class) => {
+        NominalConstructorSource::Class(constructor) => {
+            let class = lowerer.class_constructors[constructor].owner;
+            format!(
+                "class {}{parameters}({fields})",
+                lowerer.classes[class].name
+            )
+        }
+        NominalConstructorSource::IntrinsicClass(class) => {
             format!(
                 "class {}{parameters}({fields})",
                 lowerer.classes[class].name

@@ -343,13 +343,22 @@ impl Lowerer {
                     }
                 }
             }
-            ast::Expr::SuperMethodCall { span, .. } => {
-                self.error(
-                    *span,
-                    "direct `super` method calls require M19 member resolution".to_string(),
-                );
-                None
-            }
+            ast::Expr::SuperMethodCall {
+                name,
+                type_args,
+                args,
+                span,
+                ..
+            } => self.lower_super_method_call(
+                name,
+                CallSite {
+                    type_args,
+                    args,
+                    span: *span,
+                },
+                sink,
+                expected,
+            ),
             ast::Expr::Is {
                 operand,
                 ty,

@@ -114,21 +114,14 @@ pub(super) fn rewrite_site(
         0,
         mir::Expr::int(i64::from(site.state)),
     ));
-    block
-        .statements
-        .push(statement(mir::StatementKind::ValDecl {
-            local: adapter_local,
-            init: mir::Expr::new(
-                mir::Type::Class(adapter.class),
-                mir::ExprKind::ClassInit {
-                    class_id: adapter.class,
-                    args: vec![
-                        mir::Expr::local(frame_local, mir::Type::Class(frame_class)),
-                        mir::Expr::int(ADAPTER_WAITING),
-                    ],
-                },
-            ),
-        }));
+    block.statements.extend(initialized_generated_class(
+        adapter_local,
+        adapter.class,
+        vec![
+            mir::Expr::local(frame_local, mir::Type::Class(frame_class)),
+            mir::Expr::int(ADAPTER_WAITING),
+        ],
+    ));
     call.args.push(mir::Expr::local(
         adapter_local,
         mir::Type::Class(adapter.class),

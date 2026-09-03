@@ -6,9 +6,73 @@ mod primitives;
 mod resolution;
 
 impl Lowerer {
+    /// Resolve `super.name(...)` from the exact direct-base application. No
+    /// extension, property-like, or interface layer participates, and the
+    /// resulting HIR variant preserves the mandatory direct-dispatch proof.
+    pub(super) fn lower_super_method_call(
+        &mut self,
+        name: &ast::Ident,
+        call: CallSite<'_>,
+        sink: &mut Vec<hir::Statement>,
+        expected: Option<TypeId>,
+    ) -> Option<hir::Expr> {
+        if self.initialization_context.is_some() {
+            self.error(
+                call.span,
+                "initializing receiver cannot escape before construction completes".into(),
+            );
+            return None;
+        }
+        let Some(mut receiver) = self.lower_current_this(call.span) else {
+            self.error(
+                call.span,
+                "`super` method calls are only allowed inside class member functions".into(),
+            );
+            return None;
+        };
+        let Type::Class(application) = self.types[receiver.ty] else {
+            self.error(
+                call.span,
+                "`super` method calls require a class receiver".into(),
+            );
+            return None;
+        };
+        let current = self.class_applications[application].clone();
+        let Some(base) = self.classes[current.template].base_class else {
+            self.error(
+                call.span,
+                format!(
+                    "class `{}` has no direct base for `super.{}`",
+                    self.classes[current.template].name, name.text
+                ),
+            );
+            return None;
+        };
+        let base = self.instantiate_ty(base, &current.arguments);
+        let Type::Class(base_application) = self.types[base] else {
+            unreachable!("a class direct base is a class application")
+        };
+        receiver.ty = base;
+        let candidates = self.methods_by_name(base, &name.text);
+        if candidates.is_empty() {
+            let base_name = self.classes[self.class_applications[base_application].template]
+                .name
+                .clone();
+            self.error(
+                name.span,
+                format!("base class `{base_name}` has no method `{}`", name.text),
+            );
+            return None;
+        }
+        self.finish_super_method_call(candidates, &name.text, receiver, call, sink, expected)
+    }
+
     /// `this` (M6): only inside member functions, where it is
     /// parameter 0 (`lower_body` registers it as a local).
     pub(super) fn lower_this(&mut self, span: Span) -> Option<hir::Expr> {
+        if self.reject_initializing_this(span) {
+            return None;
+        }
         let Some(this) = self.lower_current_this(span) else {
             self.error(
                 span,
@@ -47,6 +111,32 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
+        if matches!(receiver, ast::Expr::This { .. }) && self.initialization_context.is_some() {
+            if !self.initializing_receiver_has_field(&name.text) {
+                self.error(
+                    call.span,
+                    "initializing receiver cannot escape before construction completes".into(),
+                );
+                return None;
+            }
+            let property = self.initializing_field(name, call.span)?;
+            let Some(layer) =
+                self.probe_property_member_invoke(property.read, call, expected, false)
+            else {
+                self.error(
+                    call.span,
+                    "initializing receiver cannot escape before construction completes".into(),
+                );
+                return None;
+            };
+            return match layer {
+                Ok(layer) => Some(self.commit_expr_layer(layer, sink)),
+                Err(failure) => {
+                    self.commit_layer_diagnostics(*failure);
+                    None
+                }
+            };
+        }
         if let ast::Expr::Var(enum_name) = receiver {
             if self.scopes.lookup(&enum_name.text).is_none()
                 && !self.host_has_property(&enum_name.text)
@@ -257,9 +347,9 @@ impl Lowerer {
     ) -> Option<hir::Expr> {
         let (field, ty) = match self.types[receiver.ty].clone() {
             Type::Class(application) => {
-                let (application, index, ty, _) =
+                let (application, field, ty, _) =
                     self.find_class_application_field(application, &name.text)?;
-                (hir::FieldRef::ClassField { application, index }, ty)
+                (hir::FieldRef::ClassField { application, field }, ty)
             }
             Type::Struct(application) => {
                 let value = self.struct_applications[application].clone();

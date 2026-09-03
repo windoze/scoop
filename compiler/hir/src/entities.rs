@@ -60,12 +60,17 @@ pub struct Module {
     /// member lookup or reconstructs aggregate semantics.
     pub derived_equality_applications: Arena<DerivedEqualityApplication>,
     pub structs: Arena<StructDecl>,
+    pub struct_constructors: Arena<StructConstructor>,
+    pub struct_constructor_applications: Arena<StructConstructorApplication>,
     /// Canonical, fully applied export-side struct identities.  A type never
     /// stores a declaration id and an unrelated argument vector.
     pub struct_applications: Arena<StructApplication>,
     pub enums: Arena<EnumDecl>,
     pub enum_applications: Arena<EnumApplication>,
     pub classes: Arena<ClassDecl>,
+    pub class_fields: Arena<ClassField>,
+    pub class_constructors: Arena<ClassConstructor>,
+    pub class_constructor_applications: Arena<ClassConstructorApplication>,
     pub class_applications: Arena<ClassApplication>,
     pub interfaces: Arena<InterfaceDecl>,
     pub interface_applications: Arena<InterfaceApplication>,
@@ -293,6 +298,7 @@ pub struct FunctionCoercion {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ZeroArgClassConstructor {
     pub class: ClassId,
+    pub constructor: ClassConstructorId,
 }
 
 /// One compiler-known exception type together with its only construction
@@ -305,6 +311,10 @@ pub struct CompilerException {
 impl CompilerException {
     pub const fn class(self) -> ClassId {
         self.constructor.class
+    }
+
+    pub const fn callable(self) -> ClassConstructorId {
+        self.constructor.constructor
     }
 }
 

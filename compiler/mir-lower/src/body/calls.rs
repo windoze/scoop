@@ -1,6 +1,35 @@
 use super::*;
 
 impl BodyLowerer<'_> {
+    pub(super) fn lower_direct_super_method_call(
+        &mut self,
+        receiver: &hir::Expr,
+        callable: hir::Callable,
+        args: &[hir::Expr],
+        result_ty: hir::TypeId,
+    ) -> smir::Expr {
+        let function = self.module.callable_function(callable);
+        let callee = self.instances.get(function).map_or_else(
+            || mir::Callee::User(self.function_map[&function]),
+            mir::Callee::Monomorphized,
+        );
+        let mut call_args = Vec::with_capacity(args.len() + 1);
+        call_args.push(self.lower_expr(receiver));
+        call_args.extend(args.iter().map(|arg| self.lower_expr(arg)));
+        let return_ty = self.lower_type(result_ty);
+        smir::Expr::new(
+            return_ty.clone(),
+            smir::ExprKind::Call(smir::Call {
+                target: mir::CallTarget {
+                    kind: mir::CallKind::Direct,
+                    callee,
+                },
+                args: call_args,
+                return_ty,
+            }),
+        )
+    }
+
     /// `x!!`: the operand is evaluated once into a hidden local, then
     /// `if (tag == Some) { val $uw = <field 0> } else { throw UnwrapException() }`.
     /// The if/else is queued in `prelude` — it must precede the

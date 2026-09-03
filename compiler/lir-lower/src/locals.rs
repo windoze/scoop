@@ -18,7 +18,6 @@ pub(super) fn address_taken(function: &mir::Function) -> HashSet<mir::LocalId> {
                 elements: values, ..
             }
             | mir::ExprKind::StructInit { args: values, .. }
-            | mir::ExprKind::ClassInit { args: values, .. }
             | mir::ExprKind::ClosureAlloc {
                 captures: values, ..
             }
@@ -63,6 +62,7 @@ pub(super) fn address_taken(function: &mir::Function) -> HashSet<mir::LocalId> {
             | mir::ExprKind::PtrFromUInt { operand, .. }
             | mir::ExprKind::PtrToUInt(operand)
             | mir::ExprKind::PtrCast { operand, .. } => collect_expr(operand, out),
+            mir::ExprKind::ClassAlloc { .. } => {}
             mir::ExprKind::AtomicFieldCompareExchange {
                 object,
                 expected,

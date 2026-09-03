@@ -431,14 +431,34 @@ impl Concretizer<'_> {
                 }
             }
             export::FieldRef::TupleIndex(index) => concrete::FieldRef::TupleIndex(index),
-            export::FieldRef::ClassField { application, index } => {
+            export::FieldRef::ClassField { application, field } => {
                 let concrete_id = self.lower_class_application(application, substitution);
+                let index = self.source_class_field_layout_index(field);
                 concrete::FieldRef::ClassField {
                     class_id: concrete_id,
                     index,
                 }
             }
         }
+    }
+
+    pub(super) fn source_class_field_layout_index(&self, field: export::ClassFieldId) -> u32 {
+        let declaration = &self.source.class_fields[field];
+        let own = self.source.classes[declaration.owner]
+            .fields
+            .iter()
+            .position(|candidate| *candidate == field)
+            .expect("a class field is listed by its typed owner") as u32;
+        let mut base_count = 0_u32;
+        let mut current = declaration.owner;
+        while let Some(base) = self.source.classes[current].base_class {
+            let export::Type::Class(application) = self.source.types[base] else {
+                unreachable!("validated class bases are class applications")
+            };
+            current = self.source.class_applications[application].template;
+            base_count += self.source.classes[current].fields.len() as u32;
+        }
+        base_count + own
     }
 
     pub(super) fn lower_local(

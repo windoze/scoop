@@ -24,7 +24,8 @@ fn lower(module: &hir::Module) -> mir::Module {
     let functions = &module.functions;
     module.top_level.retain(|id| {
         let name = &functions[*id].name;
-        !(name.starts_with("ctor.$") && name.ends_with("Protocol"))
+        !(name.starts_with("init.$") && name.contains("ExceptionProtocol.$c"))
+            && !name.starts_with("init.$ThrowableProtocol.$c")
     });
     module
 }
@@ -66,12 +67,16 @@ fn boxed_class<'a>(module: &'a mir::Module, name: &str) -> &'a mir::ClassDef {
 const SPAN: Span = Span { start: 0, end: 0 };
 
 fn expression_origin() -> hir::ExpressionOrigin {
-    hir::ExpressionOrigin::Definition(hir::DefinitionOrigin {
+    hir::ExpressionOrigin::Definition(definition_origin())
+}
+
+fn definition_origin() -> hir::DefinitionOrigin {
+    hir::DefinitionOrigin {
         provider: hir::IntrinsicProviderId::from_raw(0),
         file: 0,
         span: SPAN,
         context: hir::SourceContextId::from_raw(0.into()),
-    })
+    }
 }
 
 fn type_param(name: impl Into<String>) -> hir::TypeParamDecl {
@@ -126,6 +131,8 @@ struct Harness {
     generic_methods: Arena<hir::GenericMethod>,
     generic_method_applications: Arena<hir::GenericMethodApplication>,
     structs: Arena<hir::StructDecl>,
+    struct_constructors: Arena<hir::StructConstructor>,
+    struct_constructor_applications: Arena<hir::StructConstructorApplication>,
     struct_applications: Arena<hir::StructApplication>,
     struct_applications_by_key:
         HashMap<(hir::StructId, Vec<hir::TypeId>), hir::StructApplicationId>,
@@ -133,6 +140,9 @@ struct Harness {
     enum_applications: Arena<hir::EnumApplication>,
     enum_applications_by_key: HashMap<(hir::EnumId, Vec<hir::TypeId>), hir::EnumApplicationId>,
     classes: Arena<hir::ClassDecl>,
+    class_fields: Arena<hir::ClassField>,
+    class_constructors: Arena<hir::ClassConstructor>,
+    class_constructor_applications: Arena<hir::ClassConstructorApplication>,
     class_applications: Arena<hir::ClassApplication>,
     class_applications_by_key: HashMap<(hir::ClassId, Vec<hir::TypeId>), hir::ClassApplicationId>,
     interfaces: Arena<hir::InterfaceDecl>,
@@ -162,6 +172,7 @@ struct Harness {
     gc_core: Option<GcCore>,
     intrinsic_array: Option<hir::ClassId>,
     intrinsic_mutable_array: Option<hir::ClassId>,
+    next_constructor_param: u32,
 }
 
 /// core's GC facilities (M9), as `Harness::gc_core` declares them.
@@ -294,7 +305,21 @@ fn struct_init(h: &Harness, ty: hir::TypeId, args: Vec<hir::Expr>) -> hir::Expr 
     let hir::Type::Struct(application) = h.types[ty] else {
         panic!("struct construction requires a struct application type")
     };
-    expr(hir::ExprKind::StructInit { application, args }, ty)
+    let constructor = h.structs[h.struct_applications[application].template].constructors[0];
+    let application = h
+        .struct_constructor_applications
+        .iter()
+        .find_map(|(id, candidate)| {
+            (candidate.constructor == constructor && candidate.owner == application).then_some(id)
+        })
+        .expect("the harness creates the primary struct constructor application");
+    expr(
+        hir::ExprKind::StructInit {
+            constructor: application,
+            args,
+        },
+        ty,
+    )
 }
 
 fn module_interface_application(

@@ -172,20 +172,18 @@ impl BodyLowerer<'_> {
         span: Span,
     ) -> smir::Statement {
         let constructor = &self.module.class_constructors[exception.callable()];
-        debug_assert!(constructor.params.is_empty());
+        debug_assert!(constructor.parameters.is_empty());
         let ctor = self.ctors[&exception.callable()];
-        let exception_ty = self.lower_type(constructor.return_type);
+        let class_id = self.class_map[&constructor.class];
+        let exception_ty = mir::Type::Class(class_id);
         smir::Statement {
             kind: smir::StatementKind::Throw(smir::Expr::new(
                 exception_ty.clone(),
-                smir::ExprKind::Call(smir::Call {
-                    target: mir::CallTarget {
-                        kind: mir::CallKind::Direct,
-                        callee: mir::Callee::User(ctor),
-                    },
+                smir::ExprKind::ClassNew {
+                    class_id,
+                    initializer: ctor,
                     args: Vec::new(),
-                    return_ty: exception_ty,
-                }),
+                },
             )),
             span,
         }

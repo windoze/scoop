@@ -14,16 +14,7 @@ impl Harness {
             .iter()
             .map(|&interface| self.interface_ty(interface))
             .collect();
-        let base = base.map(|(base, arguments)| {
-            (
-                self.class_ty(base),
-                hir::ConstructorDelegation {
-                    locals: Arena::new(),
-                    statements: Vec::new(),
-                    args: arguments,
-                },
-            )
-        });
+        let base = base.map(|(base, arguments)| (self.class_ty(base), base, arguments));
         self.declare_class(name, modifier, constructor, base, interfaces)
     }
 
@@ -32,12 +23,12 @@ impl Harness {
         name: &str,
         modifier: hir::ClassModifier,
         constructor: &[(&str, hir::TypeId)],
-        base_class: Option<(hir::TypeId, hir::ConstructorDelegation)>,
+        base_class: Option<(hir::TypeId, hir::ClassId, Vec<hir::Expr>)>,
         interfaces: Vec<hir::TypeId>,
     ) -> hir::ClassId {
         let mut interface_implementations = base_class
             .as_ref()
-            .map(|(base, _)| {
+            .map(|(base, _, _)| {
                 let hir::Type::Class(application) = self.types[*base] else {
                     panic!("test harness class bases are class applications")
                 };
@@ -57,24 +48,83 @@ impl Harness {
         }
         let self_application =
             hir::ClassApplicationId::from_raw((self.class_applications.len() as u32).into());
+        let class = hir::ClassId::from_raw((self.classes.len() as u32).into());
+        let parameters = constructor
+            .iter()
+            .map(|(name, ty)| {
+                let id = hir::ConstructorParamId::from_raw(self.next_constructor_param);
+                self.next_constructor_param += 1;
+                hir::ConstructorParameter {
+                    id,
+                    name: name.to_string(),
+                    ty: *ty,
+                }
+            })
+            .collect::<Vec<_>>();
+        let fields = parameters
+            .iter()
+            .map(|parameter| {
+                self.class_fields.alloc(hir::ClassField {
+                    owner: class,
+                    name: parameter.name.clone(),
+                    ty: parameter.ty,
+                    mutable: false,
+                    source: hir::ClassFieldSource::PrimaryParameter(parameter.id),
+                    span: SPAN,
+                })
+            })
+            .collect::<Vec<_>>();
+        let base_initialization = match &base_class {
+            None => hir::BaseInitialization::Root,
+            Some((_, base, arguments)) => {
+                let target = self.classes[*base].constructors[0];
+                let owner = self.classes[*base].self_application;
+                let target =
+                    self.class_constructor_applications
+                        .alloc(hir::ClassConstructorApplication {
+                            constructor: target,
+                            owner,
+                        });
+                hir::BaseInitialization::Super {
+                    target,
+                    arguments: hir::ConstructorArguments {
+                        locals: Arena::new(),
+                        statements: Vec::new(),
+                        args: arguments.clone(),
+                    },
+                }
+            }
+        };
+        let primary_stores = fields
+            .iter()
+            .copied()
+            .zip(parameters.iter())
+            .map(|(field, parameter)| hir::PrimaryFieldStore {
+                field,
+                parameter: parameter.id,
+                span: SPAN,
+            })
+            .collect();
+        let constructor_id = self.class_constructors.alloc(hir::ClassConstructor {
+            owner: class,
+            parameters,
+            kind: hir::ClassConstructorKind::Primary {
+                base: base_initialization,
+                primary_stores,
+                common_initialization: Vec::new(),
+            },
+            span: SPAN,
+            origin: definition_origin(),
+        });
         let class = self.classes.alloc(hir::ClassDecl {
             modifier,
             name: name.to_string(),
             self_application,
             type_params: Vec::new(),
-            representation: hir::ClassRepresentation::Declared(
-                constructor
-                    .iter()
-                    .enumerate()
-                    .map(|(index, (name, ty))| hir::ConstructorField {
-                        parameter: hir::ConstructorParamId::from_raw(index as u32),
-                        name: name.to_string(),
-                        ty: *ty,
-                        mutable: false,
-                    })
-                    .collect(),
-            ),
-            base_class,
+            representation: hir::ClassRepresentation::Declared,
+            fields,
+            constructors: vec![constructor_id],
+            base_class: base_class.as_ref().map(|(ty, _, _)| *ty),
             interfaces,
             interface_implementations,
             methods: Vec::new(),
@@ -117,7 +167,10 @@ impl Harness {
             )
         };
         hir::CompilerException {
-            constructor: hir::ZeroArgClassConstructor { class },
+            constructor: hir::ZeroArgClassConstructor {
+                class,
+                constructor: self.classes[class].constructors[0],
+            },
         }
     }
 

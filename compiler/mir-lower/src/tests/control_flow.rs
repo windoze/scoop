@@ -8,7 +8,13 @@ fn try_and_throw_become_explicit_cfg() {
     let mut h = Harness::new();
     let my_error = h.exception("MyError");
     let error_ty = h.class_ty(my_error);
-    let error_application = h.class_application_of(error_ty);
+    let error_constructor = h
+        .class_constructor_applications
+        .iter()
+        .find_map(|(id, app)| {
+            (app.constructor == h.classes[my_error].constructors[0]).then_some(id)
+        })
+        .expect("exception primary constructor application");
     let mut locals = Arena::new();
     let e = locals.alloc(local("e", error_ty));
     let main = h.user_fn(
@@ -18,7 +24,7 @@ fn try_and_throw_become_explicit_cfg() {
             statements: vec![stmt(hir::StatementKind::Try(hir::Try {
                 body: vec![stmt(hir::StatementKind::Throw(expr(
                     hir::ExprKind::ClassInit {
-                        application: error_application,
+                        constructor: error_constructor,
                         args: Vec::new(),
                     },
                     error_ty,
@@ -68,10 +74,15 @@ Module
     bb7 try.end.7
       return
     bb8 try.body.8 unwind bb1
-      call $call.1: MyError = @scoop.ctor.MyError direct
+      assign $new.1
+        Type MyError
+        ClassAlloc MyError
+      call @scoop.init.MyError.$c0 direct
+        Type MyError
+        Local $new.1
       throw unwind bb1
         Type MyError
-        Local $call.1
+        Local $new.1
     bb9 try.catch.9
       val e: MyError
         Type MyError
@@ -92,11 +103,9 @@ Module
       Type Int
       IntLiteral 2
       goto bb7
-  fun ctor.MyError @scoop.ctor.MyError() -> MyError
+  fun init.MyError.$c0 @scoop.init.MyError.$c0(this: MyError) -> Unit
     bb0 entry
       return
-        Type MyError
-        ClassInit MyError
   entry @scoop_main
 ";
     assert_eq!(dump(&module), expected);

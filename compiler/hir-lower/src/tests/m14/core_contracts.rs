@@ -117,11 +117,7 @@ fn compiler_exception_core_is_complete_in_export_and_local_hir() {
     for exception in local_exceptions {
         let constructor = &output.local.class_constructors[exception.callable()];
         assert_eq!(constructor.class, exception.class());
-        assert!(constructor.params.is_empty());
-        assert!(matches!(
-            output.local.types[constructor.return_type].kind,
-            hir::concrete::TypeKind::Class(class) if class == exception.class()
-        ));
+        assert!(constructor.parameters.is_empty());
     }
 }
 

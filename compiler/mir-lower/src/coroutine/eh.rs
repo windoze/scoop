@@ -148,7 +148,6 @@ fn rewrite_expr(expr: &mut mir::Expr, managed: mir::LocalId, managed_ty: &mir::T
         mir::ExprKind::TupleLiteral(elements)
         | mir::ExprKind::ArrayLiteral { elements, .. }
         | mir::ExprKind::StructInit { args: elements, .. }
-        | mir::ExprKind::ClassInit { args: elements, .. }
         | mir::ExprKind::ClosureAlloc {
             captures: elements, ..
         }
@@ -242,7 +241,8 @@ fn rewrite_expr(expr: &mut mir::Expr, managed: mir::LocalId, managed_ty: &mir::T
             rewrite_expr(pointer, managed, managed_ty);
             rewrite_expr(offset, managed, managed_ty);
         }
-        mir::ExprKind::StringConst(_)
+        mir::ExprKind::ClassAlloc { .. }
+        | mir::ExprKind::StringConst(_)
         | mir::ExprKind::IntLiteral(_)
         | mir::ExprKind::BoolLiteral(_)
         | mir::ExprKind::UnitLiteral

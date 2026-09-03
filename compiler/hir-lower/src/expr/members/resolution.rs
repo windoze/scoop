@@ -1,6 +1,60 @@
 use super::*;
 
 impl Lowerer {
+    #[allow(clippy::too_many_arguments)]
+    pub(in crate::expr) fn finish_super_method_call(
+        &mut self,
+        candidates: Vec<crate::CallableCandidate>,
+        name: &str,
+        receiver: hir::Expr,
+        call: CallSite<'_>,
+        sink: &mut Vec<hir::Statement>,
+        expected: Option<TypeId>,
+    ) -> Option<hir::Expr> {
+        let explicit_type_args = self.resolve_call_type_args(call.type_args)?;
+        let resolved = self.resolve_member_overload(
+            name,
+            &candidates,
+            receiver,
+            crate::overload::OverloadCall {
+                explicit_type_args: &explicit_type_args,
+                arg_exprs: call.args,
+                span: call.span,
+                expected_result: expected,
+                argument_protocol: crate::overload::CallArgumentProtocol::Ordinary,
+            },
+            sink,
+        )?;
+        let function = resolved.function();
+        let method = self.functions[function]
+            .method
+            .expect("a direct-base member candidate is a method");
+        if method.modifier == hir::MethodModifier::Abstract {
+            self.error(
+                call.span,
+                format!("abstract base method `{name}` cannot be called with `super`"),
+            );
+            return None;
+        }
+        self.check_call_effects(hir::Callable::Function(function), call.span);
+        let receiver = resolved
+            .receiver
+            .clone()
+            .expect("a direct-base call materializes its receiver");
+        let callee = self.materialize_resolved_callee(&resolved);
+        let callee = self.materialize_method_callee(resolved.source, callee, &resolved.type_args);
+        Some(hir::Expr {
+            kind: ExprKind::DirectSuperMethodCall {
+                receiver: Box::new(receiver),
+                callee,
+                args: resolved.args,
+            },
+            ty: resolved.return_ty,
+            span: call.span,
+            origin: self.expression_origin(call.span),
+        })
+    }
+
     /// The unified path of a method call (explicit receiver or bare
     /// `m(...)`): `resolve_overload` picks the winner among the
     /// receiver type's methods and the call becomes a resolved

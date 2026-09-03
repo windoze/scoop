@@ -51,6 +51,16 @@ pub(crate) fn call(name: &str, args: Vec<Expr>) -> Expr {
     })
 }
 
+pub(crate) fn super_method_call(name: &str, args: Vec<Expr>) -> Expr {
+    Expr::SuperMethodCall {
+        super_span: sp(),
+        name: ident(name),
+        type_args: Vec::new(),
+        args: call_arguments(args),
+        span: sp(),
+    }
+}
+
 pub(crate) fn source_call(name: &str, args: Vec<ast::CallArgument>) -> Expr {
     Expr::Call(CallExpr {
         callee: ident(name),

@@ -70,6 +70,7 @@ fn add_generic_struct(
         type_params: vec![parameter],
         attributes: hir::StructAttributes::default(),
         representation: hir::StructRepresentation::Declared(Vec::new()),
+        constructors: Vec::new(),
         interfaces: Vec::new(),
         interface_implementations: Vec::new(),
         methods: Vec::new(),

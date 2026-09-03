@@ -9,6 +9,7 @@ pub struct StructDecl {
     pub type_params: Vec<TypeParamDecl>,
     pub attributes: StructAttributes,
     pub representation: StructRepresentation,
+    pub constructors: Vec<StructConstructorId>,
     pub interfaces: Vec<TypeId>,
     /// Source-complete mapping from each implemented interface member to the
     /// concrete declaration that implements it. Generic owner/interface
@@ -173,26 +174,27 @@ pub struct ClassDecl {
     pub self_application: ClassApplicationId,
     pub type_params: Vec<TypeParamDecl>,
     pub representation: ClassRepresentation,
-    /// Base class and the fully materialized constructor delegation.
-    pub base_class: Option<(TypeId, ConstructorDelegation)>,
+    pub fields: Vec<ClassFieldId>,
+    pub constructors: Vec<ClassConstructorId>,
+    pub base_class: Option<TypeId>,
     pub interfaces: Vec<TypeId>,
     pub interface_implementations: Vec<InterfaceImplementation>,
     pub methods: Vec<FunctionId>,
     pub span: Span,
 }
 
-/// Typed evaluation plan for one primary-constructor delegation. Source
-/// argument syntax and missing/default state have already been eliminated.
+/// Typed evaluation plan for one constructor edge. Source argument syntax and
+/// missing/default state have already been eliminated.
 #[derive(Debug, Clone)]
-pub struct ConstructorDelegation {
+pub struct ConstructorArguments {
     pub locals: Arena<Local>,
     pub statements: Vec<Statement>,
     pub args: Vec<Expr>,
 }
 
 impl ClassDecl {
-    pub fn semantic_constructor(&self) -> &[ConstructorField] {
-        self.representation.semantic_constructor()
+    pub fn is_declared(&self) -> bool {
+        matches!(self.representation, ClassRepresentation::Declared)
     }
 }
 
@@ -206,19 +208,137 @@ pub struct ClassApplication {
 
 #[derive(Debug, Clone)]
 pub enum ClassRepresentation {
-    Declared(Vec<ConstructorField>),
+    Declared,
     Intrinsic(IntrinsicTypeDeclaration),
 }
 
-impl ClassRepresentation {
-    /// Source-visible primary-constructor properties. Intrinsic classes have
-    /// hidden construction entries and no source constructor by declaration.
-    pub fn semantic_constructor(&self) -> &[ConstructorField] {
-        match self {
-            Self::Declared(constructor) => constructor,
-            Self::Intrinsic(_) => &[],
-        }
-    }
+#[derive(Debug, Clone)]
+pub struct ClassField {
+    pub owner: ClassId,
+    pub name: String,
+    pub ty: TypeId,
+    pub mutable: bool,
+    pub source: ClassFieldSource,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ClassFieldSource {
+    PrimaryParameter(ConstructorParamId),
+    Body,
+}
+
+#[derive(Debug, Clone)]
+pub struct ConstructorParameter {
+    pub id: ConstructorParamId,
+    pub name: String,
+    pub ty: TypeId,
+}
+
+#[derive(Debug, Clone)]
+pub struct ClassConstructor {
+    pub owner: ClassId,
+    pub parameters: Vec<ConstructorParameter>,
+    pub kind: ClassConstructorKind,
+    pub span: Span,
+    pub origin: DefinitionOrigin,
+}
+
+#[derive(Debug, Clone)]
+pub enum ClassConstructorKind {
+    Primary {
+        base: BaseInitialization,
+        primary_stores: Vec<PrimaryFieldStore>,
+        common_initialization: Vec<ClassInitializationStep>,
+    },
+    Secondary {
+        delegation: ClassSecondaryDelegation,
+        body: Body,
+    },
+}
+
+#[derive(Debug, Clone)]
+pub struct PrimaryFieldStore {
+    pub field: ClassFieldId,
+    pub parameter: ConstructorParamId,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone)]
+pub enum ClassInitializationStep {
+    StoredProperty {
+        field: ClassFieldId,
+        initializer: ConstructorExpression,
+        span: Span,
+    },
+    InitBlock {
+        body: Body,
+        span: Span,
+    },
+}
+
+#[derive(Debug, Clone)]
+pub struct ConstructorExpression {
+    pub locals: Arena<Local>,
+    pub statements: Vec<Statement>,
+    pub value: Expr,
+}
+
+#[derive(Debug, Clone)]
+pub enum BaseInitialization {
+    Root,
+    Super {
+        target: ClassConstructorApplicationId,
+        arguments: ConstructorArguments,
+    },
+}
+
+#[derive(Debug, Clone)]
+pub enum ClassSecondaryDelegation {
+    This {
+        target: ClassConstructorApplicationId,
+        arguments: ConstructorArguments,
+    },
+    Terminal {
+        base: BaseInitialization,
+        common_initialization: Vec<ClassInitializationStep>,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ClassConstructorApplication {
+    pub constructor: ClassConstructorId,
+    pub owner: ClassApplicationId,
+}
+
+#[derive(Debug, Clone)]
+pub struct StructConstructor {
+    pub owner: StructId,
+    pub parameters: Vec<ConstructorParameter>,
+    pub kind: StructConstructorKind,
+    pub span: Span,
+    pub origin: DefinitionOrigin,
+}
+
+#[derive(Debug, Clone)]
+pub enum StructConstructorKind {
+    Primary,
+    Secondary {
+        delegation: StructConstructorDelegation,
+        body: Body,
+    },
+}
+
+#[derive(Debug, Clone)]
+pub struct StructConstructorDelegation {
+    pub target: StructConstructorApplicationId,
+    pub arguments: ConstructorArguments,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StructConstructorApplication {
+    pub constructor: StructConstructorId,
+    pub owner: StructApplicationId,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -306,17 +426,6 @@ pub enum IntrinsicTypeRepresentation {
     String,
     Array { element: TypeId },
     MutableArray { element: TypeId },
-}
-
-/// A primary-constructor property is simultaneously a source parameter and
-/// an object field. Keeping both identities and mutability together prevents
-/// delegation lowering and field assignment from reconstructing either fact.
-#[derive(Debug, Clone)]
-pub struct ConstructorField {
-    pub parameter: ConstructorParamId,
-    pub name: String,
-    pub ty: TypeId,
-    pub mutable: bool,
 }
 
 #[derive(Debug, Clone)]

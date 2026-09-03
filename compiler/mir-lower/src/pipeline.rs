@@ -100,6 +100,11 @@ impl Lowerer {
             let id = self.declare_ctor(module, constructor_id);
             ctor_functions.push((constructor_id, id));
         }
+        let mut struct_ctor_functions = Vec::new();
+        for (constructor_id, _) in module.struct_constructors.iter() {
+            let id = self.declare_struct_ctor(module, constructor_id);
+            struct_ctor_functions.push((constructor_id, id));
+        }
 
         for (hir_id, mir_id) in user_functions {
             let (params, return_ty, body) = self.lower_user_function(module, hir_id);
@@ -118,6 +123,14 @@ impl Lowerer {
         }
         for (constructor_id, mir_id) in ctor_functions {
             let (params, return_ty, body) = self.lower_ctor(module, constructor_id);
+            let body = cfg::lower(body, return_ty.clone());
+            let function = &mut self.functions[mir_id];
+            function.params = params;
+            function.return_ty = return_ty;
+            function.body = body;
+        }
+        for (constructor_id, mir_id) in struct_ctor_functions {
+            let (params, return_ty, body) = self.lower_struct_ctor(module, constructor_id);
             let body = cfg::lower(body, return_ty.clone());
             let function = &mut self.functions[mir_id];
             function.params = params;

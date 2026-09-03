@@ -59,12 +59,17 @@ impl Harness {
             generic_methods: Arena::new(),
             generic_method_applications: Arena::new(),
             structs: Arena::new(),
+            struct_constructors: Arena::new(),
+            struct_constructor_applications: Arena::new(),
             struct_applications: Arena::new(),
             struct_applications_by_key: HashMap::new(),
             enums,
             enum_applications,
             enum_applications_by_key,
             classes: Arena::new(),
+            class_fields: Arena::new(),
+            class_constructors: Arena::new(),
+            class_constructor_applications: Arena::new(),
             class_applications: Arena::new(),
             class_applications_by_key: HashMap::new(),
             interfaces: Arena::new(),
@@ -91,6 +96,7 @@ impl Harness {
             gc_core: None,
             intrinsic_array: None,
             intrinsic_mutable_array: None,
+            next_constructor_param: 0,
         }
     }
 

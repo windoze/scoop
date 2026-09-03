@@ -22,8 +22,9 @@ pub(super) fn dump_expr(
                 dump_expr(module, locals, element, indent + 1, out);
             }
         }
-        ExprKind::ClassInit { application, args } => {
-            let application = &module.class_applications[*application];
+        ExprKind::ClassInit { constructor, args } => {
+            let constructor = &module.class_constructor_applications[*constructor];
+            let application = &module.class_applications[constructor.owner];
             let name = &module.classes[application.template].name;
             let arguments = application
                 .arguments
@@ -44,8 +45,9 @@ pub(super) fn dump_expr(
             "{pad}ConstructorParam #{} : {ty}\n",
             parameter.into_raw()
         )),
-        ExprKind::StructInit { application, args } => {
-            let application = &module.struct_applications[*application];
+        ExprKind::StructInit { constructor, args } => {
+            let constructor = &module.struct_constructor_applications[*constructor];
+            let application = &module.struct_applications[constructor.owner];
             out.push_str(&format!(
                 "{pad}StructInit {} : {ty}\n",
                 module.structs[application.template].name
@@ -277,11 +279,20 @@ pub(super) fn dump_expr(
             let field = match field {
                 FieldRef::StructField { index, .. } => format!("field {index}"),
                 FieldRef::TupleIndex(index) => format!("_{}", index + 1),
-                FieldRef::ClassField { index, .. } => format!("class field {index}"),
+                FieldRef::ClassField { field, .. } => {
+                    format!("class field {}", module.class_fields[*field].name)
+                }
             };
             out.push_str(&format!("{pad}FieldAccess {field} : {ty}\n"));
             dump_expr(module, locals, receiver, indent + 1, out);
         }
+        ExprKind::InitializingClassFieldAccess { field, .. } => out.push_str(&format!(
+            "{pad}InitializingClassFieldAccess {} : {ty}\n",
+            module.class_fields[*field].name
+        )),
+        ExprKind::InitializingStructFieldAccess { index, .. } => out.push_str(&format!(
+            "{pad}InitializingStructFieldAccess {index} : {ty}\n"
+        )),
         ExprKind::Call { callee, args } => {
             let (function, type_args) = callable_dump_parts(module, *callee);
             let callee = &module.functions[function];
@@ -377,6 +388,21 @@ pub(super) fn dump_expr(
                 }
             };
             out.push_str(&format!("{pad}MethodCall {} : {ty}\n", target));
+            dump_expr(module, locals, receiver, indent + 1, out);
+            for arg in args {
+                dump_expr(module, locals, arg, indent + 1, out);
+            }
+        }
+        ExprKind::DirectSuperMethodCall {
+            receiver,
+            callee,
+            args,
+        } => {
+            let function = method_callee_function(module, *callee);
+            out.push_str(&format!(
+                "{pad}DirectSuperMethodCall {} : {ty}\n",
+                module.functions[function].name
+            ));
             dump_expr(module, locals, receiver, indent + 1, out);
             for arg in args {
                 dump_expr(module, locals, arg, indent + 1, out);

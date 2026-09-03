@@ -23,6 +23,11 @@ impl Lowerer {
                 receiver, indices, ..
             } => self.lower_index_assign(assign, receiver, indices.as_slice(), out),
             ast::AssignTarget::Field { receiver, name, .. } => {
+                if matches!(&**receiver, ast::Expr::This { .. })
+                    && self.initialization_context.is_some()
+                {
+                    return self.lower_initializing_field_assign(assign, name, out);
+                }
                 let mut sink = Vec::new();
                 let Some(receiver) = self.lower_expr(receiver, &mut sink, None) else {
                     return None; // diagnostic already recorded
@@ -32,6 +37,41 @@ impl Lowerer {
                 Some(kind)
             }
         }
+    }
+
+    fn lower_initializing_field_assign(
+        &mut self,
+        assign: &ast::Assign,
+        name: &ast::Ident,
+        out: &mut Vec<hir::Statement>,
+    ) -> Option<hir::StatementKind> {
+        let field = self.initializing_field(name, assign.span)?;
+        let Some(target) = field.write else {
+            self.error(
+                name.span,
+                format!("cannot assign to immutable property `{}`", name.text),
+            );
+            return None;
+        };
+        let mut sink = Vec::new();
+        let value = self.lower_expr(&assign.value, &mut sink, Some(field.read.ty))?;
+        if !self.is_subtype(value.ty, field.read.ty) {
+            self.error(
+                assign.value.span(),
+                format!(
+                    "cannot assign value of type {} to property `{}` of type {}",
+                    self.type_name(value.ty),
+                    name.text,
+                    self.type_name(field.read.ty)
+                ),
+            );
+            return None;
+        }
+        out.extend(sink);
+        Some(hir::StatementKind::Assign {
+            target,
+            value: self.adapt_to(value, field.read.ty),
+        })
     }
 
     /// `receiver.name = value` (M6): the receiver must be a class and
@@ -64,7 +104,7 @@ impl Lowerer {
             }
         };
         let class_id = self.class_applications[application].template;
-        let Some((declaring, index, field_ty, mutable)) =
+        let Some((declaring, field, field_ty, mutable)) =
             self.find_class_application_field(application, &name.text)
         else {
             let class_name = self.classes[class_id].name.clone();
@@ -100,7 +140,7 @@ impl Lowerer {
                 receiver: Box::new(receiver),
                 field: hir::FieldRef::ClassField {
                     application: declaring,
-                    index,
+                    field,
                 },
             },
             value,
@@ -120,6 +160,21 @@ impl Lowerer {
         out: &mut Vec<hir::Statement>,
     ) -> Option<hir::StatementKind> {
         let Some(local) = self.scopes.lookup(&name.text) else {
+            if self.constructor_params_in_scope.contains_key(&name.text) {
+                self.error(
+                    name.span,
+                    format!(
+                        "cannot assign to immutable constructor parameter `{}`",
+                        name.text
+                    ),
+                );
+                return None;
+            }
+            if self.initialization_context.is_some()
+                && self.initializing_receiver_has_field(&name.text)
+            {
+                return self.lower_initializing_field_assign(assign, name, out);
+            }
             if let Some(capture) = self.available_capture(&name.text) {
                 if capture.mutable {
                     self.error(

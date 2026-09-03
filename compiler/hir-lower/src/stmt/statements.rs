@@ -55,6 +55,13 @@ impl Lowerer {
                 hir::StatementKind::LocalFunction(local)
             }
             ast::StatementKind::Return { value } => {
+                if self.initialization_context.is_some() {
+                    self.error(
+                        statement.span,
+                        "`return` is not allowed in an initializer or constructor body".into(),
+                    );
+                    return;
+                }
                 if self.return_inference.is_some() {
                     let kind = match value {
                         None => {

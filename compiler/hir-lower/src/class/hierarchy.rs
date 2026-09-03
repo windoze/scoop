@@ -3,8 +3,8 @@ use super::*;
 impl Lowerer {
     // --- member lookup helpers ---
 
-    fn direct_base_class(&self, class: ClassId) -> Option<ClassId> {
-        let (base, _) = self.classes[class].base_class.as_ref()?;
+    pub(crate) fn direct_base_class(&self, class: ClassId) -> Option<ClassId> {
+        let base = self.classes[class].base_class.as_ref()?;
         let Type::Class(application) = self.types[*base] else {
             unreachable!("resolved class bases are class applications")
         };
@@ -25,7 +25,7 @@ impl Lowerer {
         let mut seen = vec![current];
         loop {
             let application = self.class_applications[current].clone();
-            let Some((base, _)) = self.classes[application.template].base_class.clone() else {
+            let Some(base) = self.classes[application.template].base_class else {
                 break;
             };
             let base = self.instantiate_ty(base, &application.arguments);
@@ -57,41 +57,23 @@ impl Lowerer {
     /// The total number of constructor properties in the base chain of
     /// `c` — the layout offset of `c`'s own properties (base fields
     /// prefix, cycle-safe).
-    pub(crate) fn base_field_total(&self, c: ClassId) -> u32 {
-        let mut total = 0;
-        let mut seen = vec![c];
-        let mut current = Some(c);
-        while let Some(id) = current {
-            current = match self.direct_base_class(id) {
-                Some(base) if !seen.contains(&base) => {
-                    seen.push(base);
-                    total += self.classes[base].semantic_constructor().len() as u32;
-                    Some(base)
-                }
-                _ => None,
-            };
-        }
-        total
-    }
-
     /// Find a constructor property by name on class `c` or its base
-    /// chain. Returns the declaring class, the absolute layout index
-    /// (base fields prefix + own fields, consecutive), the type and
-    /// the mutability.
+    /// chain. Returns the declaring class, source field identity, type and
+    /// mutability. Layout position is intentionally a downstream concern.
     pub(crate) fn find_class_field(
         &self,
         c: ClassId,
         name: &str,
-    ) -> Option<(ClassId, u32, TypeId, bool)> {
-        if let Some(index) = self.classes[c]
-            .semantic_constructor()
+    ) -> Option<(ClassId, hir::ClassFieldId, TypeId, bool)> {
+        if let Some(&field_id) = self.classes[c]
+            .fields
             .iter()
-            .position(|field| field.name == name)
+            .find(|field| self.class_fields[**field].name == name)
         {
-            let abs = self.base_field_total(c) + index as u32;
-            let ty = self.classes[c].semantic_constructor()[index].ty;
-            let mutable = self.classes[c].semantic_constructor()[index].mutable;
-            return Some((c, abs, ty, mutable));
+            let field = &self.class_fields[field_id];
+            let ty = field.ty;
+            let mutable = field.mutable;
+            return Some((c, field_id, ty, mutable));
         }
         let base = self.direct_base_class(c)?;
         self.find_class_field(base, name)
@@ -104,21 +86,21 @@ impl Lowerer {
         &mut self,
         application: hir::ClassApplicationId,
         name: &str,
-    ) -> Option<(hir::ClassApplicationId, u32, TypeId, bool)> {
+    ) -> Option<(hir::ClassApplicationId, hir::ClassFieldId, TypeId, bool)> {
         let application_value = self.class_applications[application].clone();
         let class = application_value.template;
-        if let Some(index) = self.classes[class]
-            .semantic_constructor()
+        if let Some(&field_id) = self.classes[class]
+            .fields
             .iter()
-            .position(|field| field.name == name)
+            .find(|field| self.class_fields[**field].name == name)
         {
-            let abs = self.base_field_total(class) + index as u32;
-            let field_ty = self.classes[class].semantic_constructor()[index].ty;
+            let field = self.class_fields[field_id].clone();
+            let field_ty = field.ty;
             let ty = self.instantiate_ty(field_ty, &application_value.arguments);
-            let mutable = self.classes[class].semantic_constructor()[index].mutable;
-            return Some((application, abs, ty, mutable));
+            let mutable = field.mutable;
+            return Some((application, field_id, ty, mutable));
         }
-        let (base, _) = self.classes[class].base_class.clone()?;
+        let base = self.classes[class].base_class?;
         let base = self.instantiate_ty(base, &application_value.arguments);
         let Type::Class(base_application) = self.types[base] else {
             unreachable!("resolved class bases are class applications")

@@ -17,6 +17,19 @@ impl Lowerer {
         method
     }
 
+    pub(crate) fn fresh_constructor_parameter(&mut self) -> hir::ConstructorParamId {
+        let parameter = hir::ConstructorParamId::from_raw(self.next_constructor_parameter_identity);
+        self.next_constructor_parameter_identity += 1;
+        let binding = self.fresh_binding();
+        assert!(
+            self.constructor_parameter_bindings
+                .insert(parameter, binding)
+                .is_none(),
+            "constructor parameter identities are globally unique"
+        );
+        parameter
+    }
+
     pub(crate) fn fresh_binding(&mut self) -> hir::BindingId {
         let binding = hir::BindingId::from_raw(self.next_binding_id);
         self.next_binding_id += 1;
@@ -71,6 +84,7 @@ impl Lowerer {
             next_anonymous_function: 0,
             next_type_param_identity: 0,
             next_virtual_method_identity: 0,
+            next_constructor_parameter_identity: 0,
             local_functions: Arena::new(),
             local_function_by_function: HashMap::new(),
             callable_references: Arena::new(),
@@ -86,12 +100,19 @@ impl Lowerer {
             lowering_default_template: false,
             function_coercion_by_types: HashMap::new(),
             structs: Arena::new(),
+            struct_constructors: Arena::new(),
+            struct_constructor_applications: Arena::new(),
+            struct_constructor_application_by_key: HashMap::new(),
             struct_applications: Arena::new(),
             struct_application_by_key: HashMap::new(),
             enums: Arena::new(),
             enum_applications: Arena::new(),
             enum_application_by_key: HashMap::new(),
             classes: Arena::new(),
+            class_fields: Arena::new(),
+            class_constructors: Arena::new(),
+            class_constructor_applications: Arena::new(),
+            class_constructor_application_by_key: HashMap::new(),
             class_applications: Arena::new(),
             class_application_by_key: HashMap::new(),
             interfaces: Arena::new(),
@@ -168,6 +189,8 @@ impl Lowerer {
             current_this: None,
             current_owner: None,
             constructor_params_in_scope: HashMap::new(),
+            constructor_parameter_bindings: HashMap::new(),
+            initialization_context: None,
             smart_casts: HashMap::new(),
             current_file: 0,
             intrinsic_sources: Vec::new(),

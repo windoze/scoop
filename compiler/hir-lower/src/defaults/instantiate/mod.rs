@@ -249,6 +249,15 @@ impl Lowerer {
                 receiver: Box::new(self.instantiate_default_expr(receiver, context)),
                 field: self.instantiate_default_field(*field, context),
             },
+            hir::AssignTarget::InitializingClassField {
+                application,
+                field,
+                origin,
+            } => hir::AssignTarget::InitializingClassField {
+                application: self.instantiate_default_class_application(*application, context),
+                field: *field,
+                origin: instantiate_origin(*origin, context.evaluation),
+            },
         }
     }
 
@@ -336,12 +345,12 @@ impl Lowerer {
                     .map(|element| self.instantiate_default_expr(element, context))
                     .collect(),
             ),
-            hir::ExprKind::StructInit { application, args } => hir::ExprKind::StructInit {
-                application: self.instantiate_default_struct_application(*application, context),
+            hir::ExprKind::StructInit { constructor, args } => hir::ExprKind::StructInit {
+                constructor: self.instantiate_default_struct_constructor(*constructor, context),
                 args: self.instantiate_default_exprs(args, context),
             },
-            hir::ExprKind::ClassInit { application, args } => hir::ExprKind::ClassInit {
-                application: self.instantiate_default_class_application(*application, context),
+            hir::ExprKind::ClassInit { constructor, args } => hir::ExprKind::ClassInit {
+                constructor: self.instantiate_default_class_constructor(*constructor, context),
                 args: self.instantiate_default_exprs(args, context),
             },
             hir::ExprKind::ConstructorParam(parameter) => {
@@ -442,11 +451,32 @@ impl Lowerer {
                 receiver: Box::new(self.instantiate_default_expr(receiver, context)),
                 field: self.instantiate_default_field(*field, context),
             },
+            hir::ExprKind::InitializingClassFieldAccess { application, field } => {
+                hir::ExprKind::InitializingClassFieldAccess {
+                    application: self.instantiate_default_class_application(*application, context),
+                    field: *field,
+                }
+            }
+            hir::ExprKind::InitializingStructFieldAccess { application, index } => {
+                hir::ExprKind::InitializingStructFieldAccess {
+                    application: self.instantiate_default_struct_application(*application, context),
+                    index: *index,
+                }
+            }
             hir::ExprKind::MethodCall {
                 receiver,
                 callee,
                 args,
             } => hir::ExprKind::MethodCall {
+                receiver: Box::new(self.instantiate_default_expr(receiver, context)),
+                callee: self.instantiate_default_method_callee(*callee, context),
+                args: self.instantiate_default_exprs(args, context),
+            },
+            hir::ExprKind::DirectSuperMethodCall {
+                receiver,
+                callee,
+                args,
+            } => hir::ExprKind::DirectSuperMethodCall {
                 receiver: Box::new(self.instantiate_default_expr(receiver, context)),
                 callee: self.instantiate_default_method_callee(*callee, context),
                 args: self.instantiate_default_exprs(args, context),
