@@ -10,8 +10,9 @@
  *     runtime/src/gc.c runtime/src/gc/allocation.c \
  *     runtime/src/gc/collector.c runtime/src/gc/evacuation.c \
  *     runtime/src/gc/reclamation.c runtime/src/gc/heap.c \
- *     runtime/src/gc/heap_objects.c \
- *     runtime/src/gc/roots.c runtime/src/gc/stackmap.c \
+ *     runtime/src/gc/heap_objects.c runtime/src/gc/handles.c \
+ *     runtime/src/gc/root_frames.c runtime/src/gc/roots.c \
+ *     runtime/src/gc/stackmap.c \
  *     runtime/src/gc/stack_roots.c runtime/src/thread.c \
  *     runtime/src/thread/collection.c runtime/src/thread/debug.c \
  *     runtime/src/thread/roots.c runtime/src/thread/transitions.c \

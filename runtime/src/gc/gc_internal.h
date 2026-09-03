@@ -51,6 +51,7 @@ void *scoop_gc_alloc_internal(const ScoopTypeDescriptor *td, size_t size);
  * mutator root APIs use the same lock. */
 void scoop_gc_roots_lock(void);
 void scoop_gc_roots_unlock(void);
+_Noreturn void scoop_gc_roots_fatal(const char *message);
 void scoop_gc_register_image_roots(
     const ScoopManagedGlobalDescriptor *managed_globals,
     uint64_t managed_global_count,
@@ -58,6 +59,7 @@ void scoop_gc_register_image_roots(
     uint64_t immortal_object_count);
 bool scoop_gc_is_immortal_object_locked(const void *object);
 bool scoop_gc_is_external_object_locked(const void *object);
+void scoop_gc_visit_handles_locked(ScoopGcRootVisitor visitor);
 void scoop_gc_visit_roots_locked(ScoopGcRootVisitor visitor);
 
 /* Immutable loaded-image stack-map index. Initialization parses and validates
