@@ -137,9 +137,12 @@ M15在M13的多mutator STW与M14清理后的对象语义之上，把GC从“只�
 - `ExportHir`完整携带parameter calling shape、hygienic default template、definition origin及带非可选调用域覆盖证明的kind-specific export-interface reference；local/export default使用不同id且不向下游stage泄漏，winner commit后`LocalConcreteHir`/MIR只见完整位置参数与普通typed array assembly；
 - 覆盖普通/local/member/extension/generic function与method、class/struct主构造、constructor-style enum variant、abstract/interface/default inheritance及Scoop ABI extern；C `...`仍不支持。
 
-### M18 callable 表面补齐（待设计）
+### M18 callable 表面补齐（设计见 `docs/milestone18/DESIGN.md`）
 
-完整 operator/infix、context parameters、`?.method()` 与 property-like `invoke`。
+- 完整operator声明角色、表达式映射、infix优先级与property-like `invoke`，全部复用M16/M17的candidate-local constraint、参数映射、MSC与求值协议；primitive/String/Array/Ptr能力由普通core operator声明提供，winner后才正规化为typed intrinsic；
+- `++`/`--`、复合赋值与多参数下标使用typed place plan保证receiver/index/右值各求值一次；`LocalConcreteHir`前消除source operator与place计划；
+- `?.method()`按Option分支lower，实参/default/vararg只在Some分支执行；结果始终再包一层Option，不展平`Option<Option<T>>`；
+- `componentN`支持class位置解构并导出typed role；`iterator`与range operator表面进入M18，`for`/range core类型仍由M22消费。属性委托operator随M21定义reflection-free协议。
 
 ### M19 构造与初始化（待设计）
 
@@ -252,7 +255,7 @@ non-interface variance、use-site/star projection、capture conversion、class u
 - ~~`write` 的 `@Intrinsic` 退役~~（M12 已直接声明 `@Extern(abi = "scoop") fun write(String)`，作为 managed ABI direct-ref入口）；
 - ~~`print` / `println` 的 `Any.toString()` 过渡分发~~（M14 已改为 `fun <T : ToString> ...` 的普通generic bound调用，并拆除Any固定槽）；
 - 歧义/无匹配诊断的候选明细展示 → M16；
-- 默认参数/vararg的决议规则 → M17；完整运算符重载与`context`参数（spec 8.3）→ M18。
+- 默认参数/vararg的决议规则 → M17；完整运算符重载 → M18；`context`参数（spec 8.3）待重新设计。
 
 ### 来自 M8
 

@@ -1,6 +1,6 @@
 # Scoop 语言规范
 
-版本：0.4（草案）
+版本：0.5（草案）
 
 ## 1. 概述
 
@@ -497,6 +497,8 @@ enum Option<T> {
 ### 7.3 空安全运算符的语义
 
 - `a?.b`：脱糖为 `when (a) { Some(v) -> Some(v.b); None -> None }`（结果类型为 `Option<B>`，其中 `B` 是 `b` 的类型）。
+- `a?.f(args...)`：脱糖为 `when (a) { Some(v) -> Some(v.f(args...)); None -> None }`。receiver `a`先求值且只求值一次；只有运行期进入`Some`分支后才会求值显式实参、物化`vararg`、执行缺省表达式并进入callee。方法、extension与property-like `invoke`的选择均在payload静态类型上按第8章完成。
+- 安全调用**不展平**结果。若`f`返回`Option<R>`，`a?.f()`的类型是`Option<Option<R>>`；若返回`Unit`，结果是`Option<Unit>`。这遵守7.1的逐层`Option`语义，不采用Kotlin nullable type的幂等合并。
 - `a ?: b`：脱糖为 `when (a) { Some(v) -> v; None -> b }`。
 - `a!!`：`a` 为 `Some` 时取值；为 `None` 时抛出核心库异常 `UnwrapException`。
 - 空安全表达式可以出现在`while`条件中；条件脱糖产生的临时绑定与其他条件求值步骤一起在每次条件检查时重新执行，不能提升到循环外。
@@ -687,7 +689,7 @@ fun references() {
 
 ### 8.6 调用决议与泛型约束求解
 
-- 调用决议先按词法/成员/import优先级建立候选层，对每层完成调用形态预过滤与候选各自的类型可应用性检查，再只在第一个含有至少一个可应用候选的层中求最具体候选。显式类型实参数量、命名参数是否存在、spread/receiver形态等不依赖表达式类型的检查属于预过滤；某个更高层仅有同名但形态、类型或bound不适用的声明时，不得无条件遮蔽合法的下一层候选。多Cone及显式/星号import加入时只扩展候选层，不改变后续算法。
+- 调用决议先按词法/成员/import优先级建立候选层，并在每层内按9.3.4的function-like/property-like c-level继续分区；对每个最终分区完成调用形态预过滤与候选各自的类型可应用性检查，再只在第一个含有至少一个可应用候选的分区中求最具体候选。显式类型实参数量、命名参数是否存在、spread/receiver形态等不依赖表达式类型的检查属于预过滤；某个更高层仅有同名但形态、类型或bound不适用的声明时，不得无条件遮蔽合法的下一层候选。多Cone及显式/星号import加入时只扩展候选层，不改变后续算法。
 - 每个候选拥有独立的实参映射、fresh inference variables和constraint system。receiver、非postponed实参、完整显式类型实参、函数/nominal声明约束及upper bound共同产生等式/子类型约束；generic owner参数与callable自身参数保持不同identity，不能压平成一组后再按长度反推。
 - 依赖候选期望类型的lambda、匿名函数、callable reference、`None`、空数组和嵌套generic构造作为postponed argument处理。求解器先用其余约束推进固定点，再用候选给出的完整期望类型检查postponed argument；lambda body结果只决定候选是否适用，不提供额外的“按lambda返回类型优先”规则。
 - constraint system必须同时满足声明点kind/interface bound、函数类型型变、interface声明点型变、普通subtyping及装箱规则。一个候选只有在所有必需类型实参得到唯一、可表达且满足bound的具体解，全部显式与postponed实参都可赋给对应参数时才可应用；不得用`Any`、bound、默认false或任意首个类型补齐无解/多解变量。
@@ -731,11 +733,96 @@ fun references() {
 
 ### 9.3 运算符重载与约定
 
-`+`/`-`/比较/索引/迭代/`invoke` 等运算符约定与 Kotlin 一致。参与运算符约定的函数必须显式写`operator` modifier；仅仅使用约定名称不会使普通函数成为运算符。解构约定：普通 class 可通过 `componentN` 运算符函数支持解构（与 Kotlin 一致）；struct / tuple 走内建解构（见 4.6）。
+#### 9.3.1 `operator`声明
 
-`equals`是本规范对Kotlin约定的有意收紧：可参与`==`的声明必须是名为`equals`的**成员**`operator fun`，恰好有一个显式参数并返回`Boolean`，且不得为generic或suspend。顶层、局部与extension equals不参与`==`。成员可以重载，也可按普通规则声明为final/open/abstract/override；operator标志属于override contract。具体决议见11.11。
+参与运算符约定的函数必须显式写`operator` modifier；仅仅使用约定名称不会使普通函数成为运算符。除下述`equals`外，operator必须是成员函数或extension函数，可以是ordinary/suspend、generic或infix。operator标志属于override contract，override与被覆写声明必须完全一致。
+
+HIR把通过验证的角色保存为封闭、类型化的operator identity；表达式决议不得再从函数名或签名反推能力。合法名称与声明约束如下：
+
+| 角色 | 显式普通参数 | 额外约束 |
+| --- | --- | --- |
+| `unaryPlus` / `unaryMinus` / `not` | 0 | 返回类型不限 |
+| `inc` / `dec` | 0 | 返回类型必须是receiver静态类型的子类型 |
+| `plus` / `minus` / `times` / `div` / `rem` | 1 | 返回类型不限 |
+| `rangeTo` / `rangeUntil` | 1 | 返回类型不限 |
+| `contains` | 1 | 返回`Boolean` |
+| `get` | 至少1个 | 返回类型不限；允许按8.5使用default/`vararg` |
+| `set` | 至少2个 | 返回`Unit`；最后一个参数是写入值且不得为`vararg`，此前参数是索引 |
+| `invoke` | 任意 | 使用完整8.5调用参数协议 |
+| `plusAssign` / `minusAssign` / `timesAssign` / `divAssign` / `remAssign` | 1 | 返回`Unit` |
+| `compareTo` | 1 | 返回`Int` |
+| `equals` | 1 | 返回`Boolean`；见下述收紧规则 |
+| `componentN`（`N`为正十进制整数） | 0 | 返回类型不限 |
+| `iterator` | 0 | 返回值在`for`使用点满足11.8的`Iterator<T>`协议 |
+
+固定元数角色的参数可以具有default，但operator语法提供的operand仍按8.5映射到对应参数；只有`get`、`set`和`invoke`能以`vararg`表达可变元数。名称不在表中、元数或返回约束错误、`component0`及非数字`component`名称都是声明处错误，不能以普通函数身份携带`operator`标志进入HIR。
+
+属性委托所需的`provideDelegate` / `getValue` / `setValue`不是本表的`set`下标角色。它们的reflection-free签名及调用时机随9.2的属性委托一并规定；在该协议定稿前不能仅按名称赋予operator identity。
+
+`equals`是本规范对Kotlin约定的有意收紧：可参与`==`的声明必须是名为`equals`的**成员**`operator fun`，恰好有一个显式参数并返回`Boolean`，且不得为generic或suspend。顶层、局部与extension equals不参与`==`。成员可以重载，也可按普通规则声明为final/open/abstract/override；具体决议见11.11。
 
 `equals`签名中的参数必须写普通显式类型。Scoop没有`Self`类型：若interface需要表达“与某个类型比较”，应写成例如`interface EqualTo<T> { operator fun equals(other: T): Boolean }`，实现者显式选择`EqualTo<Point>`等application；编译器不把interface中的任何名字隐式替换为实现者类型。
+
+#### 9.3.2 表达式展开
+
+除单独说明外，operator展开后使用8.6的普通显式receiver调用决议，只保留具有对应typed operator identity的成员/extension候选，并完整复用8.5的default、`vararg`、泛型与求值协议：
+
+| 源码 | 概念调用 |
+| --- | --- |
+| `+a` / `-a` / `!a` | `a.unaryPlus()` / `a.unaryMinus()` / `a.not()` |
+| `a + b` / `a - b` / `a * b` / `a / b` / `a % b` | `a.plus(b)` / `a.minus(b)` / `a.times(b)` / `a.div(b)` / `a.rem(b)` |
+| `a..b` / `a..<b` | `a.rangeTo(b)` / `a.rangeUntil(b)` |
+| `a in b` / `a !in b` | `b.contains(a)` / `!b.contains(a)` |
+| `a[i1, ..., iN]` | `a.get(i1, ..., iN)` |
+| `a[i1, ..., iN] = v` | `a.set(i1, ..., iN, v)` |
+| `a(args...)` | function-value call，或`a.invoke(args...)`（见9.3.4） |
+| `a < b` / `a <= b` / `a > b` / `a >= b` | `a.compareTo(b)`的`Int`结果与0比较 |
+| `a == b` / `a != b` | 11.11的成员`equals`调用 / 对同一结果取反 |
+
+receiver先于调用实参求值，因此`a in b`与`a !in b`按概念调用先求值`b`、再求值`a`；这是有意保留的Kotlin顺序。其他表项按书写的receiver再到operand顺序求值。`&&` / `||`仍是只接受`Boolean`的内建短路操作，`===` / `!==`仍是不可重载的引用identity比较；`=`, `?:`, `!!`, `is` / `as`及安全导航本身也不可重载。
+
+operator调用只考虑function-like operator目标，不能再通过property-like `invoke`递归寻找某个同名operator。一次`a(args...)`至多应用一次`invoke`约定；若选中的`invoke`返回另一个可调用值，必须再写一组显式括号才能调用。
+
+#### 9.3.3 自增、自减与复合赋值
+
+`++` / `--`的operand必须是可读写place。编译器先把local/global/field/下标place中的receiver与index从左到右各求值一次，再执行：
+
+- prefix `++a` / `--a`：读取旧值，调用`inc` / `dec`，把适配后的新值写回，并以新值为表达式结果；
+- postfix `a++` / `a--`：执行同样的单次读、调用和写回，但表达式结果是写回前的旧值。
+
+对`a op= b`（`op`为`+ - * / %`），候选探测同时考虑对应`opAssign`与普通`op`：
+
+1. 仅`opAssign`可应用时，读取place值并调用它；不写回，因此只读`val`也可以作为receiver；
+2. 仅普通`op`可应用时，place必须可写，调用结果必须可赋给place静态类型，再写回；
+3. 二者都可应用时报歧义，不能擅自偏好其中一个；二者都不可应用时报完整候选失败；
+4. 整个语句的结果为`Unit`。
+
+下标place的读写分别通过同一静态receiver上的`get`与`set`operator选择；receiver、全部index及右操作数都只求值一次。所有这些展开在HIR形成类型化place/evaluation plan后正规化为普通temporary、call与assignment；MIR不得重新解析operator或复制源码子表达式。
+
+#### 9.3.4 property-like `invoke`与候选分区
+
+任意表达式`e(args...)`先定型`e`：若其类型是8.1的函数类型，执行内建函数值调用；否则只从其静态类型收集成员及可见extension `operator fun invoke`，并按普通调用决议。`FunPtr<F>`仍不提供Scoop侧`invoke`。
+
+对名称调用，property-like callable表示“先读取该名称对应的值，再对结果应用一次上述invoke规则”。显式receiver调用的c-level分区顺序为：
+
+1. member function-like callable；
+2. member property-like callable + member `invoke`；
+3. 各extension作用域中的extension function-like callable；
+4. member property-like callable + extension `invoke`；
+5. extension property-like callable + member `invoke`；
+6. extension property-like callable + extension `invoke`。
+
+M18之前已有的local/parameter/capture、global、primary-constructor property及普通field都可作为property-like来源；extension property/object/companion加入后插入同一分区，不改变算法。每个组合先完成property选择，再以其结果类型建立独立invoke候选；最终优先级取property与invoke两部分中较低者。调用的显式type arguments、命名/spread/尾随lambda只转发给`invoke`，不作用于property读取。
+
+为保留8.1.3已确定的词法遮蔽，最近词法作用域中同名的函数类型binding，或静态类型具有至少一个可见`invoke`operator的binding，先形成唯一local property-like层并遮蔽同名函数声明；其调用形态/类型不匹配时针对该binding诊断。普通不可调用binding不参与callable层。其他层仍遵守8.6的“第一个含可应用候选的分区”，不能因存在同名但不可应用的property无条件阻断后续函数。
+
+#### 9.3.5 `infix`
+
+`infix`函数必须是成员或extension函数，且恰好有一个required、非`vararg`的显式普通参数；可以同时是generic、suspend及`operator`。不满足声明形态、用于top-level非extension或local非extension函数都是声明处错误。`infix`标志与`operator`一样属于override contract。
+
+`lhs name rhs`等价于`lhs.name(rhs)`，要求直接function-like候选带`infix`，或property-like候选最终选中的`invoke`同时带`operator infix`；其余决议与求值规则不变。infix调用左结合，必须显式写receiver（当前`this`上调用写成`this name rhs`）。其优先级从高到低位于range与Elvis之间：postfix、prefix、cast、乘法、加法、range、infix name、Elvis、`in`/`is`、比较、相等、`&&`、`||`、赋值。不同infix名称没有自定义优先级。
+
+普通class可以通过`componentN` operator支持位置解构；每个实际需要的位置独立解析对应operator并只求值被解构值一次。struct/tuple仍走4.6的内建解构，不查找`componentN`。`iterator`只定义11.8中`for`脱糖的入口；M18接受并类型化该operator声明，`for`及range core类型在相应基础语言里程碑实现。
 
 ### 9.4 注解
 
@@ -810,7 +897,7 @@ val good: Array<I> = [j, S(10) as I]     // 显式装箱
 
 ### 10.5 操作
 
-- 下标访问 `a[i]`；`MutableArray` 支持下标赋值 `m[i] = v`。
+- 下标访问 `a[i]`通过普通成员`operator fun get(index: Int): T`；`MutableArray`通过`operator fun set(index: Int, value: T): Unit`支持下标赋值`m[i] = v`。这些声明可以由intrinsic提供表示级实现，但候选选择、泛型实例化与operator identity遵守9.3，不建立按`Array`类型名放行的第二套解析规则。
 - `size` 属性；实现 `Iterable<T>`，可用于 `for` 循环。
 
 ---
@@ -917,7 +1004,7 @@ while (true) {
 - 循环体中的 `break` / `continue` 语义不变（`continue` 即进入下一轮 `next()`）。
 - 循环变量的解构模式（`for ((a, b) in s)`，见 4.6）同样脱糖进 `Some(...)` 分支的模式位置。
 
-区间：`IntRange` / `LongRange` / `CharRange`（`..` / `until` / `downTo` / `step`），实现 `Iterable`。`..` 与 rest 模式的消歧见 4.6。
+区间：`IntRange` / `LongRange` / `CharRange`（`..`调用`rangeTo`，`..<`调用`rangeUntil`；`until` / `downTo` / `step`使用普通infix函数），实现 `Iterable`。`..` 与 rest 模式的消歧见 4.6。
 
 ### 11.9 协程原语
 
@@ -1096,7 +1183,7 @@ annotation class Intrinsic(val name: String)
 
 ```
 @Intrinsic("int_add")
-operator fun add(lhs: Int, rhs: Int): Int
+operator fun Int.plus(rhs: Int): Int
 ```
 
 - 也可用于登记表明确允许的core struct/class，声明一个**intrinsic type**：该类型的representation、literal lowering、ABI及内部构造机制由编译器提供，源码声明其nominal interface与成员语义。例如：
