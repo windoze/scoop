@@ -11,7 +11,9 @@ The C runtime implements M15's exact moving Immix collector:
 - `src/gc/collector.c` owns exact mark/relocate/verify traversal;
 - `src/gc/roots.c`, `stackmap.c` and `stack_roots.c` own explicit roots and
   LLVM stack-map consumption;
-- `src/thread.c` owns attached-thread state and cooperative STW epochs;
+- `src/thread.c` owns thread attachment and registry lifecycle; `src/thread/`
+  separates STW collection, managed/native transitions, root frames, and
+  debug queries;
 - `src/platform/` provides the target-selected image, OS/VM and frame/ABI
   components. M15 currently supports Darwin/AArch64 only.
 
