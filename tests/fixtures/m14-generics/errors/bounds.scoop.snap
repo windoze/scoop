@@ -8,5 +8,8 @@ m14-generics/errors/bounds.scoop:15:45: error: unknown type parameter `U` in whe
 m14-generics/errors/bounds.scoop:17:10: error: upper bound of type parameter `T` must be an interface, found `Int`
 m14-generics/errors/bounds.scoop:19:50: error: duplicate interface upper bound `Marker` for type parameter `T` of function
 m14-generics/errors/bounds.scoop:21:10: error: generic interface `Boxed` requires 1 type argument(s)
-m14-generics/errors/bounds.scoop:25:59: error: call to `value` is ambiguous
-m14-generics/errors/bounds.scoop:28:5: error: type argument `Int` for `T` of function `requiresMarker` must satisfy interface upper bound `Marker`
+m14-generics/errors/bounds.scoop:25:59: error: call to `value` is ambiguous in member candidate layer:
+  - fun Left.value(): Int — tied after pairwise declaration forwarding
+  - fun Right.value(): Int — tied after pairwise declaration forwarding
+m14-generics/errors/bounds.scoop:28:5: error: no applicable candidate for `requiresMarker` in current-unit top-level candidate layer:
+  - fun requiresMarker<T : Marker>(value: T): T — type argument `Int` for `T` must satisfy interface upper bound `Marker`

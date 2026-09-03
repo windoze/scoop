@@ -13,6 +13,17 @@ impl Lowerer {
     /// their declared name while the owning function or enum is in
     /// scope.
     pub(crate) fn type_name(&self, ty: TypeId) -> String {
+        self.type_name_with_params(ty, &self.type_params_in_scope)
+    }
+
+    /// Render a declaration type with the declaration's own parameter names.
+    /// Candidate diagnostics use this instead of the caller's lexical generic
+    /// namespace so every displayed source signature remains self-contained.
+    pub(crate) fn type_name_with_params(
+        &self,
+        ty: TypeId,
+        type_params: &[hir::TypeParamDecl],
+    ) -> String {
         type_name(
             &self.types,
             &self.function_types,
@@ -26,7 +37,7 @@ impl Lowerer {
                 classes: &self.class_applications,
                 interfaces: &self.interface_applications,
             },
-            &self.type_params_in_scope,
+            type_params,
             ty,
         )
     }

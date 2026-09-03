@@ -12,7 +12,7 @@ fn pin_rejects_an_int_argument() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "type argument `Int` for `T` of function `pin` must satisfy `ref`"
+        "no applicable candidate for `pin` in implicit-import candidate layer:\n  - fun pin<T : ref>(v: T): PinnedPtr<T> — type argument `Int` for `T` must satisfy `ref`"
     );
     // The user file is index 2 (core files are 0 and 1).
     assert_eq!(errors[0].file, 2);
@@ -34,7 +34,7 @@ fn pin_rejects_a_struct_argument() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "type argument `Point` for `T` of function `pin` must satisfy `ref`"
+        "no applicable candidate for `pin` in implicit-import candidate layer:\n  - fun pin<T : ref>(v: T): PinnedPtr<T> — type argument `Point` for `T` must satisfy `ref`"
     );
 }
 
@@ -48,7 +48,7 @@ fn get_gc_handle_rejects_a_value_argument() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "type argument `Int` for `T` of function `getGcHandle` must satisfy `ref`"
+        "no applicable candidate for `getGcHandle` in implicit-import candidate layer:\n  - fun getGcHandle<T : ref>(v: T): GcHandle<T> — type argument `Int` for `T` must satisfy `ref`"
     );
 }
 
@@ -104,7 +104,7 @@ fn pin_rejects_an_unconstrained_type_parameter() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "type argument `U` for `T` of function `pin` must satisfy `ref`"
+        "no applicable candidate for `pin` in implicit-import candidate layer:\n  - fun pin<T : ref>(v: T): PinnedPtr<T> — type argument `U` for `T` must satisfy `ref`"
     );
 }
 

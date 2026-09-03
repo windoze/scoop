@@ -292,39 +292,38 @@ impl Lowerer {
             })
             .collect();
 
-        if !explicit_type_args.is_empty()
-            && prepared
-                .iter()
-                .all(|candidate| !candidate.explicit_arity_match)
-        {
-            let supplied = explicit_type_args.len();
-            let expected = prepared[0].own_type_param_count;
-            if prepared
-                .iter()
-                .all(|candidate| candidate.own_type_param_count == expected)
-            {
-                self.error(
-                    span,
-                    format!(
-                        "`{name}` takes exactly {expected} type argument(s), but {supplied} were supplied"
-                    ),
-                );
-            } else {
-                self.error(
-                    span,
-                    format!("no overload of `{name}` accepts {supplied} explicit type argument(s)"),
-                );
-            }
-            return None;
-        }
-
         // Every candidate starts from the exact same semantic state. Its
         // lowered expressions, generated callable entities, coercions and
         // diagnostics remain inside that transaction until MSC chooses it.
         let mut applicable = Vec::new();
         let mut failures = Vec::new();
         for (index, candidate) in prepared.iter().enumerate() {
-            if !candidate.explicit_arity_match || candidate.argument_map.is_err() {
+            if !candidate.explicit_arity_match {
+                failures.push(probe::CandidateProbeFailure {
+                    candidate: index,
+                    state: Box::new(self.clone()),
+                    arguments: Vec::new(),
+                    kind: probe::CandidateProbeFailureKind::Shape(
+                        probe::CandidateShapeFailure::TypeArgumentArity {
+                            expected: candidate.own_type_param_count,
+                            supplied: explicit_type_args.len(),
+                        },
+                    ),
+                });
+                continue;
+            }
+            if let Err(mismatch) = &candidate.argument_map {
+                failures.push(probe::CandidateProbeFailure {
+                    candidate: index,
+                    state: Box::new(self.clone()),
+                    arguments: Vec::new(),
+                    kind: probe::CandidateProbeFailureKind::Shape(
+                        probe::CandidateShapeFailure::ArgumentArity {
+                            expected: mismatch.expected,
+                            supplied: mismatch.supplied,
+                        },
+                    ),
+                });
                 continue;
             }
             match self.probe_overload_candidate(

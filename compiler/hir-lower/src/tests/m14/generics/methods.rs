@@ -260,8 +260,10 @@ fn generic_method_bounds_are_checked_with_the_method_argument_group() {
     ]))
     .expect_err("the owner argument must not be used in place of the method argument");
     assert!(errors.iter().any(|error| {
-        error.message
-            == "type argument `Int` for `U` of function `Host.accept` must satisfy interface upper bound `Marker`"
+        error.message.contains("fun Host<T>.accept<U : Marker>")
+            && error
+                .message
+                .contains("type argument `Int` for `U` must satisfy interface upper bound `Marker`")
     }));
 }
 

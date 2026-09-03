@@ -59,7 +59,11 @@ impl Lowerer {
         if pool.len() == 1 {
             Some(applicable[pool[0]])
         } else {
-            self.error(span, format!("call to `{name}` is ambiguous"));
+            let tied = pool
+                .iter()
+                .map(|&candidate| applicable[candidate])
+                .collect::<Vec<_>>();
+            self.ambiguity_diagnostic(name, prepared, &tied, span);
             None
         }
     }

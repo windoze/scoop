@@ -3,4 +3,5 @@ source: compiler/driver/tests/fixtures.rs
 expression: snapshot
 ---
 == diagnostics ==
-m3-generics/errors/conflicting-type-args.scoop:4:21: error: conflicting types for `T`: Int and String
+m3-generics/errors/conflicting-type-args.scoop:4:21: error: no applicable candidate for `pick` in current-unit top-level candidate layer:
+  - fun pick<T>(a: T, b: T): T — conflicting types for `T`: Int and String

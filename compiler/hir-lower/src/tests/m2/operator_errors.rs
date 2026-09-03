@@ -40,7 +40,7 @@ fn equality_requires_matching_types() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "no overload of `equals` matches argument types (String)"
+        "no applicable candidate for `equals` in member candidate layer:\n  - fun Int.equals(other: Int): Boolean — argument for `other` has type String, which is not a subtype of Int"
     );
 }
 

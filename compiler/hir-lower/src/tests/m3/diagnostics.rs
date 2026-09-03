@@ -160,7 +160,10 @@ fn unbound_type_argument_is_an_error() {
     ]);
     let errors = lower_user(file).expect_err("unbound type argument must fail");
     assert_eq!(errors.len(), 1);
-    assert_eq!(errors[0].message, "cannot infer type argument `T` for `f`");
+    assert_eq!(
+        errors[0].message,
+        "no applicable candidate for `f` in current-unit top-level candidate layer:\n  - fun f<T>(x: Int): Int — cannot infer a unique type argument for `T`"
+    );
 }
 
 #[test]
@@ -182,7 +185,7 @@ fn conflicting_type_arguments_are_an_error() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "conflicting types for `T`: Int and String"
+        "no applicable candidate for `f` in current-unit top-level candidate layer:\n  - fun f<T>(a: T, b: T): T — conflicting types for `T`: Int and String"
     );
 }
 
@@ -202,7 +205,7 @@ fn argument_type_mismatch_is_an_error() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "argument for parameter `x` of `f` must be of type Int, found String"
+        "no applicable candidate for `f` in current-unit top-level candidate layer:\n  - fun f(x: Int): Int — argument for `x` has type String, which is not a subtype of Int"
     );
 }
 

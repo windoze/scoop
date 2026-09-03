@@ -19,6 +19,7 @@ pub(super) struct CandidateProbeFailure {
 }
 
 pub(super) enum CandidateProbeFailureKind {
+    Shape(CandidateShapeFailure),
     Constraint(crate::call_resolution::constraints::ConstraintFailure),
     Expression {
         source_index: usize,
@@ -26,6 +27,11 @@ pub(super) enum CandidateProbeFailureKind {
         span: Span,
         reason: String,
     },
+}
+
+pub(super) enum CandidateShapeFailure {
+    TypeArgumentArity { expected: usize, supplied: usize },
+    ArgumentArity { expected: usize, supplied: usize },
 }
 
 impl Lowerer {

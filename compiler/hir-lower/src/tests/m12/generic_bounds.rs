@@ -148,10 +148,14 @@ fn kind_bounds_check_concrete_function_and_struct_instantiations() {
             ],
         ),
     ]);
-    assert!(errors.iter().any(|message| message
-        == "type argument `String` for `T` of function `valueIdentity` must satisfy `value`"));
-    assert!(errors.iter().any(|message| message
-        == "type argument `Int` for `T` of function `refIdentity` must satisfy `ref`"));
+    assert!(errors.iter().any(|message| {
+        message.contains("fun valueIdentity<T : value>(value: T): T")
+            && message.contains("type argument `String` for `T` must satisfy `value`")
+    }));
+    assert!(errors.iter().any(|message| {
+        message.contains("fun refIdentity<T : ref>(value: T): T")
+            && message.contains("type argument `Int` for `T` must satisfy `ref`")
+    }));
     assert!(
         errors.iter().any(|message| message
             == "type argument `Int` for `T` of struct `RefBox` must satisfy `ref`")
@@ -283,10 +287,9 @@ fn explicit_type_arguments_filter_overloads_and_report_complete_list_errors() {
             ))],
         ),
     ]);
-    assert_eq!(
-        errors,
-        ["no overload of `pick` accepts 2 explicit type argument(s)"]
-    );
+    assert_eq!(errors.len(), 1);
+    assert!(errors[0].contains("fun pick<T>(value: T): T — expects 1 explicit type argument(s)"));
+    assert!(errors[0].contains("fun pick(value: Int): Int — expects 0 explicit type argument(s)"));
 }
 
 #[test]
@@ -373,8 +376,9 @@ fn overloaded_kind_failure_keeps_the_precise_bound_diagnostic() {
             vec![val("result", call("choose", vec![int_lit(1)]))],
         ),
     ]);
-    assert_eq!(
-        errors,
-        ["type argument `Int` for `T` of function `choose` must satisfy `ref`"]
-    );
+    assert_eq!(errors.len(), 1);
+    assert!(errors[0].contains(
+        "fun choose<T : ref>(value: T): T — type argument `Int` for `T` must satisfy `ref`"
+    ));
+    assert!(errors[0].contains("fun choose(left: Int, right: Int): Int — expects 2 argument(s)"));
 }

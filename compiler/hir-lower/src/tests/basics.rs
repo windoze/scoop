@@ -153,7 +153,9 @@ fn print_requires_exactly_one_argument() {
         assert_eq!(errors.len(), 1);
         assert_eq!(
             errors[0].message,
-            format!("function `print` takes exactly 1 argument, but {supplied} were supplied")
+            format!(
+                "no applicable candidate for `print` in implicit-import candidate layer:\n  - fun print<T : ToString>(value: T): Unit — expects 1 argument(s), but {supplied} were supplied"
+            )
         );
     }
 }
@@ -168,7 +170,7 @@ fn user_function_arity_is_an_error() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "function `helper` takes exactly 0 arguments, but 1 were supplied"
+        "no applicable candidate for `helper` in current-unit top-level candidate layer:\n  - fun helper(): Unit — expects 0 argument(s), but 1 were supplied"
     );
 }
 

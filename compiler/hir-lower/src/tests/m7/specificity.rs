@@ -134,7 +134,10 @@ fn mutually_non_dominating_overloads_are_ambiguous() {
     ]);
     let errors = lower_user(file).expect_err("the call must be ambiguous");
     assert_eq!(errors.len(), 1);
-    assert_eq!(errors[0].message, "call to `f` is ambiguous");
+    assert_eq!(
+        errors[0].message,
+        "call to `f` is ambiguous in current-unit top-level candidate layer:\n  - fun f(a: A, b: B): String — tied after pairwise declaration forwarding\n  - fun f(a: B, b: A): String — tied after pairwise declaration forwarding"
+    );
 }
 
 /// A generic and a non-generic candidate dominating each other
@@ -218,5 +221,8 @@ fn generic_forwarding_does_not_read_call_inference_results() {
     ]);
     let errors = lower_user(file).expect_err("fresh declaration forwarding stays tied");
     assert_eq!(errors.len(), 1);
-    assert_eq!(errors[0].message, "call to `merge` is ambiguous");
+    assert_eq!(
+        errors[0].message,
+        "call to `merge` is ambiguous in current-unit top-level candidate layer:\n  - fun merge<T>(first: T, second: T): String — tied after pairwise declaration forwarding\n  - fun merge<U>(first: U, second: Any): String — tied after pairwise declaration forwarding"
+    );
 }
