@@ -1,0 +1,118 @@
+use super::*;
+
+#[test]
+fn lowers_hello_world() {
+    let module = lower(&hello_world());
+
+    // Globals: one per MIR string constant, same symbol and value.
+    let globals: Vec<(&str, &str)> = module
+        .globals
+        .iter()
+        .map(|(_, g)| match &g.init {
+            lir::GlobalInit::StringConst(value) => (g.symbol.as_str(), value.as_str()),
+            lir::GlobalInit::CString(value) => (g.symbol.as_str(), value.as_str()),
+            lir::GlobalInit::Storage { .. } => unreachable!("hello has no storage globals"),
+        })
+        .collect();
+    assert_eq!(
+        globals,
+        [("scoop.str.0", "hello, world"), ("scoop.str.1", "!")]
+    );
+
+    // Functions keep their mangled symbols; the entry symbol is the
+    // fixed `scoop_main`.
+    let symbols: Vec<&str> = module.functions.iter().map(|f| f.symbol.as_str()).collect();
+    assert_eq!(symbols, ["scoop.helper", mir::ENTRY_SYMBOL]);
+    assert_eq!(module.entry_symbol, mir::ENTRY_SYMBOL);
+
+    // The source declaration's typed intrinsic identity survives through
+    // MIR and LIR. String metadata is a required singleton, not a layout
+    // or descriptor that codegen has to rediscover by name.
+    let string_layout = &module.meta.layouts[module.meta.well_known_layouts.string];
+    let string_descriptor = descriptor(&module, module.meta.well_known_type_descriptors.string);
+    assert_eq!(
+        string_layout.kind,
+        lir::LayoutKind::Intrinsic(lir::IntrinsicTypeRepresentation::String)
+    );
+    assert_eq!(string_descriptor.symbol, lir::STRING_TD_SYMBOL);
+    assert_eq!(string_descriptor.runtime_type_id, 1);
+    assert!(string_descriptor.vtable.is_empty());
+    assert_eq!(
+        descriptor_values(&module)
+            .filter(|descriptor| descriptor.symbol == lir::STRING_TD_SYMBOL)
+            .count(),
+        1
+    );
+    for representation in [
+        lir::IntrinsicTypeRepresentation::Int,
+        lir::IntrinsicTypeRepresentation::UInt,
+        lir::IntrinsicTypeRepresentation::Boolean,
+    ] {
+        assert!(
+            layout_values(&module).any(|layout| {
+                layout.kind == lir::LayoutKind::Intrinsic(representation.clone())
+            })
+        );
+    }
+
+    // Golden dump locks the output structure.
+    insta::assert_snapshot!(lir::dump(&module), @r###"
+Module
+  global @scoop.str.0 = "hello, world"
+  global @scoop.str.1 = "!"
+  extern ef0 write @scoop_rt_write(ptr<managed>) -> {} <scoop managed nounwind>
+  fun @scoop.helper() -> void
+  block entry
+    poll managed-void-target0 sp4 live=[]
+    call native-borrowed-void-target0 sp1 roots=[] sig=void0 (ptr<managed>) extern0(global1)
+    t0 = aggregate () : {}
+    ret
+  fun @scoop_main() -> void
+  block entry
+    poll managed-void-target1 sp5 live=[]
+    call native-borrowed-void-target0 sp2 roots=[] sig=void0 (ptr<managed>) extern0(global0)
+    t0 = aggregate () : {}
+    call managed-void-target0 sp3 live=[] sig=void1 () local-fn0()
+    t1 = aggregate () : {}
+    ret
+  layout String size=24 align=8 refs=[]
+  layout Int size=8 align=8 refs=[]
+  layout Boolean size=1 align=1 refs=[]
+  entry @scoop_main
+"###);
+}
+
+#[test]
+fn globals_carry_complete_scans_from_their_concrete_storage_types() {
+    let mut module = hello_world();
+    module.globals.alloc(mir::Global {
+        name: "managedRoot".to_string(),
+        symbol: "scoop.global.managedRoot".to_string(),
+        ty: mir::Type::String,
+        mutable: true,
+        storage: mir::GlobalStorage::Local {
+            thread_local: false,
+            initializer: mir::ConstantValue::NullPtr,
+        },
+    });
+
+    let module = lower(&module);
+    let string_constant = module
+        .globals
+        .iter()
+        .map(|(_, global)| global)
+        .find(|global| matches!(global.init, lir::GlobalInit::StringConst(_)))
+        .expect("string constant");
+    assert_eq!(string_constant.scan, lir::RefScan::None);
+
+    let managed = module
+        .globals
+        .iter()
+        .map(|(_, global)| global)
+        .find(|global| global.symbol == "scoop.global.managedRoot")
+        .expect("managed storage global");
+    assert_eq!(managed.scan, lir::RefScan::References(vec![0]));
+    assert!(
+        lir::dump(&module).contains("global @scoop.global.managedRoot : ptr<managed> scan=refs[0]")
+    );
+}
