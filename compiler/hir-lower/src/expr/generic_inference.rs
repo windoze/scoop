@@ -246,6 +246,14 @@ impl Lowerer {
         name: &ast::Ident,
         args: &[ast::Expr],
     ) -> bool {
+        if let Some(&(class, _)) = self.classes_by_name.get(&name.text)
+            && self.array_class_kind(class).is_some()
+        {
+            let [source] = args else {
+                return false;
+            };
+            return self.expr_requires_expected_type(source);
+        }
         let Some((type_param_count, fields)) = self.constructor_inference_shape(&name.text) else {
             return false;
         };

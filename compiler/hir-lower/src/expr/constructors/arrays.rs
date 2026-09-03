@@ -7,80 +7,94 @@ impl Lowerer {
         &mut self,
         call: &ast::CallExpr,
         sink: &mut Vec<hir::Statement>,
+        target_class: hir::ClassId,
         target_kind: ArrayKind,
+        expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
-        let name = call.callee.text.clone();
+        debug_assert_eq!(self.array_class_kind(target_class), Some(target_kind));
+        let source_kind = match target_kind {
+            ArrayKind::Immutable => ArrayKind::Mutable,
+            ArrayKind::Mutable => ArrayKind::Immutable,
+        };
+        let mut view = self.nominal_constructor_view(
+            crate::call_resolution::candidates::NominalConstructorSource::Class(target_class),
+        );
+        let [owner_parameter] = view.owner_parameters.as_slice() else {
+            unreachable!("the intrinsic array contract declares one type parameter")
+        };
+        let parameter_ty = self.intern_type(Type::Param(owner_parameter.id));
+        let source_ty = self.class_application(self.array_class(source_kind), vec![parameter_ty]);
+        view.value_parameters = vec![crate::call_resolution::candidates::ValueParameter {
+            name: "source".to_string(),
+            ty: source_ty,
+        }];
+
+        let argument_map =
+            match crate::call_resolution::arguments::CandidateArgumentMap::exact_nominal(
+                &view,
+                call.args.len(),
+            ) {
+                Ok(argument_map) => argument_map,
+                Err(mismatch) => {
+                    self.diagnose_nominal_shape_failure(
+                        &view,
+                        call.span,
+                        format!(
+                            "expects {} argument(s), but {} were supplied",
+                            mismatch.expected, mismatch.supplied
+                        ),
+                    );
+                    return None;
+                }
+            };
         let explicit_type_args = self.resolve_call_type_args(&call.type_args)?;
-        if explicit_type_args.len() > 1 {
-            self.error(
-                call.callee.span,
+        if !explicit_type_args.is_empty() && explicit_type_args.len() != view.owner_parameters.len()
+        {
+            self.diagnose_nominal_shape_failure(
+                &view,
+                call.span,
                 format!(
-                    "`{name}` takes exactly 1 type argument, but {} were supplied",
+                    "expects {} explicit type argument(s), but {} were supplied",
+                    view.owner_parameters.len(),
                     explicit_type_args.len()
                 ),
             );
             return None;
         }
-        if call.args.len() != 1 {
-            let supplied = call.args.len();
-            self.error(
-                call.span,
-                format!("`{name}` takes exactly 1 argument, but {supplied} were supplied"),
-            );
-            return None;
-        }
-        let arg = self.lower_expr(&call.args[0], sink, None)?;
-        let element_ty = match (target_kind, self.array_type_info(arg.ty)) {
-            (
-                ArrayKind::Immutable,
-                Some(ArrayType {
-                    kind: ArrayKind::Mutable,
-                    element,
-                }),
-            )
-            | (
-                ArrayKind::Mutable,
-                Some(ArrayType {
-                    kind: ArrayKind::Immutable,
-                    element,
-                }),
-            ) => element,
-            (_, Some(_)) => {
-                self.error(
-                    arg.span,
-                    "use the value directly; conversion is only between Array and MutableArray"
-                        .to_string(),
-                );
-                return None;
-            }
-            _ => {
-                let expected = if target_kind == ArrayKind::Immutable {
-                    "a MutableArray"
-                } else {
-                    "an Array"
-                };
-                let found = self.type_name(arg.ty);
-                self.error(
-                    arg.span,
-                    format!("argument of `{name}` conversion must be {expected}, found {found}"),
-                );
-                return None;
-            }
+        let expected_arguments = expected.and_then(|expected| {
+            self.array_type_info(expected)
+                .filter(|array| array.kind == target_kind)
+                .map(|array| vec![array.element])
+        });
+        let inferred = self.lower_nominal_arguments(
+            NominalArgumentInput {
+                view: &view,
+                argument_map: &argument_map,
+                expressions: &call.args,
+                explicit_type_args: &explicit_type_args,
+                expected_type_args: expected_arguments.as_deref(),
+                span: call.span,
+            },
+            sink,
+        )?;
+        let NominalArguments {
+            mut args,
+            type_args,
+        } = inferred;
+        let [element_ty] = type_args.as_slice() else {
+            unreachable!("the solved array conversion has one concrete type argument")
         };
-        if let Some(&explicit) = explicit_type_args.first()
-            && !self.types_equal(explicit, element_ty)
-        {
-            let expected = self.type_name(explicit);
-            let found = self.type_name(element_ty);
-            self.error(
-                call.callee.span,
-                format!("explicit element type is {expected}, but the argument contains {found}"),
-            );
-            return None;
-        }
-        let ty = self.array_type(target_kind, element_ty);
+        let [arg] = args.as_slice() else {
+            unreachable!("the solved array conversion has one typed source argument")
+        };
+        let expected_source = self.array_type(source_kind, *element_ty);
+        debug_assert!(self.types_equal(arg.ty, expected_source));
+        let ty = self.array_type(target_kind, *element_ty);
         Some(hir::Expr {
-            kind: ExprKind::ArrayClone(Box::new(arg)),
+            kind: ExprKind::ArrayClone(Box::new(
+                args.pop()
+                    .expect("the solved array conversion has one typed source argument"),
+            )),
             ty,
             span: call.span,
         })

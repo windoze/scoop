@@ -3,5 +3,6 @@ source: compiler/driver/tests/fixtures.rs
 expression: snapshot
 ---
 == diagnostics ==
-m5-arrays/errors/convert-same-kind.scoop:3:19: error: use the value directly; conversion is only between Array and MutableArray
+m5-arrays/errors/convert-same-kind.scoop:3:19: error: no applicable candidate for constructor `Array` in nominal constructor candidate layer:
+  - class Array<T>(source: MutableArray<T>) — argument for `source` has type Array<Int>, which is not a subtype of MutableArray<T>
 m5-arrays/errors/convert-same-kind.scoop:4:13: error: unknown variable `b`

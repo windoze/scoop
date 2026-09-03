@@ -51,21 +51,8 @@ impl Lowerer {
         // opposite-family snapshot conversion. The class namespace resolves
         // the source name; the typed declaration kind selects the operation.
         if let Some(&(class, _)) = self.classes_by_name.get(&call.callee.text) {
-            let target_kind = match self.classes[class].representation {
-                hir::ClassRepresentation::Intrinsic(hir::IntrinsicTypeDeclaration {
-                    kind: hir::IntrinsicTypeKind::Array,
-                    ..
-                }) => Some(ArrayKind::Immutable),
-                hir::ClassRepresentation::Intrinsic(hir::IntrinsicTypeDeclaration {
-                    kind: hir::IntrinsicTypeKind::MutableArray,
-                    ..
-                }) => Some(ArrayKind::Mutable),
-                hir::ClassRepresentation::Declared(_) | hir::ClassRepresentation::Intrinsic(_) => {
-                    None
-                }
-            };
-            if let Some(target_kind) = target_kind {
-                return self.lower_array_conversion(call, sink, target_kind);
+            if let Some(target_kind) = self.array_class_kind(class) {
+                return self.lower_array_conversion(call, sink, class, target_kind, expected);
             }
         }
         match self.classify_constructor(&call.callee)? {

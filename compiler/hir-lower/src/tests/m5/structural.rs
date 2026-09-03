@@ -185,6 +185,33 @@ fn conversion_resolves_before_user_functions() {
 }
 
 #[test]
+fn conversion_uses_the_expected_result_to_type_its_source_literal() {
+    let file = file(vec![fun(
+        "main",
+        vec![val_ty(
+            "a",
+            Some(ty_int_array()),
+            call("Array", vec![array_lit(vec![int_lit(1)])]),
+        )],
+    )]);
+    let module = lower_user(file).expect("conversion expectation must reach its source");
+    let body = match &module.functions[module.entry].kind {
+        FunctionKind::User(body) => body,
+        FunctionKind::Intrinsic(_) | FunctionKind::Extern(_) | FunctionKind::DerivedEquality => {
+            panic!("main is a user function")
+        }
+    };
+    let hir::StatementKind::ValDecl { init, .. } = &body.statements[0].kind else {
+        panic!("expected a val declaration")
+    };
+    let hir::ExprKind::ArrayClone(source) = &init.kind else {
+        panic!("expected an array conversion")
+    };
+    assert_eq!(hir::type_name(&module, init.ty), "Array<Int>");
+    assert_eq!(hir::type_name(&module, source.ty), "MutableArray<Int>");
+}
+
+#[test]
 fn conversion_method_forms_clone_to_the_opposite_kind() {
     let file = file(vec![fun(
         "main",
