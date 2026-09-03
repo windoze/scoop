@@ -20,6 +20,10 @@ pub(super) struct CandidateProbeFailure {
 
 pub(super) enum CandidateProbeFailureKind {
     Shape(CandidateShapeFailure),
+    Intrinsic {
+        span: Span,
+        reason: String,
+    },
     Constraint(crate::call_resolution::constraints::ConstraintFailure),
     Expression {
         source_index: usize,
@@ -55,6 +59,30 @@ impl Lowerer {
             lowered.push(Some(receiver.clone()));
         }
         let mut argument_sinks = (0..source_count).map(|_| Vec::new()).collect::<Vec<_>>();
+        let intrinsic_argument_expected = match arguments {
+            OverloadArguments::Source(expressions) => {
+                let diagnostics_before = state.diagnostics.len();
+                match state.foreign_callback_argument_expected(
+                    candidate.function,
+                    explicit_type_args,
+                    expressions,
+                    candidate.call_span,
+                ) {
+                    Ok(expected) => expected,
+                    Err(()) => {
+                        let reason = diagnostic_reason(&state, diagnostics_before);
+                        let span = diagnostic_span(&state, diagnostics_before, candidate.call_span);
+                        return Err(Box::new(CandidateProbeFailure {
+                            candidate: candidate_index,
+                            state: Box::new(state),
+                            arguments: lowered,
+                            kind: CandidateProbeFailureKind::Intrinsic { span, reason },
+                        }));
+                    }
+                }
+            }
+            OverloadArguments::Lowered(_) => None,
+        };
 
         match arguments {
             OverloadArguments::Source(expressions) => {
@@ -66,7 +94,9 @@ impl Lowerer {
                     .source_order
                 {
                     let source_index = input.index();
-                    if state.expr_requires_expected_type(&expressions[source_index]) {
+                    if (source_index == 0 && intrinsic_argument_expected.is_some())
+                        || state.expr_requires_expected_type(&expressions[source_index])
+                    {
                         continue;
                     }
                     let diagnostics_before = state.diagnostics.len();
@@ -142,9 +172,14 @@ impl Lowerer {
                     if lowered[parameter_index].is_some() {
                         continue;
                     }
-                    let Some(expected) =
+                    let expected = if source_index == 0 {
+                        intrinsic_argument_expected
+                    } else {
+                        None
+                    };
+                    let Some(expected) = expected.or_else(|| {
                         state.try_substitute(candidate.params[parameter_index], &partial)
-                    else {
+                    }) else {
                         continue;
                     };
                     let diagnostics_before = state.diagnostics.len();
@@ -283,10 +318,17 @@ impl Lowerer {
                 if lowered[parameter_index].is_some() {
                     continue;
                 }
-                let expected = state.substitute_call_level(
-                    candidate.params[parameter_index],
-                    &provisional_type_args,
-                );
+                let expected = if source_index == 0 {
+                    intrinsic_argument_expected
+                } else {
+                    None
+                }
+                .unwrap_or_else(|| {
+                    state.substitute_call_level(
+                        candidate.params[parameter_index],
+                        &provisional_type_args,
+                    )
+                });
                 let diagnostics_before = state.diagnostics.len();
                 let argument = state.lower_expr(
                     &expressions[source_index],
@@ -362,7 +404,13 @@ impl Lowerer {
         let mut args = Vec::with_capacity(lowered.len());
         for (index, argument) in lowered.into_iter().enumerate() {
             let argument = argument.expect("a successful candidate types every argument");
-            let expected = state.substitute_call_level(candidate.params[index], &type_args);
+            let source_index = index.saturating_sub(receiver_offset);
+            let expected = if receiver_offset == 0 && source_index == 0 {
+                intrinsic_argument_expected
+            } else {
+                None
+            }
+            .unwrap_or_else(|| state.substitute_call_level(candidate.params[index], &type_args));
             if !state.is_subtype(argument.ty, expected) {
                 let reason = format!(
                     "expression has type {}, expected {}",
@@ -374,7 +422,7 @@ impl Lowerer {
                     state: Box::new(state),
                     arguments: args.into_iter().map(Some).collect(),
                     kind: CandidateProbeFailureKind::Expression {
-                        source_index: index.saturating_sub(receiver_offset),
+                        source_index,
                         expected: Some(expected),
                         span: argument.span,
                         reason,

@@ -1,75 +1,64 @@
 use super::*;
 
 impl Lowerer {
-    pub(super) fn foreign_callback_operation(
-        &self,
-        core: hir::ForeignCallbackCore,
-        name: &str,
-    ) -> Option<hir::ForeignCallbackOperation> {
-        match name {
-            "foreignCallback" => None,
-            "retainForeignCallback" => Some(hir::ForeignCallbackOperation::Retain),
-            "releaseForeignCallback" => Some(hir::ForeignCallbackOperation::Release),
-            "foreignCallbackState" => Some(hir::ForeignCallbackOperation::State),
-            "foreignCallbackFailure" => Some(hir::ForeignCallbackOperation::Failure),
-            _ => return None,
-        }
-        .filter(|operation| {
-            let function = match operation {
-                hir::ForeignCallbackOperation::Retain => core.retain,
-                hir::ForeignCallbackOperation::Release => core.release,
-                hir::ForeignCallbackOperation::State => core.query_state,
-                hir::ForeignCallbackOperation::Failure => core.failure,
-            };
-            self.functions[function].name == name
-        })
-    }
-
-    pub(super) fn lower_foreign_callback_registration(
+    /// The registration intrinsic's source declaration uses `Any` for its
+    /// callback because Scoop types cannot express "remove the context
+    /// parameter from F". Once the ordinary candidate prefilter has fixed the
+    /// unique typed intrinsic target and explicit `F`, derive that candidate's
+    /// real postponed-argument expectation inside its probe transaction.
+    pub(crate) fn foreign_callback_argument_expected(
         &mut self,
-        core: hir::ForeignCallbackCore,
-        call: &ast::CallExpr,
-        sink: &mut Vec<hir::Statement>,
-    ) -> Option<hir::Expr> {
-        if call.type_args.len() != 1 || call.args.len() != 3 {
-            self.error(
-                call.span,
-                "`foreignCallback` requires one explicit function type and exactly three arguments"
-                    .to_string(),
-            );
-            return None;
+        function: hir::FunctionId,
+        explicit_type_args: &[TypeId],
+        args: &[ast::Expr],
+        span: Span,
+    ) -> Result<Option<TypeId>, ()> {
+        let Some(core) = self.foreign_callback_core else {
+            return Ok(None);
+        };
+        if function != core.register {
+            return Ok(None);
         }
-        let native_ty = self.resolve_type_ref(&call.type_args[0])?;
-        let hir::Type::Function(native_function_type) = self.types[native_ty] else {
+        let [native_ty] = explicit_type_args else {
             self.error(
-                call.type_args[0].span,
+                span,
+                "`foreignCallback` requires one explicit function type".to_string(),
+            );
+            return Err(());
+        };
+        let hir::Type::Function(native_function_type) = self.types[*native_ty] else {
+            self.error(
+                span,
                 "`foreignCallback` type argument must be an ordinary concrete function type"
                     .to_string(),
             );
-            return None;
+            return Err(());
         };
-        if !self.validate_foreign_callback_signature(native_function_type, call.span) {
-            return None;
+        if !self.validate_foreign_callback_signature(native_function_type, span) {
+            return Err(());
         }
-        let native_signature = self.function_types[native_function_type].clone();
+        let [_, context_index, _] = args else {
+            unreachable!("registration candidate shape requires exactly three arguments")
+        };
         let ast::Expr::IntLiteral {
             value: context_index,
             span: context_span,
-        } = &call.args[1]
+        } = context_index
         else {
             self.error(
-                call.args[1].span(),
+                context_index.span(),
                 "foreign callback `contextIndex` must be a compile-time integer literal"
                     .to_string(),
             );
-            return None;
+            return Err(());
         };
+        let native_signature = self.function_types[native_function_type].clone();
         if *context_index < 0 || *context_index as usize >= native_signature.parameter_types.len() {
             self.error(
                 *context_span,
                 "foreign callback `contextIndex` is outside the native signature".to_string(),
             );
-            return None;
+            return Err(());
         }
         let context_type = native_signature.parameter_types[*context_index as usize];
         if !matches!(self.types[context_type], hir::Type::Ptr(pointee) if pointee == self.unit) {
@@ -77,7 +66,7 @@ impl Lowerer {
                 *context_span,
                 "foreign callback context parameter must be exactly `Ptr<Unit>`".to_string(),
             );
-            return None;
+            return Err(());
         }
 
         let managed_parameters = native_signature
@@ -86,12 +75,47 @@ impl Lowerer {
             .enumerate()
             .filter_map(|(index, ty)| (index != *context_index as usize).then_some(*ty))
             .collect();
+        Ok(Some(self.intern_function_type(
+            false,
+            managed_parameters,
+            native_signature.return_type,
+        )))
+    }
+
+    pub(super) fn lower_foreign_callback_registration(
+        &mut self,
+        core: hir::ForeignCallbackCore,
+        function: hir::FunctionId,
+        call: &ast::CallExpr,
+        resolved: crate::overload::ResolvedCallee,
+    ) -> Option<hir::Expr> {
+        debug_assert_eq!(function, core.register);
+        let [native_ty] = resolved.type_args.as_slice() else {
+            unreachable!("validated registration intrinsic has one concrete type argument")
+        };
+        let hir::Type::Function(native_function_type) = self.types[*native_ty] else {
+            unreachable!("registration candidate validation requires a function type")
+        };
+        let native_signature = self.function_types[native_function_type].clone();
+        let [closure, context_index, mode]: [hir::Expr; 3] = resolved
+            .args
+            .try_into()
+            .expect("validated registration intrinsic has three arguments");
+        let ExprKind::IntLiteral(context_index) = context_index.kind else {
+            unreachable!("registration candidate validation requires a literal context index")
+        };
+
+        let managed_parameters = native_signature
+            .parameter_types
+            .iter()
+            .enumerate()
+            .filter_map(|(index, ty)| (index != context_index as usize).then_some(*ty))
+            .collect();
         let managed_ty =
             self.intern_function_type(false, managed_parameters, native_signature.return_type);
         let hir::Type::Function(managed_function_type) = self.types[managed_ty] else {
             unreachable!("interned managed callback signature is a function type")
         };
-        let closure = self.lower_expr(&call.args[0], sink, Some(managed_ty))?;
         if !self.types_equal(closure.ty, managed_ty) {
             self.error(
                 closure.span,
@@ -104,8 +128,6 @@ impl Lowerer {
             return None;
         }
 
-        let mode_ty = self.interned_enum_type(core.mode);
-        let mode = self.lower_expr(&call.args[2], sink, Some(mode_ty))?;
         let ExprKind::VariantConstruct {
             application,
             variant,
@@ -133,22 +155,21 @@ impl Lowerer {
         } else {
             hir::ForeignCallbackMode::OneShot
         };
-        self.check_call_effects(hir::Callable::Function(core.register), call.span);
+        self.check_call_effects(hir::Callable::Function(function), call.span);
         let registration =
             self.foreign_callback_registrations
                 .alloc(hir::ForeignCallbackRegistration {
                     native_function_type,
                     managed_function_type,
-                    context_index: *context_index as u32,
+                    context_index: context_index as u32,
                     mode,
                 });
-        let ty = self.struct_application(core.callback, vec![native_ty]);
         Some(hir::Expr {
             kind: ExprKind::ForeignCallbackRegister {
                 registration,
                 closure: Box::new(closure),
             },
-            ty,
+            ty: resolved.return_ty,
             span: call.span,
         })
     }
@@ -156,50 +177,26 @@ impl Lowerer {
     pub(super) fn lower_foreign_callback_call(
         &mut self,
         core: hir::ForeignCallbackCore,
+        function: hir::FunctionId,
         operation: hir::ForeignCallbackOperation,
         call: &ast::CallExpr,
-        sink: &mut Vec<hir::Statement>,
+        resolved: crate::overload::ResolvedCallee,
     ) -> Option<hir::Expr> {
-        let function = match operation {
+        let expected_function = match operation {
             hir::ForeignCallbackOperation::Retain => core.retain,
             hir::ForeignCallbackOperation::Release => core.release,
             hir::ForeignCallbackOperation::State => core.query_state,
             hir::ForeignCallbackOperation::Failure => core.failure,
         };
-        if call.args.len() != 1 || call.type_args.len() > 1 {
-            self.error(
-                call.span,
-                format!("`{}` expects one callback value", call.callee.text),
-            );
-            return None;
-        }
-        let explicit = if let Some(ty) = call.type_args.first() {
-            Some(self.resolve_type_ref(ty)?)
-        } else {
-            None
+        debug_assert_eq!(function, expected_function);
+        let [callback]: [hir::Expr; 1] = resolved
+            .args
+            .try_into()
+            .expect("validated callback operation has one argument");
+        let [function_ty] = resolved.type_args.as_slice() else {
+            unreachable!("validated callback operation has one concrete type argument")
         };
-        let expected_callback =
-            explicit.map(|function| self.struct_application(core.callback, vec![function]));
-        let callback = self.lower_expr(&call.args[0], sink, expected_callback)?;
-        let hir::Type::Struct(application) = self.types[callback.ty] else {
-            self.error(
-                callback.span,
-                "managed callback token operation requires `ForeignCallback<F>`".to_string(),
-            );
-            return None;
-        };
-        let application = self.struct_applications[application].clone();
-        if application.template != core.callback || application.arguments.len() != 1 {
-            self.error(
-                callback.span,
-                "managed callback token operation requires `ForeignCallback<F>`".to_string(),
-            );
-            return None;
-        }
-        let function_ty = application.arguments[0];
-        if !matches!(self.types[function_ty], hir::Type::Function(_))
-            || explicit.is_some_and(|explicit| !self.types_equal(explicit, function_ty))
-        {
+        if !matches!(self.types[*function_ty], hir::Type::Function(_)) {
             self.error(
                 callback.span,
                 "`ForeignCallback` type argument must be one concrete function type".to_string(),
@@ -207,13 +204,12 @@ impl Lowerer {
             return None;
         }
         self.check_call_effects(hir::Callable::Function(function), call.span);
-        let return_ty = self.instantiate_ty(self.signatures[&function].return_ty, &[function_ty]);
         Some(hir::Expr {
             kind: ExprKind::ForeignCallbackOperation {
                 operation,
                 callback: Box::new(callback),
             },
-            ty: return_ty,
+            ty: resolved.return_ty,
             span: call.span,
         })
     }

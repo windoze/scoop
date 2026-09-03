@@ -96,6 +96,7 @@ struct Candidate {
     own_type_param_count: usize,
     owner_arguments: Vec<TypeId>,
     explicit_arity_match: bool,
+    call_span: Span,
 }
 
 enum OverloadReceiver {
@@ -301,6 +302,7 @@ impl Lowerer {
                     own_type_param_count,
                     owner_arguments,
                     explicit_arity_match,
+                    call_span: span,
                     view,
                 }
             })

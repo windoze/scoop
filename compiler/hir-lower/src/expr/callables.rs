@@ -68,23 +68,6 @@ impl Lowerer {
                 return self.lower_array_conversion(call, sink, target_kind);
             }
         }
-        if let Some(core) = self.foreign_callback_core
-            && !self
-                .functions_by_name
-                .get(&call.callee.text)
-                .is_some_and(|functions| {
-                    functions
-                        .iter()
-                        .any(|function| self.function_files[function] == self.user_file_index)
-                })
-        {
-            if call.callee.text == "foreignCallback" {
-                return self.lower_foreign_callback_registration(core, call, sink);
-            }
-            if let Some(operation) = self.foreign_callback_operation(core, &call.callee.text) {
-                return self.lower_foreign_callback_call(core, operation, call, sink);
-            }
-        }
         match self.classify_constructor(&call.callee)? {
             Constructor::Variant { enum_id, variant } => self.lower_variant_construct(
                 enum_id,

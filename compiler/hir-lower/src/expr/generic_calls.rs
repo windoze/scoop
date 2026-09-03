@@ -195,6 +195,25 @@ impl Lowerer {
             sink,
         )?;
         let function = resolved.function();
+        if let Some(core) = self.foreign_callback_core {
+            if function == core.register {
+                return self.lower_foreign_callback_registration(core, function, call, resolved);
+            }
+            let operation = if function == core.retain {
+                Some(hir::ForeignCallbackOperation::Retain)
+            } else if function == core.release {
+                Some(hir::ForeignCallbackOperation::Release)
+            } else if function == core.query_state {
+                Some(hir::ForeignCallbackOperation::State)
+            } else if function == core.failure {
+                Some(hir::ForeignCallbackOperation::Failure)
+            } else {
+                None
+            };
+            if let Some(operation) = operation {
+                return self.lower_foreign_callback_call(core, function, operation, call, resolved);
+            }
+        }
         if self.ffi_core.is_some_and(|core| {
             function == core.address_of || function == core.size_of || function == core.align_of
         }) {
